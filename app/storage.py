@@ -14,41 +14,35 @@ STATE_PATH = DATA_DIR / "state.json"
 
 
 def _default_config() -> dict[str, Any]:
-    """Configuración basada en el Kommo real de Bodasesor."""
+    """Config alineada con Kommo real + api-server de Lucy."""
     return {
         "account_name": "Bodasesor · Kommo Simulador",
         "pipelines": [
             {
                 "id": "pipeline_bodasesor",
-                "name": "Pipeline principal",
+                "name": "Embudo de ventas",
+                "kommo_pipeline_id": 9335963,
                 "stages": [
-                    {"id": "stage_datos_intereses", "name": "Datos e Interesess del cliente", "color": "#99ccff", "sort": 0},
-                    {"id": "stage_humano_trabaja", "name": "Humano Trabaja", "color": "#ffb3ba", "sort": 1},
-                    {"id": "stage_cotizacion", "name": "Cotización realizada", "color": "#b5e8b5", "sort": 2},
-                    {"id": "stage_seguimiento_1", "name": "Seguimiento primer mensaje", "color": "#d4b5ff", "sort": 3},
-                    {"id": "stage_seguimiento_2", "name": "Seguimineto 2do mensaje", "color": "#99ccff", "sort": 4},
-                    {"id": "stage_intencion_pago", "name": "Intención de paga", "color": "#b5e8b5", "sort": 5},
-                    {"id": "stage_no_contesta", "name": "CLiente no contesta", "color": "#ffb3a7", "sort": 6},
-                    {"id": "stage_cerrado", "name": "Cliente cerrado", "color": "#a8ff60", "sort": 7},
-                    {"id": "stage_perdido", "name": "Cliente perdido", "color": "#c0c0c0", "sort": 8},
+                    {"id": "stage_datos_intereses", "name": "Datos e Interesess del cliente", "color": "#99ccff", "sort": 0, "kommo_status_id": 80344783},
+                    {"id": "stage_humano_trabaja", "name": "Humano Trabaja", "color": "#ffb3ba", "sort": 1, "kommo_status_id": 105583875},
+                    {"id": "stage_cotizacion", "name": "Cotización realizada", "color": "#b5e8b5", "sort": 2, "kommo_status_id": 72336827},
+                    {"id": "stage_seguimiento_1", "name": "Seguimiento primer mensaje", "color": "#d4b5ff", "sort": 3, "kommo_status_id": None},
+                    {"id": "stage_seguimiento_2", "name": "Seguimineto 2do mensaje", "color": "#99ccff", "sort": 4, "kommo_status_id": None},
+                    {"id": "stage_intencion_pago", "name": "Intención de paga", "color": "#b5e8b5", "sort": 5, "kommo_status_id": None},
+                    {"id": "stage_no_contesta", "name": "CLiente no contesta", "color": "#ffb3a7", "sort": 6, "kommo_status_id": 105583415},
+                    {"id": "stage_cerrado", "name": "Cliente cerrado", "color": "#a8ff60", "sort": 7, "kommo_status_id": None},
+                    {"id": "stage_perdido", "name": "Cliente perdido", "color": "#c0c0c0", "sort": 8, "kommo_status_id": 143},
                 ],
             }
         ],
         "custom_fields": [
-            {"id": "cf_presupuesto", "name": "Presupuesto", "field_type": "text", "required": False},
-            {"id": "cf_currency", "name": "Currency", "field_type": "text", "required": False},
-            {"id": "cf_external_id", "name": "External id", "field_type": "text", "required": False},
-            {"id": "cf_fulfillment_status", "name": "Fulfillment status", "field_type": "select", "options": [], "required": False},
-            {"id": "cf_order_status", "name": "Order status", "field_type": "select", "options": [], "required": False},
-            {"id": "cf_payment_status", "name": "Payment status", "field_type": "select", "options": [], "required": False},
-            {"id": "cf_order_link", "name": "Order link", "field_type": "text", "required": False},
-            {"id": "cf_direccion", "name": "Dirección del evento", "field_type": "text", "required": False},
-            {"id": "cf_requerimiento", "name": "Requerimiento", "field_type": "text", "required": False},
-            {"id": "cf_fecha_horario", "name": "Fecha Y horari", "field_type": "text", "required": False},
-            {"id": "cf_num_invitados", "name": "Numero de Inv", "field_type": "number", "required": False},
-            {"id": "cf_tipo_evento", "name": "Tipo de evento", "field_type": "text", "required": False},
-            {"id": "cf_presupuesto_evento", "name": "Presupuesto (evento)", "field_type": "text", "required": False},
-            {"id": "cf_respuesta_ia_1", "name": "Respuesta IA 1", "field_type": "text", "required": False},
+            {"id": "cf_presupuesto", "name": "Presupuesto", "field_type": "text", "kommo_field_id": 1048784},
+            {"id": "cf_direccion", "name": "Dirección del evento", "field_type": "text", "kommo_field_id": 1048774},
+            {"id": "cf_requerimiento", "name": "Requerimiento", "field_type": "text", "kommo_field_id": 1048776},
+            {"id": "cf_fecha_horario", "name": "Fecha Y horari", "field_type": "text", "kommo_field_id": 1048778},
+            {"id": "cf_num_invitados", "name": "Numero de Inv", "field_type": "number", "kommo_field_id": 1048780},
+            {"id": "cf_tipo_evento", "name": "Tipo de evento", "field_type": "text", "kommo_field_id": 1048782},
+            {"id": "cf_respuesta_ia_1", "name": "Respuesta IA 1", "field_type": "text", "kommo_field_id": 1048786},
         ],
     }
 

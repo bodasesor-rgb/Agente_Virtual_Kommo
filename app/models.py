@@ -10,11 +10,13 @@ class Stage(BaseModel):
     name: str
     color: str = "#4a90d9"
     sort: int = 0
+    kommo_status_id: int | None = None
 
 
 class Pipeline(BaseModel):
     id: str
     name: str
+    kommo_pipeline_id: int | None = None
     stages: list[Stage] = Field(default_factory=list)
 
 
@@ -24,6 +26,7 @@ class CustomField(BaseModel):
     field_type: str = "text"  # text | number | select | checkbox | date
     options: list[str] = Field(default_factory=list)
     required: bool = False
+    kommo_field_id: int | None = None
 
 
 class Lead(BaseModel):

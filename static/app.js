@@ -239,7 +239,7 @@ function renderConfig() {
       (f) => `
       <div class="config-item">
         <strong>${f.name}</strong>
-        <div style="color:var(--muted); font-size:12px;">ID: ${f.id} · Tipo: ${f.field_type}</div>
+        <div style="color:var(--muted); font-size:12px;">ID sim: ${f.id}${f.kommo_field_id ? ` · Kommo: ${f.kommo_field_id}` : ""} · Tipo: ${f.field_type}</div>
       </div>`
     )
     .join("");

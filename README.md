@@ -1,33 +1,64 @@
-# Agente Virtual Kommo — Simulador
+# Agente Virtual Kommo — Simulador + Lucy (api-server)
 
-Simulador tipo Kommo para probar el agente de IA **antes** de conectarlo al CRM real de Bodasesor.
+Simulador tipo Kommo para probar **Lucy** antes de conectar al CRM real.
 
-## Qué incluye
+## Estructura del repo
 
-- **Embudo fake** con tus 9 etapas reales (Datos e Interesess del cliente → Cliente perdido)
-- **Campos personalizados** como en tu Kommo (Dirección, Fecha Y horari, Numero de Inv, Respuesta IA 1, etc.)
-- **Lead de ejemplo**: Montserrat (WhatsApp Business, Pachuca, 70 invitados, fiesta)
-- **Chat de prueba**: escribes como cliente y el agente responde
-- **Movimiento de embudo**: arrastrar leads entre etapas o dejar que el agente lo haga
+```
+api-server/          ← Código Lucy de Replit (TypeScript/Express)
+app/                 ← Simulador Kommo fake (Python/FastAPI)
+static/              ← UI del simulador
+```
 
-## Arrancar en local
+## Qué incluye el simulador
+
+- Embudo con las 9 etapas de Bodasesor (IDs Kommo donde están en el código)
+- Campos con `kommo_field_id` reales (1048774, 1048776, etc.)
+- Lead demo Montserrat
+- Chat de prueba sin tocar Kommo real
+
+## Arrancar simulador (Python)
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env   # opcional: OPENAI_API_KEY
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --port 8000
 ```
 
 Abre: http://localhost:8000
 
-## Modos del agente
+## Arrancar Lucy api-server (Node)
 
-1. **Demo (sin API key)**: respuestas fijas de prueba
-2. **GPT real**: agrega `OPENAI_API_KEY` en `.env`
-3. **Tu código Replit**: agrega `AGENT_WEBHOOK_URL` apuntando a tu servidor
+**Nota:** el zip trae dependencias de monorepo (`@workspace/db`, `@workspace/api-zod`).
+Faltan esos paquetes para correr standalone. Opciones:
 
-## Próximo paso
+1. Mandar también las carpetas `@workspace/db` y root `pnpm-workspace.yaml`
+2. O usar el `dist/` precompilado si tienes las env vars
 
-Cuando el flujo funcione aquí, conectamos el webhook real de Kommo con los mismos campos y etapas.
+```bash
+cd api-server
+npm install   # requiere ajustar dependencias workspace
+npm run build
+npm start
+```
+
+Endpoints principales de Lucy:
+- `POST /api/kommo/webhook` — mensajes entrantes WhatsApp
+- `POST /api/kommo/salesbot` — Salesbot síncrono
+- `POST /api/kommo/pipeline-change` — cuando Rodrigo mueve etapa
+
+## Conectar simulador → Lucy
+
+En `.env` del simulador:
+```
+AGENT_WEBHOOK_URL=http://localhost:3000/api/kommo/salesbot
+```
+
+## Qué falta del Repl (para migración completa)
+
+| Carpeta / paquete | Para qué |
+|-------------------|----------|
+| `@workspace/db` | Base de datos (conversaciones, scores) |
+| `@workspace/api-zod` | Schemas compartidos |
+| `whatsapp-sender/` | Envío Meta WhatsApp |
+| `mockup-sandbox/` | Sandbox que ya tenías |
+| `pnpm-workspace.yaml` + root `package.json` | Monorepo |
