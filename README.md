@@ -53,12 +53,22 @@ En `.env` del simulador:
 AGENT_WEBHOOK_URL=http://localhost:3000/api/kommo/salesbot
 ```
 
-## Qué falta del Repl (para migración completa)
+## Qué falta del Repl
 
-| Carpeta / paquete | Para qué |
-|-------------------|----------|
-| `@workspace/db` | Base de datos (conversaciones, scores) |
-| `@workspace/api-zod` | Schemas compartidos |
-| `whatsapp-sender/` | Envío Meta WhatsApp |
-| `mockup-sandbox/` | Sandbox que ya tenías |
-| `pnpm-workspace.yaml` + root `package.json` | Monorepo |
+| Carpeta / paquete | Estado |
+|-------------------|--------|
+| `lib/db` (`@workspace/db`) | **Recreado aquí** desde el uso en Lucy (no hace falta buscarlo en Replit) |
+| `lib/api-zod` | **Recreado aquí** (mínimo para health check) |
+| `package.json` + `pnpm-workspace.yaml` | **Ya integrados** |
+| `whatsapp-sender/` | Ya en repo |
+| `mockup-sandbox/`, `lucy-admin/` | Opcional (están en `artifacts.zip`) |
+
+### Arrancar monorepo Lucy
+
+```bash
+# Requiere PostgreSQL local (o DATABASE_URL de Replit)
+pnpm install
+cd lib/db && pnpm exec drizzle-kit push   # crea tablas
+cd ../../api-server && pnpm run build && pnpm start
+```
+
