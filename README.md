@@ -57,8 +57,9 @@ AGENT_WEBHOOK_URL=http://localhost:3000/api/kommo/salesbot
 
 | Carpeta / paquete | Estado |
 |-------------------|--------|
-| `lib/db` (`@workspace/db`) | **Recreado aquí** desde el uso en Lucy (no hace falta buscarlo en Replit) |
-| `lib/api-zod` | **Recreado aquí** (mínimo para health check) |
+| `lib/db` (`@workspace/db`) | **Original de Replit** (`lib.zip`) |
+| `lib/api-zod` | **Original de Replit** (`lib.zip`) |
+| `lib/api-client-react` + `lib/api-spec` | Bonus para `lucy-admin` |
 | `package.json` + `pnpm-workspace.yaml` | **Ya integrados** |
 | `whatsapp-sender/` | Ya en repo |
 | `mockup-sandbox/`, `lucy-admin/` | Opcional (están en `artifacts.zip`) |

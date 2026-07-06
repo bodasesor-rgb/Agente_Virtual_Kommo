@@ -1,0 +1,195 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: examples
+    description: Lucy training examples
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /examples:
+    get:
+      operationId: listExamples
+      tags: [examples]
+      summary: List all training examples
+      responses:
+        "200":
+          description: List of training examples
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExampleList"
+    post:
+      operationId: createExample
+      tags: [examples]
+      summary: Add a new training example
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExampleBody"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Example"
+
+  /examples/stats:
+    get:
+      operationId: getExamplesStats
+      tags: [examples]
+      summary: Training examples summary stats
+      responses:
+        "200":
+          description: Stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExamplesStats"
+
+  /examples/{id}:
+    delete:
+      operationId: deleteExample
+      tags: [examples]
+      summary: Delete a training example
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+    patch:
+      operationId: updateExample
+      tags: [examples]
+      summary: Update a training example
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateExampleBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Example"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    Example:
+      type: object
+      properties:
+        id:
+          type: string
+        userMessage:
+          type: string
+          description: What the client says
+        lucyResponse:
+          type: string
+          description: How Lucy should respond
+        label:
+          type: string
+          description: Optional label / category for this example
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userMessage
+        - lucyResponse
+        - createdAt
+
+    ExampleList:
+      type: object
+      properties:
+        examples:
+          type: array
+          items:
+            $ref: "#/components/schemas/Example"
+        total:
+          type: integer
+      required:
+        - examples
+        - total
+
+    CreateExampleBody:
+      type: object
+      properties:
+        userMessage:
+          type: string
+        lucyResponse:
+          type: string
+        label:
+          type: string
+      required:
+        - userMessage
+        - lucyResponse
+
+    ExamplesStats:
+      type: object
+      properties:
+        total:
+          type: integer
+        byLabel:
+          type: object
+          additionalProperties:
+            type: integer
+        lastUpdated:
+          type: string
+          format: date-time
+      required:
+        - total
+        - byLabel
+
+    DeleteResult:
+      type: object
+      properties:
+        ok:
+          type: boolean
+      required:
+        - ok
