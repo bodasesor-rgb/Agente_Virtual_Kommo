@@ -1,8 +1,8 @@
 import OpenAI from "openai";
-import { getOpenAiApiKey } from "../lib/openaiEnv.js";
+import { getOpenAiApiKeyForClient } from "../lib/openaiEnv.js";
 import type pino from "pino";
 
-const openai = new OpenAI({ apiKey: getOpenAiApiKey() });
+const openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 
 type Log = pino.Logger;
 type Msg = Record<string, unknown>;

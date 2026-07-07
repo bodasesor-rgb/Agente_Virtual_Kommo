@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { getOpenAiApiKey } from "../lib/openaiEnv.js";
+import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
 import { CATALOGO_BODASESOR } from "../catalogo.js";
@@ -39,7 +39,7 @@ import {
 
 const router: IRouter = Router();
 
-const openai = new OpenAI({ apiKey: getOpenAiApiKey() });
+const openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 
 // ─── Kommo field IDs (hardcoded — no lookup needed) ──────────────────────────
 const FIELD = {
@@ -2075,7 +2075,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     return;
   }
 
-  if (!getOpenAiApiKey()) {
+  if (!isOpenAiConfigured()) {
     res.status(200).json({
       status: "error",
       reply:

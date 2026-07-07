@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
-import { getOpenAiApiKey } from "../lib/openaiEnv.js";
+import { getOpenAiApiKey, isOpenAiConfigured } from "../lib/openaiEnv.js";
 
 const router: IRouter = Router();
 
@@ -18,7 +18,7 @@ router.get("/health", (_req, res) => {
     uptime: process.uptime(),
     service: "Lucy Bodasesor",
     version: "3.0",
-    openai_configured: key.length > 0,
+    openai_configured: isOpenAiConfigured(),
     openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "…" : null,
   });
 });

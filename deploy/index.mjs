@@ -46505,8 +46505,15 @@ var require_follow_redirects = __commonJS({
 })();
 
 // src/lib/openaiEnv.ts
+var PLACEHOLDER_KEY = "lucy-not-configured";
 function getOpenAiApiKey() {
   return process.env["OPEN_AI"]?.trim() || process.env["OPENAI_API_KEY"]?.trim() || "";
+}
+function getOpenAiApiKeyForClient() {
+  return getOpenAiApiKey() || PLACEHOLDER_KEY;
+}
+function isOpenAiConfigured() {
+  return getOpenAiApiKey().length > 0;
 }
 function ensureOpenAiApiKeyEnv() {
   const key = getOpenAiApiKey();
@@ -50474,7 +50481,7 @@ router.get("/health", (_req, res) => {
     uptime: process.uptime(),
     service: "Lucy Bodasesor",
     version: "3.0",
-    openai_configured: key.length > 0,
+    openai_configured: isOpenAiConfigured(),
     openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "\u2026" : null
   });
 });
@@ -74890,7 +74897,7 @@ Ofrece propuesta para comparar. M\xE1ximo 2 l\xEDneas.`
 }
 
 // src/services/voiceProcessor.ts
-var openai = new OpenAI({ apiKey: getOpenAiApiKey() });
+var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var AUDIO_TYPES = /* @__PURE__ */ new Set(["audio", "voice"]);
 async function transcribeVoiceNote(audioUrl, accessToken, log) {
   try {
@@ -80674,7 +80681,7 @@ async function verificarLeadsInactivos(subdomain, accessToken) {
 
 // src/routes/kommo.ts
 var router2 = (0, import_express2.Router)();
-var openai2 = new OpenAI({ apiKey: getOpenAiApiKey() });
+var openai2 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var FIELD = {
   // respuesta_ia (1048772) eliminado de Kommo — no usar o el PATCH falla
   respuesta_ia_largo: 1048786,
@@ -82002,7 +82009,7 @@ router2.post("/kommo/simulator", async (req, res) => {
     res.status(400).json({ error: "no_message_text" });
     return;
   }
-  if (!getOpenAiApiKey()) {
+  if (!isOpenAiConfigured()) {
     res.status(200).json({
       status: "error",
       reply: "Lucy no tiene OPEN_AI (o OPENAI_API_KEY) configurada. A\xF1\xE1dela en Hostinger y reinicia.",

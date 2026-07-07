@@ -1,6 +1,38 @@
 # Hostinger — pasos si sigue fallando
 
-## 1. Confirma que Hostinger usa `main` actualizado
+## Error 503 en el sitio
+
+Significa que **Lucy no arrancó** (proceso caído). Causas más comunes:
+
+### A) Falta `OPEN_AI` en Hostinger
+
+En hPanel → Node.js → **Variables de entorno**:
+
+| Nombre | Valor |
+|--------|-------|
+| **`OPEN_AI`** | `sk-proj-...` (tu key completa, sin comillas) |
+
+Guarda y **redespliega**.
+
+### B) Deploy viejo o fallido
+
+1. GitHub → rama `main` actualizada
+2. Hostinger → Redesplegar
+3. Revisa **Registros** del deploy — busca `Missing credentials` o `FALTA archivo`
+
+### C) Comprobar que Lucy vive
+
+Cuando funcione, esto debe responder JSON (no 503):
+
+`https://TU-DOMINIO.hostingersite.com/api/health`
+
+```json
+{"status":"ok","openai_configured":true,...}
+```
+
+Si `openai_configured` es `false`, la key no llegó — revisa el nombre **`OPEN_AI`**.
+
+---
 
 El fix está en `main`. En GitHub → commits, debe existir:
 - `start.mjs` en la raíz
