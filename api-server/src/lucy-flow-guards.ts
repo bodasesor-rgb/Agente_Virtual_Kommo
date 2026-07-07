@@ -1,6 +1,6 @@
 import type { OpenAI } from "openai";
 import type { ExtractedData } from "./types.js";
-import { resolveClientDisplayName } from "./contact-name.js";
+import { resolveClientDisplayName, sanitizeDisplayName } from "./contact-name.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 export const BODASESOR_EMAIL = "hola@bodasesor.com";
@@ -18,6 +18,9 @@ export const CLOSING_CORE_FIELDS = [
   "Fecha y horario",
   "Presupuesto (MXN)",
 ] as const;
+
+/** Presentación obligatoria en el primer mensaje de Lucy. */
+export const LUCY_INTRO = "Hola, soy Lucy de Bodasesor.";
 
 /** Plantillas legacy — preferir variantes naturales vía buildNaturalQuestion(). */
 export const FLOW_QUESTIONS = {
@@ -238,6 +241,99 @@ export function getNextPendingField(
   if (!filled.has("Fecha y horario")) return "fecha";
   if (!filled.has("Presupuesto (MXN)")) return "presupuesto";
   return null;
+}
+
+function isFirstLucyReply(history: OpenAI.Chat.ChatCompletionMessageParam[]): boolean {
+  return !history.some((m) => m.role === "assistant");
+}
+
+/** Reconocimiento breve del primer mensaje del cliente (sin pedir otros datos). */
+export function buildOpeningAcknowledgment(
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): string {
+  const texts = collectUserTexts(history, currentMessage);
+  const userText = texts[texts.length - 1] ?? texts.join(" ");
+  const t = userText.toLowerCase();
+
+  if (/taquiza|tacos/.test(t)) {
+    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    const zona = userText.match(/\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,24})/i);
+    const fecha = userText.match(
+      /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i
+    );
+    let ack = "Te ayudo con la taquiza";
+    if (inv) ack += ` para ${inv[1]} personas`;
+    if (zona) ack += ` en ${zona[1].trim()}`;
+    if (fecha) ack += ` el ${fecha[1]}`;
+    return `${ack}.`;
+  }
+
+  if (/\bboda\b/.test(t)) {
+    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    const fecha = userText.match(
+      /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i
+    );
+    let ack = "Te ayudo con la cotización para tu boda";
+    if (fecha) ack += ` del ${fecha[1]}`;
+    if (inv) ack += ` para ${inv[1]} personas`;
+    return `${ack}.`;
+  }
+
+  if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
+  if (/banquete/.test(t)) {
+    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    return inv
+      ? `Te ayudo con el banquete para ${inv[1]} personas.`
+      : "Con gusto te ayudo con información de banquetes.";
+  }
+  if (/kosher/.test(t)) return "Sí tenemos opciones kosher.";
+  if (/cotiz|evento/.test(t)) return "Claro que te ayudo con tu evento.";
+  if (/^hola[.!?\s]*$/i.test(userText.trim())) {
+    return "Estoy aquí para ayudarte con lo que necesites para tu evento.";
+  }
+  if (userText.trim().length > 0) return "Con gusto te ayudo.";
+
+  return "Estoy aquí para ayudarte con lo que necesites para tu evento.";
+}
+
+/** Primer mensaje: presentación Lucy + reconocimiento breve + pedir nombre (o siguiente paso si ya lo dio). */
+export function buildFirstInteractionMessage(ctx: NaturalQuestionContext): string {
+  const history = ctx.history ?? [];
+  const filledSet = ctx.filledSet ?? new Set<string>();
+  const ack = buildOpeningAcknowledgment(history, ctx.currentMessage);
+
+  if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
+    const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
+    const pending = getNextPendingField(ctx.extracted, filledSet);
+    if (pending === "correo") {
+      return `${LUCY_INTRO} ${ack} ${buildCorreoQuestion(nombre, history, ctx.entityId)}`;
+    }
+    if (pending) {
+      return `${LUCY_INTRO} ${ack} Mucho gusto, ${nombre}. ${buildNaturalQuestion(pending, ctx)}`;
+    }
+    return `${LUCY_INTRO} ${ack} Mucho gusto, ${nombre}.`;
+  }
+
+  const nameQ = pickVariant("nombre", history, ctx.entityId);
+  return `${LUCY_INTRO} ${ack} ${nameQ}`;
+}
+
+/** Mientras falte el nombre, solo se permite pedir el nombre (nunca correo, fecha, etc.). */
+export function enforceNombreFirst(
+  _mensaje: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  ctx: NaturalQuestionContext
+): string {
+  const history = ctx.history ?? [];
+  if (isFirstLucyReply(history)) {
+    return buildFirstInteractionMessage(ctx);
+  }
+  if (!isFieldSatisfied("nombre", filledSet, extracted)) {
+    return buildNaturalQuestion("nombre", ctx);
+  }
+  return _mensaje;
 }
 
 export function mensajeAsksForField(mensaje: string, field: PendingField): boolean {
@@ -703,6 +799,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+
+  mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx);
 
   return mensaje;
 }

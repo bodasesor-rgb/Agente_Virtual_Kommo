@@ -5,7 +5,7 @@ import type { ExtractedData } from "../types.js";
 
 /**
  * Construye el prompt final para Lucy.
- * Base: SYSTEM_PROMPT V5 optimizado para gpt-4o-mini.
+ * Base: SYSTEM_PROMPT V6 optimizado para gpt-4o-mini.
  * Agrega módulos de objeción + contexto de primera interacción o conversación en curso.
  */
 export function buildDynamicPrompt(context: {
@@ -22,25 +22,17 @@ export function buildDynamicPrompt(context: {
   let prompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
 
   if (context.isFirstInteraction) {
-    if (context.hasClientName) {
-      prompt += `
+    prompt += `
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PRIMERA INTERACCION — NOMBRE DE WHATSAPP DISPONIBLE
+PRIMERA INTERACCION — OBLIGATORIO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Saluda con presentación estándar de Lucy usando el nombre del cliente que ya tienes.
-NO pidas el nombre de nuevo. Continúa con el siguiente dato faltante del flujo.`;
-    } else {
-      prompt += `
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PRIMERA INTERACCION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Aplica PASO 1 del prompt: usa EXACTAMENTE el saludo definido ahí.
-NUNCA termines sin pedir el nombre.`;
-    }
+1. SIEMPRE empieza con: "Hola, soy Lucy de Bodasesor."
+2. Reconoce brevemente lo que el cliente mencionó (si aplica).
+3. SIEMPRE pide el nombre como primer dato — aunque venga nombre en WhatsApp.
+4. En el primer mensaje NO pidas correo, fecha, invitados ni presupuesto antes del nombre.
+5. Si el cliente ya dio su nombre en ese mismo primer mensaje, preséntate y continúa con correo.`;
   } else {
     prompt += `
 
@@ -49,7 +41,7 @@ CONVERSACIÓN EN CURSO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 NO te presentes de nuevo.
-Sigue el orden del PASO 2. Revisa el CRM para saber qué dato falta.`;
+Sigue el orden del flujo. Revisa el CRM para saber qué dato falta.`;
   }
 
   if (hasObjection?.hasObjection && hasObjection.type) {

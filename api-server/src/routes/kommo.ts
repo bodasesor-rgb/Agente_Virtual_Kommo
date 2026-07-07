@@ -393,10 +393,9 @@ function buildCrmContext(
   const mergedLines = [...crmLines];
   const filledSet = new Set(mergedLines.map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
 
-  // Nombre: extracción, WhatsApp o respuesta directa al pedir nombre
+  // Nombre: solo extracción explícita o CRM — no prellenar desde WhatsApp
   if (!filledSet.has("Nombre del cliente")) {
-    const nombreVal =
-      sanitizeDisplayName(extracted.nombre) ?? sanitizeDisplayName(whatsappDisplayName);
+    const nombreVal = sanitizeDisplayName(extracted.nombre);
     if (nombreVal) {
       mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
       filledSet.add("Nombre del cliente");
@@ -571,6 +570,23 @@ function buildCrmContext(
     const lastLucy = history
       .filter((m) => m.role === "assistant" && typeof m.content === "string")
       .slice(-1)[0]?.content as string | undefined ?? "";
+
+    // Primer mensaje del lead: el cliente puede enviar solo su nombre
+    if (!filledSet.has("Nombre del cliente") && !history.some((m) => m.role === "assistant")) {
+      const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
+      const candidato = soyMatch ? soyMatch[1].trim() : msg;
+      const nombreDirecto = sanitizeDisplayName(candidato);
+      if (
+        nombreDirecto &&
+        candidato.length < 40 &&
+        !/\?/.test(candidato) &&
+        !/@/.test(candidato) &&
+        !/\d{4,}/.test(candidato)
+      ) {
+        mergedLines.push(`- Nombre del cliente: ${nombreDirecto}`);
+        filledSet.add("Nombre del cliente");
+      }
+    }
 
     // Nombre: si Lucy preguntó por nombre y el cliente respondió con texto sin @
     if (
@@ -1189,7 +1205,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       hasObjection: objectionResult.hasObjection ? objectionResult : undefined,
       crmContext,
       isFirstInteraction,
-      hasClientName: filledLabels.has("Nombre del cliente") || !!whatsappDisplayName,
+      hasClientName: filledLabels.has("Nombre del cliente"),
     });
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1782,13 +1798,10 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     ).context;
 
     const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
-    const preNameKnown = !!sanitizeDisplayName(whatsappDisplayName);
     const systemContent = isFirstInteraction
       ? basePrompt +
         crmContext +
-        (preNameKnown
-          ? "\n\nPRIMER MENSAJE. Saluda con presentación estándar usando el nombre de WhatsApp. No pidas el nombre de nuevo."
-          : "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo estándar de Lucy, sin variaciones.")
+        "\n\nPRIMER MENSAJE: SIEMPRE \"Hola, soy Lucy de Bodasesor.\" + reconocer tema + pedir nombre primero."
       : basePrompt + crmContext;
 
     const trainingExamples = getTrainingExamples();
@@ -2228,7 +2241,6 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
 
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
     const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse;
-    const preNameKnown = !!whatsappDisplayName;
 
     const trainingExamples = getTrainingExamples();
     const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
@@ -2240,9 +2252,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const systemContent = isFirstInteraction
       ? basePrompt +
         crmContext +
-        (preNameKnown
-          ? "\n\nPRIMER MENSAJE. Saluda con presentación estándar usando el nombre de WhatsApp. No pidas el nombre de nuevo."
-          : "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo estándar de Lucy, sin variaciones.")
+        "\n\nPRIMER MENSAJE: SIEMPRE \"Hola, soy Lucy de Bodasesor.\" + reconocer tema + pedir nombre primero."
       : basePrompt + crmContext;
 
     const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
