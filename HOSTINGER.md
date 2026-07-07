@@ -15,7 +15,7 @@ Hostinger a veces deja el **directorio raíz fijo en `./`**. Este repo ya está 
 | **Directorio raíz** | **`./`** (el que venga por defecto — no hace falta cambiarlo) |
 | Marco | Other |
 | Gestor de paquetes | npm |
-| **Comando compilación** | **`echo ok`** o **`npm run build`** |
+| **Comando compilación** | **`npm run build`** (Hostinger solo permite esto o dejarlo vacío — elige `npm run build`) |
 | **Directorio salida** | **`.`** |
 | **Archivo entrada** | **`start.mjs`** |
 
@@ -61,4 +61,4 @@ npm run sync-deploy     # copia dist/ → deploy/
 npm run start:dev       # arranca sin pasar por deploy/
 ```
 
-En producción Hostinger solo necesita `npm run build` (no hace nada) y `node start.mjs`.
+En producción Hostinger ejecuta `npm run build`, que en este repo solo imprime `ok` (no compila nada; el código ya viene precompilado en `deploy/`). Luego arranca con `start.mjs`.
