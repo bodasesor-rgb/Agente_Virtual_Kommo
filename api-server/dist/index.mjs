@@ -81932,7 +81932,7 @@ var port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
-app_default.listen(port, (err2) => {
+app_default.listen(port, "0.0.0.0", (err2) => {
   if (err2) {
     logger.error({ err: err2 }, "Error listening on port");
     process.exit(1);

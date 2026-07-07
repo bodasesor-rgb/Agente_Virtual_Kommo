@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Lucy API — build precompilado para Hostinger (sin npm install ni compile)",
+  "description": "Lucy API precompilado para Hostinger",
   "scripts": {
-    "start": "node index.mjs",
-    "build": "echo Precompiled - no build needed"
+    "start": "node start.mjs",
+    "build": "echo ok"
   },
   "engines": {
     "node": ">=22"

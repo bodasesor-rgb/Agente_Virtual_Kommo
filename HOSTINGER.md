@@ -1,61 +1,51 @@
-# Deploy en Hostinger — SIN compilar (recomendado)
+# Hostinger — configuración EXACTA
 
-La carpeta `deploy/` ya trae Lucy **precompilado**. No uses pnpm ni monorepo en Hostinger.
+## Lo que ves en el log (tsconfig warnings) NO es error
 
-## Configuración en hPanel
-
-| Campo | Valor |
-|-------|--------|
-| Rama | `main` |
-| Node | `22.x` |
-| **Directorio raíz** | **`deploy`** |
-| Marco | `Other` |
-
-### Compilación y salida
-
-| Campo | Valor |
-|-------|--------|
-| Gestor de paquetes | `npm` |
-| Comando de compilación | `echo ok` |
-| Directorio de salida | `.` |
-| Archivo de entrada | `index.mjs` |
-
-> No hace falta `npm install` ni `npm run build`. El código ya está listo.
-
-### Variables de entorno
-
-```
-OPENAI_API_KEY=sk-proj-...
-KOMMO_SUBDOMAIN=tu-subdominio
-KOMMO_ACCESS_TOKEN=...
-WHATSAPP_TOKEN=...
-PHONE_NUMBER_ID=...
-```
-
-### Probar
-
-```
-https://TU-DOMINIO.hostingersite.com/api/health
-```
-
-### Webhook Kommo
-
-```
-https://TU-DOMINIO.hostingersite.com/api/kommo/webhook
-```
+Si al final dice `Done in 348ms` → **el build sí pasó**.  
+El problema suele ser **cómo arranca** o **qué carpeta usa Hostinger**.
 
 ---
 
-## Desarrollo local (no Hostinger)
+## USA LA CARPETA `deploy` (sin compilar)
 
-```bash
-npm install
-npm run build
-npm start
-```
+| Campo en hPanel | Valor exacto |
+|-----------------|--------------|
+| Rama | `main` |
+| Node | `22.x` |
+| **Directorio raíz** | **`deploy`** |
+| Marco | Other |
+| Gestor de paquetes | npm |
+| **Comando compilación** | **`echo ok`** |
+| **Directorio salida** | **`.`** |
+| **Archivo entrada** | **`start.mjs`** |
 
-Para actualizar `deploy/` después de cambios:
+No uses `./` como raíz. No uses `pnpm run build`.
 
-```bash
-npm run build && cp api-server/dist/*.mjs api-server/dist/postgres.* deploy/
-```
+---
+
+## Variable de entorno obligatoria
+
+| Nombre | Valor |
+|--------|--------|
+| `OPENAI_API_KEY` | tu key sk-proj-... |
+
+Sin esto el servidor arranca pero Lucy no responde con GPT.
+
+---
+
+## Probar después del deploy
+
+1. `https://TU-DOMINIO.hostingersite.com/` → debe decir **Server running**
+2. `https://TU-DOMINIO.hostingersite.com/api/health` → debe decir `"status":"ok"`
+
+---
+
+## Si sigue fallando
+
+En Hostinger abre el deploy fallido → **Registros** → busca líneas **después** del build:
+- `FALTA archivo requerido` → no usaste carpeta `deploy`
+- `OPENAI_API_KEY` → falta el secret
+- `EADDRINUSE` / `PORT` → problema de puerto (raro en Hostinger)
+
+Manda captura de esas líneas (no la key).
