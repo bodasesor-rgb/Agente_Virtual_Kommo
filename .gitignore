@@ -8,7 +8,6 @@ data/lucy-pgdata/
 *.egg-info/
 *.tsbuildinfo
 imports/
-api-server/dist/
 api-server/node_modules/
 lib/db/node_modules/
 whatsapp-sender/node_modules/
