@@ -8,6 +8,7 @@ import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
   applyEmailWaiver,
   applyLucyMessageGuards,
+  applyWhatsappNombreFallback,
   CLOSING_CORE_FIELDS,
   collectUserTexts,
   detectEmailRefusal,
@@ -16,6 +17,7 @@ import {
   mensajeAsksForField,
   nextFieldQuestion,
   isValidRequerimientosValue,
+  parseNombreFromCrmLines,
 } from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -666,6 +668,9 @@ function buildCrmContext(
     }
   }
 
+  // Nombre de WhatsApp: solo si Lucy ya preguntó y el cliente nunca lo escribió
+  applyWhatsappNombreFallback(filledSet, mergedLines, whatsappDisplayName, history);
+
   applyEmailWaiver(
     filledSet,
     mergedLines,
@@ -851,6 +856,12 @@ function isValidExtractedString(val: string | null | undefined): val is string {
   const trimmed = val.trim();
   if (trimmed.length === 0) return false;
   return !PLACEHOLDER_PATTERNS.some((p) => p.test(trimmed));
+}
+
+function withCrmNombre(extracted: ExtractedData, mergedLines: string[]): ExtractedData {
+  const nombreCrm = parseNombreFromCrmLines(mergedLines);
+  if (!nombreCrm || isValidExtractedString(extracted.nombre)) return extracted;
+  return { ...extracted, nombre: nombreCrm };
 }
 
 function buildPatchPayload(
@@ -1405,7 +1416,11 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // Ya NO se escribe campo 1048786 — envío directo via Meta API arriba.
     // El lead NO se mueve de etapa — Alejandro lo mueve manualmente.
     // ══════════════════════════════════════════════════════════════════════
-    const payload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
+    const payload = buildPatchPayload(
+      mensajeParaCliente,
+      withCrmNombre(extracted, crmMergedLines),
+      conversationText
+    );
     const cfvToSend = payload["custom_fields_values"] as Array<{ field_id: number; values: Array<{ value: unknown }> }>;
 
     log.info(

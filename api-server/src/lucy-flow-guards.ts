@@ -4,6 +4,8 @@ import { resolveClientDisplayName, sanitizeDisplayName } from "./contact-name.js
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 export const BODASESOR_EMAIL = "hola@bodasesor.com";
+/** Sufijo CRM cuando el nombre viene de WhatsApp porque el cliente no lo escribió. */
+export const WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp — el cliente no lo escribió)";
 
 const EMAIL_REFUSAL_PATTERN =
   /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
@@ -245,6 +247,47 @@ export function getNextPendingField(
 
 function isFirstLucyReply(history: OpenAI.Chat.ChatCompletionMessageParam[]): boolean {
   return !history.some((m) => m.role === "assistant");
+}
+
+/** True si Lucy ya preguntó el nombre en algún mensaje anterior. */
+export function lucyAskedForNombre(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  return history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .some((m) => mensajeAsksForField(m.content as string, "nombre"));
+}
+
+/**
+ * Respaldo: usa nombre de WhatsApp solo si Lucy ya preguntó el nombre
+ * y el cliente nunca lo escribió. No salta el paso — solo completa el dato.
+ */
+export function applyWhatsappNombreFallback(
+  filledSet: Set<string>,
+  mergedLines: string[],
+  whatsappDisplayName: string | null | undefined,
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  if (filledSet.has("Nombre del cliente")) return false;
+  if (!lucyAskedForNombre(history)) return false;
+
+  const waName = sanitizeDisplayName(whatsappDisplayName);
+  if (!waName) return false;
+
+  mergedLines.push(`- Nombre del cliente: ${waName} ${WHATSAPP_NOMBRE_NOTE}`);
+  filledSet.add("Nombre del cliente");
+  return true;
+}
+
+/** Lee el nombre capturado en líneas CRM (incluye fallback de WhatsApp). */
+export function parseNombreFromCrmLines(mergedLines: string[]): string | null {
+  const line = mergedLines.find((l) => /^-?\s*Nombre del cliente:/i.test(l));
+  if (!line) return null;
+  const raw = line
+    .replace(/^-?\s*Nombre del cliente:\s*/i, "")
+    .replace(WHATSAPP_NOMBRE_NOTE, "")
+    .trim();
+  return sanitizeDisplayName(raw);
 }
 
 /** Reconocimiento breve del primer mensaje del cliente (sin pedir otros datos). */
