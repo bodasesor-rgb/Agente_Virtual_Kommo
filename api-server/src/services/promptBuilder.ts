@@ -15,13 +15,24 @@ export function buildDynamicPrompt(context: {
   hasObjection?: ObjectionDetection;
   crmContext: string;
   isFirstInteraction?: boolean;
+  hasClientName?: boolean;
 }): string {
   const { hasObjection } = context;
 
   let prompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
 
   if (context.isFirstInteraction) {
-    prompt += `
+    if (context.hasClientName) {
+      prompt += `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRIMERA INTERACCION — NOMBRE DE WHATSAPP DISPONIBLE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Saluda con presentación estándar de Lucy usando el nombre del cliente que ya tienes.
+NO pidas el nombre de nuevo. Continúa con el siguiente dato faltante del flujo.`;
+    } else {
+      prompt += `
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PRIMERA INTERACCION
@@ -29,6 +40,7 @@ PRIMERA INTERACCION
 
 Aplica PASO 1 del prompt: usa EXACTAMENTE el saludo definido ahí.
 NUNCA termines sin pedir el nombre.`;
+    }
   } else {
     prompt += `
 

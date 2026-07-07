@@ -7,6 +7,8 @@
  * más fiable y estructurado que lo que extrae el LLM libremente.
  */
 
+import type { ExtractedData } from "../types.js";
+
 const MESES_CORTO: Record<string, string> = {
   enero: "ene", febrero: "feb", marzo: "mar", abril: "abr",
   mayo: "may", junio: "jun", julio: "jul", agosto: "ago",
@@ -119,6 +121,46 @@ function extraerPresupuesto(texto: string): string | null {
     }
   }
   return null;
+}
+
+function extraerZona(texto: string): string | null {
+  const m = texto.match(
+    /\b(en|para|zona|lugar|ciudad|colonia)\s+([A-ZÁÉÍÓÚÑa-záéíóúüñ][\wáéíóúüñ\s.-]{2,40})/i
+  );
+  if (!m) return null;
+  const zona = m[2]!.trim().replace(/\s+(para|el|la|un|una)\b.*$/i, "").trim();
+  return zona.length >= 3 ? zona : null;
+}
+
+/**
+ * Enriquece datos extraídos desde el texto completo de la conversación
+ * (sin contaminar el flujo con "Info pendiente").
+ */
+export function enrichExtractedFromText(extracted: ExtractedData, conversationText: string): void {
+  const texto = conversationText.toLowerCase();
+
+  if (!extracted.tipo_evento?.trim()) {
+    const tipo = extraerTipoEvento(texto);
+    if (tipo) extracted.tipo_evento = tipo;
+  }
+  if (!extracted.fecha_horario?.trim()) {
+    const fecha = extraerFecha(texto);
+    if (fecha) extracted.fecha_horario = fecha;
+  }
+  if (!extracted.num_invitados) {
+    const inv = extraerInvitados(texto);
+    if (inv) extracted.num_invitados = inv;
+  }
+  if (!extracted.direccion_evento?.trim()) {
+    const zona = extraerZona(conversationText);
+    if (zona) extracted.direccion_evento = zona;
+  }
+  if (!extracted.requerimientos_evento?.trim()) {
+    const servicios = extraerServicios(texto);
+    if (servicios.length > 0) {
+      extracted.requerimientos_evento = servicios.slice(0, 3).join(", ");
+    }
+  }
 }
 
 // ─── Función principal ────────────────────────────────────────────────────────

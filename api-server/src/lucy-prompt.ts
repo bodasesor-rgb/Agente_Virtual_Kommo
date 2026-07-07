@@ -145,9 +145,10 @@ Si NO → pregúntalo con la frase exacta de abajo.
 [ ] 3. Requerimientos:
         - CASO A (cliente YA mencionó un servicio concreto al inicio) → "Perfecto. Además del [servicio], ¿te gustaría cotizar algún otro servicio?"
         - CASO B (cliente NO mencionó ningún servicio concreto) → "Perfecto. Platícame, ¿qué tienes pensado para tu evento?"
-[ ] 4. Invitados   — "¿Cuánta gente más o menos?"
-[ ] 5. Zona        — "¿En qué zona sería?"
-[ ] 6. Fecha       — "¿Ya tienen fecha definida o la están viendo todavía?"
+[ ] 4. Tipo de evento — "¿Qué tipo de evento es? Por ejemplo boda, XV años, baby shower, cumpleaños o corporativo."
+[ ] 5. Invitados   — "¿Cuánta gente más o menos?"
+[ ] 6. Zona        — "¿En qué zona sería?"
+[ ] 7. Fecha       — "¿Ya tienen fecha definida o la están viendo todavía?"
 
 ⚠️ REQUERIMIENTOS — REGLA ABSOLUTA, NO NEGOCIABLE:
 

@@ -14,6 +14,7 @@ import {
   isEmailSatisfied,
   isReadyForClosing,
   nextFieldQuestion,
+  isValidRequerimientosValue,
 } from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -21,11 +22,16 @@ import { calculateLeadScore, detectStage } from "../services/leadScoring.js";
 import { detectIntent, analyzeSentiment, detectObjection } from "../services/intentDetection.js";
 import { buildDynamicPrompt } from "../services/promptBuilder.js";
 import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcessor.js";
-import { generateSummary } from "../services/summaryService.js";
+import { generateSummary, enrichExtractedFromText } from "../services/summaryService.js";
+import {
+  isPlaceholderLeadName,
+  sanitizeDisplayName,
+} from "../contact-name.js";
 import type { ExtractedData } from "../types.js";
 import {
   sendWhatsAppDirect,
   fetchContactPhone,
+  fetchContactDisplayName,
   registrarMensajeSalienteKommo,
 } from "../services/whatsappDirectSender.js";
 import {
@@ -72,6 +78,7 @@ const lastResponseCache = new Map<string, string>();
 // Se obtiene de Kommo Contacts la primera vez y se cachea para no hacer una
 // llamada extra a la API de Kommo en cada mensaje del mismo lead.
 const phoneCache = new Map<string, string>();
+const displayNameCache = new Map<string, string>();
 
 // ─── Debounce ─────────────────────────────────────────────────────────────────
 const DEBOUNCE_MS = 2000;
@@ -246,17 +253,16 @@ const FIELD_NAME: Record<number, string> = {
   [FIELD.presupuesto]:           "Presupuesto (MXN)",
 };
 
-// ─── Required fields in order — 6-step flow ───────────────────────────────────
-// Flujo: Nombre → Correo → Requerimientos → Zona/Dirección → Fecha → Invitados
-// Tipo de evento y Presupuesto se siguen extrayendo si se mencionan, pero NO
-// son pasos obligatorios del flujo — Lucy no los pregunta explícitamente.
+// ─── Required fields in order — flujo paso a paso ─────────────────────────────
+// Nombre → Correo (opcional) → Requerimientos → Tipo de evento → Invitados → Zona → Fecha
 const REQUIRED_FIELDS_ORDERED: Array<{ label: string; question: string }> = [
-  { label: "Nombre del cliente",         question: "¿Con quién tengo el gusto?" },
-  { label: "Correo electrónico",         question: "¿Me compartes tu correo electrónico?" },
-  { label: "Requerimientos o servicios", question: "¿Qué te gustaría para tu evento?" },
-  { label: "Lugar/dirección del evento", question: "¿En qué zona o lugar sería?" },
-  { label: "Fecha y horario",            question: "¿Tienen fecha definida?" },
-  { label: "Número de invitados",        question: "¿Más o menos cuántos invitados?" },
+  { label: "Nombre del cliente",         question: "¿Me dices tu nombre para empezar?" },
+  { label: "Correo electrónico",         question: "¿A qué correo te lo envío?" },
+  { label: "Requerimientos o servicios", question: "¿Qué tienes pensado para tu evento?" },
+  { label: "Tipo de evento",             question: "¿Qué tipo de evento es?" },
+  { label: "Número de invitados",        question: "¿Cuánta gente más o menos?" },
+  { label: "Lugar/dirección del evento", question: "¿En qué zona sería?" },
+  { label: "Fecha y horario",            question: "¿Ya tienen fecha definida?" },
 ];
 
 // Return type for lead field fetch
@@ -345,6 +351,32 @@ function buildLeadCalificadoNota(
   ].filter((l) => l !== null).join("\n");
 }
 
+async function resolveWhatsappDisplayName(
+  subdomain: string,
+  accessToken: string,
+  entityId: string | number,
+  leadNameFromCrm?: string | null
+): Promise<string | null> {
+  const entityKey = String(entityId);
+  const cached = displayNameCache.get(entityKey);
+  if (cached) return cached;
+
+  const fromCrm = sanitizeDisplayName(leadNameFromCrm);
+  if (fromCrm) {
+    displayNameCache.set(entityKey, fromCrm);
+    return fromCrm;
+  }
+
+  const fromContact = sanitizeDisplayName(
+    await fetchContactDisplayName(subdomain, accessToken, entityId)
+  );
+  if (fromContact) {
+    displayNameCache.set(entityKey, fromContact);
+    return fromContact;
+  }
+  return null;
+}
+
 // ─── Build CRM context block from Kommo lines + current extraction + history ──
 // Called AFTER extractData so it reflects what the client just provided.
 // currentMessage: el texto que el cliente acaba de enviar (para detección en tiempo real)
@@ -353,10 +385,21 @@ function buildCrmContext(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   clientEmailFromDB?: string | null,
-  currentMessage?: string
+  currentMessage?: string,
+  whatsappDisplayName?: string | null
 ): { context: string; allFieldsFilled: boolean; mergedLines: string[]; filledLabels: Set<string> } {
   const mergedLines = [...crmLines];
   const filledSet = new Set(mergedLines.map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
+
+  // Nombre: extracción, WhatsApp o respuesta directa al pedir nombre
+  if (!filledSet.has("Nombre del cliente")) {
+    const nombreVal =
+      sanitizeDisplayName(extracted.nombre) ?? sanitizeDisplayName(whatsappDisplayName);
+    if (nombreVal) {
+      mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
+      filledSet.add("Nombre del cliente");
+    }
+  }
 
   // Correo: not a Kommo custom lead field — detect from extraction, DB, or history
   if (!filledSet.has("Correo electrónico")) {
@@ -387,6 +430,11 @@ function buildCrmContext(
       if (label === "Presupuesto (MXN)" && value === 0) {
         mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
         filledSet.add(label);
+      } else if (label === "Requerimientos o servicios") {
+        if (isValidRequerimientosValue(typeof value === "string" ? value : null)) {
+          mergedLines.push(`- ${label}: ${value}`);
+          filledSet.add(label);
+        }
       } else if (value !== null && value !== undefined && value !== 0) {
         mergedLines.push(`- ${label}: ${value}`);
         filledSet.add(label);
@@ -461,9 +509,13 @@ function buildCrmContext(
 
     // Nombre: si Lucy preguntó por nombre y el cliente respondió con texto sin @
     if (!filledSet.has("Nombre del cliente") &&
-        /nombre|completo/.test(lastQ) &&
+        /nombre|completo|dices tu nombre/i.test(lastQ) &&
         /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
-      filledSet.add("Nombre del cliente");
+      const nombreCapturado = sanitizeDisplayName(msg);
+      if (nombreCapturado) {
+        mergedLines.push(`- Nombre del cliente: ${nombreCapturado}`);
+        filledSet.add("Nombre del cliente");
+      }
     }
 
     // Presupuesto: si Lucy preguntó por presupuesto y el cliente respondió con número
@@ -559,15 +611,12 @@ async function fetchLeadCurrentFields(
     const lines: string[] = [];
     let lastLucyResponse: string | null = null;
 
-    // Lead name (contact name hint) — skip generic CRM placeholders
+    // Lead name (contact name hint) — skip generic CRM placeholders and phone numbers
     if (data.name) {
       const stripped = data.name.replace(/^Lead:\s*/i, "").trim();
-      const isPlaceholder =
-        !stripped ||
-        stripped === "Nuevo lead" ||
-        /^lead\s*#?\d+$/i.test(stripped) ||
-        /^\d+$/.test(stripped);
-      if (!isPlaceholder) lines.push(`- Nombre del cliente: ${stripped}`);
+      if (!isPlaceholderLeadName(stripped)) {
+        lines.push(`- Nombre del cliente: ${stripped}`);
+      }
     }
 
     for (const field of cfv) {
@@ -691,7 +740,8 @@ function isValidExtractedString(val: string | null | undefined): val is string {
 
 function buildPatchPayload(
   _aiResponse: string,
-  extracted: ExtractedData
+  extracted: ExtractedData,
+  conversationText?: string
 ): Record<string, unknown> {
   // respuesta_ia (1048772) eliminado de Kommo — NO incluir o el PATCH falla con 400.
   // respuesta_ia_largo (1048786) ya no se escribe: Lucy envía directamente via
@@ -702,8 +752,9 @@ function buildPatchPayload(
   // Only push fields that have a real, non-placeholder, non-empty value
   if (isValidExtractedString(extracted.direccion_evento))
     customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(extracted.direccion_evento) }] });
-  if (isValidExtractedString(extracted.requerimientos_evento))
-    customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap255(extracted.requerimientos_evento) }] });
+  const reqForCrm = conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento;
+  if (isValidExtractedString(reqForCrm) && reqForCrm !== "Info pendiente")
+    customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap255(reqForCrm) }] });
   if (isValidExtractedString(extracted.fecha_horario))
     customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap255(extracted.fecha_horario) }] });
   if (extracted.num_invitados !== null && extracted.num_invitados > 0)
@@ -716,8 +767,8 @@ function buildPatchPayload(
   const payload: Record<string, unknown> = { custom_fields_values: customFields };
 
   if (isValidExtractedString(extracted.nombre)) {
-    // Update the lead card name to the actual client name (not a generic "Lead: X" prefix)
-    payload["name"] = cap255(extracted.nombre);
+    const nombrePatch = sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
+    payload["name"] = cap255(nombrePatch);
   }
 
   return payload;
@@ -955,8 +1006,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // True solo cuando Lucy NUNCA ha respondido a este lead.
     // Condiciones: sin mensajes de asistente en historial, sin respuesta previa en CRM/caché,
     // Y sin "Nombre del cliente" en los campos de Kommo (si ya hay nombre = ya hubo conversación).
-    const nombreYaEnCRM = crmLines.some((l) => /Nombre del cliente:/i.test(l));
-    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse && !nombreYaEnCRM;
+    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
 
     if (!hasAssistantMsg && effectiveLastResponse) {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
@@ -976,18 +1026,6 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     const extracted = await extractData(history, combinedUserText, filledFieldNames);
 
-    // ══════════════════════════════════════════════════════════════════════
-    // PASO 5.1: Construir crmContext DESPUÉS de extraer — incluye datos
-    //           que el cliente acaba de dar en este mismo mensaje
-    // ══════════════════════════════════════════════════════════════════════
-    const { context: crmContext, allFieldsFilled, mergedLines: crmMergedLines, filledLabels } = buildCrmContext(crmLines, extracted, history, conversation.clientEmail, combinedUserText);
-
-    // ══════════════════════════════════════════════════════════════════════
-    // PASO 6: Lead scoring
-    // ══════════════════════════════════════════════════════════════════════
-    // Solo mensajes del CLIENTE (role "user") para los regex de summaryService.
-    // Incluir respuestas de Lucy o el system prompt dispara falsos positivos
-    // (e.g. "elegante" en las respuestas del bot → "Estilo elegante" erróneo).
     const conversationText = [
       ...history
         .filter((m) => m.role === "user")
@@ -995,11 +1033,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       combinedUserText,
     ].join(" ");
 
-    // ══════════════════════════════════════════════════════════════════════
-    // PASO 5.5: Resumen de requerimientos según tipo de contacto
-    // ══════════════════════════════════════════════════════════════════════
     if (extracted.tipo_contacto === "proveedor") {
-      // Para proveedores: formato "PROVEEDOR: [Empresa] - Ofrece: [desc]"
       const empresa = extracted.empresa ?? "";
       const desc = extracted.requerimientos_evento ?? "";
       if (empresa || desc) {
@@ -1008,11 +1042,29 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         log.info({ resumenProv }, "Resumen proveedor generado");
       }
     } else {
-      // Para clientes: resumen automático estructurado
-      const autoSummary = generateSummary(conversationText);
-      extracted.requerimientos_evento = autoSummary;
-      log.info({ autoSummary }, "Resumen de requerimientos generado");
+      enrichExtractedFromText(extracted, conversationText);
     }
+
+    const leadNameFromCrm = crmLines
+      .find((l) => /Nombre del cliente:/i.test(l))
+      ?.replace(/^-?\s*Nombre del cliente:\s*/i, "")
+      .trim();
+    const whatsappDisplayName = await resolveWhatsappDisplayName(
+      subdomain,
+      accessToken,
+      entityId,
+      leadNameFromCrm ?? conversation.clientName
+    );
+
+    const { context: crmContext, allFieldsFilled, mergedLines: crmMergedLines, filledLabels } =
+      buildCrmContext(
+        crmLines,
+        extracted,
+        history,
+        conversation.clientEmail,
+        combinedUserText,
+        whatsappDisplayName
+      );
 
     const scoreContext = {
       extracted,
@@ -1038,6 +1090,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       hasObjection: objectionResult.hasObjection ? objectionResult : undefined,
       crmContext,
       isFirstInteraction,
+      hasClientName: filledLabels.has("Nombre del cliente") || !!whatsappDisplayName,
     });
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1072,7 +1125,11 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // PASO 8.5: Prefijar acknowledgment si fue nota de voz
     // ══════════════════════════════════════════════════════════════════════
     if (batch.isVoice) {
-      const clientName = (extracted.nombre ?? conversation.clientName) || undefined;
+      const clientName =
+        sanitizeDisplayName(extracted.nombre) ??
+        whatsappDisplayName ??
+        sanitizeDisplayName(conversation.clientName) ??
+        undefined;
       const voiceAck = getVoiceAcknowledgment(clientName ?? undefined);
       aiResponse = voiceAck + aiResponse;
       log.info({ voiceAck }, "Voice acknowledgment prepended");
@@ -1110,6 +1167,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       emailRefusedThisTurn,
       history,
       currentMessage: combinedUserText,
+      whatsappDisplayName,
       buildClosing: buildClosingMessage,
       log,
       entityId,
@@ -1232,7 +1290,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // Ya NO se escribe campo 1048786 — envío directo via Meta API arriba.
     // El lead NO se mueve de etapa — Rodrigo lo mueve manualmente.
     // ══════════════════════════════════════════════════════════════════════
-    const payload = buildPatchPayload(mensajeParaCliente, extracted);
+    const payload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
     const cfvToSend = payload["custom_fields_values"] as Array<{ field_id: number; values: Array<{ value: unknown }> }>;
 
     log.info(
@@ -1295,7 +1353,10 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     const parsedEventDate = safeParseDate(extracted.fecha_horario);
     void db.update(conversations)
       .set({
-        clientName: extracted.nombre || conversation.clientName,
+        clientName:
+          sanitizeDisplayName(extracted.nombre) ??
+          whatsappDisplayName ??
+          conversation.clientName,
         clientEmail: extracted.correo || conversation.clientEmail,
         clientPhone: extracted.telefono || conversation.clientPhone,
         eventType: extracted.tipo_evento || conversation.eventType,
@@ -1601,28 +1662,41 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
 
     // isFirstInteraction: Lucy nunca ha respondido (ni en historial ni en CRM ni hay nombre ya en CRM)
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
-    const nombreYaEnCRM = crmLines.some((l) => /Nombre del cliente:/i.test(l));
-    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse && !nombreYaEnCRM;
+    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse;
+
+    const whatsappDisplayName = entityId
+      ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null)
+      : null;
 
     const preExtracted: ExtractedData = {
       nombre: null, telefono: null, correo: null, presupuesto: null,
       direccion_evento: null, requerimientos_evento: null, fecha_horario: null,
       num_invitados: null, tipo_evento: null, tipo_contacto: null, empresa: null,
     };
-    crmContext = buildCrmContext(crmLines, preExtracted, history, undefined, messageText).context;
+    crmContext = buildCrmContext(
+      crmLines,
+      preExtracted,
+      history,
+      undefined,
+      messageText,
+      whatsappDisplayName
+    ).context;
 
-    // ── Call OpenAI ───────────────────────────────────────────────────────────
+    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+    const preNameKnown = !!sanitizeDisplayName(whatsappDisplayName);
+    const systemContent = isFirstInteraction
+      ? basePrompt +
+        crmContext +
+        (preNameKnown
+          ? "\n\nPRIMER MENSAJE. Saluda con presentación estándar usando el nombre de WhatsApp. No pidas el nombre de nuevo."
+          : "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo estándar de Lucy, sin variaciones.")
+      : basePrompt + crmContext;
+
     const trainingExamples = getTrainingExamples();
     const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
       { role: "user" as const, content: ex.userMessage },
       { role: "assistant" as const, content: ex.lucyResponse },
     ]);
-
-    // isFirstInteraction override: si es primer mensaje, forzar saludo estándar
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
-    const systemContent = isFirstInteraction
-      ? basePrompt + crmContext + "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo estándar de Lucy, sin variaciones."
-      : basePrompt + crmContext;
 
     const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: systemContent },
@@ -1649,7 +1723,22 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     let aiResponse = completion.choices[0]?.message?.content ?? "";
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
 
-    const crmResultFinal = buildCrmContext(crmLines, extracted, history, undefined, messageText);
+    const conversationText = [
+      ...history
+        .filter((m) => m.role === "user" && typeof m.content === "string")
+        .map((m) => m.content as string),
+      messageText,
+    ].join(" ");
+    enrichExtractedFromText(extracted, conversationText);
+
+    const crmResultFinal = buildCrmContext(
+      crmLines,
+      extracted,
+      history,
+      undefined,
+      messageText,
+      whatsappDisplayName
+    );
     const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
     const salesbotMergedLines = crmResultFinal.mergedLines;
     salesbotFilledLabels = crmResultFinal.filledLabels;
@@ -1672,6 +1761,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       emailRefusedThisTurn,
       history,
       currentMessage: messageText,
+      whatsappDisplayName,
       buildClosing: buildClosingMessage,
       log,
       entityId,
@@ -1753,7 +1843,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       }
 
       // ── Update CRM fields in background (sin campo 1048786) ────────────────
-      const patchPayload = buildPatchPayload(mensajeParaCliente, extracted);
+      const patchPayload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
       void fetch(`https://${subdomain}.kommo.com/api/v4/leads/${entityId}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -1935,10 +2025,8 @@ const SIMULATOR_CF_TO_KOMMO: Record<string, number> = {
 
 function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResult {
   const lines: string[] = [];
-  const name = lead.name?.trim();
-  if (name && name !== "Nuevo lead" && !/^lead\s*#?\d+$/i.test(name)) {
-    lines.push(`- Nombre del cliente: ${name}`);
-  }
+  // El nombre de WhatsApp se resuelve aparte (whatsappDisplayName) — no precargar aquí
+  // para que el flujo de primer mensaje funcione correctamente.
   if (lead.contact_email?.trim()) {
     lines.push(`- Correo electrónico: ${lead.contact_email.trim()}`);
   }
@@ -2023,17 +2111,25 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     let history = getHistory(histKey).slice(-6);
 
     const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
+    const whatsappDisplayName = sanitizeDisplayName(lead.name);
     const emptyExtracted: ExtractedData = {
       nombre: null, telefono: null, correo: null, presupuesto: null,
       direccion_evento: null, requerimientos_evento: null, fecha_horario: null,
       num_invitados: null, tipo_evento: null, tipo_contacto: null, empresa: null,
     };
-    const crmResultPre = buildCrmContext(crmLines, emptyExtracted, history, undefined, messageText);
+    const crmResultPre = buildCrmContext(
+      crmLines,
+      emptyExtracted,
+      history,
+      lead.contact_email,
+      messageText,
+      whatsappDisplayName
+    );
     const crmContext = crmResultPre.context;
 
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
-    const nombreYaEnCRM = crmLines.some((l) => /Nombre del cliente:/i.test(l));
-    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse && !nombreYaEnCRM;
+    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse;
+    const preNameKnown = !!whatsappDisplayName;
 
     const trainingExamples = getTrainingExamples();
     const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
@@ -2043,7 +2139,11 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
 
     const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
     const systemContent = isFirstInteraction
-      ? basePrompt + crmContext + "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo estándar de Lucy, sin variaciones."
+      ? basePrompt +
+        crmContext +
+        (preNameKnown
+          ? "\n\nPRIMER MENSAJE. Saluda con presentación estándar usando el nombre de WhatsApp. No pidas el nombre de nuevo."
+          : "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo estándar de Lucy, sin variaciones.")
       : basePrompt + crmContext;
 
     const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -2068,7 +2168,22 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
 
     let aiResponse = completion.choices[0]?.message?.content ?? "";
 
-    const crmResultFinal = buildCrmContext(crmLines, extracted, history, undefined, messageText);
+    const conversationText = [
+      ...history
+        .filter((m) => m.role === "user" && typeof m.content === "string")
+        .map((m) => m.content as string),
+      messageText,
+    ].join(" ");
+    enrichExtractedFromText(extracted, conversationText);
+
+    const crmResultFinal = buildCrmContext(
+      crmLines,
+      extracted,
+      history,
+      lead.contact_email,
+      messageText,
+      whatsappDisplayName
+    );
     const allFieldsFilled = crmResultFinal.allFieldsFilled;
     const filledLabels = crmResultFinal.filledLabels;
 
@@ -2090,6 +2205,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       emailRefusedThisTurn,
       history,
       currentMessage: messageText,
+      whatsappDisplayName,
       buildClosing: buildClosingMessage,
       log,
       entityId: leadId,
@@ -2102,6 +2218,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
 
     const lead_updates: Record<string, string> = {};
     if (isValidExtractedString(extracted.nombre)) lead_updates.name = extracted.nombre;
+    else if (whatsappDisplayName) lead_updates.name = whatsappDisplayName;
     if (isValidExtractedString(extracted.correo)) lead_updates.contact_email = extracted.correo;
     if (isValidExtractedString(extracted.telefono)) lead_updates.contact_phone = extracted.telefono;
 

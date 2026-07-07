@@ -161,6 +161,7 @@ export async function sendWhatsAppDirect(
 
 // ─── Obtener teléfono del contacto principal de un lead en Kommo ──────────────
 interface KommoContactDetail {
+  name?: string;
   custom_fields_values?: Array<{
     field_code?: string;
     values: Array<{ value: unknown }>;
@@ -176,8 +177,16 @@ export async function fetchContactPhone(
   accessToken: string,
   leadId: string | number
 ): Promise<string | null> {
+  const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
+  return contact?.phone ?? null;
+}
+
+async function fetchLeadMainContact(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number
+): Promise<{ phone: string | null; displayName: string | null } | null> {
   try {
-    // 1. Obtener ID del contacto principal del lead
     const leadRes = await fetch(
       `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -189,7 +198,6 @@ export async function fetchContactPhone(
     const contactId = (contacts.find((c) => c.is_main) ?? contacts[0])?.id;
     if (!contactId) return null;
 
-    // 2. Obtener campos del contacto (campo PHONE)
     const contactRes = await fetch(
       `https://${subdomain}.kommo.com/api/v4/contacts/${contactId}`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
@@ -200,18 +208,28 @@ export async function fetchContactPhone(
     const phoneField = contactData.custom_fields_values?.find(
       (f) => f.field_code === "PHONE"
     );
-    const phone = phoneField?.values[0]?.value;
+    const phoneRaw = phoneField?.values[0]?.value;
+    const phone = typeof phoneRaw === "string" && phoneRaw.trim() ? phoneRaw.trim() : null;
+    const displayName =
+      typeof contactData.name === "string" && contactData.name.trim()
+        ? contactData.name.trim()
+        : null;
 
-    if (typeof phone === "string" && phone.trim()) {
-      logger.info({ leadId, phone }, "Teléfono de contacto obtenido de Kommo");
-      return phone.trim();
-    }
-
-    return null;
+    logger.info({ leadId, phone: !!phone, displayName: !!displayName }, "Contacto principal obtenido de Kommo");
+    return { phone, displayName };
   } catch (err) {
-    logger.warn({ leadId, err }, "fetchContactPhone: no se pudo obtener teléfono");
+    logger.warn({ leadId, err }, "fetchLeadMainContact: no se pudo obtener contacto");
     return null;
   }
+}
+
+export async function fetchContactDisplayName(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number
+): Promise<string | null> {
+  const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
+  return contact?.displayName ?? null;
 }
 
 // ─── Registrar mensaje saliente en el historial de chat de Kommo ───────────────

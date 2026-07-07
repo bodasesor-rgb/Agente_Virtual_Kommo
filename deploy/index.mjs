@@ -59991,9 +59991,10 @@ Si NO \u2192 preg\xFAntalo con la frase exacta de abajo.
 [ ] 3. Requerimientos:
         - CASO A (cliente YA mencion\xF3 un servicio concreto al inicio) \u2192 "Perfecto. Adem\xE1s del [servicio], \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?"
         - CASO B (cliente NO mencion\xF3 ning\xFAn servicio concreto) \u2192 "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?"
-[ ] 4. Invitados   \u2014 "\xBFCu\xE1nta gente m\xE1s o menos?"
-[ ] 5. Zona        \u2014 "\xBFEn qu\xE9 zona ser\xEDa?"
-[ ] 6. Fecha       \u2014 "\xBFYa tienen fecha definida o la est\xE1n viendo todav\xEDa?"
+[ ] 4. Tipo de evento \u2014 "\xBFQu\xE9 tipo de evento es? Por ejemplo boda, XV a\xF1os, baby shower, cumplea\xF1os o corporativo."
+[ ] 5. Invitados   \u2014 "\xBFCu\xE1nta gente m\xE1s o menos?"
+[ ] 6. Zona        \u2014 "\xBFEn qu\xE9 zona ser\xEDa?"
+[ ] 7. Fecha       \u2014 "\xBFYa tienen fecha definida o la est\xE1n viendo todav\xEDa?"
 
 \u26A0\uFE0F REQUERIMIENTOS \u2014 REGLA ABSOLUTA, NO NEGOCIABLE:
 
@@ -61071,17 +61072,58 @@ function appendHistory(chatId, userText, assistantText) {
   save(store);
 }
 
+// src/contact-name.ts
+var PHONE_LIKE = /^\+?\d[\d\s\-().]{7,}$/;
+var PLACEHOLDER_PATTERNS = [
+  /^nuevo\s+lead$/i,
+  /^lead\s*#?\d+$/i,
+  /^contacto\s*#?\d+$/i,
+  /^whatsapp\s*#?\d+$/i,
+  /^sin\s+nombre$/i,
+  /^unknown$/i,
+  /^cliente$/i,
+  /^\d+$/
+];
+function isPlaceholderLeadName(name2) {
+  const trimmed = name2?.trim() ?? "";
+  if (!trimmed) return true;
+  if (trimmed.length < 2) return true;
+  if (PHONE_LIKE.test(trimmed.replace(/\s/g, ""))) return true;
+  return PLACEHOLDER_PATTERNS.some((p3) => p3.test(trimmed));
+}
+function sanitizeDisplayName(name2) {
+  const trimmed = name2?.trim() ?? "";
+  if (!trimmed || isPlaceholderLeadName(trimmed)) return null;
+  const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+  const firstToken = cleaned.split(/\s+/)[0] ?? "";
+  const firstName = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+  if (!firstName || firstName.length < 2) return null;
+  if (/^\d+$/.test(firstName)) return null;
+  return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+}
+function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
+  return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
+}
+
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var EMAIL_REFUSAL_PATTERN = /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Requerimientos o servicios",
+  "Tipo de evento",
+  "N\xFAmero de invitados",
   "Lugar/direcci\xF3n del evento",
-  "Fecha y horario",
-  "N\xFAmero de invitados"
+  "Fecha y horario"
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura/i;
+function isValidRequerimientosValue(value) {
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
+  return SERVICE_HINT.test(trimmed);
+}
+var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 function collectUserTexts(history, currentMessage) {
   const fromHistory = history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content);
   return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
@@ -61104,24 +61146,51 @@ function isReadyForClosing(filledSet) {
 function requerimientosNeedsFollowUp(extracted, filledSet) {
   const req = extracted.requerimientos_evento?.trim() ?? "";
   if (!req) return false;
-  const missingEventData = !filledSet.has("N\xFAmero de invitados") || !filledSet.has("Lugar/direcci\xF3n del evento") || !filledSet.has("Fecha y horario");
-  if (!missingEventData) return false;
   const onlyTipoEvento = req.length < 28 && !SERVICE_HINT.test(req) && !/\d/.test(req);
-  return onlyTipoEvento || missingEventData && !SERVICE_HINT.test(req);
+  return onlyTipoEvento || !SERVICE_HINT.test(req);
 }
-function buildRequerimientosFollowUp(extracted) {
+function getDisplayName(extracted, whatsappName) {
+  return resolveClientDisplayName(extracted.nombre, null, whatsappName) ?? "ti";
+}
+function buildRequerimientosFollowUp(extracted, filledSet) {
   const ref = extracted.tipo_evento?.trim() || extracted.requerimientos_evento?.trim() || "tu evento";
-  return `Qu\xE9 bien. Para ${ref}, \xBFqu\xE9 servicios te gustar\xEDa cotizar? Tenemos banquete, taquiza, barras de comida y bebidas, DJ, carpas y m\xE1s. Si me dices m\xE1s o menos cu\xE1ntos invitados ser\xEDan y en qu\xE9 zona, Rodrigo te arma algo m\xE1s a la medida.`;
+  if (!filledSet?.has("Tipo de evento") && !extracted.tipo_evento?.trim()) {
+    return `Qu\xE9 bien. Para ${ref}, \xBFqu\xE9 tipo de evento es? Por ejemplo boda, XV a\xF1os, baby shower o cumplea\xF1os.`;
+  }
+  if (!filledSet?.has("N\xFAmero de invitados")) {
+    return `Perfecto. Para ${ref}, \xBFcu\xE1nta gente m\xE1s o menos ser\xEDan?`;
+  }
+  if (!filledSet?.has("Lugar/direcci\xF3n del evento")) {
+    return `\xBFEn qu\xE9 zona o ciudad ser\xEDa ${ref}?`;
+  }
+  if (!filledSet?.has("Fecha y horario")) {
+    return "\xBFYa tienen fecha definida o la est\xE1n viendo todav\xEDa?";
+  }
+  return `Para ${ref}, \xBFqu\xE9 servicios te gustar\xEDa cotizar? Tenemos banquete, taquiza, barras de comida y bebidas, DJ, carpas y m\xE1s.`;
 }
-function nextFieldQuestion(extracted, filledSet) {
-  if (!extracted.requerimientos_evento?.trim()) {
+function nextFieldQuestion(extracted, filledSet, whatsappName) {
+  const nombre = getDisplayName(extracted, whatsappName);
+  if (!filledSet?.has("Nombre del cliente")) {
+    return "\xBFMe dices tu nombre para empezar?";
+  }
+  if (!isEmailSatisfied(filledSet ?? /* @__PURE__ */ new Set())) {
+    return `Mucho gusto, ${nombre}. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?`;
+  }
+  if (!filledSet?.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
     return "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
   }
   if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
-    return buildRequerimientosFollowUp(extracted);
+    return buildRequerimientosFollowUp(extracted, filledSet);
   }
-  if (!filledSet?.has("N\xFAmero de invitados")) return "\xBFCu\xE1nta gente m\xE1s o menos?";
-  if (!filledSet?.has("Lugar/direcci\xF3n del evento")) return "\xBFEn qu\xE9 zona ser\xEDa?";
+  if (!filledSet?.has("Tipo de evento") && !extracted.tipo_evento?.trim()) {
+    return "\xBFQu\xE9 tipo de evento es? Por ejemplo boda, XV a\xF1os, baby shower, cumplea\xF1os o corporativo.";
+  }
+  if (!filledSet?.has("N\xFAmero de invitados")) {
+    return "\xBFCu\xE1nta gente m\xE1s o menos?";
+  }
+  if (!filledSet?.has("Lugar/direcci\xF3n del evento")) {
+    return "\xBFEn qu\xE9 zona ser\xEDa?";
+  }
   if (!filledSet?.has("Fecha y horario")) {
     return "\xBFYa tienen fecha definida o la est\xE1n viendo todav\xEDa?";
   }
@@ -61139,7 +61208,17 @@ function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
   if (!currentMessage?.trim()) return false;
   const lastAssistant = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content;
   if (!lastAssistant) return false;
-  return /platícame|qué tienes pensado|otro servicio|qué servicios/i.test(lastAssistant);
+  return /platícame|qué tienes pensado|otro servicio|qué servicios|qué tipo de evento/i.test(lastAssistant);
+}
+function clientAskedFreeformQuestion(message) {
+  if (!message?.trim()) return false;
+  if (/\?/.test(message)) return true;
+  return /cu[aá]nto|precio|costo|cat[aá]logo|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@/i.test(
+    message
+  );
+}
+function responseLooksLikePrematureClose(mensaje) {
+  return mensaje.includes(CLOSING_SIGNATURE) || /cotizaci[oó]n personalizada/i.test(mensaje) || /cdn\.shopify\.com/i.test(mensaje) || /cat[aá]logo completo/i.test(mensaje);
 }
 function applyLucyMessageGuards(input) {
   const {
@@ -61151,12 +61230,13 @@ function applyLucyMessageGuards(input) {
     emailRefusedThisTurn,
     history,
     currentMessage,
+    whatsappDisplayName,
     buildClosing,
     log,
     entityId
   } = input;
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
-  const tieneRequerimientos = !!extracted.requerimientos_evento?.trim();
+  const tieneRequerimientos = isValidRequerimientosValue(extracted.requerimientos_evento) || filledSet.has("Requerimientos o servicios");
   const emailOk = isEmailSatisfied(filledSet);
   const forzarRequerimientos = emailOk && !tieneRequerimientos && !readyForClosing && !cierreYaEnviado;
   let mensaje;
@@ -61167,7 +61247,7 @@ function applyLucyMessageGuards(input) {
     mensaje = "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
     log?.info({ entityId }, "GUARD: correo ok pero requerimientos vac\xEDo");
   } else if (readyForClosing && !cierreYaEnviado && (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))) {
-    mensaje = buildRequerimientosFollowUp(extracted);
+    mensaje = buildRequerimientosFollowUp(extracted, filledSet);
     log?.info({ entityId }, "GUARD: profundizar requerimientos antes del cierre");
   } else if (readyForClosing && !cierreYaEnviado) {
     mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
@@ -61180,22 +61260,36 @@ function applyLucyMessageGuards(input) {
     }
   }
   if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet) ?? emailRefusalAckMessage();
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName) ?? emailRefusalAckMessage();
     log?.warn({ entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
     mensaje = nextQ;
   }
   const correoYaTenido = !!extracted.correo?.trim() || filledSet.has("Correo electr\xF3nico");
   if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
-    const nextQ = nextFieldQuestion(extracted, filledSet);
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName);
     if (nextQ) {
       log?.warn({ entityId }, "GUARD: GPT pregunt\xF3 correo ya capturado");
       mensaje = nextQ;
     }
   }
   if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
-    const nextQ = nextFieldQuestion(extracted, filledSet) ?? emailRefusalAckMessage();
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName) ?? emailRefusalAckMessage();
     log?.warn({ entityId }, "GUARD: GPT insisti\xF3 en correo tras rechazo");
     mensaje = nextQ;
+  }
+  if (!readyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
+    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName);
+    if (forcedNext && (responseLooksLikePrematureClose(mensaje) || !mensaje.includes("?"))) {
+      log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo");
+      mensaje = forcedNext;
+    }
+  }
+  if (!readyForClosing && responseLooksLikePrematureClose(mensaje)) {
+    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName);
+    if (forcedNext) {
+      log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
+      mensaje = forcedNext;
+    }
   }
   return mensaje;
 }
@@ -74166,7 +74260,17 @@ function buildDynamicPrompt(context) {
   const { hasObjection } = context;
   let prompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
   if (context.isFirstInteraction) {
-    prompt += `
+    if (context.hasClientName) {
+      prompt += `
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PRIMERA INTERACCION \u2014 NOMBRE DE WHATSAPP DISPONIBLE
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Saluda con presentaci\xF3n est\xE1ndar de Lucy usando el nombre del cliente que ya tienes.
+NO pidas el nombre de nuevo. Contin\xFAa con el siguiente dato faltante del flujo.`;
+    } else {
+      prompt += `
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 PRIMERA INTERACCION
@@ -74174,6 +74278,7 @@ PRIMERA INTERACCION
 
 Aplica PASO 1 del prompt: usa EXACTAMENTE el saludo definido ah\xED.
 NUNCA termines sin pedir el nombre.`;
+    }
   } else {
     prompt += `
 
@@ -74463,6 +74568,39 @@ function extraerPresupuesto(texto) {
     }
   }
   return null;
+}
+function extraerZona(texto) {
+  const m4 = texto.match(
+    /\b(en|para|zona|lugar|ciudad|colonia)\s+([A-ZÁÉÍÓÚÑa-záéíóúüñ][\wáéíóúüñ\s.-]{2,40})/i
+  );
+  if (!m4) return null;
+  const zona = m4[2].trim().replace(/\s+(para|el|la|un|una)\b.*$/i, "").trim();
+  return zona.length >= 3 ? zona : null;
+}
+function enrichExtractedFromText(extracted, conversationText) {
+  const texto = conversationText.toLowerCase();
+  if (!extracted.tipo_evento?.trim()) {
+    const tipo = extraerTipoEvento(texto);
+    if (tipo) extracted.tipo_evento = tipo;
+  }
+  if (!extracted.fecha_horario?.trim()) {
+    const fecha = extraerFecha(texto);
+    if (fecha) extracted.fecha_horario = fecha;
+  }
+  if (!extracted.num_invitados) {
+    const inv = extraerInvitados(texto);
+    if (inv) extracted.num_invitados = inv;
+  }
+  if (!extracted.direccion_evento?.trim()) {
+    const zona = extraerZona(conversationText);
+    if (zona) extracted.direccion_evento = zona;
+  }
+  if (!extracted.requerimientos_evento?.trim()) {
+    const servicios = extraerServicios(texto);
+    if (servicios.length > 0) {
+      extracted.requerimientos_evento = servicios.slice(0, 3).join(", ");
+    }
+  }
 }
 function generateSummary(conversationText) {
   const texto = conversationText.toLowerCase();
@@ -79556,6 +79694,10 @@ async function sendWhatsAppDirect(to, message, entityId, maxRetries = 3) {
   return { success: false, error: `Fall\xF3 tras ${maxRetries} reintentos` };
 }
 async function fetchContactPhone(subdomain, accessToken, leadId) {
+  const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
+  return contact?.phone ?? null;
+}
+async function fetchLeadMainContact(subdomain, accessToken, leadId) {
   try {
     const leadRes = await fetch(
       `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts`,
@@ -79575,16 +79717,19 @@ async function fetchContactPhone(subdomain, accessToken, leadId) {
     const phoneField = contactData.custom_fields_values?.find(
       (f3) => f3.field_code === "PHONE"
     );
-    const phone = phoneField?.values[0]?.value;
-    if (typeof phone === "string" && phone.trim()) {
-      logger.info({ leadId, phone }, "Tel\xE9fono de contacto obtenido de Kommo");
-      return phone.trim();
-    }
-    return null;
+    const phoneRaw = phoneField?.values[0]?.value;
+    const phone = typeof phoneRaw === "string" && phoneRaw.trim() ? phoneRaw.trim() : null;
+    const displayName = typeof contactData.name === "string" && contactData.name.trim() ? contactData.name.trim() : null;
+    logger.info({ leadId, phone: !!phone, displayName: !!displayName }, "Contacto principal obtenido de Kommo");
+    return { phone, displayName };
   } catch (err2) {
-    logger.warn({ leadId, err: err2 }, "fetchContactPhone: no se pudo obtener tel\xE9fono");
+    logger.warn({ leadId, err: err2 }, "fetchLeadMainContact: no se pudo obtener contacto");
     return null;
   }
+}
+async function fetchContactDisplayName(subdomain, accessToken, leadId) {
+  const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
+  return contact?.displayName ?? null;
 }
 async function registrarMensajeSalienteKommo(opts) {
   const { subdomain, accessToken, chatId, texto, toPhone, metaMessageId, entityId } = opts;
@@ -80037,6 +80182,7 @@ var FIELD = {
 };
 var lastResponseCache = /* @__PURE__ */ new Map();
 var phoneCache = /* @__PURE__ */ new Map();
+var displayNameCache = /* @__PURE__ */ new Map();
 var DEBOUNCE_MS = 2e3;
 var pendingBatches = /* @__PURE__ */ new Map();
 async function fetchKommoHistory(subdomain, accessToken, talkId) {
@@ -80157,7 +80303,7 @@ function stripCatalogBlock(text2) {
   );
   return filtered.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
-var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
+var CLOSING_SIGNATURE2 = "Perfecto, ya tengo todo.";
 var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
 function buildClosingMessage(serviciosPedidos) {
   const servicio = serviciosPedidos?.trim() || null;
@@ -80201,9 +80347,34 @@ function buildLeadCalificadoNota(extracted, mergedLines) {
     "\u2705 Lead calificado - Listo para cotizar"
   ].filter((l4) => l4 !== null).join("\n");
 }
-function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, currentMessage) {
+async function resolveWhatsappDisplayName(subdomain, accessToken, entityId, leadNameFromCrm) {
+  const entityKey = String(entityId);
+  const cached = displayNameCache.get(entityKey);
+  if (cached) return cached;
+  const fromCrm = sanitizeDisplayName(leadNameFromCrm);
+  if (fromCrm) {
+    displayNameCache.set(entityKey, fromCrm);
+    return fromCrm;
+  }
+  const fromContact = sanitizeDisplayName(
+    await fetchContactDisplayName(subdomain, accessToken, entityId)
+  );
+  if (fromContact) {
+    displayNameCache.set(entityKey, fromContact);
+    return fromContact;
+  }
+  return null;
+}
+function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, currentMessage, whatsappDisplayName) {
   const mergedLines = [...crmLines];
   const filledSet = new Set(mergedLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
+  if (!filledSet.has("Nombre del cliente")) {
+    const nombreVal = sanitizeDisplayName(extracted.nombre) ?? sanitizeDisplayName(whatsappDisplayName);
+    if (nombreVal) {
+      mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
+      filledSet.add("Nombre del cliente");
+    }
+  }
   if (!filledSet.has("Correo electr\xF3nico")) {
     const correoVal = extracted.correo ?? clientEmailFromDB ?? (history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content).find((t) => /\S+@\S+\.\S+/.test(t)) ?? null);
     if (correoVal) {
@@ -80224,6 +80395,11 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       if (label === "Presupuesto (MXN)" && value === 0) {
         mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indic\xF3 que no tiene)`);
         filledSet.add(label);
+      } else if (label === "Requerimientos o servicios") {
+        if (isValidRequerimientosValue(typeof value === "string" ? value : null)) {
+          mergedLines.push(`- ${label}: ${value}`);
+          filledSet.add(label);
+        }
       } else if (value !== null && value !== void 0 && value !== 0) {
         mergedLines.push(`- ${label}: ${value}`);
         filledSet.add(label);
@@ -80295,8 +80471,12 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     const msg = currentMessage.trim();
     const lastLucy = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content ?? "";
     const lastQ = lastLucy.toLowerCase();
-    if (!filledSet.has("Nombre del cliente") && /nombre|completo/.test(lastQ) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
-      filledSet.add("Nombre del cliente");
+    if (!filledSet.has("Nombre del cliente") && /nombre|completo|dices tu nombre/i.test(lastQ) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+      const nombreCapturado = sanitizeDisplayName(msg);
+      if (nombreCapturado) {
+        mergedLines.push(`- Nombre del cliente: ${nombreCapturado}`);
+        filledSet.add("Nombre del cliente");
+      }
     }
     if (!filledSet.has("Presupuesto (MXN)") && /presupuesto|budget/i.test(lastQ) && /\d/.test(msg)) {
       mergedLines.push(`- Presupuesto (MXN): ${msg}`);
@@ -80367,8 +80547,9 @@ async function fetchLeadCurrentFields(subdomain, accessToken, leadId, log) {
     let lastLucyResponse = null;
     if (data.name) {
       const stripped = data.name.replace(/^Lead:\s*/i, "").trim();
-      const isPlaceholder = !stripped || stripped === "Nuevo lead" || /^lead\s*#?\d+$/i.test(stripped) || /^\d+$/.test(stripped);
-      if (!isPlaceholder) lines.push(`- Nombre del cliente: ${stripped}`);
+      if (!isPlaceholderLeadName(stripped)) {
+        lines.push(`- Nombre del cliente: ${stripped}`);
+      }
     }
     for (const field of cfv) {
       if (field.field_id === FIELD.respuesta_ia_largo) {
@@ -80439,7 +80620,7 @@ async function updateKommoContact(subdomain, accessToken, contactId, extracted, 
 }
 var KOMMO_SHORT_TEXT_LIMIT = 255;
 var cap255 = (s4) => s4.length <= KOMMO_SHORT_TEXT_LIMIT ? s4 : s4.slice(0, KOMMO_SHORT_TEXT_LIMIT - 1) + "\u2026";
-var PLACEHOLDER_PATTERNS = [
+var PLACEHOLDER_PATTERNS2 = [
   /nombre completo/i,
   /del cliente/i,
   /o null/i,
@@ -80451,14 +80632,15 @@ function isValidExtractedString(val) {
   if (!val || typeof val !== "string") return false;
   const trimmed = val.trim();
   if (trimmed.length === 0) return false;
-  return !PLACEHOLDER_PATTERNS.some((p3) => p3.test(trimmed));
+  return !PLACEHOLDER_PATTERNS2.some((p3) => p3.test(trimmed));
 }
-function buildPatchPayload(_aiResponse, extracted) {
+function buildPatchPayload(_aiResponse, extracted, conversationText) {
   const customFields = [];
   if (isValidExtractedString(extracted.direccion_evento))
     customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(extracted.direccion_evento) }] });
-  if (isValidExtractedString(extracted.requerimientos_evento))
-    customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap255(extracted.requerimientos_evento) }] });
+  const reqForCrm = conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento;
+  if (isValidExtractedString(reqForCrm) && reqForCrm !== "Info pendiente")
+    customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap255(reqForCrm) }] });
   if (isValidExtractedString(extracted.fecha_horario))
     customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap255(extracted.fecha_horario) }] });
   if (extracted.num_invitados !== null && extracted.num_invitados > 0)
@@ -80469,7 +80651,8 @@ function buildPatchPayload(_aiResponse, extracted) {
     customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(extracted.presupuesto) }] });
   const payload = { custom_fields_values: customFields };
   if (isValidExtractedString(extracted.nombre)) {
-    payload["name"] = cap255(extracted.nombre);
+    const nombrePatch = sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
+    payload["name"] = cap255(nombrePatch);
   }
   return payload;
 }
@@ -80547,7 +80730,8 @@ async function processBatch(batch, accessToken, log) {
     const cachedResponse = lastResponseCache.get(String(entityId));
     const effectiveLastResponse = cachedResponse ?? lastLucyResponse;
     const nombreYaEnCRM = crmLines.some((l4) => /Nombre del cliente:/i.test(l4));
-    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse && !nombreYaEnCRM;
+    void nombreYaEnCRM;
+    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
     if (!hasAssistantMsg && effectiveLastResponse) {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
       const recoverySource = cachedResponse ? "cache-recovery" : "crm-recovery";
@@ -80556,7 +80740,6 @@ async function processBatch(batch, accessToken, log) {
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
     const filledFieldNames = crmLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? "").filter(Boolean).join(", ");
     const extracted = await extractData(history, combinedUserText, filledFieldNames);
-    const { context: crmContext, allFieldsFilled, mergedLines: crmMergedLines, filledLabels } = buildCrmContext(crmLines, extracted, history, conversation.clientEmail, combinedUserText);
     const conversationText = [
       ...history.filter((m4) => m4.role === "user").map((m4) => typeof m4.content === "string" ? m4.content : ""),
       combinedUserText
@@ -80570,10 +80753,23 @@ async function processBatch(batch, accessToken, log) {
         log.info({ resumenProv }, "Resumen proveedor generado");
       }
     } else {
-      const autoSummary = generateSummary(conversationText);
-      extracted.requerimientos_evento = autoSummary;
-      log.info({ autoSummary }, "Resumen de requerimientos generado");
+      enrichExtractedFromText(extracted, conversationText);
     }
+    const leadNameFromCrm = crmLines.find((l4) => /Nombre del cliente:/i.test(l4))?.replace(/^-?\s*Nombre del cliente:\s*/i, "").trim();
+    const whatsappDisplayName = await resolveWhatsappDisplayName(
+      subdomain,
+      accessToken,
+      entityId,
+      leadNameFromCrm ?? conversation.clientName
+    );
+    const { context: crmContext, allFieldsFilled, mergedLines: crmMergedLines, filledLabels } = buildCrmContext(
+      crmLines,
+      extracted,
+      history,
+      conversation.clientEmail,
+      combinedUserText,
+      whatsappDisplayName
+    );
     const scoreContext = {
       extracted,
       messageCount: conversation.messageCount + 1,
@@ -80591,7 +80787,8 @@ async function processBatch(batch, accessToken, log) {
       extracted,
       hasObjection: objectionResult.hasObjection ? objectionResult : void 0,
       crmContext,
-      isFirstInteraction
+      isFirstInteraction,
+      hasClientName: filledLabels.has("Nombre del cliente") || !!whatsappDisplayName
     });
     const trainingExamples = getTrainingExamples();
     const fewShot = trainingExamples.flatMap((ex) => [
@@ -80615,14 +80812,14 @@ async function processBatch(batch, accessToken, log) {
     });
     let aiResponse = completion.choices[0]?.message?.content ?? "";
     if (batch.isVoice) {
-      const clientName = (extracted.nombre ?? conversation.clientName) || void 0;
+      const clientName = sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? sanitizeDisplayName(conversation.clientName) ?? void 0;
       const voiceAck = getVoiceAcknowledgment(clientName ?? void 0);
       aiResponse = voiceAck + aiResponse;
       log.info({ voiceAck }, "Voice acknowledgment prepended");
     }
     log.info({ aiResponse, extracted }, "OpenAI response received");
     const cierreYaEnviado = history.some(
-      (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE)
+      (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
     );
     const emailRefusedThisTurn = detectEmailRefusal([combinedUserText]);
     let mensajeParaCliente = applyLucyMessageGuards({
@@ -80634,6 +80831,7 @@ async function processBatch(batch, accessToken, log) {
       emailRefusedThisTurn,
       history,
       currentMessage: combinedUserText,
+      whatsappDisplayName,
       buildClosing: buildClosingMessage,
       log,
       entityId
@@ -80713,7 +80911,7 @@ async function processBatch(batch, accessToken, log) {
         log.error({ entityId }, "Sin tel\xE9fono ni talkId \u2014 mensaje NO enviado al cliente \u274C");
       }
     }
-    const payload = buildPatchPayload(mensajeParaCliente, extracted);
+    const payload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
     const cfvToSend = payload["custom_fields_values"];
     log.info(
       { entityId, leadName: payload["name"] ?? "(sin cambio)", fieldsUpdated: cfvToSend.length },
@@ -80761,7 +80959,7 @@ async function processBatch(batch, accessToken, log) {
     ]).catch((dbErr) => log.warn({ dbErr }, "No se pudieron guardar mensajes en BD (no cr\xEDtico)"));
     const parsedEventDate = safeParseDate(extracted.fecha_horario);
     void db.update(conversations).set({
-      clientName: extracted.nombre || conversation.clientName,
+      clientName: sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? conversation.clientName,
       clientEmail: extracted.correo || conversation.clientEmail,
       clientPhone: extracted.telefono || conversation.clientPhone,
       eventType: extracted.tipo_evento || conversation.eventType,
@@ -80975,8 +81173,8 @@ router2.post("/kommo/salesbot", async (req, res) => {
       }
     }
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
-    const nombreYaEnCRM = crmLines.some((l4) => /Nombre del cliente:/i.test(l4));
-    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse && !nombreYaEnCRM;
+    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse;
+    const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null) : null;
     const preExtracted = {
       nombre: null,
       telefono: null,
@@ -80990,14 +81188,22 @@ router2.post("/kommo/salesbot", async (req, res) => {
       tipo_contacto: null,
       empresa: null
     };
-    crmContext = buildCrmContext(crmLines, preExtracted, history, void 0, messageText).context;
+    crmContext = buildCrmContext(
+      crmLines,
+      preExtracted,
+      history,
+      void 0,
+      messageText,
+      whatsappDisplayName
+    ).context;
+    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+    const preNameKnown = !!sanitizeDisplayName(whatsappDisplayName);
+    const systemContent = isFirstInteraction ? basePrompt + crmContext + (preNameKnown ? "\n\nPRIMER MENSAJE. Saluda con presentaci\xF3n est\xE1ndar usando el nombre de WhatsApp. No pidas el nombre de nuevo." : "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo est\xE1ndar de Lucy, sin variaciones.") : basePrompt + crmContext;
     const trainingExamples = getTrainingExamples();
     const fewShot = trainingExamples.flatMap((ex) => [
       { role: "user", content: ex.userMessage },
       { role: "assistant", content: ex.lucyResponse }
     ]);
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
-    const systemContent = isFirstInteraction ? basePrompt + crmContext + "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo est\xE1ndar de Lucy, sin variaciones." : basePrompt + crmContext;
     const lucyMessages = [
       { role: "system", content: systemContent },
       ...fewShot,
@@ -81019,12 +81225,24 @@ router2.post("/kommo/salesbot", async (req, res) => {
     ]);
     let aiResponse = completion.choices[0]?.message?.content ?? "";
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
-    const crmResultFinal = buildCrmContext(crmLines, extracted, history, void 0, messageText);
+    const conversationText = [
+      ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
+      messageText
+    ].join(" ");
+    enrichExtractedFromText(extracted, conversationText);
+    const crmResultFinal = buildCrmContext(
+      crmLines,
+      extracted,
+      history,
+      void 0,
+      messageText,
+      whatsappDisplayName
+    );
     const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
     const salesbotMergedLines = crmResultFinal.mergedLines;
     salesbotFilledLabels = crmResultFinal.filledLabels;
     const sbCierreYaEnviado = history.some(
-      (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE)
+      (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
     );
     const emailRefusedThisTurn = detectEmailRefusal([messageText]);
     let mensajeParaCliente = applyLucyMessageGuards({
@@ -81036,6 +81254,7 @@ router2.post("/kommo/salesbot", async (req, res) => {
       emailRefusedThisTurn,
       history,
       currentMessage: messageText,
+      whatsappDisplayName,
       buildClosing: buildClosingMessage,
       log,
       entityId
@@ -81102,7 +81321,7 @@ router2.post("/kommo/salesbot", async (req, res) => {
       } else {
         log.warn({ entityId }, "Salesbot: sin tel\xE9fono ni talkId \u2014 mensaje no enviado \u274C");
       }
-      const patchPayload = buildPatchPayload(mensajeParaCliente, extracted);
+      const patchPayload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
       void fetch(`https://${subdomain}.kommo.com/api/v4/leads/${entityId}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -81232,10 +81451,6 @@ var SIMULATOR_CF_TO_KOMMO = {
 };
 function buildCrmLinesFromSimulator(lead) {
   const lines = [];
-  const name2 = lead.name?.trim();
-  if (name2 && name2 !== "Nuevo lead" && !/^lead\s*#?\d+$/i.test(name2)) {
-    lines.push(`- Nombre del cliente: ${name2}`);
-  }
   if (lead.contact_email?.trim()) {
     lines.push(`- Correo electr\xF3nico: ${lead.contact_email.trim()}`);
   }
@@ -81297,6 +81512,7 @@ router2.post("/kommo/simulator", async (req, res) => {
     const histKey = `sim-${leadId}`;
     let history = getHistory(histKey).slice(-6);
     const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
+    const whatsappDisplayName = sanitizeDisplayName(lead.name);
     const emptyExtracted = {
       nombre: null,
       telefono: null,
@@ -81310,18 +81526,25 @@ router2.post("/kommo/simulator", async (req, res) => {
       tipo_contacto: null,
       empresa: null
     };
-    const crmResultPre = buildCrmContext(crmLines, emptyExtracted, history, void 0, messageText);
+    const crmResultPre = buildCrmContext(
+      crmLines,
+      emptyExtracted,
+      history,
+      lead.contact_email,
+      messageText,
+      whatsappDisplayName
+    );
     const crmContext = crmResultPre.context;
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
-    const nombreYaEnCRM = crmLines.some((l4) => /Nombre del cliente:/i.test(l4));
-    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse && !nombreYaEnCRM;
+    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse;
+    const preNameKnown = !!whatsappDisplayName;
     const trainingExamples = getTrainingExamples();
     const fewShot = trainingExamples.flatMap((ex) => [
       { role: "user", content: ex.userMessage },
       { role: "assistant", content: ex.lucyResponse }
     ]);
     const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
-    const systemContent = isFirstInteraction ? basePrompt + crmContext + "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo est\xE1ndar de Lucy, sin variaciones." : basePrompt + crmContext;
+    const systemContent = isFirstInteraction ? basePrompt + crmContext + (preNameKnown ? "\n\nPRIMER MENSAJE. Saluda con presentaci\xF3n est\xE1ndar usando el nombre de WhatsApp. No pidas el nombre de nuevo." : "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo est\xE1ndar de Lucy, sin variaciones.") : basePrompt + crmContext;
     const lucyMessages = [
       { role: "system", content: systemContent },
       ...fewShot,
@@ -81341,11 +81564,23 @@ router2.post("/kommo/simulator", async (req, res) => {
       extractData(history, messageText, crmLines.join("\n"))
     ]);
     let aiResponse = completion.choices[0]?.message?.content ?? "";
-    const crmResultFinal = buildCrmContext(crmLines, extracted, history, void 0, messageText);
+    const conversationText = [
+      ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
+      messageText
+    ].join(" ");
+    enrichExtractedFromText(extracted, conversationText);
+    const crmResultFinal = buildCrmContext(
+      crmLines,
+      extracted,
+      history,
+      lead.contact_email,
+      messageText,
+      whatsappDisplayName
+    );
     const allFieldsFilled = crmResultFinal.allFieldsFilled;
     const filledLabels = crmResultFinal.filledLabels;
     const simCierreYaEnviado = history.some(
-      (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE)
+      (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
     );
     const emailRefusedThisTurn = detectEmailRefusal([messageText]);
     const mensajeParaCliente = applyLucyMessageGuards({
@@ -81357,6 +81592,7 @@ router2.post("/kommo/simulator", async (req, res) => {
       emailRefusedThisTurn,
       history,
       currentMessage: messageText,
+      whatsappDisplayName,
       buildClosing: buildClosingMessage,
       log,
       entityId: leadId
@@ -81366,6 +81602,7 @@ router2.post("/kommo/simulator", async (req, res) => {
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
     const lead_updates = {};
     if (isValidExtractedString(extracted.nombre)) lead_updates.name = extracted.nombre;
+    else if (whatsappDisplayName) lead_updates.name = whatsappDisplayName;
     if (isValidExtractedString(extracted.correo)) lead_updates.contact_email = extracted.correo;
     if (isValidExtractedString(extracted.telefono)) lead_updates.contact_phone = extracted.telefono;
     log.info({ leadId, allFieldsFilled, stage_id }, "Simulator: Lucy respondi\xF3");
