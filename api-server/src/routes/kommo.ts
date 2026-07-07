@@ -2074,6 +2074,16 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     return;
   }
 
+  if (!process.env["OPENAI_API_KEY"]?.trim()) {
+    res.status(200).json({
+      status: "error",
+      reply:
+        "Lucy no tiene OPENAI_API_KEY configurada. Añádela al .env o variables de Hostinger y reinicia el servidor.",
+      error: "missing_openai_key",
+    });
+    return;
+  }
+
   try {
     const histKey = `sim-${leadId}`;
     let history = getHistory(histKey).slice(-6);
@@ -2168,7 +2178,19 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     });
   } catch (err) {
     log.error({ err }, "Simulator: processing error");
-    res.status(500).json({ error: "processing_failed" });
+    const msg = err instanceof Error ? err.message : String(err);
+    const isAuth =
+      msg.includes("401") ||
+      msg.includes("Incorrect API key") ||
+      msg.includes("invalid_api_key") ||
+      msg.includes("API key");
+    res.status(200).json({
+      status: "error",
+      reply: isAuth
+        ? "OPENAI_API_KEY inválida en Lucy. Revisa la key en .env o Hostinger y reinicia."
+        : "Lucy tuvo un error procesando el mensaje. Revisa los logs del servidor.",
+      error: isAuth ? "openai_auth" : "processing_failed",
+    });
   }
 });
 

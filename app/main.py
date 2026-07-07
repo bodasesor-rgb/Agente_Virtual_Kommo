@@ -123,6 +123,11 @@ async def send_incoming_message(lead_id: int, payload: IncomingMessage) -> dict:
         return await process_incoming_message(lead_id, payload.text, payload.author)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error interno: {exc}. Revisa OPENAI_API_KEY y que Lucy esté corriendo.",
+        ) from exc
 
 
 @app.post("/api/leads/{lead_id}/agent/move")

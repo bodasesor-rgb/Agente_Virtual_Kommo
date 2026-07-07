@@ -297,13 +297,15 @@ async function sendMessage() {
     state.leads = await api("/api/leads");
     await selectLead(state.selectedLeadId);
 
-    if (result.applied?.length) {
+    if (result.reply?.startsWith("⚠️")) {
+      toast(result.reply.slice(0, 140));
+    } else if (result.applied?.length) {
       toast(`Agente: ${result.applied.join(" · ")}`);
     } else {
       toast("Respuesta del agente enviada");
     }
   } catch (err) {
-    toast(err.message);
+    toast(err.message || "Error al enviar mensaje");
   } finally {
     $("#btn-send").disabled = false;
   }

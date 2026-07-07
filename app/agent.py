@@ -145,16 +145,48 @@ async def _call_external_agent(payload: dict[str, Any]) -> dict[str, Any] | None
     try:
         async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(url, json=payload)
-            response.raise_for_status()
-            data = response.json()
+            data = response.json() if response.content else {}
+            if response.status_code >= 400:
+                detail = data.get("error") or data.get("reply") or response.text[:120]
+                return {
+                    "lucy_error": (
+                        f"Lucy respondió {response.status_code} ({detail}). "
+                        "Revisa que Lucy tenga OPENAI_API_KEY válida y que la URL sea "
+                        "/api/kommo/simulator (no /salesbot)."
+                    ),
+                }
             if data.get("reply"):
                 return {
                     "reply": data["reply"],
                     "actions": _lucy_response_to_actions(data),
                 }
-            return data
-    except Exception:
-        return None
+            if data.get("status") == "error" and data.get("reply"):
+                return {"reply": data["reply"], "actions": _lucy_response_to_actions(data)}
+            return None
+    except httpx.ConnectError:
+        return {
+            "lucy_error": (
+                "No se pudo conectar a Lucy. Arranca Lucy primero "
+                "(node api-server/dist/index.mjs en puerto 3000)."
+            ),
+        }
+    except Exception as exc:
+        return {"lucy_error": f"Error llamando a Lucy: {exc}"}
+
+
+def _friendly_agent_error(exc: Exception) -> str:
+    name = type(exc).__name__
+    msg = str(exc)
+    if name == "AuthenticationError" or "401" in msg or "invalid_api_key" in msg:
+        return (
+            "OPENAI_API_KEY inválida. Edita el archivo .env con tu key sk-proj-... "
+            "y reinicia Lucy (y el simulador si aplica)."
+        )
+    if "429" in msg:
+        return "OpenAI está saturado (429). Espera unos segundos e intenta de nuevo."
+    if name == "JSONDecodeError":
+        return "El agente devolvió una respuesta inválida. Intenta de nuevo."
+    return f"No pude procesar el mensaje ({name}). Revisa OPENAI_API_KEY y que Lucy esté corriendo."
 
 
 def _call_openai(system_prompt: str, history: list[Message], user_text: str) -> dict[str, Any]:
@@ -162,28 +194,32 @@ def _call_openai(system_prompt: str, history: list[Message], user_text: str) -> 
     if not api_key:
         return {
             "reply": (
-                "¡Hola! Soy el agente en modo demo (sin OPENAI_API_KEY). "
-                "Configura AGENT_WEBHOOK_URL=http://localhost:3000/api/kommo/simulator "
-                "y arranca Lucy, o pon OPENAI_API_KEY para el agente simple del simulador."
+                "Modo demo: configura OPENAI_API_KEY en .env y arranca Lucy en el puerto 3000 "
+                "con AGENT_WEBHOOK_URL=http://localhost:3000/api/kommo/simulator"
             ),
             "actions": [],
         }
 
-    client = OpenAI(api_key=api_key)
-    messages = [{"role": "system", "content": system_prompt}]
-    for msg in history[-12:]:
-        role = "user" if msg.direction == "incoming" else "assistant"
-        messages.append({"role": role, "content": msg.text})
-    messages.append({"role": "user", "content": user_text})
+    try:
+        client = OpenAI(api_key=api_key)
+        messages = [{"role": "system", "content": system_prompt}]
+        for msg in history[-12:]:
+            role = "user" if msg.direction == "incoming" else "assistant"
+            messages.append({"role": role, "content": msg.text})
+        messages.append({"role": "user", "content": user_text})
 
-    completion = client.chat.completions.create(
-        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-        messages=messages,
-        response_format={"type": "json_object"},
-        temperature=0.4,
-    )
-    content = completion.choices[0].message.content or "{}"
-    return _parse_agent_json(content)
+        completion = client.chat.completions.create(
+            model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+            messages=messages,
+            response_format={"type": "json_object"},
+            temperature=0.4,
+        )
+        content = completion.choices[0].message.content or "{}"
+        return _parse_agent_json(content)
+    except json.JSONDecodeError:
+        return {"reply": "El agente devolvió JSON inválido. Intenta de nuevo.", "actions": []}
+    except Exception as exc:
+        return {"reply": _friendly_agent_error(exc), "actions": []}
 
 
 async def get_agent_status() -> dict[str, Any]:
@@ -223,11 +259,18 @@ async def process_incoming_message(lead_id: int, user_text: str, author: str = "
     external = await _call_external_agent(_lucy_payload(lead, user_text, author))
     if external and external.get("reply"):
         agent_data = external
+    elif external and external.get("lucy_error"):
+        fallback = _call_openai(_build_system_prompt(config, lead), history, user_text)
+        err = external["lucy_error"]
+        if fallback.get("reply") and "OPENAI_API_KEY" not in fallback.get("reply", ""):
+            agent_data = fallback
+        else:
+            agent_data = {"reply": f"⚠️ {err}", "actions": []}
     else:
         system_prompt = _build_system_prompt(config, lead)
         agent_data = _call_openai(system_prompt, history, user_text)
 
-    reply = agent_data.get("reply", "")
+    reply = agent_data.get("reply") or "Sin respuesta del agente."
     actions = agent_data.get("actions", [])
 
     # Aplicar update_lead, set_fields, move_lead

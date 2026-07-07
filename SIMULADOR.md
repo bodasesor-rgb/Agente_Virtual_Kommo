@@ -20,13 +20,14 @@ cp package.development.json package.json
 npm install
 npm run build:source
 
-# Cada vez que cambies código de api-server:
-npm run build:source
+# Crea .env en la raíz (o exporta en la terminal):
+#   OPENAI_API_KEY=sk-proj-TU-KEY-REAL
 
-# Arrancar Lucy en puerto 3000:
-export OPENAI_API_KEY=sk-proj-TU-KEY
-npm run start:dev
+export OPENAI_API_KEY=sk-proj-TU-KEY-REAL
+node api-server/dist/index.mjs
 ```
+
+**Importante:** usa tu key real de OpenAI (`sk-proj-...`). Sin ella el chat marcará error.
 
 Comprueba: http://localhost:3000/api/health → `{"status":"ok",...}`
 
@@ -106,7 +107,8 @@ Botón **Restaurar demo** resetea todo.
 
 | Problema | Solución |
 |----------|----------|
-| Badge «Lucy no responde» | Lucy no está en puerto 3000 o `AGENT_WEBHOOK_URL` incorrecta |
-| Error 500 al enviar mensaje | Revisa `OPENAI_API_KEY` en la terminal de Lucy |
+| Badge «Lucy no responde» | Lucy no está en puerto 3000 — arranca `node api-server/dist/index.mjs` |
+| Error / 500 al escribir | Falta o es inválida `OPENAI_API_KEY` en Lucy (terminal 1) |
+| «OPENAI_API_KEY inválida» | Copia la key correcta en `.env` y **reinicia** Lucy |
 | Campos no se actualizan | Usa `/api/kommo/simulator`, no `/api/kommo/salesbot` |
 | `ModuleNotFoundError: app` | Ejecuta uvicorn desde la **raíz del repo**, no desde `app/` |
