@@ -227,6 +227,8 @@ async def get_agent_status() -> dict[str, Any]:
     mode = "lucy" if url else "builtin"
     lucy_ok = False
     health_url = None
+    lucy_openai_configured = False
+    lucy_key_hint = None
 
     if url:
         base = url.replace("/api/kommo/simulator", "").replace("/api/kommo/salesbot", "")
@@ -235,15 +237,28 @@ async def get_agent_status() -> dict[str, Any]:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 res = await client.get(health_url)
                 lucy_ok = res.status_code == 200
+                if lucy_ok:
+                    data = res.json()
+                    lucy_openai_configured = bool(data.get("openai_configured"))
+                    lucy_key_hint = data.get("openai_key_prefix")
         except Exception:
             lucy_ok = False
+
+    local_key = os.getenv("OPENAI_API_KEY", "").strip()
 
     return {
         "mode": mode,
         "agent_webhook_url": url or None,
         "lucy_health_url": health_url,
         "lucy_connected": lucy_ok,
-        "openai_configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
+        "lucy_openai_configured": lucy_openai_configured,
+        "lucy_key_hint": lucy_key_hint,
+        "openai_configured": bool(local_key),
+        "openai_key_hint": (local_key[:8] + "…") if local_key.startswith("sk-") else None,
+        "hint": (
+            "La key debe estar en LUCY (Hostinger o terminal node), variable OPENAI_API_KEY. "
+            "OPENAI_MODEL es solo el modelo (gpt-4o-mini), no es la key."
+        ),
     }
 
 

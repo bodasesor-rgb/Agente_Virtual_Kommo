@@ -42,16 +42,21 @@ async function loadAgentStatus() {
   try {
     const status = await api("/api/agent/status");
     const el = $("#agent-badge");
-    if (status.mode === "lucy" && status.lucy_connected) {
-      el.textContent = "Lucy conectada · simulador";
+    el.classList.remove("connected", "warning");
+
+    if (status.mode === "lucy" && status.lucy_connected && status.lucy_openai_configured) {
+      el.textContent = "Lucy conectada · OpenAI OK";
       el.classList.add("connected");
-    } else if (status.mode === "lucy") {
+    } else if (status.mode === "lucy" && status.lucy_connected && !status.lucy_openai_configured) {
+      el.textContent = "Lucy online pero falta OPENAI_API_KEY en Lucy (Hostinger/terminal)";
+      el.classList.add("warning");
+    } else if (status.mode === "lucy" && !status.lucy_connected) {
       el.textContent = "Lucy no responde — revisa AGENT_WEBHOOK_URL";
       el.classList.add("warning");
     } else if (status.openai_configured) {
-      el.textContent = "Agente simple (OpenAI directo)";
+      el.textContent = "Agente simple (OpenAI en simulador)";
     } else {
-      el.textContent = "Modo demo — configura Lucy o OPENAI_API_KEY";
+      el.textContent = "Configura OPENAI_API_KEY en Lucy (no OPEN_AI)";
       el.classList.add("warning");
     }
   } catch {
