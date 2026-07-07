@@ -7,7 +7,7 @@
   "description": "Lucy API — producción Hostinger (bundle precompilado en deploy/)",
   "packageManager": "npm@10.9.2",
   "scripts": {
-    "build": "echo ok",
+    "build": "node api-server/build.mjs",
     "start": "node start.mjs",
     "postinstall": "echo \"Lucy: sin dependencias npm — bundle en deploy/\""
   },

@@ -99,7 +99,7 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
   requerimientos:
     /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
   invitados:
-    /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas/i,
+    /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i,
@@ -448,6 +448,48 @@ function lastAssistantAskedField(
   return !!lastAssistant && mensajeAsksForField(lastAssistant, field);
 }
 
+/** Prefiere la respuesta de GPT si cubre el dato pendiente o respondió una duda del cliente. */
+function shouldPreferAiResponse(
+  aiResponse: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  currentMessage?: string
+): boolean {
+  const trimmed = aiResponse.trim();
+  if (!trimmed) return false;
+  if (responseLooksLikePrematureClose(trimmed)) return false;
+  if (mensajeAsksForFilledField(trimmed, filledSet, extracted)) return false;
+  if (mensajeAsksWrongField(trimmed, filledSet, extracted)) return false;
+
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return true;
+
+  if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
+
+  if (clientAskedFreeformQuestion(currentMessage) && trimmed.length > 25) {
+    return trimmed.includes("?") || !pending;
+  }
+
+  return false;
+}
+
+/** Si hay texto útil sin pregunta, añade la pregunta pendiente en lugar de reemplazar todo. */
+function mergeWithPendingQuestion(
+  mensaje: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  ctx: NaturalQuestionContext
+): string {
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return mensaje;
+
+  const nextQ = buildNaturalQuestion(pending, ctx);
+  const base = mensaje.trim();
+  if (!base) return nextQ;
+  if (base.includes("?")) return mensaje;
+  return `${base}\n\n${nextQ}`;
+}
+
 /** Evita re-preguntar lo ya capturado; si hace falta, pide solo el siguiente dato pendiente. */
 export function sanitizeOutboundMessage(
   mensaje: string,
@@ -462,16 +504,15 @@ export function sanitizeOutboundMessage(
 
   if ((repeatsFilled || asksWrong) && pending) {
     log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetición — dato ya capturado");
-    return buildNaturalQuestion(pending, ctx);
+    return mergeWithPendingQuestion("", filledSet, extracted, ctx);
   }
 
   if (
     pending &&
-    !mensajeLooksOnTrack(mensaje, filledSet, extracted) &&
-    !clientAskedFreeformQuestion(ctx.currentMessage) &&
-    !lastAssistantAskedField(ctx.history ?? [], pending)
+    !mensaje.includes("?") &&
+    !clientAskedFreeformQuestion(ctx.currentMessage)
   ) {
-    return buildNaturalQuestion(pending, ctx);
+    return mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
   }
 
   return mensaje;
@@ -761,7 +802,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
-  } else if (needsNextStep && !mensajeLooksOnTrack(aiResponse, filledSet, extracted)) {
+  } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+    mensaje = aiResponse;
+    log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
+  } else if (needsNextStep && aiResponse.trim()) {
+    mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+    log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
+  } else if (needsNextStep) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     mensaje = nextQ ?? aiResponse;
     if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (semántico)");
@@ -813,14 +860,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   if (!readyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
     const pending = getNextPendingField(extracted, filledSet);
-    if (pending) {
-      const mustAsk =
-        responseLooksLikePrematureClose(mensaje) ||
-        !mensajeLooksOnTrack(mensaje, filledSet, extracted);
-      if (mustAsk) {
-        const forcedNext = buildNaturalQuestion(pending, ctx);
-        log?.info({ entityId, pending }, "GUARD: asegurando pregunta del dato pendiente");
-        mensaje = forcedNext;
+    if (pending && !mensaje.includes("?")) {
+      if (responseLooksLikePrematureClose(mensaje)) {
+        mensaje = buildNaturalQuestion(pending, ctx);
+        log?.info({ entityId, pending }, "GUARD: bloqueando cierre — pregunta pendiente");
+      } else if (mensaje.trim()) {
+        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+        log?.info({ entityId, pending }, "GUARD: añadiendo pregunta pendiente a respuesta");
       }
     }
   }

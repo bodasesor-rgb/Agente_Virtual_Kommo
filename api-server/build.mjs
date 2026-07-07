@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm, copyFile, cp } from "node:fs/promises";
+import { rm, copyFile, cp, mkdir } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -123,6 +123,12 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   await cp(simuladorSrc, path.join(distDir, "simulador"), { recursive: true });
   console.log("[build] Simulador copiado a dist/simulador/");
 
+  await mkdir(path.join(distDir, "data"), { recursive: true });
+  const trainingSrc = path.resolve(artifactDir, "data/training-examples.json");
+  await cp(trainingSrc, path.join(distDir, "data/training-examples.json"));
+  await cp(trainingSrc, path.join(distDir, "training-examples.json"));
+  console.log("[build] Training examples copiados a dist/");
+
   const reqFromDb = createRequire(path.resolve(artifactDir, "../lib/db/package.json"));
   const pgliteDist = path.dirname(reqFromDb.resolve("@electric-sql/pglite"));
   for (const asset of ["postgres.data", "postgres.wasm"]) {
@@ -132,6 +138,10 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
       console.warn(`[build] No se copió ${asset}:`, err.message);
     }
   }
+
+  const deployDir = path.resolve(artifactDir, "../deploy");
+  await cp(distDir, deployDir, { recursive: true, force: true });
+  console.log("[build] Bundle sincronizado a deploy/");
 }
 
 buildAll().catch((err) => {

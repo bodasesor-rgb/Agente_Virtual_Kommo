@@ -11,12 +11,25 @@ export interface TrainingExample {
 }
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_FILE = join(__dirname, "../../data/training-examples.json");
+
+function resolveTrainingFile(): string {
+  const candidates = [
+    join(__dirname, "training-examples.json"),
+    join(__dirname, "data/training-examples.json"),
+    join(__dirname, "../../data/training-examples.json"),
+    join(__dirname, "../data/training-examples.json"),
+  ];
+  for (const path of candidates) {
+    if (existsSync(path)) return path;
+  }
+  return candidates[1]!;
+}
 
 export function getTrainingExamples(): TrainingExample[] {
   try {
-    if (!existsSync(DATA_FILE)) return [];
-    const raw = readFileSync(DATA_FILE, "utf-8");
+    const dataFile = resolveTrainingFile();
+    if (!existsSync(dataFile)) return [];
+    const raw = readFileSync(dataFile, "utf-8");
     const parsed = JSON.parse(raw) as { examples: TrainingExample[] };
     return parsed.examples ?? [];
   } catch {
