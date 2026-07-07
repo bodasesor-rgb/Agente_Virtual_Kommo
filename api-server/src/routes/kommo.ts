@@ -13,6 +13,7 @@ import {
   detectEmailRefusal,
   isEmailSatisfied,
   isReadyForClosing,
+  mensajeAsksForField,
   nextFieldQuestion,
   isValidRequerimientosValue,
 } from "../lucy-flow-guards.js";
@@ -500,18 +501,85 @@ function buildCrmContext(
     }
   }
 
+  // ── Escaneo del historial: tipo de evento, servicios, zona y fecha ─────────
+  const recentUserMsgs = history
+    .filter((m) => m.role === "user" && typeof m.content === "string")
+    .slice(-10)
+    .map((m) => m.content as string);
+  const allUserTexts = currentMessage?.trim()
+    ? [...recentUserMsgs, currentMessage.trim()]
+    : recentUserMsgs;
+  const monthPattern =
+    /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
+
+  for (const msg of allUserTexts) {
+    if (!filledSet.has("Tipo de evento")) {
+      const tipoPatterns: Array<[RegExp, string]> = [
+        [/\b(boda|bodas)\b/i, "boda"],
+        [/\b(baby\s*shower)\b/i, "baby shower"],
+        [/\b(xv\s*a[nñ]os?|quincea[nñ]era)\b/i, "XV años"],
+        [/\b(evento\s+corporativo|convenci[oó]n|conferencia)\b/i, "evento corporativo"],
+        [/\b(cumplea[nñ]os?)\b/i, "cumpleaños"],
+        [/\b(bautizo|comuni[oó]n|graduaci[oó]n)\b/i, "celebración"],
+      ];
+      for (const [pat, label] of tipoPatterns) {
+        if (pat.test(msg)) {
+          mergedLines.push(`- Tipo de evento: ${label}`);
+          filledSet.add("Tipo de evento");
+          break;
+        }
+      }
+    }
+
+    if (!filledSet.has("Requerimientos o servicios") && isValidRequerimientosValue(msg)) {
+      mergedLines.push(`- Requerimientos o servicios: ${msg.trim().slice(0, 120)}`);
+      filledSet.add("Requerimientos o servicios");
+    }
+
+    if (!filledSet.has("Lugar/dirección del evento")) {
+      const enMatch = msg.match(
+        /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
+      );
+      if (enMatch) {
+        const lugar = enMatch[1].trim();
+        if (!monthPattern.test(lugar) && !/^\d/.test(lugar)) {
+          mergedLines.push(`- Lugar/dirección del evento: ${lugar}`);
+          filledSet.add("Lugar/dirección del evento");
+        }
+      }
+    }
+
+    if (!filledSet.has("Fecha y horario")) {
+      const fechaMatch = msg.match(
+        /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)\b/i
+      );
+      if (fechaMatch) {
+        mergedLines.push(`- Fecha y horario: ${fechaMatch[1]}`);
+        filledSet.add("Fecha y horario");
+      } else if (
+        /\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha)\b/i.test(msg)
+      ) {
+        mergedLines.push(`- Fecha y horario: ${msg.trim().slice(0, 80)}`);
+        filledSet.add("Fecha y horario");
+      }
+    }
+  }
+
   // ── Detección en tiempo real desde el mensaje actual ────────────────────────
   if (currentMessage && currentMessage.trim()) {
     const msg = currentMessage.trim();
     const lastLucy = history
       .filter((m) => m.role === "assistant" && typeof m.content === "string")
       .slice(-1)[0]?.content as string | undefined ?? "";
-    const lastQ = lastLucy.toLowerCase();
 
     // Nombre: si Lucy preguntó por nombre y el cliente respondió con texto sin @
-    if (!filledSet.has("Nombre del cliente") &&
-        /nombre|completo|regalas tu nombre/i.test(lastQ) &&
-        /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+    if (
+      !filledSet.has("Nombre del cliente") &&
+      mensajeAsksForField(lastLucy, "nombre") &&
+      /[a-záéíóúüñ]/i.test(msg) &&
+      !/@/.test(msg) &&
+      !/\d{4,}/.test(msg)
+    ) {
       const nombreCapturado = sanitizeDisplayName(msg);
       if (nombreCapturado) {
         mergedLines.push(`- Nombre del cliente: ${nombreCapturado}`);
@@ -520,8 +588,8 @@ function buildCrmContext(
     }
 
     // Presupuesto: si Lucy preguntó y el cliente dio monto o indicó que no tiene
-    if (!filledSet.has("Presupuesto (MXN)") && /presupuesto|estimado|budget/i.test(lastQ)) {
-      if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos)\b/i.test(msg)) {
+    if (!filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(lastLucy, "presupuesto")) {
+      if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|no\s+s[eé]|depende)\b/i.test(msg)) {
         mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
         filledSet.add("Presupuesto (MXN)");
       } else if (/\d/.test(msg)) {
@@ -530,39 +598,55 @@ function buildCrmContext(
       }
     }
 
-    // Invitados fallback: si Lucy preguntó y el cliente dio un número (cualquier formato)
-    if (!filledSet.has("Número de invitados") &&
-        /invitados|personas|contemplados/.test(lastQ) &&
-        /\d/.test(msg)) {
+    // Invitados: si Lucy preguntó y el cliente dio un número
+    if (!filledSet.has("Número de invitados") && mensajeAsksForField(lastLucy, "invitados") && /\d/.test(msg)) {
       mergedLines.push(`- Número de invitados: ${msg}`);
       filledSet.add("Número de invitados");
     }
 
-    // Fecha: si Lucy preguntó por fecha y el cliente dio algo con número o mes
-    if (!filledSet.has("Fecha y horario") &&
-        /fecha|siguen sin fecha|cu[aá]ndo/.test(lastQ) &&
-        /\d|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo/i.test(msg)) {
+    // Fecha: si Lucy preguntó por fecha
+    if (
+      !filledSet.has("Fecha y horario") &&
+      mensajeAsksForField(lastLucy, "fecha") &&
+      /\d|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|sin\s+fecha/i.test(
+        msg
+      )
+    ) {
       mergedLines.push(`- Fecha y horario: ${msg}`);
       filledSet.add("Fecha y horario");
     }
 
-    // Ciudad: si Lucy preguntó por ciudad/zona y el cliente respondió con texto
-    if (!filledSet.has("Lugar/dirección del evento") &&
-        /ciudad|dirección|direccion|zona/.test(lastQ) &&
-        /[a-záéíóúüñ]{3,}/i.test(msg) &&
-        !/@/.test(msg)) {
+    // Ciudad/zona: si Lucy preguntó por ubicación
+    if (
+      !filledSet.has("Lugar/dirección del evento") &&
+      mensajeAsksForField(lastLucy, "zona") &&
+      /[a-záéíóúüñ]{3,}/i.test(msg) &&
+      !/@/.test(msg)
+    ) {
       mergedLines.push(`- Lugar/dirección del evento: ${msg}`);
       filledSet.add("Lugar/dirección del evento");
     }
 
     // Tipo de evento: si Lucy preguntó qué festejan / tipo de evento
-    if (!filledSet.has("Tipo de evento") &&
-        /tipo\s+de\s+evento|qu[eé]\s+tipo|festejan|muchas gracias por la info/i.test(lastQ) &&
-        /[a-záéíóúüñ]{3,}/i.test(msg) &&
-        !/@/.test(msg) &&
-        !isValidRequerimientosValue(msg)) {
+    if (
+      !filledSet.has("Tipo de evento") &&
+      mensajeAsksForField(lastLucy, "tipo_evento") &&
+      /[a-záéíóúüñ]{3,}/i.test(msg) &&
+      !/@/.test(msg) &&
+      !isValidRequerimientosValue(msg)
+    ) {
       mergedLines.push(`- Tipo de evento: ${msg}`);
       filledSet.add("Tipo de evento");
+    }
+
+    // Requerimientos: si Lucy preguntó servicios y el cliente respondió con servicio concreto
+    if (
+      !filledSet.has("Requerimientos o servicios") &&
+      mensajeAsksForField(lastLucy, "requerimientos") &&
+      isValidRequerimientosValue(msg)
+    ) {
+      mergedLines.push(`- Requerimientos o servicios: ${msg}`);
+      filledSet.add("Requerimientos o servicios");
     }
   }
 
@@ -587,7 +671,7 @@ function buildCrmContext(
       ...(!isEmailSatisfied(filledSet) ? ["Correo electrónico (opcional — intentar, no bloquear)"] : []),
     ];
     if (missing.length) {
-      context += `\n\nDATO(S) QUE FALTAN: ${missing.join(", ")} — sigue el orden del prompt para pedirlos.`;
+      context += `\n\nDATO(S) QUE FALTAN: ${missing.join(", ")} — pregunta SOLO el primero que falta. NUNCA repitas un dato de la lista ✓ de arriba.`;
     }
   }
   return { context, allFieldsFilled, mergedLines, filledLabels: filledSet };

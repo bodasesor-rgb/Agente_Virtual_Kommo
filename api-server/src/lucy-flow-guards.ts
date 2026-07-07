@@ -90,12 +90,12 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
   correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
   tipo_evento:
-    /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|planeando/i,
+    /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
   requerimientos:
     /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
   invitados:
     /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas/i,
-  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
+  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i,
 };
@@ -245,6 +245,99 @@ export function mensajeAsksForField(mensaje: string, field: PendingField): boole
   return FIELD_ASK_PATTERNS[field].test(mensaje);
 }
 
+export function isFieldSatisfied(
+  field: PendingField,
+  filledSet: Set<string>,
+  extracted: ExtractedData
+): boolean {
+  switch (field) {
+    case "nombre":
+      return filledSet.has("Nombre del cliente");
+    case "correo":
+      return isEmailSatisfied(filledSet);
+    case "tipo_evento":
+      return hasTipoEvento(filledSet, extracted);
+    case "requerimientos":
+      return (
+        filledSet.has("Requerimientos o servicios") ||
+        isValidRequerimientosValue(extracted.requerimientos_evento)
+      );
+    case "invitados":
+      return filledSet.has("Número de invitados");
+    case "zona":
+      return filledSet.has("Lugar/dirección del evento");
+    case "fecha":
+      return filledSet.has("Fecha y horario");
+    case "presupuesto":
+      return filledSet.has("Presupuesto (MXN)");
+  }
+}
+
+const FIELD_ORDER: PendingField[] = [
+  "nombre",
+  "correo",
+  "tipo_evento",
+  "requerimientos",
+  "invitados",
+  "zona",
+  "fecha",
+  "presupuesto",
+];
+
+/** True si el mensaje pregunta por un dato que ya está capturado. */
+export function mensajeAsksForFilledField(
+  mensaje: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData
+): boolean {
+  if (!mensaje.includes("?")) return false;
+  for (const field of FIELD_ORDER) {
+    if (isFieldSatisfied(field, filledSet, extracted) && mensajeAsksForField(mensaje, field)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function lastAssistantAskedField(
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  field: PendingField
+): boolean {
+  const lastAssistant = history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .slice(-1)[0]?.content as string | undefined;
+  return !!lastAssistant && mensajeAsksForField(lastAssistant, field);
+}
+
+/** Evita re-preguntar lo ya capturado; si hace falta, pide solo el siguiente dato pendiente. */
+export function sanitizeOutboundMessage(
+  mensaje: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  ctx: NaturalQuestionContext,
+  log?: { warn: (obj: unknown, msg?: string) => void }
+): string {
+  const pending = getNextPendingField(extracted, filledSet);
+  const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
+  const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
+
+  if ((repeatsFilled || asksWrong) && pending) {
+    log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetición — dato ya capturado");
+    return buildNaturalQuestion(pending, ctx);
+  }
+
+  if (
+    pending &&
+    !mensajeLooksOnTrack(mensaje, filledSet, extracted) &&
+    !clientAskedFreeformQuestion(ctx.currentMessage) &&
+    !lastAssistantAskedField(ctx.history ?? [], pending)
+  ) {
+    return buildNaturalQuestion(pending, ctx);
+  }
+
+  return mensaje;
+}
+
 export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionContext): string {
   const history = ctx.history ?? [];
   const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
@@ -378,14 +471,21 @@ export function emailRefusalAckMessage(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   currentMessage?: string,
-  entityId?: string | number
+  entityId?: string | number,
+  filledSet?: Set<string>
 ): string {
-  const tipoQ = buildNaturalQuestion("tipo_evento", {
+  const ctx: NaturalQuestionContext = {
     extracted,
+    filledSet,
     history,
     currentMessage,
     entityId,
-  });
+  };
+  const pending = getNextPendingField(extracted, filledSet);
+  if (pending && pending !== "correo") {
+    return `Sin problema, seguimos por aquí. ${buildNaturalQuestion(pending, ctx)}`;
+  }
+  const tipoQ = buildNaturalQuestion("tipo_evento", ctx);
   return `Sin problema, seguimos por aquí. ${tipoQ}`;
 }
 
@@ -452,16 +552,7 @@ function mensajeAsksWrongField(
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return false;
 
-  const fieldOrder: PendingField[] = [
-    "nombre",
-    "correo",
-    "tipo_evento",
-    "requerimientos",
-    "invitados",
-    "zona",
-    "fecha",
-    "presupuesto",
-  ];
+  const fieldOrder: PendingField[] = FIELD_ORDER;
   const pendingIdx = fieldOrder.indexOf(pending);
 
   for (let i = pendingIdx + 1; i < fieldOrder.length; i++) {
@@ -524,8 +615,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
     mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
     log?.info({ entityId }, "GUARD: correo capturado — pregunta tipo de evento");
+  } else if (justGaveEmail && hasTipoEvento(filledSet, extracted)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    mensaje = nextQ ?? aiResponse;
+    if (nextQ) log?.info({ entityId }, "GUARD: correo capturado — tipo ya tenido, siguiente dato");
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
-    mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId);
+    mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
   } else if (needsNextStep && !mensajeLooksOnTrack(aiResponse, filledSet, extracted)) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
@@ -552,7 +647,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
     const nextQ =
       nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ??
-      emailRefusalAckMessage(extracted, history, currentMessage, entityId);
+      emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.warn({ entityId }, "GUARD: correo forzado tras rechazo — reemplazando respuesta");
     mensaje = nextQ;
   }
@@ -572,7 +667,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
     const nextQ =
       nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ??
-      emailRefusalAckMessage(extracted, history, currentMessage, entityId);
+      emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.warn({ entityId }, "GUARD: GPT insistió en correo tras rechazo");
     mensaje = nextQ;
   }
@@ -606,6 +701,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       mensaje = buildNaturalQuestion(pending, ctx);
     }
   }
+
+  mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
 
   return mensaje;
 }
