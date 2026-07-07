@@ -19,18 +19,86 @@ export const CLOSING_CORE_FIELDS = [
   "Presupuesto (MXN)",
 ] as const;
 
+/** Plantillas legacy — preferir variantes naturales vía buildNaturalQuestion(). */
 export const FLOW_QUESTIONS = {
   nombre: "¿Me regalas tu nombre para iniciar?",
   tipoEvento: "¿Qué festejan o qué tipo de evento sería?",
-  tipoEventoTrasCorreo: "Muchas gracias por la info, ¿qué festejan o qué tipo de evento sería?",
-  requerimientos: "Perfecto. Platícame, ¿qué tienes pensado para tu evento?",
-  invitados: "¿Cuántos invitados tienes contemplados para tu evento?",
-  zona: "¿En qué ciudad sería tu evento, si tienes dirección exacta sería mejor?",
-  fecha: "¿Ya tienen fecha definida o siguen sin fecha?",
-  presupuesto: "¿Tienes algún presupuesto estimado para tu evento?",
+  tipoEventoTrasCorreo: "¿Qué tipo de celebración están planeando?",
+  requerimientos: "Platícame, ¿qué tienes pensado para tu evento?",
+  invitados: "¿Más o menos para cuántas personas sería?",
+  zona: "¿Dónde lo están planeando?",
+  fecha: "¿Ya tienen fecha o todavía la van definiendo?",
+  presupuesto: "¿Tienen algún rango de presupuesto en mente?",
   serviciosExtra:
     "También manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.",
 } as const;
+
+export type PendingField =
+  | "nombre"
+  | "correo"
+  | "tipo_evento"
+  | "requerimientos"
+  | "invitados"
+  | "zona"
+  | "fecha"
+  | "presupuesto";
+
+const QUESTION_VARIANTS: Record<PendingField, string[]> = {
+  nombre: [
+    "¿Me regalas tu nombre para iniciar?",
+    "¿Con quién tengo el gusto?",
+    "¿Cómo te llamas?",
+  ],
+  correo: [
+    "Para mandarte la info y que Alejandro te arme la propuesta, ¿a qué correo te lo envío?",
+    "¿Me compartes un correo para enviarte los detalles de la cotización?",
+    "¿A qué correo te mando la información?",
+  ],
+  tipo_evento: [
+    "¿Qué tipo de celebración es?",
+    "¿Qué festejan o qué evento están planeando?",
+    "Cuéntame, ¿de qué se trata el evento?",
+  ],
+  requerimientos: [
+    "Platícame, ¿qué tienes pensado para tu evento?",
+    "¿Qué servicios te gustaría cotizar?",
+    "¿Qué necesitas para el evento?",
+  ],
+  invitados: [
+    "¿Más o menos para cuántas personas sería?",
+    "¿Cuántos invitados tienen contemplados?",
+    "¿Para cuántas personas lo están planeando?",
+  ],
+  zona: [
+    "¿Dónde lo están planeando?",
+    "¿En qué ciudad o zona sería el evento?",
+    "¿Tienen ya el lugar o al menos la ciudad?",
+  ],
+  fecha: [
+    "¿Ya tienen fecha o todavía la van definiendo?",
+    "¿Para cuándo lo tienen pensado?",
+    "¿Ya hay día definido o siguen viendo opciones?",
+  ],
+  presupuesto: [
+    "¿Tienen algún rango de presupuesto en mente?",
+    "¿Manejan algún presupuesto estimado para el evento?",
+    "¿Tienen idea del presupuesto o prefieren que Alejandro les proponga opciones?",
+  ],
+};
+
+const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
+  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
+  correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
+  tipo_evento:
+    /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|planeando/i,
+  requerimientos:
+    /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
+  invitados:
+    /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas/i,
+  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
+  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
+  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i,
+};
 
 const SERVICE_HINT =
   /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura/i;
@@ -96,10 +164,115 @@ function hasTipoEvento(filledSet: Set<string>, extracted: ExtractedData): boolea
   return filledSet.has("Tipo de evento") || !!(extracted.tipo_evento?.trim());
 }
 
+function getDisplayName(extracted: ExtractedData, whatsappName?: string | null): string {
+  return resolveClientDisplayName(extracted.nombre, null, whatsappName) ?? "ti";
+}
+
+function variantIndex(
+  field: PendingField,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  entityId?: string | number
+): number {
+  const variants = QUESTION_VARIANTS[field];
+  const assistantTurns = history.filter((m) => m.role === "assistant").length;
+  const seed = entityId != null ? String(entityId).length : 0;
+  return (assistantTurns + seed) % variants.length;
+}
+
+function pickVariant(
+  field: PendingField,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  entityId?: string | number
+): string {
+  const variants = QUESTION_VARIANTS[field];
+  return variants[variantIndex(field, history, entityId)] ?? variants[0]!;
+}
+
+function contextualPrefix(
+  field: PendingField,
+  extracted: ExtractedData,
+  currentMessage?: string
+): string {
+  const msg = currentMessage?.trim() ?? "";
+  if (!msg) return "";
+
+  if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) {
+    return "Perfecto. ";
+  }
+  if (field === "zona" && /\d+/.test(msg)) {
+    return "Entendido. ";
+  }
+  if (field === "fecha" && /ciudad|zona|polanco|cdmx|puebla|monterrey|reforma/i.test(msg)) {
+    return "Muy bien. ";
+  }
+  if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) {
+    return "Genial. ";
+  }
+  return "";
+}
+
+export interface NaturalQuestionContext {
+  extracted: ExtractedData;
+  filledSet?: Set<string>;
+  whatsappName?: string | null;
+  history?: OpenAI.Chat.ChatCompletionMessageParam[];
+  currentMessage?: string;
+  entityId?: string | number;
+  afterEmail?: boolean;
+}
+
+export function getNextPendingField(
+  extracted: ExtractedData,
+  filledSet?: Set<string>
+): PendingField | null {
+  const filled = filledSet ?? new Set<string>();
+
+  if (!filled.has("Nombre del cliente")) return "nombre";
+  if (!isEmailSatisfied(filled)) return "correo";
+  if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
+  if (!filled.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
+    return "requerimientos";
+  }
+  if (!filled.has("Número de invitados")) return "invitados";
+  if (!filled.has("Lugar/dirección del evento")) return "zona";
+  if (!filled.has("Fecha y horario")) return "fecha";
+  if (!filled.has("Presupuesto (MXN)")) return "presupuesto";
+  return null;
+}
+
+export function mensajeAsksForField(mensaje: string, field: PendingField): boolean {
+  if (!mensaje.includes("?")) return false;
+  return FIELD_ASK_PATTERNS[field].test(mensaje);
+}
+
+export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionContext): string {
+  const history = ctx.history ?? [];
+  const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
+  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage);
+  const variant = pickVariant(field, history, ctx.entityId);
+
+  if (field === "correo") {
+    const correoCore = pickVariant("correo", history, ctx.entityId);
+    return `Mucho gusto, ${nombre}. ${correoCore}`;
+  }
+
+  if (field === "requerimientos") {
+    return buildRequerimientosQuestion(ctx.extracted, history, ctx.currentMessage, ctx.entityId);
+  }
+
+  if (field === "tipo_evento" && ctx.afterEmail) {
+    const tipoVariant = pickVariant("tipo_evento", history, ctx.entityId);
+    return prefix ? `${prefix}${tipoVariant}` : tipoVariant;
+  }
+
+  return prefix ? `${prefix}${variant}` : variant;
+}
+
 export function buildRequerimientosQuestion(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
-  currentMessage?: string
+  currentMessage?: string,
+  entityId?: string | number
 ): string {
   const userText = collectUserTexts(history, currentMessage).join(" ");
   const fromExtracted =
@@ -107,14 +280,22 @@ export function buildRequerimientosQuestion(
       ? extracted.requerimientos_evento!.trim()
       : null;
   const service = fromExtracted ?? findMentionedService(userText);
+  const prefix = contextualPrefix("requerimientos", extracted, currentMessage);
 
   if (service) {
+    const idx = variantIndex("requerimientos", history, entityId);
+    const followUps = [
+      `Además del ${service}, ¿te gustaría cotizar algún otro servicio?`,
+      `¿Solo el ${service} o también algo más?`,
+      `Perfecto. Con el ${service}, ¿necesitan algún otro servicio?`,
+    ];
     return (
-      `Perfecto. Además del ${service}, ¿te gustaría cotizar algún otro servicio? ` +
-      FLOW_QUESTIONS.serviciosExtra
+      `${prefix}${followUps[idx % followUps.length]} ` + FLOW_QUESTIONS.serviciosExtra
     );
   }
-  return FLOW_QUESTIONS.requerimientos;
+
+  const variant = pickVariant("requerimientos", history, entityId);
+  return prefix ? `${prefix}${variant}` : variant;
 }
 
 export function requerimientosNeedsFollowUp(
@@ -127,31 +308,40 @@ export function requerimientosNeedsFollowUp(
   return !isValidRequerimientosValue(req);
 }
 
-function getDisplayName(extracted: ExtractedData, whatsappName?: string | null): string {
-  return resolveClientDisplayName(extracted.nombre, null, whatsappName) ?? "ti";
-}
-
-export function buildCorreoQuestion(nombre: string): string {
-  return `Mucho gusto, ${nombre}. Para mandarte toda la información y que Alejandro te arme una propuesta, ¿a qué correo te lo envío?`;
+export function buildCorreoQuestion(
+  nombre: string,
+  history: OpenAI.Chat.ChatCompletionMessageParam[] = [],
+  entityId?: string | number
+): string {
+  const correoCore = pickVariant("correo", history, entityId);
+  return `Mucho gusto, ${nombre}. ${correoCore}`;
 }
 
 export function buildRequerimientosFollowUp(
   extracted: ExtractedData,
   filledSet?: Set<string>,
   history?: OpenAI.Chat.ChatCompletionMessageParam[],
-  currentMessage?: string
+  currentMessage?: string,
+  entityId?: string | number
 ): string {
+  const ctx: NaturalQuestionContext = {
+    extracted,
+    filledSet,
+    history: history ?? [],
+    currentMessage,
+    entityId,
+  };
+
   if (filledSet && !hasTipoEvento(filledSet, extracted)) {
-    return FLOW_QUESTIONS.tipoEvento;
+    return buildNaturalQuestion("tipo_evento", ctx);
   }
   if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
-    return buildRequerimientosQuestion(extracted, history ?? [], currentMessage);
+    return buildRequerimientosQuestion(extracted, history ?? [], currentMessage, entityId);
   }
-  if (!filledSet?.has("Número de invitados")) return FLOW_QUESTIONS.invitados;
-  if (!filledSet?.has("Lugar/dirección del evento")) return FLOW_QUESTIONS.zona;
-  if (!filledSet?.has("Fecha y horario")) return FLOW_QUESTIONS.fecha;
-  if (!filledSet?.has("Presupuesto (MXN)")) return FLOW_QUESTIONS.presupuesto;
-  return buildRequerimientosQuestion(extracted, history ?? [], currentMessage);
+
+  const pending = getNextPendingField(extracted, filledSet);
+  if (pending) return buildNaturalQuestion(pending, ctx);
+  return buildRequerimientosQuestion(extracted, history ?? [], currentMessage, entityId);
 }
 
 export function nextFieldQuestion(
@@ -159,43 +349,20 @@ export function nextFieldQuestion(
   filledSet?: Set<string>,
   whatsappName?: string | null,
   history?: OpenAI.Chat.ChatCompletionMessageParam[],
-  currentMessage?: string
+  currentMessage?: string,
+  entityId?: string | number
 ): string | null {
-  const nombre = getDisplayName(extracted, whatsappName);
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return null;
 
-  if (!filledSet?.has("Nombre del cliente")) {
-    return FLOW_QUESTIONS.nombre;
-  }
-
-  if (!isEmailSatisfied(filledSet ?? new Set())) {
-    return buildCorreoQuestion(nombre);
-  }
-
-  if (!hasTipoEvento(filledSet ?? new Set(), extracted)) {
-    return FLOW_QUESTIONS.tipoEvento;
-  }
-
-  if (!filledSet?.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    return buildRequerimientosQuestion(extracted, history ?? [], currentMessage);
-  }
-
-  if (!filledSet?.has("Número de invitados")) {
-    return FLOW_QUESTIONS.invitados;
-  }
-
-  if (!filledSet?.has("Lugar/dirección del evento")) {
-    return FLOW_QUESTIONS.zona;
-  }
-
-  if (!filledSet?.has("Fecha y horario")) {
-    return FLOW_QUESTIONS.fecha;
-  }
-
-  if (!filledSet?.has("Presupuesto (MXN)")) {
-    return FLOW_QUESTIONS.presupuesto;
-  }
-
-  return null;
+  return buildNaturalQuestion(pending, {
+    extracted,
+    filledSet,
+    whatsappName,
+    history: history ?? [],
+    currentMessage,
+    entityId,
+  });
 }
 
 export function shouldReplaceForcedEmailQuestion(
@@ -210,9 +377,16 @@ export function shouldReplaceForcedEmailQuestion(
 export function emailRefusalAckMessage(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
-  currentMessage?: string
+  currentMessage?: string,
+  entityId?: string | number
 ): string {
-  return `Sin problema, seguimos por aquí. ${FLOW_QUESTIONS.tipoEvento}`;
+  const tipoQ = buildNaturalQuestion("tipo_evento", {
+    extracted,
+    history,
+    currentMessage,
+    entityId,
+  });
+  return `Sin problema, seguimos por aquí. ${tipoQ}`;
 }
 
 export function clientJustGaveEmail(
@@ -236,7 +410,9 @@ export function clientJustAnsweredRequerimientosQuestion(
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
     .slice(-1)[0]?.content as string | undefined;
   if (!lastAssistant) return false;
-  return /platícame|qué tienes pensado|otro servicio|te gustaría cotizar|festejan|tipo de evento/i.test(lastAssistant);
+  return /platícame|qué tienes pensado|otro servicio|te gustaría cotizar|festejan|tipo de evento|servicios te gustaría|qué necesitas/i.test(
+    lastAssistant
+  );
 }
 
 function clientAskedFreeformQuestion(message?: string): boolean {
@@ -256,19 +432,42 @@ function responseLooksLikePrematureClose(mensaje: string): boolean {
   );
 }
 
-function mensajeLooksOnTrack(mensaje: string, filledSet: Set<string>): boolean {
+function mensajeLooksOnTrack(
+  mensaje: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData
+): boolean {
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return true;
+  return mensajeAsksForField(mensaje, pending);
+}
+
+function mensajeAsksWrongField(
+  mensaje: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData
+): boolean {
   if (!mensaje.includes("?")) return false;
-  if (!filledSet.has("Tipo de evento") && /festejan|tipo de evento|qué festejan/i.test(mensaje)) return true;
-  if (
-    !filledSet.has("Requerimientos o servicios") &&
-    /pensado|servicio|banquete|taquiza|cotizar|además del/i.test(mensaje)
-  ) {
-    return true;
+
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return false;
+
+  const fieldOrder: PendingField[] = [
+    "nombre",
+    "correo",
+    "tipo_evento",
+    "requerimientos",
+    "invitados",
+    "zona",
+    "fecha",
+    "presupuesto",
+  ];
+  const pendingIdx = fieldOrder.indexOf(pending);
+
+  for (let i = pendingIdx + 1; i < fieldOrder.length; i++) {
+    const field = fieldOrder[i]!;
+    if (mensajeAsksForField(mensaje, field)) return true;
   }
-  if (!filledSet.has("Número de invitados") && /invitados|contemplados/i.test(mensaje)) return true;
-  if (!filledSet.has("Lugar/dirección del evento") && /ciudad|dirección|direccion/i.test(mensaje)) return true;
-  if (!filledSet.has("Fecha y horario") && /fecha|siguen sin fecha/i.test(mensaje)) return true;
-  if (!filledSet.has("Presupuesto (MXN)") && /presupuesto|estimado/i.test(mensaje)) return true;
   return false;
 }
 
@@ -287,6 +486,17 @@ export interface LucyMessageGuardsInput {
   entityId?: string | number;
 }
 
+function makeQuestionCtx(input: LucyMessageGuardsInput): NaturalQuestionContext {
+  return {
+    extracted: input.extracted,
+    filledSet: input.filledSet,
+    whatsappName: input.whatsappDisplayName,
+    history: input.history,
+    currentMessage: input.currentMessage,
+    entityId: input.entityId,
+  };
+}
+
 export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const {
     aiResponse,
@@ -303,6 +513,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     entityId,
   } = input;
 
+  const ctx = makeQuestionCtx(input);
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
   const emailOk = isEmailSatisfied(filledSet);
@@ -311,21 +522,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   let mensaje: string;
 
   if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
-    mensaje = FLOW_QUESTIONS.tipoEventoTrasCorreo;
+    mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
     log?.info({ entityId }, "GUARD: correo capturado — pregunta tipo de evento");
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
-    mensaje = emailRefusalAckMessage(extracted, history, currentMessage);
+    mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
-  } else if (needsNextStep && !mensajeLooksOnTrack(aiResponse, filledSet)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage);
+  } else if (needsNextStep && !mensajeLooksOnTrack(aiResponse, filledSet, extracted)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     mensaje = nextQ ?? aiResponse;
-    if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo");
+    if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (semántico)");
   } else if (
     readyForClosing &&
     !cierreYaEnviado &&
     (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))
   ) {
-    mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage);
+    mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
   } else if (readyForClosing && !cierreYaEnviado) {
     mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
@@ -340,48 +551,60 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
     const nextQ =
-      nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage) ??
-      emailRefusalAckMessage(extracted, history, currentMessage);
+      nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ??
+      emailRefusalAckMessage(extracted, history, currentMessage, entityId);
     log?.warn({ entityId }, "GUARD: correo forzado tras rechazo — reemplazando respuesta");
     mensaje = nextQ;
   }
 
   const correoYaTenido = !!(extracted.correo?.trim()) || filledSet.has("Correo electrónico");
   if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage);
-    if (nextQ) {
-      log?.warn({ entityId }, "GUARD: GPT preguntó correo ya capturado");
-      mensaje = nextQ;
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "correo" && !mensajeAsksForField(mensaje, pending)) {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (nextQ) {
+        log?.warn({ entityId }, "GUARD: GPT preguntó correo ya capturado");
+        mensaje = nextQ;
+      }
     }
   }
 
   if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
     const nextQ =
-      nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage) ??
-      emailRefusalAckMessage(extracted, history, currentMessage);
+      nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ??
+      emailRefusalAckMessage(extracted, history, currentMessage, entityId);
     log?.warn({ entityId }, "GUARD: GPT insistió en correo tras rechazo");
     mensaje = nextQ;
   }
 
   if (!readyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
-    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage);
-    if (forcedNext && (responseLooksLikePrematureClose(mensaje) || !mensaje.includes("?"))) {
-      log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo");
-      mensaje = forcedNext;
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending) {
+      const mustAsk =
+        responseLooksLikePrematureClose(mensaje) ||
+        !mensajeLooksOnTrack(mensaje, filledSet, extracted);
+      if (mustAsk) {
+        const forcedNext = buildNaturalQuestion(pending, ctx);
+        log?.info({ entityId, pending }, "GUARD: asegurando pregunta del dato pendiente");
+        mensaje = forcedNext;
+      }
     }
   }
 
   if (!readyForClosing && responseLooksLikePrematureClose(mensaje)) {
-    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage);
+    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     if (forcedNext) {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
       mensaje = forcedNext;
     }
   }
 
-  if (!hasTipoEvento(filledSet, extracted) && /platícame|qué tienes pensado para tu evento/i.test(mensaje)) {
-    log?.warn({ entityId }, "GUARD: requerimientos antes de tipo de evento — corrigiendo");
-    mensaje = FLOW_QUESTIONS.tipoEvento;
+  if (mensajeAsksWrongField(mensaje, filledSet, extracted)) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending) {
+      log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden — corrigiendo");
+      mensaje = buildNaturalQuestion(pending, ctx);
+    }
   }
 
   return mensaje;
