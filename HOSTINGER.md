@@ -1,78 +1,80 @@
-# Hostinger — configuración EXACTA
+# Hostinger — pasos si sigue fallando
 
-## Si NO puedes cambiar el directorio raíz
+## 1. Confirma que Hostinger usa `main` actualizado
 
-Hostinger a veces deja el **directorio raíz fijo en `./`**. Este repo ya está preparado para eso: `start.mjs` en la raíz arranca el bundle precompilado que está en `deploy/`.
+El fix está en `main`. En GitHub → commits, debe existir:
+- `start.mjs` en la raíz
+- **NO** debe existir `pnpm-lock.yaml`
+
+Si ves `pnpm-lock.yaml` en el repo de Hostinger, estás en un commit viejo.
 
 ---
 
-## Configuración en hPanel
+## 2. Configuración exacta en hPanel
 
-| Campo en hPanel | Valor exacto |
-|-----------------|--------------|
+| Campo | Valor |
+|-------|-------|
 | Rama | `main` |
 | Node | `22.x` |
-| **Directorio raíz** | **`./`** (el que venga por defecto — no hace falta cambiarlo) |
-| Marco | Other |
-| Gestor de paquetes | **npm** (si Hostinger igual usa pnpm, borra caché y redespliega tras mergear este fix) |
-| **Comando compilación** | **`npm run build`** |
-| **Directorio salida** | **`.`** |
-| **Archivo entrada** | **`start.mjs`** |
+| Directorio raíz | `./` |
+| Gestor de paquetes | **npm** |
+| Comando compilación | **npm run build** |
+| Directorio salida | `.` |
+| Archivo entrada | **start.mjs** |
 
-No uses `pnpm`. El repo **ya no incluye** `pnpm-lock.yaml` ni `pnpm-workspace.yaml` para que Hostinger no intente instalar el monorepo.
-
-El `package.json` de producción **no tiene dependencias** — Lucy corre desde `deploy/` precompilado.
+Variable de entorno obligatoria: `OPENAI_API_KEY=sk-proj-...`
 
 ---
 
-## Si ves `ERR_PNPM_FETCH_404` o `@workspace/api-zod`
+## 3. Si el log sigue mostrando PNPM
 
-Hostinger estaba usando **pnpm** por los archivos viejos del monorepo. Tras el último merge a `main`:
+Hostinger tiene caché del deploy anterior.
 
-1. Redespliega desde `main` (commit reciente)
-2. En hPanel confirma gestor **npm**
-3. Si persiste, borra el deploy y créalo de nuevo
+**Haz esto (en orden):**
 
----
-
-## Variable de entorno obligatoria
-
-| Nombre | Valor |
-|--------|--------|
-| `OPENAI_API_KEY` | tu key sk-proj-... |
-
-Sin esto el servidor arranca pero Lucy no responde con GPT.
+1. En hPanel → tu sitio Node.js → **borrar / eliminar** la aplicación Node
+2. Crear **nueva** aplicación Node.js conectada al mismo repo
+3. Rama `main`, gestor **npm**, entrada `start.mjs`
+4. Añadir `OPENAI_API_KEY` antes de desplegar
+5. Desplegar
 
 ---
 
-## Probar después del deploy
+## 4. Log correcto (debe verse así)
 
-1. `https://TU-DOMINIO.hostingersite.com/` → debe decir **Server running**
-2. `https://TU-DOMINIO.hostingersite.com/api/health` → debe decir `"status":"ok"`
-
----
-
-## Si sigue fallando
-
-En Hostinger abre el deploy fallido → **Registros** → busca líneas **después** del build:
-
-- `FALTA archivo requerido: deploy/index.mjs` → falta la carpeta `deploy/` en el repo (vuelve a desplegar desde `main`)
-- `OPENAI_API_KEY` → falta el secret
-- `EADDRINUSE` / `PORT` → problema de puerto (raro en Hostinger)
-
-Manda captura de esas líneas (no la key).
-
----
-
-## Desarrollo local (opcional)
-
-El monorepo para compilar fuentes está en `package.development.json`:
-
-```bash
-cp package.development.json package.json
-npm install
-npm run build:source
-npm run sync-deploy
+```
+npm ci
+up to date, audited 1 package
+npm run build
+ok
+[start] Archivos OK, arrancando Lucy desde deploy/...
+Server listening
 ```
 
-Para volver al modo Hostinger: restaura `package.json` desde git (`git checkout package.json package-lock.json`).
+**Mal** (commit viejo o caché pnpm):
+
+```
+Scope: all 7 workspace projects
+ERR_PNPM_FETCH_404 @workspace/api-zod
+```
+
+---
+
+## 5. Probar que Lucy responde
+
+- `https://TU-DOMINIO.hostingersite.com/` → `Server running`
+- `https://TU-DOMINIO.hostingersite.com/api/health` → `"status":"ok"`
+
+---
+
+## 6. Si falla en el ARRANQUE (después del build)
+
+Busca en registros:
+
+| Mensaje | Solución |
+|---------|----------|
+| `FALTA archivo requerido: deploy/index.mjs` | Repo incompleto — verifica carpeta `deploy/` en GitHub |
+| `OPENAI_API_KEY` / `Missing credentials` | Añade la variable en Hostinger → Environment |
+| `EADDRINUSE` | Puerto ocupado — contacta soporte Hostinger |
+
+Manda captura del log **después** de `npm run build` (sin mostrar la API key).

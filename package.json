@@ -8,7 +8,8 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "build": "echo ok",
-    "start": "node start.mjs"
+    "start": "node start.mjs",
+    "postinstall": "echo \"Lucy: sin dependencias npm — bundle en deploy/\""
   },
   "engines": {
     "node": ">=22"
