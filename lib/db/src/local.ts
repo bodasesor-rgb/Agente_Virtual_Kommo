@@ -2,18 +2,12 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import * as schema from "./schema/index.js";
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = here.endsWith("/dist")
-  ? path.resolve(here, "../..")
-  : path.resolve(here, "../../..");
-
 const LOCAL_DB_DIR =
   process.env["LUCY_LOCAL_DB_PATH"] ??
-  path.resolve(repoRoot, "data", "lucy-pgdata");
+  path.resolve(process.cwd(), "data", "lucy-pgdata");
 
 let client: PGlite | null = null;
 let localDb: ReturnType<typeof drizzle> | null = null;

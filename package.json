@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "build": "npm run build -w @workspace/api-server",
-    "start": "node api-server/dist/index.mjs"
+    "start": "node api-server/dist/index.mjs",
+    "sync-deploy": "npm run build && cp api-server/dist/*.mjs api-server/dist/postgres.* deploy/"
   },
   "engines": {
     "node": ">=20"

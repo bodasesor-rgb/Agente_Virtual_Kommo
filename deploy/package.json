@@ -1,0 +1,14 @@
+{
+  "name": "lucy-bodasesor-kommo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Lucy API — build precompilado para Hostinger (sin npm install ni compile)",
+  "scripts": {
+    "start": "node index.mjs",
+    "build": "echo Precompiled - no build needed"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

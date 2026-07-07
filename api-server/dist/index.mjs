@@ -73784,7 +73784,6 @@ function drizzle2(...params) {
 // ../lib/db/src/local.ts
 import fs2 from "node:fs";
 import path2 from "node:path";
-import { fileURLToPath as fileURLToPath3 } from "node:url";
 
 // ../lib/db/src/schema/index.ts
 var schema_exports = {};
@@ -73875,9 +73874,7 @@ var users = pgTable("users", {
 });
 
 // ../lib/db/src/local.ts
-var here = path2.dirname(fileURLToPath3(import.meta.url));
-var repoRoot = here.endsWith("/dist") ? path2.resolve(here, "../..") : path2.resolve(here, "../../..");
-var LOCAL_DB_DIR = process.env["LUCY_LOCAL_DB_PATH"] ?? path2.resolve(repoRoot, "data", "lucy-pgdata");
+var LOCAL_DB_DIR = process.env["LUCY_LOCAL_DB_PATH"] ?? path2.resolve(process.cwd(), "data", "lucy-pgdata");
 var client = null;
 var localDb = null;
 var INIT_SQL = `
@@ -81587,9 +81584,9 @@ var import_express4 = __toESM(require_express2(), 1);
 import { randomUUID } from "crypto";
 import { readFileSync as readFileSync3, writeFileSync as writeFileSync2, existsSync as existsSync4 } from "fs";
 import { join as join4, dirname as dirname3 } from "path";
-import { fileURLToPath as fileURLToPath4 } from "url";
+import { fileURLToPath as fileURLToPath3 } from "url";
 var router4 = (0, import_express4.Router)();
-var __dirname4 = dirname3(fileURLToPath4(import.meta.url));
+var __dirname4 = dirname3(fileURLToPath3(import.meta.url));
 var DATA_FILE3 = join4(__dirname4, "../data/training-examples.json");
 function loadStore() {
   try {
