@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kommo Simulador — Bodasesor / Lucy</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">Kommo Simulador</div>
+      <div class="badge" id="agent-badge">Comprobando Lucy…</div>
+      <p class="sidebar-hint">Pruebas en Hostinger · datos en tu navegador</p>
+      <nav class="nav">
+        <button class="active" data-view="pipeline">Embudo / Pipeline</button>
+        <button data-view="config">Pipelines y campos</button>
+        <button data-view="activity">Actividad</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1 id="account-name">Cargando...</h1>
+          <p id="pipeline-label" style="color: var(--muted); margin: 4px 0 0;">Pipeline activo</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="ghost" id="btn-export">Exportar JSON</button>
+          <button class="secondary" id="btn-reset">Restaurar demo</button>
+          <button class="primary" id="btn-new-lead">+ Nuevo lead</button>
+        </div>
+      </div>
+
+      <section id="view-pipeline" class="panel" style="padding: 16px;">
+        <div id="kanban" class="kanban"></div>
+      </section>
+
+      <section id="view-config" class="panel hidden">
+        <div class="config-section">
+          <h2>Pipelines y etapas</h2>
+          <div id="pipeline-config" class="config-list"></div>
+          <form id="form-new-pipeline" class="inline-form">
+            <input type="text" name="name" placeholder="Nombre del pipeline" required />
+            <input type="text" name="stages" placeholder="Etapas separadas por coma" required />
+            <button class="primary" type="submit">Crear pipeline</button>
+          </form>
+        </div>
+        <div class="config-section">
+          <h2>Campos personalizados</h2>
+          <div id="fields-config" class="config-list"></div>
+          <form id="form-new-field" class="inline-form">
+            <input type="text" name="name" placeholder="Nombre del campo" required />
+            <select name="field_type">
+              <option value="text">Texto</option>
+              <option value="number">Número</option>
+              <option value="select">Selección</option>
+              <option value="date">Fecha</option>
+              <option value="checkbox">Checkbox</option>
+            </select>
+            <button class="primary" type="submit">Agregar campo</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="view-activity" class="panel hidden">
+        <div id="activity-list" class="activity-list"></div>
+      </section>
+    </main>
+
+    <aside class="right-panel">
+      <header>
+        <h2 id="lead-title">Selecciona un lead</h2>
+        <p id="lead-subtitle" style="color: var(--muted); font-size: 13px;">Chat y campos del contacto</p>
+        <div class="tabs" style="margin-top: 12px;">
+          <button class="active" data-tab="chat">Chat</button>
+          <button data-tab="fields">Campos</button>
+        </div>
+      </header>
+
+      <div id="tab-chat">
+        <div id="chat-body" class="chat-body"></div>
+        <div id="chat-typing" class="chat-typing hidden">Lucy está escribiendo…</div>
+        <div class="chat-input">
+          <textarea id="chat-text" placeholder="Escribe como cliente (simula WhatsApp/Kommo)..."></textarea>
+          <button class="primary" id="btn-send" disabled>Enviar a Lucy</button>
+        </div>
+      </div>
+
+      <div id="tab-fields" class="hidden">
+        <div id="fields-grid" class="fields-grid"></div>
+        <div style="padding: 0 16px 16px;">
+          <button class="secondary" id="btn-save-fields" disabled>Guardar campos</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>

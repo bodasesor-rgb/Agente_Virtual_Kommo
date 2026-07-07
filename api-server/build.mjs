@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm, copyFile } from "node:fs/promises";
+import { rm, copyFile, cp } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -118,6 +118,10 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  const simuladorSrc = path.resolve(artifactDir, "public/simulador");
+  await cp(simuladorSrc, path.join(distDir, "simulador"), { recursive: true });
+  console.log("[build] Simulador copiado a dist/simulador/");
 
   const reqFromDb = createRequire(path.resolve(artifactDir, "../lib/db/package.json"));
   const pgliteDist = path.dirname(reqFromDb.resolve("@electric-sql/pglite"));

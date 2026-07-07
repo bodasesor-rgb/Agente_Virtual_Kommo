@@ -1,6 +1,20 @@
 # Simulador Kommo + Lucy — inicio rápido
 
-## 1. Arrancar (una sola terminal)
+## Opción recomendada: Hostinger (sin localhost)
+
+Abre en el navegador:
+
+**https://midnightblue-mosquito-424375.hostingersite.com/simulador**
+
+- El embudo y los leads viven en **localStorage** de tu navegador.
+- El chat llama a Lucy en el mismo servidor (`POST /api/kommo/simulator`).
+- Necesitas `OPEN_AI` configurada en Hostinger y el sitio en **Run**.
+
+Comprueba salud: https://midnightblue-mosquito-424375.hostingersite.com/api/health → `"openai_configured": true`
+
+---
+
+## Opción local (Python, solo desarrollo)
 
 ```bash
 git pull origin main
@@ -9,7 +23,7 @@ git pull origin main
 
 Abre: **http://localhost:8000**
 
-No necesitas Lucy local. El simulador usa **Hostinger** (donde ya está tu `OPEN_AI`).
+No necesitas Lucy local si apuntas el preset a **Hostinger**.
 
 ---
 
