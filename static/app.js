@@ -48,7 +48,7 @@ async function loadAgentStatus() {
       el.textContent = "Lucy conectada · OpenAI OK";
       el.classList.add("connected");
     } else if (status.mode === "lucy" && status.lucy_connected && !status.lucy_openai_configured) {
-      el.textContent = "Lucy online pero falta OPENAI_API_KEY en Lucy (Hostinger/terminal)";
+      el.textContent = "Lucy online pero falta OPEN_AI en Hostinger/terminal";
       el.classList.add("warning");
     } else if (status.mode === "lucy" && !status.lucy_connected) {
       el.textContent = "Lucy no responde — revisa AGENT_WEBHOOK_URL";
@@ -56,7 +56,7 @@ async function loadAgentStatus() {
     } else if (status.openai_configured) {
       el.textContent = "Agente simple (OpenAI en simulador)";
     } else {
-      el.textContent = "Configura OPENAI_API_KEY en Lucy (no OPEN_AI)";
+      el.textContent = "Configura OPEN_AI en Hostinger (tu key sk-proj-...)";
       el.classList.add("warning");
     }
   } catch {

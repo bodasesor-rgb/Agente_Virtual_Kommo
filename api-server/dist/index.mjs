@@ -46504,6 +46504,17 @@ var require_follow_redirects = __commonJS({
   );
 })();
 
+// src/lib/openaiEnv.ts
+function getOpenAiApiKey() {
+  return process.env["OPEN_AI"]?.trim() || process.env["OPENAI_API_KEY"]?.trim() || "";
+}
+function ensureOpenAiApiKeyEnv() {
+  const key = getOpenAiApiKey();
+  if (key && !process.env["OPENAI_API_KEY"]?.trim()) {
+    process.env["OPENAI_API_KEY"] = key;
+  }
+}
+
 // src/app.ts
 var import_express8 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
@@ -50456,7 +50467,7 @@ router.get("/healthz", (_req, res) => {
   res.json(data);
 });
 router.get("/health", (_req, res) => {
-  const key = process.env["OPENAI_API_KEY"]?.trim() ?? "";
+  const key = getOpenAiApiKey();
   res.json({
     status: "ok",
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
@@ -74879,7 +74890,7 @@ Ofrece propuesta para comparar. M\xE1ximo 2 l\xEDneas.`
 }
 
 // src/services/voiceProcessor.ts
-var openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
+var openai = new OpenAI({ apiKey: getOpenAiApiKey() });
 var AUDIO_TYPES = /* @__PURE__ */ new Set(["audio", "voice"]);
 async function transcribeVoiceNote(audioUrl, accessToken, log) {
   try {
@@ -80663,7 +80674,7 @@ async function verificarLeadsInactivos(subdomain, accessToken) {
 
 // src/routes/kommo.ts
 var router2 = (0, import_express2.Router)();
-var openai2 = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
+var openai2 = new OpenAI({ apiKey: getOpenAiApiKey() });
 var FIELD = {
   // respuesta_ia (1048772) eliminado de Kommo — no usar o el PATCH falla
   respuesta_ia_largo: 1048786,
@@ -81991,10 +82002,10 @@ router2.post("/kommo/simulator", async (req, res) => {
     res.status(400).json({ error: "no_message_text" });
     return;
   }
-  if (!process.env["OPENAI_API_KEY"]?.trim()) {
+  if (!getOpenAiApiKey()) {
     res.status(200).json({
       status: "error",
-      reply: "Lucy no tiene OPENAI_API_KEY configurada. A\xF1\xE1dela al .env o variables de Hostinger y reinicia el servidor.",
+      reply: "Lucy no tiene OPEN_AI (o OPENAI_API_KEY) configurada. A\xF1\xE1dela en Hostinger y reinicia.",
       error: "missing_openai_key"
     });
     return;
@@ -82084,7 +82095,7 @@ router2.post("/kommo/simulator", async (req, res) => {
     const isAuth = msg.includes("401") || msg.includes("Incorrect API key") || msg.includes("invalid_api_key") || msg.includes("API key");
     res.status(200).json({
       status: "error",
-      reply: isAuth ? "OPENAI_API_KEY inv\xE1lida en Lucy. Revisa la key en .env o Hostinger y reinicia." : "Lucy tuvo un error procesando el mensaje. Revisa los logs del servidor.",
+      reply: isAuth ? "OPEN_AI / OPENAI_API_KEY inv\xE1lida en Lucy. Revisa la key en Hostinger y reinicia." : "Lucy tuvo un error procesando el mensaje. Revisa los logs del servidor.",
       error: isAuth ? "openai_auth" : "processing_failed"
     });
   }
@@ -82467,6 +82478,7 @@ app.use("/api", routes_default);
 var app_default = app;
 
 // src/index.ts
+ensureOpenAiApiKeyEnv();
 var rawPort = process.env["PORT"] ?? "3000";
 var port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {

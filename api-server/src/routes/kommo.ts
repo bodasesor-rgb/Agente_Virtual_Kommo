@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import { getOpenAiApiKey } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
 import { CATALOGO_BODASESOR } from "../catalogo.js";
@@ -38,7 +39,7 @@ import {
 
 const router: IRouter = Router();
 
-const openai = new OpenAI({ apiKey: process.env["OPENAI_API_KEY"] });
+const openai = new OpenAI({ apiKey: getOpenAiApiKey() });
 
 // ─── Kommo field IDs (hardcoded — no lookup needed) ──────────────────────────
 const FIELD = {
@@ -2074,11 +2075,11 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     return;
   }
 
-  if (!process.env["OPENAI_API_KEY"]?.trim()) {
+  if (!getOpenAiApiKey()) {
     res.status(200).json({
       status: "error",
       reply:
-        "Lucy no tiene OPENAI_API_KEY configurada. Añádela al .env o variables de Hostinger y reinicia el servidor.",
+        "Lucy no tiene OPEN_AI (o OPENAI_API_KEY) configurada. Añádela en Hostinger y reinicia.",
       error: "missing_openai_key",
     });
     return;
@@ -2187,7 +2188,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     res.status(200).json({
       status: "error",
       reply: isAuth
-        ? "OPENAI_API_KEY inválida en Lucy. Revisa la key en .env o Hostinger y reinicia."
+        ? "OPEN_AI / OPENAI_API_KEY inválida en Lucy. Revisa la key en Hostinger y reinicia."
         : "Lucy tuvo un error procesando el mensaje. Revisa los logs del servidor.",
       error: isAuth ? "openai_auth" : "processing_failed",
     });

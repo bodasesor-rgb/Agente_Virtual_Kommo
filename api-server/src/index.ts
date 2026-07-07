@@ -1,4 +1,8 @@
 import "dotenv/config";
+import { ensureOpenAiApiKeyEnv } from "./lib/openaiEnv.js";
+
+ensureOpenAiApiKeyEnv();
+
 import app from "./app";
 import { logger } from "./lib/logger";
 

@@ -20,8 +20,12 @@ for (const file of required) {
   }
 }
 
-if (!process.env.OPENAI_API_KEY) {
-  console.warn("[start] AVISO: OPENAI_API_KEY no está configurada — Lucy no podrá usar GPT");
+if (!process.env.OPENAI_API_KEY?.trim() && process.env.OPEN_AI?.trim()) {
+  process.env.OPENAI_API_KEY = process.env.OPEN_AI.trim();
+}
+
+if (!process.env.OPENAI_API_KEY && !process.env.OPEN_AI) {
+  console.warn("[start] AVISO: OPEN_AI / OPENAI_API_KEY no configurada — Lucy no podrá usar GPT");
 }
 
 console.log("[start] Archivos OK, arrancando Lucy desde deploy/...");

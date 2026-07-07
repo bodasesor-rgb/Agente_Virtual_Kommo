@@ -22,7 +22,13 @@ Si ves `pnpm-lock.yaml` en el repo de Hostinger, estás en un commit viejo.
 | Directorio salida | `.` |
 | Archivo entrada | **start.mjs** |
 
-Variable de entorno obligatoria: `OPENAI_API_KEY=sk-proj-...`
+Variable de entorno obligatoria en Hostinger:
+
+| Nombre | Valor |
+|--------|-------|
+| **`OPEN_AI`** | `sk-proj-...` (tu key de OpenAI) |
+
+También acepta `OPENAI_API_KEY` si prefieres ese nombre.
 
 ---
 

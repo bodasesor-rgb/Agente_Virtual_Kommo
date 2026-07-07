@@ -11,6 +11,11 @@ from app.models import Lead, KommoConfig, Message
 from app.storage import store
 
 
+def _openai_api_key() -> str:
+    """Bodasesor/Hostinger usa OPEN_AI; también aceptamos OPENAI_API_KEY."""
+    return (os.getenv("OPEN_AI") or os.getenv("OPENAI_API_KEY") or "").strip()
+
+
 def _stage_name(config: KommoConfig, pipeline_id: str, stage_id: str) -> str:
     for pipeline in config.pipelines:
         if pipeline.id == pipeline_id:
@@ -151,7 +156,7 @@ async def _call_external_agent(payload: dict[str, Any]) -> dict[str, Any] | None
                 return {
                     "lucy_error": (
                         f"Lucy respondió {response.status_code} ({detail}). "
-                        "Revisa que Lucy tenga OPENAI_API_KEY válida y que la URL sea "
+                        "Revisa que Lucy tenga OPEN_AI (o OPENAI_API_KEY) válida y que la URL sea "
                         "/api/kommo/simulator (no /salesbot)."
                     ),
                 }
@@ -179,8 +184,7 @@ def _friendly_agent_error(exc: Exception) -> str:
     msg = str(exc)
     if name == "AuthenticationError" or "401" in msg or "invalid_api_key" in msg:
         return (
-            "OPENAI_API_KEY inválida. Edita el archivo .env con tu key sk-proj-... "
-            "y reinicia Lucy (y el simulador si aplica)."
+            "OPEN_AI inválida. Edita la key sk-proj-... en Hostinger o .env y reinicia Lucy."
         )
     if "429" in msg:
         return "OpenAI está saturado (429). Espera unos segundos e intenta de nuevo."
@@ -190,11 +194,11 @@ def _friendly_agent_error(exc: Exception) -> str:
 
 
 def _call_openai(system_prompt: str, history: list[Message], user_text: str) -> dict[str, Any]:
-    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    api_key = _openai_api_key()
     if not api_key:
         return {
             "reply": (
-                "Modo demo: configura OPENAI_API_KEY en .env y arranca Lucy en el puerto 3000 "
+                "Modo demo: configura OPEN_AI en Hostinger o .env y arranca Lucy en el puerto 3000 "
                 "con AGENT_WEBHOOK_URL=http://localhost:3000/api/kommo/simulator"
             ),
             "actions": [],
@@ -244,7 +248,7 @@ async def get_agent_status() -> dict[str, Any]:
         except Exception:
             lucy_ok = False
 
-    local_key = os.getenv("OPENAI_API_KEY", "").strip()
+    local_key = _openai_api_key()
 
     return {
         "mode": mode,
@@ -256,8 +260,8 @@ async def get_agent_status() -> dict[str, Any]:
         "openai_configured": bool(local_key),
         "openai_key_hint": (local_key[:8] + "…") if local_key.startswith("sk-") else None,
         "hint": (
-            "La key debe estar en LUCY (Hostinger o terminal node), variable OPENAI_API_KEY. "
-            "OPENAI_MODEL es solo el modelo (gpt-4o-mini), no es la key."
+            "La key va en LUCY como OPEN_AI (o OPENAI_API_KEY). "
+            "OPENAI_MODEL es solo el modelo (gpt-4o-mini), no la key."
         ),
     }
 

@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
+import { getOpenAiApiKey } from "../lib/openaiEnv.js";
 
 const router: IRouter = Router();
 
@@ -10,7 +11,7 @@ router.get("/healthz", (_req, res) => {
 
 // Endpoint detallado para keep-alive y diagnóstico externo
 router.get("/health", (_req, res) => {
-  const key = process.env["OPENAI_API_KEY"]?.trim() ?? "";
+  const key = getOpenAiApiKey();
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
