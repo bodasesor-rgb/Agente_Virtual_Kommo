@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 /data/
+data/lucy-pgdata/
 *.egg-info/
 *.tsbuildinfo
 imports/

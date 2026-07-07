@@ -1,16 +1,23 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-import * as schema from "./schema";
+
+import { getLocalDb, isLocalDbMode } from "./local.js";
+import * as schema from "./schema/index.js";
 
 const { Pool } = pg;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
+let pool: pg.Pool | null = null;
+
+async function createDb() {
+  if (isLocalDbMode()) {
+    console.info("[db] Sin DATABASE_URL → usando base de datos local (PGlite)");
+    return getLocalDb();
+  }
+
+  pool = new Pool({ connectionString: process.env["DATABASE_URL"] });
+  return drizzle(pool, { schema });
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle(pool, { schema });
-
-export * from "./schema";
+export const db = await createDb();
+export { pool };
+export * from "./schema/index.js";

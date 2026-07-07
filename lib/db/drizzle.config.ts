@@ -1,14 +1,17 @@
 import { defineConfig } from "drizzle-kit";
-import path from "path";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL, ensure the database is provisioned");
-}
+const here = path.dirname(fileURLToPath(import.meta.url));
+
+const databaseUrl =
+  process.env["DATABASE_URL"] ??
+  "postgresql://postgres:postgres@localhost:5432/lucy";
 
 export default defineConfig({
-  schema: path.join(__dirname, "./src/schema/index.ts"),
+  schema: path.join(here, "./src/schema/index.ts"),
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: databaseUrl,
   },
 });

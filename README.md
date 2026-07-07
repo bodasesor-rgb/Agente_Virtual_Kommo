@@ -64,12 +64,22 @@ AGENT_WEBHOOK_URL=http://localhost:3000/api/kommo/salesbot
 | `whatsapp-sender/` | Ya en repo |
 | `mockup-sandbox/`, `lucy-admin/` | Opcional (están en `artifacts.zip`) |
 
+### Base de datos — sin DATABASE_URL
+
+Si en Replit **no tienes** `DATABASE_URL`, no pasa nada: Lucy usa una base **local automática** en `data/lucy-pgdata` (PGlite, archivo en disco). No necesitas PostgreSQL ni cuenta externa para probar.
+
+Para producción más adelante puedes usar [Neon](https://neon.tech) o [Supabase](https://supabase.com) gratis y poner:
+
+```
+DATABASE_URL=postgresql://...
+```
+
 ### Arrancar monorepo Lucy
 
 ```bash
-# Requiere PostgreSQL local (o DATABASE_URL de Replit)
 pnpm install
-cd lib/db && pnpm exec drizzle-kit push   # crea tablas
-cd ../../api-server && pnpm run build && pnpm start
+cd api-server && pnpm run build && PORT=3000 pnpm start
 ```
+
+No hace falta `drizzle-kit push` en modo local — las tablas se crean solas al arrancar.
 
