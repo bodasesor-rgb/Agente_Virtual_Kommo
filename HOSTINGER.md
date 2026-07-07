@@ -101,7 +101,7 @@ ERR_PNPM_FETCH_404 @workspace/api-zod
 ## 5. Probar que Lucy responde
 
 - `https://TU-DOMINIO.hostingersite.com/` → redirige al **simulador de pruebas**
-- `https://TU-DOMINIO.hostingersite.com/simulador` → interfaz tipo Kommo (embudo + chat con Lucy)
+- `https://TU-DOMINIO.hostingersite.com/simulator` → interfaz tipo Kommo (también `/simulador`)
 - `https://TU-DOMINIO.hostingersite.com/api/health` → `"status":"ok"`
 
 ---

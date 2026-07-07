@@ -32,14 +32,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get(["/simulador", "/simulador/"], (_req, res) => {
-  res.sendFile(simuladorIndex);
-});
+function mountSimulador(basePath: string) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(simuladorIndex);
+  });
+  app.use(basePath, express.static(simuladorDir, { index: false }));
+}
 
-app.use("/simulador", express.static(simuladorDir, { index: false }));
+mountSimulador("/simulador");
+mountSimulador("/simulator");
 
 app.get("/", (_req, res) => {
-  res.redirect(302, "/simulador");
+  res.redirect(302, "/simulator");
 });
 
 // Kommo puede enviar webhooks a "/" en lugar de "/api/kommo/webhook".

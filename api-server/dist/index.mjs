@@ -82476,12 +82476,16 @@ app.use(
 app.use((0, import_cors.default)());
 app.use(import_express8.default.json());
 app.use(import_express8.default.urlencoded({ extended: true }));
-app.get(["/simulador", "/simulador/"], (_req, res) => {
-  res.sendFile(simuladorIndex);
-});
-app.use("/simulador", import_express8.default.static(simuladorDir, { index: false }));
+function mountSimulador(basePath) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(simuladorIndex);
+  });
+  app.use(basePath, import_express8.default.static(simuladorDir, { index: false }));
+}
+mountSimulador("/simulador");
+mountSimulador("/simulator");
 app.get("/", (_req, res) => {
-  res.redirect(302, "/simulador");
+  res.redirect(302, "/simulator");
 });
 app.post("/", (req, _res, next) => {
   logger.warn({ url: req.url }, "POST / recibido \u2014 redirigiendo a /api/kommo/webhook");

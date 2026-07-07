@@ -4,7 +4,9 @@
 
 Abre en el navegador:
 
-**https://midnightblue-mosquito-424375.hostingersite.com/simulador**
+**https://midnightblue-mosquito-424375.hostingersite.com/simulator**
+
+(También funciona `/simulador`.)
 
 - El embudo y los leads viven en **localStorage** de tu navegador.
 - El chat llama a Lucy en el mismo servidor (`POST /api/kommo/simulator`).
