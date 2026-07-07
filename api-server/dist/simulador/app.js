@@ -74,7 +74,7 @@ function logActivity(store, type, detail) {
 }
 
 async function loadDemoStore() {
-  const res = await fetch("demo.json");
+  const res = await fetch("/simulator/demo.json");
   if (!res.ok) throw new Error("No se pudo cargar demo.json");
   return res.json();
 }
