@@ -262,6 +262,7 @@ const REQUIRED_FIELDS_ORDERED: Array<{ label: string; question: string }> = [
   { label: "Número de invitados",        question: "¿Cuántos invitados tienes contemplados para tu evento?" },
   { label: "Lugar/dirección del evento", question: "¿En qué ciudad sería tu evento, si tienes dirección exacta sería mejor?" },
   { label: "Fecha y horario",            question: "¿Ya tienen fecha definida o siguen sin fecha?" },
+  { label: "Presupuesto (MXN)",          question: "¿Tienes algún presupuesto estimado para tu evento?" },
 ];
 
 // Return type for lead field fetch
@@ -517,12 +518,15 @@ function buildCrmContext(
       }
     }
 
-    // Presupuesto: si Lucy preguntó por presupuesto y el cliente respondió con número
-    if (!filledSet.has("Presupuesto (MXN)") &&
-        /presupuesto|budget/i.test(lastQ) &&
-        /\d/.test(msg)) {
-      mergedLines.push(`- Presupuesto (MXN): ${msg}`);
-      filledSet.add("Presupuesto (MXN)");
+    // Presupuesto: si Lucy preguntó y el cliente dio monto o indicó que no tiene
+    if (!filledSet.has("Presupuesto (MXN)") && /presupuesto|estimado|budget/i.test(lastQ)) {
+      if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos)\b/i.test(msg)) {
+        mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
+        filledSet.add("Presupuesto (MXN)");
+      } else if (/\d/.test(msg)) {
+        mergedLines.push(`- Presupuesto (MXN): ${msg}`);
+        filledSet.add("Presupuesto (MXN)");
+      }
     }
 
     // Invitados fallback: si Lucy preguntó y el cliente dio un número (cualquier formato)

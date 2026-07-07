@@ -8,13 +8,14 @@ export const BODASESOR_EMAIL = "hola@bodasesor.com";
 const EMAIL_REFUSAL_PATTERN =
   /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
 
-/** 6 pasos obligatorios para cierre (correo es opcional pero se intenta en paso 2). */
+/** 7 pasos obligatorios para cierre (correo es opcional pero se intenta en paso 2). */
 export const CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Requerimientos o servicios",
   "Número de invitados",
   "Lugar/dirección del evento",
   "Fecha y horario",
+  "Presupuesto (MXN)",
 ] as const;
 
 export const FLOW_QUESTIONS = {
@@ -23,6 +24,7 @@ export const FLOW_QUESTIONS = {
   invitados: "¿Cuántos invitados tienes contemplados para tu evento?",
   zona: "¿En qué ciudad sería tu evento, si tienes dirección exacta sería mejor?",
   fecha: "¿Ya tienen fecha definida o siguen sin fecha?",
+  presupuesto: "¿Tienes algún presupuesto estimado para tu evento?",
   serviciosExtra:
     "También manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.",
 } as const;
@@ -138,6 +140,7 @@ export function buildRequerimientosFollowUp(
   if (!filledSet?.has("Número de invitados")) return FLOW_QUESTIONS.invitados;
   if (!filledSet?.has("Lugar/dirección del evento")) return FLOW_QUESTIONS.zona;
   if (!filledSet?.has("Fecha y horario")) return FLOW_QUESTIONS.fecha;
+  if (!filledSet?.has("Presupuesto (MXN)")) return FLOW_QUESTIONS.presupuesto;
   return buildRequerimientosQuestion(extracted, history ?? [], currentMessage);
 }
 
@@ -172,6 +175,10 @@ export function nextFieldQuestion(
 
   if (!filledSet?.has("Fecha y horario")) {
     return FLOW_QUESTIONS.fecha;
+  }
+
+  if (!filledSet?.has("Presupuesto (MXN)")) {
+    return FLOW_QUESTIONS.presupuesto;
   }
 
   return null;
@@ -246,6 +253,7 @@ function mensajeLooksOnTrack(mensaje: string, filledSet: Set<string>): boolean {
   if (!filledSet.has("Número de invitados") && /invitados|contemplados/i.test(mensaje)) return true;
   if (!filledSet.has("Lugar/dirección del evento") && /ciudad|dirección|direccion/i.test(mensaje)) return true;
   if (!filledSet.has("Fecha y horario") && /fecha|siguen sin fecha/i.test(mensaje)) return true;
+  if (!filledSet.has("Presupuesto (MXN)") && /presupuesto|estimado/i.test(mensaje)) return true;
   return false;
 }
 

@@ -59993,7 +59993,8 @@ Si NO \u2192 preg\xFAntalo con la frase exacta de abajo.
 [ ] 4. Invitados   \u2014 "\xBFCu\xE1ntos invitados tienes contemplados para tu evento?"
 [ ] 5. Zona        \u2014 "\xBFEn qu\xE9 ciudad ser\xEDa tu evento, si tienes direcci\xF3n exacta ser\xEDa mejor?"
 [ ] 6. Fecha       \u2014 "\xBFYa tienen fecha definida o siguen sin fecha?"
-[ ] 7. Cierre      \u2014 cuando los 6 datos est\xE1n completos \u2192 mensaje de cierre con cat\xE1logo y escala a Alejandro
+[ ] 7. Presupuesto \u2014 "\xBFTienes alg\xFAn presupuesto estimado para tu evento?" (si no tiene o no sabe, contin\xFAa sin insistir)
+[ ] 8. Cierre      \u2014 cuando los datos est\xE1n completos \u2192 mensaje de cierre con cat\xE1logo y escala a Alejandro
 
 \u26A0\uFE0F REQUERIMIENTOS \u2014 REGLA ABSOLUTA, NO NEGOCIABLE:
 
@@ -60003,7 +60004,7 @@ Cuando el cliente responda qu\xE9 tiene pensado para su evento:
 - NO env\xEDes el mensaje de cierre en esa misma respuesta.
 - Haz 1 o 2 preguntas de seguimiento: servicios concretos, invitados, zona, fecha.
 - Ofrece opciones del cat\xE1logo seg\xFAn lo que mencionaron.
-- Solo despu\xE9s de tener requerimientos + invitados + zona + fecha \u2192 cierre.
+- Solo despu\xE9s de tener requerimientos + invitados + zona + fecha + presupuesto (o sin definir) \u2192 cierre.
 
 REQUERIMIENTOS = SERVICIOS concretos (banquete, taquiza, bebidas, DJ, carpa, etc.)
 \u274C NO son requerimientos: "cotizaci\xF3n", "mi boda", "mi baby shower", "un evento", "un servicio"
@@ -60034,6 +60035,8 @@ Lucy: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento, si tienes direcci\xF3n exacta se
 Cliente: "Reforma"
 Lucy: "\xBFYa tienen fecha definida o siguen sin fecha?"
 Cliente: "13 de mayo"
+Lucy: "\xBFTienes alg\xFAn presupuesto estimado para tu evento?"
+Cliente: "como 80 mil"
 Lucy: [mensaje de cierre]
 
 \u2500\u2500 CASO A (cliente ya menciona un servicio concreto): \u2500\u2500
@@ -61117,7 +61120,8 @@ var CLOSING_CORE_FIELDS = [
   "Requerimientos o servicios",
   "N\xFAmero de invitados",
   "Lugar/direcci\xF3n del evento",
-  "Fecha y horario"
+  "Fecha y horario",
+  "Presupuesto (MXN)"
 ];
 var FLOW_QUESTIONS = {
   nombre: "\xBFMe regalas tu nombre para iniciar?",
@@ -61125,6 +61129,7 @@ var FLOW_QUESTIONS = {
   invitados: "\xBFCu\xE1ntos invitados tienes contemplados para tu evento?",
   zona: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento, si tienes direcci\xF3n exacta ser\xEDa mejor?",
   fecha: "\xBFYa tienen fecha definida o siguen sin fecha?",
+  presupuesto: "\xBFTienes alg\xFAn presupuesto estimado para tu evento?",
   serviciosExtra: "Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos."
 };
 var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura/i;
@@ -61199,6 +61204,7 @@ function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessa
   if (!filledSet?.has("N\xFAmero de invitados")) return FLOW_QUESTIONS.invitados;
   if (!filledSet?.has("Lugar/direcci\xF3n del evento")) return FLOW_QUESTIONS.zona;
   if (!filledSet?.has("Fecha y horario")) return FLOW_QUESTIONS.fecha;
+  if (!filledSet?.has("Presupuesto (MXN)")) return FLOW_QUESTIONS.presupuesto;
   return buildRequerimientosQuestion(extracted, history ?? [], currentMessage);
 }
 function nextFieldQuestion(extracted, filledSet, whatsappName, history, currentMessage) {
@@ -61220,6 +61226,9 @@ function nextFieldQuestion(extracted, filledSet, whatsappName, history, currentM
   }
   if (!filledSet?.has("Fecha y horario")) {
     return FLOW_QUESTIONS.fecha;
+  }
+  if (!filledSet?.has("Presupuesto (MXN)")) {
+    return FLOW_QUESTIONS.presupuesto;
   }
   return null;
 }
@@ -61261,6 +61270,7 @@ function mensajeLooksOnTrack(mensaje, filledSet) {
   if (!filledSet.has("N\xFAmero de invitados") && /invitados|contemplados/i.test(mensaje)) return true;
   if (!filledSet.has("Lugar/direcci\xF3n del evento") && /ciudad|dirección|direccion/i.test(mensaje)) return true;
   if (!filledSet.has("Fecha y horario") && /fecha|siguen sin fecha/i.test(mensaje)) return true;
+  if (!filledSet.has("Presupuesto (MXN)") && /presupuesto|estimado/i.test(mensaje)) return true;
   return false;
 }
 function applyLucyMessageGuards(input) {
@@ -80525,9 +80535,14 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
         filledSet.add("Nombre del cliente");
       }
     }
-    if (!filledSet.has("Presupuesto (MXN)") && /presupuesto|budget/i.test(lastQ) && /\d/.test(msg)) {
-      mergedLines.push(`- Presupuesto (MXN): ${msg}`);
-      filledSet.add("Presupuesto (MXN)");
+    if (!filledSet.has("Presupuesto (MXN)") && /presupuesto|estimado|budget/i.test(lastQ)) {
+      if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos)\b/i.test(msg)) {
+        mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indic\xF3 que no tiene)`);
+        filledSet.add("Presupuesto (MXN)");
+      } else if (/\d/.test(msg)) {
+        mergedLines.push(`- Presupuesto (MXN): ${msg}`);
+        filledSet.add("Presupuesto (MXN)");
+      }
     }
     if (!filledSet.has("N\xFAmero de invitados") && /invitados|personas|contemplados/.test(lastQ) && /\d/.test(msg)) {
       mergedLines.push(`- N\xFAmero de invitados: ${msg}`);
