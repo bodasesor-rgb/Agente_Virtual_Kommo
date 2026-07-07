@@ -1,6 +1,6 @@
 // CATÁLOGO BODASESOR 2026 — Extraído de archivos oficiales del catálogo
 // Lucy puede compartir RANGOS de precios cuando preguntan directamente.
-// Rodrigo da la cotización formal exacta.
+// Alejandro da la cotización formal exacta.
 // Precios NO incluyen IVA. Propina 15% recomendada (no obligatoria).
 
 export const CATALOGO_BODASESOR = `
@@ -119,7 +119,7 @@ PREGUNTAS FRECUENTES KOSHER:
 • ¿Qué es parve? Alimentos neutros (frutas, vegetales, huevos, pescado) — combinables con lácteos o carne.
 • ¿El vino es Kosher? Sí, solo vinos y bebidas certificadas Kosher.
 • ¿La supervisión rabínica tiene costo extra? No, está incluida en todos los precios.
-• ¿Puedo coordinar con mi rabino? Sí, Rodrigo coordina todos los detalles.
+• ¿Puedo coordinar con mi rabino? Sí, Alejandro coordina todos los detalles.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━
 DESAYUNO / BRUNCH
@@ -328,5 +328,5 @@ SERVICIOS SIN PRECIO LISTADO → RODRIGO DA EL PRECIO
 Mobiliario extra (mesas, sillas Tiffany, periqueras, salas lounge), decoración floral,
 estructuras colgantes, pistas de baile personalizadas, vajillas premium, paletas/helados,
 DJ y audio, pantallas LED, iluminación, fiesta infantil, carpas y lonas.
-→ Responder: "Para [servicio], Rodrigo te da los detalles y precio en tu cotización."
+→ Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotización."
 `;

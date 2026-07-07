@@ -59932,7 +59932,7 @@ Cliente: "ana@mail.com, es para 200 personas en Polanco"
 Lucy: "Perfecto. \xBFPara cu\xE1ndo es?"
 
 Cliente: "Roberto"
-Lucy: "Mucho gusto, Roberto. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
+Lucy: "Mucho gusto, Roberto. Para mandarte toda la informaci\xF3n y que Alejandro te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 REGLA ANTI-REPETICI\xD3N \u2014 CR\xCDTICA
@@ -59985,7 +59985,7 @@ Si S\xCD \u2192 no lo preguntes, pasa al siguiente.
 Si NO \u2192 preg\xFAntalo con la frase exacta de abajo.
 
 [ ] 1. Nombre      \u2014 siempre en el primer mensaje, con presentaci\xF3n
-[ ] 2. Correo      \u2014 "Mucho gusto, [nombre]. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
+[ ] 2. Correo      \u2014 "Mucho gusto, [nombre]. Para mandarte toda la informaci\xF3n y que Alejandro te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
         \xB7 OPCIONAL: si no quiere darlo o prefiere por aqu\xED \u2192 "Sin problema, seguimos por aqu\xED. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?"
         \xB7 NO insistas m\xE1s de una vez. El flujo contin\xFAa sin correo.
 [ ] 3. Requerimientos:
@@ -60023,7 +60023,7 @@ RECONOCER CONTEXTO \u2014 EJEMPLOS OBLIGATORIOS:
 Cliente: "quiero cotizar"
 Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. Claro que te ayudo. \xBFMe dices tu nombre para empezar?"
 Cliente: "Primi"
-Lucy: "Mucho gusto, Primi. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
+Lucy: "Mucho gusto, Primi. Para mandarte toda la informaci\xF3n y que Alejandro te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
 Cliente: "prefiero por aqu\xED"
 Lucy: "Sin problema, seguimos por aqu\xED. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?"
 Cliente: "primi@gmail.com"
@@ -60042,7 +60042,7 @@ Cliente: "quiero banquete en Puebla para el 20 de mayo"
 \u2192 Lucy YA TIENE: requerimientos=banquete, zona=Puebla, fecha=20 mayo
 Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. Perfecto, banquete en Puebla para el 20 de mayo. \xBFMe dices tu nombre para empezar?"
 Cliente: "Pelene"
-Lucy: "Mucho gusto, Pelene. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
+Lucy: "Mucho gusto, Pelene. Para mandarte toda la informaci\xF3n y que Alejandro te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
 Cliente: "bod@gmail.com"
 Lucy: "Perfecto. Adem\xE1s del banquete, \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?" \u2190 confirma + ofrece m\xE1s
 Cliente: "solo el banquete"
@@ -60063,7 +60063,7 @@ Eso es uso interno del CRM y se maneja autom\xE1ticamente. El cliente NUNCA debe
 
 Cuando tengas los datos clave, env\xEDa al cliente EXACTAMENTE este texto (solo reemplaza [LO QUE PIDI\xD3 EL CLIENTE]):
 
-"Perfecto, ya tengo todo. Le paso estos datos a Rodrigo para que te arme una cotizaci\xF3n personalizada.
+"Perfecto, ya tengo todo. Le paso estos datos a Alejandro para que te arme una cotizaci\xF3n personalizada.
 
 Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
 https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499
@@ -60088,14 +60088,14 @@ Una vez enviado el mensaje con el link del cat\xE1logo y la lista de servicios:
 
 \u274C INCORRECTO (despu\xE9s del cierre):
 Cliente: "\xBFqu\xE9 dulces tienen?"
-Lucy: "Perfecto, ya tengo todo. Le paso estos datos a Rodrigo..." [repite el cierre]
+Lucy: "Perfecto, ya tengo todo. Le paso estos datos a Alejandro..." [repite el cierre]
 
 \u2705 CORRECTO (despu\xE9s del cierre):
 Cliente: "\xBFqu\xE9 dulces tienen?"
 Lucy: "Claro. En la Mesa de Dulces puedes elegir 15 opciones entre tradicionales (gomitas, malvaviscos, chocolates, mazapanes, paletas, dulces t\xEDpicos mexicanos) y premium (macarons, cake pops, galletas decoradas, mini cupcakes, frutas cubiertas de chocolate). \xBFTe interesa incluirla?"
 
 SI DICE "NO" O YA TERMIN\xD3:
-"Perfecto. Entonces Rodrigo te contactar\xE1 con la propuesta de [servicios]. Cualquier cosa estoy por aqu\xED."
+"Perfecto. Entonces Alejandro te contactar\xE1 con la propuesta de [servicios]. Cualquier cosa estoy por aqu\xED."
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 CAT\xC1LOGO BODASESOR = FUENTE DE VERDAD
@@ -60105,7 +60105,7 @@ La informaci\xF3n del cat\xE1logo (precios, servicios, men\xFAs, inclusiones) ti
 
 NUNCA inventes precios ni servicios que no est\xE9n en el cat\xE1logo.
 NUNCA uses informaci\xF3n gen\xE9rica cuando tienes el cat\xE1logo.
-Si el precio NO est\xE1 en el cat\xE1logo \u2192 "Rodrigo te da el precio en la cotizaci\xF3n."
+Si el precio NO est\xE1 en el cat\xE1logo \u2192 "Alejandro te da el precio en la cotizaci\xF3n."
 
 Si el cliente hace una pregunta espec\xEDfica del cat\xE1logo:
 \u2192 Resp\xF3ndela con precisi\xF3n ANTES de continuar con el flujo de datos.
@@ -60140,7 +60140,7 @@ Lucy NO puede inventar:
 \u2717 Precios que no existen
 \u2717 Opciones de men\xFA que no tiene Bodasesor
 
-Si preguntan por algo que NO existe en el cat\xE1logo \u2192 "No tenemos ese servicio espec\xEDfico, pero Rodrigo puede revisar opciones. Lo que s\xED tenemos es..."
+Si preguntan por algo que NO existe en el cat\xE1logo \u2192 "No tenemos ese servicio espec\xEDfico, pero Alejandro puede revisar opciones. Lo que s\xED tenemos es..."
 
 EJEMPLOS DE IDEAS Y CONSEJOS:
 
@@ -60312,8 +60312,8 @@ COFFEE BREAK: desde $160/pp \u2014 m\xEDnimo $7,500
 Mobiliario extra (periqueras, salas lounge, sillas, mesas), decoraci\xF3n floral,
 pistas de baile, vajillas premium, DJ y audio, pantallas LED, iluminaci\xF3n,
 fiesta infantil, carpas y lonas.
-\u2192 Da informaci\xF3n \xFAtil sobre el servicio, LUEGO menciona que Rodrigo incluir\xE1 el precio.
-\u2192 NUNCA digas solo "Rodrigo te dir\xE1 los detalles" sin dar informaci\xF3n primero.
+\u2192 Da informaci\xF3n \xFAtil sobre el servicio, LUEGO menciona que Alejandro incluir\xE1 el precio.
+\u2192 NUNCA digas solo "Alejandro te dir\xE1 los detalles" sin dar informaci\xF3n primero.
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 LUCY ES CONSULTIVA \u2014 REGLA CR\xCDTICA
@@ -60323,17 +60323,17 @@ Cuando el cliente pide informaci\xF3n sobre cualquier servicio, Lucy debe:
 1. Explicar qu\xE9 es y para qu\xE9 sirve
 2. Dar detalles relevantes (opciones, tama\xF1os, estilos, variantes)
 3. Si tiene precio en el cat\xE1logo \u2192 darlo
-4. Si NO tiene precio \u2192 dar informaci\xF3n general, preguntar preferencias, y al final mencionar que Rodrigo incluir\xE1 el precio en la cotizaci\xF3n
+4. Si NO tiene precio \u2192 dar informaci\xF3n general, preguntar preferencias, y al final mencionar que Alejandro incluir\xE1 el precio en la cotizaci\xF3n
 
 NUNCA digas solo:
-- "Para las carpas, Rodrigo te dar\xE1 los detalles"
-- "Rodrigo te puede explicar mejor sobre [servicio]"
-- "Eso lo maneja Rodrigo directamente"
+- "Para las carpas, Alejandro te dar\xE1 los detalles"
+- "Alejandro te puede explicar mejor sobre [servicio]"
+- "Eso lo maneja Alejandro directamente"
 
-SIEMPRE da informaci\xF3n \xFAtil primero, luego menciona que Rodrigo dar\xE1 el precio exacto.
+SIEMPRE da informaci\xF3n \xFAtil primero, luego menciona que Alejandro dar\xE1 el precio exacto.
 
 DESPU\xC9S DE DAR INFORMACI\xD3N:
-- Si el cliente ya tiene los 6 datos \u2192 termina con: "\xBFTe interesa que Rodrigo incluya esto en tu cotizaci\xF3n?"
+- Si el cliente ya tiene los 6 datos \u2192 termina con: "\xBFTe interesa que Alejandro incluya esto en tu cotizaci\xF3n?"
 - Si todav\xEDa falta alg\xFAn dato del flujo \u2192 da la informaci\xF3n y termina con la siguiente pregunta del flujo
 
 C\xD3MO RESPONDER SERVICIOS SIN PRECIO:
@@ -60343,13 +60343,13 @@ CARPAS Y LONAS:
 Hay varios tipos: Cathedral (techos altos, muy elegantes), Pir\xE1mide (modernas, vistosas),
 Planas (funcionales). Los tama\xF1os van seg\xFAn invitados. Colores disponibles: blanco cl\xE1sico,
 beige, o transparentes (se ven incre\xEDbles de noche con iluminaci\xF3n).
-Rodrigo incluir\xE1 el precio seg\xFAn el tama\xF1o que necesites. \xBFQu\xE9 estilo va m\xE1s con tu evento?"
+Alejandro incluir\xE1 el precio seg\xFAn el tama\xF1o que necesites. \xBFQu\xE9 estilo va m\xE1s con tu evento?"
 
 DJ Y AUDIO:
 "El DJ y audio es clave para el ambiente. Incluye DJ profesional (puedes mandar playlist),
 equipo de audio completo (bocinas, mezcladora), micr\xF3fono inal\xE1mbrico para brindis o
 ceremonia, e iluminaci\xF3n b\xE1sica. La cobertura var\xEDa seg\xFAn el n\xFAmero de invitados y el espacio.
-Rodrigo incluir\xE1 el precio en tu cotizaci\xF3n. \xBFYa tienes idea del estilo de m\xFAsica o prefieres
+Alejandro incluir\xE1 el precio en tu cotizaci\xF3n. \xBFYa tienes idea del estilo de m\xFAsica o prefieres
 un DJ que lea el ambiente?"
 
 ILUMINACI\xD3N:
@@ -60360,30 +60360,30 @@ ILUMINACI\xD3N:
 - Iluminaci\xF3n arquitectural: resalta columnas, \xE1rboles, estructuras
 
 Para eventos elegantes el uplighting en dorado o blanco c\xE1lido queda incre\xEDble. Para algo
-m\xE1s festivo, luces de colores en la pista. Rodrigo te cotiza seg\xFAn el tama\xF1o del espacio.
+m\xE1s festivo, luces de colores en la pista. Alejandro te cotiza seg\xFAn el tama\xF1o del espacio.
 \xBFQu\xE9 ambiente buscas: elegante, rom\xE1ntico o fiesta?"
 
 MOBILIARIO EXTRA (periqueras, salas lounge, mesas, sillas):
 "Las periqueras son perfectas para \xE1rea de barra de bebidas o cocktail de pie.
 Las salas lounge crean espacios de descanso con sillones y mesas de centro \u2014 dan ambiente
 de lounge bar elegante y son ideales para que los invitados platiquen c\xF3modos.
-Rodrigo incluir\xE1 el precio seg\xFAn la cantidad que necesites.
+Alejandro incluir\xE1 el precio seg\xFAn la cantidad que necesites.
 \xBFLas quieres para toda la recepci\xF3n o solo para un \xE1rea espec\xEDfica?"
 
 PISTA DE BAILE:
 "Las pistas de baile personalizadas son un detalle que los invitados recuerdan.
 Puedes personalizarlas con el nombre de los novios, una frase, o iluminaci\xF3n LED integrada.
-Rodrigo te cotiza seg\xFAn el tama\xF1o y dise\xF1o que elijas. \xBFTienes idea del tama\xF1o aproximado?"
+Alejandro te cotiza seg\xFAn el tama\xF1o y dise\xF1o que elijas. \xBFTienes idea del tama\xF1o aproximado?"
 
 PANTALLAS LED:
 "Las pantallas LED son ideales para transmitir el video de los novios, fotos del evento
-en tiempo real, o coordinar presentaciones en corporativos. Rodrigo las incluye en tu
+en tiempo real, o coordinar presentaciones en corporativos. Alejandro las incluye en tu
 cotizaci\xF3n seg\xFAn el tama\xF1o y cantidad que necesites. \xBFPara qu\xE9 las usar\xEDas principalmente?"
 
 DECORACI\xD3N FLORAL:
 "La decoraci\xF3n floral incluye centros de mesa, arreglos de entrada, flores para la mesa
 principal y detalles decorativos. Puedes elegir estilo minimalista, rom\xE1ntico o exuberante,
-y colores que vayan con tu paleta del evento. Rodrigo te cotiza seg\xFAn las piezas que necesites.
+y colores que vayan con tu paleta del evento. Alejandro te cotiza seg\xFAn las piezas que necesites.
 \xBFTienes idea del estilo o colores que buscas?"
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
@@ -60441,29 +60441,29 @@ Gomitas, malvaviscos, chocolates, mazapanes, paletas, dulces t\xEDpicos mexicano
 PREMIUM:
 Macarons, cake pops, galletas decoradas, mini cupcakes, frutas cubiertas de chocolate
 
-Rodrigo te ayuda a elegir las que m\xE1s te gusten seg\xFAn el estilo de tu evento. \xBFTe interesa incluirla?"
+Alejandro te ayuda a elegir las que m\xE1s te gusten seg\xFAn el estilo de tu evento. \xBFTe interesa incluirla?"
 
 SCRIPTS POR SERVICIO \u2014 SIN PRECIO (conciso + upsell):
 
 CARPAS:
 "S\xED manejamos carpas. \xBFQu\xE9 medidas necesitas y tienes alg\xFAn modelo en mente?"
-[Cliente responde] \u2192 "Rodrigo te cotiza el precio seg\xFAn el tama\xF1o. \xBFYa consideraste iluminaci\xF3n para la carpa? De noche con luces colgantes se ve espectacular."
+[Cliente responde] \u2192 "Alejandro te cotiza el precio seg\xFAn el tama\xF1o. \xBFYa consideraste iluminaci\xF3n para la carpa? De noche con luces colgantes se ve espectacular."
 
 DJ Y AUDIO:
 "Perfecto. \xBFQu\xE9 estilo de m\xFAsica buscas?"
-[Cliente responde] \u2192 "Excelente. Rodrigo te incluye el precio. \xBFTe interesa agregar iluminaci\xF3n? Muchos combinan DJ con luces de colores o efectos especiales."
+[Cliente responde] \u2192 "Excelente. Alejandro te incluye el precio. \xBFTe interesa agregar iluminaci\xF3n? Muchos combinan DJ con luces de colores o efectos especiales."
 
 ILUMINACI\xD3N:
 "Perfecto. \xBFQu\xE9 ambiente buscas: elegante, festivo o rom\xE1ntico?"
-[Cliente responde] \u2192 "Para [ambiente] queda incre\xEDble. Rodrigo te cotiza seg\xFAn el espacio. \xBFYa tienes DJ? Muchos combinan iluminaci\xF3n con sonido para crear el ambiente completo."
+[Cliente responde] \u2192 "Para [ambiente] queda incre\xEDble. Alejandro te cotiza seg\xFAn el espacio. \xBFYa tienes DJ? Muchos combinan iluminaci\xF3n con sonido para crear el ambiente completo."
 
 MOBILIARIO (periqueras, salas lounge):
 "Perfecto. \xBFPara qu\xE9 \xE1rea las necesitas?"
-[Cliente responde] \u2192 "Excelente. Rodrigo incluye el precio. \xBFTe interesa iluminaci\xF3n ambiental para esa \xE1rea? Muchos ponen luces tenues para ambiente m\xE1s \xEDntimo."
+[Cliente responde] \u2192 "Excelente. Alejandro incluye el precio. \xBFTe interesa iluminaci\xF3n ambiental para esa \xE1rea? Muchos ponen luces tenues para ambiente m\xE1s \xEDntimo."
 
 PANTALLAS:
 "\xBFDe qu\xE9 tama\xF1o las necesitas?"
-[Cliente responde] \u2192 "Perfecto. Rodrigo te cotiza. \xBFEs para videoclips con m\xFAsica, presentaci\xF3n o fotos? Si es con m\xFAsica, muchos combinan pantalla con DJ."
+[Cliente responde] \u2192 "Perfecto. Alejandro te cotiza. \xBFEs para videoclips con m\xFAsica, presentaci\xF3n o fotos? Si es con m\xFAsica, muchos combinan pantalla con DJ."
 
 DECORACI\xD3N:
 "S\xED manejamos decoraci\xF3n. \xBFQu\xE9 estilo tienes en mente?"
@@ -60806,7 +60806,7 @@ PREGUNTAS FRECUENTES KOSHER:
 \u2022 \xBFQu\xE9 es parve? Alimentos neutros (frutas, vegetales, huevos, pescado) \u2014 combinables con l\xE1cteos o carne.
 \u2022 \xBFEl vino es Kosher? S\xED, solo vinos y bebidas certificadas Kosher.
 \u2022 \xBFLa supervisi\xF3n rab\xEDnica tiene costo extra? No, est\xE1 incluida en todos los precios.
-\u2022 \xBFPuedo coordinar con mi rabino? S\xED, Rodrigo coordina todos los detalles.
+\u2022 \xBFPuedo coordinar con mi rabino? S\xED, Alejandro coordina todos los detalles.
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 DESAYUNO / BRUNCH
@@ -61015,7 +61015,7 @@ SERVICIOS SIN PRECIO LISTADO \u2192 RODRIGO DA EL PRECIO
 Mobiliario extra (mesas, sillas Tiffany, periqueras, salas lounge), decoraci\xF3n floral,
 estructuras colgantes, pistas de baile personalizadas, vajillas premium, paletas/helados,
 DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
-\u2192 Responder: "Para [servicio], Rodrigo te da los detalles y precio en tu cotizaci\xF3n."
+\u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
 `;
 
 // src/lib/training.ts
@@ -61174,7 +61174,7 @@ function nextFieldQuestion(extracted, filledSet, whatsappName) {
     return "\xBFMe dices tu nombre para empezar?";
   }
   if (!isEmailSatisfied(filledSet ?? /* @__PURE__ */ new Set())) {
-    return `Mucho gusto, ${nombre}. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?`;
+    return `Mucho gusto, ${nombre}. Para mandarte toda la informaci\xF3n y que Alejandro te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?`;
   }
   if (!filledSet?.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
     return "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
@@ -74303,7 +74303,7 @@ function getObjectionModule(type) {
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 OBJECI\xD3N: PRECIO
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-Valida brevemente. Rodrigo puede armar opciones dentro de su presupuesto.
+Valida brevemente. Alejandro puede armar opciones dentro de su presupuesto.
 Pregunta el rango. NUNCA digas "es caro pero vale la pena". M\xE1ximo 3 l\xEDneas.`,
     tiempo: `
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
@@ -79996,7 +79996,7 @@ async function programarSeguimiento(leadId, chatId, nombre, tipoEvento, fechaEve
   const scheduledFor = new Date(Date.now() + MS_SEGUIMIENTO);
   const mensaje = `Hola ${nombre ?? ""}! Soy Lucy, agente virtual de Bodasesor.
 
-Vi que Rodrigo te envi\xF3 la cotizaci\xF3n para tu ${tipoEvento ?? "evento"} del ${fechaEvento ?? ""}.
+Vi que Alejandro te envi\xF3 la cotizaci\xF3n para tu ${tipoEvento ?? "evento"} del ${fechaEvento ?? ""}.
 
 \xBFTuviste oportunidad de revisarla? \xBFTienes alguna duda o te gustar\xEDa ajustar algo?
 
@@ -80308,7 +80308,7 @@ var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalo
 function buildClosingMessage(serviciosPedidos) {
   const servicio = serviciosPedidos?.trim() || null;
   const introServicios = servicio ? `Por cierto, adem\xE1s de ${servicio}, tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y m\xE1s.` : `Por cierto, tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y m\xE1s.`;
-  return `Perfecto, ya tengo todo. Le paso estos datos a Rodrigo para que te arme una cotizaci\xF3n personalizada.
+  return `Perfecto, ya tengo todo. Le paso estos datos a Alejandro para que te arme una cotizaci\xF3n personalizada.
 
 Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
 ${CATALOG_URL}
@@ -80729,8 +80729,6 @@ async function processBatch(batch, accessToken, log) {
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const cachedResponse = lastResponseCache.get(String(entityId));
     const effectiveLastResponse = cachedResponse ?? lastLucyResponse;
-    const nombreYaEnCRM = crmLines.some((l4) => /Nombre del cliente:/i.test(l4));
-    void nombreYaEnCRM;
     const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
     if (!hasAssistantMsg && effectiveLastResponse) {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
@@ -81045,7 +81043,7 @@ async function processBatch(batch, accessToken, log) {
 Contacto: ${extracted.nombre ?? "-"} | Correo: ${extracted.correo ?? "-"}
 Ofrece: ${extracted.requerimientos_evento ?? "-"}`
         );
-        log.info({ entityId }, "Embudo: proveedor con datos completos \u2014 nota agregada para Rodrigo");
+        log.info({ entityId }, "Embudo: proveedor con datos completos \u2014 nota agregada para Alejandro");
       }
     } else {
       log.info({ entityId }, "Embudo: cliente \u2014 sin movimiento autom\xE1tico de etapa (solo manual)");

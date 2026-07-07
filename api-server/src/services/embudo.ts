@@ -290,7 +290,7 @@ export function tieneInformacionCompleta(datos: DatosLead): boolean {
 }
 
 /**
- * Mueve lead a "Humano Trabaja", desactiva Lucy, agrega nota para Rodrigo.
+ * Mueve lead a "Humano Trabaja", desactiva Lucy, agrega nota para Alejandro.
  * No envía mensaje — Lucy ya debió enviar el cierre en su respuesta AI.
  */
 export async function moverAHumanoTrabaja(
@@ -412,7 +412,7 @@ export async function programarSeguimiento(
 
   const mensaje = `Hola ${nombre ?? ""}! Soy Lucy, agente virtual de Bodasesor.
 
-Vi que Rodrigo te envió la cotización para tu ${tipoEvento ?? "evento"} del ${fechaEvento ?? ""}.
+Vi que Alejandro te envió la cotización para tu ${tipoEvento ?? "evento"} del ${fechaEvento ?? ""}.
 
 ¿Tuviste oportunidad de revisarla? ¿Tienes alguna duda o te gustaría ajustar algo?
 

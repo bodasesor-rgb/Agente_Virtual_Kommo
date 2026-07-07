@@ -53,7 +53,7 @@ npm start
 Endpoints principales de Lucy:
 - `POST /api/kommo/webhook` — mensajes entrantes WhatsApp
 - `POST /api/kommo/salesbot` — Salesbot síncrono
-- `POST /api/kommo/pipeline-change` — cuando Rodrigo mueve etapa
+- `POST /api/kommo/pipeline-change` — cuando Alejandro mueve etapa
 
 ## Conectar simulador → Lucy
 

@@ -93,7 +93,7 @@ function buildHtml(data: WelcomeEmailData): string {
                   <div style="width:28px;height:28px;background:#8b6f47;border-radius:50%;text-align:center;line-height:28px;color:#fff;font-size:13px;font-family:Arial,sans-serif;">1</div>
                 </td>
                 <td style="padding:10px 0 10px 12px;vertical-align:top;">
-                  <p style="margin:0;color:#5a4a3a;font-size:15px;line-height:1.5;">Rodrigo revisará tu solicitud y te contactará en las próximas <strong>24 horas hábiles</strong> para agendar una llamada o visita a nuestro salón.</p>
+                  <p style="margin:0;color:#5a4a3a;font-size:15px;line-height:1.5;">Alejandro revisará tu solicitud y te contactará en las próximas <strong>24 horas hábiles</strong> para agendar una llamada o visita a nuestro salón.</p>
                 </td>
               </tr>
               <tr>
@@ -120,7 +120,7 @@ function buildHtml(data: WelcomeEmailData): string {
                 <td align="center" style="padding:8px 0 32px;">
                   <a href="https://api.whatsapp.com/send?phone=525540080373&text=Hola%2C+me+contacté+a+través+de+Lucy+y+quisiera+más+información"
                      style="display:inline-block;background:#8b6f47;color:#ffffff;text-decoration:none;padding:14px 36px;border-radius:50px;font-size:15px;font-family:Arial,sans-serif;letter-spacing:0.5px;">
-                    Hablar directamente con Rodrigo
+                    Hablar directamente con Alejandro
                   </a>
                 </td>
               </tr>

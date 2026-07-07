@@ -113,7 +113,7 @@ export function nextFieldQuestion(
   }
 
   if (!isEmailSatisfied(filledSet ?? new Set())) {
-    return `Mucho gusto, ${nombre}. Para mandarte toda la información y que Rodrigo te arme una propuesta, ¿a qué correo te lo envío?`;
+    return `Mucho gusto, ${nombre}. Para mandarte toda la información y que Alejandro te arme una propuesta, ¿a qué correo te lo envío?`;
   }
 
   if (!filledSet?.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {

@@ -307,7 +307,7 @@ function buildClosingMessage(serviciosPedidos: string | null | undefined): strin
     ? `Por cierto, además de ${servicio}, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.`
     : `Por cierto, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.`;
   return (
-    `Perfecto, ya tengo todo. Le paso estos datos a Rodrigo para que te arme una cotización personalizada.\n\n` +
+    `Perfecto, ya tengo todo. Le paso estos datos a Alejandro para que te arme una cotización personalizada.\n\n` +
     `Mientras tanto, aquí está nuestro catálogo completo:\n${CATALOG_URL}\n\n` +
     introServicios + `\n\n` +
     `¿Te gustaría cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en decírnoslo y nosotros te lo conseguimos.`
@@ -1147,7 +1147,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     //
     // GUARD: solo enviar cierre la PRIMERA VEZ. Se detecta buscando en el
     // historial de chat si Lucy ya envió el texto de cierre antes.
-    // El lead NO se mueve de etapa — Rodrigo lo hace manualmente.
+    // El lead NO se mueve de etapa — Alejandro lo hace manualmente.
     // ══════════════════════════════════════════════════════════════════════
     const cierreYaEnviado = history.some(
       (m) =>
@@ -1288,7 +1288,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 15: PATCH a Kommo con campos CRM extraídos (datos del lead)
     // Ya NO se escribe campo 1048786 — envío directo via Meta API arriba.
-    // El lead NO se mueve de etapa — Rodrigo lo mueve manualmente.
+    // El lead NO se mueve de etapa — Alejandro lo mueve manualmente.
     // ══════════════════════════════════════════════════════════════════════
     const payload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
     const cfvToSend = payload["custom_fields_values"] as Array<{ field_id: number; values: Array<{ value: unknown }> }>;
@@ -1465,10 +1465,10 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
           `Contacto: ${extracted.nombre ?? "-"} | Correo: ${extracted.correo ?? "-"}\n` +
           `Ofrece: ${extracted.requerimientos_evento ?? "-"}`
         );
-        log.info({ entityId }, "Embudo: proveedor con datos completos — nota agregada para Rodrigo");
+        log.info({ entityId }, "Embudo: proveedor con datos completos — nota agregada para Alejandro");
       }
     } else {
-      // CLIENTE: movimiento a "Humano Trabaja" es SOLO manual (por Rodrigo).
+      // CLIENTE: movimiento a "Humano Trabaja" es SOLO manual (por Alejandro).
       // Lucy permanece activa y sigue respondiendo al cliente aunque tenga los 8 datos.
       log.info({ entityId }, "Embudo: cliente — sin movimiento automático de etapa (solo manual)");
     }
@@ -1869,7 +1869,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
   }
 });
 
-// ─── Pipeline-change webhook (cuando Rodrigo mueve a Cotización Realizada) ────
+// ─── Pipeline-change webhook (cuando Alejandro mueve a Cotización Realizada) ────
 // Configurar en Kommo → Webhooks → Evento: "Lead status changed"
 // URL: POST /api/kommo/pipeline-change
 router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
@@ -1893,7 +1893,7 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
 
   log.info({ leadId, newStatusId }, "Pipeline-change: etapa cambiada");
 
-  // Si Rodrigo movió manualmente a "Humano Trabaja" → limpiar campo 1048786
+  // Si Alejandro movió manualmente a "Humano Trabaja" → limpiar campo 1048786
   // (campo legacy — mantenido por compatibilidad, Lucy ya no lo usa para enviar).
   if (newStatusId === ETAPA.HUMANO_TRABAJA) {
     const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
@@ -1906,7 +1906,7 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
     }
   }
 
-  // Si Rodrigo movió a "Cotización Realizada" → programar seguimiento 22h
+  // Si Alejandro movió a "Cotización Realizada" → programar seguimiento 22h
   if (newStatusId === ETAPA.COTIZACION_REALIZADA) {
     const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
     const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";

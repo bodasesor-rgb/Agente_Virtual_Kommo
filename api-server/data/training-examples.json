@@ -5,19 +5,19 @@
     {
       "id": "V6-F001",
       "userMessage": "Hola",
-      "lucyResponse": "¡Hola! Soy Lucy de Bodasesor.\nTrabajo con Rodrigo. ¿Tu nombre completo?",
+      "lucyResponse": "¡Hola! Soy Lucy de Bodasesor.\nTrabajo con Alejandro. ¿Tu nombre completo?",
       "label": "Saludo simple — presentación + pide nombre"
     },
     {
       "id": "V6-F002",
       "userMessage": "Quiero cotizar un evento",
-      "lucyResponse": "¡Hola! Soy Lucy de Bodasesor.\nTrabajo con Rodrigo. ¿Tu nombre completo?",
+      "lucyResponse": "¡Hola! Soy Lucy de Bodasesor.\nTrabajo con Alejandro. ¿Tu nombre completo?",
       "label": "Cotizar — presentación + pide nombre"
     },
     {
       "id": "V6-F003",
       "userMessage": "Buenos días, me interesa contratar un servicio",
-      "lucyResponse": "¡Buenos días! Soy Lucy de Bodasesor.\nTrabajo con Rodrigo. ¿Tu nombre completo?",
+      "lucyResponse": "¡Buenos días! Soy Lucy de Bodasesor.\nTrabajo con Alejandro. ¿Tu nombre completo?",
       "label": "Buenos días — presentación cálida + pide nombre"
     },
     {
@@ -29,7 +29,7 @@
     {
       "id": "V6-F005",
       "userMessage": "Quiero cotizar una boda",
-      "lucyResponse": "¡Hola! Soy Lucy de Bodasesor.\nTrabajo con Rodrigo. ¿Tu nombre completo?",
+      "lucyResponse": "¡Hola! Soy Lucy de Bodasesor.\nTrabajo con Alejandro. ¿Tu nombre completo?",
       "label": "Menciona boda al inicio — presentación + pide nombre"
     },
     {
@@ -113,7 +113,7 @@
     {
       "id": "V6-T011",
       "userMessage": "Necesito hablar con una persona",
-      "lucyResponse": "Te paso los números para hablar directo con Rodrigo:\n\nVentas: 5540080373\nDirección: 5646710585\n\n¿Me das tu nombre?",
+      "lucyResponse": "Te paso los números para hablar directo con Alejandro:\n\nVentas: 5540080373\nDirección: 5646710585\n\n¿Me das tu nombre?",
       "label": "Quiere hablar con persona — dar teléfonos"
     },
     {
@@ -191,7 +191,7 @@
     {
       "id": "V6-SEQ-complete",
       "userMessage": "Como $300 por persona",
-      "lucyResponse": "Perfecto, ya tengo todo. Le paso estos datos a Rodrigo para que te arme una cotización personalizada.\n\nMientras tanto, aquí está nuestro catálogo completo:\nhttps://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499\n\nPor cierto, además de taquiza y barras, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.\n\n¿Te gustaría cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en decírnoslo y nosotros te lo conseguimos.",
+      "lucyResponse": "Perfecto, ya tengo todo. Le paso estos datos a Alejandro para que te arme una cotización personalizada.\n\nMientras tanto, aquí está nuestro catálogo completo:\nhttps://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499\n\nPor cierto, además de taquiza y barras, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.\n\n¿Te gustaría cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en decírnoslo y nosotros te lo conseguimos.",
       "label": "6 datos completos — mensaje de cierre correcto sin nota interna"
     },
     {
@@ -251,7 +251,7 @@
     {
       "id": "V6-MID002",
       "userMessage": "¿Cuánto tardan en cotizar?",
-      "lucyResponse": "Rodrigo te contacta muy rápido. ¿Para qué fecha sería el evento?",
+      "lucyResponse": "Alejandro te contacta muy rápido. ¿Para qué fecha sería el evento?",
       "label": "Pregunta cuánto tardan — responde breve + sigue"
     },
     {
