@@ -258,10 +258,10 @@ const FIELD_NAME: Record<number, string> = {
 const REQUIRED_FIELDS_ORDERED: Array<{ label: string; question: string }> = [
   { label: "Nombre del cliente",         question: "¿Me dices tu nombre para empezar?" },
   { label: "Correo electrónico",         question: "¿A qué correo te lo envío?" },
+  { label: "Tipo de evento",             question: "¿Qué tipo de evento sería?" },
   { label: "Requerimientos o servicios", question: "¿Qué tienes pensado para tu evento?" },
-  { label: "Tipo de evento",             question: "¿Qué tipo de evento es?" },
   { label: "Número de invitados",        question: "¿Cuánta gente más o menos?" },
-  { label: "Lugar/dirección del evento", question: "¿En qué zona sería?" },
+  { label: "Lugar/dirección del evento", question: "¿En qué ciudad sería?" },
   { label: "Fecha y horario",            question: "¿Ya tienen fecha definida?" },
 ];
 
@@ -542,10 +542,20 @@ function buildCrmContext(
       filledSet.add("Fecha y horario");
     }
 
+    // Ciudad: si Lucy preguntó por ciudad/zona y el cliente respondió con texto
+    if (!filledSet.has("Lugar/dirección del evento") &&
+        /ciudad|zona|dónde|donde/.test(lastQ) &&
+        /[a-záéíóúüñ]{3,}/i.test(msg) &&
+        !/@/.test(msg)) {
+      mergedLines.push(`- Lugar/dirección del evento: ${msg}`);
+      filledSet.add("Lugar/dirección del evento");
+    }
+
     // Tipo de evento: si Lucy preguntó por tipo y el cliente respondió con texto
     if (!filledSet.has("Tipo de evento") &&
-        /tipo\s+de\s+evento|qu[eé]\s+tipo/.test(lastQ) &&
-        /[a-záéíóúüñ]{3,}/i.test(msg)) {
+        /tipo\s+de\s+evento|qu[eé]\s+tipo|muchas gracias por la info/i.test(lastQ) &&
+        /[a-záéíóúüñ]{3,}/i.test(msg) &&
+        !/@/.test(msg)) {
       mergedLines.push(`- Tipo de evento: ${msg}`);
       filledSet.add("Tipo de evento");
     }

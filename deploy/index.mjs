@@ -59986,14 +59986,14 @@ Si NO \u2192 preg\xFAntalo con la frase exacta de abajo.
 
 [ ] 1. Nombre      \u2014 siempre en el primer mensaje, con presentaci\xF3n
 [ ] 2. Correo      \u2014 "Mucho gusto, [nombre]. Para mandarte toda la informaci\xF3n y que Alejandro te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
-        \xB7 OPCIONAL: si no quiere darlo o prefiere por aqu\xED \u2192 "Sin problema, seguimos por aqu\xED. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?"
+        \xB7 OPCIONAL: si no quiere darlo o prefiere por aqu\xED \u2192 "Sin problema, seguimos por aqu\xED. \xBFQu\xE9 tipo de evento ser\xEDa?"
         \xB7 NO insistas m\xE1s de una vez. El flujo contin\xFAa sin correo.
-[ ] 3. Requerimientos:
-        - CASO A (cliente YA mencion\xF3 un servicio concreto al inicio) \u2192 "Perfecto. Adem\xE1s del [servicio], \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?"
-        - CASO B (cliente NO mencion\xF3 ning\xFAn servicio concreto) \u2192 "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?"
-[ ] 4. Tipo de evento \u2014 "\xBFQu\xE9 tipo de evento es? Por ejemplo boda, XV a\xF1os, baby shower, cumplea\xF1os o corporativo."
+[ ] 3. Tipo de evento \u2014 tras recibir correo: "Muchas gracias por la info, \xBFqu\xE9 tipo de evento ser\xEDa?"
+[ ] 4. Requerimientos:
+        - CASO A (cliente YA mencion\xF3 un servicio concreto al inicio) \u2192 "Adem\xE1s del [servicio], \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?"
+        - CASO B (cliente NO mencion\xF3 ning\xFAn servicio concreto) \u2192 "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento? \xBFBanquete, taquiza, bebidas, DJ u otro servicio?"
 [ ] 5. Invitados   \u2014 "\xBFCu\xE1nta gente m\xE1s o menos?"
-[ ] 6. Zona        \u2014 "\xBFEn qu\xE9 zona ser\xEDa?"
+[ ] 6. Ciudad      \u2014 "\xBFEn qu\xE9 ciudad ser\xEDa?"
 [ ] 7. Fecha       \u2014 "\xBFYa tienen fecha definida o la est\xE1n viendo todav\xEDa?"
 
 \u26A0\uFE0F REQUERIMIENTOS \u2014 REGLA ABSOLUTA, NO NEGOCIABLE:
@@ -60025,13 +60025,15 @@ Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. Claro que te ayudo. \x
 Cliente: "Primi"
 Lucy: "Mucho gusto, Primi. Para mandarte toda la informaci\xF3n y que Alejandro te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
 Cliente: "prefiero por aqu\xED"
-Lucy: "Sin problema, seguimos por aqu\xED. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?"
+Lucy: "Sin problema, seguimos por aqu\xED. \xBFQu\xE9 tipo de evento ser\xEDa?"
 Cliente: "primi@gmail.com"
-Lucy: "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?" \u2190 si S\xCD dio correo
+Lucy: "Muchas gracias por la info, \xBFqu\xE9 tipo de evento ser\xEDa?"
+Cliente: "boda"
+Lucy: "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento? \xBFBanquete, taquiza, bebidas, DJ u otro servicio?"
 Cliente: "banquete y barra de bebidas"
 Lucy: "\xBFCu\xE1nta gente m\xE1s o menos?"
 Cliente: "120"
-Lucy: "\xBFEn qu\xE9 zona ser\xEDa?"
+Lucy: "\xBFEn qu\xE9 ciudad ser\xEDa?"
 Cliente: "Reforma"
 Lucy: "\xBFYa tienen fecha definida o la est\xE1n viendo todav\xEDa?"
 Cliente: "13 de mayo"
@@ -61115,12 +61117,13 @@ var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var EMAIL_REFUSAL_PATTERN = /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
-  "Requerimientos o servicios",
   "Tipo de evento",
+  "Requerimientos o servicios",
   "N\xFAmero de invitados",
   "Lugar/direcci\xF3n del evento",
   "Fecha y horario"
 ];
+var POST_EMAIL_QUESTION = "Muchas gracias por la info, \xBFqu\xE9 tipo de evento ser\xEDa?";
 var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura/i;
 function isValidRequerimientosValue(value) {
   const trimmed = value?.trim() ?? "";
@@ -61165,7 +61168,7 @@ function buildRequerimientosFollowUp(extracted, filledSet) {
     return `Perfecto. Para ${ref}, \xBFcu\xE1nta gente m\xE1s o menos ser\xEDan?`;
   }
   if (!filledSet?.has("Lugar/direcci\xF3n del evento")) {
-    return `\xBFEn qu\xE9 zona o ciudad ser\xEDa ${ref}?`;
+    return `\xBFEn qu\xE9 ciudad ser\xEDa ${ref}?`;
   }
   if (!filledSet?.has("Fecha y horario")) {
     return "\xBFYa tienen fecha definida o la est\xE1n viendo todav\xEDa?";
@@ -61180,20 +61183,20 @@ function nextFieldQuestion(extracted, filledSet, whatsappName) {
   if (!isEmailSatisfied(filledSet ?? /* @__PURE__ */ new Set())) {
     return `Mucho gusto, ${nombre}. Para mandarte toda la informaci\xF3n y que Alejandro te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?`;
   }
+  if (!filledSet?.has("Tipo de evento") && !extracted.tipo_evento?.trim()) {
+    return POST_EMAIL_QUESTION;
+  }
   if (!filledSet?.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    return "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
+    return "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento? \xBFBanquete, taquiza, bebidas, DJ u otro servicio?";
   }
   if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
     return buildRequerimientosFollowUp(extracted, filledSet);
-  }
-  if (!filledSet?.has("Tipo de evento") && !extracted.tipo_evento?.trim()) {
-    return "\xBFQu\xE9 tipo de evento es? Por ejemplo boda, XV a\xF1os, baby shower, cumplea\xF1os o corporativo.";
   }
   if (!filledSet?.has("N\xFAmero de invitados")) {
     return "\xBFCu\xE1nta gente m\xE1s o menos?";
   }
   if (!filledSet?.has("Lugar/direcci\xF3n del evento")) {
-    return "\xBFEn qu\xE9 zona ser\xEDa?";
+    return "\xBFEn qu\xE9 ciudad ser\xEDa?";
   }
   if (!filledSet?.has("Fecha y horario")) {
     return "\xBFYa tienen fecha definida o la est\xE1n viendo todav\xEDa?";
@@ -61206,7 +61209,13 @@ function shouldReplaceForcedEmailQuestion(mensaje, filledSet) {
   return /obligatorio|necesito|necesario|forzoso|indispensable|debes|tienes que|es importante/i.test(mensaje);
 }
 function emailRefusalAckMessage() {
-  return "Sin problema, seguimos por aqu\xED. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
+  return "Sin problema, seguimos por aqu\xED. \xBFQu\xE9 tipo de evento ser\xEDa?";
+}
+function clientJustGaveEmail(history, currentMessage) {
+  if (!currentMessage?.trim() || !/\S+@\S+\.\S+/.test(currentMessage)) return false;
+  const lastAssistant = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content;
+  if (!lastAssistant) return false;
+  return /correo|e-?mail|envío|envio/i.test(lastAssistant);
 }
 function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
   if (!currentMessage?.trim()) return false;
@@ -61224,6 +61233,17 @@ function clientAskedFreeformQuestion(message) {
 function responseLooksLikePrematureClose(mensaje) {
   return mensaje.includes(CLOSING_SIGNATURE) || /cotizaci[oó]n personalizada/i.test(mensaje) || /cdn\.shopify\.com/i.test(mensaje) || /cat[aá]logo completo/i.test(mensaje);
 }
+function mensajeLooksOnTrack(mensaje, filledSet) {
+  if (!mensaje.includes("?")) return false;
+  if (!filledSet.has("Tipo de evento") && /tipo de evento|qué tipo/i.test(mensaje)) return true;
+  if (!filledSet.has("Requerimientos o servicios") && /pensado|servicio|banquete|taquiza|cotizar/i.test(mensaje)) {
+    return true;
+  }
+  if (!filledSet.has("N\xFAmero de invitados") && /invitados|cu[aá]nta gente/i.test(mensaje)) return true;
+  if (!filledSet.has("Lugar/direcci\xF3n del evento") && /ciudad|zona|dónde|donde/i.test(mensaje)) return true;
+  if (!filledSet.has("Fecha y horario") && /fecha|cu[aá]ndo/i.test(mensaje)) return true;
+  return false;
+}
 function applyLucyMessageGuards(input) {
   const {
     aiResponse,
@@ -61239,17 +61259,25 @@ function applyLucyMessageGuards(input) {
     log,
     entityId
   } = input;
+  const justGaveEmail = clientJustGaveEmail(history, currentMessage);
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
-  const tieneRequerimientos = isValidRequerimientosValue(extracted.requerimientos_evento) || filledSet.has("Requerimientos o servicios");
   const emailOk = isEmailSatisfied(filledSet);
-  const forzarRequerimientos = emailOk && !tieneRequerimientos && !readyForClosing && !cierreYaEnviado;
+  const needsNextStep = emailOk && !readyForClosing && !cierreYaEnviado;
   let mensaje;
-  if (emailRefusedThisTurn && !extracted.correo?.trim()) {
+  if (justGaveEmail && !filledSet.has("Tipo de evento")) {
+    mensaje = POST_EMAIL_QUESTION;
+    log?.info({ entityId }, "GUARD: correo capturado \u2014 pregunta tipo de evento");
+  } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage();
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
-  } else if (forzarRequerimientos) {
-    mensaje = "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
-    log?.info({ entityId }, "GUARD: correo ok pero requerimientos vac\xEDo");
+  } else if (needsNextStep && !mensajeLooksOnTrack(aiResponse, filledSet)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName);
+    if (nextQ) {
+      mensaje = nextQ;
+      log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo");
+    } else {
+      mensaje = aiResponse;
+    }
   } else if (readyForClosing && !cierreYaEnviado && (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))) {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet);
     log?.info({ entityId }, "GUARD: profundizar requerimientos antes del cierre");
@@ -61294,6 +61322,10 @@ function applyLucyMessageGuards(input) {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
       mensaje = forcedNext;
     }
+  }
+  if (!filledSet.has("Tipo de evento") && /perfecto\.?\s*platícame|qué tienes pensado para tu evento/i.test(mensaje)) {
+    log?.warn({ entityId }, "GUARD: reemplazando pregunta de requerimientos por tipo de evento");
+    mensaje = POST_EMAIL_QUESTION;
   }
   return mensaje;
 }
@@ -80494,7 +80526,11 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       mergedLines.push(`- Fecha y horario: ${msg}`);
       filledSet.add("Fecha y horario");
     }
-    if (!filledSet.has("Tipo de evento") && /tipo\s+de\s+evento|qu[eé]\s+tipo/.test(lastQ) && /[a-záéíóúüñ]{3,}/i.test(msg)) {
+    if (!filledSet.has("Lugar/direcci\xF3n del evento") && /ciudad|zona|dónde|donde/.test(lastQ) && /[a-záéíóúüñ]{3,}/i.test(msg) && !/@/.test(msg)) {
+      mergedLines.push(`- Lugar/direcci\xF3n del evento: ${msg}`);
+      filledSet.add("Lugar/direcci\xF3n del evento");
+    }
+    if (!filledSet.has("Tipo de evento") && /tipo\s+de\s+evento|qu[eé]\s+tipo|muchas gracias por la info/i.test(lastQ) && /[a-záéíóúüñ]{3,}/i.test(msg) && !/@/.test(msg)) {
       mergedLines.push(`- Tipo de evento: ${msg}`);
       filledSet.add("Tipo de evento");
     }

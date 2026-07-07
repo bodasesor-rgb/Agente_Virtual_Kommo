@@ -11,12 +11,15 @@ const EMAIL_REFUSAL_PATTERN =
 /** Orden estricto del embudo de calificación (correo es opcional). */
 export const CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
-  "Requerimientos o servicios",
   "Tipo de evento",
+  "Requerimientos o servicios",
   "Número de invitados",
   "Lugar/dirección del evento",
   "Fecha y horario",
 ] as const;
+
+export const POST_EMAIL_QUESTION =
+  "Muchas gracias por la info, ¿qué tipo de evento sería?";
 
 const SERVICE_HINT =
   /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura/i;
@@ -93,7 +96,7 @@ export function buildRequerimientosFollowUp(
     return `Perfecto. Para ${ref}, ¿cuánta gente más o menos serían?`;
   }
   if (!filledSet?.has("Lugar/dirección del evento")) {
-    return `¿En qué zona o ciudad sería ${ref}?`;
+    return `¿En qué ciudad sería ${ref}?`;
   }
   if (!filledSet?.has("Fecha y horario")) {
     return "¿Ya tienen fecha definida o la están viendo todavía?";
@@ -116,16 +119,16 @@ export function nextFieldQuestion(
     return `Mucho gusto, ${nombre}. Para mandarte toda la información y que Alejandro te arme una propuesta, ¿a qué correo te lo envío?`;
   }
 
+  if (!filledSet?.has("Tipo de evento") && !extracted.tipo_evento?.trim()) {
+    return POST_EMAIL_QUESTION;
+  }
+
   if (!filledSet?.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    return "Perfecto. Platícame, ¿qué tienes pensado para tu evento?";
+    return "Platícame, ¿qué tienes pensado para tu evento? ¿Banquete, taquiza, bebidas, DJ u otro servicio?";
   }
 
   if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
     return buildRequerimientosFollowUp(extracted, filledSet);
-  }
-
-  if (!filledSet?.has("Tipo de evento") && !extracted.tipo_evento?.trim()) {
-    return "¿Qué tipo de evento es? Por ejemplo boda, XV años, baby shower, cumpleaños o corporativo.";
   }
 
   if (!filledSet?.has("Número de invitados")) {
@@ -133,7 +136,7 @@ export function nextFieldQuestion(
   }
 
   if (!filledSet?.has("Lugar/dirección del evento")) {
-    return "¿En qué zona sería?";
+    return "¿En qué ciudad sería?";
   }
 
   if (!filledSet?.has("Fecha y horario")) {
@@ -153,7 +156,19 @@ export function shouldReplaceForcedEmailQuestion(
 }
 
 export function emailRefusalAckMessage(): string {
-  return "Sin problema, seguimos por aquí. Platícame, ¿qué tienes pensado para tu evento?";
+  return "Sin problema, seguimos por aquí. ¿Qué tipo de evento sería?";
+}
+
+export function clientJustGaveEmail(
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): boolean {
+  if (!currentMessage?.trim() || !/\S+@\S+\.\S+/.test(currentMessage)) return false;
+  const lastAssistant = history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .slice(-1)[0]?.content as string | undefined;
+  if (!lastAssistant) return false;
+  return /correo|e-?mail|envío|envio/i.test(lastAssistant);
 }
 
 export function clientJustAnsweredRequerimientosQuestion(
@@ -183,6 +198,21 @@ function responseLooksLikePrematureClose(mensaje: string): boolean {
     /cdn\.shopify\.com/i.test(mensaje) ||
     /cat[aá]logo completo/i.test(mensaje)
   );
+}
+
+function mensajeLooksOnTrack(mensaje: string, filledSet: Set<string>): boolean {
+  if (!mensaje.includes("?")) return false;
+  if (!filledSet.has("Tipo de evento") && /tipo de evento|qué tipo/i.test(mensaje)) return true;
+  if (
+    !filledSet.has("Requerimientos o servicios") &&
+    /pensado|servicio|banquete|taquiza|cotizar/i.test(mensaje)
+  ) {
+    return true;
+  }
+  if (!filledSet.has("Número de invitados") && /invitados|cu[aá]nta gente/i.test(mensaje)) return true;
+  if (!filledSet.has("Lugar/dirección del evento") && /ciudad|zona|dónde|donde/i.test(mensaje)) return true;
+  if (!filledSet.has("Fecha y horario") && /fecha|cu[aá]ndo/i.test(mensaje)) return true;
+  return false;
 }
 
 export interface LucyMessageGuardsInput {
@@ -216,22 +246,28 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     entityId,
   } = input;
 
+  const justGaveEmail = clientJustGaveEmail(history, currentMessage);
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
-  const tieneRequerimientos =
-    isValidRequerimientosValue(extracted.requerimientos_evento) ||
-    filledSet.has("Requerimientos o servicios");
   const emailOk = isEmailSatisfied(filledSet);
-  const forzarRequerimientos =
-    emailOk && !tieneRequerimientos && !readyForClosing && !cierreYaEnviado;
+  const needsNextStep =
+    emailOk && !readyForClosing && !cierreYaEnviado;
 
   let mensaje: string;
 
-  if (emailRefusedThisTurn && !extracted.correo?.trim()) {
+  if (justGaveEmail && !filledSet.has("Tipo de evento")) {
+    mensaje = POST_EMAIL_QUESTION;
+    log?.info({ entityId }, "GUARD: correo capturado — pregunta tipo de evento");
+  } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage();
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
-  } else if (forzarRequerimientos) {
-    mensaje = "Perfecto. Platícame, ¿qué tienes pensado para tu evento?";
-    log?.info({ entityId }, "GUARD: correo ok pero requerimientos vacío");
+  } else if (needsNextStep && !mensajeLooksOnTrack(aiResponse, filledSet)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName);
+    if (nextQ) {
+      mensaje = nextQ;
+      log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo");
+    } else {
+      mensaje = aiResponse;
+    }
   } else if (
     readyForClosing &&
     !cierreYaEnviado &&
@@ -291,6 +327,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
       mensaje = forcedNext;
     }
+  }
+
+  if (
+    !filledSet.has("Tipo de evento") &&
+    /perfecto\.?\s*platícame|qué tienes pensado para tu evento/i.test(mensaje)
+  ) {
+    log?.warn({ entityId }, "GUARD: reemplazando pregunta de requerimientos por tipo de evento");
+    mensaje = POST_EMAIL_QUESTION;
   }
 
   return mensaje;
