@@ -17,16 +17,25 @@ static/              ← UI del simulador
 - Lead demo Montserrat
 - Chat de prueba sin tocar Kommo real
 
-## Arrancar simulador (Python)
+## Simulador Kommo (probar sin CRM real)
+
+Guía completa: **[SIMULADOR.md](./SIMULADOR.md)**
 
 ```bash
+# Terminal 1 — Lucy
+cp package.development.json package.json && npm install && npm run build:source
+export OPENAI_API_KEY=sk-proj-...
+node api-server/dist/index.mjs
+
+# Terminal 2 — Simulador
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+export AGENT_WEBHOOK_URL=http://localhost:3000/api/kommo/simulator
+./scripts/start-simulator.sh
 ```
 
-Abre: http://localhost:8000
+Abre http://localhost:8000 — embudo kanban, chat con Lucy, campos Kommo.
 
-## Arrancar Lucy api-server (Node)
+## Arrancar Lucy api-server (Node) — producción Hostinger
 
 **Nota:** el zip trae dependencias de monorepo (`@workspace/db`, `@workspace/api-zod`).
 Faltan esos paquetes para correr standalone. Opciones:

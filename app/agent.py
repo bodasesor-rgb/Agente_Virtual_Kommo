@@ -110,24 +110,61 @@ def _apply_actions(lead_id: int, actions: list[dict[str, Any]]) -> list[str]:
     return applied
 
 
+def _lucy_payload(lead: Lead, user_text: str, author: str) -> dict[str, Any]:
+    return {
+        "text": user_text,
+        "lead_id": lead.id,
+        "lead": lead.model_dump(),
+        "message": {"text": user_text, "author": author},
+    }
+
+
+def _lucy_response_to_actions(data: dict[str, Any]) -> list[dict[str, Any]]:
+    actions: list[dict[str, Any]] = []
+    lead_updates = data.get("lead_updates") or {}
+    if isinstance(lead_updates, dict):
+        base: dict[str, Any] = {}
+        for key in ("name", "contact_email", "contact_phone"):
+            if lead_updates.get(key):
+                base[key] = lead_updates[key]
+        if base:
+            actions.append({"type": "update_lead", "fields": base})
+    fields = data.get("fields")
+    if isinstance(fields, dict) and fields:
+        actions.append({"type": "set_fields", "fields": fields})
+    stage_id = data.get("stage_id")
+    if stage_id:
+        actions.append({"type": "move_lead", "stage_id": stage_id, "reason": "Lucy"})
+    return actions
+
+
 async def _call_external_agent(payload: dict[str, Any]) -> dict[str, Any] | None:
     url = os.getenv("AGENT_WEBHOOK_URL", "").strip()
     if not url:
         return None
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.post(url, json=payload)
-        response.raise_for_status()
-        return response.json()
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            data = response.json()
+            if data.get("reply"):
+                return {
+                    "reply": data["reply"],
+                    "actions": _lucy_response_to_actions(data),
+                }
+            return data
+    except Exception:
+        return None
 
 
 def _call_openai(system_prompt: str, history: list[Message], user_text: str) -> dict[str, Any]:
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
     if not api_key:
-        # Respuesta demo sin API key
         return {
             "reply": (
                 "¡Hola! Soy el agente en modo demo (sin OPENAI_API_KEY). "
-                "Cuéntame fecha de boda, ciudad e invitados y simularé la calificación."
+                "Configura AGENT_WEBHOOK_URL=http://localhost:3000/api/kommo/simulator "
+                "y arranca Lucy, o pon OPENAI_API_KEY para el agente simple del simulador."
             ),
             "actions": [],
         }
@@ -149,6 +186,31 @@ def _call_openai(system_prompt: str, history: list[Message], user_text: str) -> 
     return _parse_agent_json(content)
 
 
+async def get_agent_status() -> dict[str, Any]:
+    url = os.getenv("AGENT_WEBHOOK_URL", "").strip()
+    mode = "lucy" if url else "builtin"
+    lucy_ok = False
+    health_url = None
+
+    if url:
+        base = url.replace("/api/kommo/simulator", "").replace("/api/kommo/salesbot", "")
+        health_url = f"{base.rstrip('/')}/api/health"
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                res = await client.get(health_url)
+                lucy_ok = res.status_code == 200
+        except Exception:
+            lucy_ok = False
+
+    return {
+        "mode": mode,
+        "agent_webhook_url": url or None,
+        "lucy_health_url": health_url,
+        "lucy_connected": lucy_ok,
+        "openai_configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
+    }
+
+
 async def process_incoming_message(lead_id: int, user_text: str, author: str = "Cliente") -> dict[str, Any]:
     lead = store.get_lead(lead_id)
     if not lead:
@@ -158,15 +220,7 @@ async def process_incoming_message(lead_id: int, user_text: str, author: str = "
     store.add_message(lead_id, "incoming", user_text, author)
     history = store.list_messages(lead_id)
 
-    webhook_payload = {
-        "event": "message.incoming",
-        "lead_id": lead_id,
-        "lead": lead.model_dump(),
-        "message": {"text": user_text, "author": author},
-        "config": config.model_dump(),
-    }
-
-    external = await _call_external_agent(webhook_payload)
+    external = await _call_external_agent(_lucy_payload(lead, user_text, author))
     if external and external.get("reply"):
         agent_data = external
     else:
@@ -175,13 +229,22 @@ async def process_incoming_message(lead_id: int, user_text: str, author: str = "
 
     reply = agent_data.get("reply", "")
     actions = agent_data.get("actions", [])
-    if reply:
-        actions = list(actions)
-        actions.append({"type": "set_fields", "fields": {"cf_respuesta_ia_1": reply[:500]}})
-    applied = _apply_actions(lead_id, actions)
+
+    # Aplicar update_lead, set_fields, move_lead
+    applied: list[str] = []
+    for action in actions:
+        if action.get("type") == "update_lead" and action.get("fields"):
+            store.update_lead(lead_id, action["fields"])
+            applied.append(f"Lead actualizado: {action['fields']}")
+        elif action.get("type") == "set_fields" and action.get("fields"):
+            store.update_lead(lead_id, {"custom_fields": action["fields"]})
+            applied.append(f"Campos: {list(action['fields'].keys())}")
+        elif action.get("type") == "move_lead" and action.get("stage_id"):
+            store.update_lead(lead_id, {"stage_id": action["stage_id"]})
+            applied.append(f"Etapa → {action['stage_id']}")
 
     if reply:
-        store.add_message(lead_id, "outgoing", reply, "Agente Virtual")
+        store.add_message(lead_id, "outgoing", reply, "Lucy")
 
     updated_lead = store.get_lead(lead_id)
     return {

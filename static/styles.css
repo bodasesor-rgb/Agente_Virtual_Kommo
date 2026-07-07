@@ -40,12 +40,23 @@ body {
 }
 
 .badge {
-  display: inline-block;
-  background: rgba(255,255,255,0.12);
-  padding: 4px 8px;
-  border-radius: 999px;
   font-size: 11px;
-  margin-bottom: 24px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.badge.connected {
+  background: rgba(46, 204, 113, 0.15);
+  color: #6ee7a0;
+}
+
+.badge.warning {
+  background: rgba(255, 193, 7, 0.15);
+  color: #ffd666;
 }
 
 .nav button {

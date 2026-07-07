@@ -81549,6 +81549,153 @@ router2.post("/kommo/lucy/activar/:leadId", async (req, res) => {
     res.status(500).json({ error: "activation_failed" });
   }
 });
+var SIMULATOR_CF_TO_KOMMO = {
+  cf_direccion: FIELD.direccion_evento,
+  cf_requerimiento: FIELD.requerimientos_evento,
+  cf_fecha_horario: FIELD.fecha_horario,
+  cf_num_invitados: FIELD.num_invitados,
+  cf_tipo_evento: FIELD.tipo_evento,
+  cf_presupuesto: FIELD.presupuesto
+};
+function buildCrmLinesFromSimulator(lead) {
+  const lines = [];
+  const name2 = lead.name?.trim();
+  if (name2 && name2 !== "Nuevo lead" && !/^lead\s*#?\d+$/i.test(name2)) {
+    lines.push(`- Nombre del cliente: ${name2}`);
+  }
+  if (lead.contact_email?.trim()) {
+    lines.push(`- Correo electr\xF3nico: ${lead.contact_email.trim()}`);
+  }
+  if (lead.contact_phone?.trim()) {
+    lines.push(`- Tel\xE9fono: ${lead.contact_phone.trim()}`);
+  }
+  const cf = lead.custom_fields ?? {};
+  for (const [cfId, kommoId] of Object.entries(SIMULATOR_CF_TO_KOMMO)) {
+    const raw = cf[cfId];
+    if (raw === null || raw === void 0 || raw === "") continue;
+    const label = FIELD_NAME[kommoId];
+    if (!label) continue;
+    lines.push(`- ${label}: ${String(raw)}`);
+  }
+  const lastLucy = cf["cf_respuesta_ia_1"];
+  const lastLucyResponse = typeof lastLucy === "string" && lastLucy.trim() ? lastLucy.trim() : null;
+  return { crmLines: lines, lastLucyResponse };
+}
+function mapExtractedToSimulatorFields(extracted, reply) {
+  const fields = {
+    cf_respuesta_ia_1: reply.slice(0, 500)
+  };
+  if (isValidExtractedString(extracted.direccion_evento)) fields.cf_direccion = extracted.direccion_evento;
+  if (isValidExtractedString(extracted.requerimientos_evento)) fields.cf_requerimiento = extracted.requerimientos_evento;
+  if (isValidExtractedString(extracted.fecha_horario)) fields.cf_fecha_horario = extracted.fecha_horario;
+  if (extracted.num_invitados !== null && extracted.num_invitados > 0) fields.cf_num_invitados = extracted.num_invitados;
+  if (isValidExtractedString(extracted.tipo_evento)) fields.cf_tipo_evento = extracted.tipo_evento;
+  if (extracted.presupuesto !== null && extracted.presupuesto > 0) fields.cf_presupuesto = `$${extracted.presupuesto}`;
+  return fields;
+}
+function suggestSimulatorStage(messageText, allFieldsFilled, currentStageId) {
+  if (/humano|persona real|hablar con alguien|agente humano|asesor/i.test(messageText)) {
+    return "stage_humano_trabaja";
+  }
+  if (allFieldsFilled && currentStageId === "stage_datos_intereses") {
+    return "stage_cotizacion";
+  }
+  return null;
+}
+router2.post("/kommo/simulator", async (req, res) => {
+  const log = req.log;
+  const body2 = req.body;
+  const lead = body2.lead ?? {};
+  const messageText = body2.text ?? body2.message?.text ?? "";
+  const leadId = lead.id ?? body2.lead_id ?? "sim-default";
+  if (!messageText.trim()) {
+    res.status(400).json({ error: "no_message_text" });
+    return;
+  }
+  try {
+    const histKey = `sim-${leadId}`;
+    let history = getHistory(histKey).slice(-6);
+    const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
+    const emptyExtracted = {
+      nombre: null,
+      telefono: null,
+      correo: null,
+      presupuesto: null,
+      direccion_evento: null,
+      requerimientos_evento: null,
+      fecha_horario: null,
+      num_invitados: null,
+      tipo_evento: null,
+      tipo_contacto: null,
+      empresa: null
+    };
+    const crmResult = buildCrmContext(crmLines, emptyExtracted, history, void 0, messageText);
+    const crmContext = crmResult.context;
+    const allFieldsFilled = crmResult.allFieldsFilled;
+    const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
+    const nombreYaEnCRM = crmLines.some((l4) => /Nombre del cliente:/i.test(l4));
+    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse && !nombreYaEnCRM;
+    const trainingExamples = getTrainingExamples();
+    const fewShot = trainingExamples.flatMap((ex) => [
+      { role: "user", content: ex.userMessage },
+      { role: "assistant", content: ex.lucyResponse }
+    ]);
+    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+    const systemContent = isFirstInteraction ? basePrompt + crmContext + "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo est\xE1ndar de Lucy, sin variaciones." : basePrompt + crmContext;
+    const lucyMessages = [
+      { role: "system", content: systemContent },
+      ...fewShot,
+      ...history,
+      { role: "user", content: messageText }
+    ];
+    const [completion, extracted] = await Promise.all([
+      openai2.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: lucyMessages,
+        max_tokens: 1200,
+        temperature: 0.5,
+        frequency_penalty: 1,
+        presence_penalty: 1,
+        top_p: 0.5
+      }),
+      extractData(history, messageText, crmLines.join("\n"))
+    ]);
+    let aiResponse = completion.choices[0]?.message?.content ?? "";
+    const simCierreYaEnviado = history.some(
+      (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE)
+    );
+    const simTieneCorreo = !!extracted.correo?.trim();
+    const simTieneRequerimientos = !!extracted.requerimientos_evento?.trim();
+    const simForzarRequerimientos = simTieneCorreo && !simTieneRequerimientos && !allFieldsFilled && !simCierreYaEnviado;
+    let mensajeParaCliente;
+    if (simForzarRequerimientos) {
+      mensajeParaCliente = "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
+    } else if (allFieldsFilled && !simCierreYaEnviado) {
+      mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
+    } else {
+      mensajeParaCliente = aiResponse;
+    }
+    appendHistory(histKey, messageText, mensajeParaCliente);
+    const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente);
+    const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
+    const lead_updates = {};
+    if (isValidExtractedString(extracted.nombre)) lead_updates.name = extracted.nombre;
+    if (isValidExtractedString(extracted.correo)) lead_updates.contact_email = extracted.correo;
+    if (isValidExtractedString(extracted.telefono)) lead_updates.contact_phone = extracted.telefono;
+    log.info({ leadId, allFieldsFilled, stage_id }, "Simulator: Lucy respondi\xF3");
+    res.json({
+      status: "success",
+      reply: mensajeParaCliente,
+      fields,
+      stage_id,
+      lead_updates,
+      all_fields_filled: allFieldsFilled
+    });
+  } catch (err2) {
+    log.error({ err: err2 }, "Simulator: processing error");
+    res.status(500).json({ error: "processing_failed" });
+  }
+});
 (() => {
   const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";

@@ -1977,6 +1977,201 @@ router.post("/kommo/lucy/activar/:leadId", async (req: Request, res: Response) =
   }
 });
 
+// ─── Simulador Kommo (sin CRM real) ───────────────────────────────────────────
+// El simulador Python llama aquí con los datos del lead en memoria.
+// No requiere KOMMO_SUBDOMAIN ni KOMMO_ACCESS_TOKEN.
+
+interface SimulatorLeadPayload {
+  id?: number;
+  name?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  stage_id?: string;
+  custom_fields?: Record<string, unknown>;
+}
+
+const SIMULATOR_CF_TO_KOMMO: Record<string, number> = {
+  cf_direccion: FIELD.direccion_evento,
+  cf_requerimiento: FIELD.requerimientos_evento,
+  cf_fecha_horario: FIELD.fecha_horario,
+  cf_num_invitados: FIELD.num_invitados,
+  cf_tipo_evento: FIELD.tipo_evento,
+  cf_presupuesto: FIELD.presupuesto,
+};
+
+function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResult {
+  const lines: string[] = [];
+  const name = lead.name?.trim();
+  if (name && name !== "Nuevo lead" && !/^lead\s*#?\d+$/i.test(name)) {
+    lines.push(`- Nombre del cliente: ${name}`);
+  }
+  if (lead.contact_email?.trim()) {
+    lines.push(`- Correo electrónico: ${lead.contact_email.trim()}`);
+  }
+  if (lead.contact_phone?.trim()) {
+    lines.push(`- Teléfono: ${lead.contact_phone.trim()}`);
+  }
+
+  const cf = lead.custom_fields ?? {};
+  for (const [cfId, kommoId] of Object.entries(SIMULATOR_CF_TO_KOMMO)) {
+    const raw = cf[cfId];
+    if (raw === null || raw === undefined || raw === "") continue;
+    const label = FIELD_NAME[kommoId];
+    if (!label) continue;
+    lines.push(`- ${label}: ${String(raw)}`);
+  }
+
+  const lastLucy = cf["cf_respuesta_ia_1"];
+  const lastLucyResponse =
+    typeof lastLucy === "string" && lastLucy.trim() ? lastLucy.trim() : null;
+
+  return { crmLines: lines, lastLucyResponse };
+}
+
+function mapExtractedToSimulatorFields(
+  extracted: ExtractedData,
+  reply: string
+): Record<string, unknown> {
+  const fields: Record<string, unknown> = {
+    cf_respuesta_ia_1: reply.slice(0, 500),
+  };
+  if (isValidExtractedString(extracted.direccion_evento)) fields.cf_direccion = extracted.direccion_evento;
+  if (isValidExtractedString(extracted.requerimientos_evento)) fields.cf_requerimiento = extracted.requerimientos_evento;
+  if (isValidExtractedString(extracted.fecha_horario)) fields.cf_fecha_horario = extracted.fecha_horario;
+  if (extracted.num_invitados !== null && extracted.num_invitados > 0) fields.cf_num_invitados = extracted.num_invitados;
+  if (isValidExtractedString(extracted.tipo_evento)) fields.cf_tipo_evento = extracted.tipo_evento;
+  if (extracted.presupuesto !== null && extracted.presupuesto > 0) fields.cf_presupuesto = `$${extracted.presupuesto}`;
+  return fields;
+}
+
+function suggestSimulatorStage(
+  messageText: string,
+  allFieldsFilled: boolean,
+  currentStageId?: string
+): string | null {
+  if (/humano|persona real|hablar con alguien|agente humano|asesor/i.test(messageText)) {
+    return "stage_humano_trabaja";
+  }
+  if (allFieldsFilled && currentStageId === "stage_datos_intereses") {
+    return "stage_cotizacion";
+  }
+  return null;
+}
+
+router.post("/kommo/simulator", async (req: Request, res: Response) => {
+  const log = req.log;
+  const body = req.body as Record<string, unknown>;
+  const lead = (body.lead ?? {}) as SimulatorLeadPayload;
+  const messageText =
+    (body.text as string | undefined) ??
+    ((body.message as { text?: string } | undefined)?.text) ??
+    "";
+
+  const leadId = lead.id ?? body.lead_id ?? "sim-default";
+
+  if (!messageText.trim()) {
+    res.status(400).json({ error: "no_message_text" });
+    return;
+  }
+
+  try {
+    const histKey = `sim-${leadId}`;
+    let history = getHistory(histKey).slice(-6);
+
+    const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
+    const emptyExtracted: ExtractedData = {
+      nombre: null, telefono: null, correo: null, presupuesto: null,
+      direccion_evento: null, requerimientos_evento: null, fecha_horario: null,
+      num_invitados: null, tipo_evento: null, tipo_contacto: null, empresa: null,
+    };
+    const crmResult = buildCrmContext(crmLines, emptyExtracted, history, undefined, messageText);
+    const crmContext = crmResult.context;
+    const allFieldsFilled = crmResult.allFieldsFilled;
+
+    const hasAssistantMsg = history.some((m) => m.role === "assistant");
+    const nombreYaEnCRM = crmLines.some((l) => /Nombre del cliente:/i.test(l));
+    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse && !nombreYaEnCRM;
+
+    const trainingExamples = getTrainingExamples();
+    const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
+      { role: "user" as const, content: ex.userMessage },
+      { role: "assistant" as const, content: ex.lucyResponse },
+    ]);
+
+    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+    const systemContent = isFirstInteraction
+      ? basePrompt + crmContext + "\n\nPRIMER MENSAJE DEL LEAD. Responde EXACTAMENTE con el saludo estándar de Lucy, sin variaciones."
+      : basePrompt + crmContext;
+
+    const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "system", content: systemContent },
+      ...fewShot,
+      ...history,
+      { role: "user", content: messageText },
+    ];
+
+    const [completion, extracted] = await Promise.all([
+      openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: lucyMessages,
+        max_tokens: 1200,
+        temperature: 0.5,
+        frequency_penalty: 1.0,
+        presence_penalty: 1.0,
+        top_p: 0.5,
+      }),
+      extractData(history, messageText, crmLines.join("\n")),
+    ]);
+
+    let aiResponse = completion.choices[0]?.message?.content ?? "";
+
+    const simCierreYaEnviado = history.some(
+      (m) =>
+        m.role === "assistant" &&
+        typeof m.content === "string" &&
+        m.content.includes(CLOSING_SIGNATURE)
+    );
+
+    const simTieneCorreo = !!(extracted.correo?.trim());
+    const simTieneRequerimientos = !!(extracted.requerimientos_evento?.trim());
+    const simForzarRequerimientos =
+      simTieneCorreo && !simTieneRequerimientos && !allFieldsFilled && !simCierreYaEnviado;
+
+    let mensajeParaCliente: string;
+    if (simForzarRequerimientos) {
+      mensajeParaCliente = "Perfecto. Platícame, ¿qué tienes pensado para tu evento?";
+    } else if (allFieldsFilled && !simCierreYaEnviado) {
+      mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
+    } else {
+      mensajeParaCliente = aiResponse;
+    }
+
+    appendHistory(histKey, messageText, mensajeParaCliente);
+
+    const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente);
+    const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
+
+    const lead_updates: Record<string, string> = {};
+    if (isValidExtractedString(extracted.nombre)) lead_updates.name = extracted.nombre;
+    if (isValidExtractedString(extracted.correo)) lead_updates.contact_email = extracted.correo;
+    if (isValidExtractedString(extracted.telefono)) lead_updates.contact_phone = extracted.telefono;
+
+    log.info({ leadId, allFieldsFilled, stage_id }, "Simulator: Lucy respondió");
+
+    res.json({
+      status: "success",
+      reply: mensajeParaCliente,
+      fields,
+      stage_id,
+      lead_updates,
+      all_fields_filled: allFieldsFilled,
+    });
+  } catch (err) {
+    log.error({ err }, "Simulator: processing error");
+    res.status(500).json({ error: "processing_failed" });
+  }
+});
+
 // ─── Cron jobs internos (cada hora) ──────────────────────────────────────────
 // Se inician junto con el router al cargar el módulo.
 // Complementan los endpoints externos de cron como respaldo.

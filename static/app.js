@@ -38,10 +38,32 @@ function stageById(stageId) {
   return pipeline?.stages.find((s) => s.id === stageId);
 }
 
+async function loadAgentStatus() {
+  try {
+    const status = await api("/api/agent/status");
+    const el = $("#agent-badge");
+    if (status.mode === "lucy" && status.lucy_connected) {
+      el.textContent = "Lucy conectada · simulador";
+      el.classList.add("connected");
+    } else if (status.mode === "lucy") {
+      el.textContent = "Lucy no responde — revisa AGENT_WEBHOOK_URL";
+      el.classList.add("warning");
+    } else if (status.openai_configured) {
+      el.textContent = "Agente simple (OpenAI directo)";
+    } else {
+      el.textContent = "Modo demo — configura Lucy o OPENAI_API_KEY";
+      el.classList.add("warning");
+    }
+  } catch {
+    $("#agent-badge").textContent = "Modo prueba · sin CRM real";
+  }
+}
+
 async function loadAll() {
   state.config = await api("/api/config");
   state.leads = await api("/api/leads");
   state.activePipelineId = state.config.pipelines[0]?.id;
+  await loadAgentStatus();
   renderAll();
 }
 

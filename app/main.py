@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import uuid
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.agent import process_incoming_message
+from app.agent import get_agent_status, process_incoming_message
 from app.models import (
     AgentMoveLead,
     AgentSetFields,
@@ -20,6 +21,8 @@ from app.models import (
     StageCreate,
 )
 from app.storage import store
+
+load_dotenv()
 
 app = FastAPI(title="Kommo Simulator", version="0.1.0")
 
@@ -40,6 +43,11 @@ def index() -> FileResponse:
 @app.get("/api/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "service": "kommo-simulator"}
+
+
+@app.get("/api/agent/status")
+async def agent_status() -> dict:
+    return await get_agent_status()
 
 
 @app.get("/api/config")
