@@ -1,4 +1,4 @@
-const STORAGE_KEY = "bodasesor-kommo-sim-v2";
+const STORAGE_KEY = "bodasesor-kommo-sim-v3";
 const STAGE_COLORS = ["#99ccff", "#b5e8b5", "#ffb3ba", "#d4b5ff", "#ffd666", "#c0c0c0"];
 
 const state = {
@@ -90,12 +90,14 @@ function isStoreValid(store) {
 
 async function ensureStore() {
   let store = readStore();
+  let loadedFresh = false;
   if (!isStoreValid(store)) {
     store = await loadDemoStore();
     writeStore(store);
+    loadedFresh = true;
   }
   state.store = store;
-  return store;
+  return { store, loadedFresh };
 }
 
 function getPipeline() {
@@ -184,13 +186,20 @@ async function loadAgentStatus() {
 }
 
 async function loadAll() {
-  await ensureStore();
-  state.activePipelineId = state.store.config.pipelines[0]?.id;
+  const { store, loadedFresh } = await ensureStore();
+  state.activePipelineId = store.config.pipelines[0]?.id;
   await loadAgentStatus();
   renderAll();
-  if (state.store.leads.length) {
-    const pick = state.store.leads.find((l) => l.name === "Montserrat") || state.store.leads[0];
+  if (store.leads.length) {
+    const pick = store.leads[0];
     selectLead(pick.id);
+    if (loadedFresh) {
+      fetch("/api/kommo/simulator/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_id: pick.id }),
+      }).catch(() => {});
+    }
   } else {
     updateSendButton();
   }
@@ -462,7 +471,7 @@ async function sendMessage() {
   if (!text) return;
 
   if (!state.selectedLeadId) {
-    toast("Selecciona un lead en el embudo (ej. Montserrat)");
+    toast("Selecciona un lead en el embudo");
     return;
   }
 
@@ -472,7 +481,7 @@ async function sendMessage() {
     return;
   }
 
-  const author = lead.name || "Cliente";
+  const author = lead.contact_phone || lead.name || "Cliente";
   $("#chat-text").value = "";
   $("#btn-send").disabled = true;
   $("#chat-typing").classList.remove("hidden");
@@ -618,10 +627,29 @@ function bindEvents() {
 
   $("#btn-reset").addEventListener("click", async () => {
     if (!confirm("¿Restaurar pipeline, campos y leads de demo?")) return;
+    const leadIds = (readStore()?.leads || []).map((l) => l.id);
     localStorage.removeItem(STORAGE_KEY);
     state.selectedLeadId = null;
     await loadAll();
-    toast("Demo restaurada");
+    for (const id of leadIds) {
+      try {
+        await fetch("/api/kommo/simulator/reset", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lead_id: id }),
+        });
+      } catch {
+        /* historial del servidor opcional */
+      }
+    }
+    if (state.selectedLeadId) {
+      await fetch("/api/kommo/simulator/reset", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_id: state.selectedLeadId }),
+      }).catch(() => {});
+    }
+    toast("Demo restaurada desde cero");
   });
 
   $("#btn-export").addEventListener("click", () => {

@@ -30,14 +30,14 @@
     ]
   },
   "next_lead_id": 1002,
-  "next_message_id": 2,
+  "next_message_id": 1,
   "leads": [
     {
       "id": 1001,
-      "name": "Montserrat",
+      "name": "+5215512345678",
       "pipeline_id": "pipeline_bodasesor",
       "stage_id": "stage_datos_intereses",
-      "contact_phone": "+5217714843674",
+      "contact_phone": "+5215512345678",
       "contact_email": "",
       "custom_fields": {},
       "tags": ["whatsapp_business"],
@@ -45,16 +45,7 @@
     }
   ],
   "messages": {
-    "1001": [
-      {
-        "id": 1,
-        "lead_id": 1001,
-        "direction": "incoming",
-        "text": "Hola, quiero cotizar un evento",
-        "author": "Montserrat",
-        "created_at": "2026-07-06T16:00:00Z"
-      }
-    ]
+    "1001": []
   },
   "activity_log": []
 }

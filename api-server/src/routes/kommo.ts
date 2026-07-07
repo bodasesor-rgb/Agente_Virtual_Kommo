@@ -4,7 +4,7 @@ import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
 import { CATALOGO_BODASESOR } from "../catalogo.js";
 import { getTrainingExamples } from "../lib/training.js";
-import { getHistory, appendHistory } from "../chat-history.js";
+import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
   applyEmailWaiver,
   applyLucyMessageGuards,
@@ -2248,6 +2248,15 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       error: isAuth ? "openai_auth" : "processing_failed",
     });
   }
+});
+
+router.post("/kommo/simulator/reset", (req: Request, res: Response) => {
+  const body = req.body as Record<string, unknown>;
+  const leadId = body.lead_id ?? (body.lead as { id?: number } | undefined)?.id ?? "sim-default";
+  const histKey = `sim-${leadId}`;
+  clearHistory(histKey);
+  req.log.info({ leadId, histKey }, "Simulator: historial de Lucy reiniciado");
+  res.json({ status: "success", lead_id: leadId });
 });
 
 // ─── Cron jobs internos (cada hora) ──────────────────────────────────────────

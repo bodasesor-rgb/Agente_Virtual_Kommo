@@ -61061,6 +61061,10 @@ var store = load();
 function getHistory(chatId) {
   return store[chatId] ?? [];
 }
+function clearHistory(chatId) {
+  delete store[chatId];
+  save(store);
+}
 function appendHistory(chatId, userText, assistantText) {
   const history = store[chatId] ?? [];
   history.push({ role: "user", content: userText });
@@ -81622,6 +81626,14 @@ router2.post("/kommo/simulator", async (req, res) => {
       error: isAuth ? "openai_auth" : "processing_failed"
     });
   }
+});
+router2.post("/kommo/simulator/reset", (req, res) => {
+  const body2 = req.body;
+  const leadId = body2.lead_id ?? body2.lead?.id ?? "sim-default";
+  const histKey = `sim-${leadId}`;
+  clearHistory(histKey);
+  req.log.info({ leadId, histKey }, "Simulator: historial de Lucy reiniciado");
+  res.json({ status: "success", lead_id: leadId });
 });
 (() => {
   const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";

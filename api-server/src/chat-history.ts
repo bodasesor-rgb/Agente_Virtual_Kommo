@@ -35,6 +35,11 @@ export function getHistory(chatId: string): Message[] {
   return store[chatId] ?? [];
 }
 
+export function clearHistory(chatId: string): void {
+  delete store[chatId];
+  save(store);
+}
+
 export function appendHistory(
   chatId: string,
   userText: string,
