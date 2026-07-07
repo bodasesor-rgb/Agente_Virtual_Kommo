@@ -11,6 +11,14 @@
     <aside class="sidebar">
       <div class="brand">Kommo Simulador</div>
       <div class="badge" id="agent-badge">Cargando agente...</div>
+      <div class="agent-picker">
+        <label for="agent-url-preset">Lucy conectada a</label>
+        <select id="agent-url-preset">
+          <option value="hostinger">Hostinger (recomendado)</option>
+          <option value="local">Local :3000</option>
+        </select>
+        <button type="button" class="secondary" id="btn-save-agent" style="width:100%; margin-top:8px;">Aplicar</button>
+      </div>
       <nav class="nav">
         <button class="active" data-view="pipeline">Embudo / Pipeline</button>
         <button data-view="config">Pipelines y campos</button>
@@ -79,6 +87,7 @@
 
       <div id="tab-chat">
         <div id="chat-body" class="chat-body"></div>
+        <div id="chat-typing" class="chat-typing hidden">Lucy está escribiendo…</div>
         <div class="chat-input">
           <textarea id="chat-text" placeholder="Escribe como cliente (simula WhatsApp/Kommo)..."></textarea>
           <button class="primary" id="btn-send" disabled>Enviar al agente</button>

@@ -38,6 +38,30 @@ function stageById(stageId) {
   return pipeline?.stages.find((s) => s.id === stageId);
 }
 
+async function loadAgentConfig() {
+  try {
+    const cfg = await api("/api/agent/config");
+    const select = $("#agent-url-preset");
+    if (cfg.preset === "local" || cfg.preset === "hostinger") {
+      select.value = cfg.preset;
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+async function saveAgentConfig() {
+  const preset = $("#agent-url-preset").value;
+  const cfg = await api("/api/agent/config");
+  const url = cfg.presets[preset] || cfg.agent_webhook_url;
+  await api("/api/agent/config", {
+    method: "PUT",
+    body: JSON.stringify({ agent_webhook_url: url }),
+  });
+  await loadAgentStatus();
+  toast(preset === "hostinger" ? "Lucy → Hostinger" : "Lucy → local :3000");
+}
+
 async function loadAgentStatus() {
   try {
     const status = await api("/api/agent/status");
@@ -48,7 +72,7 @@ async function loadAgentStatus() {
       el.textContent = "Lucy conectada · OpenAI OK";
       el.classList.add("connected");
     } else if (status.mode === "lucy" && status.lucy_connected && !status.lucy_openai_configured) {
-      el.textContent = "Lucy online pero falta OPEN_AI en Hostinger/terminal";
+      el.textContent = "Lucy online — usa preset Hostinger en el menú";
       el.classList.add("warning");
     } else if (status.mode === "lucy" && !status.lucy_connected) {
       el.textContent = "Lucy no responde — revisa AGENT_WEBHOOK_URL";
@@ -68,6 +92,7 @@ async function loadAll() {
   state.config = await api("/api/config");
   state.leads = await api("/api/leads");
   state.activePipelineId = state.config.pipelines[0]?.id;
+  await loadAgentConfig();
   await loadAgentStatus();
   renderAll();
 }
@@ -292,6 +317,7 @@ async function sendMessage() {
   if (!text || !state.selectedLeadId) return;
 
   $("#btn-send").disabled = true;
+  $("#chat-typing").classList.remove("hidden");
   try {
     const result = await api(`/api/leads/${state.selectedLeadId}/messages/incoming`, {
       method: "POST",
@@ -312,6 +338,7 @@ async function sendMessage() {
   } catch (err) {
     toast(err.message || "Error al enviar mensaje");
   } finally {
+    $("#chat-typing").classList.add("hidden");
     $("#btn-send").disabled = false;
   }
 }
@@ -374,6 +401,7 @@ function bindEvents() {
   });
 
   $("#btn-save-fields").addEventListener("click", saveFields);
+  $("#btn-save-agent").addEventListener("click", saveAgentConfig);
 
   $("#btn-new-lead").addEventListener("click", async () => {
     const name = prompt("Nombre del lead:");

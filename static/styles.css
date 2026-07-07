@@ -59,6 +59,41 @@ body {
   color: #ffd666;
 }
 
+.agent-picker {
+  margin-bottom: 20px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+}
+
+.agent-picker label {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.agent-picker select {
+  width: 100%;
+  background: rgba(0,0,0,0.25);
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 8px;
+  font-size: 12px;
+}
+
+.chat-typing {
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.chat-typing.hidden {
+  display: none;
+}
+
 .nav button {
   width: 100%;
   text-align: left;

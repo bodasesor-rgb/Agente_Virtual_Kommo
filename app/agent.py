@@ -8,6 +8,7 @@ import httpx
 from openai import OpenAI
 
 from app.models import Lead, KommoConfig, Message
+from app.agent_settings import get_settings, get_webhook_url, save_webhook_url
 from app.storage import store
 
 
@@ -144,7 +145,7 @@ def _lucy_response_to_actions(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 async def _call_external_agent(payload: dict[str, Any]) -> dict[str, Any] | None:
-    url = os.getenv("AGENT_WEBHOOK_URL", "").strip()
+    url = get_webhook_url()
     if not url:
         return None
     try:
@@ -227,8 +228,8 @@ def _call_openai(system_prompt: str, history: list[Message], user_text: str) -> 
 
 
 async def get_agent_status() -> dict[str, Any]:
-    url = os.getenv("AGENT_WEBHOOK_URL", "").strip()
-    mode = "lucy" if url else "builtin"
+    url = get_webhook_url()
+    mode = "lucy"
     lucy_ok = False
     health_url = None
     lucy_openai_configured = False
@@ -281,7 +282,7 @@ async def process_incoming_message(lead_id: int, user_text: str, author: str = "
     elif external and external.get("lucy_error"):
         fallback = _call_openai(_build_system_prompt(config, lead), history, user_text)
         err = external["lucy_error"]
-        if fallback.get("reply") and "OPENAI_API_KEY" not in fallback.get("reply", ""):
+        if fallback.get("reply") and "OPEN_AI" not in fallback.get("reply", "") and "OPENAI_API_KEY" not in fallback.get("reply", ""):
             agent_data = fallback
         else:
             agent_data = {"reply": f"⚠️ {err}", "actions": []}

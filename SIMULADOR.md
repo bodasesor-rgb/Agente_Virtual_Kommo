@@ -36,23 +36,14 @@ Comprueba: http://localhost:3000/api/health → `{"status":"ok",...}`
 ## Paso 2 — Arrancar simulador (terminal 2)
 
 ```bash
-cd /ruta/al/repo
-
-python3 -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-
-cp .env.example .env
-# Edita .env y pon:
-#   OPENAI_API_KEY=sk-proj-...
-#   AGENT_WEBHOOK_URL=http://localhost:3000/api/kommo/simulator
-
-uvicorn app.main:app --reload --port 8000
+./scripts/start-simulator.sh
 ```
 
 Abre: **http://localhost:8000**
 
-En la barra lateral debe decir **「Lucy conectada · simulador」** en verde.
+En el menú lateral elige **「Lucy conectada a → Hostinger (recomendado)」** y pulsa **Aplicar**.  
+No hace falta Lucy local si usas Hostinger (ya tiene tu `OPEN_AI`).
 
 ---
 

@@ -94,6 +94,10 @@ class CustomFieldCreate(BaseModel):
     required: bool = False
 
 
+class AgentWebhookConfig(BaseModel):
+    agent_webhook_url: str
+
+
 class IncomingMessage(BaseModel):
     text: str
     author: str = "Cliente"

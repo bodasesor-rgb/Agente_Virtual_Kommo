@@ -9,9 +9,11 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.agent import get_agent_status, process_incoming_message
+from app.agent_settings import get_settings, save_webhook_url
 from app.models import (
     AgentMoveLead,
     AgentSetFields,
+    AgentWebhookConfig,
     CustomFieldCreate,
     IncomingMessage,
     KommoConfig,
@@ -48,6 +50,17 @@ def health() -> dict[str, str]:
 @app.get("/api/agent/status")
 async def agent_status() -> dict:
     return await get_agent_status()
+
+
+@app.get("/api/agent/config")
+def agent_config() -> dict:
+    return get_settings()
+
+
+@app.put("/api/agent/config")
+def update_agent_config(payload: AgentWebhookConfig) -> dict:
+    save_webhook_url(payload.agent_webhook_url)
+    return get_settings()
 
 
 @app.get("/api/config")
