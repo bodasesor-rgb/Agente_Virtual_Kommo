@@ -12,6 +12,36 @@ const state = {
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
+function initials(name) {
+  const parts = String(name || "?").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function formatTime(iso) {
+  try {
+    return new Date(iso).toLocaleString("es-MX", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function openMobileChat() {
+  $("#inbox-panel")?.classList.add("open");
+  $("#chat-overlay")?.classList.add("show");
+}
+
+function closeMobileChat() {
+  $("#inbox-panel")?.classList.remove("open");
+  $("#chat-overlay")?.classList.remove("show");
+}
+
 function toast(msg) {
   const el = $("#toast");
   el.textContent = msg;
@@ -126,19 +156,20 @@ function applyLucyResponse(leadId, data) {
 async function loadAgentStatus() {
   const el = $("#agent-badge");
   el.classList.remove("connected", "warning");
+  const textEl = el.querySelector(".status-text") || el;
   try {
     const res = await fetch("/api/health");
     if (!res.ok) throw new Error("health");
     const status = await res.json();
     if (status.openai_configured) {
-      el.textContent = "Lucy Hostinger · lista para chatear";
+      textEl.textContent = "Lucy conectada · lista para chatear";
       el.classList.add("connected");
     } else {
-      el.textContent = "Lucy online — falta OPEN_AI en Hostinger";
+      textEl.textContent = "Lucy online — falta OPEN_AI en Hostinger";
       el.classList.add("warning");
     }
   } catch {
-    el.textContent = "Lucy no responde — revisa el deploy";
+    textEl.textContent = "Lucy no responde — revisa el deploy";
     el.classList.add("warning");
   }
 }
@@ -156,6 +187,7 @@ async function loadAll() {
 function renderAll() {
   $("#account-name").textContent = state.store.config.account_name;
   $("#pipeline-label").textContent = getPipeline()?.name || "Sin pipeline";
+  $("#lead-count").textContent = `${state.store.leads.length} lead${state.store.leads.length === 1 ? "" : "s"}`;
   renderKanban();
   renderConfig();
   renderActivity();
@@ -184,10 +216,9 @@ function renderKanban() {
     );
 
     col.innerHTML = `
+      <div class="stage-color-bar" style="background:${stage.color}"></div>
       <div class="stage-header">
-        <div class="stage-title" style="border-left: 4px solid ${stage.color}; padding-left: 8px;">
-          ${stage.name}
-        </div>
+        <div class="stage-title">${escapeHtml(stage.name)}</div>
         <span class="stage-count">${leads.length}</span>
       </div>
     `;
@@ -196,14 +227,14 @@ function renderKanban() {
     dropZone.className = "drop-zone";
     dropZone.addEventListener("dragover", (e) => {
       e.preventDefault();
-      col.style.outline = "2px dashed var(--primary)";
+      dropZone.classList.add("drag-over");
     });
     dropZone.addEventListener("dragleave", () => {
-      col.style.outline = "none";
+      dropZone.classList.remove("drag-over");
     });
     dropZone.addEventListener("drop", (e) => {
       e.preventDefault();
-      col.style.outline = "none";
+      dropZone.classList.remove("drag-over");
       const leadId = Number(e.dataTransfer.getData("text/lead-id"));
       moveLead(leadId, stage.id);
     });
@@ -223,15 +254,25 @@ function createLeadCard(lead) {
   card.draggable = true;
   card.dataset.leadId = lead.id;
 
-  const channel = lead.tags?.includes("whatsapp_business") ? "WhatsApp Business" : "Chat";
+  const isWa = lead.tags?.includes("whatsapp_business");
+  const stageName = stageById(lead.stage_id)?.name || "";
 
   card.innerHTML = `
-    <h3>${escapeHtml(lead.name)}</h3>
-    <div class="lead-meta">${channel} · ${escapeHtml(lead.contact_phone || "Sin teléfono")}</div>
-    <div class="lead-meta">Resp: ${escapeHtml(lead.responsible)}</div>
+    <div class="lead-card-top">
+      <div class="avatar-sm">${initials(lead.name)}</div>
+      <h3>${escapeHtml(lead.name)}</h3>
+    </div>
+    <div class="lead-meta">
+      ${isWa ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>' : ""}
+      <span>${escapeHtml(lead.contact_phone || "Sin teléfono")}</span>
+    </div>
+    ${stageName ? `<span class="lead-tag">${escapeHtml(stageName)}</span>` : ""}
   `;
 
-  card.addEventListener("click", () => selectLead(lead.id));
+  card.addEventListener("click", () => {
+    selectLead(lead.id);
+    if (window.innerWidth <= 1024) openMobileChat();
+  });
   card.addEventListener("dragstart", (e) => {
     e.dataTransfer.setData("text/lead-id", String(lead.id));
   });
@@ -259,7 +300,18 @@ function selectLead(leadId, reloadMessages = true) {
   if (!lead) return;
 
   $("#lead-title").textContent = lead.name;
-  $("#lead-subtitle").textContent = `${lead.contact_phone} · ${stageById(lead.stage_id)?.name || lead.stage_id}`;
+  $("#lead-subtitle").textContent = lead.contact_phone || lead.contact_email || "Sin contacto";
+  $("#lead-avatar").textContent = initials(lead.name);
+
+  const stage = stageById(lead.stage_id);
+  const stageBadge = $("#lead-stage-badge");
+  if (stage) {
+    stageBadge.textContent = stage.name;
+    stageBadge.classList.remove("hidden");
+  } else {
+    stageBadge.classList.add("hidden");
+  }
+
   $("#btn-send").disabled = false;
   $("#btn-save-fields").disabled = false;
 
@@ -275,11 +327,22 @@ function selectLead(leadId, reloadMessages = true) {
 function renderChat(messages) {
   const body = $("#chat-body");
   body.innerHTML = "";
+  if (!messages.length) {
+    body.innerHTML = '<div class="empty-state">Sin mensajes aún.<br/>Escribe abajo para probar a Lucy.</div>';
+    return;
+  }
   for (const msg of messages) {
-    const div = document.createElement("div");
-    div.className = `message ${msg.direction}`;
-    div.innerHTML = `${escapeHtml(msg.text)}<small>${escapeHtml(msg.author)} · ${new Date(msg.created_at).toLocaleString()}</small>`;
-    body.appendChild(div);
+    const row = document.createElement("div");
+    row.className = `msg-row ${msg.direction}`;
+    const avatarLabel = msg.direction === "incoming" ? initials(msg.author) : "L";
+    row.innerHTML = `
+      <div class="msg-avatar">${escapeHtml(avatarLabel)}</div>
+      <div class="message ${msg.direction}">
+        ${escapeHtml(msg.text).replace(/\n/g, "<br>")}
+        <small>${escapeHtml(msg.author)} · ${formatTime(msg.created_at)}</small>
+      </div>
+    `;
+    body.appendChild(row);
   }
   body.scrollTop = body.scrollHeight;
 }
@@ -335,12 +398,12 @@ function renderConfig() {
   for (const pipeline of state.store.config.pipelines) {
     const stages = [...pipeline.stages]
       .sort((a, b) => a.sort - b.sort)
-      .map((s) => `<span style="background:${s.color}; padding:2px 8px; border-radius:6px; margin-right:6px;">${escapeHtml(s.name)}</span>`)
+      .map((s) => `<span class="stage-tag" style="background:${s.color}">${escapeHtml(s.name)}</span>`)
       .join("");
     pipelineBox.innerHTML += `
       <div class="config-item">
         <strong>${escapeHtml(pipeline.name)}</strong>
-        <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;">${stages}</div>
+        <div class="stage-tags">${stages}</div>
       </div>
     `;
   }
@@ -364,12 +427,12 @@ function renderActivity() {
         .map(
           (a) => `
         <div class="activity-item">
-          <div style="font-size:12px; color:var(--muted);">${new Date(a.at).toLocaleString()}</div>
-          <div>${escapeHtml(a.detail)}</div>
+          <div class="activity-time">${formatTime(a.at)}</div>
+          <div class="activity-detail">${escapeHtml(a.detail)}</div>
         </div>`
         )
         .join("")
-    : "<p style='padding:16px;'>Sin actividad aún.</p>";
+    : '<div class="empty-state">Sin actividad registrada.</div>';
 }
 
 async function sendMessage() {
@@ -445,9 +508,9 @@ function saveFields() {
 }
 
 function bindEvents() {
-  $$(".nav button").forEach((btn) => {
+  $$(".nav-item").forEach((btn) => {
     btn.addEventListener("click", () => {
-      $$(".nav button").forEach((b) => b.classList.remove("active"));
+      $$(".nav-item").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       state.activeView = btn.dataset.view;
       $("#view-pipeline").classList.toggle("hidden", state.activeView !== "pipeline");
@@ -457,15 +520,21 @@ function bindEvents() {
     });
   });
 
-  $$(".tabs button").forEach((btn) => {
+  $$(".tab").forEach((btn) => {
     btn.addEventListener("click", () => {
-      $$(".tabs button").forEach((b) => b.classList.remove("active"));
+      $$(".tab").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
       state.activeTab = btn.dataset.tab;
       $("#tab-chat").classList.toggle("hidden", state.activeTab !== "chat");
       $("#tab-fields").classList.toggle("hidden", state.activeTab !== "fields");
     });
   });
+
+  const inbox = $("#inbox-panel");
+  const overlay = $("#chat-overlay");
+
+  $("#btn-toggle-chat")?.addEventListener("click", openMobileChat);
+  overlay?.addEventListener("click", closeMobileChat);
 
   $("#btn-send").addEventListener("click", sendMessage);
   $("#chat-text").addEventListener("keydown", (e) => {
@@ -578,5 +647,7 @@ function bindEvents() {
 bindEvents();
 loadAll().catch((err) => {
   toast(err.message || "Error al cargar el simulador");
-  $("#agent-badge").textContent = "Error cargando simulador";
+  const badge = $("#agent-badge");
+  const textEl = badge?.querySelector(".status-text");
+  if (textEl) textEl.textContent = "Error cargando simulador";
 });
