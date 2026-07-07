@@ -254,15 +254,14 @@ const FIELD_NAME: Record<number, string> = {
 };
 
 // ─── Required fields in order — flujo paso a paso ─────────────────────────────
-// Nombre → Correo (opcional) → Requerimientos → Tipo de evento → Invitados → Zona → Fecha
+// Nombre → Correo (opcional) → Requerimientos → Invitados → Zona → Fecha
 const REQUIRED_FIELDS_ORDERED: Array<{ label: string; question: string }> = [
-  { label: "Nombre del cliente",         question: "¿Me dices tu nombre para empezar?" },
+  { label: "Nombre del cliente",         question: "¿Me regalas tu nombre para iniciar?" },
   { label: "Correo electrónico",         question: "¿A qué correo te lo envío?" },
-  { label: "Tipo de evento",             question: "¿Qué tipo de evento sería?" },
   { label: "Requerimientos o servicios", question: "¿Qué tienes pensado para tu evento?" },
-  { label: "Número de invitados",        question: "¿Cuánta gente más o menos?" },
-  { label: "Lugar/dirección del evento", question: "¿En qué ciudad sería?" },
-  { label: "Fecha y horario",            question: "¿Ya tienen fecha definida?" },
+  { label: "Número de invitados",        question: "¿Cuántos invitados tienes contemplados para tu evento?" },
+  { label: "Lugar/dirección del evento", question: "¿En qué ciudad sería tu evento, si tienes dirección exacta sería mejor?" },
+  { label: "Fecha y horario",            question: "¿Ya tienen fecha definida o siguen sin fecha?" },
 ];
 
 // Return type for lead field fetch
@@ -509,7 +508,7 @@ function buildCrmContext(
 
     // Nombre: si Lucy preguntó por nombre y el cliente respondió con texto sin @
     if (!filledSet.has("Nombre del cliente") &&
-        /nombre|completo|dices tu nombre/i.test(lastQ) &&
+        /nombre|completo|regalas tu nombre/i.test(lastQ) &&
         /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
       const nombreCapturado = sanitizeDisplayName(msg);
       if (nombreCapturado) {
@@ -528,7 +527,7 @@ function buildCrmContext(
 
     // Invitados fallback: si Lucy preguntó y el cliente dio un número (cualquier formato)
     if (!filledSet.has("Número de invitados") &&
-        /invitados|personas/.test(lastQ) &&
+        /invitados|personas|contemplados/.test(lastQ) &&
         /\d/.test(msg)) {
       mergedLines.push(`- Número de invitados: ${msg}`);
       filledSet.add("Número de invitados");
@@ -536,7 +535,7 @@ function buildCrmContext(
 
     // Fecha: si Lucy preguntó por fecha y el cliente dio algo con número o mes
     if (!filledSet.has("Fecha y horario") &&
-        /fecha|hora|cu[aá]ndo/.test(lastQ) &&
+        /fecha|siguen sin fecha|cu[aá]ndo/.test(lastQ) &&
         /\d|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo/i.test(msg)) {
       mergedLines.push(`- Fecha y horario: ${msg}`);
       filledSet.add("Fecha y horario");
@@ -544,7 +543,7 @@ function buildCrmContext(
 
     // Ciudad: si Lucy preguntó por ciudad/zona y el cliente respondió con texto
     if (!filledSet.has("Lugar/dirección del evento") &&
-        /ciudad|zona|dónde|donde/.test(lastQ) &&
+        /ciudad|dirección|direccion|zona/.test(lastQ) &&
         /[a-záéíóúüñ]{3,}/i.test(msg) &&
         !/@/.test(msg)) {
       mergedLines.push(`- Lugar/dirección del evento: ${msg}`);

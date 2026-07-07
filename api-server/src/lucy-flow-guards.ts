@@ -8,21 +8,40 @@ export const BODASESOR_EMAIL = "hola@bodasesor.com";
 const EMAIL_REFUSAL_PATTERN =
   /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
 
-/** Orden estricto del embudo de calificación (correo es opcional). */
+/** 6 pasos obligatorios para cierre (correo es opcional pero se intenta en paso 2). */
 export const CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
-  "Tipo de evento",
   "Requerimientos o servicios",
   "Número de invitados",
   "Lugar/dirección del evento",
   "Fecha y horario",
 ] as const;
 
-export const POST_EMAIL_QUESTION =
-  "Muchas gracias por la info, ¿qué tipo de evento sería?";
+export const FLOW_QUESTIONS = {
+  nombre: "¿Me regalas tu nombre para iniciar?",
+  requerimientos: "Perfecto. Platícame, ¿qué tienes pensado para tu evento?",
+  invitados: "¿Cuántos invitados tienes contemplados para tu evento?",
+  zona: "¿En qué ciudad sería tu evento, si tienes dirección exacta sería mejor?",
+  fecha: "¿Ya tienen fecha definida o siguen sin fecha?",
+  serviciosExtra:
+    "También manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.",
+} as const;
 
 const SERVICE_HINT =
   /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura/i;
+
+const SERVICE_PATTERNS: Array<[string, RegExp]> = [
+  ["banquete", /\bbanquete\b/i],
+  ["taquiza", /\b(taquiza|tacos)\b/i],
+  ["barra de bebidas", /\b(barra.*bebida|bebidas?)\b/i],
+  ["DJ", /\bdj\b/i],
+  ["carpa", /\bcarpa\b/i],
+  ["mobiliario", /\bmobiliario\b/i],
+  ["iluminación", /\biluminaci[oó]n\b/i],
+  ["pantalla", /\bpantalla\b/i],
+  ["pizzas", /\bpizza\b/i],
+  ["sushi", /\bsushi\b/i],
+];
 
 export function isValidRequerimientosValue(value: string | null | undefined): boolean {
   const trimmed = value?.trim() ?? "";
@@ -61,86 +80,98 @@ export function isReadyForClosing(filledSet: Set<string>): boolean {
   return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
 }
 
+function findMentionedService(text: string): string | null {
+  for (const [label, pattern] of SERVICE_PATTERNS) {
+    if (pattern.test(text)) return label;
+  }
+  return null;
+}
+
+export function buildRequerimientosQuestion(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): string {
+  const userText = collectUserTexts(history, currentMessage).join(" ");
+  const fromExtracted =
+    isValidRequerimientosValue(extracted.requerimientos_evento)
+      ? extracted.requerimientos_evento!.trim()
+      : null;
+  const service = fromExtracted ?? findMentionedService(userText);
+
+  if (service) {
+    return (
+      `Perfecto. Además del ${service}, ¿te gustaría cotizar algún otro servicio? ` +
+      FLOW_QUESTIONS.serviciosExtra
+    );
+  }
+  return FLOW_QUESTIONS.requerimientos;
+}
+
 export function requerimientosNeedsFollowUp(
   extracted: ExtractedData,
   filledSet: Set<string>
 ): boolean {
+  if (filledSet.has("Requerimientos o servicios")) return false;
   const req = extracted.requerimientos_evento?.trim() ?? "";
-  if (!req) return false;
-
-  const onlyTipoEvento =
-    req.length < 28 &&
-    !SERVICE_HINT.test(req) &&
-    !/\d/.test(req);
-
-  return onlyTipoEvento || !SERVICE_HINT.test(req);
+  if (!req) return true;
+  return !isValidRequerimientosValue(req);
 }
 
-function getDisplayName(
-  extracted: ExtractedData,
-  whatsappName?: string | null
-): string {
+function getDisplayName(extracted: ExtractedData, whatsappName?: string | null): string {
   return resolveClientDisplayName(extracted.nombre, null, whatsappName) ?? "ti";
+}
+
+export function buildCorreoQuestion(nombre: string): string {
+  return `Mucho gusto, ${nombre}. Para mandarte toda la información y que Alejandro te arme una propuesta, ¿a qué correo te lo envío?`;
 }
 
 export function buildRequerimientosFollowUp(
   extracted: ExtractedData,
-  filledSet?: Set<string>
+  filledSet?: Set<string>,
+  history?: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
 ): string {
-  const ref = extracted.tipo_evento?.trim() || extracted.requerimientos_evento?.trim() || "tu evento";
-
-  if (!filledSet?.has("Tipo de evento") && !extracted.tipo_evento?.trim()) {
-    return `Qué bien. Para ${ref}, ¿qué tipo de evento es? Por ejemplo boda, XV años, baby shower o cumpleaños.`;
+  if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
+    return buildRequerimientosQuestion(extracted, history ?? [], currentMessage);
   }
-  if (!filledSet?.has("Número de invitados")) {
-    return `Perfecto. Para ${ref}, ¿cuánta gente más o menos serían?`;
-  }
-  if (!filledSet?.has("Lugar/dirección del evento")) {
-    return `¿En qué ciudad sería ${ref}?`;
-  }
-  if (!filledSet?.has("Fecha y horario")) {
-    return "¿Ya tienen fecha definida o la están viendo todavía?";
-  }
-  return `Para ${ref}, ¿qué servicios te gustaría cotizar? Tenemos banquete, taquiza, barras de comida y bebidas, DJ, carpas y más.`;
+  if (!filledSet?.has("Número de invitados")) return FLOW_QUESTIONS.invitados;
+  if (!filledSet?.has("Lugar/dirección del evento")) return FLOW_QUESTIONS.zona;
+  if (!filledSet?.has("Fecha y horario")) return FLOW_QUESTIONS.fecha;
+  return buildRequerimientosQuestion(extracted, history ?? [], currentMessage);
 }
 
 export function nextFieldQuestion(
   extracted: ExtractedData,
   filledSet?: Set<string>,
-  whatsappName?: string | null
+  whatsappName?: string | null,
+  history?: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
 ): string | null {
   const nombre = getDisplayName(extracted, whatsappName);
 
   if (!filledSet?.has("Nombre del cliente")) {
-    return "¿Me dices tu nombre para empezar?";
+    return FLOW_QUESTIONS.nombre;
   }
 
   if (!isEmailSatisfied(filledSet ?? new Set())) {
-    return `Mucho gusto, ${nombre}. Para mandarte toda la información y que Alejandro te arme una propuesta, ¿a qué correo te lo envío?`;
-  }
-
-  if (!filledSet?.has("Tipo de evento") && !extracted.tipo_evento?.trim()) {
-    return POST_EMAIL_QUESTION;
+    return buildCorreoQuestion(nombre);
   }
 
   if (!filledSet?.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    return "Platícame, ¿qué tienes pensado para tu evento? ¿Banquete, taquiza, bebidas, DJ u otro servicio?";
-  }
-
-  if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
-    return buildRequerimientosFollowUp(extracted, filledSet);
+    return buildRequerimientosQuestion(extracted, history ?? [], currentMessage);
   }
 
   if (!filledSet?.has("Número de invitados")) {
-    return "¿Cuánta gente más o menos?";
+    return FLOW_QUESTIONS.invitados;
   }
 
   if (!filledSet?.has("Lugar/dirección del evento")) {
-    return "¿En qué ciudad sería?";
+    return FLOW_QUESTIONS.zona;
   }
 
   if (!filledSet?.has("Fecha y horario")) {
-    return "¿Ya tienen fecha definida o la están viendo todavía?";
+    return FLOW_QUESTIONS.fecha;
   }
 
   return null;
@@ -155,8 +186,12 @@ export function shouldReplaceForcedEmailQuestion(
   return /obligatorio|necesito|necesario|forzoso|indispensable|debes|tienes que|es importante/i.test(mensaje);
 }
 
-export function emailRefusalAckMessage(): string {
-  return "Sin problema, seguimos por aquí. ¿Qué tipo de evento sería?";
+export function emailRefusalAckMessage(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): string {
+  return `Sin problema, seguimos por aquí. ${buildRequerimientosQuestion(extracted, history, currentMessage)}`;
 }
 
 export function clientJustGaveEmail(
@@ -180,7 +215,7 @@ export function clientJustAnsweredRequerimientosQuestion(
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
     .slice(-1)[0]?.content as string | undefined;
   if (!lastAssistant) return false;
-  return /platícame|qué tienes pensado|otro servicio|qué servicios|qué tipo de evento/i.test(lastAssistant);
+  return /platícame|qué tienes pensado|otro servicio|te gustaría cotizar/i.test(lastAssistant);
 }
 
 function clientAskedFreeformQuestion(message?: string): boolean {
@@ -202,16 +237,15 @@ function responseLooksLikePrematureClose(mensaje: string): boolean {
 
 function mensajeLooksOnTrack(mensaje: string, filledSet: Set<string>): boolean {
   if (!mensaje.includes("?")) return false;
-  if (!filledSet.has("Tipo de evento") && /tipo de evento|qué tipo/i.test(mensaje)) return true;
   if (
     !filledSet.has("Requerimientos o servicios") &&
-    /pensado|servicio|banquete|taquiza|cotizar/i.test(mensaje)
+    /pensado|servicio|banquete|taquiza|cotizar|además del/i.test(mensaje)
   ) {
     return true;
   }
-  if (!filledSet.has("Número de invitados") && /invitados|cu[aá]nta gente/i.test(mensaje)) return true;
-  if (!filledSet.has("Lugar/dirección del evento") && /ciudad|zona|dónde|donde/i.test(mensaje)) return true;
-  if (!filledSet.has("Fecha y horario") && /fecha|cu[aá]ndo/i.test(mensaje)) return true;
+  if (!filledSet.has("Número de invitados") && /invitados|contemplados/i.test(mensaje)) return true;
+  if (!filledSet.has("Lugar/dirección del evento") && /ciudad|dirección|direccion/i.test(mensaje)) return true;
+  if (!filledSet.has("Fecha y horario") && /fecha|siguen sin fecha/i.test(mensaje)) return true;
   return false;
 }
 
@@ -249,32 +283,27 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
   const emailOk = isEmailSatisfied(filledSet);
-  const needsNextStep =
-    emailOk && !readyForClosing && !cierreYaEnviado;
+  const needsNextStep = emailOk && !readyForClosing && !cierreYaEnviado;
 
   let mensaje: string;
 
-  if (justGaveEmail && !filledSet.has("Tipo de evento")) {
-    mensaje = POST_EMAIL_QUESTION;
-    log?.info({ entityId }, "GUARD: correo capturado — pregunta tipo de evento");
+  if (justGaveEmail && !filledSet.has("Requerimientos o servicios")) {
+    mensaje = buildRequerimientosQuestion(extracted, history, currentMessage);
+    log?.info({ entityId }, "GUARD: correo capturado — pregunta requerimientos");
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
-    mensaje = emailRefusalAckMessage();
+    mensaje = emailRefusalAckMessage(extracted, history, currentMessage);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
   } else if (needsNextStep && !mensajeLooksOnTrack(aiResponse, filledSet)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName);
-    if (nextQ) {
-      mensaje = nextQ;
-      log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo");
-    } else {
-      mensaje = aiResponse;
-    }
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage);
+    mensaje = nextQ ?? aiResponse;
+    if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo");
   } else if (
     readyForClosing &&
     !cierreYaEnviado &&
     (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))
   ) {
-    mensaje = buildRequerimientosFollowUp(extracted, filledSet);
-    log?.info({ entityId }, "GUARD: profundizar requerimientos antes del cierre");
+    mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage);
+    log?.info({ entityId }, "GUARD: profundizar antes del cierre");
   } else if (readyForClosing && !cierreYaEnviado) {
     mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
     log?.info({ entityId }, "Datos completos — mensaje de cierre desde plantilla");
@@ -287,19 +316,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName) ?? emailRefusalAckMessage();
+    const nextQ =
+      nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage) ??
+      emailRefusalAckMessage(extracted, history, currentMessage);
     log?.warn({ entityId }, "GUARD: correo forzado tras rechazo — reemplazando respuesta");
     mensaje = nextQ;
   }
 
   const correoYaTenido = !!(extracted.correo?.trim()) || filledSet.has("Correo electrónico");
-  if (
-    correoYaTenido &&
-    /correo/i.test(mensaje) &&
-    mensaje.includes("?") &&
-    !readyForClosing
-  ) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName);
+  if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage);
     if (nextQ) {
       log?.warn({ entityId }, "GUARD: GPT preguntó correo ya capturado");
       mensaje = nextQ;
@@ -307,14 +333,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName) ?? emailRefusalAckMessage();
+    const nextQ =
+      nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage) ??
+      emailRefusalAckMessage(extracted, history, currentMessage);
     log?.warn({ entityId }, "GUARD: GPT insistió en correo tras rechazo");
     mensaje = nextQ;
   }
 
-  // Forzar el siguiente paso del embudo cuando GPT salta preguntas o cierra antes de tiempo.
   if (!readyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
-    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName);
+    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage);
     if (forcedNext && (responseLooksLikePrematureClose(mensaje) || !mensaje.includes("?"))) {
       log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo");
       mensaje = forcedNext;
@@ -322,19 +349,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (!readyForClosing && responseLooksLikePrematureClose(mensaje)) {
-    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName);
+    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage);
     if (forcedNext) {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
       mensaje = forcedNext;
     }
-  }
-
-  if (
-    !filledSet.has("Tipo de evento") &&
-    /perfecto\.?\s*platícame|qué tienes pensado para tu evento/i.test(mensaje)
-  ) {
-    log?.warn({ entityId }, "GUARD: reemplazando pregunta de requerimientos por tipo de evento");
-    mensaje = POST_EMAIL_QUESTION;
   }
 
   return mensaje;
