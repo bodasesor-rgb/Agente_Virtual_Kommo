@@ -32,22 +32,34 @@ def _write(data: dict) -> None:
     SETTINGS_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def get_webhook_url() -> str:
-    saved = _read().get("agent_webhook_url", "").strip()
-    if saved:
-        return saved
-    env_url = os.getenv("AGENT_WEBHOOK_URL", "").strip()
-    if env_url:
-        return env_url
-    return DEFAULT_HOSTINGER_WEBHOOK
-
-
 def save_webhook_url(url: str) -> str:
     url = url.strip()
     data = _read()
     data["agent_webhook_url"] = url
     _write(data)
     return url
+
+
+def ensure_default_settings() -> str:
+    """Primera vez o config vieja en localhost → Hostinger (tiene OPEN_AI)."""
+    data = _read()
+    url = data.get("agent_webhook_url", "").strip()
+    if not url:
+        return save_webhook_url(DEFAULT_HOSTINGER_WEBHOOK)
+    if url.rstrip("/") == LOCAL_WEBHOOK.rstrip("/"):
+        return save_webhook_url(DEFAULT_HOSTINGER_WEBHOOK)
+    return url
+
+
+def get_webhook_url() -> str:
+    ensure_default_settings()
+    saved = _read().get("agent_webhook_url", "").strip()
+    if saved:
+        return saved
+    env_url = os.getenv("AGENT_WEBHOOK_URL", "").strip()
+    if env_url and env_url.rstrip("/") != LOCAL_WEBHOOK.rstrip("/"):
+        return env_url
+    return DEFAULT_HOSTINGER_WEBHOOK
 
 
 def get_settings() -> dict:

@@ -69,7 +69,7 @@ async function loadAgentStatus() {
     el.classList.remove("connected", "warning");
 
     if (status.mode === "lucy" && status.lucy_connected && status.lucy_openai_configured) {
-      el.textContent = "Lucy conectada · OpenAI OK";
+      el.textContent = "Lucy Hostinger · lista para chatear";
       el.classList.add("connected");
     } else if (status.mode === "lucy" && status.lucy_connected && !status.lucy_openai_configured) {
       el.textContent = "Lucy online — usa preset Hostinger en el menú";
@@ -95,6 +95,9 @@ async function loadAll() {
   await loadAgentConfig();
   await loadAgentStatus();
   renderAll();
+  if (state.leads.length && !state.selectedLeadId) {
+    selectLead(state.leads[0].id);
+  }
 }
 
 function renderAll() {
@@ -316,27 +319,35 @@ async function sendMessage() {
   const text = $("#chat-text").value.trim();
   if (!text || !state.selectedLeadId) return;
 
+  const author = state.leads.find((l) => l.id === state.selectedLeadId)?.name || "Cliente";
+  $("#chat-text").value = "";
   $("#btn-send").disabled = true;
   $("#chat-typing").classList.remove("hidden");
+
+  const body = $("#chat-body");
+  const pending = document.createElement("div");
+  pending.className = "message incoming";
+  pending.innerHTML = `${text}<small>${author} · enviando…</small>`;
+  body.appendChild(pending);
+  body.scrollTop = body.scrollHeight;
+
   try {
     const result = await api(`/api/leads/${state.selectedLeadId}/messages/incoming`, {
       method: "POST",
-      body: JSON.stringify({ text, author: state.leads.find((l) => l.id === state.selectedLeadId)?.name || "Cliente" }),
+      body: JSON.stringify({ text, author }),
     });
 
-    $("#chat-text").value = "";
     state.leads = await api("/api/leads");
     await selectLead(state.selectedLeadId);
 
-    if (result.reply?.startsWith("⚠️")) {
-      toast(result.reply.slice(0, 140));
+    if (result.reply?.startsWith("⚠️") || result.reply?.includes("OPENAI") || result.reply?.includes("OPEN_AI")) {
+      toast(result.reply.slice(0, 160));
     } else if (result.applied?.length) {
-      toast(`Agente: ${result.applied.join(" · ")}`);
-    } else {
-      toast("Respuesta del agente enviada");
+      toast(`Lucy: ${result.applied.join(" · ")}`);
     }
   } catch (err) {
     toast(err.message || "Error al enviar mensaje");
+    await selectLead(state.selectedLeadId);
   } finally {
     $("#chat-typing").classList.add("hidden");
     $("#btn-send").disabled = false;
@@ -477,6 +488,4 @@ function bindEvents() {
 }
 
 bindEvents();
-loadAll().then(() => {
-  if (state.leads.length) selectLead(state.leads[0].id);
-});
+loadAll();

@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.agent import get_agent_status, process_incoming_message
-from app.agent_settings import get_settings, save_webhook_url
+from app.agent_settings import ensure_default_settings, get_settings, save_webhook_url
 from app.models import (
     AgentMoveLead,
     AgentSetFields,
@@ -27,6 +27,11 @@ from app.storage import store
 load_dotenv()
 
 app = FastAPI(title="Kommo Simulator", version="0.1.0")
+
+
+@app.on_event("startup")
+def _init_agent_settings() -> None:
+    ensure_default_settings()
 
 app.add_middleware(
     CORSMiddleware,
