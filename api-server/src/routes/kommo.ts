@@ -254,10 +254,11 @@ const FIELD_NAME: Record<number, string> = {
 };
 
 // ─── Required fields in order — flujo paso a paso ─────────────────────────────
-// Nombre → Correo (opcional) → Requerimientos → Invitados → Zona → Fecha
+// Nombre → Correo (opcional) → Tipo de evento → Requerimientos → Invitados → Zona → Fecha → Presupuesto
 const REQUIRED_FIELDS_ORDERED: Array<{ label: string; question: string }> = [
   { label: "Nombre del cliente",         question: "¿Me regalas tu nombre para iniciar?" },
   { label: "Correo electrónico",         question: "¿A qué correo te lo envío?" },
+  { label: "Tipo de evento",             question: "¿Qué festejan o qué tipo de evento sería?" },
   { label: "Requerimientos o servicios", question: "¿Qué tienes pensado para tu evento?" },
   { label: "Número de invitados",        question: "¿Cuántos invitados tienes contemplados para tu evento?" },
   { label: "Lugar/dirección del evento", question: "¿En qué ciudad sería tu evento, si tienes dirección exacta sería mejor?" },
@@ -554,11 +555,12 @@ function buildCrmContext(
       filledSet.add("Lugar/dirección del evento");
     }
 
-    // Tipo de evento: si Lucy preguntó por tipo y el cliente respondió con texto
+    // Tipo de evento: si Lucy preguntó qué festejan / tipo de evento
     if (!filledSet.has("Tipo de evento") &&
-        /tipo\s+de\s+evento|qu[eé]\s+tipo|muchas gracias por la info/i.test(lastQ) &&
+        /tipo\s+de\s+evento|qu[eé]\s+tipo|festejan|muchas gracias por la info/i.test(lastQ) &&
         /[a-záéíóúüñ]{3,}/i.test(msg) &&
-        !/@/.test(msg)) {
+        !/@/.test(msg) &&
+        !isValidRequerimientosValue(msg)) {
       mergedLines.push(`- Tipo de evento: ${msg}`);
       filledSet.add("Tipo de evento");
     }

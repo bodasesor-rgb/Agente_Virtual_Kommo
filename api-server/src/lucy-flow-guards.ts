@@ -8,9 +8,10 @@ export const BODASESOR_EMAIL = "hola@bodasesor.com";
 const EMAIL_REFUSAL_PATTERN =
   /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
 
-/** 7 pasos obligatorios para cierre (correo es opcional pero se intenta en paso 2). */
+/** 8 pasos obligatorios para cierre (correo es opcional pero se intenta en paso 2). */
 export const CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
+  "Tipo de evento",
   "Requerimientos o servicios",
   "Número de invitados",
   "Lugar/dirección del evento",
@@ -20,6 +21,8 @@ export const CLOSING_CORE_FIELDS = [
 
 export const FLOW_QUESTIONS = {
   nombre: "¿Me regalas tu nombre para iniciar?",
+  tipoEvento: "¿Qué festejan o qué tipo de evento sería?",
+  tipoEventoTrasCorreo: "Muchas gracias por la info, ¿qué festejan o qué tipo de evento sería?",
   requerimientos: "Perfecto. Platícame, ¿qué tienes pensado para tu evento?",
   invitados: "¿Cuántos invitados tienes contemplados para tu evento?",
   zona: "¿En qué ciudad sería tu evento, si tienes dirección exacta sería mejor?",
@@ -89,6 +92,10 @@ function findMentionedService(text: string): string | null {
   return null;
 }
 
+function hasTipoEvento(filledSet: Set<string>, extracted: ExtractedData): boolean {
+  return filledSet.has("Tipo de evento") || !!(extracted.tipo_evento?.trim());
+}
+
 export function buildRequerimientosQuestion(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -134,6 +141,9 @@ export function buildRequerimientosFollowUp(
   history?: OpenAI.Chat.ChatCompletionMessageParam[],
   currentMessage?: string
 ): string {
+  if (filledSet && !hasTipoEvento(filledSet, extracted)) {
+    return FLOW_QUESTIONS.tipoEvento;
+  }
   if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
     return buildRequerimientosQuestion(extracted, history ?? [], currentMessage);
   }
@@ -159,6 +169,10 @@ export function nextFieldQuestion(
 
   if (!isEmailSatisfied(filledSet ?? new Set())) {
     return buildCorreoQuestion(nombre);
+  }
+
+  if (!hasTipoEvento(filledSet ?? new Set(), extracted)) {
+    return FLOW_QUESTIONS.tipoEvento;
   }
 
   if (!filledSet?.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
@@ -198,7 +212,7 @@ export function emailRefusalAckMessage(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   currentMessage?: string
 ): string {
-  return `Sin problema, seguimos por aquí. ${buildRequerimientosQuestion(extracted, history, currentMessage)}`;
+  return `Sin problema, seguimos por aquí. ${FLOW_QUESTIONS.tipoEvento}`;
 }
 
 export function clientJustGaveEmail(
@@ -222,7 +236,7 @@ export function clientJustAnsweredRequerimientosQuestion(
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
     .slice(-1)[0]?.content as string | undefined;
   if (!lastAssistant) return false;
-  return /platícame|qué tienes pensado|otro servicio|te gustaría cotizar/i.test(lastAssistant);
+  return /platícame|qué tienes pensado|otro servicio|te gustaría cotizar|festejan|tipo de evento/i.test(lastAssistant);
 }
 
 function clientAskedFreeformQuestion(message?: string): boolean {
@@ -244,6 +258,7 @@ function responseLooksLikePrematureClose(mensaje: string): boolean {
 
 function mensajeLooksOnTrack(mensaje: string, filledSet: Set<string>): boolean {
   if (!mensaje.includes("?")) return false;
+  if (!filledSet.has("Tipo de evento") && /festejan|tipo de evento|qué festejan/i.test(mensaje)) return true;
   if (
     !filledSet.has("Requerimientos o servicios") &&
     /pensado|servicio|banquete|taquiza|cotizar|además del/i.test(mensaje)
@@ -295,9 +310,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   let mensaje: string;
 
-  if (justGaveEmail && !filledSet.has("Requerimientos o servicios")) {
-    mensaje = buildRequerimientosQuestion(extracted, history, currentMessage);
-    log?.info({ entityId }, "GUARD: correo capturado — pregunta requerimientos");
+  if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
+    mensaje = FLOW_QUESTIONS.tipoEventoTrasCorreo;
+    log?.info({ entityId }, "GUARD: correo capturado — pregunta tipo de evento");
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
@@ -362,6 +377,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
       mensaje = forcedNext;
     }
+  }
+
+  if (!hasTipoEvento(filledSet, extracted) && /platícame|qué tienes pensado para tu evento/i.test(mensaje)) {
+    log?.warn({ entityId }, "GUARD: requerimientos antes de tipo de evento — corrigiendo");
+    mensaje = FLOW_QUESTIONS.tipoEvento;
   }
 
   return mensaje;
