@@ -38,15 +38,8 @@
       "pipeline_id": "pipeline_bodasesor",
       "stage_id": "stage_datos_intereses",
       "contact_phone": "+5217714843674",
-      "contact_email": "lupitamonse269@icloud.com",
-      "custom_fields": {
-        "cf_presupuesto": "$0",
-        "cf_direccion": "pachuca",
-        "cf_requerimiento": "Info pendiente",
-        "cf_fecha_horario": "sábado 18 de Julio",
-        "cf_num_invitados": 70,
-        "cf_tipo_evento": "fiesta"
-      },
+      "contact_email": "",
+      "custom_fields": {},
       "tags": ["whatsapp_business"],
       "responsible": "Bodasesor"
     }
