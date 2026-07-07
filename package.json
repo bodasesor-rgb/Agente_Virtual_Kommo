@@ -4,18 +4,11 @@
   "license": "MIT",
   "private": true,
   "type": "module",
-  "description": "Lucy API — Bodasesor Kommo (Hostinger usa la raíz del repo)",
-  "workspaces": [
-    "api-server",
-    "lib/db",
-    "lib/api-zod"
-  ],
+  "description": "Lucy API — producción Hostinger (bundle precompilado en deploy/)",
+  "packageManager": "npm@10.9.2",
   "scripts": {
     "build": "echo ok",
-    "build:source": "npm run build -w @workspace/api-server",
-    "start": "node start.mjs",
-    "start:dev": "node api-server/dist/index.mjs",
-    "sync-deploy": "npm run build:source && cp api-server/dist/*.mjs api-server/dist/postgres.* deploy/"
+    "start": "node start.mjs"
   },
   "engines": {
     "node": ">=22"

@@ -14,12 +14,24 @@ Hostinger a veces deja el **directorio raíz fijo en `./`**. Este repo ya está 
 | Node | `22.x` |
 | **Directorio raíz** | **`./`** (el que venga por defecto — no hace falta cambiarlo) |
 | Marco | Other |
-| Gestor de paquetes | npm |
-| **Comando compilación** | **`npm run build`** (Hostinger solo permite esto o dejarlo vacío — elige `npm run build`) |
+| Gestor de paquetes | **npm** (si Hostinger igual usa pnpm, borra caché y redespliega tras mergear este fix) |
+| **Comando compilación** | **`npm run build`** |
 | **Directorio salida** | **`.`** |
 | **Archivo entrada** | **`start.mjs`** |
 
-No uses `pnpm`. No compiles en el servidor (`npm run build:source` es solo para desarrollo local).
+No uses `pnpm`. El repo **ya no incluye** `pnpm-lock.yaml` ni `pnpm-workspace.yaml` para que Hostinger no intente instalar el monorepo.
+
+El `package.json` de producción **no tiene dependencias** — Lucy corre desde `deploy/` precompilado.
+
+---
+
+## Si ves `ERR_PNPM_FETCH_404` o `@workspace/api-zod`
+
+Hostinger estaba usando **pnpm** por los archivos viejos del monorepo. Tras el último merge a `main`:
+
+1. Redespliega desde `main` (commit reciente)
+2. En hPanel confirma gestor **npm**
+3. Si persiste, borra el deploy y créalo de nuevo
 
 ---
 
@@ -54,11 +66,13 @@ Manda captura de esas líneas (no la key).
 
 ## Desarrollo local (opcional)
 
+El monorepo para compilar fuentes está en `package.development.json`:
+
 ```bash
+cp package.development.json package.json
 npm install
-npm run build:source    # compila api-server
-npm run sync-deploy     # copia dist/ → deploy/
-npm run start:dev       # arranca sin pasar por deploy/
+npm run build:source
+npm run sync-deploy
 ```
 
-En producción Hostinger ejecuta `npm run build`, que en este repo solo imprime `ok` (no compila nada; el código ya viene precompilado en `deploy/`). Luego arranca con `start.mjs`.
+Para volver al modo Hostinger: restaura `package.json` desde git (`git checkout package.json package-lock.json`).

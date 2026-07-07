@@ -1,0 +1,23 @@
+{
+  "name": "lucy-bodasesor-kommo-dev",
+  "version": "0.0.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "description": "Monorepo local — NO usar en Hostinger. Copiar a package.json para desarrollo.",
+  "workspaces": [
+    "api-server",
+    "lib/db",
+    "lib/api-zod"
+  ],
+  "scripts": {
+    "build": "echo ok",
+    "build:source": "npm run build -w @workspace/api-server",
+    "start": "node start.mjs",
+    "start:dev": "node api-server/dist/index.mjs",
+    "sync-deploy": "npm run build:source && cp api-server/dist/*.mjs api-server/dist/postgres.* deploy/"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
