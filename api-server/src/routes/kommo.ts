@@ -5,7 +5,16 @@ import { SYSTEM_PROMPT } from "../lucy-prompt.js";
 import { CATALOGO_BODASESOR } from "../catalogo.js";
 import { getTrainingExamples } from "../lib/training.js";
 import { getHistory, appendHistory } from "../chat-history.js";
-import { sendWelcomeEmail } from "../send-welcome-email.js";
+import {
+  applyEmailWaiver,
+  applyLucyMessageGuards,
+  CLOSING_CORE_FIELDS,
+  collectUserTexts,
+  detectEmailRefusal,
+  isEmailSatisfied,
+  isReadyForClosing,
+  nextFieldQuestion,
+} from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { calculateLeadScore, detectStage } from "../services/leadScoring.js";
@@ -278,13 +287,7 @@ function stripCatalogBlock(text: string): string {
 }
 
 // ─── Return the next question for a field that is already captured (P1 guard) ──
-function nextFieldQuestion(extracted: ExtractedData): string | null {
-  if (!extracted.requerimientos_evento?.trim()) return "Perfecto. Platícame, ¿qué tienes pensado para tu evento?";
-  if (!extracted.num_invitados?.trim()) return "¿Cuánta gente más o menos?";
-  if (!extracted.direccion_evento?.trim()) return "¿En qué zona sería?";
-  if (!extracted.fecha_horario?.trim()) return "¿Ya tienen fecha definida o la están viendo todavía?";
-  return null;
-}
+// nextFieldQuestion lives in lucy-flow-guards.ts
 
 // ─── Closing message template (sent to client when all 6 fields are collected) ─
 const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
@@ -351,7 +354,7 @@ function buildCrmContext(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   clientEmailFromDB?: string | null,
   currentMessage?: string
-): { context: string; allFieldsFilled: boolean; mergedLines: string[] } {
+): { context: string; allFieldsFilled: boolean; mergedLines: string[]; filledLabels: Set<string> } {
   const mergedLines = [...crmLines];
   const filledSet = new Set(mergedLines.map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
 
@@ -496,8 +499,13 @@ function buildCrmContext(
     }
   }
 
-  // Check if all 6 required fields are present
-  const allFieldsFilled = REQUIRED_FIELDS_ORDERED.every((f) => filledSet.has(f.label));
+  applyEmailWaiver(
+    filledSet,
+    mergedLines,
+    collectUserTexts(history, currentMessage)
+  );
+
+  const allFieldsFilled = isReadyForClosing(filledSet);
 
   let context = "";
   if (mergedLines.length > 0) {
@@ -505,12 +513,17 @@ function buildCrmContext(
     context = `\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nDATOS YA CAPTURADOS — NO VOLVER A PEDIR\n━━━━━━━━━━━━━━━━━━━━━━━━\n${filledList}`;
   }
   if (allFieldsFilled && mergedLines.length > 0) {
-    context += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nYA TIENES LOS 6 DATOS — aplica PASO 7 del prompt.\n━━━━━━━━━━━━━━━━━━━━━━━━`;
+    context += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nYA TIENES LOS DATOS CLAVE — aplica PASO 7 del prompt (cierre).\n━━━━━━━━━━━━━━━━━━━━━━━━`;
   } else if (mergedLines.length > 0) {
-    const missing = REQUIRED_FIELDS_ORDERED.filter((f) => !filledSet.has(f.label)).map((f) => f.label);
-    context += `\n\nDATO(S) QUE FALTAN: ${missing.join(", ")} — sigue el orden del prompt para pedirlos.`;
+    const missing = [
+      ...CLOSING_CORE_FIELDS.filter((f) => !filledSet.has(f)),
+      ...(!isEmailSatisfied(filledSet) ? ["Correo electrónico (opcional — intentar, no bloquear)"] : []),
+    ];
+    if (missing.length) {
+      context += `\n\nDATO(S) QUE FALTAN: ${missing.join(", ")} — sigue el orden del prompt para pedirlos.`;
+    }
   }
-  return { context, allFieldsFilled, mergedLines };
+  return { context, allFieldsFilled, mergedLines, filledLabels: filledSet };
 }
 
 interface KommoLeadFieldsResponse {
@@ -967,7 +980,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // PASO 5.1: Construir crmContext DESPUÉS de extraer — incluye datos
     //           que el cliente acaba de dar en este mismo mensaje
     // ══════════════════════════════════════════════════════════════════════
-    const { context: crmContext, allFieldsFilled, mergedLines: crmMergedLines } = buildCrmContext(crmLines, extracted, history, conversation.clientEmail, combinedUserText);
+    const { context: crmContext, allFieldsFilled, mergedLines: crmMergedLines, filledLabels } = buildCrmContext(crmLines, extracted, history, conversation.clientEmail, combinedUserText);
 
     // ══════════════════════════════════════════════════════════════════════
     // PASO 6: Lead scoring
@@ -1086,62 +1099,21 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         m.content.includes(CLOSING_SIGNATURE)
     );
 
-    // ── GUARD: correo capturado pero requerimientos vacío → forzar pregunta ──────
-    const tieneCorreo = !!(extracted.correo && extracted.correo.trim());
-    const tieneRequerimientos = !!(extracted.requerimientos_evento && extracted.requerimientos_evento.trim());
-    const forzarRequerimientos = tieneCorreo && !tieneRequerimientos && !allFieldsFilled && !cierreYaEnviado;
-    if (forzarRequerimientos) {
-      log.info({ entityId }, "GUARD: correo capturado pero requerimientos vacío — forzando pregunta de requerimientos");
-    }
+    const emailRefusedThisTurn = detectEmailRefusal([combinedUserText]);
 
-    let mensajeParaCliente: string;
-    if (forzarRequerimientos) {
-      mensajeParaCliente = "Perfecto. Platícame, ¿qué tienes pensado para tu evento?";
-    } else if (allFieldsFilled && !cierreYaEnviado) {
-      // Usar tipo_evento como descripción del servicio — el requerimientos_evento
-      // fue sobreescrito por el autoSummary.
-      mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
-      log.info({ entityId }, "Todos los 6 datos completos — usando mensaje de cierre exacto desde plantilla");
-    } else {
-      mensajeParaCliente = aiResponse;
-      // Si por alguna razón GPT generó nota interna, nunca enviarla al cliente
-      if (aiResponse.includes("DATOS DEL CLIENTE:")) {
-        const markers = [
-          "Lead calificado — Rodrigo contactará para cotización",
-          "Lead calificado",
-        ];
-        let clientPart = "";
-        for (const marker of markers) {
-          const idx = aiResponse.indexOf(marker);
-          if (idx !== -1) {
-            clientPart = aiResponse.slice(idx + marker.length).replace(/^[\s\S]*?LUEGO[^:]*:\s*/i, "").replace(/^[""]+|[""]+$/g, "").trim();
-            if (clientPart.length > 30) break;
-          }
-        }
-        if (clientPart.length > 30) {
-          mensajeParaCliente = clientPart;
-        } else {
-          // Stripping falló — usar mensaje de cierre desde plantilla para no enviar la nota
-          log.warn({ entityId }, "GPT generó nota interna pero stripping falló — usando mensaje de cierre desde plantilla");
-          mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
-        }
-      }
-    }
-
-    // ── P1 GUARD: GPT preguntó un campo que ya fue capturado → corregir ──────────
-    const correoYaTenido = !!(extracted.correo?.trim());
-    const gptPreguntaCorreo =
-      correoYaTenido &&
-      /correo/i.test(mensajeParaCliente) &&
-      mensajeParaCliente.includes("?") &&
-      !allFieldsFilled;
-    if (gptPreguntaCorreo) {
-      const nextQ = nextFieldQuestion(extracted);
-      if (nextQ) {
-        log.warn({ entityId }, "P1 GUARD: GPT preguntó correo ya capturado — reemplazando con siguiente pregunta");
-        mensajeParaCliente = nextQ;
-      }
-    }
+    let mensajeParaCliente = applyLucyMessageGuards({
+      aiResponse,
+      extracted,
+      filledSet: filledLabels,
+      readyForClosing: allFieldsFilled,
+      cierreYaEnviado,
+      emailRefusedThisTurn,
+      history,
+      currentMessage: combinedUserText,
+      buildClosing: buildClosingMessage,
+      log,
+      entityId,
+    });
 
     // ── P3 GUARD: Catálogo ya enviado → strip URL del catálogo en respuesta ───────
     if (cierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
@@ -1616,22 +1588,12 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     let crmContext = "";
     let crmLines: string[] = [];
     let lastLucyResponse = "";
-    let salesbotAllFieldsFilled = false;
-    let salesbotMergedLines: string[] = [];
+    let salesbotFilledLabels = new Set<string>();
     if (entityId) {
       try {
         const fields = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
         crmLines = fields.crmLines;
         lastLucyResponse = fields.lastLucyResponse ?? "";
-        const emptyExtracted: ExtractedData = {
-          nombre: null, telefono: null, correo: null, presupuesto: null,
-          direccion_evento: null, requerimientos_evento: null, fecha_horario: null,
-          num_invitados: null, tipo_evento: null, tipo_contacto: null, empresa: null,
-        };
-        const crmResult = buildCrmContext(crmLines, emptyExtracted, history, undefined, messageText);
-        crmContext = crmResult.context;
-        salesbotAllFieldsFilled = crmResult.allFieldsFilled;
-        salesbotMergedLines = crmResult.mergedLines;
       } catch {
         log.warn("Salesbot: could not load CRM context");
       }
@@ -1641,6 +1603,13 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
     const nombreYaEnCRM = crmLines.some((l) => /Nombre del cliente:/i.test(l));
     const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse && !nombreYaEnCRM;
+
+    const preExtracted: ExtractedData = {
+      nombre: null, telefono: null, correo: null, presupuesto: null,
+      direccion_evento: null, requerimientos_evento: null, fecha_horario: null,
+      num_invitados: null, tipo_evento: null, tipo_contacto: null, empresa: null,
+    };
+    crmContext = buildCrmContext(crmLines, preExtracted, history, undefined, messageText).context;
 
     // ── Call OpenAI ───────────────────────────────────────────────────────────
     const trainingExamples = getTrainingExamples();
@@ -1680,8 +1649,11 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     let aiResponse = completion.choices[0]?.message?.content ?? "";
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
 
-    // Si ya tenemos los 6 datos → mensaje de cierre exacto desde plantilla de código.
-    // GUARD: solo enviar cierre la PRIMERA VEZ — detectar firma en historial.
+    const crmResultFinal = buildCrmContext(crmLines, extracted, history, undefined, messageText);
+    const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
+    const salesbotMergedLines = crmResultFinal.mergedLines;
+    salesbotFilledLabels = crmResultFinal.filledLabels;
+
     const sbCierreYaEnviado = history.some(
       (m) =>
         m.role === "assistant" &&
@@ -1689,60 +1661,21 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
         m.content.includes(CLOSING_SIGNATURE)
     );
 
-    // ── GUARD: correo capturado pero requerimientos vacío → forzar pregunta ──────
-    const sbTieneCorreo = !!(extracted.correo && extracted.correo.trim());
-    const sbTieneRequerimientos = !!(extracted.requerimientos_evento && extracted.requerimientos_evento.trim());
-    const sbForzarRequerimientos = sbTieneCorreo && !sbTieneRequerimientos && !salesbotAllFieldsFilled && !sbCierreYaEnviado;
-    if (sbForzarRequerimientos) {
-      log.info({ entityId }, "Salesbot GUARD: correo capturado pero requerimientos vacío — forzando pregunta de requerimientos");
-    }
+    const emailRefusedThisTurn = detectEmailRefusal([messageText]);
 
-    let mensajeParaCliente: string;
-    if (sbForzarRequerimientos) {
-      mensajeParaCliente = "Perfecto. Platícame, ¿qué tienes pensado para tu evento?";
-    } else if (salesbotAllFieldsFilled && !sbCierreYaEnviado) {
-      mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
-      log.info({ entityId }, "Salesbot: 6 datos completos — usando mensaje de cierre exacto desde plantilla");
-    } else {
-      mensajeParaCliente = aiResponse;
-      if (aiResponse.includes("DATOS DEL CLIENTE:")) {
-        const markers = [
-          "Lead calificado — Rodrigo contactará para cotización",
-          "Lead calificado",
-        ];
-        let clientPart = "";
-        for (const marker of markers) {
-          const idx = aiResponse.indexOf(marker);
-          if (idx !== -1) {
-            clientPart = aiResponse.slice(idx + marker.length).replace(/^[\s\S]*?LUEGO[^:]*:\s*/i, "").replace(/^[""]+|[""]+$/g, "").trim();
-            if (clientPart.length > 30) break;
-          }
-        }
-        if (clientPart.length > 30) {
-          mensajeParaCliente = clientPart;
-          log.info({ entityId, clientPartLength: clientPart.length }, "Salesbot: nota detectada — usando parte cliente del mensaje");
-        } else {
-          // Stripping falló — usar mensaje de cierre desde plantilla para no enviar la nota
-          log.warn({ entityId }, "Salesbot: GPT generó nota interna pero stripping falló — usando mensaje de cierre desde plantilla");
-          mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
-        }
-      }
-    }
-
-    // ── P1 GUARD: GPT preguntó un campo que ya fue capturado → corregir ──────────
-    const sbCorreoYaTenido = !!(extracted.correo?.trim());
-    const sbGptPreguntaCorreo =
-      sbCorreoYaTenido &&
-      /correo/i.test(mensajeParaCliente) &&
-      mensajeParaCliente.includes("?") &&
-      !salesbotAllFieldsFilled;
-    if (sbGptPreguntaCorreo) {
-      const sbNextQ = nextFieldQuestion(extracted);
-      if (sbNextQ) {
-        log.warn({ entityId }, "Salesbot P1 GUARD: GPT preguntó correo ya capturado — reemplazando con siguiente pregunta");
-        mensajeParaCliente = sbNextQ;
-      }
-    }
+    let mensajeParaCliente = applyLucyMessageGuards({
+      aiResponse,
+      extracted,
+      filledSet: salesbotFilledLabels,
+      readyForClosing: salesbotAllFieldsFilled,
+      cierreYaEnviado: sbCierreYaEnviado,
+      emailRefusedThisTurn,
+      history,
+      currentMessage: messageText,
+      buildClosing: buildClosingMessage,
+      log,
+      entityId,
+    });
 
     // ── P3 GUARD: Catálogo ya enviado → strip URL del catálogo en respuesta ───────
     if (sbCierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
@@ -2095,9 +2028,8 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       direccion_evento: null, requerimientos_evento: null, fecha_horario: null,
       num_invitados: null, tipo_evento: null, tipo_contacto: null, empresa: null,
     };
-    const crmResult = buildCrmContext(crmLines, emptyExtracted, history, undefined, messageText);
-    const crmContext = crmResult.context;
-    const allFieldsFilled = crmResult.allFieldsFilled;
+    const crmResultPre = buildCrmContext(crmLines, emptyExtracted, history, undefined, messageText);
+    const crmContext = crmResultPre.context;
 
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
     const nombreYaEnCRM = crmLines.some((l) => /Nombre del cliente:/i.test(l));
@@ -2136,6 +2068,10 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
 
     let aiResponse = completion.choices[0]?.message?.content ?? "";
 
+    const crmResultFinal = buildCrmContext(crmLines, extracted, history, undefined, messageText);
+    const allFieldsFilled = crmResultFinal.allFieldsFilled;
+    const filledLabels = crmResultFinal.filledLabels;
+
     const simCierreYaEnviado = history.some(
       (m) =>
         m.role === "assistant" &&
@@ -2143,19 +2079,21 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
         m.content.includes(CLOSING_SIGNATURE)
     );
 
-    const simTieneCorreo = !!(extracted.correo?.trim());
-    const simTieneRequerimientos = !!(extracted.requerimientos_evento?.trim());
-    const simForzarRequerimientos =
-      simTieneCorreo && !simTieneRequerimientos && !allFieldsFilled && !simCierreYaEnviado;
+    const emailRefusedThisTurn = detectEmailRefusal([messageText]);
 
-    let mensajeParaCliente: string;
-    if (simForzarRequerimientos) {
-      mensajeParaCliente = "Perfecto. Platícame, ¿qué tienes pensado para tu evento?";
-    } else if (allFieldsFilled && !simCierreYaEnviado) {
-      mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
-    } else {
-      mensajeParaCliente = aiResponse;
-    }
+    const mensajeParaCliente = applyLucyMessageGuards({
+      aiResponse,
+      extracted,
+      filledSet: filledLabels,
+      readyForClosing: allFieldsFilled,
+      cierreYaEnviado: simCierreYaEnviado,
+      emailRefusedThisTurn,
+      history,
+      currentMessage: messageText,
+      buildClosing: buildClosingMessage,
+      log,
+      entityId: leadId,
+    });
 
     appendHistory(histKey, messageText, mensajeParaCliente);
 

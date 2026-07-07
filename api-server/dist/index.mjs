@@ -2557,9 +2557,9 @@ var require_utf7 = __commonJS({
       this.base64Accum = "";
     }
     var base64Regex2 = /[A-Za-z0-9\/+]/;
-    var base64Chars2 = [];
+    var base64Chars = [];
     for (i3 = 0; i3 < 256; i3++) {
-      base64Chars2[i3] = base64Regex2.test(String.fromCharCode(i3));
+      base64Chars[i3] = base64Regex2.test(String.fromCharCode(i3));
     }
     var i3;
     var plusChar = "+".charCodeAt(0);
@@ -2578,7 +2578,7 @@ var require_utf7 = __commonJS({
             inBase64 = true;
           }
         } else {
-          if (!base64Chars2[buf[i4]]) {
+          if (!base64Chars[buf[i4]]) {
             if (i4 == lastI && buf[i4] == minusChar) {
               res += "+";
             } else {
@@ -2689,7 +2689,7 @@ var require_utf7 = __commonJS({
       this.inBase64 = false;
       this.base64Accum = "";
     }
-    var base64IMAPChars = base64Chars2.slice();
+    var base64IMAPChars = base64Chars.slice();
     base64IMAPChars[",".charCodeAt(0)] = true;
     Utf7IMAPDecoder.prototype.write = function(buf) {
       var res = "";
@@ -5585,7 +5585,7 @@ var require_lib = __commonJS({
       }
       return encoder;
     };
-    module2.exports.getDecoder = function getDecoder2(encoding, options) {
+    module2.exports.getDecoder = function getDecoder(encoding, options) {
       var codec = module2.exports.getCodec(encoding);
       var decoder = new codec.decoder(options, codec);
       if (codec.bomAware && !(options && options.stripBOM === false)) {
@@ -5675,7 +5675,7 @@ var require_raw_body = __commonJS({
     var unpipe = require_unpipe();
     module2.exports = getRawBody;
     var ICONV_ENCODING_MESSAGE_REGEXP = /^Encoding not recognized: /;
-    function getDecoder2(encoding) {
+    function getDecoder(encoding) {
       if (!encoding) return null;
       try {
         return iconv.getDecoder(encoding);
@@ -5754,7 +5754,7 @@ var require_raw_body = __commonJS({
       var received = 0;
       var decoder;
       try {
-        decoder = getDecoder2(encoding);
+        decoder = getDecoder(encoding);
       } catch (err2) {
         return done(err2);
       }
@@ -18105,7 +18105,7 @@ var require_utils2 = __commonJS({
         return acc;
       }, target);
     };
-    var decode = function(str2, defaultDecoder2, charset) {
+    var decode = function(str2, defaultDecoder, charset) {
       var strWithoutPlus = str2.replace(/\+/g, " ");
       if (charset === "iso-8859-1") {
         return strWithoutPlus.replace(/%[0-9a-f]{2}/gi, unescape);
@@ -26596,7 +26596,7 @@ var require_indexes = __commonJS({
 var require_thread_stream = __commonJS({
   "../node_modules/thread-stream/index.js"(exports, module2) {
     "use strict";
-    var { version: version3 } = require_package();
+    var { version: version2 } = require_package();
     var { EventEmitter: EventEmitter2 } = __require("events");
     var { Worker } = __require("worker_threads");
     var { join: join5 } = __require("path");
@@ -26645,7 +26645,7 @@ var require_thread_stream = __commonJS({
           stateBuf: stream4[kImpl].stateBuf,
           workerData: {
             $context: {
-              threadStreamVersion: version3
+              threadStreamVersion: version2
             },
             ...workerData
           }
@@ -27755,7 +27755,7 @@ var require_proto = __commonJS({
       noop: noop3
     } = require_tools();
     var {
-      version: version3
+      version: version2
     } = require_meta();
     var redaction = require_redaction();
     var constructor = class Pino {
@@ -27767,7 +27767,7 @@ var require_proto = __commonJS({
       setBindings,
       flush,
       isLevelEnabled,
-      version: version3,
+      version: version2,
       get level() {
         return this[getLevelSym]();
       },
@@ -28734,7 +28734,7 @@ var require_pino = __commonJS({
       normalizeDestFileDescriptor,
       noop: noop3
     } = require_tools();
-    var { version: version3 } = require_meta();
+    var { version: version2 } = require_meta();
     var {
       chindingsSym,
       redactFmtSym,
@@ -28915,7 +28915,7 @@ var require_pino = __commonJS({
     module2.exports.stdSerializers = serializers;
     module2.exports.stdTimeFunctions = Object.assign({}, time2);
     module2.exports.symbols = symbols;
-    module2.exports.version = version3;
+    module2.exports.version = version2;
     module2.exports.default = pino2;
     module2.exports.pino = pino2;
   }
@@ -29166,785 +29166,6 @@ var require_logger = __commonJS({
     module2.exports.startTime = startTime;
     module2.exports.default = pinoLogger;
     module2.exports.pinoHttp = pinoLogger;
-  }
-});
-
-// ../node_modules/standardwebhooks/dist/timing_safe_equal.js
-var require_timing_safe_equal = __commonJS({
-  "../node_modules/standardwebhooks/dist/timing_safe_equal.js"(exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.timingSafeEqual = void 0;
-    function assert2(expr, msg = "") {
-      if (!expr) {
-        throw new Error(msg);
-      }
-    }
-    function timingSafeEqual(a2, b4) {
-      if (a2.byteLength !== b4.byteLength) {
-        return false;
-      }
-      if (!(a2 instanceof DataView)) {
-        a2 = new DataView(ArrayBuffer.isView(a2) ? a2.buffer : a2);
-      }
-      if (!(b4 instanceof DataView)) {
-        b4 = new DataView(ArrayBuffer.isView(b4) ? b4.buffer : b4);
-      }
-      assert2(a2 instanceof DataView);
-      assert2(b4 instanceof DataView);
-      const length = a2.byteLength;
-      let out2 = 0;
-      let i3 = -1;
-      while (++i3 < length) {
-        out2 |= a2.getUint8(i3) ^ b4.getUint8(i3);
-      }
-      return out2 === 0;
-    }
-    exports.timingSafeEqual = timingSafeEqual;
-  }
-});
-
-// ../node_modules/@stablelib/base64/lib/base64.js
-var require_base64 = __commonJS({
-  "../node_modules/@stablelib/base64/lib/base64.js"(exports) {
-    "use strict";
-    var __extends = exports && exports.__extends || /* @__PURE__ */ (function() {
-      var extendStatics = function(d2, b4) {
-        extendStatics = Object.setPrototypeOf || { __proto__: [] } instanceof Array && function(d3, b5) {
-          d3.__proto__ = b5;
-        } || function(d3, b5) {
-          for (var p3 in b5) if (b5.hasOwnProperty(p3)) d3[p3] = b5[p3];
-        };
-        return extendStatics(d2, b4);
-      };
-      return function(d2, b4) {
-        extendStatics(d2, b4);
-        function __() {
-          this.constructor = d2;
-        }
-        d2.prototype = b4 === null ? Object.create(b4) : (__.prototype = b4.prototype, new __());
-      };
-    })();
-    Object.defineProperty(exports, "__esModule", { value: true });
-    var INVALID_BYTE = 256;
-    var Coder = (
-      /** @class */
-      (function() {
-        function Coder2(_paddingCharacter) {
-          if (_paddingCharacter === void 0) {
-            _paddingCharacter = "=";
-          }
-          this._paddingCharacter = _paddingCharacter;
-        }
-        Coder2.prototype.encodedLength = function(length) {
-          if (!this._paddingCharacter) {
-            return (length * 8 + 5) / 6 | 0;
-          }
-          return (length + 2) / 3 * 4 | 0;
-        };
-        Coder2.prototype.encode = function(data) {
-          var out2 = "";
-          var i3 = 0;
-          for (; i3 < data.length - 2; i3 += 3) {
-            var c2 = data[i3] << 16 | data[i3 + 1] << 8 | data[i3 + 2];
-            out2 += this._encodeByte(c2 >>> 3 * 6 & 63);
-            out2 += this._encodeByte(c2 >>> 2 * 6 & 63);
-            out2 += this._encodeByte(c2 >>> 1 * 6 & 63);
-            out2 += this._encodeByte(c2 >>> 0 * 6 & 63);
-          }
-          var left = data.length - i3;
-          if (left > 0) {
-            var c2 = data[i3] << 16 | (left === 2 ? data[i3 + 1] << 8 : 0);
-            out2 += this._encodeByte(c2 >>> 3 * 6 & 63);
-            out2 += this._encodeByte(c2 >>> 2 * 6 & 63);
-            if (left === 2) {
-              out2 += this._encodeByte(c2 >>> 1 * 6 & 63);
-            } else {
-              out2 += this._paddingCharacter || "";
-            }
-            out2 += this._paddingCharacter || "";
-          }
-          return out2;
-        };
-        Coder2.prototype.maxDecodedLength = function(length) {
-          if (!this._paddingCharacter) {
-            return (length * 6 + 7) / 8 | 0;
-          }
-          return length / 4 * 3 | 0;
-        };
-        Coder2.prototype.decodedLength = function(s4) {
-          return this.maxDecodedLength(s4.length - this._getPaddingLength(s4));
-        };
-        Coder2.prototype.decode = function(s4) {
-          if (s4.length === 0) {
-            return new Uint8Array(0);
-          }
-          var paddingLength = this._getPaddingLength(s4);
-          var length = s4.length - paddingLength;
-          var out2 = new Uint8Array(this.maxDecodedLength(length));
-          var op = 0;
-          var i3 = 0;
-          var haveBad = 0;
-          var v0 = 0, v1 = 0, v22 = 0, v3 = 0;
-          for (; i3 < length - 4; i3 += 4) {
-            v0 = this._decodeChar(s4.charCodeAt(i3 + 0));
-            v1 = this._decodeChar(s4.charCodeAt(i3 + 1));
-            v22 = this._decodeChar(s4.charCodeAt(i3 + 2));
-            v3 = this._decodeChar(s4.charCodeAt(i3 + 3));
-            out2[op++] = v0 << 2 | v1 >>> 4;
-            out2[op++] = v1 << 4 | v22 >>> 2;
-            out2[op++] = v22 << 6 | v3;
-            haveBad |= v0 & INVALID_BYTE;
-            haveBad |= v1 & INVALID_BYTE;
-            haveBad |= v22 & INVALID_BYTE;
-            haveBad |= v3 & INVALID_BYTE;
-          }
-          if (i3 < length - 1) {
-            v0 = this._decodeChar(s4.charCodeAt(i3));
-            v1 = this._decodeChar(s4.charCodeAt(i3 + 1));
-            out2[op++] = v0 << 2 | v1 >>> 4;
-            haveBad |= v0 & INVALID_BYTE;
-            haveBad |= v1 & INVALID_BYTE;
-          }
-          if (i3 < length - 2) {
-            v22 = this._decodeChar(s4.charCodeAt(i3 + 2));
-            out2[op++] = v1 << 4 | v22 >>> 2;
-            haveBad |= v22 & INVALID_BYTE;
-          }
-          if (i3 < length - 3) {
-            v3 = this._decodeChar(s4.charCodeAt(i3 + 3));
-            out2[op++] = v22 << 6 | v3;
-            haveBad |= v3 & INVALID_BYTE;
-          }
-          if (haveBad !== 0) {
-            throw new Error("Base64Coder: incorrect characters for decoding");
-          }
-          return out2;
-        };
-        Coder2.prototype._encodeByte = function(b4) {
-          var result = b4;
-          result += 65;
-          result += 25 - b4 >>> 8 & 0 - 65 - 26 + 97;
-          result += 51 - b4 >>> 8 & 26 - 97 - 52 + 48;
-          result += 61 - b4 >>> 8 & 52 - 48 - 62 + 43;
-          result += 62 - b4 >>> 8 & 62 - 43 - 63 + 47;
-          return String.fromCharCode(result);
-        };
-        Coder2.prototype._decodeChar = function(c2) {
-          var result = INVALID_BYTE;
-          result += (42 - c2 & c2 - 44) >>> 8 & -INVALID_BYTE + c2 - 43 + 62;
-          result += (46 - c2 & c2 - 48) >>> 8 & -INVALID_BYTE + c2 - 47 + 63;
-          result += (47 - c2 & c2 - 58) >>> 8 & -INVALID_BYTE + c2 - 48 + 52;
-          result += (64 - c2 & c2 - 91) >>> 8 & -INVALID_BYTE + c2 - 65 + 0;
-          result += (96 - c2 & c2 - 123) >>> 8 & -INVALID_BYTE + c2 - 97 + 26;
-          return result;
-        };
-        Coder2.prototype._getPaddingLength = function(s4) {
-          var paddingLength = 0;
-          if (this._paddingCharacter) {
-            for (var i3 = s4.length - 1; i3 >= 0; i3--) {
-              if (s4[i3] !== this._paddingCharacter) {
-                break;
-              }
-              paddingLength++;
-            }
-            if (s4.length < 4 || paddingLength > 2) {
-              throw new Error("Base64Coder: incorrect padding");
-            }
-          }
-          return paddingLength;
-        };
-        return Coder2;
-      })()
-    );
-    exports.Coder = Coder;
-    var stdCoder = new Coder();
-    function encode4(data) {
-      return stdCoder.encode(data);
-    }
-    exports.encode = encode4;
-    function decode(s4) {
-      return stdCoder.decode(s4);
-    }
-    exports.decode = decode;
-    var URLSafeCoder = (
-      /** @class */
-      (function(_super) {
-        __extends(URLSafeCoder2, _super);
-        function URLSafeCoder2() {
-          return _super !== null && _super.apply(this, arguments) || this;
-        }
-        URLSafeCoder2.prototype._encodeByte = function(b4) {
-          var result = b4;
-          result += 65;
-          result += 25 - b4 >>> 8 & 0 - 65 - 26 + 97;
-          result += 51 - b4 >>> 8 & 26 - 97 - 52 + 48;
-          result += 61 - b4 >>> 8 & 52 - 48 - 62 + 45;
-          result += 62 - b4 >>> 8 & 62 - 45 - 63 + 95;
-          return String.fromCharCode(result);
-        };
-        URLSafeCoder2.prototype._decodeChar = function(c2) {
-          var result = INVALID_BYTE;
-          result += (44 - c2 & c2 - 46) >>> 8 & -INVALID_BYTE + c2 - 45 + 62;
-          result += (94 - c2 & c2 - 96) >>> 8 & -INVALID_BYTE + c2 - 95 + 63;
-          result += (47 - c2 & c2 - 58) >>> 8 & -INVALID_BYTE + c2 - 48 + 52;
-          result += (64 - c2 & c2 - 91) >>> 8 & -INVALID_BYTE + c2 - 65 + 0;
-          result += (96 - c2 & c2 - 123) >>> 8 & -INVALID_BYTE + c2 - 97 + 26;
-          return result;
-        };
-        return URLSafeCoder2;
-      })(Coder)
-    );
-    exports.URLSafeCoder = URLSafeCoder;
-    var urlSafeCoder = new URLSafeCoder();
-    function encodeURLSafe(data) {
-      return urlSafeCoder.encode(data);
-    }
-    exports.encodeURLSafe = encodeURLSafe;
-    function decodeURLSafe(s4) {
-      return urlSafeCoder.decode(s4);
-    }
-    exports.decodeURLSafe = decodeURLSafe;
-    exports.encodedLength = function(length) {
-      return stdCoder.encodedLength(length);
-    };
-    exports.maxDecodedLength = function(length) {
-      return stdCoder.maxDecodedLength(length);
-    };
-    exports.decodedLength = function(s4) {
-      return stdCoder.decodedLength(s4);
-    };
-  }
-});
-
-// ../node_modules/fast-sha256/sha256.js
-var require_sha256 = __commonJS({
-  "../node_modules/fast-sha256/sha256.js"(exports, module2) {
-    (function(root, factory2) {
-      var exports2 = {};
-      factory2(exports2);
-      var sha256 = exports2["default"];
-      for (var k4 in exports2) {
-        sha256[k4] = exports2[k4];
-      }
-      if (typeof module2 === "object" && typeof module2.exports === "object") {
-        module2.exports = sha256;
-      } else if (typeof define === "function" && define.amd) {
-        define(function() {
-          return sha256;
-        });
-      } else {
-        root.sha256 = sha256;
-      }
-    })(exports, function(exports2) {
-      "use strict";
-      exports2.__esModule = true;
-      exports2.digestLength = 32;
-      exports2.blockSize = 64;
-      var K3 = new Uint32Array([
-        1116352408,
-        1899447441,
-        3049323471,
-        3921009573,
-        961987163,
-        1508970993,
-        2453635748,
-        2870763221,
-        3624381080,
-        310598401,
-        607225278,
-        1426881987,
-        1925078388,
-        2162078206,
-        2614888103,
-        3248222580,
-        3835390401,
-        4022224774,
-        264347078,
-        604807628,
-        770255983,
-        1249150122,
-        1555081692,
-        1996064986,
-        2554220882,
-        2821834349,
-        2952996808,
-        3210313671,
-        3336571891,
-        3584528711,
-        113926993,
-        338241895,
-        666307205,
-        773529912,
-        1294757372,
-        1396182291,
-        1695183700,
-        1986661051,
-        2177026350,
-        2456956037,
-        2730485921,
-        2820302411,
-        3259730800,
-        3345764771,
-        3516065817,
-        3600352804,
-        4094571909,
-        275423344,
-        430227734,
-        506948616,
-        659060556,
-        883997877,
-        958139571,
-        1322822218,
-        1537002063,
-        1747873779,
-        1955562222,
-        2024104815,
-        2227730452,
-        2361852424,
-        2428436474,
-        2756734187,
-        3204031479,
-        3329325298
-      ]);
-      function hashBlocks(w4, v3, p3, pos, len) {
-        var a2, b4, c2, d2, e, f3, g6, h3, u3, i3, j4, t1, t2;
-        while (len >= 64) {
-          a2 = v3[0];
-          b4 = v3[1];
-          c2 = v3[2];
-          d2 = v3[3];
-          e = v3[4];
-          f3 = v3[5];
-          g6 = v3[6];
-          h3 = v3[7];
-          for (i3 = 0; i3 < 16; i3++) {
-            j4 = pos + i3 * 4;
-            w4[i3] = (p3[j4] & 255) << 24 | (p3[j4 + 1] & 255) << 16 | (p3[j4 + 2] & 255) << 8 | p3[j4 + 3] & 255;
-          }
-          for (i3 = 16; i3 < 64; i3++) {
-            u3 = w4[i3 - 2];
-            t1 = (u3 >>> 17 | u3 << 32 - 17) ^ (u3 >>> 19 | u3 << 32 - 19) ^ u3 >>> 10;
-            u3 = w4[i3 - 15];
-            t2 = (u3 >>> 7 | u3 << 32 - 7) ^ (u3 >>> 18 | u3 << 32 - 18) ^ u3 >>> 3;
-            w4[i3] = (t1 + w4[i3 - 7] | 0) + (t2 + w4[i3 - 16] | 0);
-          }
-          for (i3 = 0; i3 < 64; i3++) {
-            t1 = (((e >>> 6 | e << 32 - 6) ^ (e >>> 11 | e << 32 - 11) ^ (e >>> 25 | e << 32 - 25)) + (e & f3 ^ ~e & g6) | 0) + (h3 + (K3[i3] + w4[i3] | 0) | 0) | 0;
-            t2 = ((a2 >>> 2 | a2 << 32 - 2) ^ (a2 >>> 13 | a2 << 32 - 13) ^ (a2 >>> 22 | a2 << 32 - 22)) + (a2 & b4 ^ a2 & c2 ^ b4 & c2) | 0;
-            h3 = g6;
-            g6 = f3;
-            f3 = e;
-            e = d2 + t1 | 0;
-            d2 = c2;
-            c2 = b4;
-            b4 = a2;
-            a2 = t1 + t2 | 0;
-          }
-          v3[0] += a2;
-          v3[1] += b4;
-          v3[2] += c2;
-          v3[3] += d2;
-          v3[4] += e;
-          v3[5] += f3;
-          v3[6] += g6;
-          v3[7] += h3;
-          pos += 64;
-          len -= 64;
-        }
-        return pos;
-      }
-      var Hash = (
-        /** @class */
-        (function() {
-          function Hash2() {
-            this.digestLength = exports2.digestLength;
-            this.blockSize = exports2.blockSize;
-            this.state = new Int32Array(8);
-            this.temp = new Int32Array(64);
-            this.buffer = new Uint8Array(128);
-            this.bufferLength = 0;
-            this.bytesHashed = 0;
-            this.finished = false;
-            this.reset();
-          }
-          Hash2.prototype.reset = function() {
-            this.state[0] = 1779033703;
-            this.state[1] = 3144134277;
-            this.state[2] = 1013904242;
-            this.state[3] = 2773480762;
-            this.state[4] = 1359893119;
-            this.state[5] = 2600822924;
-            this.state[6] = 528734635;
-            this.state[7] = 1541459225;
-            this.bufferLength = 0;
-            this.bytesHashed = 0;
-            this.finished = false;
-            return this;
-          };
-          Hash2.prototype.clean = function() {
-            for (var i3 = 0; i3 < this.buffer.length; i3++) {
-              this.buffer[i3] = 0;
-            }
-            for (var i3 = 0; i3 < this.temp.length; i3++) {
-              this.temp[i3] = 0;
-            }
-            this.reset();
-          };
-          Hash2.prototype.update = function(data, dataLength) {
-            if (dataLength === void 0) {
-              dataLength = data.length;
-            }
-            if (this.finished) {
-              throw new Error("SHA256: can't update because hash was finished.");
-            }
-            var dataPos = 0;
-            this.bytesHashed += dataLength;
-            if (this.bufferLength > 0) {
-              while (this.bufferLength < 64 && dataLength > 0) {
-                this.buffer[this.bufferLength++] = data[dataPos++];
-                dataLength--;
-              }
-              if (this.bufferLength === 64) {
-                hashBlocks(this.temp, this.state, this.buffer, 0, 64);
-                this.bufferLength = 0;
-              }
-            }
-            if (dataLength >= 64) {
-              dataPos = hashBlocks(this.temp, this.state, data, dataPos, dataLength);
-              dataLength %= 64;
-            }
-            while (dataLength > 0) {
-              this.buffer[this.bufferLength++] = data[dataPos++];
-              dataLength--;
-            }
-            return this;
-          };
-          Hash2.prototype.finish = function(out2) {
-            if (!this.finished) {
-              var bytesHashed = this.bytesHashed;
-              var left = this.bufferLength;
-              var bitLenHi = bytesHashed / 536870912 | 0;
-              var bitLenLo = bytesHashed << 3;
-              var padLength = bytesHashed % 64 < 56 ? 64 : 128;
-              this.buffer[left] = 128;
-              for (var i3 = left + 1; i3 < padLength - 8; i3++) {
-                this.buffer[i3] = 0;
-              }
-              this.buffer[padLength - 8] = bitLenHi >>> 24 & 255;
-              this.buffer[padLength - 7] = bitLenHi >>> 16 & 255;
-              this.buffer[padLength - 6] = bitLenHi >>> 8 & 255;
-              this.buffer[padLength - 5] = bitLenHi >>> 0 & 255;
-              this.buffer[padLength - 4] = bitLenLo >>> 24 & 255;
-              this.buffer[padLength - 3] = bitLenLo >>> 16 & 255;
-              this.buffer[padLength - 2] = bitLenLo >>> 8 & 255;
-              this.buffer[padLength - 1] = bitLenLo >>> 0 & 255;
-              hashBlocks(this.temp, this.state, this.buffer, 0, padLength);
-              this.finished = true;
-            }
-            for (var i3 = 0; i3 < 8; i3++) {
-              out2[i3 * 4 + 0] = this.state[i3] >>> 24 & 255;
-              out2[i3 * 4 + 1] = this.state[i3] >>> 16 & 255;
-              out2[i3 * 4 + 2] = this.state[i3] >>> 8 & 255;
-              out2[i3 * 4 + 3] = this.state[i3] >>> 0 & 255;
-            }
-            return this;
-          };
-          Hash2.prototype.digest = function() {
-            var out2 = new Uint8Array(this.digestLength);
-            this.finish(out2);
-            return out2;
-          };
-          Hash2.prototype._saveState = function(out2) {
-            for (var i3 = 0; i3 < this.state.length; i3++) {
-              out2[i3] = this.state[i3];
-            }
-          };
-          Hash2.prototype._restoreState = function(from, bytesHashed) {
-            for (var i3 = 0; i3 < this.state.length; i3++) {
-              this.state[i3] = from[i3];
-            }
-            this.bytesHashed = bytesHashed;
-            this.finished = false;
-            this.bufferLength = 0;
-          };
-          return Hash2;
-        })()
-      );
-      exports2.Hash = Hash;
-      var HMAC = (
-        /** @class */
-        (function() {
-          function HMAC2(key) {
-            this.inner = new Hash();
-            this.outer = new Hash();
-            this.blockSize = this.inner.blockSize;
-            this.digestLength = this.inner.digestLength;
-            var pad = new Uint8Array(this.blockSize);
-            if (key.length > this.blockSize) {
-              new Hash().update(key).finish(pad).clean();
-            } else {
-              for (var i3 = 0; i3 < key.length; i3++) {
-                pad[i3] = key[i3];
-              }
-            }
-            for (var i3 = 0; i3 < pad.length; i3++) {
-              pad[i3] ^= 54;
-            }
-            this.inner.update(pad);
-            for (var i3 = 0; i3 < pad.length; i3++) {
-              pad[i3] ^= 54 ^ 92;
-            }
-            this.outer.update(pad);
-            this.istate = new Uint32Array(8);
-            this.ostate = new Uint32Array(8);
-            this.inner._saveState(this.istate);
-            this.outer._saveState(this.ostate);
-            for (var i3 = 0; i3 < pad.length; i3++) {
-              pad[i3] = 0;
-            }
-          }
-          HMAC2.prototype.reset = function() {
-            this.inner._restoreState(this.istate, this.inner.blockSize);
-            this.outer._restoreState(this.ostate, this.outer.blockSize);
-            return this;
-          };
-          HMAC2.prototype.clean = function() {
-            for (var i3 = 0; i3 < this.istate.length; i3++) {
-              this.ostate[i3] = this.istate[i3] = 0;
-            }
-            this.inner.clean();
-            this.outer.clean();
-          };
-          HMAC2.prototype.update = function(data) {
-            this.inner.update(data);
-            return this;
-          };
-          HMAC2.prototype.finish = function(out2) {
-            if (this.outer.finished) {
-              this.outer.finish(out2);
-            } else {
-              this.inner.finish(out2);
-              this.outer.update(out2, this.digestLength).finish(out2);
-            }
-            return this;
-          };
-          HMAC2.prototype.digest = function() {
-            var out2 = new Uint8Array(this.digestLength);
-            this.finish(out2);
-            return out2;
-          };
-          return HMAC2;
-        })()
-      );
-      exports2.HMAC = HMAC;
-      function hash(data) {
-        var h3 = new Hash().update(data);
-        var digest = h3.digest();
-        h3.clean();
-        return digest;
-      }
-      exports2.hash = hash;
-      exports2["default"] = hash;
-      function hmac(key, data) {
-        var h3 = new HMAC(key).update(data);
-        var digest = h3.digest();
-        h3.clean();
-        return digest;
-      }
-      exports2.hmac = hmac;
-      function fillBuffer(buffer, hmac2, info2, counter) {
-        var num = counter[0];
-        if (num === 0) {
-          throw new Error("hkdf: cannot expand more");
-        }
-        hmac2.reset();
-        if (num > 1) {
-          hmac2.update(buffer);
-        }
-        if (info2) {
-          hmac2.update(info2);
-        }
-        hmac2.update(counter);
-        hmac2.finish(buffer);
-        counter[0]++;
-      }
-      var hkdfSalt = new Uint8Array(exports2.digestLength);
-      function hkdf(key, salt, info2, length) {
-        if (salt === void 0) {
-          salt = hkdfSalt;
-        }
-        if (length === void 0) {
-          length = 32;
-        }
-        var counter = new Uint8Array([1]);
-        var okm = hmac(salt, key);
-        var hmac_ = new HMAC(okm);
-        var buffer = new Uint8Array(hmac_.digestLength);
-        var bufpos = buffer.length;
-        var out2 = new Uint8Array(length);
-        for (var i3 = 0; i3 < length; i3++) {
-          if (bufpos === buffer.length) {
-            fillBuffer(buffer, hmac_, info2, counter);
-            bufpos = 0;
-          }
-          out2[i3] = buffer[bufpos++];
-        }
-        hmac_.clean();
-        buffer.fill(0);
-        counter.fill(0);
-        return out2;
-      }
-      exports2.hkdf = hkdf;
-      function pbkdf2(password, salt, iterations, dkLen) {
-        var prf = new HMAC(password);
-        var len = prf.digestLength;
-        var ctr = new Uint8Array(4);
-        var t = new Uint8Array(len);
-        var u3 = new Uint8Array(len);
-        var dk = new Uint8Array(dkLen);
-        for (var i3 = 0; i3 * len < dkLen; i3++) {
-          var c2 = i3 + 1;
-          ctr[0] = c2 >>> 24 & 255;
-          ctr[1] = c2 >>> 16 & 255;
-          ctr[2] = c2 >>> 8 & 255;
-          ctr[3] = c2 >>> 0 & 255;
-          prf.reset();
-          prf.update(salt);
-          prf.update(ctr);
-          prf.finish(u3);
-          for (var j4 = 0; j4 < len; j4++) {
-            t[j4] = u3[j4];
-          }
-          for (var j4 = 2; j4 <= iterations; j4++) {
-            prf.reset();
-            prf.update(u3).finish(u3);
-            for (var k4 = 0; k4 < len; k4++) {
-              t[k4] ^= u3[k4];
-            }
-          }
-          for (var j4 = 0; j4 < len && i3 * len + j4 < dkLen; j4++) {
-            dk[i3 * len + j4] = t[j4];
-          }
-        }
-        for (var i3 = 0; i3 < len; i3++) {
-          t[i3] = u3[i3] = 0;
-        }
-        for (var i3 = 0; i3 < 4; i3++) {
-          ctr[i3] = 0;
-        }
-        prf.clean();
-        return dk;
-      }
-      exports2.pbkdf2 = pbkdf2;
-    });
-  }
-});
-
-// ../node_modules/standardwebhooks/dist/index.js
-var require_dist4 = __commonJS({
-  "../node_modules/standardwebhooks/dist/index.js"(exports) {
-    "use strict";
-    Object.defineProperty(exports, "__esModule", { value: true });
-    exports.Webhook = exports.WebhookVerificationError = void 0;
-    var timing_safe_equal_1 = require_timing_safe_equal();
-    var base64 = require_base64();
-    var sha256 = require_sha256();
-    var WEBHOOK_TOLERANCE_IN_SECONDS = 5 * 60;
-    var ExtendableError = class _ExtendableError extends Error {
-      constructor(message) {
-        super(message);
-        Object.setPrototypeOf(this, _ExtendableError.prototype);
-        this.name = "ExtendableError";
-        this.stack = new Error(message).stack;
-      }
-    };
-    var WebhookVerificationError = class _WebhookVerificationError extends ExtendableError {
-      constructor(message) {
-        super(message);
-        Object.setPrototypeOf(this, _WebhookVerificationError.prototype);
-        this.name = "WebhookVerificationError";
-      }
-    };
-    exports.WebhookVerificationError = WebhookVerificationError;
-    var Webhook2 = class _Webhook {
-      constructor(secret, options) {
-        if (!secret) {
-          throw new Error("Secret can't be empty.");
-        }
-        if ((options === null || options === void 0 ? void 0 : options.format) === "raw") {
-          if (secret instanceof Uint8Array) {
-            this.key = secret;
-          } else {
-            this.key = Uint8Array.from(secret, (c2) => c2.charCodeAt(0));
-          }
-        } else {
-          if (typeof secret !== "string") {
-            throw new Error("Expected secret to be of type string");
-          }
-          if (secret.startsWith(_Webhook.prefix)) {
-            secret = secret.substring(_Webhook.prefix.length);
-          }
-          this.key = base64.decode(secret);
-        }
-      }
-      verify(payload, headers_) {
-        const headers = {};
-        for (const key of Object.keys(headers_)) {
-          headers[key.toLowerCase()] = headers_[key];
-        }
-        const msgId = headers["webhook-id"];
-        const msgSignature = headers["webhook-signature"];
-        const msgTimestamp = headers["webhook-timestamp"];
-        if (!msgSignature || !msgId || !msgTimestamp) {
-          throw new WebhookVerificationError("Missing required headers");
-        }
-        const timestamp2 = this.verifyTimestamp(msgTimestamp);
-        const computedSignature = this.sign(msgId, timestamp2, payload);
-        const expectedSignature = computedSignature.split(",")[1];
-        const passedSignatures = msgSignature.split(" ");
-        const encoder = new globalThis.TextEncoder();
-        for (const versionedSignature of passedSignatures) {
-          const [version3, signature] = versionedSignature.split(",");
-          if (version3 !== "v1") {
-            continue;
-          }
-          if ((0, timing_safe_equal_1.timingSafeEqual)(encoder.encode(signature), encoder.encode(expectedSignature))) {
-            return JSON.parse(payload.toString());
-          }
-        }
-        throw new WebhookVerificationError("No matching signature found");
-      }
-      sign(msgId, timestamp2, payload) {
-        if (typeof payload === "string") {
-        } else if (payload.constructor.name === "Buffer") {
-          payload = payload.toString();
-        } else {
-          throw new Error("Expected payload to be of type string or Buffer.");
-        }
-        const encoder = new TextEncoder();
-        const timestampNumber = Math.floor(timestamp2.getTime() / 1e3);
-        const toSign = encoder.encode(`${msgId}.${timestampNumber}.${payload}`);
-        const expectedSignature = base64.encode(sha256.hmac(this.key, toSign));
-        return `v1,${expectedSignature}`;
-      }
-      verifyTimestamp(timestampHeader) {
-        const now = Math.floor(Date.now() / 1e3);
-        const timestamp2 = parseInt(timestampHeader, 10);
-        if (isNaN(timestamp2)) {
-          throw new WebhookVerificationError("Invalid Signature Headers");
-        }
-        if (now - timestamp2 > WEBHOOK_TOLERANCE_IN_SECONDS) {
-          throw new WebhookVerificationError("Message timestamp too old");
-        }
-        if (timestamp2 > now + WEBHOOK_TOLERANCE_IN_SECONDS) {
-          throw new WebhookVerificationError("Message timestamp too new");
-        }
-        return new Date(timestamp2 * 1e3);
-      }
-    };
-    exports.Webhook = Webhook2;
-    Webhook2.prefix = "whsec_";
   }
 });
 
@@ -31112,7 +30333,7 @@ var require_utils5 = __commonJS({
     };
     var webCrypto = nodeCrypto.webcrypto || globalThis.crypto;
     var subtleCrypto = webCrypto.subtle;
-    var textEncoder3 = new TextEncoder();
+    var textEncoder2 = new TextEncoder();
     function randomBytes(length) {
       return webCrypto.getRandomValues(Buffer.alloc(length));
     }
@@ -31120,7 +30341,7 @@ var require_utils5 = __commonJS({
       try {
         return nodeCrypto.createHash("md5").update(string, "utf-8").digest("hex");
       } catch (e) {
-        const data = typeof string === "string" ? textEncoder3.encode(string) : string;
+        const data = typeof string === "string" ? textEncoder2.encode(string) : string;
         const hash = await subtleCrypto.digest("MD5", data);
         return Array.from(new Uint8Array(hash)).map((b4) => b4.toString(16).padStart(2, "0")).join("");
       }
@@ -31138,10 +30359,10 @@ var require_utils5 = __commonJS({
     }
     async function hmacSha256(keyBuffer, msg) {
       const key = await subtleCrypto.importKey("raw", keyBuffer, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-      return await subtleCrypto.sign("HMAC", key, textEncoder3.encode(msg));
+      return await subtleCrypto.sign("HMAC", key, textEncoder2.encode(msg));
     }
     async function deriveKey(password, salt, iterations) {
-      const key = await subtleCrypto.importKey("raw", textEncoder3.encode(password), "PBKDF2", false, ["deriveBits"]);
+      const key = await subtleCrypto.importKey("raw", textEncoder2.encode(password), "PBKDF2", false, ["deriveBits"]);
       const params = { name: "PBKDF2", hash: "SHA-256", salt, iterations };
       return await subtleCrypto.deriveBits(params, key, 32 * 8, ["deriveBits"]);
     }
@@ -32968,7 +32189,7 @@ var require_parser = __commonJS({
 });
 
 // ../node_modules/pg-protocol/dist/index.js
-var require_dist5 = __commonJS({
+var require_dist4 = __commonJS({
   "../node_modules/pg-protocol/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
@@ -33071,7 +32292,7 @@ var require_connection = __commonJS({
   "../node_modules/pg/lib/connection.js"(exports, module2) {
     "use strict";
     var EventEmitter2 = __require("events").EventEmitter;
-    var { parse, serialize } = require_dist5();
+    var { parse, serialize } = require_dist4();
     var stream4 = require_stream();
     var { getStream } = stream4;
     var flushBuffer = serialize.flush();
@@ -35043,7 +34264,7 @@ var require_lib5 = __commonJS({
     var utils = require_utils4();
     var Pool4 = require_pg_pool();
     var TypeOverrides2 = require_type_overrides();
-    var { DatabaseError: DatabaseError2 } = require_dist5();
+    var { DatabaseError: DatabaseError2 } = require_dist4();
     var { escapeIdentifier: escapeIdentifier2, escapeLiteral: escapeLiteral2 } = require_utils4();
     var poolFactory = (Client3) => {
       return class BoundPool extends Pool4 {
@@ -45944,7 +45165,7 @@ var require_agent = __commonJS({
 });
 
 // ../node_modules/https-proxy-agent/dist/index.js
-var require_dist6 = __commonJS({
+var require_dist5 = __commonJS({
   "../node_modules/https-proxy-agent/dist/index.js"(exports, module2) {
     "use strict";
     var __importDefault = exports && exports.__importDefault || function(mod) {
@@ -47392,11 +46613,11 @@ function datetimeRegex(args2) {
   regex = `${regex}(${opts.join("|")})`;
   return new RegExp(`^${regex}$`);
 }
-function isValidIP(ip, version3) {
-  if ((version3 === "v4" || !version3) && ipv4Regex.test(ip)) {
+function isValidIP(ip, version2) {
+  if ((version2 === "v4" || !version2) && ipv4Regex.test(ip)) {
     return true;
   }
-  if ((version3 === "v6" || !version3) && ipv6Regex.test(ip)) {
+  if ((version2 === "v6" || !version2) && ipv6Regex.test(ip)) {
     return true;
   }
   return false;
@@ -47423,11 +46644,11 @@ function isValidJWT(jwt, alg) {
     return false;
   }
 }
-function isValidCidr(ip, version3) {
-  if ((version3 === "v4" || !version3) && ipv4CidrRegex.test(ip)) {
+function isValidCidr(ip, version2) {
+  if ((version2 === "v4" || !version2) && ipv4CidrRegex.test(ip)) {
     return true;
   }
-  if ((version3 === "v6" || !version3) && ipv6CidrRegex.test(ip)) {
+  if ((version2 === "v6" || !version2) && ipv6CidrRegex.test(ip)) {
     return true;
   }
   return false;
@@ -59242,9 +58463,9 @@ var Content3 = class extends APIResource {
   /**
    * Download a skill version zip bundle.
    */
-  retrieve(version3, params, options) {
+  retrieve(version2, params, options) {
     const { skill_id } = params;
-    return this._client.get(path`/skills/${skill_id}/versions/${version3}/content`, {
+    return this._client.get(path`/skills/${skill_id}/versions/${version2}/content`, {
       ...options,
       headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
       __security: { bearerAuth: true },
@@ -59268,9 +58489,9 @@ var Versions = class extends APIResource {
   /**
    * Get a specific skill version.
    */
-  retrieve(version3, params, options) {
+  retrieve(version2, params, options) {
     const { skill_id } = params;
-    return this._client.get(path`/skills/${skill_id}/versions/${version3}`, {
+    return this._client.get(path`/skills/${skill_id}/versions/${version2}`, {
       ...options,
       __security: { bearerAuth: true }
     });
@@ -59288,9 +58509,9 @@ var Versions = class extends APIResource {
   /**
    * Delete a skill version.
    */
-  delete(version3, params, options) {
+  delete(version2, params, options) {
     const { skill_id } = params;
-    return this._client.delete(path`/skills/${skill_id}/versions/${version3}`, {
+    return this._client.delete(path`/skills/${skill_id}/versions/${version2}`, {
       ...options,
       __security: { bearerAuth: true }
     });
@@ -60650,7 +59871,7 @@ Cliente: "\xBFCu\xE1nto cuesta el banquete?"
 Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. Con gusto te ayudo con informaci\xF3n de banquetes. \xBFMe dices tu nombre para empezar?"
 
 Cliente: "quiero cotizar para mi baby shower"
-Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. Qu\xE9 padre, claro que te ayudamos con tu baby shower. \xBFMe dices tu nombre para empezar?"
+Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. Perfecto, claro que te ayudamos con tu baby shower. \xBFMe dices tu nombre para empezar?"
 \u2192 Lucy YA TIENE: tipo_evento=baby shower. NO lo vuelve a preguntar.
 
 Cliente: "necesito banquete para 200 personas"
@@ -60660,7 +59881,7 @@ Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. Perfecto, te ayudo con
 Cliente: "hola, necesito taquiza para 80 personas el 15 de junio en polanco"
 Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. Perfecto, taquiza para 80 personas en Polanco el 15 de junio. \xBFMe dices tu nombre para empezar?"
 \u2192 Lucy YA TIENE: requerimientos=taquiza, invitados=80, fecha=15 junio, zona=Polanco.
-\u2192 Solo faltan: nombre y correo.
+\u2192 Solo faltan: nombre. Correo: intentar, no obligatorio.
 
 Cliente: "Tienen banquete kosher?"
 Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. S\xED tenemos opciones kosher. \xBFMe dices tu nombre para empezar?"
@@ -60676,7 +59897,8 @@ DATOS QUE LUCY PUEDE EXTRAER DEL PRIMER MENSAJE:
 - Servicios: "taquiza", "banquete", "barra americana", "kosher", etc.
 - Invitados: "para 150 personas", "80 invitados", "200 personas", etc.
 
-SIEMPRE faltan en el primer mensaje: Nombre y Correo.
+SIEMPRE falta en el primer mensaje: Nombre.
+Correo: intentar obtenerlo despu\xE9s del nombre, pero NO bloquea el flujo.
 A veces falta: Requerimientos (si dijeron "quiero cotizar" sin especificar qu\xE9).
 
 REGLA ABSOLUTA: En el primer mensaje NO des precios ni detalles extensos.
@@ -60710,7 +59932,7 @@ Cliente: "ana@mail.com, es para 200 personas en Polanco"
 Lucy: "Perfecto. \xBFPara cu\xE1ndo es?"
 
 Cliente: "Roberto"
-Lucy: "Qu\xE9 gusto, Roberto. \xBFCu\xE1l es tu correo?"
+Lucy: "Mucho gusto, Roberto. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 REGLA ANTI-REPETICI\xD3N \u2014 CR\xCDTICA
@@ -60736,7 +59958,7 @@ TONO Y ESTILO
 - Directa y orientada a cerrar la venta
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-FLUJO DE 6 DATOS \u2014 SIEMPRE EN ESTE ORDEN
+FLUJO DE DATOS \u2014 ORDEN RECOMENDADO
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
 \u26A0\uFE0F ANTES DE CADA PREGUNTA \u2014 REGLA DE ORO ANTI-DUPLICADOS:
@@ -60763,7 +59985,9 @@ Si S\xCD \u2192 no lo preguntes, pasa al siguiente.
 Si NO \u2192 preg\xFAntalo con la frase exacta de abajo.
 
 [ ] 1. Nombre      \u2014 siempre en el primer mensaje, con presentaci\xF3n
-[ ] 2. Correo      \u2014 "Qu\xE9 padre, [nombre]. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
+[ ] 2. Correo      \u2014 "Mucho gusto, [nombre]. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
+        \xB7 OPCIONAL: si no quiere darlo o prefiere por aqu\xED \u2192 "Sin problema, seguimos por aqu\xED. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?"
+        \xB7 NO insistas m\xE1s de una vez. El flujo contin\xFAa sin correo.
 [ ] 3. Requerimientos:
         - CASO A (cliente YA mencion\xF3 un servicio concreto al inicio) \u2192 "Perfecto. Adem\xE1s del [servicio], \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?"
         - CASO B (cliente NO mencion\xF3 ning\xFAn servicio concreto) \u2192 "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?"
@@ -60773,8 +59997,13 @@ Si NO \u2192 preg\xFAntalo con la frase exacta de abajo.
 
 \u26A0\uFE0F REQUERIMIENTOS \u2014 REGLA ABSOLUTA, NO NEGOCIABLE:
 
-La pregunta de REQUERIMIENTOS SIEMPRE va DESPU\xC9S DEL CORREO.
-NUNCA saltes del correo a invitados, zona o fecha.
+Tras obtener el nombre (y correo si lo comparten), pregunta REQUERIMIENTOS antes de invitados, zona o fecha.
+
+Cuando el cliente responda qu\xE9 tiene pensado para su evento:
+- NO env\xEDes el mensaje de cierre en esa misma respuesta.
+- Haz 1 o 2 preguntas de seguimiento: servicios concretos, invitados, zona, fecha.
+- Ofrece opciones del cat\xE1logo seg\xFAn lo que mencionaron.
+- Solo despu\xE9s de tener requerimientos + invitados + zona + fecha \u2192 cierre.
 
 REQUERIMIENTOS = SERVICIOS concretos (banquete, taquiza, bebidas, DJ, carpa, etc.)
 \u274C NO son requerimientos: "cotizaci\xF3n", "mi boda", "mi baby shower", "un evento", "un servicio"
@@ -60793,9 +60022,11 @@ RECONOCER CONTEXTO \u2014 EJEMPLOS OBLIGATORIOS:
 Cliente: "quiero cotizar"
 Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. Claro que te ayudo. \xBFMe dices tu nombre para empezar?"
 Cliente: "Primi"
-Lucy: "Qu\xE9 padre, Primi. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
+Lucy: "Mucho gusto, Primi. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
+Cliente: "prefiero por aqu\xED"
+Lucy: "Sin problema, seguimos por aqu\xED. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?"
 Cliente: "primi@gmail.com"
-Lucy: "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?" \u2190 OBLIGATORIO despu\xE9s del correo
+Lucy: "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?" \u2190 si S\xCD dio correo
 Cliente: "banquete y barra de bebidas"
 Lucy: "\xBFCu\xE1nta gente m\xE1s o menos?"
 Cliente: "120"
@@ -60810,7 +60041,7 @@ Cliente: "quiero banquete en Puebla para el 20 de mayo"
 \u2192 Lucy YA TIENE: requerimientos=banquete, zona=Puebla, fecha=20 mayo
 Lucy: "Hola. Te saluda Lucy, agente virtual de Bodasesor. Perfecto, banquete en Puebla para el 20 de mayo. \xBFMe dices tu nombre para empezar?"
 Cliente: "Pelene"
-Lucy: "Qu\xE9 padre, Pelene. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
+Lucy: "Mucho gusto, Pelene. Para mandarte toda la informaci\xF3n y que Rodrigo te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
 Cliente: "bod@gmail.com"
 Lucy: "Perfecto. Adem\xE1s del banquete, \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?" \u2190 confirma + ofrece m\xE1s
 Cliente: "solo el banquete"
@@ -60818,7 +60049,8 @@ Lucy: "\xBFCu\xE1nta gente m\xE1s o menos?"
 \u2190 despu\xE9s de requerimientos van invitados, luego zona (ya la tiene), fecha (ya la tiene) \u2192 cierre
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-CIERRE OBLIGATORIO \u2014 cuando tengas los 6 datos
+CIERRE OBLIGATORIO \u2014 cuando tengas nombre + requerimientos concretos + invitados + zona + fecha
+(Correo deseable pero NO obligatorio para cerrar)
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
 \u{1F6AB} NUNCA GENERES "DATOS DEL CLIENTE:" EN TU RESPUESTA.
@@ -60828,7 +60060,7 @@ Nunca generes bloques como:
   \u2022 Correo: ...
 Eso es uso interno del CRM y se maneja autom\xE1ticamente. El cliente NUNCA debe ver eso.
 
-Cuando tengas los 6 datos, env\xEDa al cliente EXACTAMENTE este texto (solo reemplaza [LO QUE PIDI\xD3 EL CLIENTE]):
+Cuando tengas los datos clave, env\xEDa al cliente EXACTAMENTE este texto (solo reemplaza [LO QUE PIDI\xD3 EL CLIENTE]):
 
 "Perfecto, ya tengo todo. Le paso estos datos a Rodrigo para que te arme una cotizaci\xF3n personalizada.
 
@@ -61423,12 +60655,21 @@ CONSEJOS PR\xC1CTICOS:
 - Eventos fuera de CDMX: hay costo de log\xEDstica adicional
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CORREO OFICIAL DE BODASESOR
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Si el cliente pregunta nuestro correo o c\xF3mo contactarnos por email:
+"Claro, nuestro correo es hola@bodasesor.com"
+
+NUNCA inventes ventas@, info@, contacto@ ni otros correos que no existan.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 TEL\xC9FONOS \u2014 solo dar si los piden expl\xEDcitamente
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
 Si dicen "tienes tel\xE9fono", "me urge", "nadie contesta":
 "Claro. Te paso los n\xFAmeros:
-Ventas: 5540080373
+Atenci\xF3n: 5540080373
 Direcci\xF3n: 5646710585"
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
@@ -61443,7 +60684,7 @@ REGLAS FINALES
 6. S\xE9 natural, NO agresiva con la venta
 7. Si dicen que no a servicios adicionales, respeta
 8. NO repetir pregunta m\xE1s de 2 veces
-9. Sigue el orden de los 6 datos
+9. Sigue el orden del flujo (correo opcional, no bloqueante)
 
 S\xE9 profesional, conversacional y orientada a ventas.`;
 
@@ -61830,52 +61071,134 @@ function appendHistory(chatId, userText, assistantText) {
   save(store);
 }
 
-// ../node_modules/postal-mime/src/decode-strings.js
-var textEncoder = new TextEncoder();
-var base64Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-var base64Lookup = new Uint8Array(256);
-for (let i3 = 0; i3 < base64Chars.length; i3++) {
-  base64Lookup[base64Chars.charCodeAt(i3)] = i3;
+// src/lucy-flow-guards.ts
+var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
+var EMAIL_REFUSAL_PATTERN = /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
+var CLOSING_CORE_FIELDS = [
+  "Nombre del cliente",
+  "Requerimientos o servicios",
+  "Lugar/direcci\xF3n del evento",
+  "Fecha y horario",
+  "N\xFAmero de invitados"
+];
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican/i;
+function collectUserTexts(history, currentMessage) {
+  const fromHistory = history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content);
+  return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
 }
-function getDecoder(charset) {
-  charset = charset || "utf8";
-  let decoder;
-  try {
-    decoder = new TextDecoder(charset);
-  } catch (err2) {
-    decoder = new TextDecoder("windows-1252");
+function detectEmailRefusal(texts) {
+  return texts.some((t) => EMAIL_REFUSAL_PATTERN.test(t));
+}
+function applyEmailWaiver(filledSet, mergedLines, texts) {
+  if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return;
+  if (!detectEmailRefusal(texts)) return;
+  mergedLines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
+  filledSet.add(EMAIL_WAIVED_LABEL);
+}
+function isEmailSatisfied(filledSet) {
+  return filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL);
+}
+function isReadyForClosing(filledSet) {
+  return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
+}
+function requerimientosNeedsFollowUp(extracted, filledSet) {
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (!req) return false;
+  const missingEventData = !filledSet.has("N\xFAmero de invitados") || !filledSet.has("Lugar/direcci\xF3n del evento") || !filledSet.has("Fecha y horario");
+  if (!missingEventData) return false;
+  const onlyTipoEvento = req.length < 28 && !SERVICE_HINT.test(req) && !/\d/.test(req);
+  return onlyTipoEvento || missingEventData && !SERVICE_HINT.test(req);
+}
+function buildRequerimientosFollowUp(extracted) {
+  const ref = extracted.tipo_evento?.trim() || extracted.requerimientos_evento?.trim() || "tu evento";
+  return `Qu\xE9 bien. Para ${ref}, \xBFqu\xE9 servicios te gustar\xEDa cotizar? Tenemos banquete, taquiza, barras de comida y bebidas, DJ, carpas y m\xE1s. Si me dices m\xE1s o menos cu\xE1ntos invitados ser\xEDan y en qu\xE9 zona, Rodrigo te arma algo m\xE1s a la medida.`;
+}
+function nextFieldQuestion(extracted, filledSet) {
+  if (!extracted.requerimientos_evento?.trim()) {
+    return "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
   }
-  return decoder;
+  if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
+    return buildRequerimientosFollowUp(extracted);
+  }
+  if (!filledSet?.has("N\xFAmero de invitados")) return "\xBFCu\xE1nta gente m\xE1s o menos?";
+  if (!filledSet?.has("Lugar/direcci\xF3n del evento")) return "\xBFEn qu\xE9 zona ser\xEDa?";
+  if (!filledSet?.has("Fecha y horario")) {
+    return "\xBFYa tienen fecha definida o la est\xE1n viendo todav\xEDa?";
+  }
+  return null;
 }
-
-// ../node_modules/postal-mime/src/mime-node.js
-var defaultDecoder = getDecoder();
-
-// ../node_modules/postal-mime/src/postal-mime.js
-var MAX_HEADERS_SIZE = 2 * 1024 * 1024;
-
-// ../node_modules/resend/dist/index.mjs
-var import_standardwebhooks = __toESM(require_dist4(), 1);
-var version = "6.17.1";
-var defaultUserAgent = `resend-node:${version}`;
-
-// src/lib/logger.ts
-var import_pino = __toESM(require_pino(), 1);
-var isProduction = process.env.NODE_ENV === "production";
-var logger = (0, import_pino.default)({
-  level: process.env.LOG_LEVEL ?? "info",
-  redact: [
-    "req.headers.authorization",
-    "req.headers.cookie",
-    "res.headers['set-cookie']"
-  ],
-  ...isProduction ? {} : {
-    transport: {
-      target: "pino-pretty",
-      options: { colorize: true }
+function shouldReplaceForcedEmailQuestion(mensaje, filledSet) {
+  if (!filledSet.has(EMAIL_WAIVED_LABEL)) return false;
+  if (!/correo|e-?mail/i.test(mensaje) || !mensaje.includes("?")) return false;
+  return /obligatorio|necesito|necesario|forzoso|indispensable|debes|tienes que|es importante/i.test(mensaje);
+}
+function emailRefusalAckMessage() {
+  return "Sin problema, seguimos por aqu\xED. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
+}
+function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
+  if (!currentMessage?.trim()) return false;
+  const lastAssistant = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content;
+  if (!lastAssistant) return false;
+  return /platícame|qué tienes pensado|otro servicio|qué servicios/i.test(lastAssistant);
+}
+function applyLucyMessageGuards(input) {
+  const {
+    aiResponse,
+    extracted,
+    filledSet,
+    readyForClosing,
+    cierreYaEnviado,
+    emailRefusedThisTurn,
+    history,
+    currentMessage,
+    buildClosing,
+    log,
+    entityId
+  } = input;
+  const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
+  const tieneRequerimientos = !!extracted.requerimientos_evento?.trim();
+  const emailOk = isEmailSatisfied(filledSet);
+  const forzarRequerimientos = emailOk && !tieneRequerimientos && !readyForClosing && !cierreYaEnviado;
+  let mensaje;
+  if (emailRefusedThisTurn && !extracted.correo?.trim()) {
+    mensaje = emailRefusalAckMessage();
+    log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
+  } else if (forzarRequerimientos) {
+    mensaje = "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
+    log?.info({ entityId }, "GUARD: correo ok pero requerimientos vac\xEDo");
+  } else if (readyForClosing && !cierreYaEnviado && (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))) {
+    mensaje = buildRequerimientosFollowUp(extracted);
+    log?.info({ entityId }, "GUARD: profundizar requerimientos antes del cierre");
+  } else if (readyForClosing && !cierreYaEnviado) {
+    mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
+    log?.info({ entityId }, "Datos completos \u2014 mensaje de cierre desde plantilla");
+  } else {
+    mensaje = aiResponse;
+    if (aiResponse.includes("DATOS DEL CLIENTE:")) {
+      mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
+      log?.warn({ entityId }, "GPT gener\xF3 nota interna \u2014 usando cierre desde plantilla");
     }
   }
-});
+  if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet) ?? emailRefusalAckMessage();
+    log?.warn({ entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
+    mensaje = nextQ;
+  }
+  const correoYaTenido = !!extracted.correo?.trim() || filledSet.has("Correo electr\xF3nico");
+  if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
+    const nextQ = nextFieldQuestion(extracted, filledSet);
+    if (nextQ) {
+      log?.warn({ entityId }, "GUARD: GPT pregunt\xF3 correo ya capturado");
+      mensaje = nextQ;
+    }
+  }
+  if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
+    const nextQ = nextFieldQuestion(extracted, filledSet) ?? emailRefusalAckMessage();
+    log?.warn({ entityId }, "GUARD: GPT insisti\xF3 en correo tras rechazo");
+    mensaje = nextQ;
+  }
+  return mensaje;
+}
 
 // ../node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib5(), 1);
@@ -62582,7 +61905,7 @@ var WithSubquery = class extends Subquery {
 };
 
 // ../node_modules/drizzle-orm/version.js
-var version2 = "0.45.2";
+var version = "0.45.2";
 
 // ../node_modules/drizzle-orm/tracing.js
 var otel;
@@ -62593,7 +61916,7 @@ var tracer = {
       return fn2();
     }
     if (!rawTracer) {
-      rawTracer = otel.trace.getTracer("drizzle-orm", version2);
+      rawTracer = otel.trace.getTracer("drizzle-orm", version);
     }
     return iife(
       (otel2, rawTracer2) => rawTracer2.startActiveSpan(
@@ -75515,12 +74838,12 @@ var freezeMethods = (obj) => {
 };
 var toObjectSet = (arrayOrString, delimiter) => {
   const obj = {};
-  const define2 = (arr) => {
+  const define = (arr) => {
     arr.forEach((value) => {
       obj[value] = true;
     });
   };
-  isArray2(arrayOrString) ? define2(arrayOrString) : define2(String(arrayOrString).split(delimiter));
+  isArray2(arrayOrString) ? define(arrayOrString) : define(String(arrayOrString).split(delimiter));
   return obj;
 };
 var noop2 = () => {
@@ -76833,7 +76156,7 @@ function getEnv(key) {
 }
 
 // ../node_modules/axios/lib/adapters/http.js
-var import_https_proxy_agent = __toESM(require_dist6(), 1);
+var import_https_proxy_agent = __toESM(require_dist5(), 1);
 var import_follow_redirects = __toESM(require_follow_redirects(), 1);
 import http from "http";
 import https from "https";
@@ -77037,9 +76360,9 @@ var readBlob_default = readBlob;
 
 // ../node_modules/axios/lib/helpers/formDataToStream.js
 var BOUNDARY_ALPHABET = platform_default.ALPHABET.ALPHA_DIGIT + "-_";
-var textEncoder2 = typeof TextEncoder === "function" ? new TextEncoder() : new util2.TextEncoder();
+var textEncoder = typeof TextEncoder === "function" ? new TextEncoder() : new util2.TextEncoder();
 var CRLF = "\r\n";
-var CRLF_BYTES = textEncoder2.encode(CRLF);
+var CRLF_BYTES = textEncoder.encode(CRLF);
 var CRLF_BYTES_COUNT = 2;
 var FormDataPart = class {
   constructor(name2, value) {
@@ -77047,12 +76370,12 @@ var FormDataPart = class {
     const isStringValue = utils_default.isString(value);
     let headers = `Content-Disposition: form-data; name="${escapeName(name2)}"${!isStringValue && value.name ? `; filename="${escapeName(value.name)}"` : ""}${CRLF}`;
     if (isStringValue) {
-      value = textEncoder2.encode(String(value).replace(/\r?\n|\r\n?/g, CRLF));
+      value = textEncoder.encode(String(value).replace(/\r?\n|\r\n?/g, CRLF));
     } else {
       const safeType = String(value.type || "application/octet-stream").replace(/[\r\n]/g, "");
       headers += `Content-Type: ${safeType}${CRLF}`;
     }
-    this.headers = textEncoder2.encode(headers + CRLF);
+    this.headers = textEncoder.encode(headers + CRLF);
     this.contentLength = isStringValue ? value.byteLength : value.size;
     this.size = this.headers.byteLength + this.contentLength + CRLF_BYTES_COUNT;
     this.name = name2;
@@ -77091,8 +76414,8 @@ var formDataToStream = (form, headersHandler, options) => {
   if (boundary.length < 1 || boundary.length > 70) {
     throw new Error("boundary must be 1-70 characters long");
   }
-  const boundaryBytes = textEncoder2.encode("--" + boundary + CRLF);
-  const footerBytes = textEncoder2.encode("--" + boundary + "--" + CRLF);
+  const boundaryBytes = textEncoder.encode("--" + boundary + CRLF);
+  const footerBytes = textEncoder.encode("--" + boundary + "--" + CRLF);
   let contentLength = footerBytes.byteLength;
   const parts2 = Array.from(form.entries()).map(([name2, value]) => {
     const part = new FormDataPart(name2, value);
@@ -79599,23 +78922,23 @@ var validators = {};
   };
 });
 var deprecatedWarnings = {};
-validators.transitional = function transitional(validator, version3, message) {
+validators.transitional = function transitional(validator, version2, message) {
   function formatMessage(opt, desc2) {
     return "[Axios v" + VERSION2 + "] Transitional option '" + opt + "'" + desc2 + (message ? ". " + message : "");
   }
   return (value, opt, opts) => {
     if (validator === false) {
       throw new AxiosError_default(
-        formatMessage(opt, " has been removed" + (version3 ? " in " + version3 : "")),
+        formatMessage(opt, " has been removed" + (version2 ? " in " + version2 : "")),
         AxiosError_default.ERR_DEPRECATED
       );
     }
-    if (version3 && !deprecatedWarnings[opt]) {
+    if (version2 && !deprecatedWarnings[opt]) {
       deprecatedWarnings[opt] = true;
       console.warn(
         formatMessage(
           opt,
-          " has been deprecated since v" + version3 + " and will be removed in the near future"
+          " has been deprecated since v" + version2 + " and will be removed in the near future"
         )
       );
     }
@@ -80102,6 +79425,24 @@ var {
   mergeConfig: mergeConfig2,
   create
 } = axios_default;
+
+// src/lib/logger.ts
+var import_pino = __toESM(require_pino(), 1);
+var isProduction = process.env.NODE_ENV === "production";
+var logger = (0, import_pino.default)({
+  level: process.env.LOG_LEVEL ?? "info",
+  redact: [
+    "req.headers.authorization",
+    "req.headers.cookie",
+    "res.headers['set-cookie']"
+  ],
+  ...isProduction ? {} : {
+    transport: {
+      target: "pino-pretty",
+      options: { colorize: true }
+    }
+  }
+});
 
 // src/services/whatsappDirectSender.ts
 var WHATSAPP_TOKEN = process.env["WHATSAPP_TOKEN"];
@@ -80809,27 +80150,12 @@ var FIELD_NAME = {
   [FIELD.tipo_evento]: "Tipo de evento",
   [FIELD.presupuesto]: "Presupuesto (MXN)"
 };
-var REQUIRED_FIELDS_ORDERED = [
-  { label: "Nombre del cliente", question: "\xBFCon qui\xE9n tengo el gusto?" },
-  { label: "Correo electr\xF3nico", question: "\xBFMe compartes tu correo electr\xF3nico?" },
-  { label: "Requerimientos o servicios", question: "\xBFQu\xE9 te gustar\xEDa para tu evento?" },
-  { label: "Lugar/direcci\xF3n del evento", question: "\xBFEn qu\xE9 zona o lugar ser\xEDa?" },
-  { label: "Fecha y horario", question: "\xBFTienen fecha definida?" },
-  { label: "N\xFAmero de invitados", question: "\xBFM\xE1s o menos cu\xE1ntos invitados?" }
-];
 function stripCatalogBlock(text2) {
   const lines = text2.split("\n");
   const filtered = lines.filter(
     (l4) => !l4.includes(CATALOG_URL) && !l4.toLowerCase().includes("aqu\xED est\xE1 nuestro cat\xE1logo") && !l4.toLowerCase().includes("comparto el link") && !l4.toLowerCase().includes("mientras tanto, aqu\xED") && !l4.toLowerCase().includes("banquetes:") && !l4.toLowerCase().includes("barras tem\xE1ticas:") && !l4.toLowerCase().includes("bebidas:") && !l4.toLowerCase().includes("mesas especiales:") && !l4.toLowerCase().includes("mobiliario:") && !l4.toLowerCase().includes("entretenimiento:") && !l4.toLowerCase().includes("estructuras:") && !l4.toLowerCase().includes("cdn.shopify.com")
   );
   return filtered.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-}
-function nextFieldQuestion(extracted) {
-  if (!extracted.requerimientos_evento?.trim()) return "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
-  if (!extracted.num_invitados?.trim()) return "\xBFCu\xE1nta gente m\xE1s o menos?";
-  if (!extracted.direccion_evento?.trim()) return "\xBFEn qu\xE9 zona ser\xEDa?";
-  if (!extracted.fecha_horario?.trim()) return "\xBFYa tienen fecha definida o la est\xE1n viendo todav\xEDa?";
-  return null;
 }
 var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
@@ -80989,7 +80315,12 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       filledSet.add("Tipo de evento");
     }
   }
-  const allFieldsFilled = REQUIRED_FIELDS_ORDERED.every((f3) => filledSet.has(f3.label));
+  applyEmailWaiver(
+    filledSet,
+    mergedLines,
+    collectUserTexts(history, currentMessage)
+  );
+  const allFieldsFilled = isReadyForClosing(filledSet);
   let context = "";
   if (mergedLines.length > 0) {
     const filledList = mergedLines.map((l4) => `\u2713 ${l4.replace(/^- /, "")}`).join("\n");
@@ -81004,15 +80335,20 @@ ${filledList}`;
     context += `
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-YA TIENES LOS 6 DATOS \u2014 aplica PASO 7 del prompt.
+YA TIENES LOS DATOS CLAVE \u2014 aplica PASO 7 del prompt (cierre).
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501`;
   } else if (mergedLines.length > 0) {
-    const missing = REQUIRED_FIELDS_ORDERED.filter((f3) => !filledSet.has(f3.label)).map((f3) => f3.label);
-    context += `
+    const missing = [
+      ...CLOSING_CORE_FIELDS.filter((f3) => !filledSet.has(f3)),
+      ...!isEmailSatisfied(filledSet) ? ["Correo electr\xF3nico (opcional \u2014 intentar, no bloquear)"] : []
+    ];
+    if (missing.length) {
+      context += `
 
 DATO(S) QUE FALTAN: ${missing.join(", ")} \u2014 sigue el orden del prompt para pedirlos.`;
+    }
   }
-  return { context, allFieldsFilled, mergedLines };
+  return { context, allFieldsFilled, mergedLines, filledLabels: filledSet };
 }
 async function fetchLeadCurrentFields(subdomain, accessToken, leadId, log) {
   const empty = { crmLines: [], lastLucyResponse: null };
@@ -81220,7 +80556,7 @@ async function processBatch(batch, accessToken, log) {
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
     const filledFieldNames = crmLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? "").filter(Boolean).join(", ");
     const extracted = await extractData(history, combinedUserText, filledFieldNames);
-    const { context: crmContext, allFieldsFilled, mergedLines: crmMergedLines } = buildCrmContext(crmLines, extracted, history, conversation.clientEmail, combinedUserText);
+    const { context: crmContext, allFieldsFilled, mergedLines: crmMergedLines, filledLabels } = buildCrmContext(crmLines, extracted, history, conversation.clientEmail, combinedUserText);
     const conversationText = [
       ...history.filter((m4) => m4.role === "user").map((m4) => typeof m4.content === "string" ? m4.content : ""),
       combinedUserText
@@ -81288,50 +80624,20 @@ async function processBatch(batch, accessToken, log) {
     const cierreYaEnviado = history.some(
       (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE)
     );
-    const tieneCorreo = !!(extracted.correo && extracted.correo.trim());
-    const tieneRequerimientos = !!(extracted.requerimientos_evento && extracted.requerimientos_evento.trim());
-    const forzarRequerimientos = tieneCorreo && !tieneRequerimientos && !allFieldsFilled && !cierreYaEnviado;
-    if (forzarRequerimientos) {
-      log.info({ entityId }, "GUARD: correo capturado pero requerimientos vac\xEDo \u2014 forzando pregunta de requerimientos");
-    }
-    let mensajeParaCliente;
-    if (forzarRequerimientos) {
-      mensajeParaCliente = "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
-    } else if (allFieldsFilled && !cierreYaEnviado) {
-      mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
-      log.info({ entityId }, "Todos los 6 datos completos \u2014 usando mensaje de cierre exacto desde plantilla");
-    } else {
-      mensajeParaCliente = aiResponse;
-      if (aiResponse.includes("DATOS DEL CLIENTE:")) {
-        const markers = [
-          "Lead calificado \u2014 Rodrigo contactar\xE1 para cotizaci\xF3n",
-          "Lead calificado"
-        ];
-        let clientPart = "";
-        for (const marker of markers) {
-          const idx = aiResponse.indexOf(marker);
-          if (idx !== -1) {
-            clientPart = aiResponse.slice(idx + marker.length).replace(/^[\s\S]*?LUEGO[^:]*:\s*/i, "").replace(/^[""]+|[""]+$/g, "").trim();
-            if (clientPart.length > 30) break;
-          }
-        }
-        if (clientPart.length > 30) {
-          mensajeParaCliente = clientPart;
-        } else {
-          log.warn({ entityId }, "GPT gener\xF3 nota interna pero stripping fall\xF3 \u2014 usando mensaje de cierre desde plantilla");
-          mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
-        }
-      }
-    }
-    const correoYaTenido = !!extracted.correo?.trim();
-    const gptPreguntaCorreo = correoYaTenido && /correo/i.test(mensajeParaCliente) && mensajeParaCliente.includes("?") && !allFieldsFilled;
-    if (gptPreguntaCorreo) {
-      const nextQ = nextFieldQuestion(extracted);
-      if (nextQ) {
-        log.warn({ entityId }, "P1 GUARD: GPT pregunt\xF3 correo ya capturado \u2014 reemplazando con siguiente pregunta");
-        mensajeParaCliente = nextQ;
-      }
-    }
+    const emailRefusedThisTurn = detectEmailRefusal([combinedUserText]);
+    let mensajeParaCliente = applyLucyMessageGuards({
+      aiResponse,
+      extracted,
+      filledSet: filledLabels,
+      readyForClosing: allFieldsFilled,
+      cierreYaEnviado,
+      emailRefusedThisTurn,
+      history,
+      currentMessage: combinedUserText,
+      buildClosing: buildClosingMessage,
+      log,
+      entityId
+    });
     if (cierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
       log.warn({ entityId }, "P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
       mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
@@ -81658,30 +80964,12 @@ router2.post("/kommo/salesbot", async (req, res) => {
     let crmContext = "";
     let crmLines = [];
     let lastLucyResponse = "";
-    let salesbotAllFieldsFilled = false;
-    let salesbotMergedLines = [];
+    let salesbotFilledLabels = /* @__PURE__ */ new Set();
     if (entityId) {
       try {
         const fields = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
         crmLines = fields.crmLines;
         lastLucyResponse = fields.lastLucyResponse ?? "";
-        const emptyExtracted = {
-          nombre: null,
-          telefono: null,
-          correo: null,
-          presupuesto: null,
-          direccion_evento: null,
-          requerimientos_evento: null,
-          fecha_horario: null,
-          num_invitados: null,
-          tipo_evento: null,
-          tipo_contacto: null,
-          empresa: null
-        };
-        const crmResult = buildCrmContext(crmLines, emptyExtracted, history, void 0, messageText);
-        crmContext = crmResult.context;
-        salesbotAllFieldsFilled = crmResult.allFieldsFilled;
-        salesbotMergedLines = crmResult.mergedLines;
       } catch {
         log.warn("Salesbot: could not load CRM context");
       }
@@ -81689,6 +80977,20 @@ router2.post("/kommo/salesbot", async (req, res) => {
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const nombreYaEnCRM = crmLines.some((l4) => /Nombre del cliente:/i.test(l4));
     const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse && !nombreYaEnCRM;
+    const preExtracted = {
+      nombre: null,
+      telefono: null,
+      correo: null,
+      presupuesto: null,
+      direccion_evento: null,
+      requerimientos_evento: null,
+      fecha_horario: null,
+      num_invitados: null,
+      tipo_evento: null,
+      tipo_contacto: null,
+      empresa: null
+    };
+    crmContext = buildCrmContext(crmLines, preExtracted, history, void 0, messageText).context;
     const trainingExamples = getTrainingExamples();
     const fewShot = trainingExamples.flatMap((ex) => [
       { role: "user", content: ex.userMessage },
@@ -81717,54 +81019,27 @@ router2.post("/kommo/salesbot", async (req, res) => {
     ]);
     let aiResponse = completion.choices[0]?.message?.content ?? "";
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
+    const crmResultFinal = buildCrmContext(crmLines, extracted, history, void 0, messageText);
+    const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
+    const salesbotMergedLines = crmResultFinal.mergedLines;
+    salesbotFilledLabels = crmResultFinal.filledLabels;
     const sbCierreYaEnviado = history.some(
       (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE)
     );
-    const sbTieneCorreo = !!(extracted.correo && extracted.correo.trim());
-    const sbTieneRequerimientos = !!(extracted.requerimientos_evento && extracted.requerimientos_evento.trim());
-    const sbForzarRequerimientos = sbTieneCorreo && !sbTieneRequerimientos && !salesbotAllFieldsFilled && !sbCierreYaEnviado;
-    if (sbForzarRequerimientos) {
-      log.info({ entityId }, "Salesbot GUARD: correo capturado pero requerimientos vac\xEDo \u2014 forzando pregunta de requerimientos");
-    }
-    let mensajeParaCliente;
-    if (sbForzarRequerimientos) {
-      mensajeParaCliente = "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
-    } else if (salesbotAllFieldsFilled && !sbCierreYaEnviado) {
-      mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
-      log.info({ entityId }, "Salesbot: 6 datos completos \u2014 usando mensaje de cierre exacto desde plantilla");
-    } else {
-      mensajeParaCliente = aiResponse;
-      if (aiResponse.includes("DATOS DEL CLIENTE:")) {
-        const markers = [
-          "Lead calificado \u2014 Rodrigo contactar\xE1 para cotizaci\xF3n",
-          "Lead calificado"
-        ];
-        let clientPart = "";
-        for (const marker of markers) {
-          const idx = aiResponse.indexOf(marker);
-          if (idx !== -1) {
-            clientPart = aiResponse.slice(idx + marker.length).replace(/^[\s\S]*?LUEGO[^:]*:\s*/i, "").replace(/^[""]+|[""]+$/g, "").trim();
-            if (clientPart.length > 30) break;
-          }
-        }
-        if (clientPart.length > 30) {
-          mensajeParaCliente = clientPart;
-          log.info({ entityId, clientPartLength: clientPart.length }, "Salesbot: nota detectada \u2014 usando parte cliente del mensaje");
-        } else {
-          log.warn({ entityId }, "Salesbot: GPT gener\xF3 nota interna pero stripping fall\xF3 \u2014 usando mensaje de cierre desde plantilla");
-          mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
-        }
-      }
-    }
-    const sbCorreoYaTenido = !!extracted.correo?.trim();
-    const sbGptPreguntaCorreo = sbCorreoYaTenido && /correo/i.test(mensajeParaCliente) && mensajeParaCliente.includes("?") && !salesbotAllFieldsFilled;
-    if (sbGptPreguntaCorreo) {
-      const sbNextQ = nextFieldQuestion(extracted);
-      if (sbNextQ) {
-        log.warn({ entityId }, "Salesbot P1 GUARD: GPT pregunt\xF3 correo ya capturado \u2014 reemplazando con siguiente pregunta");
-        mensajeParaCliente = sbNextQ;
-      }
-    }
+    const emailRefusedThisTurn = detectEmailRefusal([messageText]);
+    let mensajeParaCliente = applyLucyMessageGuards({
+      aiResponse,
+      extracted,
+      filledSet: salesbotFilledLabels,
+      readyForClosing: salesbotAllFieldsFilled,
+      cierreYaEnviado: sbCierreYaEnviado,
+      emailRefusedThisTurn,
+      history,
+      currentMessage: messageText,
+      buildClosing: buildClosingMessage,
+      log,
+      entityId
+    });
     if (sbCierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
       log.warn({ entityId }, "Salesbot P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
       mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
@@ -82035,9 +81310,8 @@ router2.post("/kommo/simulator", async (req, res) => {
       tipo_contacto: null,
       empresa: null
     };
-    const crmResult = buildCrmContext(crmLines, emptyExtracted, history, void 0, messageText);
-    const crmContext = crmResult.context;
-    const allFieldsFilled = crmResult.allFieldsFilled;
+    const crmResultPre = buildCrmContext(crmLines, emptyExtracted, history, void 0, messageText);
+    const crmContext = crmResultPre.context;
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const nombreYaEnCRM = crmLines.some((l4) => /Nombre del cliente:/i.test(l4));
     const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse && !nombreYaEnCRM;
@@ -82067,20 +81341,26 @@ router2.post("/kommo/simulator", async (req, res) => {
       extractData(history, messageText, crmLines.join("\n"))
     ]);
     let aiResponse = completion.choices[0]?.message?.content ?? "";
+    const crmResultFinal = buildCrmContext(crmLines, extracted, history, void 0, messageText);
+    const allFieldsFilled = crmResultFinal.allFieldsFilled;
+    const filledLabels = crmResultFinal.filledLabels;
     const simCierreYaEnviado = history.some(
       (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE)
     );
-    const simTieneCorreo = !!extracted.correo?.trim();
-    const simTieneRequerimientos = !!extracted.requerimientos_evento?.trim();
-    const simForzarRequerimientos = simTieneCorreo && !simTieneRequerimientos && !allFieldsFilled && !simCierreYaEnviado;
-    let mensajeParaCliente;
-    if (simForzarRequerimientos) {
-      mensajeParaCliente = "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?";
-    } else if (allFieldsFilled && !simCierreYaEnviado) {
-      mensajeParaCliente = buildClosingMessage(extracted.tipo_evento ?? null);
-    } else {
-      mensajeParaCliente = aiResponse;
-    }
+    const emailRefusedThisTurn = detectEmailRefusal([messageText]);
+    const mensajeParaCliente = applyLucyMessageGuards({
+      aiResponse,
+      extracted,
+      filledSet: filledLabels,
+      readyForClosing: allFieldsFilled,
+      cierreYaEnviado: simCierreYaEnviado,
+      emailRefusedThisTurn,
+      history,
+      currentMessage: messageText,
+      buildClosing: buildClosingMessage,
+      log,
+      entityId: leadId
+    });
     appendHistory(histKey, messageText, mensajeParaCliente);
     const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente);
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
