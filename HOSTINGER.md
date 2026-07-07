@@ -1,26 +1,25 @@
 # Hostinger — configuración EXACTA
 
-## Lo que ves en el log (tsconfig warnings) NO es error
+## Si NO puedes cambiar el directorio raíz
 
-Si al final dice `Done in 348ms` → **el build sí pasó**.  
-El problema suele ser **cómo arranca** o **qué carpeta usa Hostinger**.
+Hostinger a veces deja el **directorio raíz fijo en `./`**. Este repo ya está preparado para eso: `start.mjs` en la raíz arranca el bundle precompilado que está en `deploy/`.
 
 ---
 
-## USA LA CARPETA `deploy` (sin compilar)
+## Configuración en hPanel
 
 | Campo en hPanel | Valor exacto |
 |-----------------|--------------|
 | Rama | `main` |
 | Node | `22.x` |
-| **Directorio raíz** | **`deploy`** |
+| **Directorio raíz** | **`./`** (el que venga por defecto — no hace falta cambiarlo) |
 | Marco | Other |
 | Gestor de paquetes | npm |
-| **Comando compilación** | **`echo ok`** |
+| **Comando compilación** | **`echo ok`** o **`npm run build`** |
 | **Directorio salida** | **`.`** |
 | **Archivo entrada** | **`start.mjs`** |
 
-No uses `./` como raíz. No uses `pnpm run build`.
+No uses `pnpm`. No compiles en el servidor (`npm run build:source` es solo para desarrollo local).
 
 ---
 
@@ -44,8 +43,22 @@ Sin esto el servidor arranca pero Lucy no responde con GPT.
 ## Si sigue fallando
 
 En Hostinger abre el deploy fallido → **Registros** → busca líneas **después** del build:
-- `FALTA archivo requerido` → no usaste carpeta `deploy`
+
+- `FALTA archivo requerido: deploy/index.mjs` → falta la carpeta `deploy/` en el repo (vuelve a desplegar desde `main`)
 - `OPENAI_API_KEY` → falta el secret
 - `EADDRINUSE` / `PORT` → problema de puerto (raro en Hostinger)
 
 Manda captura de esas líneas (no la key).
+
+---
+
+## Desarrollo local (opcional)
+
+```bash
+npm install
+npm run build:source    # compila api-server
+npm run sync-deploy     # copia dist/ → deploy/
+npm run start:dev       # arranca sin pasar por deploy/
+```
+
+En producción Hostinger solo necesita `npm run build` (no hace nada) y `node start.mjs`.

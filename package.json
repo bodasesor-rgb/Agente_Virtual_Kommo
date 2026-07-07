@@ -1,19 +1,23 @@
 {
-  "name": "workspace",
-  "version": "0.0.0",
+  "name": "lucy-bodasesor-kommo",
+  "version": "1.0.0",
   "license": "MIT",
   "private": true,
+  "type": "module",
+  "description": "Lucy API — Bodasesor Kommo (Hostinger usa la raíz del repo)",
   "workspaces": [
     "api-server",
     "lib/db",
     "lib/api-zod"
   ],
   "scripts": {
-    "build": "npm run build -w @workspace/api-server",
-    "start": "node api-server/dist/index.mjs",
-    "sync-deploy": "npm run build && cp api-server/dist/*.mjs api-server/dist/postgres.* deploy/"
+    "build": "echo ok",
+    "build:source": "npm run build -w @workspace/api-server",
+    "start": "node start.mjs",
+    "start:dev": "node api-server/dist/index.mjs",
+    "sync-deploy": "npm run build:source && cp api-server/dist/*.mjs api-server/dist/postgres.* deploy/"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }
