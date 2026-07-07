@@ -1,4 +1,4 @@
-const STORAGE_KEY = "bodasesor-kommo-sim-v1";
+const STORAGE_KEY = "bodasesor-kommo-sim-v2";
 const STAGE_COLORS = ["#99ccff", "#b5e8b5", "#ffb3ba", "#d4b5ff", "#ffd666", "#c0c0c0"];
 
 const state = {
@@ -79,9 +79,18 @@ async function loadDemoStore() {
   return res.json();
 }
 
+function isStoreValid(store) {
+  return Boolean(
+    store?.config?.pipelines?.length &&
+      Array.isArray(store.leads) &&
+      store.leads.length > 0 &&
+      store.messages
+  );
+}
+
 async function ensureStore() {
   let store = readStore();
-  if (!store) {
+  if (!isStoreValid(store)) {
     store = await loadDemoStore();
     writeStore(store);
   }
@@ -179,9 +188,20 @@ async function loadAll() {
   state.activePipelineId = state.store.config.pipelines[0]?.id;
   await loadAgentStatus();
   renderAll();
-  if (state.store.leads.length && !state.selectedLeadId) {
-    selectLead(state.store.leads[0].id);
+  if (state.store.leads.length) {
+    const pick = state.store.leads.find((l) => l.name === "Montserrat") || state.store.leads[0];
+    selectLead(pick.id);
+  } else {
+    updateSendButton();
   }
+}
+
+function updateSendButton() {
+  const btn = $("#btn-send");
+  const lead = state.selectedLeadId ? getLead(state.selectedLeadId) : null;
+  const ready = Boolean(lead);
+  btn.disabled = !ready;
+  btn.title = ready ? "Enviar mensaje a Lucy" : "Selecciona un lead en el embudo primero";
 }
 
 function renderAll() {
@@ -314,6 +334,7 @@ function selectLead(leadId, reloadMessages = true) {
 
   $("#btn-send").disabled = false;
   $("#btn-save-fields").disabled = false;
+  updateSendButton();
 
   renderKanban();
 
@@ -333,11 +354,12 @@ function renderChat(messages) {
   }
   for (const msg of messages) {
     const row = document.createElement("div");
-    row.className = `msg-row ${msg.direction}`;
-    const avatarLabel = msg.direction === "incoming" ? initials(msg.author) : "L";
+    const isSystem = msg.direction === "system";
+    row.className = `msg-row ${isSystem ? "system" : msg.direction}`;
+    const avatarLabel = isSystem ? "!" : msg.direction === "incoming" ? initials(msg.author) : "L";
     row.innerHTML = `
-      <div class="msg-avatar">${escapeHtml(avatarLabel)}</div>
-      <div class="message ${msg.direction}">
+      ${isSystem ? "" : `<div class="msg-avatar">${escapeHtml(avatarLabel)}</div>`}
+      <div class="message ${isSystem ? "system" : msg.direction}">
         ${escapeHtml(msg.text).replace(/\n/g, "<br>")}
         <small>${escapeHtml(msg.author)} · ${formatTime(msg.created_at)}</small>
       </div>
@@ -437,10 +459,20 @@ function renderActivity() {
 
 async function sendMessage() {
   const text = $("#chat-text").value.trim();
-  if (!text || !state.selectedLeadId) return;
+  if (!text) return;
+
+  if (!state.selectedLeadId) {
+    toast("Selecciona un lead en el embudo (ej. Montserrat)");
+    return;
+  }
 
   const lead = getLead(state.selectedLeadId);
-  const author = lead?.name || "Cliente";
+  if (!lead) {
+    toast("Lead no encontrado — pulsa «Restaurar demo»");
+    return;
+  }
+
+  const author = lead.name || "Cliente";
   $("#chat-text").value = "";
   $("#btn-send").disabled = true;
   $("#chat-typing").classList.remove("hidden");
@@ -448,10 +480,14 @@ async function sendMessage() {
   addMessage(state.selectedLeadId, "incoming", text, author);
   renderChat(listMessages(state.selectedLeadId));
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
+
   try {
     const res = await fetch("/api/kommo/simulator", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         text,
         lead_id: lead.id,
@@ -461,10 +497,13 @@ async function sendMessage() {
     });
 
     const data = await res.json().catch(() => ({}));
-    const reply = data.reply || data.error || "Sin respuesta de Lucy";
+    const reply =
+      data.reply ||
+      data.error ||
+      (res.ok ? "Sin respuesta de Lucy" : `Error ${res.status} al contactar a Lucy`);
 
-    if (data.status === "error" || reply.startsWith("⚠️") || /OPEN_AI|OPENAI/i.test(reply)) {
-      toast(reply.slice(0, 160));
+    if (data.status === "error" || /OPEN_AI|OPENAI/i.test(reply)) {
+      toast(reply.slice(0, 180));
     }
 
     addMessage(state.selectedLeadId, "outgoing", reply, "Lucy");
@@ -478,11 +517,17 @@ async function sendMessage() {
       toast(`Lucy movió el lead a ${stageById(data.stage_id)?.name || data.stage_id}`);
     }
   } catch (err) {
-    toast(err.message || "Error al enviar mensaje");
+    const msg =
+      err.name === "AbortError"
+        ? "Lucy tardó más de 2 minutos. Intenta de nuevo."
+        : err.message || "Error de red al hablar con Lucy";
+    toast(msg);
+    addMessage(state.selectedLeadId, "system", msg, "Sistema");
     selectLead(state.selectedLeadId);
   } finally {
+    clearTimeout(timeoutId);
     $("#chat-typing").classList.add("hidden");
-    $("#btn-send").disabled = false;
+    updateSendButton();
   }
 }
 
