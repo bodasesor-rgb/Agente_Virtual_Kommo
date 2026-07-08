@@ -142,12 +142,17 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
         sheetsTextExtra = textCsv.trim().slice(0, 12_000);
       }
 
-      const gamma = await loadGammaCatalog();
       let gammaBlock = "";
-      if (gamma) {
-        gammaBlock = gamma.textBlock;
-        status.sources.gamma = true;
-        status.sources.gammaUrl = gamma.gammaUrl;
+      try {
+        const gamma = await loadGammaCatalog();
+        if (gamma) {
+          gammaBlock = gamma.textBlock;
+          status.sources.gamma = true;
+          status.sources.gammaUrl = gamma.gammaUrl;
+        }
+      } catch (gammaErr) {
+        status.lastError =
+          gammaErr instanceof Error ? gammaErr.message : String(gammaErr);
       }
 
       const sheetGammaKnowledge = await loadGammaKnowledgeFromSheet(rows).catch(() => "");

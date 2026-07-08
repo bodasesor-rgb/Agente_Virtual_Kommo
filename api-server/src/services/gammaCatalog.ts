@@ -32,6 +32,10 @@ export function resolveGammaId(): string | null {
   return match?.[1] ?? null;
 }
 
+export function resolveGammaPublicUrl(): string | null {
+  return process.env["GAMMA_CATALOG_URL"]?.trim() || null;
+}
+
 export function extractGammaIdFromUrl(url: string): string | null {
   const match = url.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
   return match?.[1] ?? null;

@@ -78615,6 +78615,9 @@ function resolveGammaId() {
   const match = url2.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
   return match?.[1] ?? null;
 }
+function resolveGammaPublicUrl() {
+  return process.env["GAMMA_CATALOG_URL"]?.trim() || null;
+}
 function extractGammaIdFromUrl(url2) {
   const match = url2.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
   return match?.[1] ?? null;
@@ -78859,12 +78862,16 @@ async function refreshCatalog(force = false) {
         const textCsv = await fetchCsvText(textUrl);
         sheetsTextExtra = textCsv.trim().slice(0, 12e3);
       }
-      const gamma = await loadGammaCatalog();
       let gammaBlock = "";
-      if (gamma) {
-        gammaBlock = gamma.textBlock;
-        status.sources.gamma = true;
-        status.sources.gammaUrl = gamma.gammaUrl;
+      try {
+        const gamma = await loadGammaCatalog();
+        if (gamma) {
+          gammaBlock = gamma.textBlock;
+          status.sources.gamma = true;
+          status.sources.gammaUrl = gamma.gammaUrl;
+        }
+      } catch (gammaErr) {
+        status.lastError = gammaErr instanceof Error ? gammaErr.message : String(gammaErr);
       }
       const sheetGammaKnowledge = await loadGammaKnowledgeFromSheet(rows).catch(() => "");
       if (sheetGammaKnowledge) {
