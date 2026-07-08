@@ -8,11 +8,12 @@
  *   normalizeWhatsAppNumber(phone) → string | null
  *   sendWhatsAppDirect(to, message, entityId?, maxRetries?) → Promise<SendResult>
  *   fetchContactPhone(subdomain, accessToken, leadId) → Promise<string | null>
- *   registrarMensajeSalienteKommo(opts) → Promise<boolean>
+ *   sendLucyMessageToClient(opts) → Promise<LucySendResult>
  */
 
 import axios, { type AxiosError } from "axios";
 import { logger } from "../lib/logger.js";
+import { enviarMensaje } from "./embudo.js";
 
 const WHATSAPP_TOKEN  = process.env["WHATSAPP_TOKEN"];
 const PHONE_NUMBER_ID = process.env["PHONE_NUMBER_ID"];
@@ -232,97 +233,51 @@ export async function fetchContactDisplayName(
   return contact?.displayName ?? null;
 }
 
-// ─── Registrar mensaje saliente en el historial de chat de Kommo ───────────────
-// Se llama después de un envío exitoso via Meta API para que el mensaje
-// aparezca en el historial del lead/contacto dentro de Kommo CRM.
-// Fire-and-forget: nunca bloquea el flujo principal.
-//
-// Endpoint: POST /api/v4/chats/messages
-// Kommo usa este endpoint para registrar mensajes en conversaciones existentes.
-// El campo `author.type = "bot"` identifica el mensaje como saliente automático.
+// ─── Envío unificado de Lucy al cliente ──────────────────────────────────────
+// Prioridad:
+//  1. Kommo Talks API — mismo canal que mensajes humanos (burbuja azul en chat).
+//  2. Meta WhatsApp Cloud API — fallback si Talks falla o no hay talkId.
 
-export interface KommoOutgoingMessageOpts {
-  subdomain:      string;
-  accessToken:    string;
-  chatId:         string;          // chat_id de Kommo (del webhook entrante)
-  texto:          string;          // contenido exacto enviado al cliente
-  toPhone:        string;          // número normalizado (521XXXXXXXXXX)
-  metaMessageId?: string;          // wamid.XXX de Meta — referencia cruzada
-  entityId?:      string | number; // lead ID — solo para logs
+export interface LucySendOpts {
+  subdomain:   string;
+  accessToken: string;
+  talkId:      string | null;
+  phone:       string | null;
+  texto:       string;
+  entityId?:   string | number;
 }
 
-interface KommoChatsMessageResponse {
-  id?: string | number;
-  created_at?: number;
+export interface LucySendResult {
+  success:    boolean;
+  channel?:   "kommo-talks" | "meta";
+  error?:     string;
+  messageId?: string;
 }
 
-export async function registrarMensajeSalienteKommo(
-  opts: KommoOutgoingMessageOpts
-): Promise<boolean> {
-  const { subdomain, accessToken, chatId, texto, toPhone, metaMessageId, entityId } = opts;
+export async function sendLucyMessageToClient(opts: LucySendOpts): Promise<LucySendResult> {
+  const { subdomain, accessToken, talkId, phone, texto, entityId } = opts;
 
-  const url = `https://${subdomain}.kommo.com/api/v4/chats/messages`;
-  const body = {
-    chat_id:    chatId,
-    text:       texto,
-    created_at: Math.floor(Date.now() / 1000),
-    author: {
-      type: "bot",
-      id:   PHONE_NUMBER_ID ?? "lucy-bot",
-    },
-  };
-
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10_000);
-
-    const res = await fetch(url, {
-      method:  "POST",
-      headers: {
-        Authorization:  `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      signal: controller.signal,
-      body:   JSON.stringify(body),
-    });
-    clearTimeout(timer);
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "(no body)");
-      logger.warn(
-        {
-          entityId,
-          chatId,
-          toPhone,
-          metaMessageId,
-          httpStatus: res.status,
-          errBody,
-        },
-        "registrarMensajeSalienteKommo: Kommo rechazó el registro ⚠️"
-      );
-      return false;
+  if (talkId) {
+    const ok = await enviarMensaje(subdomain, accessToken, talkId, texto);
+    if (ok) {
+      logger.info({ entityId, talkId }, "Lucy: mensaje enviado via Kommo Talks API ✅");
+      return { success: true, channel: "kommo-talks" };
     }
-
-    const data = (await res.json()) as KommoChatsMessageResponse;
-    logger.info(
-      {
-        entityId,
-        chatId,
-        toPhone,
-        metaMessageId,
-        kommoMessageId: data?.id,
-        kommoTimestamp: data?.created_at,
-        preview:        texto.slice(0, 80),
-      },
-      "Mensaje saliente registrado en Kommo ✅"
-    );
-    return true;
-
-  } catch (err) {
-    logger.warn(
-      { entityId, chatId, toPhone, metaMessageId, err },
-      "registrarMensajeSalienteKommo: excepción (timeout o red) ⚠️"
-    );
-    return false;
+    logger.warn({ entityId, talkId }, "Lucy: Kommo Talks falló — intentando Meta API");
   }
+
+  if (phone) {
+    const result = await sendWhatsAppDirect(phone, texto, entityId);
+    if (result.success) {
+      logger.info({ entityId, phone }, "Lucy: mensaje enviado via Meta API (fallback) ✅");
+      return { success: true, channel: "meta", messageId: result.messageId };
+    }
+    return { success: false, channel: "meta", error: result.error };
+  }
+
+  const error = talkId
+    ? "Kommo Talks falló y no hay teléfono para fallback Meta"
+    : "Sin talkId ni teléfono — mensaje no enviado";
+  logger.error({ entityId, talkId, phone: !!phone }, error);
+  return { success: false, error };
 }
