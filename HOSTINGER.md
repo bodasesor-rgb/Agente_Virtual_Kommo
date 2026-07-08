@@ -1,6 +1,25 @@
 # Hostinger — pasos si sigue fallando
 
-## Error 503 en el sitio
+## Desplegar automáticamente (recomendado)
+
+El repo incluye `.github/workflows/deploy-hostinger.yml` que redespliega en cada push a `main`.
+
+Configura **uno** de estos secrets en GitHub → Settings → Secrets → Actions:
+
+| Secret | Dónde obtenerlo |
+|--------|-----------------|
+| `HOSTINGER_WEBHOOK_URL` | hPanel → Avanzado → Git → Auto Deployment → copiar webhook |
+| `HOSTINGER_API_TOKEN` | hPanel → Perfil → API → crear token |
+
+O desde tu máquina (con el token):
+
+```bash
+HOSTINGER_API_TOKEN=xxx npm run deploy:hostinger
+```
+
+Tras el deploy, `/api/health` debe mostrar `"version":"3.1"` y `"lucy_prompt":"V6"`.
+
+---
 
 Significa que **Lucy no arrancó** (proceso caído). Causas más comunes:
 
