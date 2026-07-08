@@ -9,6 +9,9 @@ import {
 import {
   buildAlejandroPriceReply,
   clientAsksPrice,
+  getPriceServiceLabel,
+  mentionsListedPriceService,
+  mentionsNoListedPriceService,
   responseHasInventedPrice,
   sanitizeInventedPrices,
   stripStalePriceTalk,
@@ -953,25 +956,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId);
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
-  } else if (
-    clientAsksPrice(currentMessage) &&
-    needsNextStep
-  ) {
+  } else if (clientAsksPrice(currentMessage) && needsNextStep) {
     const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
-    const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText);
-    if (responseHasInventedPrice(aiResponse, currentMessage, ctxText)) {
-      const pending = getNextPendingField(extracted, filledSet);
-      const priceReply = safe.includes("Alejandro")
-        ? safe
-        : buildAlejandroPriceReply(
-            extracted.requerimientos_evento ?? extracted.tipo_evento ?? undefined
-          );
+    const pending = getNextPendingField(extracted, filledSet);
+    const needsAlejandroQuote =
+      mentionsNoListedPriceService(currentMessage) ||
+      responseHasInventedPrice(aiResponse, currentMessage, ctxText);
+
+    if (needsAlejandroQuote) {
+      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage));
       mensaje =
         pending && pending !== "correo"
           ? `${priceReply}\n\n${buildNaturalQuestion(pending, ctx)}`
           : priceReply;
-      log?.info({ entityId, pending }, "GUARD: bloqueando precio inventado — Alejandro cotiza");
+      log?.info({ entityId, pending }, "GUARD: precio sin catálogo — Alejandro cotiza");
     } else {
+      const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText);
       mensaje = mergeWithPendingQuestion(safe, filledSet, extracted, ctx);
       log?.info({ entityId }, "GUARD: respuesta a precio con catálogo");
     }

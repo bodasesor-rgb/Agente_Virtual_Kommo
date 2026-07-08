@@ -69,6 +69,10 @@ function detectServiceLabel(text: string): string {
   return "ese servicio";
 }
 
+export function getPriceServiceLabel(text: string): string {
+  return detectServiceLabel(text);
+}
+
 /** Quita oraciones con montos inventados. */
 export function stripPriceSentences(mensaje: string): string {
   const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);

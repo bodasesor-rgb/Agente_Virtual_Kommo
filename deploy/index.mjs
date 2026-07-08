@@ -77701,6 +77701,9 @@ function detectServiceLabel(text2) {
   if (/flor/.test(t)) return "florister\xEDa";
   return "ese servicio";
 }
+function getPriceServiceLabel(text2) {
+  return detectServiceLabel(text2);
+}
 function stripPriceSentences(mensaje) {
   const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);
   const kept = sentences.filter((s4) => !PRICE_CLAIM_PATTERN.test(s4));
@@ -78717,17 +78720,16 @@ function applyLucyMessageGuards(input) {
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
   } else if (clientAsksPrice(currentMessage) && needsNextStep) {
     const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
-    const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText2);
-    if (responseHasInventedPrice(aiResponse, currentMessage, ctxText2)) {
-      const pending = getNextPendingField(extracted, filledSet);
-      const priceReply = safe.includes("Alejandro") ? safe : buildAlejandroPriceReply(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? void 0
-      );
+    const pending = getNextPendingField(extracted, filledSet);
+    const needsAlejandroQuote = mentionsNoListedPriceService(currentMessage) || responseHasInventedPrice(aiResponse, currentMessage, ctxText2);
+    if (needsAlejandroQuote) {
+      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage));
       mensaje = pending && pending !== "correo" ? `${priceReply}
 
 ${buildNaturalQuestion(pending, ctx)}` : priceReply;
-      log?.info({ entityId, pending }, "GUARD: bloqueando precio inventado \u2014 Alejandro cotiza");
+      log?.info({ entityId, pending }, "GUARD: precio sin cat\xE1logo \u2014 Alejandro cotiza");
     } else {
+      const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText2);
       mensaje = mergeWithPendingQuestion(safe, filledSet, extracted, ctx);
       log?.info({ entityId }, "GUARD: respuesta a precio con cat\xE1logo");
     }
