@@ -85063,6 +85063,10 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   const mergedLines = [...crmLines];
   const filledSet = new Set(mergedLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
   const historyFull = fullHistory ?? history;
+  if (extracted.presupuesto !== null && extracted.presupuesto !== void 0) {
+    const validPres = collectUserTexts(historyFull, currentMessage).map((t) => parsePresupuestoFromText(t)).find(Boolean);
+    if (!validPres) extracted.presupuesto = null;
+  }
   if (!filledSet.has("Nombre del cliente")) {
     const nombreVal = sanitizeDisplayName(extracted.nombre);
     if (nombreVal) {

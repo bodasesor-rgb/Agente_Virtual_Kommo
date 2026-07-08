@@ -477,6 +477,13 @@ function buildCrmContext(
   const filledSet = new Set(mergedLines.map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
   const historyFull = fullHistory ?? history;
 
+  if (extracted.presupuesto !== null && extracted.presupuesto !== undefined) {
+    const validPres = collectUserTexts(historyFull, currentMessage)
+      .map((t) => parsePresupuestoFromText(t))
+      .find(Boolean);
+    if (!validPres) extracted.presupuesto = null;
+  }
+
   // Nombre: solo extracción explícita o CRM — no prellenar desde WhatsApp
   if (!filledSet.has("Nombre del cliente")) {
     const nombreVal = sanitizeDisplayName(extracted.nombre);
