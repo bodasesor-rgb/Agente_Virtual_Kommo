@@ -12,10 +12,12 @@ import {
   getPriceServiceLabel,
   mentionsListedPriceService,
   mentionsNoListedPriceService,
+  messageClaimsPrice,
   responseHasInventedPrice,
   sanitizeInventedPrices,
   stripStalePriceTalk,
 } from "./price-guard.js";
+import { buildCatalogPriceAnswer } from "./services/catalogService.js";
 import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
@@ -972,7 +974,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId, pending }, "GUARD: precio sin catálogo — Alejandro cotiza");
     } else {
       const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText);
-      mensaje = mergeWithPendingQuestion(safe, filledSet, extracted, ctx);
+      let priceContent = safe;
+      if (!messageClaimsPrice(safe)) {
+        const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+        if (fromCatalog) priceContent = fromCatalog;
+      }
+      mensaje = mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx);
       log?.info({ entityId }, "GUARD: respuesta a precio con catálogo");
     }
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {

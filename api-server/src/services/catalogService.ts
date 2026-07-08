@@ -212,3 +212,64 @@ export function startCatalogAutoRefresh(): void {
 export function getCatalogPromptBlockSync(): string {
   return snapshot?.promptBlock ?? CATALOGO_BODASESOR;
 }
+
+function normalizeForMatch(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .trim();
+}
+
+function queryTokens(query: string): string[] {
+  const stop =
+    /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando)$/;
+  return normalizeForMatch(query)
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 3 && !stop.test(t));
+}
+
+/** Busca filas del Sheet que coincidan con la pregunta del cliente. */
+export function lookupCatalogPrices(query: string): SheetCatalogRow[] {
+  if (!snapshot?.rows.length) return [];
+  const tokens = queryTokens(query);
+  if (!tokens.length) return [];
+
+  return snapshot.rows.filter((row) => {
+    if (!row.tienePrecio || !row.precio) return false;
+    const haystack = normalizeForMatch(`${row.servicio} ${row.categoria}`);
+    return tokens.some((token) => haystack.includes(token));
+  });
+}
+
+/** Respuesta corta con precios reales del Sheet (si existen). */
+export function buildCatalogPriceAnswer(query: string): string | null {
+  const matches = lookupCatalogPrices(query);
+  if (!matches.length) return null;
+
+  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
+  const baseName = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || unique[0]!.servicio;
+  const gammaLink = unique.find((r) => /Catálogo:\s*https?:/i.test(r.notas))?.notas.match(
+    /Catálogo:\s*(https?:\S+)/
+  )?.[1];
+
+  if (unique.length === 1) {
+    const row = unique[0]!;
+    const unit = row.unidad ? ` ${row.unidad}` : "";
+    let msg = `Sí, manejamos ${baseName}. ${row.servicio} desde ${row.precio}${unit}.`;
+    if (gammaLink) msg += ` Catálogo: ${gammaLink}`;
+    return msg;
+  }
+
+  const options = unique
+    .slice(0, 6)
+    .map((row) => {
+      const unit = row.unidad ? ` ${row.unidad}` : "";
+      return `• ${row.servicio}: ${row.precio}${unit}`;
+    })
+    .join("\n");
+
+  let msg = `Sí, manejamos ${baseName}. Opciones en catálogo:\n${options}`;
+  if (gammaLink) msg += `\n\nCatálogo visual: ${gammaLink}`;
+  return msg;
+}

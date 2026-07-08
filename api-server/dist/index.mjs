@@ -78830,6 +78830,49 @@ function startCatalogAutoRefresh() {
 function getCatalogPromptBlockSync() {
   return snapshot?.promptBlock ?? CATALOGO_BODASESOR;
 }
+function normalizeForMatch(value) {
+  return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").trim();
+}
+function queryTokens(query) {
+  const stop2 = /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando)$/;
+  return normalizeForMatch(query).split(/[^a-z0-9]+/).filter((t) => t.length >= 3 && !stop2.test(t));
+}
+function lookupCatalogPrices(query) {
+  if (!snapshot?.rows.length) return [];
+  const tokens = queryTokens(query);
+  if (!tokens.length) return [];
+  return snapshot.rows.filter((row) => {
+    if (!row.tienePrecio || !row.precio) return false;
+    const haystack = normalizeForMatch(`${row.servicio} ${row.categoria}`);
+    return tokens.some((token) => haystack.includes(token));
+  });
+}
+function buildCatalogPriceAnswer(query) {
+  const matches = lookupCatalogPrices(query);
+  if (!matches.length) return null;
+  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
+  const baseName = unique[0].categoria || unique[0].servicio.split(" (")[0] || unique[0].servicio;
+  const gammaLink = unique.find((r2) => /Catálogo:\s*https?:/i.test(r2.notas))?.notas.match(
+    /Catálogo:\s*(https?:\S+)/
+  )?.[1];
+  if (unique.length === 1) {
+    const row = unique[0];
+    const unit = row.unidad ? ` ${row.unidad}` : "";
+    let msg2 = `S\xED, manejamos ${baseName}. ${row.servicio} desde ${row.precio}${unit}.`;
+    if (gammaLink) msg2 += ` Cat\xE1logo: ${gammaLink}`;
+    return msg2;
+  }
+  const options = unique.slice(0, 6).map((row) => {
+    const unit = row.unidad ? ` ${row.unidad}` : "";
+    return `\u2022 ${row.servicio}: ${row.precio}${unit}`;
+  }).join("\n");
+  let msg = `S\xED, manejamos ${baseName}. Opciones en cat\xE1logo:
+${options}`;
+  if (gammaLink) msg += `
+
+Cat\xE1logo visual: ${gammaLink}`;
+  return msg;
+}
 
 // src/routes/health.ts
 var router = (0, import_express.Router)();
@@ -80818,7 +80861,12 @@ ${buildNaturalQuestion(pending, ctx)}` : priceReply;
       log?.info({ entityId, pending }, "GUARD: precio sin cat\xE1logo \u2014 Alejandro cotiza");
     } else {
       const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText2);
-      mensaje = mergeWithPendingQuestion(safe, filledSet, extracted, ctx);
+      let priceContent = safe;
+      if (!messageClaimsPrice(safe)) {
+        const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+        if (fromCatalog) priceContent = fromCatalog;
+      }
+      mensaje = mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx);
       log?.info({ entityId }, "GUARD: respuesta a precio con cat\xE1logo");
     }
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
