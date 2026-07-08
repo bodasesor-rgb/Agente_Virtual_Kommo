@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
-import { getCatalogPromptBlock, injectCatalogPriceIfAsked } from "../services/catalogService.js";
+import { getCatalogPromptBlock, injectCatalogPriceIfAsked, buildCatalogPriceAnswer } from "../services/catalogService.js";
 import { getTrainingExamples } from "../lib/training.js";
 import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
@@ -20,6 +20,7 @@ import {
   isLegacyStoredLucyResponse,
   parseNombreFromCrmLines,
 } from "../lucy-flow-guards.js";
+import { clientAsksPrice } from "../price-guard.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { calculateLeadScore, detectStage } from "../services/leadScoring.js";
@@ -2332,6 +2333,11 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       stage_id,
       lead_updates,
       all_fields_filled: allFieldsFilled,
+      catalog_debug: {
+        asks_price: clientAsksPrice(messageText),
+        catalog_answer: buildCatalogPriceAnswer(messageText)?.slice(0, 120) ?? null,
+        pre_guard: injectCatalogPriceIfAsked(messageText, "(probe)").slice(0, 80),
+      },
     });
   } catch (err) {
     log.error({ err }, "Simulator: processing error");

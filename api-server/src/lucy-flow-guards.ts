@@ -18,7 +18,6 @@ import {
   stripStalePriceTalk,
 } from "./price-guard.js";
 import { buildCatalogPriceAnswer } from "./services/catalogService.js";
-import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
   inferLucyAskedField,
@@ -993,7 +992,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
   } else if (needsNextStep) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    mensaje = nextQ ?? aiResponse;
+    if (clientAsksPrice(currentMessage)) {
+      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+      if (fromCatalog && nextQ) {
+        mensaje = `${fromCatalog}\n\n${nextQ}`;
+      } else if (fromCatalog) {
+        mensaje = fromCatalog;
+      } else {
+        mensaje = nextQ ?? aiResponse;
+      }
+    } else {
+      mensaje = nextQ ?? aiResponse;
+    }
     if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (semántico)");
   } else if (
     trulyReadyForClosing &&
