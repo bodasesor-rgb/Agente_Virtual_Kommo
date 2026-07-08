@@ -1017,9 +1017,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     } else {
       const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText);
       let priceContent = safe;
-      if (!messageClaimsPrice(safe)) {
-        const fromCatalog = buildCatalogPriceAnswer(currentMessage);
-        if (fromCatalog) priceContent = fromCatalog;
+      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+      if (fromCatalog && mentionsListedPriceService(currentMessage)) {
+        priceContent = fromCatalog;
+      } else if (!messageClaimsPrice(safe) && fromCatalog) {
+        priceContent = fromCatalog;
       }
       mensaje = needsNextStep
         ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx)
@@ -1159,6 +1161,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (
+    clientAsksPrice(currentMessage) &&
+    mentionsListedPriceService(currentMessage)
+  ) {
+    const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+    if (fromCatalog) {
+      const pendingFinal = getNextPendingField(extracted, filledSet);
+      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+        mensaje = `${fromCatalog}\n\n${buildNaturalQuestion(pendingFinal, ctx)}`;
+      } else {
+        mensaje = fromCatalog;
+      }
+      log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
+    }
+  } else if (
     clientAsksPrice(currentMessage) &&
     !messageClaimsPrice(mensaje) &&
     !mentionsNoListedPriceService(currentMessage)

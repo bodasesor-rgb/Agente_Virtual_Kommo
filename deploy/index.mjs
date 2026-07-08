@@ -79093,8 +79093,9 @@ function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
 function injectCatalogPriceIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim()) return aiResponse;
   if (!clientAsksPrice(clientMessage)) return aiResponse;
-  if (messageClaimsPrice(aiResponse)) return aiResponse;
   const fromCatalog = buildCatalogPriceAnswer(clientMessage);
+  if (fromCatalog && mentionsListedPriceService(clientMessage)) return fromCatalog;
+  if (messageClaimsPrice(aiResponse)) return aiResponse;
   if (fromCatalog) return fromCatalog;
   if (mentionsNoListedPriceService(clientMessage) && !mentionsListedPriceService(clientMessage)) {
     return aiResponse;
@@ -81135,9 +81136,11 @@ ${buildNaturalQuestion(pending, ctx)}` : priceReply;
     } else {
       const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText2);
       let priceContent = safe;
-      if (!messageClaimsPrice(safe)) {
-        const fromCatalog = buildCatalogPriceAnswer(currentMessage);
-        if (fromCatalog) priceContent = fromCatalog;
+      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+      if (fromCatalog && mentionsListedPriceService(currentMessage)) {
+        priceContent = fromCatalog;
+      } else if (!messageClaimsPrice(safe) && fromCatalog) {
+        priceContent = fromCatalog;
       }
       mensaje = needsNextStep ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx) : priceContent.trim() || aiResponse;
       log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con cat\xE1logo");
@@ -81253,7 +81256,20 @@ ${nextQ}`;
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     }
   }
-  if (clientAsksPrice(currentMessage) && !messageClaimsPrice(mensaje) && !mentionsNoListedPriceService(currentMessage)) {
+  if (clientAsksPrice(currentMessage) && mentionsListedPriceService(currentMessage)) {
+    const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+    if (fromCatalog) {
+      const pendingFinal = getNextPendingField(extracted, filledSet);
+      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+        mensaje = `${fromCatalog}
+
+${buildNaturalQuestion(pendingFinal, ctx)}`;
+      } else {
+        mensaje = fromCatalog;
+      }
+      log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
+    }
+  } else if (clientAsksPrice(currentMessage) && !messageClaimsPrice(mensaje) && !mentionsNoListedPriceService(currentMessage)) {
     const fromCatalog = buildCatalogPriceAnswer(currentMessage);
     if (fromCatalog) {
       const pendingFinal = getNextPendingField(extracted, filledSet);

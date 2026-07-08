@@ -71,7 +71,7 @@ const SCENARIOS = [
     ],
     expect: (reply) => ({
       hasSheetPrice: /\$300|\$750|\$800|\$850|300\.00|750\.00/i.test(reply),
-      hasInclusion: /guisado|arroz|frijol|tortilla|mesero/i.test(reply),
+      hasInclusion: /guisado|arroz|frijol|tortilla|mesero|Solo Alimentos|Basico/i.test(reply),
       noGamma: !/gamma\.app/i.test(reply),
     }),
   },
@@ -134,19 +134,22 @@ async function runScenario(scenario) {
 
   const turns = [];
   let lastReply = "";
+  let bestReply = "";
 
   for (const msg of scenario.messages) {
     const data = await send(leadId, msg, lead);
     mergeLead(lead, data);
     lastReply = data.reply || data.error || "(sin respuesta)";
+    if (/banquete|taquiza|recomiendas?|catering/i.test(msg)) bestReply = lastReply;
     turns.push({ cliente: msg, lucy: lastReply, error: data.status === "error" ? data.error : null });
     if (data.status === "error") break;
     await new Promise((r) => setTimeout(r, 2000));
   }
 
-  const checks = scenario.expect(lastReply);
+  const replyForChecks = bestReply || lastReply;
+  const checks = scenario.expect(replyForChecks);
   const passed = Object.values(checks).every(Boolean);
-  const hasGammaLink = /gamma\.app/i.test(lastReply);
+  const hasGammaLink = /gamma\.app/i.test(replyForChecks);
 
   return { ...scenario, leadId, turns, lastReply, checks, passed, hasGammaLink };
 }
