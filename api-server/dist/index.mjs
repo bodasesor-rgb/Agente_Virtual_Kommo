@@ -78873,6 +78873,16 @@ ${options}`;
 Cat\xE1logo visual: ${gammaLink}`;
   return msg;
 }
+function injectCatalogPriceIfAsked(clientMessage, aiResponse) {
+  if (!clientMessage?.trim()) return aiResponse;
+  if (!clientAsksPrice(clientMessage)) return aiResponse;
+  if (mentionsNoListedPriceService(clientMessage) && !mentionsListedPriceService(clientMessage)) {
+    return aiResponse;
+  }
+  if (messageClaimsPrice(aiResponse)) return aiResponse;
+  const fromCatalog = buildCatalogPriceAnswer(clientMessage);
+  return fromCatalog ?? aiResponse;
+}
 
 // src/routes/health.ts
 var router = (0, import_express.Router)();
@@ -87604,6 +87614,7 @@ async function processBatch(batch, accessToken, log) {
       objectionType: objectionResult.type
     });
     let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+    aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
     if (batch.isVoice) {
       const clientName = sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? sanitizeDisplayName(conversation.clientName) ?? void 0;
       const voiceAck = getVoiceAcknowledgment(clientName ?? void 0);
@@ -88027,6 +88038,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
       isFirstInteraction
     });
     let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+    aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
     const sbCierreYaEnviado = history.some(
       (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
@@ -88400,6 +88412,7 @@ router3.post("/kommo/simulator", async (req, res) => {
       isFirstInteraction
     });
     let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+    aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
     const simCierreYaEnviado = history.some(
       (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
     );

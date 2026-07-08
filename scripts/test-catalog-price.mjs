@@ -13,15 +13,12 @@ const snapshot = `- Nombre del cliente: Carlos
 - Dirección del evento: CDMX
 - Fecha y horario: 20 de septiembre de 2026`;
 
-async function main() {
-  const catalog = await fetch(`${BASE}/api/catalog/status`).then((r) => r.json());
-  console.log("Catalog:", catalog.catalog?.sources);
-
+async function send(text, extra = {}) {
   const res = await fetch(`${BASE}/api/kommo/simulator`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      text: "¿cuánto cuesta la taquiza por persona?",
+      text,
       lead_id: leadId,
       lead: {
         id: leadId,
@@ -34,11 +31,28 @@ async function main() {
           cf_tipo_evento: "bautizo",
           cf_direccion: "CDMX",
           cf_fecha_horario: "20 sep 2026",
+          ...extra,
         },
       },
     }),
   });
-  const data = await res.json();
+  return res.json();
+}
+
+async function main() {
+  const catalog = await fetch(`${BASE}/api/catalog/status`).then((r) => r.json());
+  console.log("Catalog:", catalog.catalog?.sources);
+
+  await fetch(`${BASE}/api/kommo/simulator/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ lead_id: leadId }),
+  });
+
+  await send("Hola");
+  await new Promise((r) => setTimeout(r, 1500));
+
+  const data = await send("¿cuánto cuesta la taquiza por persona?");
   const reply = data.reply || data.error;
   console.log("\nLucy:", reply);
 

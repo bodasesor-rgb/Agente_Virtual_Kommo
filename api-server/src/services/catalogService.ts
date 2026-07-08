@@ -2,7 +2,13 @@
  * Catálogo unificado para Lucy — Google Sheets + Gamma + fallback estático.
  */
 import { CATALOGO_BODASESOR } from "../catalogo.js";
-import { setCatalogPriceIndex } from "../price-guard.js";
+import {
+  clientAsksPrice,
+  mentionsListedPriceService,
+  mentionsNoListedPriceService,
+  messageClaimsPrice,
+  setCatalogPriceIndex,
+} from "../price-guard.js";
 import {
   buildSheetsCsvUrl,
   buildSheetsTextCsvUrl,
@@ -272,4 +278,19 @@ export function buildCatalogPriceAnswer(query: string): string | null {
   let msg = `Sí, manejamos ${baseName}. Opciones en catálogo:\n${options}`;
   if (gammaLink) msg += `\n\nCatálogo visual: ${gammaLink}`;
   return msg;
+}
+
+/** Si el cliente preguntó precio, sustituye la respuesta GPT por tarifas del Sheet. */
+export function injectCatalogPriceIfAsked(
+  clientMessage: string | undefined,
+  aiResponse: string
+): string {
+  if (!clientMessage?.trim()) return aiResponse;
+  if (!clientAsksPrice(clientMessage)) return aiResponse;
+  if (mentionsNoListedPriceService(clientMessage) && !mentionsListedPriceService(clientMessage)) {
+    return aiResponse;
+  }
+  if (messageClaimsPrice(aiResponse)) return aiResponse;
+  const fromCatalog = buildCatalogPriceAnswer(clientMessage);
+  return fromCatalog ?? aiResponse;
 }
