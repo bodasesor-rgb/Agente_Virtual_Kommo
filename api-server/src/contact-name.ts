@@ -17,6 +17,24 @@ const PLACEHOLDER_PATTERNS = [
   /^\d+$/,
 ];
 
+/** Saludos y frases que NO son nombres de persona. */
+const GREETING_NAME_PATTERN =
+  /^(hola|hello|hi|hey|buenos?|buenas?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza)$/i;
+
+/** Mensaje del cliente que es solo saludo o pedido genérico (no es su nombre). */
+export function isGreetingOnlyMessage(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (/^soy\s+/i.test(t)) return false;
+  return (
+    /^hola[.!?\s,]*$/i.test(t) ||
+    /^buen(os|as)?\s*(d[ií]as|tardes|noches)?[.!?\s,]*$/i.test(t) ||
+    /^qu[eé]\s*tal[.!?\s,]*$/i.test(t) ||
+    /^buenas?[.!?\s,]*$/i.test(t) ||
+    /^saludos?[.!?\s,]*$/i.test(t)
+  );
+}
+
 export function isPlaceholderLeadName(name: string | null | undefined): boolean {
   const trimmed = name?.trim() ?? "";
   if (!trimmed) return true;
@@ -42,6 +60,7 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   const firstName = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
   if (!firstName || firstName.length < 2) return null;
   if (/^\d+$/.test(firstName)) return null;
+  if (GREETING_NAME_PATTERN.test(firstName)) return null;
 
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }

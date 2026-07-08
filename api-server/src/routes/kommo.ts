@@ -28,6 +28,7 @@ import { buildDynamicPrompt } from "../services/promptBuilder.js";
 import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcessor.js";
 import { generateSummary, enrichExtractedFromText } from "../services/summaryService.js";
 import {
+  isGreetingOnlyMessage,
   isPlaceholderLeadName,
   sanitizeDisplayName,
 } from "../contact-name.js";
@@ -574,8 +575,12 @@ function buildCrmContext(
       .filter((m) => m.role === "assistant" && typeof m.content === "string")
       .slice(-1)[0]?.content as string | undefined ?? "";
 
-    // Primer mensaje del lead: el cliente puede enviar solo su nombre
-    if (!filledSet.has("Nombre del cliente") && !history.some((m) => m.role === "assistant")) {
+    // Primer mensaje: no confundir "Hola" u otro saludo con el nombre del cliente
+    if (
+      !filledSet.has("Nombre del cliente") &&
+      !history.some((m) => m.role === "assistant") &&
+      !isGreetingOnlyMessage(msg)
+    ) {
       const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
       const candidato = soyMatch ? soyMatch[1].trim() : msg;
       const nombreDirecto = sanitizeDisplayName(candidato);

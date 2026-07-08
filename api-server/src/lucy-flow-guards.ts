@@ -1,6 +1,10 @@
 import type { OpenAI } from "openai";
 import type { ExtractedData } from "./types.js";
-import { resolveClientDisplayName, sanitizeDisplayName } from "./contact-name.js";
+import {
+  isGreetingOnlyMessage,
+  resolveClientDisplayName,
+  sanitizeDisplayName,
+} from "./contact-name.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 export const BODASESOR_EMAIL = "hola@bodasesor.com";
@@ -169,8 +173,14 @@ function hasTipoEvento(filledSet: Set<string>, extracted: ExtractedData): boolea
   return filledSet.has("Tipo de evento") || !!(extracted.tipo_evento?.trim());
 }
 
-function getDisplayName(extracted: ExtractedData, whatsappName?: string | null): string {
-  return resolveClientDisplayName(extracted.nombre, null, whatsappName) ?? "ti";
+function getDisplayName(extracted: ExtractedData, whatsappName?: string | null): string | null {
+  return resolveClientDisplayName(extracted.nombre, null, whatsappName);
+}
+
+function lucyHasPresented(history: OpenAI.Chat.ChatCompletionMessageParam[]): boolean {
+  return history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .some((m) => /hola,\s*soy\s+lucy\s+de\s+bodasesor/i.test(m.content as string));
 }
 
 function variantIndex(
@@ -353,9 +363,10 @@ export function buildFirstInteractionMessage(ctx: NaturalQuestionContext): strin
       return `${LUCY_INTRO} ${ack} ${buildCorreoQuestion(nombre, history, ctx.entityId)}`;
     }
     if (pending) {
-      return `${LUCY_INTRO} ${ack} Mucho gusto, ${nombre}. ${buildNaturalQuestion(pending, ctx)}`;
+      const greet = nombre ? `Mucho gusto, ${nombre}. ` : "";
+      return `${LUCY_INTRO} ${ack} ${greet}${buildNaturalQuestion(pending, ctx)}`;
     }
-    return `${LUCY_INTRO} ${ack} Mucho gusto, ${nombre}.`;
+    return nombre ? `${LUCY_INTRO} ${ack} Mucho gusto, ${nombre}.` : `${LUCY_INTRO} ${ack}`;
   }
 
   const nameQ = pickVariant("nombre", history, ctx.entityId);
@@ -381,13 +392,20 @@ export function enforceNombreFirst(
 ): string {
   const history = ctx.history ?? [];
 
-  if (forceFirstPresentation || isFirstLucyReply(history) || usesLegacyLucyIntro(_mensaje)) {
-    if (!isFieldSatisfied("nombre", filledSet, extracted) || forceFirstPresentation || usesLegacyLucyIntro(_mensaje)) {
-      return buildFirstInteractionMessage(ctx);
-    }
+  const needsPresentation =
+    forceFirstPresentation ||
+    isFirstLucyReply(history) ||
+    !lucyHasPresented(history) ||
+    usesLegacyLucyIntro(_mensaje);
+
+  if (needsPresentation && !isFieldSatisfied("nombre", filledSet, extracted)) {
+    return buildFirstInteractionMessage(ctx);
   }
 
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
+    if (!lucyHasPresented(history)) {
+      return buildFirstInteractionMessage(ctx);
+    }
     return buildNaturalQuestion("nombre", ctx);
   }
   return _mensaje;
@@ -540,7 +558,7 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
 
   if (field === "correo") {
     const correoCore = pickVariant("correo", history, ctx.entityId);
-    return `Mucho gusto, ${nombre}. ${correoCore}`;
+    return nombre ? `Mucho gusto, ${nombre}. ${correoCore}` : correoCore;
   }
 
   if (field === "requerimientos") {
@@ -596,12 +614,13 @@ export function requerimientosNeedsFollowUp(
 }
 
 export function buildCorreoQuestion(
-  nombre: string,
+  nombre: string | null,
   history: OpenAI.Chat.ChatCompletionMessageParam[] = [],
   entityId?: string | number
 ): string {
   const correoCore = pickVariant("correo", history, entityId);
-  return `Mucho gusto, ${nombre}. ${correoCore}`;
+  if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
+  return correoCore;
 }
 
 export function buildRequerimientosFollowUp(

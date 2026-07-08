@@ -61123,6 +61123,13 @@ var PLACEHOLDER_PATTERNS = [
   /^cliente$/i,
   /^\d+$/
 ];
+var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buenos?|buenas?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza)$/i;
+function isGreetingOnlyMessage(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return false;
+  if (/^soy\s+/i.test(t)) return false;
+  return /^hola[.!?\s,]*$/i.test(t) || /^buen(os|as)?\s*(d[ií]as|tardes|noches)?[.!?\s,]*$/i.test(t) || /^qu[eé]\s*tal[.!?\s,]*$/i.test(t) || /^buenas?[.!?\s,]*$/i.test(t) || /^saludos?[.!?\s,]*$/i.test(t);
+}
 function isPlaceholderLeadName(name2) {
   const trimmed = name2?.trim() ?? "";
   if (!trimmed) return true;
@@ -61139,6 +61146,7 @@ function sanitizeDisplayName(name2) {
   const firstName = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
   if (!firstName || firstName.length < 2) return null;
   if (/^\d+$/.test(firstName)) return null;
+  if (GREETING_NAME_PATTERN.test(firstName)) return null;
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
@@ -61270,7 +61278,10 @@ function hasTipoEvento(filledSet, extracted) {
   return filledSet.has("Tipo de evento") || !!extracted.tipo_evento?.trim();
 }
 function getDisplayName(extracted, whatsappName) {
-  return resolveClientDisplayName(extracted.nombre, null, whatsappName) ?? "ti";
+  return resolveClientDisplayName(extracted.nombre, null, whatsappName);
+}
+function lucyHasPresented(history) {
+  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").some((m4) => /hola,\s*soy\s+lucy\s+de\s+bodasesor/i.test(m4.content));
 }
 function variantIndex(field, history, entityId) {
   const variants = QUESTION_VARIANTS[field];
@@ -61384,9 +61395,10 @@ function buildFirstInteractionMessage(ctx) {
       return `${LUCY_INTRO} ${ack} ${buildCorreoQuestion(nombre, history, ctx.entityId)}`;
     }
     if (pending) {
-      return `${LUCY_INTRO} ${ack} Mucho gusto, ${nombre}. ${buildNaturalQuestion(pending, ctx)}`;
+      const greet = nombre ? `Mucho gusto, ${nombre}. ` : "";
+      return `${LUCY_INTRO} ${ack} ${greet}${buildNaturalQuestion(pending, ctx)}`;
     }
-    return `${LUCY_INTRO} ${ack} Mucho gusto, ${nombre}.`;
+    return nombre ? `${LUCY_INTRO} ${ack} Mucho gusto, ${nombre}.` : `${LUCY_INTRO} ${ack}`;
   }
   const nameQ = pickVariant("nombre", history, ctx.entityId);
   return `${LUCY_INTRO} ${ack} ${nameQ}`;
@@ -61399,12 +61411,14 @@ function isLegacyStoredLucyResponse(text2) {
 }
 function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPresentation = false) {
   const history = ctx.history ?? [];
-  if (forceFirstPresentation || isFirstLucyReply(history) || usesLegacyLucyIntro(_mensaje)) {
-    if (!isFieldSatisfied("nombre", filledSet, extracted) || forceFirstPresentation || usesLegacyLucyIntro(_mensaje)) {
-      return buildFirstInteractionMessage(ctx);
-    }
+  const needsPresentation = forceFirstPresentation || isFirstLucyReply(history) || !lucyHasPresented(history) || usesLegacyLucyIntro(_mensaje);
+  if (needsPresentation && !isFieldSatisfied("nombre", filledSet, extracted)) {
+    return buildFirstInteractionMessage(ctx);
   }
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
+    if (!lucyHasPresented(history)) {
+      return buildFirstInteractionMessage(ctx);
+    }
     return buildNaturalQuestion("nombre", ctx);
   }
   return _mensaje;
@@ -61497,7 +61511,7 @@ function buildNaturalQuestion(field, ctx) {
   const variant = pickVariant(field, history, ctx.entityId);
   if (field === "correo") {
     const correoCore = pickVariant("correo", history, ctx.entityId);
-    return `Mucho gusto, ${nombre}. ${correoCore}`;
+    return nombre ? `Mucho gusto, ${nombre}. ${correoCore}` : correoCore;
   }
   if (field === "requerimientos") {
     return buildRequerimientosQuestion(ctx.extracted, history, ctx.currentMessage, ctx.entityId);
@@ -61533,7 +61547,8 @@ function requerimientosNeedsFollowUp(extracted, filledSet) {
 }
 function buildCorreoQuestion(nombre, history = [], entityId) {
   const correoCore = pickVariant("correo", history, entityId);
-  return `Mucho gusto, ${nombre}. ${correoCore}`;
+  if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
+  return correoCore;
 }
 function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId) {
   const ctx = {
@@ -80962,7 +80977,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   if (currentMessage && currentMessage.trim()) {
     const msg = currentMessage.trim();
     const lastLucy = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content ?? "";
-    if (!filledSet.has("Nombre del cliente") && !history.some((m4) => m4.role === "assistant")) {
+    if (!filledSet.has("Nombre del cliente") && !history.some((m4) => m4.role === "assistant") && !isGreetingOnlyMessage(msg)) {
       const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
       const candidato = soyMatch ? soyMatch[1].trim() : msg;
       const nombreDirecto = sanitizeDisplayName(candidato);
