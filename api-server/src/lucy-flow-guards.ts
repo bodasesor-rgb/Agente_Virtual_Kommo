@@ -17,7 +17,11 @@ import {
   sanitizeInventedPrices,
   stripStalePriceTalk,
 } from "./price-guard.js";
-import { buildCatalogPriceAnswer } from "./services/catalogService.js";
+import {
+  buildCatalogPriceAnswer,
+  buildCatalogInclusionAnswer,
+  clientAsksInclusion,
+} from "./services/catalogService.js";
 import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
@@ -1131,6 +1135,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         mensaje = fromCatalog;
       }
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
+    }
+  } else if (clientAsksInclusion(currentMessage)) {
+    const inclusionAnswer = buildCatalogInclusionAnswer(currentMessage);
+    if (inclusionAnswer) {
+      const pendingFinal = getNextPendingField(extracted, filledSet);
+      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+        mensaje = `${inclusionAnswer}\n\n${buildNaturalQuestion(pendingFinal, ctx)}`;
+      } else {
+        mensaje = inclusionAnswer;
+      }
+      log?.info({ entityId }, "GUARD: inclusiones del Sheet aplicadas al cierre");
     }
   }
 

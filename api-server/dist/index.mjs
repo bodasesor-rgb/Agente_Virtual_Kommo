@@ -78566,6 +78566,58 @@ function sheetRowsToMarkdown(rows) {
   }
   return lines.join("\n").trim();
 }
+function formatInclusionForWhatsApp(text2, maxLen = 420) {
+  let cleaned = text2.replace(/\s+/g, " ").replace(/ incluido\s+/gi, ". ").replace(/ servicio base incluye:/gi, " Incluye:").replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚ])/g, "$1. $2").trim();
+  if (cleaned.length > maxLen) {
+    cleaned = `${cleaned.slice(0, maxLen - 1).trim()}\u2026`;
+  }
+  return cleaned;
+}
+function parseRowNotes(notas) {
+  const result = { inclusion: "", minimo: "", gammaLink: "", extras: "" };
+  if (!notas?.trim()) return result;
+  for (const part of notas.split("|").map((s4) => s4.trim())) {
+    if (!part) continue;
+    if (/^cat[aá]logo:\s*https?:/i.test(part)) {
+      result.gammaLink = part.replace(/^cat[aá]logo:\s*/i, "").trim();
+    } else if (/^m[ií]nimo de salida:/i.test(part)) {
+      result.minimo = part.replace(/^m[ií]nimo de salida:\s*/i, "").trim();
+    } else if (/^extras:/i.test(part)) {
+      result.extras = part.replace(/^extras:\s*/i, "").trim();
+    } else if (!result.inclusion) {
+      result.inclusion = formatInclusionForWhatsApp(part);
+    } else {
+      result.inclusion = formatInclusionForWhatsApp(`${result.inclusion} ${part}`);
+    }
+  }
+  if (result.extras) {
+    const extraText = formatInclusionForWhatsApp(result.extras, 180);
+    result.inclusion = result.inclusion ? `${result.inclusion} Extras: ${extraText}` : `Extras: ${extraText}`;
+  }
+  return result;
+}
+function sheetRowsToGammaIndex(rows) {
+  const byService = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const parsed = parseRowNotes(row.notas);
+    if (!parsed.gammaLink) continue;
+    const base = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+    if (!byService.has(base)) byService.set(base, parsed.gammaLink);
+  }
+  if (!byService.size) return "";
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "CAT\xC1LOGOS GAMMA POR SERVICIO (men\xFAs, niveles, detalle visual)",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "",
+    "Usa estos enlaces cuando el cliente pida men\xFA, detalle por nivel o qu\xE9 incluye cada paquete.",
+    ""
+  ];
+  for (const [service, link] of byService) {
+    lines.push(`\u2022 ${service}: ${link}`);
+  }
+  return lines.join("\n").trim();
+}
 
 // src/services/gammaCatalog.ts
 var GAMMA_API_BASE = "https://public-api.gamma.app/v1.0";
@@ -78760,7 +78812,7 @@ async function refreshCatalog(force = false) {
         const csv = await fetchCsvText(sheetsUrl);
         rows = parseSheetCatalogCsv(csv);
         if (rows.length) {
-          sheetsMd = sheetRowsToMarkdown(rows);
+          sheetsMd = [sheetRowsToMarkdown(rows), sheetRowsToGammaIndex(rows)].filter(Boolean).join("\n\n");
           status.sources.sheets = true;
           status.sources.sheetsRows = rows.length;
         }
@@ -78847,31 +78899,97 @@ function lookupCatalogPrices(query) {
     return tokens.some((token) => haystack.includes(token));
   });
 }
+function lookupCatalogServices(query) {
+  if (!snapshot?.rows.length) return [];
+  const tokens = queryTokens(query);
+  if (!tokens.length) return [];
+  return snapshot.rows.filter((row) => {
+    const haystack = normalizeForMatch(`${row.servicio} ${row.categoria}`);
+    return tokens.some((token) => haystack.includes(token));
+  });
+}
+function extractNivelLabel(servicio) {
+  const match = servicio.match(/\(([^)]+)\)\s*$/);
+  return match?.[1]?.trim() || servicio;
+}
+function pickGammaLink(rows) {
+  return rows.map((row) => parseRowNotes(row.notas).gammaLink).find(Boolean);
+}
+function buildInclusionBlock(rows, maxPerLevel = 220) {
+  const inclusionByLevel = rows.map((row) => ({
+    nivel: extractNivelLabel(row.servicio),
+    inclusion: parseRowNotes(row.notas).inclusion
+  }));
+  const uniqueTexts = [...new Set(inclusionByLevel.map((r2) => r2.inclusion).filter(Boolean))];
+  if (!uniqueTexts.length) return "";
+  if (uniqueTexts.length === 1) {
+    return `
+
+*Incluye:* ${uniqueTexts[0]}`;
+  }
+  const lines = inclusionByLevel.filter((r2) => r2.inclusion).slice(0, 5).map(
+    (r2) => `\u2022 *${r2.nivel}:* ${r2.inclusion.slice(0, maxPerLevel)}${r2.inclusion.length > maxPerLevel ? "\u2026" : ""}`
+  );
+  return lines.length ? `
+
+*Qu\xE9 incluye cada nivel:*
+${lines.join("\n")}` : "";
+}
+function clientAsksInclusion(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b/i.test(
+    t
+  ) && !/\bcu[aá]nto\s+cuesta|\bprecio\b/i.test(t);
+}
+function buildCatalogInclusionAnswer(query) {
+  const matches = lookupCatalogServices(query);
+  if (!matches.length) return null;
+  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
+  const baseName = unique[0].categoria || unique[0].servicio.split(" (")[0] || unique[0].servicio;
+  const gammaLink = pickGammaLink(unique);
+  const blocks = unique.slice(0, 5).map((row) => {
+    const parsed = parseRowNotes(row.notas);
+    const nivel = extractNivelLabel(row.servicio);
+    const price = row.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? `, m\xEDn. ${parsed.minimo}` : ""}` : "";
+    const inclusion = parsed.inclusion || "Consulta el cat\xE1logo visual para el detalle completo.";
+    return `*${nivel}*${price}
+${inclusion}`;
+  });
+  let msg = `Te comparto qu\xE9 incluye *${baseName}*:
+
+${blocks.join("\n\n")}`;
+  if (gammaLink) {
+    msg += `
+
+\u{1F4CE} Men\xFA y detalle visual por nivel: ${gammaLink}`;
+  }
+  return msg;
+}
 function buildCatalogPriceAnswer(query) {
   const matches = lookupCatalogPrices(query);
   if (!matches.length) return null;
   const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
   const baseName = unique[0].categoria || unique[0].servicio.split(" (")[0] || unique[0].servicio;
-  const gammaLink = unique.find((r2) => /Catálogo:\s*https?:/i.test(r2.notas))?.notas.match(
-    /Catálogo:\s*(https?:\S+)/
-  )?.[1];
-  if (unique.length === 1) {
-    const row = unique[0];
+  const gammaLink = pickGammaLink(unique);
+  const priceLines = unique.slice(0, 6).map((row) => {
+    const parsed = parseRowNotes(row.notas);
+    const nivel = extractNivelLabel(row.servicio);
     const unit = row.unidad ? ` ${row.unidad}` : "";
-    let msg2 = `S\xED, manejamos ${baseName}. ${row.servicio} desde ${row.precio}${unit}.`;
-    if (gammaLink) msg2 += ` Cat\xE1logo: ${gammaLink}`;
-    return msg2;
-  }
-  const options = unique.slice(0, 6).map((row) => {
-    const unit = row.unidad ? ` ${row.unidad}` : "";
-    return `\u2022 ${row.servicio}: ${row.precio}${unit}`;
+    const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
+    return `\u2022 *${nivel}* \u2014 ${row.precio}${unit}${min}`;
   }).join("\n");
-  let msg = `S\xED, manejamos ${baseName}. Opciones en cat\xE1logo:
-${options}`;
-  if (gammaLink) msg += `
+  const inclusionBlock = buildInclusionBlock(unique, 280);
+  const gammaBlock = gammaLink ? `
 
-Cat\xE1logo visual: ${gammaLink}`;
-  return msg;
+\u{1F4CE} Cat\xE1logo con men\xFAs y detalle por nivel: ${gammaLink}` : "";
+  return `S\xED, manejamos ${baseName}:
+
+${priceLines}${inclusionBlock}${gammaBlock}`;
+}
+function injectCatalogInclusionIfAsked(clientMessage, aiResponse) {
+  if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
+  return buildCatalogInclusionAnswer(clientMessage) ?? aiResponse;
 }
 function injectCatalogPriceIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim()) return aiResponse;
@@ -81003,6 +81121,19 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
         mensaje = fromCatalog;
       }
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
+    }
+  } else if (clientAsksInclusion(currentMessage)) {
+    const inclusionAnswer = buildCatalogInclusionAnswer(currentMessage);
+    if (inclusionAnswer) {
+      const pendingFinal = getNextPendingField(extracted, filledSet);
+      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+        mensaje = `${inclusionAnswer}
+
+${buildNaturalQuestion(pendingFinal, ctx)}`;
+      } else {
+        mensaje = inclusionAnswer;
+      }
+      log?.info({ entityId }, "GUARD: inclusiones del Sheet aplicadas al cierre");
     }
   }
   return mensaje;
@@ -87642,6 +87773,7 @@ async function processBatch(batch, accessToken, log) {
       objectionType: objectionResult.type
     });
     let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+    aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
     if (batch.isVoice) {
       const clientName = sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? sanitizeDisplayName(conversation.clientName) ?? void 0;
@@ -88066,6 +88198,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
       isFirstInteraction
     });
     let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+    aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
     const sbCierreYaEnviado = history.some(
@@ -88440,6 +88573,7 @@ router3.post("/kommo/simulator", async (req, res) => {
       isFirstInteraction
     });
     let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+    aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
     const simCierreYaEnviado = history.some(
       (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)

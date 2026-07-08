@@ -321,3 +321,83 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
 
   return lines.join("\n").trim();
 }
+
+export interface ParsedRowNotes {
+  inclusion: string;
+  minimo: string;
+  gammaLink: string;
+  extras: string;
+}
+
+/** Limpia texto de inclusiones del Sheet para WhatsApp. */
+export function formatInclusionForWhatsApp(text: string, maxLen = 420): string {
+  let cleaned = text
+    .replace(/\s+/g, " ")
+    .replace(/ incluido\s+/gi, ". ")
+    .replace(/ servicio base incluye:/gi, " Incluye:")
+    .replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚ])/g, "$1. $2")
+    .trim();
+
+  if (cleaned.length > maxLen) {
+    cleaned = `${cleaned.slice(0, maxLen - 1).trim()}…`;
+  }
+  return cleaned;
+}
+
+export function parseRowNotes(notas: string): ParsedRowNotes {
+  const result: ParsedRowNotes = { inclusion: "", minimo: "", gammaLink: "", extras: "" };
+  if (!notas?.trim()) return result;
+
+  for (const part of notas.split("|").map((s) => s.trim())) {
+    if (!part) continue;
+    if (/^cat[aá]logo:\s*https?:/i.test(part)) {
+      result.gammaLink = part.replace(/^cat[aá]logo:\s*/i, "").trim();
+    } else if (/^m[ií]nimo de salida:/i.test(part)) {
+      result.minimo = part.replace(/^m[ií]nimo de salida:\s*/i, "").trim();
+    } else if (/^extras:/i.test(part)) {
+      result.extras = part.replace(/^extras:\s*/i, "").trim();
+    } else if (!result.inclusion) {
+      result.inclusion = formatInclusionForWhatsApp(part);
+    } else {
+      result.inclusion = formatInclusionForWhatsApp(`${result.inclusion} ${part}`);
+    }
+  }
+
+  if (result.extras) {
+    const extraText = formatInclusionForWhatsApp(result.extras, 180);
+    result.inclusion = result.inclusion
+      ? `${result.inclusion} Extras: ${extraText}`
+      : `Extras: ${extraText}`;
+  }
+
+  return result;
+}
+
+/** Índice de catálogos Gamma por servicio (links del Sheet). */
+export function sheetRowsToGammaIndex(rows: SheetCatalogRow[]): string {
+  const byService = new Map<string, string>();
+
+  for (const row of rows) {
+    const parsed = parseRowNotes(row.notas);
+    if (!parsed.gammaLink) continue;
+    const base = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+    if (!byService.has(base)) byService.set(base, parsed.gammaLink);
+  }
+
+  if (!byService.size) return "";
+
+  const lines = [
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "CATÁLOGOS GAMMA POR SERVICIO (menús, niveles, detalle visual)",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "",
+    "Usa estos enlaces cuando el cliente pida menú, detalle por nivel o qué incluye cada paquete.",
+    "",
+  ];
+
+  for (const [service, link] of byService) {
+    lines.push(`• ${service}: ${link}`);
+  }
+
+  return lines.join("\n").trim();
+}

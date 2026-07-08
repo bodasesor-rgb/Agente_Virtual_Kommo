@@ -57,8 +57,8 @@ async function main() {
   console.log("\nLucy:", reply);
 
   const ok =
-    /\$300|\$750|\$800|\$850|300\.00|750\.00/i.test(reply) ||
-    /taquiza.*\$/i.test(reply);
+    /\$300|\$750|\$800|\$850|300\.00|750\.00/i.test(reply) &&
+    /incluye|guisados|arroz|frijol/i.test(reply);
   console.log(ok ? "\n✅ Precio del Sheet citado" : "\n❌ No se detectó precio del Sheet");
   process.exit(ok ? 0 : 1);
 }

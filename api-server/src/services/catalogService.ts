@@ -15,6 +15,8 @@ import {
   fetchCsvText,
   parseSheetCatalogCsv,
   sheetRowsToMarkdown,
+  sheetRowsToGammaIndex,
+  parseRowNotes,
   type SheetCatalogRow,
 } from "./googleSheetsCatalog.js";
 import { loadGammaCatalog } from "./gammaCatalog.js";
@@ -129,7 +131,9 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
         const csv = await fetchCsvText(sheetsUrl);
         rows = parseSheetCatalogCsv(csv);
         if (rows.length) {
-          sheetsMd = sheetRowsToMarkdown(rows);
+          sheetsMd = [sheetRowsToMarkdown(rows), sheetRowsToGammaIndex(rows)]
+            .filter(Boolean)
+            .join("\n\n");
           status.sources.sheets = true;
           status.sources.sheetsRows = rows.length;
         }
@@ -248,36 +252,123 @@ export function lookupCatalogPrices(query: string): SheetCatalogRow[] {
   });
 }
 
-/** Respuesta corta con precios reales del Sheet (si existen). */
+/** Busca servicios del Sheet (con o sin precio). */
+export function lookupCatalogServices(query: string): SheetCatalogRow[] {
+  if (!snapshot?.rows.length) return [];
+  const tokens = queryTokens(query);
+  if (!tokens.length) return [];
+
+  return snapshot.rows.filter((row) => {
+    const haystack = normalizeForMatch(`${row.servicio} ${row.categoria}`);
+    return tokens.some((token) => haystack.includes(token));
+  });
+}
+
+function extractNivelLabel(servicio: string): string {
+  const match = servicio.match(/\(([^)]+)\)\s*$/);
+  return match?.[1]?.trim() || servicio;
+}
+
+function pickGammaLink(rows: SheetCatalogRow[]): string | undefined {
+  return rows.map((row) => parseRowNotes(row.notas).gammaLink).find(Boolean);
+}
+
+function buildInclusionBlock(rows: SheetCatalogRow[], maxPerLevel = 220): string {
+  const inclusionByLevel = rows.map((row) => ({
+    nivel: extractNivelLabel(row.servicio),
+    inclusion: parseRowNotes(row.notas).inclusion,
+  }));
+
+  const uniqueTexts = [...new Set(inclusionByLevel.map((r) => r.inclusion).filter(Boolean))];
+  if (!uniqueTexts.length) return "";
+
+  if (uniqueTexts.length === 1) {
+    return `\n\n*Incluye:* ${uniqueTexts[0]}`;
+  }
+
+  const lines = inclusionByLevel
+    .filter((r) => r.inclusion)
+    .slice(0, 5)
+    .map(
+      (r) =>
+        `• *${r.nivel}:* ${r.inclusion.slice(0, maxPerLevel)}${r.inclusion.length > maxPerLevel ? "…" : ""}`
+    );
+
+  return lines.length ? `\n\n*Qué incluye cada nivel:*\n${lines.join("\n")}` : "";
+}
+
+export function clientAsksInclusion(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b/i.test(
+      t
+    ) && !/\bcu[aá]nto\s+cuesta|\bprecio\b/i.test(t)
+  );
+}
+
+/** Respuesta detallada cuando preguntan qué incluye / menú / detalle. */
+export function buildCatalogInclusionAnswer(query: string): string | null {
+  const matches = lookupCatalogServices(query);
+  if (!matches.length) return null;
+
+  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
+  const baseName = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || unique[0]!.servicio;
+  const gammaLink = pickGammaLink(unique);
+
+  const blocks = unique.slice(0, 5).map((row) => {
+    const parsed = parseRowNotes(row.notas);
+    const nivel = extractNivelLabel(row.servicio);
+    const price =
+      row.tienePrecio && row.precio
+        ? ` — ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? `, mín. ${parsed.minimo}` : ""}`
+        : "";
+    const inclusion = parsed.inclusion || "Consulta el catálogo visual para el detalle completo.";
+    return `*${nivel}*${price}\n${inclusion}`;
+  });
+
+  let msg = `Te comparto qué incluye *${baseName}*:\n\n${blocks.join("\n\n")}`;
+  if (gammaLink) {
+    msg += `\n\n📎 Menú y detalle visual por nivel: ${gammaLink}`;
+  }
+  return msg;
+}
+
+/** Respuesta con precios + inclusiones del Sheet. */
 export function buildCatalogPriceAnswer(query: string): string | null {
   const matches = lookupCatalogPrices(query);
   if (!matches.length) return null;
 
   const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
   const baseName = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || unique[0]!.servicio;
-  const gammaLink = unique.find((r) => /Catálogo:\s*https?:/i.test(r.notas))?.notas.match(
-    /Catálogo:\s*(https?:\S+)/
-  )?.[1];
+  const gammaLink = pickGammaLink(unique);
 
-  if (unique.length === 1) {
-    const row = unique[0]!;
-    const unit = row.unidad ? ` ${row.unidad}` : "";
-    let msg = `Sí, manejamos ${baseName}. ${row.servicio} desde ${row.precio}${unit}.`;
-    if (gammaLink) msg += ` Catálogo: ${gammaLink}`;
-    return msg;
-  }
-
-  const options = unique
+  const priceLines = unique
     .slice(0, 6)
     .map((row) => {
+      const parsed = parseRowNotes(row.notas);
+      const nivel = extractNivelLabel(row.servicio);
       const unit = row.unidad ? ` ${row.unidad}` : "";
-      return `• ${row.servicio}: ${row.precio}${unit}`;
+      const min = parsed.minimo ? ` (mín. ${parsed.minimo})` : "";
+      return `• *${nivel}* — ${row.precio}${unit}${min}`;
     })
     .join("\n");
 
-  let msg = `Sí, manejamos ${baseName}. Opciones en catálogo:\n${options}`;
-  if (gammaLink) msg += `\n\nCatálogo visual: ${gammaLink}`;
-  return msg;
+  const inclusionBlock = buildInclusionBlock(unique, 280);
+  const gammaBlock = gammaLink
+    ? `\n\n📎 Catálogo con menús y detalle por nivel: ${gammaLink}`
+    : "";
+
+  return `Sí, manejamos ${baseName}:\n\n${priceLines}${inclusionBlock}${gammaBlock}`;
+}
+
+/** Si preguntan qué incluye / menú, responde con detalle del Sheet. */
+export function injectCatalogInclusionIfAsked(
+  clientMessage: string | undefined,
+  aiResponse: string
+): string {
+  if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
+  return buildCatalogInclusionAnswer(clientMessage) ?? aiResponse;
 }
 
 /** Si el cliente preguntó precio, sustituye la respuesta GPT por tarifas del Sheet. */
