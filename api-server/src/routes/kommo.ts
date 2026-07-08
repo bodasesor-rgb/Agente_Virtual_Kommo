@@ -19,6 +19,7 @@ import {
   isValidRequerimientosValue,
   isLegacyStoredLucyResponse,
   parseNombreFromCrmLines,
+  parseServiceFromUserText,
 } from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -28,6 +29,7 @@ import { buildDynamicPrompt } from "../services/promptBuilder.js";
 import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcessor.js";
 import { generateSummary, enrichExtractedFromText } from "../services/summaryService.js";
 import {
+  isAffirmativeOnlyMessage,
   isGreetingOnlyMessage,
   isPlaceholderLeadName,
   sanitizeDisplayName,
@@ -600,6 +602,7 @@ function buildCrmContext(
     if (
       !filledSet.has("Nombre del cliente") &&
       mensajeAsksForField(lastLucy, "nombre") &&
+      !isAffirmativeOnlyMessage(msg) &&
       /[a-záéíóúüñ]/i.test(msg) &&
       !/@/.test(msg) &&
       !/\d{4,}/.test(msg)
@@ -667,9 +670,10 @@ function buildCrmContext(
     if (
       !filledSet.has("Requerimientos o servicios") &&
       mensajeAsksForField(lastLucy, "requerimientos") &&
-      isValidRequerimientosValue(msg)
+      (isValidRequerimientosValue(msg) || /\bpista\b/i.test(msg))
     ) {
-      mergedLines.push(`- Requerimientos o servicios: ${msg}`);
+      const reqVal = parseServiceFromUserText(msg) ?? msg.trim();
+      mergedLines.push(`- Requerimientos o servicios: ${reqVal}`);
       filledSet.add("Requerimientos o servicios");
     }
   }
@@ -1106,21 +1110,21 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // o cuando el cliente escribe desde otro dispositivo. Usar chatId como clave
     // hace que Lucy pierda TODA la conversación anterior.
     const histKey = String(entityId);
-    let history: OpenAI.Chat.ChatCompletionMessageParam[] = getHistory(histKey);
+    let fullHistory: OpenAI.Chat.ChatCompletionMessageParam[] = getHistory(histKey);
     let historySource = "file";
 
-    if (talkId && history.length === 0) {
+    if (talkId && fullHistory.length === 0) {
       const kommoHistory = await fetchKommoHistory(subdomain, accessToken, talkId);
       if (kommoHistory && kommoHistory.length > 0) {
         const toExclude = new Set(texts.map((t) => t.trim()));
-        history = kommoHistory.filter(
+        fullHistory = kommoHistory.filter(
           (m) => !(m.role === "user" && typeof m.content === "string" && toExclude.has(m.content.trim()))
         );
         historySource = "kommo-bootstrap";
       }
     }
 
-    history = history.slice(-6);
+    let history = fullHistory.slice(-6);
 
     // ══════════════════════════════════════════════════════════════════════
     // PASO 4: Leer campos del CRM (sin construir crmContext aún)
@@ -1301,6 +1305,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       cierreYaEnviado,
       emailRefusedThisTurn,
       history,
+      presentationHistory: fullHistory,
       currentMessage: combinedUserText,
       whatsappDisplayName,
       buildClosing: buildClosingMessage,
@@ -1757,23 +1762,19 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
   try {
     // ── Load history (file-based + Kommo bootstrap cuando está vacío) ─────────
     const histKey = entityId ?? chatId ?? "salesbot-default";
-    let history: OpenAI.Chat.ChatCompletionMessageParam[] = getHistory(histKey);
+    let fullHistory: OpenAI.Chat.ChatCompletionMessageParam[] = getHistory(histKey);
     let historySource = "file";
 
-    // Si el historial local está vacío, intentar bootstrap desde Kommo Talks API.
-    // Esto garantiza contexto incluso cuando el histKey cambia entre llamadas
-    // (chatId distinto por mensaje, server restart, etc.).
-    if (talkId && history.length < 2) {
+    if (talkId && fullHistory.length < 2) {
       try {
         const kommoHistory = await fetchKommoHistory(subdomain, accessToken, talkId);
         if (kommoHistory && kommoHistory.length > 0) {
-          // Excluir el mensaje actual para no duplicarlo en el historial
           const toExclude = new Set([messageText.trim()]);
           const filtered = kommoHistory.filter(
             (m) => !(m.role === "user" && typeof m.content === "string" && toExclude.has(m.content.trim()))
           );
-          if (filtered.length > history.length) {
-            history = filtered;
+          if (filtered.length > fullHistory.length) {
+            fullHistory = filtered;
             historySource = "kommo-bootstrap";
           }
         }
@@ -1782,7 +1783,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       }
     }
 
-    history = history.slice(-6);
+    let history = fullHistory.slice(-6);
     log.info({ histKey, historyLength: history.length, historySource }, "Salesbot: historial cargado");
 
     // ── Load CRM context ──────────────────────────────────────────────────────
@@ -1900,6 +1901,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       cierreYaEnviado: sbCierreYaEnviado,
       emailRefusedThisTurn,
       history,
+      presentationHistory: fullHistory,
       currentMessage: messageText,
       whatsappDisplayName,
       buildClosing: buildClosingMessage,
@@ -2176,6 +2178,10 @@ function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResul
   }
 
   const cf = lead.custom_fields ?? {};
+  const nombreLead = sanitizeDisplayName(lead.name);
+  if (nombreLead && !isPlaceholderLeadName(lead.name)) {
+    lines.push(`- Nombre del cliente: ${nombreLead}`);
+  }
   for (const [cfId, kommoId] of Object.entries(SIMULATOR_CF_TO_KOMMO)) {
     const raw = cf[cfId];
     if (raw === null || raw === undefined || raw === "") continue;
@@ -2249,7 +2255,8 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
 
   try {
     const histKey = `sim-${leadId}`;
-    let history = getHistory(histKey).slice(-6);
+    const fullHistory = getHistory(histKey);
+    let history = fullHistory.slice(-6);
 
     const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
     const whatsappDisplayName = sanitizeDisplayName(lead.name);
@@ -2345,6 +2352,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       cierreYaEnviado: simCierreYaEnviado,
       emailRefusedThisTurn,
       history,
+      presentationHistory: fullHistory,
       currentMessage: messageText,
       whatsappDisplayName,
       buildClosing: buildClosingMessage,

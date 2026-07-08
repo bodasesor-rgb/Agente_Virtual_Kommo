@@ -35,6 +35,13 @@ export function isGreetingOnlyMessage(text: string | null | undefined): boolean 
   );
 }
 
+/** "sí", "ok", "claro" — afirmación, no es el nombre del cliente. */
+export function isAffirmativeOnlyMessage(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es)[.!?\s,]*$/i.test(t);
+}
+
 export function isPlaceholderLeadName(name: string | null | undefined): boolean {
   const trimmed = name?.trim() ?? "";
   if (!trimmed) return true;

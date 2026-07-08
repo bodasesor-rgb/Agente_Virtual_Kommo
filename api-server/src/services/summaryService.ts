@@ -80,6 +80,7 @@ function extraerServicios(texto: string): string[] {
     ["Inflables",            /\binflable\b/i],
     ["Softplay",             /\bsoftplay\b/i],
     ["Mobiliario",           /\b(mobiliario|mármol|sillas)\b/i],
+    ["Pista de baile",       /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ];
 
   const encontrados: string[] = [];

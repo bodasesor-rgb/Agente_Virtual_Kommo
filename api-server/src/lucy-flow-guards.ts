@@ -1,6 +1,7 @@
 import type { OpenAI } from "openai";
 import type { ExtractedData } from "./types.js";
 import {
+  isAffirmativeOnlyMessage,
   isGreetingOnlyMessage,
   resolveClientDisplayName,
   sanitizeDisplayName,
@@ -110,7 +111,7 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
 };
 
 const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?/i;
 
 const SERVICE_PATTERNS: Array<[string, RegExp]> = [
   ["banquete", /\bbanquete\b/i],
@@ -123,12 +124,16 @@ const SERVICE_PATTERNS: Array<[string, RegExp]> = [
   ["pantalla", /\bpantalla\b/i],
   ["pizzas", /\bpizza\b/i],
   ["sushi", /\bsushi\b/i],
+  ["pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
 ];
 
 export function isValidRequerimientosValue(value: string | null | undefined): boolean {
   const trimmed = value?.trim() ?? "";
   if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
-  return SERVICE_HINT.test(trimmed);
+  if (SERVICE_HINT.test(trimmed)) return true;
+  // Respuestas cortas directas: "pista", "una pista", "solo DJ"
+  if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
+  return false;
 }
 
 const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
@@ -169,6 +174,11 @@ function findMentionedService(text: string): string | null {
   return null;
 }
 
+/** Servicio mencionado en texto libre del cliente (para CRM en tiempo real). */
+export function parseServiceFromUserText(text: string): string | null {
+  return findMentionedService(text);
+}
+
 function hasTipoEvento(filledSet: Set<string>, extracted: ExtractedData): boolean {
   return filledSet.has("Tipo de evento") || !!(extracted.tipo_evento?.trim());
 }
@@ -180,7 +190,38 @@ function getDisplayName(extracted: ExtractedData, whatsappName?: string | null):
 function lucyHasPresented(history: OpenAI.Chat.ChatCompletionMessageParam[]): boolean {
   return history
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
-    .some((m) => /hola,\s*soy\s+lucy\s+de\s+bodasesor/i.test(m.content as string));
+    .some((m) => /hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(m.content as string));
+}
+
+/** True si la conversación ya avanzó más allá del saludo inicial. */
+function conversationAlreadyStarted(
+  filledSet: Set<string>,
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  if (history.some((m) => m.role === "assistant")) return true;
+  if (filledSet.has("Nombre del cliente")) return true;
+  if (filledSet.has("Correo electrónico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
+  if (filledSet.has("Tipo de evento")) return true;
+  if (filledSet.has("Requerimientos o servicios")) return true;
+  return false;
+}
+
+function presentationHistoryFrom(ctx: NaturalQuestionContext): OpenAI.Chat.ChatCompletionMessageParam[] {
+  return ctx.presentationHistory ?? ctx.history ?? [];
+}
+
+function stripRepeatLucyIntro(
+  mensaje: string,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  alreadyStarted: boolean
+): string {
+  if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
+  return mensaje
+    .replace(/Hola,?\s*soy\s+Lucy\s+de\s+Bodasesor\.?\s*/gi, "")
+    .replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "")
+    .replace(/Con gusto te ayudo\.?\s*/gi, "")
+    .replace(/^\s+/, "")
+    .trim();
 }
 
 function variantIndex(
@@ -231,6 +272,8 @@ export interface NaturalQuestionContext {
   filledSet?: Set<string>;
   whatsappName?: string | null;
   history?: OpenAI.Chat.ChatCompletionMessageParam[];
+  /** Historial completo (sin slice) para detectar si Lucy ya se presentó. */
+  presentationHistory?: OpenAI.Chat.ChatCompletionMessageParam[];
   currentMessage?: string;
   entityId?: string | number;
   afterEmail?: boolean;
@@ -350,27 +393,35 @@ export function buildOpeningAcknowledgment(
   return "Estoy aquí para ayudarte con lo que necesites para tu evento.";
 }
 
-/** Primer mensaje: presentación Lucy + reconocimiento breve + pedir nombre (o siguiente paso si ya lo dio). */
-export function buildFirstInteractionMessage(ctx: NaturalQuestionContext): string {
+/** Primer mensaje: presentación Lucy + reconocimiento breve + pedir nombre. */
+export function buildFirstInteractionMessage(
+  ctx: NaturalQuestionContext,
+  withIntro = true
+): string {
   const history = ctx.history ?? [];
   const filledSet = ctx.filledSet ?? new Set<string>();
   const ack = buildOpeningAcknowledgment(history, ctx.currentMessage);
+  const intro = withIntro ? `${LUCY_INTRO} ` : "";
 
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
     const pending = getNextPendingField(ctx.extracted, filledSet);
     if (pending === "correo") {
-      return `${LUCY_INTRO} ${ack} ${buildCorreoQuestion(nombre, history, ctx.entityId)}`;
+      const correoQ = buildCorreoQuestion(nombre, history, ctx.entityId);
+      return withIntro ? `${intro}${ack} ${correoQ}`.trim() : correoQ;
     }
     if (pending) {
       const greet = nombre ? `Mucho gusto, ${nombre}. ` : "";
-      return `${LUCY_INTRO} ${ack} ${greet}${buildNaturalQuestion(pending, ctx)}`;
+      const q = buildNaturalQuestion(pending, ctx);
+      return withIntro ? `${intro}${ack} ${greet}${q}`.trim() : `${greet}${q}`.trim();
     }
-    return nombre ? `${LUCY_INTRO} ${ack} Mucho gusto, ${nombre}.` : `${LUCY_INTRO} ${ack}`;
+    return nombre
+      ? `${intro}${ack} Mucho gusto, ${nombre}.`.trim()
+      : `${intro}${ack}`.trim();
   }
 
   const nameQ = pickVariant("nombre", history, ctx.entityId);
-  return `${LUCY_INTRO} ${ack} ${nameQ}`;
+  return `${intro}${ack} ${nameQ}`.trim();
 }
 
 function usesLegacyLucyIntro(mensaje: string): boolean {
@@ -390,25 +441,22 @@ export function enforceNombreFirst(
   ctx: NaturalQuestionContext,
   forceFirstPresentation = false
 ): string {
-  const history = ctx.history ?? [];
-
-  const needsPresentation =
-    forceFirstPresentation ||
-    isFirstLucyReply(history) ||
-    !lucyHasPresented(history) ||
-    usesLegacyLucyIntro(_mensaje);
-
-  if (needsPresentation && !isFieldSatisfied("nombre", filledSet, extracted)) {
-    return buildFirstInteractionMessage(ctx);
-  }
+  const presHistory = presentationHistoryFrom(ctx);
+  const alreadyStarted = conversationAlreadyStarted(filledSet, presHistory);
+  const isTrueFirstTurn =
+    (forceFirstPresentation || isFirstLucyReply(presHistory)) && !alreadyStarted;
 
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
-    if (!lucyHasPresented(history)) {
-      return buildFirstInteractionMessage(ctx);
+    if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
+      return "Perfecto. ¿Me regalas tu nombre?";
+    }
+    if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
+      return buildFirstInteractionMessage(ctx, true);
     }
     return buildNaturalQuestion("nombre", ctx);
   }
-  return _mensaje;
+
+  return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
 }
 
 export function mensajeAsksForField(mensaje: string, field: PendingField): boolean {
@@ -783,6 +831,8 @@ export interface LucyMessageGuardsInput {
   cierreYaEnviado: boolean;
   emailRefusedThisTurn: boolean;
   history: OpenAI.Chat.ChatCompletionMessageParam[];
+  /** Historial completo (sin slice) para no perder la presentación inicial. */
+  presentationHistory?: OpenAI.Chat.ChatCompletionMessageParam[];
   currentMessage?: string;
   whatsappDisplayName?: string | null;
   buildClosing: (servicios: string | null | undefined) => string;
@@ -798,6 +848,7 @@ function makeQuestionCtx(input: LucyMessageGuardsInput): NaturalQuestionContext 
     filledSet: input.filledSet,
     whatsappName: input.whatsappDisplayName,
     history: input.history,
+    presentationHistory: input.presentationHistory ?? input.history,
     currentMessage: input.currentMessage,
     entityId: input.entityId,
   };
@@ -926,6 +977,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
 
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
+
+  const presHistory = input.presentationHistory ?? history;
+  if (conversationAlreadyStarted(filledSet, presHistory)) {
+    mensaje = stripRepeatLucyIntro(mensaje, presHistory, true);
+  }
 
   return mensaje;
 }

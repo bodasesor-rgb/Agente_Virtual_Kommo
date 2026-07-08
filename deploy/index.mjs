@@ -61130,6 +61130,11 @@ function isGreetingOnlyMessage(text2) {
   if (/^soy\s+/i.test(t)) return false;
   return /^hola[.!?\s,]*$/i.test(t) || /^buen(os|as)?\s*(d[ií]as|tardes|noches)?[.!?\s,]*$/i.test(t) || /^qu[eé]\s*tal[.!?\s,]*$/i.test(t) || /^buenas?[.!?\s,]*$/i.test(t) || /^saludos?[.!?\s,]*$/i.test(t);
 }
+function isAffirmativeOnlyMessage(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return false;
+  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es)[.!?\s,]*$/i.test(t);
+}
 function isPlaceholderLeadName(name2) {
   const trimmed = name2?.trim() ?? "";
   if (!trimmed) return true;
@@ -61230,7 +61235,7 @@ var FIELD_ASK_PATTERNS = {
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
 };
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?/i;
 var SERVICE_PATTERNS = [
   ["banquete", /\bbanquete\b/i],
   ["taquiza", /\b(taquiza|tacos)\b/i],
@@ -61241,12 +61246,15 @@ var SERVICE_PATTERNS = [
   ["iluminaci\xF3n", /\biluminaci[oó]n\b/i],
   ["pantalla", /\bpantalla\b/i],
   ["pizzas", /\bpizza\b/i],
-  ["sushi", /\bsushi\b/i]
+  ["sushi", /\bsushi\b/i],
+  ["pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i]
 ];
 function isValidRequerimientosValue(value) {
   const trimmed = value?.trim() ?? "";
   if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
-  return SERVICE_HINT.test(trimmed);
+  if (SERVICE_HINT.test(trimmed)) return true;
+  if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
+  return false;
 }
 var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 function collectUserTexts(history, currentMessage) {
@@ -61274,6 +61282,9 @@ function findMentionedService(text2) {
   }
   return null;
 }
+function parseServiceFromUserText(text2) {
+  return findMentionedService(text2);
+}
 function hasTipoEvento(filledSet, extracted) {
   return filledSet.has("Tipo de evento") || !!extracted.tipo_evento?.trim();
 }
@@ -61281,7 +61292,22 @@ function getDisplayName(extracted, whatsappName) {
   return resolveClientDisplayName(extracted.nombre, null, whatsappName);
 }
 function lucyHasPresented(history) {
-  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").some((m4) => /hola,\s*soy\s+lucy\s+de\s+bodasesor/i.test(m4.content));
+  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").some((m4) => /hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(m4.content));
+}
+function conversationAlreadyStarted(filledSet, history) {
+  if (history.some((m4) => m4.role === "assistant")) return true;
+  if (filledSet.has("Nombre del cliente")) return true;
+  if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
+  if (filledSet.has("Tipo de evento")) return true;
+  if (filledSet.has("Requerimientos o servicios")) return true;
+  return false;
+}
+function presentationHistoryFrom(ctx) {
+  return ctx.presentationHistory ?? ctx.history ?? [];
+}
+function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
+  if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
+  return mensaje.replace(/Hola,?\s*soy\s+Lucy\s+de\s+Bodasesor\.?\s*/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo\.?\s*/gi, "").replace(/^\s+/, "").trim();
 }
 function variantIndex(field, history, entityId) {
   const variants = QUESTION_VARIANTS[field];
@@ -61384,24 +61410,27 @@ function buildOpeningAcknowledgment(history, currentMessage) {
   if (userText.trim().length > 0) return "Con gusto te ayudo.";
   return "Estoy aqu\xED para ayudarte con lo que necesites para tu evento.";
 }
-function buildFirstInteractionMessage(ctx) {
+function buildFirstInteractionMessage(ctx, withIntro = true) {
   const history = ctx.history ?? [];
   const filledSet = ctx.filledSet ?? /* @__PURE__ */ new Set();
   const ack = buildOpeningAcknowledgment(history, ctx.currentMessage);
+  const intro = withIntro ? `${LUCY_INTRO} ` : "";
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
     const pending = getNextPendingField(ctx.extracted, filledSet);
     if (pending === "correo") {
-      return `${LUCY_INTRO} ${ack} ${buildCorreoQuestion(nombre, history, ctx.entityId)}`;
+      const correoQ = buildCorreoQuestion(nombre, history, ctx.entityId);
+      return withIntro ? `${intro}${ack} ${correoQ}`.trim() : correoQ;
     }
     if (pending) {
       const greet = nombre ? `Mucho gusto, ${nombre}. ` : "";
-      return `${LUCY_INTRO} ${ack} ${greet}${buildNaturalQuestion(pending, ctx)}`;
+      const q2 = buildNaturalQuestion(pending, ctx);
+      return withIntro ? `${intro}${ack} ${greet}${q2}`.trim() : `${greet}${q2}`.trim();
     }
-    return nombre ? `${LUCY_INTRO} ${ack} Mucho gusto, ${nombre}.` : `${LUCY_INTRO} ${ack}`;
+    return nombre ? `${intro}${ack} Mucho gusto, ${nombre}.`.trim() : `${intro}${ack}`.trim();
   }
   const nameQ = pickVariant("nombre", history, ctx.entityId);
-  return `${LUCY_INTRO} ${ack} ${nameQ}`;
+  return `${intro}${ack} ${nameQ}`.trim();
 }
 function usesLegacyLucyIntro(mensaje) {
   return /te\s+saluda\s+lucy|agente\s+virtual\s+de\s+bodasesor/i.test(mensaje);
@@ -61410,18 +61439,19 @@ function isLegacyStoredLucyResponse(text2) {
   return typeof text2 === "string" && text2.trim().length > 0 && usesLegacyLucyIntro(text2);
 }
 function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPresentation = false) {
-  const history = ctx.history ?? [];
-  const needsPresentation = forceFirstPresentation || isFirstLucyReply(history) || !lucyHasPresented(history) || usesLegacyLucyIntro(_mensaje);
-  if (needsPresentation && !isFieldSatisfied("nombre", filledSet, extracted)) {
-    return buildFirstInteractionMessage(ctx);
-  }
+  const presHistory = presentationHistoryFrom(ctx);
+  const alreadyStarted = conversationAlreadyStarted(filledSet, presHistory);
+  const isTrueFirstTurn = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !alreadyStarted;
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
-    if (!lucyHasPresented(history)) {
-      return buildFirstInteractionMessage(ctx);
+    if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
+      return "Perfecto. \xBFMe regalas tu nombre?";
+    }
+    if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
+      return buildFirstInteractionMessage(ctx, true);
     }
     return buildNaturalQuestion("nombre", ctx);
   }
-  return _mensaje;
+  return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
 }
 function mensajeAsksForField(mensaje, field) {
   if (!mensaje.includes("?")) return false;
@@ -61647,6 +61677,7 @@ function makeQuestionCtx(input) {
     filledSet: input.filledSet,
     whatsappName: input.whatsappDisplayName,
     history: input.history,
+    presentationHistory: input.presentationHistory ?? input.history,
     currentMessage: input.currentMessage,
     entityId: input.entityId
   };
@@ -61755,6 +61786,10 @@ function applyLucyMessageGuards(input) {
   }
   mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
+  const presHistory = input.presentationHistory ?? history;
+  if (conversationAlreadyStarted(filledSet, presHistory)) {
+    mensaje = stripRepeatLucyIntro(mensaje, presHistory, true);
+  }
   return mensaje;
 }
 
@@ -74986,7 +75021,8 @@ function extraerServicios(texto) {
     ["Estructuras", /\b(estructura|colgante|wisteria)\b/i],
     ["Inflables", /\binflable\b/i],
     ["Softplay", /\bsoftplay\b/i],
-    ["Mobiliario", /\b(mobiliario|mármol|sillas)\b/i]
+    ["Mobiliario", /\b(mobiliario|mármol|sillas)\b/i],
+    ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i]
   ];
   const encontrados = [];
   for (const [nombre, patron] of servicios) {
@@ -80986,7 +81022,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
         filledSet.add("Nombre del cliente");
       }
     }
-    if (!filledSet.has("Nombre del cliente") && mensajeAsksForField(lastLucy, "nombre") && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+    if (!filledSet.has("Nombre del cliente") && mensajeAsksForField(lastLucy, "nombre") && !isAffirmativeOnlyMessage(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
       const nombreCapturado = sanitizeDisplayName(msg);
       if (nombreCapturado) {
         mergedLines.push(`- Nombre del cliente: ${nombreCapturado}`);
@@ -81020,8 +81056,9 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       mergedLines.push(`- Tipo de evento: ${msg}`);
       filledSet.add("Tipo de evento");
     }
-    if (!filledSet.has("Requerimientos o servicios") && mensajeAsksForField(lastLucy, "requerimientos") && isValidRequerimientosValue(msg)) {
-      mergedLines.push(`- Requerimientos o servicios: ${msg}`);
+    if (!filledSet.has("Requerimientos o servicios") && mensajeAsksForField(lastLucy, "requerimientos") && (isValidRequerimientosValue(msg) || /\bpista\b/i.test(msg))) {
+      const reqVal = parseServiceFromUserText(msg) ?? msg.trim();
+      mergedLines.push(`- Requerimientos o servicios: ${reqVal}`);
       filledSet.add("Requerimientos o servicios");
     }
   }
@@ -81248,19 +81285,19 @@ async function processBatch(batch, accessToken, log) {
       hasObjection: objectionResult.hasObjection
     }, "Analysis complete");
     const histKey = String(entityId);
-    let history = getHistory(histKey);
+    let fullHistory = getHistory(histKey);
     let historySource = "file";
-    if (talkId && history.length === 0) {
+    if (talkId && fullHistory.length === 0) {
       const kommoHistory = await fetchKommoHistory(subdomain, accessToken, talkId);
       if (kommoHistory && kommoHistory.length > 0) {
         const toExclude = new Set(texts.map((t) => t.trim()));
-        history = kommoHistory.filter(
+        fullHistory = kommoHistory.filter(
           (m4) => !(m4.role === "user" && typeof m4.content === "string" && toExclude.has(m4.content.trim()))
         );
         historySource = "kommo-bootstrap";
       }
     }
-    history = history.slice(-6);
+    let history = fullHistory.slice(-6);
     const { crmLines, lastLucyResponse } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const cachedResponse = lastResponseCache.get(String(entityId));
@@ -81365,6 +81402,7 @@ async function processBatch(batch, accessToken, log) {
       cierreYaEnviado,
       emailRefusedThisTurn,
       history,
+      presentationHistory: fullHistory,
       currentMessage: combinedUserText,
       whatsappDisplayName,
       buildClosing: buildClosingMessage,
@@ -81678,9 +81716,9 @@ router2.post("/kommo/salesbot", async (req, res) => {
   }
   try {
     const histKey = entityId ?? chatId ?? "salesbot-default";
-    let history = getHistory(histKey);
+    let fullHistory = getHistory(histKey);
     let historySource = "file";
-    if (talkId && history.length < 2) {
+    if (talkId && fullHistory.length < 2) {
       try {
         const kommoHistory = await fetchKommoHistory(subdomain, accessToken, talkId);
         if (kommoHistory && kommoHistory.length > 0) {
@@ -81688,8 +81726,8 @@ router2.post("/kommo/salesbot", async (req, res) => {
           const filtered = kommoHistory.filter(
             (m4) => !(m4.role === "user" && typeof m4.content === "string" && toExclude.has(m4.content.trim()))
           );
-          if (filtered.length > history.length) {
-            history = filtered;
+          if (filtered.length > fullHistory.length) {
+            fullHistory = filtered;
             historySource = "kommo-bootstrap";
           }
         }
@@ -81697,7 +81735,7 @@ router2.post("/kommo/salesbot", async (req, res) => {
         log.warn("Salesbot: Kommo history bootstrap failed, using file history");
       }
     }
-    history = history.slice(-6);
+    let history = fullHistory.slice(-6);
     log.info({ histKey, historyLength: history.length, historySource }, "Salesbot: historial cargado");
     let crmContext = "";
     let crmLines = [];
@@ -81793,6 +81831,7 @@ router2.post("/kommo/salesbot", async (req, res) => {
       cierreYaEnviado: sbCierreYaEnviado,
       emailRefusedThisTurn,
       history,
+      presentationHistory: fullHistory,
       currentMessage: messageText,
       whatsappDisplayName,
       buildClosing: buildClosingMessage,
@@ -81999,6 +82038,10 @@ function buildCrmLinesFromSimulator(lead) {
     lines.push(`- Tel\xE9fono: ${lead.contact_phone.trim()}`);
   }
   const cf = lead.custom_fields ?? {};
+  const nombreLead = sanitizeDisplayName(lead.name);
+  if (nombreLead && !isPlaceholderLeadName(lead.name)) {
+    lines.push(`- Nombre del cliente: ${nombreLead}`);
+  }
   for (const [cfId, kommoId] of Object.entries(SIMULATOR_CF_TO_KOMMO)) {
     const raw = cf[cfId];
     if (raw === null || raw === void 0 || raw === "") continue;
@@ -82051,7 +82094,8 @@ router2.post("/kommo/simulator", async (req, res) => {
   }
   try {
     const histKey = `sim-${leadId}`;
-    let history = getHistory(histKey).slice(-6);
+    const fullHistory = getHistory(histKey);
+    let history = fullHistory.slice(-6);
     const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
     const whatsappDisplayName = sanitizeDisplayName(lead.name);
     const emptyExtracted = {
@@ -82132,6 +82176,7 @@ router2.post("/kommo/simulator", async (req, res) => {
       cierreYaEnviado: simCierreYaEnviado,
       emailRefusedThisTurn,
       history,
+      presentationHistory: fullHistory,
       currentMessage: messageText,
       whatsappDisplayName,
       buildClosing: buildClosingMessage,
