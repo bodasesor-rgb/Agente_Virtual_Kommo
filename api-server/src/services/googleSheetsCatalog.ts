@@ -1,6 +1,8 @@
 /**
  * Lee catálogo/precios desde Google Sheets vía export CSV público.
- * Config: GOOGLE_SHEETS_CATALOG_CSV_URL o GOOGLE_SHEETS_CATALOG_ID + GID.
+ * Config (en orden de prioridad):
+ * - GOOGLE_SHEETS_CATALOG_CSV_URL / GOOGLE_SHEETS_PRECIOS (URL CSV o link del doc)
+ * - GOOGLE_SHEETS_CATALOG_ID / GOOGLE_SHEETS_PRECIOS (ID del spreadsheet) + GID
  */
 
 export interface SheetCatalogRow {
@@ -112,11 +114,41 @@ function rowHasPriceValue(precio: string): boolean {
   return /\$|\/pp|\/\s*pp|mil|pesos|mxn|\d/.test(precio);
 }
 
+function extractSheetId(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^[a-zA-Z0-9-_]{20,}$/.test(trimmed) && !trimmed.startsWith("http")) return trimmed;
+  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return match?.[1] ?? null;
+}
+
+function resolveSheetIdEnv(): string | null {
+  for (const key of ["GOOGLE_SHEETS_CATALOG_ID", "GOOGLE_SHEETS_PRECIOS"]) {
+    const raw = process.env[key]?.trim();
+    if (!raw) continue;
+    const id = extractSheetId(raw);
+    if (id) return id;
+  }
+  return null;
+}
+
+function resolveDirectCsvUrl(): string | null {
+  for (const key of ["GOOGLE_SHEETS_CATALOG_CSV_URL", "GOOGLE_SHEETS_PRECIOS_CSV_URL"]) {
+    const url = process.env[key]?.trim();
+    if (url) return url;
+  }
+
+  const precios = process.env["GOOGLE_SHEETS_PRECIOS"]?.trim();
+  if (precios?.includes("export?format=csv")) return precios;
+
+  return null;
+}
+
 export function buildSheetsCsvUrl(): string | null {
-  const direct = process.env["GOOGLE_SHEETS_CATALOG_CSV_URL"]?.trim();
+  const direct = resolveDirectCsvUrl();
   if (direct) return direct;
 
-  const sheetId = process.env["GOOGLE_SHEETS_CATALOG_ID"]?.trim();
+  const sheetId = resolveSheetIdEnv();
   if (!sheetId) return null;
 
   const gid = process.env["GOOGLE_SHEETS_CATALOG_GID"]?.trim() || "0";
@@ -127,7 +159,7 @@ export function buildSheetsTextCsvUrl(): string | null {
   const direct = process.env["GOOGLE_SHEETS_CATALOG_TEXT_CSV_URL"]?.trim();
   if (direct) return direct;
 
-  const sheetId = process.env["GOOGLE_SHEETS_CATALOG_ID"]?.trim();
+  const sheetId = resolveSheetIdEnv();
   const textGid = process.env["GOOGLE_SHEETS_CATALOG_TEXT_GID"]?.trim();
   if (!sheetId || !textGid) return null;
 

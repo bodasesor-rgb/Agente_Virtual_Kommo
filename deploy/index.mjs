@@ -78395,10 +78395,35 @@ function truthyPrecioFlag(raw) {
 function rowHasPriceValue(precio) {
   return /\$|\/pp|\/\s*pp|mil|pesos|mxn|\d/.test(precio);
 }
+function extractSheetId(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^[a-zA-Z0-9-_]{20,}$/.test(trimmed) && !trimmed.startsWith("http")) return trimmed;
+  const match = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return match?.[1] ?? null;
+}
+function resolveSheetIdEnv() {
+  for (const key of ["GOOGLE_SHEETS_CATALOG_ID", "GOOGLE_SHEETS_PRECIOS"]) {
+    const raw = process.env[key]?.trim();
+    if (!raw) continue;
+    const id = extractSheetId(raw);
+    if (id) return id;
+  }
+  return null;
+}
+function resolveDirectCsvUrl() {
+  for (const key of ["GOOGLE_SHEETS_CATALOG_CSV_URL", "GOOGLE_SHEETS_PRECIOS_CSV_URL"]) {
+    const url2 = process.env[key]?.trim();
+    if (url2) return url2;
+  }
+  const precios = process.env["GOOGLE_SHEETS_PRECIOS"]?.trim();
+  if (precios?.includes("export?format=csv")) return precios;
+  return null;
+}
 function buildSheetsCsvUrl() {
-  const direct = process.env["GOOGLE_SHEETS_CATALOG_CSV_URL"]?.trim();
+  const direct = resolveDirectCsvUrl();
   if (direct) return direct;
-  const sheetId = process.env["GOOGLE_SHEETS_CATALOG_ID"]?.trim();
+  const sheetId = resolveSheetIdEnv();
   if (!sheetId) return null;
   const gid = process.env["GOOGLE_SHEETS_CATALOG_GID"]?.trim() || "0";
   return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
@@ -78406,7 +78431,7 @@ function buildSheetsCsvUrl() {
 function buildSheetsTextCsvUrl() {
   const direct = process.env["GOOGLE_SHEETS_CATALOG_TEXT_CSV_URL"]?.trim();
   if (direct) return direct;
-  const sheetId = process.env["GOOGLE_SHEETS_CATALOG_ID"]?.trim();
+  const sheetId = resolveSheetIdEnv();
   const textGid = process.env["GOOGLE_SHEETS_CATALOG_TEXT_GID"]?.trim();
   if (!sheetId || !textGid) return null;
   return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${textGid}`;
