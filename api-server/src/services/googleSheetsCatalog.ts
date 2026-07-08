@@ -12,6 +12,8 @@ export interface SheetCatalogRow {
   unidad: string;
   notas: string;
   tienePrecio: boolean;
+  /** Link PDF para enviar al cliente (Drive, Shopify, etc.) */
+  linkPdf: string;
 }
 
 export interface SheetCatalogResult {
@@ -200,6 +202,7 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
   let catalogoRevisadoCol: number | null = null;
   let precioMinimoCol: number | null = null;
   let linkCatalogoCol: number | null = null;
+  let linkPdfCol: number | null = null;
   let extrasCol: number | null = null;
 
   headers.forEach((h, i) => {
@@ -215,8 +218,19 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
       precioMinimoCol = i;
       return;
     }
-    if (h === "link catalogo" || h === "link_catalogo" || h === "link") {
+    if (h === "link catalogo" || h === "link_catalogo") {
       linkCatalogoCol = i;
+      return;
+    }
+    if (
+      h === "link pdf catalogo" ||
+      h === "link pdf" ||
+      h === "link_pdf" ||
+      h === "pdf catalogo" ||
+      h === "pdf" ||
+      h === "catalogo pdf"
+    ) {
+      linkPdfCol = i;
       return;
     }
     if (h === "extras") {
@@ -257,13 +271,28 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
     const notasParts: string[] = [];
     const notasBase = get("notas");
     if (notasBase) notasParts.push(notasBase);
+
+    let linkPdf = "";
+    if (linkPdfCol !== null) {
+      linkPdf = (line[linkPdfCol] ?? "").trim();
+    }
+
     if (precioMinimoCol !== null) {
       const min = (line[precioMinimoCol] ?? "").trim();
       if (min) notasParts.push(`Mínimo de salida: ${min}`);
     }
     if (linkCatalogoCol !== null) {
       const link = (line[linkCatalogoCol] ?? "").trim();
-      if (link) notasParts.push(`Catálogo: ${link}`);
+      if (link) {
+        // Gamma / conocimiento interno — no va a linkPdf del cliente
+        if (/gamma\.app/i.test(link)) {
+          notasParts.push(`Catálogo: ${link}`);
+        } else if (!linkPdf && /\.pdf|drive\.google/i.test(link)) {
+          linkPdf = link;
+        } else if (!linkPdf) {
+          notasParts.push(`Catálogo: ${link}`);
+        }
+      }
     }
     if (extrasCol !== null) {
       const extras = (line[extrasCol] ?? "").trim();
@@ -280,6 +309,7 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
       unidad,
       notas: notasParts.join(" | "),
       tienePrecio,
+      linkPdf,
     });
   }
 
@@ -332,6 +362,7 @@ export interface ParsedRowNotes {
   inclusion: string;
   minimo: string;
   gammaLink: string;
+  linkPdf: string;
   extras: string;
 }
 
@@ -351,13 +382,20 @@ export function formatInclusionForWhatsApp(text: string, maxLen = 420): string {
 }
 
 export function parseRowNotes(notas: string): ParsedRowNotes {
-  const result: ParsedRowNotes = { inclusion: "", minimo: "", gammaLink: "", extras: "" };
+  const result: ParsedRowNotes = { inclusion: "", minimo: "", gammaLink: "", linkPdf: "", extras: "" };
   if (!notas?.trim()) return result;
 
   for (const part of notas.split("|").map((s) => s.trim())) {
     if (!part) continue;
     if (/^cat[aá]logo:\s*https?:/i.test(part)) {
-      result.gammaLink = part.replace(/^cat[aá]logo:\s*/i, "").trim();
+      const link = part.replace(/^cat[aá]logo:\s*/i, "").trim();
+      if (/gamma\.app/i.test(link)) {
+        result.gammaLink = link;
+      } else if (/\.pdf|drive\.google/i.test(link)) {
+        result.linkPdf = link;
+      } else {
+        result.gammaLink = link;
+      }
     } else if (/^m[ií]nimo de salida:/i.test(part)) {
       result.minimo = part.replace(/^m[ií]nimo de salida:\s*/i, "").trim();
     } else if (/^extras:/i.test(part)) {
