@@ -1297,6 +1297,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       buildClosing: buildClosingMessage,
       log,
       entityId,
+      forceFirstPresentation: isFirstInteraction,
     });
 
     // ── P3 GUARD: Catálogo ya enviado → strip URL del catálogo en respuesta ───────
@@ -1892,6 +1893,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       buildClosing: buildClosingMessage,
       log,
       entityId,
+      forceFirstPresentation: isFirstInteraction,
     });
 
     // ── P3 GUARD: Catálogo ya enviado → strip URL del catálogo en respuesta ───────
@@ -2333,6 +2335,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       buildClosing: buildClosingMessage,
       log,
       entityId: leadId,
+      forceFirstPresentation: isFirstInteraction,
     });
 
     appendHistory(histKey, messageText, mensajeParaCliente);

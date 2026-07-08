@@ -362,17 +362,26 @@ export function buildFirstInteractionMessage(ctx: NaturalQuestionContext): strin
   return `${LUCY_INTRO} ${ack} ${nameQ}`;
 }
 
+function usesLegacyLucyIntro(mensaje: string): boolean {
+  return /te\s+saluda\s+lucy|agente\s+virtual\s+de\s+bodasesor/i.test(mensaje);
+}
+
 /** Mientras falte el nombre, solo se permite pedir el nombre (nunca correo, fecha, etc.). */
 export function enforceNombreFirst(
   _mensaje: string,
   filledSet: Set<string>,
   extracted: ExtractedData,
-  ctx: NaturalQuestionContext
+  ctx: NaturalQuestionContext,
+  forceFirstPresentation = false
 ): string {
   const history = ctx.history ?? [];
-  if (isFirstLucyReply(history)) {
-    return buildFirstInteractionMessage(ctx);
+
+  if (forceFirstPresentation || isFirstLucyReply(history) || usesLegacyLucyIntro(_mensaje)) {
+    if (!isFieldSatisfied("nombre", filledSet, extracted) || forceFirstPresentation || usesLegacyLucyIntro(_mensaje)) {
+      return buildFirstInteractionMessage(ctx);
+    }
   }
+
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
     return buildNaturalQuestion("nombre", ctx);
   }
@@ -755,6 +764,8 @@ export interface LucyMessageGuardsInput {
   buildClosing: (servicios: string | null | undefined) => string;
   log?: { info: (obj: unknown, msg?: string) => void; warn: (obj: unknown, msg?: string) => void };
   entityId?: string | number;
+  /** True cuando Lucy nunca ha respondido a este lead (sin historial ni CRM previo). */
+  forceFirstPresentation?: boolean;
 }
 
 function makeQuestionCtx(input: LucyMessageGuardsInput): NaturalQuestionContext {
@@ -782,6 +793,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     buildClosing,
     log,
     entityId,
+    forceFirstPresentation,
   } = input;
 
   const ctx = makeQuestionCtx(input);
@@ -889,7 +901,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
 
-  mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx);
+  mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
 
   return mensaje;
 }

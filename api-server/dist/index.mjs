@@ -61389,10 +61389,15 @@ function buildFirstInteractionMessage(ctx) {
   const nameQ = pickVariant("nombre", history, ctx.entityId);
   return `${LUCY_INTRO} ${ack} ${nameQ}`;
 }
-function enforceNombreFirst(_mensaje, filledSet, extracted, ctx) {
+function usesLegacyLucyIntro(mensaje) {
+  return /te\s+saluda\s+lucy|agente\s+virtual\s+de\s+bodasesor/i.test(mensaje);
+}
+function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPresentation = false) {
   const history = ctx.history ?? [];
-  if (isFirstLucyReply(history)) {
-    return buildFirstInteractionMessage(ctx);
+  if (forceFirstPresentation || isFirstLucyReply(history) || usesLegacyLucyIntro(_mensaje)) {
+    if (!isFieldSatisfied("nombre", filledSet, extracted) || forceFirstPresentation || usesLegacyLucyIntro(_mensaje)) {
+      return buildFirstInteractionMessage(ctx);
+    }
   }
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
     return buildNaturalQuestion("nombre", ctx);
@@ -61639,7 +61644,8 @@ function applyLucyMessageGuards(input) {
     whatsappDisplayName,
     buildClosing,
     log,
-    entityId
+    entityId,
+    forceFirstPresentation
   } = input;
   const ctx = makeQuestionCtx(input);
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
@@ -61728,7 +61734,7 @@ function applyLucyMessageGuards(input) {
     }
   }
   mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
-  mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx);
+  mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
   return mensaje;
 }
 
@@ -81342,7 +81348,8 @@ async function processBatch(batch, accessToken, log) {
       whatsappDisplayName,
       buildClosing: buildClosingMessage,
       log,
-      entityId
+      entityId,
+      forceFirstPresentation: isFirstInteraction
     });
     if (cierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
       log.warn({ entityId }, "P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
@@ -81768,7 +81775,8 @@ router2.post("/kommo/salesbot", async (req, res) => {
       whatsappDisplayName,
       buildClosing: buildClosingMessage,
       log,
-      entityId
+      entityId,
+      forceFirstPresentation: isFirstInteraction
     });
     if (sbCierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
       log.warn({ entityId }, "Salesbot P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
