@@ -20,6 +20,9 @@ export interface SheetCatalogResult {
   fetchedAt: string;
 }
 
+/** ID del spreadsheet de precios Bodasesor (compartido públicamente). */
+export const BODASESOR_PRECIOS_SHEET_ID = "1s3DGZZXm3VXxqxyq1cKDnD3DfhGUrVw6ZkpYuN5_pBQ";
+
 const HEADER_ALIASES: Record<string, keyof Omit<SheetCatalogRow, "tienePrecio">> = {
   servicio: "servicio",
   service: "servicio",
@@ -29,7 +32,9 @@ const HEADER_ALIASES: Record<string, keyof Omit<SheetCatalogRow, "tienePrecio">>
   categoría: "categoria",
   category: "categoria",
   tipo: "categoria",
+  nivel: "categoria",
   precio: "precio",
+  "precio unitario": "precio",
   price: "precio",
   costo: "precio",
   tarifa: "precio",
@@ -42,6 +47,8 @@ const HEADER_ALIASES: Record<string, keyof Omit<SheetCatalogRow, "tienePrecio">>
   descripcion: "notas",
   descripción: "notas",
   detalle: "notas",
+  "que incluye": "notas",
+  extras: "notas",
 };
 
 function normalizeHeader(h: string): string {
@@ -129,7 +136,7 @@ function resolveSheetIdEnv(): string | null {
     const id = extractSheetId(raw);
     if (id) return id;
   }
-  return null;
+  return BODASESOR_PRECIOS_SHEET_ID;
 }
 
 function resolveDirectCsvUrl(): string | null {
@@ -151,8 +158,14 @@ export function buildSheetsCsvUrl(): string | null {
   const sheetId = resolveSheetIdEnv();
   if (!sheetId) return null;
 
-  const gid = process.env["GOOGLE_SHEETS_CATALOG_GID"]?.trim() || "0";
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+  const sheetName = process.env["GOOGLE_SHEETS_CATALOG_SHEET_NAME"]?.trim();
+  const gvizBase = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+  if (sheetName) {
+    return `${gvizBase}&sheet=${encodeURIComponent(sheetName)}`;
+  }
+
+  // gviz funciona en hojas compartidas cuando /export?format=csv devuelve 400
+  return gvizBase;
 }
 
 export function buildSheetsTextCsvUrl(): string | null {
@@ -184,10 +197,30 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
   const headers = matrix[0]!.map(normalizeHeader);
   const idx: Partial<Record<keyof SheetCatalogRow, number>> = {};
   let tienePrecioCol: number | null = null;
+  let catalogoRevisadoCol: number | null = null;
+  let precioMinimoCol: number | null = null;
+  let linkCatalogoCol: number | null = null;
+  let extrasCol: number | null = null;
 
   headers.forEach((h, i) => {
     if (h === "tiene_precio" || h === "tiene precio" || h === "con_precio" || h === "listed_price") {
       tienePrecioCol = i;
+      return;
+    }
+    if (h === "catalogo revisado" || h === "catalogo_revisado") {
+      catalogoRevisadoCol = i;
+      return;
+    }
+    if (h === "precio minimo de salida" || h === "precio minimo") {
+      precioMinimoCol = i;
+      return;
+    }
+    if (h === "link catalogo" || h === "link_catalogo" || h === "link") {
+      linkCatalogoCol = i;
+      return;
+    }
+    if (h === "extras") {
+      extrasCol = i;
       return;
     }
     const mapped = HEADER_ALIASES[h];
@@ -204,8 +237,16 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
       return col === undefined ? "" : (line[col] ?? "").trim();
     };
 
-    const servicio = get("servicio");
-    if (!servicio || /^#|comentario|ignore/i.test(servicio)) continue;
+    const servicioBase = get("servicio");
+    if (!servicioBase || /^#|comentario|ignore/i.test(servicioBase)) continue;
+
+    if (catalogoRevisadoCol !== null) {
+      const revisado = (line[catalogoRevisadoCol] ?? "").trim().toLowerCase();
+      if (revisado === "false" || revisado === "no" || revisado === "0") continue;
+    }
+
+    const nivel = get("categoria");
+    const servicio = nivel ? `${servicioBase} (${nivel})` : servicioBase;
 
     const precio = get("precio");
     const flag =
@@ -213,12 +254,31 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
     const tienePrecio =
       flag === true || (flag === null && rowHasPriceValue(precio));
 
+    const notasParts: string[] = [];
+    const notasBase = get("notas");
+    if (notasBase) notasParts.push(notasBase);
+    if (precioMinimoCol !== null) {
+      const min = (line[precioMinimoCol] ?? "").trim();
+      if (min) notasParts.push(`Mínimo de salida: ${min}`);
+    }
+    if (linkCatalogoCol !== null) {
+      const link = (line[linkCatalogoCol] ?? "").trim();
+      if (link) notasParts.push(`Catálogo: ${link}`);
+    }
+    if (extrasCol !== null) {
+      const extras = (line[extrasCol] ?? "").trim();
+      if (extras) notasParts.push(`Extras: ${extras}`);
+    }
+
+    let unidad = get("unidad");
+    if (!unidad && /\$/.test(precio)) unidad = "/pp";
+
     rows.push({
       servicio,
-      categoria: get("categoria"),
+      categoria: servicioBase,
       precio,
-      unidad: get("unidad"),
-      notas: get("notas"),
+      unidad,
+      notas: notasParts.join(" | "),
       tienePrecio,
     });
   }

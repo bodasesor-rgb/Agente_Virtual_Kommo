@@ -34,11 +34,14 @@ function buildSheetsUrl() {
 
   const id =
     extractSheetId(process.env.GOOGLE_SHEETS_CATALOG_ID) ||
-    extractSheetId(process.env.GOOGLE_SHEETS_PRECIOS);
+    extractSheetId(process.env.GOOGLE_SHEETS_PRECIOS) ||
+    "1s3DGZZXm3VXxqxyq1cKDnD3DfhGUrVw6ZkpYuN5_pBQ";
   if (!id) return null;
 
-  const gid = process.env.GOOGLE_SHEETS_CATALOG_GID?.trim() || "0";
-  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
+  const sheetName = process.env.GOOGLE_SHEETS_CATALOG_SHEET_NAME?.trim();
+  const gvizBase = `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv`;
+  if (sheetName) return `${gvizBase}&sheet=${encodeURIComponent(sheetName)}`;
+  return gvizBase;
 }
 
 async function probe(name, url, headers = {}) {
