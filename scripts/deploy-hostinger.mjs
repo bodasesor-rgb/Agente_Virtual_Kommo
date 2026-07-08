@@ -7,7 +7,7 @@
  *   HOSTINGER_DOMAIN     — opcional, default: midnightblue-mosquito-424375.hostingersite.com
  */
 import { execSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -57,11 +57,16 @@ async function resolveUsername() {
 async function createArchive() {
   const outDir = path.join(ROOT, ".deploy-tmp");
   const archive = path.join(outDir, "lucy-deploy.zip");
+  const deployBundle = path.join(ROOT, "deploy/index.mjs");
   await rm(outDir, { recursive: true, force: true });
   await mkdir(outDir, { recursive: true });
 
-  console.log("[deploy] Ejecutando npm run build...");
-  execSync("npm run build", { cwd: ROOT, stdio: "inherit" });
+  if (!existsSync(deployBundle)) {
+    console.log("[deploy] deploy/index.mjs no existe — ejecutando npm run build...");
+    execSync("npm run build", { cwd: ROOT, stdio: "inherit" });
+  } else {
+    console.log("[deploy] Usando bundle precompilado en deploy/ (sin rebuild en CI).");
+  }
 
   console.log("[deploy] Creando archivo zip...");
   execSync(
@@ -85,7 +90,7 @@ async function uploadBuild(username, archivePath) {
   const archiveBuffer = readFileSync(archivePath);
   const form = new FormData();
   form.append("archive", new Blob([archiveBuffer]), "lucy-deploy.zip");
-  form.append("build_script", "npm run build");
+  form.append("build_script", "echo ok");
   form.append("entry_file", "start.mjs");
   form.append("output_directory", ".");
   form.append("package_manager", "npm");
