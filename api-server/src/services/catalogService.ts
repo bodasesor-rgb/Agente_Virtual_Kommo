@@ -150,7 +150,7 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
         status.sources.gammaUrl = gamma.gammaUrl;
       }
 
-      const sheetGammaKnowledge = await loadGammaKnowledgeFromSheet(rows);
+      const sheetGammaKnowledge = await loadGammaKnowledgeFromSheet(rows).catch(() => "");
       if (sheetGammaKnowledge) {
         gammaBlock = [gammaBlock, sheetGammaKnowledge].filter(Boolean).join("\n\n");
         status.sources.gamma = true;

@@ -84,10 +84,18 @@ export async function loadGammaKnowledgeFromSheet(
   if (!byService.size) return "";
 
   const entries: GammaSheetKnowledge[] = [];
-  for (const [service, gammaId] of byService) {
-    const meta = await fetchGammaDocKnowledge(gammaId);
-    if (!meta.title && !meta.description) continue;
-    entries.push({ service, gammaId, title: meta.title, description: meta.description });
+  const fetches = [...byService.entries()].map(async ([service, gammaId]) => {
+    try {
+      const meta = await fetchGammaDocKnowledge(gammaId);
+      if (!meta.title && !meta.description) return null;
+      return { service, gammaId, title: meta.title, description: meta.description };
+    } catch {
+      return null;
+    }
+  });
+
+  for (const result of await Promise.all(fetches)) {
+    if (result) entries.push(result);
   }
 
   if (!entries.length) return "";

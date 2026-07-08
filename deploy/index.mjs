@@ -78650,10 +78650,17 @@ async function loadGammaKnowledgeFromSheet(rows) {
   }
   if (!byService.size) return "";
   const entries = [];
-  for (const [service, gammaId] of byService) {
-    const meta = await fetchGammaDocKnowledge(gammaId);
-    if (!meta.title && !meta.description) continue;
-    entries.push({ service, gammaId, title: meta.title, description: meta.description });
+  const fetches = [...byService.entries()].map(async ([service, gammaId]) => {
+    try {
+      const meta = await fetchGammaDocKnowledge(gammaId);
+      if (!meta.title && !meta.description) return null;
+      return { service, gammaId, title: meta.title, description: meta.description };
+    } catch {
+      return null;
+    }
+  });
+  for (const result of await Promise.all(fetches)) {
+    if (result) entries.push(result);
   }
   if (!entries.length) return "";
   const lines = [
@@ -78859,7 +78866,7 @@ async function refreshCatalog(force = false) {
         status.sources.gamma = true;
         status.sources.gammaUrl = gamma.gammaUrl;
       }
-      const sheetGammaKnowledge = await loadGammaKnowledgeFromSheet(rows);
+      const sheetGammaKnowledge = await loadGammaKnowledgeFromSheet(rows).catch(() => "");
       if (sheetGammaKnowledge) {
         gammaBlock = [gammaBlock, sheetGammaKnowledge].filter(Boolean).join("\n\n");
         status.sources.gamma = true;
