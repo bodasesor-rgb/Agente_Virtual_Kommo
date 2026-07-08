@@ -88817,7 +88817,25 @@ var import_express8 = __toESM(require_express2(), 1);
 init_requireAuth();
 var router8 = (0, import_express8.Router)();
 router8.get("/catalog/status", (_req, res) => {
-  res.json({ status: "ok", catalog: getCatalogStatus() });
+  res.json({ status: "ok", catalog: getCatalogStatus(), parser: "bodasesor-v3" });
+});
+router8.get("/catalog/lookup", (req, res) => {
+  const q2 = String(req.query.q ?? "").trim();
+  if (!q2) {
+    res.status(400).json({ status: "error", error: "query param q required" });
+    return;
+  }
+  res.json({
+    status: "ok",
+    query: q2,
+    matches: lookupCatalogPrices(q2).slice(0, 8).map((r2) => ({
+      servicio: r2.servicio,
+      precio: r2.precio,
+      unidad: r2.unidad,
+      notas: r2.notas.slice(0, 200)
+    })),
+    answer: buildCatalogPriceAnswer(q2)
+  });
 });
 router8.post("/catalog/refresh", requireAuth, async (_req, res) => {
   try {
