@@ -77709,7 +77709,7 @@ function stripPriceSentences(mensaje) {
 function stripStalePriceTalk(mensaje, currentMessage) {
   if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
   if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
-  return mensaje.replace(/[^.!?\n]*\b(dj|precio)[^.!?\n]*alejandro[^.!?\n]*[.!?]?\s*/gi, "").replace(/[^.!?\n]*alejandro te (incluye|da) el precio[^.!?\n]*[.!?]?\s*/gi, "").replace(/\s{2,}/g, " ").trim();
+  return mensaje.split(/(?<=[.!?])\s+|\n+/).filter((s4) => !/\bdj\b/i.test(s4) || clientAsksPrice(currentMessage)).filter((s4) => !/alejandro te (incluye|da) el precio/i.test(s4)).join(" ").replace(/\s{2,}/g, " ").trim();
 }
 function buildAlejandroPriceReply(serviceHint) {
   const svc = serviceHint?.trim() || "ese servicio";
@@ -86169,7 +86169,10 @@ function mapExtractedToSimulatorFields(extracted, reply, mergedLines = []) {
   if (isValidExtractedString(extracted.fecha_horario)) fields.cf_fecha_horario = extracted.fecha_horario;
   if (extracted.num_invitados !== null && extracted.num_invitados > 0) fields.cf_num_invitados = extracted.num_invitados;
   if (isValidExtractedString(extracted.tipo_evento)) fields.cf_tipo_evento = extracted.tipo_evento;
-  if (extracted.presupuesto !== null && extracted.presupuesto > 0) fields.cf_presupuesto = `$${extracted.presupuesto}`;
+  const presLine = mergedLines.find((l4) => /^-?\s*Presupuesto \(MXN\):/i.test(l4));
+  if (presLine) {
+    fields.cf_presupuesto = presLine.replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
+  }
   return fields;
 }
 function suggestSimulatorStage(messageText, allFieldsFilled, currentStageId) {

@@ -80,8 +80,10 @@ export function stripStalePriceTalk(mensaje: string, currentMessage?: string): s
   if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
   if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
   return mensaje
-    .replace(/[^.!?\n]*\b(dj|precio)[^.!?\n]*alejandro[^.!?\n]*[.!?]?\s*/gi, "")
-    .replace(/[^.!?\n]*alejandro te (incluye|da) el precio[^.!?\n]*[.!?]?\s*/gi, "")
+    .split(/(?<=[.!?])\s+|\n+/)
+    .filter((s) => !/\bdj\b/i.test(s) || clientAsksPrice(currentMessage))
+    .filter((s) => !/alejandro te (incluye|da) el precio/i.test(s))
+    .join(" ")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

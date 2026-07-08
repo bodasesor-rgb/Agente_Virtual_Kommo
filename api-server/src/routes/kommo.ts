@@ -2153,7 +2153,10 @@ function mapExtractedToSimulatorFields(
   if (isValidExtractedString(extracted.fecha_horario)) fields.cf_fecha_horario = extracted.fecha_horario;
   if (extracted.num_invitados !== null && extracted.num_invitados > 0) fields.cf_num_invitados = extracted.num_invitados;
   if (isValidExtractedString(extracted.tipo_evento)) fields.cf_tipo_evento = extracted.tipo_evento;
-  if (extracted.presupuesto !== null && extracted.presupuesto > 0) fields.cf_presupuesto = `$${extracted.presupuesto}`;
+  const presLine = mergedLines.find((l) => /^-?\s*Presupuesto \(MXN\):/i.test(l));
+  if (presLine) {
+    fields.cf_presupuesto = presLine.replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
+  }
   return fields;
 }
 
