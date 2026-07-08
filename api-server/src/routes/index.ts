@@ -9,12 +9,14 @@ import learningRouter from "./learning";
 
 const router: IRouter = Router();
 
+// Rutas públicas primero (webhook, simulador, login). Los routers con
+// router.use(requireAuth) bloquean TODO lo que venga después si van antes.
 router.use(healthRouter);
-router.use(examplesRouter);
-router.use(learningRouter);
 router.use(kommoRouter);
 router.use(lucyRouter);
-router.use(analyticsRouter);
 router.use(authRouter);
+router.use(examplesRouter);
+router.use(learningRouter);
+router.use(analyticsRouter);
 
 export default router;

@@ -86468,12 +86468,12 @@ var auth_default = router7;
 await init_learning();
 var router8 = (0, import_express8.Router)();
 router8.use(health_default);
-router8.use(examples_default);
-router8.use(learning_default);
 router8.use(kommo_default);
 router8.use(lucy_default);
-router8.use(analytics_default);
 router8.use(auth_default);
+router8.use(examples_default);
+router8.use(learning_default);
+router8.use(analytics_default);
 var routes_default = router8;
 
 // src/app.ts
