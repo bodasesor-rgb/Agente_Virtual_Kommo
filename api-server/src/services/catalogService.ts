@@ -15,11 +15,10 @@ import {
   fetchCsvText,
   parseSheetCatalogCsv,
   sheetRowsToMarkdown,
-  sheetRowsToGammaIndex,
   parseRowNotes,
   type SheetCatalogRow,
 } from "./googleSheetsCatalog.js";
-import { loadGammaCatalog } from "./gammaCatalog.js";
+import { loadGammaCatalog, loadGammaKnowledgeFromSheet } from "./gammaCatalog.js";
 
 export interface CatalogStatus {
   loaded: boolean;
@@ -131,9 +130,7 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
         const csv = await fetchCsvText(sheetsUrl);
         rows = parseSheetCatalogCsv(csv);
         if (rows.length) {
-          sheetsMd = [sheetRowsToMarkdown(rows), sheetRowsToGammaIndex(rows)]
-            .filter(Boolean)
-            .join("\n\n");
+          sheetsMd = sheetRowsToMarkdown(rows);
           status.sources.sheets = true;
           status.sources.sheetsRows = rows.length;
         }
@@ -151,6 +148,12 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
         gammaBlock = gamma.textBlock;
         status.sources.gamma = true;
         status.sources.gammaUrl = gamma.gammaUrl;
+      }
+
+      const sheetGammaKnowledge = await loadGammaKnowledgeFromSheet(rows);
+      if (sheetGammaKnowledge) {
+        gammaBlock = [gammaBlock, sheetGammaKnowledge].filter(Boolean).join("\n\n");
+        status.sources.gamma = true;
       }
 
       const useStatic = !status.sources.sheets;
@@ -269,8 +272,8 @@ function extractNivelLabel(servicio: string): string {
   return match?.[1]?.trim() || servicio;
 }
 
-function pickGammaLink(rows: SheetCatalogRow[]): string | undefined {
-  return rows.map((row) => parseRowNotes(row.notas).gammaLink).find(Boolean);
+function pickGammaLink(_rows: SheetCatalogRow[]): string | undefined {
+  return undefined;
 }
 
 function buildInclusionBlock(rows: SheetCatalogRow[], maxPerLevel = 220): string {
@@ -314,7 +317,6 @@ export function buildCatalogInclusionAnswer(query: string): string | null {
 
   const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
   const baseName = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || unique[0]!.servicio;
-  const gammaLink = pickGammaLink(unique);
 
   const blocks = unique.slice(0, 5).map((row) => {
     const parsed = parseRowNotes(row.notas);
@@ -323,14 +325,11 @@ export function buildCatalogInclusionAnswer(query: string): string | null {
       row.tienePrecio && row.precio
         ? ` — ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? `, mín. ${parsed.minimo}` : ""}`
         : "";
-    const inclusion = parsed.inclusion || "Consulta el catálogo visual para el detalle completo.";
+    const inclusion = parsed.inclusion || "Alejandro puede darte el detalle completo del menú.";
     return `*${nivel}*${price}\n${inclusion}`;
   });
 
   let msg = `Te comparto qué incluye *${baseName}*:\n\n${blocks.join("\n\n")}`;
-  if (gammaLink) {
-    msg += `\n\n📎 Menú y detalle visual por nivel: ${gammaLink}`;
-  }
   return msg;
 }
 
@@ -341,7 +340,6 @@ export function buildCatalogPriceAnswer(query: string): string | null {
 
   const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
   const baseName = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || unique[0]!.servicio;
-  const gammaLink = pickGammaLink(unique);
 
   const priceLines = unique
     .slice(0, 6)
@@ -355,11 +353,7 @@ export function buildCatalogPriceAnswer(query: string): string | null {
     .join("\n");
 
   const inclusionBlock = buildInclusionBlock(unique, 280);
-  const gammaBlock = gammaLink
-    ? `\n\n📎 Catálogo con menús y detalle por nivel: ${gammaLink}`
-    : "";
-
-  return `Sí, manejamos ${baseName}:\n\n${priceLines}${inclusionBlock}${gammaBlock}`;
+  return `Sí, manejamos ${baseName}:\n\n${priceLines}${inclusionBlock}`;
 }
 
 /** Si preguntan qué incluye / menú, responde con detalle del Sheet. */

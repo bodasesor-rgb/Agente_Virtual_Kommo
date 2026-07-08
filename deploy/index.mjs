@@ -78560,7 +78560,11 @@ function sheetRowsToMarkdown(rows) {
       } else {
         lines.push(`\u2022 **${item.servicio}**: sin precio listado \u2014 Alejandro cotiza`);
       }
-      if (item.notas) lines.push(`  ${item.notas}`);
+      if (item.notas) {
+        const parsed = parseRowNotes(item.notas);
+        const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
+        if (clientNotes) lines.push(`  ${clientNotes}`);
+      }
     }
     lines.push("");
   }
@@ -78596,28 +78600,6 @@ function parseRowNotes(notas) {
   }
   return result;
 }
-function sheetRowsToGammaIndex(rows) {
-  const byService = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    const parsed = parseRowNotes(row.notas);
-    if (!parsed.gammaLink) continue;
-    const base = row.categoria || row.servicio.split(" (")[0] || row.servicio;
-    if (!byService.has(base)) byService.set(base, parsed.gammaLink);
-  }
-  if (!byService.size) return "";
-  const lines = [
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "CAT\xC1LOGOS GAMMA POR SERVICIO (men\xFAs, niveles, detalle visual)",
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "",
-    "Usa estos enlaces cuando el cliente pida men\xFA, detalle por nivel o qu\xE9 incluye cada paquete.",
-    ""
-  ];
-  for (const [service, link] of byService) {
-    lines.push(`\u2022 ${service}: ${link}`);
-  }
-  return lines.join("\n").trim();
-}
 
 // src/services/gammaCatalog.ts
 var GAMMA_API_BASE = "https://public-api.gamma.app/v1.0";
@@ -78633,8 +78615,62 @@ function resolveGammaId() {
   const match = url2.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
   return match?.[1] ?? null;
 }
-function resolveGammaPublicUrl() {
-  return process.env["GAMMA_CATALOG_URL"]?.trim() || null;
+function extractGammaIdFromUrl(url2) {
+  const match = url2.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
+  return match?.[1] ?? null;
+}
+async function fetchGammaDocKnowledge(gammaId) {
+  const apiKey = gammaApiKey();
+  if (!apiKey) return { title: "", description: "" };
+  try {
+    const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}`, {
+      headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+      signal: AbortSignal.timeout(2e4)
+    });
+    if (!res.ok) return { title: "", description: "" };
+    const data = await res.json();
+    return {
+      title: typeof data.title === "string" ? data.title.trim() : "",
+      description: typeof data.description === "string" ? data.description.trim() : ""
+    };
+  } catch {
+    return { title: "", description: "" };
+  }
+}
+async function loadGammaKnowledgeFromSheet(rows) {
+  const byService = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const linkMatch = row.notas.match(/Cat[aá]logo:\s*(https?:\S+)/i);
+    const url2 = linkMatch?.[1];
+    if (!url2) continue;
+    const gammaId = extractGammaIdFromUrl(url2);
+    if (!gammaId) continue;
+    const base = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+    if (!byService.has(base)) byService.set(base, gammaId);
+  }
+  if (!byService.size) return "";
+  const entries = [];
+  for (const [service, gammaId] of byService) {
+    const meta = await fetchGammaDocKnowledge(gammaId);
+    if (!meta.title && !meta.description) continue;
+    entries.push({ service, gammaId, title: meta.title, description: meta.description });
+  }
+  if (!entries.length) return "";
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "CONOCIMIENTO INTERNO GAMMA (solo para Lucy \u2014 NO enviar links al cliente)",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "",
+    "Usa esta info para explicar men\xFAs, niveles y productos. NUNCA compartas enlaces gamma.app.",
+    ""
+  ];
+  for (const entry of entries) {
+    lines.push(`## ${entry.service}`);
+    if (entry.title) lines.push(`T\xEDtulo: ${entry.title}`);
+    if (entry.description) lines.push(entry.description);
+    lines.push("");
+  }
+  return lines.join("\n").trim();
 }
 async function fetchGammaMetadata(gammaId) {
   const apiKey = gammaApiKey();
@@ -78712,23 +78748,17 @@ async function loadGammaCatalog() {
   }
   const lines = [
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "CAT\xC1LOGO VISUAL GAMMA",
+    "CAT\xC1LOGO VISUAL GAMMA (solo conocimiento interno de Lucy)",
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "",
+    "NUNCA compartas enlaces gamma.app con el cliente. Usa el contenido para responder con tus palabras.",
     ""
   ];
   if (meta.title) lines.push(`T\xEDtulo: ${meta.title}`, "");
-  if (publicUrl || meta.url) {
-    lines.push(`Enlace Gamma: ${publicUrl || meta.url}`, "");
-  }
-  if (exportUrl) {
-    lines.push(`Export PDF Gamma: ${exportUrl}`, "");
-  }
   if (publishedText) {
     lines.push("Contenido publicado:", "", publishedText);
-  } else if (!exportUrl && !publicUrl) {
-    lines.push(
-      "Configura GAMMA_CATALOG_TEXT_URL o GAMMA_CATALOG_URL para que Lucy tenga el contenido visual."
-    );
+  } else if (meta.title || (publicUrl || meta.url)) {
+    lines.push("Usa el conocimiento Gamma del Sheet y las inclusiones del cat\xE1logo de precios.");
   }
   return {
     gammaId: gammaId ?? null,
@@ -78812,7 +78842,7 @@ async function refreshCatalog(force = false) {
         const csv = await fetchCsvText(sheetsUrl);
         rows = parseSheetCatalogCsv(csv);
         if (rows.length) {
-          sheetsMd = [sheetRowsToMarkdown(rows), sheetRowsToGammaIndex(rows)].filter(Boolean).join("\n\n");
+          sheetsMd = sheetRowsToMarkdown(rows);
           status.sources.sheets = true;
           status.sources.sheetsRows = rows.length;
         }
@@ -78828,6 +78858,11 @@ async function refreshCatalog(force = false) {
         gammaBlock = gamma.textBlock;
         status.sources.gamma = true;
         status.sources.gammaUrl = gamma.gammaUrl;
+      }
+      const sheetGammaKnowledge = await loadGammaKnowledgeFromSheet(rows);
+      if (sheetGammaKnowledge) {
+        gammaBlock = [gammaBlock, sheetGammaKnowledge].filter(Boolean).join("\n\n");
+        status.sources.gamma = true;
       }
       const useStatic = !status.sources.sheets;
       status.sources.staticFallback = useStatic;
@@ -78912,9 +78947,6 @@ function extractNivelLabel(servicio) {
   const match = servicio.match(/\(([^)]+)\)\s*$/);
   return match?.[1]?.trim() || servicio;
 }
-function pickGammaLink(rows) {
-  return rows.map((row) => parseRowNotes(row.notas).gammaLink).find(Boolean);
-}
 function buildInclusionBlock(rows, maxPerLevel = 220) {
   const inclusionByLevel = rows.map((row) => ({
     nivel: extractNivelLabel(row.servicio),
@@ -78947,23 +78979,17 @@ function buildCatalogInclusionAnswer(query) {
   if (!matches.length) return null;
   const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
   const baseName = unique[0].categoria || unique[0].servicio.split(" (")[0] || unique[0].servicio;
-  const gammaLink = pickGammaLink(unique);
   const blocks = unique.slice(0, 5).map((row) => {
     const parsed = parseRowNotes(row.notas);
     const nivel = extractNivelLabel(row.servicio);
     const price = row.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? `, m\xEDn. ${parsed.minimo}` : ""}` : "";
-    const inclusion = parsed.inclusion || "Consulta el cat\xE1logo visual para el detalle completo.";
+    const inclusion = parsed.inclusion || "Alejandro puede darte el detalle completo del men\xFA.";
     return `*${nivel}*${price}
 ${inclusion}`;
   });
   let msg = `Te comparto qu\xE9 incluye *${baseName}*:
 
 ${blocks.join("\n\n")}`;
-  if (gammaLink) {
-    msg += `
-
-\u{1F4CE} Men\xFA y detalle visual por nivel: ${gammaLink}`;
-  }
   return msg;
 }
 function buildCatalogPriceAnswer(query) {
@@ -78971,7 +78997,6 @@ function buildCatalogPriceAnswer(query) {
   if (!matches.length) return null;
   const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
   const baseName = unique[0].categoria || unique[0].servicio.split(" (")[0] || unique[0].servicio;
-  const gammaLink = pickGammaLink(unique);
   const priceLines = unique.slice(0, 6).map((row) => {
     const parsed = parseRowNotes(row.notas);
     const nivel = extractNivelLabel(row.servicio);
@@ -78980,12 +79005,9 @@ function buildCatalogPriceAnswer(query) {
     return `\u2022 *${nivel}* \u2014 ${row.precio}${unit}${min}`;
   }).join("\n");
   const inclusionBlock = buildInclusionBlock(unique, 280);
-  const gammaBlock = gammaLink ? `
-
-\u{1F4CE} Cat\xE1logo con men\xFAs y detalle por nivel: ${gammaLink}` : "";
   return `S\xED, manejamos ${baseName}:
 
-${priceLines}${inclusionBlock}${gammaBlock}`;
+${priceLines}${inclusionBlock}`;
 }
 function injectCatalogInclusionIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
@@ -81136,7 +81158,16 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId }, "GUARD: inclusiones del Sheet aplicadas al cierre");
     }
   }
+  const withoutGammaLinks = stripGammaLinks(mensaje);
+  if (withoutGammaLinks !== mensaje) {
+    log?.info({ entityId }, "GUARD: enlaces gamma.app eliminados de la respuesta");
+    mensaje = withoutGammaLinks;
+  }
   return mensaje;
+}
+function stripGammaLinks(text2) {
+  if (!text2 || !/gamma\.app/i.test(text2)) return text2;
+  return text2.replace(/https?:\/\/[^\s]*gamma\.app[^\s]*/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 
 // src/routes/kommo.ts

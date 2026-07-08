@@ -1149,5 +1149,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  const withoutGammaLinks = stripGammaLinks(mensaje);
+  if (withoutGammaLinks !== mensaje) {
+    log?.info({ entityId }, "GUARD: enlaces gamma.app eliminados de la respuesta");
+    mensaje = withoutGammaLinks;
+  }
+
   return mensaje;
+}
+
+/** Los links Gamma son solo conocimiento interno — nunca deben llegar al cliente. */
+export function stripGammaLinks(text: string): string {
+  if (!text || !/gamma\.app/i.test(text)) return text;
+  return text
+    .replace(/https?:\/\/[^\s]*gamma\.app[^\s]*/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
 }

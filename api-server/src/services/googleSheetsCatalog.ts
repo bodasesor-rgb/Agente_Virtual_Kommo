@@ -314,7 +314,13 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
       } else {
         lines.push(`• **${item.servicio}**: sin precio listado — Alejandro cotiza`);
       }
-      if (item.notas) lines.push(`  ${item.notas}`);
+      if (item.notas) {
+        const parsed = parseRowNotes(item.notas);
+        const clientNotes = [parsed.inclusion, parsed.minimo ? `Mínimo de salida: ${parsed.minimo}` : ""]
+          .filter(Boolean)
+          .join(" | ");
+        if (clientNotes) lines.push(`  ${clientNotes}`);
+      }
     }
     lines.push("");
   }
@@ -373,31 +379,7 @@ export function parseRowNotes(notas: string): ParsedRowNotes {
   return result;
 }
 
-/** Índice de catálogos Gamma por servicio (links del Sheet). */
-export function sheetRowsToGammaIndex(rows: SheetCatalogRow[]): string {
-  const byService = new Map<string, string>();
-
-  for (const row of rows) {
-    const parsed = parseRowNotes(row.notas);
-    if (!parsed.gammaLink) continue;
-    const base = row.categoria || row.servicio.split(" (")[0] || row.servicio;
-    if (!byService.has(base)) byService.set(base, parsed.gammaLink);
-  }
-
-  if (!byService.size) return "";
-
-  const lines = [
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "CATÁLOGOS GAMMA POR SERVICIO (menús, niveles, detalle visual)",
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "",
-    "Usa estos enlaces cuando el cliente pida menú, detalle por nivel o qué incluye cada paquete.",
-    "",
-  ];
-
-  for (const [service, link] of byService) {
-    lines.push(`• ${service}: ${link}`);
-  }
-
-  return lines.join("\n").trim();
+/** @deprecated Reemplazado por loadGammaKnowledgeFromSheet — no exponer URLs al cliente. */
+export function sheetRowsToGammaIndex(_rows: SheetCatalogRow[]): string {
+  return "";
 }

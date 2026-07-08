@@ -32,8 +32,83 @@ export function resolveGammaId(): string | null {
   return match?.[1] ?? null;
 }
 
-export function resolveGammaPublicUrl(): string | null {
-  return process.env["GAMMA_CATALOG_URL"]?.trim() || null;
+export function extractGammaIdFromUrl(url: string): string | null {
+  const match = url.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
+  return match?.[1] ?? null;
+}
+
+export interface GammaSheetKnowledge {
+  service: string;
+  gammaId: string;
+  title: string;
+  description: string;
+}
+
+async function fetchGammaDocKnowledge(gammaId: string): Promise<{ title: string; description: string }> {
+  const apiKey = gammaApiKey();
+  if (!apiKey) return { title: "", description: "" };
+
+  try {
+    const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}`, {
+      headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) return { title: "", description: "" };
+
+    const data = (await res.json()) as { title?: string; description?: string | null };
+    return {
+      title: typeof data.title === "string" ? data.title.trim() : "",
+      description: typeof data.description === "string" ? data.description.trim() : "",
+    };
+  } catch {
+    return { title: "", description: "" };
+  }
+}
+
+/** Conocimiento interno desde los Gamma del Sheet — NO compartir URLs con clientes. */
+export async function loadGammaKnowledgeFromSheet(
+  rows: { servicio: string; categoria: string; notas: string }[]
+): Promise<string> {
+  const byService = new Map<string, string>();
+
+  for (const row of rows) {
+    const linkMatch = row.notas.match(/Cat[aá]logo:\s*(https?:\S+)/i);
+    const url = linkMatch?.[1];
+    if (!url) continue;
+    const gammaId = extractGammaIdFromUrl(url);
+    if (!gammaId) continue;
+    const base = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+    if (!byService.has(base)) byService.set(base, gammaId);
+  }
+
+  if (!byService.size) return "";
+
+  const entries: GammaSheetKnowledge[] = [];
+  for (const [service, gammaId] of byService) {
+    const meta = await fetchGammaDocKnowledge(gammaId);
+    if (!meta.title && !meta.description) continue;
+    entries.push({ service, gammaId, title: meta.title, description: meta.description });
+  }
+
+  if (!entries.length) return "";
+
+  const lines = [
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "CONOCIMIENTO INTERNO GAMMA (solo para Lucy — NO enviar links al cliente)",
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "",
+    "Usa esta info para explicar menús, niveles y productos. NUNCA compartas enlaces gamma.app.",
+    "",
+  ];
+
+  for (const entry of entries) {
+    lines.push(`## ${entry.service}`);
+    if (entry.title) lines.push(`Título: ${entry.title}`);
+    if (entry.description) lines.push(entry.description);
+    lines.push("");
+  }
+
+  return lines.join("\n").trim();
 }
 
 async function fetchGammaMetadata(gammaId: string): Promise<{ title?: string; url?: string }> {
@@ -134,24 +209,18 @@ export async function loadGammaCatalog(): Promise<GammaCatalogResult | null> {
 
   const lines: string[] = [
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "CATÁLOGO VISUAL GAMMA",
+    "CATÁLOGO VISUAL GAMMA (solo conocimiento interno de Lucy)",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+    "",
+    "NUNCA compartas enlaces gamma.app con el cliente. Usa el contenido para responder con tus palabras.",
     "",
   ];
 
   if (meta.title) lines.push(`Título: ${meta.title}`, "");
-  if (publicUrl || meta.url) {
-    lines.push(`Enlace Gamma: ${publicUrl || meta.url}`, "");
-  }
-  if (exportUrl) {
-    lines.push(`Export PDF Gamma: ${exportUrl}`, "");
-  }
   if (publishedText) {
     lines.push("Contenido publicado:", "", publishedText);
-  } else if (!exportUrl && !publicUrl) {
-    lines.push(
-      "Configura GAMMA_CATALOG_TEXT_URL o GAMMA_CATALOG_URL para que Lucy tenga el contenido visual."
-    );
+  } else if (meta.title || (publicUrl || meta.url)) {
+    lines.push("Usa el conocimiento Gamma del Sheet y las inclusiones del catálogo de precios.");
   }
 
   return {
