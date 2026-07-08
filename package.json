@@ -8,6 +8,7 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "build": "node api-server/build.mjs",
+    "deploy:hostinger": "node scripts/deploy-hostinger.mjs",
     "start": "node start.mjs",
     "postinstall": "echo \"Lucy: sin dependencias npm — bundle en deploy/\""
   },

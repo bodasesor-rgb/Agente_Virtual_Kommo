@@ -49702,7 +49702,9 @@ router.get("/health", (_req, res) => {
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
     uptime: process.uptime(),
     service: "Lucy Bodasesor",
-    version: "3.0",
+    version: "3.1",
+    lucy_prompt: "V6",
+    git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
     openai_configured: isOpenAiConfigured(),
     openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "\u2026" : null
   });
