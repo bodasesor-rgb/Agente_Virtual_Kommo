@@ -92,25 +92,35 @@ async function uploadBuild(username, archivePath) {
     `/websites/${encodeURIComponent(DOMAIN)}/nodejs/builds/from-archive`;
 
   const cmd = [
-    "curl -sS -f",
+    "curl -sS",
+    `-w "\\nHTTP:%{http_code}"`,
     `-X POST "${url}"`,
     `-H "Authorization: Bearer ${TOKEN}"`,
     `-H "Accept: application/json"`,
-    `-F "archive=@${archivePath}"`,
+    `-F "archive=@${archivePath};type=application/zip"`,
     `-F "build_script=echo ok"`,
     `-F "entry_file=start.mjs"`,
     `-F "output_directory=."`,
     `-F "package_manager=npm"`,
     `-F "node_version=22"`,
+    `-F "app_type=express"`,
   ].join(" ");
 
   console.log("[deploy] Subiendo a Hostinger (multipart)...");
-  const output = execSync(cmd, { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+  const raw = execSync(cmd, { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+  const httpMatch = raw.match(/HTTP:(\d+)\s*$/);
+  const httpCode = httpMatch ? Number(httpMatch[1]) : 0;
+  const body = raw.replace(/\nHTTP:\d+\s*$/, "").trim();
+
+  if (httpCode < 200 || httpCode >= 300) {
+    throw new Error(`Upload failed HTTP ${httpCode}: ${body.slice(0, 1500)}`);
+  }
+
   let json;
   try {
-    json = output ? JSON.parse(output) : null;
+    json = body ? JSON.parse(body) : null;
   } catch {
-    throw new Error(`Respuesta inválida de Hostinger: ${output.slice(0, 500)}`);
+    throw new Error(`Respuesta inválida de Hostinger: ${body.slice(0, 500)}`);
   }
   console.log("[deploy] Respuesta API:", JSON.stringify(json).slice(0, 500));
   return json;
