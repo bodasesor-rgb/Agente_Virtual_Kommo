@@ -75185,6 +75185,102 @@ Ofrece propuesta para comparar. M\xE1ximo 2 l\xEDneas.`
   return modules[type] ?? "";
 }
 
+// src/services/lucyRedaction.ts
+var LUCY_REDACTION_MODEL = "gpt-4o-mini";
+var PENDING_FIELD_LABELS = {
+  nombre: "Nombre del cliente",
+  correo: "Correo electr\xF3nico (opcional \u2014 intentar sin insistir)",
+  tipo_evento: "Tipo de evento",
+  requerimientos: "Requerimientos o servicios",
+  invitados: "N\xFAmero de invitados",
+  zona: "Lugar o ciudad del evento",
+  fecha: "Fecha y horario",
+  presupuesto: "Presupuesto estimado (MXN)"
+};
+var LUCY_REDACTION_PARAMS = {
+  model: LUCY_REDACTION_MODEL,
+  max_tokens: 1200,
+  temperature: 0.6,
+  frequency_penalty: 0.4,
+  presence_penalty: 0.2,
+  top_p: 0.9
+};
+function mapPriorityToUrgency(priority) {
+  if (priority === "hot") return "alta";
+  if (priority === "cold") return "baja";
+  return "media";
+}
+function buildRedactionBriefing(input) {
+  const pending = getNextPendingField(input.extracted, input.filledSet);
+  const pendingLabel = pending ? PENDING_FIELD_LABELS[pending] : null;
+  const urgencia = mapPriorityToUrgency(input.priority);
+  const datosCapturados = input.crmMergedLines.length > 0 ? input.crmMergedLines.map((l4) => l4.replace(/^- /, "")).join("; ") : "ninguno a\xFAn";
+  const lines = [
+    "[Contexto interno \u2014 NO lo menciones ni cites al cliente]",
+    `Intenci\xF3n detectada: ${input.intent.intent} (confianza ${Math.round(input.intent.confidence * 100)}%)`,
+    `Sentimiento: ${input.sentiment.sentiment}`,
+    `Etapa del lead: ${input.stage} | Prioridad: ${input.priority} | Urgencia: ${urgencia}`,
+    `Datos ya capturados (NO volver a pedirlos): ${datosCapturados}`
+  ];
+  if (input.allFieldsFilled) {
+    lines.push("Todos los datos clave est\xE1n capturados \u2014 si corresponde, aplica el cierre.");
+  } else if (pendingLabel) {
+    lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
+  } else {
+    lines.push("Revisa el CRM y pide solo el primer dato que falte.");
+  }
+  if (input.hasObjection) {
+    lines.push(
+      `Objeci\xF3n detectada${input.objectionType ? ` (${input.objectionType})` : ""}: ati\xE9ndela antes de insistir en datos.`
+    );
+  }
+  if (input.isFirstInteraction) {
+    lines.push("Es el PRIMER mensaje de Lucy: presentaci\xF3n + pedir nombre.");
+  } else {
+    lines.push("NO te presentes de nuevo.");
+  }
+  lines.push(
+    "Si el cliente hizo una pregunta en este mensaje, resp\xF3ndela ANTES de pedir el siguiente dato.",
+    "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
+  );
+  return lines.join("\n");
+}
+function appendRedactionBriefing(messages2, briefing) {
+  return [...messages2, { role: "system", content: briefing }];
+}
+async function completeLucyRedaction(openai3, baseMessages, briefing) {
+  const completion = await openai3.chat.completions.create({
+    ...LUCY_REDACTION_PARAMS,
+    messages: appendRedactionBriefing(baseMessages, briefing)
+  });
+  return completion.choices[0]?.message?.content ?? "";
+}
+async function refinarRespuestaCierre(openai3, borrador) {
+  const resp = await openai3.chat.completions.create({
+    model: LUCY_REDACTION_MODEL,
+    temperature: 0.3,
+    max_tokens: 1200,
+    messages: [
+      {
+        role: "system",
+        content: "Eres editora de estilo de Lucy (asesora de eventos Bodasesor). Reescribe el mensaje para que suene m\xE1s c\xE1lido, natural y profesional en WhatsApp, sin emojis y sin lenguaje corporativo rob\xF3tico. Conserva TODA la informaci\xF3n factual, el texto 'Perfecto, ya tengo todo.', la URL del cat\xE1logo si aparece, las preguntas y el cierre. Devuelve SOLO el mensaje corregido, sin explicaciones."
+      },
+      { role: "user", content: borrador }
+    ]
+  });
+  return (resp.choices[0]?.message?.content ?? borrador).trim();
+}
+async function maybeRefinarMensajeCierre(openai3, mensaje, opts) {
+  const { readyForClosing, cierreYaEnviado, closingSignature, catalogUrl } = opts;
+  if (!readyForClosing || cierreYaEnviado || !mensaje.includes(closingSignature)) {
+    return mensaje;
+  }
+  const refined = await refinarRespuestaCierre(openai3, mensaje);
+  if (!refined.includes(closingSignature)) return mensaje;
+  if (catalogUrl && mensaje.includes(catalogUrl) && !refined.includes(catalogUrl)) return mensaje;
+  return refined;
+}
+
 // src/services/voiceProcessor.ts
 var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var AUDIO_TYPES = /* @__PURE__ */ new Set(["audio", "voice"]);
@@ -81083,6 +81179,42 @@ ${CATALOG_URL}
 
 \xBFTe gustar\xEDa cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en dec\xEDrnoslo y nosotros te lo conseguimos.`;
 }
+function buildLucyRedactionBriefing(opts) {
+  const intentResult = detectIntent(opts.messageText);
+  const sentimentResult = analyzeSentiment(opts.messageText);
+  const objectionResult = detectObjection(opts.messageText);
+  const scoreContext = {
+    extracted: opts.extracted,
+    messageCount: opts.messageCount ?? 1,
+    hasResponded: true,
+    conversationAge: opts.conversationAgeHours ?? 0,
+    lastIntent: intentResult.intent,
+    conversationText: opts.conversationText
+  };
+  const leadScore = calculateLeadScore(scoreContext);
+  const stage = detectStage(scoreContext);
+  return buildRedactionBriefing({
+    extracted: opts.extracted,
+    filledSet: opts.filledSet,
+    crmMergedLines: opts.crmMergedLines,
+    intent: intentResult,
+    sentiment: sentimentResult,
+    stage,
+    priority: leadScore.priority,
+    allFieldsFilled: opts.allFieldsFilled,
+    isFirstInteraction: opts.isFirstInteraction,
+    hasObjection: objectionResult.hasObjection,
+    objectionType: objectionResult.type
+  });
+}
+async function applyCierreRefinement(mensaje, opts) {
+  return maybeRefinarMensajeCierre(openai2, mensaje, {
+    readyForClosing: opts.readyForClosing,
+    cierreYaEnviado: opts.cierreYaEnviado,
+    closingSignature: CLOSING_SIGNATURE2,
+    catalogUrl: CATALOG_URL
+  });
+}
 function buildLeadCalificadoNota(extracted, mergedLines) {
   const fromLines = (labelPattern) => {
     const line2 = mergedLines.find((l4) => labelPattern.test(l4));
@@ -81495,16 +81627,20 @@ async function processBatch(batch, accessToken, log) {
       ...history,
       { role: "user", content: combinedUserText }
     ];
-    const completion = await openai2.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: lucyMessages,
-      temperature: 0.5,
-      max_tokens: 1200,
-      frequency_penalty: 1,
-      presence_penalty: 1,
-      top_p: 0.5
+    const redactionBriefing = buildRedactionBriefing({
+      extracted,
+      filledSet: filledLabels,
+      crmMergedLines,
+      intent: intentResult,
+      sentiment: sentimentResult,
+      stage,
+      priority: leadScore.priority,
+      allFieldsFilled,
+      isFirstInteraction,
+      hasObjection: objectionResult.hasObjection,
+      objectionType: objectionResult.type
     });
-    let aiResponse = completion.choices[0]?.message?.content ?? "";
+    let aiResponse = await completeLucyRedaction(openai2, lucyMessages, redactionBriefing);
     if (batch.isVoice) {
       const clientName = sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? sanitizeDisplayName(conversation.clientName) ?? void 0;
       const voiceAck = getVoiceAcknowledgment(clientName ?? void 0);
@@ -81531,6 +81667,10 @@ async function processBatch(batch, accessToken, log) {
       log,
       entityId,
       forceFirstPresentation: isFirstInteraction
+    });
+    mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
+      readyForClosing: allFieldsFilled,
+      cierreYaEnviado
     });
     if (cierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
       log.warn({ entityId }, "P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
@@ -81876,27 +82016,24 @@ router2.post("/kommo/salesbot", async (req, res) => {
     const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? "" : lastLucyResponse;
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
     const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null) : null;
-    const preExtracted = {
-      nombre: null,
-      telefono: null,
-      correo: null,
-      presupuesto: null,
-      direccion_evento: null,
-      requerimientos_evento: null,
-      fecha_horario: null,
-      num_invitados: null,
-      tipo_evento: null,
-      tipo_contacto: null,
-      empresa: null
-    };
-    crmContext = buildCrmContext(
+    const extracted = await extractData(history, messageText, crmLines.join("\n"));
+    const conversationText = [
+      ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
+      messageText
+    ].join(" ");
+    enrichExtractedFromText(extracted, conversationText);
+    const crmResultFinal = buildCrmContext(
       crmLines,
-      preExtracted,
+      extracted,
       history,
       void 0,
       messageText,
       whatsappDisplayName
-    ).context;
+    );
+    crmContext = crmResultFinal.context;
+    const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
+    const salesbotMergedLines = crmResultFinal.mergedLines;
+    salesbotFilledLabels = crmResultFinal.filledLabels;
     const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
     const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
     const trainingExamples = getTrainingExamples();
@@ -81911,36 +82048,17 @@ router2.post("/kommo/salesbot", async (req, res) => {
       { role: "user", content: messageText }
     ];
     log.info({ isFirstInteraction, messageText, historyLength: history.length }, "Salesbot: llamando OpenAI");
-    const [completion, extracted] = await Promise.all([
-      openai2.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: lucyMessages,
-        max_tokens: 1200,
-        temperature: 0.5,
-        frequency_penalty: 1,
-        presence_penalty: 1,
-        top_p: 0.5
-      }),
-      extractData(history, messageText, crmLines.join("\n"))
-    ]);
-    let aiResponse = completion.choices[0]?.message?.content ?? "";
-    log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
-    const conversationText = [
-      ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
-      messageText
-    ].join(" ");
-    enrichExtractedFromText(extracted, conversationText);
-    const crmResultFinal = buildCrmContext(
-      crmLines,
+    const redactionBriefing = buildLucyRedactionBriefing({
       extracted,
-      history,
-      void 0,
+      filledSet: salesbotFilledLabels,
+      crmMergedLines: salesbotMergedLines,
       messageText,
-      whatsappDisplayName
-    );
-    const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
-    const salesbotMergedLines = crmResultFinal.mergedLines;
-    salesbotFilledLabels = crmResultFinal.filledLabels;
+      conversationText,
+      allFieldsFilled: salesbotAllFieldsFilled,
+      isFirstInteraction
+    });
+    let aiResponse = await completeLucyRedaction(openai2, lucyMessages, redactionBriefing);
+    log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
     const sbCierreYaEnviado = history.some(
       (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
     );
@@ -81960,6 +82078,10 @@ router2.post("/kommo/salesbot", async (req, res) => {
       log,
       entityId,
       forceFirstPresentation: isFirstInteraction
+    });
+    mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
+      readyForClosing: salesbotAllFieldsFilled,
+      cierreYaEnviado: sbCierreYaEnviado
     });
     if (sbCierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
       log.warn({ entityId }, "Salesbot P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
@@ -82220,57 +82342,10 @@ router2.post("/kommo/simulator", async (req, res) => {
     let history = fullHistory.slice(-6);
     const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
     const whatsappDisplayName = sanitizeDisplayName(lead.name);
-    const emptyExtracted = {
-      nombre: null,
-      telefono: null,
-      correo: null,
-      presupuesto: null,
-      direccion_evento: null,
-      requerimientos_evento: null,
-      fecha_horario: null,
-      num_invitados: null,
-      tipo_evento: null,
-      tipo_contacto: null,
-      empresa: null
-    };
-    const crmResultPre = buildCrmContext(
-      crmLines,
-      emptyExtracted,
-      history,
-      lead.contact_email,
-      messageText,
-      whatsappDisplayName
-    );
-    const crmContext = crmResultPre.context;
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? null : lastLucyResponse;
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
-    const trainingExamples = getTrainingExamples();
-    const fewShot = trainingExamples.flatMap((ex) => [
-      { role: "user", content: ex.userMessage },
-      { role: "assistant", content: ex.lucyResponse }
-    ]);
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
-    const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
-    const lucyMessages = [
-      { role: "system", content: systemContent },
-      ...fewShot,
-      ...history,
-      { role: "user", content: messageText }
-    ];
-    const [completion, extracted] = await Promise.all([
-      openai2.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: lucyMessages,
-        max_tokens: 1200,
-        temperature: 0.5,
-        frequency_penalty: 1,
-        presence_penalty: 1,
-        top_p: 0.5
-      }),
-      extractData(history, messageText, crmLines.join("\n"))
-    ]);
-    let aiResponse = completion.choices[0]?.message?.content ?? "";
+    const extracted = await extractData(history, messageText, crmLines.join("\n"));
     const conversationText = [
       ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
       messageText
@@ -82284,13 +82359,38 @@ router2.post("/kommo/simulator", async (req, res) => {
       messageText,
       whatsappDisplayName
     );
+    const crmContext = crmResultFinal.context;
     const allFieldsFilled = crmResultFinal.allFieldsFilled;
     const filledLabels = crmResultFinal.filledLabels;
+    const crmMergedLines = crmResultFinal.mergedLines;
+    const trainingExamples = getTrainingExamples();
+    const fewShot = trainingExamples.flatMap((ex) => [
+      { role: "user", content: ex.userMessage },
+      { role: "assistant", content: ex.lucyResponse }
+    ]);
+    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+    const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
+    const lucyMessages = [
+      { role: "system", content: systemContent },
+      ...fewShot,
+      ...history,
+      { role: "user", content: messageText }
+    ];
+    const redactionBriefing = buildLucyRedactionBriefing({
+      extracted,
+      filledSet: filledLabels,
+      crmMergedLines,
+      messageText,
+      conversationText,
+      allFieldsFilled,
+      isFirstInteraction
+    });
+    let aiResponse = await completeLucyRedaction(openai2, lucyMessages, redactionBriefing);
     const simCierreYaEnviado = history.some(
       (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
     );
     const emailRefusedThisTurn = detectEmailRefusal([messageText]);
-    const mensajeParaCliente = applyLucyMessageGuards({
+    let mensajeParaCliente = applyLucyMessageGuards({
       aiResponse,
       extracted,
       filledSet: filledLabels,
@@ -82305,6 +82405,10 @@ router2.post("/kommo/simulator", async (req, res) => {
       log,
       entityId: leadId,
       forceFirstPresentation: isFirstInteraction
+    });
+    mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
+      readyForClosing: allFieldsFilled,
+      cierreYaEnviado: simCierreYaEnviado
     });
     appendHistory(histKey, messageText, mensajeParaCliente);
     const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente);
