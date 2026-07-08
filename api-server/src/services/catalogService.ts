@@ -577,3 +577,8 @@ export function injectCatalogPriceIfAsked(
 
   return aiResponse;
 }
+
+/** Snapshot en memoria (para PDF resolver y health). */
+export function getCatalogSnapshot(): CatalogSnapshot | null {
+  return snapshot;
+}

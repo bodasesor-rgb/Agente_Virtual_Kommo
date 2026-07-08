@@ -3,6 +3,7 @@ import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from ".
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
 import { getCatalogPromptBlock, injectCatalogPriceIfAsked, injectCatalogInclusionIfAsked, injectCatalogCateringIfAsked } from "../services/catalogService.js";
+import { maybeSendCatalogPdf } from "../services/catalogPdfService.js";
 import { getTrainingExamples } from "../lib/training.js";
 import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
@@ -331,6 +332,40 @@ function buildClosingMessage(serviciosPedidos: string | null | undefined): strin
     introServicios + `\n\n` +
     `¿Te gustaría cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en decírnoslo y nosotros te lo conseguimos.`
   );
+}
+
+/** Envía PDF de catálogo tras el mensaje de texto (cierre o petición explícita). */
+async function tryDeliverCatalogPdfs(opts: {
+  phone: string | null;
+  entityId: string | number;
+  clientMessage: string;
+  extracted: ExtractedData;
+  sendClosingCatalog: boolean;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  log: any;
+}): Promise<void> {
+  if (!opts.phone) return;
+  try {
+    const pdfResult = await maybeSendCatalogPdf({
+      to: opts.phone,
+      entityId: opts.entityId,
+      clientMessage: opts.clientMessage,
+      sendClosingCatalog: opts.sendClosingCatalog,
+      extracted: opts.extracted,
+    });
+    if (pdfResult.attempted) {
+      opts.log.info(
+        {
+          entityId: opts.entityId,
+          labels: pdfResult.pdfs.map((p) => p.label),
+          methods: pdfResult.results.map((r) => r.method),
+        },
+        "PDF catálogo procesado"
+      );
+    }
+  } catch (err) {
+    opts.log.warn({ err, entityId: opts.entityId }, "tryDeliverCatalogPdfs: error no crítico");
+  }
 }
 
 function buildLucyRedactionBriefing(opts: {
@@ -1252,6 +1287,8 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     appendHistory(histKey, combinedUserText, mensajeParaCliente);
     lastResponseCache.set(String(entityId), mensajeParaCliente);
 
+    const sendClosingPdfThisTurn = allFieldsFilled && !cierreYaEnviado;
+
     // ══════════════════════════════════════════════════════════════════════
     // PASO 14: Enviar mensaje al cliente
     //
@@ -1331,6 +1368,16 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       } else {
         log.error({ entityId }, "Sin teléfono ni talkId — mensaje NO enviado al cliente ❌");
       }
+
+      // PDF catálogo: adjunto WhatsApp (cierre o si piden catálogo/menú/PDF)
+      await tryDeliverCatalogPdfs({
+        phone: whatsappPhone,
+        entityId,
+        clientMessage: combinedUserText,
+        extracted,
+        sendClosingCatalog: sendClosingPdfThisTurn,
+        log,
+      });
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1891,6 +1938,15 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       } else {
         log.warn({ entityId }, "Salesbot: sin teléfono ni talkId — mensaje no enviado ❌");
       }
+
+      await tryDeliverCatalogPdfs({
+        phone: sbPhone,
+        entityId,
+        clientMessage: messageText,
+        extracted,
+        sendClosingCatalog: salesbotAllFieldsFilled && !sbCierreYaEnviado,
+        log,
+      });
 
       // ── Update CRM fields in background (sin campo 1048786) ────────────────
       const patchPayload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
