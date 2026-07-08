@@ -73712,6 +73712,9 @@ async function ensureTable() {
     logger.warn({ err: err2 }, "trainingStore: no se pudo crear tabla training_examples");
   }
 }
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
 async function seedFromJsonIfEmpty() {
   try {
     const [{ value: total }] = await db.select({ value: count() }).from(trainingExamples);
@@ -73720,7 +73723,7 @@ async function seedFromJsonIfEmpty() {
     if (fromJson.length === 0) return;
     await db.insert(trainingExamples).values(
       fromJson.map((ex, idx) => ({
-        id: ex.id || randomUUID(),
+        id: ex.id && isUuid(ex.id) ? ex.id : randomUUID(),
         userMessage: ex.userMessage,
         lucyResponse: ex.lucyResponse,
         label: ex.label ?? null,
@@ -83143,7 +83146,9 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 async function startServer() {
-  await initializeTrainingStore();
+  void initializeTrainingStore().catch((err2) => {
+    logger.warn({ err: err2 }, "trainingStore init en background fall\xF3 \u2014 se usar\xE1 JSON");
+  });
   app_default.listen(port, "0.0.0.0", (err2) => {
     if (err2) {
       logger.error({ err: err2 }, "Error listening on port");

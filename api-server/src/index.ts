@@ -16,7 +16,10 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function startServer(): Promise<void> {
-  await initializeTrainingStore();
+  // No bloquear listen: Hostinger marca 503 si el puerto tarda en abrirse.
+  void initializeTrainingStore().catch((err) => {
+    logger.warn({ err }, "trainingStore init en background falló — se usará JSON");
+  });
 
   app.listen(port, "0.0.0.0", (err) => {
   if (err) {

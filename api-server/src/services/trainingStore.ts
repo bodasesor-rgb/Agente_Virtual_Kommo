@@ -58,6 +58,10 @@ async function ensureTable(): Promise<void> {
   }
 }
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 async function seedFromJsonIfEmpty(): Promise<void> {
   try {
     const [{ value: total }] = await db.select({ value: count() }).from(trainingExamples);
@@ -68,7 +72,7 @@ async function seedFromJsonIfEmpty(): Promise<void> {
 
     await db.insert(trainingExamples).values(
       fromJson.map((ex, idx) => ({
-        id: ex.id || randomUUID(),
+        id: ex.id && isUuid(ex.id) ? ex.id : randomUUID(),
         userMessage: ex.userMessage,
         lucyResponse: ex.lucyResponse,
         label: ex.label ?? null,
