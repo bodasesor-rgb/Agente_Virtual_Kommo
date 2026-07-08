@@ -1,5 +1,5 @@
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
-import { CATALOGO_BODASESOR } from "../catalogo.js";
+import { getCatalogPromptBlockSync } from "./catalogService.js";
 import type { ObjectionDetection } from "./intentDetection.js";
 import type { ExtractedData } from "../types.js";
 
@@ -16,10 +16,12 @@ export function buildDynamicPrompt(context: {
   crmContext: string;
   isFirstInteraction?: boolean;
   hasClientName?: boolean;
+  catalogBlock?: string;
 }): string {
   const { hasObjection } = context;
+  const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
 
-  let prompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+  let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
 
   if (context.isFirstInteraction) {
     prompt += `

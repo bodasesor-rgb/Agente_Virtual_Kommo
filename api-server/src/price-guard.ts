@@ -3,13 +3,36 @@
  * Solo servicios listados en catalogo.ts (alimentos, barras con $/pp, etc.) pueden citarse.
  */
 
-/** Servicios sin precio publicado — Alejandro cotiza. */
+/** Servicios sin precio publicado — Alejandro cotiza (fallback estático). */
 const NO_LISTED_PRICE_PATTERN =
   /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
 
-/** Servicios con precios en catálogo (pueden mencionarse si el dato coincide). */
+/** Servicios con precios en catálogo (fallback estático). */
 const LISTED_PRICE_PATTERN =
   /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
+
+let dynamicListedPattern: RegExp | null = null;
+let dynamicNoListedPattern: RegExp | null = null;
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildServicePattern(labels: string[]): RegExp | null {
+  const terms = labels
+    .map((label) => label.trim().toLowerCase())
+    .filter((label) => label.length >= 2)
+    .map((label) => escapeRegex(label).replace(/\s+/g, "\\s+"));
+
+  if (!terms.length) return null;
+  return new RegExp(`\\b(?:${terms.join("|")})\\b`, "i");
+}
+
+/** Actualiza índice de precios desde Google Sheets (vía catalogService). */
+export function setCatalogPriceIndex(priced: string[], noPrice: string[]): void {
+  dynamicListedPattern = buildServicePattern(priced);
+  dynamicNoListedPattern = buildServicePattern(noPrice);
+}
 
 const PRICE_CLAIM_PATTERN =
   /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
@@ -23,10 +46,12 @@ export function clientAsksPrice(message?: string): boolean {
 }
 
 export function mentionsNoListedPriceService(text: string): boolean {
+  if (dynamicNoListedPattern?.test(text)) return true;
   return NO_LISTED_PRICE_PATTERN.test(text);
 }
 
 export function mentionsListedPriceService(text: string): boolean {
+  if (dynamicListedPattern?.test(text)) return true;
   return LISTED_PRICE_PATTERN.test(text);
 }
 
