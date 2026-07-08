@@ -31,7 +31,7 @@ import {
   maybeRefinarMensajeCierre,
 } from "../services/lucyRedaction.js";
 import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcessor.js";
-import { generateSummary, enrichExtractedFromText } from "../services/summaryService.js";
+import { generateSummary, enrichExtractedFromText, buildLeadBriefForKommo, extractLastMessageFromBrief } from "../services/summaryService.js";
 import {
   isPlaceholderLeadName,
   sanitizeDisplayName,
@@ -77,7 +77,7 @@ const openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 // ─── Kommo field IDs (hardcoded — no lookup needed) ──────────────────────────
 const FIELD = {
   // respuesta_ia (1048772) eliminado de Kommo — no usar o el PATCH falla
-  respuesta_ia_largo:     1048786, // Texto largo — respuesta completa de Lucy
+  respuesta_ia_largo:     1048786, // Texto largo — resumen interno Lucy (solo lectura CRM)
   direccion_evento:       1048774,
   requerimientos_evento:  1048776,
   fecha_horario:          1048778,
@@ -635,11 +635,17 @@ async function fetchLeadCurrentFields(
     }
 
     for (const field of cfv) {
-      // Capture last Lucy response for stateless memory reconstruction
+      // 1048786 = resumen interno; extraer último mensaje solo para recovery de historial
       if (field.field_id === FIELD.respuesta_ia_largo) {
         const val = field.values[0]?.value;
         if (val && typeof val === "string" && val.trim()) {
-          lastLucyResponse = val.trim();
+          const fromBrief = extractLastMessageFromBrief(val.trim());
+          if (fromBrief) {
+            lastLucyResponse = fromBrief;
+          } else if (!val.includes("📋 RESUMEN LUCY") && !isLegacyStoredLucyResponse(val)) {
+            // Formato legacy: el campo guardaba el mensaje directo al cliente
+            lastLucyResponse = val.trim();
+          }
         }
         continue;
       }
@@ -762,13 +768,25 @@ function withCrmNombre(extracted: ExtractedData, mergedLines: string[]): Extract
 function buildPatchPayload(
   _aiResponse: string,
   extracted: ExtractedData,
-  conversationText?: string
+  conversationText?: string,
+  opts?: {
+    mergedLines?: string[];
+    lastLucyMessage?: string | null;
+    leadCalificado?: boolean;
+  }
 ): Record<string, unknown> {
   // respuesta_ia (1048772) eliminado de Kommo — NO incluir o el PATCH falla con 400.
-  // respuesta_ia_largo (1048786) ya no se escribe: Lucy envía directamente via
-  // Meta WhatsApp Cloud API — el SalesBot de Kommo ya no es necesario.
-  // Solo se actualizan los campos CRM de datos del lead.
+  // respuesta_ia_largo (1048786): resumen interno para Alejandro (NO envío al cliente).
   const customFields: Array<{ field_id: number; values: Array<{ value: unknown }> }> = [];
+
+  const brief = buildLeadBriefForKommo(extracted, conversationText, {
+    mergedLines: opts?.mergedLines,
+    lastLucyMessage: opts?.lastLucyMessage,
+    leadCalificado: opts?.leadCalificado,
+  });
+  if (brief.trim()) {
+    customFields.push({ field_id: FIELD.respuesta_ia_largo, values: [{ value: brief }] });
+  }
 
   // Only push fields that have a real, non-placeholder, non-empty value
   if (isValidExtractedString(extracted.direccion_evento))
@@ -1334,20 +1352,24 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // PASO 15: PATCH a Kommo con campos CRM extraídos (datos del lead)
-    // Ya NO se escribe campo 1048786 — envío directo via Meta API arriba.
+    // PASO 15: PATCH a Kommo con campos CRM + resumen legible en 1048786
     // El lead NO se mueve de etapa — Alejandro lo mueve manualmente.
     // ══════════════════════════════════════════════════════════════════════
     const payload = buildPatchPayload(
       mensajeParaCliente,
       withCrmNombre(extracted, crmMergedLines),
-      conversationText
+      conversationText,
+      {
+        mergedLines: crmMergedLines,
+        lastLucyMessage: mensajeParaCliente,
+        leadCalificado: allFieldsFilled,
+      }
     );
     const cfvToSend = payload["custom_fields_values"] as Array<{ field_id: number; values: Array<{ value: unknown }> }>;
 
     log.info(
       { entityId, leadName: payload["name"] ?? "(sin cambio)", fieldsUpdated: cfvToSend.length },
-      "Sending PATCH a Kommo (solo campos CRM — sin campo 1048786)"
+      "Sending PATCH a Kommo (campos CRM + resumen 1048786)"
     );
 
     const patchController = new AbortController();
@@ -1892,8 +1914,12 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
         log.warn({ entityId }, "Salesbot: sin teléfono ni talkId — mensaje no enviado ❌");
       }
 
-      // ── Update CRM fields in background (sin campo 1048786) ────────────────
-      const patchPayload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
+      // ── Update CRM fields + resumen 1048786 ───────────────────────────────
+      const patchPayload = buildPatchPayload(mensajeParaCliente, extracted, conversationText, {
+        mergedLines: salesbotMergedLines,
+        lastLucyMessage: mensajeParaCliente,
+        leadCalificado: salesbotAllFieldsFilled,
+      });
       void fetch(`https://${subdomain}.kommo.com/api/v4/leads/${entityId}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -1943,8 +1969,8 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
 
   log.info({ leadId, newStatusId }, "Pipeline-change: etapa cambiada");
 
-  // Si Alejandro movió manualmente a "Humano Trabaja" → limpiar campo 1048786
-  // (campo legacy — mantenido por compatibilidad, Lucy ya no lo usa para enviar).
+  // Si Alejandro movió manualmente a "Humano Trabaja" → activar fase de aprendizaje humano.
+  // El resumen en 1048786 se conserva para consulta.
   if (newStatusId === ETAPA.HUMANO_TRABAJA) {
     const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
     const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
