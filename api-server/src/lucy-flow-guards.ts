@@ -941,10 +941,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
-  } else if (
-    clientAsksForRecommendations(currentMessage) &&
-    !isFieldSatisfied("requerimientos", filledSet, extracted)
-  ) {
+  } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId);
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {

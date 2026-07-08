@@ -78636,7 +78636,7 @@ function applyLucyMessageGuards(input) {
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
-  } else if (clientAsksForRecommendations(currentMessage) && !isFieldSatisfied("requerimientos", filledSet, extracted)) {
+  } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId);
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
@@ -84942,6 +84942,13 @@ async function resolveWhatsappDisplayName(subdomain, accessToken, entityId, lead
   }
   return null;
 }
+function purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extracted, currentMessage) {
+  if (!currentMessage?.trim() || !clientAsksForRecommendations(currentMessage)) return;
+  const idx = mergedLines.findIndex((l4) => /^-?\s*Requerimientos o servicios:/i.test(l4));
+  if (idx >= 0) mergedLines.splice(idx, 1);
+  filledSet.delete("Requerimientos o servicios");
+  extracted.requerimientos_evento = null;
+}
 function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, currentMessage, whatsappDisplayName) {
   const mergedLines = [...crmLines];
   const filledSet = new Set(mergedLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
@@ -84973,7 +84980,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
         mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indic\xF3 que no tiene)`);
         filledSet.add(label);
       } else if (label === "Requerimientos o servicios") {
-        if (isValidRequerimientosValue(typeof value === "string" ? value : null)) {
+        if (!clientAsksForRecommendations(currentMessage) && isValidRequerimientosValue(typeof value === "string" ? value : null)) {
           mergedLines.push(`- ${label}: ${value}`);
           filledSet.add(label);
         }
@@ -85001,6 +85008,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     mergedLines,
     collectUserTexts(history, currentMessage)
   );
+  purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extracted, currentMessage);
   const allFieldsFilled = isReadyForClosing(filledSet);
   let context = "";
   if (mergedLines.length > 0) {

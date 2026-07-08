@@ -38,6 +38,7 @@ import {
 import {
   applyCapturesToCrm,
   captureContextualAnswer,
+  clientAsksForRecommendations,
   scanConversationForCaptures,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
@@ -448,6 +449,19 @@ async function resolveWhatsappDisplayName(
 // ─── Build CRM context block from Kommo lines + current extraction + history ──
 // Called AFTER extractData so it reflects what the client just provided.
 // currentMessage: el texto que el cliente acaba de enviar (para detección en tiempo real)
+function purgeRequerimientosIfAskingRecommendations(
+  mergedLines: string[],
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  currentMessage?: string
+): void {
+  if (!currentMessage?.trim() || !clientAsksForRecommendations(currentMessage)) return;
+  const idx = mergedLines.findIndex((l) => /^-?\s*Requerimientos o servicios:/i.test(l));
+  if (idx >= 0) mergedLines.splice(idx, 1);
+  filledSet.delete("Requerimientos o servicios");
+  extracted.requerimientos_evento = null;
+}
+
 function buildCrmContext(
   crmLines: string[],
   extracted: ExtractedData,
@@ -498,7 +512,10 @@ function buildCrmContext(
         mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
         filledSet.add(label);
       } else if (label === "Requerimientos o servicios") {
-        if (isValidRequerimientosValue(typeof value === "string" ? value : null)) {
+        if (
+          !clientAsksForRecommendations(currentMessage) &&
+          isValidRequerimientosValue(typeof value === "string" ? value : null)
+        ) {
           mergedLines.push(`- ${label}: ${value}`);
           filledSet.add(label);
         }
@@ -532,6 +549,8 @@ function buildCrmContext(
     mergedLines,
     collectUserTexts(history, currentMessage)
   );
+
+  purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extracted, currentMessage);
 
   const allFieldsFilled = isReadyForClosing(filledSet);
 

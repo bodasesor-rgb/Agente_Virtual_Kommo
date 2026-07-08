@@ -36,7 +36,7 @@ function detectAskedField(reply) {
   if (/d[oó]nde|zona|ubicaci[oó]n|ciudad|lugar/.test(r)) return "zona";
   if (/fecha|cu[aá]ndo|d[ií]a|definiendo/.test(r)) return "fecha";
   if (/presupuesto|rango|inversi[oó]n/.test(r)) return "presupuesto";
-  if (/ya tengo todo|cat[aá]logo/.test(r)) return "cierre";
+  if (/ya tengo todo|cat[aá]logo completo|cotizaci[oó]n personalizada/.test(r)) return "cierre";
   return null;
 }
 
