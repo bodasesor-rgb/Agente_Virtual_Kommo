@@ -80991,6 +80991,20 @@ ${nextQ}`;
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     }
   }
+  if (clientAsksPrice(currentMessage) && !messageClaimsPrice(mensaje) && !mentionsNoListedPriceService(currentMessage)) {
+    const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+    if (fromCatalog) {
+      const pendingFinal = getNextPendingField(extracted, filledSet);
+      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+        mensaje = `${fromCatalog}
+
+${buildNaturalQuestion(pendingFinal, ctx)}`;
+      } else {
+        mensaje = fromCatalog;
+      }
+      log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
+    }
+  }
   return mensaje;
 }
 
