@@ -958,17 +958,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId);
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
-  } else if (clientAsksPrice(currentMessage) && needsNextStep) {
+  } else if (clientAsksPrice(currentMessage)) {
     const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
     const pending = getNextPendingField(extracted, filledSet);
     const needsAlejandroQuote =
       mentionsNoListedPriceService(currentMessage) ||
-      responseHasInventedPrice(aiResponse, currentMessage, ctxText);
+      (responseHasInventedPrice(aiResponse, currentMessage, ctxText) &&
+        !mentionsListedPriceService(currentMessage));
 
     if (needsAlejandroQuote) {
       const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage));
       mensaje =
-        pending && pending !== "correo"
+        needsNextStep && pending && pending !== "correo"
           ? `${priceReply}\n\n${buildNaturalQuestion(pending, ctx)}`
           : priceReply;
       log?.info({ entityId, pending }, "GUARD: precio sin catálogo — Alejandro cotiza");
@@ -979,8 +980,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         const fromCatalog = buildCatalogPriceAnswer(currentMessage);
         if (fromCatalog) priceContent = fromCatalog;
       }
-      mensaje = mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx);
-      log?.info({ entityId }, "GUARD: respuesta a precio con catálogo");
+      mensaje = needsNextStep
+        ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx)
+        : priceContent.trim() || aiResponse;
+      log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con catálogo");
     }
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;

@@ -78834,7 +78834,7 @@ function normalizeForMatch(value) {
   return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").trim();
 }
 function queryTokens(query) {
-  const stop2 = /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando)$/;
+  const stop2 = /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con)$/;
   return normalizeForMatch(query).split(/[^a-z0-9]+/).filter((t) => t.length >= 3 && !stop2.test(t));
 }
 function lookupCatalogPrices(query) {
@@ -80849,13 +80849,13 @@ function applyLucyMessageGuards(input) {
   } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId);
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
-  } else if (clientAsksPrice(currentMessage) && needsNextStep) {
+  } else if (clientAsksPrice(currentMessage)) {
     const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
     const pending = getNextPendingField(extracted, filledSet);
-    const needsAlejandroQuote = mentionsNoListedPriceService(currentMessage) || responseHasInventedPrice(aiResponse, currentMessage, ctxText2);
+    const needsAlejandroQuote = mentionsNoListedPriceService(currentMessage) || responseHasInventedPrice(aiResponse, currentMessage, ctxText2) && !mentionsListedPriceService(currentMessage);
     if (needsAlejandroQuote) {
       const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage));
-      mensaje = pending && pending !== "correo" ? `${priceReply}
+      mensaje = needsNextStep && pending && pending !== "correo" ? `${priceReply}
 
 ${buildNaturalQuestion(pending, ctx)}` : priceReply;
       log?.info({ entityId, pending }, "GUARD: precio sin cat\xE1logo \u2014 Alejandro cotiza");
@@ -80866,8 +80866,8 @@ ${buildNaturalQuestion(pending, ctx)}` : priceReply;
         const fromCatalog = buildCatalogPriceAnswer(currentMessage);
         if (fromCatalog) priceContent = fromCatalog;
       }
-      mensaje = mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx);
-      log?.info({ entityId }, "GUARD: respuesta a precio con cat\xE1logo");
+      mensaje = needsNextStep ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx) : priceContent.trim() || aiResponse;
+      log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con cat\xE1logo");
     }
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;

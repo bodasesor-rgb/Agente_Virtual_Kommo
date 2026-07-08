@@ -223,7 +223,7 @@ function normalizeForMatch(value: string): string {
 
 function queryTokens(query: string): string[] {
   const stop =
-    /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando)$/;
+    /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con)$/;
   return normalizeForMatch(query)
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length >= 3 && !stop.test(t));
