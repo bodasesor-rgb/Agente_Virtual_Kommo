@@ -76,6 +76,16 @@ export function stripPriceSentences(mensaje: string): string {
   return kept.join(" ").replace(/\s{2,}/g, " ").trim();
 }
 
+export function stripStalePriceTalk(mensaje: string, currentMessage?: string): string {
+  if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
+  if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
+  return mensaje
+    .replace(/[^.!?\n]*\b(dj|precio)[^.!?\n]*alejandro[^.!?\n]*[.!?]?\s*/gi, "")
+    .replace(/[^.!?\n]*alejandro te (incluye|da) el precio[^.!?\n]*[.!?]?\s*/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 export function buildAlejandroPriceReply(serviceHint?: string): string {
   const svc = serviceHint?.trim() || "ese servicio";
   return `Sí, manejamos ${svc}. El precio exacto depende del evento — Alejandro te lo incluye en tu cotización personalizada.`;

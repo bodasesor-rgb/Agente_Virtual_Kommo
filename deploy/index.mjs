@@ -77706,6 +77706,11 @@ function stripPriceSentences(mensaje) {
   const kept = sentences.filter((s4) => !PRICE_CLAIM_PATTERN.test(s4));
   return kept.join(" ").replace(/\s{2,}/g, " ").trim();
 }
+function stripStalePriceTalk(mensaje, currentMessage) {
+  if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
+  if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
+  return mensaje.replace(/[^.!?\n]*\b(dj|precio)[^.!?\n]*alejandro[^.!?\n]*[.!?]?\s*/gi, "").replace(/[^.!?\n]*alejandro te (incluye|da) el precio[^.!?\n]*[.!?]?\s*/gi, "").replace(/\s{2,}/g, " ").trim();
+}
 function buildAlejandroPriceReply(serviceHint) {
   const svc = serviceHint?.trim() || "ese servicio";
   return `S\xED, manejamos ${svc}. El precio exacto depende del evento \u2014 Alejandro te lo incluye en tu cotizaci\xF3n personalizada.`;
@@ -78814,6 +78819,13 @@ ${buildNaturalQuestion(pending, ctx)}` : priceReply;
     mensaje = priceSanitized;
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && !mensaje.includes("?") && !trulyReadyForClosing) {
+      mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+    }
+  }
+  mensaje = stripStalePriceTalk(mensaje, currentMessage);
+  if (!mensaje.includes("?") && !trulyReadyForClosing) {
+    const pendingAfter = getNextPendingField(extracted, filledSet);
+    if (pendingAfter) {
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     }
   }
@@ -85076,11 +85088,20 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   for (const { label, value } of extractionMap) {
     if (!filledSet.has(label)) {
       if (label === "Presupuesto (MXN)" && value === 0) {
-        mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indic\xF3 que no tiene)`);
-        filledSet.add(label);
+        const fromMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
+        if (fromMsg) {
+          mergedLines.push(`- Presupuesto (MXN): ${fromMsg}`);
+          filledSet.add(label);
+        }
       } else if (label === "Requerimientos o servicios") {
         if (!clientAsksForRecommendations(currentMessage) && isValidRequerimientosValue(typeof value === "string" ? value : null)) {
           mergedLines.push(`- ${label}: ${value}`);
+          filledSet.add(label);
+        }
+      } else if (label === "Presupuesto (MXN)") {
+        const fromMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
+        if (fromMsg) {
+          mergedLines.push(`- ${label}: ${fromMsg}`);
           filledSet.add(label);
         }
       } else if (value !== null && value !== void 0 && value !== 0) {

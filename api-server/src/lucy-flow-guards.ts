@@ -11,6 +11,7 @@ import {
   clientAsksPrice,
   responseHasInventedPrice,
   sanitizeInventedPrices,
+  stripStalePriceTalk,
 } from "./price-guard.js";
 import {
   BODASESOR_SERVICE_PATTERNS,
@@ -1083,6 +1084,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = priceSanitized;
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && !mensaje.includes("?") && !trulyReadyForClosing) {
+      mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+    }
+  }
+
+  mensaje = stripStalePriceTalk(mensaje, currentMessage);
+  if (!mensaje.includes("?") && !trulyReadyForClosing) {
+    const pendingAfter = getNextPendingField(extracted, filledSet);
+    if (pendingAfter) {
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     }
   }

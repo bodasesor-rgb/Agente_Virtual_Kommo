@@ -40,6 +40,7 @@ import {
   applyCapturesToCrm,
   captureContextualAnswer,
   clientAsksForRecommendations,
+  parsePresupuestoFromText,
   scanConversationForCaptures,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
@@ -512,14 +513,23 @@ function buildCrmContext(
   for (const { label, value } of extractionMap) {
     if (!filledSet.has(label)) {
       if (label === "Presupuesto (MXN)" && value === 0) {
-        mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
-        filledSet.add(label);
+        const fromMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
+        if (fromMsg) {
+          mergedLines.push(`- Presupuesto (MXN): ${fromMsg}`);
+          filledSet.add(label);
+        }
       } else if (label === "Requerimientos o servicios") {
         if (
           !clientAsksForRecommendations(currentMessage) &&
           isValidRequerimientosValue(typeof value === "string" ? value : null)
         ) {
           mergedLines.push(`- ${label}: ${value}`);
+          filledSet.add(label);
+        }
+      } else if (label === "Presupuesto (MXN)") {
+        const fromMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
+        if (fromMsg) {
+          mergedLines.push(`- ${label}: ${fromMsg}`);
           filledSet.add(label);
         }
       } else if (value !== null && value !== undefined && value !== 0) {
