@@ -82113,7 +82113,8 @@ router2.post("/kommo/simulator", async (req, res) => {
       whatsappDisplayName,
       buildClosing: buildClosingMessage,
       log,
-      entityId: leadId
+      entityId: leadId,
+      forceFirstPresentation: isFirstInteraction
     });
     appendHistory(histKey, messageText, mensajeParaCliente);
     const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente);
