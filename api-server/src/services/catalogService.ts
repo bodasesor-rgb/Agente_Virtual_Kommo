@@ -241,42 +241,127 @@ function normalizeForMatch(value: string): string {
 
 function queryTokens(query: string): string[] {
   const stop =
-    /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con)$/;
+    /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con|incluye|trae|lleva)$/;
   const normalized = normalizeForMatch(query);
+  const compounds: string[] = [];
+  if (/\b4\s*tiempos\b/.test(normalized)) compounds.push("4tiempos");
+  if (/\b3\s*tiempos\b/.test(normalized)) compounds.push("3tiempos");
+
   const tokens = normalized
     .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 3 && !stop.test(t));
+    .filter((t) => (t.length >= 3 || /^\d$/.test(t)) && !stop.test(t));
 
   if (/\bcatering\b/.test(normalized)) {
     tokens.push("banquete", "taquiza", "brunch", "coffee");
   }
 
-  return [...new Set(tokens)];
+  return [...new Set([...compounds, ...tokens])];
+}
+
+interface CatalogQueryFilters {
+  banquete: boolean;
+  taquiza: boolean;
+  cuatroTiempos: boolean;
+  tresTiempos: boolean;
+  nivel: string | null;
+}
+
+function parseCatalogQueryFilters(query: string): CatalogQueryFilters {
+  const t = normalizeForMatch(query);
+  let nivel: string | null = null;
+  if (/\bpremium\b/.test(t)) nivel = "Premium";
+  else if (/\bbasico\b/.test(t)) nivel = "Basico";
+  else if (/\btradicional\b/.test(t)) nivel = "Tradicional";
+  else if (/\bsolo\s*alimentos\b/.test(t)) nivel = "Solo Alimentos";
+
+  return {
+    banquete: /\bbanquete\b/.test(t),
+    taquiza: /\btaquiza\b/.test(t),
+    cuatroTiempos: /\b4\s*tiempos\b/.test(t) || /\b4tiempos\b/.test(t),
+    tresTiempos: /\b3\s*tiempos\b/.test(t) || /\b3tiempos\b/.test(t),
+    nivel,
+  };
+}
+
+function rowHaystack(row: SheetCatalogRow): string {
+  return normalizeForMatch(`${row.servicio} ${row.categoria}`).replace(/\s+/g, " ");
+}
+
+function scoreCatalogRow(
+  row: SheetCatalogRow,
+  tokens: string[],
+  filters: CatalogQueryFilters,
+  query: string
+): number {
+  const haystack = rowHaystack(row).replace(/\s+/g, "");
+  let score = 0;
+
+  for (const token of tokens) {
+    const tok = token.replace(/\s+/g, "");
+    if (haystack.includes(tok)) score += 2;
+  }
+
+  if (filters.banquete && /\bbanquete\b/.test(rowHaystack(row))) score += 4;
+  if (filters.banquete && /\btaquiza\b/.test(rowHaystack(row))) score -= 12;
+  if (filters.taquiza && /\btaquiza\b/.test(rowHaystack(row))) score += 4;
+  if (filters.taquiza && /\bbanquete\b/.test(rowHaystack(row))) score -= 12;
+
+  if (filters.cuatroTiempos) {
+    if (/\b4\s*tiempos\b/.test(rowHaystack(row))) score += 6;
+    if (/\b3\s*tiempos\b/.test(rowHaystack(row))) score -= 8;
+  }
+  if (filters.tresTiempos) {
+    if (/\b3\s*tiempos\b/.test(rowHaystack(row))) score += 6;
+    if (/\b4\s*tiempos\b/.test(rowHaystack(row))) score -= 8;
+  }
+
+  if (filters.nivel) {
+    const nivel = normalizeForMatch(extractNivelLabel(row.servicio));
+    if (nivel === normalizeForMatch(filters.nivel)) score += 8;
+    else score -= 4;
+  }
+
+  const hay = rowHaystack(row);
+  const q = normalizeForMatch(query);
+  if (!/\bmexicano\b/.test(q) && /\bmexicano\b/.test(hay)) score -= 6;
+  if (!/\bkosher\b/.test(q) && /\bkosher\b/.test(hay)) score -= 6;
+  if (!/\bnavide/.test(q) && /\bnavide/.test(hay)) score -= 6;
+
+  return score;
+}
+
+function rankCatalogMatches(
+  query: string,
+  rows: SheetCatalogRow[],
+  requirePrice = false
+): SheetCatalogRow[] {
+  const tokens = queryTokens(query);
+  if (!tokens.length) return [];
+
+  const filters = parseCatalogQueryFilters(query);
+  const scored = rows
+    .filter((row) => !requirePrice || (row.tienePrecio && row.precio))
+    .map((row) => ({ row, score: scoreCatalogRow(row, tokens, filters, query) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (!scored.length) return [];
+
+  const top = scored[0]!.score;
+  const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
+  return scored.filter((item) => item.score >= minScore).map((item) => item.row);
 }
 
 /** Busca filas del Sheet que coincidan con la pregunta del cliente. */
 export function lookupCatalogPrices(query: string): SheetCatalogRow[] {
   if (!snapshot?.rows.length) return [];
-  const tokens = queryTokens(query);
-  if (!tokens.length) return [];
-
-  return snapshot.rows.filter((row) => {
-    if (!row.tienePrecio || !row.precio) return false;
-    const haystack = normalizeForMatch(`${row.servicio} ${row.categoria}`);
-    return tokens.some((token) => haystack.includes(token));
-  });
+  return rankCatalogMatches(query, snapshot.rows, true);
 }
 
 /** Busca servicios del Sheet (con o sin precio). */
 export function lookupCatalogServices(query: string): SheetCatalogRow[] {
   if (!snapshot?.rows.length) return [];
-  const tokens = queryTokens(query);
-  if (!tokens.length) return [];
-
-  return snapshot.rows.filter((row) => {
-    const haystack = normalizeForMatch(`${row.servicio} ${row.categoria}`);
-    return tokens.some((token) => haystack.includes(token));
-  });
+  return rankCatalogMatches(query, snapshot.rows, false);
 }
 
 function extractNivelLabel(servicio: string): string {
@@ -324,12 +409,27 @@ export function clientAsksInclusion(message?: string): boolean {
 
 /** Respuesta detallada cuando preguntan qué incluye / menú / detalle. */
 export function buildCatalogInclusionAnswer(query: string): string | null {
+  const filters = parseCatalogQueryFilters(query);
   const matches = lookupCatalogServices(query);
   if (!matches.length) return null;
 
   const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
-  const baseName = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || unique[0]!.servicio;
+  const specificQuery = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos);
 
+  if (specificQuery && unique.length >= 1) {
+    const row = unique[0]!;
+    const parsed = parseRowNotes(row.notas);
+    const nivel = extractNivelLabel(row.servicio);
+    const baseName = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+    const price =
+      row.tienePrecio && row.precio
+        ? `\n*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
+        : "";
+    const inclusion = parsed.inclusion || "Alejandro puede darte el detalle completo del menú.";
+    return `Te comparto qué incluye *${baseName} — ${nivel}*:${price}\n\n${inclusion}`;
+  }
+
+  const baseName = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || unique[0]!.servicio;
   const blocks = unique.slice(0, 5).map((row) => {
     const parsed = parseRowNotes(row.notas);
     const nivel = extractNivelLabel(row.servicio);

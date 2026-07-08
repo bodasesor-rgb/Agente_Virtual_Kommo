@@ -78935,32 +78935,83 @@ function normalizeForMatch(value) {
   return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").trim();
 }
 function queryTokens(query) {
-  const stop2 = /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con)$/;
+  const stop2 = /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con|incluye|trae|lleva)$/;
   const normalized = normalizeForMatch(query);
-  const tokens = normalized.split(/[^a-z0-9]+/).filter((t) => t.length >= 3 && !stop2.test(t));
+  const compounds = [];
+  if (/\b4\s*tiempos\b/.test(normalized)) compounds.push("4tiempos");
+  if (/\b3\s*tiempos\b/.test(normalized)) compounds.push("3tiempos");
+  const tokens = normalized.split(/[^a-z0-9]+/).filter((t) => (t.length >= 3 || /^\d$/.test(t)) && !stop2.test(t));
   if (/\bcatering\b/.test(normalized)) {
     tokens.push("banquete", "taquiza", "brunch", "coffee");
   }
-  return [...new Set(tokens)];
+  return [.../* @__PURE__ */ new Set([...compounds, ...tokens])];
+}
+function parseCatalogQueryFilters(query) {
+  const t = normalizeForMatch(query);
+  let nivel = null;
+  if (/\bpremium\b/.test(t)) nivel = "Premium";
+  else if (/\bbasico\b/.test(t)) nivel = "Basico";
+  else if (/\btradicional\b/.test(t)) nivel = "Tradicional";
+  else if (/\bsolo\s*alimentos\b/.test(t)) nivel = "Solo Alimentos";
+  return {
+    banquete: /\bbanquete\b/.test(t),
+    taquiza: /\btaquiza\b/.test(t),
+    cuatroTiempos: /\b4\s*tiempos\b/.test(t) || /\b4tiempos\b/.test(t),
+    tresTiempos: /\b3\s*tiempos\b/.test(t) || /\b3tiempos\b/.test(t),
+    nivel
+  };
+}
+function rowHaystack(row) {
+  return normalizeForMatch(`${row.servicio} ${row.categoria}`).replace(/\s+/g, " ");
+}
+function scoreCatalogRow(row, tokens, filters, query) {
+  const haystack = rowHaystack(row).replace(/\s+/g, "");
+  let score = 0;
+  for (const token of tokens) {
+    const tok = token.replace(/\s+/g, "");
+    if (haystack.includes(tok)) score += 2;
+  }
+  if (filters.banquete && /\bbanquete\b/.test(rowHaystack(row))) score += 4;
+  if (filters.banquete && /\btaquiza\b/.test(rowHaystack(row))) score -= 12;
+  if (filters.taquiza && /\btaquiza\b/.test(rowHaystack(row))) score += 4;
+  if (filters.taquiza && /\bbanquete\b/.test(rowHaystack(row))) score -= 12;
+  if (filters.cuatroTiempos) {
+    if (/\b4\s*tiempos\b/.test(rowHaystack(row))) score += 6;
+    if (/\b3\s*tiempos\b/.test(rowHaystack(row))) score -= 8;
+  }
+  if (filters.tresTiempos) {
+    if (/\b3\s*tiempos\b/.test(rowHaystack(row))) score += 6;
+    if (/\b4\s*tiempos\b/.test(rowHaystack(row))) score -= 8;
+  }
+  if (filters.nivel) {
+    const nivel = normalizeForMatch(extractNivelLabel(row.servicio));
+    if (nivel === normalizeForMatch(filters.nivel)) score += 8;
+    else score -= 4;
+  }
+  const hay = rowHaystack(row);
+  const q2 = normalizeForMatch(query);
+  if (!/\bmexicano\b/.test(q2) && /\bmexicano\b/.test(hay)) score -= 6;
+  if (!/\bkosher\b/.test(q2) && /\bkosher\b/.test(hay)) score -= 6;
+  if (!/\bnavide/.test(q2) && /\bnavide/.test(hay)) score -= 6;
+  return score;
+}
+function rankCatalogMatches(query, rows, requirePrice = false) {
+  const tokens = queryTokens(query);
+  if (!tokens.length) return [];
+  const filters = parseCatalogQueryFilters(query);
+  const scored = rows.filter((row) => !requirePrice || row.tienePrecio && row.precio).map((row) => ({ row, score: scoreCatalogRow(row, tokens, filters, query) })).filter((item) => item.score > 0).sort((a2, b4) => b4.score - a2.score);
+  if (!scored.length) return [];
+  const top = scored[0].score;
+  const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
+  return scored.filter((item) => item.score >= minScore).map((item) => item.row);
 }
 function lookupCatalogPrices(query) {
   if (!snapshot?.rows.length) return [];
-  const tokens = queryTokens(query);
-  if (!tokens.length) return [];
-  return snapshot.rows.filter((row) => {
-    if (!row.tienePrecio || !row.precio) return false;
-    const haystack = normalizeForMatch(`${row.servicio} ${row.categoria}`);
-    return tokens.some((token) => haystack.includes(token));
-  });
+  return rankCatalogMatches(query, snapshot.rows, true);
 }
 function lookupCatalogServices(query) {
   if (!snapshot?.rows.length) return [];
-  const tokens = queryTokens(query);
-  if (!tokens.length) return [];
-  return snapshot.rows.filter((row) => {
-    const haystack = normalizeForMatch(`${row.servicio} ${row.categoria}`);
-    return tokens.some((token) => haystack.includes(token));
-  });
+  return rankCatalogMatches(query, snapshot.rows, false);
 }
 function extractNivelLabel(servicio) {
   const match = servicio.match(/\(([^)]+)\)\s*$/);
@@ -78994,9 +79045,23 @@ function clientAsksInclusion(message) {
   ) && !/\bcu[aá]nto\s+cuesta|\bprecio\b/i.test(t);
 }
 function buildCatalogInclusionAnswer(query) {
+  const filters = parseCatalogQueryFilters(query);
   const matches = lookupCatalogServices(query);
   if (!matches.length) return null;
   const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
+  const specificQuery = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos);
+  if (specificQuery && unique.length >= 1) {
+    const row = unique[0];
+    const parsed = parseRowNotes(row.notas);
+    const nivel = extractNivelLabel(row.servicio);
+    const baseName2 = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+    const price = row.tienePrecio && row.precio ? `
+*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
+    const inclusion = parsed.inclusion || "Alejandro puede darte el detalle completo del men\xFA.";
+    return `Te comparto qu\xE9 incluye *${baseName2} \u2014 ${nivel}*:${price}
+
+${inclusion}`;
+  }
   const baseName = unique[0].categoria || unique[0].servicio.split(" (")[0] || unique[0].servicio;
   const blocks = unique.slice(0, 5).map((row) => {
     const parsed = parseRowNotes(row.notas);
