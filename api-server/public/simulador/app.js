@@ -1,4 +1,4 @@
-const STORAGE_KEY = "bodasesor-kommo-sim-v4";
+const STORAGE_KEY = "bodasesor-kommo-sim-v5";
 const STAGE_COLORS = ["#99ccff", "#b5e8b5", "#ffb3ba", "#d4b5ff", "#ffd666", "#c0c0c0"];
 
 const state = {

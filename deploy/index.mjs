@@ -61392,6 +61392,9 @@ function buildFirstInteractionMessage(ctx) {
 function usesLegacyLucyIntro(mensaje) {
   return /te\s+saluda\s+lucy|agente\s+virtual\s+de\s+bodasesor/i.test(mensaje);
 }
+function isLegacyStoredLucyResponse(text2) {
+  return typeof text2 === "string" && text2.trim().length > 0 && usesLegacyLucyIntro(text2);
+}
 function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPresentation = false) {
   const history = ctx.history ?? [];
   if (forceFirstPresentation || isFirstLucyReply(history) || usesLegacyLucyIntro(_mensaje)) {
@@ -81245,9 +81248,10 @@ async function processBatch(batch, accessToken, log) {
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const cachedResponse = lastResponseCache.get(String(entityId));
     const effectiveLastResponse = cachedResponse ?? lastLucyResponse;
-    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
-    if (!hasAssistantMsg && effectiveLastResponse) {
-      history = [...history, { role: "assistant", content: effectiveLastResponse }];
+    const normalizedLastResponse = isLegacyStoredLucyResponse(effectiveLastResponse) ? null : effectiveLastResponse;
+    const isFirstInteraction = !hasAssistantMsg && !normalizedLastResponse;
+    if (!hasAssistantMsg && normalizedLastResponse) {
+      history = [...history, { role: "assistant", content: normalizedLastResponse }];
       const recoverySource = cachedResponse ? "cache-recovery" : "crm-recovery";
       historySource = historySource === "file" ? recoverySource : `${historySource}+${recoverySource}`;
     }
@@ -81692,7 +81696,8 @@ router2.post("/kommo/salesbot", async (req, res) => {
       }
     }
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
-    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse;
+    const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? "" : lastLucyResponse;
+    const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
     const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null) : null;
     const preExtracted = {
       nombre: null,
@@ -82055,7 +82060,8 @@ router2.post("/kommo/simulator", async (req, res) => {
     );
     const crmContext = crmResultPre.context;
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
-    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse;
+    const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? null : lastLucyResponse;
+    const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
     const trainingExamples = getTrainingExamples();
     const fewShot = trainingExamples.flatMap((ex) => [
       { role: "user", content: ex.userMessage },

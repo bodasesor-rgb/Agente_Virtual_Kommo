@@ -366,6 +366,11 @@ function usesLegacyLucyIntro(mensaje: string): boolean {
   return /te\s+saluda\s+lucy|agente\s+virtual\s+de\s+bodasesor/i.test(mensaje);
 }
 
+/** Respuestas guardadas en CRM/caché con el saludo V5 no cuentan como interacción previa. */
+export function isLegacyStoredLucyResponse(text: string | null | undefined): boolean {
+  return typeof text === "string" && text.trim().length > 0 && usesLegacyLucyIntro(text);
+}
+
 /** Mientras falte el nombre, solo se permite pedir el nombre (nunca correo, fecha, etc.). */
 export function enforceNombreFirst(
   _mensaje: string,

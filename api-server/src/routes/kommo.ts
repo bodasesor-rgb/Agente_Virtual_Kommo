@@ -17,6 +17,7 @@ import {
   mensajeAsksForField,
   nextFieldQuestion,
   isValidRequerimientosValue,
+  isLegacyStoredLucyResponse,
   parseNombreFromCrmLines,
 } from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
@@ -1128,14 +1129,17 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // donde el PATCH aún no llegó a Kommo cuando entra el siguiente mensaje.
     const cachedResponse = lastResponseCache.get(String(entityId));
     const effectiveLastResponse = cachedResponse ?? lastLucyResponse;
+    const normalizedLastResponse = isLegacyStoredLucyResponse(effectiveLastResponse)
+      ? null
+      : effectiveLastResponse;
 
     // True solo cuando Lucy NUNCA ha respondido a este lead.
     // Condiciones: sin mensajes de asistente en historial, sin respuesta previa en CRM/caché,
     // Y sin "Nombre del cliente" en los campos de Kommo (si ya hay nombre = ya hubo conversación).
-    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+    const isFirstInteraction = !hasAssistantMsg && !normalizedLastResponse;
 
-    if (!hasAssistantMsg && effectiveLastResponse) {
-      history = [...history, { role: "assistant", content: effectiveLastResponse }];
+    if (!hasAssistantMsg && normalizedLastResponse) {
+      history = [...history, { role: "assistant", content: normalizedLastResponse }];
       const recoverySource = cachedResponse ? "cache-recovery" : "crm-recovery";
       historySource = historySource === "file" ? recoverySource : `${historySource}+${recoverySource}`;
     }
@@ -1793,7 +1797,10 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
 
     // isFirstInteraction: Lucy nunca ha respondido (ni en historial ni en CRM ni hay nombre ya en CRM)
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
-    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse;
+    const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse)
+      ? ""
+      : lastLucyResponse;
+    const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
 
     const whatsappDisplayName = entityId
       ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null)
@@ -2257,7 +2264,10 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const crmContext = crmResultPre.context;
 
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
-    const isFirstInteraction = !hasAssistantMsg && !lastLucyResponse;
+    const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse)
+      ? null
+      : lastLucyResponse;
+    const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
 
     const trainingExamples = getTrainingExamples();
     const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
