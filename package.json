@@ -7,7 +7,7 @@
   "description": "Lucy API — producción Hostinger (bundle precompilado en deploy/)",
   "packageManager": "npm@10.9.2",
   "scripts": {
-    "build": "node api-server/build.mjs",
+    "build": "node -e \"require('fs').accessSync('deploy/index.mjs');console.log('[build] deploy/ precompilado OK')\"",
     "deploy:hostinger": "node scripts/deploy-hostinger.mjs",
     "start": "node start.mjs",
     "postinstall": "echo \"Lucy: sin dependencias npm — bundle en deploy/\""

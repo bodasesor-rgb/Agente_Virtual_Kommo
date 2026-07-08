@@ -33,7 +33,9 @@ jobs:
           WEBHOOK_URL: ${{ secrets.HOSTINGER_WEBHOOK_URL }}
         run: |
           if [ -z "$WEBHOOK_URL" ]; then
-            echo "HOSTINGER_WEBHOOK_URL no configurado — saltando webhook."
+            echo "HOSTINGER_WEBHOOK_URL no configurado."
+            echo "Sin webhook, Hostinger solo actualiza si redespliegas manualmente en hPanel"
+            echo "o si tienes auto-deploy Git conectado al push de main."
             exit 0
           fi
           echo "Disparando redeploy en Hostinger..."
@@ -58,4 +60,6 @@ jobs:
             echo "HOSTINGER_API_TOKEN no configurado — saltando API deploy."
             exit 0
           fi
-          node scripts/deploy-hostinger.mjs
+          echo "Nota: la subida por API desde GitHub Actions puede fallar por Cloudflare."
+          echo "Si falla, usa HOSTINGER_WEBHOOK_URL o redeploy manual en hPanel."
+          node scripts/deploy-hostinger.mjs || echo "API deploy falló — usa webhook o hPanel"
