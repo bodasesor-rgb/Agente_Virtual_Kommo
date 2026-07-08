@@ -6,6 +6,12 @@ import {
   resolveClientDisplayName,
   sanitizeDisplayName,
 } from "./contact-name.js";
+import {
+  BODASESOR_SERVICE_PATTERNS,
+  inferLucyAskedField,
+  isServiceRelatedMessage,
+  parsePrimaryService,
+} from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 export const BODASESOR_EMAIL = "hola@bodasesor.com";
@@ -110,30 +116,8 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i,
 };
 
-const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?/i;
-
-const SERVICE_PATTERNS: Array<[string, RegExp]> = [
-  ["banquete", /\bbanquete\b/i],
-  ["taquiza", /\b(taquiza|tacos)\b/i],
-  ["barra de bebidas", /\b(barra.*bebida|bebidas?)\b/i],
-  ["DJ", /\bdj\b/i],
-  ["carpa", /\bcarpa\b/i],
-  ["mobiliario", /\bmobiliario\b/i],
-  ["iluminación", /\biluminaci[oó]n\b/i],
-  ["pantalla", /\bpantalla\b/i],
-  ["pizzas", /\bpizza\b/i],
-  ["sushi", /\bsushi\b/i],
-  ["pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
-];
-
 export function isValidRequerimientosValue(value: string | null | undefined): boolean {
-  const trimmed = value?.trim() ?? "";
-  if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
-  if (SERVICE_HINT.test(trimmed)) return true;
-  // Respuestas cortas directas: "pista", "una pista", "solo DJ"
-  if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
-  return false;
+  return isServiceRelatedMessage(value);
 }
 
 const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
@@ -168,10 +152,10 @@ export function isReadyForClosing(filledSet: Set<string>): boolean {
 }
 
 function findMentionedService(text: string): string | null {
-  for (const [label, pattern] of SERVICE_PATTERNS) {
+  for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (pattern.test(text)) return label;
   }
-  return null;
+  return parsePrimaryService(text);
 }
 
 /** Servicio mencionado en texto libre del cliente (para CRM en tiempo real). */
@@ -771,6 +755,7 @@ export function clientJustAnsweredRequerimientosQuestion(
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
     .slice(-1)[0]?.content as string | undefined;
   if (!lastAssistant) return false;
+  if (inferLucyAskedField(lastAssistant) === "requerimientos") return true;
   return /platícame|qué tienes pensado|otro servicio|te gustaría cotizar|festejan|tipo de evento|servicios te gustaría|qué necesitas/i.test(
     lastAssistant
   );

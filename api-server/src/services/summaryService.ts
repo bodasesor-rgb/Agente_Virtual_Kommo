@@ -8,87 +8,13 @@
  */
 
 import type { ExtractedData } from "../types.js";
-
-const MESES_CORTO: Record<string, string> = {
-  enero: "ene", febrero: "feb", marzo: "mar", abril: "abr",
-  mayo: "may", junio: "jun", julio: "jul", agosto: "ago",
-  septiembre: "sep", octubre: "oct", noviembre: "nov", diciembre: "dic",
-};
-
-// ─── Extractores individuales ─────────────────────────────────────────────────
-
-function extraerTipoEvento(texto: string): string | null {
-  const tipos: Array<[string, RegExp]> = [
-    ["Boda",        /\b(boda|matrimonio|casamiento|nupcial)\b/i],
-    ["XV años",     /\b(xv|quince|quinceañera|quinceaños)\b/i],
-    ["Corporativo", /\b(corporativo|empresa|lanzamiento|conferencia|capacitación)\b/i],
-    ["Cumpleaños",  /\b(cumpleaños|cumple|aniversario)\b/i],
-    ["Bautizo",     /\b(bautizo|bautismo)\b/i],
-    ["Baby shower", /\bbaby\s*shower\b/i],
-    ["Graduación",  /\b(graduación|egreso)\b/i],
-  ];
-  for (const [nombre, patron] of tipos) {
-    if (patron.test(texto)) return nombre;
-  }
-  return null;
-}
-
-function extraerFecha(texto: string): string | null {
-  // "15 de junio" → "15 jun"
-  const m = texto.match(/(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)/i);
-  if (m) return `${m[1]} ${MESES_CORTO[m[2]!.toLowerCase()] ?? m[2]!.substring(0, 3).toLowerCase()}`;
-
-  // Solo mes
-  for (const [mes, corto] of Object.entries(MESES_CORTO)) {
-    if (texto.includes(mes)) return corto;
-  }
-  return null;
-}
-
-function extraerInvitados(texto: string): number | null {
-  const patrones = [
-    /(\d+)\s*(personas|invitados|gente|asistentes|pax)/i,
-    /para\s+(\d+)\s*(personas|invitados)?/i,
-    /somos\s+(\d+)/i,
-  ];
-  for (const p of patrones) {
-    const m = texto.match(p);
-    if (m) return parseInt(m[1]!);
-  }
-  return null;
-}
-
-function extraerServicios(texto: string): string[] {
-  // Orden importa: más específico primero
-  const servicios: Array<[string, RegExp]> = [
-    ["Parrillada Argentina", /parrillada\s+argentina/i],
-    ["Parrillada",           /\bparrillada\b/i],
-    ["Banquete",             /\bbanquete\b/i],
-    ["Pizzas",               /\bpizza\b/i],
-    ["Sushi",                /\b(sushi|poke)\b/i],
-    ["Taquiza",              /\b(taquiza|taco)\b/i],
-    ["Crepas",               /\bcrep[a]?\b/i],
-    ["Canapés",              /\b(canapé|bocadillo)\b/i],
-    ["Mesa Quesos",          /\b(quesos|grazing)\b/i],
-    ["Mesa Postres",         /\b(postres|dulces)\b/i],
-    ["Mixología",            /\bmixología\b/i],
-    ["Coctelería",           /\bcocteler[íi]a\b/i],
-    ["Mócteles",             /\bmócteles?\b/i],
-    ["Café",                 /\b(barra de café|coffee break)\b/i],
-    ["Poptails",             /\bpoptail\b/i],
-    ["Estructuras",          /\b(estructura|colgante|wisteria)\b/i],
-    ["Inflables",            /\binflable\b/i],
-    ["Softplay",             /\bsoftplay\b/i],
-    ["Mobiliario",           /\b(mobiliario|mármol|sillas)\b/i],
-    ["Pista de baile",       /\b(pista(\s+de\s+baile)?|tarima)\b/i],
-  ];
-
-  const encontrados: string[] = [];
-  for (const [nombre, patron] of servicios) {
-    if (patron.test(texto)) encontrados.push(nombre);
-  }
-  return encontrados;
-}
+import {
+  enrichExtractedFromConversation,
+  parseServicesFromText,
+  parseTipoEventoFromText,
+  parseInvitadosFromText,
+  parseFechaFromText,
+} from "../conversation-understanding.js";
 
 function extraerEstilo(texto: string): string | null {
   const estilos: Array<[string, RegExp]> = [
@@ -124,44 +50,29 @@ function extraerPresupuesto(texto: string): string | null {
   return null;
 }
 
-function extraerZona(texto: string): string | null {
-  const m = texto.match(
-    /\b(en|para|zona|lugar|ciudad|colonia)\s+([A-ZÁÉÍÓÚÑa-záéíóúüñ][\wáéíóúüñ\s.-]{2,40})/i
-  );
-  if (!m) return null;
-  const zona = m[2]!.trim().replace(/\s+(para|el|la|un|una)\b.*$/i, "").trim();
-  return zona.length >= 3 ? zona : null;
-}
-
 /**
  * Enriquece datos extraídos desde el texto completo de la conversación
  * (sin contaminar el flujo con "Info pendiente").
  */
 export function enrichExtractedFromText(extracted: ExtractedData, conversationText: string): void {
-  const texto = conversationText.toLowerCase();
+  enrichExtractedFromConversation(extracted, conversationText);
+}
 
-  if (!extracted.tipo_evento?.trim()) {
-    const tipo = extraerTipoEvento(texto);
-    if (tipo) extracted.tipo_evento = tipo;
-  }
-  if (!extracted.fecha_horario?.trim()) {
-    const fecha = extraerFecha(texto);
-    if (fecha) extracted.fecha_horario = fecha;
-  }
-  if (!extracted.num_invitados) {
-    const inv = extraerInvitados(texto);
-    if (inv) extracted.num_invitados = inv;
-  }
-  if (!extracted.direccion_evento?.trim()) {
-    const zona = extraerZona(conversationText);
-    if (zona) extracted.direccion_evento = zona;
-  }
-  if (!extracted.requerimientos_evento?.trim()) {
-    const servicios = extraerServicios(texto);
-    if (servicios.length > 0) {
-      extracted.requerimientos_evento = servicios.slice(0, 3).join(", ");
-    }
-  }
+function extraerTipoEvento(texto: string): string | null {
+  return parseTipoEventoFromText(texto);
+}
+
+function extraerFecha(texto: string): string | null {
+  return parseFechaFromText(texto);
+}
+
+function extraerInvitados(texto: string): number | null {
+  const inv = parseInvitadosFromText(texto);
+  return inv ? parseInt(inv, 10) : null;
+}
+
+function extraerServicios(texto: string): string[] {
+  return parseServicesFromText(texto);
 }
 
 // ─── Función principal ────────────────────────────────────────────────────────

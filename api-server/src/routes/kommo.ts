@@ -14,12 +14,10 @@ import {
   detectEmailRefusal,
   isEmailSatisfied,
   isReadyForClosing,
-  mensajeAsksForField,
   nextFieldQuestion,
   isValidRequerimientosValue,
   isLegacyStoredLucyResponse,
   parseNombreFromCrmLines,
-  parseServiceFromUserText,
 } from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -29,11 +27,14 @@ import { buildDynamicPrompt } from "../services/promptBuilder.js";
 import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcessor.js";
 import { generateSummary, enrichExtractedFromText } from "../services/summaryService.js";
 import {
-  isAffirmativeOnlyMessage,
-  isGreetingOnlyMessage,
   isPlaceholderLeadName,
   sanitizeDisplayName,
 } from "../contact-name.js";
+import {
+  applyCapturesToCrm,
+  captureContextualAnswer,
+  scanConversationForCaptures,
+} from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
 import {
   sendWhatsAppDirect,
@@ -449,233 +450,19 @@ function buildCrmContext(
     }
   }
 
-  // Detectar "no presupuesto" desde historial cuando la extracción devuelve null
-  if (!filledSet.has("Presupuesto (MXN)")) {
-    const noPresupuestoPattern = /\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|no\s+hay|no\s+cuento)\b/i;
-    const lastUserMessages = history
-      .filter((m) => m.role === "user" && typeof m.content === "string")
-      .slice(-6)
-      .map((m) => m.content as string);
-    if (lastUserMessages.some((t) => noPresupuestoPattern.test(t))) {
-      mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
-      filledSet.add("Presupuesto (MXN)");
-    }
-  }
+  // ── Comprensión conversacional: escaneo + captura contextual ───────────────
+  applyCapturesToCrm(
+    mergedLines,
+    filledSet,
+    scanConversationForCaptures(history, currentMessage, filledSet)
+  );
 
-  // ── Escaneo robusto del historial reciente para detectar invitados ─────────
-  // Este escaneo NO depende de qué preguntó Lucy en su último mensaje —
-  // detecta el dato aunque el cliente lo haya mencionado de forma natural.
-  if (!filledSet.has("Número de invitados")) {
-    const writtenNumbers: Record<string, string> = {
-      "uno": "1", "una": "1", "dos": "2", "tres": "3", "cuatro": "4", "cinco": "5",
-      "seis": "6", "siete": "7", "ocho": "8", "nueve": "9", "diez": "10",
-      "once": "11", "doce": "12", "quince": "15", "veinte": "20",
-      "treinta": "30", "cuarenta": "40", "cincuenta": "50",
-      "sesenta": "60", "setenta": "70", "ochenta": "80", "noventa": "90",
-      "cien": "100", "ciento": "100", "doscientos": "200", "trescientos": "300",
-      "cuatrocientos": "400", "quinientos": "500",
-    };
-    const recentUserMsgs = history
-      .filter((m) => m.role === "user" && typeof m.content === "string")
-      .slice(-8)
-      .map((m) => m.content as string);
-    const allMsgsToScan = currentMessage
-      ? [...recentUserMsgs, currentMessage]
-      : recentUserMsgs;
-
-    for (const msg of allMsgsToScan) {
-      // Patrón numérico: "7 personas", "200 invitados", "50 pax"
-      const numMatch = msg.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?)\b/i);
-      if (numMatch) {
-        mergedLines.push(`- Número de invitados: ${numMatch[1]}`);
-        filledSet.add("Número de invitados");
-        break;
-      }
-      // Patrón escrito: "siete personas", "veinte invitados"
-      const writtenMatch = msg.match(
-        /\b(uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s*(personas?|invitados?)?\b/i
-      );
-      if (writtenMatch) {
-        const num = writtenNumbers[writtenMatch[1].toLowerCase()];
-        if (num) {
-          mergedLines.push(`- Número de invitados: ${num}`);
-          filledSet.add("Número de invitados");
-          break;
-        }
-      }
-    }
-  }
-
-  // ── Escaneo del historial: tipo de evento, servicios, zona y fecha ─────────
-  const recentUserMsgs = history
-    .filter((m) => m.role === "user" && typeof m.content === "string")
-    .slice(-10)
-    .map((m) => m.content as string);
-  const allUserTexts = currentMessage?.trim()
-    ? [...recentUserMsgs, currentMessage.trim()]
-    : recentUserMsgs;
-  const monthPattern =
-    /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-
-  for (const msg of allUserTexts) {
-    if (!filledSet.has("Tipo de evento")) {
-      const tipoPatterns: Array<[RegExp, string]> = [
-        [/\b(boda|bodas)\b/i, "boda"],
-        [/\b(baby\s*shower)\b/i, "baby shower"],
-        [/\b(xv\s*a[nñ]os?|quincea[nñ]era)\b/i, "XV años"],
-        [/\b(evento\s+corporativo|convenci[oó]n|conferencia)\b/i, "evento corporativo"],
-        [/\b(cumplea[nñ]os?)\b/i, "cumpleaños"],
-        [/\b(bautizo|comuni[oó]n|graduaci[oó]n)\b/i, "celebración"],
-      ];
-      for (const [pat, label] of tipoPatterns) {
-        if (pat.test(msg)) {
-          mergedLines.push(`- Tipo de evento: ${label}`);
-          filledSet.add("Tipo de evento");
-          break;
-        }
-      }
-    }
-
-    if (!filledSet.has("Requerimientos o servicios") && isValidRequerimientosValue(msg)) {
-      mergedLines.push(`- Requerimientos o servicios: ${msg.trim().slice(0, 120)}`);
-      filledSet.add("Requerimientos o servicios");
-    }
-
-    if (!filledSet.has("Lugar/dirección del evento")) {
-      const enMatch = msg.match(
-        /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
-      );
-      if (enMatch) {
-        const lugar = enMatch[1].trim();
-        if (!monthPattern.test(lugar) && !/^\d/.test(lugar)) {
-          mergedLines.push(`- Lugar/dirección del evento: ${lugar}`);
-          filledSet.add("Lugar/dirección del evento");
-        }
-      }
-    }
-
-    if (!filledSet.has("Fecha y horario")) {
-      const fechaMatch = msg.match(
-        /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)\b/i
-      );
-      if (fechaMatch) {
-        mergedLines.push(`- Fecha y horario: ${fechaMatch[1]}`);
-        filledSet.add("Fecha y horario");
-      } else if (
-        /\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha)\b/i.test(msg)
-      ) {
-        mergedLines.push(`- Fecha y horario: ${msg.trim().slice(0, 80)}`);
-        filledSet.add("Fecha y horario");
-      }
-    }
-  }
-
-  // ── Detección en tiempo real desde el mensaje actual ────────────────────────
-  if (currentMessage && currentMessage.trim()) {
-    const msg = currentMessage.trim();
-    const lastLucy = history
-      .filter((m) => m.role === "assistant" && typeof m.content === "string")
-      .slice(-1)[0]?.content as string | undefined ?? "";
-
-    // Primer mensaje: no confundir "Hola" u otro saludo con el nombre del cliente
-    if (
-      !filledSet.has("Nombre del cliente") &&
-      !history.some((m) => m.role === "assistant") &&
-      !isGreetingOnlyMessage(msg)
-    ) {
-      const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
-      const candidato = soyMatch ? soyMatch[1].trim() : msg;
-      const nombreDirecto = sanitizeDisplayName(candidato);
-      if (
-        nombreDirecto &&
-        candidato.length < 40 &&
-        !/\?/.test(candidato) &&
-        !/@/.test(candidato) &&
-        !/\d{4,}/.test(candidato)
-      ) {
-        mergedLines.push(`- Nombre del cliente: ${nombreDirecto}`);
-        filledSet.add("Nombre del cliente");
-      }
-    }
-
-    // Nombre: si Lucy preguntó por nombre y el cliente respondió con texto sin @
-    if (
-      !filledSet.has("Nombre del cliente") &&
-      mensajeAsksForField(lastLucy, "nombre") &&
-      !isAffirmativeOnlyMessage(msg) &&
-      /[a-záéíóúüñ]/i.test(msg) &&
-      !/@/.test(msg) &&
-      !/\d{4,}/.test(msg)
-    ) {
-      const nombreCapturado = sanitizeDisplayName(msg);
-      if (nombreCapturado) {
-        mergedLines.push(`- Nombre del cliente: ${nombreCapturado}`);
-        filledSet.add("Nombre del cliente");
-      }
-    }
-
-    // Presupuesto: si Lucy preguntó y el cliente dio monto o indicó que no tiene
-    if (!filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(lastLucy, "presupuesto")) {
-      if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|no\s+s[eé]|depende)\b/i.test(msg)) {
-        mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
-        filledSet.add("Presupuesto (MXN)");
-      } else if (/\d/.test(msg)) {
-        mergedLines.push(`- Presupuesto (MXN): ${msg}`);
-        filledSet.add("Presupuesto (MXN)");
-      }
-    }
-
-    // Invitados: si Lucy preguntó y el cliente dio un número
-    if (!filledSet.has("Número de invitados") && mensajeAsksForField(lastLucy, "invitados") && /\d/.test(msg)) {
-      mergedLines.push(`- Número de invitados: ${msg}`);
-      filledSet.add("Número de invitados");
-    }
-
-    // Fecha: si Lucy preguntó por fecha
-    if (
-      !filledSet.has("Fecha y horario") &&
-      mensajeAsksForField(lastLucy, "fecha") &&
-      /\d|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|sin\s+fecha/i.test(
-        msg
-      )
-    ) {
-      mergedLines.push(`- Fecha y horario: ${msg}`);
-      filledSet.add("Fecha y horario");
-    }
-
-    // Ciudad/zona: si Lucy preguntó por ubicación
-    if (
-      !filledSet.has("Lugar/dirección del evento") &&
-      mensajeAsksForField(lastLucy, "zona") &&
-      /[a-záéíóúüñ]{3,}/i.test(msg) &&
-      !/@/.test(msg)
-    ) {
-      mergedLines.push(`- Lugar/dirección del evento: ${msg}`);
-      filledSet.add("Lugar/dirección del evento");
-    }
-
-    // Tipo de evento: si Lucy preguntó qué festejan / tipo de evento
-    if (
-      !filledSet.has("Tipo de evento") &&
-      mensajeAsksForField(lastLucy, "tipo_evento") &&
-      /[a-záéíóúüñ]{3,}/i.test(msg) &&
-      !/@/.test(msg) &&
-      !isValidRequerimientosValue(msg)
-    ) {
-      mergedLines.push(`- Tipo de evento: ${msg}`);
-      filledSet.add("Tipo de evento");
-    }
-
-    // Requerimientos: si Lucy preguntó servicios y el cliente respondió con servicio concreto
-    if (
-      !filledSet.has("Requerimientos o servicios") &&
-      mensajeAsksForField(lastLucy, "requerimientos") &&
-      (isValidRequerimientosValue(msg) || /\bpista\b/i.test(msg))
-    ) {
-      const reqVal = parseServiceFromUserText(msg) ?? msg.trim();
-      mergedLines.push(`- Requerimientos o servicios: ${reqVal}`);
-      filledSet.add("Requerimientos o servicios");
-    }
+  if (currentMessage?.trim()) {
+    applyCapturesToCrm(
+      mergedLines,
+      filledSet,
+      captureContextualAnswer(history, currentMessage, filledSet)
+    );
   }
 
   // Nombre de WhatsApp: solo si Lucy ya preguntó y el cliente nunca lo escribió
