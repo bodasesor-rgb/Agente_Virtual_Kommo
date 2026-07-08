@@ -9,13 +9,30 @@ jobs:
   redeploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Verificar secrets configurados
+        env:
+          HAS_WEBHOOK: ${{ secrets.HOSTINGER_WEBHOOK_URL != '' }}
+          HAS_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN != '' }}
+        run: |
+          echo "HOSTINGER_WEBHOOK_URL configurado: $HAS_WEBHOOK"
+          echo "HOSTINGER_API_TOKEN configurado: $HAS_API_TOKEN"
+          if [ "$HAS_WEBHOOK" != "true" ] && [ "$HAS_API_TOKEN" != "true" ]; then
+            echo ""
+            echo "ERROR: Ningún secret de Hostinger encontrado."
+            echo "Añade en GitHub → Settings → Secrets and variables → Actions:"
+            echo "  - HOSTINGER_API_TOKEN  (recomendado)"
+            echo "  - o HOSTINGER_WEBHOOK_URL"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
       - name: Trigger Hostinger Git webhook
         env:
           WEBHOOK_URL: ${{ secrets.HOSTINGER_WEBHOOK_URL }}
         run: |
           if [ -z "$WEBHOOK_URL" ]; then
             echo "HOSTINGER_WEBHOOK_URL no configurado — saltando webhook."
-            echo "Añade el webhook de hPanel → Git → Auto Deployment en GitHub Secrets."
             exit 0
           fi
           echo "Disparando redeploy en Hostinger..."
@@ -26,6 +43,10 @@ jobs:
             exit 1
           fi
           echo "Redeploy disparado (HTTP $HTTP)"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
 
       - name: Deploy via Hostinger API (alternativa)
         env:
