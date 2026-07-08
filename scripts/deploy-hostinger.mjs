@@ -7,7 +7,7 @@
  *   HOSTINGER_DOMAIN     — opcional, default: midnightblue-mosquito-424375.hostingersite.com
  */
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -87,37 +87,30 @@ async function createArchive() {
 }
 
 async function uploadBuild(username, archivePath) {
-  const archiveBuffer = readFileSync(archivePath);
-  const body = {
-    archive: archiveBuffer.toString("base64"),
-    build_script: "echo ok",
-    entry_file: "start.mjs",
-    output_directory: ".",
-    package_manager: "npm",
-    node_version: 22,
-  };
+  const url =
+    `${API_BASE}/api/hosting/v1/accounts/${encodeURIComponent(username)}` +
+    `/websites/${encodeURIComponent(DOMAIN)}/nodejs/builds/from-archive`;
 
-  const res = await fetch(
-    `${API_BASE}/api/hosting/v1/accounts/${encodeURIComponent(username)}/websites/${encodeURIComponent(DOMAIN)}/nodejs/builds/from-archive`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    }
-  );
-  const text = await res.text();
+  const cmd = [
+    "curl -sS -f",
+    `-X POST "${url}"`,
+    `-H "Authorization: Bearer ${TOKEN}"`,
+    `-H "Accept: application/json"`,
+    `-F "archive=@${archivePath}"`,
+    `-F "build_script=echo ok"`,
+    `-F "entry_file=start.mjs"`,
+    `-F "output_directory=."`,
+    `-F "package_manager=npm"`,
+    `-F "node_version=22"`,
+  ].join(" ");
+
+  console.log("[deploy] Subiendo a Hostinger (multipart)...");
+  const output = execSync(cmd, { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
   let json;
   try {
-    json = text ? JSON.parse(text) : null;
+    json = output ? JSON.parse(output) : null;
   } catch {
-    json = { raw: text };
-  }
-  if (!res.ok) {
-    throw new Error(`Upload failed ${res.status}: ${JSON.stringify(json)}`);
+    throw new Error(`Respuesta inválida de Hostinger: ${output.slice(0, 500)}`);
   }
   console.log("[deploy] Respuesta API:", JSON.stringify(json).slice(0, 500));
   return json;
@@ -154,7 +147,6 @@ async function main() {
   console.log(`[deploy] Cuenta: ${username}`);
 
   const archive = await createArchive();
-  console.log("[deploy] Subiendo a Hostinger...");
   const result = await uploadBuild(username, archive);
   const buildUuid = result?.data?.uuid ?? result?.uuid;
   console.log("[deploy] Build iniciado:", buildUuid ?? result);
