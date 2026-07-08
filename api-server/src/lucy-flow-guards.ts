@@ -35,6 +35,27 @@ export const CLOSING_CORE_FIELDS = [
 /** Presentación obligatoria en el primer mensaje de Lucy. */
 export const LUCY_INTRO = "Hola, soy Lucy de Bodasesor.";
 
+/** Texto para que el cliente sepa qué ofrece Bodasesor al preguntar por servicios. */
+export const SERVICIOS_CATALOGO_HINT =
+  "Manejamos alimentos y barras (banquetes, taquizas, barras temáticas), mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces y más.";
+
+/** Variante corta cuando el cliente ya mencionó un servicio. */
+export const SERVICIOS_CATALOGO_HINT_ADICIONAL =
+  "También manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.";
+
+/** True si el mensaje ya menciona opciones del catálogo (evita repetir el bloque). */
+export function mensajeMencionaCatalogoServicios(mensaje: string): boolean {
+  return /alimentos?|mobiliario|carpas?|pistas?(\s+de\s+baile)?|bebidas?|banquete|taquiza|iluminaci[oó]n|pantallas?|mesas?\s+de\s+dulces|dj\b|barras?\s+(de\s+)?alimentos|estaciones?\s+de\s+comida/i.test(
+    mensaje
+  );
+}
+
+function appendServiciosCatalogoHint(pregunta: string, adicional = false): string {
+  if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
+  const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
+  return `${pregunta.trim()} ${hint}`.trim();
+}
+
 /** Plantillas legacy — preferir variantes naturales vía buildNaturalQuestion(). */
 export const FLOW_QUESTIONS = {
   nombre: "¿Me regalas tu nombre para iniciar?",
@@ -45,8 +66,7 @@ export const FLOW_QUESTIONS = {
   zona: "¿Dónde lo están planeando?",
   fecha: "¿Ya tienen fecha o todavía la van definiendo?",
   presupuesto: "¿Tienen algún rango de presupuesto en mente?",
-  serviciosExtra:
-    "También manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.",
+  serviciosExtra: SERVICIOS_CATALOGO_HINT_ADICIONAL,
 } as const;
 
 export type PendingField =
@@ -571,6 +591,10 @@ export function sanitizeOutboundMessage(
     return mergeWithPendingQuestion("", filledSet, extracted, ctx);
   }
 
+  if (pending === "requerimientos" && mensaje.includes("?") && !mensajeMencionaCatalogoServicios(mensaje)) {
+    mensaje = appendServiciosCatalogoHint(mensaje);
+  }
+
   if (
     pending &&
     !mensaje.includes("?") &&
@@ -626,13 +650,15 @@ export function buildRequerimientosQuestion(
       `¿Solo el ${service} o también algo más?`,
       `Perfecto. Con el ${service}, ¿necesitan algún otro servicio?`,
     ];
-    return (
-      `${prefix}${followUps[idx % followUps.length]} ` + FLOW_QUESTIONS.serviciosExtra
+    return appendServiciosCatalogoHint(
+      `${prefix}${followUps[idx % followUps.length]}`,
+      true
     );
   }
 
   const variant = pickVariant("requerimientos", history, entityId);
-  return prefix ? `${prefix}${variant}` : variant;
+  const core = prefix ? `${prefix}${variant}` : variant;
+  return appendServiciosCatalogoHint(core);
 }
 
 export function requerimientosNeedsFollowUp(

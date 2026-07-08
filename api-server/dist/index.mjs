@@ -60005,7 +60005,7 @@ Var\xEDa la redacci\xF3n. Una pregunta por mensaje. Puente breve si encaja ("Per
 [ ] 3. Tipo de evento \u2014 ej: "\xBFQu\xE9 tipo de celebraci\xF3n es?", "\xBFQu\xE9 festejan?" (si ya lo dijeron, no repetir)
 [ ] 4. Requerimientos:
         - CASO A (ya mencion\xF3 servicio) \u2192 "\xBFSolo el [servicio] o tambi\xE9n algo m\xE1s?" + opciones del cat\xE1logo
-        - CASO B (sin servicio) \u2192 "\xBFQu\xE9 servicios te gustar\xEDa cotizar?", "Plat\xEDcame qu\xE9 tienes pensado"
+        - CASO B (sin servicio) \u2192 pregunta qu\xE9 necesita + SIEMPRE menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces
 [ ] 5. Invitados   \u2014 ej: "\xBFM\xE1s o menos para cu\xE1ntas personas?", "\xBFCu\xE1ntos invitados contemplan?"
 [ ] 6. Zona        \u2014 ej: "\xBFD\xF3nde lo est\xE1n planeando?", "\xBFEn qu\xE9 ciudad o zona ser\xEDa?"
 [ ] 7. Fecha       \u2014 ej: "\xBFYa tienen fecha o todav\xEDa la van definiendo?"
@@ -60029,7 +60029,7 @@ CASO A \u2014 mencionaron servicio concreto al inicio (banquete, taquiza, pizzas
 \u2192 "Perfecto. Adem\xE1s del [servicio], \xBFte gustar\xEDa cotizar alg\xFAn otro servicio? Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos."
 
 CASO B \u2014 NO mencionaron ning\xFAn servicio concreto:
-\u2192 "Perfecto. Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?"
+\u2192 "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento? Manejamos alimentos y barras (banquetes, taquizas, barras tem\xE1ticas), mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces y m\xE1s."
 
 UNA pregunta por mensaje. Sin pre\xE1mbulos largos.
 
@@ -60045,7 +60045,7 @@ Lucy: "Sin problema, seguimos por aqu\xED. \xBFQu\xE9 tipo de celebraci\xF3n es?
 Cliente: "primi@gmail.com"
 Lucy: "\xBFQu\xE9 festejan o qu\xE9 evento est\xE1n planeando?"
 Cliente: "boda"
-Lucy: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?"
+Lucy: "\xBFQu\xE9 servicios te gustar\xEDa cotizar? Manejamos alimentos y barras (banquetes, taquizas, barras tem\xE1ticas), mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces y m\xE1s."
 Cliente: "banquete y barra de bebidas"
 Lucy: "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?"
 Cliente: "120"
@@ -61560,17 +61560,18 @@ var CLOSING_CORE_FIELDS = [
   "Presupuesto (MXN)"
 ];
 var LUCY_INTRO = "Hola, soy Lucy de Bodasesor.";
-var FLOW_QUESTIONS = {
-  nombre: "\xBFMe regalas tu nombre para iniciar?",
-  tipoEvento: "\xBFQu\xE9 festejan o qu\xE9 tipo de evento ser\xEDa?",
-  tipoEventoTrasCorreo: "\xBFQu\xE9 tipo de celebraci\xF3n est\xE1n planeando?",
-  requerimientos: "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?",
-  invitados: "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?",
-  zona: "\xBFD\xF3nde lo est\xE1n planeando?",
-  fecha: "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
-  presupuesto: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
-  serviciosExtra: "Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos."
-};
+var SERVICIOS_CATALOGO_HINT = "Manejamos alimentos y barras (banquetes, taquizas, barras tem\xE1ticas), mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces y m\xE1s.";
+var SERVICIOS_CATALOGO_HINT_ADICIONAL = "Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.";
+function mensajeMencionaCatalogoServicios(mensaje) {
+  return /alimentos?|mobiliario|carpas?|pistas?(\s+de\s+baile)?|bebidas?|banquete|taquiza|iluminaci[oó]n|pantallas?|mesas?\s+de\s+dulces|dj\b|barras?\s+(de\s+)?alimentos|estaciones?\s+de\s+comida/i.test(
+    mensaje
+  );
+}
+function appendServiciosCatalogoHint(pregunta, adicional = false) {
+  if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
+  const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
+  return `${pregunta.trim()} ${hint}`.trim();
+}
 var QUESTION_VARIANTS = {
   nombre: [
     "\xBFMe regalas tu nombre para iniciar?",
@@ -61896,6 +61897,9 @@ function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
     log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetici\xF3n \u2014 dato ya capturado");
     return mergeWithPendingQuestion("", filledSet, extracted, ctx);
   }
+  if (pending === "requerimientos" && mensaje.includes("?") && !mensajeMencionaCatalogoServicios(mensaje)) {
+    mensaje = appendServiciosCatalogoHint(mensaje);
+  }
   if (pending && !mensaje.includes("?") && !clientAskedFreeformQuestion(ctx.currentMessage)) {
     return mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
   }
@@ -61931,10 +61935,14 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
       `\xBFSolo el ${service} o tambi\xE9n algo m\xE1s?`,
       `Perfecto. Con el ${service}, \xBFnecesitan alg\xFAn otro servicio?`
     ];
-    return `${prefix}${followUps[idx % followUps.length]} ` + FLOW_QUESTIONS.serviciosExtra;
+    return appendServiciosCatalogoHint(
+      `${prefix}${followUps[idx % followUps.length]}`,
+      true
+    );
   }
   const variant = pickVariant("requerimientos", history, entityId);
-  return prefix ? `${prefix}${variant}` : variant;
+  const core = prefix ? `${prefix}${variant}` : variant;
+  return appendServiciosCatalogoHint(core);
 }
 function requerimientosNeedsFollowUp(extracted, filledSet) {
   if (filledSet.has("Requerimientos o servicios")) return false;
@@ -75226,6 +75234,11 @@ function buildRedactionBriefing(input) {
     lines.push("Todos los datos clave est\xE1n capturados \u2014 si corresponde, aplica el cierre.");
   } else if (pendingLabel) {
     lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
+    if (pending === "requerimientos") {
+      lines.push(
+        "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces."
+      );
+    }
   } else {
     lines.push("Revisa el CRM y pide solo el primer dato que falte.");
   }

@@ -75,6 +75,11 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
     lines.push("Todos los datos clave están capturados — si corresponde, aplica el cierre.");
   } else if (pendingLabel) {
     lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
+    if (pending === "requerimientos") {
+      lines.push(
+        "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces."
+      );
+    }
   } else {
     lines.push("Revisa el CRM y pide solo el primer dato que falte.");
   }

@@ -149,7 +149,7 @@
     {
       "id": "V6-SEQ-tipo",
       "userMessage": "Es una boda",
-      "lucyResponse": "¿Qué servicios te gustaría cotizar?",
+      "lucyResponse": "¿Qué servicios te gustaría cotizar? Manejamos alimentos y barras (banquetes, taquizas, barras temáticas), mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces y más.",
       "label": "Tipo de evento → pide servicios"
     },
     {
@@ -185,13 +185,13 @@
     {
       "id": "V6-SEQ-presupuesto-xv",
       "userMessage": "XV años",
-      "lucyResponse": "¿Qué servicios te gustaría cotizar?",
+      "lucyResponse": "¿Qué servicios te gustaría cotizar? Manejamos alimentos y barras (banquetes, taquizas, barras temáticas), mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces y más.",
       "label": "Tipo XV → pide servicios"
     },
     {
       "id": "V6-SEQ-presupuesto-corp",
       "userMessage": "Es un evento corporativo",
-      "lucyResponse": "¿Qué necesitas para el evento?",
+      "lucyResponse": "¿Qué necesitas para el evento? Manejamos alimentos y barras (banquetes, taquizas, barras temáticas), mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces y más.",
       "label": "Corporativo → pide servicios"
     },
     {
