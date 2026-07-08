@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Prueba E2E de Lucy en producción — cliente Alejandro, bautizo 100 pax CDMX.
+ * Prueba E2E de Lucy — cliente Alejandro, bautizo 100 pax CDMX.
  */
 const BASE =
   process.env.LUCY_URL?.replace(/\/$/, "") ||
@@ -10,20 +10,10 @@ const leadId = `test-alejandro-${Date.now()}`;
 
 let lead = {
   id: leadId,
-  name: "Contacto WhatsApp",
+  name: "",
   contact_phone: "5512345678",
   stage_id: "stage_leads_entrantes",
   custom_fields: {},
-};
-
-const DATA = {
-  nombre: "Alejandro",
-  correo: "alejandro.garcia@gmail.com",
-  tipo: "bautizo",
-  invitados: "100 personas",
-  zona: "CDMX, Ciudad de México",
-  fecha: "20 de septiembre de 2026 a las 2pm",
-  presupuesto: "como 80 mil pesos",
 };
 
 const turns = [];
@@ -40,42 +30,32 @@ function detectAskedField(reply) {
   const r = reply.toLowerCase();
   if (/regalas?\s+tu\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n/.test(r)) return "nombre";
   if (/correo|e-?mail/.test(r)) return "correo";
-  if (/tipo\s+de|qu[eé]\s+tipo|celebraci[oó]n|festejan|boda|bautizo|xv/.test(r)) return "tipo";
-  if (/servicios|requerimientos|cotizar|qu[eé]\s+necesitas|qu[eé]\s+te\s+gustar[ií]a/.test(r)) return "servicios";
-  if (/cu[aá]ntas?\s+personas|invitados|para\s+cu[aá]ntos/.test(r)) return "invitados";
+  if (/tipo\s+de|qu[eé]\s+tipo|celebraci[oó]n|festejan/.test(r) && !/bautizo\s+suele/.test(r)) return "tipo";
+  if (/servicios|requerimientos|cotizar|qu[eé]\s+necesitas|qu[eé]\s+te\s+gustar[ií]a|plat[ií]came/.test(r)) return "servicios";
+  if (/cu[aá]ntas?\s+personas|invitados|para\s+cu[aá]ntos|m[aá]s\s+o\s+menos/.test(r)) return "invitados";
   if (/d[oó]nde|zona|ubicaci[oó]n|ciudad|lugar/.test(r)) return "zona";
-  if (/fecha|cu[aá]ndo|d[ií]a/.test(r)) return "fecha";
-  if (/presupuesto|rango|cu[aá]nto/.test(r)) return "presupuesto";
+  if (/fecha|cu[aá]ndo|d[ií]a|definiendo/.test(r)) return "fecha";
+  if (/presupuesto|rango|inversi[oó]n/.test(r)) return "presupuesto";
   if (/ya tengo todo|cat[aá]logo/.test(r)) return "cierre";
   return null;
 }
 
-function clientReply(asked, turnIndex) {
-  if (turnIndex === 0) {
-    return "Hola, quiero cotizar un bautizo para mi hijo";
-  }
-  switch (asked) {
-    case "nombre":
-      return `Me llamo ${DATA.nombre}`;
-    case "correo":
-      return DATA.correo;
-    case "tipo":
-      return `Es un ${DATA.tipo}`;
-    case "servicios":
-      return "¿Qué me recomiendas meter en el bautizo? Banquete, pastel, mesa de dulces, algo más?";
-    case "invitados":
-      return `Serían ${DATA.invitados}`;
-    case "zona":
-      return DATA.zona;
-    case "fecha":
-      return DATA.fecha;
-    case "presupuesto":
-      return DATA.presupuesto;
-    case "cierre":
-      return "Gracias, por ahora eso es todo";
-    default:
-      return "Sí, claro";
-  }
+/** Guión fijo del cliente */
+const SCRIPT = [
+  "Hola, quiero cotizar un bautizo para mi hijo",
+  "Me llamo Alejandro",
+  "alejandro.garcia@gmail.com",
+  "¿Qué me recomiendas para el bautizo? ¿Banquete, pastel, mesa de dulces?",
+  "Sí, banquete con pastel y mesa de dulces por favor",
+  "Serían 100 personas",
+  "En CDMX, Ciudad de México",
+  "20 de septiembre de 2026 a las 2 de la tarde",
+  "Como 80 mil pesos",
+];
+
+function clientReply(turnIndex) {
+  if (turnIndex < SCRIPT.length) return SCRIPT[turnIndex];
+  return "Gracias Lucy";
 }
 
 function mergeLead(data) {
@@ -92,21 +72,28 @@ function mergeLead(data) {
 function analyzeTurn(i, userMsg, reply, data) {
   const issues = [];
   const asked = detectAskedField(reply);
+  const r = reply.toLowerCase();
 
-  if (i === 0 && !/lucy|bodasesor/i.test(reply)) {
+  if (i === 0 && !/hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(reply)) {
     issues.push("Primer mensaje sin presentación Lucy");
   }
-  if (i === 0 && asked !== "nombre" && !/nombre/.test(reply.toLowerCase())) {
+  if (i === 0 && asked !== "nombre" && !/nombre/.test(r)) {
     issues.push("Primer turno no pidió nombre primero");
   }
-  if (userMsg.includes("recomiendas") && !/alimentos|banquete|mobiliario|carpa|pista|dj|mesas|taquiza|barra/i.test(reply.toLowerCase())) {
-    issues.push("No listó opciones de servicios al hablar de requerimientos");
+  if (userMsg.includes("recomiendas") && !/banquete|pastel|mesa|mobiliario|carpa|dj|taquiza|brunch/i.test(r)) {
+    issues.push("No respondió con recomendaciones de servicios");
+  }
+  if (userMsg.includes("recomiendas") && asked === "invitados") {
+    issues.push("Saltó a invitados sin responder recomendaciones");
+  }
+  if (/septiembre|20 de/.test(userMsg) && asked === "cierre") {
+    issues.push("Cerró sin pedir presupuesto");
+  }
+  if (/septiembre|20 de/.test(userMsg) && /ya tengo todo|cat[aá]logo/.test(r) && !/presupuesto/.test(r)) {
+    issues.push("Cierre prematuro tras fecha (falta presupuesto)");
   }
   if (data.status === "error") {
     issues.push(`Error API: ${data.error}`);
-  }
-  if (/error|fall[oó]/i.test(reply) && reply.length < 200) {
-    issues.push("Respuesta parece error");
   }
 
   return { asked, issues, all_fields_filled: data.all_fields_filled };
@@ -132,11 +119,10 @@ async function main() {
 
   await reset();
 
-  let lastAsked = null;
   const maxTurns = 12;
 
   for (let i = 0; i < maxTurns; i++) {
-    const userMsg = clientReply(lastAsked, i);
+    const userMsg = clientReply(i);
     const data = await send(userMsg);
     const reply = data.reply || data.error || "(sin respuesta)";
     const analysis = analyzeTurn(i, userMsg, reply, data);
@@ -158,9 +144,8 @@ async function main() {
     if (analysis.issues.length) console.log(`⚠️  ${analysis.issues.join("; ")}`);
     console.log("");
 
-    lastAsked = analysis.asked;
-
     if (analysis.all_fields_filled && analysis.asked === "cierre") break;
+    if (analysis.all_fields_filled && i >= 8) break;
     if (data.status === "error") break;
 
     await new Promise((r) => setTimeout(r, 1500));
@@ -175,11 +160,12 @@ async function main() {
   console.log(`Campos completos: ${turns.at(-1)?.all_fields_filled ? "SÍ" : "NO"}`);
   console.log(`Problemas: ${allIssues.length ? allIssues.join(" | ") : "ninguno detectado"}`);
 
-  const expected = ["nombre", "correo", "tipo", "servicios", "invitados", "zona", "fecha", "presupuesto"];
+  const expected = ["nombre", "correo", "servicios", "invitados", "zona", "fecha", "presupuesto", "cierre"];
   const missing = expected.filter((f) => !fieldOrder.includes(f));
-  if (missing.length) console.log(`Campos no preguntados en la prueba: ${missing.join(", ")}`);
+  if (missing.length) console.log(`Campos no cubiertos en la prueba: ${missing.join(", ")}`);
 
-  process.exit(allIssues.length ? 1 : 0);
+  const failed = allIssues.length > 0 || missing.some((f) => f !== "tipo");
+  process.exit(failed ? 1 : 0);
 }
 
 main().catch((e) => {

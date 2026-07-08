@@ -77743,8 +77743,14 @@ var TIPO_EVENTO_PATTERNS = [
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
   [/\b(evento\s+corporativo|convenci[oó]n|conferencia|corporativo)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
-  [/\b(bautizo|comuni[oó]n|graduaci[oó]n)\b/i, "celebraci\xF3n"]
+  [/\b(bautizo)\b/i, "bautizo"],
+  [/\b(comuni[oó]n|graduaci[oó]n)\b/i, "celebraci\xF3n"]
 ];
+function clientAsksForRecommendations(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return /recomiendas?|qu[eé]\s+me\s+(recomiendas?|sugieres|conviene)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
+}
 var WRITTEN_NUMBERS = {
   uno: "1",
   una: "1",
@@ -77894,6 +77900,12 @@ function parsePresupuestoFromText(text2) {
   )) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
+  if (parseFechaFromText(trimmed) && !/\b(presupuesto|mil|pesos|mxn|\$|k\b)/i.test(trimmed)) {
+    return null;
+  }
+  if (/\b\d+\s*(personas?|invitados?|pax)\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|\$|k\b)/i.test(trimmed)) {
+    return null;
+  }
   const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
   if (kMatch) {
     const num = parseInt(kMatch[1].replace(/[,.]/g, ""), 10);
@@ -77904,7 +77916,10 @@ function parsePresupuestoFromText(text2) {
     const num = parseInt(milMatch[1].replace(/[,.]/g, ""), 10);
     if (!isNaN(num) && num > 0) return `$${num * 1e3}`;
   }
-  if (/\d/.test(trimmed)) return trimmed;
+  if (/\$/.test(trimmed) || /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn)\b/i.test(trimmed) || /\b(como|aprox|alrededor|cerca\s+de)\b/i.test(trimmed)) {
+    const amountMatch = trimmed.match(/\$?\s*([\d][\d,.]*)/);
+    if (amountMatch) return trimmed.slice(0, 80);
+  }
   return null;
 }
 function getLastLucyMessage(history) {
@@ -77934,7 +77949,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
       captures.push({ label: "Tipo de evento", value: tipo });
     }
   }
-  if (!filledSet.has("Requerimientos o servicios") && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
+  if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
     const service = parsePrimaryService(msg);
     if (service || isServiceRelatedMessage(msg)) {
       captures.push({
@@ -77973,7 +77988,7 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
         pending.add("Tipo de evento");
       }
     }
-    if (!pending.has("Requerimientos o servicios") && isServiceRelatedMessage(msg)) {
+    if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && isServiceRelatedMessage(msg)) {
       const service = parsePrimaryService(msg);
       captures.push({
         label: "Requerimientos o servicios",
@@ -78171,8 +78186,6 @@ function conversationAlreadyStarted(filledSet, history) {
   if (history.some((m4) => m4.role === "assistant")) return true;
   if (filledSet.has("Nombre del cliente")) return true;
   if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
-  if (filledSet.has("Tipo de evento")) return true;
-  if (filledSet.has("Requerimientos o servicios")) return true;
   return false;
 }
 function presentationHistoryFrom(ctx) {
@@ -78190,7 +78203,32 @@ function variantIndex(field, history, entityId) {
 }
 function pickVariant(field, history, entityId) {
   const variants = QUESTION_VARIANTS[field];
-  return variants[variantIndex(field, history, entityId)] ?? variants[0];
+  const lastAssistant = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content;
+  const start2 = variantIndex(field, history, entityId);
+  for (let i3 = 0; i3 < variants.length; i3++) {
+    const candidate = variants[(start2 + i3) % variants.length];
+    if (!lastAssistant || !mensajeAsksForField(lastAssistant, field)) return candidate;
+    if (!mensajeAsksForField(candidate, field)) return candidate;
+    const snippet = candidate.slice(0, 24);
+    if (snippet && !lastAssistant.includes(snippet)) return candidate;
+  }
+  return variants[start2 % variants.length];
+}
+function buildRecommendationsReply(extracted, history, entityId) {
+  const texts = collectUserTexts(history).join(" ").toLowerCase();
+  const tipo = (extracted.tipo_evento ?? "").toLowerCase();
+  let ideas;
+  if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
+    ideas = "Para un bautizo suele funcionar muy bien: banquete o brunch, pastel de bautizo, mesa de dulces, mobiliario y sillas, y si es en jard\xEDn o terraza carpas o sombrillas. Muchos tambi\xE9n agregan DJ suave o iluminaci\xF3n.";
+  } else if (/boda/.test(tipo) || /\bboda\b/.test(texts)) {
+    ideas = "Para boda lo m\xE1s pedido es banquete o taquiza, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminaci\xF3n. Tambi\xE9n mesa de dulces o quesos.";
+  } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
+    ideas = "Para XV a\xF1os suele ir banquete o brunch, mesa de dulces, mobiliario, DJ, iluminaci\xF3n y pista de baile.";
+  } else {
+    ideas = "Lo m\xE1s com\xFAn es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, iluminaci\xF3n y mesa de dulces seg\xFAn el estilo del evento.";
+  }
+  const follow = pickVariant("requerimientos", history, entityId);
+  return appendServiciosCatalogoHint(`${ideas} ${follow}`.trim());
 }
 function contextualPrefix(field, extracted, currentMessage) {
   const msg = currentMessage?.trim() ?? "";
@@ -78271,6 +78309,7 @@ function buildOpeningAcknowledgment(history, currentMessage) {
     return `${ack}.`;
   }
   if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
+  if (/\bbautizo\b/.test(t)) return "Con gusto te ayudo con la cotizaci\xF3n para tu bautizo.";
   if (/banquete/.test(t)) {
     const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
     return inv ? `Te ayudo con el banquete para ${inv[1]} personas.` : "Con gusto te ayudo con informaci\xF3n de banquetes.";
@@ -78580,10 +78619,12 @@ function applyLucyMessageGuards(input) {
     forceFirstPresentation
   } = input;
   const ctx = makeQuestionCtx(input);
+  const pendingBeforeClose = getNextPendingField(extracted, filledSet);
+  const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
   const emailOk = isEmailSatisfied(filledSet);
-  const needsNextStep = emailOk && !readyForClosing && !cierreYaEnviado;
+  const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
   let mensaje;
   if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
     mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
@@ -78595,6 +78636,9 @@ function applyLucyMessageGuards(input) {
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
+  } else if (clientAsksForRecommendations(currentMessage) && !isFieldSatisfied("requerimientos", filledSet, extracted)) {
+    mensaje = buildRecommendationsReply(extracted, history, entityId);
+    log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
@@ -78605,10 +78649,10 @@ function applyLucyMessageGuards(input) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     mensaje = nextQ ?? aiResponse;
     if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
-  } else if (readyForClosing && !cierreYaEnviado && (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))) {
+  } else if (trulyReadyForClosing && !cierreYaEnviado && (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))) {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
-  } else if (readyForClosing && !cierreYaEnviado) {
+  } else if (trulyReadyForClosing && !cierreYaEnviado) {
     mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
     log?.info({ entityId }, "Datos completos \u2014 mensaje de cierre desde plantilla");
   } else {
@@ -78624,7 +78668,7 @@ function applyLucyMessageGuards(input) {
     mensaje = nextQ;
   }
   const correoYaTenido = !!extracted.correo?.trim() || filledSet.has("Correo electr\xF3nico");
-  if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
+  if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !trulyReadyForClosing) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && pending !== "correo" && !mensajeAsksForField(mensaje, pending)) {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
@@ -78634,12 +78678,12 @@ function applyLucyMessageGuards(input) {
       }
     }
   }
-  if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
+  if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !trulyReadyForClosing) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.warn({ entityId }, "GUARD: GPT insisti\xF3 en correo tras rechazo");
     mensaje = nextQ;
   }
-  if (!readyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
+  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && !mensaje.includes("?")) {
       if (responseLooksLikePrematureClose(mensaje)) {
@@ -78651,7 +78695,7 @@ function applyLucyMessageGuards(input) {
       }
     }
   }
-  if (!readyForClosing && responseLooksLikePrematureClose(mensaje)) {
+  if (!trulyReadyForClosing && responseLooksLikePrematureClose(mensaje)) {
     const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     if (forcedNext) {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
@@ -78668,6 +78712,11 @@ function applyLucyMessageGuards(input) {
   mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
   const presHistory = input.presentationHistory ?? history;
+  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory);
+  if (isOpeningTurn && !/hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(mensaje)) {
+    mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
+    log?.info({ entityId }, "GUARD: presentaci\xF3n Lucy a\xF1adida al primer mensaje");
+  }
   if (conversationAlreadyStarted(filledSet, presHistory)) {
     mensaje = stripRepeatLucyIntro(mensaje, presHistory, true);
   }

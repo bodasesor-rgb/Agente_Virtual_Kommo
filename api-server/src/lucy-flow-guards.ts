@@ -8,6 +8,7 @@ import {
 } from "./contact-name.js";
 import {
   BODASESOR_SERVICE_PATTERNS,
+  clientAsksForRecommendations,
   inferLucyAskedField,
   isServiceRelatedMessage,
   parsePrimaryService,
@@ -205,8 +206,6 @@ function conversationAlreadyStarted(
   if (history.some((m) => m.role === "assistant")) return true;
   if (filledSet.has("Nombre del cliente")) return true;
   if (filledSet.has("Correo electrónico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
-  if (filledSet.has("Tipo de evento")) return true;
-  if (filledSet.has("Requerimientos o servicios")) return true;
   return false;
 }
 
@@ -245,7 +244,46 @@ function pickVariant(
   entityId?: string | number
 ): string {
   const variants = QUESTION_VARIANTS[field];
-  return variants[variantIndex(field, history, entityId)] ?? variants[0]!;
+  const lastAssistant = history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .slice(-1)[0]?.content as string | undefined;
+  const start = variantIndex(field, history, entityId);
+  for (let i = 0; i < variants.length; i++) {
+    const candidate = variants[(start + i) % variants.length]!;
+    if (!lastAssistant || !mensajeAsksForField(lastAssistant, field)) return candidate;
+    if (!mensajeAsksForField(candidate, field)) return candidate;
+    const snippet = candidate.slice(0, 24);
+    if (snippet && !lastAssistant.includes(snippet)) return candidate;
+  }
+  return variants[start % variants.length]!;
+}
+
+/** Sugerencias por tipo de evento cuando el cliente pide recomendaciones. */
+export function buildRecommendationsReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  entityId?: string | number
+): string {
+  const texts = collectUserTexts(history).join(" ").toLowerCase();
+  const tipo = (extracted.tipo_evento ?? "").toLowerCase();
+
+  let ideas: string;
+  if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
+    ideas =
+      "Para un bautizo suele funcionar muy bien: banquete o brunch, pastel de bautizo, mesa de dulces, mobiliario y sillas, y si es en jardín o terraza carpas o sombrillas. Muchos también agregan DJ suave o iluminación.";
+  } else if (/boda/.test(tipo) || /\bboda\b/.test(texts)) {
+    ideas =
+      "Para boda lo más pedido es banquete o taquiza, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminación. También mesa de dulces o quesos.";
+  } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
+    ideas =
+      "Para XV años suele ir banquete o brunch, mesa de dulces, mobiliario, DJ, iluminación y pista de baile.";
+  } else {
+    ideas =
+      "Lo más común es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, iluminación y mesa de dulces según el estilo del evento.";
+  }
+
+  const follow = pickVariant("requerimientos", history, entityId);
+  return appendServiciosCatalogoHint(`${ideas} ${follow}`.trim());
 }
 
 function contextualPrefix(
@@ -381,6 +419,7 @@ export function buildOpeningAcknowledgment(
   }
 
   if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
+  if (/\bbautizo\b/.test(t)) return "Con gusto te ayudo con la cotización para tu bautizo.";
   if (/banquete/.test(t)) {
     const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
     return inv
@@ -883,10 +922,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } = input;
 
   const ctx = makeQuestionCtx(input);
+  const pendingBeforeClose = getNextPendingField(extracted, filledSet);
+  const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
   const emailOk = isEmailSatisfied(filledSet);
-  const needsNextStep = emailOk && !readyForClosing && !cierreYaEnviado;
+  const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
 
   let mensaje: string;
 
@@ -900,6 +941,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
+  } else if (
+    clientAsksForRecommendations(currentMessage) &&
+    !isFieldSatisfied("requerimientos", filledSet, extracted)
+  ) {
+    mensaje = buildRecommendationsReply(extracted, history, entityId);
+    log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
@@ -911,13 +958,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = nextQ ?? aiResponse;
     if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (semántico)");
   } else if (
-    readyForClosing &&
+    trulyReadyForClosing &&
     !cierreYaEnviado &&
     (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))
   ) {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
-  } else if (readyForClosing && !cierreYaEnviado) {
+  } else if (trulyReadyForClosing && !cierreYaEnviado) {
     mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
     log?.info({ entityId }, "Datos completos — mensaje de cierre desde plantilla");
   } else {
@@ -937,7 +984,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   const correoYaTenido = !!(extracted.correo?.trim()) || filledSet.has("Correo electrónico");
-  if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
+  if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !trulyReadyForClosing) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && pending !== "correo" && !mensajeAsksForField(mensaje, pending)) {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
@@ -948,7 +995,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
+  if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !trulyReadyForClosing) {
     const nextQ =
       nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ??
       emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
@@ -956,7 +1003,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = nextQ;
   }
 
-  if (!readyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
+  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && !mensaje.includes("?")) {
       if (responseLooksLikePrematureClose(mensaje)) {
@@ -969,7 +1016,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (!readyForClosing && responseLooksLikePrematureClose(mensaje)) {
+  if (!trulyReadyForClosing && responseLooksLikePrematureClose(mensaje)) {
     const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     if (forcedNext) {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
@@ -990,6 +1037,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
 
   const presHistory = input.presentationHistory ?? history;
+  const isOpeningTurn =
+    (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+    !conversationAlreadyStarted(filledSet, presHistory);
+  if (isOpeningTurn && !/hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(mensaje)) {
+    mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
+    log?.info({ entityId }, "GUARD: presentación Lucy añadida al primer mensaje");
+  }
+
   if (conversationAlreadyStarted(filledSet, presHistory)) {
     mensaje = stripRepeatLucyIntro(mensaje, presHistory, true);
   }

@@ -110,8 +110,22 @@ const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV años"],
   [/\b(evento\s+corporativo|convenci[oó]n|conferencia|corporativo)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumpleaños"],
-  [/\b(bautizo|comuni[oó]n|graduaci[oó]n)\b/i, "celebración"],
+  [/\b(bautizo)\b/i, "bautizo"],
+  [/\b(comuni[oó]n|graduaci[oó]n)\b/i, "celebración"],
 ];
+
+/** Cliente pide ideas o recomendaciones (no está confirmando servicios aún). */
+export function clientAsksForRecommendations(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /recomiendas?|qu[eé]\s+me\s+(recomiendas?|sugieres|conviene)/i.test(t) ||
+    /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) ||
+    /qu[eé]\s+opciones/i.test(t) ||
+    /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) ||
+    /algo\s+m[aá]s\s*\?/i.test(t)
+  );
+}
 
 const WRITTEN_NUMBERS: Record<string, string> = {
   uno: "1",
@@ -311,6 +325,14 @@ export function parsePresupuestoFromText(text: string): string | null {
     return "Sin definir (cliente indicó que no tiene)";
   }
 
+  // Fechas, invitados u horarios no son presupuesto
+  if (parseFechaFromText(trimmed) && !/\b(presupuesto|mil|pesos|mxn|\$|k\b)/i.test(trimmed)) {
+    return null;
+  }
+  if (/\b\d+\s*(personas?|invitados?|pax)\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|\$|k\b)/i.test(trimmed)) {
+    return null;
+  }
+
   const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
   if (kMatch) {
     const num = parseInt(kMatch[1]!.replace(/[,.]/g, ""), 10);
@@ -323,7 +345,14 @@ export function parsePresupuestoFromText(text: string): string | null {
     if (!isNaN(num) && num > 0) return `$${num * 1000}`;
   }
 
-  if (/\d/.test(trimmed)) return trimmed;
+  if (
+    /\$/.test(trimmed) ||
+    /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn)\b/i.test(trimmed) ||
+    /\b(como|aprox|alrededor|cerca\s+de)\b/i.test(trimmed)
+  ) {
+    const amountMatch = trimmed.match(/\$?\s*([\d][\d,.]*)/);
+    if (amountMatch) return trimmed.slice(0, 80);
+  }
 
   return null;
 }
@@ -384,7 +413,11 @@ export function captureContextualAnswer(
     }
   }
 
-  if (!filledSet.has("Requerimientos o servicios") && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
+  if (
+    !filledSet.has("Requerimientos o servicios") &&
+    !clientAsksForRecommendations(msg) &&
+    (asked === "requerimientos" || isServiceRelatedMessage(msg))
+  ) {
     const service = parsePrimaryService(msg);
     if (service || isServiceRelatedMessage(msg)) {
       captures.push({
@@ -436,7 +469,11 @@ export function scanConversationForCaptures(
       }
     }
 
-    if (!pending.has("Requerimientos o servicios") && isServiceRelatedMessage(msg)) {
+    if (
+      !pending.has("Requerimientos o servicios") &&
+      !clientAsksForRecommendations(msg) &&
+      isServiceRelatedMessage(msg)
+    ) {
       const service = parsePrimaryService(msg);
       captures.push({
         label: "Requerimientos o servicios",
