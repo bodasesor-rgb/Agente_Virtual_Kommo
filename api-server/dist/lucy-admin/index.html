@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lucy Admin — Bodasesor</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <section id="login-view" class="card login-card">
+      <h1>Lucy Admin</h1>
+      <p class="muted">Panel de entrenamiento y analytics</p>
+      <form id="login-form">
+        <label>Email<input type="email" id="email" required autocomplete="username" /></label>
+        <label>Contraseña<input type="password" id="password" required autocomplete="current-password" /></label>
+        <button type="submit">Entrar</button>
+        <p id="login-error" class="error hidden"></p>
+      </form>
+    </section>
+
+    <section id="main-view" class="hidden">
+      <header class="topbar">
+        <div>
+          <strong>Lucy Admin</strong>
+          <span id="user-label" class="muted"></span>
+        </div>
+        <div class="topbar-actions">
+          <a href="/simulator" target="_blank" rel="noopener">Simulador</a>
+          <button type="button" id="logout-btn" class="ghost">Salir</button>
+        </div>
+      </header>
+
+      <nav class="tabs">
+        <button type="button" class="tab active" data-tab="examples">Ejemplos</button>
+        <button type="button" class="tab" data-tab="analytics">Analytics</button>
+        <button type="button" class="tab" data-tab="system">Sistema</button>
+      </nav>
+
+      <div id="tab-examples" class="tab-panel">
+        <div class="panel-header">
+          <h2>Few-shot examples</h2>
+          <button type="button" id="new-example-btn">+ Nuevo ejemplo</button>
+        </div>
+        <p class="muted">Los cambios aplican en caliente — Lucy los usa en el próximo mensaje (cache ~30s).</p>
+        <div id="examples-list"></div>
+      </div>
+
+      <div id="tab-analytics" class="tab-panel hidden">
+        <h2>Resumen</h2>
+        <div id="analytics-cards" class="cards"></div>
+        <h3>Leads recientes</h3>
+        <div id="analytics-leads"></div>
+      </div>
+
+      <div id="tab-system" class="tab-panel hidden">
+        <h2>Sistema</h2>
+        <pre id="health-json" class="code-block"></pre>
+      </div>
+    </section>
+  </div>
+
+  <dialog id="example-dialog">
+    <form method="dialog" id="example-form">
+      <h3 id="dialog-title">Nuevo ejemplo</h3>
+      <input type="hidden" id="example-id" />
+      <label>Etiqueta<input type="text" id="example-label" placeholder="Ej: Tipo evento → servicios" /></label>
+      <label>Mensaje del cliente<textarea id="example-user" rows="3" required></textarea></label>
+      <label>Respuesta de Lucy<textarea id="example-lucy" rows="5" required></textarea></label>
+      <div class="dialog-actions">
+        <button type="button" id="dialog-cancel" class="ghost">Cancelar</button>
+        <button type="submit" value="save">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

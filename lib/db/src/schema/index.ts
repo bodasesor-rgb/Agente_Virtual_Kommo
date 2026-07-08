@@ -135,3 +135,19 @@ export const users = pgTable("users", {
 });
 
 export type User = typeof users.$inferSelect;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// EJEMPLOS DE ENTRENAMIENTO (few-shot Lucy — editable desde lucy-admin)
+// ═══════════════════════════════════════════════════════════════════════════
+export const trainingExamples = pgTable("training_examples", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userMessage: text("user_message").notNull(),
+  lucyResponse: text("lucy_response").notNull(),
+  label: text("label"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type TrainingExampleRecord = typeof trainingExamples.$inferSelect;
+export type InsertTrainingExample = typeof trainingExamples.$inferInsert;

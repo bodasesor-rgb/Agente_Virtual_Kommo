@@ -1,8 +1,10 @@
 import { Router, type Request, type Response } from "express";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq, gte, desc, sql, and, type SQL } from "drizzle-orm";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = Router();
+router.use(requireAuth);
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GET /api/analytics/overview - Resumen general

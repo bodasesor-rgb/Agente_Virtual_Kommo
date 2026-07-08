@@ -5,6 +5,7 @@ ensureOpenAiApiKeyEnv();
 
 import app from "./app";
 import { logger } from "./lib/logger";
+import { initializeTrainingStore } from "./services/trainingStore.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 
@@ -14,7 +15,10 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-app.listen(port, "0.0.0.0", (err) => {
+async function startServer(): Promise<void> {
+  await initializeTrainingStore();
+
+  app.listen(port, "0.0.0.0", (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
@@ -59,4 +63,10 @@ app.listen(port, "0.0.0.0", (err) => {
   }, 10_000);
 
   logger.info({ intervalMinutes: 3, healthUrl }, "Keep-alive activado");
+  });
+}
+
+void startServer().catch((err) => {
+  logger.error({ err }, "Error al iniciar servidor");
+  process.exit(1);
 });

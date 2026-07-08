@@ -51,7 +51,7 @@ var require_main = __commonJS({
     var fs3 = __require("fs");
     var path4 = __require("path");
     var os = __require("os");
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var TIPS = [
       "\u25C8 encrypted .env [www.dotenvx.com]",
       "\u25C8 secrets for agents [www.dotenvx.com]",
@@ -295,7 +295,7 @@ var require_main = __commonJS({
       const authTag = ciphertext.subarray(-16);
       ciphertext = ciphertext.subarray(12, -16);
       try {
-        const aesgcm = crypto4.createDecipheriv("aes-256-gcm", key, nonce);
+        const aesgcm = crypto5.createDecipheriv("aes-256-gcm", key, nonce);
         aesgcm.setAuthTag(authTag);
         return `${aesgcm.update(ciphertext)}${aesgcm.final()}`;
       } catch (error) {
@@ -1128,8 +1128,8 @@ var require_depd = __commonJS({
       return deprecate;
     }
     function eehaslisteners(emitter, type) {
-      var count = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
-      return count > 0;
+      var count2 = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
+      return count2 > 0;
     }
     function isignored(namespace) {
       if (process.noDeprecation) {
@@ -18949,14 +18949,14 @@ var require_urlencoded = __commonJS({
       };
     }
     function parameterCount(body2, limit2) {
-      let count = 0;
+      let count2 = 0;
       let index = -1;
       do {
-        count++;
-        if (count > limit2) return void 0;
+        count2++;
+        if (count2 > limit2) return void 0;
         index = body2.indexOf("&", index + 1);
       } while (index !== -1);
-      return count;
+      return count2;
     }
   }
 });
@@ -19279,10 +19279,10 @@ var require_view = __commonJS({
     var debug = require_src()("express:view");
     var path4 = __require("node:path");
     var fs3 = __require("node:fs");
-    var dirname4 = path4.dirname;
+    var dirname3 = path4.dirname;
     var basename = path4.basename;
     var extname = path4.extname;
-    var join5 = path4.join;
+    var join4 = path4.join;
     var resolve2 = path4.resolve;
     module2.exports = View2;
     function View2(name2, options) {
@@ -19318,7 +19318,7 @@ var require_view = __commonJS({
       for (var i3 = 0; i3 < roots.length && !path5; i3++) {
         var root = roots[i3];
         var loc = resolve2(root, name2);
-        var dir = dirname4(loc);
+        var dir = dirname3(loc);
         var file = basename(loc);
         path5 = this.resolve(dir, file);
       }
@@ -19344,12 +19344,12 @@ var require_view = __commonJS({
     };
     View2.prototype.resolve = function resolve3(dir, file) {
       var ext = this.ext;
-      var path5 = join5(dir, file);
+      var path5 = join4(dir, file);
       var stat = tryStat(path5);
       if (stat && stat.isFile()) {
         return path5;
       }
-      path5 = join5(dir, basename(file, ext), "index" + ext);
+      path5 = join4(dir, basename(file, ext), "index" + ext);
       stat = tryStat(path5);
       if (stat && stat.isFile()) {
         return path5;
@@ -19475,14 +19475,14 @@ var require_etag = __commonJS({
   "../node_modules/etag/index.js"(exports, module2) {
     "use strict";
     module2.exports = etag;
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var Stats = __require("fs").Stats;
     var toString3 = Object.prototype.toString;
     function entitytag(entity) {
       if (entity.length === 0) {
         return '"0-2jmj7l5rSw0yVb/vlWAYkK/YBwk"';
       }
-      var hash = crypto4.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
+      var hash = crypto5.createHash("sha1").update(entity, "utf8").digest("base64").substring(0, 27);
       var len = typeof entity === "string" ? Buffer.byteLength(entity, "utf8") : entity.length;
       return '"' + len.toString(16) + "-" + hash + '"';
     }
@@ -21793,7 +21793,7 @@ var require_application = __commonJS({
       return this;
     };
     app2.render = function render(name2, options, callback) {
-      var cache = this.cache;
+      var cache2 = this.cache;
       var done = callback;
       var engines = this.engines;
       var opts = options;
@@ -21807,7 +21807,7 @@ var require_application = __commonJS({
         renderOptions.cache = this.enabled("view cache");
       }
       if (renderOptions.cache) {
-        view = cache[name2];
+        view = cache2[name2];
       }
       if (!view) {
         var View3 = this.get("view");
@@ -21823,7 +21823,7 @@ var require_application = __commonJS({
           return done(err2);
         }
         if (renderOptions.cache) {
-          cache[name2] = view;
+          cache2[name2] = view;
         }
       }
       tryRender(view, renderOptions, done);
@@ -22257,13 +22257,13 @@ var require_mediaType = __commonJS({
       return spec.q > 0;
     }
     function quoteCount(string) {
-      var count = 0;
+      var count2 = 0;
       var index = 0;
       while ((index = string.indexOf('"', index)) !== -1) {
-        count++;
+        count2++;
         index++;
       }
-      return count;
+      return count2;
     }
     function splitKeyValuePair(str2) {
       var index = str2.indexOf("=");
@@ -22969,17 +22969,17 @@ var require_content_disposition = __commonJS({
 // ../node_modules/express/node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
   "../node_modules/express/node_modules/cookie-signature/index.js"(exports) {
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
-      return val + "." + crypto4.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
+      return val + "." + crypto5.createHmac("sha256", secret).update(val).digest("base64").replace(/\=+$/, "");
     };
     exports.unsign = function(input, secret) {
       if ("string" != typeof input) throw new TypeError("Signed cookie string must be provided.");
       if (null == secret) throw new TypeError("Secret key must be provided.");
       var tentativeValue = input.slice(0, input.lastIndexOf(".")), expectedInput = exports.sign(tentativeValue, secret), expectedBuffer = Buffer.from(expectedInput), inputBuffer = Buffer.from(input);
-      return expectedBuffer.length === inputBuffer.length && crypto4.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
+      return expectedBuffer.length === inputBuffer.length && crypto5.timingSafeEqual(expectedBuffer, inputBuffer) ? tentativeValue : false;
     };
   }
 });
@@ -23170,7 +23170,7 @@ var require_send = __commonJS({
     var Stream2 = __require("stream");
     var util5 = __require("util");
     var extname = path4.extname;
-    var join5 = path4.join;
+    var join4 = path4.join;
     var normalize = path4.normalize;
     var resolve2 = path4.resolve;
     var sep = path4.sep;
@@ -23342,7 +23342,7 @@ var require_send = __commonJS({
           return res;
         }
         parts2 = path5.split(sep);
-        path5 = normalize(join5(root, path5));
+        path5 = normalize(join4(root, path5));
       } else {
         if (UP_PATH_REGEXP.test(path5)) {
           debug('malicious path "%s"', path5);
@@ -23475,7 +23475,7 @@ var require_send = __commonJS({
           if (err2) return self2.onStatError(err2);
           return self2.error(404);
         }
-        var p3 = join5(path5, self2._index[i3]);
+        var p3 = join4(path5, self2._index[i3]);
         debug('stat "%s"', p3);
         fs3.stat(p3, function(err3, stat) {
           if (err3) return next(err3);
@@ -23580,8 +23580,8 @@ var require_send = __commonJS({
       }
     }
     function hasListeners(emitter, type) {
-      var count = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
-      return count > 0;
+      var count2 = typeof emitter.listenerCount !== "function" ? emitter.listeners(type).length : emitter.listenerCount(type);
+      return count2 > 0;
     }
     function normalizeList(val, name2) {
       var list = [].concat(val || []);
@@ -26599,7 +26599,7 @@ var require_thread_stream = __commonJS({
     var { version: version2 } = require_package();
     var { EventEmitter: EventEmitter2 } = __require("events");
     var { Worker } = __require("worker_threads");
-    var { join: join5 } = __require("path");
+    var { join: join4 } = __require("path");
     var { pathToFileURL } = __require("url");
     var { wait } = require_wait();
     var {
@@ -26635,7 +26635,7 @@ var require_thread_stream = __commonJS({
     function createWorker(stream4, opts) {
       const { filename, workerData } = opts;
       const bundlerOverrides = "__bundlerPathsOverrides" in globalThis ? globalThis.__bundlerPathsOverrides : {};
-      const toExecute = bundlerOverrides["thread-stream-worker"] || join5(__dirname, "lib", "worker.js");
+      const toExecute = bundlerOverrides["thread-stream-worker"] || join4(__dirname, "lib", "worker.js");
       const worker = new Worker(toExecute, {
         ...opts.workerOpts,
         trackUnmanagedFds: false,
@@ -27021,7 +27021,7 @@ var require_transport = __commonJS({
     "use strict";
     var { createRequire } = __require("module");
     var getCallers = require_caller();
-    var { join: join5, isAbsolute, sep } = __require("node:path");
+    var { join: join4, isAbsolute, sep } = __require("node:path");
     var sleep3 = require_atomic_sleep();
     var onExit = require_on_exit_leak_free();
     var ThreadStream = require_thread_stream();
@@ -27084,7 +27084,7 @@ var require_transport = __commonJS({
         throw new Error("only one of target or targets can be specified");
       }
       if (targets) {
-        target = bundlerOverrides["pino-worker"] || join5(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join4(__dirname, "worker.js");
         options.targets = targets.filter((dest) => dest.target).map((dest) => {
           return {
             ...dest,
@@ -27102,7 +27102,7 @@ var require_transport = __commonJS({
           });
         });
       } else if (pipeline) {
-        target = bundlerOverrides["pino-worker"] || join5(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join4(__dirname, "worker.js");
         options.pipelines = [pipeline.map((dest) => {
           return {
             ...dest,
@@ -27124,7 +27124,7 @@ var require_transport = __commonJS({
           return origin2;
         }
         if (origin2 === "pino/file") {
-          return join5(__dirname, "..", "file.js");
+          return join4(__dirname, "..", "file.js");
         }
         let fixTarget2;
         for (const filePath of callers) {
@@ -27551,12 +27551,12 @@ var require_levels = __commonJS({
     function genLsCache(instance2) {
       const formatter = instance2[formattersSym].level;
       const { labels } = instance2.levels;
-      const cache = {};
+      const cache2 = {};
       for (const label in labels) {
         const level = formatter(labels[label], Number(label));
-        cache[label] = JSON.stringify(level).slice(0, -1);
+        cache2[label] = JSON.stringify(level).slice(0, -1);
       }
-      instance2[lsCacheSym] = cache;
+      instance2[lsCacheSym] = cache2;
       return instance2;
     }
     function isStandardLevel(level, useOnlyCustomLevels) {
@@ -28113,7 +28113,7 @@ var require_safe_stable_stringify = __commonJS({
               return circularValue;
             }
             let res = "";
-            let join5 = ",";
+            let join4 = ",";
             const originalIndentation = indentation;
             if (Array.isArray(value)) {
               if (value.length === 0) {
@@ -28127,7 +28127,7 @@ var require_safe_stable_stringify = __commonJS({
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join5 = `,
+                join4 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -28135,13 +28135,13 @@ ${indentation}`;
               for (; i3 < maximumValuesToStringify - 1; i3++) {
                 const tmp2 = stringifyFnReplacer(String(i3), value, stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join5;
+                res += join4;
               }
               const tmp = stringifyFnReplacer(String(i3), value, stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join5}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join4}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -28162,7 +28162,7 @@ ${originalIndentation}`;
             let separator = "";
             if (spacer !== "") {
               indentation += spacer;
-              join5 = `,
+              join4 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -28176,13 +28176,13 @@ ${indentation}`;
               const tmp = stringifyFnReplacer(key2, value, stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join5;
+                separator = join4;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...":${whitespace}"${getItemCount(removedKeys)} not stringified"`;
-              separator = join5;
+              separator = join4;
             }
             if (spacer !== "" && separator.length > 1) {
               res = `
@@ -28223,7 +28223,7 @@ ${originalIndentation}`;
             }
             const originalIndentation = indentation;
             let res = "";
-            let join5 = ",";
+            let join4 = ",";
             if (Array.isArray(value)) {
               if (value.length === 0) {
                 return "[]";
@@ -28236,7 +28236,7 @@ ${originalIndentation}`;
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join5 = `,
+                join4 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -28244,13 +28244,13 @@ ${indentation}`;
               for (; i3 < maximumValuesToStringify - 1; i3++) {
                 const tmp2 = stringifyArrayReplacer(String(i3), value[i3], stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join5;
+                res += join4;
               }
               const tmp = stringifyArrayReplacer(String(i3), value[i3], stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join5}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join4}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -28263,7 +28263,7 @@ ${originalIndentation}`;
             let whitespace = "";
             if (spacer !== "") {
               indentation += spacer;
-              join5 = `,
+              join4 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -28272,7 +28272,7 @@ ${indentation}`;
               const tmp = stringifyArrayReplacer(key2, value[key2], stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join5;
+                separator = join4;
               }
             }
             if (spacer !== "" && separator.length > 1) {
@@ -28330,20 +28330,20 @@ ${originalIndentation}`;
               indentation += spacer;
               let res2 = `
 ${indentation}`;
-              const join6 = `,
+              const join5 = `,
 ${indentation}`;
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
               let i3 = 0;
               for (; i3 < maximumValuesToStringify - 1; i3++) {
                 const tmp2 = stringifyIndent(String(i3), value[i3], stack, spacer, indentation);
                 res2 += tmp2 !== void 0 ? tmp2 : "null";
-                res2 += join6;
+                res2 += join5;
               }
               const tmp = stringifyIndent(String(i3), value[i3], stack, spacer, indentation);
               res2 += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res2 += `${join6}"... ${getItemCount(removedKeys)} not stringified"`;
+                res2 += `${join5}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               res2 += `
 ${originalIndentation}`;
@@ -28359,16 +28359,16 @@ ${originalIndentation}`;
               return '"[Object]"';
             }
             indentation += spacer;
-            const join5 = `,
+            const join4 = `,
 ${indentation}`;
             let res = "";
             let separator = "";
             let maximumPropertiesToStringify = Math.min(keyLength, maximumBreadth);
             if (isTypedArrayWithEntries(value)) {
-              res += stringifyTypedArray(value, join5, maximumBreadth);
+              res += stringifyTypedArray(value, join4, maximumBreadth);
               keys = keys.slice(value.length);
               maximumPropertiesToStringify -= value.length;
-              separator = join5;
+              separator = join4;
             }
             if (deterministic) {
               keys = sort(keys, comparator);
@@ -28379,13 +28379,13 @@ ${indentation}`;
               const tmp = stringifyIndent(key2, value[key2], stack, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}: ${tmp}`;
-                separator = join5;
+                separator = join4;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...": "${getItemCount(removedKeys)} not stringified"`;
-              separator = join5;
+              separator = join4;
             }
             if (separator !== "") {
               res = `
@@ -29169,6 +29169,60 @@ var require_logger = __commonJS({
   }
 });
 
+// src/lib/authJwt.ts
+var authJwt_exports = {};
+__export(authJwt_exports, {
+  isAuthConfigured: () => isAuthConfigured,
+  signSessionToken: () => signSessionToken,
+  verifySessionToken: () => verifySessionToken
+});
+import crypto2 from "crypto";
+function getSecret() {
+  const secret = process.env["SESSION_SECRET"]?.trim() || process.env["LUCY_SESSION_SECRET"]?.trim() || "";
+  if (!secret) {
+    throw new Error("SESSION_SECRET no configurado");
+  }
+  return secret;
+}
+function b64url(data) {
+  return Buffer.from(data, "utf-8").toString("base64url");
+}
+function b64urlDecode(data) {
+  return Buffer.from(data, "base64url").toString("utf-8");
+}
+function signSessionToken(payload, ttlDays = 7) {
+  const body2 = {
+    ...payload,
+    exp: Date.now() + ttlDays * 24 * 60 * 60 * 1e3
+  };
+  const encoded = b64url(JSON.stringify(body2));
+  const sig = crypto2.createHmac("sha256", getSecret()).update(encoded).digest("base64url");
+  return `${encoded}.${sig}`;
+}
+function verifySessionToken(token) {
+  try {
+    const secret = process.env["SESSION_SECRET"]?.trim() || process.env["LUCY_SESSION_SECRET"]?.trim();
+    if (!secret) return null;
+    const [encoded, sig] = token.split(".");
+    if (!encoded || !sig) return null;
+    const expected = crypto2.createHmac("sha256", secret).update(encoded).digest("base64url");
+    if (sig.length !== expected.length) return null;
+    if (!crypto2.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null;
+    const payload = JSON.parse(b64urlDecode(encoded));
+    if (!payload.exp || payload.exp < Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+function isAuthConfigured() {
+  return !!(process.env["SESSION_SECRET"]?.trim() || process.env["LUCY_SESSION_SECRET"]?.trim());
+}
+var init_authJwt = __esm({
+  "src/lib/authJwt.ts"() {
+  }
+});
+
 // ../node_modules/postgres-array/index.js
 var require_postgres_array = __commonJS({
   "../node_modules/postgres-array/index.js"(exports) {
@@ -29947,11 +30001,11 @@ var require_binaryParsers = __commonJS({
         var array = [];
         var i4;
         if (dimension.length > 1) {
-          var count = dimension.shift();
-          for (i4 = 0; i4 < count; i4++) {
+          var count2 = dimension.shift();
+          for (i4 = 0; i4 < count2; i4++) {
             array[i4] = parse(dimension, elementType2);
           }
-          dimension.unshift(count);
+          dimension.unshift(count2);
         } else {
           for (i4 = 0; i4 < dimension[0]; i4++) {
             array[i4] = parseElement(elementType2);
@@ -30486,7 +30540,7 @@ var require_cert_signatures = __commonJS({
 var require_sasl = __commonJS({
   "../node_modules/pg/lib/crypto/sasl.js"(exports, module2) {
     "use strict";
-    var crypto4 = require_utils5();
+    var crypto5 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
     function saslprep(password) {
       const nonAsciiSpace = /[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000]/g;
@@ -30504,7 +30558,7 @@ var require_sasl = __commonJS({
       if (mechanism === "SCRAM-SHA-256-PLUS" && typeof stream4.getPeerCertificate !== "function") {
         throw new Error("SASL: Mechanism SCRAM-SHA-256-PLUS requires a certificate");
       }
-      const clientNonce = crypto4.randomBytes(18).toString("base64");
+      const clientNonce = crypto5.randomBytes(18).toString("base64");
       const gs2Header = mechanism === "SCRAM-SHA-256-PLUS" ? "p=tls-server-end-point" : stream4 ? "y" : "n";
       return {
         mechanism,
@@ -30546,20 +30600,20 @@ var require_sasl = __commonJS({
         const peerCert = stream4.getPeerCertificate().raw;
         let hashName = signatureAlgorithmHashFromCertificate(peerCert);
         if (hashName === "MD5" || hashName === "SHA-1") hashName = "SHA-256";
-        const certHash = await crypto4.hashByName(hashName, peerCert);
+        const certHash = await crypto5.hashByName(hashName, peerCert);
         const bindingData = Buffer.concat([Buffer.from("p=tls-server-end-point,,"), Buffer.from(certHash)]);
         channelBinding = bindingData.toString("base64");
       }
       const clientFinalMessageWithoutProof = "c=" + channelBinding + ",r=" + sv.nonce;
       const authMessage = clientFirstMessageBare + "," + serverFirstMessage + "," + clientFinalMessageWithoutProof;
       const saltBytes = Buffer.from(sv.salt, "base64");
-      const saltedPassword = await crypto4.deriveKey(saslprep(password), saltBytes, sv.iteration);
-      const clientKey = await crypto4.hmacSha256(saltedPassword, "Client Key");
-      const storedKey = await crypto4.sha256(clientKey);
-      const clientSignature = await crypto4.hmacSha256(storedKey, authMessage);
+      const saltedPassword = await crypto5.deriveKey(saslprep(password), saltBytes, sv.iteration);
+      const clientKey = await crypto5.hmacSha256(saltedPassword, "Client Key");
+      const storedKey = await crypto5.sha256(clientKey);
+      const clientSignature = await crypto5.hmacSha256(storedKey, authMessage);
       const clientProof = xorBuffers(Buffer.from(clientKey), Buffer.from(clientSignature)).toString("base64");
-      const serverKey = await crypto4.hmacSha256(saltedPassword, "Server Key");
-      const serverSignatureBytes = await crypto4.hmacSha256(serverKey, authMessage);
+      const serverKey = await crypto5.hmacSha256(saltedPassword, "Server Key");
+      const serverSignatureBytes = await crypto5.hmacSha256(serverKey, authMessage);
       session.message = "SASLResponse";
       session.serverSignature = Buffer.from(serverSignatureBytes).toString("base64");
       session.response = clientFinalMessageWithoutProof + ",p=" + clientProof;
@@ -32789,7 +32843,7 @@ var require_client = __commonJS({
     var Query2 = require_query();
     var defaults4 = require_defaults();
     var Connection2 = require_connection();
-    var crypto4 = require_utils5();
+    var crypto5 = require_utils5();
     var activeQueryDeprecationNotice = nodeUtils.deprecate(
       () => {
       },
@@ -33040,7 +33094,7 @@ var require_client = __commonJS({
       _handleAuthMD5Password(msg) {
         this._getPassword(async () => {
           try {
-            const hashedPassword = await crypto4.postgresMd5PasswordHash(this.user, this.password, msg.salt);
+            const hashedPassword = await crypto5.postgresMd5PasswordHash(this.user, this.password, msg.salt);
             this.connection.password(hashedPassword);
           } catch (e) {
             this.emit("error", e);
@@ -44423,7 +44477,7 @@ var require_form_data = __commonJS({
     var parseUrl2 = __require("url").parse;
     var fs3 = __require("fs");
     var Stream2 = __require("stream").Stream;
-    var crypto4 = __require("crypto");
+    var crypto5 = __require("crypto");
     var mime = require_mime_types2();
     var asynckit = require_asynckit();
     var setToStringTag = require_es_set_tostringtag();
@@ -44632,7 +44686,7 @@ var require_form_data = __commonJS({
       return Buffer.concat([dataBuffer, Buffer.from(this._lastBoundary())]);
     };
     FormData3.prototype._generateBoundary = function() {
-      this._boundary = "--------------------------" + crypto4.randomBytes(12).toString("hex");
+      this._boundary = "--------------------------" + crypto5.randomBytes(12).toString("hex");
     };
     FormData3.prototype.getLengthSync = function() {
       var knownLength = this._overheadLength + this._valueLength;
@@ -49690,6 +49744,7 @@ var UpdateExampleResponse = objectType({
 });
 
 // src/routes/health.ts
+init_authJwt();
 var router = (0, import_express.Router)();
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
@@ -49702,8 +49757,10 @@ router.get("/health", (_req, res) => {
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
     uptime: process.uptime(),
     service: "Lucy Bodasesor",
-    version: "3.1",
+    version: "3.2",
     lucy_prompt: "V6",
+    features: ["understanding", "redaction-briefing", "training-db", "lucy-admin", "debounce-5s"],
+    auth_configured: isAuthConfigured(),
     git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
     openai_configured: isOpenAiConfigured(),
     openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "\u2026" : null
@@ -49734,13 +49791,13 @@ function __classPrivateFieldGet(receiver, state, kind, f3) {
 
 // ../node_modules/openai/internal/utils/uuid.mjs
 var uuid4 = function() {
-  const { crypto: crypto4 } = globalThis;
-  if (crypto4?.randomUUID) {
-    uuid4 = crypto4.randomUUID.bind(crypto4);
-    return crypto4.randomUUID();
+  const { crypto: crypto5 } = globalThis;
+  if (crypto5?.randomUUID) {
+    uuid4 = crypto5.randomUUID.bind(crypto5);
+    return crypto5.randomUUID();
   }
   const u8 = new Uint8Array(1);
-  const randomByte = crypto4 ? () => crypto4.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
+  const randomByte = crypto5 ? () => crypto5.getRandomValues(u8)[0] : () => Math.random() * 255 & 255;
   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c2) => (+c2 ^ randomByte() & 15 >> +c2 / 4).toString(16));
 };
 
@@ -61041,1133 +61098,9 @@ DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
 \u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
 `;
 
-// src/lib/training.ts
-import { readFileSync, existsSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
-var __dirname2 = dirname(fileURLToPath(import.meta.url));
-function resolveTrainingFile() {
-  const candidates = [
-    join(__dirname2, "training-examples.json"),
-    join(__dirname2, "data/training-examples.json"),
-    join(__dirname2, "../../data/training-examples.json"),
-    join(__dirname2, "../data/training-examples.json")
-  ];
-  for (const path4 of candidates) {
-    if (existsSync(path4)) return path4;
-  }
-  return candidates[1];
-}
-function getTrainingExamples() {
-  try {
-    const dataFile = resolveTrainingFile();
-    if (!existsSync(dataFile)) return [];
-    const raw = readFileSync(dataFile, "utf-8");
-    const parsed = JSON.parse(raw);
-    return parsed.examples ?? [];
-  } catch {
-    return [];
-  }
-}
-
-// src/chat-history.ts
-import { readFileSync as readFileSync2, writeFileSync, existsSync as existsSync2 } from "fs";
-import { join as join2, dirname as dirname2 } from "path";
-import { fileURLToPath as fileURLToPath2 } from "url";
-var __dirname3 = dirname2(fileURLToPath2(import.meta.url));
-var DATA_FILE = join2(__dirname3, "../../data/chat-history.json");
-var MAX_MESSAGES = 40;
-function load() {
-  try {
-    if (existsSync2(DATA_FILE)) {
-      return JSON.parse(readFileSync2(DATA_FILE, "utf-8"));
-    }
-  } catch {
-  }
-  return {};
-}
-function save(store2) {
-  try {
-    writeFileSync(DATA_FILE, JSON.stringify(store2), "utf-8");
-  } catch {
-  }
-}
-var store = load();
-function getHistory(chatId) {
-  return store[chatId] ?? [];
-}
-function clearHistory(chatId) {
-  delete store[chatId];
-  save(store);
-}
-function appendHistory(chatId, userText, assistantText) {
-  const history = store[chatId] ?? [];
-  history.push({ role: "user", content: userText });
-  history.push({ role: "assistant", content: assistantText });
-  if (history.length > MAX_MESSAGES) {
-    history.splice(0, history.length - MAX_MESSAGES);
-  }
-  store[chatId] = history;
-  save(store);
-}
-
-// src/contact-name.ts
-var PHONE_LIKE = /^\+?\d[\d\s\-().]{7,}$/;
-var PLACEHOLDER_PATTERNS = [
-  /^nuevo\s+lead$/i,
-  /^lead\s*#?\d+$/i,
-  /^contacto\s*#?\d+$/i,
-  /^whatsapp\s*#?\d+$/i,
-  /^sin\s+nombre$/i,
-  /^unknown$/i,
-  /^cliente$/i,
-  /^\d+$/
-];
-var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buenos?|buenas?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza)$/i;
-function isGreetingOnlyMessage(text2) {
-  const t = text2?.trim() ?? "";
-  if (!t) return false;
-  if (/^soy\s+/i.test(t)) return false;
-  return /^hola[.!?\s,]*$/i.test(t) || /^buen(os|as)?\s*(d[ií]as|tardes|noches)?[.!?\s,]*$/i.test(t) || /^qu[eé]\s*tal[.!?\s,]*$/i.test(t) || /^buenas?[.!?\s,]*$/i.test(t) || /^saludos?[.!?\s,]*$/i.test(t);
-}
-function isAffirmativeOnlyMessage(text2) {
-  const t = text2?.trim() ?? "";
-  if (!t) return false;
-  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es)[.!?\s,]*$/i.test(t);
-}
-function isPlaceholderLeadName(name2) {
-  const trimmed = name2?.trim() ?? "";
-  if (!trimmed) return true;
-  if (trimmed.length < 2) return true;
-  if (PHONE_LIKE.test(trimmed.replace(/\s/g, ""))) return true;
-  return PLACEHOLDER_PATTERNS.some((p3) => p3.test(trimmed));
-}
-function sanitizeDisplayName(name2) {
-  const trimmed = name2?.trim() ?? "";
-  if (!trimmed || isPlaceholderLeadName(trimmed)) return null;
-  const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
-  if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
-  const firstToken = cleaned.split(/\s+/)[0] ?? "";
-  const firstName = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-  if (!firstName || firstName.length < 2) return null;
-  if (/^\d+$/.test(firstName)) return null;
-  if (GREETING_NAME_PATTERN.test(firstName)) return null;
-  return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
-}
-function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
-  return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
-}
-
-// src/conversation-understanding.ts
-var LUCY_FIELD_ASK_PATTERNS = {
-  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
-  correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
-  tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
-  requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar/i,
-  invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
-  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
-  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
-};
-var BODASESOR_SERVICE_PATTERNS = [
-  ["Parrillada Argentina", /parrillada\s+argentina/i],
-  ["Banquete Kosher", /\bkosher\b/i],
-  ["Banquete Navide\xF1o", /\bnavide[nñ]o\b/i],
-  ["Banquete Mexicano", /\b(banquete\s+mexicano|mexicano)\b/i],
-  ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
-  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?)\b/i],
-  ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
-  ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
-  ["Mesa de postres", /\b(mesa\s+de\s+postres|postres|dulces)\b/i],
-  ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
-  ["Coffee break", /\b(barra\s+de\s+caf[eé]|coffee\s*break)\b/i],
-  ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
-  ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
-  ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
-  ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
-  ["Mobiliario", /\b(mobiliario|m[aá]rmol|sillas?|mesas?)\b/i],
-  ["Carpas", /\b(carpa|carpas|toldo)\b/i],
-  ["Pantallas", /\b(pantalla|pantallas|led\s*wall)\b/i],
-  ["Estructuras", /\b(estructura|colgante|wisteria)\b/i],
-  ["Inflables", /\binflable/i],
-  ["Softplay", /\bsoft\s*play\b/i],
-  ["Meseros", /\bmeseros?\b/i],
-  ["DJ", /\bdj\b/i],
-  ["Mixolog\xEDa", /\bmixolog[ií]a\b/i],
-  ["Cocteler\xEDa", /\bcocteler[ií]a\b/i],
-  ["M\xF3cteles", /\bm[oó]cteles?\b/i],
-  ["Canap\xE9s", /\b(canap[eé]s?|bocadillos?)\b/i],
-  ["Pizzas", /\bpizza/i],
-  ["Sushi", /\b(sushi|poke)\b/i],
-  ["Taquiza", /\b(taquiza|tacos?)\b/i],
-  ["Parrillada", /\bparrillada\b/i],
-  ["Crepas", /\bcrep[aá]s?\b/i],
-  ["Brunch", /\bbrunch\b/i],
-  ["Poptails", /\bpoptails?\b/i]
-];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch/i;
-var SHORT_SERVICE_ALIASES = {
-  pista: "pista de baile",
-  tarima: "pista de baile",
-  dj: "DJ",
-  mesa: "mobiliario",
-  mesas: "mobiliario",
-  silla: "mobiliario",
-  sillas: "mobiliario",
-  carpa: "carpas",
-  bebidas: "barra de bebidas",
-  bebida: "barra de bebidas",
-  banquete: "banquete",
-  taquiza: "taquiza",
-  tacos: "taquiza",
-  pizza: "pizzas",
-  pizzas: "pizzas",
-  sushi: "sushi",
-  kosher: "banquete kosher",
-  meseros: "meseros",
-  mesero: "meseros",
-  decoracion: "decoraci\xF3n",
-  iluminacion: "iluminaci\xF3n",
-  pantalla: "pantallas",
-  inflable: "inflables",
-  mobiliario: "mobiliario"
-};
-var TIPO_EVENTO_PATTERNS = [
-  [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
-  [/\b(baby\s*shower)\b/i, "baby shower"],
-  [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
-  [/\b(evento\s+corporativo|convenci[oó]n|conferencia|corporativo)\b/i, "evento corporativo"],
-  [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
-  [/\b(bautizo|comuni[oó]n|graduaci[oó]n)\b/i, "celebraci\xF3n"]
-];
-var WRITTEN_NUMBERS = {
-  uno: "1",
-  una: "1",
-  dos: "2",
-  tres: "3",
-  cuatro: "4",
-  cinco: "5",
-  seis: "6",
-  siete: "7",
-  ocho: "8",
-  nueve: "9",
-  diez: "10",
-  once: "11",
-  doce: "12",
-  quince: "15",
-  veinte: "20",
-  treinta: "30",
-  cuarenta: "40",
-  cincuenta: "50",
-  sesenta: "60",
-  setenta: "70",
-  ochenta: "80",
-  noventa: "90",
-  cien: "100",
-  ciento: "100",
-  doscientos: "200",
-  trescientos: "300",
-  cuatrocientos: "400",
-  quinientos: "500"
-};
-var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen)\b/i;
-function inferLucyAskedField(lastLucyMessage) {
-  const msg = lastLucyMessage?.trim() ?? "";
-  if (!msg) return null;
-  const priority = [
-    "nombre",
-    "correo",
-    "tipo_evento",
-    "requerimientos",
-    "invitados",
-    "zona",
-    "fecha",
-    "presupuesto"
-  ];
-  for (const field of priority) {
-    if (LUCY_FIELD_ASK_PATTERNS[field].test(msg)) return field;
-  }
-  return null;
-}
-function parseServicesFromText(text2) {
-  const found = [];
-  const lower = text2.toLowerCase();
-  for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
-    if (pattern.test(lower)) found.push(label);
-  }
-  const normalized = normalizeShortServicePhrase(text2);
-  if (normalized && !found.some((s4) => s4.toLowerCase().includes(normalized.toLowerCase()))) {
-    found.push(normalized);
-  }
-  return [...new Set(found)];
-}
-function parsePrimaryService(text2) {
-  const services = parseServicesFromText(text2);
-  if (services.length > 0) return services[0];
-  const normalized = normalizeShortServicePhrase(text2);
-  return normalized;
-}
-function normalizeShortServicePhrase(text2) {
-  const trimmed = text2.trim();
-  if (!trimmed) return null;
-  let cleaned = trimmed.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las)\s+/i, "").trim();
-  const lower = cleaned.toLowerCase();
-  if (SHORT_SERVICE_ALIASES[lower]) return SHORT_SERVICE_ALIASES[lower];
-  if (/^pista$/i.test(cleaned)) return "pista de baile";
-  if (/^dj$/i.test(cleaned)) return "DJ";
-  return null;
-}
-function isServiceRelatedMessage(text2) {
-  const trimmed = text2?.trim() ?? "";
-  if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
-  if (SERVICE_HINT.test(trimmed)) return true;
-  if (parsePrimaryService(trimmed)) return true;
-  if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
-  return false;
-}
-function parseTipoEventoFromText(text2) {
-  for (const [pattern, label] of TIPO_EVENTO_PATTERNS) {
-    if (pattern.test(text2)) return label;
-  }
-  return null;
-}
-function parseInvitadosFromText(text2) {
-  const trimmed = text2.trim();
-  if (!trimmed) return null;
-  if (isServiceRelatedMessage(trimmed)) return null;
-  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?)\b/i);
-  if (numMatch) return numMatch[1];
-  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como)\s+(\d+)\b/i);
-  if (paraMatch) return paraMatch[1];
-  const writtenMatch = trimmed.match(
-    /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?)\b/i
-  );
-  if (writtenMatch) {
-    return WRITTEN_NUMBERS[writtenMatch[1].toLowerCase()] ?? null;
-  }
-  if (/^\d{1,4}$/.test(trimmed)) return trimmed;
-  return null;
-}
-function parseZonaFromText(text2) {
-  const trimmed = text2.trim();
-  if (!trimmed || /@/.test(trimmed)) return null;
-  if (KNOWN_ZONES.test(trimmed)) {
-    const m4 = trimmed.match(KNOWN_ZONES);
-    if (m4) return m4[0].trim();
-  }
-  const enMatch = trimmed.match(
-    /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
-  );
-  if (enMatch) {
-    const lugar = enMatch[1].trim();
-    if (!MONTH_PATTERN.test(lugar) && !/^\d/.test(lugar)) return lugar;
-  }
-  if (/^[a-záéíóúüñ][a-záéíóúüñ\s.-]{2,40}$/i.test(trimmed) && !isServiceRelatedMessage(trimmed)) {
-    return trimmed;
-  }
-  return null;
-}
-function parseFechaFromText(text2) {
-  const trimmed = text2.trim();
-  const fechaMatch = trimmed.match(
-    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)\b/i
-  );
-  if (fechaMatch) return fechaMatch[1];
-  if (/\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
-    trimmed
-  )) {
-    return trimmed.slice(0, 80);
-  }
-  if (MONTH_PATTERN.test(trimmed) && /\d/.test(trimmed)) return trimmed.slice(0, 80);
-  return null;
-}
-function parsePresupuestoFromText(text2) {
-  const trimmed = text2.trim();
-  if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé])\b/i.test(
-    trimmed
-  )) {
-    return "Sin definir (cliente indic\xF3 que no tiene)";
-  }
-  const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
-  if (kMatch) {
-    const num = parseInt(kMatch[1].replace(/[,.]/g, ""), 10);
-    if (!isNaN(num) && num > 0) return `$${num}k`;
-  }
-  const milMatch = trimmed.match(/([\d,.]+)\s*mil\b/i);
-  if (milMatch) {
-    const num = parseInt(milMatch[1].replace(/[,.]/g, ""), 10);
-    if (!isNaN(num) && num > 0) return `$${num * 1e3}`;
-  }
-  if (/\d/.test(trimmed)) return trimmed;
-  return null;
-}
-function getLastLucyMessage(history) {
-  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content ?? "";
-}
-function collectUserMessages(history, currentMessage) {
-  const fromHistory = history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content);
-  return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
-}
-function captureContextualAnswer(history, currentMessage, filledSet) {
-  const msg = currentMessage.trim();
-  if (!msg) return [];
-  const lastLucy = getLastLucyMessage(history);
-  const asked = inferLucyAskedField(lastLucy);
-  const captures = [];
-  if (!filledSet.has("Nombre del cliente") && (asked === "nombre" || !history.some((m4) => m4.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
-    const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
-    const candidato = soyMatch ? soyMatch[1].trim() : msg;
-    const nombre = sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 40 && !/\?/.test(candidato)) {
-      captures.push({ label: "Nombre del cliente", value: nombre });
-    }
-  }
-  if (!filledSet.has("Tipo de evento") && asked === "tipo_evento") {
-    const tipo = parseTipoEventoFromText(msg) ?? (isServiceRelatedMessage(msg) ? null : msg);
-    if (tipo && tipo.length >= 2 && !/@/.test(tipo)) {
-      captures.push({ label: "Tipo de evento", value: tipo });
-    }
-  }
-  if (!filledSet.has("Requerimientos o servicios") && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
-    const service = parsePrimaryService(msg);
-    if (service || isServiceRelatedMessage(msg)) {
-      captures.push({
-        label: "Requerimientos o servicios",
-        value: service ?? msg.slice(0, 120)
-      });
-    }
-  }
-  if (!filledSet.has("N\xFAmero de invitados") && asked === "invitados") {
-    const inv = parseInvitadosFromText(msg);
-    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
-  }
-  if (!filledSet.has("Lugar/direcci\xF3n del evento") && asked === "zona") {
-    const zona = parseZonaFromText(msg);
-    if (zona) captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
-  }
-  if (!filledSet.has("Fecha y horario") && asked === "fecha") {
-    const fecha = parseFechaFromText(msg);
-    if (fecha) captures.push({ label: "Fecha y horario", value: fecha });
-  }
-  if (!filledSet.has("Presupuesto (MXN)") && asked === "presupuesto") {
-    const pres = parsePresupuestoFromText(msg);
-    if (pres) captures.push({ label: "Presupuesto (MXN)", value: pres });
-  }
-  return captures;
-}
-function scanConversationForCaptures(history, currentMessage, filledSet) {
-  const captures = [];
-  const pending = new Set(filledSet);
-  const userTexts = collectUserMessages(history, currentMessage).slice(-12);
-  for (const msg of userTexts) {
-    if (!pending.has("Tipo de evento")) {
-      const tipo = parseTipoEventoFromText(msg);
-      if (tipo) {
-        captures.push({ label: "Tipo de evento", value: tipo });
-        pending.add("Tipo de evento");
-      }
-    }
-    if (!pending.has("Requerimientos o servicios") && isServiceRelatedMessage(msg)) {
-      const service = parsePrimaryService(msg);
-      captures.push({
-        label: "Requerimientos o servicios",
-        value: service ?? msg.trim().slice(0, 120)
-      });
-      pending.add("Requerimientos o servicios");
-    }
-    if (!pending.has("N\xFAmero de invitados")) {
-      const inv = parseInvitadosFromText(msg);
-      if (inv) {
-        captures.push({ label: "N\xFAmero de invitados", value: inv });
-        pending.add("N\xFAmero de invitados");
-      }
-    }
-    if (!pending.has("Lugar/direcci\xF3n del evento")) {
-      const zona = parseZonaFromText(msg);
-      if (zona) {
-        captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
-        pending.add("Lugar/direcci\xF3n del evento");
-      }
-    }
-    if (!pending.has("Fecha y horario")) {
-      const fecha = parseFechaFromText(msg);
-      if (fecha) {
-        captures.push({ label: "Fecha y horario", value: fecha });
-        pending.add("Fecha y horario");
-      }
-    }
-    if (!pending.has("Presupuesto (MXN)")) {
-      const pres = parsePresupuestoFromText(msg);
-      if (pres) {
-        captures.push({ label: "Presupuesto (MXN)", value: pres });
-        pending.add("Presupuesto (MXN)");
-      }
-    }
-  }
-  return captures;
-}
-function applyCapturesToCrm(mergedLines, filledSet, captures) {
-  for (const { label, value } of captures) {
-    if (filledSet.has(label) || !value?.trim()) continue;
-    mergedLines.push(`- ${label}: ${value}`);
-    filledSet.add(label);
-  }
-}
-function enrichExtractedFromConversation(extracted, conversationText) {
-  if (!extracted.tipo_evento?.trim()) {
-    const tipo = parseTipoEventoFromText(conversationText);
-    if (tipo) extracted.tipo_evento = tipo;
-  }
-  if (!extracted.fecha_horario?.trim()) {
-    const fecha = parseFechaFromText(conversationText);
-    if (fecha) extracted.fecha_horario = fecha;
-  }
-  if (!extracted.num_invitados) {
-    const inv = parseInvitadosFromText(conversationText);
-    if (inv) extracted.num_invitados = parseInt(inv, 10);
-  }
-  if (!extracted.direccion_evento?.trim()) {
-    const zona = parseZonaFromText(conversationText);
-    if (zona) extracted.direccion_evento = zona;
-  }
-  if (!extracted.requerimientos_evento?.trim()) {
-    const services = parseServicesFromText(conversationText);
-    if (services.length > 0) {
-      extracted.requerimientos_evento = services.slice(0, 3).join(", ");
-    }
-  }
-  if (extracted.presupuesto === null || extracted.presupuesto === void 0) {
-    const pres = parsePresupuestoFromText(conversationText);
-    if (pres?.startsWith("$")) {
-      const num = parseInt(pres.replace(/[^\d]/g, ""), 10);
-      if (!isNaN(num) && num > 0) extracted.presupuesto = num;
-    }
-  }
-}
-
-// src/lucy-flow-guards.ts
-var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
-var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
-var EMAIL_REFUSAL_PATTERN = /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
-var CLOSING_CORE_FIELDS = [
-  "Nombre del cliente",
-  "Tipo de evento",
-  "Requerimientos o servicios",
-  "N\xFAmero de invitados",
-  "Lugar/direcci\xF3n del evento",
-  "Fecha y horario",
-  "Presupuesto (MXN)"
-];
-var LUCY_INTRO = "Hola, soy Lucy de Bodasesor.";
-var SERVICIOS_CATALOGO_HINT = "Manejamos alimentos y barras (banquetes, taquizas, barras tem\xE1ticas), mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces y m\xE1s.";
-var SERVICIOS_CATALOGO_HINT_ADICIONAL = "Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.";
-function mensajeMencionaCatalogoServicios(mensaje) {
-  return /alimentos?|mobiliario|carpas?|pistas?(\s+de\s+baile)?|bebidas?|banquete|taquiza|iluminaci[oó]n|pantallas?|mesas?\s+de\s+dulces|dj\b|barras?\s+(de\s+)?alimentos|estaciones?\s+de\s+comida/i.test(
-    mensaje
-  );
-}
-function appendServiciosCatalogoHint(pregunta, adicional = false) {
-  if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
-  const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
-  return `${pregunta.trim()} ${hint}`.trim();
-}
-var QUESTION_VARIANTS = {
-  nombre: [
-    "\xBFMe regalas tu nombre para iniciar?",
-    "\xBFCon qui\xE9n tengo el gusto?",
-    "\xBFC\xF3mo te llamas?"
-  ],
-  correo: [
-    "Para mandarte la info y que Alejandro te arme la propuesta, \xBFa qu\xE9 correo te lo env\xEDo?",
-    "\xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?",
-    "\xBFA qu\xE9 correo te mando la informaci\xF3n?"
-  ],
-  tipo_evento: [
-    "\xBFQu\xE9 tipo de celebraci\xF3n es?",
-    "\xBFQu\xE9 festejan o qu\xE9 evento est\xE1n planeando?",
-    "Cu\xE9ntame, \xBFde qu\xE9 se trata el evento?"
-  ],
-  requerimientos: [
-    "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?",
-    "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
-    "\xBFQu\xE9 necesitas para el evento?"
-  ],
-  invitados: [
-    "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?",
-    "\xBFCu\xE1ntos invitados tienen contemplados?",
-    "\xBFPara cu\xE1ntas personas lo est\xE1n planeando?"
-  ],
-  zona: [
-    "\xBFD\xF3nde lo est\xE1n planeando?",
-    "\xBFEn qu\xE9 ciudad o zona ser\xEDa el evento?",
-    "\xBFTienen ya el lugar o al menos la ciudad?"
-  ],
-  fecha: [
-    "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
-    "\xBFPara cu\xE1ndo lo tienen pensado?",
-    "\xBFYa hay d\xEDa definido o siguen viendo opciones?"
-  ],
-  presupuesto: [
-    "\xBFTienen alg\xFAn rango de presupuesto en mente?",
-    "\xBFManejan alg\xFAn presupuesto estimado para el evento?",
-    "\xBFTienen idea del presupuesto o prefieren que Alejandro les proponga opciones?"
-  ]
-};
-var FIELD_ASK_PATTERNS = {
-  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
-  correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
-  tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
-  requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
-  invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
-  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
-  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
-};
-function isValidRequerimientosValue(value) {
-  return isServiceRelatedMessage(value);
-}
-var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
-function collectUserTexts(history, currentMessage) {
-  const fromHistory = history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content);
-  return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
-}
-function detectEmailRefusal(texts) {
-  return texts.some((t) => EMAIL_REFUSAL_PATTERN.test(t));
-}
-function applyEmailWaiver(filledSet, mergedLines, texts) {
-  if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return;
-  if (!detectEmailRefusal(texts)) return;
-  mergedLines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
-  filledSet.add(EMAIL_WAIVED_LABEL);
-}
-function isEmailSatisfied(filledSet) {
-  return filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL);
-}
-function isReadyForClosing(filledSet) {
-  return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
-}
-function findMentionedService(text2) {
-  for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
-    if (pattern.test(text2)) return label;
-  }
-  return parsePrimaryService(text2);
-}
-function hasTipoEvento(filledSet, extracted) {
-  return filledSet.has("Tipo de evento") || !!extracted.tipo_evento?.trim();
-}
-function getDisplayName(extracted, whatsappName) {
-  return resolveClientDisplayName(extracted.nombre, null, whatsappName);
-}
-function lucyHasPresented(history) {
-  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").some((m4) => /hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(m4.content));
-}
-function conversationAlreadyStarted(filledSet, history) {
-  if (history.some((m4) => m4.role === "assistant")) return true;
-  if (filledSet.has("Nombre del cliente")) return true;
-  if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
-  if (filledSet.has("Tipo de evento")) return true;
-  if (filledSet.has("Requerimientos o servicios")) return true;
-  return false;
-}
-function presentationHistoryFrom(ctx) {
-  return ctx.presentationHistory ?? ctx.history ?? [];
-}
-function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
-  if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
-  return mensaje.replace(/Hola,?\s*soy\s+Lucy\s+de\s+Bodasesor\.?\s*/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo\.?\s*/gi, "").replace(/^\s+/, "").trim();
-}
-function variantIndex(field, history, entityId) {
-  const variants = QUESTION_VARIANTS[field];
-  const assistantTurns = history.filter((m4) => m4.role === "assistant").length;
-  const seed = entityId != null ? String(entityId).length : 0;
-  return (assistantTurns + seed) % variants.length;
-}
-function pickVariant(field, history, entityId) {
-  const variants = QUESTION_VARIANTS[field];
-  return variants[variantIndex(field, history, entityId)] ?? variants[0];
-}
-function contextualPrefix(field, extracted, currentMessage) {
-  const msg = currentMessage?.trim() ?? "";
-  if (!msg) return "";
-  if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) {
-    return "Perfecto. ";
-  }
-  if (field === "zona" && /\d+/.test(msg)) {
-    return "Entendido. ";
-  }
-  if (field === "fecha" && /ciudad|zona|polanco|cdmx|puebla|monterrey|reforma/i.test(msg)) {
-    return "Muy bien. ";
-  }
-  if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) {
-    return "Genial. ";
-  }
-  return "";
-}
-function getNextPendingField(extracted, filledSet) {
-  const filled = filledSet ?? /* @__PURE__ */ new Set();
-  if (!filled.has("Nombre del cliente")) return "nombre";
-  if (!isEmailSatisfied(filled)) return "correo";
-  if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
-  if (!filled.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    return "requerimientos";
-  }
-  if (!filled.has("N\xFAmero de invitados")) return "invitados";
-  if (!filled.has("Lugar/direcci\xF3n del evento")) return "zona";
-  if (!filled.has("Fecha y horario")) return "fecha";
-  if (!filled.has("Presupuesto (MXN)")) return "presupuesto";
-  return null;
-}
-function isFirstLucyReply(history) {
-  return !history.some((m4) => m4.role === "assistant");
-}
-function lucyAskedForNombre(history) {
-  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").some((m4) => mensajeAsksForField(m4.content, "nombre"));
-}
-function applyWhatsappNombreFallback(filledSet, mergedLines, whatsappDisplayName, history) {
-  if (filledSet.has("Nombre del cliente")) return false;
-  if (!lucyAskedForNombre(history)) return false;
-  const waName = sanitizeDisplayName(whatsappDisplayName);
-  if (!waName) return false;
-  mergedLines.push(`- Nombre del cliente: ${waName} ${WHATSAPP_NOMBRE_NOTE}`);
-  filledSet.add("Nombre del cliente");
-  return true;
-}
-function parseNombreFromCrmLines(mergedLines) {
-  const line2 = mergedLines.find((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
-  if (!line2) return null;
-  const raw = line2.replace(/^-?\s*Nombre del cliente:\s*/i, "").replace(WHATSAPP_NOMBRE_NOTE, "").trim();
-  return sanitizeDisplayName(raw);
-}
-function buildOpeningAcknowledgment(history, currentMessage) {
-  const texts = collectUserTexts(history, currentMessage);
-  const userText = texts[texts.length - 1] ?? texts.join(" ");
-  const t = userText.toLowerCase();
-  if (/taquiza|tacos/.test(t)) {
-    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
-    const zona = userText.match(/\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,24})/i);
-    const fecha = userText.match(
-      /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i
-    );
-    let ack = "Te ayudo con la taquiza";
-    if (inv) ack += ` para ${inv[1]} personas`;
-    if (zona) ack += ` en ${zona[1].trim()}`;
-    if (fecha) ack += ` el ${fecha[1]}`;
-    return `${ack}.`;
-  }
-  if (/\bboda\b/.test(t)) {
-    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
-    const fecha = userText.match(
-      /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i
-    );
-    let ack = "Te ayudo con la cotizaci\xF3n para tu boda";
-    if (fecha) ack += ` del ${fecha[1]}`;
-    if (inv) ack += ` para ${inv[1]} personas`;
-    return `${ack}.`;
-  }
-  if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
-  if (/banquete/.test(t)) {
-    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
-    return inv ? `Te ayudo con el banquete para ${inv[1]} personas.` : "Con gusto te ayudo con informaci\xF3n de banquetes.";
-  }
-  if (/kosher/.test(t)) return "S\xED tenemos opciones kosher.";
-  if (/cotiz|evento/.test(t)) return "Claro que te ayudo con tu evento.";
-  if (/^hola[.!?\s]*$/i.test(userText.trim())) {
-    return "Estoy aqu\xED para ayudarte con lo que necesites para tu evento.";
-  }
-  if (userText.trim().length > 0) return "Con gusto te ayudo.";
-  return "Estoy aqu\xED para ayudarte con lo que necesites para tu evento.";
-}
-function buildFirstInteractionMessage(ctx, withIntro = true) {
-  const history = ctx.history ?? [];
-  const filledSet = ctx.filledSet ?? /* @__PURE__ */ new Set();
-  const ack = buildOpeningAcknowledgment(history, ctx.currentMessage);
-  const intro = withIntro ? `${LUCY_INTRO} ` : "";
-  if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
-    const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-    const pending = getNextPendingField(ctx.extracted, filledSet);
-    if (pending === "correo") {
-      const correoQ = buildCorreoQuestion(nombre, history, ctx.entityId);
-      return withIntro ? `${intro}${ack} ${correoQ}`.trim() : correoQ;
-    }
-    if (pending) {
-      const greet = nombre ? `Mucho gusto, ${nombre}. ` : "";
-      const q2 = buildNaturalQuestion(pending, ctx);
-      return withIntro ? `${intro}${ack} ${greet}${q2}`.trim() : `${greet}${q2}`.trim();
-    }
-    return nombre ? `${intro}${ack} Mucho gusto, ${nombre}.`.trim() : `${intro}${ack}`.trim();
-  }
-  const nameQ = pickVariant("nombre", history, ctx.entityId);
-  return `${intro}${ack} ${nameQ}`.trim();
-}
-function usesLegacyLucyIntro(mensaje) {
-  return /te\s+saluda\s+lucy|agente\s+virtual\s+de\s+bodasesor/i.test(mensaje);
-}
-function isLegacyStoredLucyResponse(text2) {
-  return typeof text2 === "string" && text2.trim().length > 0 && usesLegacyLucyIntro(text2);
-}
-function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPresentation = false) {
-  const presHistory = presentationHistoryFrom(ctx);
-  const alreadyStarted = conversationAlreadyStarted(filledSet, presHistory);
-  const isTrueFirstTurn = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !alreadyStarted;
-  if (!isFieldSatisfied("nombre", filledSet, extracted)) {
-    if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
-      return "Perfecto. \xBFMe regalas tu nombre?";
-    }
-    if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
-      return buildFirstInteractionMessage(ctx, true);
-    }
-    return buildNaturalQuestion("nombre", ctx);
-  }
-  return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
-}
-function mensajeAsksForField(mensaje, field) {
-  if (!mensaje.includes("?")) return false;
-  return FIELD_ASK_PATTERNS[field].test(mensaje);
-}
-function isFieldSatisfied(field, filledSet, extracted) {
-  switch (field) {
-    case "nombre":
-      return filledSet.has("Nombre del cliente");
-    case "correo":
-      return isEmailSatisfied(filledSet);
-    case "tipo_evento":
-      return hasTipoEvento(filledSet, extracted);
-    case "requerimientos":
-      return filledSet.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
-    case "invitados":
-      return filledSet.has("N\xFAmero de invitados");
-    case "zona":
-      return filledSet.has("Lugar/direcci\xF3n del evento");
-    case "fecha":
-      return filledSet.has("Fecha y horario");
-    case "presupuesto":
-      return filledSet.has("Presupuesto (MXN)");
-  }
-}
-var FIELD_ORDER = [
-  "nombre",
-  "correo",
-  "tipo_evento",
-  "requerimientos",
-  "invitados",
-  "zona",
-  "fecha",
-  "presupuesto"
-];
-function mensajeAsksForFilledField(mensaje, filledSet, extracted) {
-  if (!mensaje.includes("?")) return false;
-  for (const field of FIELD_ORDER) {
-    if (isFieldSatisfied(field, filledSet, extracted) && mensajeAsksForField(mensaje, field)) {
-      return true;
-    }
-  }
-  return false;
-}
-function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) {
-  const trimmed = aiResponse.trim();
-  if (!trimmed) return false;
-  if (responseLooksLikePrematureClose(trimmed)) return false;
-  if (mensajeAsksForFilledField(trimmed, filledSet, extracted)) return false;
-  if (mensajeAsksWrongField(trimmed, filledSet, extracted)) return false;
-  const pending = getNextPendingField(extracted, filledSet);
-  if (!pending) return true;
-  if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
-  if (clientAskedFreeformQuestion(currentMessage) && trimmed.length > 25) {
-    return trimmed.includes("?") || !pending;
-  }
-  return false;
-}
-function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
-  const pending = getNextPendingField(extracted, filledSet);
-  if (!pending) return mensaje;
-  const nextQ = buildNaturalQuestion(pending, ctx);
-  const base = mensaje.trim();
-  if (!base) return nextQ;
-  if (base.includes("?")) return mensaje;
-  return `${base}
-
-${nextQ}`;
-}
-function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
-  const pending = getNextPendingField(extracted, filledSet);
-  const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
-  const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
-  if ((repeatsFilled || asksWrong) && pending) {
-    log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetici\xF3n \u2014 dato ya capturado");
-    return mergeWithPendingQuestion("", filledSet, extracted, ctx);
-  }
-  if (pending === "requerimientos" && mensaje.includes("?") && !mensajeMencionaCatalogoServicios(mensaje)) {
-    mensaje = appendServiciosCatalogoHint(mensaje);
-  }
-  if (pending && !mensaje.includes("?") && !clientAskedFreeformQuestion(ctx.currentMessage)) {
-    return mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
-  }
-  return mensaje;
-}
-function buildNaturalQuestion(field, ctx) {
-  const history = ctx.history ?? [];
-  const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage);
-  const variant = pickVariant(field, history, ctx.entityId);
-  if (field === "correo") {
-    const correoCore = pickVariant("correo", history, ctx.entityId);
-    return nombre ? `Mucho gusto, ${nombre}. ${correoCore}` : correoCore;
-  }
-  if (field === "requerimientos") {
-    return buildRequerimientosQuestion(ctx.extracted, history, ctx.currentMessage, ctx.entityId);
-  }
-  if (field === "tipo_evento" && ctx.afterEmail) {
-    const tipoVariant = pickVariant("tipo_evento", history, ctx.entityId);
-    return prefix ? `${prefix}${tipoVariant}` : tipoVariant;
-  }
-  return prefix ? `${prefix}${variant}` : variant;
-}
-function buildRequerimientosQuestion(extracted, history, currentMessage, entityId) {
-  const userText = collectUserTexts(history, currentMessage).join(" ");
-  const fromExtracted = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
-  const service = fromExtracted ?? findMentionedService(userText);
-  const prefix = contextualPrefix("requerimientos", extracted, currentMessage);
-  if (service) {
-    const idx = variantIndex("requerimientos", history, entityId);
-    const followUps = [
-      `Adem\xE1s del ${service}, \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?`,
-      `\xBFSolo el ${service} o tambi\xE9n algo m\xE1s?`,
-      `Perfecto. Con el ${service}, \xBFnecesitan alg\xFAn otro servicio?`
-    ];
-    return appendServiciosCatalogoHint(
-      `${prefix}${followUps[idx % followUps.length]}`,
-      true
-    );
-  }
-  const variant = pickVariant("requerimientos", history, entityId);
-  const core = prefix ? `${prefix}${variant}` : variant;
-  return appendServiciosCatalogoHint(core);
-}
-function requerimientosNeedsFollowUp(extracted, filledSet) {
-  if (filledSet.has("Requerimientos o servicios")) return false;
-  const req = extracted.requerimientos_evento?.trim() ?? "";
-  if (!req) return true;
-  return !isValidRequerimientosValue(req);
-}
-function buildCorreoQuestion(nombre, history = [], entityId) {
-  const correoCore = pickVariant("correo", history, entityId);
-  if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
-  return correoCore;
-}
-function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId) {
-  const ctx = {
-    extracted,
-    filledSet,
-    history: history ?? [],
-    currentMessage,
-    entityId
-  };
-  if (filledSet && !hasTipoEvento(filledSet, extracted)) {
-    return buildNaturalQuestion("tipo_evento", ctx);
-  }
-  if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
-    return buildRequerimientosQuestion(extracted, history ?? [], currentMessage, entityId);
-  }
-  const pending = getNextPendingField(extracted, filledSet);
-  if (pending) return buildNaturalQuestion(pending, ctx);
-  return buildRequerimientosQuestion(extracted, history ?? [], currentMessage, entityId);
-}
-function nextFieldQuestion(extracted, filledSet, whatsappName, history, currentMessage, entityId) {
-  const pending = getNextPendingField(extracted, filledSet);
-  if (!pending) return null;
-  return buildNaturalQuestion(pending, {
-    extracted,
-    filledSet,
-    whatsappName,
-    history: history ?? [],
-    currentMessage,
-    entityId
-  });
-}
-function shouldReplaceForcedEmailQuestion(mensaje, filledSet) {
-  if (!filledSet.has(EMAIL_WAIVED_LABEL)) return false;
-  if (!/correo|e-?mail/i.test(mensaje) || !mensaje.includes("?")) return false;
-  return /obligatorio|necesito|necesario|forzoso|indispensable|debes|tienes que|es importante/i.test(mensaje);
-}
-function emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet) {
-  const ctx = {
-    extracted,
-    filledSet,
-    history,
-    currentMessage,
-    entityId
-  };
-  const pending = getNextPendingField(extracted, filledSet);
-  if (pending && pending !== "correo") {
-    return `Sin problema, seguimos por aqu\xED. ${buildNaturalQuestion(pending, ctx)}`;
-  }
-  const tipoQ = buildNaturalQuestion("tipo_evento", ctx);
-  return `Sin problema, seguimos por aqu\xED. ${tipoQ}`;
-}
-function clientJustGaveEmail(history, currentMessage) {
-  if (!currentMessage?.trim() || !/\S+@\S+\.\S+/.test(currentMessage)) return false;
-  const lastAssistant = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content;
-  if (!lastAssistant) return false;
-  return /correo|e-?mail|envío|envio/i.test(lastAssistant);
-}
-function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
-  if (!currentMessage?.trim()) return false;
-  const lastAssistant = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content;
-  if (!lastAssistant) return false;
-  if (inferLucyAskedField(lastAssistant) === "requerimientos") return true;
-  return /platícame|qué tienes pensado|otro servicio|te gustaría cotizar|festejan|tipo de evento|servicios te gustaría|qué necesitas/i.test(
-    lastAssistant
-  );
-}
-function clientAskedFreeformQuestion(message) {
-  if (!message?.trim()) return false;
-  if (/\?/.test(message)) return true;
-  return /cu[aá]nto|precio|costo|cat[aá]logo|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@/i.test(
-    message
-  );
-}
-function responseLooksLikePrematureClose(mensaje) {
-  return mensaje.includes(CLOSING_SIGNATURE) || /cotizaci[oó]n personalizada/i.test(mensaje) || /cdn\.shopify\.com/i.test(mensaje) || /cat[aá]logo completo/i.test(mensaje);
-}
-function mensajeLooksOnTrack(mensaje, filledSet, extracted) {
-  const pending = getNextPendingField(extracted, filledSet);
-  if (!pending) return true;
-  return mensajeAsksForField(mensaje, pending);
-}
-function mensajeAsksWrongField(mensaje, filledSet, extracted) {
-  if (!mensaje.includes("?")) return false;
-  const pending = getNextPendingField(extracted, filledSet);
-  if (!pending) return false;
-  const fieldOrder = FIELD_ORDER;
-  const pendingIdx = fieldOrder.indexOf(pending);
-  for (let i3 = pendingIdx + 1; i3 < fieldOrder.length; i3++) {
-    const field = fieldOrder[i3];
-    if (mensajeAsksForField(mensaje, field)) return true;
-  }
-  return false;
-}
-function makeQuestionCtx(input) {
-  return {
-    extracted: input.extracted,
-    filledSet: input.filledSet,
-    whatsappName: input.whatsappDisplayName,
-    history: input.history,
-    presentationHistory: input.presentationHistory ?? input.history,
-    currentMessage: input.currentMessage,
-    entityId: input.entityId
-  };
-}
-function applyLucyMessageGuards(input) {
-  const {
-    aiResponse,
-    extracted,
-    filledSet,
-    readyForClosing,
-    cierreYaEnviado,
-    emailRefusedThisTurn,
-    history,
-    currentMessage,
-    whatsappDisplayName,
-    buildClosing,
-    log,
-    entityId,
-    forceFirstPresentation
-  } = input;
-  const ctx = makeQuestionCtx(input);
-  const justGaveEmail = clientJustGaveEmail(history, currentMessage);
-  const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
-  const emailOk = isEmailSatisfied(filledSet);
-  const needsNextStep = emailOk && !readyForClosing && !cierreYaEnviado;
-  let mensaje;
-  if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
-    mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
-    log?.info({ entityId }, "GUARD: correo capturado \u2014 pregunta tipo de evento");
-  } else if (justGaveEmail && hasTipoEvento(filledSet, extracted)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    mensaje = nextQ ?? aiResponse;
-    if (nextQ) log?.info({ entityId }, "GUARD: correo capturado \u2014 tipo ya tenido, siguiente dato");
-  } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
-    mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
-    log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
-  } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
-    mensaje = aiResponse;
-    log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
-  } else if (needsNextStep && aiResponse.trim()) {
-    mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
-    log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
-  } else if (needsNextStep) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    mensaje = nextQ ?? aiResponse;
-    if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
-  } else if (readyForClosing && !cierreYaEnviado && (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))) {
-    mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
-    log?.info({ entityId }, "GUARD: profundizar antes del cierre");
-  } else if (readyForClosing && !cierreYaEnviado) {
-    mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
-    log?.info({ entityId }, "Datos completos \u2014 mensaje de cierre desde plantilla");
-  } else {
-    mensaje = aiResponse;
-    if (aiResponse.includes("DATOS DEL CLIENTE:")) {
-      mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
-      log?.warn({ entityId }, "GPT gener\xF3 nota interna \u2014 usando cierre desde plantilla");
-    }
-  }
-  if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
-    log?.warn({ entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
-    mensaje = nextQ;
-  }
-  const correoYaTenido = !!extracted.correo?.trim() || filledSet.has("Correo electr\xF3nico");
-  if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending && pending !== "correo" && !mensajeAsksForField(mensaje, pending)) {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      if (nextQ) {
-        log?.warn({ entityId }, "GUARD: GPT pregunt\xF3 correo ya capturado");
-        mensaje = nextQ;
-      }
-    }
-  }
-  if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
-    log?.warn({ entityId }, "GUARD: GPT insisti\xF3 en correo tras rechazo");
-    mensaje = nextQ;
-  }
-  if (!readyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending && !mensaje.includes("?")) {
-      if (responseLooksLikePrematureClose(mensaje)) {
-        mensaje = buildNaturalQuestion(pending, ctx);
-        log?.info({ entityId, pending }, "GUARD: bloqueando cierre \u2014 pregunta pendiente");
-      } else if (mensaje.trim()) {
-        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
-        log?.info({ entityId, pending }, "GUARD: a\xF1adiendo pregunta pendiente a respuesta");
-      }
-    }
-  }
-  if (!readyForClosing && responseLooksLikePrematureClose(mensaje)) {
-    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    if (forcedNext) {
-      log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
-      mensaje = forcedNext;
-    }
-  }
-  if (mensajeAsksWrongField(mensaje, filledSet, extracted)) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending) {
-      log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden \u2014 corrigiendo");
-      mensaje = buildNaturalQuestion(pending, ctx);
-    }
-  }
-  mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
-  mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
-  const presHistory = input.presentationHistory ?? history;
-  if (conversationAlreadyStarted(filledSet, presHistory)) {
-    mensaje = stripRepeatLucyIntro(mensaje, presHistory, true);
-  }
-  return mensaje;
-}
+// src/services/trainingStore.ts
+import { readFileSync } from "fs";
+import { randomUUID } from "crypto";
 
 // ../node_modules/pg/esm/index.mjs
 var import_lib = __toESM(require_lib5(), 1);
@@ -62855,10 +61788,10 @@ var PgEnumColumn = class extends PgColumn {
 // ../node_modules/drizzle-orm/subquery.js
 var Subquery = class {
   static [entityKind] = "Subquery";
-  constructor(sql2, fields, alias, isWith = false, usedTables = []) {
+  constructor(sql3, fields, alias, isWith = false, usedTables = []) {
     this._ = {
       brand: "Subquery",
-      sql: sql2,
+      sql: sql3,
       selectedFields: fields,
       alias,
       isWith,
@@ -63256,20 +62189,20 @@ function sql(strings, ...params) {
   }
   return new SQL(queryChunks);
 }
-((sql2) => {
+((sql22) => {
   function empty() {
     return new SQL([]);
   }
-  sql2.empty = empty;
+  sql22.empty = empty;
   function fromList(list) {
     return new SQL(list);
   }
-  sql2.fromList = fromList;
+  sql22.fromList = fromList;
   function raw(str2) {
     return new SQL([new StringChunk(str2)]);
   }
-  sql2.raw = raw;
-  function join5(chunks, separator) {
+  sql22.raw = raw;
+  function join4(chunks, separator) {
     const result = [];
     for (const [i3, chunk] of chunks.entries()) {
       if (i3 > 0 && separator !== void 0) {
@@ -63279,24 +62212,24 @@ function sql(strings, ...params) {
     }
     return new SQL(result);
   }
-  sql2.join = join5;
+  sql22.join = join4;
   function identifier(value) {
     return new Name(value);
   }
-  sql2.identifier = identifier;
+  sql22.identifier = identifier;
   function placeholder2(name2) {
     return new Placeholder(name2);
   }
-  sql2.placeholder = placeholder2;
+  sql22.placeholder = placeholder2;
   function param2(value, encoder) {
     return new Param(value, encoder);
   }
-  sql2.param = param2;
+  sql22.param = param2;
 })(sql || (sql = {}));
 ((SQL2) => {
   class Aliased {
-    constructor(sql2, fieldAlias) {
-      this.sql = sql2;
+    constructor(sql22, fieldAlias) {
+      this.sql = sql22;
       this.fieldAlias = fieldAlias;
     }
     static [entityKind] = "SQL.Aliased";
@@ -65591,6 +64524,11 @@ function mapRelationalRow(tablesConfig, tableConfig, row, buildQueryResultSelect
   return result;
 }
 
+// ../node_modules/drizzle-orm/sql/functions/aggregate.js
+function count(expression) {
+  return sql`count(${expression || sql.raw("*")})`.mapWith(Number);
+}
+
 // ../node_modules/drizzle-orm/pg-core/view-base.js
 var PgViewBase = class extends View {
   static [entityKind] = "PgViewBase";
@@ -65988,8 +64926,8 @@ var PgDialect = class {
       return "none";
     }
   }
-  sqlToQuery(sql2, invokeSource) {
-    return sql2.toQuery({
+  sqlToQuery(sql22, invokeSource) {
+    return sql22.toQuery({
       casing: this.casing,
       escapeName: this.escapeName,
       escapeParam: this.escapeParam,
@@ -66807,7 +65745,7 @@ var PgSelectQueryBuilderBase = class extends TypedQueryBuilder {
       const baseTableName = this.tableName;
       const tableName = getTableLikeName(table);
       for (const item of extractUsedTable(table)) this.usedTables.add(item);
-      if (typeof tableName === "string" && this.config.joins?.some((join5) => join5.alias === tableName)) {
+      if (typeof tableName === "string" && this.config.joins?.some((join4) => join4.alias === tableName)) {
         throw new Error(`Alias "${tableName}" is already used in this query`);
       }
       if (!this.isPartialSelect) {
@@ -68028,7 +66966,7 @@ var PgUpdateBase = class extends QueryPromise {
   createJoin(joinType) {
     return (table, on2) => {
       const tableName = getTableLikeName(table);
-      if (typeof tableName === "string" && this.config.joins.some((join5) => join5.alias === tableName)) {
+      if (typeof tableName === "string" && this.config.joins.some((join4) => join4.alias === tableName)) {
         throw new Error(`Alias "${tableName}" is already used in this query`);
       }
       if (typeof on2 === "function") {
@@ -68124,10 +67062,10 @@ var PgUpdateBase = class extends QueryPromise {
           const fromFields = this.getTableLikeFields(this.config.from);
           fields[tableName] = fromFields;
         }
-        for (const join5 of this.config.joins) {
-          const tableName2 = getTableLikeName(join5.table);
-          if (typeof tableName2 === "string" && !is(join5.table, SQL)) {
-            const fromFields = this.getTableLikeFields(join5.table);
+        for (const join4 of this.config.joins) {
+          const tableName2 = getTableLikeName(join4.table);
+          if (typeof tableName2 === "string" && !is(join4.table, SQL)) {
+            const fromFields = this.getTableLikeFields(join4.table);
             fields[tableName2] = fromFields;
           }
         }
@@ -68348,10 +67286,10 @@ var PgRelationalQuery = class extends QueryPromise {
 
 // ../node_modules/drizzle-orm/pg-core/query-builders/raw.js
 var PgRaw = class extends QueryPromise {
-  constructor(execute, sql2, query, mapBatchResult) {
+  constructor(execute, sql3, query, mapBatchResult) {
     super();
     this.execute = execute;
-    this.sql = sql2;
+    this.sql = sql3;
     this.query = query;
     this.mapBatchResult = mapBatchResult;
   }
@@ -68671,8 +67609,8 @@ var NoopCache = class extends Cache {
   async onMutate(_params) {
   }
 };
-async function hashQuery(sql2, params) {
-  const dataToHash = `${sql2}-${JSON.stringify(params)}`;
+async function hashQuery(sql3, params) {
+  const dataToHash = `${sql3}-${JSON.stringify(params)}`;
   const encoder = new TextEncoder();
   const data = encoder.encode(dataToHash);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -68683,12 +67621,12 @@ async function hashQuery(sql2, params) {
 
 // ../node_modules/drizzle-orm/pg-core/session.js
 var PgPreparedQuery = class {
-  constructor(query, cache, queryMetadata, cacheConfig) {
+  constructor(query, cache2, queryMetadata, cacheConfig) {
     this.query = query;
-    this.cache = cache;
+    this.cache = cache2;
     this.queryMetadata = queryMetadata;
     this.cacheConfig = cacheConfig;
-    if (cache && cache.strategy() === "all" && cacheConfig === void 0) {
+    if (cache2 && cache2.strategy() === "all" && cacheConfig === void 0) {
       this.cacheConfig = { enable: true, autoInvalidate: true };
     }
     if (!this.cacheConfig?.enable) {
@@ -68805,8 +67743,8 @@ var PgSession = class {
     ).all();
   }
   /** @internal */
-  async count(sql2, token) {
-    const res = await this.execute(sql2, token);
+  async count(sql22, token) {
+    const res = await this.execute(sql22, token);
     return Number(
       res[0]["count"]
     );
@@ -68844,8 +67782,8 @@ var PgTransaction = class extends PgDatabase {
 // ../node_modules/drizzle-orm/node-postgres/session.js
 var { Pool: Pool2, types: types2 } = esm_default;
 var NodePgPreparedQuery = class extends PgPreparedQuery {
-  constructor(client2, queryString, params, logger2, cache, queryMetadata, cacheConfig, fields, name2, _isResponseInArrayMode, customResultMapper) {
-    super({ sql: queryString, params }, cache, queryMetadata, cacheConfig);
+  constructor(client2, queryString, params, logger2, cache2, queryMetadata, cacheConfig, fields, name2, _isResponseInArrayMode, customResultMapper) {
+    super({ sql: queryString, params }, cache2, queryMetadata, cacheConfig);
     this.client = client2;
     this.queryString = queryString;
     this.params = params;
@@ -69028,8 +67966,8 @@ var NodePgSession = class _NodePgSession extends PgSession {
       if (isPool) session.client.release();
     }
   }
-  async count(sql2) {
-    const res = await this.execute(sql2);
+  async count(sql22) {
+    const res = await this.execute(sql22);
     return Number(
       res["rows"][0]["count"]
     );
@@ -74250,8 +73188,8 @@ u();
 
 // ../node_modules/drizzle-orm/pglite/session.js
 var PglitePreparedQuery = class extends PgPreparedQuery {
-  constructor(client2, queryString, params, logger2, cache, queryMetadata, cacheConfig, fields, name2, _isResponseInArrayMode, customResultMapper) {
-    super({ sql: queryString, params }, cache, queryMetadata, cacheConfig);
+  constructor(client2, queryString, params, logger2, cache2, queryMetadata, cacheConfig, fields, name2, _isResponseInArrayMode, customResultMapper) {
+    super({ sql: queryString, params }, cache2, queryMetadata, cacheConfig);
     this.client = client2;
     this.queryString = queryString;
     this.params = params;
@@ -74369,8 +73307,8 @@ var PgliteSession = class _PgliteSession extends PgSession {
       return transaction(tx);
     });
   }
-  async count(sql2) {
-    const res = await this.execute(sql2);
+  async count(sql22) {
+    const res = await this.execute(sql22);
     return Number(
       res["rows"][0]["count"]
     );
@@ -74483,6 +73421,7 @@ __export(schema_exports, {
   followUpEvents: () => followUpEvents,
   leadScores: () => leadScores,
   messages: () => messages,
+  trainingExamples: () => trainingExamples,
   users: () => users
 });
 var conversations = pgTable("conversations", {
@@ -74561,6 +73500,15 @@ var users = pgTable("users", {
   role: varchar("role", { length: 50 }).notNull().default("viewer"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   lastLoginAt: timestamp("last_login_at")
+});
+var trainingExamples = pgTable("training_examples", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userMessage: text("user_message").notNull(),
+  lucyResponse: text("lucy_response").notNull(),
+  label: text("label"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
 
 // ../lib/db/src/local.ts
@@ -74650,6 +73598,16 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   last_login_at TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS training_examples (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_message TEXT NOT NULL,
+  lucy_response TEXT NOT NULL,
+  label TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
 `;
 async function getLocalDb() {
   if (localDb) return localDb;
@@ -74676,6 +73634,1288 @@ async function createDb() {
   return drizzle(pool, { schema: schema_exports });
 }
 var db = await createDb();
+
+// src/lib/trainingPaths.ts
+import { existsSync as existsSync2 } from "fs";
+import { join as join2, dirname } from "path";
+import { fileURLToPath } from "url";
+var moduleDir = dirname(fileURLToPath(import.meta.url));
+function resolveTrainingJsonFile() {
+  const candidates = [
+    join2(moduleDir, "training-examples.json"),
+    join2(moduleDir, "data/training-examples.json"),
+    join2(moduleDir, "../../data/training-examples.json"),
+    join2(moduleDir, "../data/training-examples.json")
+  ];
+  for (const path4 of candidates) {
+    if (existsSync2(path4)) return path4;
+  }
+  return candidates[1];
+}
+
+// src/lib/logger.ts
+var import_pino = __toESM(require_pino(), 1);
+var isProduction = process.env.NODE_ENV === "production";
+var logger = (0, import_pino.default)({
+  level: process.env.LOG_LEVEL ?? "info",
+  redact: [
+    "req.headers.authorization",
+    "req.headers.cookie",
+    "res.headers['set-cookie']"
+  ],
+  ...isProduction ? {} : {
+    transport: {
+      target: "pino-pretty",
+      options: { colorize: true }
+    }
+  }
+});
+
+// src/services/trainingStore.ts
+var CACHE_TTL_MS = 3e4;
+var cache = [];
+var cacheLoadedAt = 0;
+var initialized = false;
+var ENSURE_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS training_examples (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_message TEXT NOT NULL,
+  lucy_response TEXT NOT NULL,
+  label TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+`;
+function rowToExample(row) {
+  return {
+    id: row.id,
+    userMessage: row.userMessage,
+    lucyResponse: row.lucyResponse,
+    label: row.label ?? void 0,
+    createdAt: row.createdAt.toISOString()
+  };
+}
+function loadExamplesFromJsonFile() {
+  try {
+    const raw = readFileSync(resolveTrainingJsonFile(), "utf-8");
+    const parsed = JSON.parse(raw);
+    return parsed.examples ?? [];
+  } catch {
+    return [];
+  }
+}
+async function ensureTable() {
+  try {
+    await db.execute(sql.raw(ENSURE_TABLE_SQL));
+  } catch (err2) {
+    logger.warn({ err: err2 }, "trainingStore: no se pudo crear tabla training_examples");
+  }
+}
+async function seedFromJsonIfEmpty() {
+  try {
+    const [{ value: total }] = await db.select({ value: count() }).from(trainingExamples);
+    if (Number(total) > 0) return;
+    const fromJson = loadExamplesFromJsonFile();
+    if (fromJson.length === 0) return;
+    await db.insert(trainingExamples).values(
+      fromJson.map((ex, idx) => ({
+        id: ex.id || randomUUID(),
+        userMessage: ex.userMessage,
+        lucyResponse: ex.lucyResponse,
+        label: ex.label ?? null,
+        sortOrder: fromJson.length - idx
+      }))
+    );
+    logger.info({ count: fromJson.length }, "trainingStore: ejemplos sembrados desde JSON");
+  } catch (err2) {
+    logger.warn({ err: err2 }, "trainingStore: seed desde JSON fall\xF3 \u2014 se usar\xE1 archivo");
+  }
+}
+async function loadFromDb() {
+  try {
+    const rows = await db.select().from(trainingExamples).orderBy(desc(trainingExamples.sortOrder), asc(trainingExamples.createdAt));
+    if (rows.length > 0) return rows.map(rowToExample);
+  } catch (err2) {
+    logger.warn({ err: err2 }, "trainingStore: lectura DB fall\xF3 \u2014 fallback JSON");
+  }
+  return loadExamplesFromJsonFile();
+}
+async function initializeTrainingStore() {
+  if (initialized) return;
+  await ensureTable();
+  await seedFromJsonIfEmpty();
+  cache = await loadFromDb();
+  cacheLoadedAt = Date.now();
+  initialized = true;
+  logger.info({ count: cache.length }, "trainingStore: listo");
+}
+function invalidateCache() {
+  cacheLoadedAt = 0;
+}
+async function refreshCacheIfStale() {
+  if (Date.now() - cacheLoadedAt < CACHE_TTL_MS && cache.length > 0) return;
+  cache = await loadFromDb();
+  cacheLoadedAt = Date.now();
+}
+async function getTrainingExamples() {
+  if (!initialized) await initializeTrainingStore();
+  await refreshCacheIfStale();
+  return cache;
+}
+async function listTrainingExamples() {
+  return getTrainingExamples();
+}
+async function getTrainingStats() {
+  const examples = await listTrainingExamples();
+  const byLabel = {};
+  for (const ex of examples) {
+    const lbl = ex.label ?? "Sin etiqueta";
+    byLabel[lbl] = (byLabel[lbl] ?? 0) + 1;
+  }
+  const lastUpdated = examples.length > 0 ? examples.reduce((latest, ex) => {
+    const exDate = ex.createdAt ?? "";
+    return exDate > (latest ?? "") ? exDate : latest;
+  }, examples[0]?.createdAt ?? "") : null;
+  return { total: examples.length, byLabel, lastUpdated };
+}
+async function createTrainingExample(input) {
+  const id = randomUUID();
+  const now = /* @__PURE__ */ new Date();
+  try {
+    const [row] = await db.insert(trainingExamples).values({
+      id,
+      userMessage: input.userMessage.trim(),
+      lucyResponse: input.lucyResponse.trim(),
+      label: input.label?.trim() || null,
+      sortOrder: Math.floor(Date.now() / 1e3),
+      createdAt: now,
+      updatedAt: now
+    }).returning();
+    invalidateCache();
+    return rowToExample(row);
+  } catch (err2) {
+    logger.warn({ err: err2 }, "trainingStore: create en DB fall\xF3");
+    throw err2;
+  }
+}
+async function updateTrainingExample(id, patch) {
+  const [existing] = await db.select().from(trainingExamples).where(eq(trainingExamples.id, id)).limit(1);
+  if (!existing) return null;
+  const [row] = await db.update(trainingExamples).set({
+    userMessage: patch.userMessage?.trim() ?? existing.userMessage,
+    lucyResponse: patch.lucyResponse?.trim() ?? existing.lucyResponse,
+    label: patch.label !== void 0 ? patch.label.trim() || null : existing.label,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq(trainingExamples.id, id)).returning();
+  invalidateCache();
+  return row ? rowToExample(row) : null;
+}
+async function deleteTrainingExample(id) {
+  const deleted = await db.delete(trainingExamples).where(eq(trainingExamples.id, id)).returning({ id: trainingExamples.id });
+  if (deleted.length === 0) return false;
+  invalidateCache();
+  return true;
+}
+
+// src/chat-history.ts
+import { readFileSync as readFileSync2, writeFileSync, existsSync as existsSync3 } from "fs";
+import { join as join3, dirname as dirname2 } from "path";
+import { fileURLToPath as fileURLToPath2 } from "url";
+var __dirname2 = dirname2(fileURLToPath2(import.meta.url));
+var DATA_FILE = join3(__dirname2, "../../data/chat-history.json");
+var MAX_MESSAGES = 40;
+function load() {
+  try {
+    if (existsSync3(DATA_FILE)) {
+      return JSON.parse(readFileSync2(DATA_FILE, "utf-8"));
+    }
+  } catch {
+  }
+  return {};
+}
+function save(store2) {
+  try {
+    writeFileSync(DATA_FILE, JSON.stringify(store2), "utf-8");
+  } catch {
+  }
+}
+var store = load();
+function getHistory(chatId) {
+  return store[chatId] ?? [];
+}
+function clearHistory(chatId) {
+  delete store[chatId];
+  save(store);
+}
+function appendHistory(chatId, userText, assistantText) {
+  const history = store[chatId] ?? [];
+  history.push({ role: "user", content: userText });
+  history.push({ role: "assistant", content: assistantText });
+  if (history.length > MAX_MESSAGES) {
+    history.splice(0, history.length - MAX_MESSAGES);
+  }
+  store[chatId] = history;
+  save(store);
+}
+
+// src/contact-name.ts
+var PHONE_LIKE = /^\+?\d[\d\s\-().]{7,}$/;
+var PLACEHOLDER_PATTERNS = [
+  /^nuevo\s+lead$/i,
+  /^lead\s*#?\d+$/i,
+  /^contacto\s*#?\d+$/i,
+  /^whatsapp\s*#?\d+$/i,
+  /^sin\s+nombre$/i,
+  /^unknown$/i,
+  /^cliente$/i,
+  /^\d+$/
+];
+var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buenos?|buenas?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza)$/i;
+function isGreetingOnlyMessage(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return false;
+  if (/^soy\s+/i.test(t)) return false;
+  return /^hola[.!?\s,]*$/i.test(t) || /^buen(os|as)?\s*(d[ií]as|tardes|noches)?[.!?\s,]*$/i.test(t) || /^qu[eé]\s*tal[.!?\s,]*$/i.test(t) || /^buenas?[.!?\s,]*$/i.test(t) || /^saludos?[.!?\s,]*$/i.test(t);
+}
+function isAffirmativeOnlyMessage(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return false;
+  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es)[.!?\s,]*$/i.test(t);
+}
+function isPlaceholderLeadName(name2) {
+  const trimmed = name2?.trim() ?? "";
+  if (!trimmed) return true;
+  if (trimmed.length < 2) return true;
+  if (PHONE_LIKE.test(trimmed.replace(/\s/g, ""))) return true;
+  return PLACEHOLDER_PATTERNS.some((p3) => p3.test(trimmed));
+}
+function sanitizeDisplayName(name2) {
+  const trimmed = name2?.trim() ?? "";
+  if (!trimmed || isPlaceholderLeadName(trimmed)) return null;
+  const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+  const firstToken = cleaned.split(/\s+/)[0] ?? "";
+  const firstName = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+  if (!firstName || firstName.length < 2) return null;
+  if (/^\d+$/.test(firstName)) return null;
+  if (GREETING_NAME_PATTERN.test(firstName)) return null;
+  return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+}
+function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
+  return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
+}
+
+// src/conversation-understanding.ts
+var LUCY_FIELD_ASK_PATTERNS = {
+  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
+  correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
+  tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
+  requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar/i,
+  invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
+  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
+  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
+  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
+};
+var BODASESOR_SERVICE_PATTERNS = [
+  ["Parrillada Argentina", /parrillada\s+argentina/i],
+  ["Banquete Kosher", /\bkosher\b/i],
+  ["Banquete Navide\xF1o", /\bnavide[nñ]o\b/i],
+  ["Banquete Mexicano", /\b(banquete\s+mexicano|mexicano)\b/i],
+  ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
+  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?)\b/i],
+  ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
+  ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
+  ["Mesa de postres", /\b(mesa\s+de\s+postres|postres|dulces)\b/i],
+  ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
+  ["Coffee break", /\b(barra\s+de\s+caf[eé]|coffee\s*break)\b/i],
+  ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
+  ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
+  ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
+  ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
+  ["Mobiliario", /\b(mobiliario|m[aá]rmol|sillas?|mesas?)\b/i],
+  ["Carpas", /\b(carpa|carpas|toldo)\b/i],
+  ["Pantallas", /\b(pantalla|pantallas|led\s*wall)\b/i],
+  ["Estructuras", /\b(estructura|colgante|wisteria)\b/i],
+  ["Inflables", /\binflable/i],
+  ["Softplay", /\bsoft\s*play\b/i],
+  ["Meseros", /\bmeseros?\b/i],
+  ["DJ", /\bdj\b/i],
+  ["Mixolog\xEDa", /\bmixolog[ií]a\b/i],
+  ["Cocteler\xEDa", /\bcocteler[ií]a\b/i],
+  ["M\xF3cteles", /\bm[oó]cteles?\b/i],
+  ["Canap\xE9s", /\b(canap[eé]s?|bocadillos?)\b/i],
+  ["Pizzas", /\bpizza/i],
+  ["Sushi", /\b(sushi|poke)\b/i],
+  ["Taquiza", /\b(taquiza|tacos?)\b/i],
+  ["Parrillada", /\bparrillada\b/i],
+  ["Crepas", /\bcrep[aá]s?\b/i],
+  ["Brunch", /\bbrunch\b/i],
+  ["Poptails", /\bpoptails?\b/i]
+];
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch/i;
+var SHORT_SERVICE_ALIASES = {
+  pista: "pista de baile",
+  tarima: "pista de baile",
+  dj: "DJ",
+  mesa: "mobiliario",
+  mesas: "mobiliario",
+  silla: "mobiliario",
+  sillas: "mobiliario",
+  carpa: "carpas",
+  bebidas: "barra de bebidas",
+  bebida: "barra de bebidas",
+  banquete: "banquete",
+  taquiza: "taquiza",
+  tacos: "taquiza",
+  pizza: "pizzas",
+  pizzas: "pizzas",
+  sushi: "sushi",
+  kosher: "banquete kosher",
+  meseros: "meseros",
+  mesero: "meseros",
+  decoracion: "decoraci\xF3n",
+  iluminacion: "iluminaci\xF3n",
+  pantalla: "pantallas",
+  inflable: "inflables",
+  mobiliario: "mobiliario"
+};
+var TIPO_EVENTO_PATTERNS = [
+  [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
+  [/\b(baby\s*shower)\b/i, "baby shower"],
+  [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
+  [/\b(evento\s+corporativo|convenci[oó]n|conferencia|corporativo)\b/i, "evento corporativo"],
+  [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
+  [/\b(bautizo|comuni[oó]n|graduaci[oó]n)\b/i, "celebraci\xF3n"]
+];
+var WRITTEN_NUMBERS = {
+  uno: "1",
+  una: "1",
+  dos: "2",
+  tres: "3",
+  cuatro: "4",
+  cinco: "5",
+  seis: "6",
+  siete: "7",
+  ocho: "8",
+  nueve: "9",
+  diez: "10",
+  once: "11",
+  doce: "12",
+  quince: "15",
+  veinte: "20",
+  treinta: "30",
+  cuarenta: "40",
+  cincuenta: "50",
+  sesenta: "60",
+  setenta: "70",
+  ochenta: "80",
+  noventa: "90",
+  cien: "100",
+  ciento: "100",
+  doscientos: "200",
+  trescientos: "300",
+  cuatrocientos: "400",
+  quinientos: "500"
+};
+var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
+var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen)\b/i;
+function inferLucyAskedField(lastLucyMessage) {
+  const msg = lastLucyMessage?.trim() ?? "";
+  if (!msg) return null;
+  const priority = [
+    "nombre",
+    "correo",
+    "tipo_evento",
+    "requerimientos",
+    "invitados",
+    "zona",
+    "fecha",
+    "presupuesto"
+  ];
+  for (const field of priority) {
+    if (LUCY_FIELD_ASK_PATTERNS[field].test(msg)) return field;
+  }
+  return null;
+}
+function parseServicesFromText(text2) {
+  const found = [];
+  const lower = text2.toLowerCase();
+  for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
+    if (pattern.test(lower)) found.push(label);
+  }
+  const normalized = normalizeShortServicePhrase(text2);
+  if (normalized && !found.some((s4) => s4.toLowerCase().includes(normalized.toLowerCase()))) {
+    found.push(normalized);
+  }
+  return [...new Set(found)];
+}
+function parsePrimaryService(text2) {
+  const services = parseServicesFromText(text2);
+  if (services.length > 0) return services[0];
+  const normalized = normalizeShortServicePhrase(text2);
+  return normalized;
+}
+function normalizeShortServicePhrase(text2) {
+  const trimmed = text2.trim();
+  if (!trimmed) return null;
+  let cleaned = trimmed.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las)\s+/i, "").trim();
+  const lower = cleaned.toLowerCase();
+  if (SHORT_SERVICE_ALIASES[lower]) return SHORT_SERVICE_ALIASES[lower];
+  if (/^pista$/i.test(cleaned)) return "pista de baile";
+  if (/^dj$/i.test(cleaned)) return "DJ";
+  return null;
+}
+function isServiceRelatedMessage(text2) {
+  const trimmed = text2?.trim() ?? "";
+  if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
+  if (SERVICE_HINT.test(trimmed)) return true;
+  if (parsePrimaryService(trimmed)) return true;
+  if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
+  return false;
+}
+function parseTipoEventoFromText(text2) {
+  for (const [pattern, label] of TIPO_EVENTO_PATTERNS) {
+    if (pattern.test(text2)) return label;
+  }
+  return null;
+}
+function parseInvitadosFromText(text2) {
+  const trimmed = text2.trim();
+  if (!trimmed) return null;
+  if (isServiceRelatedMessage(trimmed)) return null;
+  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?)\b/i);
+  if (numMatch) return numMatch[1];
+  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como)\s+(\d+)\b/i);
+  if (paraMatch) return paraMatch[1];
+  const writtenMatch = trimmed.match(
+    /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?)\b/i
+  );
+  if (writtenMatch) {
+    return WRITTEN_NUMBERS[writtenMatch[1].toLowerCase()] ?? null;
+  }
+  if (/^\d{1,4}$/.test(trimmed)) return trimmed;
+  return null;
+}
+function parseZonaFromText(text2) {
+  const trimmed = text2.trim();
+  if (!trimmed || /@/.test(trimmed)) return null;
+  if (KNOWN_ZONES.test(trimmed)) {
+    const m4 = trimmed.match(KNOWN_ZONES);
+    if (m4) return m4[0].trim();
+  }
+  const enMatch = trimmed.match(
+    /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
+  );
+  if (enMatch) {
+    const lugar = enMatch[1].trim();
+    if (!MONTH_PATTERN.test(lugar) && !/^\d/.test(lugar)) return lugar;
+  }
+  if (/^[a-záéíóúüñ][a-záéíóúüñ\s.-]{2,40}$/i.test(trimmed) && !isServiceRelatedMessage(trimmed)) {
+    return trimmed;
+  }
+  return null;
+}
+function parseFechaFromText(text2) {
+  const trimmed = text2.trim();
+  const fechaMatch = trimmed.match(
+    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)\b/i
+  );
+  if (fechaMatch) return fechaMatch[1];
+  if (/\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
+    trimmed
+  )) {
+    return trimmed.slice(0, 80);
+  }
+  if (MONTH_PATTERN.test(trimmed) && /\d/.test(trimmed)) return trimmed.slice(0, 80);
+  return null;
+}
+function parsePresupuestoFromText(text2) {
+  const trimmed = text2.trim();
+  if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé])\b/i.test(
+    trimmed
+  )) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
+  if (kMatch) {
+    const num = parseInt(kMatch[1].replace(/[,.]/g, ""), 10);
+    if (!isNaN(num) && num > 0) return `$${num}k`;
+  }
+  const milMatch = trimmed.match(/([\d,.]+)\s*mil\b/i);
+  if (milMatch) {
+    const num = parseInt(milMatch[1].replace(/[,.]/g, ""), 10);
+    if (!isNaN(num) && num > 0) return `$${num * 1e3}`;
+  }
+  if (/\d/.test(trimmed)) return trimmed;
+  return null;
+}
+function getLastLucyMessage(history) {
+  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content ?? "";
+}
+function collectUserMessages(history, currentMessage) {
+  const fromHistory = history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content);
+  return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
+}
+function captureContextualAnswer(history, currentMessage, filledSet) {
+  const msg = currentMessage.trim();
+  if (!msg) return [];
+  const lastLucy = getLastLucyMessage(history);
+  const asked = inferLucyAskedField(lastLucy);
+  const captures = [];
+  if (!filledSet.has("Nombre del cliente") && (asked === "nombre" || !history.some((m4) => m4.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+    const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
+    const candidato = soyMatch ? soyMatch[1].trim() : msg;
+    const nombre = sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 40 && !/\?/.test(candidato)) {
+      captures.push({ label: "Nombre del cliente", value: nombre });
+    }
+  }
+  if (!filledSet.has("Tipo de evento") && asked === "tipo_evento") {
+    const tipo = parseTipoEventoFromText(msg) ?? (isServiceRelatedMessage(msg) ? null : msg);
+    if (tipo && tipo.length >= 2 && !/@/.test(tipo)) {
+      captures.push({ label: "Tipo de evento", value: tipo });
+    }
+  }
+  if (!filledSet.has("Requerimientos o servicios") && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
+    const service = parsePrimaryService(msg);
+    if (service || isServiceRelatedMessage(msg)) {
+      captures.push({
+        label: "Requerimientos o servicios",
+        value: service ?? msg.slice(0, 120)
+      });
+    }
+  }
+  if (!filledSet.has("N\xFAmero de invitados") && asked === "invitados") {
+    const inv = parseInvitadosFromText(msg);
+    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
+  }
+  if (!filledSet.has("Lugar/direcci\xF3n del evento") && asked === "zona") {
+    const zona = parseZonaFromText(msg);
+    if (zona) captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
+  }
+  if (!filledSet.has("Fecha y horario") && asked === "fecha") {
+    const fecha = parseFechaFromText(msg);
+    if (fecha) captures.push({ label: "Fecha y horario", value: fecha });
+  }
+  if (!filledSet.has("Presupuesto (MXN)") && asked === "presupuesto") {
+    const pres = parsePresupuestoFromText(msg);
+    if (pres) captures.push({ label: "Presupuesto (MXN)", value: pres });
+  }
+  return captures;
+}
+function scanConversationForCaptures(history, currentMessage, filledSet) {
+  const captures = [];
+  const pending = new Set(filledSet);
+  const userTexts = collectUserMessages(history, currentMessage).slice(-12);
+  for (const msg of userTexts) {
+    if (!pending.has("Tipo de evento")) {
+      const tipo = parseTipoEventoFromText(msg);
+      if (tipo) {
+        captures.push({ label: "Tipo de evento", value: tipo });
+        pending.add("Tipo de evento");
+      }
+    }
+    if (!pending.has("Requerimientos o servicios") && isServiceRelatedMessage(msg)) {
+      const service = parsePrimaryService(msg);
+      captures.push({
+        label: "Requerimientos o servicios",
+        value: service ?? msg.trim().slice(0, 120)
+      });
+      pending.add("Requerimientos o servicios");
+    }
+    if (!pending.has("N\xFAmero de invitados")) {
+      const inv = parseInvitadosFromText(msg);
+      if (inv) {
+        captures.push({ label: "N\xFAmero de invitados", value: inv });
+        pending.add("N\xFAmero de invitados");
+      }
+    }
+    if (!pending.has("Lugar/direcci\xF3n del evento")) {
+      const zona = parseZonaFromText(msg);
+      if (zona) {
+        captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
+        pending.add("Lugar/direcci\xF3n del evento");
+      }
+    }
+    if (!pending.has("Fecha y horario")) {
+      const fecha = parseFechaFromText(msg);
+      if (fecha) {
+        captures.push({ label: "Fecha y horario", value: fecha });
+        pending.add("Fecha y horario");
+      }
+    }
+    if (!pending.has("Presupuesto (MXN)")) {
+      const pres = parsePresupuestoFromText(msg);
+      if (pres) {
+        captures.push({ label: "Presupuesto (MXN)", value: pres });
+        pending.add("Presupuesto (MXN)");
+      }
+    }
+  }
+  return captures;
+}
+function applyCapturesToCrm(mergedLines, filledSet, captures) {
+  for (const { label, value } of captures) {
+    if (filledSet.has(label) || !value?.trim()) continue;
+    mergedLines.push(`- ${label}: ${value}`);
+    filledSet.add(label);
+  }
+}
+function enrichExtractedFromConversation(extracted, conversationText) {
+  if (!extracted.tipo_evento?.trim()) {
+    const tipo = parseTipoEventoFromText(conversationText);
+    if (tipo) extracted.tipo_evento = tipo;
+  }
+  if (!extracted.fecha_horario?.trim()) {
+    const fecha = parseFechaFromText(conversationText);
+    if (fecha) extracted.fecha_horario = fecha;
+  }
+  if (!extracted.num_invitados) {
+    const inv = parseInvitadosFromText(conversationText);
+    if (inv) extracted.num_invitados = parseInt(inv, 10);
+  }
+  if (!extracted.direccion_evento?.trim()) {
+    const zona = parseZonaFromText(conversationText);
+    if (zona) extracted.direccion_evento = zona;
+  }
+  if (!extracted.requerimientos_evento?.trim()) {
+    const services = parseServicesFromText(conversationText);
+    if (services.length > 0) {
+      extracted.requerimientos_evento = services.slice(0, 3).join(", ");
+    }
+  }
+  if (extracted.presupuesto === null || extracted.presupuesto === void 0) {
+    const pres = parsePresupuestoFromText(conversationText);
+    if (pres?.startsWith("$")) {
+      const num = parseInt(pres.replace(/[^\d]/g, ""), 10);
+      if (!isNaN(num) && num > 0) extracted.presupuesto = num;
+    }
+  }
+}
+
+// src/lucy-flow-guards.ts
+var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
+var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
+var EMAIL_REFUSAL_PATTERN = /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
+var CLOSING_CORE_FIELDS = [
+  "Nombre del cliente",
+  "Tipo de evento",
+  "Requerimientos o servicios",
+  "N\xFAmero de invitados",
+  "Lugar/direcci\xF3n del evento",
+  "Fecha y horario",
+  "Presupuesto (MXN)"
+];
+var LUCY_INTRO = "Hola, soy Lucy de Bodasesor.";
+var SERVICIOS_CATALOGO_HINT = "Manejamos alimentos y barras (banquetes, taquizas, barras tem\xE1ticas), mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces y m\xE1s.";
+var SERVICIOS_CATALOGO_HINT_ADICIONAL = "Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.";
+function mensajeMencionaCatalogoServicios(mensaje) {
+  return /alimentos?|mobiliario|carpas?|pistas?(\s+de\s+baile)?|bebidas?|banquete|taquiza|iluminaci[oó]n|pantallas?|mesas?\s+de\s+dulces|dj\b|barras?\s+(de\s+)?alimentos|estaciones?\s+de\s+comida/i.test(
+    mensaje
+  );
+}
+function appendServiciosCatalogoHint(pregunta, adicional = false) {
+  if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
+  const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
+  return `${pregunta.trim()} ${hint}`.trim();
+}
+var QUESTION_VARIANTS = {
+  nombre: [
+    "\xBFMe regalas tu nombre para iniciar?",
+    "\xBFCon qui\xE9n tengo el gusto?",
+    "\xBFC\xF3mo te llamas?"
+  ],
+  correo: [
+    "Para mandarte la info y que Alejandro te arme la propuesta, \xBFa qu\xE9 correo te lo env\xEDo?",
+    "\xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?",
+    "\xBFA qu\xE9 correo te mando la informaci\xF3n?"
+  ],
+  tipo_evento: [
+    "\xBFQu\xE9 tipo de celebraci\xF3n es?",
+    "\xBFQu\xE9 festejan o qu\xE9 evento est\xE1n planeando?",
+    "Cu\xE9ntame, \xBFde qu\xE9 se trata el evento?"
+  ],
+  requerimientos: [
+    "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?",
+    "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+    "\xBFQu\xE9 necesitas para el evento?"
+  ],
+  invitados: [
+    "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?",
+    "\xBFCu\xE1ntos invitados tienen contemplados?",
+    "\xBFPara cu\xE1ntas personas lo est\xE1n planeando?"
+  ],
+  zona: [
+    "\xBFD\xF3nde lo est\xE1n planeando?",
+    "\xBFEn qu\xE9 ciudad o zona ser\xEDa el evento?",
+    "\xBFTienen ya el lugar o al menos la ciudad?"
+  ],
+  fecha: [
+    "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
+    "\xBFPara cu\xE1ndo lo tienen pensado?",
+    "\xBFYa hay d\xEDa definido o siguen viendo opciones?"
+  ],
+  presupuesto: [
+    "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+    "\xBFManejan alg\xFAn presupuesto estimado para el evento?",
+    "\xBFTienen idea del presupuesto o prefieren que Alejandro les proponga opciones?"
+  ]
+};
+var FIELD_ASK_PATTERNS = {
+  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
+  correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
+  tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
+  requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
+  invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
+  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
+  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
+  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
+};
+function isValidRequerimientosValue(value) {
+  return isServiceRelatedMessage(value);
+}
+var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
+function collectUserTexts(history, currentMessage) {
+  const fromHistory = history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content);
+  return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
+}
+function detectEmailRefusal(texts) {
+  return texts.some((t) => EMAIL_REFUSAL_PATTERN.test(t));
+}
+function applyEmailWaiver(filledSet, mergedLines, texts) {
+  if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return;
+  if (!detectEmailRefusal(texts)) return;
+  mergedLines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
+  filledSet.add(EMAIL_WAIVED_LABEL);
+}
+function isEmailSatisfied(filledSet) {
+  return filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL);
+}
+function isReadyForClosing(filledSet) {
+  return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
+}
+function findMentionedService(text2) {
+  for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
+    if (pattern.test(text2)) return label;
+  }
+  return parsePrimaryService(text2);
+}
+function hasTipoEvento(filledSet, extracted) {
+  return filledSet.has("Tipo de evento") || !!extracted.tipo_evento?.trim();
+}
+function getDisplayName(extracted, whatsappName) {
+  return resolveClientDisplayName(extracted.nombre, null, whatsappName);
+}
+function lucyHasPresented(history) {
+  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").some((m4) => /hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(m4.content));
+}
+function conversationAlreadyStarted(filledSet, history) {
+  if (history.some((m4) => m4.role === "assistant")) return true;
+  if (filledSet.has("Nombre del cliente")) return true;
+  if (filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
+  if (filledSet.has("Tipo de evento")) return true;
+  if (filledSet.has("Requerimientos o servicios")) return true;
+  return false;
+}
+function presentationHistoryFrom(ctx) {
+  return ctx.presentationHistory ?? ctx.history ?? [];
+}
+function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
+  if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
+  return mensaje.replace(/Hola,?\s*soy\s+Lucy\s+de\s+Bodasesor\.?\s*/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo\.?\s*/gi, "").replace(/^\s+/, "").trim();
+}
+function variantIndex(field, history, entityId) {
+  const variants = QUESTION_VARIANTS[field];
+  const assistantTurns = history.filter((m4) => m4.role === "assistant").length;
+  const seed = entityId != null ? String(entityId).length : 0;
+  return (assistantTurns + seed) % variants.length;
+}
+function pickVariant(field, history, entityId) {
+  const variants = QUESTION_VARIANTS[field];
+  return variants[variantIndex(field, history, entityId)] ?? variants[0];
+}
+function contextualPrefix(field, extracted, currentMessage) {
+  const msg = currentMessage?.trim() ?? "";
+  if (!msg) return "";
+  if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) {
+    return "Perfecto. ";
+  }
+  if (field === "zona" && /\d+/.test(msg)) {
+    return "Entendido. ";
+  }
+  if (field === "fecha" && /ciudad|zona|polanco|cdmx|puebla|monterrey|reforma/i.test(msg)) {
+    return "Muy bien. ";
+  }
+  if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) {
+    return "Genial. ";
+  }
+  return "";
+}
+function getNextPendingField(extracted, filledSet) {
+  const filled = filledSet ?? /* @__PURE__ */ new Set();
+  if (!filled.has("Nombre del cliente")) return "nombre";
+  if (!isEmailSatisfied(filled)) return "correo";
+  if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
+  if (!filled.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
+    return "requerimientos";
+  }
+  if (!filled.has("N\xFAmero de invitados")) return "invitados";
+  if (!filled.has("Lugar/direcci\xF3n del evento")) return "zona";
+  if (!filled.has("Fecha y horario")) return "fecha";
+  if (!filled.has("Presupuesto (MXN)")) return "presupuesto";
+  return null;
+}
+function isFirstLucyReply(history) {
+  return !history.some((m4) => m4.role === "assistant");
+}
+function lucyAskedForNombre(history) {
+  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").some((m4) => mensajeAsksForField(m4.content, "nombre"));
+}
+function applyWhatsappNombreFallback(filledSet, mergedLines, whatsappDisplayName, history) {
+  if (filledSet.has("Nombre del cliente")) return false;
+  if (!lucyAskedForNombre(history)) return false;
+  const waName = sanitizeDisplayName(whatsappDisplayName);
+  if (!waName) return false;
+  mergedLines.push(`- Nombre del cliente: ${waName} ${WHATSAPP_NOMBRE_NOTE}`);
+  filledSet.add("Nombre del cliente");
+  return true;
+}
+function parseNombreFromCrmLines(mergedLines) {
+  const line2 = mergedLines.find((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
+  if (!line2) return null;
+  const raw = line2.replace(/^-?\s*Nombre del cliente:\s*/i, "").replace(WHATSAPP_NOMBRE_NOTE, "").trim();
+  return sanitizeDisplayName(raw);
+}
+function buildOpeningAcknowledgment(history, currentMessage) {
+  const texts = collectUserTexts(history, currentMessage);
+  const userText = texts[texts.length - 1] ?? texts.join(" ");
+  const t = userText.toLowerCase();
+  if (/taquiza|tacos/.test(t)) {
+    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    const zona = userText.match(/\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,24})/i);
+    const fecha = userText.match(
+      /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i
+    );
+    let ack = "Te ayudo con la taquiza";
+    if (inv) ack += ` para ${inv[1]} personas`;
+    if (zona) ack += ` en ${zona[1].trim()}`;
+    if (fecha) ack += ` el ${fecha[1]}`;
+    return `${ack}.`;
+  }
+  if (/\bboda\b/.test(t)) {
+    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    const fecha = userText.match(
+      /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))/i
+    );
+    let ack = "Te ayudo con la cotizaci\xF3n para tu boda";
+    if (fecha) ack += ` del ${fecha[1]}`;
+    if (inv) ack += ` para ${inv[1]} personas`;
+    return `${ack}.`;
+  }
+  if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
+  if (/banquete/.test(t)) {
+    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    return inv ? `Te ayudo con el banquete para ${inv[1]} personas.` : "Con gusto te ayudo con informaci\xF3n de banquetes.";
+  }
+  if (/kosher/.test(t)) return "S\xED tenemos opciones kosher.";
+  if (/cotiz|evento/.test(t)) return "Claro que te ayudo con tu evento.";
+  if (/^hola[.!?\s]*$/i.test(userText.trim())) {
+    return "Estoy aqu\xED para ayudarte con lo que necesites para tu evento.";
+  }
+  if (userText.trim().length > 0) return "Con gusto te ayudo.";
+  return "Estoy aqu\xED para ayudarte con lo que necesites para tu evento.";
+}
+function buildFirstInteractionMessage(ctx, withIntro = true) {
+  const history = ctx.history ?? [];
+  const filledSet = ctx.filledSet ?? /* @__PURE__ */ new Set();
+  const ack = buildOpeningAcknowledgment(history, ctx.currentMessage);
+  const intro = withIntro ? `${LUCY_INTRO} ` : "";
+  if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
+    const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
+    const pending = getNextPendingField(ctx.extracted, filledSet);
+    if (pending === "correo") {
+      const correoQ = buildCorreoQuestion(nombre, history, ctx.entityId);
+      return withIntro ? `${intro}${ack} ${correoQ}`.trim() : correoQ;
+    }
+    if (pending) {
+      const greet = nombre ? `Mucho gusto, ${nombre}. ` : "";
+      const q2 = buildNaturalQuestion(pending, ctx);
+      return withIntro ? `${intro}${ack} ${greet}${q2}`.trim() : `${greet}${q2}`.trim();
+    }
+    return nombre ? `${intro}${ack} Mucho gusto, ${nombre}.`.trim() : `${intro}${ack}`.trim();
+  }
+  const nameQ = pickVariant("nombre", history, ctx.entityId);
+  return `${intro}${ack} ${nameQ}`.trim();
+}
+function usesLegacyLucyIntro(mensaje) {
+  return /te\s+saluda\s+lucy|agente\s+virtual\s+de\s+bodasesor/i.test(mensaje);
+}
+function isLegacyStoredLucyResponse(text2) {
+  return typeof text2 === "string" && text2.trim().length > 0 && usesLegacyLucyIntro(text2);
+}
+function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPresentation = false) {
+  const presHistory = presentationHistoryFrom(ctx);
+  const alreadyStarted = conversationAlreadyStarted(filledSet, presHistory);
+  const isTrueFirstTurn = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !alreadyStarted;
+  if (!isFieldSatisfied("nombre", filledSet, extracted)) {
+    if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
+      return "Perfecto. \xBFMe regalas tu nombre?";
+    }
+    if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
+      return buildFirstInteractionMessage(ctx, true);
+    }
+    return buildNaturalQuestion("nombre", ctx);
+  }
+  return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
+}
+function mensajeAsksForField(mensaje, field) {
+  if (!mensaje.includes("?")) return false;
+  return FIELD_ASK_PATTERNS[field].test(mensaje);
+}
+function isFieldSatisfied(field, filledSet, extracted) {
+  switch (field) {
+    case "nombre":
+      return filledSet.has("Nombre del cliente");
+    case "correo":
+      return isEmailSatisfied(filledSet);
+    case "tipo_evento":
+      return hasTipoEvento(filledSet, extracted);
+    case "requerimientos":
+      return filledSet.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
+    case "invitados":
+      return filledSet.has("N\xFAmero de invitados");
+    case "zona":
+      return filledSet.has("Lugar/direcci\xF3n del evento");
+    case "fecha":
+      return filledSet.has("Fecha y horario");
+    case "presupuesto":
+      return filledSet.has("Presupuesto (MXN)");
+  }
+}
+var FIELD_ORDER = [
+  "nombre",
+  "correo",
+  "tipo_evento",
+  "requerimientos",
+  "invitados",
+  "zona",
+  "fecha",
+  "presupuesto"
+];
+function mensajeAsksForFilledField(mensaje, filledSet, extracted) {
+  if (!mensaje.includes("?")) return false;
+  for (const field of FIELD_ORDER) {
+    if (isFieldSatisfied(field, filledSet, extracted) && mensajeAsksForField(mensaje, field)) {
+      return true;
+    }
+  }
+  return false;
+}
+function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) {
+  const trimmed = aiResponse.trim();
+  if (!trimmed) return false;
+  if (responseLooksLikePrematureClose(trimmed)) return false;
+  if (mensajeAsksForFilledField(trimmed, filledSet, extracted)) return false;
+  if (mensajeAsksWrongField(trimmed, filledSet, extracted)) return false;
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return true;
+  if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
+  if (clientAskedFreeformQuestion(currentMessage) && trimmed.length > 25) {
+    return trimmed.includes("?") || !pending;
+  }
+  return false;
+}
+function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return mensaje;
+  const nextQ = buildNaturalQuestion(pending, ctx);
+  const base = mensaje.trim();
+  if (!base) return nextQ;
+  if (base.includes("?")) return mensaje;
+  return `${base}
+
+${nextQ}`;
+}
+function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
+  const pending = getNextPendingField(extracted, filledSet);
+  const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
+  const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
+  if ((repeatsFilled || asksWrong) && pending) {
+    log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetici\xF3n \u2014 dato ya capturado");
+    return mergeWithPendingQuestion("", filledSet, extracted, ctx);
+  }
+  if (pending === "requerimientos" && mensaje.includes("?") && !mensajeMencionaCatalogoServicios(mensaje)) {
+    mensaje = appendServiciosCatalogoHint(mensaje);
+  }
+  if (pending && !mensaje.includes("?") && !clientAskedFreeformQuestion(ctx.currentMessage)) {
+    return mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+  }
+  return mensaje;
+}
+function buildNaturalQuestion(field, ctx) {
+  const history = ctx.history ?? [];
+  const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
+  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage);
+  const variant = pickVariant(field, history, ctx.entityId);
+  if (field === "correo") {
+    const correoCore = pickVariant("correo", history, ctx.entityId);
+    return nombre ? `Mucho gusto, ${nombre}. ${correoCore}` : correoCore;
+  }
+  if (field === "requerimientos") {
+    return buildRequerimientosQuestion(ctx.extracted, history, ctx.currentMessage, ctx.entityId);
+  }
+  if (field === "tipo_evento" && ctx.afterEmail) {
+    const tipoVariant = pickVariant("tipo_evento", history, ctx.entityId);
+    return prefix ? `${prefix}${tipoVariant}` : tipoVariant;
+  }
+  return prefix ? `${prefix}${variant}` : variant;
+}
+function buildRequerimientosQuestion(extracted, history, currentMessage, entityId) {
+  const userText = collectUserTexts(history, currentMessage).join(" ");
+  const fromExtracted = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
+  const service = fromExtracted ?? findMentionedService(userText);
+  const prefix = contextualPrefix("requerimientos", extracted, currentMessage);
+  if (service) {
+    const idx = variantIndex("requerimientos", history, entityId);
+    const followUps = [
+      `Adem\xE1s del ${service}, \xBFte gustar\xEDa cotizar alg\xFAn otro servicio?`,
+      `\xBFSolo el ${service} o tambi\xE9n algo m\xE1s?`,
+      `Perfecto. Con el ${service}, \xBFnecesitan alg\xFAn otro servicio?`
+    ];
+    return appendServiciosCatalogoHint(
+      `${prefix}${followUps[idx % followUps.length]}`,
+      true
+    );
+  }
+  const variant = pickVariant("requerimientos", history, entityId);
+  const core = prefix ? `${prefix}${variant}` : variant;
+  return appendServiciosCatalogoHint(core);
+}
+function requerimientosNeedsFollowUp(extracted, filledSet) {
+  if (filledSet.has("Requerimientos o servicios")) return false;
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (!req) return true;
+  return !isValidRequerimientosValue(req);
+}
+function buildCorreoQuestion(nombre, history = [], entityId) {
+  const correoCore = pickVariant("correo", history, entityId);
+  if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
+  return correoCore;
+}
+function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId) {
+  const ctx = {
+    extracted,
+    filledSet,
+    history: history ?? [],
+    currentMessage,
+    entityId
+  };
+  if (filledSet && !hasTipoEvento(filledSet, extracted)) {
+    return buildNaturalQuestion("tipo_evento", ctx);
+  }
+  if (filledSet && requerimientosNeedsFollowUp(extracted, filledSet)) {
+    return buildRequerimientosQuestion(extracted, history ?? [], currentMessage, entityId);
+  }
+  const pending = getNextPendingField(extracted, filledSet);
+  if (pending) return buildNaturalQuestion(pending, ctx);
+  return buildRequerimientosQuestion(extracted, history ?? [], currentMessage, entityId);
+}
+function nextFieldQuestion(extracted, filledSet, whatsappName, history, currentMessage, entityId) {
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return null;
+  return buildNaturalQuestion(pending, {
+    extracted,
+    filledSet,
+    whatsappName,
+    history: history ?? [],
+    currentMessage,
+    entityId
+  });
+}
+function shouldReplaceForcedEmailQuestion(mensaje, filledSet) {
+  if (!filledSet.has(EMAIL_WAIVED_LABEL)) return false;
+  if (!/correo|e-?mail/i.test(mensaje) || !mensaje.includes("?")) return false;
+  return /obligatorio|necesito|necesario|forzoso|indispensable|debes|tienes que|es importante/i.test(mensaje);
+}
+function emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet) {
+  const ctx = {
+    extracted,
+    filledSet,
+    history,
+    currentMessage,
+    entityId
+  };
+  const pending = getNextPendingField(extracted, filledSet);
+  if (pending && pending !== "correo") {
+    return `Sin problema, seguimos por aqu\xED. ${buildNaturalQuestion(pending, ctx)}`;
+  }
+  const tipoQ = buildNaturalQuestion("tipo_evento", ctx);
+  return `Sin problema, seguimos por aqu\xED. ${tipoQ}`;
+}
+function clientJustGaveEmail(history, currentMessage) {
+  if (!currentMessage?.trim() || !/\S+@\S+\.\S+/.test(currentMessage)) return false;
+  const lastAssistant = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content;
+  if (!lastAssistant) return false;
+  return /correo|e-?mail|envío|envio/i.test(lastAssistant);
+}
+function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
+  if (!currentMessage?.trim()) return false;
+  const lastAssistant = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content;
+  if (!lastAssistant) return false;
+  if (inferLucyAskedField(lastAssistant) === "requerimientos") return true;
+  return /platícame|qué tienes pensado|otro servicio|te gustaría cotizar|festejan|tipo de evento|servicios te gustaría|qué necesitas/i.test(
+    lastAssistant
+  );
+}
+function clientAskedFreeformQuestion(message) {
+  if (!message?.trim()) return false;
+  if (/\?/.test(message)) return true;
+  return /cu[aá]nto|precio|costo|cat[aá]logo|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@/i.test(
+    message
+  );
+}
+function responseLooksLikePrematureClose(mensaje) {
+  return mensaje.includes(CLOSING_SIGNATURE) || /cotizaci[oó]n personalizada/i.test(mensaje) || /cdn\.shopify\.com/i.test(mensaje) || /cat[aá]logo completo/i.test(mensaje);
+}
+function mensajeLooksOnTrack(mensaje, filledSet, extracted) {
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return true;
+  return mensajeAsksForField(mensaje, pending);
+}
+function mensajeAsksWrongField(mensaje, filledSet, extracted) {
+  if (!mensaje.includes("?")) return false;
+  const pending = getNextPendingField(extracted, filledSet);
+  if (!pending) return false;
+  const fieldOrder = FIELD_ORDER;
+  const pendingIdx = fieldOrder.indexOf(pending);
+  for (let i3 = pendingIdx + 1; i3 < fieldOrder.length; i3++) {
+    const field = fieldOrder[i3];
+    if (mensajeAsksForField(mensaje, field)) return true;
+  }
+  return false;
+}
+function makeQuestionCtx(input) {
+  return {
+    extracted: input.extracted,
+    filledSet: input.filledSet,
+    whatsappName: input.whatsappDisplayName,
+    history: input.history,
+    presentationHistory: input.presentationHistory ?? input.history,
+    currentMessage: input.currentMessage,
+    entityId: input.entityId
+  };
+}
+function applyLucyMessageGuards(input) {
+  const {
+    aiResponse,
+    extracted,
+    filledSet,
+    readyForClosing,
+    cierreYaEnviado,
+    emailRefusedThisTurn,
+    history,
+    currentMessage,
+    whatsappDisplayName,
+    buildClosing,
+    log,
+    entityId,
+    forceFirstPresentation
+  } = input;
+  const ctx = makeQuestionCtx(input);
+  const justGaveEmail = clientJustGaveEmail(history, currentMessage);
+  const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
+  const emailOk = isEmailSatisfied(filledSet);
+  const needsNextStep = emailOk && !readyForClosing && !cierreYaEnviado;
+  let mensaje;
+  if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
+    mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
+    log?.info({ entityId }, "GUARD: correo capturado \u2014 pregunta tipo de evento");
+  } else if (justGaveEmail && hasTipoEvento(filledSet, extracted)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    mensaje = nextQ ?? aiResponse;
+    if (nextQ) log?.info({ entityId }, "GUARD: correo capturado \u2014 tipo ya tenido, siguiente dato");
+  } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
+    mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
+    log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
+  } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+    mensaje = aiResponse;
+    log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
+  } else if (needsNextStep && aiResponse.trim()) {
+    mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+    log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
+  } else if (needsNextStep) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    mensaje = nextQ ?? aiResponse;
+    if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
+  } else if (readyForClosing && !cierreYaEnviado && (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))) {
+    mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
+    log?.info({ entityId }, "GUARD: profundizar antes del cierre");
+  } else if (readyForClosing && !cierreYaEnviado) {
+    mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
+    log?.info({ entityId }, "Datos completos \u2014 mensaje de cierre desde plantilla");
+  } else {
+    mensaje = aiResponse;
+    if (aiResponse.includes("DATOS DEL CLIENTE:")) {
+      mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
+      log?.warn({ entityId }, "GPT gener\xF3 nota interna \u2014 usando cierre desde plantilla");
+    }
+  }
+  if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
+    log?.warn({ entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
+    mensaje = nextQ;
+  }
+  const correoYaTenido = !!extracted.correo?.trim() || filledSet.has("Correo electr\xF3nico");
+  if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "correo" && !mensajeAsksForField(mensaje, pending)) {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (nextQ) {
+        log?.warn({ entityId }, "GUARD: GPT pregunt\xF3 correo ya capturado");
+        mensaje = nextQ;
+      }
+    }
+  }
+  if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !readyForClosing) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
+    log?.warn({ entityId }, "GUARD: GPT insisti\xF3 en correo tras rechazo");
+    mensaje = nextQ;
+  }
+  if (!readyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && !mensaje.includes("?")) {
+      if (responseLooksLikePrematureClose(mensaje)) {
+        mensaje = buildNaturalQuestion(pending, ctx);
+        log?.info({ entityId, pending }, "GUARD: bloqueando cierre \u2014 pregunta pendiente");
+      } else if (mensaje.trim()) {
+        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+        log?.info({ entityId, pending }, "GUARD: a\xF1adiendo pregunta pendiente a respuesta");
+      }
+    }
+  }
+  if (!readyForClosing && responseLooksLikePrematureClose(mensaje)) {
+    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    if (forcedNext) {
+      log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
+      mensaje = forcedNext;
+    }
+  }
+  if (mensajeAsksWrongField(mensaje, filledSet, extracted)) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending) {
+      log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden \u2014 corrigiendo");
+      mensaje = buildNaturalQuestion(pending, ctx);
+    }
+  }
+  mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
+  const presHistory = input.presentationHistory ?? history;
+  if (conversationAlreadyStarted(filledSet, presHistory)) {
+    mensaje = stripRepeatLucyIntro(mensaje, presHistory, true);
+  }
+  return mensaje;
+}
 
 // src/services/leadScoring.ts
 function calculateLeadScore(context) {
@@ -75527,9 +75767,9 @@ var hasOwnInPrototypeChain = (thing, prop) => {
   return false;
 };
 var getSafeProp = (obj, prop) => obj != null && hasOwnInPrototypeChain(obj, prop) ? obj[prop] : void 0;
-var kindOf = /* @__PURE__ */ ((cache) => (thing) => {
+var kindOf = /* @__PURE__ */ ((cache2) => (thing) => {
   const str2 = toString.call(thing);
-  return cache[str2] || (cache[str2] = str2.slice(8, -1).toLowerCase());
+  return cache2[str2] || (cache2[str2] = str2.slice(8, -1).toLowerCase());
 })(/* @__PURE__ */ Object.create(null));
 var kindOfTest = (type) => {
   type = type.toLowerCase();
@@ -76744,7 +76984,7 @@ var transitional_default = {
 };
 
 // ../node_modules/axios/lib/platform/node/index.js
-import crypto2 from "crypto";
+import crypto3 from "crypto";
 
 // ../node_modules/axios/lib/platform/node/classes/URLSearchParams.js
 import url from "url";
@@ -76762,7 +77002,7 @@ var generateString = (size = 16, alphabet = ALPHABET.ALPHA_DIGIT) => {
   let str2 = "";
   const { length } = alphabet;
   const randomValues = new Uint32Array(size);
-  crypto2.randomFillSync(randomValues);
+  crypto3.randomFillSync(randomValues);
   for (let i3 = 0; i3 < size; i3++) {
     str2 += alphabet[randomValues[i3] % length];
   }
@@ -77967,8 +78207,8 @@ function getProxyEnvAgent(options, configHttpAgent, configHttpsAgent) {
 }
 function getTunnelingAgent(agentOptions, userHttpsAgent) {
   const key = agentOptions.protocol + "//" + agentOptions.hostname + ":" + (agentOptions.port || "") + "#" + (agentOptions.auth || "");
-  const cache = userHttpsAgent ? tunnelingAgentCacheUser.get(userHttpsAgent) || tunnelingAgentCacheUser.set(userHttpsAgent, /* @__PURE__ */ new Map()).get(userHttpsAgent) : tunnelingAgentCache;
-  let agent = cache.get(key);
+  const cache2 = userHttpsAgent ? tunnelingAgentCacheUser.get(userHttpsAgent) || tunnelingAgentCacheUser.set(userHttpsAgent, /* @__PURE__ */ new Map()).get(userHttpsAgent) : tunnelingAgentCache;
+  let agent = cache2.get(key);
   if (agent) return agent;
   const merged = userHttpsAgent && userHttpsAgent.options ? { ...userHttpsAgent.options, ...agentOptions } : agentOptions;
   agent = new import_https_proxy_agent.default(merged);
@@ -77980,7 +78220,7 @@ function getTunnelingAgent(agentOptions, userHttpsAgent) {
     };
   }
   agent[kAxiosInstalledTunnel] = true;
-  cache.set(key, agent);
+  cache2.set(key, agent);
   return agent;
 }
 var supportedProtocols = platform_default.protocols.map((protocol) => {
@@ -80439,24 +80679,6 @@ var {
   create
 } = axios_default;
 
-// src/lib/logger.ts
-var import_pino = __toESM(require_pino(), 1);
-var isProduction = process.env.NODE_ENV === "production";
-var logger = (0, import_pino.default)({
-  level: process.env.LOG_LEVEL ?? "info",
-  redact: [
-    "req.headers.authorization",
-    "req.headers.cookie",
-    "res.headers['set-cookie']"
-  ],
-  ...isProduction ? {} : {
-    transport: {
-      target: "pino-pretty",
-      options: { colorize: true }
-    }
-  }
-});
-
 // src/services/whatsappDirectSender.ts
 var WHATSAPP_TOKEN = process.env["WHATSAPP_TOKEN"];
 var PHONE_NUMBER_ID = process.env["PHONE_NUMBER_ID"];
@@ -81058,7 +81280,7 @@ var FIELD = {
 var lastResponseCache = /* @__PURE__ */ new Map();
 var phoneCache = /* @__PURE__ */ new Map();
 var displayNameCache = /* @__PURE__ */ new Map();
-var DEBOUNCE_MS = 2e3;
+var DEBOUNCE_MS = 5e3;
 var pendingBatches = /* @__PURE__ */ new Map();
 async function fetchKommoHistory(subdomain, accessToken, talkId) {
   try {
@@ -81629,8 +81851,8 @@ async function processBatch(batch, accessToken, log) {
       isFirstInteraction,
       hasClientName: filledLabels.has("Nombre del cliente")
     });
-    const trainingExamples = getTrainingExamples();
-    const fewShot = trainingExamples.flatMap((ex) => [
+    const trainingExamples2 = await getTrainingExamples();
+    const fewShot = trainingExamples2.flatMap((ex) => [
       { role: "user", content: ex.userMessage },
       { role: "assistant", content: ex.lucyResponse }
     ]);
@@ -82049,8 +82271,8 @@ router2.post("/kommo/salesbot", async (req, res) => {
     salesbotFilledLabels = crmResultFinal.filledLabels;
     const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
     const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
-    const trainingExamples = getTrainingExamples();
-    const fewShot = trainingExamples.flatMap((ex) => [
+    const trainingExamples2 = await getTrainingExamples();
+    const fewShot = trainingExamples2.flatMap((ex) => [
       { role: "user", content: ex.userMessage },
       { role: "assistant", content: ex.lucyResponse }
     ]);
@@ -82224,7 +82446,17 @@ router2.post("/kommo/pipeline-change", async (req, res) => {
   }
   res.json({ ok: true });
 });
+function assertCronAuthorized(req, res) {
+  const secret = process.env["CRON_SECRET"]?.trim();
+  if (!secret) return true;
+  const header = req.headers["x-cron-secret"];
+  const query = typeof req.query.secret === "string" ? req.query.secret : null;
+  if (header === secret || query === secret) return true;
+  res.status(401).json({ error: "cron_unauthorized" });
+  return false;
+}
 router2.get("/kommo/cron/inactividad", async (req, res) => {
+  if (!assertCronAuthorized(req, res)) return;
   const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
   try {
@@ -82236,6 +82468,7 @@ router2.get("/kommo/cron/inactividad", async (req, res) => {
   }
 });
 router2.get("/kommo/cron/seguimientos", async (req, res) => {
+  if (!assertCronAuthorized(req, res)) return;
   const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
   try {
@@ -82247,6 +82480,7 @@ router2.get("/kommo/cron/seguimientos", async (req, res) => {
   }
 });
 router2.get("/kommo/cron/ventanas24h", async (req, res) => {
+  if (!assertCronAuthorized(req, res)) return;
   const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
   try {
@@ -82376,8 +82610,8 @@ router2.post("/kommo/simulator", async (req, res) => {
     const allFieldsFilled = crmResultFinal.allFieldsFilled;
     const filledLabels = crmResultFinal.filledLabels;
     const crmMergedLines = crmResultFinal.mergedLines;
-    const trainingExamples = getTrainingExamples();
-    const fewShot = trainingExamples.flatMap((ex) => [
+    const trainingExamples2 = await getTrainingExamples();
+    const fewShot = trainingExamples2.flatMap((ex) => [
       { role: "user", content: ex.userMessage },
       { role: "assistant", content: ex.lucyResponse }
     ]);
@@ -82491,96 +82725,108 @@ var lucy_default = router3;
 
 // src/routes/examples.ts
 var import_express4 = __toESM(require_express2(), 1);
-import { randomUUID } from "crypto";
-import { readFileSync as readFileSync3, writeFileSync as writeFileSync2, existsSync as existsSync4 } from "fs";
-import { join as join4, dirname as dirname3 } from "path";
-import { fileURLToPath as fileURLToPath3 } from "url";
+
+// src/middleware/requireAuth.ts
+init_authJwt();
+function requireAuth(req, res, next) {
+  const header = req.headers.authorization;
+  const bearer = header?.startsWith("Bearer ") ? header.slice(7).trim() : null;
+  const cookieToken = typeof req.headers.cookie === "string" ? req.headers.cookie.split(";").map((c2) => c2.trim()).find((c2) => c2.startsWith("lucy_token="))?.split("=")[1] : null;
+  const token = bearer || cookieToken;
+  if (!token) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+  const payload = verifySessionToken(decodeURIComponent(token));
+  if (!payload) {
+    res.status(401).json({ error: "invalid_or_expired_token" });
+    return;
+  }
+  req.lucyUser = payload;
+  next();
+}
+function requireRole(...roles) {
+  return (req, res, next) => {
+    if (!req.lucyUser) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    if (roles.length > 0 && !roles.includes(req.lucyUser.role)) {
+      res.status(403).json({ error: "forbidden" });
+      return;
+    }
+    next();
+  };
+}
+
+// src/routes/examples.ts
 var router4 = (0, import_express4.Router)();
-var __dirname4 = dirname3(fileURLToPath3(import.meta.url));
-var DATA_FILE2 = join4(__dirname4, "../data/training-examples.json");
-function loadStore() {
+router4.use(requireAuth);
+router4.get("/examples", async (_req, res) => {
   try {
-    if (!existsSync4(DATA_FILE2)) return { examples: [] };
-    const raw = readFileSync3(DATA_FILE2, "utf-8");
-    return JSON.parse(raw);
+    const examples = await listTrainingExamples();
+    res.json({ examples, total: examples.length });
+  } catch (err2) {
+    res.status(500).json({ error: "failed_to_load_examples" });
+  }
+});
+router4.get("/examples/stats", async (_req, res) => {
+  try {
+    res.json(await getTrainingStats());
   } catch {
-    return { examples: [] };
+    res.status(500).json({ error: "failed_to_load_stats" });
   }
-}
-function saveStore(store2) {
-  writeFileSync2(DATA_FILE2, JSON.stringify(store2, null, 2), "utf-8");
-}
-router4.get("/examples", (_req, res) => {
-  const store2 = loadStore();
-  res.json({ examples: store2.examples, total: store2.examples.length });
 });
-router4.get("/examples/stats", (_req, res) => {
-  const store2 = loadStore();
-  const byLabel = {};
-  for (const ex of store2.examples) {
-    const lbl = ex.label ?? "Sin etiqueta";
-    byLabel[lbl] = (byLabel[lbl] ?? 0) + 1;
-  }
-  const lastUpdated = store2.examples.length > 0 ? store2.examples.reduce((latest, ex) => {
-    const exDate = ex.createdAt ?? "";
-    return exDate > (latest ?? "") ? exDate : latest;
-  }, store2.examples[0]?.createdAt ?? "") : null;
-  res.json({ total: store2.examples.length, byLabel, lastUpdated });
-});
-router4.post("/examples", (req, res) => {
+router4.post("/examples", requireRole("admin", "editor"), async (req, res) => {
   const { userMessage, lucyResponse, label } = req.body;
   if (!userMessage?.trim() || !lucyResponse?.trim()) {
     res.status(400).json({ error: "userMessage and lucyResponse are required" });
     return;
   }
-  const example = {
-    id: randomUUID(),
-    userMessage: userMessage.trim(),
-    lucyResponse: lucyResponse.trim(),
-    label: label?.trim() || void 0,
-    createdAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  const store2 = loadStore();
-  store2.examples.unshift(example);
-  saveStore(store2);
-  res.status(201).json(example);
+  try {
+    const example = await createTrainingExample({
+      userMessage,
+      lucyResponse,
+      label
+    });
+    res.status(201).json(example);
+  } catch {
+    res.status(500).json({ error: "failed_to_create_example" });
+  }
 });
-router4.patch("/examples/:id", (req, res) => {
+router4.patch("/examples/:id", requireRole("admin", "editor"), async (req, res) => {
   const { id } = req.params;
   const { userMessage, lucyResponse, label } = req.body;
-  const store2 = loadStore();
-  const idx = store2.examples.findIndex((e) => e.id === id);
-  if (idx === -1) {
-    res.status(404).json({ error: "Example not found" });
-    return;
+  try {
+    const updated = await updateTrainingExample(id, { userMessage, lucyResponse, label });
+    if (!updated) {
+      res.status(404).json({ error: "Example not found" });
+      return;
+    }
+    res.json(updated);
+  } catch {
+    res.status(500).json({ error: "failed_to_update_example" });
   }
-  const existing = store2.examples[idx];
-  store2.examples[idx] = {
-    ...existing,
-    userMessage: userMessage?.trim() ?? existing.userMessage,
-    lucyResponse: lucyResponse?.trim() ?? existing.lucyResponse,
-    label: label !== void 0 ? label.trim() || void 0 : existing.label
-  };
-  saveStore(store2);
-  res.json(store2.examples[idx]);
 });
-router4.delete("/examples/:id", (req, res) => {
+router4.delete("/examples/:id", requireRole("admin", "editor"), async (req, res) => {
   const { id } = req.params;
-  const store2 = loadStore();
-  const before = store2.examples.length;
-  store2.examples = store2.examples.filter((e) => e.id !== id);
-  if (store2.examples.length === before) {
-    res.status(404).json({ error: "Example not found" });
-    return;
+  try {
+    const ok = await deleteTrainingExample(id);
+    if (!ok) {
+      res.status(404).json({ error: "Example not found" });
+      return;
+    }
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "failed_to_delete_example" });
   }
-  saveStore(store2);
-  res.json({ ok: true });
 });
 var examples_default = router4;
 
 // src/routes/analytics.ts
 var import_express5 = __toESM(require_express2(), 1);
 var router5 = (0, import_express5.Router)();
+router5.use(requireAuth);
 router5.get("/analytics/overview", async (_req, res) => {
   try {
     const [totalResult] = await db.select({ count: sql`count(*)` }).from(conversations);
@@ -82731,10 +82977,11 @@ var analytics_default = router5;
 
 // src/routes/auth.ts
 var import_express6 = __toESM(require_express2(), 1);
-import crypto3 from "crypto";
+init_authJwt();
+import crypto4 from "crypto";
 var router6 = (0, import_express6.Router)();
 function hashPassword(password) {
-  return crypto3.createHash("sha256").update(password).digest("hex");
+  return crypto4.createHash("sha256").update(password).digest("hex");
 }
 router6.post("/auth/login", async (req, res) => {
   try {
@@ -82751,7 +82998,11 @@ router6.post("/auth/login", async (req, res) => {
       return;
     }
     await db.update(users).set({ lastLoginAt: /* @__PURE__ */ new Date() }).where(eq(users.id, user.id));
-    const token = crypto3.randomBytes(32).toString("hex");
+    const token = isAuthConfigured() ? signSessionToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role
+    }) : crypto4.randomBytes(32).toString("hex");
     res.json({
       token,
       user: { id: user.id, email: user.email, name: user.name, role: user.role }
@@ -82763,7 +83014,13 @@ router6.post("/auth/login", async (req, res) => {
 });
 router6.post("/auth/create-user", async (req, res) => {
   try {
-    const { email, password, name: name2, role = "viewer" } = req.body;
+    const allowBootstrap = process.env["ALLOW_USER_BOOTSTRAP"] === "true";
+    const [{ value: userCount }] = await db.select({ value: count() }).from(users);
+    if (!allowBootstrap && Number(userCount) > 0) {
+      res.status(403).json({ error: "bootstrap_disabled" });
+      return;
+    }
+    const { email, password, name: name2, role = "admin" } = req.body;
     if (!email || !password || !name2) {
       res.status(400).json({ error: "Email, password y name requeridos" });
       return;
@@ -82788,6 +83045,28 @@ router6.post("/auth/create-user", async (req, res) => {
     req.log?.error(err2);
     res.status(500).json({ error: "Error al crear usuario" });
   }
+});
+router6.get("/auth/me", async (req, res) => {
+  const header = req.headers.authorization;
+  const token = header?.startsWith("Bearer ") ? header.slice(7).trim() : null;
+  if (!token) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+  const { verifySessionToken: verifySessionToken2 } = await Promise.resolve().then(() => (init_authJwt(), authJwt_exports));
+  const payload = verifySessionToken2(token);
+  if (!payload) {
+    res.status(401).json({ error: "invalid_or_expired_token" });
+    return;
+  }
+  const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
+  if (!user) {
+    res.status(401).json({ error: "user_not_found" });
+    return;
+  }
+  res.json({
+    user: { id: user.id, email: user.email, name: user.name, role: user.role }
+  });
 });
 var auth_default = router6;
 
@@ -82835,6 +83114,16 @@ function mountSimulador(basePath) {
 }
 mountSimulador("/simulador");
 mountSimulador("/simulator");
+var adminDir = path3.join(__dirname, "lucy-admin");
+var adminIndex = path3.join(adminDir, "index.html");
+function mountAdmin(basePath) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(adminIndex);
+  });
+  app.use(basePath, import_express8.default.static(adminDir, { index: false }));
+}
+mountAdmin("/lucy-admin");
+mountAdmin("/admin");
 app.get("/", (_req, res) => {
   res.redirect(302, "/simulator");
 });
@@ -82853,39 +83142,46 @@ var port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
-app_default.listen(port, "0.0.0.0", (err2) => {
-  if (err2) {
-    logger.error({ err: err2 }, "Error listening on port");
-    process.exit(1);
-  }
-  logger.info({ port }, "Server listening");
-  const PING_INTERVAL_MS = 3 * 60 * 1e3;
-  const healthUrl = `http://localhost:${port}/api/health`;
-  const keepAlive = async () => {
-    try {
-      const res = await fetch(healthUrl);
-      if (!res.ok) {
-        logger.warn({ statusCode: res.status }, "Keep-alive ping: respuesta no OK");
-        return;
-      }
-      const contentType = res.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
-        logger.warn({ contentType }, "Keep-alive ping: Content-Type inesperado");
-        return;
-      }
-      const data = await res.json();
-      logger.info({ status: data.status, uptimeSeconds: Math.floor(data.uptime ?? 0) }, "Keep-alive ping OK");
-    } catch (pingErr) {
-      logger.warn({ pingErr }, "Keep-alive ping failed");
+async function startServer() {
+  await initializeTrainingStore();
+  app_default.listen(port, "0.0.0.0", (err2) => {
+    if (err2) {
+      logger.error({ err: err2 }, "Error listening on port");
+      process.exit(1);
     }
-  };
-  setTimeout(() => {
-    void keepAlive();
-    setInterval(() => {
+    logger.info({ port }, "Server listening");
+    const PING_INTERVAL_MS = 3 * 60 * 1e3;
+    const healthUrl = `http://localhost:${port}/api/health`;
+    const keepAlive = async () => {
+      try {
+        const res = await fetch(healthUrl);
+        if (!res.ok) {
+          logger.warn({ statusCode: res.status }, "Keep-alive ping: respuesta no OK");
+          return;
+        }
+        const contentType = res.headers.get("content-type") ?? "";
+        if (!contentType.includes("application/json")) {
+          logger.warn({ contentType }, "Keep-alive ping: Content-Type inesperado");
+          return;
+        }
+        const data = await res.json();
+        logger.info({ status: data.status, uptimeSeconds: Math.floor(data.uptime ?? 0) }, "Keep-alive ping OK");
+      } catch (pingErr) {
+        logger.warn({ pingErr }, "Keep-alive ping failed");
+      }
+    };
+    setTimeout(() => {
       void keepAlive();
-    }, PING_INTERVAL_MS);
-  }, 1e4);
-  logger.info({ intervalMinutes: 3, healthUrl }, "Keep-alive activado");
+      setInterval(() => {
+        void keepAlive();
+      }, PING_INTERVAL_MS);
+    }, 1e4);
+    logger.info({ intervalMinutes: 3, healthUrl }, "Keep-alive activado");
+  });
+}
+void startServer().catch((err2) => {
+  logger.error({ err: err2 }, "Error al iniciar servidor");
+  process.exit(1);
 });
 /*! Bundled license information:
 

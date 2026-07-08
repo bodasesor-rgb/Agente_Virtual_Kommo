@@ -92,3 +92,13 @@ cd api-server && pnpm run build && PORT=3000 pnpm start
 
 No hace falta `drizzle-kit push` en modo local — las tablas se crean solas al arrancar.
 
+### Lucy Admin (v3.2)
+
+Panel estático en `/lucy-admin` o `/admin`:
+
+1. Configura `SESSION_SECRET` en el servidor.
+2. Crea el primer admin: `POST /api/auth/create-user` (solo si no hay usuarios o `ALLOW_USER_BOOTSTRAP=true`).
+3. Inicia sesión y edita ejemplos few-shot (guardados en DB, sembrados desde `training-examples.json`).
+
+Endpoints protegidos con JWT: `/api/examples/*`, `/api/analytics/*`.
+

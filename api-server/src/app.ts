@@ -42,6 +42,19 @@ function mountSimulador(basePath: string) {
 mountSimulador("/simulador");
 mountSimulador("/simulator");
 
+const adminDir = path.join(__dirname, "lucy-admin");
+const adminIndex = path.join(adminDir, "index.html");
+
+function mountAdmin(basePath: string) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(adminIndex);
+  });
+  app.use(basePath, express.static(adminDir, { index: false }));
+}
+
+mountAdmin("/lucy-admin");
+mountAdmin("/admin");
+
 app.get("/", (_req, res) => {
   res.redirect(302, "/simulator");
 });

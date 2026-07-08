@@ -1,7 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { db, users } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql, count } from "drizzle-orm";
 import crypto from "crypto";
+import { signSessionToken, isAuthConfigured } from "../lib/authJwt.js";
 
 const router = Router();
 
@@ -35,7 +36,13 @@ router.post("/auth/login", async (req: Request, res: Response) => {
       .set({ lastLoginAt: new Date() })
       .where(eq(users.id, user.id));
 
-    const token = crypto.randomBytes(32).toString("hex");
+    const token = isAuthConfigured()
+      ? signSessionToken({
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+        })
+      : crypto.randomBytes(32).toString("hex");
 
     res.json({
       token,
@@ -52,7 +59,14 @@ router.post("/auth/login", async (req: Request, res: Response) => {
 // ═══════════════════════════════════════════════════════════════════════════
 router.post("/auth/create-user", async (req: Request, res: Response) => {
   try {
-    const { email, password, name, role = "viewer" } = req.body as {
+    const allowBootstrap = process.env["ALLOW_USER_BOOTSTRAP"] === "true";
+    const [{ value: userCount }] = await db.select({ value: count() }).from(users);
+    if (!allowBootstrap && Number(userCount) > 0) {
+      res.status(403).json({ error: "bootstrap_disabled" });
+      return;
+    }
+
+    const { email, password, name, role = "admin" } = req.body as {
       email?: string; password?: string; name?: string; role?: string;
     };
 
@@ -87,6 +101,30 @@ router.post("/auth/create-user", async (req: Request, res: Response) => {
     req.log?.error(err);
     res.status(500).json({ error: "Error al crear usuario" });
   }
+});
+
+// GET /api/auth/me — validar sesión del admin
+router.get("/auth/me", async (req: Request, res: Response) => {
+  const header = req.headers.authorization;
+  const token = header?.startsWith("Bearer ") ? header.slice(7).trim() : null;
+  if (!token) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+  const { verifySessionToken } = await import("../lib/authJwt.js");
+  const payload = verifySessionToken(token);
+  if (!payload) {
+    res.status(401).json({ error: "invalid_or_expired_token" });
+    return;
+  }
+  const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
+  if (!user) {
+    res.status(401).json({ error: "user_not_found" });
+    return;
+  }
+  res.json({
+    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+  });
 });
 
 export default router;

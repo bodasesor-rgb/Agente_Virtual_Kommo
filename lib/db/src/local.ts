@@ -95,6 +95,16 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   last_login_at TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS training_examples (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_message TEXT NOT NULL,
+  lucy_response TEXT NOT NULL,
+  label TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
 `;
 
 export async function getLocalDb() {

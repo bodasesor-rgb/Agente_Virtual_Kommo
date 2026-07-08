@@ -94,7 +94,7 @@ const phoneCache = new Map<string, string>();
 const displayNameCache = new Map<string, string>();
 
 // ─── Debounce ─────────────────────────────────────────────────────────────────
-const DEBOUNCE_MS = 2000;
+const DEBOUNCE_MS = 5000;
 
 interface PendingBatch {
   texts: string[];
@@ -1079,7 +1079,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 8: Llamada a OpenAI con prompt dinámico
     // ══════════════════════════════════════════════════════════════════════
-    const trainingExamples = getTrainingExamples();
+    const trainingExamples = await getTrainingExamples();
     const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
       { role: "user" as const, content: ex.userMessage },
       { role: "assistant" as const, content: ex.lucyResponse },
@@ -1695,7 +1695,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
         "\n\nPRIMER MENSAJE: SIEMPRE \"Hola, soy Lucy de Bodasesor.\" + reconocer tema + pedir nombre primero."
       : basePrompt + crmContext;
 
-    const trainingExamples = getTrainingExamples();
+    const trainingExamples = await getTrainingExamples();
     const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
       { role: "user" as const, content: ex.userMessage },
       { role: "assistant" as const, content: ex.lucyResponse },
@@ -1923,7 +1923,18 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
 });
 
 // ─── Cron endpoints (para UptimeRobot u otro servicio externo) ───────────────
+function assertCronAuthorized(req: Request, res: Response): boolean {
+  const secret = process.env["CRON_SECRET"]?.trim();
+  if (!secret) return true;
+  const header = req.headers["x-cron-secret"];
+  const query = typeof req.query.secret === "string" ? req.query.secret : null;
+  if (header === secret || query === secret) return true;
+  res.status(401).json({ error: "cron_unauthorized" });
+  return false;
+}
+
 router.get("/kommo/cron/inactividad", async (req: Request, res: Response) => {
+  if (!assertCronAuthorized(req, res)) return;
   const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
   try {
@@ -1936,6 +1947,7 @@ router.get("/kommo/cron/inactividad", async (req: Request, res: Response) => {
 });
 
 router.get("/kommo/cron/seguimientos", async (req: Request, res: Response) => {
+  if (!assertCronAuthorized(req, res)) return;
   const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
   try {
@@ -1949,6 +1961,7 @@ router.get("/kommo/cron/seguimientos", async (req: Request, res: Response) => {
 
 // Endpoint externo para verificar ventanas de 24h (UptimeRobot)
 router.get("/kommo/cron/ventanas24h", async (req: Request, res: Response) => {
+  if (!assertCronAuthorized(req, res)) return;
   const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
   try {
@@ -2134,7 +2147,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const filledLabels = crmResultFinal.filledLabels;
     const crmMergedLines = crmResultFinal.mergedLines;
 
-    const trainingExamples = getTrainingExamples();
+    const trainingExamples = await getTrainingExamples();
     const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
       { role: "user" as const, content: ex.userMessage },
       { role: "assistant" as const, content: ex.lucyResponse },
