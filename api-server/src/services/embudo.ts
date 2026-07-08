@@ -158,31 +158,15 @@ export async function agregarTag(
 }
 
 /**
- * Limpia el campo 1048786 (respuesta_ia_largo) escribiendo "-".
- * Evita que el SalesBot reenvíe el último mensaje de Lucy al cliente.
+ * Legacy: antes limpiaba 1048786 para que SalesBot no reenviara el mensaje.
+ * Ahora 1048786 guarda el resumen interno del lead — no se borra.
  */
 export async function limpiarCampoRespuesta(
-  subdomain: string,
-  accessToken: string,
+  _subdomain: string,
+  _accessToken: string,
   leadId: string | number
 ): Promise<void> {
-  try {
-    await fetch(
-      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
-      {
-        method: "PATCH",
-        headers: kommoHeaders(accessToken),
-        body: JSON.stringify({
-          custom_fields_values: [
-            { field_id: 1048786, values: [{ value: "-" }] },
-          ],
-        }),
-      }
-    );
-    logger.info({ leadId }, "Embudo: campo 1048786 limpiado (SalesBot no reenviará)");
-  } catch (err) {
-    logger.warn({ leadId, err }, "Embudo: no se pudo limpiar campo 1048786");
-  }
+  logger.info({ leadId }, "Embudo: 1048786 conserva resumen Lucy (limpieza legacy omitida)");
 }
 
 export async function removerTag(

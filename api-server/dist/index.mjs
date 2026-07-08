@@ -73045,24 +73045,8 @@ async function agregarTag(subdomain, accessToken, leadId, tags, existingTags = [
     }
   );
 }
-async function limpiarCampoRespuesta(subdomain, accessToken, leadId) {
-  try {
-    await fetch(
-      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
-      {
-        method: "PATCH",
-        headers: kommoHeaders(accessToken),
-        body: JSON.stringify({
-          custom_fields_values: [
-            { field_id: 1048786, values: [{ value: "-" }] }
-          ]
-        })
-      }
-    );
-    logger.info({ leadId }, "Embudo: campo 1048786 limpiado (SalesBot no reenviar\xE1)");
-  } catch (err2) {
-    logger.warn({ leadId, err: err2 }, "Embudo: no se pudo limpiar campo 1048786");
-  }
+async function limpiarCampoRespuesta(_subdomain, _accessToken, leadId) {
+  logger.info({ leadId }, "Embudo: 1048786 conserva resumen Lucy (limpieza legacy omitida)");
 }
 async function removerTag(subdomain, accessToken, leadId, tagToRemove, existingTags) {
   const filtered = existingTags.filter((t) => t !== tagToRemove).map((n3) => ({ name: n3 }));
@@ -82133,6 +82117,17 @@ function getVoiceAcknowledgment(clientName) {
 }
 
 // src/services/summaryService.ts
+function lineValue(mergedLines, labelPattern) {
+  const line2 = mergedLines.find((l4) => labelPattern.test(l4));
+  if (!line2) return null;
+  const value = line2.replace(/^- /, "").split(":").slice(1).join(":").trim();
+  return value || null;
+}
+function pickField(extracted, mergedLines, labelPattern, value) {
+  if (typeof value === "number" && value > 0) return String(value);
+  if (typeof value === "string" && value.trim()) return value.trim();
+  return lineValue(mergedLines, labelPattern);
+}
 function extraerEstilo(texto) {
   const estilos = [
     ["elegante", /\b(elegante|formal|sofisticado|lujoso|lujo)\b/i],
@@ -82201,6 +82196,74 @@ function generateSummary(conversationText) {
   const resumen = partes.join(". ");
   if (!resumen.trim()) return "Info pendiente";
   return resumen.length <= 240 ? resumen : `${resumen.slice(0, 237)}...`;
+}
+function buildLeadBriefForKommo(extracted, conversationText, opts = {}) {
+  const merged = opts.mergedLines ?? [];
+  const nombre = pickField(extracted, merged, /Nombre del cliente/i, extracted.nombre);
+  const correo = pickField(extracted, merged, /Correo electrónico/i, extracted.correo);
+  const evento = pickField(extracted, merged, /Tipo de evento/i, extracted.tipo_evento);
+  const fecha = pickField(extracted, merged, /Fecha y horario/i, extracted.fecha_horario);
+  const invitados = pickField(
+    extracted,
+    merged,
+    /Número de invitados/i,
+    extracted.num_invitados
+  );
+  const ubicacion = pickField(extracted, merged, /Lugar\/dirección/i, extracted.direccion_evento);
+  const presupuesto = pickField(extracted, merged, /Presupuesto/i, extracted.presupuesto);
+  let requerimientos = pickField(extracted, merged, /Requerimientos/i, extracted.requerimientos_evento) ?? (conversationText ? generateSummary(conversationText) : null);
+  if (requerimientos === "Info pendiente") requerimientos = null;
+  const servicios = conversationText ? extraerServicios(conversationText.toLowerCase()) : [];
+  if (!requerimientos && servicios.length > 0) {
+    requerimientos = servicios.slice(0, 5).join(", ");
+  }
+  const pendientes = [];
+  if (!nombre) pendientes.push("nombre");
+  if (!correo) pendientes.push("correo");
+  if (!requerimientos) pendientes.push("servicios/requerimientos");
+  if (!invitados) pendientes.push("n\xFAmero de invitados");
+  if (!ubicacion) pendientes.push("ubicaci\xF3n/zona");
+  if (!fecha) pendientes.push("fecha");
+  if (!presupuesto) pendientes.push("presupuesto (opcional)");
+  const now = (/* @__PURE__ */ new Date()).toLocaleString("es-MX", {
+    timeZone: "America/Mexico_City",
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+  const lines = [
+    "\u{1F4CB} RESUMEN LUCY \u2014 Lead",
+    `Actualizado: ${now}`,
+    "",
+    "\u2500\u2500 DATOS DEL CLIENTE \u2500\u2500",
+    nombre ? `\u2022 Nombre: ${nombre}` : "\u2022 Nombre: (pendiente)",
+    correo ? `\u2022 Correo: ${correo}` : "\u2022 Correo: (pendiente / sigue por WhatsApp)",
+    evento ? `\u2022 Tipo de evento: ${evento}` : null,
+    fecha ? `\u2022 Fecha: ${fecha}` : "\u2022 Fecha: (pendiente)",
+    invitados ? `\u2022 Invitados: ${invitados}` : "\u2022 Invitados: (pendiente)",
+    ubicacion ? `\u2022 Ubicaci\xF3n/zona: ${ubicacion}` : "\u2022 Ubicaci\xF3n/zona: (pendiente)",
+    presupuesto ? `\u2022 Presupuesto: $${presupuesto}` : "\u2022 Presupuesto: (sin definir)",
+    requerimientos ? `\u2022 Servicios/requerimientos: ${requerimientos}` : "\u2022 Servicios: (pendiente)",
+    ""
+  ].filter((l4) => l4 !== null);
+  if (opts.leadCalificado) {
+    lines.push("\u2705 Lead calificado \u2014 listo para cotizar con Alejandro");
+  } else if (pendientes.length > 0) {
+    lines.push(`\u23F3 Falta capturar: ${pendientes.join(", ")}`);
+  }
+  if (opts.lastLucyMessage?.trim()) {
+    const preview = opts.lastLucyMessage.trim().replace(/\s+/g, " ");
+    lines.push("", "\u2500\u2500 \xDALTIMA RESPUESTA DE LUCY AL CLIENTE \u2500\u2500");
+    lines.push(preview.length <= 500 ? preview : `${preview.slice(0, 497)}...`);
+  }
+  const brief = lines.join("\n").trim();
+  return brief.length <= 3500 ? brief : `${brief.slice(0, 3497)}...`;
+}
+var BRIEF_LAST_MSG_MARKER = "\u2500\u2500 \xDALTIMA RESPUESTA DE LUCY AL CLIENTE \u2500\u2500";
+function extractLastMessageFromBrief(brief) {
+  const idx = brief.indexOf(BRIEF_LAST_MSG_MARKER);
+  if (idx < 0) return null;
+  const after = brief.slice(idx + BRIEF_LAST_MSG_MARKER.length).trim();
+  return after || null;
 }
 
 // node_modules/axios/lib/helpers/bind.js
@@ -87365,7 +87428,7 @@ var openai3 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var FIELD = {
   // respuesta_ia (1048772) eliminado de Kommo — no usar o el PATCH falla
   respuesta_ia_largo: 1048786,
-  // Texto largo — respuesta completa de Lucy
+  // Texto largo — resumen interno Lucy (solo lectura CRM)
   direccion_evento: 1048774,
   requerimientos_evento: 1048776,
   fecha_horario: 1048778,
@@ -87730,7 +87793,12 @@ async function fetchLeadCurrentFields(subdomain, accessToken, leadId, log) {
       if (field.field_id === FIELD.respuesta_ia_largo) {
         const val2 = field.values[0]?.value;
         if (val2 && typeof val2 === "string" && val2.trim()) {
-          lastLucyResponse = val2.trim();
+          const fromBrief = extractLastMessageFromBrief(val2.trim());
+          if (fromBrief) {
+            lastLucyResponse = fromBrief;
+          } else if (!val2.includes("\u{1F4CB} RESUMEN LUCY") && !isLegacyStoredLucyResponse(val2)) {
+            lastLucyResponse = val2.trim();
+          }
         }
         continue;
       }
@@ -87814,8 +87882,16 @@ function withCrmNombre(extracted, mergedLines) {
   if (!nombreCrm || isValidExtractedString(extracted.nombre)) return extracted;
   return { ...extracted, nombre: nombreCrm };
 }
-function buildPatchPayload(_aiResponse, extracted, conversationText) {
+function buildPatchPayload(_aiResponse, extracted, conversationText, opts) {
   const customFields = [];
+  const brief = buildLeadBriefForKommo(extracted, conversationText, {
+    mergedLines: opts?.mergedLines,
+    lastLucyMessage: opts?.lastLucyMessage,
+    leadCalificado: opts?.leadCalificado
+  });
+  if (brief.trim()) {
+    customFields.push({ field_id: FIELD.respuesta_ia_largo, values: [{ value: brief }] });
+  }
   if (isValidExtractedString(extracted.direccion_evento))
     customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(extracted.direccion_evento) }] });
   const reqForCrm = conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento;
@@ -88119,12 +88195,17 @@ async function processBatch(batch, accessToken, log) {
     const payload = buildPatchPayload(
       mensajeParaCliente,
       withCrmNombre(extracted, crmMergedLines),
-      conversationText
+      conversationText,
+      {
+        mergedLines: crmMergedLines,
+        lastLucyMessage: mensajeParaCliente,
+        leadCalificado: allFieldsFilled
+      }
     );
     const cfvToSend = payload["custom_fields_values"];
     log.info(
       { entityId, leadName: payload["name"] ?? "(sin cambio)", fieldsUpdated: cfvToSend.length },
-      "Sending PATCH a Kommo (solo campos CRM \u2014 sin campo 1048786)"
+      "Sending PATCH a Kommo (campos CRM + resumen 1048786)"
     );
     const patchController = new AbortController();
     const patchTimer = setTimeout(() => patchController.abort(), 12e3);
@@ -88523,7 +88604,11 @@ router3.post("/kommo/salesbot", async (req, res) => {
       } else {
         log.warn({ entityId }, "Salesbot: sin tel\xE9fono ni talkId \u2014 mensaje no enviado \u274C");
       }
-      const patchPayload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
+      const patchPayload = buildPatchPayload(mensajeParaCliente, extracted, conversationText, {
+        mergedLines: salesbotMergedLines,
+        lastLucyMessage: mensajeParaCliente,
+        leadCalificado: salesbotAllFieldsFilled
+      });
       void fetch(`https://${subdomain}.kommo.com/api/v4/leads/${entityId}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
