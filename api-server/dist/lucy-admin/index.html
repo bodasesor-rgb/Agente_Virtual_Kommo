@@ -33,6 +33,7 @@
 
       <nav class="tabs">
         <button type="button" class="tab active" data-tab="examples">Ejemplos</button>
+        <button type="button" class="tab" data-tab="learning">Aprendizajes</button>
         <button type="button" class="tab" data-tab="analytics">Analytics</button>
         <button type="button" class="tab" data-tab="system">Sistema</button>
       </nav>
@@ -44,6 +45,15 @@
         </div>
         <p class="muted">Los cambios aplican en caliente — Lucy los usa en el próximo mensaje (cache ~30s).</p>
         <div id="examples-list"></div>
+      </div>
+
+      <div id="tab-learning" class="tab-panel hidden">
+        <div class="panel-header">
+          <h2>Aprendizajes sugeridos</h2>
+          <div id="learning-stats" class="cards compact"></div>
+        </div>
+        <p class="muted">Pares extraídos de chats donde Alejandro atendió. Aprueba para que Lucy los use como few-shot.</p>
+        <div id="learning-list"></div>
       </div>
 
       <div id="tab-analytics" class="tab-panel hidden">
@@ -70,6 +80,22 @@
       <div class="dialog-actions">
         <button type="button" id="dialog-cancel" class="ghost">Cancelar</button>
         <button type="submit" value="save">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="learning-dialog">
+    <form method="dialog" id="learning-form">
+      <h3>Revisar aprendizaje</h3>
+      <input type="hidden" id="learning-id" />
+      <label>Etiqueta<input type="text" id="learning-label" /></label>
+      <label>Mensaje del cliente<textarea id="learning-user" rows="3" required></textarea></label>
+      <label>Respuesta sugerida (Lucy)<textarea id="learning-response" rows="5" required></textarea></label>
+      <p id="learning-context" class="muted small"></p>
+      <div class="dialog-actions">
+        <button type="button" id="learning-reject" class="ghost">Descartar</button>
+        <button type="button" id="learning-cancel" class="ghost">Cerrar</button>
+        <button type="submit" value="approve">Aprobar y publicar</button>
       </div>
     </form>
   </dialog>

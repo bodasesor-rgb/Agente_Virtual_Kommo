@@ -100,5 +100,15 @@ Panel estático en `/lucy-admin` o `/admin`:
 2. Crea el primer admin: `POST /api/auth/create-user` (solo si no hay usuarios o `ALLOW_USER_BOOTSTRAP=true`).
 3. Inicia sesión y edita ejemplos few-shot (guardados en DB, sembrados desde `training-examples.json`).
 
-Endpoints protegidos con JWT: `/api/examples/*`, `/api/analytics/*`.
+Endpoints protegidos con JWT: `/api/examples/*`, `/api/analytics/*`, `/api/learning/*`.
+
+### Aprendizaje desde chats humanos (v3.3)
+
+Lucy captura mensajes cuando el lead está en **Humano Trabaja** o **Cotización realizada**:
+
+1. Sincroniza el transcript desde Kommo Talks API (cron: `GET /api/kommo/cron/learning`).
+2. GPT propone pares pregunta→respuesta en `learning_candidates` (pendientes).
+3. En lucy-admin → pestaña **Aprendizajes** → aprobar publica el par en few-shot.
+
+Al mover a Cotización realizada se dispara extracción automática.
 

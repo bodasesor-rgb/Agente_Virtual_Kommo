@@ -167,3 +167,17 @@ dialog {
   gap: 0.5rem;
   margin-top: 1rem;
 }
+
+.cards.compact { margin-bottom: 1rem; }
+.cards.compact .stat-card { padding: 0.75rem 1rem; }
+.small { font-size: 0.8rem; }
+.badge {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  background: #2a3544;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.badge.pending { color: #f0c674; }
+.badge.approved { color: #8bc34a; }

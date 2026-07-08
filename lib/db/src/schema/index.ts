@@ -25,6 +25,10 @@ export const conversations = pgTable("conversations", {
   lastIntent: varchar("last_intent", { length: 100 }),
   sentiment: varchar("sentiment", { length: 50 }).default("neutral"),
 
+  learningPhase: varchar("learning_phase", { length: 30 }),
+  lastKommoSyncAt: timestamp("last_kommo_sync_at"),
+  lastLearningExtractAt: timestamp("last_learning_extract_at"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -65,7 +69,11 @@ export const messages = pgTable("messages", {
   kommoLeadId: text("kommo_lead_id").notNull(),
 
   role: varchar("role", { length: 20 }).notNull(),
+  authorType: varchar("author_type", { length: 20 }),
   content: text("content").notNull(),
+
+  kommoMessageId: text("kommo_message_id"),
+  source: varchar("source", { length: 30 }),
 
   intent: varchar("intent", { length: 100 }),
   sentiment: decimal("sentiment", { precision: 3, scale: 2 }),
@@ -151,3 +159,31 @@ export const trainingExamples = pgTable("training_examples", {
 
 export type TrainingExampleRecord = typeof trainingExamples.$inferSelect;
 export type InsertTrainingExample = typeof trainingExamples.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CANDIDATOS DE APRENDIZAJE (extraídos de chats con humano — revisión en admin)
+// ═══════════════════════════════════════════════════════════════════════════
+export const learningCandidates = pgTable("learning_candidates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kommoLeadId: text("kommo_lead_id").notNull(),
+
+  userMessage: text("user_message").notNull(),
+  suggestedResponse: text("suggested_response").notNull(),
+  label: text("label"),
+
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  source: varchar("source", { length: 30 }).notNull().default("human_chat"),
+  confidence: decimal("confidence", { precision: 3, scale: 2 }),
+
+  contextSnippet: text("context_snippet"),
+  dedupeKey: text("dedupe_key").unique(),
+
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: text("reviewed_by"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type LearningCandidateRecord = typeof learningCandidates.$inferSelect;
+export type InsertLearningCandidate = typeof learningCandidates.$inferInsert;

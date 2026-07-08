@@ -6,6 +6,7 @@ ensureOpenAiApiKeyEnv();
 import app from "./app";
 import { logger } from "./lib/logger";
 import { initializeTrainingStore } from "./services/trainingStore.js";
+import { ensureLearningSchema } from "./services/learningSchema.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 
@@ -19,6 +20,9 @@ async function startServer(): Promise<void> {
   // No bloquear listen: Hostinger marca 503 si el puerto tarda en abrirse.
   void initializeTrainingStore().catch((err) => {
     logger.warn({ err }, "trainingStore init en background falló — se usará JSON");
+  });
+  void ensureLearningSchema().catch((err) => {
+    logger.warn({ err }, "learningSchema init en background falló");
   });
 
   app.listen(port, "0.0.0.0", (err) => {

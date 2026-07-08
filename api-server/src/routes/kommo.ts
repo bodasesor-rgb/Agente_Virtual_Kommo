@@ -64,6 +64,8 @@ import {
   limpiarCampoRespuesta,
   ETAPA,
 } from "../services/embudo.js";
+import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/chatIngest.js";
+import { syncHumanPhaseLead } from "../services/learningSync.js";
 
 const router: IRouter = Router();
 
@@ -906,7 +908,17 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         if (!debeResponder) {
           log.info(
             { entityId, statusId: leadKommo.status_id, tags: leadKommo.tags },
-            "Embudo: Lucy desactivada para este lead — omitiendo respuesta"
+            "Embudo: Lucy desactivada — capturando mensaje para aprendizaje"
+          );
+          void captureInboundWhileLucyInactive({
+            kommoLeadId: String(entityId),
+            chatId,
+            talkId,
+            text: combinedUserText,
+            subdomain,
+            accessToken,
+          }).catch((err: unknown) =>
+            log.warn({ err, entityId }, "Captura en fase humana falló")
           );
           return;
         }
@@ -1333,7 +1345,9 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       {
         kommoLeadId: String(entityId),
         role: "user",
+        authorType: "client",
         content: combinedUserText,
+        source: "lucy_flow",
         intent: intentResult.intent,
         sentiment: String(sentimentResult.score.toFixed(2)),
         extractedData: extracted as unknown as Record<string, unknown>,
@@ -1341,7 +1355,9 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       {
         kommoLeadId: String(entityId),
         role: "assistant",
+        authorType: "lucy",
         content: aiResponse,
+        source: "lucy_flow",
       },
     ]).catch((dbErr: unknown) => log.warn({ dbErr }, "No se pudieron guardar mensajes en BD (no crítico)"));
 
@@ -1887,9 +1903,13 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
     const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
     try {
       await limpiarCampoRespuesta(subdomain, accessToken, leadId);
-      log.info({ leadId }, "Pipeline-change: campo 1048786 limpiado (legacy)");
+      await setLearningPhase(leadId, "human_active");
+      void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: false }).catch((err) =>
+        log.warn({ err, leadId }, "Pipeline-change: sync aprendizaje falló")
+      );
+      log.info({ leadId }, "Pipeline-change: fase humana — sync de chat iniciado");
     } catch (err) {
-      log.error({ err, leadId }, "Pipeline-change: error limpiando campo 1048786 (legacy)");
+      log.error({ err, leadId }, "Pipeline-change: error en Humano Trabaja");
     }
   }
 
@@ -1910,7 +1930,11 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
           lead?.tipo_evento ?? null,
           lead?.fecha_evento ?? null
         );
-        log.info({ leadId }, "Pipeline-change: seguimiento 22h programado");
+        await setLearningPhase(leadId, "post_quote");
+        void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: true }).catch((err) =>
+          log.warn({ err, leadId }, "Pipeline-change: extracción aprendizaje falló")
+        );
+        log.info({ leadId }, "Pipeline-change: seguimiento 22h + extracción aprendizaje");
       } else {
         log.warn({ leadId }, "Pipeline-change: no se encontró chatId para programar seguimiento");
       }
@@ -1971,6 +1995,12 @@ router.get("/kommo/cron/ventanas24h", async (req: Request, res: Response) => {
     req.log.error({ err }, "Cron ventanas24h: error");
     res.status(500).json({ error: "cron_failed" });
   }
+});
+
+router.get("/kommo/cron/learning", async (req: Request, res: Response) => {
+  if (!assertCronAuthorized(req, res)) return;
+  const { handleLearningCron } = await import("./learning.js");
+  await handleLearningCron(req, res);
 });
 
 // ─── Reactivar Lucy manualmente ───────────────────────────────────────────────

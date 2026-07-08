@@ -12,6 +12,10 @@ const analyticsLeads = document.getElementById("analytics-leads");
 const healthJson = document.getElementById("health-json");
 const exampleDialog = document.getElementById("example-dialog");
 const exampleForm = document.getElementById("example-form");
+const learningList = document.getElementById("learning-list");
+const learningStats = document.getElementById("learning-stats");
+const learningDialog = document.getElementById("learning-dialog");
+const learningForm = document.getElementById("learning-form");
 
 function token() {
   return localStorage.getItem(TOKEN_KEY);
@@ -95,6 +99,7 @@ document.querySelectorAll(".tab").forEach((btn) => {
     document.querySelectorAll(".tab-panel").forEach((p) => p.classList.add("hidden"));
     document.getElementById(`tab-${tab}`).classList.remove("hidden");
     if (tab === "examples") await loadExamples();
+    if (tab === "learning") await loadLearning();
     if (tab === "analytics") await loadAnalytics();
     if (tab === "system") await loadHealth();
   });
@@ -168,6 +173,79 @@ async function deleteExample(id) {
   if (!confirm("¿Eliminar este ejemplo?")) return;
   await api(`/examples/${id}`, { method: "DELETE" });
   await loadExamples();
+}
+
+async function loadLearning() {
+  const stats = await api("/learning/stats");
+  learningStats.innerHTML = `
+    <div class="stat-card"><span class="muted">Pendientes</span><strong>${stats.pending ?? 0}</strong></div>
+    <div class="stat-card"><span class="muted">Aprobados</span><strong>${stats.approved ?? 0}</strong></div>
+    <div class="stat-card"><span class="muted">Descartados</span><strong>${stats.rejected ?? 0}</strong></div>`;
+
+  const data = await api("/learning/candidates?status=pending&limit=30");
+  learningList.innerHTML = "";
+  for (const c of data.candidates || []) {
+    const div = document.createElement("div");
+    div.className = "example-item";
+    div.innerHTML = `
+      <h4>${escapeHtml(c.label || "Sin etiqueta")} <span class="badge pending">lead ${escapeHtml(c.kommoLeadId)}</span></h4>
+      <p><strong>Cliente:</strong> ${escapeHtml(c.userMessage)}</p>
+      <p><strong>Respuesta humana → Lucy:</strong> ${escapeHtml(c.suggestedResponse.slice(0, 300))}${c.suggestedResponse.length > 300 ? "…" : ""}</p>
+      <div class="example-actions">
+        <button type="button" data-review="${c.id}">Revisar</button>
+        <button type="button" class="ghost" data-reject="${c.id}">Descartar</button>
+      </div>`;
+    learningList.appendChild(div);
+  }
+
+  learningList.querySelectorAll("[data-review]").forEach((btn) => {
+    btn.addEventListener("click", () => openLearningReview(btn.dataset.review, data.candidates));
+  });
+  learningList.querySelectorAll("[data-reject]").forEach((btn) => {
+    btn.addEventListener("click", () => rejectLearning(btn.dataset.reject));
+  });
+}
+
+function openLearningReview(id, candidates) {
+  const c = candidates.find((x) => x.id === id);
+  if (!c) return;
+  document.getElementById("learning-id").value = c.id;
+  document.getElementById("learning-label").value = c.label || "";
+  document.getElementById("learning-user").value = c.userMessage;
+  document.getElementById("learning-response").value = c.suggestedResponse;
+  document.getElementById("learning-context").textContent = c.contextSnippet
+    ? `Contexto: ${c.contextSnippet}`
+    : "";
+  learningDialog.showModal();
+}
+
+document.getElementById("learning-cancel").addEventListener("click", () => learningDialog.close());
+document.getElementById("learning-reject").addEventListener("click", async () => {
+  const id = document.getElementById("learning-id").value;
+  if (!id) return;
+  await rejectLearning(id);
+  learningDialog.close();
+});
+
+learningForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = document.getElementById("learning-id").value;
+  await api(`/learning/candidates/${id}/approve`, {
+    method: "POST",
+    body: JSON.stringify({
+      label: document.getElementById("learning-label").value,
+      userMessage: document.getElementById("learning-user").value,
+      suggestedResponse: document.getElementById("learning-response").value,
+    }),
+  });
+  learningDialog.close();
+  await loadLearning();
+});
+
+async function rejectLearning(id) {
+  if (!confirm("¿Descartar este aprendizaje?")) return;
+  await api(`/learning/candidates/${id}/reject`, { method: "POST" });
+  await loadLearning();
 }
 
 async function loadAnalytics() {

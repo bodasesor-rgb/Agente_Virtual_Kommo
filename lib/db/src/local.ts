@@ -30,6 +30,9 @@ CREATE TABLE IF NOT EXISTS conversations (
   message_count INTEGER NOT NULL DEFAULT 0,
   last_intent VARCHAR(100),
   sentiment VARCHAR(50) DEFAULT 'neutral',
+  learning_phase VARCHAR(30),
+  last_kommo_sync_at TIMESTAMP,
+  last_learning_extract_at TIMESTAMP,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -53,7 +56,10 @@ CREATE TABLE IF NOT EXISTS messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   kommo_lead_id TEXT NOT NULL,
   role VARCHAR(20) NOT NULL,
+  author_type VARCHAR(20),
   content TEXT NOT NULL,
+  kommo_message_id TEXT,
+  source VARCHAR(30),
   intent VARCHAR(100),
   sentiment DECIMAL(3, 2),
   extracted_data JSONB,
@@ -105,6 +111,33 @@ CREATE TABLE IF NOT EXISTS training_examples (
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+CREATE TABLE IF NOT EXISTS learning_candidates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kommo_lead_id TEXT NOT NULL,
+  user_message TEXT NOT NULL,
+  suggested_response TEXT NOT NULL,
+  label TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  source VARCHAR(30) NOT NULL DEFAULT 'human_chat',
+  confidence DECIMAL(3, 2),
+  context_snippet TEXT,
+  dedupe_key TEXT UNIQUE,
+  reviewed_at TIMESTAMP,
+  reviewed_by TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+`;
+
+const MIGRATION_SQL = `
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_type VARCHAR(20);
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS kommo_message_id TEXT;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS source VARCHAR(30);
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS learning_phase VARCHAR(30);
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_kommo_sync_at TIMESTAMP;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIMESTAMP;
+CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL;
 `;
 
 export async function getLocalDb() {
@@ -113,6 +146,11 @@ export async function getLocalDb() {
   fs.mkdirSync(LOCAL_DB_DIR, { recursive: true });
   client = new PGlite(LOCAL_DB_DIR);
   await client.exec(INIT_SQL);
+  try {
+    await client.exec(MIGRATION_SQL);
+  } catch {
+    // columnas/index pueden existir en instalaciones nuevas
+  }
   localDb = drizzle(client, { schema });
   console.info(`[db] Modo local activo → ${LOCAL_DB_DIR}`);
   return localDb;
