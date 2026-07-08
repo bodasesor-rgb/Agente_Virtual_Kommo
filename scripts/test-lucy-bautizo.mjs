@@ -28,6 +28,14 @@ async function reset() {
 
 function detectAskedField(reply) {
   const r = reply.toLowerCase();
+  if (/presupuesto|rango|inversi[oó]n|presupuesto estimado/.test(r)) return "presupuesto";
+  if (
+    (/ya tengo todo|cotizaci[oó]n personalizada|cat[aá]logo completo/.test(r) ||
+      /voy a pasar(le)? estos datos a alejandro/i.test(r)) &&
+    !/presupuesto/.test(r)
+  ) {
+    return "cierre";
+  }
   if (/regalas?\s+tu\s+nombre|tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n/.test(r)) return "nombre";
   if (/correo|e-?mail/.test(r)) return "correo";
   if (/tipo\s+de|qu[eé]\s+tipo|celebraci[oó]n|festejan/.test(r) && !/bautizo\s+suele/.test(r)) return "tipo";
@@ -35,8 +43,6 @@ function detectAskedField(reply) {
   if (/cu[aá]ntas?\s+personas|invitados|para\s+cu[aá]ntos|m[aá]s\s+o\s+menos/.test(r)) return "invitados";
   if (/d[oó]nde|zona|ubicaci[oó]n|ciudad|lugar/.test(r)) return "zona";
   if (/fecha|cu[aá]ndo|d[ií]a|definiendo/.test(r)) return "fecha";
-  if (/presupuesto|rango|inversi[oó]n/.test(r)) return "presupuesto";
-  if (/ya tengo todo|cat[aá]logo completo|cotizaci[oó]n personalizada/.test(r)) return "cierre";
   return null;
 }
 
@@ -86,7 +92,7 @@ function analyzeTurn(i, userMsg, reply, data) {
   if (userMsg.includes("recomiendas") && asked === "invitados") {
     issues.push("Saltó a invitados sin responder recomendaciones");
   }
-  if (/septiembre|20 de/.test(userMsg) && asked === "cierre") {
+  if (/septiembre|20 de/.test(userMsg) && asked === "cierre" && !/presupuesto/.test(r)) {
     issues.push("Cerró sin pedir presupuesto");
   }
   if (/septiembre|20 de/.test(userMsg) && /ya tengo todo|cat[aá]logo/.test(r) && !/presupuesto/.test(r)) {

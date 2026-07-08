@@ -78572,7 +78572,7 @@ function clientAskedFreeformQuestion(message) {
   );
 }
 function responseLooksLikePrematureClose(mensaje) {
-  return mensaje.includes(CLOSING_SIGNATURE) || /cotizaci[oó]n personalizada/i.test(mensaje) || /cdn\.shopify\.com/i.test(mensaje) || /cat[aá]logo completo/i.test(mensaje);
+  return mensaje.includes(CLOSING_SIGNATURE) || /cotizaci[oó]n personalizada/i.test(mensaje) || /cdn\.shopify\.com/i.test(mensaje) || /cat[aá]logo completo/i.test(mensaje) || /ya tengo todos los datos/i.test(mensaje);
 }
 function mensajeLooksOnTrack(mensaje, filledSet, extracted) {
   const pending = getNextPendingField(extracted, filledSet);

@@ -839,7 +839,8 @@ function responseLooksLikePrematureClose(mensaje: string): boolean {
     mensaje.includes(CLOSING_SIGNATURE) ||
     /cotizaci[oó]n personalizada/i.test(mensaje) ||
     /cdn\.shopify\.com/i.test(mensaje) ||
-    /cat[aá]logo completo/i.test(mensaje)
+    /cat[aá]logo completo/i.test(mensaje) ||
+    /ya tengo todos los datos/i.test(mensaje)
   );
 }
 
