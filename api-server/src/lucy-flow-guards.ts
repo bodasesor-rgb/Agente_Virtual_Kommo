@@ -7,6 +7,12 @@ import {
   sanitizeDisplayName,
 } from "./contact-name.js";
 import {
+  buildAlejandroPriceReply,
+  clientAsksPrice,
+  responseHasInventedPrice,
+  sanitizeInventedPrices,
+} from "./price-guard.js";
+import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
   inferLucyAskedField,
@@ -581,6 +587,7 @@ function shouldPreferAiResponse(
   const trimmed = aiResponse.trim();
   if (!trimmed) return false;
   if (responseLooksLikePrematureClose(trimmed)) return false;
+  if (responseHasInventedPrice(trimmed, currentMessage)) return false;
   if (mensajeAsksForFilledField(trimmed, filledSet, extracted)) return false;
   if (mensajeAsksWrongField(trimmed, filledSet, extracted)) return false;
 
@@ -609,7 +616,7 @@ function mergeWithPendingQuestion(
   const nextQ = buildNaturalQuestion(pending, ctx);
   const base = mensaje.trim();
   if (!base) return nextQ;
-  if (base.includes("?")) return mensaje;
+  if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return mensaje;
   return `${base}\n\n${nextQ}`;
 }
 
@@ -945,6 +952,28 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId);
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
+  } else if (
+    clientAsksPrice(currentMessage) &&
+    needsNextStep
+  ) {
+    const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
+    const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText);
+    if (responseHasInventedPrice(aiResponse, currentMessage, ctxText)) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const priceReply = safe.includes("Alejandro")
+        ? safe
+        : buildAlejandroPriceReply(
+            extracted.requerimientos_evento ?? extracted.tipo_evento ?? undefined
+          );
+      mensaje =
+        pending && pending !== "correo"
+          ? `${priceReply}\n\n${buildNaturalQuestion(pending, ctx)}`
+          : priceReply;
+      log?.info({ entityId, pending }, "GUARD: bloqueando precio inventado — Alejandro cotiza");
+    } else {
+      mensaje = mergeWithPendingQuestion(safe, filledSet, extracted, ctx);
+      log?.info({ entityId }, "GUARD: respuesta a precio con catálogo");
+    }
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
@@ -1045,6 +1074,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   if (conversationAlreadyStarted(filledSet, presHistory)) {
     mensaje = stripRepeatLucyIntro(mensaje, presHistory, true);
+  }
+
+  const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
+  const priceSanitized = sanitizeInventedPrices(mensaje, currentMessage, ctxText);
+  if (priceSanitized !== mensaje) {
+    log?.info({ entityId }, "GUARD: precios inventados eliminados de la respuesta");
+    mensaje = priceSanitized;
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && !mensaje.includes("?") && !trulyReadyForClosing) {
+      mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+    }
   }
 
   return mensaje;

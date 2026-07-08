@@ -97,6 +97,7 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
   }
 
   lines.push(
+    "NUNCA inventes precios. DJ, iluminación, carpas, mobiliario, pantallas y pista de baile NO tienen precio en catálogo — di que Alejandro lo incluye en la cotización.",
     "Si el cliente hizo una pregunta en este mensaje, respóndela ANTES de pedir el siguiente dato.",
     "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
   );

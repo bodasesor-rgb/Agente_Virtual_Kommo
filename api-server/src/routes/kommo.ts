@@ -12,6 +12,7 @@ import {
   CLOSING_CORE_FIELDS,
   collectUserTexts,
   detectEmailRefusal,
+  EMAIL_WAIVED_LABEL,
   isEmailSatisfied,
   isReadyForClosing,
   nextFieldQuestion,
@@ -468,10 +469,12 @@ function buildCrmContext(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   clientEmailFromDB?: string | null,
   currentMessage?: string,
-  whatsappDisplayName?: string | null
+  whatsappDisplayName?: string | null,
+  fullHistory?: OpenAI.Chat.ChatCompletionMessageParam[]
 ): { context: string; allFieldsFilled: boolean; mergedLines: string[]; filledLabels: Set<string> } {
   const mergedLines = [...crmLines];
   const filledSet = new Set(mergedLines.map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
+  const historyFull = fullHistory ?? history;
 
   // Nombre: solo extracción explícita o CRM — no prellenar desde WhatsApp
   if (!filledSet.has("Nombre del cliente")) {
@@ -483,7 +486,7 @@ function buildCrmContext(
   }
 
   // Correo: not a Kommo custom lead field — detect from extraction, DB, or history
-  if (!filledSet.has("Correo electrónico")) {
+  if (!filledSet.has("Correo electrónico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {
     const correoVal =
       extracted.correo ??
       clientEmailFromDB ??
@@ -530,7 +533,7 @@ function buildCrmContext(
   applyCapturesToCrm(
     mergedLines,
     filledSet,
-    scanConversationForCaptures(history, currentMessage, filledSet)
+    scanConversationForCaptures(historyFull, currentMessage, filledSet)
   );
 
   if (currentMessage?.trim()) {
@@ -547,7 +550,7 @@ function buildCrmContext(
   applyEmailWaiver(
     filledSet,
     mergedLines,
-    collectUserTexts(history, currentMessage)
+    collectUserTexts(historyFull, currentMessage)
   );
 
   purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extracted, currentMessage);
@@ -1077,7 +1080,8 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         history,
         conversation.clientEmail,
         combinedUserText,
-        whatsappDisplayName
+        whatsappDisplayName,
+        fullHistory
       );
 
     const scoreContext = {
@@ -1716,7 +1720,8 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       history,
       undefined,
       messageText,
-      whatsappDisplayName
+      whatsappDisplayName,
+      fullHistory
     );
     crmContext = crmResultFinal.context;
     const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
@@ -2073,6 +2078,20 @@ const SIMULATOR_CF_TO_KOMMO: Record<string, number> = {
 };
 
 function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResult {
+  const cf = lead.custom_fields ?? {};
+  const snapshot = cf["cf_crm_snapshot"];
+  if (typeof snapshot === "string" && snapshot.trim()) {
+    const lines = snapshot
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => (l.startsWith("- ") ? l : `- ${l}`));
+    const lastLucy = cf["cf_respuesta_ia_1"];
+    const lastLucyResponse =
+      typeof lastLucy === "string" && lastLucy.trim() ? lastLucy.trim() : null;
+    return { crmLines: lines, lastLucyResponse };
+  }
+
   const lines: string[] = [];
   // El nombre de WhatsApp se resuelve aparte (whatsappDisplayName) — no precargar aquí
   // para que el flujo de primer mensaje funcione correctamente.
@@ -2083,20 +2102,24 @@ function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResul
     lines.push(`- Teléfono: ${lead.contact_phone.trim()}`);
   }
 
-  const cf = lead.custom_fields ?? {};
+  const cfFields = lead.custom_fields ?? {};
   const nombreLead = sanitizeDisplayName(lead.name);
   if (nombreLead && !isPlaceholderLeadName(lead.name)) {
     lines.push(`- Nombre del cliente: ${nombreLead}`);
   }
   for (const [cfId, kommoId] of Object.entries(SIMULATOR_CF_TO_KOMMO)) {
-    const raw = cf[cfId];
+    const raw = cfFields[cfId];
     if (raw === null || raw === undefined || raw === "") continue;
     const label = FIELD_NAME[kommoId];
     if (!label) continue;
     lines.push(`- ${label}: ${String(raw)}`);
   }
 
-  const lastLucy = cf["cf_respuesta_ia_1"];
+  if (cfFields["cf_email_waived"]) {
+    lines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
+  }
+
+  const lastLucy = cfFields["cf_respuesta_ia_1"];
   const lastLucyResponse =
     typeof lastLucy === "string" && lastLucy.trim() ? lastLucy.trim() : null;
 
@@ -2105,11 +2128,16 @@ function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResul
 
 function mapExtractedToSimulatorFields(
   extracted: ExtractedData,
-  reply: string
+  reply: string,
+  mergedLines: string[] = []
 ): Record<string, unknown> {
   const fields: Record<string, unknown> = {
     cf_respuesta_ia_1: reply.slice(0, 500),
+    cf_crm_snapshot: mergedLines.join("\n"),
   };
+  if (mergedLines.some((l) => l.includes(EMAIL_WAIVED_LABEL))) {
+    fields.cf_email_waived = "1";
+  }
   if (isValidExtractedString(extracted.direccion_evento)) fields.cf_direccion = extracted.direccion_evento;
   if (isValidExtractedString(extracted.requerimientos_evento)) fields.cf_requerimiento = extracted.requerimientos_evento;
   if (isValidExtractedString(extracted.fecha_horario)) fields.cf_fecha_horario = extracted.fecha_horario;
@@ -2189,7 +2217,8 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       history,
       lead.contact_email,
       messageText,
-      whatsappDisplayName
+      whatsappDisplayName,
+      fullHistory
     );
     const crmContext = crmResultFinal.context;
     const allFieldsFilled = crmResultFinal.allFieldsFilled;
@@ -2261,7 +2290,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
 
     appendHistory(histKey, messageText, mensajeParaCliente);
 
-    const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente);
+    const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente, crmMergedLines);
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
 
     const lead_updates: Record<string, string> = {};

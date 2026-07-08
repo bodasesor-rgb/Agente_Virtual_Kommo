@@ -447,6 +447,14 @@ export function captureContextualAnswer(
     if (pres) captures.push({ label: "Presupuesto (MXN)", value: pres });
   }
 
+  // Zona en respuesta libre aunque Lucy haya preguntado otro dato
+  if (!filledSet.has("Lugar/dirección del evento") && asked !== "zona") {
+    const zona = parseZonaFromText(msg);
+    if (zona && !parseInvitadosFromText(msg) && !parseFechaFromText(msg)) {
+      captures.push({ label: "Lugar/dirección del evento", value: zona });
+    }
+  }
+
   return captures;
 }
 

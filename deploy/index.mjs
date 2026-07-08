@@ -77663,6 +77663,70 @@ function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
 
+// src/price-guard.ts
+var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
+var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
+var PRICE_CLAIM_PATTERN = /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
+var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecio\b|\bcosto\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b/i;
+function clientAsksPrice(message) {
+  if (!message?.trim()) return false;
+  return PRICE_QUESTION_PATTERN.test(message);
+}
+function mentionsNoListedPriceService(text2) {
+  return NO_LISTED_PRICE_PATTERN.test(text2);
+}
+function mentionsListedPriceService(text2) {
+  return LISTED_PRICE_PATTERN.test(text2);
+}
+function messageClaimsPrice(mensaje) {
+  return PRICE_CLAIM_PATTERN.test(mensaje);
+}
+function responseHasInventedPrice(mensaje, currentMessage, recentContext) {
+  if (!messageClaimsPrice(mensaje)) return false;
+  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`.toLowerCase();
+  if (mentionsNoListedPriceService(ctx)) return true;
+  if (!mentionsListedPriceService(ctx) && messageClaimsPrice(mensaje)) {
+    return true;
+  }
+  return false;
+}
+function detectServiceLabel(text2) {
+  const t = text2.toLowerCase();
+  if (/\bdj\b/.test(t)) return "DJ";
+  if (/iluminaci[oó]n/.test(t)) return "iluminaci\xF3n";
+  if (/mobiliario/.test(t)) return "mobiliario";
+  if (/carpas?|lonas?/.test(t)) return "carpas";
+  if (/pantallas?/.test(t)) return "pantallas";
+  if (/pista(\s+de\s+baile)?|tarimas?/.test(t)) return "pista de baile";
+  if (/flor/.test(t)) return "florister\xEDa";
+  return "ese servicio";
+}
+function stripPriceSentences(mensaje) {
+  const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);
+  const kept = sentences.filter((s4) => !PRICE_CLAIM_PATTERN.test(s4));
+  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
+}
+function buildAlejandroPriceReply(serviceHint) {
+  const svc = serviceHint?.trim() || "ese servicio";
+  return `S\xED, manejamos ${svc}. El precio exacto depende del evento \u2014 Alejandro te lo incluye en tu cotizaci\xF3n personalizada.`;
+}
+function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
+  if (!responseHasInventedPrice(mensaje, currentMessage, recentContext)) {
+    return mensaje;
+  }
+  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`;
+  const service = detectServiceLabel(ctx);
+  const cleaned = stripPriceSentences(mensaje);
+  const safe = buildAlejandroPriceReply(service);
+  if (!cleaned || cleaned.length < 15) return safe;
+  const withoutCorreoInsist = cleaned.replace(/[^.!?\n]*correo[^.!?\n]*\?[^.!?\n]*/gi, "").trim();
+  const base = withoutCorreoInsist.length > 20 ? withoutCorreoInsist : "";
+  if (base && !/alejandro/i.test(base)) {
+    return `${base} ${safe}`.trim();
+  }
+  return safe;
+}
+
 // src/conversation-understanding.ts
 var LUCY_FIELD_ASK_PATTERNS = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
@@ -77973,6 +78037,12 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   if (!filledSet.has("Presupuesto (MXN)") && asked === "presupuesto") {
     const pres = parsePresupuestoFromText(msg);
     if (pres) captures.push({ label: "Presupuesto (MXN)", value: pres });
+  }
+  if (!filledSet.has("Lugar/direcci\xF3n del evento") && asked !== "zona") {
+    const zona = parseZonaFromText(msg);
+    if (zona && !parseInvitadosFromText(msg) && !parseFechaFromText(msg)) {
+      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
+    }
   }
   return captures;
 }
@@ -78412,6 +78482,7 @@ function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage
   const trimmed = aiResponse.trim();
   if (!trimmed) return false;
   if (responseLooksLikePrematureClose(trimmed)) return false;
+  if (responseHasInventedPrice(trimmed, currentMessage)) return false;
   if (mensajeAsksForFilledField(trimmed, filledSet, extracted)) return false;
   if (mensajeAsksWrongField(trimmed, filledSet, extracted)) return false;
   const pending = getNextPendingField(extracted, filledSet);
@@ -78428,7 +78499,7 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
   const nextQ = buildNaturalQuestion(pending, ctx);
   const base = mensaje.trim();
   if (!base) return nextQ;
-  if (base.includes("?")) return mensaje;
+  if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return mensaje;
   return `${base}
 
 ${nextQ}`;
@@ -78639,6 +78710,22 @@ function applyLucyMessageGuards(input) {
   } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId);
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
+  } else if (clientAsksPrice(currentMessage) && needsNextStep) {
+    const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
+    const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText2);
+    if (responseHasInventedPrice(aiResponse, currentMessage, ctxText2)) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const priceReply = safe.includes("Alejandro") ? safe : buildAlejandroPriceReply(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? void 0
+      );
+      mensaje = pending && pending !== "correo" ? `${priceReply}
+
+${buildNaturalQuestion(pending, ctx)}` : priceReply;
+      log?.info({ entityId, pending }, "GUARD: bloqueando precio inventado \u2014 Alejandro cotiza");
+    } else {
+      mensaje = mergeWithPendingQuestion(safe, filledSet, extracted, ctx);
+      log?.info({ entityId }, "GUARD: respuesta a precio con cat\xE1logo");
+    }
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
@@ -78719,6 +78806,16 @@ function applyLucyMessageGuards(input) {
   }
   if (conversationAlreadyStarted(filledSet, presHistory)) {
     mensaje = stripRepeatLucyIntro(mensaje, presHistory, true);
+  }
+  const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
+  const priceSanitized = sanitizeInventedPrices(mensaje, currentMessage, ctxText);
+  if (priceSanitized !== mensaje) {
+    log?.info({ entityId }, "GUARD: precios inventados eliminados de la respuesta");
+    mensaje = priceSanitized;
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && !mensaje.includes("?") && !trulyReadyForClosing) {
+      mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+    }
   }
   return mensaje;
 }
@@ -79303,6 +79400,7 @@ function buildRedactionBriefing(input) {
     lines.push("NO te presentes de nuevo.");
   }
   lines.push(
+    "NUNCA inventes precios. DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile NO tienen precio en cat\xE1logo \u2014 di que Alejandro lo incluye en la cotizaci\xF3n.",
     "Si el cliente hizo una pregunta en este mensaje, resp\xF3ndela ANTES de pedir el siguiente dato.",
     "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
   );
@@ -84949,9 +85047,10 @@ function purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extr
   filledSet.delete("Requerimientos o servicios");
   extracted.requerimientos_evento = null;
 }
-function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, currentMessage, whatsappDisplayName) {
+function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, currentMessage, whatsappDisplayName, fullHistory) {
   const mergedLines = [...crmLines];
   const filledSet = new Set(mergedLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
+  const historyFull = fullHistory ?? history;
   if (!filledSet.has("Nombre del cliente")) {
     const nombreVal = sanitizeDisplayName(extracted.nombre);
     if (nombreVal) {
@@ -84959,7 +85058,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       filledSet.add("Nombre del cliente");
     }
   }
-  if (!filledSet.has("Correo electr\xF3nico")) {
+  if (!filledSet.has("Correo electr\xF3nico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {
     const correoVal = extracted.correo ?? clientEmailFromDB ?? (history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content).find((t) => /\S+@\S+\.\S+/.test(t)) ?? null);
     if (correoVal) {
       mergedLines.push(`- Correo electr\xF3nico: ${correoVal}`);
@@ -84993,7 +85092,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   applyCapturesToCrm(
     mergedLines,
     filledSet,
-    scanConversationForCaptures(history, currentMessage, filledSet)
+    scanConversationForCaptures(historyFull, currentMessage, filledSet)
   );
   if (currentMessage?.trim()) {
     applyCapturesToCrm(
@@ -85006,7 +85105,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   applyEmailWaiver(
     filledSet,
     mergedLines,
-    collectUserTexts(history, currentMessage)
+    collectUserTexts(historyFull, currentMessage)
   );
   purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extracted, currentMessage);
   const allFieldsFilled = isReadyForClosing(filledSet);
@@ -85291,7 +85390,8 @@ async function processBatch(batch, accessToken, log) {
       history,
       conversation.clientEmail,
       combinedUserText,
-      whatsappDisplayName
+      whatsappDisplayName,
+      fullHistory
     );
     const scoreContext = {
       extracted,
@@ -85729,7 +85829,8 @@ router3.post("/kommo/salesbot", async (req, res) => {
       history,
       void 0,
       messageText,
-      whatsappDisplayName
+      whatsappDisplayName,
+      fullHistory
     );
     crmContext = crmResultFinal.context;
     const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
@@ -86000,6 +86101,14 @@ var SIMULATOR_CF_TO_KOMMO = {
   cf_presupuesto: FIELD.presupuesto
 };
 function buildCrmLinesFromSimulator(lead) {
+  const cf = lead.custom_fields ?? {};
+  const snapshot = cf["cf_crm_snapshot"];
+  if (typeof snapshot === "string" && snapshot.trim()) {
+    const lines2 = snapshot.split("\n").map((l4) => l4.trim()).filter(Boolean).map((l4) => l4.startsWith("- ") ? l4 : `- ${l4}`);
+    const lastLucy2 = cf["cf_respuesta_ia_1"];
+    const lastLucyResponse2 = typeof lastLucy2 === "string" && lastLucy2.trim() ? lastLucy2.trim() : null;
+    return { crmLines: lines2, lastLucyResponse: lastLucyResponse2 };
+  }
   const lines = [];
   if (lead.contact_email?.trim()) {
     lines.push(`- Correo electr\xF3nico: ${lead.contact_email.trim()}`);
@@ -86007,26 +86116,33 @@ function buildCrmLinesFromSimulator(lead) {
   if (lead.contact_phone?.trim()) {
     lines.push(`- Tel\xE9fono: ${lead.contact_phone.trim()}`);
   }
-  const cf = lead.custom_fields ?? {};
+  const cfFields = lead.custom_fields ?? {};
   const nombreLead = sanitizeDisplayName(lead.name);
   if (nombreLead && !isPlaceholderLeadName(lead.name)) {
     lines.push(`- Nombre del cliente: ${nombreLead}`);
   }
   for (const [cfId, kommoId] of Object.entries(SIMULATOR_CF_TO_KOMMO)) {
-    const raw = cf[cfId];
+    const raw = cfFields[cfId];
     if (raw === null || raw === void 0 || raw === "") continue;
     const label = FIELD_NAME[kommoId];
     if (!label) continue;
     lines.push(`- ${label}: ${String(raw)}`);
   }
-  const lastLucy = cf["cf_respuesta_ia_1"];
+  if (cfFields["cf_email_waived"]) {
+    lines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
+  }
+  const lastLucy = cfFields["cf_respuesta_ia_1"];
   const lastLucyResponse = typeof lastLucy === "string" && lastLucy.trim() ? lastLucy.trim() : null;
   return { crmLines: lines, lastLucyResponse };
 }
-function mapExtractedToSimulatorFields(extracted, reply) {
+function mapExtractedToSimulatorFields(extracted, reply, mergedLines = []) {
   const fields = {
-    cf_respuesta_ia_1: reply.slice(0, 500)
+    cf_respuesta_ia_1: reply.slice(0, 500),
+    cf_crm_snapshot: mergedLines.join("\n")
   };
+  if (mergedLines.some((l4) => l4.includes(EMAIL_WAIVED_LABEL))) {
+    fields.cf_email_waived = "1";
+  }
   if (isValidExtractedString(extracted.direccion_evento)) fields.cf_direccion = extracted.direccion_evento;
   if (isValidExtractedString(extracted.requerimientos_evento)) fields.cf_requerimiento = extracted.requerimientos_evento;
   if (isValidExtractedString(extracted.fecha_horario)) fields.cf_fecha_horario = extracted.fecha_horario;
@@ -86083,7 +86199,8 @@ router3.post("/kommo/simulator", async (req, res) => {
       history,
       lead.contact_email,
       messageText,
-      whatsappDisplayName
+      whatsappDisplayName,
+      fullHistory
     );
     const crmContext = crmResultFinal.context;
     const allFieldsFilled = crmResultFinal.allFieldsFilled;
@@ -86137,7 +86254,7 @@ router3.post("/kommo/simulator", async (req, res) => {
       cierreYaEnviado: simCierreYaEnviado
     });
     appendHistory(histKey, messageText, mensajeParaCliente);
-    const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente);
+    const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente, crmMergedLines);
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
     const lead_updates = {};
     if (isValidExtractedString(extracted.nombre)) lead_updates.name = extracted.nombre;
