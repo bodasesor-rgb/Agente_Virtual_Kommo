@@ -78876,12 +78876,13 @@ Cat\xE1logo visual: ${gammaLink}`;
 function injectCatalogPriceIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim()) return aiResponse;
   if (!clientAsksPrice(clientMessage)) return aiResponse;
+  if (messageClaimsPrice(aiResponse)) return aiResponse;
+  const fromCatalog = buildCatalogPriceAnswer(clientMessage);
+  if (fromCatalog) return fromCatalog;
   if (mentionsNoListedPriceService(clientMessage) && !mentionsListedPriceService(clientMessage)) {
     return aiResponse;
   }
-  if (messageClaimsPrice(aiResponse)) return aiResponse;
-  const fromCatalog = buildCatalogPriceAnswer(clientMessage);
-  return fromCatalog ?? aiResponse;
+  return aiResponse;
 }
 
 // src/routes/health.ts
@@ -88838,6 +88839,7 @@ router8.get("/catalog/lookup", (req, res) => {
     res.status(400).json({ status: "error", error: "query param q required" });
     return;
   }
+  const sampleAi = "\xBFTienen idea del presupuesto?";
   res.json({
     status: "ok",
     query: q2,
@@ -88847,7 +88849,8 @@ router8.get("/catalog/lookup", (req, res) => {
       unidad: r2.unidad,
       notas: r2.notas.slice(0, 200)
     })),
-    answer: buildCatalogPriceAnswer(q2)
+    answer: buildCatalogPriceAnswer(q2),
+    inject: injectCatalogPriceIfAsked(q2, sampleAi)
   });
 });
 router8.post("/catalog/refresh", requireAuth, async (_req, res) => {

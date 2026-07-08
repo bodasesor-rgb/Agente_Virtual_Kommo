@@ -287,10 +287,14 @@ export function injectCatalogPriceIfAsked(
 ): string {
   if (!clientMessage?.trim()) return aiResponse;
   if (!clientAsksPrice(clientMessage)) return aiResponse;
+  if (messageClaimsPrice(aiResponse)) return aiResponse;
+
+  const fromCatalog = buildCatalogPriceAnswer(clientMessage);
+  if (fromCatalog) return fromCatalog;
+
   if (mentionsNoListedPriceService(clientMessage) && !mentionsListedPriceService(clientMessage)) {
     return aiResponse;
   }
-  if (messageClaimsPrice(aiResponse)) return aiResponse;
-  const fromCatalog = buildCatalogPriceAnswer(clientMessage);
-  return fromCatalog ?? aiResponse;
+
+  return aiResponse;
 }

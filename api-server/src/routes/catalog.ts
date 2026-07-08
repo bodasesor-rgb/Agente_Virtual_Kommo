@@ -1,6 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { requireAuth } from "../middleware/requireAuth.js";
-import { getCatalogStatus, refreshCatalog, lookupCatalogPrices, buildCatalogPriceAnswer } from "../services/catalogService.js";
+import {
+  getCatalogStatus,
+  refreshCatalog,
+  lookupCatalogPrices,
+  buildCatalogPriceAnswer,
+  injectCatalogPriceIfAsked,
+} from "../services/catalogService.js";
 
 const router: IRouter = Router();
 
@@ -14,6 +20,7 @@ router.get("/catalog/lookup", (req, res) => {
     res.status(400).json({ status: "error", error: "query param q required" });
     return;
   }
+  const sampleAi = "¿Tienen idea del presupuesto?";
   res.json({
     status: "ok",
     query: q,
@@ -24,6 +31,7 @@ router.get("/catalog/lookup", (req, res) => {
       notas: r.notas.slice(0, 200),
     })),
     answer: buildCatalogPriceAnswer(q),
+    inject: injectCatalogPriceIfAsked(q, sampleAi),
   });
 });
 
