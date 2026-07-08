@@ -7,6 +7,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { initializeTrainingStore } from "./services/trainingStore.js";
 import { ensureLearningSchema } from "./services/learningSchema.js";
+import { startCatalogAutoRefresh } from "./services/catalogService.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 
@@ -24,6 +25,7 @@ async function startServer(): Promise<void> {
   void ensureLearningSchema().catch((err) => {
     logger.warn({ err }, "learningSchema init en background falló");
   });
+  startCatalogAutoRefresh();
 
   app.listen(port, "0.0.0.0", (err) => {
   if (err) {

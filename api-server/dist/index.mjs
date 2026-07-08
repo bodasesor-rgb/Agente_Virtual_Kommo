@@ -28,11 +28,11 @@ var __export = (target, all3) => {
   for (var name2 in all3)
     __defProp(target, name2, { get: all3[name2], enumerable: true });
 };
-var __copyProps = (to, from, except2, desc2) => {
+var __copyProps = (to, from, except2, desc3) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
       if (!__hasOwnProp.call(to, key) && key !== except2)
-        __defProp(to, key, { get: () => from[key], enumerable: !(desc2 = __getOwnPropDesc(from, key)) || desc2.enumerable });
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc3 = __getOwnPropDesc(from, key)) || desc3.enumerable });
   }
   return to;
 };
@@ -45,9 +45,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../node_modules/dotenv/lib/main.js
+// node_modules/dotenv/lib/main.js
 var require_main = __commonJS({
-  "../node_modules/dotenv/lib/main.js"(exports, module2) {
+  "node_modules/dotenv/lib/main.js"(exports, module2) {
     var fs3 = __require("fs");
     var path4 = __require("path");
     var os = __require("os");
@@ -364,9 +364,9 @@ var require_main = __commonJS({
   }
 });
 
-// ../node_modules/dotenv/lib/env-options.js
+// node_modules/dotenv/lib/env-options.js
 var require_env_options = __commonJS({
-  "../node_modules/dotenv/lib/env-options.js"(exports, module2) {
+  "node_modules/dotenv/lib/env-options.js"(exports, module2) {
     var options = {};
     if (process.env.DOTENV_CONFIG_ENCODING != null) {
       options.encoding = process.env.DOTENV_CONFIG_ENCODING;
@@ -390,9 +390,9 @@ var require_env_options = __commonJS({
   }
 });
 
-// ../node_modules/dotenv/lib/cli-options.js
+// node_modules/dotenv/lib/cli-options.js
 var require_cli_options = __commonJS({
-  "../node_modules/dotenv/lib/cli-options.js"(exports, module2) {
+  "node_modules/dotenv/lib/cli-options.js"(exports, module2) {
     var re3 = /^dotenv_config_(encoding|path|quiet|debug|override|DOTENV_KEY)=(.+)$/;
     module2.exports = function optionMatcher(args2) {
       const options = args2.reduce(function(acc, cur) {
@@ -433,9 +433,9 @@ var init_openaiEnv = __esm({
   }
 });
 
-// ../node_modules/ms/index.js
+// node_modules/ms/index.js
 var require_ms = __commonJS({
-  "../node_modules/ms/index.js"(exports, module2) {
+  "node_modules/ms/index.js"(exports, module2) {
     var s4 = 1e3;
     var m4 = s4 * 60;
     var h3 = m4 * 60;
@@ -549,9 +549,9 @@ var require_ms = __commonJS({
   }
 });
 
-// ../node_modules/debug/src/common.js
+// node_modules/debug/src/common.js
 var require_common = __commonJS({
-  "../node_modules/debug/src/common.js"(exports, module2) {
+  "node_modules/debug/src/common.js"(exports, module2) {
     function setup(env) {
       createDebug.debug = createDebug;
       createDebug.default = createDebug;
@@ -726,9 +726,9 @@ var require_common = __commonJS({
   }
 });
 
-// ../node_modules/debug/src/browser.js
+// node_modules/debug/src/browser.js
 var require_browser = __commonJS({
-  "../node_modules/debug/src/browser.js"(exports, module2) {
+  "node_modules/debug/src/browser.js"(exports, module2) {
     exports.formatArgs = formatArgs;
     exports.save = save2;
     exports.load = load2;
@@ -896,9 +896,9 @@ var require_browser = __commonJS({
   }
 });
 
-// ../node_modules/debug/src/node.js
+// node_modules/debug/src/node.js
 var require_node = __commonJS({
-  "../node_modules/debug/src/node.js"(exports, module2) {
+  "node_modules/debug/src/node.js"(exports, module2) {
     var tty = __require("tty");
     var util5 = __require("util");
     exports.init = init2;
@@ -1070,9 +1070,9 @@ var require_node = __commonJS({
   }
 });
 
-// ../node_modules/debug/src/index.js
+// node_modules/debug/src/index.js
 var require_src = __commonJS({
-  "../node_modules/debug/src/index.js"(exports, module2) {
+  "node_modules/debug/src/index.js"(exports, module2) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module2.exports = require_browser();
     } else {
@@ -1081,9 +1081,9 @@ var require_src = __commonJS({
   }
 });
 
-// ../node_modules/depd/index.js
+// node_modules/depd/index.js
 var require_depd = __commonJS({
-  "../node_modules/depd/index.js"(exports, module2) {
+  "node_modules/depd/index.js"(exports, module2) {
     var relative = __require("path").relative;
     module2.exports = depd;
     var basePath = process.cwd();
@@ -1387,9 +1387,9 @@ var require_depd = __commonJS({
   }
 });
 
-// ../node_modules/setprototypeof/index.js
+// node_modules/setprototypeof/index.js
 var require_setprototypeof = __commonJS({
-  "../node_modules/setprototypeof/index.js"(exports, module2) {
+  "node_modules/setprototypeof/index.js"(exports, module2) {
     "use strict";
     module2.exports = Object.setPrototypeOf || ({ __proto__: [] } instanceof Array ? setProtoOf : mixinProperties);
     function setProtoOf(obj, proto) {
@@ -1407,9 +1407,9 @@ var require_setprototypeof = __commonJS({
   }
 });
 
-// ../node_modules/statuses/codes.json
+// node_modules/statuses/codes.json
 var require_codes = __commonJS({
-  "../node_modules/statuses/codes.json"(exports, module2) {
+  "node_modules/statuses/codes.json"(exports, module2) {
     module2.exports = {
       "100": "Continue",
       "101": "Switching Protocols",
@@ -1478,9 +1478,9 @@ var require_codes = __commonJS({
   }
 });
 
-// ../node_modules/statuses/index.js
+// node_modules/statuses/index.js
 var require_statuses = __commonJS({
-  "../node_modules/statuses/index.js"(exports, module2) {
+  "node_modules/statuses/index.js"(exports, module2) {
     "use strict";
     var codes = require_codes();
     module2.exports = status;
@@ -1549,9 +1549,9 @@ var require_statuses = __commonJS({
   }
 });
 
-// ../node_modules/inherits/inherits_browser.js
+// node_modules/inherits/inherits_browser.js
 var require_inherits_browser = __commonJS({
-  "../node_modules/inherits/inherits_browser.js"(exports, module2) {
+  "node_modules/inherits/inherits_browser.js"(exports, module2) {
     if (typeof Object.create === "function") {
       module2.exports = function inherits2(ctor, superCtor) {
         if (superCtor) {
@@ -1581,9 +1581,9 @@ var require_inherits_browser = __commonJS({
   }
 });
 
-// ../node_modules/inherits/inherits.js
+// node_modules/inherits/inherits.js
 var require_inherits = __commonJS({
-  "../node_modules/inherits/inherits.js"(exports, module2) {
+  "node_modules/inherits/inherits.js"(exports, module2) {
     try {
       util5 = __require("util");
       if (typeof util5.inherits !== "function") throw "";
@@ -1595,9 +1595,9 @@ var require_inherits = __commonJS({
   }
 });
 
-// ../node_modules/toidentifier/index.js
+// node_modules/toidentifier/index.js
 var require_toidentifier = __commonJS({
-  "../node_modules/toidentifier/index.js"(exports, module2) {
+  "node_modules/toidentifier/index.js"(exports, module2) {
     "use strict";
     module2.exports = toIdentifier;
     function toIdentifier(str2) {
@@ -1608,9 +1608,9 @@ var require_toidentifier = __commonJS({
   }
 });
 
-// ../node_modules/http-errors/index.js
+// node_modules/http-errors/index.js
 var require_http_errors = __commonJS({
-  "../node_modules/http-errors/index.js"(exports, module2) {
+  "node_modules/http-errors/index.js"(exports, module2) {
     "use strict";
     var deprecate = require_depd()("http-errors");
     var setPrototypeOf = require_setprototypeof();
@@ -1742,10 +1742,10 @@ var require_http_errors = __commonJS({
       return ServerError;
     }
     function nameFunc(func2, name2) {
-      var desc2 = Object.getOwnPropertyDescriptor(func2, "name");
-      if (desc2 && desc2.configurable) {
-        desc2.value = name2;
-        Object.defineProperty(func2, "name", desc2);
+      var desc3 = Object.getOwnPropertyDescriptor(func2, "name");
+      if (desc3 && desc3.configurable) {
+        desc3.value = name2;
+        Object.defineProperty(func2, "name", desc3);
       }
     }
     function populateConstructorExports(exports2, codes, HttpError) {
@@ -1772,9 +1772,9 @@ var require_http_errors = __commonJS({
   }
 });
 
-// ../node_modules/bytes/index.js
+// node_modules/bytes/index.js
 var require_bytes = __commonJS({
-  "../node_modules/bytes/index.js"(exports, module2) {
+  "node_modules/bytes/index.js"(exports, module2) {
     "use strict";
     module2.exports = bytes;
     module2.exports.format = format;
@@ -1861,9 +1861,9 @@ var require_bytes = __commonJS({
   }
 });
 
-// ../node_modules/safer-buffer/safer.js
+// node_modules/safer-buffer/safer.js
 var require_safer = __commonJS({
-  "../node_modules/safer-buffer/safer.js"(exports, module2) {
+  "node_modules/safer-buffer/safer.js"(exports, module2) {
     "use strict";
     var buffer = __require("buffer");
     var Buffer2 = buffer.Buffer;
@@ -1929,9 +1929,9 @@ var require_safer = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/lib/bom-handling.js
+// node_modules/iconv-lite/lib/bom-handling.js
 var require_bom_handling = __commonJS({
-  "../node_modules/iconv-lite/lib/bom-handling.js"(exports) {
+  "node_modules/iconv-lite/lib/bom-handling.js"(exports) {
     "use strict";
     var BOMChar = "\uFEFF";
     exports.PrependBOM = PrependBOMWrapper;
@@ -1975,9 +1975,9 @@ var require_bom_handling = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/lib/helpers/merge-exports.js
+// node_modules/iconv-lite/lib/helpers/merge-exports.js
 var require_merge_exports = __commonJS({
-  "../node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports, module2) {
+  "node_modules/iconv-lite/lib/helpers/merge-exports.js"(exports, module2) {
     "use strict";
     var hasOwn2 = typeof Object.hasOwn === "undefined" ? Function.call.bind(Object.prototype.hasOwnProperty) : Object.hasOwn;
     function mergeModules(target, module3) {
@@ -1991,9 +1991,9 @@ var require_merge_exports = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/internal.js
+// node_modules/iconv-lite/encodings/internal.js
 var require_internal = __commonJS({
-  "../node_modules/iconv-lite/encodings/internal.js"(exports, module2) {
+  "node_modules/iconv-lite/encodings/internal.js"(exports, module2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     module2.exports = {
@@ -2172,9 +2172,9 @@ var require_internal = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/utf32.js
+// node_modules/iconv-lite/encodings/utf32.js
 var require_utf32 = __commonJS({
-  "../node_modules/iconv-lite/encodings/utf32.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf32.js"(exports) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     exports._utf32 = Utf32Codec;
@@ -2407,9 +2407,9 @@ var require_utf32 = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/utf16.js
+// node_modules/iconv-lite/encodings/utf16.js
 var require_utf16 = __commonJS({
-  "../node_modules/iconv-lite/encodings/utf16.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf16.js"(exports) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     exports.utf16be = Utf16BECodec;
@@ -2550,9 +2550,9 @@ var require_utf16 = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/utf7.js
+// node_modules/iconv-lite/encodings/utf7.js
 var require_utf7 = __commonJS({
-  "../node_modules/iconv-lite/encodings/utf7.js"(exports) {
+  "node_modules/iconv-lite/encodings/utf7.js"(exports) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     exports.utf7 = Utf7Codec;
@@ -2768,9 +2768,9 @@ var require_utf7 = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/sbcs-codec.js
+// node_modules/iconv-lite/encodings/sbcs-codec.js
 var require_sbcs_codec = __commonJS({
-  "../node_modules/iconv-lite/encodings/sbcs-codec.js"(exports) {
+  "node_modules/iconv-lite/encodings/sbcs-codec.js"(exports) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     exports._sbcs = SBCSCodec;
@@ -2830,9 +2830,9 @@ var require_sbcs_codec = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/sbcs-data.js
+// node_modules/iconv-lite/encodings/sbcs-data.js
 var require_sbcs_data = __commonJS({
-  "../node_modules/iconv-lite/encodings/sbcs-data.js"(exports, module2) {
+  "node_modules/iconv-lite/encodings/sbcs-data.js"(exports, module2) {
     "use strict";
     module2.exports = {
       // Not supported by iconv, not sure why.
@@ -2985,9 +2985,9 @@ var require_sbcs_data = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/sbcs-data-generated.js
+// node_modules/iconv-lite/encodings/sbcs-data-generated.js
 var require_sbcs_data_generated = __commonJS({
-  "../node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports, module2) {
+  "node_modules/iconv-lite/encodings/sbcs-data-generated.js"(exports, module2) {
     "use strict";
     module2.exports = {
       "437": "cp437",
@@ -3440,9 +3440,9 @@ var require_sbcs_data_generated = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/dbcs-codec.js
+// node_modules/iconv-lite/encodings/dbcs-codec.js
 var require_dbcs_codec = __commonJS({
-  "../node_modules/iconv-lite/encodings/dbcs-codec.js"(exports) {
+  "node_modules/iconv-lite/encodings/dbcs-codec.js"(exports) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     exports._dbcs = DBCSCodec;
@@ -3900,9 +3900,9 @@ var require_dbcs_codec = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/tables/shiftjis.json
+// node_modules/iconv-lite/encodings/tables/shiftjis.json
 var require_shiftjis = __commonJS({
-  "../node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports, module2) {
+  "node_modules/iconv-lite/encodings/tables/shiftjis.json"(exports, module2) {
     module2.exports = [
       ["0", "\0", 128],
       ["a1", "\uFF61", 62],
@@ -4031,9 +4031,9 @@ var require_shiftjis = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/tables/eucjp.json
+// node_modules/iconv-lite/encodings/tables/eucjp.json
 var require_eucjp = __commonJS({
-  "../node_modules/iconv-lite/encodings/tables/eucjp.json"(exports, module2) {
+  "node_modules/iconv-lite/encodings/tables/eucjp.json"(exports, module2) {
     module2.exports = [
       ["0", "\0", 127],
       ["8ea1", "\uFF61", 62],
@@ -4219,9 +4219,9 @@ var require_eucjp = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/tables/cp936.json
+// node_modules/iconv-lite/encodings/tables/cp936.json
 var require_cp936 = __commonJS({
-  "../node_modules/iconv-lite/encodings/tables/cp936.json"(exports, module2) {
+  "node_modules/iconv-lite/encodings/tables/cp936.json"(exports, module2) {
     module2.exports = [
       ["0", "\0", 127, "\u20AC"],
       ["8140", "\u4E02\u4E04\u4E05\u4E06\u4E0F\u4E12\u4E17\u4E1F\u4E20\u4E21\u4E23\u4E26\u4E29\u4E2E\u4E2F\u4E31\u4E33\u4E35\u4E37\u4E3C\u4E40\u4E41\u4E42\u4E44\u4E46\u4E4A\u4E51\u4E55\u4E57\u4E5A\u4E5B\u4E62\u4E63\u4E64\u4E65\u4E67\u4E68\u4E6A", 5, "\u4E72\u4E74", 9, "\u4E7F", 6, "\u4E87\u4E8A"],
@@ -4489,9 +4489,9 @@ var require_cp936 = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/tables/gbk-added.json
+// node_modules/iconv-lite/encodings/tables/gbk-added.json
 var require_gbk_added = __commonJS({
-  "../node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports, module2) {
+  "node_modules/iconv-lite/encodings/tables/gbk-added.json"(exports, module2) {
     module2.exports = [
       ["a140", "\uE4C6", 62],
       ["a180", "\uE505", 32],
@@ -4551,16 +4551,16 @@ var require_gbk_added = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
+// node_modules/iconv-lite/encodings/tables/gb18030-ranges.json
 var require_gb18030_ranges = __commonJS({
-  "../node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports, module2) {
+  "node_modules/iconv-lite/encodings/tables/gb18030-ranges.json"(exports, module2) {
     module2.exports = { uChars: [128, 165, 169, 178, 184, 216, 226, 235, 238, 244, 248, 251, 253, 258, 276, 284, 300, 325, 329, 334, 364, 463, 465, 467, 469, 471, 473, 475, 477, 506, 594, 610, 712, 716, 730, 930, 938, 962, 970, 1026, 1104, 1106, 8209, 8215, 8218, 8222, 8231, 8241, 8244, 8246, 8252, 8365, 8452, 8454, 8458, 8471, 8482, 8556, 8570, 8596, 8602, 8713, 8720, 8722, 8726, 8731, 8737, 8740, 8742, 8748, 8751, 8760, 8766, 8777, 8781, 8787, 8802, 8808, 8816, 8854, 8858, 8870, 8896, 8979, 9322, 9372, 9548, 9588, 9616, 9622, 9634, 9652, 9662, 9672, 9676, 9680, 9702, 9735, 9738, 9793, 9795, 11906, 11909, 11913, 11917, 11928, 11944, 11947, 11951, 11956, 11960, 11964, 11979, 12284, 12292, 12312, 12319, 12330, 12351, 12436, 12447, 12535, 12543, 12586, 12842, 12850, 12964, 13200, 13215, 13218, 13253, 13263, 13267, 13270, 13384, 13428, 13727, 13839, 13851, 14617, 14703, 14801, 14816, 14964, 15183, 15471, 15585, 16471, 16736, 17208, 17325, 17330, 17374, 17623, 17997, 18018, 18212, 18218, 18301, 18318, 18760, 18811, 18814, 18820, 18823, 18844, 18848, 18872, 19576, 19620, 19738, 19887, 40870, 59244, 59336, 59367, 59413, 59417, 59423, 59431, 59437, 59443, 59452, 59460, 59478, 59493, 63789, 63866, 63894, 63976, 63986, 64016, 64018, 64021, 64025, 64034, 64037, 64042, 65074, 65093, 65107, 65112, 65127, 65132, 65375, 65510, 65536], gbChars: [0, 36, 38, 45, 50, 81, 89, 95, 96, 100, 103, 104, 105, 109, 126, 133, 148, 172, 175, 179, 208, 306, 307, 308, 309, 310, 311, 312, 313, 341, 428, 443, 544, 545, 558, 741, 742, 749, 750, 805, 819, 820, 7922, 7924, 7925, 7927, 7934, 7943, 7944, 7945, 7950, 8062, 8148, 8149, 8152, 8164, 8174, 8236, 8240, 8262, 8264, 8374, 8380, 8381, 8384, 8388, 8390, 8392, 8393, 8394, 8396, 8401, 8406, 8416, 8419, 8424, 8437, 8439, 8445, 8482, 8485, 8496, 8521, 8603, 8936, 8946, 9046, 9050, 9063, 9066, 9076, 9092, 9100, 9108, 9111, 9113, 9131, 9162, 9164, 9218, 9219, 11329, 11331, 11334, 11336, 11346, 11361, 11363, 11366, 11370, 11372, 11375, 11389, 11682, 11686, 11687, 11692, 11694, 11714, 11716, 11723, 11725, 11730, 11736, 11982, 11989, 12102, 12336, 12348, 12350, 12384, 12393, 12395, 12397, 12510, 12553, 12851, 12962, 12973, 13738, 13823, 13919, 13933, 14080, 14298, 14585, 14698, 15583, 15847, 16318, 16434, 16438, 16481, 16729, 17102, 17122, 17315, 17320, 17402, 17418, 17859, 17909, 17911, 17915, 17916, 17936, 17939, 17961, 18664, 18703, 18814, 18962, 19043, 33469, 33470, 33471, 33484, 33485, 33490, 33497, 33501, 33505, 33513, 33520, 33536, 33550, 37845, 37921, 37948, 38029, 38038, 38064, 38065, 38066, 38069, 38075, 38076, 38078, 39108, 39109, 39113, 39114, 39115, 39116, 39265, 39394, 189e3] };
   }
 });
 
-// ../node_modules/iconv-lite/encodings/tables/cp949.json
+// node_modules/iconv-lite/encodings/tables/cp949.json
 var require_cp949 = __commonJS({
-  "../node_modules/iconv-lite/encodings/tables/cp949.json"(exports, module2) {
+  "node_modules/iconv-lite/encodings/tables/cp949.json"(exports, module2) {
     module2.exports = [
       ["0", "\0", 127],
       ["8141", "\uAC02\uAC03\uAC05\uAC06\uAC0B", 4, "\uAC18\uAC1E\uAC1F\uAC21\uAC22\uAC23\uAC25", 6, "\uAC2E\uAC32\uAC33\uAC34"],
@@ -4837,9 +4837,9 @@ var require_cp949 = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/tables/cp950.json
+// node_modules/iconv-lite/encodings/tables/cp950.json
 var require_cp950 = __commonJS({
-  "../node_modules/iconv-lite/encodings/tables/cp950.json"(exports, module2) {
+  "node_modules/iconv-lite/encodings/tables/cp950.json"(exports, module2) {
     module2.exports = [
       ["0", "\0", 127],
       ["a140", "\u3000\uFF0C\u3001\u3002\uFF0E\u2027\uFF1B\uFF1A\uFF1F\uFF01\uFE30\u2026\u2025\uFE50\uFE51\uFE52\xB7\uFE54\uFE55\uFE56\uFE57\uFF5C\u2013\uFE31\u2014\uFE33\u2574\uFE34\uFE4F\uFF08\uFF09\uFE35\uFE36\uFF5B\uFF5D\uFE37\uFE38\u3014\u3015\uFE39\uFE3A\u3010\u3011\uFE3B\uFE3C\u300A\u300B\uFE3D\uFE3E\u3008\u3009\uFE3F\uFE40\u300C\u300D\uFE41\uFE42\u300E\u300F\uFE43\uFE44\uFE59\uFE5A"],
@@ -5020,9 +5020,9 @@ var require_cp950 = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/tables/big5-added.json
+// node_modules/iconv-lite/encodings/tables/big5-added.json
 var require_big5_added = __commonJS({
-  "../node_modules/iconv-lite/encodings/tables/big5-added.json"(exports, module2) {
+  "node_modules/iconv-lite/encodings/tables/big5-added.json"(exports, module2) {
     module2.exports = [
       ["8740", "\u43F0\u4C32\u4603\u45A6\u4578\u{27267}\u4D77\u45B3\u{27CB1}\u4CE2\u{27CC5}\u3B95\u4736\u4744\u4C47\u4C40\u{242BF}\u{23617}\u{27352}\u{26E8B}\u{270D2}\u4C57\u{2A351}\u474F\u45DA\u4C85\u{27C6C}\u4D07\u4AA4\u46A1\u{26B23}\u7225\u{25A54}\u{21A63}\u{23E06}\u{23F61}\u664D\u56FB"],
       ["8767", "\u7D95\u591D\u{28BB9}\u3DF4\u9734\u{27BEF}\u5BDB\u{21D5E}\u5AA4\u3625\u{29EB0}\u5AD1\u5BB7\u5CFC\u676E\u8593\u{29945}\u7461\u749D\u3875\u{21D53}\u{2369E}\u{26021}\u3EEC"],
@@ -5148,9 +5148,9 @@ var require_big5_added = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/dbcs-data.js
+// node_modules/iconv-lite/encodings/dbcs-data.js
 var require_dbcs_data = __commonJS({
-  "../node_modules/iconv-lite/encodings/dbcs-data.js"(exports, module2) {
+  "node_modules/iconv-lite/encodings/dbcs-data.js"(exports, module2) {
     "use strict";
     module2.exports = {
       // == Japanese/ShiftJIS ====================================================
@@ -5395,9 +5395,9 @@ var require_dbcs_data = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/encodings/index.js
+// node_modules/iconv-lite/encodings/index.js
 var require_encodings = __commonJS({
-  "../node_modules/iconv-lite/encodings/index.js"(exports, module2) {
+  "node_modules/iconv-lite/encodings/index.js"(exports, module2) {
     "use strict";
     var mergeModules = require_merge_exports();
     var modules = [
@@ -5420,9 +5420,9 @@ var require_encodings = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/lib/streams.js
+// node_modules/iconv-lite/lib/streams.js
 var require_streams = __commonJS({
-  "../node_modules/iconv-lite/lib/streams.js"(exports, module2) {
+  "node_modules/iconv-lite/lib/streams.js"(exports, module2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     module2.exports = function(streamModule) {
@@ -5517,9 +5517,9 @@ var require_streams = __commonJS({
   }
 });
 
-// ../node_modules/iconv-lite/lib/index.js
+// node_modules/iconv-lite/lib/index.js
 var require_lib = __commonJS({
-  "../node_modules/iconv-lite/lib/index.js"(exports, module2) {
+  "node_modules/iconv-lite/lib/index.js"(exports, module2) {
     "use strict";
     var Buffer2 = require_safer().Buffer;
     var bomHandling = require_bom_handling();
@@ -5649,9 +5649,9 @@ var require_lib = __commonJS({
   }
 });
 
-// ../node_modules/unpipe/index.js
+// node_modules/unpipe/index.js
 var require_unpipe = __commonJS({
-  "../node_modules/unpipe/index.js"(exports, module2) {
+  "node_modules/unpipe/index.js"(exports, module2) {
     "use strict";
     module2.exports = unpipe;
     function hasPipeDataListeners(stream4) {
@@ -5687,9 +5687,9 @@ var require_unpipe = __commonJS({
   }
 });
 
-// ../node_modules/raw-body/index.js
+// node_modules/raw-body/index.js
 var require_raw_body = __commonJS({
-  "../node_modules/raw-body/index.js"(exports, module2) {
+  "node_modules/raw-body/index.js"(exports, module2) {
     "use strict";
     var asyncHooks = tryRequireAsyncHooks();
     var bytes = require_bytes();
@@ -5876,9 +5876,9 @@ var require_raw_body = __commonJS({
   }
 });
 
-// ../node_modules/ee-first/index.js
+// node_modules/ee-first/index.js
 var require_ee_first = __commonJS({
-  "../node_modules/ee-first/index.js"(exports, module2) {
+  "node_modules/ee-first/index.js"(exports, module2) {
     "use strict";
     module2.exports = first;
     function first(stuff, done) {
@@ -5932,9 +5932,9 @@ var require_ee_first = __commonJS({
   }
 });
 
-// ../node_modules/on-finished/index.js
+// node_modules/on-finished/index.js
 var require_on_finished = __commonJS({
-  "../node_modules/on-finished/index.js"(exports, module2) {
+  "node_modules/on-finished/index.js"(exports, module2) {
     "use strict";
     module2.exports = onFinished;
     module2.exports.isFinished = isFinished;
@@ -6036,9 +6036,9 @@ var require_on_finished = __commonJS({
   }
 });
 
-// ../node_modules/type-is/node_modules/content-type/dist/index.js
+// node_modules/type-is/node_modules/content-type/dist/index.js
 var require_dist = __commonJS({
-  "../node_modules/type-is/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/type-is/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -6167,9 +6167,9 @@ var require_dist = __commonJS({
   }
 });
 
-// ../node_modules/mime-db/db.json
+// node_modules/mime-db/db.json
 var require_db = __commonJS({
-  "../node_modules/mime-db/db.json"(exports, module2) {
+  "node_modules/mime-db/db.json"(exports, module2) {
     module2.exports = {
       "application/1d-interleaved-parityfec": {
         source: "iana"
@@ -15515,16 +15515,16 @@ var require_db = __commonJS({
   }
 });
 
-// ../node_modules/mime-db/index.js
+// node_modules/mime-db/index.js
 var require_mime_db = __commonJS({
-  "../node_modules/mime-db/index.js"(exports, module2) {
+  "node_modules/mime-db/index.js"(exports, module2) {
     module2.exports = require_db();
   }
 });
 
-// ../node_modules/mime-types/mimeScore.js
+// node_modules/mime-types/mimeScore.js
 var require_mimeScore = __commonJS({
-  "../node_modules/mime-types/mimeScore.js"(exports, module2) {
+  "node_modules/mime-types/mimeScore.js"(exports, module2) {
     var FACET_SCORES = {
       "prs.": 100,
       "x-": 200,
@@ -15566,9 +15566,9 @@ var require_mimeScore = __commonJS({
   }
 });
 
-// ../node_modules/mime-types/index.js
+// node_modules/mime-types/index.js
 var require_mime_types = __commonJS({
-  "../node_modules/mime-types/index.js"(exports) {
+  "node_modules/mime-types/index.js"(exports) {
     "use strict";
     var db2 = require_mime_db();
     var extname = __require("path").extname;
@@ -15672,9 +15672,9 @@ var require_mime_types = __commonJS({
   }
 });
 
-// ../node_modules/media-typer/index.js
+// node_modules/media-typer/index.js
 var require_media_typer = __commonJS({
-  "../node_modules/media-typer/index.js"(exports) {
+  "node_modules/media-typer/index.js"(exports) {
     "use strict";
     var SUBTYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_.-]{0,126}$/;
     var TYPE_NAME_REGEXP = /^[A-Za-z0-9][A-Za-z0-9!#$&^_-]{0,126}$/;
@@ -15742,9 +15742,9 @@ var require_media_typer = __commonJS({
   }
 });
 
-// ../node_modules/type-is/index.js
+// node_modules/type-is/index.js
 var require_type_is = __commonJS({
-  "../node_modules/type-is/index.js"(exports, module2) {
+  "node_modules/type-is/index.js"(exports, module2) {
     "use strict";
     var contentType = require_dist();
     var mime = require_mime_types();
@@ -15833,9 +15833,9 @@ var require_type_is = __commonJS({
   }
 });
 
-// ../node_modules/body-parser/node_modules/content-type/dist/index.js
+// node_modules/body-parser/node_modules/content-type/dist/index.js
 var require_dist2 = __commonJS({
-  "../node_modules/body-parser/node_modules/content-type/dist/index.js"(exports) {
+  "node_modules/body-parser/node_modules/content-type/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.format = format;
@@ -15964,9 +15964,9 @@ var require_dist2 = __commonJS({
   }
 });
 
-// ../node_modules/body-parser/lib/utils.js
+// node_modules/body-parser/lib/utils.js
 var require_utils = __commonJS({
-  "../node_modules/body-parser/lib/utils.js"(exports, module2) {
+  "node_modules/body-parser/lib/utils.js"(exports, module2) {
     "use strict";
     var bytes = require_bytes();
     var contentType = require_dist2();
@@ -16016,9 +16016,9 @@ var require_utils = __commonJS({
   }
 });
 
-// ../node_modules/body-parser/lib/read.js
+// node_modules/body-parser/lib/read.js
 var require_read = __commonJS({
-  "../node_modules/body-parser/lib/read.js"(exports, module2) {
+  "node_modules/body-parser/lib/read.js"(exports, module2) {
     "use strict";
     var createError = require_http_errors();
     var getBody = require_raw_body();
@@ -16174,9 +16174,9 @@ var require_read = __commonJS({
   }
 });
 
-// ../node_modules/body-parser/lib/types/json.js
+// node_modules/body-parser/lib/types/json.js
 var require_json = __commonJS({
-  "../node_modules/body-parser/lib/types/json.js"(exports, module2) {
+  "node_modules/body-parser/lib/types/json.js"(exports, module2) {
     "use strict";
     var debug = require_src()("body-parser:json");
     var read = require_read();
@@ -16273,9 +16273,9 @@ var require_json = __commonJS({
   }
 });
 
-// ../node_modules/body-parser/lib/types/raw.js
+// node_modules/body-parser/lib/types/raw.js
 var require_raw = __commonJS({
-  "../node_modules/body-parser/lib/types/raw.js"(exports, module2) {
+  "node_modules/body-parser/lib/types/raw.js"(exports, module2) {
     "use strict";
     var debug = require_src()("body-parser:raw");
     var read = require_read();
@@ -16295,9 +16295,9 @@ var require_raw = __commonJS({
   }
 });
 
-// ../node_modules/body-parser/lib/types/text.js
+// node_modules/body-parser/lib/types/text.js
 var require_text = __commonJS({
-  "../node_modules/body-parser/lib/types/text.js"(exports, module2) {
+  "node_modules/body-parser/lib/types/text.js"(exports, module2) {
     "use strict";
     var debug = require_src()("body-parser:text");
     var read = require_read();
@@ -16312,24 +16312,24 @@ var require_text = __commonJS({
   }
 });
 
-// ../node_modules/es-errors/type.js
+// node_modules/es-errors/type.js
 var require_type = __commonJS({
-  "../node_modules/es-errors/type.js"(exports, module2) {
+  "node_modules/es-errors/type.js"(exports, module2) {
     "use strict";
     module2.exports = TypeError;
   }
 });
 
-// ../node_modules/object-inspect/util.inspect.js
+// node_modules/object-inspect/util.inspect.js
 var require_util_inspect = __commonJS({
-  "../node_modules/object-inspect/util.inspect.js"(exports, module2) {
+  "node_modules/object-inspect/util.inspect.js"(exports, module2) {
     module2.exports = __require("util").inspect;
   }
 });
 
-// ../node_modules/object-inspect/index.js
+// node_modules/object-inspect/index.js
 var require_object_inspect = __commonJS({
-  "../node_modules/object-inspect/index.js"(exports, module2) {
+  "node_modules/object-inspect/index.js"(exports, module2) {
     var hasMap = typeof Map === "function" && Map.prototype;
     var mapSizeDescriptor = Object.getOwnPropertyDescriptor && hasMap ? Object.getOwnPropertyDescriptor(Map.prototype, "size") : null;
     var mapSize = hasMap && mapSizeDescriptor && typeof mapSizeDescriptor.get === "function" ? mapSizeDescriptor.get : null;
@@ -16858,9 +16858,9 @@ var require_object_inspect = __commonJS({
   }
 });
 
-// ../node_modules/side-channel-list/index.js
+// node_modules/side-channel-list/index.js
 var require_side_channel_list = __commonJS({
-  "../node_modules/side-channel-list/index.js"(exports, module2) {
+  "node_modules/side-channel-list/index.js"(exports, module2) {
     "use strict";
     var inspect = require_object_inspect();
     var $TypeError = require_type();
@@ -16951,113 +16951,113 @@ var require_side_channel_list = __commonJS({
   }
 });
 
-// ../node_modules/es-object-atoms/index.js
+// node_modules/es-object-atoms/index.js
 var require_es_object_atoms = __commonJS({
-  "../node_modules/es-object-atoms/index.js"(exports, module2) {
+  "node_modules/es-object-atoms/index.js"(exports, module2) {
     "use strict";
     module2.exports = Object;
   }
 });
 
-// ../node_modules/es-errors/index.js
+// node_modules/es-errors/index.js
 var require_es_errors = __commonJS({
-  "../node_modules/es-errors/index.js"(exports, module2) {
+  "node_modules/es-errors/index.js"(exports, module2) {
     "use strict";
     module2.exports = Error;
   }
 });
 
-// ../node_modules/es-errors/eval.js
+// node_modules/es-errors/eval.js
 var require_eval = __commonJS({
-  "../node_modules/es-errors/eval.js"(exports, module2) {
+  "node_modules/es-errors/eval.js"(exports, module2) {
     "use strict";
     module2.exports = EvalError;
   }
 });
 
-// ../node_modules/es-errors/range.js
+// node_modules/es-errors/range.js
 var require_range = __commonJS({
-  "../node_modules/es-errors/range.js"(exports, module2) {
+  "node_modules/es-errors/range.js"(exports, module2) {
     "use strict";
     module2.exports = RangeError;
   }
 });
 
-// ../node_modules/es-errors/ref.js
+// node_modules/es-errors/ref.js
 var require_ref = __commonJS({
-  "../node_modules/es-errors/ref.js"(exports, module2) {
+  "node_modules/es-errors/ref.js"(exports, module2) {
     "use strict";
     module2.exports = ReferenceError;
   }
 });
 
-// ../node_modules/es-errors/syntax.js
+// node_modules/es-errors/syntax.js
 var require_syntax = __commonJS({
-  "../node_modules/es-errors/syntax.js"(exports, module2) {
+  "node_modules/es-errors/syntax.js"(exports, module2) {
     "use strict";
     module2.exports = SyntaxError;
   }
 });
 
-// ../node_modules/es-errors/uri.js
+// node_modules/es-errors/uri.js
 var require_uri = __commonJS({
-  "../node_modules/es-errors/uri.js"(exports, module2) {
+  "node_modules/es-errors/uri.js"(exports, module2) {
     "use strict";
     module2.exports = URIError;
   }
 });
 
-// ../node_modules/math-intrinsics/abs.js
+// node_modules/math-intrinsics/abs.js
 var require_abs = __commonJS({
-  "../node_modules/math-intrinsics/abs.js"(exports, module2) {
+  "node_modules/math-intrinsics/abs.js"(exports, module2) {
     "use strict";
     module2.exports = Math.abs;
   }
 });
 
-// ../node_modules/math-intrinsics/floor.js
+// node_modules/math-intrinsics/floor.js
 var require_floor = __commonJS({
-  "../node_modules/math-intrinsics/floor.js"(exports, module2) {
+  "node_modules/math-intrinsics/floor.js"(exports, module2) {
     "use strict";
     module2.exports = Math.floor;
   }
 });
 
-// ../node_modules/math-intrinsics/max.js
+// node_modules/math-intrinsics/max.js
 var require_max = __commonJS({
-  "../node_modules/math-intrinsics/max.js"(exports, module2) {
+  "node_modules/math-intrinsics/max.js"(exports, module2) {
     "use strict";
     module2.exports = Math.max;
   }
 });
 
-// ../node_modules/math-intrinsics/min.js
+// node_modules/math-intrinsics/min.js
 var require_min = __commonJS({
-  "../node_modules/math-intrinsics/min.js"(exports, module2) {
+  "node_modules/math-intrinsics/min.js"(exports, module2) {
     "use strict";
     module2.exports = Math.min;
   }
 });
 
-// ../node_modules/math-intrinsics/pow.js
+// node_modules/math-intrinsics/pow.js
 var require_pow = __commonJS({
-  "../node_modules/math-intrinsics/pow.js"(exports, module2) {
+  "node_modules/math-intrinsics/pow.js"(exports, module2) {
     "use strict";
     module2.exports = Math.pow;
   }
 });
 
-// ../node_modules/math-intrinsics/round.js
+// node_modules/math-intrinsics/round.js
 var require_round = __commonJS({
-  "../node_modules/math-intrinsics/round.js"(exports, module2) {
+  "node_modules/math-intrinsics/round.js"(exports, module2) {
     "use strict";
     module2.exports = Math.round;
   }
 });
 
-// ../node_modules/math-intrinsics/isNaN.js
+// node_modules/math-intrinsics/isNaN.js
 var require_isNaN = __commonJS({
-  "../node_modules/math-intrinsics/isNaN.js"(exports, module2) {
+  "node_modules/math-intrinsics/isNaN.js"(exports, module2) {
     "use strict";
     module2.exports = Number.isNaN || function isNaN2(a2) {
       return a2 !== a2;
@@ -17065,9 +17065,9 @@ var require_isNaN = __commonJS({
   }
 });
 
-// ../node_modules/math-intrinsics/sign.js
+// node_modules/math-intrinsics/sign.js
 var require_sign = __commonJS({
-  "../node_modules/math-intrinsics/sign.js"(exports, module2) {
+  "node_modules/math-intrinsics/sign.js"(exports, module2) {
     "use strict";
     var $isNaN = require_isNaN();
     module2.exports = function sign(number) {
@@ -17079,17 +17079,17 @@ var require_sign = __commonJS({
   }
 });
 
-// ../node_modules/gopd/gOPD.js
+// node_modules/gopd/gOPD.js
 var require_gOPD = __commonJS({
-  "../node_modules/gopd/gOPD.js"(exports, module2) {
+  "node_modules/gopd/gOPD.js"(exports, module2) {
     "use strict";
     module2.exports = Object.getOwnPropertyDescriptor;
   }
 });
 
-// ../node_modules/gopd/index.js
+// node_modules/gopd/index.js
 var require_gopd = __commonJS({
-  "../node_modules/gopd/index.js"(exports, module2) {
+  "node_modules/gopd/index.js"(exports, module2) {
     "use strict";
     var $gOPD = require_gOPD();
     if ($gOPD) {
@@ -17103,9 +17103,9 @@ var require_gopd = __commonJS({
   }
 });
 
-// ../node_modules/es-define-property/index.js
+// node_modules/es-define-property/index.js
 var require_es_define_property = __commonJS({
-  "../node_modules/es-define-property/index.js"(exports, module2) {
+  "node_modules/es-define-property/index.js"(exports, module2) {
     "use strict";
     var $defineProperty = Object.defineProperty || false;
     if ($defineProperty) {
@@ -17119,9 +17119,9 @@ var require_es_define_property = __commonJS({
   }
 });
 
-// ../node_modules/has-symbols/shams.js
+// node_modules/has-symbols/shams.js
 var require_shams = __commonJS({
-  "../node_modules/has-symbols/shams.js"(exports, module2) {
+  "node_modules/has-symbols/shams.js"(exports, module2) {
     "use strict";
     module2.exports = function hasSymbols() {
       if (typeof Symbol !== "function" || typeof Object.getOwnPropertySymbols !== "function") {
@@ -17174,9 +17174,9 @@ var require_shams = __commonJS({
   }
 });
 
-// ../node_modules/has-symbols/index.js
+// node_modules/has-symbols/index.js
 var require_has_symbols = __commonJS({
-  "../node_modules/has-symbols/index.js"(exports, module2) {
+  "node_modules/has-symbols/index.js"(exports, module2) {
     "use strict";
     var origSymbol = typeof Symbol !== "undefined" && Symbol;
     var hasSymbolSham = require_shams();
@@ -17198,26 +17198,26 @@ var require_has_symbols = __commonJS({
   }
 });
 
-// ../node_modules/get-proto/Reflect.getPrototypeOf.js
+// node_modules/get-proto/Reflect.getPrototypeOf.js
 var require_Reflect_getPrototypeOf = __commonJS({
-  "../node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module2) {
+  "node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module2) {
     "use strict";
     module2.exports = typeof Reflect !== "undefined" && Reflect.getPrototypeOf || null;
   }
 });
 
-// ../node_modules/get-proto/Object.getPrototypeOf.js
+// node_modules/get-proto/Object.getPrototypeOf.js
 var require_Object_getPrototypeOf = __commonJS({
-  "../node_modules/get-proto/Object.getPrototypeOf.js"(exports, module2) {
+  "node_modules/get-proto/Object.getPrototypeOf.js"(exports, module2) {
     "use strict";
     var $Object = require_es_object_atoms();
     module2.exports = $Object.getPrototypeOf || null;
   }
 });
 
-// ../node_modules/function-bind/implementation.js
+// node_modules/function-bind/implementation.js
 var require_implementation = __commonJS({
-  "../node_modules/function-bind/implementation.js"(exports, module2) {
+  "node_modules/function-bind/implementation.js"(exports, module2) {
     "use strict";
     var ERROR_MESSAGE = "Function.prototype.bind called on incompatible ";
     var toStr = Object.prototype.toString;
@@ -17291,42 +17291,42 @@ var require_implementation = __commonJS({
   }
 });
 
-// ../node_modules/function-bind/index.js
+// node_modules/function-bind/index.js
 var require_function_bind = __commonJS({
-  "../node_modules/function-bind/index.js"(exports, module2) {
+  "node_modules/function-bind/index.js"(exports, module2) {
     "use strict";
     var implementation = require_implementation();
     module2.exports = Function.prototype.bind || implementation;
   }
 });
 
-// ../node_modules/call-bind-apply-helpers/functionCall.js
+// node_modules/call-bind-apply-helpers/functionCall.js
 var require_functionCall = __commonJS({
-  "../node_modules/call-bind-apply-helpers/functionCall.js"(exports, module2) {
+  "node_modules/call-bind-apply-helpers/functionCall.js"(exports, module2) {
     "use strict";
     module2.exports = Function.prototype.call;
   }
 });
 
-// ../node_modules/call-bind-apply-helpers/functionApply.js
+// node_modules/call-bind-apply-helpers/functionApply.js
 var require_functionApply = __commonJS({
-  "../node_modules/call-bind-apply-helpers/functionApply.js"(exports, module2) {
+  "node_modules/call-bind-apply-helpers/functionApply.js"(exports, module2) {
     "use strict";
     module2.exports = Function.prototype.apply;
   }
 });
 
-// ../node_modules/call-bind-apply-helpers/reflectApply.js
+// node_modules/call-bind-apply-helpers/reflectApply.js
 var require_reflectApply = __commonJS({
-  "../node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module2) {
+  "node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module2) {
     "use strict";
     module2.exports = typeof Reflect !== "undefined" && Reflect && Reflect.apply;
   }
 });
 
-// ../node_modules/call-bind-apply-helpers/actualApply.js
+// node_modules/call-bind-apply-helpers/actualApply.js
 var require_actualApply = __commonJS({
-  "../node_modules/call-bind-apply-helpers/actualApply.js"(exports, module2) {
+  "node_modules/call-bind-apply-helpers/actualApply.js"(exports, module2) {
     "use strict";
     var bind2 = require_function_bind();
     var $apply = require_functionApply();
@@ -17336,9 +17336,9 @@ var require_actualApply = __commonJS({
   }
 });
 
-// ../node_modules/call-bind-apply-helpers/index.js
+// node_modules/call-bind-apply-helpers/index.js
 var require_call_bind_apply_helpers = __commonJS({
-  "../node_modules/call-bind-apply-helpers/index.js"(exports, module2) {
+  "node_modules/call-bind-apply-helpers/index.js"(exports, module2) {
     "use strict";
     var bind2 = require_function_bind();
     var $TypeError = require_type();
@@ -17353,9 +17353,9 @@ var require_call_bind_apply_helpers = __commonJS({
   }
 });
 
-// ../node_modules/dunder-proto/get.js
+// node_modules/dunder-proto/get.js
 var require_get = __commonJS({
-  "../node_modules/dunder-proto/get.js"(exports, module2) {
+  "node_modules/dunder-proto/get.js"(exports, module2) {
     "use strict";
     var callBind = require_call_bind_apply_helpers();
     var gOPD = require_gopd();
@@ -17368,14 +17368,14 @@ var require_get = __commonJS({
         throw e;
       }
     }
-    var desc2 = !!hasProtoAccessor && gOPD && gOPD(
+    var desc3 = !!hasProtoAccessor && gOPD && gOPD(
       Object.prototype,
       /** @type {keyof typeof Object.prototype} */
       "__proto__"
     );
     var $Object = Object;
     var $getPrototypeOf = $Object.getPrototypeOf;
-    module2.exports = desc2 && typeof desc2.get === "function" ? callBind([desc2.get]) : typeof $getPrototypeOf === "function" ? (
+    module2.exports = desc3 && typeof desc3.get === "function" ? callBind([desc3.get]) : typeof $getPrototypeOf === "function" ? (
       /** @type {import('./get')} */
       function getDunder(value) {
         return $getPrototypeOf(value == null ? value : $Object(value));
@@ -17384,9 +17384,9 @@ var require_get = __commonJS({
   }
 });
 
-// ../node_modules/get-proto/index.js
+// node_modules/get-proto/index.js
 var require_get_proto = __commonJS({
-  "../node_modules/get-proto/index.js"(exports, module2) {
+  "node_modules/get-proto/index.js"(exports, module2) {
     "use strict";
     var reflectGetProto = require_Reflect_getPrototypeOf();
     var originalGetProto = require_Object_getPrototypeOf();
@@ -17404,9 +17404,9 @@ var require_get_proto = __commonJS({
   }
 });
 
-// ../node_modules/hasown/index.js
+// node_modules/hasown/index.js
 var require_hasown = __commonJS({
-  "../node_modules/hasown/index.js"(exports, module2) {
+  "node_modules/hasown/index.js"(exports, module2) {
     "use strict";
     var call = Function.prototype.call;
     var $hasOwn = Object.prototype.hasOwnProperty;
@@ -17415,9 +17415,9 @@ var require_hasown = __commonJS({
   }
 });
 
-// ../node_modules/get-intrinsic/index.js
+// node_modules/get-intrinsic/index.js
 var require_get_intrinsic = __commonJS({
-  "../node_modules/get-intrinsic/index.js"(exports, module2) {
+  "node_modules/get-intrinsic/index.js"(exports, module2) {
     "use strict";
     var undefined2;
     var $Object = require_es_object_atoms();
@@ -17725,10 +17725,10 @@ var require_get_intrinsic = __commonJS({
             return void undefined2;
           }
           if ($gOPD && i3 + 1 >= parts2.length) {
-            var desc2 = $gOPD(value, part);
-            isOwn = !!desc2;
-            if (isOwn && "get" in desc2 && !("originalValue" in desc2.get)) {
-              value = desc2.get;
+            var desc3 = $gOPD(value, part);
+            isOwn = !!desc3;
+            if (isOwn && "get" in desc3 && !("originalValue" in desc3.get)) {
+              value = desc3.get;
             } else {
               value = value[part];
             }
@@ -17746,9 +17746,9 @@ var require_get_intrinsic = __commonJS({
   }
 });
 
-// ../node_modules/call-bound/index.js
+// node_modules/call-bound/index.js
 var require_call_bound = __commonJS({
-  "../node_modules/call-bound/index.js"(exports, module2) {
+  "node_modules/call-bound/index.js"(exports, module2) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBindBasic = require_call_bind_apply_helpers();
@@ -17769,9 +17769,9 @@ var require_call_bound = __commonJS({
   }
 });
 
-// ../node_modules/side-channel-map/index.js
+// node_modules/side-channel-map/index.js
 var require_side_channel_map = __commonJS({
-  "../node_modules/side-channel-map/index.js"(exports, module2) {
+  "node_modules/side-channel-map/index.js"(exports, module2) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17825,9 +17825,9 @@ var require_side_channel_map = __commonJS({
   }
 });
 
-// ../node_modules/side-channel-weakmap/index.js
+// node_modules/side-channel-weakmap/index.js
 var require_side_channel_weakmap = __commonJS({
-  "../node_modules/side-channel-weakmap/index.js"(exports, module2) {
+  "node_modules/side-channel-weakmap/index.js"(exports, module2) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var callBound = require_call_bound();
@@ -17898,9 +17898,9 @@ var require_side_channel_weakmap = __commonJS({
   }
 });
 
-// ../node_modules/side-channel/index.js
+// node_modules/side-channel/index.js
 var require_side_channel = __commonJS({
-  "../node_modules/side-channel/index.js"(exports, module2) {
+  "node_modules/side-channel/index.js"(exports, module2) {
     "use strict";
     var $TypeError = require_type();
     var inspect = require_object_inspect();
@@ -17938,9 +17938,9 @@ var require_side_channel = __commonJS({
   }
 });
 
-// ../node_modules/qs/lib/formats.js
+// node_modules/qs/lib/formats.js
 var require_formats = __commonJS({
-  "../node_modules/qs/lib/formats.js"(exports, module2) {
+  "node_modules/qs/lib/formats.js"(exports, module2) {
     "use strict";
     var replace = String.prototype.replace;
     var percentTwenties = /%20/g;
@@ -17964,9 +17964,9 @@ var require_formats = __commonJS({
   }
 });
 
-// ../node_modules/qs/lib/utils.js
+// node_modules/qs/lib/utils.js
 var require_utils2 = __commonJS({
-  "../node_modules/qs/lib/utils.js"(exports, module2) {
+  "node_modules/qs/lib/utils.js"(exports, module2) {
     "use strict";
     var formats = require_formats();
     var getSideChannel = require_side_channel();
@@ -18266,9 +18266,9 @@ var require_utils2 = __commonJS({
   }
 });
 
-// ../node_modules/qs/lib/stringify.js
+// node_modules/qs/lib/stringify.js
 var require_stringify = __commonJS({
-  "../node_modules/qs/lib/stringify.js"(exports, module2) {
+  "node_modules/qs/lib/stringify.js"(exports, module2) {
     "use strict";
     var getSideChannel = require_side_channel();
     var utils = require_utils2();
@@ -18554,9 +18554,9 @@ var require_stringify = __commonJS({
   }
 });
 
-// ../node_modules/qs/lib/parse.js
+// node_modules/qs/lib/parse.js
 var require_parse = __commonJS({
-  "../node_modules/qs/lib/parse.js"(exports, module2) {
+  "node_modules/qs/lib/parse.js"(exports, module2) {
     "use strict";
     var utils = require_utils2();
     var has2 = Object.prototype.hasOwnProperty;
@@ -18883,9 +18883,9 @@ var require_parse = __commonJS({
   }
 });
 
-// ../node_modules/qs/lib/index.js
+// node_modules/qs/lib/index.js
 var require_lib2 = __commonJS({
-  "../node_modules/qs/lib/index.js"(exports, module2) {
+  "node_modules/qs/lib/index.js"(exports, module2) {
     "use strict";
     var stringify2 = require_stringify();
     var parse = require_parse();
@@ -18898,9 +18898,9 @@ var require_lib2 = __commonJS({
   }
 });
 
-// ../node_modules/body-parser/lib/types/urlencoded.js
+// node_modules/body-parser/lib/types/urlencoded.js
 var require_urlencoded = __commonJS({
-  "../node_modules/body-parser/lib/types/urlencoded.js"(exports, module2) {
+  "node_modules/body-parser/lib/types/urlencoded.js"(exports, module2) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("body-parser:urlencoded");
@@ -18984,9 +18984,9 @@ var require_urlencoded = __commonJS({
   }
 });
 
-// ../node_modules/body-parser/index.js
+// node_modules/body-parser/index.js
 var require_body_parser = __commonJS({
-  "../node_modules/body-parser/index.js"(exports, module2) {
+  "node_modules/body-parser/index.js"(exports, module2) {
     "use strict";
     exports = module2.exports = bodyParser;
     exports.json = require_json();
@@ -18999,9 +18999,9 @@ var require_body_parser = __commonJS({
   }
 });
 
-// ../node_modules/merge-descriptors/index.js
+// node_modules/merge-descriptors/index.js
 var require_merge_descriptors = __commonJS({
-  "../node_modules/merge-descriptors/index.js"(exports, module2) {
+  "node_modules/merge-descriptors/index.js"(exports, module2) {
     "use strict";
     function mergeDescriptors(destination, source, overwrite = true) {
       if (!destination) {
@@ -19023,9 +19023,9 @@ var require_merge_descriptors = __commonJS({
   }
 });
 
-// ../node_modules/encodeurl/index.js
+// node_modules/encodeurl/index.js
 var require_encodeurl = __commonJS({
-  "../node_modules/encodeurl/index.js"(exports, module2) {
+  "node_modules/encodeurl/index.js"(exports, module2) {
     "use strict";
     module2.exports = encodeUrl;
     var ENCODE_CHARS_REGEXP = /(?:[^\x21\x23-\x3B\x3D\x3F-\x5F\x61-\x7A\x7C\x7E]|%(?:[^0-9A-Fa-f]|[0-9A-Fa-f][^0-9A-Fa-f]|$))+/g;
@@ -19037,9 +19037,9 @@ var require_encodeurl = __commonJS({
   }
 });
 
-// ../node_modules/escape-html/index.js
+// node_modules/escape-html/index.js
 var require_escape_html = __commonJS({
-  "../node_modules/escape-html/index.js"(exports, module2) {
+  "node_modules/escape-html/index.js"(exports, module2) {
     "use strict";
     var matchHtmlRegExp = /["'&<>]/;
     module2.exports = escapeHtml;
@@ -19084,9 +19084,9 @@ var require_escape_html = __commonJS({
   }
 });
 
-// ../node_modules/parseurl/index.js
+// node_modules/parseurl/index.js
 var require_parseurl = __commonJS({
-  "../node_modules/parseurl/index.js"(exports, module2) {
+  "node_modules/parseurl/index.js"(exports, module2) {
     "use strict";
     var url2 = __require("url");
     var parse = url2.parse;
@@ -19168,9 +19168,9 @@ var require_parseurl = __commonJS({
   }
 });
 
-// ../node_modules/finalhandler/index.js
+// node_modules/finalhandler/index.js
 var require_finalhandler = __commonJS({
-  "../node_modules/finalhandler/index.js"(exports, module2) {
+  "node_modules/finalhandler/index.js"(exports, module2) {
     "use strict";
     var debug = require_src()("finalhandler");
     var encodeUrl = require_encodeurl();
@@ -19295,9 +19295,9 @@ var require_finalhandler = __commonJS({
   }
 });
 
-// ../node_modules/express/lib/view.js
+// node_modules/express/lib/view.js
 var require_view = __commonJS({
-  "../node_modules/express/lib/view.js"(exports, module2) {
+  "node_modules/express/lib/view.js"(exports, module2) {
     "use strict";
     var debug = require_src()("express:view");
     var path4 = __require("node:path");
@@ -19307,8 +19307,8 @@ var require_view = __commonJS({
     var extname = path4.extname;
     var join4 = path4.join;
     var resolve2 = path4.resolve;
-    module2.exports = View2;
-    function View2(name2, options) {
+    module2.exports = View3;
+    function View3(name2, options) {
       var opts = options || {};
       this.defaultEngine = opts.defaultEngine;
       this.ext = extname(name2);
@@ -19334,7 +19334,7 @@ var require_view = __commonJS({
       this.engine = opts.engines[this.ext];
       this.path = this.lookup(fileName);
     }
-    View2.prototype.lookup = function lookup(name2) {
+    View3.prototype.lookup = function lookup(name2) {
       var path5;
       var roots = [].concat(this.root);
       debug('lookup "%s"', name2);
@@ -19347,7 +19347,7 @@ var require_view = __commonJS({
       }
       return path5;
     };
-    View2.prototype.render = function render(options, callback) {
+    View3.prototype.render = function render(options, callback) {
       var sync = true;
       debug('render "%s"', this.path);
       this.engine(this.path, options, function onRender() {
@@ -19365,7 +19365,7 @@ var require_view = __commonJS({
       });
       sync = false;
     };
-    View2.prototype.resolve = function resolve3(dir, file) {
+    View3.prototype.resolve = function resolve3(dir, file) {
       var ext = this.ext;
       var path5 = join4(dir, file);
       var stat = tryStat(path5);
@@ -19389,9 +19389,9 @@ var require_view = __commonJS({
   }
 });
 
-// ../node_modules/content-type/index.js
+// node_modules/content-type/index.js
 var require_content_type = __commonJS({
-  "../node_modules/content-type/index.js"(exports) {
+  "node_modules/content-type/index.js"(exports) {
     "use strict";
     var PARAM_REGEXP = /; *([!#$%&'*+.^_`|~0-9A-Za-z-]+) *= *("(?:[\u000b\u0020\u0021\u0023-\u005b\u005d-\u007e\u0080-\u00ff]|\\[\u000b\u0020-\u00ff])*"|[!#$%&'*+.^_`|~0-9A-Za-z-]+) */g;
     var TEXT_REGEXP = /^[\u000b\u0020-\u007e\u0080-\u00ff]+$/;
@@ -19493,9 +19493,9 @@ var require_content_type = __commonJS({
   }
 });
 
-// ../node_modules/etag/index.js
+// node_modules/etag/index.js
 var require_etag = __commonJS({
-  "../node_modules/etag/index.js"(exports, module2) {
+  "node_modules/etag/index.js"(exports, module2) {
     "use strict";
     module2.exports = etag;
     var crypto5 = __require("crypto");
@@ -19535,9 +19535,9 @@ var require_etag = __commonJS({
   }
 });
 
-// ../node_modules/forwarded/index.js
+// node_modules/forwarded/index.js
 var require_forwarded = __commonJS({
-  "../node_modules/forwarded/index.js"(exports, module2) {
+  "node_modules/forwarded/index.js"(exports, module2) {
     "use strict";
     module2.exports = forwarded;
     function forwarded(req) {
@@ -19582,9 +19582,9 @@ var require_forwarded = __commonJS({
   }
 });
 
-// ../node_modules/ipaddr.js/lib/ipaddr.js
+// node_modules/ipaddr.js/lib/ipaddr.js
 var require_ipaddr = __commonJS({
-  "../node_modules/ipaddr.js/lib/ipaddr.js"(exports, module2) {
+  "node_modules/ipaddr.js/lib/ipaddr.js"(exports, module2) {
     (function() {
       var expandIPv6, ipaddr, ipv4Part, ipv4Regexes, ipv6Part, ipv6Regexes, matchCIDR, root, zoneIndex;
       ipaddr = {};
@@ -20204,9 +20204,9 @@ var require_ipaddr = __commonJS({
   }
 });
 
-// ../node_modules/proxy-addr/index.js
+// node_modules/proxy-addr/index.js
 var require_proxy_addr = __commonJS({
-  "../node_modules/proxy-addr/index.js"(exports, module2) {
+  "node_modules/proxy-addr/index.js"(exports, module2) {
     "use strict";
     module2.exports = proxyaddr;
     module2.exports.all = alladdrs;
@@ -20363,9 +20363,9 @@ var require_proxy_addr = __commonJS({
   }
 });
 
-// ../node_modules/express/lib/utils.js
+// node_modules/express/lib/utils.js
 var require_utils3 = __commonJS({
-  "../node_modules/express/lib/utils.js"(exports) {
+  "node_modules/express/lib/utils.js"(exports) {
     "use strict";
     var { METHODS } = __require("node:http");
     var contentType = require_content_type();
@@ -20490,9 +20490,9 @@ var require_utils3 = __commonJS({
   }
 });
 
-// ../node_modules/wrappy/wrappy.js
+// node_modules/wrappy/wrappy.js
 var require_wrappy = __commonJS({
-  "../node_modules/wrappy/wrappy.js"(exports, module2) {
+  "node_modules/wrappy/wrappy.js"(exports, module2) {
     module2.exports = wrappy;
     function wrappy(fn2, cb) {
       if (fn2 && cb) return wrappy(fn2)(cb);
@@ -20520,9 +20520,9 @@ var require_wrappy = __commonJS({
   }
 });
 
-// ../node_modules/once/once.js
+// node_modules/once/once.js
 var require_once = __commonJS({
-  "../node_modules/once/once.js"(exports, module2) {
+  "node_modules/once/once.js"(exports, module2) {
     var wrappy = require_wrappy();
     module2.exports = wrappy(once);
     module2.exports.strict = wrappy(onceStrict);
@@ -20564,9 +20564,9 @@ var require_once = __commonJS({
   }
 });
 
-// ../node_modules/is-promise/index.js
+// node_modules/is-promise/index.js
 var require_is_promise = __commonJS({
-  "../node_modules/is-promise/index.js"(exports, module2) {
+  "node_modules/is-promise/index.js"(exports, module2) {
     module2.exports = isPromise;
     module2.exports.default = isPromise;
     function isPromise(obj) {
@@ -20575,9 +20575,9 @@ var require_is_promise = __commonJS({
   }
 });
 
-// ../node_modules/path-to-regexp/dist/index.js
+// node_modules/path-to-regexp/dist/index.js
 var require_dist3 = __commonJS({
-  "../node_modules/path-to-regexp/dist/index.js"(exports) {
+  "node_modules/path-to-regexp/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.PathError = exports.TokenData = void 0;
@@ -20944,9 +20944,9 @@ var require_dist3 = __commonJS({
   }
 });
 
-// ../node_modules/router/lib/layer.js
+// node_modules/router/lib/layer.js
 var require_layer = __commonJS({
-  "../node_modules/router/lib/layer.js"(exports, module2) {
+  "node_modules/router/lib/layer.js"(exports, module2) {
     "use strict";
     var isPromise = require_is_promise();
     var pathRegexp = require_dist3();
@@ -21094,9 +21094,9 @@ var require_layer = __commonJS({
   }
 });
 
-// ../node_modules/router/lib/route.js
+// node_modules/router/lib/route.js
 var require_route = __commonJS({
-  "../node_modules/router/lib/route.js"(exports, module2) {
+  "node_modules/router/lib/route.js"(exports, module2) {
     "use strict";
     var debug = require_src()("router:route");
     var Layer = require_layer();
@@ -21214,9 +21214,9 @@ var require_route = __commonJS({
   }
 });
 
-// ../node_modules/router/index.js
+// node_modules/router/index.js
 var require_router = __commonJS({
-  "../node_modules/router/index.js"(exports, module2) {
+  "node_modules/router/index.js"(exports, module2) {
     "use strict";
     var isPromise = require_is_promise();
     var Layer = require_layer();
@@ -21228,27 +21228,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module2.exports = Router9;
+    module2.exports = Router10;
     module2.exports.Route = Route;
-    function Router9(options) {
-      if (!(this instanceof Router9)) {
-        return new Router9(options);
+    function Router10(options) {
+      if (!(this instanceof Router10)) {
+        return new Router10(options);
       }
       const opts = options || {};
-      function router9(req, res, next) {
-        router9.handle(req, res, next);
+      function router10(req, res, next) {
+        router10.handle(req, res, next);
       }
-      Object.setPrototypeOf(router9, this);
-      router9.caseSensitive = opts.caseSensitive;
-      router9.mergeParams = opts.mergeParams;
-      router9.params = {};
-      router9.strict = opts.strict;
-      router9.stack = [];
-      return router9;
+      Object.setPrototypeOf(router10, this);
+      router10.caseSensitive = opts.caseSensitive;
+      router10.mergeParams = opts.mergeParams;
+      router10.params = {};
+      router10.strict = opts.strict;
+      router10.stack = [];
+      return router10;
     }
-    Router9.prototype = function() {
+    Router10.prototype = function() {
     };
-    Router9.prototype.param = function param(name2, fn2) {
+    Router10.prototype.param = function param(name2, fn2) {
       if (!name2) {
         throw new TypeError("argument name is required");
       }
@@ -21268,7 +21268,7 @@ var require_router = __commonJS({
       params.push(fn2);
       return this;
     };
-    Router9.prototype.handle = function handle2(req, res, callback) {
+    Router10.prototype.handle = function handle2(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -21395,7 +21395,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router9.prototype.use = function use(handler) {
+    Router10.prototype.use = function use(handler) {
       let offset = 0;
       let path4 = "/";
       if (typeof handler !== "function") {
@@ -21428,7 +21428,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router9.prototype.route = function route(path4) {
+    Router10.prototype.route = function route(path4) {
       const route2 = new Route(path4);
       const layer = new Layer(path4, {
         sensitive: this.caseSensitive,
@@ -21443,7 +21443,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router9.prototype[method] = function(path4) {
+      Router10.prototype[method] = function(path4) {
         const route = this.route(path4);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -21612,13 +21612,13 @@ var require_router = __commonJS({
   }
 });
 
-// ../node_modules/express/lib/application.js
+// node_modules/express/lib/application.js
 var require_application = __commonJS({
-  "../node_modules/express/lib/application.js"(exports, module2) {
+  "node_modules/express/lib/application.js"(exports, module2) {
     "use strict";
     var finalhandler = require_finalhandler();
     var debug = require_src()("express:application");
-    var View2 = require_view();
+    var View3 = require_view();
     var http3 = __require("node:http");
     var methods = require_utils3().methods;
     var compileETag = require_utils3().compileETag;
@@ -21626,13 +21626,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve2 = __require("node:path").resolve;
     var once = require_once();
-    var Router9 = require_router();
+    var Router10 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module2.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init2() {
-      var router9 = null;
+      var router10 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -21641,13 +21641,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router9 === null) {
-            router9 = new Router9({
+          if (router10 === null) {
+            router10 = new Router10({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router9;
+          return router10;
         }
       });
     };
@@ -21677,7 +21677,7 @@ var require_application = __commonJS({
       this.locals = /* @__PURE__ */ Object.create(null);
       this.mountpath = "/";
       this.locals.settings = this.settings;
-      this.set("view", View2);
+      this.set("view", View3);
       this.set("views", resolve2("views"));
       this.set("jsonp callback name", "callback");
       if (env === "production") {
@@ -21718,15 +21718,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router9 = this.router;
+      var router10 = this.router;
       fns.forEach(function(fn3) {
         if (!fn3 || !fn3.handle || !fn3.set) {
-          return router9.use(path4, fn3);
+          return router10.use(path4, fn3);
         }
         debug(".use app under %s", path4);
         fn3.mountpath = path4;
         fn3.parent = this;
-        router9.use(path4, function mounted_app(req, res, next) {
+        router10.use(path4, function mounted_app(req, res, next) {
           var orig = req.app;
           fn3.handle(req, res, function(err2) {
             Object.setPrototypeOf(req, orig.request);
@@ -21833,8 +21833,8 @@ var require_application = __commonJS({
         view = cache2[name2];
       }
       if (!view) {
-        var View3 = this.get("view");
-        view = new View3(name2, {
+        var View4 = this.get("view");
+        view = new View4(name2, {
           defaultEngine: this.get("view engine"),
           root: this.get("views"),
           engines
@@ -21873,9 +21873,9 @@ var require_application = __commonJS({
   }
 });
 
-// ../node_modules/negotiator/lib/charset.js
+// node_modules/negotiator/lib/charset.js
 var require_charset = __commonJS({
-  "../node_modules/negotiator/lib/charset.js"(exports, module2) {
+  "node_modules/negotiator/lib/charset.js"(exports, module2) {
     "use strict";
     module2.exports = preferredCharsets;
     module2.exports.preferredCharsets = preferredCharsets;
@@ -21960,9 +21960,9 @@ var require_charset = __commonJS({
   }
 });
 
-// ../node_modules/negotiator/lib/encoding.js
+// node_modules/negotiator/lib/encoding.js
 var require_encoding = __commonJS({
-  "../node_modules/negotiator/lib/encoding.js"(exports, module2) {
+  "node_modules/negotiator/lib/encoding.js"(exports, module2) {
     "use strict";
     module2.exports = preferredEncodings;
     module2.exports.preferredEncodings = preferredEncodings;
@@ -22073,9 +22073,9 @@ var require_encoding = __commonJS({
   }
 });
 
-// ../node_modules/negotiator/lib/language.js
+// node_modules/negotiator/lib/language.js
 var require_language = __commonJS({
-  "../node_modules/negotiator/lib/language.js"(exports, module2) {
+  "node_modules/negotiator/lib/language.js"(exports, module2) {
     "use strict";
     module2.exports = preferredLanguages;
     module2.exports.preferredLanguages = preferredLanguages;
@@ -22168,9 +22168,9 @@ var require_language = __commonJS({
   }
 });
 
-// ../node_modules/negotiator/lib/mediaType.js
+// node_modules/negotiator/lib/mediaType.js
 var require_mediaType = __commonJS({
-  "../node_modules/negotiator/lib/mediaType.js"(exports, module2) {
+  "node_modules/negotiator/lib/mediaType.js"(exports, module2) {
     "use strict";
     module2.exports = preferredMediaTypes;
     module2.exports.preferredMediaTypes = preferredMediaTypes;
@@ -22330,9 +22330,9 @@ var require_mediaType = __commonJS({
   }
 });
 
-// ../node_modules/negotiator/index.js
+// node_modules/negotiator/index.js
 var require_negotiator = __commonJS({
-  "../node_modules/negotiator/index.js"(exports, module2) {
+  "node_modules/negotiator/index.js"(exports, module2) {
     "use strict";
     var preferredCharsets = require_charset();
     var preferredEncodings = require_encoding();
@@ -22386,9 +22386,9 @@ var require_negotiator = __commonJS({
   }
 });
 
-// ../node_modules/accepts/index.js
+// node_modules/accepts/index.js
 var require_accepts = __commonJS({
-  "../node_modules/accepts/index.js"(exports, module2) {
+  "node_modules/accepts/index.js"(exports, module2) {
     "use strict";
     var Negotiator = require_negotiator();
     var mime = require_mime_types();
@@ -22467,9 +22467,9 @@ var require_accepts = __commonJS({
   }
 });
 
-// ../node_modules/fresh/index.js
+// node_modules/fresh/index.js
 var require_fresh = __commonJS({
-  "../node_modules/fresh/index.js"(exports, module2) {
+  "node_modules/fresh/index.js"(exports, module2) {
     "use strict";
     var CACHE_CONTROL_NO_CACHE_REGEXP = /(?:^|,)\s*?no-cache\s*?(?:,|$)/;
     module2.exports = fresh;
@@ -22539,9 +22539,9 @@ var require_fresh = __commonJS({
   }
 });
 
-// ../node_modules/range-parser/index.js
+// node_modules/range-parser/index.js
 var require_range_parser = __commonJS({
-  "../node_modules/range-parser/index.js"(exports, module2) {
+  "node_modules/range-parser/index.js"(exports, module2) {
     "use strict";
     module2.exports = rangeParser;
     function rangeParser(size, str2, options) {
@@ -22632,9 +22632,9 @@ var require_range_parser = __commonJS({
   }
 });
 
-// ../node_modules/express/lib/request.js
+// node_modules/express/lib/request.js
 var require_request = __commonJS({
-  "../node_modules/express/lib/request.js"(exports, module2) {
+  "node_modules/express/lib/request.js"(exports, module2) {
     "use strict";
     var accepts = require_accepts();
     var isIP = __require("node:net").isIP;
@@ -22690,7 +22690,7 @@ var require_request = __commonJS({
       var querystring = parse(this).query;
       return queryparse(querystring);
     });
-    req.is = function is2(types3) {
+    req.is = function is3(types3) {
       var arr = types3;
       if (!Array.isArray(types3)) {
         arr = new Array(arguments.length);
@@ -22780,9 +22780,9 @@ var require_request = __commonJS({
   }
 });
 
-// ../node_modules/content-disposition/index.js
+// node_modules/content-disposition/index.js
 var require_content_disposition = __commonJS({
-  "../node_modules/content-disposition/index.js"(exports, module2) {
+  "node_modules/content-disposition/index.js"(exports, module2) {
     "use strict";
     module2.exports = contentDisposition;
     module2.exports.parse = parse;
@@ -22989,9 +22989,9 @@ var require_content_disposition = __commonJS({
   }
 });
 
-// ../node_modules/express/node_modules/cookie-signature/index.js
+// node_modules/express/node_modules/cookie-signature/index.js
 var require_cookie_signature = __commonJS({
-  "../node_modules/express/node_modules/cookie-signature/index.js"(exports) {
+  "node_modules/express/node_modules/cookie-signature/index.js"(exports) {
     var crypto5 = __require("crypto");
     exports.sign = function(val, secret) {
       if ("string" != typeof val) throw new TypeError("Cookie value must be provided as a string.");
@@ -23007,9 +23007,9 @@ var require_cookie_signature = __commonJS({
   }
 });
 
-// ../node_modules/cookie/index.js
+// node_modules/cookie/index.js
 var require_cookie = __commonJS({
-  "../node_modules/cookie/index.js"(exports) {
+  "node_modules/cookie/index.js"(exports) {
     "use strict";
     exports.parse = parse;
     exports.serialize = serialize;
@@ -23173,9 +23173,9 @@ var require_cookie = __commonJS({
   }
 });
 
-// ../node_modules/send/index.js
+// node_modules/send/index.js
 var require_send = __commonJS({
-  "../node_modules/send/index.js"(exports, module2) {
+  "node_modules/send/index.js"(exports, module2) {
     "use strict";
     var createError = require_http_errors();
     var debug = require_src()("send");
@@ -23656,9 +23656,9 @@ var require_send = __commonJS({
   }
 });
 
-// ../node_modules/vary/index.js
+// node_modules/vary/index.js
 var require_vary = __commonJS({
-  "../node_modules/vary/index.js"(exports, module2) {
+  "node_modules/vary/index.js"(exports, module2) {
     "use strict";
     module2.exports = vary;
     module2.exports.append = append2;
@@ -23729,9 +23729,9 @@ var require_vary = __commonJS({
   }
 });
 
-// ../node_modules/express/lib/response.js
+// node_modules/express/lib/response.js
 var require_response = __commonJS({
-  "../node_modules/express/lib/response.js"(exports, module2) {
+  "node_modules/express/lib/response.js"(exports, module2) {
     "use strict";
     var contentDisposition = require_content_disposition();
     var createError = require_http_errors();
@@ -24199,9 +24199,9 @@ var require_response = __commonJS({
   }
 });
 
-// ../node_modules/serve-static/index.js
+// node_modules/serve-static/index.js
 var require_serve_static = __commonJS({
-  "../node_modules/serve-static/index.js"(exports, module2) {
+  "node_modules/serve-static/index.js"(exports, module2) {
     "use strict";
     var encodeUrl = require_encodeurl();
     var escapeHtml = require_escape_html();
@@ -24303,15 +24303,15 @@ var require_serve_static = __commonJS({
   }
 });
 
-// ../node_modules/express/lib/express.js
+// node_modules/express/lib/express.js
 var require_express = __commonJS({
-  "../node_modules/express/lib/express.js"(exports, module2) {
+  "node_modules/express/lib/express.js"(exports, module2) {
     "use strict";
     var bodyParser = require_body_parser();
     var EventEmitter2 = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router9 = require_router();
+    var Router10 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module2.exports = createApplication;
@@ -24333,8 +24333,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router9.Route;
-    exports.Router = Router9;
+    exports.Route = Router10.Route;
+    exports.Router = Router10;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -24343,17 +24343,17 @@ var require_express = __commonJS({
   }
 });
 
-// ../node_modules/express/index.js
+// node_modules/express/index.js
 var require_express2 = __commonJS({
-  "../node_modules/express/index.js"(exports, module2) {
+  "node_modules/express/index.js"(exports, module2) {
     "use strict";
     module2.exports = require_express();
   }
 });
 
-// ../node_modules/object-assign/index.js
+// node_modules/object-assign/index.js
 var require_object_assign = __commonJS({
-  "../node_modules/object-assign/index.js"(exports, module2) {
+  "node_modules/object-assign/index.js"(exports, module2) {
     "use strict";
     var getOwnPropertySymbols = Object.getOwnPropertySymbols;
     var hasOwnProperty2 = Object.prototype.hasOwnProperty;
@@ -24421,9 +24421,9 @@ var require_object_assign = __commonJS({
   }
 });
 
-// ../node_modules/cors/lib/index.js
+// node_modules/cors/lib/index.js
 var require_lib3 = __commonJS({
-  "../node_modules/cors/lib/index.js"(exports, module2) {
+  "node_modules/cors/lib/index.js"(exports, module2) {
     (function() {
       "use strict";
       var assign = require_object_assign();
@@ -24629,9 +24629,9 @@ var require_lib3 = __commonJS({
   }
 });
 
-// ../node_modules/pino-std-serializers/lib/err-helpers.js
+// node_modules/pino-std-serializers/lib/err-helpers.js
 var require_err_helpers = __commonJS({
-  "../node_modules/pino-std-serializers/lib/err-helpers.js"(exports, module2) {
+  "node_modules/pino-std-serializers/lib/err-helpers.js"(exports, module2) {
     "use strict";
     var isErrorLike = (err2) => {
       return err2 && typeof err2.message === "string";
@@ -24686,9 +24686,9 @@ var require_err_helpers = __commonJS({
   }
 });
 
-// ../node_modules/pino-std-serializers/lib/err-proto.js
+// node_modules/pino-std-serializers/lib/err-proto.js
 var require_err_proto = __commonJS({
-  "../node_modules/pino-std-serializers/lib/err-proto.js"(exports, module2) {
+  "node_modules/pino-std-serializers/lib/err-proto.js"(exports, module2) {
     "use strict";
     var seen = /* @__PURE__ */ Symbol("circular-ref-tag");
     var rawSymbol = /* @__PURE__ */ Symbol("pino-raw-err-ref");
@@ -24737,9 +24737,9 @@ var require_err_proto = __commonJS({
   }
 });
 
-// ../node_modules/pino-std-serializers/lib/err.js
+// node_modules/pino-std-serializers/lib/err.js
 var require_err = __commonJS({
-  "../node_modules/pino-std-serializers/lib/err.js"(exports, module2) {
+  "node_modules/pino-std-serializers/lib/err.js"(exports, module2) {
     "use strict";
     module2.exports = errSerializer;
     var { messageWithCauses, stackWithCauses, isErrorLike } = require_err_helpers();
@@ -24777,9 +24777,9 @@ var require_err = __commonJS({
   }
 });
 
-// ../node_modules/pino-std-serializers/lib/err-with-cause.js
+// node_modules/pino-std-serializers/lib/err-with-cause.js
 var require_err_with_cause = __commonJS({
-  "../node_modules/pino-std-serializers/lib/err-with-cause.js"(exports, module2) {
+  "node_modules/pino-std-serializers/lib/err-with-cause.js"(exports, module2) {
     "use strict";
     module2.exports = errWithCauseSerializer;
     var { isErrorLike } = require_err_helpers();
@@ -24820,9 +24820,9 @@ var require_err_with_cause = __commonJS({
   }
 });
 
-// ../node_modules/pino-std-serializers/lib/req.js
+// node_modules/pino-std-serializers/lib/req.js
 var require_req = __commonJS({
-  "../node_modules/pino-std-serializers/lib/req.js"(exports, module2) {
+  "node_modules/pino-std-serializers/lib/req.js"(exports, module2) {
     "use strict";
     module2.exports = {
       mapHttpRequest,
@@ -24915,9 +24915,9 @@ var require_req = __commonJS({
   }
 });
 
-// ../node_modules/pino-std-serializers/lib/res.js
+// node_modules/pino-std-serializers/lib/res.js
 var require_res = __commonJS({
-  "../node_modules/pino-std-serializers/lib/res.js"(exports, module2) {
+  "node_modules/pino-std-serializers/lib/res.js"(exports, module2) {
     "use strict";
     module2.exports = {
       mapHttpResponse,
@@ -24964,9 +24964,9 @@ var require_res = __commonJS({
   }
 });
 
-// ../node_modules/pino-std-serializers/index.js
+// node_modules/pino-std-serializers/index.js
 var require_pino_std_serializers = __commonJS({
-  "../node_modules/pino-std-serializers/index.js"(exports, module2) {
+  "node_modules/pino-std-serializers/index.js"(exports, module2) {
     "use strict";
     var errSerializer = require_err();
     var errWithCauseSerializer = require_err_with_cause();
@@ -25001,9 +25001,9 @@ var require_pino_std_serializers = __commonJS({
   }
 });
 
-// ../node_modules/pino/lib/caller.js
+// node_modules/pino/lib/caller.js
 var require_caller = __commonJS({
-  "../node_modules/pino/lib/caller.js"(exports, module2) {
+  "node_modules/pino/lib/caller.js"(exports, module2) {
     "use strict";
     function noOpPrepareStackTrace(_3, stack) {
       return stack;
@@ -25029,9 +25029,9 @@ var require_caller = __commonJS({
   }
 });
 
-// ../node_modules/@pinojs/redact/index.js
+// node_modules/@pinojs/redact/index.js
 var require_redact = __commonJS({
-  "../node_modules/@pinojs/redact/index.js"(exports, module2) {
+  "node_modules/@pinojs/redact/index.js"(exports, module2) {
     "use strict";
     function deepClone(obj) {
       if (obj === null || typeof obj !== "object") {
@@ -25462,9 +25462,9 @@ var require_redact = __commonJS({
   }
 });
 
-// ../node_modules/pino/lib/symbols.js
+// node_modules/pino/lib/symbols.js
 var require_symbols = __commonJS({
-  "../node_modules/pino/lib/symbols.js"(exports, module2) {
+  "node_modules/pino/lib/symbols.js"(exports, module2) {
     "use strict";
     var setLevelSym = /* @__PURE__ */ Symbol("pino.setLevel");
     var getLevelSym = /* @__PURE__ */ Symbol("pino.getLevel");
@@ -25533,9 +25533,9 @@ var require_symbols = __commonJS({
   }
 });
 
-// ../node_modules/pino/lib/redaction.js
+// node_modules/pino/lib/redaction.js
 var require_redaction = __commonJS({
-  "../node_modules/pino/lib/redaction.js"(exports, module2) {
+  "node_modules/pino/lib/redaction.js"(exports, module2) {
     "use strict";
     var Redact = require_redact();
     var { redactFmtSym, wildcardFirstSym } = require_symbols();
@@ -25615,9 +25615,9 @@ var require_redaction = __commonJS({
   }
 });
 
-// ../node_modules/pino/lib/time.js
+// node_modules/pino/lib/time.js
 var require_time = __commonJS({
-  "../node_modules/pino/lib/time.js"(exports, module2) {
+  "node_modules/pino/lib/time.js"(exports, module2) {
     "use strict";
     var nullTime = () => "";
     var epochTime = () => `,"time":${Date.now()}`;
@@ -25646,9 +25646,9 @@ var require_time = __commonJS({
   }
 });
 
-// ../node_modules/quick-format-unescaped/index.js
+// node_modules/quick-format-unescaped/index.js
 var require_quick_format_unescaped = __commonJS({
-  "../node_modules/quick-format-unescaped/index.js"(exports, module2) {
+  "node_modules/quick-format-unescaped/index.js"(exports, module2) {
     "use strict";
     function tryStringify(o4) {
       try {
@@ -25765,9 +25765,9 @@ var require_quick_format_unescaped = __commonJS({
   }
 });
 
-// ../node_modules/atomic-sleep/index.js
+// node_modules/atomic-sleep/index.js
 var require_atomic_sleep = __commonJS({
-  "../node_modules/atomic-sleep/index.js"(exports, module2) {
+  "node_modules/atomic-sleep/index.js"(exports, module2) {
     "use strict";
     if (typeof SharedArrayBuffer !== "undefined" && typeof Atomics !== "undefined") {
       let sleep3 = function(ms) {
@@ -25800,9 +25800,9 @@ var require_atomic_sleep = __commonJS({
   }
 });
 
-// ../node_modules/sonic-boom/index.js
+// node_modules/sonic-boom/index.js
 var require_sonic_boom = __commonJS({
-  "../node_modules/sonic-boom/index.js"(exports, module2) {
+  "node_modules/sonic-boom/index.js"(exports, module2) {
     "use strict";
     var fs3 = __require("fs");
     var EventEmitter2 = __require("events");
@@ -26387,9 +26387,9 @@ var require_sonic_boom = __commonJS({
   }
 });
 
-// ../node_modules/on-exit-leak-free/index.js
+// node_modules/on-exit-leak-free/index.js
 var require_on_exit_leak_free = __commonJS({
-  "../node_modules/on-exit-leak-free/index.js"(exports, module2) {
+  "node_modules/on-exit-leak-free/index.js"(exports, module2) {
     "use strict";
     var refs = {
       exit: [],
@@ -26481,9 +26481,9 @@ var require_on_exit_leak_free = __commonJS({
   }
 });
 
-// ../node_modules/thread-stream/package.json
+// node_modules/thread-stream/package.json
 var require_package = __commonJS({
-  "../node_modules/thread-stream/package.json"(exports, module2) {
+  "node_modules/thread-stream/package.json"(exports, module2) {
     module2.exports = {
       name: "thread-stream",
       version: "3.1.0",
@@ -26544,9 +26544,9 @@ var require_package = __commonJS({
   }
 });
 
-// ../node_modules/thread-stream/lib/wait.js
+// node_modules/thread-stream/lib/wait.js
 var require_wait = __commonJS({
-  "../node_modules/thread-stream/lib/wait.js"(exports, module2) {
+  "node_modules/thread-stream/lib/wait.js"(exports, module2) {
     "use strict";
     var MAX_TIMEOUT = 1e3;
     function wait(state, index, expected, timeout, done) {
@@ -26602,9 +26602,9 @@ var require_wait = __commonJS({
   }
 });
 
-// ../node_modules/thread-stream/lib/indexes.js
+// node_modules/thread-stream/lib/indexes.js
 var require_indexes = __commonJS({
-  "../node_modules/thread-stream/lib/indexes.js"(exports, module2) {
+  "node_modules/thread-stream/lib/indexes.js"(exports, module2) {
     "use strict";
     var WRITE_INDEX = 4;
     var READ_INDEX = 8;
@@ -26615,11 +26615,11 @@ var require_indexes = __commonJS({
   }
 });
 
-// ../node_modules/thread-stream/index.js
+// node_modules/thread-stream/index.js
 var require_thread_stream = __commonJS({
-  "../node_modules/thread-stream/index.js"(exports, module2) {
+  "node_modules/thread-stream/index.js"(exports, module2) {
     "use strict";
-    var { version: version2 } = require_package();
+    var { version: version3 } = require_package();
     var { EventEmitter: EventEmitter2 } = __require("events");
     var { Worker } = __require("worker_threads");
     var { join: join4 } = __require("path");
@@ -26668,7 +26668,7 @@ var require_thread_stream = __commonJS({
           stateBuf: stream4[kImpl].stateBuf,
           workerData: {
             $context: {
-              threadStreamVersion: version2
+              threadStreamVersion: version3
             },
             ...workerData
           }
@@ -27038,9 +27038,9 @@ var require_thread_stream = __commonJS({
   }
 });
 
-// ../node_modules/pino/lib/transport.js
+// node_modules/pino/lib/transport.js
 var require_transport = __commonJS({
-  "../node_modules/pino/lib/transport.js"(exports, module2) {
+  "node_modules/pino/lib/transport.js"(exports, module2) {
     "use strict";
     var { createRequire } = __require("module");
     var getCallers = require_caller();
@@ -27169,9 +27169,9 @@ var require_transport = __commonJS({
   }
 });
 
-// ../node_modules/pino/lib/tools.js
+// node_modules/pino/lib/tools.js
 var require_tools = __commonJS({
-  "../node_modules/pino/lib/tools.js"(exports, module2) {
+  "node_modules/pino/lib/tools.js"(exports, module2) {
     "use strict";
     var diagChan = __require("node:diagnostics_channel");
     var format = require_quick_format_unescaped();
@@ -27506,9 +27506,9 @@ var require_tools = __commonJS({
   }
 });
 
-// ../node_modules/pino/lib/constants.js
+// node_modules/pino/lib/constants.js
 var require_constants = __commonJS({
-  "../node_modules/pino/lib/constants.js"(exports, module2) {
+  "node_modules/pino/lib/constants.js"(exports, module2) {
     var DEFAULT_LEVELS = {
       trace: 10,
       debug: 20,
@@ -27528,9 +27528,9 @@ var require_constants = __commonJS({
   }
 });
 
-// ../node_modules/pino/lib/levels.js
+// node_modules/pino/lib/levels.js
 var require_levels = __commonJS({
-  "../node_modules/pino/lib/levels.js"(exports, module2) {
+  "node_modules/pino/lib/levels.js"(exports, module2) {
     "use strict";
     var {
       lsCacheSym,
@@ -27721,17 +27721,17 @@ var require_levels = __commonJS({
   }
 });
 
-// ../node_modules/pino/lib/meta.js
+// node_modules/pino/lib/meta.js
 var require_meta = __commonJS({
-  "../node_modules/pino/lib/meta.js"(exports, module2) {
+  "node_modules/pino/lib/meta.js"(exports, module2) {
     "use strict";
     module2.exports = { version: "9.14.0" };
   }
 });
 
-// ../node_modules/pino/lib/proto.js
+// node_modules/pino/lib/proto.js
 var require_proto = __commonJS({
-  "../node_modules/pino/lib/proto.js"(exports, module2) {
+  "node_modules/pino/lib/proto.js"(exports, module2) {
     "use strict";
     var { EventEmitter: EventEmitter2 } = __require("node:events");
     var {
@@ -27778,7 +27778,7 @@ var require_proto = __commonJS({
       noop: noop3
     } = require_tools();
     var {
-      version: version2
+      version: version3
     } = require_meta();
     var redaction = require_redaction();
     var constructor = class Pino {
@@ -27790,7 +27790,7 @@ var require_proto = __commonJS({
       setBindings,
       flush,
       isLevelEnabled,
-      version: version2,
+      version: version3,
       get level() {
         return this[getLevelSym]();
       },
@@ -27960,9 +27960,9 @@ var require_proto = __commonJS({
   }
 });
 
-// ../node_modules/safe-stable-stringify/index.js
+// node_modules/safe-stable-stringify/index.js
 var require_safe_stable_stringify = __commonJS({
-  "../node_modules/safe-stable-stringify/index.js"(exports, module2) {
+  "node_modules/safe-stable-stringify/index.js"(exports, module2) {
     "use strict";
     var { hasOwnProperty: hasOwnProperty2 } = Object.prototype;
     var stringify2 = configure();
@@ -28556,9 +28556,9 @@ ${originalIndentation}`;
   }
 });
 
-// ../node_modules/pino/lib/multistream.js
+// node_modules/pino/lib/multistream.js
 var require_multistream = __commonJS({
-  "../node_modules/pino/lib/multistream.js"(exports, module2) {
+  "node_modules/pino/lib/multistream.js"(exports, module2) {
     "use strict";
     var metadata2 = /* @__PURE__ */ Symbol.for("pino.metadata");
     var { DEFAULT_LEVELS } = require_constants();
@@ -28724,9 +28724,9 @@ var require_multistream = __commonJS({
   }
 });
 
-// ../node_modules/pino/pino.js
+// node_modules/pino/pino.js
 var require_pino = __commonJS({
-  "../node_modules/pino/pino.js"(exports, module2) {
+  "node_modules/pino/pino.js"(exports, module2) {
     function pinoBundlerAbsolutePath(p3) {
       try {
         const path4 = __require("path");
@@ -28757,7 +28757,7 @@ var require_pino = __commonJS({
       normalizeDestFileDescriptor,
       noop: noop3
     } = require_tools();
-    var { version: version2 } = require_meta();
+    var { version: version3 } = require_meta();
     var {
       chindingsSym,
       redactFmtSym,
@@ -28938,15 +28938,15 @@ var require_pino = __commonJS({
     module2.exports.stdSerializers = serializers;
     module2.exports.stdTimeFunctions = Object.assign({}, time2);
     module2.exports.symbols = symbols;
-    module2.exports.version = version2;
+    module2.exports.version = version3;
     module2.exports.default = pino2;
     module2.exports.pino = pino2;
   }
 });
 
-// ../node_modules/get-caller-file/index.js
+// node_modules/get-caller-file/index.js
 var require_get_caller_file = __commonJS({
-  "../node_modules/get-caller-file/index.js"(exports, module2) {
+  "node_modules/get-caller-file/index.js"(exports, module2) {
     "use strict";
     module2.exports = function getCallerFile(position) {
       if (position === void 0) {
@@ -28968,9 +28968,9 @@ var require_get_caller_file = __commonJS({
   }
 });
 
-// ../node_modules/pino-http/logger.js
+// node_modules/pino-http/logger.js
 var require_logger = __commonJS({
-  "../node_modules/pino-http/logger.js"(exports, module2) {
+  "node_modules/pino-http/logger.js"(exports, module2) {
     "use strict";
     var { pino: pino2, symbols: { stringifySym, chindingsSym } } = require_pino();
     var serializers = require_pino_std_serializers();
@@ -29246,7 +29246,7 @@ var init_authJwt = __esm({
   }
 });
 
-// ../node_modules/openai/internal/tslib.mjs
+// node_modules/openai/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f3) {
   if (kind === "m")
     throw new TypeError("Private method is not writable");
@@ -29264,14 +29264,14 @@ function __classPrivateFieldGet(receiver, state, kind, f3) {
   return kind === "m" ? f3 : kind === "a" ? f3.call(receiver) : f3 ? f3.value : state.get(receiver);
 }
 var init_tslib = __esm({
-  "../node_modules/openai/internal/tslib.mjs"() {
+  "node_modules/openai/internal/tslib.mjs"() {
   }
 });
 
-// ../node_modules/openai/internal/utils/uuid.mjs
+// node_modules/openai/internal/utils/uuid.mjs
 var uuid4;
 var init_uuid = __esm({
-  "../node_modules/openai/internal/utils/uuid.mjs"() {
+  "node_modules/openai/internal/utils/uuid.mjs"() {
     uuid4 = function() {
       const { crypto: crypto5 } = globalThis;
       if (crypto5?.randomUUID) {
@@ -29285,7 +29285,7 @@ var init_uuid = __esm({
   }
 });
 
-// ../node_modules/openai/internal/errors.mjs
+// node_modules/openai/internal/errors.mjs
 function isAbortError(err2) {
   return typeof err2 === "object" && err2 !== null && // Spec-compliant fetch implementations
   ("name" in err2 && err2.name === "AbortError" || // Expo fetch
@@ -29293,7 +29293,7 @@ function isAbortError(err2) {
 }
 var castToError;
 var init_errors = __esm({
-  "../node_modules/openai/internal/errors.mjs"() {
+  "node_modules/openai/internal/errors.mjs"() {
     castToError = (err2) => {
       if (err2 instanceof Error)
         return err2;
@@ -29321,10 +29321,10 @@ var init_errors = __esm({
   }
 });
 
-// ../node_modules/openai/core/error.mjs
+// node_modules/openai/core/error.mjs
 var OpenAIError, APIError, APIUserAbortError, APIConnectionError, APIConnectionTimeoutError, BadRequestError, AuthenticationError, PermissionDeniedError, NotFoundError, ConflictError, UnprocessableEntityError, RateLimitError, InternalServerError, LengthFinishReasonError, ContentFilterFinishReasonError, InvalidWebhookSignatureError, OAuthError, SubjectTokenProviderError;
 var init_error = __esm({
-  "../node_modules/openai/core/error.mjs"() {
+  "node_modules/openai/core/error.mjs"() {
     init_errors();
     OpenAIError = class extends Error {
     };
@@ -29461,7 +29461,7 @@ var init_error = __esm({
   }
 });
 
-// ../node_modules/openai/internal/utils/values.mjs
+// node_modules/openai/internal/utils/values.mjs
 function maybeObj(x5) {
   if (typeof x5 !== "object") {
     return {};
@@ -29483,7 +29483,7 @@ function isObj(obj) {
 }
 var startsWithSchemeRegexp, isAbsoluteURL, isArray, isReadonlyArray, validatePositiveInteger, safeJSON;
 var init_values = __esm({
-  "../node_modules/openai/internal/utils/values.mjs"() {
+  "node_modules/openai/internal/utils/values.mjs"() {
     init_error();
     startsWithSchemeRegexp = /^[a-z][a-z0-9+.-]*:/i;
     isAbsoluteURL = (url2) => {
@@ -29510,23 +29510,23 @@ var init_values = __esm({
   }
 });
 
-// ../node_modules/openai/internal/utils/sleep.mjs
+// node_modules/openai/internal/utils/sleep.mjs
 var sleep;
 var init_sleep = __esm({
-  "../node_modules/openai/internal/utils/sleep.mjs"() {
+  "node_modules/openai/internal/utils/sleep.mjs"() {
     sleep = (ms) => new Promise((resolve2) => setTimeout(resolve2, ms));
   }
 });
 
-// ../node_modules/openai/version.mjs
+// node_modules/openai/version.mjs
 var VERSION;
 var init_version = __esm({
-  "../node_modules/openai/version.mjs"() {
+  "node_modules/openai/version.mjs"() {
     VERSION = "6.45.0";
   }
 });
 
-// ../node_modules/openai/internal/detect-platform.mjs
+// node_modules/openai/internal/detect-platform.mjs
 function getDetectedPlatform() {
   if (typeof Deno !== "undefined" && Deno.build != null) {
     return "deno";
@@ -29564,7 +29564,7 @@ function getBrowserInfo() {
 }
 var isRunningInBrowser, getPlatformProperties, normalizeArch, normalizePlatform, _platformHeaders, getPlatformHeaders;
 var init_detect_platform = __esm({
-  "../node_modules/openai/internal/detect-platform.mjs"() {
+  "node_modules/openai/internal/detect-platform.mjs"() {
     init_version();
     isRunningInBrowser = () => {
       return (
@@ -29665,7 +29665,7 @@ var init_detect_platform = __esm({
   }
 });
 
-// ../node_modules/openai/internal/shims.mjs
+// node_modules/openai/internal/shims.mjs
 function getDefaultFetch() {
   if (typeof fetch !== "undefined") {
     return fetch;
@@ -29737,14 +29737,14 @@ async function CancelReadableStream(stream4) {
   await cancelPromise;
 }
 var init_shims = __esm({
-  "../node_modules/openai/internal/shims.mjs"() {
+  "node_modules/openai/internal/shims.mjs"() {
   }
 });
 
-// ../node_modules/openai/internal/request-options.mjs
+// node_modules/openai/internal/request-options.mjs
 var FallbackEncoder;
 var init_request_options = __esm({
-  "../node_modules/openai/internal/request-options.mjs"() {
+  "node_modules/openai/internal/request-options.mjs"() {
     FallbackEncoder = ({ headers, body: body2 }) => {
       return {
         bodyHeaders: {
@@ -29756,10 +29756,10 @@ var init_request_options = __esm({
   }
 });
 
-// ../node_modules/openai/internal/qs/formats.mjs
+// node_modules/openai/internal/qs/formats.mjs
 var default_format, default_formatter, formatters, RFC1738;
 var init_formats = __esm({
-  "../node_modules/openai/internal/qs/formats.mjs"() {
+  "node_modules/openai/internal/qs/formats.mjs"() {
     default_format = "RFC3986";
     default_formatter = (v3) => String(v3);
     formatters = {
@@ -29770,7 +29770,7 @@ var init_formats = __esm({
   }
 });
 
-// ../node_modules/openai/internal/qs/utils.mjs
+// node_modules/openai/internal/qs/utils.mjs
 function is_buffer(obj) {
   if (!obj || typeof obj !== "object") {
     return false;
@@ -29789,7 +29789,7 @@ function maybe_map(val, fn2) {
 }
 var has, hex_table, limit, encode;
 var init_utils = __esm({
-  "../node_modules/openai/internal/qs/utils.mjs"() {
+  "node_modules/openai/internal/qs/utils.mjs"() {
     init_formats();
     init_values();
     has = (obj, key) => (has = Object.hasOwn ?? Function.prototype.call.bind(Object.prototype.hasOwnProperty), has(obj, key));
@@ -29856,7 +29856,7 @@ var init_utils = __esm({
   }
 });
 
-// ../node_modules/openai/internal/qs/stringify.mjs
+// node_modules/openai/internal/qs/stringify.mjs
 function is_non_nullish_primitive(v3) {
   return typeof v3 === "string" || typeof v3 === "number" || typeof v3 === "boolean" || typeof v3 === "symbol" || typeof v3 === "bigint";
 }
@@ -30096,7 +30096,7 @@ function stringify(object, opts = {}) {
 }
 var array_prefix_generators, push_to_array, toISOString, defaults, sentinel;
 var init_stringify = __esm({
-  "../node_modules/openai/internal/qs/stringify.mjs"() {
+  "node_modules/openai/internal/qs/stringify.mjs"() {
     init_utils();
     init_formats();
     init_values();
@@ -30141,17 +30141,17 @@ var init_stringify = __esm({
   }
 });
 
-// ../node_modules/openai/internal/utils/query.mjs
+// node_modules/openai/internal/utils/query.mjs
 function stringifyQuery(query) {
   return stringify(query, { arrayFormat: "brackets" });
 }
 var init_query = __esm({
-  "../node_modules/openai/internal/utils/query.mjs"() {
+  "node_modules/openai/internal/utils/query.mjs"() {
     init_stringify();
   }
 });
 
-// ../node_modules/openai/internal/utils/bytes.mjs
+// node_modules/openai/internal/utils/bytes.mjs
 function concatBytes(buffers) {
   let length = 0;
   for (const buffer of buffers) {
@@ -30175,11 +30175,11 @@ function decodeUTF8(bytes) {
 }
 var encodeUTF8_, decodeUTF8_;
 var init_bytes = __esm({
-  "../node_modules/openai/internal/utils/bytes.mjs"() {
+  "node_modules/openai/internal/utils/bytes.mjs"() {
   }
 });
 
-// ../node_modules/openai/internal/decoders/line.mjs
+// node_modules/openai/internal/decoders/line.mjs
 function findNewlineIndex(buffer, startIndex) {
   const newline = 10;
   const carriage = 13;
@@ -30211,7 +30211,7 @@ function findDoubleNewlineIndex(buffer) {
 }
 var _LineDecoder_buffer, _LineDecoder_carriageReturnIndex, LineDecoder;
 var init_line = __esm({
-  "../node_modules/openai/internal/decoders/line.mjs"() {
+  "node_modules/openai/internal/decoders/line.mjs"() {
     init_tslib();
     init_bytes();
     LineDecoder = class {
@@ -30261,7 +30261,7 @@ var init_line = __esm({
   }
 });
 
-// ../node_modules/openai/internal/utils/log.mjs
+// node_modules/openai/internal/utils/log.mjs
 function noop() {
 }
 function makeLogFn(fnLevel, logger2, logLevel) {
@@ -30292,7 +30292,7 @@ function loggerFor(client2) {
 }
 var levelNumbers, parseLogLevel, noopLogger, cachedLoggers, formatRequestDetails;
 var init_log = __esm({
-  "../node_modules/openai/internal/utils/log.mjs"() {
+  "node_modules/openai/internal/utils/log.mjs"() {
     init_values();
     levelNumbers = {
       off: 0,
@@ -30340,7 +30340,7 @@ var init_log = __esm({
   }
 });
 
-// ../node_modules/openai/core/streaming.mjs
+// node_modules/openai/core/streaming.mjs
 async function* _iterSSEMessages(response, controller) {
   if (!response.body) {
     controller.abort();
@@ -30395,7 +30395,7 @@ function partition(str2, delimiter) {
 }
 var _Stream_client, Stream, SSEDecoder;
 var init_streaming = __esm({
-  "../node_modules/openai/core/streaming.mjs"() {
+  "node_modules/openai/core/streaming.mjs"() {
     init_tslib();
     init_error();
     init_shims();
@@ -30611,7 +30611,7 @@ var init_streaming = __esm({
   }
 });
 
-// ../node_modules/openai/internal/parse.mjs
+// node_modules/openai/internal/parse.mjs
 async function defaultParseResponse(client2, props) {
   const { response, requestLogID, retryOfRequestLogID, startTime } = props;
   const body2 = await (async () => {
@@ -30661,16 +30661,16 @@ function addRequestID(value, response) {
   });
 }
 var init_parse = __esm({
-  "../node_modules/openai/internal/parse.mjs"() {
+  "node_modules/openai/internal/parse.mjs"() {
     init_streaming();
     init_log();
   }
 });
 
-// ../node_modules/openai/core/api-promise.mjs
+// node_modules/openai/core/api-promise.mjs
 var _APIPromise_client, APIPromise;
 var init_api_promise = __esm({
-  "../node_modules/openai/core/api-promise.mjs"() {
+  "node_modules/openai/core/api-promise.mjs"() {
     init_tslib();
     init_parse();
     APIPromise = class _APIPromise extends Promise {
@@ -30736,10 +30736,10 @@ var init_api_promise = __esm({
   }
 });
 
-// ../node_modules/openai/core/pagination.mjs
+// node_modules/openai/core/pagination.mjs
 var _AbstractPage_client, AbstractPage, PagePromise, Page, CursorPage, ConversationCursorPage, NextCursorPage;
 var init_pagination = __esm({
-  "../node_modules/openai/core/pagination.mjs"() {
+  "node_modules/openai/core/pagination.mjs"() {
     init_tslib();
     init_error();
     init_parse();
@@ -30906,10 +30906,10 @@ var init_pagination = __esm({
   }
 });
 
-// ../node_modules/openai/auth/workload-identity-auth.mjs
+// node_modules/openai/auth/workload-identity-auth.mjs
 var SUBJECT_TOKEN_TYPES, TOKEN_EXCHANGE_GRANT_TYPE, WorkloadIdentityAuth;
 var init_workload_identity_auth = __esm({
-  "../node_modules/openai/auth/workload-identity-auth.mjs"() {
+  "node_modules/openai/auth/workload-identity-auth.mjs"() {
     init_shims();
     init_error();
     SUBJECT_TOKEN_TYPES = {
@@ -31005,7 +31005,7 @@ var init_workload_identity_auth = __esm({
   }
 });
 
-// ../node_modules/openai/internal/uploads.mjs
+// node_modules/openai/internal/uploads.mjs
 function makeFile(fileBits, fileName, options) {
   checkFileSupport();
   return new File(fileBits, fileName ?? "unknown_file", options);
@@ -31035,7 +31035,7 @@ function supportsFormData(fetchObject) {
 }
 var checkFileSupport, isAsyncIterable, maybeMultipartFormRequestOptions, multipartFormRequestOptions, supportsFormDataMap, createForm, isNamedBlob, isUploadable, hasUploadableValue, addFormValue;
 var init_uploads = __esm({
-  "../node_modules/openai/internal/uploads.mjs"() {
+  "node_modules/openai/internal/uploads.mjs"() {
     init_shims();
     checkFileSupport = () => {
       if (typeof File === "undefined") {
@@ -31102,7 +31102,7 @@ var init_uploads = __esm({
   }
 });
 
-// ../node_modules/openai/internal/to-file.mjs
+// node_modules/openai/internal/to-file.mjs
 async function toFile(value, name2, options) {
   checkFileSupport();
   value = await value;
@@ -31152,7 +31152,7 @@ function propsForError(value) {
 }
 var isBlobLike, isFileLike, isResponseLike;
 var init_to_file = __esm({
-  "../node_modules/openai/internal/to-file.mjs"() {
+  "node_modules/openai/internal/to-file.mjs"() {
     init_uploads();
     init_uploads();
     isBlobLike = (value) => value != null && typeof value === "object" && typeof value.size === "number" && typeof value.type === "string" && typeof value.text === "function" && typeof value.slice === "function" && typeof value.arrayBuffer === "function";
@@ -31161,17 +31161,17 @@ var init_to_file = __esm({
   }
 });
 
-// ../node_modules/openai/core/uploads.mjs
+// node_modules/openai/core/uploads.mjs
 var init_uploads2 = __esm({
-  "../node_modules/openai/core/uploads.mjs"() {
+  "node_modules/openai/core/uploads.mjs"() {
     init_to_file();
   }
 });
 
-// ../node_modules/openai/core/resource.mjs
+// node_modules/openai/core/resource.mjs
 var APIResource;
 var init_resource = __esm({
-  "../node_modules/openai/core/resource.mjs"() {
+  "node_modules/openai/core/resource.mjs"() {
     APIResource = class {
       constructor(client2) {
         this._client = client2;
@@ -31180,13 +31180,13 @@ var init_resource = __esm({
   }
 });
 
-// ../node_modules/openai/internal/utils/path.mjs
+// node_modules/openai/internal/utils/path.mjs
 function encodeURIPath(str2) {
   return str2.replace(/[^A-Za-z0-9\-._~!$&'()*+,;=:@]+/g, encodeURIComponent);
 }
 var EMPTY, createPathTagFunction, path;
 var init_path = __esm({
-  "../node_modules/openai/internal/utils/path.mjs"() {
+  "node_modules/openai/internal/utils/path.mjs"() {
     init_error();
     EMPTY = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.create(null));
     createPathTagFunction = (pathEncoder = encodeURIPath) => function path4(statics, ...params) {
@@ -31241,10 +31241,10 @@ ${underline}`);
   }
 });
 
-// ../node_modules/openai/resources/chat/completions/messages.mjs
+// node_modules/openai/resources/chat/completions/messages.mjs
 var Messages;
 var init_messages = __esm({
-  "../node_modules/openai/resources/chat/completions/messages.mjs"() {
+  "node_modules/openai/resources/chat/completions/messages.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -31270,14 +31270,14 @@ var init_messages = __esm({
   }
 });
 
-// ../node_modules/openai/error.mjs
+// node_modules/openai/error.mjs
 var init_error2 = __esm({
-  "../node_modules/openai/error.mjs"() {
+  "node_modules/openai/error.mjs"() {
     init_error();
   }
 });
 
-// ../node_modules/openai/lib/parser.mjs
+// node_modules/openai/lib/parser.mjs
 function isChatCompletionFunctionTool(tool) {
   return tool !== void 0 && "function" in tool && tool.function !== void 0;
 }
@@ -31384,15 +31384,15 @@ function validateInputTools(tools) {
   }
 }
 var init_parser = __esm({
-  "../node_modules/openai/lib/parser.mjs"() {
+  "node_modules/openai/lib/parser.mjs"() {
     init_error2();
   }
 });
 
-// ../node_modules/openai/lib/chatCompletionUtils.mjs
+// node_modules/openai/lib/chatCompletionUtils.mjs
 var isAssistantMessage, isToolMessage;
 var init_chatCompletionUtils = __esm({
-  "../node_modules/openai/lib/chatCompletionUtils.mjs"() {
+  "node_modules/openai/lib/chatCompletionUtils.mjs"() {
     isAssistantMessage = (message) => {
       return message?.role === "assistant";
     };
@@ -31402,10 +31402,10 @@ var init_chatCompletionUtils = __esm({
   }
 });
 
-// ../node_modules/openai/lib/EventStream.mjs
+// node_modules/openai/lib/EventStream.mjs
 var _EventStream_instances, _EventStream_connectedPromise, _EventStream_resolveConnectedPromise, _EventStream_rejectConnectedPromise, _EventStream_endPromise, _EventStream_resolveEndPromise, _EventStream_rejectEndPromise, _EventStream_listeners, _EventStream_abortListeners, _EventStream_ended, _EventStream_errored, _EventStream_aborted, _EventStream_catchingPromiseCreated, _EventStream_removeAbortListeners, _EventStream_handleError, EventStream;
 var init_EventStream = __esm({
-  "../node_modules/openai/lib/EventStream.mjs"() {
+  "node_modules/openai/lib/EventStream.mjs"() {
     init_tslib();
     init_error2();
     EventStream = class {
@@ -31602,19 +31602,19 @@ var init_EventStream = __esm({
   }
 });
 
-// ../node_modules/openai/lib/RunnableFunction.mjs
+// node_modules/openai/lib/RunnableFunction.mjs
 function isRunnableFunctionWithParse(fn2) {
   return typeof fn2.parse === "function";
 }
 var init_RunnableFunction = __esm({
-  "../node_modules/openai/lib/RunnableFunction.mjs"() {
+  "node_modules/openai/lib/RunnableFunction.mjs"() {
   }
 });
 
-// ../node_modules/openai/lib/AbstractChatCompletionRunner.mjs
+// node_modules/openai/lib/AbstractChatCompletionRunner.mjs
 var _AbstractChatCompletionRunner_instances, _AbstractChatCompletionRunner_getFinalContent, _AbstractChatCompletionRunner_getFinalMessage, _AbstractChatCompletionRunner_getFinalFunctionToolCall, _AbstractChatCompletionRunner_getFinalFunctionToolCallResult, _AbstractChatCompletionRunner_calculateTotalUsage, _AbstractChatCompletionRunner_validateParams, _AbstractChatCompletionRunner_stringifyFunctionCallResult, DEFAULT_MAX_CHAT_COMPLETIONS, AbstractChatCompletionRunner;
 var init_AbstractChatCompletionRunner = __esm({
-  "../node_modules/openai/lib/AbstractChatCompletionRunner.mjs"() {
+  "node_modules/openai/lib/AbstractChatCompletionRunner.mjs"() {
     init_tslib();
     init_error2();
     init_parser();
@@ -31908,10 +31908,10 @@ var init_AbstractChatCompletionRunner = __esm({
   }
 });
 
-// ../node_modules/openai/lib/ChatCompletionRunner.mjs
+// node_modules/openai/lib/ChatCompletionRunner.mjs
 var ChatCompletionRunner;
 var init_ChatCompletionRunner = __esm({
-  "../node_modules/openai/lib/ChatCompletionRunner.mjs"() {
+  "node_modules/openai/lib/ChatCompletionRunner.mjs"() {
     init_AbstractChatCompletionRunner();
     init_chatCompletionUtils();
     ChatCompletionRunner = class _ChatCompletionRunner extends AbstractChatCompletionRunner {
@@ -31934,7 +31934,7 @@ var init_ChatCompletionRunner = __esm({
   }
 });
 
-// ../node_modules/openai/_vendor/partial-json-parser/parser.mjs
+// node_modules/openai/_vendor/partial-json-parser/parser.mjs
 function parseJSON(jsonString, allowPartial = Allow.ALL) {
   if (typeof jsonString !== "string") {
     throw new TypeError(`expecting str, got ${typeof jsonString}`);
@@ -31946,7 +31946,7 @@ function parseJSON(jsonString, allowPartial = Allow.ALL) {
 }
 var STR, NUM, ARR, OBJ, NULL, BOOL, NAN, INFINITY, MINUS_INFINITY, INF, SPECIAL, ATOM, COLLECTION, ALL, Allow, PartialJSON, MalformedJSON, _parseJSON, partialParse;
 var init_parser2 = __esm({
-  "../node_modules/openai/_vendor/partial-json-parser/parser.mjs"() {
+  "node_modules/openai/_vendor/partial-json-parser/parser.mjs"() {
     STR = 1;
     NUM = 2;
     ARR = 4;
@@ -32151,16 +32151,16 @@ var init_parser2 = __esm({
   }
 });
 
-// ../node_modules/openai/streaming.mjs
+// node_modules/openai/streaming.mjs
 var init_streaming2 = __esm({
-  "../node_modules/openai/streaming.mjs"() {
+  "node_modules/openai/streaming.mjs"() {
     init_streaming();
   }
 });
 
-// ../node_modules/openai/lib/ChatCompletionStream.mjs
-function finalizeChatCompletion(snapshot, params) {
-  const { id, choices, created, model, system_fingerprint, ...rest } = snapshot;
+// node_modules/openai/lib/ChatCompletionStream.mjs
+function finalizeChatCompletion(snapshot2, params) {
+  const { id, choices, created, model, system_fingerprint, ...rest } = snapshot2;
   const completion = {
     ...rest,
     id,
@@ -32210,19 +32210,19 @@ function finalizeChatCompletion(snapshot, params) {
               const { arguments: args2, name: name2, ...fnRest } = fn2 || {};
               if (id2 == null) {
                 throw new OpenAIError(`missing choices[${index}].tool_calls[${i3}].id
-${str(snapshot)}`);
+${str(snapshot2)}`);
               }
               if (type == null) {
                 throw new OpenAIError(`missing choices[${index}].tool_calls[${i3}].type
-${str(snapshot)}`);
+${str(snapshot2)}`);
               }
               if (name2 == null) {
                 throw new OpenAIError(`missing choices[${index}].tool_calls[${i3}].function.name
-${str(snapshot)}`);
+${str(snapshot2)}`);
               }
               if (args2 == null) {
                 throw new OpenAIError(`missing choices[${index}].tool_calls[${i3}].function.arguments
-${str(snapshot)}`);
+${str(snapshot2)}`);
               }
               return { ...toolRest, id: id2, type, function: { ...fnRest, name: name2, arguments: args2 } };
             })
@@ -32254,7 +32254,7 @@ function assertNever(_x) {
 }
 var _ChatCompletionStream_instances, _ChatCompletionStream_params, _ChatCompletionStream_choiceEventStates, _ChatCompletionStream_currentChatCompletionSnapshot, _ChatCompletionStream_beginRequest, _ChatCompletionStream_getChoiceEventState, _ChatCompletionStream_addChunk, _ChatCompletionStream_emitToolCallDoneEvent, _ChatCompletionStream_emitContentDoneEvents, _ChatCompletionStream_endRequest, _ChatCompletionStream_getAutoParseableResponseFormat, _ChatCompletionStream_accumulateChatCompletion, ChatCompletionStream;
 var init_ChatCompletionStream = __esm({
-  "../node_modules/openai/lib/ChatCompletionStream.mjs"() {
+  "node_modules/openai/lib/ChatCompletionStream.mjs"() {
     init_tslib();
     init_parser2();
     init_error2();
@@ -32458,13 +32458,13 @@ var init_ChatCompletionStream = __esm({
         if (this.ended) {
           throw new OpenAIError(`stream has ended, this shouldn't happen`);
         }
-        const snapshot = __classPrivateFieldGet(this, _ChatCompletionStream_currentChatCompletionSnapshot, "f");
-        if (!snapshot) {
+        const snapshot2 = __classPrivateFieldGet(this, _ChatCompletionStream_currentChatCompletionSnapshot, "f");
+        if (!snapshot2) {
           throw new OpenAIError(`request ended without sending any chunks`);
         }
         __classPrivateFieldSet(this, _ChatCompletionStream_currentChatCompletionSnapshot, void 0, "f");
         __classPrivateFieldSet(this, _ChatCompletionStream_choiceEventStates, [], "f");
-        return finalizeChatCompletion(snapshot, __classPrivateFieldGet(this, _ChatCompletionStream_params, "f"));
+        return finalizeChatCompletion(snapshot2, __classPrivateFieldGet(this, _ChatCompletionStream_params, "f"));
       }, _ChatCompletionStream_getAutoParseableResponseFormat = function _ChatCompletionStream_getAutoParseableResponseFormat2() {
         const responseFormat = __classPrivateFieldGet(this, _ChatCompletionStream_params, "f")?.response_format;
         if (isAutoParsableResponseFormat(responseFormat)) {
@@ -32473,20 +32473,20 @@ var init_ChatCompletionStream = __esm({
         return null;
       }, _ChatCompletionStream_accumulateChatCompletion = function _ChatCompletionStream_accumulateChatCompletion2(chunk) {
         var _a3, _b, _c, _d;
-        let snapshot = __classPrivateFieldGet(this, _ChatCompletionStream_currentChatCompletionSnapshot, "f");
+        let snapshot2 = __classPrivateFieldGet(this, _ChatCompletionStream_currentChatCompletionSnapshot, "f");
         const { choices, ...rest } = chunk;
-        if (!snapshot) {
-          snapshot = __classPrivateFieldSet(this, _ChatCompletionStream_currentChatCompletionSnapshot, {
+        if (!snapshot2) {
+          snapshot2 = __classPrivateFieldSet(this, _ChatCompletionStream_currentChatCompletionSnapshot, {
             ...rest,
             choices: []
           }, "f");
         } else {
-          Object.assign(snapshot, rest);
+          Object.assign(snapshot2, rest);
         }
         for (const { delta, finish_reason, index, logprobs = null, ...other } of chunk.choices) {
-          let choice = snapshot.choices[index];
+          let choice = snapshot2.choices[index];
           if (!choice) {
-            choice = snapshot.choices[index] = { finish_reason, index, message: {}, logprobs, ...other };
+            choice = snapshot2.choices[index] = { finish_reason, index, message: {}, logprobs, ...other };
           }
           if (logprobs) {
             if (!choice.logprobs) {
@@ -32568,7 +32568,7 @@ var init_ChatCompletionStream = __esm({
             }
           }
         }
-        return snapshot;
+        return snapshot2;
       }, Symbol.asyncIterator)]() {
         const pushQueue = [];
         const readQueue = [];
@@ -32627,10 +32627,10 @@ var init_ChatCompletionStream = __esm({
   }
 });
 
-// ../node_modules/openai/lib/ChatCompletionStreamingRunner.mjs
+// node_modules/openai/lib/ChatCompletionStreamingRunner.mjs
 var ChatCompletionStreamingRunner;
 var init_ChatCompletionStreamingRunner = __esm({
-  "../node_modules/openai/lib/ChatCompletionStreamingRunner.mjs"() {
+  "node_modules/openai/lib/ChatCompletionStreamingRunner.mjs"() {
     init_ChatCompletionStream();
     ChatCompletionStreamingRunner = class _ChatCompletionStreamingRunner extends ChatCompletionStream {
       static fromReadableStream(stream4) {
@@ -32654,10 +32654,10 @@ var init_ChatCompletionStreamingRunner = __esm({
   }
 });
 
-// ../node_modules/openai/resources/chat/completions/completions.mjs
+// node_modules/openai/resources/chat/completions/completions.mjs
 var Completions;
 var init_completions = __esm({
-  "../node_modules/openai/resources/chat/completions/completions.mjs"() {
+  "node_modules/openai/resources/chat/completions/completions.mjs"() {
     init_resource();
     init_messages();
     init_messages();
@@ -32782,10 +32782,10 @@ var init_completions = __esm({
   }
 });
 
-// ../node_modules/openai/resources/chat/chat.mjs
+// node_modules/openai/resources/chat/chat.mjs
 var Chat;
 var init_chat = __esm({
-  "../node_modules/openai/resources/chat/chat.mjs"() {
+  "node_modules/openai/resources/chat/chat.mjs"() {
     init_resource();
     init_completions();
     init_completions();
@@ -32799,33 +32799,33 @@ var init_chat = __esm({
   }
 });
 
-// ../node_modules/openai/resources/chat/completions/index.mjs
+// node_modules/openai/resources/chat/completions/index.mjs
 var init_completions2 = __esm({
-  "../node_modules/openai/resources/chat/completions/index.mjs"() {
+  "node_modules/openai/resources/chat/completions/index.mjs"() {
     init_completions();
     init_completions();
     init_messages();
   }
 });
 
-// ../node_modules/openai/resources/chat/index.mjs
+// node_modules/openai/resources/chat/index.mjs
 var init_chat2 = __esm({
-  "../node_modules/openai/resources/chat/index.mjs"() {
+  "node_modules/openai/resources/chat/index.mjs"() {
     init_chat();
     init_completions2();
   }
 });
 
-// ../node_modules/openai/resources/shared.mjs
+// node_modules/openai/resources/shared.mjs
 var init_shared = __esm({
-  "../node_modules/openai/resources/shared.mjs"() {
+  "node_modules/openai/resources/shared.mjs"() {
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/admin-api-keys.mjs
+// node_modules/openai/resources/admin/organization/admin-api-keys.mjs
 var AdminAPIKeys;
 var init_admin_api_keys = __esm({
-  "../node_modules/openai/resources/admin/organization/admin-api-keys.mjs"() {
+  "node_modules/openai/resources/admin/organization/admin-api-keys.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -32904,10 +32904,10 @@ var init_admin_api_keys = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/audit-logs.mjs
+// node_modules/openai/resources/admin/organization/audit-logs.mjs
 var AuditLogs;
 var init_audit_logs = __esm({
-  "../node_modules/openai/resources/admin/organization/audit-logs.mjs"() {
+  "node_modules/openai/resources/admin/organization/audit-logs.mjs"() {
     init_resource();
     init_pagination();
     AuditLogs = class extends APIResource {
@@ -32933,10 +32933,10 @@ var init_audit_logs = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/certificates.mjs
+// node_modules/openai/resources/admin/organization/certificates.mjs
 var Certificates;
 var init_certificates = __esm({
-  "../node_modules/openai/resources/admin/organization/certificates.mjs"() {
+  "node_modules/openai/resources/admin/organization/certificates.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33078,10 +33078,10 @@ var init_certificates = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/data-retention.mjs
+// node_modules/openai/resources/admin/organization/data-retention.mjs
 var DataRetention;
 var init_data_retention = __esm({
-  "../node_modules/openai/resources/admin/organization/data-retention.mjs"() {
+  "node_modules/openai/resources/admin/organization/data-retention.mjs"() {
     init_resource();
     DataRetention = class extends APIResource {
       /**
@@ -33121,10 +33121,10 @@ var init_data_retention = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/invites.mjs
+// node_modules/openai/resources/admin/organization/invites.mjs
 var Invites;
 var init_invites = __esm({
-  "../node_modules/openai/resources/admin/organization/invites.mjs"() {
+  "node_modules/openai/resources/admin/organization/invites.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33205,10 +33205,10 @@ var init_invites = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/roles.mjs
+// node_modules/openai/resources/admin/organization/roles.mjs
 var Roles;
 var init_roles = __esm({
-  "../node_modules/openai/resources/admin/organization/roles.mjs"() {
+  "node_modules/openai/resources/admin/organization/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33302,10 +33302,10 @@ var init_roles = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/spend-alerts.mjs
+// node_modules/openai/resources/admin/organization/spend-alerts.mjs
 var SpendAlerts;
 var init_spend_alerts = __esm({
-  "../node_modules/openai/resources/admin/organization/spend-alerts.mjs"() {
+  "node_modules/openai/resources/admin/organization/spend-alerts.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33413,10 +33413,10 @@ var init_spend_alerts = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/usage.mjs
+// node_modules/openai/resources/admin/organization/usage.mjs
 var Usage;
 var init_usage = __esm({
-  "../node_modules/openai/resources/admin/organization/usage.mjs"() {
+  "node_modules/openai/resources/admin/organization/usage.mjs"() {
     init_resource();
     Usage = class extends APIResource {
       /**
@@ -33621,10 +33621,10 @@ var init_usage = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/groups/roles.mjs
+// node_modules/openai/resources/admin/organization/groups/roles.mjs
 var Roles2;
 var init_roles2 = __esm({
-  "../node_modules/openai/resources/admin/organization/groups/roles.mjs"() {
+  "node_modules/openai/resources/admin/organization/groups/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33706,10 +33706,10 @@ var init_roles2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/groups/users.mjs
+// node_modules/openai/resources/admin/organization/groups/users.mjs
 var Users;
 var init_users = __esm({
-  "../node_modules/openai/resources/admin/organization/groups/users.mjs"() {
+  "node_modules/openai/resources/admin/organization/groups/users.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33791,10 +33791,10 @@ var init_users = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/groups/groups.mjs
+// node_modules/openai/resources/admin/organization/groups/groups.mjs
 var Groups;
 var init_groups = __esm({
-  "../node_modules/openai/resources/admin/organization/groups/groups.mjs"() {
+  "node_modules/openai/resources/admin/organization/groups/groups.mjs"() {
     init_resource();
     init_roles2();
     init_roles2();
@@ -33900,10 +33900,10 @@ var init_groups = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/api-keys.mjs
+// node_modules/openai/resources/admin/organization/projects/api-keys.mjs
 var APIKeys;
 var init_api_keys = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/api-keys.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/api-keys.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -33969,10 +33969,10 @@ var init_api_keys = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/certificates.mjs
+// node_modules/openai/resources/admin/organization/projects/certificates.mjs
 var Certificates2;
 var init_certificates2 = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/certificates.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/certificates.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34034,10 +34034,10 @@ var init_certificates2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/data-retention.mjs
+// node_modules/openai/resources/admin/organization/projects/data-retention.mjs
 var DataRetention2;
 var init_data_retention2 = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/data-retention.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/data-retention.mjs"() {
     init_resource();
     init_path();
     DataRetention2 = class extends APIResource {
@@ -34081,10 +34081,10 @@ var init_data_retention2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs
+// node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs
 var HostedToolPermissions;
 var init_hosted_tool_permissions = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs"() {
     init_resource();
     init_path();
     HostedToolPermissions = class extends APIResource {
@@ -34127,10 +34127,10 @@ var init_hosted_tool_permissions = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/model-permissions.mjs
+// node_modules/openai/resources/admin/organization/projects/model-permissions.mjs
 var ModelPermissions;
 var init_model_permissions = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/model-permissions.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/model-permissions.mjs"() {
     init_resource();
     init_path();
     ModelPermissions = class extends APIResource {
@@ -34191,10 +34191,10 @@ var init_model_permissions = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/rate-limits.mjs
+// node_modules/openai/resources/admin/organization/projects/rate-limits.mjs
 var RateLimits;
 var init_rate_limits = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/rate-limits.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/rate-limits.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34239,10 +34239,10 @@ var init_rate_limits = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/roles.mjs
+// node_modules/openai/resources/admin/organization/projects/roles.mjs
 var Roles3;
 var init_roles3 = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/roles.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34348,10 +34348,10 @@ var init_roles3 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/service-accounts.mjs
+// node_modules/openai/resources/admin/organization/projects/service-accounts.mjs
 var ServiceAccounts;
 var init_service_accounts = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/service-accounts.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/service-accounts.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34450,10 +34450,10 @@ var init_service_accounts = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs
+// node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs
 var SpendAlerts2;
 var init_spend_alerts2 = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34572,10 +34572,10 @@ var init_spend_alerts2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/groups/roles.mjs
+// node_modules/openai/resources/admin/organization/projects/groups/roles.mjs
 var Roles4;
 var init_roles4 = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/groups/roles.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/groups/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34660,10 +34660,10 @@ var init_roles4 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/groups/groups.mjs
+// node_modules/openai/resources/admin/organization/projects/groups/groups.mjs
 var Groups2;
 var init_groups2 = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/groups/groups.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/groups/groups.mjs"() {
     init_resource();
     init_roles4();
     init_roles4();
@@ -34753,10 +34753,10 @@ var init_groups2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/users/roles.mjs
+// node_modules/openai/resources/admin/organization/projects/users/roles.mjs
 var Roles5;
 var init_roles5 = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/users/roles.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/users/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -34841,10 +34841,10 @@ var init_roles5 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/users/users.mjs
+// node_modules/openai/resources/admin/organization/projects/users/users.mjs
 var Users2;
 var init_users2 = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/users/users.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/users/users.mjs"() {
     init_resource();
     init_roles5();
     init_roles5();
@@ -34957,10 +34957,10 @@ var init_users2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/projects/projects.mjs
+// node_modules/openai/resources/admin/organization/projects/projects.mjs
 var Projects;
 var init_projects = __esm({
-  "../node_modules/openai/resources/admin/organization/projects/projects.mjs"() {
+  "node_modules/openai/resources/admin/organization/projects/projects.mjs"() {
     init_resource();
     init_api_keys();
     init_api_keys();
@@ -35106,10 +35106,10 @@ var init_projects = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/users/roles.mjs
+// node_modules/openai/resources/admin/organization/users/roles.mjs
 var Roles6;
 var init_roles6 = __esm({
-  "../node_modules/openai/resources/admin/organization/users/roles.mjs"() {
+  "node_modules/openai/resources/admin/organization/users/roles.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -35191,10 +35191,10 @@ var init_roles6 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/users/users.mjs
+// node_modules/openai/resources/admin/organization/users/users.mjs
 var Users3;
 var init_users3 = __esm({
-  "../node_modules/openai/resources/admin/organization/users/users.mjs"() {
+  "node_modules/openai/resources/admin/organization/users/users.mjs"() {
     init_resource();
     init_roles6();
     init_roles6();
@@ -35275,10 +35275,10 @@ var init_users3 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/organization/organization.mjs
+// node_modules/openai/resources/admin/organization/organization.mjs
 var Organization;
 var init_organization = __esm({
-  "../node_modules/openai/resources/admin/organization/organization.mjs"() {
+  "node_modules/openai/resources/admin/organization/organization.mjs"() {
     init_resource();
     init_admin_api_keys();
     init_admin_api_keys();
@@ -35332,10 +35332,10 @@ var init_organization = __esm({
   }
 });
 
-// ../node_modules/openai/resources/admin/admin.mjs
+// node_modules/openai/resources/admin/admin.mjs
 var Admin;
 var init_admin = __esm({
-  "../node_modules/openai/resources/admin/admin.mjs"() {
+  "node_modules/openai/resources/admin/admin.mjs"() {
     init_resource();
     init_organization();
     init_organization();
@@ -35349,7 +35349,7 @@ var init_admin = __esm({
   }
 });
 
-// ../node_modules/openai/internal/headers.mjs
+// node_modules/openai/internal/headers.mjs
 function* iterateHeaders(headers) {
   if (!headers)
     return;
@@ -35390,7 +35390,7 @@ function* iterateHeaders(headers) {
 }
 var brand_privateNullableHeaders, buildHeaders;
 var init_headers = __esm({
-  "../node_modules/openai/internal/headers.mjs"() {
+  "node_modules/openai/internal/headers.mjs"() {
     init_values();
     brand_privateNullableHeaders = /* @__PURE__ */ Symbol("brand.privateNullableHeaders");
     buildHeaders = (newHeaders) => {
@@ -35418,10 +35418,10 @@ var init_headers = __esm({
   }
 });
 
-// ../node_modules/openai/resources/audio/speech.mjs
+// node_modules/openai/resources/audio/speech.mjs
 var Speech;
 var init_speech = __esm({
-  "../node_modules/openai/resources/audio/speech.mjs"() {
+  "node_modules/openai/resources/audio/speech.mjs"() {
     init_resource();
     init_headers();
     Speech = class extends APIResource {
@@ -35455,10 +35455,10 @@ var init_speech = __esm({
   }
 });
 
-// ../node_modules/openai/resources/audio/transcriptions.mjs
+// node_modules/openai/resources/audio/transcriptions.mjs
 var Transcriptions;
 var init_transcriptions = __esm({
-  "../node_modules/openai/resources/audio/transcriptions.mjs"() {
+  "node_modules/openai/resources/audio/transcriptions.mjs"() {
     init_resource();
     init_uploads();
     Transcriptions = class extends APIResource {
@@ -35475,10 +35475,10 @@ var init_transcriptions = __esm({
   }
 });
 
-// ../node_modules/openai/resources/audio/translations.mjs
+// node_modules/openai/resources/audio/translations.mjs
 var Translations;
 var init_translations = __esm({
-  "../node_modules/openai/resources/audio/translations.mjs"() {
+  "node_modules/openai/resources/audio/translations.mjs"() {
     init_resource();
     init_uploads();
     Translations = class extends APIResource {
@@ -35489,10 +35489,10 @@ var init_translations = __esm({
   }
 });
 
-// ../node_modules/openai/resources/audio/audio.mjs
+// node_modules/openai/resources/audio/audio.mjs
 var Audio;
 var init_audio = __esm({
-  "../node_modules/openai/resources/audio/audio.mjs"() {
+  "node_modules/openai/resources/audio/audio.mjs"() {
     init_resource();
     init_speech();
     init_speech();
@@ -35514,10 +35514,10 @@ var init_audio = __esm({
   }
 });
 
-// ../node_modules/openai/resources/batches.mjs
+// node_modules/openai/resources/batches.mjs
 var Batches;
 var init_batches = __esm({
-  "../node_modules/openai/resources/batches.mjs"() {
+  "node_modules/openai/resources/batches.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -35559,10 +35559,10 @@ var init_batches = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/assistants.mjs
+// node_modules/openai/resources/beta/assistants.mjs
 var Assistants;
 var init_assistants = __esm({
-  "../node_modules/openai/resources/beta/assistants.mjs"() {
+  "node_modules/openai/resources/beta/assistants.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -35635,10 +35635,10 @@ var init_assistants = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/realtime/sessions.mjs
+// node_modules/openai/resources/beta/realtime/sessions.mjs
 var Sessions;
 var init_sessions = __esm({
-  "../node_modules/openai/resources/beta/realtime/sessions.mjs"() {
+  "node_modules/openai/resources/beta/realtime/sessions.mjs"() {
     init_resource();
     init_headers();
     Sessions = class extends APIResource {
@@ -35669,10 +35669,10 @@ var init_sessions = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/realtime/transcription-sessions.mjs
+// node_modules/openai/resources/beta/realtime/transcription-sessions.mjs
 var TranscriptionSessions;
 var init_transcription_sessions = __esm({
-  "../node_modules/openai/resources/beta/realtime/transcription-sessions.mjs"() {
+  "node_modules/openai/resources/beta/realtime/transcription-sessions.mjs"() {
     init_resource();
     init_headers();
     TranscriptionSessions = class extends APIResource {
@@ -35703,10 +35703,10 @@ var init_transcription_sessions = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/realtime/realtime.mjs
+// node_modules/openai/resources/beta/realtime/realtime.mjs
 var Realtime;
 var init_realtime = __esm({
-  "../node_modules/openai/resources/beta/realtime/realtime.mjs"() {
+  "node_modules/openai/resources/beta/realtime/realtime.mjs"() {
     init_resource();
     init_sessions();
     init_sessions();
@@ -35724,10 +35724,10 @@ var init_realtime = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/chatkit/sessions.mjs
+// node_modules/openai/resources/beta/chatkit/sessions.mjs
 var Sessions2;
 var init_sessions2 = __esm({
-  "../node_modules/openai/resources/beta/chatkit/sessions.mjs"() {
+  "node_modules/openai/resources/beta/chatkit/sessions.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -35774,10 +35774,10 @@ var init_sessions2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/chatkit/threads.mjs
+// node_modules/openai/resources/beta/chatkit/threads.mjs
 var Threads;
 var init_threads = __esm({
-  "../node_modules/openai/resources/beta/chatkit/threads.mjs"() {
+  "node_modules/openai/resources/beta/chatkit/threads.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -35860,10 +35860,10 @@ var init_threads = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/chatkit/chatkit.mjs
+// node_modules/openai/resources/beta/chatkit/chatkit.mjs
 var ChatKit;
 var init_chatkit = __esm({
-  "../node_modules/openai/resources/beta/chatkit/chatkit.mjs"() {
+  "node_modules/openai/resources/beta/chatkit/chatkit.mjs"() {
     init_resource();
     init_sessions2();
     init_sessions2();
@@ -35881,10 +35881,10 @@ var init_chatkit = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/threads/messages.mjs
+// node_modules/openai/resources/beta/threads/messages.mjs
 var Messages2;
 var init_messages2 = __esm({
-  "../node_modules/openai/resources/beta/threads/messages.mjs"() {
+  "node_modules/openai/resources/beta/threads/messages.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -35960,10 +35960,10 @@ var init_messages2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/threads/runs/steps.mjs
+// node_modules/openai/resources/beta/threads/runs/steps.mjs
 var Steps;
 var init_steps = __esm({
-  "../node_modules/openai/resources/beta/threads/runs/steps.mjs"() {
+  "node_modules/openai/resources/beta/threads/runs/steps.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -36001,10 +36001,10 @@ var init_steps = __esm({
   }
 });
 
-// ../node_modules/openai/internal/utils/base64.mjs
+// node_modules/openai/internal/utils/base64.mjs
 var toFloat32Array;
 var init_base64 = __esm({
-  "../node_modules/openai/internal/utils/base64.mjs"() {
+  "node_modules/openai/internal/utils/base64.mjs"() {
     init_error();
     init_bytes();
     toFloat32Array = (base64Str) => {
@@ -36024,10 +36024,10 @@ var init_base64 = __esm({
   }
 });
 
-// ../node_modules/openai/internal/utils/env.mjs
+// node_modules/openai/internal/utils/env.mjs
 var readEnv;
 var init_env = __esm({
-  "../node_modules/openai/internal/utils/env.mjs"() {
+  "node_modules/openai/internal/utils/env.mjs"() {
     readEnv = (env) => {
       if (typeof globalThis.process !== "undefined") {
         return globalThis.process.env?.[env]?.trim() || void 0;
@@ -36040,9 +36040,9 @@ var init_env = __esm({
   }
 });
 
-// ../node_modules/openai/internal/utils.mjs
+// node_modules/openai/internal/utils.mjs
 var init_utils2 = __esm({
-  "../node_modules/openai/internal/utils.mjs"() {
+  "node_modules/openai/internal/utils.mjs"() {
     init_values();
     init_base64();
     init_env();
@@ -36053,12 +36053,12 @@ var init_utils2 = __esm({
   }
 });
 
-// ../node_modules/openai/lib/AssistantStream.mjs
+// node_modules/openai/lib/AssistantStream.mjs
 function assertNever2(_x) {
 }
 var _AssistantStream_instances, _a, _AssistantStream_events, _AssistantStream_runStepSnapshots, _AssistantStream_messageSnapshots, _AssistantStream_messageSnapshot, _AssistantStream_finalRun, _AssistantStream_currentContentIndex, _AssistantStream_currentContent, _AssistantStream_currentToolCallIndex, _AssistantStream_currentToolCall, _AssistantStream_currentEvent, _AssistantStream_currentRunSnapshot, _AssistantStream_currentRunStepSnapshot, _AssistantStream_addEvent, _AssistantStream_endRequest, _AssistantStream_handleMessage, _AssistantStream_handleRunStep, _AssistantStream_handleEvent, _AssistantStream_accumulateRunStep, _AssistantStream_accumulateMessage, _AssistantStream_accumulateContent, _AssistantStream_handleRun, AssistantStream;
 var init_AssistantStream = __esm({
-  "../node_modules/openai/lib/AssistantStream.mjs"() {
+  "node_modules/openai/lib/AssistantStream.mjs"() {
     init_tslib();
     init_streaming2();
     init_error2();
@@ -36380,9 +36380,9 @@ var init_AssistantStream = __esm({
             for (const content of event.data.delta.content) {
               if (content.type == "text" && content.text) {
                 let textDelta = content.text;
-                let snapshot = accumulatedMessage.content[content.index];
-                if (snapshot && snapshot.type == "text") {
-                  this._emit("textDelta", textDelta, snapshot.text);
+                let snapshot2 = accumulatedMessage.content[content.index];
+                if (snapshot2 && snapshot2.type == "text") {
+                  this._emit("textDelta", textDelta, snapshot2.text);
                 } else {
                   throw Error("The snapshot associated with this text delta is not text or missing");
                 }
@@ -36476,13 +36476,13 @@ var init_AssistantStream = __esm({
           __classPrivateFieldGet(this, _AssistantStream_runStepSnapshots, "f")[event.data.id] = event.data;
           return event.data;
         case "thread.run.step.delta":
-          let snapshot = __classPrivateFieldGet(this, _AssistantStream_runStepSnapshots, "f")[event.data.id];
-          if (!snapshot) {
+          let snapshot2 = __classPrivateFieldGet(this, _AssistantStream_runStepSnapshots, "f")[event.data.id];
+          if (!snapshot2) {
             throw Error("Received a RunStepDelta before creation of a snapshot");
           }
           let data = event.data;
           if (data.delta) {
-            const accumulated = _a.accumulateDelta(snapshot, data.delta);
+            const accumulated = _a.accumulateDelta(snapshot2, data.delta);
             __classPrivateFieldGet(this, _AssistantStream_runStepSnapshots, "f")[event.data.id] = accumulated;
           }
           return __classPrivateFieldGet(this, _AssistantStream_runStepSnapshots, "f")[event.data.id];
@@ -36497,33 +36497,33 @@ var init_AssistantStream = __esm({
       if (__classPrivateFieldGet(this, _AssistantStream_runStepSnapshots, "f")[event.data.id])
         return __classPrivateFieldGet(this, _AssistantStream_runStepSnapshots, "f")[event.data.id];
       throw new Error("No snapshot available");
-    }, _AssistantStream_accumulateMessage = function _AssistantStream_accumulateMessage2(event, snapshot) {
+    }, _AssistantStream_accumulateMessage = function _AssistantStream_accumulateMessage2(event, snapshot2) {
       let newContent = [];
       switch (event.event) {
         case "thread.message.created":
           return [event.data, newContent];
         case "thread.message.delta":
-          if (!snapshot) {
+          if (!snapshot2) {
             throw Error("Received a delta with no existing snapshot (there should be one from message creation)");
           }
           let data = event.data;
           if (data.delta.content) {
             for (const contentElement of data.delta.content) {
-              if (contentElement.index in snapshot.content) {
-                let currentContent = snapshot.content[contentElement.index];
-                snapshot.content[contentElement.index] = __classPrivateFieldGet(this, _AssistantStream_instances, "m", _AssistantStream_accumulateContent).call(this, contentElement, currentContent);
+              if (contentElement.index in snapshot2.content) {
+                let currentContent = snapshot2.content[contentElement.index];
+                snapshot2.content[contentElement.index] = __classPrivateFieldGet(this, _AssistantStream_instances, "m", _AssistantStream_accumulateContent).call(this, contentElement, currentContent);
               } else {
-                snapshot.content[contentElement.index] = contentElement;
+                snapshot2.content[contentElement.index] = contentElement;
                 newContent.push(contentElement);
               }
             }
           }
-          return [snapshot, newContent];
+          return [snapshot2, newContent];
         case "thread.message.in_progress":
         case "thread.message.completed":
         case "thread.message.incomplete":
-          if (snapshot) {
-            return [snapshot, newContent];
+          if (snapshot2) {
+            return [snapshot2, newContent];
           } else {
             throw Error("Received thread message event with no existing snapshot");
           }
@@ -36559,10 +36559,10 @@ var init_AssistantStream = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/threads/runs/runs.mjs
+// node_modules/openai/resources/beta/threads/runs/runs.mjs
 var Runs;
 var init_runs = __esm({
-  "../node_modules/openai/resources/beta/threads/runs/runs.mjs"() {
+  "node_modules/openai/resources/beta/threads/runs/runs.mjs"() {
     init_resource();
     init_steps();
     init_steps();
@@ -36745,10 +36745,10 @@ var init_runs = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/threads/threads.mjs
+// node_modules/openai/resources/beta/threads/threads.mjs
 var Threads2;
 var init_threads2 = __esm({
-  "../node_modules/openai/resources/beta/threads/threads.mjs"() {
+  "node_modules/openai/resources/beta/threads/threads.mjs"() {
     init_resource();
     init_messages2();
     init_messages2();
@@ -36844,10 +36844,10 @@ var init_threads2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/beta/beta.mjs
+// node_modules/openai/resources/beta/beta.mjs
 var Beta;
 var init_beta = __esm({
-  "../node_modules/openai/resources/beta/beta.mjs"() {
+  "node_modules/openai/resources/beta/beta.mjs"() {
     init_resource();
     init_assistants();
     init_assistants();
@@ -36873,10 +36873,10 @@ var init_beta = __esm({
   }
 });
 
-// ../node_modules/openai/resources/completions.mjs
+// node_modules/openai/resources/completions.mjs
 var Completions2;
 var init_completions3 = __esm({
-  "../node_modules/openai/resources/completions.mjs"() {
+  "node_modules/openai/resources/completions.mjs"() {
     init_resource();
     Completions2 = class extends APIResource {
       create(body2, options) {
@@ -36891,10 +36891,10 @@ var init_completions3 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/containers/files/content.mjs
+// node_modules/openai/resources/containers/files/content.mjs
 var Content;
 var init_content = __esm({
-  "../node_modules/openai/resources/containers/files/content.mjs"() {
+  "node_modules/openai/resources/containers/files/content.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -36915,10 +36915,10 @@ var init_content = __esm({
   }
 });
 
-// ../node_modules/openai/resources/containers/files/files.mjs
+// node_modules/openai/resources/containers/files/files.mjs
 var Files;
 var init_files = __esm({
-  "../node_modules/openai/resources/containers/files/files.mjs"() {
+  "node_modules/openai/resources/containers/files/files.mjs"() {
     init_resource();
     init_content();
     init_content();
@@ -36976,10 +36976,10 @@ var init_files = __esm({
   }
 });
 
-// ../node_modules/openai/resources/containers/containers.mjs
+// node_modules/openai/resources/containers/containers.mjs
 var Containers;
 var init_containers = __esm({
-  "../node_modules/openai/resources/containers/containers.mjs"() {
+  "node_modules/openai/resources/containers/containers.mjs"() {
     init_resource();
     init_files();
     init_files();
@@ -37031,10 +37031,10 @@ var init_containers = __esm({
   }
 });
 
-// ../node_modules/openai/resources/conversations/items.mjs
+// node_modules/openai/resources/conversations/items.mjs
 var Items;
 var init_items = __esm({
-  "../node_modules/openai/resources/conversations/items.mjs"() {
+  "node_modules/openai/resources/conversations/items.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -37082,10 +37082,10 @@ var init_items = __esm({
   }
 });
 
-// ../node_modules/openai/resources/conversations/conversations.mjs
+// node_modules/openai/resources/conversations/conversations.mjs
 var Conversations;
 var init_conversations = __esm({
-  "../node_modules/openai/resources/conversations/conversations.mjs"() {
+  "node_modules/openai/resources/conversations/conversations.mjs"() {
     init_resource();
     init_items();
     init_items();
@@ -37134,10 +37134,10 @@ var init_conversations = __esm({
   }
 });
 
-// ../node_modules/openai/resources/embeddings.mjs
+// node_modules/openai/resources/embeddings.mjs
 var Embeddings;
 var init_embeddings = __esm({
-  "../node_modules/openai/resources/embeddings.mjs"() {
+  "node_modules/openai/resources/embeddings.mjs"() {
     init_resource();
     init_utils2();
     Embeddings = class extends APIResource {
@@ -37185,10 +37185,10 @@ var init_embeddings = __esm({
   }
 });
 
-// ../node_modules/openai/resources/evals/runs/output-items.mjs
+// node_modules/openai/resources/evals/runs/output-items.mjs
 var OutputItems;
 var init_output_items = __esm({
-  "../node_modules/openai/resources/evals/runs/output-items.mjs"() {
+  "node_modules/openai/resources/evals/runs/output-items.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -37214,10 +37214,10 @@ var init_output_items = __esm({
   }
 });
 
-// ../node_modules/openai/resources/evals/runs/runs.mjs
+// node_modules/openai/resources/evals/runs/runs.mjs
 var Runs2;
 var init_runs2 = __esm({
-  "../node_modules/openai/resources/evals/runs/runs.mjs"() {
+  "node_modules/openai/resources/evals/runs/runs.mjs"() {
     init_resource();
     init_output_items();
     init_output_items();
@@ -37285,10 +37285,10 @@ var init_runs2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/evals/evals.mjs
+// node_modules/openai/resources/evals/evals.mjs
 var Evals;
 var init_evals = __esm({
-  "../node_modules/openai/resources/evals/evals.mjs"() {
+  "node_modules/openai/resources/evals/evals.mjs"() {
     init_resource();
     init_runs2();
     init_runs2();
@@ -37343,10 +37343,10 @@ var init_evals = __esm({
   }
 });
 
-// ../node_modules/openai/resources/files.mjs
+// node_modules/openai/resources/files.mjs
 var Files2;
 var init_files2 = __esm({
-  "../node_modules/openai/resources/files.mjs"() {
+  "node_modules/openai/resources/files.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -37442,20 +37442,20 @@ var init_files2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/fine-tuning/methods.mjs
+// node_modules/openai/resources/fine-tuning/methods.mjs
 var Methods;
 var init_methods = __esm({
-  "../node_modules/openai/resources/fine-tuning/methods.mjs"() {
+  "node_modules/openai/resources/fine-tuning/methods.mjs"() {
     init_resource();
     Methods = class extends APIResource {
     };
   }
 });
 
-// ../node_modules/openai/resources/fine-tuning/alpha/graders.mjs
+// node_modules/openai/resources/fine-tuning/alpha/graders.mjs
 var Graders;
 var init_graders = __esm({
-  "../node_modules/openai/resources/fine-tuning/alpha/graders.mjs"() {
+  "node_modules/openai/resources/fine-tuning/alpha/graders.mjs"() {
     init_resource();
     Graders = class extends APIResource {
       /**
@@ -37510,10 +37510,10 @@ var init_graders = __esm({
   }
 });
 
-// ../node_modules/openai/resources/fine-tuning/alpha/alpha.mjs
+// node_modules/openai/resources/fine-tuning/alpha/alpha.mjs
 var Alpha;
 var init_alpha = __esm({
-  "../node_modules/openai/resources/fine-tuning/alpha/alpha.mjs"() {
+  "node_modules/openai/resources/fine-tuning/alpha/alpha.mjs"() {
     init_resource();
     init_graders();
     init_graders();
@@ -37527,10 +37527,10 @@ var init_alpha = __esm({
   }
 });
 
-// ../node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs
+// node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs
 var Permissions;
 var init_permissions = __esm({
-  "../node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs"() {
+  "node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -37615,10 +37615,10 @@ var init_permissions = __esm({
   }
 });
 
-// ../node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs
+// node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs
 var Checkpoints;
 var init_checkpoints = __esm({
-  "../node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs"() {
+  "node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs"() {
     init_resource();
     init_permissions();
     init_permissions();
@@ -37632,10 +37632,10 @@ var init_checkpoints = __esm({
   }
 });
 
-// ../node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs
+// node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs
 var Checkpoints2;
 var init_checkpoints2 = __esm({
-  "../node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs"() {
+  "node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -37660,10 +37660,10 @@ var init_checkpoints2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/fine-tuning/jobs/jobs.mjs
+// node_modules/openai/resources/fine-tuning/jobs/jobs.mjs
 var Jobs;
 var init_jobs = __esm({
-  "../node_modules/openai/resources/fine-tuning/jobs/jobs.mjs"() {
+  "node_modules/openai/resources/fine-tuning/jobs/jobs.mjs"() {
     init_resource();
     init_checkpoints2();
     init_checkpoints2();
@@ -37799,10 +37799,10 @@ var init_jobs = __esm({
   }
 });
 
-// ../node_modules/openai/resources/fine-tuning/fine-tuning.mjs
+// node_modules/openai/resources/fine-tuning/fine-tuning.mjs
 var FineTuning;
 var init_fine_tuning = __esm({
-  "../node_modules/openai/resources/fine-tuning/fine-tuning.mjs"() {
+  "node_modules/openai/resources/fine-tuning/fine-tuning.mjs"() {
     init_resource();
     init_methods();
     init_methods();
@@ -37828,20 +37828,20 @@ var init_fine_tuning = __esm({
   }
 });
 
-// ../node_modules/openai/resources/graders/grader-models.mjs
+// node_modules/openai/resources/graders/grader-models.mjs
 var GraderModels;
 var init_grader_models = __esm({
-  "../node_modules/openai/resources/graders/grader-models.mjs"() {
+  "node_modules/openai/resources/graders/grader-models.mjs"() {
     init_resource();
     GraderModels = class extends APIResource {
     };
   }
 });
 
-// ../node_modules/openai/resources/graders/graders.mjs
+// node_modules/openai/resources/graders/graders.mjs
 var Graders2;
 var init_graders2 = __esm({
-  "../node_modules/openai/resources/graders/graders.mjs"() {
+  "node_modules/openai/resources/graders/graders.mjs"() {
     init_resource();
     init_grader_models();
     init_grader_models();
@@ -37855,10 +37855,10 @@ var init_graders2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/images.mjs
+// node_modules/openai/resources/images.mjs
 var Images;
 var init_images = __esm({
-  "../node_modules/openai/resources/images.mjs"() {
+  "node_modules/openai/resources/images.mjs"() {
     init_resource();
     init_uploads();
     Images = class extends APIResource {
@@ -37890,10 +37890,10 @@ var init_images = __esm({
   }
 });
 
-// ../node_modules/openai/resources/models.mjs
+// node_modules/openai/resources/models.mjs
 var Models;
 var init_models = __esm({
-  "../node_modules/openai/resources/models.mjs"() {
+  "node_modules/openai/resources/models.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -37923,10 +37923,10 @@ var init_models = __esm({
   }
 });
 
-// ../node_modules/openai/resources/moderations.mjs
+// node_modules/openai/resources/moderations.mjs
 var Moderations;
 var init_moderations = __esm({
-  "../node_modules/openai/resources/moderations.mjs"() {
+  "node_modules/openai/resources/moderations.mjs"() {
     init_resource();
     Moderations = class extends APIResource {
       /**
@@ -37940,10 +37940,10 @@ var init_moderations = __esm({
   }
 });
 
-// ../node_modules/openai/resources/realtime/calls.mjs
+// node_modules/openai/resources/realtime/calls.mjs
 var Calls;
 var init_calls = __esm({
-  "../node_modules/openai/resources/realtime/calls.mjs"() {
+  "node_modules/openai/resources/realtime/calls.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -38020,10 +38020,10 @@ var init_calls = __esm({
   }
 });
 
-// ../node_modules/openai/resources/realtime/client-secrets.mjs
+// node_modules/openai/resources/realtime/client-secrets.mjs
 var ClientSecrets;
 var init_client_secrets = __esm({
-  "../node_modules/openai/resources/realtime/client-secrets.mjs"() {
+  "node_modules/openai/resources/realtime/client-secrets.mjs"() {
     init_resource();
     ClientSecrets = class extends APIResource {
       /**
@@ -38060,10 +38060,10 @@ var init_client_secrets = __esm({
   }
 });
 
-// ../node_modules/openai/resources/realtime/realtime.mjs
+// node_modules/openai/resources/realtime/realtime.mjs
 var Realtime2;
 var init_realtime2 = __esm({
-  "../node_modules/openai/resources/realtime/realtime.mjs"() {
+  "node_modules/openai/resources/realtime/realtime.mjs"() {
     init_resource();
     init_calls();
     init_calls();
@@ -38081,7 +38081,7 @@ var init_realtime2 = __esm({
   }
 });
 
-// ../node_modules/openai/lib/ResponsesParser.mjs
+// node_modules/openai/lib/ResponsesParser.mjs
 function maybeParseResponse(response, params) {
   if (!params || !hasAutoParseableInput2(params)) {
     const parsed = {
@@ -38210,15 +38210,15 @@ function addOutputText(rsp) {
   rsp.output_text = texts.join("");
 }
 var init_ResponsesParser = __esm({
-  "../node_modules/openai/lib/ResponsesParser.mjs"() {
+  "node_modules/openai/lib/ResponsesParser.mjs"() {
     init_error2();
     init_parser();
   }
 });
 
-// ../node_modules/openai/lib/responses/ResponseAccumulator.mjs
-function accumulateResponse(event, snapshot) {
-  if (!snapshot) {
+// node_modules/openai/lib/responses/ResponseAccumulator.mjs
+function accumulateResponse(event, snapshot2) {
+  if (!snapshot2) {
     if (event.type !== "response.created") {
       throw new OpenAIError(`When snapshot hasn't been set yet, expected 'response.created' event, got ${event.type}`);
     }
@@ -38226,28 +38226,28 @@ function accumulateResponse(event, snapshot) {
   }
   switch (event.type) {
     case "response.output_item.added": {
-      snapshot.output.push(structuredClone(event.item));
+      snapshot2.output.push(structuredClone(event.item));
       if (event.item.type === "message") {
-        addOutputText(snapshot);
+        addOutputText(snapshot2);
       }
       break;
     }
     case "response.output_item.done": {
-      getOutput(snapshot, event.output_index);
-      snapshot.output[event.output_index] = structuredClone(event.item);
+      getOutput(snapshot2, event.output_index);
+      snapshot2.output[event.output_index] = structuredClone(event.item);
       if (event.item.type === "message") {
-        addOutputText(snapshot);
+        addOutputText(snapshot2);
       }
       break;
     }
     case "response.content_part.added": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       const type = output.type;
       const part = event.part;
       if (type === "message" && part.type !== "reasoning_text") {
         output.content.push(structuredClone(part));
         if (part.type === "output_text") {
-          addOutputText(snapshot);
+          addOutputText(snapshot2);
         }
       } else if (type === "reasoning" && part.type === "reasoning_text") {
         if (!output.content) {
@@ -38258,13 +38258,13 @@ function accumulateResponse(event, snapshot) {
       break;
     }
     case "response.content_part.done": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       const part = event.part;
       if (output.type === "message" && part.type !== "reasoning_text") {
         getContent(output.content, event.content_index);
         output.content[event.content_index] = structuredClone(part);
         if (part.type === "output_text") {
-          addOutputText(snapshot);
+          addOutputText(snapshot2);
         }
       } else if (output.type === "reasoning" && part.type === "reasoning_text") {
         const content = output.content;
@@ -38277,31 +38277,31 @@ function accumulateResponse(event, snapshot) {
       break;
     }
     case "response.output_text.delta": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "message") {
         const content = getContent(output.content, event.content_index);
         if (content.type !== "output_text") {
           throw new OpenAIError(`expected content to be 'output_text', got ${content.type}`);
         }
         content.text += event.delta;
-        snapshot.output_text += event.delta;
+        snapshot2.output_text += event.delta;
       }
       break;
     }
     case "response.output_text.done": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "message") {
         const content = getContent(output.content, event.content_index);
         if (content.type !== "output_text") {
           throw new OpenAIError(`expected content to be 'output_text', got ${content.type}`);
         }
         content.text = event.text;
-        addOutputText(snapshot);
+        addOutputText(snapshot2);
       }
       break;
     }
     case "response.output_text.annotation.added": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "message") {
         const content = getContent(output.content, event.content_index);
         if (content.type !== "output_text") {
@@ -38312,7 +38312,7 @@ function accumulateResponse(event, snapshot) {
       break;
     }
     case "response.refusal.delta": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "message") {
         const content = getContent(output.content, event.content_index);
         if (content.type !== "refusal") {
@@ -38323,7 +38323,7 @@ function accumulateResponse(event, snapshot) {
       break;
     }
     case "response.refusal.done": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "message") {
         const content = getContent(output.content, event.content_index);
         if (content.type !== "refusal") {
@@ -38334,21 +38334,21 @@ function accumulateResponse(event, snapshot) {
       break;
     }
     case "response.function_call_arguments.delta": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "function_call") {
         output.arguments += event.delta;
       }
       break;
     }
     case "response.function_call_arguments.done": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "function_call") {
         output.arguments = event.arguments;
       }
       break;
     }
     case "response.reasoning_text.delta": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "reasoning") {
         if (!output.content) {
           throw new OpenAIError(`missing content at index ${event.content_index}`);
@@ -38362,7 +38362,7 @@ function accumulateResponse(event, snapshot) {
       break;
     }
     case "response.reasoning_text.done": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "reasoning") {
         if (!output.content) {
           throw new OpenAIError(`missing content at index ${event.content_index}`);
@@ -38376,14 +38376,14 @@ function accumulateResponse(event, snapshot) {
       break;
     }
     case "response.reasoning_summary_part.added": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "reasoning") {
         output.summary.push(structuredClone(event.part));
       }
       break;
     }
     case "response.reasoning_summary_part.done": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "reasoning") {
         getContent(output.summary, event.summary_index);
         output.summary[event.summary_index] = structuredClone(event.part);
@@ -38391,7 +38391,7 @@ function accumulateResponse(event, snapshot) {
       break;
     }
     case "response.reasoning_summary_text.delta": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "reasoning") {
         const part = getContent(output.summary, event.summary_index);
         part.text += event.delta;
@@ -38399,7 +38399,7 @@ function accumulateResponse(event, snapshot) {
       break;
     }
     case "response.reasoning_summary_text.done": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "reasoning") {
         const part = getContent(output.summary, event.summary_index);
         part.text = event.text;
@@ -38407,147 +38407,147 @@ function accumulateResponse(event, snapshot) {
       break;
     }
     case "response.custom_tool_call_input.delta": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "custom_tool_call") {
         output.input += event.delta;
       }
       break;
     }
     case "response.custom_tool_call_input.done": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "custom_tool_call") {
         output.input = event.input;
       }
       break;
     }
     case "response.mcp_call_arguments.delta": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "mcp_call") {
         output.arguments += event.delta;
       }
       break;
     }
     case "response.mcp_call_arguments.done": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "mcp_call") {
         output.arguments = event.arguments;
       }
       break;
     }
     case "response.code_interpreter_call_code.delta": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "code_interpreter_call") {
         output.code = (output.code ?? "") + event.delta;
       }
       break;
     }
     case "response.code_interpreter_call_code.done": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "code_interpreter_call") {
         output.code = event.code;
       }
       break;
     }
     case "response.code_interpreter_call.in_progress": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "code_interpreter_call") {
         output.status = "in_progress";
       }
       break;
     }
     case "response.code_interpreter_call.interpreting": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "code_interpreter_call") {
         output.status = "interpreting";
       }
       break;
     }
     case "response.code_interpreter_call.completed": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "code_interpreter_call") {
         output.status = "completed";
       }
       break;
     }
     case "response.file_search_call.in_progress": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "file_search_call") {
         output.status = "in_progress";
       }
       break;
     }
     case "response.file_search_call.searching": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "file_search_call") {
         output.status = "searching";
       }
       break;
     }
     case "response.file_search_call.completed": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "file_search_call") {
         output.status = "completed";
       }
       break;
     }
     case "response.web_search_call.in_progress": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "web_search_call") {
         output.status = "in_progress";
       }
       break;
     }
     case "response.web_search_call.searching": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "web_search_call") {
         output.status = "searching";
       }
       break;
     }
     case "response.web_search_call.completed": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "web_search_call") {
         output.status = "completed";
       }
       break;
     }
     case "response.image_generation_call.in_progress": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "image_generation_call") {
         output.status = "in_progress";
       }
       break;
     }
     case "response.image_generation_call.generating": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "image_generation_call") {
         output.status = "generating";
       }
       break;
     }
     case "response.image_generation_call.completed": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "image_generation_call") {
         output.status = "completed";
       }
       break;
     }
     case "response.mcp_call.in_progress": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "mcp_call") {
         output.status = "in_progress";
       }
       break;
     }
     case "response.mcp_call.completed": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "mcp_call") {
         output.status = "completed";
       }
       break;
     }
     case "response.mcp_call.failed": {
-      const output = getOutput(snapshot, event.output_index);
+      const output = getOutput(snapshot2, event.output_index);
       if (output.type === "mcp_call") {
         output.status = "failed";
       }
@@ -38559,7 +38559,7 @@ function accumulateResponse(event, snapshot) {
     case "response.completed":
     case "response.failed":
     case "response.incomplete": {
-      snapshot = cloneResponse(event.response);
+      snapshot2 = cloneResponse(event.response);
       break;
     }
     case "response.audio.delta":
@@ -38577,17 +38577,17 @@ function accumulateResponse(event, snapshot) {
       assertNever3(event);
     }
   }
-  return snapshot;
+  return snapshot2;
 }
 function cloneResponse(response) {
-  const snapshot = structuredClone(response);
-  if (!Object.getOwnPropertyDescriptor(snapshot, "output_text") || snapshot.output_text == null) {
-    addOutputText(snapshot);
+  const snapshot2 = structuredClone(response);
+  if (!Object.getOwnPropertyDescriptor(snapshot2, "output_text") || snapshot2.output_text == null) {
+    addOutputText(snapshot2);
   }
-  return snapshot;
+  return snapshot2;
 }
-function getOutput(snapshot, outputIndex) {
-  const output = snapshot.output[outputIndex];
+function getOutput(snapshot2, outputIndex) {
+  const output = snapshot2.output[outputIndex];
   if (!output) {
     throw new OpenAIError(`missing output at index ${outputIndex}`);
   }
@@ -38604,19 +38604,19 @@ function assertNever3(value) {
   throw new OpenAIError(`Unhandled response stream event: ${JSON.stringify(value)}`);
 }
 var init_ResponseAccumulator = __esm({
-  "../node_modules/openai/lib/responses/ResponseAccumulator.mjs"() {
+  "node_modules/openai/lib/responses/ResponseAccumulator.mjs"() {
     init_error2();
     init_ResponsesParser();
   }
 });
 
-// ../node_modules/openai/lib/responses/ResponseStream.mjs
-function finalizeResponse(snapshot, params) {
-  return maybeParseResponse(snapshot, params);
+// node_modules/openai/lib/responses/ResponseStream.mjs
+function finalizeResponse(snapshot2, params) {
+  return maybeParseResponse(snapshot2, params);
 }
 var _ResponseStream_instances, _ResponseStream_params, _ResponseStream_currentResponseSnapshot, _ResponseStream_finalResponse, _ResponseStream_beginRequest, _ResponseStream_addEvent, _ResponseStream_endRequest, ResponseStream;
 var init_ResponseStream = __esm({
-  "../node_modules/openai/lib/responses/ResponseStream.mjs"() {
+  "node_modules/openai/lib/responses/ResponseStream.mjs"() {
     init_tslib();
     init_error2();
     init_EventStream();
@@ -38716,12 +38716,12 @@ var init_ResponseStream = __esm({
         if (this.ended) {
           throw new OpenAIError(`stream has ended, this shouldn't happen`);
         }
-        const snapshot = __classPrivateFieldGet(this, _ResponseStream_currentResponseSnapshot, "f");
-        if (!snapshot) {
+        const snapshot2 = __classPrivateFieldGet(this, _ResponseStream_currentResponseSnapshot, "f");
+        if (!snapshot2) {
           throw new OpenAIError(`request ended without sending any events`);
         }
         __classPrivateFieldSet(this, _ResponseStream_currentResponseSnapshot, void 0, "f");
-        const parsedResponse = finalizeResponse(snapshot, __classPrivateFieldGet(this, _ResponseStream_params, "f"));
+        const parsedResponse = finalizeResponse(snapshot2, __classPrivateFieldGet(this, _ResponseStream_params, "f"));
         __classPrivateFieldSet(this, _ResponseStream_finalResponse, parsedResponse, "f");
         return parsedResponse;
       }, Symbol.asyncIterator)]() {
@@ -38789,10 +38789,10 @@ var init_ResponseStream = __esm({
   }
 });
 
-// ../node_modules/openai/resources/responses/input-items.mjs
+// node_modules/openai/resources/responses/input-items.mjs
 var InputItems;
 var init_input_items = __esm({
-  "../node_modules/openai/resources/responses/input-items.mjs"() {
+  "node_modules/openai/resources/responses/input-items.mjs"() {
     init_resource();
     init_pagination();
     init_path();
@@ -38817,10 +38817,10 @@ var init_input_items = __esm({
   }
 });
 
-// ../node_modules/openai/resources/responses/input-tokens.mjs
+// node_modules/openai/resources/responses/input-tokens.mjs
 var InputTokens;
 var init_input_tokens = __esm({
-  "../node_modules/openai/resources/responses/input-tokens.mjs"() {
+  "node_modules/openai/resources/responses/input-tokens.mjs"() {
     init_resource();
     InputTokens = class extends APIResource {
       /**
@@ -38845,10 +38845,10 @@ var init_input_tokens = __esm({
   }
 });
 
-// ../node_modules/openai/resources/responses/responses.mjs
+// node_modules/openai/resources/responses/responses.mjs
 var Responses;
 var init_responses = __esm({
-  "../node_modules/openai/resources/responses/responses.mjs"() {
+  "node_modules/openai/resources/responses/responses.mjs"() {
     init_ResponsesParser();
     init_ResponseStream();
     init_resource();
@@ -38958,10 +38958,10 @@ var init_responses = __esm({
   }
 });
 
-// ../node_modules/openai/resources/skills/content.mjs
+// node_modules/openai/resources/skills/content.mjs
 var Content2;
 var init_content2 = __esm({
-  "../node_modules/openai/resources/skills/content.mjs"() {
+  "node_modules/openai/resources/skills/content.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -38981,10 +38981,10 @@ var init_content2 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/skills/versions/content.mjs
+// node_modules/openai/resources/skills/versions/content.mjs
 var Content3;
 var init_content3 = __esm({
-  "../node_modules/openai/resources/skills/versions/content.mjs"() {
+  "node_modules/openai/resources/skills/versions/content.mjs"() {
     init_resource();
     init_headers();
     init_path();
@@ -38992,9 +38992,9 @@ var init_content3 = __esm({
       /**
        * Download a skill version zip bundle.
        */
-      retrieve(version2, params, options) {
+      retrieve(version3, params, options) {
         const { skill_id } = params;
-        return this._client.get(path`/skills/${skill_id}/versions/${version2}/content`, {
+        return this._client.get(path`/skills/${skill_id}/versions/${version3}/content`, {
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
           __security: { bearerAuth: true },
@@ -39005,10 +39005,10 @@ var init_content3 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/skills/versions/versions.mjs
+// node_modules/openai/resources/skills/versions/versions.mjs
 var Versions;
 var init_versions = __esm({
-  "../node_modules/openai/resources/skills/versions/versions.mjs"() {
+  "node_modules/openai/resources/skills/versions/versions.mjs"() {
     init_resource();
     init_content3();
     init_content3();
@@ -39029,9 +39029,9 @@ var init_versions = __esm({
       /**
        * Get a specific skill version.
        */
-      retrieve(version2, params, options) {
+      retrieve(version3, params, options) {
         const { skill_id } = params;
-        return this._client.get(path`/skills/${skill_id}/versions/${version2}`, {
+        return this._client.get(path`/skills/${skill_id}/versions/${version3}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -39049,9 +39049,9 @@ var init_versions = __esm({
       /**
        * Delete a skill version.
        */
-      delete(version2, params, options) {
+      delete(version3, params, options) {
         const { skill_id } = params;
-        return this._client.delete(path`/skills/${skill_id}/versions/${version2}`, {
+        return this._client.delete(path`/skills/${skill_id}/versions/${version3}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -39061,10 +39061,10 @@ var init_versions = __esm({
   }
 });
 
-// ../node_modules/openai/resources/skills/skills.mjs
+// node_modules/openai/resources/skills/skills.mjs
 var Skills;
 var init_skills = __esm({
-  "../node_modules/openai/resources/skills/skills.mjs"() {
+  "node_modules/openai/resources/skills/skills.mjs"() {
     init_resource();
     init_content2();
     init_content2();
@@ -39123,10 +39123,10 @@ var init_skills = __esm({
   }
 });
 
-// ../node_modules/openai/resources/uploads/parts.mjs
+// node_modules/openai/resources/uploads/parts.mjs
 var Parts;
 var init_parts = __esm({
-  "../node_modules/openai/resources/uploads/parts.mjs"() {
+  "node_modules/openai/resources/uploads/parts.mjs"() {
     init_resource();
     init_uploads();
     init_path();
@@ -39151,10 +39151,10 @@ var init_parts = __esm({
   }
 });
 
-// ../node_modules/openai/resources/uploads/uploads.mjs
+// node_modules/openai/resources/uploads/uploads.mjs
 var Uploads;
 var init_uploads3 = __esm({
-  "../node_modules/openai/resources/uploads/uploads.mjs"() {
+  "node_modules/openai/resources/uploads/uploads.mjs"() {
     init_resource();
     init_parts();
     init_parts();
@@ -39230,10 +39230,10 @@ var init_uploads3 = __esm({
   }
 });
 
-// ../node_modules/openai/lib/Util.mjs
+// node_modules/openai/lib/Util.mjs
 var allSettledWithThrow;
 var init_Util = __esm({
-  "../node_modules/openai/lib/Util.mjs"() {
+  "node_modules/openai/lib/Util.mjs"() {
     allSettledWithThrow = async (promises) => {
       const results = await Promise.allSettled(promises);
       const rejected = results.filter((result) => result.status === "rejected");
@@ -39254,10 +39254,10 @@ var init_Util = __esm({
   }
 });
 
-// ../node_modules/openai/resources/vector-stores/file-batches.mjs
+// node_modules/openai/resources/vector-stores/file-batches.mjs
 var FileBatches;
 var init_file_batches = __esm({
-  "../node_modules/openai/resources/vector-stores/file-batches.mjs"() {
+  "node_modules/openai/resources/vector-stores/file-batches.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -39390,10 +39390,10 @@ var init_file_batches = __esm({
   }
 });
 
-// ../node_modules/openai/resources/vector-stores/files.mjs
+// node_modules/openai/resources/vector-stores/files.mjs
 var Files3;
 var init_files3 = __esm({
-  "../node_modules/openai/resources/vector-stores/files.mjs"() {
+  "node_modules/openai/resources/vector-stores/files.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -39541,10 +39541,10 @@ var init_files3 = __esm({
   }
 });
 
-// ../node_modules/openai/resources/vector-stores/vector-stores.mjs
+// node_modules/openai/resources/vector-stores/vector-stores.mjs
 var VectorStores;
 var init_vector_stores = __esm({
-  "../node_modules/openai/resources/vector-stores/vector-stores.mjs"() {
+  "node_modules/openai/resources/vector-stores/vector-stores.mjs"() {
     init_resource();
     init_file_batches();
     init_file_batches();
@@ -39631,10 +39631,10 @@ var init_vector_stores = __esm({
   }
 });
 
-// ../node_modules/openai/resources/videos.mjs
+// node_modules/openai/resources/videos.mjs
 var Videos;
 var init_videos = __esm({
-  "../node_modules/openai/resources/videos.mjs"() {
+  "node_modules/openai/resources/videos.mjs"() {
     init_resource();
     init_pagination();
     init_headers();
@@ -39721,10 +39721,10 @@ var init_videos = __esm({
   }
 });
 
-// ../node_modules/openai/resources/webhooks/webhooks.mjs
+// node_modules/openai/resources/webhooks/webhooks.mjs
 var _Webhooks_instances, _Webhooks_validateSecret, _Webhooks_getRequiredHeader, Webhooks;
 var init_webhooks = __esm({
-  "../node_modules/openai/resources/webhooks/webhooks.mjs"() {
+  "node_modules/openai/resources/webhooks/webhooks.mjs"() {
     init_tslib();
     init_error2();
     init_resource();
@@ -39806,23 +39806,23 @@ var init_webhooks = __esm({
   }
 });
 
-// ../node_modules/openai/resources/webhooks/index.mjs
+// node_modules/openai/resources/webhooks/index.mjs
 var init_webhooks2 = __esm({
-  "../node_modules/openai/resources/webhooks/index.mjs"() {
+  "node_modules/openai/resources/webhooks/index.mjs"() {
     init_webhooks();
   }
 });
 
-// ../node_modules/openai/resources/webhooks.mjs
+// node_modules/openai/resources/webhooks.mjs
 var init_webhooks3 = __esm({
-  "../node_modules/openai/resources/webhooks.mjs"() {
+  "node_modules/openai/resources/webhooks.mjs"() {
     init_webhooks2();
   }
 });
 
-// ../node_modules/openai/resources/index.mjs
+// node_modules/openai/resources/index.mjs
 var init_resources = __esm({
-  "../node_modules/openai/resources/index.mjs"() {
+  "node_modules/openai/resources/index.mjs"() {
     init_chat2();
     init_shared();
     init_admin();
@@ -39850,7 +39850,7 @@ var init_resources = __esm({
   }
 });
 
-// ../node_modules/openai/internal/provider.mjs
+// node_modules/openai/internal/provider.mjs
 function configureProvider(provider) {
   const definition = providerDefinitions.get(provider);
   if (!definition) {
@@ -39860,7 +39860,7 @@ function configureProvider(provider) {
 }
 var providerDefinitionsKey, providerGlobal, existingProviderDefinitions, providerDefinitions;
 var init_provider = __esm({
-  "../node_modules/openai/internal/provider.mjs"() {
+  "node_modules/openai/internal/provider.mjs"() {
     providerDefinitionsKey = /* @__PURE__ */ Symbol.for("openai.node.providerDefinitions.v1");
     providerGlobal = globalThis;
     existingProviderDefinitions = providerGlobal[providerDefinitionsKey];
@@ -39871,7 +39871,7 @@ var init_provider = __esm({
   }
 });
 
-// ../node_modules/openai/client.mjs
+// node_modules/openai/client.mjs
 function getConnectionErrorMessage(error) {
   if (isUndiciDispatcherVersionMismatchError(error)) {
     return `Connection error. This may be caused by passing an undici dispatcher, such as ProxyAgent, that is incompatible with the fetch implementation. If you are using undici's ProxyAgent, pass the fetch implementation from the same undici package: import { fetch, ProxyAgent } from 'undici'; new OpenAI({ fetch, fetchOptions: { dispatcher: new ProxyAgent(...) } });`;
@@ -39891,7 +39891,7 @@ function isUndiciDispatcherVersionMismatchError(error) {
 }
 var _OpenAI_instances, _a2, _OpenAI_encoder, _OpenAI_baseURLOverridden, WORKLOAD_IDENTITY_API_KEY_PLACEHOLDER, OpenAI;
 var init_client = __esm({
-  "../node_modules/openai/client.mjs"() {
+  "node_modules/openai/client.mjs"() {
     init_tslib();
     init_uuid();
     init_values();
@@ -40569,9 +40569,9 @@ var init_client = __esm({
   }
 });
 
-// ../node_modules/openai/azure.mjs
+// node_modules/openai/azure.mjs
 var init_azure = __esm({
-  "../node_modules/openai/azure.mjs"() {
+  "node_modules/openai/azure.mjs"() {
     init_headers();
     init_error2();
     init_utils2();
@@ -40579,9 +40579,9 @@ var init_azure = __esm({
   }
 });
 
-// ../node_modules/openai/bedrock.mjs
+// node_modules/openai/bedrock.mjs
 var init_bedrock = __esm({
-  "../node_modules/openai/bedrock.mjs"() {
+  "node_modules/openai/bedrock.mjs"() {
     init_error2();
     init_client();
     init_headers();
@@ -40591,9 +40591,9 @@ var init_bedrock = __esm({
   }
 });
 
-// ../node_modules/openai/index.mjs
+// node_modules/openai/index.mjs
 var init_openai = __esm({
-  "../node_modules/openai/index.mjs"() {
+  "node_modules/openai/index.mjs"() {
     init_client();
     init_uploads2();
     init_api_promise();
@@ -40605,9 +40605,9 @@ var init_openai = __esm({
   }
 });
 
-// ../node_modules/postgres-array/index.js
+// ../lib/db/node_modules/postgres-array/index.js
 var require_postgres_array = __commonJS({
-  "../node_modules/postgres-array/index.js"(exports) {
+  "../lib/db/node_modules/postgres-array/index.js"(exports) {
     "use strict";
     exports.parse = function(source, transform) {
       return new ArrayParser(source, transform).parse();
@@ -40699,9 +40699,9 @@ var require_postgres_array = __commonJS({
   }
 });
 
-// ../node_modules/pg-types/lib/arrayParser.js
+// ../lib/db/node_modules/pg-types/lib/arrayParser.js
 var require_arrayParser = __commonJS({
-  "../node_modules/pg-types/lib/arrayParser.js"(exports, module2) {
+  "../lib/db/node_modules/pg-types/lib/arrayParser.js"(exports, module2) {
     var array = require_postgres_array();
     module2.exports = {
       create: function(source, transform) {
@@ -40715,9 +40715,9 @@ var require_arrayParser = __commonJS({
   }
 });
 
-// ../node_modules/postgres-date/index.js
+// ../lib/db/node_modules/postgres-date/index.js
 var require_postgres_date = __commonJS({
-  "../node_modules/postgres-date/index.js"(exports, module2) {
+  "../lib/db/node_modules/postgres-date/index.js"(exports, module2) {
     "use strict";
     var DATE_TIME = /(\d{1,})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d{1,})?.*?( BC)?$/;
     var DATE = /^(\d{1,})-(\d{2})-(\d{2})( BC)?$/;
@@ -40802,9 +40802,9 @@ var require_postgres_date = __commonJS({
   }
 });
 
-// ../node_modules/xtend/mutable.js
+// ../lib/db/node_modules/xtend/mutable.js
 var require_mutable = __commonJS({
-  "../node_modules/xtend/mutable.js"(exports, module2) {
+  "../lib/db/node_modules/xtend/mutable.js"(exports, module2) {
     module2.exports = extend2;
     var hasOwnProperty2 = Object.prototype.hasOwnProperty;
     function extend2(target) {
@@ -40821,9 +40821,9 @@ var require_mutable = __commonJS({
   }
 });
 
-// ../node_modules/postgres-interval/index.js
+// ../lib/db/node_modules/postgres-interval/index.js
 var require_postgres_interval = __commonJS({
-  "../node_modules/postgres-interval/index.js"(exports, module2) {
+  "../lib/db/node_modules/postgres-interval/index.js"(exports, module2) {
     "use strict";
     var extend2 = require_mutable();
     module2.exports = PostgresInterval;
@@ -40912,9 +40912,9 @@ var require_postgres_interval = __commonJS({
   }
 });
 
-// ../node_modules/postgres-bytea/index.js
+// ../lib/db/node_modules/postgres-bytea/index.js
 var require_postgres_bytea = __commonJS({
-  "../node_modules/postgres-bytea/index.js"(exports, module2) {
+  "../lib/db/node_modules/postgres-bytea/index.js"(exports, module2) {
     "use strict";
     var bufferFrom = Buffer.from || Buffer;
     module2.exports = function parseBytea(input) {
@@ -40948,9 +40948,9 @@ var require_postgres_bytea = __commonJS({
   }
 });
 
-// ../node_modules/pg-types/lib/textParsers.js
+// ../lib/db/node_modules/pg-types/lib/textParsers.js
 var require_textParsers = __commonJS({
-  "../node_modules/pg-types/lib/textParsers.js"(exports, module2) {
+  "../lib/db/node_modules/pg-types/lib/textParsers.js"(exports, module2) {
     var array = require_postgres_array();
     var arrayParser = require_arrayParser();
     var parseDate = require_postgres_date();
@@ -41148,9 +41148,9 @@ var require_textParsers = __commonJS({
   }
 });
 
-// ../node_modules/pg-int8/index.js
+// ../lib/db/node_modules/pg-int8/index.js
 var require_pg_int8 = __commonJS({
-  "../node_modules/pg-int8/index.js"(exports, module2) {
+  "../lib/db/node_modules/pg-int8/index.js"(exports, module2) {
     "use strict";
     var BASE = 1e6;
     function readInt8(buffer) {
@@ -41228,9 +41228,9 @@ var require_pg_int8 = __commonJS({
   }
 });
 
-// ../node_modules/pg-types/lib/binaryParsers.js
+// ../lib/db/node_modules/pg-types/lib/binaryParsers.js
 var require_binaryParsers = __commonJS({
-  "../node_modules/pg-types/lib/binaryParsers.js"(exports, module2) {
+  "../lib/db/node_modules/pg-types/lib/binaryParsers.js"(exports, module2) {
     var parseInt64 = require_pg_int8();
     var parseBits = function(data, bits, offset, invert, callback) {
       offset = offset || 0;
@@ -41428,9 +41428,9 @@ var require_binaryParsers = __commonJS({
   }
 });
 
-// ../node_modules/pg-types/lib/builtins.js
+// ../lib/db/node_modules/pg-types/lib/builtins.js
 var require_builtins = __commonJS({
-  "../node_modules/pg-types/lib/builtins.js"(exports, module2) {
+  "../lib/db/node_modules/pg-types/lib/builtins.js"(exports, module2) {
     module2.exports = {
       BOOL: 16,
       BYTEA: 17,
@@ -41496,9 +41496,9 @@ var require_builtins = __commonJS({
   }
 });
 
-// ../node_modules/pg-types/index.js
+// ../lib/db/node_modules/pg-types/index.js
 var require_pg_types = __commonJS({
-  "../node_modules/pg-types/index.js"(exports) {
+  "../lib/db/node_modules/pg-types/index.js"(exports) {
     var textParsers = require_textParsers();
     var binaryParsers = require_binaryParsers();
     var arrayParser = require_arrayParser();
@@ -41537,9 +41537,9 @@ var require_pg_types = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/defaults.js
+// ../lib/db/node_modules/pg/lib/defaults.js
 var require_defaults = __commonJS({
-  "../node_modules/pg/lib/defaults.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/defaults.js"(exports, module2) {
     "use strict";
     var user;
     try {
@@ -41606,9 +41606,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/utils.js
+// ../lib/db/node_modules/pg/lib/utils.js
 var require_utils4 = __commonJS({
-  "../node_modules/pg/lib/utils.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/utils.js"(exports, module2) {
     "use strict";
     var defaults4 = require_defaults();
     var { isDate: isDate2 } = __require("util/types");
@@ -41754,9 +41754,9 @@ var require_utils4 = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/crypto/utils.js
+// ../lib/db/node_modules/pg/lib/crypto/utils.js
 var require_utils5 = __commonJS({
-  "../node_modules/pg/lib/crypto/utils.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/crypto/utils.js"(exports, module2) {
     var nodeCrypto = __require("crypto");
     module2.exports = {
       postgresMd5PasswordHash,
@@ -41805,9 +41805,9 @@ var require_utils5 = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/crypto/cert-signatures.js
+// ../lib/db/node_modules/pg/lib/crypto/cert-signatures.js
 var require_cert_signatures = __commonJS({
-  "../node_modules/pg/lib/crypto/cert-signatures.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/crypto/cert-signatures.js"(exports, module2) {
     function x509Error(msg, cert) {
       return new Error("SASL channel binding: " + msg + " when parsing public certificate " + cert.toString("base64"));
     }
@@ -41918,9 +41918,9 @@ var require_cert_signatures = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/crypto/sasl.js
+// ../lib/db/node_modules/pg/lib/crypto/sasl.js
 var require_sasl = __commonJS({
-  "../node_modules/pg/lib/crypto/sasl.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/crypto/sasl.js"(exports, module2) {
     "use strict";
     var crypto5 = require_utils5();
     var { signatureAlgorithmHashFromCertificate } = require_cert_signatures();
@@ -42103,9 +42103,9 @@ var require_sasl = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/type-overrides.js
+// ../lib/db/node_modules/pg/lib/type-overrides.js
 var require_type_overrides = __commonJS({
-  "../node_modules/pg/lib/type-overrides.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/type-overrides.js"(exports, module2) {
     "use strict";
     var types3 = require_pg_types();
     function TypeOverrides2(userTypes) {
@@ -42138,9 +42138,9 @@ var require_type_overrides = __commonJS({
   }
 });
 
-// ../node_modules/pg-connection-string/index.js
+// ../lib/db/node_modules/pg-connection-string/index.js
 var require_pg_connection_string = __commonJS({
-  "../node_modules/pg-connection-string/index.js"(exports, module2) {
+  "../lib/db/node_modules/pg-connection-string/index.js"(exports, module2) {
     "use strict";
     function parse(str2, options = {}) {
       if (str2.charAt(0) === "/") {
@@ -42326,9 +42326,9 @@ See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode de
   }
 });
 
-// ../node_modules/pg/lib/connection-parameters.js
+// ../lib/db/node_modules/pg/lib/connection-parameters.js
 var require_connection_parameters = __commonJS({
-  "../node_modules/pg/lib/connection-parameters.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/connection-parameters.js"(exports, module2) {
     "use strict";
     var dns = __require("dns");
     var defaults4 = require_defaults();
@@ -42477,9 +42477,9 @@ var require_connection_parameters = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/result.js
+// ../lib/db/node_modules/pg/lib/result.js
 var require_result = __commonJS({
-  "../node_modules/pg/lib/result.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/result.js"(exports, module2) {
     "use strict";
     var types3 = require_pg_types();
     var matchRegexp = /^([A-Za-z]+)(?: (\d+))?(?: (\d+))?/;
@@ -42553,12 +42553,12 @@ var require_result = __commonJS({
         }
         const row = /* @__PURE__ */ Object.create(null);
         for (let i3 = 0; i3 < fieldDescriptions.length; i3++) {
-          const desc2 = fieldDescriptions[i3];
-          row[desc2.name] = null;
+          const desc3 = fieldDescriptions[i3];
+          row[desc3.name] = null;
           if (this._types) {
-            this._parsers[i3] = this._types.getTypeParser(desc2.dataTypeID, desc2.format || "text");
+            this._parsers[i3] = this._types.getTypeParser(desc3.dataTypeID, desc3.format || "text");
           } else {
-            this._parsers[i3] = types3.getTypeParser(desc2.dataTypeID, desc2.format || "text");
+            this._parsers[i3] = types3.getTypeParser(desc3.dataTypeID, desc3.format || "text");
           }
         }
         this._prebuiltEmptyResultObject = { ...row };
@@ -42568,9 +42568,9 @@ var require_result = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/query.js
+// ../lib/db/node_modules/pg/lib/query.js
 var require_query = __commonJS({
-  "../node_modules/pg/lib/query.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/query.js"(exports, module2) {
     "use strict";
     var { EventEmitter: EventEmitter2 } = __require("events");
     var Result2 = require_result();
@@ -42767,9 +42767,9 @@ var require_query = __commonJS({
   }
 });
 
-// ../node_modules/pg-protocol/dist/messages.js
+// ../lib/db/node_modules/pg-protocol/dist/messages.js
 var require_messages = __commonJS({
-  "../node_modules/pg-protocol/dist/messages.js"(exports) {
+  "../lib/db/node_modules/pg-protocol/dist/messages.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.NoticeMessage = exports.DataRowMessage = exports.CommandCompleteMessage = exports.ReadyForQueryMessage = exports.NotificationResponseMessage = exports.BackendKeyDataMessage = exports.AuthenticationMD5Password = exports.ParameterStatusMessage = exports.ParameterDescriptionMessage = exports.RowDescriptionMessage = exports.Field = exports.CopyResponse = exports.CopyDataMessage = exports.DatabaseError = exports.copyDone = exports.emptyQuery = exports.replicationStart = exports.portalSuspended = exports.noData = exports.closeComplete = exports.bindComplete = exports.parseComplete = void 0;
@@ -42932,9 +42932,9 @@ var require_messages = __commonJS({
   }
 });
 
-// ../node_modules/pg-protocol/dist/buffer-writer.js
+// ../lib/db/node_modules/pg-protocol/dist/buffer-writer.js
 var require_buffer_writer = __commonJS({
-  "../node_modules/pg-protocol/dist/buffer-writer.js"(exports) {
+  "../lib/db/node_modules/pg-protocol/dist/buffer-writer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Writer = void 0;
@@ -43036,9 +43036,9 @@ var require_buffer_writer = __commonJS({
   }
 });
 
-// ../node_modules/pg-protocol/dist/serializer.js
+// ../lib/db/node_modules/pg-protocol/dist/serializer.js
 var require_serializer = __commonJS({
-  "../node_modules/pg-protocol/dist/serializer.js"(exports) {
+  "../lib/db/node_modules/pg-protocol/dist/serializer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.serialize = void 0;
@@ -43258,9 +43258,9 @@ var require_serializer = __commonJS({
   }
 });
 
-// ../node_modules/pg-protocol/dist/buffer-reader.js
+// ../lib/db/node_modules/pg-protocol/dist/buffer-reader.js
 var require_buffer_reader = __commonJS({
-  "../node_modules/pg-protocol/dist/buffer-reader.js"(exports) {
+  "../lib/db/node_modules/pg-protocol/dist/buffer-reader.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.BufferReader = void 0;
@@ -43317,9 +43317,9 @@ var require_buffer_reader = __commonJS({
   }
 });
 
-// ../node_modules/pg-protocol/dist/parser.js
+// ../lib/db/node_modules/pg-protocol/dist/parser.js
 var require_parser = __commonJS({
-  "../node_modules/pg-protocol/dist/parser.js"(exports) {
+  "../lib/db/node_modules/pg-protocol/dist/parser.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Parser = void 0;
@@ -43624,9 +43624,9 @@ var require_parser = __commonJS({
   }
 });
 
-// ../node_modules/pg-protocol/dist/index.js
+// ../lib/db/node_modules/pg-protocol/dist/index.js
 var require_dist4 = __commonJS({
-  "../node_modules/pg-protocol/dist/index.js"(exports) {
+  "../lib/db/node_modules/pg-protocol/dist/index.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.DatabaseError = exports.serialize = void 0;
@@ -43648,18 +43648,18 @@ var require_dist4 = __commonJS({
   }
 });
 
-// ../node_modules/pg-cloudflare/dist/empty.js
+// ../lib/db/node_modules/pg-cloudflare/dist/empty.js
 var require_empty = __commonJS({
-  "../node_modules/pg-cloudflare/dist/empty.js"(exports) {
+  "../lib/db/node_modules/pg-cloudflare/dist/empty.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.default = {};
   }
 });
 
-// ../node_modules/pg/lib/stream.js
+// ../lib/db/node_modules/pg/lib/stream.js
 var require_stream = __commonJS({
-  "../node_modules/pg/lib/stream.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/stream.js"(exports, module2) {
     var { getStream, getSecureStream } = getStreamFuncs();
     module2.exports = {
       /**
@@ -43723,9 +43723,9 @@ var require_stream = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/connection.js
+// ../lib/db/node_modules/pg/lib/connection.js
 var require_connection = __commonJS({
-  "../node_modules/pg/lib/connection.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/connection.js"(exports, module2) {
     "use strict";
     var EventEmitter2 = __require("events").EventEmitter;
     var { parse, serialize } = require_dist4();
@@ -43920,9 +43920,9 @@ var require_connection = __commonJS({
   }
 });
 
-// ../node_modules/split2/index.js
+// ../lib/db/node_modules/split2/index.js
 var require_split2 = __commonJS({
-  "../node_modules/split2/index.js"(exports, module2) {
+  "../lib/db/node_modules/split2/index.js"(exports, module2) {
     "use strict";
     var { Transform } = __require("stream");
     var { StringDecoder } = __require("string_decoder");
@@ -44021,9 +44021,9 @@ var require_split2 = __commonJS({
   }
 });
 
-// ../node_modules/pgpass/lib/helper.js
+// ../lib/db/node_modules/pgpass/lib/helper.js
 var require_helper = __commonJS({
-  "../node_modules/pgpass/lib/helper.js"(exports, module2) {
+  "../lib/db/node_modules/pgpass/lib/helper.js"(exports, module2) {
     "use strict";
     var path4 = __require("path");
     var Stream2 = __require("stream").Stream;
@@ -44192,9 +44192,9 @@ var require_helper = __commonJS({
   }
 });
 
-// ../node_modules/pgpass/lib/index.js
+// ../lib/db/node_modules/pgpass/lib/index.js
 var require_lib4 = __commonJS({
-  "../node_modules/pgpass/lib/index.js"(exports, module2) {
+  "../lib/db/node_modules/pgpass/lib/index.js"(exports, module2) {
     "use strict";
     var path4 = __require("path");
     var fs3 = __require("fs");
@@ -44213,9 +44213,9 @@ var require_lib4 = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/client.js
+// ../lib/db/node_modules/pg/lib/client.js
 var require_client = __commonJS({
-  "../node_modules/pg/lib/client.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/client.js"(exports, module2) {
     var EventEmitter2 = __require("events").EventEmitter;
     var utils = require_utils4();
     var nodeUtils = __require("util");
@@ -44855,9 +44855,9 @@ var require_client = __commonJS({
   }
 });
 
-// ../node_modules/pg-pool/index.js
+// ../lib/db/node_modules/pg-pool/index.js
 var require_pg_pool = __commonJS({
-  "../node_modules/pg-pool/index.js"(exports, module2) {
+  "../lib/db/node_modules/pg-pool/index.js"(exports, module2) {
     "use strict";
     var EventEmitter2 = __require("events").EventEmitter;
     var NOOP = function() {
@@ -45281,9 +45281,9 @@ var require_pg_pool = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/native/query.js
+// ../lib/db/node_modules/pg/lib/native/query.js
 var require_query2 = __commonJS({
-  "../node_modules/pg/lib/native/query.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/native/query.js"(exports, module2) {
     "use strict";
     var EventEmitter2 = __require("events").EventEmitter;
     var util5 = __require("util");
@@ -45422,9 +45422,9 @@ var require_query2 = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/native/client.js
+// ../lib/db/node_modules/pg/lib/native/client.js
 var require_client2 = __commonJS({
-  "../node_modules/pg/lib/native/client.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/native/client.js"(exports, module2) {
     var nodeUtils = __require("util");
     var Native;
     try {
@@ -45681,17 +45681,17 @@ var require_client2 = __commonJS({
   }
 });
 
-// ../node_modules/pg/lib/native/index.js
+// ../lib/db/node_modules/pg/lib/native/index.js
 var require_native = __commonJS({
-  "../node_modules/pg/lib/native/index.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/native/index.js"(exports, module2) {
     "use strict";
     module2.exports = require_client2();
   }
 });
 
-// ../node_modules/pg/lib/index.js
+// ../lib/db/node_modules/pg/lib/index.js
 var require_lib5 = __commonJS({
-  "../node_modules/pg/lib/index.js"(exports, module2) {
+  "../lib/db/node_modules/pg/lib/index.js"(exports, module2) {
     "use strict";
     var Client2 = require_client();
     var defaults4 = require_defaults();
@@ -45755,10 +45755,10 @@ var require_lib5 = __commonJS({
   }
 });
 
-// ../node_modules/pg/esm/index.mjs
+// ../lib/db/node_modules/pg/esm/index.mjs
 var import_lib, Client, Pool, Connection, types, Query, DatabaseError, escapeIdentifier, escapeLiteral, Result, TypeOverrides, defaults2, esm_default;
 var init_esm = __esm({
-  "../node_modules/pg/esm/index.mjs"() {
+  "../lib/db/node_modules/pg/esm/index.mjs"() {
     import_lib = __toESM(require_lib5(), 1);
     Client = import_lib.default.Client;
     Pool = import_lib.default.Pool;
@@ -45775,7 +45775,7 @@ var init_esm = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/entity.js
+// ../lib/db/node_modules/drizzle-orm/entity.js
 function is(value, type) {
   if (!value || typeof value !== "object") {
     return false;
@@ -45801,15 +45801,15 @@ function is(value, type) {
 }
 var entityKind;
 var init_entity = __esm({
-  "../node_modules/drizzle-orm/entity.js"() {
+  "../lib/db/node_modules/drizzle-orm/entity.js"() {
     entityKind = /* @__PURE__ */ Symbol.for("drizzle:entityKind");
   }
 });
 
-// ../node_modules/drizzle-orm/logger.js
+// ../lib/db/node_modules/drizzle-orm/logger.js
 var ConsoleLogWriter, DefaultLogger, NoopLogger;
 var init_logger = __esm({
-  "../node_modules/drizzle-orm/logger.js"() {
+  "../lib/db/node_modules/drizzle-orm/logger.js"() {
     init_entity();
     ConsoleLogWriter = class {
       static [entityKind] = "ConsoleLogWriter";
@@ -45843,10 +45843,10 @@ var init_logger = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/query-promise.js
+// ../lib/db/node_modules/drizzle-orm/query-promise.js
 var QueryPromise;
 var init_query_promise = __esm({
-  "../node_modules/drizzle-orm/query-promise.js"() {
+  "../lib/db/node_modules/drizzle-orm/query-promise.js"() {
     init_entity();
     QueryPromise = class {
       static [entityKind] = "QueryPromise";
@@ -45873,10 +45873,10 @@ var init_query_promise = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/column.js
+// ../lib/db/node_modules/drizzle-orm/column.js
 var Column;
 var init_column = __esm({
-  "../node_modules/drizzle-orm/column.js"() {
+  "../lib/db/node_modules/drizzle-orm/column.js"() {
     init_entity();
     Column = class {
       constructor(table, config) {
@@ -45930,10 +45930,10 @@ var init_column = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/column-builder.js
+// ../lib/db/node_modules/drizzle-orm/column-builder.js
 var ColumnBuilder;
 var init_column_builder = __esm({
-  "../node_modules/drizzle-orm/column-builder.js"() {
+  "../lib/db/node_modules/drizzle-orm/column-builder.js"() {
     init_entity();
     ColumnBuilder = class {
       static [entityKind] = "ColumnBuilder";
@@ -46039,18 +46039,18 @@ var init_column_builder = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/table.utils.js
+// ../lib/db/node_modules/drizzle-orm/table.utils.js
 var TableName;
 var init_table_utils = __esm({
-  "../node_modules/drizzle-orm/table.utils.js"() {
+  "../lib/db/node_modules/drizzle-orm/table.utils.js"() {
     TableName = /* @__PURE__ */ Symbol.for("drizzle:Name");
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/foreign-keys.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/foreign-keys.js
 var ForeignKeyBuilder, ForeignKey;
 var init_foreign_keys = __esm({
-  "../node_modules/drizzle-orm/pg-core/foreign-keys.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/foreign-keys.js"() {
     init_entity();
     init_table_utils();
     ForeignKeyBuilder = class {
@@ -46111,22 +46111,22 @@ var init_foreign_keys = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/tracing-utils.js
+// ../lib/db/node_modules/drizzle-orm/tracing-utils.js
 function iife(fn2, ...args2) {
   return fn2(...args2);
 }
 var init_tracing_utils = __esm({
-  "../node_modules/drizzle-orm/tracing-utils.js"() {
+  "../lib/db/node_modules/drizzle-orm/tracing-utils.js"() {
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/unique-constraint.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/unique-constraint.js
 function uniqueKeyName(table, columns) {
   return `${table[TableName]}_${columns.join("_")}_unique`;
 }
 var UniqueConstraintBuilder, UniqueOnConstraintBuilder, UniqueConstraint;
 var init_unique_constraint = __esm({
-  "../node_modules/drizzle-orm/pg-core/unique-constraint.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/unique-constraint.js"() {
     init_entity();
     init_table_utils();
     UniqueConstraintBuilder = class {
@@ -46177,7 +46177,7 @@ var init_unique_constraint = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/utils/array.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/utils/array.js
 function parsePgArrayValue(arrayString, startFrom, inQuotes) {
   for (let i3 = startFrom; i3 < arrayString.length; i3++) {
     const char2 = arrayString[i3];
@@ -46253,14 +46253,14 @@ function makePgArray(array) {
   }).join(",")}}`;
 }
 var init_array = __esm({
-  "../node_modules/drizzle-orm/pg-core/utils/array.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/utils/array.js"() {
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/common.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/common.js
 var PgColumnBuilder, PgColumn, ExtraConfigColumn, IndexedColumn, PgArrayBuilder, PgArray;
 var init_common = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/common.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/common.js"() {
     init_column_builder();
     init_column();
     init_entity();
@@ -46453,7 +46453,7 @@ var init_common = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/enum.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/enum.js
 function isPgEnum(obj) {
   return !!obj && typeof obj === "function" && isPgEnumSym in obj && obj[isPgEnumSym] === true;
 }
@@ -46483,7 +46483,7 @@ function pgEnumObjectWithSchema(enumName, values, schema) {
 }
 var PgEnumObjectColumnBuilder, PgEnumObjectColumn, isPgEnumSym, PgEnumColumnBuilder, PgEnumColumn;
 var init_enum = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/enum.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/enum.js"() {
     init_entity();
     init_common();
     PgEnumObjectColumnBuilder = class extends PgColumnBuilder {
@@ -46542,17 +46542,17 @@ var init_enum = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/subquery.js
+// ../lib/db/node_modules/drizzle-orm/subquery.js
 var Subquery, WithSubquery;
 var init_subquery = __esm({
-  "../node_modules/drizzle-orm/subquery.js"() {
+  "../lib/db/node_modules/drizzle-orm/subquery.js"() {
     init_entity();
     Subquery = class {
       static [entityKind] = "Subquery";
-      constructor(sql3, fields, alias, isWith = false, usedTables = []) {
+      constructor(sql4, fields, alias, isWith = false, usedTables = []) {
         this._ = {
           brand: "Subquery",
-          sql: sql3,
+          sql: sql4,
           selectedFields: fields,
           alias,
           isWith,
@@ -46569,18 +46569,18 @@ var init_subquery = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/version.js
+// ../lib/db/node_modules/drizzle-orm/version.js
 var version;
 var init_version2 = __esm({
-  "../node_modules/drizzle-orm/version.js"() {
+  "../lib/db/node_modules/drizzle-orm/version.js"() {
     version = "0.45.2";
   }
 });
 
-// ../node_modules/drizzle-orm/tracing.js
+// ../lib/db/node_modules/drizzle-orm/tracing.js
 var otel, rawTracer, tracer;
 var init_tracing = __esm({
-  "../node_modules/drizzle-orm/tracing.js"() {
+  "../lib/db/node_modules/drizzle-orm/tracing.js"() {
     init_tracing_utils();
     init_version2();
     tracer = {
@@ -46592,14 +46592,14 @@ var init_tracing = __esm({
           rawTracer = otel.trace.getTracer("drizzle-orm", version);
         }
         return iife(
-          (otel2, rawTracer2) => rawTracer2.startActiveSpan(
+          (otel22, rawTracer22) => rawTracer22.startActiveSpan(
             name2,
             (span) => {
               try {
                 return fn2(span);
               } catch (e) {
                 span.setStatus({
-                  code: otel2.SpanStatusCode.ERROR,
+                  code: otel22.SpanStatusCode.ERROR,
                   message: e instanceof Error ? e.message : "Unknown error"
                   // eslint-disable-line no-instanceof/no-instanceof
                 });
@@ -46617,15 +46617,15 @@ var init_tracing = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/view-common.js
+// ../lib/db/node_modules/drizzle-orm/view-common.js
 var ViewBaseConfig;
 var init_view_common = __esm({
-  "../node_modules/drizzle-orm/view-common.js"() {
+  "../lib/db/node_modules/drizzle-orm/view-common.js"() {
     ViewBaseConfig = /* @__PURE__ */ Symbol.for("drizzle:ViewBaseConfig");
   }
 });
 
-// ../node_modules/drizzle-orm/table.js
+// ../lib/db/node_modules/drizzle-orm/table.js
 function getTableName(table) {
   return table[TableName];
 }
@@ -46634,7 +46634,7 @@ function getTableUniqueName(table) {
 }
 var Schema, Columns, ExtraConfigColumns, OriginalName, BaseName, IsAlias, ExtraConfigBuilder, IsDrizzleTable, Table;
 var init_table = __esm({
-  "../node_modules/drizzle-orm/table.js"() {
+  "../lib/db/node_modules/drizzle-orm/table.js"() {
     init_entity();
     init_table_utils();
     Schema = /* @__PURE__ */ Symbol.for("drizzle:Schema");
@@ -46694,7 +46694,7 @@ var init_table = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/sql/sql.js
+// ../lib/db/node_modules/drizzle-orm/sql/sql.js
 function isSQLWrapper(value) {
   return value !== null && value !== void 0 && typeof value.getSQL === "function";
 }
@@ -46744,7 +46744,7 @@ function fillPlaceholders(params, values) {
 }
 var FakePrimitiveParam, StringChunk, SQL, Name, noopDecoder, noopEncoder, noopMapper, Param, Placeholder, IsDrizzleView, View;
 var init_sql = __esm({
-  "../node_modules/drizzle-orm/sql/sql.js"() {
+  "../lib/db/node_modules/drizzle-orm/sql/sql.js"() {
     init_entity();
     init_enum();
     init_subquery();
@@ -47038,7 +47038,7 @@ var init_sql = __esm({
       }
       sql22.param = param2;
     })(sql || (sql = {}));
-    ((SQL2) => {
+    ((SQL22) => {
       class Aliased {
         constructor(sql22, fieldAlias) {
           this.sql = sql22;
@@ -47055,7 +47055,7 @@ var init_sql = __esm({
           return new Aliased(this.sql, this.fieldAlias);
         }
       }
-      SQL2.Aliased = Aliased;
+      SQL22.Aliased = Aliased;
     })(SQL || (SQL = {}));
     Placeholder = class {
       constructor(name2) {
@@ -47100,7 +47100,7 @@ var init_sql = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/alias.js
+// ../lib/db/node_modules/drizzle-orm/alias.js
 function aliasedTable(table, tableAlias) {
   return new Proxy(table, new TableAliasProxyHandler(tableAlias, false));
 }
@@ -47129,7 +47129,7 @@ function mapColumnsInSQLToAlias(query, alias) {
 }
 var ColumnAliasProxyHandler, TableAliasProxyHandler, RelationTableAliasProxyHandler;
 var init_alias = __esm({
-  "../node_modules/drizzle-orm/alias.js"() {
+  "../lib/db/node_modules/drizzle-orm/alias.js"() {
     init_column();
     init_entity();
     init_sql();
@@ -47206,10 +47206,10 @@ var init_alias = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/selection-proxy.js
+// ../lib/db/node_modules/drizzle-orm/selection-proxy.js
 var SelectionProxyHandler;
 var init_selection_proxy = __esm({
-  "../node_modules/drizzle-orm/selection-proxy.js"() {
+  "../lib/db/node_modules/drizzle-orm/selection-proxy.js"() {
     init_alias();
     init_column();
     init_entity();
@@ -47285,7 +47285,7 @@ var init_selection_proxy = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/utils.js
+// ../lib/db/node_modules/drizzle-orm/utils.js
 function mapResultRow(columns, row, joinsNotNullableMap) {
   const nullifyMap = {};
   const result = columns.reduce(
@@ -47436,7 +47436,7 @@ function isConfig(data) {
 }
 var textDecoder;
 var init_utils3 = __esm({
-  "../node_modules/drizzle-orm/utils.js"() {
+  "../lib/db/node_modules/drizzle-orm/utils.js"() {
     init_column();
     init_entity();
     init_sql();
@@ -47447,10 +47447,10 @@ var init_utils3 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/int.common.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/int.common.js
 var PgIntColumnBaseBuilder;
 var init_int_common = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/int.common.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/int.common.js"() {
     init_entity();
     init_common();
     PgIntColumnBaseBuilder = class extends PgColumnBuilder {
@@ -47493,7 +47493,7 @@ var init_int_common = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/bigint.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/bigint.js
 function bigint(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   if (config.mode === "number") {
@@ -47503,7 +47503,7 @@ function bigint(a2, b4) {
 }
 var PgBigInt53Builder, PgBigInt53, PgBigInt64Builder, PgBigInt64;
 var init_bigint = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/bigint.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/bigint.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -47556,7 +47556,7 @@ var init_bigint = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/bigserial.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/bigserial.js
 function bigserial(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   if (config.mode === "number") {
@@ -47566,7 +47566,7 @@ function bigserial(a2, b4) {
 }
 var PgBigSerial53Builder, PgBigSerial53, PgBigSerial64Builder, PgBigSerial64;
 var init_bigserial = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/bigserial.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/bigserial.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -47624,13 +47624,13 @@ var init_bigserial = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/boolean.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/boolean.js
 function boolean(name2) {
   return new PgBooleanBuilder(name2 ?? "");
 }
 var PgBooleanBuilder, PgBoolean;
 var init_boolean = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/boolean.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/boolean.js"() {
     init_entity();
     init_common();
     PgBooleanBuilder = class extends PgColumnBuilder {
@@ -47652,14 +47652,14 @@ var init_boolean = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/char.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/char.js
 function char(a2, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   return new PgCharBuilder(name2, config);
 }
 var PgCharBuilder, PgChar;
 var init_char = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/char.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/char.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -47689,13 +47689,13 @@ var init_char = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/cidr.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/cidr.js
 function cidr(name2) {
   return new PgCidrBuilder(name2 ?? "");
 }
 var PgCidrBuilder, PgCidr;
 var init_cidr = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/cidr.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/cidr.js"() {
     init_entity();
     init_common();
     PgCidrBuilder = class extends PgColumnBuilder {
@@ -47717,7 +47717,7 @@ var init_cidr = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/custom.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/custom.js
 function customType(customTypeParams) {
   return (a2, b4) => {
     const { name: name2, config } = getColumnNameAndConfig(a2, b4);
@@ -47726,7 +47726,7 @@ function customType(customTypeParams) {
 }
 var PgCustomColumnBuilder, PgCustomColumn;
 var init_custom = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/custom.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/custom.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -47769,10 +47769,10 @@ var init_custom = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/date.common.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/date.common.js
 var PgDateColumnBaseBuilder;
 var init_date_common = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/date.common.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/date.common.js"() {
     init_entity();
     init_sql();
     init_common();
@@ -47785,7 +47785,7 @@ var init_date_common = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/date.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/date.js
 function date(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   if (config?.mode === "date") {
@@ -47795,7 +47795,7 @@ function date(a2, b4) {
 }
 var PgDateBuilder, PgDate, PgDateStringBuilder, PgDateString;
 var init_date = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/date.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/date.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -47849,13 +47849,13 @@ var init_date = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/double-precision.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/double-precision.js
 function doublePrecision(name2) {
   return new PgDoublePrecisionBuilder(name2 ?? "");
 }
 var PgDoublePrecisionBuilder, PgDoublePrecision;
 var init_double_precision = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/double-precision.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/double-precision.js"() {
     init_entity();
     init_common();
     PgDoublePrecisionBuilder = class extends PgColumnBuilder {
@@ -47886,13 +47886,13 @@ var init_double_precision = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/inet.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/inet.js
 function inet(name2) {
   return new PgInetBuilder(name2 ?? "");
 }
 var PgInetBuilder, PgInet;
 var init_inet = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/inet.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/inet.js"() {
     init_entity();
     init_common();
     PgInetBuilder = class extends PgColumnBuilder {
@@ -47914,13 +47914,13 @@ var init_inet = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/integer.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/integer.js
 function integer(name2) {
   return new PgIntegerBuilder(name2 ?? "");
 }
 var PgIntegerBuilder, PgInteger;
 var init_integer = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/integer.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/integer.js"() {
     init_entity();
     init_common();
     init_int_common();
@@ -47949,14 +47949,14 @@ var init_integer = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/interval.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/interval.js
 function interval(a2, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   return new PgIntervalBuilder(name2, config);
 }
 var PgIntervalBuilder, PgInterval;
 var init_interval = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/interval.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/interval.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -47984,13 +47984,13 @@ var init_interval = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/json.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/json.js
 function json(name2) {
   return new PgJsonBuilder(name2 ?? "");
 }
 var PgJsonBuilder, PgJson;
 var init_json = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/json.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/json.js"() {
     init_entity();
     init_common();
     PgJsonBuilder = class extends PgColumnBuilder {
@@ -48028,13 +48028,13 @@ var init_json = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/jsonb.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/jsonb.js
 function jsonb(name2) {
   return new PgJsonbBuilder(name2 ?? "");
 }
 var PgJsonbBuilder, PgJsonb;
 var init_jsonb = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/jsonb.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/jsonb.js"() {
     init_entity();
     init_common();
     PgJsonbBuilder = class extends PgColumnBuilder {
@@ -48072,7 +48072,7 @@ var init_jsonb = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/line.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/line.js
 function line(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   if (!config?.mode || config.mode === "tuple") {
@@ -48082,7 +48082,7 @@ function line(a2, b4) {
 }
 var PgLineBuilder, PgLineTuple, PgLineABCBuilder, PgLineABC;
 var init_line2 = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/line.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/line.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48141,13 +48141,13 @@ var init_line2 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/macaddr.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr.js
 function macaddr(name2) {
   return new PgMacaddrBuilder(name2 ?? "");
 }
 var PgMacaddrBuilder, PgMacaddr;
 var init_macaddr = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/macaddr.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr.js"() {
     init_entity();
     init_common();
     PgMacaddrBuilder = class extends PgColumnBuilder {
@@ -48169,13 +48169,13 @@ var init_macaddr = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/macaddr8.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr8.js
 function macaddr8(name2) {
   return new PgMacaddr8Builder(name2 ?? "");
 }
 var PgMacaddr8Builder, PgMacaddr8;
 var init_macaddr8 = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/macaddr8.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/macaddr8.js"() {
     init_entity();
     init_common();
     PgMacaddr8Builder = class extends PgColumnBuilder {
@@ -48197,7 +48197,7 @@ var init_macaddr8 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/numeric.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/numeric.js
 function numeric(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   const mode = config?.mode;
@@ -48205,7 +48205,7 @@ function numeric(a2, b4) {
 }
 var PgNumericBuilder, PgNumeric, PgNumericNumberBuilder, PgNumericNumber, PgNumericBigIntBuilder, PgNumericBigInt, decimal;
 var init_numeric = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/numeric.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/numeric.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48323,7 +48323,7 @@ var init_numeric = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/point.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/point.js
 function point(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   if (!config?.mode || config.mode === "tuple") {
@@ -48333,7 +48333,7 @@ function point(a2, b4) {
 }
 var PgPointTupleBuilder, PgPointTuple, PgPointObjectBuilder, PgPointObject;
 var init_point = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/point.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/point.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48398,7 +48398,7 @@ var init_point = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js
 function hexToBytes(hex) {
   const bytes = [];
   for (let c2 = 0; c2 < hex.length; c2 += 2) {
@@ -48437,11 +48437,11 @@ function parseEWKB(hex) {
   throw new Error("Unsupported geometry type");
 }
 var init_utils4 = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/utils.js"() {
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js
 function geometry(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   if (!config?.mode || config.mode === "tuple") {
@@ -48451,7 +48451,7 @@ function geometry(a2, b4) {
 }
 var PgGeometryBuilder, PgGeometry, PgGeometryObjectBuilder, PgGeometryObject;
 var init_geometry = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/postgis_extension/geometry.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48510,13 +48510,13 @@ var init_geometry = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/real.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/real.js
 function real(name2) {
   return new PgRealBuilder(name2 ?? "");
 }
 var PgRealBuilder, PgReal;
 var init_real = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/real.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/real.js"() {
     init_entity();
     init_common();
     PgRealBuilder = class extends PgColumnBuilder {
@@ -48548,13 +48548,13 @@ var init_real = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/serial.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/serial.js
 function serial(name2) {
   return new PgSerialBuilder(name2 ?? "");
 }
 var PgSerialBuilder, PgSerial;
 var init_serial = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/serial.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/serial.js"() {
     init_entity();
     init_common();
     PgSerialBuilder = class extends PgColumnBuilder {
@@ -48578,13 +48578,13 @@ var init_serial = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/smallint.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/smallint.js
 function smallint(name2) {
   return new PgSmallIntBuilder(name2 ?? "");
 }
 var PgSmallIntBuilder, PgSmallInt;
 var init_smallint = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/smallint.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/smallint.js"() {
     init_entity();
     init_common();
     init_int_common();
@@ -48613,13 +48613,13 @@ var init_smallint = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/smallserial.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/smallserial.js
 function smallserial(name2) {
   return new PgSmallSerialBuilder(name2 ?? "");
 }
 var PgSmallSerialBuilder, PgSmallSerial;
 var init_smallserial = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/smallserial.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/smallserial.js"() {
     init_entity();
     init_common();
     PgSmallSerialBuilder = class extends PgColumnBuilder {
@@ -48646,14 +48646,14 @@ var init_smallserial = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/text.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/text.js
 function text(a2, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   return new PgTextBuilder(name2, config);
 }
 var PgTextBuilder, PgText;
 var init_text = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/text.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/text.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48678,14 +48678,14 @@ var init_text = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/time.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/time.js
 function time(a2, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   return new PgTimeBuilder(name2, config.withTimezone ?? false, config.precision);
 }
 var PgTimeBuilder, PgTime;
 var init_time = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/time.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/time.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48721,7 +48721,7 @@ var init_time = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/timestamp.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/timestamp.js
 function timestamp(a2, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   if (config?.mode === "string") {
@@ -48731,7 +48731,7 @@ function timestamp(a2, b4 = {}) {
 }
 var PgTimestampBuilder, PgTimestamp, PgTimestampStringBuilder, PgTimestampString;
 var init_timestamp = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/timestamp.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/timestamp.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48811,13 +48811,13 @@ var init_timestamp = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/uuid.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/uuid.js
 function uuid(name2) {
   return new PgUUIDBuilder(name2 ?? "");
 }
 var PgUUIDBuilder, PgUUID;
 var init_uuid2 = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/uuid.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/uuid.js"() {
     init_entity();
     init_sql();
     init_common();
@@ -48846,14 +48846,14 @@ var init_uuid2 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/varchar.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/varchar.js
 function varchar(a2, b4 = {}) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   return new PgVarcharBuilder(name2, config);
 }
 var PgVarcharBuilder, PgVarchar;
 var init_varchar = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/varchar.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/varchar.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48883,14 +48883,14 @@ var init_varchar = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js
 function bit(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   return new PgBinaryVectorBuilder(name2, config);
 }
 var PgBinaryVectorBuilder, PgBinaryVector;
 var init_bit = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/bit.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48918,14 +48918,14 @@ var init_bit = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js
 function halfvec(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   return new PgHalfVectorBuilder(name2, config);
 }
 var PgHalfVectorBuilder, PgHalfVector;
 var init_halfvec = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/halfvec.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48959,14 +48959,14 @@ var init_halfvec = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js
 function sparsevec(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   return new PgSparseVectorBuilder(name2, config);
 }
 var PgSparseVectorBuilder, PgSparseVector;
 var init_sparsevec = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/sparsevec.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -48994,14 +48994,14 @@ var init_sparsevec = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js
 function vector(a2, b4) {
   const { name: name2, config } = getColumnNameAndConfig(a2, b4);
   return new PgVectorBuilder(name2, config);
 }
 var PgVectorBuilder, PgVector;
 var init_vector = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/vector_extension/vector.js"() {
     init_entity();
     init_utils3();
     init_common();
@@ -49035,7 +49035,7 @@ var init_vector = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/all.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/all.js
 function getPgColumnBuilders() {
   return {
     bigint,
@@ -49073,7 +49073,7 @@ function getPgColumnBuilders() {
   };
 }
 var init_all = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/all.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/all.js"() {
     init_bigint();
     init_bigserial();
     init_boolean();
@@ -49109,7 +49109,7 @@ var init_all = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/table.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/table.js
 function pgTableWithSchema(name2, columns, extraConfig, schema, baseName = name2) {
   const rawTable = new PgTable(name2, schema, baseName);
   const parsedColumns = typeof columns === "function" ? columns(getPgColumnBuilders()) : columns;
@@ -49145,7 +49145,7 @@ function pgTableWithSchema(name2, columns, extraConfig, schema, baseName = name2
 }
 var InlineForeignKeys, EnableRLS, PgTable, pgTable;
 var init_table2 = __esm({
-  "../node_modules/drizzle-orm/pg-core/table.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/table.js"() {
     init_entity();
     init_table();
     init_all();
@@ -49173,10 +49173,10 @@ var init_table2 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/checks.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/checks.js
 var CheckBuilder, Check;
 var init_checks = __esm({
-  "../node_modules/drizzle-orm/pg-core/checks.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/checks.js"() {
     init_entity();
     CheckBuilder = class {
       constructor(name2, value) {
@@ -49203,9 +49203,9 @@ var init_checks = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/columns/index.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/columns/index.js
 var init_columns = __esm({
-  "../node_modules/drizzle-orm/pg-core/columns/index.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/columns/index.js"() {
     init_bigint();
     init_bigserial();
     init_boolean();
@@ -49244,10 +49244,10 @@ var init_columns = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/indexes.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/indexes.js
 var IndexBuilderOn, IndexBuilder, Index;
 var init_indexes = __esm({
-  "../node_modules/drizzle-orm/pg-core/indexes.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/indexes.js"() {
     init_sql();
     init_entity();
     init_columns();
@@ -49358,10 +49358,10 @@ var init_indexes = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/policies.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/policies.js
 var PgPolicy;
 var init_policies = __esm({
-  "../node_modules/drizzle-orm/pg-core/policies.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/policies.js"() {
     init_entity();
     PgPolicy = class {
       constructor(name2, config) {
@@ -49390,10 +49390,10 @@ var init_policies = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/primary-keys.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/primary-keys.js
 var PrimaryKeyBuilder, PrimaryKey;
 var init_primary_keys = __esm({
-  "../node_modules/drizzle-orm/pg-core/primary-keys.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/primary-keys.js"() {
     init_entity();
     init_table2();
     PrimaryKeyBuilder = class {
@@ -49427,15 +49427,15 @@ var init_primary_keys = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/view-common.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/view-common.js
 var PgViewConfig;
 var init_view_common2 = __esm({
-  "../node_modules/drizzle-orm/pg-core/view-common.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/view-common.js"() {
     PgViewConfig = /* @__PURE__ */ Symbol.for("drizzle:PgViewConfig");
   }
 });
 
-// ../node_modules/drizzle-orm/casing.js
+// ../lib/db/node_modules/drizzle-orm/casing.js
 function toSnakeCase(input) {
   const words = input.replace(/['\u2019]/g, "").match(/[\da-z]+|[A-Z]+(?![a-z])|[A-Z][\da-z]+/g) ?? [];
   return words.map((word) => word.toLowerCase()).join("_");
@@ -49452,7 +49452,7 @@ function noopCase(input) {
 }
 var CasingCache;
 var init_casing = __esm({
-  "../node_modules/drizzle-orm/casing.js"() {
+  "../lib/db/node_modules/drizzle-orm/casing.js"() {
     init_entity();
     init_table();
     CasingCache = class {
@@ -49494,10 +49494,10 @@ var init_casing = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/errors.js
+// ../lib/db/node_modules/drizzle-orm/errors.js
 var DrizzleError, DrizzleQueryError, TransactionRollbackError;
 var init_errors2 = __esm({
-  "../node_modules/drizzle-orm/errors.js"() {
+  "../lib/db/node_modules/drizzle-orm/errors.js"() {
     init_entity();
     DrizzleError = class extends Error {
       static [entityKind] = "DrizzleError";
@@ -49527,7 +49527,7 @@ params: ${params}`);
   }
 });
 
-// ../node_modules/drizzle-orm/sql/expressions/conditions.js
+// ../lib/db/node_modules/drizzle-orm/sql/expressions/conditions.js
 function bindIfParam(value, column) {
   if (isDriverValueEncoder(column) && !isSQLWrapper(value) && !is(value, Param) && !is(value, Placeholder) && !is(value, Column) && !is(value, Table) && !is(value, View)) {
     return new Param(value, column);
@@ -49625,7 +49625,7 @@ function notIlike(column, value) {
 }
 var eq, ne, gt, gte, lt, lte;
 var init_conditions = __esm({
-  "../node_modules/drizzle-orm/sql/expressions/conditions.js"() {
+  "../lib/db/node_modules/drizzle-orm/sql/expressions/conditions.js"() {
     init_column();
     init_entity();
     init_table();
@@ -49651,7 +49651,7 @@ var init_conditions = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/sql/expressions/select.js
+// ../lib/db/node_modules/drizzle-orm/sql/expressions/select.js
 function asc(column) {
   return sql`${column} asc`;
 }
@@ -49659,20 +49659,20 @@ function desc(column) {
   return sql`${column} desc`;
 }
 var init_select = __esm({
-  "../node_modules/drizzle-orm/sql/expressions/select.js"() {
+  "../lib/db/node_modules/drizzle-orm/sql/expressions/select.js"() {
     init_sql();
   }
 });
 
-// ../node_modules/drizzle-orm/sql/expressions/index.js
+// ../lib/db/node_modules/drizzle-orm/sql/expressions/index.js
 var init_expressions = __esm({
-  "../node_modules/drizzle-orm/sql/expressions/index.js"() {
+  "../lib/db/node_modules/drizzle-orm/sql/expressions/index.js"() {
     init_conditions();
     init_select();
   }
 });
 
-// ../node_modules/drizzle-orm/relations.js
+// ../lib/db/node_modules/drizzle-orm/relations.js
 function getOperators() {
   return {
     and,
@@ -49882,7 +49882,7 @@ function mapRelationalRow(tablesConfig, tableConfig, row, buildQueryResultSelect
 }
 var Relation, Relations, One, Many;
 var init_relations = __esm({
-  "../node_modules/drizzle-orm/relations.js"() {
+  "../lib/db/node_modules/drizzle-orm/relations.js"() {
     init_table();
     init_column();
     init_entity();
@@ -49944,43 +49944,39 @@ var init_relations = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/sql/functions/aggregate.js
-function count(expression) {
-  return sql`count(${expression || sql.raw("*")})`.mapWith(Number);
-}
+// ../lib/db/node_modules/drizzle-orm/sql/functions/aggregate.js
 var init_aggregate = __esm({
-  "../node_modules/drizzle-orm/sql/functions/aggregate.js"() {
-    init_sql();
+  "../lib/db/node_modules/drizzle-orm/sql/functions/aggregate.js"() {
   }
 });
 
-// ../node_modules/drizzle-orm/sql/functions/vector.js
+// ../lib/db/node_modules/drizzle-orm/sql/functions/vector.js
 var init_vector2 = __esm({
-  "../node_modules/drizzle-orm/sql/functions/vector.js"() {
+  "../lib/db/node_modules/drizzle-orm/sql/functions/vector.js"() {
   }
 });
 
-// ../node_modules/drizzle-orm/sql/functions/index.js
+// ../lib/db/node_modules/drizzle-orm/sql/functions/index.js
 var init_functions = __esm({
-  "../node_modules/drizzle-orm/sql/functions/index.js"() {
+  "../lib/db/node_modules/drizzle-orm/sql/functions/index.js"() {
     init_aggregate();
     init_vector2();
   }
 });
 
-// ../node_modules/drizzle-orm/sql/index.js
+// ../lib/db/node_modules/drizzle-orm/sql/index.js
 var init_sql2 = __esm({
-  "../node_modules/drizzle-orm/sql/index.js"() {
+  "../lib/db/node_modules/drizzle-orm/sql/index.js"() {
     init_expressions();
     init_functions();
     init_sql();
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/view-base.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/view-base.js
 var PgViewBase;
 var init_view_base = __esm({
-  "../node_modules/drizzle-orm/pg-core/view-base.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/view-base.js"() {
     init_entity();
     init_sql();
     PgViewBase = class extends View {
@@ -49989,10 +49985,10 @@ var init_view_base = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/dialect.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/dialect.js
 var PgDialect;
 var init_dialect = __esm({
-  "../node_modules/drizzle-orm/pg-core/dialect.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/dialect.js"() {
     init_alias();
     init_casing();
     init_column();
@@ -51114,10 +51110,10 @@ var init_dialect = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/query-builders/query-builder.js
+// ../lib/db/node_modules/drizzle-orm/query-builders/query-builder.js
 var TypedQueryBuilder;
 var init_query_builder = __esm({
-  "../node_modules/drizzle-orm/query-builders/query-builder.js"() {
+  "../lib/db/node_modules/drizzle-orm/query-builders/query-builder.js"() {
     init_entity();
     TypedQueryBuilder = class {
       static [entityKind] = "TypedQueryBuilder";
@@ -51129,7 +51125,7 @@ var init_query_builder = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/select.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.js
 function createSetOperator(type, isAll) {
   return (leftSelect, rightSelect, ...restSelects) => {
     const setOperators = [rightSelect, ...restSelects].map((select) => ({
@@ -51149,7 +51145,7 @@ function createSetOperator(type, isAll) {
 }
 var PgSelectBuilder, PgSelectQueryBuilderBase, PgSelectBase, getPgSetOperators, union, unionAll, intersect, intersectAll, except, exceptAll;
 var init_select2 = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/select.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.js"() {
     init_entity();
     init_view_base();
     init_query_builder();
@@ -51963,10 +51959,10 @@ var init_select2 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/query-builder.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js
 var QueryBuilder;
 var init_query_builder2 = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/query-builder.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query-builder.js"() {
     init_entity();
     init_dialect();
     init_selection_proxy();
@@ -52060,7 +52056,7 @@ var init_query_builder2 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/view.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/view.js
 function pgViewWithSchema(name2, selection, schema) {
   if (selection) {
     return new ManualViewBuilder(name2, selection, schema);
@@ -52075,7 +52071,7 @@ function pgMaterializedViewWithSchema(name2, selection, schema) {
 }
 var DefaultViewBuilderCore, ViewBuilder, ManualViewBuilder, MaterializedViewBuilderCore, MaterializedViewBuilder, ManualMaterializedViewBuilder, PgView, PgMaterializedViewConfig, PgMaterializedView;
 var init_view = __esm({
-  "../node_modules/drizzle-orm/pg-core/view.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/view.js"() {
     init_entity();
     init_selection_proxy();
     init_utils3();
@@ -52309,7 +52305,7 @@ var init_view = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/utils.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/utils.js
 function extractUsedTable(table) {
   if (is(table, PgTable)) {
     return [table[Schema] ? `${table[Schema]}.${table[Table.Symbol.BaseName]}` : table[Table.Symbol.BaseName]];
@@ -52323,7 +52319,7 @@ function extractUsedTable(table) {
   return [];
 }
 var init_utils5 = __esm({
-  "../node_modules/drizzle-orm/pg-core/utils.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/utils.js"() {
     init_entity();
     init_table2();
     init_sql();
@@ -52332,10 +52328,10 @@ var init_utils5 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/delete.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/delete.js
 var PgDeleteBase;
 var init_delete = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/delete.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/delete.js"() {
     init_entity();
     init_query_promise();
     init_selection_proxy();
@@ -52440,10 +52436,10 @@ var init_delete = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/insert.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/insert.js
 var PgInsertBuilder, PgInsertBase;
 var init_insert = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/insert.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/insert.js"() {
     init_entity();
     init_query_promise();
     init_selection_proxy();
@@ -52647,10 +52643,10 @@ var init_insert = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js
 var PgRefreshMaterializedView;
 var init_refresh_materialized_view = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/refresh-materialized-view.js"() {
     init_entity();
     init_query_promise();
     init_tracing();
@@ -52709,16 +52705,16 @@ var init_refresh_materialized_view = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/select.types.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.types.js
 var init_select_types = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/select.types.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/select.types.js"() {
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/update.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/update.js
 var PgUpdateBuilder, PgUpdateBase;
 var init_update = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/update.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/update.js"() {
     init_entity();
     init_table2();
     init_query_promise();
@@ -52942,9 +52938,9 @@ var init_update = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/index.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/index.js
 var init_query_builders = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/index.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/index.js"() {
     init_delete();
     init_insert();
     init_query_builder2();
@@ -52955,10 +52951,10 @@ var init_query_builders = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/count.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/count.js
 var PgCountBuilder;
 var init_count = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/count.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/count.js"() {
     init_entity();
     init_sql();
     PgCountBuilder = class _PgCountBuilder extends SQL {
@@ -53013,10 +53009,10 @@ var init_count = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/query.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query.js
 var RelationalQueryBuilder, PgRelationalQuery;
 var init_query2 = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/query.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/query.js"() {
     init_entity();
     init_query_promise();
     init_relations();
@@ -53135,17 +53131,17 @@ var init_query2 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/query-builders/raw.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/query-builders/raw.js
 var PgRaw;
 var init_raw = __esm({
-  "../node_modules/drizzle-orm/pg-core/query-builders/raw.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/query-builders/raw.js"() {
     init_entity();
     init_query_promise();
     PgRaw = class extends QueryPromise {
-      constructor(execute, sql3, query, mapBatchResult) {
+      constructor(execute, sql4, query, mapBatchResult) {
         super();
         this.execute = execute;
-        this.sql = sql3;
+        this.sql = sql4;
         this.query = query;
         this.mapBatchResult = mapBatchResult;
       }
@@ -53171,10 +53167,10 @@ var init_raw = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/db.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/db.js
 var PgDatabase;
 var init_db = __esm({
-  "../node_modules/drizzle-orm/pg-core/db.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/db.js"() {
     init_entity();
     init_query_builders();
     init_selection_proxy();
@@ -53464,9 +53460,9 @@ var init_db = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/cache/core/cache.js
-async function hashQuery(sql3, params) {
-  const dataToHash = `${sql3}-${JSON.stringify(params)}`;
+// ../lib/db/node_modules/drizzle-orm/cache/core/cache.js
+async function hashQuery(sql4, params) {
+  const dataToHash = `${sql4}-${JSON.stringify(params)}`;
   const encoder = new TextEncoder();
   const data = encoder.encode(dataToHash);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -53476,7 +53472,7 @@ async function hashQuery(sql3, params) {
 }
 var Cache, NoopCache;
 var init_cache = __esm({
-  "../node_modules/drizzle-orm/cache/core/cache.js"() {
+  "../lib/db/node_modules/drizzle-orm/cache/core/cache.js"() {
     init_entity();
     Cache = class {
       static [entityKind] = "Cache";
@@ -53497,23 +53493,23 @@ var init_cache = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/cache/core/index.js
+// ../lib/db/node_modules/drizzle-orm/cache/core/index.js
 var init_core = __esm({
-  "../node_modules/drizzle-orm/cache/core/index.js"() {
+  "../lib/db/node_modules/drizzle-orm/cache/core/index.js"() {
     init_cache();
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/alias.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/alias.js
 var init_alias2 = __esm({
-  "../node_modules/drizzle-orm/pg-core/alias.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/alias.js"() {
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/roles.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/roles.js
 var PgRole;
 var init_roles7 = __esm({
-  "../node_modules/drizzle-orm/pg-core/roles.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/roles.js"() {
     init_entity();
     PgRole = class {
       constructor(name2, config) {
@@ -53541,13 +53537,13 @@ var init_roles7 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/sequence.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/sequence.js
 function pgSequenceWithSchema(name2, options, schema) {
   return new PgSequence(name2, options, schema);
 }
 var PgSequence;
 var init_sequence = __esm({
-  "../node_modules/drizzle-orm/pg-core/sequence.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/sequence.js"() {
     init_entity();
     PgSequence = class {
       constructor(seqName, seqOptions, schema) {
@@ -53560,10 +53556,10 @@ var init_sequence = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/schema.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/schema.js
 var PgSchema;
 var init_schema = __esm({
-  "../node_modules/drizzle-orm/pg-core/schema.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/schema.js"() {
     init_entity();
     init_sql();
     init_enum();
@@ -53604,10 +53600,10 @@ var init_schema = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/session.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/session.js
 var PgPreparedQuery, PgSession, PgTransaction;
 var init_session = __esm({
-  "../node_modules/drizzle-orm/pg-core/session.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/session.js"() {
     init_cache();
     init_entity();
     init_errors2();
@@ -53775,22 +53771,22 @@ var init_session = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/subquery.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/subquery.js
 var init_subquery2 = __esm({
-  "../node_modules/drizzle-orm/pg-core/subquery.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/subquery.js"() {
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/utils/index.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/utils/index.js
 var init_utils6 = __esm({
-  "../node_modules/drizzle-orm/pg-core/utils/index.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/utils/index.js"() {
     init_array();
   }
 });
 
-// ../node_modules/drizzle-orm/pg-core/index.js
+// ../lib/db/node_modules/drizzle-orm/pg-core/index.js
 var init_pg_core = __esm({
-  "../node_modules/drizzle-orm/pg-core/index.js"() {
+  "../lib/db/node_modules/drizzle-orm/pg-core/index.js"() {
     init_alias2();
     init_checks();
     init_columns();
@@ -53815,10 +53811,10 @@ var init_pg_core = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/node-postgres/session.js
+// ../lib/db/node_modules/drizzle-orm/node-postgres/session.js
 var Pool2, types2, NodePgPreparedQuery, NodePgSession, NodePgTransaction;
 var init_session2 = __esm({
-  "../node_modules/drizzle-orm/node-postgres/session.js"() {
+  "../lib/db/node_modules/drizzle-orm/node-postgres/session.js"() {
     init_esm();
     init_core();
     init_entity();
@@ -54045,7 +54041,7 @@ var init_session2 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/node-postgres/driver.js
+// ../lib/db/node_modules/drizzle-orm/node-postgres/driver.js
 function construct(client2, config = {}) {
   const dialect = new PgDialect({ casing: config.casing });
   let logger2;
@@ -54095,7 +54091,7 @@ function drizzle(...params) {
 }
 var NodePgDriver, NodePgDatabase;
 var init_driver = __esm({
-  "../node_modules/drizzle-orm/node-postgres/driver.js"() {
+  "../lib/db/node_modules/drizzle-orm/node-postgres/driver.js"() {
     init_esm();
     init_entity();
     init_logger();
@@ -54130,18 +54126,18 @@ var init_driver = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/node-postgres/index.js
+// ../lib/db/node_modules/drizzle-orm/node-postgres/index.js
 var init_node_postgres = __esm({
-  "../node_modules/drizzle-orm/node-postgres/index.js"() {
+  "../lib/db/node_modules/drizzle-orm/node-postgres/index.js"() {
     init_driver();
     init_session2();
   }
 });
 
-// ../node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js
+// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js
 var p, i2, c, f, l, s, a, _, d, D, F, g, L, P, n, h, R, x, T, U, u;
 var init_chunk_BTBUZ646 = __esm({
-  "../node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js"() {
+  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-BTBUZ646.js"() {
     p = Object.create;
     i2 = Object.defineProperty;
     c = Object.getOwnPropertyDescriptor;
@@ -54179,7 +54175,7 @@ var init_chunk_BTBUZ646 = __esm({
   }
 });
 
-// ../node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js
+// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js
 function ue(e, t, n3) {
   if (e === null) return null;
   let r2 = n3?.[t] ?? Se.parsers[t];
@@ -54293,7 +54289,7 @@ function Nr(e) {
 }
 var hn, ht, bt, be, ge, gt2, we, ve, Ge, wt, F2, We, At, xt, St, Ae, Dt, Bt, It, Mt, Rt, Tt, je, Qe, Et, Ct, Pt, Ut, Nt, Lt, Ot, kt, Vt, _e, ze, He, Ft, qe, xe, vt, Gt, Wt, jt, Qt, _t, zt, Ht, qt, Yt, $t, Kt, Jt, Xt, Zt, en, tn, nn, rn, sn, an, Ye, on, un, $e, Se, ln, cn, dn, fn, he, wn, Ue, Be, Ie, Me, Re, Te, Ee, Ce, Pe, v, G, W, j, Q, _2, E, z, H, q, Y, $, K, J, X, Z, ee, te, ne2, zn, b, g2, U2, ce, N, x2, le, P2, Xe, R2, m, An, xn, Sn, Dn, Bn, In, Mn, Rn, L2, Tn, En, Cn, Pn, Un, Ne, Nn, Ln, On, kn, Vn, Fn, pe, vn, Gn, Wn, jn, O, Le, Qn, M, w, fe, me, re, de, Oe, _n, Ze, et, A, S, D2, o, l2, tt, nt, rt, st, it, at, ot, ke, ut, lt2, ct, pt, dt, ft, mt, yt, Ve, ye, Fe, se, k;
 var init_chunk_EADU5A67 = __esm({
-  "../node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js"() {
+  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-EADU5A67.js"() {
     init_chunk_BTBUZ646();
     hn = {};
     F(hn, { ABSTIME: () => Et, ACLITEM: () => Vt, BIT: () => Wt, BOOL: () => be, BPCHAR: () => _e, BYTEA: () => ge, CHAR: () => gt2, CID: () => St, CIDR: () => Tt, CIRCLE: () => Ut, DATE: () => He, FLOAT4: () => je, FLOAT8: () => Qe, GTSVECTOR: () => rn, INET: () => kt, INT2: () => ve, INT4: () => Ge, INT8: () => we, INTERVAL: () => vt, JSON: () => Ae, JSONB: () => Ye, MACADDR: () => Ot, MACADDR8: () => Nt, MONEY: () => Lt, NUMERIC: () => Qt, OID: () => We, PATH: () => Mt, PG_DEPENDENCIES: () => en, PG_LSN: () => Xt, PG_NDISTINCT: () => Zt, PG_NODE_TREE: () => Bt, POLYGON: () => Rt, REFCURSOR: () => _t, REGCLASS: () => Yt, REGCONFIG: () => sn, REGDICTIONARY: () => an, REGNAMESPACE: () => on, REGOPER: () => Ht, REGOPERATOR: () => qt, REGPROC: () => wt, REGPROCEDURE: () => zt, REGROLE: () => un, REGTYPE: () => $t, RELTIME: () => Ct, SMGR: () => It, TEXT: () => F2, TID: () => At, TIME: () => Ft, TIMESTAMP: () => qe, TIMESTAMPTZ: () => xe, TIMETZ: () => Gt, TINTERVAL: () => Pt, TSQUERY: () => nn, TSVECTOR: () => tn, TXID_SNAPSHOT: () => Jt, UUID: () => Kt, VARBIT: () => jt, VARCHAR: () => ze, XID: () => xt, XML: () => Dt, arrayParser: () => yn, arraySerializer: () => Ke, parseType: () => ue, parsers: () => ln, serializers: () => cn, types: () => $e });
@@ -54888,7 +54884,7 @@ var init_chunk_EADU5A67 = __esm({
   }
 });
 
-// ../node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js
+// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js
 function s2(t, r2, ...e) {
   let a2 = t.length - 1, p3 = e.length - 1;
   if (p3 !== -1) {
@@ -54923,17 +54919,17 @@ function g3(t, ...r2) {
 }
 var o2;
 var init_chunk_STOZMFXW = __esm({
-  "../node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js"() {
+  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-STOZMFXW.js"() {
     init_chunk_BTBUZ646();
     u();
     o2 = { part: "part", container: "container" };
   }
 });
 
-// ../node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js
+// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js
 var b2, u2, r, l3, g4, h2, R3, z2;
 var init_chunk_A7RFOIQ7 = __esm({
-  "../node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js"() {
+  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-A7RFOIQ7.js"() {
     init_chunk_EADU5A67();
     init_chunk_STOZMFXW();
     init_chunk_BTBUZ646();
@@ -55046,7 +55042,7 @@ var init_chunk_A7RFOIQ7 = __esm({
   }
 });
 
-// ../node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js
+// ../lib/db/node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js
 async function H2(r2, e, t = "pgdata", s4 = "auto") {
   let a2 = Br(r2, e), [n3, o4] = await qr(a2, s4), i3 = t + (o4 ? ".tar.gz" : ".tar"), u3 = o4 ? "application/x-gzip" : "application/x-tar";
   return typeof File < "u" ? new File([n3], i3, { type: u3 }) : new Blob([n3], { type: u3 });
@@ -55137,7 +55133,7 @@ function sr(r2) {
 }
 var w2, x3, L3, er, nr, or2, g5, Hr, Vr, C2, ur, cr, pr, Zr;
 var init_chunk_WGR4JCLS = __esm({
-  "../node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js"() {
+  "../lib/db/node_modules/@electric-sql/pglite/dist/chunk-WGR4JCLS.js"() {
     init_chunk_BTBUZ646();
     w2 = D(($r, l4) => {
       "use strict";
@@ -55614,7 +55610,7 @@ var init_chunk_WGR4JCLS = __esm({
   }
 });
 
-// ../node_modules/@electric-sql/pglite/dist/fs/nodefs.js
+// ../lib/db/node_modules/@electric-sql/pglite/dist/fs/nodefs.js
 var nodefs_exports = {};
 __export(nodefs_exports, {
   NodeFS: () => m2
@@ -55623,7 +55619,7 @@ import * as s3 from "fs";
 import * as o3 from "path";
 var m2;
 var init_nodefs = __esm({
-  "../node_modules/@electric-sql/pglite/dist/fs/nodefs.js"() {
+  "../lib/db/node_modules/@electric-sql/pglite/dist/fs/nodefs.js"() {
     init_chunk_WGR4JCLS();
     init_chunk_BTBUZ646();
     u();
@@ -55644,14 +55640,14 @@ var init_nodefs = __esm({
   }
 });
 
-// ../node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js
+// ../lib/db/node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js
 var opfs_ahp_exports = {};
 __export(opfs_ahp_exports, {
   OpfsAhpFS: () => L4
 });
 var $2, G2, T2, H3, v2, F3, M2, y2, b3, m3, x4, P3, D3, S2, n2, C3, O2, k2, w3, f2, I, W2, j2, L4, p2;
 var init_opfs_ahp = __esm({
-  "../node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js"() {
+  "../lib/db/node_modules/@electric-sql/pglite/dist/fs/opfs-ahp.js"() {
     init_chunk_WGR4JCLS();
     init_chunk_BTBUZ646();
     u();
@@ -55950,7 +55946,7 @@ ${t}`), i3 = h(this, y2).getSize();
   }
 });
 
-// ../node_modules/@electric-sql/pglite/dist/index.js
+// ../lib/db/node_modules/@electric-sql/pglite/dist/index.js
 async function ge2(e) {
   if (Fe) {
     let t = await import("fs"), r2 = await import("zlib"), { Writable: a2 } = await import("stream"), { pipeline: o4 } = await import("stream/promises");
@@ -56025,7 +56021,7 @@ async function Ae2(e, t) {
 }
 var Ye2, Je2, He2, We2, ce3, je2, H4, Ie2, ee2, te2, Qe2, ke2, Te2, Y2, W3, j3, J2, $3, _e2, ie, me2, Z2, ae, oe, se2, V, G3, k3, K2, O3, qe2, re2, pe2, Ue2;
 var init_dist = __esm({
-  "../node_modules/@electric-sql/pglite/dist/index.js"() {
+  "../lib/db/node_modules/@electric-sql/pglite/dist/index.js"() {
     init_chunk_A7RFOIQ7();
     init_chunk_EADU5A67();
     init_chunk_WGR4JCLS();
@@ -60163,10 +60159,10 @@ ${n3}`), 0;
   }
 });
 
-// ../node_modules/drizzle-orm/pglite/session.js
+// ../lib/db/node_modules/drizzle-orm/pglite/session.js
 var PglitePreparedQuery, PgliteSession, PgliteTransaction;
 var init_session3 = __esm({
-  "../node_modules/drizzle-orm/pglite/session.js"() {
+  "../lib/db/node_modules/drizzle-orm/pglite/session.js"() {
     init_entity();
     init_logger();
     init_pg_core();
@@ -60326,7 +60322,7 @@ var init_session3 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pglite/driver.js
+// ../lib/db/node_modules/drizzle-orm/pglite/driver.js
 function construct2(client2, config = {}) {
   const dialect = new PgDialect({ casing: config.casing });
   let logger2;
@@ -60377,7 +60373,7 @@ function drizzle2(...params) {
 }
 var PgliteDriver, PgliteDatabase;
 var init_driver2 = __esm({
-  "../node_modules/drizzle-orm/pglite/driver.js"() {
+  "../lib/db/node_modules/drizzle-orm/pglite/driver.js"() {
     init_dist();
     init_entity();
     init_logger();
@@ -60412,9 +60408,9 @@ var init_driver2 = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/pglite/index.js
+// ../lib/db/node_modules/drizzle-orm/pglite/index.js
 var init_pglite = __esm({
-  "../node_modules/drizzle-orm/pglite/index.js"() {
+  "../lib/db/node_modules/drizzle-orm/pglite/index.js"() {
     init_driver2();
     init_session3();
   }
@@ -60730,29 +60726,1585 @@ var init_src = __esm({
   }
 });
 
-// ../node_modules/drizzle-orm/operations.js
-var init_operations = __esm({
-  "../node_modules/drizzle-orm/operations.js"() {
+// node_modules/drizzle-orm/entity.js
+function is2(value, type) {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  if (value instanceof type) {
+    return true;
+  }
+  if (!Object.prototype.hasOwnProperty.call(type, entityKind2)) {
+    throw new Error(
+      `Class "${type.name ?? "<unknown>"}" doesn't look like a Drizzle entity. If this is incorrect and the class is provided by Drizzle, please report this as a bug.`
+    );
+  }
+  let cls = Object.getPrototypeOf(value).constructor;
+  if (cls) {
+    while (cls) {
+      if (entityKind2 in cls && cls[entityKind2] === type[entityKind2]) {
+        return true;
+      }
+      cls = Object.getPrototypeOf(cls);
+    }
+  }
+  return false;
+}
+var entityKind2;
+var init_entity2 = __esm({
+  "node_modules/drizzle-orm/entity.js"() {
+    entityKind2 = /* @__PURE__ */ Symbol.for("drizzle:entityKind");
   }
 });
 
-// ../node_modules/drizzle-orm/index.js
+// node_modules/drizzle-orm/column.js
+var Column2;
+var init_column2 = __esm({
+  "node_modules/drizzle-orm/column.js"() {
+    init_entity2();
+    Column2 = class {
+      constructor(table, config) {
+        this.table = table;
+        this.config = config;
+        this.name = config.name;
+        this.keyAsName = config.keyAsName;
+        this.notNull = config.notNull;
+        this.default = config.default;
+        this.defaultFn = config.defaultFn;
+        this.onUpdateFn = config.onUpdateFn;
+        this.hasDefault = config.hasDefault;
+        this.primary = config.primaryKey;
+        this.isUnique = config.isUnique;
+        this.uniqueName = config.uniqueName;
+        this.uniqueType = config.uniqueType;
+        this.dataType = config.dataType;
+        this.columnType = config.columnType;
+        this.generated = config.generated;
+        this.generatedIdentity = config.generatedIdentity;
+      }
+      static [entityKind2] = "Column";
+      name;
+      keyAsName;
+      primary;
+      notNull;
+      default;
+      defaultFn;
+      onUpdateFn;
+      hasDefault;
+      isUnique;
+      uniqueName;
+      uniqueType;
+      dataType;
+      columnType;
+      enumValues = void 0;
+      generated = void 0;
+      generatedIdentity = void 0;
+      config;
+      mapFromDriverValue(value) {
+        return value;
+      }
+      mapToDriverValue(value) {
+        return value;
+      }
+      // ** @internal */
+      shouldDisableInsert() {
+        return this.config.generated !== void 0 && this.config.generated.type !== "byDefault";
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/column-builder.js
+var ColumnBuilder2;
+var init_column_builder2 = __esm({
+  "node_modules/drizzle-orm/column-builder.js"() {
+    init_entity2();
+    ColumnBuilder2 = class {
+      static [entityKind2] = "ColumnBuilder";
+      config;
+      constructor(name2, dataType, columnType) {
+        this.config = {
+          name: name2,
+          keyAsName: name2 === "",
+          notNull: false,
+          default: void 0,
+          hasDefault: false,
+          primaryKey: false,
+          isUnique: false,
+          uniqueName: void 0,
+          uniqueType: void 0,
+          dataType,
+          columnType,
+          generated: void 0
+        };
+      }
+      /**
+       * Changes the data type of the column. Commonly used with `json` columns. Also, useful for branded types.
+       *
+       * @example
+       * ```ts
+       * const users = pgTable('users', {
+       * 	id: integer('id').$type<UserId>().primaryKey(),
+       * 	details: json('details').$type<UserDetails>().notNull(),
+       * });
+       * ```
+       */
+      $type() {
+        return this;
+      }
+      /**
+       * Adds a `not null` clause to the column definition.
+       *
+       * Affects the `select` model of the table - columns *without* `not null` will be nullable on select.
+       */
+      notNull() {
+        this.config.notNull = true;
+        return this;
+      }
+      /**
+       * Adds a `default <value>` clause to the column definition.
+       *
+       * Affects the `insert` model of the table - columns *with* `default` are optional on insert.
+       *
+       * If you need to set a dynamic default value, use {@link $defaultFn} instead.
+       */
+      default(value) {
+        this.config.default = value;
+        this.config.hasDefault = true;
+        return this;
+      }
+      /**
+       * Adds a dynamic default value to the column.
+       * The function will be called when the row is inserted, and the returned value will be used as the column value.
+       *
+       * **Note:** This value does not affect the `drizzle-kit` behavior, it is only used at runtime in `drizzle-orm`.
+       */
+      $defaultFn(fn2) {
+        this.config.defaultFn = fn2;
+        this.config.hasDefault = true;
+        return this;
+      }
+      /**
+       * Alias for {@link $defaultFn}.
+       */
+      $default = this.$defaultFn;
+      /**
+       * Adds a dynamic update value to the column.
+       * The function will be called when the row is updated, and the returned value will be used as the column value if none is provided.
+       * If no `default` (or `$defaultFn`) value is provided, the function will be called when the row is inserted as well, and the returned value will be used as the column value.
+       *
+       * **Note:** This value does not affect the `drizzle-kit` behavior, it is only used at runtime in `drizzle-orm`.
+       */
+      $onUpdateFn(fn2) {
+        this.config.onUpdateFn = fn2;
+        this.config.hasDefault = true;
+        return this;
+      }
+      /**
+       * Alias for {@link $onUpdateFn}.
+       */
+      $onUpdate = this.$onUpdateFn;
+      /**
+       * Adds a `primary key` clause to the column definition. This implicitly makes the column `not null`.
+       *
+       * In SQLite, `integer primary key` implicitly makes the column auto-incrementing.
+       */
+      primaryKey() {
+        this.config.primaryKey = true;
+        this.config.notNull = true;
+        return this;
+      }
+      /** @internal Sets the name of the column to the key within the table definition if a name was not given. */
+      setName(name2) {
+        if (this.config.name !== "") return;
+        this.config.name = name2;
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/table.utils.js
+var TableName2;
+var init_table_utils2 = __esm({
+  "node_modules/drizzle-orm/table.utils.js"() {
+    TableName2 = /* @__PURE__ */ Symbol.for("drizzle:Name");
+  }
+});
+
+// node_modules/drizzle-orm/pg-core/foreign-keys.js
+var ForeignKeyBuilder2, ForeignKey2;
+var init_foreign_keys2 = __esm({
+  "node_modules/drizzle-orm/pg-core/foreign-keys.js"() {
+    init_entity2();
+    init_table_utils2();
+    ForeignKeyBuilder2 = class {
+      static [entityKind2] = "PgForeignKeyBuilder";
+      /** @internal */
+      reference;
+      /** @internal */
+      _onUpdate = "no action";
+      /** @internal */
+      _onDelete = "no action";
+      constructor(config, actions) {
+        this.reference = () => {
+          const { name: name2, columns, foreignColumns } = config();
+          return { name: name2, columns, foreignTable: foreignColumns[0].table, foreignColumns };
+        };
+        if (actions) {
+          this._onUpdate = actions.onUpdate;
+          this._onDelete = actions.onDelete;
+        }
+      }
+      onUpdate(action) {
+        this._onUpdate = action === void 0 ? "no action" : action;
+        return this;
+      }
+      onDelete(action) {
+        this._onDelete = action === void 0 ? "no action" : action;
+        return this;
+      }
+      /** @internal */
+      build(table) {
+        return new ForeignKey2(table, this);
+      }
+    };
+    ForeignKey2 = class {
+      constructor(table, builder) {
+        this.table = table;
+        this.reference = builder.reference;
+        this.onUpdate = builder._onUpdate;
+        this.onDelete = builder._onDelete;
+      }
+      static [entityKind2] = "PgForeignKey";
+      reference;
+      onUpdate;
+      onDelete;
+      getName() {
+        const { name: name2, columns, foreignColumns } = this.reference();
+        const columnNames = columns.map((column) => column.name);
+        const foreignColumnNames = foreignColumns.map((column) => column.name);
+        const chunks = [
+          this.table[TableName2],
+          ...columnNames,
+          foreignColumns[0].table[TableName2],
+          ...foreignColumnNames
+        ];
+        return name2 ?? `${chunks.join("_")}_fk`;
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/tracing-utils.js
+function iife2(fn2, ...args2) {
+  return fn2(...args2);
+}
+var init_tracing_utils2 = __esm({
+  "node_modules/drizzle-orm/tracing-utils.js"() {
+  }
+});
+
+// node_modules/drizzle-orm/pg-core/unique-constraint.js
+function uniqueKeyName2(table, columns) {
+  return `${table[TableName2]}_${columns.join("_")}_unique`;
+}
+var UniqueConstraintBuilder2, UniqueOnConstraintBuilder2, UniqueConstraint2;
+var init_unique_constraint2 = __esm({
+  "node_modules/drizzle-orm/pg-core/unique-constraint.js"() {
+    init_entity2();
+    init_table_utils2();
+    UniqueConstraintBuilder2 = class {
+      constructor(columns, name2) {
+        this.name = name2;
+        this.columns = columns;
+      }
+      static [entityKind2] = "PgUniqueConstraintBuilder";
+      /** @internal */
+      columns;
+      /** @internal */
+      nullsNotDistinctConfig = false;
+      nullsNotDistinct() {
+        this.nullsNotDistinctConfig = true;
+        return this;
+      }
+      /** @internal */
+      build(table) {
+        return new UniqueConstraint2(table, this.columns, this.nullsNotDistinctConfig, this.name);
+      }
+    };
+    UniqueOnConstraintBuilder2 = class {
+      static [entityKind2] = "PgUniqueOnConstraintBuilder";
+      /** @internal */
+      name;
+      constructor(name2) {
+        this.name = name2;
+      }
+      on(...columns) {
+        return new UniqueConstraintBuilder2(columns, this.name);
+      }
+    };
+    UniqueConstraint2 = class {
+      constructor(table, columns, nullsNotDistinct, name2) {
+        this.table = table;
+        this.columns = columns;
+        this.name = name2 ?? uniqueKeyName2(this.table, this.columns.map((column) => column.name));
+        this.nullsNotDistinct = nullsNotDistinct;
+      }
+      static [entityKind2] = "PgUniqueConstraint";
+      columns;
+      name;
+      nullsNotDistinct = false;
+      getName() {
+        return this.name;
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/pg-core/utils/array.js
+function parsePgArrayValue2(arrayString, startFrom, inQuotes) {
+  for (let i3 = startFrom; i3 < arrayString.length; i3++) {
+    const char2 = arrayString[i3];
+    if (char2 === "\\") {
+      i3++;
+      continue;
+    }
+    if (char2 === '"') {
+      return [arrayString.slice(startFrom, i3).replace(/\\/g, ""), i3 + 1];
+    }
+    if (inQuotes) {
+      continue;
+    }
+    if (char2 === "," || char2 === "}") {
+      return [arrayString.slice(startFrom, i3).replace(/\\/g, ""), i3];
+    }
+  }
+  return [arrayString.slice(startFrom).replace(/\\/g, ""), arrayString.length];
+}
+function parsePgNestedArray2(arrayString, startFrom = 0) {
+  const result = [];
+  let i3 = startFrom;
+  let lastCharIsComma = false;
+  while (i3 < arrayString.length) {
+    const char2 = arrayString[i3];
+    if (char2 === ",") {
+      if (lastCharIsComma || i3 === startFrom) {
+        result.push("");
+      }
+      lastCharIsComma = true;
+      i3++;
+      continue;
+    }
+    lastCharIsComma = false;
+    if (char2 === "\\") {
+      i3 += 2;
+      continue;
+    }
+    if (char2 === '"') {
+      const [value2, startFrom2] = parsePgArrayValue2(arrayString, i3 + 1, true);
+      result.push(value2);
+      i3 = startFrom2;
+      continue;
+    }
+    if (char2 === "}") {
+      return [result, i3 + 1];
+    }
+    if (char2 === "{") {
+      const [value2, startFrom2] = parsePgNestedArray2(arrayString, i3 + 1);
+      result.push(value2);
+      i3 = startFrom2;
+      continue;
+    }
+    const [value, newStartFrom] = parsePgArrayValue2(arrayString, i3, false);
+    result.push(value);
+    i3 = newStartFrom;
+  }
+  return [result, i3];
+}
+function parsePgArray2(arrayString) {
+  const [result] = parsePgNestedArray2(arrayString, 1);
+  return result;
+}
+function makePgArray2(array) {
+  return `{${array.map((item) => {
+    if (Array.isArray(item)) {
+      return makePgArray2(item);
+    }
+    if (typeof item === "string") {
+      return `"${item.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+    }
+    return `${item}`;
+  }).join(",")}}`;
+}
+var init_array2 = __esm({
+  "node_modules/drizzle-orm/pg-core/utils/array.js"() {
+  }
+});
+
+// node_modules/drizzle-orm/pg-core/columns/common.js
+var PgColumnBuilder2, PgColumn2, ExtraConfigColumn2, IndexedColumn2, PgArrayBuilder2, PgArray2;
+var init_common2 = __esm({
+  "node_modules/drizzle-orm/pg-core/columns/common.js"() {
+    init_column_builder2();
+    init_column2();
+    init_entity2();
+    init_foreign_keys2();
+    init_tracing_utils2();
+    init_unique_constraint2();
+    init_array2();
+    PgColumnBuilder2 = class extends ColumnBuilder2 {
+      foreignKeyConfigs = [];
+      static [entityKind2] = "PgColumnBuilder";
+      array(size) {
+        return new PgArrayBuilder2(this.config.name, this, size);
+      }
+      references(ref, actions = {}) {
+        this.foreignKeyConfigs.push({ ref, actions });
+        return this;
+      }
+      unique(name2, config) {
+        this.config.isUnique = true;
+        this.config.uniqueName = name2;
+        this.config.uniqueType = config?.nulls;
+        return this;
+      }
+      generatedAlwaysAs(as) {
+        this.config.generated = {
+          as,
+          type: "always",
+          mode: "stored"
+        };
+        return this;
+      }
+      /** @internal */
+      buildForeignKeys(column, table) {
+        return this.foreignKeyConfigs.map(({ ref, actions }) => {
+          return iife2(
+            (ref2, actions2) => {
+              const builder = new ForeignKeyBuilder2(() => {
+                const foreignColumn = ref2();
+                return { columns: [column], foreignColumns: [foreignColumn] };
+              });
+              if (actions2.onUpdate) {
+                builder.onUpdate(actions2.onUpdate);
+              }
+              if (actions2.onDelete) {
+                builder.onDelete(actions2.onDelete);
+              }
+              return builder.build(table);
+            },
+            ref,
+            actions
+          );
+        });
+      }
+      /** @internal */
+      buildExtraConfigColumn(table) {
+        return new ExtraConfigColumn2(table, this.config);
+      }
+    };
+    PgColumn2 = class extends Column2 {
+      constructor(table, config) {
+        if (!config.uniqueName) {
+          config.uniqueName = uniqueKeyName2(table, [config.name]);
+        }
+        super(table, config);
+        this.table = table;
+      }
+      static [entityKind2] = "PgColumn";
+    };
+    ExtraConfigColumn2 = class extends PgColumn2 {
+      static [entityKind2] = "ExtraConfigColumn";
+      getSQLType() {
+        return this.getSQLType();
+      }
+      indexConfig = {
+        order: this.config.order ?? "asc",
+        nulls: this.config.nulls ?? "last",
+        opClass: this.config.opClass
+      };
+      defaultConfig = {
+        order: "asc",
+        nulls: "last",
+        opClass: void 0
+      };
+      asc() {
+        this.indexConfig.order = "asc";
+        return this;
+      }
+      desc() {
+        this.indexConfig.order = "desc";
+        return this;
+      }
+      nullsFirst() {
+        this.indexConfig.nulls = "first";
+        return this;
+      }
+      nullsLast() {
+        this.indexConfig.nulls = "last";
+        return this;
+      }
+      /**
+       * ### PostgreSQL documentation quote
+       *
+       * > An operator class with optional parameters can be specified for each column of an index.
+       * The operator class identifies the operators to be used by the index for that column.
+       * For example, a B-tree index on four-byte integers would use the int4_ops class;
+       * this operator class includes comparison functions for four-byte integers.
+       * In practice the default operator class for the column's data type is usually sufficient.
+       * The main point of having operator classes is that for some data types, there could be more than one meaningful ordering.
+       * For example, we might want to sort a complex-number data type either by absolute value or by real part.
+       * We could do this by defining two operator classes for the data type and then selecting the proper class when creating an index.
+       * More information about operator classes check:
+       *
+       * ### Useful links
+       * https://www.postgresql.org/docs/current/sql-createindex.html
+       *
+       * https://www.postgresql.org/docs/current/indexes-opclass.html
+       *
+       * https://www.postgresql.org/docs/current/xindex.html
+       *
+       * ### Additional types
+       * If you have the `pg_vector` extension installed in your database, you can use the
+       * `vector_l2_ops`, `vector_ip_ops`, `vector_cosine_ops`, `vector_l1_ops`, `bit_hamming_ops`, `bit_jaccard_ops`, `halfvec_l2_ops`, `sparsevec_l2_ops` options, which are predefined types.
+       *
+       * **You can always specify any string you want in the operator class, in case Drizzle doesn't have it natively in its types**
+       *
+       * @param opClass
+       * @returns
+       */
+      op(opClass) {
+        this.indexConfig.opClass = opClass;
+        return this;
+      }
+    };
+    IndexedColumn2 = class {
+      static [entityKind2] = "IndexedColumn";
+      constructor(name2, keyAsName, type, indexConfig) {
+        this.name = name2;
+        this.keyAsName = keyAsName;
+        this.type = type;
+        this.indexConfig = indexConfig;
+      }
+      name;
+      keyAsName;
+      type;
+      indexConfig;
+    };
+    PgArrayBuilder2 = class extends PgColumnBuilder2 {
+      static [entityKind2] = "PgArrayBuilder";
+      constructor(name2, baseBuilder, size) {
+        super(name2, "array", "PgArray");
+        this.config.baseBuilder = baseBuilder;
+        this.config.size = size;
+      }
+      /** @internal */
+      build(table) {
+        const baseColumn = this.config.baseBuilder.build(table);
+        return new PgArray2(
+          table,
+          this.config,
+          baseColumn
+        );
+      }
+    };
+    PgArray2 = class _PgArray extends PgColumn2 {
+      constructor(table, config, baseColumn, range) {
+        super(table, config);
+        this.baseColumn = baseColumn;
+        this.range = range;
+        this.size = config.size;
+      }
+      size;
+      static [entityKind2] = "PgArray";
+      getSQLType() {
+        return `${this.baseColumn.getSQLType()}[${typeof this.size === "number" ? this.size : ""}]`;
+      }
+      mapFromDriverValue(value) {
+        if (typeof value === "string") {
+          value = parsePgArray2(value);
+        }
+        return value.map((v3) => this.baseColumn.mapFromDriverValue(v3));
+      }
+      mapToDriverValue(value, isNestedArray = false) {
+        const a2 = value.map(
+          (v3) => v3 === null ? null : is2(this.baseColumn, _PgArray) ? this.baseColumn.mapToDriverValue(v3, true) : this.baseColumn.mapToDriverValue(v3)
+        );
+        if (isNestedArray) return a2;
+        return makePgArray2(a2);
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/pg-core/columns/enum.js
+function isPgEnum2(obj) {
+  return !!obj && typeof obj === "function" && isPgEnumSym2 in obj && obj[isPgEnumSym2] === true;
+}
+var PgEnumObjectColumnBuilder2, PgEnumObjectColumn2, isPgEnumSym2, PgEnumColumnBuilder2, PgEnumColumn2;
+var init_enum2 = __esm({
+  "node_modules/drizzle-orm/pg-core/columns/enum.js"() {
+    init_entity2();
+    init_common2();
+    PgEnumObjectColumnBuilder2 = class extends PgColumnBuilder2 {
+      static [entityKind2] = "PgEnumObjectColumnBuilder";
+      constructor(name2, enumInstance) {
+        super(name2, "string", "PgEnumObjectColumn");
+        this.config.enum = enumInstance;
+      }
+      /** @internal */
+      build(table) {
+        return new PgEnumObjectColumn2(
+          table,
+          this.config
+        );
+      }
+    };
+    PgEnumObjectColumn2 = class extends PgColumn2 {
+      static [entityKind2] = "PgEnumObjectColumn";
+      enum;
+      enumValues = this.config.enum.enumValues;
+      constructor(table, config) {
+        super(table, config);
+        this.enum = config.enum;
+      }
+      getSQLType() {
+        return this.enum.enumName;
+      }
+    };
+    isPgEnumSym2 = /* @__PURE__ */ Symbol.for("drizzle:isPgEnum");
+    PgEnumColumnBuilder2 = class extends PgColumnBuilder2 {
+      static [entityKind2] = "PgEnumColumnBuilder";
+      constructor(name2, enumInstance) {
+        super(name2, "string", "PgEnumColumn");
+        this.config.enum = enumInstance;
+      }
+      /** @internal */
+      build(table) {
+        return new PgEnumColumn2(
+          table,
+          this.config
+        );
+      }
+    };
+    PgEnumColumn2 = class extends PgColumn2 {
+      static [entityKind2] = "PgEnumColumn";
+      enum = this.config.enum;
+      enumValues = this.config.enum.enumValues;
+      constructor(table, config) {
+        super(table, config);
+        this.enum = config.enum;
+      }
+      getSQLType() {
+        return this.enum.enumName;
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/subquery.js
+var Subquery2, WithSubquery2;
+var init_subquery3 = __esm({
+  "node_modules/drizzle-orm/subquery.js"() {
+    init_entity2();
+    Subquery2 = class {
+      static [entityKind2] = "Subquery";
+      constructor(sql4, fields, alias, isWith = false, usedTables = []) {
+        this._ = {
+          brand: "Subquery",
+          sql: sql4,
+          selectedFields: fields,
+          alias,
+          isWith,
+          usedTables
+        };
+      }
+      // getSQL(): SQL<unknown> {
+      // 	return new SQL([this]);
+      // }
+    };
+    WithSubquery2 = class extends Subquery2 {
+      static [entityKind2] = "WithSubquery";
+    };
+  }
+});
+
+// node_modules/drizzle-orm/version.js
+var version2;
+var init_version3 = __esm({
+  "node_modules/drizzle-orm/version.js"() {
+    version2 = "0.45.2";
+  }
+});
+
+// node_modules/drizzle-orm/tracing.js
+var otel2, rawTracer2, tracer2;
+var init_tracing2 = __esm({
+  "node_modules/drizzle-orm/tracing.js"() {
+    init_tracing_utils2();
+    init_version3();
+    tracer2 = {
+      startActiveSpan(name2, fn2) {
+        if (!otel2) {
+          return fn2();
+        }
+        if (!rawTracer2) {
+          rawTracer2 = otel2.trace.getTracer("drizzle-orm", version2);
+        }
+        return iife2(
+          (otel22, rawTracer22) => rawTracer22.startActiveSpan(
+            name2,
+            (span) => {
+              try {
+                return fn2(span);
+              } catch (e) {
+                span.setStatus({
+                  code: otel22.SpanStatusCode.ERROR,
+                  message: e instanceof Error ? e.message : "Unknown error"
+                  // eslint-disable-line no-instanceof/no-instanceof
+                });
+                throw e;
+              } finally {
+                span.end();
+              }
+            }
+          ),
+          otel2,
+          rawTracer2
+        );
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/view-common.js
+var ViewBaseConfig2;
+var init_view_common3 = __esm({
+  "node_modules/drizzle-orm/view-common.js"() {
+    ViewBaseConfig2 = /* @__PURE__ */ Symbol.for("drizzle:ViewBaseConfig");
+  }
+});
+
+// node_modules/drizzle-orm/table.js
+var Schema2, Columns2, ExtraConfigColumns2, OriginalName2, BaseName2, IsAlias2, ExtraConfigBuilder2, IsDrizzleTable2, Table2;
+var init_table3 = __esm({
+  "node_modules/drizzle-orm/table.js"() {
+    init_entity2();
+    init_table_utils2();
+    Schema2 = /* @__PURE__ */ Symbol.for("drizzle:Schema");
+    Columns2 = /* @__PURE__ */ Symbol.for("drizzle:Columns");
+    ExtraConfigColumns2 = /* @__PURE__ */ Symbol.for("drizzle:ExtraConfigColumns");
+    OriginalName2 = /* @__PURE__ */ Symbol.for("drizzle:OriginalName");
+    BaseName2 = /* @__PURE__ */ Symbol.for("drizzle:BaseName");
+    IsAlias2 = /* @__PURE__ */ Symbol.for("drizzle:IsAlias");
+    ExtraConfigBuilder2 = /* @__PURE__ */ Symbol.for("drizzle:ExtraConfigBuilder");
+    IsDrizzleTable2 = /* @__PURE__ */ Symbol.for("drizzle:IsDrizzleTable");
+    Table2 = class {
+      static [entityKind2] = "Table";
+      /** @internal */
+      static Symbol = {
+        Name: TableName2,
+        Schema: Schema2,
+        OriginalName: OriginalName2,
+        Columns: Columns2,
+        ExtraConfigColumns: ExtraConfigColumns2,
+        BaseName: BaseName2,
+        IsAlias: IsAlias2,
+        ExtraConfigBuilder: ExtraConfigBuilder2
+      };
+      /**
+       * @internal
+       * Can be changed if the table is aliased.
+       */
+      [TableName2];
+      /**
+       * @internal
+       * Used to store the original name of the table, before any aliasing.
+       */
+      [OriginalName2];
+      /** @internal */
+      [Schema2];
+      /** @internal */
+      [Columns2];
+      /** @internal */
+      [ExtraConfigColumns2];
+      /**
+       *  @internal
+       * Used to store the table name before the transformation via the `tableCreator` functions.
+       */
+      [BaseName2];
+      /** @internal */
+      [IsAlias2] = false;
+      /** @internal */
+      [IsDrizzleTable2] = true;
+      /** @internal */
+      [ExtraConfigBuilder2] = void 0;
+      constructor(name2, schema, baseName) {
+        this[TableName2] = this[OriginalName2] = name2;
+        this[Schema2] = schema;
+        this[BaseName2] = baseName;
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/sql/sql.js
+function isSQLWrapper2(value) {
+  return value !== null && value !== void 0 && typeof value.getSQL === "function";
+}
+function mergeQueries2(queries) {
+  const result = { sql: "", params: [] };
+  for (const query of queries) {
+    result.sql += query.sql;
+    result.params.push(...query.params);
+    if (query.typings?.length) {
+      if (!result.typings) {
+        result.typings = [];
+      }
+      result.typings.push(...query.typings);
+    }
+  }
+  return result;
+}
+function isDriverValueEncoder2(value) {
+  return typeof value === "object" && value !== null && "mapToDriverValue" in value && typeof value.mapToDriverValue === "function";
+}
+function sql2(strings, ...params) {
+  const queryChunks = [];
+  if (params.length > 0 || strings.length > 0 && strings[0] !== "") {
+    queryChunks.push(new StringChunk2(strings[0]));
+  }
+  for (const [paramIndex, param2] of params.entries()) {
+    queryChunks.push(param2, new StringChunk2(strings[paramIndex + 1]));
+  }
+  return new SQL2(queryChunks);
+}
+var FakePrimitiveParam2, StringChunk2, SQL2, Name2, noopDecoder2, noopEncoder2, noopMapper2, Param2, Placeholder2, IsDrizzleView2, View2;
+var init_sql3 = __esm({
+  "node_modules/drizzle-orm/sql/sql.js"() {
+    init_entity2();
+    init_enum2();
+    init_subquery3();
+    init_tracing2();
+    init_view_common3();
+    init_column2();
+    init_table3();
+    FakePrimitiveParam2 = class {
+      static [entityKind2] = "FakePrimitiveParam";
+    };
+    StringChunk2 = class {
+      static [entityKind2] = "StringChunk";
+      value;
+      constructor(value) {
+        this.value = Array.isArray(value) ? value : [value];
+      }
+      getSQL() {
+        return new SQL2([this]);
+      }
+    };
+    SQL2 = class _SQL {
+      constructor(queryChunks) {
+        this.queryChunks = queryChunks;
+        for (const chunk of queryChunks) {
+          if (is2(chunk, Table2)) {
+            const schemaName = chunk[Table2.Symbol.Schema];
+            this.usedTables.push(
+              schemaName === void 0 ? chunk[Table2.Symbol.Name] : schemaName + "." + chunk[Table2.Symbol.Name]
+            );
+          }
+        }
+      }
+      static [entityKind2] = "SQL";
+      /** @internal */
+      decoder = noopDecoder2;
+      shouldInlineParams = false;
+      /** @internal */
+      usedTables = [];
+      append(query) {
+        this.queryChunks.push(...query.queryChunks);
+        return this;
+      }
+      toQuery(config) {
+        return tracer2.startActiveSpan("drizzle.buildSQL", (span) => {
+          const query = this.buildQueryFromSourceParams(this.queryChunks, config);
+          span?.setAttributes({
+            "drizzle.query.text": query.sql,
+            "drizzle.query.params": JSON.stringify(query.params)
+          });
+          return query;
+        });
+      }
+      buildQueryFromSourceParams(chunks, _config) {
+        const config = Object.assign({}, _config, {
+          inlineParams: _config.inlineParams || this.shouldInlineParams,
+          paramStartIndex: _config.paramStartIndex || { value: 0 }
+        });
+        const {
+          casing,
+          escapeName,
+          escapeParam,
+          prepareTyping,
+          inlineParams,
+          paramStartIndex
+        } = config;
+        return mergeQueries2(chunks.map((chunk) => {
+          if (is2(chunk, StringChunk2)) {
+            return { sql: chunk.value.join(""), params: [] };
+          }
+          if (is2(chunk, Name2)) {
+            return { sql: escapeName(chunk.value), params: [] };
+          }
+          if (chunk === void 0) {
+            return { sql: "", params: [] };
+          }
+          if (Array.isArray(chunk)) {
+            const result = [new StringChunk2("(")];
+            for (const [i3, p3] of chunk.entries()) {
+              result.push(p3);
+              if (i3 < chunk.length - 1) {
+                result.push(new StringChunk2(", "));
+              }
+            }
+            result.push(new StringChunk2(")"));
+            return this.buildQueryFromSourceParams(result, config);
+          }
+          if (is2(chunk, _SQL)) {
+            return this.buildQueryFromSourceParams(chunk.queryChunks, {
+              ...config,
+              inlineParams: inlineParams || chunk.shouldInlineParams
+            });
+          }
+          if (is2(chunk, Table2)) {
+            const schemaName = chunk[Table2.Symbol.Schema];
+            const tableName = chunk[Table2.Symbol.Name];
+            return {
+              sql: schemaName === void 0 || chunk[IsAlias2] ? escapeName(tableName) : escapeName(schemaName) + "." + escapeName(tableName),
+              params: []
+            };
+          }
+          if (is2(chunk, Column2)) {
+            const columnName = casing.getColumnCasing(chunk);
+            if (_config.invokeSource === "indexes") {
+              return { sql: escapeName(columnName), params: [] };
+            }
+            const schemaName = chunk.table[Table2.Symbol.Schema];
+            return {
+              sql: chunk.table[IsAlias2] || schemaName === void 0 ? escapeName(chunk.table[Table2.Symbol.Name]) + "." + escapeName(columnName) : escapeName(schemaName) + "." + escapeName(chunk.table[Table2.Symbol.Name]) + "." + escapeName(columnName),
+              params: []
+            };
+          }
+          if (is2(chunk, View2)) {
+            const schemaName = chunk[ViewBaseConfig2].schema;
+            const viewName = chunk[ViewBaseConfig2].name;
+            return {
+              sql: schemaName === void 0 || chunk[ViewBaseConfig2].isAlias ? escapeName(viewName) : escapeName(schemaName) + "." + escapeName(viewName),
+              params: []
+            };
+          }
+          if (is2(chunk, Param2)) {
+            if (is2(chunk.value, Placeholder2)) {
+              return { sql: escapeParam(paramStartIndex.value++, chunk), params: [chunk], typings: ["none"] };
+            }
+            const mappedValue = chunk.value === null ? null : chunk.encoder.mapToDriverValue(chunk.value);
+            if (is2(mappedValue, _SQL)) {
+              return this.buildQueryFromSourceParams([mappedValue], config);
+            }
+            if (inlineParams) {
+              return { sql: this.mapInlineParam(mappedValue, config), params: [] };
+            }
+            let typings = ["none"];
+            if (prepareTyping) {
+              typings = [prepareTyping(chunk.encoder)];
+            }
+            return { sql: escapeParam(paramStartIndex.value++, mappedValue), params: [mappedValue], typings };
+          }
+          if (is2(chunk, Placeholder2)) {
+            return { sql: escapeParam(paramStartIndex.value++, chunk), params: [chunk], typings: ["none"] };
+          }
+          if (is2(chunk, _SQL.Aliased) && chunk.fieldAlias !== void 0) {
+            return { sql: escapeName(chunk.fieldAlias), params: [] };
+          }
+          if (is2(chunk, Subquery2)) {
+            if (chunk._.isWith) {
+              return { sql: escapeName(chunk._.alias), params: [] };
+            }
+            return this.buildQueryFromSourceParams([
+              new StringChunk2("("),
+              chunk._.sql,
+              new StringChunk2(") "),
+              new Name2(chunk._.alias)
+            ], config);
+          }
+          if (isPgEnum2(chunk)) {
+            if (chunk.schema) {
+              return { sql: escapeName(chunk.schema) + "." + escapeName(chunk.enumName), params: [] };
+            }
+            return { sql: escapeName(chunk.enumName), params: [] };
+          }
+          if (isSQLWrapper2(chunk)) {
+            if (chunk.shouldOmitSQLParens?.()) {
+              return this.buildQueryFromSourceParams([chunk.getSQL()], config);
+            }
+            return this.buildQueryFromSourceParams([
+              new StringChunk2("("),
+              chunk.getSQL(),
+              new StringChunk2(")")
+            ], config);
+          }
+          if (inlineParams) {
+            return { sql: this.mapInlineParam(chunk, config), params: [] };
+          }
+          return { sql: escapeParam(paramStartIndex.value++, chunk), params: [chunk], typings: ["none"] };
+        }));
+      }
+      mapInlineParam(chunk, { escapeString }) {
+        if (chunk === null) {
+          return "null";
+        }
+        if (typeof chunk === "number" || typeof chunk === "boolean") {
+          return chunk.toString();
+        }
+        if (typeof chunk === "string") {
+          return escapeString(chunk);
+        }
+        if (typeof chunk === "object") {
+          const mappedValueAsString = chunk.toString();
+          if (mappedValueAsString === "[object Object]") {
+            return escapeString(JSON.stringify(chunk));
+          }
+          return escapeString(mappedValueAsString);
+        }
+        throw new Error("Unexpected param value: " + chunk);
+      }
+      getSQL() {
+        return this;
+      }
+      as(alias) {
+        if (alias === void 0) {
+          return this;
+        }
+        return new _SQL.Aliased(this, alias);
+      }
+      mapWith(decoder) {
+        this.decoder = typeof decoder === "function" ? { mapFromDriverValue: decoder } : decoder;
+        return this;
+      }
+      inlineParams() {
+        this.shouldInlineParams = true;
+        return this;
+      }
+      /**
+       * This method is used to conditionally include a part of the query.
+       *
+       * @param condition - Condition to check
+       * @returns itself if the condition is `true`, otherwise `undefined`
+       */
+      if(condition) {
+        return condition ? this : void 0;
+      }
+    };
+    Name2 = class {
+      constructor(value) {
+        this.value = value;
+      }
+      static [entityKind2] = "Name";
+      brand;
+      getSQL() {
+        return new SQL2([this]);
+      }
+    };
+    noopDecoder2 = {
+      mapFromDriverValue: (value) => value
+    };
+    noopEncoder2 = {
+      mapToDriverValue: (value) => value
+    };
+    noopMapper2 = {
+      ...noopDecoder2,
+      ...noopEncoder2
+    };
+    Param2 = class {
+      /**
+       * @param value - Parameter value
+       * @param encoder - Encoder to convert the value to a driver parameter
+       */
+      constructor(value, encoder = noopEncoder2) {
+        this.value = value;
+        this.encoder = encoder;
+      }
+      static [entityKind2] = "Param";
+      brand;
+      getSQL() {
+        return new SQL2([this]);
+      }
+    };
+    ((sql22) => {
+      function empty() {
+        return new SQL2([]);
+      }
+      sql22.empty = empty;
+      function fromList(list) {
+        return new SQL2(list);
+      }
+      sql22.fromList = fromList;
+      function raw(str2) {
+        return new SQL2([new StringChunk2(str2)]);
+      }
+      sql22.raw = raw;
+      function join4(chunks, separator) {
+        const result = [];
+        for (const [i3, chunk] of chunks.entries()) {
+          if (i3 > 0 && separator !== void 0) {
+            result.push(separator);
+          }
+          result.push(chunk);
+        }
+        return new SQL2(result);
+      }
+      sql22.join = join4;
+      function identifier(value) {
+        return new Name2(value);
+      }
+      sql22.identifier = identifier;
+      function placeholder2(name2) {
+        return new Placeholder2(name2);
+      }
+      sql22.placeholder = placeholder2;
+      function param2(value, encoder) {
+        return new Param2(value, encoder);
+      }
+      sql22.param = param2;
+    })(sql2 || (sql2 = {}));
+    ((SQL22) => {
+      class Aliased {
+        constructor(sql22, fieldAlias) {
+          this.sql = sql22;
+          this.fieldAlias = fieldAlias;
+        }
+        static [entityKind2] = "SQL.Aliased";
+        /** @internal */
+        isSelectionField = false;
+        getSQL() {
+          return this.sql;
+        }
+        /** @internal */
+        clone() {
+          return new Aliased(this.sql, this.fieldAlias);
+        }
+      }
+      SQL22.Aliased = Aliased;
+    })(SQL2 || (SQL2 = {}));
+    Placeholder2 = class {
+      constructor(name2) {
+        this.name = name2;
+      }
+      static [entityKind2] = "Placeholder";
+      getSQL() {
+        return new SQL2([this]);
+      }
+    };
+    IsDrizzleView2 = /* @__PURE__ */ Symbol.for("drizzle:IsDrizzleView");
+    View2 = class {
+      static [entityKind2] = "View";
+      /** @internal */
+      [ViewBaseConfig2];
+      /** @internal */
+      [IsDrizzleView2] = true;
+      constructor({ name: name2, schema, selectedFields, query }) {
+        this[ViewBaseConfig2] = {
+          name: name2,
+          originalName: name2,
+          schema,
+          selectedFields,
+          query,
+          isExisting: !query,
+          isAlias: false
+        };
+      }
+      getSQL() {
+        return new SQL2([this]);
+      }
+    };
+    Column2.prototype.getSQL = function() {
+      return new SQL2([this]);
+    };
+    Table2.prototype.getSQL = function() {
+      return new SQL2([this]);
+    };
+    Subquery2.prototype.getSQL = function() {
+      return new SQL2([this]);
+    };
+  }
+});
+
+// node_modules/drizzle-orm/alias.js
+function aliasedTable2(table, tableAlias) {
+  return new Proxy(table, new TableAliasProxyHandler2(tableAlias, false));
+}
+var ColumnAliasProxyHandler2, TableAliasProxyHandler2, RelationTableAliasProxyHandler2;
+var init_alias3 = __esm({
+  "node_modules/drizzle-orm/alias.js"() {
+    init_column2();
+    init_entity2();
+    init_table3();
+    init_view_common3();
+    ColumnAliasProxyHandler2 = class {
+      constructor(table) {
+        this.table = table;
+      }
+      static [entityKind2] = "ColumnAliasProxyHandler";
+      get(columnObj, prop) {
+        if (prop === "table") {
+          return this.table;
+        }
+        return columnObj[prop];
+      }
+    };
+    TableAliasProxyHandler2 = class {
+      constructor(alias, replaceOriginalName) {
+        this.alias = alias;
+        this.replaceOriginalName = replaceOriginalName;
+      }
+      static [entityKind2] = "TableAliasProxyHandler";
+      get(target, prop) {
+        if (prop === Table2.Symbol.IsAlias) {
+          return true;
+        }
+        if (prop === Table2.Symbol.Name) {
+          return this.alias;
+        }
+        if (this.replaceOriginalName && prop === Table2.Symbol.OriginalName) {
+          return this.alias;
+        }
+        if (prop === ViewBaseConfig2) {
+          return {
+            ...target[ViewBaseConfig2],
+            name: this.alias,
+            isAlias: true
+          };
+        }
+        if (prop === Table2.Symbol.Columns) {
+          const columns = target[Table2.Symbol.Columns];
+          if (!columns) {
+            return columns;
+          }
+          const proxiedColumns = {};
+          Object.keys(columns).map((key) => {
+            proxiedColumns[key] = new Proxy(
+              columns[key],
+              new ColumnAliasProxyHandler2(new Proxy(target, this))
+            );
+          });
+          return proxiedColumns;
+        }
+        const value = target[prop];
+        if (is2(value, Column2)) {
+          return new Proxy(value, new ColumnAliasProxyHandler2(new Proxy(target, this)));
+        }
+        return value;
+      }
+    };
+    RelationTableAliasProxyHandler2 = class {
+      constructor(alias) {
+        this.alias = alias;
+      }
+      static [entityKind2] = "RelationTableAliasProxyHandler";
+      get(target, prop) {
+        if (prop === "sourceTable") {
+          return aliasedTable2(target.sourceTable, this.alias);
+        }
+        return target[prop];
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/errors.js
+var DrizzleError2, TransactionRollbackError2;
+var init_errors3 = __esm({
+  "node_modules/drizzle-orm/errors.js"() {
+    init_entity2();
+    DrizzleError2 = class extends Error {
+      static [entityKind2] = "DrizzleError";
+      constructor({ message, cause }) {
+        super(message);
+        this.name = "DrizzleError";
+        this.cause = cause;
+      }
+    };
+    TransactionRollbackError2 = class extends DrizzleError2 {
+      static [entityKind2] = "TransactionRollbackError";
+      constructor() {
+        super({ message: "Rollback" });
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/logger.js
+var ConsoleLogWriter2, DefaultLogger2, NoopLogger2;
+var init_logger2 = __esm({
+  "node_modules/drizzle-orm/logger.js"() {
+    init_entity2();
+    ConsoleLogWriter2 = class {
+      static [entityKind2] = "ConsoleLogWriter";
+      write(message) {
+        console.log(message);
+      }
+    };
+    DefaultLogger2 = class {
+      static [entityKind2] = "DefaultLogger";
+      writer;
+      constructor(config) {
+        this.writer = config?.writer ?? new ConsoleLogWriter2();
+      }
+      logQuery(query, params) {
+        const stringifiedParams = params.map((p3) => {
+          try {
+            return JSON.stringify(p3);
+          } catch {
+            return String(p3);
+          }
+        });
+        const paramsStr = stringifiedParams.length ? ` -- params: [${stringifiedParams.join(", ")}]` : "";
+        this.writer.write(`Query: ${query}${paramsStr}`);
+      }
+    };
+    NoopLogger2 = class {
+      static [entityKind2] = "NoopLogger";
+      logQuery() {
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/operations.js
+var init_operations = __esm({
+  "node_modules/drizzle-orm/operations.js"() {
+  }
+});
+
+// node_modules/drizzle-orm/query-promise.js
+var QueryPromise2;
+var init_query_promise2 = __esm({
+  "node_modules/drizzle-orm/query-promise.js"() {
+    init_entity2();
+    QueryPromise2 = class {
+      static [entityKind2] = "QueryPromise";
+      [Symbol.toStringTag] = "QueryPromise";
+      catch(onRejected) {
+        return this.then(void 0, onRejected);
+      }
+      finally(onFinally) {
+        return this.then(
+          (value) => {
+            onFinally?.();
+            return value;
+          },
+          (reason) => {
+            onFinally?.();
+            throw reason;
+          }
+        );
+      }
+      then(onFulfilled, onRejected) {
+        return this.execute().then(onFulfilled, onRejected);
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/utils.js
+var textDecoder2;
+var init_utils7 = __esm({
+  "node_modules/drizzle-orm/utils.js"() {
+    textDecoder2 = typeof TextDecoder === "undefined" ? null : new TextDecoder();
+  }
+});
+
+// node_modules/drizzle-orm/sql/expressions/conditions.js
+function bindIfParam2(value, column) {
+  if (isDriverValueEncoder2(column) && !isSQLWrapper2(value) && !is2(value, Param2) && !is2(value, Placeholder2) && !is2(value, Column2) && !is2(value, Table2) && !is2(value, View2)) {
+    return new Param2(value, column);
+  }
+  return value;
+}
+function and2(...unfilteredConditions) {
+  const conditions = unfilteredConditions.filter(
+    (c2) => c2 !== void 0
+  );
+  if (conditions.length === 0) {
+    return void 0;
+  }
+  if (conditions.length === 1) {
+    return new SQL2(conditions);
+  }
+  return new SQL2([
+    new StringChunk2("("),
+    sql2.join(conditions, new StringChunk2(" and ")),
+    new StringChunk2(")")
+  ]);
+}
+function inArray2(column, values) {
+  if (Array.isArray(values)) {
+    if (values.length === 0) {
+      return sql2`false`;
+    }
+    return sql2`${column} in ${values.map((v3) => bindIfParam2(v3, column))}`;
+  }
+  return sql2`${column} in ${bindIfParam2(values, column)}`;
+}
+var eq2, gte2, lte2;
+var init_conditions2 = __esm({
+  "node_modules/drizzle-orm/sql/expressions/conditions.js"() {
+    init_column2();
+    init_entity2();
+    init_table3();
+    init_sql3();
+    eq2 = (left, right) => {
+      return sql2`${left} = ${bindIfParam2(right, left)}`;
+    };
+    gte2 = (left, right) => {
+      return sql2`${left} >= ${bindIfParam2(right, left)}`;
+    };
+    lte2 = (left, right) => {
+      return sql2`${left} <= ${bindIfParam2(right, left)}`;
+    };
+  }
+});
+
+// node_modules/drizzle-orm/sql/expressions/select.js
+function asc2(column) {
+  return sql2`${column} asc`;
+}
+function desc2(column) {
+  return sql2`${column} desc`;
+}
+var init_select3 = __esm({
+  "node_modules/drizzle-orm/sql/expressions/select.js"() {
+    init_sql3();
+  }
+});
+
+// node_modules/drizzle-orm/sql/expressions/index.js
+var init_expressions2 = __esm({
+  "node_modules/drizzle-orm/sql/expressions/index.js"() {
+    init_conditions2();
+    init_select3();
+  }
+});
+
+// node_modules/drizzle-orm/relations.js
+var Relation2, Relations2, One2, Many2;
+var init_relations2 = __esm({
+  "node_modules/drizzle-orm/relations.js"() {
+    init_table3();
+    init_entity2();
+    Relation2 = class {
+      constructor(sourceTable, referencedTable, relationName) {
+        this.sourceTable = sourceTable;
+        this.referencedTable = referencedTable;
+        this.relationName = relationName;
+        this.referencedTableName = referencedTable[Table2.Symbol.Name];
+      }
+      static [entityKind2] = "Relation";
+      referencedTableName;
+      fieldName;
+    };
+    Relations2 = class {
+      constructor(table, config) {
+        this.table = table;
+        this.config = config;
+      }
+      static [entityKind2] = "Relations";
+    };
+    One2 = class _One extends Relation2 {
+      constructor(sourceTable, referencedTable, config, isNullable) {
+        super(sourceTable, referencedTable, config?.relationName);
+        this.config = config;
+        this.isNullable = isNullable;
+      }
+      static [entityKind2] = "One";
+      withFieldName(fieldName) {
+        const relation = new _One(
+          this.sourceTable,
+          this.referencedTable,
+          this.config,
+          this.isNullable
+        );
+        relation.fieldName = fieldName;
+        return relation;
+      }
+    };
+    Many2 = class _Many extends Relation2 {
+      constructor(sourceTable, referencedTable, config) {
+        super(sourceTable, referencedTable, config?.relationName);
+        this.config = config;
+      }
+      static [entityKind2] = "Many";
+      withFieldName(fieldName) {
+        const relation = new _Many(
+          this.sourceTable,
+          this.referencedTable,
+          this.config
+        );
+        relation.fieldName = fieldName;
+        return relation;
+      }
+    };
+  }
+});
+
+// node_modules/drizzle-orm/sql/functions/aggregate.js
+function count(expression) {
+  return sql2`count(${expression || sql2.raw("*")})`.mapWith(Number);
+}
+var init_aggregate2 = __esm({
+  "node_modules/drizzle-orm/sql/functions/aggregate.js"() {
+    init_sql3();
+  }
+});
+
+// node_modules/drizzle-orm/sql/functions/vector.js
+var init_vector3 = __esm({
+  "node_modules/drizzle-orm/sql/functions/vector.js"() {
+  }
+});
+
+// node_modules/drizzle-orm/sql/functions/index.js
+var init_functions2 = __esm({
+  "node_modules/drizzle-orm/sql/functions/index.js"() {
+    init_aggregate2();
+    init_vector3();
+  }
+});
+
+// node_modules/drizzle-orm/sql/index.js
+var init_sql4 = __esm({
+  "node_modules/drizzle-orm/sql/index.js"() {
+    init_expressions2();
+    init_functions2();
+    init_sql3();
+  }
+});
+
+// node_modules/drizzle-orm/index.js
 var init_drizzle_orm = __esm({
-  "../node_modules/drizzle-orm/index.js"() {
-    init_alias();
-    init_column_builder();
-    init_column();
-    init_entity();
-    init_errors2();
-    init_logger();
+  "node_modules/drizzle-orm/index.js"() {
+    init_alias3();
+    init_column_builder2();
+    init_column2();
+    init_entity2();
+    init_errors3();
+    init_logger2();
     init_operations();
-    init_query_promise();
-    init_relations();
-    init_sql2();
-    init_subquery();
-    init_table();
-    init_utils3();
-    init_view_common();
+    init_query_promise2();
+    init_relations2();
+    init_sql4();
+    init_subquery3();
+    init_table3();
+    init_utils7();
+    init_view_common3();
   }
 });
 
@@ -60781,7 +62333,7 @@ var init_trainingPaths = __esm({
 
 // src/lib/logger.ts
 var import_pino, isProduction, logger;
-var init_logger2 = __esm({
+var init_logger3 = __esm({
   "src/lib/logger.ts"() {
     import_pino = __toESM(require_pino(), 1);
     isProduction = process.env.NODE_ENV === "production";
@@ -60825,7 +62377,7 @@ function loadExamplesFromJsonFile() {
 }
 async function ensureTable() {
   try {
-    await db.execute(sql.raw(ENSURE_TABLE_SQL));
+    await db.execute(sql2.raw(ENSURE_TABLE_SQL));
   } catch (err2) {
     logger.warn({ err: err2 }, "trainingStore: no se pudo crear tabla training_examples");
   }
@@ -60855,7 +62407,7 @@ async function seedFromJsonIfEmpty() {
 }
 async function loadFromDb() {
   try {
-    const rows = await db.select().from(trainingExamples).orderBy(desc(trainingExamples.sortOrder), asc(trainingExamples.createdAt));
+    const rows = await db.select().from(trainingExamples).orderBy(desc2(trainingExamples.sortOrder), asc2(trainingExamples.createdAt));
     if (rows.length > 0) return rows.map(rowToExample);
   } catch (err2) {
     logger.warn({ err: err2 }, "trainingStore: lectura DB fall\xF3 \u2014 fallback JSON");
@@ -60921,19 +62473,19 @@ async function createTrainingExample(input) {
   }
 }
 async function updateTrainingExample(id, patch) {
-  const [existing] = await db.select().from(trainingExamples).where(eq(trainingExamples.id, id)).limit(1);
+  const [existing] = await db.select().from(trainingExamples).where(eq2(trainingExamples.id, id)).limit(1);
   if (!existing) return null;
   const [row] = await db.update(trainingExamples).set({
     userMessage: patch.userMessage?.trim() ?? existing.userMessage,
     lucyResponse: patch.lucyResponse?.trim() ?? existing.lucyResponse,
     label: patch.label !== void 0 ? patch.label.trim() || null : existing.label,
     updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq(trainingExamples.id, id)).returning();
+  }).where(eq2(trainingExamples.id, id)).returning();
   invalidateCache();
   return row ? rowToExample(row) : null;
 }
 async function deleteTrainingExample(id) {
-  const deleted = await db.delete(trainingExamples).where(eq(trainingExamples.id, id)).returning({ id: trainingExamples.id });
+  const deleted = await db.delete(trainingExamples).where(eq2(trainingExamples.id, id)).returning({ id: trainingExamples.id });
   if (deleted.length === 0) return false;
   invalidateCache();
   return true;
@@ -60944,7 +62496,7 @@ var init_trainingStore = __esm({
     await init_src();
     init_drizzle_orm();
     init_trainingPaths();
-    init_logger2();
+    init_logger3();
     CACHE_TTL_MS = 3e4;
     cache = [];
     cacheLoadedAt = 0;
@@ -60963,9 +62515,9 @@ CREATE TABLE IF NOT EXISTS training_examples (
   }
 });
 
-// ../node_modules/delayed-stream/lib/delayed_stream.js
+// node_modules/delayed-stream/lib/delayed_stream.js
 var require_delayed_stream = __commonJS({
-  "../node_modules/delayed-stream/lib/delayed_stream.js"(exports, module2) {
+  "node_modules/delayed-stream/lib/delayed_stream.js"(exports, module2) {
     var Stream2 = __require("stream").Stream;
     var util5 = __require("util");
     module2.exports = DelayedStream;
@@ -61054,9 +62606,9 @@ var require_delayed_stream = __commonJS({
   }
 });
 
-// ../node_modules/combined-stream/lib/combined_stream.js
+// node_modules/combined-stream/lib/combined_stream.js
 var require_combined_stream = __commonJS({
-  "../node_modules/combined-stream/lib/combined_stream.js"(exports, module2) {
+  "node_modules/combined-stream/lib/combined_stream.js"(exports, module2) {
     var util5 = __require("util");
     var Stream2 = __require("stream").Stream;
     var DelayedStream = require_delayed_stream();
@@ -61223,9 +62775,9 @@ var require_combined_stream = __commonJS({
   }
 });
 
-// ../node_modules/form-data/node_modules/mime-db/db.json
+// node_modules/form-data/node_modules/mime-db/db.json
 var require_db2 = __commonJS({
-  "../node_modules/form-data/node_modules/mime-db/db.json"(exports, module2) {
+  "node_modules/form-data/node_modules/mime-db/db.json"(exports, module2) {
     module2.exports = {
       "application/1d-interleaved-parityfec": {
         source: "iana"
@@ -69748,16 +71300,16 @@ var require_db2 = __commonJS({
   }
 });
 
-// ../node_modules/form-data/node_modules/mime-db/index.js
+// node_modules/form-data/node_modules/mime-db/index.js
 var require_mime_db2 = __commonJS({
-  "../node_modules/form-data/node_modules/mime-db/index.js"(exports, module2) {
+  "node_modules/form-data/node_modules/mime-db/index.js"(exports, module2) {
     module2.exports = require_db2();
   }
 });
 
-// ../node_modules/form-data/node_modules/mime-types/index.js
+// node_modules/form-data/node_modules/mime-types/index.js
 var require_mime_types2 = __commonJS({
-  "../node_modules/form-data/node_modules/mime-types/index.js"(exports) {
+  "node_modules/form-data/node_modules/mime-types/index.js"(exports) {
     "use strict";
     var db2 = require_mime_db2();
     var extname = __require("path").extname;
@@ -69845,9 +71397,9 @@ var require_mime_types2 = __commonJS({
   }
 });
 
-// ../node_modules/asynckit/lib/defer.js
+// node_modules/asynckit/lib/defer.js
 var require_defer = __commonJS({
-  "../node_modules/asynckit/lib/defer.js"(exports, module2) {
+  "node_modules/asynckit/lib/defer.js"(exports, module2) {
     module2.exports = defer;
     function defer(fn2) {
       var nextTick = typeof setImmediate == "function" ? setImmediate : typeof process == "object" && typeof process.nextTick == "function" ? process.nextTick : null;
@@ -69860,9 +71412,9 @@ var require_defer = __commonJS({
   }
 });
 
-// ../node_modules/asynckit/lib/async.js
+// node_modules/asynckit/lib/async.js
 var require_async = __commonJS({
-  "../node_modules/asynckit/lib/async.js"(exports, module2) {
+  "node_modules/asynckit/lib/async.js"(exports, module2) {
     var defer = require_defer();
     module2.exports = async;
     function async(callback) {
@@ -69883,9 +71435,9 @@ var require_async = __commonJS({
   }
 });
 
-// ../node_modules/asynckit/lib/abort.js
+// node_modules/asynckit/lib/abort.js
 var require_abort = __commonJS({
-  "../node_modules/asynckit/lib/abort.js"(exports, module2) {
+  "node_modules/asynckit/lib/abort.js"(exports, module2) {
     module2.exports = abort2;
     function abort2(state) {
       Object.keys(state.jobs).forEach(clean.bind(state));
@@ -69899,9 +71451,9 @@ var require_abort = __commonJS({
   }
 });
 
-// ../node_modules/asynckit/lib/iterate.js
+// node_modules/asynckit/lib/iterate.js
 var require_iterate = __commonJS({
-  "../node_modules/asynckit/lib/iterate.js"(exports, module2) {
+  "node_modules/asynckit/lib/iterate.js"(exports, module2) {
     var async = require_async();
     var abort2 = require_abort();
     module2.exports = iterate;
@@ -69932,9 +71484,9 @@ var require_iterate = __commonJS({
   }
 });
 
-// ../node_modules/asynckit/lib/state.js
+// node_modules/asynckit/lib/state.js
 var require_state = __commonJS({
-  "../node_modules/asynckit/lib/state.js"(exports, module2) {
+  "node_modules/asynckit/lib/state.js"(exports, module2) {
     module2.exports = state;
     function state(list, sortMethod) {
       var isNamedList = !Array.isArray(list), initState = {
@@ -69954,9 +71506,9 @@ var require_state = __commonJS({
   }
 });
 
-// ../node_modules/asynckit/lib/terminator.js
+// node_modules/asynckit/lib/terminator.js
 var require_terminator = __commonJS({
-  "../node_modules/asynckit/lib/terminator.js"(exports, module2) {
+  "node_modules/asynckit/lib/terminator.js"(exports, module2) {
     var abort2 = require_abort();
     var async = require_async();
     module2.exports = terminator;
@@ -69971,9 +71523,9 @@ var require_terminator = __commonJS({
   }
 });
 
-// ../node_modules/asynckit/parallel.js
+// node_modules/asynckit/parallel.js
 var require_parallel = __commonJS({
-  "../node_modules/asynckit/parallel.js"(exports, module2) {
+  "node_modules/asynckit/parallel.js"(exports, module2) {
     var iterate = require_iterate();
     var initState = require_state();
     var terminator = require_terminator();
@@ -69998,9 +71550,9 @@ var require_parallel = __commonJS({
   }
 });
 
-// ../node_modules/asynckit/serialOrdered.js
+// node_modules/asynckit/serialOrdered.js
 var require_serialOrdered = __commonJS({
-  "../node_modules/asynckit/serialOrdered.js"(exports, module2) {
+  "node_modules/asynckit/serialOrdered.js"(exports, module2) {
     var iterate = require_iterate();
     var initState = require_state();
     var terminator = require_terminator();
@@ -70032,9 +71584,9 @@ var require_serialOrdered = __commonJS({
   }
 });
 
-// ../node_modules/asynckit/serial.js
+// node_modules/asynckit/serial.js
 var require_serial = __commonJS({
-  "../node_modules/asynckit/serial.js"(exports, module2) {
+  "node_modules/asynckit/serial.js"(exports, module2) {
     var serialOrdered = require_serialOrdered();
     module2.exports = serial2;
     function serial2(list, iterator2, callback) {
@@ -70043,9 +71595,9 @@ var require_serial = __commonJS({
   }
 });
 
-// ../node_modules/asynckit/index.js
+// node_modules/asynckit/index.js
 var require_asynckit = __commonJS({
-  "../node_modules/asynckit/index.js"(exports, module2) {
+  "node_modules/asynckit/index.js"(exports, module2) {
     module2.exports = {
       parallel: require_parallel(),
       serial: require_serial(),
@@ -70054,9 +71606,9 @@ var require_asynckit = __commonJS({
   }
 });
 
-// ../node_modules/has-tostringtag/shams.js
+// node_modules/has-tostringtag/shams.js
 var require_shams2 = __commonJS({
-  "../node_modules/has-tostringtag/shams.js"(exports, module2) {
+  "node_modules/has-tostringtag/shams.js"(exports, module2) {
     "use strict";
     var hasSymbols = require_shams();
     module2.exports = function hasToStringTagShams() {
@@ -70065,9 +71617,9 @@ var require_shams2 = __commonJS({
   }
 });
 
-// ../node_modules/es-set-tostringtag/index.js
+// node_modules/es-set-tostringtag/index.js
 var require_es_set_tostringtag = __commonJS({
-  "../node_modules/es-set-tostringtag/index.js"(exports, module2) {
+  "node_modules/es-set-tostringtag/index.js"(exports, module2) {
     "use strict";
     var GetIntrinsic = require_get_intrinsic();
     var $defineProperty = GetIntrinsic("%Object.defineProperty%", true);
@@ -70097,9 +71649,9 @@ var require_es_set_tostringtag = __commonJS({
   }
 });
 
-// ../node_modules/form-data/lib/populate.js
+// node_modules/form-data/lib/populate.js
 var require_populate = __commonJS({
-  "../node_modules/form-data/lib/populate.js"(exports, module2) {
+  "node_modules/form-data/lib/populate.js"(exports, module2) {
     "use strict";
     module2.exports = function(dst, src) {
       Object.keys(src).forEach(function(prop) {
@@ -70110,9 +71662,9 @@ var require_populate = __commonJS({
   }
 });
 
-// ../node_modules/form-data/lib/form_data.js
+// node_modules/form-data/lib/form_data.js
 var require_form_data = __commonJS({
-  "../node_modules/form-data/lib/form_data.js"(exports, module2) {
+  "node_modules/form-data/lib/form_data.js"(exports, module2) {
     "use strict";
     var CombinedStream = require_combined_stream();
     var util5 = __require("util");
@@ -70432,9 +71984,9 @@ var require_form_data = __commonJS({
   }
 });
 
-// ../node_modules/agent-base/dist/src/promisify.js
+// node_modules/agent-base/dist/src/promisify.js
 var require_promisify = __commonJS({
-  "../node_modules/agent-base/dist/src/promisify.js"(exports) {
+  "node_modules/agent-base/dist/src/promisify.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     function promisify(fn2) {
@@ -70454,9 +72006,9 @@ var require_promisify = __commonJS({
   }
 });
 
-// ../node_modules/agent-base/dist/src/index.js
+// node_modules/agent-base/dist/src/index.js
 var require_src2 = __commonJS({
-  "../node_modules/agent-base/dist/src/index.js"(exports, module2) {
+  "node_modules/agent-base/dist/src/index.js"(exports, module2) {
     "use strict";
     var __importDefault = exports && exports.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -70637,9 +72189,9 @@ var require_src2 = __commonJS({
   }
 });
 
-// ../node_modules/https-proxy-agent/dist/parse-proxy-response.js
+// node_modules/https-proxy-agent/dist/parse-proxy-response.js
 var require_parse_proxy_response = __commonJS({
-  "../node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports) {
+  "node_modules/https-proxy-agent/dist/parse-proxy-response.js"(exports) {
     "use strict";
     var __importDefault = exports && exports.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -70703,9 +72255,9 @@ var require_parse_proxy_response = __commonJS({
   }
 });
 
-// ../node_modules/https-proxy-agent/dist/agent.js
+// node_modules/https-proxy-agent/dist/agent.js
 var require_agent = __commonJS({
-  "../node_modules/https-proxy-agent/dist/agent.js"(exports) {
+  "node_modules/https-proxy-agent/dist/agent.js"(exports) {
     "use strict";
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P4, generator) {
       function adopt(value) {
@@ -70863,9 +72415,9 @@ var require_agent = __commonJS({
   }
 });
 
-// ../node_modules/https-proxy-agent/dist/index.js
+// node_modules/https-proxy-agent/dist/index.js
 var require_dist5 = __commonJS({
-  "../node_modules/https-proxy-agent/dist/index.js"(exports, module2) {
+  "node_modules/https-proxy-agent/dist/index.js"(exports, module2) {
     "use strict";
     var __importDefault = exports && exports.__importDefault || function(mod) {
       return mod && mod.__esModule ? mod : { "default": mod };
@@ -70882,9 +72434,9 @@ var require_dist5 = __commonJS({
   }
 });
 
-// ../node_modules/follow-redirects/debug.js
+// node_modules/follow-redirects/debug.js
 var require_debug = __commonJS({
-  "../node_modules/follow-redirects/debug.js"(exports, module2) {
+  "node_modules/follow-redirects/debug.js"(exports, module2) {
     var debug;
     module2.exports = function() {
       if (!debug) {
@@ -70902,9 +72454,9 @@ var require_debug = __commonJS({
   }
 });
 
-// ../node_modules/follow-redirects/index.js
+// node_modules/follow-redirects/index.js
 var require_follow_redirects = __commonJS({
-  "../node_modules/follow-redirects/index.js"(exports, module2) {
+  "node_modules/follow-redirects/index.js"(exports, module2) {
     var url2 = __require("url");
     var URL2 = url2.URL;
     var http3 = __require("http");
@@ -70995,7 +72547,7 @@ var require_follow_redirects = __commonJS({
           self2.emit("error", cause instanceof RedirectionError ? cause : new RedirectionError({ cause }));
         }
       };
-      this._headerFilter = new RegExp("^(?:" + sensitiveHeaders.concat(options.sensitiveHeaders).map(escapeRegex).join("|") + ")$", "i");
+      this._headerFilter = new RegExp("^(?:" + sensitiveHeaders.concat(options.sensitiveHeaders).map(escapeRegex2).join("|") + ")$", "i");
       this._performRequest();
     }
     RedirectableRequest.prototype = Object.create(Writable.prototype);
@@ -71405,7 +72957,7 @@ var require_follow_redirects = __commonJS({
     function isURL(value) {
       return URL2 && value instanceof URL2;
     }
-    function escapeRegex(regex) {
+    function escapeRegex2(regex) {
       return regex.replace(/[\]\\/()*+?.$]/g, "\\$&");
     }
     module2.exports = wrap({ http: http3, https: https2 });
@@ -71619,9 +73171,9 @@ async function procesarSeguimientosPendientes(subdomain, accessToken) {
   let pendientes;
   try {
     pendientes = await db.query.followUpEvents.findMany({
-      where: and(
-        lte(followUpEvents.scheduledFor, /* @__PURE__ */ new Date()),
-        eq(followUpEvents.executed, false)
+      where: and2(
+        lte2(followUpEvents.scheduledFor, /* @__PURE__ */ new Date()),
+        eq2(followUpEvents.executed, false)
       )
     });
   } catch (err2) {
@@ -71649,7 +73201,7 @@ async function procesarSeguimientosPendientes(subdomain, accessToken) {
           logger.info({ leadId: seg.kommoLeadId }, "Embudo: seguimiento 22h enviado OK");
         }
       }
-      await db.update(followUpEvents).set({ executed: true, executedAt: /* @__PURE__ */ new Date() }).where(eq(followUpEvents.id, seg.id));
+      await db.update(followUpEvents).set({ executed: true, executedAt: /* @__PURE__ */ new Date() }).where(eq2(followUpEvents.id, seg.id));
     } catch (err2) {
       logger.warn({ err: err2, seguimientoId: seg.id }, "Embudo: error procesando seguimiento");
     }
@@ -71696,9 +73248,9 @@ async function verificarVentanas24h(subdomain, accessToken) {
   let convs;
   try {
     convs = await db.query.conversations.findMany({
-      where: and(
-        gte(conversations.updatedAt, hace22h),
-        lte(conversations.updatedAt, hace23h)
+      where: and2(
+        gte2(conversations.updatedAt, hace22h),
+        lte2(conversations.updatedAt, hace23h)
       )
     });
   } catch (err2) {
@@ -71729,7 +73281,7 @@ async function verificarVentanas24h(subdomain, accessToken) {
           conv.kommoLeadId,
           "\u23F0 Lucy: Mensaje autom\xE1tico enviado para renovar ventana de 24h de WhatsApp."
         );
-        await db.update(conversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.kommoLeadId, conv.kommoLeadId));
+        await db.update(conversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, conv.kommoLeadId));
         logger.info({ leadId: conv.kommoLeadId }, "Embudo: mensaje de ventana 24h enviado");
       }
     } catch (err2) {
@@ -71742,9 +73294,9 @@ async function verificarLeadsInactivos(subdomain, accessToken) {
   let convInactivas;
   try {
     convInactivas = await db.query.conversations.findMany({
-      where: and(
-        eq(conversations.stage, "discovery"),
-        lte(conversations.updatedAt, umbral)
+      where: and2(
+        eq2(conversations.stage, "discovery"),
+        lte2(conversations.updatedAt, umbral)
       )
     });
   } catch (err2) {
@@ -71760,7 +73312,7 @@ async function verificarLeadsInactivos(subdomain, accessToken) {
       if (lead.tags.includes("lucy_desactivada")) continue;
       if (!conv.kommoChatId) continue;
       await moverANoContesta(subdomain, accessToken, conv.kommoLeadId, conv.kommoChatId);
-      await db.update(conversations).set({ stage: "no_contesta", updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.kommoLeadId, conv.kommoLeadId));
+      await db.update(conversations).set({ stage: "no_contesta", updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, conv.kommoLeadId));
     } catch (err2) {
       logger.warn({ err: err2, leadId: conv.kommoLeadId }, "Embudo: error procesando inactividad");
     }
@@ -71771,7 +73323,7 @@ var init_embudo = __esm({
   async "src/services/embudo.ts"() {
     await init_src();
     init_drizzle_orm();
-    init_logger2();
+    init_logger3();
     ETAPA = {
       LEADS_ENTRANTES: 72336719,
       DATOS_E_INTERESES: 80344783,
@@ -71798,7 +73350,7 @@ async function ensureLearningSchema() {
   if (ensured) return;
   for (const statement of STATEMENTS) {
     try {
-      await db.execute(sql.raw(statement));
+      await db.execute(sql2.raw(statement));
     } catch (err2) {
       logger.warn({ err: err2, statement: statement.slice(0, 60) }, "learningSchema: statement fall\xF3");
     }
@@ -71810,7 +73362,7 @@ var init_learningSchema = __esm({
   async "src/services/learningSchema.ts"() {
     await init_src();
     init_drizzle_orm();
-    init_logger2();
+    init_logger3();
     ensured = false;
     STATEMENTS = [
       `ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_type VARCHAR(20)`,
@@ -71874,7 +73426,7 @@ async function persistChatMessage(input) {
   const kommoId = input.kommoMessageId ? String(input.kommoMessageId) : null;
   if (kommoId) {
     const existing = await db.query.messages.findFirst({
-      where: eq(messages.kommoMessageId, kommoId)
+      where: eq2(messages.kommoMessageId, kommoId)
     });
     if (existing) return false;
   }
@@ -71906,7 +73458,7 @@ async function captureInboundWhileLucyInactive(input) {
     source: "webhook_inactive"
   });
   let conv = await db.query.conversations.findFirst({
-    where: eq(conversations.kommoLeadId, leadId)
+    where: eq2(conversations.kommoLeadId, leadId)
   });
   if (!conv) {
     const [created] = await db.insert(conversations).values({
@@ -71926,7 +73478,7 @@ async function captureInboundWhileLucyInactive(input) {
       kommoTalkId: input.talkId ?? conv.kommoTalkId,
       learningPhase: conv.learningPhase ?? "human_active",
       updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(conversations.id, conv.id));
+    }).where(eq2(conversations.id, conv.id));
   }
   if (input.talkId && input.subdomain && input.accessToken) {
     void syncLeadTranscript({
@@ -71953,7 +73505,7 @@ async function syncLeadTranscript(input) {
     });
     if (ok) inserted++;
   }
-  await db.update(conversations).set({ lastKommoSyncAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.kommoLeadId, input.kommoLeadId));
+  await db.update(conversations).set({ lastKommoSyncAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, input.kommoLeadId));
   logger.info(
     { leadId: input.kommoLeadId, inserted, total: raw.length },
     "chatIngest: transcript sincronizado"
@@ -71964,7 +73516,7 @@ async function setLearningPhase(kommoLeadId, phase) {
   await ensureLearningSchema();
   const leadId = String(kommoLeadId);
   const conv = await db.query.conversations.findFirst({
-    where: eq(conversations.kommoLeadId, leadId)
+    where: eq2(conversations.kommoLeadId, leadId)
   });
   if (!conv) {
     await db.insert(conversations).values({
@@ -71976,13 +73528,13 @@ async function setLearningPhase(kommoLeadId, phase) {
     });
     return;
   }
-  await db.update(conversations).set({ learningPhase: phase, updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.id, conv.id));
+  await db.update(conversations).set({ learningPhase: phase, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.id, conv.id));
 }
 var init_chatIngest = __esm({
   async "src/services/chatIngest.ts"() {
     await init_src();
     init_drizzle_orm();
-    init_logger2();
+    init_logger3();
     await init_learningSchema();
   }
 });
@@ -72000,12 +73552,12 @@ async function extractLearningCandidatesForLead(kommoLeadId, options = {}) {
   }
   const leadId = String(kommoLeadId);
   const conv = await db.query.conversations.findFirst({
-    where: eq(conversations.kommoLeadId, leadId)
+    where: eq2(conversations.kommoLeadId, leadId)
   });
   if (!options.force && conv?.lastLearningExtractAt && Date.now() - conv.lastLearningExtractAt.getTime() < 6 * 60 * 60 * 1e3) {
     return 0;
   }
-  const rows = await db.select().from(messages).where(eq(messages.kommoLeadId, leadId)).orderBy(asc(messages.timestamp));
+  const rows = await db.select().from(messages).where(eq2(messages.kommoLeadId, leadId)).orderBy(asc2(messages.timestamp));
   const humanMsgs = rows.filter((m4) => m4.authorType === "human_agent" || m4.role === "human");
   if (humanMsgs.length === 0) return 0;
   const transcript = rows.slice(-40).map((m4) => {
@@ -72057,7 +73609,7 @@ ${transcript}` }
       } catch {
       }
     }
-    await db.update(conversations).set({ lastLearningExtractAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(eq(conversations.kommoLeadId, leadId));
+    await db.update(conversations).set({ lastLearningExtractAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, leadId));
     logger.info({ leadId, created }, "learningExtractor: candidatos generados");
     return created;
   } catch (err2) {
@@ -72072,7 +73624,7 @@ var init_learningExtractor = __esm({
     await init_src();
     init_drizzle_orm();
     init_openaiEnv();
-    init_logger2();
+    init_logger3();
     await init_learningSchema();
     openai2 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
   }
@@ -72086,7 +73638,7 @@ async function syncHumanPhaseLead(subdomain, accessToken, kommoLeadId, options =
   if (!lead) return { synced: false, candidates: 0 };
   let talkId = null;
   const conv = await db.query.conversations.findFirst({
-    where: eq(conversations.kommoLeadId, leadId)
+    where: eq2(conversations.kommoLeadId, leadId)
   });
   talkId = conv?.kommoTalkId ?? lead.chatId;
   if (!talkId) {
@@ -72123,9 +73675,9 @@ async function runLearningSyncCron(subdomain, accessToken) {
   let convs;
   try {
     convs = await db.query.conversations.findMany({
-      where: and(
-        inArray(conversations.learningPhase, [...LEARNING_PHASES]),
-        gte(conversations.updatedAt, thirtyDaysAgo)
+      where: and2(
+        inArray2(conversations.learningPhase, [...LEARNING_PHASES]),
+        gte2(conversations.updatedAt, thirtyDaysAgo)
       )
     });
   } catch (err2) {
@@ -72158,7 +73710,7 @@ var init_learningSync = __esm({
     await init_src();
     init_drizzle_orm();
     await init_embudo();
-    init_logger2();
+    init_logger3();
     await init_learningSchema();
     await init_chatIngest();
     await init_learningExtractor();
@@ -72220,7 +73772,7 @@ function rowToDto(row) {
 }
 async function listLearningCandidates(status = "pending", limit2 = 50) {
   await ensureLearningSchema();
-  const rows = await db.select().from(learningCandidates).where(eq(learningCandidates.status, status)).orderBy(desc(learningCandidates.createdAt)).limit(limit2);
+  const rows = await db.select().from(learningCandidates).where(eq2(learningCandidates.status, status)).orderBy(desc2(learningCandidates.createdAt)).limit(limit2);
   return rows.map(rowToDto);
 }
 async function getLearningStats() {
@@ -72234,7 +73786,7 @@ async function getLearningStats() {
 }
 async function approveLearningCandidate(id, reviewerEmail, patch) {
   await ensureLearningSchema();
-  const [row] = await db.select().from(learningCandidates).where(eq(learningCandidates.id, id)).limit(1);
+  const [row] = await db.select().from(learningCandidates).where(eq2(learningCandidates.id, id)).limit(1);
   if (!row || row.status !== "pending") return null;
   const userMessage = patch?.userMessage?.trim() ?? row.userMessage;
   const suggestedResponse = patch?.suggestedResponse?.trim() ?? row.suggestedResponse;
@@ -72252,7 +73804,7 @@ async function approveLearningCandidate(id, reviewerEmail, patch) {
     reviewedAt: /* @__PURE__ */ new Date(),
     reviewedBy: reviewerEmail ?? null,
     updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq(learningCandidates.id, id)).returning();
+  }).where(eq2(learningCandidates.id, id)).returning();
   return updated ? rowToDto(updated) : null;
 }
 async function rejectLearningCandidate(id, reviewerEmail) {
@@ -72262,7 +73814,7 @@ async function rejectLearningCandidate(id, reviewerEmail) {
     reviewedAt: /* @__PURE__ */ new Date(),
     reviewedBy: reviewerEmail ?? null,
     updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq(learningCandidates.id, id)).returning({ id: learningCandidates.id });
+  }).where(eq2(learningCandidates.id, id)).returning({ id: learningCandidates.id });
   return updated.length > 0;
 }
 var init_learningStore = __esm({
@@ -72381,7 +73933,7 @@ var init_learning = __esm({
   }
 });
 
-// ../node_modules/dotenv/config.js
+// node_modules/dotenv/config.js
 (function() {
   require_main().config(
     Object.assign(
@@ -72396,13 +73948,13 @@ var init_learning = __esm({
 init_openaiEnv();
 
 // src/app.ts
-var import_express9 = __toESM(require_express2(), 1);
+var import_express10 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 import path3 from "node:path";
 
 // src/routes/index.ts
-var import_express8 = __toESM(require_express2(), 1);
+var import_express9 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -73265,11 +74817,11 @@ function datetimeRegex(args2) {
   regex = `${regex}(${opts.join("|")})`;
   return new RegExp(`^${regex}$`);
 }
-function isValidIP(ip, version2) {
-  if ((version2 === "v4" || !version2) && ipv4Regex.test(ip)) {
+function isValidIP(ip, version3) {
+  if ((version3 === "v4" || !version3) && ipv4Regex.test(ip)) {
     return true;
   }
-  if ((version2 === "v6" || !version2) && ipv6Regex.test(ip)) {
+  if ((version3 === "v6" || !version3) && ipv6Regex.test(ip)) {
     return true;
   }
   return false;
@@ -73296,11 +74848,11 @@ function isValidJWT(jwt, alg) {
     return false;
   }
 }
-function isValidCidr(ip, version2) {
-  if ((version2 === "v4" || !version2) && ipv4CidrRegex.test(ip)) {
+function isValidCidr(ip, version3) {
+  if ((version3 === "v4" || !version3) && ipv4CidrRegex.test(ip)) {
     return true;
   }
-  if ((version2 === "v6" || !version2) && ipv6CidrRegex.test(ip)) {
+  if ((version3 === "v6" || !version3) && ipv6CidrRegex.test(ip)) {
     return true;
   }
   return false;
@@ -76344,6 +77896,865 @@ var UpdateExampleResponse = objectType({
 // src/routes/health.ts
 init_openaiEnv();
 init_authJwt();
+
+// src/catalogo.ts
+var CATALOGO_BODASESOR = `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CAT\xC1LOGO BODASESOR 2026 \u2014 INFORMACI\xD3N COMPLETA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+CONDICIONES GENERALES:
+\u2022 Precios NO incluyen IVA (16%)
+\u2022 Propina 15% recomendada (no obligatoria)
+\u2022 Inversi\xF3n m\xEDnima general: $18,000 MXN por evento (excepto Kosher: $29,000; barras: desde $6,000)
+\u2022 Duraci\xF3n est\xE1ndar banquetes: 5 horas
+\u2022 Barras tem\xE1ticas: 3 horas o hasta agotar producto
+\u2022 Anticipo 50% para apartar fecha
+\u2022 Liquidaci\xF3n 10 d\xEDas antes del evento
+\u2022 Cambios: hasta 30 d\xEDas antes
+\u2022 Formas de pago: efectivo o transferencia
+\u2022 Atendemos de 30 hasta 10,000 personas
+\u2022 Montaje y desmontaje incluidos. Trabajamos en el venue del cliente.
+\u2022 Men\xFAs adaptables a restricciones alimenticias y opci\xF3n vegetariana disponible
+\u2022 Hora extra: $60/pp (m\xEDnimo 10 personas)
+\u2022 Eventos con +100 personas: opci\xF3n de 2 men\xFAs distintos
+\u2022 Prueba de men\xFA: $5,000 MXN para 4 personas (se descuentan $2,500 al confirmar)
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE FORMAL
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Cocina internacional: res, pollo, pescado, mariscos. Presentaci\xF3n elegante emplatada.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $750/pp \u2014 entrada o sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
+\u2022 Tradicional: $880/pp \u2014 igual + 2 guarniciones
+\u2022 Premium: $930/pp \u2014 prote\xEDna libre + 2 guarniciones
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $800/pp \u2014 entrada + sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
+\u2022 Tradicional: $930/pp \u2014 igual + 2 guarniciones
+\u2022 Premium: $980/pp \u2014 prote\xEDna libre + 2 guarniciones
+
+BUFFET: $1,200/pp (2 prote\xEDnas + opciones de pasta/ensalada/sopa + guarnici\xF3n + postre)
+SOLO ALIMENTOS (sin mobiliario): desde $400/pp (+$150 con vajilla decorativa)
+
+INCLUIDO EN TODOS LOS PAQUETES COMPLETOS:
+\u2022 Mesa redonda con mantel (color a elecci\xF3n) + silla Tiffany + centro de mesa con flores
+\u2022 Vajilla blanca + cuberter\xEDa + cristaler\xEDa (copa + vaso)
+\u2022 Meseros: 1 c/20 personas (B\xE1sico), 1 c/15 (Tradicional), 1 c/10 (Premium)
+\u2022 Barra de bebidas sin alcohol: vitroleros (2 sabores), agua natural, caf\xE9
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE MEXICANO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Gastronom\xEDa mexicana: moles, pozoles, ceviches, platillos regionales, salsas artesanales,
+aguas frescas de sabores tradicionales. Diferente al formal en men\xFA, misma calidad de servicio.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $670/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $770/pp \u2014 2 guarniciones
+\u2022 Premium: $830/pp \u2014 prote\xEDna libre
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $720/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $830/pp \u2014 2 guarniciones
+\u2022 Premium: $880/pp \u2014 prote\xEDna libre
+
+BUFFET: $1,200/pp
+SOLO ALIMENTOS: desde $450/pp
+
+Incluye lo mismo que Banquete Formal (mobiliario, vajilla, meseros, barra sin alcohol).
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE NAVIDE\xD1O (solo noviembre\u2013enero)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Pavos con 3 preparaciones distintas, bacalao, romeritos, decoraci\xF3n festiva incluida.
+Diciembre: alta demanda \u2014 reservar desde octubre.
+
+\u2022 Premium 3 tiempos: $830/pp
+\u2022 Premium 4 tiempos: $880/pp
+\u2022 Buffet Navide\xF1o: $1,200/pp (pollo o lomo incluido; pavo: +$100/pp extra)
+\u2022 Solo alimentos: desde $500/pp
+
+PREGUNTAS FRECUENTES NAVIDE\xD1O:
+\u2022 \xBFEl pavo es por persona? S\xED, porciones individuales.
+\u2022 \xBFEl buffet incluye pavo? El base incluye pollo o lomo. Pavo: +$100/pp.
+\u2022 \xBFCrepas Suzette incluidas? No, tienen costo adicional de $100/pp (flambeado especial).
+\u2022 \xBFCu\xE1ndo reservar? Para diciembre, desde octubre.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE KOSHER
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Certificaci\xF3n Kosher completa + supervisi\xF3n rab\xEDnica permanente.
+Separaci\xF3n absoluta: el evento es 100% L\xC1CTEO (Jalav) O 100% CARNE (Basar) \u2014 nunca mezclados.
+Utensilios Kosher certificados dedicados exclusivamente.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $1,170/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $1,330/pp \u2014 2 guarniciones
+\u2022 Premium: $1,430/pp \u2014 prote\xEDna libre
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $1,250/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $1,430/pp \u2014 2 guarniciones
+\u2022 Premium: $1,500/pp \u2014 prote\xEDna libre
+
+BUFFET KOSHER: $2,000/pp (2 prote\xEDnas + pasta/ensalada/sopa + guarnici\xF3n + postre)
+SOLO ALIMENTOS KOSHER: $600/pp
+Inversi\xF3n m\xEDnima: $29,000 MXN
+
+INCLUIDO: mismos servicios que Banquete Formal + vajilla y utensilios certificados Kosher.
+
+PREGUNTAS FRECUENTES KOSHER:
+\u2022 \xBFMezclar l\xE1cteos y carne? NUNCA \u2014 las leyes Kosher lo proh\xEDben absolutamente.
+\u2022 \xBFQu\xE9 es parve? Alimentos neutros (frutas, vegetales, huevos, pescado) \u2014 combinables con l\xE1cteos o carne.
+\u2022 \xBFEl vino es Kosher? S\xED, solo vinos y bebidas certificadas Kosher.
+\u2022 \xBFLa supervisi\xF3n rab\xEDnica tiene costo extra? No, est\xE1 incluida en todos los precios.
+\u2022 \xBFPuedo coordinar con mi rabino? S\xED, Alejandro coordina todos los detalles.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+DESAYUNO / BRUNCH
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 B\xE1sico: $550/pp (entrada + plato fuerte + jugo + caf\xE9)
+\u2022 Premium: $650/pp (+ 2 guarniciones + pan dulce y salado)
+\u2022 Buffet: $750/pp (fruta + 3 platillos salados + 2 dulces)
+\u2022 Inversi\xF3n m\xEDnima: $18,000 MXN
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PAELLA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 Solo alimentos: $450/pp
+\u2022 Tradicional (con mobiliario): $800/pp
+\u2022 Premium: $900/pp
+\u2022 Inversi\xF3n m\xEDnima: $19,500 MXN
+\u2022 Incluye: chistorra, croquetas de serrano, tortilla espa\xF1ola, paella al momento
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+TAQUIZA & PARRILLADA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+TAQUIZA (guisados \u2014 tacos de canasta/cazuela, NO al carb\xF3n):
+\u2022 5 guisados: $300/pp \u2014 arroz, frijol, tortillas, salsas incluidos
+\u2022 6 guisados: $320/pp | Guisado extra: +$20/pp
+\u2022 Vajilla y cubiertos: +$20/pp adicional
+\u2022 Servicio Completo Premium: $750/pp (con mobiliario, cristaler\xEDa, meseros)
+\u2022 M\xEDnimo 40 personas / inversi\xF3n m\xEDnima $10,000 / duraci\xF3n: 3 horas
+
+PARRILLADA MEXICANA (tacos al carb\xF3n \u2014 \u2260 taquiza):
+\u2022 5 platillos: $300/pp \u2014 nopales, cebollitas, tortillas, salsas incluidos
+\u2022 Platillo extra: +$30/pp
+\u2022 Todo incluido (con bebidas sin alcohol): $700/pp
+\u2022 Inversi\xF3n m\xEDnima: $11,000 / duraci\xF3n: 3 horas
+
+PARRILLADA ARGENTINA (cortes premium al carb\xF3n \u2014 5 horas completas):
+\u2022 $900/pp | Inversi\xF3n m\xEDnima: $19,500 MXN
+\u2022 Cortes: Pica\xF1a, New York, Arrachera, Rib Eye, Pollo BBQ
+\u2022 Asador solo alimentos: +$500 adicional
+\u2022 Incluye: mesa, mantel, silla Tiffany, vajilla, cristaler\xEDa, hielos, barra de bebidas sin alcohol
+
+DIFERENCIA CLAVE \u2014 Tacos: preguntarle al cliente si quiere guisados (taquiza) o al carb\xF3n (parrillada).
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA AMERICANA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Comida estilo americano casual. El cliente elige 5 opciones del men\xFA completo.
+Ideal para eventos informales, cumplea\xF1os, graduaciones, fiestas en jard\xEDn.
+
+NIVELES:
+\u2022 B\xE1sica: $350/pp \u2014 3h o hasta agotar, desechables, sin mobiliario, 1 mesero c/50
+\u2022 Completo B\xE1sico: $750/pp \u2014 5h, todo incluido, 1 mesero c/20
+\u2022 Completo Tradicional: $800/pp \u2014 5h, mejor presentaci\xF3n, 1 mesero c/15 (M\xC1S POPULAR)
+\u2022 Completo Premium: $900/pp \u2014 5h, atenci\xF3n VIP 1 mesero c/10, copas de color
+
+Inversi\xF3n m\xEDnima B\xE1sica: $10,500 MXN
+
+LO QUE INCLUYE CADA NIVEL:
+\u2022 B\xE1sica: solo comida + desechables. Sin mobiliario ni bebidas.
+\u2022 Completo B\xE1sico: mesa + mantel + silla Tiffany + centro de mesa + vajilla blanca + cristaler\xEDa copa/vaso
+  + barra de bebidas: aguas (2 sabores), agua natural, caf\xE9
+\u2022 Completo Tradicional: + plato base decorativo + cristaler\xEDa premium completa + margaritas sin alcohol
+  + Coca Light, Coca Normal, Squirt, agua mineral (1 sabor de agua fresca)
+\u2022 Completo Premium: = Tradicional + copas de color (elemento distintivo) + 1 mesero c/10 personas
+
+MEN\xDA COMPLETO \u2014 OPCIONES PRINCIPALES (elegir 5):
+Hamburguesas y hot dogs: mini sliders, mini hot dogs, pulled pork, corn dogs
+Pollo: tiras empanizadas (chicken tenders), alitas BBQ / b\xFAfalo / habanero-miel
+Mini wraps y tacos: burritos tex-mex, mini tacos de carne asada
+Pizzas y pasta: mini pizzas (pepperoni/queso/vegetales), mac & cheese en vasito
+
+ACOMPA\xD1AMIENTOS (tambi\xE9n cuentan como 1 opci\xF3n):
+Papas: a la francesa, papas gajo con especias, tater tots, aros de cebolla empanizados
+Quesos y nachos: nachos con cheddar y jalape\xF1os, chili con carne, mozzarella sticks
+Otros: palomitas saborizadas (mantequilla/queso/caramelo), coleslaw, elotes en vasito (americano o mexicano)
+
+EXTRAS (costo adicional):
+\u2022 Mesero adicional: $800 (5 horas, ideal +150 personas)
+\u2022 Mesa de madera para barra: $600
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+ANTOJITOS & PUESTOS DE COMIDA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Puestos de madera elegantes con cocina mexicana aut\xE9ntica al momento. 3 horas de servicio.
+Ideal para cocktail de bienvenida, complemento al banquete, XV a\xF1os, cumplea\xF1os.
+
+\u2022 $300/pp (8 piezas por persona) \u2014 m\xEDnimo 240 piezas / inversi\xF3n m\xEDnima $9,000
+\u2022 Pieza adicional: $38/pp | Puestos adicionales: $1,500 c/u (1 puesto por cada 100 personas incluido)
+\u2022 Incluye: puesto de madera, desechables, queso fresco, crema, salsas artesanales, personal uniformado
+
+MEN\xDA DISPONIBLE (todo al momento):
+QUESADILLAS FRITAS: queso fundido, chicharr\xF3n en salsa, tinga de pollo o res, papa con especias, hongos con epazote
+FLAUTAS CRUJIENTES: pollo deshebrado, carne deshebrada, papa con queso, queso derretido
+SOPES Y GORDITAS: frijoles, pollo, chorizo, chicharr\xF3n prensado, queso derretido
+MINI TORTAS: cochinita pibil, chilaquiles, tacos de canasta
+ANTOJITOS Y SNACKS: esquites, elotes asados, espiropapas, hot dogs, banderillas
+BEBIDAS Y SNACKS SALUDABLES: ponche de frutas, crudit\xE9s, jicaletas, paletas de sand\xEDa, pepinos con cacahuate
+DULCES Y POSTRES: algodones de az\xFAcar, manzanas chamoy, churros reci\xE9n fritos, crepaletas
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRAS TEM\xC1TICAS (otras)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 Barra de Pizzas (horno de piedra, chef en vivo): desde $9,515 total (hasta 10 pax) \u2014 3 horas
+  Rangos: 11-15 pax $10,780 | 16-20 $11,385 | 21-25 $12,650 | 26-30 $13,915
+  31-40 $14,575\u2013$15,180 | 41-50 $15,950\u2013$17,050 | 51-60 $18,040\u2013$19,690
+  61-100 $22,110\u2013$29,755 | 101-160 $30,360\u2013$37,400 | +160 pax: $200/pp extra
+\u2022 Barra de Sushi y Poke Bowl: $13,800 fijo (-30 pax) / $460/pp (30+) \u2014 3 horas
+\u2022 Barra de Crepas: $280/pp (5 crepas), $320/pp (6 crepas), Premium $750/pp \u2014 m\xEDn. 40 pax
+\u2022 Barra de Mariscos: $580/pp \u2014 inversi\xF3n m\xEDnima $16,000 \u2014 3 horas
+\u2022 Barra de Pastas y Ensaladas: $380/pp simple ($750/pp completo) \u2014 2 lasa\xF1as + 2 pastas + 2 ensaladas
+\u2022 Barra de Paninis y Ensaladas: $350/pp (4 paninis + 2 ensaladas) / $800/pp completo
+\u2022 Barra Yucateca: $350/pp \u2014 Sopa de Lima, Cochinita Pibil, Panuchos, Papadzules, Empanadas, tortillas frescas
+\u2022 Pozole y Tostadas: $300/pp b\xE1sico ($680/pp completo premium) \u2014 Rojo, Blanco o Verde
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA DE BEBIDAS
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Servicio profesional de bar: barra de madera, bartenders certificados, cristaler\xEDa completa,
+hielo ilimitado. Servicio libre durante 5 horas. Inversi\xF3n m\xEDnima: $6,000 MXN.
+1 barman por cada 50 personas (incluido en el precio).
+
+BARRAS SIN ALCOHOL (3 niveles \u2014 5 horas):
+\u2022 B\xE1sica: $150/pp
+  Incluye: refrescos (Coca Light, Coca Normal, Squirt), agua mineral, agua natural,
+  vitrolero con 1 sabor de agua fresca a elegir (jamaica, lim\xF3n, tamarindo, horchata,
+  pepino-lim\xF3n-menta, sand\xEDa, mel\xF3n, mango)
+
+\u2022 Tradicional: $180/pp
+  Incluye todo lo de B\xE1sica + fruta picada + margaritas sin alcohol (mango y tamarindo)
+  + caf\xE9 y t\xE9 | (solo +$30 sobre B\xE1sica \u2014 MEJOR VALOR)
+
+\u2022 Premium: $200/pp
+  Incluye todo lo de Tradicional + jugos naturales frescos
+
+BARRAS CON ALCOHOL (5 horas \u2014 incluyen autom\xE1ticamente Barra sin Alcohol Tradicional completa):
+\u2022 B\xE1sica: $370/pp
+  Licores: Capit\xE1n Morgan (ron), Cuervo Especial (tequila), Wyborowa (vodka),
+  Black & White (whisky), Larios (gin)
+
+\u2022 Tradicional: $410/pp \u2014 LA M\xC1S POPULAR (solo +$40 sobre b\xE1sica, marcas premium + mezcal)
+  Licores: Bacard\xED (ron), Jos\xE9 Cuervo Tradicional (tequila), Absolut (vodka),
+  Johnnie Walker Red Label (whisky), Diega (gin), Mezcal incluido
+
+\u2022 Premium: $600/pp
+  Licores top shelf: Bacard\xED (ron), Maestro Dobel (tequila), Stolichnaya (vodka),
+  Johnnie Walker Black Label (whisky), Tanqueray (gin), 400 Conejos (mezcal)
+
+EXTRAS (solo como complemento a un paquete de barra \u2014 NO se venden solos):
+\u2022 Cerveza: $35/pieza (servicio libre 5 horas)
+\u2022 Vino tinto o blanco: $50/copa (servicio libre 5 horas)
+
+M\xCDNIMOS EN PERSONAS (inversi\xF3n m\xEDnima $6,000):
+Sin alcohol \u2014 B\xE1sica: 40 pax | Tradicional: 34 pax | Premium: 30 pax
+Con alcohol \u2014 B\xE1sica: 17 pax | Tradicional: 15 pax | Premium: 10 pax
+
+DIFERENCIA CLAVE: Barra de Bebidas = SOLO bebidas. Barra Americana = SOLO comida.
+Se pueden contratar juntas para un evento completo.
+Si el banquete ya incluye bebidas sin alcohol y quieren agregar alcohol:
+Banquete Formal 4T ($800/pp) + Barra con alcohol B\xE1sica ($370/pp) = $1,170/pp completo.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA DE CAF\xC9
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 $180/pp \u2014 inversi\xF3n m\xEDnima $7,000
+\u2022 Baristas profesionales, caf\xE9 de altura tostado tipo italiano
+\u2022 Bebidas: Americano, Espresso, Capuchino, Latte, Frappuccino, Moka, Vainilla,
+  Chocolate caliente, Chai Latte, Matcha, 9 variedades de t\xE9s
+
+COFFEE BREAK:
+\u2022 Desde $160/pp \u2014 inversi\xF3n m\xEDnima $7,500
+\u2022 Opciones b\xE1sica, intermedia y completa
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+COCTELER\xCDA Y MIXOLOG\xCDA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+(Servicio de c\xF3cteles especializados \u2014 diferente a Barra de Bebidas)
+\u2022 Cocteler\xEDa Cl\xE1sica: $285/pp (6 c\xF3cteles para 100+ pax / 3 c\xF3cteles para menos)
+\u2022 Mixolog\xEDa Premium: $460/pp \u2014 3 c\xF3cteles exclusivos personalizados (m\xEDn. 40 pax)
+\u2022 Inversi\xF3n m\xEDnima B\xE1sica (2h): $7,000
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+POSTRES & EXTRAS
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+MESA DE DULCES:
+\u2022 $250/pp \u2014 inversi\xF3n m\xEDnima $8,000
+\u2022 15 opciones de dulces a elegir (tradicionales + premium)
+\u2022 Decoraci\xF3n, personalizaci\xF3n y montaje incluido
+
+PASTELES / CUPCAKES:
+\u2022 Bet\xFAn Cl\xE1sico: $35/pc | Bet\xFAn Decorado: $45/pc | Bet\xFAn + Cake Topper: $40/pc
+\u2022 Fondant 2D: $55/pc | Fondant 3D: $60/pc
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+SERVICIOS SIN PRECIO LISTADO \u2192 RODRIGO DA EL PRECIO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Mobiliario extra (mesas, sillas Tiffany, periqueras, salas lounge), decoraci\xF3n floral,
+estructuras colgantes, pistas de baile personalizadas, vajillas premium, paletas/helados,
+DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
+\u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
+`;
+
+// src/price-guard.ts
+var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
+var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
+var dynamicListedPattern = null;
+var dynamicNoListedPattern = null;
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function buildServicePattern(labels) {
+  const terms = labels.map((label) => label.trim().toLowerCase()).filter((label) => label.length >= 2).map((label) => escapeRegex(label).replace(/\s+/g, "\\s+"));
+  if (!terms.length) return null;
+  return new RegExp(`\\b(?:${terms.join("|")})\\b`, "i");
+}
+function setCatalogPriceIndex(priced, noPrice) {
+  dynamicListedPattern = buildServicePattern(priced);
+  dynamicNoListedPattern = buildServicePattern(noPrice);
+}
+var PRICE_CLAIM_PATTERN = /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
+var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecio\b|\bcosto\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b/i;
+function clientAsksPrice(message) {
+  if (!message?.trim()) return false;
+  return PRICE_QUESTION_PATTERN.test(message);
+}
+function mentionsNoListedPriceService(text2) {
+  if (dynamicNoListedPattern?.test(text2)) return true;
+  return NO_LISTED_PRICE_PATTERN.test(text2);
+}
+function mentionsListedPriceService(text2) {
+  if (dynamicListedPattern?.test(text2)) return true;
+  return LISTED_PRICE_PATTERN.test(text2);
+}
+function messageClaimsPrice(mensaje) {
+  return PRICE_CLAIM_PATTERN.test(mensaje);
+}
+function responseHasInventedPrice(mensaje, currentMessage, recentContext) {
+  if (!messageClaimsPrice(mensaje)) return false;
+  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`.toLowerCase();
+  if (mentionsNoListedPriceService(ctx)) return true;
+  if (!mentionsListedPriceService(ctx) && messageClaimsPrice(mensaje)) {
+    return true;
+  }
+  return false;
+}
+function detectServiceLabel(text2) {
+  const t = text2.toLowerCase();
+  if (/\bdj\b/.test(t)) return "DJ";
+  if (/iluminaci[oó]n/.test(t)) return "iluminaci\xF3n";
+  if (/mobiliario/.test(t)) return "mobiliario";
+  if (/carpas?|lonas?/.test(t)) return "carpas";
+  if (/pantallas?/.test(t)) return "pantallas";
+  if (/pista(\s+de\s+baile)?|tarimas?/.test(t)) return "pista de baile";
+  if (/flor/.test(t)) return "florister\xEDa";
+  return "ese servicio";
+}
+function getPriceServiceLabel(text2) {
+  return detectServiceLabel(text2);
+}
+function stripPriceSentences(mensaje) {
+  const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);
+  const kept = sentences.filter((s4) => !PRICE_CLAIM_PATTERN.test(s4));
+  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
+}
+function stripStalePriceTalk(mensaje, currentMessage) {
+  if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
+  if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
+  return mensaje.split(/(?<=[.!?])\s+|\n+/).filter((s4) => !/\bdj\b/i.test(s4) || clientAsksPrice(currentMessage)).filter((s4) => !/alejandro te (incluye|da) el precio/i.test(s4)).join(" ").replace(/\s{2,}/g, " ").trim();
+}
+function buildAlejandroPriceReply(serviceHint) {
+  const svc = serviceHint?.trim() || "ese servicio";
+  return `S\xED, manejamos ${svc}. El precio exacto depende del evento \u2014 Alejandro te lo incluye en tu cotizaci\xF3n personalizada.`;
+}
+function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
+  if (!responseHasInventedPrice(mensaje, currentMessage, recentContext)) {
+    return mensaje;
+  }
+  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`;
+  const service = detectServiceLabel(ctx);
+  const cleaned = stripPriceSentences(mensaje);
+  const safe = buildAlejandroPriceReply(service);
+  if (!cleaned || cleaned.length < 15) return safe;
+  const withoutCorreoInsist = cleaned.replace(/[^.!?\n]*correo[^.!?\n]*\?[^.!?\n]*/gi, "").trim();
+  const base = withoutCorreoInsist.length > 20 ? withoutCorreoInsist : "";
+  if (base && !/alejandro/i.test(base)) {
+    return `${base} ${safe}`.trim();
+  }
+  return safe;
+}
+
+// src/services/googleSheetsCatalog.ts
+var HEADER_ALIASES = {
+  servicio: "servicio",
+  service: "servicio",
+  nombre: "servicio",
+  producto: "servicio",
+  categoria: "categoria",
+  categor\u00EDa: "categoria",
+  category: "categoria",
+  tipo: "categoria",
+  precio: "precio",
+  price: "precio",
+  costo: "precio",
+  tarifa: "precio",
+  unidad: "unidad",
+  unit: "unidad",
+  pp: "unidad",
+  notas: "notas",
+  nota: "notas",
+  notes: "notas",
+  descripcion: "notas",
+  descripci\u00F3n: "notas",
+  detalle: "notas"
+};
+function normalizeHeader(h3) {
+  return h3.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+}
+function parseCsvRows(text2) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+  for (let i3 = 0; i3 < text2.length; i3++) {
+    const ch = text2[i3];
+    const next = text2[i3 + 1];
+    if (inQuotes) {
+      if (ch === '"' && next === '"') {
+        cell += '"';
+        i3++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        cell += ch;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inQuotes = true;
+      continue;
+    }
+    if (ch === ",") {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+    if (ch === "\n" || ch === "\r" && next === "\n") {
+      row.push(cell);
+      cell = "";
+      if (row.some((c2) => c2.trim())) rows.push(row);
+      row = [];
+      if (ch === "\r") i3++;
+      continue;
+    }
+    cell += ch;
+  }
+  if (cell.length || row.length) {
+    row.push(cell);
+    if (row.some((c2) => c2.trim())) rows.push(row);
+  }
+  return rows;
+}
+function truthyPrecioFlag(raw) {
+  if (!raw?.trim()) return null;
+  const v3 = raw.trim().toLowerCase();
+  if (/^(s[ií]|yes|true|1|x|con\s+precio)$/.test(v3)) return true;
+  if (/^(no|false|0|sin\s+precio|alejandro|cotizar)$/.test(v3)) return false;
+  return null;
+}
+function rowHasPriceValue(precio) {
+  return /\$|\/pp|\/\s*pp|mil|pesos|mxn|\d/.test(precio);
+}
+function buildSheetsCsvUrl() {
+  const direct = process.env["GOOGLE_SHEETS_CATALOG_CSV_URL"]?.trim();
+  if (direct) return direct;
+  const sheetId = process.env["GOOGLE_SHEETS_CATALOG_ID"]?.trim();
+  if (!sheetId) return null;
+  const gid = process.env["GOOGLE_SHEETS_CATALOG_GID"]?.trim() || "0";
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+}
+function buildSheetsTextCsvUrl() {
+  const direct = process.env["GOOGLE_SHEETS_CATALOG_TEXT_CSV_URL"]?.trim();
+  if (direct) return direct;
+  const sheetId = process.env["GOOGLE_SHEETS_CATALOG_ID"]?.trim();
+  const textGid = process.env["GOOGLE_SHEETS_CATALOG_TEXT_GID"]?.trim();
+  if (!sheetId || !textGid) return null;
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${textGid}`;
+}
+async function fetchCsvText(url2) {
+  const res = await fetch(url2, {
+    headers: { "User-Agent": "Lucy-Bodasesor-Catalog/1.0" },
+    signal: AbortSignal.timeout(25e3)
+  });
+  if (!res.ok) {
+    throw new Error(`Sheets CSV HTTP ${res.status}`);
+  }
+  return res.text();
+}
+function parseSheetCatalogCsv(csvText) {
+  const matrix = parseCsvRows(csvText);
+  if (matrix.length < 2) return [];
+  const headers = matrix[0].map(normalizeHeader);
+  const idx = {};
+  let tienePrecioCol = null;
+  headers.forEach((h3, i3) => {
+    if (h3 === "tiene_precio" || h3 === "tiene precio" || h3 === "con_precio" || h3 === "listed_price") {
+      tienePrecioCol = i3;
+      return;
+    }
+    const mapped = HEADER_ALIASES[h3];
+    if (mapped && idx[mapped] === void 0) idx[mapped] = i3;
+  });
+  if (idx.servicio === void 0) return [];
+  const rows = [];
+  for (const line2 of matrix.slice(1)) {
+    const get = (key) => {
+      const col = idx[key];
+      return col === void 0 ? "" : (line2[col] ?? "").trim();
+    };
+    const servicio = get("servicio");
+    if (!servicio || /^#|comentario|ignore/i.test(servicio)) continue;
+    const precio = get("precio");
+    const flag = tienePrecioCol !== null ? truthyPrecioFlag(line2[tienePrecioCol]) : null;
+    const tienePrecio = flag === true || flag === null && rowHasPriceValue(precio);
+    rows.push({
+      servicio,
+      categoria: get("categoria"),
+      precio,
+      unidad: get("unidad"),
+      notas: get("notas"),
+      tienePrecio
+    });
+  }
+  return rows;
+}
+function sheetRowsToMarkdown(rows) {
+  if (!rows.length) return "";
+  const byCategory = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const cat = row.categoria || "Servicios";
+    if (!byCategory.has(cat)) byCategory.set(cat, []);
+    byCategory.get(cat).push(row);
+  }
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "CAT\xC1LOGO BODASESOR \u2014 GOOGLE SHEETS (fuente viva)",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "",
+    "REGLA: Solo cita precios que aparecen en esta tabla. Si no hay precio \u2192 Alejandro cotiza.",
+    ""
+  ];
+  for (const [cat, items] of byCategory) {
+    lines.push(`## ${cat}`, "");
+    for (const item of items) {
+      if (item.tienePrecio && item.precio) {
+        const unit = item.unidad ? ` ${item.unidad}` : "";
+        lines.push(`\u2022 **${item.servicio}**: ${item.precio}${unit}`);
+      } else {
+        lines.push(`\u2022 **${item.servicio}**: sin precio listado \u2014 Alejandro cotiza`);
+      }
+      if (item.notas) lines.push(`  ${item.notas}`);
+    }
+    lines.push("");
+  }
+  return lines.join("\n").trim();
+}
+
+// src/services/gammaCatalog.ts
+var GAMMA_API_BASE = "https://public-api.gamma.app/v1.0";
+function gammaApiKey() {
+  const key = process.env["GAMMA_API_KEY"]?.trim();
+  return key || null;
+}
+function resolveGammaId() {
+  const direct = process.env["GAMMA_CATALOG_GAMMA_ID"]?.trim();
+  if (direct) return direct;
+  const url2 = process.env["GAMMA_CATALOG_URL"]?.trim();
+  if (!url2) return null;
+  const match = url2.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
+  return match?.[1] ?? null;
+}
+function resolveGammaPublicUrl() {
+  return process.env["GAMMA_CATALOG_URL"]?.trim() || null;
+}
+async function fetchGammaMetadata(gammaId) {
+  const apiKey = gammaApiKey();
+  if (!apiKey) return {};
+  const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}`, {
+    headers: {
+      "X-API-KEY": apiKey,
+      Accept: "application/json"
+    },
+    signal: AbortSignal.timeout(2e4)
+  });
+  if (!res.ok) return {};
+  const data = await res.json();
+  const title = typeof data.title === "string" ? data.title : void 0;
+  const url2 = typeof data.gammaUrl === "string" ? data.gammaUrl : typeof data.url === "string" ? data.url : void 0;
+  return { title, url: url2 };
+}
+async function tryGammaExportUrl(gammaId) {
+  const apiKey = gammaApiKey();
+  if (!apiKey) return null;
+  try {
+    const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}/export`, {
+      method: "POST",
+      headers: {
+        "X-API-KEY": apiKey,
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      },
+      body: JSON.stringify({ format: "pdf" }),
+      signal: AbortSignal.timeout(2e4)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.exportId) return null;
+    for (let i3 = 0; i3 < 12; i3++) {
+      await new Promise((r2) => setTimeout(r2, 2500));
+      const poll = await fetch(`${GAMMA_API_BASE}/exports/${data.exportId}`, {
+        headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+        signal: AbortSignal.timeout(15e3)
+      });
+      if (!poll.ok) continue;
+      const status = await poll.json();
+      if (status.status === "completed" && status.exportUrl) return status.exportUrl;
+      if (status.status === "failed") break;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+async function fetchPublishedText(url2) {
+  const res = await fetch(url2, {
+    headers: { "User-Agent": "Lucy-Bodasesor-Catalog/1.0" },
+    signal: AbortSignal.timeout(25e3)
+  });
+  if (!res.ok) throw new Error(`Gamma text URL HTTP ${res.status}`);
+  return res.text();
+}
+async function loadGammaCatalog() {
+  const gammaId = resolveGammaId();
+  const publicUrl = resolveGammaPublicUrl();
+  const textUrl = process.env["GAMMA_CATALOG_TEXT_URL"]?.trim();
+  const staticExport = process.env["GAMMA_CATALOG_EXPORT_URL"]?.trim();
+  if (!gammaId && !publicUrl && !textUrl && !staticExport) return null;
+  const meta = gammaId ? await fetchGammaMetadata(gammaId) : {};
+  const enableExport = process.env["GAMMA_ENABLE_EXPORT_API"]?.trim().toLowerCase() === "true";
+  const exportUrl = staticExport || (gammaId && enableExport ? await tryGammaExportUrl(gammaId) : null);
+  let publishedText = "";
+  if (textUrl) {
+    try {
+      publishedText = await fetchPublishedText(textUrl).then((t) => t.trim());
+    } catch {
+      publishedText = "";
+    }
+  }
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "CAT\xC1LOGO VISUAL GAMMA",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    ""
+  ];
+  if (meta.title) lines.push(`T\xEDtulo: ${meta.title}`, "");
+  if (publicUrl || meta.url) {
+    lines.push(`Enlace Gamma: ${publicUrl || meta.url}`, "");
+  }
+  if (exportUrl) {
+    lines.push(`Export PDF Gamma: ${exportUrl}`, "");
+  }
+  if (publishedText) {
+    lines.push("Contenido publicado:", "", publishedText);
+  } else if (!exportUrl && !publicUrl) {
+    lines.push(
+      "Configura GAMMA_CATALOG_TEXT_URL o GAMMA_CATALOG_URL para que Lucy tenga el contenido visual."
+    );
+  }
+  return {
+    gammaId: gammaId ?? null,
+    title: meta.title ?? null,
+    gammaUrl: publicUrl || meta.url || null,
+    exportUrl,
+    textBlock: lines.join("\n").trim(),
+    fetchedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+
+// src/services/catalogService.ts
+var REFRESH_MS = Number(process.env["CATALOG_REFRESH_MINUTES"] ?? "30") * 6e4;
+var snapshot = null;
+var refreshTimer = null;
+var refreshing = null;
+function emptyStatus() {
+  return {
+    loaded: false,
+    lastRefresh: null,
+    lastError: null,
+    sources: {
+      sheets: false,
+      sheetsRows: 0,
+      sheetsUrl: null,
+      gamma: false,
+      gammaUrl: null,
+      staticFallback: true
+    },
+    pricedServicesCount: 0,
+    noPriceServicesCount: 0
+  };
+}
+function applyPriceIndex(rows) {
+  const priced = rows.filter((r2) => r2.tienePrecio && r2.precio).map((r2) => r2.servicio);
+  const noPrice = rows.filter((r2) => !r2.tienePrecio || !r2.precio).map((r2) => r2.servicio);
+  setCatalogPriceIndex(priced, noPrice);
+}
+function buildPromptBlock(parts2) {
+  const blocks = [];
+  if (parts2.sheetsMd) blocks.push(parts2.sheetsMd);
+  if (parts2.sheetsTextCsv) {
+    blocks.push(
+      [
+        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+        "INFORMACI\xD3N ADICIONAL \u2014 GOOGLE SHEETS (texto)",
+        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+        "",
+        parts2.sheetsTextCsv
+      ].join("\n")
+    );
+  }
+  if (parts2.gammaBlock) blocks.push(parts2.gammaBlock);
+  if (!blocks.length && parts2.useStatic) {
+    return CATALOGO_BODASESOR;
+  }
+  if (parts2.useStatic) {
+    blocks.push(
+      [
+        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+        "CAT\xC1LOGO EST\xC1TICO DE RESPALDO (usar solo si no contradice Sheets/Gamma)",
+        "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+        "",
+        CATALOGO_BODASESOR
+      ].join("\n")
+    );
+  }
+  return blocks.join("\n\n");
+}
+async function refreshCatalog(force = false) {
+  if (refreshing && !force) return refreshing;
+  refreshing = (async () => {
+    const status = emptyStatus();
+    let rows = [];
+    let sheetsMd = "";
+    let sheetsTextExtra = "";
+    try {
+      const sheetsUrl = buildSheetsCsvUrl();
+      status.sources.sheetsUrl = sheetsUrl;
+      if (sheetsUrl) {
+        const csv = await fetchCsvText(sheetsUrl);
+        rows = parseSheetCatalogCsv(csv);
+        if (rows.length) {
+          sheetsMd = sheetRowsToMarkdown(rows);
+          status.sources.sheets = true;
+          status.sources.sheetsRows = rows.length;
+        }
+      }
+      const textUrl = buildSheetsTextCsvUrl();
+      if (textUrl) {
+        const textCsv = await fetchCsvText(textUrl);
+        sheetsTextExtra = textCsv.trim().slice(0, 12e3);
+      }
+      const gamma = await loadGammaCatalog();
+      let gammaBlock = "";
+      if (gamma) {
+        gammaBlock = gamma.textBlock;
+        status.sources.gamma = true;
+        status.sources.gammaUrl = gamma.gammaUrl;
+      }
+      const useStatic = !status.sources.sheets;
+      status.sources.staticFallback = useStatic;
+      const promptBlock = buildPromptBlock({
+        sheetsMd,
+        sheetsTextCsv: sheetsTextExtra,
+        gammaBlock,
+        useStatic
+      });
+      applyPriceIndex(rows);
+      status.loaded = true;
+      status.lastRefresh = (/* @__PURE__ */ new Date()).toISOString();
+      status.pricedServicesCount = rows.filter((r2) => r2.tienePrecio && r2.precio).length;
+      status.noPriceServicesCount = rows.filter((r2) => !r2.tienePrecio || !r2.precio).length;
+      snapshot = { promptBlock, rows, status };
+      return snapshot;
+    } catch (err2) {
+      status.lastError = err2 instanceof Error ? err2.message : String(err2);
+      status.sources.staticFallback = true;
+      applyPriceIndex([]);
+      snapshot = {
+        promptBlock: CATALOGO_BODASESOR,
+        rows: [],
+        status: { ...status, loaded: true, lastRefresh: (/* @__PURE__ */ new Date()).toISOString() }
+      };
+      return snapshot;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+async function getCatalogPromptBlock() {
+  const now = Date.now();
+  const stale = !snapshot?.status.lastRefresh || now - new Date(snapshot.status.lastRefresh).getTime() > REFRESH_MS;
+  if (!snapshot || stale) {
+    await refreshCatalog();
+  }
+  return snapshot?.promptBlock ?? CATALOGO_BODASESOR;
+}
+function getCatalogStatus() {
+  return snapshot?.status ?? emptyStatus();
+}
+function startCatalogAutoRefresh() {
+  void refreshCatalog().catch(() => {
+  });
+  if (refreshTimer) return;
+  refreshTimer = setInterval(() => {
+    void refreshCatalog().catch(() => void 0);
+  }, REFRESH_MS);
+}
+function getCatalogPromptBlockSync() {
+  return snapshot?.promptBlock ?? CATALOGO_BODASESOR;
+}
+
+// src/routes/health.ts
 var router = (0, import_express.Router)();
 router.get("/healthz", (_req, res) => {
   const data = HealthCheckResponse.parse({ status: "ok" });
@@ -76369,7 +78780,8 @@ router.get("/health", (_req, res) => {
     auth_configured: isAuthConfigured(),
     git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
     openai_configured: isOpenAiConfigured(),
-    openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "\u2026" : null
+    openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "\u2026" : null,
+    catalog: getCatalogStatus()
   });
 });
 var health_default = router;
@@ -77243,335 +79655,6 @@ REGLAS FINALES
 
 S\xE9 profesional, conversacional y orientada a ventas.`;
 
-// src/catalogo.ts
-var CATALOGO_BODASESOR = `
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-CAT\xC1LOGO BODASESOR 2026 \u2014 INFORMACI\xD3N COMPLETA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-CONDICIONES GENERALES:
-\u2022 Precios NO incluyen IVA (16%)
-\u2022 Propina 15% recomendada (no obligatoria)
-\u2022 Inversi\xF3n m\xEDnima general: $18,000 MXN por evento (excepto Kosher: $29,000; barras: desde $6,000)
-\u2022 Duraci\xF3n est\xE1ndar banquetes: 5 horas
-\u2022 Barras tem\xE1ticas: 3 horas o hasta agotar producto
-\u2022 Anticipo 50% para apartar fecha
-\u2022 Liquidaci\xF3n 10 d\xEDas antes del evento
-\u2022 Cambios: hasta 30 d\xEDas antes
-\u2022 Formas de pago: efectivo o transferencia
-\u2022 Atendemos de 30 hasta 10,000 personas
-\u2022 Montaje y desmontaje incluidos. Trabajamos en el venue del cliente.
-\u2022 Men\xFAs adaptables a restricciones alimenticias y opci\xF3n vegetariana disponible
-\u2022 Hora extra: $60/pp (m\xEDnimo 10 personas)
-\u2022 Eventos con +100 personas: opci\xF3n de 2 men\xFAs distintos
-\u2022 Prueba de men\xFA: $5,000 MXN para 4 personas (se descuentan $2,500 al confirmar)
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BANQUETE FORMAL
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Cocina internacional: res, pollo, pescado, mariscos. Presentaci\xF3n elegante emplatada.
-
-MEN\xDA 3 TIEMPOS:
-\u2022 B\xE1sico: $750/pp \u2014 entrada o sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
-\u2022 Tradicional: $880/pp \u2014 igual + 2 guarniciones
-\u2022 Premium: $930/pp \u2014 prote\xEDna libre + 2 guarniciones
-
-MEN\xDA 4 TIEMPOS:
-\u2022 B\xE1sico: $800/pp \u2014 entrada + sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
-\u2022 Tradicional: $930/pp \u2014 igual + 2 guarniciones
-\u2022 Premium: $980/pp \u2014 prote\xEDna libre + 2 guarniciones
-
-BUFFET: $1,200/pp (2 prote\xEDnas + opciones de pasta/ensalada/sopa + guarnici\xF3n + postre)
-SOLO ALIMENTOS (sin mobiliario): desde $400/pp (+$150 con vajilla decorativa)
-
-INCLUIDO EN TODOS LOS PAQUETES COMPLETOS:
-\u2022 Mesa redonda con mantel (color a elecci\xF3n) + silla Tiffany + centro de mesa con flores
-\u2022 Vajilla blanca + cuberter\xEDa + cristaler\xEDa (copa + vaso)
-\u2022 Meseros: 1 c/20 personas (B\xE1sico), 1 c/15 (Tradicional), 1 c/10 (Premium)
-\u2022 Barra de bebidas sin alcohol: vitroleros (2 sabores), agua natural, caf\xE9
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BANQUETE MEXICANO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Gastronom\xEDa mexicana: moles, pozoles, ceviches, platillos regionales, salsas artesanales,
-aguas frescas de sabores tradicionales. Diferente al formal en men\xFA, misma calidad de servicio.
-
-MEN\xDA 3 TIEMPOS:
-\u2022 B\xE1sico: $670/pp \u2014 prote\xEDna: lomo o pollo
-\u2022 Tradicional: $770/pp \u2014 2 guarniciones
-\u2022 Premium: $830/pp \u2014 prote\xEDna libre
-
-MEN\xDA 4 TIEMPOS:
-\u2022 B\xE1sico: $720/pp \u2014 prote\xEDna: lomo o pollo
-\u2022 Tradicional: $830/pp \u2014 2 guarniciones
-\u2022 Premium: $880/pp \u2014 prote\xEDna libre
-
-BUFFET: $1,200/pp
-SOLO ALIMENTOS: desde $450/pp
-
-Incluye lo mismo que Banquete Formal (mobiliario, vajilla, meseros, barra sin alcohol).
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BANQUETE NAVIDE\xD1O (solo noviembre\u2013enero)
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Pavos con 3 preparaciones distintas, bacalao, romeritos, decoraci\xF3n festiva incluida.
-Diciembre: alta demanda \u2014 reservar desde octubre.
-
-\u2022 Premium 3 tiempos: $830/pp
-\u2022 Premium 4 tiempos: $880/pp
-\u2022 Buffet Navide\xF1o: $1,200/pp (pollo o lomo incluido; pavo: +$100/pp extra)
-\u2022 Solo alimentos: desde $500/pp
-
-PREGUNTAS FRECUENTES NAVIDE\xD1O:
-\u2022 \xBFEl pavo es por persona? S\xED, porciones individuales.
-\u2022 \xBFEl buffet incluye pavo? El base incluye pollo o lomo. Pavo: +$100/pp.
-\u2022 \xBFCrepas Suzette incluidas? No, tienen costo adicional de $100/pp (flambeado especial).
-\u2022 \xBFCu\xE1ndo reservar? Para diciembre, desde octubre.
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BANQUETE KOSHER
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Certificaci\xF3n Kosher completa + supervisi\xF3n rab\xEDnica permanente.
-Separaci\xF3n absoluta: el evento es 100% L\xC1CTEO (Jalav) O 100% CARNE (Basar) \u2014 nunca mezclados.
-Utensilios Kosher certificados dedicados exclusivamente.
-
-MEN\xDA 3 TIEMPOS:
-\u2022 B\xE1sico: $1,170/pp \u2014 prote\xEDna: lomo o pollo
-\u2022 Tradicional: $1,330/pp \u2014 2 guarniciones
-\u2022 Premium: $1,430/pp \u2014 prote\xEDna libre
-
-MEN\xDA 4 TIEMPOS:
-\u2022 B\xE1sico: $1,250/pp \u2014 prote\xEDna: lomo o pollo
-\u2022 Tradicional: $1,430/pp \u2014 2 guarniciones
-\u2022 Premium: $1,500/pp \u2014 prote\xEDna libre
-
-BUFFET KOSHER: $2,000/pp (2 prote\xEDnas + pasta/ensalada/sopa + guarnici\xF3n + postre)
-SOLO ALIMENTOS KOSHER: $600/pp
-Inversi\xF3n m\xEDnima: $29,000 MXN
-
-INCLUIDO: mismos servicios que Banquete Formal + vajilla y utensilios certificados Kosher.
-
-PREGUNTAS FRECUENTES KOSHER:
-\u2022 \xBFMezclar l\xE1cteos y carne? NUNCA \u2014 las leyes Kosher lo proh\xEDben absolutamente.
-\u2022 \xBFQu\xE9 es parve? Alimentos neutros (frutas, vegetales, huevos, pescado) \u2014 combinables con l\xE1cteos o carne.
-\u2022 \xBFEl vino es Kosher? S\xED, solo vinos y bebidas certificadas Kosher.
-\u2022 \xBFLa supervisi\xF3n rab\xEDnica tiene costo extra? No, est\xE1 incluida en todos los precios.
-\u2022 \xBFPuedo coordinar con mi rabino? S\xED, Alejandro coordina todos los detalles.
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-DESAYUNO / BRUNCH
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\u2022 B\xE1sico: $550/pp (entrada + plato fuerte + jugo + caf\xE9)
-\u2022 Premium: $650/pp (+ 2 guarniciones + pan dulce y salado)
-\u2022 Buffet: $750/pp (fruta + 3 platillos salados + 2 dulces)
-\u2022 Inversi\xF3n m\xEDnima: $18,000 MXN
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-PAELLA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\u2022 Solo alimentos: $450/pp
-\u2022 Tradicional (con mobiliario): $800/pp
-\u2022 Premium: $900/pp
-\u2022 Inversi\xF3n m\xEDnima: $19,500 MXN
-\u2022 Incluye: chistorra, croquetas de serrano, tortilla espa\xF1ola, paella al momento
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-TAQUIZA & PARRILLADA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-TAQUIZA (guisados \u2014 tacos de canasta/cazuela, NO al carb\xF3n):
-\u2022 5 guisados: $300/pp \u2014 arroz, frijol, tortillas, salsas incluidos
-\u2022 6 guisados: $320/pp | Guisado extra: +$20/pp
-\u2022 Vajilla y cubiertos: +$20/pp adicional
-\u2022 Servicio Completo Premium: $750/pp (con mobiliario, cristaler\xEDa, meseros)
-\u2022 M\xEDnimo 40 personas / inversi\xF3n m\xEDnima $10,000 / duraci\xF3n: 3 horas
-
-PARRILLADA MEXICANA (tacos al carb\xF3n \u2014 \u2260 taquiza):
-\u2022 5 platillos: $300/pp \u2014 nopales, cebollitas, tortillas, salsas incluidos
-\u2022 Platillo extra: +$30/pp
-\u2022 Todo incluido (con bebidas sin alcohol): $700/pp
-\u2022 Inversi\xF3n m\xEDnima: $11,000 / duraci\xF3n: 3 horas
-
-PARRILLADA ARGENTINA (cortes premium al carb\xF3n \u2014 5 horas completas):
-\u2022 $900/pp | Inversi\xF3n m\xEDnima: $19,500 MXN
-\u2022 Cortes: Pica\xF1a, New York, Arrachera, Rib Eye, Pollo BBQ
-\u2022 Asador solo alimentos: +$500 adicional
-\u2022 Incluye: mesa, mantel, silla Tiffany, vajilla, cristaler\xEDa, hielos, barra de bebidas sin alcohol
-
-DIFERENCIA CLAVE \u2014 Tacos: preguntarle al cliente si quiere guisados (taquiza) o al carb\xF3n (parrillada).
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BARRA AMERICANA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Comida estilo americano casual. El cliente elige 5 opciones del men\xFA completo.
-Ideal para eventos informales, cumplea\xF1os, graduaciones, fiestas en jard\xEDn.
-
-NIVELES:
-\u2022 B\xE1sica: $350/pp \u2014 3h o hasta agotar, desechables, sin mobiliario, 1 mesero c/50
-\u2022 Completo B\xE1sico: $750/pp \u2014 5h, todo incluido, 1 mesero c/20
-\u2022 Completo Tradicional: $800/pp \u2014 5h, mejor presentaci\xF3n, 1 mesero c/15 (M\xC1S POPULAR)
-\u2022 Completo Premium: $900/pp \u2014 5h, atenci\xF3n VIP 1 mesero c/10, copas de color
-
-Inversi\xF3n m\xEDnima B\xE1sica: $10,500 MXN
-
-LO QUE INCLUYE CADA NIVEL:
-\u2022 B\xE1sica: solo comida + desechables. Sin mobiliario ni bebidas.
-\u2022 Completo B\xE1sico: mesa + mantel + silla Tiffany + centro de mesa + vajilla blanca + cristaler\xEDa copa/vaso
-  + barra de bebidas: aguas (2 sabores), agua natural, caf\xE9
-\u2022 Completo Tradicional: + plato base decorativo + cristaler\xEDa premium completa + margaritas sin alcohol
-  + Coca Light, Coca Normal, Squirt, agua mineral (1 sabor de agua fresca)
-\u2022 Completo Premium: = Tradicional + copas de color (elemento distintivo) + 1 mesero c/10 personas
-
-MEN\xDA COMPLETO \u2014 OPCIONES PRINCIPALES (elegir 5):
-Hamburguesas y hot dogs: mini sliders, mini hot dogs, pulled pork, corn dogs
-Pollo: tiras empanizadas (chicken tenders), alitas BBQ / b\xFAfalo / habanero-miel
-Mini wraps y tacos: burritos tex-mex, mini tacos de carne asada
-Pizzas y pasta: mini pizzas (pepperoni/queso/vegetales), mac & cheese en vasito
-
-ACOMPA\xD1AMIENTOS (tambi\xE9n cuentan como 1 opci\xF3n):
-Papas: a la francesa, papas gajo con especias, tater tots, aros de cebolla empanizados
-Quesos y nachos: nachos con cheddar y jalape\xF1os, chili con carne, mozzarella sticks
-Otros: palomitas saborizadas (mantequilla/queso/caramelo), coleslaw, elotes en vasito (americano o mexicano)
-
-EXTRAS (costo adicional):
-\u2022 Mesero adicional: $800 (5 horas, ideal +150 personas)
-\u2022 Mesa de madera para barra: $600
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-ANTOJITOS & PUESTOS DE COMIDA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Puestos de madera elegantes con cocina mexicana aut\xE9ntica al momento. 3 horas de servicio.
-Ideal para cocktail de bienvenida, complemento al banquete, XV a\xF1os, cumplea\xF1os.
-
-\u2022 $300/pp (8 piezas por persona) \u2014 m\xEDnimo 240 piezas / inversi\xF3n m\xEDnima $9,000
-\u2022 Pieza adicional: $38/pp | Puestos adicionales: $1,500 c/u (1 puesto por cada 100 personas incluido)
-\u2022 Incluye: puesto de madera, desechables, queso fresco, crema, salsas artesanales, personal uniformado
-
-MEN\xDA DISPONIBLE (todo al momento):
-QUESADILLAS FRITAS: queso fundido, chicharr\xF3n en salsa, tinga de pollo o res, papa con especias, hongos con epazote
-FLAUTAS CRUJIENTES: pollo deshebrado, carne deshebrada, papa con queso, queso derretido
-SOPES Y GORDITAS: frijoles, pollo, chorizo, chicharr\xF3n prensado, queso derretido
-MINI TORTAS: cochinita pibil, chilaquiles, tacos de canasta
-ANTOJITOS Y SNACKS: esquites, elotes asados, espiropapas, hot dogs, banderillas
-BEBIDAS Y SNACKS SALUDABLES: ponche de frutas, crudit\xE9s, jicaletas, paletas de sand\xEDa, pepinos con cacahuate
-DULCES Y POSTRES: algodones de az\xFAcar, manzanas chamoy, churros reci\xE9n fritos, crepaletas
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BARRAS TEM\xC1TICAS (otras)
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\u2022 Barra de Pizzas (horno de piedra, chef en vivo): desde $9,515 total (hasta 10 pax) \u2014 3 horas
-  Rangos: 11-15 pax $10,780 | 16-20 $11,385 | 21-25 $12,650 | 26-30 $13,915
-  31-40 $14,575\u2013$15,180 | 41-50 $15,950\u2013$17,050 | 51-60 $18,040\u2013$19,690
-  61-100 $22,110\u2013$29,755 | 101-160 $30,360\u2013$37,400 | +160 pax: $200/pp extra
-\u2022 Barra de Sushi y Poke Bowl: $13,800 fijo (-30 pax) / $460/pp (30+) \u2014 3 horas
-\u2022 Barra de Crepas: $280/pp (5 crepas), $320/pp (6 crepas), Premium $750/pp \u2014 m\xEDn. 40 pax
-\u2022 Barra de Mariscos: $580/pp \u2014 inversi\xF3n m\xEDnima $16,000 \u2014 3 horas
-\u2022 Barra de Pastas y Ensaladas: $380/pp simple ($750/pp completo) \u2014 2 lasa\xF1as + 2 pastas + 2 ensaladas
-\u2022 Barra de Paninis y Ensaladas: $350/pp (4 paninis + 2 ensaladas) / $800/pp completo
-\u2022 Barra Yucateca: $350/pp \u2014 Sopa de Lima, Cochinita Pibil, Panuchos, Papadzules, Empanadas, tortillas frescas
-\u2022 Pozole y Tostadas: $300/pp b\xE1sico ($680/pp completo premium) \u2014 Rojo, Blanco o Verde
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BARRA DE BEBIDAS
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Servicio profesional de bar: barra de madera, bartenders certificados, cristaler\xEDa completa,
-hielo ilimitado. Servicio libre durante 5 horas. Inversi\xF3n m\xEDnima: $6,000 MXN.
-1 barman por cada 50 personas (incluido en el precio).
-
-BARRAS SIN ALCOHOL (3 niveles \u2014 5 horas):
-\u2022 B\xE1sica: $150/pp
-  Incluye: refrescos (Coca Light, Coca Normal, Squirt), agua mineral, agua natural,
-  vitrolero con 1 sabor de agua fresca a elegir (jamaica, lim\xF3n, tamarindo, horchata,
-  pepino-lim\xF3n-menta, sand\xEDa, mel\xF3n, mango)
-
-\u2022 Tradicional: $180/pp
-  Incluye todo lo de B\xE1sica + fruta picada + margaritas sin alcohol (mango y tamarindo)
-  + caf\xE9 y t\xE9 | (solo +$30 sobre B\xE1sica \u2014 MEJOR VALOR)
-
-\u2022 Premium: $200/pp
-  Incluye todo lo de Tradicional + jugos naturales frescos
-
-BARRAS CON ALCOHOL (5 horas \u2014 incluyen autom\xE1ticamente Barra sin Alcohol Tradicional completa):
-\u2022 B\xE1sica: $370/pp
-  Licores: Capit\xE1n Morgan (ron), Cuervo Especial (tequila), Wyborowa (vodka),
-  Black & White (whisky), Larios (gin)
-
-\u2022 Tradicional: $410/pp \u2014 LA M\xC1S POPULAR (solo +$40 sobre b\xE1sica, marcas premium + mezcal)
-  Licores: Bacard\xED (ron), Jos\xE9 Cuervo Tradicional (tequila), Absolut (vodka),
-  Johnnie Walker Red Label (whisky), Diega (gin), Mezcal incluido
-
-\u2022 Premium: $600/pp
-  Licores top shelf: Bacard\xED (ron), Maestro Dobel (tequila), Stolichnaya (vodka),
-  Johnnie Walker Black Label (whisky), Tanqueray (gin), 400 Conejos (mezcal)
-
-EXTRAS (solo como complemento a un paquete de barra \u2014 NO se venden solos):
-\u2022 Cerveza: $35/pieza (servicio libre 5 horas)
-\u2022 Vino tinto o blanco: $50/copa (servicio libre 5 horas)
-
-M\xCDNIMOS EN PERSONAS (inversi\xF3n m\xEDnima $6,000):
-Sin alcohol \u2014 B\xE1sica: 40 pax | Tradicional: 34 pax | Premium: 30 pax
-Con alcohol \u2014 B\xE1sica: 17 pax | Tradicional: 15 pax | Premium: 10 pax
-
-DIFERENCIA CLAVE: Barra de Bebidas = SOLO bebidas. Barra Americana = SOLO comida.
-Se pueden contratar juntas para un evento completo.
-Si el banquete ya incluye bebidas sin alcohol y quieren agregar alcohol:
-Banquete Formal 4T ($800/pp) + Barra con alcohol B\xE1sica ($370/pp) = $1,170/pp completo.
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-BARRA DE CAF\xC9
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-\u2022 $180/pp \u2014 inversi\xF3n m\xEDnima $7,000
-\u2022 Baristas profesionales, caf\xE9 de altura tostado tipo italiano
-\u2022 Bebidas: Americano, Espresso, Capuchino, Latte, Frappuccino, Moka, Vainilla,
-  Chocolate caliente, Chai Latte, Matcha, 9 variedades de t\xE9s
-
-COFFEE BREAK:
-\u2022 Desde $160/pp \u2014 inversi\xF3n m\xEDnima $7,500
-\u2022 Opciones b\xE1sica, intermedia y completa
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-COCTELER\xCDA Y MIXOLOG\xCDA
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-(Servicio de c\xF3cteles especializados \u2014 diferente a Barra de Bebidas)
-\u2022 Cocteler\xEDa Cl\xE1sica: $285/pp (6 c\xF3cteles para 100+ pax / 3 c\xF3cteles para menos)
-\u2022 Mixolog\xEDa Premium: $460/pp \u2014 3 c\xF3cteles exclusivos personalizados (m\xEDn. 40 pax)
-\u2022 Inversi\xF3n m\xEDnima B\xE1sica (2h): $7,000
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-POSTRES & EXTRAS
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-MESA DE DULCES:
-\u2022 $250/pp \u2014 inversi\xF3n m\xEDnima $8,000
-\u2022 15 opciones de dulces a elegir (tradicionales + premium)
-\u2022 Decoraci\xF3n, personalizaci\xF3n y montaje incluido
-
-PASTELES / CUPCAKES:
-\u2022 Bet\xFAn Cl\xE1sico: $35/pc | Bet\xFAn Decorado: $45/pc | Bet\xFAn + Cake Topper: $40/pc
-\u2022 Fondant 2D: $55/pc | Fondant 3D: $60/pc
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-SERVICIOS SIN PRECIO LISTADO \u2192 RODRIGO DA EL PRECIO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-Mobiliario extra (mesas, sillas Tiffany, periqueras, salas lounge), decoraci\xF3n floral,
-estructuras colgantes, pistas de baile personalizadas, vajillas premium, paletas/helados,
-DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
-\u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
-`;
-
 // src/lib/training.ts
 await init_trainingStore();
 
@@ -77661,78 +79744,6 @@ function sanitizeDisplayName(name2) {
 }
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
-}
-
-// src/price-guard.ts
-var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
-var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
-var PRICE_CLAIM_PATTERN = /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
-var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecio\b|\bcosto\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b/i;
-function clientAsksPrice(message) {
-  if (!message?.trim()) return false;
-  return PRICE_QUESTION_PATTERN.test(message);
-}
-function mentionsNoListedPriceService(text2) {
-  return NO_LISTED_PRICE_PATTERN.test(text2);
-}
-function mentionsListedPriceService(text2) {
-  return LISTED_PRICE_PATTERN.test(text2);
-}
-function messageClaimsPrice(mensaje) {
-  return PRICE_CLAIM_PATTERN.test(mensaje);
-}
-function responseHasInventedPrice(mensaje, currentMessage, recentContext) {
-  if (!messageClaimsPrice(mensaje)) return false;
-  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`.toLowerCase();
-  if (mentionsNoListedPriceService(ctx)) return true;
-  if (!mentionsListedPriceService(ctx) && messageClaimsPrice(mensaje)) {
-    return true;
-  }
-  return false;
-}
-function detectServiceLabel(text2) {
-  const t = text2.toLowerCase();
-  if (/\bdj\b/.test(t)) return "DJ";
-  if (/iluminaci[oó]n/.test(t)) return "iluminaci\xF3n";
-  if (/mobiliario/.test(t)) return "mobiliario";
-  if (/carpas?|lonas?/.test(t)) return "carpas";
-  if (/pantallas?/.test(t)) return "pantallas";
-  if (/pista(\s+de\s+baile)?|tarimas?/.test(t)) return "pista de baile";
-  if (/flor/.test(t)) return "florister\xEDa";
-  return "ese servicio";
-}
-function getPriceServiceLabel(text2) {
-  return detectServiceLabel(text2);
-}
-function stripPriceSentences(mensaje) {
-  const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);
-  const kept = sentences.filter((s4) => !PRICE_CLAIM_PATTERN.test(s4));
-  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
-}
-function stripStalePriceTalk(mensaje, currentMessage) {
-  if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
-  if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
-  return mensaje.split(/(?<=[.!?])\s+|\n+/).filter((s4) => !/\bdj\b/i.test(s4) || clientAsksPrice(currentMessage)).filter((s4) => !/alejandro te (incluye|da) el precio/i.test(s4)).join(" ").replace(/\s{2,}/g, " ").trim();
-}
-function buildAlejandroPriceReply(serviceHint) {
-  const svc = serviceHint?.trim() || "ese servicio";
-  return `S\xED, manejamos ${svc}. El precio exacto depende del evento \u2014 Alejandro te lo incluye en tu cotizaci\xF3n personalizada.`;
-}
-function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
-  if (!responseHasInventedPrice(mensaje, currentMessage, recentContext)) {
-    return mensaje;
-  }
-  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`;
-  const service = detectServiceLabel(ctx);
-  const cleaned = stripPriceSentences(mensaje);
-  const safe = buildAlejandroPriceReply(service);
-  if (!cleaned || cleaned.length < 15) return safe;
-  const withoutCorreoInsist = cleaned.replace(/[^.!?\n]*correo[^.!?\n]*\?[^.!?\n]*/gi, "").trim();
-  const base = withoutCorreoInsist.length > 20 ? withoutCorreoInsist : "";
-  if (base && !/alejandro/i.test(base)) {
-    return `${base} ${safe}`.trim();
-  }
-  return safe;
 }
 
 // src/conversation-understanding.ts
@@ -79294,7 +81305,8 @@ function detectObjection(text2) {
 // src/services/promptBuilder.ts
 function buildDynamicPrompt(context) {
   const { hasObjection } = context;
-  let prompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+  const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
+  let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
   if (context.isFirstInteraction) {
     prompt += `
 
@@ -79663,14 +81675,14 @@ function generateSummary(conversationText) {
   return resumen.length <= 240 ? resumen : `${resumen.slice(0, 237)}...`;
 }
 
-// ../node_modules/axios/lib/helpers/bind.js
+// node_modules/axios/lib/helpers/bind.js
 function bind(fn2, thisArg) {
   return function wrap() {
     return fn2.apply(thisArg, arguments);
   };
 }
 
-// ../node_modules/axios/lib/utils.js
+// node_modules/axios/lib/utils.js
 var { toString } = Object.prototype;
 var { getPrototypeOf } = Object;
 var { iterator, toStringTag } = Symbol;
@@ -80147,7 +82159,7 @@ var utils_default = {
   isSafeIterable
 };
 
-// ../node_modules/axios/lib/helpers/parseHeaders.js
+// node_modules/axios/lib/helpers/parseHeaders.js
 var ignoreDuplicateOf = utils_default.toObjectSet([
   "age",
   "authorization",
@@ -80192,7 +82204,7 @@ var parseHeaders_default = (rawHeaders) => {
   return parsed;
 };
 
-// ../node_modules/axios/lib/helpers/sanitizeHeaderValue.js
+// node_modules/axios/lib/helpers/sanitizeHeaderValue.js
 function trimSPorHTAB(str2) {
   let start2 = 0;
   let end = str2.length;
@@ -80230,9 +82242,9 @@ function toByteStringHeaderObject(headers) {
   return byteStringHeaders;
 }
 
-// ../node_modules/axios/lib/core/AxiosHeaders.js
+// node_modules/axios/lib/core/AxiosHeaders.js
 var $internals = /* @__PURE__ */ Symbol("internals");
-function normalizeHeader(header) {
+function normalizeHeader2(header) {
   return header && String(header).trim().toLowerCase();
 }
 function normalizeValue(value) {
@@ -80292,7 +82304,7 @@ var AxiosHeaders = class {
   set(header, valueOrRewrite, rewrite) {
     const self2 = this;
     function setHeader(_value, _header, _rewrite) {
-      const lHeader = normalizeHeader(_header);
+      const lHeader = normalizeHeader2(_header);
       if (!lHeader) {
         return;
       }
@@ -80327,7 +82339,7 @@ var AxiosHeaders = class {
     return this;
   }
   get(header, parser) {
-    header = normalizeHeader(header);
+    header = normalizeHeader2(header);
     if (header) {
       const key = utils_default.findKey(this, header);
       if (key) {
@@ -80349,7 +82361,7 @@ var AxiosHeaders = class {
     }
   }
   has(header, matcher) {
-    header = normalizeHeader(header);
+    header = normalizeHeader2(header);
     if (header) {
       const key = utils_default.findKey(this, header);
       return !!(key && this[key] !== void 0 && (!matcher || matchHeaderValue(this, this[key], key, matcher)));
@@ -80360,7 +82372,7 @@ var AxiosHeaders = class {
     const self2 = this;
     let deleted = false;
     function deleteHeader(_header) {
-      _header = normalizeHeader(_header);
+      _header = normalizeHeader2(_header);
       if (_header) {
         const key = utils_default.findKey(self2, _header);
         if (key && (!matcher || matchHeaderValue(self2, self2[key], key, matcher))) {
@@ -80445,7 +82457,7 @@ var AxiosHeaders = class {
     const accessors = internals.accessors;
     const prototype2 = this.prototype;
     function defineAccessor(_header) {
-      const lHeader = normalizeHeader(_header);
+      const lHeader = normalizeHeader2(_header);
       if (!accessors[lHeader]) {
         buildAccessors(prototype2, _header);
         accessors[lHeader] = true;
@@ -80475,7 +82487,7 @@ utils_default.reduceDescriptors(AxiosHeaders.prototype, ({ value }, key) => {
 utils_default.freezeMethods(AxiosHeaders);
 var AxiosHeaders_default = AxiosHeaders;
 
-// ../node_modules/axios/lib/core/AxiosError.js
+// node_modules/axios/lib/core/AxiosError.js
 var REDACTED = "[REDACTED ****]";
 function hasOwnOrPrototypeToJSON(source) {
   if (utils_default.hasOwnProp(source, "toJSON")) {
@@ -80616,11 +82628,11 @@ AxiosError.ERR_INVALID_URL = "ERR_INVALID_URL";
 AxiosError.ERR_FORM_DATA_DEPTH_EXCEEDED = "ERR_FORM_DATA_DEPTH_EXCEEDED";
 var AxiosError_default = AxiosError;
 
-// ../node_modules/axios/lib/platform/node/classes/FormData.js
+// node_modules/axios/lib/platform/node/classes/FormData.js
 var import_form_data = __toESM(require_form_data(), 1);
 var FormData_default = import_form_data.default;
 
-// ../node_modules/axios/lib/helpers/toFormData.js
+// node_modules/axios/lib/helpers/toFormData.js
 var DEFAULT_FORM_DATA_MAX_DEPTH = 100;
 function isVisitable(thing) {
   return utils_default.isPlainObject(thing) || utils_default.isArray(thing);
@@ -80772,7 +82784,7 @@ function toFormData(obj, formData, options) {
 }
 var toFormData_default = toFormData;
 
-// ../node_modules/axios/lib/helpers/AxiosURLSearchParams.js
+// node_modules/axios/lib/helpers/AxiosURLSearchParams.js
 function encode2(str2) {
   const charMap = {
     "!": "%21",
@@ -80802,7 +82814,7 @@ prototype.toString = function toString2(encoder) {
 };
 var AxiosURLSearchParams_default = AxiosURLSearchParams;
 
-// ../node_modules/axios/lib/helpers/buildURL.js
+// node_modules/axios/lib/helpers/buildURL.js
 function encode3(val) {
   return encodeURIComponent(val).replace(/%3A/gi, ":").replace(/%24/g, "$").replace(/%2C/gi, ",").replace(/%20/g, "+");
 }
@@ -80832,7 +82844,7 @@ function buildURL(url2, params, options) {
   return url2;
 }
 
-// ../node_modules/axios/lib/core/InterceptorManager.js
+// node_modules/axios/lib/core/InterceptorManager.js
 var InterceptorManager = class {
   constructor() {
     this.handlers = [];
@@ -80897,7 +82909,7 @@ var InterceptorManager = class {
 };
 var InterceptorManager_default = InterceptorManager;
 
-// ../node_modules/axios/lib/defaults/transitional.js
+// node_modules/axios/lib/defaults/transitional.js
 var transitional_default = {
   silentJSONParsing: true,
   forcedJSONParsing: true,
@@ -80907,14 +82919,14 @@ var transitional_default = {
   validateStatusUndefinedResolves: true
 };
 
-// ../node_modules/axios/lib/platform/node/index.js
+// node_modules/axios/lib/platform/node/index.js
 import crypto3 from "crypto";
 
-// ../node_modules/axios/lib/platform/node/classes/URLSearchParams.js
+// node_modules/axios/lib/platform/node/classes/URLSearchParams.js
 import url from "url";
 var URLSearchParams_default = url.URLSearchParams;
 
-// ../node_modules/axios/lib/platform/node/index.js
+// node_modules/axios/lib/platform/node/index.js
 var ALPHA = "abcdefghijklmnopqrstuvwxyz";
 var DIGIT = "0123456789";
 var ALPHABET = {
@@ -80944,7 +82956,7 @@ var node_default = {
   protocols: ["http", "https", "file", "data"]
 };
 
-// ../node_modules/axios/lib/platform/common/utils.js
+// node_modules/axios/lib/platform/common/utils.js
 var utils_exports = {};
 __export(utils_exports, {
   hasBrowserEnv: () => hasBrowserEnv,
@@ -80962,13 +82974,13 @@ var hasStandardBrowserWebWorkerEnv = (() => {
 })();
 var origin = hasBrowserEnv && window.location.href || "http://localhost";
 
-// ../node_modules/axios/lib/platform/index.js
+// node_modules/axios/lib/platform/index.js
 var platform_default = {
   ...utils_exports,
   ...node_default
 };
 
-// ../node_modules/axios/lib/helpers/toURLEncodedForm.js
+// node_modules/axios/lib/helpers/toURLEncodedForm.js
 function toURLEncodedForm(data, options) {
   return toFormData_default(data, new platform_default.classes.URLSearchParams(), {
     visitor: function(value, key, path4, helpers) {
@@ -80982,7 +82994,7 @@ function toURLEncodedForm(data, options) {
   });
 }
 
-// ../node_modules/axios/lib/helpers/formDataToJSON.js
+// node_modules/axios/lib/helpers/formDataToJSON.js
 var MAX_DEPTH = DEFAULT_FORM_DATA_MAX_DEPTH;
 function throwIfDepthExceeded(index) {
   if (index > MAX_DEPTH) {
@@ -81050,7 +83062,7 @@ function formDataToJSON(formData) {
 }
 var formDataToJSON_default = formDataToJSON;
 
-// ../node_modules/axios/lib/defaults/index.js
+// node_modules/axios/lib/defaults/index.js
 var own = (obj, key) => obj != null && utils_default.hasOwnProp(obj, key) ? obj[key] : void 0;
 function stringifySafely(rawValue, parser, encoder) {
   if (utils_default.isString(rawValue)) {
@@ -81167,7 +83179,7 @@ utils_default.forEach(["delete", "get", "head", "post", "put", "patch", "query"]
 });
 var defaults_default = defaults3;
 
-// ../node_modules/axios/lib/core/transformData.js
+// node_modules/axios/lib/core/transformData.js
 function transformData(fns, response) {
   const config = this || defaults_default;
   const context = response || config;
@@ -81180,12 +83192,12 @@ function transformData(fns, response) {
   return data;
 }
 
-// ../node_modules/axios/lib/cancel/isCancel.js
+// node_modules/axios/lib/cancel/isCancel.js
 function isCancel(value) {
   return !!(value && value.__CANCEL__);
 }
 
-// ../node_modules/axios/lib/cancel/CanceledError.js
+// node_modules/axios/lib/cancel/CanceledError.js
 var CanceledError = class extends AxiosError_default {
   /**
    * A `CanceledError` is an object that is thrown when an operation is canceled.
@@ -81204,7 +83216,7 @@ var CanceledError = class extends AxiosError_default {
 };
 var CanceledError_default = CanceledError;
 
-// ../node_modules/axios/lib/core/settle.js
+// node_modules/axios/lib/core/settle.js
 function settle(resolve2, reject, response) {
   const validateStatus2 = response.config.validateStatus;
   if (!response.status || !validateStatus2 || validateStatus2(response.status)) {
@@ -81220,7 +83232,7 @@ function settle(resolve2, reject, response) {
   }
 }
 
-// ../node_modules/axios/lib/helpers/isAbsoluteURL.js
+// node_modules/axios/lib/helpers/isAbsoluteURL.js
 function isAbsoluteURL2(url2) {
   if (typeof url2 !== "string") {
     return false;
@@ -81228,12 +83240,12 @@ function isAbsoluteURL2(url2) {
   return /^([a-z][a-z\d+\-.]*:)?\/\//i.test(url2);
 }
 
-// ../node_modules/axios/lib/helpers/combineURLs.js
+// node_modules/axios/lib/helpers/combineURLs.js
 function combineURLs(baseURL, relativeURL) {
   return relativeURL ? baseURL.replace(/\/?\/$/, "") + "/" + relativeURL.replace(/^\/+/, "") : baseURL;
 }
 
-// ../node_modules/axios/lib/core/buildFullPath.js
+// node_modules/axios/lib/core/buildFullPath.js
 var malformedHttpProtocol = /^https?:(?!\/\/)/i;
 var httpProtocolControlCharacters = /[\t\n\r]/g;
 function stripLeadingC0ControlOrSpace(url2) {
@@ -81265,7 +83277,7 @@ function buildFullPath(baseURL, requestedURL, allowAbsoluteUrls, config) {
   return requestedURL;
 }
 
-// ../node_modules/proxy-from-env/index.js
+// node_modules/proxy-from-env/index.js
 var DEFAULT_PORTS = {
   ftp: 21,
   gopher: 70,
@@ -81332,7 +83344,7 @@ function getEnv(key) {
   return process.env[key.toLowerCase()] || process.env[key.toUpperCase()] || "";
 }
 
-// ../node_modules/axios/lib/adapters/http.js
+// node_modules/axios/lib/adapters/http.js
 var import_https_proxy_agent = __toESM(require_dist5(), 1);
 var import_follow_redirects = __toESM(require_follow_redirects(), 1);
 import http from "http";
@@ -81342,16 +83354,16 @@ import util4 from "util";
 import { resolve as resolvePath } from "path";
 import zlib from "zlib";
 
-// ../node_modules/axios/lib/env/data.js
+// node_modules/axios/lib/env/data.js
 var VERSION2 = "1.18.1";
 
-// ../node_modules/axios/lib/helpers/parseProtocol.js
+// node_modules/axios/lib/helpers/parseProtocol.js
 function parseProtocol(url2) {
   const match = /^([-+\w]{1,25}):(?:\/\/)?/.exec(url2);
   return match && match[1] || "";
 }
 
-// ../node_modules/axios/lib/helpers/fromDataURI.js
+// node_modules/axios/lib/helpers/fromDataURI.js
 var DATA_URL_PATTERN = /^([^,;]+\/[^,;]+)?((?:;[^,;=]+=[^,;]+)*)(;base64)?,([\s\S]*)$/;
 function fromDataURI(uri, asBlob, options) {
   const _Blob = options && options.Blob || platform_default.classes.Blob;
@@ -81387,10 +83399,10 @@ function fromDataURI(uri, asBlob, options) {
   throw new AxiosError_default("Unsupported protocol " + protocol, AxiosError_default.ERR_NOT_SUPPORT);
 }
 
-// ../node_modules/axios/lib/adapters/http.js
+// node_modules/axios/lib/adapters/http.js
 import stream3 from "stream";
 
-// ../node_modules/axios/lib/helpers/AxiosTransformStream.js
+// node_modules/axios/lib/helpers/AxiosTransformStream.js
 import stream from "stream";
 var kInternals = /* @__PURE__ */ Symbol("internals");
 var AxiosTransformStream = class extends stream.Transform {
@@ -81513,14 +83525,14 @@ var AxiosTransformStream = class extends stream.Transform {
 };
 var AxiosTransformStream_default = AxiosTransformStream;
 
-// ../node_modules/axios/lib/adapters/http.js
+// node_modules/axios/lib/adapters/http.js
 import { EventEmitter } from "events";
 
-// ../node_modules/axios/lib/helpers/formDataToStream.js
+// node_modules/axios/lib/helpers/formDataToStream.js
 import util2 from "util";
 import { Readable } from "stream";
 
-// ../node_modules/axios/lib/helpers/readBlob.js
+// node_modules/axios/lib/helpers/readBlob.js
 var { asyncIterator } = Symbol;
 var readBlob = async function* (blob) {
   if (blob.stream) {
@@ -81535,7 +83547,7 @@ var readBlob = async function* (blob) {
 };
 var readBlob_default = readBlob;
 
-// ../node_modules/axios/lib/helpers/formDataToStream.js
+// node_modules/axios/lib/helpers/formDataToStream.js
 var BOUNDARY_ALPHABET = platform_default.ALPHABET.ALPHA_DIGIT + "-_";
 var textEncoder = typeof TextEncoder === "function" ? new TextEncoder() : new util2.TextEncoder();
 var CRLF = "\r\n";
@@ -81620,7 +83632,7 @@ var formDataToStream = (form, headersHandler, options) => {
 };
 var formDataToStream_default = formDataToStream;
 
-// ../node_modules/axios/lib/helpers/ZlibHeaderTransformStream.js
+// node_modules/axios/lib/helpers/ZlibHeaderTransformStream.js
 import stream2 from "stream";
 var ZlibHeaderTransformStream = class extends stream2.Transform {
   __transform(chunk, encoding, callback) {
@@ -81642,7 +83654,7 @@ var ZlibHeaderTransformStream = class extends stream2.Transform {
 };
 var ZlibHeaderTransformStream_default = ZlibHeaderTransformStream;
 
-// ../node_modules/axios/lib/helpers/Http2Sessions.js
+// node_modules/axios/lib/helpers/Http2Sessions.js
 import http2 from "http2";
 import util3 from "util";
 var Http2Sessions = class {
@@ -81723,7 +83735,7 @@ var Http2Sessions = class {
 };
 var Http2Sessions_default = Http2Sessions;
 
-// ../node_modules/axios/lib/helpers/callbackify.js
+// node_modules/axios/lib/helpers/callbackify.js
 var callbackify = (fn2, reducer) => {
   return utils_default.isAsyncFn(fn2) ? function(...args2) {
     const cb = args2.pop();
@@ -81738,7 +83750,7 @@ var callbackify = (fn2, reducer) => {
 };
 var callbackify_default = callbackify;
 
-// ../node_modules/axios/lib/helpers/shouldBypassProxy.js
+// node_modules/axios/lib/helpers/shouldBypassProxy.js
 var LOOPBACK_HOSTNAMES = /* @__PURE__ */ new Set(["localhost", "0.0.0.0"]);
 var isIPv4Loopback = (host) => {
   const parts2 = host.split(".");
@@ -81877,7 +83889,7 @@ function shouldBypassProxy(location2) {
   });
 }
 
-// ../node_modules/axios/lib/helpers/speedometer.js
+// node_modules/axios/lib/helpers/speedometer.js
 function speedometer(samplesCount, min) {
   samplesCount = samplesCount || 10;
   const bytes = new Array(samplesCount);
@@ -81913,7 +83925,7 @@ function speedometer(samplesCount, min) {
 }
 var speedometer_default = speedometer;
 
-// ../node_modules/axios/lib/helpers/throttle.js
+// node_modules/axios/lib/helpers/throttle.js
 function throttle(fn2, freq) {
   let timestamp2 = 0;
   let threshold = 1e3 / freq;
@@ -81948,7 +83960,7 @@ function throttle(fn2, freq) {
 }
 var throttle_default = throttle;
 
-// ../node_modules/axios/lib/helpers/progressEventReducer.js
+// node_modules/axios/lib/helpers/progressEventReducer.js
 var progressEventReducer = (listener, isDownloadStream, freq = 3) => {
   let bytesNotified = 0;
   const _speedometer = speedometer_default(50, 250);
@@ -81989,7 +84001,7 @@ var progressEventDecorator = (total, throttled) => {
 };
 var asyncDecorator = (fn2) => (...args2) => utils_default.asap(() => fn2(...args2));
 
-// ../node_modules/axios/lib/helpers/estimateDataURLDecodedBytes.js
+// node_modules/axios/lib/helpers/estimateDataURLDecodedBytes.js
 var isHexDigit = (charCode) => charCode >= 48 && charCode <= 57 || charCode >= 65 && charCode <= 70 || charCode >= 97 && charCode <= 102;
 var isPercentEncodedByte = (str2, i3, len) => i3 + 2 < len && isHexDigit(str2.charCodeAt(i3 + 1)) && isHexDigit(str2.charCodeAt(i3 + 2));
 function estimateDataURLDecodedBytes(url2) {
@@ -82064,7 +84076,7 @@ function estimateDataURLDecodedBytes(url2) {
   return bytes;
 }
 
-// ../node_modules/axios/lib/adapters/http.js
+// node_modules/axios/lib/adapters/http.js
 var zlibOptions = {
   flush: zlib.constants.Z_SYNC_FLUSH,
   finishFlush: zlib.constants.Z_SYNC_FLUSH
@@ -83037,7 +85049,7 @@ var http_default = isHttpAdapterSupported && function httpAdapter(config) {
   });
 };
 
-// ../node_modules/axios/lib/helpers/isURLSameOrigin.js
+// node_modules/axios/lib/helpers/isURLSameOrigin.js
 var isURLSameOrigin_default = platform_default.hasStandardBrowserEnv ? /* @__PURE__ */ ((origin2, isMSIE) => (url2) => {
   url2 = new URL(url2, platform_default.origin);
   return origin2.protocol === url2.protocol && origin2.host === url2.host && (isMSIE || origin2.port === url2.port);
@@ -83046,7 +85058,7 @@ var isURLSameOrigin_default = platform_default.hasStandardBrowserEnv ? /* @__PUR
   platform_default.navigator && /(msie|trident)/i.test(platform_default.navigator.userAgent)
 ) : () => true;
 
-// ../node_modules/axios/lib/helpers/cookies.js
+// node_modules/axios/lib/helpers/cookies.js
 var cookies_default = platform_default.hasStandardBrowserEnv ? (
   // Standard browser envs support document.cookie
   {
@@ -83075,12 +85087,12 @@ var cookies_default = platform_default.hasStandardBrowserEnv ? (
       const cookies = document.cookie.split(";");
       for (let i3 = 0; i3 < cookies.length; i3++) {
         const cookie = cookies[i3].replace(/^\s+/, "");
-        const eq2 = cookie.indexOf("=");
-        if (eq2 !== -1 && cookie.slice(0, eq2) === name2) {
+        const eq3 = cookie.indexOf("=");
+        if (eq3 !== -1 && cookie.slice(0, eq3) === name2) {
           try {
-            return decodeURIComponent(cookie.slice(eq2 + 1));
+            return decodeURIComponent(cookie.slice(eq3 + 1));
           } catch (e) {
-            return cookie.slice(eq2 + 1);
+            return cookie.slice(eq3 + 1);
           }
         }
       }
@@ -83103,7 +85115,7 @@ var cookies_default = platform_default.hasStandardBrowserEnv ? (
   }
 );
 
-// ../node_modules/axios/lib/core/mergeConfig.js
+// node_modules/axios/lib/core/mergeConfig.js
 var headersToObject = (thing) => thing instanceof AxiosHeaders_default ? { ...thing } : thing;
 function mergeConfig(config1, config2) {
   config1 = config1 || {};
@@ -83221,7 +85233,7 @@ function mergeConfig(config1, config2) {
   return config;
 }
 
-// ../node_modules/axios/lib/helpers/resolveConfig.js
+// node_modules/axios/lib/helpers/resolveConfig.js
 var FORM_DATA_CONTENT_HEADERS2 = ["content-type", "content-length"];
 function setFormDataHeaders2(headers, formHeaders, policy) {
   if (policy !== "content-only") {
@@ -83291,7 +85303,7 @@ function resolveConfig(config) {
 }
 var resolveConfig_default = resolveConfig;
 
-// ../node_modules/axios/lib/adapters/xhr.js
+// node_modules/axios/lib/adapters/xhr.js
 var isXHRAdapterSupported = typeof XMLHttpRequest !== "undefined";
 var xhr_default = isXHRAdapterSupported && function(config) {
   return new Promise(function dispatchXhrRequest(resolve2, reject) {
@@ -83438,7 +85450,7 @@ var xhr_default = isXHRAdapterSupported && function(config) {
   });
 };
 
-// ../node_modules/axios/lib/helpers/composeSignals.js
+// node_modules/axios/lib/helpers/composeSignals.js
 var composeSignals = (signals, timeout) => {
   signals = signals ? signals.filter(Boolean) : [];
   if (!timeout && !signals.length) {
@@ -83478,7 +85490,7 @@ var composeSignals = (signals, timeout) => {
 };
 var composeSignals_default = composeSignals;
 
-// ../node_modules/axios/lib/helpers/trackStream.js
+// node_modules/axios/lib/helpers/trackStream.js
 var streamChunk = function* (chunk, chunkSize) {
   let len = chunk.byteLength;
   if (!chunkSize || len < chunkSize) {
@@ -83558,7 +85570,7 @@ var trackStream = (stream4, chunkSize, onProgress, onFinish) => {
   );
 };
 
-// ../node_modules/axios/lib/adapters/fetch.js
+// node_modules/axios/lib/adapters/fetch.js
 var DEFAULT_CHUNK_SIZE = 64 * 1024;
 var { isFunction: isFunction2 } = utils_default;
 var encodeUTF83 = (str2) => encodeURIComponent(str2).replace(
@@ -83975,7 +85987,7 @@ var getFetch = (config) => {
 };
 var adapter = getFetch();
 
-// ../node_modules/axios/lib/adapters/adapters.js
+// node_modules/axios/lib/adapters/adapters.js
 var knownAdapters = {
   http: http_default,
   xhr: xhr_default,
@@ -84040,7 +86052,7 @@ var adapters_default = {
   adapters: knownAdapters
 };
 
-// ../node_modules/axios/lib/core/dispatchRequest.js
+// node_modules/axios/lib/core/dispatchRequest.js
 function throwIfCancellationRequested(config) {
   if (config.cancelToken) {
     config.cancelToken.throwIfRequested();
@@ -84091,7 +86103,7 @@ function dispatchRequest(config) {
   );
 }
 
-// ../node_modules/axios/lib/helpers/validator.js
+// node_modules/axios/lib/helpers/validator.js
 var validators = {};
 ["object", "boolean", "number", "function", "string", "symbol"].forEach((type, i3) => {
   validators[type] = function validator(thing) {
@@ -84099,23 +86111,23 @@ var validators = {};
   };
 });
 var deprecatedWarnings = {};
-validators.transitional = function transitional(validator, version2, message) {
-  function formatMessage(opt, desc2) {
-    return "[Axios v" + VERSION2 + "] Transitional option '" + opt + "'" + desc2 + (message ? ". " + message : "");
+validators.transitional = function transitional(validator, version3, message) {
+  function formatMessage(opt, desc3) {
+    return "[Axios v" + VERSION2 + "] Transitional option '" + opt + "'" + desc3 + (message ? ". " + message : "");
   }
   return (value, opt, opts) => {
     if (validator === false) {
       throw new AxiosError_default(
-        formatMessage(opt, " has been removed" + (version2 ? " in " + version2 : "")),
+        formatMessage(opt, " has been removed" + (version3 ? " in " + version3 : "")),
         AxiosError_default.ERR_DEPRECATED
       );
     }
-    if (version2 && !deprecatedWarnings[opt]) {
+    if (version3 && !deprecatedWarnings[opt]) {
       deprecatedWarnings[opt] = true;
       console.warn(
         formatMessage(
           opt,
-          " has been deprecated since v" + version2 + " and will be removed in the near future"
+          " has been deprecated since v" + version3 + " and will be removed in the near future"
         )
       );
     }
@@ -84158,7 +86170,7 @@ var validator_default = {
   validators
 };
 
-// ../node_modules/axios/lib/core/Axios.js
+// node_modules/axios/lib/core/Axios.js
 var validators2 = validator_default.validators;
 var Axios = class {
   constructor(instanceConfig) {
@@ -84362,7 +86374,7 @@ utils_default.forEach(["post", "put", "patch", "query"], function forEachMethodW
 });
 var Axios_default = Axios;
 
-// ../node_modules/axios/lib/cancel/CancelToken.js
+// node_modules/axios/lib/cancel/CancelToken.js
 var CancelToken = class _CancelToken {
   constructor(executor) {
     if (typeof executor !== "function") {
@@ -84460,19 +86472,19 @@ var CancelToken = class _CancelToken {
 };
 var CancelToken_default = CancelToken;
 
-// ../node_modules/axios/lib/helpers/spread.js
+// node_modules/axios/lib/helpers/spread.js
 function spread(callback) {
   return function wrap(arr) {
     return callback.apply(null, arr);
   };
 }
 
-// ../node_modules/axios/lib/helpers/isAxiosError.js
+// node_modules/axios/lib/helpers/isAxiosError.js
 function isAxiosError(payload) {
   return utils_default.isObject(payload) && payload.isAxiosError === true;
 }
 
-// ../node_modules/axios/lib/helpers/HttpStatusCode.js
+// node_modules/axios/lib/helpers/HttpStatusCode.js
 var HttpStatusCode = {
   Continue: 100,
   SwitchingProtocols: 101,
@@ -84549,7 +86561,7 @@ Object.entries(HttpStatusCode).forEach(([key, value]) => {
 });
 var HttpStatusCode_default = HttpStatusCode;
 
-// ../node_modules/axios/lib/axios.js
+// node_modules/axios/lib/axios.js
 function createInstance(defaultConfig) {
   const context = new Axios_default(defaultConfig);
   const instance2 = bind(Axios_default.prototype.request, context);
@@ -84582,7 +86594,7 @@ axios.HttpStatusCode = HttpStatusCode_default;
 axios.default = axios;
 var axios_default = axios;
 
-// ../node_modules/axios/index.js
+// node_modules/axios/index.js
 var {
   Axios: Axios2,
   AxiosError: AxiosError2,
@@ -84604,7 +86616,7 @@ var {
 } = axios_default;
 
 // src/services/whatsappDirectSender.ts
-init_logger2();
+init_logger3();
 var WHATSAPP_TOKEN = process.env["WHATSAPP_TOKEN"];
 var PHONE_NUMBER_ID = process.env["PHONE_NUMBER_ID"];
 var META_API_VERSION = "v25.0";
@@ -85339,7 +87351,7 @@ async function processBatch(batch, accessToken, log) {
       }
     }
     let conversation = await db.query.conversations.findFirst({
-      where: eq(conversations.kommoLeadId, String(entityId))
+      where: eq2(conversations.kommoLeadId, String(entityId))
     });
     if (!conversation) {
       const [newConv] = await db.insert(conversations).values({
@@ -85395,9 +87407,9 @@ async function processBatch(batch, accessToken, log) {
     ].join(" ");
     if (extracted.tipo_contacto === "proveedor") {
       const empresa = extracted.empresa ?? "";
-      const desc2 = extracted.requerimientos_evento ?? "";
-      if (empresa || desc2) {
-        const resumenProv = `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${desc2}`.slice(0, 240);
+      const desc3 = extracted.requerimientos_evento ?? "";
+      if (empresa || desc3) {
+        const resumenProv = `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${desc3}`.slice(0, 240);
         extracted.requerimientos_evento = resumenProv;
         log.info({ resumenProv }, "Resumen proveedor generado");
       }
@@ -85431,6 +87443,7 @@ async function processBatch(batch, accessToken, log) {
     const leadScore = calculateLeadScore(scoreContext);
     const stage = detectStage(scoreContext);
     log.info({ score: leadScore.total, priority: leadScore.priority, stage }, "Lead scoring complete");
+    const catalogBlock = await getCatalogPromptBlock();
     const dynamicPrompt = buildDynamicPrompt({
       stage,
       priority: leadScore.priority,
@@ -85438,7 +87451,8 @@ async function processBatch(batch, accessToken, log) {
       hasObjection: objectionResult.hasObjection ? objectionResult : void 0,
       crmContext,
       isFirstInteraction,
-      hasClientName: filledLabels.has("Nombre del cliente")
+      hasClientName: filledLabels.has("Nombre del cliente"),
+      catalogBlock
     });
     const trainingExamples2 = await getTrainingExamples();
     const fewShot = trainingExamples2.flatMap((ex) => [
@@ -85639,9 +87653,9 @@ async function processBatch(batch, accessToken, log) {
       sentiment: sentimentResult.sentiment,
       stage,
       updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq(conversations.id, conversation.id)).catch((dbErr) => log.warn({ dbErr }, "No se pudo actualizar conversaci\xF3n en BD (no cr\xEDtico)"));
+    }).where(eq2(conversations.id, conversation.id)).catch((dbErr) => log.warn({ dbErr }, "No se pudo actualizar conversaci\xF3n en BD (no cr\xEDtico)"));
     void db.query.leadScores.findFirst({
-      where: eq(leadScores.kommoLeadId, String(entityId))
+      where: eq2(leadScores.kommoLeadId, String(entityId))
     }).then((existingScore) => {
       if (existingScore) {
         return db.update(leadScores).set({
@@ -85654,7 +87668,7 @@ async function processBatch(batch, accessToken, log) {
           intentScore: leadScore.factors.intentScore,
           reasoning: leadScore.reasoning,
           updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq(leadScores.id, existingScore.id));
+        }).where(eq2(leadScores.id, existingScore.id));
       } else {
         return db.insert(leadScores).values({
           kommoLeadId: String(entityId),
@@ -85863,7 +87877,8 @@ router3.post("/kommo/salesbot", async (req, res) => {
     const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
     const salesbotMergedLines = crmResultFinal.mergedLines;
     salesbotFilledLabels = crmResultFinal.filledLabels;
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+    const catalogBlock = await getCatalogPromptBlock();
+    const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
     const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
     const trainingExamples2 = await getTrainingExamples();
     const fewShot = trainingExamples2.flatMap((ex) => [
@@ -86129,9 +88144,9 @@ var SIMULATOR_CF_TO_KOMMO = {
 };
 function buildCrmLinesFromSimulator(lead) {
   const cf = lead.custom_fields ?? {};
-  const snapshot = cf["cf_crm_snapshot"];
-  if (typeof snapshot === "string" && snapshot.trim()) {
-    const lines2 = snapshot.split("\n").map((l4) => l4.trim()).filter(Boolean).map((l4) => l4.startsWith("- ") ? l4 : `- ${l4}`);
+  const snapshot2 = cf["cf_crm_snapshot"];
+  if (typeof snapshot2 === "string" && snapshot2.trim()) {
+    const lines2 = snapshot2.split("\n").map((l4) => l4.trim()).filter(Boolean).map((l4) => l4.startsWith("- ") ? l4 : `- ${l4}`);
     const lastLucy2 = cf["cf_respuesta_ia_1"];
     const lastLucyResponse2 = typeof lastLucy2 === "string" && lastLucy2.trim() ? lastLucy2.trim() : null;
     return { crmLines: lines2, lastLucyResponse: lastLucyResponse2 };
@@ -86241,7 +88256,8 @@ router3.post("/kommo/simulator", async (req, res) => {
       { role: "user", content: ex.userMessage },
       { role: "assistant", content: ex.lucyResponse }
     ]);
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+    const catalogBlock = await getCatalogPromptBlock();
+    const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
     const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
     const lucyMessages = [
       { role: "system", content: systemContent },
@@ -86425,22 +88441,22 @@ var router6 = (0, import_express6.Router)();
 router6.use(requireAuth);
 router6.get("/analytics/overview", async (_req, res) => {
   try {
-    const [totalResult] = await db.select({ count: sql`count(*)` }).from(conversations);
+    const [totalResult] = await db.select({ count: sql2`count(*)` }).from(conversations);
     const totalConversations = Number(totalResult?.count ?? 0);
-    const [activeResult] = await db.select({ count: sql`count(*)` }).from(conversations).where(eq(conversations.status, "active"));
+    const [activeResult] = await db.select({ count: sql2`count(*)` }).from(conversations).where(eq2(conversations.status, "active"));
     const activeConversations = Number(activeResult?.count ?? 0);
-    const [hotResult] = await db.select({ count: sql`count(*)` }).from(leadScores).where(eq(leadScores.priority, "hot"));
-    const [warmResult] = await db.select({ count: sql`count(*)` }).from(leadScores).where(eq(leadScores.priority, "warm"));
-    const [coldResult] = await db.select({ count: sql`count(*)` }).from(leadScores).where(eq(leadScores.priority, "cold"));
+    const [hotResult] = await db.select({ count: sql2`count(*)` }).from(leadScores).where(eq2(leadScores.priority, "hot"));
+    const [warmResult] = await db.select({ count: sql2`count(*)` }).from(leadScores).where(eq2(leadScores.priority, "warm"));
+    const [coldResult] = await db.select({ count: sql2`count(*)` }).from(leadScores).where(eq2(leadScores.priority, "cold"));
     const hotLeads = Number(hotResult?.count ?? 0);
     const warmLeads = Number(warmResult?.count ?? 0);
     const coldLeads = Number(coldResult?.count ?? 0);
-    const avgScoreResult = await db.select({ avg: sql`AVG(${leadScores.totalScore})` }).from(leadScores);
+    const avgScoreResult = await db.select({ avg: sql2`AVG(${leadScores.totalScore})` }).from(leadScores);
     const averageScore = Math.round(Number(avgScoreResult[0]?.avg ?? 0));
     const stageDistribution = await db.select({
       stage: conversations.stage,
-      count: sql`count(*)`
-    }).from(conversations).where(eq(conversations.status, "active")).groupBy(conversations.stage);
+      count: sql2`count(*)`
+    }).from(conversations).where(eq2(conversations.status, "active")).groupBy(conversations.stage);
     const topLeads = await db.select({
       id: conversations.id,
       kommoLeadId: conversations.kommoLeadId,
@@ -86450,7 +88466,7 @@ router6.get("/analytics/overview", async (_req, res) => {
       priority: leadScores.priority,
       stage: conversations.stage,
       createdAt: conversations.createdAt
-    }).from(conversations).leftJoin(leadScores, eq(conversations.kommoLeadId, leadScores.kommoLeadId)).where(eq(conversations.status, "active")).orderBy(desc(leadScores.totalScore)).limit(5);
+    }).from(conversations).leftJoin(leadScores, eq2(conversations.kommoLeadId, leadScores.kommoLeadId)).where(eq2(conversations.status, "active")).orderBy(desc2(leadScores.totalScore)).limit(5);
     res.json({
       overview: {
         totalConversations,
@@ -86473,8 +88489,8 @@ router6.get("/analytics/conversations", async (req, res) => {
     const priorityFilter = typeof priority === "string" ? priority : void 0;
     const stageFilter = typeof stage === "string" ? stage : void 0;
     const conditions = [];
-    if (priorityFilter) conditions.push(eq(leadScores.priority, priorityFilter));
-    if (stageFilter) conditions.push(eq(conversations.stage, stageFilter));
+    if (priorityFilter) conditions.push(eq2(leadScores.priority, priorityFilter));
+    if (stageFilter) conditions.push(eq2(conversations.stage, stageFilter));
     const baseQuery = db.select({
       id: conversations.id,
       kommoLeadId: conversations.kommoLeadId,
@@ -86494,8 +88510,8 @@ router6.get("/analytics/conversations", async (req, res) => {
       score: leadScores.totalScore,
       priority: leadScores.priority,
       reasoning: leadScores.reasoning
-    }).from(conversations).leftJoin(leadScores, eq(conversations.kommoLeadId, leadScores.kommoLeadId));
-    const results = conditions.length > 0 ? await baseQuery.where(and(...conditions)).orderBy(desc(conversations.updatedAt)).limit(parseInt(limit2)) : await baseQuery.orderBy(desc(conversations.updatedAt)).limit(parseInt(limit2));
+    }).from(conversations).leftJoin(leadScores, eq2(conversations.kommoLeadId, leadScores.kommoLeadId));
+    const results = conditions.length > 0 ? await baseQuery.where(and2(...conditions)).orderBy(desc2(conversations.updatedAt)).limit(parseInt(limit2)) : await baseQuery.orderBy(desc2(conversations.updatedAt)).limit(parseInt(limit2));
     res.json({ conversations: results });
   } catch (err2) {
     req.log?.error(err2);
@@ -86506,16 +88522,16 @@ router6.get("/analytics/conversation/:kommoLeadId", async (req, res) => {
   try {
     const { kommoLeadId } = req.params;
     const conversation = await db.query.conversations.findFirst({
-      where: eq(conversations.kommoLeadId, kommoLeadId)
+      where: eq2(conversations.kommoLeadId, kommoLeadId)
     });
     if (!conversation) {
       res.status(404).json({ error: "Conversaci\xF3n no encontrada" });
       return;
     }
     const score = await db.query.leadScores.findFirst({
-      where: eq(leadScores.kommoLeadId, kommoLeadId)
+      where: eq2(leadScores.kommoLeadId, kommoLeadId)
     });
-    const messageHistory = await db.select().from(messages).where(eq(messages.kommoLeadId, kommoLeadId)).orderBy(messages.timestamp);
+    const messageHistory = await db.select().from(messages).where(eq2(messages.kommoLeadId, kommoLeadId)).orderBy(messages.timestamp);
     res.json({ conversation, score, messages: messageHistory });
   } catch (err2) {
     req.log?.error(err2);
@@ -86527,16 +88543,16 @@ router6.get("/analytics/metrics/daily", async (_req, res) => {
     const thirtyDaysAgo = /* @__PURE__ */ new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const conversationsByDay = await db.select({
-      date: sql`DATE(${conversations.createdAt})`,
-      count: sql`count(*)`
-    }).from(conversations).where(gte(conversations.createdAt, thirtyDaysAgo)).groupBy(sql`DATE(${conversations.createdAt})`).orderBy(sql`DATE(${conversations.createdAt})`);
+      date: sql2`DATE(${conversations.createdAt})`,
+      count: sql2`count(*)`
+    }).from(conversations).where(gte2(conversations.createdAt, thirtyDaysAgo)).groupBy(sql2`DATE(${conversations.createdAt})`).orderBy(sql2`DATE(${conversations.createdAt})`);
     const scoresByDay = await db.select({
-      date: sql`DATE(${leadScores.calculatedAt})`,
-      avgScore: sql`AVG(${leadScores.totalScore})`,
-      hotCount: sql`SUM(CASE WHEN ${leadScores.priority} = 'hot' THEN 1 ELSE 0 END)`,
-      warmCount: sql`SUM(CASE WHEN ${leadScores.priority} = 'warm' THEN 1 ELSE 0 END)`,
-      coldCount: sql`SUM(CASE WHEN ${leadScores.priority} = 'cold' THEN 1 ELSE 0 END)`
-    }).from(leadScores).where(gte(leadScores.calculatedAt, thirtyDaysAgo)).groupBy(sql`DATE(${leadScores.calculatedAt})`).orderBy(sql`DATE(${leadScores.calculatedAt})`);
+      date: sql2`DATE(${leadScores.calculatedAt})`,
+      avgScore: sql2`AVG(${leadScores.totalScore})`,
+      hotCount: sql2`SUM(CASE WHEN ${leadScores.priority} = 'hot' THEN 1 ELSE 0 END)`,
+      warmCount: sql2`SUM(CASE WHEN ${leadScores.priority} = 'warm' THEN 1 ELSE 0 END)`,
+      coldCount: sql2`SUM(CASE WHEN ${leadScores.priority} = 'cold' THEN 1 ELSE 0 END)`
+    }).from(leadScores).where(gte2(leadScores.calculatedAt, thirtyDaysAgo)).groupBy(sql2`DATE(${leadScores.calculatedAt})`).orderBy(sql2`DATE(${leadScores.calculatedAt})`);
     res.json({ conversationsByDay, scoresByDay });
   } catch (err2) {
     const log = _req.log;
@@ -86548,20 +88564,20 @@ router6.get("/analytics/stats", async (_req, res) => {
   try {
     const eventTypes = await db.select({
       eventType: conversations.eventType,
-      count: sql`count(*)`
-    }).from(conversations).where(sql`${conversations.eventType} IS NOT NULL`).groupBy(conversations.eventType).orderBy(desc(sql`count(*)`)).limit(10);
+      count: sql2`count(*)`
+    }).from(conversations).where(sql2`${conversations.eventType} IS NOT NULL`).groupBy(conversations.eventType).orderBy(desc2(sql2`count(*)`)).limit(10);
     const intents = await db.select({
       intent: messages.intent,
-      count: sql`count(*)`
-    }).from(messages).where(sql`${messages.intent} IS NOT NULL`).groupBy(messages.intent).orderBy(desc(sql`count(*)`));
+      count: sql2`count(*)`
+    }).from(messages).where(sql2`${messages.intent} IS NOT NULL`).groupBy(messages.intent).orderBy(desc2(sql2`count(*)`));
     const sentimentDist = await db.select({
       sentiment: conversations.sentiment,
-      count: sql`count(*)`
+      count: sql2`count(*)`
     }).from(conversations).groupBy(conversations.sentiment);
     const stageConversion = await db.select({
       stage: conversations.stage,
-      count: sql`count(*)`
-    }).from(conversations).groupBy(conversations.stage).orderBy(desc(sql`count(*)`));
+      count: sql2`count(*)`
+    }).from(conversations).groupBy(conversations.stage).orderBy(desc2(sql2`count(*)`));
     res.json({ eventTypes, intents, sentimentDistribution: sentimentDist, stageConversion });
   } catch (err2) {
     const log = _req.log;
@@ -86589,13 +88605,13 @@ router7.post("/auth/login", async (req, res) => {
       return;
     }
     const user = await db.query.users.findFirst({
-      where: eq(users.email, email)
+      where: eq2(users.email, email)
     });
     if (!user || user.passwordHash !== hashPassword(password)) {
       res.status(401).json({ error: "Credenciales inv\xE1lidas" });
       return;
     }
-    await db.update(users).set({ lastLoginAt: /* @__PURE__ */ new Date() }).where(eq(users.id, user.id));
+    await db.update(users).set({ lastLoginAt: /* @__PURE__ */ new Date() }).where(eq2(users.id, user.id));
     const token = isAuthConfigured() ? signSessionToken({
       userId: user.id,
       email: user.email,
@@ -86624,7 +88640,7 @@ router7.post("/auth/create-user", async (req, res) => {
       return;
     }
     const existing = await db.query.users.findFirst({
-      where: eq(users.email, email)
+      where: eq2(users.email, email)
     });
     if (existing) {
       res.status(400).json({ error: "Usuario ya existe" });
@@ -86657,7 +88673,7 @@ router7.get("/auth/me", async (req, res) => {
     res.status(401).json({ error: "invalid_or_expired_token" });
     return;
   }
-  const [user] = await db.select().from(users).where(eq(users.id, payload.userId)).limit(1);
+  const [user] = await db.select().from(users).where(eq2(users.id, payload.userId)).limit(1);
   if (!user) {
     res.status(401).json({ error: "user_not_found" });
     return;
@@ -86670,19 +88686,42 @@ var auth_default = router7;
 
 // src/routes/index.ts
 await init_learning();
+
+// src/routes/catalog.ts
+var import_express8 = __toESM(require_express2(), 1);
+init_requireAuth();
 var router8 = (0, import_express8.Router)();
-router8.use(health_default);
-router8.use(kommo_default);
-router8.use(lucy_default);
-router8.use(auth_default);
-router8.use(examples_default);
-router8.use(learning_default);
-router8.use(analytics_default);
-var routes_default = router8;
+router8.get("/catalog/status", (_req, res) => {
+  res.json({ status: "ok", catalog: getCatalogStatus() });
+});
+router8.post("/catalog/refresh", requireAuth, async (_req, res) => {
+  try {
+    const snap = await refreshCatalog(true);
+    res.json({ status: "ok", catalog: snap.status });
+  } catch (err2) {
+    res.status(500).json({
+      status: "error",
+      error: err2 instanceof Error ? err2.message : String(err2)
+    });
+  }
+});
+var catalog_default = router8;
+
+// src/routes/index.ts
+var router9 = (0, import_express9.Router)();
+router9.use(health_default);
+router9.use(catalog_default);
+router9.use(kommo_default);
+router9.use(lucy_default);
+router9.use(auth_default);
+router9.use(examples_default);
+router9.use(learning_default);
+router9.use(analytics_default);
+var routes_default = router9;
 
 // src/app.ts
-init_logger2();
-var app = (0, import_express9.default)();
+init_logger3();
+var app = (0, import_express10.default)();
 var simuladorDir = path3.join(__dirname, "simulador");
 var simuladorIndex = path3.join(simuladorDir, "index.html");
 app.use(
@@ -86705,13 +88744,13 @@ app.use(
   })
 );
 app.use((0, import_cors.default)());
-app.use(import_express9.default.json());
-app.use(import_express9.default.urlencoded({ extended: true }));
+app.use(import_express10.default.json());
+app.use(import_express10.default.urlencoded({ extended: true }));
 function mountSimulador(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(simuladorIndex);
   });
-  app.use(basePath, import_express9.default.static(simuladorDir, { index: false }));
+  app.use(basePath, import_express10.default.static(simuladorDir, { index: false }));
 }
 mountSimulador("/simulador");
 mountSimulador("/simulator");
@@ -86721,7 +88760,7 @@ function mountAdmin(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(adminIndex);
   });
-  app.use(basePath, import_express9.default.static(adminDir, { index: false }));
+  app.use(basePath, import_express10.default.static(adminDir, { index: false }));
 }
 mountAdmin("/lucy-admin");
 mountAdmin("/admin");
@@ -86737,7 +88776,7 @@ app.use("/api", routes_default);
 var app_default = app;
 
 // src/index.ts
-init_logger2();
+init_logger3();
 await init_trainingStore();
 await init_learningSchema();
 ensureOpenAiApiKeyEnv();
@@ -86753,6 +88792,7 @@ async function startServer() {
   void ensureLearningSchema().catch((err2) => {
     logger.warn({ err: err2 }, "learningSchema init en background fall\xF3");
   });
+  startCatalogAutoRefresh();
   app_default.listen(port, "0.0.0.0", (err2) => {
     if (err2) {
       logger.error({ err: err2 }, "Error listening on port");

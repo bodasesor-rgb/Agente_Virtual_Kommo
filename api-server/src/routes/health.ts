@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { getOpenAiApiKey, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import { isAuthConfigured } from "../lib/authJwt.js";
+import { getCatalogStatus } from "../services/catalogService.js";
 
 const router: IRouter = Router();
 
@@ -32,6 +33,7 @@ router.get("/health", (_req, res) => {
     git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
     openai_configured: isOpenAiConfigured(),
     openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "…" : null,
+    catalog: getCatalogStatus(),
   });
 });
 

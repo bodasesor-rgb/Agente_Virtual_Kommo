@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
-import { CATALOGO_BODASESOR } from "../catalogo.js";
+import { getCatalogPromptBlock } from "../services/catalogService.js";
 import { getTrainingExamples } from "../lib/training.js";
 import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
@@ -1118,6 +1118,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 7: Prompt dinámico según etapa
     // ══════════════════════════════════════════════════════════════════════
+    const catalogBlock = await getCatalogPromptBlock();
     const dynamicPrompt = buildDynamicPrompt({
       stage,
       priority: leadScore.priority,
@@ -1126,6 +1127,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       crmContext,
       isFirstInteraction,
       hasClientName: filledLabels.has("Nombre del cliente"),
+      catalogBlock,
     });
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1745,7 +1747,8 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     const salesbotMergedLines = crmResultFinal.mergedLines;
     salesbotFilledLabels = crmResultFinal.filledLabels;
 
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+    const catalogBlock = await getCatalogPromptBlock();
+    const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
     const systemContent = isFirstInteraction
       ? basePrompt +
         crmContext +
@@ -2251,7 +2254,8 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       { role: "assistant" as const, content: ex.lucyResponse },
     ]);
 
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + CATALOGO_BODASESOR;
+    const catalogBlock = await getCatalogPromptBlock();
+    const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
     const systemContent = isFirstInteraction
       ? basePrompt +
         crmContext +

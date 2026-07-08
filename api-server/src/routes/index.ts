@@ -6,12 +6,14 @@ import examplesRouter from "./examples";
 import analyticsRouter from "./analytics";
 import authRouter from "./auth";
 import learningRouter from "./learning";
+import catalogRouter from "./catalog";
 
 const router: IRouter = Router();
 
 // Rutas públicas primero (webhook, simulador, login). Los routers con
 // router.use(requireAuth) bloquean TODO lo que venga después si van antes.
 router.use(healthRouter);
+router.use(catalogRouter);
 router.use(kommoRouter);
 router.use(lucyRouter);
 router.use(authRouter);
