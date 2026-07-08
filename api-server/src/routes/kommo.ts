@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
-import { getCatalogPromptBlock, injectCatalogPriceIfAsked, injectCatalogInclusionIfAsked } from "../services/catalogService.js";
+import { getCatalogPromptBlock, injectCatalogPriceIfAsked, injectCatalogInclusionIfAsked, injectCatalogCateringIfAsked } from "../services/catalogService.js";
 import { getTrainingExamples } from "../lib/training.js";
 import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
@@ -1162,6 +1162,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
+    aiResponse = injectCatalogCateringIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
     // ══════════════════════════════════════════════════════════════════════
     if (batch.isVoice) {
@@ -1781,6 +1782,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
 
     let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
+    aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
 
@@ -2282,6 +2284,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
 
     let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
+    aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
 
     const simCierreYaEnviado = history.some(

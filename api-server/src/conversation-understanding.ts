@@ -123,8 +123,21 @@ export function clientAsksForRecommendations(message?: string): boolean {
     /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) ||
     /qu[eé]\s+opciones/i.test(t) ||
     /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) ||
+    /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) ||
     /algo\s+m[aá]s\s*\?/i.test(t)
   );
+}
+
+/** Cliente pregunta catering (no es fila del Sheet — mapear a alimentos). */
+export function clientMentionsCatering(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return /\bcatering\b/i.test(message);
+}
+
+/** Comparación directa banquete vs taquiza. */
+export function clientAsksBanqueteVsTaquiza(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(message.toLowerCase());
 }
 
 const WRITTEN_NUMBERS: Record<string, string> = {
@@ -410,6 +423,24 @@ export function captureContextualAnswer(
     const tipo = parseTipoEventoFromText(msg) ?? (isServiceRelatedMessage(msg) ? null : msg);
     if (tipo && tipo.length >= 2 && !/@/.test(tipo)) {
       captures.push({ label: "Tipo de evento", value: tipo });
+    } else if (isServiceRelatedMessage(msg)) {
+      const service = parsePrimaryService(msg);
+      const inv = parseInvitadosFromText(msg);
+      if (service) {
+        captures.push({ label: "Requerimientos o servicios", value: service });
+      }
+      if (inv) {
+        captures.push({ label: "Número de invitados", value: inv });
+      }
+      const tipoHist = parseTipoEventoFromText(
+        history
+          .filter((m) => m.role === "user" && typeof m.content === "string")
+          .map((m) => m.content as string)
+          .join(" ")
+      );
+      if (tipoHist) {
+        captures.push({ label: "Tipo de evento", value: tipoHist });
+      }
     }
   }
 

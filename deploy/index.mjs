@@ -78922,7 +78922,12 @@ function normalizeForMatch(value) {
 }
 function queryTokens(query) {
   const stop2 = /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con)$/;
-  return normalizeForMatch(query).split(/[^a-z0-9]+/).filter((t) => t.length >= 3 && !stop2.test(t));
+  const normalized = normalizeForMatch(query);
+  const tokens = normalized.split(/[^a-z0-9]+/).filter((t) => t.length >= 3 && !stop2.test(t));
+  if (/\bcatering\b/.test(normalized)) {
+    tokens.push("banquete", "taquiza", "brunch", "coffee");
+  }
+  return [...new Set(tokens)];
 }
 function lookupCatalogPrices(query) {
   if (!snapshot?.rows.length) return [];
@@ -79009,9 +79014,67 @@ function buildCatalogPriceAnswer(query) {
 
 ${priceLines}${inclusionBlock}`;
 }
+function summarizeServicePrices(serviceKey, maxLevels = 4) {
+  const rows = snapshot?.rows.filter(
+    (r2) => r2.tienePrecio && r2.precio && normalizeForMatch(`${r2.categoria} ${r2.servicio}`).includes(normalizeForMatch(serviceKey))
+  );
+  if (!rows?.length) return null;
+  const unique = [...new Map(rows.map((row) => [row.servicio, row])).values()];
+  const label = unique[0].categoria || unique[0].servicio.split(" (")[0] || serviceKey;
+  const lines = unique.slice(0, maxLevels).map((row) => {
+    const nivel = extractNivelLabel(row.servicio);
+    const parsed = parseRowNotes(row.notas);
+    const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
+    return `\u2022 *${nivel}:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${min}`;
+  });
+  return `*${label}*
+${lines.join("\n")}`;
+}
+function buildCatalogComparisonAnswer() {
+  if (!snapshot?.rows.length) return null;
+  const taquiza = summarizeServicePrices("taquiza", 4);
+  const banquete = summarizeServicePrices("banquete 3 tiempos", 4);
+  if (!taquiza && !banquete) return null;
+  const parts2 = [
+    "Te comparto una comparaci\xF3n r\xE1pida con precios de referencia:",
+    "",
+    taquiza ?? "",
+    taquiza && banquete ? "" : "",
+    banquete ?? "",
+    "",
+    "*En general:* taquiza es m\xE1s casual y flexible; banquete es m\xE1s formal con servicio de meseros y vajilla.",
+    "\xBFCu\xE1l te late m\xE1s para tu evento?"
+  ];
+  return parts2.filter((l4) => l4 !== void 0 && l4 !== "").join("\n").trim();
+}
+function buildCatalogCateringAnswer() {
+  if (!snapshot?.rows.length) return null;
+  const taquizaLine = summarizeServicePrices("taquiza", 1);
+  const banqueteLine = summarizeServicePrices("banquete 3 tiempos", 1);
+  const brunchLine = summarizeServicePrices("brunch", 1);
+  const coffeeLine = summarizeServicePrices("coffee", 1);
+  const options = [
+    taquizaLine ? `\u2022 *Taquiza* \u2014 desde ${taquizaLine.match(/\$[\d,.]+/)?.[0] ?? "consultar"}/pp` : "",
+    banqueteLine ? `\u2022 *Banquete* \u2014 desde ${banqueteLine.match(/\$[\d,.]+/)?.[0] ?? "consultar"}/pp` : "",
+    brunchLine ? `\u2022 *Brunch*` : "",
+    coffeeLine ? `\u2022 *Coffee break*` : "",
+    "\u2022 *Barras tem\xE1ticas* (pizzas, sushi, mariscos, etc.)"
+  ].filter(Boolean);
+  return [
+    "S\xED, manejamos catering para eventos. Estas son las opciones m\xE1s pedidas:",
+    "",
+    ...options,
+    "",
+    "\xBFCu\xE1l te interesa? Con eso te paso precios e inclusiones por nivel."
+  ].join("\n");
+}
 function injectCatalogInclusionIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
   return buildCatalogInclusionAnswer(clientMessage) ?? aiResponse;
+}
+function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
+  if (!clientMessage?.trim() || !/\bcatering\b/i.test(clientMessage)) return aiResponse;
+  return buildCatalogCateringAnswer() ?? aiResponse;
 }
 function injectCatalogPriceIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim()) return aiResponse;
@@ -80103,7 +80166,15 @@ var TIPO_EVENTO_PATTERNS = [
 function clientAsksForRecommendations(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /recomiendas?|qu[eé]\s+me\s+(recomiendas?|sugieres|conviene)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
+  return /recomiendas?|qu[eé]\s+me\s+(recomiendas?|sugieres|conviene)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
+}
+function clientMentionsCatering(message) {
+  if (!message?.trim()) return false;
+  return /\bcatering\b/i.test(message);
+}
+function clientAsksBanqueteVsTaquiza(message) {
+  if (!message?.trim()) return false;
+  return /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(message.toLowerCase());
 }
 var WRITTEN_NUMBERS = {
   uno: "1",
@@ -80301,6 +80372,21 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
     const tipo = parseTipoEventoFromText(msg) ?? (isServiceRelatedMessage(msg) ? null : msg);
     if (tipo && tipo.length >= 2 && !/@/.test(tipo)) {
       captures.push({ label: "Tipo de evento", value: tipo });
+    } else if (isServiceRelatedMessage(msg)) {
+      const service = parsePrimaryService(msg);
+      const inv = parseInvitadosFromText(msg);
+      if (service) {
+        captures.push({ label: "Requerimientos o servicios", value: service });
+      }
+      if (inv) {
+        captures.push({ label: "N\xFAmero de invitados", value: inv });
+      }
+      const tipoHist = parseTipoEventoFromText(
+        history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content).join(" ")
+      );
+      if (tipoHist) {
+        captures.push({ label: "Tipo de evento", value: tipoHist });
+      }
     }
   }
   if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
@@ -80574,8 +80660,12 @@ function pickVariant(field, history, entityId) {
   }
   return variants[start2 % variants.length];
 }
-function buildRecommendationsReply(extracted, history, entityId) {
-  const texts = collectUserTexts(history).join(" ").toLowerCase();
+function buildRecommendationsReply(extracted, history, entityId, currentMessage) {
+  if (clientAsksBanqueteVsTaquiza(currentMessage)) {
+    const comparison2 = buildCatalogComparisonAnswer();
+    if (comparison2) return comparison2;
+  }
+  const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
   const tipo = (extracted.tipo_evento ?? "").toLowerCase();
   let ideas;
   if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
@@ -80583,9 +80673,15 @@ function buildRecommendationsReply(extracted, history, entityId) {
   } else if (/boda/.test(tipo) || /\bboda\b/.test(texts)) {
     ideas = "Para boda lo m\xE1s pedido es banquete o taquiza, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminaci\xF3n. Tambi\xE9n mesa de dulces o quesos.";
   } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
-    ideas = "Para XV a\xF1os suele ir banquete o brunch, mesa de dulces, mobiliario, DJ, iluminaci\xF3n y pista de baile.";
+    ideas = "Para XV a\xF1os suele ir banquete o taquiza, mesa de dulces, mobiliario, DJ, iluminaci\xF3n y pista de baile.";
   } else {
     ideas = "Lo m\xE1s com\xFAn es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, iluminaci\xF3n y mesa de dulces seg\xFAn el estilo del evento.";
+  }
+  const comparison = buildCatalogComparisonAnswer();
+  if (comparison && /banquete|taquiza|recomiendas?/i.test(currentMessage ?? "")) {
+    return `${ideas}
+
+${comparison}`;
   }
   const follow = pickVariant("requerimientos", history, entityId);
   return appendServiciosCatalogoHint(`${ideas} ${follow}`.trim());
@@ -80611,11 +80707,11 @@ function getNextPendingField(extracted, filledSet) {
   const filled = filledSet ?? /* @__PURE__ */ new Set();
   if (!filled.has("Nombre del cliente")) return "nombre";
   if (!isEmailSatisfied(filled)) return "correo";
-  if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
-  if (!filled.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    return "requerimientos";
-  }
-  if (!filled.has("N\xFAmero de invitados")) return "invitados";
+  const hasReq = filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
+  const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
+  if (!hasTipoEvento(filled, extracted) && !(hasReq && hasInv)) return "tipo_evento";
+  if (!hasReq) return "requerimientos";
+  if (!hasInv) return "invitados";
   if (!filled.has("Lugar/direcci\xF3n del evento")) return "zona";
   if (!filled.has("Fecha y horario")) return "fecha";
   if (!filled.has("Presupuesto (MXN)")) return "presupuesto";
@@ -80740,7 +80836,7 @@ function isFieldSatisfied(field, filledSet, extracted) {
     case "requerimientos":
       return filledSet.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
     case "invitados":
-      return filledSet.has("N\xFAmero de invitados");
+      return filledSet.has("N\xFAmero de invitados") || !!extracted.num_invitados;
     case "zona":
       return filledSet.has("Lugar/direcci\xF3n del evento");
     case "fecha":
@@ -80798,7 +80894,7 @@ function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
   const pending = getNextPendingField(extracted, filledSet);
   const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
   const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
-  if ((repeatsFilled || asksWrong) && pending) {
+  if ((repeatsFilled || asksWrong) && pending && !isInformativeClientAnswer(ctx.currentMessage)) {
     log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetici\xF3n \u2014 dato ya capturado");
     return mergeWithPendingQuestion("", filledSet, extracted, ctx);
   }
@@ -80925,6 +81021,10 @@ function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
     lastAssistant
   );
 }
+function isInformativeClientAnswer(currentMessage) {
+  if (!currentMessage?.trim()) return false;
+  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage);
+}
 function clientAskedFreeformQuestion(message) {
   if (!message?.trim()) return false;
   if (/\?/.test(message)) return true;
@@ -80997,8 +81097,16 @@ function applyLucyMessageGuards(input) {
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
+  } else if (clientMentionsCatering(currentMessage) && clientAsksPrice(currentMessage)) {
+    const cateringAnswer = buildCatalogCateringAnswer();
+    mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    log?.info({ entityId }, "GUARD: catering \u2014 opciones de alimentos del Sheet");
+  } else if (clientMentionsCatering(currentMessage)) {
+    const cateringAnswer = buildCatalogCateringAnswer();
+    mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    log?.info({ entityId }, "GUARD: catering \u2014 opciones sin precio inventado");
   } else if (clientAsksForRecommendations(currentMessage)) {
-    mensaje = buildRecommendationsReply(extracted, history, entityId);
+    mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
   } else if (clientAsksPrice(currentMessage)) {
     const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
@@ -81096,7 +81204,7 @@ ${nextQ}`;
       mensaje = forcedNext;
     }
   }
-  if (mensajeAsksWrongField(mensaje, filledSet, extracted)) {
+  if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage)) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending) {
       log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden \u2014 corrigiendo");
@@ -87805,6 +87913,7 @@ async function processBatch(batch, accessToken, log) {
     });
     let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
+    aiResponse = injectCatalogCateringIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
     if (batch.isVoice) {
       const clientName = sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? sanitizeDisplayName(conversation.clientName) ?? void 0;
@@ -88230,6 +88339,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
     });
     let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
+    aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
     const sbCierreYaEnviado = history.some(
@@ -88605,6 +88715,7 @@ router3.post("/kommo/simulator", async (req, res) => {
     });
     let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
+    aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
     const simCierreYaEnviado = history.some(
       (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)

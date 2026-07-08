@@ -237,9 +237,16 @@ function normalizeForMatch(value: string): string {
 function queryTokens(query: string): string[] {
   const stop =
     /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con)$/;
-  return normalizeForMatch(query)
+  const normalized = normalizeForMatch(query);
+  const tokens = normalized
     .split(/[^a-z0-9]+/)
     .filter((t) => t.length >= 3 && !stop.test(t));
+
+  if (/\bcatering\b/.test(normalized)) {
+    tokens.push("banquete", "taquiza", "brunch", "coffee");
+  }
+
+  return [...new Set(tokens)];
 }
 
 /** Busca filas del Sheet que coincidan con la pregunta del cliente. */
@@ -356,6 +363,76 @@ export function buildCatalogPriceAnswer(query: string): string | null {
   return `Sí, manejamos ${baseName}:\n\n${priceLines}${inclusionBlock}`;
 }
 
+function summarizeServicePrices(serviceKey: string, maxLevels = 4): string | null {
+  const rows = snapshot?.rows.filter(
+    (r) =>
+      r.tienePrecio &&
+      r.precio &&
+      normalizeForMatch(`${r.categoria} ${r.servicio}`).includes(normalizeForMatch(serviceKey))
+  );
+  if (!rows?.length) return null;
+
+  const unique = [...new Map(rows.map((row) => [row.servicio, row])).values()];
+  const label = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || serviceKey;
+
+  const lines = unique.slice(0, maxLevels).map((row) => {
+    const nivel = extractNivelLabel(row.servicio);
+    const parsed = parseRowNotes(row.notas);
+    const min = parsed.minimo ? ` (mín. ${parsed.minimo})` : "";
+    return `• *${nivel}:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${min}`;
+  });
+
+  return `*${label}*\n${lines.join("\n")}`;
+}
+
+/** Comparación banquete vs taquiza con precios del Sheet. */
+export function buildCatalogComparisonAnswer(): string | null {
+  if (!snapshot?.rows.length) return null;
+
+  const taquiza = summarizeServicePrices("taquiza", 4);
+  const banquete = summarizeServicePrices("banquete 3 tiempos", 4);
+  if (!taquiza && !banquete) return null;
+
+  const parts = [
+    "Te comparto una comparación rápida con precios de referencia:",
+    "",
+    taquiza ?? "",
+    taquiza && banquete ? "" : "",
+    banquete ?? "",
+    "",
+    "*En general:* taquiza es más casual y flexible; banquete es más formal con servicio de meseros y vajilla.",
+    "¿Cuál te late más para tu evento?",
+  ];
+
+  return parts.filter((l) => l !== undefined && l !== "").join("\n").trim();
+}
+
+/** Cuando dicen catering, orientar a opciones de alimentos del Sheet. */
+export function buildCatalogCateringAnswer(): string | null {
+  if (!snapshot?.rows.length) return null;
+
+  const taquizaLine = summarizeServicePrices("taquiza", 1);
+  const banqueteLine = summarizeServicePrices("banquete 3 tiempos", 1);
+  const brunchLine = summarizeServicePrices("brunch", 1);
+  const coffeeLine = summarizeServicePrices("coffee", 1);
+
+  const options = [
+    taquizaLine ? `• *Taquiza* — desde ${taquizaLine.match(/\$[\d,.]+/)?.[0] ?? "consultar"}/pp` : "",
+    banqueteLine ? `• *Banquete* — desde ${banqueteLine.match(/\$[\d,.]+/)?.[0] ?? "consultar"}/pp` : "",
+    brunchLine ? `• *Brunch*` : "",
+    coffeeLine ? `• *Coffee break*` : "",
+    "• *Barras temáticas* (pizzas, sushi, mariscos, etc.)",
+  ].filter(Boolean);
+
+  return [
+    "Sí, manejamos catering para eventos. Estas son las opciones más pedidas:",
+    "",
+    ...options,
+    "",
+    "¿Cuál te interesa? Con eso te paso precios e inclusiones por nivel.",
+  ].join("\n");
+}
+
 /** Si preguntan qué incluye / menú, responde con detalle del Sheet. */
 export function injectCatalogInclusionIfAsked(
   clientMessage: string | undefined,
@@ -363,6 +440,15 @@ export function injectCatalogInclusionIfAsked(
 ): string {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
   return buildCatalogInclusionAnswer(clientMessage) ?? aiResponse;
+}
+
+/** Si preguntan catering, orientar a opciones de alimentos del Sheet. */
+export function injectCatalogCateringIfAsked(
+  clientMessage: string | undefined,
+  aiResponse: string
+): string {
+  if (!clientMessage?.trim() || !/\bcatering\b/i.test(clientMessage)) return aiResponse;
+  return buildCatalogCateringAnswer() ?? aiResponse;
 }
 
 /** Si el cliente preguntó precio, sustituye la respuesta GPT por tarifas del Sheet. */

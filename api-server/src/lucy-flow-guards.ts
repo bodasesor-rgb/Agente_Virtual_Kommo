@@ -20,11 +20,15 @@ import {
 import {
   buildCatalogPriceAnswer,
   buildCatalogInclusionAnswer,
+  buildCatalogComparisonAnswer,
+  buildCatalogCateringAnswer,
   clientAsksInclusion,
 } from "./services/catalogService.js";
 import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
+  clientAsksBanqueteVsTaquiza,
+  clientMentionsCatering,
   inferLucyAskedField,
   isServiceRelatedMessage,
   parsePrimaryService,
@@ -278,9 +282,15 @@ function pickVariant(
 export function buildRecommendationsReply(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
-  entityId?: string | number
+  entityId?: string | number,
+  currentMessage?: string
 ): string {
-  const texts = collectUserTexts(history).join(" ").toLowerCase();
+  if (clientAsksBanqueteVsTaquiza(currentMessage)) {
+    const comparison = buildCatalogComparisonAnswer();
+    if (comparison) return comparison;
+  }
+
+  const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
   const tipo = (extracted.tipo_evento ?? "").toLowerCase();
 
   let ideas: string;
@@ -292,10 +302,15 @@ export function buildRecommendationsReply(
       "Para boda lo más pedido es banquete o taquiza, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminación. También mesa de dulces o quesos.";
   } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
     ideas =
-      "Para XV años suele ir banquete o brunch, mesa de dulces, mobiliario, DJ, iluminación y pista de baile.";
+      "Para XV años suele ir banquete o taquiza, mesa de dulces, mobiliario, DJ, iluminación y pista de baile.";
   } else {
     ideas =
       "Lo más común es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, iluminación y mesa de dulces según el estilo del evento.";
+  }
+
+  const comparison = buildCatalogComparisonAnswer();
+  if (comparison && /banquete|taquiza|recomiendas?/i.test(currentMessage ?? "")) {
+    return `${ideas}\n\n${comparison}`;
   }
 
   const follow = pickVariant("requerimientos", history, entityId);
@@ -345,11 +360,14 @@ export function getNextPendingField(
 
   if (!filled.has("Nombre del cliente")) return "nombre";
   if (!isEmailSatisfied(filled)) return "correo";
-  if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
-  if (!filled.has("Requerimientos o servicios") && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    return "requerimientos";
-  }
-  if (!filled.has("Número de invitados")) return "invitados";
+
+  const hasReq =
+    filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
+  const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
+
+  if (!hasTipoEvento(filled, extracted) && !(hasReq && hasInv)) return "tipo_evento";
+  if (!hasReq) return "requerimientos";
+  if (!hasInv) return "invitados";
   if (!filled.has("Lugar/dirección del evento")) return "zona";
   if (!filled.has("Fecha y horario")) return "fecha";
   if (!filled.has("Presupuesto (MXN)")) return "presupuesto";
@@ -541,7 +559,7 @@ export function isFieldSatisfied(
         isValidRequerimientosValue(extracted.requerimientos_evento)
       );
     case "invitados":
-      return filledSet.has("Número de invitados");
+      return filledSet.has("Número de invitados") || !!extracted.num_invitados;
     case "zona":
       return filledSet.has("Lugar/dirección del evento");
     case "fecha":
@@ -642,7 +660,7 @@ export function sanitizeOutboundMessage(
   const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
   const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
 
-  if ((repeatsFilled || asksWrong) && pending) {
+  if ((repeatsFilled || asksWrong) && pending && !isInformativeClientAnswer(ctx.currentMessage)) {
     log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetición — dato ya capturado");
     return mergeWithPendingQuestion("", filledSet, extracted, ctx);
   }
@@ -843,6 +861,17 @@ export function clientJustAnsweredRequerimientosQuestion(
   );
 }
 
+function isInformativeClientAnswer(currentMessage?: string): boolean {
+  if (!currentMessage?.trim()) return false;
+  return (
+    clientAsksForRecommendations(currentMessage) ||
+    clientAsksBanqueteVsTaquiza(currentMessage) ||
+    clientMentionsCatering(currentMessage) ||
+    clientAsksPrice(currentMessage) ||
+    clientAsksInclusion(currentMessage)
+  );
+}
+
 function clientAskedFreeformQuestion(message?: string): boolean {
   if (!message?.trim()) return false;
   if (/\?/.test(message)) return true;
@@ -959,8 +988,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
+  } else if (clientMentionsCatering(currentMessage) && clientAsksPrice(currentMessage)) {
+    const cateringAnswer = buildCatalogCateringAnswer();
+    mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    log?.info({ entityId }, "GUARD: catering — opciones de alimentos del Sheet");
+  } else if (clientMentionsCatering(currentMessage)) {
+    const cateringAnswer = buildCatalogCateringAnswer();
+    mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    log?.info({ entityId }, "GUARD: catering — opciones sin precio inventado");
   } else if (clientAsksForRecommendations(currentMessage)) {
-    mensaje = buildRecommendationsReply(extracted, history, entityId);
+    mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
   } else if (clientAsksPrice(currentMessage)) {
     const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
@@ -1077,7 +1114,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (mensajeAsksWrongField(mensaje, filledSet, extracted)) {
+  if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage)) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending) {
       log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden — corrigiendo");
