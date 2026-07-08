@@ -88,20 +88,25 @@ async function createArchive() {
 
 async function uploadBuild(username, archivePath) {
   const archiveBuffer = readFileSync(archivePath);
-  const form = new FormData();
-  form.append("archive", new Blob([archiveBuffer]), "lucy-deploy.zip");
-  form.append("build_script", "echo ok");
-  form.append("entry_file", "start.mjs");
-  form.append("output_directory", ".");
-  form.append("package_manager", "npm");
-  form.append("node_version", "22");
+  const body = {
+    archive: archiveBuffer.toString("base64"),
+    build_script: "echo ok",
+    entry_file: "start.mjs",
+    output_directory: ".",
+    package_manager: "npm",
+    node_version: 22,
+  };
 
   const res = await fetch(
     `${API_BASE}/api/hosting/v1/accounts/${encodeURIComponent(username)}/websites/${encodeURIComponent(DOMAIN)}/nodejs/builds/from-archive`,
     {
       method: "POST",
-      headers: { Authorization: `Bearer ${TOKEN}` },
-      body: form,
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     }
   );
   const text = await res.text();
@@ -114,6 +119,7 @@ async function uploadBuild(username, archivePath) {
   if (!res.ok) {
     throw new Error(`Upload failed ${res.status}: ${JSON.stringify(json)}`);
   }
+  console.log("[deploy] Respuesta API:", JSON.stringify(json).slice(0, 500));
   return json;
 }
 
@@ -126,7 +132,17 @@ async function pollBuild(username, buildUuid) {
     const state = build?.state ?? "unknown";
     console.log(`[deploy] Build ${buildUuid?.slice(0, 8) ?? "?"}… estado: ${state}`);
     if (state === "completed") return build;
-    if (state === "failed") throw new Error("Build falló en Hostinger");
+    if (state === "failed") {
+      try {
+        const logs = await api(
+          `/api/hosting/v1/accounts/${encodeURIComponent(username)}/websites/${encodeURIComponent(DOMAIN)}/nodejs/builds/${buildUuid}/logs`
+        );
+        console.error("[deploy] Logs:", JSON.stringify(logs).slice(0, 2000));
+      } catch {
+        /* optional */
+      }
+      throw new Error("Build falló en Hostinger");
+    }
     await new Promise((r) => setTimeout(r, 10_000));
   }
   throw new Error("Timeout esperando build en Hostinger");
