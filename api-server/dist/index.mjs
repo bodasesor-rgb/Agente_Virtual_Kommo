@@ -86557,22 +86557,30 @@ async function startServer() {
     logger.info({ port }, "Server listening");
     const PING_INTERVAL_MS = 3 * 60 * 1e3;
     const healthUrl = `http://localhost:${port}/api/health`;
+    const publicHealthUrl = (process.env["KEEP_ALIVE_PUBLIC_URL"]?.trim() || process.env["PUBLIC_APP_URL"]?.trim())?.replace(/\/$/, "");
     const keepAlive = async () => {
-      try {
-        const res = await fetch(healthUrl);
-        if (!res.ok) {
-          logger.warn({ statusCode: res.status }, "Keep-alive ping: respuesta no OK");
-          return;
+      const targets = [healthUrl];
+      if (publicHealthUrl) targets.push(`${publicHealthUrl}/api/health`);
+      for (const url2 of targets) {
+        try {
+          const res = await fetch(url2, { signal: AbortSignal.timeout(2e4) });
+          if (!res.ok) {
+            logger.warn({ statusCode: res.status, url: url2 }, "Keep-alive ping: respuesta no OK");
+            continue;
+          }
+          const contentType = res.headers.get("content-type") ?? "";
+          if (!contentType.includes("application/json")) {
+            logger.warn({ contentType, url: url2 }, "Keep-alive ping: Content-Type inesperado");
+            continue;
+          }
+          const data = await res.json();
+          logger.info(
+            { status: data.status, uptimeSeconds: Math.floor(data.uptime ?? 0), url: url2.includes("localhost") ? "local" : "public" },
+            "Keep-alive ping OK"
+          );
+        } catch (pingErr) {
+          logger.warn({ pingErr, url: url2.includes("localhost") ? "local" : "public" }, "Keep-alive ping failed");
         }
-        const contentType = res.headers.get("content-type") ?? "";
-        if (!contentType.includes("application/json")) {
-          logger.warn({ contentType }, "Keep-alive ping: Content-Type inesperado");
-          return;
-        }
-        const data = await res.json();
-        logger.info({ status: data.status, uptimeSeconds: Math.floor(data.uptime ?? 0) }, "Keep-alive ping OK");
-      } catch (pingErr) {
-        logger.warn({ pingErr }, "Keep-alive ping failed");
       }
     };
     setTimeout(() => {

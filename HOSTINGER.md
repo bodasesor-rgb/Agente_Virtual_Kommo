@@ -136,3 +136,37 @@ Busca en registros:
 | `EADDRINUSE` | Puerto ocupado — contacta soporte Hostinger |
 
 Manda captura del log **después** de `npm run build` (sin mostrar la API key).
+
+---
+
+## 7. Que Lucy no se duerma (24/7 en Hostinger)
+
+Hostinger **suspende** apps Node sin tráfico HTTP **externo**. El ping interno cada 3 min (en `index.ts`) solo ayuda si el proceso ya está vivo; **no** evita que Hostinger lo apague.
+
+### Solución recomendada: GitHub Actions (incluido en el repo)
+
+Workflow **Keep Alive Hostinger** → `GET /api/health` cada **5 minutos** desde GitHub.
+
+1. GitHub → **Actions** → *Keep Alive Hostinger* → debe correr en verde cada 5 min.
+2. Si cambias de dominio: Settings → Variables → `LUCY_PUBLIC_URL` = `https://TU-DOMINIO.hostingersite.com`
+
+### Alternativa: UptimeRobot (gratis)
+
+Monitor HTTP cada **5 min** a:
+
+`https://TU-DOMINIO.hostingersite.com/api/health`
+
+### hPanel
+
+La app Node debe estar en **Run** (no detenida).
+
+### Cómo detectar cold start
+
+En `/api/health`, campo `uptime` (segundos desde arranque):
+
+- Muy bajo en cada visita → Lucy se estaba durmiendo.
+- Miles de segundos → lleva horas despierta.
+
+### Opcional en Hostinger
+
+`KEEP_ALIVE_PUBLIC_URL=https://TU-DOMINIO.hostingersite.com` — ping público extra desde el servidor (complemento; lo crítico es GitHub o UptimeRobot).

@@ -34,32 +34,45 @@ async function startServer(): Promise<void> {
   logger.info({ port }, "Server listening");
 
   // ══════════════════════════════════════════════════════════════════════
-  // KEEP-ALIVE — Auto-ping cada 3 minutos para mantener el servidor activo
-  // 24/7 sin necesidad de Always-On. Ping interno a localhost (más fiable
-  // que pingar el dominio externo). Usa /api/health con respuesta JSON rica.
+  // KEEP-ALIVE interno — mantiene el event loop activo MIENTRAS el proceso vive.
+  // En Hostinger el proceso puede suspenderse sin tráfico EXTERNO; por eso también
+  // existe .github/workflows/keep-alive-hostinger.yml (ping cada 5 min desde GitHub)
+  // o UptimeRobot → GET /api/health cada 5 min.
   // ══════════════════════════════════════════════════════════════════════
   const PING_INTERVAL_MS = 3 * 60 * 1000; // 3 minutos
   const healthUrl = `http://localhost:${port}/api/health`;
+  const publicHealthUrl = (
+    process.env["KEEP_ALIVE_PUBLIC_URL"]?.trim() ||
+    process.env["PUBLIC_APP_URL"]?.trim()
+  )?.replace(/\/$/, "");
 
   const keepAlive = async () => {
-    try {
-      const res = await fetch(healthUrl);
+    const targets = [healthUrl];
+    if (publicHealthUrl) targets.push(`${publicHealthUrl}/api/health`);
 
-      if (!res.ok) {
-        logger.warn({ statusCode: res.status }, "Keep-alive ping: respuesta no OK");
-        return;
+    for (const url of targets) {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+
+        if (!res.ok) {
+          logger.warn({ statusCode: res.status, url }, "Keep-alive ping: respuesta no OK");
+          continue;
+        }
+
+        const contentType = res.headers.get("content-type") ?? "";
+        if (!contentType.includes("application/json")) {
+          logger.warn({ contentType, url }, "Keep-alive ping: Content-Type inesperado");
+          continue;
+        }
+
+        const data = (await res.json()) as { status?: string; uptime?: number };
+        logger.info(
+          { status: data.status, uptimeSeconds: Math.floor(data.uptime ?? 0), url: url.includes("localhost") ? "local" : "public" },
+          "Keep-alive ping OK"
+        );
+      } catch (pingErr) {
+        logger.warn({ pingErr, url: url.includes("localhost") ? "local" : "public" }, "Keep-alive ping failed");
       }
-
-      const contentType = res.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
-        logger.warn({ contentType }, "Keep-alive ping: Content-Type inesperado");
-        return;
-      }
-
-      const data = await res.json() as { status?: string; uptime?: number };
-      logger.info({ status: data.status, uptimeSeconds: Math.floor(data.uptime ?? 0) }, "Keep-alive ping OK");
-    } catch (pingErr) {
-      logger.warn({ pingErr }, "Keep-alive ping failed");
     }
   };
 
