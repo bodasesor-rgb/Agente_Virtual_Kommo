@@ -119,7 +119,8 @@ export function clientAsksForRecommendations(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
   return (
-    /recomiendas?|qu[eé]\s+me\s+(recomiendas?|sugieres|conviene)/i.test(t) ||
+    /recomendaciones?|recomiendas?/i.test(t) ||
+    /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t) ||
     /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) ||
     /qu[eé]\s+opciones/i.test(t) ||
     /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) ||
@@ -287,6 +288,8 @@ export function parseInvitadosFromText(text: string): string | null {
 export function parseZonaFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed || /@/.test(trimmed)) return null;
+  if (isGreetingOnlyMessage(trimmed)) return null;
+  if (isAffirmativeOnlyMessage(trimmed)) return null;
 
   if (KNOWN_ZONES.test(trimmed)) {
     const m = trimmed.match(KNOWN_ZONES);
@@ -298,11 +301,9 @@ export function parseZonaFromText(text: string): string | null {
   );
   if (enMatch) {
     const lugar = enMatch[1]!.trim();
-    if (!MONTH_PATTERN.test(lugar) && !/^\d/.test(lugar)) return lugar;
-  }
-
-  if (/^[a-záéíóúüñ][a-záéíóúüñ\s.-]{2,40}$/i.test(trimmed) && !isServiceRelatedMessage(trimmed)) {
-    return trimmed;
+    if (!MONTH_PATTERN.test(lugar) && !/^\d/.test(lugar) && !isGreetingOnlyMessage(lugar)) {
+      return lugar;
+    }
   }
 
   return null;
