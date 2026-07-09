@@ -1,9 +1,6 @@
 import { logger } from "../lib/logger.js";
 import { agregarNota, enviarMensaje } from "./embudo.js";
-import {
-  registrarMensajeSalienteKommo,
-  sendWhatsAppDirect,
-} from "./whatsappDirectSender.js";
+import { sendWhatsAppDirect } from "./whatsappDirectSender.js";
 
 export interface DeliverLucyOutboundOpts {
   subdomain: string;
@@ -16,87 +13,69 @@ export interface DeliverLucyOutboundOpts {
 }
 
 /**
- * Envía al cliente y deja el mensaje visible en Kommo.
- * 1. Kommo Talks — aparece en el chat del inbox y llega al cliente.
- * 2. Meta API — fallback si Talks falla; espeja en nota para el equipo.
+ * Envía al cliente y registra el mensaje en Kommo como nota (timeline del lead).
+ *
+ * Kommo Talks puede mostrar el mensaje en el chat si el canal WhatsApp está bien
+ * conectado; si no, Meta API entrega al cliente pero Kommo no lo refleja solo.
+ * La nota garantiza que el equipo siempre vea qué escribió Lucy.
  */
 export async function deliverLucyOutbound(
   opts: DeliverLucyOutboundOpts
 ): Promise<"meta" | "kommo_talks" | "failed"> {
   const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId } = opts;
 
+  let channel: "meta" | "kommo_talks" | "failed" = "failed";
+
   if (talkId) {
     const ok = await enviarMensaje(subdomain, accessToken, talkId, texto);
     if (ok) {
+      channel = "kommo_talks";
       logger.info({ entityId, talkId }, "Lucy: mensaje via Kommo Talks ✅");
-      return "kommo_talks";
+    } else {
+      logger.warn({ entityId, talkId }, "Lucy: Kommo Talks falló — probando Meta API");
     }
-    logger.warn({ entityId, talkId }, "Lucy: Kommo Talks falló — probando Meta API");
   }
 
-  if (whatsappPhone) {
+  if (channel === "failed" && whatsappPhone) {
     const result = await sendWhatsAppDirect(whatsappPhone, texto, entityId);
     if (result.success) {
+      channel = "meta";
       logger.info({ entityId, phone: whatsappPhone }, "Lucy: WhatsApp enviado via Meta ✅");
-      await mirrorOutboundInKommo({
-        subdomain,
-        accessToken,
-        talkId,
-        chatId,
-        whatsappPhone,
-        texto,
-        entityId,
-        metaMessageId: result.messageId,
-      });
-      return "meta";
+    } else {
+      logger.warn({ entityId, error: result.error }, "Lucy: Meta API falló");
     }
-    logger.warn({ entityId, error: result.error }, "Lucy: Meta API falló");
   }
 
-  logger.error({ entityId, talkId, chatId, whatsappPhone }, "Lucy: mensaje no enviado ❌");
-  return "failed";
+  if (channel === "failed") {
+    logger.error({ entityId, talkId, chatId, whatsappPhone }, "Lucy: mensaje no enviado ❌");
+    return "failed";
+  }
+
+  await logLucyMessageNote(subdomain, accessToken, entityId, texto, channel, talkId, chatId);
+  return channel;
 }
 
-async function mirrorOutboundInKommo(opts: {
-  subdomain: string;
-  accessToken: string;
-  talkId: string | null | undefined;
-  chatId: string | null | undefined;
-  whatsappPhone: string;
-  texto: string;
-  entityId: string | number;
-  metaMessageId?: string;
-}): Promise<void> {
-  const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId, metaMessageId } =
-    opts;
-
-  if (chatId) {
-    const registered = await registrarMensajeSalienteKommo({
-      subdomain,
-      accessToken,
-      chatId,
-      texto,
-      toPhone: whatsappPhone,
-      metaMessageId,
-      entityId,
-    });
-    if (registered) {
-      logger.info({ entityId, chatId }, "Lucy: mensaje espejado en chat Kommo ✅");
-      return;
-    }
-  }
-
-  // Meta envía al cliente pero Kommo no lo refleja solo — nota en timeline del lead
-  const preview = texto.length > 500 ? `${texto.slice(0, 497)}…` : texto;
+/** Nota en el lead — visible en el timeline de Kommo para todo el equipo. */
+async function logLucyMessageNote(
+  subdomain: string,
+  accessToken: string,
+  entityId: string | number,
+  texto: string,
+  channel: "meta" | "kommo_talks",
+  talkId: string | null | undefined,
+  chatId: string | null | undefined
+): Promise<void> {
+  const preview = texto.length > 800 ? `${texto.slice(0, 797)}…` : texto;
+  const via = channel === "kommo_talks" ? "Talks" : "WhatsApp";
   const noted = await agregarNota(
     subdomain,
     accessToken,
     entityId,
-    `📤 Lucy → cliente:\n${preview}`
+    `💬 Lucy (${via}):\n${preview}`
   );
   if (noted) {
-    logger.info({ entityId, talkId, chatId }, "Lucy: espejo en nota Kommo (Meta sin Talks)");
+    logger.info({ entityId, channel, talkId, chatId }, "Lucy: mensaje registrado en nota Kommo ✅");
   } else {
-    logger.warn({ entityId, talkId, chatId }, "Lucy: no se pudo espejar mensaje en Kommo");
+    logger.warn({ entityId, channel, talkId, chatId }, "Lucy: no se pudo crear nota en Kommo ⚠️");
   }
 }

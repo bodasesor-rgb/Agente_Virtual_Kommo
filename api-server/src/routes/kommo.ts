@@ -1277,9 +1277,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 14: Enviar mensaje al cliente en el CHAT de Kommo (no como nota)
     //
-    // PRIORIDAD (deliverLucyOutbound):
-    //  1. Kommo Talks API — visible en la conversación del inbox.
-    //  2. Meta WhatsApp Cloud API — fallback; espeja en nota si Talks falla.
+    // Envío al cliente + nota en timeline de Kommo (el equipo ve qué escribió Lucy).
     // ══════════════════════════════════════════════════════════════════════
     {
       const entityKey = String(entityId);

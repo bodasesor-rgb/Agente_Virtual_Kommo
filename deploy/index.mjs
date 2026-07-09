@@ -87502,68 +87502,6 @@ async function fetchContactDisplayName(subdomain, accessToken, leadId) {
   const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
   return contact?.displayName ?? null;
 }
-async function registrarMensajeSalienteKommo(opts) {
-  const { subdomain, accessToken, chatId, texto, toPhone, metaMessageId, entityId } = opts;
-  const url2 = `https://${subdomain}.kommo.com/api/v4/chats/messages`;
-  const body2 = {
-    chat_id: chatId,
-    text: texto,
-    created_at: Math.floor(Date.now() / 1e3),
-    author: {
-      type: "bot",
-      id: PHONE_NUMBER_ID ?? "lucy-bot"
-    }
-  };
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1e4);
-    const res = await fetch(url2, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      signal: controller.signal,
-      body: JSON.stringify(body2)
-    });
-    clearTimeout(timer);
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "(no body)");
-      logger.warn(
-        {
-          entityId,
-          chatId,
-          toPhone,
-          metaMessageId,
-          httpStatus: res.status,
-          errBody
-        },
-        "registrarMensajeSalienteKommo: Kommo rechaz\xF3 el registro \u26A0\uFE0F"
-      );
-      return false;
-    }
-    const data = await res.json();
-    logger.info(
-      {
-        entityId,
-        chatId,
-        toPhone,
-        metaMessageId,
-        kommoMessageId: data?.id,
-        kommoTimestamp: data?.created_at,
-        preview: texto.slice(0, 80)
-      },
-      "Mensaje saliente registrado en Kommo \u2705"
-    );
-    return true;
-  } catch (err2) {
-    logger.warn(
-      { entityId, chatId, toPhone, metaMessageId, err: err2 },
-      "registrarMensajeSalienteKommo: excepci\xF3n (timeout o red) \u26A0\uFE0F"
-    );
-    return false;
-  }
-}
 
 // src/routes/kommo.ts
 await init_embudo();
@@ -87573,64 +87511,46 @@ init_logger3();
 await init_embudo();
 async function deliverLucyOutbound(opts) {
   const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId } = opts;
+  let channel = "failed";
   if (talkId) {
     const ok = await enviarMensaje(subdomain, accessToken, talkId, texto);
     if (ok) {
+      channel = "kommo_talks";
       logger.info({ entityId, talkId }, "Lucy: mensaje via Kommo Talks \u2705");
-      return "kommo_talks";
+    } else {
+      logger.warn({ entityId, talkId }, "Lucy: Kommo Talks fall\xF3 \u2014 probando Meta API");
     }
-    logger.warn({ entityId, talkId }, "Lucy: Kommo Talks fall\xF3 \u2014 probando Meta API");
   }
-  if (whatsappPhone) {
+  if (channel === "failed" && whatsappPhone) {
     const result = await sendWhatsAppDirect(whatsappPhone, texto, entityId);
     if (result.success) {
+      channel = "meta";
       logger.info({ entityId, phone: whatsappPhone }, "Lucy: WhatsApp enviado via Meta \u2705");
-      await mirrorOutboundInKommo({
-        subdomain,
-        accessToken,
-        talkId,
-        chatId,
-        whatsappPhone,
-        texto,
-        entityId,
-        metaMessageId: result.messageId
-      });
-      return "meta";
+    } else {
+      logger.warn({ entityId, error: result.error }, "Lucy: Meta API fall\xF3");
     }
-    logger.warn({ entityId, error: result.error }, "Lucy: Meta API fall\xF3");
   }
-  logger.error({ entityId, talkId, chatId, whatsappPhone }, "Lucy: mensaje no enviado \u274C");
-  return "failed";
+  if (channel === "failed") {
+    logger.error({ entityId, talkId, chatId, whatsappPhone }, "Lucy: mensaje no enviado \u274C");
+    return "failed";
+  }
+  await logLucyMessageNote(subdomain, accessToken, entityId, texto, channel, talkId, chatId);
+  return channel;
 }
-async function mirrorOutboundInKommo(opts) {
-  const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId, metaMessageId } = opts;
-  if (chatId) {
-    const registered = await registrarMensajeSalienteKommo({
-      subdomain,
-      accessToken,
-      chatId,
-      texto,
-      toPhone: whatsappPhone,
-      metaMessageId,
-      entityId
-    });
-    if (registered) {
-      logger.info({ entityId, chatId }, "Lucy: mensaje espejado en chat Kommo \u2705");
-      return;
-    }
-  }
-  const preview = texto.length > 500 ? `${texto.slice(0, 497)}\u2026` : texto;
+async function logLucyMessageNote(subdomain, accessToken, entityId, texto, channel, talkId, chatId) {
+  const preview = texto.length > 800 ? `${texto.slice(0, 797)}\u2026` : texto;
+  const via = channel === "kommo_talks" ? "Talks" : "WhatsApp";
   const noted = await agregarNota(
     subdomain,
     accessToken,
     entityId,
-    `\u{1F4E4} Lucy \u2192 cliente:
+    `\u{1F4AC} Lucy (${via}):
 ${preview}`
   );
   if (noted) {
-    logger.info({ entityId, talkId, chatId }, "Lucy: espejo en nota Kommo (Meta sin Talks)");
+    logger.info({ entityId, channel, talkId, chatId }, "Lucy: mensaje registrado en nota Kommo \u2705");
   } else {
-    logger.warn({ entityId, talkId, chatId }, "Lucy: no se pudo espejar mensaje en Kommo");
+    logger.warn({ entityId, channel, talkId, chatId }, "Lucy: no se pudo crear nota en Kommo \u26A0\uFE0F");
   }
 }
 
