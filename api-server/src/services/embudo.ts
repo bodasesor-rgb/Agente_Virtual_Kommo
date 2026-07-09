@@ -214,15 +214,16 @@ export async function removerTag(
   );
 }
 
-// Enviar mensaje al lead via Kommo Talks API
+// Intentar envío por Talks (en la práctica Kommo suele rechazar POST en este endpoint).
+// Lucy usa Meta API + nota; esto queda para seguimientos/crons que ya lo llaman.
 export async function enviarMensaje(
   subdomain: string,
   accessToken: string,
   talkId: string | number,
   texto: string
 ): Promise<boolean> {
-  // El endpoint correcto de Kommo para enviar mensajes outbound es:
-  // POST /api/v4/talks/{talkId}/messages  (NO /api/v4/chats/messages — ese da 404)
+  // GET /api/v4/talks/{talkId}/messages — leer historial ✅
+  // POST en la misma ruta — envío; Kommo lo rechaza en cuentas WhatsApp estándar ❌
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10_000);
