@@ -121,3 +121,66 @@ export function generateSummary(conversationText: string): string {
   // Hard-cap en 240 caracteres (límite del campo en Kommo)
   return resumen.length <= 240 ? resumen : `${resumen.slice(0, 237)}...`;
 }
+
+/** Lee un valor de las líneas CRM tipo "- Etiqueta: valor". */
+function pickFromMergedLines(mergedLines: string[], labelPattern: RegExp): string | null {
+  const line = mergedLines.find((l) => labelPattern.test(l));
+  if (!line) return null;
+  const val = line.replace(/^- /, "").split(":").slice(1).join(":").trim();
+  return val || null;
+}
+
+/**
+ * Resumen ejecutivo para el campo texto largo de Kommo (1048786).
+ * Se actualiza en cada mensaje con todo lo capturado hasta el momento.
+ */
+export function buildResumenClienteLargo(
+  extracted: ExtractedData,
+  mergedLines: string[],
+  conversationText?: string
+): string {
+  const nombre = extracted.nombre?.trim() || pickFromMergedLines(mergedLines, /Nombre del cliente/i);
+  const correo = extracted.correo?.trim() || pickFromMergedLines(mergedLines, /Correo electrónico/i);
+  const emailWaived = mergedLines.some((l) => /continuar por whatsapp/i.test(l));
+  const evento = extracted.tipo_evento?.trim() || pickFromMergedLines(mergedLines, /Tipo de evento/i);
+  const fecha = extracted.fecha_horario?.trim() || pickFromMergedLines(mergedLines, /Fecha y horario/i);
+  const invitados =
+    (extracted.num_invitados !== null && extracted.num_invitados > 0
+      ? String(extracted.num_invitados)
+      : null) || pickFromMergedLines(mergedLines, /Número de invitados/i);
+  const ubicacion =
+    extracted.direccion_evento?.trim() || pickFromMergedLines(mergedLines, /Lugar\/dirección/i);
+  const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
+  const ppto =
+    extracted.presupuesto !== null && extracted.presupuesto > 0
+      ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN`
+      : pptoFromLine;
+
+  const reqFromSummary =
+    conversationText && conversationText.trim().length > 20
+      ? generateSummary(conversationText)
+      : null;
+  const reqs =
+    (reqFromSummary && reqFromSummary !== "Info pendiente" ? reqFromSummary : null) ||
+    extracted.requerimientos_evento?.trim() ||
+    pickFromMergedLines(mergedLines, /Requerimientos/i);
+
+  const lineas: string[] = ["📋 RESUMEN LUCY — lo que el cliente quiere:", ""];
+
+  if (nombre) lineas.push(`• Nombre: ${nombre}`);
+  if (correo) lineas.push(`• Correo: ${correo}`);
+  else if (emailWaived) lineas.push("• Correo: no proporcionó (continúa por WhatsApp)");
+  if (evento) lineas.push(`• Tipo de evento: ${evento}`);
+  if (reqs) lineas.push(`• Servicios / requerimientos: ${reqs}`);
+  if (invitados) lineas.push(`• Invitados: ${invitados}`);
+  if (ubicacion) lineas.push(`• Ubicación: ${ubicacion}`);
+  if (fecha) lineas.push(`• Fecha: ${fecha}`);
+  if (ppto) lineas.push(`• Presupuesto: ${ppto}`);
+
+  if (lineas.length <= 2) {
+    return "📋 RESUMEN LUCY\n\n(Captura en progreso — aún faltan datos del cliente)";
+  }
+
+  lineas.push("", "— Actualizado automáticamente por Lucy en cada mensaje —");
+  return lineas.join("\n").slice(0, 8000);
+}

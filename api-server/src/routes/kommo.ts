@@ -31,7 +31,7 @@ import {
   maybeRefinarMensajeCierre,
 } from "../services/lucyRedaction.js";
 import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcessor.js";
-import { generateSummary, enrichExtractedFromText } from "../services/summaryService.js";
+import { generateSummary, enrichExtractedFromText, buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   isPlaceholderLeadName,
   sanitizeDisplayName,
@@ -764,17 +764,20 @@ function withCrmNombre(extracted: ExtractedData, mergedLines: string[]): Extract
 }
 
 function buildPatchPayload(
-  _aiResponse: string,
   extracted: ExtractedData,
+  mergedLines: string[],
   conversationText?: string
 ): Record<string, unknown> {
-  // respuesta_ia (1048772) eliminado de Kommo — NO incluir o el PATCH falla con 400.
-  // respuesta_ia_largo (1048786) ya no se escribe: Lucy envía directamente via
-  // Meta WhatsApp Cloud API — el SalesBot de Kommo ya no es necesario.
-  // Solo se actualizan los campos CRM de datos del lead.
   const customFields: Array<{ field_id: number; values: Array<{ value: unknown }> }> = [];
 
-  // Only push fields that have a real, non-placeholder, non-empty value
+  // Campo texto largo (1048786) — resumen ejecutivo para Alejandro / equipo
+  const resumenLargo = buildResumenClienteLargo(extracted, mergedLines, conversationText);
+  customFields.push({
+    field_id: FIELD.respuesta_ia_largo,
+    values: [{ value: resumenLargo }],
+  });
+
+  // Solo campos CRM con valor real
   if (isValidExtractedString(extracted.direccion_evento))
     customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(extracted.direccion_evento) }] });
   const reqForCrm = conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento;
@@ -1304,20 +1307,19 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // PASO 15: PATCH a Kommo con campos CRM extraídos (datos del lead)
-    // Ya NO se escribe campo 1048786 — envío directo via Meta API arriba.
+    // PASO 15: PATCH a Kommo — campos CRM + resumen texto largo (1048786)
     // El lead NO se mueve de etapa — Alejandro lo mueve manualmente.
     // ══════════════════════════════════════════════════════════════════════
     const payload = buildPatchPayload(
-      mensajeParaCliente,
       withCrmNombre(extracted, crmMergedLines),
+      crmMergedLines,
       conversationText
     );
     const cfvToSend = payload["custom_fields_values"] as Array<{ field_id: number; values: Array<{ value: unknown }> }>;
 
     log.info(
       { entityId, leadName: payload["name"] ?? "(sin cambio)", fieldsUpdated: cfvToSend.length },
-      "Sending PATCH a Kommo (solo campos CRM — sin campo 1048786)"
+      "Sending PATCH a Kommo (campos CRM + resumen texto largo 1048786)"
     );
 
     const patchController = new AbortController();
@@ -1895,8 +1897,8 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
         log.error({ entityId, talkId, sbPhone }, "Salesbot: mensaje no enviado ❌");
       }
 
-      // ── Update CRM fields in background (sin campo 1048786) ────────────────
-      const patchPayload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
+      // ── Update CRM fields + resumen texto largo ───────────────────────────
+      const patchPayload = buildPatchPayload(extracted, salesbotMergedLines, conversationText);
       void fetch(`https://${subdomain}.kommo.com/api/v4/leads/${entityId}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -1906,7 +1908,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
           const t = await r.text();
           log.error({ status: r.status, err: t }, "Salesbot: lead PATCH failed");
         } else {
-          log.info({ entityId }, "Salesbot: lead PATCH ok (solo campos CRM)");
+          log.info({ entityId }, "Salesbot: lead PATCH ok (CRM + resumen largo)");
         }
       });
     }
