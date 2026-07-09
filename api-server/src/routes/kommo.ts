@@ -1186,7 +1186,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     const extracted = await extractData(history, combinedUserText, filledFieldNames);
 
-    extracted.nombre = sanitizeDisplayName(extracted.nombre);
+    extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
     if (extracted.correo) {
       extracted.correo = parseCorreoFromText(extracted.correo) ?? extracted.correo;
     }
@@ -2277,7 +2277,7 @@ function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResul
   }
 
   const cfFields = lead.custom_fields ?? {};
-  const nombreLead = sanitizeDisplayName(lead.name);
+  const nombreLead = sanitizeCrmNombre(lead.name) ?? sanitizeDisplayName(lead.name);
   if (nombreLead && !isPlaceholderLeadName(lead.name)) {
     lines.push(`- Nombre del cliente: ${nombreLead}`);
   }
@@ -2379,6 +2379,8 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
 
     const extracted = await extractData(history, messageText, crmLines.join("\n"));
+
+    extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
 
     const conversationText = [
       ...history
@@ -2490,8 +2492,11 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
 
     const lead_updates: Record<string, string> = {};
-    if (isValidExtractedString(extracted.nombre)) lead_updates.name = extracted.nombre;
-    else if (whatsappDisplayName) lead_updates.name = whatsappDisplayName;
+    if (isValidExtractedString(extracted.nombre)) {
+      lead_updates.name = sanitizeCrmNombre(extracted.nombre) ?? extracted.nombre;
+    } else if (whatsappDisplayName) {
+      lead_updates.name = sanitizeCrmNombre(lead.name) ?? whatsappDisplayName;
+    }
     if (isValidExtractedString(extracted.correo)) lead_updates.contact_email = extracted.correo;
     if (isValidExtractedString(extracted.telefono)) lead_updates.contact_phone = extracted.telefono;
 

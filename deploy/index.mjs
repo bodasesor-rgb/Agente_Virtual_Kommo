@@ -88926,7 +88926,7 @@ async function processBatch(batch, accessToken, log) {
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
     const filledFieldNames = crmLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? "").filter(Boolean).join(", ");
     const extracted = await extractData(history, combinedUserText, filledFieldNames);
-    extracted.nombre = sanitizeDisplayName(extracted.nombre);
+    extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
     if (extracted.correo) {
       extracted.correo = parseCorreoFromText(extracted.correo) ?? extracted.correo;
     }
@@ -89714,7 +89714,7 @@ function buildCrmLinesFromSimulator(lead) {
     lines.push(`- Tel\xE9fono: ${lead.contact_phone.trim()}`);
   }
   const cfFields = lead.custom_fields ?? {};
-  const nombreLead = sanitizeDisplayName(lead.name);
+  const nombreLead = sanitizeCrmNombre(lead.name) ?? sanitizeDisplayName(lead.name);
   if (nombreLead && !isPlaceholderLeadName(lead.name)) {
     lines.push(`- Nombre del cliente: ${nombreLead}`);
   }
@@ -89788,6 +89788,7 @@ router3.post("/kommo/simulator", async (req, res) => {
     const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? null : lastLucyResponse;
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
     const extracted = await extractData(history, messageText, crmLines.join("\n"));
+    extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
     const conversationText = [
       ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
       messageText
@@ -89871,8 +89872,11 @@ router3.post("/kommo/simulator", async (req, res) => {
     const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente, crmMergedLines);
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
     const lead_updates = {};
-    if (isValidExtractedString(extracted.nombre)) lead_updates.name = extracted.nombre;
-    else if (whatsappDisplayName) lead_updates.name = whatsappDisplayName;
+    if (isValidExtractedString(extracted.nombre)) {
+      lead_updates.name = sanitizeCrmNombre(extracted.nombre) ?? extracted.nombre;
+    } else if (whatsappDisplayName) {
+      lead_updates.name = sanitizeCrmNombre(lead.name) ?? whatsappDisplayName;
+    }
     if (isValidExtractedString(extracted.correo)) lead_updates.contact_email = extracted.correo;
     if (isValidExtractedString(extracted.telefono)) lead_updates.contact_phone = extracted.telefono;
     log.info({ leadId, allFieldsFilled, stage_id }, "Simulator: Lucy respondi\xF3");
