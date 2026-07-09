@@ -82441,6 +82441,40 @@ function generateSummary(conversationText) {
   if (!resumen.trim()) return "Info pendiente";
   return resumen.length <= 240 ? resumen : `${resumen.slice(0, 237)}...`;
 }
+function pickFromMergedLines(mergedLines, labelPattern) {
+  const line2 = mergedLines.find((l4) => labelPattern.test(l4));
+  if (!line2) return null;
+  const val = line2.replace(/^- /, "").split(":").slice(1).join(":").trim();
+  return val || null;
+}
+function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
+  const nombre = extracted.nombre?.trim() || pickFromMergedLines(mergedLines, /Nombre del cliente/i);
+  const correo = extracted.correo?.trim() || pickFromMergedLines(mergedLines, /Correo electrónico/i);
+  const emailWaived = mergedLines.some((l4) => /continuar por whatsapp/i.test(l4));
+  const evento = extracted.tipo_evento?.trim() || pickFromMergedLines(mergedLines, /Tipo de evento/i);
+  const fecha = extracted.fecha_horario?.trim() || pickFromMergedLines(mergedLines, /Fecha y horario/i);
+  const invitados = (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null) || pickFromMergedLines(mergedLines, /Número de invitados/i);
+  const ubicacion = extracted.direccion_evento?.trim() || pickFromMergedLines(mergedLines, /Lugar\/dirección/i);
+  const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
+  const ppto = extracted.presupuesto !== null && extracted.presupuesto > 0 ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN` : pptoFromLine;
+  const reqFromSummary = conversationText && conversationText.trim().length > 20 ? generateSummary(conversationText) : null;
+  const reqs = (reqFromSummary && reqFromSummary !== "Info pendiente" ? reqFromSummary : null) || extracted.requerimientos_evento?.trim() || pickFromMergedLines(mergedLines, /Requerimientos/i);
+  const lineas = ["\u{1F4CB} RESUMEN LUCY \u2014 lo que el cliente quiere:", ""];
+  if (nombre) lineas.push(`\u2022 Nombre: ${nombre}`);
+  if (correo) lineas.push(`\u2022 Correo: ${correo}`);
+  else if (emailWaived) lineas.push("\u2022 Correo: no proporcion\xF3 (contin\xFAa por WhatsApp)");
+  if (evento) lineas.push(`\u2022 Tipo de evento: ${evento}`);
+  if (reqs) lineas.push(`\u2022 Servicios / requerimientos: ${reqs}`);
+  if (invitados) lineas.push(`\u2022 Invitados: ${invitados}`);
+  if (ubicacion) lineas.push(`\u2022 Ubicaci\xF3n: ${ubicacion}`);
+  if (fecha) lineas.push(`\u2022 Fecha: ${fecha}`);
+  if (ppto) lineas.push(`\u2022 Presupuesto: ${ppto}`);
+  if (lineas.length <= 2) {
+    return "\u{1F4CB} RESUMEN LUCY\n\n(Captura en progreso \u2014 a\xFAn faltan datos del cliente)";
+  }
+  lineas.push("", "\u2014 Actualizado autom\xE1ticamente por Lucy en cada mensaje \u2014");
+  return lineas.join("\n").slice(0, 8e3);
+}
 
 // node_modules/axios/lib/helpers/bind.js
 function bind(fn2, thisArg) {
@@ -88332,8 +88366,13 @@ function withCrmNombre(extracted, mergedLines) {
   if (!nombreCrm || isValidExtractedString(extracted.nombre)) return extracted;
   return { ...extracted, nombre: nombreCrm };
 }
-function buildPatchPayload(_aiResponse, extracted, conversationText) {
+function buildPatchPayload(extracted, mergedLines, conversationText) {
   const customFields = [];
+  const resumenLargo = buildResumenClienteLargo(extracted, mergedLines, conversationText);
+  customFields.push({
+    field_id: FIELD.respuesta_ia_largo,
+    values: [{ value: resumenLargo }]
+  });
   if (isValidExtractedString(extracted.direccion_evento))
     customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(extracted.direccion_evento) }] });
   const reqForCrm = conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento;
@@ -88614,14 +88653,14 @@ async function processBatch(batch, accessToken, log) {
       }
     }
     const payload = buildPatchPayload(
-      mensajeParaCliente,
       withCrmNombre(extracted, crmMergedLines),
+      crmMergedLines,
       conversationText
     );
     const cfvToSend = payload["custom_fields_values"];
     log.info(
       { entityId, leadName: payload["name"] ?? "(sin cambio)", fieldsUpdated: cfvToSend.length },
-      "Sending PATCH a Kommo (solo campos CRM \u2014 sin campo 1048786)"
+      "Sending PATCH a Kommo (campos CRM + resumen texto largo 1048786)"
     );
     const patchController = new AbortController();
     const patchTimer = setTimeout(() => patchController.abort(), 12e3);
@@ -89048,7 +89087,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
       if (channel === "failed") {
         log.error({ entityId, talkId, sbPhone }, "Salesbot: mensaje no enviado \u274C");
       }
-      const patchPayload = buildPatchPayload(mensajeParaCliente, extracted, conversationText);
+      const patchPayload = buildPatchPayload(extracted, salesbotMergedLines, conversationText);
       void fetch(`https://${subdomain}.kommo.com/api/v4/leads/${entityId}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -89058,7 +89097,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
           const t = await r2.text();
           log.error({ status: r2.status, err: t }, "Salesbot: lead PATCH failed");
         } else {
-          log.info({ entityId }, "Salesbot: lead PATCH ok (solo campos CRM)");
+          log.info({ entityId }, "Salesbot: lead PATCH ok (CRM + resumen largo)");
         }
       });
     }
