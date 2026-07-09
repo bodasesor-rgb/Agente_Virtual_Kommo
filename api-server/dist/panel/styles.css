@@ -162,6 +162,7 @@ svg {
 .nav-icon-home { background: var(--accent-soft); color: var(--accent); }
 .nav-icon-sim { background: var(--blue-soft); color: var(--blue); }
 .nav-icon-learn { background: var(--purple-soft); color: var(--purple); }
+.nav-icon-ops { background: var(--green-soft); color: var(--green); }
 
 .nav-text {
   display: flex;
@@ -403,6 +404,9 @@ svg {
 
 .feature-sim .feature-cta { color: var(--blue); }
 .feature-learn .feature-cta { color: var(--purple); }
+.feature-ops .feature-icon { background: var(--green-soft); color: var(--green); }
+.feature-ops:hover { border-color: rgba(34, 197, 94, 0.4); }
+.feature-ops .feature-cta { color: var(--green); }
 
 /* ─── Stats grid ───────────────────────────────────────────── */
 .stats-grid {

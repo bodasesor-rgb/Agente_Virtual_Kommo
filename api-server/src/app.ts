@@ -79,6 +79,18 @@ function mountPanel(basePath: string) {
 
 mountPanel("/panel");
 
+const estadoDir = path.join(__dirname, "estado");
+const estadoIndex = path.join(estadoDir, "index.html");
+
+function mountEstado(basePath: string) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(estadoIndex);
+  });
+  app.use(basePath, express.static(estadoDir, { index: false }));
+}
+
+mountEstado("/estado");
+
 app.get("/", (_req, res) => {
   res.redirect(302, "/panel");
 });

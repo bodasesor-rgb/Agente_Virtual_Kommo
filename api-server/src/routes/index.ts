@@ -8,6 +8,7 @@ import authRouter from "./auth";
 import learningRouter from "./learning";
 import knowledgeGapsRouter from "./knowledgeGaps";
 import catalogRouter from "./catalog";
+import opsRouter from "./ops";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,7 @@ router.use(authRouter);
 router.use(examplesRouter);
 router.use(learningRouter);
 router.use(knowledgeGapsRouter);
+router.use(opsRouter);
 router.use(analyticsRouter);
 
 export default router;

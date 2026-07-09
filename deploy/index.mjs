@@ -21228,27 +21228,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module2.exports = Router11;
+    module2.exports = Router12;
     module2.exports.Route = Route;
-    function Router11(options) {
-      if (!(this instanceof Router11)) {
-        return new Router11(options);
+    function Router12(options) {
+      if (!(this instanceof Router12)) {
+        return new Router12(options);
       }
       const opts = options || {};
-      function router11(req, res, next) {
-        router11.handle(req, res, next);
+      function router12(req, res, next) {
+        router12.handle(req, res, next);
       }
-      Object.setPrototypeOf(router11, this);
-      router11.caseSensitive = opts.caseSensitive;
-      router11.mergeParams = opts.mergeParams;
-      router11.params = {};
-      router11.strict = opts.strict;
-      router11.stack = [];
-      return router11;
+      Object.setPrototypeOf(router12, this);
+      router12.caseSensitive = opts.caseSensitive;
+      router12.mergeParams = opts.mergeParams;
+      router12.params = {};
+      router12.strict = opts.strict;
+      router12.stack = [];
+      return router12;
     }
-    Router11.prototype = function() {
+    Router12.prototype = function() {
     };
-    Router11.prototype.param = function param(name2, fn2) {
+    Router12.prototype.param = function param(name2, fn2) {
       if (!name2) {
         throw new TypeError("argument name is required");
       }
@@ -21268,7 +21268,7 @@ var require_router = __commonJS({
       params.push(fn2);
       return this;
     };
-    Router11.prototype.handle = function handle2(req, res, callback) {
+    Router12.prototype.handle = function handle2(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -21395,7 +21395,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router11.prototype.use = function use(handler) {
+    Router12.prototype.use = function use(handler) {
       let offset = 0;
       let path4 = "/";
       if (typeof handler !== "function") {
@@ -21428,7 +21428,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router11.prototype.route = function route(path4) {
+    Router12.prototype.route = function route(path4) {
       const route2 = new Route(path4);
       const layer = new Layer(path4, {
         sensitive: this.caseSensitive,
@@ -21443,7 +21443,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router11.prototype[method] = function(path4) {
+      Router12.prototype[method] = function(path4) {
         const route = this.route(path4);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -21626,13 +21626,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve2 = __require("node:path").resolve;
     var once = require_once();
-    var Router11 = require_router();
+    var Router12 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module2.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init2() {
-      var router11 = null;
+      var router12 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -21641,13 +21641,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router11 === null) {
-            router11 = new Router11({
+          if (router12 === null) {
+            router12 = new Router12({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router11;
+          return router12;
         }
       });
     };
@@ -21718,15 +21718,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router11 = this.router;
+      var router12 = this.router;
       fns.forEach(function(fn3) {
         if (!fn3 || !fn3.handle || !fn3.set) {
-          return router11.use(path4, fn3);
+          return router12.use(path4, fn3);
         }
         debug(".use app under %s", path4);
         fn3.mountpath = path4;
         fn3.parent = this;
-        router11.use(path4, function mounted_app(req, res, next) {
+        router12.use(path4, function mounted_app(req, res, next) {
           var orig = req.app;
           fn3.handle(req, res, function(err2) {
             Object.setPrototypeOf(req, orig.request);
@@ -24311,7 +24311,7 @@ var require_express = __commonJS({
     var EventEmitter2 = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router11 = require_router();
+    var Router12 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module2.exports = createApplication;
@@ -24333,8 +24333,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router11.Route;
-    exports.Router = Router11;
+    exports.Route = Router12.Route;
+    exports.Router = Router12;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -73998,13 +73998,13 @@ var init_learning = __esm({
 init_openaiEnv();
 
 // src/app.ts
-var import_express11 = __toESM(require_express2(), 1);
+var import_express12 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 import path3 from "node:path";
 
 // src/routes/index.ts
-var import_express10 = __toESM(require_express2(), 1);
+var import_express11 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -89592,22 +89592,140 @@ router9.post("/catalog/refresh", requireAuth, async (_req, res) => {
 });
 var catalog_default = router9;
 
-// src/routes/index.ts
+// src/routes/ops.ts
+var import_express10 = __toESM(require_express2(), 1);
+init_openaiEnv();
+init_logger3();
 var router10 = (0, import_express10.Router)();
-router10.use(health_default);
-router10.use(catalog_default);
-router10.use(kommo_default);
-router10.use(lucy_default);
-router10.use(auth_default);
-router10.use(examples_default);
-router10.use(learning_default);
-router10.use(knowledgeGaps_default);
-router10.use(analytics_default);
-var routes_default = router10;
+function uptimeLabel(seconds) {
+  if (seconds < 120) return "Reinicio reciente (posible ca\xEDda)";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min en l\xEDnea`;
+  return `${Math.floor(seconds / 3600)} h en l\xEDnea`;
+}
+async function buildOpsStatus() {
+  const catalog = getCatalogStatus();
+  const gaps = await getKnowledgeGapStats().catch(() => ({
+    pending: 0,
+    answered: 0,
+    dismissed: 0
+  }));
+  const checks = [];
+  const healActions = [];
+  const uptime = process.uptime();
+  checks.push({
+    id: "server",
+    label: "Servidor Lucy",
+    status: "ok",
+    detail: uptimeLabel(uptime)
+  });
+  if (uptime < 120) {
+    checks[checks.length - 1].status = "warn";
+  }
+  checks.push({
+    id: "openai",
+    label: "OpenAI",
+    status: isOpenAiConfigured() ? "ok" : "error",
+    detail: isOpenAiConfigured() ? `Key configurada (${getOpenAiApiKey().slice(0, 8)}\u2026)` : "Falta OPEN_AI en Hostinger \u2014 Lucy no puede usar GPT"
+  });
+  const catalogOk = catalog.loaded && !catalog.lastError;
+  checks.push({
+    id: "catalog",
+    label: "Cat\xE1logo de precios",
+    status: catalogOk ? "ok" : catalog.lastError ? "error" : "warn",
+    detail: catalog.lastError ? `Error: ${catalog.lastError}` : catalog.loaded ? `${catalog.pricedServicesCount} precios \xB7 Sheet ${catalog.sources.sheetsRows ?? 0} filas` : "A\xFAn no carg\xF3 el cat\xE1logo"
+  });
+  if (catalog.lastError) {
+    healActions.push("refresh_catalog");
+  }
+  const lastRefresh = catalog.lastRefresh ? new Date(catalog.lastRefresh).getTime() : 0;
+  const staleMs = Date.now() - lastRefresh;
+  if (catalog.loaded && staleMs > 45 * 60 * 1e3) {
+    checks.push({
+      id: "catalog_stale",
+      label: "Cat\xE1logo desactualizado",
+      status: "warn",
+      detail: `\xDAltima carga hace ${Math.floor(staleMs / 6e4)} min`
+    });
+    healActions.push("refresh_catalog");
+  }
+  checks.push({
+    id: "gaps",
+    label: "Aprendizaje pendiente",
+    status: gaps.pending > 0 ? "warn" : "ok",
+    detail: gaps.pending > 0 ? `${gaps.pending} pregunta(s) sin respuesta en el panel Aprendizaje` : `${gaps.answered} ense\xF1adas \xB7 al d\xEDa con el cat\xE1logo`
+  });
+  const hasError = checks.some((c2) => c2.status === "error");
+  const hasWarn = checks.some((c2) => c2.status === "warn");
+  return {
+    overall: hasError ? "error" : hasWarn ? "warn" : "ok",
+    checks,
+    healActions: [...new Set(healActions)]
+  };
+}
+router10.get("/ops/status", async (_req, res) => {
+  try {
+    const status = await buildOpsStatus();
+    res.json({
+      ...status,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      version: "3.3",
+      uptime: process.uptime()
+    });
+  } catch (err2) {
+    res.status(500).json({
+      overall: "error",
+      error: err2 instanceof Error ? err2.message : String(err2)
+    });
+  }
+});
+router10.post("/ops/heal", async (_req, res) => {
+  const healed = [];
+  const errors = [];
+  try {
+    const before = getCatalogStatus();
+    if (!before.loaded || before.lastError) {
+      try {
+        await refreshCatalog(true);
+        healed.push("catalog_refreshed");
+        logger.info("ops/heal: cat\xE1logo recargado");
+      } catch (err2) {
+        errors.push(err2 instanceof Error ? err2.message : String(err2));
+      }
+    }
+    const status = await buildOpsStatus();
+    res.json({
+      ok: errors.length === 0,
+      healed,
+      errors,
+      status,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    });
+  } catch (err2) {
+    res.status(500).json({
+      ok: false,
+      error: err2 instanceof Error ? err2.message : String(err2)
+    });
+  }
+});
+var ops_default = router10;
+
+// src/routes/index.ts
+var router11 = (0, import_express11.Router)();
+router11.use(health_default);
+router11.use(catalog_default);
+router11.use(kommo_default);
+router11.use(lucy_default);
+router11.use(auth_default);
+router11.use(examples_default);
+router11.use(learning_default);
+router11.use(knowledgeGaps_default);
+router11.use(ops_default);
+router11.use(analytics_default);
+var routes_default = router11;
 
 // src/app.ts
 init_logger3();
-var app = (0, import_express11.default)();
+var app = (0, import_express12.default)();
 var simuladorDir = path3.join(__dirname, "simulador");
 var simuladorIndex = path3.join(simuladorDir, "index.html");
 app.use(
@@ -89630,13 +89748,13 @@ app.use(
   })
 );
 app.use((0, import_cors.default)());
-app.use(import_express11.default.json());
-app.use(import_express11.default.urlencoded({ extended: true }));
+app.use(import_express12.default.json());
+app.use(import_express12.default.urlencoded({ extended: true }));
 function mountSimulador(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(simuladorIndex);
   });
-  app.use(basePath, import_express11.default.static(simuladorDir, { index: false }));
+  app.use(basePath, import_express12.default.static(simuladorDir, { index: false }));
 }
 mountSimulador("/simulador");
 mountSimulador("/simulator");
@@ -89646,7 +89764,7 @@ function mountAdmin(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(adminIndex);
   });
-  app.use(basePath, import_express11.default.static(adminDir, { index: false }));
+  app.use(basePath, import_express12.default.static(adminDir, { index: false }));
 }
 mountAdmin("/lucy-admin");
 mountAdmin("/admin");
@@ -89656,7 +89774,7 @@ function mountAprendizaje(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(aprendizajeIndex);
   });
-  app.use(basePath, import_express11.default.static(aprendizajeDir, { index: false }));
+  app.use(basePath, import_express12.default.static(aprendizajeDir, { index: false }));
 }
 mountAprendizaje("/aprendizaje");
 var panelDir = path3.join(__dirname, "panel");
@@ -89665,9 +89783,18 @@ function mountPanel(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(panelIndex);
   });
-  app.use(basePath, import_express11.default.static(panelDir, { index: false }));
+  app.use(basePath, import_express12.default.static(panelDir, { index: false }));
 }
 mountPanel("/panel");
+var estadoDir = path3.join(__dirname, "estado");
+var estadoIndex = path3.join(estadoDir, "index.html");
+function mountEstado(basePath) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(estadoIndex);
+  });
+  app.use(basePath, import_express12.default.static(estadoDir, { index: false }));
+}
+mountEstado("/estado");
 app.get("/", (_req, res) => {
   res.redirect(302, "/panel");
 });

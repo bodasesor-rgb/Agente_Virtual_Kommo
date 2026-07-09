@@ -170,6 +170,7 @@ svg {
 .nav-icon-home { background: var(--accent-soft); color: var(--accent); }
 .nav-icon-sim { background: var(--blue-soft); color: var(--blue); }
 .nav-icon-learn { background: var(--purple-soft); color: var(--purple); }
+.nav-icon-ops { background: var(--green-soft); color: var(--green); }
 
 .nav-text {
   display: flex;
@@ -411,6 +412,9 @@ svg {
 
 .feature-sim .feature-cta { color: var(--blue); }
 .feature-learn .feature-cta { color: var(--purple); }
+.feature-ops .feature-icon { background: var(--green-soft); color: var(--green); }
+.feature-ops:hover { border-color: rgba(34, 197, 94, 0.4); }
+.feature-ops .feature-cta { color: var(--green); }
 
 /* ─── Stats grid ───────────────────────────────────────────── */
 .stats-grid {
@@ -617,6 +621,15 @@ svg {
             <span class="nav-hint">Enseñar respuestas</span>
           </span>
         </button>
+        <button type="button" class="nav-item" data-view="estado">
+          <span class="nav-icon-wrap nav-icon-ops">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          </span>
+          <span class="nav-text">
+            <span class="nav-title">Estado de Lucy</span>
+            <span class="nav-hint">Vigilancia y reparar</span>
+          </span>
+        </button>
       </nav>
 
       <div class="sidebar-footer">
@@ -666,6 +679,17 @@ svg {
                 <h2>Aprendizaje de Lucy</h2>
                 <p>Cuando un cliente pregunta un precio o servicio que no está en el catálogo, aquí registras la respuesta correcta.</p>
                 <span class="feature-cta">Abrir aprendizaje <span aria-hidden="true">→</span></span>
+              </div>
+            </article>
+
+            <article class="feature-card feature-ops" data-go="estado">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+              </div>
+              <div class="feature-body">
+                <h2>Estado de Lucy</h2>
+                <p>Vigila servidor, OpenAI, catálogo y errores. Si el Sheet falló, puedes reparar con un clic.</p>
+                <span class="feature-cta">Abrir vigilancia <span aria-hidden="true">→</span></span>
               </div>
             </article>
           </div>

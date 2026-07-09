@@ -2,6 +2,7 @@ const VIEWS = {
   home: { frame: null, title: "Panel general" },
   simulador: { frame: "/simulator", title: "Simulador para pruebas de Lucy" },
   aprendizaje: { frame: "/aprendizaje", title: "Aprendizaje de Lucy" },
+  estado: { frame: "/estado", title: "Estado de Lucy" },
 };
 
 const viewHome = document.getElementById("view-home");
@@ -40,7 +41,7 @@ function showView(viewId) {
 
 function parseHash() {
   const hash = window.location.hash.replace("#", "").trim();
-  if (hash === "simulador" || hash === "aprendizaje") return hash;
+  if (hash === "simulador" || hash === "aprendizaje" || hash === "estado") return hash;
   return "home";
 }
 
@@ -72,6 +73,7 @@ function statCard(iconClass, iconPath, value, label, extraClass = "") {
 async function loadHomeStats() {
   try {
     const health = await fetch("/api/health").then((r) => r.json());
+    const ops = await fetch("/api/ops/status").then((r) => (r.ok ? r.json() : null));
     const catalog = health.catalog ?? {};
     let pendingGaps = "—";
     let gapsClass = "";
@@ -88,13 +90,16 @@ async function loadHomeStats() {
       /* stats opcionales */
     }
 
-    const online = health.status === "ok" && health.openai_configured;
-    setHeroStatus(
-      online,
-      online
-        ? `Lucy activa · v${health.version ?? "?"}`
-        : "Lucy necesita revisión",
-    );
+    const online = ops?.overall === "ok" || (health.status === "ok" && health.openai_configured);
+    const statusLabel =
+      ops?.overall === "error"
+        ? "Problemas detectados"
+        : ops?.overall === "warn"
+          ? "Avisos — revisar Estado"
+          : online
+            ? `Lucy activa · v${health.version ?? "?"}`
+            : "Lucy necesita revisión";
+    setHeroStatus(online && ops?.overall !== "error", statusLabel);
 
     homeStats.innerHTML = [
       statCard(
