@@ -686,7 +686,8 @@ function buildCrmContext(
   applyPresupuestoWaiver(
     filledSet,
     mergedLines,
-    collectUserTexts(historyFull, currentMessage)
+    collectUserTexts(historyFull, currentMessage),
+    historyFull
   );
 
   purgeDimensionAsUbicacion(mergedLines, filledSet, extracted);
@@ -908,8 +909,19 @@ function buildPatchPayload(
     customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(extracted.num_invitados) }] });
   if (isValidExtractedString(extracted.tipo_evento))
     customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(extracted.tipo_evento) }] });
-  if (extracted.presupuesto !== null && extracted.presupuesto > 0)
+
+  const presLine = mergedLines.find((l) => /^-?\s*Presupuesto \(MXN\):/i.test(l));
+  if (presLine) {
+    const presText = presLine.replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
+    const presNum = parseInt(presText.replace(/[^\d]/g, ""), 10);
+    if (!isNaN(presNum) && presNum >= 1000 && /^\$?[\d,.\s]+(k|mxn)?$/i.test(presText.replace(/\s/g, ""))) {
+      customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(presNum) }] });
+    } else if (presText) {
+      customFields.push({ field_id: FIELD.presupuesto, values: [{ value: cap255(presText) }] });
+    }
+  } else if (extracted.presupuesto !== null && extracted.presupuesto > 0) {
     customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(extracted.presupuesto) }] });
+  }
 
   const payload: Record<string, unknown> = { custom_fields_values: customFields };
 

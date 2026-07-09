@@ -26,6 +26,7 @@ import {
   inferLucyAskedField,
   isServiceRelatedMessage,
   detectPresupuestoRefusal,
+  countLucyFieldAsks,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre } from "../contact-name.js";
 import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
@@ -132,7 +133,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 18 escenarios de prueba\n");
+  console.log("Lucy — 19 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -647,6 +648,82 @@ async function runAll(): Promise<void> {
     );
     assert.ok(norm.includes("nuestro equipo"));
     assert.ok(!/Alejandro/i.test(norm));
+  });
+
+  await test("19. Fer A14751 — no repetir presupuesto tras waiver ni 2+ preguntas", () => {
+    const baseFilled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Fer",
+      correo: "fer.barrientost2892@gmail.com",
+      tipo_evento: "baby shower",
+      requerimientos_evento: "Brunch",
+      num_invitados: 35,
+      direccion_evento: "Jardines del pedregal",
+      fecha_horario: "Sin definir (pendiente)",
+    });
+
+    const historyAfterRefusal: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: "¿Tienen algún rango de presupuesto en mente?" },
+      { role: "user", content: "Tu mándame el presupuesto y si quieres vemos" },
+      { role: "assistant", content: "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos." },
+    ];
+
+    const filledAfterRefusal = new Set(baseFilled);
+    applyPresupuestoWaiver(
+      filledAfterRefusal,
+      [],
+      ["Tu mándame el presupuesto y si quieres vemos"],
+      historyAfterRefusal
+    );
+    assert.ok(filledAfterRefusal.has("Presupuesto (MXN)"));
+
+    const loopReply1 = runGuards({
+      aiResponse: "¿Manejan algún presupuesto estimado para el evento?",
+      extracted,
+      filledSet: new Set(baseFilled),
+      readyForClosing: false,
+      currentMessage: "ok",
+      history: [
+        ...historyAfterRefusal,
+        { role: "assistant", content: "¿Manejan algún presupuesto estimado para el evento?" },
+      ],
+    });
+    assert.ok(!/presupuesto|rango|estimado/i.test(loopReply1), loopReply1.slice(0, 200));
+
+    const filledLoop = new Set(baseFilled);
+    const historyDoubleAsk: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: "¿Tienen algún rango de presupuesto en mente?" },
+      { role: "user", content: "..." },
+      { role: "assistant", content: "¿Manejan algún presupuesto estimado para el evento?" },
+    ];
+    assert.equal(countLucyFieldAsks(historyDoubleAsk, "presupuesto"), 2);
+
+    applyPresupuestoWaiver(filledLoop, [], ["..."], historyDoubleAsk);
+    assert.ok(filledLoop.has("Presupuesto (MXN)"));
+
+    const loopReply2 = runGuards({
+      aiResponse: "¿Tienen idea del presupuesto o prefieren que les propongamos opciones?",
+      extracted,
+      filledSet: new Set(baseFilled),
+      readyForClosing: false,
+      currentMessage: "gracias",
+      history: historyDoubleAsk,
+    });
+    assert.ok(!/presupuesto|rango|estimado|inversi/i.test(loopReply2), loopReply2.slice(0, 200));
+    assert.ok(
+      loopReply2.includes("Perfecto, ya tengo todo") ||
+        loopReply2.includes("sin problema") ||
+        loopReply2.includes("nuestro equipo"),
+      loopReply2.slice(0, 200)
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
