@@ -154,6 +154,8 @@ ALTER TABLE messages ADD COLUMN IF NOT EXISTS source VARCHAR(30);
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS learning_phase VARCHAR(30);
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_kommo_sync_at TIMESTAMP;
 ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIMESTAMP;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_client_message_at TIMESTAMP;
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_window_renewal_at TIMESTAMP;
 CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL;
 `;
 

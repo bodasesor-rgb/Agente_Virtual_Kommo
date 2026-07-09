@@ -1052,6 +1052,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         status: "active",
         stage: "discovery",
         messageCount: 0,
+        lastClientMessageAt: new Date(),
       }).returning();
       conversation = newConv!;
       log.info({ entityId }, "Nueva conversación creada en BD");
@@ -1559,6 +1560,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         lastIntent: intentResult.intent,
         sentiment: sentimentResult.sentiment,
         stage,
+        lastClientMessageAt: new Date(),
         updatedAt: new Date(),
       })
       .where(eq(conversations.id, conversation.id))
