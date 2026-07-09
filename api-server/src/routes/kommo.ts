@@ -70,6 +70,8 @@ import {
 import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
+import { classifyInboundMessage } from "../services/messageClassifier.js";
+import { descartarPublicidad } from "../services/kommoTalkActions.js";
 
 const router: IRouter = Router();
 
@@ -109,6 +111,8 @@ interface PendingBatch {
   talkId: string | null;
   subdomain: string;
   isVoice: boolean;
+  senderHint: string;
+  channelHint: string;
   timer: ReturnType<typeof setTimeout>;
 }
 
@@ -121,6 +125,9 @@ interface KommoMessageEntry {
   entity_id?: number | string;
   chat_id?: string;
   talk_id?: string;
+  origin?: string;
+  type?: string;
+  author?: { type?: string; name?: string; email?: string };
   attachments?: Array<{ type?: string; mime_type?: string; link?: string; url?: string }>;
 }
 
@@ -916,8 +923,21 @@ function safeParseDate(raw: string | null): Date | null {
 
 // ─── Core processing after debounce ──────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractSenderHint(message: KommoMessageEntry | undefined): string {
+  if (!message) return "";
+  const author = message.author;
+  if (author?.email) return author.email;
+  if (author?.name) return author.name;
+  return "";
+}
+
+function extractChannelHint(message: KommoMessageEntry | undefined): string {
+  if (!message) return "";
+  return String(message.origin ?? message.type ?? "");
+}
+
 async function processBatch(batch: PendingBatch, accessToken: string, log: any): Promise<void> {
-  const { texts, entityId, chatId, talkId, subdomain } = batch;
+  const { texts, entityId, chatId, talkId, subdomain, isVoice, senderHint, channelHint } = batch;
   const combinedUserText = texts.join("\n");
 
   log.info({ messageCount: texts.length, combinedUserText, chatId }, "Processing debounced batch");
@@ -963,6 +983,47 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
           return;
         }
       }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PASO 0b: Publicidad → marcar leído y no responder; clientes → continuar
+    // ══════════════════════════════════════════════════════════════════════
+    const yaEsPublicidad = leadKommo?.tags.includes("publicidad") ?? false;
+    const clasificacion = classifyInboundMessage({
+      text: combinedUserText,
+      senderHint,
+      channelHint,
+      isVoice,
+    });
+
+    if (yaEsPublicidad || clasificacion.kind === "publicidad") {
+      log.info(
+        {
+          entityId,
+          kind: clasificacion.kind,
+          confidence: clasificacion.confidence,
+          reason: clasificacion.reason,
+          yaEsPublicidad,
+        },
+        "Mensaje de publicidad — marcando leído sin responder"
+      );
+
+      if (talkId) {
+        await descartarPublicidad(
+          subdomain,
+          accessToken,
+          talkId,
+          entityId,
+          yaEsPublicidad ? "tag-publicidad" : clasificacion.reason,
+          agregarNota
+        );
+      }
+
+      if (leadKommo && !leadKommo.tags.includes("publicidad")) {
+        await agregarTag(subdomain, accessToken, entityId, ["publicidad"], leadKommo.tags);
+      }
+
+      return;
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1557,6 +1618,8 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   const entityId = firstMessage?.entity_id ?? null;
   const chatId = firstMessage?.chat_id ?? null;
   const talkId = firstMessage?.talk_id ?? null;
+  const senderHint = extractSenderHint(firstMessage);
+  const channelHint = extractChannelHint(firstMessage);
 
   // Resolve text: transcribes audio via Whisper if the message is a voice note
   const messageData = firstMessage
@@ -1599,6 +1662,8 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
     existing.entityId = entityId;
     existing.talkId = talkId;
     existing.isVoice = existing.isVoice || isVoice; // sticky: if any message in batch was voice
+    if (senderHint) existing.senderHint = senderHint;
+    if (channelHint) existing.channelHint = channelHint;
     log.info({ chatId, buffered: existing.texts.length }, "Message added to pending batch");
     existing.timer = setTimeout(() => {
       pendingBatches.delete(chatId);
@@ -1614,7 +1679,17 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
       });
     }, DEBOUNCE_MS);
 
-    const batch: PendingBatch = { texts: [text], entityId, chatId, talkId, subdomain, isVoice, timer };
+    const batch: PendingBatch = {
+      texts: [text],
+      entityId,
+      chatId,
+      talkId,
+      subdomain,
+      isVoice,
+      senderHint,
+      channelHint,
+      timer,
+    };
     pendingBatches.set(chatId, batch);
     log.info({ chatId, debounceMs: DEBOUNCE_MS, isVoice }, "New batch started, waiting for more messages");
   }

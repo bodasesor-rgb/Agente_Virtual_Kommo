@@ -87615,6 +87615,158 @@ async function recordKnowledgeGapIfNeeded(opts) {
   }
 }
 
+// src/services/messageClassifier.ts
+var CLIENT_SIGNALS = [
+  /\bboda\b/i,
+  /\bxv\s*a[ñn]os\b/i,
+  /\bevento\b/i,
+  /\binvitados?\b/i,
+  /\bbanquete\b/i,
+  /\bcotiz(a|ar|ación)\b/i,
+  /\bpresupuesto\b/i,
+  /\bsal[oó]n\b/i,
+  /\bquincea[ñn]era\b/i,
+  /\bcumplea[ñn]os\b/i,
+  /\bmi (boda|evento|fiesta)\b/i,
+  /\bpara mi\b/i,
+  /\bcu[aá]nto (cuesta|sale|costar[ií]a)\b/i,
+  /\bme (gustar[ií]a|interesa)\b/i,
+  /\btienen disponible\b/i,
+  /\bagendar\b/i,
+  /\bvisita\b/i
+];
+var SPAM_SENDER_PATTERNS = [
+  /noreply/i,
+  /no-?reply/i,
+  /donotreply/i,
+  /newsletter/i,
+  /marketing@/i,
+  /promo(ciones)?@/i,
+  /info@.*\.(com|mx)$/i,
+  /notificaciones@/i,
+  /mailer-daemon/i
+];
+var SPAM_BODY_PATTERNS = [
+  { pattern: /darse de baja/i, weight: 4, label: "opt-out" },
+  { pattern: /cancelar suscripci[oó]n/i, weight: 4, label: "unsubscribe" },
+  { pattern: /\bunsubscribe\b/i, weight: 4, label: "unsubscribe-en" },
+  { pattern: /si no desea(s)? recibir/i, weight: 3, label: "no-desea-recibir" },
+  { pattern: /ver en (el )?navegador/i, weight: 3, label: "ver-navegador" },
+  { pattern: /haz clic aqu[ií]/i, weight: 2, label: "cta-clic" },
+  { pattern: /oferta(s)? (exclusiva|especial|limitada)/i, weight: 3, label: "oferta" },
+  { pattern: /\d+\s*%\s*(de\s*)?(descuento|off)/i, weight: 3, label: "descuento" },
+  { pattern: /\bnewsletter\b/i, weight: 3, label: "newsletter" },
+  { pattern: /\bpublicidad\b/i, weight: 3, label: "publicidad" },
+  { pattern: /\bpatrocinad[oa]\b/i, weight: 2, label: "patrocinado" },
+  { pattern: /\bpromoci[oó]n\b/i, weight: 2, label: "promocion" },
+  { pattern: /este correo fue enviado/i, weight: 3, label: "correo-masivo" },
+  { pattern: /correo promocional/i, weight: 3, label: "correo-promocional" },
+  { pattern: /t[eé]rminos y condiciones/i, weight: 1, label: "tyc" },
+  { pattern: /black\s*friday|cyber\s*monday|hot\s*sale/i, weight: 3, label: "campana" },
+  { pattern: /aprovecha (esta|nuestra) oferta/i, weight: 3, label: "aprovecha-oferta" },
+  { pattern: /solo por tiempo limitado/i, weight: 2, label: "tiempo-limitado" },
+  { pattern: /compra ahora/i, weight: 2, label: "compra-ahora" },
+  { pattern: /cat[aá]logo de productos/i, weight: 1, label: "catalogo-productos" }
+];
+var PUBLICIDAD_THRESHOLD = 4;
+function classifyInboundMessage(input) {
+  if (input.isVoice) {
+    return { kind: "cliente", confidence: 1, reason: "nota de voz" };
+  }
+  const text2 = input.text.trim();
+  const sender = (input.senderHint ?? "").trim();
+  if (!text2 && !sender) {
+    return { kind: "cliente", confidence: 0.5, reason: "sin contenido" };
+  }
+  const haySenalCliente = CLIENT_SIGNALS.some((p3) => p3.test(text2));
+  if (haySenalCliente) {
+    return { kind: "cliente", confidence: 0.9, reason: "se\xF1al de evento/cotizaci\xF3n" };
+  }
+  let score = 0;
+  const reasons = [];
+  for (const p3 of SPAM_SENDER_PATTERNS) {
+    if (sender && p3.test(sender)) {
+      score += 4;
+      reasons.push(`remitente:${p3.source}`);
+      break;
+    }
+  }
+  for (const { pattern, weight, label } of SPAM_BODY_PATTERNS) {
+    if (pattern.test(text2)) {
+      score += weight;
+      reasons.push(label);
+    }
+  }
+  const linkCount = (text2.match(/https?:\/\//gi) ?? []).length;
+  if (linkCount >= 3 && text2.length > 400) {
+    score += 2;
+    reasons.push("muchos-enlaces");
+  }
+  const isWhatsapp = (input.channelHint ?? "").toLowerCase().includes("whatsapp");
+  if (isWhatsapp && text2.length < 120 && score < PUBLICIDAD_THRESHOLD) {
+    return { kind: "cliente", confidence: 0.85, reason: "whatsapp-corto" };
+  }
+  if (score >= PUBLICIDAD_THRESHOLD) {
+    const confidence = Math.min(0.95, 0.6 + score * 0.05);
+    return {
+      kind: "publicidad",
+      confidence,
+      reason: reasons.slice(0, 4).join(", ") || "patrones-spam"
+    };
+  }
+  return { kind: "cliente", confidence: 0.7, reason: "sin-se\xF1ales-publicidad" };
+}
+
+// src/services/kommoTalkActions.ts
+init_logger3();
+function kommoHeaders2(accessToken) {
+  return { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+}
+async function cerrarTalk(subdomain, accessToken, talkId) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1e4);
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/close`,
+      {
+        method: "POST",
+        headers: kommoHeaders2(accessToken),
+        signal: controller.signal,
+        body: JSON.stringify({ force_close: true })
+      }
+    );
+    clearTimeout(timer);
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      if (res.status === 422) {
+        logger.info({ talkId }, "cerrarTalk: conversaci\xF3n ya estaba cerrada");
+        return true;
+      }
+      logger.warn({ status: res.status, errBody, talkId }, "cerrarTalk: Kommo rechaz\xF3 la solicitud");
+      return false;
+    }
+    logger.info({ talkId }, "cerrarTalk: conversaci\xF3n cerrada (marcada como le\xEDda)");
+    return true;
+  } catch (err2) {
+    logger.warn({ err: err2, talkId }, "cerrarTalk: excepci\xF3n");
+    return false;
+  }
+}
+async function descartarPublicidad(subdomain, accessToken, talkId, leadId, reason, agregarNotaFn) {
+  if (talkId) {
+    await cerrarTalk(subdomain, accessToken, talkId);
+  }
+  await agregarNotaFn(
+    subdomain,
+    accessToken,
+    leadId,
+    `\u{1F4E2} Publicidad descartada autom\xE1ticamente
+Motivo: ${reason}`
+  ).catch((err2) => {
+    logger.warn({ err: err2, leadId }, "descartarPublicidad: no se pudo agregar nota");
+  });
+}
+
 // src/routes/kommo.ts
 var router3 = (0, import_express3.Router)();
 var openai3 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
@@ -88097,8 +88249,19 @@ function safeParseDate(raw) {
   const d2 = new Date(raw);
   return isNaN(d2.getTime()) ? null : d2;
 }
+function extractSenderHint(message) {
+  if (!message) return "";
+  const author = message.author;
+  if (author?.email) return author.email;
+  if (author?.name) return author.name;
+  return "";
+}
+function extractChannelHint(message) {
+  if (!message) return "";
+  return String(message.origin ?? message.type ?? "");
+}
 async function processBatch(batch, accessToken, log) {
-  const { texts, entityId, chatId, talkId, subdomain } = batch;
+  const { texts, entityId, chatId, talkId, subdomain, isVoice, senderHint, channelHint } = batch;
   const combinedUserText = texts.join("\n");
   log.info({ messageCount: texts.length, combinedUserText, chatId }, "Processing debounced batch");
   try {
@@ -88133,6 +88296,39 @@ async function processBatch(batch, accessToken, log) {
           return;
         }
       }
+    }
+    const yaEsPublicidad = leadKommo?.tags.includes("publicidad") ?? false;
+    const clasificacion = classifyInboundMessage({
+      text: combinedUserText,
+      senderHint,
+      channelHint,
+      isVoice
+    });
+    if (yaEsPublicidad || clasificacion.kind === "publicidad") {
+      log.info(
+        {
+          entityId,
+          kind: clasificacion.kind,
+          confidence: clasificacion.confidence,
+          reason: clasificacion.reason,
+          yaEsPublicidad
+        },
+        "Mensaje de publicidad \u2014 marcando le\xEDdo sin responder"
+      );
+      if (talkId) {
+        await descartarPublicidad(
+          subdomain,
+          accessToken,
+          talkId,
+          entityId,
+          yaEsPublicidad ? "tag-publicidad" : clasificacion.reason,
+          agregarNota
+        );
+      }
+      if (leadKommo && !leadKommo.tags.includes("publicidad")) {
+        await agregarTag(subdomain, accessToken, entityId, ["publicidad"], leadKommo.tags);
+      }
+      return;
     }
     let conversation = await db.query.conversations.findFirst({
       where: eq2(conversations.kommoLeadId, String(entityId))
@@ -88538,6 +88734,8 @@ router3.post("/kommo/webhook", async (req, res) => {
   const entityId = firstMessage?.entity_id ?? null;
   const chatId = firstMessage?.chat_id ?? null;
   const talkId = firstMessage?.talk_id ?? null;
+  const senderHint = extractSenderHint(firstMessage);
+  const channelHint = extractChannelHint(firstMessage);
   const messageData = firstMessage ? await processMessage(firstMessage, accessToken, log) : { text: "", isVoice: false };
   const text2 = messageData.text.trim();
   const isVoice = messageData.isVoice;
@@ -88567,6 +88765,8 @@ router3.post("/kommo/webhook", async (req, res) => {
     existing.entityId = entityId;
     existing.talkId = talkId;
     existing.isVoice = existing.isVoice || isVoice;
+    if (senderHint) existing.senderHint = senderHint;
+    if (channelHint) existing.channelHint = channelHint;
     log.info({ chatId, buffered: existing.texts.length }, "Message added to pending batch");
     existing.timer = setTimeout(() => {
       pendingBatches.delete(chatId);
@@ -88581,7 +88781,17 @@ router3.post("/kommo/webhook", async (req, res) => {
         log.error({ err: err2 }, "Error in processBatch");
       });
     }, DEBOUNCE_MS);
-    const batch = { texts: [text2], entityId, chatId, talkId, subdomain, isVoice, timer };
+    const batch = {
+      texts: [text2],
+      entityId,
+      chatId,
+      talkId,
+      subdomain,
+      isVoice,
+      senderHint,
+      channelHint,
+      timer
+    };
     pendingBatches.set(chatId, batch);
     log.info({ chatId, debounceMs: DEBOUNCE_MS, isVoice }, "New batch started, waiting for more messages");
   }
