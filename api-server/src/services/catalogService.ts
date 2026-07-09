@@ -19,6 +19,7 @@ import {
   type SheetCatalogRow,
 } from "./googleSheetsCatalog.js";
 import { loadGammaCatalog, loadGammaKnowledgeFromSheet } from "./gammaCatalog.js";
+import { clientMentionsCatering } from "../conversation-understanding.js";
 
 export interface CatalogStatus {
   loaded: boolean;
@@ -552,7 +553,7 @@ export function injectCatalogCateringIfAsked(
   clientMessage: string | undefined,
   aiResponse: string
 ): string {
-  if (!clientMessage?.trim() || !/\bcatering\b/i.test(clientMessage)) return aiResponse;
+  if (!clientMessage?.trim() || !clientMentionsCatering(clientMessage)) return aiResponse;
   return buildCatalogCateringAnswer() ?? aiResponse;
 }
 

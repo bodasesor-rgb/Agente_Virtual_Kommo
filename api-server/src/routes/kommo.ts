@@ -44,6 +44,7 @@ import {
   clientAddsToQuote,
   appendPostCierreRequirements,
   parsePresupuestoFromText,
+  inferLucyAskedField,
   scanConversationForCaptures,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
@@ -72,7 +73,7 @@ import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/c
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { getKommoAccessToken, getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
-import { getAdvisorName } from "../lib/bodasesorAdvisor.js";
+import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
 
 const router: IRouter = Router();
 
@@ -324,13 +325,21 @@ const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 const CATALOG_URL =
   "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
 
-function buildClosingMessage(serviciosPedidos: string | null | undefined): string {
+function buildClosingMessage(
+  serviciosPedidos: string | null | undefined,
+  clientName?: string | null
+): string {
   const servicio = serviciosPedidos?.trim() || null;
+  const advisor = advisorLabelForClient(clientName);
   const introServicios = servicio
     ? `Por cierto, además de ${servicio}, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.`
     : `Por cierto, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.`;
+  const handoff =
+    advisor === "nuestro equipo"
+      ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
+      : `Le paso estos datos a ${advisor} para que te arme una cotización personalizada.`;
   return (
-    `Perfecto, ya tengo todo. Le paso estos datos a ${getAdvisorName()} para que te arme una cotización personalizada.\n\n` +
+    `Perfecto, ya tengo todo. ${handoff}\n\n` +
     `Mientras tanto, aquí está nuestro catálogo completo:\n${CATALOG_URL}\n\n` +
     introServicios + `\n\n` +
     `¿Te gustaría cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en decírnoslo y nosotros te lo conseguimos.`
@@ -488,6 +497,23 @@ function buildCrmContext(
     if (!validPres) extracted.presupuesto = null;
   }
 
+  if (
+    extracted.presupuesto !== null &&
+    extracted.num_invitados !== null &&
+    extracted.presupuesto === extracted.num_invitados &&
+    extracted.presupuesto < 1000
+  ) {
+    extracted.presupuesto = null;
+  }
+
+  if (
+    extracted.requerimientos_evento?.trim() &&
+    extracted.tipo_evento?.trim() &&
+    extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()
+  ) {
+    extracted.requerimientos_evento = null;
+  }
+
   // Nombre: solo extracción explícita o CRM — no prellenar desde WhatsApp
   if (!filledSet.has("Nombre del cliente")) {
     const nombreVal = sanitizeDisplayName(extracted.nombre);
@@ -538,8 +564,13 @@ function buildCrmContext(
           filledSet.add(label);
         }
       } else if (label === "Presupuesto (MXN)") {
-        const fromMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
-        if (fromMsg) {
+        const asked = currentMessage ? inferLucyAskedField(
+          history.filter((m) => m.role === "assistant").slice(-1)[0]?.content as string | undefined ?? ""
+        ) : null;
+        const fromMsg = currentMessage
+          ? parsePresupuestoFromText(currentMessage, { askedField: asked })
+          : null;
+        if (fromMsg && !(extracted.num_invitados && extracted.num_invitados === value && Number(value) < 1000)) {
           mergedLines.push(`- ${label}: ${fromMsg}`);
           filledSet.add(label);
         }
@@ -1227,6 +1258,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       readyForClosing: allFieldsFilled,
       cierreYaEnviado,
     });
+    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
 
     if (cierreYaEnviado && combinedUserText.trim()) {
       const updatedReq = appendPostCierreRequirements(
@@ -1854,6 +1886,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       readyForClosing: salesbotAllFieldsFilled,
       cierreYaEnviado: sbCierreYaEnviado,
     });
+    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
 
     // ── P3 GUARD: Catálogo ya enviado → strip URL del catálogo en respuesta ───────
     if (sbCierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
@@ -2326,6 +2359,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       readyForClosing: allFieldsFilled,
       cierreYaEnviado: simCierreYaEnviado,
     });
+    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
 
     appendHistory(histKey, messageText, mensajeParaCliente);
 

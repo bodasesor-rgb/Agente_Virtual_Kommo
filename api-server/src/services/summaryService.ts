@@ -156,16 +156,18 @@ export function buildResumenClienteLargo(
       ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN`
       : pptoFromLine;
 
-  const reqFromSummary =
+  const reqFromServices = extracted.requerimientos_evento?.trim();
+  const reqFromLines = pickFromMergedLines(mergedLines, /Requerimientos/i);
+  const reqFromConversation =
     conversationText && conversationText.trim().length > 20
-      ? generateSummary(conversationText)
+      ? parseServicesFromText(conversationText).slice(0, 3).join(", ")
       : null;
   const reqs =
-    (reqFromSummary && reqFromSummary !== "Info pendiente" ? reqFromSummary : null) ||
-    extracted.requerimientos_evento?.trim() ||
-    pickFromMergedLines(mergedLines, /Requerimientos/i);
+    (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) ||
+    (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null) ||
+    reqFromLines;
 
-  const lineas: string[] = ["📋 RESUMEN LUCY — lo que el cliente quiere:", ""];
+  const lineas: string[] = ["RESUMEN LUCY — lo que el cliente quiere:", ""];
 
   if (nombre) lineas.push(`• Nombre: ${nombre}`);
   if (correo) lineas.push(`• Correo: ${correo}`);
@@ -178,7 +180,7 @@ export function buildResumenClienteLargo(
   if (ppto) lineas.push(`• Presupuesto: ${ppto}`);
 
   if (lineas.length <= 2) {
-    return "📋 RESUMEN LUCY\n\n(Captura en progreso — aún faltan datos del cliente)";
+    return "RESUMEN LUCY\n\n(Captura en progreso — aún faltan datos del cliente)";
   }
 
   lineas.push("", "— Actualizado automáticamente por Lucy en cada mensaje —");

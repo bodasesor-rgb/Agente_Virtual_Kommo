@@ -32,6 +32,12 @@ export function normalizeAdvisorReferences(text: string, clientName?: string | n
     `$1 ${advisor}`
   );
   out = out.replace(
+    /\b(voy\s+a\s+)?pasar(le)?\s+esta\s+informaci[oó]n\s+a\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
+    advisor === "nuestro equipo"
+      ? "voy a pasar esta información a nuestro equipo"
+      : `voy a pasar esta información a ${advisor}`
+  );
+  out = out.replace(
     /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+te\s+(arma|armar[aá]|incluir[aá]|cotiza)/g,
     (m, name) => {
       if (name.toLowerCase() === advisor.toLowerCase()) return m;

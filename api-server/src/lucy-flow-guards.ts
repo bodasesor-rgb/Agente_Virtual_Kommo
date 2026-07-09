@@ -29,6 +29,7 @@ import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
   clientAsksAboutTeam,
+  clientAsksPhone,
   clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
   clientMentionsCatering,
@@ -285,6 +286,42 @@ function pickVariant(
   return variants[start % variants.length]!;
 }
 
+/** Respuesta cuando preguntan por teléfonos de Bodasesor. */
+export function buildPhoneAnswer(): string {
+  return [
+    "Claro, te paso los números:",
+    "Ventas (solo línea telefónica, sin WhatsApp): 55 4008 0373",
+    "Gerencia / corporativo (línea telefónica y WhatsApp): 56 4671 0585",
+    "Por aquí por chat también te podemos ayudar con lo que necesites.",
+  ].join("\n");
+}
+
+function buildFoodSalesReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  entityId?: string | number,
+  currentMessage?: string
+): string {
+  const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  const eventLabel =
+    tipo === "cumpleaños"
+      ? "un cumpleaños"
+      : tipo === "boda"
+        ? "una boda"
+        : tipo === "xv años"
+          ? "XV años"
+          : tipo
+            ? `un ${tipo}`
+            : "tu evento";
+
+  const catering = buildCatalogCateringAnswer();
+  const intro = `Para ${eventLabel}, lo más pedido es banquete o taquiza según el estilo que busquen — banquete es más formal con servicio de meseros; taquiza es más casual y flexible.`;
+  if (catering) {
+    return `${intro}\n\n${catering}`;
+  }
+  return buildRecommendationsReply(extracted, history, entityId, currentMessage);
+}
+
 /** Sugerencias por tipo de evento cuando el cliente pide recomendaciones. */
 export function buildRecommendationsReply(
   extracted: ExtractedData,
@@ -332,6 +369,9 @@ function contextualPrefix(
   const msg = currentMessage?.trim() ?? "";
   if (!msg) return "";
 
+  if (field === "requerimientos" && clientMentionsCatering(currentMessage)) {
+    return "Perfecto. ";
+  }
   if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) {
     return "Perfecto. ";
   }
@@ -631,12 +671,19 @@ function shouldPreferAiResponse(
 
   if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
 
-  // Cliente hizo una pregunta — priorizar respuesta útil de GPT sobre plantilla rígida
-  if (clientAskedFreeformQuestion(currentMessage) && trimmed.length > 20) {
-    return true;
+  // Cliente hizo una pregunta o dio contexto útil — priorizar GPT sobre plantilla rígida
+  if (currentMessage && currentMessage.trim().length > 12 && trimmed.length > 25) {
+    if (clientAskedFreeformQuestion(currentMessage)) return true;
+    if (clientMentionsCatering(currentMessage) && !mensajeAsksForField(trimmed, pending)) return true;
+    if (justAnsweredReqContext(currentMessage, trimmed)) return true;
   }
 
   return false;
+}
+
+function justAnsweredReqContext(currentMessage: string, aiResponse: string): boolean {
+  if (!clientMentionsCatering(currentMessage) && !isServiceRelatedMessage(currentMessage)) return false;
+  return aiResponse.length > 40 && !/^\s*¿/.test(aiResponse);
 }
 
 /** Si hay texto útil sin pregunta, añade la pregunta pendiente en lugar de reemplazar todo. */
@@ -892,6 +939,7 @@ function isInformativeClientAnswer(currentMessage?: string): boolean {
     clientAsksForRecommendations(currentMessage) ||
     clientAsksBanqueteVsTaquiza(currentMessage) ||
     clientMentionsCatering(currentMessage) ||
+    clientAsksPhone(currentMessage) ||
     clientAsksPrice(currentMessage) ||
     clientAsksInclusion(currentMessage) ||
     clientAskedFreeformQuestion(currentMessage)
@@ -964,7 +1012,7 @@ export interface LucyMessageGuardsInput {
   presentationHistory?: OpenAI.Chat.ChatCompletionMessageParam[];
   currentMessage?: string;
   whatsappDisplayName?: string | null;
-  buildClosing: (servicios: string | null | undefined) => string;
+  buildClosing: (servicios: string | null | undefined, clientName?: string | null) => string;
   log?: { info: (obj: unknown, msg?: string) => void; warn: (obj: unknown, msg?: string) => void };
   entityId?: string | number;
   /** True cuando Lucy nunca ha respondido a este lead (sin historial ni CRM previo). */
@@ -1041,14 +1089,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
+  } else if (clientAsksPhone(currentMessage)) {
+    const phoneAnswer = buildPhoneAnswer();
+    const pending = getNextPendingField(extracted, filledSet);
+    mensaje =
+      needsNextStep && pending && pending !== "correo"
+        ? `${phoneAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
+        : phoneAnswer;
+    log?.info({ entityId }, "GUARD: cliente preguntó teléfonos");
   } else if (clientMentionsCatering(currentMessage) && clientAsksPrice(currentMessage)) {
-    const cateringAnswer = buildCatalogCateringAnswer();
+    const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    log?.info({ entityId }, "GUARD: catering — opciones de alimentos del Sheet");
+    log?.info({ entityId }, "GUARD: comida/catering — opciones con precios");
   } else if (clientMentionsCatering(currentMessage)) {
-    const cateringAnswer = buildCatalogCateringAnswer();
+    const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    log?.info({ entityId }, "GUARD: catering — opciones sin precio inventado");
+    log?.info({ entityId }, "GUARD: comida/catering — orientación de venta");
   } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
@@ -1110,12 +1166,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
   } else if (trulyReadyForClosing && !cierreYaEnviado) {
-    mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
+    mensaje = buildClosing(
+      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+      extracted.nombre
+    );
     log?.info({ entityId }, "Datos completos — mensaje de cierre desde plantilla");
   } else {
     mensaje = aiResponse;
     if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Información completa obtenida")) {
-      mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
       log?.warn({ entityId }, "GPT generó nota interna — usando cierre desde plantilla");
     }
   }

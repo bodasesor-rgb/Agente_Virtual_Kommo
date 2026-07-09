@@ -79,7 +79,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -106,6 +106,11 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pantalla: "pantallas",
   inflable: "inflables",
   mobiliario: "mobiliario",
+  comida: "banquete / taquiza",
+  alimentos: "banquete / taquiza",
+  alimento: "banquete / taquiza",
+  menu: "banquete / taquiza",
+  menú: "banquete / taquiza",
 };
 
 const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
@@ -189,10 +194,30 @@ export function clientAsksForRecommendations(message?: string): boolean {
   );
 }
 
-/** Cliente pregunta catering (no es fila del Sheet — mapear a alimentos). */
+/** Cliente pregunta catering o comida (mapear a opciones de alimentos del catálogo). */
 export function clientMentionsCatering(message?: string): boolean {
   if (!message?.trim()) return false;
-  return /\bcatering\b/i.test(message);
+  const t = message.toLowerCase();
+  return (
+    /\bcatering\b/i.test(t) ||
+    /\b(busco|necesito|quiero|cotizar)\s+(comida|alimentos?|men[uú])\b/i.test(t) ||
+    /\bcomida\s+para\b/i.test(t) ||
+    /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) ||
+    /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t)
+  );
+}
+
+/** Cliente pregunta por teléfonos de contacto. */
+export function clientAsksPhone(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\btel[eé]fono/i.test(t) ||
+    /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t) ||
+    /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t) ||
+    /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t) ||
+    /\btienen\s+whatsapp/i.test(t)
+  );
 }
 
 /** Comparación directa banquete vs taquiza. */
@@ -354,7 +379,7 @@ export function parseInvitadosFromText(text: string): string | null {
   if (isServiceRelatedMessage(trimmed)) return null;
 
   if (
-    /\b(no\s+s[eé]|a[uú]n\s+no|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
+    /\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
       trimmed
     )
   ) {
@@ -435,7 +460,17 @@ export function parseFechaFromText(text: string): string | null {
   return null;
 }
 
-export function parsePresupuestoFromText(text: string): string | null {
+export interface PresupuestoParseOptions {
+  /** Si Lucy acaba de preguntar presupuesto, aceptar respuestas cortas con contexto. */
+  askedField?: UnderstandingField | null;
+}
+
+function bareNumberLooksLikeInvitados(num: number, trimmed: string): boolean {
+  if (/\$|k\b|mil\b|pesos|mxn|mnx/i.test(trimmed)) return false;
+  return num >= 5 && num <= 999;
+}
+
+export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOptions): string | null {
   const trimmed = text.trim();
   if (
     /\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones)\b/i.test(
@@ -486,8 +521,14 @@ export function parsePresupuestoFromText(text: string): string | null {
     if (amountMatch) return trimmed.slice(0, 80);
   }
 
-  if (/^\$?\s*[\d][\d,.]*\s*(k|mxn|mnx|pesos)?$/i.test(trimmed)) {
-    return trimmed.slice(0, 80);
+  const bareMatch = trimmed.match(/^\$?\s*([\d][\d,.]*)\s*(k|mxn|mnx|pesos)?$/i);
+  if (bareMatch) {
+    const num = parseInt(bareMatch[1]!.replace(/,/g, ""), 10);
+    if (isNaN(num) || num <= 0) return null;
+    if (opts?.askedField === "presupuesto") return trimmed.slice(0, 80);
+    if (bareNumberLooksLikeInvitados(num, trimmed)) return null;
+    if (num >= 1000) return `$${num.toLocaleString("es-MX")} MXN`;
+    return null;
   }
 
   return null;
@@ -597,7 +638,7 @@ export function captureContextualAnswer(
   }
 
   if (!filledSet.has("Presupuesto (MXN)") && asked === "presupuesto") {
-    const pres = parsePresupuestoFromText(msg);
+    const pres = parsePresupuestoFromText(msg, { askedField: "presupuesto" });
     if (pres) {
       captures.push({ label: "Presupuesto (MXN)", value: pres });
     } else if (
@@ -671,10 +712,15 @@ export function scanConversationForCaptures(
     }
 
     if (!pending.has("Presupuesto (MXN)")) {
-      const pres = parsePresupuestoFromText(msg);
-      if (pres) {
-        captures.push({ label: "Presupuesto (MXN)", value: pres });
-        pending.add("Presupuesto (MXN)");
+      const invMatch = parseInvitadosFromText(msg);
+      const looksLikeInvitadosOnly =
+        !!invMatch && !/\$|presupuesto|mil\b|pesos|mxn|mnx/i.test(msg);
+      if (!looksLikeInvitadosOnly) {
+        const pres = parsePresupuestoFromText(msg);
+        if (pres) {
+          captures.push({ label: "Presupuesto (MXN)", value: pres });
+          pending.add("Presupuesto (MXN)");
+        }
       }
     }
   }
@@ -727,10 +773,35 @@ export function enrichExtractedFromConversation(
   }
 
   if (extracted.presupuesto === null || extracted.presupuesto === undefined) {
-    const pres = parsePresupuestoFromText(conversationText);
-    if (pres?.startsWith("$")) {
+    const presChunks = conversationText
+      .split(/\n|\.|;/)
+      .map((s) => s.trim())
+      .filter((s) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s));
+    for (const chunk of presChunks) {
+      const pres = parsePresupuestoFromText(chunk);
+      if (!pres) continue;
       const num = parseInt(pres.replace(/[^\d]/g, ""), 10);
-      if (!isNaN(num) && num > 0) extracted.presupuesto = num;
+      if (!isNaN(num) && num >= 1000) {
+        extracted.presupuesto = num;
+        break;
+      }
     }
+  }
+
+  if (
+    extracted.presupuesto !== null &&
+    extracted.num_invitados !== null &&
+    extracted.presupuesto === extracted.num_invitados &&
+    extracted.presupuesto < 1000
+  ) {
+    extracted.presupuesto = null;
+  }
+
+  if (
+    extracted.requerimientos_evento?.trim() &&
+    extracted.tipo_evento?.trim() &&
+    extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()
+  ) {
+    extracted.requerimientos_evento = null;
   }
 }
