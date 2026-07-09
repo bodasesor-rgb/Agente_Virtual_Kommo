@@ -6,6 +6,7 @@
 import { db, followUpEvents, conversations } from "@workspace/db";
 import { eq, lte, gte, and } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
+import { sendWhatsAppDirect } from "./whatsappDirectSender.js";
 
 // ─── IDs de etapas del pipeline ───────────────────────────────────────────────
 export const ETAPA = {
@@ -234,6 +235,40 @@ export async function enviarMensaje(
     logger.warn({ err, talkId }, "enviarMensaje: excepción (timeout o red)");
     return false;
   }
+}
+
+/** Envía respuesta de Lucy al chat de Kommo (no como nota del lead). */
+export async function deliverLucyOutbound(opts: {
+  subdomain: string;
+  accessToken: string;
+  talkId: string | null | undefined;
+  whatsappPhone: string | null;
+  texto: string;
+  entityId: string | number;
+}): Promise<"kommo_talks" | "meta" | "failed"> {
+  const { subdomain, accessToken, talkId, whatsappPhone, texto, entityId } = opts;
+
+  // Kommo Talks primero → mensaje visible en la conversación del inbox.
+  if (talkId) {
+    const ok = await enviarMensaje(subdomain, accessToken, talkId, texto);
+    if (ok) {
+      logger.info({ entityId, talkId }, "Lucy: mensaje enviado via Kommo Talks ✅");
+      return "kommo_talks";
+    }
+    logger.warn({ entityId, talkId }, "Lucy: Kommo Talks falló — intentando Meta API");
+  }
+
+  if (whatsappPhone) {
+    const result = await sendWhatsAppDirect(whatsappPhone, texto, entityId);
+    if (result.success) {
+      logger.info({ entityId, phone: whatsappPhone }, "Lucy: mensaje enviado via Meta API ✅");
+      return "meta";
+    }
+    logger.error({ entityId, phone: whatsappPhone, error: result.error }, "Lucy: Meta API falló ❌");
+  }
+
+  logger.error({ entityId, talkId, whatsappPhone }, "Lucy: sin talkId ni teléfono — mensaje no enviado ❌");
+  return "failed";
 }
 
 // ─── Lógica de embudo ─────────────────────────────────────────────────────────

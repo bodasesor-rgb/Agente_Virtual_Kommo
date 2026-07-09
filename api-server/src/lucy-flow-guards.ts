@@ -107,7 +107,7 @@ const QUESTION_VARIANTS: Record<PendingField, string[]> = {
     "¿Cómo te llamas?",
   ],
   correo: [
-    "Para mandarte la info y que Alejandro te arme la propuesta, ¿a qué correo te lo envío?",
+    "Para mandarte la info y que nuestro equipo te arme la propuesta, ¿a qué correo te lo envío?",
     "¿Me compartes un correo para enviarte los detalles de la cotización?",
     "¿A qué correo te mando la información?",
   ],
