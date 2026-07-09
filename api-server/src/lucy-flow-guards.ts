@@ -6,7 +6,7 @@ import {
   resolveClientDisplayName,
   sanitizeDisplayName,
 } from "./contact-name.js";
-import { normalizeAdvisorReferences } from "./lib/bodasesorAdvisor.js";
+import { normalizeAdvisorReferences, advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
 import {
   buildAlejandroPriceReply,
   clientAsksPrice,
@@ -753,7 +753,13 @@ export function buildCorreoQuestion(
   history: OpenAI.Chat.ChatCompletionMessageParam[] = [],
   entityId?: string | number
 ): string {
-  const correoCore = pickVariant("correo", history, entityId);
+  const advisor = advisorLabelForClient(nombre);
+  let correoCore = pickVariant("correo", history, entityId);
+  if (advisor === "nuestro equipo") {
+    correoCore = correoCore
+      .replace(/\bpara que Alejandro te arme\b/gi, "para que nuestro equipo te arme")
+      .replace(/\bAlejandro\b/gi, "nuestro equipo");
+  }
   if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
   return correoCore;
 }
@@ -991,10 +997,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje =
       "Gracias. Nuestro equipo ya tiene tu información para la cotización. ¿Hay algo más que quieras agregar o alguna duda?";
     log?.warn({ entityId }, "GUARD: bloqueó nota interna post-cierre");
-  } else if (clientAsksAboutTeam(currentMessage)) {
+  } else if (clientAsksAboutTeam(currentMessage, extracted.nombre)) {
+    const advisor = advisorLabelForClient(extracted.nombre);
     mensaje =
-      "Alejandro es parte del equipo de Bodasesor; él arma las cotizaciones personalizadas con base en lo que platicamos. Yo te ayudo a recopilar los datos y él te envía la propuesta.";
-    log?.info({ entityId }, "GUARD: cliente preguntó por Alejandro/equipo");
+      advisor === "nuestro equipo"
+        ? "Sí, nuestro equipo de Bodasesor arma las cotizaciones personalizadas. Yo te ayudo a recopilar la información y ellos te envían la propuesta."
+        : `${advisor} es parte del equipo de Bodasesor; arma las cotizaciones personalizadas con base en lo que platicamos. Yo te ayudo a recopilar los datos y te envían la propuesta.`;
+    log?.info({ entityId }, "GUARD: cliente preguntó por el asesor/equipo");
   } else if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
     mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
     log?.info({ entityId }, "GUARD: correo capturado — pregunta tipo de evento");
@@ -1233,7 +1242,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = withoutGammaLinks;
   }
 
-  return normalizeAdvisorReferences(mensaje);
+  return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 
 /** Los links Gamma son solo conocimiento interno — nunca deben llegar al cliente. */

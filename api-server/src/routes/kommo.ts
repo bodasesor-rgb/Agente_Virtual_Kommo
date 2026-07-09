@@ -64,10 +64,10 @@ import {
   reactivarLucy,
   agregarTag,
   agregarNota,
-  deliverLucyOutbound,
   limpiarCampoRespuesta,
   ETAPA,
 } from "../services/embudo.js";
+import { deliverLucyOutbound } from "../services/kommoMirror.js";
 import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
@@ -1277,9 +1277,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 14: Enviar mensaje al cliente en el CHAT de Kommo (no como nota)
     //
-    // PRIORIDAD:
-    //  1. Kommo Talks API — visible en la conversación del inbox.
-    //  2. Meta WhatsApp Cloud API — fallback si Talks falla.
+    // Envío al cliente + nota en timeline de Kommo (el equipo ve qué escribió Lucy).
     // ══════════════════════════════════════════════════════════════════════
     {
       const entityKey = String(entityId);
@@ -1297,6 +1295,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         subdomain,
         accessToken,
         talkId,
+        chatId,
         whatsappPhone,
         texto: mensajeParaCliente,
         entityId,
@@ -1889,6 +1888,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
         subdomain,
         accessToken,
         talkId,
+        chatId,
         whatsappPhone: sbPhone,
         texto: mensajeParaCliente,
         entityId,
