@@ -70,6 +70,10 @@ import {
 import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
+import { classifyInboundMessage } from "../services/messageClassifier.js";
+import { descartarPublicidad } from "../services/kommoTalkActions.js";
+import { detectLucyChannel } from "../services/channelDetection.js";
+import { applyEmailMessageGuards } from "../services/lucyEmailGuards.js";
 
 const router: IRouter = Router();
 
@@ -109,6 +113,8 @@ interface PendingBatch {
   talkId: string | null;
   subdomain: string;
   isVoice: boolean;
+  senderHint: string;
+  channelHint: string;
   timer: ReturnType<typeof setTimeout>;
 }
 
@@ -121,6 +127,9 @@ interface KommoMessageEntry {
   entity_id?: number | string;
   chat_id?: string;
   talk_id?: string;
+  origin?: string;
+  type?: string;
+  author?: { type?: string; name?: string; email?: string };
   attachments?: Array<{ type?: string; mime_type?: string; link?: string; url?: string }>;
 }
 
@@ -916,11 +925,28 @@ function safeParseDate(raw: string | null): Date | null {
 
 // ─── Core processing after debounce ──────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function processBatch(batch: PendingBatch, accessToken: string, log: any): Promise<void> {
-  const { texts, entityId, chatId, talkId, subdomain } = batch;
-  const combinedUserText = texts.join("\n");
+function extractSenderHint(message: KommoMessageEntry | undefined): string {
+  if (!message) return "";
+  const author = message.author;
+  if (author?.email) return author.email;
+  if (author?.name) return author.name;
+  return "";
+}
 
-  log.info({ messageCount: texts.length, combinedUserText, chatId }, "Processing debounced batch");
+function extractChannelHint(message: KommoMessageEntry | undefined): string {
+  if (!message) return "";
+  return String(message.origin ?? message.type ?? "");
+}
+
+async function processBatch(batch: PendingBatch, accessToken: string, log: any): Promise<void> {
+  const { texts, entityId, chatId, talkId, subdomain, isVoice, senderHint, channelHint } = batch;
+  const combinedUserText = texts.join("\n");
+  const lucyChannel = detectLucyChannel({ channelHint, senderHint });
+
+  log.info(
+    { messageCount: texts.length, combinedUserText, chatId, lucyChannel, channelHint },
+    "Processing debounced batch"
+  );
 
   try {
     // ══════════════════════════════════════════════════════════════════════
@@ -963,6 +989,47 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
           return;
         }
       }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // PASO 0b: Publicidad → marcar leído y no responder; clientes → continuar
+    // ══════════════════════════════════════════════════════════════════════
+    const yaEsPublicidad = leadKommo?.tags.includes("publicidad") ?? false;
+    const clasificacion = classifyInboundMessage({
+      text: combinedUserText,
+      senderHint,
+      channelHint,
+      isVoice,
+    });
+
+    if (yaEsPublicidad || clasificacion.kind === "publicidad") {
+      log.info(
+        {
+          entityId,
+          kind: clasificacion.kind,
+          confidence: clasificacion.confidence,
+          reason: clasificacion.reason,
+          yaEsPublicidad,
+        },
+        "Mensaje de publicidad — marcando leído sin responder"
+      );
+
+      if (talkId) {
+        await descartarPublicidad(
+          subdomain,
+          accessToken,
+          talkId,
+          entityId,
+          yaEsPublicidad ? "tag-publicidad" : clasificacion.reason,
+          agregarNota
+        );
+      }
+
+      if (leadKommo && !leadKommo.tags.includes("publicidad")) {
+        await agregarTag(subdomain, accessToken, entityId, ["publicidad"], leadKommo.tags);
+      }
+
+      return;
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1129,6 +1196,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       isFirstInteraction,
       hasClientName: filledLabels.has("Nombre del cliente"),
       catalogBlock,
+      channel: lucyChannel,
     });
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1159,9 +1227,10 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       isFirstInteraction,
       hasObjection: objectionResult.hasObjection,
       objectionType: objectionResult.type,
+      channel: lucyChannel,
     });
 
-    let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
+    let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing, lucyChannel);
     aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogCateringIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
@@ -1200,7 +1269,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     const emailRefusedThisTurn = detectEmailRefusal([combinedUserText]);
 
-    let mensajeParaCliente = applyLucyMessageGuards({
+    const guardsInput = {
       aiResponse,
       extracted,
       filledSet: filledLabels,
@@ -1215,7 +1284,12 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       log,
       entityId,
       forceFirstPresentation: isFirstInteraction,
-    });
+    };
+
+    let mensajeParaCliente =
+      lucyChannel === "email"
+        ? applyEmailMessageGuards({ ...guardsInput, catalogUrl: CATALOG_URL })
+        : applyLucyMessageGuards(guardsInput);
 
     mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
       readyForClosing: allFieldsFilled,
@@ -1263,15 +1337,27 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 14: Enviar mensaje al cliente
     //
-    // PRIORIDAD:
+    // CORREO: solo Kommo Talks API (canal mail conectado en Kommo).
+    // WHATSAPP:
     //  1. Meta WhatsApp Cloud API (sendWhatsAppDirect) — SIEMPRE primario.
-    //     Kommo detecta el mensaje saliente automáticamente y lo muestra
-    //     en el chat (espejo via integración WhatsApp Business de Kommo).
-    //  2. Kommo Talks API (enviarMensaje) — fallback si Meta falla y
-    //     hay talkId disponible. El mensaje llega al cliente pero no
-    //     aparece en el chat de Kommo como mensaje de bot.
+    //  2. Kommo Talks API (enviarMensaje) — fallback si Meta falla.
     // ══════════════════════════════════════════════════════════════════════
     {
+      if (lucyChannel === "email") {
+        if (talkId) {
+          const enviado = await enviarMensaje(subdomain, accessToken, talkId, mensajeParaCliente);
+          if (enviado) {
+            log.info({ entityId, talkId }, "Correo enviado via Kommo Talks API ✅");
+            void agregarNota(subdomain, accessToken, entityId, `📧 Lucy (correo): ${mensajeParaCliente.slice(0, 500)}`).catch(
+              (err: unknown) => log.warn({ err, entityId }, "agregarNota correo Lucy: error no crítico")
+            );
+          } else {
+            log.error({ entityId, talkId }, "Kommo Talks API falló al enviar correo ❌");
+          }
+        } else {
+          log.error({ entityId }, "Canal correo sin talkId — mensaje NO enviado ❌");
+        }
+      } else {
       const entityKey = String(entityId);
       let whatsappPhone = phoneCache.get(entityKey) ?? null;
 
@@ -1338,6 +1424,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         }
       } else {
         log.error({ entityId }, "Sin teléfono ni talkId — mensaje NO enviado al cliente ❌");
+      }
       }
     }
 
@@ -1557,6 +1644,8 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   const entityId = firstMessage?.entity_id ?? null;
   const chatId = firstMessage?.chat_id ?? null;
   const talkId = firstMessage?.talk_id ?? null;
+  const senderHint = extractSenderHint(firstMessage);
+  const channelHint = extractChannelHint(firstMessage);
 
   // Resolve text: transcribes audio via Whisper if the message is a voice note
   const messageData = firstMessage
@@ -1599,6 +1688,8 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
     existing.entityId = entityId;
     existing.talkId = talkId;
     existing.isVoice = existing.isVoice || isVoice; // sticky: if any message in batch was voice
+    if (senderHint) existing.senderHint = senderHint;
+    if (channelHint) existing.channelHint = channelHint;
     log.info({ chatId, buffered: existing.texts.length }, "Message added to pending batch");
     existing.timer = setTimeout(() => {
       pendingBatches.delete(chatId);
@@ -1614,7 +1705,17 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
       });
     }, DEBOUNCE_MS);
 
-    const batch: PendingBatch = { texts: [text], entityId, chatId, talkId, subdomain, isVoice, timer };
+    const batch: PendingBatch = {
+      texts: [text],
+      entityId,
+      chatId,
+      talkId,
+      subdomain,
+      isVoice,
+      senderHint,
+      channelHint,
+      timer,
+    };
     pendingBatches.set(chatId, batch);
     log.info({ chatId, debounceMs: DEBOUNCE_MS, isVoice }, "New batch started, waiting for more messages");
   }
