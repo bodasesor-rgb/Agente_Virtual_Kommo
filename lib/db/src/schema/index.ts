@@ -28,6 +28,9 @@ export const conversations = pgTable("conversations", {
   learningPhase: varchar("learning_phase", { length: 30 }),
   lastKommoSyncAt: timestamp("last_kommo_sync_at"),
   lastLearningExtractAt: timestamp("last_learning_extract_at"),
+  /** Último mensaje del CLIENTE — base para ventana 24h de WhatsApp */
+  lastClientMessageAt: timestamp("last_client_message_at"),
+  lastWindowRenewalAt: timestamp("last_window_renewal_at"),
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

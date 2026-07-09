@@ -100,14 +100,37 @@ export async function captureInboundWhileLucyInactive(input: {
   subdomain: string;
   accessToken: string;
 }): Promise<void> {
+  await recordInboundClientMessage({
+    ...input,
+    source: "webhook_inactive",
+    learningPhase: "human_active",
+  });
+}
+
+/**
+ * Registra mensaje entrante del cliente: BD, lastClientMessageAt y sync del chat.
+ * Lucy puede ejecutar esto sin enviar respuesta (solo lectura / aprendizaje).
+ */
+export async function recordInboundClientMessage(input: {
+  kommoLeadId: string;
+  chatId: string;
+  talkId: string | null;
+  text: string;
+  subdomain: string;
+  accessToken: string;
+  source?: string;
+  learningPhase?: "lucy_active" | "human_active" | "post_quote" | "closed";
+}): Promise<void> {
   await ensureLearningSchema();
 
   const leadId = String(input.kommoLeadId);
+  const now = new Date();
+
   await persistChatMessage({
     kommoLeadId: leadId,
     content: input.text,
     authorType: "client",
-    source: "webhook_inactive",
+    source: input.source ?? "webhook_ingest",
   });
 
   let conv = await db.query.conversations.findFirst({
@@ -121,11 +144,12 @@ export async function captureInboundWhileLucyInactive(input: {
         kommoLeadId: leadId,
         kommoChatId: input.chatId,
         kommoTalkId: input.talkId ?? undefined,
-        learningPhase: "human_active",
+        learningPhase: input.learningPhase ?? "lucy_active",
         status: "active",
-        stage: "humano_trabaja",
+        stage: input.learningPhase === "human_active" ? "humano_trabaja" : "discovery",
         messageCount: 1,
-        updatedAt: new Date(),
+        lastClientMessageAt: now,
+        updatedAt: now,
       })
       .returning();
     conv = created;
@@ -135,8 +159,9 @@ export async function captureInboundWhileLucyInactive(input: {
       .set({
         kommoChatId: input.chatId,
         kommoTalkId: input.talkId ?? conv.kommoTalkId,
-        learningPhase: conv.learningPhase ?? "human_active",
-        updatedAt: new Date(),
+        learningPhase: input.learningPhase ?? conv.learningPhase ?? "lucy_active",
+        lastClientMessageAt: now,
+        updatedAt: now,
       })
       .where(eq(conversations.id, conv.id));
   }

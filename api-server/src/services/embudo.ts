@@ -4,8 +4,10 @@
 // ══════════════════════════════════════════════════════════════════════════════
 
 import { db, followUpEvents, conversations } from "@workspace/db";
-import { eq, lte, gte, and } from "drizzle-orm";
+import { eq, lte, and, or, isNull } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
+import { getClientActivityTime, shouldRenewWhatsAppWindow } from "./whatsappWindow.js";
+import { externalFollowupBotEnabled } from "./followupBotConfig.js";
 
 // ─── IDs de etapas del pipeline ───────────────────────────────────────────────
 export const ETAPA = {
@@ -29,8 +31,8 @@ const ETAPAS_LUCY_ACTIVA = new Set<number>([
 // Tiempos
 const MS_INACTIVIDAD = 5 * 60 * 60 * 1000;    // 5 horas
 const MS_SEGUIMIENTO = 22 * 60 * 60 * 1000;   // 22 horas
-const MS_VENTANA_MIN = 22 * 60 * 60 * 1000;   // 22h — inicio de la ventana de alerta
-const MS_VENTANA_MAX = 23 * 60 * 60 * 1000;   // 23h — límite antes de los 24h de WhatsApp
+const MS_NO_CONTESTA_3D = 3 * 24 * 60 * 60 * 1000;
+const MS_NO_CONTESTA_7D = 7 * 24 * 60 * 60 * 1000;
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 export interface LeadKommo {
@@ -204,15 +206,34 @@ export async function removerTag(
 }
 
 // Enviar mensaje al lead via Kommo Talks API
+export interface EnviarMensajeOpts {
+  subject?: string;
+  attachmentUrl?: string;
+  attachmentName?: string;
+}
+
 export async function enviarMensaje(
   subdomain: string,
   accessToken: string,
   talkId: string | number,
-  texto: string
+  texto: string,
+  opts?: EnviarMensajeOpts
 ): Promise<boolean> {
   // El endpoint correcto de Kommo para enviar mensajes outbound es:
   // POST /api/v4/talks/{talkId}/messages  (NO /api/v4/chats/messages — ese da 404)
   try {
+    const body: Record<string, unknown> = { text: texto };
+    if (opts?.subject) body.subject = opts.subject;
+    if (opts?.attachmentUrl) {
+      body.attachments = [
+        {
+          type: "file",
+          link: opts.attachmentUrl,
+          file_name: opts.attachmentName ?? "archivo.pdf",
+        },
+      ];
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10_000);
     const res = await fetch(
@@ -221,7 +242,7 @@ export async function enviarMensaje(
         method: "POST",
         headers: kommoHeaders(accessToken),
         signal: controller.signal,
-        body: JSON.stringify({ text: texto }),
+        body: JSON.stringify(body),
       }
     );
     clearTimeout(timer);
@@ -355,7 +376,11 @@ export async function moverANoContesta(
   subdomain: string,
   accessToken: string,
   leadId: string | number,
-  chatId: string
+  chatId: string,
+  talkId?: string | null,
+  nombre?: string | null,
+  tipoEvento?: string | null,
+  lastClientMessageAt?: Date | null
 ): Promise<void> {
   logger.info({ leadId }, "Embudo: moviendo lead a No Contesta por inactividad");
 
@@ -367,14 +392,74 @@ export async function moverANoContesta(
 
 Si ya no necesitas el servicio no hay problema, solo avísame.`;
 
-  const enviado = await enviarMensaje(subdomain, accessToken, chatId, mensaje);
+  const { smartWhatsAppSend } = await import("./whatsappOutbound.js");
+  const result = await smartWhatsAppSend({
+    subdomain,
+    accessToken,
+    leadId,
+    text: mensaje,
+    lastClientMessageAt,
+    talkId: talkId ?? chatId,
+    skipTaskText: "Recuperación No Contesta omitida — ventana WhatsApp cerrada.",
+  });
 
   await agregarNota(
     subdomain, accessToken, leadId,
-    `⏰ Lucy: Cliente inactivo >5h. Movido a No Contesta. Mensaje de recuperación ${enviado ? "enviado" : "NO enviado"}.`
+    `⏰ Lucy: Cliente inactivo >5h → No Contesta. Mensaje ${result.sent ? `enviado (${result.mode})` : "NO enviado (ventana WA cerrada — sin costo)"}.`
   );
 
-  logger.info({ leadId, mensajeEnviado: enviado }, "Embudo: lead movido a No Contesta");
+  // Programar 3d/7d — al ejecutar se validará ventana (no envía si está cerrada)
+  await programarSecuenciaNoContesta(leadId, talkId ?? chatId, nombre ?? null, tipoEvento ?? null);
+
+  logger.info({ leadId, result }, "Embudo: lead movido a No Contesta");
+}
+
+/**
+ * Programa seguimientos a 3 y 7 días para leads en No Contesta.
+ */
+export async function programarSecuenciaNoContesta(
+  leadId: string | number,
+  talkId: string,
+  nombre: string | null,
+  tipoEvento: string | null
+): Promise<void> {
+  if (externalFollowupBotEnabled()) return;
+  const quien = nombre?.trim() ? ` ${nombre.trim()}` : "";
+  const evento = tipoEvento?.trim() || "evento";
+
+  const secuencia = [
+    {
+      type: "no_contesta_3d",
+      delay: MS_NO_CONTESTA_3D,
+      texto:
+        `Hola${quien}! Soy Lucy de Bodasesor.\n\n` +
+        `Hace unos días platicábamos sobre tu ${evento}. ¿Sigues interesado en una cotización?\n\n` +
+        `Con gusto retomamos cuando te quede bien.`,
+    },
+    {
+      type: "no_contesta_7d",
+      delay: MS_NO_CONTESTA_7D,
+      texto:
+        `Hola${quien}! Último mensaje de mi parte sobre tu ${evento}.\n\n` +
+        `Si aún te interesa, escríbeme y con gusto te ayudo. Si ya no necesitas el servicio, no hay problema.\n\n` +
+        `Quedo atenta.`,
+    },
+  ];
+
+  for (const item of secuencia) {
+    try {
+      await db.insert(followUpEvents).values({
+        kommoLeadId: String(leadId),
+        type: item.type,
+        scheduledFor: new Date(Date.now() + item.delay),
+        message: JSON.stringify({ talkId, texto: item.texto }),
+        priority: 2,
+      });
+      logger.info({ leadId, type: item.type }, "Embudo: seguimiento No Contesta programado");
+    } catch (err) {
+      logger.warn({ err, leadId, type: item.type }, "Embudo: no se pudo programar seguimiento No Contesta");
+    }
+  }
 }
 
 /**
@@ -408,6 +493,10 @@ export async function programarSeguimiento(
   tipoEvento: string | null,
   fechaEvento: string | null
 ): Promise<void> {
+  if (externalFollowupBotEnabled()) {
+    logger.info({ leadId }, "Embudo: seguimiento 22h omitido — bot externo de Kommo activo");
+    return;
+  }
   const scheduledFor = new Date(Date.now() + MS_SEGUIMIENTO);
 
   const mensaje = `Hola ${nombre ?? ""}! Soy Lucy, agente virtual de Bodasesor.
@@ -440,6 +529,10 @@ export async function procesarSeguimientosPendientes(
   subdomain: string,
   accessToken: string
 ): Promise<void> {
+  if (externalFollowupBotEnabled()) {
+    logger.info("Embudo: cron seguimientos omitido — bot externo de Kommo activo");
+    return;
+  }
   let pendientes;
   try {
     pendientes = await db.query.followUpEvents.findMany({
@@ -461,21 +554,67 @@ export async function procesarSeguimientosPendientes(
       let texto = "";
 
       if (seg.message) {
-        const parsed = JSON.parse(seg.message) as { chatId?: string; texto?: string };
-        chatId = parsed.chatId ?? null;
+        const parsed = JSON.parse(seg.message) as { chatId?: string; talkId?: string; texto?: string };
+        chatId = parsed.talkId ?? parsed.chatId ?? null;
         texto = parsed.texto ?? "";
       }
 
+      if (!chatId || !texto) {
+        await db.update(followUpEvents)
+          .set({ executed: true, executedAt: new Date() })
+          .where(eq(followUpEvents.id, seg.id));
+        continue;
+      }
+
+      const lead = await fetchLead(subdomain, accessToken, seg.kommoLeadId);
+
+      const conv = await db.query.conversations.findFirst({
+        where: eq(conversations.kommoLeadId, seg.kommoLeadId),
+      });
+      const lastClientAt = getClientActivityTime(conv ?? {});
+
+      // Seguimientos No Contesta: solo si el lead sigue en esa etapa
+      if (seg.type.startsWith("no_contesta_")) {
+        if (!lead || lead.status_id !== ETAPA.NO_CONTESTA) {
+          logger.info({ leadId: seg.kommoLeadId, type: seg.type }, "Embudo: seguimiento No Contesta omitido — etapa cambió");
+          await db.update(followUpEvents)
+            .set({ executed: true, executedAt: new Date() })
+            .where(eq(followUpEvents.id, seg.id));
+          continue;
+        }
+      }
+
       if (chatId && texto) {
-        const ok = await enviarMensaje(subdomain, accessToken, chatId, texto);
-        if (ok) {
-          // Reactivar Lucy (remover tag lucy_desactivada)
-          const lead = await fetchLead(subdomain, accessToken, seg.kommoLeadId);
-          if (lead) {
+        const { smartWhatsAppSend } = await import("./whatsappOutbound.js");
+        const result = await smartWhatsAppSend({
+          subdomain,
+          accessToken,
+          leadId: seg.kommoLeadId,
+          text: texto,
+          lastClientMessageAt: lastClientAt,
+          talkId: chatId,
+          skipTaskText: `Seguimiento ${seg.type} — ventana WA cerrada, sin mensaje de pago.`,
+        });
+
+        if (result.sent) {
+          if (seg.type === "cotizacion_followup" && lead) {
             await removerTag(subdomain, accessToken, seg.kommoLeadId, "lucy_desactivada", lead.tags);
           }
-          await agregarNota(subdomain, accessToken, seg.kommoLeadId, "🔄 Lucy: Seguimiento automático 22h enviado. Lucy reactivada.");
-          logger.info({ leadId: seg.kommoLeadId }, "Embudo: seguimiento 22h enviado OK");
+          const notaTipo =
+            seg.type === "cotizacion_followup"
+              ? `🔄 Lucy: Seguimiento post-cotización enviado (${result.mode}).`
+              : seg.type === "no_contesta_3d"
+                ? `📅 Lucy: Seguimiento No Contesta 3d enviado (${result.mode}).`
+                : seg.type === "no_contesta_7d"
+                  ? `📅 Lucy: Seguimiento No Contesta 7d enviado (${result.mode}).`
+                  : `🔄 Lucy: Seguimiento enviado (${result.mode}).`;
+          await agregarNota(subdomain, accessToken, seg.kommoLeadId, notaTipo);
+          logger.info({ leadId: seg.kommoLeadId, type: seg.type, mode: result.mode }, "Embudo: seguimiento enviado");
+        } else {
+          logger.info(
+            { leadId: seg.kommoLeadId, type: seg.type, reason: result.reason },
+            "Embudo: seguimiento omitido — ventana WA cerrada (sin costo)"
+          );
         }
       }
 
@@ -519,59 +658,68 @@ export async function reactivarLucy(
     ? `Hola${nombre}! Soy Lucy, agente virtual de Bodasesor.\n\nVi que estábamos platicando sobre tu ${lead.tipo_evento ?? "evento"}${lead.fecha_evento ? " del " + lead.fecha_evento : ""}.\n\n¿Tuviste oportunidad de pensar en lo que platicamos? ¿Te gustaría retomar la cotización?\n\nEstoy aquí para ayudarte.`
     : `Hola${nombre}! Soy Lucy, agente virtual de Bodasesor.\n\n¿Sigues interesado en nuestros servicios de banquetes y eventos? Me encantaría ayudarte a planear algo especial.\n\n¿En qué puedo apoyarte?`;
 
-  // Enviar solo si hay chatId
-  let enviado = false;
-  if (lead.chatId) {
-    enviado = await enviarMensaje(subdomain, accessToken, lead.chatId, mensaje);
-  }
+  const conv = await db.query.conversations.findFirst({
+    where: eq(conversations.kommoLeadId, String(leadId)),
+  });
+  const lastClientAt = getClientActivityTime(conv ?? {});
+
+  const { smartWhatsAppSend } = await import("./whatsappOutbound.js");
+  const result = await smartWhatsAppSend({
+    subdomain,
+    accessToken,
+    leadId,
+    text: mensaje,
+    lastClientMessageAt: lastClientAt,
+    talkId: lead.chatId,
+    skipTaskText: "Reactivación manual — ventana WA cerrada.",
+  });
 
   await agregarNota(
     subdomain, accessToken, leadId,
-    `🔄 Lucy: Reactivada manualmente. Mensaje de reactivación ${enviado ? "enviado" : "NO enviado (sin chatId)"}.`
+    `🔄 Lucy: Reactivada manualmente. Mensaje ${result.sent ? `enviado (${result.mode})` : "NO enviado (ventana cerrada)"}.`
   );
 
-  logger.info({ leadId, enviado }, "Embudo: Lucy reactivada manualmente");
-  return { ok: true, mensaje };
+  logger.info({ leadId, result }, "Embudo: Lucy reactivada manualmente");
+  return { ok: true, mensaje: result.sent ? mensaje : undefined };
 }
 
 /**
- * Verifica leads cuya última actividad del cliente fue hace 22-23h.
- * Envía un mensaje proactivo para renovar la ventana de 24h de WhatsApp.
- * Llamar cada hora desde el cron.
+ * Renueva la ventana de 24h ANTES de que cierre (mensaje gratis de sesión).
+ * Busca conversaciones cuyo último mensaje del CLIENTE fue hace 21–23h.
  */
 export async function verificarVentanas24h(
   subdomain: string,
   accessToken: string
 ): Promise<void> {
-  const ahora = new Date();
-  const hace22h = new Date(ahora.getTime() - MS_VENTANA_MAX); // 23h atrás (límite superior)
-  const hace23h = new Date(ahora.getTime() - MS_VENTANA_MIN); // 22h atrás (límite inferior)
-
-  // Buscar conversaciones activas actualizadas entre 22h y 23h atrás
+  if (externalFollowupBotEnabled()) {
+    logger.info("Embudo: renovación ventana 24h omitida — bot externo de Kommo activo");
+    return;
+  }
   let convs;
   try {
     convs = await db.query.conversations.findMany({
-      where: and(
-        gte(conversations.updatedAt, hace22h),
-        lte(conversations.updatedAt, hace23h)
-      ),
+      where: eq(conversations.status, "active"),
     });
   } catch (err) {
     logger.warn({ err }, "Embudo: error leyendo conversaciones para ventana 24h");
     return;
   }
 
-  logger.info({ count: convs.length }, "Embudo: verificando ventana 24h de WhatsApp");
+  const candidatas = convs.filter((conv) =>
+    shouldRenewWhatsAppWindow(conv.lastClientMessageAt, conv.lastWindowRenewalAt)
+  );
 
-  for (const conv of convs) {
+  logger.info({ total: convs.length, candidatas: candidatas.length }, "Embudo: verificando ventana 24h de WhatsApp");
+
+  const { smartWhatsAppSend } = await import("./whatsappOutbound.js");
+
+  for (const conv of candidatas) {
     try {
-      // Solo actuar si tiene chatId y Lucy está activa
-      if (!conv.kommoChatId) continue;
+      if (!conv.kommoChatId && !conv.kommoTalkId) continue;
 
       const lead = await fetchLead(subdomain, accessToken, conv.kommoLeadId);
       if (!lead) continue;
 
-      // Solo si Lucy está activa y el lead sigue en etapas donde puede escribir
       const activa = ETAPAS_LUCY_ACTIVA.has(lead.status_id) && !lead.tags.includes("lucy_desactivada");
       if (!activa) continue;
 
@@ -583,19 +731,26 @@ export async function verificarVentanas24h(
         ? `Hola${nombre}! Solo quería recordarte que seguimos aquí para ayudarte con tu ${tipoEvento}${fechaEvento ? " del " + fechaEvento : ""}.\n\n¿Tienes alguna duda o te gustaría avanzar con la cotización? Estoy disponible.`
         : `Hola${nombre}! Soy Lucy, agente virtual de Bodasesor.\n\n¿Sigues interesado en cotizar tu evento? Estamos aquí para ayudarte cuando gustes.`;
 
-      const enviado = await enviarMensaje(subdomain, accessToken, conv.kommoChatId, mensaje);
+      const result = await smartWhatsAppSend({
+        subdomain,
+        accessToken,
+        leadId: conv.kommoLeadId,
+        text: mensaje,
+        lastClientMessageAt: conv.lastClientMessageAt,
+        talkId: conv.kommoTalkId ?? conv.kommoChatId,
+        skipTaskText: "Renovación ventana 24h no enviada.",
+      });
 
-      if (enviado) {
+      if (result.sent && result.mode === "session") {
         await agregarNota(
           subdomain, accessToken, conv.kommoLeadId,
-          "⏰ Lucy: Mensaje automático enviado para renovar ventana de 24h de WhatsApp."
+          "⏰ Lucy: Mensaje de sesión enviado para renovar ventana de 24h (sin costo)."
         );
-        // Actualizar updatedAt para no volver a disparar en el siguiente ciclo
         await db.update(conversations)
-          .set({ updatedAt: new Date() })
+          .set({ lastWindowRenewalAt: new Date() })
           .where(eq(conversations.kommoLeadId, conv.kommoLeadId));
 
-        logger.info({ leadId: conv.kommoLeadId }, "Embudo: mensaje de ventana 24h enviado");
+        logger.info({ leadId: conv.kommoLeadId }, "Embudo: ventana 24h renovada");
       }
     } catch (err) {
       logger.warn({ err, leadId: conv.kommoLeadId }, "Embudo: error procesando ventana 24h");
@@ -604,14 +759,17 @@ export async function verificarVentanas24h(
 }
 
 /**
- * Verifica leads inactivos en etapa "Datos e Intereses" (llamar cada hora desde cron).
- * Si un lead lleva >5h sin responder → mover a No Contesta.
- * Usa la tabla conversations.updatedAt como proxy del último mensaje del cliente.
+ * Verifica leads inactivos en etapa "Datos e Intereses".
+ * Usa lastClientMessageAt (último mensaje del CLIENTE), no respuestas de Lucy.
  */
 export async function verificarLeadsInactivos(
   subdomain: string,
   accessToken: string
 ): Promise<void> {
+  if (externalFollowupBotEnabled()) {
+    logger.info("Embudo: cron inactividad 5h omitido — bot externo de Kommo activo");
+    return;
+  }
   const umbral = new Date(Date.now() - MS_INACTIVIDAD);
 
   let convInactivas;
@@ -619,7 +777,10 @@ export async function verificarLeadsInactivos(
     convInactivas = await db.query.conversations.findMany({
       where: and(
         eq(conversations.stage, "discovery"),
-        lte(conversations.updatedAt, umbral)
+        or(
+          lte(conversations.lastClientMessageAt, umbral),
+          and(isNull(conversations.lastClientMessageAt), lte(conversations.updatedAt, umbral))
+        )
       ),
     });
   } catch (err) {
@@ -634,12 +795,20 @@ export async function verificarLeadsInactivos(
       const lead = await fetchLead(subdomain, accessToken, conv.kommoLeadId);
       if (!lead) continue;
 
-      // Solo actuar si está en Datos e Intereses y Lucy activa
       if (lead.status_id !== ETAPA.DATOS_E_INTERESES) continue;
       if (lead.tags.includes("lucy_desactivada")) continue;
       if (!conv.kommoChatId) continue;
 
-      await moverANoContesta(subdomain, accessToken, conv.kommoLeadId, conv.kommoChatId);
+      await moverANoContesta(
+        subdomain,
+        accessToken,
+        conv.kommoLeadId,
+        conv.kommoChatId,
+        conv.kommoTalkId,
+        conv.clientName,
+        conv.eventType,
+        conv.lastClientMessageAt ?? conv.updatedAt
+      );
 
       // Marcar en BD para no volver a procesar
       await db.update(conversations)

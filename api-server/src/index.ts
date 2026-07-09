@@ -29,6 +29,11 @@ async function startServer(): Promise<void> {
   void ensureKnowledgeGapSchema().catch((err) => {
     logger.warn({ err }, "knowledgeGapSchema init en background falló");
   });
+  void import("./services/whatsappWindowSchema.js").then((m) =>
+    m.ensureWhatsAppWindowSchema().catch((err) => {
+      logger.warn({ err }, "whatsappWindowSchema init en background falló");
+    })
+  );
   startCatalogAutoRefresh();
 
   app.listen(port, "0.0.0.0", (err) => {

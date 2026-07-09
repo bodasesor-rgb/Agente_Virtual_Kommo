@@ -159,6 +159,121 @@ export async function sendWhatsAppDirect(
   return { success: false, error: `Falló tras ${maxRetries} reintentos` };
 }
 
+/** Envía un documento PDF (u otro) por WhatsApp Cloud API. */
+export async function sendWhatsAppDocument(
+  to: string,
+  documentUrl: string,
+  opts?: {
+    caption?: string;
+    filename?: string;
+    entityId?: string | number;
+    maxRetries?: number;
+  }
+): Promise<SendResult> {
+  if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
+    logger.error({ entityId: opts?.entityId }, "sendWhatsAppDocument: WHATSAPP_TOKEN o PHONE_NUMBER_ID no configurados");
+    return { success: false, error: "Missing env vars: WHATSAPP_TOKEN / PHONE_NUMBER_ID" };
+  }
+
+  const normalized = normalizeWhatsAppNumber(to);
+  if (!normalized) {
+    return { success: false, error: `Número inválido: ${to}` };
+  }
+
+  const maxRetries = opts?.maxRetries ?? 2;
+  const url = `https://graph.facebook.com/${META_API_VERSION}/${PHONE_NUMBER_ID}/messages`;
+  const payload = {
+    messaging_product: "whatsapp",
+    to: normalized,
+    type: "document",
+    document: {
+      link: documentUrl,
+      caption: opts?.caption ?? "",
+      filename: opts?.filename ?? "Catalogo-Bodasesor.pdf",
+    },
+  };
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await axios.post<{ messages?: Array<{ id: string }> }>(url, payload, {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 20_000,
+      });
+      const messageId = response.data?.messages?.[0]?.id;
+      logger.info({ entityId: opts?.entityId, to: normalized, messageId }, "WhatsApp documento enviado ✅");
+      return { success: true, messageId };
+    } catch (err) {
+      const axErr = err as AxiosError<{ error?: { message?: string } }>;
+      logger.warn(
+        { entityId: opts?.entityId, attempt, err: axErr.response?.data?.error?.message },
+        "sendWhatsAppDocument: intento fallido"
+      );
+      if (attempt < maxRetries) await sleep(1000 * attempt);
+    }
+  }
+
+  return { success: false, error: "No se pudo enviar documento por WhatsApp" };
+}
+
+/**
+ * Plantilla de WhatsApp (mensaje de pago fuera de ventana 24h).
+ * Requiere plantilla aprobada en Meta Business Manager.
+ */
+export async function sendWhatsAppTemplate(
+  to: string,
+  templateName: string,
+  languageCode: string,
+  entityId?: string | number,
+  maxRetries = 2
+): Promise<SendResult> {
+  if (!WHATSAPP_TOKEN || !PHONE_NUMBER_ID) {
+    return { success: false, error: "Missing WHATSAPP_TOKEN / PHONE_NUMBER_ID" };
+  }
+
+  const normalized = normalizeWhatsAppNumber(to);
+  if (!normalized) {
+    return { success: false, error: `Número inválido: ${to}` };
+  }
+
+  const url = `https://graph.facebook.com/${META_API_VERSION}/${PHONE_NUMBER_ID}/messages`;
+  const payload = {
+    messaging_product: "whatsapp",
+    to: normalized,
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: languageCode },
+    },
+  };
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await axios.post<{ messages?: Array<{ id: string }> }>(url, payload, {
+        headers: {
+          Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 15_000,
+      });
+      const messageId = response.data?.messages?.[0]?.id;
+      logger.info({ entityId, templateName, messageId }, "WhatsApp plantilla enviada (costo) 💰");
+      return { success: true, messageId };
+    } catch (err) {
+      const axErr = err as AxiosError<{ error?: { message?: string } }>;
+      logger.warn(
+        { entityId, templateName, attempt, err: axErr.response?.data?.error?.message },
+        "sendWhatsAppTemplate: intento fallido"
+      );
+      if (attempt < maxRetries) await sleep(1000 * attempt);
+    }
+  }
+
+  return { success: false, error: "No se pudo enviar plantilla WhatsApp" };
+}
+
 // ─── Obtener teléfono del contacto principal de un lead en Kommo ──────────────
 interface KommoContactDetail {
   name?: string;
