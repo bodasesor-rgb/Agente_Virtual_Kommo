@@ -40,6 +40,8 @@ import {
   applyCapturesToCrm,
   captureContextualAnswer,
   clientAsksForRecommendations,
+  clientAsksAboutTeam,
+  clientAddsToQuote,
   parsePresupuestoFromText,
   scanConversationForCaptures,
 } from "../conversation-understanding.js";

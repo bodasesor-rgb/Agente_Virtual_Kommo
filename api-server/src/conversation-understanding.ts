@@ -28,12 +28,13 @@ export const LUCY_FIELD_ASK_PATTERNS: Record<UnderstandingField, RegExp> = {
   tipo_evento:
     /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
   requerimientos:
-    /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar/i,
+    /pensado|servicios?|banquete|taquiza|cotizar|cotizaci[oó]n|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar|animaci[oó]n|hora\s+loca|happening|show|incluir\s+en\s+la\s+cotiz/i,
   invitados:
-    /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
-  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
-  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i,
+    /invitados|personas|gente|pax|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an|asistir[aá]n/i,
+  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n|es)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n|venue|sede|colonia|municipio/i,
+  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo|qu[eé]\s+d[ií]a/i,
+  presupuesto:
+    /presupuesto|estimado|rango|inversi[oó]n|budget|monto|cu[aá]nto\s+cuesta|precio\s+total|para\s+la\s+comida|menos\s+de|hasta\s+\$?|opciones\s+de\s+precio/i,
 };
 
 /** Catálogo unificado Bodasesor — orden: más específico primero. */
@@ -50,6 +51,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
   ["Coffee break", /\b(barra\s+de\s+caf[eé]|coffee\s*break)\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
+  ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
   ["Iluminación", /\biluminaci[oó]n\b/i],
   ["Decoración", /\bdecoraci[oó]n\b/i],
   ["Floristería", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
@@ -114,6 +116,29 @@ const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(comuni[oó]n|graduaci[oó]n)\b/i, "celebración"],
 ];
 
+/** Cliente pregunta quién es Alejandro / el asesor humano. */
+export function clientAsksAboutTeam(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  return (
+    /^alejandro\??$/i.test(t) ||
+    /\bqui[eé]n\s+es\s+alejandro\b/i.test(t) ||
+    /\bhablo\s+con\s+alejandro\b/i.test(t) ||
+    /\bes\s+alejandro\b/i.test(t) ||
+    /\bel\s+asesor\b/i.test(t)
+  );
+}
+
+/** Tras el cierre, cliente pide agregar servicios a la cotización. */
+export function clientAddsToQuote(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t) &&
+    /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t)
+  ) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t);
+}
+
 /** Cliente pide ideas o recomendaciones (no está confirmando servicios aún). */
 export function clientAsksForRecommendations(message?: string): boolean {
   if (!message?.trim()) return false;
@@ -176,7 +201,11 @@ const MONTH_PATTERN =
   /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico)\b/i;
+
+/** Fragmentos tras "en …" que NO son ubicación. */
+const NON_LOCATION_EN_PREFIX =
+  /^(la|el|los|las|total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|mente|mente\s+para|solo|m[ií]o|tu|su)\b/i;
 
 export interface CrmCapture {
   label: string;
@@ -301,10 +330,22 @@ export function parseZonaFromText(text: string): string | null {
   );
   if (enMatch) {
     const lugar = enMatch[1]!.trim();
-    if (!MONTH_PATTERN.test(lugar) && !/^\d/.test(lugar) && !isGreetingOnlyMessage(lugar)) {
+    if (
+      !MONTH_PATTERN.test(lugar) &&
+      !/^\d/.test(lugar) &&
+      !isGreetingOnlyMessage(lugar) &&
+      !NON_LOCATION_EN_PREFIX.test(lugar) &&
+      !/\b(solo|para\s+la|total|comida|pista)\b/i.test(lugar)
+    ) {
       return lugar;
     }
   }
+
+  // "cd nezahualcoyotl", "la casa del corregidor"
+  const venueMatch = trimmed.match(
+    /\b((?:la\s+)?casa\s+del\s+corregidor|cd\.?\s*nezahualc[oó]yotl)\b/i
+  );
+  if (venueMatch?.[1]) return venueMatch[1].trim();
 
   return null;
 }
@@ -332,7 +373,7 @@ export function parseFechaFromText(text: string): string | null {
 export function parsePresupuestoFromText(text: string): string | null {
   const trimmed = text.trim();
   if (
-    /\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé])\b/i.test(
+    /\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones)\b/i.test(
       trimmed
     )
   ) {
@@ -340,11 +381,23 @@ export function parsePresupuestoFromText(text: string): string | null {
   }
 
   // Fechas, invitados u horarios no son presupuesto
-  if (parseFechaFromText(trimmed) && !/\b(presupuesto|mil|pesos|mxn|\$|k\b)/i.test(trimmed)) {
+  if (parseFechaFromText(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
     return null;
   }
-  if (/\b\d+\s*(personas?|invitados?|pax)\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|\$|k\b)/i.test(trimmed)) {
+  if (/\b\d+\s*(personas?|invitados?|pax)\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
     return null;
+  }
+
+  const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
+  if (rangeMatch) {
+    return `${rangeMatch[1]!.replace(/,/g, "")} - ${rangeMatch[2]!.replace(/,/g, "")} MXN`;
+  }
+
+  const menosDeMatch = trimmed.match(
+    /\b(?:menos\s+de|hasta|m[aá]ximo|max\.?)\s+\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos)?\b/i
+  );
+  if (menosDeMatch) {
+    return `Hasta $${menosDeMatch[1]!.replace(/,/g, "")} MXN`;
   }
 
   const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
@@ -361,11 +414,15 @@ export function parsePresupuestoFromText(text: string): string | null {
 
   if (
     /\$/.test(trimmed) ||
-    /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn)\b/i.test(trimmed) ||
-    /\b(como|aprox|alrededor|cerca\s+de)\b/i.test(trimmed)
+    /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx)\b/i.test(trimmed) ||
+    /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed)
   ) {
     const amountMatch = trimmed.match(/\$?\s*([\d][\d,.]*)/);
     if (amountMatch) return trimmed.slice(0, 80);
+  }
+
+  if (/^\$?\s*[\d][\d,.]*\s*(k|mxn|mnx|pesos)?$/i.test(trimmed)) {
+    return trimmed.slice(0, 80);
   }
 
   return null;
@@ -476,14 +533,16 @@ export function captureContextualAnswer(
 
   if (!filledSet.has("Presupuesto (MXN)") && asked === "presupuesto") {
     const pres = parsePresupuestoFromText(msg);
-    if (pres) captures.push({ label: "Presupuesto (MXN)", value: pres });
-  }
-
-  // Zona en respuesta libre aunque Lucy haya preguntado otro dato
-  if (!filledSet.has("Lugar/dirección del evento") && asked !== "zona") {
-    const zona = parseZonaFromText(msg);
-    if (zona && !parseInvitadosFromText(msg) && !parseFechaFromText(msg)) {
-      captures.push({ label: "Lugar/dirección del evento", value: zona });
+    if (pres) {
+      captures.push({ label: "Presupuesto (MXN)", value: pres });
+    } else if (
+      /\b(s[ií]|ok|dale|claro)\b/i.test(msg) &&
+      /\b(alejandro|opciones|propong)\b/i.test(msg)
+    ) {
+      captures.push({
+        label: "Presupuesto (MXN)",
+        value: "Sin definir (cliente pidió opciones)",
+      });
     }
   }
 

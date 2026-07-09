@@ -27,6 +27,8 @@ import {
 import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
+  clientAsksAboutTeam,
+  clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
   clientMentionsCatering,
   inferLucyAskedField,
@@ -978,7 +980,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   let mensaje: string;
 
-  if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
+  if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
+    const nombre = extracted.nombre?.trim();
+    mensaje = nombre
+      ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?`
+      : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?";
+    log?.info({ entityId }, "GUARD: post-cierre — servicios adicionales");
+  } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
+    mensaje =
+      "Gracias. Nuestro equipo ya tiene tu información para la cotización. ¿Hay algo más que quieras agregar o alguna duda?";
+    log?.warn({ entityId }, "GUARD: bloqueó nota interna post-cierre");
+  } else if (clientAsksAboutTeam(currentMessage)) {
+    mensaje =
+      "Alejandro es parte del equipo de Bodasesor; él arma las cotizaciones personalizadas con base en lo que platicamos. Yo te ayudo a recopilar los datos y él te envía la propuesta.";
+    log?.info({ entityId }, "GUARD: cliente preguntó por Alejandro/equipo");
+  } else if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
     mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
     log?.info({ entityId }, "GUARD: correo capturado — pregunta tipo de evento");
   } else if (justGaveEmail && hasTipoEvento(filledSet, extracted)) {
@@ -1061,9 +1077,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "Datos completos — mensaje de cierre desde plantilla");
   } else {
     mensaje = aiResponse;
-    if (aiResponse.includes("DATOS DEL CLIENTE:")) {
+    if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Información completa obtenida")) {
       mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
       log?.warn({ entityId }, "GPT generó nota interna — usando cierre desde plantilla");
+    }
+  }
+
+  if (filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(mensaje, "presupuesto")) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
+      mensaje = nextQ;
+      log?.info({ entityId }, "GUARD: presupuesto ya capturado — no repetir pregunta");
     }
   }
 
