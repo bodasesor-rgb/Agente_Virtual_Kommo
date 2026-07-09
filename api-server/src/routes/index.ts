@@ -6,6 +6,7 @@ import examplesRouter from "./examples";
 import analyticsRouter from "./analytics";
 import authRouter from "./auth";
 import learningRouter from "./learning";
+import knowledgeGapsRouter from "./knowledgeGaps";
 import catalogRouter from "./catalog";
 
 const router: IRouter = Router();
@@ -19,6 +20,7 @@ router.use(lucyRouter);
 router.use(authRouter);
 router.use(examplesRouter);
 router.use(learningRouter);
+router.use(knowledgeGapsRouter);
 router.use(analyticsRouter);
 
 export default router;

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aprendizaje — Lucy Bodasesor</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <section id="login-view" class="card login-card">
+      <h1>Aprendizaje</h1>
+      <p class="muted">Cuando Lucy no sabe algo, aquí aparece la pregunta del cliente para que tú enseñes la respuesta correcta.</p>
+      <form id="login-form">
+        <label>Email<input type="email" id="email" required autocomplete="username" /></label>
+        <label>Contraseña<input type="password" id="password" required autocomplete="current-password" /></label>
+        <button type="submit">Entrar</button>
+        <p id="login-error" class="error hidden"></p>
+      </form>
+    </section>
+
+    <section id="main-view" class="hidden">
+      <header class="topbar">
+        <div>
+          <strong>Aprendizaje</strong>
+          <span id="user-label" class="muted"></span>
+        </div>
+        <div class="topbar-actions">
+          <a href="/lucy-admin" target="_blank" rel="noopener">Lucy Admin</a>
+          <a href="/simulator" target="_blank" rel="noopener">Simulador</a>
+          <button type="button" id="logout-btn" class="ghost">Salir</button>
+        </div>
+      </header>
+
+      <div class="intro card">
+        <p>
+          Si un cliente pregunta un <strong>precio</strong> o un <strong>servicio</strong> que no está en el catálogo,
+          Lucy registra la pregunta aquí. Escribe la respuesta correcta y Lucy la usará en futuras conversaciones.
+        </p>
+      </div>
+
+      <div class="stats-row" id="stats-row"></div>
+
+      <nav class="filter-tabs">
+        <button type="button" class="filter-tab active" data-status="pending">Pendientes</button>
+        <button type="button" class="filter-tab" data-status="answered">Respondidas</button>
+      </nav>
+
+      <div id="gaps-list" class="gaps-list"></div>
+      <p id="empty-state" class="muted empty hidden">No hay preguntas pendientes. ¡Lucy está al día con el catálogo!</p>
+    </section>
+  </div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>

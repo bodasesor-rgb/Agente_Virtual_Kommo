@@ -21228,27 +21228,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module2.exports = Router10;
+    module2.exports = Router11;
     module2.exports.Route = Route;
-    function Router10(options) {
-      if (!(this instanceof Router10)) {
-        return new Router10(options);
+    function Router11(options) {
+      if (!(this instanceof Router11)) {
+        return new Router11(options);
       }
       const opts = options || {};
-      function router10(req, res, next) {
-        router10.handle(req, res, next);
+      function router11(req, res, next) {
+        router11.handle(req, res, next);
       }
-      Object.setPrototypeOf(router10, this);
-      router10.caseSensitive = opts.caseSensitive;
-      router10.mergeParams = opts.mergeParams;
-      router10.params = {};
-      router10.strict = opts.strict;
-      router10.stack = [];
-      return router10;
+      Object.setPrototypeOf(router11, this);
+      router11.caseSensitive = opts.caseSensitive;
+      router11.mergeParams = opts.mergeParams;
+      router11.params = {};
+      router11.strict = opts.strict;
+      router11.stack = [];
+      return router11;
     }
-    Router10.prototype = function() {
+    Router11.prototype = function() {
     };
-    Router10.prototype.param = function param(name2, fn2) {
+    Router11.prototype.param = function param(name2, fn2) {
       if (!name2) {
         throw new TypeError("argument name is required");
       }
@@ -21268,7 +21268,7 @@ var require_router = __commonJS({
       params.push(fn2);
       return this;
     };
-    Router10.prototype.handle = function handle2(req, res, callback) {
+    Router11.prototype.handle = function handle2(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -21395,7 +21395,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router10.prototype.use = function use(handler) {
+    Router11.prototype.use = function use(handler) {
       let offset = 0;
       let path4 = "/";
       if (typeof handler !== "function") {
@@ -21428,7 +21428,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router10.prototype.route = function route(path4) {
+    Router11.prototype.route = function route(path4) {
       const route2 = new Route(path4);
       const layer = new Layer(path4, {
         sensitive: this.caseSensitive,
@@ -21443,7 +21443,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router10.prototype[method] = function(path4) {
+      Router11.prototype[method] = function(path4) {
         const route = this.route(path4);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -21626,13 +21626,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve2 = __require("node:path").resolve;
     var once = require_once();
-    var Router10 = require_router();
+    var Router11 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module2.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init2() {
-      var router10 = null;
+      var router11 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -21641,13 +21641,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router10 === null) {
-            router10 = new Router10({
+          if (router11 === null) {
+            router11 = new Router11({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router10;
+          return router11;
         }
       });
     };
@@ -21718,15 +21718,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router10 = this.router;
+      var router11 = this.router;
       fns.forEach(function(fn3) {
         if (!fn3 || !fn3.handle || !fn3.set) {
-          return router10.use(path4, fn3);
+          return router11.use(path4, fn3);
         }
         debug(".use app under %s", path4);
         fn3.mountpath = path4;
         fn3.parent = this;
-        router10.use(path4, function mounted_app(req, res, next) {
+        router11.use(path4, function mounted_app(req, res, next) {
           var orig = req.app;
           fn3.handle(req, res, function(err2) {
             Object.setPrototypeOf(req, orig.request);
@@ -24311,7 +24311,7 @@ var require_express = __commonJS({
     var EventEmitter2 = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router10 = require_router();
+    var Router11 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module2.exports = createApplication;
@@ -24333,8 +24333,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router10.Route;
-    exports.Router = Router10;
+    exports.Route = Router11.Route;
+    exports.Router = Router11;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -60422,13 +60422,14 @@ __export(schema_exports, {
   conversations: () => conversations,
   dailyMetrics: () => dailyMetrics,
   followUpEvents: () => followUpEvents,
+  knowledgeGaps: () => knowledgeGaps,
   leadScores: () => leadScores,
   learningCandidates: () => learningCandidates,
   messages: () => messages,
   trainingExamples: () => trainingExamples,
   users: () => users
 });
-var conversations, leadScores, messages, dailyMetrics, followUpEvents, users, trainingExamples, learningCandidates;
+var conversations, leadScores, messages, dailyMetrics, followUpEvents, users, trainingExamples, learningCandidates, knowledgeGaps;
 var init_schema2 = __esm({
   "../lib/db/src/schema/index.ts"() {
     "use strict";
@@ -60538,6 +60539,22 @@ var init_schema2 = __esm({
       dedupeKey: text("dedupe_key").unique(),
       reviewedAt: timestamp("reviewed_at"),
       reviewedBy: text("reviewed_by"),
+      createdAt: timestamp("created_at").notNull().defaultNow(),
+      updatedAt: timestamp("updated_at").notNull().defaultNow()
+    });
+    knowledgeGaps = pgTable("knowledge_gaps", {
+      id: uuid("id").primaryKey().defaultRandom(),
+      kommoLeadId: text("kommo_lead_id"),
+      question: text("question").notNull(),
+      topic: text("topic"),
+      gapType: varchar("gap_type", { length: 30 }).notNull().default("unknown"),
+      lucyResponse: text("lucy_response"),
+      answer: text("answer"),
+      status: varchar("status", { length: 20 }).notNull().default("pending"),
+      contextSnippet: text("context_snippet"),
+      dedupeKey: text("dedupe_key").unique(),
+      answeredAt: timestamp("answered_at"),
+      answeredBy: text("answered_by"),
       createdAt: timestamp("created_at").notNull().defaultNow(),
       updatedAt: timestamp("updated_at").notNull().defaultNow()
     });
@@ -60686,6 +60703,23 @@ CREATE TABLE IF NOT EXISTS learning_candidates (
   dedupe_key TEXT UNIQUE,
   reviewed_at TIMESTAMP,
   reviewed_by TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS knowledge_gaps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kommo_lead_id TEXT,
+  question TEXT NOT NULL,
+  topic TEXT,
+  gap_type VARCHAR(30) NOT NULL DEFAULT 'unknown',
+  lucy_response TEXT,
+  answer TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  context_snippet TEXT,
+  dedupe_key TEXT UNIQUE,
+  answered_at TIMESTAMP,
+  answered_by TEXT,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -73387,6 +73421,22 @@ var init_learningSchema = __esm({
     reviewed_by TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+      `CREATE TABLE IF NOT EXISTS knowledge_gaps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kommo_lead_id TEXT,
+    question TEXT NOT NULL,
+    topic TEXT,
+    gap_type VARCHAR(30) NOT NULL DEFAULT 'unknown',
+    lucy_response TEXT,
+    answer TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    context_snippet TEXT,
+    dedupe_key TEXT UNIQUE,
+    answered_at TIMESTAMP,
+    answered_by TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
   )`
     ];
   }
@@ -73756,7 +73806,7 @@ var init_requireAuth = __esm({
 });
 
 // src/services/learningStore.ts
-function rowToDto(row) {
+function rowToDto2(row) {
   return {
     id: row.id,
     kommoLeadId: row.kommoLeadId,
@@ -73773,7 +73823,7 @@ function rowToDto(row) {
 async function listLearningCandidates(status = "pending", limit2 = 50) {
   await ensureLearningSchema();
   const rows = await db.select().from(learningCandidates).where(eq2(learningCandidates.status, status)).orderBy(desc2(learningCandidates.createdAt)).limit(limit2);
-  return rows.map(rowToDto);
+  return rows.map(rowToDto2);
 }
 async function getLearningStats() {
   await ensureLearningSchema();
@@ -73805,7 +73855,7 @@ async function approveLearningCandidate(id, reviewerEmail, patch) {
     reviewedBy: reviewerEmail ?? null,
     updatedAt: /* @__PURE__ */ new Date()
   }).where(eq2(learningCandidates.id, id)).returning();
-  return updated ? rowToDto(updated) : null;
+  return updated ? rowToDto2(updated) : null;
 }
 async function rejectLearningCandidate(id, reviewerEmail) {
   await ensureLearningSchema();
@@ -73948,13 +73998,13 @@ var init_learning = __esm({
 init_openaiEnv();
 
 // src/app.ts
-var import_express10 = __toESM(require_express2(), 1);
+var import_express11 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 import path3 from "node:path";
 
 // src/routes/index.ts
-var import_express9 = __toESM(require_express2(), 1);
+var import_express10 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -79189,7 +79239,8 @@ router.get("/health", (_req, res) => {
       "training-db",
       "lucy-admin",
       "debounce-5s",
-      "learning-from-human-chats"
+      "learning-from-human-chats",
+      "knowledge-gaps-aprendizaje"
     ],
     auth_configured: isAuthConfigured(),
     git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
@@ -87360,6 +87411,210 @@ async function registrarMensajeSalienteKommo(opts) {
 await init_embudo();
 await init_chatIngest();
 await init_learningSync();
+
+// src/services/knowledgeGapStore.ts
+await init_src();
+init_drizzle_orm();
+
+// src/services/knowledgeGapSchema.ts
+await init_src();
+init_drizzle_orm();
+init_logger3();
+var ensured2 = false;
+var CREATE_TABLE = `
+CREATE TABLE IF NOT EXISTS knowledge_gaps (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  kommo_lead_id TEXT,
+  question TEXT NOT NULL,
+  topic TEXT,
+  gap_type VARCHAR(30) NOT NULL DEFAULT 'unknown',
+  lucy_response TEXT,
+  answer TEXT,
+  status VARCHAR(20) NOT NULL DEFAULT 'pending',
+  context_snippet TEXT,
+  dedupe_key TEXT UNIQUE,
+  answered_at TIMESTAMP,
+  answered_by TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+)`;
+async function ensureKnowledgeGapSchema() {
+  if (ensured2) return;
+  try {
+    await db.execute(sql2.raw(CREATE_TABLE));
+    await db.execute(sql2.raw(
+      `CREATE INDEX IF NOT EXISTS knowledge_gaps_status_idx ON knowledge_gaps (status, created_at DESC)`
+    ));
+  } catch (err2) {
+    logger.warn({ err: err2 }, "knowledgeGapSchema: fall\xF3");
+  }
+  ensured2 = true;
+}
+
+// src/services/knowledgeGapStore.ts
+await init_trainingStore();
+init_logger3();
+function rowToDto(row) {
+  return {
+    id: row.id,
+    kommoLeadId: row.kommoLeadId ?? void 0,
+    question: row.question,
+    topic: row.topic ?? void 0,
+    gapType: row.gapType,
+    lucyResponse: row.lucyResponse ?? void 0,
+    answer: row.answer ?? void 0,
+    status: row.status,
+    contextSnippet: row.contextSnippet ?? void 0,
+    createdAt: row.createdAt.toISOString(),
+    answeredAt: row.answeredAt?.toISOString()
+  };
+}
+function normalizeDedupeKey(question, gapType) {
+  const q2 = question.toLowerCase().replace(/\s+/g, " ").trim().slice(0, 200);
+  return `${gapType}:${q2}`;
+}
+async function listKnowledgeGaps(status = "pending", limit2 = 50) {
+  await ensureKnowledgeGapSchema();
+  const rows = await db.select().from(knowledgeGaps).where(eq2(knowledgeGaps.status, status)).orderBy(desc2(knowledgeGaps.createdAt)).limit(limit2);
+  return rows.map(rowToDto);
+}
+async function getKnowledgeGapStats() {
+  await ensureKnowledgeGapSchema();
+  const rows = await db.select().from(knowledgeGaps);
+  return {
+    pending: rows.filter((r2) => r2.status === "pending").length,
+    answered: rows.filter((r2) => r2.status === "answered").length,
+    dismissed: rows.filter((r2) => r2.status === "dismissed").length
+  };
+}
+async function recordKnowledgeGap(input) {
+  const question = input.question?.trim();
+  if (!question || question.length < 4) return false;
+  await ensureKnowledgeGapSchema();
+  const gapType = input.gapType?.trim() || "unknown";
+  const dedupeKey2 = normalizeDedupeKey(question, gapType);
+  try {
+    const [existing] = await db.select().from(knowledgeGaps).where(eq2(knowledgeGaps.dedupeKey, dedupeKey2)).limit(1);
+    if (existing) {
+      if (existing.status !== "pending") return false;
+      await db.update(knowledgeGaps).set({
+        lucyResponse: input.lucyResponse?.trim() || existing.lucyResponse,
+        kommoLeadId: input.kommoLeadId ? String(input.kommoLeadId) : existing.kommoLeadId,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq2(knowledgeGaps.id, existing.id));
+      return true;
+    }
+    await db.insert(knowledgeGaps).values({
+      kommoLeadId: input.kommoLeadId ? String(input.kommoLeadId) : null,
+      question,
+      topic: input.topic?.trim() || null,
+      gapType,
+      lucyResponse: input.lucyResponse?.trim() || null,
+      contextSnippet: input.contextSnippet?.trim() || null,
+      dedupeKey: dedupeKey2
+    });
+    logger.info({ topic: input.topic, gapType }, "Knowledge gap registrado");
+    return true;
+  } catch (err2) {
+    logger.warn({ err: err2, dedupeKey: dedupeKey2 }, "recordKnowledgeGap: fall\xF3");
+    return false;
+  }
+}
+async function answerKnowledgeGap(id, answer, reviewerEmail) {
+  const text2 = answer.trim();
+  if (!text2) return null;
+  await ensureKnowledgeGapSchema();
+  const [row] = await db.select().from(knowledgeGaps).where(eq2(knowledgeGaps.id, id)).limit(1);
+  if (!row || row.status !== "pending") return null;
+  const topic = row.topic ?? "Pregunta sin cat\xE1logo";
+  await createTrainingExample({
+    userMessage: row.question,
+    lucyResponse: text2,
+    label: topic.startsWith("Aprendizaje") ? topic : `Aprendizaje: ${topic}`
+  });
+  const [updated] = await db.update(knowledgeGaps).set({
+    answer: text2,
+    status: "answered",
+    answeredAt: /* @__PURE__ */ new Date(),
+    answeredBy: reviewerEmail ?? null,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq2(knowledgeGaps.id, id)).returning();
+  return updated ? rowToDto(updated) : null;
+}
+async function dismissKnowledgeGap(id, reviewerEmail) {
+  await ensureKnowledgeGapSchema();
+  const updated = await db.update(knowledgeGaps).set({
+    status: "dismissed",
+    answeredBy: reviewerEmail ?? null,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq2(knowledgeGaps.id, id)).returning({ id: knowledgeGaps.id });
+  return updated.length > 0;
+}
+
+// src/services/knowledgeGapDetector.ts
+init_logger3();
+function inferTopic(message) {
+  const t = message.trim();
+  if (t.length <= 60) return t;
+  return `${t.slice(0, 57)}...`;
+}
+function detectKnowledgeGap(clientMessage, lucyResponse) {
+  const msg = clientMessage.trim();
+  if (!msg || msg.length < 4) return null;
+  const lucy = lucyResponse.trim();
+  const deferredToAlejandro = /alejandro te (lo incluye|da el precio)|precio exacto depende del evento|sin precio listado/i.test(
+    lucy
+  );
+  if (clientAsksPrice(msg)) {
+    const fromCatalog = buildCatalogPriceAnswer(msg);
+    if (!fromCatalog || deferredToAlejandro || mentionsNoListedPriceService(msg)) {
+      const label = getPriceServiceLabel(msg);
+      const topic = label !== "ese servicio" ? `Precio: ${label}` : `Precio: ${inferTopic(msg)}`;
+      return { topic, gapType: "price" };
+    }
+  }
+  if (clientAsksInclusion(msg)) {
+    const fromCatalog = buildCatalogInclusionAnswer(msg);
+    if (!fromCatalog) {
+      return {
+        topic: `Qu\xE9 incluye: ${inferTopic(msg)}`,
+        gapType: "inclusion"
+      };
+    }
+  }
+  if (/\b(qu[eé]|cu[aá]l)\s+(ofrecen|manejan|tienen|servicios?)\b/i.test(msg) || /\b(tienen|manejan)\s+.+\?/i.test(msg)) {
+    const matches = lookupCatalogServices(msg);
+    if (!matches.length && deferredToAlejandro) {
+      return { topic: inferTopic(msg), gapType: "service" };
+    }
+  }
+  if (deferredToAlejandro && clientAsksPrice(msg)) {
+    const label = getPriceServiceLabel(msg);
+    return {
+      topic: label !== "ese servicio" ? `Precio: ${label}` : `Precio: ${inferTopic(msg)}`,
+      gapType: "price"
+    };
+  }
+  return null;
+}
+async function recordKnowledgeGapIfNeeded(opts) {
+  try {
+    const gap = detectKnowledgeGap(opts.clientMessage, opts.lucyResponse);
+    if (!gap) return;
+    await recordKnowledgeGap({
+      kommoLeadId: opts.kommoLeadId,
+      question: opts.clientMessage.trim(),
+      topic: gap.topic,
+      gapType: gap.gapType,
+      lucyResponse: opts.lucyResponse.trim(),
+      contextSnippet: opts.contextSnippet
+    });
+  } catch (err2) {
+    logger.warn({ err: err2 }, "recordKnowledgeGapIfNeeded: error no cr\xEDtico");
+  }
+}
+
+// src/routes/kommo.ts
 var router3 = (0, import_express3.Router)();
 var openai3 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var FIELD = {
@@ -88056,6 +88311,12 @@ async function processBatch(batch, accessToken, log) {
     }
     appendHistory(histKey, combinedUserText, mensajeParaCliente);
     lastResponseCache.set(String(entityId), mensajeParaCliente);
+    void recordKnowledgeGapIfNeeded({
+      kommoLeadId: entityId,
+      clientMessage: combinedUserText,
+      lucyResponse: mensajeParaCliente,
+      contextSnippet: conversationText.slice(-400)
+    });
     {
       const entityKey = String(entityId);
       let whatsappPhone = phoneCache.get(entityKey) ?? null;
@@ -88466,6 +88727,12 @@ router3.post("/kommo/salesbot", async (req, res) => {
       mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
     }
     appendHistory(histKey, messageText, mensajeParaCliente);
+    void recordKnowledgeGapIfNeeded({
+      kommoLeadId: entityId,
+      clientMessage: messageText,
+      lucyResponse: mensajeParaCliente,
+      contextSnippet: conversationText.slice(-400)
+    });
     if (entityId) {
       const sbEntityKey = String(entityId);
       let sbPhone = phoneCache.get(sbEntityKey) ?? null;
@@ -88837,6 +89104,12 @@ router3.post("/kommo/simulator", async (req, res) => {
       cierreYaEnviado: simCierreYaEnviado
     });
     appendHistory(histKey, messageText, mensajeParaCliente);
+    void recordKnowledgeGapIfNeeded({
+      kommoLeadId: leadId,
+      clientMessage: messageText,
+      lucyResponse: mensajeParaCliente,
+      contextSnippet: conversationText.slice(-400)
+    });
     const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente, crmMergedLines);
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
     const lead_updates = {};
@@ -89224,14 +89497,78 @@ var auth_default = router7;
 // src/routes/index.ts
 await init_learning();
 
-// src/routes/catalog.ts
+// src/routes/knowledgeGaps.ts
 var import_express8 = __toESM(require_express2(), 1);
 init_requireAuth();
 var router8 = (0, import_express8.Router)();
-router8.get("/catalog/status", (_req, res) => {
+router8.use(requireAuth);
+router8.get("/knowledge-gaps", async (req, res) => {
+  try {
+    const statusParam = String(req.query.status ?? "pending");
+    const status = statusParam === "answered" || statusParam === "dismissed" ? statusParam : "pending";
+    const limit2 = Math.min(Number(req.query.limit ?? 50), 100);
+    const gaps = await listKnowledgeGaps(status, limit2);
+    res.json({ gaps, total: gaps.length });
+  } catch {
+    res.status(500).json({ error: "failed_to_load_gaps" });
+  }
+});
+router8.get("/knowledge-gaps/stats", async (_req, res) => {
+  try {
+    res.json(await getKnowledgeGapStats());
+  } catch {
+    res.status(500).json({ error: "failed_to_load_stats" });
+  }
+});
+router8.post(
+  "/knowledge-gaps/:id/answer",
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    const { id } = req.params;
+    const { answer } = req.body;
+    if (!answer?.trim()) {
+      res.status(400).json({ error: "answer_required" });
+      return;
+    }
+    try {
+      const updated = await answerKnowledgeGap(id, answer, req.lucyUser?.email);
+      if (!updated) {
+        res.status(404).json({ error: "gap_not_found" });
+        return;
+      }
+      res.json(updated);
+    } catch {
+      res.status(500).json({ error: "failed_to_answer" });
+    }
+  }
+);
+router8.post(
+  "/knowledge-gaps/:id/dismiss",
+  requireRole("admin", "editor"),
+  async (req, res) => {
+    const { id } = req.params;
+    try {
+      const ok = await dismissKnowledgeGap(id, req.lucyUser?.email);
+      if (!ok) {
+        res.status(404).json({ error: "gap_not_found" });
+        return;
+      }
+      res.json({ ok: true });
+    } catch {
+      res.status(500).json({ error: "failed_to_dismiss" });
+    }
+  }
+);
+var knowledgeGaps_default = router8;
+
+// src/routes/catalog.ts
+var import_express9 = __toESM(require_express2(), 1);
+init_requireAuth();
+var router9 = (0, import_express9.Router)();
+router9.get("/catalog/status", (_req, res) => {
   res.json({ status: "ok", catalog: getCatalogStatus(), parser: "bodasesor-v3" });
 });
-router8.get("/catalog/lookup", (req, res) => {
+router9.get("/catalog/lookup", (req, res) => {
   const q2 = String(req.query.q ?? "").trim();
   if (!q2) {
     res.status(400).json({ status: "error", error: "query param q required" });
@@ -89251,7 +89588,7 @@ router8.get("/catalog/lookup", (req, res) => {
     inject: injectCatalogPriceIfAsked(q2, sampleAi)
   });
 });
-router8.post("/catalog/refresh", requireAuth, async (_req, res) => {
+router9.post("/catalog/refresh", requireAuth, async (_req, res) => {
   try {
     const snap = await refreshCatalog(true);
     res.json({ status: "ok", catalog: snap.status });
@@ -89262,23 +89599,24 @@ router8.post("/catalog/refresh", requireAuth, async (_req, res) => {
     });
   }
 });
-var catalog_default = router8;
+var catalog_default = router9;
 
 // src/routes/index.ts
-var router9 = (0, import_express9.Router)();
-router9.use(health_default);
-router9.use(catalog_default);
-router9.use(kommo_default);
-router9.use(lucy_default);
-router9.use(auth_default);
-router9.use(examples_default);
-router9.use(learning_default);
-router9.use(analytics_default);
-var routes_default = router9;
+var router10 = (0, import_express10.Router)();
+router10.use(health_default);
+router10.use(catalog_default);
+router10.use(kommo_default);
+router10.use(lucy_default);
+router10.use(auth_default);
+router10.use(examples_default);
+router10.use(learning_default);
+router10.use(knowledgeGaps_default);
+router10.use(analytics_default);
+var routes_default = router10;
 
 // src/app.ts
 init_logger3();
-var app = (0, import_express10.default)();
+var app = (0, import_express11.default)();
 var simuladorDir = path3.join(__dirname, "simulador");
 var simuladorIndex = path3.join(simuladorDir, "index.html");
 app.use(
@@ -89301,13 +89639,13 @@ app.use(
   })
 );
 app.use((0, import_cors.default)());
-app.use(import_express10.default.json());
-app.use(import_express10.default.urlencoded({ extended: true }));
+app.use(import_express11.default.json());
+app.use(import_express11.default.urlencoded({ extended: true }));
 function mountSimulador(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(simuladorIndex);
   });
-  app.use(basePath, import_express10.default.static(simuladorDir, { index: false }));
+  app.use(basePath, import_express11.default.static(simuladorDir, { index: false }));
 }
 mountSimulador("/simulador");
 mountSimulador("/simulator");
@@ -89317,10 +89655,19 @@ function mountAdmin(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(adminIndex);
   });
-  app.use(basePath, import_express10.default.static(adminDir, { index: false }));
+  app.use(basePath, import_express11.default.static(adminDir, { index: false }));
 }
 mountAdmin("/lucy-admin");
 mountAdmin("/admin");
+var aprendizajeDir = path3.join(__dirname, "aprendizaje");
+var aprendizajeIndex = path3.join(aprendizajeDir, "index.html");
+function mountAprendizaje(basePath) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(aprendizajeIndex);
+  });
+  app.use(basePath, import_express11.default.static(aprendizajeDir, { index: false }));
+}
+mountAprendizaje("/aprendizaje");
 app.get("/", (_req, res) => {
   res.redirect(302, "/simulator");
 });
@@ -89348,6 +89695,9 @@ async function startServer() {
   });
   void ensureLearningSchema().catch((err2) => {
     logger.warn({ err: err2 }, "learningSchema init en background fall\xF3");
+  });
+  void ensureKnowledgeGapSchema().catch((err2) => {
+    logger.warn({ err: err2 }, "knowledgeGapSchema init en background fall\xF3");
   });
   startCatalogAutoRefresh();
   app_default.listen(port, "0.0.0.0", (err2) => {

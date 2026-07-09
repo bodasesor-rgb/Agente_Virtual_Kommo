@@ -55,6 +55,18 @@ function mountAdmin(basePath: string) {
 mountAdmin("/lucy-admin");
 mountAdmin("/admin");
 
+const aprendizajeDir = path.join(__dirname, "aprendizaje");
+const aprendizajeIndex = path.join(aprendizajeDir, "index.html");
+
+function mountAprendizaje(basePath: string) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(aprendizajeIndex);
+  });
+  app.use(basePath, express.static(aprendizajeDir, { index: false }));
+}
+
+mountAprendizaje("/aprendizaje");
+
 app.get("/", (_req, res) => {
   res.redirect(302, "/simulator");
 });

@@ -127,6 +127,10 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   await cp(adminSrc, path.join(distDir, "lucy-admin"), { recursive: true });
   console.log("[build] Lucy Admin copiado a dist/lucy-admin/");
 
+  const aprendizajeSrc = path.resolve(artifactDir, "public/aprendizaje");
+  await cp(aprendizajeSrc, path.join(distDir, "aprendizaje"), { recursive: true });
+  console.log("[build] Aprendizaje copiado a dist/aprendizaje/");
+
   await mkdir(path.join(distDir, "data"), { recursive: true });
   const trainingSrc = path.resolve(artifactDir, "data/training-examples.json");
   await cp(trainingSrc, path.join(distDir, "data/training-examples.json"));

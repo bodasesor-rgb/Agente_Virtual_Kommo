@@ -28,6 +28,7 @@ router.get("/health", (_req, res) => {
       "lucy-admin",
       "debounce-5s",
       "learning-from-human-chats",
+      "knowledge-gaps-aprendizaje",
     ],
     auth_configured: isAuthConfigured(),
     git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
