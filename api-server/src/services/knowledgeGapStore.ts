@@ -18,6 +18,7 @@ export interface KnowledgeGapDto {
   contextSnippet?: string;
   createdAt: string;
   answeredAt?: string;
+  answeredBy?: string;
 }
 
 function rowToDto(row: typeof knowledgeGaps.$inferSelect): KnowledgeGapDto {
@@ -33,6 +34,7 @@ function rowToDto(row: typeof knowledgeGaps.$inferSelect): KnowledgeGapDto {
     contextSnippet: row.contextSnippet ?? undefined,
     createdAt: row.createdAt.toISOString(),
     answeredAt: row.answeredAt?.toISOString(),
+    answeredBy: row.answeredBy ?? undefined,
   };
 }
 

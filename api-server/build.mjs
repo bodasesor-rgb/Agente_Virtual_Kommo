@@ -172,6 +172,24 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   await embedPanelCss(path.join(deployDir, "panel"));
   console.log("[build] Panel: CSS embebido en index.html");
 
+  async function embedAprendizajeCss(targetDir) {
+    const htmlPath = path.join(targetDir, "index.html");
+    const cssPath = path.join(targetDir, "styles.css");
+    let html = await readFile(htmlPath, "utf8");
+    const css = await readFile(cssPath, "utf8");
+    if (!html.includes("aprendizaje-inline-style")) {
+      html = html.replace(
+        /<link rel="stylesheet" href="\/aprendizaje\/styles\.css[^"]*" \/>/,
+        `<style id="aprendizaje-inline-style">\n${css}\n</style>\n  <link rel="stylesheet" href="/aprendizaje/styles.css?v=2" />`,
+      );
+      await writeFile(htmlPath, html);
+    }
+  }
+
+  await embedAprendizajeCss(path.join(distDir, "aprendizaje"));
+  await embedAprendizajeCss(path.join(deployDir, "aprendizaje"));
+  console.log("[build] Aprendizaje: CSS embebido en index.html");
+
   console.log("[build] Bundle sincronizado a deploy/");
 }
 

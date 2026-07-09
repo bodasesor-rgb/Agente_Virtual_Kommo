@@ -87466,7 +87466,8 @@ function rowToDto(row) {
     status: row.status,
     contextSnippet: row.contextSnippet ?? void 0,
     createdAt: row.createdAt.toISOString(),
-    answeredAt: row.answeredAt?.toISOString()
+    answeredAt: row.answeredAt?.toISOString(),
+    answeredBy: row.answeredBy ?? void 0
   };
 }
 function normalizeDedupeKey(question, gapType) {

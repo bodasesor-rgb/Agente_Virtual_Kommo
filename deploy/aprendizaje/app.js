@@ -5,12 +5,20 @@ const loginView = document.getElementById("login-view");
 const mainView = document.getElementById("main-view");
 const loginForm = document.getElementById("login-form");
 const loginError = document.getElementById("login-error");
-const userLabel = document.getElementById("user-label");
 const statsRow = document.getElementById("stats-row");
+const sectionIntro = document.getElementById("section-intro");
 const gapsList = document.getElementById("gaps-list");
 const emptyState = document.getElementById("empty-state");
 
 let currentStatus = "pending";
+let lastStats = { pending: 0, answered: 0, dismissed: 0 };
+
+const INTRO = {
+  pending:
+    "Estas son preguntas de clientes reales donde <strong>Lucy no encontró precio o servicio en el catálogo</strong>. Escribe la respuesta correcta y Lucy la usará en futuras conversaciones.",
+  answered:
+    "Todo lo que <strong>ya le enseñaste a Lucy</strong>: la pregunta del cliente, lo que Lucy dijo sin datos, y la respuesta correcta que quedó guardada.",
+};
 
 function token() {
   return localStorage.getItem(TOKEN_KEY);
@@ -45,16 +53,16 @@ function showLogin() {
   mainView.classList.add("hidden");
 }
 
-function showMain(user) {
+function showMain() {
   loginView.classList.add("hidden");
   mainView.classList.remove("hidden");
-  userLabel.textContent = user ? ` · ${user.name}` : "";
 }
 
 function formatDate(iso) {
+  if (!iso) return "—";
   try {
     return new Date(iso).toLocaleString("es-MX", {
-      dateStyle: "short",
+      dateStyle: "medium",
       timeStyle: "short",
     });
   } catch {
@@ -72,85 +80,166 @@ function gapTypeLabel(type) {
   return map[type] || type;
 }
 
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function updateTabCounts(stats) {
+  document.querySelectorAll("[data-count]").forEach((el) => {
+    const key = el.dataset.count;
+    if (key && stats[key] !== undefined) el.textContent = String(stats[key]);
+  });
+}
+
 async function loadStats() {
   const stats = await api("/knowledge-gaps/stats");
+  lastStats = stats;
+  const total = stats.pending + stats.answered + stats.dismissed;
+
   statsRow.innerHTML = `
-    <div class="stat-pill"><strong>${stats.pending}</strong>Pendientes</div>
-    <div class="stat-pill"><strong>${stats.answered}</strong>Enseñadas a Lucy</div>
-    <div class="stat-pill"><strong>${stats.dismissed}</strong>Descartadas</div>
+    <div class="stat-card pending">
+      <strong>${stats.pending}</strong>
+      <span>No sabe — pendientes</span>
+    </div>
+    <div class="stat-card learned">
+      <strong>${stats.answered}</strong>
+      <span>Ya aprendió</span>
+    </div>
+    <div class="stat-card dismissed">
+      <strong>${stats.dismissed}</strong>
+      <span>Descartadas</span>
+    </div>
+    <div class="stat-card total">
+      <strong>${total}</strong>
+      <span>Total registradas</span>
+    </div>
   `;
+
+  updateTabCounts(stats);
+}
+
+function renderPendingCard(gap) {
+  const card = document.createElement("article");
+  card.className = "gap-card pending-card";
+  card.dataset.id = gap.id;
+
+  const badgeClass = gap.gapType === "price" ? "gap-badge price" : "gap-badge";
+
+  card.innerHTML = `
+    <div class="gap-top">
+      <div>
+        <div class="gap-topic">${escapeHtml(gap.topic || "Sin tema en catálogo")}</div>
+      </div>
+      <div class="gap-badges">
+        <span class="gap-badge pending">Pendiente</span>
+        <span class="${badgeClass}">${escapeHtml(gapTypeLabel(gap.gapType))}</span>
+      </div>
+    </div>
+    <div class="info-grid">
+      <div class="info-block question">
+        <div class="label">Cliente preguntó</div>
+        <div class="value">${escapeHtml(gap.question)}</div>
+      </div>
+      <div class="info-block lucy-said">
+        <div class="label">Lucy respondió (sin dato en catálogo)</div>
+        <div class="value">${escapeHtml(gap.lucyResponse || "— Aún no respondió en el chat —")}</div>
+      </div>
+    </div>
+    ${
+      gap.contextSnippet
+        ? `<div class="info-block" style="border-top:1px solid var(--border);background:#fff">
+            <div class="label">Contexto de la conversación</div>
+            <div class="value">${escapeHtml(gap.contextSnippet)}</div>
+          </div>`
+        : ""
+    }
+    <div class="answer-form">
+      <label>Tu respuesta — esto es lo que Lucy aprenderá
+        <textarea class="answer-box" data-answer placeholder="Ej: El DJ desde $8,500 por 4 horas, incluye equipo básico. Alejandro confirma según el evento."></textarea>
+      </label>
+      <div class="gap-actions">
+        <button type="button" class="btn-save save-btn">Guardar y enseñar a Lucy</button>
+        <button type="button" class="btn-ghost dismiss-btn">Descartar</button>
+      </div>
+    </div>
+    <div class="gap-footer">
+      <span>${gap.kommoLeadId ? `Lead Kommo #${escapeHtml(gap.kommoLeadId)}` : "Sin lead vinculado"}</span>
+      <span>Detectado: ${formatDate(gap.createdAt)}</span>
+    </div>
+  `;
+
+  card.querySelector(".save-btn")?.addEventListener("click", () => saveAnswer(gap.id, card));
+  card.querySelector(".dismiss-btn")?.addEventListener("click", () => dismissGap(gap.id));
+
+  return card;
+}
+
+function renderLearnedCard(gap) {
+  const card = document.createElement("article");
+  card.className = "gap-card learned-card";
+  card.dataset.id = gap.id;
+
+  const badgeClass = gap.gapType === "price" ? "gap-badge price" : "gap-badge";
+
+  card.innerHTML = `
+    <div class="gap-top">
+      <div>
+        <div class="gap-topic">${escapeHtml(gap.topic || "Conocimiento enseñado")}</div>
+      </div>
+      <div class="gap-badges">
+        <span class="gap-badge learned">Aprendido</span>
+        <span class="${badgeClass}">${escapeHtml(gapTypeLabel(gap.gapType))}</span>
+      </div>
+    </div>
+    <div class="info-grid">
+      <div class="info-block question">
+        <div class="label">Pregunta del cliente</div>
+        <div class="value">${escapeHtml(gap.question)}</div>
+      </div>
+      <div class="info-block lucy-said">
+        <div class="label">Lo que Lucy dijo antes</div>
+        <div class="value">${escapeHtml(gap.lucyResponse || "—")}</div>
+      </div>
+      <div class="info-block answer">
+        <div class="label">Respuesta enseñada (lo que Lucy usa ahora)</div>
+        <div class="value">${escapeHtml(gap.answer || "—")}</div>
+      </div>
+    </div>
+    <div class="gap-footer">
+      <span>${gap.answeredBy ? `Enseñado por ${escapeHtml(gap.answeredBy)}` : "Enseñado desde el panel"}</span>
+      <span>${formatDate(gap.answeredAt)}${gap.kommoLeadId ? ` · Lead #${escapeHtml(gap.kommoLeadId)}` : ""}</span>
+    </div>
+  `;
+
+  return card;
 }
 
 async function loadGaps() {
-  const data = await api(`/knowledge-gaps?status=${currentStatus}&limit=50`);
+  sectionIntro.innerHTML = INTRO[currentStatus] ?? "";
   gapsList.innerHTML = "";
+
+  const data = await api(`/knowledge-gaps?status=${currentStatus}&limit=50`);
 
   if (!data.gaps?.length) {
     emptyState.classList.remove("hidden");
-    emptyState.textContent =
+    emptyState.innerHTML =
       currentStatus === "pending"
-        ? "No hay preguntas pendientes. ¡Lucy está al día con el catálogo!"
-        : "Aún no has enseñado respuestas desde aquí.";
+        ? `<strong>No hay preguntas pendientes</strong>Lucy está al día con el catálogo del Sheet. Cuando un cliente pregunte algo sin precio, aparecerá aquí.`
+        : `<strong>Aún no hay aprendizajes guardados</strong>Cuando enseñes una respuesta en la pestaña «No sabe», aparecerá aquí con la pregunta y la respuesta correcta.`;
     return;
   }
 
   emptyState.classList.add("hidden");
 
   for (const gap of data.gaps) {
-    const card = document.createElement("article");
-    card.className = `gap-card${currentStatus === "answered" ? " answered" : ""}`;
-    card.dataset.id = gap.id;
-
-    const badgeClass = gap.gapType === "price" ? "gap-badge price" : "gap-badge";
-
-    card.innerHTML = `
-      <div class="gap-header">
-        <span class="gap-topic">${escapeHtml(gap.topic || "Pregunta del cliente")}</span>
-        <span class="${badgeClass}">${escapeHtml(gapTypeLabel(gap.gapType))}</span>
-      </div>
-      <div class="question-block">
-        <div class="label">Cliente preguntó</div>
-        <div>${escapeHtml(gap.question)}</div>
-      </div>
-      ${
-        gap.lucyResponse
-          ? `<div class="lucy-hint"><strong>Lucy respondió (sin datos en catálogo):</strong> ${escapeHtml(gap.lucyResponse.slice(0, 280))}${gap.lucyResponse.length > 280 ? "…" : ""}</div>`
-          : ""
-      }
-      ${
-        currentStatus === "pending"
-          ? `
-        <label>Tu respuesta — Lucy aprenderá esto
-          <textarea class="answer-box" data-answer placeholder="Ej: El DJ desde $8,500 por 4 horas, incluye equipo básico. Alejandro confirma según el evento."></textarea>
-        </label>
-        <div class="gap-actions">
-          <button type="button" class="save-btn">Guardar y enseñar a Lucy</button>
-          <button type="button" class="ghost dismiss-btn">Descartar</button>
-        </div>`
-          : `
-        <div class="answer-display">
-          <div class="label">Respuesta enseñada</div>
-          ${escapeHtml(gap.answer || "")}
-        </div>`
-      }
-      <div class="meta">${gap.kommoLeadId ? `Lead ${gap.kommoLeadId} · ` : ""}${formatDate(gap.createdAt)}</div>
-    `;
-
-    if (currentStatus === "pending") {
-      card.querySelector(".save-btn")?.addEventListener("click", () => saveAnswer(gap.id, card));
-      card.querySelector(".dismiss-btn")?.addEventListener("click", () => dismissGap(gap.id));
-    }
-
-    gapsList.appendChild(card);
+    gapsList.appendChild(
+      currentStatus === "pending" ? renderPendingCard(gap) : renderLearnedCard(gap),
+    );
   }
-}
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
 }
 
 async function saveAnswer(id, card) {
@@ -194,8 +283,8 @@ async function refresh() {
 async function tryRestoreSession() {
   if (!token()) return showLogin();
   try {
-    const data = await api("/auth/me");
-    showMain(data.user);
+    await api("/auth/me");
+    showMain();
     await refresh();
   } catch {
     showLogin();
@@ -213,7 +302,7 @@ loginForm.addEventListener("submit", async (e) => {
       body: JSON.stringify({ email, password }),
     });
     setToken(data.token);
-    showMain(data.user);
+    showMain();
     await refresh();
   } catch {
     loginError.textContent = "Credenciales inválidas";
@@ -226,9 +315,9 @@ document.getElementById("logout-btn").addEventListener("click", () => {
   showLogin();
 });
 
-document.querySelectorAll(".filter-tab").forEach((btn) => {
+document.querySelectorAll(".view-tab").forEach((btn) => {
   btn.addEventListener("click", async () => {
-    document.querySelectorAll(".filter-tab").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll(".view-tab").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     currentStatus = btn.dataset.status;
     await loadGaps();
