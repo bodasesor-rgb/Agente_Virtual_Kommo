@@ -64,10 +64,10 @@ import {
   reactivarLucy,
   agregarTag,
   agregarNota,
-  deliverLucyOutbound,
   limpiarCampoRespuesta,
   ETAPA,
 } from "../services/embudo.js";
+import { deliverLucyOutbound } from "../services/kommoMirror.js";
 import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
@@ -1297,6 +1297,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         subdomain,
         accessToken,
         talkId,
+        chatId,
         whatsappPhone,
         texto: mensajeParaCliente,
         entityId,
@@ -1889,6 +1890,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
         subdomain,
         accessToken,
         talkId,
+        chatId,
         whatsappPhone: sbPhone,
         texto: mensajeParaCliente,
         entityId,

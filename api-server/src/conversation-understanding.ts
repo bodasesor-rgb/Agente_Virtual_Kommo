@@ -117,15 +117,25 @@ const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(comuni[oó]n|graduaci[oó]n)\b/i, "celebración"],
 ];
 
-/** Cliente pregunta quién es Alejandro / el asesor humano. */
-export function clientAsksAboutTeam(message?: string): boolean {
+/** Cliente pregunta por el asesor humano (NO cuando dice su propio nombre). */
+export function clientAsksAboutTeam(message?: string, clientName?: string | null): boolean {
   if (!message?.trim()) return false;
   const t = message.trim();
+  const lower = t.toLowerCase();
+  const name = clientName?.trim().toLowerCase() ?? "";
+
+  // Presentación: "Alejandro", "Hola, Roman", "soy Alejandro"
+  if (/^(soy\s+)?[a-záéíóúñ]{2,30}[.!]?$/i.test(t) && !t.includes("?")) return false;
+  if (/^hola,?\s+[a-záéíóúñ]{2,30}[.!]?$/i.test(t)) return false;
+  if (name && lower === name && !t.includes("?")) return false;
+
   return (
     /^alejandro\??$/i.test(t) ||
     /\bqui[eé]n\s+es\s+alejandro\b/i.test(t) ||
+    /\best[aá]\s+alejandro\b/i.test(t) ||
     /\bhablo\s+con\s+alejandro\b/i.test(t) ||
-    /\bes\s+alejandro\b/i.test(t) ||
+    /\bpuedo\s+hablar\s+con\s+alejandro\b/i.test(t) ||
+    /\bd[oó]nde\s+est[aá]\s+alejandro\b/i.test(t) ||
     /\bel\s+asesor\b/i.test(t)
   );
 }
