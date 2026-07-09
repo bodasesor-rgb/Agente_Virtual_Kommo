@@ -67,8 +67,20 @@ function mountAprendizaje(basePath: string) {
 
 mountAprendizaje("/aprendizaje");
 
+const panelDir = path.join(__dirname, "panel");
+const panelIndex = path.join(panelDir, "index.html");
+
+function mountPanel(basePath: string) {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
+    res.sendFile(panelIndex);
+  });
+  app.use(basePath, express.static(panelDir, { index: false }));
+}
+
+mountPanel("/panel");
+
 app.get("/", (_req, res) => {
-  res.redirect(302, "/simulator");
+  res.redirect(302, "/panel");
 });
 
 // Kommo puede enviar webhooks a "/" en lugar de "/api/kommo/webhook".
