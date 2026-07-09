@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lucy Bodasesor — Panel</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">L</span>
+        <div>
+          <strong>Lucy</strong>
+          <span>Bodasesor</span>
+        </div>
+      </div>
+
+      <p class="nav-label">Menú</p>
+      <nav class="nav-list">
+        <button type="button" class="nav-item active" data-view="home">
+          <span class="nav-icon">⌂</span>
+          <span>Panel general</span>
+        </button>
+        <button type="button" class="nav-item" data-view="simulador">
+          <span class="nav-icon">💬</span>
+          <span>Simulador para pruebas de Lucy</span>
+        </button>
+        <button type="button" class="nav-item" data-view="aprendizaje">
+          <span class="nav-icon">📚</span>
+          <span>Aprendizaje de Lucy</span>
+          <span class="nav-hint">Enseñar respuestas</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <a href="/lucy-admin" class="footer-link">Configuración avanzada</a>
+        <p class="muted tiny">Panel interno Bodasesor</p>
+      </div>
+    </aside>
+
+    <main class="main">
+      <section id="view-home" class="view">
+        <header class="view-header">
+          <h1>Panel general</h1>
+          <p class="muted">Elige una sección del menú para probar Lucy o enseñarle lo que no sabe del catálogo.</p>
+        </header>
+
+        <div class="cards-grid">
+          <article class="card card-action" data-go="simulador">
+            <h2>Simulador para pruebas de Lucy</h2>
+            <p>Prueba conversaciones con Lucy como si fuera un lead de Kommo: embudo, chat y campos CRM.</p>
+            <span class="card-cta">Abrir simulador →</span>
+          </article>
+
+          <article class="card card-action" data-go="aprendizaje">
+            <h2>Aprendizaje de Lucy</h2>
+            <p>Cuando un cliente pregunta algo sin precio en el catálogo, aquí aparece la pregunta para que escribas la respuesta correcta.</p>
+            <span class="card-cta">Abrir aprendizaje →</span>
+          </article>
+        </div>
+
+        <div class="stats-row" id="home-stats">
+          <div class="stat-card muted">Cargando estado de Lucy…</div>
+        </div>
+      </section>
+
+      <section id="view-frame" class="view hidden">
+        <iframe id="app-frame" title="Lucy" src="about:blank"></iframe>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
