@@ -57,7 +57,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Floristería", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
   ["Mobiliario", /\b(mobiliario|m[aá]rmol|sillas?|mesas?)\b/i],
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
-  ["Pantallas", /\b(pantalla|pantallas|led\s*wall)\b/i],
+  ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
+  ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
   ["Estructuras", /\b(estructura|colgante|wisteria)\b/i],
   ["Inflables", /\binflable/i],
   ["Softplay", /\bsoft\s*play\b/i],
@@ -247,6 +248,28 @@ export function parseServicesFromText(text: string): string[] {
   }
 
   return [...new Set(found)];
+}
+
+/** Tras el cierre, anexa servicios o detalles nuevos al campo requerimientos. */
+export function appendPostCierreRequirements(
+  existing: string | null | undefined,
+  message: string
+): string | null {
+  const t = message.trim();
+  if (!t) return existing?.trim() || null;
+
+  const services = parseServicesFromText(t);
+  const hasServiceIntent =
+    services.length > 0 ||
+    clientAddsToQuote(t) ||
+    /\b(pantalla|audio|microfon|led|dj)\b/i.test(t);
+
+  if (!hasServiceIntent) return existing?.trim() || null;
+
+  const snippet = t.replace(/\s+/g, " ").slice(0, 250);
+  const base = existing?.trim() || "";
+  if (base && base.toLowerCase().includes(snippet.toLowerCase().slice(0, 40))) return base;
+  return base ? `${base}; ${snippet}` : snippet;
 }
 
 export function parsePrimaryService(text: string): string | null {
