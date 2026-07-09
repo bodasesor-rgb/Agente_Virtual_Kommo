@@ -1,7 +1,9 @@
 import "dotenv/config";
 import { ensureOpenAiApiKeyEnv } from "./lib/openaiEnv.js";
+import { ensureKommoEnv } from "./lib/kommoEnv.js";
 
 ensureOpenAiApiKeyEnv();
+ensureKommoEnv();
 
 import app from "./app";
 import { logger } from "./lib/logger";
