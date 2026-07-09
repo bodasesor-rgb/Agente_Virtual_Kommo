@@ -8,6 +8,7 @@ import {
   parsePresupuestoFromText,
   parseInvitadosFromText,
   clientMentionsCatering,
+  clientMentionsEntertainment,
   clientAsksPhone,
   clientAsksForRecommendations,
   parsePrimaryService,
@@ -17,12 +18,15 @@ import {
   clientAsksAboutTeam,
   inferLucyAskedField,
   isServiceRelatedMessage,
+  detectPresupuestoRefusal,
 } from "../conversation-understanding.js";
+import { isQuoteIntentMessage, sanitizeDisplayName } from "../contact-name.js";
 import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   applyLucyMessageGuards,
   applyEmailWaiver,
+  applyPresupuestoWaiver,
   buildPhoneAnswer,
   buildRecommendationsReply,
   CLOSING_CORE_FIELDS,
@@ -367,7 +371,76 @@ async function runAll(): Promise<void> {
     assert.equal(healthFeatures.length, 7);
   });
 
-  console.log(`\n${passed} OK, ${failed} fallidas de 10 escenarios`);
+  await test('11. Bakar — "Quiero cotización" NO es nombre', () => {
+    assert.equal(isQuoteIntentMessage("Quiero hacer una cotizacion"), true);
+    assert.equal(sanitizeDisplayName("Quiero hacer una cotizacion"), null);
+    assert.equal(sanitizeDisplayName("Quiero"), null);
+
+    const filled = new Set<string>();
+    const caps = captureContextualAnswer([], "Quiero hacer una cotizacion", filled);
+    assert.equal(caps.find((c) => c.label === "Nombre del cliente"), undefined);
+  });
+
+  await test('12. Bakar — "no" en presupuesto no repite bucle', () => {
+    assert.ok(detectPresupuestoRefusal("no"));
+    assert.ok(detectPresupuestoRefusal("no no tengo presupuesto, no me brindaron"));
+    assert.equal(
+      parsePresupuestoFromText("no", { askedField: "presupuesto" }),
+      "Sin definir (cliente indicó que no tiene)"
+    );
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+    ]);
+    const merged: string[] = [];
+    applyPresupuestoWaiver(filled, merged, ["no"]);
+    assert.ok(filled.has("Presupuesto (MXN)"));
+    assert.equal(isReadyForClosing(filled), true);
+
+    const extracted = emptyExtracted({
+      nombre: "Bakar",
+      correo: "compras1@scabakar.com",
+      tipo_evento: "evento corporativo",
+      requerimientos_evento: "show grupo versatil",
+      num_invitados: 30,
+      direccion_evento: "Club de Golf Mexico",
+      fecha_horario: "18 de diciembre a las 20:00 horas",
+    });
+    const reply = runGuards({
+      aiResponse: "¿Tienen presupuesto estimado?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      currentMessage: "no",
+      history: [{ role: "assistant", content: "¿Tienen algún presupuesto estimado en mente?" }],
+    });
+    assert.ok(reply.includes("Perfecto, ya tengo todo") || !/presupuesto/i.test(reply));
+  });
+
+  await test("13. Bakar — show de grupo versátil ofrece entretenimiento", () => {
+    assert.ok(clientMentionsEntertainment("requerimos un show de grupo versatil"));
+    const filled = new Set(["Nombre del cliente", "Correo electrónico"]);
+    const extracted = emptyExtracted({ nombre: "Bakar", correo: "compras1@scabakar.com" });
+    const msg =
+      "requerimos un show de grupo versatil para el dia 18 de diciembre a las 20:00 horas para un grupo de 30 personas";
+    const reply = runGuards({
+      aiResponse: "¿Qué tipo de evento?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: msg,
+      history: [{ role: "assistant", content: "¿Qué servicios te gustaría cotizar?" }],
+    });
+    assert.ok(/show|animaci|hora\s+loca|entretenimiento|vers[aá]til/i.test(reply), reply.slice(0, 150));
+  });
+
+  console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }
 

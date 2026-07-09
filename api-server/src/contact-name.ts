@@ -19,7 +19,19 @@ const PLACEHOLDER_PATTERNS = [
 
 /** Saludos y frases que NO son nombres de persona. */
 const GREETING_NAME_PATTERN =
-  /^(hola|hello|hi|hey|buenos?|buenas?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza)$/i;
+  /^(hola|hello|hi|hey|buenos?|buenas?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco)$/i;
+
+/** Intención de cotización — no es el nombre del cliente ("Quiero hacer una cotización"). */
+export function isQuoteIntentMessage(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (/^soy\s+/i.test(t) || /^me\s+llamo\s+/i.test(t)) return false;
+  return (
+    /^(quiero|necesito|requiero|busco|me\s+interesa)\b/i.test(t) ||
+    /\b(hacer\s+una?\s+)?cotiz/i.test(t) ||
+    /\bquiero\s+(hacer|una|un)\b/i.test(t)
+  );
+}
 
 /** Mensaje del cliente que es solo saludo o pedido genérico (no es su nombre). */
 export function isGreetingOnlyMessage(text: string | null | undefined): boolean {
@@ -68,6 +80,7 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   if (!firstName || firstName.length < 2) return null;
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
+  if (isQuoteIntentMessage(trimmed)) return null;
 
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }

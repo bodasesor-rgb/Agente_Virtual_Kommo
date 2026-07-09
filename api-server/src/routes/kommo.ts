@@ -8,6 +8,7 @@ import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
   applyEmailWaiver,
   applyLucyMessageGuards,
+  applyPresupuestoWaiver,
   applyWhatsappNombreFallback,
   CLOSING_CORE_FIELDS,
   collectUserTexts,
@@ -600,6 +601,12 @@ function buildCrmContext(
   applyWhatsappNombreFallback(filledSet, mergedLines, whatsappDisplayName, history);
 
   applyEmailWaiver(
+    filledSet,
+    mergedLines,
+    collectUserTexts(historyFull, currentMessage)
+  );
+
+  applyPresupuestoWaiver(
     filledSet,
     mergedLines,
     collectUserTexts(historyFull, currentMessage)

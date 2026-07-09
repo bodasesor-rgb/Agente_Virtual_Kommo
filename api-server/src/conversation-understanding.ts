@@ -8,6 +8,7 @@ import type { ExtractedData } from "./types.js";
 import {
   isAffirmativeOnlyMessage,
   isGreetingOnlyMessage,
+  isQuoteIntentMessage,
   sanitizeDisplayName,
 } from "./contact-name.js";
 import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
@@ -117,6 +118,7 @@ const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
   [/\b(baby\s*shower)\b/i, "baby shower"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV años"],
+  [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|evento\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
   [/\b(evento\s+corporativo|convenci[oó]n|conferencia|corporativo)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumpleaños"],
   [/\b(bautizo)\b/i, "bautizo"],
@@ -191,6 +193,19 @@ export function clientAsksForRecommendations(message?: string): boolean {
     /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) ||
     /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) ||
     /algo\s+m[aá]s\s*\?/i.test(t)
+  );
+}
+
+/** Cliente pide show, animación o entretenimiento en vivo. */
+export function clientMentionsEntertainment(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\bshow\b/i.test(t) ||
+    /\bgrupo\s+vers[aá]til\b/i.test(t) ||
+    /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) ||
+    /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) ||
+    /\b(requerimos|necesitamos|buscamos)\s+un\s+show\b/i.test(t)
   );
 }
 
@@ -437,15 +452,27 @@ export function parseZonaFromText(text: string): string | null {
   );
   if (venueMatch?.[1]) return venueMatch[1].trim();
 
+  const clubMatch = trimmed.match(/\b(club\s+de\s+golf\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]{2,30})/i);
+  if (clubMatch?.[1]) return clubMatch[1].trim();
+
+  if (/\b(se\s+llevar[aá]|llevaremos|ser[aá])\s+(a\s+cabo\s+)?en\s+(el\s+)?/i.test(trimmed)) {
+    const enVenue = trimmed.match(/\ben\s+(el\s+)?([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚáéíóúñ\s]{4,40})/);
+    if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2])) return enVenue[2].trim();
+  }
+
   return null;
 }
 
 export function parseFechaFromText(text: string): string | null {
   const trimmed = text.trim();
   const fechaMatch = trimmed.match(
-    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)\b/i
+    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
-  if (fechaMatch) return fechaMatch[1]!;
+  if (fechaMatch) {
+    const base = fechaMatch[1]!;
+    const hora = fechaMatch[2];
+    return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
+  }
 
   if (
     /\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
@@ -470,8 +497,31 @@ function bareNumberLooksLikeInvitados(num: number, trimmed: string): boolean {
   return num >= 5 && num <= 999;
 }
 
+/** Cliente rechazó dar presupuesto (incluye "no" suelto tras pregunta de Lucy). */
+export function detectPresupuestoRefusal(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
+  return (
+    /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) ||
+    /\bno\s+me\s+brindaron\b/i.test(t) ||
+    /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) ||
+    /\bsin\s+presupuesto\b/i.test(t) ||
+    (/\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t))
+  );
+}
+
 export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOptions): string | null {
   const trimmed = text.trim();
+
+  if (detectPresupuestoRefusal(trimmed)) {
+    return "Sin definir (cliente indicó que no tiene)";
+  }
+
+  if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
+    return "Sin definir (cliente indicó que no tiene)";
+  }
+
   if (
     /\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones)\b/i.test(
       trimmed
@@ -571,6 +621,7 @@ export function captureContextualAnswer(
     !filledSet.has("Nombre del cliente") &&
     (asked === "nombre" || (!history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg))) &&
     !isAffirmativeOnlyMessage(msg) &&
+    !isQuoteIntentMessage(msg) &&
     /[a-záéíóúüñ]/i.test(msg) &&
     !/@/.test(msg) &&
     !/\d{4,}/.test(msg)
@@ -637,8 +688,8 @@ export function captureContextualAnswer(
     if (fecha) captures.push({ label: "Fecha y horario", value: fecha });
   }
 
-  if (!filledSet.has("Presupuesto (MXN)") && asked === "presupuesto") {
-    const pres = parsePresupuestoFromText(msg, { askedField: "presupuesto" });
+  if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
+    const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
     if (pres) {
       captures.push({ label: "Presupuesto (MXN)", value: pres });
     } else if (

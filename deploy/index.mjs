@@ -78890,7 +78890,13 @@ var PLACEHOLDER_PATTERNS = [
   /^cliente$/i,
   /^\d+$/
 ];
-var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buenos?|buenas?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza)$/i;
+var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buenos?|buenas?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco)$/i;
+function isQuoteIntentMessage(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return false;
+  if (/^soy\s+/i.test(t) || /^me\s+llamo\s+/i.test(t)) return false;
+  return /^(quiero|necesito|requiero|busco|me\s+interesa)\b/i.test(t) || /\b(hacer\s+una?\s+)?cotiz/i.test(t) || /\bquiero\s+(hacer|una|un)\b/i.test(t);
+}
 function isGreetingOnlyMessage(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
@@ -78919,6 +78925,7 @@ function sanitizeDisplayName(name2) {
   if (!firstName || firstName.length < 2) return null;
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
+  if (isQuoteIntentMessage(trimmed)) return null;
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
@@ -79045,6 +79052,7 @@ var TIPO_EVENTO_PATTERNS = [
   [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
   [/\b(baby\s*shower)\b/i, "baby shower"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
+  [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|evento\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
   [/\b(evento\s+corporativo|convenci[oó]n|conferencia|corporativo)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
   [/\b(bautizo)\b/i, "bautizo"],
@@ -79081,6 +79089,11 @@ function clientAsksForRecommendations(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
   return /recomendaciones?|recomiendas?/i.test(t) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
+}
+function clientMentionsEntertainment(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return /\bshow\b/i.test(t) || /\bgrupo\s+vers[aá]til\b/i.test(t) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) || /\b(requerimos|necesitamos|buscamos)\s+un\s+show\b/i.test(t);
 }
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
@@ -79244,14 +79257,24 @@ function parseZonaFromText(text2) {
     /\b((?:la\s+)?casa\s+del\s+corregidor|cd\.?\s*nezahualc[oó]yotl)\b/i
   );
   if (venueMatch?.[1]) return venueMatch[1].trim();
+  const clubMatch = trimmed.match(/\b(club\s+de\s+golf\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]{2,30})/i);
+  if (clubMatch?.[1]) return clubMatch[1].trim();
+  if (/\b(se\s+llevar[aá]|llevaremos|ser[aá])\s+(a\s+cabo\s+)?en\s+(el\s+)?/i.test(trimmed)) {
+    const enVenue = trimmed.match(/\ben\s+(el\s+)?([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚáéíóúñ\s]{4,40})/);
+    if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2])) return enVenue[2].trim();
+  }
   return null;
 }
 function parseFechaFromText(text2) {
   const trimmed = text2.trim();
   const fechaMatch = trimmed.match(
-    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)\b/i
+    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
-  if (fechaMatch) return fechaMatch[1];
+  if (fechaMatch) {
+    const base = fechaMatch[1];
+    const hora = fechaMatch[2];
+    return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
+  }
   if (/\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
     trimmed
   )) {
@@ -79264,8 +79287,20 @@ function bareNumberLooksLikeInvitados(num, trimmed) {
   if (/\$|k\b|mil\b|pesos|mxn|mnx/i.test(trimmed)) return false;
   return num >= 5 && num <= 999;
 }
+function detectPresupuestoRefusal(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return false;
+  if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
+  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
+}
 function parsePresupuestoFromText(text2, opts) {
   const trimmed = text2.trim();
+  if (detectPresupuestoRefusal(trimmed)) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
   if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones)\b/i.test(
     trimmed
   )) {
@@ -79325,7 +79360,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   const lastLucy = getLastLucyMessage(history);
   const asked = inferLucyAskedField(lastLucy);
   const captures = [];
-  if (!filledSet.has("Nombre del cliente") && (asked === "nombre" || !history.some((m4) => m4.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+  if (!filledSet.has("Nombre del cliente") && (asked === "nombre" || !history.some((m4) => m4.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
     const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
     const candidato = soyMatch ? soyMatch[1].trim() : msg;
     const nombre = sanitizeDisplayName(candidato);
@@ -79375,8 +79410,8 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
     const fecha = parseFechaFromText(msg);
     if (fecha) captures.push({ label: "Fecha y horario", value: fecha });
   }
-  if (!filledSet.has("Presupuesto (MXN)") && asked === "presupuesto") {
-    const pres = parsePresupuestoFromText(msg, { askedField: "presupuesto" });
+  if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
+    const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
     if (pres) {
       captures.push({ label: "Presupuesto (MXN)", value: pres });
     } else if (/\b(s[ií]|ok|dale|claro)\b/i.test(msg) && /\b(alejandro|opciones|propong)\b/i.test(msg)) {
@@ -80932,6 +80967,12 @@ function applyEmailWaiver(filledSet, mergedLines, texts) {
   mergedLines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
   filledSet.add(EMAIL_WAIVED_LABEL);
 }
+function applyPresupuestoWaiver(filledSet, mergedLines, texts) {
+  if (filledSet.has("Presupuesto (MXN)")) return;
+  if (!texts.some((t) => detectPresupuestoRefusal(t))) return;
+  mergedLines.push("- Presupuesto (MXN): Sin definir (cliente indic\xF3 que no tiene)");
+  filledSet.add("Presupuesto (MXN)");
+}
 function isEmailSatisfied(filledSet) {
   return filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL);
 }
@@ -80992,6 +81033,14 @@ function buildPhoneAnswer() {
     "Gerencia / corporativo (l\xEDnea telef\xF3nica y WhatsApp): 56 4671 0585",
     "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
   ].join("\n");
+}
+function buildEntertainmentSalesReply(extracted, history, entityId, currentMessage) {
+  const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  const eventLabel = /corporativo|empresa/.test(tipo) || /empresa|corporativo/i.test(currentMessage ?? "") ? "tu evento corporativo" : tipo ? `tu ${tipo}` : "tu evento";
+  const intro = `Para ${eventLabel}, manejamos shows en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser y m\xE1s opciones de entretenimiento.`;
+  const ideas = "Lo m\xE1s pedido para eventos as\xED es un show de grupo vers\xE1til o animaci\xF3n tipo hora loca seg\xFAn el estilo que busquen \u2014 desde ambiente elegante hasta fiesta m\xE1s din\xE1mica.";
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${intro} ${ideas} ${follow}`.trim();
 }
 function buildFoodSalesReply(extracted, history, entityId, currentMessage) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
@@ -81250,7 +81299,7 @@ ${nextQ}`;
 }
 function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
   const pending = getNextPendingField(extracted, filledSet);
-  if (ctx.currentMessage && (clientMentionsCatering(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos/i.test(mensaje)) {
+  if (ctx.currentMessage && (clientMentionsCatering(ctx.currentMessage) || clientMentionsEntertainment(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til/i.test(mensaje)) {
     return mensaje.trim();
   }
   const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
@@ -81392,7 +81441,7 @@ function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
 }
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
-  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || isServiceRelatedMessage(currentMessage) || clientAsksPhone(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
+  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientMentionsEntertainment(currentMessage) || isServiceRelatedMessage(currentMessage) || clientAsksPhone(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
 }
 function clientAskedFreeformQuestion(message) {
   if (!message?.trim()) return false;
@@ -81492,6 +81541,10 @@ function applyLucyMessageGuards(input) {
 
 ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 tel\xE9fonos");
+  } else if (clientMentionsEntertainment(currentMessage) || justAnsweredReq && clientMentionsEntertainment(currentMessage)) {
+    mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 orientaci\xF3n de venta");
   } else if (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage)) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
@@ -81569,10 +81622,44 @@ ${nextQ}`;
     }
   }
   if (filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(mensaje, "presupuesto")) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
+    if (trulyReadyForClosing && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: presupuesto capturado \u2014 cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
+        mensaje = nextQ;
+        log?.info({ entityId }, "GUARD: presupuesto ya capturado \u2014 no repetir pregunta");
+      } else if (trulyReadyForClosing && !cierreYaEnviado) {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+      }
+    }
+  }
+  if (detectPresupuestoRefusal(currentMessage) && mensajeAsksForField(mensaje, "presupuesto") && !filledSet.has("Presupuesto (MXN)")) {
+    applyPresupuestoWaiver(filledSet, [], [currentMessage ?? ""]);
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: cliente sin presupuesto \u2014 cierre");
+    } else {
+      mensaje = "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos y te arma la cotizaci\xF3n.";
+      log?.info({ entityId }, "GUARD: cliente rechaz\xF3 presupuesto \u2014 continuar");
+    }
+  }
+  if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "tipo_evento") {
+      const nextQ = buildNaturalQuestion(pending, ctx);
       mensaje = nextQ;
-      log?.info({ entityId }, "GUARD: presupuesto ya capturado \u2014 no repetir pregunta");
+      log?.info({ entityId, pending }, "GUARD: tipo de evento ya capturado \u2014 siguiente dato");
     }
   }
   if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
@@ -88328,6 +88415,11 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   }
   applyWhatsappNombreFallback(filledSet, mergedLines, whatsappDisplayName, history);
   applyEmailWaiver(
+    filledSet,
+    mergedLines,
+    collectUserTexts(historyFull, currentMessage)
+  );
+  applyPresupuestoWaiver(
     filledSet,
     mergedLines,
     collectUserTexts(historyFull, currentMessage)

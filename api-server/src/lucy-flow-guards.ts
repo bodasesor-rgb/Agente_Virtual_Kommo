@@ -30,6 +30,8 @@ import {
   clientAsksForRecommendations,
   clientAsksAboutTeam,
   clientAsksPhone,
+  clientMentionsEntertainment,
+  detectPresupuestoRefusal,
   clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
   clientMentionsCatering,
@@ -192,6 +194,18 @@ export function applyEmailWaiver(filledSet: Set<string>, mergedLines: string[], 
   filledSet.add(EMAIL_WAIVED_LABEL);
 }
 
+/** Marca presupuesto como capturado cuando el cliente dijo que no tiene / no le dieron. */
+export function applyPresupuestoWaiver(
+  filledSet: Set<string>,
+  mergedLines: string[],
+  texts: string[]
+): void {
+  if (filledSet.has("Presupuesto (MXN)")) return;
+  if (!texts.some((t) => detectPresupuestoRefusal(t))) return;
+  mergedLines.push("- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)");
+  filledSet.add("Presupuesto (MXN)");
+}
+
 export function isEmailSatisfied(filledSet: Set<string>): boolean {
   return filledSet.has("Correo electrónico") || filledSet.has(EMAIL_WAIVED_LABEL);
 }
@@ -294,6 +308,27 @@ export function buildPhoneAnswer(): string {
     "Gerencia / corporativo (línea telefónica y WhatsApp): 56 4671 0585",
     "Por aquí por chat también te podemos ayudar con lo que necesites.",
   ].join("\n");
+}
+
+function buildEntertainmentSalesReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  entityId?: string | number,
+  currentMessage?: string
+): string {
+  const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  const eventLabel =
+    /corporativo|empresa/.test(tipo) || /empresa|corporativo/i.test(currentMessage ?? "")
+      ? "tu evento corporativo"
+      : tipo
+        ? `tu ${tipo}`
+        : "tu evento";
+
+  const intro = `Para ${eventLabel}, manejamos shows en vivo, animación, hora loca, happening, espejos, láser y más opciones de entretenimiento.`;
+  const ideas =
+    "Lo más pedido para eventos así es un show de grupo versátil o animación tipo hora loca según el estilo que busquen — desde ambiente elegante hasta fiesta más dinámica.";
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${intro} ${ideas} ${follow}`.trim();
 }
 
 function buildFoodSalesReply(
@@ -720,11 +755,13 @@ export function sanitizeOutboundMessage(
 ): string {
   const pending = getNextPendingField(extracted, filledSet);
 
-  // Respuesta de venta (comida/servicios) — no reemplazar por plantilla de requerimientos
+  // Respuesta de venta (comida/servicios/show) — no reemplazar por plantilla
   if (
     ctx.currentMessage &&
-    (clientMentionsCatering(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) &&
-    /banquete|taquiza|catering|alimentos/i.test(mensaje)
+    (clientMentionsCatering(ctx.currentMessage) ||
+      clientMentionsEntertainment(ctx.currentMessage) ||
+      isServiceRelatedMessage(ctx.currentMessage)) &&
+    /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til/i.test(mensaje)
   ) {
     return mensaje.trim();
   }
@@ -950,6 +987,7 @@ function isInformativeClientAnswer(currentMessage?: string): boolean {
     clientAsksForRecommendations(currentMessage) ||
     clientAsksBanqueteVsTaquiza(currentMessage) ||
     clientMentionsCatering(currentMessage) ||
+    clientMentionsEntertainment(currentMessage) ||
     isServiceRelatedMessage(currentMessage) ||
     clientAsksPhone(currentMessage) ||
     clientAsksPrice(currentMessage) ||
@@ -1111,6 +1149,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente preguntó teléfonos");
   } else if (
+    clientMentionsEntertainment(currentMessage) ||
+    (justAnsweredReq && clientMentionsEntertainment(currentMessage))
+  ) {
+    mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: show/entretenimiento — orientación de venta");
+  } else if (
     clientMentionsCatering(currentMessage) ||
     (justAnsweredReq && isServiceRelatedMessage(currentMessage))
   ) {
@@ -1200,10 +1245,51 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(mensaje, "presupuesto")) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
+    if (trulyReadyForClosing && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: presupuesto capturado — cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
+        mensaje = nextQ;
+        log?.info({ entityId }, "GUARD: presupuesto ya capturado — no repetir pregunta");
+      } else if (trulyReadyForClosing && !cierreYaEnviado) {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+      }
+    }
+  }
+
+  if (
+    detectPresupuestoRefusal(currentMessage) &&
+    mensajeAsksForField(mensaje, "presupuesto") &&
+    !filledSet.has("Presupuesto (MXN)")
+  ) {
+    applyPresupuestoWaiver(filledSet, [], [currentMessage ?? ""]);
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: cliente sin presupuesto — cierre");
+    } else {
+      mensaje =
+        "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos y te arma la cotización.";
+      log?.info({ entityId }, "GUARD: cliente rechazó presupuesto — continuar");
+    }
+  }
+
+  if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "tipo_evento") {
+      const nextQ = buildNaturalQuestion(pending, ctx);
       mensaje = nextQ;
-      log?.info({ entityId }, "GUARD: presupuesto ya capturado — no repetir pregunta");
+      log?.info({ entityId, pending }, "GUARD: tipo de evento ya capturado — siguiente dato");
     }
   }
 
