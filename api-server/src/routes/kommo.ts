@@ -1275,9 +1275,8 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     });
 
     // ══════════════════════════════════════════════════════════════════════
-    // PASO 14: Enviar mensaje al cliente en el CHAT de Kommo (no como nota)
-    //
-    // Envío al cliente + nota en timeline de Kommo (el equipo ve qué escribió Lucy).
+    // PASO 14: Enviar mensaje al cliente vía Kommo Talks (visible en el chat del inbox).
+    // Meta API solo si LUCY_META_WHATSAPP_FALLBACK=true en Hostinger.
     // ══════════════════════════════════════════════════════════════════════
     {
       const entityKey = String(entityId);

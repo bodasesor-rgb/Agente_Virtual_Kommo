@@ -238,7 +238,12 @@ export async function enviarMensaje(
     clearTimeout(timer);
     if (!res.ok) {
       const errBody = await res.text().catch(() => "(no body)");
-      logger.warn({ status: res.status, errBody, talkId }, "enviarMensaje: Kommo rechazó la solicitud");
+      logger.warn(
+        { status: res.status, errBody, talkId, preview: texto.slice(0, 80) },
+        "enviarMensaje: Kommo Talks rechazó la solicitud"
+      );
+    } else {
+      logger.info({ talkId, preview: texto.slice(0, 80) }, "enviarMensaje: Kommo Talks aceptó el mensaje");
     }
     return res.ok;
   } catch (err) {

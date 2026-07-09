@@ -73136,7 +73136,12 @@ async function enviarMensaje(subdomain, accessToken, talkId, texto) {
     clearTimeout(timer);
     if (!res.ok) {
       const errBody = await res.text().catch(() => "(no body)");
-      logger.warn({ status: res.status, errBody, talkId }, "enviarMensaje: Kommo rechaz\xF3 la solicitud");
+      logger.warn(
+        { status: res.status, errBody, talkId, preview: texto.slice(0, 80) },
+        "enviarMensaje: Kommo Talks rechaz\xF3 la solicitud"
+      );
+    } else {
+      logger.info({ talkId, preview: texto.slice(0, 80) }, "enviarMensaje: Kommo Talks acept\xF3 el mensaje");
     }
     return res.ok;
   } catch (err2) {
@@ -79291,6 +79296,9 @@ router.get("/health", (_req, res) => {
     openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "\u2026" : null,
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
+    lucy_outbound: {
+      mode: process.env["LUCY_META_WHATSAPP_FALLBACK"]?.trim().toLowerCase() === "true" || process.env["LUCY_META_WHATSAPP_FALLBACK"] === "1" ? "talks_then_meta" : "talks_only"
+    },
     catalog: getCatalogStatus()
   });
 });
@@ -87509,48 +87517,69 @@ await init_embudo();
 // src/services/kommoMirror.ts
 init_logger3();
 await init_embudo();
+function metaFallbackEnabled() {
+  const v3 = process.env["LUCY_META_WHATSAPP_FALLBACK"]?.trim().toLowerCase();
+  return v3 === "1" || v3 === "true" || v3 === "yes";
+}
 async function deliverLucyOutbound(opts) {
   const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId } = opts;
-  let channel = "failed";
   if (talkId) {
     const ok = await enviarMensaje(subdomain, accessToken, talkId, texto);
     if (ok) {
-      channel = "kommo_talks";
-      logger.info({ entityId, talkId }, "Lucy: mensaje via Kommo Talks \u2705");
-    } else {
-      logger.warn({ entityId, talkId }, "Lucy: Kommo Talks fall\xF3 \u2014 probando Meta API");
+      logger.info(
+        { entityId, talkId, chatId, mode: "talks-only" },
+        "Lucy: mensaje enviado via Kommo Talks \u2705 (sin nota \u2014 debe verse en el chat)"
+      );
+      return "kommo_talks";
     }
+    logger.warn({ entityId, talkId, chatId }, "Lucy: Kommo Talks rechaz\xF3 el env\xEDo \u26A0\uFE0F");
+  } else {
+    logger.warn({ entityId, chatId }, "Lucy: sin talkId en el webhook \u2014 Talks no disponible");
   }
-  if (channel === "failed" && whatsappPhone) {
+  if (metaFallbackEnabled() && whatsappPhone) {
     const result = await sendWhatsAppDirect(whatsappPhone, texto, entityId);
     if (result.success) {
-      channel = "meta";
-      logger.info({ entityId, phone: whatsappPhone }, "Lucy: WhatsApp enviado via Meta \u2705");
-    } else {
-      logger.warn({ entityId, error: result.error }, "Lucy: Meta API fall\xF3");
+      logger.info({ entityId, phone: whatsappPhone }, "Lucy: fallback Meta API \u2705");
+      await logLucyMessageNote(subdomain, accessToken, entityId, texto, "meta", talkId, chatId);
+      return "meta";
     }
+    logger.warn({ entityId, error: result.error }, "Lucy: Meta API fallback fall\xF3");
   }
-  if (channel === "failed") {
-    logger.error({ entityId, talkId, chatId, whatsappPhone }, "Lucy: mensaje no enviado \u274C");
-    return "failed";
-  }
-  await logLucyMessageNote(subdomain, accessToken, entityId, texto, channel, talkId, chatId);
-  return channel;
+  await logTalksFailureNote(subdomain, accessToken, entityId, texto, talkId, chatId);
+  logger.error(
+    { entityId, talkId, chatId, whatsappPhone, metaFallback: metaFallbackEnabled() },
+    "Lucy: mensaje no enviado \u2014 Talks fall\xF3 y Meta fallback desactivado \u274C"
+  );
+  return "failed";
 }
-async function logLucyMessageNote(subdomain, accessToken, entityId, texto, channel, talkId, chatId) {
+async function logTalksFailureNote(subdomain, accessToken, entityId, texto, talkId, chatId) {
   const preview = texto.length > 800 ? `${texto.slice(0, 797)}\u2026` : texto;
-  const via = channel === "kommo_talks" ? "Talks" : "WhatsApp";
+  const reason = talkId ? "Kommo Talks rechaz\xF3 el env\xEDo (revisar permisos del token o ventana 24h)." : "Webhook sin talk_id \u2014 no se pudo usar Kommo Talks.";
   const noted = await agregarNota(
     subdomain,
     accessToken,
     entityId,
-    `\u{1F4AC} Lucy (${via}):
+    `\u26A0\uFE0F Lucy NO pudo enviar al chat:
+${reason}
+
+Texto que iba a enviar:
 ${preview}`
   );
   if (noted) {
-    logger.info({ entityId, channel, talkId, chatId }, "Lucy: mensaje registrado en nota Kommo \u2705");
-  } else {
-    logger.warn({ entityId, channel, talkId, chatId }, "Lucy: no se pudo crear nota en Kommo \u26A0\uFE0F");
+    logger.info({ entityId, talkId, chatId }, "Lucy: nota de fallo Talks registrada en Kommo");
+  }
+}
+async function logLucyMessageNote(subdomain, accessToken, entityId, texto, channel, talkId, chatId) {
+  const preview = texto.length > 800 ? `${texto.slice(0, 797)}\u2026` : texto;
+  const noted = await agregarNota(
+    subdomain,
+    accessToken,
+    entityId,
+    `\u{1F4AC} Lucy (WhatsApp Meta):
+${preview}`
+  );
+  if (noted) {
+    logger.info({ entityId, channel, talkId, chatId }, "Lucy: espejo en nota (env\xEDo por Meta)");
   }
 }
 
