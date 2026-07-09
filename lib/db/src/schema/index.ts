@@ -187,3 +187,26 @@ export const learningCandidates = pgTable("learning_candidates", {
 
 export type LearningCandidateRecord = typeof learningCandidates.$inferSelect;
 export type InsertLearningCandidate = typeof learningCandidates.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HUECOS DE CONOCIMIENTO — preguntas que Lucy no pudo responder con catálogo
+// ═══════════════════════════════════════════════════════════════════════════
+export const knowledgeGaps = pgTable("knowledge_gaps", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kommoLeadId: text("kommo_lead_id"),
+  question: text("question").notNull(),
+  topic: text("topic"),
+  gapType: varchar("gap_type", { length: 30 }).notNull().default("unknown"),
+  lucyResponse: text("lucy_response"),
+  answer: text("answer"),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  contextSnippet: text("context_snippet"),
+  dedupeKey: text("dedupe_key").unique(),
+  answeredAt: timestamp("answered_at"),
+  answeredBy: text("answered_by"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type KnowledgeGapRecord = typeof knowledgeGaps.$inferSelect;
+export type InsertKnowledgeGap = typeof knowledgeGaps.$inferInsert;

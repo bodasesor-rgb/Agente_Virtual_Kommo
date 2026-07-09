@@ -69,6 +69,7 @@ import {
 } from "../services/embudo.js";
 import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
+import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 
 const router: IRouter = Router();
 
@@ -1252,6 +1253,13 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     appendHistory(histKey, combinedUserText, mensajeParaCliente);
     lastResponseCache.set(String(entityId), mensajeParaCliente);
 
+    void recordKnowledgeGapIfNeeded({
+      kommoLeadId: entityId,
+      clientMessage: combinedUserText,
+      lucyResponse: mensajeParaCliente,
+      contextSnippet: conversationText.slice(-400),
+    });
+
     // ══════════════════════════════════════════════════════════════════════
     // PASO 14: Enviar mensaje al cliente
     //
@@ -1826,6 +1834,13 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     // Guardar mensaje REAL enviado (no aiResponse) para que cierreYaEnviado funcione.
     appendHistory(histKey, messageText, mensajeParaCliente);
 
+    void recordKnowledgeGapIfNeeded({
+      kommoLeadId: entityId,
+      clientMessage: messageText,
+      lucyResponse: mensajeParaCliente,
+      contextSnippet: conversationText.slice(-400),
+    });
+
     // ── Enviar mensaje al cliente via Meta WhatsApp Cloud API ─────────────────
     // Lucy ya no depende del callback del SalesBot — envía directamente.
     // Caché de teléfono: reutilizar si ya fue obtenido en el flujo principal.
@@ -2319,6 +2334,13 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     });
 
     appendHistory(histKey, messageText, mensajeParaCliente);
+
+    void recordKnowledgeGapIfNeeded({
+      kommoLeadId: leadId,
+      clientMessage: messageText,
+      lucyResponse: mensajeParaCliente,
+      contextSnippet: conversationText.slice(-400),
+    });
 
     const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente, crmMergedLines);
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);

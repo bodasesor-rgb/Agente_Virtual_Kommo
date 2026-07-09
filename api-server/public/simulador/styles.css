@@ -205,6 +205,19 @@ svg {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.sidebar-footer .panel-link {
+  display: inline-block;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c9a227;
+  text-decoration: none;
+}
+
+.sidebar-footer .panel-link:hover {
+  text-decoration: underline;
+}
+
 .sidebar-footer p {
   margin: 0 0 4px;
   font-size: 11px;
