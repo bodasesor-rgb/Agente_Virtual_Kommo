@@ -74001,9 +74001,19 @@ init_openaiEnv();
 function getKommoAccessToken() {
   return process.env["KOMMO_ACCESS_TOKEN"]?.trim() || process.env["KOMMO_TOKEN_LARGA_DURACION"]?.trim() || process.env["KOMMO_LONG_LIVED_TOKEN"]?.trim() || "";
 }
+function normalizeKommoSubdomain(raw) {
+  let s4 = raw.trim().replace(/\s+/g, "").toLowerCase();
+  if (!s4) return "";
+  const fromUrl = s4.match(/^(?:https?:\/\/)?([a-z0-9-]+)\.kommo\.com\/?$/);
+  if (fromUrl?.[1]) return fromUrl[1];
+  s4 = s4.replace(/^https?:\/\//, "");
+  s4 = s4.replace(/\.kommo\.com.*$/, "");
+  s4 = s4.replace(/\/.*$/, "");
+  return s4;
+}
 function getKommoSubdomain() {
   const raw = process.env["KOMMO_SUBDOMAIN"]?.trim() || process.env["SUBDOMINIO_KOMMO"]?.trim() || process.env["KOMMO_SUBDOMINIO"]?.trim() || "";
-  return raw.replace(/\s+/g, "").toLowerCase();
+  return normalizeKommoSubdomain(raw);
 }
 function isKommoConfigured() {
   return getKommoAccessToken().length > 0 && getKommoSubdomain().length > 0;
