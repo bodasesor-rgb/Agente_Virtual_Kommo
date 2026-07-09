@@ -1543,6 +1543,11 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 }
 
 // ─── Webhook route ────────────────────────────────────────────────────────────
+// Kommo valida la URL con GET/HEAD antes de guardar el webhook.
+router.get("/kommo/webhook", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-webhook" });
+});
+
 router.post("/kommo/webhook", async (req: Request, res: Response) => {
   const log = req.log;
   const body = req.body as KommoWebhookBody;
@@ -1624,6 +1629,10 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
 // Configure in Kommo Salesbot: action "Llamar webhook" → POST /api/kommo/salesbot
 // Kommo sends the trigger payload and waits for a JSON response.
 // Lucy processes the message, returns the reply, and Salesbot dispatches it via WhatsApp.
+router.get("/kommo/salesbot", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-salesbot" });
+});
+
 router.post("/kommo/salesbot", async (req: Request, res: Response) => {
   const log = req.log;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1937,6 +1946,10 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
 // ─── Pipeline-change webhook (cuando Alejandro mueve a Cotización Realizada) ────
 // Configurar en Kommo → Webhooks → Evento: "Lead status changed"
 // URL: POST /api/kommo/pipeline-change
+router.get("/kommo/pipeline-change", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-pipeline-change" });
+});
+
 router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
   const log = req.log;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

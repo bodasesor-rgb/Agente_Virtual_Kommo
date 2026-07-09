@@ -88529,6 +88529,9 @@ Ofrece: ${extracted.requerimientos_evento ?? "-"}`
     log.error({ err: err2 }, "Error processing batch");
   }
 }
+router3.get("/kommo/webhook", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-webhook" });
+});
 router3.post("/kommo/webhook", async (req, res) => {
   const log = req.log;
   const body2 = req.body;
@@ -88585,6 +88588,9 @@ router3.post("/kommo/webhook", async (req, res) => {
     pendingBatches.set(chatId, batch);
     log.info({ chatId, debounceMs: DEBOUNCE_MS, isVoice }, "New batch started, waiting for more messages");
   }
+});
+router3.get("/kommo/salesbot", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-salesbot" });
 });
 router3.post("/kommo/salesbot", async (req, res) => {
   const log = req.log;
@@ -88810,6 +88816,9 @@ router3.post("/kommo/salesbot", async (req, res) => {
     log.error({ err: err2 }, "Salesbot: processing error");
     res.status(500).json({ error: "processing_failed" });
   }
+});
+router3.get("/kommo/pipeline-change", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-pipeline-change" });
 });
 router3.post("/kommo/pipeline-change", async (req, res) => {
   const log = req.log;
