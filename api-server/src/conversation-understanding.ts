@@ -172,7 +172,7 @@ export function clientAddsToQuote(message?: string): boolean {
   ) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t);
 }
 
-/** Cliente pide ideas o recomendaciones (no está confirmando servicios aún). */
+/** Cliente pide ideas, recomendaciones o pregunta qué ofrece Bodasesor. */
 export function clientAsksForRecommendations(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
@@ -182,6 +182,8 @@ export function clientAsksForRecommendations(message?: string): boolean {
     /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) ||
     /qu[eé]\s+opciones/i.test(t) ||
     /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) ||
+    /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t) ||
+    /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) ||
     /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) ||
     /algo\s+m[aá]s\s*\?/i.test(t)
   );
@@ -350,6 +352,14 @@ export function parseInvitadosFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
   if (isServiceRelatedMessage(trimmed)) return null;
+
+  if (
+    /\b(no\s+s[eé]|a[uú]n\s+no|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
+      trimmed
+    )
+  ) {
+    return "Sin definir (cliente indicó aproximación pendiente)";
+  }
 
   const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?)\b/i);
   if (numMatch) return numMatch[1]!;

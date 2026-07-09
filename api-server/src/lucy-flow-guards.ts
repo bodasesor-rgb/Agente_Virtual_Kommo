@@ -57,7 +57,11 @@ export const CLOSING_CORE_FIELDS = [
 ] as const;
 
 /** Presentación obligatoria en el primer mensaje de Lucy. */
-export const LUCY_INTRO = "Hola, soy Lucy de Bodasesor.";
+export const LUCY_INTRO = "Hola, soy Lucy, agente virtual de Bodasesor.";
+
+/** Opciones de evento para orientar al cliente. */
+export const TIPO_EVENTO_HINT =
+  "Manejamos bodas, XV años, baby showers, cumpleaños, eventos corporativos, bautizos y celebraciones familiares.";
 
 /** Texto para que el cliente sepa qué ofrece Bodasesor al preguntar por servicios. */
 export const SERVICIOS_CATALOGO_HINT =
@@ -127,7 +131,7 @@ const QUESTION_VARIANTS: Record<PendingField, string[]> = {
   invitados: [
     "¿Más o menos para cuántas personas sería?",
     "¿Cuántos invitados tienen contemplados?",
-    "¿Para cuántas personas lo están planeando?",
+    "¿Tienen un estimado de invitados? Si aún no lo saben, sin problema — pueden darme un rango aproximado.",
   ],
   zona: [
     "¿Dónde lo están planeando?",
@@ -218,7 +222,7 @@ function getDisplayName(extracted: ExtractedData, whatsappName?: string | null):
 function lucyHasPresented(history: OpenAI.Chat.ChatCompletionMessageParam[]): boolean {
   return history
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
-    .some((m) => /hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(m.content as string));
+    .some((m) => /hola,?\s*soy\s+lucy/i.test(m.content as string));
 }
 
 /** True si la conversación ya avanzó más allá del saludo inicial. */
@@ -243,7 +247,7 @@ function stripRepeatLucyIntro(
 ): string {
   if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
   return mensaje
-    .replace(/Hola,?\s*soy\s+Lucy\s+de\s+Bodasesor\.?\s*/gi, "")
+    .replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "")
     .replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "")
     .replace(/Con gusto te ayudo\.?\s*/gi, "")
     .replace(/^\s+/, "")
@@ -368,7 +372,7 @@ export function getNextPendingField(
     filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
   const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
 
-  if (!hasTipoEvento(filled, extracted) && !(hasReq && hasInv)) return "tipo_evento";
+  if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
   if (!hasReq) return "requerimientos";
   if (!hasInv) return "invitados";
   if (!filled.has("Lugar/dirección del evento")) return "zona";
@@ -505,7 +509,7 @@ export function buildFirstInteractionMessage(
 }
 
 function usesLegacyLucyIntro(mensaje: string): boolean {
-  return /te\s+saluda\s+lucy|agente\s+virtual\s+de\s+bodasesor/i.test(mensaje);
+  return /te\s+saluda\s+lucy/i.test(mensaje);
 }
 
 /** Respuestas guardadas en CRM/caché con el saludo V5 no cuentan como interacción previa. */
@@ -627,8 +631,9 @@ function shouldPreferAiResponse(
 
   if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
 
-  if (clientAskedFreeformQuestion(currentMessage) && trimmed.length > 25) {
-    return trimmed.includes("?") || !pending;
+  // Cliente hizo una pregunta — priorizar respuesta útil de GPT sobre plantilla rígida
+  if (clientAskedFreeformQuestion(currentMessage) && trimmed.length > 20) {
+    return true;
   }
 
   return false;
@@ -644,9 +649,16 @@ function mergeWithPendingQuestion(
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return mensaje;
 
-  const nextQ = buildNaturalQuestion(pending, ctx);
   const base = mensaje.trim();
-  if (!base) return nextQ;
+  if (!base) return buildNaturalQuestion(pending, ctx);
+
+  // GPT ya respondió bien a una pregunta del cliente — no machacar con plantilla
+  if (clientAskedFreeformQuestion(ctx.currentMessage) && base.length > 50) {
+    if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return base;
+    if (!mensajeAsksForField(base, pending)) return base;
+  }
+
+  const nextQ = buildNaturalQuestion(pending, ctx);
   if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return mensaje;
   return `${base}\n\n${nextQ}`;
 }
@@ -698,9 +710,13 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
     return buildRequerimientosQuestion(ctx.extracted, history, ctx.currentMessage, ctx.entityId);
   }
 
-  if (field === "tipo_evento" && ctx.afterEmail) {
+  if (field === "tipo_evento") {
     const tipoVariant = pickVariant("tipo_evento", history, ctx.entityId);
-    return prefix ? `${prefix}${tipoVariant}` : tipoVariant;
+    const withHint = `${tipoVariant} ${TIPO_EVENTO_HINT}`.trim();
+    if (ctx.afterEmail) {
+      return nombre ? `Muchas gracias. ${withHint}` : `Muchas gracias. ${withHint}`;
+    }
+    return prefix ? `${prefix}${withHint}` : withHint;
   }
 
   return prefix ? `${prefix}${variant}` : variant;
@@ -877,15 +893,22 @@ function isInformativeClientAnswer(currentMessage?: string): boolean {
     clientAsksBanqueteVsTaquiza(currentMessage) ||
     clientMentionsCatering(currentMessage) ||
     clientAsksPrice(currentMessage) ||
-    clientAsksInclusion(currentMessage)
+    clientAsksInclusion(currentMessage) ||
+    clientAskedFreeformQuestion(currentMessage)
   );
 }
 
 function clientAskedFreeformQuestion(message?: string): boolean {
   if (!message?.trim()) return false;
+  const t = message.toLowerCase();
   if (/\?/.test(message)) return true;
-  return /cu[aá]nto|precio|costo|cat[aá]logo|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@/i.test(
-    message
+  return (
+    /cu[aá]nto|precio|costo|cat[aá]logo|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@/i.test(
+      message
+    ) ||
+    /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+servicios|cu[aá]les\s+son|informaci[oó]n|recomiendas?|sugieres|ayudas?\s+con|pueden\s+hacer/i.test(
+      t
+    )
   );
 }
 
@@ -1005,8 +1028,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : `${advisor} es parte del equipo de Bodasesor; arma las cotizaciones personalizadas con base en lo que platicamos. Yo te ayudo a recopilar los datos y te envían la propuesta.`;
     log?.info({ entityId }, "GUARD: cliente preguntó por el asesor/equipo");
   } else if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
-    mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
-    log?.info({ entityId }, "GUARD: correo capturado — pregunta tipo de evento");
+    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+      mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, { ...ctx, afterEmail: true });
+    } else {
+      mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
+    }
+    log?.info({ entityId }, "GUARD: correo capturado — tipo de evento con opciones");
   } else if (justGaveEmail && hasTipoEvento(filledSet, extracted)) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     mensaje = nextQ ?? aiResponse;
@@ -1166,7 +1193,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const isOpeningTurn =
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
     !conversationAlreadyStarted(filledSet, presHistory);
-  if (isOpeningTurn && !/hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(mensaje)) {
+  if (isOpeningTurn && !/hola,?\s*soy\s+lucy/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: presentación Lucy añadida al primer mensaje");
   }
@@ -1187,7 +1214,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
-  if (!mensaje.includes("?") && !trulyReadyForClosing) {
+  if (!mensaje.includes("?") && !trulyReadyForClosing && !clientAskedFreeformQuestion(currentMessage)) {
     const pendingAfter = getNextPendingField(extracted, filledSet);
     if (pendingAfter) {
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
