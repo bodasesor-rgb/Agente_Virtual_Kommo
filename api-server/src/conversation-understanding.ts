@@ -215,6 +215,8 @@ export function clientMentionsCatering(message?: string): boolean {
   const t = message.toLowerCase();
   return (
     /\bcatering\b/i.test(t) ||
+    /\b(brunch|desayuno)\b/i.test(t) ||
+    /\bbrunch\s*\/\s*desayuno/i.test(t) ||
     /\b(busco|necesito|quiero|cotizar)\s+(comida|alimentos?|men[uú])\b/i.test(t) ||
     /\bcomida\s+para\b/i.test(t) ||
     /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) ||
@@ -490,6 +492,23 @@ export function parseZonaFromText(text: string): string | null {
   return null;
 }
 
+/** Etiquetas de servicio que GPT a veces confunde con tipo de evento. */
+export const SERVICE_LABELS_NOT_TIPO =
+  /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
+
+export function parseCorreoFromText(text: string | null | undefined): string | null {
+  const m = text?.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+  return m ? m[1]! : null;
+}
+
+export function isServiceLabelNotTipoEvento(label: string | null | undefined): boolean {
+  if (!label?.trim()) return false;
+  const t = label.trim();
+  if (SERVICE_LABELS_NOT_TIPO.test(t)) return true;
+  if (parseTipoEventoFromText(t)) return false;
+  return !!parsePrimaryService(t);
+}
+
 export function parseFechaFromText(text: string): string | null {
   const trimmed = text.trim();
   const fechaMatch = trimmed.match(
@@ -502,6 +521,14 @@ export function parseFechaFromText(text: string): string | null {
   }
 
   if (
+    /\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha)\b/i.test(
+      trimmed
+    )
+  ) {
+    return "Sin definir (pendiente)";
+  }
+
+  if (
     /\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
       trimmed
     )
@@ -509,7 +536,9 @@ export function parseFechaFromText(text: string): string | null {
     return trimmed.slice(0, 80);
   }
 
-  if (MONTH_PATTERN.test(trimmed) && /\d/.test(trimmed)) return trimmed.slice(0, 80);
+  if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
+    return trimmed.slice(0, 80);
+  }
 
   return null;
 }
@@ -535,12 +564,22 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) ||
     /\bsin\s+presupuesto\b/i.test(t) ||
     /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) ||
+    /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) ||
+    /\bt[uú]\s+m[aá]ndame\b/i.test(t) ||
+    /\bsi\s+quieres\s+vemos\b/i.test(t) ||
     (/\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t))
   );
 }
 
 export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOptions): string | null {
   const trimmed = text.trim();
+
+  if (
+    /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) ||
+    /\bt[uú]\s+m[aá]ndame\b/i.test(trimmed)
+  ) {
+    return "Sin definir (cliente pidió que propongamos)";
+  }
 
   if (detectPresupuestoRefusal(trimmed)) {
     return "Sin definir (cliente indicó que no tiene)";

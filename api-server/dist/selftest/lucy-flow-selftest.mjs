@@ -230,7 +230,7 @@ function clientMentionsEntertainment(message) {
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /\bcatering\b/i.test(t) || /\b(busco|necesito|quiero|cotizar)\s+(comida|alimentos?|men[uú])\b/i.test(t) || /\bcomida\s+para\b/i.test(t) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t);
+  return /\bcatering\b/i.test(t) || /\b(brunch|desayuno)\b/i.test(t) || /\bbrunch\s*\/\s*desayuno/i.test(t) || /\b(busco|necesito|quiero|cotizar)\s+(comida|alimentos?|men[uú])\b/i.test(t) || /\bcomida\s+para\b/i.test(t) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t);
 }
 function clientAsksPhone(message) {
   if (!message?.trim()) return false;
@@ -403,6 +403,18 @@ function parseZonaFromText(text) {
   }
   return null;
 }
+var SERVICE_LABELS_NOT_TIPO = /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
+function parseCorreoFromText(text) {
+  const m = text?.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+  return m ? m[1] : null;
+}
+function isServiceLabelNotTipoEvento(label) {
+  if (!label?.trim()) return false;
+  const t = label.trim();
+  if (SERVICE_LABELS_NOT_TIPO.test(t)) return true;
+  if (parseTipoEventoFromText(t)) return false;
+  return !!parsePrimaryService(t);
+}
 function parseFechaFromText(text) {
   const trimmed = text.trim();
   const fechaMatch = trimmed.match(
@@ -413,12 +425,19 @@ function parseFechaFromText(text) {
     const hora = fechaMatch[2];
     return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
   }
+  if (/\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha)\b/i.test(
+    trimmed
+  )) {
+    return "Sin definir (pendiente)";
+  }
   if (/\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
     trimmed
   )) {
     return trimmed.slice(0, 80);
   }
-  if (MONTH_PATTERN.test(trimmed) && /\d/.test(trimmed)) return trimmed.slice(0, 80);
+  if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
+    return trimmed.slice(0, 80);
+  }
   return null;
 }
 function bareNumberLooksLikeInvitados(num, trimmed) {
@@ -429,10 +448,13 @@ function detectPresupuestoRefusal(text) {
   const t = text?.trim() ?? "";
   if (!t) return false;
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
-  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
+  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) || /\bt[uú]\s+m[aá]ndame\b/i.test(t) || /\bsi\s+quieres\s+vemos\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
 }
 function parsePresupuestoFromText(text, opts) {
   const trimmed = text.trim();
+  if (/\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) || /\bt[uú]\s+m[aá]ndame\b/i.test(trimmed)) {
+    return "Sin definir (cliente pidi\xF3 que propongamos)";
+  }
   if (detectPresupuestoRefusal(trimmed)) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
@@ -1116,7 +1138,7 @@ var FIELD_ASK_PATTERNS = {
   requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
   invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
+  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
 };
 function isValidRequerimientosValue(value) {
@@ -1451,7 +1473,9 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     if (!mensajeAsksForField(base, pending)) return base;
   }
   const nextQ = buildNaturalQuestion(pending, ctx);
-  if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return mensaje;
+  if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted) && !mensajeAsksForFilledField(mensaje, filledSet, extracted)) {
+    return mensaje;
+  }
   return `${base}
 
 ${nextQ}`;
@@ -1758,9 +1782,13 @@ ${buildNaturalQuestion(pending, ctx)}` : priceReply;
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
-  } else if (needsNextStep && aiResponse.trim()) {
+  } else if (needsNextStep && aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
     mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
     log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
+  } else if (needsNextStep && aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    mensaje = nextQ ?? aiResponse;
+    log?.info({ entityId }, "GUARD: GPT repiti\xF3 dato ya capturado \u2014 siguiente paso");
   } else if (needsNextStep) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     if (clientAsksPrice(currentMessage)) {
@@ -1833,6 +1861,42 @@ ${nextQ}`;
     } else {
       mensaje = "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos y te arma la cotizaci\xF3n.";
       log?.info({ entityId }, "GUARD: cliente sin presupuesto fijo \u2014 continuar");
+    }
+  }
+  if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
+    if (trulyReadyForClosing && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: fecha capturada \u2014 cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (nextQ && !mensajeAsksForField(nextQ, "fecha")) {
+        mensaje = nextQ;
+        log?.info({ entityId }, "GUARD: fecha ya capturada \u2014 no repetir pregunta");
+      } else if (!nextQ && isReadyForClosing(filledSet) && !cierreYaEnviado) {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+        log?.info({ entityId }, "GUARD: todos los datos listos \u2014 cierre tras fecha");
+      }
+    }
+  }
+  const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
+  if (fechaFromMsg && mensajeAsksForField(mensaje, "fecha") && !filledSet.has("Fecha y horario")) {
+    filledSet.add("Fecha y horario");
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: fecha capturada en turno \u2014 cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
+      log?.info({ entityId }, "GUARD: fecha pendiente \u2014 continuar flujo");
     }
   }
   if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
@@ -2040,7 +2104,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 16 escenarios de prueba\n");
+  console.log("Lucy \u2014 17 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -2412,6 +2476,72 @@ async function runAll() {
     const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
     const mirrorSrc = readFileSync(path.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     assert.ok(mirrorSrc.includes("texto vac\xEDo"));
+  });
+  await test("17. Fer A14751 \u2014 brunch baby shower, correo, fecha y presupuesto sin bucles", () => {
+    assert.equal(isQuoteIntentMessage("Quiero hacer una cotizacion"), true);
+    assert.equal(sanitizeDisplayName("Quiero"), null);
+    assert.ok(clientMentionsCatering("Brunch/ desayuno para 35 personas"));
+    assert.ok(isServiceLabelNotTipoEvento("brunch"));
+    assert.equal(parseCorreoFromText("Si fer.barrientost2892@gmail.com"), "fer.barrientost2892@gmail.com");
+    assert.equal(parseFechaFromText("Todav\xEDa la vamos a definir"), "Sin definir (pendiente)");
+    assert.ok(parseFechaFromText("Yo creo que x octubre")?.includes("octubre"));
+    assert.equal(
+      parsePresupuestoFromText("Tu m\xE1ndame el presupuesto y si quieres vemos"),
+      "Sin definir (cliente pidi\xF3 que propongamos)"
+    );
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "N\xFAmero de invitados",
+      "Lugar/direcci\xF3n del evento",
+      "Fecha y horario"
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Fer",
+      correo: "fer.barrientost2892@gmail.com",
+      tipo_evento: "baby shower",
+      requerimientos_evento: "Brunch",
+      num_invitados: 35,
+      direccion_evento: "Jardines del pedregal",
+      fecha_horario: "Sin definir (pendiente)"
+    });
+    const presFilled = new Set(filled);
+    const presReply = runGuards({
+      aiResponse: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      extracted,
+      filledSet: presFilled,
+      readyForClosing: false,
+      currentMessage: "Tu m\xE1ndame el presupuesto y si quieres vemos",
+      history: [{ role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" }]
+    });
+    assert.ok(!/rango de presupuesto/i.test(presReply), presReply.slice(0, 200));
+    const fechaFilled = new Set(filled);
+    const fechaAi = "\xBFYa hay d\xEDa definido o siguen viendo opciones?";
+    assert.ok(mensajeAsksForFilledField(fechaAi, fechaFilled, extracted), "debe detectar fecha repetida");
+    const fechaReply = runGuards({
+      aiResponse: fechaAi,
+      extracted,
+      filledSet: fechaFilled,
+      readyForClosing: false,
+      currentMessage: "Todav\xEDa la vamos a definir",
+      history: [{ role: "assistant", content: "\xBFYa tienen fecha o todav\xEDa la van definiendo?" }]
+    });
+    if (/fecha|d[ií]a definido/i.test(fechaReply) && !/presupuesto/i.test(fechaReply)) {
+      throw new Error(`fechaReply inesperada: ${fechaReply.slice(0, 200)}`);
+    }
+    const brunchFilled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const brunchReply = runGuards({
+      aiResponse: "\xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      extracted: emptyExtracted({ nombre: "Fer", tipo_evento: "baby shower" }),
+      filledSet: brunchFilled,
+      readyForClosing: false,
+      currentMessage: "Brunch/ desayuno para 35 personas",
+      history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }]
+    });
+    assert.ok(/brunch|banquete|taquiza|desayuno|alimentos/i.test(brunchReply), brunchReply.slice(0, 200));
+    assert.ok(!/correo/i.test(brunchReply), "no debe re-preguntar correo ya capturado");
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

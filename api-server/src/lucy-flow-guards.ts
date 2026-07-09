@@ -41,6 +41,7 @@ import {
   isServiceRelatedMessage,
   parsePrimaryService,
   parseSpaceDimensions,
+  parseFechaFromText,
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
@@ -166,7 +167,7 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
   invitados:
     /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
+  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i,
 };
 
@@ -764,7 +765,13 @@ function mergeWithPendingQuestion(
   }
 
   const nextQ = buildNaturalQuestion(pending, ctx);
-  if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return mensaje;
+  if (
+    base.includes("?") &&
+    !mensajeAsksWrongField(mensaje, filledSet, extracted) &&
+    !mensajeAsksForFilledField(mensaje, filledSet, extracted)
+  ) {
+    return mensaje;
+  }
   return `${base}\n\n${nextQ}`;
 }
 
@@ -1248,9 +1255,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
-  } else if (needsNextStep && aiResponse.trim()) {
+  } else if (needsNextStep && aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
     mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
     log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
+  } else if (needsNextStep && aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    mensaje = nextQ ?? aiResponse;
+    log?.info({ entityId }, "GUARD: GPT repitió dato ya capturado — siguiente paso");
   } else if (needsNextStep) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     if (clientAsksPrice(currentMessage)) {
@@ -1334,6 +1345,48 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       mensaje =
         "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos y te arma la cotización.";
       log?.info({ entityId }, "GUARD: cliente sin presupuesto fijo — continuar");
+    }
+  }
+
+  if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
+    if (trulyReadyForClosing && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: fecha capturada — cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (nextQ && !mensajeAsksForField(nextQ, "fecha")) {
+        mensaje = nextQ;
+        log?.info({ entityId }, "GUARD: fecha ya capturada — no repetir pregunta");
+      } else if (!nextQ && isReadyForClosing(filledSet) && !cierreYaEnviado) {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+        log?.info({ entityId }, "GUARD: todos los datos listos — cierre tras fecha");
+      }
+    }
+  }
+
+  const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
+  if (
+    fechaFromMsg &&
+    mensajeAsksForField(mensaje, "fecha") &&
+    !filledSet.has("Fecha y horario")
+  ) {
+    filledSet.add("Fecha y horario");
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: fecha capturada en turno — cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
+      log?.info({ entityId }, "GUARD: fecha pendiente — continuar flujo");
     }
   }
 

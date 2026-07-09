@@ -79098,7 +79098,7 @@ function clientMentionsEntertainment(message) {
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /\bcatering\b/i.test(t) || /\b(busco|necesito|quiero|cotizar)\s+(comida|alimentos?|men[uú])\b/i.test(t) || /\bcomida\s+para\b/i.test(t) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t);
+  return /\bcatering\b/i.test(t) || /\b(brunch|desayuno)\b/i.test(t) || /\bbrunch\s*\/\s*desayuno/i.test(t) || /\b(busco|necesito|quiero|cotizar)\s+(comida|alimentos?|men[uú])\b/i.test(t) || /\bcomida\s+para\b/i.test(t) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t);
 }
 function clientAsksPhone(message) {
   if (!message?.trim()) return false;
@@ -79282,6 +79282,18 @@ function parseZonaFromText(text2) {
   }
   return null;
 }
+var SERVICE_LABELS_NOT_TIPO = /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
+function parseCorreoFromText(text2) {
+  const m4 = text2?.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+  return m4 ? m4[1] : null;
+}
+function isServiceLabelNotTipoEvento(label) {
+  if (!label?.trim()) return false;
+  const t = label.trim();
+  if (SERVICE_LABELS_NOT_TIPO.test(t)) return true;
+  if (parseTipoEventoFromText(t)) return false;
+  return !!parsePrimaryService(t);
+}
 function parseFechaFromText(text2) {
   const trimmed = text2.trim();
   const fechaMatch = trimmed.match(
@@ -79292,12 +79304,19 @@ function parseFechaFromText(text2) {
     const hora = fechaMatch[2];
     return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
   }
+  if (/\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha)\b/i.test(
+    trimmed
+  )) {
+    return "Sin definir (pendiente)";
+  }
   if (/\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
     trimmed
   )) {
     return trimmed.slice(0, 80);
   }
-  if (MONTH_PATTERN.test(trimmed) && /\d/.test(trimmed)) return trimmed.slice(0, 80);
+  if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
+    return trimmed.slice(0, 80);
+  }
   return null;
 }
 function bareNumberLooksLikeInvitados(num, trimmed) {
@@ -79308,10 +79327,13 @@ function detectPresupuestoRefusal(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
-  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
+  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) || /\bt[uú]\s+m[aá]ndame\b/i.test(t) || /\bsi\s+quieres\s+vemos\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
 }
 function parsePresupuestoFromText(text2, opts) {
   const trimmed = text2.trim();
+  if (/\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) || /\bt[uú]\s+m[aá]ndame\b/i.test(trimmed)) {
+    return "Sin definir (cliente pidi\xF3 que propongamos)";
+  }
   if (detectPresupuestoRefusal(trimmed)) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
@@ -81015,7 +81037,7 @@ var FIELD_ASK_PATTERNS = {
   requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
   invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
+  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
 };
 function isValidRequerimientosValue(value) {
@@ -81371,7 +81393,9 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     if (!mensajeAsksForField(base, pending)) return base;
   }
   const nextQ = buildNaturalQuestion(pending, ctx);
-  if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return mensaje;
+  if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted) && !mensajeAsksForFilledField(mensaje, filledSet, extracted)) {
+    return mensaje;
+  }
   return `${base}
 
 ${nextQ}`;
@@ -81678,9 +81702,13 @@ ${buildNaturalQuestion(pending, ctx)}` : priceReply;
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
-  } else if (needsNextStep && aiResponse.trim()) {
+  } else if (needsNextStep && aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
     mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
     log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
+  } else if (needsNextStep && aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    mensaje = nextQ ?? aiResponse;
+    log?.info({ entityId }, "GUARD: GPT repiti\xF3 dato ya capturado \u2014 siguiente paso");
   } else if (needsNextStep) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     if (clientAsksPrice(currentMessage)) {
@@ -81753,6 +81781,42 @@ ${nextQ}`;
     } else {
       mensaje = "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos y te arma la cotizaci\xF3n.";
       log?.info({ entityId }, "GUARD: cliente sin presupuesto fijo \u2014 continuar");
+    }
+  }
+  if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
+    if (trulyReadyForClosing && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: fecha capturada \u2014 cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (nextQ && !mensajeAsksForField(nextQ, "fecha")) {
+        mensaje = nextQ;
+        log?.info({ entityId }, "GUARD: fecha ya capturada \u2014 no repetir pregunta");
+      } else if (!nextQ && isReadyForClosing(filledSet) && !cierreYaEnviado) {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+        log?.info({ entityId }, "GUARD: todos los datos listos \u2014 cierre tras fecha");
+      }
+    }
+  }
+  const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
+  if (fechaFromMsg && mensajeAsksForField(mensaje, "fecha") && !filledSet.has("Fecha y horario")) {
+    filledSet.add("Fecha y horario");
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: fecha capturada en turno \u2014 cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
+      log?.info({ entityId }, "GUARD: fecha pendiente \u2014 continuar flujo");
     }
   }
   if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
@@ -88461,6 +88525,17 @@ function purgeDimensionAsUbicacion(mergedLines, filledSet, extracted) {
     extracted.direccion_evento = null;
   }
 }
+function purgeInvalidNombre(mergedLines, filledSet, extracted) {
+  const idx = mergedLines.findIndex((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
+  if (idx < 0) return;
+  const raw = mergedLines[idx].replace(/^-?\s*Nombre del cliente:\s*/i, "").trim();
+  if (sanitizeDisplayName(raw) && !isQuoteIntentMessage(raw)) return;
+  mergedLines.splice(idx, 1);
+  filledSet.delete("Nombre del cliente");
+  if (!sanitizeDisplayName(extracted.nombre) || isQuoteIntentMessage(extracted.nombre)) {
+    extracted.nombre = null;
+  }
+}
 function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, currentMessage, whatsappDisplayName, fullHistory) {
   const mergedLines = [...crmLines];
   const filledSet = new Set(mergedLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
@@ -88475,6 +88550,16 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   if (extracted.requerimientos_evento?.trim() && extracted.tipo_evento?.trim() && extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()) {
     extracted.requerimientos_evento = null;
   }
+  if (isServiceLabelNotTipoEvento(extracted.tipo_evento)) {
+    if (!extracted.requerimientos_evento?.trim()) {
+      extracted.requerimientos_evento = extracted.tipo_evento;
+    }
+    const tipoCrm = mergedLines.find((l4) => /^-?\s*Tipo de evento:/i.test(l4))?.replace(/^-?\s*Tipo de evento:\s*/i, "").trim();
+    const tipoHist = parseTipoEventoFromText(collectUserTexts(historyFull, currentMessage).join(" "));
+    const restored = tipoCrm && !isServiceLabelNotTipoEvento(tipoCrm) ? tipoCrm : tipoHist;
+    extracted.tipo_evento = restored ?? null;
+  }
+  purgeInvalidNombre(mergedLines, filledSet, extracted);
   if (!filledSet.has("Nombre del cliente")) {
     const nombreVal = sanitizeDisplayName(extracted.nombre);
     if (nombreVal) {
@@ -88483,10 +88568,13 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     }
   }
   if (!filledSet.has("Correo electr\xF3nico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {
-    const correoVal = extracted.correo ?? clientEmailFromDB ?? (history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content).find((t) => /\S+@\S+\.\S+/.test(t)) ?? null);
+    const correoFromHistory = collectUserTexts(historyFull, currentMessage).map((t) => parseCorreoFromText(t)).find(Boolean);
+    const correoFromCrm = mergedLines.map((l4) => parseCorreoFromText(l4)).find(Boolean);
+    const correoVal = parseCorreoFromText(extracted.correo) ?? parseCorreoFromText(clientEmailFromDB) ?? correoFromHistory ?? correoFromCrm ?? null;
     if (correoVal) {
       mergedLines.push(`- Correo electr\xF3nico: ${correoVal}`);
       filledSet.add("Correo electr\xF3nico");
+      extracted.correo = correoVal;
     }
   }
   const extractionMap = [
@@ -88810,6 +88898,10 @@ async function processBatch(batch, accessToken, log) {
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
     const filledFieldNames = crmLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? "").filter(Boolean).join(", ");
     const extracted = await extractData(history, combinedUserText, filledFieldNames);
+    extracted.nombre = sanitizeDisplayName(extracted.nombre);
+    if (extracted.correo) {
+      extracted.correo = parseCorreoFromText(extracted.correo) ?? extracted.correo;
+    }
     const conversationText = [
       ...history.filter((m4) => m4.role === "user").map((m4) => typeof m4.content === "string" ? m4.content : ""),
       combinedUserText

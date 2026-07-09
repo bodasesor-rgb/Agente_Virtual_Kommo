@@ -13,6 +13,9 @@ import {
   isDimensionText,
   parseSpaceDimensions,
   parseZonaFromText,
+  parseFechaFromText,
+  parseCorreoFromText,
+  isServiceLabelNotTipoEvento,
   clientAsksPhone,
   clientAsksForRecommendations,
   parsePrimaryService,
@@ -40,6 +43,7 @@ import {
   EMAIL_WAIVED_LABEL,
   getNextPendingField,
   isReadyForClosing,
+  mensajeAsksForFilledField,
   LUCY_INTRO,
   isValidRequerimientosValue,
 } from "../lucy-flow-guards.js";
@@ -128,7 +132,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 16 escenarios de prueba\n");
+  console.log("Lucy — 17 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -539,6 +543,77 @@ async function runAll(): Promise<void> {
     const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
     const mirrorSrc = readFileSync(path.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     assert.ok(mirrorSrc.includes("texto vacío"));
+  });
+
+  await test("17. Fer A14751 — brunch baby shower, correo, fecha y presupuesto sin bucles", () => {
+    assert.equal(isQuoteIntentMessage("Quiero hacer una cotizacion"), true);
+    assert.equal(sanitizeDisplayName("Quiero"), null);
+    assert.ok(clientMentionsCatering("Brunch/ desayuno para 35 personas"));
+    assert.ok(isServiceLabelNotTipoEvento("brunch"));
+    assert.equal(parseCorreoFromText("Si fer.barrientost2892@gmail.com"), "fer.barrientost2892@gmail.com");
+    assert.equal(parseFechaFromText("Todavía la vamos a definir"), "Sin definir (pendiente)");
+    assert.ok(parseFechaFromText("Yo creo que x octubre")?.includes("octubre"));
+    assert.equal(
+      parsePresupuestoFromText("Tu mándame el presupuesto y si quieres vemos"),
+      "Sin definir (cliente pidió que propongamos)"
+    );
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Fer",
+      correo: "fer.barrientost2892@gmail.com",
+      tipo_evento: "baby shower",
+      requerimientos_evento: "Brunch",
+      num_invitados: 35,
+      direccion_evento: "Jardines del pedregal",
+      fecha_horario: "Sin definir (pendiente)",
+    });
+
+    const presFilled = new Set(filled);
+    const presReply = runGuards({
+      aiResponse: "¿Tienen algún rango de presupuesto en mente?",
+      extracted,
+      filledSet: presFilled,
+      readyForClosing: false,
+      currentMessage: "Tu mándame el presupuesto y si quieres vemos",
+      history: [{ role: "assistant", content: "¿Tienen algún rango de presupuesto en mente?" }],
+    });
+    assert.ok(!/rango de presupuesto/i.test(presReply), presReply.slice(0, 200));
+
+    const fechaFilled = new Set(filled);
+    const fechaAi = "¿Ya hay día definido o siguen viendo opciones?";
+    assert.ok(mensajeAsksForFilledField(fechaAi, fechaFilled, extracted), "debe detectar fecha repetida");
+    const fechaReply = runGuards({
+      aiResponse: fechaAi,
+      extracted,
+      filledSet: fechaFilled,
+      readyForClosing: false,
+      currentMessage: "Todavía la vamos a definir",
+      history: [{ role: "assistant", content: "¿Ya tienen fecha o todavía la van definiendo?" }],
+    });
+    if (/fecha|d[ií]a definido/i.test(fechaReply) && !/presupuesto/i.test(fechaReply)) {
+      throw new Error(`fechaReply inesperada: ${fechaReply.slice(0, 200)}`);
+    }
+
+    const brunchFilled = new Set(["Nombre del cliente", "Correo electrónico", "Tipo de evento"]);
+    const brunchReply = runGuards({
+      aiResponse: "¿A qué correo te mando la información?",
+      extracted: emptyExtracted({ nombre: "Fer", tipo_evento: "baby shower" }),
+      filledSet: brunchFilled,
+      readyForClosing: false,
+      currentMessage: "Brunch/ desayuno para 35 personas",
+      history: [{ role: "assistant", content: "¿Qué servicios te gustaría cotizar?" }],
+    });
+    assert.ok(/brunch|banquete|taquiza|desayuno|alimentos/i.test(brunchReply), brunchReply.slice(0, 200));
+    assert.ok(!/correo/i.test(brunchReply), "no debe re-preguntar correo ya capturado");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -37,6 +37,7 @@ import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcess
 import { generateSummary, enrichExtractedFromText, buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   isPlaceholderLeadName,
+  isQuoteIntentMessage,
   sanitizeDisplayName,
 } from "../contact-name.js";
 import {
@@ -48,7 +49,10 @@ import {
   appendPostCierreRequirements,
   appendSpaceDimensionsToRequerimientos,
   isDimensionText,
+  isServiceLabelNotTipoEvento,
+  parseCorreoFromText,
   parsePresupuestoFromText,
+  parseTipoEventoFromText,
   inferLucyAskedField,
   scanConversationForCaptures,
 } from "../conversation-understanding.js";
@@ -500,6 +504,20 @@ function purgeDimensionAsUbicacion(
   }
 }
 
+function purgeInvalidNombre(mergedLines: string[], filledSet: Set<string>, extracted: ExtractedData): void {
+  const idx = mergedLines.findIndex((l) => /^-?\s*Nombre del cliente:/i.test(l));
+  if (idx < 0) return;
+  const raw = mergedLines[idx]!
+    .replace(/^-?\s*Nombre del cliente:\s*/i, "")
+    .trim();
+  if (sanitizeDisplayName(raw) && !isQuoteIntentMessage(raw)) return;
+  mergedLines.splice(idx, 1);
+  filledSet.delete("Nombre del cliente");
+  if (!sanitizeDisplayName(extracted.nombre) || isQuoteIntentMessage(extracted.nombre)) {
+    extracted.nombre = null;
+  }
+}
+
 function buildCrmContext(
   crmLines: string[],
   extracted: ExtractedData,
@@ -537,6 +555,21 @@ function buildCrmContext(
     extracted.requerimientos_evento = null;
   }
 
+  if (isServiceLabelNotTipoEvento(extracted.tipo_evento)) {
+    if (!extracted.requerimientos_evento?.trim()) {
+      extracted.requerimientos_evento = extracted.tipo_evento;
+    }
+    const tipoCrm = mergedLines
+      .find((l) => /^-?\s*Tipo de evento:/i.test(l))
+      ?.replace(/^-?\s*Tipo de evento:\s*/i, "")
+      .trim();
+    const tipoHist = parseTipoEventoFromText(collectUserTexts(historyFull, currentMessage).join(" "));
+    const restored = tipoCrm && !isServiceLabelNotTipoEvento(tipoCrm) ? tipoCrm : tipoHist;
+    extracted.tipo_evento = restored ?? null;
+  }
+
+  purgeInvalidNombre(mergedLines, filledSet, extracted);
+
   // Nombre: solo extracción explícita o CRM — no prellenar desde WhatsApp
   if (!filledSet.has("Nombre del cliente")) {
     const nombreVal = sanitizeDisplayName(extracted.nombre);
@@ -548,16 +581,22 @@ function buildCrmContext(
 
   // Correo: not a Kommo custom lead field — detect from extraction, DB, or history
   if (!filledSet.has("Correo electrónico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {
+    const correoFromHistory = collectUserTexts(historyFull, currentMessage)
+      .map((t) => parseCorreoFromText(t))
+      .find(Boolean);
+    const correoFromCrm = mergedLines
+      .map((l) => parseCorreoFromText(l))
+      .find(Boolean);
     const correoVal =
-      extracted.correo ??
-      clientEmailFromDB ??
-      (history
-        .filter((m) => m.role === "user" && typeof m.content === "string")
-        .map((m) => m.content as string)
-        .find((t) => /\S+@\S+\.\S+/.test(t)) ?? null);
+      parseCorreoFromText(extracted.correo) ??
+      parseCorreoFromText(clientEmailFromDB) ??
+      correoFromHistory ??
+      correoFromCrm ??
+      null;
     if (correoVal) {
       mergedLines.push(`- Correo electrónico: ${correoVal}`);
       filledSet.add("Correo electrónico");
+      extracted.correo = correoVal;
     }
   }
 
@@ -1130,6 +1169,11 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       .join(", ");
 
     const extracted = await extractData(history, combinedUserText, filledFieldNames);
+
+    extracted.nombre = sanitizeDisplayName(extracted.nombre);
+    if (extracted.correo) {
+      extracted.correo = parseCorreoFromText(extracted.correo) ?? extracted.correo;
+    }
 
     const conversationText = [
       ...history
