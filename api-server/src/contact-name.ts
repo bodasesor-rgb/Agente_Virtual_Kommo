@@ -85,6 +85,35 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
 
+/** Nombre completo para CRM (conserva apellido cuando viene de WhatsApp/Kommo). */
+export function sanitizeCrmNombre(name: string | null | undefined): string | null {
+  const trimmed = name?.trim() ?? "";
+  if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
+
+  const cleaned = trimmed
+    .replace(/^Lead:\s*/i, "")
+    .replace(/[~_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+
+  const parts = cleaned.split(/\s+/).filter((part) => {
+    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
+  });
+
+  if (parts.length === 0) return sanitizeDisplayName(cleaned);
+
+  return parts
+    .slice(0, 3)
+    .map((part) => {
+      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+      return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
+    })
+    .join(" ");
+}
+
 export function resolveClientDisplayName(
   extractedNombre: string | null | undefined,
   crmNombre: string | null | undefined,

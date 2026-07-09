@@ -50,7 +50,7 @@ export const BODASESOR_EMAIL = "hola@bodasesor.com";
 export const WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp — el cliente no lo escribió)";
 
 const EMAIL_REFUSAL_PATTERN =
-  /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
+  /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 
 /** 8 pasos obligatorios para cierre (correo es opcional pero se intenta en paso 2). */
 export const CLOSING_CORE_FIELDS = [

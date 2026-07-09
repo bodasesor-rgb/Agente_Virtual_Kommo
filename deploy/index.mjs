@@ -78928,6 +78928,21 @@ function sanitizeDisplayName(name2) {
   if (isQuoteIntentMessage(trimmed)) return null;
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
+function sanitizeCrmNombre(name2) {
+  const trimmed = name2?.trim() ?? "";
+  if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
+  const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+  const parts2 = cleaned.split(/\s+/).filter((part) => {
+    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
+  });
+  if (parts2.length === 0) return sanitizeDisplayName(cleaned);
+  return parts2.slice(0, 3).map((part) => {
+    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
+  }).join(" ");
+}
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
@@ -78936,13 +78951,8 @@ function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
 function getAdvisorName() {
   return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Alejandro";
 }
-function advisorLabelForClient(clientName) {
-  const advisor = getAdvisorName();
-  const client2 = clientName?.trim().toLowerCase() ?? "";
-  if (client2 && client2 === advisor.toLowerCase()) {
-    return "nuestro equipo";
-  }
-  return advisor;
+function advisorLabelForClient(_clientName) {
+  return "nuestro equipo";
 }
 function normalizeAdvisorReferences(text2, clientName) {
   const advisor = advisorLabelForClient(clientName);
@@ -78959,11 +78969,18 @@ function normalizeAdvisorReferences(text2, clientName) {
   out2 = out2.replace(
     /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+te\s+(arma|armar[aá]|incluir[aá]|cotiza)/g,
     (m4, name2) => {
-      if (name2.toLowerCase() === advisor.toLowerCase()) return m4;
       if (name2.toLowerCase() === "rodrigo") return m4.replace(name2, advisor);
+      if (name2.toLowerCase() === getAdvisorName().toLowerCase()) {
+        return m4.replace(name2, advisor);
+      }
       return m4;
     }
   );
+  const advisorName = getAdvisorName();
+  if (advisorName.toLowerCase() !== advisor.toLowerCase()) {
+    const esc = advisorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out2 = out2.replace(new RegExp(`\\b${esc}\\b`, "gi"), advisor);
+  }
   return out2;
 }
 
@@ -80964,7 +80981,7 @@ function appendHistory(chatId, userText, assistantText) {
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
-var EMAIL_REFUSAL_PATTERN = /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
+var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Tipo de evento",
@@ -88561,10 +88578,21 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   }
   purgeInvalidNombre(mergedLines, filledSet, extracted);
   if (!filledSet.has("Nombre del cliente")) {
-    const nombreVal = sanitizeDisplayName(extracted.nombre);
+    const nombreVal = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
     if (nombreVal) {
       mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
       filledSet.add("Nombre del cliente");
+    }
+  } else {
+    const idx = mergedLines.findIndex((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
+    if (idx >= 0) {
+      const rawLine = mergedLines[idx];
+      const existing = rawLine.replace(/^-?\s*Nombre del cliente:\s*/i, "").replace(WHATSAPP_NOMBRE_NOTE, "").trim();
+      const upgraded = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(existing);
+      if (upgraded && upgraded.split(/\s+/).length > existing.split(/\s+/).length) {
+        const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
+        mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
+      }
     }
   }
   if (!filledSet.has("Correo electr\xF3nico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {
@@ -88800,7 +88828,7 @@ function buildPatchPayload(extracted, mergedLines, conversationText) {
     customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(extracted.presupuesto) }] });
   const payload = { custom_fields_values: customFields };
   if (isValidExtractedString(extracted.nombre)) {
-    const nombrePatch = sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
+    const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
     payload["name"] = cap255(nombrePatch);
   }
   return payload;

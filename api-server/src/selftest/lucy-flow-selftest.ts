@@ -27,7 +27,7 @@ import {
   isServiceRelatedMessage,
   detectPresupuestoRefusal,
 } from "../conversation-understanding.js";
-import { isQuoteIntentMessage, sanitizeDisplayName } from "../contact-name.js";
+import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre } from "../contact-name.js";
 import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
 import {
@@ -132,7 +132,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 17 escenarios de prueba\n");
+  console.log("Lucy — 18 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -614,6 +614,39 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/brunch|banquete|taquiza|desayuno|alimentos/i.test(brunchReply), brunchReply.slice(0, 200));
     assert.ok(!/correo/i.test(brunchReply), "no debe re-preguntar correo ya capturado");
+  });
+
+  await test("18. Verónica A14760 — por aquí sin correo, sin Alejandro, nombre completo", () => {
+    assert.ok(detectEmailRefusal(["Si me la pueden mandar por aquí porfa"]));
+    assert.equal(sanitizeCrmNombre("Verónica Camarillo"), "Verónica Camarillo");
+    assert.equal(sanitizeDisplayName("Verónica Camarillo"), "Verónica");
+
+    const merged: string[] = ["- Nombre del cliente: Verónica"];
+    const filled = new Set<string>(["Nombre del cliente"]);
+    applyEmailWaiver(filled, merged, ["Si me la pueden mandar por aquí porfa"]);
+    assert.ok(filled.has(EMAIL_WAIVED_LABEL));
+
+    const extracted = emptyExtracted({ nombre: "Verónica Camarillo", tipo_evento: "cumpleaños" });
+    const reply = runGuards({
+      aiResponse:
+        "Claro, Verónica. ¿Me podrías compartir tu correo para enviarte la información y que Alejandro te arme la propuesta?",
+      extracted,
+      filledSet: new Set([...filled, "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "Si me la pueden mandar por aquí porfa",
+      emailRefusedThisTurn: true,
+      history: [{ role: "assistant", content: "¿A qué correo te lo envío?" }],
+    });
+    assert.ok(!/correo/i.test(reply), reply.slice(0, 200));
+    assert.ok(!/Alejandro/i.test(reply), reply);
+    assert.ok(/seguimos por aquí|invitados|servicios|pensado/i.test(reply), reply.slice(0, 200));
+
+    const norm = normalizeAdvisorReferences(
+      "para que Alejandro te arme la propuesta",
+      "Verónica"
+    );
+    assert.ok(norm.includes("nuestro equipo"));
+    assert.ok(!/Alejandro/i.test(norm));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

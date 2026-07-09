@@ -12,6 +12,7 @@ import {
   applyWhatsappNombreFallback,
   buildPostCierreThanksReply,
   clientSaysThanks,
+  WHATSAPP_NOMBRE_NOTE,
   CLOSING_CORE_FIELDS,
   collectUserTexts,
   detectEmailRefusal,
@@ -39,6 +40,7 @@ import {
   isPlaceholderLeadName,
   isQuoteIntentMessage,
   sanitizeDisplayName,
+  sanitizeCrmNombre,
 } from "../contact-name.js";
 import {
   applyCapturesToCrm,
@@ -572,10 +574,24 @@ function buildCrmContext(
 
   // Nombre: solo extracción explícita o CRM — no prellenar desde WhatsApp
   if (!filledSet.has("Nombre del cliente")) {
-    const nombreVal = sanitizeDisplayName(extracted.nombre);
+    const nombreVal = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
     if (nombreVal) {
       mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
       filledSet.add("Nombre del cliente");
+    }
+  } else {
+    const idx = mergedLines.findIndex((l) => /^-?\s*Nombre del cliente:/i.test(l));
+    if (idx >= 0) {
+      const rawLine = mergedLines[idx]!;
+      const existing = rawLine
+        .replace(/^-?\s*Nombre del cliente:\s*/i, "")
+        .replace(WHATSAPP_NOMBRE_NOTE, "")
+        .trim();
+      const upgraded = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(existing);
+      if (upgraded && upgraded.split(/\s+/).length > existing.split(/\s+/).length) {
+        const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
+        mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
+      }
     }
   }
 
@@ -898,7 +914,7 @@ function buildPatchPayload(
   const payload: Record<string, unknown> = { custom_fields_values: customFields };
 
   if (isValidExtractedString(extracted.nombre)) {
-    const nombrePatch = sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
+    const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
     payload["name"] = cap255(nombrePatch);
   }
 

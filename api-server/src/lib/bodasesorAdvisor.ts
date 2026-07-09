@@ -9,14 +9,9 @@ export function getAdvisorName(): string {
   );
 }
 
-/** Etiqueta al hablar del asesor — evita confundir con el nombre del cliente. */
-export function advisorLabelForClient(clientName?: string | null): string {
-  const advisor = getAdvisorName();
-  const client = clientName?.trim().toLowerCase() ?? "";
-  if (client && client === advisor.toLowerCase()) {
-    return "nuestro equipo";
-  }
-  return advisor;
+/** Etiqueta al hablar del asesor en mensajes al cliente — sin confundir con el nombre del cliente. */
+export function advisorLabelForClient(_clientName?: string | null): string {
+  return "nuestro equipo";
 }
 
 /** Corrige nombres inventados por GPT (ej. Rodrigo) solo en contexto de cotización. */
@@ -40,11 +35,19 @@ export function normalizeAdvisorReferences(text: string, clientName?: string | n
   out = out.replace(
     /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+te\s+(arma|armar[aá]|incluir[aá]|cotiza)/g,
     (m, name) => {
-      if (name.toLowerCase() === advisor.toLowerCase()) return m;
       if (name.toLowerCase() === "rodrigo") return m.replace(name, advisor);
+      if (name.toLowerCase() === getAdvisorName().toLowerCase()) {
+        return m.replace(name, advisor);
+      }
       return m;
     }
   );
+
+  const advisorName = getAdvisorName();
+  if (advisorName.toLowerCase() !== advisor.toLowerCase()) {
+    const esc = advisorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`\\b${esc}\\b`, "gi"), advisor);
+  }
 
   return out;
 }

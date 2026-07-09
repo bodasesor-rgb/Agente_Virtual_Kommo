@@ -60,6 +60,21 @@ function sanitizeDisplayName(name) {
   if (isQuoteIntentMessage(trimmed)) return null;
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
+function sanitizeCrmNombre(name) {
+  const trimmed = name?.trim() ?? "";
+  if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
+  const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+  const parts = cleaned.split(/\s+/).filter((part) => {
+    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
+  });
+  if (parts.length === 0) return sanitizeDisplayName(cleaned);
+  return parts.slice(0, 3).map((part) => {
+    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
+  }).join(" ");
+}
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
 }
@@ -68,13 +83,8 @@ function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
 function getAdvisorName() {
   return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Alejandro";
 }
-function advisorLabelForClient(clientName) {
-  const advisor = getAdvisorName();
-  const client = clientName?.trim().toLowerCase() ?? "";
-  if (client && client === advisor.toLowerCase()) {
-    return "nuestro equipo";
-  }
-  return advisor;
+function advisorLabelForClient(_clientName) {
+  return "nuestro equipo";
 }
 function normalizeAdvisorReferences(text, clientName) {
   const advisor = advisorLabelForClient(clientName);
@@ -91,11 +101,18 @@ function normalizeAdvisorReferences(text, clientName) {
   out = out.replace(
     /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+te\s+(arma|armar[aá]|incluir[aá]|cotiza)/g,
     (m, name) => {
-      if (name.toLowerCase() === advisor.toLowerCase()) return m;
       if (name.toLowerCase() === "rodrigo") return m.replace(name, advisor);
+      if (name.toLowerCase() === getAdvisorName().toLowerCase()) {
+        return m.replace(name, advisor);
+      }
       return m;
     }
   );
+  const advisorName = getAdvisorName();
+  if (advisorName.toLowerCase() !== advisor.toLowerCase()) {
+    const esc = advisorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`\\b${esc}\\b`, "gi"), advisor);
+  }
   return out;
 }
 
@@ -1065,7 +1082,7 @@ function buildCatalogCateringAnswer() {
 
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
-var EMAIL_REFUSAL_PATTERN = /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
+var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Tipo de evento",
@@ -2104,7 +2121,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 17 escenarios de prueba\n");
+  console.log("Lucy \u2014 18 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -2542,6 +2559,34 @@ async function runAll() {
     });
     assert.ok(/brunch|banquete|taquiza|desayuno|alimentos/i.test(brunchReply), brunchReply.slice(0, 200));
     assert.ok(!/correo/i.test(brunchReply), "no debe re-preguntar correo ya capturado");
+  });
+  await test("18. Ver\xF3nica A14760 \u2014 por aqu\xED sin correo, sin Alejandro, nombre completo", () => {
+    assert.ok(detectEmailRefusal(["Si me la pueden mandar por aqu\xED porfa"]));
+    assert.equal(sanitizeCrmNombre("Ver\xF3nica Camarillo"), "Ver\xF3nica Camarillo");
+    assert.equal(sanitizeDisplayName("Ver\xF3nica Camarillo"), "Ver\xF3nica");
+    const merged = ["- Nombre del cliente: Ver\xF3nica"];
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente"]);
+    applyEmailWaiver(filled, merged, ["Si me la pueden mandar por aqu\xED porfa"]);
+    assert.ok(filled.has(EMAIL_WAIVED_LABEL));
+    const extracted = emptyExtracted({ nombre: "Ver\xF3nica Camarillo", tipo_evento: "cumplea\xF1os" });
+    const reply = runGuards({
+      aiResponse: "Claro, Ver\xF3nica. \xBFMe podr\xEDas compartir tu correo para enviarte la informaci\xF3n y que Alejandro te arme la propuesta?",
+      extracted,
+      filledSet: /* @__PURE__ */ new Set([...filled, "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "Si me la pueden mandar por aqu\xED porfa",
+      emailRefusedThisTurn: true,
+      history: [{ role: "assistant", content: "\xBFA qu\xE9 correo te lo env\xEDo?" }]
+    });
+    assert.ok(!/correo/i.test(reply), reply.slice(0, 200));
+    assert.ok(!/Alejandro/i.test(reply), reply);
+    assert.ok(/seguimos por aquí|invitados|servicios|pensado/i.test(reply), reply.slice(0, 200));
+    const norm = normalizeAdvisorReferences(
+      "para que Alejandro te arme la propuesta",
+      "Ver\xF3nica"
+    );
+    assert.ok(norm.includes("nuestro equipo"));
+    assert.ok(!/Alejandro/i.test(norm));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
