@@ -25,7 +25,7 @@ function showView(viewId) {
     viewHome.classList.remove("hidden");
     viewFrame.classList.add("hidden");
     appFrame.src = "about:blank";
-    history.replaceState({ view: viewId }, "", `/panel${viewId === "home" ? "" : `#${viewId}`}`);
+    history.replaceState({ view: viewId }, "", `/panel/${viewId === "home" ? "" : `#${viewId}`}`);
     return;
   }
 
@@ -35,7 +35,7 @@ function showView(viewId) {
   if (appFrame.src !== new URL(config.frame, window.location.origin).href) {
     appFrame.src = config.frame;
   }
-  history.replaceState({ view: viewId }, "", `/panel#${viewId}`);
+  history.replaceState({ view: viewId }, "", `/panel/#${viewId}`);
 }
 
 function parseHash() {
