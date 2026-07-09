@@ -37,6 +37,12 @@ router.get("/health", (_req, res) => {
     openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "…" : null,
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
+    lucy_outbound: {
+      mode: process.env["LUCY_META_WHATSAPP_FALLBACK"]?.trim().toLowerCase() === "true" ||
+        process.env["LUCY_META_WHATSAPP_FALLBACK"] === "1"
+        ? "talks_then_meta"
+        : "talks_only",
+    },
     catalog: getCatalogStatus(),
   });
 });
