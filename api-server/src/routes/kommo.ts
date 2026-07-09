@@ -46,6 +46,7 @@ import {
 import type { ExtractedData } from "../types.js";
 import {
   sendWhatsAppDirect,
+  sendWhatsAppDocument,
   fetchContactPhone,
   fetchContactDisplayName,
   registrarMensajeSalienteKommo,
@@ -74,6 +75,10 @@ import { classifyInboundMessage } from "../services/messageClassifier.js";
 import { descartarPublicidad } from "../services/kommoTalkActions.js";
 import { detectLucyChannel } from "../services/channelDetection.js";
 import { applyEmailMessageGuards } from "../services/lucyEmailGuards.js";
+import { crearTareaLeadCaliente, crearTareaCotizacion, crearTareaLead } from "../services/kommoTasks.js";
+import { buildExecutiveSummaryNota } from "../services/kommoExecutive.js";
+import { buildEmailSubject, catalogAttachmentMeta } from "../services/kommoEmailSender.js";
+import { sendWelcomeEmail } from "../send-welcome-email.js";
 
 const router: IRouter = Router();
 
@@ -1308,11 +1313,23 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     if (allFieldsFilled && !cierreYaEnviado) {
       try {
-        const notaTexto = buildLeadCalificadoNota(extracted, crmMergedLines);
+        const notaTexto = buildExecutiveSummaryNota({
+          extracted,
+          crmMergedLines,
+          leadScore: {
+            total: leadScore.total,
+            priority: leadScore.priority,
+            reasoning: leadScore.reasoning,
+          },
+          intent: intentResult,
+          sentiment: sentimentResult,
+          hasObjection: objectionResult.hasObjection,
+          objectionType: objectionResult.type,
+        });
         await agregarNota(subdomain, accessToken, entityId, notaTexto);
-        log.info({ entityId }, "Nota de lead calificado creada en Kommo");
+        log.info({ entityId }, "Resumen ejecutivo creado en Kommo");
       } catch (notaErr) {
-        log.warn({ notaErr }, "No se pudo crear nota de calificación (no crítico)");
+        log.warn({ notaErr }, "No se pudo crear resumen ejecutivo (no crítico)");
       }
     }
 
@@ -1345,10 +1362,20 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     {
       if (lucyChannel === "email") {
         if (talkId) {
-          const enviado = await enviarMensaje(subdomain, accessToken, talkId, mensajeParaCliente);
+          const emailSubject = buildEmailSubject(extracted, {
+            isFirstInteraction,
+            isClosing: allFieldsFilled && !cierreYaEnviado,
+          });
+          const attach =
+            allFieldsFilled && !cierreYaEnviado ? catalogAttachmentMeta(CATALOG_URL) : null;
+          const enviado = await enviarMensaje(subdomain, accessToken, talkId, mensajeParaCliente, {
+            subject: emailSubject,
+            attachmentUrl: attach?.attachmentUrl,
+            attachmentName: attach?.attachmentName,
+          });
           if (enviado) {
-            log.info({ entityId, talkId }, "Correo enviado via Kommo Talks API ✅");
-            void agregarNota(subdomain, accessToken, entityId, `📧 Lucy (correo): ${mensajeParaCliente.slice(0, 500)}`).catch(
+            log.info({ entityId, talkId, emailSubject }, "Correo enviado via Kommo Talks API ✅");
+            void agregarNota(subdomain, accessToken, entityId, `📧 Lucy (correo): [${emailSubject}]\n${mensajeParaCliente.slice(0, 450)}`).catch(
               (err: unknown) => log.warn({ err, entityId }, "agregarNota correo Lucy: error no crítico")
             );
           } else {
@@ -1396,6 +1423,20 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
           void agregarNota(subdomain, accessToken, entityId, `💬 Lucy: ${mensajeParaCliente}`).catch(
             (err: unknown) => log.warn({ err, entityId }, "agregarNota mensaje Lucy: error no crítico")
           );
+          // Enviar catálogo PDF al cierre (primera vez)
+          if (allFieldsFilled && !cierreYaEnviado) {
+            void sendWhatsAppDocument(whatsappPhone, CATALOG_URL, {
+              caption: "Catálogo Bodasesor 2026",
+              filename: "Catalogo-Menus-Bodasesor-2026.pdf",
+              entityId,
+            }).then((docResult) => {
+              if (docResult.success) {
+                log.info({ entityId }, "Catálogo PDF enviado por WhatsApp ✅");
+              } else {
+                log.warn({ entityId, error: docResult.error }, "No se pudo enviar PDF del catálogo");
+              }
+            });
+          }
         } else {
           log.error(
             { entityId, phone: whatsappPhone, error: sendResult.error },
@@ -1559,15 +1600,46 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     }).catch((dbErr: unknown) => log.warn({ dbErr }, "No se pudo guardar lead score en BD (no crítico)"));
 
     // ══════════════════════════════════════════════════════════════════════
-    // PASO 12: Notificar si lead caliente
+    // PASO 12: Notificar si lead caliente — tarea + tag en Kommo
     // ══════════════════════════════════════════════════════════════════════
-    if (leadScore.shouldNotifyTeam) {
+    if (leadScore.shouldNotifyTeam || leadScore.priority === "hot") {
       log.warn({
         leadId: entityId,
         score: leadScore.total,
         priority: leadScore.priority,
         reasoning: leadScore.reasoning,
-      }, "LEAD CALIENTE — NOTIFICAR AL EQUIPO");
+      }, "LEAD CALIENTE — creando tarea en Kommo");
+
+      const leadHot = await fetchLead(subdomain, accessToken, entityId);
+      if (leadHot && !leadHot.tags.includes("lead_caliente")) {
+        const resumenHot = [
+          extracted.nombre,
+          extracted.tipo_evento,
+          extracted.num_invitados ? `${extracted.num_invitados} pax` : null,
+          extracted.presupuesto ? `$${extracted.presupuesto}` : null,
+        ].filter(Boolean).join(" · ");
+
+        void crearTareaLeadCaliente(subdomain, accessToken, entityId, resumenHot || leadScore.reasoning);
+        void agregarTag(subdomain, accessToken, entityId, ["lead_caliente"], leadHot.tags);
+        void agregarNota(
+          subdomain,
+          accessToken,
+          entityId,
+          buildExecutiveSummaryNota({
+            extracted,
+            crmMergedLines,
+            leadScore: {
+              total: leadScore.total,
+              priority: leadScore.priority,
+              reasoning: leadScore.reasoning,
+            },
+            intent: intentResult,
+            sentiment: sentimentResult,
+            hasObjection: objectionResult.hasObjection,
+            objectionType: objectionResult.type,
+          })
+        );
+      }
     }
 
     // Actualizar contacto vinculado si hay datos
@@ -1581,8 +1653,8 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       }
     }
 
-    // Welcome email — desactivado temporalmente
-    // await maybeFireWelcomeEmail({ subdomain, accessToken, entityId, log });
+    // Correo de bienvenida vía Resend (si RESEND_API_KEY está configurada)
+    void maybeFireWelcomeEmail({ subdomain, accessToken, entityId, log });
 
     // ══════════════════════════════════════════════════════════════════════
     // PASO 15: Tagging y verificación de datos completos
@@ -1616,12 +1688,67 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
           `Contacto: ${extracted.nombre ?? "-"} | Correo: ${extracted.correo ?? "-"}\n` +
           `Ofrece: ${extracted.requerimientos_evento ?? "-"}`
         );
-        log.info({ entityId }, "Embudo: proveedor con datos completos — nota agregada para Alejandro");
+        void crearTareaLead(
+          subdomain,
+          accessToken,
+          {
+            leadId: entityId,
+            texto: `📦 Revisar proveedor: ${extracted.empresa ?? extracted.nombre ?? "Sin nombre"}`,
+            completeTillHours: 48,
+          }
+        );
+        log.info({ entityId }, "Embudo: proveedor con datos completos — nota y tarea para Alejandro");
       }
     } else {
-      // CLIENTE: movimiento a "Humano Trabaja" es SOLO manual (por Alejandro).
-      // Lucy permanece activa y sigue respondiendo al cliente aunque tenga los 8 datos.
-      log.info({ entityId }, "Embudo: cliente — sin movimiento automático de etapa (solo manual)");
+      // CLIENTE: auto-mover a Humano Trabaja cuando Lucy completó datos y envió cierre
+      const datosCliente = {
+        nombre: extracted.nombre,
+        correo: extracted.correo || conversation.clientEmail,
+        tipo_evento: extracted.tipo_evento,
+        fecha_evento: extracted.fecha_horario,
+        num_invitados: extracted.num_invitados,
+        direccion: extracted.direccion_evento,
+        presupuesto: extracted.presupuesto,
+        tipo_contacto: "cliente" as const,
+      };
+
+      if (allFieldsFilled && !cierreYaEnviado && tieneInformacionCompleta(datosCliente)) {
+        const leadParaMover = await fetchLead(subdomain, accessToken, entityId);
+        if (leadParaMover && leadParaMover.status_id !== ETAPA.HUMANO_TRABAJA) {
+          await moverAHumanoTrabaja(
+            subdomain,
+            accessToken,
+            entityId,
+            {
+              nombre: datosCliente.nombre,
+              correo: datosCliente.correo,
+              tipo_evento: datosCliente.tipo_evento,
+              fecha_evento: datosCliente.fecha_evento,
+              num_invitados: datosCliente.num_invitados,
+              direccion: datosCliente.direccion,
+              presupuesto: datosCliente.presupuesto,
+            },
+            leadParaMover.tags
+          );
+
+          void crearTareaCotizacion(
+            subdomain,
+            accessToken,
+            entityId,
+            datosCliente.nombre,
+            datosCliente.tipo_evento,
+            datosCliente.num_invitados
+          );
+
+          if (!leadParaMover.tags.includes("listo_cotizar")) {
+            await agregarTag(subdomain, accessToken, entityId, ["listo_cotizar"], leadParaMover.tags);
+          }
+
+          log.info({ entityId }, "Embudo: cliente calificado — movido a Humano Trabaja + tarea creada");
+        }
+      } else if (!allFieldsFilled) {
+        log.info({ entityId }, "Embudo: cliente — recopilando datos");
+      }
     }
 
   } catch (err) {
