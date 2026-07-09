@@ -133,7 +133,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 19 escenarios de prueba\n");
+  console.log("Lucy — 20 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -723,6 +723,83 @@ async function runAll(): Promise<void> {
         loopReply2.includes("sin problema") ||
         loopReply2.includes("nuestro equipo"),
       loopReply2.slice(0, 200)
+    );
+  });
+
+  await test('20. Nayeli A14766 — "tope de 5,000" y "que propongan opciones" se capturan sin 4 preguntas', () => {
+    assert.equal(
+      parsePresupuestoFromText("Mi tope es de 5,000"),
+      "Hasta $5000 MXN"
+    );
+    assert.ok(detectPresupuestoRefusal("Que me propongan opciones"));
+    assert.equal(
+      parsePresupuestoFromText("Que me propongan opciones"),
+      "Sin definir (cliente indicó que no tiene)"
+    );
+
+    const baseFilled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Nayeli",
+      correo: "naygt_13@hotmail.com",
+      tipo_evento: "primera comunión",
+      requerimientos_evento: "Video y fotografía, libro de fotos",
+      num_invitados: 40,
+      direccion_evento: "Parroquia Santo Domingo de Guzmán, Insurgentes Mixcoac",
+      fecha_horario: "Sin definir (pendiente)",
+    });
+
+    // Turno 1: responde con monto real ("tope") — debe capturarse de inmediato, sin re-preguntar.
+    const filledTurn1 = new Set(baseFilled);
+    const historyAsk1: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: "¿Tienen algún rango de presupuesto en mente para la primera comunión?" },
+    ];
+    const reply1 = runGuards({
+      aiResponse: "¿Tienen idea del presupuesto o prefieren que nuestro equipo les proponga opciones?",
+      extracted,
+      filledSet: filledTurn1,
+      readyForClosing: false,
+      currentMessage: "Mi tope es de 5,000",
+      history: historyAsk1,
+    });
+    assert.ok(!/rango\s+de\s+presupuesto|presupuesto\s+en\s+mente|idea\s+del\s+presupuesto/i.test(reply1), reply1.slice(0, 200));
+    assert.ok(filledTurn1.has("Presupuesto (MXN)"), "debe capturar el tope como presupuesto");
+
+    // Simulación completa del historial real: 2 preguntas ya hechas sin captura previa (peor caso).
+    const historyAfterTwoAsks: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: "¿Tienen algún rango de presupuesto en mente para la primera comunión?" },
+      { role: "user", content: "Mi tope es de 5,000" },
+      { role: "assistant", content: "¿Tienen idea del presupuesto o prefieren que nuestro equipo les proponga opciones?" },
+      { role: "user", content: "Que me propongan opciones" },
+    ];
+    assert.equal(countLucyFieldAsks(historyAfterTwoAsks, "presupuesto"), 2);
+
+    const filledTurn3 = new Set(baseFilled);
+    applyPresupuestoWaiver(filledTurn3, [], ["Que me propongan opciones"], historyAfterTwoAsks);
+    assert.ok(filledTurn3.has("Presupuesto (MXN)"), "tope de 2 preguntas debe forzar auto-waiver");
+
+    const reply3 = runGuards({
+      aiResponse: "¿Tienen algún rango de presupuesto en mente?",
+      extracted,
+      filledSet: new Set(baseFilled),
+      readyForClosing: false,
+      currentMessage: "Mo",
+      history: historyAfterTwoAsks,
+    });
+    assert.ok(
+      !/rango\s+de\s+presupuesto|presupuesto\s+en\s+mente/i.test(reply3),
+      `no debe haber una 3ª pregunta de presupuesto: ${reply3.slice(0, 200)}`
+    );
+    assert.ok(
+      reply3.includes("Perfecto, ya tengo todo") || /nuestro equipo|sin problema/i.test(reply3),
+      reply3.slice(0, 200)
     );
   });
 

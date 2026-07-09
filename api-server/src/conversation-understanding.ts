@@ -592,6 +592,9 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) ||
     /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t) ||
     /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t) ||
+    /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) ||
+    /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) ||
+    /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) ||
     (/\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t))
   );
 }
@@ -689,6 +692,14 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     return `Hasta $${menosDeMatch[1]!.replace(/,/g, "")} MXN`;
   }
 
+  const topeMatch = trimmed.match(
+    /\btope\s+(?:es\s+)?(?:de\s+)?\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos|k)?\b/i
+  );
+  if (topeMatch) {
+    const suffix = topeMatch[2]?.toLowerCase() === "k" ? "k" : "";
+    return `Hasta $${topeMatch[1]!.replace(/,/g, "")}${suffix} MXN`;
+  }
+
   const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
   if (kMatch) {
     const num = parseInt(kMatch[1]!.replace(/[,.]/g, ""), 10);
@@ -703,7 +714,7 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
 
   if (
     /\$/.test(trimmed) ||
-    /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx)\b/i.test(trimmed) ||
+    /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) ||
     /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed)
   ) {
     const amountMatch = trimmed.match(/\$?\s*([\d][\d,.]*)/);
