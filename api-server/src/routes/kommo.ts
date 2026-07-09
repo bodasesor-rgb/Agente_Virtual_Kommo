@@ -68,7 +68,7 @@ import {
   limpiarCampoRespuesta,
   ETAPA,
 } from "../services/embudo.js";
-import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/chatIngest.js";
+import { recordInboundClientMessage, setLearningPhase } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { classifyInboundMessage } from "../services/messageClassifier.js";
@@ -79,6 +79,7 @@ import { crearTareaLeadCaliente, crearTareaCotizacion, crearTareaLead } from "..
 import { buildExecutiveSummaryNota } from "../services/kommoExecutive.js";
 import { buildEmailSubject, catalogAttachmentMeta } from "../services/kommoEmailSender.js";
 import { sendWelcomeEmail } from "../send-welcome-email.js";
+import { externalFollowupBotEnabled } from "../services/followupBotConfig.js";
 
 const router: IRouter = Router();
 
@@ -959,6 +960,23 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     const leadKommo = await fetchLead(subdomain, accessToken, entityId);
 
+    // Siempre registrar mensaje del cliente (lectura/aprendizaje) aunque Lucy no responda
+    void recordInboundClientMessage({
+      kommoLeadId: String(entityId),
+      chatId,
+      talkId,
+      text: combinedUserText,
+      subdomain,
+      accessToken,
+      source: "webhook_ingest",
+      learningPhase:
+        leadKommo?.status_id === ETAPA.HUMANO_TRABAJA
+          ? "human_active"
+          : leadKommo?.status_id === ETAPA.COTIZACION_REALIZADA
+            ? "post_quote"
+            : "lucy_active",
+    }).catch((err: unknown) => log.warn({ err, entityId }, "Ingest entrante falló"));
+
     if (leadKommo) {
       // FIX: Si está en No Contesta y responde → recuperar ANTES del check de tag
       // (moverAHumanoTrabaja agrega lucy_desactivada; sin recuperar primero, el lead
@@ -979,17 +997,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         if (!debeResponder) {
           log.info(
             { entityId, statusId: leadKommo.status_id, tags: leadKommo.tags },
-            "Embudo: Lucy desactivada — capturando mensaje para aprendizaje"
-          );
-          void captureInboundWhileLucyInactive({
-            kommoLeadId: String(entityId),
-            chatId,
-            talkId,
-            text: combinedUserText,
-            subdomain,
-            accessToken,
-          }).catch((err: unknown) =>
-            log.warn({ err, entityId }, "Captura en fase humana falló")
+            "Embudo: Lucy no escribe — mensaje ya capturado para lectura/aprendizaje"
           );
           return;
         }
@@ -2205,7 +2213,7 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
     }
   }
 
-  // Si Alejandro movió a "Cotización Realizada" → programar seguimiento 22h
+  // Si Alejandro movió a "Cotización Realizada" → sync aprendizaje (seguimiento 22h: bot externo)
   if (newStatusId === ETAPA.COTIZACION_REALIZADA) {
     const subdomain = process.env["KOMMO_SUBDOMAIN"]?.trim().replace(/\s+/g, "").toLowerCase() ?? "";
     const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
@@ -2214,7 +2222,7 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
       const lead = await fetchLead(subdomain, accessToken, leadId);
       const chatId = lead?.chatId ?? null;
 
-      if (chatId) {
+      if (!externalFollowupBotEnabled() && chatId) {
         await programarSeguimiento(
           leadId,
           chatId,
@@ -2222,16 +2230,19 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
           lead?.tipo_evento ?? null,
           lead?.fecha_evento ?? null
         );
-        await setLearningPhase(leadId, "post_quote");
-        void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: true }).catch((err) =>
-          log.warn({ err, leadId }, "Pipeline-change: extracción aprendizaje falló")
-        );
-        log.info({ leadId }, "Pipeline-change: seguimiento 22h + extracción aprendizaje");
-      } else {
-        log.warn({ leadId }, "Pipeline-change: no se encontró chatId para programar seguimiento");
       }
+
+      await setLearningPhase(leadId, "post_quote");
+      void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: true }).catch((err) =>
+        log.warn({ err, leadId }, "Pipeline-change: extracción aprendizaje falló")
+      );
+      log.info(
+        { leadId, externalBot: externalFollowupBotEnabled() },
+        "Pipeline-change: fase post-cotización — sync aprendizaje" +
+          (externalFollowupBotEnabled() ? " (seguimiento 22h: bot Kommo)" : " + seguimiento Lucy 22h")
+      );
     } catch (err) {
-      log.error({ err, leadId }, "Pipeline-change: error programando seguimiento");
+      log.error({ err, leadId }, "Pipeline-change: error en Cotización Realizada");
     }
   }
 

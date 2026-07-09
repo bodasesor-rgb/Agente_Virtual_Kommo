@@ -78793,6 +78793,17 @@ var init_whatsappWindow = __esm({
   }
 });
 
+// src/services/followupBotConfig.ts
+function externalFollowupBotEnabled() {
+  const raw = process.env["KOMMO_EXTERNAL_FOLLOWUP_BOT"]?.trim().toLowerCase();
+  if (raw === "0" || raw === "false" || raw === "no") return false;
+  return true;
+}
+var init_followupBotConfig = __esm({
+  "src/services/followupBotConfig.ts"() {
+  }
+});
+
 // src/services/kommoTasks.ts
 function kommoHeaders(accessToken) {
   return { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
@@ -79156,6 +79167,7 @@ Si ya no necesitas el servicio no hay problema, solo av\xEDsame.`;
   logger.info({ leadId, result }, "Embudo: lead movido a No Contesta");
 }
 async function programarSecuenciaNoContesta(leadId, talkId, nombre, tipoEvento) {
+  if (externalFollowupBotEnabled()) return;
   const quien = nombre?.trim() ? ` ${nombre.trim()}` : "";
   const evento = tipoEvento?.trim() || "evento";
   const secuencia = [
@@ -79204,6 +79216,10 @@ async function recuperarDeNoContesta(subdomain, accessToken, leadId, datos, tags
   );
 }
 async function programarSeguimiento(leadId, chatId, nombre, tipoEvento, fechaEvento) {
+  if (externalFollowupBotEnabled()) {
+    logger.info({ leadId }, "Embudo: seguimiento 22h omitido \u2014 bot externo de Kommo activo");
+    return;
+  }
   const scheduledFor = new Date(Date.now() + MS_SEGUIMIENTO);
   const mensaje = `Hola ${nombre ?? ""}! Soy Lucy, agente virtual de Bodasesor.
 
@@ -79226,6 +79242,10 @@ Estoy aqu\xED para ayudarte.`;
   }
 }
 async function procesarSeguimientosPendientes(subdomain, accessToken) {
+  if (externalFollowupBotEnabled()) {
+    logger.info("Embudo: cron seguimientos omitido \u2014 bot externo de Kommo activo");
+    return;
+  }
   let pendientes;
   try {
     pendientes = await db.query.followUpEvents.findMany({
@@ -79340,6 +79360,10 @@ Estoy aqu\xED para ayudarte.` : `Hola${nombre}! Soy Lucy, agente virtual de Boda
   return { ok: true, mensaje: result.sent ? mensaje : void 0 };
 }
 async function verificarVentanas24h(subdomain, accessToken) {
+  if (externalFollowupBotEnabled()) {
+    logger.info("Embudo: renovaci\xF3n ventana 24h omitida \u2014 bot externo de Kommo activo");
+    return;
+  }
   let convs;
   try {
     convs = await db.query.conversations.findMany({
@@ -79394,6 +79418,10 @@ async function verificarVentanas24h(subdomain, accessToken) {
   }
 }
 async function verificarLeadsInactivos(subdomain, accessToken) {
+  if (externalFollowupBotEnabled()) {
+    logger.info("Embudo: cron inactividad 5h omitido \u2014 bot externo de Kommo activo");
+    return;
+  }
   const umbral = new Date(Date.now() - MS_INACTIVIDAD);
   let convInactivas;
   try {
@@ -79441,6 +79469,7 @@ var init_embudo = __esm({
     init_drizzle_orm();
     init_logger3();
     init_whatsappWindow();
+    init_followupBotConfig();
     ETAPA = {
       LEADS_ENTRANTES: 72336719,
       DATOS_E_INTERESES: 80344783,
@@ -79581,14 +79610,15 @@ async function persistChatMessage(input) {
     return false;
   }
 }
-async function captureInboundWhileLucyInactive(input) {
+async function recordInboundClientMessage(input) {
   await ensureLearningSchema();
   const leadId = String(input.kommoLeadId);
+  const now = /* @__PURE__ */ new Date();
   await persistChatMessage({
     kommoLeadId: leadId,
     content: input.text,
     authorType: "client",
-    source: "webhook_inactive"
+    source: input.source ?? "webhook_ingest"
   });
   let conv = await db.query.conversations.findFirst({
     where: eq2(conversations.kommoLeadId, leadId)
@@ -79598,19 +79628,21 @@ async function captureInboundWhileLucyInactive(input) {
       kommoLeadId: leadId,
       kommoChatId: input.chatId,
       kommoTalkId: input.talkId ?? void 0,
-      learningPhase: "human_active",
+      learningPhase: input.learningPhase ?? "lucy_active",
       status: "active",
-      stage: "humano_trabaja",
+      stage: input.learningPhase === "human_active" ? "humano_trabaja" : "discovery",
       messageCount: 1,
-      updatedAt: /* @__PURE__ */ new Date()
+      lastClientMessageAt: now,
+      updatedAt: now
     }).returning();
     conv = created;
   } else {
     await db.update(conversations).set({
       kommoChatId: input.chatId,
       kommoTalkId: input.talkId ?? conv.kommoTalkId,
-      learningPhase: conv.learningPhase ?? "human_active",
-      updatedAt: /* @__PURE__ */ new Date()
+      learningPhase: input.learningPhase ?? conv.learningPhase ?? "lucy_active",
+      lastClientMessageAt: now,
+      updatedAt: now
     }).where(eq2(conversations.id, conv.id));
   }
   if (input.talkId && input.subdomain && input.accessToken) {
@@ -95058,6 +95090,7 @@ async function sendWelcomeEmail(data) {
 }
 
 // src/routes/kommo.ts
+init_followupBotConfig();
 var router3 = (0, import_express3.Router)();
 var openai3 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var FIELD = {
@@ -95603,6 +95636,16 @@ async function processBatch(batch, accessToken, log) {
   );
   try {
     const leadKommo = await fetchLead(subdomain, accessToken, entityId);
+    void recordInboundClientMessage({
+      kommoLeadId: String(entityId),
+      chatId,
+      talkId,
+      text: combinedUserText,
+      subdomain,
+      accessToken,
+      source: "webhook_ingest",
+      learningPhase: leadKommo?.status_id === ETAPA.HUMANO_TRABAJA ? "human_active" : leadKommo?.status_id === ETAPA.COTIZACION_REALIZADA ? "post_quote" : "lucy_active"
+    }).catch((err2) => log.warn({ err: err2, entityId }, "Ingest entrante fall\xF3"));
     if (leadKommo) {
       if (leadKommo.status_id === ETAPA.NO_CONTESTA) {
         log.info({ entityId }, "Embudo: lead en No Contesta respondi\xF3 \u2014 recuperando");
@@ -95618,17 +95661,7 @@ async function processBatch(batch, accessToken, log) {
         if (!debeResponder) {
           log.info(
             { entityId, statusId: leadKommo.status_id, tags: leadKommo.tags },
-            "Embudo: Lucy desactivada \u2014 capturando mensaje para aprendizaje"
-          );
-          void captureInboundWhileLucyInactive({
-            kommoLeadId: String(entityId),
-            chatId,
-            talkId,
-            text: combinedUserText,
-            subdomain,
-            accessToken
-          }).catch(
-            (err2) => log.warn({ err: err2, entityId }, "Captura en fase humana fall\xF3")
+            "Embudo: Lucy no escribe \u2014 mensaje ya capturado para lectura/aprendizaje"
           );
           return;
         }
@@ -96528,7 +96561,7 @@ router3.post("/kommo/pipeline-change", async (req, res) => {
     try {
       const lead = await fetchLead(subdomain, accessToken, leadId);
       const chatId = lead?.chatId ?? null;
-      if (chatId) {
+      if (!externalFollowupBotEnabled() && chatId) {
         await programarSeguimiento(
           leadId,
           chatId,
@@ -96536,16 +96569,17 @@ router3.post("/kommo/pipeline-change", async (req, res) => {
           lead?.tipo_evento ?? null,
           lead?.fecha_evento ?? null
         );
-        await setLearningPhase(leadId, "post_quote");
-        void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: true }).catch(
-          (err2) => log.warn({ err: err2, leadId }, "Pipeline-change: extracci\xF3n aprendizaje fall\xF3")
-        );
-        log.info({ leadId }, "Pipeline-change: seguimiento 22h + extracci\xF3n aprendizaje");
-      } else {
-        log.warn({ leadId }, "Pipeline-change: no se encontr\xF3 chatId para programar seguimiento");
       }
+      await setLearningPhase(leadId, "post_quote");
+      void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: true }).catch(
+        (err2) => log.warn({ err: err2, leadId }, "Pipeline-change: extracci\xF3n aprendizaje fall\xF3")
+      );
+      log.info(
+        { leadId, externalBot: externalFollowupBotEnabled() },
+        "Pipeline-change: fase post-cotizaci\xF3n \u2014 sync aprendizaje" + (externalFollowupBotEnabled() ? " (seguimiento 22h: bot Kommo)" : " + seguimiento Lucy 22h")
+      );
     } catch (err2) {
-      log.error({ err: err2, leadId }, "Pipeline-change: error programando seguimiento");
+      log.error({ err: err2, leadId }, "Pipeline-change: error en Cotizaci\xF3n Realizada");
     }
   }
   res.json({ ok: true });

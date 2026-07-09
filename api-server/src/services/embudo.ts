@@ -7,6 +7,7 @@ import { db, followUpEvents, conversations } from "@workspace/db";
 import { eq, lte, and, or, isNull } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 import { getClientActivityTime, shouldRenewWhatsAppWindow } from "./whatsappWindow.js";
+import { externalFollowupBotEnabled } from "./followupBotConfig.js";
 
 // ─── IDs de etapas del pipeline ───────────────────────────────────────────────
 export const ETAPA = {
@@ -422,6 +423,7 @@ export async function programarSecuenciaNoContesta(
   nombre: string | null,
   tipoEvento: string | null
 ): Promise<void> {
+  if (externalFollowupBotEnabled()) return;
   const quien = nombre?.trim() ? ` ${nombre.trim()}` : "";
   const evento = tipoEvento?.trim() || "evento";
 
@@ -491,6 +493,10 @@ export async function programarSeguimiento(
   tipoEvento: string | null,
   fechaEvento: string | null
 ): Promise<void> {
+  if (externalFollowupBotEnabled()) {
+    logger.info({ leadId }, "Embudo: seguimiento 22h omitido — bot externo de Kommo activo");
+    return;
+  }
   const scheduledFor = new Date(Date.now() + MS_SEGUIMIENTO);
 
   const mensaje = `Hola ${nombre ?? ""}! Soy Lucy, agente virtual de Bodasesor.
@@ -523,6 +529,10 @@ export async function procesarSeguimientosPendientes(
   subdomain: string,
   accessToken: string
 ): Promise<void> {
+  if (externalFollowupBotEnabled()) {
+    logger.info("Embudo: cron seguimientos omitido — bot externo de Kommo activo");
+    return;
+  }
   let pendientes;
   try {
     pendientes = await db.query.followUpEvents.findMany({
@@ -681,6 +691,10 @@ export async function verificarVentanas24h(
   subdomain: string,
   accessToken: string
 ): Promise<void> {
+  if (externalFollowupBotEnabled()) {
+    logger.info("Embudo: renovación ventana 24h omitida — bot externo de Kommo activo");
+    return;
+  }
   let convs;
   try {
     convs = await db.query.conversations.findMany({
@@ -752,6 +766,10 @@ export async function verificarLeadsInactivos(
   subdomain: string,
   accessToken: string
 ): Promise<void> {
+  if (externalFollowupBotEnabled()) {
+    logger.info("Embudo: cron inactividad 5h omitido — bot externo de Kommo activo");
+    return;
+  }
   const umbral = new Date(Date.now() - MS_INACTIVIDAD);
 
   let convInactivas;
