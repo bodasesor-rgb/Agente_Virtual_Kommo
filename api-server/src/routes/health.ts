@@ -38,10 +38,8 @@ router.get("/health", (_req, res) => {
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
     lucy_outbound: {
-      mode: process.env["LUCY_META_WHATSAPP_FALLBACK"]?.trim().toLowerCase() === "true" ||
-        process.env["LUCY_META_WHATSAPP_FALLBACK"] === "1"
-        ? "talks_then_meta"
-        : "talks_only",
+      mode: "meta_plus_note",
+      note: "Meta API envía al cliente; nota en timeline del lead para el equipo",
     },
     catalog: getCatalogStatus(),
   });
