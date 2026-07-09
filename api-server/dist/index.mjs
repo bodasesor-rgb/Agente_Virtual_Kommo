@@ -79318,12 +79318,12 @@ REGLA CR\xCDTICA DE PRESENTACI\xD3N \u2014 PRIMER MENSAJE
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
 En el PRIMER mensaje del cliente, SIEMPRE usa esta estructura \u2014 SIN EXCEPCI\xD3N:
-1. Saludo + presentaci\xF3n OBLIGATORIA: "Hola, soy Lucy de Bodasesor."
+1. Saludo + presentaci\xF3n OBLIGATORIA: "Hola, soy Lucy, agente virtual de Bodasesor."
 2. Reconoce BREVEMENTE lo que el cliente mencion\xF3 (si mencion\xF3 algo).
 3. Pide el nombre como PRIMER dato (ej: "\xBFMe regalas tu nombre?", "\xBFCon qui\xE9n tengo el gusto?")
 
 REGLA ABSOLUTA: Nunca pidas correo, tipo de evento, invitados, zona, fecha ni presupuesto ANTES del nombre.
-La presentaci\xF3n "Hola, soy Lucy de Bodasesor." solo va en el PRIMER mensaje de Lucy, nunca despu\xE9s.
+La presentaci\xF3n "Hola, soy Lucy, agente virtual de Bodasesor." solo va en el PRIMER mensaje de Lucy, nunca despu\xE9s.
 
 RECONOCIMIENTO DE DATOS EN EL PRIMER MENSAJE \u2014 CR\xCDTICO:
 Si el cliente menciona zona, fecha, tipo de evento, servicios o n\xFAmero de invitados en su
@@ -79332,29 +79332,29 @@ primer mensaje, Lucy los RECONOCE en la presentaci\xF3n y NO los vuelve a pregun
 EJEMPLOS OBLIGATORIOS:
 
 Cliente: "Hola"
-Lucy: "Hola, soy Lucy de Bodasesor. Estoy aqu\xED para ayudarte con lo que necesites para tu evento. \xBFMe regalas tu nombre?"
+Lucy: "Hola, soy Lucy, agente virtual de Bodasesor. Estoy aqu\xED para ayudarte con lo que necesites para tu evento. \xBFMe regalas tu nombre?"
 
 Cliente: "\xBFCu\xE1nto cuesta el banquete?"
-Lucy: "Hola, soy Lucy de Bodasesor. Con gusto te ayudo con informaci\xF3n de banquetes. \xBFMe regalas tu nombre?"
+Lucy: "Hola, soy Lucy, agente virtual de Bodasesor. Con gusto te ayudo con informaci\xF3n de banquetes. \xBFMe regalas tu nombre?"
 
 Cliente: "quiero cotizar para mi baby shower"
-Lucy: "Hola, soy Lucy de Bodasesor. Claro que te ayudamos con tu baby shower. \xBFMe regalas tu nombre?"
+Lucy: "Hola, soy Lucy, agente virtual de Bodasesor. Claro que te ayudamos con tu baby shower. \xBFMe regalas tu nombre?"
 \u2192 Lucy YA TIENE: tipo_evento=baby shower. NO lo vuelve a preguntar.
 
 Cliente: "necesito banquete para 200 personas"
-Lucy: "Hola, soy Lucy de Bodasesor. Te ayudo con el banquete para 200 personas. \xBFMe regalas tu nombre?"
+Lucy: "Hola, soy Lucy, agente virtual de Bodasesor. Te ayudo con el banquete para 200 personas. \xBFMe regalas tu nombre?"
 \u2192 Lucy YA TIENE: requerimientos=banquete, invitados=200.
 
 Cliente: "hola, necesito taquiza para 80 personas el 15 de junio en polanco"
-Lucy: "Hola, soy Lucy de Bodasesor. Taquiza para 80 en Polanco el 15 de junio, anotado. \xBFMe regalas tu nombre?"
+Lucy: "Hola, soy Lucy, agente virtual de Bodasesor. Taquiza para 80 en Polanco el 15 de junio, anotado. \xBFMe regalas tu nombre?"
 \u2192 Lucy YA TIENE: requerimientos=taquiza, invitados=80, fecha=15 junio, zona=Polanco.
 \u2192 Solo faltan: nombre. Correo: intentar, no obligatorio.
 
 Cliente: "Tienen banquete kosher?"
-Lucy: "Hola, soy Lucy de Bodasesor. S\xED tenemos opciones kosher. \xBFMe regalas tu nombre?"
+Lucy: "Hola, soy Lucy, agente virtual de Bodasesor. S\xED tenemos opciones kosher. \xBFMe regalas tu nombre?"
 
 Cliente: "Quiero cotizar para mi boda el 15 de junio para 200 personas"
-Lucy: "Hola, soy Lucy de Bodasesor. Te ayudo con la cotizaci\xF3n para tu boda. \xBFMe regalas tu nombre?"
+Lucy: "Hola, soy Lucy, agente virtual de Bodasesor. Te ayudo con la cotizaci\xF3n para tu boda. \xBFMe regalas tu nombre?"
 \u2192 Lucy YA TIENE: tipo_evento=boda, fecha=15 junio, invitados=200.
 
 DATOS QUE LUCY PUEDE EXTRAER DEL PRIMER MENSAJE:
@@ -79499,7 +79499,7 @@ RECONOCER CONTEXTO \u2014 EJEMPLOS OBLIGATORIOS:
 
 \u2500\u2500 CASO B (cliente no menciona servicios): \u2500\u2500
 Cliente: "quiero cotizar"
-Lucy: "Hola, soy Lucy de Bodasesor. Claro que te ayudo. \xBFMe regalas tu nombre?"
+Lucy: "Hola, soy Lucy, agente virtual de Bodasesor. Claro que te ayudo. \xBFMe regalas tu nombre?"
 Cliente: "Primi"
 Lucy: "Mucho gusto, Primi. \xBFA qu\xE9 correo te env\xEDo la info para que Alejandro te arme la propuesta?"
 Cliente: "prefiero por aqu\xED"
@@ -79522,7 +79522,7 @@ Lucy: [mensaje de cierre]
 \u2500\u2500 CASO A (cliente ya menciona un servicio concreto): \u2500\u2500
 Cliente: "quiero banquete en Puebla para el 20 de mayo"
 \u2192 Lucy YA TIENE: requerimientos=banquete, zona=Puebla, fecha=20 mayo
-Lucy: "Hola, soy Lucy de Bodasesor. Banquete en Puebla para el 20 de mayo, anotado. \xBFMe regalas tu nombre?"
+Lucy: "Hola, soy Lucy, agente virtual de Bodasesor. Banquete en Puebla para el 20 de mayo, anotado. \xBFMe regalas tu nombre?"
 Cliente: "Pelene"
 Lucy: "Mucho gusto, Pelene. \xBFA qu\xE9 correo te env\xEDo la info?"
 Cliente: "bod@gmail.com"
@@ -80161,7 +80161,7 @@ Direcci\xF3n: 5646710585"
 REGLAS FINALES
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
-1. Primer mensaje: SIEMPRE "Hola, soy Lucy de Bodasesor." + pedir nombre primero
+1. Primer mensaje: SIEMPRE "Hola, soy Lucy, agente virtual de Bodasesor." + pedir nombre primero
 2. Una pregunta por mensaje (despu\xE9s del nombre)
 3. Responder preguntas del cat\xE1logo con precisi\xF3n antes de continuar el flujo
 4. SIN emojis NUNCA
@@ -80411,7 +80411,7 @@ function clientAddsToQuote(message) {
 function clientAsksForRecommendations(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /recomendaciones?|recomiendas?/i.test(t) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
+  return /recomendaciones?|recomiendas?/i.test(t) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
 }
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
@@ -80529,6 +80529,11 @@ function parseInvitadosFromText(text2) {
   const trimmed = text2.trim();
   if (!trimmed) return null;
   if (isServiceRelatedMessage(trimmed)) return null;
+  if (/\b(no\s+s[eé]|a[uú]n\s+no|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
+    trimmed
+  )) {
+    return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
+  }
   const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?)\b/i);
   if (numMatch) return numMatch[1];
   const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como)\s+(\d+)\b/i);
@@ -80801,7 +80806,8 @@ var CLOSING_CORE_FIELDS = [
   "Fecha y horario",
   "Presupuesto (MXN)"
 ];
-var LUCY_INTRO = "Hola, soy Lucy de Bodasesor.";
+var LUCY_INTRO = "Hola, soy Lucy, agente virtual de Bodasesor.";
+var TIPO_EVENTO_HINT = "Manejamos bodas, XV a\xF1os, baby showers, cumplea\xF1os, eventos corporativos, bautizos y celebraciones familiares.";
 var SERVICIOS_CATALOGO_HINT = "Manejamos alimentos y barras (banquetes, taquizas, barras tem\xE1ticas), mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces y m\xE1s.";
 var SERVICIOS_CATALOGO_HINT_ADICIONAL = "Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.";
 function mensajeMencionaCatalogoServicios(mensaje) {
@@ -80838,7 +80844,7 @@ var QUESTION_VARIANTS = {
   invitados: [
     "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?",
     "\xBFCu\xE1ntos invitados tienen contemplados?",
-    "\xBFPara cu\xE1ntas personas lo est\xE1n planeando?"
+    "\xBFTienen un estimado de invitados? Si a\xFAn no lo saben, sin problema \u2014 pueden darme un rango aproximado."
   ],
   zona: [
     "\xBFD\xF3nde lo est\xE1n planeando?",
@@ -80902,7 +80908,7 @@ function getDisplayName(extracted, whatsappName) {
   return resolveClientDisplayName(extracted.nombre, null, whatsappName);
 }
 function lucyHasPresented(history) {
-  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").some((m4) => /hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(m4.content));
+  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").some((m4) => /hola,?\s*soy\s+lucy/i.test(m4.content));
 }
 function conversationAlreadyStarted(filledSet, history) {
   if (history.some((m4) => m4.role === "assistant")) return true;
@@ -80915,7 +80921,7 @@ function presentationHistoryFrom(ctx) {
 }
 function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
   if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
-  return mensaje.replace(/Hola,?\s*soy\s+Lucy\s+de\s+Bodasesor\.?\s*/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo\.?\s*/gi, "").replace(/^\s+/, "").trim();
+  return mensaje.replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo\.?\s*/gi, "").replace(/^\s+/, "").trim();
 }
 function variantIndex(field, history, entityId) {
   const variants = QUESTION_VARIANTS[field];
@@ -80985,7 +80991,7 @@ function getNextPendingField(extracted, filledSet) {
   if (!isEmailSatisfied(filled)) return "correo";
   const hasReq = filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
   const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
-  if (!hasTipoEvento(filled, extracted) && !(hasReq && hasInv)) return "tipo_evento";
+  if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
   if (!hasReq) return "requerimientos";
   if (!hasInv) return "invitados";
   if (!filled.has("Lugar/direcci\xF3n del evento")) return "zona";
@@ -81077,7 +81083,7 @@ function buildFirstInteractionMessage(ctx, withIntro = true) {
   return `${intro}${ack} ${nameQ}`.trim();
 }
 function usesLegacyLucyIntro(mensaje) {
-  return /te\s+saluda\s+lucy|agente\s+virtual\s+de\s+bodasesor/i.test(mensaje);
+  return /te\s+saluda\s+lucy/i.test(mensaje);
 }
 function isLegacyStoredLucyResponse(text2) {
   return typeof text2 === "string" && text2.trim().length > 0 && usesLegacyLucyIntro(text2);
@@ -81150,17 +81156,21 @@ function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return true;
   if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
-  if (clientAskedFreeformQuestion(currentMessage) && trimmed.length > 25) {
-    return trimmed.includes("?") || !pending;
+  if (clientAskedFreeformQuestion(currentMessage) && trimmed.length > 20) {
+    return true;
   }
   return false;
 }
 function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return mensaje;
-  const nextQ = buildNaturalQuestion(pending, ctx);
   const base = mensaje.trim();
-  if (!base) return nextQ;
+  if (!base) return buildNaturalQuestion(pending, ctx);
+  if (clientAskedFreeformQuestion(ctx.currentMessage) && base.length > 50) {
+    if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return base;
+    if (!mensajeAsksForField(base, pending)) return base;
+  }
+  const nextQ = buildNaturalQuestion(pending, ctx);
   if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return mensaje;
   return `${base}
 
@@ -81194,9 +81204,13 @@ function buildNaturalQuestion(field, ctx) {
   if (field === "requerimientos") {
     return buildRequerimientosQuestion(ctx.extracted, history, ctx.currentMessage, ctx.entityId);
   }
-  if (field === "tipo_evento" && ctx.afterEmail) {
+  if (field === "tipo_evento") {
     const tipoVariant = pickVariant("tipo_evento", history, ctx.entityId);
-    return prefix ? `${prefix}${tipoVariant}` : tipoVariant;
+    const withHint = `${tipoVariant} ${TIPO_EVENTO_HINT}`.trim();
+    if (ctx.afterEmail) {
+      return nombre ? `Muchas gracias. ${withHint}` : `Muchas gracias. ${withHint}`;
+    }
+    return prefix ? `${prefix}${withHint}` : withHint;
   }
   return prefix ? `${prefix}${variant}` : variant;
 }
@@ -81303,13 +81317,16 @@ function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
 }
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
-  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage);
+  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
 }
 function clientAskedFreeformQuestion(message) {
   if (!message?.trim()) return false;
+  const t = message.toLowerCase();
   if (/\?/.test(message)) return true;
   return /cu[aá]nto|precio|costo|cat[aá]logo|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@/i.test(
     message
+  ) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+servicios|cu[aá]les\s+son|informaci[oó]n|recomiendas?|sugieres|ayudas?\s+con|pueden\s+hacer/i.test(
+    t
   );
 }
 function responseLooksLikePrematureClose(mensaje) {
@@ -81379,8 +81396,12 @@ function applyLucyMessageGuards(input) {
     mensaje = advisor === "nuestro equipo" ? "S\xED, nuestro equipo de Bodasesor arma las cotizaciones personalizadas. Yo te ayudo a recopilar la informaci\xF3n y ellos te env\xEDan la propuesta." : `${advisor} es parte del equipo de Bodasesor; arma las cotizaciones personalizadas con base en lo que platicamos. Yo te ayudo a recopilar los datos y te env\xEDan la propuesta.`;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por el asesor/equipo");
   } else if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
-    mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
-    log?.info({ entityId }, "GUARD: correo capturado \u2014 pregunta tipo de evento");
+    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+      mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, { ...ctx, afterEmail: true });
+    } else {
+      mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
+    }
+    log?.info({ entityId }, "GUARD: correo capturado \u2014 tipo de evento con opciones");
   } else if (justGaveEmail && hasTipoEvento(filledSet, extracted)) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     mensaje = nextQ ?? aiResponse;
@@ -81515,7 +81536,7 @@ ${nextQ}`;
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
   const presHistory = input.presentationHistory ?? history;
   const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory);
-  if (isOpeningTurn && !/hola,?\s*soy\s+lucy\s+de\s+bodasesor/i.test(mensaje)) {
+  if (isOpeningTurn && !/hola,?\s*soy\s+lucy/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: presentaci\xF3n Lucy a\xF1adida al primer mensaje");
   }
@@ -81533,7 +81554,7 @@ ${nextQ}`;
     }
   }
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
-  if (!mensaje.includes("?") && !trulyReadyForClosing) {
+  if (!mensaje.includes("?") && !trulyReadyForClosing && !clientAskedFreeformQuestion(currentMessage)) {
     const pendingAfter = getNextPendingField(extracted, filledSet);
     if (pendingAfter) {
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
@@ -82060,7 +82081,7 @@ function buildDynamicPrompt(context) {
 PRIMERA INTERACCION \u2014 OBLIGATORIO
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
-1. SIEMPRE empieza con: "Hola, soy Lucy de Bodasesor."
+1. SIEMPRE empieza con: "Hola, soy Lucy, agente virtual de Bodasesor."
 2. Reconoce brevemente lo que el cliente mencion\xF3 (si aplica).
 3. SIEMPRE pide el nombre como primer dato en el primer mensaje de Lucy.
 4. Si el cliente escribe su nombre, usa ese. Si NUNCA lo escribe, puedes usar el de WhatsApp solo despu\xE9s de haberlo preguntado (no saltes el paso).
@@ -88943,7 +88964,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
     salesbotFilledLabels = crmResultFinal.filledLabels;
     const catalogBlock = await getCatalogPromptBlock();
     const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
-    const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
+    const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy, agente virtual de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
     const trainingExamples2 = await getTrainingExamples();
     const fewShot = trainingExamples2.flatMap((ex) => [
       { role: "user", content: ex.userMessage },
@@ -89299,7 +89320,7 @@ router3.post("/kommo/simulator", async (req, res) => {
     ]);
     const catalogBlock = await getCatalogPromptBlock();
     const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
-    const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
+    const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy, agente virtual de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
     const lucyMessages = [
       { role: "system", content: systemContent },
       ...fewShot,

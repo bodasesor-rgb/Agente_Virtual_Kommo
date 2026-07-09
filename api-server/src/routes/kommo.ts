@@ -1788,7 +1788,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     const systemContent = isFirstInteraction
       ? basePrompt +
         crmContext +
-        "\n\nPRIMER MENSAJE: SIEMPRE \"Hola, soy Lucy de Bodasesor.\" + reconocer tema + pedir nombre primero."
+        "\n\nPRIMER MENSAJE: SIEMPRE \"Hola, soy Lucy, agente virtual de Bodasesor.\" + reconocer tema + pedir nombre primero."
       : basePrompt + crmContext;
 
     const trainingExamples = await getTrainingExamples();
@@ -2269,7 +2269,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const systemContent = isFirstInteraction
       ? basePrompt +
         crmContext +
-        "\n\nPRIMER MENSAJE: SIEMPRE \"Hola, soy Lucy de Bodasesor.\" + reconocer tema + pedir nombre primero."
+        "\n\nPRIMER MENSAJE: SIEMPRE \"Hola, soy Lucy, agente virtual de Bodasesor.\" + reconocer tema + pedir nombre primero."
       : basePrompt + crmContext;
 
     const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
