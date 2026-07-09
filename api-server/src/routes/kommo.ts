@@ -10,6 +10,8 @@ import {
   applyLucyMessageGuards,
   applyPresupuestoWaiver,
   applyWhatsappNombreFallback,
+  buildPostCierreThanksReply,
+  clientSaysThanks,
   CLOSING_CORE_FIELDS,
   collectUserTexts,
   detectEmailRefusal,
@@ -44,6 +46,8 @@ import {
   clientAsksAboutTeam,
   clientAddsToQuote,
   appendPostCierreRequirements,
+  appendSpaceDimensionsToRequerimientos,
+  isDimensionText,
   parsePresupuestoFromText,
   inferLucyAskedField,
   scanConversationForCaptures,
@@ -478,6 +482,24 @@ function purgeRequerimientosIfAskingRecommendations(
   extracted.requerimientos_evento = null;
 }
 
+function purgeDimensionAsUbicacion(
+  mergedLines: string[],
+  filledSet: Set<string>,
+  extracted: ExtractedData
+): void {
+  const idx = mergedLines.findIndex((l) => /^-?\s*Lugar\/dirección del evento:/i.test(l));
+  if (idx < 0) return;
+  const value = mergedLines[idx]!
+    .replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "")
+    .trim();
+  if (!isDimensionText(value)) return;
+  mergedLines.splice(idx, 1);
+  filledSet.delete("Lugar/dirección del evento");
+  if (extracted.direccion_evento && isDimensionText(extracted.direccion_evento)) {
+    extracted.direccion_evento = null;
+  }
+}
+
 function buildCrmContext(
   crmLines: string[],
   extracted: ExtractedData,
@@ -611,6 +633,10 @@ function buildCrmContext(
     mergedLines,
     collectUserTexts(historyFull, currentMessage)
   );
+
+  purgeDimensionAsUbicacion(mergedLines, filledSet, extracted);
+
+  appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, historyFull, currentMessage);
 
   purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extracted, currentMessage);
 
@@ -1284,6 +1310,14 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
     }
 
+    if (!mensajeParaCliente.trim()) {
+      mensajeParaCliente =
+        cierreYaEnviado && clientSaysThanks(combinedUserText)
+          ? buildPostCierreThanksReply(extracted.nombre)
+          : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+      log.warn({ entityId }, "GUARD: mensaje vacío — usando respuesta de respaldo");
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // PASO 8.8: Crear nota en Kommo cuando el lead queda calificado (6 datos)
     // Solo la PRIMERA vez — mismo guard que PASO 8.7 (cierreYaEnviado).
@@ -1901,6 +1935,14 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
     }
 
+    if (!mensajeParaCliente.trim()) {
+      mensajeParaCliente =
+        sbCierreYaEnviado && clientSaysThanks(messageText)
+          ? buildPostCierreThanksReply(extracted.nombre)
+          : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+      log.warn({ entityId }, "Salesbot GUARD: mensaje vacío — usando respuesta de respaldo");
+    }
+
     // Guardar mensaje REAL enviado (no aiResponse) para que cierreYaEnviado funcione.
     appendHistory(histKey, messageText, mensajeParaCliente);
 
@@ -2367,6 +2409,13 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       cierreYaEnviado: simCierreYaEnviado,
     });
     mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
+
+    if (!mensajeParaCliente.trim()) {
+      mensajeParaCliente =
+        simCierreYaEnviado && clientSaysThanks(messageText)
+          ? buildPostCierreThanksReply(extracted.nombre)
+          : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+    }
 
     appendHistory(histKey, messageText, mensajeParaCliente);
 

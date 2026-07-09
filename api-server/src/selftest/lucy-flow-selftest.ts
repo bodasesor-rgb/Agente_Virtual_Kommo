@@ -9,6 +9,10 @@ import {
   parseInvitadosFromText,
   clientMentionsCatering,
   clientMentionsEntertainment,
+  clientMentionsPistaTarima,
+  isDimensionText,
+  parseSpaceDimensions,
+  parseZonaFromText,
   clientAsksPhone,
   clientAsksForRecommendations,
   parsePrimaryService,
@@ -29,6 +33,8 @@ import {
   applyPresupuestoWaiver,
   buildPhoneAnswer,
   buildRecommendationsReply,
+  buildPostCierreThanksReply,
+  clientSaysThanks,
   CLOSING_CORE_FIELDS,
   detectEmailRefusal,
   EMAIL_WAIVED_LABEL,
@@ -122,7 +128,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 10 escenarios de prueba\n");
+  console.log("Lucy — 16 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -438,6 +444,101 @@ async function runAll(): Promise<void> {
       history: [{ role: "assistant", content: "¿Qué servicios te gustaría cotizar?" }],
     });
     assert.ok(/show|animaci|hora\s+loca|entretenimiento|vers[aá]til/i.test(reply), reply.slice(0, 150));
+  });
+
+  await test("14. Fer A14756 — pista/tarima ofrece orientación de venta", () => {
+    assert.ok(clientMentionsPistaTarima("quiero cotizar una pista de baile o tarima"));
+    const filled = new Set<string>();
+    const extracted = emptyExtracted();
+    const reply = runGuards({
+      aiResponse: "¿Me regalas tu nombre?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Hola, me gustaría cotizar una pista de baile o tarima para mi evento",
+      history: [],
+    });
+    assert.ok(/pista|tarima|iluminada|tamaño/i.test(reply), reply.slice(0, 200));
+  });
+
+  await test("15. Fer A14756 — 6m x 12m NO es ubicación", () => {
+    assert.ok(isDimensionText("Son 50 personas. El espacio es de 6 metros por 12"));
+    assert.equal(parseZonaFromText("6 metros por 12"), null);
+    assert.equal(parseSpaceDimensions("El espacio es de 6 metros por 12"), "6m x 12m");
+
+    const filled = new Set<string>(["Nombre del cliente", "Correo electrónico", "Tipo de evento"]);
+    const merged: string[] = [];
+    const caps = [
+      ...captureContextualAnswer(
+        [{ role: "assistant", content: "¿Más o menos para cuántas personas sería?" }],
+        "Son 50 personas. El espacio es de 6 metros por 12",
+        filled
+      ),
+      ...scanConversationForCaptures(
+        [{ role: "user", content: "Hola, quiero cotizar una pista de baile o tarima" }],
+        "Son 50 personas. El espacio es de 6 metros por 12",
+        filled
+      ),
+    ];
+    applyCapturesToCrm(merged, filled, caps);
+    assert.ok(merged.some((l) => /invitados.*50/i.test(l)));
+    assert.ok(!merged.some((l) => /Lugar\/dirección/i.test(l)));
+    assert.ok(
+      merged.some((l) => /Requerimientos.*6m x 12m|espacio 6m/i.test(l)) ||
+        caps.some((c) => /6m x 12m|espacio/i.test(c.value))
+    );
+  });
+
+  await test('16. Fer A14756 — presupuesto económico y "gracias" post-cierre', () => {
+    assert.equal(parsePresupuestoFromText("Lo más económico posible"), "Opciones económicas (sin monto fijo)");
+    assert.ok(detectPresupuestoRefusal("No tengo rango ee comparación"));
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Fecha y horario",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Fer",
+      correo: "ferramlun2206@gmail.com",
+      tipo_evento: "cumpleaños",
+      requerimientos_evento: "Pista de baile (espacio 6m x 12m)",
+      num_invitados: 50,
+      fecha_horario: "15 de julio",
+    });
+    const ecoReply = runGuards({
+      aiResponse: "¿Tienen algún rango de presupuesto en mente?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Lo más económico posible",
+      history: [{ role: "assistant", content: "¿Tienen algún rango de presupuesto en mente?" }],
+    });
+    assert.ok(!/rango de presupuesto/i.test(ecoReply), ecoReply.slice(0, 200));
+    assert.ok(/econ[oó]mic/i.test(ecoReply));
+
+    const thanksFilled = new Set([...filled, "Presupuesto (MXN)", "Lugar/dirección del evento"]);
+    const thanksReply = applyLucyMessageGuards({
+      aiResponse: "",
+      extracted,
+      filledSet: thanksFilled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }],
+      currentMessage: "Muchas gracias",
+      buildClosing: mockClosing,
+    });
+    assert.ok(thanksReply.trim().length > 0, "respuesta vacía");
+    assert.ok(clientSaysThanks("Muchas gracias"));
+    assert.ok(buildPostCierreThanksReply("Fer").includes("Fer"));
+
+    const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const mirrorSrc = readFileSync(path.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    assert.ok(mirrorSrc.includes("texto vacío"));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

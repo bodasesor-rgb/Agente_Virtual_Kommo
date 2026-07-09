@@ -79235,11 +79235,28 @@ function parseInvitadosFromText(text2) {
   if (/^\d{1,4}$/.test(trimmed)) return trimmed;
   return null;
 }
+function isDimensionText(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return false;
+  return /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t);
+}
+function parseSpaceDimensions(text2) {
+  const m4 = text2.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
+  if (m4) return `${m4[1]}m x ${m4[3]}m`;
+  const m22 = text2.match(/\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(por|x)\s*(\d+)/i);
+  if (m22) return `${m22[1]}m x ${m22[3]}m`;
+  return null;
+}
+function clientMentionsPistaTarima(message) {
+  if (!message?.trim()) return false;
+  return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
+}
 function parseZonaFromText(text2) {
   const trimmed = text2.trim();
   if (!trimmed || /@/.test(trimmed)) return null;
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
+  if (isDimensionText(trimmed)) return null;
   if (KNOWN_ZONES.test(trimmed)) {
     const m4 = trimmed.match(KNOWN_ZONES);
     if (m4) return m4[0].trim();
@@ -79291,11 +79308,17 @@ function detectPresupuestoRefusal(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
-  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
+  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
 }
 function parsePresupuestoFromText(text2, opts) {
   const trimmed = text2.trim();
   if (detectPresupuestoRefusal(trimmed)) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (/\b(lo\s+m[aá]s\s+)?econ[oó]mic[oa]s?\b/i.test(trimmed) || /\b(barato|accesible|ajustad[oa]|menor\s+costo|lo\s+m[aá]s\s+barato)\b/i.test(trimmed)) {
+    return "Opciones econ\xF3micas (sin monto fijo)";
+  }
+  if (/\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(trimmed)) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
   if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
@@ -79391,10 +79414,14 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   }
   if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
     const service = parsePrimaryService(msg);
+    const dims = parseSpaceDimensions(msg);
     if (service || isServiceRelatedMessage(msg)) {
+      let value = service ?? msg.slice(0, 120);
+      if (dims && service) value = `${service} (espacio ${dims})`;
+      else if (dims) value = `Tarima/pista \u2014 espacio ${dims}`;
       captures.push({
         label: "Requerimientos o servicios",
-        value: service ?? msg.slice(0, 120)
+        value
       });
     }
   }
@@ -79437,9 +79464,13 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
     }
     if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && isServiceRelatedMessage(msg)) {
       const service = parsePrimaryService(msg);
+      const dims2 = parseSpaceDimensions(msg);
+      let value = service ?? msg.trim().slice(0, 120);
+      if (dims2 && service) value = `${service} (espacio ${dims2})`;
+      else if (dims2 && /pista|tarima/i.test(msg)) value = `Pista de baile (espacio ${dims2})`;
       captures.push({
         label: "Requerimientos o servicios",
-        value: service ?? msg.trim().slice(0, 120)
+        value
       });
       pending.add("Requerimientos o servicios");
     }
@@ -79452,7 +79483,7 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
     }
     if (!pending.has("Lugar/direcci\xF3n del evento")) {
       const zona = parseZonaFromText(msg);
-      if (zona) {
+      if (zona && !isDimensionText(zona)) {
         captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
         pending.add("Lugar/direcci\xF3n del evento");
       }
@@ -79475,8 +79506,45 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
         }
       }
     }
+    const dims = parseSpaceDimensions(msg);
+    if (dims && /pista|tarima/i.test(userTexts.join(" "))) {
+      const reqIdx = captures.findIndex((c2) => c2.label === "Requerimientos o servicios");
+      if (reqIdx >= 0) {
+        if (!captures[reqIdx].value.includes(dims)) {
+          const base = captures[reqIdx].value.replace(/\s*\(espacio [^)]+\)/, "").trim();
+          captures[reqIdx].value = `${base} (espacio ${dims})`;
+        }
+      } else if (!pending.has("Requerimientos o servicios")) {
+        const service = parsePrimaryService(userTexts.join(" ")) ?? "Pista de baile";
+        captures.push({
+          label: "Requerimientos o servicios",
+          value: `${service} (espacio ${dims})`
+        });
+        pending.add("Requerimientos o servicios");
+      }
+    }
   }
   return captures;
+}
+function appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, history, currentMessage) {
+  const userTexts = collectUserMessages(history, currentMessage);
+  const contextText = userTexts.join(" ");
+  if (!/pista|tarima/i.test(contextText)) return;
+  const dims = userTexts.map((t) => parseSpaceDimensions(t)).find(Boolean);
+  if (!dims) return;
+  const idx = mergedLines.findIndex((l4) => /^-?\s*Requerimientos o servicios:/i.test(l4));
+  if (idx >= 0) {
+    if (!mergedLines[idx].includes(dims)) {
+      const base = mergedLines[idx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").replace(/\s*\(espacio [^)]+\)/, "").trim();
+      mergedLines[idx] = `- Requerimientos o servicios: ${base} (espacio ${dims})`;
+    }
+    return;
+  }
+  if (!filledSet.has("Requerimientos o servicios")) {
+    const service = parsePrimaryService(contextText) ?? "Pista de baile";
+    mergedLines.push(`- Requerimientos o servicios: ${service} (espacio ${dims})`);
+    filledSet.add("Requerimientos o servicios");
+  }
 }
 function applyCapturesToCrm(mergedLines, filledSet, captures) {
   for (const { label, value } of captures) {
@@ -80969,8 +81037,9 @@ function applyEmailWaiver(filledSet, mergedLines, texts) {
 }
 function applyPresupuestoWaiver(filledSet, mergedLines, texts) {
   if (filledSet.has("Presupuesto (MXN)")) return;
-  if (!texts.some((t) => detectPresupuestoRefusal(t))) return;
-  mergedLines.push("- Presupuesto (MXN): Sin definir (cliente indic\xF3 que no tiene)");
+  const pres = texts.map((t) => parsePresupuestoFromText(t)).find(Boolean);
+  if (!pres) return;
+  mergedLines.push(`- Presupuesto (MXN): ${pres}`);
   filledSet.add("Presupuesto (MXN)");
 }
 function isEmailSatisfied(filledSet) {
@@ -81033,6 +81102,13 @@ function buildPhoneAnswer() {
     "Gerencia / corporativo (l\xEDnea telef\xF3nica y WhatsApp): 56 4671 0585",
     "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
   ].join("\n");
+}
+function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId) {
+  const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+  const spaceNote = dims ? ` Veo que el espacio es de unos ${dims.replace(/m/g, " metros")} \u2014 con eso podemos recomendar el tama\xF1o ideal.` : "";
+  const intro = "Manejamos pistas de baile y tarimas en varios tama\xF1os: tarima b\xE1sica, pista iluminada, y combinaciones con DJ o iluminaci\xF3n.";
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${intro}${spaceNote} ${follow}`.trim();
 }
 function buildEntertainmentSalesReply(extracted, history, entityId, currentMessage) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
@@ -81168,6 +81244,9 @@ function buildOpeningAcknowledgment(history, currentMessage) {
     return inv ? `Te ayudo con el banquete para ${inv[1]} personas.` : "Con gusto te ayudo con informaci\xF3n de banquetes.";
   }
   if (/kosher/.test(t)) return "S\xED tenemos opciones kosher.";
+  if (/\bpista(\s+de\s+baile)?\b|\btarima/i.test(t)) {
+    return "Claro, te ayudo con pista de baile o tarima para tu evento.";
+  }
   if (/cotiz|evento/.test(t)) return "Claro que te ayudo con tu evento.";
   if (/^hola[.!?\s]*$/i.test(userText.trim())) {
     return "Estoy aqu\xED para ayudarte con lo que necesites para tu evento.";
@@ -81299,7 +81378,9 @@ ${nextQ}`;
 }
 function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
   const pending = getNextPendingField(extracted, filledSet);
-  if (ctx.currentMessage && (clientMentionsCatering(ctx.currentMessage) || clientMentionsEntertainment(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til/i.test(mensaje)) {
+  if (ctx.currentMessage && (clientMentionsCatering(ctx.currentMessage) || clientMentionsEntertainment(ctx.currentMessage) || clientMentionsPistaTarima(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada/i.test(
+    mensaje
+  )) {
     return mensaje.trim();
   }
   const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
@@ -81439,9 +81520,17 @@ function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
     lastAssistant
   );
 }
+function clientSaysThanks(message) {
+  if (!message?.trim()) return false;
+  return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
+}
+function buildPostCierreThanksReply(clientName) {
+  const nombre = clientName?.trim();
+  return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
+}
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
-  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientMentionsEntertainment(currentMessage) || isServiceRelatedMessage(currentMessage) || clientAsksPhone(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
+  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientMentionsEntertainment(currentMessage) || clientMentionsPistaTarima(currentMessage) || isServiceRelatedMessage(currentMessage) || clientAsksPhone(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
 }
 function clientAskedFreeformQuestion(message) {
   if (!message?.trim()) return false;
@@ -81513,6 +81602,9 @@ function applyLucyMessageGuards(input) {
     const nombre = extracted.nombre?.trim();
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales");
+  } else if (cierreYaEnviado && clientSaysThanks(currentMessage)) {
+    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    log?.info({ entityId }, "GUARD: post-cierre \u2014 agradecimiento del cliente");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje = "Gracias. Nuestro equipo ya tiene tu informaci\xF3n para la cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar o alguna duda?";
     log?.warn({ entityId }, "GUARD: bloque\xF3 nota interna post-cierre");
@@ -81545,6 +81637,10 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 orientaci\xF3n de venta");
+  } else if (clientMentionsPistaTarima(currentMessage)) {
+    mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
   } else if (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage)) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
@@ -81641,17 +81737,22 @@ ${nextQ}`;
       }
     }
   }
-  if (detectPresupuestoRefusal(currentMessage) && mensajeAsksForField(mensaje, "presupuesto") && !filledSet.has("Presupuesto (MXN)")) {
+  const presFromCurrentMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
+  if (presFromCurrentMsg && mensajeAsksForField(mensaje, "presupuesto") && !filledSet.has("Presupuesto (MXN)")) {
     applyPresupuestoWaiver(filledSet, [], [currentMessage ?? ""]);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
-      log?.info({ entityId }, "GUARD: cliente sin presupuesto \u2014 cierre");
+      log?.info({ entityId }, "GUARD: presupuesto capturado en turno \u2014 cierre");
+    } else if (/econ[oó]mic/i.test(presFromCurrentMsg)) {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      mensaje = nextQ ? `Entendido, buscamos opciones econ\xF3micas. ${nextQ}` : "Entendido, buscamos opciones econ\xF3micas. Nuestro equipo te propone alternativas seg\xFAn lo que platicamos.";
+      log?.info({ entityId }, "GUARD: presupuesto econ\xF3mico \u2014 no repetir pregunta");
     } else {
       mensaje = "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos y te arma la cotizaci\xF3n.";
-      log?.info({ entityId }, "GUARD: cliente rechaz\xF3 presupuesto \u2014 continuar");
+      log?.info({ entityId }, "GUARD: cliente sin presupuesto fijo \u2014 continuar");
     }
   }
   if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
@@ -87819,6 +87920,18 @@ init_logger3();
 await init_embudo();
 async function deliverLucyOutbound(opts) {
   const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId } = opts;
+  const trimmed = texto?.trim() ?? "";
+  if (!trimmed) {
+    logger.warn({ entityId, talkId, chatId }, "Lucy: texto vac\xEDo \u2014 omitiendo env\xEDo Meta");
+    await logDeliveryFailureNote(
+      subdomain,
+      accessToken,
+      entityId,
+      texto,
+      "Mensaje vac\xEDo \u2014 text.body requerido por Meta API."
+    );
+    return "failed";
+  }
   if (!whatsappPhone) {
     logger.error({ entityId, talkId, chatId }, "Lucy: sin tel\xE9fono \u2014 no se puede enviar \u274C");
     await logDeliveryFailureNote(
@@ -87830,7 +87943,7 @@ async function deliverLucyOutbound(opts) {
     );
     return "failed";
   }
-  const result = await sendWhatsAppDirect(whatsappPhone, texto, entityId);
+  const result = await sendWhatsAppDirect(whatsappPhone, trimmed, entityId);
   if (!result.success) {
     logger.error({ entityId, error: result.error }, "Lucy: Meta API no pudo enviar \u274C");
     await logDeliveryFailureNote(
@@ -87854,7 +87967,7 @@ async function deliverLucyOutbound(opts) {
       entityId
     });
   }
-  await logLucyMessageNote(subdomain, accessToken, entityId, texto, talkId, chatId);
+  await logLucyMessageNote(subdomain, accessToken, entityId, trimmed, talkId, chatId);
   return "meta";
 }
 async function logLucyMessageNote(subdomain, accessToken, entityId, texto, talkId, chatId) {
@@ -88337,6 +88450,17 @@ function purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extr
   filledSet.delete("Requerimientos o servicios");
   extracted.requerimientos_evento = null;
 }
+function purgeDimensionAsUbicacion(mergedLines, filledSet, extracted) {
+  const idx = mergedLines.findIndex((l4) => /^-?\s*Lugar\/dirección del evento:/i.test(l4));
+  if (idx < 0) return;
+  const value = mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim();
+  if (!isDimensionText(value)) return;
+  mergedLines.splice(idx, 1);
+  filledSet.delete("Lugar/direcci\xF3n del evento");
+  if (extracted.direccion_evento && isDimensionText(extracted.direccion_evento)) {
+    extracted.direccion_evento = null;
+  }
+}
 function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, currentMessage, whatsappDisplayName, fullHistory) {
   const mergedLines = [...crmLines];
   const filledSet = new Set(mergedLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
@@ -88424,6 +88548,8 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     mergedLines,
     collectUserTexts(historyFull, currentMessage)
   );
+  purgeDimensionAsUbicacion(mergedLines, filledSet, extracted);
+  appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, historyFull, currentMessage);
   purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extracted, currentMessage);
   const allFieldsFilled = isReadyForClosing(filledSet);
   let context = "";
@@ -88810,6 +88936,10 @@ async function processBatch(batch, accessToken, log) {
     if (cierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
       log.warn({ entityId }, "P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
       mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
+    }
+    if (!mensajeParaCliente.trim()) {
+      mensajeParaCliente = cierreYaEnviado && clientSaysThanks(combinedUserText) ? buildPostCierreThanksReply(extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+      log.warn({ entityId }, "GUARD: mensaje vac\xEDo \u2014 usando respuesta de respaldo");
     }
     if (allFieldsFilled && !cierreYaEnviado) {
       try {
@@ -89258,6 +89388,10 @@ router3.post("/kommo/salesbot", async (req, res) => {
       log.warn({ entityId }, "Salesbot P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
       mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
     }
+    if (!mensajeParaCliente.trim()) {
+      mensajeParaCliente = sbCierreYaEnviado && clientSaysThanks(messageText) ? buildPostCierreThanksReply(extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+      log.warn({ entityId }, "Salesbot GUARD: mensaje vac\xEDo \u2014 usando respuesta de respaldo");
+    }
     appendHistory(histKey, messageText, mensajeParaCliente);
     void recordKnowledgeGapIfNeeded({
       kommoLeadId: entityId,
@@ -89604,6 +89738,9 @@ router3.post("/kommo/simulator", async (req, res) => {
       cierreYaEnviado: simCierreYaEnviado
     });
     mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
+    if (!mensajeParaCliente.trim()) {
+      mensajeParaCliente = simCierreYaEnviado && clientSaysThanks(messageText) ? buildPostCierreThanksReply(extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+    }
     appendHistory(histKey, messageText, mensajeParaCliente);
     void recordKnowledgeGapIfNeeded({
       kommoLeadId: leadId,

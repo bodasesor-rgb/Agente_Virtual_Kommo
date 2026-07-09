@@ -31,13 +31,16 @@ import {
   clientAsksAboutTeam,
   clientAsksPhone,
   clientMentionsEntertainment,
+  clientMentionsPistaTarima,
   detectPresupuestoRefusal,
+  parsePresupuestoFromText,
   clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
   clientMentionsCatering,
   inferLucyAskedField,
   isServiceRelatedMessage,
   parsePrimaryService,
+  parseSpaceDimensions,
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
@@ -201,8 +204,9 @@ export function applyPresupuestoWaiver(
   texts: string[]
 ): void {
   if (filledSet.has("Presupuesto (MXN)")) return;
-  if (!texts.some((t) => detectPresupuestoRefusal(t))) return;
-  mergedLines.push("- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)");
+  const pres = texts.map((t) => parsePresupuestoFromText(t)).find(Boolean);
+  if (!pres) return;
+  mergedLines.push(`- Presupuesto (MXN): ${pres}`);
   filledSet.add("Presupuesto (MXN)");
 }
 
@@ -308,6 +312,22 @@ export function buildPhoneAnswer(): string {
     "Gerencia / corporativo (línea telefónica y WhatsApp): 56 4671 0585",
     "Por aquí por chat también te podemos ayudar con lo que necesites.",
   ].join("\n");
+}
+
+function buildPistaTarimaSalesReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string,
+  entityId?: string | number
+): string {
+  const dims =
+    parseSpaceDimensions(currentMessage ?? "") ||
+    (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+  const spaceNote = dims ? ` Veo que el espacio es de unos ${dims.replace(/m/g, " metros")} — con eso podemos recomendar el tamaño ideal.` : "";
+  const intro =
+    "Manejamos pistas de baile y tarimas en varios tamaños: tarima básica, pista iluminada, y combinaciones con DJ o iluminación.";
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${intro}${spaceNote} ${follow}`.trim();
 }
 
 function buildEntertainmentSalesReply(
@@ -543,6 +563,9 @@ export function buildOpeningAcknowledgment(
       : "Con gusto te ayudo con información de banquetes.";
   }
   if (/kosher/.test(t)) return "Sí tenemos opciones kosher.";
+  if (/\bpista(\s+de\s+baile)?\b|\btarima/i.test(t)) {
+    return "Claro, te ayudo con pista de baile o tarima para tu evento.";
+  }
   if (/cotiz|evento/.test(t)) return "Claro que te ayudo con tu evento.";
   if (/^hola[.!?\s]*$/i.test(userText.trim())) {
     return "Estoy aquí para ayudarte con lo que necesites para tu evento.";
@@ -755,13 +778,16 @@ export function sanitizeOutboundMessage(
 ): string {
   const pending = getNextPendingField(extracted, filledSet);
 
-  // Respuesta de venta (comida/servicios/show) — no reemplazar por plantilla
+  // Respuesta de venta (comida/servicios/show/pista) — no reemplazar por plantilla
   if (
     ctx.currentMessage &&
     (clientMentionsCatering(ctx.currentMessage) ||
       clientMentionsEntertainment(ctx.currentMessage) ||
+      clientMentionsPistaTarima(ctx.currentMessage) ||
       isServiceRelatedMessage(ctx.currentMessage)) &&
-    /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til/i.test(mensaje)
+    /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada/i.test(
+      mensaje
+    )
   ) {
     return mensaje.trim();
   }
@@ -981,6 +1007,18 @@ export function clientJustAnsweredRequerimientosQuestion(
   );
 }
 
+export function clientSaysThanks(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
+}
+
+export function buildPostCierreThanksReply(clientName?: string | null): string {
+  const nombre = clientName?.trim();
+  return nombre
+    ? `¡Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.`
+    : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.";
+}
+
 function isInformativeClientAnswer(currentMessage?: string): boolean {
   if (!currentMessage?.trim()) return false;
   return (
@@ -988,6 +1026,7 @@ function isInformativeClientAnswer(currentMessage?: string): boolean {
     clientAsksBanqueteVsTaquiza(currentMessage) ||
     clientMentionsCatering(currentMessage) ||
     clientMentionsEntertainment(currentMessage) ||
+    clientMentionsPistaTarima(currentMessage) ||
     isServiceRelatedMessage(currentMessage) ||
     clientAsksPhone(currentMessage) ||
     clientAsksPrice(currentMessage) ||
@@ -1115,6 +1154,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?`
       : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?";
     log?.info({ entityId }, "GUARD: post-cierre — servicios adicionales");
+  } else if (cierreYaEnviado && clientSaysThanks(currentMessage)) {
+    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    log?.info({ entityId }, "GUARD: post-cierre — agradecimiento del cliente");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje =
       "Gracias. Nuestro equipo ya tiene tu información para la cotización. ¿Hay algo más que quieras agregar o alguna duda?";
@@ -1155,6 +1197,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento — orientación de venta");
+  } else if (clientMentionsPistaTarima(currentMessage)) {
+    mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: pista/tarima — orientación de venta");
   } else if (
     clientMentionsCatering(currentMessage) ||
     (justAnsweredReq && isServiceRelatedMessage(currentMessage))
@@ -1265,8 +1311,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  const presFromCurrentMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
   if (
-    detectPresupuestoRefusal(currentMessage) &&
+    presFromCurrentMsg &&
     mensajeAsksForField(mensaje, "presupuesto") &&
     !filledSet.has("Presupuesto (MXN)")
   ) {
@@ -1276,11 +1323,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
-      log?.info({ entityId }, "GUARD: cliente sin presupuesto — cierre");
+      log?.info({ entityId }, "GUARD: presupuesto capturado en turno — cierre");
+    } else if (/econ[oó]mic/i.test(presFromCurrentMsg)) {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      mensaje = nextQ
+        ? `Entendido, buscamos opciones económicas. ${nextQ}`
+        : "Entendido, buscamos opciones económicas. Nuestro equipo te propone alternativas según lo que platicamos.";
+      log?.info({ entityId }, "GUARD: presupuesto económico — no repetir pregunta");
     } else {
       mensaje =
         "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos y te arma la cotización.";
-      log?.info({ entityId }, "GUARD: cliente rechazó presupuesto — continuar");
+      log?.info({ entityId }, "GUARD: cliente sin presupuesto fijo — continuar");
     }
   }
 

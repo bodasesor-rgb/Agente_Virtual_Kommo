@@ -419,11 +419,38 @@ export function parseInvitadosFromText(text: string): string | null {
   return null;
 }
 
+/** Texto que describe medidas del espacio, NO ubicación geográfica. */
+export function isDimensionText(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return (
+    /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) ||
+    /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) ||
+    /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t)
+  );
+}
+
+/** Medidas del espacio para tarima/pista (ej. 6 metros por 12). */
+export function parseSpaceDimensions(text: string): string | null {
+  const m = text.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
+  if (m) return `${m[1]}m x ${m[3]}m`;
+  const m2 = text.match(/\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(por|x)\s*(\d+)/i);
+  if (m2) return `${m2[1]}m x ${m2[3]}m`;
+  return null;
+}
+
+/** Cliente pide pista de baile o tarima. */
+export function clientMentionsPistaTarima(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
+}
+
 export function parseZonaFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed || /@/.test(trimmed)) return null;
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
+  if (isDimensionText(trimmed)) return null;
 
   if (KNOWN_ZONES.test(trimmed)) {
     const m = trimmed.match(KNOWN_ZONES);
@@ -507,6 +534,7 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\bno\s+me\s+brindaron\b/i.test(t) ||
     /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) ||
     /\bsin\s+presupuesto\b/i.test(t) ||
+    /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) ||
     (/\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t))
   );
 }
@@ -515,6 +543,17 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   const trimmed = text.trim();
 
   if (detectPresupuestoRefusal(trimmed)) {
+    return "Sin definir (cliente indicó que no tiene)";
+  }
+
+  if (
+    /\b(lo\s+m[aá]s\s+)?econ[oó]mic[oa]s?\b/i.test(trimmed) ||
+    /\b(barato|accesible|ajustad[oa]|menor\s+costo|lo\s+m[aá]s\s+barato)\b/i.test(trimmed)
+  ) {
+    return "Opciones económicas (sin monto fijo)";
+  }
+
+  if (/\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(trimmed)) {
     return "Sin definir (cliente indicó que no tiene)";
   }
 
@@ -665,10 +704,14 @@ export function captureContextualAnswer(
     (asked === "requerimientos" || isServiceRelatedMessage(msg))
   ) {
     const service = parsePrimaryService(msg);
+    const dims = parseSpaceDimensions(msg);
     if (service || isServiceRelatedMessage(msg)) {
+      let value = service ?? msg.slice(0, 120);
+      if (dims && service) value = `${service} (espacio ${dims})`;
+      else if (dims) value = `Tarima/pista — espacio ${dims}`;
       captures.push({
         label: "Requerimientos o servicios",
-        value: service ?? msg.slice(0, 120),
+        value,
       });
     }
   }
@@ -731,9 +774,13 @@ export function scanConversationForCaptures(
       isServiceRelatedMessage(msg)
     ) {
       const service = parsePrimaryService(msg);
+      const dims = parseSpaceDimensions(msg);
+      let value = service ?? msg.trim().slice(0, 120);
+      if (dims && service) value = `${service} (espacio ${dims})`;
+      else if (dims && /pista|tarima/i.test(msg)) value = `Pista de baile (espacio ${dims})`;
       captures.push({
         label: "Requerimientos o servicios",
-        value: service ?? msg.trim().slice(0, 120),
+        value,
       });
       pending.add("Requerimientos o servicios");
     }
@@ -748,7 +795,7 @@ export function scanConversationForCaptures(
 
     if (!pending.has("Lugar/dirección del evento")) {
       const zona = parseZonaFromText(msg);
-      if (zona) {
+      if (zona && !isDimensionText(zona)) {
         captures.push({ label: "Lugar/dirección del evento", value: zona });
         pending.add("Lugar/dirección del evento");
       }
@@ -774,9 +821,59 @@ export function scanConversationForCaptures(
         }
       }
     }
+
+    const dims = parseSpaceDimensions(msg);
+    if (dims && /pista|tarima/i.test(userTexts.join(" "))) {
+      const reqIdx = captures.findIndex((c) => c.label === "Requerimientos o servicios");
+      if (reqIdx >= 0) {
+        if (!captures[reqIdx]!.value.includes(dims)) {
+          const base = captures[reqIdx]!.value.replace(/\s*\(espacio [^)]+\)/, "").trim();
+          captures[reqIdx]!.value = `${base} (espacio ${dims})`;
+        }
+      } else if (!pending.has("Requerimientos o servicios")) {
+        const service = parsePrimaryService(userTexts.join(" ")) ?? "Pista de baile";
+        captures.push({
+          label: "Requerimientos o servicios",
+          value: `${service} (espacio ${dims})`,
+        });
+        pending.add("Requerimientos o servicios");
+      }
+    }
   }
 
   return captures;
+}
+
+export function appendSpaceDimensionsToRequerimientos(
+  mergedLines: string[],
+  filledSet: Set<string>,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): void {
+  const userTexts = collectUserMessages(history, currentMessage);
+  const contextText = userTexts.join(" ");
+  if (!/pista|tarima/i.test(contextText)) return;
+
+  const dims = userTexts.map((t) => parseSpaceDimensions(t)).find(Boolean);
+  if (!dims) return;
+
+  const idx = mergedLines.findIndex((l) => /^-?\s*Requerimientos o servicios:/i.test(l));
+  if (idx >= 0) {
+    if (!mergedLines[idx]!.includes(dims)) {
+      const base = mergedLines[idx]!
+        .replace(/^-?\s*Requerimientos o servicios:\s*/i, "")
+        .replace(/\s*\(espacio [^)]+\)/, "")
+        .trim();
+      mergedLines[idx] = `- Requerimientos o servicios: ${base} (espacio ${dims})`;
+    }
+    return;
+  }
+
+  if (!filledSet.has("Requerimientos o servicios")) {
+    const service = parsePrimaryService(contextText) ?? "Pista de baile";
+    mergedLines.push(`- Requerimientos o servicios: ${service} (espacio ${dims})`);
+    filledSet.add("Requerimientos o servicios");
+  }
 }
 
 export function applyCapturesToCrm(

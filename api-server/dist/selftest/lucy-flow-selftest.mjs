@@ -356,11 +356,28 @@ function parseInvitadosFromText(text) {
   if (/^\d{1,4}$/.test(trimmed)) return trimmed;
   return null;
 }
+function isDimensionText(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t);
+}
+function parseSpaceDimensions(text) {
+  const m = text.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
+  if (m) return `${m[1]}m x ${m[3]}m`;
+  const m2 = text.match(/\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(por|x)\s*(\d+)/i);
+  if (m2) return `${m2[1]}m x ${m2[3]}m`;
+  return null;
+}
+function clientMentionsPistaTarima(message) {
+  if (!message?.trim()) return false;
+  return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
+}
 function parseZonaFromText(text) {
   const trimmed = text.trim();
   if (!trimmed || /@/.test(trimmed)) return null;
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
+  if (isDimensionText(trimmed)) return null;
   if (KNOWN_ZONES.test(trimmed)) {
     const m = trimmed.match(KNOWN_ZONES);
     if (m) return m[0].trim();
@@ -412,11 +429,17 @@ function detectPresupuestoRefusal(text) {
   const t = text?.trim() ?? "";
   if (!t) return false;
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
-  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
+  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
 }
 function parsePresupuestoFromText(text, opts) {
   const trimmed = text.trim();
   if (detectPresupuestoRefusal(trimmed)) {
+    return "Sin definir (cliente indic\xF3 que no tiene)";
+  }
+  if (/\b(lo\s+m[aá]s\s+)?econ[oó]mic[oa]s?\b/i.test(trimmed) || /\b(barato|accesible|ajustad[oa]|menor\s+costo|lo\s+m[aá]s\s+barato)\b/i.test(trimmed)) {
+    return "Opciones econ\xF3micas (sin monto fijo)";
+  }
+  if (/\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(trimmed)) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
   if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
@@ -512,10 +535,14 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   }
   if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
     const service = parsePrimaryService(msg);
+    const dims = parseSpaceDimensions(msg);
     if (service || isServiceRelatedMessage(msg)) {
+      let value = service ?? msg.slice(0, 120);
+      if (dims && service) value = `${service} (espacio ${dims})`;
+      else if (dims) value = `Tarima/pista \u2014 espacio ${dims}`;
       captures.push({
         label: "Requerimientos o servicios",
-        value: service ?? msg.slice(0, 120)
+        value
       });
     }
   }
@@ -558,9 +585,13 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
     }
     if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && isServiceRelatedMessage(msg)) {
       const service = parsePrimaryService(msg);
+      const dims2 = parseSpaceDimensions(msg);
+      let value = service ?? msg.trim().slice(0, 120);
+      if (dims2 && service) value = `${service} (espacio ${dims2})`;
+      else if (dims2 && /pista|tarima/i.test(msg)) value = `Pista de baile (espacio ${dims2})`;
       captures.push({
         label: "Requerimientos o servicios",
-        value: service ?? msg.trim().slice(0, 120)
+        value
       });
       pending.add("Requerimientos o servicios");
     }
@@ -573,7 +604,7 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
     }
     if (!pending.has("Lugar/direcci\xF3n del evento")) {
       const zona = parseZonaFromText(msg);
-      if (zona) {
+      if (zona && !isDimensionText(zona)) {
         captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
         pending.add("Lugar/direcci\xF3n del evento");
       }
@@ -594,6 +625,23 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
           captures.push({ label: "Presupuesto (MXN)", value: pres });
           pending.add("Presupuesto (MXN)");
         }
+      }
+    }
+    const dims = parseSpaceDimensions(msg);
+    if (dims && /pista|tarima/i.test(userTexts.join(" "))) {
+      const reqIdx = captures.findIndex((c) => c.label === "Requerimientos o servicios");
+      if (reqIdx >= 0) {
+        if (!captures[reqIdx].value.includes(dims)) {
+          const base = captures[reqIdx].value.replace(/\s*\(espacio [^)]+\)/, "").trim();
+          captures[reqIdx].value = `${base} (espacio ${dims})`;
+        }
+      } else if (!pending.has("Requerimientos o servicios")) {
+        const service = parsePrimaryService(userTexts.join(" ")) ?? "Pista de baile";
+        captures.push({
+          label: "Requerimientos o servicios",
+          value: `${service} (espacio ${dims})`
+        });
+        pending.add("Requerimientos o servicios");
       }
     }
   }
@@ -1090,8 +1138,9 @@ function applyEmailWaiver(filledSet, mergedLines, texts) {
 }
 function applyPresupuestoWaiver(filledSet, mergedLines, texts) {
   if (filledSet.has("Presupuesto (MXN)")) return;
-  if (!texts.some((t) => detectPresupuestoRefusal(t))) return;
-  mergedLines.push("- Presupuesto (MXN): Sin definir (cliente indic\xF3 que no tiene)");
+  const pres = texts.map((t) => parsePresupuestoFromText(t)).find(Boolean);
+  if (!pres) return;
+  mergedLines.push(`- Presupuesto (MXN): ${pres}`);
   filledSet.add("Presupuesto (MXN)");
 }
 function isEmailSatisfied(filledSet) {
@@ -1154,6 +1203,13 @@ function buildPhoneAnswer() {
     "Gerencia / corporativo (l\xEDnea telef\xF3nica y WhatsApp): 56 4671 0585",
     "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
   ].join("\n");
+}
+function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId) {
+  const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+  const spaceNote = dims ? ` Veo que el espacio es de unos ${dims.replace(/m/g, " metros")} \u2014 con eso podemos recomendar el tama\xF1o ideal.` : "";
+  const intro = "Manejamos pistas de baile y tarimas en varios tama\xF1os: tarima b\xE1sica, pista iluminada, y combinaciones con DJ o iluminaci\xF3n.";
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${intro}${spaceNote} ${follow}`.trim();
 }
 function buildEntertainmentSalesReply(extracted, history, entityId, currentMessage) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
@@ -1271,6 +1327,9 @@ function buildOpeningAcknowledgment(history, currentMessage) {
     return inv ? `Te ayudo con el banquete para ${inv[1]} personas.` : "Con gusto te ayudo con informaci\xF3n de banquetes.";
   }
   if (/kosher/.test(t)) return "S\xED tenemos opciones kosher.";
+  if (/\bpista(\s+de\s+baile)?\b|\btarima/i.test(t)) {
+    return "Claro, te ayudo con pista de baile o tarima para tu evento.";
+  }
   if (/cotiz|evento/.test(t)) return "Claro que te ayudo con tu evento.";
   if (/^hola[.!?\s]*$/i.test(userText.trim())) {
     return "Estoy aqu\xED para ayudarte con lo que necesites para tu evento.";
@@ -1399,7 +1458,9 @@ ${nextQ}`;
 }
 function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
   const pending = getNextPendingField(extracted, filledSet);
-  if (ctx.currentMessage && (clientMentionsCatering(ctx.currentMessage) || clientMentionsEntertainment(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til/i.test(mensaje)) {
+  if (ctx.currentMessage && (clientMentionsCatering(ctx.currentMessage) || clientMentionsEntertainment(ctx.currentMessage) || clientMentionsPistaTarima(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada/i.test(
+    mensaje
+  )) {
     return mensaje.trim();
   }
   const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
@@ -1539,9 +1600,17 @@ function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
     lastAssistant
   );
 }
+function clientSaysThanks(message) {
+  if (!message?.trim()) return false;
+  return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
+}
+function buildPostCierreThanksReply(clientName) {
+  const nombre = clientName?.trim();
+  return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
+}
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
-  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientMentionsEntertainment(currentMessage) || isServiceRelatedMessage(currentMessage) || clientAsksPhone(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
+  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientMentionsEntertainment(currentMessage) || clientMentionsPistaTarima(currentMessage) || isServiceRelatedMessage(currentMessage) || clientAsksPhone(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
 }
 function clientAskedFreeformQuestion(message) {
   if (!message?.trim()) return false;
@@ -1613,6 +1682,9 @@ function applyLucyMessageGuards(input) {
     const nombre = extracted.nombre?.trim();
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales");
+  } else if (cierreYaEnviado && clientSaysThanks(currentMessage)) {
+    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    log?.info({ entityId }, "GUARD: post-cierre \u2014 agradecimiento del cliente");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje = "Gracias. Nuestro equipo ya tiene tu informaci\xF3n para la cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar o alguna duda?";
     log?.warn({ entityId }, "GUARD: bloque\xF3 nota interna post-cierre");
@@ -1645,6 +1717,10 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 orientaci\xF3n de venta");
+  } else if (clientMentionsPistaTarima(currentMessage)) {
+    mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
   } else if (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage)) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
@@ -1741,17 +1817,22 @@ ${nextQ}`;
       }
     }
   }
-  if (detectPresupuestoRefusal(currentMessage) && mensajeAsksForField(mensaje, "presupuesto") && !filledSet.has("Presupuesto (MXN)")) {
+  const presFromCurrentMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
+  if (presFromCurrentMsg && mensajeAsksForField(mensaje, "presupuesto") && !filledSet.has("Presupuesto (MXN)")) {
     applyPresupuestoWaiver(filledSet, [], [currentMessage ?? ""]);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
-      log?.info({ entityId }, "GUARD: cliente sin presupuesto \u2014 cierre");
+      log?.info({ entityId }, "GUARD: presupuesto capturado en turno \u2014 cierre");
+    } else if (/econ[oó]mic/i.test(presFromCurrentMsg)) {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      mensaje = nextQ ? `Entendido, buscamos opciones econ\xF3micas. ${nextQ}` : "Entendido, buscamos opciones econ\xF3micas. Nuestro equipo te propone alternativas seg\xFAn lo que platicamos.";
+      log?.info({ entityId }, "GUARD: presupuesto econ\xF3mico \u2014 no repetir pregunta");
     } else {
       mensaje = "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos y te arma la cotizaci\xF3n.";
-      log?.info({ entityId }, "GUARD: cliente rechaz\xF3 presupuesto \u2014 continuar");
+      log?.info({ entityId }, "GUARD: cliente sin presupuesto fijo \u2014 continuar");
     }
   }
   if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
@@ -1959,7 +2040,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 10 escenarios de prueba\n");
+  console.log("Lucy \u2014 16 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -2244,6 +2325,93 @@ async function runAll() {
       history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }]
     });
     assert.ok(/show|animaci|hora\s+loca|entretenimiento|vers[aá]til/i.test(reply), reply.slice(0, 150));
+  });
+  await test("14. Fer A14756 \u2014 pista/tarima ofrece orientaci\xF3n de venta", () => {
+    assert.ok(clientMentionsPistaTarima("quiero cotizar una pista de baile o tarima"));
+    const filled = /* @__PURE__ */ new Set();
+    const extracted = emptyExtracted();
+    const reply = runGuards({
+      aiResponse: "\xBFMe regalas tu nombre?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Hola, me gustar\xEDa cotizar una pista de baile o tarima para mi evento",
+      history: []
+    });
+    assert.ok(/pista|tarima|iluminada|tamaño/i.test(reply), reply.slice(0, 200));
+  });
+  await test("15. Fer A14756 \u2014 6m x 12m NO es ubicaci\xF3n", () => {
+    assert.ok(isDimensionText("Son 50 personas. El espacio es de 6 metros por 12"));
+    assert.equal(parseZonaFromText("6 metros por 12"), null);
+    assert.equal(parseSpaceDimensions("El espacio es de 6 metros por 12"), "6m x 12m");
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const merged = [];
+    const caps = [
+      ...captureContextualAnswer(
+        [{ role: "assistant", content: "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?" }],
+        "Son 50 personas. El espacio es de 6 metros por 12",
+        filled
+      ),
+      ...scanConversationForCaptures(
+        [{ role: "user", content: "Hola, quiero cotizar una pista de baile o tarima" }],
+        "Son 50 personas. El espacio es de 6 metros por 12",
+        filled
+      )
+    ];
+    applyCapturesToCrm(merged, filled, caps);
+    assert.ok(merged.some((l) => /invitados.*50/i.test(l)));
+    assert.ok(!merged.some((l) => /Lugar\/dirección/i.test(l)));
+    assert.ok(
+      merged.some((l) => /Requerimientos.*6m x 12m|espacio 6m/i.test(l)) || caps.some((c) => /6m x 12m|espacio/i.test(c.value))
+    );
+  });
+  await test('16. Fer A14756 \u2014 presupuesto econ\xF3mico y "gracias" post-cierre', () => {
+    assert.equal(parsePresupuestoFromText("Lo m\xE1s econ\xF3mico posible"), "Opciones econ\xF3micas (sin monto fijo)");
+    assert.ok(detectPresupuestoRefusal("No tengo rango ee comparaci\xF3n"));
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "N\xFAmero de invitados",
+      "Fecha y horario"
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Fer",
+      correo: "ferramlun2206@gmail.com",
+      tipo_evento: "cumplea\xF1os",
+      requerimientos_evento: "Pista de baile (espacio 6m x 12m)",
+      num_invitados: 50,
+      fecha_horario: "15 de julio"
+    });
+    const ecoReply = runGuards({
+      aiResponse: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Lo m\xE1s econ\xF3mico posible",
+      history: [{ role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" }]
+    });
+    assert.ok(!/rango de presupuesto/i.test(ecoReply), ecoReply.slice(0, 200));
+    assert.ok(/econ[oó]mic/i.test(ecoReply));
+    const thanksFilled = /* @__PURE__ */ new Set([...filled, "Presupuesto (MXN)", "Lugar/direcci\xF3n del evento"]);
+    const thanksReply = applyLucyMessageGuards({
+      aiResponse: "",
+      extracted,
+      filledSet: thanksFilled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }],
+      currentMessage: "Muchas gracias",
+      buildClosing: mockClosing
+    });
+    assert.ok(thanksReply.trim().length > 0, "respuesta vac\xEDa");
+    assert.ok(clientSaysThanks("Muchas gracias"));
+    assert.ok(buildPostCierreThanksReply("Fer").includes("Fer"));
+    const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const mirrorSrc = readFileSync(path.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    assert.ok(mirrorSrc.includes("texto vac\xEDo"));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
