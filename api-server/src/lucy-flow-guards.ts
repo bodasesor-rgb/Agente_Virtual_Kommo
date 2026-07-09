@@ -719,6 +719,16 @@ export function sanitizeOutboundMessage(
   log?: { warn: (obj: unknown, msg?: string) => void }
 ): string {
   const pending = getNextPendingField(extracted, filledSet);
+
+  // Respuesta de venta (comida/servicios) — no reemplazar por plantilla de requerimientos
+  if (
+    ctx.currentMessage &&
+    (clientMentionsCatering(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) &&
+    /banquete|taquiza|catering|alimentos/i.test(mensaje)
+  ) {
+    return mensaje.trim();
+  }
+
   const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
   const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
 
@@ -734,7 +744,8 @@ export function sanitizeOutboundMessage(
   if (
     pending &&
     !mensaje.includes("?") &&
-    !clientAskedFreeformQuestion(ctx.currentMessage)
+    !clientAskedFreeformQuestion(ctx.currentMessage) &&
+    !isInformativeClientAnswer(ctx.currentMessage)
   ) {
     return mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
   }
@@ -939,6 +950,7 @@ function isInformativeClientAnswer(currentMessage?: string): boolean {
     clientAsksForRecommendations(currentMessage) ||
     clientAsksBanqueteVsTaquiza(currentMessage) ||
     clientMentionsCatering(currentMessage) ||
+    isServiceRelatedMessage(currentMessage) ||
     clientAsksPhone(currentMessage) ||
     clientAsksPrice(currentMessage) ||
     clientAsksInclusion(currentMessage) ||
@@ -1057,6 +1069,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
 
   let mensaje: string;
+  let appliedSalesReply = false;
 
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
@@ -1097,16 +1110,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         ? `${phoneAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
         : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente preguntó teléfonos");
-  } else if (clientMentionsCatering(currentMessage) && clientAsksPrice(currentMessage)) {
+  } else if (
+    clientMentionsCatering(currentMessage) ||
+    (justAnsweredReq && isServiceRelatedMessage(currentMessage))
+  ) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    log?.info({ entityId }, "GUARD: comida/catering — opciones con precios");
-  } else if (clientMentionsCatering(currentMessage)) {
-    const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
-    mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    log?.info({ entityId }, "GUARD: comida/catering — orientación de venta");
+    appliedSalesReply = true;
+    log?.info(
+      { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
+      "GUARD: comida/servicio — orientación de venta"
+    );
   } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
   } else if (clientAsksPrice(currentMessage)) {
     const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
@@ -1239,7 +1256,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage)) {
+  if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage) && !appliedSalesReply) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending) {
       log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden — corrigiendo");
@@ -1248,6 +1265,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+
+  if (appliedSalesReply) {
+    return normalizeAdvisorReferences(mensaje, extracted.nombre);
+  }
 
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
 

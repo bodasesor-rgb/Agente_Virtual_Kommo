@@ -81250,6 +81250,9 @@ ${nextQ}`;
 }
 function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
   const pending = getNextPendingField(extracted, filledSet);
+  if (ctx.currentMessage && (clientMentionsCatering(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos/i.test(mensaje)) {
+    return mensaje.trim();
+  }
   const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
   const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
   if ((repeatsFilled || asksWrong) && pending && !isInformativeClientAnswer(ctx.currentMessage)) {
@@ -81259,7 +81262,7 @@ function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
   if (pending === "requerimientos" && mensaje.includes("?") && !mensajeMencionaCatalogoServicios(mensaje)) {
     mensaje = appendServiciosCatalogoHint(mensaje);
   }
-  if (pending && !mensaje.includes("?") && !clientAskedFreeformQuestion(ctx.currentMessage)) {
+  if (pending && !mensaje.includes("?") && !clientAskedFreeformQuestion(ctx.currentMessage) && !isInformativeClientAnswer(ctx.currentMessage)) {
     return mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
   }
   return mensaje;
@@ -81389,7 +81392,7 @@ function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
 }
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
-  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientAsksPhone(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
+  return clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || isServiceRelatedMessage(currentMessage) || clientAsksPhone(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
 }
 function clientAskedFreeformQuestion(message) {
   if (!message?.trim()) return false;
@@ -81456,6 +81459,7 @@ function applyLucyMessageGuards(input) {
   const emailOk = isEmailSatisfied(filledSet);
   const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
   let mensaje;
+  let appliedSalesReply = false;
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
@@ -81488,16 +81492,17 @@ function applyLucyMessageGuards(input) {
 
 ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 tel\xE9fonos");
-  } else if (clientMentionsCatering(currentMessage) && clientAsksPrice(currentMessage)) {
+  } else if (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage)) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    log?.info({ entityId }, "GUARD: comida/catering \u2014 opciones con precios");
-  } else if (clientMentionsCatering(currentMessage)) {
-    const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
-    mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    log?.info({ entityId }, "GUARD: comida/catering \u2014 orientaci\xF3n de venta");
+    appliedSalesReply = true;
+    log?.info(
+      { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
+      "GUARD: comida/servicio \u2014 orientaci\xF3n de venta"
+    );
   } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
   } else if (clientAsksPrice(currentMessage)) {
     const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
@@ -81610,7 +81615,7 @@ ${nextQ}`;
       mensaje = forcedNext;
     }
   }
-  if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage)) {
+  if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage) && !appliedSalesReply) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending) {
       log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden \u2014 corrigiendo");
@@ -81618,6 +81623,9 @@ ${nextQ}`;
     }
   }
   mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  if (appliedSalesReply) {
+    return normalizeAdvisorReferences(mensaje, extracted.nombre);
+  }
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
   const presHistory = input.presentationHistory ?? history;
   const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory);
