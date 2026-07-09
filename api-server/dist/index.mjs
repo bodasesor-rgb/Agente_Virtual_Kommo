@@ -73055,18 +73055,29 @@ async function moverEtapa(subdomain, accessToken, leadId, statusId) {
   return res.ok;
 }
 async function agregarNota(subdomain, accessToken, leadId, texto) {
-  await fetch(
-    `https://${subdomain}.kommo.com/api/v4/leads/notes`,
-    {
-      method: "POST",
-      headers: kommoHeaders(accessToken),
-      body: JSON.stringify([{
-        entity_id: Number(leadId),
-        note_type: "common",
-        params: { text: texto }
-      }])
+  try {
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/notes`,
+      {
+        method: "POST",
+        headers: kommoHeaders(accessToken),
+        body: JSON.stringify([{
+          entity_id: Number(leadId),
+          note_type: "common",
+          params: { text: texto }
+        }])
+      }
+    );
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      logger.warn({ leadId, status: res.status, errBody }, "agregarNota: Kommo rechaz\xF3 la nota");
+      return false;
     }
-  );
+    return true;
+  } catch (err2) {
+    logger.warn({ leadId, err: err2 }, "agregarNota: excepci\xF3n (timeout o red)");
+    return false;
+  }
 }
 async function agregarTag(subdomain, accessToken, leadId, tags, existingTags = []) {
   const merged = [.../* @__PURE__ */ new Set([...existingTags, ...tags])].map((n3) => ({ name: n3 }));
@@ -80361,15 +80372,27 @@ var TIPO_EVENTO_PATTERNS = [
   [/\b(bautizo)\b/i, "bautizo"],
   [/\b(comuni[oó]n|graduaci[oó]n)\b/i, "celebraci\xF3n"]
 ];
+function normalizePresentationText(text2) {
+  return text2.toLowerCase().replace(/[¿?.,!]/g, "").trim();
+}
 function clientAsksAboutTeam(message, clientName) {
   if (!message?.trim()) return false;
   const t = message.trim();
-  const lower = t.toLowerCase();
+  const normalized = normalizePresentationText(t);
   const name2 = clientName?.trim().toLowerCase() ?? "";
-  if (/^(soy\s+)?[a-záéíóúñ]{2,30}[.!]?$/i.test(t) && !t.includes("?")) return false;
-  if (/^hola,?\s+[a-záéíóúñ]{2,30}[.!]?$/i.test(t)) return false;
-  if (name2 && lower === name2 && !t.includes("?")) return false;
-  return /^alejandro\??$/i.test(t) || /\bqui[eé]n\s+es\s+alejandro\b/i.test(t) || /\best[aá]\s+alejandro\b/i.test(t) || /\bhablo\s+con\s+alejandro\b/i.test(t) || /\bpuedo\s+hablar\s+con\s+alejandro\b/i.test(t) || /\bd[oó]nde\s+est[aá]\s+alejandro\b/i.test(t) || /\bel\s+asesor\b/i.test(t);
+  const advisor = getAdvisorName().toLowerCase();
+  const advisorEsc = advisor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (name2) {
+    if (normalized === name2 || normalized === `soy ${name2}` || normalized === `me llamo ${name2}`) {
+      return false;
+    }
+  }
+  if (/^(soy\s+)?[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
+  if (/^hola,?\s+[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
+  if (name2 && name2 === advisor && new RegExp(`^${advisorEsc}$`, "i").test(normalized)) {
+    return false;
+  }
+  return new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name2 && name2 === advisor) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\best[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bd[o\xF3]nde\\s+est[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t) || /\bel\s+asesor\b/i.test(t);
 }
 function clientAddsToQuote(message) {
   if (!message?.trim()) return false;
@@ -87550,11 +87573,17 @@ init_logger3();
 await init_embudo();
 async function deliverLucyOutbound(opts) {
   const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId } = opts;
-  let clientDelivered = false;
+  if (talkId) {
+    const ok = await enviarMensaje(subdomain, accessToken, talkId, texto);
+    if (ok) {
+      logger.info({ entityId, talkId }, "Lucy: mensaje via Kommo Talks \u2705");
+      return "kommo_talks";
+    }
+    logger.warn({ entityId, talkId }, "Lucy: Kommo Talks fall\xF3 \u2014 probando Meta API");
+  }
   if (whatsappPhone) {
     const result = await sendWhatsAppDirect(whatsappPhone, texto, entityId);
     if (result.success) {
-      clientDelivered = true;
       logger.info({ entityId, phone: whatsappPhone }, "Lucy: WhatsApp enviado via Meta \u2705");
       await mirrorOutboundInKommo({
         subdomain,
@@ -87570,14 +87599,6 @@ async function deliverLucyOutbound(opts) {
     }
     logger.warn({ entityId, error: result.error }, "Lucy: Meta API fall\xF3");
   }
-  if (talkId) {
-    const ok = await enviarMensaje(subdomain, accessToken, talkId, texto);
-    if (ok) {
-      logger.info({ entityId, talkId }, "Lucy: mensaje via Kommo Talks \u2705");
-      return "kommo_talks";
-    }
-  }
-  if (clientDelivered) return "meta";
   logger.error({ entityId, talkId, chatId, whatsappPhone }, "Lucy: mensaje no enviado \u274C");
   return "failed";
 }
@@ -87599,12 +87620,17 @@ async function mirrorOutboundInKommo(opts) {
     }
   }
   const preview = texto.length > 500 ? `${texto.slice(0, 497)}\u2026` : texto;
-  try {
-    await agregarNota(subdomain, accessToken, entityId, `\u{1F4E4} Lucy \u2192 cliente:
-${preview}`);
-    logger.info({ entityId, talkId, chatId }, "Lucy: espejo en nota Kommo (chat API no disponible)");
-  } catch (err2) {
-    logger.warn({ entityId, talkId, chatId, err: err2 }, "Lucy: no se pudo espejar mensaje en Kommo");
+  const noted = await agregarNota(
+    subdomain,
+    accessToken,
+    entityId,
+    `\u{1F4E4} Lucy \u2192 cliente:
+${preview}`
+  );
+  if (noted) {
+    logger.info({ entityId, talkId, chatId }, "Lucy: espejo en nota Kommo (Meta sin Talks)");
+  } else {
+    logger.warn({ entityId, talkId, chatId }, "Lucy: no se pudo espejar mensaje en Kommo");
   }
 }
 

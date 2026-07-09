@@ -10,6 +10,7 @@ import {
   isGreetingOnlyMessage,
   sanitizeDisplayName,
 } from "./contact-name.js";
+import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
 
 export type UnderstandingField =
   | "nombre"
@@ -117,25 +118,46 @@ const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(comuni[oó]n|graduaci[oó]n)\b/i, "celebración"],
 ];
 
+/** Normaliza para comparar presentaciones ("Alejandro?", "¿Alejandro"). */
+function normalizePresentationText(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[¿?.,!]/g, "")
+    .trim();
+}
+
 /** Cliente pregunta por el asesor humano (NO cuando dice su propio nombre). */
 export function clientAsksAboutTeam(message?: string, clientName?: string | null): boolean {
   if (!message?.trim()) return false;
   const t = message.trim();
-  const lower = t.toLowerCase();
+  const normalized = normalizePresentationText(t);
   const name = clientName?.trim().toLowerCase() ?? "";
+  const advisor = getAdvisorName().toLowerCase();
+  const advisorEsc = advisor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-  // Presentación: "Alejandro", "Hola, Roman", "soy Alejandro"
-  if (/^(soy\s+)?[a-záéíóúñ]{2,30}[.!]?$/i.test(t) && !t.includes("?")) return false;
-  if (/^hola,?\s+[a-záéíóúñ]{2,30}[.!]?$/i.test(t)) return false;
-  if (name && lower === name && !t.includes("?")) return false;
+  // Presentación con su propio nombre: "Alejandro", "Alejandro?", "soy Alejandro"
+  if (name) {
+    if (normalized === name || normalized === `soy ${name}` || normalized === `me llamo ${name}`) {
+      return false;
+    }
+  }
+
+  // Presentación genérica sin pregunta explícita por el asesor
+  if (/^(soy\s+)?[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
+  if (/^hola,?\s+[a-záéíóúñ]{2,30}$/i.test(normalized)) return false;
+
+  // Solo el nombre del asesor (con o sin ?) NO es pregunta si el cliente se llama igual
+  if (name && name === advisor && new RegExp(`^${advisorEsc}$`, "i").test(normalized)) {
+    return false;
+  }
 
   return (
-    /^alejandro\??$/i.test(t) ||
-    /\bqui[eé]n\s+es\s+alejandro\b/i.test(t) ||
-    /\best[aá]\s+alejandro\b/i.test(t) ||
-    /\bhablo\s+con\s+alejandro\b/i.test(t) ||
-    /\bpuedo\s+hablar\s+con\s+alejandro\b/i.test(t) ||
-    /\bd[oó]nde\s+est[aá]\s+alejandro\b/i.test(t) ||
+    (new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name && name === advisor)) ||
+    new RegExp(`\\bqui[eé]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t) ||
+    new RegExp(`\\best[aá]\\s+${advisorEsc}\\b`, "i").test(t) ||
+    new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t) ||
+    new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t) ||
+    new RegExp(`\\bd[oó]nde\\s+est[aá]\\s+${advisorEsc}\\b`, "i").test(t) ||
     /\bel\s+asesor\b/i.test(t)
   );
 }

@@ -124,19 +124,30 @@ export async function agregarNota(
   accessToken: string,
   leadId: string | number,
   texto: string
-): Promise<void> {
-  await fetch(
-    `https://${subdomain}.kommo.com/api/v4/leads/notes`,
-    {
-      method: "POST",
-      headers: kommoHeaders(accessToken),
-      body: JSON.stringify([{
-        entity_id: Number(leadId),
-        note_type: "common",
-        params: { text: texto },
-      }]),
+): Promise<boolean> {
+  try {
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/notes`,
+      {
+        method: "POST",
+        headers: kommoHeaders(accessToken),
+        body: JSON.stringify([{
+          entity_id: Number(leadId),
+          note_type: "common",
+          params: { text: texto },
+        }]),
+      }
+    );
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      logger.warn({ leadId, status: res.status, errBody }, "agregarNota: Kommo rechazó la nota");
+      return false;
     }
-  );
+    return true;
+  } catch (err) {
+    logger.warn({ leadId, err }, "agregarNota: excepción (timeout o red)");
+    return false;
+  }
 }
 
 export async function agregarTag(
