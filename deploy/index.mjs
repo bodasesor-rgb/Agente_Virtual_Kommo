@@ -89500,9 +89500,7 @@ await init_learning();
 
 // src/routes/knowledgeGaps.ts
 var import_express8 = __toESM(require_express2(), 1);
-init_requireAuth();
 var router8 = (0, import_express8.Router)();
-router8.use(requireAuth);
 router8.get("/knowledge-gaps", async (req, res) => {
   try {
     const statusParam = String(req.query.status ?? "pending");
@@ -89521,45 +89519,37 @@ router8.get("/knowledge-gaps/stats", async (_req, res) => {
     res.status(500).json({ error: "failed_to_load_stats" });
   }
 });
-router8.post(
-  "/knowledge-gaps/:id/answer",
-  requireRole("admin", "editor"),
-  async (req, res) => {
-    const { id } = req.params;
-    const { answer } = req.body;
-    if (!answer?.trim()) {
-      res.status(400).json({ error: "answer_required" });
+router8.post("/knowledge-gaps/:id/answer", async (req, res) => {
+  const { id } = req.params;
+  const { answer } = req.body;
+  if (!answer?.trim()) {
+    res.status(400).json({ error: "answer_required" });
+    return;
+  }
+  try {
+    const updated = await answerKnowledgeGap(id, answer, "panel");
+    if (!updated) {
+      res.status(404).json({ error: "gap_not_found" });
       return;
     }
-    try {
-      const updated = await answerKnowledgeGap(id, answer, req.lucyUser?.email);
-      if (!updated) {
-        res.status(404).json({ error: "gap_not_found" });
-        return;
-      }
-      res.json(updated);
-    } catch {
-      res.status(500).json({ error: "failed_to_answer" });
-    }
+    res.json(updated);
+  } catch {
+    res.status(500).json({ error: "failed_to_answer" });
   }
-);
-router8.post(
-  "/knowledge-gaps/:id/dismiss",
-  requireRole("admin", "editor"),
-  async (req, res) => {
-    const { id } = req.params;
-    try {
-      const ok = await dismissKnowledgeGap(id, req.lucyUser?.email);
-      if (!ok) {
-        res.status(404).json({ error: "gap_not_found" });
-        return;
-      }
-      res.json({ ok: true });
-    } catch {
-      res.status(500).json({ error: "failed_to_dismiss" });
+});
+router8.post("/knowledge-gaps/:id/dismiss", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const ok = await dismissKnowledgeGap(id, "panel");
+    if (!ok) {
+      res.status(404).json({ error: "gap_not_found" });
+      return;
     }
+    res.json({ ok: true });
+  } catch {
+    res.status(500).json({ error: "failed_to_dismiss" });
   }
-);
+});
 var knowledgeGaps_default = router8;
 
 // src/routes/catalog.ts

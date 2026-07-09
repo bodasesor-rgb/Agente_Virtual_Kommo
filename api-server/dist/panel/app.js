@@ -77,18 +77,15 @@ async function loadHomeStats() {
     let gapsClass = "";
 
     try {
-      const token = localStorage.getItem("lucy_admin_token");
-      if (token) {
-        const gaps = await fetch("/api/knowledge-gaps/stats", {
-          headers: { Authorization: `Bearer ${token}` },
-        }).then((r) => (r.ok ? r.json() : null));
-        if (gaps) {
-          pendingGaps = String(gaps.pending ?? 0);
-          gapsClass = gaps.pending > 0 ? "stat-warn" : "stat-ok";
-        }
+      const gaps = await fetch("/api/knowledge-gaps/stats").then((r) =>
+        r.ok ? r.json() : null,
+      );
+      if (gaps) {
+        pendingGaps = String(gaps.pending ?? 0);
+        gapsClass = gaps.pending > 0 ? "stat-warn" : "stat-ok";
       }
     } catch {
-      /* sin login aún */
+      /* stats opcionales */
     }
 
     const online = health.status === "ok" && health.openai_configured;

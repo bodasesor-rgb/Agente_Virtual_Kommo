@@ -1,17 +1,11 @@
 const API = "/api";
-const TOKEN_KEY = "lucy_admin_token";
 
-const loginView = document.getElementById("login-view");
-const mainView = document.getElementById("main-view");
-const loginForm = document.getElementById("login-form");
-const loginError = document.getElementById("login-error");
-const statsRow = document.getElementById("stats-row");
 const sectionIntro = document.getElementById("section-intro");
+const statsRow = document.getElementById("stats-row");
 const gapsList = document.getElementById("gaps-list");
 const emptyState = document.getElementById("empty-state");
 
 let currentStatus = "pending";
-let lastStats = { pending: 0, answered: 0, dismissed: 0 };
 
 const INTRO = {
   pending:
@@ -20,42 +14,17 @@ const INTRO = {
     "Todo lo que <strong>ya le enseñaste a Lucy</strong>: la pregunta del cliente, lo que Lucy dijo sin datos, y la respuesta correcta que quedó guardada.",
 };
 
-function token() {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
-function setToken(t) {
-  if (t) localStorage.setItem(TOKEN_KEY, t);
-  else localStorage.removeItem(TOKEN_KEY);
-}
-
 async function api(path, options = {}) {
-  const headers = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
-  const t = token();
-  if (t) headers.Authorization = `Bearer ${t}`;
-
-  const res = await fetch(`${API}${path}`, { ...options, headers });
-  if (res.status === 401) {
-    setToken(null);
-    showLogin();
-    throw new Error("Sesión expirada");
-  }
+  const res = await fetch(`${API}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data;
-}
-
-function showLogin() {
-  loginView.classList.remove("hidden");
-  mainView.classList.add("hidden");
-}
-
-function showMain() {
-  loginView.classList.add("hidden");
-  mainView.classList.remove("hidden");
 }
 
 function formatDate(iso) {
@@ -97,7 +66,6 @@ function updateTabCounts(stats) {
 
 async function loadStats() {
   const stats = await api("/knowledge-gaps/stats");
-  lastStats = stats;
   const total = stats.pending + stats.answered + stats.dismissed;
 
   statsRow.innerHTML = `
@@ -280,41 +248,6 @@ async function refresh() {
   await loadGaps();
 }
 
-async function tryRestoreSession() {
-  if (!token()) return showLogin();
-  try {
-    await api("/auth/me");
-    showMain();
-    await refresh();
-  } catch {
-    showLogin();
-  }
-}
-
-loginForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  loginError.classList.add("hidden");
-  try {
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value;
-    const data = await api("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-    setToken(data.token);
-    showMain();
-    await refresh();
-  } catch {
-    loginError.textContent = "Credenciales inválidas";
-    loginError.classList.remove("hidden");
-  }
-});
-
-document.getElementById("logout-btn").addEventListener("click", () => {
-  setToken(null);
-  showLogin();
-});
-
 document.querySelectorAll(".view-tab").forEach((btn) => {
   btn.addEventListener("click", async () => {
     document.querySelectorAll(".view-tab").forEach((b) => b.classList.remove("active"));
@@ -324,4 +257,7 @@ document.querySelectorAll(".view-tab").forEach((btn) => {
   });
 });
 
-tryRestoreSession();
+refresh().catch((err) => {
+  emptyState.classList.remove("hidden");
+  emptyState.innerHTML = `<strong>No se pudo cargar</strong>${escapeHtml(err.message)}`;
+});

@@ -445,24 +445,7 @@ textarea.answer-box { min-height: 110px; }
 </head>
 <body>
   <div id="app">
-    <section id="login-view" class="login-wrap">
-      <div class="login-card">
-        <div class="login-brand">
-          <span class="login-mark">📚</span>
-          <h1>Aprendizaje de Lucy</h1>
-        </div>
-        <p class="login-desc">Aquí ves lo que Lucy <strong>no sabe</strong>, las <strong>respuestas</strong> que le enseñas y todo lo que <strong>ya aprendió</strong> del catálogo.</p>
-        <form id="login-form">
-          <label>Email<input type="email" id="email" required autocomplete="username" /></label>
-          <label>Contraseña<input type="password" id="password" required autocomplete="current-password" /></label>
-          <button type="submit" class="btn-primary">Entrar</button>
-          <p id="login-error" class="error hidden"></p>
-        </form>
-        <a href="/panel" class="back-link">← Volver al panel</a>
-      </div>
-    </section>
-
-    <section id="main-view" class="hidden page">
+    <section id="main-view" class="page">
       <header class="page-header">
         <div class="page-header-text">
           <p class="eyebrow">Lucy · Catálogo</p>
@@ -471,7 +454,6 @@ textarea.answer-box { min-height: 110px; }
         </div>
         <div class="page-header-actions">
           <a href="/panel">← Panel</a>
-          <button type="button" id="logout-btn" class="btn-ghost">Salir</button>
         </div>
       </header>
 
@@ -498,6 +480,6 @@ textarea.answer-box { min-height: 110px; }
     </section>
   </div>
 
-  <script src="/aprendizaje/app.js?v=2" type="module"></script>
+  <script src="/aprendizaje/app.js?v=3" type="module"></script>
 </body>
 </html>
