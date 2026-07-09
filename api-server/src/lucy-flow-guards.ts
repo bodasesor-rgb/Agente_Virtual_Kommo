@@ -6,6 +6,7 @@ import {
   resolveClientDisplayName,
   sanitizeDisplayName,
 } from "./contact-name.js";
+import { normalizeAdvisorReferences } from "./lib/bodasesorAdvisor.js";
 import {
   buildAlejandroPriceReply,
   clientAsksPrice,
@@ -1232,7 +1233,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = withoutGammaLinks;
   }
 
-  return mensaje;
+  return normalizeAdvisorReferences(mensaje);
 }
 
 /** Los links Gamma son solo conocimiento interno — nunca deben llegar al cliente. */

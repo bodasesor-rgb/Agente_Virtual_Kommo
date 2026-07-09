@@ -42,6 +42,7 @@ import {
   clientAsksForRecommendations,
   clientAsksAboutTeam,
   clientAddsToQuote,
+  appendPostCierreRequirements,
   parsePresupuestoFromText,
   scanConversationForCaptures,
 } from "../conversation-understanding.js";
@@ -71,6 +72,7 @@ import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/c
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { getKommoAccessToken, getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
+import { getAdvisorName } from "../lib/bodasesorAdvisor.js";
 
 const router: IRouter = Router();
 
@@ -328,7 +330,7 @@ function buildClosingMessage(serviciosPedidos: string | null | undefined): strin
     ? `Por cierto, además de ${servicio}, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.`
     : `Por cierto, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.`;
   return (
-    `Perfecto, ya tengo todo. Le paso estos datos a Alejandro para que te arme una cotización personalizada.\n\n` +
+    `Perfecto, ya tengo todo. Le paso estos datos a ${getAdvisorName()} para que te arme una cotización personalizada.\n\n` +
     `Mientras tanto, aquí está nuestro catálogo completo:\n${CATALOG_URL}\n\n` +
     introServicios + `\n\n` +
     `¿Te gustaría cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en decírnoslo y nosotros te lo conseguimos.`
@@ -1222,6 +1224,17 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       readyForClosing: allFieldsFilled,
       cierreYaEnviado,
     });
+
+    if (cierreYaEnviado && combinedUserText.trim()) {
+      const updatedReq = appendPostCierreRequirements(
+        extracted.requerimientos_evento,
+        combinedUserText
+      );
+      if (updatedReq && updatedReq !== extracted.requerimientos_evento) {
+        extracted.requerimientos_evento = updatedReq;
+        log.info({ entityId, requerimientos: updatedReq }, "Post-cierre: requerimientos actualizados en CRM");
+      }
+    }
 
     // ── P3 GUARD: Catálogo ya enviado → strip URL del catálogo en respuesta ───────
     if (cierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
