@@ -11,13 +11,26 @@ export function getKommoAccessToken(): string {
   );
 }
 
+function normalizeKommoSubdomain(raw: string): string {
+  let s = raw.trim().replace(/\s+/g, "").toLowerCase();
+  if (!s) return "";
+
+  const fromUrl = s.match(/^(?:https?:\/\/)?([a-z0-9-]+)\.kommo\.com\/?$/);
+  if (fromUrl?.[1]) return fromUrl[1];
+
+  s = s.replace(/^https?:\/\//, "");
+  s = s.replace(/\.kommo\.com.*$/, "");
+  s = s.replace(/\/.*$/, "");
+  return s;
+}
+
 export function getKommoSubdomain(): string {
   const raw =
     process.env["KOMMO_SUBDOMAIN"]?.trim() ||
     process.env["SUBDOMINIO_KOMMO"]?.trim() ||
     process.env["KOMMO_SUBDOMINIO"]?.trim() ||
     "";
-  return raw.replace(/\s+/g, "").toLowerCase();
+  return normalizeKommoSubdomain(raw);
 }
 
 export function isKommoConfigured(): boolean {
