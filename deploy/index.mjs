@@ -81881,12 +81881,163 @@ function detectObjection(text2) {
   return { hasObjection: false };
 }
 
+// src/lucy-email-prompt.ts
+var EMAIL_SYSTEM_PROMPT = `Eres Lucy de Bodasesor, asesora virtual de eventos. Respondes por CORREO ELECTR\xD3NICO.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+FORMATO DE CORREO \u2014 OBLIGATORIO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Escribe UN correo completo en cada respuesta. NO env\xEDes mensajes cortos de una sola l\xEDnea.
+
+Estructura recomendada:
+1. Saludo cordial (usa el nombre del cliente si lo tienes: "Estimada Mar\xEDa", "Hola Roberto")
+2. Agradecimiento por escribirnos
+3. Respuesta a lo que el cliente pregunt\xF3 o coment\xF3 (si aplica)
+4. Bloque claro con la informaci\xF3n que necesitas \u2014 usa vi\xF1etas o p\xE1rrafos organizados
+5. Cierre profesional y firma
+
+Firma obligatoria al final:
+Quedo atenta.
+Lucy \u2014 Bodasesor
+hola@bodasesor.com
+
+REGLAS DE ESTILO:
+- Tono profesional, c\xE1lido y claro \u2014 como una asesora de eventos por email
+- P\xE1rrafos completos; evita respuestas de una sola frase
+- Puedes pedir VARIOS datos en el mismo correo si faltan (lista con vi\xF1etas)
+- Sin emojis
+- Sin lenguaje corporativo fr\xEDo ("Le informamos que...", "Por medio del presente...")
+- Sin repetir "Hola, soy Lucy de Bodasesor" en cada correo \u2014 solo en el PRIMER mensaje
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PRIMER CORREO \u2014 PRESENTACI\xD3N
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+En el PRIMER correo de Lucy a este contacto:
+1. Pres\xE9ntate: "Soy Lucy, asesora virtual de Bodasesor."
+2. Agradece el contacto
+3. Reconoce brevemente lo que mencionaron (tipo de evento, fecha, invitados, etc.)
+4. Indica qu\xE9 informaci\xF3n necesitas para que Alejandro arme una propuesta
+
+Ejemplo (primer correo, cliente sin datos previos):
+
+Estimado/a [nombre si lo tienes],
+
+Gracias por contactar a Bodasesor. Soy Lucy, asesora virtual del equipo.
+
+[Reconocimiento de lo que dijeron, si aplica.]
+
+Para que Alejandro pueda prepararte una cotizaci\xF3n personalizada, \xBFnos compartes la siguiente informaci\xF3n?
+
+\u2022 Tu nombre completo
+\u2022 Tipo de evento (boda, XV a\xF1os, corporativo, etc.)
+\u2022 Fecha aproximada del evento
+\u2022 N\xFAmero de invitados
+\u2022 Ciudad o lugar del evento
+\u2022 Servicios que tienes en mente (banquete, taquiza, barra, mobiliario, etc.)
+\u2022 Presupuesto estimado (opcional)
+
+Quedo atenta a tu respuesta.
+
+Lucy \u2014 Bodasesor
+hola@bodasesor.com
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CORREOS SIGUIENTES \u2014 CONVERSACI\xD3N EN CURSO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+- NO te presentes de nuevo
+- Agradece la informaci\xF3n recibida de forma natural
+- Responde preguntas del cliente con detalle cuando sea posible
+- Pide SOLO los datos que a\xFAn faltan (pueden ser varios en lista)
+- Si ya tienes casi todo, confirma lo capturado y pide lo que falte
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+DATOS A RECOLECTAR (mismo orden de prioridad que WhatsApp)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+1. Nombre del cliente
+2. Correo electr\xF3nico (si escriben desde otro canal, confirma el de respuesta)
+3. Tipo de evento
+4. Requerimientos o servicios
+5. N\xFAmero de invitados
+6. Lugar o ciudad del evento
+7. Fecha y horario
+8. Presupuesto estimado (MXN)
+
+En correo puedes agrupar los datos faltantes en una sola lista.
+NO vuelvas a pedir datos que ya est\xE1n en el CRM.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PRECIOS Y CAT\xC1LOGO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+- Solo menciona precios que est\xE9n en el cat\xE1logo oficial (bloque de cat\xE1logo del sistema)
+- DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile NO tienen precio fijo \u2014 indica que Alejandro los incluye en la cotizaci\xF3n
+- Si preguntan precios de servicios sin tarifa en cat\xE1logo: "Alejandro lo incluir\xE1 en la propuesta personalizada"
+- Puedes incluir el enlace al cat\xE1logo PDF cuando sea \xFAtil (al cierre o si lo piden)
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CIERRE (cuando ya tienes todos los datos)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Cuando tengas nombre, tipo de evento, requerimientos, invitados, lugar, fecha y presupuesto:
+
+- Confirma que recibiste toda la informaci\xF3n
+- Indica que Alejandro preparar\xE1 la cotizaci\xF3n personalizada
+- Comparte el cat\xE1logo si a\xFAn no lo enviaste
+- Menciona otros servicios disponibles (bebidas, DJ, iluminaci\xF3n, carpas, etc.)
+- Invita a responder si necesitan algo m\xE1s
+
+Debe incluir la frase: "Perfecto, ya tengo todo."
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PROHIBIDO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+- Mensajes de una sola pregunta tipo chat ("\xBFCu\xE1ntos invitados?")
+- Decir "Ya tengo tu correo/zona/fecha" antes de continuar
+- Inventar precios o correos que no sean hola@bodasesor.com
+- Bloque "DATOS DEL CLIENTE:" \u2014 eso es nota interna, nunca al cliente
+- Enlaces gamma.app
+- Emojis
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PROVEEDORES
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Si ofrecen productos o servicios a Bodasesor (flores, vajillas, etc.):
+- Agradece el contacto
+- Pide: nombre, empresa, correo y descripci\xF3n de lo que ofrecen
+- Indica que el equipo revisar\xE1 y se pondr\xE1 en contacto si hay inter\xE9s
+`;
+
 // src/services/promptBuilder.ts
 function buildDynamicPrompt(context) {
   const { hasObjection } = context;
   const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
-  let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
-  if (context.isFirstInteraction) {
+  const basePrompt = context.channel === "email" ? EMAIL_SYSTEM_PROMPT : SYSTEM_PROMPT;
+  let prompt = basePrompt + "\n\n" + catalog;
+  if (context.channel === "email") {
+    if (context.isFirstInteraction) {
+      prompt += `
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PRIMER CORREO \u2014 RECORDATORIO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Es el primer correo de Lucy a este contacto: pres\xE9ntate, agradece y lista los datos que necesitas (pueden ser varios en vi\xF1etas).`;
+    } else {
+      prompt += `
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CORREO EN CURSO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+NO te presentes de nuevo. Responde con un correo completo y pide solo lo que falte seg\xFAn el CRM.`;
+    }
+  } else if (context.isFirstInteraction) {
     prompt += `
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
@@ -81965,6 +82116,14 @@ var LUCY_REDACTION_PARAMS = {
   presence_penalty: 0.2,
   top_p: 0.9
 };
+var LUCY_EMAIL_REDACTION_PARAMS = {
+  model: LUCY_REDACTION_MODEL,
+  max_tokens: 2e3,
+  temperature: 0.5,
+  frequency_penalty: 0.3,
+  presence_penalty: 0.1,
+  top_p: 0.9
+};
 function mapPriorityToUrgency(priority) {
   if (priority === "hot") return "alta";
   if (priority === "cold") return "baja";
@@ -81999,7 +82158,17 @@ function buildRedactionBriefing(input) {
       `Objeci\xF3n detectada${input.objectionType ? ` (${input.objectionType})` : ""}: ati\xE9ndela antes de insistir en datos.`
     );
   }
-  if (input.isFirstInteraction) {
+  if (input.channel === "email") {
+    if (input.isFirstInteraction) {
+      lines.push("Es el PRIMER correo: presentaci\xF3n completa + lista de datos necesarios (vi\xF1etas).");
+    } else {
+      lines.push("Correo en curso: NO te presentes de nuevo. Mensaje completo con p\xE1rrafos y firma.");
+    }
+    lines.push(
+      "Formato correo: saludo, cuerpo con respuesta + datos faltantes en lista, cierre 'Quedo atenta' y firma Lucy \u2014 Bodasesor / hola@bodasesor.com",
+      "Puedes pedir varios datos en el mismo correo. NO uses estilo chat de una sola pregunta."
+    );
+  } else if (input.isFirstInteraction) {
     lines.push("Es el PRIMER mensaje de Lucy: presentaci\xF3n + pedir nombre.");
   } else {
     lines.push("NO te presentes de nuevo.");
@@ -82014,9 +82183,10 @@ function buildRedactionBriefing(input) {
 function appendRedactionBriefing(messages2, briefing) {
   return [...messages2, { role: "system", content: briefing }];
 }
-async function completeLucyRedaction(openai4, baseMessages, briefing) {
+async function completeLucyRedaction(openai4, baseMessages, briefing, channel = "whatsapp") {
+  const params = channel === "email" ? LUCY_EMAIL_REDACTION_PARAMS : LUCY_REDACTION_PARAMS;
   const completion = await openai4.chat.completions.create({
-    ...LUCY_REDACTION_PARAMS,
+    ...params,
     messages: appendRedactionBriefing(baseMessages, briefing)
   });
   return completion.choices[0]?.message?.content ?? "";
@@ -87767,6 +87937,113 @@ Motivo: ${reason}`
   });
 }
 
+// src/services/channelDetection.ts
+function isEmailChannel(hints) {
+  const ch = (hints.channelHint ?? "").toLowerCase();
+  const sender = (hints.senderHint ?? "").toLowerCase();
+  if (ch.includes("mail") || ch.includes("email") || ch.includes("correo") || ch === "incoming_email" || ch === "email") {
+    return true;
+  }
+  if (/\S+@\S+\.\S+/.test(sender) && !ch.includes("whatsapp") && !ch.includes("waba")) {
+    return true;
+  }
+  return false;
+}
+function detectLucyChannel(hints) {
+  return isEmailChannel(hints) ? "email" : "whatsapp";
+}
+
+// src/services/lucyEmailGuards.ts
+var EMAIL_SIGNATURE = "Lucy \u2014 Bodasesor\nhola@bodasesor.com";
+function buildEmailClosingMessage(serviciosPedidos, catalogUrl) {
+  const servicio = serviciosPedidos?.trim() || null;
+  const introServicios = servicio ? `Adem\xE1s de ${servicio}, tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y m\xE1s.` : `Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y m\xE1s.`;
+  return `Perfecto, ya tengo toda la informaci\xF3n que necesitamos. Le comparto estos datos a Alejandro para que prepare tu cotizaci\xF3n personalizada.
+
+Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
+${catalogUrl}
+
+${introServicios}
+
+Si deseas cotizar alg\xFAn servicio adicional o tienes alguna duda, con gusto te apoyamos.
+
+Quedo atenta.
+${EMAIL_SIGNATURE}`;
+}
+function ensureEmailSignature(text2) {
+  const trimmed = text2.trim();
+  if (/hola@bodasesor\.com/i.test(trimmed)) return trimmed;
+  if (/quedo atenta/i.test(trimmed)) {
+    return `${trimmed}
+${EMAIL_SIGNATURE}`;
+  }
+  return `${trimmed}
+
+Quedo atenta.
+${EMAIL_SIGNATURE}`;
+}
+function listMissingFields(extracted, filledSet) {
+  const labels = [
+    { key: "Nombre del cliente", label: "Nombre completo" },
+    { key: "Correo electr\xF3nico", label: "Correo electr\xF3nico" },
+    { key: "Tipo de evento", label: "Tipo de evento" },
+    { key: "Requerimientos o servicios", label: "Servicios o requerimientos" },
+    { key: "N\xFAmero de invitados", label: "N\xFAmero de invitados" },
+    { key: "Lugar/direcci\xF3n del evento", label: "Ciudad o lugar del evento" },
+    { key: "Fecha y horario", label: "Fecha aproximada" },
+    { key: "Presupuesto (MXN)", label: "Presupuesto estimado (opcional)" }
+  ];
+  return labels.filter(({ key }) => !filledSet.has(key) && !filledSet.has(key.replace(" (opcional)", ""))).map(({ label }) => label);
+}
+function applyEmailMessageGuards(input) {
+  const {
+    aiResponse,
+    extracted,
+    filledSet,
+    readyForClosing,
+    cierreYaEnviado,
+    history,
+    currentMessage,
+    buildClosing,
+    log,
+    entityId,
+    catalogUrl,
+    presentationHistory
+  } = input;
+  const pendingBeforeClose = getNextPendingField(extracted, filledSet);
+  const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
+  let mensaje;
+  if (trulyReadyForClosing && !cierreYaEnviado) {
+    mensaje = buildEmailClosingMessage(
+      extracted.tipo_evento ?? extracted.requerimientos_evento ?? null,
+      catalogUrl
+    );
+    log?.info({ entityId }, "Email: datos completos \u2014 cierre formal");
+  } else if (aiResponse.includes("DATOS DEL CLIENTE:")) {
+    mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
+    log?.warn({ entityId }, "Email: nota interna detectada \u2014 usando cierre");
+  } else {
+    mensaje = aiResponse.trim();
+  }
+  const ctxText = [
+    ...(presentationHistory ?? history).filter((m4) => m4.role === "user").map((m4) => typeof m4.content === "string" ? m4.content : ""),
+    currentMessage ?? ""
+  ].join(" ");
+  mensaje = sanitizeInventedPrices(mensaje, currentMessage, ctxText);
+  mensaje = stripGammaLinks(mensaje);
+  const missing = listMissingFields(extracted, filledSet);
+  if (!trulyReadyForClosing && missing.length > 0 && mensaje.length < 180 && !mensaje.includes("\u2022")) {
+    const bullets = missing.map((l4) => `\u2022 ${l4}`).join("\n");
+    mensaje = `${mensaje}
+
+Para preparar tu cotizaci\xF3n, \xBFnos compartes la siguiente informaci\xF3n?
+
+${bullets}`;
+    log?.info({ entityId, missing: missing.length }, "Email: lista de datos faltantes a\xF1adida");
+  }
+  return ensureEmailSignature(mensaje);
+}
+
 // src/routes/kommo.ts
 var router3 = (0, import_express3.Router)();
 var openai3 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
@@ -88263,7 +88540,11 @@ function extractChannelHint(message) {
 async function processBatch(batch, accessToken, log) {
   const { texts, entityId, chatId, talkId, subdomain, isVoice, senderHint, channelHint } = batch;
   const combinedUserText = texts.join("\n");
-  log.info({ messageCount: texts.length, combinedUserText, chatId }, "Processing debounced batch");
+  const lucyChannel = detectLucyChannel({ channelHint, senderHint });
+  log.info(
+    { messageCount: texts.length, combinedUserText, chatId, lucyChannel, channelHint },
+    "Processing debounced batch"
+  );
   try {
     const leadKommo = await fetchLead(subdomain, accessToken, entityId);
     if (leadKommo) {
@@ -88432,7 +88713,8 @@ async function processBatch(batch, accessToken, log) {
       crmContext,
       isFirstInteraction,
       hasClientName: filledLabels.has("Nombre del cliente"),
-      catalogBlock
+      catalogBlock,
+      channel: lucyChannel
     });
     const trainingExamples2 = await getTrainingExamples();
     const fewShot = trainingExamples2.flatMap((ex) => [
@@ -88456,9 +88738,10 @@ async function processBatch(batch, accessToken, log) {
       allFieldsFilled,
       isFirstInteraction,
       hasObjection: objectionResult.hasObjection,
-      objectionType: objectionResult.type
+      objectionType: objectionResult.type,
+      channel: lucyChannel
     });
-    let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+    let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing, lucyChannel);
     aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogCateringIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
@@ -88473,7 +88756,7 @@ async function processBatch(batch, accessToken, log) {
       (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
     );
     const emailRefusedThisTurn = detectEmailRefusal([combinedUserText]);
-    let mensajeParaCliente = applyLucyMessageGuards({
+    const guardsInput = {
       aiResponse,
       extracted,
       filledSet: filledLabels,
@@ -88488,7 +88771,8 @@ async function processBatch(batch, accessToken, log) {
       log,
       entityId,
       forceFirstPresentation: isFirstInteraction
-    });
+    };
+    let mensajeParaCliente = lucyChannel === "email" ? applyEmailMessageGuards({ ...guardsInput, catalogUrl: CATALOG_URL }) : applyLucyMessageGuards(guardsInput);
     mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
       readyForClosing: allFieldsFilled,
       cierreYaEnviado
@@ -88515,63 +88799,79 @@ async function processBatch(batch, accessToken, log) {
       contextSnippet: conversationText.slice(-400)
     });
     {
-      const entityKey = String(entityId);
-      let whatsappPhone = phoneCache.get(entityKey) ?? null;
-      if (!whatsappPhone) {
-        whatsappPhone = await fetchContactPhone(subdomain, accessToken, entityId);
-        if (whatsappPhone) {
-          phoneCache.set(entityKey, whatsappPhone);
-          log.info({ entityId, phone: whatsappPhone }, "Tel\xE9fono cacheado para env\xEDos futuros");
-        }
-      }
-      if (whatsappPhone) {
-        const sendResult = await sendWhatsAppDirect(
-          whatsappPhone,
-          mensajeParaCliente,
-          entityId
-        );
-        if (sendResult.success) {
-          log.info({ entityId, phone: whatsappPhone }, "Mensaje enviado via Meta API \u2705");
-          void registrarMensajeSalienteKommo({
-            subdomain,
-            accessToken,
-            chatId,
-            texto: mensajeParaCliente,
-            toPhone: whatsappPhone,
-            metaMessageId: sendResult.messageId,
-            entityId
-          }).catch(
-            (err2) => log.warn({ err: err2, entityId }, "registrarMensajeSalienteKommo: error no capturado")
-          );
-          void agregarNota(subdomain, accessToken, entityId, `\u{1F4AC} Lucy: ${mensajeParaCliente}`).catch(
-            (err2) => log.warn({ err: err2, entityId }, "agregarNota mensaje Lucy: error no cr\xEDtico")
-          );
-        } else {
-          log.error(
-            { entityId, phone: whatsappPhone, error: sendResult.error },
-            "Meta API fall\xF3 \u2014 intentando fallback Kommo Talks API"
-          );
-          if (talkId) {
-            const enviado = await enviarMensaje(subdomain, accessToken, talkId, mensajeParaCliente);
-            if (enviado) {
-              log.info({ entityId, talkId }, "Fallback: mensaje enviado via Kommo Talks API \u2705");
-            } else {
-              log.error({ entityId, talkId }, "Fallback: enviarMensaje tambi\xE9n fall\xF3 \u274C");
-            }
+      if (lucyChannel === "email") {
+        if (talkId) {
+          const enviado = await enviarMensaje(subdomain, accessToken, talkId, mensajeParaCliente);
+          if (enviado) {
+            log.info({ entityId, talkId }, "Correo enviado via Kommo Talks API \u2705");
+            void agregarNota(subdomain, accessToken, entityId, `\u{1F4E7} Lucy (correo): ${mensajeParaCliente.slice(0, 500)}`).catch(
+              (err2) => log.warn({ err: err2, entityId }, "agregarNota correo Lucy: error no cr\xEDtico")
+            );
           } else {
-            log.error({ entityId }, "Meta API fall\xF3 y no hay talkId para fallback \u2014 mensaje NO enviado \u274C");
+            log.error({ entityId, talkId }, "Kommo Talks API fall\xF3 al enviar correo \u274C");
           }
-        }
-      } else if (talkId) {
-        log.warn({ entityId }, "Sin tel\xE9fono en contacto \u2014 usando Kommo Talks API directamente");
-        const enviado = await enviarMensaje(subdomain, accessToken, talkId, mensajeParaCliente);
-        if (enviado) {
-          log.info({ entityId, talkId }, "Mensaje enviado via Kommo Talks API (sin tel\xE9fono) \u2705");
         } else {
-          log.error({ entityId, talkId }, "Kommo Talks API fall\xF3 \u274C");
+          log.error({ entityId }, "Canal correo sin talkId \u2014 mensaje NO enviado \u274C");
         }
       } else {
-        log.error({ entityId }, "Sin tel\xE9fono ni talkId \u2014 mensaje NO enviado al cliente \u274C");
+        const entityKey = String(entityId);
+        let whatsappPhone = phoneCache.get(entityKey) ?? null;
+        if (!whatsappPhone) {
+          whatsappPhone = await fetchContactPhone(subdomain, accessToken, entityId);
+          if (whatsappPhone) {
+            phoneCache.set(entityKey, whatsappPhone);
+            log.info({ entityId, phone: whatsappPhone }, "Tel\xE9fono cacheado para env\xEDos futuros");
+          }
+        }
+        if (whatsappPhone) {
+          const sendResult = await sendWhatsAppDirect(
+            whatsappPhone,
+            mensajeParaCliente,
+            entityId
+          );
+          if (sendResult.success) {
+            log.info({ entityId, phone: whatsappPhone }, "Mensaje enviado via Meta API \u2705");
+            void registrarMensajeSalienteKommo({
+              subdomain,
+              accessToken,
+              chatId,
+              texto: mensajeParaCliente,
+              toPhone: whatsappPhone,
+              metaMessageId: sendResult.messageId,
+              entityId
+            }).catch(
+              (err2) => log.warn({ err: err2, entityId }, "registrarMensajeSalienteKommo: error no capturado")
+            );
+            void agregarNota(subdomain, accessToken, entityId, `\u{1F4AC} Lucy: ${mensajeParaCliente}`).catch(
+              (err2) => log.warn({ err: err2, entityId }, "agregarNota mensaje Lucy: error no cr\xEDtico")
+            );
+          } else {
+            log.error(
+              { entityId, phone: whatsappPhone, error: sendResult.error },
+              "Meta API fall\xF3 \u2014 intentando fallback Kommo Talks API"
+            );
+            if (talkId) {
+              const enviado = await enviarMensaje(subdomain, accessToken, talkId, mensajeParaCliente);
+              if (enviado) {
+                log.info({ entityId, talkId }, "Fallback: mensaje enviado via Kommo Talks API \u2705");
+              } else {
+                log.error({ entityId, talkId }, "Fallback: enviarMensaje tambi\xE9n fall\xF3 \u274C");
+              }
+            } else {
+              log.error({ entityId }, "Meta API fall\xF3 y no hay talkId para fallback \u2014 mensaje NO enviado \u274C");
+            }
+          }
+        } else if (talkId) {
+          log.warn({ entityId }, "Sin tel\xE9fono en contacto \u2014 usando Kommo Talks API directamente");
+          const enviado = await enviarMensaje(subdomain, accessToken, talkId, mensajeParaCliente);
+          if (enviado) {
+            log.info({ entityId, talkId }, "Mensaje enviado via Kommo Talks API (sin tel\xE9fono) \u2705");
+          } else {
+            log.error({ entityId, talkId }, "Kommo Talks API fall\xF3 \u274C");
+          }
+        } else {
+          log.error({ entityId }, "Sin tel\xE9fono ni talkId \u2014 mensaje NO enviado al cliente \u274C");
+        }
       }
     }
     const payload = buildPatchPayload(

@@ -72,6 +72,8 @@ import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { classifyInboundMessage } from "../services/messageClassifier.js";
 import { descartarPublicidad } from "../services/kommoTalkActions.js";
+import { detectLucyChannel } from "../services/channelDetection.js";
+import { applyEmailMessageGuards } from "../services/lucyEmailGuards.js";
 
 const router: IRouter = Router();
 
@@ -939,8 +941,12 @@ function extractChannelHint(message: KommoMessageEntry | undefined): string {
 async function processBatch(batch: PendingBatch, accessToken: string, log: any): Promise<void> {
   const { texts, entityId, chatId, talkId, subdomain, isVoice, senderHint, channelHint } = batch;
   const combinedUserText = texts.join("\n");
+  const lucyChannel = detectLucyChannel({ channelHint, senderHint });
 
-  log.info({ messageCount: texts.length, combinedUserText, chatId }, "Processing debounced batch");
+  log.info(
+    { messageCount: texts.length, combinedUserText, chatId, lucyChannel, channelHint },
+    "Processing debounced batch"
+  );
 
   try {
     // ══════════════════════════════════════════════════════════════════════
@@ -1190,6 +1196,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       isFirstInteraction,
       hasClientName: filledLabels.has("Nombre del cliente"),
       catalogBlock,
+      channel: lucyChannel,
     });
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1220,9 +1227,10 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       isFirstInteraction,
       hasObjection: objectionResult.hasObjection,
       objectionType: objectionResult.type,
+      channel: lucyChannel,
     });
 
-    let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
+    let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing, lucyChannel);
     aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogCateringIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
@@ -1261,7 +1269,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     const emailRefusedThisTurn = detectEmailRefusal([combinedUserText]);
 
-    let mensajeParaCliente = applyLucyMessageGuards({
+    const guardsInput = {
       aiResponse,
       extracted,
       filledSet: filledLabels,
@@ -1276,7 +1284,12 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       log,
       entityId,
       forceFirstPresentation: isFirstInteraction,
-    });
+    };
+
+    let mensajeParaCliente =
+      lucyChannel === "email"
+        ? applyEmailMessageGuards({ ...guardsInput, catalogUrl: CATALOG_URL })
+        : applyLucyMessageGuards(guardsInput);
 
     mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
       readyForClosing: allFieldsFilled,
@@ -1324,15 +1337,27 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 14: Enviar mensaje al cliente
     //
-    // PRIORIDAD:
+    // CORREO: solo Kommo Talks API (canal mail conectado en Kommo).
+    // WHATSAPP:
     //  1. Meta WhatsApp Cloud API (sendWhatsAppDirect) — SIEMPRE primario.
-    //     Kommo detecta el mensaje saliente automáticamente y lo muestra
-    //     en el chat (espejo via integración WhatsApp Business de Kommo).
-    //  2. Kommo Talks API (enviarMensaje) — fallback si Meta falla y
-    //     hay talkId disponible. El mensaje llega al cliente pero no
-    //     aparece en el chat de Kommo como mensaje de bot.
+    //  2. Kommo Talks API (enviarMensaje) — fallback si Meta falla.
     // ══════════════════════════════════════════════════════════════════════
     {
+      if (lucyChannel === "email") {
+        if (talkId) {
+          const enviado = await enviarMensaje(subdomain, accessToken, talkId, mensajeParaCliente);
+          if (enviado) {
+            log.info({ entityId, talkId }, "Correo enviado via Kommo Talks API ✅");
+            void agregarNota(subdomain, accessToken, entityId, `📧 Lucy (correo): ${mensajeParaCliente.slice(0, 500)}`).catch(
+              (err: unknown) => log.warn({ err, entityId }, "agregarNota correo Lucy: error no crítico")
+            );
+          } else {
+            log.error({ entityId, talkId }, "Kommo Talks API falló al enviar correo ❌");
+          }
+        } else {
+          log.error({ entityId }, "Canal correo sin talkId — mensaje NO enviado ❌");
+        }
+      } else {
       const entityKey = String(entityId);
       let whatsappPhone = phoneCache.get(entityKey) ?? null;
 
@@ -1399,6 +1424,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         }
       } else {
         log.error({ entityId }, "Sin teléfono ni talkId — mensaje NO enviado al cliente ❌");
+      }
       }
     }
 

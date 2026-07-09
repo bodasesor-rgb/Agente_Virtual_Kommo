@@ -1,11 +1,13 @@
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
+import { EMAIL_SYSTEM_PROMPT } from "../lucy-email-prompt.js";
 import { getCatalogPromptBlockSync } from "./catalogService.js";
 import type { ObjectionDetection } from "./intentDetection.js";
 import type { ExtractedData } from "../types.js";
+import type { LucyChannel } from "./channelDetection.js";
 
 /**
  * Construye el prompt final para Lucy.
- * Base: SYSTEM_PROMPT V6 optimizado para gpt-4o-mini.
+ * Base: SYSTEM_PROMPT (WhatsApp) o EMAIL_SYSTEM_PROMPT (correo).
  * Agrega módulos de objeción + contexto de primera interacción o conversación en curso.
  */
 export function buildDynamicPrompt(context: {
@@ -17,13 +19,33 @@ export function buildDynamicPrompt(context: {
   isFirstInteraction?: boolean;
   hasClientName?: boolean;
   catalogBlock?: string;
+  channel?: LucyChannel;
 }): string {
   const { hasObjection } = context;
   const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
+  const basePrompt = context.channel === "email" ? EMAIL_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
-  let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
+  let prompt = basePrompt + "\n\n" + catalog;
 
-  if (context.isFirstInteraction) {
+  if (context.channel === "email") {
+    if (context.isFirstInteraction) {
+      prompt += `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PRIMER CORREO — RECORDATORIO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Es el primer correo de Lucy a este contacto: preséntate, agradece y lista los datos que necesitas (pueden ser varios en viñetas).`;
+    } else {
+      prompt += `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CORREO EN CURSO
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NO te presentes de nuevo. Responde con un correo completo y pide solo lo que falte según el CRM.`;
+    }
+  } else if (context.isFirstInteraction) {
     prompt += `
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

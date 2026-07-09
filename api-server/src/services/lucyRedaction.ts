@@ -9,6 +9,7 @@ import {
   type PendingField,
 } from "../lucy-flow-guards.js";
 import type { IntentResult, SentimentResult } from "./intentDetection.js";
+import type { LucyChannel } from "./channelDetection.js";
 
 export const LUCY_REDACTION_MODEL = "gpt-4o-mini";
 
@@ -32,6 +33,15 @@ export const LUCY_REDACTION_PARAMS = {
   top_p: 0.9,
 } as const;
 
+export const LUCY_EMAIL_REDACTION_PARAMS = {
+  model: LUCY_REDACTION_MODEL,
+  max_tokens: 2000,
+  temperature: 0.5,
+  frequency_penalty: 0.3,
+  presence_penalty: 0.1,
+  top_p: 0.9,
+} as const;
+
 export interface RedactionBriefingInput {
   extracted: ExtractedData;
   filledSet: Set<string>;
@@ -44,6 +54,7 @@ export interface RedactionBriefingInput {
   isFirstInteraction: boolean;
   hasObjection?: boolean;
   objectionType?: string | null;
+  channel?: LucyChannel;
 }
 
 function mapPriorityToUrgency(priority: string): "alta" | "media" | "baja" {
@@ -90,7 +101,17 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
     );
   }
 
-  if (input.isFirstInteraction) {
+  if (input.channel === "email") {
+    if (input.isFirstInteraction) {
+      lines.push("Es el PRIMER correo: presentación completa + lista de datos necesarios (viñetas).");
+    } else {
+      lines.push("Correo en curso: NO te presentes de nuevo. Mensaje completo con párrafos y firma.");
+    }
+    lines.push(
+      "Formato correo: saludo, cuerpo con respuesta + datos faltantes en lista, cierre 'Quedo atenta' y firma Lucy — Bodasesor / hola@bodasesor.com",
+      "Puedes pedir varios datos en el mismo correo. NO uses estilo chat de una sola pregunta."
+    );
+  } else if (input.isFirstInteraction) {
     lines.push("Es el PRIMER mensaje de Lucy: presentación + pedir nombre.");
   } else {
     lines.push("NO te presentes de nuevo.");
@@ -115,10 +136,12 @@ export function appendRedactionBriefing(
 export async function completeLucyRedaction(
   openai: OpenAI,
   baseMessages: OpenAI.Chat.ChatCompletionMessageParam[],
-  briefing: string
+  briefing: string,
+  channel: LucyChannel = "whatsapp"
 ): Promise<string> {
+  const params = channel === "email" ? LUCY_EMAIL_REDACTION_PARAMS : LUCY_REDACTION_PARAMS;
   const completion = await openai.chat.completions.create({
-    ...LUCY_REDACTION_PARAMS,
+    ...params,
     messages: appendRedactionBriefing(baseMessages, briefing),
   });
   return completion.choices[0]?.message?.content ?? "";
