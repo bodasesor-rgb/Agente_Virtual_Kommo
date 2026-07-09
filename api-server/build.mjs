@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm, copyFile, cp, mkdir } from "node:fs/promises";
+import { rm, copyFile, cp, mkdir, readFile, writeFile } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -153,6 +153,25 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
 
   const deployDir = path.resolve(artifactDir, "../deploy");
   await cp(distDir, deployDir, { recursive: true, force: true });
+
+  async function embedPanelCss(panelRoot) {
+    const htmlPath = path.join(panelRoot, "index.html");
+    const cssPath = path.join(panelRoot, "styles.css");
+    let html = await readFile(htmlPath, "utf8");
+    const css = await readFile(cssPath, "utf8");
+    if (!html.includes("<style>")) {
+      html = html.replace(
+        /<link rel="stylesheet" href="\/panel\/styles\.css[^"]*" \/>/,
+        `<style>\n${css}\n</style>\n  <link rel="stylesheet" href="/panel/styles.css?v=4" />`,
+      );
+      await writeFile(htmlPath, html);
+    }
+  }
+
+  await embedPanelCss(path.join(distDir, "panel"));
+  await embedPanelCss(path.join(deployDir, "panel"));
+  console.log("[build] Panel: CSS embebido en index.html");
+
   console.log("[build] Bundle sincronizado a deploy/");
 }
 

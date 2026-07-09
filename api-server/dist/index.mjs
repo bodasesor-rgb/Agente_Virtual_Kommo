@@ -89671,17 +89671,14 @@ mountAprendizaje("/aprendizaje");
 var panelDir = path3.join(__dirname, "panel");
 var panelIndex = path3.join(panelDir, "index.html");
 function mountPanel(basePath) {
-  app.get(basePath, (_req, res) => {
-    res.redirect(301, `${basePath}/`);
-  });
-  app.get(`${basePath}/`, (_req, res) => {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(panelIndex);
   });
   app.use(basePath, import_express11.default.static(panelDir, { index: false }));
 }
 mountPanel("/panel");
 app.get("/", (_req, res) => {
-  res.redirect(302, "/panel/");
+  res.redirect(302, "/panel");
 });
 app.post("/", (req, _res, next) => {
   logger.warn({ url: req.url }, "POST / recibido \u2014 redirigiendo a /api/kommo/webhook");

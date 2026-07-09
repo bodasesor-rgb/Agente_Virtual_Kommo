@@ -71,10 +71,7 @@ const panelDir = path.join(__dirname, "panel");
 const panelIndex = path.join(panelDir, "index.html");
 
 function mountPanel(basePath: string) {
-  app.get(basePath, (_req, res) => {
-    res.redirect(301, `${basePath}/`);
-  });
-  app.get(`${basePath}/`, (_req, res) => {
+  app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(panelIndex);
   });
   app.use(basePath, express.static(panelDir, { index: false }));
@@ -83,7 +80,7 @@ function mountPanel(basePath: string) {
 mountPanel("/panel");
 
 app.get("/", (_req, res) => {
-  res.redirect(302, "/panel/");
+  res.redirect(302, "/panel");
 });
 
 // Kommo puede enviar webhooks a "/" en lugar de "/api/kommo/webhook".
