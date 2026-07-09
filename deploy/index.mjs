@@ -73997,6 +73997,28 @@ var init_learning = __esm({
 // src/index.ts
 init_openaiEnv();
 
+// src/lib/kommoEnv.ts
+function getKommoAccessToken() {
+  return process.env["KOMMO_ACCESS_TOKEN"]?.trim() || process.env["KOMMO_TOKEN_LARGA_DURACION"]?.trim() || process.env["KOMMO_LONG_LIVED_TOKEN"]?.trim() || "";
+}
+function getKommoSubdomain() {
+  const raw = process.env["KOMMO_SUBDOMAIN"]?.trim() || process.env["SUBDOMINIO_KOMMO"]?.trim() || process.env["KOMMO_SUBDOMINIO"]?.trim() || "";
+  return raw.replace(/\s+/g, "").toLowerCase();
+}
+function isKommoConfigured() {
+  return getKommoAccessToken().length > 0 && getKommoSubdomain().length > 0;
+}
+function ensureKommoEnv() {
+  const token = getKommoAccessToken();
+  if (token && !process.env["KOMMO_ACCESS_TOKEN"]?.trim()) {
+    process.env["KOMMO_ACCESS_TOKEN"] = token;
+  }
+  const subdomain = getKommoSubdomain();
+  if (subdomain && !process.env["KOMMO_SUBDOMAIN"]?.trim()) {
+    process.env["KOMMO_SUBDOMAIN"] = subdomain;
+  }
+}
+
 // src/app.ts
 var import_express12 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
@@ -79246,6 +79268,8 @@ router.get("/health", (_req, res) => {
     git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
     openai_configured: isOpenAiConfigured(),
     openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "\u2026" : null,
+    kommo_configured: isKommoConfigured(),
+    kommo_subdomain: getKommoSubdomain() || null,
     catalog: getCatalogStatus()
   });
 });
@@ -88529,6 +88553,60 @@ Ofrece: ${extracted.requerimientos_evento ?? "-"}`
     log.error({ err: err2 }, "Error processing batch");
   }
 }
+router3.get("/kommo/status", async (_req, res) => {
+  const subdomain = getKommoSubdomain();
+  const accessToken = getKommoAccessToken();
+  if (!isKommoConfigured()) {
+    res.status(503).json({
+      ok: false,
+      kommo_configured: false,
+      kommo_subdomain: subdomain || null,
+      error: "Faltan KOMMO_SUBDOMAIN y/o KOMMO_ACCESS_TOKEN (o alias KOMMO_TOKEN_LARGA_DURACION / SUBDOMINIO_KOMMO)"
+    });
+    return;
+  }
+  try {
+    const r2 = await fetch(`https://${subdomain}.kommo.com/api/v4/account`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const text2 = await r2.text();
+    let account = null;
+    try {
+      account = JSON.parse(text2);
+    } catch {
+      account = null;
+    }
+    if (!r2.ok) {
+      res.status(502).json({
+        ok: false,
+        kommo_configured: true,
+        kommo_subdomain: subdomain,
+        kommo_api: "error",
+        http_status: r2.status,
+        hint: r2.status === 401 ? "Token inv\xE1lido o expirado \u2014 revisa KOMMO_TOKEN_LARGA_DURACION" : "Revisa subdominio y permisos del token"
+      });
+      return;
+    }
+    res.json({
+      ok: true,
+      kommo_configured: true,
+      kommo_subdomain: subdomain,
+      kommo_api: "connected",
+      account_name: account?.name ?? null
+    });
+  } catch (err2) {
+    res.status(502).json({
+      ok: false,
+      kommo_configured: true,
+      kommo_subdomain: subdomain,
+      kommo_api: "unreachable",
+      error: err2 instanceof Error ? err2.message : String(err2)
+    });
+  }
+});
+router3.get("/kommo/webhook", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-webhook" });
+});
 router3.post("/kommo/webhook", async (req, res) => {
   const log = req.log;
   const body2 = req.body;
@@ -88585,6 +88663,9 @@ router3.post("/kommo/webhook", async (req, res) => {
     pendingBatches.set(chatId, batch);
     log.info({ chatId, debounceMs: DEBOUNCE_MS, isVoice }, "New batch started, waiting for more messages");
   }
+});
+router3.get("/kommo/salesbot", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-salesbot" });
 });
 router3.post("/kommo/salesbot", async (req, res) => {
   const log = req.log;
@@ -88810,6 +88891,9 @@ router3.post("/kommo/salesbot", async (req, res) => {
     log.error({ err: err2 }, "Salesbot: processing error");
     res.status(500).json({ error: "processing_failed" });
   }
+});
+router3.get("/kommo/pipeline-change", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-pipeline-change" });
 });
 router3.post("/kommo/pipeline-change", async (req, res) => {
   const log = req.log;
@@ -89811,6 +89895,7 @@ init_logger3();
 await init_trainingStore();
 await init_learningSchema();
 ensureOpenAiApiKeyEnv();
+ensureKommoEnv();
 var rawPort = process.env["PORT"] ?? "3000";
 var port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {

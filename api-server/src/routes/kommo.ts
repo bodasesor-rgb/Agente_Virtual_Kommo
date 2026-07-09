@@ -70,6 +70,7 @@ import {
 import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/chatIngest.js";
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
+import { getKommoAccessToken, getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
 
 const router: IRouter = Router();
 
@@ -1542,7 +1543,69 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
   }
 }
 
+// ─── Diagnóstico Kommo (sin exponer tokens) ───────────────────────────────────
+router.get("/kommo/status", async (_req, res) => {
+  const subdomain = getKommoSubdomain();
+  const accessToken = getKommoAccessToken();
+
+  if (!isKommoConfigured()) {
+    res.status(503).json({
+      ok: false,
+      kommo_configured: false,
+      kommo_subdomain: subdomain || null,
+      error: "Faltan KOMMO_SUBDOMAIN y/o KOMMO_ACCESS_TOKEN (o alias KOMMO_TOKEN_LARGA_DURACION / SUBDOMINIO_KOMMO)",
+    });
+    return;
+  }
+
+  try {
+    const r = await fetch(`https://${subdomain}.kommo.com/api/v4/account`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const text = await r.text();
+    let account: { name?: string; subdomain?: string } | null = null;
+    try {
+      account = JSON.parse(text) as { name?: string; subdomain?: string };
+    } catch {
+      account = null;
+    }
+
+    if (!r.ok) {
+      res.status(502).json({
+        ok: false,
+        kommo_configured: true,
+        kommo_subdomain: subdomain,
+        kommo_api: "error",
+        http_status: r.status,
+        hint: r.status === 401 ? "Token inválido o expirado — revisa KOMMO_TOKEN_LARGA_DURACION" : "Revisa subdominio y permisos del token",
+      });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      kommo_configured: true,
+      kommo_subdomain: subdomain,
+      kommo_api: "connected",
+      account_name: account?.name ?? null,
+    });
+  } catch (err) {
+    res.status(502).json({
+      ok: false,
+      kommo_configured: true,
+      kommo_subdomain: subdomain,
+      kommo_api: "unreachable",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
 // ─── Webhook route ────────────────────────────────────────────────────────────
+// Kommo valida la URL con GET/HEAD antes de guardar el webhook.
+router.get("/kommo/webhook", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-webhook" });
+});
+
 router.post("/kommo/webhook", async (req: Request, res: Response) => {
   const log = req.log;
   const body = req.body as KommoWebhookBody;
@@ -1624,6 +1687,10 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
 // Configure in Kommo Salesbot: action "Llamar webhook" → POST /api/kommo/salesbot
 // Kommo sends the trigger payload and waits for a JSON response.
 // Lucy processes the message, returns the reply, and Salesbot dispatches it via WhatsApp.
+router.get("/kommo/salesbot", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-salesbot" });
+});
+
 router.post("/kommo/salesbot", async (req: Request, res: Response) => {
   const log = req.log;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1937,6 +2004,10 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
 // ─── Pipeline-change webhook (cuando Alejandro mueve a Cotización Realizada) ────
 // Configurar en Kommo → Webhooks → Evento: "Lead status changed"
 // URL: POST /api/kommo/pipeline-change
+router.get("/kommo/pipeline-change", (_req, res) => {
+  res.json({ ok: true, service: "lucy-kommo-pipeline-change" });
+});
+
 router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
   const log = req.log;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
