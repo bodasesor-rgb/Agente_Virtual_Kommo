@@ -28,6 +28,19 @@ export async function deliverLucyOutbound(
 ): Promise<"meta" | "kommo_talks" | "failed"> {
   const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId } = opts;
 
+  const trimmed = texto?.trim() ?? "";
+  if (!trimmed) {
+    logger.warn({ entityId, talkId, chatId }, "Lucy: texto vacío — omitiendo envío Meta");
+    await logDeliveryFailureNote(
+      subdomain,
+      accessToken,
+      entityId,
+      texto,
+      "Mensaje vacío — text.body requerido por Meta API."
+    );
+    return "failed";
+  }
+
   if (!whatsappPhone) {
     logger.error({ entityId, talkId, chatId }, "Lucy: sin teléfono — no se puede enviar ❌");
     await logDeliveryFailureNote(
@@ -40,7 +53,7 @@ export async function deliverLucyOutbound(
     return "failed";
   }
 
-  const result = await sendWhatsAppDirect(whatsappPhone, texto, entityId);
+  const result = await sendWhatsAppDirect(whatsappPhone, trimmed, entityId);
   if (!result.success) {
     logger.error({ entityId, error: result.error }, "Lucy: Meta API no pudo enviar ❌");
     await logDeliveryFailureNote(
@@ -68,7 +81,7 @@ export async function deliverLucyOutbound(
     });
   }
 
-  await logLucyMessageNote(subdomain, accessToken, entityId, texto, talkId, chatId);
+  await logLucyMessageNote(subdomain, accessToken, entityId, trimmed, talkId, chatId);
   return "meta";
 }
 

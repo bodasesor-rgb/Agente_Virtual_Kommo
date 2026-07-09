@@ -29,12 +29,19 @@ import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
   clientAsksAboutTeam,
+  clientAsksPhone,
+  clientMentionsEntertainment,
+  clientMentionsPistaTarima,
+  detectPresupuestoRefusal,
+  parsePresupuestoFromText,
   clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
   clientMentionsCatering,
   inferLucyAskedField,
   isServiceRelatedMessage,
   parsePrimaryService,
+  parseSpaceDimensions,
+  parseFechaFromText,
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
@@ -43,7 +50,7 @@ export const BODASESOR_EMAIL = "hola@bodasesor.com";
 export const WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp — el cliente no lo escribió)";
 
 const EMAIL_REFUSAL_PATTERN =
-  /\b(no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(por\s+)?whatsapp|aqu[ií]\s+(est[aá]|por)|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)\b/i;
+  /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 
 /** 8 pasos obligatorios para cierre (correo es opcional pero se intenta en paso 2). */
 export const CLOSING_CORE_FIELDS = [
@@ -160,7 +167,7 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
   invitados:
     /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
+  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i,
 };
 
@@ -189,6 +196,19 @@ export function applyEmailWaiver(filledSet: Set<string>, mergedLines: string[], 
   if (!detectEmailRefusal(texts)) return;
   mergedLines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
   filledSet.add(EMAIL_WAIVED_LABEL);
+}
+
+/** Marca presupuesto como capturado cuando el cliente dijo que no tiene / no le dieron. */
+export function applyPresupuestoWaiver(
+  filledSet: Set<string>,
+  mergedLines: string[],
+  texts: string[]
+): void {
+  if (filledSet.has("Presupuesto (MXN)")) return;
+  const pres = texts.map((t) => parsePresupuestoFromText(t)).find(Boolean);
+  if (!pres) return;
+  mergedLines.push(`- Presupuesto (MXN): ${pres}`);
+  filledSet.add("Presupuesto (MXN)");
 }
 
 export function isEmailSatisfied(filledSet: Set<string>): boolean {
@@ -285,6 +305,79 @@ function pickVariant(
   return variants[start % variants.length]!;
 }
 
+/** Respuesta cuando preguntan por teléfonos de Bodasesor. */
+export function buildPhoneAnswer(): string {
+  return [
+    "Claro, te paso los números:",
+    "Ventas (solo línea telefónica, sin WhatsApp): 55 4008 0373",
+    "Gerencia / corporativo (línea telefónica y WhatsApp): 56 4671 0585",
+    "Por aquí por chat también te podemos ayudar con lo que necesites.",
+  ].join("\n");
+}
+
+function buildPistaTarimaSalesReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string,
+  entityId?: string | number
+): string {
+  const dims =
+    parseSpaceDimensions(currentMessage ?? "") ||
+    (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+  const spaceNote = dims ? ` Veo que el espacio es de unos ${dims.replace(/m/g, " metros")} — con eso podemos recomendar el tamaño ideal.` : "";
+  const intro =
+    "Manejamos pistas de baile y tarimas en varios tamaños: tarima básica, pista iluminada, y combinaciones con DJ o iluminación.";
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${intro}${spaceNote} ${follow}`.trim();
+}
+
+function buildEntertainmentSalesReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  entityId?: string | number,
+  currentMessage?: string
+): string {
+  const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  const eventLabel =
+    /corporativo|empresa/.test(tipo) || /empresa|corporativo/i.test(currentMessage ?? "")
+      ? "tu evento corporativo"
+      : tipo
+        ? `tu ${tipo}`
+        : "tu evento";
+
+  const intro = `Para ${eventLabel}, manejamos shows en vivo, animación, hora loca, happening, espejos, láser y más opciones de entretenimiento.`;
+  const ideas =
+    "Lo más pedido para eventos así es un show de grupo versátil o animación tipo hora loca según el estilo que busquen — desde ambiente elegante hasta fiesta más dinámica.";
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${intro} ${ideas} ${follow}`.trim();
+}
+
+function buildFoodSalesReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  entityId?: string | number,
+  currentMessage?: string
+): string {
+  const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  const eventLabel =
+    tipo === "cumpleaños"
+      ? "un cumpleaños"
+      : tipo === "boda"
+        ? "una boda"
+        : tipo === "xv años"
+          ? "XV años"
+          : tipo
+            ? `un ${tipo}`
+            : "tu evento";
+
+  const catering = buildCatalogCateringAnswer();
+  const intro = `Para ${eventLabel}, lo más pedido es banquete o taquiza según el estilo que busquen — banquete es más formal con servicio de meseros; taquiza es más casual y flexible.`;
+  if (catering) {
+    return `${intro}\n\n${catering}`;
+  }
+  return buildRecommendationsReply(extracted, history, entityId, currentMessage);
+}
+
 /** Sugerencias por tipo de evento cuando el cliente pide recomendaciones. */
 export function buildRecommendationsReply(
   extracted: ExtractedData,
@@ -332,6 +425,9 @@ function contextualPrefix(
   const msg = currentMessage?.trim() ?? "";
   if (!msg) return "";
 
+  if (field === "requerimientos" && clientMentionsCatering(currentMessage)) {
+    return "Perfecto. ";
+  }
   if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) {
     return "Perfecto. ";
   }
@@ -468,6 +564,9 @@ export function buildOpeningAcknowledgment(
       : "Con gusto te ayudo con información de banquetes.";
   }
   if (/kosher/.test(t)) return "Sí tenemos opciones kosher.";
+  if (/\bpista(\s+de\s+baile)?\b|\btarima/i.test(t)) {
+    return "Claro, te ayudo con pista de baile o tarima para tu evento.";
+  }
   if (/cotiz|evento/.test(t)) return "Claro que te ayudo con tu evento.";
   if (/^hola[.!?\s]*$/i.test(userText.trim())) {
     return "Estoy aquí para ayudarte con lo que necesites para tu evento.";
@@ -631,12 +730,19 @@ function shouldPreferAiResponse(
 
   if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
 
-  // Cliente hizo una pregunta — priorizar respuesta útil de GPT sobre plantilla rígida
-  if (clientAskedFreeformQuestion(currentMessage) && trimmed.length > 20) {
-    return true;
+  // Cliente hizo una pregunta o dio contexto útil — priorizar GPT sobre plantilla rígida
+  if (currentMessage && currentMessage.trim().length > 12 && trimmed.length > 25) {
+    if (clientAskedFreeformQuestion(currentMessage)) return true;
+    if (clientMentionsCatering(currentMessage) && !mensajeAsksForField(trimmed, pending)) return true;
+    if (justAnsweredReqContext(currentMessage, trimmed)) return true;
   }
 
   return false;
+}
+
+function justAnsweredReqContext(currentMessage: string, aiResponse: string): boolean {
+  if (!clientMentionsCatering(currentMessage) && !isServiceRelatedMessage(currentMessage)) return false;
+  return aiResponse.length > 40 && !/^\s*¿/.test(aiResponse);
 }
 
 /** Si hay texto útil sin pregunta, añade la pregunta pendiente en lugar de reemplazar todo. */
@@ -659,7 +765,13 @@ function mergeWithPendingQuestion(
   }
 
   const nextQ = buildNaturalQuestion(pending, ctx);
-  if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return mensaje;
+  if (
+    base.includes("?") &&
+    !mensajeAsksWrongField(mensaje, filledSet, extracted) &&
+    !mensajeAsksForFilledField(mensaje, filledSet, extracted)
+  ) {
+    return mensaje;
+  }
   return `${base}\n\n${nextQ}`;
 }
 
@@ -672,6 +784,21 @@ export function sanitizeOutboundMessage(
   log?: { warn: (obj: unknown, msg?: string) => void }
 ): string {
   const pending = getNextPendingField(extracted, filledSet);
+
+  // Respuesta de venta (comida/servicios/show/pista) — no reemplazar por plantilla
+  if (
+    ctx.currentMessage &&
+    (clientMentionsCatering(ctx.currentMessage) ||
+      clientMentionsEntertainment(ctx.currentMessage) ||
+      clientMentionsPistaTarima(ctx.currentMessage) ||
+      isServiceRelatedMessage(ctx.currentMessage)) &&
+    /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada/i.test(
+      mensaje
+    )
+  ) {
+    return mensaje.trim();
+  }
+
   const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
   const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
 
@@ -687,7 +814,8 @@ export function sanitizeOutboundMessage(
   if (
     pending &&
     !mensaje.includes("?") &&
-    !clientAskedFreeformQuestion(ctx.currentMessage)
+    !clientAskedFreeformQuestion(ctx.currentMessage) &&
+    !isInformativeClientAnswer(ctx.currentMessage)
   ) {
     return mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
   }
@@ -886,12 +1014,28 @@ export function clientJustAnsweredRequerimientosQuestion(
   );
 }
 
+export function clientSaysThanks(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
+}
+
+export function buildPostCierreThanksReply(clientName?: string | null): string {
+  const nombre = clientName?.trim();
+  return nombre
+    ? `¡Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.`
+    : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.";
+}
+
 function isInformativeClientAnswer(currentMessage?: string): boolean {
   if (!currentMessage?.trim()) return false;
   return (
     clientAsksForRecommendations(currentMessage) ||
     clientAsksBanqueteVsTaquiza(currentMessage) ||
     clientMentionsCatering(currentMessage) ||
+    clientMentionsEntertainment(currentMessage) ||
+    clientMentionsPistaTarima(currentMessage) ||
+    isServiceRelatedMessage(currentMessage) ||
+    clientAsksPhone(currentMessage) ||
     clientAsksPrice(currentMessage) ||
     clientAsksInclusion(currentMessage) ||
     clientAskedFreeformQuestion(currentMessage)
@@ -964,7 +1108,7 @@ export interface LucyMessageGuardsInput {
   presentationHistory?: OpenAI.Chat.ChatCompletionMessageParam[];
   currentMessage?: string;
   whatsappDisplayName?: string | null;
-  buildClosing: (servicios: string | null | undefined) => string;
+  buildClosing: (servicios: string | null | undefined, clientName?: string | null) => string;
   log?: { info: (obj: unknown, msg?: string) => void; warn: (obj: unknown, msg?: string) => void };
   entityId?: string | number;
   /** True cuando Lucy nunca ha respondido a este lead (sin historial ni CRM previo). */
@@ -1009,6 +1153,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
 
   let mensaje: string;
+  let appliedSalesReply = false;
 
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
@@ -1016,6 +1161,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?`
       : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?";
     log?.info({ entityId }, "GUARD: post-cierre — servicios adicionales");
+  } else if (cierreYaEnviado && clientSaysThanks(currentMessage)) {
+    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    log?.info({ entityId }, "GUARD: post-cierre — agradecimiento del cliente");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje =
       "Gracias. Nuestro equipo ya tiene tu información para la cotización. ¿Hay algo más que quieras agregar o alguna duda?";
@@ -1041,16 +1189,39 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
-  } else if (clientMentionsCatering(currentMessage) && clientAsksPrice(currentMessage)) {
-    const cateringAnswer = buildCatalogCateringAnswer();
+  } else if (clientAsksPhone(currentMessage)) {
+    const phoneAnswer = buildPhoneAnswer();
+    const pending = getNextPendingField(extracted, filledSet);
+    mensaje =
+      needsNextStep && pending && pending !== "correo"
+        ? `${phoneAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
+        : phoneAnswer;
+    log?.info({ entityId }, "GUARD: cliente preguntó teléfonos");
+  } else if (
+    clientMentionsEntertainment(currentMessage) ||
+    (justAnsweredReq && clientMentionsEntertainment(currentMessage))
+  ) {
+    mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: show/entretenimiento — orientación de venta");
+  } else if (clientMentionsPistaTarima(currentMessage)) {
+    mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: pista/tarima — orientación de venta");
+  } else if (
+    clientMentionsCatering(currentMessage) ||
+    (justAnsweredReq && isServiceRelatedMessage(currentMessage))
+  ) {
+    const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    log?.info({ entityId }, "GUARD: catering — opciones de alimentos del Sheet");
-  } else if (clientMentionsCatering(currentMessage)) {
-    const cateringAnswer = buildCatalogCateringAnswer();
-    mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    log?.info({ entityId }, "GUARD: catering — opciones sin precio inventado");
+    appliedSalesReply = true;
+    log?.info(
+      { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
+      "GUARD: comida/servicio — orientación de venta"
+    );
   } else if (clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
   } else if (clientAsksPrice(currentMessage)) {
     const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
@@ -1084,9 +1255,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
-  } else if (needsNextStep && aiResponse.trim()) {
+  } else if (needsNextStep && aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
     mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
     log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
+  } else if (needsNextStep && aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    mensaje = nextQ ?? aiResponse;
+    log?.info({ entityId }, "GUARD: GPT repitió dato ya capturado — siguiente paso");
   } else if (needsNextStep) {
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     if (clientAsksPrice(currentMessage)) {
@@ -1110,21 +1285,117 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
   } else if (trulyReadyForClosing && !cierreYaEnviado) {
-    mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
+    mensaje = buildClosing(
+      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+      extracted.nombre
+    );
     log?.info({ entityId }, "Datos completos — mensaje de cierre desde plantilla");
   } else {
     mensaje = aiResponse;
     if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Información completa obtenida")) {
-      mensaje = buildClosing(extracted.tipo_evento ?? extracted.requerimientos_evento ?? null);
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
       log?.warn({ entityId }, "GPT generó nota interna — usando cierre desde plantilla");
     }
   }
 
   if (filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(mensaje, "presupuesto")) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
+    if (trulyReadyForClosing && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: presupuesto capturado — cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
+        mensaje = nextQ;
+        log?.info({ entityId }, "GUARD: presupuesto ya capturado — no repetir pregunta");
+      } else if (trulyReadyForClosing && !cierreYaEnviado) {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+      }
+    }
+  }
+
+  const presFromCurrentMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
+  if (
+    presFromCurrentMsg &&
+    mensajeAsksForField(mensaje, "presupuesto") &&
+    !filledSet.has("Presupuesto (MXN)")
+  ) {
+    applyPresupuestoWaiver(filledSet, [], [currentMessage ?? ""]);
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: presupuesto capturado en turno — cierre");
+    } else if (/econ[oó]mic/i.test(presFromCurrentMsg)) {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      mensaje = nextQ
+        ? `Entendido, buscamos opciones económicas. ${nextQ}`
+        : "Entendido, buscamos opciones económicas. Nuestro equipo te propone alternativas según lo que platicamos.";
+      log?.info({ entityId }, "GUARD: presupuesto económico — no repetir pregunta");
+    } else {
+      mensaje =
+        "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos y te arma la cotización.";
+      log?.info({ entityId }, "GUARD: cliente sin presupuesto fijo — continuar");
+    }
+  }
+
+  if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
+    if (trulyReadyForClosing && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: fecha capturada — cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (nextQ && !mensajeAsksForField(nextQ, "fecha")) {
+        mensaje = nextQ;
+        log?.info({ entityId }, "GUARD: fecha ya capturada — no repetir pregunta");
+      } else if (!nextQ && isReadyForClosing(filledSet) && !cierreYaEnviado) {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+        log?.info({ entityId }, "GUARD: todos los datos listos — cierre tras fecha");
+      }
+    }
+  }
+
+  const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
+  if (
+    fechaFromMsg &&
+    mensajeAsksForField(mensaje, "fecha") &&
+    !filledSet.has("Fecha y horario")
+  ) {
+    filledSet.add("Fecha y horario");
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+      log?.info({ entityId }, "GUARD: fecha capturada en turno — cierre");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
+      log?.info({ entityId }, "GUARD: fecha pendiente — continuar flujo");
+    }
+  }
+
+  if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "tipo_evento") {
+      const nextQ = buildNaturalQuestion(pending, ctx);
       mensaje = nextQ;
-      log?.info({ entityId }, "GUARD: presupuesto ya capturado — no repetir pregunta");
+      log?.info({ entityId, pending }, "GUARD: tipo de evento ya capturado — siguiente dato");
     }
   }
 
@@ -1177,7 +1448,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage)) {
+  if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage) && !appliedSalesReply) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending) {
       log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden — corrigiendo");
@@ -1186,6 +1457,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+
+  if (appliedSalesReply) {
+    return normalizeAdvisorReferences(mensaje, extracted.nombre);
+  }
 
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
 

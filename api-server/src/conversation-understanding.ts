@@ -8,6 +8,7 @@ import type { ExtractedData } from "./types.js";
 import {
   isAffirmativeOnlyMessage,
   isGreetingOnlyMessage,
+  isQuoteIntentMessage,
   sanitizeDisplayName,
 } from "./contact-name.js";
 import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
@@ -79,7 +80,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -106,12 +107,18 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pantalla: "pantallas",
   inflable: "inflables",
   mobiliario: "mobiliario",
+  comida: "banquete / taquiza",
+  alimentos: "banquete / taquiza",
+  alimento: "banquete / taquiza",
+  menu: "banquete / taquiza",
+  menú: "banquete / taquiza",
 };
 
 const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
   [/\b(baby\s*shower)\b/i, "baby shower"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV años"],
+  [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|evento\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
   [/\b(evento\s+corporativo|convenci[oó]n|conferencia|corporativo)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumpleaños"],
   [/\b(bautizo)\b/i, "bautizo"],
@@ -189,10 +196,45 @@ export function clientAsksForRecommendations(message?: string): boolean {
   );
 }
 
-/** Cliente pregunta catering (no es fila del Sheet — mapear a alimentos). */
+/** Cliente pide show, animación o entretenimiento en vivo. */
+export function clientMentionsEntertainment(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\bshow\b/i.test(t) ||
+    /\bgrupo\s+vers[aá]til\b/i.test(t) ||
+    /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) ||
+    /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) ||
+    /\b(requerimos|necesitamos|buscamos)\s+un\s+show\b/i.test(t)
+  );
+}
+
+/** Cliente pregunta catering o comida (mapear a opciones de alimentos del catálogo). */
 export function clientMentionsCatering(message?: string): boolean {
   if (!message?.trim()) return false;
-  return /\bcatering\b/i.test(message);
+  const t = message.toLowerCase();
+  return (
+    /\bcatering\b/i.test(t) ||
+    /\b(brunch|desayuno)\b/i.test(t) ||
+    /\bbrunch\s*\/\s*desayuno/i.test(t) ||
+    /\b(busco|necesito|quiero|cotizar)\s+(comida|alimentos?|men[uú])\b/i.test(t) ||
+    /\bcomida\s+para\b/i.test(t) ||
+    /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) ||
+    /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t)
+  );
+}
+
+/** Cliente pregunta por teléfonos de contacto. */
+export function clientAsksPhone(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\btel[eé]fono/i.test(t) ||
+    /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t) ||
+    /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t) ||
+    /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t) ||
+    /\btienen\s+whatsapp/i.test(t)
+  );
 }
 
 /** Comparación directa banquete vs taquiza. */
@@ -354,7 +396,7 @@ export function parseInvitadosFromText(text: string): string | null {
   if (isServiceRelatedMessage(trimmed)) return null;
 
   if (
-    /\b(no\s+s[eé]|a[uú]n\s+no|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
+    /\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
       trimmed
     )
   ) {
@@ -379,11 +421,38 @@ export function parseInvitadosFromText(text: string): string | null {
   return null;
 }
 
+/** Texto que describe medidas del espacio, NO ubicación geográfica. */
+export function isDimensionText(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return (
+    /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) ||
+    /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) ||
+    /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t)
+  );
+}
+
+/** Medidas del espacio para tarima/pista (ej. 6 metros por 12). */
+export function parseSpaceDimensions(text: string): string | null {
+  const m = text.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
+  if (m) return `${m[1]}m x ${m[3]}m`;
+  const m2 = text.match(/\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(por|x)\s*(\d+)/i);
+  if (m2) return `${m2[1]}m x ${m2[3]}m`;
+  return null;
+}
+
+/** Cliente pide pista de baile o tarima. */
+export function clientMentionsPistaTarima(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
+}
+
 export function parseZonaFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed || /@/.test(trimmed)) return null;
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
+  if (isDimensionText(trimmed)) return null;
 
   if (KNOWN_ZONES.test(trimmed)) {
     const m = trimmed.match(KNOWN_ZONES);
@@ -412,15 +481,52 @@ export function parseZonaFromText(text: string): string | null {
   );
   if (venueMatch?.[1]) return venueMatch[1].trim();
 
+  const clubMatch = trimmed.match(/\b(club\s+de\s+golf\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]{2,30})/i);
+  if (clubMatch?.[1]) return clubMatch[1].trim();
+
+  if (/\b(se\s+llevar[aá]|llevaremos|ser[aá])\s+(a\s+cabo\s+)?en\s+(el\s+)?/i.test(trimmed)) {
+    const enVenue = trimmed.match(/\ben\s+(el\s+)?([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚáéíóúñ\s]{4,40})/);
+    if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2])) return enVenue[2].trim();
+  }
+
   return null;
+}
+
+/** Etiquetas de servicio que GPT a veces confunde con tipo de evento. */
+export const SERVICE_LABELS_NOT_TIPO =
+  /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
+
+export function parseCorreoFromText(text: string | null | undefined): string | null {
+  const m = text?.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+  return m ? m[1]! : null;
+}
+
+export function isServiceLabelNotTipoEvento(label: string | null | undefined): boolean {
+  if (!label?.trim()) return false;
+  const t = label.trim();
+  if (SERVICE_LABELS_NOT_TIPO.test(t)) return true;
+  if (parseTipoEventoFromText(t)) return false;
+  return !!parsePrimaryService(t);
 }
 
 export function parseFechaFromText(text: string): string | null {
   const trimmed = text.trim();
   const fechaMatch = trimmed.match(
-    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)\b/i
+    /\b(?:el\s+)?(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+de\s+\d{4})?)(?:\s+a\s+las\s+(\d{1,2}:\d{2}|\d{1,2})\s*horas?)?\b/i
   );
-  if (fechaMatch) return fechaMatch[1]!;
+  if (fechaMatch) {
+    const base = fechaMatch[1]!;
+    const hora = fechaMatch[2];
+    return hora ? `${base} a las ${hora}${hora.includes(":") ? "" : ":00"} horas` : base;
+  }
+
+  if (
+    /\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha)\b/i.test(
+      trimmed
+    )
+  ) {
+    return "Sin definir (pendiente)";
+  }
 
   if (
     /\b(pr[oó]ximo\s+s[aá]bado|pr[oó]ximo\s+domingo|sin\s+fecha|a[uú]n\s+no\s+tenemos\s+fecha|todav[ií]a\s+no|por\s+definir)\b/i.test(
@@ -430,13 +536,70 @@ export function parseFechaFromText(text: string): string | null {
     return trimmed.slice(0, 80);
   }
 
-  if (MONTH_PATTERN.test(trimmed) && /\d/.test(trimmed)) return trimmed.slice(0, 80);
+  if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
+    return trimmed.slice(0, 80);
+  }
 
   return null;
 }
 
-export function parsePresupuestoFromText(text: string): string | null {
+export interface PresupuestoParseOptions {
+  /** Si Lucy acaba de preguntar presupuesto, aceptar respuestas cortas con contexto. */
+  askedField?: UnderstandingField | null;
+}
+
+function bareNumberLooksLikeInvitados(num: number, trimmed: string): boolean {
+  if (/\$|k\b|mil\b|pesos|mxn|mnx/i.test(trimmed)) return false;
+  return num >= 5 && num <= 999;
+}
+
+/** Cliente rechazó dar presupuesto (incluye "no" suelto tras pregunta de Lucy). */
+export function detectPresupuestoRefusal(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
+  return (
+    /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) ||
+    /\bno\s+me\s+brindaron\b/i.test(t) ||
+    /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) ||
+    /\bsin\s+presupuesto\b/i.test(t) ||
+    /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) ||
+    /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) ||
+    /\bt[uú]\s+m[aá]ndame\b/i.test(t) ||
+    /\bsi\s+quieres\s+vemos\b/i.test(t) ||
+    (/\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t))
+  );
+}
+
+export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOptions): string | null {
   const trimmed = text.trim();
+
+  if (
+    /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) ||
+    /\bt[uú]\s+m[aá]ndame\b/i.test(trimmed)
+  ) {
+    return "Sin definir (cliente pidió que propongamos)";
+  }
+
+  if (detectPresupuestoRefusal(trimmed)) {
+    return "Sin definir (cliente indicó que no tiene)";
+  }
+
+  if (
+    /\b(lo\s+m[aá]s\s+)?econ[oó]mic[oa]s?\b/i.test(trimmed) ||
+    /\b(barato|accesible|ajustad[oa]|menor\s+costo|lo\s+m[aá]s\s+barato)\b/i.test(trimmed)
+  ) {
+    return "Opciones económicas (sin monto fijo)";
+  }
+
+  if (/\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(trimmed)) {
+    return "Sin definir (cliente indicó que no tiene)";
+  }
+
+  if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
+    return "Sin definir (cliente indicó que no tiene)";
+  }
+
   if (
     /\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones)\b/i.test(
       trimmed
@@ -486,8 +649,14 @@ export function parsePresupuestoFromText(text: string): string | null {
     if (amountMatch) return trimmed.slice(0, 80);
   }
 
-  if (/^\$?\s*[\d][\d,.]*\s*(k|mxn|mnx|pesos)?$/i.test(trimmed)) {
-    return trimmed.slice(0, 80);
+  const bareMatch = trimmed.match(/^\$?\s*([\d][\d,.]*)\s*(k|mxn|mnx|pesos)?$/i);
+  if (bareMatch) {
+    const num = parseInt(bareMatch[1]!.replace(/,/g, ""), 10);
+    if (isNaN(num) || num <= 0) return null;
+    if (opts?.askedField === "presupuesto") return trimmed.slice(0, 80);
+    if (bareNumberLooksLikeInvitados(num, trimmed)) return null;
+    if (num >= 1000) return `$${num.toLocaleString("es-MX")} MXN`;
+    return null;
   }
 
   return null;
@@ -530,6 +699,7 @@ export function captureContextualAnswer(
     !filledSet.has("Nombre del cliente") &&
     (asked === "nombre" || (!history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg))) &&
     !isAffirmativeOnlyMessage(msg) &&
+    !isQuoteIntentMessage(msg) &&
     /[a-záéíóúüñ]/i.test(msg) &&
     !/@/.test(msg) &&
     !/\d{4,}/.test(msg)
@@ -573,10 +743,14 @@ export function captureContextualAnswer(
     (asked === "requerimientos" || isServiceRelatedMessage(msg))
   ) {
     const service = parsePrimaryService(msg);
+    const dims = parseSpaceDimensions(msg);
     if (service || isServiceRelatedMessage(msg)) {
+      let value = service ?? msg.slice(0, 120);
+      if (dims && service) value = `${service} (espacio ${dims})`;
+      else if (dims) value = `Tarima/pista — espacio ${dims}`;
       captures.push({
         label: "Requerimientos o servicios",
-        value: service ?? msg.slice(0, 120),
+        value,
       });
     }
   }
@@ -596,8 +770,8 @@ export function captureContextualAnswer(
     if (fecha) captures.push({ label: "Fecha y horario", value: fecha });
   }
 
-  if (!filledSet.has("Presupuesto (MXN)") && asked === "presupuesto") {
-    const pres = parsePresupuestoFromText(msg);
+  if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
+    const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
     if (pres) {
       captures.push({ label: "Presupuesto (MXN)", value: pres });
     } else if (
@@ -639,9 +813,13 @@ export function scanConversationForCaptures(
       isServiceRelatedMessage(msg)
     ) {
       const service = parsePrimaryService(msg);
+      const dims = parseSpaceDimensions(msg);
+      let value = service ?? msg.trim().slice(0, 120);
+      if (dims && service) value = `${service} (espacio ${dims})`;
+      else if (dims && /pista|tarima/i.test(msg)) value = `Pista de baile (espacio ${dims})`;
       captures.push({
         label: "Requerimientos o servicios",
-        value: service ?? msg.trim().slice(0, 120),
+        value,
       });
       pending.add("Requerimientos o servicios");
     }
@@ -656,7 +834,7 @@ export function scanConversationForCaptures(
 
     if (!pending.has("Lugar/dirección del evento")) {
       const zona = parseZonaFromText(msg);
-      if (zona) {
+      if (zona && !isDimensionText(zona)) {
         captures.push({ label: "Lugar/dirección del evento", value: zona });
         pending.add("Lugar/dirección del evento");
       }
@@ -671,15 +849,70 @@ export function scanConversationForCaptures(
     }
 
     if (!pending.has("Presupuesto (MXN)")) {
-      const pres = parsePresupuestoFromText(msg);
-      if (pres) {
-        captures.push({ label: "Presupuesto (MXN)", value: pres });
-        pending.add("Presupuesto (MXN)");
+      const invMatch = parseInvitadosFromText(msg);
+      const looksLikeInvitadosOnly =
+        !!invMatch && !/\$|presupuesto|mil\b|pesos|mxn|mnx/i.test(msg);
+      if (!looksLikeInvitadosOnly) {
+        const pres = parsePresupuestoFromText(msg);
+        if (pres) {
+          captures.push({ label: "Presupuesto (MXN)", value: pres });
+          pending.add("Presupuesto (MXN)");
+        }
+      }
+    }
+
+    const dims = parseSpaceDimensions(msg);
+    if (dims && /pista|tarima/i.test(userTexts.join(" "))) {
+      const reqIdx = captures.findIndex((c) => c.label === "Requerimientos o servicios");
+      if (reqIdx >= 0) {
+        if (!captures[reqIdx]!.value.includes(dims)) {
+          const base = captures[reqIdx]!.value.replace(/\s*\(espacio [^)]+\)/, "").trim();
+          captures[reqIdx]!.value = `${base} (espacio ${dims})`;
+        }
+      } else if (!pending.has("Requerimientos o servicios")) {
+        const service = parsePrimaryService(userTexts.join(" ")) ?? "Pista de baile";
+        captures.push({
+          label: "Requerimientos o servicios",
+          value: `${service} (espacio ${dims})`,
+        });
+        pending.add("Requerimientos o servicios");
       }
     }
   }
 
   return captures;
+}
+
+export function appendSpaceDimensionsToRequerimientos(
+  mergedLines: string[],
+  filledSet: Set<string>,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): void {
+  const userTexts = collectUserMessages(history, currentMessage);
+  const contextText = userTexts.join(" ");
+  if (!/pista|tarima/i.test(contextText)) return;
+
+  const dims = userTexts.map((t) => parseSpaceDimensions(t)).find(Boolean);
+  if (!dims) return;
+
+  const idx = mergedLines.findIndex((l) => /^-?\s*Requerimientos o servicios:/i.test(l));
+  if (idx >= 0) {
+    if (!mergedLines[idx]!.includes(dims)) {
+      const base = mergedLines[idx]!
+        .replace(/^-?\s*Requerimientos o servicios:\s*/i, "")
+        .replace(/\s*\(espacio [^)]+\)/, "")
+        .trim();
+      mergedLines[idx] = `- Requerimientos o servicios: ${base} (espacio ${dims})`;
+    }
+    return;
+  }
+
+  if (!filledSet.has("Requerimientos o servicios")) {
+    const service = parsePrimaryService(contextText) ?? "Pista de baile";
+    mergedLines.push(`- Requerimientos o servicios: ${service} (espacio ${dims})`);
+    filledSet.add("Requerimientos o servicios");
+  }
 }
 
 export function applyCapturesToCrm(
@@ -727,10 +960,35 @@ export function enrichExtractedFromConversation(
   }
 
   if (extracted.presupuesto === null || extracted.presupuesto === undefined) {
-    const pres = parsePresupuestoFromText(conversationText);
-    if (pres?.startsWith("$")) {
+    const presChunks = conversationText
+      .split(/\n|\.|;/)
+      .map((s) => s.trim())
+      .filter((s) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s));
+    for (const chunk of presChunks) {
+      const pres = parsePresupuestoFromText(chunk);
+      if (!pres) continue;
       const num = parseInt(pres.replace(/[^\d]/g, ""), 10);
-      if (!isNaN(num) && num > 0) extracted.presupuesto = num;
+      if (!isNaN(num) && num >= 1000) {
+        extracted.presupuesto = num;
+        break;
+      }
     }
+  }
+
+  if (
+    extracted.presupuesto !== null &&
+    extracted.num_invitados !== null &&
+    extracted.presupuesto === extracted.num_invitados &&
+    extracted.presupuesto < 1000
+  ) {
+    extracted.presupuesto = null;
+  }
+
+  if (
+    extracted.requerimientos_evento?.trim() &&
+    extracted.tipo_evento?.trim() &&
+    extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()
+  ) {
+    extracted.requerimientos_evento = null;
   }
 }

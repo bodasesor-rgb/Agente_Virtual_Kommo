@@ -8,7 +8,11 @@ import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
   applyEmailWaiver,
   applyLucyMessageGuards,
+  applyPresupuestoWaiver,
   applyWhatsappNombreFallback,
+  buildPostCierreThanksReply,
+  clientSaysThanks,
+  WHATSAPP_NOMBRE_NOTE,
   CLOSING_CORE_FIELDS,
   collectUserTexts,
   detectEmailRefusal,
@@ -34,7 +38,9 @@ import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcess
 import { generateSummary, enrichExtractedFromText, buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   isPlaceholderLeadName,
+  isQuoteIntentMessage,
   sanitizeDisplayName,
+  sanitizeCrmNombre,
 } from "../contact-name.js";
 import {
   applyCapturesToCrm,
@@ -43,7 +49,13 @@ import {
   clientAsksAboutTeam,
   clientAddsToQuote,
   appendPostCierreRequirements,
+  appendSpaceDimensionsToRequerimientos,
+  isDimensionText,
+  isServiceLabelNotTipoEvento,
+  parseCorreoFromText,
   parsePresupuestoFromText,
+  parseTipoEventoFromText,
+  inferLucyAskedField,
   scanConversationForCaptures,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
@@ -72,7 +84,7 @@ import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/c
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { getKommoAccessToken, getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
-import { getAdvisorName } from "../lib/bodasesorAdvisor.js";
+import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
 
 const router: IRouter = Router();
 
@@ -324,13 +336,21 @@ const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 const CATALOG_URL =
   "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
 
-function buildClosingMessage(serviciosPedidos: string | null | undefined): string {
+function buildClosingMessage(
+  serviciosPedidos: string | null | undefined,
+  clientName?: string | null
+): string {
   const servicio = serviciosPedidos?.trim() || null;
+  const advisor = advisorLabelForClient(clientName);
   const introServicios = servicio
     ? `Por cierto, además de ${servicio}, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.`
     : `Por cierto, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.`;
+  const handoff =
+    advisor === "nuestro equipo"
+      ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
+      : `Le paso estos datos a ${advisor} para que te arme una cotización personalizada.`;
   return (
-    `Perfecto, ya tengo todo. Le paso estos datos a ${getAdvisorName()} para que te arme una cotización personalizada.\n\n` +
+    `Perfecto, ya tengo todo. ${handoff}\n\n` +
     `Mientras tanto, aquí está nuestro catálogo completo:\n${CATALOG_URL}\n\n` +
     introServicios + `\n\n` +
     `¿Te gustaría cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en decírnoslo y nosotros te lo conseguimos.`
@@ -468,6 +488,38 @@ function purgeRequerimientosIfAskingRecommendations(
   extracted.requerimientos_evento = null;
 }
 
+function purgeDimensionAsUbicacion(
+  mergedLines: string[],
+  filledSet: Set<string>,
+  extracted: ExtractedData
+): void {
+  const idx = mergedLines.findIndex((l) => /^-?\s*Lugar\/dirección del evento:/i.test(l));
+  if (idx < 0) return;
+  const value = mergedLines[idx]!
+    .replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "")
+    .trim();
+  if (!isDimensionText(value)) return;
+  mergedLines.splice(idx, 1);
+  filledSet.delete("Lugar/dirección del evento");
+  if (extracted.direccion_evento && isDimensionText(extracted.direccion_evento)) {
+    extracted.direccion_evento = null;
+  }
+}
+
+function purgeInvalidNombre(mergedLines: string[], filledSet: Set<string>, extracted: ExtractedData): void {
+  const idx = mergedLines.findIndex((l) => /^-?\s*Nombre del cliente:/i.test(l));
+  if (idx < 0) return;
+  const raw = mergedLines[idx]!
+    .replace(/^-?\s*Nombre del cliente:\s*/i, "")
+    .trim();
+  if (sanitizeDisplayName(raw) && !isQuoteIntentMessage(raw)) return;
+  mergedLines.splice(idx, 1);
+  filledSet.delete("Nombre del cliente");
+  if (!sanitizeDisplayName(extracted.nombre) || isQuoteIntentMessage(extracted.nombre)) {
+    extracted.nombre = null;
+  }
+}
+
 function buildCrmContext(
   crmLines: string[],
   extracted: ExtractedData,
@@ -488,27 +540,79 @@ function buildCrmContext(
     if (!validPres) extracted.presupuesto = null;
   }
 
+  if (
+    extracted.presupuesto !== null &&
+    extracted.num_invitados !== null &&
+    extracted.presupuesto === extracted.num_invitados &&
+    extracted.presupuesto < 1000
+  ) {
+    extracted.presupuesto = null;
+  }
+
+  if (
+    extracted.requerimientos_evento?.trim() &&
+    extracted.tipo_evento?.trim() &&
+    extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()
+  ) {
+    extracted.requerimientos_evento = null;
+  }
+
+  if (isServiceLabelNotTipoEvento(extracted.tipo_evento)) {
+    if (!extracted.requerimientos_evento?.trim()) {
+      extracted.requerimientos_evento = extracted.tipo_evento;
+    }
+    const tipoCrm = mergedLines
+      .find((l) => /^-?\s*Tipo de evento:/i.test(l))
+      ?.replace(/^-?\s*Tipo de evento:\s*/i, "")
+      .trim();
+    const tipoHist = parseTipoEventoFromText(collectUserTexts(historyFull, currentMessage).join(" "));
+    const restored = tipoCrm && !isServiceLabelNotTipoEvento(tipoCrm) ? tipoCrm : tipoHist;
+    extracted.tipo_evento = restored ?? null;
+  }
+
+  purgeInvalidNombre(mergedLines, filledSet, extracted);
+
   // Nombre: solo extracción explícita o CRM — no prellenar desde WhatsApp
   if (!filledSet.has("Nombre del cliente")) {
-    const nombreVal = sanitizeDisplayName(extracted.nombre);
+    const nombreVal = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
     if (nombreVal) {
       mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
       filledSet.add("Nombre del cliente");
+    }
+  } else {
+    const idx = mergedLines.findIndex((l) => /^-?\s*Nombre del cliente:/i.test(l));
+    if (idx >= 0) {
+      const rawLine = mergedLines[idx]!;
+      const existing = rawLine
+        .replace(/^-?\s*Nombre del cliente:\s*/i, "")
+        .replace(WHATSAPP_NOMBRE_NOTE, "")
+        .trim();
+      const upgraded = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(existing);
+      if (upgraded && upgraded.split(/\s+/).length > existing.split(/\s+/).length) {
+        const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
+        mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
+      }
     }
   }
 
   // Correo: not a Kommo custom lead field — detect from extraction, DB, or history
   if (!filledSet.has("Correo electrónico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {
+    const correoFromHistory = collectUserTexts(historyFull, currentMessage)
+      .map((t) => parseCorreoFromText(t))
+      .find(Boolean);
+    const correoFromCrm = mergedLines
+      .map((l) => parseCorreoFromText(l))
+      .find(Boolean);
     const correoVal =
-      extracted.correo ??
-      clientEmailFromDB ??
-      (history
-        .filter((m) => m.role === "user" && typeof m.content === "string")
-        .map((m) => m.content as string)
-        .find((t) => /\S+@\S+\.\S+/.test(t)) ?? null);
+      parseCorreoFromText(extracted.correo) ??
+      parseCorreoFromText(clientEmailFromDB) ??
+      correoFromHistory ??
+      correoFromCrm ??
+      null;
     if (correoVal) {
       mergedLines.push(`- Correo electrónico: ${correoVal}`);
       filledSet.add("Correo electrónico");
+      extracted.correo = correoVal;
     }
   }
 
@@ -538,8 +642,13 @@ function buildCrmContext(
           filledSet.add(label);
         }
       } else if (label === "Presupuesto (MXN)") {
-        const fromMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
-        if (fromMsg) {
+        const asked = currentMessage ? inferLucyAskedField(
+          history.filter((m) => m.role === "assistant").slice(-1)[0]?.content as string | undefined ?? ""
+        ) : null;
+        const fromMsg = currentMessage
+          ? parsePresupuestoFromText(currentMessage, { askedField: asked })
+          : null;
+        if (fromMsg && !(extracted.num_invitados && extracted.num_invitados === value && Number(value) < 1000)) {
           mergedLines.push(`- ${label}: ${fromMsg}`);
           filledSet.add(label);
         }
@@ -573,6 +682,16 @@ function buildCrmContext(
     mergedLines,
     collectUserTexts(historyFull, currentMessage)
   );
+
+  applyPresupuestoWaiver(
+    filledSet,
+    mergedLines,
+    collectUserTexts(historyFull, currentMessage)
+  );
+
+  purgeDimensionAsUbicacion(mergedLines, filledSet, extracted);
+
+  appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, historyFull, currentMessage);
 
   purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extracted, currentMessage);
 
@@ -795,7 +914,7 @@ function buildPatchPayload(
   const payload: Record<string, unknown> = { custom_fields_values: customFields };
 
   if (isValidExtractedString(extracted.nombre)) {
-    const nombrePatch = sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
+    const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
     payload["name"] = cap255(nombrePatch);
   }
 
@@ -1067,6 +1186,11 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     const extracted = await extractData(history, combinedUserText, filledFieldNames);
 
+    extracted.nombre = sanitizeDisplayName(extracted.nombre);
+    if (extracted.correo) {
+      extracted.correo = parseCorreoFromText(extracted.correo) ?? extracted.correo;
+    }
+
     const conversationText = [
       ...history
         .filter((m) => m.role === "user")
@@ -1227,6 +1351,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       readyForClosing: allFieldsFilled,
       cierreYaEnviado,
     });
+    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
 
     if (cierreYaEnviado && combinedUserText.trim()) {
       const updatedReq = appendPostCierreRequirements(
@@ -1243,6 +1368,14 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     if (cierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
       log.warn({ entityId }, "P3 GUARD: catálogo repetido en respuesta post-cierre — stripping");
       mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
+    }
+
+    if (!mensajeParaCliente.trim()) {
+      mensajeParaCliente =
+        cierreYaEnviado && clientSaysThanks(combinedUserText)
+          ? buildPostCierreThanksReply(extracted.nombre)
+          : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+      log.warn({ entityId }, "GUARD: mensaje vacío — usando respuesta de respaldo");
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1854,11 +1987,20 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       readyForClosing: salesbotAllFieldsFilled,
       cierreYaEnviado: sbCierreYaEnviado,
     });
+    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
 
     // ── P3 GUARD: Catálogo ya enviado → strip URL del catálogo en respuesta ───────
     if (sbCierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
       log.warn({ entityId }, "Salesbot P3 GUARD: catálogo repetido en respuesta post-cierre — stripping");
       mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
+    }
+
+    if (!mensajeParaCliente.trim()) {
+      mensajeParaCliente =
+        sbCierreYaEnviado && clientSaysThanks(messageText)
+          ? buildPostCierreThanksReply(extracted.nombre)
+          : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+      log.warn({ entityId }, "Salesbot GUARD: mensaje vacío — usando respuesta de respaldo");
     }
 
     // Guardar mensaje REAL enviado (no aiResponse) para que cierreYaEnviado funcione.
@@ -2326,6 +2468,14 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       readyForClosing: allFieldsFilled,
       cierreYaEnviado: simCierreYaEnviado,
     });
+    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
+
+    if (!mensajeParaCliente.trim()) {
+      mensajeParaCliente =
+        simCierreYaEnviado && clientSaysThanks(messageText)
+          ? buildPostCierreThanksReply(extracted.nombre)
+          : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+    }
 
     appendHistory(histKey, messageText, mensajeParaCliente);
 
