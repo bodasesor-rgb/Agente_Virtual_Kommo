@@ -4,74 +4,139 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Lucy Bodasesor — Panel</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=2" />
 </head>
 <body>
   <div class="layout">
     <aside class="sidebar">
       <div class="brand">
         <span class="brand-mark">L</span>
-        <div>
+        <div class="brand-text">
           <strong>Lucy</strong>
           <span>Bodasesor</span>
         </div>
       </div>
 
-      <p class="nav-label">Menú</p>
+      <p class="nav-label">Herramientas</p>
       <nav class="nav-list">
         <button type="button" class="nav-item active" data-view="home">
-          <span class="nav-icon">⌂</span>
-          <span>Panel general</span>
+          <span class="nav-icon-wrap nav-icon-home">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          </span>
+          <span class="nav-text">
+            <span class="nav-title">Panel general</span>
+            <span class="nav-hint">Inicio y estado</span>
+          </span>
         </button>
         <button type="button" class="nav-item" data-view="simulador">
-          <span class="nav-icon">💬</span>
-          <span>Simulador para pruebas de Lucy</span>
+          <span class="nav-icon-wrap nav-icon-sim">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+          </span>
+          <span class="nav-text">
+            <span class="nav-title">Simulador</span>
+            <span class="nav-hint">Pruebas de Lucy</span>
+          </span>
         </button>
         <button type="button" class="nav-item" data-view="aprendizaje">
-          <span class="nav-icon">📚</span>
-          <span>Aprendizaje de Lucy</span>
-          <span class="nav-hint">Enseñar respuestas</span>
+          <span class="nav-icon-wrap nav-icon-learn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 1 9l4 2.18V17l7 3.82 7-3.82v-5.82L23 9 12 3zm0 2.18L18.9 9 12 12.18 5.1 9 12 5.18zM5 17.27l7 3.82 7-3.82v-3.1L12 17l-7-2.83v3.1z"/></svg>
+          </span>
+          <span class="nav-text">
+            <span class="nav-title">Aprendizaje de Lucy</span>
+            <span class="nav-hint">Enseñar respuestas</span>
+          </span>
         </button>
       </nav>
 
       <div class="sidebar-footer">
-        <a href="/lucy-admin" class="footer-link">Configuración avanzada</a>
+        <a href="/lucy-admin" class="footer-link">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+          Configuración avanzada
+        </a>
         <p class="muted tiny">Panel interno Bodasesor</p>
       </div>
     </aside>
 
     <main class="main">
       <section id="view-home" class="view">
-        <header class="view-header">
-          <h1>Panel general</h1>
-          <p class="muted">Elige una sección del menú para probar Lucy o enseñarle lo que no sabe del catálogo.</p>
-        </header>
+        <div class="home-scroll">
+          <header class="hero">
+            <div class="hero-content">
+              <p class="hero-eyebrow">Centro de control</p>
+              <h1>Bienvenido al panel de Lucy</h1>
+              <p class="hero-desc">
+                Prueba conversaciones como en Kommo o enseña a Lucy las respuestas que aún no tiene en el catálogo.
+              </p>
+            </div>
+            <div class="hero-badge" id="hero-status">
+              <span class="pulse-dot"></span>
+              Comprobando Lucy…
+            </div>
+          </header>
 
-        <div class="cards-grid">
-          <article class="card card-action" data-go="simulador">
-            <h2>Simulador para pruebas de Lucy</h2>
-            <p>Prueba conversaciones con Lucy como si fuera un lead de Kommo: embudo, chat y campos CRM.</p>
-            <span class="card-cta">Abrir simulador →</span>
-          </article>
+          <div class="section-label">Accesos rápidos</div>
+          <div class="cards-grid">
+            <article class="feature-card feature-sim" data-go="simulador">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
+              </div>
+              <div class="feature-body">
+                <h2>Simulador para pruebas de Lucy</h2>
+                <p>Embudo, chat WhatsApp y campos CRM — igual que un lead real en Kommo, sin tocar el CRM de verdad.</p>
+                <span class="feature-cta">Abrir simulador <span aria-hidden="true">→</span></span>
+              </div>
+            </article>
 
-          <article class="card card-action" data-go="aprendizaje">
-            <h2>Aprendizaje de Lucy</h2>
-            <p>Cuando un cliente pregunta algo sin precio en el catálogo, aquí aparece la pregunta para que escribas la respuesta correcta.</p>
-            <span class="card-cta">Abrir aprendizaje →</span>
-          </article>
-        </div>
+            <article class="feature-card feature-learn" data-go="aprendizaje">
+              <div class="feature-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 1 9l4 2.18V17l7 3.82 7-3.82v-5.82L23 9 12 3zm0 2.18L18.9 9 12 12.18 5.1 9 12 5.18zM5 17.27l7 3.82 7-3.82v-3.1L12 17l-7-2.83v3.1z"/></svg>
+              </div>
+              <div class="feature-body">
+                <h2>Aprendizaje de Lucy</h2>
+                <p>Cuando un cliente pregunta un precio o servicio que no está en el catálogo, aquí registras la respuesta correcta.</p>
+                <span class="feature-cta">Abrir aprendizaje <span aria-hidden="true">→</span></span>
+              </div>
+            </article>
+          </div>
 
-        <div class="stats-row" id="home-stats">
-          <div class="stat-card muted">Cargando estado de Lucy…</div>
+          <div class="section-label">Estado del sistema</div>
+          <div class="stats-grid" id="home-stats">
+            <div class="stat-card stat-loading">
+              <div class="stat-skeleton"></div>
+              <div class="stat-skeleton short"></div>
+            </div>
+            <div class="stat-card stat-loading">
+              <div class="stat-skeleton"></div>
+              <div class="stat-skeleton short"></div>
+            </div>
+            <div class="stat-card stat-loading">
+              <div class="stat-skeleton"></div>
+              <div class="stat-skeleton short"></div>
+            </div>
+            <div class="stat-card stat-loading">
+              <div class="stat-skeleton"></div>
+              <div class="stat-skeleton short"></div>
+            </div>
+          </div>
         </div>
       </section>
 
       <section id="view-frame" class="view hidden">
+        <header class="frame-bar" id="frame-bar">
+          <button type="button" class="frame-back" data-view="home">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            Volver al panel
+          </button>
+          <span class="frame-title" id="frame-title"></span>
+        </header>
         <iframe id="app-frame" title="Lucy" src="about:blank"></iframe>
       </section>
     </main>
   </div>
 
-  <script src="app.js" type="module"></script>
+  <script src="app.js?v=2" type="module"></script>
 </body>
 </html>
