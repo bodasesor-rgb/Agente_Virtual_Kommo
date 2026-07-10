@@ -22,6 +22,7 @@ import {
   nextFieldQuestion,
   isValidRequerimientosValue,
   isLegacyStoredLucyResponse,
+  isWhatsappOnlyNombreLine,
   parseNombreFromCrmLines,
   crmStoredValue,
   stripCatalogBlockShared,
@@ -64,6 +65,7 @@ import type { ExtractedData } from "../types.js";
 import {
   fetchContactPhone,
   fetchContactDisplayName,
+  fetchWhatsappProfileName,
 } from "../services/whatsappDirectSender.js";
 import {
   fetchLead,
@@ -435,21 +437,27 @@ async function resolveWhatsappDisplayName(
   subdomain: string,
   accessToken: string,
   entityId: string | number,
-  leadNameFromCrm?: string | null
+  leadNameFromCrm?: string | null,
+  talkId?: string | null
 ): Promise<string | null> {
   const entityKey = String(entityId);
   const cached = displayNameCache.get(entityKey);
   if (cached) return cached;
 
-  const fromCrm = sanitizeDisplayName(leadNameFromCrm);
+  const fromCrm = sanitizeCrmNombre(leadNameFromCrm) ?? sanitizeDisplayName(leadNameFromCrm);
   if (fromCrm) {
     displayNameCache.set(entityKey, fromCrm);
     return fromCrm;
   }
 
-  const fromContact = sanitizeDisplayName(
-    await fetchContactDisplayName(subdomain, accessToken, entityId)
-  );
+  const fromWhatsapp = await fetchWhatsappProfileName(subdomain, accessToken, entityId, talkId);
+  if (fromWhatsapp) {
+    displayNameCache.set(entityKey, fromWhatsapp);
+    return fromWhatsapp;
+  }
+
+  const contactRaw = await fetchContactDisplayName(subdomain, accessToken, entityId);
+  const fromContact = sanitizeCrmNombre(contactRaw) ?? sanitizeDisplayName(contactRaw);
   if (fromContact) {
     displayNameCache.set(entityKey, fromContact);
     return fromContact;
@@ -800,15 +808,17 @@ async function updateKommoContact(
   contactId: number,
   extracted: ExtractedData,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  log: any
+  log: any,
+  nombreOverride?: string | null
 ): Promise<void> {
-  const hasContact = extracted.nombre || extracted.telefono || extracted.correo;
+  const nombre = nombreOverride ?? extracted.nombre;
+  const hasContact = nombre || extracted.telefono || extracted.correo;
   if (!hasContact) return;
 
   const contactPayload: Record<string, unknown> = {};
 
-  if (extracted.nombre) {
-    contactPayload["name"] = extracted.nombre;
+  if (nombre) {
+    contactPayload["name"] = nombre;
   }
 
   const cfv: Array<{ field_code: string; values: Array<{ value: string; enum_code: string }> }> = [];
@@ -864,8 +874,68 @@ function isValidExtractedString(val: string | null | undefined): val is string {
 
 function withCrmNombre(extracted: ExtractedData, mergedLines: string[]): ExtractedData {
   const nombreCrm = parseNombreFromCrmLines(mergedLines);
-  if (!nombreCrm || isValidExtractedString(extracted.nombre)) return extracted;
-  return { ...extracted, nombre: nombreCrm };
+  if (!nombreCrm) return extracted;
+  const explicitClient = nombreCrm && !isWhatsappOnlyNombreLine(mergedLines);
+  if (explicitClient || !isValidExtractedString(extracted.nombre)) {
+    return { ...extracted, nombre: nombreCrm };
+  }
+  return extracted;
+}
+
+/** Sincroniza nombre al lead y contacto de Kommo cuando el CRM aún tiene placeholder. */
+async function ensureKommoLeadContactNombre(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number,
+  nombre: string,
+  mergedLines: string[],
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  log: any
+): Promise<void> {
+  const clean = sanitizeCrmNombre(nombre) ?? sanitizeDisplayName(nombre);
+  if (!clean || isPlaceholderLeadName(clean)) return;
+
+  try {
+    const res = await fetch(`https://${subdomain}.kommo.com/api/v4/leads/${leadId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return;
+    const data = (await res.json()) as { name?: string };
+    const currentLeadName = data.name?.replace(/^Lead:\s*/i, "").trim() ?? "";
+    const waOnly = isWhatsappOnlyNombreLine(mergedLines);
+    const shouldPatchLead =
+      isPlaceholderLeadName(currentLeadName) || !waOnly;
+
+    if (shouldPatchLead) {
+      const patchRes = await fetch(`https://${subdomain}.kommo.com/api/v4/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: cap255(clean) }),
+      });
+      if (!patchRes.ok) {
+        log.warn({ leadId, status: patchRes.status }, "No se pudo actualizar nombre del lead");
+      } else {
+        log.info({ leadId, nombre: clean }, "Lead: nombre sincronizado en Kommo");
+        displayNameCache.set(String(leadId), clean);
+      }
+    }
+
+    const contactId = await fetchLeadContactId(subdomain, accessToken, leadId);
+    if (contactId) {
+      const patchRes = await fetch(`https://${subdomain}.kommo.com/api/v4/contacts/${contactId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: clean }),
+      });
+      if (!patchRes.ok) {
+        log.warn({ leadId, contactId, status: patchRes.status }, "No se pudo actualizar nombre del contacto");
+      } else {
+        log.info({ leadId, contactId, nombre: clean }, "Contacto: nombre sincronizado en Kommo");
+      }
+    }
+  } catch (err) {
+    log.warn({ err, leadId }, "ensureKommoLeadContactNombre falló");
+  }
 }
 
 function buildPatchPayload(
@@ -920,8 +990,11 @@ function buildPatchPayload(
 
   const payload: Record<string, unknown> = { custom_fields_values: customFields };
 
-  if (isValidExtractedString(extracted.nombre)) {
-    const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
+  const nombrePatch =
+    (isValidExtractedString(extracted.nombre)
+      ? sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre)
+      : null) ?? parseNombreFromCrmLines(mergedLines);
+  if (nombrePatch) {
     payload["name"] = cap255(nombrePatch);
   }
 
@@ -1225,7 +1298,8 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       subdomain,
       accessToken,
       entityId,
-      leadNameFromCrm ?? conversation.clientName
+      leadNameFromCrm ?? conversation.clientName,
+      talkId
     );
 
     const { context: crmContext, allFieldsFilled, mergedLines: crmMergedLines, filledLabels } =
@@ -1491,6 +1565,17 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       log.error({ status: updateRes.status, errText, entityId }, "Error actualizando lead en Kommo");
     } else {
       log.info({ entityId }, "Lead actualizado correctamente en Kommo");
+      const nombreSync = parseNombreFromCrmLines(crmMergedLines);
+      if (nombreSync) {
+        void ensureKommoLeadContactNombre(
+          subdomain,
+          accessToken,
+          entityId,
+          nombreSync,
+          crmMergedLines,
+          log
+        );
+      }
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1527,6 +1612,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       .set({
         clientName:
           sanitizeDisplayName(extracted.nombre) ??
+          parseNombreFromCrmLines(crmMergedLines) ??
           whatsappDisplayName ??
           conversation.clientName,
         clientEmail: extracted.correo || conversation.clientEmail,
@@ -1592,11 +1678,13 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     }
 
     // Actualizar contacto vinculado si hay datos
-    const hasContactData = extracted.nombre || extracted.telefono || extracted.correo;
+    const extractedForContact = withCrmNombre(extracted, crmMergedLines);
+    const hasContactData =
+      extractedForContact.nombre || extracted.telefono || extracted.correo;
     if (hasContactData) {
       const contactId = await fetchLeadContactId(subdomain, accessToken, entityId);
       if (contactId) {
-        await updateKommoContact(subdomain, accessToken, contactId, extracted, log);
+        await updateKommoContact(subdomain, accessToken, contactId, extractedForContact, log);
       } else {
         log.warn({ entityId }, "No se encontró contacto vinculado al lead");
       }
@@ -1921,7 +2009,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
 
     const whatsappDisplayName = entityId
-      ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null)
+      ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null, talkId)
       : null;
 
     const extracted = await extractData(history, messageText, crmLines.join("\n"));
@@ -2132,10 +2220,37 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
     try {
       await limpiarCampoRespuesta(subdomain, accessToken, leadId);
       await setLearningPhase(leadId, "human_active");
+
+      const conv = await db.query.conversations.findFirst({
+        where: eq(conversations.kommoLeadId, String(leadId)),
+      });
+      const talkId = conv?.kommoTalkId ?? null;
+      const { crmLines } = await fetchLeadCurrentFields(subdomain, accessToken, leadId, log);
+      let nombreSync = parseNombreFromCrmLines(crmLines);
+      const mergedForSync = [...crmLines];
+      if (!nombreSync) {
+        const waName = await fetchWhatsappProfileName(subdomain, accessToken, leadId, talkId);
+        if (waName) {
+          const filledSet = new Set(mergedForSync.map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
+          applyWhatsappNombreFallback(filledSet, mergedForSync, waName, []);
+          nombreSync = parseNombreFromCrmLines(mergedForSync);
+        }
+      }
+      if (nombreSync) {
+        await ensureKommoLeadContactNombre(
+          subdomain,
+          accessToken,
+          leadId,
+          nombreSync,
+          mergedForSync,
+          log
+        );
+      }
+
       void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: false }).catch((err) =>
         log.warn({ err, leadId }, "Pipeline-change: sync aprendizaje falló")
       );
-      log.info({ leadId }, "Pipeline-change: fase humana — sync de chat iniciado");
+      log.info({ leadId, nombreSync }, "Pipeline-change: fase humana — sync de chat iniciado");
     } catch (err) {
       log.error({ err, leadId }, "Pipeline-change: error en Humano Trabaja");
     }

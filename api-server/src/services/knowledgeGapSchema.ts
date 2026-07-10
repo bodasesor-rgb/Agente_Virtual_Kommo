@@ -29,8 +29,8 @@ export async function ensureKnowledgeGapSchema(): Promise<void> {
     await db.execute(sql.raw(
       `CREATE INDEX IF NOT EXISTS knowledge_gaps_status_idx ON knowledge_gaps (status, created_at DESC)`
     ));
+    ensured = true;
   } catch (err) {
-    logger.warn({ err }, "knowledgeGapSchema: falló");
+    logger.warn({ err }, "knowledgeGapSchema: falló — se reintentará en la próxima petición");
   }
-  ensured = true;
 }

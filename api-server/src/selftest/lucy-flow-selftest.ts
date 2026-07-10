@@ -29,6 +29,11 @@ import {
   countLucyFieldAsks,
   clientDeclinesMoreServices,
   parseTipoEventoFromText,
+  clientMentionsNonCateringService,
+  parseServicesFromText,
+  parseThematicCuisineFromText,
+  clientAsksBodasesorLocation,
+  buildBodasesorLocationAnswer,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre } from "../contact-name.js";
 import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
@@ -37,16 +42,20 @@ import {
   applyLucyMessageGuards,
   applyEmailWaiver,
   applyPresupuestoWaiver,
+  applyWhatsappNombreFallback,
   buildPhoneAnswer,
   buildRecommendationsReply,
   buildPostCierreThanksReply,
+  clientSaysGoodbye,
   clientSaysThanks,
   CLOSING_CORE_FIELDS,
   detectEmailRefusal,
   EMAIL_WAIVED_LABEL,
   getNextPendingField,
   isReadyForClosing,
+  isWhatsappOnlyNombreLine,
   mensajeAsksForFilledField,
+  parseNombreFromCrmLines,
   LUCY_INTRO,
   isValidRequerimientosValue,
   crmStoredValue,
@@ -56,7 +65,7 @@ import {
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { getCatalogStatus } from "../services/catalogService.js";
+import { getCatalogStatus, buildCatalogServiceAnswer } from "../services/catalogService.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
 import { isImageMessage, getImageUrl, getImageCaption } from "../services/imageProcessor.js";
 import type { ExtractedData } from "../types.js";
@@ -114,6 +123,7 @@ function runGuards(opts: {
   currentMessage?: string;
   history?: OpenAI.Chat.ChatCompletionMessageParam[];
   emailRefusedThisTurn?: boolean;
+  whatsappDisplayName?: string | null;
   debugLogs?: string[];
 }): string {
   return applyLucyMessageGuards({
@@ -125,6 +135,7 @@ function runGuards(opts: {
     emailRefusedThisTurn: opts.emailRefusedThisTurn ?? false,
     history: opts.history ?? [],
     currentMessage: opts.currentMessage,
+    whatsappDisplayName: opts.whatsappDisplayName,
     buildClosing: mockClosing,
     log: opts.debugLogs
       ? {
@@ -140,7 +151,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 25 escenarios de prueba\n");
+  console.log("Lucy — 28 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -1168,6 +1179,113 @@ async function runAll(): Promise<void> {
       "Lorena"
     );
     assert.ok(!/equipo\s+equipo/i.test(dup2), dup2);
+  });
+
+  await test("26. Servicios no-comida (DJ, mobiliario, paella) — no caen en banquete/taquiza", () => {
+    // Reconocimiento ampliado
+    assert.ok(clientMentionsNonCateringService("Necesito DJ para mi boda"));
+    assert.ok(clientMentionsNonCateringService("Quiero mobiliario y sillas Tiffany"));
+    assert.ok(clientMentionsNonCateringService("¿Manejan paella?"));
+    assert.ok(!clientMentionsNonCateringService("Busco comida"));
+    assert.ok(!clientMentionsNonCateringService("Coffee break para evento corporativo"));
+
+    assert.ok(parseServicesFromText("taquiza, DJ e iluminación").includes("DJ"));
+    assert.ok(parseServicesFromText("taquiza, DJ e iluminación").includes("Iluminación"));
+    assert.equal(parsePrimaryService("paella para 80 personas"), "Paella");
+
+    // DJ después de pregunta de requerimientos → respuesta genérica, NO banquete/taquiza
+    const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
+    const extracted = emptyExtracted({ nombre: "Carlos", tipo_evento: "boda" });
+    const history: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: "¿Qué servicios te gustaría cotizar para la boda?" },
+    ];
+    const djReply = runGuards({
+      aiResponse: "¿Cuántos invitados?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Necesito DJ",
+      history,
+    });
+    assert.ok(/dj/i.test(djReply), `debe confirmar DJ: ${djReply.slice(0, 200)}`);
+    assert.ok(!/banquete.*taquiza|taquiza.*banquete/i.test(djReply), `no debe empujar banquete/taquiza: ${djReply.slice(0, 200)}`);
+
+    // Mobiliario directo
+    const mobReply = runGuards({
+      aiResponse: "¿Me regalas tu nombre?",
+      extracted: emptyExtracted(),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: "Quiero mobiliario y carpas",
+      history: [],
+    });
+    assert.ok(/mobiliario|carpas/i.test(mobReply), mobReply.slice(0, 200));
+
+    // buildCatalogServiceAnswer no explota con servicio desconocido
+    const unknown = buildCatalogServiceAnswer("fotógrafo profesional");
+    assert.ok(unknown === null || typeof unknown === "string");
+  });
+
+  await test("27. Módulo vocabulario — italiano no es taquiza; ubicación/cobertura", () => {
+    const thematic = parseThematicCuisineFromText("menú italiano para tema de mafia italiana");
+    assert.ok(thematic);
+    assert.equal(thematic!.theme, "italiano");
+    assert.ok(thematic!.services.includes("Barra de Pastas"));
+    assert.ok(thematic!.services.includes("Barra de Pizzas"));
+
+    assert.ok(clientAsksBodasesorLocation("¿Dónde están ubicados?"));
+    assert.ok(clientAsksBodasesorLocation("¿Llegan a Puebla?"));
+    assert.ok(buildBodasesorLocationAnswer().includes("Ciudad de México"));
+
+    const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
+    const extracted = emptyExtracted({ nombre: "Sofía", tipo_evento: "boda" });
+    const italianReply = runGuards({
+      aiResponse: "¿Cuántos invitados?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Quiero menú italiano para tema mafia italiana",
+      history: [
+        { role: "assistant", content: "¿Qué servicios te gustaría cotizar para la boda?" },
+      ],
+    });
+    assert.ok(/pastas?|pizzas?/i.test(italianReply), `debe ofrecer pastas/pizzas: ${italianReply.slice(0, 200)}`);
+    assert.ok(!/taquiza/i.test(italianReply), `no debe ofrecer taquiza: ${italianReply.slice(0, 200)}`);
+
+    const locationReply = runGuards({
+      aiResponse: "¿Me regalas tu nombre?",
+      extracted: emptyExtracted(),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: "¿Dónde están? ¿Llegan a Cuernavaca?",
+      history: [],
+    });
+    assert.ok(/ciudad\s+de\s+m[eé]xico|cdmx/i.test(locationReply), locationReply.slice(0, 200));
+  });
+
+  await test("28. Nombre WhatsApp → lead; despedida sin pedir nombre", () => {
+    const filledSet = new Set<string>();
+    const merged: string[] = [];
+    const applied = applyWhatsappNombreFallback(filledSet, merged, "Ale Beltran", []);
+    assert.ok(applied, "debe aplicar fallback de WhatsApp sin que Lucy haya preguntado");
+    assert.ok(filledSet.has("Nombre del cliente"));
+    assert.equal(parseNombreFromCrmLines(merged), "Ale Beltran");
+    assert.ok(isWhatsappOnlyNombreLine(merged));
+
+    const goodbye = "ok, lo comento y te vuelvo a buscar, gracias";
+    assert.ok(clientSaysGoodbye(goodbye));
+    const reply = runGuards({
+      aiResponse: "¿Con quién tengo el gusto?",
+      extracted: emptyExtracted(),
+      filledSet,
+      readyForClosing: false,
+      currentMessage: goodbye,
+      history: [{ role: "assistant", content: "Te ayudo con la taquiza para 40 personas." }],
+      whatsappDisplayName: "Ale Beltran",
+    });
+    assert.ok(!/con\s+qui[eé]n\s+tengo|tu\s+nombre|regalas?\s+tu\s+nombre/i.test(reply), reply);
+    assert.ok(/claro|gracias|cuando\s+gustes/i.test(reply), reply);
+    assert.ok(/ale/i.test(reply), `debe usar nombre WA: ${reply}`);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

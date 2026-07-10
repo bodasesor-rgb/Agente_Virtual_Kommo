@@ -71,6 +71,109 @@ export async function getKnowledgeGapStats(): Promise<{
   };
 }
 
+function isPanelTaughtLabel(label?: string | null): boolean {
+  if (!label?.trim()) return false;
+  return /^(Aprendizaje|Aprendido):/i.test(label.trim());
+}
+
+/** Resumen unificado para el panel de aprendizaje. */
+export async function getLearningOverview(): Promise<{
+  gaps: { pending: number; answered: number; dismissed: number };
+  training: { panelTaught: number; total: number; lastUpdated: string | null };
+}> {
+  const [gaps, examples] = await Promise.all([
+    getKnowledgeGapStats(),
+    import("./trainingStore.js").then((m) => m.listTrainingExamples()),
+  ]);
+  const panelExamples = examples.filter((ex) => isPanelTaughtLabel(ex.label));
+  const lastUpdated =
+    panelExamples.length > 0
+      ? panelExamples.reduce((latest, ex) => {
+          const d = ex.createdAt ?? "";
+          return d > (latest ?? "") ? d : latest;
+        }, panelExamples[0]?.createdAt ?? "")
+      : null;
+  return {
+    gaps,
+    training: {
+      panelTaught: panelExamples.length,
+      total: examples.length,
+      lastUpdated,
+    },
+  };
+}
+
+/** Enseñanza manual desde el panel (sin esperar detección automática). */
+export async function teachLucyManually(input: {
+  question: string;
+  answer: string;
+  topic?: string;
+  reviewerEmail?: string;
+}): Promise<KnowledgeGapDto> {
+  const question = input.question?.trim();
+  const answer = input.answer?.trim();
+  if (!question || question.length < 4 || !answer) {
+    throw new Error("question_and_answer_required");
+  }
+
+  const topic =
+    input.topic?.trim() ||
+    (question.length <= 60 ? question : `${question.slice(0, 57)}...`);
+  const label = topic.startsWith("Aprendizaje:") ? topic : `Aprendizaje: ${topic}`;
+
+  await createTrainingExample({
+    userMessage: question,
+    lucyResponse: answer,
+    label,
+  });
+
+  await ensureKnowledgeGapSchema();
+  const dedupeKey = normalizeDedupeKey(question, "manual");
+  const now = new Date();
+
+  const [existing] = await db
+    .select()
+    .from(knowledgeGaps)
+    .where(eq(knowledgeGaps.dedupeKey, dedupeKey))
+    .limit(1);
+
+  if (existing) {
+    const [updated] = await db
+      .update(knowledgeGaps)
+      .set({
+        answer,
+        status: "answered",
+        topic,
+        gapType: "manual",
+        answeredAt: now,
+        answeredBy: input.reviewerEmail ?? "panel",
+        updatedAt: now,
+      })
+      .where(eq(knowledgeGaps.id, existing.id))
+      .returning();
+    logger.info({ topic }, "Aprendizaje manual actualizado");
+    return rowToDto(updated!);
+  }
+
+  const [inserted] = await db
+    .insert(knowledgeGaps)
+    .values({
+      question,
+      topic,
+      gapType: "manual",
+      answer,
+      status: "answered",
+      dedupeKey,
+      answeredAt: now,
+      answeredBy: input.reviewerEmail ?? "panel",
+      lucyResponse: "(Enseñado manualmente desde el panel)",
+    })
+    .returning();
+
+  logger.info({ topic }, "Aprendizaje manual registrado");
+  return rowToDto(inserted!);
+}
+
 export interface RecordKnowledgeGapInput {
   kommoLeadId?: string | number;
   question: string;
