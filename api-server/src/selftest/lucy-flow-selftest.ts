@@ -42,16 +42,20 @@ import {
   applyLucyMessageGuards,
   applyEmailWaiver,
   applyPresupuestoWaiver,
+  applyWhatsappNombreFallback,
   buildPhoneAnswer,
   buildRecommendationsReply,
   buildPostCierreThanksReply,
+  clientSaysGoodbye,
   clientSaysThanks,
   CLOSING_CORE_FIELDS,
   detectEmailRefusal,
   EMAIL_WAIVED_LABEL,
   getNextPendingField,
   isReadyForClosing,
+  isWhatsappOnlyNombreLine,
   mensajeAsksForFilledField,
+  parseNombreFromCrmLines,
   LUCY_INTRO,
   isValidRequerimientosValue,
   crmStoredValue,
@@ -119,6 +123,7 @@ function runGuards(opts: {
   currentMessage?: string;
   history?: OpenAI.Chat.ChatCompletionMessageParam[];
   emailRefusedThisTurn?: boolean;
+  whatsappDisplayName?: string | null;
   debugLogs?: string[];
 }): string {
   return applyLucyMessageGuards({
@@ -130,6 +135,7 @@ function runGuards(opts: {
     emailRefusedThisTurn: opts.emailRefusedThisTurn ?? false,
     history: opts.history ?? [],
     currentMessage: opts.currentMessage,
+    whatsappDisplayName: opts.whatsappDisplayName,
     buildClosing: mockClosing,
     log: opts.debugLogs
       ? {
@@ -145,7 +151,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 27 escenarios de prueba\n");
+  console.log("Lucy — 28 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -1255,6 +1261,31 @@ async function runAll(): Promise<void> {
       history: [],
     });
     assert.ok(/ciudad\s+de\s+m[eé]xico|cdmx/i.test(locationReply), locationReply.slice(0, 200));
+  });
+
+  await test("28. Nombre WhatsApp → lead; despedida sin pedir nombre", () => {
+    const filledSet = new Set<string>();
+    const merged: string[] = [];
+    const applied = applyWhatsappNombreFallback(filledSet, merged, "Ale Beltran", []);
+    assert.ok(applied, "debe aplicar fallback de WhatsApp sin que Lucy haya preguntado");
+    assert.ok(filledSet.has("Nombre del cliente"));
+    assert.equal(parseNombreFromCrmLines(merged), "Ale Beltran");
+    assert.ok(isWhatsappOnlyNombreLine(merged));
+
+    const goodbye = "ok, lo comento y te vuelvo a buscar, gracias";
+    assert.ok(clientSaysGoodbye(goodbye));
+    const reply = runGuards({
+      aiResponse: "¿Con quién tengo el gusto?",
+      extracted: emptyExtracted(),
+      filledSet,
+      readyForClosing: false,
+      currentMessage: goodbye,
+      history: [{ role: "assistant", content: "Te ayudo con la taquiza para 40 personas." }],
+      whatsappDisplayName: "Ale Beltran",
+    });
+    assert.ok(!/con\s+qui[eé]n\s+tengo|tu\s+nombre|regalas?\s+tu\s+nombre/i.test(reply), reply);
+    assert.ok(/claro|gracias|cuando\s+gustes/i.test(reply), reply);
+    assert.ok(/ale/i.test(reply), `debe usar nombre WA: ${reply}`);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -4,6 +4,7 @@ import {
   isAffirmativeOnlyMessage,
   isGreetingOnlyMessage,
   resolveClientDisplayName,
+  sanitizeCrmNombre,
   sanitizeDisplayName,
 } from "./contact-name.js";
 import { normalizeAdvisorReferences, advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
@@ -669,24 +670,29 @@ export function lucyAskedForNombre(
 }
 
 /**
- * Respaldo: usa nombre de WhatsApp solo si Lucy ya preguntó el nombre
- * y el cliente nunca lo escribió. No salta el paso — solo completa el dato.
+ * Respaldo: si el cliente no escribió su nombre, usa el de WhatsApp/Kommo.
+ * El nombre explícito del cliente (sin WHATSAPP_NOMBRE_NOTE) siempre tiene prioridad.
  */
 export function applyWhatsappNombreFallback(
   filledSet: Set<string>,
   mergedLines: string[],
   whatsappDisplayName: string | null | undefined,
-  history: OpenAI.Chat.ChatCompletionMessageParam[]
+  _history: OpenAI.Chat.ChatCompletionMessageParam[]
 ): boolean {
   if (filledSet.has("Nombre del cliente")) return false;
-  if (!lucyAskedForNombre(history)) return false;
 
-  const waName = sanitizeDisplayName(whatsappDisplayName);
+  const waName = sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName);
   if (!waName) return false;
 
   mergedLines.push(`- Nombre del cliente: ${waName} ${WHATSAPP_NOMBRE_NOTE}`);
   filledSet.add("Nombre del cliente");
   return true;
+}
+
+/** True si la línea CRM del nombre viene solo del perfil de WhatsApp. */
+export function isWhatsappOnlyNombreLine(mergedLines: string[]): boolean {
+  const line = mergedLines.find((l) => /^-?\s*Nombre del cliente:/i.test(l));
+  return !!line && line.includes(WHATSAPP_NOMBRE_NOTE);
 }
 
 /** Lee el nombre capturado en líneas CRM (incluye fallback de WhatsApp). */
@@ -697,7 +703,7 @@ export function parseNombreFromCrmLines(mergedLines: string[]): string | null {
     .replace(/^-?\s*Nombre del cliente:\s*/i, "")
     .replace(WHATSAPP_NOMBRE_NOTE, "")
     .trim();
-  return sanitizeDisplayName(raw);
+  return sanitizeCrmNombre(raw) ?? sanitizeDisplayName(raw);
 }
 
 /** Reconocimiento breve del primer mensaje del cliente (sin pedir otros datos). */
@@ -1207,6 +1213,22 @@ export function clientSaysThanks(message?: string): boolean {
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
 }
 
+/** Cliente cierra la conversación sin dar más datos ("lo comento y te busco"). */
+export function clientSaysGoodbye(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (clientSaysThanks(message) && /vuelvo\s+a\s+buscar|te\s+busco|lo\s+comento/i.test(t)) return true;
+  return (
+    /lo\s+comento\s+y\s+te\s+(vuelvo\s+a\s+)?busco/i.test(t) ||
+    /te\s+(vuelvo\s+a\s+)?busco/i.test(t) ||
+    /me\s+comunico\s+(despu[eé]s|luego|ma[sñ]ana)/i.test(t) ||
+    /hablamos\s+despu[eé]s/i.test(t) ||
+    /ya\s+no\s+necesito/i.test(t) ||
+    /por\s+ahora\s+no/i.test(t) ||
+    /ok,?\s+lo\s+comento/i.test(t)
+  );
+}
+
 export function buildPostCierreThanksReply(clientName?: string | null): string {
   const nombre = clientName?.trim();
   return nombre
@@ -1367,6 +1389,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   let mensaje: string;
   let appliedSalesReply = false;
+  let appliedGoodbyeReply = false;
 
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
@@ -1378,8 +1401,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     cierreYaEnviado &&
     (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))
   ) {
-    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    mensaje = buildPostCierreThanksReply(
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
     log?.info({ entityId }, "GUARD: post-cierre — agradecimiento o sin más que agregar");
+  } else if (clientSaysGoodbye(currentMessage)) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre
+      ? `¡Claro, ${nombre}! Cuando gustes nos escribes. ¡Gracias!`
+      : "¡Claro! Cuando gustes nos escribes. ¡Gracias!";
+    appliedGoodbyeReply = true;
+    log?.info({ entityId }, "GUARD: despedida del cliente — sin preguntas nuevas");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje =
       "Gracias. Nuestro equipo ya tiene tu información para la cotización. ¿Hay algo más que quieras agregar o alguna duda?";
@@ -1692,7 +1724,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = nextQ;
   }
 
-  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
+  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage) && !appliedGoodbyeReply) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && !mensaje.includes("?")) {
       if (responseLooksLikePrematureClose(mensaje)) {
@@ -1723,6 +1755,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   if (!cierreYaEnviado && !appliedSalesReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  }
+
+  if (appliedGoodbyeReply) {
+    return normalizeAdvisorReferences(
+      mensaje,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
   }
 
   if (appliedSalesReply) {
