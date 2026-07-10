@@ -49,11 +49,14 @@ import {
   LUCY_INTRO,
   isValidRequerimientosValue,
   crmStoredValue,
+  stripImageAnnotation,
 } from "../lucy-flow-guards.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCatalogStatus } from "../services/catalogService.js";
+import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
+import { isImageMessage, getImageUrl, getImageCaption } from "../services/imageProcessor.js";
 import type { ExtractedData } from "../types.js";
 
 const CATALOG_URL =
@@ -135,7 +138,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 22 escenarios de prueba\n");
+  console.log("Lucy — 23 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -1005,6 +1008,47 @@ async function runAll(): Promise<void> {
       crmStoredValue(mergedLines, "Lugar/dirección del evento") ?? direccionContaminada;
     assert.equal(tipoEventoFinal, "cumpleaños");
     assert.equal(direccionFinal, "Naucalpan de Juárez, Edo Mex");
+  });
+
+  await test("23. Detección de notas de voz e imágenes en el payload de Kommo", () => {
+    // Notas de voz — variantes reales del webhook de Kommo
+    assert.ok(isVoiceNote({ attachment: { type: "voice", link: "https://x/a.ogg" } }));
+    assert.ok(isVoiceNote({ attachment: { type: "audio", link: "https://x/a.ogg" } }));
+    assert.ok(isVoiceNote({ attachment: { mime_type: "audio/ogg", link: "https://x/a.ogg" } }));
+    assert.equal(
+      getVoiceNoteUrl({ attachment: { type: "voice", link: "https://x/a.ogg" } }),
+      "https://x/a.ogg"
+    );
+    assert.ok(!isVoiceNote({ text: "hola" }));
+
+    // Imágenes — mismas variantes de estructura que audio, pero tipo picture/image
+    assert.ok(isImageMessage({ attachment: { type: "picture", link: "https://x/foto.jpg" } }));
+    assert.ok(isImageMessage({ attachment: { type: "image", link: "https://x/foto.jpg" } }));
+    assert.ok(isImageMessage({ attachment: { mime_type: "image/jpeg", link: "https://x/foto.jpg" } }));
+    assert.ok(
+      isImageMessage({
+        attachments: [{ type: "picture", url: "https://x/foto.jpg" }],
+      })
+    );
+    assert.ok(!isImageMessage({ text: "hola" }));
+    assert.ok(!isImageMessage({ attachment: { type: "voice", link: "https://x/a.ogg" } }));
+
+    assert.equal(
+      getImageUrl({ attachment: { type: "picture", link: "https://x/foto.jpg" } }),
+      "https://x/foto.jpg"
+    );
+    assert.equal(
+      getImageCaption({ attachment: { type: "picture", link: "https://x/foto.jpg", text: "Así se ve el salón" } }),
+      "Así se ve el salón"
+    );
+    assert.equal(getImageCaption({ attachment: { type: "picture", link: "https://x/foto.jpg" } }), null);
+
+    // Si GPT repite literalmente la anotación interna, un guard debe quitarla
+    // antes de que llegue al cliente.
+    const leaked = "Qué bonito salón. [Imagen adjunta: salón de eventos con jardín y carpa blanca] ¿Es ahí tu evento?";
+    const cleaned = stripImageAnnotation(leaked);
+    assert.ok(!/imagen adjunta/i.test(cleaned), cleaned);
+    assert.ok(/qué bonito salón/i.test(cleaned));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

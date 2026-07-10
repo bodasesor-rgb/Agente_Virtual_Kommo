@@ -1711,6 +1711,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = withoutGammaLinks;
   }
 
+  const withoutImageAnnotation = stripImageAnnotation(mensaje);
+  if (withoutImageAnnotation !== mensaje) {
+    log?.warn({ entityId }, "GUARD: anotación interna de imagen filtrada al cliente — removida");
+    mensaje = withoutImageAnnotation || "Gracias por la imagen.";
+  }
+
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 
@@ -1719,6 +1725,16 @@ export function stripGammaLinks(text: string): string {
   if (!text || !/gamma\.app/i.test(text)) return text;
   return text
     .replace(/https?:\/\/[^\s]*gamma\.app[^\s]*/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+/** Evita que GPT repita literalmente la anotación interna "[Imagen adjunta: ...]". */
+export function stripImageAnnotation(text: string): string {
+  if (!text || !/\[imagen\s+adjunta:/i.test(text)) return text;
+  return text
+    .replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();

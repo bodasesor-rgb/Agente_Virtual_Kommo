@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { getOpenAiApiKeyForClient } from "../lib/openaiEnv.js";
+import { isImageMessage, getImageUrl, getImageCaption, analyzeImage } from "./imageProcessor.js";
 import type pino from "pino";
 
 const openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
@@ -123,11 +124,19 @@ export function getVoiceNoteUrl(message: Msg): string | null {
   return null;
 }
 
+export interface ProcessedMessage {
+  text: string;
+  isVoice: boolean;
+  isImage: boolean;
+  /** Texto crudo de la transcripción/descripción, para guardar como nota interna en Kommo. */
+  mediaNote: string | null;
+}
+
 export async function processMessage(
   message: Msg,
   accessToken: string,
   log: Log
-): Promise<{ text: string; isVoice: boolean }> {
+): Promise<ProcessedMessage> {
   if (isVoiceNote(message)) {
     log.info(
       { attachmentType: (message["attachment"] as Att | undefined)?.["type"] },
@@ -137,7 +146,7 @@ export async function processMessage(
     if (audioUrl) {
       const transcription = await transcribeVoiceNote(audioUrl, accessToken, log);
       if (transcription) {
-        return { text: transcription, isVoice: true };
+        return { text: transcription, isVoice: true, isImage: false, mediaNote: transcription };
       }
     } else {
       log.warn({ messageKeys: Object.keys(message) }, "Nota de voz sin URL — revisar estructura");
@@ -145,12 +154,43 @@ export async function processMessage(
     return {
       text: "[El cliente envió una nota de voz pero no se pudo procesar]",
       isVoice: true,
+      isImage: false,
+      mediaNote: null,
     };
   }
+
+  if (isImageMessage(message)) {
+    log.info(
+      { attachmentType: (message["attachment"] as Att | undefined)?.["type"] },
+      "Imagen detectada"
+    );
+    const imageUrl = getImageUrl(message);
+    const caption = getImageCaption(message);
+    if (imageUrl) {
+      const description = await analyzeImage(imageUrl, accessToken, log);
+      if (description) {
+        const text = caption
+          ? `${caption}\n\n[Imagen adjunta: ${description}]`
+          : `[Imagen adjunta: ${description}]`;
+        return { text, isVoice: false, isImage: true, mediaNote: description };
+      }
+    } else {
+      log.warn({ messageKeys: Object.keys(message) }, "Imagen sin URL — revisar estructura");
+    }
+    return {
+      text: caption
+        ? caption
+        : "[El cliente envió una imagen pero no se pudo analizar]",
+      isVoice: false,
+      isImage: true,
+      mediaNote: null,
+    };
+  }
+
   // Primary: plain text field
   const rawText = message["text"];
   if (typeof rawText === "string" && rawText.trim()) {
-    return { text: rawText, isVoice: false };
+    return { text: rawText, isVoice: false, isImage: false, mediaNote: null };
   }
 
   // Fallback: Kommo sometimes sends URL-rich messages as a "link" type attachment
@@ -164,18 +204,20 @@ export async function processMessage(
         (typeof a["text"] === "string" ? a["text"] : "") ||
         (typeof a["caption"] === "string" ? a["caption"] : "") ||
         (typeof a["title"] === "string" ? a["title"] : "");
-      if (caption.trim()) return { text: caption.trim(), isVoice: false };
+      if (caption.trim()) return { text: caption.trim(), isVoice: false, isImage: false, mediaNote: null };
 
       // If there is a URL but no caption, return the URL so Lucy sees something
       const url =
         (typeof a["link"] === "string" ? a["link"] : "") ||
         (typeof a["url"] === "string" ? a["url"] : "");
-      if (url.trim()) return { text: url.trim(), isVoice: false };
+      if (url.trim()) return { text: url.trim(), isVoice: false, isImage: false, mediaNote: null };
     }
   }
 
-  return { text: "", isVoice: false };
+  return { text: "", isVoice: false, isImage: false, mediaNote: null };
 }
+
+export { getImageAcknowledgment } from "./imageProcessor.js";
 
 export function getVoiceAcknowledgment(clientName?: string): string {
   const suffix = clientName ? `, ${clientName}` : "";

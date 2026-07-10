@@ -73640,7 +73640,7 @@ Reglas:
 - M\xE1ximo 5 pares.
 - Responde SOLO JSON: { "pairs": [ { "user_message", "suggested_response", "label", "confidence" (0-1), "context_snippet" } ] }`;
   try {
-    const completion = await openai2.chat.completions.create({
+    const completion = await openai3.chat.completions.create({
       model: process.env["OPENAI_MODEL"] ?? "gpt-4o-mini",
       temperature: 0.2,
       response_format: { type: "json_object" },
@@ -73683,7 +73683,7 @@ ${transcript}` }
     return 0;
   }
 }
-var openai2;
+var openai3;
 var init_learningExtractor = __esm({
   async "src/services/learningExtractor.ts"() {
     init_openai();
@@ -73692,7 +73692,7 @@ var init_learningExtractor = __esm({
     init_openaiEnv();
     init_logger3();
     await init_learningSchema();
-    openai2 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+    openai3 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
   }
 });
 
@@ -80182,6 +80182,21 @@ Solo reconoce los datos mencionados y pide el nombre.
 Despu\xE9s del primer mensaje, s\xED puedes responder preguntas con detalle mientras recolectas datos.
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+REGLA \u2014 NOTAS DE VOZ E IM\xC1GENES
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+S\xED puedes "escuchar" audios y "ver" im\xE1genes \u2014 el sistema ya los procesa antes de que
+t\xFA los recibas. NUNCA digas que no puedes escuchar audios ni ver im\xE1genes.
+
+- Nota de voz: llega ya transcrita como texto normal. Resp\xF3ndele igual que si el
+  cliente lo hubiera escrito.
+- Imagen: llega como texto con el formato "[Imagen adjunta: <descripci\xF3n>]", a veces
+  junto con el mensaje que el cliente escribi\xF3. Reacciona de forma natural a lo que
+  describe (ej. si es una foto de un sal\xF3n, comenta brevemente y sigue con el flujo;
+  si parece una referencia de decoraci\xF3n, t\xF3mala en cuenta como parte de sus
+  requerimientos). Nunca repitas literalmente la frase "[Imagen adjunta: ...]" al cliente.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 REGLA ANTI-ROBOT \u2014 Solo aplica DESPU\xC9S del primer mensaje
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
@@ -82106,11 +82121,20 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     log?.info({ entityId }, "GUARD: enlaces gamma.app eliminados de la respuesta");
     mensaje = withoutGammaLinks;
   }
+  const withoutImageAnnotation = stripImageAnnotation(mensaje);
+  if (withoutImageAnnotation !== mensaje) {
+    log?.warn({ entityId }, "GUARD: anotaci\xF3n interna de imagen filtrada al cliente \u2014 removida");
+    mensaje = withoutImageAnnotation || "Gracias por la imagen.";
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripGammaLinks(text2) {
   if (!text2 || !/gamma\.app/i.test(text2)) return text2;
   return text2.replace(/https?:\/\/[^\s]*gamma\.app[^\s]*/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+function stripImageAnnotation(text2) {
+  if (!text2 || !/\[imagen\s+adjunta:/i.test(text2)) return text2;
+  return text2.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 
 // src/routes/kommo.ts
@@ -82703,15 +82727,15 @@ function buildRedactionBriefing(input) {
 function appendRedactionBriefing(messages2, briefing) {
   return [...messages2, { role: "system", content: briefing }];
 }
-async function completeLucyRedaction(openai4, baseMessages, briefing) {
-  const completion = await openai4.chat.completions.create({
+async function completeLucyRedaction(openai5, baseMessages, briefing) {
+  const completion = await openai5.chat.completions.create({
     ...LUCY_REDACTION_PARAMS,
     messages: appendRedactionBriefing(baseMessages, briefing)
   });
   return completion.choices[0]?.message?.content ?? "";
 }
-async function refinarRespuestaCierre(openai4, borrador) {
-  const resp = await openai4.chat.completions.create({
+async function refinarRespuestaCierre(openai5, borrador) {
+  const resp = await openai5.chat.completions.create({
     model: LUCY_REDACTION_MODEL,
     temperature: 0.3,
     max_tokens: 1200,
@@ -82725,12 +82749,12 @@ async function refinarRespuestaCierre(openai4, borrador) {
   });
   return (resp.choices[0]?.message?.content ?? borrador).trim();
 }
-async function maybeRefinarMensajeCierre(openai4, mensaje, opts) {
+async function maybeRefinarMensajeCierre(openai5, mensaje, opts) {
   const { readyForClosing, cierreYaEnviado, closingSignature, catalogUrl } = opts;
   if (!readyForClosing || cierreYaEnviado || !mensaje.includes(closingSignature)) {
     return mensaje;
   }
-  const refined = await refinarRespuestaCierre(openai4, mensaje);
+  const refined = await refinarRespuestaCierre(openai5, mensaje);
   if (!refined.includes(closingSignature)) return mensaje;
   if (catalogUrl && mensaje.includes(catalogUrl) && !refined.includes(catalogUrl)) return mensaje;
   return refined;
@@ -82739,7 +82763,130 @@ async function maybeRefinarMensajeCierre(openai4, mensaje, opts) {
 // src/services/voiceProcessor.ts
 init_openai();
 init_openaiEnv();
+
+// src/services/imageProcessor.ts
+init_openai();
+init_openaiEnv();
 var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
+var VISION_MODEL = "gpt-4o-mini";
+function isImageMessage(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a2 = att;
+    if (IMAGE_TYPES.has(String(a2["type"] ?? ""))) return true;
+    if (typeof a2["mime_type"] === "string" && a2["mime_type"].startsWith("image/")) return true;
+  }
+  const atts = message["attachments"];
+  if (Array.isArray(atts)) {
+    for (const item of atts) {
+      if (typeof item === "object" && item !== null) {
+        const a2 = item;
+        if (IMAGE_TYPES.has(String(a2["type"] ?? ""))) return true;
+        if (typeof a2["mime_type"] === "string" && a2["mime_type"].startsWith("image/")) return true;
+      }
+    }
+  }
+  const mediaType = String(message["media_type"] ?? "");
+  if (IMAGE_TYPES.has(mediaType)) return true;
+  const mimeType = String(message["mime_type"] ?? "");
+  if (mimeType.startsWith("image/")) return true;
+  return false;
+}
+function getImageUrl(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a2 = att;
+    for (const key of ["link", "url", "media_url"]) {
+      if (typeof a2[key] === "string" && a2[key].length > 0) return a2[key];
+    }
+  }
+  const atts = message["attachments"];
+  if (Array.isArray(atts)) {
+    for (const item of atts) {
+      if (typeof item === "object" && item !== null) {
+        const a2 = item;
+        if (IMAGE_TYPES.has(String(a2["type"] ?? ""))) {
+          for (const key of ["link", "url", "media_url"]) {
+            if (typeof a2[key] === "string" && a2[key].length > 0) return a2[key];
+          }
+        }
+      }
+    }
+  }
+  for (const key of ["media_url", "file_url", "url"]) {
+    if (typeof message[key] === "string" && message[key].length > 0) {
+      return message[key];
+    }
+  }
+  const media = message["media"];
+  if (typeof media === "object" && media !== null) {
+    const m4 = media;
+    if (typeof m4["url"] === "string" && m4["url"].length > 0) return m4["url"];
+  }
+  return null;
+}
+function getImageCaption(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a2 = att;
+    const caption = (typeof a2["text"] === "string" ? a2["text"] : "") || (typeof a2["caption"] === "string" ? a2["caption"] : "") || (typeof a2["title"] === "string" ? a2["title"] : "");
+    if (caption.trim()) return caption.trim();
+  }
+  const rawText = message["text"];
+  if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
+  return null;
+}
+var VISION_PROMPT = "Describe brevemente esta imagen enviada por un cliente de Bodasesor (empresa de organizaci\xF3n de bodas y eventos sociales en M\xE9xico). Enf\xF3cate en lo relevante para cotizar un evento: tipo de espacio o sal\xF3n, decoraci\xF3n, mobiliario, comida, capacidad aproximada de personas, si parece ser una referencia/inspiraci\xF3n de estilo, una foto del lugar del evento, una captura de pantalla de otra cotizaci\xF3n, un comprobante de pago, una identificaci\xF3n/documento, o algo no relacionado con un evento. Responde en espa\xF1ol, en 1-2 oraciones concretas, sin rodeos ni frases como 'la imagen muestra'.";
+async function analyzeImage(imageUrl, accessToken, log) {
+  try {
+    const imgResponse = await fetch(imageUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!imgResponse.ok) {
+      log.warn({ status: imgResponse.status, imageUrl }, "Error descargando imagen del cliente");
+      return null;
+    }
+    const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
+    const buffer = await imgResponse.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+    const dataUrl = `data:${contentType};base64,${base64}`;
+    const completion = await openai.chat.completions.create({
+      model: VISION_MODEL,
+      max_tokens: 200,
+      temperature: 0.3,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: VISION_PROMPT },
+            { type: "image_url", image_url: { url: dataUrl } }
+          ]
+        }
+      ]
+    });
+    const description = completion.choices[0]?.message?.content?.trim() ?? null;
+    if (description) {
+      log.info({ chars: description.length }, "Imagen analizada exitosamente (Vision)");
+    }
+    return description;
+  } catch (err2) {
+    log.error({ err: err2 }, "Error analizando imagen con Vision");
+    return null;
+  }
+}
+function getImageAcknowledgment(clientName) {
+  const suffix = clientName ? `, ${clientName}` : "";
+  const options = [
+    `Ya vi tu imagen${suffix}. `,
+    `Perfecto, recib\xED la foto${suffix}. `,
+    `Listo${suffix}, ya la revis\xE9. `
+  ];
+  return options[Math.floor(Math.random() * options.length)];
+}
+
+// src/services/voiceProcessor.ts
+var openai2 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var AUDIO_TYPES = /* @__PURE__ */ new Set(["audio", "voice"]);
 async function transcribeVoiceNote(audioUrl, accessToken, log) {
   try {
@@ -82756,7 +82903,7 @@ async function transcribeVoiceNote(audioUrl, accessToken, log) {
     const audioBuffer = await audioResponse.arrayBuffer();
     const audioBlob = new Blob([audioBuffer], { type: "audio/ogg" });
     const audioFile = new File([audioBlob], "voice.ogg", { type: "audio/ogg" });
-    const transcription = await openai.audio.transcriptions.create({
+    const transcription = await openai2.audio.transcriptions.create({
       file: audioFile,
       model: "whisper-1",
       language: "es",
@@ -82835,19 +82982,46 @@ async function processMessage(message, accessToken, log) {
     if (audioUrl) {
       const transcription = await transcribeVoiceNote(audioUrl, accessToken, log);
       if (transcription) {
-        return { text: transcription, isVoice: true };
+        return { text: transcription, isVoice: true, isImage: false, mediaNote: transcription };
       }
     } else {
       log.warn({ messageKeys: Object.keys(message) }, "Nota de voz sin URL \u2014 revisar estructura");
     }
     return {
       text: "[El cliente envi\xF3 una nota de voz pero no se pudo procesar]",
-      isVoice: true
+      isVoice: true,
+      isImage: false,
+      mediaNote: null
+    };
+  }
+  if (isImageMessage(message)) {
+    log.info(
+      { attachmentType: message["attachment"]?.["type"] },
+      "Imagen detectada"
+    );
+    const imageUrl = getImageUrl(message);
+    const caption = getImageCaption(message);
+    if (imageUrl) {
+      const description = await analyzeImage(imageUrl, accessToken, log);
+      if (description) {
+        const text2 = caption ? `${caption}
+
+[Imagen adjunta: ${description}]` : `[Imagen adjunta: ${description}]`;
+        return { text: text2, isVoice: false, isImage: true, mediaNote: description };
+      }
+    } else {
+      log.warn({ messageKeys: Object.keys(message) }, "Imagen sin URL \u2014 revisar estructura");
+    }
+    return {
+      text: caption ? caption : "[El cliente envi\xF3 una imagen pero no se pudo analizar]",
+      isVoice: false,
+      isImage: true,
+      mediaNote: null
     };
   }
   const rawText = message["text"];
   if (typeof rawText === "string" && rawText.trim()) {
-    return { text: rawText, isVoice: false };
+    return { text: rawText, isVoice: false, isImage: false, mediaNote: null };
   }
   const att = message["attachment"];
   if (typeof att === "object" && att !== null) {
@@ -82855,12 +83029,12 @@ async function processMessage(message, accessToken, log) {
     const attType = String(a2["type"] ?? "");
     if (attType === "link" || attType === "picture" || attType === "document") {
       const caption = (typeof a2["text"] === "string" ? a2["text"] : "") || (typeof a2["caption"] === "string" ? a2["caption"] : "") || (typeof a2["title"] === "string" ? a2["title"] : "");
-      if (caption.trim()) return { text: caption.trim(), isVoice: false };
+      if (caption.trim()) return { text: caption.trim(), isVoice: false, isImage: false, mediaNote: null };
       const url2 = (typeof a2["link"] === "string" ? a2["link"] : "") || (typeof a2["url"] === "string" ? a2["url"] : "");
-      if (url2.trim()) return { text: url2.trim(), isVoice: false };
+      if (url2.trim()) return { text: url2.trim(), isVoice: false, isImage: false, mediaNote: null };
     }
   }
-  return { text: "", isVoice: false };
+  return { text: "", isVoice: false, isImage: false, mediaNote: null };
 }
 function getVoiceAcknowledgment(clientName) {
   const suffix = clientName ? `, ${clientName}` : "";
@@ -88428,7 +88602,7 @@ async function recordKnowledgeGapIfNeeded(opts) {
 
 // src/routes/kommo.ts
 var router3 = (0, import_express3.Router)();
-var openai3 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+var openai4 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var FIELD = {
   // respuesta_ia (1048772) eliminado de Kommo — no usar o el PATCH falla
   respuesta_ia_largo: 1048786,
@@ -88522,7 +88696,7 @@ Reglas estrictas:
       ...history,
       { role: "user", content: latestUserText }
     ];
-    const completion = await openai3.chat.completions.create({
+    const completion = await openai4.chat.completions.create({
       model: "gpt-4o-mini",
       messages: messages2,
       response_format: { type: "json_object" },
@@ -88608,7 +88782,7 @@ function buildLucyRedactionBriefing(opts) {
   });
 }
 async function applyCierreRefinement(mensaje, opts) {
-  return maybeRefinarMensajeCierre(openai3, mensaje, {
+  return maybeRefinarMensajeCierre(openai4, mensaje, {
     readyForClosing: opts.readyForClosing,
     cierreYaEnviado: opts.cierreYaEnviado,
     closingSignature: CLOSING_SIGNATURE2,
@@ -89160,15 +89334,15 @@ async function processBatch(batch, accessToken, log) {
       hasObjection: objectionResult.hasObjection,
       objectionType: objectionResult.type
     });
-    let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+    let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogCateringIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
-    if (batch.isVoice) {
+    if (batch.isVoice || batch.isImage) {
       const clientName = sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? sanitizeDisplayName(conversation.clientName) ?? void 0;
-      const voiceAck = getVoiceAcknowledgment(clientName ?? void 0);
-      aiResponse = voiceAck + aiResponse;
-      log.info({ voiceAck }, "Voice acknowledgment prepended");
+      const ack = batch.isVoice ? getVoiceAcknowledgment(clientName ?? void 0) : getImageAcknowledgment(clientName ?? void 0);
+      aiResponse = ack + aiResponse;
+      log.info({ ack, isVoice: batch.isVoice, isImage: batch.isImage }, "Media acknowledgment prepended");
     }
     log.info({ aiResponse, extracted }, "OpenAI response received");
     const cierreYaEnviado = history.some(
@@ -89468,18 +89642,34 @@ router3.post("/kommo/webhook", async (req, res) => {
   const entityId = firstMessage?.entity_id ?? null;
   const chatId = firstMessage?.chat_id ?? null;
   const talkId = firstMessage?.talk_id ?? null;
-  const messageData = firstMessage ? await processMessage(firstMessage, accessToken, log) : { text: "", isVoice: false };
+  const messageData = firstMessage ? await processMessage(firstMessage, accessToken, log) : { text: "", isVoice: false, isImage: false, mediaNote: null };
   const text2 = messageData.text.trim();
   const isVoice = messageData.isVoice;
+  const isImage = messageData.isImage;
   log.info(
-    { text: isVoice ? `[voz] ${text2.slice(0, 80)}` : text2, entityId, chatId, talkId, isVoice },
+    {
+      text: isVoice ? `[voz] ${text2.slice(0, 80)}` : isImage ? `[imagen] ${text2.slice(0, 80)}` : text2,
+      entityId,
+      chatId,
+      talkId,
+      isVoice,
+      isImage
+    },
     "Kommo webhook received"
   );
+  if (messageData.mediaNote && entityId && subdomain && accessToken) {
+    const label = isVoice ? "Nota de voz (transcripci\xF3n autom\xE1tica)" : "Imagen recibida (descripci\xF3n autom\xE1tica)";
+    void agregarNota(subdomain, accessToken, entityId, `${label}:
+
+${messageData.mediaNote}`).catch(
+      (err2) => log.warn({ err: err2, entityId }, "No se pudo agregar nota interna de media")
+    );
+  }
   if (!text2 || !chatId || !entityId) {
     if (firstMessage && !text2) {
       log.warn(
         { rawMessage: firstMessage },
-        "Webhook recibido con texto vac\xEDo \u2014 posible nota de voz no detectada o tipo de media no soportado"
+        "Webhook recibido con texto vac\xEDo \u2014 posible nota de voz/imagen no detectada o tipo de media no soportado"
       );
     }
     res.status(200).json({ ok: true, skipped: "Missing text, chat_id or entity_id" });
@@ -89497,6 +89687,7 @@ router3.post("/kommo/webhook", async (req, res) => {
     existing.entityId = entityId;
     existing.talkId = talkId;
     existing.isVoice = existing.isVoice || isVoice;
+    existing.isImage = existing.isImage || isImage;
     log.info({ chatId, buffered: existing.texts.length }, "Message added to pending batch");
     existing.timer = setTimeout(() => {
       pendingBatches.delete(chatId);
@@ -89511,9 +89702,9 @@ router3.post("/kommo/webhook", async (req, res) => {
         log.error({ err: err2 }, "Error in processBatch");
       });
     }, DEBOUNCE_MS);
-    const batch = { texts: [text2], entityId, chatId, talkId, subdomain, isVoice, timer };
+    const batch = { texts: [text2], entityId, chatId, talkId, subdomain, isVoice, isImage, timer };
     pendingBatches.set(chatId, batch);
-    log.info({ chatId, debounceMs: DEBOUNCE_MS, isVoice }, "New batch started, waiting for more messages");
+    log.info({ chatId, debounceMs: DEBOUNCE_MS, isVoice, isImage }, "New batch started, waiting for more messages");
   }
 });
 router3.get("/kommo/salesbot", (_req, res) => {
@@ -89627,7 +89818,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
       allFieldsFilled: salesbotAllFieldsFilled,
       isFirstInteraction
     });
-    let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+    let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
@@ -89986,7 +90177,7 @@ router3.post("/kommo/simulator", async (req, res) => {
       allFieldsFilled,
       isFirstInteraction
     });
-    let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+    let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
