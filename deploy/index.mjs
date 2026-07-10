@@ -82034,12 +82034,12 @@ ${nextQ}`;
     log?.info({ entityId }, "GUARD: precios inventados eliminados de la respuesta");
     mensaje = priceSanitized;
     const pending = getNextPendingField(extracted, filledSet);
-    if (pending && !mensaje.includes("?") && !trulyReadyForClosing) {
+    if (pending && !mensaje.includes("?") && !trulyReadyForClosing && !cierreYaEnviado) {
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     }
   }
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
-  if (!mensaje.includes("?") && !trulyReadyForClosing && !clientAskedFreeformQuestion(currentMessage)) {
+  if (!mensaje.includes("?") && !trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
     let pendingAfter = getNextPendingField(extracted, filledSet);
     if (pendingAfter === "presupuesto" && countLucyFieldAsks(presHistory, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
       applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
