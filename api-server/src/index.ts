@@ -11,6 +11,7 @@ import { initializeTrainingStore } from "./services/trainingStore.js";
 import { ensureLearningSchema } from "./services/learningSchema.js";
 import { ensureKnowledgeGapSchema } from "./services/knowledgeGapSchema.js";
 import { startCatalogAutoRefresh } from "./services/catalogService.js";
+import { indexarAprendizaje } from "./jobs/indexarAprendizaje.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 
@@ -32,6 +33,13 @@ async function startServer(): Promise<void> {
     logger.warn({ err }, "knowledgeGapSchema init en background falló");
   });
   startCatalogAutoRefresh();
+
+  // Indexar aprendizaje RAG en background (no bloquea el arranque)
+  setTimeout(() => {
+    void indexarAprendizaje().catch((err) => {
+      logger.warn({ err }, "indexarAprendizaje en background falló");
+    });
+  }, 30_000);
 
   app.listen(port, "0.0.0.0", (err) => {
   if (err) {

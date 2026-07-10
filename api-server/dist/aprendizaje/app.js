@@ -1,18 +1,38 @@
 const API = "/api";
 
 const sectionIntro = document.getElementById("section-intro");
+const manualTeach = document.getElementById("manual-teach");
 const statsRow = document.getElementById("stats-row");
 const gapsList = document.getElementById("gaps-list");
 const emptyState = document.getElementById("empty-state");
 
 let currentStatus = "pending";
+let refreshTimer = null;
 
 const INTRO = {
   pending:
-    "Estas son preguntas de clientes reales donde <strong>Lucy no encontró precio o servicio en el catálogo</strong>. Escribe la respuesta correcta y Lucy la usará en futuras conversaciones.",
+    "Preguntas detectadas en <strong>chats reales o en el simulador</strong> donde Lucy no tuvo la respuesta en catálogo. Escríbele la respuesta correcta y quedará activa en WhatsApp.",
   answered:
-    "Todo lo que <strong>ya le enseñaste a Lucy</strong>: la pregunta del cliente, lo que Lucy dijo sin datos, y la respuesta correcta que quedó guardada.",
+    "Historial de lo que <strong>ya enseñaste</strong> desde este panel: pregunta del cliente, lo que Lucy dijo, y la respuesta que quedó guardada.",
+  training:
+    "Estos ejemplos son los que <strong>Lucy usa ahora mismo</strong> en conversaciones (enseñanzas del panel). Además, el índice RAG trae casos parecidos de chats con asesores humanos.",
 };
+
+const WORKFLOW = `
+  <ol class="workflow-steps">
+    <li><strong>1.</strong> Prueba en el <a href="/panel#simulador">Simulador</a> una pregunta que Lucy no sepa (precio, servicio, inclusión).</li>
+    <li><strong>2.</strong> Si no aparece sola abajo, usa <strong>Enseñar algo nuevo</strong> y escribe pregunta + respuesta.</li>
+    <li><strong>3.</strong> Revisa <strong>En uso por Lucy</strong> para confirmar que el aprendizaje quedó activo.</li>
+  </ol>
+`;
+
+function notifyParent() {
+  try {
+    window.parent?.postMessage({ type: "lucy-learning-updated" }, window.location.origin);
+  } catch {
+    /* iframe cross-origin */
+  }
+}
 
 async function api(path, options = {}) {
   const res = await fetch(`${API}${path}`, {
@@ -44,6 +64,7 @@ function gapTypeLabel(type) {
     price: "Precio",
     inclusion: "Inclusión",
     service: "Servicio",
+    manual: "Manual",
     unknown: "General",
   };
   return map[type] || type;
@@ -57,37 +78,149 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-function updateTabCounts(stats) {
+function updateTabCounts(stats, trainingTotal = 0) {
   document.querySelectorAll("[data-count]").forEach((el) => {
     const key = el.dataset.count;
-    if (key && stats[key] !== undefined) el.textContent = String(stats[key]);
+    if (key === "training") {
+      el.textContent = String(trainingTotal);
+    } else if (key && stats[key] !== undefined) {
+      el.textContent = String(stats[key]);
+    }
+  });
+}
+
+function renderManualTeachForm() {
+  manualTeach.classList.remove("hidden");
+  manualTeach.innerHTML = `
+    <h2>Enseñar algo nuevo</h2>
+    <p class="hint">Si Lucy no supo algo y no apareció en la lista, créalo aquí. Se guarda al instante y Lucy lo usa en el siguiente chat.</p>
+    ${WORKFLOW}
+    <form id="teach-form">
+      <label>Tema (opcional)
+        <input type="text" id="teach-topic" placeholder="Ej: Precio DJ, Barra de mariscos en Cuernavaca" />
+      </label>
+      <label>Si el cliente dice…
+        <textarea id="teach-question" required placeholder="Ej: ¿Cuánto cuesta el DJ para 150 personas?"></textarea>
+      </label>
+      <label>Lucy debe responder así
+        <textarea id="teach-answer" required placeholder="Ej: El DJ desde $8,500 por 4 horas incluye equipo básico. Nuestro equipo confirma según el evento."></textarea>
+      </label>
+      <button type="submit" class="btn-save" id="teach-submit">Guardar y activar en Lucy</button>
+    </form>
+  `;
+
+  document.getElementById("teach-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById("teach-submit");
+    const question = document.getElementById("teach-question")?.value?.trim();
+    const answer = document.getElementById("teach-answer")?.value?.trim();
+    const topic = document.getElementById("teach-topic")?.value?.trim();
+    if (!question || !answer) return;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Guardando…";
+    }
+    try {
+      await api("/knowledge-gaps/teach", {
+        method: "POST",
+        body: JSON.stringify({ question, answer, topic: topic || undefined }),
+      });
+      document.getElementById("teach-form")?.reset();
+      notifyParent();
+      currentStatus = "training";
+      document.querySelectorAll(".view-tab").forEach((b) => b.classList.remove("active"));
+      document.querySelector('[data-status="training"]')?.classList.add("active");
+      await refresh();
+    } catch (err) {
+      alert(err.message || "Error al guardar");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = "Guardar y activar en Lucy";
+      }
+    }
   });
 }
 
 async function loadStats() {
-  const stats = await api("/knowledge-gaps/stats");
-  const total = stats.pending + stats.answered + stats.dismissed;
+  const [overview, ragEstado] = await Promise.all([
+    api("/knowledge-gaps/overview"),
+    api("/aprendizaje/estado").catch(() => ({ totalConversacionesAprendidas: 0, ultimaActualizacion: null, nuevosUltimaCorrida: 0 })),
+  ]);
+  const gaps = overview.gaps ?? {};
+  const training = overview.training ?? {};
+  const total = (gaps.pending ?? 0) + (gaps.answered ?? 0) + (gaps.dismissed ?? 0);
+  const panelTaught = training.panelTaught ?? 0;
+  const ragTotal = ragEstado.totalConversacionesAprendidas ?? 0;
 
   statsRow.innerHTML = `
     <div class="stat-card pending">
-      <strong>${stats.pending}</strong>
+      <strong>${gaps.pending ?? 0}</strong>
       <span>No sabe — pendientes</span>
     </div>
     <div class="stat-card learned">
-      <strong>${stats.answered}</strong>
-      <span>Ya aprendió</span>
-    </div>
-    <div class="stat-card dismissed">
-      <strong>${stats.dismissed}</strong>
-      <span>Descartadas</span>
+      <strong>${gaps.answered ?? 0}</strong>
+      <span>Ya enseñaste</span>
     </div>
     <div class="stat-card total">
+      <strong>${panelTaught}</strong>
+      <span>En uso por Lucy</span>
+    </div>
+    <div class="stat-card rag">
+      <strong>${ragTotal}</strong>
+      <span>Chats indexados (RAG)</span>
+    </div>
+    <div class="stat-card dismissed">
       <strong>${total}</strong>
-      <span>Total registradas</span>
+      <span>Total en panel</span>
     </div>
   `;
 
-  updateTabCounts(stats);
+  const ragPanel = document.getElementById("rag-panel");
+  if (ragPanel) {
+    ragPanel.innerHTML = `
+      <h2>Aprendizaje desde chats de Kommo (RAG)</h2>
+      <p class="hint">Lucy busca cómo respondió un asesor humano en casos parecidos y usa ese tono — sin copiar literal. Los ejemplos del panel siempre quedan activos.</p>
+      <div class="rag-meta">
+        <span><strong>${ragTotal}</strong> pares indexados</span>
+        <span>Última actualización: ${formatDate(ragEstado.ultimaActualizacion)}</span>
+        ${ragEstado.nuevosUltimaCorrida ? `<span>+${ragEstado.nuevosUltimaCorrida} nuevos en la última corrida</span>` : ""}
+      </div>
+      <button type="button" class="btn-save" id="btn-indexar">Actualizar aprendizaje desde Kommo</button>
+      <p id="indexar-status" class="hint hidden"></p>
+    `;
+    document.getElementById("btn-indexar")?.addEventListener("click", runIndexar);
+  }
+
+  updateTabCounts(gaps, panelTaught);
+}
+
+async function runIndexar() {
+  const btn = document.getElementById("btn-indexar");
+  const status = document.getElementById("indexar-status");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Indexando…";
+  }
+  if (status) {
+    status.classList.remove("hidden");
+    status.textContent = "Leyendo chats de Kommo y generando embeddings…";
+  }
+  try {
+    const result = await api("/aprendizaje/indexar", { method: "POST" });
+    if (status) {
+      status.textContent = `Listo: ${result.nuevos ?? 0} nuevos, ${result.omitidos ?? 0} ya existían. Total en índice: ${result.totalEnStore ?? 0}.`;
+    }
+    notifyParent();
+    await loadStats();
+  } catch (err) {
+    if (status) status.textContent = `Error: ${err.message}`;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Actualizar aprendizaje desde Kommo";
+    }
+  }
 }
 
 function renderPendingCard(gap) {
@@ -127,7 +260,7 @@ function renderPendingCard(gap) {
     }
     <div class="answer-form">
       <label>Tu respuesta — esto es lo que Lucy aprenderá
-        <textarea class="answer-box" data-answer placeholder="Ej: El DJ desde $8,500 por 4 horas, incluye equipo básico. Alejandro confirma según el evento."></textarea>
+        <textarea class="answer-box" data-answer placeholder="Ej: El DJ desde $8,500 por 4 horas, incluye equipo básico. Nuestro equipo confirma según el evento."></textarea>
       </label>
       <div class="gap-actions">
         <button type="button" class="btn-save save-btn">Guardar y enseñar a Lucy</button>
@@ -135,7 +268,7 @@ function renderPendingCard(gap) {
       </div>
     </div>
     <div class="gap-footer">
-      <span>${gap.kommoLeadId ? `Lead Kommo #${escapeHtml(gap.kommoLeadId)}` : "Sin lead vinculado"}</span>
+      <span>${gap.kommoLeadId ? `Lead Kommo #${escapeHtml(gap.kommoLeadId)}` : "Desde simulador o chat"}</span>
       <span>Detectado: ${formatDate(gap.createdAt)}</span>
     </div>
   `;
@@ -186,9 +319,61 @@ function renderLearnedCard(gap) {
   return card;
 }
 
+function renderTrainingCard(example) {
+  const card = document.createElement("article");
+  card.className = "gap-card learned-card";
+  card.dataset.id = example.id;
+
+  card.innerHTML = `
+    <div class="gap-top">
+      <div>
+        <div class="gap-topic">${escapeHtml(example.label || "Ejemplo activo")}</div>
+      </div>
+      <div class="gap-badges">
+        <span class="gap-badge learned">Activo</span>
+      </div>
+    </div>
+    <div class="info-grid">
+      <div class="info-block question">
+        <div class="label">Si el cliente dice…</div>
+        <div class="value">${escapeHtml(example.userMessage)}</div>
+      </div>
+      <div class="info-block answer">
+        <div class="label">Lucy responde así</div>
+        <div class="value">${escapeHtml(example.lucyResponse)}</div>
+      </div>
+    </div>
+    <div class="gap-footer">
+      <span>En uso en conversaciones de WhatsApp</span>
+      <span>${formatDate(example.createdAt)}</span>
+    </div>
+  `;
+
+  return card;
+}
+
 async function loadGaps() {
   sectionIntro.innerHTML = INTRO[currentStatus] ?? "";
   gapsList.innerHTML = "";
+  manualTeach.classList.add("hidden");
+
+  if (currentStatus === "pending") {
+    renderManualTeachForm();
+  }
+
+  if (currentStatus === "training") {
+    const data = await api("/knowledge-gaps/training-recent?limit=50");
+    if (!data.examples?.length) {
+      emptyState.classList.remove("hidden");
+      emptyState.innerHTML = `<strong>Aún no hay ejemplos activos</strong>Enseña una respuesta en «No sabe» o con el formulario «Enseñar algo nuevo». Aparecerá aquí al guardar.`;
+      return;
+    }
+    emptyState.classList.add("hidden");
+    for (const ex of data.examples) {
+      gapsList.appendChild(renderTrainingCard(ex));
+    }
+    return;
+  }
 
   const data = await api(`/knowledge-gaps?status=${currentStatus}&limit=50`);
 
@@ -196,8 +381,8 @@ async function loadGaps() {
     emptyState.classList.remove("hidden");
     emptyState.innerHTML =
       currentStatus === "pending"
-        ? `<strong>No hay preguntas pendientes</strong>Lucy está al día con el catálogo del Sheet. Cuando un cliente pregunte algo sin precio, aparecerá aquí.`
-        : `<strong>Aún no hay aprendizajes guardados</strong>Cuando enseñes una respuesta en la pestaña «No sabe», aparecerá aquí con la pregunta y la respuesta correcta.`;
+        ? `<strong>No hay preguntas pendientes ahora</strong>Prueba en el simulador una pregunta sin precio (ej. «¿cuánto cuesta el DJ?») o usa el formulario de arriba para enseñar algo manualmente.`
+        : `<strong>Aún no hay historial</strong>Cuando enseñes una respuesta, aparecerá aquí con la pregunta y la respuesta correcta.`;
     return;
   }
 
@@ -227,6 +412,10 @@ async function saveAnswer(id, card) {
       method: "POST",
       body: JSON.stringify({ answer }),
     });
+    notifyParent();
+    currentStatus = "training";
+    document.querySelectorAll(".view-tab").forEach((b) => b.classList.remove("active"));
+    document.querySelector('[data-status="training"]')?.classList.add("active");
     await refresh();
   } catch (err) {
     alert(err.message || "Error al guardar");
@@ -240,12 +429,25 @@ async function saveAnswer(id, card) {
 async function dismissGap(id) {
   if (!confirm("¿Descartar esta pregunta? Lucy no aprenderá una respuesta.")) return;
   await api(`/knowledge-gaps/${id}/dismiss`, { method: "POST" });
+  notifyParent();
   await refresh();
 }
 
 async function refresh() {
   await loadStats();
   await loadGaps();
+}
+
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => {
+    if (document.visibilityState === "visible") {
+      loadStats().catch(() => {});
+      if (currentStatus === "pending") {
+        loadGaps().catch(() => {});
+      }
+    }
+  }, 20000);
 }
 
 document.querySelectorAll(".view-tab").forEach((btn) => {
@@ -257,7 +459,13 @@ document.querySelectorAll(".view-tab").forEach((btn) => {
   });
 });
 
-refresh().catch((err) => {
-  emptyState.classList.remove("hidden");
-  emptyState.innerHTML = `<strong>No se pudo cargar</strong>${escapeHtml(err.message)}`;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") refresh().catch(() => {});
 });
+
+refresh()
+  .then(() => startAutoRefresh())
+  .catch((err) => {
+    emptyState.classList.remove("hidden");
+    emptyState.innerHTML = `<strong>No se pudo cargar</strong>${escapeHtml(err.message)}`;
+  });

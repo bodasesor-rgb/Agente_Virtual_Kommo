@@ -513,6 +513,39 @@ export function buildCatalogComparisonAnswer(): string | null {
   return parts.filter((l) => l !== undefined && l !== "").join("\n").trim();
 }
 
+/** Respuesta genérica cuando el cliente pide un servicio (con o sin precio en Sheet). */
+export function buildCatalogServiceAnswer(query: string): string | null {
+  const matches = lookupCatalogServices(query);
+  if (matches.length) {
+    const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
+    const baseName = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || unique[0]!.servicio;
+
+    if (unique.length === 1) {
+      const row = unique[0]!;
+      const parsed = parseRowNotes(row.notas);
+      const price =
+        row.tienePrecio && row.precio
+          ? ` Precios desde ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}.`
+          : "";
+      const inclusion = parsed.inclusion ? ` ${parsed.inclusion.slice(0, 180)}${parsed.inclusion.length > 180 ? "…" : ""}` : "";
+      return `Sí, manejamos ${baseName}.${price}${inclusion}`;
+    }
+
+    const lines = unique.slice(0, 4).map((row) => {
+      const nivel = extractNivelLabel(row.servicio);
+      const price =
+        row.tienePrecio && row.precio
+          ? ` — ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}`
+          : "";
+      return `• *${nivel}*${price}`;
+    });
+
+    return `Sí, manejamos ${baseName}:\n\n${lines.join("\n")}\n\n¿Cuál opción te interesa?`;
+  }
+
+  return null;
+}
+
 /** Cuando dicen catering, orientar a opciones de alimentos del Sheet. */
 export function buildCatalogCateringAnswer(): string | null {
   if (!snapshot?.rows.length) return null;

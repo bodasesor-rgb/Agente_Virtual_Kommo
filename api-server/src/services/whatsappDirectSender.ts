@@ -13,6 +13,8 @@
 
 import axios, { type AxiosError } from "axios";
 import { logger } from "../lib/logger.js";
+import { isPlaceholderLeadName, sanitizeCrmNombre, sanitizeDisplayName } from "../contact-name.js";
+import { fetchKommoTalkMessages } from "./chatIngest.js";
 
 const WHATSAPP_TOKEN  = process.env["WHATSAPP_TOKEN"];
 const PHONE_NUMBER_ID = process.env["PHONE_NUMBER_ID"];
@@ -230,6 +232,40 @@ export async function fetchContactDisplayName(
 ): Promise<string | null> {
   const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
   return contact?.displayName ?? null;
+}
+
+/**
+ * Nombre visible en WhatsApp: prioriza author.name en mensajes externos del chat,
+ * luego contacto/lead de Kommo si no son placeholders ("cliente", teléfono, etc.).
+ */
+export async function fetchWhatsappProfileName(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number,
+  talkId?: string | null
+): Promise<string | null> {
+  if (talkId) {
+    const msgs = await fetchKommoTalkMessages(subdomain, accessToken, talkId, 40);
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const author = msgs[i]?.author;
+      if (author?.type !== "external") continue;
+      const raw = author.name?.trim();
+      if (!raw || isPlaceholderLeadName(raw)) continue;
+      const name = sanitizeCrmNombre(raw) ?? sanitizeDisplayName(raw);
+      if (name) {
+        logger.info({ leadId, talkId, source: "talk_author" }, "Nombre WhatsApp resuelto");
+        return name;
+      }
+    }
+  }
+
+  const fromContact = await fetchContactDisplayName(subdomain, accessToken, leadId);
+  if (fromContact && !isPlaceholderLeadName(fromContact)) {
+    const name = sanitizeCrmNombre(fromContact) ?? sanitizeDisplayName(fromContact);
+    if (name) return name;
+  }
+
+  return null;
 }
 
 // ─── Registrar mensaje saliente en el historial de chat de Kommo ───────────────
