@@ -396,8 +396,9 @@ async function runAll(): Promise<void> {
       "debounce-5s",
       "learning-from-human-chats",
       "knowledge-gaps-aprendizaje",
+      "rag-aprendizaje-kommo",
     ];
-    assert.equal(healthFeatures.length, 7);
+    assert.equal(healthFeatures.length, 8);
   });
 
   await test('11. Bakar — "Quiero cotización" NO es nombre', () => {

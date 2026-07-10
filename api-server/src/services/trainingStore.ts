@@ -5,6 +5,7 @@ import { asc, count, desc, eq, sql } from "drizzle-orm";
 import type { TrainingExample } from "../lib/training.js";
 import { resolveTrainingJsonFile } from "../lib/trainingPaths.js";
 import { logger } from "../lib/logger.js";
+import { indexarParUnico } from "./recuperarEjemplos.js";
 
 const CACHE_TTL_MS = 30_000;
 
@@ -170,6 +171,11 @@ export async function createTrainingExample(input: {
       })
       .returning();
     invalidateCache();
+    void indexarParUnico(
+      input.userMessage.trim(),
+      input.lucyResponse.trim(),
+      input.label?.match(/^Aprendizaje:|^Aprendido:/i) ? "manual_teach" : "training_db"
+    );
     return rowToExample(row!);
   } catch (err) {
     logger.warn({ err }, "trainingStore: create en DB falló");

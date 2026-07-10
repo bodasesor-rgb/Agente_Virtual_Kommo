@@ -493,6 +493,30 @@ textarea.answer-box { min-height: 110px; }
 
 .workflow-steps strong { color: var(--text); }
 
+.rag-panel {
+  margin: 0 1.5rem 1rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--blue-soft);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+}
+
+.rag-panel h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.rag-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.75rem 0 1rem;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.stat-card.rag strong { color: var(--blue); }
+
 @media (max-width: 768px) {
   .page-header, .dashboard, .view-tabs, .content-area { padding-left: 1rem; padding-right: 1rem; }
   .info-grid { grid-template-columns: 1fr; }
@@ -517,6 +541,8 @@ textarea.answer-box { min-height: 110px; }
       </header>
 
       <div class="dashboard" id="stats-row"></div>
+
+      <section id="rag-panel" class="rag-panel"></section>
 
       <nav class="view-tabs" id="view-tabs">
         <button type="button" class="view-tab active" data-status="pending">
@@ -545,6 +571,6 @@ textarea.answer-box { min-height: 110px; }
     </section>
   </div>
 
-  <script src="/aprendizaje/app.js?v=5" type="module"></script>
+  <script src="/aprendizaje/app.js?v=6" type="module"></script>
 </body>
 </html>

@@ -49,7 +49,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 var require_main = __commonJS({
   "node_modules/dotenv/lib/main.js"(exports, module2) {
     var fs3 = __require("fs");
-    var path4 = __require("path");
+    var path5 = __require("path");
     var os = __require("os");
     var crypto5 = __require("crypto");
     var TIPS = [
@@ -188,7 +188,7 @@ var require_main = __commonJS({
           possibleVaultPath = options.path.endsWith(".vault") ? options.path : `${options.path}.vault`;
         }
       } else {
-        possibleVaultPath = path4.resolve(process.cwd(), ".env.vault");
+        possibleVaultPath = path5.resolve(process.cwd(), ".env.vault");
       }
       if (fs3.existsSync(possibleVaultPath)) {
         return possibleVaultPath;
@@ -196,7 +196,7 @@ var require_main = __commonJS({
       return null;
     }
     function _resolveHome(envPath) {
-      return envPath[0] === "~" ? path4.join(os.homedir(), envPath.slice(1)) : envPath;
+      return envPath[0] === "~" ? path5.join(os.homedir(), envPath.slice(1)) : envPath;
     }
     function _configVault(options) {
       const debug = parseBoolean(process.env.DOTENV_CONFIG_DEBUG || options && options.debug);
@@ -213,7 +213,7 @@ var require_main = __commonJS({
       return { parsed };
     }
     function configDotenv(options) {
-      const dotenvPath = path4.resolve(process.cwd(), ".env");
+      const dotenvPath = path5.resolve(process.cwd(), ".env");
       let encoding = "utf8";
       let processEnv = process.env;
       if (options && options.processEnv != null) {
@@ -241,13 +241,13 @@ var require_main = __commonJS({
       }
       let lastError;
       const parsedAll = {};
-      for (const path5 of optionPaths) {
+      for (const path6 of optionPaths) {
         try {
-          const parsed = DotenvModule.parse(fs3.readFileSync(path5, { encoding }));
+          const parsed = DotenvModule.parse(fs3.readFileSync(path6, { encoding }));
           DotenvModule.populate(parsedAll, parsed, options);
         } catch (e) {
           if (debug) {
-            _debug(`failed to load ${path5} ${e.message}`);
+            _debug(`failed to load ${path6} ${e.message}`);
           }
           lastError = e;
         }
@@ -260,7 +260,7 @@ var require_main = __commonJS({
         const shortPaths = [];
         for (const filePath of optionPaths) {
           try {
-            const relative = path4.relative(process.cwd(), filePath);
+            const relative = path5.relative(process.cwd(), filePath);
             shortPaths.push(relative);
           } catch (e) {
             if (debug) {
@@ -15623,11 +15623,11 @@ var require_mime_types = __commonJS({
       }
       return exts[0];
     }
-    function lookup(path4) {
-      if (!path4 || typeof path4 !== "string") {
+    function lookup(path5) {
+      if (!path5 || typeof path5 !== "string") {
         return false;
       }
-      var extension2 = extname("x." + path4).toLowerCase().slice(1);
+      var extension2 = extname("x." + path5).toLowerCase().slice(1);
       if (!extension2) {
         return false;
       }
@@ -19300,13 +19300,13 @@ var require_view = __commonJS({
   "node_modules/express/lib/view.js"(exports, module2) {
     "use strict";
     var debug = require_src()("express:view");
-    var path4 = __require("node:path");
+    var path5 = __require("node:path");
     var fs3 = __require("node:fs");
-    var dirname3 = path4.dirname;
-    var basename = path4.basename;
-    var extname = path4.extname;
-    var join4 = path4.join;
-    var resolve2 = path4.resolve;
+    var dirname3 = path5.dirname;
+    var basename = path5.basename;
+    var extname = path5.extname;
+    var join4 = path5.join;
+    var resolve2 = path5.resolve;
     module2.exports = View3;
     function View3(name2, options) {
       var opts = options || {};
@@ -19335,17 +19335,17 @@ var require_view = __commonJS({
       this.path = this.lookup(fileName);
     }
     View3.prototype.lookup = function lookup(name2) {
-      var path5;
+      var path6;
       var roots = [].concat(this.root);
       debug('lookup "%s"', name2);
-      for (var i3 = 0; i3 < roots.length && !path5; i3++) {
+      for (var i3 = 0; i3 < roots.length && !path6; i3++) {
         var root = roots[i3];
         var loc = resolve2(root, name2);
         var dir = dirname3(loc);
         var file = basename(loc);
-        path5 = this.resolve(dir, file);
+        path6 = this.resolve(dir, file);
       }
-      return path5;
+      return path6;
     };
     View3.prototype.render = function render(options, callback) {
       var sync = true;
@@ -19367,21 +19367,21 @@ var require_view = __commonJS({
     };
     View3.prototype.resolve = function resolve3(dir, file) {
       var ext = this.ext;
-      var path5 = join4(dir, file);
-      var stat = tryStat(path5);
+      var path6 = join4(dir, file);
+      var stat = tryStat(path6);
       if (stat && stat.isFile()) {
-        return path5;
+        return path6;
       }
-      path5 = join4(dir, basename(file, ext), "index" + ext);
-      stat = tryStat(path5);
+      path6 = join4(dir, basename(file, ext), "index" + ext);
+      stat = tryStat(path6);
       if (stat && stat.isFile()) {
-        return path5;
+        return path6;
       }
     };
-    function tryStat(path5) {
-      debug('stat "%s"', path5);
+    function tryStat(path6) {
+      debug('stat "%s"', path6);
       try {
-        return fs3.statSync(path5);
+        return fs3.statSync(path6);
       } catch (e) {
         return void 0;
       }
@@ -20621,15 +20621,15 @@ var require_dist3 = __commonJS({
       let index = 0;
       function consumeUntil(end) {
         const output = [];
-        let path4 = "";
+        let path5 = "";
         function writePath() {
-          if (!path4)
+          if (!path5)
             return;
           output.push({
             type: "text",
-            value: encodePath(path4)
+            value: encodePath(path5)
           });
-          path4 = "";
+          path5 = "";
         }
         while (index < chars.length) {
           const value = chars[index++];
@@ -20641,7 +20641,7 @@ var require_dist3 = __commonJS({
             if (index === chars.length) {
               throw new PathError(`Unexpected end after \\ at index ${index}`, str2);
             }
-            path4 += chars[index++];
+            path5 += chars[index++];
             continue;
           }
           if (value === ":" || value === "*") {
@@ -20685,7 +20685,7 @@ var require_dist3 = __commonJS({
           if (value === "}" || value === "(" || value === ")" || value === "[" || value === "]" || value === "+" || value === "?" || value === "!") {
             throw new PathError(`Unexpected ${value} at index ${index - 1}`, str2);
           }
-          path4 += value;
+          path5 += value;
         }
         if (end) {
           throw new PathError(`Unexpected end at index ${index}, expected ${end}`, str2);
@@ -20695,17 +20695,17 @@ var require_dist3 = __commonJS({
       }
       return new TokenData(consumeUntil(""), str2);
     }
-    function compile(path4, options = {}) {
+    function compile(path5, options = {}) {
       const { encode: encode4 = encodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
-      const data = typeof path4 === "object" ? path4 : parse(path4, options);
+      const data = typeof path5 === "object" ? path5 : parse(path5, options);
       const fn2 = tokensToFunction(data.tokens, delimiter, encode4);
-      return function path5(params = {}) {
+      return function path6(params = {}) {
         const missing = [];
-        const path6 = fn2(params, missing);
+        const path7 = fn2(params, missing);
         if (missing.length) {
           throw new TypeError(`Missing parameters: ${missing.join(", ")}`);
         }
-        return path6;
+        return path7;
       };
     }
     function tokensToFunction(tokens, delimiter, encode4) {
@@ -20767,9 +20767,9 @@ var require_dist3 = __commonJS({
         return encodeValue(value);
       };
     }
-    function match(path4, options = {}) {
+    function match(path5, options = {}) {
       const { decode = decodeURIComponent, delimiter = DEFAULT_DELIMITER } = options;
-      const { regexp, keys } = pathToRegexp(path4, options);
+      const { regexp, keys } = pathToRegexp(path5, options);
       const decoders = keys.map((key) => {
         if (decode === false)
           return NOOP_VALUE;
@@ -20781,7 +20781,7 @@ var require_dist3 = __commonJS({
         const m4 = regexp.exec(input);
         if (!m4)
           return false;
-        const path5 = m4[0];
+        const path6 = m4[0];
         const params = /* @__PURE__ */ Object.create(null);
         for (let i3 = 1; i3 < m4.length; i3++) {
           if (m4[i3] === void 0)
@@ -20790,21 +20790,21 @@ var require_dist3 = __commonJS({
           const decoder = decoders[i3 - 1];
           params[key.name] = decoder(m4[i3]);
         }
-        return { path: path5, params };
+        return { path: path6, params };
       };
     }
-    function pathToRegexp(path4, options = {}) {
+    function pathToRegexp(path5, options = {}) {
       const { delimiter = DEFAULT_DELIMITER, end = true, sensitive = false, trailing = true } = options;
       const keys = [];
       let source = "";
       let combinations = 0;
-      function process2(path5) {
-        if (Array.isArray(path5)) {
-          for (const p3 of path5)
+      function process2(path6) {
+        if (Array.isArray(path6)) {
+          for (const p3 of path6)
             process2(p3);
           return;
         }
-        const data = typeof path5 === "object" ? path5 : parse(path5, options);
+        const data = typeof path6 === "object" ? path6 : parse(path6, options);
         flatten(data.tokens, 0, [], (tokens) => {
           if (combinations >= 256) {
             throw new PathError("Too many path combinations", data.originalPath);
@@ -20815,7 +20815,7 @@ var require_dist3 = __commonJS({
           combinations++;
         });
       }
-      process2(path4);
+      process2(path5);
       let pattern = `^(?:${source})`;
       if (trailing)
         pattern += "(?:" + escape2(delimiter) + "$)?";
@@ -20955,18 +20955,18 @@ var require_layer = __commonJS({
     var TRAILING_SLASH_REGEXP = /\/+$/;
     var MATCHING_GROUP_REGEXP = /\((?:\?<(.*?)>)?(?!\?)/g;
     module2.exports = Layer;
-    function Layer(path4, options, fn2) {
+    function Layer(path5, options, fn2) {
       if (!(this instanceof Layer)) {
-        return new Layer(path4, options, fn2);
+        return new Layer(path5, options, fn2);
       }
-      debug("new %o", path4);
+      debug("new %o", path5);
       const opts = options || {};
       this.handle = fn2;
       this.keys = [];
       this.name = fn2.name || "<anonymous>";
       this.params = void 0;
       this.path = void 0;
-      this.slash = path4 === "/" && opts.end === false;
+      this.slash = path5 === "/" && opts.end === false;
       function matcher(_path) {
         if (_path instanceof RegExp) {
           const keys = [];
@@ -21005,7 +21005,7 @@ var require_layer = __commonJS({
           decode: decodeParam
         });
       }
-      this.matchers = Array.isArray(path4) ? path4.map(matcher) : [matcher(path4)];
+      this.matchers = Array.isArray(path5) ? path5.map(matcher) : [matcher(path5)];
     }
     Layer.prototype.handleError = function handleError(error, req, res, next) {
       const fn2 = this.handle;
@@ -21045,9 +21045,9 @@ var require_layer = __commonJS({
         next(err2);
       }
     };
-    Layer.prototype.match = function match(path4) {
+    Layer.prototype.match = function match(path5) {
       let match2;
-      if (path4 != null) {
+      if (path5 != null) {
         if (this.slash) {
           this.params = {};
           this.path = "";
@@ -21055,7 +21055,7 @@ var require_layer = __commonJS({
         }
         let i3 = 0;
         while (!match2 && i3 < this.matchers.length) {
-          match2 = this.matchers[i3](path4);
+          match2 = this.matchers[i3](path5);
           i3++;
         }
       }
@@ -21083,13 +21083,13 @@ var require_layer = __commonJS({
         throw err2;
       }
     }
-    function loosen(path4) {
-      if (path4 instanceof RegExp || path4 === "/") {
-        return path4;
+    function loosen(path5) {
+      if (path5 instanceof RegExp || path5 === "/") {
+        return path5;
       }
-      return Array.isArray(path4) ? path4.map(function(p3) {
+      return Array.isArray(path5) ? path5.map(function(p3) {
         return loosen(p3);
-      }) : String(path4).replace(TRAILING_SLASH_REGEXP, "");
+      }) : String(path5).replace(TRAILING_SLASH_REGEXP, "");
     }
   }
 });
@@ -21105,9 +21105,9 @@ var require_route = __commonJS({
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
     module2.exports = Route;
-    function Route(path4) {
-      debug("new %o", path4);
-      this.path = path4;
+    function Route(path5) {
+      debug("new %o", path5);
+      this.path = path5;
       this.stack = [];
       this.methods = /* @__PURE__ */ Object.create(null);
     }
@@ -21228,27 +21228,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module2.exports = Router12;
+    module2.exports = Router13;
     module2.exports.Route = Route;
-    function Router12(options) {
-      if (!(this instanceof Router12)) {
-        return new Router12(options);
+    function Router13(options) {
+      if (!(this instanceof Router13)) {
+        return new Router13(options);
       }
       const opts = options || {};
-      function router12(req, res, next) {
-        router12.handle(req, res, next);
+      function router13(req, res, next) {
+        router13.handle(req, res, next);
       }
-      Object.setPrototypeOf(router12, this);
-      router12.caseSensitive = opts.caseSensitive;
-      router12.mergeParams = opts.mergeParams;
-      router12.params = {};
-      router12.strict = opts.strict;
-      router12.stack = [];
-      return router12;
+      Object.setPrototypeOf(router13, this);
+      router13.caseSensitive = opts.caseSensitive;
+      router13.mergeParams = opts.mergeParams;
+      router13.params = {};
+      router13.strict = opts.strict;
+      router13.stack = [];
+      return router13;
     }
-    Router12.prototype = function() {
+    Router13.prototype = function() {
     };
-    Router12.prototype.param = function param(name2, fn2) {
+    Router13.prototype.param = function param(name2, fn2) {
       if (!name2) {
         throw new TypeError("argument name is required");
       }
@@ -21268,7 +21268,7 @@ var require_router = __commonJS({
       params.push(fn2);
       return this;
     };
-    Router12.prototype.handle = function handle2(req, res, callback) {
+    Router13.prototype.handle = function handle2(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -21315,8 +21315,8 @@ var require_router = __commonJS({
         if (++sync > 100) {
           return setImmediate(next, err2);
         }
-        const path4 = getPathname(req);
-        if (path4 == null) {
+        const path5 = getPathname(req);
+        if (path5 == null) {
           return done(layerError);
         }
         let layer;
@@ -21324,7 +21324,7 @@ var require_router = __commonJS({
         let route;
         while (match !== true && idx < stack.length) {
           layer = stack[idx++];
-          match = matchLayer(layer, path4);
+          match = matchLayer(layer, path5);
           route = layer.route;
           if (typeof match !== "boolean") {
             layerError = layerError || match;
@@ -21362,18 +21362,18 @@ var require_router = __commonJS({
           } else if (route) {
             layer.handleRequest(req, res, next);
           } else {
-            trimPrefix(layer, layerError, layerPath, path4);
+            trimPrefix(layer, layerError, layerPath, path5);
           }
           sync = 0;
         });
       }
-      function trimPrefix(layer, layerError, layerPath, path4) {
+      function trimPrefix(layer, layerError, layerPath, path5) {
         if (layerPath.length !== 0) {
-          if (layerPath !== path4.substring(0, layerPath.length)) {
+          if (layerPath !== path5.substring(0, layerPath.length)) {
             next(layerError);
             return;
           }
-          const c2 = path4[layerPath.length];
+          const c2 = path5[layerPath.length];
           if (c2 && c2 !== "/") {
             next(layerError);
             return;
@@ -21395,9 +21395,9 @@ var require_router = __commonJS({
         }
       }
     };
-    Router12.prototype.use = function use(handler) {
+    Router13.prototype.use = function use(handler) {
       let offset = 0;
-      let path4 = "/";
+      let path5 = "/";
       if (typeof handler !== "function") {
         let arg = handler;
         while (Array.isArray(arg) && arg.length !== 0) {
@@ -21405,7 +21405,7 @@ var require_router = __commonJS({
         }
         if (typeof arg !== "function") {
           offset = 1;
-          path4 = handler;
+          path5 = handler;
         }
       }
       const callbacks = flatten.call(slice.call(arguments, offset), Infinity);
@@ -21417,8 +21417,8 @@ var require_router = __commonJS({
         if (typeof fn2 !== "function") {
           throw new TypeError("argument handler must be a function");
         }
-        debug("use %o %s", path4, fn2.name || "<anonymous>");
-        const layer = new Layer(path4, {
+        debug("use %o %s", path5, fn2.name || "<anonymous>");
+        const layer = new Layer(path5, {
           sensitive: this.caseSensitive,
           strict: false,
           end: false
@@ -21428,9 +21428,9 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router12.prototype.route = function route(path4) {
-      const route2 = new Route(path4);
-      const layer = new Layer(path4, {
+    Router13.prototype.route = function route(path5) {
+      const route2 = new Route(path5);
+      const layer = new Layer(path5, {
         sensitive: this.caseSensitive,
         strict: this.strict,
         end: true
@@ -21443,8 +21443,8 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router12.prototype[method] = function(path4) {
-        const route = this.route(path4);
+      Router13.prototype[method] = function(path5) {
+        const route = this.route(path5);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
       };
@@ -21473,9 +21473,9 @@ var require_router = __commonJS({
       const fqdnIndex = url2.substring(0, pathLength).indexOf("://");
       return fqdnIndex !== -1 ? url2.substring(0, url2.indexOf("/", 3 + fqdnIndex)) : void 0;
     }
-    function matchLayer(layer, path4) {
+    function matchLayer(layer, path5) {
       try {
-        return layer.match(path4);
+        return layer.match(path5);
       } catch (err2) {
         return err2;
       }
@@ -21626,13 +21626,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve2 = __require("node:path").resolve;
     var once = require_once();
-    var Router12 = require_router();
+    var Router13 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module2.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init2() {
-      var router12 = null;
+      var router13 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -21641,13 +21641,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router12 === null) {
-            router12 = new Router12({
+          if (router13 === null) {
+            router13 = new Router13({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router12;
+          return router13;
         }
       });
     };
@@ -21703,7 +21703,7 @@ var require_application = __commonJS({
     };
     app2.use = function use(fn2) {
       var offset = 0;
-      var path4 = "/";
+      var path5 = "/";
       if (typeof fn2 !== "function") {
         var arg = fn2;
         while (Array.isArray(arg) && arg.length !== 0) {
@@ -21711,22 +21711,22 @@ var require_application = __commonJS({
         }
         if (typeof arg !== "function") {
           offset = 1;
-          path4 = fn2;
+          path5 = fn2;
         }
       }
       var fns = flatten.call(slice.call(arguments, offset), Infinity);
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router12 = this.router;
+      var router13 = this.router;
       fns.forEach(function(fn3) {
         if (!fn3 || !fn3.handle || !fn3.set) {
-          return router12.use(path4, fn3);
+          return router13.use(path5, fn3);
         }
-        debug(".use app under %s", path4);
-        fn3.mountpath = path4;
+        debug(".use app under %s", path5);
+        fn3.mountpath = path5;
         fn3.parent = this;
-        router12.use(path4, function mounted_app(req, res, next) {
+        router13.use(path5, function mounted_app(req, res, next) {
           var orig = req.app;
           fn3.handle(req, res, function(err2) {
             Object.setPrototypeOf(req, orig.request);
@@ -21738,8 +21738,8 @@ var require_application = __commonJS({
       }, this);
       return this;
     };
-    app2.route = function route(path4) {
-      return this.router.route(path4);
+    app2.route = function route(path5) {
+      return this.router.route(path5);
     };
     app2.engine = function engine(ext, fn2) {
       if (typeof fn2 !== "function") {
@@ -21782,7 +21782,7 @@ var require_application = __commonJS({
       }
       return this;
     };
-    app2.path = function path4() {
+    app2.path = function path5() {
       return this.parent ? this.parent.path() + this.mountpath : "";
     };
     app2.enabled = function enabled(setting) {
@@ -21798,17 +21798,17 @@ var require_application = __commonJS({
       return this.set(setting, false);
     };
     methods.forEach(function(method) {
-      app2[method] = function(path4) {
+      app2[method] = function(path5) {
         if (method === "get" && arguments.length === 1) {
-          return this.set(path4);
+          return this.set(path5);
         }
-        var route = this.route(path4);
+        var route = this.route(path5);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
       };
     });
-    app2.all = function all3(path4) {
-      var route = this.route(path4);
+    app2.all = function all3(path5) {
+      var route = this.route(path5);
       var args2 = slice.call(arguments, 1);
       for (var i3 = 0; i3 < methods.length; i3++) {
         route[methods[i3]].apply(route, args2);
@@ -21816,7 +21816,7 @@ var require_application = __commonJS({
       return this;
     };
     app2.render = function render(name2, options, callback) {
-      var cache2 = this.cache;
+      var cache3 = this.cache;
       var done = callback;
       var engines = this.engines;
       var opts = options;
@@ -21830,7 +21830,7 @@ var require_application = __commonJS({
         renderOptions.cache = this.enabled("view cache");
       }
       if (renderOptions.cache) {
-        view = cache2[name2];
+        view = cache3[name2];
       }
       if (!view) {
         var View4 = this.get("view");
@@ -21846,7 +21846,7 @@ var require_application = __commonJS({
           return done(err2);
         }
         if (renderOptions.cache) {
-          cache2[name2] = view;
+          cache3[name2] = view;
         }
       }
       tryRender(view, renderOptions, done);
@@ -22730,7 +22730,7 @@ var require_request = __commonJS({
       var subdomains2 = !isIP(hostname) ? hostname.split(".").reverse() : [hostname];
       return subdomains2.slice(offset);
     });
-    defineGetter(req, "path", function path4() {
+    defineGetter(req, "path", function path5() {
       return parse(this).pathname;
     });
     defineGetter(req, "host", function host() {
@@ -22941,8 +22941,8 @@ var require_content_disposition = __commonJS({
       this.type = type;
       this.parameters = parameters;
     }
-    function basename(path4) {
-      const normalized = path4.replaceAll("\\", "/");
+    function basename(path5) {
+      const normalized = path5.replaceAll("\\", "/");
       let end = normalized.length;
       while (end > 0 && normalized[end - 1] === "/") {
         end--;
@@ -23188,27 +23188,27 @@ var require_send = __commonJS({
     var ms = require_ms();
     var onFinished = require_on_finished();
     var parseRange = require_range_parser();
-    var path4 = __require("path");
+    var path5 = __require("path");
     var statuses = require_statuses();
     var Stream2 = __require("stream");
     var util5 = __require("util");
-    var extname = path4.extname;
-    var join4 = path4.join;
-    var normalize = path4.normalize;
-    var resolve2 = path4.resolve;
-    var sep = path4.sep;
+    var extname = path5.extname;
+    var join4 = path5.join;
+    var normalize = path5.normalize;
+    var resolve2 = path5.resolve;
+    var sep = path5.sep;
     var BYTES_RANGE_REGEXP = /^ *bytes=/;
     var MAX_MAXAGE = 60 * 60 * 24 * 365 * 1e3;
     var UP_PATH_REGEXP = /(?:^|[\\/])\.\.(?:[\\/]|$)/;
     module2.exports = send;
-    function send(req, path5, options) {
-      return new SendStream(req, path5, options);
+    function send(req, path6, options) {
+      return new SendStream(req, path6, options);
     }
-    function SendStream(req, path5, options) {
+    function SendStream(req, path6, options) {
       Stream2.call(this);
       var opts = options || {};
       this.options = opts;
-      this.path = path5;
+      this.path = path6;
       this.req = req;
       this._acceptRanges = opts.acceptRanges !== void 0 ? Boolean(opts.acceptRanges) : true;
       this._cacheControl = opts.cacheControl !== void 0 ? Boolean(opts.cacheControl) : true;
@@ -23322,10 +23322,10 @@ var require_send = __commonJS({
       var lastModified = this.res.getHeader("Last-Modified");
       return parseHttpDate(lastModified) <= parseHttpDate(ifRange);
     };
-    SendStream.prototype.redirect = function redirect(path5) {
+    SendStream.prototype.redirect = function redirect(path6) {
       var res = this.res;
       if (hasListeners(this, "directory")) {
-        this.emit("directory", res, path5);
+        this.emit("directory", res, path6);
         return;
       }
       if (this.hasTrailingSlash()) {
@@ -23345,38 +23345,38 @@ var require_send = __commonJS({
     SendStream.prototype.pipe = function pipe(res) {
       var root = this._root;
       this.res = res;
-      var path5 = decode(this.path);
-      if (path5 === -1) {
+      var path6 = decode(this.path);
+      if (path6 === -1) {
         this.error(400);
         return res;
       }
-      if (~path5.indexOf("\0")) {
+      if (~path6.indexOf("\0")) {
         this.error(400);
         return res;
       }
       var parts2;
       if (root !== null) {
-        if (path5) {
-          path5 = normalize("." + sep + path5);
+        if (path6) {
+          path6 = normalize("." + sep + path6);
         }
-        if (UP_PATH_REGEXP.test(path5)) {
-          debug('malicious path "%s"', path5);
+        if (UP_PATH_REGEXP.test(path6)) {
+          debug('malicious path "%s"', path6);
           this.error(403);
           return res;
         }
-        parts2 = path5.split(sep);
-        path5 = normalize(join4(root, path5));
+        parts2 = path6.split(sep);
+        path6 = normalize(join4(root, path6));
       } else {
-        if (UP_PATH_REGEXP.test(path5)) {
-          debug('malicious path "%s"', path5);
+        if (UP_PATH_REGEXP.test(path6)) {
+          debug('malicious path "%s"', path6);
           this.error(403);
           return res;
         }
-        parts2 = normalize(path5).split(sep);
-        path5 = resolve2(path5);
+        parts2 = normalize(path6).split(sep);
+        path6 = resolve2(path6);
       }
       if (containsDotFile(parts2)) {
-        debug('%s dotfile "%s"', this._dotfiles, path5);
+        debug('%s dotfile "%s"', this._dotfiles, path6);
         switch (this._dotfiles) {
           case "allow":
             break;
@@ -23390,13 +23390,13 @@ var require_send = __commonJS({
         }
       }
       if (this._index.length && this.hasTrailingSlash()) {
-        this.sendIndex(path5);
+        this.sendIndex(path6);
         return res;
       }
-      this.sendFile(path5);
+      this.sendFile(path6);
       return res;
     };
-    SendStream.prototype.send = function send2(path5, stat) {
+    SendStream.prototype.send = function send2(path6, stat) {
       var len = stat.size;
       var options = this.options;
       var opts = {};
@@ -23408,9 +23408,9 @@ var require_send = __commonJS({
         this.headersAlreadySent();
         return;
       }
-      debug('pipe "%s"', path5);
-      this.setHeader(path5, stat);
-      this.type(path5);
+      debug('pipe "%s"', path6);
+      this.setHeader(path6, stat);
+      this.type(path6);
       if (this.isConditionalGET()) {
         if (this.isPreconditionFailure()) {
           this.error(412);
@@ -23459,28 +23459,28 @@ var require_send = __commonJS({
         res.end();
         return;
       }
-      this.stream(path5, opts);
+      this.stream(path6, opts);
     };
-    SendStream.prototype.sendFile = function sendFile(path5) {
+    SendStream.prototype.sendFile = function sendFile(path6) {
       var i3 = 0;
       var self2 = this;
-      debug('stat "%s"', path5);
-      fs3.stat(path5, function onstat(err2, stat) {
-        var pathEndsWithSep = path5[path5.length - 1] === sep;
-        if (err2 && err2.code === "ENOENT" && !extname(path5) && !pathEndsWithSep) {
+      debug('stat "%s"', path6);
+      fs3.stat(path6, function onstat(err2, stat) {
+        var pathEndsWithSep = path6[path6.length - 1] === sep;
+        if (err2 && err2.code === "ENOENT" && !extname(path6) && !pathEndsWithSep) {
           return next(err2);
         }
         if (err2) return self2.onStatError(err2);
-        if (stat.isDirectory()) return self2.redirect(path5);
+        if (stat.isDirectory()) return self2.redirect(path6);
         if (pathEndsWithSep) return self2.error(404);
-        self2.emit("file", path5, stat);
-        self2.send(path5, stat);
+        self2.emit("file", path6, stat);
+        self2.send(path6, stat);
       });
       function next(err2) {
         if (self2._extensions.length <= i3) {
           return err2 ? self2.onStatError(err2) : self2.error(404);
         }
-        var p3 = path5 + "." + self2._extensions[i3++];
+        var p3 = path6 + "." + self2._extensions[i3++];
         debug('stat "%s"', p3);
         fs3.stat(p3, function(err3, stat) {
           if (err3) return next(err3);
@@ -23490,7 +23490,7 @@ var require_send = __commonJS({
         });
       }
     };
-    SendStream.prototype.sendIndex = function sendIndex(path5) {
+    SendStream.prototype.sendIndex = function sendIndex(path6) {
       var i3 = -1;
       var self2 = this;
       function next(err2) {
@@ -23498,7 +23498,7 @@ var require_send = __commonJS({
           if (err2) return self2.onStatError(err2);
           return self2.error(404);
         }
-        var p3 = join4(path5, self2._index[i3]);
+        var p3 = join4(path6, self2._index[i3]);
         debug('stat "%s"', p3);
         fs3.stat(p3, function(err3, stat) {
           if (err3) return next(err3);
@@ -23509,10 +23509,10 @@ var require_send = __commonJS({
       }
       next();
     };
-    SendStream.prototype.stream = function stream4(path5, options) {
+    SendStream.prototype.stream = function stream4(path6, options) {
       var self2 = this;
       var res = this.res;
-      var stream5 = fs3.createReadStream(path5, options);
+      var stream5 = fs3.createReadStream(path6, options);
       this.emit("stream", stream5);
       stream5.pipe(res);
       function cleanup() {
@@ -23527,17 +23527,17 @@ var require_send = __commonJS({
         self2.emit("end");
       });
     };
-    SendStream.prototype.type = function type(path5) {
+    SendStream.prototype.type = function type(path6) {
       var res = this.res;
       if (res.getHeader("Content-Type")) return;
-      var ext = extname(path5);
+      var ext = extname(path6);
       var type2 = mime.contentType(ext) || "application/octet-stream";
       debug("content-type %s", type2);
       res.setHeader("Content-Type", type2);
     };
-    SendStream.prototype.setHeader = function setHeader(path5, stat) {
+    SendStream.prototype.setHeader = function setHeader(path6, stat) {
       var res = this.res;
-      this.emit("headers", res, path5, stat);
+      this.emit("headers", res, path6, stat);
       if (this._acceptRanges && !res.getHeader("Accept-Ranges")) {
         debug("accept ranges");
         res.setHeader("Accept-Ranges", "bytes");
@@ -23595,9 +23595,9 @@ var require_send = __commonJS({
       }
       return err2 instanceof Error ? createError(status, err2, { expose: false }) : createError(status, err2);
     }
-    function decode(path5) {
+    function decode(path6) {
       try {
-        return decodeURIComponent(path5);
+        return decodeURIComponent(path6);
       } catch (err2) {
         return -1;
       }
@@ -23741,7 +23741,7 @@ var require_response = __commonJS({
     var http3 = __require("node:http");
     var onFinished = require_on_finished();
     var mime = require_mime_types();
-    var path4 = __require("node:path");
+    var path5 = __require("node:path");
     var pathIsAbsolute = __require("node:path").isAbsolute;
     var statuses = require_statuses();
     var sign = require_cookie_signature().sign;
@@ -23750,8 +23750,8 @@ var require_response = __commonJS({
     var setCharset = require_utils3().setCharset;
     var cookie = require_cookie();
     var send = require_send();
-    var extname = path4.extname;
-    var resolve2 = path4.resolve;
+    var extname = path5.extname;
+    var resolve2 = path5.resolve;
     var vary = require_vary();
     var { Buffer: Buffer2 } = __require("node:buffer");
     var res = Object.create(http3.ServerResponse.prototype);
@@ -23897,26 +23897,26 @@ var require_response = __commonJS({
       this.type("txt");
       return this.send(body2);
     };
-    res.sendFile = function sendFile(path5, options, callback) {
+    res.sendFile = function sendFile(path6, options, callback) {
       var done = callback;
       var req = this.req;
       var res2 = this;
       var next = req.next;
       var opts = options || {};
-      if (!path5) {
+      if (!path6) {
         throw new TypeError("path argument is required to res.sendFile");
       }
-      if (typeof path5 !== "string") {
+      if (typeof path6 !== "string") {
         throw new TypeError("path must be a string to res.sendFile");
       }
       if (typeof options === "function") {
         done = options;
         opts = {};
       }
-      if (!opts.root && !pathIsAbsolute(path5)) {
+      if (!opts.root && !pathIsAbsolute(path6)) {
         throw new TypeError("path must be absolute or specify root to res.sendFile");
       }
-      var pathname = encodeURI(path5);
+      var pathname = encodeURI(path6);
       opts.etag = this.app.enabled("etag");
       var file = send(req, pathname, opts);
       sendfile(res2, file, opts, function(err2) {
@@ -23927,7 +23927,7 @@ var require_response = __commonJS({
         }
       });
     };
-    res.download = function download(path5, filename, options, callback) {
+    res.download = function download(path6, filename, options, callback) {
       var done = callback;
       var name2 = filename;
       var opts = options || null;
@@ -23944,7 +23944,7 @@ var require_response = __commonJS({
         opts = filename;
       }
       var headers = {
-        "Content-Disposition": contentDisposition(name2 || path5)
+        "Content-Disposition": contentDisposition(name2 || path6)
       };
       if (opts && opts.headers) {
         var keys = Object.keys(opts.headers);
@@ -23957,7 +23957,7 @@ var require_response = __commonJS({
       }
       opts = Object.create(opts);
       opts.headers = headers;
-      var fullPath = !opts.root ? resolve2(path5) : path5;
+      var fullPath = !opts.root ? resolve2(path6) : path6;
       return this.sendFile(fullPath, opts, done);
     };
     res.contentType = res.type = function contentType(type) {
@@ -24240,11 +24240,11 @@ var require_serve_static = __commonJS({
         }
         var forwardError = !fallthrough;
         var originalUrl = parseUrl2.original(req);
-        var path4 = parseUrl2(req).pathname;
-        if (path4 === "/" && originalUrl.pathname.substr(-1) !== "/") {
-          path4 = "";
+        var path5 = parseUrl2(req).pathname;
+        if (path5 === "/" && originalUrl.pathname.substr(-1) !== "/") {
+          path5 = "";
         }
-        var stream4 = send(req, path4, opts);
+        var stream4 = send(req, path5, opts);
         stream4.on("directory", onDirectory);
         if (setHeaders) {
           stream4.on("headers", setHeaders);
@@ -24311,7 +24311,7 @@ var require_express = __commonJS({
     var EventEmitter2 = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router12 = require_router();
+    var Router13 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module2.exports = createApplication;
@@ -24333,8 +24333,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router12.Route;
-    exports.Router = Router12;
+    exports.Route = Router13.Route;
+    exports.Router = Router13;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -24892,8 +24892,8 @@ var require_req = __commonJS({
       if (req.originalUrl) {
         _req.url = req.originalUrl;
       } else {
-        const path4 = req.path;
-        _req.url = typeof path4 === "string" ? path4 : req.url ? req.url.path || req.url : void 0;
+        const path5 = req.path;
+        _req.url = typeof path5 === "string" ? path5 : req.url ? req.url.path || req.url : void 0;
       }
       if (req.query) {
         _req.query = req.query;
@@ -25058,14 +25058,14 @@ var require_redact = __commonJS({
       }
       return obj;
     }
-    function parsePath(path4) {
+    function parsePath(path5) {
       const parts2 = [];
       let current = "";
       let inBrackets = false;
       let inQuotes = false;
       let quoteChar = "";
-      for (let i3 = 0; i3 < path4.length; i3++) {
-        const char2 = path4[i3];
+      for (let i3 = 0; i3 < path5.length; i3++) {
+        const char2 = path5[i3];
         if (!inBrackets && char2 === ".") {
           if (current) {
             parts2.push(current);
@@ -25196,10 +25196,10 @@ var require_redact = __commonJS({
       return current;
     }
     function redactPaths(obj, paths, censor, remove = false) {
-      for (const path4 of paths) {
-        const parts2 = parsePath(path4);
+      for (const path5 of paths) {
+        const parts2 = parsePath(path5);
         if (parts2.includes("*")) {
-          redactWildcardPath(obj, parts2, censor, path4, remove);
+          redactWildcardPath(obj, parts2, censor, path5, remove);
         } else {
           if (remove) {
             removeKey(obj, parts2);
@@ -25284,8 +25284,8 @@ var require_redact = __commonJS({
           }
         } else {
           if (afterWildcard.includes("*")) {
-            const wrappedCensor = typeof censor === "function" ? (value, path4) => {
-              const fullPath = [...pathArray.slice(0, pathLength), ...path4];
+            const wrappedCensor = typeof censor === "function" ? (value, path5) => {
+              const fullPath = [...pathArray.slice(0, pathLength), ...path5];
               return censor(value, fullPath);
             } : censor;
             redactWildcardPath(current, afterWildcard, wrappedCensor, originalPath, remove);
@@ -25320,8 +25320,8 @@ var require_redact = __commonJS({
         return null;
       }
       const pathStructure = /* @__PURE__ */ new Map();
-      for (const path4 of pathsToClone) {
-        const parts2 = parsePath(path4);
+      for (const path5 of pathsToClone) {
+        const parts2 = parsePath(path5);
         let current = pathStructure;
         for (let i3 = 0; i3 < parts2.length; i3++) {
           const part = parts2[i3];
@@ -25373,24 +25373,24 @@ var require_redact = __commonJS({
       }
       return cloneSelectively(obj, pathStructure);
     }
-    function validatePath(path4) {
-      if (typeof path4 !== "string") {
+    function validatePath(path5) {
+      if (typeof path5 !== "string") {
         throw new Error("Paths must be (non-empty) strings");
       }
-      if (path4 === "") {
+      if (path5 === "") {
         throw new Error("Invalid redaction path ()");
       }
-      if (path4.includes("..")) {
-        throw new Error(`Invalid redaction path (${path4})`);
+      if (path5.includes("..")) {
+        throw new Error(`Invalid redaction path (${path5})`);
       }
-      if (path4.includes(",")) {
-        throw new Error(`Invalid redaction path (${path4})`);
+      if (path5.includes(",")) {
+        throw new Error(`Invalid redaction path (${path5})`);
       }
       let bracketCount = 0;
       let inQuotes = false;
       let quoteChar = "";
-      for (let i3 = 0; i3 < path4.length; i3++) {
-        const char2 = path4[i3];
+      for (let i3 = 0; i3 < path5.length; i3++) {
+        const char2 = path5[i3];
         if ((char2 === '"' || char2 === "'") && bracketCount > 0) {
           if (!inQuotes) {
             inQuotes = true;
@@ -25404,20 +25404,20 @@ var require_redact = __commonJS({
         } else if (char2 === "]" && !inQuotes) {
           bracketCount--;
           if (bracketCount < 0) {
-            throw new Error(`Invalid redaction path (${path4})`);
+            throw new Error(`Invalid redaction path (${path5})`);
           }
         }
       }
       if (bracketCount !== 0) {
-        throw new Error(`Invalid redaction path (${path4})`);
+        throw new Error(`Invalid redaction path (${path5})`);
       }
     }
     function validatePaths(paths) {
       if (!Array.isArray(paths)) {
         throw new TypeError("paths must be an array");
       }
-      for (const path4 of paths) {
-        validatePath(path4);
+      for (const path5 of paths) {
+        validatePath(path5);
       }
     }
     function slowRedact(options = {}) {
@@ -25585,8 +25585,8 @@ var require_redaction = __commonJS({
         if (shape[k4] === null) {
           o4[k4] = (value) => topCensor(value, [k4]);
         } else {
-          const wrappedCensor = typeof censor === "function" ? (value, path4) => {
-            return censor(value, [k4, ...path4]);
+          const wrappedCensor = typeof censor === "function" ? (value, path5) => {
+            return censor(value, [k4, ...path5]);
           } : censor;
           o4[k4] = Redact({
             paths: shape[k4],
@@ -25807,7 +25807,7 @@ var require_sonic_boom = __commonJS({
     var fs3 = __require("fs");
     var EventEmitter2 = __require("events");
     var inherits2 = __require("util").inherits;
-    var path4 = __require("path");
+    var path5 = __require("path");
     var sleep3 = require_atomic_sleep();
     var assert2 = __require("assert");
     var BUSY_WRITE_TIMEOUT = 100;
@@ -25861,7 +25861,7 @@ var require_sonic_boom = __commonJS({
       const mode = sonic.mode;
       if (sonic.sync) {
         try {
-          if (sonic.mkdir) fs3.mkdirSync(path4.dirname(file), { recursive: true });
+          if (sonic.mkdir) fs3.mkdirSync(path5.dirname(file), { recursive: true });
           const fd = fs3.openSync(file, flags2, mode);
           fileOpened(null, fd);
         } catch (err2) {
@@ -25869,7 +25869,7 @@ var require_sonic_boom = __commonJS({
           throw err2;
         }
       } else if (sonic.mkdir) {
-        fs3.mkdir(path4.dirname(file), { recursive: true }, (err2) => {
+        fs3.mkdir(path5.dirname(file), { recursive: true }, (err2) => {
           if (err2) return fileOpened(err2);
           fs3.open(file, flags2, mode, fileOpened);
         });
@@ -27574,12 +27574,12 @@ var require_levels = __commonJS({
     function genLsCache(instance2) {
       const formatter = instance2[formattersSym].level;
       const { labels } = instance2.levels;
-      const cache2 = {};
+      const cache3 = {};
       for (const label in labels) {
         const level = formatter(labels[label], Number(label));
-        cache2[label] = JSON.stringify(level).slice(0, -1);
+        cache3[label] = JSON.stringify(level).slice(0, -1);
       }
-      instance2[lsCacheSym] = cache2;
+      instance2[lsCacheSym] = cache3;
       return instance2;
     }
     function isStandardLevel(level, useOnlyCustomLevels) {
@@ -28729,9 +28729,9 @@ var require_pino = __commonJS({
   "node_modules/pino/pino.js"(exports, module2) {
     function pinoBundlerAbsolutePath(p3) {
       try {
-        const path4 = __require("path");
+        const path5 = __require("path");
         const outputDir = "/workspace/api-server/dist";
-        return path4.resolve(outputDir, p3.replace(/^\.\//, ""));
+        return path5.resolve(outputDir, p3.replace(/^\.\//, ""));
       } catch (e) {
         const f3 = new Function("p", "return new URL(p, import.meta.url).pathname");
         return f3(p3);
@@ -30271,9 +30271,9 @@ function makeLogFn(fnLevel, logger2, logLevel) {
     return logger2[fnLevel].bind(logger2);
   }
 }
-function loggerFor(client2) {
-  const logger2 = client2.logger;
-  const logLevel = client2.logLevel ?? "off";
+function loggerFor(client3) {
+  const logger2 = client3.logger;
+  const logLevel = client3.logLevel ?? "off";
   if (!logger2) {
     return noopLogger;
   }
@@ -30301,14 +30301,14 @@ var init_log = __esm({
       info: 400,
       debug: 500
     };
-    parseLogLevel = (maybeLevel, sourceName, client2) => {
+    parseLogLevel = (maybeLevel, sourceName, client3) => {
       if (!maybeLevel) {
         return void 0;
       }
       if (hasOwn(levelNumbers, maybeLevel)) {
         return maybeLevel;
       }
-      loggerFor(client2).warn(`${sourceName} was set to ${JSON.stringify(maybeLevel)}, expected one of ${JSON.stringify(Object.keys(levelNumbers))}`);
+      loggerFor(client3).warn(`${sourceName} was set to ${JSON.stringify(maybeLevel)}, expected one of ${JSON.stringify(Object.keys(levelNumbers))}`);
       return void 0;
     };
     noopLogger = {
@@ -30406,15 +30406,15 @@ var init_streaming = __esm({
     init_log();
     init_error();
     Stream = class _Stream {
-      constructor(iterator2, controller, client2) {
+      constructor(iterator2, controller, client3) {
         this.iterator = iterator2;
         _Stream_client.set(this, void 0);
         this.controller = controller;
-        __classPrivateFieldSet(this, _Stream_client, client2, "f");
+        __classPrivateFieldSet(this, _Stream_client, client3, "f");
       }
-      static fromSSEResponse(response, controller, client2, synthesizeEventData) {
+      static fromSSEResponse(response, controller, client3, synthesizeEventData) {
         let consumed = false;
-        const logger2 = client2 ? loggerFor(client2) : console;
+        const logger2 = client3 ? loggerFor(client3) : console;
         async function* iterator2() {
           if (consumed) {
             throw new OpenAIError("Cannot iterate over a consumed stream, use `.tee()` to split the stream.");
@@ -30467,13 +30467,13 @@ var init_streaming = __esm({
               controller.abort();
           }
         }
-        return new _Stream(iterator2, controller, client2);
+        return new _Stream(iterator2, controller, client3);
       }
       /**
        * Generates a Stream from a newline-separated ReadableStream
        * where each item is a JSON value.
        */
-      static fromReadableStream(readableStream, controller, client2) {
+      static fromReadableStream(readableStream, controller, client3) {
         let consumed = false;
         async function* iterLines() {
           const lineDecoder = new LineDecoder();
@@ -30510,7 +30510,7 @@ var init_streaming = __esm({
               controller.abort();
           }
         }
-        return new _Stream(iterator2, controller, client2);
+        return new _Stream(iterator2, controller, client3);
       }
       [(_Stream_client = /* @__PURE__ */ new WeakMap(), Symbol.asyncIterator)]() {
         return this.iterator();
@@ -30612,15 +30612,15 @@ var init_streaming = __esm({
 });
 
 // node_modules/openai/internal/parse.mjs
-async function defaultParseResponse(client2, props) {
+async function defaultParseResponse(client3, props) {
   const { response, requestLogID, retryOfRequestLogID, startTime } = props;
   const body2 = await (async () => {
     if (props.options.stream) {
-      loggerFor(client2).debug("response", response.status, response.url, response.headers, response.body);
+      loggerFor(client3).debug("response", response.status, response.url, response.headers, response.body);
       if (props.options.__streamClass) {
-        return props.options.__streamClass.fromSSEResponse(response, props.controller, client2, props.options.__synthesizeEventData);
+        return props.options.__streamClass.fromSSEResponse(response, props.controller, client3, props.options.__synthesizeEventData);
       }
-      return Stream.fromSSEResponse(response, props.controller, client2, props.options.__synthesizeEventData);
+      return Stream.fromSSEResponse(response, props.controller, client3, props.options.__synthesizeEventData);
     }
     if (response.status === 204) {
       return null;
@@ -30642,7 +30642,7 @@ async function defaultParseResponse(client2, props) {
     const text2 = await response.text();
     return text2;
   })();
-  loggerFor(client2).debug(`[${requestLogID}] response parsed`, formatRequestDetails({
+  loggerFor(client3).debug(`[${requestLogID}] response parsed`, formatRequestDetails({
     retryOfRequestLogID,
     url: response.url,
     status: response.status,
@@ -30674,17 +30674,17 @@ var init_api_promise = __esm({
     init_tslib();
     init_parse();
     APIPromise = class _APIPromise extends Promise {
-      constructor(client2, responsePromise, parseResponse2 = defaultParseResponse) {
+      constructor(client3, responsePromise, parseResponse2 = defaultParseResponse) {
         super((resolve2) => {
           resolve2(null);
         });
         this.responsePromise = responsePromise;
         this.parseResponse = parseResponse2;
         _APIPromise_client.set(this, void 0);
-        __classPrivateFieldSet(this, _APIPromise_client, client2, "f");
+        __classPrivateFieldSet(this, _APIPromise_client, client3, "f");
       }
       _thenUnwrap(transform) {
-        return new _APIPromise(__classPrivateFieldGet(this, _APIPromise_client, "f"), this.responsePromise, async (client2, props) => addRequestID(transform(await this.parseResponse(client2, props), props), props.response));
+        return new _APIPromise(__classPrivateFieldGet(this, _APIPromise_client, "f"), this.responsePromise, async (client3, props) => addRequestID(transform(await this.parseResponse(client3, props), props), props.response));
       }
       /**
        * Gets the raw `Response` instance instead of parsing the response
@@ -30746,9 +30746,9 @@ var init_pagination = __esm({
     init_api_promise();
     init_values();
     AbstractPage = class {
-      constructor(client2, response, body2, options) {
+      constructor(client3, response, body2, options) {
         _AbstractPage_client.set(this, void 0);
-        __classPrivateFieldSet(this, _AbstractPage_client, client2, "f");
+        __classPrivateFieldSet(this, _AbstractPage_client, client3, "f");
         this.options = options;
         this.response = response;
         this.body = body2;
@@ -30783,8 +30783,8 @@ var init_pagination = __esm({
       }
     };
     PagePromise = class extends APIPromise {
-      constructor(client2, request, Page2) {
-        super(client2, request, async (client3, props) => new Page2(client3, props.response, await defaultParseResponse(client3, props), props.options));
+      constructor(client3, request, Page2) {
+        super(client3, request, async (client4, props) => new Page2(client4, props.response, await defaultParseResponse(client4, props), props.options));
       }
       /**
        * Allow auto-paginating iteration on an unawaited list call, eg:
@@ -30801,8 +30801,8 @@ var init_pagination = __esm({
       }
     };
     Page = class extends AbstractPage {
-      constructor(client2, response, body2, options) {
-        super(client2, response, body2, options);
+      constructor(client3, response, body2, options) {
+        super(client3, response, body2, options);
         this.data = body2.data || [];
         this.object = body2.object;
       }
@@ -30814,8 +30814,8 @@ var init_pagination = __esm({
       }
     };
     CursorPage = class extends AbstractPage {
-      constructor(client2, response, body2, options) {
-        super(client2, response, body2, options);
+      constructor(client3, response, body2, options) {
+        super(client3, response, body2, options);
         this.data = body2.data || [];
         this.has_more = body2.has_more || false;
       }
@@ -30844,8 +30844,8 @@ var init_pagination = __esm({
       }
     };
     ConversationCursorPage = class extends AbstractPage {
-      constructor(client2, response, body2, options) {
-        super(client2, response, body2, options);
+      constructor(client3, response, body2, options) {
+        super(client3, response, body2, options);
         this.data = body2.data || [];
         this.has_more = body2.has_more || false;
         this.last_id = body2.last_id || "";
@@ -30874,8 +30874,8 @@ var init_pagination = __esm({
       }
     };
     NextCursorPage = class extends AbstractPage {
-      constructor(client2, response, body2, options) {
-        super(client2, response, body2, options);
+      constructor(client3, response, body2, options) {
+        super(client3, response, body2, options);
         this.data = body2.data || [];
         this.has_more = body2.has_more || false;
         this.next = body2.next || null;
@@ -31173,8 +31173,8 @@ var APIResource;
 var init_resource = __esm({
   "node_modules/openai/core/resource.mjs"() {
     APIResource = class {
-      constructor(client2) {
-        this._client = client2;
+      constructor(client3) {
+        this._client = client3;
       }
     };
   }
@@ -31189,12 +31189,12 @@ var init_path = __esm({
   "node_modules/openai/internal/utils/path.mjs"() {
     init_error();
     EMPTY = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.create(null));
-    createPathTagFunction = (pathEncoder = encodeURIPath) => function path4(statics, ...params) {
+    createPathTagFunction = (pathEncoder = encodeURIPath) => function path5(statics, ...params) {
       if (statics.length === 1)
         return statics[0];
       let postPath = false;
       const invalidSegments = [];
-      const path5 = statics.reduce((previousValue, currentValue, index) => {
+      const path6 = statics.reduce((previousValue, currentValue, index) => {
         if (/[?#]/.test(currentValue)) {
           postPath = true;
         }
@@ -31211,7 +31211,7 @@ var init_path = __esm({
         }
         return previousValue + currentValue + (index === params.length ? "" : encoded);
       }, "");
-      const pathOnly = path5.split(/[?#]/, 1)[0];
+      const pathOnly = path6.split(/[?#]/, 1)[0];
       const invalidSegmentPattern = /(?<=^|\/)(?:\.|%2e){1,2}(?=\/|$)/gi;
       let match;
       while ((match = invalidSegmentPattern.exec(pathOnly)) !== null) {
@@ -31232,10 +31232,10 @@ var init_path = __esm({
         }, "");
         throw new OpenAIError(`Path parameters result in path with invalid segments:
 ${invalidSegments.map((e) => e.error).join("\n")}
-${path5}
+${path6}
 ${underline}`);
       }
-      return path5;
+      return path6;
     };
     path = /* @__PURE__ */ createPathTagFunction(encodeURIPath);
   }
@@ -31720,20 +31720,20 @@ var init_AbstractChatCompletionRunner = __esm({
           this._emit("totalUsage", __classPrivateFieldGet(this, _AbstractChatCompletionRunner_instances, "m", _AbstractChatCompletionRunner_calculateTotalUsage).call(this));
         }
       }
-      async _createChatCompletion(client2, params, options) {
+      async _createChatCompletion(client3, params, options) {
         this._listenForAbort(options?.signal);
         __classPrivateFieldGet(this, _AbstractChatCompletionRunner_instances, "m", _AbstractChatCompletionRunner_validateParams).call(this, params);
-        const chatCompletion = await client2.chat.completions.create({ ...params, stream: false }, { ...options, signal: this.controller.signal });
+        const chatCompletion = await client3.chat.completions.create({ ...params, stream: false }, { ...options, signal: this.controller.signal });
         this._connected();
         return this._addChatCompletion(parseChatCompletion(chatCompletion, params));
       }
-      async _runChatCompletion(client2, params, options) {
+      async _runChatCompletion(client3, params, options) {
         for (const message of params.messages) {
           this._addMessage(message, false);
         }
-        return await this._createChatCompletion(client2, params, options);
+        return await this._createChatCompletion(client3, params, options);
       }
-      async _runTools(client2, params, runner, options) {
+      async _runTools(client3, params, runner, options) {
         const role = "tool";
         const { tool_choice = "auto", stream: stream4, ...restParams } = params;
         const singleFunctionToCall = typeof tool_choice !== "string" && tool_choice.type === "function" && tool_choice?.function?.name;
@@ -31806,7 +31806,7 @@ var init_AbstractChatCompletionRunner = __esm({
           return { message: { role, tool_call_id, content }, functionCalled: true };
         };
         for (let i3 = 0; i3 < maxChatCompletions; ++i3) {
-          const chatCompletion = await this._createChatCompletion(client2, {
+          const chatCompletion = await this._createChatCompletion(client3, {
             ...restParams,
             tool_choice,
             tools,
@@ -31915,13 +31915,13 @@ var init_ChatCompletionRunner = __esm({
     init_AbstractChatCompletionRunner();
     init_chatCompletionUtils();
     ChatCompletionRunner = class _ChatCompletionRunner extends AbstractChatCompletionRunner {
-      static runTools(client2, params, options) {
+      static runTools(client3, params, options) {
         const runner = new _ChatCompletionRunner();
         const opts = {
           ...options,
           headers: { ...options?.headers, "X-Stainless-Helper-Method": "runTools" }
         };
-        runner._run(() => runner._runTools(client2, params, runner, opts));
+        runner._run(() => runner._runTools(client3, params, runner, opts));
         return runner;
       }
       _addMessage(message, emit = true) {
@@ -32286,16 +32286,16 @@ var init_ChatCompletionStream = __esm({
         runner._run(() => runner._fromReadableStream(stream4));
         return runner;
       }
-      static createChatCompletion(client2, params, options) {
+      static createChatCompletion(client3, params, options) {
         const runner = new _ChatCompletionStream(params);
-        runner._run(() => runner._runChatCompletion(client2, { ...params, stream: true }, { ...options, headers: { ...options?.headers, "X-Stainless-Helper-Method": "stream" } }));
+        runner._run(() => runner._runChatCompletion(client3, { ...params, stream: true }, { ...options, headers: { ...options?.headers, "X-Stainless-Helper-Method": "stream" } }));
         return runner;
       }
-      async _createChatCompletion(client2, params, options) {
+      async _createChatCompletion(client3, params, options) {
         super._createChatCompletion;
         this._listenForAbort(options?.signal);
         __classPrivateFieldGet(this, _ChatCompletionStream_instances, "m", _ChatCompletionStream_beginRequest).call(this);
-        const stream4 = await client2.chat.completions.create({ ...params, stream: true }, { ...options, signal: this.controller.signal });
+        const stream4 = await client3.chat.completions.create({ ...params, stream: true }, { ...options, signal: this.controller.signal });
         this._connected();
         for await (const chunk of stream4) {
           __classPrivateFieldGet(this, _ChatCompletionStream_instances, "m", _ChatCompletionStream_addChunk).call(this, chunk);
@@ -32638,7 +32638,7 @@ var init_ChatCompletionStreamingRunner = __esm({
         runner._run(() => runner._fromReadableStream(stream4));
         return runner;
       }
-      static runTools(client2, params, options) {
+      static runTools(client3, params, options) {
         const runner = new _ChatCompletionStreamingRunner(
           // @ts-expect-error TODO these types are incompatible
           params
@@ -32647,7 +32647,7 @@ var init_ChatCompletionStreamingRunner = __esm({
           ...options,
           headers: { ...options?.headers, "X-Stainless-Helper-Method": "runTools" }
         };
-        runner._run(() => runner._runTools(client2, params, runner, opts));
+        runner._run(() => runner._runTools(client3, params, runner, opts));
         return runner;
       }
     };
@@ -38631,24 +38631,24 @@ var init_ResponseStream = __esm({
         _ResponseStream_finalResponse.set(this, void 0);
         __classPrivateFieldSet(this, _ResponseStream_params, params, "f");
       }
-      static createResponse(client2, params, options) {
+      static createResponse(client3, params, options) {
         const runner = new _ResponseStream(params);
-        runner._run(() => runner._createOrRetrieveResponse(client2, params, {
+        runner._run(() => runner._createOrRetrieveResponse(client3, params, {
           ...options,
           headers: { ...options?.headers, "X-Stainless-Helper-Method": "stream" }
         }));
         return runner;
       }
-      async _createOrRetrieveResponse(client2, params, options) {
+      async _createOrRetrieveResponse(client3, params, options) {
         this._listenForAbort(options?.signal);
         __classPrivateFieldGet(this, _ResponseStream_instances, "m", _ResponseStream_beginRequest).call(this);
         let stream4;
         let starting_after = null;
         if ("response_id" in params) {
-          stream4 = await client2.responses.retrieve(params.response_id, { stream: true }, { ...options, signal: this.controller.signal, stream: true });
+          stream4 = await client3.responses.retrieve(params.response_id, { stream: true }, { ...options, signal: this.controller.signal, stream: true });
           starting_after = params.starting_after ?? null;
         } else {
-          stream4 = await client2.responses.create({ ...params, stream: true }, { ...options, signal: this.controller.signal });
+          stream4 = await client3.responses.create({ ...params, stream: true }, { ...options, signal: this.controller.signal });
         }
         this._connected();
         for await (const event of stream4) {
@@ -39371,12 +39371,12 @@ var init_file_batches = __esm({
         }
         const configuredConcurrency = options?.maxConcurrency ?? 5;
         const concurrencyLimit = Math.min(configuredConcurrency, files.length);
-        const client2 = this._client;
+        const client3 = this._client;
         const fileIterator = files.values();
         const allFileIds = [...fileIds];
         async function processFiles(iterator2) {
           for (let item of iterator2) {
-            const fileObj = await client2.files.create({ file: item, purpose: "assistants" }, options);
+            const fileObj = await client3.files.create({ file: item, purpose: "assistants" }, options);
             allFileIds.push(fileObj.id);
           }
         }
@@ -40078,12 +40078,12 @@ var init_client = __esm({
             delete inheritedOptions.defaultHeaders;
           }
         }
-        const client2 = new this.constructor({
+        const client3 = new this.constructor({
           ...inheritedOptions,
           ...options,
           provider
         });
-        return client2;
+        return client3;
       }
       defaultQuery() {
         return this._options.defaultQuery;
@@ -40163,9 +40163,9 @@ var init_client = __esm({
         this.apiKey = token;
         return true;
       }
-      buildURL(path4, query, defaultBaseURL) {
+      buildURL(path5, query, defaultBaseURL) {
         const baseURL = !__classPrivateFieldGet(this, _OpenAI_instances, "m", _OpenAI_baseURLOverridden).call(this) && defaultBaseURL || this.baseURL;
-        const url2 = isAbsoluteURL(path4) ? new URL(path4) : new URL(baseURL + (baseURL.endsWith("/") && path4.startsWith("/") ? path4.slice(1) : path4));
+        const url2 = isAbsoluteURL(path5) ? new URL(path5) : new URL(baseURL + (baseURL.endsWith("/") && path5.startsWith("/") ? path5.slice(1) : path5));
         const defaultQuery = this.defaultQuery();
         const pathQuery = Object.fromEntries(url2.searchParams);
         if (!isEmptyObj(defaultQuery) || !isEmptyObj(pathQuery)) {
@@ -40195,24 +40195,24 @@ var init_client = __esm({
        */
       async prepareRequest(request, { url: url2, options }) {
       }
-      get(path4, opts) {
-        return this.methodRequest("get", path4, opts);
+      get(path5, opts) {
+        return this.methodRequest("get", path5, opts);
       }
-      post(path4, opts) {
-        return this.methodRequest("post", path4, opts);
+      post(path5, opts) {
+        return this.methodRequest("post", path5, opts);
       }
-      patch(path4, opts) {
-        return this.methodRequest("patch", path4, opts);
+      patch(path5, opts) {
+        return this.methodRequest("patch", path5, opts);
       }
-      put(path4, opts) {
-        return this.methodRequest("put", path4, opts);
+      put(path5, opts) {
+        return this.methodRequest("put", path5, opts);
       }
-      delete(path4, opts) {
-        return this.methodRequest("delete", path4, opts);
+      delete(path5, opts) {
+        return this.methodRequest("delete", path5, opts);
       }
-      methodRequest(method, path4, opts) {
+      methodRequest(method, path5, opts) {
         return this.request(Promise.resolve(opts).then((opts2) => {
-          return { method, path: path4, ...opts2 };
+          return { method, path: path5, ...opts2 };
         }));
       }
       request(options, remainingRetries = null) {
@@ -40335,8 +40335,8 @@ var init_client = __esm({
         }));
         return { response, options, controller, requestLogID, retryOfRequestLogID, startTime };
       }
-      getAPIList(path4, Page2, opts) {
-        return this.requestAPIList(Page2, opts && "then" in opts ? opts.then((opts2) => ({ method: "get", path: path4, ...opts2 })) : { method: "get", path: path4, ...opts });
+      getAPIList(path5, Page2, opts) {
+        return this.requestAPIList(Page2, opts && "then" in opts ? opts.then((opts2) => ({ method: "get", path: path5, ...opts2 })) : { method: "get", path: path5, ...opts });
       }
       requestAPIList(Page2, options) {
         const request = this.makeRequest(options, null, void 0);
@@ -40430,8 +40430,8 @@ var init_client = __esm({
       }
       async buildRequest(inputOptions, { retryCount = 0 } = {}) {
         const options = { ...inputOptions };
-        const { method, path: path4, query, defaultBaseURL } = options;
-        const url2 = this.buildURL(path4, query, defaultBaseURL);
+        const { method, path: path5, query, defaultBaseURL } = options;
+        const url2 = this.buildURL(path5, query, defaultBaseURL);
         if ("timeout" in options)
           validatePositiveInteger("timeout", options.timeout);
         options.timeout = options.timeout ?? this.timeout;
@@ -44025,7 +44025,7 @@ var require_split2 = __commonJS({
 var require_helper = __commonJS({
   "../lib/db/node_modules/pgpass/lib/helper.js"(exports, module2) {
     "use strict";
-    var path4 = __require("path");
+    var path5 = __require("path");
     var Stream2 = __require("stream").Stream;
     var split = require_split2();
     var util5 = __require("util");
@@ -44064,7 +44064,7 @@ var require_helper = __commonJS({
     };
     module2.exports.getFileName = function(rawEnv) {
       var env = rawEnv || process.env;
-      var file = env.PGPASSFILE || (isWin ? path4.join(env.APPDATA || "./", "postgresql", "pgpass.conf") : path4.join(env.HOME || "./", ".pgpass"));
+      var file = env.PGPASSFILE || (isWin ? path5.join(env.APPDATA || "./", "postgresql", "pgpass.conf") : path5.join(env.HOME || "./", ".pgpass"));
       return file;
     };
     module2.exports.usePgPass = function(stats, fname) {
@@ -44196,7 +44196,7 @@ var require_helper = __commonJS({
 var require_lib4 = __commonJS({
   "../lib/db/node_modules/pgpass/lib/index.js"(exports, module2) {
     "use strict";
-    var path4 = __require("path");
+    var path5 = __require("path");
     var fs3 = __require("fs");
     var helper = require_helper();
     module2.exports = function(connInfo, cb) {
@@ -44686,8 +44686,8 @@ var require_client = __commonJS({
         }
         return data;
       }
-      cancel(client2, query) {
-        if (client2.activeQuery === query) {
+      cancel(client3, query) {
+        if (client3.activeQuery === query) {
           const con = this.connection;
           if (this.host && this.host.indexOf("/") === 0) {
             con.connect(this.host + "/.s.PGSQL." + this.port);
@@ -44695,10 +44695,10 @@ var require_client = __commonJS({
             con.connect(this.port, this.host);
           }
           con.on("connect", function() {
-            con.cancel(client2.processID, client2.secretKey);
+            con.cancel(client3.processID, client3.secretKey);
           });
-        } else if (client2._queryQueue.indexOf(query) !== -1) {
-          client2._queryQueue.splice(client2._queryQueue.indexOf(query), 1);
+        } else if (client3._queryQueue.indexOf(query) !== -1) {
+          client3._queryQueue.splice(client3._queryQueue.indexOf(query), 1);
         }
       }
       setTypeParser(oid, format, parseFn) {
@@ -44867,8 +44867,8 @@ var require_pg_pool = __commonJS({
       return i3 === -1 ? void 0 : list.splice(i3, 1)[0];
     };
     var IdleItem = class {
-      constructor(client2, idleListener, timeoutId) {
-        this.client = client2;
+      constructor(client3, idleListener, timeoutId) {
+        this.client = client3;
         this.idleListener = idleListener;
         this.timeoutId = timeoutId;
       }
@@ -44887,8 +44887,8 @@ var require_pg_pool = __commonJS({
       }
       let rej;
       let res;
-      const cb = function(err2, client2) {
-        err2 ? rej(err2) : res(client2);
+      const cb = function(err2, client3) {
+        err2 ? rej(err2) : res(client3);
       };
       const result = new Promise2(function(resolve2, reject) {
         res = resolve2;
@@ -44899,15 +44899,15 @@ var require_pg_pool = __commonJS({
       });
       return { callback: cb, result };
     }
-    function makeIdleListener(pool2, client2) {
+    function makeIdleListener(pool2, client3) {
       return function idleListener(err2) {
-        err2.client = client2;
-        client2.removeListener("error", idleListener);
-        client2.on("error", () => {
+        err2.client = client3;
+        client3.removeListener("error", idleListener);
+        client3.on("error", () => {
           pool2.log("additional client error after disconnection due to error", err2);
         });
-        pool2._remove(client2);
-        pool2.emit("error", err2, client2);
+        pool2._remove(client3);
+        pool2.emit("error", err2, client3);
       };
     }
     var Pool4 = class extends EventEmitter2 {
@@ -44990,25 +44990,25 @@ var require_pg_pool = __commonJS({
         if (this._idle.length) {
           const idleItem = this._idle.pop();
           clearTimeout(idleItem.timeoutId);
-          const client2 = idleItem.client;
-          client2.ref && client2.ref();
+          const client3 = idleItem.client;
+          client3.ref && client3.ref();
           const idleListener = idleItem.idleListener;
-          return this._acquireClient(client2, pendingItem, idleListener, false);
+          return this._acquireClient(client3, pendingItem, idleListener, false);
         }
         if (!this._isFull()) {
           return this.newClient(pendingItem);
         }
         throw new Error("unexpected condition");
       }
-      _remove(client2, callback) {
-        const removed = removeWhere(this._idle, (item) => item.client === client2);
+      _remove(client3, callback) {
+        const removed = removeWhere(this._idle, (item) => item.client === client3);
         if (removed !== void 0) {
           clearTimeout(removed.timeoutId);
         }
-        this._clients = this._clients.filter((c2) => c2 !== client2);
+        this._clients = this._clients.filter((c2) => c2 !== client3);
         const context = this;
-        client2.end(() => {
-          context.emit("remove", client2);
+        client3.end(() => {
+          context.emit("remove", client3);
           if (typeof callback === "function") {
             callback();
           }
@@ -45049,34 +45049,34 @@ var require_pg_pool = __commonJS({
         return result;
       }
       newClient(pendingItem) {
-        const client2 = new this.Client(this.options);
-        this._clients.push(client2);
-        const idleListener = makeIdleListener(this, client2);
+        const client3 = new this.Client(this.options);
+        this._clients.push(client3);
+        const idleListener = makeIdleListener(this, client3);
         this.log("checking client timeout");
         let tid;
         let timeoutHit = false;
         if (this.options.connectionTimeoutMillis) {
           tid = setTimeout(() => {
-            if (client2.connection) {
+            if (client3.connection) {
               this.log("ending client due to timeout");
               timeoutHit = true;
-              client2.connection.stream.destroy();
-            } else if (!client2.isConnected()) {
+              client3.connection.stream.destroy();
+            } else if (!client3.isConnected()) {
               this.log("ending client due to timeout");
               timeoutHit = true;
-              client2.end();
+              client3.end();
             }
           }, this.options.connectionTimeoutMillis);
         }
         this.log("connecting new client");
-        client2.connect((err2) => {
+        client3.connect((err2) => {
           if (tid) {
             clearTimeout(tid);
           }
-          client2.on("error", idleListener);
+          client3.on("error", idleListener);
           if (err2) {
             this.log("client failed to connect", err2);
-            this._clients = this._clients.filter((c2) => c2 !== client2);
+            this._clients = this._clients.filter((c2) => c2 !== client3);
             if (timeoutHit) {
               err2 = new Error("Connection terminated due to connection timeout", { cause: err2 });
             }
@@ -45087,13 +45087,13 @@ var require_pg_pool = __commonJS({
           } else {
             this.log("new client connected");
             if (this.options.onConnect) {
-              this._promiseTry(() => this.options.onConnect(client2)).then(
+              this._promiseTry(() => this.options.onConnect(client3)).then(
                 () => {
-                  this._afterConnect(client2, pendingItem, idleListener);
+                  this._afterConnect(client3, pendingItem, idleListener);
                 },
                 (hookErr) => {
-                  this._clients = this._clients.filter((c2) => c2 !== client2);
-                  client2.end(() => {
+                  this._clients = this._clients.filter((c2) => c2 !== client3);
+                  client3.end(() => {
                     this._pulseQueue();
                     if (!pendingItem.timedOut) {
                       pendingItem.callback(hookErr, void 0, NOOP);
@@ -45103,93 +45103,93 @@ var require_pg_pool = __commonJS({
               );
               return;
             }
-            return this._afterConnect(client2, pendingItem, idleListener);
+            return this._afterConnect(client3, pendingItem, idleListener);
           }
         });
       }
-      _afterConnect(client2, pendingItem, idleListener) {
+      _afterConnect(client3, pendingItem, idleListener) {
         if (this.options.maxLifetimeSeconds !== 0) {
           const maxLifetimeTimeout = setTimeout(() => {
             this.log("ending client due to expired lifetime");
-            this._expired.add(client2);
-            const idleIndex = this._idle.findIndex((idleItem) => idleItem.client === client2);
+            this._expired.add(client3);
+            const idleIndex = this._idle.findIndex((idleItem) => idleItem.client === client3);
             if (idleIndex !== -1) {
               this._acquireClient(
-                client2,
-                new PendingItem((err2, client3, clientRelease) => clientRelease()),
+                client3,
+                new PendingItem((err2, client4, clientRelease) => clientRelease()),
                 idleListener,
                 false
               );
             }
           }, this.options.maxLifetimeSeconds * 1e3);
           maxLifetimeTimeout.unref();
-          client2.once("end", () => clearTimeout(maxLifetimeTimeout));
+          client3.once("end", () => clearTimeout(maxLifetimeTimeout));
         }
-        return this._acquireClient(client2, pendingItem, idleListener, true);
+        return this._acquireClient(client3, pendingItem, idleListener, true);
       }
       // acquire a client for a pending work item
-      _acquireClient(client2, pendingItem, idleListener, isNew) {
+      _acquireClient(client3, pendingItem, idleListener, isNew) {
         if (isNew) {
-          this.emit("connect", client2);
+          this.emit("connect", client3);
         }
-        this.emit("acquire", client2);
-        client2.release = this._releaseOnce(client2, idleListener);
-        client2.removeListener("error", idleListener);
+        this.emit("acquire", client3);
+        client3.release = this._releaseOnce(client3, idleListener);
+        client3.removeListener("error", idleListener);
         if (!pendingItem.timedOut) {
           if (isNew && this.options.verify) {
-            this.options.verify(client2, (err2) => {
+            this.options.verify(client3, (err2) => {
               if (err2) {
-                client2.release(err2);
+                client3.release(err2);
                 return pendingItem.callback(err2, void 0, NOOP);
               }
-              pendingItem.callback(void 0, client2, client2.release);
+              pendingItem.callback(void 0, client3, client3.release);
             });
           } else {
-            pendingItem.callback(void 0, client2, client2.release);
+            pendingItem.callback(void 0, client3, client3.release);
           }
         } else {
           if (isNew && this.options.verify) {
-            this.options.verify(client2, client2.release);
+            this.options.verify(client3, client3.release);
           } else {
-            client2.release();
+            client3.release();
           }
         }
       }
       // returns a function that wraps _release and throws if called more than once
-      _releaseOnce(client2, idleListener) {
+      _releaseOnce(client3, idleListener) {
         let released = false;
         return (err2) => {
           if (released) {
             throwOnDoubleRelease();
           }
           released = true;
-          this._release(client2, idleListener, err2);
+          this._release(client3, idleListener, err2);
         };
       }
       // release a client back to the poll, include an error
       // to remove it from the pool
-      _release(client2, idleListener, err2) {
-        client2.on("error", idleListener);
-        client2._poolUseCount = (client2._poolUseCount || 0) + 1;
-        this.emit("release", err2, client2);
-        if (err2 || this.ending || !client2._queryable || client2._ending || client2._poolUseCount >= this.options.maxUses) {
-          if (client2._poolUseCount >= this.options.maxUses) {
+      _release(client3, idleListener, err2) {
+        client3.on("error", idleListener);
+        client3._poolUseCount = (client3._poolUseCount || 0) + 1;
+        this.emit("release", err2, client3);
+        if (err2 || this.ending || !client3._queryable || client3._ending || client3._poolUseCount >= this.options.maxUses) {
+          if (client3._poolUseCount >= this.options.maxUses) {
             this.log("remove expended client");
           }
-          return this._remove(client2, this._pulseQueue.bind(this));
+          return this._remove(client3, this._pulseQueue.bind(this));
         }
-        const isExpired = this._expired.has(client2);
+        const isExpired = this._expired.has(client3);
         if (isExpired) {
           this.log("remove expired client");
-          this._expired.delete(client2);
-          return this._remove(client2, this._pulseQueue.bind(this));
+          this._expired.delete(client3);
+          return this._remove(client3, this._pulseQueue.bind(this));
         }
         let tid;
         if (this.options.idleTimeoutMillis && this._isAboveMin()) {
           tid = setTimeout(() => {
             if (this._isAboveMin()) {
               this.log("remove idle client");
-              this._remove(client2, this._pulseQueue.bind(this));
+              this._remove(client3, this._pulseQueue.bind(this));
             }
           }, this.options.idleTimeoutMillis);
           if (this.options.allowExitOnIdle) {
@@ -45197,9 +45197,9 @@ var require_pg_pool = __commonJS({
           }
         }
         if (this.options.allowExitOnIdle) {
-          client2.unref();
+          client3.unref();
         }
-        this._idle.push(new IdleItem(client2, idleListener, tid));
+        this._idle.push(new IdleItem(client3, idleListener, tid));
         this._pulseQueue();
       }
       query(text2, values, cb) {
@@ -45216,7 +45216,7 @@ var require_pg_pool = __commonJS({
         }
         const response = promisify(this.Promise, cb);
         cb = response.callback;
-        this.connect((err2, client2) => {
+        this.connect((err2, client3) => {
           if (err2) {
             return cb(err2);
           }
@@ -45226,27 +45226,27 @@ var require_pg_pool = __commonJS({
               return;
             }
             clientReleased = true;
-            client2.release(err3);
+            client3.release(err3);
             cb(err3);
           };
-          client2.once("error", onError);
+          client3.once("error", onError);
           this.log("dispatching query");
           try {
-            client2.query(text2, values, (err3, res) => {
+            client3.query(text2, values, (err3, res) => {
               this.log("query dispatched");
-              client2.removeListener("error", onError);
+              client3.removeListener("error", onError);
               if (clientReleased) {
                 return;
               }
               clientReleased = true;
-              client2.release(err3);
+              client3.release(err3);
               if (err3) {
                 return cb(err3);
               }
               return cb(void 0, res);
             });
           } catch (err3) {
-            client2.release(err3);
+            client3.release(err3);
             return cb(err3);
           }
         });
@@ -45271,7 +45271,7 @@ var require_pg_pool = __commonJS({
         return this._idle.length;
       }
       get expiredCount() {
-        return this._clients.reduce((acc, client2) => acc + (this._expired.has(client2) ? 1 : 0), 0);
+        return this._clients.reduce((acc, client3) => acc + (this._expired.has(client3) ? 1 : 0), 0);
       }
       get totalCount() {
         return this._clients.length;
@@ -45352,13 +45352,13 @@ var require_query2 = __commonJS({
       );
       return this._promise;
     };
-    NativeQuery.prototype.submit = function(client2) {
+    NativeQuery.prototype.submit = function(client3) {
       this.state = "running";
       const self2 = this;
-      this.native = client2.native;
-      client2.native.arrayMode = this._arrayMode;
+      this.native = client3.native;
+      client3.native.arrayMode = this._arrayMode;
       let after = function(err2, rows, results) {
-        client2.native.arrayMode = false;
+        client3.native.arrayMode = false;
         setImmediate(function() {
           self2.emit("_done");
         });
@@ -45394,16 +45394,16 @@ var require_query2 = __commonJS({
           console.error("This can cause conflicts and silent errors executing queries");
         }
         const values = (this.values || []).map(utils.prepareValue);
-        if (client2.namedQueries[this.name]) {
-          if (this.text && client2.namedQueries[this.name] !== this.text) {
+        if (client3.namedQueries[this.name]) {
+          if (this.text && client3.namedQueries[this.name] !== this.text) {
             const err2 = new Error(`Prepared statements must be unique - '${this.name}' was used for a different statement`);
             return after(err2);
           }
-          return client2.native.execute(this.name, values, after);
+          return client3.native.execute(this.name, values, after);
         }
-        return client2.native.prepare(this.name, this.text, values.length, function(err2) {
+        return client3.native.prepare(this.name, this.text, values.length, function(err2) {
           if (err2) return after(err2);
-          client2.namedQueries[self2.name] = self2.text;
+          client3.namedQueries[self2.name] = self2.text;
           return self2.native.execute(self2.name, values, after);
         });
       } else if (this.values) {
@@ -45412,11 +45412,11 @@ var require_query2 = __commonJS({
           return after(err2);
         }
         const vals = this.values.map(utils.prepareValue);
-        client2.native.query(this.text, vals, after);
+        client3.native.query(this.text, vals, after);
       } else if (this.queryMode === "extended") {
-        client2.native.query(this.text, [], after);
+        client3.native.query(this.text, [], after);
       } else {
-        client2.native.query(this.text, after);
+        client3.native.query(this.text, after);
       }
     };
   }
@@ -47289,7 +47289,7 @@ var init_selection_proxy = __esm({
 function mapResultRow(columns, row, joinsNotNullableMap) {
   const nullifyMap = {};
   const result = columns.reduce(
-    (result2, { path: path4, field }, columnIndex) => {
+    (result2, { path: path5, field }, columnIndex) => {
       let decoder;
       if (is(field, Column)) {
         decoder = field;
@@ -47301,8 +47301,8 @@ function mapResultRow(columns, row, joinsNotNullableMap) {
         decoder = field.sql.decoder;
       }
       let node = result2;
-      for (const [pathChunkIndex, pathChunk] of path4.entries()) {
-        if (pathChunkIndex < path4.length - 1) {
+      for (const [pathChunkIndex, pathChunk] of path5.entries()) {
+        if (pathChunkIndex < path5.length - 1) {
           if (!(pathChunk in node)) {
             node[pathChunk] = {};
           }
@@ -47310,8 +47310,8 @@ function mapResultRow(columns, row, joinsNotNullableMap) {
         } else {
           const rawValue = row[columnIndex];
           const value = node[pathChunk] = rawValue === null ? null : decoder.mapFromDriverValue(rawValue);
-          if (joinsNotNullableMap && is(field, Column) && path4.length === 2) {
-            const objectName = path4[0];
+          if (joinsNotNullableMap && is(field, Column) && path5.length === 2) {
+            const objectName = path5[0];
             if (!(objectName in nullifyMap)) {
               nullifyMap[objectName] = value === null ? getTableName(field.table) : false;
             } else if (typeof nullifyMap[objectName] === "string" && nullifyMap[objectName] !== getTableName(field.table)) {
@@ -53611,12 +53611,12 @@ var init_session = __esm({
     init_tracing();
     init_db();
     PgPreparedQuery = class {
-      constructor(query, cache2, queryMetadata, cacheConfig) {
+      constructor(query, cache3, queryMetadata, cacheConfig) {
         this.query = query;
-        this.cache = cache2;
+        this.cache = cache3;
         this.queryMetadata = queryMetadata;
         this.cacheConfig = cacheConfig;
-        if (cache2 && cache2.strategy() === "all" && cacheConfig === void 0) {
+        if (cache3 && cache3.strategy() === "all" && cacheConfig === void 0) {
           this.cacheConfig = { enable: true, autoInvalidate: true };
         }
         if (!this.cacheConfig?.enable) {
@@ -53826,9 +53826,9 @@ var init_session2 = __esm({
     init_utils3();
     ({ Pool: Pool2, types: types2 } = esm_default);
     NodePgPreparedQuery = class extends PgPreparedQuery {
-      constructor(client2, queryString, params, logger2, cache2, queryMetadata, cacheConfig, fields, name2, _isResponseInArrayMode, customResultMapper) {
-        super({ sql: queryString, params }, cache2, queryMetadata, cacheConfig);
-        this.client = client2;
+      constructor(client3, queryString, params, logger2, cache3, queryMetadata, cacheConfig, fields, name2, _isResponseInArrayMode, customResultMapper) {
+        super({ sql: queryString, params }, cache3, queryMetadata, cacheConfig);
+        this.client = client3;
         this.queryString = queryString;
         this.params = params;
         this.logger = logger2;
@@ -53918,7 +53918,7 @@ var init_session2 = __esm({
         return tracer.startActiveSpan("drizzle.execute", async () => {
           const params = fillPlaceholders(this.params, placeholderValues);
           this.logger.logQuery(this.rawQueryConfig.text, params);
-          const { fields, rawQueryConfig: rawQuery, client: client2, queryConfig: query, joinsNotNullableMap, customResultMapper } = this;
+          const { fields, rawQueryConfig: rawQuery, client: client3, queryConfig: query, joinsNotNullableMap, customResultMapper } = this;
           if (!fields && !customResultMapper) {
             return tracer.startActiveSpan("drizzle.driver.execute", async (span) => {
               span?.setAttributes({
@@ -53927,7 +53927,7 @@ var init_session2 = __esm({
                 "drizzle.query.params": JSON.stringify(params)
               });
               return this.queryWithCache(rawQuery.text, params, async () => {
-                return await client2.query(rawQuery, params);
+                return await client3.query(rawQuery, params);
               });
             });
           }
@@ -53938,7 +53938,7 @@ var init_session2 = __esm({
               "drizzle.query.params": JSON.stringify(params)
             });
             return this.queryWithCache(query.text, params, async () => {
-              return await client2.query(query, params);
+              return await client3.query(query, params);
             });
           });
           return tracer.startActiveSpan("drizzle.mapResponse", () => {
@@ -53968,9 +53968,9 @@ var init_session2 = __esm({
       }
     };
     NodePgSession = class _NodePgSession extends PgSession {
-      constructor(client2, dialect, schema, options = {}) {
+      constructor(client3, dialect, schema, options = {}) {
         super(dialect);
-        this.client = client2;
+        this.client = client3;
         this.schema = schema;
         this.options = options;
         this.logger = options.logger ?? new NoopLogger();
@@ -54042,7 +54042,7 @@ var init_session2 = __esm({
 });
 
 // ../lib/db/node_modules/drizzle-orm/node-postgres/driver.js
-function construct(client2, config = {}) {
+function construct(client3, config = {}) {
   const dialect = new PgDialect({ casing: config.casing });
   let logger2;
   if (config.logger === true) {
@@ -54062,10 +54062,10 @@ function construct(client2, config = {}) {
       tableNamesMap: tablesConfig.tableNamesMap
     };
   }
-  const driver = new NodePgDriver(client2, dialect, { logger: logger2, cache: config.cache });
+  const driver = new NodePgDriver(client3, dialect, { logger: logger2, cache: config.cache });
   const session = driver.createSession(schema);
   const db2 = new NodePgDatabase(dialect, session, schema);
-  db2.$client = client2;
+  db2.$client = client3;
   db2.$cache = config.cache;
   if (db2.$cache) {
     db2.$cache["invalidate"] = config.cache?.onMutate;
@@ -54080,8 +54080,8 @@ function drizzle(...params) {
     return construct(instance2, params[1]);
   }
   if (isConfig(params[0])) {
-    const { connection, client: client2, ...drizzleConfig } = params[0];
-    if (client2) return construct(client2, drizzleConfig);
+    const { connection, client: client3, ...drizzleConfig } = params[0];
+    if (client3) return construct(client3, drizzleConfig);
     const instance2 = typeof connection === "string" ? new esm_default.Pool({
       connectionString: connection
     }) : new esm_default.Pool(connection);
@@ -54101,8 +54101,8 @@ var init_driver = __esm({
     init_utils3();
     init_session2();
     NodePgDriver = class {
-      constructor(client2, dialect, options = {}) {
-        this.client = client2;
+      constructor(client3, dialect, options = {}) {
+        this.client = client3;
         this.dialect = dialect;
         this.options = options;
       }
@@ -60172,9 +60172,9 @@ var init_session3 = __esm({
     init_dist();
     init_cache();
     PglitePreparedQuery = class extends PgPreparedQuery {
-      constructor(client2, queryString, params, logger2, cache2, queryMetadata, cacheConfig, fields, name2, _isResponseInArrayMode, customResultMapper) {
-        super({ sql: queryString, params }, cache2, queryMetadata, cacheConfig);
-        this.client = client2;
+      constructor(client3, queryString, params, logger2, cache3, queryMetadata, cacheConfig, fields, name2, _isResponseInArrayMode, customResultMapper) {
+        super({ sql: queryString, params }, cache3, queryMetadata, cacheConfig);
+        this.client = client3;
         this.queryString = queryString;
         this.params = params;
         this.logger = logger2;
@@ -60226,14 +60226,14 @@ var init_session3 = __esm({
       async execute(placeholderValues = {}) {
         const params = fillPlaceholders(this.params, placeholderValues);
         this.logger.logQuery(this.queryString, params);
-        const { fields, client: client2, queryConfig, joinsNotNullableMap, customResultMapper, queryString, rawQueryConfig } = this;
+        const { fields, client: client3, queryConfig, joinsNotNullableMap, customResultMapper, queryString, rawQueryConfig } = this;
         if (!fields && !customResultMapper) {
           return this.queryWithCache(queryString, params, async () => {
-            return await client2.query(queryString, params, rawQueryConfig);
+            return await client3.query(queryString, params, rawQueryConfig);
           });
         }
         const result = await this.queryWithCache(queryString, params, async () => {
-          return await client2.query(queryString, params, queryConfig);
+          return await client3.query(queryString, params, queryConfig);
         });
         return customResultMapper ? customResultMapper(result.rows) : result.rows.map((row) => mapResultRow(fields, row, joinsNotNullableMap));
       }
@@ -60250,9 +60250,9 @@ var init_session3 = __esm({
       }
     };
     PgliteSession = class _PgliteSession extends PgSession {
-      constructor(client2, dialect, schema, options = {}) {
+      constructor(client3, dialect, schema, options = {}) {
         super(dialect);
-        this.client = client2;
+        this.client = client3;
         this.schema = schema;
         this.options = options;
         this.logger = options.logger ?? new NoopLogger();
@@ -60277,9 +60277,9 @@ var init_session3 = __esm({
         );
       }
       async transaction(transaction, config) {
-        return this.client.transaction(async (client2) => {
+        return this.client.transaction(async (client3) => {
           const session = new _PgliteSession(
-            client2,
+            client3,
             this.dialect,
             this.schema,
             this.options
@@ -60323,7 +60323,7 @@ var init_session3 = __esm({
 });
 
 // ../lib/db/node_modules/drizzle-orm/pglite/driver.js
-function construct2(client2, config = {}) {
+function construct2(client3, config = {}) {
   const dialect = new PgDialect({ casing: config.casing });
   let logger2;
   if (config.logger === true) {
@@ -60343,10 +60343,10 @@ function construct2(client2, config = {}) {
       tableNamesMap: tablesConfig.tableNamesMap
     };
   }
-  const driver = new PgliteDriver(client2, dialect, { logger: logger2, cache: config.cache });
+  const driver = new PgliteDriver(client3, dialect, { logger: logger2, cache: config.cache });
   const session = driver.createSession(schema);
   const db2 = new PgliteDatabase(dialect, session, schema);
-  db2.$client = client2;
+  db2.$client = client3;
   db2.$cache = config.cache;
   if (db2.$cache) {
     db2.$cache["invalidate"] = config.cache?.onMutate;
@@ -60359,8 +60359,8 @@ function drizzle2(...params) {
     return construct2(instance2, params[1]);
   }
   if (isConfig(params[0])) {
-    const { connection, client: client2, ...drizzleConfig } = params[0];
-    if (client2) return construct2(client2, drizzleConfig);
+    const { connection, client: client3, ...drizzleConfig } = params[0];
+    if (client3) return construct2(client3, drizzleConfig);
     if (typeof connection === "object") {
       const { dataDir, ...options } = connection;
       const instance22 = new Ue2(dataDir, options);
@@ -60383,8 +60383,8 @@ var init_driver2 = __esm({
     init_utils3();
     init_session3();
     PgliteDriver = class {
-      constructor(client2, dialect, options = {}) {
-        this.client = client2;
+      constructor(client3, dialect, options = {}) {
+        this.client = client3;
         this.dialect = dialect;
         this.options = options;
       }
@@ -62353,8 +62353,8 @@ function resolveTrainingJsonFile() {
     join2(moduleDir, "../../data/training-examples.json"),
     join2(moduleDir, "../data/training-examples.json")
   ];
-  for (const path4 of candidates) {
-    if (existsSync2(path4)) return path4;
+  for (const path5 of candidates) {
+    if (existsSync2(path5)) return path5;
   }
   return candidates[1];
 }
@@ -62388,6 +62388,228 @@ var init_logger3 = __esm({
   }
 });
 
+// src/services/embeddings.ts
+function getClient() {
+  if (!isOpenAiConfigured()) return null;
+  if (!client2) client2 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+  return client2;
+}
+async function embed(texto) {
+  const trimmed = texto?.trim();
+  if (!trimmed) return null;
+  const openai5 = getClient();
+  if (!openai5) return null;
+  try {
+    const res = await openai5.embeddings.create({
+      model: MODEL,
+      input: trimmed.slice(0, 8e3)
+    });
+    return res.data[0]?.embedding ?? null;
+  } catch (err2) {
+    logger.warn({ err: err2 }, "embeddings: fall\xF3 OpenAI");
+    return null;
+  }
+}
+var MODEL, client2;
+var init_embeddings2 = __esm({
+  "src/services/embeddings.ts"() {
+    init_openai();
+    init_openaiEnv();
+    init_logger3();
+    MODEL = "text-embedding-3-small";
+    client2 = null;
+  }
+});
+
+// src/services/vectorStore.ts
+import { createHash } from "crypto";
+import { existsSync as existsSync3, mkdirSync as mkdirSync2, readFileSync, writeFileSync } from "fs";
+import path3 from "path";
+import { fileURLToPath as fileURLToPath2 } from "url";
+function ensureDataDir() {
+  if (!existsSync3(DATA_DIR)) mkdirSync2(DATA_DIR, { recursive: true });
+}
+function loadVectors() {
+  if (cache) return cache;
+  ensureDataDir();
+  if (!existsSync3(VECTORS_FILE)) {
+    cache = [];
+    return cache;
+  }
+  try {
+    const raw = readFileSync(VECTORS_FILE, "utf-8");
+    const parsed = JSON.parse(raw);
+    cache = parsed.vectors ?? [];
+    return cache;
+  } catch (err2) {
+    logger.warn({ err: err2 }, "vectorStore: no se pudo leer learning-vectors.json");
+    cache = [];
+    return cache;
+  }
+}
+function saveVectors(vectors) {
+  ensureDataDir();
+  cache = vectors;
+  writeFileSync(VECTORS_FILE, JSON.stringify({ vectors }, null, 0), "utf-8");
+}
+function loadMeta() {
+  ensureDataDir();
+  if (!existsSync3(META_FILE)) {
+    return { lastRunAt: null, lastRunAdded: 0, lastRunSkipped: 0, total: 0 };
+  }
+  try {
+    return JSON.parse(readFileSync(META_FILE, "utf-8"));
+  } catch {
+    return { lastRunAt: null, lastRunAdded: 0, lastRunSkipped: 0, total: 0 };
+  }
+}
+function saveMeta(meta) {
+  ensureDataDir();
+  writeFileSync(META_FILE, JSON.stringify(meta, null, 2), "utf-8");
+}
+function cosineSimilarity(a2, b4) {
+  if (a2.length !== b4.length || a2.length === 0) return 0;
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (let i3 = 0; i3 < a2.length; i3++) {
+    const av = a2[i3];
+    const bv = b4[i3];
+    dot += av * bv;
+    na += av * av;
+    nb += bv * bv;
+  }
+  const denom = Math.sqrt(na) * Math.sqrt(nb);
+  return denom === 0 ? 0 : dot / denom;
+}
+function pairHash(pregunta, respuesta) {
+  return createHash("sha256").update(`${pregunta.trim()}|${respuesta.trim()}`).digest("hex").slice(0, 40);
+}
+async function upsertVector(id, vector2, payload) {
+  const vectors = loadVectors();
+  const entry = {
+    id,
+    embedding: vector2,
+    payload,
+    indexedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  const idx = vectors.findIndex((v3) => v3.id === id);
+  if (idx >= 0) vectors[idx] = entry;
+  else vectors.push(entry);
+  saveVectors(vectors);
+}
+async function vectorExists(id) {
+  return loadVectors().some((v3) => v3.id === id);
+}
+async function countVectors() {
+  return loadVectors().length;
+}
+async function searchVectors(queryVector, k4) {
+  const hits = loadVectors().map((row) => ({
+    id: row.id,
+    score: cosineSimilarity(queryVector, row.embedding),
+    payload: row.payload
+  }));
+  hits.sort((a2, b4) => b4.score - a2.score);
+  return hits.slice(0, k4);
+}
+async function setIndexMeta(partial) {
+  const meta = { ...loadMeta(), ...partial, total: loadVectors().length };
+  saveMeta(meta);
+}
+async function getIndexEstado() {
+  const meta = loadMeta();
+  meta.total = loadVectors().length;
+  return meta;
+}
+var __dirname2, DATA_DIR, VECTORS_FILE, META_FILE, cache;
+var init_vectorStore = __esm({
+  "src/services/vectorStore.ts"() {
+    init_logger3();
+    __dirname2 = path3.dirname(fileURLToPath2(import.meta.url));
+    DATA_DIR = path3.resolve(__dirname2, "../../data");
+    VECTORS_FILE = path3.join(DATA_DIR, "learning-vectors.json");
+    META_FILE = path3.join(DATA_DIR, "learning-index-meta.json");
+    cache = null;
+  }
+});
+
+// src/services/recuperarEjemplos.ts
+async function buscarEjemplos(mensajeCliente, k4 = DEFAULT_K, threshold = DEFAULT_THRESHOLD) {
+  const trimmed = mensajeCliente?.trim();
+  if (!trimmed) return [];
+  const total = await countVectors();
+  if (total === 0) return [];
+  try {
+    const vector2 = await embed(trimmed);
+    if (!vector2) return [];
+    const hits = await searchVectors(vector2, Math.max(k4 * 2, 6));
+    const filtered = hits.filter((h3) => h3.score >= threshold).slice(0, k4).map((h3) => ({
+      preguntaCliente: h3.payload.preguntaCliente,
+      respuestaHumano: h3.payload.respuestaHumano,
+      score: h3.score,
+      source: h3.payload.source
+    }));
+    if (filtered.length > 0) {
+      logger.info(
+        {
+          query: trimmed.slice(0, 80),
+          matches: filtered.map((f3) => ({ score: f3.score.toFixed(3), source: f3.source }))
+        },
+        "RAG: ejemplos recuperados"
+      );
+    }
+    return filtered;
+  } catch (err2) {
+    logger.warn({ err: err2 }, "RAG: buscarEjemplos fall\xF3 \u2014 Lucy sigue sin ejemplos");
+    return [];
+  }
+}
+function buildRagPromptBlock(ejemplos) {
+  if (ejemplos.length === 0) return "";
+  const lines = ejemplos.map(
+    (ex, i3) => `Ejemplo ${i3 + 1} (similitud ${(ex.score * 100).toFixed(0)}%):
+Cliente: ${ex.preguntaCliente}
+Asesor humano: ${ex.respuestaHumano}`
+  );
+  return `
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+EJEMPLOS DE C\xD3MO UN ASESOR HUMANO RESPONDI\xD3 CASOS PARECIDOS
+(Gu\xEDate por el tono y la informaci\xF3n \u2014 NO copies literal)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+` + lines.join("\n\n");
+}
+async function indexarParUnico(pregunta, respuesta, source, kommoLeadId) {
+  try {
+    const vector2 = await embed(pregunta);
+    if (!vector2) return false;
+    const id = pairHash(pregunta, respuesta);
+    if (await vectorExists(id)) return false;
+    const payload = {
+      preguntaCliente: pregunta,
+      respuestaHumano: respuesta,
+      source,
+      kommoLeadId: kommoLeadId ?? null
+    };
+    await upsertVector(id, vector2, payload);
+    return true;
+  } catch (err2) {
+    logger.warn({ err: err2 }, "RAG: indexarParUnico fall\xF3");
+    return false;
+  }
+}
+var DEFAULT_THRESHOLD, DEFAULT_K;
+var init_recuperarEjemplos = __esm({
+  "src/services/recuperarEjemplos.ts"() {
+    init_logger3();
+    init_embeddings2();
+    init_vectorStore();
+    DEFAULT_THRESHOLD = 0.72;
+    DEFAULT_K = 3;
+  }
+});
+
 // src/services/trainingStore.ts
 var trainingStore_exports = {};
 __export(trainingStore_exports, {
@@ -62399,7 +62621,7 @@ __export(trainingStore_exports, {
   listTrainingExamples: () => listTrainingExamples,
   updateTrainingExample: () => updateTrainingExample
 });
-import { readFileSync } from "fs";
+import { readFileSync as readFileSync2 } from "fs";
 import { randomUUID } from "crypto";
 function rowToExample(row) {
   return {
@@ -62412,7 +62634,7 @@ function rowToExample(row) {
 }
 function loadExamplesFromJsonFile() {
   try {
-    const raw = readFileSync(resolveTrainingJsonFile(), "utf-8");
+    const raw = readFileSync2(resolveTrainingJsonFile(), "utf-8");
     const parsed = JSON.parse(raw);
     return parsed.examples ?? [];
   } catch {
@@ -62462,23 +62684,23 @@ async function initializeTrainingStore() {
   if (initialized) return;
   await ensureTable();
   await seedFromJsonIfEmpty();
-  cache = await loadFromDb();
+  cache2 = await loadFromDb();
   cacheLoadedAt = Date.now();
   initialized = true;
-  logger.info({ count: cache.length }, "trainingStore: listo");
+  logger.info({ count: cache2.length }, "trainingStore: listo");
 }
 function invalidateCache() {
   cacheLoadedAt = 0;
 }
 async function refreshCacheIfStale() {
-  if (Date.now() - cacheLoadedAt < CACHE_TTL_MS && cache.length > 0) return;
-  cache = await loadFromDb();
+  if (Date.now() - cacheLoadedAt < CACHE_TTL_MS && cache2.length > 0) return;
+  cache2 = await loadFromDb();
   cacheLoadedAt = Date.now();
 }
 async function getTrainingExamples() {
   if (!initialized) await initializeTrainingStore();
   await refreshCacheIfStale();
-  return cache;
+  return cache2;
 }
 async function listTrainingExamples() {
   return getTrainingExamples();
@@ -62510,6 +62732,11 @@ async function createTrainingExample(input) {
       updatedAt: now
     }).returning();
     invalidateCache();
+    void indexarParUnico(
+      input.userMessage.trim(),
+      input.lucyResponse.trim(),
+      input.label?.match(/^Aprendizaje:|^Aprendido:/i) ? "manual_teach" : "training_db"
+    );
     return rowToExample(row);
   } catch (err2) {
     logger.warn({ err: err2 }, "trainingStore: create en DB fall\xF3");
@@ -62534,15 +62761,16 @@ async function deleteTrainingExample(id) {
   invalidateCache();
   return true;
 }
-var CACHE_TTL_MS, cache, cacheLoadedAt, initialized, ENSURE_TABLE_SQL;
+var CACHE_TTL_MS, cache2, cacheLoadedAt, initialized, ENSURE_TABLE_SQL;
 var init_trainingStore = __esm({
   async "src/services/trainingStore.ts"() {
     await init_src();
     init_drizzle_orm();
     init_trainingPaths();
     init_logger3();
+    init_recuperarEjemplos();
     CACHE_TTL_MS = 3e4;
-    cache = [];
+    cache2 = [];
     cacheLoadedAt = 0;
     initialized = false;
     ENSURE_TABLE_SQL = `
@@ -71406,11 +71634,11 @@ var require_mime_types2 = __commonJS({
       }
       return exts[0];
     }
-    function lookup(path4) {
-      if (!path4 || typeof path4 !== "string") {
+    function lookup(path5) {
+      if (!path5 || typeof path5 !== "string") {
         return false;
       }
-      var extension2 = extname("x." + path4).toLowerCase().substr(1);
+      var extension2 = extname("x." + path5).toLowerCase().substr(1);
       if (!extension2) {
         return false;
       }
@@ -71712,7 +71940,7 @@ var require_form_data = __commonJS({
     "use strict";
     var CombinedStream = require_combined_stream();
     var util5 = __require("util");
-    var path4 = __require("path");
+    var path5 = __require("path");
     var http3 = __require("http");
     var https2 = __require("https");
     var parseUrl2 = __require("url").parse;
@@ -71843,11 +72071,11 @@ var require_form_data = __commonJS({
     FormData3.prototype._getContentDisposition = function(value, options) {
       var filename;
       if (typeof options.filepath === "string") {
-        filename = path4.normalize(options.filepath).replace(/\\/g, "/");
+        filename = path5.normalize(options.filepath).replace(/\\/g, "/");
       } else if (options.filename || value && (value.name || value.path)) {
-        filename = path4.basename(options.filename || value && (value.name || value.path));
+        filename = path5.basename(options.filename || value && (value.name || value.path));
       } else if (value && value.readable && hasOwn2(value, "httpVersion")) {
-        filename = path4.basename(value.client._httpMessage.path || "");
+        filename = path5.basename(value.client._httpMessage.path || "");
       }
       if (filename) {
         return 'filename="' + escapeHeaderParam(filename) + '"';
@@ -73009,6 +73237,216 @@ var require_follow_redirects = __commonJS({
   }
 });
 
+// src/services/learningSchema.ts
+async function ensureLearningSchema() {
+  if (ensured) return;
+  for (const statement of STATEMENTS) {
+    try {
+      await db.execute(sql2.raw(statement));
+    } catch (err2) {
+      logger.warn({ err: err2, statement: statement.slice(0, 60) }, "learningSchema: statement fall\xF3");
+    }
+  }
+  ensured = true;
+}
+var ensured, STATEMENTS;
+var init_learningSchema = __esm({
+  async "src/services/learningSchema.ts"() {
+    await init_src();
+    init_drizzle_orm();
+    init_logger3();
+    ensured = false;
+    STATEMENTS = [
+      `ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_type VARCHAR(20)`,
+      `ALTER TABLE messages ADD COLUMN IF NOT EXISTS kommo_message_id TEXT`,
+      `ALTER TABLE messages ADD COLUMN IF NOT EXISTS source VARCHAR(30)`,
+      `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS learning_phase VARCHAR(30)`,
+      `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_kommo_sync_at TIMESTAMP`,
+      `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIMESTAMP`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL`,
+      `CREATE TABLE IF NOT EXISTS learning_candidates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kommo_lead_id TEXT NOT NULL,
+    user_message TEXT NOT NULL,
+    suggested_response TEXT NOT NULL,
+    label TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    source VARCHAR(30) NOT NULL DEFAULT 'human_chat',
+    confidence DECIMAL(3, 2),
+    context_snippet TEXT,
+    dedupe_key TEXT UNIQUE,
+    reviewed_at TIMESTAMP,
+    reviewed_by TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+      `CREATE TABLE IF NOT EXISTS knowledge_gaps (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    kommo_lead_id TEXT,
+    question TEXT NOT NULL,
+    topic TEXT,
+    gap_type VARCHAR(30) NOT NULL DEFAULT 'unknown',
+    lucy_response TEXT,
+    answer TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    context_snippet TEXT,
+    dedupe_key TEXT UNIQUE,
+    answered_at TIMESTAMP,
+    answered_by TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`
+    ];
+  }
+});
+
+// src/services/chatIngest.ts
+import { createHash as createHash2 } from "crypto";
+function mapKommoAuthor(authorType) {
+  if (authorType === "external") return "client";
+  if (authorType === "bot") return "lucy";
+  return "human_agent";
+}
+function roleFromAuthor(author) {
+  if (author === "client") return "user";
+  if (author === "lucy") return "assistant";
+  return "human";
+}
+function contentHash(leadId, author, text2) {
+  return createHash2("sha256").update(`${leadId}|${author}|${text2.trim()}`).digest("hex").slice(0, 40);
+}
+async function fetchKommoTalkMessages(subdomain, accessToken, talkId, limit2 = 50) {
+  try {
+    const url2 = `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit2}&order=asc`;
+    const res = await fetch(url2, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data._embedded?.messages ?? []).filter((m4) => m4.text?.trim());
+  } catch (err2) {
+    logger.warn({ err: err2, talkId }, "chatIngest: error leyendo Talks API");
+    return [];
+  }
+}
+async function persistChatMessage(input) {
+  await ensureLearningSchema();
+  const text2 = input.content.trim();
+  if (!text2) return false;
+  const kommoId = input.kommoMessageId ? String(input.kommoMessageId) : null;
+  if (kommoId) {
+    const existing = await db.query.messages.findFirst({
+      where: eq2(messages.kommoMessageId, kommoId)
+    });
+    if (existing) return false;
+  }
+  try {
+    await db.insert(messages).values({
+      kommoLeadId: input.kommoLeadId,
+      role: roleFromAuthor(input.authorType),
+      authorType: input.authorType,
+      content: text2,
+      kommoMessageId: kommoId,
+      source: input.source ?? "ingest",
+      intent: input.intent,
+      sentiment: input.sentiment,
+      extractedData: input.extractedData
+    });
+    return true;
+  } catch (err2) {
+    logger.warn({ err: err2, leadId: input.kommoLeadId }, "chatIngest: no se pudo guardar mensaje");
+    return false;
+  }
+}
+async function captureInboundWhileLucyInactive(input) {
+  await ensureLearningSchema();
+  const leadId = String(input.kommoLeadId);
+  await persistChatMessage({
+    kommoLeadId: leadId,
+    content: input.text,
+    authorType: "client",
+    source: "webhook_inactive"
+  });
+  let conv = await db.query.conversations.findFirst({
+    where: eq2(conversations.kommoLeadId, leadId)
+  });
+  if (!conv) {
+    const [created] = await db.insert(conversations).values({
+      kommoLeadId: leadId,
+      kommoChatId: input.chatId,
+      kommoTalkId: input.talkId ?? void 0,
+      learningPhase: "human_active",
+      status: "active",
+      stage: "humano_trabaja",
+      messageCount: 1,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).returning();
+    conv = created;
+  } else {
+    await db.update(conversations).set({
+      kommoChatId: input.chatId,
+      kommoTalkId: input.talkId ?? conv.kommoTalkId,
+      learningPhase: conv.learningPhase ?? "human_active",
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(eq2(conversations.id, conv.id));
+  }
+  if (input.talkId && input.subdomain && input.accessToken) {
+    void syncLeadTranscript({
+      kommoLeadId: leadId,
+      talkId: input.talkId,
+      subdomain: input.subdomain,
+      accessToken: input.accessToken
+    }).catch((err2) => logger.warn({ err: err2, leadId }, "chatIngest: sync background fall\xF3"));
+  }
+}
+async function syncLeadTranscript(input) {
+  await ensureLearningSchema();
+  const raw = await fetchKommoTalkMessages(input.subdomain, input.accessToken, input.talkId, 80);
+  let inserted = 0;
+  for (const msg of raw) {
+    const authorType = mapKommoAuthor(msg.author?.type);
+    const kommoMessageId = msg.id != null ? String(msg.id) : contentHash(input.kommoLeadId, authorType, msg.text);
+    const ok = await persistChatMessage({
+      kommoLeadId: input.kommoLeadId,
+      content: msg.text,
+      authorType,
+      kommoMessageId,
+      source: "kommo_sync"
+    });
+    if (ok) inserted++;
+  }
+  await db.update(conversations).set({ lastKommoSyncAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, input.kommoLeadId));
+  logger.info(
+    { leadId: input.kommoLeadId, inserted, total: raw.length },
+    "chatIngest: transcript sincronizado"
+  );
+  return { inserted, total: raw.length };
+}
+async function setLearningPhase(kommoLeadId, phase) {
+  await ensureLearningSchema();
+  const leadId = String(kommoLeadId);
+  const conv = await db.query.conversations.findFirst({
+    where: eq2(conversations.kommoLeadId, leadId)
+  });
+  if (!conv) {
+    await db.insert(conversations).values({
+      kommoLeadId: leadId,
+      kommoChatId: leadId,
+      learningPhase: phase,
+      status: "active",
+      stage: phase === "human_active" ? "humano_trabaja" : "discovery"
+    });
+    return;
+  }
+  await db.update(conversations).set({ learningPhase: phase, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.id, conv.id));
+}
+var init_chatIngest = __esm({
+  async "src/services/chatIngest.ts"() {
+    await init_src();
+    init_drizzle_orm();
+    init_logger3();
+    await init_learningSchema();
+  }
+});
+
 // src/services/embudo.ts
 function kommoHeaders(accessToken) {
   return { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
@@ -73405,220 +73843,10 @@ var init_embudo = __esm({
   }
 });
 
-// src/services/learningSchema.ts
-async function ensureLearningSchema() {
-  if (ensured) return;
-  for (const statement of STATEMENTS) {
-    try {
-      await db.execute(sql2.raw(statement));
-    } catch (err2) {
-      logger.warn({ err: err2, statement: statement.slice(0, 60) }, "learningSchema: statement fall\xF3");
-    }
-  }
-  ensured = true;
-}
-var ensured, STATEMENTS;
-var init_learningSchema = __esm({
-  async "src/services/learningSchema.ts"() {
-    await init_src();
-    init_drizzle_orm();
-    init_logger3();
-    ensured = false;
-    STATEMENTS = [
-      `ALTER TABLE messages ADD COLUMN IF NOT EXISTS author_type VARCHAR(20)`,
-      `ALTER TABLE messages ADD COLUMN IF NOT EXISTS kommo_message_id TEXT`,
-      `ALTER TABLE messages ADD COLUMN IF NOT EXISTS source VARCHAR(30)`,
-      `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS learning_phase VARCHAR(30)`,
-      `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_kommo_sync_at TIMESTAMP`,
-      `ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIMESTAMP`,
-      `CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL`,
-      `CREATE TABLE IF NOT EXISTS learning_candidates (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    kommo_lead_id TEXT NOT NULL,
-    user_message TEXT NOT NULL,
-    suggested_response TEXT NOT NULL,
-    label TEXT,
-    status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    source VARCHAR(30) NOT NULL DEFAULT 'human_chat',
-    confidence DECIMAL(3, 2),
-    context_snippet TEXT,
-    dedupe_key TEXT UNIQUE,
-    reviewed_at TIMESTAMP,
-    reviewed_by TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-  )`,
-      `CREATE TABLE IF NOT EXISTS knowledge_gaps (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    kommo_lead_id TEXT,
-    question TEXT NOT NULL,
-    topic TEXT,
-    gap_type VARCHAR(30) NOT NULL DEFAULT 'unknown',
-    lucy_response TEXT,
-    answer TEXT,
-    status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    context_snippet TEXT,
-    dedupe_key TEXT UNIQUE,
-    answered_at TIMESTAMP,
-    answered_by TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-  )`
-    ];
-  }
-});
-
-// src/services/chatIngest.ts
-import { createHash } from "crypto";
-function mapKommoAuthor(authorType) {
-  if (authorType === "external") return "client";
-  if (authorType === "bot") return "lucy";
-  return "human_agent";
-}
-function roleFromAuthor(author) {
-  if (author === "client") return "user";
-  if (author === "lucy") return "assistant";
-  return "human";
-}
-function contentHash(leadId, author, text2) {
-  return createHash("sha256").update(`${leadId}|${author}|${text2.trim()}`).digest("hex").slice(0, 40);
-}
-async function fetchKommoTalkMessages(subdomain, accessToken, talkId, limit2 = 50) {
-  try {
-    const url2 = `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages?limit=${limit2}&order=asc`;
-    const res = await fetch(url2, { headers: { Authorization: `Bearer ${accessToken}` } });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data._embedded?.messages ?? []).filter((m4) => m4.text?.trim());
-  } catch (err2) {
-    logger.warn({ err: err2, talkId }, "chatIngest: error leyendo Talks API");
-    return [];
-  }
-}
-async function persistChatMessage(input) {
-  await ensureLearningSchema();
-  const text2 = input.content.trim();
-  if (!text2) return false;
-  const kommoId = input.kommoMessageId ? String(input.kommoMessageId) : null;
-  if (kommoId) {
-    const existing = await db.query.messages.findFirst({
-      where: eq2(messages.kommoMessageId, kommoId)
-    });
-    if (existing) return false;
-  }
-  try {
-    await db.insert(messages).values({
-      kommoLeadId: input.kommoLeadId,
-      role: roleFromAuthor(input.authorType),
-      authorType: input.authorType,
-      content: text2,
-      kommoMessageId: kommoId,
-      source: input.source ?? "ingest",
-      intent: input.intent,
-      sentiment: input.sentiment,
-      extractedData: input.extractedData
-    });
-    return true;
-  } catch (err2) {
-    logger.warn({ err: err2, leadId: input.kommoLeadId }, "chatIngest: no se pudo guardar mensaje");
-    return false;
-  }
-}
-async function captureInboundWhileLucyInactive(input) {
-  await ensureLearningSchema();
-  const leadId = String(input.kommoLeadId);
-  await persistChatMessage({
-    kommoLeadId: leadId,
-    content: input.text,
-    authorType: "client",
-    source: "webhook_inactive"
-  });
-  let conv = await db.query.conversations.findFirst({
-    where: eq2(conversations.kommoLeadId, leadId)
-  });
-  if (!conv) {
-    const [created] = await db.insert(conversations).values({
-      kommoLeadId: leadId,
-      kommoChatId: input.chatId,
-      kommoTalkId: input.talkId ?? void 0,
-      learningPhase: "human_active",
-      status: "active",
-      stage: "humano_trabaja",
-      messageCount: 1,
-      updatedAt: /* @__PURE__ */ new Date()
-    }).returning();
-    conv = created;
-  } else {
-    await db.update(conversations).set({
-      kommoChatId: input.chatId,
-      kommoTalkId: input.talkId ?? conv.kommoTalkId,
-      learningPhase: conv.learningPhase ?? "human_active",
-      updatedAt: /* @__PURE__ */ new Date()
-    }).where(eq2(conversations.id, conv.id));
-  }
-  if (input.talkId && input.subdomain && input.accessToken) {
-    void syncLeadTranscript({
-      kommoLeadId: leadId,
-      talkId: input.talkId,
-      subdomain: input.subdomain,
-      accessToken: input.accessToken
-    }).catch((err2) => logger.warn({ err: err2, leadId }, "chatIngest: sync background fall\xF3"));
-  }
-}
-async function syncLeadTranscript(input) {
-  await ensureLearningSchema();
-  const raw = await fetchKommoTalkMessages(input.subdomain, input.accessToken, input.talkId, 80);
-  let inserted = 0;
-  for (const msg of raw) {
-    const authorType = mapKommoAuthor(msg.author?.type);
-    const kommoMessageId = msg.id != null ? String(msg.id) : contentHash(input.kommoLeadId, authorType, msg.text);
-    const ok = await persistChatMessage({
-      kommoLeadId: input.kommoLeadId,
-      content: msg.text,
-      authorType,
-      kommoMessageId,
-      source: "kommo_sync"
-    });
-    if (ok) inserted++;
-  }
-  await db.update(conversations).set({ lastKommoSyncAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, input.kommoLeadId));
-  logger.info(
-    { leadId: input.kommoLeadId, inserted, total: raw.length },
-    "chatIngest: transcript sincronizado"
-  );
-  return { inserted, total: raw.length };
-}
-async function setLearningPhase(kommoLeadId, phase) {
-  await ensureLearningSchema();
-  const leadId = String(kommoLeadId);
-  const conv = await db.query.conversations.findFirst({
-    where: eq2(conversations.kommoLeadId, leadId)
-  });
-  if (!conv) {
-    await db.insert(conversations).values({
-      kommoLeadId: leadId,
-      kommoChatId: leadId,
-      learningPhase: phase,
-      status: "active",
-      stage: phase === "human_active" ? "humano_trabaja" : "discovery"
-    });
-    return;
-  }
-  await db.update(conversations).set({ learningPhase: phase, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.id, conv.id));
-}
-var init_chatIngest = __esm({
-  async "src/services/chatIngest.ts"() {
-    await init_src();
-    init_drizzle_orm();
-    init_logger3();
-    await init_learningSchema();
-  }
-});
-
 // src/services/learningExtractor.ts
-import { createHash as createHash2 } from "crypto";
+import { createHash as createHash3 } from "crypto";
 function dedupeKey(leadId, userMsg, response) {
-  return createHash2("sha256").update(`${leadId}|${userMsg.trim()}|${response.trim()}`).digest("hex");
+  return createHash3("sha256").update(`${leadId}|${userMsg.trim()}|${response.trim()}`).digest("hex");
 }
 async function extractLearningCandidatesForLead(kommoLeadId, options = {}) {
   await ensureLearningSchema();
@@ -73902,6 +74130,195 @@ var init_learningStore = __esm({
   }
 });
 
+// src/services/filtroCalidad.ts
+function esParUtil(par) {
+  const pregunta = par.preguntaCliente?.trim() ?? "";
+  const respuesta = par.respuestaHumano?.trim() ?? "";
+  if (pregunta.length < 8 || respuesta.length < 20) return false;
+  if (TRIVIAL_QUESTION.test(pregunta)) return false;
+  if (TRIVIAL_RESPONSE.test(respuesta)) return false;
+  if (SPAM_OR_PROVIDER.test(pregunta) || SPAM_OR_PROVIDER.test(respuesta)) return false;
+  if (/\b(soy\s+lucy|agente\s+virtual|bodasesor\.com\/catalogo)\b/i.test(respuesta)) return false;
+  if (/\b\d{10,}\b/.test(pregunta + respuesta)) return false;
+  if (/\S+@\S+\.\S+/.test(pregunta) && pregunta.length < 40) return false;
+  return true;
+}
+function filtrarPares(pares) {
+  return pares.filter(esParUtil);
+}
+var TRIVIAL_RESPONSE, TRIVIAL_QUESTION, SPAM_OR_PROVIDER;
+var init_filtroCalidad = __esm({
+  "src/services/filtroCalidad.ts"() {
+    TRIVIAL_RESPONSE = /^(ok|s[ií]|no|vale|claro|gracias|de\s+acuerdo|perfecto|listo|bueno|bien|aja|aj[aá]|simon|simón|sale|va|oki)[.!?\s,]*$/i;
+    TRIVIAL_QUESTION = /^(hola|buenos?\s*d[ií]as|buenas?\s*tardes|buenas?\s*noches|buenas|gracias|ok|s[ií]|no)[.!?\s,]*$/i;
+    SPAM_OR_PROVIDER = /\b(soy\s+proveedor|ofrezco\s+servicio|publicidad|spam|trabajo\s+para\s+ustedes|vendo\s+)/i;
+  }
+});
+
+// src/services/kommoChats.ts
+function isHuman(m4) {
+  return m4.authorType === "human_agent" || m4.role === "human";
+}
+function isClient(m4) {
+  return m4.authorType === "client" || m4.role === "user";
+}
+function isLucy(m4) {
+  return m4.authorType === "lucy" || m4.role === "assistant";
+}
+function buildPairsFromTranscript(rows, kommoLeadId) {
+  const pairs = [];
+  for (let i3 = 0; i3 < rows.length; i3++) {
+    const msg = rows[i3];
+    if (!isClient(msg)) continue;
+    const pregunta = msg.content.trim();
+    if (!pregunta) continue;
+    for (let j4 = i3 + 1; j4 < rows.length; j4++) {
+      const reply = rows[j4];
+      if (isLucy(reply)) continue;
+      if (isHuman(reply)) {
+        const contexto = rows.slice(Math.max(0, i3 - 3), i3).map((m4) => {
+          const who = isHuman(m4) ? "HUMANO" : isLucy(m4) ? "LUCY" : "CLIENTE";
+          return `${who}: ${m4.content}`;
+        }).join("\n");
+        pairs.push({
+          preguntaCliente: pregunta,
+          respuestaHumano: reply.content.trim(),
+          contextoPrevio: contexto || null,
+          source: "human_chat",
+          kommoLeadId
+        });
+        break;
+      }
+      if (isClient(reply)) break;
+    }
+  }
+  return pairs;
+}
+async function extraerParesDesdeMensajes() {
+  const rows = await db.select().from(messages).orderBy(asc2(messages.kommoLeadId), asc2(messages.timestamp));
+  const byLead = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const list = byLead.get(row.kommoLeadId) ?? [];
+    list.push(row);
+    byLead.set(row.kommoLeadId, list);
+  }
+  const all3 = [];
+  for (const [leadId, leadRows] of byLead) {
+    const humanCount = leadRows.filter(isHuman).length;
+    if (humanCount === 0) continue;
+    all3.push(...buildPairsFromTranscript(leadRows, leadId));
+  }
+  return all3;
+}
+async function extraerParesDesdeTraining() {
+  const rows = await db.select().from(trainingExamples);
+  return rows.map((row) => ({
+    preguntaCliente: row.userMessage,
+    respuestaHumano: row.lucyResponse,
+    contextoPrevio: row.label ? `Etiqueta: ${row.label}` : null,
+    source: row.label?.match(/^Aprendizaje:|^Aprendido:/i) ? "manual_teach" : "training_seed"
+  }));
+}
+async function extraerParesDesdeCandidatos() {
+  const rows = await db.select().from(learningCandidates).where(eq2(learningCandidates.status, "approved"));
+  return rows.map((row) => ({
+    preguntaCliente: row.userMessage,
+    respuestaHumano: row.suggestedResponse,
+    contextoPrevio: row.contextSnippet,
+    source: "candidate_approved",
+    kommoLeadId: row.kommoLeadId
+  }));
+}
+async function recolectarParesAprendizaje() {
+  const [fromMsgs, fromTraining, fromCandidates] = await Promise.all([
+    extraerParesDesdeMensajes().catch(() => []),
+    extraerParesDesdeTraining().catch(() => []),
+    extraerParesDesdeCandidatos().catch(() => [])
+  ]);
+  return [...fromMsgs, ...fromTraining, ...fromCandidates];
+}
+var init_kommoChats = __esm({
+  async "src/services/kommoChats.ts"() {
+    await init_src();
+    init_drizzle_orm();
+  }
+});
+
+// src/jobs/indexarAprendizaje.ts
+async function indexarAprendizaje() {
+  const started = Date.now();
+  let nuevos = 0;
+  let omitidos = 0;
+  let errores = 0;
+  const pares = filtrarPares(await recolectarParesAprendizaje());
+  logger.info({ paresUtiles: pares.length }, "indexarAprendizaje: pares tras filtro");
+  for (const par of pares) {
+    const id = pairHash(par.preguntaCliente, par.respuestaHumano);
+    if (await vectorExists(id)) {
+      omitidos++;
+      continue;
+    }
+    try {
+      const vector2 = await embed(par.preguntaCliente);
+      if (!vector2) {
+        errores++;
+        continue;
+      }
+      const payload = {
+        preguntaCliente: par.preguntaCliente,
+        respuestaHumano: par.respuestaHumano,
+        contexto: par.contextoPrevio ?? null,
+        source: par.source ?? "unknown",
+        kommoLeadId: par.kommoLeadId ?? null
+      };
+      await upsertVector(id, vector2, payload);
+      nuevos++;
+    } catch (err2) {
+      errores++;
+      logger.warn({ err: err2, id }, "indexarAprendizaje: par fall\xF3");
+    }
+  }
+  const lastRunAt = (/* @__PURE__ */ new Date()).toISOString();
+  const totalEnStore = await countVectors();
+  await setIndexMeta({
+    lastRunAt,
+    lastRunAdded: nuevos,
+    lastRunSkipped: omitidos,
+    total: totalEnStore
+  });
+  logger.info(
+    { nuevos, omitidos, errores, totalEnStore, ms: Date.now() - started },
+    "indexarAprendizaje: corrida completada"
+  );
+  return {
+    ok: true,
+    totalEnStore,
+    paresRevisados: pares.length,
+    nuevos,
+    omitidos,
+    errores,
+    lastRunAt
+  };
+}
+async function obtenerEstadoIndexado() {
+  const estado = await getIndexEstado();
+  return {
+    totalConversacionesAprendidas: estado.total,
+    nuevosUltimaCorrida: estado.lastRunAdded,
+    omitidosUltimaCorrida: estado.lastRunSkipped,
+    ultimaActualizacion: estado.lastRunAt
+  };
+}
+var init_indexarAprendizaje = __esm({
+  async "src/jobs/indexarAprendizaje.ts"() {
+    init_logger3();
+    init_embeddings2();
+    init_filtroCalidad();
+    await init_kommoChats();
+    init_vectorStore();
+  }
+});
+
 // src/routes/learning.ts
 var learning_exports = {};
 __export(learning_exports, {
@@ -73913,7 +74330,11 @@ async function handleLearningCron(req, res) {
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
   try {
     const result = await runLearningSyncCron(subdomain, accessToken);
-    res.json({ ok: true, ...result });
+    const indexResult = await indexarAprendizaje().catch((err2) => {
+      req.log?.warn({ err: err2 }, "Cron: indexarAprendizaje fall\xF3");
+      return null;
+    });
+    res.json({ ok: true, ...result, index: indexResult });
   } catch (err2) {
     req.log?.error({ err: err2 }, "Cron learning: error");
     res.status(500).json({ error: "cron_failed" });
@@ -73926,6 +74347,7 @@ var init_learning = __esm({
     init_requireAuth();
     await init_learningStore();
     await init_learningSync();
+    await init_indexarAprendizaje();
     await init_learningExtractor();
     router2 = (0, import_express2.Router)();
     router2.use(requireAuth);
@@ -74056,13 +74478,13 @@ function ensureKommoEnv() {
 }
 
 // src/app.ts
-var import_express12 = __toESM(require_express2(), 1);
+var import_express13 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
-import path3 from "node:path";
+import path4 from "node:path";
 
 // src/routes/index.ts
-var import_express11 = __toESM(require_express2(), 1);
+var import_express12 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -74426,8 +74848,8 @@ function getErrorMap() {
 
 // ../node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path4, errorMaps, issueData } = params;
-  const fullPath = [...path4, ...issueData.path || []];
+  const { data, path: path5, errorMaps, issueData } = params;
+  const fullPath = [...path5, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -74542,11 +74964,11 @@ var errorUtil;
 
 // ../node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path4, key) {
+  constructor(parent, value, path5, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path4;
+    this._path = path5;
     this._key = key;
   }
   get path() {
@@ -80383,7 +80805,7 @@ router.get("/health", (_req, res) => {
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
     uptime: process.uptime(),
     service: "Lucy Bodasesor",
-    version: "3.3",
+    version: "3.4",
     lucy_prompt: "V6",
     features: [
       "understanding",
@@ -80392,7 +80814,8 @@ router.get("/health", (_req, res) => {
       "lucy-admin",
       "debounce-5s",
       "learning-from-human-chats",
-      "knowledge-gaps-aprendizaje"
+      "knowledge-gaps-aprendizaje",
+      "rag-aprendizaje-kommo"
     ],
     auth_configured: isAuthConfigured(),
     git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
@@ -81440,17 +81863,60 @@ S\xE9 profesional, conversacional y orientada a ventas.`;
 // src/lib/training.ts
 await init_trainingStore();
 
+// src/lib/trainingInjection.ts
+init_recuperarEjemplos();
+init_logger3();
+var MAX_PINNED = 10;
+function isPinnedExample(ex) {
+  const label = ex.label?.trim() ?? "";
+  return /^(Aprendizaje|Aprendido):/i.test(label);
+}
+async function buildLucyTrainingContext(clientMessage, log) {
+  const all3 = await getTrainingExamples();
+  const pinned = all3.filter(isPinnedExample).slice(0, MAX_PINNED);
+  const fewShot = pinned.flatMap((ex) => [
+    { role: "user", content: ex.userMessage },
+    { role: "assistant", content: ex.lucyResponse }
+  ]);
+  let retrieved = [];
+  try {
+    retrieved = await buscarEjemplos(clientMessage, 3);
+  } catch (err2) {
+    logger.warn({ err: err2 }, "buildLucyTrainingContext: RAG fall\xF3");
+  }
+  const ragBlock = buildRagPromptBlock(retrieved);
+  if (retrieved.length > 0) {
+    log?.info(
+      {
+        pinned: pinned.length,
+        retrieved: retrieved.length,
+        scores: retrieved.map((r2) => r2.score.toFixed(3))
+      },
+      "Training: pinned + RAG"
+    );
+  }
+  return {
+    fewShot,
+    ragBlock,
+    meta: {
+      pinned: pinned.length,
+      retrieved: retrieved.length,
+      similarities: retrieved.map((r2) => r2.score)
+    }
+  };
+}
+
 // src/chat-history.ts
-import { readFileSync as readFileSync2, writeFileSync, existsSync as existsSync3 } from "fs";
+import { readFileSync as readFileSync3, writeFileSync as writeFileSync2, existsSync as existsSync4 } from "fs";
 import { join as join3, dirname as dirname2 } from "path";
-import { fileURLToPath as fileURLToPath2 } from "url";
-var __dirname2 = dirname2(fileURLToPath2(import.meta.url));
-var DATA_FILE = join3(__dirname2, "../../data/chat-history.json");
+import { fileURLToPath as fileURLToPath3 } from "url";
+var __dirname3 = dirname2(fileURLToPath3(import.meta.url));
+var DATA_FILE = join3(__dirname3, "../../data/chat-history.json");
 var MAX_MESSAGES = 40;
 function load() {
   try {
-    if (existsSync3(DATA_FILE)) {
-      return JSON.parse(readFileSync2(DATA_FILE, "utf-8"));
+    if (existsSync4(DATA_FILE)) {
+      return JSON.parse(readFileSync3(DATA_FILE, "utf-8"));
     }
   } catch {
   }
@@ -81458,7 +81924,7 @@ function load() {
 }
 function save(store2) {
   try {
-    writeFileSync(DATA_FILE, JSON.stringify(store2), "utf-8");
+    writeFileSync2(DATA_FILE, JSON.stringify(store2), "utf-8");
   } catch {
   }
 }
@@ -81830,23 +82296,23 @@ function getNextPendingField(extracted, filledSet) {
 function isFirstLucyReply(history) {
   return !history.some((m4) => m4.role === "assistant");
 }
-function lucyAskedForNombre(history) {
-  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").some((m4) => mensajeAsksForField(m4.content, "nombre"));
-}
-function applyWhatsappNombreFallback(filledSet, mergedLines, whatsappDisplayName, history) {
+function applyWhatsappNombreFallback(filledSet, mergedLines, whatsappDisplayName, _history) {
   if (filledSet.has("Nombre del cliente")) return false;
-  if (!lucyAskedForNombre(history)) return false;
-  const waName = sanitizeDisplayName(whatsappDisplayName);
+  const waName = sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName);
   if (!waName) return false;
   mergedLines.push(`- Nombre del cliente: ${waName} ${WHATSAPP_NOMBRE_NOTE}`);
   filledSet.add("Nombre del cliente");
   return true;
 }
+function isWhatsappOnlyNombreLine(mergedLines) {
+  const line2 = mergedLines.find((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
+  return !!line2 && line2.includes(WHATSAPP_NOMBRE_NOTE);
+}
 function parseNombreFromCrmLines(mergedLines) {
   const line2 = mergedLines.find((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
   if (!line2) return null;
   const raw = line2.replace(/^-?\s*Nombre del cliente:\s*/i, "").replace(WHATSAPP_NOMBRE_NOTE, "").trim();
-  return sanitizeDisplayName(raw);
+  return sanitizeCrmNombre(raw) ?? sanitizeDisplayName(raw);
 }
 function buildOpeningAcknowledgment(history, currentMessage) {
   const texts = collectUserTexts(history, currentMessage);
@@ -82169,6 +82635,12 @@ function clientSaysThanks(message) {
   if (!message?.trim()) return false;
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
 }
+function clientSaysGoodbye(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (clientSaysThanks(message) && /vuelvo\s+a\s+buscar|te\s+busco|lo\s+comento/i.test(t)) return true;
+  return /lo\s+comento\s+y\s+te\s+(vuelvo\s+a\s+)?busco/i.test(t) || /te\s+(vuelvo\s+a\s+)?busco/i.test(t) || /me\s+comunico\s+(despu[eé]s|luego|ma[sñ]ana)/i.test(t) || /hablamos\s+despu[eé]s/i.test(t) || /ya\s+no\s+necesito/i.test(t) || /por\s+ahora\s+no/i.test(t) || /ok,?\s+lo\s+comento/i.test(t);
+}
 function buildPostCierreThanksReply(clientName) {
   const nombre = clientName?.trim();
   return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
@@ -82255,13 +82727,21 @@ function applyLucyMessageGuards(input) {
   );
   let mensaje;
   let appliedSalesReply = false;
+  let appliedGoodbyeReply = false;
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales");
   } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
-    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    mensaje = buildPostCierreThanksReply(
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
     log?.info({ entityId }, "GUARD: post-cierre \u2014 agradecimiento o sin m\xE1s que agregar");
+  } else if (clientSaysGoodbye(currentMessage)) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `\xA1Claro, ${nombre}! Cuando gustes nos escribes. \xA1Gracias!` : "\xA1Claro! Cuando gustes nos escribes. \xA1Gracias!";
+    appliedGoodbyeReply = true;
+    log?.info({ entityId }, "GUARD: despedida del cliente \u2014 sin preguntas nuevas");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje = "Gracias. Nuestro equipo ya tiene tu informaci\xF3n para la cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar o alguna duda?";
     log?.warn({ entityId }, "GUARD: bloque\xF3 nota interna post-cierre");
@@ -82514,7 +82994,7 @@ ${nextQ}`;
     log?.warn({ entityId }, "GUARD: GPT insisti\xF3 en correo tras rechazo");
     mensaje = nextQ;
   }
-  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
+  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage) && !appliedGoodbyeReply) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && !mensaje.includes("?")) {
       if (responseLooksLikePrematureClose(mensaje)) {
@@ -82542,6 +83022,12 @@ ${nextQ}`;
   }
   if (!cierreYaEnviado && !appliedSalesReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  }
+  if (appliedGoodbyeReply) {
+    return normalizeAdvisorReferences(
+      mensaje,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
   }
   if (appliedSalesReply) {
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
@@ -83694,9 +84180,9 @@ var hasOwnInPrototypeChain = (thing, prop) => {
   return false;
 };
 var getSafeProp = (obj, prop) => obj != null && hasOwnInPrototypeChain(obj, prop) ? obj[prop] : void 0;
-var kindOf = /* @__PURE__ */ ((cache2) => (thing) => {
+var kindOf = /* @__PURE__ */ ((cache3) => (thing) => {
   const str2 = toString.call(thing);
-  return cache2[str2] || (cache2[str2] = str2.slice(8, -1).toLowerCase());
+  return cache3[str2] || (cache3[str2] = str2.slice(8, -1).toLowerCase());
 })(/* @__PURE__ */ Object.create(null));
 var kindOfTest = (type) => {
   type = type.toLowerCase();
@@ -84631,9 +85117,9 @@ function isVisitable(thing) {
 function removeBrackets(key) {
   return utils_default.endsWith(key, "[]") ? key.slice(0, -2) : key;
 }
-function renderKey(path4, key, dots) {
-  if (!path4) return key;
-  return path4.concat(key).map(function each(token, i3) {
+function renderKey(path5, key, dots) {
+  if (!path5) return key;
+  return path5.concat(key).map(function each(token, i3) {
     token = removeBrackets(token);
     return !dots && i3 ? "[" + token + "]" : token;
   }).join(dots ? "." : "");
@@ -84719,13 +85205,13 @@ function toFormData(obj, formData, options) {
       return currentValue;
     });
   }
-  function defaultVisitor(value, key, path4) {
+  function defaultVisitor(value, key, path5) {
     let arr = value;
     if (utils_default.isReactNative(formData) && utils_default.isReactNativeBlob(value)) {
-      formData.append(renderKey(path4, key, dots), convertValue(value));
+      formData.append(renderKey(path5, key, dots), convertValue(value));
       return false;
     }
-    if (value && !path4 && typeof value === "object") {
+    if (value && !path5 && typeof value === "object") {
       if (utils_default.endsWith(key, "{}")) {
         key = metaTokens ? key : key.slice(0, -2);
         value = stringifyWithDepthLimit(value, 1);
@@ -84744,7 +85230,7 @@ function toFormData(obj, formData, options) {
     if (isVisitable(value)) {
       return true;
     }
-    formData.append(renderKey(path4, key, dots), convertValue(value));
+    formData.append(renderKey(path5, key, dots), convertValue(value));
     return false;
   }
   const exposedHelpers = Object.assign(predicates, {
@@ -84752,17 +85238,17 @@ function toFormData(obj, formData, options) {
     convertValue,
     isVisitable
   });
-  function build(value, path4, depth = 0) {
+  function build(value, path5, depth = 0) {
     if (utils_default.isUndefined(value)) return;
     throwIfMaxDepthExceeded(depth);
     if (stack.indexOf(value) !== -1) {
-      throw new Error("Circular reference detected in " + path4.join("."));
+      throw new Error("Circular reference detected in " + path5.join("."));
     }
     stack.push(value);
     utils_default.forEach(value, function each(el, key) {
-      const result = !(utils_default.isUndefined(el) || el === null) && visitor.call(formData, el, utils_default.isString(key) ? key.trim() : key, path4, exposedHelpers);
+      const result = !(utils_default.isUndefined(el) || el === null) && visitor.call(formData, el, utils_default.isString(key) ? key.trim() : key, path5, exposedHelpers);
       if (result === true) {
-        build(el, path4 ? path4.concat(key) : [key], depth + 1);
+        build(el, path5 ? path5.concat(key) : [key], depth + 1);
       }
     });
     stack.pop();
@@ -84974,7 +85460,7 @@ var platform_default = {
 // node_modules/axios/lib/helpers/toURLEncodedForm.js
 function toURLEncodedForm(data, options) {
   return toFormData_default(data, new platform_default.classes.URLSearchParams(), {
-    visitor: function(value, key, path4, helpers) {
+    visitor: function(value, key, path5, helpers) {
       if (platform_default.isNode && utils_default.isBuffer(value)) {
         this.append(key, value.toString("base64"));
         return false;
@@ -84996,14 +85482,14 @@ function throwIfDepthExceeded(index) {
   }
 }
 function parsePropPath(name2) {
-  const path4 = [];
+  const path5 = [];
   const pattern = /\w+|\[(\w*)]/g;
   let match;
   while ((match = pattern.exec(name2)) !== null) {
-    throwIfDepthExceeded(path4.length);
-    path4.push(match[0] === "[]" ? "" : match[1] || match[0]);
+    throwIfDepthExceeded(path5.length);
+    path5.push(match[0] === "[]" ? "" : match[1] || match[0]);
   }
-  return path4;
+  return path5;
 }
 function arrayToObject(arr) {
   const obj = {};
@@ -85018,12 +85504,12 @@ function arrayToObject(arr) {
   return obj;
 }
 function formDataToJSON(formData) {
-  function buildPath(path4, value, target, index) {
+  function buildPath(path5, value, target, index) {
     throwIfDepthExceeded(index);
-    let name2 = path4[index++];
+    let name2 = path5[index++];
     if (name2 === "__proto__") return true;
     const isNumericKey = Number.isFinite(+name2);
-    const isLast = index >= path4.length;
+    const isLast = index >= path5.length;
     name2 = !name2 && utils_default.isArray(target) ? target.length : name2;
     if (isLast) {
       if (utils_default.hasOwnProp(target, name2)) {
@@ -85036,7 +85522,7 @@ function formDataToJSON(formData) {
     if (!utils_default.hasOwnProp(target, name2) || !utils_default.isObject(target[name2])) {
       target[name2] = [];
     }
-    const result = buildPath(path4, value, target[name2], index);
+    const result = buildPath(path5, value, target[name2], index);
     if (result && utils_default.isArray(target[name2])) {
       target[name2] = arrayToObject(target[name2]);
     }
@@ -86134,8 +86620,8 @@ function getProxyEnvAgent(options, configHttpAgent, configHttpsAgent) {
 }
 function getTunnelingAgent(agentOptions, userHttpsAgent) {
   const key = agentOptions.protocol + "//" + agentOptions.hostname + ":" + (agentOptions.port || "") + "#" + (agentOptions.auth || "");
-  const cache2 = userHttpsAgent ? tunnelingAgentCacheUser.get(userHttpsAgent) || tunnelingAgentCacheUser.set(userHttpsAgent, /* @__PURE__ */ new Map()).get(userHttpsAgent) : tunnelingAgentCache;
-  let agent = cache2.get(key);
+  const cache3 = userHttpsAgent ? tunnelingAgentCacheUser.get(userHttpsAgent) || tunnelingAgentCacheUser.set(userHttpsAgent, /* @__PURE__ */ new Map()).get(userHttpsAgent) : tunnelingAgentCache;
+  let agent = cache3.get(key);
   if (agent) return agent;
   const merged = userHttpsAgent && userHttpsAgent.options ? { ...userHttpsAgent.options, ...agentOptions } : agentOptions;
   agent = new import_https_proxy_agent.default(merged);
@@ -86147,7 +86633,7 @@ function getTunnelingAgent(agentOptions, userHttpsAgent) {
     };
   }
   agent[kAxiosInstalledTunnel] = true;
-  cache2.set(key, agent);
+  cache3.set(key, agent);
   return agent;
 }
 var supportedProtocols = platform_default.protocols.map((protocol) => {
@@ -86630,9 +87116,9 @@ var http_default = isHttpAdapterSupported && function httpAdapter(config) {
       auth = urlUsername + ":" + urlPassword;
     }
     auth && headers.delete("authorization");
-    let path4;
+    let path5;
     try {
-      path4 = buildURL(
+      path5 = buildURL(
         parsed.pathname + parsed.search,
         own2("params"),
         own2("paramsSerializer")
@@ -86651,7 +87137,7 @@ var http_default = isHttpAdapterSupported && function httpAdapter(config) {
       false
     );
     const options = Object.assign(/* @__PURE__ */ Object.create(null), {
-      path: path4,
+      path: path5,
       method,
       headers: toByteStringHeaderObject(headers),
       agents: { http: httpAgent, https: httpsAgent },
@@ -87053,14 +87539,14 @@ var isURLSameOrigin_default = platform_default.hasStandardBrowserEnv ? /* @__PUR
 var cookies_default = platform_default.hasStandardBrowserEnv ? (
   // Standard browser envs support document.cookie
   {
-    write(name2, value, expires, path4, domain, secure, sameSite) {
+    write(name2, value, expires, path5, domain, secure, sameSite) {
       if (typeof document === "undefined") return;
       const cookie = [`${name2}=${encodeURIComponent(value)}`];
       if (utils_default.isNumber(expires)) {
         cookie.push(`expires=${new Date(expires).toUTCString()}`);
       }
-      if (utils_default.isString(path4)) {
-        cookie.push(`path=${path4}`);
+      if (utils_default.isString(path5)) {
+        cookie.push(`path=${path5}`);
       }
       if (utils_default.isString(domain)) {
         cookie.push(`domain=${domain}`);
@@ -88608,6 +89094,7 @@ var {
 
 // src/services/whatsappDirectSender.ts
 init_logger3();
+await init_chatIngest();
 var WHATSAPP_TOKEN = process.env["WHATSAPP_TOKEN"];
 var PHONE_NUMBER_ID = process.env["PHONE_NUMBER_ID"];
 var META_API_VERSION = "v25.0";
@@ -88755,6 +89242,28 @@ async function fetchLeadMainContact(subdomain, accessToken, leadId) {
 async function fetchContactDisplayName(subdomain, accessToken, leadId) {
   const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
   return contact?.displayName ?? null;
+}
+async function fetchWhatsappProfileName(subdomain, accessToken, leadId, talkId) {
+  if (talkId) {
+    const msgs = await fetchKommoTalkMessages(subdomain, accessToken, talkId, 40);
+    for (let i3 = msgs.length - 1; i3 >= 0; i3--) {
+      const author = msgs[i3]?.author;
+      if (author?.type !== "external") continue;
+      const raw = author.name?.trim();
+      if (!raw || isPlaceholderLeadName(raw)) continue;
+      const name2 = sanitizeCrmNombre(raw) ?? sanitizeDisplayName(raw);
+      if (name2) {
+        logger.info({ leadId, talkId, source: "talk_author" }, "Nombre WhatsApp resuelto");
+        return name2;
+      }
+    }
+  }
+  const fromContact = await fetchContactDisplayName(subdomain, accessToken, leadId);
+  if (fromContact && !isPlaceholderLeadName(fromContact)) {
+    const name2 = sanitizeCrmNombre(fromContact) ?? sanitizeDisplayName(fromContact);
+    if (name2) return name2;
+  }
+  return null;
 }
 async function registrarMensajeSalienteKommo(opts) {
   const { subdomain, accessToken, chatId, texto, toPhone, metaMessageId, entityId } = opts;
@@ -89427,18 +89936,22 @@ function buildLeadCalificadoNota(extracted, mergedLines) {
     "\u2705 Lead calificado - Listo para cotizar"
   ].filter((l4) => l4 !== null).join("\n");
 }
-async function resolveWhatsappDisplayName(subdomain, accessToken, entityId, leadNameFromCrm) {
+async function resolveWhatsappDisplayName(subdomain, accessToken, entityId, leadNameFromCrm, talkId) {
   const entityKey = String(entityId);
   const cached = displayNameCache.get(entityKey);
   if (cached) return cached;
-  const fromCrm = sanitizeDisplayName(leadNameFromCrm);
+  const fromCrm = sanitizeCrmNombre(leadNameFromCrm) ?? sanitizeDisplayName(leadNameFromCrm);
   if (fromCrm) {
     displayNameCache.set(entityKey, fromCrm);
     return fromCrm;
   }
-  const fromContact = sanitizeDisplayName(
-    await fetchContactDisplayName(subdomain, accessToken, entityId)
-  );
+  const fromWhatsapp = await fetchWhatsappProfileName(subdomain, accessToken, entityId, talkId);
+  if (fromWhatsapp) {
+    displayNameCache.set(entityKey, fromWhatsapp);
+    return fromWhatsapp;
+  }
+  const contactRaw = await fetchContactDisplayName(subdomain, accessToken, entityId);
+  const fromContact = sanitizeCrmNombre(contactRaw) ?? sanitizeDisplayName(contactRaw);
   if (fromContact) {
     displayNameCache.set(entityKey, fromContact);
     return fromContact;
@@ -89675,12 +90188,13 @@ async function fetchLeadContactId(subdomain, accessToken, leadId) {
     return null;
   }
 }
-async function updateKommoContact(subdomain, accessToken, contactId, extracted, log) {
-  const hasContact = extracted.nombre || extracted.telefono || extracted.correo;
+async function updateKommoContact(subdomain, accessToken, contactId, extracted, log, nombreOverride) {
+  const nombre = nombreOverride ?? extracted.nombre;
+  const hasContact = nombre || extracted.telefono || extracted.correo;
   if (!hasContact) return;
   const contactPayload = {};
-  if (extracted.nombre) {
-    contactPayload["name"] = extracted.nombre;
+  if (nombre) {
+    contactPayload["name"] = nombre;
   }
   const cfv = [];
   if (extracted.telefono) {
@@ -89725,8 +90239,54 @@ function isValidExtractedString(val) {
 }
 function withCrmNombre(extracted, mergedLines) {
   const nombreCrm = parseNombreFromCrmLines(mergedLines);
-  if (!nombreCrm || isValidExtractedString(extracted.nombre)) return extracted;
-  return { ...extracted, nombre: nombreCrm };
+  if (!nombreCrm) return extracted;
+  const explicitClient = nombreCrm && !isWhatsappOnlyNombreLine(mergedLines);
+  if (explicitClient || !isValidExtractedString(extracted.nombre)) {
+    return { ...extracted, nombre: nombreCrm };
+  }
+  return extracted;
+}
+async function ensureKommoLeadContactNombre(subdomain, accessToken, leadId, nombre, mergedLines, log) {
+  const clean = sanitizeCrmNombre(nombre) ?? sanitizeDisplayName(nombre);
+  if (!clean || isPlaceholderLeadName(clean)) return;
+  try {
+    const res = await fetch(`https://${subdomain}.kommo.com/api/v4/leads/${leadId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const currentLeadName = data.name?.replace(/^Lead:\s*/i, "").trim() ?? "";
+    const waOnly = isWhatsappOnlyNombreLine(mergedLines);
+    const shouldPatchLead = isPlaceholderLeadName(currentLeadName) || !waOnly;
+    if (shouldPatchLead) {
+      const patchRes = await fetch(`https://${subdomain}.kommo.com/api/v4/leads/${leadId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: cap255(clean) })
+      });
+      if (!patchRes.ok) {
+        log.warn({ leadId, status: patchRes.status }, "No se pudo actualizar nombre del lead");
+      } else {
+        log.info({ leadId, nombre: clean }, "Lead: nombre sincronizado en Kommo");
+        displayNameCache.set(String(leadId), clean);
+      }
+    }
+    const contactId = await fetchLeadContactId(subdomain, accessToken, leadId);
+    if (contactId) {
+      const patchRes = await fetch(`https://${subdomain}.kommo.com/api/v4/contacts/${contactId}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ name: clean })
+      });
+      if (!patchRes.ok) {
+        log.warn({ leadId, contactId, status: patchRes.status }, "No se pudo actualizar nombre del contacto");
+      } else {
+        log.info({ leadId, contactId, nombre: clean }, "Contacto: nombre sincronizado en Kommo");
+      }
+    }
+  } catch (err2) {
+    log.warn({ err: err2, leadId }, "ensureKommoLeadContactNombre fall\xF3");
+  }
 }
 function buildPatchPayload(extracted, mergedLines, conversationText) {
   const customFields = [];
@@ -89762,8 +90322,8 @@ function buildPatchPayload(extracted, mergedLines, conversationText) {
     customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(extracted.presupuesto) }] });
   }
   const payload = { custom_fields_values: customFields };
-  if (isValidExtractedString(extracted.nombre)) {
-    const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
+  const nombrePatch = (isValidExtractedString(extracted.nombre) ? sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) : null) ?? parseNombreFromCrmLines(mergedLines);
+  if (nombrePatch) {
     payload["name"] = cap255(nombrePatch);
   }
   return payload;
@@ -89885,7 +90445,8 @@ async function processBatch(batch, accessToken, log) {
       subdomain,
       accessToken,
       entityId,
-      leadNameFromCrm ?? conversation.clientName
+      leadNameFromCrm ?? conversation.clientName,
+      talkId
     );
     const { context: crmContext, allFieldsFilled, mergedLines: crmMergedLines, filledLabels } = buildCrmContext(
       crmLines,
@@ -89918,17 +90479,17 @@ async function processBatch(batch, accessToken, log) {
       hasClientName: filledLabels.has("Nombre del cliente"),
       catalogBlock
     });
-    const trainingExamples2 = await getTrainingExamples();
-    const fewShot = trainingExamples2.flatMap((ex) => [
-      { role: "user", content: ex.userMessage },
-      { role: "assistant", content: ex.lucyResponse }
-    ]);
+    const { fewShot, ragBlock, meta: trainingMeta } = await buildLucyTrainingContext(
+      combinedUserText,
+      log
+    );
     const lucyMessages = [
-      { role: "system", content: dynamicPrompt },
+      { role: "system", content: dynamicPrompt + ragBlock },
       ...fewShot,
       ...history,
       { role: "user", content: combinedUserText }
     ];
+    log.info({ trainingMeta }, "Training context listo");
     const redactionBriefing = buildRedactionBriefing({
       extracted,
       filledSet: filledLabels,
@@ -90070,6 +90631,17 @@ async function processBatch(batch, accessToken, log) {
       log.error({ status: updateRes.status, errText, entityId }, "Error actualizando lead en Kommo");
     } else {
       log.info({ entityId }, "Lead actualizado correctamente en Kommo");
+      const nombreSync = parseNombreFromCrmLines(crmMergedLines);
+      if (nombreSync) {
+        void ensureKommoLeadContactNombre(
+          subdomain,
+          accessToken,
+          entityId,
+          nombreSync,
+          crmMergedLines,
+          log
+        );
+      }
     }
     void db.insert(messages).values([
       {
@@ -90092,7 +90664,7 @@ async function processBatch(batch, accessToken, log) {
     ]).catch((dbErr) => log.warn({ dbErr }, "No se pudieron guardar mensajes en BD (no cr\xEDtico)"));
     const parsedEventDate = safeParseDate(extracted.fecha_horario);
     void db.update(conversations).set({
-      clientName: sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? conversation.clientName,
+      clientName: sanitizeDisplayName(extracted.nombre) ?? parseNombreFromCrmLines(crmMergedLines) ?? whatsappDisplayName ?? conversation.clientName,
       clientEmail: extracted.correo || conversation.clientEmail,
       clientPhone: extracted.telefono || conversation.clientPhone,
       eventType: extracted.tipo_evento || conversation.eventType,
@@ -90142,11 +90714,12 @@ async function processBatch(batch, accessToken, log) {
         reasoning: leadScore.reasoning
       }, "LEAD CALIENTE \u2014 NOTIFICAR AL EQUIPO");
     }
-    const hasContactData = extracted.nombre || extracted.telefono || extracted.correo;
+    const extractedForContact = withCrmNombre(extracted, crmMergedLines);
+    const hasContactData = extractedForContact.nombre || extracted.telefono || extracted.correo;
     if (hasContactData) {
       const contactId = await fetchLeadContactId(subdomain, accessToken, entityId);
       if (contactId) {
-        await updateKommoContact(subdomain, accessToken, contactId, extracted, log);
+        await updateKommoContact(subdomain, accessToken, contactId, extractedForContact, log);
       } else {
         log.warn({ entityId }, "No se encontr\xF3 contacto vinculado al lead");
       }
@@ -90382,7 +90955,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? "" : lastLucyResponse;
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
-    const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null) : null;
+    const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null, talkId) : null;
     const extracted = await extractData(history, messageText, crmLines.join("\n"));
     const conversationText = [
       ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
@@ -90405,13 +90978,9 @@ router3.post("/kommo/salesbot", async (req, res) => {
     const catalogBlock = await getCatalogPromptBlock();
     const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
     const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy, agente virtual de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
-    const trainingExamples2 = await getTrainingExamples();
-    const fewShot = trainingExamples2.flatMap((ex) => [
-      { role: "user", content: ex.userMessage },
-      { role: "assistant", content: ex.lucyResponse }
-    ]);
+    const { fewShot, ragBlock } = await buildLucyTrainingContext(messageText, log);
     const lucyMessages = [
-      { role: "system", content: systemContent },
+      { role: "system", content: systemContent + ragBlock },
       ...fewShot,
       ...history,
       { role: "user", content: messageText }
@@ -90534,10 +91103,35 @@ router3.post("/kommo/pipeline-change", async (req, res) => {
     try {
       await limpiarCampoRespuesta(subdomain, accessToken, leadId);
       await setLearningPhase(leadId, "human_active");
+      const conv = await db.query.conversations.findFirst({
+        where: eq2(conversations.kommoLeadId, String(leadId))
+      });
+      const talkId = conv?.kommoTalkId ?? null;
+      const { crmLines } = await fetchLeadCurrentFields(subdomain, accessToken, leadId, log);
+      let nombreSync = parseNombreFromCrmLines(crmLines);
+      const mergedForSync = [...crmLines];
+      if (!nombreSync) {
+        const waName = await fetchWhatsappProfileName(subdomain, accessToken, leadId, talkId);
+        if (waName) {
+          const filledSet = new Set(mergedForSync.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
+          applyWhatsappNombreFallback(filledSet, mergedForSync, waName, []);
+          nombreSync = parseNombreFromCrmLines(mergedForSync);
+        }
+      }
+      if (nombreSync) {
+        await ensureKommoLeadContactNombre(
+          subdomain,
+          accessToken,
+          leadId,
+          nombreSync,
+          mergedForSync,
+          log
+        );
+      }
       void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: false }).catch(
         (err2) => log.warn({ err: err2, leadId }, "Pipeline-change: sync aprendizaje fall\xF3")
       );
-      log.info({ leadId }, "Pipeline-change: fase humana \u2014 sync de chat iniciado");
+      log.info({ leadId, nombreSync }, "Pipeline-change: fase humana \u2014 sync de chat iniciado");
     } catch (err2) {
       log.error({ err: err2, leadId }, "Pipeline-change: error en Humano Trabaja");
     }
@@ -90762,16 +91356,12 @@ router3.post("/kommo/simulator", async (req, res) => {
     const allFieldsFilled = crmResultFinal.allFieldsFilled;
     const filledLabels = crmResultFinal.filledLabels;
     const crmMergedLines = crmResultFinal.mergedLines;
-    const trainingExamples2 = await getTrainingExamples();
-    const fewShot = trainingExamples2.flatMap((ex) => [
-      { role: "user", content: ex.userMessage },
-      { role: "assistant", content: ex.lucyResponse }
-    ]);
+    const { fewShot, ragBlock } = await buildLucyTrainingContext(messageText, log);
     const catalogBlock = await getCatalogPromptBlock();
     const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
     const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy, agente virtual de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
     const lucyMessages = [
-      { role: "system", content: systemContent },
+      { role: "system", content: systemContent + ragBlock },
       ...fewShot,
       ...history,
       { role: "user", content: messageText }
@@ -91314,14 +91904,39 @@ router8.post("/knowledge-gaps/:id/dismiss", async (req, res) => {
 });
 var knowledgeGaps_default = router8;
 
-// src/routes/catalog.ts
+// src/routes/aprendizaje.ts
 var import_express9 = __toESM(require_express2(), 1);
-init_requireAuth();
+await init_indexarAprendizaje();
 var router9 = (0, import_express9.Router)();
-router9.get("/catalog/status", (_req, res) => {
+router9.get("/aprendizaje/estado", async (_req, res) => {
+  try {
+    const estado = await obtenerEstadoIndexado();
+    res.json({ ok: true, ...estado });
+  } catch (err2) {
+    res.status(500).json({ ok: false, error: "failed_to_load_estado" });
+  }
+});
+router9.post("/aprendizaje/indexar", async (req, res) => {
+  const log = req.log;
+  try {
+    log?.info("aprendizaje/indexar: inicio manual");
+    const result = await indexarAprendizaje();
+    res.json({ ok: true, ...result });
+  } catch (err2) {
+    log?.error({ err: err2 }, "aprendizaje/indexar: error");
+    res.status(500).json({ ok: false, error: "index_failed" });
+  }
+});
+var aprendizaje_default = router9;
+
+// src/routes/catalog.ts
+var import_express10 = __toESM(require_express2(), 1);
+init_requireAuth();
+var router10 = (0, import_express10.Router)();
+router10.get("/catalog/status", (_req, res) => {
   res.json({ status: "ok", catalog: getCatalogStatus(), parser: "bodasesor-v3" });
 });
-router9.get("/catalog/lookup", (req, res) => {
+router10.get("/catalog/lookup", (req, res) => {
   const q2 = String(req.query.q ?? "").trim();
   if (!q2) {
     res.status(400).json({ status: "error", error: "query param q required" });
@@ -91341,7 +91956,7 @@ router9.get("/catalog/lookup", (req, res) => {
     inject: injectCatalogPriceIfAsked(q2, sampleAi)
   });
 });
-router9.post("/catalog/refresh", requireAuth, async (_req, res) => {
+router10.post("/catalog/refresh", requireAuth, async (_req, res) => {
   try {
     const snap = await refreshCatalog(true);
     res.json({ status: "ok", catalog: snap.status });
@@ -91352,13 +91967,13 @@ router9.post("/catalog/refresh", requireAuth, async (_req, res) => {
     });
   }
 });
-var catalog_default = router9;
+var catalog_default = router10;
 
 // src/routes/ops.ts
-var import_express10 = __toESM(require_express2(), 1);
+var import_express11 = __toESM(require_express2(), 1);
 init_openaiEnv();
 init_logger3();
-var router10 = (0, import_express10.Router)();
+var router11 = (0, import_express11.Router)();
 function uptimeLabel(seconds) {
   if (seconds < 120) return "Reinicio reciente (posible ca\xEDda)";
   if (seconds < 3600) return `${Math.floor(seconds / 60)} min en l\xEDnea`;
@@ -91424,7 +92039,7 @@ async function buildOpsStatus() {
     healActions: [...new Set(healActions)]
   };
 }
-router10.get("/ops/status", async (_req, res) => {
+router11.get("/ops/status", async (_req, res) => {
   try {
     const status = await buildOpsStatus();
     res.json({
@@ -91440,7 +92055,7 @@ router10.get("/ops/status", async (_req, res) => {
     });
   }
 });
-router10.post("/ops/heal", async (_req, res) => {
+router11.post("/ops/heal", async (_req, res) => {
   const healed = [];
   const errors = [];
   try {
@@ -91469,27 +92084,28 @@ router10.post("/ops/heal", async (_req, res) => {
     });
   }
 });
-var ops_default = router10;
+var ops_default = router11;
 
 // src/routes/index.ts
-var router11 = (0, import_express11.Router)();
-router11.use(health_default);
-router11.use(catalog_default);
-router11.use(kommo_default);
-router11.use(lucy_default);
-router11.use(auth_default);
-router11.use(examples_default);
-router11.use(learning_default);
-router11.use(knowledgeGaps_default);
-router11.use(ops_default);
-router11.use(analytics_default);
-var routes_default = router11;
+var router12 = (0, import_express12.Router)();
+router12.use(health_default);
+router12.use(catalog_default);
+router12.use(kommo_default);
+router12.use(lucy_default);
+router12.use(auth_default);
+router12.use(examples_default);
+router12.use(learning_default);
+router12.use(knowledgeGaps_default);
+router12.use(aprendizaje_default);
+router12.use(ops_default);
+router12.use(analytics_default);
+var routes_default = router12;
 
 // src/app.ts
 init_logger3();
-var app = (0, import_express12.default)();
-var simuladorDir = path3.join(__dirname, "simulador");
-var simuladorIndex = path3.join(simuladorDir, "index.html");
+var app = (0, import_express13.default)();
+var simuladorDir = path4.join(__dirname, "simulador");
+var simuladorIndex = path4.join(simuladorDir, "index.html");
 app.use(
   (0, import_pino_http.default)({
     logger,
@@ -91510,51 +92126,51 @@ app.use(
   })
 );
 app.use((0, import_cors.default)());
-app.use(import_express12.default.json());
-app.use(import_express12.default.urlencoded({ extended: true }));
+app.use(import_express13.default.json());
+app.use(import_express13.default.urlencoded({ extended: true }));
 function mountSimulador(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(simuladorIndex);
   });
-  app.use(basePath, import_express12.default.static(simuladorDir, { index: false }));
+  app.use(basePath, import_express13.default.static(simuladorDir, { index: false }));
 }
 mountSimulador("/simulador");
 mountSimulador("/simulator");
-var adminDir = path3.join(__dirname, "lucy-admin");
-var adminIndex = path3.join(adminDir, "index.html");
+var adminDir = path4.join(__dirname, "lucy-admin");
+var adminIndex = path4.join(adminDir, "index.html");
 function mountAdmin(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(adminIndex);
   });
-  app.use(basePath, import_express12.default.static(adminDir, { index: false }));
+  app.use(basePath, import_express13.default.static(adminDir, { index: false }));
 }
 mountAdmin("/lucy-admin");
 mountAdmin("/admin");
-var aprendizajeDir = path3.join(__dirname, "aprendizaje");
-var aprendizajeIndex = path3.join(aprendizajeDir, "index.html");
+var aprendizajeDir = path4.join(__dirname, "aprendizaje");
+var aprendizajeIndex = path4.join(aprendizajeDir, "index.html");
 function mountAprendizaje(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(aprendizajeIndex);
   });
-  app.use(basePath, import_express12.default.static(aprendizajeDir, { index: false }));
+  app.use(basePath, import_express13.default.static(aprendizajeDir, { index: false }));
 }
 mountAprendizaje("/aprendizaje");
-var panelDir = path3.join(__dirname, "panel");
-var panelIndex = path3.join(panelDir, "index.html");
+var panelDir = path4.join(__dirname, "panel");
+var panelIndex = path4.join(panelDir, "index.html");
 function mountPanel(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(panelIndex);
   });
-  app.use(basePath, import_express12.default.static(panelDir, { index: false }));
+  app.use(basePath, import_express13.default.static(panelDir, { index: false }));
 }
 mountPanel("/panel");
-var estadoDir = path3.join(__dirname, "estado");
-var estadoIndex = path3.join(estadoDir, "index.html");
+var estadoDir = path4.join(__dirname, "estado");
+var estadoIndex = path4.join(estadoDir, "index.html");
 function mountEstado(basePath) {
   app.get([basePath, `${basePath}/`], (_req, res) => {
     res.sendFile(estadoIndex);
   });
-  app.use(basePath, import_express12.default.static(estadoDir, { index: false }));
+  app.use(basePath, import_express13.default.static(estadoDir, { index: false }));
 }
 mountEstado("/estado");
 app.get("/", (_req, res) => {
@@ -91572,6 +92188,7 @@ var app_default = app;
 init_logger3();
 await init_trainingStore();
 await init_learningSchema();
+await init_indexarAprendizaje();
 ensureOpenAiApiKeyEnv();
 ensureKommoEnv();
 var rawPort = process.env["PORT"] ?? "3000";
@@ -91590,6 +92207,11 @@ async function startServer() {
     logger.warn({ err: err2 }, "knowledgeGapSchema init en background fall\xF3");
   });
   startCatalogAutoRefresh();
+  setTimeout(() => {
+    void indexarAprendizaje().catch((err2) => {
+      logger.warn({ err: err2 }, "indexarAprendizaje en background fall\xF3");
+    });
+  }, 3e4);
   app_default.listen(port, "0.0.0.0", (err2) => {
     if (err2) {
       logger.error({ err: err2 }, "Error listening on port");

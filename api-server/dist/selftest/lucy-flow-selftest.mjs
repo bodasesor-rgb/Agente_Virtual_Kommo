@@ -1414,6 +1414,7 @@ function buildCatalogCateringAnswer() {
 
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
+var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
 var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
@@ -1760,6 +1761,24 @@ function getNextPendingField(extracted, filledSet) {
 function isFirstLucyReply(history) {
   return !history.some((m) => m.role === "assistant");
 }
+function applyWhatsappNombreFallback(filledSet, mergedLines, whatsappDisplayName, _history) {
+  if (filledSet.has("Nombre del cliente")) return false;
+  const waName = sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName);
+  if (!waName) return false;
+  mergedLines.push(`- Nombre del cliente: ${waName} ${WHATSAPP_NOMBRE_NOTE}`);
+  filledSet.add("Nombre del cliente");
+  return true;
+}
+function isWhatsappOnlyNombreLine(mergedLines) {
+  const line = mergedLines.find((l) => /^-?\s*Nombre del cliente:/i.test(l));
+  return !!line && line.includes(WHATSAPP_NOMBRE_NOTE);
+}
+function parseNombreFromCrmLines(mergedLines) {
+  const line = mergedLines.find((l) => /^-?\s*Nombre del cliente:/i.test(l));
+  if (!line) return null;
+  const raw = line.replace(/^-?\s*Nombre del cliente:\s*/i, "").replace(WHATSAPP_NOMBRE_NOTE, "").trim();
+  return sanitizeCrmNombre(raw) ?? sanitizeDisplayName(raw);
+}
 function buildOpeningAcknowledgment(history, currentMessage) {
   const texts = collectUserTexts(history, currentMessage);
   const userText = texts[texts.length - 1] ?? texts.join(" ");
@@ -2078,6 +2097,12 @@ function clientSaysThanks(message) {
   if (!message?.trim()) return false;
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
 }
+function clientSaysGoodbye(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (clientSaysThanks(message) && /vuelvo\s+a\s+buscar|te\s+busco|lo\s+comento/i.test(t)) return true;
+  return /lo\s+comento\s+y\s+te\s+(vuelvo\s+a\s+)?busco/i.test(t) || /te\s+(vuelvo\s+a\s+)?busco/i.test(t) || /me\s+comunico\s+(despu[eé]s|luego|ma[sñ]ana)/i.test(t) || /hablamos\s+despu[eé]s/i.test(t) || /ya\s+no\s+necesito/i.test(t) || /por\s+ahora\s+no/i.test(t) || /ok,?\s+lo\s+comento/i.test(t);
+}
 function buildPostCierreThanksReply(clientName) {
   const nombre = clientName?.trim();
   return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
@@ -2164,13 +2189,21 @@ function applyLucyMessageGuards(input) {
   );
   let mensaje;
   let appliedSalesReply = false;
+  let appliedGoodbyeReply = false;
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales");
   } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
-    mensaje = buildPostCierreThanksReply(extracted.nombre);
+    mensaje = buildPostCierreThanksReply(
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
     log?.info({ entityId }, "GUARD: post-cierre \u2014 agradecimiento o sin m\xE1s que agregar");
+  } else if (clientSaysGoodbye(currentMessage)) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `\xA1Claro, ${nombre}! Cuando gustes nos escribes. \xA1Gracias!` : "\xA1Claro! Cuando gustes nos escribes. \xA1Gracias!";
+    appliedGoodbyeReply = true;
+    log?.info({ entityId }, "GUARD: despedida del cliente \u2014 sin preguntas nuevas");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje = "Gracias. Nuestro equipo ya tiene tu informaci\xF3n para la cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar o alguna duda?";
     log?.warn({ entityId }, "GUARD: bloque\xF3 nota interna post-cierre");
@@ -2423,7 +2456,7 @@ ${nextQ}`;
     log?.warn({ entityId }, "GUARD: GPT insisti\xF3 en correo tras rechazo");
     mensaje = nextQ;
   }
-  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
+  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage) && !appliedGoodbyeReply) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && !mensaje.includes("?")) {
       if (responseLooksLikePrematureClose(mensaje)) {
@@ -2451,6 +2484,12 @@ ${nextQ}`;
   }
   if (!cierreYaEnviado && !appliedSalesReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  }
+  if (appliedGoodbyeReply) {
+    return normalizeAdvisorReferences(
+      mensaje,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
   }
   if (appliedSalesReply) {
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
@@ -12890,6 +12929,7 @@ function runGuards(opts) {
     emailRefusedThisTurn: opts.emailRefusedThisTurn ?? false,
     history: opts.history ?? [],
     currentMessage: opts.currentMessage,
+    whatsappDisplayName: opts.whatsappDisplayName,
     buildClosing: mockClosing,
     log: opts.debugLogs ? {
       info: (_o, msg) => {
@@ -12902,7 +12942,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 27 escenarios de prueba\n");
+  console.log("Lucy \u2014 28 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -13122,9 +13162,10 @@ async function runAll() {
       "lucy-admin",
       "debounce-5s",
       "learning-from-human-chats",
-      "knowledge-gaps-aprendizaje"
+      "knowledge-gaps-aprendizaje",
+      "rag-aprendizaje-kommo"
     ];
-    assert.equal(healthFeatures.length, 7);
+    assert.equal(healthFeatures.length, 8);
   });
   await test('11. Bakar \u2014 "Quiero cotizaci\xF3n" NO es nombre', () => {
     assert.equal(isQuoteIntentMessage("Quiero hacer una cotizacion"), true);
@@ -13863,6 +13904,29 @@ async function runAll() {
       history: []
     });
     assert.ok(/ciudad\s+de\s+m[eé]xico|cdmx/i.test(locationReply), locationReply.slice(0, 200));
+  });
+  await test("28. Nombre WhatsApp \u2192 lead; despedida sin pedir nombre", () => {
+    const filledSet = /* @__PURE__ */ new Set();
+    const merged = [];
+    const applied = applyWhatsappNombreFallback(filledSet, merged, "Ale Beltran", []);
+    assert.ok(applied, "debe aplicar fallback de WhatsApp sin que Lucy haya preguntado");
+    assert.ok(filledSet.has("Nombre del cliente"));
+    assert.equal(parseNombreFromCrmLines(merged), "Ale Beltran");
+    assert.ok(isWhatsappOnlyNombreLine(merged));
+    const goodbye = "ok, lo comento y te vuelvo a buscar, gracias";
+    assert.ok(clientSaysGoodbye(goodbye));
+    const reply = runGuards({
+      aiResponse: "\xBFCon qui\xE9n tengo el gusto?",
+      extracted: emptyExtracted(),
+      filledSet,
+      readyForClosing: false,
+      currentMessage: goodbye,
+      history: [{ role: "assistant", content: "Te ayudo con la taquiza para 40 personas." }],
+      whatsappDisplayName: "Ale Beltran"
+    });
+    assert.ok(!/con\s+qui[eé]n\s+tengo|tu\s+nombre|regalas?\s+tu\s+nombre/i.test(reply), reply);
+    assert.ok(/claro|gracias|cuando\s+gustes/i.test(reply), reply);
+    assert.ok(/ale/i.test(reply), `debe usar nombre WA: ${reply}`);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

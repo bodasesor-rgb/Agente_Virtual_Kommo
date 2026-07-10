@@ -3,7 +3,7 @@ import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from ".
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
 import { getCatalogPromptBlock, injectCatalogPriceIfAsked, injectCatalogInclusionIfAsked, injectCatalogCateringIfAsked } from "../services/catalogService.js";
-import { getTrainingExamples } from "../lib/training.js";
+import { buildLucyTrainingContext } from "../lib/trainingInjection.js";
 import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
   applyEmailWaiver,
@@ -1345,18 +1345,19 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 8: Llamada a OpenAI con prompt dinámico
     // ══════════════════════════════════════════════════════════════════════
-    const trainingExamples = await getTrainingExamples();
-    const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
-      { role: "user" as const, content: ex.userMessage },
-      { role: "assistant" as const, content: ex.lucyResponse },
-    ]);
+    const { fewShot, ragBlock, meta: trainingMeta } = await buildLucyTrainingContext(
+      combinedUserText,
+      log
+    );
 
     const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: dynamicPrompt },
+      { role: "system", content: dynamicPrompt + ragBlock },
       ...fewShot,
       ...history,
       { role: "user", content: combinedUserText },
     ];
+
+    log.info({ trainingMeta }, "Training context listo");
 
     const redactionBriefing = buildRedactionBriefing({
       extracted,
@@ -2044,14 +2045,10 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
         "\n\nPRIMER MENSAJE: SIEMPRE \"Hola, soy Lucy, agente virtual de Bodasesor.\" + reconocer tema + pedir nombre primero."
       : basePrompt + crmContext;
 
-    const trainingExamples = await getTrainingExamples();
-    const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
-      { role: "user" as const, content: ex.userMessage },
-      { role: "assistant" as const, content: ex.lucyResponse },
-    ]);
+    const { fewShot, ragBlock } = await buildLucyTrainingContext(messageText, log);
 
     const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: systemContent },
+      { role: "system", content: systemContent + ragBlock },
       ...fewShot,
       ...history,
       { role: "user", content: messageText },
@@ -2555,11 +2552,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const filledLabels = crmResultFinal.filledLabels;
     const crmMergedLines = crmResultFinal.mergedLines;
 
-    const trainingExamples = await getTrainingExamples();
-    const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
-      { role: "user" as const, content: ex.userMessage },
-      { role: "assistant" as const, content: ex.lucyResponse },
-    ]);
+    const { fewShot, ragBlock } = await buildLucyTrainingContext(messageText, log);
 
     const catalogBlock = await getCatalogPromptBlock();
     const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
@@ -2570,7 +2563,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       : basePrompt + crmContext;
 
     const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: systemContent },
+      { role: "system", content: systemContent + ragBlock },
       ...fewShot,
       ...history,
       { role: "user", content: messageText },

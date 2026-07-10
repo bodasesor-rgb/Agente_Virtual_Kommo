@@ -15,7 +15,7 @@ const INTRO = {
   answered:
     "Historial de lo que <strong>ya enseñaste</strong> desde este panel: pregunta del cliente, lo que Lucy dijo, y la respuesta que quedó guardada.",
   training:
-    "Estos ejemplos son los que <strong>Lucy usa ahora mismo</strong> en conversaciones (few-shot). Cada enseñanza nueva aparece aquí en segundos.",
+    "Estos ejemplos son los que <strong>Lucy usa ahora mismo</strong> en conversaciones (enseñanzas del panel). Además, el índice RAG trae casos parecidos de chats con asesores humanos.",
 };
 
 const WORKFLOW = `
@@ -143,11 +143,15 @@ function renderManualTeachForm() {
 }
 
 async function loadStats() {
-  const overview = await api("/knowledge-gaps/overview");
+  const [overview, ragEstado] = await Promise.all([
+    api("/knowledge-gaps/overview"),
+    api("/aprendizaje/estado").catch(() => ({ totalConversacionesAprendidas: 0, ultimaActualizacion: null, nuevosUltimaCorrida: 0 })),
+  ]);
   const gaps = overview.gaps ?? {};
   const training = overview.training ?? {};
   const total = (gaps.pending ?? 0) + (gaps.answered ?? 0) + (gaps.dismissed ?? 0);
   const panelTaught = training.panelTaught ?? 0;
+  const ragTotal = ragEstado.totalConversacionesAprendidas ?? 0;
 
   statsRow.innerHTML = `
     <div class="stat-card pending">
@@ -162,13 +166,61 @@ async function loadStats() {
       <strong>${panelTaught}</strong>
       <span>En uso por Lucy</span>
     </div>
+    <div class="stat-card rag">
+      <strong>${ragTotal}</strong>
+      <span>Chats indexados (RAG)</span>
+    </div>
     <div class="stat-card dismissed">
       <strong>${total}</strong>
       <span>Total en panel</span>
     </div>
   `;
 
+  const ragPanel = document.getElementById("rag-panel");
+  if (ragPanel) {
+    ragPanel.innerHTML = `
+      <h2>Aprendizaje desde chats de Kommo (RAG)</h2>
+      <p class="hint">Lucy busca cómo respondió un asesor humano en casos parecidos y usa ese tono — sin copiar literal. Los ejemplos del panel siempre quedan activos.</p>
+      <div class="rag-meta">
+        <span><strong>${ragTotal}</strong> pares indexados</span>
+        <span>Última actualización: ${formatDate(ragEstado.ultimaActualizacion)}</span>
+        ${ragEstado.nuevosUltimaCorrida ? `<span>+${ragEstado.nuevosUltimaCorrida} nuevos en la última corrida</span>` : ""}
+      </div>
+      <button type="button" class="btn-save" id="btn-indexar">Actualizar aprendizaje desde Kommo</button>
+      <p id="indexar-status" class="hint hidden"></p>
+    `;
+    document.getElementById("btn-indexar")?.addEventListener("click", runIndexar);
+  }
+
   updateTabCounts(gaps, panelTaught);
+}
+
+async function runIndexar() {
+  const btn = document.getElementById("btn-indexar");
+  const status = document.getElementById("indexar-status");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Indexando…";
+  }
+  if (status) {
+    status.classList.remove("hidden");
+    status.textContent = "Leyendo chats de Kommo y generando embeddings…";
+  }
+  try {
+    const result = await api("/aprendizaje/indexar", { method: "POST" });
+    if (status) {
+      status.textContent = `Listo: ${result.nuevos ?? 0} nuevos, ${result.omitidos ?? 0} ya existían. Total en índice: ${result.totalEnStore ?? 0}.`;
+    }
+    notifyParent();
+    await loadStats();
+  } catch (err) {
+    if (status) status.textContent = `Error: ${err.message}`;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Actualizar aprendizaje desde Kommo";
+    }
+  }
 }
 
 function renderPendingCard(gap) {

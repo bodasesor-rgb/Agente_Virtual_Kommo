@@ -7,6 +7,7 @@ import {
   rejectLearningCandidate,
 } from "../services/learningStore.js";
 import { syncHumanPhaseLead, runLearningSyncCron } from "../services/learningSync.js";
+import { indexarAprendizaje } from "../jobs/indexarAprendizaje.js";
 import { extractLearningCandidatesForLead } from "../services/learningExtractor.js";
 
 const router: IRouter = Router();
@@ -108,7 +109,11 @@ export async function handleLearningCron(req: Request, res: Response): Promise<v
   const accessToken = process.env["KOMMO_ACCESS_TOKEN"] ?? "";
   try {
     const result = await runLearningSyncCron(subdomain, accessToken);
-    res.json({ ok: true, ...result });
+    const indexResult = await indexarAprendizaje().catch((err) => {
+      req.log?.warn({ err }, "Cron: indexarAprendizaje falló");
+      return null;
+    });
+    res.json({ ok: true, ...result, index: indexResult });
   } catch (err) {
     req.log?.error({ err }, "Cron learning: error");
     res.status(500).json({ error: "cron_failed" });

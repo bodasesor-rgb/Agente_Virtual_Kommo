@@ -20,7 +20,7 @@ router.get("/health", (_req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     service: "Lucy Bodasesor",
-    version: "3.3",
+    version: "3.4",
     lucy_prompt: "V6",
     features: [
       "understanding",
@@ -30,6 +30,7 @@ router.get("/health", (_req, res) => {
       "debounce-5s",
       "learning-from-human-chats",
       "knowledge-gaps-aprendizaje",
+      "rag-aprendizaje-kommo",
     ],
     auth_configured: isAuthConfigured(),
     git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
