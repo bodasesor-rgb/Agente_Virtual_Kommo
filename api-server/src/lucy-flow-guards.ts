@@ -23,6 +23,7 @@ import {
   buildCatalogInclusionAnswer,
   buildCatalogComparisonAnswer,
   buildCatalogCateringAnswer,
+  buildCatalogServiceAnswer,
   clientAsksInclusion,
 } from "./services/catalogService.js";
 import {
@@ -33,6 +34,7 @@ import {
   clientDeclinesMoreServices,
   clientMentionsEntertainment,
   clientMentionsPistaTarima,
+  clientMentionsNonCateringService,
   detectPresupuestoRefusal,
   findPresupuestoInTexts,
   countLucyFieldAsks,
@@ -42,11 +44,16 @@ import {
   clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
   clientMentionsCatering,
+  getServiceCategory,
   inferLucyAskedField,
   isServiceRelatedMessage,
   parsePrimaryService,
+  parseServicesFromText,
   parseSpaceDimensions,
   parseFechaFromText,
+  parseThematicCuisineFromText,
+  clientAsksBodasesorLocation,
+  buildBodasesorLocationAnswer,
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
@@ -482,18 +489,71 @@ function buildFoodSalesReply(
   // confirma ESE servicio en vez de empujar genéricamente banquete/taquiza —
   // evita ignorar lo que realmente pidió.
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
+  const genericFoodAlias =
+    mentionedService === "banquete / taquiza" || mentionedService === "banquete" || mentionedService === "taquiza";
+  const thematic =
+    currentMessage && (!mentionedService || genericFoodAlias)
+      ? parseThematicCuisineFromText(currentMessage)
+      : null;
 
   const catering = buildCatalogCateringAnswer();
-  const intro = mentionedService
-    ? `Perfecto, sí manejamos ${mentionedService} para ${eventLabel}.`
-    : `Para ${eventLabel}, lo más pedido es banquete o taquiza según el estilo que busquen — banquete es más formal con servicio de meseros; taquiza es más casual y flexible.`;
-  if (catering) {
+  let intro: string;
+  if (mentionedService && !genericFoodAlias && !thematic) {
+    intro = `Perfecto, sí manejamos ${mentionedService} para ${eventLabel}.`;
+  } else if (thematic) {
+    intro = thematic.pitch;
+  } else {
+    intro = `Para ${eventLabel}, lo más pedido es banquete o taquiza según el estilo que busquen — banquete es más formal con servicio de meseros; taquiza es más casual y flexible.`;
+  }
+  if (catering && !thematic && !genericFoodAlias) {
     return `${intro}\n\n${catering}`;
+  }
+  if (thematic) {
+    const follow = pickVariant("requerimientos", history, entityId);
+    return `${intro} ${follow}`.trim();
   }
   const recomendaciones = buildRecommendationsReply(extracted, history, entityId, currentMessage);
   // Si el cliente nombró un servicio específico, no se pierde la confirmación
   // aunque el catálogo del Sheet no esté disponible en este momento.
   return mentionedService ? `${intro} ${recomendaciones}` : recomendaciones;
+}
+
+const SERVICE_CATEGORY_COPY: Record<string, string> = {
+  catering: "Te armamos opciones de menú según el estilo y número de invitados.",
+  entertainment: "Tenemos varias opciones de entretenimiento en vivo según el ambiente que busques.",
+  pista: "Manejamos pistas y tarimas en varios tamaños según tu espacio.",
+  bebidas: "Tenemos barras de bebidas con y sin alcohol, mixología y coctelería.",
+  mobiliario: "Contamos con mobiliario, sillas, mesas y carpas para distintos estilos de evento.",
+  tecnico: "Manejamos iluminación, audio, pantallas y decoración para ambientar tu evento.",
+  otro: "Te armamos una cotización personalizada según lo que necesites.",
+};
+
+function buildGenericServiceReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  entityId?: string | number,
+  currentMessage?: string
+): string {
+  const msg = currentMessage ?? "";
+  const catalogAnswer = buildCatalogServiceAnswer(msg);
+  const services = parseServicesFromText(msg);
+  const primary = services[0] ?? findMentionedService(msg) ?? "ese servicio";
+  const serviceNames =
+    services.length > 1 ? services.join(" y ") : primary;
+
+  const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  const eventLabel = tipo ? `tu ${tipo}` : "tu evento";
+
+  if (catalogAnswer) {
+    const follow = pickVariant("requerimientos", history, entityId);
+    return `${catalogAnswer}\n\n${follow}`.trim();
+  }
+
+  const category = getServiceCategory(primary);
+  const detail = SERVICE_CATEGORY_COPY[category] ?? SERVICE_CATEGORY_COPY.otro!;
+  const intro = `Perfecto, sí manejamos ${serviceNames} para ${eventLabel}.`;
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${intro} ${detail} ${follow}`.trim();
 }
 
 /** Sugerencias por tipo de evento cuando el cliente pide recomendaciones. */
@@ -751,6 +811,16 @@ export function enforceNombreFirst(
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
       return "Perfecto. ¿Me regalas tu nombre?";
     }
+    if (
+      (clientAsksBodasesorLocation(ctx.currentMessage) || clientAsksPhone(ctx.currentMessage)) &&
+      _mensaje.trim() &&
+      !usesLegacyLucyIntro(_mensaje)
+    ) {
+      if (isTrueFirstTurn && !/hola,?\s*soy\s+lucy/i.test(_mensaje)) {
+        return `${LUCY_INTRO} ${_mensaje}`.trim();
+      }
+      return _mensaje;
+    }
     if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
       return buildFirstInteractionMessage(ctx, true);
     }
@@ -910,7 +980,7 @@ export function sanitizeOutboundMessage(
       clientMentionsEntertainment(ctx.currentMessage) ||
       clientMentionsPistaTarima(ctx.currentMessage) ||
       isServiceRelatedMessage(ctx.currentMessage)) &&
-    /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada/i.test(
+    /banquete|taquiza|catering|alimentos|pastas?|pizzas?|mariscos?|sushi|italian|barra\s+de|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada|manejamos/i.test(
       mensaje
     )
   ) {
@@ -1343,6 +1413,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         ? `${phoneAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
         : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente preguntó teléfonos");
+  } else if (clientAsksBodasesorLocation(currentMessage)) {
+    const locationAnswer = buildBodasesorLocationAnswer();
+    const pending = getNextPendingField(extracted, filledSet);
+    const needsNombre = !isFieldSatisfied("nombre", filledSet, extracted);
+    mensaje =
+      needsNombre
+        ? `${locationAnswer}\n\n${buildNaturalQuestion("nombre", ctx)}`
+        : needsNextStep && pending
+          ? `${locationAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
+          : locationAnswer;
+    log?.info({ entityId }, "GUARD: cliente preguntó ubicación/cobertura");
   } else if (readyToCloseAndReqDone && clientDeclinesMoreServices(currentMessage)) {
     mensaje = buildClosing(
       extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -1361,17 +1442,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima — orientación de venta");
-  } else if (
-    allowSalesReplyOverride &&
-    (clientMentionsCatering(currentMessage) ||
-      (justAnsweredReq && isServiceRelatedMessage(currentMessage)))
-  ) {
+  } else if (allowSalesReplyOverride && clientMentionsCatering(currentMessage)) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
+    log?.info({ entityId, food: true }, "GUARD: comida/catering — orientación de venta");
+  } else if (
+    allowSalesReplyOverride &&
+    (clientMentionsNonCateringService(currentMessage) ||
+      (justAnsweredReq && isServiceRelatedMessage(currentMessage) && !clientMentionsCatering(currentMessage)))
+  ) {
+    mensaje = buildGenericServiceReply(extracted, history, entityId, currentMessage);
+    appliedSalesReply = true;
     log?.info(
-      { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
-      "GUARD: comida/servicio — orientación de venta"
+      { entityId, justAnsweredReq, services: parseServicesFromText(currentMessage ?? "") },
+      "GUARD: servicio no-comida — orientación de venta genérica"
     );
   } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
@@ -1636,7 +1721,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (!cierreYaEnviado) {
+  if (!cierreYaEnviado && !appliedSalesReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   }
 

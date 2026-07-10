@@ -426,6 +426,65 @@ textarea.answer-box { min-height: 110px; }
 
 .empty-state strong { display: block; font-size: 1.05rem; color: var(--text); margin-bottom: 0.35rem; }
 
+.manual-teach {
+  background: #fff;
+  border: 1px solid var(--accent-border);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.manual-teach h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.manual-teach .hint {
+  color: var(--text-secondary);
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+}
+
+.manual-teach label {
+  display: block;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+}
+
+.manual-teach input,
+.manual-teach textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+}
+
+.manual-teach textarea { min-height: 72px; resize: vertical; }
+
+.workflow-steps {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.workflow-steps li {
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-soft);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.workflow-steps strong { color: var(--text); }
+
 @media (max-width: 768px) {
   .page-header, .dashboard, .view-tabs, .content-area { padding-left: 1rem; padding-right: 1rem; }
   .info-grid { grid-template-columns: 1fr; }

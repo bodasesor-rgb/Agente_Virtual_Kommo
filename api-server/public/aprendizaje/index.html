@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Aprendizaje de Lucy — Bodasesor</title>
   <base href="/aprendizaje/" />
-  <link rel="stylesheet" href="/aprendizaje/styles.css?v=2" />
+  <link rel="stylesheet" href="/aprendizaje/styles.css?v=3" />
 </head>
 <body>
   <div id="app">
@@ -14,7 +14,7 @@
         <div class="page-header-text">
           <p class="eyebrow">Lucy · Catálogo</p>
           <h1>Aprendizaje de Lucy</h1>
-          <p class="subtitle">Preguntas sin precio en el Sheet, respuestas que tú enseñas y conocimiento ya guardado.</p>
+          <p class="subtitle">Aquí ves lo que Lucy <strong>no supo responder</strong> en chats reales o en el simulador, le enseñas la respuesta correcta, y lo que guardas aparece en <strong>En uso por Lucy</strong> en conversaciones nuevas.</p>
         </div>
         <div class="page-header-actions">
           <a href="/panel">← Panel</a>
@@ -34,16 +34,22 @@
           <span class="tab-desc">Respuestas guardadas</span>
           <span class="tab-count" data-count="answered">0</span>
         </button>
+        <button type="button" class="view-tab" data-status="training">
+          <span class="tab-title">En uso por Lucy</span>
+          <span class="tab-desc">Ejemplos activos en chat</span>
+          <span class="tab-count" data-count="training">0</span>
+        </button>
       </nav>
 
       <div class="content-area">
         <div id="section-intro" class="section-intro"></div>
+        <div id="manual-teach" class="manual-teach hidden"></div>
         <div id="gaps-list" class="gaps-list"></div>
         <p id="empty-state" class="empty-state hidden"></p>
       </div>
     </section>
   </div>
 
-  <script src="/aprendizaje/app.js?v=3" type="module"></script>
+  <script src="/aprendizaje/app.js?v=5" type="module"></script>
 </body>
 </html>
