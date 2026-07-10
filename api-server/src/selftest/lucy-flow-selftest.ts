@@ -1152,6 +1152,22 @@ async function runAll(): Promise<void> {
     assert.equal(parseTipoEventoFromText("Coffee Break para Eventos Corporativos"), "evento corporativo");
     assert.equal(parseTipoEventoFromText("es para un evento corporativo"), "evento corporativo");
     assert.equal(parseTipoEventoFromText("es un bautizo"), "bautizo");
+
+    // Bug 5 (encontrado al verificar en vivo el fix de Lorena): normalizeAdvisorReferences
+    // duplicaba "equipo" porque el flag /i hacía que [A-ZÁÉÍÓÚÑ] matcheara "nuestro"
+    // (minúscula) como si fuera un nombre propio, dejando "nuestro equipo equipo".
+    const dup1 = normalizeAdvisorReferences(
+      "Perfecto, voy a pasar esta información a nuestro equipo para que te prepare una cotización.",
+      "Lorena"
+    );
+    assert.ok(!/equipo\s+equipo/i.test(dup1), dup1);
+    assert.ok(dup1.includes("nuestro equipo"), dup1);
+
+    const dup2 = normalizeAdvisorReferences(
+      "Con gusto, le paso estos datos a nuestro equipo para la cotización.",
+      "Lorena"
+    );
+    assert.ok(!/equipo\s+equipo/i.test(dup2), dup2);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

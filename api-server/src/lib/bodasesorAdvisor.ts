@@ -21,17 +21,25 @@ export function normalizeAdvisorReferences(text: string, clientName?: string | n
 
   let out = text.replace(/\bRodrigo\b/gi, advisor);
 
+  // OJO: con el flag /i, [A-ZÁÉÍÓÚÑ] también matchea minúsculas — sin el
+  // "(?!nuestro\\b)" de abajo, "a nuestro equipo" (ya correcto) se detecta
+  // como "a Nuestro" + nombre propio, se reemplaza por "nuestro equipo" y
+  // deja el resto de la palabra original pegado: "nuestro equipo equipo".
   // Solo en frases de escalamiento a humano — no tocar "Alejandro" suelto en otras frases
   out = out.replace(
-    /\b(le\s+paso\s+estos\s+datos\s+a|paso\s+estos\s+datos\s+a)\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
+    /\b(le\s+paso\s+estos\s+datos\s+a|paso\s+estos\s+datos\s+a)\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
     `$1 ${advisor}`
   );
   out = out.replace(
-    /\b(voy\s+a\s+)?pasar(le)?\s+esta\s+informaci[oó]n\s+a\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
+    /\b(voy\s+a\s+)?pasar(le)?\s+esta\s+informaci[oó]n\s+a\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
     advisor === "nuestro equipo"
       ? "voy a pasar esta información a nuestro equipo"
       : `voy a pasar esta información a ${advisor}`
   );
+
+  // Red de seguridad genérica: colapsa una palabra duplicada inmediata
+  // ("equipo equipo", "nuestro nuestro") sin importar la causa.
+  out = out.replace(/\b(\p{L}+)\s+\1\b/giu, "$1");
   out = out.replace(
     /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+te\s+(arma|armar[aá]|incluir[aá]|cotiza)/g,
     (m, name) => {
