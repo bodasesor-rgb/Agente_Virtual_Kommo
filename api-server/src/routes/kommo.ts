@@ -55,6 +55,7 @@ import {
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
 import { resolveTipoContacto } from "../tipoContacto.js";
+import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
 import {
   applyCapturesToCrm,
   captureContextualAnswer,
@@ -221,6 +222,7 @@ async function extractData(
     requerimientos_evento: null, fecha_horario: null,
     num_invitados: null, tipo_evento: null,
     tipo_contacto: null, empresa: null,
+    modo_servicio: null,
   };
 
   try {
@@ -240,7 +242,8 @@ Campos a extraer:
 - direccion_evento: lugar o dirección del evento si es cliente (string o null)
 - requerimientos_evento: para CLIENTE: servicios o requerimientos; para PROVEEDOR: descripción detallada de productos/servicios que ofrece (string o null)
 - fecha_horario: fecha y/u horario del evento si es cliente (string o null)
-- num_invitados: número de invitados si es cliente (número entero o null, NO string)
+- num_invitados: número de invitados si es cliente (número entero o null, NO string). Un número suelto ambiguo ("el 5", "5") sin contexto de personas/pax → null
+- modo_servicio: "pedido_entrega" si pide producto/entrega/para llevar; "servicio_montado" si pide barra/meseros en el evento; null si no aplica o no queda claro
 - tipo_evento: tipo de evento si es cliente: "boda", "XV años", "cumpleaños", "corporativo", etc. (string o null)
 
 Señales de PROVEEDOR (solo si OFRECE a Bodasesor): "les ofrezco", "soy proveedor de", "quiero venderles", "manejo X y busco clientes", "mi empresa ofrece", "distribuidor".
@@ -249,10 +252,10 @@ REGLA CRÍTICA: mencionar una empresa (Saint-Gobain, etc.) o un producto (café 
 NO uses correos de Bodasesor (capybaraeventos@gmail.com, bodasesor@gmail.com) como correo del cliente — esos son nuestros.
 
 Ejemplo CLIENTE — "Me llamo Ana, quiero una boda para 100 personas":
-{"tipo_contacto":"cliente","nombre":"Ana","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda"}
+{"tipo_contacto":"cliente","nombre":"Ana","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda","modo_servicio":null}
 
 Ejemplo PROVEEDOR — "Hola, soy María de Flores del Valle, ofrecemos arreglos florales para eventos":
-{"tipo_contacto":"proveedor","nombre":"María","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_horario":null,"num_invitados":null,"tipo_evento":null}
+{"tipo_contacto":"proveedor","nombre":"María","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Reglas estrictas:
 - SOLO extrae lo que el contacto dijo, nunca lo que Lucy preguntó.
@@ -292,6 +295,10 @@ Reglas estrictas:
       tipo_evento:           parsed.tipo_evento ?? null,
       tipo_contacto:         tipoContacto,
       empresa:               parsed.empresa ?? null,
+      modo_servicio:
+        parsed.modo_servicio === "pedido_entrega" || parsed.modo_servicio === "servicio_montado"
+          ? parsed.modo_servicio
+          : null,
     };
   } catch {
     return empty;
@@ -739,17 +746,17 @@ function buildCrmContext(
   let context = "";
   if (mergedLines.length > 0) {
     const filledList = mergedLines.map((l) => `✓ ${l.replace(/^- /, "")}`).join("\n");
-    context = `\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nDATOS YA CAPTURADOS — NO VOLVER A PEDIR\n━━━━━━━━━━━━━━━━━━━━━━━━\n${filledList}`;
+    context = `\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nESTADO ACTUAL — DATOS CAPTURADOS (NO VOLVER A PEDIR)\n━━━━━━━━━━━━━━━━━━━━━━━━\n${filledList}`;
   }
   if (allFieldsFilled && mergedLines.length > 0) {
-    context += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nYA TIENES LOS DATOS CLAVE — aplica PASO 7 del prompt (cierre).\n━━━━━━━━━━━━━━━━━━━━━━━━`;
+    context += `\n\n━━━━━━━━━━━━━━━━━━━━━━━━\nESTADO COMPLETO — aplica cierre (sección 7 del prompt).\n━━━━━━━━━━━━━━━━━━━━━━━━`;
   } else if (mergedLines.length > 0) {
     const missing = [
       ...CLOSING_CORE_FIELDS.filter((f) => !filledSet.has(f)),
       ...(!isEmailSatisfied(filledSet) ? ["Correo electrónico (opcional — intentar, no bloquear)"] : []),
     ];
     if (missing.length) {
-      context += `\n\nDATO(S) QUE FALTAN: ${missing.join(", ")} — pregunta SOLO el primero que falta. NUNCA repitas un dato de la lista ✓ de arriba.`;
+      context += `\n\nESTADO ACTUAL — FALTA: ${missing.join(", ")} — pregunta SOLO el primero. NUNCA repitas un dato ✓ de arriba.`;
     }
   }
   return { context, allFieldsFilled, mergedLines, filledLabels: filledSet };
@@ -1268,6 +1275,9 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       }
     } else {
       enrichExtractedFromText(extracted, conversationText);
+      if (!extracted.modo_servicio) {
+        extracted.modo_servicio = detectModoServicio(conversationText);
+      }
     }
 
     extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
@@ -2009,6 +2019,9 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       messageText,
     ].join(" ");
     enrichExtractedFromText(extracted, conversationText);
+    if (!extracted.modo_servicio) {
+      extracted.modo_servicio = detectModoServicio(conversationText);
+    }
     extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
 
     const sbCierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastLucyResponse);
@@ -2498,6 +2511,9 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       messageText,
     ].join(" ");
     enrichExtractedFromText(extracted, conversationText);
+    if (!extracted.modo_servicio) {
+      extracted.modo_servicio = detectModoServicio(conversationText);
+    }
     extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
     if (extracted.correo) {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);

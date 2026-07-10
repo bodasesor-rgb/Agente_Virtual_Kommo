@@ -69,8 +69,9 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
 
   const lines = [
     "[Contexto interno — NO lo menciones ni cites al cliente]",
-    `YA TIENES: ${datosCapturados}`,
-    `FALTA: ${faltantes.length ? faltantes.join(", ") : "nada — datos clave completos"}`,
+    "━━━━━━━━ ESTADO ACTUAL ━━━━━━━━",
+    `Capturado: ${datosCapturados}`,
+    `Falta: ${faltantes.length ? faltantes.join(", ") : "nada — datos clave completos"}`,
     `Intención detectada: ${input.intent.intent} (confianza ${Math.round(input.intent.confidence * 100)}%)`,
     `Sentimiento: ${input.sentiment.sentiment}`,
     `Etapa del lead: ${input.stage} | Prioridad: ${input.priority} | Urgencia: ${urgencia}`,
@@ -79,6 +80,10 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
   if (input.cierreYaEnviado) {
     lines.push(
       "CIERRE YA ENVIADO — NO reinicies el flujo ni vuelvas a preguntar datos capturados. Responde en contexto de cierre (confirmar, agradecer, anotar pedidos extra)."
+    );
+  } else if (input.extracted.modo_servicio === "pedido_entrega") {
+    lines.push(
+      "MODO PEDIDO/ENTREGA — cotiza por producto/cantidad, NO por persona ni con chefs/montaje en evento."
     );
   } else if (input.allFieldsFilled) {
     lines.push("Todos los datos clave están capturados — si corresponde, aplica el cierre.");
@@ -106,7 +111,7 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
   }
 
   lines.push(
-    "NUNCA inventes precios. DJ, iluminación, carpas, mobiliario, pantallas y pista de baile NO tienen precio en catálogo — di que Alejandro lo incluye en la cotización.",
+    `NUNCA inventes precios. DJ, iluminación, carpas, mobiliario, pantallas y pista de baile sin precio en catálogo — di que Rodrigo lo incluye en la cotización.`,
     "Si el cliente hizo una pregunta en este mensaje, respóndela ANTES de pedir el siguiente dato.",
     "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
   );

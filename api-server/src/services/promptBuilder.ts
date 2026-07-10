@@ -5,7 +5,7 @@ import type { ExtractedData } from "../types.js";
 
 /**
  * Construye el prompt final para Lucy.
- * Base: SYSTEM_PROMPT V6 optimizado para gpt-4o-mini.
+ * Base: SYSTEM_PROMPT V7 (maestro consolidado) + catálogo inyectado en runtime.
  * Agrega módulos de objeción + contexto de primera interacción o conversación en curso.
  */
 export function buildDynamicPrompt(context: {
@@ -64,7 +64,7 @@ function getObjectionModule(type: string): string {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OBJECIÓN: PRECIO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Valida brevemente. Alejandro puede armar opciones dentro de su presupuesto.
+Valida brevemente. Rodrigo puede armar opciones dentro de su presupuesto.
 Pregunta el rango. NUNCA digas "es caro pero vale la pena". Máximo 3 líneas.`,
     tiempo: `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

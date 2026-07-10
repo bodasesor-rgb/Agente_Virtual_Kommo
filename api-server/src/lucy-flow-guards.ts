@@ -8,6 +8,10 @@ import {
   resolveClientDisplayName,
   sanitizeDisplayName,
 } from "./contact-name.js";
+import {
+  buildModoServicioClarificationQuestion,
+  needsModoServicioClarification,
+} from "./modoServicio.js";
 import { normalizeAdvisorReferences, advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
 import {
   buildCompanyEmailConfirmReply,
@@ -68,9 +72,9 @@ export const CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Tipo de evento",
   "Requerimientos o servicios",
-  "Número de invitados",
   "Lugar/dirección del evento",
   "Fecha y horario",
+  "Número de invitados",
   "Presupuesto (MXN)",
 ] as const;
 
@@ -132,7 +136,7 @@ const QUESTION_VARIANTS: Record<PendingField, string[]> = {
     "¿Cómo te llamas?",
   ],
   correo: [
-    "Para mandarte la info y que nuestro equipo te arme la propuesta, ¿a qué correo te lo envío?",
+    "Para mandarte la info y que Rodrigo te arme la propuesta, ¿a qué correo te lo envío?",
     "¿Me compartes un correo para enviarte los detalles de la cotización?",
     "¿A qué correo te mando la información?",
   ],
@@ -164,7 +168,7 @@ const QUESTION_VARIANTS: Record<PendingField, string[]> = {
   presupuesto: [
     "¿Tienen algún rango de presupuesto en mente?",
     "¿Manejan algún presupuesto estimado para el evento?",
-    "¿Tienen idea del presupuesto o prefieren que Alejandro les proponga opciones?",
+    "¿Tienen idea del presupuesto o prefieren que Rodrigo les proponga opciones?",
   ],
 };
 
@@ -608,9 +612,9 @@ export function getNextPendingField(
 
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
   if (!hasReq) return "requerimientos";
-  if (!hasInv) return "invitados";
   if (!filled.has("Lugar/dirección del evento")) return "zona";
   if (!filled.has("Fecha y horario")) return "fecha";
+  if (!hasInv) return "invitados";
   if (!filled.has("Presupuesto (MXN)")) return "presupuesto";
   return null;
 }
@@ -818,9 +822,9 @@ const FIELD_ORDER: PendingField[] = [
   "correo",
   "tipo_evento",
   "requerimientos",
-  "invitados",
   "zona",
   "fecha",
+  "invitados",
   "presupuesto",
 ];
 
@@ -1335,6 +1339,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente preguntó por correo de Bodasesor");
+  } else if (
+    needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)
+  ) {
+    mensaje = buildModoServicioClarificationQuestion();
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: aclarar pedido vs servicio montado");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje =
       "Gracias. Nuestro equipo ya tiene tu información para la cotización. ¿Hay algo más que quieras agregar o alguna duda?";

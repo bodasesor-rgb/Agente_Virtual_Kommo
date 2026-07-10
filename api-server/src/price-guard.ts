@@ -117,9 +117,12 @@ export function stripStalePriceTalk(mensaje: string, currentMessage?: string): s
     .trim();
 }
 
+import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
+
 export function buildAlejandroPriceReply(serviceHint?: string): string {
   const svc = serviceHint?.trim() || "ese servicio";
-  return `Sí, manejamos ${svc}. El precio exacto depende del evento — Alejandro te lo incluye en tu cotización personalizada.`;
+  const advisor = getAdvisorName();
+  return `Sí, manejamos ${svc}. El precio exacto depende del evento — ${advisor} te lo incluye en tu cotización personalizada.`;
 }
 
 /**

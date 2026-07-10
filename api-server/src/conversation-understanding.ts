@@ -162,6 +162,7 @@ export function clientAsksAboutTeam(message?: string, clientName?: string | null
   return (
     (new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name && name === advisor)) ||
     new RegExp(`\\bqui[eé]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t) ||
+    /\bqui[eé]n\s+es\s+alejandro\b/i.test(t) ||
     new RegExp(`\\best[aá]\\s+${advisorEsc}\\b`, "i").test(t) ||
     new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t) ||
     new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t) ||
@@ -457,7 +458,13 @@ export function parseInvitadosFromText(text: string): string | null {
     return WRITTEN_NUMBERS[writtenMatch[1]!.toLowerCase()] ?? null;
   }
 
-  if (/^\d{1,4}$/.test(trimmed)) return trimmed;
+  if (/^el\s+\d{1,2}$/i.test(trimmed)) return null;
+
+  if (/^\d{1,4}$/.test(trimmed)) {
+    const n = parseInt(trimmed, 10);
+    if (n < 10) return null;
+    return trimmed;
+  }
 
   return null;
 }

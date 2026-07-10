@@ -5,7 +5,7 @@ export function getAdvisorName(): string {
   return (
     process.env["BODASESOR_ADVISOR_NAME"]?.trim() ||
     process.env["KOMMO_ADVISOR_NAME"]?.trim() ||
-    "Alejandro"
+    "Rodrigo"
   );
 }
 
@@ -55,6 +55,10 @@ export function normalizeAdvisorReferences(text: string, clientName?: string | n
   if (advisorName.toLowerCase() !== advisor.toLowerCase()) {
     const esc = advisorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     out = out.replace(new RegExp(`\\b${esc}\\b`, "gi"), advisor);
+  }
+  // Legado: prompts viejos decían Alejandro
+  if (advisor.toLowerCase() === "nuestro equipo") {
+    out = out.replace(/\bAlejandro\b/gi, advisor);
   }
 
   return out;

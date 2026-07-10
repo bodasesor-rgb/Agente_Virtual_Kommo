@@ -67,6 +67,7 @@ import { fileURLToPath } from "node:url";
 import { getCatalogStatus } from "../services/catalogService.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
 import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests } from "../services/imageProcessor.js";
+import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
 import {
   webhookMessageKey,
   isDuplicateWebhookMessage,
@@ -108,6 +109,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
     tipo_evento: null,
     tipo_contacto: "cliente",
     empresa: null,
+    modo_servicio: null,
     ...overrides,
   };
 }
@@ -155,7 +157,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 27 escenarios de prueba\n");
+  console.log("Lucy — 28 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -384,6 +386,7 @@ async function runAll(): Promise<void> {
     assert.ok(!isValidRequerimientosValue("cumpleaños"));
 
     assert.equal(clientAsksAboutTeam("Alejandro", "Alejandro"), false);
+    assert.equal(clientAsksAboutTeam("¿Quién es Rodrigo?", "María"), true);
     assert.equal(clientAsksAboutTeam("¿Quién es Alejandro?", "María"), true);
 
     const norm = normalizeAdvisorReferences(
@@ -1256,6 +1259,23 @@ async function runAll(): Promise<void> {
       attachment: { type: "picture", link: imgUrl },
     });
     assert.equal(fallbackKey, `media:chat-2:${imgUrl}`);
+  });
+
+  await test("28. Lucy V7 — pedido/entrega, número ambiguo, orden ubicación→fecha→invitados", () => {
+    assert.equal(detectModoServicio("quiero 50 rollos para llevar"), "pedido_entrega");
+    assert.equal(detectModoServicio("barra de sushi montada en el evento"), "servicio_montado");
+    assert.ok(needsModoServicioClarification("necesito 50 rollos de sushi", null));
+    assert.equal(parseInvitadosFromText("5"), null);
+    assert.equal(parseInvitadosFromText("el 5"), null);
+    assert.equal(parseInvitadosFromText("150 personas"), "150");
+
+    const filled = new Set([
+      "Nombre del cliente",
+      EMAIL_WAIVED_LABEL,
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    assert.equal(getNextPendingField(emptyExtracted(), filled), "zona");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -129,7 +129,7 @@ function filterClientEmail(email) {
 
 // src/lib/bodasesorAdvisor.ts
 function getAdvisorName() {
-  return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Alejandro";
+  return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Rodrigo";
 }
 function advisorLabelForClient(_clientName) {
   return "nuestro equipo";
@@ -161,6 +161,9 @@ function normalizeAdvisorReferences(text, clientName) {
   if (advisorName.toLowerCase() !== advisor.toLowerCase()) {
     const esc = advisorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     out = out.replace(new RegExp(`\\b${esc}\\b`, "gi"), advisor);
+  }
+  if (advisor.toLowerCase() === "nuestro equipo") {
+    out = out.replace(/\bAlejandro\b/gi, advisor);
   }
   return out;
 }
@@ -276,7 +279,7 @@ function clientAsksAboutTeam(message, clientName) {
   if (name && name === advisor && new RegExp(`^${advisorEsc}$`, "i").test(normalized)) {
     return false;
   }
-  return new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name && name === advisor) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\best[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bd[o\xF3]nde\\s+est[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t) || /\bel\s+asesor\b/i.test(t);
+  return new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name && name === advisor) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t) || /\bqui[eé]n\s+es\s+alejandro\b/i.test(t) || new RegExp(`\\best[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bd[o\xF3]nde\\s+est[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t) || /\bel\s+asesor\b/i.test(t);
 }
 function clientAddsToQuote(message) {
   if (!message?.trim()) return false;
@@ -434,7 +437,12 @@ function parseInvitadosFromText(text) {
   if (writtenMatch) {
     return WRITTEN_NUMBERS[writtenMatch[1].toLowerCase()] ?? null;
   }
-  if (/^\d{1,4}$/.test(trimmed)) return trimmed;
+  if (/^el\s+\d{1,2}$/i.test(trimmed)) return null;
+  if (/^\d{1,4}$/.test(trimmed)) {
+    const n = parseInt(trimmed, 10);
+    if (n < 10) return null;
+    return trimmed;
+  }
   return null;
 }
 function isDimensionText(text) {
@@ -953,6 +961,26 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   return lineas.join("\n").slice(0, 8e3);
 }
 
+// src/modoServicio.ts
+var PEDIDO_ENTREGA = /\b(para\s+llevar|entrega|que\s+me\s+dejen|que\s+me\s+entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
+var SERVICIO_MONTADO = /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
+function detectModoServicio(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return null;
+  if (PEDIDO_ENTREGA.test(t)) return "pedido_entrega";
+  if (SERVICIO_MONTADO.test(t)) return "servicio_montado";
+  return null;
+}
+function needsModoServicioClarification(text, current) {
+  if (current) return false;
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return /\b(\d+\s+rollos?|\d+\s+piezas?|\d+\s+platos?|quiero\s+\d+|necesito\s+\d+)\b/i.test(t) && !PEDIDO_ENTREGA.test(t) && !SERVICIO_MONTADO.test(t);
+}
+function buildModoServicioClarificationQuestion() {
+  return "\xBFLo quieres montado en tu evento con barra y servicio, o solo la entrega del producto?";
+}
+
 // src/price-guard.ts
 var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
 var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
@@ -1010,7 +1038,8 @@ function stripStalePriceTalk(mensaje, currentMessage) {
 }
 function buildAlejandroPriceReply(serviceHint) {
   const svc = serviceHint?.trim() || "ese servicio";
-  return `S\xED, manejamos ${svc}. El precio exacto depende del evento \u2014 Alejandro te lo incluye en tu cotizaci\xF3n personalizada.`;
+  const advisor = getAdvisorName();
+  return `S\xED, manejamos ${svc}. El precio exacto depende del evento \u2014 ${advisor} te lo incluye en tu cotizaci\xF3n personalizada.`;
 }
 function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
   if (!responseHasInventedPrice(mensaje, currentMessage, recentContext)) {
@@ -1308,9 +1337,9 @@ var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Tipo de evento",
   "Requerimientos o servicios",
-  "N\xFAmero de invitados",
   "Lugar/direcci\xF3n del evento",
   "Fecha y horario",
+  "N\xFAmero de invitados",
   "Presupuesto (MXN)"
 ];
 var LUCY_INTRO = "Hola, soy Lucy, agente virtual de Bodasesor.";
@@ -1334,7 +1363,7 @@ var QUESTION_VARIANTS = {
     "\xBFC\xF3mo te llamas?"
   ],
   correo: [
-    "Para mandarte la info y que nuestro equipo te arme la propuesta, \xBFa qu\xE9 correo te lo env\xEDo?",
+    "Para mandarte la info y que Rodrigo te arme la propuesta, \xBFa qu\xE9 correo te lo env\xEDo?",
     "\xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?",
     "\xBFA qu\xE9 correo te mando la informaci\xF3n?"
   ],
@@ -1366,7 +1395,7 @@ var QUESTION_VARIANTS = {
   presupuesto: [
     "\xBFTienen alg\xFAn rango de presupuesto en mente?",
     "\xBFManejan alg\xFAn presupuesto estimado para el evento?",
-    "\xBFTienen idea del presupuesto o prefieren que Alejandro les proponga opciones?"
+    "\xBFTienen idea del presupuesto o prefieren que Rodrigo les proponga opciones?"
   ]
 };
 var FIELD_ASK_PATTERNS = {
@@ -1604,9 +1633,9 @@ function getNextPendingField(extracted, filledSet) {
   const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
   if (!hasReq) return "requerimientos";
-  if (!hasInv) return "invitados";
   if (!filled.has("Lugar/direcci\xF3n del evento")) return "zona";
   if (!filled.has("Fecha y horario")) return "fecha";
+  if (!hasInv) return "invitados";
   if (!filled.has("Presupuesto (MXN)")) return "presupuesto";
   return null;
 }
@@ -1725,9 +1754,9 @@ var FIELD_ORDER = [
   "correo",
   "tipo_evento",
   "requerimientos",
-  "invitados",
   "zona",
   "fecha",
+  "invitados",
   "presupuesto"
 ];
 function mensajeAsksForFilledField(mensaje, filledSet, extracted) {
@@ -2023,6 +2052,10 @@ function applyLucyMessageGuards(input) {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
+  } else if (needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+    mensaje = buildModoServicioClarificationQuestion();
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: aclarar pedido vs servicio montado");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje = "Gracias. Nuestro equipo ya tiene tu informaci\xF3n para la cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar o alguna duda?";
     log?.warn({ entityId }, "GUARD: bloque\xF3 nota interna post-cierre");
@@ -12807,6 +12840,7 @@ function emptyExtracted(overrides = {}) {
     tipo_evento: null,
     tipo_contacto: "cliente",
     empresa: null,
+    modo_servicio: null,
     ...overrides
   };
 }
@@ -12842,7 +12876,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 27 escenarios de prueba\n");
+  console.log("Lucy \u2014 28 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -13049,6 +13083,7 @@ async function runAll() {
     assert.ok(isValidRequerimientosValue("banquete"));
     assert.ok(!isValidRequerimientosValue("cumplea\xF1os"));
     assert.equal(clientAsksAboutTeam("Alejandro", "Alejandro"), false);
+    assert.equal(clientAsksAboutTeam("\xBFQui\xE9n es Rodrigo?", "Mar\xEDa"), true);
     assert.equal(clientAsksAboutTeam("\xBFQui\xE9n es Alejandro?", "Mar\xEDa"), true);
     const norm = normalizeAdvisorReferences(
       "Le paso estos datos a Alejandro para que te arme una cotizaci\xF3n.",
@@ -13794,6 +13829,21 @@ async function runAll() {
       attachment: { type: "picture", link: imgUrl }
     });
     assert.equal(fallbackKey, `media:chat-2:${imgUrl}`);
+  });
+  await test("28. Lucy V7 \u2014 pedido/entrega, n\xFAmero ambiguo, orden ubicaci\xF3n\u2192fecha\u2192invitados", () => {
+    assert.equal(detectModoServicio("quiero 50 rollos para llevar"), "pedido_entrega");
+    assert.equal(detectModoServicio("barra de sushi montada en el evento"), "servicio_montado");
+    assert.ok(needsModoServicioClarification("necesito 50 rollos de sushi", null));
+    assert.equal(parseInvitadosFromText("5"), null);
+    assert.equal(parseInvitadosFromText("el 5"), null);
+    assert.equal(parseInvitadosFromText("150 personas"), "150");
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      EMAIL_WAIVED_LABEL,
+      "Tipo de evento",
+      "Requerimientos o servicios"
+    ]);
+    assert.equal(getNextPendingField(emptyExtracted(), filled), "zona");
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
