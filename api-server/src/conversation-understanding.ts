@@ -302,11 +302,11 @@ const MONTH_PATTERN =
   /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|coyoac[aá]n|xochimilco)\b/i;
 
-/** Fragmentos tras "en …" que NO son ubicación. */
-const NON_LOCATION_EN_PREFIX =
-  /^(la|el|los|las|total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|mente|mente\s+para|solo|m[ií]o|tu|su)\b/i;
+/** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
+const NON_LOCATION_WORDS =
+  /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su)\b/i;
 
 export interface CrmCapture {
   label: string;
@@ -427,11 +427,25 @@ export function parseInvitadosFromText(text: string): string | null {
     return "Sin definir (cliente indicó aproximación pendiente)";
   }
 
-  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?)\b/i);
+  // "entre 90 y 100" — guarda el mayor de los dos números
+  const rangoMatch = trimmed.match(/\bentre\s+(\d+)\s+y\s+(\d+)\b/i);
+  if (rangoMatch) {
+    const a = parseInt(rangoMatch[1]!, 10);
+    const b = parseInt(rangoMatch[2]!, 10);
+    return String(Math.max(a, b));
+  }
+
+  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
   if (numMatch) return numMatch[1]!;
 
-  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como)\s+(\d+)\b/i);
+  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
   if (paraMatch) return paraMatch[1]!;
+
+  // "más o menos 120", "aproximadamente 80" — número suelto con calificador aproximado
+  const aproxMatch = trimmed.match(
+    /\b(?:m[aá]s\s+o\s+menos|aproximadamente|al\s+rededor\s+de|alrededor\s+de|cerca\s+de)\s+(\d+)\b/i
+  );
+  if (aproxMatch) return aproxMatch[1]!;
 
   const writtenMatch = trimmed.match(
     /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?)\b/i
@@ -483,19 +497,29 @@ export function parseZonaFromText(text: string): string | null {
     if (m) return m[0]!.trim();
   }
 
+  // "colonia Roma", "delegación Coyoacán", "alcaldía Benito Juárez", "fraccionamiento X"
+  const coloniaMatch = trimmed.match(
+    /\b((?:colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+[A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,28})/i
+  );
+  if (coloniaMatch?.[1]) return coloniaMatch[1].trim();
+
   const enMatch = trimmed.match(
     /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
   );
   if (enMatch) {
     const lugar = enMatch[1]!.trim();
+    // Quita el artículo antes de validar (pero lo conserva del resultado si aplica),
+    // así "en el Estado de México" o "en la colonia Roma" ya no se descartan.
+    const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
+    const candidato = sinArticulo || lugar;
     if (
-      !MONTH_PATTERN.test(lugar) &&
-      !/^\d/.test(lugar) &&
-      !isGreetingOnlyMessage(lugar) &&
-      !NON_LOCATION_EN_PREFIX.test(lugar) &&
-      !/\b(solo|para\s+la|total|comida|pista)\b/i.test(lugar)
+      !MONTH_PATTERN.test(candidato) &&
+      !/^\d/.test(candidato) &&
+      !isGreetingOnlyMessage(candidato) &&
+      !NON_LOCATION_WORDS.test(candidato) &&
+      !/\b(solo|para\s+la|total|comida|pista)\b/i.test(candidato)
     ) {
-      return lugar;
+      return candidato;
     }
   }
 
@@ -520,9 +544,81 @@ export function parseZonaFromText(text: string): string | null {
 export const SERVICE_LABELS_NOT_TIPO =
   /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
 
+const CORREO_DICTADO_STOPWORDS = new Set([
+  "es",
+  "mi",
+  "correo",
+  "el",
+  "mail",
+  "email",
+  "de",
+  "ser[ií]a",
+  "seria",
+  "sería",
+]);
+
+/** Convierte un correo dictado por voz ("ana arroba gmail punto com") a formato estándar. */
+function normalizeDictatedCorreo(text: string): string | null {
+  const lower = text.toLowerCase().replace(/[¿?¡!,.;:]+$/g, "");
+  if (!/\barroba\b/.test(lower)) return null;
+
+  const tokens = lower.split(/\s+/);
+  const arrobaIdx = tokens.indexOf("arroba");
+  if (arrobaIdx === -1) return null;
+
+  const localParts: string[] = [];
+  for (let i = arrobaIdx - 1; i >= 0; ) {
+    const tok = tokens[i]!;
+    if (tok === "bajo" && i - 1 >= 0 && (tokens[i - 1] === "guion" || tokens[i - 1] === "guión")) {
+      localParts.unshift("_");
+      i -= 2;
+      continue;
+    }
+    if (tok === "guion" || tok === "guión") {
+      localParts.unshift("-");
+      i -= 1;
+      continue;
+    }
+    if (CORREO_DICTADO_STOPWORDS.has(tok)) break;
+    if (!/^[a-z0-9]+$/.test(tok)) break;
+    localParts.unshift(tok);
+    i -= 1;
+  }
+  if (localParts.length === 0) return null;
+
+  const domainParts: string[] = [];
+  for (let i = arrobaIdx + 1; i < tokens.length; ) {
+    const tok = tokens[i]!;
+    if (tok === "punto") {
+      domainParts.push(".");
+      i += 1;
+      continue;
+    }
+    if (tok === "guion" || tok === "guión") {
+      if (tokens[i + 1] === "bajo") {
+        domainParts.push("_");
+        i += 2;
+        continue;
+      }
+      domainParts.push("-");
+      i += 1;
+      continue;
+    }
+    if (!/^[a-z0-9]+$/.test(tok)) break;
+    domainParts.push(tok);
+    i += 1;
+  }
+  if (domainParts.length === 0) return null;
+
+  const candidate = `${localParts.join("")}@${domainParts.join("")}`;
+  return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(candidate) ? candidate : null;
+}
+
 export function parseCorreoFromText(text: string | null | undefined): string | null {
-  const m = text?.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
-  return m ? m[1]! : null;
+  if (!text) return null;
+  const m = text.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+  if (m) return m[1]!;
+  return normalizeDictatedCorreo(text);
 }
 
 export function isServiceLabelNotTipoEvento(label: string | null | undefined): boolean {
@@ -675,6 +771,10 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     return "Sin definir (cliente indicó que no tiene)";
   }
 
+  if (/\b(poquito|lo\s+que\s+sea\s+necesario|flexible|lo\s+que\s+se\s+necesite)\b/i.test(trimmed)) {
+    return "Flexible (sin monto fijo)";
+  }
+
   if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
     return "Sin definir (cliente indicó que no tiene)";
   }
@@ -707,6 +807,15 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
   if (rangeMatch) {
     return `${rangeMatch[1]!.replace(/,/g, "")} - ${rangeMatch[2]!.replace(/,/g, "")} MXN`;
+  }
+
+  // "$500 por persona", "500 por cabeza", "500 x persona", "unos 600 pp", "500 c/u"
+  const perPersonMatch = trimmed.match(
+    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
+  );
+  if (perPersonMatch) {
+    const num = parseInt(perPersonMatch[1]!.replace(/,/g, ""), 10);
+    if (!isNaN(num) && num > 0) return `$${num.toLocaleString("es-MX")} MXN por persona`;
   }
 
   const menosDeMatch = trimmed.match(

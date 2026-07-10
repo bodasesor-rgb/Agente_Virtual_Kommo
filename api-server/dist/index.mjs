@@ -79162,8 +79162,8 @@ var WRITTEN_NUMBERS = {
   quinientos: "500"
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico)\b/i;
-var NON_LOCATION_EN_PREFIX = /^(la|el|los|las|total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|mente|mente\s+para|solo|m[ií]o|tu|su)\b/i;
+var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|coyoac[aá]n|xochimilco)\b/i;
+var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su)\b/i;
 function inferLucyAskedField(lastLucyMessage) {
   const msg = lastLucyMessage?.trim() ?? "";
   if (!msg) return null;
@@ -79244,10 +79244,20 @@ function parseInvitadosFromText(text2) {
   )) {
     return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
   }
-  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?)\b/i);
+  const rangoMatch = trimmed.match(/\bentre\s+(\d+)\s+y\s+(\d+)\b/i);
+  if (rangoMatch) {
+    const a2 = parseInt(rangoMatch[1], 10);
+    const b4 = parseInt(rangoMatch[2], 10);
+    return String(Math.max(a2, b4));
+  }
+  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
   if (numMatch) return numMatch[1];
-  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como)\s+(\d+)\b/i);
+  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
   if (paraMatch) return paraMatch[1];
+  const aproxMatch = trimmed.match(
+    /\b(?:m[aá]s\s+o\s+menos|aproximadamente|al\s+rededor\s+de|alrededor\s+de|cerca\s+de)\s+(\d+)\b/i
+  );
+  if (aproxMatch) return aproxMatch[1];
   const writtenMatch = trimmed.match(
     /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?)\b/i
   );
@@ -79283,13 +79293,19 @@ function parseZonaFromText(text2) {
     const m4 = trimmed.match(KNOWN_ZONES);
     if (m4) return m4[0].trim();
   }
+  const coloniaMatch = trimmed.match(
+    /\b((?:colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+[A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,28})/i
+  );
+  if (coloniaMatch?.[1]) return coloniaMatch[1].trim();
   const enMatch = trimmed.match(
     /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
   );
   if (enMatch) {
     const lugar = enMatch[1].trim();
-    if (!MONTH_PATTERN.test(lugar) && !/^\d/.test(lugar) && !isGreetingOnlyMessage(lugar) && !NON_LOCATION_EN_PREFIX.test(lugar) && !/\b(solo|para\s+la|total|comida|pista)\b/i.test(lugar)) {
-      return lugar;
+    const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
+    const candidato = sinArticulo || lugar;
+    if (!MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !/\b(solo|para\s+la|total|comida|pista)\b/i.test(candidato)) {
+      return candidato;
     }
   }
   const venueMatch = trimmed.match(
@@ -79305,9 +79321,74 @@ function parseZonaFromText(text2) {
   return null;
 }
 var SERVICE_LABELS_NOT_TIPO = /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
+var CORREO_DICTADO_STOPWORDS = /* @__PURE__ */ new Set([
+  "es",
+  "mi",
+  "correo",
+  "el",
+  "mail",
+  "email",
+  "de",
+  "ser[i\xED]a",
+  "seria",
+  "ser\xEDa"
+]);
+function normalizeDictatedCorreo(text2) {
+  const lower = text2.toLowerCase().replace(/[¿?¡!,.;:]+$/g, "");
+  if (!/\barroba\b/.test(lower)) return null;
+  const tokens = lower.split(/\s+/);
+  const arrobaIdx = tokens.indexOf("arroba");
+  if (arrobaIdx === -1) return null;
+  const localParts = [];
+  for (let i3 = arrobaIdx - 1; i3 >= 0; ) {
+    const tok = tokens[i3];
+    if (tok === "bajo" && i3 - 1 >= 0 && (tokens[i3 - 1] === "guion" || tokens[i3 - 1] === "gui\xF3n")) {
+      localParts.unshift("_");
+      i3 -= 2;
+      continue;
+    }
+    if (tok === "guion" || tok === "gui\xF3n") {
+      localParts.unshift("-");
+      i3 -= 1;
+      continue;
+    }
+    if (CORREO_DICTADO_STOPWORDS.has(tok)) break;
+    if (!/^[a-z0-9]+$/.test(tok)) break;
+    localParts.unshift(tok);
+    i3 -= 1;
+  }
+  if (localParts.length === 0) return null;
+  const domainParts = [];
+  for (let i3 = arrobaIdx + 1; i3 < tokens.length; ) {
+    const tok = tokens[i3];
+    if (tok === "punto") {
+      domainParts.push(".");
+      i3 += 1;
+      continue;
+    }
+    if (tok === "guion" || tok === "gui\xF3n") {
+      if (tokens[i3 + 1] === "bajo") {
+        domainParts.push("_");
+        i3 += 2;
+        continue;
+      }
+      domainParts.push("-");
+      i3 += 1;
+      continue;
+    }
+    if (!/^[a-z0-9]+$/.test(tok)) break;
+    domainParts.push(tok);
+    i3 += 1;
+  }
+  if (domainParts.length === 0) return null;
+  const candidate = `${localParts.join("")}@${domainParts.join("")}`;
+  return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(candidate) ? candidate : null;
+}
 function parseCorreoFromText(text2) {
-  const m4 = text2?.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
-  return m4 ? m4[1] : null;
+  if (!text2) return null;
+  const m4 = text2.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+  if (m4) return m4[1];
+  return normalizeDictatedCorreo(text2);
 }
 function isServiceLabelNotTipoEvento(label) {
   if (!label?.trim()) return false;
@@ -79396,6 +79477,9 @@ function parsePresupuestoFromText(text2, opts) {
   if (/\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(trimmed)) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
+  if (/\b(poquito|lo\s+que\s+sea\s+necesario|flexible|lo\s+que\s+se\s+necesite)\b/i.test(trimmed)) {
+    return "Flexible (sin monto fijo)";
+  }
   if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
@@ -79421,6 +79505,13 @@ function parsePresupuestoFromText(text2, opts) {
   const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
   if (rangeMatch) {
     return `${rangeMatch[1].replace(/,/g, "")} - ${rangeMatch[2].replace(/,/g, "")} MXN`;
+  }
+  const perPersonMatch = trimmed.match(
+    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
+  );
+  if (perPersonMatch) {
+    const num = parseInt(perPersonMatch[1].replace(/,/g, ""), 10);
+    if (!isNaN(num) && num > 0) return `$${num.toLocaleString("es-MX")} MXN por persona`;
   }
   const menosDeMatch = trimmed.match(
     /\b(?:menos\s+de|hasta|m[aá]ximo|max\.?)\s+\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos)?\b/i
@@ -80214,6 +80305,11 @@ Si el cliente da varios datos de golpe:
 
 REGLA: NUNCA digas "Ya tengo tu correo", "Ya tengo la zona", "Ya tengo la fecha"
 antes de hacer la siguiente pregunta. Ve directo a preguntar.
+
+Antes de mandar tu mensaje, comp\xE1ralo mentalmente con tu \xFAltimo mensaje en la
+conversaci\xF3n: si es casi igual (misma pregunta, mismo saludo, mismo cierre),
+reescr\xEDbelo distinto o avanza al siguiente dato. Nunca mandes dos veces
+pr\xE1cticamente lo mismo.
 
 Los ejemplos del flujo son GU\xCDA de intenci\xF3n, no texto literal obligatorio.
 El sistema valida que preguntes cada dato faltante antes del cierre.

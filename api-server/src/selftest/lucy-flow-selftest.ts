@@ -138,7 +138,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 23 escenarios de prueba\n");
+  console.log("Lucy — 24 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -1049,6 +1049,45 @@ async function runAll(): Promise<void> {
     const cleaned = stripImageAnnotation(leaked);
     assert.ok(!/imagen adjunta/i.test(cleaned), cleaned);
     assert.ok(/qué bonito salón/i.test(cleaned));
+  });
+
+  await test("24. Sinónimos de captura (del prompt de Opus) — presupuesto, invitados, correo, zona", () => {
+    // Presupuesto: montos por persona
+    assert.equal(parsePresupuestoFromText("$500 por persona"), "$500 MXN por persona");
+    assert.equal(parsePresupuestoFromText("500 por cabeza"), "$500 MXN por persona");
+    assert.equal(parsePresupuestoFromText("unos 600 pp"), "$600 MXN por persona");
+    assert.equal(parsePresupuestoFromText("500 x persona"), "$500 MXN por persona");
+
+    // Presupuesto: "poquito" / "flexible" / "lo que sea necesario"
+    assert.equal(parsePresupuestoFromText("poquito"), "Flexible (sin monto fijo)");
+    assert.equal(parsePresupuestoFromText("flexible"), "Flexible (sin monto fijo)");
+    assert.equal(parsePresupuestoFromText("lo que sea necesario"), "Flexible (sin monto fijo)");
+
+    // Invitados: "gente", "unos N", "más o menos N", "entre X y Y" (mayor)
+    assert.equal(parseInvitadosFromText("250 gentes"), "250");
+    assert.equal(parseInvitadosFromText("como 60 cabezas"), "60");
+    assert.equal(parseInvitadosFromText("unos 40"), "40");
+    assert.equal(parseInvitadosFromText("más o menos 120"), "120");
+    assert.equal(parseInvitadosFromText("aproximadamente 80"), "80");
+    assert.equal(parseInvitadosFromText("entre 90 y 100"), "100");
+
+    // Correo dictado por voz ("arroba", "punto")
+    assert.equal(parseCorreoFromText("mi correo es ana arroba gmail punto com"), "ana@gmail.com");
+    assert.equal(
+      parseCorreoFromText("es pedro guion bajo lopez arroba hotmail punto com"),
+      "pedro_lopez@hotmail.com"
+    );
+    // Correo normal sigue funcionando igual
+    assert.equal(parseCorreoFromText("mi correo es test@gmail.com"), "test@gmail.com");
+
+    // Zona: "en el Estado de México" ya no se descarta por el artículo
+    assert.equal(parseZonaFromText("El evento es en el Estado de México"), "Estado de México");
+    assert.equal(parseZonaFromText("Va a ser en la colonia Roma"), "colonia Roma");
+    assert.equal(parseZonaFromText("Es en delegación Coyoacán"), "Coyoacán");
+    assert.equal(parseZonaFromText("Va a ser en la alcaldía Miguel Hidalgo"), "alcaldía Miguel Hidalgo");
+    // Los casos que SÍ deben seguir descartándose:
+    assert.equal(parseZonaFromText("en total serían 50 personas"), null);
+    assert.equal(parseZonaFromText("es solo para mi familia"), null);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
