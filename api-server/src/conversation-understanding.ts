@@ -241,7 +241,9 @@ export function clientMentionsCatering(message?: string): boolean {
     /\bcatering\b/i.test(t) ||
     /\b(brunch|desayuno)\b/i.test(t) ||
     /\bbrunch\s*\/\s*desayuno/i.test(t) ||
-    /\b(busco|necesito|quiero|cotizar)\s+(comida|alimentos?|men[uú])\b/i.test(t) ||
+    /\bcoffee\s*break\b/i.test(t) ||
+    /\bbarra\s+de\s+caf[eé](?!\w)/i.test(t) ||
+    /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t) ||
     /\bcomida\s+para\b/i.test(t) ||
     /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) ||
     /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t)

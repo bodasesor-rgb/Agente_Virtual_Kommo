@@ -24,6 +24,7 @@ import {
   isLegacyStoredLucyResponse,
   parseNombreFromCrmLines,
   crmStoredValue,
+  stripCatalogBlockShared,
 } from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -309,25 +310,7 @@ interface LeadFieldsResult {
 }
 
 // ─── Strip catalog block from a response (used when cierre already sent) ────────
-function stripCatalogBlock(text: string): string {
-  const lines = text.split("\n");
-  const filtered = lines.filter(
-    (l) =>
-      !l.includes(CATALOG_URL) &&
-      !l.toLowerCase().includes("aquí está nuestro catálogo") &&
-      !l.toLowerCase().includes("comparto el link") &&
-      !l.toLowerCase().includes("mientras tanto, aquí") &&
-      !l.toLowerCase().includes("banquetes:") &&
-      !l.toLowerCase().includes("barras temáticas:") &&
-      !l.toLowerCase().includes("bebidas:") &&
-      !l.toLowerCase().includes("mesas especiales:") &&
-      !l.toLowerCase().includes("mobiliario:") &&
-      !l.toLowerCase().includes("entretenimiento:") &&
-      !l.toLowerCase().includes("estructuras:") &&
-      !l.toLowerCase().includes("cdn.shopify.com")
-  );
-  return filtered.join("\n").replace(/\n{3,}/g, "\n\n").trim();
-}
+const stripCatalogBlock = stripCatalogBlockShared;
 
 // ─── Return the next question for a field that is already captured (P1 guard) ──
 // nextFieldQuestion lives in lucy-flow-guards.ts

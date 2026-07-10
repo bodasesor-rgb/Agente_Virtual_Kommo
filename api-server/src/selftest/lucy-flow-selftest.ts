@@ -50,6 +50,7 @@ import {
   isValidRequerimientosValue,
   crmStoredValue,
   stripImageAnnotation,
+  stripCatalogBlockShared,
 } from "../lucy-flow-guards.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -138,7 +139,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 24 escenarios de prueba\n");
+  console.log("Lucy — 25 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -1088,6 +1089,60 @@ async function runAll(): Promise<void> {
     // Los casos que SÍ deben seguir descartándose:
     assert.equal(parseZonaFromText("en total serían 50 personas"), null);
     assert.equal(parseZonaFromText("es solo para mi familia"), null);
+  });
+
+  await test("25. Lorena A14777 — Coffee Break se ofrece, resumen no pierde datos, catálogo no vacía la respuesta", () => {
+    // Bug 1: "Coffee Break" no disparaba la orientación de venta.
+    assert.ok(clientMentionsCatering("Hola, me interesa cotizar: Coffee Break para Eventos Corporativos"));
+    assert.ok(clientMentionsCatering("barra de café para el evento"));
+
+    const filledInicial = new Set<string>();
+    const extractedInicial = emptyExtracted();
+    const reply1 = runGuards({
+      aiResponse: "¿Me regalas tu nombre?",
+      extracted: extractedInicial,
+      filledSet: filledInicial,
+      readyForClosing: false,
+      currentMessage: "Hola, me interesa cotizar: Coffee Break para Eventos Corporativos",
+      history: [],
+    });
+    assert.ok(/coffee\s*break/i.test(reply1), `debe confirmar coffee break, no ignorarlo: ${reply1.slice(0, 200)}`);
+
+    // Bug 2: el resumen (1048786) perdía info porque priorizaba la extracción
+    // inestable del turno sobre el valor ya guardado en el CRM.
+    const mergedLinesTurno1 = [
+      "- Nombre del cliente: Lorena",
+      "- Tipo de evento: corporativo",
+      "- Requerimientos o servicios: Coffee Break para Eventos Corporativos",
+    ];
+    const extractedTurno2 = emptyExtracted({
+      nombre: "Lorena",
+      tipo_evento: "corporativo",
+      requerimientos_evento: "Coffee Break", // GPT re-extrajo una versión más corta este turno
+      num_invitados: 150,
+    });
+    const resumen = buildResumenClienteLargo(extractedTurno2, mergedLinesTurno1, "coffee break para eventos corporativos 150 personas");
+    assert.ok(
+      resumen.includes("Coffee Break para Eventos Corporativos"),
+      `no debe perder el detalle ya guardado: ${resumen}`
+    );
+    assert.ok(
+      resumen.includes("El cliente quiere:"),
+      `debe usar la frase 'El cliente quiere:' en vez de 'Servicios / requerimientos:': ${resumen}`
+    );
+    assert.ok(!/servicios\s*\/\s*requerimientos/i.test(resumen), resumen);
+
+    // Bug 3: al reconocer y mandar el catálogo en el MISMO párrafo, se borraba
+    // toda la respuesta (filtrado por línea completa) dejando un mensaje vacío
+    // que caía al fallback "Gracias por tu mensaje. Nuestro equipo te atiende en breve."
+    const mezclado =
+      "No hay ningún problema, ya anoté que el evento es en Cuernavaca. Mientras tanto, aquí tienes nuestro catálogo completo: https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499. ¿Hay algo más en lo que te pueda ayudar?";
+    const limpio = stripCatalogBlockShared(mezclado);
+    assert.ok(limpio.trim().length > 0, "no debe quedar vacío");
+    assert.ok(!/cdn\.shopify\.com/i.test(limpio), limpio);
+    assert.ok(/no hay ning[uú]n problema/i.test(limpio), limpio);
+    assert.ok(/cuernavaca/i.test(limpio), limpio);
+    assert.ok(/algo m[aá]s en lo que te pueda ayudar/i.test(limpio), limpio);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
