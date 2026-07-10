@@ -12,6 +12,7 @@ import {
   applyWhatsappNombreFallback,
   buildPostCierreThanksReply,
   clientSaysThanks,
+  detectCierreEnviado,
   WHATSAPP_NOMBRE_NOTE,
   CLOSING_CORE_FIELDS,
   collectUserTexts,
@@ -41,9 +42,13 @@ import { generateSummary, enrichExtractedFromText, buildResumenClienteLargo } fr
 import {
   isPlaceholderLeadName,
   isQuoteIntentMessage,
+  isNombreMoreComplete,
+  pickBetterNombre,
   sanitizeDisplayName,
   sanitizeCrmNombre,
 } from "../contact-name.js";
+import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
+import { resolveTipoContacto } from "../tipoContacto.js";
 import {
   applyCapturesToCrm,
   captureContextualAnswer,
@@ -215,8 +220,8 @@ async function extractData(
     const extractionPrompt = `Eres un extractor de datos estructurados. Analiza la conversación y devuelve ÚNICAMENTE un objeto JSON. Para cada campo, escribe el valor mencionado explícitamente, o escribe null si no se mencionó. NUNCA escribas texto descriptivo como valor — solo datos reales o null.
 
 Campos a extraer:
-- tipo_contacto: "cliente" si busca contratar un servicio para su evento, "proveedor" si ofrece productos/servicios a Bodasesor, "incierto" si no está claro aún (string)
-- nombre: nombre propio del contacto (string o null)
+- tipo_contacto: "cliente" si PIDE/COMPRA un servicio para su evento; "proveedor" SOLO si claramente OFRECE vender algo A Bodasesor; ante la duda → "cliente" (string)
+- nombre: nombre propio del contacto — nombre Y apellido si los dio (string o null)
 - empresa: nombre de la empresa si es proveedor (string o null)
 - telefono: número de teléfono (string o null)
 - correo: correo electrónico (string o null)
@@ -227,8 +232,10 @@ Campos a extraer:
 - num_invitados: número de invitados si es cliente (número entero o null, NO string)
 - tipo_evento: tipo de evento si es cliente: "boda", "XV años", "cumpleaños", "corporativo", etc. (string o null)
 
-Señales de PROVEEDOR: "ofrezco", "ofrecemos", "vendo", "soy proveedor de", "me gustaría ser su proveedor", "distribuidor", "mi empresa ofrece", habla de flores, vajillas, sillas, mesas, iluminación, manteles, etc.
-Señales de CLIENTE: busca banquete, cotización, tiene un evento, menciona fecha/invitados/presupuesto para su evento.
+Señales de PROVEEDOR (solo si OFRECE a Bodasesor): "les ofrezco", "soy proveedor de", "quiero venderles", "manejo X y busco clientes", "mi empresa ofrece", "distribuidor".
+Señales de CLIENTE (pedir/comprar): "solicito cotización", "solicitud para cotización", "quiero cotizar", "necesito", "requiero servicio", "me das precio de", "cotización de café/banquete/evento".
+REGLA CRÍTICA: mencionar una empresa (Saint-Gobain, etc.) o un producto (café gourmet) al PEDIR cotización = CLIENTE, no proveedor. Ante la duda → cliente.
+NO uses correos de Bodasesor (capybaraeventos@gmail.com, bodasesor@gmail.com) como correo del cliente — esos son nuestros.
 
 Ejemplo CLIENTE — "Me llamo Ana, quiero una boda para 100 personas":
 {"tipo_contacto":"cliente","nombre":"Ana","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda"}
@@ -352,6 +359,7 @@ function buildLucyRedactionBriefing(opts: {
   conversationAgeHours?: number;
   allFieldsFilled: boolean;
   isFirstInteraction: boolean;
+  cierreYaEnviado?: boolean;
 }): string {
   const intentResult = detectIntent(opts.messageText);
   const sentimentResult = analyzeSentiment(opts.messageText);
@@ -379,6 +387,7 @@ function buildLucyRedactionBriefing(opts: {
     isFirstInteraction: opts.isFirstInteraction,
     hasObjection: objectionResult.hasObjection,
     objectionType: objectionResult.type,
+    cierreYaEnviado: opts.cierreYaEnviado,
   });
 }
 
@@ -557,9 +566,23 @@ function buildCrmContext(
 
   purgeInvalidNombre(mergedLines, filledSet, extracted);
 
+  function purgeOwnCompanyEmailFromCrm(): void {
+    const idx = mergedLines.findIndex((l) => /^-?\s*Correo electrónico:/i.test(l));
+    if (idx < 0) return;
+    const raw = mergedLines[idx]!
+      .replace(/^-?\s*Correo electrónico:\s*/i, "")
+      .trim();
+    if (!isOwnCompanyEmail(raw)) return;
+    mergedLines.splice(idx, 1);
+    filledSet.delete("Correo electrónico");
+    if (isOwnCompanyEmail(extracted.correo)) extracted.correo = null;
+  }
+
+  purgeOwnCompanyEmailFromCrm();
+
   // Nombre: solo extracción explícita o CRM — no prellenar desde WhatsApp
   if (!filledSet.has("Nombre del cliente")) {
-    const nombreVal = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
+    const nombreVal = sanitizeCrmNombre(extracted.nombre);
     if (nombreVal) {
       mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
       filledSet.add("Nombre del cliente");
@@ -572,10 +595,11 @@ function buildCrmContext(
         .replace(/^-?\s*Nombre del cliente:\s*/i, "")
         .replace(WHATSAPP_NOMBRE_NOTE, "")
         .trim();
-      const upgraded = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(existing);
-      if (upgraded && upgraded.split(/\s+/).length > existing.split(/\s+/).length) {
+      const upgraded = pickBetterNombre(extracted.nombre, existing);
+      if (upgraded && isNombreMoreComplete(upgraded, existing)) {
         const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
         mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
+        extracted.nombre = upgraded;
       }
     }
   }
@@ -584,13 +608,15 @@ function buildCrmContext(
   if (!filledSet.has("Correo electrónico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {
     const correoFromHistory = collectUserTexts(historyFull, currentMessage)
       .map((t) => parseCorreoFromText(t))
+      .map((e) => filterClientEmail(e))
       .find(Boolean);
     const correoFromCrm = mergedLines
       .map((l) => parseCorreoFromText(l))
+      .map((e) => filterClientEmail(e))
       .find(Boolean);
     const correoVal =
-      parseCorreoFromText(extracted.correo) ??
-      parseCorreoFromText(clientEmailFromDB) ??
+      filterClientEmail(parseCorreoFromText(extracted.correo)) ??
+      filterClientEmail(parseCorreoFromText(clientEmailFromDB)) ??
       correoFromHistory ??
       correoFromCrm ??
       null;
@@ -598,6 +624,22 @@ function buildCrmContext(
       mergedLines.push(`- Correo electrónico: ${correoVal}`);
       filledSet.add("Correo electrónico");
       extracted.correo = correoVal;
+    }
+  } else if (filledSet.has("Correo electrónico")) {
+    const idx = mergedLines.findIndex((l) => /^-?\s*Correo electrónico:/i.test(l));
+    const existingRaw =
+      idx >= 0
+        ? mergedLines[idx]!.replace(/^-?\s*Correo electrónico:\s*/i, "").trim()
+        : "";
+    const newCorreo =
+      filterClientEmail(parseCorreoFromText(extracted.correo)) ??
+      filterClientEmail(parseCorreoFromText(currentMessage)) ??
+      null;
+    if (newCorreo && (isOwnCompanyEmail(existingRaw) || newCorreo.toLowerCase() !== existingRaw.toLowerCase())) {
+      if (idx >= 0) mergedLines[idx] = `- Correo electrónico: ${newCorreo}`;
+      else mergedLines.push(`- Correo electrónico: ${newCorreo}`);
+      filledSet.add("Correo electrónico");
+      extracted.correo = newCorreo;
     }
   }
 
@@ -1191,11 +1233,11 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       .filter(Boolean)
       .join(", ");
 
-    const extracted = await extractData(history, combinedUserText, filledFieldNames);
+    const extracted = await extractData(fullHistory, combinedUserText, filledFieldNames);
 
-    extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
+    extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
-      extracted.correo = parseCorreoFromText(extracted.correo) ?? extracted.correo;
+      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
     }
 
     const conversationText = [
@@ -1216,6 +1258,13 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     } else {
       enrichExtractedFromText(extracted, conversationText);
     }
+
+    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+    if (extracted.correo) {
+      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+    }
+
+    const cierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastResponse ?? effectiveLastResponse);
 
     const leadNameFromCrm = crmLines
       .find((l) => /Nombre del cliente:/i.test(l))
@@ -1296,6 +1345,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       isFirstInteraction,
       hasObjection: objectionResult.hasObjection,
       objectionType: objectionResult.type,
+      cierreYaEnviado,
     });
 
     let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
@@ -1332,12 +1382,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // historial de chat si Lucy ya envió el texto de cierre antes.
     // El lead NO se mueve de etapa — Alejandro lo hace manualmente.
     // ══════════════════════════════════════════════════════════════════════
-    const cierreYaEnviado = history.some(
-      (m) =>
-        m.role === "assistant" &&
-        typeof m.content === "string" &&
-        m.content.includes(CLOSING_SIGNATURE)
-    );
+    const cierreYaEnviadoForGuards = cierreYaEnviado;
 
     const emailRefusedThisTurn = detectEmailRefusal([combinedUserText]);
 
@@ -1346,7 +1391,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       extracted,
       filledSet: filledLabels,
       readyForClosing: allFieldsFilled,
-      cierreYaEnviado,
+      cierreYaEnviado: cierreYaEnviadoForGuards,
       emailRefusedThisTurn,
       history,
       presentationHistory: fullHistory,
@@ -1360,7 +1405,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
       readyForClosing: allFieldsFilled,
-      cierreYaEnviado,
+      cierreYaEnviado: cierreYaEnviadoForGuards,
     });
     mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
 
@@ -1924,15 +1969,22 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null)
       : null;
 
-    const extracted = await extractData(history, messageText, crmLines.join("\n"));
+    const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
+    extracted.nombre = sanitizeCrmNombre(extracted.nombre);
+    if (extracted.correo) {
+      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+    }
 
     const conversationText = [
-      ...history
+      ...fullHistory
         .filter((m) => m.role === "user" && typeof m.content === "string")
         .map((m) => m.content as string),
       messageText,
     ].join(" ");
     enrichExtractedFromText(extracted, conversationText);
+    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+
+    const sbCierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastLucyResponse);
 
     const crmResultFinal = buildCrmContext(
       crmLines,
@@ -1979,6 +2031,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       conversationText,
       allFieldsFilled: salesbotAllFieldsFilled,
       isFirstInteraction,
+      cierreYaEnviado: sbCierreYaEnviado,
     });
 
     let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
@@ -1986,13 +2039,6 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
-
-    const sbCierreYaEnviado = history.some(
-      (m) =>
-        m.role === "assistant" &&
-        typeof m.content === "string" &&
-        m.content.includes(CLOSING_SIGNATURE)
-    );
 
     const emailRefusedThisTurn = detectEmailRefusal([messageText]);
 
@@ -2425,6 +2471,12 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       messageText,
     ].join(" ");
     enrichExtractedFromText(extracted, conversationText);
+    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+    if (extracted.correo) {
+      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+    }
+
+    const simCierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastLucyResponse);
 
     const crmResultFinal = buildCrmContext(
       crmLines,
@@ -2469,19 +2521,13 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       conversationText,
       allFieldsFilled,
       isFirstInteraction,
+      cierreYaEnviado: simCierreYaEnviado,
     });
 
     let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
-
-    const simCierreYaEnviado = history.some(
-      (m) =>
-        m.role === "assistant" &&
-        typeof m.content === "string" &&
-        m.content.includes(CLOSING_SIGNATURE)
-    );
 
     const emailRefusedThisTurn = detectEmailRefusal([messageText]);
 

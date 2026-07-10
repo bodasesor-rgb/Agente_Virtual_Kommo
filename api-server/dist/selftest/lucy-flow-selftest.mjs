@@ -75,8 +75,56 @@ function sanitizeCrmNombre(name) {
     return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
   }).join(" ");
 }
+function nombreWordCount(name) {
+  const crm = sanitizeCrmNombre(name);
+  if (!crm) return sanitizeDisplayName(name) ? 1 : 0;
+  return crm.split(/\s+/).filter(Boolean).length;
+}
+function isNombreMoreComplete(candidate, existing) {
+  const c = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  const e = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  if (!c) return false;
+  if (!e) return true;
+  const cw = nombreWordCount(c);
+  const ew = nombreWordCount(e);
+  if (cw > ew) return true;
+  if (cw < ew) return false;
+  return c.length >= e.length;
+}
+function pickBetterNombre(candidate, existing) {
+  if (isNombreMoreComplete(candidate, existing)) {
+    return sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  }
+  return sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+}
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
+}
+
+// src/client-email.ts
+var OWN_EMAILS = new Set(
+  [
+    "capybaraeventos@gmail.com",
+    "bodasesor@gmail.com",
+    "hola@bodasesor.com",
+    "ventas@bodasesor.com",
+    "info@bodasesor.com"
+  ].map((e) => e.toLowerCase())
+);
+function normalizeEmail(email) {
+  const trimmed = email?.trim().toLowerCase() ?? "";
+  return trimmed || null;
+}
+function isOwnCompanyEmail(email) {
+  const norm = normalizeEmail(email);
+  if (!norm) return false;
+  if (OWN_EMAILS.has(norm)) return true;
+  return /@bodasesor\.com$/i.test(norm) || /@capybaraeventos\./i.test(norm);
+}
+function filterClientEmail(email) {
+  const norm = normalizeEmail(email);
+  if (!norm || isOwnCompanyEmail(norm)) return null;
+  return email.trim();
 }
 
 // src/lib/bodasesorAdvisor.ts
@@ -509,8 +557,9 @@ function normalizeDictatedCorreo(text) {
 function parseCorreoFromText(text) {
   if (!text) return null;
   const m = text.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
-  if (m) return m[1];
-  return normalizeDictatedCorreo(text);
+  const raw = m ? m[1] : normalizeDictatedCorreo(text);
+  if (!raw) return null;
+  return filterClientEmail(raw);
 }
 function isServiceLabelNotTipoEvento(label) {
   if (!label?.trim()) return false;
@@ -835,6 +884,35 @@ function applyCapturesToCrm(mergedLines, filledSet, captures) {
     mergedLines.push(`- ${label}: ${value}`);
     filledSet.add(label);
   }
+}
+
+// src/tipoContacto.ts
+var PROVEEDOR_OFFER = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
+var CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de)\b/i;
+function resolveTipoContacto(extracted, conversationText) {
+  const text = conversationText.trim();
+  if (!text) return extracted === "incierto" ? "cliente" : extracted;
+  if (CLIENTE_BUY.test(text)) return "cliente";
+  if (PROVEEDOR_OFFER.test(text)) return "proveedor";
+  if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text)) {
+    return "cliente";
+  }
+  if (extracted === "incierto" || !extracted) return "cliente";
+  return extracted;
+}
+function clientMentionsOwnCompanyEmail(text) {
+  if (!text?.trim()) return false;
+  return /\b(capybaraeventos@gmail\.com|bodasesor@gmail\.com|hola@bodasesor\.com)\b/i.test(text);
+}
+function clientAsksIfCompanyEmailCorrect(text) {
+  if (!text?.trim()) return false;
+  const t = text.toLowerCase();
+  return clientMentionsOwnCompanyEmail(text) || /es\s+el\s+correo\s+correcto|ese\s+correo\s+es\s+correcto|correo\s+correcto|es\s+ese\s+el\s+correo/i.test(
+    t
+  );
+}
+function buildCompanyEmailConfirmReply() {
+  return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
 }
 
 // src/services/summaryService.ts
@@ -1305,6 +1383,12 @@ function isValidRequerimientosValue(value) {
   return isServiceRelatedMessage(value);
 }
 var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
+function detectCierreEnviado(history, lastStoredResponse) {
+  if (lastStoredResponse?.includes(CLOSING_SIGNATURE)) return true;
+  return history.some(
+    (m) => m.role === "assistant" && typeof m.content === "string" && m.content.includes(CLOSING_SIGNATURE)
+  );
+}
 function collectUserTexts(history, currentMessage) {
   const fromHistory = history.filter((m) => m.role === "user" && typeof m.content === "string").map((m) => m.content);
   return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
@@ -1927,6 +2011,7 @@ function applyLucyMessageGuards(input) {
   );
   let mensaje;
   let appliedSalesReply = false;
+  let appliedDirectReply = false;
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
@@ -1934,6 +2019,10 @@ function applyLucyMessageGuards(input) {
   } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
     mensaje = buildPostCierreThanksReply(extracted.nombre);
     log?.info({ entityId }, "GUARD: post-cierre \u2014 agradecimiento o sin m\xE1s que agregar");
+  } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {
+    mensaje = buildCompanyEmailConfirmReply();
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje = "Gracias. Nuestro equipo ya tiene tu informaci\xF3n para la cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar o alguna duda?";
     log?.warn({ entityId }, "GUARD: bloque\xF3 nota interna post-cierre");
@@ -2055,6 +2144,12 @@ ${nextQ}`;
       );
       log?.warn({ entityId }, "GPT gener\xF3 nota interna \u2014 usando cierre desde plantilla");
     }
+  }
+  if (appliedDirectReply) {
+    return normalizeAdvisorReferences(
+      mensaje,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
   }
   if (filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(mensaje, "presupuesto")) {
     mensaje = blockExcessivePresupuestoAsk(
@@ -2184,7 +2279,7 @@ ${nextQ}`;
       }
     }
   }
-  if (!trulyReadyForClosing && responseLooksLikePrematureClose(mensaje)) {
+  if (!trulyReadyForClosing && !appliedDirectReply && responseLooksLikePrematureClose(mensaje)) {
     const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     if (forcedNext) {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
@@ -2198,7 +2293,7 @@ ${nextQ}`;
       mensaje = buildNaturalQuestion(pending, ctx);
     }
   }
-  if (!cierreYaEnviado) {
+  if (!cierreYaEnviado && !appliedSalesReply && !appliedDirectReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   }
   if (appliedSalesReply) {
@@ -12651,7 +12746,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 25 escenarios de prueba\n");
+  console.log("Lucy \u2014 26 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -13543,6 +13638,36 @@ async function runAll() {
       "Lorena"
     );
     assert.ok(!/equipo\s+equipo/i.test(dup2), dup2);
+  });
+  await test("26. Bugs Kommo \u2014 proveedor/cliente, correo propio, nombre completo, cierre", () => {
+    const cafeText = "Solicitud para cotizaci\xF3n de caf\xE9 gourmet para evento corporativo Saint-Gobain";
+    assert.equal(resolveTipoContacto("proveedor", cafeText), "cliente");
+    assert.ok(isOwnCompanyEmail("capybaraeventos@gmail.com"));
+    assert.equal(filterClientEmail("capybaraeventos@gmail.com"), null);
+    assert.equal(parseCorreoFromText("capybaraeventos@gmail.com"), null);
+    assert.equal(
+      parseCorreoFromText("Mi correo es Gresia.Perez@saint-gobain.com"),
+      "Gresia.Perez@saint-gobain.com"
+    );
+    assert.ok(isNombreMoreComplete("Gresia Perez", "Gresia"));
+    assert.ok(!isNombreMoreComplete("Gresia", "Gresia Perez"));
+    assert.equal(pickBetterNombre("Gresia", "Gresia Perez"), "Gresia Perez");
+    assert.ok(clientAsksIfCompanyEmailCorrect("\xBFes capybaraeventos@gmail.com el correo correcto?"));
+    assert.ok(buildCompanyEmailConfirmReply().includes("capybaraeventos"));
+    const hist = [
+      { role: "assistant", content: `${CLOSING_SIGNATURE} Aqu\xED est\xE1 el cat\xE1logo.` }
+    ];
+    assert.ok(detectCierreEnviado(hist));
+    assert.ok(detectCierreEnviado([], `${CLOSING_SIGNATURE} cat\xE1logo`));
+    const emailGuard = runGuards({
+      aiResponse: "\xBFA qu\xE9 correo te lo env\xEDo?",
+      extracted: emptyExtracted(),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "\xBFes capybaraeventos@gmail.com el correo correcto?"
+    });
+    assert.ok(/capybaraeventos|bodasesor/i.test(emailGuard), emailGuard);
+    assert.ok(/tu correo|compartes/i.test(emailGuard), emailGuard);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

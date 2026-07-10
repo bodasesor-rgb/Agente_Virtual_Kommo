@@ -30,7 +30,13 @@ import {
   clientDeclinesMoreServices,
   parseTipoEventoFromText,
 } from "../conversation-understanding.js";
-import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre } from "../contact-name.js";
+import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre } from "../contact-name.js";
+import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
+import {
+  resolveTipoContacto,
+  clientAsksIfCompanyEmailCorrect,
+  buildCompanyEmailConfirmReply,
+} from "../tipoContacto.js";
 import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
 import {
@@ -41,6 +47,8 @@ import {
   buildRecommendationsReply,
   buildPostCierreThanksReply,
   clientSaysThanks,
+  detectCierreEnviado,
+  CLOSING_SIGNATURE,
   CLOSING_CORE_FIELDS,
   detectEmailRefusal,
   EMAIL_WAIVED_LABEL,
@@ -140,7 +148,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 25 escenarios de prueba\n");
+  console.log("Lucy — 26 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -1168,6 +1176,43 @@ async function runAll(): Promise<void> {
       "Lorena"
     );
     assert.ok(!/equipo\s+equipo/i.test(dup2), dup2);
+  });
+
+  await test("26. Bugs Kommo — proveedor/cliente, correo propio, nombre completo, cierre", () => {
+    const cafeText =
+      "Solicitud para cotización de café gourmet para evento corporativo Saint-Gobain";
+    assert.equal(resolveTipoContacto("proveedor", cafeText), "cliente");
+
+    assert.ok(isOwnCompanyEmail("capybaraeventos@gmail.com"));
+    assert.equal(filterClientEmail("capybaraeventos@gmail.com"), null);
+    assert.equal(parseCorreoFromText("capybaraeventos@gmail.com"), null);
+    assert.equal(
+      parseCorreoFromText("Mi correo es Gresia.Perez@saint-gobain.com"),
+      "Gresia.Perez@saint-gobain.com"
+    );
+
+    assert.ok(isNombreMoreComplete("Gresia Perez", "Gresia"));
+    assert.ok(!isNombreMoreComplete("Gresia", "Gresia Perez"));
+    assert.equal(pickBetterNombre("Gresia", "Gresia Perez"), "Gresia Perez");
+
+    assert.ok(clientAsksIfCompanyEmailCorrect("¿es capybaraeventos@gmail.com el correo correcto?"));
+    assert.ok(buildCompanyEmailConfirmReply().includes("capybaraeventos"));
+
+    const hist: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: `${CLOSING_SIGNATURE} Aquí está el catálogo.` },
+    ];
+    assert.ok(detectCierreEnviado(hist));
+    assert.ok(detectCierreEnviado([], `${CLOSING_SIGNATURE} catálogo`));
+
+    const emailGuard = runGuards({
+      aiResponse: "¿A qué correo te lo envío?",
+      extracted: emptyExtracted(),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "¿es capybaraeventos@gmail.com el correo correcto?",
+    });
+    assert.ok(/capybaraeventos|bodasesor/i.test(emailGuard), emailGuard);
+    assert.ok(/tu correo|compartes/i.test(emailGuard), emailGuard);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

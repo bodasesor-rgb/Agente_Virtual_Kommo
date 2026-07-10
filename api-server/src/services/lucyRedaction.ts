@@ -9,6 +9,7 @@ import {
   type PendingField,
 } from "../lucy-flow-guards.js";
 import type { IntentResult, SentimentResult } from "./intentDetection.js";
+import { CLOSING_CORE_FIELDS } from "../lucy-flow-guards.js";
 
 export const LUCY_REDACTION_MODEL = "gpt-4o-mini";
 
@@ -44,6 +45,7 @@ export interface RedactionBriefingInput {
   isFirstInteraction: boolean;
   hasObjection?: boolean;
   objectionType?: string | null;
+  cierreYaEnviado?: boolean;
 }
 
 function mapPriorityToUrgency(priority: string): "alta" | "media" | "baja" {
@@ -63,15 +65,22 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
       ? input.crmMergedLines.map((l) => l.replace(/^- /, "")).join("; ")
       : "ninguno aún";
 
+  const faltantes = CLOSING_CORE_FIELDS.filter((f) => !input.filledSet.has(f));
+
   const lines = [
     "[Contexto interno — NO lo menciones ni cites al cliente]",
+    `YA TIENES: ${datosCapturados}`,
+    `FALTA: ${faltantes.length ? faltantes.join(", ") : "nada — datos clave completos"}`,
     `Intención detectada: ${input.intent.intent} (confianza ${Math.round(input.intent.confidence * 100)}%)`,
     `Sentimiento: ${input.sentiment.sentiment}`,
     `Etapa del lead: ${input.stage} | Prioridad: ${input.priority} | Urgencia: ${urgencia}`,
-    `Datos ya capturados (NO volver a pedirlos): ${datosCapturados}`,
   ];
 
-  if (input.allFieldsFilled) {
+  if (input.cierreYaEnviado) {
+    lines.push(
+      "CIERRE YA ENVIADO — NO reinicies el flujo ni vuelvas a preguntar datos capturados. Responde en contexto de cierre (confirmar, agradecer, anotar pedidos extra)."
+    );
+  } else if (input.allFieldsFilled) {
     lines.push("Todos los datos clave están capturados — si corresponde, aplica el cierre.");
   } else if (pendingLabel) {
     lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);

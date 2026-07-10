@@ -78943,8 +78943,56 @@ function sanitizeCrmNombre(name2) {
     return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
   }).join(" ");
 }
+function nombreWordCount(name2) {
+  const crm = sanitizeCrmNombre(name2);
+  if (!crm) return sanitizeDisplayName(name2) ? 1 : 0;
+  return crm.split(/\s+/).filter(Boolean).length;
+}
+function isNombreMoreComplete(candidate, existing) {
+  const c2 = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  const e = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  if (!c2) return false;
+  if (!e) return true;
+  const cw = nombreWordCount(c2);
+  const ew = nombreWordCount(e);
+  if (cw > ew) return true;
+  if (cw < ew) return false;
+  return c2.length >= e.length;
+}
+function pickBetterNombre(candidate, existing) {
+  if (isNombreMoreComplete(candidate, existing)) {
+    return sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  }
+  return sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+}
 function resolveClientDisplayName(extractedNombre, crmNombre, whatsappName) {
   return sanitizeDisplayName(extractedNombre) ?? sanitizeDisplayName(crmNombre) ?? sanitizeDisplayName(whatsappName);
+}
+
+// src/client-email.ts
+var OWN_EMAILS = new Set(
+  [
+    "capybaraeventos@gmail.com",
+    "bodasesor@gmail.com",
+    "hola@bodasesor.com",
+    "ventas@bodasesor.com",
+    "info@bodasesor.com"
+  ].map((e) => e.toLowerCase())
+);
+function normalizeEmail(email) {
+  const trimmed = email?.trim().toLowerCase() ?? "";
+  return trimmed || null;
+}
+function isOwnCompanyEmail(email) {
+  const norm = normalizeEmail(email);
+  if (!norm) return false;
+  if (OWN_EMAILS.has(norm)) return true;
+  return /@bodasesor\.com$/i.test(norm) || /@capybaraeventos\./i.test(norm);
+}
+function filterClientEmail(email) {
+  const norm = normalizeEmail(email);
+  if (!norm || isOwnCompanyEmail(norm)) return null;
+  return email.trim();
 }
 
 // src/lib/bodasesorAdvisor.ts
@@ -79388,8 +79436,9 @@ function normalizeDictatedCorreo(text2) {
 function parseCorreoFromText(text2) {
   if (!text2) return null;
   const m4 = text2.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
-  if (m4) return m4[1];
-  return normalizeDictatedCorreo(text2);
+  const raw = m4 ? m4[1] : normalizeDictatedCorreo(text2);
+  if (!raw) return null;
+  return filterClientEmail(raw);
 }
 function isServiceLabelNotTipoEvento(label) {
   if (!label?.trim()) return false;
@@ -80331,6 +80380,22 @@ Cliente: "Roberto"
 Lucy: "Mucho gusto, Roberto. Para mandarte toda la informaci\xF3n y que Alejandro te arme una propuesta, \xBFa qu\xE9 correo te lo env\xEDo?"
 
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+RESPONDE LA PREGUNTA DEL CLIENTE \u2014 SIEMPRE PRIMERO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Si el cliente hace una pregunta directa, resp\xF3ndela ANTES de seguir con el flujo.
+Si pregunta si **capybaraeventos@gmail.com** o **bodasesor@gmail.com** es el correo correcto:
+confirma que S\xCD es nuestro correo y que su solicitud lleg\xF3 bien; pide su correo de trabajo para la cotizaci\xF3n.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CLIENTE vs PROVEEDOR \u2014 no confundir
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+PROVEEDOR = solo si OFRECE vender algo A Bodasesor ("les ofrezco", "soy proveedor de", "quiero venderles").
+CLIENTE = pide cotizaci\xF3n, necesita servicio, menciona su empresa al contratar (Saint-Gobain, etc.).
+"solicitud para cotizaci\xF3n de caf\xE9 gourmet" = CLIENTE. Ante la duda \u2192 CLIENTE.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 REGLA ANTI-REPETICI\xD3N \u2014 CR\xCDTICA
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
@@ -81141,6 +81206,35 @@ function appendHistory(chatId, userText, assistantText) {
   save(store);
 }
 
+// src/tipoContacto.ts
+var PROVEEDOR_OFFER = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
+var CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de)\b/i;
+function resolveTipoContacto(extracted, conversationText) {
+  const text2 = conversationText.trim();
+  if (!text2) return extracted === "incierto" ? "cliente" : extracted;
+  if (CLIENTE_BUY.test(text2)) return "cliente";
+  if (PROVEEDOR_OFFER.test(text2)) return "proveedor";
+  if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text2)) {
+    return "cliente";
+  }
+  if (extracted === "incierto" || !extracted) return "cliente";
+  return extracted;
+}
+function clientMentionsOwnCompanyEmail(text2) {
+  if (!text2?.trim()) return false;
+  return /\b(capybaraeventos@gmail\.com|bodasesor@gmail\.com|hola@bodasesor\.com)\b/i.test(text2);
+}
+function clientAsksIfCompanyEmailCorrect(text2) {
+  if (!text2?.trim()) return false;
+  const t = text2.toLowerCase();
+  return clientMentionsOwnCompanyEmail(text2) || /es\s+el\s+correo\s+correcto|ese\s+correo\s+es\s+correcto|correo\s+correcto|es\s+ese\s+el\s+correo/i.test(
+    t
+  );
+}
+function buildCompanyEmailConfirmReply() {
+  return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
+}
+
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
@@ -81224,6 +81318,12 @@ function isValidRequerimientosValue(value) {
   return isServiceRelatedMessage(value);
 }
 var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
+function detectCierreEnviado(history, lastStoredResponse) {
+  if (lastStoredResponse?.includes(CLOSING_SIGNATURE)) return true;
+  return history.some(
+    (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE)
+  );
+}
 function collectUserTexts(history, currentMessage) {
   const fromHistory = history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content);
   return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
@@ -81867,6 +81967,7 @@ function applyLucyMessageGuards(input) {
   );
   let mensaje;
   let appliedSalesReply = false;
+  let appliedDirectReply = false;
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
@@ -81874,6 +81975,10 @@ function applyLucyMessageGuards(input) {
   } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
     mensaje = buildPostCierreThanksReply(extracted.nombre);
     log?.info({ entityId }, "GUARD: post-cierre \u2014 agradecimiento o sin m\xE1s que agregar");
+  } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {
+    mensaje = buildCompanyEmailConfirmReply();
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje = "Gracias. Nuestro equipo ya tiene tu informaci\xF3n para la cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar o alguna duda?";
     log?.warn({ entityId }, "GUARD: bloque\xF3 nota interna post-cierre");
@@ -81995,6 +82100,12 @@ ${nextQ}`;
       );
       log?.warn({ entityId }, "GPT gener\xF3 nota interna \u2014 usando cierre desde plantilla");
     }
+  }
+  if (appliedDirectReply) {
+    return normalizeAdvisorReferences(
+      mensaje,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
   }
   if (filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(mensaje, "presupuesto")) {
     mensaje = blockExcessivePresupuestoAsk(
@@ -82124,7 +82235,7 @@ ${nextQ}`;
       }
     }
   }
-  if (!trulyReadyForClosing && responseLooksLikePrematureClose(mensaje)) {
+  if (!trulyReadyForClosing && !appliedDirectReply && responseLooksLikePrematureClose(mensaje)) {
     const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     if (forcedNext) {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
@@ -82138,7 +82249,7 @@ ${nextQ}`;
       mensaje = buildNaturalQuestion(pending, ctx);
     }
   }
-  if (!cierreYaEnviado) {
+  if (!cierreYaEnviado && !appliedSalesReply && !appliedDirectReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   }
   if (appliedSalesReply) {
@@ -82799,14 +82910,20 @@ function buildRedactionBriefing(input) {
   const pendingLabel = pending ? PENDING_FIELD_LABELS[pending] : null;
   const urgencia = mapPriorityToUrgency(input.priority);
   const datosCapturados = input.crmMergedLines.length > 0 ? input.crmMergedLines.map((l4) => l4.replace(/^- /, "")).join("; ") : "ninguno a\xFAn";
+  const faltantes = CLOSING_CORE_FIELDS.filter((f3) => !input.filledSet.has(f3));
   const lines = [
     "[Contexto interno \u2014 NO lo menciones ni cites al cliente]",
+    `YA TIENES: ${datosCapturados}`,
+    `FALTA: ${faltantes.length ? faltantes.join(", ") : "nada \u2014 datos clave completos"}`,
     `Intenci\xF3n detectada: ${input.intent.intent} (confianza ${Math.round(input.intent.confidence * 100)}%)`,
     `Sentimiento: ${input.sentiment.sentiment}`,
-    `Etapa del lead: ${input.stage} | Prioridad: ${input.priority} | Urgencia: ${urgencia}`,
-    `Datos ya capturados (NO volver a pedirlos): ${datosCapturados}`
+    `Etapa del lead: ${input.stage} | Prioridad: ${input.priority} | Urgencia: ${urgencia}`
   ];
-  if (input.allFieldsFilled) {
+  if (input.cierreYaEnviado) {
+    lines.push(
+      "CIERRE YA ENVIADO \u2014 NO reinicies el flujo ni vuelvas a preguntar datos capturados. Responde en contexto de cierre (confirmar, agradecer, anotar pedidos extra)."
+    );
+  } else if (input.allFieldsFilled) {
     lines.push("Todos los datos clave est\xE1n capturados \u2014 si corresponde, aplica el cierre.");
   } else if (pendingLabel) {
     lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
@@ -88776,8 +88893,8 @@ IMPORTANTE: Si el cliente responde con un n\xFAmero suelto (ej: "200"), determin
     const extractionPrompt = `Eres un extractor de datos estructurados. Analiza la conversaci\xF3n y devuelve \xDANICAMENTE un objeto JSON. Para cada campo, escribe el valor mencionado expl\xEDcitamente, o escribe null si no se mencion\xF3. NUNCA escribas texto descriptivo como valor \u2014 solo datos reales o null.
 
 Campos a extraer:
-- tipo_contacto: "cliente" si busca contratar un servicio para su evento, "proveedor" si ofrece productos/servicios a Bodasesor, "incierto" si no est\xE1 claro a\xFAn (string)
-- nombre: nombre propio del contacto (string o null)
+- tipo_contacto: "cliente" si PIDE/COMPRA un servicio para su evento; "proveedor" SOLO si claramente OFRECE vender algo A Bodasesor; ante la duda \u2192 "cliente" (string)
+- nombre: nombre propio del contacto \u2014 nombre Y apellido si los dio (string o null)
 - empresa: nombre de la empresa si es proveedor (string o null)
 - telefono: n\xFAmero de tel\xE9fono (string o null)
 - correo: correo electr\xF3nico (string o null)
@@ -88788,8 +88905,10 @@ Campos a extraer:
 - num_invitados: n\xFAmero de invitados si es cliente (n\xFAmero entero o null, NO string)
 - tipo_evento: tipo de evento si es cliente: "boda", "XV a\xF1os", "cumplea\xF1os", "corporativo", etc. (string o null)
 
-Se\xF1ales de PROVEEDOR: "ofrezco", "ofrecemos", "vendo", "soy proveedor de", "me gustar\xEDa ser su proveedor", "distribuidor", "mi empresa ofrece", habla de flores, vajillas, sillas, mesas, iluminaci\xF3n, manteles, etc.
-Se\xF1ales de CLIENTE: busca banquete, cotizaci\xF3n, tiene un evento, menciona fecha/invitados/presupuesto para su evento.
+Se\xF1ales de PROVEEDOR (solo si OFRECE a Bodasesor): "les ofrezco", "soy proveedor de", "quiero venderles", "manejo X y busco clientes", "mi empresa ofrece", "distribuidor".
+Se\xF1ales de CLIENTE (pedir/comprar): "solicito cotizaci\xF3n", "solicitud para cotizaci\xF3n", "quiero cotizar", "necesito", "requiero servicio", "me das precio de", "cotizaci\xF3n de caf\xE9/banquete/evento".
+REGLA CR\xCDTICA: mencionar una empresa (Saint-Gobain, etc.) o un producto (caf\xE9 gourmet) al PEDIR cotizaci\xF3n = CLIENTE, no proveedor. Ante la duda \u2192 cliente.
+NO uses correos de Bodasesor (capybaraeventos@gmail.com, bodasesor@gmail.com) como correo del cliente \u2014 esos son nuestros.
 
 Ejemplo CLIENTE \u2014 "Me llamo Ana, quiero una boda para 100 personas":
 {"tipo_contacto":"cliente","nombre":"Ana","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda"}
@@ -88883,7 +89002,8 @@ function buildLucyRedactionBriefing(opts) {
     allFieldsFilled: opts.allFieldsFilled,
     isFirstInteraction: opts.isFirstInteraction,
     hasObjection: objectionResult.hasObjection,
-    objectionType: objectionResult.type
+    objectionType: objectionResult.type,
+    cierreYaEnviado: opts.cierreYaEnviado
   });
 }
 async function applyCierreRefinement(mensaje, opts) {
@@ -88995,8 +89115,18 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     extracted.tipo_evento = restored ?? null;
   }
   purgeInvalidNombre(mergedLines, filledSet, extracted);
+  function purgeOwnCompanyEmailFromCrm() {
+    const idx = mergedLines.findIndex((l4) => /^-?\s*Correo electrónico:/i.test(l4));
+    if (idx < 0) return;
+    const raw = mergedLines[idx].replace(/^-?\s*Correo electrónico:\s*/i, "").trim();
+    if (!isOwnCompanyEmail(raw)) return;
+    mergedLines.splice(idx, 1);
+    filledSet.delete("Correo electr\xF3nico");
+    if (isOwnCompanyEmail(extracted.correo)) extracted.correo = null;
+  }
+  purgeOwnCompanyEmailFromCrm();
   if (!filledSet.has("Nombre del cliente")) {
-    const nombreVal = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
+    const nombreVal = sanitizeCrmNombre(extracted.nombre);
     if (nombreVal) {
       mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
       filledSet.add("Nombre del cliente");
@@ -89006,21 +89136,32 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     if (idx >= 0) {
       const rawLine = mergedLines[idx];
       const existing = rawLine.replace(/^-?\s*Nombre del cliente:\s*/i, "").replace(WHATSAPP_NOMBRE_NOTE, "").trim();
-      const upgraded = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(existing);
-      if (upgraded && upgraded.split(/\s+/).length > existing.split(/\s+/).length) {
+      const upgraded = pickBetterNombre(extracted.nombre, existing);
+      if (upgraded && isNombreMoreComplete(upgraded, existing)) {
         const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
         mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
+        extracted.nombre = upgraded;
       }
     }
   }
   if (!filledSet.has("Correo electr\xF3nico") && !filledSet.has(EMAIL_WAIVED_LABEL)) {
-    const correoFromHistory = collectUserTexts(historyFull, currentMessage).map((t) => parseCorreoFromText(t)).find(Boolean);
-    const correoFromCrm = mergedLines.map((l4) => parseCorreoFromText(l4)).find(Boolean);
-    const correoVal = parseCorreoFromText(extracted.correo) ?? parseCorreoFromText(clientEmailFromDB) ?? correoFromHistory ?? correoFromCrm ?? null;
+    const correoFromHistory = collectUserTexts(historyFull, currentMessage).map((t) => parseCorreoFromText(t)).map((e) => filterClientEmail(e)).find(Boolean);
+    const correoFromCrm = mergedLines.map((l4) => parseCorreoFromText(l4)).map((e) => filterClientEmail(e)).find(Boolean);
+    const correoVal = filterClientEmail(parseCorreoFromText(extracted.correo)) ?? filterClientEmail(parseCorreoFromText(clientEmailFromDB)) ?? correoFromHistory ?? correoFromCrm ?? null;
     if (correoVal) {
       mergedLines.push(`- Correo electr\xF3nico: ${correoVal}`);
       filledSet.add("Correo electr\xF3nico");
       extracted.correo = correoVal;
+    }
+  } else if (filledSet.has("Correo electr\xF3nico")) {
+    const idx = mergedLines.findIndex((l4) => /^-?\s*Correo electrónico:/i.test(l4));
+    const existingRaw = idx >= 0 ? mergedLines[idx].replace(/^-?\s*Correo electrónico:\s*/i, "").trim() : "";
+    const newCorreo = filterClientEmail(parseCorreoFromText(extracted.correo)) ?? filterClientEmail(parseCorreoFromText(currentMessage)) ?? null;
+    if (newCorreo && (isOwnCompanyEmail(existingRaw) || newCorreo.toLowerCase() !== existingRaw.toLowerCase())) {
+      if (idx >= 0) mergedLines[idx] = `- Correo electr\xF3nico: ${newCorreo}`;
+      else mergedLines.push(`- Correo electr\xF3nico: ${newCorreo}`);
+      filledSet.add("Correo electr\xF3nico");
+      extracted.correo = newCorreo;
     }
   }
   const extractionMap = [
@@ -89357,10 +89498,10 @@ async function processBatch(batch, accessToken, log) {
     }
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
     const filledFieldNames = crmLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? "").filter(Boolean).join(", ");
-    const extracted = await extractData(history, combinedUserText, filledFieldNames);
-    extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
+    const extracted = await extractData(fullHistory, combinedUserText, filledFieldNames);
+    extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
-      extracted.correo = parseCorreoFromText(extracted.correo) ?? extracted.correo;
+      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
     }
     const conversationText = [
       ...history.filter((m4) => m4.role === "user").map((m4) => typeof m4.content === "string" ? m4.content : ""),
@@ -89377,6 +89518,11 @@ async function processBatch(batch, accessToken, log) {
     } else {
       enrichExtractedFromText(extracted, conversationText);
     }
+    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+    if (extracted.correo) {
+      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+    }
+    const cierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastResponse ?? effectiveLastResponse);
     const leadNameFromCrm = crmLines.find((l4) => /Nombre del cliente:/i.test(l4))?.replace(/^-?\s*Nombre del cliente:\s*/i, "").trim();
     const whatsappDisplayName = await resolveWhatsappDisplayName(
       subdomain,
@@ -89437,7 +89583,8 @@ async function processBatch(batch, accessToken, log) {
       allFieldsFilled,
       isFirstInteraction,
       hasObjection: objectionResult.hasObjection,
-      objectionType: objectionResult.type
+      objectionType: objectionResult.type,
+      cierreYaEnviado
     });
     let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
@@ -89450,16 +89597,14 @@ async function processBatch(batch, accessToken, log) {
       log.info({ ack, isVoice: batch.isVoice, isImage: batch.isImage }, "Media acknowledgment prepended");
     }
     log.info({ aiResponse, extracted }, "OpenAI response received");
-    const cierreYaEnviado = history.some(
-      (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
-    );
+    const cierreYaEnviadoForGuards = cierreYaEnviado;
     const emailRefusedThisTurn = detectEmailRefusal([combinedUserText]);
     let mensajeParaCliente = applyLucyMessageGuards({
       aiResponse,
       extracted,
       filledSet: filledLabels,
       readyForClosing: allFieldsFilled,
-      cierreYaEnviado,
+      cierreYaEnviado: cierreYaEnviadoForGuards,
       emailRefusedThisTurn,
       history,
       presentationHistory: fullHistory,
@@ -89472,7 +89617,7 @@ async function processBatch(batch, accessToken, log) {
     });
     mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
       readyForClosing: allFieldsFilled,
-      cierreYaEnviado
+      cierreYaEnviado: cierreYaEnviadoForGuards
     });
     mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
     if (cierreYaEnviado && combinedUserText.trim()) {
@@ -89880,12 +90025,18 @@ router3.post("/kommo/salesbot", async (req, res) => {
     const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? "" : lastLucyResponse;
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
     const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null) : null;
-    const extracted = await extractData(history, messageText, crmLines.join("\n"));
+    const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
+    extracted.nombre = sanitizeCrmNombre(extracted.nombre);
+    if (extracted.correo) {
+      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+    }
     const conversationText = [
-      ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
+      ...fullHistory.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
       messageText
     ].join(" ");
     enrichExtractedFromText(extracted, conversationText);
+    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+    const sbCierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastLucyResponse);
     const crmResultFinal = buildCrmContext(
       crmLines,
       extracted,
@@ -89921,16 +90072,14 @@ router3.post("/kommo/salesbot", async (req, res) => {
       messageText,
       conversationText,
       allFieldsFilled: salesbotAllFieldsFilled,
-      isFirstInteraction
+      isFirstInteraction,
+      cierreYaEnviado: sbCierreYaEnviado
     });
     let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
     log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
-    const sbCierreYaEnviado = history.some(
-      (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
-    );
     const emailRefusedThisTurn = detectEmailRefusal([messageText]);
     let mensajeParaCliente = applyLucyMessageGuards({
       aiResponse,
@@ -90246,6 +90395,11 @@ router3.post("/kommo/simulator", async (req, res) => {
       messageText
     ].join(" ");
     enrichExtractedFromText(extracted, conversationText);
+    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+    if (extracted.correo) {
+      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+    }
+    const simCierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastLucyResponse);
     const crmResultFinal = buildCrmContext(
       crmLines,
       extracted,
@@ -90280,15 +90434,13 @@ router3.post("/kommo/simulator", async (req, res) => {
       messageText,
       conversationText,
       allFieldsFilled,
-      isFirstInteraction
+      isFirstInteraction,
+      cierreYaEnviado: simCierreYaEnviado
     });
     let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
-    const simCierreYaEnviado = history.some(
-      (m4) => m4.role === "assistant" && typeof m4.content === "string" && m4.content.includes(CLOSING_SIGNATURE2)
-    );
     const emailRefusedThisTurn = detectEmailRefusal([messageText]);
     let mensajeParaCliente = applyLucyMessageGuards({
       aiResponse,

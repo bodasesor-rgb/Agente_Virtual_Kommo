@@ -11,6 +11,7 @@ import {
   isQuoteIntentMessage,
   sanitizeDisplayName,
 } from "./contact-name.js";
+import { filterClientEmail } from "./client-email.js";
 import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
 
 export type UnderstandingField =
@@ -619,8 +620,9 @@ function normalizeDictatedCorreo(text: string): string | null {
 export function parseCorreoFromText(text: string | null | undefined): string | null {
   if (!text) return null;
   const m = text.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
-  if (m) return m[1]!;
-  return normalizeDictatedCorreo(text);
+  const raw = m ? m[1]! : normalizeDictatedCorreo(text);
+  if (!raw) return null;
+  return filterClientEmail(raw);
 }
 
 export function isServiceLabelNotTipoEvento(label: string | null | undefined): boolean {

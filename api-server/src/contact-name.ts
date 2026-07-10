@@ -114,6 +114,39 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     .join(" ");
 }
 
+/** Cuenta palabras con letras válidas en un nombre. */
+export function nombreWordCount(name: string | null | undefined): number {
+  const crm = sanitizeCrmNombre(name);
+  if (!crm) return sanitizeDisplayName(name) ? 1 : 0;
+  return crm.split(/\s+/).filter(Boolean).length;
+}
+
+/** True si `candidate` es igual o más completo que `existing` (nunca recortar apellido). */
+export function isNombreMoreComplete(
+  candidate: string | null | undefined,
+  existing: string | null | undefined
+): boolean {
+  const c = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  const e = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  if (!c) return false;
+  if (!e) return true;
+  const cw = nombreWordCount(c);
+  const ew = nombreWordCount(e);
+  if (cw > ew) return true;
+  if (cw < ew) return false;
+  return c.length >= e.length;
+}
+
+export function pickBetterNombre(
+  candidate: string | null | undefined,
+  existing: string | null | undefined
+): string | null {
+  if (isNombreMoreComplete(candidate, existing)) {
+    return sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
+  }
+  return sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+}
+
 export function resolveClientDisplayName(
   extractedNombre: string | null | undefined,
   crmNombre: string | null | undefined,

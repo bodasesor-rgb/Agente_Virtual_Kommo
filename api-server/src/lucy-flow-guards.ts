@@ -3,10 +3,16 @@ import type { ExtractedData } from "./types.js";
 import {
   isAffirmativeOnlyMessage,
   isGreetingOnlyMessage,
+  isNombreMoreComplete,
+  pickBetterNombre,
   resolveClientDisplayName,
   sanitizeDisplayName,
 } from "./contact-name.js";
 import { normalizeAdvisorReferences, advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
+import {
+  buildCompanyEmailConfirmReply,
+  clientAsksIfCompanyEmailCorrect,
+} from "./tipoContacto.js";
 import {
   buildAlejandroPriceReply,
   clientAsksPrice,
@@ -180,7 +186,21 @@ export function isValidRequerimientosValue(value: string | null | undefined): bo
   return isServiceRelatedMessage(value);
 }
 
-const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
+export const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
+
+/** Detecta cierre en historial completo o última respuesta persistida (no solo slice reciente). */
+export function detectCierreEnviado(
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  lastStoredResponse?: string | null
+): boolean {
+  if (lastStoredResponse?.includes(CLOSING_SIGNATURE)) return true;
+  return history.some(
+    (m) =>
+      m.role === "assistant" &&
+      typeof m.content === "string" &&
+      (m.content as string).includes(CLOSING_SIGNATURE)
+  );
+}
 
 export function collectUserTexts(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -1297,6 +1317,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   let mensaje: string;
   let appliedSalesReply = false;
+  let appliedDirectReply = false;
 
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
@@ -1310,6 +1331,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   ) {
     mensaje = buildPostCierreThanksReply(extracted.nombre);
     log?.info({ entityId }, "GUARD: post-cierre — agradecimiento o sin más que agregar");
+  } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {
+    mensaje = buildCompanyEmailConfirmReply();
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: cliente preguntó por correo de Bodasesor");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje =
       "Gracias. Nuestro equipo ya tiene tu información para la cotización. ¿Hay algo más que quieras agregar o alguna duda?";
@@ -1454,6 +1479,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       );
       log?.warn({ entityId }, "GPT generó nota interna — usando cierre desde plantilla");
     }
+  }
+
+  if (appliedDirectReply) {
+    return normalizeAdvisorReferences(
+      mensaje,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
   }
 
   if (filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(mensaje, "presupuesto")) {
@@ -1620,7 +1652,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (!trulyReadyForClosing && responseLooksLikePrematureClose(mensaje)) {
+  if (
+    !trulyReadyForClosing &&
+    !appliedDirectReply &&
+    responseLooksLikePrematureClose(mensaje)
+  ) {
     const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
     if (forcedNext) {
       log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
@@ -1636,7 +1672,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (!cierreYaEnviado) {
+  if (!cierreYaEnviado && !appliedSalesReply && !appliedDirectReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   }
 
