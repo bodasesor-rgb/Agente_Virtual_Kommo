@@ -27,6 +27,7 @@ import {
   isServiceRelatedMessage,
   detectPresupuestoRefusal,
   countLucyFieldAsks,
+  clientDeclinesMoreServices,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre } from "../contact-name.js";
 import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
@@ -47,6 +48,7 @@ import {
   mensajeAsksForFilledField,
   LUCY_INTRO,
   isValidRequerimientosValue,
+  crmStoredValue,
 } from "../lucy-flow-guards.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -133,7 +135,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 20 escenarios de prueba\n");
+  console.log("Lucy — 22 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -801,6 +803,138 @@ async function runAll(): Promise<void> {
       reply3.includes("Perfecto, ya tengo todo") || /nuestro equipo|sin problema/i.test(reply3),
       reply3.slice(0, 200)
     );
+  });
+
+  await test('21. Manuel A14770 — "¿algún otro servicio?" no se pregunta para siempre', () => {
+    assert.ok(clientDeclinesMoreServices("No"));
+    assert.ok(clientDeclinesMoreServices("Solo con eso"));
+    assert.ok(clientDeclinesMoreServices("Solo eso"));
+    assert.ok(clientDeclinesMoreServices("Ningún otro servicio"));
+    assert.ok(clientDeclinesMoreServices("No gracias"));
+    assert.ok(!clientDeclinesMoreServices("Animación"));
+
+    const filledReady = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Presupuesto (MXN)",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Manuel",
+      correo: "arteagamanuel714@gmail.com",
+      tipo_evento: "cumpleaños",
+      requerimientos_evento: "show en vivo, animación, hora loca, happening, espejos, láser",
+      num_invitados: 125,
+      direccion_evento: "Naucalpan de Juárez, Edo Mex",
+      fecha_horario: "próximo año",
+      presupuesto: 12500,
+    });
+    assert.equal(isReadyForClosing(filledReady), true);
+
+    // Ronda 1: Lucy pregunta "¿algún otro servicio?" por primera vez — se permite.
+    const historyFirstAsk: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      {
+        role: "assistant",
+        content:
+          "Para tu evento, manejamos shows en vivo, animación, hora loca, happening, espejos, láser y más opciones de entretenimiento. ¿Qué necesitas para el evento?",
+      },
+    ];
+
+    // Ronda 2: el cliente ya respondió "No me interesa" y Lucy insiste — debe cerrar, no repetir.
+    const historyLoop: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      ...historyFirstAsk,
+      { role: "user", content: "No me interesa" },
+      {
+        role: "assistant",
+        content: "Perfecto. Con el Animación / Hora loca, ¿necesitan algún otro servicio?",
+      },
+      { role: "user", content: "Fiesta dinámica" },
+      {
+        role: "assistant",
+        content: "Perfecto. Con el show en vivo, animación, hora loca, happening, espejos, láser, ¿necesitan algún otro servicio?",
+      },
+      { role: "user", content: "Ningún otro servicio" },
+      {
+        role: "assistant",
+        content: "Perfecto. Con el Animación / Hora loca, ¿necesitan algún otro servicio?",
+      },
+    ];
+
+    const debugLogs: string[] = [];
+    const replyNo = runGuards({
+      aiResponse: "Perfecto. Con el Animación / Hora loca, ¿necesitan algún otro servicio?",
+      extracted,
+      filledSet: new Set(filledReady),
+      readyForClosing: true,
+      currentMessage: "No",
+      history: historyLoop,
+      debugLogs,
+    });
+    assert.ok(
+      replyNo.includes("Perfecto, ya tengo todo") || replyNo.includes(CATALOG_URL),
+      `debe cerrar en vez de repetir: "${replyNo.slice(0, 200)}" | logs: ${debugLogs.join(" > ")}`
+    );
+    assert.ok(!/alg[uú]n\s+otro\s+servicio/i.test(replyNo), replyNo.slice(0, 200));
+
+    // "Animación" (palabra suelta ya capturada) tampoco debe re-disparar el pitch de venta.
+    const replyBareWord = runGuards({
+      aiResponse: "¿Qué necesitas para el evento?",
+      extracted,
+      filledSet: new Set(filledReady),
+      readyForClosing: true,
+      currentMessage: "Animación",
+      history: historyLoop,
+    });
+    assert.ok(
+      !/manejamos shows en vivo, animaci[oó]n, hora loca/i.test(replyBareWord),
+      `no debe repetir el pitch de venta: "${replyBareWord.slice(0, 200)}"`
+    );
+
+    // Pregunta real (con "?") sobre un servicio sigue permitida aunque ya esté listo para cerrar.
+    const replyRealQuestion = runGuards({
+      aiResponse: "¿Qué necesitas para el evento?",
+      extracted,
+      filledSet: new Set(filledReady),
+      readyForClosing: true,
+      currentMessage: "¿Cómo es eso de los espejos?",
+      history: historyLoop,
+    });
+    assert.ok(replyRealQuestion.trim().length > 0);
+  });
+
+  await test("22. Manuel A14770 — CRM no se contamina con extracción inestable del turno", () => {
+    const mergedLines = [
+      "- Nombre del cliente: Manuel",
+      "- Correo electrónico: arteagamanuel714@gmail.com",
+      "- Tipo de evento: cumpleaños",
+      "- Requerimientos o servicios: show en vivo, animación, hora loca, happening, espejos, láser",
+      "- Lugar/dirección del evento: Naucalpan de Juárez, Edo Mex",
+    ];
+
+    assert.equal(crmStoredValue(mergedLines, "Tipo de evento"), "cumpleaños");
+    assert.equal(
+      crmStoredValue(mergedLines, "Lugar/dirección del evento"),
+      "Naucalpan de Juárez, Edo Mex"
+    );
+    assert.equal(
+      crmStoredValue(mergedLines, "Requerimientos o servicios"),
+      "show en vivo, animación, hora loca, happening, espejos, láser"
+    );
+    assert.equal(crmStoredValue(mergedLines, "Presupuesto (MXN)"), null);
+
+    // Aunque GPT extraiga mal el turno actual ("fiesta dinámica" como tipo_evento,
+    // "vivo" como ubicación), el valor ya confirmado en el CRM debe prevalecer.
+    const tipoEventoContaminado = "fiesta dinámica";
+    const direccionContaminada = "vivo";
+    const tipoEventoFinal = crmStoredValue(mergedLines, "Tipo de evento") ?? tipoEventoContaminado;
+    const direccionFinal =
+      crmStoredValue(mergedLines, "Lugar/dirección del evento") ?? direccionContaminada;
+    assert.equal(tipoEventoFinal, "cumpleaños");
+    assert.equal(direccionFinal, "Naucalpan de Juárez, Edo Mex");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

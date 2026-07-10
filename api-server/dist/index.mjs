@@ -79112,6 +79112,11 @@ function clientMentionsEntertainment(message) {
   const t = message.toLowerCase();
   return /\bshow\b/i.test(t) || /\bgrupo\s+vers[aá]til\b/i.test(t) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) || /\b(requerimos|necesitamos|buscamos)\s+un\s+show\b/i.test(t);
 }
+function clientDeclinesMoreServices(message) {
+  if (!message?.trim()) return false;
+  const t = message.trim().toLowerCase();
+  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bninguno[a]?\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso\s+est[aá]\s+bien\b/i.test(t);
+}
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
@@ -81164,6 +81169,14 @@ function isEmailSatisfied(filledSet) {
 function isReadyForClosing(filledSet) {
   return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
 }
+function crmStoredValue(mergedLines, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^-?\\s*${escaped}:`, "i");
+  const line2 = mergedLines.find((l4) => pattern.test(l4));
+  if (!line2) return null;
+  const val = line2.replace(pattern, "").trim();
+  return val || null;
+}
 function findMentionedService(text2) {
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (pattern.test(text2)) return label;
@@ -81721,6 +81734,11 @@ function applyLucyMessageGuards(input) {
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
   const emailOk = isEmailSatisfied(filledSet);
   const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
+  const readyToCloseAndReqDone = trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet);
+  const allowSalesReplyOverride = !readyToCloseAndReqDone || (currentMessage?.includes("?") ?? false);
+  const requerimientosFollowUpAlreadyAsked = presHistory.some(
+    (m4) => m4.role === "assistant" && typeof m4.content === "string" && /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m4.content)
+  );
   let mensaje;
   let appliedSalesReply = false;
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
@@ -81758,15 +81776,21 @@ function applyLucyMessageGuards(input) {
 
 ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 tel\xE9fonos");
-  } else if (clientMentionsEntertainment(currentMessage) || justAnsweredReq && clientMentionsEntertainment(currentMessage)) {
+  } else if (readyToCloseAndReqDone && clientDeclinesMoreServices(currentMessage)) {
+    mensaje = buildClosing(
+      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+      extracted.nombre
+    );
+    log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 cierre");
+  } else if (allowSalesReplyOverride && (clientMentionsEntertainment(currentMessage) || justAnsweredReq && clientMentionsEntertainment(currentMessage))) {
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 orientaci\xF3n de venta");
-  } else if (clientMentionsPistaTarima(currentMessage)) {
+  } else if (allowSalesReplyOverride && clientMentionsPistaTarima(currentMessage)) {
     mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
-  } else if (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage)) {
+  } else if (allowSalesReplyOverride && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
@@ -81774,7 +81798,7 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
       { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
       "GUARD: comida/servicio \u2014 orientaci\xF3n de venta"
     );
-  } else if (clientAsksForRecommendations(currentMessage)) {
+  } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
@@ -81827,7 +81851,7 @@ ${nextQ}`;
       mensaje = nextQ ?? aiResponse;
     }
     if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
-  } else if (trulyReadyForClosing && !cierreYaEnviado && (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))) {
+  } else if (trulyReadyForClosing && !cierreYaEnviado && (requerimientosNeedsFollowUp(extracted, filledSet) || justAnsweredReq && !requerimientosFollowUpAlreadyAsked)) {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
   } else if (trulyReadyForClosing && !cierreYaEnviado) {
@@ -88927,17 +88951,20 @@ function buildPatchPayload(extracted, mergedLines, conversationText) {
     field_id: FIELD.respuesta_ia_largo,
     values: [{ value: resumenLargo }]
   });
-  if (isValidExtractedString(extracted.direccion_evento))
-    customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(extracted.direccion_evento) }] });
-  const reqForCrm = conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento;
+  const direccionForCrm = crmStoredValue(mergedLines, "Lugar/direcci\xF3n del evento") ?? extracted.direccion_evento;
+  if (isValidExtractedString(direccionForCrm))
+    customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(direccionForCrm) }] });
+  const reqStored = crmStoredValue(mergedLines, "Requerimientos o servicios");
+  const reqForCrm = reqStored ?? (conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento);
   if (isValidExtractedString(reqForCrm) && reqForCrm !== "Info pendiente")
     customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap255(reqForCrm) }] });
   if (isValidExtractedString(extracted.fecha_horario))
     customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap255(extracted.fecha_horario) }] });
   if (extracted.num_invitados !== null && extracted.num_invitados > 0)
     customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(extracted.num_invitados) }] });
-  if (isValidExtractedString(extracted.tipo_evento))
-    customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(extracted.tipo_evento) }] });
+  const tipoEventoForCrm = crmStoredValue(mergedLines, "Tipo de evento") ?? extracted.tipo_evento;
+  if (isValidExtractedString(tipoEventoForCrm))
+    customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(tipoEventoForCrm) }] });
   const presLine = mergedLines.find((l4) => /^-?\s*Presupuesto \(MXN\):/i.test(l4));
   if (presLine) {
     const presText = presLine.replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
@@ -89864,11 +89891,14 @@ function mapExtractedToSimulatorFields(extracted, reply, mergedLines = []) {
   if (mergedLines.some((l4) => l4.includes(EMAIL_WAIVED_LABEL))) {
     fields.cf_email_waived = "1";
   }
-  if (isValidExtractedString(extracted.direccion_evento)) fields.cf_direccion = extracted.direccion_evento;
-  if (isValidExtractedString(extracted.requerimientos_evento)) fields.cf_requerimiento = extracted.requerimientos_evento;
+  const direccionForCf = crmStoredValue(mergedLines, "Lugar/direcci\xF3n del evento") ?? extracted.direccion_evento;
+  if (isValidExtractedString(direccionForCf)) fields.cf_direccion = direccionForCf;
+  const reqForCf = crmStoredValue(mergedLines, "Requerimientos o servicios") ?? extracted.requerimientos_evento;
+  if (isValidExtractedString(reqForCf)) fields.cf_requerimiento = reqForCf;
   if (isValidExtractedString(extracted.fecha_horario)) fields.cf_fecha_horario = extracted.fecha_horario;
   if (extracted.num_invitados !== null && extracted.num_invitados > 0) fields.cf_num_invitados = extracted.num_invitados;
-  if (isValidExtractedString(extracted.tipo_evento)) fields.cf_tipo_evento = extracted.tipo_evento;
+  const tipoEventoForCf = crmStoredValue(mergedLines, "Tipo de evento") ?? extracted.tipo_evento;
+  if (isValidExtractedString(tipoEventoForCf)) fields.cf_tipo_evento = tipoEventoForCf;
   const presLine = mergedLines.find((l4) => /^-?\s*Presupuesto \(MXN\):/i.test(l4));
   if (presLine) {
     fields.cf_presupuesto = presLine.replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();

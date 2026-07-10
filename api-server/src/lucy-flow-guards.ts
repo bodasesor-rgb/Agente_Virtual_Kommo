@@ -30,6 +30,7 @@ import {
   clientAsksForRecommendations,
   clientAsksAboutTeam,
   clientAsksPhone,
+  clientDeclinesMoreServices,
   clientMentionsEntertainment,
   clientMentionsPistaTarima,
   detectPresupuestoRefusal,
@@ -279,6 +280,21 @@ export function isEmailSatisfied(filledSet: Set<string>): boolean {
 
 export function isReadyForClosing(filledSet: Set<string>): boolean {
   return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
+}
+
+/**
+ * Lee un valor ya confirmado de las líneas CRM ("- Etiqueta: valor").
+ * Se usa para no dejar que una extracción inestable del turno actual (GPT
+ * malinterpretando un mensaje corto como "Fiesta dinámica" o "Show en vivo")
+ * sobrescriba un dato de un campo core que ya estaba guardado correctamente.
+ */
+export function crmStoredValue(mergedLines: string[], label: string): string | null {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^-?\\s*${escaped}:`, "i");
+  const line = mergedLines.find((l) => pattern.test(l));
+  if (!line) return null;
+  const val = line.replace(pattern, "").trim();
+  return val || null;
 }
 
 function findMentionedService(text: string): string | null {
@@ -1223,6 +1239,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const emailOk = isEmailSatisfied(filledSet);
   const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
 
+  // Cuando ya se puede cerrar y los requerimientos ya son válidos, no re-abrir
+  // la venta (show/comida/pista) por una simple palabra clave repetida — solo
+  // si el cliente hace una pregunta real (con "?") dejamos pasar la respuesta de venta.
+  const readyToCloseAndReqDone =
+    trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet);
+  const allowSalesReplyOverride =
+    !readyToCloseAndReqDone || (currentMessage?.includes("?") ?? false);
+  // El follow-up "¿algún otro servicio?" solo se pregunta una vez — si ya aparece
+  // en el historial, no se vuelve a preguntar (evita el bucle infinito).
+  const requerimientosFollowUpAlreadyAsked = presHistory.some(
+    (m) =>
+      m.role === "assistant" &&
+      typeof m.content === "string" &&
+      /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m.content as string)
+  );
+
   let mensaje: string;
   let appliedSalesReply = false;
 
@@ -1268,20 +1300,28 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         ? `${phoneAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
         : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente preguntó teléfonos");
+  } else if (readyToCloseAndReqDone && clientDeclinesMoreServices(currentMessage)) {
+    mensaje = buildClosing(
+      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+      extracted.nombre
+    );
+    log?.info({ entityId }, "GUARD: cliente no quiere más servicios — cierre");
   } else if (
-    clientMentionsEntertainment(currentMessage) ||
-    (justAnsweredReq && clientMentionsEntertainment(currentMessage))
+    allowSalesReplyOverride &&
+    (clientMentionsEntertainment(currentMessage) ||
+      (justAnsweredReq && clientMentionsEntertainment(currentMessage)))
   ) {
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento — orientación de venta");
-  } else if (clientMentionsPistaTarima(currentMessage)) {
+  } else if (allowSalesReplyOverride && clientMentionsPistaTarima(currentMessage)) {
     mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima — orientación de venta");
   } else if (
-    clientMentionsCatering(currentMessage) ||
-    (justAnsweredReq && isServiceRelatedMessage(currentMessage))
+    allowSalesReplyOverride &&
+    (clientMentionsCatering(currentMessage) ||
+      (justAnsweredReq && isServiceRelatedMessage(currentMessage)))
   ) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
@@ -1290,7 +1330,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
       "GUARD: comida/servicio — orientación de venta"
     );
-  } else if (clientAsksForRecommendations(currentMessage)) {
+  } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
@@ -1351,7 +1391,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     trulyReadyForClosing &&
     !cierreYaEnviado &&
-    (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))
+    (requerimientosNeedsFollowUp(extracted, filledSet) ||
+      (justAnsweredReq && !requerimientosFollowUpAlreadyAsked))
   ) {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");

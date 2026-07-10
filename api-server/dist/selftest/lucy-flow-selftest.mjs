@@ -244,6 +244,11 @@ function clientMentionsEntertainment(message) {
   const t = message.toLowerCase();
   return /\bshow\b/i.test(t) || /\bgrupo\s+vers[aá]til\b/i.test(t) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) || /\b(requerimos|necesitamos|buscamos)\s+un\s+show\b/i.test(t);
 }
+function clientDeclinesMoreServices(message) {
+  if (!message?.trim()) return false;
+  const t = message.trim().toLowerCase();
+  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bninguno[a]?\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso\s+est[aá]\s+bien\b/i.test(t);
+}
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
@@ -1265,6 +1270,14 @@ function isEmailSatisfied(filledSet) {
 function isReadyForClosing(filledSet) {
   return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
 }
+function crmStoredValue(mergedLines, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`^-?\\s*${escaped}:`, "i");
+  const line = mergedLines.find((l) => pattern.test(l));
+  if (!line) return null;
+  const val = line.replace(pattern, "").trim();
+  return val || null;
+}
 function findMentionedService(text) {
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (pattern.test(text)) return label;
@@ -1801,6 +1814,11 @@ function applyLucyMessageGuards(input) {
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
   const emailOk = isEmailSatisfied(filledSet);
   const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
+  const readyToCloseAndReqDone = trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet);
+  const allowSalesReplyOverride = !readyToCloseAndReqDone || (currentMessage?.includes("?") ?? false);
+  const requerimientosFollowUpAlreadyAsked = presHistory.some(
+    (m) => m.role === "assistant" && typeof m.content === "string" && /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m.content)
+  );
   let mensaje;
   let appliedSalesReply = false;
   if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
@@ -1838,15 +1856,21 @@ function applyLucyMessageGuards(input) {
 
 ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 tel\xE9fonos");
-  } else if (clientMentionsEntertainment(currentMessage) || justAnsweredReq && clientMentionsEntertainment(currentMessage)) {
+  } else if (readyToCloseAndReqDone && clientDeclinesMoreServices(currentMessage)) {
+    mensaje = buildClosing(
+      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+      extracted.nombre
+    );
+    log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 cierre");
+  } else if (allowSalesReplyOverride && (clientMentionsEntertainment(currentMessage) || justAnsweredReq && clientMentionsEntertainment(currentMessage))) {
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 orientaci\xF3n de venta");
-  } else if (clientMentionsPistaTarima(currentMessage)) {
+  } else if (allowSalesReplyOverride && clientMentionsPistaTarima(currentMessage)) {
     mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
-  } else if (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage)) {
+  } else if (allowSalesReplyOverride && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
@@ -1854,7 +1878,7 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
       { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
       "GUARD: comida/servicio \u2014 orientaci\xF3n de venta"
     );
-  } else if (clientAsksForRecommendations(currentMessage)) {
+  } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
@@ -1907,7 +1931,7 @@ ${nextQ}`;
       mensaje = nextQ ?? aiResponse;
     }
     if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
-  } else if (trulyReadyForClosing && !cierreYaEnviado && (justAnsweredReq || requerimientosNeedsFollowUp(extracted, filledSet))) {
+  } else if (trulyReadyForClosing && !cierreYaEnviado && (requerimientosNeedsFollowUp(extracted, filledSet) || justAnsweredReq && !requerimientosFollowUpAlreadyAsked)) {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
   } else if (trulyReadyForClosing && !cierreYaEnviado) {
@@ -2234,7 +2258,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 20 escenarios de prueba\n");
+  console.log("Lucy \u2014 22 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -2836,6 +2860,120 @@ async function runAll() {
       reply3.includes("Perfecto, ya tengo todo") || /nuestro equipo|sin problema/i.test(reply3),
       reply3.slice(0, 200)
     );
+  });
+  await test('21. Manuel A14770 \u2014 "\xBFalg\xFAn otro servicio?" no se pregunta para siempre', () => {
+    assert.ok(clientDeclinesMoreServices("No"));
+    assert.ok(clientDeclinesMoreServices("Solo con eso"));
+    assert.ok(clientDeclinesMoreServices("Solo eso"));
+    assert.ok(clientDeclinesMoreServices("Ning\xFAn otro servicio"));
+    assert.ok(clientDeclinesMoreServices("No gracias"));
+    assert.ok(!clientDeclinesMoreServices("Animaci\xF3n"));
+    const filledReady = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "N\xFAmero de invitados",
+      "Lugar/direcci\xF3n del evento",
+      "Fecha y horario",
+      "Presupuesto (MXN)"
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Manuel",
+      correo: "arteagamanuel714@gmail.com",
+      tipo_evento: "cumplea\xF1os",
+      requerimientos_evento: "show en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser",
+      num_invitados: 125,
+      direccion_evento: "Naucalpan de Ju\xE1rez, Edo Mex",
+      fecha_horario: "pr\xF3ximo a\xF1o",
+      presupuesto: 12500
+    });
+    assert.equal(isReadyForClosing(filledReady), true);
+    const historyFirstAsk = [
+      {
+        role: "assistant",
+        content: "Para tu evento, manejamos shows en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser y m\xE1s opciones de entretenimiento. \xBFQu\xE9 necesitas para el evento?"
+      }
+    ];
+    const historyLoop = [
+      ...historyFirstAsk,
+      { role: "user", content: "No me interesa" },
+      {
+        role: "assistant",
+        content: "Perfecto. Con el Animaci\xF3n / Hora loca, \xBFnecesitan alg\xFAn otro servicio?"
+      },
+      { role: "user", content: "Fiesta din\xE1mica" },
+      {
+        role: "assistant",
+        content: "Perfecto. Con el show en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser, \xBFnecesitan alg\xFAn otro servicio?"
+      },
+      { role: "user", content: "Ning\xFAn otro servicio" },
+      {
+        role: "assistant",
+        content: "Perfecto. Con el Animaci\xF3n / Hora loca, \xBFnecesitan alg\xFAn otro servicio?"
+      }
+    ];
+    const debugLogs = [];
+    const replyNo = runGuards({
+      aiResponse: "Perfecto. Con el Animaci\xF3n / Hora loca, \xBFnecesitan alg\xFAn otro servicio?",
+      extracted,
+      filledSet: new Set(filledReady),
+      readyForClosing: true,
+      currentMessage: "No",
+      history: historyLoop,
+      debugLogs
+    });
+    assert.ok(
+      replyNo.includes("Perfecto, ya tengo todo") || replyNo.includes(CATALOG_URL),
+      `debe cerrar en vez de repetir: "${replyNo.slice(0, 200)}" | logs: ${debugLogs.join(" > ")}`
+    );
+    assert.ok(!/alg[uú]n\s+otro\s+servicio/i.test(replyNo), replyNo.slice(0, 200));
+    const replyBareWord = runGuards({
+      aiResponse: "\xBFQu\xE9 necesitas para el evento?",
+      extracted,
+      filledSet: new Set(filledReady),
+      readyForClosing: true,
+      currentMessage: "Animaci\xF3n",
+      history: historyLoop
+    });
+    assert.ok(
+      !/manejamos shows en vivo, animaci[oó]n, hora loca/i.test(replyBareWord),
+      `no debe repetir el pitch de venta: "${replyBareWord.slice(0, 200)}"`
+    );
+    const replyRealQuestion = runGuards({
+      aiResponse: "\xBFQu\xE9 necesitas para el evento?",
+      extracted,
+      filledSet: new Set(filledReady),
+      readyForClosing: true,
+      currentMessage: "\xBFC\xF3mo es eso de los espejos?",
+      history: historyLoop
+    });
+    assert.ok(replyRealQuestion.trim().length > 0);
+  });
+  await test("22. Manuel A14770 \u2014 CRM no se contamina con extracci\xF3n inestable del turno", () => {
+    const mergedLines = [
+      "- Nombre del cliente: Manuel",
+      "- Correo electr\xF3nico: arteagamanuel714@gmail.com",
+      "- Tipo de evento: cumplea\xF1os",
+      "- Requerimientos o servicios: show en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser",
+      "- Lugar/direcci\xF3n del evento: Naucalpan de Ju\xE1rez, Edo Mex"
+    ];
+    assert.equal(crmStoredValue(mergedLines, "Tipo de evento"), "cumplea\xF1os");
+    assert.equal(
+      crmStoredValue(mergedLines, "Lugar/direcci\xF3n del evento"),
+      "Naucalpan de Ju\xE1rez, Edo Mex"
+    );
+    assert.equal(
+      crmStoredValue(mergedLines, "Requerimientos o servicios"),
+      "show en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser"
+    );
+    assert.equal(crmStoredValue(mergedLines, "Presupuesto (MXN)"), null);
+    const tipoEventoContaminado = "fiesta din\xE1mica";
+    const direccionContaminada = "vivo";
+    const tipoEventoFinal = crmStoredValue(mergedLines, "Tipo de evento") ?? tipoEventoContaminado;
+    const direccionFinal = crmStoredValue(mergedLines, "Lugar/direcci\xF3n del evento") ?? direccionContaminada;
+    assert.equal(tipoEventoFinal, "cumplea\xF1os");
+    assert.equal(direccionFinal, "Naucalpan de Ju\xE1rez, Edo Mex");
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

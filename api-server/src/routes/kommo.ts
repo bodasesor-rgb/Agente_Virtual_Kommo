@@ -23,6 +23,7 @@ import {
   isValidRequerimientosValue,
   isLegacyStoredLucyResponse,
   parseNombreFromCrmLines,
+  crmStoredValue,
 } from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -897,18 +898,28 @@ function buildPatchPayload(
     values: [{ value: resumenLargo }],
   });
 
-  // Solo campos CRM con valor real
-  if (isValidExtractedString(extracted.direccion_evento))
-    customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(extracted.direccion_evento) }] });
-  const reqForCrm = conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento;
+  // Solo campos CRM con valor real. Preferimos el valor ya confirmado en
+  // mergedLines sobre la extracción de este turno para campos core — evita
+  // que un mensaje corto ("Fiesta dinámica", "Show en vivo") contamine
+  // Tipo de evento / Ubicación / Requerimientos ya capturados.
+  const direccionForCrm =
+    crmStoredValue(mergedLines, "Lugar/dirección del evento") ?? extracted.direccion_evento;
+  if (isValidExtractedString(direccionForCrm))
+    customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(direccionForCrm) }] });
+
+  const reqStored = crmStoredValue(mergedLines, "Requerimientos o servicios");
+  const reqForCrm =
+    reqStored ?? (conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento);
   if (isValidExtractedString(reqForCrm) && reqForCrm !== "Info pendiente")
     customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap255(reqForCrm) }] });
   if (isValidExtractedString(extracted.fecha_horario))
     customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap255(extracted.fecha_horario) }] });
   if (extracted.num_invitados !== null && extracted.num_invitados > 0)
     customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(extracted.num_invitados) }] });
-  if (isValidExtractedString(extracted.tipo_evento))
-    customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(extracted.tipo_evento) }] });
+
+  const tipoEventoForCrm = crmStoredValue(mergedLines, "Tipo de evento") ?? extracted.tipo_evento;
+  if (isValidExtractedString(tipoEventoForCrm))
+    customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(tipoEventoForCrm) }] });
 
   const presLine = mergedLines.find((l) => /^-?\s*Presupuesto \(MXN\):/i.test(l));
   if (presLine) {
@@ -2324,11 +2335,17 @@ function mapExtractedToSimulatorFields(
   if (mergedLines.some((l) => l.includes(EMAIL_WAIVED_LABEL))) {
     fields.cf_email_waived = "1";
   }
-  if (isValidExtractedString(extracted.direccion_evento)) fields.cf_direccion = extracted.direccion_evento;
-  if (isValidExtractedString(extracted.requerimientos_evento)) fields.cf_requerimiento = extracted.requerimientos_evento;
+  // Preferimos el valor ya confirmado en mergedLines sobre la extracción de
+  // este turno para campos core — mismo criterio que buildPatchPayload,
+  // evita contaminar Tipo de evento / Ubicación / Requerimientos ya capturados.
+  const direccionForCf = crmStoredValue(mergedLines, "Lugar/dirección del evento") ?? extracted.direccion_evento;
+  if (isValidExtractedString(direccionForCf)) fields.cf_direccion = direccionForCf;
+  const reqForCf = crmStoredValue(mergedLines, "Requerimientos o servicios") ?? extracted.requerimientos_evento;
+  if (isValidExtractedString(reqForCf)) fields.cf_requerimiento = reqForCf;
   if (isValidExtractedString(extracted.fecha_horario)) fields.cf_fecha_horario = extracted.fecha_horario;
   if (extracted.num_invitados !== null && extracted.num_invitados > 0) fields.cf_num_invitados = extracted.num_invitados;
-  if (isValidExtractedString(extracted.tipo_evento)) fields.cf_tipo_evento = extracted.tipo_evento;
+  const tipoEventoForCf = crmStoredValue(mergedLines, "Tipo de evento") ?? extracted.tipo_evento;
+  if (isValidExtractedString(tipoEventoForCf)) fields.cf_tipo_evento = tipoEventoForCf;
   const presLine = mergedLines.find((l) => /^-?\s*Presupuesto \(MXN\):/i.test(l));
   if (presLine) {
     fields.cf_presupuesto = presLine.replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
