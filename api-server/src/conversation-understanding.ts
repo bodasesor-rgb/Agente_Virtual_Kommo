@@ -209,6 +209,27 @@ export function clientMentionsEntertainment(message?: string): boolean {
   );
 }
 
+/** Cliente responde que no quiere más servicios (cierra el follow-up de requerimientos). */
+export function clientDeclinesMoreServices(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim().toLowerCase();
+  return (
+    /^(no|nop)[\s.,!]*$/i.test(t) ||
+    /\bsolo\s+(con\s+)?eso\b/i.test(t) ||
+    /\bsolamente\s+eso\b/i.test(t) ||
+    /\bnada\s+m[aá]s\b/i.test(t) ||
+    /\bning[uú]n\s+otro\b/i.test(t) ||
+    /\bninguno[a]?\b/i.test(t) ||
+    /\bno\s+gracias\b/i.test(t) ||
+    /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) ||
+    /\beso\s+es\s+todo\b/i.test(t) ||
+    /\bya\s+no\b/i.test(t) ||
+    /\bno\s+m[aá]s\b/i.test(t) ||
+    /\blisto\s+as[ií]\b/i.test(t) ||
+    /\bcon\s+eso\s+est[aá]\s+bien\b/i.test(t)
+  );
+}
+
 /** Cliente pregunta catering o comida (mapear a opciones de alimentos del catálogo). */
 export function clientMentionsCatering(message?: string): boolean {
   if (!message?.trim()) return false;
