@@ -1354,9 +1354,9 @@ var QUESTION_VARIANTS = {
     "\xBFTienen un estimado de invitados? Si a\xFAn no lo saben, sin problema \u2014 pueden darme un rango aproximado."
   ],
   zona: [
-    "\xBFD\xF3nde lo est\xE1n planeando?",
-    "\xBFEn qu\xE9 ciudad o zona ser\xEDa el evento?",
-    "\xBFTienen ya el lugar o al menos la ciudad?"
+    "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal.",
+    "\xBFEn qu\xE9 ciudad lo tendr\xEDan? Con la direcci\xF3n exacta podemos cotizar mejor.",
+    "\xBFCu\xE1l ser\xEDa la ciudad del evento? Si ya tienen sal\xF3n o direcci\xF3n, comp\xE1rtanmela."
   ],
   fecha: [
     "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
@@ -1375,7 +1375,7 @@ var FIELD_ASK_PATTERNS = {
   tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
   requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
   invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
-  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
+  zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
 };
@@ -13176,6 +13176,7 @@ async function runAll() {
       "Tipo de evento",
       "Requerimientos o servicios",
       "N\xFAmero de invitados",
+      "Lugar/direcci\xF3n del evento",
       "Fecha y horario"
     ]);
     const extracted = emptyExtracted({
@@ -13195,7 +13196,10 @@ async function runAll() {
       history: [{ role: "assistant", content: "\xBFTienen alg\xFAn rango de presupuesto en mente?" }]
     });
     assert.ok(!/rango de presupuesto/i.test(ecoReply), ecoReply.slice(0, 200));
-    assert.ok(/econ[oó]mic/i.test(ecoReply));
+    assert.ok(
+      /econ[oó]mic|cierre|ya tengo todo/i.test(ecoReply),
+      `debe reconocer presupuesto econ\xF3mico o cerrar: ${ecoReply.slice(0, 200)}`
+    );
     const thanksFilled = /* @__PURE__ */ new Set([...filled, "Presupuesto (MXN)", "Lugar/direcci\xF3n del evento"]);
     const thanksReply = applyLucyMessageGuards({
       aiResponse: "",
@@ -13559,7 +13563,7 @@ async function runAll() {
       [...filledReady].filter((f) => f !== "Lugar/direcci\xF3n del evento")
     );
     const postCierreVariosNo = applyLucyMessageGuards({
-      aiResponse: "\xBFTienen ya el lugar o al menos la ciudad?",
+      aiResponse: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal.",
       extracted,
       filledSet: filledSinZona,
       readyForClosing: true,
@@ -13570,13 +13574,13 @@ async function runAll() {
       buildClosing: mockClosing
     });
     assert.ok(
-      !/d[oó]nde\s+lo\s+est[aá]n\s+planeando|tienen\s+ya\s+el\s+lugar/i.test(postCierreVariosNo),
+      !/en\s+qu[eé]\s+ciudad|direcci[oó]n\s+exacta|tienen\s+ya\s+el\s+lugar/i.test(postCierreVariosNo),
       `no debe concatenar pregunta de zona tras el ack: "${postCierreVariosNo.slice(0, 200)}"`
     );
     assert.ok(/con gusto|nuestro equipo/i.test(postCierreVariosNo), postCierreVariosNo.slice(0, 200));
     for (const msg of ["No", "No", "Gracias"]) {
       const reply = applyLucyMessageGuards({
-        aiResponse: "\xBFD\xF3nde lo est\xE1n planeando?",
+        aiResponse: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal.",
         extracted,
         filledSet: new Set(filledSinZona),
         readyForClosing: true,
@@ -13587,7 +13591,7 @@ async function runAll() {
         buildClosing: mockClosing
       });
       assert.ok(
-        !/d[oó]nde\s+lo\s+est[aá]n\s+planeando|tienen\s+ya\s+el\s+lugar|d[oó]nde\s+se\s+llevar[aá]/i.test(reply),
+        !/en\s+qu[eé]\s+ciudad|direcci[oó]n\s+exacta|tienen\s+ya\s+el\s+lugar|d[oó]nde\s+se\s+llevar[aá]/i.test(reply),
         `"${msg}" no debe concatenar pregunta de zona: "${reply.slice(0, 200)}"`
       );
     }

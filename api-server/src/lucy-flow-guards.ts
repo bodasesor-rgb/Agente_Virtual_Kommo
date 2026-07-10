@@ -109,7 +109,7 @@ export const FLOW_QUESTIONS = {
   tipoEventoTrasCorreo: "¿Qué tipo de celebración están planeando?",
   requerimientos: "Platícame, ¿qué tienes pensado para tu evento?",
   invitados: "¿Más o menos para cuántas personas sería?",
-  zona: "¿Dónde lo están planeando?",
+  zona: "¿En qué ciudad sería tu evento? Si tienes la dirección exacta, sería lo ideal.",
   fecha: "¿Ya tienen fecha o todavía la van definiendo?",
   presupuesto: "¿Tienen algún rango de presupuesto en mente?",
   serviciosExtra: SERVICIOS_CATALOGO_HINT_ADICIONAL,
@@ -152,9 +152,9 @@ const QUESTION_VARIANTS: Record<PendingField, string[]> = {
     "¿Tienen un estimado de invitados? Si aún no lo saben, sin problema — pueden darme un rango aproximado.",
   ],
   zona: [
-    "¿Dónde lo están planeando?",
-    "¿En qué ciudad o zona sería el evento?",
-    "¿Tienen ya el lugar o al menos la ciudad?",
+    "¿En qué ciudad sería tu evento? Si tienes la dirección exacta, sería lo ideal.",
+    "¿En qué ciudad lo tendrían? Con la dirección exacta podemos cotizar mejor.",
+    "¿Cuál sería la ciudad del evento? Si ya tienen salón o dirección, compártanmela.",
   ],
   fecha: [
     "¿Ya tienen fecha o todavía la van definiendo?",
@@ -177,7 +177,7 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
     /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
   invitados:
     /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
-  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
+  zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i,
 };

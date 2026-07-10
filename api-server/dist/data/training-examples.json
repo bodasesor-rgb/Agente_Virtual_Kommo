@@ -161,7 +161,7 @@
     {
       "id": "V6-SEQ-invitados",
       "userMessage": "150 personas",
-      "lucyResponse": "¿Dónde lo están planeando?",
+      "lucyResponse": "¿En qué ciudad sería tu evento? Si tienes la dirección exacta, sería lo ideal.",
       "label": "Invitados → pide zona"
     },
     {

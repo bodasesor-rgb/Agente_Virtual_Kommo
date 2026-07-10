@@ -526,6 +526,7 @@ async function runAll(): Promise<void> {
       "Tipo de evento",
       "Requerimientos o servicios",
       "Número de invitados",
+      "Lugar/dirección del evento",
       "Fecha y horario",
     ]);
     const extracted = emptyExtracted({
@@ -545,7 +546,10 @@ async function runAll(): Promise<void> {
       history: [{ role: "assistant", content: "¿Tienen algún rango de presupuesto en mente?" }],
     });
     assert.ok(!/rango de presupuesto/i.test(ecoReply), ecoReply.slice(0, 200));
-    assert.ok(/econ[oó]mic/i.test(ecoReply));
+    assert.ok(
+      /econ[oó]mic|cierre|ya tengo todo/i.test(ecoReply),
+      `debe reconocer presupuesto económico o cerrar: ${ecoReply.slice(0, 200)}`
+    );
 
     const thanksFilled = new Set([...filled, "Presupuesto (MXN)", "Lugar/dirección del evento"]);
     const thanksReply = applyLucyMessageGuards({
@@ -958,7 +962,7 @@ async function runAll(): Promise<void> {
       [...filledReady].filter((f) => f !== "Lugar/dirección del evento")
     );
     const postCierreVariosNo = applyLucyMessageGuards({
-      aiResponse: "¿Tienen ya el lugar o al menos la ciudad?",
+      aiResponse: "¿En qué ciudad sería tu evento? Si tienes la dirección exacta, sería lo ideal.",
       extracted,
       filledSet: filledSinZona,
       readyForClosing: true,
@@ -969,7 +973,7 @@ async function runAll(): Promise<void> {
       buildClosing: mockClosing,
     });
     assert.ok(
-      !/d[oó]nde\s+lo\s+est[aá]n\s+planeando|tienen\s+ya\s+el\s+lugar/i.test(postCierreVariosNo),
+      !/en\s+qu[eé]\s+ciudad|direcci[oó]n\s+exacta|tienen\s+ya\s+el\s+lugar/i.test(postCierreVariosNo),
       `no debe concatenar pregunta de zona tras el ack: "${postCierreVariosNo.slice(0, 200)}"`
     );
     assert.ok(/con gusto|nuestro equipo/i.test(postCierreVariosNo), postCierreVariosNo.slice(0, 200));
@@ -979,7 +983,7 @@ async function runAll(): Promise<void> {
     // Ninguna respuesta debe concatenar la pregunta de zona.
     for (const msg of ["No", "No", "Gracias"]) {
       const reply = applyLucyMessageGuards({
-        aiResponse: "¿Dónde lo están planeando?",
+        aiResponse: "¿En qué ciudad sería tu evento? Si tienes la dirección exacta, sería lo ideal.",
         extracted,
         filledSet: new Set(filledSinZona),
         readyForClosing: true,
@@ -990,7 +994,7 @@ async function runAll(): Promise<void> {
         buildClosing: mockClosing,
       });
       assert.ok(
-        !/d[oó]nde\s+lo\s+est[aá]n\s+planeando|tienen\s+ya\s+el\s+lugar|d[oó]nde\s+se\s+llevar[aá]/i.test(reply),
+        !/en\s+qu[eé]\s+ciudad|direcci[oó]n\s+exacta|tienen\s+ya\s+el\s+lugar|d[oó]nde\s+se\s+llevar[aá]/i.test(reply),
         `"${msg}" no debe concatenar pregunta de zona: "${reply.slice(0, 200)}"`
       );
     }

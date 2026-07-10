@@ -80454,7 +80454,7 @@ Var\xEDa la redacci\xF3n. Una pregunta por mensaje. Puente breve si encaja ("Per
         - CASO A (ya mencion\xF3 servicio) \u2192 "\xBFSolo el [servicio] o tambi\xE9n algo m\xE1s?" + opciones del cat\xE1logo
         - CASO B (sin servicio) \u2192 pregunta qu\xE9 necesita + SIEMPRE menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces
 [ ] 5. Invitados   \u2014 ej: "\xBFM\xE1s o menos para cu\xE1ntas personas?", "\xBFCu\xE1ntos invitados contemplan?"
-[ ] 6. Zona        \u2014 ej: "\xBFD\xF3nde lo est\xE1n planeando?", "\xBFEn qu\xE9 ciudad o zona ser\xEDa?"
+[ ] 6. Zona        \u2014 ej: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal."
 [ ] 7. Fecha       \u2014 ej: "\xBFYa tienen fecha o todav\xEDa la van definiendo?"
 [ ] 8. Presupuesto \u2014 ej: "\xBFTienen alg\xFAn rango en mente?" (si no tiene, contin\xFAa sin insistir)
 [ ] 9. Cierre      \u2014 mensaje de cierre con cat\xE1logo y escala a Alejandro (texto exacto obligatorio)
@@ -80496,7 +80496,7 @@ Lucy: "\xBFQu\xE9 servicios te gustar\xEDa cotizar? Manejamos alimentos y barras
 Cliente: "banquete y barra de bebidas"
 Lucy: "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?"
 Cliente: "120"
-Lucy: "\xBFD\xF3nde lo est\xE1n planeando?"
+Lucy: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal."
 Cliente: "Reforma"
 Lucy: "\xBFYa tienen fecha o todav\xEDa la van definiendo?"
 Cliente: "13 de mayo"
@@ -81289,9 +81289,9 @@ var QUESTION_VARIANTS = {
     "\xBFTienen un estimado de invitados? Si a\xFAn no lo saben, sin problema \u2014 pueden darme un rango aproximado."
   ],
   zona: [
-    "\xBFD\xF3nde lo est\xE1n planeando?",
-    "\xBFEn qu\xE9 ciudad o zona ser\xEDa el evento?",
-    "\xBFTienen ya el lugar o al menos la ciudad?"
+    "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal.",
+    "\xBFEn qu\xE9 ciudad lo tendr\xEDan? Con la direcci\xF3n exacta podemos cotizar mejor.",
+    "\xBFCu\xE1l ser\xEDa la ciudad del evento? Si ya tienen sal\xF3n o direcci\xF3n, comp\xE1rtanmela."
   ],
   fecha: [
     "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
@@ -81310,7 +81310,7 @@ var FIELD_ASK_PATTERNS = {
   tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
   requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
   invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
-  zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
+  zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
 };
