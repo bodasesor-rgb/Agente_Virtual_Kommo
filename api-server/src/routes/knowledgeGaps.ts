@@ -2,24 +2,65 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import {
   listKnowledgeGaps,
   getKnowledgeGapStats,
+  getLearningOverview,
   answerKnowledgeGap,
   dismissKnowledgeGap,
+  teachLucyManually,
 } from "../services/knowledgeGapStore.js";
 import { listTrainingExamples, getTrainingStats } from "../services/trainingStore.js";
 
 const router: IRouter = Router();
 
+function isPanelTaughtLabel(label?: string | null): boolean {
+  if (!label?.trim()) return false;
+  return /^(Aprendizaje|Aprendido):/i.test(label.trim());
+}
+
+router.get("/knowledge-gaps/overview", async (_req: Request, res: Response) => {
+  try {
+    res.json(await getLearningOverview());
+  } catch {
+    res.status(500).json({ error: "failed_to_load_overview" });
+  }
+});
+
 router.get("/knowledge-gaps/training-recent", async (req: Request, res: Response) => {
   try {
     const limit = Math.min(Number(req.query.limit ?? 30), 100);
     const examples = await listTrainingExamples();
-    const learned = examples
-      .filter((ex) => ex.label?.startsWith("Aprendizaje"))
-      .slice(0, limit);
+    const learned = examples.filter((ex) => isPanelTaughtLabel(ex.label)).slice(0, limit);
     const stats = await getTrainingStats();
-    res.json({ examples: learned, stats, total: learned.length });
+    res.json({
+      examples: learned,
+      stats: { ...stats, panelTaught: learned.length },
+      total: learned.length,
+    });
   } catch {
     res.status(500).json({ error: "failed_to_load_training" });
+  }
+});
+
+router.post("/knowledge-gaps/teach", async (req: Request, res: Response) => {
+  const { question, answer, topic } = req.body as {
+    question?: string;
+    answer?: string;
+    topic?: string;
+  };
+  if (!question?.trim() || !answer?.trim()) {
+    res.status(400).json({ error: "question_and_answer_required" });
+    return;
+  }
+  try {
+    const gap = await teachLucyManually({
+      question,
+      answer,
+      topic,
+      reviewerEmail: "panel",
+    });
+    res.status(201).json({ ok: true, gap });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "failed_to_teach";
+    res.status(500).json({ error: msg });
   }
 });
 

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Aprendizaje de Lucy — Bodasesor</title>
   <base href="/aprendizaje/" />
-  <link rel="stylesheet" href="/aprendizaje/styles.css?v=2" />
+  <link rel="stylesheet" href="/aprendizaje/styles.css?v=3" />
 </head>
 <body>
   <div id="app">
@@ -14,7 +14,7 @@
         <div class="page-header-text">
           <p class="eyebrow">Lucy · Catálogo</p>
           <h1>Aprendizaje de Lucy</h1>
-          <p class="subtitle">Enseña a Lucy cuando no encuentra precio o servicio en el catálogo. Lo que guardes aquí se usa en conversaciones reales.</p>
+          <p class="subtitle">Aquí ves lo que Lucy <strong>no supo responder</strong> en chats reales o en el simulador, le enseñas la respuesta correcta, y lo que guardas aparece en <strong>En uso por Lucy</strong> en conversaciones nuevas.</p>
         </div>
         <div class="page-header-actions">
           <a href="/panel">← Panel</a>
@@ -43,12 +43,13 @@
 
       <div class="content-area">
         <div id="section-intro" class="section-intro"></div>
+        <div id="manual-teach" class="manual-teach hidden"></div>
         <div id="gaps-list" class="gaps-list"></div>
         <p id="empty-state" class="empty-state hidden"></p>
       </div>
     </section>
   </div>
 
-  <script src="/aprendizaje/app.js?v=4" type="module"></script>
+  <script src="/aprendizaje/app.js?v=5" type="module"></script>
 </body>
 </html>

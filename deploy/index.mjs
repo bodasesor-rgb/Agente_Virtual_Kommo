@@ -62389,6 +62389,16 @@ var init_logger3 = __esm({
 });
 
 // src/services/trainingStore.ts
+var trainingStore_exports = {};
+__export(trainingStore_exports, {
+  createTrainingExample: () => createTrainingExample,
+  deleteTrainingExample: () => deleteTrainingExample,
+  getTrainingExamples: () => getTrainingExamples,
+  getTrainingStats: () => getTrainingStats,
+  initializeTrainingStore: () => initializeTrainingStore,
+  listTrainingExamples: () => listTrainingExamples,
+  updateTrainingExample: () => updateTrainingExample
+});
 import { readFileSync } from "fs";
 import { randomUUID } from "crypto";
 function rowToExample(row) {
@@ -88976,6 +88986,73 @@ async function getKnowledgeGapStats() {
     dismissed: rows.filter((r2) => r2.status === "dismissed").length
   };
 }
+function isPanelTaughtLabel(label) {
+  if (!label?.trim()) return false;
+  return /^(Aprendizaje|Aprendido):/i.test(label.trim());
+}
+async function getLearningOverview() {
+  const [gaps, examples] = await Promise.all([
+    getKnowledgeGapStats(),
+    init_trainingStore().then(() => trainingStore_exports).then((m4) => m4.listTrainingExamples())
+  ]);
+  const panelExamples = examples.filter((ex) => isPanelTaughtLabel(ex.label));
+  const lastUpdated = panelExamples.length > 0 ? panelExamples.reduce((latest, ex) => {
+    const d2 = ex.createdAt ?? "";
+    return d2 > (latest ?? "") ? d2 : latest;
+  }, panelExamples[0]?.createdAt ?? "") : null;
+  return {
+    gaps,
+    training: {
+      panelTaught: panelExamples.length,
+      total: examples.length,
+      lastUpdated
+    }
+  };
+}
+async function teachLucyManually(input) {
+  const question = input.question?.trim();
+  const answer = input.answer?.trim();
+  if (!question || question.length < 4 || !answer) {
+    throw new Error("question_and_answer_required");
+  }
+  const topic = input.topic?.trim() || (question.length <= 60 ? question : `${question.slice(0, 57)}...`);
+  const label = topic.startsWith("Aprendizaje:") ? topic : `Aprendizaje: ${topic}`;
+  await createTrainingExample({
+    userMessage: question,
+    lucyResponse: answer,
+    label
+  });
+  await ensureKnowledgeGapSchema();
+  const dedupeKey2 = normalizeDedupeKey(question, "manual");
+  const now = /* @__PURE__ */ new Date();
+  const [existing] = await db.select().from(knowledgeGaps).where(eq2(knowledgeGaps.dedupeKey, dedupeKey2)).limit(1);
+  if (existing) {
+    const [updated] = await db.update(knowledgeGaps).set({
+      answer,
+      status: "answered",
+      topic,
+      gapType: "manual",
+      answeredAt: now,
+      answeredBy: input.reviewerEmail ?? "panel",
+      updatedAt: now
+    }).where(eq2(knowledgeGaps.id, existing.id)).returning();
+    logger.info({ topic }, "Aprendizaje manual actualizado");
+    return rowToDto(updated);
+  }
+  const [inserted] = await db.insert(knowledgeGaps).values({
+    question,
+    topic,
+    gapType: "manual",
+    answer,
+    status: "answered",
+    dedupeKey: dedupeKey2,
+    answeredAt: now,
+    answeredBy: input.reviewerEmail ?? "panel",
+    lucyResponse: "(Ense\xF1ado manualmente desde el panel)"
+  }).returning();
+  logger.info({ topic }, "Aprendizaje manual registrado");
+  return rowToDto(inserted);
+}
 async function recordKnowledgeGap(input) {
   const question = input.question?.trim();
   if (!question || question.length < 4) return false;
@@ -89073,15 +89150,27 @@ function detectKnowledgeGap(clientMessage, lucyResponse) {
   }
   if (isServiceRelatedMessage(msg) && !clientAsksPrice(msg)) {
     const services = parseServicesFromText(msg);
-    const lucyConfirmsService = services.some((s4) => {
-      const escaped = s4.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return new RegExp(escaped, "i").test(lucy);
-    });
-    const lucyIgnoredService = /regalas?\s+tu\s+nombre|cu[aá]ntos\s+invitados|tipo\s+de\s+evento|presupuesto|correo/i.test(lucy) && !lucyConfirmsService;
-    if (lucyIgnoredService) {
+    if (!lucyConfirmsServiceInResponse(lucy, msg)) {
+      const lucyOffTopic = /regalas?\s+tu\s+nombre|cu[aá]ntos\s+invitados|tipo\s+de\s+evento|presupuesto|correo/i.test(
+        lucy
+      );
+      const lucyGeneric = /gracias por tu mensaje|te atiende en breve|nuestro equipo te atiende/i.test(lucy);
+      if (lucyOffTopic || lucyGeneric || deferredToTeam) {
+        return {
+          topic: `Servicio: ${services[0] ?? inferTopic(msg)}`,
+          gapType: "service"
+        };
+      }
+    }
+  }
+  if (clientAsksPrice(msg)) {
+    const fromCatalog = buildCatalogPriceAnswer(msg);
+    const lucyHasPrice = /\$\d|desde\s+\$|\/pp/i.test(lucy);
+    if (fromCatalog && !lucyHasPrice && !deferredToTeam) {
+      const label = getPriceServiceLabel(msg);
       return {
-        topic: `Servicio: ${services[0] ?? inferTopic(msg)}`,
-        gapType: "service"
+        topic: label !== "ese servicio" ? `Precio: ${label}` : `Precio: ${inferTopic(msg)}`,
+        gapType: "price"
       };
     }
   }
@@ -91129,15 +91218,49 @@ await init_learning();
 var import_express8 = __toESM(require_express2(), 1);
 await init_trainingStore();
 var router8 = (0, import_express8.Router)();
+function isPanelTaughtLabel2(label) {
+  if (!label?.trim()) return false;
+  return /^(Aprendizaje|Aprendido):/i.test(label.trim());
+}
+router8.get("/knowledge-gaps/overview", async (_req, res) => {
+  try {
+    res.json(await getLearningOverview());
+  } catch {
+    res.status(500).json({ error: "failed_to_load_overview" });
+  }
+});
 router8.get("/knowledge-gaps/training-recent", async (req, res) => {
   try {
     const limit2 = Math.min(Number(req.query.limit ?? 30), 100);
     const examples = await listTrainingExamples();
-    const learned = examples.filter((ex) => ex.label?.startsWith("Aprendizaje")).slice(0, limit2);
+    const learned = examples.filter((ex) => isPanelTaughtLabel2(ex.label)).slice(0, limit2);
     const stats = await getTrainingStats();
-    res.json({ examples: learned, stats, total: learned.length });
+    res.json({
+      examples: learned,
+      stats: { ...stats, panelTaught: learned.length },
+      total: learned.length
+    });
   } catch {
     res.status(500).json({ error: "failed_to_load_training" });
+  }
+});
+router8.post("/knowledge-gaps/teach", async (req, res) => {
+  const { question, answer, topic } = req.body;
+  if (!question?.trim() || !answer?.trim()) {
+    res.status(400).json({ error: "question_and_answer_required" });
+    return;
+  }
+  try {
+    const gap = await teachLucyManually({
+      question,
+      answer,
+      topic,
+      reviewerEmail: "panel"
+    });
+    res.status(201).json({ ok: true, gap });
+  } catch (err2) {
+    const msg = err2 instanceof Error ? err2.message : "failed_to_teach";
+    res.status(500).json({ error: msg });
   }
 });
 router8.get("/knowledge-gaps", async (req, res) => {

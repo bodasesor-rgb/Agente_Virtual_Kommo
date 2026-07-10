@@ -67,25 +67,39 @@ export function detectKnowledgeGap(
     }
   }
 
-  // Cliente pidió un servicio y Lucy ignoró el servicio (siguió con datos del embudo)
+  // Cliente pidió un servicio y Lucy no confirmó que lo manejan
   if (isServiceRelatedMessage(msg) && !clientAsksPrice(msg)) {
     const services = parseServicesFromText(msg);
-    const lucyConfirmsService = services.some((s) => {
-      const escaped = s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return new RegExp(escaped, "i").test(lucy);
-    });
-    const lucyIgnoredService =
-      /regalas?\s+tu\s+nombre|cu[aá]ntos\s+invitados|tipo\s+de\s+evento|presupuesto|correo/i.test(lucy) &&
-      !lucyConfirmsService;
-    if (lucyIgnoredService) {
+    if (!lucyConfirmsServiceInResponse(lucy, msg)) {
+      const lucyOffTopic =
+        /regalas?\s+tu\s+nombre|cu[aá]ntos\s+invitados|tipo\s+de\s+evento|presupuesto|correo/i.test(
+          lucy
+        );
+      const lucyGeneric =
+        /gracias por tu mensaje|te atiende en breve|nuestro equipo te atiende/i.test(lucy);
+      if (lucyOffTopic || lucyGeneric || deferredToTeam) {
+        return {
+          topic: `Servicio: ${services[0] ?? inferTopic(msg)}`,
+          gapType: "service",
+        };
+      }
+    }
+  }
+
+  // Precio: Lucy no dio cifra aunque el catálogo sí tiene dato
+  if (clientAsksPrice(msg)) {
+    const fromCatalog = buildCatalogPriceAnswer(msg);
+    const lucyHasPrice = /\$\d|desde\s+\$|\/pp/i.test(lucy);
+    if (fromCatalog && !lucyHasPrice && !deferredToTeam) {
+      const label = getPriceServiceLabel(msg);
       return {
-        topic: `Servicio: ${services[0] ?? inferTopic(msg)}`,
-        gapType: "service",
+        topic: label !== "ese servicio" ? `Precio: ${label}` : `Precio: ${inferTopic(msg)}`,
+        gapType: "price",
       };
     }
   }
 
-  // Servicio que no aparece en catálogo
+  // Servicio que no aparece en catálogo (pregunta explícita)
   if (clientAsksAboutService(msg) || /\b(tienen|manejan)\s+.+\?/i.test(msg)) {
     const matches = lookupCatalogServices(msg);
     if (!matches.length && (deferredToTeam || !lucyConfirmsServiceInResponse(lucy, msg))) {

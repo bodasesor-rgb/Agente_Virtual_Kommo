@@ -27,15 +27,15 @@ function showView(viewId) {
     viewFrame.classList.add("hidden");
     appFrame.src = "about:blank";
     history.replaceState({ view: viewId }, "", viewId === "home" ? "/panel" : `/panel#${viewId}`);
+    loadHomeStats();
     return;
   }
 
   viewHome.classList.add("hidden");
   viewFrame.classList.remove("hidden");
   frameTitle.textContent = config.title;
-  if (appFrame.src !== new URL(config.frame, window.location.origin).href) {
-    appFrame.src = config.frame;
-  }
+  const frameUrl = `${config.frame}${config.frame.includes("?") ? "&" : "?"}t=${Date.now()}`;
+  appFrame.src = frameUrl;
   history.replaceState({ view: viewId }, "", `/panel#${viewId}`);
 }
 
@@ -76,15 +76,19 @@ async function loadHomeStats() {
     const ops = await fetch("/api/ops/status").then((r) => (r.ok ? r.json() : null));
     const catalog = health.catalog ?? {};
     let pendingGaps = "—";
+    let panelTaught = "—";
     let gapsClass = "";
 
     try {
-      const gaps = await fetch("/api/knowledge-gaps/stats").then((r) =>
+      const overview = await fetch("/api/knowledge-gaps/overview").then((r) =>
         r.ok ? r.json() : null,
       );
-      if (gaps) {
-        pendingGaps = String(gaps.pending ?? 0);
-        gapsClass = gaps.pending > 0 ? "stat-warn" : "stat-ok";
+      if (overview?.gaps) {
+        pendingGaps = String(overview.gaps.pending ?? 0);
+        gapsClass = overview.gaps.pending > 0 ? "stat-warn" : "stat-ok";
+      }
+      if (overview?.training) {
+        panelTaught = String(overview.training.panelTaught ?? 0);
       }
     } catch {
       /* stats opcionales */
@@ -119,8 +123,15 @@ async function loadHomeStats() {
         "stat-icon-gaps",
         "M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z",
         pendingGaps,
-        "Preguntas pendientes",
+        "Pendientes de enseñar",
         gapsClass,
+      ),
+      statCard(
+        "stat-icon-learn",
+        "M12 3 1 9l4 2.18V17l7 3.82 7-3.82v-5.82L23 9 12 3zm0 2.18L18.9 9 12 12.18 5.1 9 12 5.18zM5 17.27l7 3.82 7-3.82v-3.1L12 17l-7-2.83v3.1z",
+        panelTaught,
+        "En uso por Lucy",
+        Number(panelTaught) > 0 ? "stat-ok" : "",
       ),
       statCard(
         "stat-icon-version",
@@ -137,6 +148,13 @@ async function loadHomeStats() {
 
 window.addEventListener("hashchange", () => showView(parseHash()));
 window.addEventListener("popstate", () => showView(parseHash()));
+
+window.addEventListener("message", (event) => {
+  if (event.origin !== window.location.origin) return;
+  if (event.data?.type === "lucy-learning-updated") {
+    loadHomeStats();
+  }
+});
 
 showView(parseHash());
 loadHomeStats();
