@@ -294,8 +294,8 @@ var WRITTEN_NUMBERS = {
   quinientos: "500"
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico)\b/i;
-var NON_LOCATION_EN_PREFIX = /^(la|el|los|las|total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|mente|mente\s+para|solo|m[ií]o|tu|su)\b/i;
+var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|coyoac[aá]n|xochimilco)\b/i;
+var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su)\b/i;
 function inferLucyAskedField(lastLucyMessage) {
   const msg = lastLucyMessage?.trim() ?? "";
   if (!msg) return null;
@@ -365,10 +365,20 @@ function parseInvitadosFromText(text) {
   )) {
     return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
   }
-  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?)\b/i);
+  const rangoMatch = trimmed.match(/\bentre\s+(\d+)\s+y\s+(\d+)\b/i);
+  if (rangoMatch) {
+    const a = parseInt(rangoMatch[1], 10);
+    const b = parseInt(rangoMatch[2], 10);
+    return String(Math.max(a, b));
+  }
+  const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
   if (numMatch) return numMatch[1];
-  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como)\s+(\d+)\b/i);
+  const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
   if (paraMatch) return paraMatch[1];
+  const aproxMatch = trimmed.match(
+    /\b(?:m[aá]s\s+o\s+menos|aproximadamente|al\s+rededor\s+de|alrededor\s+de|cerca\s+de)\s+(\d+)\b/i
+  );
+  if (aproxMatch) return aproxMatch[1];
   const writtenMatch = trimmed.match(
     /\b(dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|quince|veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa|cien|ciento|doscientos|trescientos|cuatrocientos|quinientos)\s+(personas?|invitados?)\b/i
   );
@@ -404,13 +414,19 @@ function parseZonaFromText(text) {
     const m = trimmed.match(KNOWN_ZONES);
     if (m) return m[0].trim();
   }
+  const coloniaMatch = trimmed.match(
+    /\b((?:colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+[A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,28})/i
+  );
+  if (coloniaMatch?.[1]) return coloniaMatch[1].trim();
   const enMatch = trimmed.match(
     /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
   );
   if (enMatch) {
     const lugar = enMatch[1].trim();
-    if (!MONTH_PATTERN.test(lugar) && !/^\d/.test(lugar) && !isGreetingOnlyMessage(lugar) && !NON_LOCATION_EN_PREFIX.test(lugar) && !/\b(solo|para\s+la|total|comida|pista)\b/i.test(lugar)) {
-      return lugar;
+    const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
+    const candidato = sinArticulo || lugar;
+    if (!MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !/\b(solo|para\s+la|total|comida|pista)\b/i.test(candidato)) {
+      return candidato;
     }
   }
   const venueMatch = trimmed.match(
@@ -426,9 +442,74 @@ function parseZonaFromText(text) {
   return null;
 }
 var SERVICE_LABELS_NOT_TIPO = /^(brunch|banquete|taquiza|desayuno|catering|pista de baile|dj|mobiliario|bebidas?)$/i;
+var CORREO_DICTADO_STOPWORDS = /* @__PURE__ */ new Set([
+  "es",
+  "mi",
+  "correo",
+  "el",
+  "mail",
+  "email",
+  "de",
+  "ser[i\xED]a",
+  "seria",
+  "ser\xEDa"
+]);
+function normalizeDictatedCorreo(text) {
+  const lower = text.toLowerCase().replace(/[¿?¡!,.;:]+$/g, "");
+  if (!/\barroba\b/.test(lower)) return null;
+  const tokens = lower.split(/\s+/);
+  const arrobaIdx = tokens.indexOf("arroba");
+  if (arrobaIdx === -1) return null;
+  const localParts = [];
+  for (let i = arrobaIdx - 1; i >= 0; ) {
+    const tok = tokens[i];
+    if (tok === "bajo" && i - 1 >= 0 && (tokens[i - 1] === "guion" || tokens[i - 1] === "gui\xF3n")) {
+      localParts.unshift("_");
+      i -= 2;
+      continue;
+    }
+    if (tok === "guion" || tok === "gui\xF3n") {
+      localParts.unshift("-");
+      i -= 1;
+      continue;
+    }
+    if (CORREO_DICTADO_STOPWORDS.has(tok)) break;
+    if (!/^[a-z0-9]+$/.test(tok)) break;
+    localParts.unshift(tok);
+    i -= 1;
+  }
+  if (localParts.length === 0) return null;
+  const domainParts = [];
+  for (let i = arrobaIdx + 1; i < tokens.length; ) {
+    const tok = tokens[i];
+    if (tok === "punto") {
+      domainParts.push(".");
+      i += 1;
+      continue;
+    }
+    if (tok === "guion" || tok === "gui\xF3n") {
+      if (tokens[i + 1] === "bajo") {
+        domainParts.push("_");
+        i += 2;
+        continue;
+      }
+      domainParts.push("-");
+      i += 1;
+      continue;
+    }
+    if (!/^[a-z0-9]+$/.test(tok)) break;
+    domainParts.push(tok);
+    i += 1;
+  }
+  if (domainParts.length === 0) return null;
+  const candidate = `${localParts.join("")}@${domainParts.join("")}`;
+  return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(candidate) ? candidate : null;
+}
 function parseCorreoFromText(text) {
-  const m = text?.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
-  return m ? m[1] : null;
+  if (!text) return null;
+  const m = text.match(/([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/);
+  if (m) return m[1];
+  return normalizeDictatedCorreo(text);
 }
 function isServiceLabelNotTipoEvento(label) {
   if (!label?.trim()) return false;
@@ -517,6 +598,9 @@ function parsePresupuestoFromText(text, opts) {
   if (/\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(trimmed)) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
+  if (/\b(poquito|lo\s+que\s+sea\s+necesario|flexible|lo\s+que\s+se\s+necesite)\b/i.test(trimmed)) {
+    return "Flexible (sin monto fijo)";
+  }
   if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
@@ -542,6 +626,13 @@ function parsePresupuestoFromText(text, opts) {
   const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
   if (rangeMatch) {
     return `${rangeMatch[1].replace(/,/g, "")} - ${rangeMatch[2].replace(/,/g, "")} MXN`;
+  }
+  const perPersonMatch = trimmed.match(
+    /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
+  );
+  if (perPersonMatch) {
+    const num = parseInt(perPersonMatch[1].replace(/,/g, ""), 10);
+    if (!isNaN(num) && num > 0) return `$${num.toLocaleString("es-MX")} MXN por persona`;
   }
   const menosDeMatch = trimmed.match(
     /\b(?:menos\s+de|hasta|m[aá]ximo|max\.?)\s+\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos)?\b/i
@@ -12545,7 +12636,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 23 escenarios de prueba\n");
+  console.log("Lucy \u2014 24 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -13352,6 +13443,33 @@ async function runAll() {
     const cleaned = stripImageAnnotation(leaked);
     assert.ok(!/imagen adjunta/i.test(cleaned), cleaned);
     assert.ok(/qué bonito salón/i.test(cleaned));
+  });
+  await test("24. Sin\xF3nimos de captura (del prompt de Opus) \u2014 presupuesto, invitados, correo, zona", () => {
+    assert.equal(parsePresupuestoFromText("$500 por persona"), "$500 MXN por persona");
+    assert.equal(parsePresupuestoFromText("500 por cabeza"), "$500 MXN por persona");
+    assert.equal(parsePresupuestoFromText("unos 600 pp"), "$600 MXN por persona");
+    assert.equal(parsePresupuestoFromText("500 x persona"), "$500 MXN por persona");
+    assert.equal(parsePresupuestoFromText("poquito"), "Flexible (sin monto fijo)");
+    assert.equal(parsePresupuestoFromText("flexible"), "Flexible (sin monto fijo)");
+    assert.equal(parsePresupuestoFromText("lo que sea necesario"), "Flexible (sin monto fijo)");
+    assert.equal(parseInvitadosFromText("250 gentes"), "250");
+    assert.equal(parseInvitadosFromText("como 60 cabezas"), "60");
+    assert.equal(parseInvitadosFromText("unos 40"), "40");
+    assert.equal(parseInvitadosFromText("m\xE1s o menos 120"), "120");
+    assert.equal(parseInvitadosFromText("aproximadamente 80"), "80");
+    assert.equal(parseInvitadosFromText("entre 90 y 100"), "100");
+    assert.equal(parseCorreoFromText("mi correo es ana arroba gmail punto com"), "ana@gmail.com");
+    assert.equal(
+      parseCorreoFromText("es pedro guion bajo lopez arroba hotmail punto com"),
+      "pedro_lopez@hotmail.com"
+    );
+    assert.equal(parseCorreoFromText("mi correo es test@gmail.com"), "test@gmail.com");
+    assert.equal(parseZonaFromText("El evento es en el Estado de M\xE9xico"), "Estado de M\xE9xico");
+    assert.equal(parseZonaFromText("Va a ser en la colonia Roma"), "colonia Roma");
+    assert.equal(parseZonaFromText("Es en delegaci\xF3n Coyoac\xE1n"), "Coyoac\xE1n");
+    assert.equal(parseZonaFromText("Va a ser en la alcald\xEDa Miguel Hidalgo"), "alcald\xEDa Miguel Hidalgo");
+    assert.equal(parseZonaFromText("en total ser\xEDan 50 personas"), null);
+    assert.equal(parseZonaFromText("es solo para mi familia"), null);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
