@@ -167,16 +167,25 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Poptails", /\bpoptails?\b/i],
   ["Barra Americana", /\bbarra\s+americana\b/i],
   ["Paella", /\bpaella\b/i],
-  ["Antojitos", /\b(antojitos?|puestos?\s+de\s+comida|esquites|elotes?\s+asados?)\b/i],
+  ["Comida Corrida", /\bcomida\s+corrida\b/i],
+  ["Antojitos", /\b(antojitos?|puestos?\s+de\s+comida|kerm[eé]s|esquites|elotes?\s+asados?)\b/i],
+  ["Tacos de Guisados", /\b(tacos?\s+de\s+guisados?|guisados?|tacos?\s+de\s+canasta|tacos?\s+de\s+olla)\b/i],
+  ["Pozole y Tostadas", /\b(pozole|tostadas?|pozole\s+y\s+tostadas?)\b/i],
   ["Barra de Mariscos", /\bbarra\s+de\s+mariscos?\b/i],
   ["Barra Yucateca", /\bbarra\s+yucateca\b/i],
   ["Barra de Pastas", /\bbarra\s+de\s+pastas?\b/i],
   ["Barra de Paninis", /\bbarra\s+de\s+paninis?\b/i],
+  ["Barra de Sushi y Poke Bowls", /\b(barra\s+de\s+sushi|poke\s+bowls?|makis?)\b/i],
+  ["Bocadillos", /\b(bocadillos?|botanas?|finger\s+food|aperitivos?)\b/i],
   ["Pasteles", /\b(pasteles?|cupcakes?|pastel\s+de\s+boda)\b/i],
-  ["Helados", /\bhelados?\b/i],
+  ["Helados", /\b(helados?|paletas?\s+(de\s+)?hielo|nieves?)\b/i],
+  ["Colgantes Premium", /\bcolgantes?\b/i],
+  ["Vajillas", /\b(vajillas?|cristaler[ií]a|loza)\b/i],
+  ["Salas y Periqueras", /\b(salas?\s+lounge|periqueras?|mesas?\s+de\s+c[oó]ctel)\b/i],
   ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
   ["Ni\xF1eras", /\b(ni[nñ]eras?|cuidado\s+infantil)\b/i],
-  ["Fiesta infantil", /\bfiesta\s+infantil\b/i]
+  ["Fiesta infantil", /\bfiesta\s+infantil\b/i],
+  ["Producci\xF3n de Eventos", /\b(producci[oó]n\s+de\s+eventos?|wedding\s+planner|montaje\s+y\s+desmontaje)\b/i]
 ];
 var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|paella|antojito|marisco|yucatec|pasta|panini|pastel|helado|valet|ni[nñ]era|americana/i;
 var SERVICE_CATEGORY_MAP = {
@@ -346,6 +355,7 @@ function clientDeclinesMoreServices(message) {
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
+  if (parseThematicCuisineFromText(message)) return true;
   return /\bcatering\b/i.test(t) || /\b(brunch|desayuno)\b/i.test(t) || /\bbrunch\s*\/\s*desayuno/i.test(t) || /\bcoffee\s*break\b/i.test(t) || /\bbarra\s+de\s+caf[eé](?!\w)/i.test(t) || /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t) || /\bcomida\s+para\b/i.test(t) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t);
 }
 function clientAsksPhone(message) {
@@ -504,6 +514,60 @@ function clientMentionsNonCateringService(message) {
   if (clientMentionsEntertainment(message)) return false;
   if (clientMentionsPistaTarima(message)) return false;
   return isServiceRelatedMessage(message);
+}
+function parseThematicCuisineFromText(text) {
+  const t = text.toLowerCase();
+  if (/\b(italian[ao]s?|mafia\s+italian|tema\s+italian|cocina\s+italian|men[uú]\s+italian)\b/i.test(t)) {
+    return {
+      theme: "italiano",
+      services: ["Barra de Pastas", "Barra de Pizzas"],
+      pitch: "Para tema italiano encajan muy bien nuestra Barra de Pastas y Barra de Pizzas, con antipastos, ensaladas y postres italianos como complemento."
+    };
+  }
+  if (/\b(mexican[ao]s?|fiesta\s+mexican|antojitos?\s+mexican)\b/i.test(t)) {
+    return {
+      theme: "mexicano",
+      services: ["Banquete Mexicano", "Taquiza", "Antojitos"],
+      pitch: "Para fiesta mexicana manejamos Banquete Mexicano, tacos, antojitos y pozole."
+    };
+  }
+  if (/\b(del\s+mar|playa|ceviches?|aguachiles?)\b/i.test(t) && !/barra\s+de\s+mariscos/i.test(t)) {
+    return {
+      theme: "del mar",
+      services: ["Barra de Mariscos"],
+      pitch: "Para ambiente de mar o playa, la Barra de Mariscos con ceviches y aguachiles es lo ideal."
+    };
+  }
+  if (/\b(japon[eé]s|oriental|comida\s+japonesa)\b/i.test(t) && !/\bsushi\b/i.test(t)) {
+    return {
+      theme: "japon\xE9s",
+      services: ["Barra de Sushi y Poke Bowls"],
+      pitch: "Para cocina japonesa u oriental tenemos Barra de Sushi y Poke Bowls."
+    };
+  }
+  if (/\b(argentin[ao]s?|carnes?\s+asadas?|asado\s+argentino)\b/i.test(t)) {
+    return {
+      theme: "argentino",
+      services: ["Parrillada Argentina"],
+      pitch: "Para carnes argentinas la Parrillada Argentina con cortes premium es la opci\xF3n estrella."
+    };
+  }
+  if (/\b(yucatec[ao]s?|sureste|cochinita\s+pibil)\b/i.test(t)) {
+    return {
+      theme: "yucateco",
+      services: ["Barra Yucateca"],
+      pitch: "Para sabor yucateco tenemos Barra Yucateca con cochinita, panuchos y m\xE1s."
+    };
+  }
+  return null;
+}
+function clientAsksBodasesorLocation(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return /\bd[oó]nde\s+(est[aá]n|quedan|est[aá]n\s+ubicados?|es\s+bodasesor)\b/i.test(t) || /\b(ubicaci[oó]n|direcci[oó]n)\s+(de\s+)?(ustedes|bodasesor)\b/i.test(t) || /\bcobertura\b/i.test(t) || /\bllegan\s+a\b/i.test(t) || /\batienden\s+en\b/i.test(t) || /\best[aá]n\s+en\s+(cdmx|ciudad\s+de\s+m[eé]xico)\b/i.test(t) || /\bsalen\s+de\s+(cdmx|ciudad\s+de\s+m[eé]xico)\b/i.test(t);
+}
+function buildBodasesorLocationAnswer() {
+  return "Estamos en Ciudad de M\xE9xico y damos servicio en toda la CDMX y zona metropolitana. Para eventos fuera de la ciudad tambi\xE9n viajamos, seg\xFAn la fecha y el lugar.";
 }
 function parseZonaFromText(text) {
   const trimmed = text.trim();
@@ -1581,12 +1645,25 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
+  const genericFoodAlias = mentionedService === "banquete / taquiza" || mentionedService === "banquete" || mentionedService === "taquiza";
+  const thematic = currentMessage && (!mentionedService || genericFoodAlias) ? parseThematicCuisineFromText(currentMessage) : null;
   const catering = buildCatalogCateringAnswer();
-  const intro = mentionedService ? `Perfecto, s\xED manejamos ${mentionedService} para ${eventLabel}.` : `Para ${eventLabel}, lo m\xE1s pedido es banquete o taquiza seg\xFAn el estilo que busquen \u2014 banquete es m\xE1s formal con servicio de meseros; taquiza es m\xE1s casual y flexible.`;
-  if (catering) {
+  let intro;
+  if (mentionedService && !genericFoodAlias && !thematic) {
+    intro = `Perfecto, s\xED manejamos ${mentionedService} para ${eventLabel}.`;
+  } else if (thematic) {
+    intro = thematic.pitch;
+  } else {
+    intro = `Para ${eventLabel}, lo m\xE1s pedido es banquete o taquiza seg\xFAn el estilo que busquen \u2014 banquete es m\xE1s formal con servicio de meseros; taquiza es m\xE1s casual y flexible.`;
+  }
+  if (catering && !thematic && !genericFoodAlias) {
     return `${intro}
 
 ${catering}`;
+  }
+  if (thematic) {
+    const follow = pickVariant("requerimientos", history, entityId);
+    return `${intro} ${follow}`.trim();
   }
   const recomendaciones = buildRecommendationsReply(extracted, history, entityId, currentMessage);
   return mentionedService ? `${intro} ${recomendaciones}` : recomendaciones;
@@ -1759,6 +1836,12 @@ function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPrese
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
       return "Perfecto. \xBFMe regalas tu nombre?";
     }
+    if ((clientAsksBodasesorLocation(ctx.currentMessage) || clientAsksPhone(ctx.currentMessage)) && _mensaje.trim() && !usesLegacyLucyIntro(_mensaje)) {
+      if (isTrueFirstTurn && !/hola,?\s*soy\s+lucy/i.test(_mensaje)) {
+        return `${LUCY_INTRO} ${_mensaje}`.trim();
+      }
+      return _mensaje;
+    }
     if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
       return buildFirstInteractionMessage(ctx, true);
     }
@@ -1849,7 +1932,7 @@ ${nextQ}`;
 }
 function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
   const pending = getNextPendingField(extracted, filledSet);
-  if (ctx.currentMessage && (clientMentionsCatering(ctx.currentMessage) || clientMentionsEntertainment(ctx.currentMessage) || clientMentionsPistaTarima(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada/i.test(
+  if (ctx.currentMessage && (clientMentionsCatering(ctx.currentMessage) || clientMentionsEntertainment(ctx.currentMessage) || clientMentionsPistaTarima(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos|pastas?|pizzas?|mariscos?|sushi|italian|barra\s+de|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada|manejamos/i.test(
     mensaje
   )) {
     return mensaje.trim();
@@ -2116,6 +2199,16 @@ function applyLucyMessageGuards(input) {
 
 ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 tel\xE9fonos");
+  } else if (clientAsksBodasesorLocation(currentMessage)) {
+    const locationAnswer = buildBodasesorLocationAnswer();
+    const pending = getNextPendingField(extracted, filledSet);
+    const needsNombre = !isFieldSatisfied("nombre", filledSet, extracted);
+    mensaje = needsNombre ? `${locationAnswer}
+
+${buildNaturalQuestion("nombre", ctx)}` : needsNextStep && pending ? `${locationAnswer}
+
+${buildNaturalQuestion(pending, ctx)}` : locationAnswer;
+    log?.info({ entityId }, "GUARD: cliente pregunt\xF3 ubicaci\xF3n/cobertura");
   } else if (readyToCloseAndReqDone && clientDeclinesMoreServices(currentMessage)) {
     mensaje = buildClosing(
       extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -2356,7 +2449,7 @@ ${nextQ}`;
       mensaje = buildNaturalQuestion(pending, ctx);
     }
   }
-  if (!cierreYaEnviado) {
+  if (!cierreYaEnviado && !appliedSalesReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   }
   if (appliedSalesReply) {
@@ -12809,7 +12902,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 26 escenarios de prueba\n");
+  console.log("Lucy \u2014 27 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -13737,6 +13830,39 @@ async function runAll() {
     assert.ok(/mobiliario|carpas/i.test(mobReply), mobReply.slice(0, 200));
     const unknown = buildCatalogServiceAnswer("fot\xF3grafo profesional");
     assert.ok(unknown === null || typeof unknown === "string");
+  });
+  await test("27. M\xF3dulo vocabulario \u2014 italiano no es taquiza; ubicaci\xF3n/cobertura", () => {
+    const thematic = parseThematicCuisineFromText("men\xFA italiano para tema de mafia italiana");
+    assert.ok(thematic);
+    assert.equal(thematic.theme, "italiano");
+    assert.ok(thematic.services.includes("Barra de Pastas"));
+    assert.ok(thematic.services.includes("Barra de Pizzas"));
+    assert.ok(clientAsksBodasesorLocation("\xBFD\xF3nde est\xE1n ubicados?"));
+    assert.ok(clientAsksBodasesorLocation("\xBFLlegan a Puebla?"));
+    assert.ok(buildBodasesorLocationAnswer().includes("Ciudad de M\xE9xico"));
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
+    const extracted = emptyExtracted({ nombre: "Sof\xEDa", tipo_evento: "boda" });
+    const italianReply = runGuards({
+      aiResponse: "\xBFCu\xE1ntos invitados?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Quiero men\xFA italiano para tema mafia italiana",
+      history: [
+        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar para la boda?" }
+      ]
+    });
+    assert.ok(/pastas?|pizzas?/i.test(italianReply), `debe ofrecer pastas/pizzas: ${italianReply.slice(0, 200)}`);
+    assert.ok(!/taquiza/i.test(italianReply), `no debe ofrecer taquiza: ${italianReply.slice(0, 200)}`);
+    const locationReply = runGuards({
+      aiResponse: "\xBFMe regalas tu nombre?",
+      extracted: emptyExtracted(),
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: "\xBFD\xF3nde est\xE1n? \xBFLlegan a Cuernavaca?",
+      history: []
+    });
+    assert.ok(/ciudad\s+de\s+m[eé]xico|cdmx/i.test(locationReply), locationReply.slice(0, 200));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

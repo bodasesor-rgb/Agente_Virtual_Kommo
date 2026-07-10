@@ -51,6 +51,9 @@ import {
   parseServicesFromText,
   parseSpaceDimensions,
   parseFechaFromText,
+  parseThematicCuisineFromText,
+  clientAsksBodasesorLocation,
+  buildBodasesorLocationAnswer,
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
@@ -486,13 +489,28 @@ function buildFoodSalesReply(
   // confirma ESE servicio en vez de empujar genéricamente banquete/taquiza —
   // evita ignorar lo que realmente pidió.
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
+  const genericFoodAlias =
+    mentionedService === "banquete / taquiza" || mentionedService === "banquete" || mentionedService === "taquiza";
+  const thematic =
+    currentMessage && (!mentionedService || genericFoodAlias)
+      ? parseThematicCuisineFromText(currentMessage)
+      : null;
 
   const catering = buildCatalogCateringAnswer();
-  const intro = mentionedService
-    ? `Perfecto, sí manejamos ${mentionedService} para ${eventLabel}.`
-    : `Para ${eventLabel}, lo más pedido es banquete o taquiza según el estilo que busquen — banquete es más formal con servicio de meseros; taquiza es más casual y flexible.`;
-  if (catering) {
+  let intro: string;
+  if (mentionedService && !genericFoodAlias && !thematic) {
+    intro = `Perfecto, sí manejamos ${mentionedService} para ${eventLabel}.`;
+  } else if (thematic) {
+    intro = thematic.pitch;
+  } else {
+    intro = `Para ${eventLabel}, lo más pedido es banquete o taquiza según el estilo que busquen — banquete es más formal con servicio de meseros; taquiza es más casual y flexible.`;
+  }
+  if (catering && !thematic && !genericFoodAlias) {
     return `${intro}\n\n${catering}`;
+  }
+  if (thematic) {
+    const follow = pickVariant("requerimientos", history, entityId);
+    return `${intro} ${follow}`.trim();
   }
   const recomendaciones = buildRecommendationsReply(extracted, history, entityId, currentMessage);
   // Si el cliente nombró un servicio específico, no se pierde la confirmación
@@ -793,6 +811,16 @@ export function enforceNombreFirst(
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
       return "Perfecto. ¿Me regalas tu nombre?";
     }
+    if (
+      (clientAsksBodasesorLocation(ctx.currentMessage) || clientAsksPhone(ctx.currentMessage)) &&
+      _mensaje.trim() &&
+      !usesLegacyLucyIntro(_mensaje)
+    ) {
+      if (isTrueFirstTurn && !/hola,?\s*soy\s+lucy/i.test(_mensaje)) {
+        return `${LUCY_INTRO} ${_mensaje}`.trim();
+      }
+      return _mensaje;
+    }
     if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
       return buildFirstInteractionMessage(ctx, true);
     }
@@ -952,7 +980,7 @@ export function sanitizeOutboundMessage(
       clientMentionsEntertainment(ctx.currentMessage) ||
       clientMentionsPistaTarima(ctx.currentMessage) ||
       isServiceRelatedMessage(ctx.currentMessage)) &&
-    /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada/i.test(
+    /banquete|taquiza|catering|alimentos|pastas?|pizzas?|mariscos?|sushi|italian|barra\s+de|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada|manejamos/i.test(
       mensaje
     )
   ) {
@@ -1385,6 +1413,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         ? `${phoneAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
         : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente preguntó teléfonos");
+  } else if (clientAsksBodasesorLocation(currentMessage)) {
+    const locationAnswer = buildBodasesorLocationAnswer();
+    const pending = getNextPendingField(extracted, filledSet);
+    const needsNombre = !isFieldSatisfied("nombre", filledSet, extracted);
+    mensaje =
+      needsNombre
+        ? `${locationAnswer}\n\n${buildNaturalQuestion("nombre", ctx)}`
+        : needsNextStep && pending
+          ? `${locationAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
+          : locationAnswer;
+    log?.info({ entityId }, "GUARD: cliente preguntó ubicación/cobertura");
   } else if (readyToCloseAndReqDone && clientDeclinesMoreServices(currentMessage)) {
     mensaje = buildClosing(
       extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -1682,7 +1721,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (!cierreYaEnviado) {
+  if (!cierreYaEnviado && !appliedSalesReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   }
 

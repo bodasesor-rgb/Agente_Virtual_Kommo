@@ -31,6 +31,9 @@ import {
   parseTipoEventoFromText,
   clientMentionsNonCateringService,
   parseServicesFromText,
+  parseThematicCuisineFromText,
+  clientAsksBodasesorLocation,
+  buildBodasesorLocationAnswer,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre } from "../contact-name.js";
 import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
@@ -142,7 +145,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 26 escenarios de prueba\n");
+  console.log("Lucy — 27 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -1215,6 +1218,43 @@ async function runAll(): Promise<void> {
     // buildCatalogServiceAnswer no explota con servicio desconocido
     const unknown = buildCatalogServiceAnswer("fotógrafo profesional");
     assert.ok(unknown === null || typeof unknown === "string");
+  });
+
+  await test("27. Módulo vocabulario — italiano no es taquiza; ubicación/cobertura", () => {
+    const thematic = parseThematicCuisineFromText("menú italiano para tema de mafia italiana");
+    assert.ok(thematic);
+    assert.equal(thematic!.theme, "italiano");
+    assert.ok(thematic!.services.includes("Barra de Pastas"));
+    assert.ok(thematic!.services.includes("Barra de Pizzas"));
+
+    assert.ok(clientAsksBodasesorLocation("¿Dónde están ubicados?"));
+    assert.ok(clientAsksBodasesorLocation("¿Llegan a Puebla?"));
+    assert.ok(buildBodasesorLocationAnswer().includes("Ciudad de México"));
+
+    const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
+    const extracted = emptyExtracted({ nombre: "Sofía", tipo_evento: "boda" });
+    const italianReply = runGuards({
+      aiResponse: "¿Cuántos invitados?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Quiero menú italiano para tema mafia italiana",
+      history: [
+        { role: "assistant", content: "¿Qué servicios te gustaría cotizar para la boda?" },
+      ],
+    });
+    assert.ok(/pastas?|pizzas?/i.test(italianReply), `debe ofrecer pastas/pizzas: ${italianReply.slice(0, 200)}`);
+    assert.ok(!/taquiza/i.test(italianReply), `no debe ofrecer taquiza: ${italianReply.slice(0, 200)}`);
+
+    const locationReply = runGuards({
+      aiResponse: "¿Me regalas tu nombre?",
+      extracted: emptyExtracted(),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: "¿Dónde están? ¿Llegan a Cuernavaca?",
+      history: [],
+    });
+    assert.ok(/ciudad\s+de\s+m[eé]xico|cdmx/i.test(locationReply), locationReply.slice(0, 200));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

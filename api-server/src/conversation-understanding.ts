@@ -79,16 +79,25 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Poptails", /\bpoptails?\b/i],
   ["Barra Americana", /\bbarra\s+americana\b/i],
   ["Paella", /\bpaella\b/i],
-  ["Antojitos", /\b(antojitos?|puestos?\s+de\s+comida|esquites|elotes?\s+asados?)\b/i],
+  ["Comida Corrida", /\bcomida\s+corrida\b/i],
+  ["Antojitos", /\b(antojitos?|puestos?\s+de\s+comida|kerm[eé]s|esquites|elotes?\s+asados?)\b/i],
+  ["Tacos de Guisados", /\b(tacos?\s+de\s+guisados?|guisados?|tacos?\s+de\s+canasta|tacos?\s+de\s+olla)\b/i],
+  ["Pozole y Tostadas", /\b(pozole|tostadas?|pozole\s+y\s+tostadas?)\b/i],
   ["Barra de Mariscos", /\bbarra\s+de\s+mariscos?\b/i],
   ["Barra Yucateca", /\bbarra\s+yucateca\b/i],
   ["Barra de Pastas", /\bbarra\s+de\s+pastas?\b/i],
   ["Barra de Paninis", /\bbarra\s+de\s+paninis?\b/i],
+  ["Barra de Sushi y Poke Bowls", /\b(barra\s+de\s+sushi|poke\s+bowls?|makis?)\b/i],
+  ["Bocadillos", /\b(bocadillos?|botanas?|finger\s+food|aperitivos?)\b/i],
   ["Pasteles", /\b(pasteles?|cupcakes?|pastel\s+de\s+boda)\b/i],
-  ["Helados", /\bhelados?\b/i],
+  ["Helados", /\b(helados?|paletas?\s+(de\s+)?hielo|nieves?)\b/i],
+  ["Colgantes Premium", /\bcolgantes?\b/i],
+  ["Vajillas", /\b(vajillas?|cristaler[ií]a|loza)\b/i],
+  ["Salas y Periqueras", /\b(salas?\s+lounge|periqueras?|mesas?\s+de\s+c[oó]ctel)\b/i],
   ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
   ["Niñeras", /\b(ni[nñ]eras?|cuidado\s+infantil)\b/i],
   ["Fiesta infantil", /\bfiesta\s+infantil\b/i],
+  ["Producción de Eventos", /\b(producci[oó]n\s+de\s+eventos?|wedding\s+planner|montaje\s+y\s+desmontaje)\b/i],
 ];
 
 export const SERVICE_HINT =
@@ -334,6 +343,7 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
 export function clientMentionsCatering(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
+  if (parseThematicCuisineFromText(message)) return true;
   return (
     /\bcatering\b/i.test(t) ||
     /\b(brunch|desayuno)\b/i.test(t) ||
@@ -602,6 +612,80 @@ export function clientAsksAboutService(message?: string | null): boolean {
     /\b(qu[eé]|cu[aá]l)\s+(ofrecen|manejan|tienen)\b/i.test(t) ||
     /\bme\s+interesa\s+cotizar\b/i.test(t)
   );
+}
+
+export interface ThematicCuisineMatch {
+  theme: string;
+  services: string[];
+  pitch: string;
+}
+
+/** Mapea tema/cocina del cliente a servicios que encajan (evita ofrecer taquiza para italiano). */
+export function parseThematicCuisineFromText(text: string): ThematicCuisineMatch | null {
+  const t = text.toLowerCase();
+  if (/\b(italian[ao]s?|mafia\s+italian|tema\s+italian|cocina\s+italian|men[uú]\s+italian)\b/i.test(t)) {
+    return {
+      theme: "italiano",
+      services: ["Barra de Pastas", "Barra de Pizzas"],
+      pitch:
+        "Para tema italiano encajan muy bien nuestra Barra de Pastas y Barra de Pizzas, con antipastos, ensaladas y postres italianos como complemento.",
+    };
+  }
+  if (/\b(mexican[ao]s?|fiesta\s+mexican|antojitos?\s+mexican)\b/i.test(t)) {
+    return {
+      theme: "mexicano",
+      services: ["Banquete Mexicano", "Taquiza", "Antojitos"],
+      pitch: "Para fiesta mexicana manejamos Banquete Mexicano, tacos, antojitos y pozole.",
+    };
+  }
+  if (/\b(del\s+mar|playa|ceviches?|aguachiles?)\b/i.test(t) && !/barra\s+de\s+mariscos/i.test(t)) {
+    return {
+      theme: "del mar",
+      services: ["Barra de Mariscos"],
+      pitch: "Para ambiente de mar o playa, la Barra de Mariscos con ceviches y aguachiles es lo ideal.",
+    };
+  }
+  if (/\b(japon[eé]s|oriental|comida\s+japonesa)\b/i.test(t) && !/\bsushi\b/i.test(t)) {
+    return {
+      theme: "japonés",
+      services: ["Barra de Sushi y Poke Bowls"],
+      pitch: "Para cocina japonesa u oriental tenemos Barra de Sushi y Poke Bowls.",
+    };
+  }
+  if (/\b(argentin[ao]s?|carnes?\s+asadas?|asado\s+argentino)\b/i.test(t)) {
+    return {
+      theme: "argentino",
+      services: ["Parrillada Argentina"],
+      pitch: "Para carnes argentinas la Parrillada Argentina con cortes premium es la opción estrella.",
+    };
+  }
+  if (/\b(yucatec[ao]s?|sureste|cochinita\s+pibil)\b/i.test(t)) {
+    return {
+      theme: "yucateco",
+      services: ["Barra Yucateca"],
+      pitch: "Para sabor yucateco tenemos Barra Yucateca con cochinita, panuchos y más.",
+    };
+  }
+  return null;
+}
+
+/** Cliente pregunta dónde está Bodasesor o si hay cobertura en su zona. */
+export function clientAsksBodasesorLocation(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\bd[oó]nde\s+(est[aá]n|quedan|est[aá]n\s+ubicados?|es\s+bodasesor)\b/i.test(t) ||
+    /\b(ubicaci[oó]n|direcci[oó]n)\s+(de\s+)?(ustedes|bodasesor)\b/i.test(t) ||
+    /\bcobertura\b/i.test(t) ||
+    /\bllegan\s+a\b/i.test(t) ||
+    /\batienden\s+en\b/i.test(t) ||
+    /\best[aá]n\s+en\s+(cdmx|ciudad\s+de\s+m[eé]xico)\b/i.test(t) ||
+    /\bsalen\s+de\s+(cdmx|ciudad\s+de\s+m[eé]xico)\b/i.test(t)
+  );
+}
+
+export function buildBodasesorLocationAnswer(): string {
+  return "Estamos en Ciudad de México y damos servicio en toda la CDMX y zona metropolitana. Para eventos fuera de la ciudad también viajamos, según la fecha y el lugar.";
 }
 
 export function parseZonaFromText(text: string): string | null {
