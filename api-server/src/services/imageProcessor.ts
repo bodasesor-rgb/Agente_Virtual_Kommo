@@ -10,6 +10,42 @@ type Att = Record<string, unknown>;
 
 const IMAGE_TYPES = new Set(["picture", "image", "photo"]);
 const VISION_MODEL = "gpt-4o-mini";
+const IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
+const IMAGE_CACHE_MAX = 500;
+
+const imageAnalysisCache = new Map<string, { description: string; at: number }>();
+
+function pruneImageCache(): void {
+  const now = Date.now();
+  for (const [url, entry] of imageAnalysisCache) {
+    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url);
+  }
+  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
+  const sorted = [...imageAnalysisCache.entries()].sort((a, b) => a[1].at - b[1].at);
+  for (let i = 0; i < sorted.length - IMAGE_CACHE_MAX; i++) {
+    imageAnalysisCache.delete(sorted[i]![0]);
+  }
+}
+
+export function getCachedImageDescription(imageUrl: string): string | null {
+  const entry = imageAnalysisCache.get(imageUrl);
+  if (!entry) return null;
+  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
+    imageAnalysisCache.delete(imageUrl);
+    return null;
+  }
+  return entry.description;
+}
+
+export function cacheImageDescription(imageUrl: string, description: string): void {
+  imageAnalysisCache.set(imageUrl, { description, at: Date.now() });
+  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
+}
+
+/** Limpia caché (solo para tests). */
+export function resetImageAnalysisCacheForTests(): void {
+  imageAnalysisCache.clear();
+}
 
 // ─── Detection ────────────────────────────────────────────────────────────────
 
@@ -114,6 +150,12 @@ export async function analyzeImage(
   accessToken: string,
   log: Log
 ): Promise<string | null> {
+  const cached = getCachedImageDescription(imageUrl);
+  if (cached) {
+    log.info({ imageUrl: imageUrl.slice(0, 80) }, "Imagen ya analizada — usando caché (sin Vision)");
+    return cached;
+  }
+
   try {
     const imgResponse = await fetch(imageUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -146,6 +188,7 @@ export async function analyzeImage(
 
     const description = completion.choices[0]?.message?.content?.trim() ?? null;
     if (description) {
+      cacheImageDescription(imageUrl, description);
       log.info({ chars: description.length }, "Imagen analizada exitosamente (Vision)");
     }
     return description;

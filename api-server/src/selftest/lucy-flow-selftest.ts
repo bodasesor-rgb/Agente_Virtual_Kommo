@@ -66,7 +66,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCatalogStatus } from "../services/catalogService.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
-import { isImageMessage, getImageUrl, getImageCaption } from "../services/imageProcessor.js";
+import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests } from "../services/imageProcessor.js";
+import {
+  webhookMessageKey,
+  isDuplicateWebhookMessage,
+  markWebhookMessageProcessed,
+  isIncomingClientMessage,
+  resetWebhookDedupForTests,
+} from "../lib/webhookDedup.js";
 import type { ExtractedData } from "../types.js";
 
 const CATALOG_URL =
@@ -148,7 +155,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 26 escenarios de prueba\n");
+  console.log("Lucy — 27 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -1213,6 +1220,38 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/capybaraeventos|bodasesor/i.test(emailGuard), emailGuard);
     assert.ok(/tu correo|compartes/i.test(emailGuard), emailGuard);
+  });
+
+  await test("27. Webhook/imagen — sin duplicar Vision ni notas", () => {
+    resetWebhookDedupForTests();
+    resetImageAnalysisCacheForTests();
+
+    const msg = {
+      id: "msg-abc-123",
+      chat_id: "chat-1",
+      entity_id: 999,
+      type: "incoming",
+      author: { type: "external" },
+      attachment: { type: "picture", link: "https://amojo.kommo.com/attachments/receipt.jpg" },
+    };
+
+    assert.ok(isIncomingClientMessage(msg));
+    assert.equal(webhookMessageKey(msg), "id:msg-abc-123");
+    assert.ok(!isDuplicateWebhookMessage("id:msg-abc-123"));
+    markWebhookMessageProcessed("id:msg-abc-123");
+    assert.ok(isDuplicateWebhookMessage("id:msg-abc-123"));
+
+    assert.ok(!isIncomingClientMessage({ type: "outgoing", author: { type: "internal" } }));
+
+    const imgUrl = "https://amojo.kommo.com/attachments/receipt.jpg";
+    cacheImageDescription(imgUrl, "Comprobante de pago por $7,975.00");
+    assert.equal(getCachedImageDescription(imgUrl), "Comprobante de pago por $7,975.00");
+
+    const fallbackKey = webhookMessageKey({
+      chat_id: "chat-2",
+      attachment: { type: "picture", link: imgUrl },
+    });
+    assert.equal(fallbackKey, `media:chat-2:${imgUrl}`);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

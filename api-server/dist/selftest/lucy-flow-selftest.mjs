@@ -12554,6 +12554,36 @@ function getOpenAiApiKeyForClient() {
 // src/services/imageProcessor.ts
 var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
+var IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
+var IMAGE_CACHE_MAX = 500;
+var imageAnalysisCache = /* @__PURE__ */ new Map();
+function pruneImageCache() {
+  const now = Date.now();
+  for (const [url, entry] of imageAnalysisCache) {
+    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url);
+  }
+  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
+  const sorted = [...imageAnalysisCache.entries()].sort((a, b) => a[1].at - b[1].at);
+  for (let i = 0; i < sorted.length - IMAGE_CACHE_MAX; i++) {
+    imageAnalysisCache.delete(sorted[i][0]);
+  }
+}
+function getCachedImageDescription(imageUrl) {
+  const entry = imageAnalysisCache.get(imageUrl);
+  if (!entry) return null;
+  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
+    imageAnalysisCache.delete(imageUrl);
+    return null;
+  }
+  return entry.description;
+}
+function cacheImageDescription(imageUrl, description) {
+  imageAnalysisCache.set(imageUrl, { description, at: Date.now() });
+  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
+}
+function resetImageAnalysisCacheForTests() {
+  imageAnalysisCache.clear();
+}
 function isImageMessage(message) {
   const att = message["attachment"];
   if (typeof att === "object" && att !== null) {
@@ -12682,6 +12712,72 @@ function getVoiceNoteUrl(message) {
   return null;
 }
 
+// src/lib/webhookDedup.ts
+var TTL_MS = 24 * 60 * 60 * 1e3;
+var MAX_ENTRIES = 1e4;
+var processedAt = /* @__PURE__ */ new Map();
+function prune() {
+  const now = Date.now();
+  for (const [key, at] of processedAt) {
+    if (now - at > TTL_MS) processedAt.delete(key);
+  }
+  if (processedAt.size <= MAX_ENTRIES) return;
+  const sorted = [...processedAt.entries()].sort((a, b) => a[1] - b[1]);
+  const toDrop = sorted.length - MAX_ENTRIES;
+  for (let i = 0; i < toDrop; i++) {
+    processedAt.delete(sorted[i][0]);
+  }
+}
+function webhookMessageKey(message) {
+  const id = message["id"];
+  if (typeof id === "string" && id.trim()) return `id:${id.trim()}`;
+  if (typeof id === "number") return `id:${id}`;
+  const nested = message["message"];
+  if (typeof nested === "object" && nested !== null) {
+    const mid = nested["id"];
+    if (typeof mid === "string" && mid.trim()) return `id:${mid.trim()}`;
+  }
+  const chatId = String(message["chat_id"] ?? "");
+  const entityId = String(message["entity_id"] ?? "");
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const link = att["link"] ?? att["url"];
+    if (typeof link === "string" && link.trim() && chatId) {
+      return `media:${chatId}:${link.trim()}`;
+    }
+  }
+  const text = typeof message["text"] === "string" ? message["text"].trim() : "";
+  const created = message["created_at"] ?? message["timestamp"];
+  if (chatId && text && created) return `text:${chatId}:${created}:${text.slice(0, 120)}`;
+  return null;
+}
+function isDuplicateWebhookMessage(key) {
+  const at = processedAt.get(key);
+  if (!at) return false;
+  if (Date.now() - at > TTL_MS) {
+    processedAt.delete(key);
+    return false;
+  }
+  return true;
+}
+function markWebhookMessageProcessed(key) {
+  processedAt.set(key, Date.now());
+  if (processedAt.size > MAX_ENTRIES * 0.9) prune();
+}
+function isIncomingClientMessage(message) {
+  const msgType = String(message["type"] ?? "").toLowerCase();
+  if (msgType === "outgoing") return false;
+  const author = message["author"];
+  if (typeof author === "object" && author !== null) {
+    const authorType = String(author["type"] ?? "").toLowerCase();
+    if (authorType === "internal" || authorType === "user") return false;
+  }
+  return true;
+}
+function resetWebhookDedupForTests() {
+  processedAt.clear();
+}
+
 // src/selftest/lucy-flow-selftest.ts
 var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf";
 var passed = 0;
@@ -12746,7 +12842,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 26 escenarios de prueba\n");
+  console.log("Lucy \u2014 27 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -13668,6 +13764,32 @@ async function runAll() {
     });
     assert.ok(/capybaraeventos|bodasesor/i.test(emailGuard), emailGuard);
     assert.ok(/tu correo|compartes/i.test(emailGuard), emailGuard);
+  });
+  await test("27. Webhook/imagen \u2014 sin duplicar Vision ni notas", () => {
+    resetWebhookDedupForTests();
+    resetImageAnalysisCacheForTests();
+    const msg = {
+      id: "msg-abc-123",
+      chat_id: "chat-1",
+      entity_id: 999,
+      type: "incoming",
+      author: { type: "external" },
+      attachment: { type: "picture", link: "https://amojo.kommo.com/attachments/receipt.jpg" }
+    };
+    assert.ok(isIncomingClientMessage(msg));
+    assert.equal(webhookMessageKey(msg), "id:msg-abc-123");
+    assert.ok(!isDuplicateWebhookMessage("id:msg-abc-123"));
+    markWebhookMessageProcessed("id:msg-abc-123");
+    assert.ok(isDuplicateWebhookMessage("id:msg-abc-123"));
+    assert.ok(!isIncomingClientMessage({ type: "outgoing", author: { type: "internal" } }));
+    const imgUrl = "https://amojo.kommo.com/attachments/receipt.jpg";
+    cacheImageDescription(imgUrl, "Comprobante de pago por $7,975.00");
+    assert.equal(getCachedImageDescription(imgUrl), "Comprobante de pago por $7,975.00");
+    const fallbackKey = webhookMessageKey({
+      chat_id: "chat-2",
+      attachment: { type: "picture", link: imgUrl }
+    });
+    assert.equal(fallbackKey, `media:chat-2:${imgUrl}`);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -82998,6 +82998,33 @@ init_openaiEnv();
 var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
 var VISION_MODEL = "gpt-4o-mini";
+var IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
+var IMAGE_CACHE_MAX = 500;
+var imageAnalysisCache = /* @__PURE__ */ new Map();
+function pruneImageCache() {
+  const now = Date.now();
+  for (const [url2, entry] of imageAnalysisCache) {
+    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url2);
+  }
+  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
+  const sorted = [...imageAnalysisCache.entries()].sort((a2, b4) => a2[1].at - b4[1].at);
+  for (let i3 = 0; i3 < sorted.length - IMAGE_CACHE_MAX; i3++) {
+    imageAnalysisCache.delete(sorted[i3][0]);
+  }
+}
+function getCachedImageDescription(imageUrl) {
+  const entry = imageAnalysisCache.get(imageUrl);
+  if (!entry) return null;
+  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
+    imageAnalysisCache.delete(imageUrl);
+    return null;
+  }
+  return entry.description;
+}
+function cacheImageDescription(imageUrl, description) {
+  imageAnalysisCache.set(imageUrl, { description, at: Date.now() });
+  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
+}
 function isImageMessage(message) {
   const att = message["attachment"];
   if (typeof att === "object" && att !== null) {
@@ -83067,6 +83094,11 @@ function getImageCaption(message) {
 }
 var VISION_PROMPT = "Describe brevemente esta imagen enviada por un cliente de Bodasesor (empresa de organizaci\xF3n de bodas y eventos sociales en M\xE9xico). Enf\xF3cate en lo relevante para cotizar un evento: tipo de espacio o sal\xF3n, decoraci\xF3n, mobiliario, comida, capacidad aproximada de personas, si parece ser una referencia/inspiraci\xF3n de estilo, una foto del lugar del evento, una captura de pantalla de otra cotizaci\xF3n, un comprobante de pago, una identificaci\xF3n/documento, o algo no relacionado con un evento. Responde en espa\xF1ol, en 1-2 oraciones concretas, sin rodeos ni frases como 'la imagen muestra'.";
 async function analyzeImage(imageUrl, accessToken, log) {
+  const cached = getCachedImageDescription(imageUrl);
+  if (cached) {
+    log.info({ imageUrl: imageUrl.slice(0, 80) }, "Imagen ya analizada \u2014 usando cach\xE9 (sin Vision)");
+    return cached;
+  }
   try {
     const imgResponse = await fetch(imageUrl, {
       headers: { Authorization: `Bearer ${accessToken}` }
@@ -83095,6 +83127,7 @@ async function analyzeImage(imageUrl, accessToken, log) {
     });
     const description = completion.choices[0]?.message?.content?.trim() ?? null;
     if (description) {
+      cacheImageDescription(imageUrl, description);
       log.info({ chars: description.length }, "Imagen analizada exitosamente (Vision)");
     }
     return description;
@@ -83272,6 +83305,69 @@ function getVoiceAcknowledgment(clientName) {
     `Listo${suffix}, escuch\xE9 tu mensaje. `
   ];
   return options[Math.floor(Math.random() * options.length)];
+}
+
+// src/lib/webhookDedup.ts
+var TTL_MS = 24 * 60 * 60 * 1e3;
+var MAX_ENTRIES = 1e4;
+var processedAt = /* @__PURE__ */ new Map();
+function prune() {
+  const now = Date.now();
+  for (const [key, at2] of processedAt) {
+    if (now - at2 > TTL_MS) processedAt.delete(key);
+  }
+  if (processedAt.size <= MAX_ENTRIES) return;
+  const sorted = [...processedAt.entries()].sort((a2, b4) => a2[1] - b4[1]);
+  const toDrop = sorted.length - MAX_ENTRIES;
+  for (let i3 = 0; i3 < toDrop; i3++) {
+    processedAt.delete(sorted[i3][0]);
+  }
+}
+function webhookMessageKey(message) {
+  const id = message["id"];
+  if (typeof id === "string" && id.trim()) return `id:${id.trim()}`;
+  if (typeof id === "number") return `id:${id}`;
+  const nested = message["message"];
+  if (typeof nested === "object" && nested !== null) {
+    const mid = nested["id"];
+    if (typeof mid === "string" && mid.trim()) return `id:${mid.trim()}`;
+  }
+  const chatId = String(message["chat_id"] ?? "");
+  const entityId = String(message["entity_id"] ?? "");
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const link = att["link"] ?? att["url"];
+    if (typeof link === "string" && link.trim() && chatId) {
+      return `media:${chatId}:${link.trim()}`;
+    }
+  }
+  const text2 = typeof message["text"] === "string" ? message["text"].trim() : "";
+  const created = message["created_at"] ?? message["timestamp"];
+  if (chatId && text2 && created) return `text:${chatId}:${created}:${text2.slice(0, 120)}`;
+  return null;
+}
+function isDuplicateWebhookMessage(key) {
+  const at2 = processedAt.get(key);
+  if (!at2) return false;
+  if (Date.now() - at2 > TTL_MS) {
+    processedAt.delete(key);
+    return false;
+  }
+  return true;
+}
+function markWebhookMessageProcessed(key) {
+  processedAt.set(key, Date.now());
+  if (processedAt.size > MAX_ENTRIES * 0.9) prune();
+}
+function isIncomingClientMessage(message) {
+  const msgType = String(message["type"] ?? "").toLowerCase();
+  if (msgType === "outgoing") return false;
+  const author = message["author"];
+  if (typeof author === "object" && author !== null) {
+    const authorType = String(author["type"] ?? "").toLowerCase();
+    if (authorType === "internal" || authorType === "user") return false;
+  }
+  return true;
 }
 
 // src/services/summaryService.ts
@@ -89892,6 +89988,18 @@ router3.post("/kommo/webhook", async (req, res) => {
   const entityId = firstMessage?.entity_id ?? null;
   const chatId = firstMessage?.chat_id ?? null;
   const talkId = firstMessage?.talk_id ?? null;
+  if (firstMessage && !isIncomingClientMessage(firstMessage)) {
+    log.info({ entityId, chatId, type: firstMessage.type }, "Webhook ignorado \u2014 mensaje saliente o interno");
+    res.status(200).json({ ok: true, skipped: "outgoing_or_internal" });
+    return;
+  }
+  const dedupKey = firstMessage ? webhookMessageKey(firstMessage) : null;
+  if (dedupKey && isDuplicateWebhookMessage(dedupKey)) {
+    log.info({ dedupKey, entityId, chatId }, "Webhook duplicado ignorado \u2014 sin Vision ni nota");
+    res.status(200).json({ ok: true, skipped: "duplicate_message" });
+    return;
+  }
+  if (dedupKey) markWebhookMessageProcessed(dedupKey);
   const messageData = firstMessage ? await processMessage(firstMessage, accessToken, log) : { text: "", isVoice: false, isImage: false, mediaNote: null };
   const text2 = messageData.text.trim();
   const isVoice = messageData.isVoice;

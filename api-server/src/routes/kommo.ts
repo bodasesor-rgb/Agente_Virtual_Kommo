@@ -38,6 +38,12 @@ import {
   maybeRefinarMensajeCierre,
 } from "../services/lucyRedaction.js";
 import { processMessage, getVoiceAcknowledgment, getImageAcknowledgment } from "../services/voiceProcessor.js";
+import {
+  isDuplicateWebhookMessage,
+  isIncomingClientMessage,
+  markWebhookMessageProcessed,
+  webhookMessageKey,
+} from "../lib/webhookDedup.js";
 import { generateSummary, enrichExtractedFromText, buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   isPlaceholderLeadName,
@@ -140,10 +146,15 @@ const pendingBatches = new Map<string, PendingBatch>();
 
 // ─── Kommo types ──────────────────────────────────────────────────────────────
 interface KommoMessageEntry {
+  id?: string | number;
   text?: string;
   entity_id?: number | string;
   chat_id?: string;
   talk_id?: string;
+  type?: string;
+  created_at?: string | number;
+  author?: { type?: string; id?: string };
+  attachment?: { type?: string; mime_type?: string; link?: string; url?: string };
   attachments?: Array<{ type?: string; mime_type?: string; link?: string; url?: string }>;
 }
 
@@ -1772,6 +1783,22 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   const entityId = firstMessage?.entity_id ?? null;
   const chatId = firstMessage?.chat_id ?? null;
   const talkId = firstMessage?.talk_id ?? null;
+
+  if (firstMessage && !isIncomingClientMessage(firstMessage as unknown as Record<string, unknown>)) {
+    log.info({ entityId, chatId, type: firstMessage.type }, "Webhook ignorado — mensaje saliente o interno");
+    res.status(200).json({ ok: true, skipped: "outgoing_or_internal" });
+    return;
+  }
+
+  const dedupKey = firstMessage
+    ? webhookMessageKey(firstMessage as unknown as Record<string, unknown>)
+    : null;
+  if (dedupKey && isDuplicateWebhookMessage(dedupKey)) {
+    log.info({ dedupKey, entityId, chatId }, "Webhook duplicado ignorado — sin Vision ni nota");
+    res.status(200).json({ ok: true, skipped: "duplicate_message" });
+    return;
+  }
+  if (dedupKey) markWebhookMessageProcessed(dedupKey);
 
   // Resolve text: transcribes audio via Whisper (nota de voz) or analiza la
   // imagen con Vision cuando el mensaje trae un attachment de ese tipo.
