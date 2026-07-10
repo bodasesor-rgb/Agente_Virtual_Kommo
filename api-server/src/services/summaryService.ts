@@ -139,33 +139,38 @@ export function buildResumenClienteLargo(
   mergedLines: string[],
   conversationText?: string
 ): string {
-  const nombre = extracted.nombre?.trim() || pickFromMergedLines(mergedLines, /Nombre del cliente/i);
-  const correo = extracted.correo?.trim() || pickFromMergedLines(mergedLines, /Correo electrónico/i);
+  // IMPORTANTE: se prioriza el valor YA GUARDADO en el CRM (mergedLines) sobre
+  // la extracción del turno actual. La extracción de GPT es inestable mensaje
+  // a mensaje (p.ej. "Coffee Break para Eventos Corporativos" un turno y solo
+  // "Coffee Break" al siguiente) — usar siempre el valor estable evita que el
+  // resumen pierda información ya confirmada.
+  const nombre = pickFromMergedLines(mergedLines, /Nombre del cliente/i) || extracted.nombre?.trim() || null;
+  const correo = pickFromMergedLines(mergedLines, /Correo electrónico/i) || extracted.correo?.trim() || null;
   const emailWaived = mergedLines.some((l) => /continuar por whatsapp/i.test(l));
-  const evento = extracted.tipo_evento?.trim() || pickFromMergedLines(mergedLines, /Tipo de evento/i);
-  const fecha = extracted.fecha_horario?.trim() || pickFromMergedLines(mergedLines, /Fecha y horario/i);
+  const evento = pickFromMergedLines(mergedLines, /Tipo de evento/i) || extracted.tipo_evento?.trim() || null;
+  const fecha = pickFromMergedLines(mergedLines, /Fecha y horario/i) || extracted.fecha_horario?.trim() || null;
   const invitados =
-    (extracted.num_invitados !== null && extracted.num_invitados > 0
-      ? String(extracted.num_invitados)
-      : null) || pickFromMergedLines(mergedLines, /Número de invitados/i);
+    pickFromMergedLines(mergedLines, /Número de invitados/i) ||
+    (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
   const ubicacion =
-    extracted.direccion_evento?.trim() || pickFromMergedLines(mergedLines, /Lugar\/dirección/i);
+    pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
   const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
   const ppto =
-    extracted.presupuesto !== null && extracted.presupuesto > 0
+    pptoFromLine ||
+    (extracted.presupuesto !== null && extracted.presupuesto > 0
       ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN`
-      : pptoFromLine;
+      : null);
 
-  const reqFromServices = extracted.requerimientos_evento?.trim();
   const reqFromLines = pickFromMergedLines(mergedLines, /Requerimientos/i);
+  const reqFromServices = extracted.requerimientos_evento?.trim();
   const reqFromConversation =
     conversationText && conversationText.trim().length > 20
       ? parseServicesFromText(conversationText).slice(0, 3).join(", ")
       : null;
   const reqs =
+    (reqFromLines && reqFromLines !== "Info pendiente" ? reqFromLines : null) ||
     (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) ||
-    (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null) ||
-    reqFromLines;
+    (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
 
   const lineas: string[] = ["RESUMEN LUCY — lo que el cliente quiere:", ""];
 
@@ -173,7 +178,7 @@ export function buildResumenClienteLargo(
   if (correo) lineas.push(`• Correo: ${correo}`);
   else if (emailWaived) lineas.push("• Correo: no proporcionó (continúa por WhatsApp)");
   if (evento) lineas.push(`• Tipo de evento: ${evento}`);
-  if (reqs) lineas.push(`• Servicios / requerimientos: ${reqs}`);
+  if (reqs) lineas.push(`• El cliente quiere: ${reqs}`);
   if (invitados) lineas.push(`• Invitados: ${invitados}`);
   if (ubicacion) lineas.push(`• Ubicación: ${ubicacion}`);
   if (fecha) lineas.push(`• Fecha: ${fecha}`);

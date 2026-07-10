@@ -252,7 +252,7 @@ function clientDeclinesMoreServices(message) {
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /\bcatering\b/i.test(t) || /\b(brunch|desayuno)\b/i.test(t) || /\bbrunch\s*\/\s*desayuno/i.test(t) || /\b(busco|necesito|quiero|cotizar)\s+(comida|alimentos?|men[uú])\b/i.test(t) || /\bcomida\s+para\b/i.test(t) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t);
+  return /\bcatering\b/i.test(t) || /\b(brunch|desayuno)\b/i.test(t) || /\bbrunch\s*\/\s*desayuno/i.test(t) || /\bcoffee\s*break\b/i.test(t) || /\bbarra\s+de\s+caf[eé](?!\w)/i.test(t) || /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t) || /\bcomida\s+para\b/i.test(t) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t);
 }
 function clientAsksPhone(message) {
   if (!message?.trim()) return false;
@@ -844,25 +844,25 @@ function pickFromMergedLines(mergedLines, labelPattern) {
   return val || null;
 }
 function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
-  const nombre = extracted.nombre?.trim() || pickFromMergedLines(mergedLines, /Nombre del cliente/i);
-  const correo = extracted.correo?.trim() || pickFromMergedLines(mergedLines, /Correo electrónico/i);
+  const nombre = pickFromMergedLines(mergedLines, /Nombre del cliente/i) || extracted.nombre?.trim() || null;
+  const correo = pickFromMergedLines(mergedLines, /Correo electrónico/i) || extracted.correo?.trim() || null;
   const emailWaived = mergedLines.some((l) => /continuar por whatsapp/i.test(l));
-  const evento = extracted.tipo_evento?.trim() || pickFromMergedLines(mergedLines, /Tipo de evento/i);
-  const fecha = extracted.fecha_horario?.trim() || pickFromMergedLines(mergedLines, /Fecha y horario/i);
-  const invitados = (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null) || pickFromMergedLines(mergedLines, /Número de invitados/i);
-  const ubicacion = extracted.direccion_evento?.trim() || pickFromMergedLines(mergedLines, /Lugar\/dirección/i);
+  const evento = pickFromMergedLines(mergedLines, /Tipo de evento/i) || extracted.tipo_evento?.trim() || null;
+  const fecha = pickFromMergedLines(mergedLines, /Fecha y horario/i) || extracted.fecha_horario?.trim() || null;
+  const invitados = pickFromMergedLines(mergedLines, /Número de invitados/i) || (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
+  const ubicacion = pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
   const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
-  const ppto = extracted.presupuesto !== null && extracted.presupuesto > 0 ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN` : pptoFromLine;
-  const reqFromServices = extracted.requerimientos_evento?.trim();
+  const ppto = pptoFromLine || (extracted.presupuesto !== null && extracted.presupuesto > 0 ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN` : null);
   const reqFromLines = pickFromMergedLines(mergedLines, /Requerimientos/i);
+  const reqFromServices = extracted.requerimientos_evento?.trim();
   const reqFromConversation = conversationText && conversationText.trim().length > 20 ? parseServicesFromText(conversationText).slice(0, 3).join(", ") : null;
-  const reqs = (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null) || reqFromLines;
+  const reqs = (reqFromLines && reqFromLines !== "Info pendiente" ? reqFromLines : null) || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
   const lineas = ["RESUMEN LUCY \u2014 lo que el cliente quiere:", ""];
   if (nombre) lineas.push(`\u2022 Nombre: ${nombre}`);
   if (correo) lineas.push(`\u2022 Correo: ${correo}`);
   else if (emailWaived) lineas.push("\u2022 Correo: no proporcion\xF3 (contin\xFAa por WhatsApp)");
   if (evento) lineas.push(`\u2022 Tipo de evento: ${evento}`);
-  if (reqs) lineas.push(`\u2022 Servicios / requerimientos: ${reqs}`);
+  if (reqs) lineas.push(`\u2022 El cliente quiere: ${reqs}`);
   if (invitados) lineas.push(`\u2022 Invitados: ${invitados}`);
   if (ubicacion) lineas.push(`\u2022 Ubicaci\xF3n: ${ubicacion}`);
   if (fecha) lineas.push(`\u2022 Fecha: ${fecha}`);
@@ -1361,6 +1361,18 @@ function isEmailSatisfied(filledSet) {
 function isReadyForClosing(filledSet) {
   return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
 }
+function stripCatalogBlockShared(text) {
+  let result = text.replace(
+    /\s*(mientras\s+tanto,?\s*)?(aqu[ií]\s+(est[aá]|tienes)\s+nuestro\s+cat[aá]logo\s+completo:?\s*)?https?:\/\/\S*cdn\.shopify\.com\S*/gi,
+    ""
+  );
+  result = result.replace(/\bcomparto\s+el\s+link\s+del\s+cat[aá]logo\b[.:]?/gi, "");
+  const lines = result.split("\n");
+  const filtered = lines.filter(
+    (l) => !l.toLowerCase().includes("banquetes:") && !l.toLowerCase().includes("barras tem\xE1ticas:") && !l.toLowerCase().includes("bebidas:") && !l.toLowerCase().includes("mesas especiales:") && !l.toLowerCase().includes("mobiliario:") && !l.toLowerCase().includes("entretenimiento:") && !l.toLowerCase().includes("estructuras:") && !l.toLowerCase().includes("cdn.shopify.com")
+  );
+  return filtered.join("\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
 function crmStoredValue(mergedLines, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`^-?\\s*${escaped}:`, "i");
@@ -1442,14 +1454,16 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
 function buildFoodSalesReply(extracted, history, entityId, currentMessage) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
+  const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
   const catering = buildCatalogCateringAnswer();
-  const intro = `Para ${eventLabel}, lo m\xE1s pedido es banquete o taquiza seg\xFAn el estilo que busquen \u2014 banquete es m\xE1s formal con servicio de meseros; taquiza es m\xE1s casual y flexible.`;
+  const intro = mentionedService ? `Perfecto, s\xED manejamos ${mentionedService} para ${eventLabel}.` : `Para ${eventLabel}, lo m\xE1s pedido es banquete o taquiza seg\xFAn el estilo que busquen \u2014 banquete es m\xE1s formal con servicio de meseros; taquiza es m\xE1s casual y flexible.`;
   if (catering) {
     return `${intro}
 
 ${catering}`;
   }
-  return buildRecommendationsReply(extracted, history, entityId, currentMessage);
+  const recomendaciones = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+  return mentionedService ? `${intro} ${recomendaciones}` : recomendaciones;
 }
 function buildRecommendationsReply(extracted, history, entityId, currentMessage) {
   if (clientAsksBanqueteVsTaquiza(currentMessage)) {
@@ -12636,7 +12650,7 @@ function runGuards(opts) {
   });
 }
 async function runAll() {
-  console.log("Lucy \u2014 24 escenarios de prueba\n");
+  console.log("Lucy \u2014 25 escenarios de prueba\n");
   await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
@@ -13470,6 +13484,50 @@ async function runAll() {
     assert.equal(parseZonaFromText("Va a ser en la alcald\xEDa Miguel Hidalgo"), "alcald\xEDa Miguel Hidalgo");
     assert.equal(parseZonaFromText("en total ser\xEDan 50 personas"), null);
     assert.equal(parseZonaFromText("es solo para mi familia"), null);
+  });
+  await test("25. Lorena A14777 \u2014 Coffee Break se ofrece, resumen no pierde datos, cat\xE1logo no vac\xEDa la respuesta", () => {
+    assert.ok(clientMentionsCatering("Hola, me interesa cotizar: Coffee Break para Eventos Corporativos"));
+    assert.ok(clientMentionsCatering("barra de caf\xE9 para el evento"));
+    const filledInicial = /* @__PURE__ */ new Set();
+    const extractedInicial = emptyExtracted();
+    const reply1 = runGuards({
+      aiResponse: "\xBFMe regalas tu nombre?",
+      extracted: extractedInicial,
+      filledSet: filledInicial,
+      readyForClosing: false,
+      currentMessage: "Hola, me interesa cotizar: Coffee Break para Eventos Corporativos",
+      history: []
+    });
+    assert.ok(/coffee\s*break/i.test(reply1), `debe confirmar coffee break, no ignorarlo: ${reply1.slice(0, 200)}`);
+    const mergedLinesTurno1 = [
+      "- Nombre del cliente: Lorena",
+      "- Tipo de evento: corporativo",
+      "- Requerimientos o servicios: Coffee Break para Eventos Corporativos"
+    ];
+    const extractedTurno2 = emptyExtracted({
+      nombre: "Lorena",
+      tipo_evento: "corporativo",
+      requerimientos_evento: "Coffee Break",
+      // GPT re-extrajo una versión más corta este turno
+      num_invitados: 150
+    });
+    const resumen = buildResumenClienteLargo(extractedTurno2, mergedLinesTurno1, "coffee break para eventos corporativos 150 personas");
+    assert.ok(
+      resumen.includes("Coffee Break para Eventos Corporativos"),
+      `no debe perder el detalle ya guardado: ${resumen}`
+    );
+    assert.ok(
+      resumen.includes("El cliente quiere:"),
+      `debe usar la frase 'El cliente quiere:' en vez de 'Servicios / requerimientos:': ${resumen}`
+    );
+    assert.ok(!/servicios\s*\/\s*requerimientos/i.test(resumen), resumen);
+    const mezclado = "No hay ning\xFAn problema, ya anot\xE9 que el evento es en Cuernavaca. Mientras tanto, aqu\xED tienes nuestro cat\xE1logo completo: https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499. \xBFHay algo m\xE1s en lo que te pueda ayudar?";
+    const limpio = stripCatalogBlockShared(mezclado);
+    assert.ok(limpio.trim().length > 0, "no debe quedar vac\xEDo");
+    assert.ok(!/cdn\.shopify\.com/i.test(limpio), limpio);
+    assert.ok(/no hay ning[uú]n problema/i.test(limpio), limpio);
+    assert.ok(/cuernavaca/i.test(limpio), limpio);
+    assert.ok(/algo m[aá]s en lo que te pueda ayudar/i.test(limpio), limpio);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
