@@ -79340,11 +79340,42 @@ function bareNumberLooksLikeInvitados(num, trimmed) {
   if (/\$|k\b|mil\b|pesos|mxn|mnx/i.test(trimmed)) return false;
   return num >= 5 && num <= 999;
 }
+var PRESUPUESTO_MAX_ASKS = 2;
+var PRESUPUESTO_AUTO_WAIVER = "Sin definir (no indic\xF3 monto)";
+function countLucyFieldAsks(history, field) {
+  const pattern = LUCY_FIELD_ASK_PATTERNS[field];
+  return history.filter(
+    (m4) => m4.role === "assistant" && typeof m4.content === "string" && pattern.test(m4.content)
+  ).length;
+}
 function detectPresupuestoRefusal(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
-  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) || /\bt[uú]\s+m[aá]ndame\b/i.test(t) || /\bsi\s+quieres\s+vemos\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
+  if (/^\.{2,}$/.test(t)) return true;
+  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) || /\bt[uú]\s+m[aá]ndame\b/i.test(t) || /\bsi\s+quieres\s+vemos\b/i.test(t) || /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)\b/i.test(t) || /\btodav[ií]a\s+no\b/i.test(t) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
+}
+function findPresupuestoInTexts(texts, history) {
+  if (history?.length) {
+    let lastAssistant = "";
+    for (const msg of history) {
+      if (msg.role === "assistant" && typeof msg.content === "string") {
+        lastAssistant = msg.content;
+      }
+      if (msg.role === "user" && typeof msg.content === "string") {
+        const asked = inferLucyAskedField(lastAssistant);
+        const pres = parsePresupuestoFromText(msg.content, {
+          askedField: asked === "presupuesto" ? "presupuesto" : null
+        });
+        if (pres) return pres;
+      }
+    }
+  }
+  for (const t of texts) {
+    const pres = parsePresupuestoFromText(t);
+    if (pres) return pres;
+  }
+  return null;
 }
 function parsePresupuestoFromText(text2, opts) {
   const trimmed = text2.trim();
@@ -79363,7 +79394,15 @@ function parsePresupuestoFromText(text2, opts) {
   if (opts?.askedField === "presupuesto" && /^(no|nop)[\s.,!]*$/i.test(trimmed)) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
   }
-  if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones)\b/i.test(
+  if (opts?.askedField === "presupuesto") {
+    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo)[\s.,!]*$/i.test(trimmed)) {
+      return PRESUPUESTO_AUTO_WAIVER;
+    }
+    if (/^(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea|\.\.+)[\s.,!]*$/i.test(trimmed)) {
+      return "Sin definir (cliente indic\xF3 que no tiene)";
+    }
+  }
+  if (/\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
     trimmed
   )) {
     return "Sin definir (cliente indic\xF3 que no tiene)";
@@ -79384,6 +79423,13 @@ function parsePresupuestoFromText(text2, opts) {
   if (menosDeMatch) {
     return `Hasta $${menosDeMatch[1].replace(/,/g, "")} MXN`;
   }
+  const topeMatch = trimmed.match(
+    /\btope\s+(?:es\s+)?(?:de\s+)?\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos|k)?\b/i
+  );
+  if (topeMatch) {
+    const suffix = topeMatch[2]?.toLowerCase() === "k" ? "k" : "";
+    return `Hasta $${topeMatch[1].replace(/,/g, "")}${suffix} MXN`;
+  }
   const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
   if (kMatch) {
     const num = parseInt(kMatch[1].replace(/[,.]/g, ""), 10);
@@ -79394,7 +79440,7 @@ function parsePresupuestoFromText(text2, opts) {
     const num = parseInt(milMatch[1].replace(/[,.]/g, ""), 10);
     if (!isNaN(num) && num > 0) return `$${num * 1e3}`;
   }
-  if (/\$/.test(trimmed) || /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx)\b/i.test(trimmed) || /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed)) {
+  if (/\$/.test(trimmed) || /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) || /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed)) {
     const amountMatch = trimmed.match(/\$?\s*([\d][\d,.]*)/);
     if (amountMatch) return trimmed.slice(0, 80);
   }
@@ -81074,12 +81120,43 @@ function applyEmailWaiver(filledSet, mergedLines, texts) {
   mergedLines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
   filledSet.add(EMAIL_WAIVED_LABEL);
 }
-function applyPresupuestoWaiver(filledSet, mergedLines, texts) {
+function applyPresupuestoWaiver(filledSet, mergedLines, texts, history) {
   if (filledSet.has("Presupuesto (MXN)")) return;
-  const pres = texts.map((t) => parsePresupuestoFromText(t)).find(Boolean);
-  if (!pres) return;
-  mergedLines.push(`- Presupuesto (MXN): ${pres}`);
-  filledSet.add("Presupuesto (MXN)");
+  const pres = findPresupuestoInTexts(texts, history);
+  if (pres) {
+    mergedLines.push(`- Presupuesto (MXN): ${pres}`);
+    filledSet.add("Presupuesto (MXN)");
+    return;
+  }
+  if (history && countLucyFieldAsks(history, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
+    mergedLines.push(`- Presupuesto (MXN): ${PRESUPUESTO_AUTO_WAIVER}`);
+    filledSet.add("Presupuesto (MXN)");
+  }
+}
+function blockExcessivePresupuestoAsk(mensaje, filledSet, extracted, history, currentMessage, buildClosing, cierreYaEnviado, whatsappDisplayName, entityId, log) {
+  const asksPresupuesto = mensajeAsksForField(mensaje, "presupuesto") || /presupuesto|rango\s+de\s+inversi/i.test(mensaje) && mensaje.includes("?");
+  if (!asksPresupuesto) return mensaje;
+  if (!filledSet.has("Presupuesto (MXN)")) {
+    applyPresupuestoWaiver(filledSet, [], collectUserTexts(history, currentMessage), history);
+  }
+  if (!filledSet.has("Presupuesto (MXN)")) return mensaje;
+  const presValue = findPresupuestoInTexts(collectUserTexts(history, currentMessage), history);
+  if (presValue && /econ[oó]mic/i.test(presValue) && !isReadyForClosing(filledSet)) {
+    const nextQ2 = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    log?.info({ entityId }, "GUARD: presupuesto econ\xF3mico \u2014 no repetir pregunta");
+    return nextQ2 ? `Entendido, buscamos opciones econ\xF3micas. ${nextQ2}` : "Entendido, buscamos opciones econ\xF3micas. Nuestro equipo te propone alternativas seg\xFAn lo que platicamos.";
+  }
+  if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+    log?.info({ entityId }, "GUARD: presupuesto \u2014 cierre tras waiver");
+    return buildClosing(extracted.requerimientos_evento ?? extracted.tipo_evento ?? null, extracted.nombre);
+  }
+  const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+  if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
+    log?.info({ entityId }, "GUARD: presupuesto capturado \u2014 no repetir pregunta");
+    return nextQ;
+  }
+  log?.info({ entityId }, "GUARD: presupuesto capturado \u2014 continuar sin re-preguntar");
+  return "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos y te arma la cotizaci\xF3n.";
 }
 function isEmailSatisfied(filledSet) {
   return filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL);
@@ -81631,6 +81708,13 @@ function applyLucyMessageGuards(input) {
     forceFirstPresentation
   } = input;
   const ctx = makeQuestionCtx(input);
+  const presHistory = input.presentationHistory ?? history;
+  applyPresupuestoWaiver(
+    filledSet,
+    [],
+    collectUserTexts(presHistory),
+    presHistory
+  );
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
@@ -81763,28 +81847,26 @@ ${nextQ}`;
     }
   }
   if (filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(mensaje, "presupuesto")) {
-    if (trulyReadyForClosing && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
-      log?.info({ entityId }, "GUARD: presupuesto capturado \u2014 cierre");
-    } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
-        mensaje = nextQ;
-        log?.info({ entityId }, "GUARD: presupuesto ya capturado \u2014 no repetir pregunta");
-      } else if (trulyReadyForClosing && !cierreYaEnviado) {
-        mensaje = buildClosing(
-          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-          extracted.nombre
-        );
-      }
-    }
+    mensaje = blockExcessivePresupuestoAsk(
+      mensaje,
+      filledSet,
+      extracted,
+      presHistory,
+      currentMessage,
+      buildClosing,
+      cierreYaEnviado,
+      whatsappDisplayName,
+      entityId,
+      log
+    );
   }
-  const presFromCurrentMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
-  if (presFromCurrentMsg && mensajeAsksForField(mensaje, "presupuesto") && !filledSet.has("Presupuesto (MXN)")) {
-    applyPresupuestoWaiver(filledSet, [], [currentMessage ?? ""]);
+  const presFromCurrentMsg = currentMessage ? parsePresupuestoFromText(currentMessage, {
+    askedField: inferLucyAskedField(
+      presHistory.filter((m4) => m4.role === "assistant").slice(-1)[0]?.content
+    ) === "presupuesto" ? "presupuesto" : null
+  }) : null;
+  if (presFromCurrentMsg && !filledSet.has("Presupuesto (MXN)") && (mensajeAsksForField(mensaje, "presupuesto") || /presupuesto|rango/i.test(mensaje) && mensaje.includes("?"))) {
+    applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -81792,13 +81874,28 @@ ${nextQ}`;
       );
       log?.info({ entityId }, "GUARD: presupuesto capturado en turno \u2014 cierre");
     } else if (/econ[oó]mic/i.test(presFromCurrentMsg)) {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, presHistory, currentMessage, entityId);
       mensaje = nextQ ? `Entendido, buscamos opciones econ\xF3micas. ${nextQ}` : "Entendido, buscamos opciones econ\xF3micas. Nuestro equipo te propone alternativas seg\xFAn lo que platicamos.";
       log?.info({ entityId }, "GUARD: presupuesto econ\xF3mico \u2014 no repetir pregunta");
     } else {
       mensaje = "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos y te arma la cotizaci\xF3n.";
       log?.info({ entityId }, "GUARD: cliente sin presupuesto fijo \u2014 continuar");
     }
+  } else if (!filledSet.has("Presupuesto (MXN)") && countLucyFieldAsks(presHistory, "presupuesto") >= PRESUPUESTO_MAX_ASKS && mensajeAsksForField(mensaje, "presupuesto")) {
+    applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
+    mensaje = blockExcessivePresupuestoAsk(
+      mensaje,
+      filledSet,
+      extracted,
+      presHistory,
+      currentMessage,
+      buildClosing,
+      cierreYaEnviado,
+      whatsappDisplayName,
+      entityId,
+      log
+    );
+    log?.info({ entityId }, "GUARD: tope de preguntas presupuesto \u2014 auto-waiver");
   }
   if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
     if (trulyReadyForClosing && !cierreYaEnviado) {
@@ -81896,14 +81993,14 @@ ${nextQ}`;
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
-  const presHistory = input.presentationHistory ?? history;
-  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory);
+  const presHistoryForIntro = input.presentationHistory ?? history;
+  const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !conversationAlreadyStarted(filledSet, presHistoryForIntro);
   if (isOpeningTurn && !/hola,?\s*soy\s+lucy/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: presentaci\xF3n Lucy a\xF1adida al primer mensaje");
   }
-  if (conversationAlreadyStarted(filledSet, presHistory)) {
-    mensaje = stripRepeatLucyIntro(mensaje, presHistory, true);
+  if (conversationAlreadyStarted(filledSet, presHistoryForIntro)) {
+    mensaje = stripRepeatLucyIntro(mensaje, presHistoryForIntro, true);
   }
   const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
   const priceSanitized = sanitizeInventedPrices(mensaje, currentMessage, ctxText);
@@ -81917,11 +82014,27 @@ ${nextQ}`;
   }
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
   if (!mensaje.includes("?") && !trulyReadyForClosing && !clientAskedFreeformQuestion(currentMessage)) {
-    const pendingAfter = getNextPendingField(extracted, filledSet);
-    if (pendingAfter) {
+    let pendingAfter = getNextPendingField(extracted, filledSet);
+    if (pendingAfter === "presupuesto" && countLucyFieldAsks(presHistory, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
+      applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
+      pendingAfter = getNextPendingField(extracted, filledSet);
+    }
+    if (pendingAfter && !(pendingAfter === "presupuesto" && filledSet.has("Presupuesto (MXN)"))) {
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     }
   }
+  mensaje = blockExcessivePresupuestoAsk(
+    mensaje,
+    filledSet,
+    extracted,
+    presHistory,
+    currentMessage,
+    buildClosing,
+    cierreYaEnviado,
+    whatsappDisplayName,
+    entityId,
+    log
+  );
   if (clientAsksPrice(currentMessage) && mentionsListedPriceService(currentMessage)) {
     const fromCatalog = buildCatalogPriceAnswer(currentMessage);
     if (fromCatalog) {
@@ -88662,7 +88775,8 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   applyPresupuestoWaiver(
     filledSet,
     mergedLines,
-    collectUserTexts(historyFull, currentMessage)
+    collectUserTexts(historyFull, currentMessage),
+    historyFull
   );
   purgeDimensionAsUbicacion(mergedLines, filledSet, extracted);
   appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, historyFull, currentMessage);
@@ -88824,8 +88938,18 @@ function buildPatchPayload(extracted, mergedLines, conversationText) {
     customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(extracted.num_invitados) }] });
   if (isValidExtractedString(extracted.tipo_evento))
     customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(extracted.tipo_evento) }] });
-  if (extracted.presupuesto !== null && extracted.presupuesto > 0)
+  const presLine = mergedLines.find((l4) => /^-?\s*Presupuesto \(MXN\):/i.test(l4));
+  if (presLine) {
+    const presText = presLine.replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
+    const presNum = parseInt(presText.replace(/[^\d]/g, ""), 10);
+    if (!isNaN(presNum) && presNum >= 1e3 && /^\$?[\d,.\s]+(k|mxn)?$/i.test(presText.replace(/\s/g, ""))) {
+      customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(presNum) }] });
+    } else if (presText) {
+      customFields.push({ field_id: FIELD.presupuesto, values: [{ value: cap255(presText) }] });
+    }
+  } else if (extracted.presupuesto !== null && extracted.presupuesto > 0) {
     customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(extracted.presupuesto) }] });
+  }
   const payload = { custom_fields_values: customFields };
   if (isValidExtractedString(extracted.nombre)) {
     const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;

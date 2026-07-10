@@ -553,11 +553,29 @@ function bareNumberLooksLikeInvitados(num: number, trimmed: string): boolean {
   return num >= 5 && num <= 999;
 }
 
+/** Tras cuántas preguntas de Lucy por presupuesto se deja de insistir. */
+export const PRESUPUESTO_MAX_ASKS = 2;
+
+/** Valor CRM cuando el cliente no dio monto tras varios intentos. */
+export const PRESUPUESTO_AUTO_WAIVER = "Sin definir (no indicó monto)";
+
+/** Cuenta cuántas veces Lucy preguntó por un dato en el historial. */
+export function countLucyFieldAsks(
+  history: import("openai").OpenAI.Chat.ChatCompletionMessageParam[],
+  field: UnderstandingField
+): number {
+  const pattern = LUCY_FIELD_ASK_PATTERNS[field];
+  return history.filter(
+    (m) => m.role === "assistant" && typeof m.content === "string" && pattern.test(m.content as string)
+  ).length;
+}
+
 /** Cliente rechazó dar presupuesto (incluye "no" suelto tras pregunta de Lucy). */
 export function detectPresupuestoRefusal(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
+  if (/^\.{2,}$/.test(t)) return true;
   return (
     /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) ||
     /\bno\s+me\s+brindaron\b/i.test(t) ||
@@ -565,10 +583,47 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\bsin\s+presupuesto\b/i.test(t) ||
     /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) ||
     /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) ||
+    /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) ||
     /\bt[uú]\s+m[aá]ndame\b/i.test(t) ||
     /\bsi\s+quieres\s+vemos\b/i.test(t) ||
+    /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)\b/i.test(t) ||
+    /\btodav[ií]a\s+no\b/i.test(t) ||
+    /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) ||
+    /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) ||
+    /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t) ||
+    /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t) ||
+    /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) ||
+    /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) ||
+    /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) ||
     (/\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t))
   );
+}
+
+/** Busca presupuesto (monto o waiver) en mensajes del cliente con contexto de la pregunta previa. */
+export function findPresupuestoInTexts(
+  texts: string[],
+  history?: import("openai").OpenAI.Chat.ChatCompletionMessageParam[]
+): string | null {
+  if (history?.length) {
+    let lastAssistant = "";
+    for (const msg of history) {
+      if (msg.role === "assistant" && typeof msg.content === "string") {
+        lastAssistant = msg.content;
+      }
+      if (msg.role === "user" && typeof msg.content === "string") {
+        const asked = inferLucyAskedField(lastAssistant);
+        const pres = parsePresupuestoFromText(msg.content, {
+          askedField: asked === "presupuesto" ? "presupuesto" : null,
+        });
+        if (pres) return pres;
+      }
+    }
+  }
+  for (const t of texts) {
+    const pres = parsePresupuestoFromText(t);
+    if (pres) return pres;
+  }
+  return null;
 }
 
 export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOptions): string | null {
@@ -600,8 +655,17 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     return "Sin definir (cliente indicó que no tiene)";
   }
 
+  if (opts?.askedField === "presupuesto") {
+    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo)[\s.,!]*$/i.test(trimmed)) {
+      return PRESUPUESTO_AUTO_WAIVER;
+    }
+    if (/^(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea|\.\.+)[\s.,!]*$/i.test(trimmed)) {
+      return "Sin definir (cliente indicó que no tiene)";
+    }
+  }
+
   if (
-    /\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones)\b/i.test(
+    /\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
       trimmed
     )
   ) {
@@ -628,6 +692,14 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     return `Hasta $${menosDeMatch[1]!.replace(/,/g, "")} MXN`;
   }
 
+  const topeMatch = trimmed.match(
+    /\btope\s+(?:es\s+)?(?:de\s+)?\$?\s*([\d][\d,.]*)\s*(mxn|mnx|pesos|k)?\b/i
+  );
+  if (topeMatch) {
+    const suffix = topeMatch[2]?.toLowerCase() === "k" ? "k" : "";
+    return `Hasta $${topeMatch[1]!.replace(/,/g, "")}${suffix} MXN`;
+  }
+
   const kMatch = trimmed.match(/\$?\s*([\d,.]+)\s*k\b/i);
   if (kMatch) {
     const num = parseInt(kMatch[1]!.replace(/[,.]/g, ""), 10);
@@ -642,7 +714,7 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
 
   if (
     /\$/.test(trimmed) ||
-    /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx)\b/i.test(trimmed) ||
+    /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) ||
     /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed)
   ) {
     const amountMatch = trimmed.match(/\$?\s*([\d][\d,.]*)/);

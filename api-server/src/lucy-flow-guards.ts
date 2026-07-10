@@ -33,6 +33,10 @@ import {
   clientMentionsEntertainment,
   clientMentionsPistaTarima,
   detectPresupuestoRefusal,
+  findPresupuestoInTexts,
+  countLucyFieldAsks,
+  PRESUPUESTO_MAX_ASKS,
+  PRESUPUESTO_AUTO_WAIVER,
   parsePresupuestoFromText,
   clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
@@ -202,13 +206,71 @@ export function applyEmailWaiver(filledSet: Set<string>, mergedLines: string[], 
 export function applyPresupuestoWaiver(
   filledSet: Set<string>,
   mergedLines: string[],
-  texts: string[]
+  texts: string[],
+  history?: OpenAI.Chat.ChatCompletionMessageParam[]
 ): void {
   if (filledSet.has("Presupuesto (MXN)")) return;
-  const pres = texts.map((t) => parsePresupuestoFromText(t)).find(Boolean);
-  if (!pres) return;
-  mergedLines.push(`- Presupuesto (MXN): ${pres}`);
-  filledSet.add("Presupuesto (MXN)");
+
+  const pres = findPresupuestoInTexts(texts, history);
+  if (pres) {
+    mergedLines.push(`- Presupuesto (MXN): ${pres}`);
+    filledSet.add("Presupuesto (MXN)");
+    return;
+  }
+
+  if (history && countLucyFieldAsks(history, "presupuesto") >= PRESUPUESTO_MAX_ASKS) {
+    mergedLines.push(`- Presupuesto (MXN): ${PRESUPUESTO_AUTO_WAIVER}`);
+    filledSet.add("Presupuesto (MXN)");
+  }
+}
+
+/** Evita insistir con presupuesto cuando ya se capturó o Lucy ya preguntó demasiadas veces. */
+function blockExcessivePresupuestoAsk(
+  mensaje: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage: string | undefined,
+  buildClosing: (servicios: string | null | undefined, clientName?: string | null) => string,
+  cierreYaEnviado: boolean,
+  whatsappDisplayName: string | null | undefined,
+  entityId: string | number | undefined,
+  log?: { info: (obj: unknown, msg?: string) => void }
+): string {
+  const asksPresupuesto =
+    mensajeAsksForField(mensaje, "presupuesto") ||
+    (/presupuesto|rango\s+de\s+inversi/i.test(mensaje) && mensaje.includes("?"));
+
+  if (!asksPresupuesto) return mensaje;
+
+  if (!filledSet.has("Presupuesto (MXN)")) {
+    applyPresupuestoWaiver(filledSet, [], collectUserTexts(history, currentMessage), history);
+  }
+
+  if (!filledSet.has("Presupuesto (MXN)")) return mensaje;
+
+  const presValue = findPresupuestoInTexts(collectUserTexts(history, currentMessage), history);
+  if (presValue && /econ[oó]mic/i.test(presValue) && !isReadyForClosing(filledSet)) {
+    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    log?.info({ entityId }, "GUARD: presupuesto económico — no repetir pregunta");
+    return nextQ
+      ? `Entendido, buscamos opciones económicas. ${nextQ}`
+      : "Entendido, buscamos opciones económicas. Nuestro equipo te propone alternativas según lo que platicamos.";
+  }
+
+  if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+    log?.info({ entityId }, "GUARD: presupuesto — cierre tras waiver");
+    return buildClosing(extracted.requerimientos_evento ?? extracted.tipo_evento ?? null, extracted.nombre);
+  }
+
+  const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+  if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
+    log?.info({ entityId }, "GUARD: presupuesto capturado — no repetir pregunta");
+    return nextQ;
+  }
+
+  log?.info({ entityId }, "GUARD: presupuesto capturado — continuar sin re-preguntar");
+  return "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos y te arma la cotización.";
 }
 
 export function isEmailSatisfied(filledSet: Set<string>): boolean {
@@ -1145,6 +1207,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } = input;
 
   const ctx = makeQuestionCtx(input);
+  const presHistory = input.presentationHistory ?? history;
+
+  applyPresupuestoWaiver(
+    filledSet,
+    [],
+    collectUserTexts(presHistory),
+    presHistory
+  );
+
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
@@ -1302,33 +1373,39 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(mensaje, "presupuesto")) {
-    if (trulyReadyForClosing && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
-      log?.info({ entityId }, "GUARD: presupuesto capturado — cierre");
-    } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
-        mensaje = nextQ;
-        log?.info({ entityId }, "GUARD: presupuesto ya capturado — no repetir pregunta");
-      } else if (trulyReadyForClosing && !cierreYaEnviado) {
-        mensaje = buildClosing(
-          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-          extracted.nombre
-        );
-      }
-    }
+    mensaje = blockExcessivePresupuestoAsk(
+      mensaje,
+      filledSet,
+      extracted,
+      presHistory,
+      currentMessage,
+      buildClosing,
+      cierreYaEnviado,
+      whatsappDisplayName,
+      entityId,
+      log
+    );
   }
 
-  const presFromCurrentMsg = currentMessage ? parsePresupuestoFromText(currentMessage) : null;
+  const presFromCurrentMsg = currentMessage
+    ? parsePresupuestoFromText(currentMessage, {
+        askedField:
+          inferLucyAskedField(
+            presHistory
+              .filter((m) => m.role === "assistant")
+              .slice(-1)[0]?.content as string | undefined
+          ) === "presupuesto"
+            ? "presupuesto"
+            : null,
+      })
+    : null;
   if (
     presFromCurrentMsg &&
-    mensajeAsksForField(mensaje, "presupuesto") &&
-    !filledSet.has("Presupuesto (MXN)")
+    !filledSet.has("Presupuesto (MXN)") &&
+    (mensajeAsksForField(mensaje, "presupuesto") ||
+      (/presupuesto|rango/i.test(mensaje) && mensaje.includes("?")))
   ) {
-    applyPresupuestoWaiver(filledSet, [], [currentMessage ?? ""]);
+    applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -1336,7 +1413,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       );
       log?.info({ entityId }, "GUARD: presupuesto capturado en turno — cierre");
     } else if (/econ[oó]mic/i.test(presFromCurrentMsg)) {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, presHistory, currentMessage, entityId);
       mensaje = nextQ
         ? `Entendido, buscamos opciones económicas. ${nextQ}`
         : "Entendido, buscamos opciones económicas. Nuestro equipo te propone alternativas según lo que platicamos.";
@@ -1346,6 +1423,25 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos y te arma la cotización.";
       log?.info({ entityId }, "GUARD: cliente sin presupuesto fijo — continuar");
     }
+  } else if (
+    !filledSet.has("Presupuesto (MXN)") &&
+    countLucyFieldAsks(presHistory, "presupuesto") >= PRESUPUESTO_MAX_ASKS &&
+    mensajeAsksForField(mensaje, "presupuesto")
+  ) {
+    applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
+    mensaje = blockExcessivePresupuestoAsk(
+      mensaje,
+      filledSet,
+      extracted,
+      presHistory,
+      currentMessage,
+      buildClosing,
+      cierreYaEnviado,
+      whatsappDisplayName,
+      entityId,
+      log
+    );
+    log?.info({ entityId }, "GUARD: tope de preguntas presupuesto — auto-waiver");
   }
 
   if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
@@ -1464,17 +1560,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
 
-  const presHistory = input.presentationHistory ?? history;
+  const presHistoryForIntro = input.presentationHistory ?? history;
   const isOpeningTurn =
-    (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
-    !conversationAlreadyStarted(filledSet, presHistory);
+    (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) &&
+    !conversationAlreadyStarted(filledSet, presHistoryForIntro);
   if (isOpeningTurn && !/hola,?\s*soy\s+lucy/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: presentación Lucy añadida al primer mensaje");
   }
 
-  if (conversationAlreadyStarted(filledSet, presHistory)) {
-    mensaje = stripRepeatLucyIntro(mensaje, presHistory, true);
+  if (conversationAlreadyStarted(filledSet, presHistoryForIntro)) {
+    mensaje = stripRepeatLucyIntro(mensaje, presHistoryForIntro, true);
   }
 
   const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
@@ -1490,11 +1586,31 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
   if (!mensaje.includes("?") && !trulyReadyForClosing && !clientAskedFreeformQuestion(currentMessage)) {
-    const pendingAfter = getNextPendingField(extracted, filledSet);
-    if (pendingAfter) {
+    let pendingAfter = getNextPendingField(extracted, filledSet);
+    if (
+      pendingAfter === "presupuesto" &&
+      countLucyFieldAsks(presHistory, "presupuesto") >= PRESUPUESTO_MAX_ASKS
+    ) {
+      applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
+      pendingAfter = getNextPendingField(extracted, filledSet);
+    }
+    if (pendingAfter && !(pendingAfter === "presupuesto" && filledSet.has("Presupuesto (MXN)"))) {
       mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     }
   }
+
+  mensaje = blockExcessivePresupuestoAsk(
+    mensaje,
+    filledSet,
+    extracted,
+    presHistory,
+    currentMessage,
+    buildClosing,
+    cierreYaEnviado,
+    whatsappDisplayName,
+    entityId,
+    log
+  );
 
   if (
     clientAsksPrice(currentMessage) &&
