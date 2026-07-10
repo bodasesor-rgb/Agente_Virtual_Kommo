@@ -2092,7 +2092,9 @@ ${nextQ}`;
       mensaje = buildNaturalQuestion(pending, ctx);
     }
   }
-  mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  if (!cierreYaEnviado) {
+    mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  }
   if (appliedSalesReply) {
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
@@ -2971,6 +2973,25 @@ async function runAll() {
       `no debe repetir zona/tipo de evento post-cierre: "${postCierreReply.slice(0, 200)}"`
     );
     assert.ok(postCierreReply.trim().length > 0);
+    const filledSinZona = new Set(
+      [...filledReady].filter((f) => f !== "Lugar/direcci\xF3n del evento")
+    );
+    const postCierreVariosNo = applyLucyMessageGuards({
+      aiResponse: "\xBFTienen ya el lugar o al menos la ciudad?",
+      extracted,
+      filledSet: filledSinZona,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: historyPostCierre,
+      currentMessage: "No",
+      buildClosing: mockClosing
+    });
+    assert.ok(
+      !/d[oó]nde\s+lo\s+est[aá]n\s+planeando|tienen\s+ya\s+el\s+lugar/i.test(postCierreVariosNo),
+      `no debe concatenar pregunta de zona tras el ack: "${postCierreVariosNo.slice(0, 200)}"`
+    );
+    assert.ok(/con gusto|nuestro equipo/i.test(postCierreVariosNo), postCierreVariosNo.slice(0, 200));
   });
   await test("22. Manuel A14770 \u2014 CRM no se contamina con extracci\xF3n inestable del turno", () => {
     const mergedLines = [
