@@ -1596,7 +1596,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  if (!cierreYaEnviado) {
+    mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  }
 
   if (appliedSalesReply) {
     return normalizeAdvisorReferences(mensaje, extracted.nombre);

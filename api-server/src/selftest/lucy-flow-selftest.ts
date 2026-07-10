@@ -930,6 +930,29 @@ async function runAll(): Promise<void> {
       `no debe repetir zona/tipo de evento post-cierre: "${postCierreReply.slice(0, 200)}"`
     );
     assert.ok(postCierreReply.trim().length > 0);
+
+    // Regresión: aunque getNextPendingField "crea" ver un campo faltante
+    // (p.ej. por pérdida de estado en el simulador), sanitizeOutboundMessage
+    // NO debe concatenar esa pregunta al ack post-cierre.
+    const filledSinZona = new Set(
+      [...filledReady].filter((f) => f !== "Lugar/dirección del evento")
+    );
+    const postCierreVariosNo = applyLucyMessageGuards({
+      aiResponse: "¿Tienen ya el lugar o al menos la ciudad?",
+      extracted,
+      filledSet: filledSinZona,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: historyPostCierre,
+      currentMessage: "No",
+      buildClosing: mockClosing,
+    });
+    assert.ok(
+      !/d[oó]nde\s+lo\s+est[aá]n\s+planeando|tienen\s+ya\s+el\s+lugar/i.test(postCierreVariosNo),
+      `no debe concatenar pregunta de zona tras el ack: "${postCierreVariosNo.slice(0, 200)}"`
+    );
+    assert.ok(/con gusto|nuestro equipo/i.test(postCierreVariosNo), postCierreVariosNo.slice(0, 200));
   });
 
   await test("22. Manuel A14770 — CRM no se contamina con extracción inestable del turno", () => {
