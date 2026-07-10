@@ -23,6 +23,7 @@ import {
   buildCatalogInclusionAnswer,
   buildCatalogComparisonAnswer,
   buildCatalogCateringAnswer,
+  buildCatalogServiceAnswer,
   clientAsksInclusion,
 } from "./services/catalogService.js";
 import {
@@ -33,6 +34,7 @@ import {
   clientDeclinesMoreServices,
   clientMentionsEntertainment,
   clientMentionsPistaTarima,
+  clientMentionsNonCateringService,
   detectPresupuestoRefusal,
   findPresupuestoInTexts,
   countLucyFieldAsks,
@@ -42,9 +44,11 @@ import {
   clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
   clientMentionsCatering,
+  getServiceCategory,
   inferLucyAskedField,
   isServiceRelatedMessage,
   parsePrimaryService,
+  parseServicesFromText,
   parseSpaceDimensions,
   parseFechaFromText,
 } from "./conversation-understanding.js";
@@ -494,6 +498,44 @@ function buildFoodSalesReply(
   // Si el cliente nombró un servicio específico, no se pierde la confirmación
   // aunque el catálogo del Sheet no esté disponible en este momento.
   return mentionedService ? `${intro} ${recomendaciones}` : recomendaciones;
+}
+
+const SERVICE_CATEGORY_COPY: Record<string, string> = {
+  catering: "Te armamos opciones de menú según el estilo y número de invitados.",
+  entertainment: "Tenemos varias opciones de entretenimiento en vivo según el ambiente que busques.",
+  pista: "Manejamos pistas y tarimas en varios tamaños según tu espacio.",
+  bebidas: "Tenemos barras de bebidas con y sin alcohol, mixología y coctelería.",
+  mobiliario: "Contamos con mobiliario, sillas, mesas y carpas para distintos estilos de evento.",
+  tecnico: "Manejamos iluminación, audio, pantallas y decoración para ambientar tu evento.",
+  otro: "Te armamos una cotización personalizada según lo que necesites.",
+};
+
+function buildGenericServiceReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  entityId?: string | number,
+  currentMessage?: string
+): string {
+  const msg = currentMessage ?? "";
+  const catalogAnswer = buildCatalogServiceAnswer(msg);
+  const services = parseServicesFromText(msg);
+  const primary = services[0] ?? findMentionedService(msg) ?? "ese servicio";
+  const serviceNames =
+    services.length > 1 ? services.join(" y ") : primary;
+
+  const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  const eventLabel = tipo ? `tu ${tipo}` : "tu evento";
+
+  if (catalogAnswer) {
+    const follow = pickVariant("requerimientos", history, entityId);
+    return `${catalogAnswer}\n\n${follow}`.trim();
+  }
+
+  const category = getServiceCategory(primary);
+  const detail = SERVICE_CATEGORY_COPY[category] ?? SERVICE_CATEGORY_COPY.otro!;
+  const intro = `Perfecto, sí manejamos ${serviceNames} para ${eventLabel}.`;
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${intro} ${detail} ${follow}`.trim();
 }
 
 /** Sugerencias por tipo de evento cuando el cliente pide recomendaciones. */
@@ -1361,17 +1403,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima — orientación de venta");
-  } else if (
-    allowSalesReplyOverride &&
-    (clientMentionsCatering(currentMessage) ||
-      (justAnsweredReq && isServiceRelatedMessage(currentMessage)))
-  ) {
+  } else if (allowSalesReplyOverride && clientMentionsCatering(currentMessage)) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
+    log?.info({ entityId, food: true }, "GUARD: comida/catering — orientación de venta");
+  } else if (
+    allowSalesReplyOverride &&
+    (clientMentionsNonCateringService(currentMessage) ||
+      (justAnsweredReq && isServiceRelatedMessage(currentMessage) && !clientMentionsCatering(currentMessage)))
+  ) {
+    mensaje = buildGenericServiceReply(extracted, history, entityId, currentMessage);
+    appliedSalesReply = true;
     log?.info(
-      { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
-      "GUARD: comida/servicio — orientación de venta"
+      { entityId, justAnsweredReq, services: parseServicesFromText(currentMessage ?? "") },
+      "GUARD: servicio no-comida — orientación de venta genérica"
     );
   } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);

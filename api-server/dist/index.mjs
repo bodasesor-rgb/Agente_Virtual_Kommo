@@ -79032,9 +79032,74 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Parrillada", /\bparrillada\b/i],
   ["Crepas", /\bcrep[aá]s?\b/i],
   ["Brunch", /\bbrunch\b/i],
-  ["Poptails", /\bpoptails?\b/i]
+  ["Poptails", /\bpoptails?\b/i],
+  ["Barra Americana", /\bbarra\s+americana\b/i],
+  ["Paella", /\bpaella\b/i],
+  ["Antojitos", /\b(antojitos?|puestos?\s+de\s+comida|esquites|elotes?\s+asados?)\b/i],
+  ["Barra de Mariscos", /\bbarra\s+de\s+mariscos?\b/i],
+  ["Barra Yucateca", /\bbarra\s+yucateca\b/i],
+  ["Barra de Pastas", /\bbarra\s+de\s+pastas?\b/i],
+  ["Barra de Paninis", /\bbarra\s+de\s+paninis?\b/i],
+  ["Pasteles", /\b(pasteles?|cupcakes?|pastel\s+de\s+boda)\b/i],
+  ["Helados", /\bhelados?\b/i],
+  ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
+  ["Ni\xF1eras", /\b(ni[nñ]eras?|cuidado\s+infantil)\b/i],
+  ["Fiesta infantil", /\bfiesta\s+infantil\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|paella|antojito|marisco|yucatec|pasta|panini|pastel|helado|valet|ni[nñ]era|americana/i;
+var SERVICE_CATEGORY_MAP = {
+  "Banquete Formal": "catering",
+  "Banquete Mexicano": "catering",
+  "Banquete Kosher": "catering",
+  "Banquete Navide\xF1o": "catering",
+  "Taquiza": "catering",
+  "Parrillada": "catering",
+  "Parrillada Argentina": "catering",
+  "Brunch": "catering",
+  "Coffee break": "catering",
+  "Canap\xE9s": "catering",
+  "Pizzas": "catering",
+  "Sushi": "catering",
+  "Crepas": "catering",
+  "Barra de alimentos": "catering",
+  "Barra Americana": "catering",
+  "Paella": "catering",
+  "Antojitos": "catering",
+  "Barra de Mariscos": "catering",
+  "Barra Yucateca": "catering",
+  "Barra de Pastas": "catering",
+  "Barra de Paninis": "catering",
+  "Mesa de dulces": "catering",
+  "Mesa de postres": "catering",
+  "Mesa de quesos": "catering",
+  "Pasteles": "catering",
+  "Helados": "catering",
+  "Animaci\xF3n / Hora loca": "entertainment",
+  "DJ": "entertainment",
+  "Pista de baile": "pista",
+  "Barra de bebidas": "bebidas",
+  "Mixolog\xEDa": "bebidas",
+  "Cocteler\xEDa": "bebidas",
+  "M\xF3cteles": "bebidas",
+  "Poptails": "bebidas",
+  "Mobiliario": "mobiliario",
+  "Carpas": "mobiliario",
+  "Meseros": "mobiliario",
+  "Iluminaci\xF3n": "tecnico",
+  "Decoraci\xF3n": "tecnico",
+  "Florister\xEDa": "tecnico",
+  "Pantallas": "tecnico",
+  "Audio y sonido": "tecnico",
+  "Estructuras": "tecnico",
+  "Inflables": "tecnico",
+  "Softplay": "tecnico",
+  "Valet parking": "otro",
+  "Ni\xF1eras": "otro",
+  "Fiesta infantil": "otro"
+};
+function getServiceCategory(service) {
+  return SERVICE_CATEGORY_MAP[service] ?? "otro";
+}
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
@@ -79052,14 +79117,42 @@ var SHORT_SERVICE_ALIASES = {
   pizza: "pizzas",
   pizzas: "pizzas",
   sushi: "sushi",
-  kosher: "banquete kosher",
-  meseros: "meseros",
-  mesero: "meseros",
-  decoracion: "decoraci\xF3n",
-  iluminacion: "iluminaci\xF3n",
-  pantalla: "pantallas",
-  inflable: "inflables",
-  mobiliario: "mobiliario",
+  paella: "Paella",
+  antojitos: "Antojitos",
+  mariscos: "Barra de Mariscos",
+  yucateca: "Barra Yucateca",
+  pasta: "Barra de Pastas",
+  panini: "Barra de Paninis",
+  pastel: "Pasteles",
+  helado: "Helados",
+  valet: "Valet parking",
+  ni\u00F1era: "Ni\xF1eras",
+  inflables: "Inflables",
+  inflable: "Inflables",
+  pantallas: "Pantallas",
+  pantalla: "Pantallas",
+  audio: "Audio y sonido",
+  iluminacion: "Iluminaci\xF3n",
+  iluminaci\u00F3n: "Iluminaci\xF3n",
+  decoracion: "Decoraci\xF3n",
+  decoraci\u00F3n: "Decoraci\xF3n",
+  flores: "Florister\xEDa",
+  estructura: "Estructuras",
+  softplay: "Softplay",
+  mixologia: "Mixolog\xEDa",
+  mixolog\u00EDa: "Mixolog\xEDa",
+  cocteleria: "Cocteler\xEDa",
+  cocteler\u00EDa: "Cocteler\xEDa",
+  mocteles: "M\xF3cteles",
+  canapes: "Canap\xE9s",
+  canap\u00E9s: "Canap\xE9s",
+  crepas: "Crepas",
+  brunch: "Brunch",
+  poptails: "Poptails",
+  kosher: "Banquete Kosher",
+  meseros: "Meseros",
+  mesero: "Meseros",
+  mobiliario: "Mobiliario",
   comida: "banquete / taquiza",
   alimentos: "banquete / taquiza",
   alimento: "banquete / taquiza",
@@ -79283,6 +79376,18 @@ function parseSpaceDimensions(text2) {
 function clientMentionsPistaTarima(message) {
   if (!message?.trim()) return false;
   return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
+}
+function clientMentionsNonCateringService(message) {
+  if (!message?.trim()) return false;
+  if (clientMentionsCatering(message)) return false;
+  if (clientMentionsEntertainment(message)) return false;
+  if (clientMentionsPistaTarima(message)) return false;
+  return isServiceRelatedMessage(message);
+}
+function clientAsksAboutService(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return /\b(tienen|manejan|ofrecen|hacen|cotizan)\s+.+\?/i.test(t) || /\b(qu[eé]|cu[aá]l)\s+(ofrecen|manejan|tienen)\b/i.test(t) || /\bme\s+interesa\s+cotizar\b/i.test(t);
 }
 function parseZonaFromText(text2) {
   const trimmed = text2.trim();
@@ -80123,6 +80228,31 @@ function buildCatalogComparisonAnswer() {
     "\xBFCu\xE1l te late m\xE1s para tu evento?"
   ];
   return parts2.filter((l4) => l4 !== void 0 && l4 !== "").join("\n").trim();
+}
+function buildCatalogServiceAnswer(query) {
+  const matches = lookupCatalogServices(query);
+  if (matches.length) {
+    const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
+    const baseName = unique[0].categoria || unique[0].servicio.split(" (")[0] || unique[0].servicio;
+    if (unique.length === 1) {
+      const row = unique[0];
+      const parsed = parseRowNotes(row.notas);
+      const price = row.tienePrecio && row.precio ? ` Precios desde ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}.` : "";
+      const inclusion = parsed.inclusion ? ` ${parsed.inclusion.slice(0, 180)}${parsed.inclusion.length > 180 ? "\u2026" : ""}` : "";
+      return `S\xED, manejamos ${baseName}.${price}${inclusion}`;
+    }
+    const lines = unique.slice(0, 4).map((row) => {
+      const nivel = extractNivelLabel(row.servicio);
+      const price = row.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+      return `\u2022 *${nivel}*${price}`;
+    });
+    return `S\xED, manejamos ${baseName}:
+
+${lines.join("\n")}
+
+\xBFCu\xE1l opci\xF3n te interesa?`;
+  }
+  return null;
 }
 function buildCatalogCateringAnswer() {
   if (!snapshot?.rows.length) return null;
@@ -81385,6 +81515,35 @@ ${catering}`;
   const recomendaciones = buildRecommendationsReply(extracted, history, entityId, currentMessage);
   return mentionedService ? `${intro} ${recomendaciones}` : recomendaciones;
 }
+var SERVICE_CATEGORY_COPY = {
+  catering: "Te armamos opciones de men\xFA seg\xFAn el estilo y n\xFAmero de invitados.",
+  entertainment: "Tenemos varias opciones de entretenimiento en vivo seg\xFAn el ambiente que busques.",
+  pista: "Manejamos pistas y tarimas en varios tama\xF1os seg\xFAn tu espacio.",
+  bebidas: "Tenemos barras de bebidas con y sin alcohol, mixolog\xEDa y cocteler\xEDa.",
+  mobiliario: "Contamos con mobiliario, sillas, mesas y carpas para distintos estilos de evento.",
+  tecnico: "Manejamos iluminaci\xF3n, audio, pantallas y decoraci\xF3n para ambientar tu evento.",
+  otro: "Te armamos una cotizaci\xF3n personalizada seg\xFAn lo que necesites."
+};
+function buildGenericServiceReply(extracted, history, entityId, currentMessage) {
+  const msg = currentMessage ?? "";
+  const catalogAnswer = buildCatalogServiceAnswer(msg);
+  const services = parseServicesFromText(msg);
+  const primary = services[0] ?? findMentionedService(msg) ?? "ese servicio";
+  const serviceNames = services.length > 1 ? services.join(" y ") : primary;
+  const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  const eventLabel = tipo ? `tu ${tipo}` : "tu evento";
+  if (catalogAnswer) {
+    const follow2 = pickVariant("requerimientos", history, entityId);
+    return `${catalogAnswer}
+
+${follow2}`.trim();
+  }
+  const category = getServiceCategory(primary);
+  const detail = SERVICE_CATEGORY_COPY[category] ?? SERVICE_CATEGORY_COPY.otro;
+  const intro = `Perfecto, s\xED manejamos ${serviceNames} para ${eventLabel}.`;
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${intro} ${detail} ${follow}`.trim();
+}
 function buildRecommendationsReply(extracted, history, entityId, currentMessage) {
   if (clientAsksBanqueteVsTaquiza(currentMessage)) {
     const comparison2 = buildCatalogComparisonAnswer();
@@ -81916,13 +82075,17 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
-  } else if (allowSalesReplyOverride && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage))) {
+  } else if (allowSalesReplyOverride && clientMentionsCatering(currentMessage)) {
     const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
+    log?.info({ entityId, food: true }, "GUARD: comida/catering \u2014 orientaci\xF3n de venta");
+  } else if (allowSalesReplyOverride && (clientMentionsNonCateringService(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) && !clientMentionsCatering(currentMessage))) {
+    mensaje = buildGenericServiceReply(extracted, history, entityId, currentMessage);
+    appliedSalesReply = true;
     log?.info(
-      { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
-      "GUARD: comida/servicio \u2014 orientaci\xF3n de venta"
+      { entityId, justAnsweredReq, services: parseServicesFromText(currentMessage ?? "") },
+      "GUARD: servicio no-comida \u2014 orientaci\xF3n de venta gen\xE9rica"
     );
   } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
@@ -88541,10 +88704,10 @@ async function ensureKnowledgeGapSchema() {
     await db.execute(sql2.raw(
       `CREATE INDEX IF NOT EXISTS knowledge_gaps_status_idx ON knowledge_gaps (status, created_at DESC)`
     ));
+    ensured2 = true;
   } catch (err2) {
-    logger.warn({ err: err2 }, "knowledgeGapSchema: fall\xF3");
+    logger.warn({ err: err2 }, "knowledgeGapSchema: fall\xF3 \u2014 se reintentar\xE1 en la pr\xF3xima petici\xF3n");
   }
-  ensured2 = true;
 }
 
 // src/services/knowledgeGapStore.ts
@@ -88659,12 +88822,12 @@ function detectKnowledgeGap(clientMessage, lucyResponse) {
   const msg = clientMessage.trim();
   if (!msg || msg.length < 4) return null;
   const lucy = lucyResponse.trim();
-  const deferredToAlejandro = /alejandro te (lo incluye|da el precio)|precio exacto depende del evento|sin precio listado/i.test(
+  const deferredToTeam = /alejandro te (lo incluye|da el precio)|precio exacto depende del evento|sin precio listado|nuestro equipo te (atiende|contacta)|te atiende en breve/i.test(
     lucy
   );
   if (clientAsksPrice(msg)) {
     const fromCatalog = buildCatalogPriceAnswer(msg);
-    if (!fromCatalog || deferredToAlejandro || mentionsNoListedPriceService(msg)) {
+    if (!fromCatalog || deferredToTeam || mentionsNoListedPriceService(msg)) {
       const label = getPriceServiceLabel(msg);
       const topic = label !== "ese servicio" ? `Precio: ${label}` : `Precio: ${inferTopic(msg)}`;
       return { topic, gapType: "price" };
@@ -88679,13 +88842,27 @@ function detectKnowledgeGap(clientMessage, lucyResponse) {
       };
     }
   }
-  if (/\b(qu[eé]|cu[aá]l)\s+(ofrecen|manejan|tienen|servicios?)\b/i.test(msg) || /\b(tienen|manejan)\s+.+\?/i.test(msg)) {
+  if (isServiceRelatedMessage(msg) && !clientAsksPrice(msg)) {
+    const services = parseServicesFromText(msg);
+    const lucyConfirmsService = services.some((s4) => {
+      const escaped = s4.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(escaped, "i").test(lucy);
+    });
+    const lucyIgnoredService = /regalas?\s+tu\s+nombre|cu[aá]ntos\s+invitados|tipo\s+de\s+evento|presupuesto|correo/i.test(lucy) && !lucyConfirmsService;
+    if (lucyIgnoredService) {
+      return {
+        topic: `Servicio: ${services[0] ?? inferTopic(msg)}`,
+        gapType: "service"
+      };
+    }
+  }
+  if (clientAsksAboutService(msg) || /\b(tienen|manejan)\s+.+\?/i.test(msg)) {
     const matches = lookupCatalogServices(msg);
-    if (!matches.length && deferredToAlejandro) {
+    if (!matches.length && (deferredToTeam || !lucyConfirmsServiceInResponse(lucy, msg))) {
       return { topic: inferTopic(msg), gapType: "service" };
     }
   }
-  if (deferredToAlejandro && clientAsksPrice(msg)) {
+  if (deferredToTeam && clientAsksPrice(msg)) {
     const label = getPriceServiceLabel(msg);
     return {
       topic: label !== "ese servicio" ? `Precio: ${label}` : `Precio: ${inferTopic(msg)}`,
@@ -88693,6 +88870,14 @@ function detectKnowledgeGap(clientMessage, lucyResponse) {
     };
   }
   return null;
+}
+function lucyConfirmsServiceInResponse(lucy, clientMessage) {
+  const services = parseServicesFromText(clientMessage);
+  if (!services.length) return /\bmanejamos\b/i.test(lucy);
+  return services.some((s4) => {
+    const escaped = s4.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(escaped, "i").test(lucy);
+  });
 }
 async function recordKnowledgeGapIfNeeded(opts) {
   try {
@@ -90713,7 +90898,19 @@ await init_learning();
 
 // src/routes/knowledgeGaps.ts
 var import_express8 = __toESM(require_express2(), 1);
+await init_trainingStore();
 var router8 = (0, import_express8.Router)();
+router8.get("/knowledge-gaps/training-recent", async (req, res) => {
+  try {
+    const limit2 = Math.min(Number(req.query.limit ?? 30), 100);
+    const examples = await listTrainingExamples();
+    const learned = examples.filter((ex) => ex.label?.startsWith("Aprendizaje")).slice(0, limit2);
+    const stats = await getTrainingStats();
+    res.json({ examples: learned, stats, total: learned.length });
+  } catch {
+    res.status(500).json({ error: "failed_to_load_training" });
+  }
+});
 router8.get("/knowledge-gaps", async (req, res) => {
   try {
     const statusParam = String(req.query.status ?? "pending");

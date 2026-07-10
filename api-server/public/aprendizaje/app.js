@@ -12,6 +12,8 @@ const INTRO = {
     "Estas son preguntas de clientes reales donde <strong>Lucy no encontró precio o servicio en el catálogo</strong>. Escribe la respuesta correcta y Lucy la usará en futuras conversaciones.",
   answered:
     "Todo lo que <strong>ya le enseñaste a Lucy</strong>: la pregunta del cliente, lo que Lucy dijo sin datos, y la respuesta correcta que quedó guardada.",
+  training:
+    "Estos son los <strong>ejemplos que Lucy ya usa en sus conversaciones</strong> (few-shot). Cada vez que enseñas una respuesta en «No sabe», aparece aquí en unos segundos.",
 };
 
 async function api(path, options = {}) {
@@ -57,16 +59,24 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-function updateTabCounts(stats) {
+function updateTabCounts(stats, trainingTotal = 0) {
   document.querySelectorAll("[data-count]").forEach((el) => {
     const key = el.dataset.count;
-    if (key && stats[key] !== undefined) el.textContent = String(stats[key]);
+    if (key === "training") {
+      el.textContent = String(trainingTotal);
+    } else if (key && stats[key] !== undefined) {
+      el.textContent = String(stats[key]);
+    }
   });
 }
 
 async function loadStats() {
-  const stats = await api("/knowledge-gaps/stats");
+  const [stats, trainingData] = await Promise.all([
+    api("/knowledge-gaps/stats"),
+    api("/knowledge-gaps/training-recent?limit=1").catch(() => ({ stats: { total: 0 } })),
+  ]);
   const total = stats.pending + stats.answered + stats.dismissed;
+  const trainingTotal = trainingData.stats?.total ?? 0;
 
   statsRow.innerHTML = `
     <div class="stat-card pending">
@@ -77,17 +87,17 @@ async function loadStats() {
       <strong>${stats.answered}</strong>
       <span>Ya aprendió</span>
     </div>
-    <div class="stat-card dismissed">
-      <strong>${stats.dismissed}</strong>
-      <span>Descartadas</span>
-    </div>
     <div class="stat-card total">
+      <strong>${trainingTotal}</strong>
+      <span>En uso por Lucy</span>
+    </div>
+    <div class="stat-card dismissed">
       <strong>${total}</strong>
       <span>Total registradas</span>
     </div>
   `;
 
-  updateTabCounts(stats);
+  updateTabCounts(stats, trainingTotal);
 }
 
 function renderPendingCard(gap) {
@@ -186,9 +196,56 @@ function renderLearnedCard(gap) {
   return card;
 }
 
+function renderTrainingCard(example) {
+  const card = document.createElement("article");
+  card.className = "gap-card learned-card";
+  card.dataset.id = example.id;
+
+  card.innerHTML = `
+    <div class="gap-top">
+      <div>
+        <div class="gap-topic">${escapeHtml(example.label || "Ejemplo activo")}</div>
+      </div>
+      <div class="gap-badges">
+        <span class="gap-badge learned">Activo</span>
+      </div>
+    </div>
+    <div class="info-grid">
+      <div class="info-block question">
+        <div class="label">Si el cliente dice…</div>
+        <div class="value">${escapeHtml(example.userMessage)}</div>
+      </div>
+      <div class="info-block answer">
+        <div class="label">Lucy responde así</div>
+        <div class="value">${escapeHtml(example.lucyResponse)}</div>
+      </div>
+    </div>
+    <div class="gap-footer">
+      <span>En uso en conversaciones</span>
+      <span>${formatDate(example.createdAt)}</span>
+    </div>
+  `;
+
+  return card;
+}
+
 async function loadGaps() {
   sectionIntro.innerHTML = INTRO[currentStatus] ?? "";
   gapsList.innerHTML = "";
+
+  if (currentStatus === "training") {
+    const data = await api("/knowledge-gaps/training-recent?limit=50");
+    if (!data.examples?.length) {
+      emptyState.classList.remove("hidden");
+      emptyState.innerHTML = `<strong>Aún no hay ejemplos activos</strong>Cuando enseñes una respuesta en la pestaña «No sabe», aparecerá aquí como ejemplo que Lucy usa en chat.`;
+      return;
+    }
+    emptyState.classList.add("hidden");
+    for (const ex of data.examples) {
+      gapsList.appendChild(renderTrainingCard(ex));
+    }
+    return;
+  }
 
   const data = await api(`/knowledge-gaps?status=${currentStatus}&limit=50`);
 
@@ -196,7 +253,7 @@ async function loadGaps() {
     emptyState.classList.remove("hidden");
     emptyState.innerHTML =
       currentStatus === "pending"
-        ? `<strong>No hay preguntas pendientes</strong>Lucy está al día con el catálogo del Sheet. Cuando un cliente pregunte algo sin precio, aparecerá aquí.`
+        ? `<strong>No hay preguntas pendientes</strong>Lucy está al día con el catálogo del Sheet. Cuando un cliente pregunte algo sin precio o Lucy ignore un servicio, aparecerá aquí.`
         : `<strong>Aún no hay aprendizajes guardados</strong>Cuando enseñes una respuesta en la pestaña «No sabe», aparecerá aquí con la pregunta y la respuesta correcta.`;
     return;
   }
@@ -228,6 +285,14 @@ async function saveAnswer(id, card) {
       body: JSON.stringify({ answer }),
     });
     await refresh();
+    // Mostrar pestaña "En uso" para que el usuario vea el cambio
+    const trainingTab = document.querySelector('[data-status="training"]');
+    if (trainingTab) {
+      document.querySelectorAll(".view-tab").forEach((b) => b.classList.remove("active"));
+      trainingTab.classList.add("active");
+      currentStatus = "training";
+      await loadGaps();
+    }
   } catch (err) {
     alert(err.message || "Error al guardar");
     if (btn) {

@@ -13,6 +13,11 @@ import {
   getPriceServiceLabel,
   mentionsNoListedPriceService,
 } from "../price-guard.js";
+import {
+  isServiceRelatedMessage,
+  parseServicesFromText,
+  clientAsksAboutService,
+} from "../conversation-understanding.js";
 import { recordKnowledgeGap } from "./knowledgeGapStore.js";
 import { logger } from "../lib/logger.js";
 
@@ -36,15 +41,15 @@ export function detectKnowledgeGap(
   if (!msg || msg.length < 4) return null;
 
   const lucy = lucyResponse.trim();
-  const deferredToAlejandro =
-    /alejandro te (lo incluye|da el precio)|precio exacto depende del evento|sin precio listado/i.test(
+  const deferredToTeam =
+    /alejandro te (lo incluye|da el precio)|precio exacto depende del evento|sin precio listado|nuestro equipo te (atiende|contacta)|te atiende en breve/i.test(
       lucy
     );
 
   // Precio sin tarifa en catálogo
   if (clientAsksPrice(msg)) {
     const fromCatalog = buildCatalogPriceAnswer(msg);
-    if (!fromCatalog || deferredToAlejandro || mentionsNoListedPriceService(msg)) {
+    if (!fromCatalog || deferredToTeam || mentionsNoListedPriceService(msg)) {
       const label = getPriceServiceLabel(msg);
       const topic = label !== "ese servicio" ? `Precio: ${label}` : `Precio: ${inferTopic(msg)}`;
       return { topic, gapType: "price" };
@@ -62,19 +67,34 @@ export function detectKnowledgeGap(
     }
   }
 
+  // Cliente pidió un servicio y Lucy ignoró el servicio (siguió con datos del embudo)
+  if (isServiceRelatedMessage(msg) && !clientAsksPrice(msg)) {
+    const services = parseServicesFromText(msg);
+    const lucyConfirmsService = services.some((s) => {
+      const escaped = s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(escaped, "i").test(lucy);
+    });
+    const lucyIgnoredService =
+      /regalas?\s+tu\s+nombre|cu[aá]ntos\s+invitados|tipo\s+de\s+evento|presupuesto|correo/i.test(lucy) &&
+      !lucyConfirmsService;
+    if (lucyIgnoredService) {
+      return {
+        topic: `Servicio: ${services[0] ?? inferTopic(msg)}`,
+        gapType: "service",
+      };
+    }
+  }
+
   // Servicio que no aparece en catálogo
-  if (
-    /\b(qu[eé]|cu[aá]l)\s+(ofrecen|manejan|tienen|servicios?)\b/i.test(msg) ||
-    /\b(tienen|manejan)\s+.+\?/i.test(msg)
-  ) {
+  if (clientAsksAboutService(msg) || /\b(tienen|manejan)\s+.+\?/i.test(msg)) {
     const matches = lookupCatalogServices(msg);
-    if (!matches.length && deferredToAlejandro) {
+    if (!matches.length && (deferredToTeam || !lucyConfirmsServiceInResponse(lucy, msg))) {
       return { topic: inferTopic(msg), gapType: "service" };
     }
   }
 
-  // Lucy derivó a Alejandro sin precio aunque preguntaron precio
-  if (deferredToAlejandro && clientAsksPrice(msg)) {
+  // Lucy derivó al equipo sin precio aunque preguntaron precio
+  if (deferredToTeam && clientAsksPrice(msg)) {
     const label = getPriceServiceLabel(msg);
     return {
       topic: label !== "ese servicio" ? `Precio: ${label}` : `Precio: ${inferTopic(msg)}`,
@@ -83,6 +103,15 @@ export function detectKnowledgeGap(
   }
 
   return null;
+}
+
+function lucyConfirmsServiceInResponse(lucy: string, clientMessage: string): boolean {
+  const services = parseServicesFromText(clientMessage);
+  if (!services.length) return /\bmanejamos\b/i.test(lucy);
+  return services.some((s) => {
+    const escaped = s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(escaped, "i").test(lucy);
+  });
 }
 
 export async function recordKnowledgeGapIfNeeded(opts: {

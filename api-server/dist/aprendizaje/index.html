@@ -450,7 +450,7 @@ textarea.answer-box { min-height: 110px; }
         <div class="page-header-text">
           <p class="eyebrow">Lucy · Catálogo</p>
           <h1>Aprendizaje de Lucy</h1>
-          <p class="subtitle">Preguntas sin precio en el Sheet, respuestas que tú enseñas y conocimiento ya guardado.</p>
+          <p class="subtitle">Enseña a Lucy cuando no encuentra precio o servicio en el catálogo. Lo que guardes aquí se usa en conversaciones reales.</p>
         </div>
         <div class="page-header-actions">
           <a href="/panel">← Panel</a>
@@ -470,6 +470,11 @@ textarea.answer-box { min-height: 110px; }
           <span class="tab-desc">Respuestas guardadas</span>
           <span class="tab-count" data-count="answered">0</span>
         </button>
+        <button type="button" class="view-tab" data-status="training">
+          <span class="tab-title">En uso por Lucy</span>
+          <span class="tab-desc">Ejemplos activos en chat</span>
+          <span class="tab-count" data-count="training">0</span>
+        </button>
       </nav>
 
       <div class="content-area">
@@ -480,6 +485,6 @@ textarea.answer-box { min-height: 110px; }
     </section>
   </div>
 
-  <script src="/aprendizaje/app.js?v=3" type="module"></script>
+  <script src="/aprendizaje/app.js?v=4" type="module"></script>
 </body>
 </html>

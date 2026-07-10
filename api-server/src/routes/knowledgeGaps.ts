@@ -5,8 +5,23 @@ import {
   answerKnowledgeGap,
   dismissKnowledgeGap,
 } from "../services/knowledgeGapStore.js";
+import { listTrainingExamples, getTrainingStats } from "../services/trainingStore.js";
 
 const router: IRouter = Router();
+
+router.get("/knowledge-gaps/training-recent", async (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(Number(req.query.limit ?? 30), 100);
+    const examples = await listTrainingExamples();
+    const learned = examples
+      .filter((ex) => ex.label?.startsWith("Aprendizaje"))
+      .slice(0, limit);
+    const stats = await getTrainingStats();
+    res.json({ examples: learned, stats, total: learned.length });
+  } catch {
+    res.status(500).json({ error: "failed_to_load_training" });
+  }
+});
 
 router.get("/knowledge-gaps", async (req: Request, res: Response) => {
   try {

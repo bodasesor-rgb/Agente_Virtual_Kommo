@@ -29,6 +29,8 @@ import {
   countLucyFieldAsks,
   clientDeclinesMoreServices,
   parseTipoEventoFromText,
+  clientMentionsNonCateringService,
+  parseServicesFromText,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre } from "../contact-name.js";
 import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
@@ -56,7 +58,7 @@ import {
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { getCatalogStatus } from "../services/catalogService.js";
+import { getCatalogStatus, buildCatalogServiceAnswer } from "../services/catalogService.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
 import { isImageMessage, getImageUrl, getImageCaption } from "../services/imageProcessor.js";
 import type { ExtractedData } from "../types.js";
@@ -140,7 +142,7 @@ function runGuards(opts: {
 }
 
 async function runAll(): Promise<void> {
-  console.log("Lucy — 25 escenarios de prueba\n");
+  console.log("Lucy — 26 escenarios de prueba\n");
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -1168,6 +1170,51 @@ async function runAll(): Promise<void> {
       "Lorena"
     );
     assert.ok(!/equipo\s+equipo/i.test(dup2), dup2);
+  });
+
+  await test("26. Servicios no-comida (DJ, mobiliario, paella) — no caen en banquete/taquiza", () => {
+    // Reconocimiento ampliado
+    assert.ok(clientMentionsNonCateringService("Necesito DJ para mi boda"));
+    assert.ok(clientMentionsNonCateringService("Quiero mobiliario y sillas Tiffany"));
+    assert.ok(clientMentionsNonCateringService("¿Manejan paella?"));
+    assert.ok(!clientMentionsNonCateringService("Busco comida"));
+    assert.ok(!clientMentionsNonCateringService("Coffee break para evento corporativo"));
+
+    assert.ok(parseServicesFromText("taquiza, DJ e iluminación").includes("DJ"));
+    assert.ok(parseServicesFromText("taquiza, DJ e iluminación").includes("Iluminación"));
+    assert.equal(parsePrimaryService("paella para 80 personas"), "Paella");
+
+    // DJ después de pregunta de requerimientos → respuesta genérica, NO banquete/taquiza
+    const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
+    const extracted = emptyExtracted({ nombre: "Carlos", tipo_evento: "boda" });
+    const history: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: "¿Qué servicios te gustaría cotizar para la boda?" },
+    ];
+    const djReply = runGuards({
+      aiResponse: "¿Cuántos invitados?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Necesito DJ",
+      history,
+    });
+    assert.ok(/dj/i.test(djReply), `debe confirmar DJ: ${djReply.slice(0, 200)}`);
+    assert.ok(!/banquete.*taquiza|taquiza.*banquete/i.test(djReply), `no debe empujar banquete/taquiza: ${djReply.slice(0, 200)}`);
+
+    // Mobiliario directo
+    const mobReply = runGuards({
+      aiResponse: "¿Me regalas tu nombre?",
+      extracted: emptyExtracted(),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: "Quiero mobiliario y carpas",
+      history: [],
+    });
+    assert.ok(/mobiliario|carpas/i.test(mobReply), mobReply.slice(0, 200));
+
+    // buildCatalogServiceAnswer no explota con servicio desconocido
+    const unknown = buildCatalogServiceAnswer("fotógrafo profesional");
+    assert.ok(unknown === null || typeof unknown === "string");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

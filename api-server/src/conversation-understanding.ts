@@ -77,10 +77,79 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Crepas", /\bcrep[aá]s?\b/i],
   ["Brunch", /\bbrunch\b/i],
   ["Poptails", /\bpoptails?\b/i],
+  ["Barra Americana", /\bbarra\s+americana\b/i],
+  ["Paella", /\bpaella\b/i],
+  ["Antojitos", /\b(antojitos?|puestos?\s+de\s+comida|esquites|elotes?\s+asados?)\b/i],
+  ["Barra de Mariscos", /\bbarra\s+de\s+mariscos?\b/i],
+  ["Barra Yucateca", /\bbarra\s+yucateca\b/i],
+  ["Barra de Pastas", /\bbarra\s+de\s+pastas?\b/i],
+  ["Barra de Paninis", /\bbarra\s+de\s+paninis?\b/i],
+  ["Pasteles", /\b(pasteles?|cupcakes?|pastel\s+de\s+boda)\b/i],
+  ["Helados", /\bhelados?\b/i],
+  ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
+  ["Niñeras", /\b(ni[nñ]eras?|cuidado\s+infantil)\b/i],
+  ["Fiesta infantil", /\bfiesta\s+infantil\b/i],
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|paella|antojito|marisco|yucatec|pasta|panini|pastel|helado|valet|ni[nñ]era|americana/i;
+
+export type ServiceCategory = "catering" | "entertainment" | "pista" | "bebidas" | "mobiliario" | "tecnico" | "otro";
+
+const SERVICE_CATEGORY_MAP: Record<string, ServiceCategory> = {
+  "Banquete Formal": "catering",
+  "Banquete Mexicano": "catering",
+  "Banquete Kosher": "catering",
+  "Banquete Navideño": "catering",
+  "Taquiza": "catering",
+  "Parrillada": "catering",
+  "Parrillada Argentina": "catering",
+  "Brunch": "catering",
+  "Coffee break": "catering",
+  "Canapés": "catering",
+  "Pizzas": "catering",
+  "Sushi": "catering",
+  "Crepas": "catering",
+  "Barra de alimentos": "catering",
+  "Barra Americana": "catering",
+  "Paella": "catering",
+  "Antojitos": "catering",
+  "Barra de Mariscos": "catering",
+  "Barra Yucateca": "catering",
+  "Barra de Pastas": "catering",
+  "Barra de Paninis": "catering",
+  "Mesa de dulces": "catering",
+  "Mesa de postres": "catering",
+  "Mesa de quesos": "catering",
+  "Pasteles": "catering",
+  "Helados": "catering",
+  "Animación / Hora loca": "entertainment",
+  "DJ": "entertainment",
+  "Pista de baile": "pista",
+  "Barra de bebidas": "bebidas",
+  "Mixología": "bebidas",
+  "Coctelería": "bebidas",
+  "Mócteles": "bebidas",
+  "Poptails": "bebidas",
+  "Mobiliario": "mobiliario",
+  "Carpas": "mobiliario",
+  "Meseros": "mobiliario",
+  "Iluminación": "tecnico",
+  "Decoración": "tecnico",
+  "Floristería": "tecnico",
+  "Pantallas": "tecnico",
+  "Audio y sonido": "tecnico",
+  "Estructuras": "tecnico",
+  "Inflables": "tecnico",
+  "Softplay": "tecnico",
+  "Valet parking": "otro",
+  "Niñeras": "otro",
+  "Fiesta infantil": "otro",
+};
+
+export function getServiceCategory(service: string): ServiceCategory {
+  return SERVICE_CATEGORY_MAP[service] ?? "otro";
+}
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -99,14 +168,42 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pizza: "pizzas",
   pizzas: "pizzas",
   sushi: "sushi",
-  kosher: "banquete kosher",
-  meseros: "meseros",
-  mesero: "meseros",
-  decoracion: "decoración",
-  iluminacion: "iluminación",
-  pantalla: "pantallas",
-  inflable: "inflables",
-  mobiliario: "mobiliario",
+  paella: "Paella",
+  antojitos: "Antojitos",
+  mariscos: "Barra de Mariscos",
+  yucateca: "Barra Yucateca",
+  pasta: "Barra de Pastas",
+  panini: "Barra de Paninis",
+  pastel: "Pasteles",
+  helado: "Helados",
+  valet: "Valet parking",
+  niñera: "Niñeras",
+  inflables: "Inflables",
+  inflable: "Inflables",
+  pantallas: "Pantallas",
+  pantalla: "Pantallas",
+  audio: "Audio y sonido",
+  iluminacion: "Iluminación",
+  iluminación: "Iluminación",
+  decoracion: "Decoración",
+  decoración: "Decoración",
+  flores: "Floristería",
+  estructura: "Estructuras",
+  softplay: "Softplay",
+  mixologia: "Mixología",
+  mixología: "Mixología",
+  cocteleria: "Coctelería",
+  coctelería: "Coctelería",
+  mocteles: "Mócteles",
+  canapes: "Canapés",
+  canapés: "Canapés",
+  crepas: "Crepas",
+  brunch: "Brunch",
+  poptails: "Poptails",
+  kosher: "Banquete Kosher",
+  meseros: "Meseros",
+  mesero: "Meseros",
+  mobiliario: "Mobiliario",
   comida: "banquete / taquiza",
   alimentos: "banquete / taquiza",
   alimento: "banquete / taquiza",
@@ -485,6 +582,26 @@ export function parseSpaceDimensions(text: string): string | null {
 export function clientMentionsPistaTarima(message?: string): boolean {
   if (!message?.trim()) return false;
   return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
+}
+
+/** Servicio detectado que no es comida, show ni pista/tarima. */
+export function clientMentionsNonCateringService(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  if (clientMentionsCatering(message)) return false;
+  if (clientMentionsEntertainment(message)) return false;
+  if (clientMentionsPistaTarima(message)) return false;
+  return isServiceRelatedMessage(message);
+}
+
+/** Cliente pregunta si manejan/ofrecen un servicio concreto. */
+export function clientAsksAboutService(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\b(tienen|manejan|ofrecen|hacen|cotizan)\s+.+\?/i.test(t) ||
+    /\b(qu[eé]|cu[aá]l)\s+(ofrecen|manejan|tienen)\b/i.test(t) ||
+    /\bme\s+interesa\s+cotizar\b/i.test(t)
+  );
 }
 
 export function parseZonaFromText(text: string): string | null {
