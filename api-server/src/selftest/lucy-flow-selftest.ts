@@ -953,6 +953,27 @@ async function runAll(): Promise<void> {
       `no debe concatenar pregunta de zona tras el ack: "${postCierreVariosNo.slice(0, 200)}"`
     );
     assert.ok(/con gusto|nuestro equipo/i.test(postCierreVariosNo), postCierreVariosNo.slice(0, 200));
+
+    // Repetir 3 veces con "No" — cada llamada reconstruye filledSet fresco
+    // (como en el simulador/webhook real) sin "Lugar/dirección del evento".
+    // Ninguna respuesta debe concatenar la pregunta de zona.
+    for (const msg of ["No", "No", "Gracias"]) {
+      const reply = applyLucyMessageGuards({
+        aiResponse: "¿Dónde lo están planeando?",
+        extracted,
+        filledSet: new Set(filledSinZona),
+        readyForClosing: true,
+        cierreYaEnviado: true,
+        emailRefusedThisTurn: false,
+        history: historyPostCierre,
+        currentMessage: msg,
+        buildClosing: mockClosing,
+      });
+      assert.ok(
+        !/d[oó]nde\s+lo\s+est[aá]n\s+planeando|tienen\s+ya\s+el\s+lugar|d[oó]nde\s+se\s+llevar[aá]/i.test(reply),
+        `"${msg}" no debe concatenar pregunta de zona: "${reply.slice(0, 200)}"`
+      );
+    }
   });
 
   await test("22. Manuel A14770 — CRM no se contamina con extracción inestable del turno", () => {
