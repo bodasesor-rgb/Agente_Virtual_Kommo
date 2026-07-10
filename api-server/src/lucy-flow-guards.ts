@@ -509,8 +509,8 @@ function buildFoodSalesReply(
 
   const catering = buildCatalogCateringAnswer();
   const intro = mentionedService
-    ? `Perfecto, sí manejamos ${mentionedService} para ${eventLabel}.`
-    : `Para ${eventLabel}, lo más pedido es banquete o taquiza según el estilo que busquen — banquete es más formal con servicio de meseros; taquiza es más casual y flexible.`;
+    ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
+    : `Para ${eventLabel}, lo más pedido es banquete o taquiza — banquete es más formal; taquiza más casual.`;
   if (catering) {
     return `${intro}\n\n${catering}`;
   }
@@ -559,19 +559,65 @@ export function buildRecommendationsReply(
   return appendServiciosCatalogoHint(`${ideas} ${follow}`.trim());
 }
 
+const LUCY_TRANSITIONS = [
+  "Genial.",
+  "Perfecto.",
+  "Excelente.",
+  "Suena muy bien.",
+  "Listo.",
+  "Claro.",
+  "Qué padre.",
+] as const;
+
+const TRANSITION_START_PATTERN =
+  /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\./i;
+
+/** Rota transiciones — nunca la misma dos veces seguidas (regla Replit). */
+export function pickTransition(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): string {
+  const assistants = history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .map((m) => (m.content as string).trim());
+
+  const last = assistants[assistants.length - 1] ?? "";
+  const lastMatch = last.match(TRANSITION_START_PATTERN);
+  const lastTransition = lastMatch ? lastMatch[0] : null;
+
+  const start = assistants.length % LUCY_TRANSITIONS.length;
+  for (let i = 0; i < LUCY_TRANSITIONS.length; i++) {
+    const candidate = LUCY_TRANSITIONS[(start + i) % LUCY_TRANSITIONS.length]!;
+    if (candidate !== lastTransition) return candidate;
+  }
+  return LUCY_TRANSITIONS[0]!;
+}
+
+/** Quita "Ya tengo tu correo/zona..." antes de la siguiente pregunta (anti-robot Replit). */
+export function stripRobotAcknowledgments(mensaje: string): string {
+  let out = mensaje;
+  out = out.replace(
+    /(?:Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)[,.]?\s+(?:\w+[,.]?\s+)?ya\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi,
+    ""
+  );
+  out = out.replace(/\bYa\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi, "");
+  out = out.replace(/\bPerfecto,\s+\w+\.\s+Ya\s+tengo\b[^.?!]+\.\s*/gi, "");
+  return out.replace(/\s{2,}/g, " ").trim();
+}
+
 function contextualPrefix(
   field: PendingField,
   extracted: ExtractedData,
-  currentMessage?: string
+  currentMessage?: string,
+  history: OpenAI.Chat.ChatCompletionMessageParam[] = []
 ): string {
   const msg = currentMessage?.trim() ?? "";
   if (!msg) return "";
 
   if (field === "requerimientos" && clientMentionsCatering(currentMessage)) {
-    return "Perfecto. ";
+    return `${pickTransition(history)} `;
   }
   if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) {
-    return "Perfecto. ";
+    return `${pickTransition(history)} `;
   }
   if (field === "zona" && /\d+/.test(msg)) {
     return "Entendido. ";
@@ -580,7 +626,7 @@ function contextualPrefix(
     return "Muy bien. ";
   }
   if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) {
-    return "Genial. ";
+    return `${pickTransition(history)} `;
   }
   return "";
 }
@@ -773,7 +819,7 @@ export function enforceNombreFirst(
 
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
-      return "Perfecto. ¿Me regalas tu nombre?";
+      return `${pickTransition(presHistory)} ¿Me regalas tu nombre?`;
     }
     if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
       return buildFirstInteractionMessage(ctx, true);
@@ -968,7 +1014,7 @@ export function sanitizeOutboundMessage(
 export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionContext): string {
   const history = ctx.history ?? [];
   const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage);
+  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history);
   const variant = pickVariant(field, history, ctx.entityId);
 
   if (field === "correo") {
@@ -1004,7 +1050,7 @@ export function buildRequerimientosQuestion(
       ? extracted.requerimientos_evento!.trim()
       : null;
   const service = fromExtracted ?? findMentionedService(userText);
-  const prefix = contextualPrefix("requerimientos", extracted, currentMessage);
+  const prefix = contextualPrefix("requerimientos", extracted, currentMessage, history);
 
   if (service) {
     const idx = variantIndex("requerimientos", history, entityId);
@@ -1421,7 +1467,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         !mentionsListedPriceService(currentMessage));
 
     if (needsAlejandroQuote) {
-      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage));
+      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
       mensaje =
         needsNextStep && pending && pending !== "correo"
           ? `${priceReply}\n\n${buildNaturalQuestion(pending, ctx)}`
@@ -1801,6 +1847,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   if (withoutImageAnnotation !== mensaje) {
     log?.warn({ entityId }, "GUARD: anotación interna de imagen filtrada al cliente — removida");
     mensaje = withoutImageAnnotation || "Gracias por la imagen.";
+  }
+
+  if (conversationAlreadyStarted(filledSet, presHistoryForIntro)) {
+    const stripped = stripRobotAcknowledgments(mensaje);
+    if (stripped !== mensaje) {
+      log?.info({ entityId }, "GUARD: reconocimiento robot de dato capturado eliminado");
+      mensaje = stripped;
+    }
   }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);

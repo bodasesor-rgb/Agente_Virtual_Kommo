@@ -117,12 +117,54 @@ export function stripStalePriceTalk(mensaje: string, currentMessage?: string): s
     .trim();
 }
 
-import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
+import { advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
 
-export function buildAlejandroPriceReply(serviceHint?: string): string {
+/** Respuesta consultiva (Replit) para servicios sin precio en catálogo — info útil + cotización. */
+export function buildConsultativeNoPriceReply(message?: string): string | null {
+  if (!message?.trim()) return null;
+  const t = message.toLowerCase();
+  const team = advisorLabelForClient();
+
+  if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t)) {
+    return (
+      `Las carpas protegen del sol y la lluvia en jardín o terraza. Hay Cathedral (techos altos), Pirámide (modernas) y Planas (funcionales). ` +
+      `${team} incluirá el precio según el tamaño. ¿Qué estilo va más con tu evento?`
+    );
+  }
+  if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t)) {
+    return (
+      `El DJ incluye equipo completo, micrófono para brindis e iluminación básica; puedes mandar playlist. ` +
+      `${team} incluirá el precio en tu cotización. ¿Ya tienes estilo de música o prefieres que lea el ambiente?`
+    );
+  }
+  if (/iluminaci[oó]n/.test(t)) {
+    return (
+      `Opciones: uplighting LED en paredes, luces colgantes tipo edison o luces de pista. ` +
+      `${team} cotiza según el espacio. ¿Qué ambiente buscas: elegante, romántico o fiesta?`
+    );
+  }
+  if (/pista(\s+de\s+baile)?|tarimas?\b/.test(t)) {
+    return (
+      `Manejamos pistas de baile y tarimas en varios tamaños, con opción iluminada. ` +
+      `${team} incluirá el precio según las medidas de tu espacio. ¿Ya tienes idea del tamaño?`
+    );
+  }
+  if (/mobiliario/.test(t)) {
+    return (
+      `Manejamos mesas, sillas y mobiliario para eventos en distintos estilos. ` +
+      `${team} cotiza según cantidad y tipo. ¿Qué mobiliario necesitas?`
+    );
+  }
+  return null;
+}
+
+export function buildAlejandroPriceReply(serviceHint?: string, clientMessage?: string): string {
+  const consultative = clientMessage ? buildConsultativeNoPriceReply(clientMessage) : null;
+  if (consultative) return consultative;
+
   const svc = serviceHint?.trim() || "ese servicio";
-  const advisor = getAdvisorName();
-  return `Sí, manejamos ${svc}. El precio exacto depende del evento — ${advisor} te lo incluye en tu cotización personalizada.`;
+  const team = advisorLabelForClient();
+  return `Sí, manejamos ${svc}. El precio depende del evento — ${team} te lo incluye en tu cotización.`;
 }
 
 /**
@@ -142,7 +184,7 @@ export function sanitizeInventedPrices(
   const service = detectServiceLabel(ctx);
   const cleaned = stripPriceSentences(mensaje);
 
-  const safe = buildAlejandroPriceReply(service);
+  const safe = buildAlejandroPriceReply(service, currentMessage);
 
   if (!cleaned || cleaned.length < 15) return safe;
 

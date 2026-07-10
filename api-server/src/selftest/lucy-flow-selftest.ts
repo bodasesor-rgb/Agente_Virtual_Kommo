@@ -60,7 +60,10 @@ import {
   crmStoredValue,
   stripImageAnnotation,
   stripCatalogBlockShared,
+  pickTransition,
+  stripRobotAcknowledgments,
 } from "../lucy-flow-guards.js";
+import { buildConsultativeNoPriceReply } from "../price-guard.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -1276,6 +1279,37 @@ async function runAll(): Promise<void> {
       "Requerimientos o servicios",
     ]);
     assert.equal(getNextPendingField(emptyExtracted(), filled), "zona");
+  });
+
+  await test("29. Replit — transiciones, anti-robot, servicios sin precio consultivos", () => {
+    const hist: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: "Perfecto. ¿A qué correo te lo envío?" },
+    ];
+    const t1 = pickTransition(hist);
+    assert.notEqual(t1, "Perfecto.", t1);
+
+    const stripped = stripRobotAcknowledgments(
+      "Perfecto, Pelene. Ya tengo tu correo. ¿Más o menos para cuántas personas sería?"
+    );
+    assert.ok(!/ya\s+tengo\s+tu\s+correo/i.test(stripped), stripped);
+    assert.ok(/personas/i.test(stripped), stripped);
+
+    const dj = buildConsultativeNoPriceReply("¿Cuánto cuesta el DJ?");
+    assert.ok(dj && /DJ/i.test(dj) && /nuestro equipo/i.test(dj) && dj.includes("?"), dj ?? "");
+
+    const carpa = buildConsultativeNoPriceReply("necesito carpas para el jardín");
+    assert.ok(carpa && /carpas?/i.test(carpa) && /Cathedral|Pirámide|Planas/i.test(carpa), carpa ?? "");
+
+    const priceGuard = runGuards({
+      aiResponse: "El DJ cuesta $5,000.",
+      extracted: emptyExtracted({ nombre: "Ana" }),
+      filledSet: new Set(["Nombre del cliente", "Correo electrónico", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "¿Cuánto cuesta el DJ?",
+    });
+    assert.ok(/DJ/i.test(priceGuard), priceGuard);
+    assert.ok(!/\$\s*5,?000/.test(priceGuard), priceGuard);
+    assert.ok(/nuestro equipo/i.test(priceGuard), priceGuard);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

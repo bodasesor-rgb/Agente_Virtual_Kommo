@@ -108,10 +108,15 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
     lines.push("Es el PRIMER mensaje de Lucy: presentación + pedir nombre.");
   } else {
     lines.push("NO te presentes de nuevo.");
+    lines.push(
+      "Anti-robot: NO digas 'Ya tengo tu correo/zona' antes de preguntar — ve directo a la siguiente pregunta.",
+      "Transiciones: varía (Genial/Perfecto/Excelente/Listo/Claro/Qué padre) — nunca la misma dos veces seguidas.",
+      "Servicios: máx 2 líneas de info + 1 pregunta; da detalles útiles antes de decir que el equipo cotiza."
+    );
   }
 
   lines.push(
-    `NUNCA inventes precios. DJ, iluminación, carpas, mobiliario, pantallas y pista de baile sin precio en catálogo — di que Rodrigo lo incluye en la cotización.`,
+    `NUNCA inventes precios. DJ, iluminación, carpas, mobiliario, pantallas y pista de baile sin precio en catálogo — da info útil y di que nuestro equipo lo incluye en la cotización.`,
     "Si el cliente hizo una pregunta en este mensaje, respóndela ANTES de pedir el siguiente dato.",
     "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
   );
