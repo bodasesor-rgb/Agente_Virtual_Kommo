@@ -201,10 +201,10 @@ var TIPO_EVENTO_PATTERNS = [
   [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
   [/\b(baby\s*shower)\b/i, "baby shower"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
-  [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|evento\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
-  [/\b(evento\s+corporativo|convenci[oó]n|conferencia|corporativo)\b/i, "evento corporativo"],
+  [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
+  [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
-  [/\b(bautizo)\b/i, "bautizo"],
+  [/\b(bautizos?)\b/i, "bautizo"],
   [/\b(comuni[oó]n|graduaci[oó]n)\b/i, "celebraci\xF3n"]
 ];
 function normalizePresentationText(text) {
@@ -13528,6 +13528,9 @@ async function runAll() {
     assert.ok(/no hay ning[uú]n problema/i.test(limpio), limpio);
     assert.ok(/cuernavaca/i.test(limpio), limpio);
     assert.ok(/algo m[aá]s en lo que te pueda ayudar/i.test(limpio), limpio);
+    assert.equal(parseTipoEventoFromText("Coffee Break para Eventos Corporativos"), "evento corporativo");
+    assert.equal(parseTipoEventoFromText("es para un evento corporativo"), "evento corporativo");
+    assert.equal(parseTipoEventoFromText("es un bautizo"), "bautizo");
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

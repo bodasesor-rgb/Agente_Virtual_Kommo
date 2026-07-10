@@ -28,6 +28,7 @@ import {
   detectPresupuestoRefusal,
   countLucyFieldAsks,
   clientDeclinesMoreServices,
+  parseTipoEventoFromText,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre } from "../contact-name.js";
 import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
@@ -1143,6 +1144,14 @@ async function runAll(): Promise<void> {
     assert.ok(/no hay ning[uú]n problema/i.test(limpio), limpio);
     assert.ok(/cuernavaca/i.test(limpio), limpio);
     assert.ok(/algo m[aá]s en lo que te pueda ayudar/i.test(limpio), limpio);
+
+    // Bug 4 (encontrado al reproducir en vivo): "Eventos Corporativos" en
+    // plural no se reconocía como tipo de evento — solo la forma singular.
+    // Esto causaba que, si GPT no lo extraía esa vez, se preguntara
+    // "¿qué tipo de evento es?" indefinidamente pese a ya estar en el mensaje.
+    assert.equal(parseTipoEventoFromText("Coffee Break para Eventos Corporativos"), "evento corporativo");
+    assert.equal(parseTipoEventoFromText("es para un evento corporativo"), "evento corporativo");
+    assert.equal(parseTipoEventoFromText("es un bautizo"), "bautizo");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -118,10 +118,10 @@ const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
   [/\b(baby\s*shower)\b/i, "baby shower"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV años"],
-  [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|evento\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
-  [/\b(evento\s+corporativo|convenci[oó]n|conferencia|corporativo)\b/i, "evento corporativo"],
+  [/\b(fin\s+de\s+a[nñ]o|fiesta\s+de\s+empresa|eventos?\s+de\s+empresa|de\s+empresa)\b/i, "evento corporativo"],
+  [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumpleaños"],
-  [/\b(bautizo)\b/i, "bautizo"],
+  [/\b(bautizos?)\b/i, "bautizo"],
   [/\b(comuni[oó]n|graduaci[oó]n)\b/i, "celebración"],
 ];
 
