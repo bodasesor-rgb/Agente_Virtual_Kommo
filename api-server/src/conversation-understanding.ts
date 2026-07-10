@@ -226,7 +226,10 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
     /\bya\s+no\b/i.test(t) ||
     /\bno\s+m[aá]s\b/i.test(t) ||
     /\blisto\s+as[ií]\b/i.test(t) ||
-    /\bcon\s+eso\s+est[aá]\s+bien\b/i.test(t)
+    /\bcon\s+eso\s+est[aá]\s+bien\b/i.test(t) ||
+    /\bno\s+me\s+interesa\b/i.test(t) ||
+    /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) ||
+    /\bpor\s+(el\s+)?momento\s+no\b/i.test(t)
   );
 }
 

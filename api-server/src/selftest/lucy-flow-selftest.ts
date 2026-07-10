@@ -904,6 +904,32 @@ async function runAll(): Promise<void> {
       history: historyLoop,
     });
     assert.ok(replyRealQuestion.trim().length > 0);
+
+    // Post-cierre: "No me interesa" / "No" no deben hacer que Lucy vuelva a
+    // preguntar campos ya capturados (zona, tipo de evento, etc.).
+    const historyPostCierre: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      {
+        role: "assistant",
+        content:
+          "Perfecto, ya tengo todo. Voy a compartir esta información con nuestro equipo para que te prepare una cotización personalizada. Mientras tanto, aquí tienes nuestro catálogo completo. ¿Te gustaría incluir algo más en la cotización?",
+      },
+    ];
+    const postCierreReply = applyLucyMessageGuards({
+      aiResponse: "¿Dónde se llevará a cabo el evento?",
+      extracted,
+      filledSet: new Set(filledReady),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: historyPostCierre,
+      currentMessage: "No me interesa",
+      buildClosing: mockClosing,
+    });
+    assert.ok(
+      !/d[oó]nde\s+se\s+llevar[aá]|qu[eé]\s+tipo\s+de\s+evento/i.test(postCierreReply),
+      `no debe repetir zona/tipo de evento post-cierre: "${postCierreReply.slice(0, 200)}"`
+    );
+    assert.ok(postCierreReply.trim().length > 0);
   });
 
   await test("22. Manuel A14770 — CRM no se contamina con extracción inestable del turno", () => {
