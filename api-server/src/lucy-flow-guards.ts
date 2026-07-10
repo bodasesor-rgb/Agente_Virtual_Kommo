@@ -1264,9 +1264,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?`
       : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?";
     log?.info({ entityId }, "GUARD: post-cierre — servicios adicionales");
-  } else if (cierreYaEnviado && clientSaysThanks(currentMessage)) {
+  } else if (
+    cierreYaEnviado &&
+    (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))
+  ) {
     mensaje = buildPostCierreThanksReply(extracted.nombre);
-    log?.info({ entityId }, "GUARD: post-cierre — agradecimiento del cliente");
+    log?.info({ entityId }, "GUARD: post-cierre — agradecimiento o sin más que agregar");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje =
       "Gracias. Nuestro equipo ya tiene tu información para la cotización. ¿Hay algo más que quieras agregar o alguna duda?";

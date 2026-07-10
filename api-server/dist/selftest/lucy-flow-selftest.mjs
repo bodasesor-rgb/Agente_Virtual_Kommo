@@ -247,7 +247,7 @@ function clientMentionsEntertainment(message) {
 function clientDeclinesMoreServices(message) {
   if (!message?.trim()) return false;
   const t = message.trim().toLowerCase();
-  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bninguno[a]?\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso\s+est[aá]\s+bien\b/i.test(t);
+  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bninguno[a]?\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso\s+est[aá]\s+bien\b/i.test(t) || /\bno\s+me\s+interesa\b/i.test(t) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t);
 }
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
@@ -1825,9 +1825,9 @@ function applyLucyMessageGuards(input) {
     const nombre = extracted.nombre?.trim();
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales");
-  } else if (cierreYaEnviado && clientSaysThanks(currentMessage)) {
+  } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
     mensaje = buildPostCierreThanksReply(extracted.nombre);
-    log?.info({ entityId }, "GUARD: post-cierre \u2014 agradecimiento del cliente");
+    log?.info({ entityId }, "GUARD: post-cierre \u2014 agradecimiento o sin m\xE1s que agregar");
   } else if (cierreYaEnviado && /DATOS DEL CLIENTE:|Información completa obtenida/i.test(aiResponse)) {
     mensaje = "Gracias. Nuestro equipo ya tiene tu informaci\xF3n para la cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar o alguna duda?";
     log?.warn({ entityId }, "GUARD: bloque\xF3 nota interna post-cierre");
@@ -2949,6 +2949,28 @@ async function runAll() {
       history: historyLoop
     });
     assert.ok(replyRealQuestion.trim().length > 0);
+    const historyPostCierre = [
+      {
+        role: "assistant",
+        content: "Perfecto, ya tengo todo. Voy a compartir esta informaci\xF3n con nuestro equipo para que te prepare una cotizaci\xF3n personalizada. Mientras tanto, aqu\xED tienes nuestro cat\xE1logo completo. \xBFTe gustar\xEDa incluir algo m\xE1s en la cotizaci\xF3n?"
+      }
+    ];
+    const postCierreReply = applyLucyMessageGuards({
+      aiResponse: "\xBFD\xF3nde se llevar\xE1 a cabo el evento?",
+      extracted,
+      filledSet: new Set(filledReady),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: historyPostCierre,
+      currentMessage: "No me interesa",
+      buildClosing: mockClosing
+    });
+    assert.ok(
+      !/d[oó]nde\s+se\s+llevar[aá]|qu[eé]\s+tipo\s+de\s+evento/i.test(postCierreReply),
+      `no debe repetir zona/tipo de evento post-cierre: "${postCierreReply.slice(0, 200)}"`
+    );
+    assert.ok(postCierreReply.trim().length > 0);
   });
   await test("22. Manuel A14770 \u2014 CRM no se contamina con extracci\xF3n inestable del turno", () => {
     const mergedLines = [
