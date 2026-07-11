@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/simulator/styles.css?v=7" />
+  <link rel="stylesheet" href="/simulator/styles.css?v=8" />
 </head>
 <body>
   <div class="app">
@@ -31,7 +31,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v8H3V3zm10 0h8v5h-8V3zM3 13h5v8H3v-8zm7 3h11v5H10v-5z"/></svg>
           <span>Embudo</span>
         </button>
-        <button class="nav-item" data-view="config">
+        <button class="nav-item" data-view="auto-clients">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+          <span>Auto-clientes</span>
+        </button>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7zm7.43-2.53.94-.38a1 1 0 0 0 .62-.92l.04-1.01a1 1 0 0 0-.29-.7l-.75-.75a6.97 6.97 0 0 0 .15-1.74l.75-.75a1 1 0 0 0 .29-.7l-.04-1.01a1 1 0 0 0-.62-.92l-.94-.38a7.03 7.03 0 0 0-.96-1.66l.47-.9a1 1 0 0 0-.12-1.05l-.7-.7a1 1 0 0 0-1.05-.12l-.9.47a7.03 7.03 0 0 0-1.66-.96l-.38-.94a1 1 0 0 0-.92-.62l-1.01.04a1 1 0 0 0-.7.29l-.75.75a6.97 6.97 0 0 0-1.74-.15l-.75-.75a1 1 0 0 0-.7-.29l-1.01-.04a1 1 0 0 0-.92.62l-.38.94c-.6.22-1.15.53-1.66.96l-.9-.47a1 1 0 0 0-1.05.12l-.7.7a1 1 0 0 0-.12 1.05l.47.9c-.43.51-.74 1.06-.96 1.66l-.94.38a1 1 0 0 0-.62.92l.04 1.01c.07.26.2.5.39.7l.75.75c-.1.57-.15 1.15-.15 1.74s.05 1.17.15 1.74l-.75.75a1 1 0 0 0-.39.7l-.04 1.01a1 1 0 0 0 .62.92l.94.38c.22.6.53 1.15.96 1.66l-.47.9a1 1 0 0 0 .12 1.05l.7.7a1 1 0 0 0 1.05.12l.9-.47c.51.43 1.06.74 1.66.96l.38.94a1 1 0 0 0 .92.62l1.01-.04a1 1 0 0 0 .7-.29l.75-.75c.57.1 1.15.15 1.74.15s1.17-.05 1.74-.15l.75.75a1 1 0 0 0 .7.29l1.01.04a1 1 0 0 0 .92-.62l.38-.94c.6-.22 1.15-.53 1.66-.96l.9.47a1 1 0 0 0 1.05-.12l.7-.7a1 1 0 0 0 .12-1.05l-.47-.9c.43-.51.74-1.06.96-1.66z"/></svg>
           <span>Configuración</span>
         </button>
@@ -86,6 +89,18 @@
             <div class="kanban-wrap">
               <div id="kanban" class="kanban"></div>
             </div>
+          </section>
+
+          <section id="view-auto-clients" class="view-panel hidden">
+            <div class="panel-header">
+              <h2>Clientes automáticos (LLM)</h2>
+              <p>10 perfiles que conversan solos con Lucy · juez QA al final</p>
+            </div>
+            <div class="auto-clients-toolbar">
+              <button class="btn btn-primary" id="btn-auto-all-panel" type="button">Ejecutar los 10</button>
+              <button class="btn btn-secondary" id="btn-sync-auto" type="button">Sincronizar desde demo</button>
+            </div>
+            <div id="auto-clients-list" class="auto-clients-grid"></div>
           </section>
 
           <section id="view-config" class="view-panel hidden">
@@ -184,6 +199,6 @@
 
   <div id="toast" class="toast" role="status"></div>
   <div class="chat-overlay hidden" id="chat-overlay"></div>
-  <script src="/simulator/app.js?v=7"></script>
+  <script src="/simulator/app.js?v=8"></script>
 </body>
 </html>

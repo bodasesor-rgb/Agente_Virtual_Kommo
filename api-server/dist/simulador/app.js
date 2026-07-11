@@ -1,4 +1,5 @@
-const STORAGE_KEY = "bodasesor-kommo-sim-v5";
+const STORAGE_KEY = "bodasesor-kommo-sim-v6";
+const DEMO_PACK_VERSION = 2;
 const STAGE_COLORS = ["#99ccff", "#b5e8b5", "#ffb3ba", "#d4b5ff", "#ffd666", "#c0c0c0"];
 
 const state = {
@@ -90,15 +91,73 @@ function isStoreValid(store) {
 }
 
 async function ensureStore() {
+  const demo = await loadDemoStore();
   let store = readStore();
   let loadedFresh = false;
+  let syncedAuto = false;
+
   if (!isStoreValid(store)) {
-    store = await loadDemoStore();
+    store = demo;
+    store.demo_pack_version = DEMO_PACK_VERSION;
     writeStore(store);
     loadedFresh = true;
+  } else {
+    syncedAuto = mergeAutoClientsFromDemo(store, demo);
+    if (syncedAuto) {
+      store.demo_pack_version = DEMO_PACK_VERSION;
+      writeStore(store);
+    } else if ((store.demo_pack_version ?? 0) < DEMO_PACK_VERSION) {
+      store.demo_pack_version = DEMO_PACK_VERSION;
+      writeStore(store);
+    }
   }
+
   state.store = store;
-  return { store, loadedFresh };
+  return { store, loadedFresh, syncedAuto };
+}
+
+function mergeAutoClientsFromDemo(store, demo) {
+  const autoLeads = (demo.leads || []).filter((l) => l.auto_client_id || l.tags?.includes("auto_client"));
+  if (!autoLeads.length) return false;
+
+  let changed = false;
+  store.messages = store.messages || {};
+
+  for (const auto of autoLeads) {
+    const existingIdx = store.leads.findIndex(
+      (l) => l.id === auto.id || l.auto_client_id === auto.auto_client_id,
+    );
+    if (existingIdx === -1) {
+      store.leads.push({ ...auto });
+      store.messages[String(auto.id)] = store.messages[String(auto.id)] || [];
+      changed = true;
+    } else {
+      const cur = store.leads[existingIdx];
+      const merged = {
+        ...cur,
+        name: auto.name,
+        contact_phone: auto.contact_phone,
+        tags: [...new Set([...(cur.tags || []), ...(auto.tags || [])])],
+        auto_client_id: auto.auto_client_id,
+        auto_client_slug: auto.auto_client_slug,
+      };
+      if (JSON.stringify(merged) !== JSON.stringify(cur)) {
+        store.leads[existingIdx] = merged;
+        changed = true;
+      }
+    }
+  }
+
+  if ((demo.next_lead_id ?? 0) > (store.next_lead_id ?? 0)) {
+    store.next_lead_id = demo.next_lead_id;
+    changed = true;
+  }
+
+  return changed;
+}
+
+function listAutoClientLeads() {
+  return (state.store?.leads || []).filter((l) => l.auto_client_id || l.tags?.includes("auto_client"));
 }
 
 function getPipeline() {
@@ -187,12 +246,16 @@ async function loadAgentStatus() {
 }
 
 async function loadAll() {
-  const { store, loadedFresh } = await ensureStore();
+  const { store, loadedFresh, syncedAuto } = await ensureStore();
   state.activePipelineId = store.config.pipelines[0]?.id;
   await loadAgentStatus();
   renderAll();
-  if (store.leads.length) {
-    const pick = store.leads[0];
+  if (syncedAuto) {
+    toast("Se agregaron los 10 clientes automáticos al embudo");
+  }
+  const autoLeads = listAutoClientLeads();
+  const pick = autoLeads[0] || store.leads[0];
+  if (pick) {
     selectLead(pick.id);
     if (loadedFresh) {
       fetch("/api/kommo/simulator/reset", {
@@ -217,11 +280,76 @@ function updateSendButton() {
 function renderAll() {
   $("#account-name").textContent = state.store.config.account_name;
   $("#pipeline-label").textContent = getPipeline()?.name || "Sin pipeline";
-  $("#lead-count").textContent = `${state.store.leads.length} lead${state.store.leads.length === 1 ? "" : "s"}`;
+  const autoCount = listAutoClientLeads().length;
+  const total = state.store.leads.length;
+  $("#lead-count").textContent =
+    autoCount > 0 ? `${total} leads · ${autoCount} auto` : `${total} lead${total === 1 ? "" : "s"}`;
   renderKanban();
+  renderAutoClients();
   renderConfig();
   renderActivity();
   if (state.selectedLeadId) selectLead(state.selectedLeadId, false);
+}
+
+function renderAutoClients() {
+  const box = $("#auto-clients-list");
+  if (!box) return;
+  const leads = listAutoClientLeads().sort((a, b) => (a.auto_client_id ?? 0) - (b.auto_client_id ?? 0));
+  if (!leads.length) {
+    box.innerHTML =
+      '<div class="empty-state">No hay clientes auto cargados.<br/><button class="btn btn-secondary btn-sm" type="button" id="btn-sync-auto-inline">Cargar 10 clientes</button></div>';
+    $("#btn-sync-auto-inline")?.addEventListener("click", syncAutoClientsNow, { once: true });
+    return;
+  }
+  box.innerHTML = leads
+    .map(
+      (lead) => `
+    <div class="auto-client-card" data-lead-id="${lead.id}">
+      <div class="auto-client-head">
+        <strong>${escapeHtml(lead.name)}</strong>
+        <span class="lead-tag lead-tag-auto">#${lead.auto_client_id ?? "?"}</span>
+      </div>
+      <p class="auto-client-phone">${escapeHtml(lead.contact_phone || "")}</p>
+      <div class="auto-client-actions">
+        <button class="btn btn-ghost btn-sm btn-open-auto" type="button" data-lead-id="${lead.id}">Abrir chat</button>
+        <button class="btn btn-primary btn-sm btn-run-auto" type="button" data-lead-id="${lead.id}">Ejecutar</button>
+      </div>
+    </div>`,
+    )
+    .join("");
+
+  box.querySelectorAll(".btn-open-auto").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = Number(btn.dataset.leadId);
+      state.activeView = "pipeline";
+      $$(".nav-item").forEach((b) => b.classList.toggle("active", b.dataset.view === "pipeline"));
+      $("#view-pipeline")?.classList.remove("hidden");
+      $("#view-auto-clients")?.classList.add("hidden");
+      $("#view-config")?.classList.add("hidden");
+      $("#view-activity")?.classList.add("hidden");
+      selectLead(id);
+      if (window.innerWidth <= 1024) openMobileChat();
+    });
+  });
+
+  box.querySelectorAll(".btn-run-auto").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const lead = getLead(Number(btn.dataset.leadId));
+      if (lead) runAutoClientForLead(lead);
+    });
+  });
+}
+
+async function syncAutoClientsNow() {
+  const demo = await loadDemoStore();
+  const changed = mergeAutoClientsFromDemo(state.store, demo);
+  if (changed) {
+    state.store.demo_pack_version = DEMO_PACK_VERSION;
+    writeStore(state.store);
+    logActivity(state.store, "auto_sync", "Clientes automáticos sincronizados desde demo.json");
+  }
+  renderAll();
+  toast(changed ? "10 clientes auto agregados" : "Los clientes auto ya estaban cargados");
 }
 
 function renderKanban() {
@@ -744,9 +872,11 @@ function bindEvents() {
       btn.classList.add("active");
       state.activeView = btn.dataset.view;
       $("#view-pipeline").classList.toggle("hidden", state.activeView !== "pipeline");
+      $("#view-auto-clients").classList.toggle("hidden", state.activeView !== "auto-clients");
       $("#view-config").classList.toggle("hidden", state.activeView !== "config");
       $("#view-activity").classList.toggle("hidden", state.activeView !== "activity");
       if (state.activeView === "activity") renderActivity();
+      if (state.activeView === "auto-clients") renderAutoClients();
     });
   });
 
@@ -772,6 +902,8 @@ function bindEvents() {
     if (lead) runAutoClientForLead(lead);
   });
   $("#btn-auto-all")?.addEventListener("click", runAllAutoClients);
+  $("#btn-auto-all-panel")?.addEventListener("click", runAllAutoClients);
+  $("#btn-sync-auto")?.addEventListener("click", syncAutoClientsNow);
   $("#chat-text").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();

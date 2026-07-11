@@ -29,6 +29,7 @@
       { "id": "cf_respuesta_ia_1", "name": "Respuesta IA 1", "field_type": "text", "kommo_field_id": 1048786 }
     ]
   },
+  "demo_pack_version": 2,
   "next_lead_id": 93011,
   "next_message_id": 1,
   "leads": [
