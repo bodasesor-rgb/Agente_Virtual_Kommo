@@ -8,7 +8,7 @@ on:
 jobs:
   redeploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Verificar secrets configurados
         env:
@@ -27,6 +27,25 @@ jobs:
           fi
 
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Comprobar bundle y fecha de build
+        run: |
+          if [ ! -f deploy/build-meta.json ]; then
+            echo "ERROR: falta deploy/build-meta.json — el bundle no tiene fecha de actualización."
+            echo "Ejecuta: cd api-server && npm run build && commit deploy/"
+            exit 1
+          fi
+          echo "build-meta.json en repo:"
+          cat deploy/build-meta.json
+          META_COMMIT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('deploy/build-meta.json','utf8')).git_commit||'')")
+          if [ -n "$META_COMMIT" ] && [ "$META_COMMIT" != "${{ github.sha }}" ]; then
+            echo "AVISO: deploy/build-meta.json tiene commit $META_COMMIT pero el push es ${{ github.sha }}"
+            echo "El código en Hostinger puede no coincidir con main hasta el próximo build+commit de deploy/"
+          fi
 
       - name: Trigger Hostinger Git webhook
         env:
@@ -47,10 +66,6 @@ jobs:
           fi
           echo "Redeploy disparado (HTTP $HTTP)"
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
       - name: Deploy via Hostinger API (alternativa)
         env:
           HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
@@ -63,3 +78,9 @@ jobs:
           echo "Nota: la subida por API desde GitHub Actions puede fallar por Cloudflare."
           echo "Si falla, usa HOSTINGER_WEBHOOK_URL o redeploy manual en hPanel."
           node scripts/deploy-hostinger.mjs || echo "API deploy falló — usa webhook o hPanel"
+
+      - name: Verificar que Hostinger aplicó el deploy
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+          LUCY_PUBLIC_URL: ${{ vars.LUCY_PUBLIC_URL }}
+        run: node scripts/verify-deploy.mjs

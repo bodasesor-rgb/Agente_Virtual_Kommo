@@ -157,10 +157,36 @@ ALTER TABLE conversations ADD COLUMN IF NOT EXISTS last_learning_extract_at TIME
 CREATE UNIQUE INDEX IF NOT EXISTS messages_kommo_message_id_idx ON messages (kommo_message_id) WHERE kommo_message_id IS NOT NULL;
 `;
 
+function removeStalePostmasterPid(): void {
+  const pidFile = path.join(LOCAL_DB_DIR, "postmaster.pid");
+  if (!fs.existsSync(pidFile)) return;
+  try {
+    const firstLine = fs.readFileSync(pidFile, "utf8").split("\n")[0]?.trim();
+    const pid = Number(firstLine);
+    if (!Number.isFinite(pid) || pid <= 0) {
+      fs.unlinkSync(pidFile);
+      return;
+    }
+    try {
+      process.kill(pid, 0);
+    } catch {
+      fs.unlinkSync(pidFile);
+      console.info(`[db] postmaster.pid obsoleto eliminado (pid ${pid} no activo)`);
+    }
+  } catch {
+    try {
+      fs.unlinkSync(pidFile);
+    } catch {
+      /* ignorar */
+    }
+  }
+}
+
 export async function getLocalDb() {
   if (localDb) return localDb;
 
   fs.mkdirSync(LOCAL_DB_DIR, { recursive: true });
+  removeStalePostmasterPid();
   client = new PGlite(LOCAL_DB_DIR);
   await client.exec(INIT_SQL);
   try {

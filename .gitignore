@@ -8,7 +8,9 @@ deploy/data/
 *.egg-info/
 *.tsbuildinfo
 imports/
-api-server/node_modules/
+api-server/data/
+api-server/data/lucy-pgdata/
+**/postmaster.pid
 lib/db/node_modules/
 whatsapp-sender/node_modules/
 **/node_modules/

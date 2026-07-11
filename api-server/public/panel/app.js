@@ -91,13 +91,16 @@ async function loadHomeStats() {
     }
 
     const online = ops?.overall === "ok" || (health.status === "ok" && health.openai_configured);
+    const deployLabel = health.built_at_display
+      ? `${health.lucy_prompt ?? "?"} · ${health.built_at_display}`
+      : health.lucy_prompt ?? "?";
     const statusLabel =
       ops?.overall === "error"
         ? "Problemas detectados"
         : ops?.overall === "warn"
           ? "Avisos — revisar Estado"
           : online
-            ? `Lucy activa · v${health.version ?? "?"}`
+            ? `Lucy activa · ${deployLabel}`
             : "Lucy necesita revisión";
     setHeroStatus(online && ops?.overall !== "error", statusLabel);
 
@@ -126,7 +129,9 @@ async function loadHomeStats() {
         "stat-icon-version",
         "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
         health.lucy_prompt ?? "V6",
-        `Versión ${health.version ?? "?"}`,
+        health.built_at_display
+          ? `Prompt ${health.lucy_prompt ?? "?"} · ${health.built_at_display}`
+          : `Versión ${health.version ?? "?"}`,
       ),
     ].join("");
   } catch {

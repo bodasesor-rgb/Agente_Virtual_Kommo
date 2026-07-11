@@ -29,5 +29,21 @@ if (!process.env.OPENAI_API_KEY && !process.env.OPEN_AI) {
 }
 
 console.log("[start] Archivos OK, arrancando Lucy desde deploy/...");
+
+try {
+  const { readFileSync, existsSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const metaPath = join(deployDir, "build-meta.json");
+  if (existsSync(metaPath)) {
+    const meta = JSON.parse(readFileSync(metaPath, "utf8"));
+    console.log(
+      `[start] Build: prompt ${meta.lucy_prompt} · ${meta.built_at_display ?? meta.built_at}` +
+        (meta.git_commit_short ? ` · commit ${meta.git_commit_short}` : ""),
+    );
+  }
+} catch {
+  /* opcional */
+}
+
 process.chdir(deployDir);
 await import(new URL("./index.mjs", import.meta.resolve("./deploy/")).href);

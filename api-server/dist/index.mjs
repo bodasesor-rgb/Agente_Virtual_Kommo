@@ -19305,7 +19305,7 @@ var require_view = __commonJS({
     var dirname3 = path4.dirname;
     var basename = path4.basename;
     var extname = path4.extname;
-    var join4 = path4.join;
+    var join5 = path4.join;
     var resolve2 = path4.resolve;
     module2.exports = View3;
     function View3(name2, options) {
@@ -19367,12 +19367,12 @@ var require_view = __commonJS({
     };
     View3.prototype.resolve = function resolve3(dir, file) {
       var ext = this.ext;
-      var path5 = join4(dir, file);
+      var path5 = join5(dir, file);
       var stat = tryStat(path5);
       if (stat && stat.isFile()) {
         return path5;
       }
-      path5 = join4(dir, basename(file, ext), "index" + ext);
+      path5 = join5(dir, basename(file, ext), "index" + ext);
       stat = tryStat(path5);
       if (stat && stat.isFile()) {
         return path5;
@@ -23193,7 +23193,7 @@ var require_send = __commonJS({
     var Stream2 = __require("stream");
     var util5 = __require("util");
     var extname = path4.extname;
-    var join4 = path4.join;
+    var join5 = path4.join;
     var normalize = path4.normalize;
     var resolve2 = path4.resolve;
     var sep = path4.sep;
@@ -23365,7 +23365,7 @@ var require_send = __commonJS({
           return res;
         }
         parts2 = path5.split(sep);
-        path5 = normalize(join4(root, path5));
+        path5 = normalize(join5(root, path5));
       } else {
         if (UP_PATH_REGEXP.test(path5)) {
           debug('malicious path "%s"', path5);
@@ -23498,7 +23498,7 @@ var require_send = __commonJS({
           if (err2) return self2.onStatError(err2);
           return self2.error(404);
         }
-        var p3 = join4(path5, self2._index[i3]);
+        var p3 = join5(path5, self2._index[i3]);
         debug('stat "%s"', p3);
         fs3.stat(p3, function(err3, stat) {
           if (err3) return next(err3);
@@ -26622,7 +26622,7 @@ var require_thread_stream = __commonJS({
     var { version: version3 } = require_package();
     var { EventEmitter: EventEmitter2 } = __require("events");
     var { Worker } = __require("worker_threads");
-    var { join: join4 } = __require("path");
+    var { join: join5 } = __require("path");
     var { pathToFileURL } = __require("url");
     var { wait } = require_wait();
     var {
@@ -26658,7 +26658,7 @@ var require_thread_stream = __commonJS({
     function createWorker(stream4, opts) {
       const { filename, workerData } = opts;
       const bundlerOverrides = "__bundlerPathsOverrides" in globalThis ? globalThis.__bundlerPathsOverrides : {};
-      const toExecute = bundlerOverrides["thread-stream-worker"] || join4(__dirname, "lib", "worker.js");
+      const toExecute = bundlerOverrides["thread-stream-worker"] || join5(__dirname, "lib", "worker.js");
       const worker = new Worker(toExecute, {
         ...opts.workerOpts,
         trackUnmanagedFds: false,
@@ -27044,7 +27044,7 @@ var require_transport = __commonJS({
     "use strict";
     var { createRequire } = __require("module");
     var getCallers = require_caller();
-    var { join: join4, isAbsolute, sep } = __require("node:path");
+    var { join: join5, isAbsolute, sep } = __require("node:path");
     var sleep3 = require_atomic_sleep();
     var onExit = require_on_exit_leak_free();
     var ThreadStream = require_thread_stream();
@@ -27107,7 +27107,7 @@ var require_transport = __commonJS({
         throw new Error("only one of target or targets can be specified");
       }
       if (targets) {
-        target = bundlerOverrides["pino-worker"] || join4(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join5(__dirname, "worker.js");
         options.targets = targets.filter((dest) => dest.target).map((dest) => {
           return {
             ...dest,
@@ -27125,7 +27125,7 @@ var require_transport = __commonJS({
           });
         });
       } else if (pipeline) {
-        target = bundlerOverrides["pino-worker"] || join4(__dirname, "worker.js");
+        target = bundlerOverrides["pino-worker"] || join5(__dirname, "worker.js");
         options.pipelines = [pipeline.map((dest) => {
           return {
             ...dest,
@@ -27147,7 +27147,7 @@ var require_transport = __commonJS({
           return origin2;
         }
         if (origin2 === "pino/file") {
-          return join4(__dirname, "..", "file.js");
+          return join5(__dirname, "..", "file.js");
         }
         let fixTarget2;
         for (const filePath of callers) {
@@ -28136,7 +28136,7 @@ var require_safe_stable_stringify = __commonJS({
               return circularValue;
             }
             let res = "";
-            let join4 = ",";
+            let join5 = ",";
             const originalIndentation = indentation;
             if (Array.isArray(value)) {
               if (value.length === 0) {
@@ -28150,7 +28150,7 @@ var require_safe_stable_stringify = __commonJS({
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join4 = `,
+                join5 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -28158,13 +28158,13 @@ ${indentation}`;
               for (; i3 < maximumValuesToStringify - 1; i3++) {
                 const tmp2 = stringifyFnReplacer(String(i3), value, stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join4;
+                res += join5;
               }
               const tmp = stringifyFnReplacer(String(i3), value, stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join4}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join5}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -28185,7 +28185,7 @@ ${originalIndentation}`;
             let separator = "";
             if (spacer !== "") {
               indentation += spacer;
-              join4 = `,
+              join5 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -28199,13 +28199,13 @@ ${indentation}`;
               const tmp = stringifyFnReplacer(key2, value, stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join4;
+                separator = join5;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...":${whitespace}"${getItemCount(removedKeys)} not stringified"`;
-              separator = join4;
+              separator = join5;
             }
             if (spacer !== "" && separator.length > 1) {
               res = `
@@ -28246,7 +28246,7 @@ ${originalIndentation}`;
             }
             const originalIndentation = indentation;
             let res = "";
-            let join4 = ",";
+            let join5 = ",";
             if (Array.isArray(value)) {
               if (value.length === 0) {
                 return "[]";
@@ -28259,7 +28259,7 @@ ${originalIndentation}`;
                 indentation += spacer;
                 res += `
 ${indentation}`;
-                join4 = `,
+                join5 = `,
 ${indentation}`;
               }
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
@@ -28267,13 +28267,13 @@ ${indentation}`;
               for (; i3 < maximumValuesToStringify - 1; i3++) {
                 const tmp2 = stringifyArrayReplacer(String(i3), value[i3], stack, replacer, spacer, indentation);
                 res += tmp2 !== void 0 ? tmp2 : "null";
-                res += join4;
+                res += join5;
               }
               const tmp = stringifyArrayReplacer(String(i3), value[i3], stack, replacer, spacer, indentation);
               res += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res += `${join4}"... ${getItemCount(removedKeys)} not stringified"`;
+                res += `${join5}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               if (spacer !== "") {
                 res += `
@@ -28286,7 +28286,7 @@ ${originalIndentation}`;
             let whitespace = "";
             if (spacer !== "") {
               indentation += spacer;
-              join4 = `,
+              join5 = `,
 ${indentation}`;
               whitespace = " ";
             }
@@ -28295,7 +28295,7 @@ ${indentation}`;
               const tmp = stringifyArrayReplacer(key2, value[key2], stack, replacer, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}:${whitespace}${tmp}`;
-                separator = join4;
+                separator = join5;
               }
             }
             if (spacer !== "" && separator.length > 1) {
@@ -28353,20 +28353,20 @@ ${originalIndentation}`;
               indentation += spacer;
               let res2 = `
 ${indentation}`;
-              const join5 = `,
+              const join6 = `,
 ${indentation}`;
               const maximumValuesToStringify = Math.min(value.length, maximumBreadth);
               let i3 = 0;
               for (; i3 < maximumValuesToStringify - 1; i3++) {
                 const tmp2 = stringifyIndent(String(i3), value[i3], stack, spacer, indentation);
                 res2 += tmp2 !== void 0 ? tmp2 : "null";
-                res2 += join5;
+                res2 += join6;
               }
               const tmp = stringifyIndent(String(i3), value[i3], stack, spacer, indentation);
               res2 += tmp !== void 0 ? tmp : "null";
               if (value.length - 1 > maximumBreadth) {
                 const removedKeys = value.length - maximumBreadth - 1;
-                res2 += `${join5}"... ${getItemCount(removedKeys)} not stringified"`;
+                res2 += `${join6}"... ${getItemCount(removedKeys)} not stringified"`;
               }
               res2 += `
 ${originalIndentation}`;
@@ -28382,16 +28382,16 @@ ${originalIndentation}`;
               return '"[Object]"';
             }
             indentation += spacer;
-            const join4 = `,
+            const join5 = `,
 ${indentation}`;
             let res = "";
             let separator = "";
             let maximumPropertiesToStringify = Math.min(keyLength, maximumBreadth);
             if (isTypedArrayWithEntries(value)) {
-              res += stringifyTypedArray(value, join4, maximumBreadth);
+              res += stringifyTypedArray(value, join5, maximumBreadth);
               keys = keys.slice(value.length);
               maximumPropertiesToStringify -= value.length;
-              separator = join4;
+              separator = join5;
             }
             if (deterministic) {
               keys = sort(keys, comparator);
@@ -28402,13 +28402,13 @@ ${indentation}`;
               const tmp = stringifyIndent(key2, value[key2], stack, spacer, indentation);
               if (tmp !== void 0) {
                 res += `${separator}${strEscape(key2)}: ${tmp}`;
-                separator = join4;
+                separator = join5;
               }
             }
             if (keyLength > maximumBreadth) {
               const removedKeys = keyLength - maximumBreadth;
               res += `${separator}"...": "${getItemCount(removedKeys)} not stringified"`;
-              separator = join4;
+              separator = join5;
             }
             if (separator !== "") {
               res = `
@@ -31015,9 +31015,9 @@ function getName(value) {
 }
 function supportsFormData(fetchObject) {
   const fetch2 = typeof fetchObject === "function" ? fetchObject : fetchObject.fetch;
-  const cached = supportsFormDataMap.get(fetch2);
-  if (cached)
-    return cached;
+  const cached2 = supportsFormDataMap.get(fetch2);
+  if (cached2)
+    return cached2;
   const promise = (async () => {
     try {
       const FetchResponse = "Response" in fetch2 ? fetch2.Response : (await fetch2("data:,")).constructor;
@@ -47014,7 +47014,7 @@ var init_sql = __esm({
         return new SQL([new StringChunk(str2)]);
       }
       sql22.raw = raw;
-      function join4(chunks, separator) {
+      function join5(chunks, separator) {
         const result = [];
         for (const [i3, chunk] of chunks.entries()) {
           if (i3 > 0 && separator !== void 0) {
@@ -47024,7 +47024,7 @@ var init_sql = __esm({
         }
         return new SQL(result);
       }
-      sql22.join = join4;
+      sql22.join = join5;
       function identifier(value) {
         return new Name(value);
       }
@@ -51255,7 +51255,7 @@ var init_select2 = __esm({
           const baseTableName = this.tableName;
           const tableName = getTableLikeName(table);
           for (const item of extractUsedTable(table)) this.usedTables.add(item);
-          if (typeof tableName === "string" && this.config.joins?.some((join4) => join4.alias === tableName)) {
+          if (typeof tableName === "string" && this.config.joins?.some((join5) => join5.alias === tableName)) {
             throw new Error(`Alias "${tableName}" is already used in this query`);
           }
           if (!this.isPartialSelect) {
@@ -52782,7 +52782,7 @@ var init_update = __esm({
       createJoin(joinType) {
         return (table, on2) => {
           const tableName = getTableLikeName(table);
-          if (typeof tableName === "string" && this.config.joins.some((join4) => join4.alias === tableName)) {
+          if (typeof tableName === "string" && this.config.joins.some((join5) => join5.alias === tableName)) {
             throw new Error(`Alias "${tableName}" is already used in this query`);
           }
           if (typeof on2 === "function") {
@@ -52878,10 +52878,10 @@ var init_update = __esm({
               const fromFields = this.getTableLikeFields(this.config.from);
               fields[tableName] = fromFields;
             }
-            for (const join4 of this.config.joins) {
-              const tableName2 = getTableLikeName(join4.table);
-              if (typeof tableName2 === "string" && !is(join4.table, SQL)) {
-                const fromFields = this.getTableLikeFields(join4.table);
+            for (const join5 of this.config.joins) {
+              const tableName2 = getTableLikeName(join5.table);
+              if (typeof tableName2 === "string" && !is(join5.table, SQL)) {
+                const fromFields = this.getTableLikeFields(join5.table);
                 fields[tableName2] = fromFields;
               }
             }
@@ -60564,9 +60564,33 @@ var init_schema2 = __esm({
 // ../lib/db/src/local.ts
 import fs2 from "node:fs";
 import path2 from "node:path";
+function removeStalePostmasterPid() {
+  const pidFile = path2.join(LOCAL_DB_DIR, "postmaster.pid");
+  if (!fs2.existsSync(pidFile)) return;
+  try {
+    const firstLine = fs2.readFileSync(pidFile, "utf8").split("\n")[0]?.trim();
+    const pid = Number(firstLine);
+    if (!Number.isFinite(pid) || pid <= 0) {
+      fs2.unlinkSync(pidFile);
+      return;
+    }
+    try {
+      process.kill(pid, 0);
+    } catch {
+      fs2.unlinkSync(pidFile);
+      console.info(`[db] postmaster.pid obsoleto eliminado (pid ${pid} no activo)`);
+    }
+  } catch {
+    try {
+      fs2.unlinkSync(pidFile);
+    } catch {
+    }
+  }
+}
 async function getLocalDb() {
   if (localDb) return localDb;
   fs2.mkdirSync(LOCAL_DB_DIR, { recursive: true });
+  removeStalePostmasterPid();
   client = new Ue2(LOCAL_DB_DIR);
   await client.exec(INIT_SQL);
   try {
@@ -61885,7 +61909,7 @@ var init_sql3 = __esm({
         return new SQL2([new StringChunk2(str2)]);
       }
       sql22.raw = raw;
-      function join4(chunks, separator) {
+      function join5(chunks, separator) {
         const result = [];
         for (const [i3, chunk] of chunks.entries()) {
           if (i3 > 0 && separator !== void 0) {
@@ -61895,7 +61919,7 @@ var init_sql3 = __esm({
         }
         return new SQL2(result);
       }
-      sql22.join = join4;
+      sql22.join = join5;
       function identifier(value) {
         return new Name2(value);
       }
@@ -62343,18 +62367,18 @@ var init_drizzle_orm = __esm({
 });
 
 // src/lib/trainingPaths.ts
-import { existsSync as existsSync2 } from "fs";
-import { join as join2, dirname } from "path";
+import { existsSync as existsSync3 } from "fs";
+import { join as join3, dirname } from "path";
 import { fileURLToPath } from "url";
 function resolveTrainingJsonFile() {
   const candidates = [
-    join2(moduleDir, "training-examples.json"),
-    join2(moduleDir, "data/training-examples.json"),
-    join2(moduleDir, "../../data/training-examples.json"),
-    join2(moduleDir, "../data/training-examples.json")
+    join3(moduleDir, "training-examples.json"),
+    join3(moduleDir, "data/training-examples.json"),
+    join3(moduleDir, "../../data/training-examples.json"),
+    join3(moduleDir, "../data/training-examples.json")
   ];
   for (const path4 of candidates) {
-    if (existsSync2(path4)) return path4;
+    if (existsSync3(path4)) return path4;
   }
   return candidates[1];
 }
@@ -62389,7 +62413,7 @@ var init_logger3 = __esm({
 });
 
 // src/services/trainingStore.ts
-import { readFileSync } from "fs";
+import { readFileSync as readFileSync2 } from "fs";
 import { randomUUID } from "crypto";
 function rowToExample(row) {
   return {
@@ -62402,7 +62426,7 @@ function rowToExample(row) {
 }
 function loadExamplesFromJsonFile() {
   try {
-    const raw = readFileSync(resolveTrainingJsonFile(), "utf-8");
+    const raw = readFileSync2(resolveTrainingJsonFile(), "utf-8");
     const parsed = JSON.parse(raw);
     return parsed.examples ?? [];
   } catch {
@@ -80291,6 +80315,66 @@ function injectCatalogPriceIfAsked(clientMessage, aiResponse) {
   return aiResponse;
 }
 
+// src/lib/buildMeta.ts
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+// src/lib/lucyRelease.ts
+var LUCY_SERVER_VERSION = "3.3";
+var LUCY_PROMPT_VERSION = "V7";
+
+// src/lib/buildMeta.ts
+var cached = null;
+function formatBuiltAtDisplay(iso) {
+  try {
+    return new Date(iso).toLocaleString("es-MX", {
+      timeZone: "America/Mexico_City",
+      dateStyle: "medium",
+      timeStyle: "short"
+    });
+  } catch {
+    return iso;
+  }
+}
+function resolveGitCommit() {
+  const raw = process.env.GIT_COMMIT?.trim() || process.env.HOSTINGER_GIT_COMMIT?.trim() || process.env.GITHUB_SHA?.trim() || null;
+  return raw || null;
+}
+function fallbackMeta() {
+  const builtAt = (/* @__PURE__ */ new Date()).toISOString();
+  const gitCommit = resolveGitCommit();
+  return {
+    version: LUCY_SERVER_VERSION,
+    lucy_prompt: LUCY_PROMPT_VERSION,
+    built_at: builtAt,
+    built_at_display: formatBuiltAtDisplay(builtAt),
+    git_commit: gitCommit,
+    git_commit_short: gitCommit ? gitCommit.slice(0, 7) : null
+  };
+}
+function getBuildMeta() {
+  if (cached) return cached;
+  const metaPath = join(process.cwd(), "build-meta.json");
+  if (existsSync(metaPath)) {
+    try {
+      const raw = JSON.parse(readFileSync(metaPath, "utf8"));
+      const builtAt = raw.built_at ?? (/* @__PURE__ */ new Date()).toISOString();
+      cached = {
+        version: raw.version ?? LUCY_SERVER_VERSION,
+        lucy_prompt: raw.lucy_prompt ?? LUCY_PROMPT_VERSION,
+        built_at: builtAt,
+        built_at_display: raw.built_at_display ?? formatBuiltAtDisplay(builtAt),
+        git_commit: raw.git_commit ?? resolveGitCommit(),
+        git_commit_short: raw.git_commit_short ?? (raw.git_commit ? raw.git_commit.slice(0, 7) : resolveGitCommit()?.slice(0, 7) ?? null)
+      };
+      return cached;
+    } catch {
+    }
+  }
+  cached = fallbackMeta();
+  return cached;
+}
+
 // src/routes/health.ts
 var router = (0, import_express.Router)();
 router.get("/healthz", (_req, res) => {
@@ -80299,13 +80383,16 @@ router.get("/healthz", (_req, res) => {
 });
 router.get("/health", (_req, res) => {
   const key = getOpenAiApiKey();
+  const build = getBuildMeta();
   res.json({
     status: "ok",
     timestamp: (/* @__PURE__ */ new Date()).toISOString(),
     uptime: process.uptime(),
     service: "Lucy Bodasesor",
-    version: "3.3",
-    lucy_prompt: "V7",
+    version: build.version,
+    lucy_prompt: build.lucy_prompt,
+    built_at: build.built_at,
+    built_at_display: build.built_at_display,
     features: [
       "understanding",
       "redaction-briefing",
@@ -80316,7 +80403,8 @@ router.get("/health", (_req, res) => {
       "knowledge-gaps-aprendizaje"
     ],
     auth_configured: isAuthConfigured(),
-    git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
+    git_commit: build.git_commit,
+    git_commit_short: build.git_commit_short,
     openai_configured: isOpenAiConfigured(),
     openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "\u2026" : null,
     kommo_configured: isKommoConfigured(),
@@ -80493,16 +80581,16 @@ Si el cliente pregunta algo del cat\xE1logo, resp\xF3ndelo con precisi\xF3n ANTE
 await init_trainingStore();
 
 // src/chat-history.ts
-import { readFileSync as readFileSync2, writeFileSync, existsSync as existsSync3 } from "fs";
-import { join as join3, dirname as dirname2 } from "path";
+import { readFileSync as readFileSync3, writeFileSync, existsSync as existsSync4 } from "fs";
+import { join as join4, dirname as dirname2 } from "path";
 import { fileURLToPath as fileURLToPath2 } from "url";
 var __dirname2 = dirname2(fileURLToPath2(import.meta.url));
-var DATA_FILE = join3(__dirname2, "../../data/chat-history.json");
+var DATA_FILE = join4(__dirname2, "../../data/chat-history.json");
 var MAX_MESSAGES = 40;
 function load() {
   try {
-    if (existsSync3(DATA_FILE)) {
-      return JSON.parse(readFileSync2(DATA_FILE, "utf-8"));
+    if (existsSync4(DATA_FILE)) {
+      return JSON.parse(readFileSync3(DATA_FILE, "utf-8"));
     }
   } catch {
   }
@@ -82502,10 +82590,10 @@ function getImageCaption(message) {
 }
 var VISION_PROMPT = "Describe brevemente esta imagen enviada por un cliente de Bodasesor (empresa de organizaci\xF3n de bodas y eventos sociales en M\xE9xico). Enf\xF3cate en lo relevante para cotizar un evento: tipo de espacio o sal\xF3n, decoraci\xF3n, mobiliario, comida, capacidad aproximada de personas, si parece ser una referencia/inspiraci\xF3n de estilo, una foto del lugar del evento, una captura de pantalla de otra cotizaci\xF3n, un comprobante de pago, una identificaci\xF3n/documento, o algo no relacionado con un evento. Responde en espa\xF1ol, en 1-2 oraciones concretas, sin rodeos ni frases como 'la imagen muestra'.";
 async function analyzeImage(imageUrl, accessToken, log) {
-  const cached = getCachedImageDescription(imageUrl);
-  if (cached) {
+  const cached2 = getCachedImageDescription(imageUrl);
+  if (cached2) {
     log.info({ imageUrl: imageUrl.slice(0, 80) }, "Imagen ya analizada \u2014 usando cach\xE9 (sin Vision)");
-    return cached;
+    return cached2;
   }
   try {
     const imgResponse = await fetch(imageUrl, {
@@ -88614,8 +88702,8 @@ function buildLeadCalificadoNota(extracted, mergedLines) {
 }
 async function resolveWhatsappDisplayName(subdomain, accessToken, entityId, leadNameFromCrm) {
   const entityKey = String(entityId);
-  const cached = displayNameCache.get(entityKey);
-  if (cached) return cached;
+  const cached2 = displayNameCache.get(entityKey);
+  if (cached2) return cached2;
   const fromCrm = sanitizeDisplayName(leadNameFromCrm);
   if (fromCrm) {
     displayNameCache.set(entityKey, fromCrm);
@@ -90572,6 +90660,7 @@ function uptimeLabel(seconds) {
   return `${Math.floor(seconds / 3600)} h en l\xEDnea`;
 }
 async function buildOpsStatus() {
+  const build = getBuildMeta();
   const catalog = getCatalogStatus();
   const gaps = await getKnowledgeGapStats().catch(() => ({
     pending: 0,
@@ -90623,6 +90712,12 @@ async function buildOpsStatus() {
     status: gaps.pending > 0 ? "warn" : "ok",
     detail: gaps.pending > 0 ? `${gaps.pending} pregunta(s) sin respuesta en el panel Aprendizaje` : `${gaps.answered} ense\xF1adas \xB7 al d\xEDa con el cat\xE1logo`
   });
+  checks.push({
+    id: "deploy",
+    label: "\xDAltima actualizaci\xF3n",
+    status: "ok",
+    detail: `${build.lucy_prompt} \xB7 ${build.built_at_display}${build.git_commit_short ? ` \xB7 commit ${build.git_commit_short}` : ""}`
+  });
   const hasError = checks.some((c2) => c2.status === "error");
   const hasWarn = checks.some((c2) => c2.status === "warn");
   return {
@@ -90633,12 +90728,17 @@ async function buildOpsStatus() {
 }
 router10.get("/ops/status", async (_req, res) => {
   try {
+    const build = getBuildMeta();
     const status = await buildOpsStatus();
     res.json({
       ...status,
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      version: "3.3",
-      lucy_prompt: "V7",
+      version: build.version,
+      lucy_prompt: build.lucy_prompt,
+      built_at: build.built_at,
+      built_at_display: build.built_at_display,
+      git_commit: build.git_commit,
+      git_commit_short: build.git_commit_short,
       uptime: process.uptime()
     });
   } catch (err2) {

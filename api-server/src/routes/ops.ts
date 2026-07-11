@@ -3,6 +3,7 @@ import { getOpenAiApiKey, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import { getCatalogStatus, refreshCatalog } from "../services/catalogService.js";
 import { getKnowledgeGapStats } from "../services/knowledgeGapStore.js";
 import { logger } from "../lib/logger.js";
+import { getBuildMeta } from "../lib/buildMeta.js";
 
 const router: IRouter = Router();
 
@@ -24,6 +25,7 @@ async function buildOpsStatus(): Promise<{
   checks: OpsCheck[];
   healActions: string[];
 }> {
+  const build = getBuildMeta();
   const catalog = getCatalogStatus();
   const gaps = await getKnowledgeGapStats().catch(() => ({
     pending: 0,
@@ -93,6 +95,13 @@ async function buildOpsStatus(): Promise<{
         : `${gaps.answered} enseñadas · al día con el catálogo`,
   });
 
+  checks.push({
+    id: "deploy",
+    label: "Última actualización",
+    status: "ok",
+    detail: `${build.lucy_prompt} · ${build.built_at_display}${build.git_commit_short ? ` · commit ${build.git_commit_short}` : ""}`,
+  });
+
   const hasError = checks.some((c) => c.status === "error");
   const hasWarn = checks.some((c) => c.status === "warn");
 
@@ -105,12 +114,17 @@ async function buildOpsStatus(): Promise<{
 
 router.get("/ops/status", async (_req: Request, res: Response) => {
   try {
+    const build = getBuildMeta();
     const status = await buildOpsStatus();
     res.json({
       ...status,
       timestamp: new Date().toISOString(),
-      version: "3.3",
-      lucy_prompt: "V7",
+      version: build.version,
+      lucy_prompt: build.lucy_prompt,
+      built_at: build.built_at,
+      built_at_display: build.built_at_display,
+      git_commit: build.git_commit,
+      git_commit_short: build.git_commit_short,
       uptime: process.uptime(),
     });
   } catch (err) {

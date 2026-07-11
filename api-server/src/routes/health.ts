@@ -4,6 +4,7 @@ import { getOpenAiApiKey, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import { getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
 import { isAuthConfigured } from "../lib/authJwt.js";
 import { getCatalogStatus } from "../services/catalogService.js";
+import { getBuildMeta } from "../lib/buildMeta.js";
 
 const router: IRouter = Router();
 
@@ -15,13 +16,16 @@ router.get("/healthz", (_req, res) => {
 // Endpoint detallado para keep-alive y diagnóstico externo
 router.get("/health", (_req, res) => {
   const key = getOpenAiApiKey();
+  const build = getBuildMeta();
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     service: "Lucy Bodasesor",
-    version: "3.3",
-    lucy_prompt: "V7",
+    version: build.version,
+    lucy_prompt: build.lucy_prompt,
+    built_at: build.built_at,
+    built_at_display: build.built_at_display,
     features: [
       "understanding",
       "redaction-briefing",
@@ -32,7 +36,8 @@ router.get("/health", (_req, res) => {
       "knowledge-gaps-aprendizaje",
     ],
     auth_configured: isAuthConfigured(),
-    git_commit: process.env.GIT_COMMIT ?? process.env.HOSTINGER_GIT_COMMIT ?? null,
+    git_commit: build.git_commit,
+    git_commit_short: build.git_commit_short,
     openai_configured: isOpenAiConfigured(),
     openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "…" : null,
     kommo_configured: isKommoConfigured(),

@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import { rm, copyFile, cp, mkdir, readFile, writeFile } from "node:fs/promises";
@@ -9,6 +10,36 @@ import { rm, copyFile, cp, mkdir, readFile, writeFile } from "node:fs/promises";
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+
+function resolveGitCommit() {
+  if (process.env.GITHUB_SHA?.trim()) return process.env.GITHUB_SHA.trim();
+  try {
+    return execSync("git rev-parse HEAD", { cwd: path.resolve(artifactDir, ".."), encoding: "utf8" }).trim();
+  } catch {
+    return null;
+  }
+}
+
+async function writeBuildMeta(targetDir) {
+  const builtAt = new Date();
+  const gitCommit = resolveGitCommit();
+  const meta = {
+    version: "3.3",
+    lucy_prompt: "V7",
+    built_at: builtAt.toISOString(),
+    built_at_display: builtAt.toLocaleString("es-MX", {
+      timeZone: "America/Mexico_City",
+      dateStyle: "medium",
+      timeStyle: "short",
+    }),
+    git_commit: gitCommit,
+    git_commit_short: gitCommit ? gitCommit.slice(0, 7) : null,
+  };
+  const metaPath = path.join(targetDir, "build-meta.json");
+  await writeFile(metaPath, `${JSON.stringify(meta, null, 2)}\n`);
+  console.log(`[build] build-meta.json → ${meta.built_at_display} (${meta.git_commit_short ?? "sin commit"})`);
+  return meta;
+}
 
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
@@ -159,6 +190,7 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   }
 
   const deployDir = path.resolve(artifactDir, "../deploy");
+  await writeBuildMeta(distDir);
   await cp(distDir, deployDir, { recursive: true, force: true });
 
   async function embedPanelCss(panelRoot) {

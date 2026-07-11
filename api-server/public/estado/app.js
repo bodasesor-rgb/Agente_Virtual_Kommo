@@ -21,7 +21,14 @@ async function loadStatus() {
 
   overallCard.className = `overall-card ${data.overall}`;
   overallText.textContent = OVERALL_LABEL[data.overall] ?? data.overall;
-  overallDetail.textContent = `v${data.version ?? "?"} · prompt ${data.lucy_prompt ?? "?"} · ${Math.floor(data.uptime ?? 0)}s en línea`;
+  overallDetail.textContent = [
+    `prompt ${data.lucy_prompt ?? "?"}`,
+    data.built_at_display ? `actualizado ${data.built_at_display}` : null,
+    data.git_commit_short ? `commit ${data.git_commit_short}` : null,
+    `${Math.floor(data.uptime ?? 0)}s en línea`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   checksGrid.innerHTML = (data.checks ?? [])
     .map(
