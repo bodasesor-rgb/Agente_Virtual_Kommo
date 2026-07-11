@@ -223,11 +223,11 @@ export function getCatalogStatus(): CatalogStatus {
   return snapshot?.status ?? emptyStatus();
 }
 
-export function startCatalogAutoRefresh(): void {
-  void refreshCatalog().catch(() => {
-    /* logged inside */
-  });
+export async function bootstrapCatalog(): Promise<CatalogSnapshot> {
+  return refreshCatalog(true);
+}
 
+export function startCatalogAutoRefresh(): void {
   if (refreshTimer) return;
 
   refreshTimer = setInterval(() => {

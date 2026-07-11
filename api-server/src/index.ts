@@ -10,7 +10,7 @@ import { logger } from "./lib/logger";
 import { initializeTrainingStore } from "./services/trainingStore.js";
 import { ensureLearningSchema } from "./services/learningSchema.js";
 import { ensureKnowledgeGapSchema } from "./services/knowledgeGapSchema.js";
-import { startCatalogAutoRefresh } from "./services/catalogService.js";
+import { bootstrapCatalog, startCatalogAutoRefresh } from "./services/catalogService.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 
@@ -31,6 +31,12 @@ async function startServer(): Promise<void> {
   void ensureKnowledgeGapSchema().catch((err) => {
     logger.warn({ err }, "knowledgeGapSchema init en background falló");
   });
+  try {
+    await bootstrapCatalog();
+    logger.info("Catálogo Google Sheets cargado al arranque");
+  } catch (err) {
+    logger.warn({ err }, "bootstrapCatalog falló — se usará fallback estático hasta el próximo refresh");
+  }
   startCatalogAutoRefresh();
 
   app.listen(port, "0.0.0.0", (err) => {

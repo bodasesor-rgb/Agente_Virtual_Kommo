@@ -80142,9 +80142,10 @@ async function getCatalogPromptBlock() {
 function getCatalogStatus() {
   return snapshot?.status ?? emptyStatus();
 }
+async function bootstrapCatalog() {
+  return refreshCatalog(true);
+}
 function startCatalogAutoRefresh() {
-  void refreshCatalog().catch(() => {
-  });
   if (refreshTimer) return;
   refreshTimer = setInterval(() => {
     void refreshCatalog().catch(() => void 0);
@@ -81682,6 +81683,26 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
   const follow = pickVariant("requerimientos", history, entityId);
   return `${intro} ${ideas} ${follow}`.trim();
 }
+function bodyEqualsLastAssistant(msg, history) {
+  const last = [...history].reverse().find((m4) => m4.role === "assistant");
+  if (!last || typeof last.content !== "string") return false;
+  const norm = (s4) => s4.replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\.\s*/i, "").trim();
+  return norm(msg) === norm(last.content);
+}
+function buildFoodServiceAckIntro(extracted, history, currentMessage) {
+  if (!currentMessage) return null;
+  const mentionedService = findMentionedService(currentMessage);
+  if (!mentionedService && !clientMentionsCatering(currentMessage)) return null;
+  const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
+  if (mentionedService) {
+    return `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.`;
+  }
+  if (/coffee\s*break/i.test(currentMessage)) {
+    return `${pickTransition(history)} S\xED manejamos Coffee Break para eventos corporativos y particulares.`;
+  }
+  return `${pickTransition(history)} Con gusto te ayudo con catering para ${eventLabel}.`;
+}
 function buildFoodSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
@@ -81705,10 +81726,7 @@ ${nextQ}`;
 
 ${detail}`);
     }
-    const label = mentionedService ?? parsePrimaryService(currentMessage ?? "") ?? "ese servicio";
-    return appendNext(`${intro}
-
-${buildCatalogNotFoundAnswer(label)}`);
+    return null;
   }
   return buildRecommendationsReply(extracted, history, entityId, currentMessage);
 }
@@ -82301,6 +82319,8 @@ function applyLucyMessageGuards(input) {
   const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
   const readyToCloseAndReqDone = trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet);
   const allowSalesReplyOverride = !readyToCloseAndReqDone || (currentMessage?.includes("?") ?? false);
+  const mentionedServiceNow = currentMessage ? findMentionedService(currentMessage) : null;
+  const serviceAlreadyCaptured = filledSet.has("Requerimientos o servicios") && !!mentionedServiceNow && (extracted.requerimientos_evento ?? "").toLowerCase().includes(mentionedServiceNow.toLowerCase());
   const requerimientosFollowUpAlreadyAsked = presHistory.some(
     (m4) => m4.role === "assistant" && typeof m4.content === "string" && /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m4.content)
   );
@@ -82398,7 +82418,7 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
-  } else if (allowSalesReplyOverride && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage))) {
+  } else if (allowSalesReplyOverride && !serviceAlreadyCaptured && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
       history,
@@ -82407,7 +82427,31 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
       filledSet,
       ctx
     );
-    mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    if (cateringAnswer) {
+      mensaje = cateringAnswer;
+    } else {
+      const ack = buildFoodServiceAckIntro(extracted, history, currentMessage);
+      const aiMentionsService = !!ack && /coffee\s*break|manejamos|banquete|taquiza|catering|sí\s+tenemos/i.test(aiResponse);
+      if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+        const base = ack && !aiMentionsService ? `${ack} ${aiResponse}`.trim() : aiResponse;
+        mensaje = mergeWithPendingQuestion(base, filledSet, extracted, ctx);
+      } else if (ack) {
+        mensaje = mergeWithPendingQuestion(ack, filledSet, extracted, ctx);
+      } else {
+        mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+      }
+    }
+    if (bodyEqualsLastAssistant(mensaje, history)) {
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
+      if (nextQ) mensaje = nextQ;
+    }
     appliedSalesReply = true;
     log?.info(
       { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
@@ -82415,6 +82459,17 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     );
   } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    if (bodyEqualsLastAssistant(mensaje, history)) {
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
+      if (nextQ) mensaje = nextQ;
+    }
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
   } else if (clientAsksPrice(currentMessage)) {
@@ -91950,6 +92005,12 @@ async function startServer() {
   void ensureKnowledgeGapSchema().catch((err2) => {
     logger.warn({ err: err2 }, "knowledgeGapSchema init en background fall\xF3");
   });
+  try {
+    await bootstrapCatalog();
+    logger.info("Cat\xE1logo Google Sheets cargado al arranque");
+  } catch (err2) {
+    logger.warn({ err: err2 }, "bootstrapCatalog fall\xF3 \u2014 se usar\xE1 fallback est\xE1tico hasta el pr\xF3ximo refresh");
+  }
   startCatalogAutoRefresh();
   app_default.listen(port, "0.0.0.0", (err2) => {
     if (err2) {
