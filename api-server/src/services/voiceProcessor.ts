@@ -128,9 +128,14 @@ export interface ProcessedMessage {
   text: string;
   isVoice: boolean;
   isImage: boolean;
+  /** Análisis Vision estructurado — solo briefing interno de Lucy, no va al mensaje del cliente. */
+  imageContext: string | null;
   /** Texto crudo de la transcripción/descripción, para guardar como nota interna en Kommo. */
   mediaNote: string | null;
 }
+
+/** Texto que Lucy ve como mensaje del cliente cuando solo hay imagen (sin caption). */
+export const IMAGE_ONLY_USER_TEXT = "[El cliente envió una imagen]";
 
 export async function processMessage(
   message: Msg,
@@ -146,7 +151,13 @@ export async function processMessage(
     if (audioUrl) {
       const transcription = await transcribeVoiceNote(audioUrl, accessToken, log);
       if (transcription) {
-        return { text: transcription, isVoice: true, isImage: false, mediaNote: transcription };
+        return {
+          text: transcription,
+          isVoice: true,
+          isImage: false,
+          imageContext: null,
+          mediaNote: transcription,
+        };
       }
     } else {
       log.warn({ messageKeys: Object.keys(message) }, "Nota de voz sin URL — revisar estructura");
@@ -155,6 +166,7 @@ export async function processMessage(
       text: "[El cliente envió una nota de voz pero no se pudo procesar]",
       isVoice: true,
       isImage: false,
+      imageContext: null,
       mediaNote: null,
     };
   }
@@ -169,20 +181,23 @@ export async function processMessage(
     if (imageUrl) {
       const description = await analyzeImage(imageUrl, accessToken, log);
       if (description) {
-        const text = caption
-          ? `${caption}\n\n[Imagen adjunta: ${description}]`
-          : `[Imagen adjunta: ${description}]`;
-        return { text, isVoice: false, isImage: true, mediaNote: description };
+        const text = caption?.trim() ? caption.trim() : IMAGE_ONLY_USER_TEXT;
+        return {
+          text,
+          isVoice: false,
+          isImage: true,
+          imageContext: description,
+          mediaNote: description,
+        };
       }
     } else {
       log.warn({ messageKeys: Object.keys(message) }, "Imagen sin URL — revisar estructura");
     }
     return {
-      text: caption
-        ? caption
-        : "[El cliente envió una imagen pero no se pudo analizar]",
+      text: caption?.trim() ? caption.trim() : "[El cliente envió una imagen pero no se pudo analizar]",
       isVoice: false,
       isImage: true,
+      imageContext: null,
       mediaNote: null,
     };
   }
@@ -190,7 +205,7 @@ export async function processMessage(
   // Primary: plain text field
   const rawText = message["text"];
   if (typeof rawText === "string" && rawText.trim()) {
-    return { text: rawText, isVoice: false, isImage: false, mediaNote: null };
+    return { text: rawText, isVoice: false, isImage: false, imageContext: null, mediaNote: null };
   }
 
   // Fallback: Kommo sometimes sends URL-rich messages as a "link" type attachment
@@ -204,17 +219,21 @@ export async function processMessage(
         (typeof a["text"] === "string" ? a["text"] : "") ||
         (typeof a["caption"] === "string" ? a["caption"] : "") ||
         (typeof a["title"] === "string" ? a["title"] : "");
-      if (caption.trim()) return { text: caption.trim(), isVoice: false, isImage: false, mediaNote: null };
+      if (caption.trim()) {
+        return { text: caption.trim(), isVoice: false, isImage: false, imageContext: null, mediaNote: null };
+      }
 
       // If there is a URL but no caption, return the URL so Lucy sees something
       const url =
         (typeof a["link"] === "string" ? a["link"] : "") ||
         (typeof a["url"] === "string" ? a["url"] : "");
-      if (url.trim()) return { text: url.trim(), isVoice: false, isImage: false, mediaNote: null };
+      if (url.trim()) {
+        return { text: url.trim(), isVoice: false, isImage: false, imageContext: null, mediaNote: null };
+      }
     }
   }
 
-  return { text: "", isVoice: false, isImage: false, mediaNote: null };
+  return { text: "", isVoice: false, isImage: false, imageContext: null, mediaNote: null };
 }
 
 export { getImageAcknowledgment } from "./imageProcessor.js";

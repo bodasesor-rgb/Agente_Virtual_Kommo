@@ -133,11 +133,16 @@ export function getImageCaption(message: Msg): string | null {
 
 // ─── Vision analysis ────────────────────────────────────────────────────────
 
-const VISION_PROMPT =
-  "Describe brevemente esta imagen enviada por un cliente de Bodasesor (empresa de organización de bodas y eventos sociales en México). " +
-  "Enfócate en lo relevante para cotizar un evento: tipo de espacio o salón, decoración, mobiliario, comida, capacidad aproximada de personas, " +
-  "si parece ser una referencia/inspiración de estilo, una foto del lugar del evento, una captura de pantalla de otra cotización, un comprobante de pago, " +
-  "una identificación/documento, o algo no relacionado con un evento. Responde en español, en 1-2 oraciones concretas, sin rodeos ni frases como 'la imagen muestra'.";
+/** Extracción interna para Lucy — nunca se envía tal cual al cliente. */
+export const VISION_PROMPT =
+  "Analiza esta imagen enviada por un cliente de Bodasesor (bodas y eventos sociales en México). " +
+  "Extrae SOLO datos útiles para cotizar. Responde en español con este formato exacto (una línea por campo, sin prosa ni 'la imagen muestra'):\n" +
+  "TIPO: referencia_estilo | lugar_evento | cotizacion | comprobante | documento | otro\n" +
+  "ESPACIO: (salón, jardín, terraza, interior, etc. — o 'no aplica')\n" +
+  "ESTILO: (colores, decoración, tema — o 'no aplica')\n" +
+  "SERVICIOS_COTIZABLES: lista separada por comas (mobiliario, carpas, iluminación, DJ, catering, mesas de dulces, pista de baile, pantallas, etc.)\n" +
+  "CAPACIDAD_EST: (número aproximado de personas si se infiere — o 'desconocida')\n" +
+  "NOTAS: (detalles breves para el equipo, máx 1 línea)";
 
 /**
  * Analiza una imagen enviada por WhatsApp usando GPT-4o-mini Vision.
@@ -173,7 +178,7 @@ export async function analyzeImage(
 
     const completion = await openai.chat.completions.create({
       model: VISION_MODEL,
-      max_tokens: 200,
+      max_tokens: 280,
       temperature: 0.3,
       messages: [
         {

@@ -81333,7 +81333,10 @@ En el primer mensaje NO des precios extensos; solo reconoce y pide nombre.
 ===================================================================
 Puedes "escuchar" y "ver" \u2014 el sistema ya procesa antes de que llegue el texto.
 - Voz: llega transcrita; responde normal.
-- Imagen: formato "[Imagen adjunta: descripci\xF3n]". Reacciona natural; nunca repitas esa frase al cliente.
+- Imagen: el an\xE1lisis va en tu briefing interno (TIPO, ESPACIO, SERVICIOS_COTIZABLES, etc.).
+  NUNCA describas al cliente lo que contiene la imagen.
+  Usa ese contexto para ofrecer opciones del cat\xE1logo, hacer preguntas \xFAtiles y avanzar la cotizaci\xF3n.
+  Si solo mand\xF3 foto sin texto, responde con sugerencias concretas seg\xFAn lo que entendiste (mobiliario, carpas, iluminaci\xF3n, catering, etc.).
 
 ===================================================================
 ## CAT\xC1LOGO = FUENTE DE VERDAD
@@ -82785,7 +82788,12 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
   const withoutImageAnnotation = stripImageAnnotation(mensaje);
   if (withoutImageAnnotation !== mensaje) {
     log?.warn({ entityId }, "GUARD: anotaci\xF3n interna de imagen filtrada al cliente \u2014 removida");
-    mensaje = withoutImageAnnotation || "Gracias por la imagen.";
+    mensaje = withoutImageAnnotation || "\xBFQu\xE9 servicios te gustar\xEDa que cotiz\xE1ramos para tu evento?";
+  }
+  const withoutImageDescription = stripImageDescriptionLeaks(mensaje);
+  if (withoutImageDescription !== mensaje) {
+    log?.warn({ entityId }, "GUARD: descripci\xF3n de imagen filtrada al cliente \u2014 removida");
+    mensaje = withoutImageDescription;
   }
   if (conversationAlreadyStarted(filledSet, presHistoryForIntro)) {
     const stripped = stripRobotAcknowledgments(mensaje);
@@ -82841,6 +82849,22 @@ function stripGammaLinks(text2) {
 function stripImageAnnotation(text2) {
   if (!text2 || !/\[imagen\s+adjunta:/i.test(text2)) return text2;
   return text2.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+function stripImageDescriptionLeaks(text2) {
+  if (!text2) return text2;
+  const patterns = [
+    /(?:ya\s+)?vi\s+tu\s+imagen[^.!?\n]*[.!?]?\s*/gi,
+    /(?:ya\s+)?revis[eé]\s+tu\s+(?:foto|imagen)[^.!?\n]*[.!?]?\s*/gi,
+    /(?:la\s+)?(?:foto|imagen)\s+muestra[^.!?\n]*[.!?]?\s*/gi,
+    /veo\s+que\s+(?:es|hay|tiene|se\s+ve)[^.!?\n]*[.!?]?\s*/gi,
+    /(?:se\s+ve|parece\s+ser)\s+(?:un|una)\s+[^.!?\n]*[.!?]?\s*/gi,
+    /qu[eé]\s+bonit[oa]\s+(?:sal[oó]n|lugar|espacio|decoraci[oó]n)[^.!?\n]*[.!?]?\s*/gi
+  ];
+  let out2 = text2;
+  for (const re3 of patterns) {
+    out2 = out2.replace(re3, "");
+  }
+  return out2.replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 
 // src/routes/kommo.ts
@@ -83429,6 +83453,15 @@ function buildRedactionBriefing(input) {
       `Objeci\xF3n detectada${input.objectionType ? ` (${input.objectionType})` : ""}: ati\xE9ndela antes de insistir en datos.`
     );
   }
+  if (input.imageContext?.trim()) {
+    lines.push(
+      "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 IMAGEN DEL CLIENTE (contexto interno) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+      input.imageContext.trim(),
+      "Usa este contexto para entender qu\xE9 busca el cliente. Responde con opciones concretas del cat\xE1logo seg\xFAn SERVICIOS_COTIZABLES.",
+      "PROHIBIDO describir la imagen al cliente (no digas 'veo que', 'la foto muestra', 'tiene X decoraci\xF3n', etc.).",
+      "Ve directo a preguntas \xFAtiles o sugerencias de servicios/paquetes."
+    );
+  }
   if (input.isFirstInteraction) {
     lines.push("Es el PRIMER mensaje de Lucy: presentaci\xF3n + pedir nombre.");
   } else {
@@ -83586,7 +83619,7 @@ function getImageCaption(message) {
   if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
   return null;
 }
-var VISION_PROMPT = "Describe brevemente esta imagen enviada por un cliente de Bodasesor (empresa de organizaci\xF3n de bodas y eventos sociales en M\xE9xico). Enf\xF3cate en lo relevante para cotizar un evento: tipo de espacio o sal\xF3n, decoraci\xF3n, mobiliario, comida, capacidad aproximada de personas, si parece ser una referencia/inspiraci\xF3n de estilo, una foto del lugar del evento, una captura de pantalla de otra cotizaci\xF3n, un comprobante de pago, una identificaci\xF3n/documento, o algo no relacionado con un evento. Responde en espa\xF1ol, en 1-2 oraciones concretas, sin rodeos ni frases como 'la imagen muestra'.";
+var VISION_PROMPT = "Analiza esta imagen enviada por un cliente de Bodasesor (bodas y eventos sociales en M\xE9xico). Extrae SOLO datos \xFAtiles para cotizar. Responde en espa\xF1ol con este formato exacto (una l\xEDnea por campo, sin prosa ni 'la imagen muestra'):\nTIPO: referencia_estilo | lugar_evento | cotizacion | comprobante | documento | otro\nESPACIO: (sal\xF3n, jard\xEDn, terraza, interior, etc. \u2014 o 'no aplica')\nESTILO: (colores, decoraci\xF3n, tema \u2014 o 'no aplica')\nSERVICIOS_COTIZABLES: lista separada por comas (mobiliario, carpas, iluminaci\xF3n, DJ, catering, mesas de dulces, pista de baile, pantallas, etc.)\nCAPACIDAD_EST: (n\xFAmero aproximado de personas si se infiere \u2014 o 'desconocida')\nNOTAS: (detalles breves para el equipo, m\xE1x 1 l\xEDnea)";
 async function analyzeImage(imageUrl, accessToken, log) {
   const cached2 = getCachedImageDescription(imageUrl);
   if (cached2) {
@@ -83607,7 +83640,7 @@ async function analyzeImage(imageUrl, accessToken, log) {
     const dataUrl = `data:${contentType};base64,${base64}`;
     const completion = await openai.chat.completions.create({
       model: VISION_MODEL,
-      max_tokens: 200,
+      max_tokens: 280,
       temperature: 0.3,
       messages: [
         {
@@ -83629,15 +83662,6 @@ async function analyzeImage(imageUrl, accessToken, log) {
     log.error({ err: err2 }, "Error analizando imagen con Vision");
     return null;
   }
-}
-function getImageAcknowledgment(clientName) {
-  const suffix = clientName ? `, ${clientName}` : "";
-  const options = [
-    `Ya vi tu imagen${suffix}. `,
-    `Perfecto, recib\xED la foto${suffix}. `,
-    `Listo${suffix}, ya la revis\xE9. `
-  ];
-  return options[Math.floor(Math.random() * options.length)];
 }
 
 // src/services/voiceProcessor.ts
@@ -83727,6 +83751,7 @@ function getVoiceNoteUrl(message) {
   }
   return null;
 }
+var IMAGE_ONLY_USER_TEXT = "[El cliente envi\xF3 una imagen]";
 async function processMessage(message, accessToken, log) {
   if (isVoiceNote(message)) {
     log.info(
@@ -83737,7 +83762,13 @@ async function processMessage(message, accessToken, log) {
     if (audioUrl) {
       const transcription = await transcribeVoiceNote(audioUrl, accessToken, log);
       if (transcription) {
-        return { text: transcription, isVoice: true, isImage: false, mediaNote: transcription };
+        return {
+          text: transcription,
+          isVoice: true,
+          isImage: false,
+          imageContext: null,
+          mediaNote: transcription
+        };
       }
     } else {
       log.warn({ messageKeys: Object.keys(message) }, "Nota de voz sin URL \u2014 revisar estructura");
@@ -83746,6 +83777,7 @@ async function processMessage(message, accessToken, log) {
       text: "[El cliente envi\xF3 una nota de voz pero no se pudo procesar]",
       isVoice: true,
       isImage: false,
+      imageContext: null,
       mediaNote: null
     };
   }
@@ -83759,24 +83791,29 @@ async function processMessage(message, accessToken, log) {
     if (imageUrl) {
       const description = await analyzeImage(imageUrl, accessToken, log);
       if (description) {
-        const text2 = caption ? `${caption}
-
-[Imagen adjunta: ${description}]` : `[Imagen adjunta: ${description}]`;
-        return { text: text2, isVoice: false, isImage: true, mediaNote: description };
+        const text2 = caption?.trim() ? caption.trim() : IMAGE_ONLY_USER_TEXT;
+        return {
+          text: text2,
+          isVoice: false,
+          isImage: true,
+          imageContext: description,
+          mediaNote: description
+        };
       }
     } else {
       log.warn({ messageKeys: Object.keys(message) }, "Imagen sin URL \u2014 revisar estructura");
     }
     return {
-      text: caption ? caption : "[El cliente envi\xF3 una imagen pero no se pudo analizar]",
+      text: caption?.trim() ? caption.trim() : "[El cliente envi\xF3 una imagen pero no se pudo analizar]",
       isVoice: false,
       isImage: true,
+      imageContext: null,
       mediaNote: null
     };
   }
   const rawText = message["text"];
   if (typeof rawText === "string" && rawText.trim()) {
-    return { text: rawText, isVoice: false, isImage: false, mediaNote: null };
+    return { text: rawText, isVoice: false, isImage: false, imageContext: null, mediaNote: null };
   }
   const att = message["attachment"];
   if (typeof att === "object" && att !== null) {
@@ -83784,12 +83821,16 @@ async function processMessage(message, accessToken, log) {
     const attType = String(a2["type"] ?? "");
     if (attType === "link" || attType === "picture" || attType === "document") {
       const caption = (typeof a2["text"] === "string" ? a2["text"] : "") || (typeof a2["caption"] === "string" ? a2["caption"] : "") || (typeof a2["title"] === "string" ? a2["title"] : "");
-      if (caption.trim()) return { text: caption.trim(), isVoice: false, isImage: false, mediaNote: null };
+      if (caption.trim()) {
+        return { text: caption.trim(), isVoice: false, isImage: false, imageContext: null, mediaNote: null };
+      }
       const url2 = (typeof a2["link"] === "string" ? a2["link"] : "") || (typeof a2["url"] === "string" ? a2["url"] : "");
-      if (url2.trim()) return { text: url2.trim(), isVoice: false, isImage: false, mediaNote: null };
+      if (url2.trim()) {
+        return { text: url2.trim(), isVoice: false, isImage: false, imageContext: null, mediaNote: null };
+      }
     }
   }
-  return { text: "", isVoice: false, isImage: false, mediaNote: null };
+  return { text: "", isVoice: false, isImage: false, imageContext: null, mediaNote: null };
 }
 function getVoiceAcknowledgment(clientName) {
   const suffix = clientName ? `, ${clientName}` : "";
@@ -90089,8 +90130,9 @@ function safeParseDate(raw) {
   return isNaN(d2.getTime()) ? null : d2;
 }
 async function processBatch(batch, accessToken, log) {
-  const { texts, entityId, chatId, talkId, subdomain } = batch;
+  const { texts, imageContexts, entityId, chatId, talkId, subdomain } = batch;
   const combinedUserText = texts.join("\n");
+  const imageContext = imageContexts.length ? imageContexts.join("\n\n") : null;
   log.info({ messageCount: texts.length, combinedUserText, chatId }, "Processing debounced batch");
   try {
     const leadKommo = await fetchLead(subdomain, accessToken, entityId);
@@ -90266,17 +90308,18 @@ async function processBatch(batch, accessToken, log) {
       isFirstInteraction,
       hasObjection: objectionResult.hasObjection,
       objectionType: objectionResult.type,
-      cierreYaEnviado
+      cierreYaEnviado,
+      imageContext
     });
     let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogCateringIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
-    if (batch.isVoice || batch.isImage) {
+    if (batch.isVoice) {
       const clientName = sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? sanitizeDisplayName(conversation.clientName) ?? void 0;
-      const ack = batch.isVoice ? getVoiceAcknowledgment(clientName ?? void 0) : getImageAcknowledgment(clientName ?? void 0);
+      const ack = getVoiceAcknowledgment(clientName ?? void 0);
       aiResponse = ack + aiResponse;
-      log.info({ ack, isVoice: batch.isVoice, isImage: batch.isImage }, "Media acknowledgment prepended");
+      log.info({ ack, isVoice: true }, "Voice acknowledgment prepended");
     }
     log.info({ aiResponse, extracted }, "OpenAI response received");
     const cierreYaEnviadoForGuards = cierreYaEnviado;
@@ -90586,10 +90629,11 @@ router3.post("/kommo/webhook", async (req, res) => {
     return;
   }
   if (dedupKey) markWebhookMessageProcessed(dedupKey);
-  const messageData = firstMessage ? await processMessage(firstMessage, accessToken, log) : { text: "", isVoice: false, isImage: false, mediaNote: null };
+  const messageData = firstMessage ? await processMessage(firstMessage, accessToken, log) : { text: "", isVoice: false, isImage: false, imageContext: null, mediaNote: null };
   const text2 = messageData.text.trim();
   const isVoice = messageData.isVoice;
   const isImage = messageData.isImage;
+  const imageContext = messageData.imageContext?.trim() || null;
   log.info(
     {
       text: isVoice ? `[voz] ${text2.slice(0, 80)}` : isImage ? `[imagen] ${text2.slice(0, 80)}` : text2,
@@ -90602,7 +90646,7 @@ router3.post("/kommo/webhook", async (req, res) => {
     "Kommo webhook received"
   );
   if (messageData.mediaNote && entityId && subdomain && accessToken) {
-    const label = isVoice ? "Nota de voz (transcripci\xF3n autom\xE1tica)" : "Imagen recibida (descripci\xF3n autom\xE1tica)";
+    const label = isVoice ? "Nota de voz (transcripci\xF3n autom\xE1tica)" : "Imagen recibida (an\xE1lisis interno)";
     void agregarNota(subdomain, accessToken, entityId, `${label}:
 
 ${messageData.mediaNote}`).catch(
@@ -90628,6 +90672,7 @@ ${messageData.mediaNote}`).catch(
   if (existing) {
     clearTimeout(existing.timer);
     existing.texts.push(text2);
+    if (imageContext) existing.imageContexts.push(imageContext);
     existing.entityId = entityId;
     existing.talkId = talkId;
     existing.isVoice = existing.isVoice || isVoice;
@@ -90646,7 +90691,17 @@ ${messageData.mediaNote}`).catch(
         log.error({ err: err2 }, "Error in processBatch");
       });
     }, DEBOUNCE_MS);
-    const batch = { texts: [text2], entityId, chatId, talkId, subdomain, isVoice, isImage, timer };
+    const batch = {
+      texts: [text2],
+      imageContexts: imageContext ? [imageContext] : [],
+      entityId,
+      chatId,
+      talkId,
+      subdomain,
+      isVoice,
+      isImage,
+      timer
+    };
     pendingBatches.set(chatId, batch);
     log.info({ chatId, debounceMs: DEBOUNCE_MS, isVoice, isImage }, "New batch started, waiting for more messages");
   }

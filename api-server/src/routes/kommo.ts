@@ -50,7 +50,7 @@ import {
   completeLucyRedaction,
   maybeRefinarMensajeCierre,
 } from "../services/lucyRedaction.js";
-import { processMessage, getVoiceAcknowledgment, getImageAcknowledgment } from "../services/voiceProcessor.js";
+import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcessor.js";
 import {
   isDuplicateWebhookMessage,
   isIncomingClientMessage,
@@ -153,6 +153,7 @@ const DEBOUNCE_MS = 5000;
 
 interface PendingBatch {
   texts: string[];
+  imageContexts: string[];
   entityId: string | number;
   chatId: string;
   talkId: string | null;
@@ -1155,8 +1156,9 @@ function safeParseDate(raw: string | null): Date | null {
 // ─── Core processing after debounce ──────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processBatch(batch: PendingBatch, accessToken: string, log: any): Promise<void> {
-  const { texts, entityId, chatId, talkId, subdomain } = batch;
+  const { texts, imageContexts, entityId, chatId, talkId, subdomain } = batch;
   const combinedUserText = texts.join("\n");
+  const imageContext = imageContexts.length ? imageContexts.join("\n\n") : null;
 
   log.info({ messageCount: texts.length, combinedUserText, chatId }, "Processing debounced batch");
 
@@ -1415,6 +1417,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       hasObjection: objectionResult.hasObjection,
       objectionType: objectionResult.type,
       cierreYaEnviado,
+      imageContext,
     });
 
     let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
@@ -1422,19 +1425,16 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     aiResponse = injectCatalogCateringIfAsked(combinedUserText, aiResponse);
     aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
     // ══════════════════════════════════════════════════════════════════════
-    if (batch.isVoice || batch.isImage) {
+    // Solo notas de voz llevan ack explícito; las imágenes se responden con opciones útiles.
+    if (batch.isVoice) {
       const clientName =
         sanitizeDisplayName(extracted.nombre) ??
         whatsappDisplayName ??
         sanitizeDisplayName(conversation.clientName) ??
         undefined;
-      // Si llegaron ambos en el mismo batch, la voz tiene prioridad (es lo más
-      // frecuente y el ack de audio ya cubre "recibí tu mensaje").
-      const ack = batch.isVoice
-        ? getVoiceAcknowledgment(clientName ?? undefined)
-        : getImageAcknowledgment(clientName ?? undefined);
+      const ack = getVoiceAcknowledgment(clientName ?? undefined);
       aiResponse = ack + aiResponse;
-      log.info({ ack, isVoice: batch.isVoice, isImage: batch.isImage }, "Media acknowledgment prepended");
+      log.info({ ack, isVoice: true }, "Voice acknowledgment prepended");
     }
 
     log.info({ aiResponse, extracted }, "OpenAI response received");
@@ -1862,10 +1862,11 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   // imagen con Vision cuando el mensaje trae un attachment de ese tipo.
   const messageData = firstMessage
     ? await processMessage(firstMessage as unknown as Record<string, unknown>, accessToken, log)
-    : { text: "", isVoice: false, isImage: false, mediaNote: null };
+    : { text: "", isVoice: false, isImage: false, imageContext: null, mediaNote: null };
   const text = messageData.text.trim();
   const isVoice = messageData.isVoice;
   const isImage = messageData.isImage;
+  const imageContext = messageData.imageContext?.trim() || null;
 
   log.info(
     {
@@ -1882,7 +1883,7 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   // Nota interna en Kommo con la transcripción/descripción — visible para el
   // equipo humano aunque no abran el audio/imagen desde WhatsApp.
   if (messageData.mediaNote && entityId && subdomain && accessToken) {
-    const label = isVoice ? "Nota de voz (transcripción automática)" : "Imagen recibida (descripción automática)";
+    const label = isVoice ? "Nota de voz (transcripción automática)" : "Imagen recibida (análisis interno)";
     void agregarNota(subdomain, accessToken, entityId, `${label}:\n\n${messageData.mediaNote}`).catch(
       (err: unknown) => log.warn({ err, entityId }, "No se pudo agregar nota interna de media")
     );
@@ -1914,6 +1915,7 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   if (existing) {
     clearTimeout(existing.timer);
     existing.texts.push(text);
+    if (imageContext) existing.imageContexts.push(imageContext);
     existing.entityId = entityId;
     existing.talkId = talkId;
     existing.isVoice = existing.isVoice || isVoice; // sticky: if any message in batch was voice
@@ -1933,7 +1935,17 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
       });
     }, DEBOUNCE_MS);
 
-    const batch: PendingBatch = { texts: [text], entityId, chatId, talkId, subdomain, isVoice, isImage, timer };
+    const batch: PendingBatch = {
+      texts: [text],
+      imageContexts: imageContext ? [imageContext] : [],
+      entityId,
+      chatId,
+      talkId,
+      subdomain,
+      isVoice,
+      isImage,
+      timer,
+    };
     pendingBatches.set(chatId, batch);
     log.info({ chatId, debounceMs: DEBOUNCE_MS, isVoice, isImage }, "New batch started, waiting for more messages");
   }
