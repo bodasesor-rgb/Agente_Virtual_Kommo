@@ -24,8 +24,6 @@ import {
   applyLucyMessageGuards,
   applyPresupuestoWaiver,
   applyWhatsappNombreFallback,
-  buildPostCierreThanksReply,
-  clientSaysThanks,
   detectCierreEnviado,
   WHATSAPP_NOMBRE_NOTE,
   CLOSING_CORE_FIELDS,
@@ -39,7 +37,6 @@ import {
   isLegacyStoredLucyResponse,
   parseNombreFromCrmLines,
   crmStoredValue,
-  stripCatalogBlockShared,
 } from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -49,7 +46,6 @@ import { buildDynamicPrompt } from "../services/promptBuilder.js";
 import {
   buildRedactionBriefing,
   completeLucyRedaction,
-  maybeRefinarMensajeCierre,
 } from "../services/lucyRedaction.js";
 import { processMessage, getVoiceAcknowledgment, getImageAcknowledgment } from "../services/voiceProcessor.js";
 import {
@@ -70,10 +66,12 @@ import {
   pickBetterNombre,
   sanitizeDisplayName,
   sanitizeCrmNombre,
+  shouldUpdateName,
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
 import { resolveTipoContacto } from "../tipoContacto.js";
 import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
+import { finalizeLucyOutboundMessage } from "../lucyOutboundPipeline.js";
 import {
   applyCapturesToCrm,
   captureContextualAnswer,
@@ -92,6 +90,7 @@ import {
   sanitizeExtractedAmbiguousNumbers,
   recoverClienteNombreFromHistory,
   isAmbiguousShortNumber,
+  applyWebLeadBrief,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
 import {
@@ -119,7 +118,7 @@ import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/c
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { getKommoAccessToken, getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
-import { advisorLabelForClient, isStaffAdvisorName, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
+import { advisorLabelForClient, isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 
 const router: IRouter = Router();
 
@@ -356,8 +355,6 @@ interface LeadFieldsResult {
 }
 
 // ─── Strip catalog block from a response (used when cierre already sent) ────────
-const stripCatalogBlock = stripCatalogBlockShared;
-
 // ─── Return the next question for a field that is already captured (P1 guard) ──
 // nextFieldQuestion lives in lucy-flow-guards.ts
 
@@ -433,18 +430,6 @@ function buildLucyRedactionBriefing(opts: {
     formatServiceKnowledgeForPrompt(opts.messageText) ??
     formatServiceDataForPrompt(opts.messageText);
   return serviceBlock ? `${briefing}\n\n${serviceBlock}` : briefing;
-}
-
-async function applyCierreRefinement(
-  mensaje: string,
-  opts: { readyForClosing: boolean; cierreYaEnviado: boolean }
-): Promise<string> {
-  return maybeRefinarMensajeCierre(openai, mensaje, {
-    readyForClosing: opts.readyForClosing,
-    cierreYaEnviado: opts.cierreYaEnviado,
-    closingSignature: CLOSING_SIGNATURE,
-    catalogUrl: CATALOG_URL,
-  });
 }
 
 // ─── Internal Kommo note when lead is fully qualified ─────────────────────────
@@ -694,13 +679,22 @@ function buildCrmContext(
   }
 
   // Merge any other fields newly extracted from the current message
+  const lastAssistantForInv = [...historyFull]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  const lastAskedInv = lastAssistantForInv
+    ? inferLucyAskedField(lastAssistantForInv.content as string)
+    : null;
+
   const extractionMap: Array<{ label: string; value: string | number | null | undefined }> = [
     { label: "Lugar/dirección del evento", value: extracted.direccion_evento },
     { label: "Requerimientos o servicios", value: extracted.requerimientos_evento },
     { label: "Fecha y horario",            value: extracted.fecha_horario },
     {
       label: "Número de invitados",
-      value: isAmbiguousShortNumber(currentMessage) ? null : extracted.num_invitados,
+      value: isAmbiguousShortNumber(currentMessage, { lastAskedField: lastAskedInv })
+        ? null
+        : extracted.num_invitados,
     },
     { label: "Tipo de evento",             value: extracted.tipo_evento },
     { label: "Presupuesto (MXN)",          value: extracted.presupuesto },
@@ -1030,8 +1024,12 @@ function buildPatchPayload(
   const payload: Record<string, unknown> = { custom_fields_values: customFields };
 
   if (isValidExtractedString(extracted.nombre)) {
-    const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
-    payload["name"] = cap255(nombrePatch);
+    const currentNombre = parseNombreFromCrmLines(mergedLines);
+    const nombrePatch =
+      sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
+    if (shouldUpdateName(currentNombre ?? undefined, nombrePatch)) {
+      payload["name"] = cap255(nombrePatch);
+    }
   }
 
   return payload;
@@ -1302,6 +1300,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     const extracted = await extractData(fullHistory, combinedUserText, filledFieldNames);
     sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
+    applyWebLeadBrief(extracted, combinedUserText);
 
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
@@ -1478,12 +1477,6 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       forceFirstPresentation: isFirstInteraction,
     });
 
-    mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
-      readyForClosing: allFieldsFilled,
-      cierreYaEnviado: cierreYaEnviadoForGuards,
-    });
-    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
-
     if (cierreYaEnviado && combinedUserText.trim()) {
       const updatedReq = appendPostCierreRequirements(
         extracted.requerimientos_evento,
@@ -1495,19 +1488,16 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       }
     }
 
-    // ── P3 GUARD: Catálogo ya enviado → strip URL del catálogo en respuesta ───────
-    if (cierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
-      log.warn({ entityId }, "P3 GUARD: catálogo repetido en respuesta post-cierre — stripping");
-      mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
-    }
-
-    if (!mensajeParaCliente.trim()) {
-      mensajeParaCliente =
-        cierreYaEnviado && clientSaysThanks(combinedUserText)
-          ? buildPostCierreThanksReply(extracted.nombre)
-          : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
-      log.warn({ entityId }, "GUARD: mensaje vacío — usando respuesta de respaldo");
-    }
+    mensajeParaCliente = await finalizeLucyOutboundMessage({
+      mensaje: mensajeParaCliente,
+      extracted,
+      readyForClosing: allFieldsFilled,
+      cierreYaEnviado: cierreYaEnviadoForGuards,
+      currentMessage: combinedUserText,
+      openai,
+      entityId,
+      log,
+    });
 
     // ══════════════════════════════════════════════════════════════════════
     // PASO 8.8: Crear nota en Kommo cuando el lead queda calificado (6 datos)
@@ -2062,6 +2052,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
 
     const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
+    applyWebLeadBrief(extracted, messageText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
@@ -2155,25 +2146,16 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       forceFirstPresentation: isFirstInteraction,
     });
 
-    mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
+    mensajeParaCliente = await finalizeLucyOutboundMessage({
+      mensaje: mensajeParaCliente,
+      extracted,
       readyForClosing: salesbotAllFieldsFilled,
       cierreYaEnviado: sbCierreYaEnviado,
+      currentMessage: messageText,
+      openai,
+      entityId,
+      log,
     });
-    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
-
-    // ── P3 GUARD: Catálogo ya enviado → strip URL del catálogo en respuesta ───────
-    if (sbCierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
-      log.warn({ entityId }, "Salesbot P3 GUARD: catálogo repetido en respuesta post-cierre — stripping");
-      mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
-    }
-
-    if (!mensajeParaCliente.trim()) {
-      mensajeParaCliente =
-        sbCierreYaEnviado && clientSaysThanks(messageText)
-          ? buildPostCierreThanksReply(extracted.nombre)
-          : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
-      log.warn({ entityId }, "Salesbot GUARD: mensaje vacío — usando respuesta de respaldo");
-    }
 
     // Guardar mensaje REAL enviado (no aiResponse) para que cierreYaEnviado funcione.
     appendHistory(histKey, messageText, mensajeParaCliente);
@@ -2558,6 +2540,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
 
     const extracted = await extractData(history, messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
+    applyWebLeadBrief(extracted, messageText);
 
     extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
 
@@ -2649,18 +2632,16 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       forceFirstPresentation: isFirstInteraction,
     });
 
-    mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
+    mensajeParaCliente = await finalizeLucyOutboundMessage({
+      mensaje: mensajeParaCliente,
+      extracted,
       readyForClosing: allFieldsFilled,
       cierreYaEnviado: simCierreYaEnviado,
+      currentMessage: messageText,
+      openai,
+      entityId: leadId,
+      log,
     });
-    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
-
-    if (!mensajeParaCliente.trim()) {
-      mensajeParaCliente =
-        simCierreYaEnviado && clientSaysThanks(messageText)
-          ? buildPostCierreThanksReply(extracted.nombre)
-          : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
-    }
 
     appendHistory(histKey, messageText, mensajeParaCliente);
 
@@ -2675,10 +2656,14 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
 
     const lead_updates: Record<string, string> = {};
+    const currentLeadName = sanitizeCrmNombre(lead.name);
     if (isValidExtractedString(extracted.nombre)) {
-      lead_updates.name = sanitizeCrmNombre(extracted.nombre) ?? extracted.nombre;
-    } else if (whatsappDisplayName) {
-      lead_updates.name = sanitizeCrmNombre(lead.name) ?? whatsappDisplayName;
+      const incomingNombre = sanitizeCrmNombre(extracted.nombre) ?? extracted.nombre;
+      if (shouldUpdateName(currentLeadName ?? undefined, incomingNombre)) {
+        lead_updates.name = incomingNombre;
+      }
+    } else if (whatsappDisplayName && shouldUpdateName(currentLeadName ?? undefined, whatsappDisplayName)) {
+      lead_updates.name = whatsappDisplayName;
     }
     if (isValidExtractedString(extracted.correo)) lead_updates.contact_email = extracted.correo;
     if (isValidExtractedString(extracted.telefono)) lead_updates.contact_phone = extracted.telefono;

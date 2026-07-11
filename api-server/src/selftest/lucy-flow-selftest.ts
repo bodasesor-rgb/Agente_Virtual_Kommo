@@ -34,9 +34,12 @@ import {
   isAmbiguousShortNumber,
   clientAsksServiceInfo,
   recoverClienteNombreFromHistory,
+  parseWebLeadBrief,
+  applyWebLeadBrief,
+  isVagueFoodTerm,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre } from "../contact-name.js";
-import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
+import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
   resolveTipoContacto,
   clientAsksIfCompanyEmailCorrect,
@@ -45,7 +48,7 @@ import {
 import {
   buildFirstInteractionMessage,
   buildLocationAnswer,
-  buildRecommendationsReply,
+  buildVagueFoodOptionsReply,
 } from "../lucy-flow-guards.js";
 import { advisorLabelForClient, normalizeAdvisorReferences, getAdvisorName, LEGACY_ADVISOR_NAMES, stripInternalCrmBlock, isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
@@ -171,6 +174,8 @@ function runGuards(opts: {
   currentMessage?: string;
   history?: OpenAI.Chat.ChatCompletionMessageParam[];
   emailRefusedThisTurn?: boolean;
+  whatsappDisplayName?: string | null;
+  forceFirstPresentation?: boolean;
   debugLogs?: string[];
 }): string {
   return applyLucyMessageGuards({
@@ -182,6 +187,8 @@ function runGuards(opts: {
     emailRefusedThisTurn: opts.emailRefusedThisTurn ?? false,
     history: opts.history ?? [],
     currentMessage: opts.currentMessage,
+    whatsappDisplayName: opts.whatsappDisplayName,
+    forceFirstPresentation: opts.forceFirstPresentation,
     buildClosing: mockClosing,
     log: opts.debugLogs
       ? {
@@ -1748,6 +1755,94 @@ async function runAll(): Promise<void> {
     const label = formatRequerimientoLabelFromQuery("banquete 4 tiempos premium");
     assert.ok(label);
     assert.ok(/Banquete 4 tiempos.*Premium/i.test(label!), label);
+  });
+
+  await test("38. Maestro — pre-fill web, invitados 35/40, comida vaga", () => {
+    const webMsg =
+      "Hola, me interesa cotizar para mi evento: boda en jardín. Sería el 15 de agosto en Cuernavaca, Morelos para 120 personas";
+    const brief = parseWebLeadBrief(webMsg);
+    assert.ok(brief);
+    assert.equal(brief!.tipo_evento, "boda");
+    assert.equal(brief!.num_invitados, 120);
+    assert.ok(/cuernavaca/i.test(brief!.direccion_evento ?? ""), brief!.direccion_evento);
+
+    const extracted = emptyExtracted();
+    assert.ok(applyWebLeadBrief(extracted, webMsg));
+    assert.equal(extracted.tipo_evento, "boda");
+    assert.equal(extracted.num_invitados, 120);
+
+    assert.equal(isAmbiguousShortNumber("35"), false);
+    assert.equal(isAmbiguousShortNumber("40"), false);
+    assert.equal(isAmbiguousShortNumber("5"), true);
+    assert.equal(isAmbiguousShortNumber("35", { lastAskedField: "invitados" }), false);
+    assert.equal(isAmbiguousShortNumber("5", { lastAskedField: "invitados" }), false);
+
+    assert.ok(isVagueFoodTerm("comida"));
+    assert.ok(isVagueFoodTerm("quiero desayuno"));
+    assert.ok(!isVagueFoodTerm("banquete premium 4 tiempos"));
+
+    const vagueReply = buildVagueFoodOptionsReply(
+      emptyExtracted({ tipo_evento: "boda", num_invitados: 20 }),
+      [],
+      "getting ready de mi boda, quiero comida"
+    );
+    assert.ok(/getting ready|desayuno|brunch|canap/i.test(vagueReply), vagueReply);
+    assert.ok(/sin pista/i.test(vagueReply), vagueReply);
+
+    const first = runGuards({
+      aiResponse: "¿Qué servicios te gustaría cotizar?",
+      extracted: emptyExtracted({ tipo_evento: "boda", num_invitados: 120, direccion_evento: "Cuernavaca" }),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: webMsg,
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert.ok(!clientAsksForRecommendations(webMsg) || !/lo m[aá]s com[uú]n es banquete o taquiza/i.test(first), first);
+  });
+
+  await test("39. Maestro — correo typo y nombre CRM", () => {
+    assert.equal(looksLikeValidClientEmail("a.juan@gmail.comm"), false);
+    assert.equal(looksLikeValidClientEmail("juan@gmail.com"), true);
+    assert.ok(buildEmailConfirmationPrompt("a.juan@gmail.comm").includes("gmail.comm"));
+
+    const emailGuard = runGuards({
+      aiResponse: "Gracias",
+      extracted: emptyExtracted(),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: "mi correo es a.juan@gmail.comm",
+      history: [],
+    });
+    assert.ok(/confirmas tu correo/i.test(emailGuard), emailGuard);
+
+    const nameGuard = runGuards({
+      aiResponse: "¿Me regalas tu nombre?",
+      extracted: emptyExtracted(),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: "Juan Vicente",
+      history: [],
+      whatsappDisplayName: "Susana Briseño",
+    });
+    assert.ok(/susana|juan vicente/i.test(nameGuard), nameGuard);
+    assert.ok(/eres|sigo contigo/i.test(nameGuard), nameGuard);
+  });
+
+  await test("40. Maestro — comida no mapea a Comida Corrida", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Comida Corrida","Basico","$280.00","$8,400.00","TRUE","3 tiempos"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const comida = resolveCatalogQuery("comida");
+    assert.ok(comida);
+    assert.equal(comida!.kind, "category");
+    assert.ok(comida!.rows.length >= 2, comida!.rows.map((r) => r.servicio).join(", "));
+    assert.equal(formatRequerimientoLabelFromQuery("comida"), null);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

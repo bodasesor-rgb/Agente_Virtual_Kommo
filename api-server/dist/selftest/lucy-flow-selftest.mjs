@@ -67,14 +67,36 @@ function sanitizeCrmNombre(name) {
   const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   const parts = cleaned.split(/\s+/).filter((part) => {
-    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    const trimmed2 = part.trim();
+    const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(trimmed2) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
   if (parts.length === 0) return sanitizeDisplayName(cleaned);
-  return parts.slice(0, 3).map((part) => {
-    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+  return parts.slice(0, 4).map((part) => {
+    const trimmed2 = part.trim();
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(trimmed2)) {
+      return `${trimmed2.charAt(0).toUpperCase()}.`;
+    }
+    const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
   }).join(" ");
+}
+function normalizeNameTokens(name) {
+  return name.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").split(/\s+/).filter((t) => t.length >= 2);
+}
+function namesAreLikelySamePerson(existing, incoming) {
+  const e = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  const i = sanitizeCrmNombre(incoming) ?? sanitizeDisplayName(incoming);
+  if (!e || !i) return true;
+  const te = normalizeNameTokens(e);
+  const ti = normalizeNameTokens(i);
+  if (!te.length || !ti.length) return true;
+  if (te[0] === ti[0]) return true;
+  return te.some((t) => ti.includes(t)) || ti.some((t) => te.includes(t));
+}
+function buildNameConfirmationPrompt(existing, incoming) {
+  return `Para anotarte bien: \xBFeres ${incoming.trim()} o sigo contigo como ${existing.trim()}?`;
 }
 function nombreWordCount(name) {
   const crm = sanitizeCrmNombre(name);
@@ -126,6 +148,21 @@ function filterClientEmail(email) {
   const norm = normalizeEmail(email);
   if (!norm || isOwnCompanyEmail(norm)) return null;
   return email.trim();
+}
+var SUSPICIOUS_TLD = /\.(comm|con|cmo|gmial|gmal|gmai|hotmial|yaho|outlok)\b/i;
+function looksLikeValidClientEmail(email) {
+  const norm = normalizeEmail(email);
+  if (!norm) return false;
+  if (/\s/.test(email ?? "")) return false;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm)) return false;
+  const domain = norm.split("@")[1] ?? "";
+  if (!domain || /\.\./.test(domain) || domain.startsWith(".") || domain.endsWith(".")) return false;
+  if (SUSPICIOUS_TLD.test(domain)) return false;
+  const tld = domain.split(".").pop() ?? "";
+  return tld.length >= 2 && /^[a-z]{2,}$/i.test(tld);
+}
+function buildEmailConfirmationPrompt(email) {
+  return `\xBFMe confirmas tu correo? Lo le\xED como ${email.trim()}, quiero anotarlo bien.`;
 }
 
 // src/lib/bodasesorAdvisor.ts
@@ -344,10 +381,93 @@ function clientAsksForRecommendations(message) {
   const t = message.toLowerCase();
   return /recomendaciones?|recomiendas?/i.test(t) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
 }
-function isAmbiguousShortNumber(text) {
+function isAmbiguousShortNumber(text, ctx) {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  return /^el\s+\d{1,2}$/i.test(t) || /^\d{1,2}$/.test(t);
+  if (ctx?.lastAskedField === "invitados") return false;
+  const guestCount = t.match(/^(?:son\s+)?(\d+)\s*(?:personas?|invitados?|pax|gente)?$/i);
+  if (guestCount) {
+    const n = parseInt(guestCount[1], 10);
+    if (n >= 10) return false;
+  }
+  const elMatch = t.match(/^el\s+(\d{1,2})$/i);
+  if (elMatch) {
+    const n = parseInt(elMatch[1], 10);
+    return n >= 1 && n <= 9;
+  }
+  const bareMatch = t.match(/^(\d+)$/);
+  if (bareMatch) {
+    const n = parseInt(bareMatch[1], 10);
+    if (n >= 10) return false;
+    return n >= 1 && n <= 9;
+  }
+  return false;
+}
+function parseWebLeadBrief(text) {
+  const t = text.trim();
+  if (!/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) return null;
+  const result = {};
+  const eventoMatch = t.match(
+    /(?:evento|celebraci[oó]n)\s*:\s*([^.\n]+?)(?:\.|,|\s+ser[ií]a|\s+para\s+\d|\s+en\s+)/i
+  );
+  if (eventoMatch) {
+    const chunk = eventoMatch[1].trim();
+    const tipo = parseTipoEventoFromText(chunk);
+    if (tipo) result.tipo_evento = tipo;
+    const services = parseServicesFromText(chunk);
+    if (services.length) result.requerimientos_evento = services.slice(0, 3).join(", ");
+    else if (!tipo) result.requerimientos_evento = chunk;
+  }
+  const seriaMatch = t.match(/ser[ií]a\s+(?:el\s+)?([^,.\n]+?)\s+en\s+([^,.\n]+?)(?:\.|,|\s+para\s+)/i);
+  if (seriaMatch) {
+    const fechaPart = seriaMatch[1].trim();
+    const lugarPart = seriaMatch[2].trim();
+    result.fecha_horario = parseFechaFromText(fechaPart) ?? fechaPart;
+    result.direccion_evento = parseZonaFromText(lugarPart) ?? lugarPart;
+  }
+  const invMatch = t.match(/para\s+(\d{1,4})\s*(?:personas?|invitados?|pax|gente)/i);
+  if (invMatch) result.num_invitados = parseInt(invMatch[1], 10);
+  return Object.keys(result).length > 0 ? result : null;
+}
+function applyWebLeadBrief(extracted, text) {
+  const brief = parseWebLeadBrief(text);
+  if (!brief) return false;
+  if (!extracted.tipo_evento?.trim() && brief.tipo_evento) extracted.tipo_evento = brief.tipo_evento;
+  if (!extracted.requerimientos_evento?.trim() && brief.requerimientos_evento) {
+    extracted.requerimientos_evento = brief.requerimientos_evento;
+  }
+  if (!extracted.fecha_horario?.trim() && brief.fecha_horario) {
+    extracted.fecha_horario = brief.fecha_horario;
+  }
+  if (!extracted.direccion_evento?.trim() && brief.direccion_evento) {
+    extracted.direccion_evento = brief.direccion_evento;
+  }
+  if (!extracted.num_invitados && brief.num_invitados) extracted.num_invitados = brief.num_invitados;
+  return true;
+}
+function isGettingReadyContext(text) {
+  if (!text?.trim()) return false;
+  return /\b(getting\s*ready|nos\s+arreglamos|arreglo\s+de\s+novia|donde\s+nos\s+arreglamos|d[ií]a\s+de\s+la\s+boda\s+en\s+casa)\b/i.test(
+    text
+  );
+}
+function hasSpecificFoodService(text) {
+  return /\b(banquete|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos)|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
+    text
+  );
+}
+function isVagueFoodTerm(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (hasSpecificFoodService(t)) return false;
+  if (parseServicesFromText(t).length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t)) {
+    return false;
+  }
+  const cleaned = t.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las)\s+/i, "").trim();
+  if (/^(comida|alimentos?|men[uú]s?|desayuno|brunch|catering|algo\s+de\s+comer)$/i.test(cleaned)) {
+    return true;
+  }
+  return /\b(quiero|necesito|busco)\s+(comida|alimentos?|desayuno|algo\s+de\s+comer)\b/i.test(t);
 }
 function recoverClienteNombreFromHistory(history, currentMessage) {
   let lastAssistant = "";
@@ -1596,11 +1716,17 @@ function uniqueServicios(rows) {
 function uniqueNiveles(rows) {
   return [...new Set(rows.map((r) => r.nivel.trim()).filter(Boolean))];
 }
+function isVagueCatalogFoodQuery(query) {
+  const q = normalizeForMatch(query.trim());
+  return /^(comida|alimentos?|men[uú]s?|desayuno|catering)$/.test(q);
+}
 function matchesSpecificServicioInQuery(query, rows) {
   const q = normalizeForMatch(query);
+  if (isVagueCatalogFoodQuery(query)) return false;
   for (const svc of uniqueServicios(rows)) {
     const normSvc = normalizeForMatch(svc);
-    if (q.includes(normSvc) || normSvc.includes(q)) return true;
+    if (q === normSvc || q.includes(normSvc)) return true;
+    if (normSvc.includes(q) && q.length >= 4) return true;
     const svcTokens = normSvc.split(/\s+/).filter((t) => t.length >= 4);
     if (svcTokens.some((t) => q.includes(t))) return true;
   }
@@ -1770,8 +1896,10 @@ function formatRequerimientoLabelFromQuery(query) {
 function scoreCatalogRow(row, tokens, filters, query) {
   const haystack = rowHaystack(row).replace(/\s+/g, "");
   let score = 0;
+  const vagueFood = isVagueCatalogFoodQuery(query);
   for (const token of tokens) {
     const tok = token.replace(/\s+/g, "");
+    if (vagueFood && tok === "comida" && /comidacorrida/.test(haystack)) continue;
     if (haystack.includes(tok)) score += 2;
   }
   if (filters.banquete && /\bbanquete\b/.test(rowHaystack(row))) score += 4;
@@ -2375,7 +2503,33 @@ function buildFoodServiceAckIntro(extracted, history, currentMessage) {
   }
   return `${pickTransition(history)} Con gusto te ayudo con catering para ${eventLabel}.`;
 }
+function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId) {
+  const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
+  const tipo = (extracted.tipo_evento ?? parseTipoEventoFromText(texts) ?? "").toLowerCase();
+  const inv = extracted.num_invitados ?? 0;
+  const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
+  let options;
+  if (gettingReady || /\bboda\b/.test(tipo) && inv > 0 && inv <= 30) {
+    options = "Para el getting ready suele ir desayuno o brunch ligero, canap\xE9s o coffee break \u2014 sin pista ni DJ.";
+  } else if (/baby\s*shower/.test(tipo) || /baby\s*shower/.test(texts)) {
+    options = "Para baby shower van bien brunch o banquete ligero, mesa de dulces o bocadillos.";
+  } else if (/\bboda\b/.test(tipo) && inv >= 150) {
+    options = "Para boda grande lo m\xE1s pedido es banquete, taquiza o barra de bebidas.";
+  } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
+    options = "Para bautizo suele ir banquete o brunch, mesa de dulces o bocadillos.";
+  } else if (/corporativo/.test(tipo) || /corporativ/.test(texts)) {
+    options = "Para eventos corporativos manejamos coffee break, banquete o barra de alimentos.";
+  } else {
+    options = "Seg\xFAn el evento podemos ofrecerte banquete, taquiza o brunch \u2014 \xBFcu\xE1l te interesa?";
+    return `${pickTransition(history)} ${options}`;
+  }
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${pickTransition(history)} ${options} ${follow}`.trim();
+}
 function buildFoodSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
+  if (isVagueFoodTerm(currentMessage)) {
+    return buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
+  }
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
@@ -2420,17 +2574,27 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
   }
   const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
   const tipo = (extracted.tipo_evento ?? "").toLowerCase();
+  const inv = extracted.num_invitados ?? 0;
+  const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
   let ideas;
-  if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
-    ideas = "Para un bautizo suele funcionar muy bien: banquete o brunch, pastel de bautizo, mesa de dulces, mobiliario y sillas, y si es en jard\xEDn o terraza carpas o sombrillas. Muchos tambi\xE9n agregan DJ suave o iluminaci\xF3n.";
+  if (gettingReady || /\bboda\b/.test(tipo) && inv > 0 && inv <= 30) {
+    ideas = "Para el getting ready suele ir desayuno o brunch ligero, canap\xE9s o coffee break. Mobiliario b\xE1sico si hace falta, sin pista ni DJ.";
+  } else if (/baby\s*shower/.test(tipo) || /baby\s*shower/.test(texts)) {
+    ideas = "Para baby shower suele ir brunch o banquete ligero, mesa de dulces, bocadillos y mobiliario.";
+  } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
+    ideas = "Para un bautizo suele funcionar muy bien: banquete o brunch, pastel de bautizo, mesa de dulces, mobiliario y sillas. En jard\xEDn o terraza, carpas o sombrillas.";
   } else if (/boda/.test(tipo) || /\bboda\b/.test(texts)) {
-    ideas = "Para boda lo m\xE1s pedido es banquete o taquiza, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminaci\xF3n. Tambi\xE9n mesa de dulces o quesos.";
+    if (inv >= 150) {
+      ideas = "Para boda grande lo m\xE1s pedido es banquete, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminaci\xF3n.";
+    } else {
+      ideas = "Para boda lo m\xE1s pedido es banquete o taquiza, barra de bebidas, mobiliario y mesa de dulces seg\xFAn el tama\xF1o del evento.";
+    }
   } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
     ideas = "Para XV a\xF1os suele ir banquete o taquiza, mesa de dulces, mobiliario, DJ, iluminaci\xF3n y pista de baile.";
   } else if (clientMentionsItalianTheme(texts) || clientMentionsItalianTheme(currentMessage)) {
-    ideas = "Para algo con tem\xE1tica italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana \u2014 ideal si ven el partido o quieren ambiente italiano.";
+    ideas = "Para algo con tem\xE1tica italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana.";
   } else {
-    ideas = "Lo m\xE1s com\xFAn es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, iluminaci\xF3n y mesa de dulces seg\xFAn el estilo del evento.";
+    ideas = "Seg\xFAn el evento podemos ofrecerte banquete, taquiza, barra de bebidas, mobiliario, DJ o mesa de dulces.";
   }
   const comparison = buildCatalogComparisonAnswer();
   if (comparison && /banquete|taquiza|recomiendas?/i.test(currentMessage ?? "")) {
@@ -2538,6 +2702,17 @@ function buildOpeningAcknowledgment(history, currentMessage) {
   }
   if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
   if (/\bbautizo\b/.test(t)) return "Con gusto te ayudo con la cotizaci\xF3n para tu bautizo.";
+  if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) {
+    const tipo = parseTipoEventoFromText(userText);
+    const inv = userText.match(/para\s+(\d+)\s*(?:personas?|invitados?)/i);
+    if (tipo) {
+      let ack = `Vi tu solicitud para ${tipo}`;
+      if (inv) ack += ` para ${inv[1]} personas`;
+      return `${ack}.`;
+    }
+    return "Vi los datos de tu evento en la solicitud.";
+  }
+  if (isGettingReadyContext(userText)) return "Te ayudo con el catering para el getting ready.";
   if (/banquete/.test(t)) {
     const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
     return inv ? `Te ayudo con el banquete para ${inv[1]} personas.` : "Con gusto te ayudo con informaci\xF3n de banquetes.";
@@ -2616,8 +2791,10 @@ function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPrese
   return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
 }
 function mensajeAsksForField(mensaje, field) {
-  if (!mensaje.includes("?")) return false;
-  return FIELD_ASK_PATTERNS[field].test(mensaje);
+  const questionParts = mensaje.split(/[.!]\s+/).map((p) => p.trim()).filter((p) => p.includes("?"));
+  const toCheck = questionParts.length ? questionParts.join(" ") : mensaje;
+  if (!toCheck.includes("?")) return false;
+  return FIELD_ASK_PATTERNS[field].test(toCheck);
 }
 function isFieldSatisfied(field, filledSet, extracted) {
   switch (field) {
@@ -2904,6 +3081,8 @@ function buildPostCierreThanksReply(clientName) {
 }
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
+  if (parseWebLeadBrief(currentMessage)) return true;
+  if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(currentMessage)) return true;
   return clientAsksLocation(currentMessage) || clientMentionsItalianTheme(currentMessage) || clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientMentionsEntertainment(currentMessage) || clientMentionsPistaTarima(currentMessage) || isServiceRelatedMessage(currentMessage) || clientAsksPhone(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
 }
 function clientAskedFreeformQuestion(message) {
@@ -2946,6 +3125,19 @@ function makeQuestionCtx(input) {
     currentMessage: input.currentMessage,
     entityId: input.entityId
   };
+}
+function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, whatsappDisplayName, lastAskedField) {
+  if (!currentMessage || isFieldSatisfied("nombre", filledSet, extracted) || isGreetingOnlyMessage(currentMessage) || isQuoteIntentMessage(currentMessage) || isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
+    return null;
+  }
+  const existingNombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(whatsappDisplayName) ?? null;
+  const soyMatch = currentMessage.trim().match(/^\s*soy\s+(.+)$/i);
+  const rawIncoming = soyMatch ? soyMatch[1].trim() : currentMessage.trim();
+  const incomingNombre = sanitizeCrmNombre(rawIncoming) ?? sanitizeDisplayName(rawIncoming);
+  if (existingNombre && incomingNombre && !namesAreLikelySamePerson(existingNombre, incomingNombre) && rawIncoming.length < 50 && !/@/.test(rawIncoming)) {
+    return buildNameConfirmationPrompt(existingNombre, incomingNombre);
+  }
+  return null;
 }
 function applyLucyMessageGuards(input) {
   const {
@@ -2993,6 +3185,15 @@ function applyLucyMessageGuards(input) {
   const requerimientosFollowUpAlreadyAsked = presHistory.some(
     (m) => m.role === "assistant" && typeof m.content === "string" && /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m.content)
   );
+  const lastAssistantMsg = [...presHistory].reverse().find((m) => m.role === "assistant" && typeof m.content === "string");
+  const lastAskedField = lastAssistantMsg ? inferLucyAskedField(lastAssistantMsg.content) : null;
+  const nameMismatchReply = buildNameMismatchReplyIfNeeded(
+    currentMessage,
+    extracted,
+    filledSet,
+    whatsappDisplayName,
+    lastAskedField
+  );
   let mensaje;
   let appliedSalesReply = false;
   let appliedDirectReply = false;
@@ -3007,10 +3208,26 @@ function applyLucyMessageGuards(input) {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
-  } else if (isAmbiguousShortNumber(currentMessage)) {
+  } else if (isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     mensaje = "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: n\xFAmero ambiguo \u2014 pedir aclaraci\xF3n");
+  } else if (currentMessage && (() => {
+    const pendingEmail = filterClientEmail(parseCorreoFromText(currentMessage));
+    return !!pendingEmail && !looksLikeValidClientEmail(pendingEmail) && !filledSet.has("Correo electr\xF3nico") && !filledSet.has(EMAIL_WAIVED_LABEL);
+  })()) {
+    const pendingEmail = filterClientEmail(parseCorreoFromText(currentMessage));
+    mensaje = buildEmailConfirmationPrompt(pendingEmail);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: correo sospechoso \u2014 pedir confirmaci\xF3n");
+  } else if (nameMismatchReply) {
+    mensaje = nameMismatchReply;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: nombre distinto al del contacto \u2014 confirmar");
+  } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage)) {
+    mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: t\xE9rmino vago de comida \u2014 ofrecer opciones");
   } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && clientMentionsItalianTheme(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
@@ -14055,6 +14272,8 @@ function runGuards(opts) {
     emailRefusedThisTurn: opts.emailRefusedThisTurn ?? false,
     history: opts.history ?? [],
     currentMessage: opts.currentMessage,
+    whatsappDisplayName: opts.whatsappDisplayName,
+    forceFirstPresentation: opts.forceFirstPresentation,
     buildClosing: mockClosing,
     log: opts.debugLogs ? {
       info: (_o, msg) => {
@@ -15415,6 +15634,82 @@ async function runAll() {
     const label = formatRequerimientoLabelFromQuery("banquete 4 tiempos premium");
     assert.ok(label);
     assert.ok(/Banquete 4 tiempos.*Premium/i.test(label), label);
+  });
+  await test("38. Maestro \u2014 pre-fill web, invitados 35/40, comida vaga", () => {
+    const webMsg = "Hola, me interesa cotizar para mi evento: boda en jard\xEDn. Ser\xEDa el 15 de agosto en Cuernavaca, Morelos para 120 personas";
+    const brief = parseWebLeadBrief(webMsg);
+    assert.ok(brief);
+    assert.equal(brief.tipo_evento, "boda");
+    assert.equal(brief.num_invitados, 120);
+    assert.ok(/cuernavaca/i.test(brief.direccion_evento ?? ""), brief.direccion_evento);
+    const extracted = emptyExtracted();
+    assert.ok(applyWebLeadBrief(extracted, webMsg));
+    assert.equal(extracted.tipo_evento, "boda");
+    assert.equal(extracted.num_invitados, 120);
+    assert.equal(isAmbiguousShortNumber("35"), false);
+    assert.equal(isAmbiguousShortNumber("40"), false);
+    assert.equal(isAmbiguousShortNumber("5"), true);
+    assert.equal(isAmbiguousShortNumber("35", { lastAskedField: "invitados" }), false);
+    assert.equal(isAmbiguousShortNumber("5", { lastAskedField: "invitados" }), false);
+    assert.ok(isVagueFoodTerm("comida"));
+    assert.ok(isVagueFoodTerm("quiero desayuno"));
+    assert.ok(!isVagueFoodTerm("banquete premium 4 tiempos"));
+    const vagueReply = buildVagueFoodOptionsReply(
+      emptyExtracted({ tipo_evento: "boda", num_invitados: 20 }),
+      [],
+      "getting ready de mi boda, quiero comida"
+    );
+    assert.ok(/getting ready|desayuno|brunch|canap/i.test(vagueReply), vagueReply);
+    assert.ok(/sin pista/i.test(vagueReply), vagueReply);
+    const first = runGuards({
+      aiResponse: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+      extracted: emptyExtracted({ tipo_evento: "boda", num_invitados: 120, direccion_evento: "Cuernavaca" }),
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: webMsg,
+      history: [],
+      forceFirstPresentation: true
+    });
+    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert.ok(!clientAsksForRecommendations(webMsg) || !/lo m[aá]s com[uú]n es banquete o taquiza/i.test(first), first);
+  });
+  await test("39. Maestro \u2014 correo typo y nombre CRM", () => {
+    assert.equal(looksLikeValidClientEmail("a.juan@gmail.comm"), false);
+    assert.equal(looksLikeValidClientEmail("juan@gmail.com"), true);
+    assert.ok(buildEmailConfirmationPrompt("a.juan@gmail.comm").includes("gmail.comm"));
+    const emailGuard = runGuards({
+      aiResponse: "Gracias",
+      extracted: emptyExtracted(),
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: "mi correo es a.juan@gmail.comm",
+      history: []
+    });
+    assert.ok(/confirmas tu correo/i.test(emailGuard), emailGuard);
+    const nameGuard = runGuards({
+      aiResponse: "\xBFMe regalas tu nombre?",
+      extracted: emptyExtracted(),
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: "Juan Vicente",
+      history: [],
+      whatsappDisplayName: "Susana Brise\xF1o"
+    });
+    assert.ok(/susana|juan vicente/i.test(nameGuard), nameGuard);
+    assert.ok(/eres|sigo contigo/i.test(nameGuard), nameGuard);
+  });
+  await test("40. Maestro \u2014 comida no mapea a Comida Corrida", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Comida Corrida","Basico","$280.00","$8,400.00","TRUE","3 tiempos"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const comida = resolveCatalogQuery("comida");
+    assert.ok(comida);
+    assert.equal(comida.kind, "category");
+    assert.ok(comida.rows.length >= 2, comida.rows.map((r) => r.servicio).join(", "));
+    assert.equal(formatRequerimientoLabelFromQuery("comida"), null);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

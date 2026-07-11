@@ -363,11 +363,18 @@ function uniqueNiveles(rows: SheetCatalogRow[]): string[] {
   return [...new Set(rows.map((r) => r.nivel.trim()).filter(Boolean))];
 }
 
+function isVagueCatalogFoodQuery(query: string): boolean {
+  const q = normalizeForMatch(query.trim());
+  return /^(comida|alimentos?|men[uú]s?|desayuno|catering)$/.test(q);
+}
+
 function matchesSpecificServicioInQuery(query: string, rows: SheetCatalogRow[]): boolean {
   const q = normalizeForMatch(query);
+  if (isVagueCatalogFoodQuery(query)) return false;
   for (const svc of uniqueServicios(rows)) {
     const normSvc = normalizeForMatch(svc);
-    if (q.includes(normSvc) || normSvc.includes(q)) return true;
+    if (q === normSvc || q.includes(normSvc)) return true;
+    if (normSvc.includes(q) && q.length >= 4) return true;
     const svcTokens = normSvc.split(/\s+/).filter((t) => t.length >= 4);
     if (svcTokens.some((t) => q.includes(t))) return true;
   }
@@ -569,9 +576,11 @@ function scoreCatalogRow(
 ): number {
   const haystack = rowHaystack(row).replace(/\s+/g, "");
   let score = 0;
+  const vagueFood = isVagueCatalogFoodQuery(query);
 
   for (const token of tokens) {
     const tok = token.replace(/\s+/g, "");
+    if (vagueFood && tok === "comida" && /comidacorrida/.test(haystack)) continue;
     if (haystack.includes(tok)) score += 2;
   }
 

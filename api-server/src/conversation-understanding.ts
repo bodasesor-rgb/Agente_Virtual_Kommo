@@ -220,11 +220,131 @@ export function clientAsksForRecommendations(message?: string): boolean {
   );
 }
 
-/** Número suelto ambiguo — no es invitados ni nombre. */
-export function isAmbiguousShortNumber(text: string | null | undefined): boolean {
+export interface AmbiguousNumberContext {
+  lastAskedField?: UnderstandingField | null;
+}
+
+/** Número suelto ambiguo — solo dígitos 1-9 (día vs pocos invitados), nunca 10+. */
+export function isAmbiguousShortNumber(
+  text: string | null | undefined,
+  ctx?: AmbiguousNumberContext
+): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  return /^el\s+\d{1,2}$/i.test(t) || /^\d{1,2}$/.test(t);
+
+  if (ctx?.lastAskedField === "invitados") return false;
+
+  const guestCount = t.match(/^(?:son\s+)?(\d+)\s*(?:personas?|invitados?|pax|gente)?$/i);
+  if (guestCount) {
+    const n = parseInt(guestCount[1]!, 10);
+    if (n >= 10) return false;
+  }
+
+  const elMatch = t.match(/^el\s+(\d{1,2})$/i);
+  if (elMatch) {
+    const n = parseInt(elMatch[1]!, 10);
+    return n >= 1 && n <= 9;
+  }
+
+  const bareMatch = t.match(/^(\d+)$/);
+  if (bareMatch) {
+    const n = parseInt(bareMatch[1]!, 10);
+    if (n >= 10) return false;
+    return n >= 1 && n <= 9;
+  }
+
+  return false;
+}
+
+/** Brief pre-llenado desde el formulario web de Bodasesor. */
+export interface WebLeadBrief {
+  tipo_evento?: string;
+  requerimientos_evento?: string;
+  fecha_horario?: string;
+  direccion_evento?: string;
+  num_invitados?: number;
+}
+
+export function parseWebLeadBrief(text: string): WebLeadBrief | null {
+  const t = text.trim();
+  if (!/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) return null;
+
+  const result: WebLeadBrief = {};
+
+  const eventoMatch = t.match(
+    /(?:evento|celebraci[oó]n)\s*:\s*([^.\n]+?)(?:\.|,|\s+ser[ií]a|\s+para\s+\d|\s+en\s+)/i
+  );
+  if (eventoMatch) {
+    const chunk = eventoMatch[1]!.trim();
+    const tipo = parseTipoEventoFromText(chunk);
+    if (tipo) result.tipo_evento = tipo;
+    const services = parseServicesFromText(chunk);
+    if (services.length) result.requerimientos_evento = services.slice(0, 3).join(", ");
+    else if (!tipo) result.requerimientos_evento = chunk;
+  }
+
+  const seriaMatch = t.match(/ser[ií]a\s+(?:el\s+)?([^,.\n]+?)\s+en\s+([^,.\n]+?)(?:\.|,|\s+para\s+)/i);
+  if (seriaMatch) {
+    const fechaPart = seriaMatch[1]!.trim();
+    const lugarPart = seriaMatch[2]!.trim();
+    result.fecha_horario = parseFechaFromText(fechaPart) ?? fechaPart;
+    result.direccion_evento = parseZonaFromText(lugarPart) ?? lugarPart;
+  }
+
+  const invMatch = t.match(/para\s+(\d{1,4})\s*(?:personas?|invitados?|pax|gente)/i);
+  if (invMatch) result.num_invitados = parseInt(invMatch[1]!, 10);
+
+  return Object.keys(result).length > 0 ? result : null;
+}
+
+/** Aplica el brief web a extracted sin sobrescribir datos ya capturados. */
+export function applyWebLeadBrief(extracted: ExtractedData, text: string): boolean {
+  const brief = parseWebLeadBrief(text);
+  if (!brief) return false;
+  if (!extracted.tipo_evento?.trim() && brief.tipo_evento) extracted.tipo_evento = brief.tipo_evento;
+  if (!extracted.requerimientos_evento?.trim() && brief.requerimientos_evento) {
+    extracted.requerimientos_evento = brief.requerimientos_evento;
+  }
+  if (!extracted.fecha_horario?.trim() && brief.fecha_horario) {
+    extracted.fecha_horario = brief.fecha_horario;
+  }
+  if (!extracted.direccion_evento?.trim() && brief.direccion_evento) {
+    extracted.direccion_evento = brief.direccion_evento;
+  }
+  if (!extracted.num_invitados && brief.num_invitados) extracted.num_invitados = brief.num_invitados;
+  return true;
+}
+
+/** Getting ready / arreglo de novia — evento pequeño, catering ligero. */
+export function isGettingReadyContext(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  return /\b(getting\s*ready|nos\s+arreglamos|arreglo\s+de\s+novia|donde\s+nos\s+arreglamos|d[ií]a\s+de\s+la\s+boda\s+en\s+casa)\b/i.test(
+    text
+  );
+}
+
+function hasSpecificFoodService(text: string): boolean {
+  return /\b(banquete|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos)|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
+    text
+  );
+}
+
+/** Término general de comida sin servicio concreto — indagar, no asumir. */
+export function isVagueFoodTerm(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (hasSpecificFoodService(t)) return false;
+  if (parseServicesFromText(t).length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t)) {
+    return false;
+  }
+  const cleaned = t
+    .replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "")
+    .replace(/^(una?|el|la|los|las)\s+/i, "")
+    .trim();
+  if (/^(comida|alimentos?|men[uú]s?|desayuno|brunch|catering|algo\s+de\s+comer)$/i.test(cleaned)) {
+    return true;
+  }
+  return /\b(quiero|necesito|busco)\s+(comida|alimentos?|desayuno|algo\s+de\s+comer)\b/i.test(t);
 }
 
 /** Limpia extracción GPT cuando el turno es un número suelto ambiguo. */

@@ -3,11 +3,20 @@ import type { ExtractedData } from "./types.js";
 import {
   isAffirmativeOnlyMessage,
   isGreetingOnlyMessage,
+  isQuoteIntentMessage,
   isNombreMoreComplete,
   pickBetterNombre,
   resolveClientDisplayName,
   sanitizeDisplayName,
+  sanitizeCrmNombre,
+  buildNameConfirmationPrompt,
+  namesAreLikelySamePerson,
 } from "./contact-name.js";
+import {
+  buildEmailConfirmationPrompt,
+  filterClientEmail,
+  looksLikeValidClientEmail,
+} from "./client-email.js";
 import {
   buildModoServicioClarificationQuestion,
   needsModoServicioClarification,
@@ -56,6 +65,7 @@ import {
   parsePresupuestoFromText,
   clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
+  parseCorreoFromText,
   clientMentionsCatering,
   inferLucyAskedField,
   isServiceRelatedMessage,
@@ -64,6 +74,9 @@ import {
   parseFechaFromText,
   parseTipoEventoFromText,
   recoverClienteNombreFromHistory,
+  isVagueFoodTerm,
+  isGettingReadyContext,
+  parseWebLeadBrief,
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
@@ -623,6 +636,39 @@ function buildFoodServiceAckIntro(
   return `${pickTransition(history)} Con gusto te ayudo con catering para ${eventLabel}.`;
 }
 
+/** Opciones acotadas cuando el cliente dice solo "comida", "desayuno", etc. */
+export function buildVagueFoodOptionsReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string,
+  entityId?: string | number
+): string {
+  const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
+  const tipo = (extracted.tipo_evento ?? parseTipoEventoFromText(texts) ?? "").toLowerCase();
+  const inv = extracted.num_invitados ?? 0;
+  const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
+
+  let options: string;
+  if (gettingReady || (/\bboda\b/.test(tipo) && inv > 0 && inv <= 30)) {
+    options =
+      "Para el getting ready suele ir desayuno o brunch ligero, canapés o coffee break — sin pista ni DJ.";
+  } else if (/baby\s*shower/.test(tipo) || /baby\s*shower/.test(texts)) {
+    options = "Para baby shower van bien brunch o banquete ligero, mesa de dulces o bocadillos.";
+  } else if (/\bboda\b/.test(tipo) && inv >= 150) {
+    options = "Para boda grande lo más pedido es banquete, taquiza o barra de bebidas.";
+  } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
+    options = "Para bautizo suele ir banquete o brunch, mesa de dulces o bocadillos.";
+  } else if (/corporativo/.test(tipo) || /corporativ/.test(texts)) {
+    options = "Para eventos corporativos manejamos coffee break, banquete o barra de alimentos.";
+  } else {
+    options = "Según el evento podemos ofrecerte banquete, taquiza o brunch — ¿cuál te interesa?";
+    return `${pickTransition(history)} ${options}`;
+  }
+
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${pickTransition(history)} ${options} ${follow}`.trim();
+}
+
 function buildFoodSalesReply(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -631,6 +677,10 @@ function buildFoodSalesReply(
   filledSet?: Set<string>,
   ctx?: NaturalQuestionContext
 ): string | null {
+  if (isVagueFoodTerm(currentMessage)) {
+    return buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
+  }
+
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel =
     tipo === "cumpleaños"
@@ -700,23 +750,36 @@ export function buildRecommendationsReply(
 
   const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
   const tipo = (extracted.tipo_evento ?? "").toLowerCase();
+  const inv = extracted.num_invitados ?? 0;
+  const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
 
   let ideas: string;
-  if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
+  if (gettingReady || (/\bboda\b/.test(tipo) && inv > 0 && inv <= 30)) {
     ideas =
-      "Para un bautizo suele funcionar muy bien: banquete o brunch, pastel de bautizo, mesa de dulces, mobiliario y sillas, y si es en jardín o terraza carpas o sombrillas. Muchos también agregan DJ suave o iluminación.";
+      "Para el getting ready suele ir desayuno o brunch ligero, canapés o coffee break. Mobiliario básico si hace falta, sin pista ni DJ.";
+  } else if (/baby\s*shower/.test(tipo) || /baby\s*shower/.test(texts)) {
+    ideas =
+      "Para baby shower suele ir brunch o banquete ligero, mesa de dulces, bocadillos y mobiliario.";
+  } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
+    ideas =
+      "Para un bautizo suele funcionar muy bien: banquete o brunch, pastel de bautizo, mesa de dulces, mobiliario y sillas. En jardín o terraza, carpas o sombrillas.";
   } else if (/boda/.test(tipo) || /\bboda\b/.test(texts)) {
-    ideas =
-      "Para boda lo más pedido es banquete o taquiza, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminación. También mesa de dulces o quesos.";
+    if (inv >= 150) {
+      ideas =
+        "Para boda grande lo más pedido es banquete, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminación.";
+    } else {
+      ideas =
+        "Para boda lo más pedido es banquete o taquiza, barra de bebidas, mobiliario y mesa de dulces según el tamaño del evento.";
+    }
   } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
     ideas =
       "Para XV años suele ir banquete o taquiza, mesa de dulces, mobiliario, DJ, iluminación y pista de baile.";
   } else if (clientMentionsItalianTheme(texts) || clientMentionsItalianTheme(currentMessage)) {
     ideas =
-      "Para algo con temática italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana — ideal si ven el partido o quieren ambiente italiano.";
+      "Para algo con temática italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana.";
   } else {
     ideas =
-      "Lo más común es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, iluminación y mesa de dulces según el estilo del evento.";
+      "Según el evento podemos ofrecerte banquete, taquiza, barra de bebidas, mobiliario, DJ o mesa de dulces.";
   }
 
   const comparison = buildCatalogComparisonAnswer();
@@ -914,6 +977,17 @@ export function buildOpeningAcknowledgment(
 
   if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
   if (/\bbautizo\b/.test(t)) return "Con gusto te ayudo con la cotización para tu bautizo.";
+  if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) {
+    const tipo = parseTipoEventoFromText(userText);
+    const inv = userText.match(/para\s+(\d+)\s*(?:personas?|invitados?)/i);
+    if (tipo) {
+      let ack = `Vi tu solicitud para ${tipo}`;
+      if (inv) ack += ` para ${inv[1]} personas`;
+      return `${ack}.`;
+    }
+    return "Vi los datos de tu evento en la solicitud.";
+  }
+  if (isGettingReadyContext(userText)) return "Te ayudo con el catering para el getting ready.";
   if (/banquete/.test(t)) {
     const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
     return inv
@@ -1029,8 +1103,13 @@ export function enforceNombreFirst(
 }
 
 export function mensajeAsksForField(mensaje: string, field: PendingField): boolean {
-  if (!mensaje.includes("?")) return false;
-  return FIELD_ASK_PATTERNS[field].test(mensaje);
+  const questionParts = mensaje
+    .split(/[.!]\s+/)
+    .map((p) => p.trim())
+    .filter((p) => p.includes("?"));
+  const toCheck = questionParts.length ? questionParts.join(" ") : mensaje;
+  if (!toCheck.includes("?")) return false;
+  return FIELD_ASK_PATTERNS[field].test(toCheck);
 }
 
 export function isFieldSatisfied(
@@ -1499,6 +1578,8 @@ export function buildPostCierreThanksReply(clientName?: string | null): string {
 
 function isInformativeClientAnswer(currentMessage?: string): boolean {
   if (!currentMessage?.trim()) return false;
+  if (parseWebLeadBrief(currentMessage)) return true;
+  if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(currentMessage)) return true;
   return (
     clientAsksLocation(currentMessage) ||
     clientMentionsItalianTheme(currentMessage) ||
@@ -1601,6 +1682,40 @@ function makeQuestionCtx(input: LucyMessageGuardsInput): NaturalQuestionContext 
   };
 }
 
+function buildNameMismatchReplyIfNeeded(
+  currentMessage: string | undefined,
+  extracted: ExtractedData,
+  filledSet: Set<string>,
+  whatsappDisplayName: string | null | undefined,
+  lastAskedField: ReturnType<typeof inferLucyAskedField>
+): string | null {
+  if (
+    !currentMessage ||
+    isFieldSatisfied("nombre", filledSet, extracted) ||
+    isGreetingOnlyMessage(currentMessage) ||
+    isQuoteIntentMessage(currentMessage) ||
+    isAmbiguousShortNumber(currentMessage, { lastAskedField })
+  ) {
+    return null;
+  }
+
+  const existingNombre =
+    sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(whatsappDisplayName) ?? null;
+  const soyMatch = currentMessage.trim().match(/^\s*soy\s+(.+)$/i);
+  const rawIncoming = soyMatch ? soyMatch[1]!.trim() : currentMessage.trim();
+  const incomingNombre = sanitizeCrmNombre(rawIncoming) ?? sanitizeDisplayName(rawIncoming);
+  if (
+    existingNombre &&
+    incomingNombre &&
+    !namesAreLikelySamePerson(existingNombre, incomingNombre) &&
+    rawIncoming.length < 50 &&
+    !/@/.test(rawIncoming)
+  ) {
+    return buildNameConfirmationPrompt(existingNombre, incomingNombre);
+  }
+  return null;
+}
+
 export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const {
     aiResponse,
@@ -1673,6 +1788,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m.content as string)
   );
 
+  const lastAssistantMsg = [...presHistory]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  const lastAskedField = lastAssistantMsg
+    ? inferLucyAskedField(lastAssistantMsg.content as string)
+    : null;
+
+  const nameMismatchReply = buildNameMismatchReplyIfNeeded(
+    currentMessage,
+    extracted,
+    filledSet,
+    whatsappDisplayName,
+    lastAskedField
+  );
+
   let mensaje: string;
   let appliedSalesReply = false;
   let appliedDirectReply = false;
@@ -1693,10 +1823,38 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente preguntó por correo de Bodasesor");
-  } else if (isAmbiguousShortNumber(currentMessage)) {
+  } else if (isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     mensaje = "¿Te refieres a 5 invitados o al día 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: número ambiguo — pedir aclaración");
+  } else if (
+    currentMessage &&
+    (() => {
+      const pendingEmail = filterClientEmail(parseCorreoFromText(currentMessage));
+      return (
+        !!pendingEmail &&
+        !looksLikeValidClientEmail(pendingEmail) &&
+        !filledSet.has("Correo electrónico") &&
+        !filledSet.has(EMAIL_WAIVED_LABEL)
+      );
+    })()
+  ) {
+    const pendingEmail = filterClientEmail(parseCorreoFromText(currentMessage))!;
+    mensaje = buildEmailConfirmationPrompt(pendingEmail);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: correo sospechoso — pedir confirmación");
+  } else if (nameMismatchReply) {
+    mensaje = nameMismatchReply;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: nombre distinto al del contacto — confirmar");
+  } else if (
+    allowSalesReplyOverride &&
+    isVagueFoodTerm(currentMessage) &&
+    !clientAsksForRecommendations(currentMessage)
+  ) {
+    mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: término vago de comida — ofrecer opciones");
   } else if (
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
     !conversationAlreadyStarted(filledSet, presHistory) &&

@@ -100,19 +100,62 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
 
   const parts = cleaned.split(/\s+/).filter((part) => {
-    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    const trimmed = part.trim();
+    const letters = trimmed.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(trimmed) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
 
   if (parts.length === 0) return sanitizeDisplayName(cleaned);
 
   return parts
-    .slice(0, 3)
+    .slice(0, 4)
     .map((part) => {
-      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+      const trimmed = part.trim();
+      if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(trimmed)) {
+        return `${trimmed.charAt(0).toUpperCase()}.`;
+      }
+      const letters = trimmed.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
       return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
     })
     .join(" ");
+}
+
+/** Nunca sobrescribir un nombre existente con uno más corto (menos palabras). */
+export function shouldUpdateName(current?: string, incoming?: string): boolean {
+  const c = (current ?? "").trim();
+  const i = (incoming ?? "").trim();
+  if (!i) return false;
+  if (!c) return true;
+  return isNombreMoreComplete(i, c);
+}
+
+function normalizeNameTokens(name: string): string[] {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .split(/\s+/)
+    .filter((t) => t.length >= 2);
+}
+
+/** ¿El nombre entrante parece la misma persona que el ya guardado? */
+export function namesAreLikelySamePerson(
+  existing: string | null | undefined,
+  incoming: string | null | undefined
+): boolean {
+  const e = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  const i = sanitizeCrmNombre(incoming) ?? sanitizeDisplayName(incoming);
+  if (!e || !i) return true;
+  const te = normalizeNameTokens(e);
+  const ti = normalizeNameTokens(i);
+  if (!te.length || !ti.length) return true;
+  if (te[0] === ti[0]) return true;
+  return te.some((t) => ti.includes(t)) || ti.some((t) => te.includes(t));
+}
+
+export function buildNameConfirmationPrompt(existing: string, incoming: string): string {
+  return `Para anotarte bien: ¿eres ${incoming.trim()} o sigo contigo como ${existing.trim()}?`;
 }
 
 /** Cuenta palabras con letras válidas en un nombre. */

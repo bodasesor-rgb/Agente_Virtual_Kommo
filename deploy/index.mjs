@@ -79103,14 +79103,43 @@ function sanitizeCrmNombre(name2) {
   const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   const parts2 = cleaned.split(/\s+/).filter((part) => {
-    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    const trimmed2 = part.trim();
+    const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(trimmed2) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
   if (parts2.length === 0) return sanitizeDisplayName(cleaned);
-  return parts2.slice(0, 3).map((part) => {
-    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+  return parts2.slice(0, 4).map((part) => {
+    const trimmed2 = part.trim();
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(trimmed2)) {
+      return `${trimmed2.charAt(0).toUpperCase()}.`;
+    }
+    const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
   }).join(" ");
+}
+function shouldUpdateName(current, incoming) {
+  const c2 = (current ?? "").trim();
+  const i3 = (incoming ?? "").trim();
+  if (!i3) return false;
+  if (!c2) return true;
+  return isNombreMoreComplete(i3, c2);
+}
+function normalizeNameTokens(name2) {
+  return name2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").split(/\s+/).filter((t) => t.length >= 2);
+}
+function namesAreLikelySamePerson(existing, incoming) {
+  const e = sanitizeCrmNombre(existing) ?? sanitizeDisplayName(existing);
+  const i3 = sanitizeCrmNombre(incoming) ?? sanitizeDisplayName(incoming);
+  if (!e || !i3) return true;
+  const te3 = normalizeNameTokens(e);
+  const ti = normalizeNameTokens(i3);
+  if (!te3.length || !ti.length) return true;
+  if (te3[0] === ti[0]) return true;
+  return te3.some((t) => ti.includes(t)) || ti.some((t) => te3.includes(t));
+}
+function buildNameConfirmationPrompt(existing, incoming) {
+  return `Para anotarte bien: \xBFeres ${incoming.trim()} o sigo contigo como ${existing.trim()}?`;
 }
 function nombreWordCount(name2) {
   const crm = sanitizeCrmNombre(name2);
@@ -79162,6 +79191,21 @@ function filterClientEmail(email) {
   const norm = normalizeEmail(email);
   if (!norm || isOwnCompanyEmail(norm)) return null;
   return email.trim();
+}
+var SUSPICIOUS_TLD = /\.(comm|con|cmo|gmial|gmal|gmai|hotmial|yaho|outlok)\b/i;
+function looksLikeValidClientEmail(email) {
+  const norm = normalizeEmail(email);
+  if (!norm) return false;
+  if (/\s/.test(email ?? "")) return false;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm)) return false;
+  const domain = norm.split("@")[1] ?? "";
+  if (!domain || /\.\./.test(domain) || domain.startsWith(".") || domain.endsWith(".")) return false;
+  if (SUSPICIOUS_TLD.test(domain)) return false;
+  const tld = domain.split(".").pop() ?? "";
+  return tld.length >= 2 && /^[a-z]{2,}$/i.test(tld);
+}
+function buildEmailConfirmationPrompt(email) {
+  return `\xBFMe confirmas tu correo? Lo le\xED como ${email.trim()}, quiero anotarlo bien.`;
 }
 
 // src/conversation-understanding.ts
@@ -79301,10 +79345,93 @@ function clientAsksForRecommendations(message) {
   const t = message.toLowerCase();
   return /recomendaciones?|recomiendas?/i.test(t) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
 }
-function isAmbiguousShortNumber(text2) {
+function isAmbiguousShortNumber(text2, ctx) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
-  return /^el\s+\d{1,2}$/i.test(t) || /^\d{1,2}$/.test(t);
+  if (ctx?.lastAskedField === "invitados") return false;
+  const guestCount = t.match(/^(?:son\s+)?(\d+)\s*(?:personas?|invitados?|pax|gente)?$/i);
+  if (guestCount) {
+    const n3 = parseInt(guestCount[1], 10);
+    if (n3 >= 10) return false;
+  }
+  const elMatch = t.match(/^el\s+(\d{1,2})$/i);
+  if (elMatch) {
+    const n3 = parseInt(elMatch[1], 10);
+    return n3 >= 1 && n3 <= 9;
+  }
+  const bareMatch = t.match(/^(\d+)$/);
+  if (bareMatch) {
+    const n3 = parseInt(bareMatch[1], 10);
+    if (n3 >= 10) return false;
+    return n3 >= 1 && n3 <= 9;
+  }
+  return false;
+}
+function parseWebLeadBrief(text2) {
+  const t = text2.trim();
+  if (!/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) return null;
+  const result = {};
+  const eventoMatch = t.match(
+    /(?:evento|celebraci[oó]n)\s*:\s*([^.\n]+?)(?:\.|,|\s+ser[ií]a|\s+para\s+\d|\s+en\s+)/i
+  );
+  if (eventoMatch) {
+    const chunk = eventoMatch[1].trim();
+    const tipo = parseTipoEventoFromText(chunk);
+    if (tipo) result.tipo_evento = tipo;
+    const services = parseServicesFromText(chunk);
+    if (services.length) result.requerimientos_evento = services.slice(0, 3).join(", ");
+    else if (!tipo) result.requerimientos_evento = chunk;
+  }
+  const seriaMatch = t.match(/ser[ií]a\s+(?:el\s+)?([^,.\n]+?)\s+en\s+([^,.\n]+?)(?:\.|,|\s+para\s+)/i);
+  if (seriaMatch) {
+    const fechaPart = seriaMatch[1].trim();
+    const lugarPart = seriaMatch[2].trim();
+    result.fecha_horario = parseFechaFromText(fechaPart) ?? fechaPart;
+    result.direccion_evento = parseZonaFromText(lugarPart) ?? lugarPart;
+  }
+  const invMatch = t.match(/para\s+(\d{1,4})\s*(?:personas?|invitados?|pax|gente)/i);
+  if (invMatch) result.num_invitados = parseInt(invMatch[1], 10);
+  return Object.keys(result).length > 0 ? result : null;
+}
+function applyWebLeadBrief(extracted, text2) {
+  const brief = parseWebLeadBrief(text2);
+  if (!brief) return false;
+  if (!extracted.tipo_evento?.trim() && brief.tipo_evento) extracted.tipo_evento = brief.tipo_evento;
+  if (!extracted.requerimientos_evento?.trim() && brief.requerimientos_evento) {
+    extracted.requerimientos_evento = brief.requerimientos_evento;
+  }
+  if (!extracted.fecha_horario?.trim() && brief.fecha_horario) {
+    extracted.fecha_horario = brief.fecha_horario;
+  }
+  if (!extracted.direccion_evento?.trim() && brief.direccion_evento) {
+    extracted.direccion_evento = brief.direccion_evento;
+  }
+  if (!extracted.num_invitados && brief.num_invitados) extracted.num_invitados = brief.num_invitados;
+  return true;
+}
+function isGettingReadyContext(text2) {
+  if (!text2?.trim()) return false;
+  return /\b(getting\s*ready|nos\s+arreglamos|arreglo\s+de\s+novia|donde\s+nos\s+arreglamos|d[ií]a\s+de\s+la\s+boda\s+en\s+casa)\b/i.test(
+    text2
+  );
+}
+function hasSpecificFoodService(text2) {
+  return /\b(banquete|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos)|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
+    text2
+  );
+}
+function isVagueFoodTerm(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return false;
+  if (hasSpecificFoodService(t)) return false;
+  if (parseServicesFromText(t).length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t)) {
+    return false;
+  }
+  const cleaned = t.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las)\s+/i, "").trim();
+  if (/^(comida|alimentos?|men[uú]s?|desayuno|brunch|catering|algo\s+de\s+comer)$/i.test(cleaned)) {
+    return true;
+  }
+  return /\b(quiero|necesito|busco)\s+(comida|alimentos?|desayuno|algo\s+de\s+comer)\b/i.test(t);
 }
 function sanitizeExtractedAmbiguousNumbers(extracted, messageText) {
   if (isAmbiguousShortNumber(messageText)) {
@@ -80370,11 +80497,17 @@ function uniqueServicios(rows) {
 function uniqueNiveles(rows) {
   return [...new Set(rows.map((r2) => r2.nivel.trim()).filter(Boolean))];
 }
+function isVagueCatalogFoodQuery(query) {
+  const q2 = normalizeForMatch(query.trim());
+  return /^(comida|alimentos?|men[uú]s?|desayuno|catering)$/.test(q2);
+}
 function matchesSpecificServicioInQuery(query, rows) {
   const q2 = normalizeForMatch(query);
+  if (isVagueCatalogFoodQuery(query)) return false;
   for (const svc of uniqueServicios(rows)) {
     const normSvc = normalizeForMatch(svc);
-    if (q2.includes(normSvc) || normSvc.includes(q2)) return true;
+    if (q2 === normSvc || q2.includes(normSvc)) return true;
+    if (normSvc.includes(q2) && q2.length >= 4) return true;
     const svcTokens = normSvc.split(/\s+/).filter((t) => t.length >= 4);
     if (svcTokens.some((t) => q2.includes(t))) return true;
   }
@@ -80544,8 +80677,10 @@ function formatRequerimientoLabelFromQuery(query) {
 function scoreCatalogRow(row, tokens, filters, query) {
   const haystack = rowHaystack(row).replace(/\s+/g, "");
   let score = 0;
+  const vagueFood = isVagueCatalogFoodQuery(query);
   for (const token of tokens) {
     const tok = token.replace(/\s+/g, "");
+    if (vagueFood && tok === "comida" && /comidacorrida/.test(haystack)) continue;
     if (haystack.includes(tok)) score += 2;
   }
   if (filters.banquete && /\bbanquete\b/.test(rowHaystack(row))) score += 4;
@@ -82187,7 +82322,33 @@ function buildFoodServiceAckIntro(extracted, history, currentMessage) {
   }
   return `${pickTransition(history)} Con gusto te ayudo con catering para ${eventLabel}.`;
 }
+function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId) {
+  const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
+  const tipo = (extracted.tipo_evento ?? parseTipoEventoFromText(texts) ?? "").toLowerCase();
+  const inv = extracted.num_invitados ?? 0;
+  const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
+  let options;
+  if (gettingReady || /\bboda\b/.test(tipo) && inv > 0 && inv <= 30) {
+    options = "Para el getting ready suele ir desayuno o brunch ligero, canap\xE9s o coffee break \u2014 sin pista ni DJ.";
+  } else if (/baby\s*shower/.test(tipo) || /baby\s*shower/.test(texts)) {
+    options = "Para baby shower van bien brunch o banquete ligero, mesa de dulces o bocadillos.";
+  } else if (/\bboda\b/.test(tipo) && inv >= 150) {
+    options = "Para boda grande lo m\xE1s pedido es banquete, taquiza o barra de bebidas.";
+  } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
+    options = "Para bautizo suele ir banquete o brunch, mesa de dulces o bocadillos.";
+  } else if (/corporativo/.test(tipo) || /corporativ/.test(texts)) {
+    options = "Para eventos corporativos manejamos coffee break, banquete o barra de alimentos.";
+  } else {
+    options = "Seg\xFAn el evento podemos ofrecerte banquete, taquiza o brunch \u2014 \xBFcu\xE1l te interesa?";
+    return `${pickTransition(history)} ${options}`;
+  }
+  const follow = pickVariant("requerimientos", history, entityId);
+  return `${pickTransition(history)} ${options} ${follow}`.trim();
+}
 function buildFoodSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
+  if (isVagueFoodTerm(currentMessage)) {
+    return buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
+  }
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
@@ -82232,17 +82393,27 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
   }
   const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
   const tipo = (extracted.tipo_evento ?? "").toLowerCase();
+  const inv = extracted.num_invitados ?? 0;
+  const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
   let ideas;
-  if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
-    ideas = "Para un bautizo suele funcionar muy bien: banquete o brunch, pastel de bautizo, mesa de dulces, mobiliario y sillas, y si es en jard\xEDn o terraza carpas o sombrillas. Muchos tambi\xE9n agregan DJ suave o iluminaci\xF3n.";
+  if (gettingReady || /\bboda\b/.test(tipo) && inv > 0 && inv <= 30) {
+    ideas = "Para el getting ready suele ir desayuno o brunch ligero, canap\xE9s o coffee break. Mobiliario b\xE1sico si hace falta, sin pista ni DJ.";
+  } else if (/baby\s*shower/.test(tipo) || /baby\s*shower/.test(texts)) {
+    ideas = "Para baby shower suele ir brunch o banquete ligero, mesa de dulces, bocadillos y mobiliario.";
+  } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
+    ideas = "Para un bautizo suele funcionar muy bien: banquete o brunch, pastel de bautizo, mesa de dulces, mobiliario y sillas. En jard\xEDn o terraza, carpas o sombrillas.";
   } else if (/boda/.test(tipo) || /\bboda\b/.test(texts)) {
-    ideas = "Para boda lo m\xE1s pedido es banquete o taquiza, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminaci\xF3n. Tambi\xE9n mesa de dulces o quesos.";
+    if (inv >= 150) {
+      ideas = "Para boda grande lo m\xE1s pedido es banquete, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminaci\xF3n.";
+    } else {
+      ideas = "Para boda lo m\xE1s pedido es banquete o taquiza, barra de bebidas, mobiliario y mesa de dulces seg\xFAn el tama\xF1o del evento.";
+    }
   } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
     ideas = "Para XV a\xF1os suele ir banquete o taquiza, mesa de dulces, mobiliario, DJ, iluminaci\xF3n y pista de baile.";
   } else if (clientMentionsItalianTheme(texts) || clientMentionsItalianTheme(currentMessage)) {
-    ideas = "Para algo con tem\xE1tica italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana \u2014 ideal si ven el partido o quieren ambiente italiano.";
+    ideas = "Para algo con tem\xE1tica italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana.";
   } else {
-    ideas = "Lo m\xE1s com\xFAn es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, iluminaci\xF3n y mesa de dulces seg\xFAn el estilo del evento.";
+    ideas = "Seg\xFAn el evento podemos ofrecerte banquete, taquiza, barra de bebidas, mobiliario, DJ o mesa de dulces.";
   }
   const comparison = buildCatalogComparisonAnswer();
   if (comparison && /banquete|taquiza|recomiendas?/i.test(currentMessage ?? "")) {
@@ -82368,6 +82539,17 @@ function buildOpeningAcknowledgment(history, currentMessage) {
   }
   if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
   if (/\bbautizo\b/.test(t)) return "Con gusto te ayudo con la cotizaci\xF3n para tu bautizo.";
+  if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) {
+    const tipo = parseTipoEventoFromText(userText);
+    const inv = userText.match(/para\s+(\d+)\s*(?:personas?|invitados?)/i);
+    if (tipo) {
+      let ack = `Vi tu solicitud para ${tipo}`;
+      if (inv) ack += ` para ${inv[1]} personas`;
+      return `${ack}.`;
+    }
+    return "Vi los datos de tu evento en la solicitud.";
+  }
+  if (isGettingReadyContext(userText)) return "Te ayudo con el catering para el getting ready.";
   if (/banquete/.test(t)) {
     const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
     return inv ? `Te ayudo con el banquete para ${inv[1]} personas.` : "Con gusto te ayudo con informaci\xF3n de banquetes.";
@@ -82449,8 +82631,10 @@ function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPrese
   return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
 }
 function mensajeAsksForField(mensaje, field) {
-  if (!mensaje.includes("?")) return false;
-  return FIELD_ASK_PATTERNS[field].test(mensaje);
+  const questionParts = mensaje.split(/[.!]\s+/).map((p3) => p3.trim()).filter((p3) => p3.includes("?"));
+  const toCheck = questionParts.length ? questionParts.join(" ") : mensaje;
+  if (!toCheck.includes("?")) return false;
+  return FIELD_ASK_PATTERNS[field].test(toCheck);
 }
 function isFieldSatisfied(field, filledSet, extracted) {
   switch (field) {
@@ -82737,6 +82921,8 @@ function buildPostCierreThanksReply(clientName) {
 }
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
+  if (parseWebLeadBrief(currentMessage)) return true;
+  if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(currentMessage)) return true;
   return clientAsksLocation(currentMessage) || clientMentionsItalianTheme(currentMessage) || clientAsksForRecommendations(currentMessage) || clientAsksBanqueteVsTaquiza(currentMessage) || clientMentionsCatering(currentMessage) || clientMentionsEntertainment(currentMessage) || clientMentionsPistaTarima(currentMessage) || isServiceRelatedMessage(currentMessage) || clientAsksPhone(currentMessage) || clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage) || clientAskedFreeformQuestion(currentMessage);
 }
 function clientAskedFreeformQuestion(message) {
@@ -82779,6 +82965,19 @@ function makeQuestionCtx(input) {
     currentMessage: input.currentMessage,
     entityId: input.entityId
   };
+}
+function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, whatsappDisplayName, lastAskedField) {
+  if (!currentMessage || isFieldSatisfied("nombre", filledSet, extracted) || isGreetingOnlyMessage(currentMessage) || isQuoteIntentMessage(currentMessage) || isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
+    return null;
+  }
+  const existingNombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(whatsappDisplayName) ?? null;
+  const soyMatch = currentMessage.trim().match(/^\s*soy\s+(.+)$/i);
+  const rawIncoming = soyMatch ? soyMatch[1].trim() : currentMessage.trim();
+  const incomingNombre = sanitizeCrmNombre(rawIncoming) ?? sanitizeDisplayName(rawIncoming);
+  if (existingNombre && incomingNombre && !namesAreLikelySamePerson(existingNombre, incomingNombre) && rawIncoming.length < 50 && !/@/.test(rawIncoming)) {
+    return buildNameConfirmationPrompt(existingNombre, incomingNombre);
+  }
+  return null;
 }
 function applyLucyMessageGuards(input) {
   const {
@@ -82826,6 +83025,15 @@ function applyLucyMessageGuards(input) {
   const requerimientosFollowUpAlreadyAsked = presHistory.some(
     (m4) => m4.role === "assistant" && typeof m4.content === "string" && /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m4.content)
   );
+  const lastAssistantMsg = [...presHistory].reverse().find((m4) => m4.role === "assistant" && typeof m4.content === "string");
+  const lastAskedField = lastAssistantMsg ? inferLucyAskedField(lastAssistantMsg.content) : null;
+  const nameMismatchReply = buildNameMismatchReplyIfNeeded(
+    currentMessage,
+    extracted,
+    filledSet,
+    whatsappDisplayName,
+    lastAskedField
+  );
   let mensaje;
   let appliedSalesReply = false;
   let appliedDirectReply = false;
@@ -82840,10 +83048,26 @@ function applyLucyMessageGuards(input) {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
-  } else if (isAmbiguousShortNumber(currentMessage)) {
+  } else if (isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     mensaje = "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: n\xFAmero ambiguo \u2014 pedir aclaraci\xF3n");
+  } else if (currentMessage && (() => {
+    const pendingEmail = filterClientEmail(parseCorreoFromText(currentMessage));
+    return !!pendingEmail && !looksLikeValidClientEmail(pendingEmail) && !filledSet.has("Correo electr\xF3nico") && !filledSet.has(EMAIL_WAIVED_LABEL);
+  })()) {
+    const pendingEmail = filterClientEmail(parseCorreoFromText(currentMessage));
+    mensaje = buildEmailConfirmationPrompt(pendingEmail);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: correo sospechoso \u2014 pedir confirmaci\xF3n");
+  } else if (nameMismatchReply) {
+    mensaje = nameMismatchReply;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: nombre distinto al del contacto \u2014 confirmar");
+  } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage)) {
+    mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: t\xE9rmino vago de comida \u2014 ofrecer opciones");
   } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && clientMentionsItalianTheme(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
@@ -84555,6 +84779,33 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   }
   lineas.push("", "\u2014 Actualizado autom\xE1ticamente por Lucy en cada mensaje \u2014");
   return lineas.join("\n").slice(0, 8e3);
+}
+
+// src/lib/formatForWhatsApp.ts
+function formatForWhatsApp(text2) {
+  if (!text2?.trim()) return text2;
+  return text2.replace(/\*\*(.+?)\*\*/g, "*$1*").replace(/^#{1,6}\s*/gm, "").replace(/^\s*[-*]\s+/gm, "\u2022 ").replace(/`{1,3}/g, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// src/lucyOutboundPipeline.ts
+async function finalizeLucyOutboundMessage(input) {
+  let mensaje = input.mensaje;
+  mensaje = await maybeRefinarMensajeCierre(input.openai, mensaje, {
+    readyForClosing: input.readyForClosing,
+    cierreYaEnviado: input.cierreYaEnviado,
+    closingSignature: CLOSING_SIGNATURE,
+    catalogUrl: CATALOG_URL
+  });
+  mensaje = normalizeAdvisorReferences(mensaje, input.extracted.nombre ?? null);
+  if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
+    input.log?.warn({ entityId: input.entityId }, "P3 GUARD: cat\xE1logo repetido post-cierre \u2014 stripping");
+    mensaje = stripCatalogBlockShared(mensaje);
+  }
+  if (!mensaje.trim()) {
+    mensaje = input.cierreYaEnviado && clientSaysThanks(input.currentMessage) ? buildPostCierreThanksReply(input.extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+    input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vac\xEDo \u2014 respuesta de respaldo");
+  }
+  return formatForWhatsApp(mensaje);
 }
 
 // node_modules/axios/lib/helpers/bind.js
@@ -90139,8 +90390,6 @@ var FIELD_NAME = {
   [FIELD.tipo_evento]: "Tipo de evento",
   [FIELD.presupuesto]: "Presupuesto (MXN)"
 };
-var stripCatalogBlock = stripCatalogBlockShared;
-var CLOSING_SIGNATURE2 = "Perfecto, ya tengo todo.";
 var CATALOG_URL2 = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
 function buildClosingMessage(serviciosPedidos, clientName) {
   const servicio = serviciosPedidos?.trim() || null;
@@ -90188,14 +90437,6 @@ function buildLucyRedactionBriefing(opts) {
   return serviceBlock ? `${briefing}
 
 ${serviceBlock}` : briefing;
-}
-async function applyCierreRefinement(mensaje, opts) {
-  return maybeRefinarMensajeCierre(openai4, mensaje, {
-    readyForClosing: opts.readyForClosing,
-    cierreYaEnviado: opts.cierreYaEnviado,
-    closingSignature: CLOSING_SIGNATURE2,
-    catalogUrl: CATALOG_URL2
-  });
 }
 function buildLeadCalificadoNota(extracted, mergedLines) {
   const fromLines = (labelPattern) => {
@@ -90350,13 +90591,15 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       extracted.correo = newCorreo;
     }
   }
+  const lastAssistantForInv = [...historyFull].reverse().find((m4) => m4.role === "assistant" && typeof m4.content === "string");
+  const lastAskedInv = lastAssistantForInv ? inferLucyAskedField(lastAssistantForInv.content) : null;
   const extractionMap = [
     { label: "Lugar/direcci\xF3n del evento", value: extracted.direccion_evento },
     { label: "Requerimientos o servicios", value: extracted.requerimientos_evento },
     { label: "Fecha y horario", value: extracted.fecha_horario },
     {
       label: "N\xFAmero de invitados",
-      value: isAmbiguousShortNumber(currentMessage) ? null : extracted.num_invitados
+      value: isAmbiguousShortNumber(currentMessage, { lastAskedField: lastAskedInv }) ? null : extracted.num_invitados
     },
     { label: "Tipo de evento", value: extracted.tipo_evento },
     { label: "Presupuesto (MXN)", value: extracted.presupuesto }
@@ -90603,8 +90846,11 @@ function buildPatchPayload(extracted, mergedLines, conversationText) {
   }
   const payload = { custom_fields_values: customFields };
   if (isValidExtractedString(extracted.nombre)) {
+    const currentNombre = parseNombreFromCrmLines(mergedLines);
     const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
-    payload["name"] = cap255(nombrePatch);
+    if (shouldUpdateName(currentNombre ?? void 0, nombrePatch)) {
+      payload["name"] = cap255(nombrePatch);
+    }
   }
   return payload;
 }
@@ -90702,6 +90948,7 @@ async function processBatch(batch, accessToken, log) {
     const filledFieldNames = crmLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? "").filter(Boolean).join(", ");
     const extracted = await extractData(fullHistory, combinedUserText, filledFieldNames);
     sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
+    applyWebLeadBrief(extracted, combinedUserText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
@@ -90824,11 +91071,6 @@ async function processBatch(batch, accessToken, log) {
       entityId,
       forceFirstPresentation: isFirstInteraction
     });
-    mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
-      readyForClosing: allFieldsFilled,
-      cierreYaEnviado: cierreYaEnviadoForGuards
-    });
-    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
     if (cierreYaEnviado && combinedUserText.trim()) {
       const updatedReq = appendPostCierreRequirements(
         extracted.requerimientos_evento,
@@ -90839,14 +91081,16 @@ async function processBatch(batch, accessToken, log) {
         log.info({ entityId, requerimientos: updatedReq }, "Post-cierre: requerimientos actualizados en CRM");
       }
     }
-    if (cierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL2)) {
-      log.warn({ entityId }, "P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
-      mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
-    }
-    if (!mensajeParaCliente.trim()) {
-      mensajeParaCliente = cierreYaEnviado && clientSaysThanks(combinedUserText) ? buildPostCierreThanksReply(extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
-      log.warn({ entityId }, "GUARD: mensaje vac\xEDo \u2014 usando respuesta de respaldo");
-    }
+    mensajeParaCliente = await finalizeLucyOutboundMessage({
+      mensaje: mensajeParaCliente,
+      extracted,
+      readyForClosing: allFieldsFilled,
+      cierreYaEnviado: cierreYaEnviadoForGuards,
+      currentMessage: combinedUserText,
+      openai: openai4,
+      entityId,
+      log
+    });
     if (allFieldsFilled && !cierreYaEnviado) {
       try {
         const notaTexto = buildLeadCalificadoNota(extracted, crmMergedLines);
@@ -91248,6 +91492,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
     const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null) : null;
     const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
+    applyWebLeadBrief(extracted, messageText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
@@ -91323,19 +91568,16 @@ router3.post("/kommo/salesbot", async (req, res) => {
       entityId,
       forceFirstPresentation: isFirstInteraction
     });
-    mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
+    mensajeParaCliente = await finalizeLucyOutboundMessage({
+      mensaje: mensajeParaCliente,
+      extracted,
       readyForClosing: salesbotAllFieldsFilled,
-      cierreYaEnviado: sbCierreYaEnviado
+      cierreYaEnviado: sbCierreYaEnviado,
+      currentMessage: messageText,
+      openai: openai4,
+      entityId,
+      log
     });
-    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
-    if (sbCierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL2)) {
-      log.warn({ entityId }, "Salesbot P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
-      mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
-    }
-    if (!mensajeParaCliente.trim()) {
-      mensajeParaCliente = sbCierreYaEnviado && clientSaysThanks(messageText) ? buildPostCierreThanksReply(extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
-      log.warn({ entityId }, "Salesbot GUARD: mensaje vac\xEDo \u2014 usando respuesta de respaldo");
-    }
     appendHistory(histKey, messageText, mensajeParaCliente);
     void recordKnowledgeGapIfNeeded({
       kommoLeadId: entityId,
@@ -91616,6 +91858,7 @@ router3.post("/kommo/simulator", async (req, res) => {
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
     const extracted = await extractData(history, messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
+    applyWebLeadBrief(extracted, messageText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
     const conversationText = [
       ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
@@ -91689,14 +91932,16 @@ router3.post("/kommo/simulator", async (req, res) => {
       entityId: leadId,
       forceFirstPresentation: isFirstInteraction
     });
-    mensajeParaCliente = await applyCierreRefinement(mensajeParaCliente, {
+    mensajeParaCliente = await finalizeLucyOutboundMessage({
+      mensaje: mensajeParaCliente,
+      extracted,
       readyForClosing: allFieldsFilled,
-      cierreYaEnviado: simCierreYaEnviado
+      cierreYaEnviado: simCierreYaEnviado,
+      currentMessage: messageText,
+      openai: openai4,
+      entityId: leadId,
+      log
     });
-    mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
-    if (!mensajeParaCliente.trim()) {
-      mensajeParaCliente = simCierreYaEnviado && clientSaysThanks(messageText) ? buildPostCierreThanksReply(extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
-    }
     appendHistory(histKey, messageText, mensajeParaCliente);
     void recordKnowledgeGapIfNeeded({
       kommoLeadId: leadId,
@@ -91707,10 +91952,14 @@ router3.post("/kommo/simulator", async (req, res) => {
     const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente, crmMergedLines);
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
     const lead_updates = {};
+    const currentLeadName = sanitizeCrmNombre(lead.name);
     if (isValidExtractedString(extracted.nombre)) {
-      lead_updates.name = sanitizeCrmNombre(extracted.nombre) ?? extracted.nombre;
-    } else if (whatsappDisplayName) {
-      lead_updates.name = sanitizeCrmNombre(lead.name) ?? whatsappDisplayName;
+      const incomingNombre = sanitizeCrmNombre(extracted.nombre) ?? extracted.nombre;
+      if (shouldUpdateName(currentLeadName ?? void 0, incomingNombre)) {
+        lead_updates.name = incomingNombre;
+      }
+    } else if (whatsappDisplayName && shouldUpdateName(currentLeadName ?? void 0, whatsappDisplayName)) {
+      lead_updates.name = whatsappDisplayName;
     }
     if (isValidExtractedString(extracted.correo)) lead_updates.contact_email = extracted.correo;
     if (isValidExtractedString(extracted.telefono)) lead_updates.contact_phone = extracted.telefono;
