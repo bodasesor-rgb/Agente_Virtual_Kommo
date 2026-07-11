@@ -1544,6 +1544,102 @@ async function runAll(): Promise<void> {
     }
   });
 
+  await test('35. Jesús — renta de letras fuera de catálogo, "no gracias" sin bucle', () => {
+    assert.equal(parsePrimaryService("quiero renta de letras"), "Renta de letras");
+    assert.ok(isServiceRelatedMessage("renta de letra XV"));
+    assert.ok(clientDeclinesMoreServices("solo ese"));
+    assert.ok(clientDeclinesMoreServices("es todo"));
+    assert.ok(clientDeclinesMoreServices("con eso"));
+    assert.ok(clientDeclinesMoreServices("por ahora no"));
+    assert.ok(clientDeclinesMoreServices("ninguna"));
+
+    const filledPartial = new Set([
+      "Nombre del cliente",
+      EMAIL_WAIVED_LABEL,
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Jesús",
+      tipo_evento: "xv años",
+      requerimientos_evento: "renta de letras",
+    });
+
+    const historyAfterFollowUp: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      {
+        role: "assistant",
+        content:
+          "Sí, podemos ayudarte con *renta de letras*. Lo confirmo con nuestro equipo para darte descripción, precio e inclusiones exactas y lo anoto en tu solicitud.",
+      },
+      {
+        role: "assistant",
+        content: "Perfecto. Con el renta de letras, ¿necesitan algún otro servicio?",
+      },
+    ];
+
+    const replyNoGracias = runGuards({
+      aiResponse: "Perfecto. Con la renta de la letra XV, ¿necesitan algún otro servicio?",
+      extracted,
+      filledSet: new Set(filledPartial),
+      readyForClosing: false,
+      currentMessage: "no gracias",
+      history: historyAfterFollowUp,
+    });
+    assert.ok(!/alg[uú]n\s+otro\s+servicio|otros\s+servicios/i.test(replyNoGracias), replyNoGracias);
+    assert.ok(
+      /invitados|ciudad|fecha|presupuesto/i.test(replyNoGracias),
+      `debe pedir siguiente dato: "${replyNoGracias.slice(0, 200)}"`
+    );
+
+    const filledReady = new Set([
+      ...filledPartial,
+      "Número de invitados",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Presupuesto (MXN)",
+    ]);
+    const extractedReady = {
+      ...extracted,
+      num_invitados: 80,
+      direccion_evento: "CDMX",
+      fecha_horario: "agosto",
+      presupuesto: 50000,
+    };
+
+    const replyClose = runGuards({
+      aiResponse: "Perfecto. Con las letras, ¿necesitan algún otro servicio?",
+      extracted: extractedReady,
+      filledSet: new Set(filledReady),
+      readyForClosing: true,
+      currentMessage: "ninguno",
+      history: historyAfterFollowUp,
+    });
+    assert.ok(
+      replyClose.includes("Perfecto, ya tengo todo") || replyClose.includes(CATALOG_URL),
+      `debe cerrar: "${replyClose.slice(0, 200)}"`
+    );
+    assert.ok(!/alg[uú]n\s+otro\s+servicio/i.test(replyClose), replyClose);
+
+    const historyLoop: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      {
+        role: "assistant",
+        content: "Además del renta de letras, ¿te gustaría cotizar algún otro servicio?",
+      },
+    ];
+    const replyRepeat = runGuards({
+      aiResponse: "Además de la renta de la letra XV, ¿te gustaría cotizar algún otro servicio?",
+      extracted,
+      filledSet: new Set(filledPartial),
+      readyForClosing: false,
+      currentMessage: "renta de letras para mis XV",
+      history: historyLoop,
+    });
+    assert.ok(
+      !/alg[uú]n\s+otro\s+servicio|te\s+gustar[ií]a\s+cotizar\s+alg[uú]n\s+otro/i.test(replyRepeat),
+      `no debe repetir follow-up: "${replyRepeat.slice(0, 200)}"`
+    );
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }

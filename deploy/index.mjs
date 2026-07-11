@@ -79171,9 +79171,10 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Parrillada", /\bparrillada\b/i],
   ["Crepas", /\bcrep[aá]s?\b/i],
   ["Brunch", /\bbrunch\b/i],
-  ["Poptails", /\bpoptails?\b/i]
+  ["Poptails", /\bpoptails?\b/i],
+  ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch|renta\s+de|letras?/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
@@ -79203,7 +79204,10 @@ var SHORT_SERVICE_ALIASES = {
   alimentos: "banquete / taquiza",
   alimento: "banquete / taquiza",
   menu: "banquete / taquiza",
-  men\u00FA: "banquete / taquiza"
+  men\u00FA: "banquete / taquiza",
+  letras: "renta de letras",
+  "renta de letras": "renta de letras",
+  "letra xv": "renta de letras"
 };
 var TIPO_EVENTO_PATTERNS = [
   [/\b(expo(sición)?|feria|stand\s+de|congreso)\b/i, "evento corporativo"],
@@ -79317,7 +79321,7 @@ function clientMentionsEntertainment(message) {
 function clientDeclinesMoreServices(message) {
   if (!message?.trim()) return false;
   const t = message.trim().toLowerCase();
-  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bninguno[a]?\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso\s+est[aá]\s+bien\b/i.test(t) || /\bno\s+me\s+interesa\b/i.test(t) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t);
+  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolo\s+ese\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n[a]?\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bes\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t) || /\bno\s+me\s+interesa\b/i.test(t) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) || /\bpor\s+ahora\s+no\b/i.test(t);
 }
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
@@ -80795,6 +80799,28 @@ var AUTO_CLIENTS = [
       presupuesto: "200 mil"
     },
     opening: "qu\xE9 onda! ando viendo lo de mi boda, oye \xBFhacen bodas en la playa?"
+  },
+  {
+    id: 11,
+    slug: "jesus",
+    name: "Jes\xFAs",
+    leadId: 93011,
+    phone: "+5215519301111",
+    scenario: "XV a\xF1os con servicio fuera de cat\xE1logo (renta de letras).",
+    style: "Directo, pides un solo servicio y luego dices que no quieres nada m\xE1s.",
+    behavior: 'Pides "renta de letras" o "letra XV"; si Lucy pregunta por m\xE1s servicios respondes "no gracias", "ninguno" o "solo ese".',
+    observe: "Lucy acepta el servicio fuera de cat\xE1logo, NO repite la pregunta de otros servicios y avanza o cierra.",
+    hiddenFacts: {
+      nombre: "Jes\xFAs",
+      correo: "jesus.xv@gmail.com",
+      tipo_evento: "xv a\xF1os",
+      requerimientos: "renta de letras / letra XV",
+      invitados: "100",
+      lugar: "Tlalnepantla",
+      fecha: "pr\xF3ximo mes",
+      presupuesto: "60 mil"
+    },
+    opening: "hola quiero renta de letras para mis XV"
   }
 ];
 function getClientById(id) {
@@ -81518,7 +81544,11 @@ var FIELD_ASK_PATTERNS = {
   presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
 };
 function isValidRequerimientosValue(value) {
-  return isServiceRelatedMessage(value);
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return false;
+  if (isServiceRelatedMessage(trimmed)) return true;
+  if (trimmed.length >= 4 && !parseTipoEventoFromText(trimmed)) return true;
+  return false;
 }
 var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 function detectCierreEnviado(history, lastStoredResponse) {
@@ -81683,11 +81713,51 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
   const follow = pickVariant("requerimientos", history, entityId);
   return `${intro} ${ideas} ${follow}`.trim();
 }
-function bodyEqualsLastAssistant(msg, history) {
+function stripAccents(text2) {
+  return text2.normalize("NFD").replace(/\p{M}/gu, "");
+}
+function stripLeadingTransition(text2) {
+  return text2.replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\.\s*/i, "").trim();
+}
+function requerimientosFollowUpTemplate(text2, clientName) {
+  let s4 = stripLeadingTransition(text2);
+  s4 = stripAccents(s4.toLowerCase());
+  if (clientName?.trim()) {
+    const name2 = stripAccents(clientName.trim().toLowerCase());
+    s4 = s4.replace(new RegExp(`\\b${name2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), " ");
+  }
+  s4 = s4.replace(/\b(adem[aá]s del|con el|solo el|la renta de la?|las?)\s+[^,?]+/gi, "__svc__").replace(/\s+/g, " ").trim();
+  if (/__svc__.*(alg[uú]n\s+otro\s+servicio|otro\s+servicio|algo\s+m[aá]s|te\s+gustar[ií]a\s+cotizar)/i.test(
+    s4
+  ) || /qu[eé]\s+otros\s+servicios/i.test(s4) || /necesitan\s+alg[uú]n\s+otro\s+servicio/i.test(s4)) {
+    return "followup_otro_servicio";
+  }
+  return null;
+}
+function bodyEqualsLastAssistant(msg, history, clientName) {
   const last = [...history].reverse().find((m4) => m4.role === "assistant");
   if (!last || typeof last.content !== "string") return false;
-  const norm = (s4) => s4.replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\.\s*/i, "").trim();
-  return norm(msg) === norm(last.content);
+  const norm = (s4) => stripLeadingTransition(s4).trim();
+  const a2 = norm(msg);
+  const b4 = norm(last.content);
+  if (a2 === b4) return true;
+  const templateA = requerimientosFollowUpTemplate(a2, clientName);
+  const templateB = requerimientosFollowUpTemplate(b4, clientName);
+  if (templateA && templateB && templateA === templateB) return true;
+  const normText = (s4) => stripAccents(stripLeadingTransition(s4).toLowerCase()).replace(/\s+/g, " ").trim();
+  return normText(a2) === normText(b4);
+}
+function hasMeaningfulRequerimientos(extracted, filledSet) {
+  if (filledSet.has("Requerimientos o servicios")) return true;
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  return req.length > 0;
+}
+function lastAssistantAskedMoreServices(history) {
+  const lastAssistant = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").slice(-1)[0]?.content;
+  if (!lastAssistant) return false;
+  return inferLucyAskedField(lastAssistant) === "requerimientos" && /alg[uú]n\s+otro\s+servicio|otro\s+servicio|algo\s+m[aá]s|qu[eé]\s+otros\s+servicios/i.test(
+    lastAssistant
+  );
 }
 function buildFoodServiceAckIntro(extracted, history, currentMessage) {
   if (!currentMessage) return null;
@@ -81720,11 +81790,17 @@ ${nextQ}`;
   };
   if (mentionedService || currentMessage && isServiceRelatedMessage(currentMessage)) {
     const detail = query ? buildCatalogServiceDetailAnswer(query) : null;
-    const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
+    const serviceLabel = mentionedService ?? parsePrimaryService(currentMessage ?? "") ?? (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
     if (detail) {
+      const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
       return appendNext(`${intro}
 
 ${detail}`);
+    }
+    if (serviceLabel) {
+      return appendNext(
+        `${pickTransition(history)} ${buildCatalogNotFoundAnswer(serviceLabel)}`
+      );
     }
     return null;
   }
@@ -82168,6 +82244,13 @@ function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessa
     currentMessage,
     entityId
   };
+  const followUpAlreadyAsked = (history ?? []).some(
+    (m4) => m4.role === "assistant" && typeof m4.content === "string" && /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m4.content)
+  );
+  if (followUpAlreadyAsked) {
+    const pending2 = getNextPendingField(extracted, filledSet);
+    if (pending2) return buildNaturalQuestion(pending2, ctx);
+  }
   if (filledSet && !hasTipoEvento(filledSet, extracted)) {
     return buildNaturalQuestion("tipo_evento", ctx);
   }
@@ -82404,12 +82487,20 @@ function applyLucyMessageGuards(input) {
 
 ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 tel\xE9fonos");
-  } else if (readyToCloseAndReqDone && clientDeclinesMoreServices(currentMessage)) {
-    mensaje = buildClosing(
-      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-      extracted.nombre
-    );
-    log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 cierre");
+  } else if (clientDeclinesMoreServices(currentMessage) && hasMeaningfulRequerimientos(extracted, filledSet) && (requerimientosFollowUpAlreadyAsked || justAnsweredReq || lastAssistantAskedMoreServices(presHistory))) {
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      mensaje = pending ? buildNaturalQuestion(pending, ctx) : buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+    }
+    log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 avanzar o cierre");
   } else if (allowSalesReplyOverride && (clientMentionsEntertainment(currentMessage) || justAnsweredReq && clientMentionsEntertainment(currentMessage))) {
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
@@ -82418,7 +82509,7 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
-  } else if (allowSalesReplyOverride && !serviceAlreadyCaptured && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage))) {
+  } else if (allowSalesReplyOverride && !serviceAlreadyCaptured && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
       history,
@@ -82441,7 +82532,7 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
         mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
       }
     }
-    if (bodyEqualsLastAssistant(mensaje, history)) {
+    if (bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
       const nextQ = nextFieldQuestion(
         extracted,
         filledSet,
@@ -82459,7 +82550,7 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     );
   } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    if (bodyEqualsLastAssistant(mensaje, history)) {
+    if (bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
       const nextQ = nextFieldQuestion(
         extracted,
         filledSet,
@@ -82521,9 +82612,16 @@ ${nextQ}`;
       mensaje = nextQ ?? aiResponse;
     }
     if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
-  } else if (trulyReadyForClosing && !cierreYaEnviado && (requerimientosNeedsFollowUp(extracted, filledSet) || justAnsweredReq && !requerimientosFollowUpAlreadyAsked)) {
+  } else if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosFollowUpAlreadyAsked && (requerimientosNeedsFollowUp(extracted, filledSet) || justAnsweredReq)) {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
+  } else if (trulyReadyForClosing && !cierreYaEnviado && requerimientosFollowUpAlreadyAsked && requerimientosNeedsFollowUp(extracted, filledSet)) {
+    const pending = getNextPendingField(extracted, filledSet);
+    mensaje = pending ? buildNaturalQuestion(pending, ctx) : buildClosing(
+      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+      extracted.nombre
+    );
+    log?.info({ entityId }, "GUARD: follow-up de servicios ya hecho \u2014 avanzar");
   } else if (trulyReadyForClosing && !cierreYaEnviado) {
     mensaje = buildClosing(
       extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,

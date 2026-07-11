@@ -62,6 +62,7 @@ import {
   parsePrimaryService,
   parseSpaceDimensions,
   parseFechaFromText,
+  parseTipoEventoFromText,
   recoverClienteNombreFromHistory,
 } from "./conversation-understanding.js";
 
@@ -198,7 +199,12 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
 };
 
 export function isValidRequerimientosValue(value: string | null | undefined): boolean {
-  return isServiceRelatedMessage(value);
+  const trimmed = value?.trim() ?? "";
+  if (!trimmed) return false;
+  if (isServiceRelatedMessage(trimmed)) return true;
+  // Texto libre capturado (p. ej. servicio fuera de catálogo) cuenta como requerimiento válido.
+  if (trimmed.length >= 4 && !parseTipoEventoFromText(trimmed)) return true;
+  return false;
 }
 
 export const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
@@ -509,15 +515,82 @@ function buildEntertainmentSalesReply(
   return `${intro} ${ideas} ${follow}`.trim();
 }
 
+function stripAccents(text: string): string {
+  return text.normalize("NFD").replace(/\p{M}/gu, "");
+}
+
+function stripLeadingTransition(text: string): string {
+  return text
+    .replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\.\s*/i, "")
+    .trim();
+}
+
+/** Normaliza una pregunta de follow-up de servicios para comparar plantilla, no texto literal. */
+function requerimientosFollowUpTemplate(text: string, clientName?: string | null): string | null {
+  let s = stripLeadingTransition(text);
+  s = stripAccents(s.toLowerCase());
+  if (clientName?.trim()) {
+    const name = stripAccents(clientName.trim().toLowerCase());
+    s = s.replace(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), " ");
+  }
+  s = s
+    .replace(/\b(adem[aá]s del|con el|solo el|la renta de la?|las?)\s+[^,?]+/gi, "__svc__")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (
+    /__svc__.*(alg[uú]n\s+otro\s+servicio|otro\s+servicio|algo\s+m[aá]s|te\s+gustar[ií]a\s+cotizar)/i.test(
+      s
+    ) ||
+    /qu[eé]\s+otros\s+servicios/i.test(s) ||
+    /necesitan\s+alg[uú]n\s+otro\s+servicio/i.test(s)
+  ) {
+    return "followup_otro_servicio";
+  }
+  return null;
+}
+
 function bodyEqualsLastAssistant(
   msg: string,
-  history: OpenAI.Chat.ChatCompletionMessageParam[]
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  clientName?: string | null
 ): boolean {
   const last = [...history].reverse().find((m) => m.role === "assistant");
   if (!last || typeof last.content !== "string") return false;
-  const norm = (s: string) =>
-    s.replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\.\s*/i, "").trim();
-  return norm(msg) === norm(last.content as string);
+
+  const norm = (s: string) => stripLeadingTransition(s).trim();
+  const a = norm(msg);
+  const b = norm(last.content as string);
+  if (a === b) return true;
+
+  const templateA = requerimientosFollowUpTemplate(a, clientName);
+  const templateB = requerimientosFollowUpTemplate(b, clientName);
+  if (templateA && templateB && templateA === templateB) return true;
+
+  const normText = (s: string) =>
+    stripAccents(stripLeadingTransition(s).toLowerCase()).replace(/\s+/g, " ").trim();
+  return normText(a) === normText(b);
+}
+
+function hasMeaningfulRequerimientos(extracted: ExtractedData, filledSet: Set<string>): boolean {
+  if (filledSet.has("Requerimientos o servicios")) return true;
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  return req.length > 0;
+}
+
+function lastAssistantAskedMoreServices(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  const lastAssistant = history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .slice(-1)[0]?.content as string | undefined;
+  if (!lastAssistant) return false;
+  return (
+    inferLucyAskedField(lastAssistant) === "requerimientos" &&
+    /alg[uú]n\s+otro\s+servicio|otro\s+servicio|algo\s+m[aá]s|qu[eé]\s+otros\s+servicios/i.test(
+      lastAssistant
+    )
+  );
 }
 
 function buildFoodServiceAckIntro(
@@ -584,15 +657,24 @@ function buildFoodSalesReply(
 
   if (mentionedService || (currentMessage && isServiceRelatedMessage(currentMessage))) {
     const detail = query ? buildCatalogServiceDetailAnswer(query) : null;
-    const intro = mentionedService
-      ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
-      : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
+    const serviceLabel =
+      mentionedService ??
+      parsePrimaryService(currentMessage ?? "") ??
+      (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
 
     if (detail) {
+      const intro = mentionedService
+        ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
+        : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
       return appendNext(`${intro}\n\n${detail}`);
     }
 
-    // Sin detalle real del Sheet → null para preferir la respuesta del LLM (ya tiene catálogo en prompt)
+    if (serviceLabel) {
+      return appendNext(
+        `${pickTransition(history)} ${buildCatalogNotFoundAnswer(serviceLabel)}`
+      );
+    }
+
     return null;
   }
 
@@ -1296,6 +1378,17 @@ export function buildRequerimientosFollowUp(
     entityId,
   };
 
+  const followUpAlreadyAsked = (history ?? []).some(
+    (m) =>
+      m.role === "assistant" &&
+      typeof m.content === "string" &&
+      /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m.content as string)
+  );
+  if (followUpAlreadyAsked) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending) return buildNaturalQuestion(pending, ctx);
+  }
+
   if (filledSet && !hasTipoEvento(filledSet, extracted)) {
     return buildNaturalQuestion("tipo_evento", ctx);
   }
@@ -1674,12 +1767,28 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         ? `${phoneAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
         : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente preguntó teléfonos");
-  } else if (readyToCloseAndReqDone && clientDeclinesMoreServices(currentMessage)) {
-    mensaje = buildClosing(
-      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-      extracted.nombre
-    );
-    log?.info({ entityId }, "GUARD: cliente no quiere más servicios — cierre");
+  } else if (
+    clientDeclinesMoreServices(currentMessage) &&
+    hasMeaningfulRequerimientos(extracted, filledSet) &&
+    (requerimientosFollowUpAlreadyAsked ||
+      justAnsweredReq ||
+      lastAssistantAskedMoreServices(presHistory))
+  ) {
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      mensaje = pending
+        ? buildNaturalQuestion(pending, ctx)
+        : buildClosing(
+            extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+            extracted.nombre
+          );
+    }
+    log?.info({ entityId }, "GUARD: cliente no quiere más servicios — avanzar o cierre");
   } else if (
     allowSalesReplyOverride &&
     (clientMentionsEntertainment(currentMessage) ||
@@ -1696,7 +1805,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     allowSalesReplyOverride &&
     !serviceAlreadyCaptured &&
     (clientMentionsCatering(currentMessage) ||
-      (justAnsweredReq && isServiceRelatedMessage(currentMessage)))
+      (justAnsweredReq && isServiceRelatedMessage(currentMessage)) ||
+      (!!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage)))
   ) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
@@ -1723,7 +1833,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
       }
     }
-    if (bodyEqualsLastAssistant(mensaje, history)) {
+    if (bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
       const nextQ = nextFieldQuestion(
         extracted,
         filledSet,
@@ -1741,7 +1851,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
   } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
     mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    if (bodyEqualsLastAssistant(mensaje, history)) {
+    if (bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
       const nextQ = nextFieldQuestion(
         extracted,
         filledSet,
@@ -1811,11 +1921,25 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     trulyReadyForClosing &&
     !cierreYaEnviado &&
-    (requerimientosNeedsFollowUp(extracted, filledSet) ||
-      (justAnsweredReq && !requerimientosFollowUpAlreadyAsked))
+    !requerimientosFollowUpAlreadyAsked &&
+    (requerimientosNeedsFollowUp(extracted, filledSet) || justAnsweredReq)
   ) {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
+  } else if (
+    trulyReadyForClosing &&
+    !cierreYaEnviado &&
+    requerimientosFollowUpAlreadyAsked &&
+    requerimientosNeedsFollowUp(extracted, filledSet)
+  ) {
+    const pending = getNextPendingField(extracted, filledSet);
+    mensaje = pending
+      ? buildNaturalQuestion(pending, ctx)
+      : buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+    log?.info({ entityId }, "GUARD: follow-up de servicios ya hecho — avanzar");
   } else if (trulyReadyForClosing && !cierreYaEnviado) {
     mensaje = buildClosing(
       extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,

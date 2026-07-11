@@ -79,10 +79,11 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Crepas", /\bcrep[aá]s?\b/i],
   ["Brunch", /\bbrunch\b/i],
   ["Poptails", /\bpoptails?\b/i],
+  ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch|renta\s+de|letras?/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -114,6 +115,9 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   alimento: "banquete / taquiza",
   menu: "banquete / taquiza",
   menú: "banquete / taquiza",
+  letras: "renta de letras",
+  "renta de letras": "renta de letras",
+  "letra xv": "renta de letras",
 };
 
 const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
@@ -314,20 +318,23 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
   return (
     /^(no|nop)[\s.,!]*$/i.test(t) ||
     /\bsolo\s+(con\s+)?eso\b/i.test(t) ||
+    /\bsolo\s+ese\b/i.test(t) ||
     /\bsolamente\s+eso\b/i.test(t) ||
     /\bnada\s+m[aá]s\b/i.test(t) ||
+    /\bning[uú]n[a]?\b/i.test(t) ||
     /\bning[uú]n\s+otro\b/i.test(t) ||
-    /\bninguno[a]?\b/i.test(t) ||
     /\bno\s+gracias\b/i.test(t) ||
     /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) ||
     /\beso\s+es\s+todo\b/i.test(t) ||
+    /\bes\s+todo\b/i.test(t) ||
     /\bya\s+no\b/i.test(t) ||
     /\bno\s+m[aá]s\b/i.test(t) ||
     /\blisto\s+as[ií]\b/i.test(t) ||
-    /\bcon\s+eso\s+est[aá]\s+bien\b/i.test(t) ||
+    /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t) ||
     /\bno\s+me\s+interesa\b/i.test(t) ||
     /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) ||
-    /\bpor\s+(el\s+)?momento\s+no\b/i.test(t)
+    /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) ||
+    /\bpor\s+ahora\s+no\b/i.test(t)
   );
 }
 
