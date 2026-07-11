@@ -32,6 +32,7 @@ import {
   clientAsksLocation,
   clientMentionsItalianTheme,
   isAmbiguousShortNumber,
+  recoverClienteNombreFromHistory,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
@@ -1470,6 +1471,46 @@ async function runAll(): Promise<void> {
       "Vamos a ver el partido de la selección de Italia, ¿qué me recomiendas de comida?"
     );
     assert.ok(/pasta|pizza|italian/i.test(itRec), itRec);
+  });
+
+  await test("33. Nombre persiste desde historial y waiver presupuesto directo", () => {
+    assert.ok(detectPresupuestoRefusal("aún no sé cuánto"));
+
+    const hist: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "user", content: "Hola, quiero banquete para mi boda" },
+      { role: "assistant", content: "¿Cómo te llamas?" },
+      { role: "user", content: "Elena" },
+      { role: "assistant", content: "Mucho gusto, Elena. ¿A qué correo te lo envío?" },
+      { role: "user", content: "elena@test.com" },
+    ];
+    assert.equal(recoverClienteNombreFromHistory(hist), "Elena");
+
+    const nombreCaptures = scanConversationForCaptures(hist, "100 personas", new Set());
+    assert.ok(
+      nombreCaptures.some((c) => c.label === "Nombre del cliente" && c.value === "Elena"),
+      JSON.stringify(nombreCaptures)
+    );
+
+    const logs: string[] = [];
+    const presWaiver = runGuards({
+      aiResponse: "¿Cómo te llamas?",
+      extracted: emptyExtracted({ nombre: "Mario", num_invitados: 60 }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+      ]),
+      readyForClosing: false,
+      currentMessage: "aún no sé cuánto",
+      history: hist,
+      debugLogs: logs,
+    });
+    assert.ok(!/c[oó]mo\s+te\s+llamas/i.test(presWaiver), `${presWaiver} | logs: ${logs.join("; ")}`);
+    assert.ok(/definir|propong|equipo/i.test(presWaiver), presWaiver);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -31,7 +31,10 @@ const MENU_DUMP_RE = /banquete.*taquiza.*(dj|bebidas|iluminaci)/i;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
+const leadState = new Map();
+
 async function reset(leadId) {
+  leadState.delete(leadId);
   await fetch(`${BASE}/api/kommo/simulator/reset`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -40,6 +43,8 @@ async function reset(leadId) {
 }
 
 async function send(leadId, text, leadName = "") {
+  const prev = leadState.get(leadId);
+  const custom_fields = { ...(prev?.fields ?? {}) };
   const res = await fetch(`${BASE}/api/kommo/simulator`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -48,16 +53,18 @@ async function send(leadId, text, leadName = "") {
       lead_id: leadId,
       lead: {
         id: leadId,
-        name: leadName,
+        name: prev?.lead_updates?.name || leadName,
         pipeline_id: "pipeline_bodasesor",
         stage_id: "stage_datos_intereses",
         contact_phone: "+5215500000001",
-        contact_email: "",
-        custom_fields: {},
+        contact_email: prev?.lead_updates?.contact_email ?? "",
+        custom_fields,
       },
     }),
   });
-  return res.json();
+  const data = await res.json();
+  if (data.status === "success") leadState.set(leadId, data);
+  return data;
 }
 
 function sleep(ms) {

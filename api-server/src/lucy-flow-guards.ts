@@ -1024,7 +1024,7 @@ function textOverlapRatio(a: string, b: string): number {
   return shared / Math.max(wordsA.size, wordsB.size);
 }
 
-/** Evita enviar al cliente el mismo bloque casi idéntico que el turno anterior. */
+/** Evita enviar al cliente el mismo bloque casi idéntico que un turno anterior. */
 function avoidRepeatPreviousReply(
   mensaje: string,
   presHistory: OpenAI.Chat.ChatCompletionMessageParam[]
@@ -1035,17 +1035,60 @@ function avoidRepeatPreviousReply(
     .filter(Boolean);
   if (prev.length === 0) return mensaje;
 
+  const maxOverlap = Math.max(...prev.map((p) => textOverlapRatio(mensaje, p)));
   const last = prev[prev.length - 1]!;
-  if (textOverlapRatio(mensaje, last) < 0.68) return mensaje;
+  if (maxOverlap < 0.68) return mensaje;
 
   let out = mensaje
     .replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "")
     .replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
-  if (textOverlapRatio(out, last) < 0.65) return out.trim();
+  const outOverlap = Math.max(...prev.map((p) => textOverlapRatio(out, p)));
+  if (outOverlap < 0.65) return out.trim();
 
   const questionLine =
     mensaje.split("\n").find((l) => l.includes("?")) ?? mensaje.split("\n").pop();
-  return questionLine?.trim() || mensaje;
+  const q = questionLine?.trim() || mensaje;
+  const qOverlap = Math.max(...prev.map((p) => textOverlapRatio(q, p)));
+  if (qOverlap >= 0.72) {
+    const pendingLine = mensaje
+      .split("\n")
+      .filter((l) => l.includes("?"))
+      .pop();
+    if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
+  }
+  return q;
+}
+
+/** Si ya capturamos un dato, no volver a preguntarlo — pide el siguiente pendiente. */
+function redirectIfAskingFilledField(
+  mensaje: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  ctx: NaturalQuestionContext
+): string {
+  const fields: PendingField[] = [
+    "nombre",
+    "correo",
+    "tipo_evento",
+    "requerimientos",
+    "invitados",
+    "zona",
+    "fecha",
+    "presupuesto",
+  ];
+  for (const field of fields) {
+    if (!isFieldSatisfied(field, filledSet, extracted)) continue;
+    if (!mensajeAsksForField(mensaje, field)) continue;
+    const next = getNextPendingField(extracted, filledSet);
+    if (next && next !== field) return buildNaturalQuestion(next, ctx);
+    const trimmed = mensaje
+      .split("\n")
+      .filter((line) => !mensajeAsksForField(line, field))
+      .join("\n")
+      .trim();
+    if (trimmed) return trimmed;
+  }
+  return mensaje;
 }
 
 /** Evita re-preguntar lo ya capturado; si hace falta, pide solo el siguiente dato pendiente. */
@@ -1486,6 +1529,29 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = "¿Te refieres a 5 invitados o al día 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: número ambiguo — pedir aclaración");
+  } else if (currentMessage && detectPresupuestoRefusal(currentMessage)) {
+    if (!filledSet.has("Presupuesto (MXN)")) {
+      applyPresupuestoWaiver(
+        filledSet,
+        [],
+        collectUserTexts(presHistory, currentMessage),
+        presHistory
+      );
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+    } else if (pending) {
+      mensaje = `Sin problema, lo dejamos por definir. ${buildNaturalQuestion(pending, ctx)}`;
+    } else {
+      mensaje =
+        "Sin problema, lo dejamos por definir. Nuestro equipo te propone opciones según lo que platicamos.";
+    }
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: cliente sin presupuesto — waiver directo");
   } else if (clientAsksLocation(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = `${buildLocationAnswer()} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
@@ -1975,6 +2041,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       : `${pickTransition(presHistory)} ¿Me confirmas la ciudad o colonia del evento?`;
     log?.info({ entityId }, "GUARD: segunda pregunta de zona — variante corta");
   }
+
+  if (
+    mensajeAsksForField(mensaje, "fecha") &&
+    countLucyFieldAsks(presHistory, "fecha") >= 1 &&
+    !filledSet.has("Fecha y horario")
+  ) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre
+      ? `${pickTransition(presHistory)} ${nombre}, ¿tienen día u horario ya definido?`
+      : `${pickTransition(presHistory)} ¿Tienen día u horario ya definido?`;
+    log?.info({ entityId }, "GUARD: segunda pregunta de fecha — variante corta");
+  }
+
+  mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }

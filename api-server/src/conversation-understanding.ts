@@ -229,6 +229,49 @@ export function sanitizeExtractedAmbiguousNumbers(
   }
 }
 
+/** Recupera el nombre que el cliente dio cuando Lucy lo pidió (persistencia entre turnos). */
+export function recoverClienteNombreFromHistory(
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): string | null {
+  let lastAssistant = "";
+  for (const msg of history) {
+    if (msg.role === "assistant" && typeof msg.content === "string") {
+      lastAssistant = msg.content;
+      continue;
+    }
+    if (msg.role !== "user" || typeof msg.content !== "string") continue;
+    const asked = inferLucyAskedField(lastAssistant);
+    if (asked !== "nombre" && !LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) continue;
+
+    const raw = msg.content.trim();
+    if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
+    const soyMatch = raw.match(/^\s*soy\s+(.+)$/i);
+    const candidato = soyMatch ? soyMatch[1]!.trim() : raw;
+    const nombre = sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 40 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+      return nombre;
+    }
+  }
+
+  if (currentMessage?.trim()) {
+    const asked = inferLucyAskedField(lastAssistant);
+    if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
+      const raw = currentMessage.trim();
+      if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw)) {
+        const soyMatch = raw.match(/^\s*soy\s+(.+)$/i);
+        const candidato = soyMatch ? soyMatch[1]!.trim() : raw;
+        const nombre = sanitizeDisplayName(candidato);
+        if (nombre && candidato.length < 40 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+          return nombre;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 /** Cliente pregunta ubicación o cobertura de Bodasesor. */
 export function clientAsksLocation(message?: string): boolean {
   if (!message?.trim()) return false;
@@ -775,7 +818,8 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) ||
     /\bt[uú]\s+m[aá]ndame\b/i.test(t) ||
     /\bsi\s+quieres\s+vemos\b/i.test(t) ||
-    /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)\b/i.test(t) ||
+    /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s|$|[.,!?])/i.test(t) ||
+    /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t) ||
     /\btodav[ií]a\s+no\b/i.test(t) ||
     /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) ||
     /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) ||
@@ -1072,6 +1116,14 @@ export function scanConversationForCaptures(
   const captures: CrmCapture[] = [];
   const pending = new Set(filledSet);
   const userTexts = collectUserMessages(history, currentMessage).slice(-12);
+
+  if (!pending.has("Nombre del cliente")) {
+    const nombre = recoverClienteNombreFromHistory(history, currentMessage);
+    if (nombre) {
+      captures.push({ label: "Nombre del cliente", value: nombre });
+      pending.add("Nombre del cliente");
+    }
+  }
 
   for (const msg of userTexts) {
     if (!pending.has("Tipo de evento")) {

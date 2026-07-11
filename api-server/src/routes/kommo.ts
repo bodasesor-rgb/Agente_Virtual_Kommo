@@ -76,6 +76,8 @@ import {
   inferLucyAskedField,
   scanConversationForCaptures,
   sanitizeExtractedAmbiguousNumbers,
+  recoverClienteNombreFromHistory,
+  isAmbiguousShortNumber,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
 import {
@@ -606,12 +608,15 @@ function buildCrmContext(
 
   purgeOwnCompanyEmailFromCrm();
 
-  // Nombre: solo extracción explícita o CRM — no prellenar desde WhatsApp
+  // Nombre: extracción explícita, CRM o historial (cuando el cliente ya lo dijo)
   if (!filledSet.has("Nombre del cliente")) {
-    const nombreVal = sanitizeCrmNombre(extracted.nombre);
+    const nombreVal =
+      sanitizeCrmNombre(extracted.nombre) ??
+      recoverClienteNombreFromHistory(historyFull, currentMessage);
     if (nombreVal) {
       mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
       filledSet.add("Nombre del cliente");
+      extracted.nombre = nombreVal;
     }
   } else {
     const idx = mergedLines.findIndex((l) => /^-?\s*Nombre del cliente:/i.test(l));
@@ -674,7 +679,10 @@ function buildCrmContext(
     { label: "Lugar/dirección del evento", value: extracted.direccion_evento },
     { label: "Requerimientos o servicios", value: extracted.requerimientos_evento },
     { label: "Fecha y horario",            value: extracted.fecha_horario },
-    { label: "Número de invitados",        value: extracted.num_invitados },
+    {
+      label: "Número de invitados",
+      value: isAmbiguousShortNumber(currentMessage) ? null : extracted.num_invitados,
+    },
     { label: "Tipo de evento",             value: extracted.tipo_evento },
     { label: "Presupuesto (MXN)",          value: extracted.presupuesto },
   ];

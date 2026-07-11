@@ -79262,6 +79262,41 @@ function sanitizeExtractedAmbiguousNumbers(extracted, messageText) {
     extracted.num_invitados = null;
   }
 }
+function recoverClienteNombreFromHistory(history, currentMessage) {
+  let lastAssistant = "";
+  for (const msg of history) {
+    if (msg.role === "assistant" && typeof msg.content === "string") {
+      lastAssistant = msg.content;
+      continue;
+    }
+    if (msg.role !== "user" || typeof msg.content !== "string") continue;
+    const asked = inferLucyAskedField(lastAssistant);
+    if (asked !== "nombre" && !LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) continue;
+    const raw = msg.content.trim();
+    if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
+    const soyMatch = raw.match(/^\s*soy\s+(.+)$/i);
+    const candidato = soyMatch ? soyMatch[1].trim() : raw;
+    const nombre = sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 40 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+      return nombre;
+    }
+  }
+  if (currentMessage?.trim()) {
+    const asked = inferLucyAskedField(lastAssistant);
+    if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
+      const raw = currentMessage.trim();
+      if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw)) {
+        const soyMatch = raw.match(/^\s*soy\s+(.+)$/i);
+        const candidato = soyMatch ? soyMatch[1].trim() : raw;
+        const nombre = sanitizeDisplayName(candidato);
+        if (nombre && candidato.length < 40 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+          return nombre;
+        }
+      }
+    }
+  }
+  return null;
+}
 function clientAsksLocation(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
@@ -79614,7 +79649,7 @@ function detectPresupuestoRefusal(text2) {
   if (!t) return false;
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
   if (/^\.{2,}$/.test(t)) return true;
-  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) || /\bt[uú]\s+m[aá]ndame\b/i.test(t) || /\bsi\s+quieres\s+vemos\b/i.test(t) || /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)\b/i.test(t) || /\btodav[ií]a\s+no\b/i.test(t) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
+  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) || /\bt[uú]\s+m[aá]ndame\b/i.test(t) || /\bsi\s+quieres\s+vemos\b/i.test(t) || /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s|$|[.,!?])/i.test(t) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t) || /\btodav[ií]a\s+no\b/i.test(t) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
 }
 function findPresupuestoInTexts(texts, history) {
   if (history?.length) {
@@ -79810,6 +79845,13 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
   const captures = [];
   const pending = new Set(filledSet);
   const userTexts = collectUserMessages(history, currentMessage).slice(-12);
+  if (!pending.has("Nombre del cliente")) {
+    const nombre = recoverClienteNombreFromHistory(history, currentMessage);
+    if (nombre) {
+      captures.push({ label: "Nombre del cliente", value: nombre });
+      pending.add("Nombre del cliente");
+    }
+  }
   for (const msg of userTexts) {
     if (!pending.has("Tipo de evento")) {
       const tipo = parseTipoEventoFromText(msg);
@@ -81270,12 +81312,41 @@ function textOverlapRatio(a2, b4) {
 function avoidRepeatPreviousReply(mensaje, presHistory) {
   const prev = presHistory.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").map((m4) => m4.content.trim()).filter(Boolean);
   if (prev.length === 0) return mensaje;
+  const maxOverlap = Math.max(...prev.map((p3) => textOverlapRatio(mensaje, p3)));
   const last = prev[prev.length - 1];
-  if (textOverlapRatio(mensaje, last) < 0.68) return mensaje;
+  if (maxOverlap < 0.68) return mensaje;
   let out2 = mensaje.replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "").replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
-  if (textOverlapRatio(out2, last) < 0.65) return out2.trim();
+  const outOverlap = Math.max(...prev.map((p3) => textOverlapRatio(out2, p3)));
+  if (outOverlap < 0.65) return out2.trim();
   const questionLine = mensaje.split("\n").find((l4) => l4.includes("?")) ?? mensaje.split("\n").pop();
-  return questionLine?.trim() || mensaje;
+  const q2 = questionLine?.trim() || mensaje;
+  const qOverlap = Math.max(...prev.map((p3) => textOverlapRatio(q2, p3)));
+  if (qOverlap >= 0.72) {
+    const pendingLine = mensaje.split("\n").filter((l4) => l4.includes("?")).pop();
+    if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
+  }
+  return q2;
+}
+function redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx) {
+  const fields = [
+    "nombre",
+    "correo",
+    "tipo_evento",
+    "requerimientos",
+    "invitados",
+    "zona",
+    "fecha",
+    "presupuesto"
+  ];
+  for (const field of fields) {
+    if (!isFieldSatisfied(field, filledSet, extracted)) continue;
+    if (!mensajeAsksForField(mensaje, field)) continue;
+    const next = getNextPendingField(extracted, filledSet);
+    if (next && next !== field) return buildNaturalQuestion(next, ctx);
+    const trimmed = mensaje.split("\n").filter((line2) => !mensajeAsksForField(line2, field)).join("\n").trim();
+    if (trimmed) return trimmed;
+  }
+  return mensaje;
 }
 function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
   const pending = getNextPendingField(extracted, filledSet);
@@ -81532,6 +81603,28 @@ function applyLucyMessageGuards(input) {
     mensaje = "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: n\xFAmero ambiguo \u2014 pedir aclaraci\xF3n");
+  } else if (currentMessage && detectPresupuestoRefusal(currentMessage)) {
+    if (!filledSet.has("Presupuesto (MXN)")) {
+      applyPresupuestoWaiver(
+        filledSet,
+        [],
+        collectUserTexts(presHistory, currentMessage),
+        presHistory
+      );
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+    } else if (pending) {
+      mensaje = `Sin problema, lo dejamos por definir. ${buildNaturalQuestion(pending, ctx)}`;
+    } else {
+      mensaje = "Sin problema, lo dejamos por definir. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.";
+    }
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: cliente sin presupuesto \u2014 waiver directo");
   } else if (clientAsksLocation(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = `${buildLocationAnswer()} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
@@ -81922,6 +82015,12 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     mensaje = nombre ? `${pickTransition(presHistory)} ${nombre}, \xBFme confirmas la ciudad o colonia del evento?` : `${pickTransition(presHistory)} \xBFMe confirmas la ciudad o colonia del evento?`;
     log?.info({ entityId }, "GUARD: segunda pregunta de zona \u2014 variante corta");
   }
+  if (mensajeAsksForField(mensaje, "fecha") && countLucyFieldAsks(presHistory, "fecha") >= 1 && !filledSet.has("Fecha y horario")) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `${pickTransition(presHistory)} ${nombre}, \xBFtienen d\xEDa u horario ya definido?` : `${pickTransition(presHistory)} \xBFTienen d\xEDa u horario ya definido?`;
+    log?.info({ entityId }, "GUARD: segunda pregunta de fecha \u2014 variante corta");
+  }
+  mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripGammaLinks(text2) {
@@ -88872,10 +88971,11 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   }
   purgeOwnCompanyEmailFromCrm();
   if (!filledSet.has("Nombre del cliente")) {
-    const nombreVal = sanitizeCrmNombre(extracted.nombre);
+    const nombreVal = sanitizeCrmNombre(extracted.nombre) ?? recoverClienteNombreFromHistory(historyFull, currentMessage);
     if (nombreVal) {
       mergedLines.push(`- Nombre del cliente: ${nombreVal}`);
       filledSet.add("Nombre del cliente");
+      extracted.nombre = nombreVal;
     }
   } else {
     const idx = mergedLines.findIndex((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
@@ -88914,7 +89014,10 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     { label: "Lugar/direcci\xF3n del evento", value: extracted.direccion_evento },
     { label: "Requerimientos o servicios", value: extracted.requerimientos_evento },
     { label: "Fecha y horario", value: extracted.fecha_horario },
-    { label: "N\xFAmero de invitados", value: extracted.num_invitados },
+    {
+      label: "N\xFAmero de invitados",
+      value: isAmbiguousShortNumber(currentMessage) ? null : extracted.num_invitados
+    },
     { label: "Tipo de evento", value: extracted.tipo_evento },
     { label: "Presupuesto (MXN)", value: extracted.presupuesto }
   ];
