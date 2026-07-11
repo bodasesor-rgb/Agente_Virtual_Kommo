@@ -1062,12 +1062,64 @@ export function buildFirstInteractionMessage(
 }
 
 function usesLegacyLucyIntro(mensaje: string): boolean {
-  return /te\s+saluda\s+lucy/i.test(mensaje);
+  return (
+    /te\s+saluda\s+lucy/i.test(mensaje) ||
+    /¡?hola,?\s+lead\s*#/i.test(mensaje)
+  );
 }
 
-/** Respuestas guardadas en CRM/caché con el saludo V5 no cuentan como interacción previa. */
+/** Campo 1048786 guarda el resumen interno del CRM, no el mensaje WhatsApp al cliente. */
+export function isResumenClienteLargo(text: string | null | undefined): boolean {
+  if (!text || typeof text !== "string") return false;
+  const t = text.trim();
+  if (!t || t === "-") return true;
+  return (
+    /^RESUMEN\s+LUCY/i.test(t) ||
+    /lo que el cliente quiere:/i.test(t) ||
+    /actualizado autom[aá]ticamente por lucy/i.test(t) ||
+    /captura en progreso/i.test(t)
+  );
+}
+
+/** Texto que no debe usarse como "última respuesta de Lucy" (legacy, resumen CRM, campo vacío). */
 export function isLegacyStoredLucyResponse(text: string | null | undefined): boolean {
-  return typeof text === "string" && text.trim().length > 0 && usesLegacyLucyIntro(text);
+  if (!text || typeof text !== "string") return false;
+  const t = text.trim();
+  if (!t || t === "-") return true;
+  if (isResumenClienteLargo(t)) return true;
+  return usesLegacyLucyIntro(t);
+}
+
+export function lastAssistantOutboundFromHistory(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): string | null {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m.role !== "assistant" || typeof m.content !== "string") continue;
+    const text = m.content.trim();
+    if (!text || isLegacyStoredLucyResponse(text)) continue;
+    return text;
+  }
+  return null;
+}
+
+/** Prioridad: caché en memoria → historial en disco/Kommo → campo CRM (solo si no es resumen). */
+export function resolveEffectiveLastLucyResponse(opts: {
+  entityId?: string | number | null;
+  fullHistory: OpenAI.Chat.ChatCompletionMessageParam[];
+  cachedResponse?: string | null;
+  crmFieldValue?: string | null;
+}): string | null {
+  const cached = opts.cachedResponse?.trim();
+  if (cached && !isLegacyStoredLucyResponse(cached)) return cached;
+
+  const fromHistory = lastAssistantOutboundFromHistory(opts.fullHistory);
+  if (fromHistory) return fromHistory;
+
+  const crm = opts.crmFieldValue?.trim();
+  if (crm && !isLegacyStoredLucyResponse(crm)) return crm;
+
+  return null;
 }
 
 /** Mientras falte el nombre, solo se permite pedir el nombre (nunca correo, fecha, etc.). */

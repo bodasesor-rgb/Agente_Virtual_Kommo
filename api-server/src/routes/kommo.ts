@@ -8,7 +8,6 @@ import {
 import { resolveLucyPublicBase } from "../lib/publicUrl.js";
 import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
-import { SYSTEM_PROMPT } from "../lucy-prompt.js";
 import {
   getCatalogPromptBlock,
   injectCatalogPriceIfAsked,
@@ -34,7 +33,7 @@ import {
   isReadyForClosing,
   nextFieldQuestion,
   isValidRequerimientosValue,
-  isLegacyStoredLucyResponse,
+  resolveEffectiveLastLucyResponse,
   parseNombreFromCrmLines,
   crmStoredValue,
 } from "../lucy-flow-guards.js";
@@ -430,6 +429,41 @@ function buildLucyRedactionBriefing(opts: {
     formatServiceKnowledgeForPrompt(opts.messageText) ??
     formatServiceDataForPrompt(opts.messageText);
   return serviceBlock ? `${briefing}\n\n${serviceBlock}` : briefing;
+}
+
+async function buildLucySystemPrompt(opts: {
+  messageText: string;
+  conversationText: string;
+  extracted: ExtractedData;
+  crmContext: string;
+  filledLabels: Set<string>;
+  isFirstInteraction: boolean;
+  messageCount?: number;
+  conversationAgeHours?: number;
+}): Promise<string> {
+  const intentResult = detectIntent(opts.messageText);
+  const objectionResult = detectObjection(opts.messageText);
+  const scoreContext = {
+    extracted: opts.extracted,
+    messageCount: opts.messageCount ?? 1,
+    hasResponded: true,
+    conversationAge: opts.conversationAgeHours ?? 0,
+    lastIntent: intentResult.intent,
+    conversationText: opts.conversationText,
+  };
+  const leadScore = calculateLeadScore(scoreContext);
+  const stage = detectStage(scoreContext);
+  const catalogBlock = await getCatalogPromptBlock();
+  return buildDynamicPrompt({
+    stage,
+    priority: leadScore.priority,
+    extracted: opts.extracted,
+    hasObjection: objectionResult.hasObjection ? objectionResult : undefined,
+    crmContext: opts.crmContext,
+    isFirstInteraction: opts.isFirstInteraction,
+    hasClientName: opts.filledLabels.has("Nombre del cliente"),
+    catalogBlock,
+  });
 }
 
 // ─── Internal Kommo note when lead is fully qualified ─────────────────────────
@@ -836,7 +870,6 @@ async function fetchLeadCurrentFields(
     const cfv = data.custom_fields_values ?? [];
 
     const lines: string[] = [];
-    let lastLucyResponse: string | null = null;
 
     // Lead name (contact name hint) — skip generic CRM placeholders, phones y nombres del equipo
     if (data.name) {
@@ -847,14 +880,9 @@ async function fetchLeadCurrentFields(
     }
 
     for (const field of cfv) {
-      // Capture last Lucy response for stateless memory reconstruction
-      if (field.field_id === FIELD.respuesta_ia_largo) {
-        const val = field.values[0]?.value;
-        if (val && typeof val === "string" && val.trim()) {
-          lastLucyResponse = val.trim();
-        }
-        continue;
-      }
+      // 1048786 = resumen interno para el equipo (buildResumenClienteLargo), NO el mensaje WhatsApp.
+      // No usarlo como memoria de Lucy — ver resolveEffectiveLastLucyResponse().
+      if (field.field_id === FIELD.respuesta_ia_largo) continue;
 
       const label = FIELD_NAME[field.field_id];
       if (!label) continue;
@@ -864,7 +892,7 @@ async function fetchLeadCurrentFields(
       lines.push(`- ${label}: ${val}`);
     }
 
-    return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse };
+    return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse: null };
   } catch (err) {
     log.warn({ err }, "Error leyendo campos actuales del lead");
     return empty;
@@ -1268,23 +1296,19 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
 
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
 
-    // Preferir caché en memoria sobre campo 1048786 de Kommo:
-    // el caché se escribe antes del PATCH, así que nunca tiene el race condition
-    // donde el PATCH aún no llegó a Kommo cuando entra el siguiente mensaje.
-    const cachedResponse = lastResponseCache.get(String(entityId));
-    const effectiveLastResponse = cachedResponse ?? lastLucyResponse;
-    const normalizedLastResponse = isLegacyStoredLucyResponse(effectiveLastResponse)
-      ? null
-      : effectiveLastResponse;
+    const effectiveLastResponse = resolveEffectiveLastLucyResponse({
+      entityId,
+      fullHistory,
+      cachedResponse: lastResponseCache.get(String(entityId)),
+      crmFieldValue: lastLucyResponse,
+    });
 
     // True solo cuando Lucy NUNCA ha respondido a este lead.
-    // Condiciones: sin mensajes de asistente en historial, sin respuesta previa en CRM/caché,
-    // Y sin "Nombre del cliente" en los campos de Kommo (si ya hay nombre = ya hubo conversación).
-    const isFirstInteraction = !hasAssistantMsg && !normalizedLastResponse;
+    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
 
-    if (!hasAssistantMsg && normalizedLastResponse) {
-      history = [...history, { role: "assistant", content: normalizedLastResponse }];
-      const recoverySource = cachedResponse ? "cache-recovery" : "crm-recovery";
+    if (!hasAssistantMsg && effectiveLastResponse) {
+      history = [...history, { role: "assistant", content: effectiveLastResponse }];
+      const recoverySource = lastResponseCache.has(String(entityId)) ? "cache-recovery" : "history-recovery";
       historySource = historySource === "file" ? recoverySource : `${historySource}+${recoverySource}`;
     }
 
@@ -1335,7 +1359,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
     }
 
-    const cierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastResponse ?? effectiveLastResponse);
+    const cierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
 
     const leadNameFromCrm = crmLines
       .find((l) => /Nombre del cliente:/i.test(l))
@@ -1998,23 +2022,20 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
   }
 
   try {
-    // ── Load history (file-based + Kommo bootstrap cuando está vacío) ─────────
-    const histKey = entityId ?? chatId ?? "salesbot-default";
+    // ── Load history (misma clave que webhook: entityId, no chatId) ───────────
+    const histKey = entityId ? String(entityId) : (chatId ?? "salesbot-default");
     let fullHistory: OpenAI.Chat.ChatCompletionMessageParam[] = getHistory(histKey);
     let historySource = "file";
 
-    if (talkId && fullHistory.length < 2) {
+    if (talkId && fullHistory.length === 0) {
       try {
         const kommoHistory = await fetchKommoHistory(subdomain, accessToken, talkId);
         if (kommoHistory && kommoHistory.length > 0) {
           const toExclude = new Set([messageText.trim()]);
-          const filtered = kommoHistory.filter(
+          fullHistory = kommoHistory.filter(
             (m) => !(m.role === "user" && typeof m.content === "string" && toExclude.has(m.content.trim()))
           );
-          if (filtered.length > fullHistory.length) {
-            fullHistory = filtered;
-            historySource = "kommo-bootstrap";
-          }
+          historySource = "kommo-bootstrap";
         }
       } catch {
         log.warn("Salesbot: Kommo history bootstrap failed, using file history");
@@ -2027,24 +2048,28 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     // ── Load CRM context ──────────────────────────────────────────────────────
     let crmContext = "";
     let crmLines: string[] = [];
-    let lastLucyResponse = "";
     let salesbotFilledLabels = new Set<string>();
     if (entityId) {
       try {
         const fields = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
         crmLines = fields.crmLines;
-        lastLucyResponse = fields.lastLucyResponse ?? "";
       } catch {
         log.warn("Salesbot: could not load CRM context");
       }
     }
 
-    // isFirstInteraction: Lucy nunca ha respondido (ni en historial ni en CRM ni hay nombre ya en CRM)
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
-    const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse)
-      ? ""
-      : lastLucyResponse;
-    const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
+    const effectiveLastResponse = resolveEffectiveLastLucyResponse({
+      entityId,
+      fullHistory,
+      cachedResponse: entityId ? lastResponseCache.get(String(entityId)) : null,
+      crmFieldValue: null,
+    });
+    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+
+    if (!hasAssistantMsg && effectiveLastResponse) {
+      history = [...history, { role: "assistant", content: effectiveLastResponse }];
+    }
 
     const whatsappDisplayName = entityId
       ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null)
@@ -2071,7 +2096,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     }
     extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
 
-    const sbCierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastLucyResponse);
+    const sbCierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
 
     const crmResultFinal = buildCrmContext(
       crmLines,
@@ -2087,13 +2112,14 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     const salesbotMergedLines = crmResultFinal.mergedLines;
     salesbotFilledLabels = crmResultFinal.filledLabels;
 
-    const catalogBlock = await getCatalogPromptBlock();
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
-    const systemContent = isFirstInteraction
-      ? basePrompt +
-        crmContext +
-        "\n\nPRIMER MENSAJE: SIEMPRE \"Hola, soy Lucy, agente virtual de Bodasesor.\" + reconocer tema + pedir nombre primero."
-      : basePrompt + crmContext;
+    const systemContent = await buildLucySystemPrompt({
+      messageText,
+      conversationText,
+      extracted,
+      crmContext,
+      filledLabels: salesbotFilledLabels,
+      isFirstInteraction,
+    });
 
     const trainingExamples = await getTrainingExamples();
     const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
@@ -2159,6 +2185,9 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
 
     // Guardar mensaje REAL enviado (no aiResponse) para que cierreYaEnviado funcione.
     appendHistory(histKey, messageText, mensajeParaCliente);
+    if (entityId) {
+      lastResponseCache.set(String(entityId), mensajeParaCliente);
+    }
 
     void recordKnowledgeGapIfNeeded({
       kommoLeadId: entityId,
@@ -2533,12 +2562,19 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const whatsappDisplayName = sanitizeDisplayName(lead.name);
 
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
-    const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse)
-      ? null
-      : lastLucyResponse;
-    const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
+    const effectiveLastResponse = resolveEffectiveLastLucyResponse({
+      entityId: leadId,
+      fullHistory,
+      cachedResponse: lastResponseCache.get(`sim-${leadId}`),
+      crmFieldValue: lastLucyResponse,
+    });
+    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
 
-    const extracted = await extractData(history, messageText, crmLines.join("\n"));
+    if (!hasAssistantMsg && effectiveLastResponse) {
+      history = [...history, { role: "assistant", content: effectiveLastResponse }];
+    }
+
+    const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     applyWebLeadBrief(extracted, messageText);
 
@@ -2560,7 +2596,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
     }
 
-    const simCierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastLucyResponse);
+    const simCierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
 
     const crmResultFinal = buildCrmContext(
       crmLines,
@@ -2582,13 +2618,14 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       { role: "assistant" as const, content: ex.lucyResponse },
     ]);
 
-    const catalogBlock = await getCatalogPromptBlock();
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
-    const systemContent = isFirstInteraction
-      ? basePrompt +
-        crmContext +
-        "\n\nPRIMER MENSAJE: SIEMPRE \"Hola, soy Lucy, agente virtual de Bodasesor.\" + reconocer tema + pedir nombre primero."
-      : basePrompt + crmContext;
+    const systemContent = await buildLucySystemPrompt({
+      messageText,
+      conversationText,
+      extracted,
+      crmContext,
+      filledLabels,
+      isFirstInteraction,
+    });
 
     const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: systemContent },
@@ -2644,6 +2681,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     });
 
     appendHistory(histKey, messageText, mensajeParaCliente);
+    lastResponseCache.set(histKey, mensajeParaCliente);
 
     void recordKnowledgeGapIfNeeded({
       kommoLeadId: leadId,

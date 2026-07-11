@@ -2767,7 +2767,39 @@ function buildFirstInteractionMessage(ctx, withIntro = true) {
   return `${intro}${ack} ${nameQ}`.trim();
 }
 function usesLegacyLucyIntro(mensaje) {
-  return /te\s+saluda\s+lucy/i.test(mensaje);
+  return /te\s+saluda\s+lucy/i.test(mensaje) || /¡?hola,?\s+lead\s*#/i.test(mensaje);
+}
+function isResumenClienteLargo(text) {
+  if (!text || typeof text !== "string") return false;
+  const t = text.trim();
+  if (!t || t === "-") return true;
+  return /^RESUMEN\s+LUCY/i.test(t) || /lo que el cliente quiere:/i.test(t) || /actualizado autom[aá]ticamente por lucy/i.test(t) || /captura en progreso/i.test(t);
+}
+function isLegacyStoredLucyResponse(text) {
+  if (!text || typeof text !== "string") return false;
+  const t = text.trim();
+  if (!t || t === "-") return true;
+  if (isResumenClienteLargo(t)) return true;
+  return usesLegacyLucyIntro(t);
+}
+function lastAssistantOutboundFromHistory(history) {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m.role !== "assistant" || typeof m.content !== "string") continue;
+    const text = m.content.trim();
+    if (!text || isLegacyStoredLucyResponse(text)) continue;
+    return text;
+  }
+  return null;
+}
+function resolveEffectiveLastLucyResponse(opts) {
+  const cached = opts.cachedResponse?.trim();
+  if (cached && !isLegacyStoredLucyResponse(cached)) return cached;
+  const fromHistory = lastAssistantOutboundFromHistory(opts.fullHistory);
+  if (fromHistory) return fromHistory;
+  const crm = opts.crmFieldValue?.trim();
+  if (crm && !isLegacyStoredLucyResponse(crm)) return crm;
+  return null;
 }
 function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPresentation = false) {
   const presHistory = presentationHistoryFrom(ctx);
@@ -15710,6 +15742,37 @@ async function runAll() {
     assert.equal(comida.kind, "category");
     assert.ok(comida.rows.length >= 2, comida.rows.map((r) => r.servicio).join(", "));
     assert.equal(formatRequerimientoLabelFromQuery("comida"), null);
+  });
+  await test("41. Legacy \u2014 1048786 resumen no es \xFAltima respuesta de Lucy", () => {
+    const resumen = buildResumenClienteLargo(
+      emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
+      ["- Nombre del cliente: Ana", "- Tipo de evento: boda"],
+      "quiero cotizar una boda"
+    );
+    assert.ok(isResumenClienteLargo(resumen), resumen.slice(0, 120));
+    assert.ok(isLegacyStoredLucyResponse(resumen));
+    assert.ok(isLegacyStoredLucyResponse("-"));
+    assert.ok(isLegacyStoredLucyResponse("\xA1Hola Lead #12345! Te saluda Lucy de Bodasesor."));
+    assert.ok(isLegacyStoredLucyResponse("Te saluda Lucy, agente virtual de Bodasesor."));
+    const realOutbound = "Hola, soy Lucy, agente virtual de Bodasesor. \xBFMe regalas tu nombre?";
+    assert.equal(isLegacyStoredLucyResponse(realOutbound), false);
+    const fromHistory = resolveEffectiveLastLucyResponse({
+      entityId: "999",
+      fullHistory: [
+        { role: "user", content: "hola" },
+        { role: "assistant", content: realOutbound }
+      ],
+      cachedResponse: null,
+      crmFieldValue: resumen
+    });
+    assert.equal(fromHistory, realOutbound);
+    const ignoresResumenCache = resolveEffectiveLastLucyResponse({
+      entityId: "999",
+      fullHistory: [],
+      cachedResponse: resumen,
+      crmFieldValue: resumen
+    });
+    assert.equal(ignoresResumenCache, null);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

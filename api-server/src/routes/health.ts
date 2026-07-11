@@ -46,6 +46,11 @@ router.get("/health", (_req, res) => {
       mode: "meta_plus_note",
       note: "Meta API envía al cliente; nota en timeline del lead para el equipo",
     },
+    lucy_pipeline: "unified-v2",
+    lucy_memory: {
+      last_response_source: "cache_then_history_not_1048786",
+      note: "Campo 1048786 = resumen interno CRM, no mensaje WhatsApp",
+    },
     catalog: getCatalogStatus(),
   });
 });

@@ -76,6 +76,9 @@ import {
   pickTransition,
   stripRobotAcknowledgments,
   buildCorreoQuestion,
+  isLegacyStoredLucyResponse,
+  isResumenClienteLargo,
+  resolveEffectiveLastLucyResponse,
 } from "../lucy-flow-guards.js";
 import {
   sanitizeKommoCrmLines,
@@ -1843,6 +1846,41 @@ async function runAll(): Promise<void> {
     assert.equal(comida!.kind, "category");
     assert.ok(comida!.rows.length >= 2, comida!.rows.map((r) => r.servicio).join(", "));
     assert.equal(formatRequerimientoLabelFromQuery("comida"), null);
+  });
+
+  await test("41. Legacy — 1048786 resumen no es última respuesta de Lucy", () => {
+    const resumen = buildResumenClienteLargo(
+      emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
+      ["- Nombre del cliente: Ana", "- Tipo de evento: boda"],
+      "quiero cotizar una boda"
+    );
+    assert.ok(isResumenClienteLargo(resumen), resumen.slice(0, 120));
+    assert.ok(isLegacyStoredLucyResponse(resumen));
+    assert.ok(isLegacyStoredLucyResponse("-"));
+    assert.ok(isLegacyStoredLucyResponse("¡Hola Lead #12345! Te saluda Lucy de Bodasesor."));
+    assert.ok(isLegacyStoredLucyResponse("Te saluda Lucy, agente virtual de Bodasesor."));
+
+    const realOutbound = "Hola, soy Lucy, agente virtual de Bodasesor. ¿Me regalas tu nombre?";
+    assert.equal(isLegacyStoredLucyResponse(realOutbound), false);
+
+    const fromHistory = resolveEffectiveLastLucyResponse({
+      entityId: "999",
+      fullHistory: [
+        { role: "user", content: "hola" },
+        { role: "assistant", content: realOutbound },
+      ],
+      cachedResponse: null,
+      crmFieldValue: resumen,
+    });
+    assert.equal(fromHistory, realOutbound);
+
+    const ignoresResumenCache = resolveEffectiveLastLucyResponse({
+      entityId: "999",
+      fullHistory: [],
+      cachedResponse: resumen,
+      crmFieldValue: resumen,
+    });
+    assert.equal(ignoresResumenCache, null);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
