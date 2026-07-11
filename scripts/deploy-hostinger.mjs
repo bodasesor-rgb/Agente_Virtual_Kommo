@@ -74,6 +74,7 @@ async function createArchive() {
       `-x "node_modules/*" ` +
       `-x ".git/*" ` +
       `-x "api-server/dist/*" ` +
+      `-x "api-server/data/*" ` +
       `-x ".deploy-tmp/*" ` +
       `-x "app/*" ` +
       `-x "whatsapp-sender/*" ` +
