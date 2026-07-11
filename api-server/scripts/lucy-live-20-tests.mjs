@@ -574,7 +574,7 @@ const SCENARIOS = [
       if (/\bsoy una ia\b|\binteligencia artificial\b/i.test(reply) && !/agente virtual/i.test(reply)) {
         return fail('Dijo "IA" en lugar de agente virtual', reply.slice(0, 200), "PROMPT");
       }
-      if (!/nombre/i.test(reply)) return fail("No pidió nombre", reply.slice(0, 200), "PROMPT");
+      if (!/nombre|llamas/i.test(reply)) return fail("No pidió nombre", reply.slice(0, 200), "PROMPT");
       if (reply.length > 450 && /banquete.*taquiza.*dj/i.test(reply)) {
         return fail("Volcó catálogo en saludo", reply.slice(0, 200), "PROMPT");
       }
