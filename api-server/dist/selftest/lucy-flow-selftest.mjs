@@ -1571,7 +1571,7 @@ function getServiceKnowledge(query) {
     const parts = ["CONOCIMIENTO DE SERVICIO (Google Sheet \u2014 precio solo de aqu\xED):"];
     if (sheetBlock) parts.push(sheetBlock);
     else if (sheetDetail) parts.push(sheetDetail);
-    parts.push("Usa estos datos. No inventes precios ni inclusiones.");
+    parts.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita el campo Incluye (dato real del Sheet).");
     return {
       level: 1,
       label,
@@ -1667,7 +1667,7 @@ function parseCatalogQueryFilters(query) {
   const t = normalizeForMatch(query);
   let nivel = null;
   if (/\bpremium\b/.test(t)) nivel = "Premium";
-  else if (/\bbasico\b/.test(t)) nivel = "Basico";
+  else if (/\bbasic[ao]\b/.test(t)) nivel = "Basica";
   else if (/\btradicional\b/.test(t)) nivel = "Tradicional";
   else if (/\bsolo\s*alimentos\b/.test(t)) nivel = "Solo Alimentos";
   return {
@@ -1755,7 +1755,8 @@ function matchesNivelFilter(row, filters, query) {
   if (filters.tresTiempos && /\b3\s*tiempos\b/.test(svcHay)) return true;
   const q = normalizeForMatch(query);
   if (/\bpremium\b/.test(q) && /\bpremium\b/.test(nivelHay)) return true;
-  if (/\bbasico\b/.test(q) && /\bbasico\b/.test(nivelHay)) return true;
+  if (/\bbasic[ao]\b/.test(q) && /\bbasic[ao]\b/.test(nivelHay)) return true;
+  if (/\btradicional\b/.test(q) && /\btradicional\b/.test(nivelHay)) return true;
   return false;
 }
 function simplifyServiceNamesForList(servicios) {
@@ -1791,7 +1792,7 @@ function resolveCatalogQuery(query) {
   const top = scored[0].score;
   const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
   let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
-  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasico\b|\btradicional\b/i.test(query));
+  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b/i.test(query));
   if (hasNivelFilter) {
     const nivelRows = matchedRows.filter((r) => matchesNivelFilter(r, filters, query));
     if (nivelRows.length) matchedRows = nivelRows;
@@ -1860,7 +1861,7 @@ function buildExactRowDetailAnswer(row) {
   const price = row.tienePrecio && row.precio ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
   const inclusion = parsed.inclusion ? `
 
-${parsed.inclusion}` : "";
+*Incluye (dato real del Sheet):* ${parsed.inclusion}` : "";
   return `S\xED, manejamos *${label}*.${price ? `
 ${price}` : ""}${inclusion}`.trim();
 }
@@ -1871,7 +1872,7 @@ function buildExactRowPriceAnswer(row) {
   const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
   const inclusion = parsed.inclusion ? `
 
-*Incluye:* ${parsed.inclusion}` : "";
+*Incluye (dato real del Sheet):* ${parsed.inclusion}` : "";
   return `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`;
 }
 function formatRequerimientoLabelFromQuery(query) {
@@ -1943,22 +1944,49 @@ function lookupCatalogServices(query) {
 function buildInclusionBlock(rows, maxPerLevel = 220) {
   const inclusionByLevel = rows.map((row) => ({
     nivel: extractNivelLabel(row),
-    inclusion: parseRowNotes(row.notas).inclusion
+    inclusion: getInclusionFromRow(row)
   }));
   const uniqueTexts = [...new Set(inclusionByLevel.map((r) => r.inclusion).filter(Boolean))];
   if (!uniqueTexts.length) return "";
   if (uniqueTexts.length === 1) {
     return `
 
-*Incluye:* ${uniqueTexts[0]}`;
+*Incluye (dato real del Sheet):* ${uniqueTexts[0]}`;
   }
   const lines = inclusionByLevel.filter((r) => r.inclusion).slice(0, 5).map(
     (r) => `\u2022 *${r.nivel}:* ${r.inclusion.slice(0, maxPerLevel)}${r.inclusion.length > maxPerLevel ? "\u2026" : ""}`
   );
   return lines.length ? `
 
-*Qu\xE9 incluye cada nivel:*
+*Qu\xE9 incluye cada nivel (dato real del Sheet):*
 ${lines.join("\n")}` : "";
+}
+function getInclusionFromRow(row) {
+  const text = parseRowNotes(row.notas).inclusion?.trim();
+  return text || null;
+}
+function resolvedHasInclusionData(resolved) {
+  return resolved.rows.some((r) => !!getInclusionFromRow(r));
+}
+function inclusionLabelForResolved(resolved) {
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return formatCatalogRowLabel(resolved.rows[0]);
+  }
+  return resolved.serviceName ?? formatCatalogRowLabel(resolved.rows[0]);
+}
+function buildInclusionTeamConfirmationAnswer(query) {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  if (resolvedHasInclusionData(resolved)) return null;
+  const label = inclusionLabelForResolved(resolved);
+  const nivel = resolved.kind === "service_nivel" && resolved.rows[0] ? extractNivelLabel(resolved.rows[0]) : parseCatalogQueryFilters(query).nivel;
+  if (nivel) {
+    return `El detalle exacto de lo que incluye la barra *${nivel}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
+  }
+  return `El detalle exacto de lo que incluye *${label}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
+}
+function resolveCatalogInclusionReply(query) {
+  return buildCatalogInclusionAnswer(query) ?? buildInclusionTeamConfirmationAnswer(query);
 }
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
@@ -1969,37 +1997,30 @@ function clientAsksInclusion(message) {
 }
 function buildCatalogInclusionAnswer(query) {
   const resolved = resolveCatalogQuery(query);
-  if (!resolved) return null;
-  if (resolved.kind === "category") {
-    return buildCategoryServicesAnswer(resolved);
-  }
+  if (!resolved || resolved.kind === "category") return null;
   if (resolved.kind === "service_nivel" && resolved.rows[0]) {
     const row = resolved.rows[0];
-    const parsed = parseRowNotes(row.notas);
+    const inclusion = getInclusionFromRow(row);
+    if (!inclusion) return null;
     const label = formatCatalogRowLabel(row);
-    const price = row.tienePrecio && row.precio ? `
-*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
-    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del men\xFA.";
-    return `Te comparto qu\xE9 incluye *${label}*:${price}
-
-${inclusion}`;
+    return `*${label}* \u2014 *Incluye (dato real del Sheet):* ${inclusion}`;
   }
   if (resolved.kind === "service") {
-    return buildServiceNivelChoiceAnswer(resolved);
+    const rowsWithInclusion = resolved.rows.filter((r) => getInclusionFromRow(r));
+    if (!rowsWithInclusion.length) return null;
+    if (rowsWithInclusion.length === 1) {
+      const row = rowsWithInclusion[0];
+      return `*${formatCatalogRowLabel(row)}* \u2014 *Incluye (dato real del Sheet):* ${getInclusionFromRow(row)}`;
+    }
+    const baseName = resolved.serviceName ?? rowsWithInclusion[0].servicio;
+    const blocks = rowsWithInclusion.slice(0, 5).map((row) => {
+      const nivel = extractNivelLabel(row);
+      return `\u2022 *${nivel}:* ${getInclusionFromRow(row)}`;
+    });
+    return `*Incluye (dato real del Sheet)* \u2014 *${baseName}*:
+${blocks.join("\n")}`;
   }
-  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
-  const baseName = resolved.serviceName ?? unique[0].servicio;
-  const blocks = unique.slice(0, 5).map((row) => {
-    const parsed = parseRowNotes(row.notas);
-    const nivel = extractNivelLabel(row);
-    const price = row.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? `, m\xEDn. ${parsed.minimo}` : ""}` : "";
-    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del men\xFA.";
-    return `*${nivel}*${price}
-${inclusion}`;
-  });
-  return `Te comparto qu\xE9 incluye *${baseName}*:
-
-${blocks.join("\n\n")}`;
+  return null;
 }
 function buildCatalogPriceAnswer(query) {
   const resolved = resolveCatalogQuery(query);
@@ -2095,10 +2116,13 @@ function formatServiceDataForPrompt(query) {
   const lines = unique.map((row) => {
     const parsed = parseRowNotes(row.notas);
     const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
-    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "";
-    return `- ${formatCatalogRowLabel(row)} | ${price}${inclusion ? ` | ${inclusion}` : ""}`;
+    const inclusion = parsed.inclusion ? `Incluye (dato real del Sheet): ${parsed.inclusion}` : "Incluye: sin dato en Sheet \u2014 el equipo confirma en cotizaci\xF3n";
+    return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}`;
   });
-  return ["DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar solo esto, no inventar):", ...lines].join("\n");
+  return [
+    "DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar SOLO esto; no inventar precios ni inclusiones):",
+    ...lines
+  ].join("\n");
 }
 function mentionedServiceLabel(query) {
   return parsePrimaryService(query);
@@ -2163,6 +2187,12 @@ function buildCatalogCateringOverviewFromSheet() {
     "",
     "\xBFCu\xE1l te interesa? Te paso precios e inclusiones de la que elijas."
   ].join("\n");
+}
+function injectCatalogInclusionIfAsked(clientMessage, aiResponse) {
+  if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
+  const fromCatalog = resolveCatalogInclusionReply(clientMessage);
+  if (fromCatalog) return fromCatalog;
+  return aiResponse;
 }
 function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim()) return aiResponse;
@@ -2767,7 +2797,39 @@ function buildFirstInteractionMessage(ctx, withIntro = true) {
   return `${intro}${ack} ${nameQ}`.trim();
 }
 function usesLegacyLucyIntro(mensaje) {
-  return /te\s+saluda\s+lucy/i.test(mensaje);
+  return /te\s+saluda\s+lucy/i.test(mensaje) || /¡?hola,?\s+lead\s*#/i.test(mensaje);
+}
+function isResumenClienteLargo(text) {
+  if (!text || typeof text !== "string") return false;
+  const t = text.trim();
+  if (!t || t === "-") return true;
+  return /^RESUMEN\s+LUCY/i.test(t) || /lo que el cliente quiere:/i.test(t) || /actualizado autom[aá]ticamente por lucy/i.test(t) || /captura en progreso/i.test(t);
+}
+function isLegacyStoredLucyResponse(text) {
+  if (!text || typeof text !== "string") return false;
+  const t = text.trim();
+  if (!t || t === "-") return true;
+  if (isResumenClienteLargo(t)) return true;
+  return usesLegacyLucyIntro(t);
+}
+function lastAssistantOutboundFromHistory(history) {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m.role !== "assistant" || typeof m.content !== "string") continue;
+    const text = m.content.trim();
+    if (!text || isLegacyStoredLucyResponse(text)) continue;
+    return text;
+  }
+  return null;
+}
+function resolveEffectiveLastLucyResponse(opts) {
+  const cached = opts.cachedResponse?.trim();
+  if (cached && !isLegacyStoredLucyResponse(cached)) return cached;
+  const fromHistory = lastAssistantOutboundFromHistory(opts.fullHistory);
+  if (fromHistory) return fromHistory;
+  const crm = opts.crmFieldValue?.trim();
+  if (crm && !isLegacyStoredLucyResponse(crm)) return crm;
+  return null;
 }
 function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPresentation = false) {
   const presHistory = presentationHistoryFrom(ctx);
@@ -3665,7 +3727,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
     }
   } else if (clientAsksInclusion(currentMessage)) {
-    const inclusionAnswer = buildCatalogInclusionAnswer(currentMessage);
+    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage);
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -15710,6 +15772,61 @@ async function runAll() {
     assert.equal(comida.kind, "category");
     assert.ok(comida.rows.length >= 2, comida.rows.map((r) => r.servicio).join(", "));
     assert.equal(formatRequerimientoLabelFromQuery("comida"), null);
+  });
+  await test("41. Legacy \u2014 1048786 resumen no es \xFAltima respuesta de Lucy", () => {
+    const resumen = buildResumenClienteLargo(
+      emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
+      ["- Nombre del cliente: Ana", "- Tipo de evento: boda"],
+      "quiero cotizar una boda"
+    );
+    assert.ok(isResumenClienteLargo(resumen), resumen.slice(0, 120));
+    assert.ok(isLegacyStoredLucyResponse(resumen));
+    assert.ok(isLegacyStoredLucyResponse("-"));
+    assert.ok(isLegacyStoredLucyResponse("\xA1Hola Lead #12345! Te saluda Lucy de Bodasesor."));
+    assert.ok(isLegacyStoredLucyResponse("Te saluda Lucy, agente virtual de Bodasesor."));
+    const realOutbound = "Hola, soy Lucy, agente virtual de Bodasesor. \xBFMe regalas tu nombre?";
+    assert.equal(isLegacyStoredLucyResponse(realOutbound), false);
+    const fromHistory = resolveEffectiveLastLucyResponse({
+      entityId: "999",
+      fullHistory: [
+        { role: "user", content: "hola" },
+        { role: "assistant", content: realOutbound }
+      ],
+      cachedResponse: null,
+      crmFieldValue: resumen
+    });
+    assert.equal(fromHistory, realOutbound);
+    const ignoresResumenCache = resolveEffectiveLastLucyResponse({
+      entityId: "999",
+      fullHistory: [],
+      cachedResponse: resumen,
+      crmFieldValue: resumen
+    });
+    assert.equal(ignoresResumenCache, null);
+  });
+  await test("42. Anti-alucinaci\xF3n \u2014 inclusiones solo del Sheet", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Barra de bebidas con alcohol","Basica","$450.00","$9,000.00","TRUE",""',
+      '"Barra de bebidas con alcohol","Premium","$750.00","$15,000.00","TRUE","Refrescos, aguas y 3 licores premium"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    assert.equal(buildCatalogInclusionAnswer("qu\xE9 incluye la barra b\xE1sica"), null);
+    const team = buildInclusionTeamConfirmationAnswer("qu\xE9 incluye la barra b\xE1sica");
+    assert.ok(team, "debe pedir confirmaci\xF3n al equipo");
+    assert.ok(/confirma nuestro equipo/i.test(team), team);
+    assert.ok(!/cerveza|vino|licor com[uú]n/i.test(team), team);
+    const filled = buildCatalogInclusionAnswer("qu\xE9 incluye la barra premium");
+    assert.ok(filled);
+    assert.ok(/Refrescos, aguas y 3 licores premium/.test(filled), filled);
+    assert.ok(!/cerveza|vino com[uú]n/i.test(filled), filled);
+    const hallucinated = "La barra b\xE1sica incluye cervezas, vinos y licores comunes.";
+    const injected = injectCatalogInclusionIfAsked("qu\xE9 incluye la barra b\xE1sica", hallucinated);
+    assert.ok(!/cerveza|vino/i.test(injected), injected);
+    assert.ok(/confirma nuestro equipo/i.test(injected), injected);
+    const reply = resolveCatalogInclusionReply("qu\xE9 incluye la barra b\xE1sica");
+    assert.ok(reply);
+    assert.equal(reply, team);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

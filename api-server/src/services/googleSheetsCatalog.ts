@@ -330,7 +330,7 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
     "CATÁLOGO BODASESOR — GOOGLE SHEETS (fuente viva)",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     "",
-    "REGLA: Solo cita precios que aparecen en esta tabla. Si no hay precio → Alejandro cotiza.",
+    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vacío → el equipo confirma en cotización. NUNCA inventes bebidas, platillos ni marcas.",
     "",
   ];
 
@@ -357,7 +357,7 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
           const clientNotes = [parsed.inclusion, parsed.minimo ? `Mínimo de salida: ${parsed.minimo}` : ""]
             .filter(Boolean)
             .join(" | ");
-          if (clientNotes) lines.push(`  ${clientNotes}`);
+          if (clientNotes) lines.push(`  Incluye (dato real del Sheet): ${clientNotes}`);
         }
       } else {
         lines.push(`• **${svc}** (${levels.length} niveles)`);

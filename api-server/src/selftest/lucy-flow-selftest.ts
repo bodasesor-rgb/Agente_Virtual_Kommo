@@ -98,6 +98,10 @@ import {
   resolveCatalogQuery,
   buildCatalogPriceAnswer,
   formatRequerimientoLabelFromQuery,
+  buildCatalogInclusionAnswer,
+  buildInclusionTeamConfirmationAnswer,
+  injectCatalogInclusionIfAsked,
+  resolveCatalogInclusionReply,
 } from "../services/catalogService.js";
 import {
   parseSheetCatalogCsv,
@@ -1881,6 +1885,36 @@ async function runAll(): Promise<void> {
       crmFieldValue: resumen,
     });
     assert.equal(ignoresResumenCache, null);
+  });
+
+  await test("42. Anti-alucinación — inclusiones solo del Sheet", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Barra de bebidas con alcohol","Basica","$450.00","$9,000.00","TRUE",""',
+      '"Barra de bebidas con alcohol","Premium","$750.00","$15,000.00","TRUE","Refrescos, aguas y 3 licores premium"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    assert.equal(buildCatalogInclusionAnswer("qué incluye la barra básica"), null);
+
+    const team = buildInclusionTeamConfirmationAnswer("qué incluye la barra básica");
+    assert.ok(team, "debe pedir confirmación al equipo");
+    assert.ok(/confirma nuestro equipo/i.test(team!), team);
+    assert.ok(!/cerveza|vino|licor com[uú]n/i.test(team!), team);
+
+    const filled = buildCatalogInclusionAnswer("qué incluye la barra premium");
+    assert.ok(filled);
+    assert.ok(/Refrescos, aguas y 3 licores premium/.test(filled!), filled);
+    assert.ok(!/cerveza|vino com[uú]n/i.test(filled!), filled);
+
+    const hallucinated = "La barra básica incluye cervezas, vinos y licores comunes.";
+    const injected = injectCatalogInclusionIfAsked("qué incluye la barra básica", hallucinated);
+    assert.ok(!/cerveza|vino/i.test(injected), injected);
+    assert.ok(/confirma nuestro equipo/i.test(injected), injected);
+
+    const reply = resolveCatalogInclusionReply("qué incluye la barra básica");
+    assert.ok(reply);
+    assert.equal(reply, team);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

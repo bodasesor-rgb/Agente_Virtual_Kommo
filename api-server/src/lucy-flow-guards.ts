@@ -39,7 +39,7 @@ import {
 } from "./price-guard.js";
 import {
   buildCatalogPriceAnswer,
-  buildCatalogInclusionAnswer,
+  resolveCatalogInclusionReply,
   buildCatalogComparisonAnswer,
   buildCatalogServiceDetailAnswer,
   responseLooksLikeGenericCateringMenu,
@@ -2460,7 +2460,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
     }
   } else if (clientAsksInclusion(currentMessage)) {
-    const inclusionAnswer = buildCatalogInclusionAnswer(currentMessage);
+    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage);
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {

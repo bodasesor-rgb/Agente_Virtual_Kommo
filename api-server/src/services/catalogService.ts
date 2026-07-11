@@ -292,7 +292,7 @@ function parseCatalogQueryFilters(query: string): CatalogQueryFilters {
   const t = normalizeForMatch(query);
   let nivel: string | null = null;
   if (/\bpremium\b/.test(t)) nivel = "Premium";
-  else if (/\bbasico\b/.test(t)) nivel = "Basico";
+  else if (/\bbasic[ao]\b/.test(t)) nivel = "Basica";
   else if (/\btradicional\b/.test(t)) nivel = "Tradicional";
   else if (/\bsolo\s*alimentos\b/.test(t)) nivel = "Solo Alimentos";
 
@@ -407,7 +407,8 @@ function matchesNivelFilter(row: SheetCatalogRow, filters: CatalogQueryFilters, 
   if (filters.tresTiempos && /\b3\s*tiempos\b/.test(svcHay)) return true;
   const q = normalizeForMatch(query);
   if (/\bpremium\b/.test(q) && /\bpremium\b/.test(nivelHay)) return true;
-  if (/\bbasico\b/.test(q) && /\bbasico\b/.test(nivelHay)) return true;
+  if (/\bbasic[ao]\b/.test(q) && /\bbasic[ao]\b/.test(nivelHay)) return true;
+  if (/\btradicional\b/.test(q) && /\btradicional\b/.test(nivelHay)) return true;
   return false;
 }
 
@@ -454,7 +455,7 @@ export function resolveCatalogQuery(query: string): CatalogMatchResult | null {
   const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
   let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
 
-  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasico\b|\btradicional\b/i.test(query));
+  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b/i.test(query));
   if (hasNivelFilter) {
     const nivelRows = matchedRows.filter((r) => matchesNivelFilter(r, filters, query));
     if (nivelRows.length) matchedRows = nivelRows;
@@ -534,7 +535,9 @@ function buildExactRowDetailAnswer(row: SheetCatalogRow): string {
     row.tienePrecio && row.precio
       ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
       : "";
-  const inclusion = parsed.inclusion ? `\n\n${parsed.inclusion}` : "";
+  const inclusion = parsed.inclusion
+    ? `\n\n*Incluye (dato real del Sheet):* ${parsed.inclusion}`
+    : "";
   return `Sí, manejamos *${label}*.${price ? `\n${price}` : ""}${inclusion}`.trim();
 }
 
@@ -543,7 +546,9 @@ function buildExactRowPriceAnswer(row: SheetCatalogRow): string {
   const parsed = parseRowNotes(row.notas);
   const unit = row.unidad ? ` ${row.unidad}` : "";
   const min = parsed.minimo ? ` (mín. ${parsed.minimo})` : "";
-  const inclusion = parsed.inclusion ? `\n\n*Incluye:* ${parsed.inclusion}` : "";
+  const inclusion = parsed.inclusion
+    ? `\n\n*Incluye (dato real del Sheet):* ${parsed.inclusion}`
+    : "";
   return `*${label}* — ${row.precio}${unit}${min}${inclusion}`;
 }
 
@@ -645,14 +650,14 @@ export function lookupCatalogServices(query: string): SheetCatalogRow[] {
 function buildInclusionBlock(rows: SheetCatalogRow[], maxPerLevel = 220): string {
   const inclusionByLevel = rows.map((row) => ({
     nivel: extractNivelLabel(row),
-    inclusion: parseRowNotes(row.notas).inclusion,
+    inclusion: getInclusionFromRow(row),
   }));
 
   const uniqueTexts = [...new Set(inclusionByLevel.map((r) => r.inclusion).filter(Boolean))];
   if (!uniqueTexts.length) return "";
 
   if (uniqueTexts.length === 1) {
-    return `\n\n*Incluye:* ${uniqueTexts[0]}`;
+    return `\n\n*Incluye (dato real del Sheet):* ${uniqueTexts[0]}`;
   }
 
   const lines = inclusionByLevel
@@ -660,10 +665,49 @@ function buildInclusionBlock(rows: SheetCatalogRow[], maxPerLevel = 220): string
     .slice(0, 5)
     .map(
       (r) =>
-        `• *${r.nivel}:* ${r.inclusion.slice(0, maxPerLevel)}${r.inclusion.length > maxPerLevel ? "…" : ""}`
+        `• *${r.nivel}:* ${r.inclusion!.slice(0, maxPerLevel)}${r.inclusion!.length > maxPerLevel ? "…" : ""}`
     );
 
-  return lines.length ? `\n\n*Qué incluye cada nivel:*\n${lines.join("\n")}` : "";
+  return lines.length ? `\n\n*Qué incluye cada nivel (dato real del Sheet):*\n${lines.join("\n")}` : "";
+}
+
+function getInclusionFromRow(row: SheetCatalogRow): string | null {
+  const text = parseRowNotes(row.notas).inclusion?.trim();
+  return text || null;
+}
+
+function resolvedHasInclusionData(resolved: CatalogMatchResult): boolean {
+  return resolved.rows.some((r) => !!getInclusionFromRow(r));
+}
+
+function inclusionLabelForResolved(resolved: CatalogMatchResult): string {
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return formatCatalogRowLabel(resolved.rows[0]);
+  }
+  return resolved.serviceName ?? formatCatalogRowLabel(resolved.rows[0]!);
+}
+
+/** Cuando el servicio está en el Sheet pero el campo Incluye está vacío. */
+export function buildInclusionTeamConfirmationAnswer(query: string): string | null {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  if (resolvedHasInclusionData(resolved)) return null;
+
+  const label = inclusionLabelForResolved(resolved);
+  const nivel =
+    resolved.kind === "service_nivel" && resolved.rows[0]
+      ? extractNivelLabel(resolved.rows[0])
+      : parseCatalogQueryFilters(query).nivel;
+
+  if (nivel) {
+    return `El detalle exacto de lo que incluye la barra *${nivel}* te lo confirma nuestro equipo en la cotización. ¿Te la preparo con ese nivel?`;
+  }
+  return `El detalle exacto de lo que incluye *${label}* te lo confirma nuestro equipo en la cotización. ¿Te la preparo con ese nivel?`;
+}
+
+/** Respuesta de inclusiones: Sheet con dato, o confirmación del equipo si está vacío. */
+export function resolveCatalogInclusionReply(query: string): string | null {
+  return buildCatalogInclusionAnswer(query) ?? buildInclusionTeamConfirmationAnswer(query);
 }
 
 export function clientAsksInclusion(message?: string): boolean {
@@ -676,43 +720,37 @@ export function clientAsksInclusion(message?: string): boolean {
   );
 }
 
-/** Respuesta detallada cuando preguntan qué incluye / menú / detalle. */
+/** Respuesta detallada cuando preguntan qué incluye / menú / detalle. Solo texto del Sheet. */
 export function buildCatalogInclusionAnswer(query: string): string | null {
   const resolved = resolveCatalogQuery(query);
-  if (!resolved) return null;
+  if (!resolved || resolved.kind === "category") return null;
 
-  if (resolved.kind === "category") {
-    return buildCategoryServicesAnswer(resolved);
-  }
   if (resolved.kind === "service_nivel" && resolved.rows[0]) {
     const row = resolved.rows[0];
-    const parsed = parseRowNotes(row.notas);
+    const inclusion = getInclusionFromRow(row);
+    if (!inclusion) return null;
     const label = formatCatalogRowLabel(row);
-    const price =
-      row.tienePrecio && row.precio
-        ? `\n*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
-        : "";
-    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del menú.";
-    return `Te comparto qué incluye *${label}*:${price}\n\n${inclusion}`;
+    return `*${label}* — *Incluye (dato real del Sheet):* ${inclusion}`;
   }
+
   if (resolved.kind === "service") {
-    return buildServiceNivelChoiceAnswer(resolved);
+    const rowsWithInclusion = resolved.rows.filter((r) => getInclusionFromRow(r));
+    if (!rowsWithInclusion.length) return null;
+
+    if (rowsWithInclusion.length === 1) {
+      const row = rowsWithInclusion[0]!;
+      return `*${formatCatalogRowLabel(row)}* — *Incluye (dato real del Sheet):* ${getInclusionFromRow(row)}`;
+    }
+
+    const baseName = resolved.serviceName ?? rowsWithInclusion[0]!.servicio;
+    const blocks = rowsWithInclusion.slice(0, 5).map((row) => {
+      const nivel = extractNivelLabel(row);
+      return `• *${nivel}:* ${getInclusionFromRow(row)}`;
+    });
+    return `*Incluye (dato real del Sheet)* — *${baseName}*:\n${blocks.join("\n")}`;
   }
 
-  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
-  const baseName = resolved.serviceName ?? unique[0]!.servicio;
-  const blocks = unique.slice(0, 5).map((row) => {
-    const parsed = parseRowNotes(row.notas);
-    const nivel = extractNivelLabel(row);
-    const price =
-      row.tienePrecio && row.precio
-        ? ` — ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? `, mín. ${parsed.minimo}` : ""}`
-        : "";
-    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del menú.";
-    return `*${nivel}*${price}\n${inclusion}`;
-  });
-
-  return `Te comparto qué incluye *${baseName}*:\n\n${blocks.join("\n\n")}`;
+  return null;
 }
 
 /** Respuesta con precios + inclusiones del Sheet. */
@@ -843,11 +881,16 @@ export function formatServiceDataForPrompt(query: string): string | null {
       row.tienePrecio && row.precio
         ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
         : "Precio: sin listar — Alejandro cotiza";
-    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "";
-    return `- ${formatCatalogRowLabel(row)} | ${price}${inclusion ? ` | ${inclusion}` : ""}`;
+    const inclusion = parsed.inclusion
+      ? `Incluye (dato real del Sheet): ${parsed.inclusion}`
+      : "Incluye: sin dato en Sheet — el equipo confirma en cotización";
+    return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}`;
   });
 
-  return ["DATOS DEL SERVICIO (fuente Google Sheet — usar solo esto, no inventar):", ...lines].join("\n");
+  return [
+    "DATOS DEL SERVICIO (fuente Google Sheet — usar SOLO esto; no inventar precios ni inclusiones):",
+    ...lines,
+  ].join("\n");
 }
 
 function mentionedServiceLabel(query: string): string | null {
@@ -942,13 +985,15 @@ export function buildCatalogCateringAnswer(): string | null {
   return buildCatalogCateringOverviewFromSheet();
 }
 
-/** Si preguntan qué incluye / menú, responde con detalle del Sheet. */
+/** Si preguntan qué incluye / menú, responde SOLO con dato del Sheet o aviso al equipo. */
 export function injectCatalogInclusionIfAsked(
   clientMessage: string | undefined,
   aiResponse: string
 ): string {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
-  return buildCatalogInclusionAnswer(clientMessage) ?? aiResponse;
+  const fromCatalog = resolveCatalogInclusionReply(clientMessage);
+  if (fromCatalog) return fromCatalog;
+  return aiResponse;
 }
 
 /** Si preguntan catering/servicio, enriquece con datos del Sheet (sin menú fijo). */

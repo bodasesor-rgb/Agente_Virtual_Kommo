@@ -119,7 +119,7 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
     const parts = ["CONOCIMIENTO DE SERVICIO (Google Sheet — precio solo de aquí):"];
     if (sheetBlock) parts.push(sheetBlock);
     else if (sheetDetail) parts.push(sheetDetail);
-    parts.push("Usa estos datos. No inventes precios ni inclusiones.");
+    parts.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita el campo Incluye (dato real del Sheet).");
     return {
       level: 1,
       label,

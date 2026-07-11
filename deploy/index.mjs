@@ -78795,7 +78795,7 @@ function sheetRowsToMarkdown(rows) {
     "CAT\xC1LOGO BODASESOR \u2014 GOOGLE SHEETS (fuente viva)",
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
     "",
-    "REGLA: Solo cita precios que aparecen en esta tabla. Si no hay precio \u2192 Alejandro cotiza.",
+    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vac\xEDo \u2192 el equipo confirma en cotizaci\xF3n. NUNCA inventes bebidas, platillos ni marcas.",
     ""
   ];
   for (const [cat, items] of byCategory) {
@@ -78819,7 +78819,7 @@ function sheetRowsToMarkdown(rows) {
         if (item.notas) {
           const parsed = parseRowNotes(item.notas);
           const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
-          if (clientNotes) lines.push(`  ${clientNotes}`);
+          if (clientNotes) lines.push(`  Incluye (dato real del Sheet): ${clientNotes}`);
         }
       } else {
         lines.push(`\u2022 **${svc}** (${levels.length} niveles)`);
@@ -80234,7 +80234,7 @@ function getServiceKnowledge(query) {
     const parts2 = ["CONOCIMIENTO DE SERVICIO (Google Sheet \u2014 precio solo de aqu\xED):"];
     if (sheetBlock) parts2.push(sheetBlock);
     else if (sheetDetail) parts2.push(sheetDetail);
-    parts2.push("Usa estos datos. No inventes precios ni inclusiones.");
+    parts2.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita el campo Incluye (dato real del Sheet).");
     return {
       level: 1,
       label,
@@ -80448,7 +80448,7 @@ function parseCatalogQueryFilters(query) {
   const t = normalizeForMatch(query);
   let nivel = null;
   if (/\bpremium\b/.test(t)) nivel = "Premium";
-  else if (/\bbasico\b/.test(t)) nivel = "Basico";
+  else if (/\bbasic[ao]\b/.test(t)) nivel = "Basica";
   else if (/\btradicional\b/.test(t)) nivel = "Tradicional";
   else if (/\bsolo\s*alimentos\b/.test(t)) nivel = "Solo Alimentos";
   return {
@@ -80536,7 +80536,8 @@ function matchesNivelFilter(row, filters, query) {
   if (filters.tresTiempos && /\b3\s*tiempos\b/.test(svcHay)) return true;
   const q2 = normalizeForMatch(query);
   if (/\bpremium\b/.test(q2) && /\bpremium\b/.test(nivelHay)) return true;
-  if (/\bbasico\b/.test(q2) && /\bbasico\b/.test(nivelHay)) return true;
+  if (/\bbasic[ao]\b/.test(q2) && /\bbasic[ao]\b/.test(nivelHay)) return true;
+  if (/\btradicional\b/.test(q2) && /\btradicional\b/.test(nivelHay)) return true;
   return false;
 }
 function simplifyServiceNamesForList(servicios) {
@@ -80572,7 +80573,7 @@ function resolveCatalogQuery(query) {
   const top = scored[0].score;
   const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
   let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
-  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasico\b|\btradicional\b/i.test(query));
+  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b/i.test(query));
   if (hasNivelFilter) {
     const nivelRows = matchedRows.filter((r2) => matchesNivelFilter(r2, filters, query));
     if (nivelRows.length) matchedRows = nivelRows;
@@ -80641,7 +80642,7 @@ function buildExactRowDetailAnswer(row) {
   const price = row.tienePrecio && row.precio ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
   const inclusion = parsed.inclusion ? `
 
-${parsed.inclusion}` : "";
+*Incluye (dato real del Sheet):* ${parsed.inclusion}` : "";
   return `S\xED, manejamos *${label}*.${price ? `
 ${price}` : ""}${inclusion}`.trim();
 }
@@ -80652,7 +80653,7 @@ function buildExactRowPriceAnswer(row) {
   const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
   const inclusion = parsed.inclusion ? `
 
-*Incluye:* ${parsed.inclusion}` : "";
+*Incluye (dato real del Sheet):* ${parsed.inclusion}` : "";
   return `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`;
 }
 function formatRequerimientoLabelFromQuery(query) {
@@ -80728,22 +80729,49 @@ function lookupCatalogServices(query) {
 function buildInclusionBlock(rows, maxPerLevel = 220) {
   const inclusionByLevel = rows.map((row) => ({
     nivel: extractNivelLabel(row),
-    inclusion: parseRowNotes(row.notas).inclusion
+    inclusion: getInclusionFromRow(row)
   }));
   const uniqueTexts = [...new Set(inclusionByLevel.map((r2) => r2.inclusion).filter(Boolean))];
   if (!uniqueTexts.length) return "";
   if (uniqueTexts.length === 1) {
     return `
 
-*Incluye:* ${uniqueTexts[0]}`;
+*Incluye (dato real del Sheet):* ${uniqueTexts[0]}`;
   }
   const lines = inclusionByLevel.filter((r2) => r2.inclusion).slice(0, 5).map(
     (r2) => `\u2022 *${r2.nivel}:* ${r2.inclusion.slice(0, maxPerLevel)}${r2.inclusion.length > maxPerLevel ? "\u2026" : ""}`
   );
   return lines.length ? `
 
-*Qu\xE9 incluye cada nivel:*
+*Qu\xE9 incluye cada nivel (dato real del Sheet):*
 ${lines.join("\n")}` : "";
+}
+function getInclusionFromRow(row) {
+  const text2 = parseRowNotes(row.notas).inclusion?.trim();
+  return text2 || null;
+}
+function resolvedHasInclusionData(resolved) {
+  return resolved.rows.some((r2) => !!getInclusionFromRow(r2));
+}
+function inclusionLabelForResolved(resolved) {
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return formatCatalogRowLabel(resolved.rows[0]);
+  }
+  return resolved.serviceName ?? formatCatalogRowLabel(resolved.rows[0]);
+}
+function buildInclusionTeamConfirmationAnswer(query) {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  if (resolvedHasInclusionData(resolved)) return null;
+  const label = inclusionLabelForResolved(resolved);
+  const nivel = resolved.kind === "service_nivel" && resolved.rows[0] ? extractNivelLabel(resolved.rows[0]) : parseCatalogQueryFilters(query).nivel;
+  if (nivel) {
+    return `El detalle exacto de lo que incluye la barra *${nivel}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
+  }
+  return `El detalle exacto de lo que incluye *${label}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
+}
+function resolveCatalogInclusionReply(query) {
+  return buildCatalogInclusionAnswer(query) ?? buildInclusionTeamConfirmationAnswer(query);
 }
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
@@ -80754,37 +80782,30 @@ function clientAsksInclusion(message) {
 }
 function buildCatalogInclusionAnswer(query) {
   const resolved = resolveCatalogQuery(query);
-  if (!resolved) return null;
-  if (resolved.kind === "category") {
-    return buildCategoryServicesAnswer(resolved);
-  }
+  if (!resolved || resolved.kind === "category") return null;
   if (resolved.kind === "service_nivel" && resolved.rows[0]) {
     const row = resolved.rows[0];
-    const parsed = parseRowNotes(row.notas);
+    const inclusion = getInclusionFromRow(row);
+    if (!inclusion) return null;
     const label = formatCatalogRowLabel(row);
-    const price = row.tienePrecio && row.precio ? `
-*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
-    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del men\xFA.";
-    return `Te comparto qu\xE9 incluye *${label}*:${price}
-
-${inclusion}`;
+    return `*${label}* \u2014 *Incluye (dato real del Sheet):* ${inclusion}`;
   }
   if (resolved.kind === "service") {
-    return buildServiceNivelChoiceAnswer(resolved);
+    const rowsWithInclusion = resolved.rows.filter((r2) => getInclusionFromRow(r2));
+    if (!rowsWithInclusion.length) return null;
+    if (rowsWithInclusion.length === 1) {
+      const row = rowsWithInclusion[0];
+      return `*${formatCatalogRowLabel(row)}* \u2014 *Incluye (dato real del Sheet):* ${getInclusionFromRow(row)}`;
+    }
+    const baseName = resolved.serviceName ?? rowsWithInclusion[0].servicio;
+    const blocks = rowsWithInclusion.slice(0, 5).map((row) => {
+      const nivel = extractNivelLabel(row);
+      return `\u2022 *${nivel}:* ${getInclusionFromRow(row)}`;
+    });
+    return `*Incluye (dato real del Sheet)* \u2014 *${baseName}*:
+${blocks.join("\n")}`;
   }
-  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
-  const baseName = resolved.serviceName ?? unique[0].servicio;
-  const blocks = unique.slice(0, 5).map((row) => {
-    const parsed = parseRowNotes(row.notas);
-    const nivel = extractNivelLabel(row);
-    const price = row.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? `, m\xEDn. ${parsed.minimo}` : ""}` : "";
-    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del men\xFA.";
-    return `*${nivel}*${price}
-${inclusion}`;
-  });
-  return `Te comparto qu\xE9 incluye *${baseName}*:
-
-${blocks.join("\n\n")}`;
+  return null;
 }
 function buildCatalogPriceAnswer(query) {
   const resolved = resolveCatalogQuery(query);
@@ -80880,10 +80901,13 @@ function formatServiceDataForPrompt(query) {
   const lines = unique.map((row) => {
     const parsed = parseRowNotes(row.notas);
     const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
-    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "";
-    return `- ${formatCatalogRowLabel(row)} | ${price}${inclusion ? ` | ${inclusion}` : ""}`;
+    const inclusion = parsed.inclusion ? `Incluye (dato real del Sheet): ${parsed.inclusion}` : "Incluye: sin dato en Sheet \u2014 el equipo confirma en cotizaci\xF3n";
+    return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}`;
   });
-  return ["DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar solo esto, no inventar):", ...lines].join("\n");
+  return [
+    "DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar SOLO esto; no inventar precios ni inclusiones):",
+    ...lines
+  ].join("\n");
 }
 function mentionedServiceLabel(query) {
   return parsePrimaryService(query);
@@ -80951,7 +80975,9 @@ function buildCatalogCateringOverviewFromSheet() {
 }
 function injectCatalogInclusionIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
-  return buildCatalogInclusionAnswer(clientMessage) ?? aiResponse;
+  const fromCatalog = resolveCatalogInclusionReply(clientMessage);
+  if (fromCatalog) return fromCatalog;
+  return aiResponse;
 }
 function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim()) return aiResponse;
@@ -83366,7 +83392,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
     }
   } else if (clientAsksInclusion(currentMessage)) {
-    const inclusionAnswer = buildCatalogInclusionAnswer(currentMessage);
+    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage);
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -83988,6 +84014,10 @@ an\xF3talo y avanza. Nunca te quedes pidiendo "otros servicios" ni repitas la mi
 pregunta por no tener el dato.
 
 - **NIVEL 1 \u2014 Est\xE1 en el Sheet:** da precio e inclusiones exactas del cat\xE1logo inyectado.
+  NUNCA inventes qu\xE9 incluye un servicio o nivel: solo menciona inclusiones que aparezcan
+  en los datos del cat\xE1logo (campo "Incluye (dato real del Sheet)"). Si no tienes el detalle,
+  di que el equipo lo confirma en la cotizaci\xF3n. No des ejemplos de tu propia cabeza
+  (marcas, bebidas, platillos) que no est\xE9n en el cat\xE1logo.
 - **NIVEL 2 \u2014 Servicio de eventos sin Sheet** (renta de letras, valet, pirotecnia fr\xEDa,
   mesa imperial, etc.): ACEPTA, ANOTA en requerimientos y AVANZA. Acuse breve
   ("\xA1Claro! La renta de letras la anoto en tu solicitud.") + siguiente dato o cierre.
@@ -84217,7 +84247,8 @@ function buildRedactionBriefing(input) {
     );
   }
   lines.push(
-    `NUNCA inventes precios. DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile sin precio en cat\xE1logo \u2014 da info \xFAtil y di que nuestro equipo lo incluye en la cotizaci\xF3n.`,
+    `NUNCA inventes precios ni inclusiones. DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile sin precio en cat\xE1logo \u2014 da info \xFAtil y di que nuestro equipo lo incluye en la cotizaci\xF3n.`,
+    `Si preguntan qu\xE9 incluye un servicio/nivel: SOLO texto del campo "Incluye (dato real del Sheet)". Si est\xE1 vac\xEDo \u2192 "el equipo lo confirma en la cotizaci\xF3n". Jam\xE1s rellenes con cervezas, vinos, platillos ni marcas inventadas.`,
     SERVICE_KNOWLEDGE_GOLDEN_RULE,
     "Servicios fuera del Sheet pero de eventos: acepta, anota y avanza (NIVEL 2). Precio solo del Sheet.",
     "Si el cliente hizo una pregunta en este mensaje, resp\xF3ndela ANTES de pedir el siguiente dato.",

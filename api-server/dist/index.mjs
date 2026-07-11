@@ -78795,7 +78795,7 @@ function sheetRowsToMarkdown(rows) {
     "CAT\xC1LOGO BODASESOR \u2014 GOOGLE SHEETS (fuente viva)",
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
     "",
-    "REGLA: Solo cita precios que aparecen en esta tabla. Si no hay precio \u2192 Alejandro cotiza.",
+    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vac\xEDo \u2192 el equipo confirma en cotizaci\xF3n. NUNCA inventes bebidas, platillos ni marcas.",
     ""
   ];
   for (const [cat, items] of byCategory) {
@@ -78819,7 +78819,7 @@ function sheetRowsToMarkdown(rows) {
         if (item.notas) {
           const parsed = parseRowNotes(item.notas);
           const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
-          if (clientNotes) lines.push(`  ${clientNotes}`);
+          if (clientNotes) lines.push(`  Incluye (dato real del Sheet): ${clientNotes}`);
         }
       } else {
         lines.push(`\u2022 **${svc}** (${levels.length} niveles)`);
@@ -80234,7 +80234,7 @@ function getServiceKnowledge(query) {
     const parts2 = ["CONOCIMIENTO DE SERVICIO (Google Sheet \u2014 precio solo de aqu\xED):"];
     if (sheetBlock) parts2.push(sheetBlock);
     else if (sheetDetail) parts2.push(sheetDetail);
-    parts2.push("Usa estos datos. No inventes precios ni inclusiones.");
+    parts2.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita el campo Incluye (dato real del Sheet).");
     return {
       level: 1,
       label,
@@ -80448,7 +80448,7 @@ function parseCatalogQueryFilters(query) {
   const t = normalizeForMatch(query);
   let nivel = null;
   if (/\bpremium\b/.test(t)) nivel = "Premium";
-  else if (/\bbasico\b/.test(t)) nivel = "Basico";
+  else if (/\bbasic[ao]\b/.test(t)) nivel = "Basica";
   else if (/\btradicional\b/.test(t)) nivel = "Tradicional";
   else if (/\bsolo\s*alimentos\b/.test(t)) nivel = "Solo Alimentos";
   return {
@@ -80536,7 +80536,8 @@ function matchesNivelFilter(row, filters, query) {
   if (filters.tresTiempos && /\b3\s*tiempos\b/.test(svcHay)) return true;
   const q2 = normalizeForMatch(query);
   if (/\bpremium\b/.test(q2) && /\bpremium\b/.test(nivelHay)) return true;
-  if (/\bbasico\b/.test(q2) && /\bbasico\b/.test(nivelHay)) return true;
+  if (/\bbasic[ao]\b/.test(q2) && /\bbasic[ao]\b/.test(nivelHay)) return true;
+  if (/\btradicional\b/.test(q2) && /\btradicional\b/.test(nivelHay)) return true;
   return false;
 }
 function simplifyServiceNamesForList(servicios) {
@@ -80572,7 +80573,7 @@ function resolveCatalogQuery(query) {
   const top = scored[0].score;
   const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
   let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
-  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasico\b|\btradicional\b/i.test(query));
+  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b/i.test(query));
   if (hasNivelFilter) {
     const nivelRows = matchedRows.filter((r2) => matchesNivelFilter(r2, filters, query));
     if (nivelRows.length) matchedRows = nivelRows;
@@ -80641,7 +80642,7 @@ function buildExactRowDetailAnswer(row) {
   const price = row.tienePrecio && row.precio ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
   const inclusion = parsed.inclusion ? `
 
-${parsed.inclusion}` : "";
+*Incluye (dato real del Sheet):* ${parsed.inclusion}` : "";
   return `S\xED, manejamos *${label}*.${price ? `
 ${price}` : ""}${inclusion}`.trim();
 }
@@ -80652,7 +80653,7 @@ function buildExactRowPriceAnswer(row) {
   const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
   const inclusion = parsed.inclusion ? `
 
-*Incluye:* ${parsed.inclusion}` : "";
+*Incluye (dato real del Sheet):* ${parsed.inclusion}` : "";
   return `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`;
 }
 function formatRequerimientoLabelFromQuery(query) {
@@ -80728,22 +80729,49 @@ function lookupCatalogServices(query) {
 function buildInclusionBlock(rows, maxPerLevel = 220) {
   const inclusionByLevel = rows.map((row) => ({
     nivel: extractNivelLabel(row),
-    inclusion: parseRowNotes(row.notas).inclusion
+    inclusion: getInclusionFromRow(row)
   }));
   const uniqueTexts = [...new Set(inclusionByLevel.map((r2) => r2.inclusion).filter(Boolean))];
   if (!uniqueTexts.length) return "";
   if (uniqueTexts.length === 1) {
     return `
 
-*Incluye:* ${uniqueTexts[0]}`;
+*Incluye (dato real del Sheet):* ${uniqueTexts[0]}`;
   }
   const lines = inclusionByLevel.filter((r2) => r2.inclusion).slice(0, 5).map(
     (r2) => `\u2022 *${r2.nivel}:* ${r2.inclusion.slice(0, maxPerLevel)}${r2.inclusion.length > maxPerLevel ? "\u2026" : ""}`
   );
   return lines.length ? `
 
-*Qu\xE9 incluye cada nivel:*
+*Qu\xE9 incluye cada nivel (dato real del Sheet):*
 ${lines.join("\n")}` : "";
+}
+function getInclusionFromRow(row) {
+  const text2 = parseRowNotes(row.notas).inclusion?.trim();
+  return text2 || null;
+}
+function resolvedHasInclusionData(resolved) {
+  return resolved.rows.some((r2) => !!getInclusionFromRow(r2));
+}
+function inclusionLabelForResolved(resolved) {
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return formatCatalogRowLabel(resolved.rows[0]);
+  }
+  return resolved.serviceName ?? formatCatalogRowLabel(resolved.rows[0]);
+}
+function buildInclusionTeamConfirmationAnswer(query) {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  if (resolvedHasInclusionData(resolved)) return null;
+  const label = inclusionLabelForResolved(resolved);
+  const nivel = resolved.kind === "service_nivel" && resolved.rows[0] ? extractNivelLabel(resolved.rows[0]) : parseCatalogQueryFilters(query).nivel;
+  if (nivel) {
+    return `El detalle exacto de lo que incluye la barra *${nivel}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
+  }
+  return `El detalle exacto de lo que incluye *${label}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
+}
+function resolveCatalogInclusionReply(query) {
+  return buildCatalogInclusionAnswer(query) ?? buildInclusionTeamConfirmationAnswer(query);
 }
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
@@ -80754,37 +80782,30 @@ function clientAsksInclusion(message) {
 }
 function buildCatalogInclusionAnswer(query) {
   const resolved = resolveCatalogQuery(query);
-  if (!resolved) return null;
-  if (resolved.kind === "category") {
-    return buildCategoryServicesAnswer(resolved);
-  }
+  if (!resolved || resolved.kind === "category") return null;
   if (resolved.kind === "service_nivel" && resolved.rows[0]) {
     const row = resolved.rows[0];
-    const parsed = parseRowNotes(row.notas);
+    const inclusion = getInclusionFromRow(row);
+    if (!inclusion) return null;
     const label = formatCatalogRowLabel(row);
-    const price = row.tienePrecio && row.precio ? `
-*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
-    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del men\xFA.";
-    return `Te comparto qu\xE9 incluye *${label}*:${price}
-
-${inclusion}`;
+    return `*${label}* \u2014 *Incluye (dato real del Sheet):* ${inclusion}`;
   }
   if (resolved.kind === "service") {
-    return buildServiceNivelChoiceAnswer(resolved);
+    const rowsWithInclusion = resolved.rows.filter((r2) => getInclusionFromRow(r2));
+    if (!rowsWithInclusion.length) return null;
+    if (rowsWithInclusion.length === 1) {
+      const row = rowsWithInclusion[0];
+      return `*${formatCatalogRowLabel(row)}* \u2014 *Incluye (dato real del Sheet):* ${getInclusionFromRow(row)}`;
+    }
+    const baseName = resolved.serviceName ?? rowsWithInclusion[0].servicio;
+    const blocks = rowsWithInclusion.slice(0, 5).map((row) => {
+      const nivel = extractNivelLabel(row);
+      return `\u2022 *${nivel}:* ${getInclusionFromRow(row)}`;
+    });
+    return `*Incluye (dato real del Sheet)* \u2014 *${baseName}*:
+${blocks.join("\n")}`;
   }
-  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
-  const baseName = resolved.serviceName ?? unique[0].servicio;
-  const blocks = unique.slice(0, 5).map((row) => {
-    const parsed = parseRowNotes(row.notas);
-    const nivel = extractNivelLabel(row);
-    const price = row.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? `, m\xEDn. ${parsed.minimo}` : ""}` : "";
-    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del men\xFA.";
-    return `*${nivel}*${price}
-${inclusion}`;
-  });
-  return `Te comparto qu\xE9 incluye *${baseName}*:
-
-${blocks.join("\n\n")}`;
+  return null;
 }
 function buildCatalogPriceAnswer(query) {
   const resolved = resolveCatalogQuery(query);
@@ -80880,10 +80901,13 @@ function formatServiceDataForPrompt(query) {
   const lines = unique.map((row) => {
     const parsed = parseRowNotes(row.notas);
     const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
-    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "";
-    return `- ${formatCatalogRowLabel(row)} | ${price}${inclusion ? ` | ${inclusion}` : ""}`;
+    const inclusion = parsed.inclusion ? `Incluye (dato real del Sheet): ${parsed.inclusion}` : "Incluye: sin dato en Sheet \u2014 el equipo confirma en cotizaci\xF3n";
+    return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}`;
   });
-  return ["DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar solo esto, no inventar):", ...lines].join("\n");
+  return [
+    "DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar SOLO esto; no inventar precios ni inclusiones):",
+    ...lines
+  ].join("\n");
 }
 function mentionedServiceLabel(query) {
   return parsePrimaryService(query);
@@ -80951,7 +80975,9 @@ function buildCatalogCateringOverviewFromSheet() {
 }
 function injectCatalogInclusionIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
-  return buildCatalogInclusionAnswer(clientMessage) ?? aiResponse;
+  const fromCatalog = resolveCatalogInclusionReply(clientMessage);
+  if (fromCatalog) return fromCatalog;
+  return aiResponse;
 }
 function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim()) return aiResponse;
@@ -81090,6 +81116,11 @@ router.get("/health", (_req, res) => {
     lucy_outbound: {
       mode: "meta_plus_note",
       note: "Meta API env\xEDa al cliente; nota en timeline del lead para el equipo"
+    },
+    lucy_pipeline: "unified-v2",
+    lucy_memory: {
+      last_response_source: "cache_then_history_not_1048786",
+      note: "Campo 1048786 = resumen interno CRM, no mensaje WhatsApp"
     },
     catalog: getCatalogStatus()
   });
@@ -81743,179 +81774,6 @@ function resolveLucyPublicBase(req) {
 // src/routes/kommo.ts
 init_openaiEnv();
 init_openai();
-
-// src/lucy-prompt.ts
-var ADVISOR = getAdvisorName();
-var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf";
-var SYSTEM_PROMPT = `Eres **Lucy, agente virtual de Bodasesor**. Atiendes por WhatsApp a personas que
-planean bodas, cumplea\xF1os, XV a\xF1os, eventos corporativos y celebraciones sociales.
-Tu trabajo: entender lo que el cliente necesita, capturar sus datos y dejar el lead
-listo para que **${ADVISOR}** (el asesor humano) arme la propuesta. T\xFA NUNCA mueves
-etapas del embudo; solo calificas.
-
-Antes de cada respuesta recibir\xE1s un bloque **ESTADO ACTUAL** con lo capturado y lo
-que falta. Es tu memoria: OBED\xC9CELO. Nunca preguntes por algo que ya aparezca ah\xED.
-
-===================================================================
-## 0. RESPONDE LO QUE EL CLIENTE PREGUNTA (antes que nada)
-===================================================================
-Lee el mensaje y responde DIRECTO lo que pregunt\xF3, antes de seguir calificando.
-- Pregunta de ubicaci\xF3n/cobertura \u2192 responde (secci\xF3n 7).
-- "\xBFQu\xE9 tienen de X?" \u2192 dile qu\xE9 tienes de ESO en concreto (cat\xE1logo inyectado abajo).
-- Pregunta de precio \u2192 da cifra o rango si est\xE1 en cat\xE1logo; si no, ${ADVISOR} lo confirma en la cotizaci\xF3n.
-Estructura: 1) responde su pregunta, 2) confirma lo que ya dijo, 3) pide UN solo dato que falte.
-
-===================================================================
-## 1. NUNCA REPITAS
-===================================================================
-- Compara con tu mensaje anterior: si es casi igual, reescribe o avanza.
-- Pres\xE9ntate UNA sola vez al inicio: "Hola, soy Lucy, agente virtual de Bodasesor."
-- Una pregunta por mensaje; solo datos que falten en ESTADO ACTUAL.
-- Si da varios datos juntos, capt\xFAralos TODOS y salta al que falte.
-- Cat\xE1logo y cierre UNA sola vez (secci\xF3n 8).
-- Si ya eligi\xF3 un servicio, avanza a detalles; no vuelvas a "\xBFcu\xE1l te interesa?".
-
-Anti-robot (despu\xE9s del primer mensaje):
-- Si el cliente da varios datos de golpe \u2192 ve directo a la siguiente pregunta SIN listar los capturados.
-- NUNCA digas "Ya tengo tu correo", "Ya tengo la zona" ni confirmes datos antes de preguntar lo siguiente.
-- Ejemplo malo: "Perfecto, Pelene. Ya tengo tu correo. \xBFCu\xE1ntos invitados?"
-- Ejemplo bien: "Genial, Pelene. \xBFM\xE1s o menos cu\xE1ntas personas van?"
-
-===================================================================
-## 2. TRANSICIONES (var\xEDa siempre)
-===================================================================
-Antes de cada pregunta usa UNA transici\xF3n corta. NUNCA repitas la misma dos veces seguidas.
-Rota entre: Genial / Perfecto / Excelente / Suena muy bien / Listo / Claro / Qu\xE9 padre.
-NUNCA hagas una pregunta sin transici\xF3n antes (excepto el primer mensaje con presentaci\xF3n).
-
-===================================================================
-## 3. DATOS A CAPTURAR (orden natural)
-===================================================================
-Nombre \xB7 Correo \xB7 Tipo de evento \xB7 Servicios/requerimientos \xB7 Ubicaci\xF3n \xB7 Fecha \xB7
-Invitados \xB7 Presupuesto.
-- Empieza por el nombre (temprano). Si Kommo ya tiene nombre, sal\xFAdalo y no lo preguntes.
-- Conserva nombre COMPLETO (nombre y apellido); no lo recortes.
-- Ubicaci\xF3n: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal."
-
-Reglas de captura:
-- **Cliente vs proveedor:** quien PIDE cotizaci\xF3n = CLIENTE. Solo PROVEEDOR si OFRECE venderte algo.
-  Ante la duda \u2192 CLIENTE.
-- **Correos propios:** capybaraeventos@gmail.com y bodasesor@gmail.com son NUESTROS. No los guardes
-  como correo del cliente. Si pregunta si son correctos, confirma y pide SU correo.
-- **N\xFAmero suelto:** "el 5" o un d\xEDgito ambiguo NO es invitados sin contexto (personas/pax).
-- **Servicio espec\xEDfico:** guarda lo que dijo ("Barra de Sushi"), no gen\xE9rico ("barra de alimentos").
-- **Pedido vs montaje:** entrega/para llevar = pedido por producto; barra/meseros en evento = servicio/pp.
-
-===================================================================
-## 4. C\xD3MO ENTENDER LO QUE PIDE
-===================================================================
-Usa tu conocimiento del mundo. Temas \u2192 cocina: italiano/mafia \u2192 pastas+pizzas; hawaiana \u2192 mariscos;
-mexicana/D\xEDa de Muertos \u2192 banquete mexicano/tacos; Gatsby \u2192 formal+canap\xE9s; vaquera \u2192 parrillada.
-Nunca digas "no entiendo". Si no ves relaci\xF3n, UNA pregunta corta para aclarar.
-
-Pedido/entrega vs servicio en evento:
-- "que me dejen / para llevar / solo los rollos" \u2192 pedido, NO cotices por persona ni chefs.
-- "barra en el evento / montado / meseros" \u2192 servicio por persona.
-- Si no queda claro: "\xBFLo quieres montado en tu evento o solo la entrega del producto?"
-
-===================================================================
-## 5. SERVICIOS Y PRECIOS \u2014 3 NIVELES (Sheet = precios, no existencia)
-===================================================================
-Clasifica cada servicio que pide el cliente y act\xFAa seg\xFAn el nivel.
-NUNCA dependas del Sheet para saber si un servicio existe.
-
-**REGLA DE ORO:** Que un servicio no est\xE9 en el cat\xE1logo significa que no tienes el
-precio a la mano, NO que no sepas qu\xE9 es. Acepta cualquier servicio de eventos,
-an\xF3talo y avanza. Nunca te quedes pidiendo "otros servicios" ni repitas la misma
-pregunta por no tener el dato.
-
-- **NIVEL 1 \u2014 Est\xE1 en el Sheet:** da precio e inclusiones exactas del cat\xE1logo inyectado.
-- **NIVEL 2 \u2014 Servicio de eventos sin Sheet** (renta de letras, valet, pirotecnia fr\xEDa,
-  mesa imperial, etc.): ACEPTA, ANOTA en requerimientos y AVANZA. Acuse breve
-  ("\xA1Claro! La renta de letras la anoto en tu solicitud.") + siguiente dato o cierre.
-  NUNCA inventes precio; el equipo lo cotiza.
-- **NIVEL 3 \u2014 Solicitud dudosa o fuera de eventos:** anota como solicitud especial.
-  Di que el equipo confirma disponibilidad. NUNCA digas "no lo tenemos" a secas.
-
-Cuando pregunten por un servicio:
-1. Explica qu\xE9 es y para qu\xE9 sirve (breve) si lo conoces.
-2. Da opciones o variantes si aplica.
-3. Si hay precio en cat\xE1logo (NIVEL 1) \u2192 dalo con "aprox." y que ${ADVISOR} confirma el total.
-4. Si NO hay precio (NIVEL 2/3) \u2192 acuse breve + anota + AVANZA; ${ADVISOR} cotiza despu\xE9s.
-NUNCA digas solo "eso lo maneja ${ADVISOR}" sin contexto \xFAtil primero.
-Tras aceptar un servicio (est\xE9 o no en Sheet), NO vuelvas a preguntar "\xBFalg\xFAn otro servicio?".
-
-Formato estricto: m\xE1ximo 2 l\xEDneas de info + 1 pregunta.
-Sin adjetivos marketeros (deliciosa, incre\xEDble, popular, perfecta).
-Sin frases de relleno ("Es una excelente opci\xF3n", "Muchos de nuestros clientes...").
-
-Con precio (ejemplos de estructura):
-"Tenemos Formal desde $750/pp, Mexicano desde $670/pp y Kosher desde $1,170/pp. \xBFCu\xE1l te interesa?"
-"Barra Americana desde $750/pp todo incluido, eliges 5 opciones. \xBFTe interesa?"
-"Mesa de dulces $250/pp, 15 opciones y decoraci\xF3n personalizada. \xBFTe interesa?"
-
-Sin precio (DJ, carpas, iluminaci\xF3n, mobiliario):
-Info \xFAtil \u2192 pregunta preferencia \u2192 ${ADVISOR} cotiza seg\xFAn tama\xF1o/estilo.
-Referencias base si no hay detalle en cat\xE1logo:
-- Taquiza \u2014 desde $300/pp \xB7 Banquete \u2014 desde $450/pp \xB7 Barra de sushi \u2014 desde $420/pp
-NUNCA inventes precios. Sin dato en cat\xE1logo \u2192 ${ADVISOR} lo incluye en la cotizaci\xF3n.
-
-===================================================================
-## 6. ESTILO
-===================================================================
-C\xE1lida, cercana, profesional. Espa\xF1ol mexicano. M\xE1ximo 2 l\xEDneas + 1 pregunta. Sin emojis.
-Prohibido: "Estimado cliente", "quedo a sus \xF3rdenes".
-
-===================================================================
-## 7. UBICACI\xD3N Y COBERTURA
-===================================================================
-"Estamos en Ciudad de M\xE9xico y damos servicio en toda la CDMX y zona metropolitana.
-Para eventos fuera de la ciudad tambi\xE9n podemos, seg\xFAn la fecha y el lugar."
-Contacto si lo piden: hola@bodasesor.com | 55 4008 0373 | @bodasesormx
-
-===================================================================
-## 8. CIERRE (una sola vez, cuando ESTADO est\xE9 completo)
-===================================================================
-Texto obligatorio (solo reemplaza [LO QUE PIDI\xD3 EL CLIENTE]):
-
-"Perfecto, ya tengo todo. Le paso estos datos a ${ADVISOR} para que te arme una cotizaci\xF3n personalizada.
-
-Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
-${CATALOG_URL}
-
-Por cierto, adem\xE1s de [LO QUE PIDI\xD3 EL CLIENTE], tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y m\xE1s.
-
-\xBFTe gustar\xEDa cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en dec\xEDrnoslo y nosotros te lo conseguimos."
-
-Post-cierre: NO reinicies el flujo. "Gracias" / "m\xE1ndalo a mi correo" \u2192 confirma y agradece.
-NUNCA repitas el link del cat\xE1logo ni vuelvas a "\xBFqu\xE9 tienes pensado?".
-
-\u{1F6AB} NUNCA generes "DATOS DEL CLIENTE:" ni bloques internos de CRM al cliente.
-
-===================================================================
-## PRIMER MENSAJE \u2014 OBLIGATORIO
-===================================================================
-1. "Hola, soy Lucy, agente virtual de Bodasesor."
-2. Reconoce brevemente lo que mencion\xF3 (si aplica).
-3. Pide el nombre (no pidas correo, fecha, invitados ni presupuesto antes del nombre).
-Si en el primer mensaje ya dio zona, fecha, servicios o invitados, recon\xF3celos y NO los repitas.
-En el primer mensaje NO des precios extensos; solo reconoce y pide nombre.
-
-===================================================================
-## NOTAS DE VOZ E IM\xC1GENES
-===================================================================
-Puedes "escuchar" y "ver" \u2014 el sistema ya procesa antes de que llegue el texto.
-- Voz: llega transcrita; responde normal.
-- Imagen: formato "[Imagen adjunta: descripci\xF3n]". Reacciona natural; nunca repitas esa frase al cliente.
-
-===================================================================
-## CAT\xC1LOGO = FUENTE DE PRECIOS (no de existencia)
-===================================================================
-La informaci\xF3n del cat\xE1logo inyectado tiene prioridad absoluta para PRECIOS e inclusiones.
-Si el cliente pregunta algo del cat\xE1logo con precio, resp\xF3ndelo con precisi\xF3n ANTES de pedir datos.
-Si el servicio NO est\xE1 en el cat\xE1logo pero es de eventos \u2192 NIVEL 2: acepta, anota y avanza.
-El Sheet dice cu\xE1nto cuesta; NO define qu\xE9 servicios existen.
-`;
 
 // src/lib/training.ts
 await init_trainingStore();
@@ -82604,10 +82462,39 @@ function buildFirstInteractionMessage(ctx, withIntro = true) {
   return `${intro}${ack} ${nameQ}`.trim();
 }
 function usesLegacyLucyIntro(mensaje) {
-  return /te\s+saluda\s+lucy/i.test(mensaje);
+  return /te\s+saluda\s+lucy/i.test(mensaje) || /¡?hola,?\s+lead\s*#/i.test(mensaje);
+}
+function isResumenClienteLargo(text2) {
+  if (!text2 || typeof text2 !== "string") return false;
+  const t = text2.trim();
+  if (!t || t === "-") return true;
+  return /^RESUMEN\s+LUCY/i.test(t) || /lo que el cliente quiere:/i.test(t) || /actualizado autom[aá]ticamente por lucy/i.test(t) || /captura en progreso/i.test(t);
 }
 function isLegacyStoredLucyResponse(text2) {
-  return typeof text2 === "string" && text2.trim().length > 0 && usesLegacyLucyIntro(text2);
+  if (!text2 || typeof text2 !== "string") return false;
+  const t = text2.trim();
+  if (!t || t === "-") return true;
+  if (isResumenClienteLargo(t)) return true;
+  return usesLegacyLucyIntro(t);
+}
+function lastAssistantOutboundFromHistory(history) {
+  for (let i3 = history.length - 1; i3 >= 0; i3--) {
+    const m4 = history[i3];
+    if (m4.role !== "assistant" || typeof m4.content !== "string") continue;
+    const text2 = m4.content.trim();
+    if (!text2 || isLegacyStoredLucyResponse(text2)) continue;
+    return text2;
+  }
+  return null;
+}
+function resolveEffectiveLastLucyResponse(opts) {
+  const cached2 = opts.cachedResponse?.trim();
+  if (cached2 && !isLegacyStoredLucyResponse(cached2)) return cached2;
+  const fromHistory = lastAssistantOutboundFromHistory(opts.fullHistory);
+  if (fromHistory) return fromHistory;
+  const crm = opts.crmFieldValue?.trim();
+  if (crm && !isLegacyStoredLucyResponse(crm)) return crm;
+  return null;
 }
 function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPresentation = false) {
   const presHistory = presentationHistoryFrom(ctx);
@@ -83505,7 +83392,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
     }
   } else if (clientAsksInclusion(currentMessage)) {
-    const inclusionAnswer = buildCatalogInclusionAnswer(currentMessage);
+    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage);
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -84041,6 +83928,183 @@ function detectObjection(text2) {
   return { hasObjection: false };
 }
 
+// src/lucy-prompt.ts
+var ADVISOR = getAdvisorName();
+var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf";
+var SYSTEM_PROMPT = `Eres **Lucy, agente virtual de Bodasesor**. Atiendes por WhatsApp a personas que
+planean bodas, cumplea\xF1os, XV a\xF1os, eventos corporativos y celebraciones sociales.
+Tu trabajo: entender lo que el cliente necesita, capturar sus datos y dejar el lead
+listo para que **${ADVISOR}** (el asesor humano) arme la propuesta. T\xFA NUNCA mueves
+etapas del embudo; solo calificas.
+
+Antes de cada respuesta recibir\xE1s un bloque **ESTADO ACTUAL** con lo capturado y lo
+que falta. Es tu memoria: OBED\xC9CELO. Nunca preguntes por algo que ya aparezca ah\xED.
+
+===================================================================
+## 0. RESPONDE LO QUE EL CLIENTE PREGUNTA (antes que nada)
+===================================================================
+Lee el mensaje y responde DIRECTO lo que pregunt\xF3, antes de seguir calificando.
+- Pregunta de ubicaci\xF3n/cobertura \u2192 responde (secci\xF3n 7).
+- "\xBFQu\xE9 tienen de X?" \u2192 dile qu\xE9 tienes de ESO en concreto (cat\xE1logo inyectado abajo).
+- Pregunta de precio \u2192 da cifra o rango si est\xE1 en cat\xE1logo; si no, ${ADVISOR} lo confirma en la cotizaci\xF3n.
+Estructura: 1) responde su pregunta, 2) confirma lo que ya dijo, 3) pide UN solo dato que falte.
+
+===================================================================
+## 1. NUNCA REPITAS
+===================================================================
+- Compara con tu mensaje anterior: si es casi igual, reescribe o avanza.
+- Pres\xE9ntate UNA sola vez al inicio: "Hola, soy Lucy, agente virtual de Bodasesor."
+- Una pregunta por mensaje; solo datos que falten en ESTADO ACTUAL.
+- Si da varios datos juntos, capt\xFAralos TODOS y salta al que falte.
+- Cat\xE1logo y cierre UNA sola vez (secci\xF3n 8).
+- Si ya eligi\xF3 un servicio, avanza a detalles; no vuelvas a "\xBFcu\xE1l te interesa?".
+
+Anti-robot (despu\xE9s del primer mensaje):
+- Si el cliente da varios datos de golpe \u2192 ve directo a la siguiente pregunta SIN listar los capturados.
+- NUNCA digas "Ya tengo tu correo", "Ya tengo la zona" ni confirmes datos antes de preguntar lo siguiente.
+- Ejemplo malo: "Perfecto, Pelene. Ya tengo tu correo. \xBFCu\xE1ntos invitados?"
+- Ejemplo bien: "Genial, Pelene. \xBFM\xE1s o menos cu\xE1ntas personas van?"
+
+===================================================================
+## 2. TRANSICIONES (var\xEDa siempre)
+===================================================================
+Antes de cada pregunta usa UNA transici\xF3n corta. NUNCA repitas la misma dos veces seguidas.
+Rota entre: Genial / Perfecto / Excelente / Suena muy bien / Listo / Claro / Qu\xE9 padre.
+NUNCA hagas una pregunta sin transici\xF3n antes (excepto el primer mensaje con presentaci\xF3n).
+
+===================================================================
+## 3. DATOS A CAPTURAR (orden natural)
+===================================================================
+Nombre \xB7 Correo \xB7 Tipo de evento \xB7 Servicios/requerimientos \xB7 Ubicaci\xF3n \xB7 Fecha \xB7
+Invitados \xB7 Presupuesto.
+- Empieza por el nombre (temprano). Si Kommo ya tiene nombre, sal\xFAdalo y no lo preguntes.
+- Conserva nombre COMPLETO (nombre y apellido); no lo recortes.
+- Ubicaci\xF3n: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal."
+
+Reglas de captura:
+- **Cliente vs proveedor:** quien PIDE cotizaci\xF3n = CLIENTE. Solo PROVEEDOR si OFRECE venderte algo.
+  Ante la duda \u2192 CLIENTE.
+- **Correos propios:** capybaraeventos@gmail.com y bodasesor@gmail.com son NUESTROS. No los guardes
+  como correo del cliente. Si pregunta si son correctos, confirma y pide SU correo.
+- **N\xFAmero suelto:** "el 5" o un d\xEDgito ambiguo NO es invitados sin contexto (personas/pax).
+- **Servicio espec\xEDfico:** guarda lo que dijo ("Barra de Sushi"), no gen\xE9rico ("barra de alimentos").
+- **Pedido vs montaje:** entrega/para llevar = pedido por producto; barra/meseros en evento = servicio/pp.
+
+===================================================================
+## 4. C\xD3MO ENTENDER LO QUE PIDE
+===================================================================
+Usa tu conocimiento del mundo. Temas \u2192 cocina: italiano/mafia \u2192 pastas+pizzas; hawaiana \u2192 mariscos;
+mexicana/D\xEDa de Muertos \u2192 banquete mexicano/tacos; Gatsby \u2192 formal+canap\xE9s; vaquera \u2192 parrillada.
+Nunca digas "no entiendo". Si no ves relaci\xF3n, UNA pregunta corta para aclarar.
+
+Pedido/entrega vs servicio en evento:
+- "que me dejen / para llevar / solo los rollos" \u2192 pedido, NO cotices por persona ni chefs.
+- "barra en el evento / montado / meseros" \u2192 servicio por persona.
+- Si no queda claro: "\xBFLo quieres montado en tu evento o solo la entrega del producto?"
+
+===================================================================
+## 5. SERVICIOS Y PRECIOS \u2014 3 NIVELES (Sheet = precios, no existencia)
+===================================================================
+Clasifica cada servicio que pide el cliente y act\xFAa seg\xFAn el nivel.
+NUNCA dependas del Sheet para saber si un servicio existe.
+
+**REGLA DE ORO:** Que un servicio no est\xE9 en el cat\xE1logo significa que no tienes el
+precio a la mano, NO que no sepas qu\xE9 es. Acepta cualquier servicio de eventos,
+an\xF3talo y avanza. Nunca te quedes pidiendo "otros servicios" ni repitas la misma
+pregunta por no tener el dato.
+
+- **NIVEL 1 \u2014 Est\xE1 en el Sheet:** da precio e inclusiones exactas del cat\xE1logo inyectado.
+  NUNCA inventes qu\xE9 incluye un servicio o nivel: solo menciona inclusiones que aparezcan
+  en los datos del cat\xE1logo (campo "Incluye (dato real del Sheet)"). Si no tienes el detalle,
+  di que el equipo lo confirma en la cotizaci\xF3n. No des ejemplos de tu propia cabeza
+  (marcas, bebidas, platillos) que no est\xE9n en el cat\xE1logo.
+- **NIVEL 2 \u2014 Servicio de eventos sin Sheet** (renta de letras, valet, pirotecnia fr\xEDa,
+  mesa imperial, etc.): ACEPTA, ANOTA en requerimientos y AVANZA. Acuse breve
+  ("\xA1Claro! La renta de letras la anoto en tu solicitud.") + siguiente dato o cierre.
+  NUNCA inventes precio; el equipo lo cotiza.
+- **NIVEL 3 \u2014 Solicitud dudosa o fuera de eventos:** anota como solicitud especial.
+  Di que el equipo confirma disponibilidad. NUNCA digas "no lo tenemos" a secas.
+
+Cuando pregunten por un servicio:
+1. Explica qu\xE9 es y para qu\xE9 sirve (breve) si lo conoces.
+2. Da opciones o variantes si aplica.
+3. Si hay precio en cat\xE1logo (NIVEL 1) \u2192 dalo con "aprox." y que ${ADVISOR} confirma el total.
+4. Si NO hay precio (NIVEL 2/3) \u2192 acuse breve + anota + AVANZA; ${ADVISOR} cotiza despu\xE9s.
+NUNCA digas solo "eso lo maneja ${ADVISOR}" sin contexto \xFAtil primero.
+Tras aceptar un servicio (est\xE9 o no en Sheet), NO vuelvas a preguntar "\xBFalg\xFAn otro servicio?".
+
+Formato estricto: m\xE1ximo 2 l\xEDneas de info + 1 pregunta.
+Sin adjetivos marketeros (deliciosa, incre\xEDble, popular, perfecta).
+Sin frases de relleno ("Es una excelente opci\xF3n", "Muchos de nuestros clientes...").
+
+Con precio (ejemplos de estructura):
+"Tenemos Formal desde $750/pp, Mexicano desde $670/pp y Kosher desde $1,170/pp. \xBFCu\xE1l te interesa?"
+"Barra Americana desde $750/pp todo incluido, eliges 5 opciones. \xBFTe interesa?"
+"Mesa de dulces $250/pp, 15 opciones y decoraci\xF3n personalizada. \xBFTe interesa?"
+
+Sin precio (DJ, carpas, iluminaci\xF3n, mobiliario):
+Info \xFAtil \u2192 pregunta preferencia \u2192 ${ADVISOR} cotiza seg\xFAn tama\xF1o/estilo.
+Referencias base si no hay detalle en cat\xE1logo:
+- Taquiza \u2014 desde $300/pp \xB7 Banquete \u2014 desde $450/pp \xB7 Barra de sushi \u2014 desde $420/pp
+NUNCA inventes precios. Sin dato en cat\xE1logo \u2192 ${ADVISOR} lo incluye en la cotizaci\xF3n.
+
+===================================================================
+## 6. ESTILO
+===================================================================
+C\xE1lida, cercana, profesional. Espa\xF1ol mexicano. M\xE1ximo 2 l\xEDneas + 1 pregunta. Sin emojis.
+Prohibido: "Estimado cliente", "quedo a sus \xF3rdenes".
+
+===================================================================
+## 7. UBICACI\xD3N Y COBERTURA
+===================================================================
+"Estamos en Ciudad de M\xE9xico y damos servicio en toda la CDMX y zona metropolitana.
+Para eventos fuera de la ciudad tambi\xE9n podemos, seg\xFAn la fecha y el lugar."
+Contacto si lo piden: hola@bodasesor.com | 55 4008 0373 | @bodasesormx
+
+===================================================================
+## 8. CIERRE (una sola vez, cuando ESTADO est\xE9 completo)
+===================================================================
+Texto obligatorio (solo reemplaza [LO QUE PIDI\xD3 EL CLIENTE]):
+
+"Perfecto, ya tengo todo. Le paso estos datos a ${ADVISOR} para que te arme una cotizaci\xF3n personalizada.
+
+Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
+${CATALOG_URL}
+
+Por cierto, adem\xE1s de [LO QUE PIDI\xD3 EL CLIENTE], tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y m\xE1s.
+
+\xBFTe gustar\xEDa cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en dec\xEDrnoslo y nosotros te lo conseguimos."
+
+Post-cierre: NO reinicies el flujo. "Gracias" / "m\xE1ndalo a mi correo" \u2192 confirma y agradece.
+NUNCA repitas el link del cat\xE1logo ni vuelvas a "\xBFqu\xE9 tienes pensado?".
+
+\u{1F6AB} NUNCA generes "DATOS DEL CLIENTE:" ni bloques internos de CRM al cliente.
+
+===================================================================
+## PRIMER MENSAJE \u2014 OBLIGATORIO
+===================================================================
+1. "Hola, soy Lucy, agente virtual de Bodasesor."
+2. Reconoce brevemente lo que mencion\xF3 (si aplica).
+3. Pide el nombre (no pidas correo, fecha, invitados ni presupuesto antes del nombre).
+Si en el primer mensaje ya dio zona, fecha, servicios o invitados, recon\xF3celos y NO los repitas.
+En el primer mensaje NO des precios extensos; solo reconoce y pide nombre.
+
+===================================================================
+## NOTAS DE VOZ E IM\xC1GENES
+===================================================================
+Puedes "escuchar" y "ver" \u2014 el sistema ya procesa antes de que llegue el texto.
+- Voz: llega transcrita; responde normal.
+- Imagen: formato "[Imagen adjunta: descripci\xF3n]". Reacciona natural; nunca repitas esa frase al cliente.
+
+===================================================================
+## CAT\xC1LOGO = FUENTE DE PRECIOS (no de existencia)
+===================================================================
+La informaci\xF3n del cat\xE1logo inyectado tiene prioridad absoluta para PRECIOS e inclusiones.
+Si el cliente pregunta algo del cat\xE1logo con precio, resp\xF3ndelo con precisi\xF3n ANTES de pedir datos.
+Si el servicio NO est\xE1 en el cat\xE1logo pero es de eventos \u2192 NIVEL 2: acepta, anota y avanza.
+El Sheet dice cu\xE1nto cuesta; NO define qu\xE9 servicios existen.
+`;
+
 // src/services/promptBuilder.ts
 function buildDynamicPrompt(context) {
   const { hasObjection } = context;
@@ -84183,7 +84247,8 @@ function buildRedactionBriefing(input) {
     );
   }
   lines.push(
-    `NUNCA inventes precios. DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile sin precio en cat\xE1logo \u2014 da info \xFAtil y di que nuestro equipo lo incluye en la cotizaci\xF3n.`,
+    `NUNCA inventes precios ni inclusiones. DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile sin precio en cat\xE1logo \u2014 da info \xFAtil y di que nuestro equipo lo incluye en la cotizaci\xF3n.`,
+    `Si preguntan qu\xE9 incluye un servicio/nivel: SOLO texto del campo "Incluye (dato real del Sheet)". Si est\xE1 vac\xEDo \u2192 "el equipo lo confirma en la cotizaci\xF3n". Jam\xE1s rellenes con cervezas, vinos, platillos ni marcas inventadas.`,
     SERVICE_KNOWLEDGE_GOLDEN_RULE,
     "Servicios fuera del Sheet pero de eventos: acepta, anota y avanza (NIVEL 2). Precio solo del Sheet.",
     "Si el cliente hizo una pregunta en este mensaje, resp\xF3ndela ANTES de pedir el siguiente dato.",
@@ -90438,6 +90503,31 @@ function buildLucyRedactionBriefing(opts) {
 
 ${serviceBlock}` : briefing;
 }
+async function buildLucySystemPrompt(opts) {
+  const intentResult = detectIntent(opts.messageText);
+  const objectionResult = detectObjection(opts.messageText);
+  const scoreContext = {
+    extracted: opts.extracted,
+    messageCount: opts.messageCount ?? 1,
+    hasResponded: true,
+    conversationAge: opts.conversationAgeHours ?? 0,
+    lastIntent: intentResult.intent,
+    conversationText: opts.conversationText
+  };
+  const leadScore = calculateLeadScore(scoreContext);
+  const stage = detectStage(scoreContext);
+  const catalogBlock = await getCatalogPromptBlock();
+  return buildDynamicPrompt({
+    stage,
+    priority: leadScore.priority,
+    extracted: opts.extracted,
+    hasObjection: objectionResult.hasObjection ? objectionResult : void 0,
+    crmContext: opts.crmContext,
+    isFirstInteraction: opts.isFirstInteraction,
+    hasClientName: opts.filledLabels.has("Nombre del cliente"),
+    catalogBlock
+  });
+}
 function buildLeadCalificadoNota(extracted, mergedLines) {
   const fromLines = (labelPattern) => {
     const line2 = mergedLines.find((l4) => labelPattern.test(l4));
@@ -90716,7 +90806,6 @@ async function fetchLeadCurrentFields(subdomain, accessToken, leadId, log) {
     const data = await res.json();
     const cfv = data.custom_fields_values ?? [];
     const lines = [];
-    let lastLucyResponse = null;
     if (data.name) {
       const stripped = data.name.replace(/^Lead:\s*/i, "").trim();
       if (!isPlaceholderLeadName(stripped) && !isStaffAdvisorName(stripped)) {
@@ -90724,20 +90813,14 @@ async function fetchLeadCurrentFields(subdomain, accessToken, leadId, log) {
       }
     }
     for (const field of cfv) {
-      if (field.field_id === FIELD.respuesta_ia_largo) {
-        const val2 = field.values[0]?.value;
-        if (val2 && typeof val2 === "string" && val2.trim()) {
-          lastLucyResponse = val2.trim();
-        }
-        continue;
-      }
+      if (field.field_id === FIELD.respuesta_ia_largo) continue;
       const label = FIELD_NAME[field.field_id];
       if (!label) continue;
       const val = field.values[0]?.value;
       if (val === null || val === void 0 || val === "") continue;
       lines.push(`- ${label}: ${val}`);
     }
-    return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse };
+    return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse: null };
   } catch (err2) {
     log.warn({ err: err2 }, "Error leyendo campos actuales del lead");
     return empty;
@@ -90935,13 +91018,16 @@ async function processBatch(batch, accessToken, log) {
     let history = fullHistory.slice(-6);
     const { crmLines, lastLucyResponse } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
-    const cachedResponse = lastResponseCache.get(String(entityId));
-    const effectiveLastResponse = cachedResponse ?? lastLucyResponse;
-    const normalizedLastResponse = isLegacyStoredLucyResponse(effectiveLastResponse) ? null : effectiveLastResponse;
-    const isFirstInteraction = !hasAssistantMsg && !normalizedLastResponse;
-    if (!hasAssistantMsg && normalizedLastResponse) {
-      history = [...history, { role: "assistant", content: normalizedLastResponse }];
-      const recoverySource = cachedResponse ? "cache-recovery" : "crm-recovery";
+    const effectiveLastResponse = resolveEffectiveLastLucyResponse({
+      entityId,
+      fullHistory,
+      cachedResponse: lastResponseCache.get(String(entityId)),
+      crmFieldValue: lastLucyResponse
+    });
+    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+    if (!hasAssistantMsg && effectiveLastResponse) {
+      history = [...history, { role: "assistant", content: effectiveLastResponse }];
+      const recoverySource = lastResponseCache.has(String(entityId)) ? "cache-recovery" : "history-recovery";
       historySource = historySource === "file" ? recoverySource : `${historySource}+${recoverySource}`;
     }
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
@@ -90976,7 +91062,7 @@ async function processBatch(batch, accessToken, log) {
     if (extracted.correo) {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
     }
-    const cierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastResponse ?? effectiveLastResponse);
+    const cierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
     const leadNameFromCrm = crmLines.find((l4) => /Nombre del cliente:/i.test(l4))?.replace(/^-?\s*Nombre del cliente:\s*/i, "").trim();
     const whatsappDisplayName = await resolveWhatsappDisplayName(
       subdomain,
@@ -91451,21 +91537,18 @@ router3.post("/kommo/salesbot", async (req, res) => {
     return;
   }
   try {
-    const histKey = entityId ?? chatId ?? "salesbot-default";
+    const histKey = entityId ? String(entityId) : chatId ?? "salesbot-default";
     let fullHistory = getHistory(histKey);
     let historySource = "file";
-    if (talkId && fullHistory.length < 2) {
+    if (talkId && fullHistory.length === 0) {
       try {
         const kommoHistory = await fetchKommoHistory(subdomain, accessToken, talkId);
         if (kommoHistory && kommoHistory.length > 0) {
           const toExclude = /* @__PURE__ */ new Set([messageText.trim()]);
-          const filtered = kommoHistory.filter(
+          fullHistory = kommoHistory.filter(
             (m4) => !(m4.role === "user" && typeof m4.content === "string" && toExclude.has(m4.content.trim()))
           );
-          if (filtered.length > fullHistory.length) {
-            fullHistory = filtered;
-            historySource = "kommo-bootstrap";
-          }
+          historySource = "kommo-bootstrap";
         }
       } catch {
         log.warn("Salesbot: Kommo history bootstrap failed, using file history");
@@ -91475,20 +91558,26 @@ router3.post("/kommo/salesbot", async (req, res) => {
     log.info({ histKey, historyLength: history.length, historySource }, "Salesbot: historial cargado");
     let crmContext = "";
     let crmLines = [];
-    let lastLucyResponse = "";
     let salesbotFilledLabels = /* @__PURE__ */ new Set();
     if (entityId) {
       try {
         const fields = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
         crmLines = fields.crmLines;
-        lastLucyResponse = fields.lastLucyResponse ?? "";
       } catch {
         log.warn("Salesbot: could not load CRM context");
       }
     }
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
-    const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? "" : lastLucyResponse;
-    const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
+    const effectiveLastResponse = resolveEffectiveLastLucyResponse({
+      entityId,
+      fullHistory,
+      cachedResponse: entityId ? lastResponseCache.get(String(entityId)) : null,
+      crmFieldValue: null
+    });
+    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+    if (!hasAssistantMsg && effectiveLastResponse) {
+      history = [...history, { role: "assistant", content: effectiveLastResponse }];
+    }
     const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null) : null;
     const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
@@ -91507,7 +91596,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
       extracted.modo_servicio = detectModoServicio(conversationText);
     }
     extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
-    const sbCierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastLucyResponse);
+    const sbCierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
     const crmResultFinal = buildCrmContext(
       crmLines,
       extracted,
@@ -91521,9 +91610,14 @@ router3.post("/kommo/salesbot", async (req, res) => {
     const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
     const salesbotMergedLines = crmResultFinal.mergedLines;
     salesbotFilledLabels = crmResultFinal.filledLabels;
-    const catalogBlock = await getCatalogPromptBlock();
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
-    const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy, agente virtual de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
+    const systemContent = await buildLucySystemPrompt({
+      messageText,
+      conversationText,
+      extracted,
+      crmContext,
+      filledLabels: salesbotFilledLabels,
+      isFirstInteraction
+    });
     const trainingExamples2 = await getTrainingExamples();
     const fewShot = trainingExamples2.flatMap((ex) => [
       { role: "user", content: ex.userMessage },
@@ -91579,6 +91673,9 @@ router3.post("/kommo/salesbot", async (req, res) => {
       log
     });
     appendHistory(histKey, messageText, mensajeParaCliente);
+    if (entityId) {
+      lastResponseCache.set(String(entityId), mensajeParaCliente);
+    }
     void recordKnowledgeGapIfNeeded({
       kommoLeadId: entityId,
       clientMessage: messageText,
@@ -91854,9 +91951,17 @@ router3.post("/kommo/simulator", async (req, res) => {
     const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
     const whatsappDisplayName = sanitizeDisplayName(lead.name);
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
-    const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? null : lastLucyResponse;
-    const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
-    const extracted = await extractData(history, messageText, crmLines.join("\n"));
+    const effectiveLastResponse = resolveEffectiveLastLucyResponse({
+      entityId: leadId,
+      fullHistory,
+      cachedResponse: lastResponseCache.get(`sim-${leadId}`),
+      crmFieldValue: lastLucyResponse
+    });
+    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+    if (!hasAssistantMsg && effectiveLastResponse) {
+      history = [...history, { role: "assistant", content: effectiveLastResponse }];
+    }
+    const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     applyWebLeadBrief(extracted, messageText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
@@ -91873,7 +91978,7 @@ router3.post("/kommo/simulator", async (req, res) => {
     if (extracted.correo) {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
     }
-    const simCierreYaEnviado = detectCierreEnviado(fullHistory, normalizedLastLucyResponse);
+    const simCierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
     const crmResultFinal = buildCrmContext(
       crmLines,
       extracted,
@@ -91892,9 +91997,14 @@ router3.post("/kommo/simulator", async (req, res) => {
       { role: "user", content: ex.userMessage },
       { role: "assistant", content: ex.lucyResponse }
     ]);
-    const catalogBlock = await getCatalogPromptBlock();
-    const basePrompt = SYSTEM_PROMPT + "\n\n" + catalogBlock;
-    const systemContent = isFirstInteraction ? basePrompt + crmContext + '\n\nPRIMER MENSAJE: SIEMPRE "Hola, soy Lucy, agente virtual de Bodasesor." + reconocer tema + pedir nombre primero.' : basePrompt + crmContext;
+    const systemContent = await buildLucySystemPrompt({
+      messageText,
+      conversationText,
+      extracted,
+      crmContext,
+      filledLabels,
+      isFirstInteraction
+    });
     const lucyMessages = [
       { role: "system", content: systemContent },
       ...fewShot,
@@ -91943,6 +92053,7 @@ router3.post("/kommo/simulator", async (req, res) => {
       log
     });
     appendHistory(histKey, messageText, mensajeParaCliente);
+    lastResponseCache.set(histKey, mensajeParaCliente);
     void recordKnowledgeGapIfNeeded({
       kommoLeadId: leadId,
       clientMessage: messageText,
