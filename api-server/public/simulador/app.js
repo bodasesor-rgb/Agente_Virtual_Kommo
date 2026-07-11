@@ -7,6 +7,7 @@ const state = {
   activePipelineId: null,
   activeView: "pipeline",
   activeTab: "chat",
+  autoRunning: false,
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -284,6 +285,7 @@ function createLeadCard(lead) {
   card.dataset.leadId = lead.id;
 
   const isWa = lead.tags?.includes("whatsapp_business");
+  const isAuto = lead.tags?.includes("auto_client") || lead.auto_client_id;
   const stageName = stageById(lead.stage_id)?.name || "";
 
   card.innerHTML = `
@@ -295,6 +297,7 @@ function createLeadCard(lead) {
       ${isWa ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>' : ""}
       <span>${escapeHtml(lead.contact_phone || "Sin teléfono")}</span>
     </div>
+    ${isAuto ? '<span class="lead-tag lead-tag-auto">Auto LLM</span>' : ""}
     ${stageName ? `<span class="lead-tag">${escapeHtml(stageName)}</span>` : ""}
   `;
 
@@ -344,6 +347,7 @@ function selectLead(leadId, reloadMessages = true) {
   $("#btn-send").disabled = false;
   $("#btn-save-fields").disabled = false;
   updateSendButton();
+  updateAutoClientButton(lead);
 
   renderKanban();
 
@@ -464,6 +468,178 @@ function renderActivity() {
         )
         .join("")
     : '<div class="empty-state">Sin actividad registrada.</div>';
+}
+
+function updateAutoClientButton(lead) {
+  const btn = $("#btn-auto-client");
+  if (!btn) return;
+  const isAuto = lead?.tags?.includes("auto_client") || lead?.auto_client_id;
+  btn.classList.toggle("hidden", !isAuto);
+  btn.disabled = state.autoRunning;
+}
+
+function getAutoClientIdForLead(lead) {
+  return lead?.auto_client_id ?? lead?.id;
+}
+
+async function resetLeadHistory(leadId) {
+  await fetch("/api/kommo/simulator/reset", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ lead_id: leadId }),
+  }).catch(() => {});
+}
+
+function clearLeadMessages(leadId) {
+  state.store.messages[String(leadId)] = [];
+  writeStore(state.store);
+}
+
+async function runAutoClientForLead(lead) {
+  const clientId = getAutoClientIdForLead(lead);
+  if (!clientId) {
+    toast("Este lead no tiene perfil auto-cliente");
+    return;
+  }
+
+  if (
+    !confirm(
+      `¿Ejecutar conversación automática con ${lead.name}?\n\nUn LLM adoptará su perfil y charlará con Lucy (~15 turnos, 2-5 min).`,
+    )
+  ) {
+    return;
+  }
+
+  state.autoRunning = true;
+  $("#btn-send").disabled = true;
+  $("#btn-auto-client").disabled = true;
+  const typingEl = $("#chat-typing");
+  typingEl.classList.remove("hidden");
+  typingEl.textContent = "";
+  typingEl.innerHTML =
+    '<span class="typing-dots"><span></span><span></span><span></span></span> Auto-cliente conversando con Lucy…';
+
+  selectLead(lead.id);
+  await resetLeadHistory(lead.id);
+  clearLeadMessages(lead.id);
+  renderChat([]);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 600000);
+
+  try {
+    const res = await fetch("/api/kommo/simulator/auto-client", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({ client_id: clientId, lead_id: lead.id }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (data.status === "error" || !res.ok) {
+      throw new Error(data.error || data.reply || `Error ${res.status}`);
+    }
+
+    const author = lead.contact_phone || lead.name;
+    for (const turn of data.transcript || []) {
+      addMessage(lead.id, "incoming", turn.user, author);
+      addMessage(lead.id, "outgoing", turn.reply, "Lucy");
+    }
+
+    if (data.run?.lastData) {
+      applyLucyResponse(lead.id, data.run.lastData);
+    }
+
+    const verdict = data.pass ? "PASA" : "FALLA";
+    const tipo = data.failureType ? ` (${data.failureType})` : "";
+    addMessage(
+      lead.id,
+      "system",
+      `Juez: ${verdict}${tipo} — ${data.reason || "Sin detalle"}`,
+      "QA",
+    );
+    logActivity(state.store, "auto_client", `${lead.name}: ${verdict} — ${(data.reason || "").slice(0, 120)}`);
+    writeStore(state.store);
+
+    selectLead(lead.id);
+    toast(`${lead.name}: ${verdict}`);
+  } catch (err) {
+    const msg =
+      err.name === "AbortError"
+        ? "Auto-cliente tardó más de 10 minutos."
+        : err.message || "Error al ejecutar auto-cliente";
+    toast(msg);
+    addMessage(lead.id, "system", msg, "Sistema");
+    selectLead(lead.id);
+  } finally {
+    clearTimeout(timeoutId);
+    state.autoRunning = false;
+    $("#chat-typing").classList.add("hidden");
+    const typingEl = $("#chat-typing");
+    if (typingEl) typingEl.innerHTML = '<span class="typing-dots"><span></span><span></span><span></span></span> Lucy está escribiendo…';
+    updateSendButton();
+    updateAutoClientButton(getLead(lead.id));
+  }
+}
+
+async function runAllAutoClients() {
+  if (
+    !confirm(
+      "¿Ejecutar los 10 clientes automáticos?\n\nPuede tardar 20-40 minutos. El reporte aparecerá al terminar.",
+    )
+  ) {
+    return;
+  }
+
+  state.autoRunning = true;
+  $("#btn-auto-all").disabled = true;
+  toast("Iniciando batería de 10 clientes…");
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3600000);
+
+  try {
+    const res = await fetch("/api/kommo/simulator/auto-clients/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({}),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (data.status === "error" || !res.ok) {
+      throw new Error(data.error || `Error ${res.status}`);
+    }
+
+    for (const result of data.results || []) {
+      const lead = state.store.leads.find((l) => l.auto_client_id === result.client?.id);
+      if (!lead) continue;
+      await resetLeadHistory(lead.id);
+      clearLeadMessages(lead.id);
+      const author = lead.contact_phone || lead.name;
+      for (const turn of result.transcript || []) {
+        addMessage(lead.id, "incoming", turn.user, author);
+        addMessage(lead.id, "outgoing", turn.reply, "Lucy");
+      }
+      if (result.run?.lastData) applyLucyResponse(lead.id, result.run.lastData);
+      addMessage(
+        lead.id,
+        "system",
+        `Juez: ${result.pass ? "PASA" : "FALLA"}${result.failureType ? ` (${result.failureType})` : ""} — ${result.reason || ""}`,
+        "QA",
+      );
+    }
+    writeStore(state.store);
+    renderKanban();
+    toast(`Batería: ${data.passed}/${data.total} PASA`);
+    alert(`Resultado global: ${data.passed}/${data.total} PASA\n\nRevisa cada lead auto para el detalle.`);
+  } catch (err) {
+    toast(err.name === "AbortError" ? "Batería cancelada por tiempo." : err.message);
+  } finally {
+    clearTimeout(timeoutId);
+    state.autoRunning = false;
+    $("#btn-auto-all").disabled = false;
+  }
 }
 
 async function sendMessage() {
@@ -591,6 +767,11 @@ function bindEvents() {
   overlay?.addEventListener("click", closeMobileChat);
 
   $("#btn-send").addEventListener("click", sendMessage);
+  $("#btn-auto-client")?.addEventListener("click", () => {
+    const lead = state.selectedLeadId ? getLead(state.selectedLeadId) : null;
+    if (lead) runAutoClientForLead(lead);
+  });
+  $("#btn-auto-all")?.addEventListener("click", runAllAutoClients);
   $("#chat-text").addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();

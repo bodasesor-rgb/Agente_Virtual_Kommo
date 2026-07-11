@@ -1,4 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
@@ -2719,6 +2721,116 @@ router.post("/kommo/simulator/reset", (req: Request, res: Response) => {
   clearHistory(histKey);
   req.log.info({ leadId, histKey }, "Simulator: historial de Lucy reiniciado");
   res.json({ status: "success", lead_id: leadId });
+});
+
+async function loadAutoClientLib() {
+  const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+  const libPath = path.join(apiRoot, "scripts/simulator-auto-client-lib.mjs");
+  return import(libPath);
+}
+
+router.get("/kommo/simulator/auto-clients", async (_req: Request, res: Response) => {
+  try {
+    const lib = await loadAutoClientLib();
+    res.json({
+      status: "success",
+      clients: lib.AUTO_CLIENTS.map((c) => ({
+        id: c.id,
+        slug: c.slug,
+        name: c.name,
+        leadId: c.leadId,
+        scenario: c.scenario,
+        observe: c.observe,
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: "error",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
+router.post("/kommo/simulator/auto-client", async (req: Request, res: Response) => {
+  const body = req.body as Record<string, unknown>;
+  const clientId = body.client_id ?? body.id;
+  const useJudge = body.use_judge !== false;
+
+  if (!isOpenAiConfigured()) {
+    res.status(200).json({
+      status: "error",
+      error: "missing_openai_key",
+      reply: "Lucy y el cliente auto requieren OPEN_AI en el servidor.",
+    });
+    return;
+  }
+
+  try {
+    const lib = await loadAutoClientLib();
+    const client = lib.getClientById(clientId);
+    if (!client) {
+      res.status(400).json({ status: "error", error: "unknown_client", client_id: clientId });
+      return;
+    }
+
+    const base =
+      (typeof body.base_url === "string" && body.base_url.trim()) ||
+      `${req.protocol}://${req.get("host")}`;
+
+    req.log.info({ clientId: client.id, name: client.name }, "Simulator: iniciando auto-cliente");
+
+    const result = await lib.runAutoClient(base, client, { useJudge });
+
+    req.log.info(
+      { clientId: client.id, pass: result.pass, turns: result.transcript?.length },
+      "Simulator: auto-cliente terminado",
+    );
+
+    res.json({ status: "success", ...result });
+  } catch (err) {
+    req.log.error({ err }, "Simulator: auto-cliente error");
+    res.status(500).json({
+      status: "error",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
+router.post("/kommo/simulator/auto-clients/run", async (req: Request, res: Response) => {
+  const body = req.body as Record<string, unknown>;
+  const useJudge = body.use_judge !== false;
+  const clientIds = Array.isArray(body.client_ids)
+    ? (body.client_ids as unknown[]).map((x) => Number(x))
+    : null;
+
+  if (!isOpenAiConfigured()) {
+    res.status(200).json({
+      status: "error",
+      error: "missing_openai_key",
+      reply: "Lucy y los clientes auto requieren OPEN_AI en el servidor.",
+    });
+    return;
+  }
+
+  try {
+    const lib = await loadAutoClientLib();
+    const base =
+      (typeof body.base_url === "string" && body.base_url.trim()) ||
+      `${req.protocol}://${req.get("host")}`;
+
+    const report = await lib.runAllAutoClients(base, {
+      useJudge,
+      clientIds: clientIds ?? undefined,
+    });
+
+    res.json({ status: "success", ...report });
+  } catch (err) {
+    req.log.error({ err }, "Simulator: batch auto-clientes error");
+    res.status(500).json({
+      status: "error",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 });
 
 // ─── Cron jobs internos (cada hora) ──────────────────────────────────────────

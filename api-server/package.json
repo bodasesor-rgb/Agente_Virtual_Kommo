@@ -9,7 +9,8 @@
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "selftest": "pnpm run build && node ./dist/selftest/lucy-flow-selftest.mjs",
-    "live-20": "node ./scripts/lucy-live-20-tests.mjs"
+    "live-20": "node ./scripts/lucy-live-20-tests.mjs",
+    "sim-10": "node ./scripts/lucy-simulator-10-clients.mjs"
   },
   "dependencies": {
     "@workspace/api-zod": "*",

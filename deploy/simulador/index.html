@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/simulator/styles.css?v=6" />
+  <link rel="stylesheet" href="/simulator/styles.css?v=7" />
 </head>
 <body>
   <div class="app">
@@ -65,6 +65,7 @@
             Exportar
           </button>
           <button class="btn btn-secondary" id="btn-reset" type="button">Restaurar demo</button>
+          <button class="btn btn-secondary" id="btn-auto-all" type="button" title="Ejecuta los 10 clientes LLM contra Lucy">10 auto-clientes</button>
           <button class="btn btn-primary" id="btn-new-lead" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
             Nuevo lead
@@ -158,6 +159,9 @@
               Lucy está escribiendo…
             </div>
             <div class="chat-composer">
+              <button class="btn btn-ghost btn-auto-client hidden" id="btn-auto-client" type="button" title="LLM adopta el perfil de este lead y conversa con Lucy">
+                Auto-cliente
+              </button>
               <textarea id="chat-text" rows="2" placeholder="Escribe como el cliente…"></textarea>
               <button class="btn btn-send" id="btn-send" type="button" disabled aria-label="Enviar">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
@@ -180,6 +184,6 @@
 
   <div id="toast" class="toast" role="status"></div>
   <div class="chat-overlay hidden" id="chat-overlay"></div>
-  <script src="/simulator/app.js?v=6"></script>
+  <script src="/simulator/app.js?v=7"></script>
 </body>
 </html>

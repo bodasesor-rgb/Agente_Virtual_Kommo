@@ -581,6 +581,12 @@ svg {
   color: #059669;
 }
 
+.lead-tag-auto {
+  background: #ede9fe;
+  color: #5b21b6;
+  margin-right: 4px;
+}
+
 /* ─── Inbox / Chat ──────────────────────────────────────────── */
 .inbox {
   width: var(--inbox-w);
@@ -808,6 +814,13 @@ svg {
   padding: 12px 14px;
   background: #f1f5f9;
   border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.btn-auto-client {
+  flex-shrink: 0;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .chat-composer textarea {

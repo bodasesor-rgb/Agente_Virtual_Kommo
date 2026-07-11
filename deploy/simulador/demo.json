@@ -29,7 +29,7 @@
       { "id": "cf_respuesta_ia_1", "name": "Respuesta IA 1", "field_type": "text", "kommo_field_id": 1048786 }
     ]
   },
-  "next_lead_id": 1002,
+  "next_lead_id": 93011,
   "next_message_id": 1,
   "leads": [
     {
@@ -42,10 +42,150 @@
       "custom_fields": {},
       "tags": ["whatsapp_business"],
       "responsible": "Bodasesor"
+    },
+    {
+      "id": 93001,
+      "name": "Sofía (auto)",
+      "pipeline_id": "pipeline_bodasesor",
+      "stage_id": "stage_datos_intereses",
+      "contact_phone": "+5215519300101",
+      "contact_email": "",
+      "custom_fields": {},
+      "tags": ["whatsapp_business", "auto_client"],
+      "auto_client_id": 1,
+      "auto_client_slug": "sofia",
+      "responsible": "Bodasesor"
+    },
+    {
+      "id": 93002,
+      "name": "Ricardo (auto)",
+      "pipeline_id": "pipeline_bodasesor",
+      "stage_id": "stage_datos_intereses",
+      "contact_phone": "+5215519300202",
+      "contact_email": "",
+      "custom_fields": {},
+      "tags": ["whatsapp_business", "auto_client"],
+      "auto_client_id": 2,
+      "auto_client_slug": "ricardo",
+      "responsible": "Bodasesor"
+    },
+    {
+      "id": 93003,
+      "name": "Mariana (auto)",
+      "pipeline_id": "pipeline_bodasesor",
+      "stage_id": "stage_datos_intereses",
+      "contact_phone": "+5215519300303",
+      "contact_email": "",
+      "custom_fields": {},
+      "tags": ["whatsapp_business", "auto_client"],
+      "auto_client_id": 3,
+      "auto_client_slug": "mariana",
+      "responsible": "Bodasesor"
+    },
+    {
+      "id": 93004,
+      "name": "Don Beto (auto)",
+      "pipeline_id": "pipeline_bodasesor",
+      "stage_id": "stage_datos_intereses",
+      "contact_phone": "+5215519300404",
+      "contact_email": "",
+      "custom_fields": {},
+      "tags": ["whatsapp_business", "auto_client"],
+      "auto_client_id": 4,
+      "auto_client_slug": "don-beto",
+      "responsible": "Bodasesor"
+    },
+    {
+      "id": 93005,
+      "name": "Valeria (auto)",
+      "pipeline_id": "pipeline_bodasesor",
+      "stage_id": "stage_datos_intereses",
+      "contact_phone": "+5215519300505",
+      "contact_email": "",
+      "custom_fields": {},
+      "tags": ["whatsapp_business", "auto_client"],
+      "auto_client_id": 5,
+      "auto_client_slug": "valeria",
+      "responsible": "Bodasesor"
+    },
+    {
+      "id": 93006,
+      "name": "Lic. Gómez (auto)",
+      "pipeline_id": "pipeline_bodasesor",
+      "stage_id": "stage_datos_intereses",
+      "contact_phone": "+5215519300606",
+      "contact_email": "",
+      "custom_fields": {},
+      "tags": ["whatsapp_business", "auto_client"],
+      "auto_client_id": 6,
+      "auto_client_slug": "lic-gomez",
+      "responsible": "Bodasesor"
+    },
+    {
+      "id": 93007,
+      "name": "Karen (auto)",
+      "pipeline_id": "pipeline_bodasesor",
+      "stage_id": "stage_datos_intereses",
+      "contact_phone": "+5215519300707",
+      "contact_email": "",
+      "custom_fields": {},
+      "tags": ["whatsapp_business", "auto_client"],
+      "auto_client_id": 7,
+      "auto_client_slug": "karen",
+      "responsible": "Bodasesor"
+    },
+    {
+      "id": 93008,
+      "name": "Emilio (auto)",
+      "pipeline_id": "pipeline_bodasesor",
+      "stage_id": "stage_datos_intereses",
+      "contact_phone": "+5215519300808",
+      "contact_email": "",
+      "custom_fields": {},
+      "tags": ["whatsapp_business", "auto_client"],
+      "auto_client_id": 8,
+      "auto_client_slug": "emilio",
+      "responsible": "Bodasesor"
+    },
+    {
+      "id": 93009,
+      "name": "Paty (auto)",
+      "pipeline_id": "pipeline_bodasesor",
+      "stage_id": "stage_datos_intereses",
+      "contact_phone": "+5215519300909",
+      "contact_email": "",
+      "custom_fields": {},
+      "tags": ["whatsapp_business", "auto_client"],
+      "auto_client_id": 9,
+      "auto_client_slug": "paty",
+      "responsible": "Bodasesor"
+    },
+    {
+      "id": 93010,
+      "name": "Jorge (auto)",
+      "pipeline_id": "pipeline_bodasesor",
+      "stage_id": "stage_datos_intereses",
+      "contact_phone": "+5215519301010",
+      "contact_email": "",
+      "custom_fields": {},
+      "tags": ["whatsapp_business", "auto_client"],
+      "auto_client_id": 10,
+      "auto_client_slug": "jorge",
+      "responsible": "Bodasesor"
     }
   ],
   "messages": {
-    "1001": []
+    "1001": [],
+    "93001": [],
+    "93002": [],
+    "93003": [],
+    "93004": [],
+    "93005": [],
+    "93006": [],
+    "93007": [],
+    "93008": [],
+    "93009": [],
+    "93010": []
   },
   "activity_log": []
 }
