@@ -100,16 +100,22 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
 
   const parts = cleaned.split(/\s+/).filter((part) => {
-    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    const trimmed = part.trim();
+    const letters = trimmed.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(trimmed) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
 
   if (parts.length === 0) return sanitizeDisplayName(cleaned);
 
   return parts
-    .slice(0, 3)
+    .slice(0, 4)
     .map((part) => {
-      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+      const trimmed = part.trim();
+      if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(trimmed)) {
+        return `${trimmed.charAt(0).toUpperCase()}.`;
+      }
+      const letters = trimmed.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
       return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
     })
     .join(" ");
@@ -120,6 +126,16 @@ export function nombreWordCount(name: string | null | undefined): number {
   const crm = sanitizeCrmNombre(name);
   if (!crm) return sanitizeDisplayName(name) ? 1 : 0;
   return crm.split(/\s+/).filter(Boolean).length;
+}
+
+/** Nunca sobrescribir un nombre existente con uno más corto (menos palabras). */
+export function shouldUpdateName(current?: string, incoming?: string): boolean {
+  const c = (current ?? "").trim();
+  const i = (incoming ?? "").trim();
+  if (!i) return false;
+  if (!c) return true;
+  const parts = (s: string) => s.split(/\s+/).filter(Boolean).length;
+  return parts(i) >= parts(c);
 }
 
 /** True si `candidate` es igual o más completo que `existing` (nunca recortar apellido). */

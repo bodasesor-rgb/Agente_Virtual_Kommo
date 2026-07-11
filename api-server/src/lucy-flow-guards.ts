@@ -203,6 +203,29 @@ export function isValidRequerimientosValue(value: string | null | undefined): bo
 
 export const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 
+/** Antes del cierre: si el Sheet tiene precio del servicio, mencionarlo o confirmar encaje. */
+export function buildClosingWithCatalogPriceHint(
+  extracted: ExtractedData,
+  buildClosing: (servicios: string | null | undefined, clientName?: string | null) => string,
+  opts?: { currentMessage?: string; conversationSnippets?: string[] }
+): string {
+  const closing = buildClosing(
+    extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+    extracted.nombre
+  );
+  const priceQuery = [
+    extracted.requerimientos_evento,
+    extracted.tipo_evento,
+    opts?.currentMessage,
+    ...(opts?.conversationSnippets ?? []),
+  ]
+    .filter((s): s is string => !!s?.trim())
+    .join(" ");
+  const fromCatalog = buildCatalogPriceAnswer(priceQuery);
+  if (!fromCatalog || messageClaimsPrice(closing)) return closing;
+  return `${fromCatalog}\n\n${closing}`;
+}
+
 /** Detecta cierre en historial completo o última respuesta persistida (no solo slice reciente). */
 export function detectCierreEnviado(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -296,7 +319,10 @@ function blockExcessivePresupuestoAsk(
 
   if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
     log?.info({ entityId }, "GUARD: presupuesto — cierre tras waiver");
-    return buildClosing(extracted.requerimientos_evento ?? extracted.tipo_evento ?? null, extracted.nombre);
+    return buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+      currentMessage,
+      conversationSnippets: collectUserTexts(history, currentMessage),
+    });
   }
 
   const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
@@ -1226,6 +1252,17 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
     return prefix ? `${prefix}${withHint}` : withHint;
   }
 
+  if (field === "presupuesto" && ctx.extracted.modo_servicio === "pedido_entrega") {
+    const team = advisorLabelForClient();
+    const pedidoPres = [
+      "¿Tienes un presupuesto total en mente para el pedido?",
+      "¿Cuánto te gustaría invertir en las bandejas o piezas?",
+      `¿Manejan algún presupuesto para el pedido o prefieren que ${team} les proponga opciones?`,
+    ];
+    const variant = pedidoPres[variantIndex("presupuesto", history, ctx.entityId) % pedidoPres.length]!;
+    return prefix ? `${prefix}${variant}` : variant;
+  }
+
   return prefix ? `${prefix}${variant}` : variant;
 }
 
@@ -1539,10 +1576,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !requerimientosNeedsFollowUp(extracted, filledSet)
   ) {
     return normalizeAdvisorReferences(
-      buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      ),
+      buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage),
+      }),
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
   }
@@ -1619,10 +1656,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     const pending = getNextPendingField(extracted, filledSet);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage),
+      });
     } else if (pending) {
       mensaje = `Sin problema, lo dejamos por definir. ${buildNaturalQuestion(pending, ctx)}`;
     } else {
@@ -1675,10 +1712,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente preguntó teléfonos");
   } else if (readyToCloseAndReqDone && clientDeclinesMoreServices(currentMessage)) {
-    mensaje = buildClosing(
-      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-      extracted.nombre
-    );
+    mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+      currentMessage,
+      conversationSnippets: collectUserTexts(presHistory, currentMessage),
+    });
     log?.info({ entityId }, "GUARD: cliente no quiere más servicios — cierre");
   } else if (
     allowSalesReplyOverride &&
@@ -1817,18 +1854,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
   } else if (trulyReadyForClosing && !cierreYaEnviado) {
-    mensaje = buildClosing(
-      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-      extracted.nombre
-    );
+    mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+      currentMessage,
+      conversationSnippets: collectUserTexts(presHistory, currentMessage),
+    });
     log?.info({ entityId }, "Datos completos — mensaje de cierre desde plantilla");
   } else {
     mensaje = aiResponse;
     if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Información completa obtenida")) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage),
+      });
       log?.warn({ entityId }, "GPT generó nota interna — usando cierre desde plantilla");
     }
   }
@@ -1875,10 +1912,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   ) {
     applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage),
+      });
       log?.info({ entityId }, "GUARD: presupuesto capturado en turno — cierre");
     } else if (/econ[oó]mic/i.test(presFromCurrentMsg)) {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, presHistory, currentMessage, entityId);
@@ -1914,10 +1951,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
     if (trulyReadyForClosing && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage),
+      });
       log?.info({ entityId }, "GUARD: fecha capturada — cierre");
     } else {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
@@ -1925,10 +1962,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         mensaje = nextQ;
         log?.info({ entityId }, "GUARD: fecha ya capturada — no repetir pregunta");
       } else if (!nextQ && isReadyForClosing(filledSet) && !cierreYaEnviado) {
-        mensaje = buildClosing(
-          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-          extracted.nombre
-        );
+        mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+          currentMessage,
+          conversationSnippets: collectUserTexts(presHistory, currentMessage),
+        });
         log?.info({ entityId }, "GUARD: todos los datos listos — cierre tras fecha");
       }
     }
@@ -1942,10 +1979,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   ) {
     filledSet.add("Fecha y horario");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage),
+      });
       log?.info({ entityId }, "GUARD: fecha capturada en turno — cierre");
     } else {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
