@@ -207,6 +207,19 @@ function stripInternalCrmBlock(mensaje) {
   return mensaje.slice(0, cut).trim();
 }
 
+// src/lib/lucyHistoryConfig.ts
+var DEFAULT_SCAN_USER_MESSAGES = 20;
+function readLimit(envKey, fallback, max) {
+  const raw = process.env[envKey]?.trim();
+  if (!raw) return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 2) return fallback;
+  return Math.min(Math.floor(n), max);
+}
+function getScanUserMessagesLimit() {
+  return readLimit("LUCY_SCAN_USER_MESSAGES", DEFAULT_SCAN_USER_MESSAGES, 40);
+}
+
 // src/conversation-understanding.ts
 var LUCY_FIELD_ASK_PATTERNS = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
@@ -919,7 +932,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
 function scanConversationForCaptures(history, currentMessage, filledSet) {
   const captures = [];
   const pending = new Set(filledSet);
-  const userTexts = collectUserMessages(history, currentMessage).slice(-12);
+  const userTexts = collectUserMessages(history, currentMessage).slice(-getScanUserMessagesLimit());
   if (!pending.has("Nombre del cliente")) {
     const nombre = recoverClienteNombreFromHistory(history, currentMessage);
     if (nombre) {

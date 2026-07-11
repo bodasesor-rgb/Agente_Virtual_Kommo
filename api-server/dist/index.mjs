@@ -79123,6 +79123,45 @@ function filterClientEmail(email) {
   return email.trim();
 }
 
+// src/lib/lucyHistoryConfig.ts
+var DEFAULT_PROMPT_MESSAGES = 18;
+var DEFAULT_STORED_MESSAGES = 60;
+var DEFAULT_SCAN_USER_MESSAGES = 20;
+var DEFAULT_EXTRACT_MESSAGES = 40;
+function readLimit(envKey, fallback, max) {
+  const raw = process.env[envKey]?.trim();
+  if (!raw) return fallback;
+  const n3 = Number(raw);
+  if (!Number.isFinite(n3) || n3 < 2) return fallback;
+  return Math.min(Math.floor(n3), max);
+}
+function getPromptHistoryLimit() {
+  return readLimit("LUCY_PROMPT_HISTORY_MESSAGES", DEFAULT_PROMPT_MESSAGES, 40);
+}
+function getStoredHistoryLimit() {
+  return readLimit("LUCY_STORED_HISTORY_MESSAGES", DEFAULT_STORED_MESSAGES, 120);
+}
+function getScanUserMessagesLimit() {
+  return readLimit("LUCY_SCAN_USER_MESSAGES", DEFAULT_SCAN_USER_MESSAGES, 40);
+}
+function getExtractHistoryLimit() {
+  return readLimit("LUCY_EXTRACT_HISTORY_MESSAGES", DEFAULT_EXTRACT_MESSAGES, 80);
+}
+function slicePromptHistory(full) {
+  return full.slice(-getPromptHistoryLimit());
+}
+function sliceExtractHistory(full) {
+  return full.slice(-getExtractHistoryLimit());
+}
+function getLucyHistoryConfig() {
+  return {
+    prompt_messages: getPromptHistoryLimit(),
+    stored_messages: getStoredHistoryLimit(),
+    scan_user_messages: getScanUserMessagesLimit(),
+    extract_messages: getExtractHistoryLimit()
+  };
+}
+
 // src/conversation-understanding.ts
 var LUCY_FIELD_ASK_PATTERNS = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
@@ -79851,7 +79890,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
 function scanConversationForCaptures(history, currentMessage, filledSet) {
   const captures = [];
   const pending = new Set(filledSet);
-  const userTexts = collectUserMessages(history, currentMessage).slice(-12);
+  const userTexts = collectUserMessages(history, currentMessage).slice(-getScanUserMessagesLimit());
   if (!pending.has("Nombre del cliente")) {
     const nombre = recoverClienteNombreFromHistory(history, currentMessage);
     if (nombre) {
@@ -80556,7 +80595,8 @@ router.get("/health", (_req, res) => {
       mode: "meta_plus_note",
       note: "Meta API env\xEDa al cliente; nota en timeline del lead para el equipo"
     },
-    catalog: getCatalogStatus()
+    catalog: getCatalogStatus(),
+    lucy_history: getLucyHistoryConfig()
   });
 });
 var health_default = router;
@@ -81350,7 +81390,6 @@ import { join as join4, dirname as dirname2 } from "path";
 import { fileURLToPath as fileURLToPath2 } from "url";
 var __dirname2 = dirname2(fileURLToPath2(import.meta.url));
 var DATA_FILE = join4(__dirname2, "../../data/chat-history.json");
-var MAX_MESSAGES = 40;
 function load() {
   try {
     if (existsSync4(DATA_FILE)) {
@@ -81378,8 +81417,9 @@ function appendHistory(chatId, userText, assistantText) {
   const history = store[chatId] ?? [];
   history.push({ role: "user", content: userText });
   history.push({ role: "assistant", content: assistantText });
-  if (history.length > MAX_MESSAGES) {
-    history.splice(0, history.length - MAX_MESSAGES);
+  const maxMessages = getStoredHistoryLimit();
+  if (history.length > maxMessages) {
+    history.splice(0, history.length - maxMessages);
   }
   store[chatId] = history;
   save(store);
@@ -90106,7 +90146,7 @@ async function processBatch(batch, accessToken, log) {
         historySource = "kommo-bootstrap";
       }
     }
-    let history = fullHistory.slice(-6);
+    let history = slicePromptHistory(fullHistory);
     const { crmLines, lastLucyResponse } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const cachedResponse = lastResponseCache.get(String(entityId));
@@ -90120,14 +90160,14 @@ async function processBatch(batch, accessToken, log) {
     }
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
     const filledFieldNames = crmLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? "").filter(Boolean).join(", ");
-    const extracted = await extractData(fullHistory, combinedUserText, filledFieldNames);
+    const extracted = await extractData(sliceExtractHistory(fullHistory), combinedUserText, filledFieldNames);
     sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
     }
     const conversationText = [
-      ...history.filter((m4) => m4.role === "user").map((m4) => typeof m4.content === "string" ? m4.content : ""),
+      ...fullHistory.filter((m4) => m4.role === "user").map((m4) => typeof m4.content === "string" ? m4.content : ""),
       combinedUserText
     ].join(" ");
     if (extracted.tipo_contacto === "proveedor") {
@@ -90645,7 +90685,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
         log.warn("Salesbot: Kommo history bootstrap failed, using file history");
       }
     }
-    let history = fullHistory.slice(-6);
+    let history = slicePromptHistory(fullHistory);
     log.info({ histKey, historyLength: history.length, historySource }, "Salesbot: historial cargado");
     let crmContext = "";
     let crmLines = [];
@@ -90664,7 +90704,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
     const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? "" : lastLucyResponse;
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
     const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null) : null;
-    const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
+    const extracted = await extractData(sliceExtractHistory(fullHistory), messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
@@ -91026,13 +91066,13 @@ router3.post("/kommo/simulator", async (req, res) => {
   try {
     const histKey = `sim-${leadId}`;
     const fullHistory = getHistory(histKey);
-    let history = fullHistory.slice(-6);
+    let history = slicePromptHistory(fullHistory);
     const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
     const whatsappDisplayName = sanitizeDisplayName(lead.name);
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? null : lastLucyResponse;
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
-    const extracted = await extractData(history, messageText, crmLines.join("\n"));
+    const extracted = await extractData(sliceExtractHistory(fullHistory), messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
     const conversationText = [

@@ -13,6 +13,7 @@ import {
 } from "./contact-name.js";
 import { filterClientEmail } from "./client-email.js";
 import { getAdvisorName, LEGACY_ADVISOR_NAMES } from "./lib/bodasesorAdvisor.js";
+import { getScanUserMessagesLimit } from "./lib/lucyHistoryConfig.js";
 
 export type UnderstandingField =
   | "nombre"
@@ -1128,7 +1129,7 @@ export function scanConversationForCaptures(
 ): CrmCapture[] {
   const captures: CrmCapture[] = [];
   const pending = new Set(filledSet);
-  const userTexts = collectUserMessages(history, currentMessage).slice(-12);
+  const userTexts = collectUserMessages(history, currentMessage).slice(-getScanUserMessagesLimit());
 
   if (!pending.has("Nombre del cliente")) {
     const nombre = recoverClienteNombreFromHistory(history, currentMessage);
