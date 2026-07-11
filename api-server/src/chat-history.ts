@@ -2,10 +2,10 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import type OpenAI from "openai";
+import { getStoredHistoryLimit } from "./lib/lucyHistoryConfig.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = join(__dirname, "../../data/chat-history.json");
-const MAX_MESSAGES = 40; // 20 turns × 2 (user + assistant)
 
 type Message = OpenAI.Chat.ChatCompletionMessageParam;
 type Store = Record<string, Message[]>;
@@ -48,8 +48,9 @@ export function appendHistory(
   const history = store[chatId] ?? [];
   history.push({ role: "user", content: userText });
   history.push({ role: "assistant", content: assistantText });
-  if (history.length > MAX_MESSAGES) {
-    history.splice(0, history.length - MAX_MESSAGES);
+  const maxMessages = getStoredHistoryLimit();
+  if (history.length > maxMessages) {
+    history.splice(0, history.length - maxMessages);
   }
   store[chatId] = history;
   save(store);

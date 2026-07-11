@@ -5,6 +5,7 @@ import { getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
 import { isAuthConfigured } from "../lib/authJwt.js";
 import { getCatalogStatus } from "../services/catalogService.js";
 import { getBuildMeta } from "../lib/buildMeta.js";
+import { getLucyHistoryConfig } from "../lib/lucyHistoryConfig.js";
 
 const router: IRouter = Router();
 
@@ -47,6 +48,7 @@ router.get("/health", (_req, res) => {
       note: "Meta API envía al cliente; nota en timeline del lead para el equipo",
     },
     catalog: getCatalogStatus(),
+    lucy_history: getLucyHistoryConfig(),
   });
 });
 

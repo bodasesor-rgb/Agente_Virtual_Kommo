@@ -1,0 +1,27 @@
+Eres un revisor senior de código TypeScript. Te adjunto el paquete `lucy-core-export` con el núcleo de Lucy, bot de WhatsApp para Bodasesor (catering/eventos en CDMX).
+
+CONTEXTO
+- Lucy califica leads: nombre, correo, tipo evento, servicios, invitados, lugar, fecha, presupuesto.
+- Pipeline: webhook Kommo → historial → extractData (GPT JSON) → CRM context → prompt dinámico → GPT redacción → catalogService (inyecta precios/menú del Google Sheet) → lucy-flow-guards → respuesta al cliente.
+- Síntomas en producción y simulador:
+  1. Repite el mismo bloque de texto o vuelve a mostrar menú.
+  2. Vuelve a pedir datos que el cliente ya dio.
+  3. Ignora preguntas del cliente (precio, ubicación).
+  4. Se trabó o reinicia el flujo tras cierre.
+  5. Datos mal guardados en CRM vs lo que dijo el cliente.
+
+TU TAREA
+1. Lee LEEME.md y luego kommo.ts, lucy-flow-guards.ts, conversation-understanding.ts, catalogService.ts.
+2. Lista bugs concretos con archivo:línea y severidad (P0/P1/P2).
+3. Para cada bug: ¿es PROMPT (comportamiento LLM) o CÓDIGO (lógica/estado/hardcode)?
+4. Propón fixes mínimos (diff conceptual, no reescribir todo).
+5. Señala inconsistencias entre webhook real y simulador.
+
+ENFOQUE ESPECIAL
+- Ventana de historial: lucyHistoryConfig.ts + slicePromptHistory en kommo.ts
+- ¿Guards repreguntan campos ya en filledLabels?
+- ¿injectCatalog* pisa la respuesta del LLM?
+- ¿extractData usa historial suficiente?
+- ¿Race CRM cache vs Kommo PATCH?
+
+Responde en español, estructurado, con citas archivo:línea.

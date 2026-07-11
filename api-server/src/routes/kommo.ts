@@ -6,6 +6,7 @@ import {
   runAutoClient,
 } from "../../scripts/simulator-auto-client-lib.mjs";
 import { resolveLucyPublicBase } from "../lib/publicUrl.js";
+import { sliceExtractHistory, slicePromptHistory } from "../lib/lucyHistoryConfig.js";
 import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
@@ -1258,7 +1259,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       }
     }
 
-    let history = fullHistory.slice(-6);
+    let history = slicePromptHistory(fullHistory);
 
     // ══════════════════════════════════════════════════════════════════════
     // PASO 4: Leer campos del CRM (sin construir crmContext aún)
@@ -1297,7 +1298,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       .filter(Boolean)
       .join(", ");
 
-    const extracted = await extractData(fullHistory, combinedUserText, filledFieldNames);
+    const extracted = await extractData(sliceExtractHistory(fullHistory), combinedUserText, filledFieldNames);
     sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
 
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
@@ -1306,7 +1307,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     }
 
     const conversationText = [
-      ...history
+      ...fullHistory
         .filter((m) => m.role === "user")
         .map((m) => (typeof m.content === "string" ? m.content : "")),
       combinedUserText,
@@ -2025,7 +2026,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       }
     }
 
-    let history = fullHistory.slice(-6);
+    let history = slicePromptHistory(fullHistory);
     log.info({ histKey, historyLength: history.length, historySource }, "Salesbot: historial cargado");
 
     // ── Load CRM context ──────────────────────────────────────────────────────
@@ -2054,7 +2055,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null)
       : null;
 
-    const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
+    const extracted = await extractData(sliceExtractHistory(fullHistory), messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
@@ -2539,7 +2540,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
   try {
     const histKey = `sim-${leadId}`;
     const fullHistory = getHistory(histKey);
-    let history = fullHistory.slice(-6);
+    let history = slicePromptHistory(fullHistory);
 
     const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
     const whatsappDisplayName = sanitizeDisplayName(lead.name);
@@ -2550,7 +2551,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       : lastLucyResponse;
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
 
-    const extracted = await extractData(history, messageText, crmLines.join("\n"));
+    const extracted = await extractData(sliceExtractHistory(fullHistory), messageText, crmLines.join("\n"));
     sanitizeExtractedAmbiguousNumbers(extracted, messageText);
 
     extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
