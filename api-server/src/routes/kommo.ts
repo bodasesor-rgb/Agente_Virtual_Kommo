@@ -65,8 +65,8 @@ import { generateSummary, enrichExtractedFromText, buildResumenClienteLargo } fr
 import {
   isPlaceholderLeadName,
   isQuoteIntentMessage,
-  isNombreMoreComplete,
   pickBetterNombre,
+  shouldUpdateName,
   sanitizeDisplayName,
   sanitizeCrmNombre,
 } from "../contact-name.js";
@@ -643,7 +643,7 @@ function buildCrmContext(
         .replace(WHATSAPP_NOMBRE_NOTE, "")
         .trim();
       const upgraded = pickBetterNombre(extracted.nombre, existing);
-      if (upgraded && isNombreMoreComplete(upgraded, existing)) {
+      if (upgraded) {
         const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
         mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
         extracted.nombre = upgraded;
@@ -970,8 +970,12 @@ function isValidExtractedString(val: string | null | undefined): val is string {
 
 function withCrmNombre(extracted: ExtractedData, mergedLines: string[]): ExtractedData {
   const nombreCrm = parseNombreFromCrmLines(mergedLines);
-  if (!nombreCrm || isValidExtractedString(extracted.nombre)) return extracted;
-  return { ...extracted, nombre: nombreCrm };
+  const incoming = extracted.nombre?.trim();
+  if (!incoming && nombreCrm) return { ...extracted, nombre: nombreCrm };
+  if (incoming && nombreCrm) {
+    return { ...extracted, nombre: pickBetterNombre(incoming, nombreCrm) };
+  }
+  return extracted;
 }
 
 function buildPatchPayload(
@@ -1027,8 +1031,12 @@ function buildPatchPayload(
   const payload: Record<string, unknown> = { custom_fields_values: customFields };
 
   if (isValidExtractedString(extracted.nombre)) {
-    const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
-    payload["name"] = cap255(nombrePatch);
+    const currentNombre = parseNombreFromCrmLines(mergedLines);
+    const nombrePatch =
+      sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
+    if (shouldUpdateName(currentNombre ?? undefined, nombrePatch)) {
+      payload["name"] = cap255(nombrePatch);
+    }
   }
 
   return payload;
@@ -2669,8 +2677,12 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
 
     const lead_updates: Record<string, string> = {};
-    if (isValidExtractedString(extracted.nombre)) {
-      lead_updates.name = sanitizeCrmNombre(extracted.nombre) ?? extracted.nombre;
+    const currentLeadName = sanitizeCrmNombre(lead.name) ?? lead.name?.trim() ?? "";
+    const incomingNombre = sanitizeCrmNombre(extracted.nombre) ?? extracted.nombre?.trim();
+    if (incomingNombre && isValidExtractedString(incomingNombre) && shouldUpdateName(currentLeadName, incomingNombre)) {
+      lead_updates.name = incomingNombre;
+    } else if (currentLeadName && !isPlaceholderLeadName(currentLeadName)) {
+      lead_updates.name = currentLeadName;
     } else if (whatsappDisplayName) {
       lead_updates.name = sanitizeCrmNombre(lead.name) ?? whatsappDisplayName;
     }

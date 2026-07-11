@@ -67,12 +67,18 @@ function sanitizeCrmNombre(name) {
   const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   const parts = cleaned.split(/\s+/).filter((part) => {
-    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    const trimmed2 = part.trim();
+    const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(trimmed2) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
   if (parts.length === 0) return sanitizeDisplayName(cleaned);
-  return parts.slice(0, 3).map((part) => {
-    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+  return parts.slice(0, 4).map((part) => {
+    const trimmed2 = part.trim();
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(trimmed2)) {
+      return `${trimmed2.charAt(0).toUpperCase()}.`;
+    }
+    const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
   }).join(" ");
 }
@@ -80,6 +86,14 @@ function nombreWordCount(name) {
   const crm = sanitizeCrmNombre(name);
   if (!crm) return sanitizeDisplayName(name) ? 1 : 0;
   return crm.split(/\s+/).filter(Boolean).length;
+}
+function shouldUpdateName(current, incoming) {
+  const c = (current ?? "").trim();
+  const i = (incoming ?? "").trim();
+  if (!i) return false;
+  if (!c) return true;
+  const parts = (s) => s.split(/\s+/).filter(Boolean).length;
+  return parts(i) >= parts(c);
 }
 function isNombreMoreComplete(candidate, existing) {
   const c = sanitizeCrmNombre(candidate) ?? sanitizeDisplayName(candidate);
@@ -1037,7 +1051,7 @@ function buildCompanyEmailConfirmReply() {
 }
 
 // src/modoServicio.ts
-var PEDIDO_ENTREGA = /\b(para\s+llevar|entrega|que\s+me\s+dejen|que\s+me\s+entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
+var PEDIDO_ENTREGA = /\b(para\s+llevar|entrega|que\s+me\s+(?:dejen|entreguen|los?\s+dejen)|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s*(?:de)?|rollos?\s*(?:de)?|bandejas?\s*(?:de)?|charolas?\s*(?:de)?|orden(?:es)?\s*(?:de)?|\d+\s+(?:bandejas?|charolas?|piezas?|rollos?))\b/i;
 var SERVICIO_MONTADO = /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
 function detectModoServicio(text) {
   const t = text?.trim() ?? "";
@@ -1050,7 +1064,7 @@ function needsModoServicioClarification(text, current) {
   if (current) return false;
   const t = text?.trim() ?? "";
   if (!t) return false;
-  return /\b(\d+\s+rollos?|\d+\s+piezas?|\d+\s+platos?|quiero\s+\d+|necesito\s+\d+)\b/i.test(t) && !PEDIDO_ENTREGA.test(t) && !SERVICIO_MONTADO.test(t);
+  return /\b(\d+\s+(?:rollos?|piezas?|platos?|bandejas?|charolas?)|quiero\s+\d+|necesito\s+\d+)\b/i.test(t) && !PEDIDO_ENTREGA.test(t) && !SERVICIO_MONTADO.test(t);
 }
 function buildModoServicioClarificationQuestion() {
   return "\xBFLo quieres montado en tu evento con barra y servicio, o solo la entrega del producto?";
@@ -1586,6 +1600,23 @@ function isValidRequerimientosValue(value) {
   return isServiceRelatedMessage(value);
 }
 var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
+function buildClosingWithCatalogPriceHint(extracted, buildClosing, opts) {
+  const closing = buildClosing(
+    extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+    extracted.nombre
+  );
+  const priceQuery = [
+    extracted.requerimientos_evento,
+    extracted.tipo_evento,
+    opts?.currentMessage,
+    ...opts?.conversationSnippets ?? []
+  ].filter((s) => !!s?.trim()).join(" ");
+  const fromCatalog = buildCatalogPriceAnswer(priceQuery);
+  if (!fromCatalog || messageClaimsPrice(closing)) return closing;
+  return `${fromCatalog}
+
+${closing}`;
+}
 function detectCierreEnviado(history, lastStoredResponse) {
   if (lastStoredResponse?.includes(CLOSING_SIGNATURE)) return true;
   return history.some(
@@ -1633,7 +1664,10 @@ function blockExcessivePresupuestoAsk(mensaje, filledSet, extracted, history, cu
   }
   if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
     log?.info({ entityId }, "GUARD: presupuesto \u2014 cierre tras waiver");
-    return buildClosing(extracted.requerimientos_evento ?? extracted.tipo_evento ?? null, extracted.nombre);
+    return buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+      currentMessage,
+      conversationSnippets: collectUserTexts(history, currentMessage)
+    });
   }
   const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
   if (nextQ && !mensajeAsksForField(nextQ, "presupuesto")) {
@@ -2170,6 +2204,16 @@ function buildNaturalQuestion(field, ctx) {
     }
     return prefix ? `${prefix}${withHint}` : withHint;
   }
+  if (field === "presupuesto" && ctx.extracted.modo_servicio === "pedido_entrega") {
+    const team = advisorLabelForClient();
+    const pedidoPres = [
+      "\xBFTienes un presupuesto total en mente para el pedido?",
+      "\xBFCu\xE1nto te gustar\xEDa invertir en las bandejas o piezas?",
+      `\xBFManejan alg\xFAn presupuesto para el pedido o prefieren que ${team} les proponga opciones?`
+    ];
+    const variant2 = pedidoPres[variantIndex("presupuesto", history, ctx.entityId) % pedidoPres.length];
+    return prefix ? `${prefix}${variant2}` : variant2;
+  }
   return prefix ? `${prefix}${variant}` : variant;
 }
 function buildRequerimientosQuestion(extracted, history, currentMessage, entityId) {
@@ -2350,10 +2394,10 @@ function applyLucyMessageGuards(input) {
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
   if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet)) {
     return normalizeAdvisorReferences(
-      buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      ),
+      buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage)
+      }),
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
   }
@@ -2401,10 +2445,10 @@ function applyLucyMessageGuards(input) {
     }
     const pending = getNextPendingField(extracted, filledSet);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage)
+      });
     } else if (pending) {
       mensaje = `Sin problema, lo dejamos por definir. ${buildNaturalQuestion(pending, ctx)}`;
     } else {
@@ -2449,10 +2493,10 @@ function applyLucyMessageGuards(input) {
 ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 tel\xE9fonos");
   } else if (readyToCloseAndReqDone && clientDeclinesMoreServices(currentMessage)) {
-    mensaje = buildClosing(
-      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-      extracted.nombre
-    );
+    mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+      currentMessage,
+      conversationSnippets: collectUserTexts(presHistory, currentMessage)
+    });
     log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 cierre");
   } else if (allowSalesReplyOverride && (clientMentionsEntertainment(currentMessage) || justAnsweredReq && clientMentionsEntertainment(currentMessage))) {
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
@@ -2569,18 +2613,18 @@ ${nextQ}`;
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
   } else if (trulyReadyForClosing && !cierreYaEnviado) {
-    mensaje = buildClosing(
-      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-      extracted.nombre
-    );
+    mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+      currentMessage,
+      conversationSnippets: collectUserTexts(presHistory, currentMessage)
+    });
     log?.info({ entityId }, "Datos completos \u2014 mensaje de cierre desde plantilla");
   } else {
     mensaje = aiResponse;
     if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Informaci\xF3n completa obtenida")) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage)
+      });
       log?.warn({ entityId }, "GPT gener\xF3 nota interna \u2014 usando cierre desde plantilla");
     }
   }
@@ -2612,10 +2656,10 @@ ${nextQ}`;
   if (presFromCurrentMsg && !filledSet.has("Presupuesto (MXN)") && (mensajeAsksForField(mensaje, "presupuesto") || /presupuesto|rango/i.test(mensaje) && mensaje.includes("?"))) {
     applyPresupuestoWaiver(filledSet, [], collectUserTexts(presHistory, currentMessage), presHistory);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage)
+      });
       log?.info({ entityId }, "GUARD: presupuesto capturado en turno \u2014 cierre");
     } else if (/econ[oó]mic/i.test(presFromCurrentMsg)) {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, presHistory, currentMessage, entityId);
@@ -2643,10 +2687,10 @@ ${nextQ}`;
   }
   if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
     if (trulyReadyForClosing && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage)
+      });
       log?.info({ entityId }, "GUARD: fecha capturada \u2014 cierre");
     } else {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
@@ -2654,10 +2698,10 @@ ${nextQ}`;
         mensaje = nextQ;
         log?.info({ entityId }, "GUARD: fecha ya capturada \u2014 no repetir pregunta");
       } else if (!nextQ && isReadyForClosing(filledSet) && !cierreYaEnviado) {
-        mensaje = buildClosing(
-          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-          extracted.nombre
-        );
+        mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+          currentMessage,
+          conversationSnippets: collectUserTexts(presHistory, currentMessage)
+        });
         log?.info({ entityId }, "GUARD: todos los datos listos \u2014 cierre tras fecha");
       }
     }
@@ -2666,10 +2710,10 @@ ${nextQ}`;
   if (fechaFromMsg && mensajeAsksForField(mensaje, "fecha") && !filledSet.has("Fecha y horario")) {
     filledSet.add("Fecha y horario");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
+      mensaje = buildClosingWithCatalogPriceHint(extracted, buildClosing, {
+        currentMessage,
+        conversationSnippets: collectUserTexts(presHistory, currentMessage)
+      });
       log?.info({ entityId }, "GUARD: fecha capturada en turno \u2014 cierre");
     } else {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
@@ -14382,8 +14426,11 @@ async function runAll() {
   });
   await test("28. Lucy V7 \u2014 pedido/entrega, n\xFAmero ambiguo, orden ubicaci\xF3n\u2192fecha\u2192invitados", () => {
     assert.equal(detectModoServicio("quiero 50 rollos para llevar"), "pedido_entrega");
+    assert.equal(detectModoServicio("quiero 3 bandejas de sushi"), "pedido_entrega");
+    assert.equal(detectModoServicio("necesito 2 charolas de tacos"), "pedido_entrega");
     assert.equal(detectModoServicio("barra de sushi montada en el evento"), "servicio_montado");
-    assert.ok(needsModoServicioClarification("necesito 50 rollos de sushi", null));
+    assert.equal(detectModoServicio("necesito 50 rollos de sushi"), "pedido_entrega");
+    assert.ok(!needsModoServicioClarification("quiero 3 bandejas de sushi", null));
     assert.equal(parseInvitadosFromText("5"), null);
     assert.equal(parseInvitadosFromText("el 5"), null);
     assert.equal(parseInvitadosFromText("150 personas"), "150");
@@ -14604,6 +14651,47 @@ async function runAll() {
       assert.ok(/DATOS DEL SERVICIO/i.test(promptBlock), promptBlock);
       assert.ok(/taquiza/i.test(promptBlock), promptBlock);
     }
+  });
+  await test("35. Rebecca \u2014 nombre completo, pedido bandejas, precio antes de cierre", () => {
+    assert.ok(!shouldUpdateName("Rebecca P\xE9rez C.", "Rebecca"));
+    assert.ok(shouldUpdateName("Rebecca", "Rebecca P\xE9rez C."));
+    assert.equal(pickBetterNombre("Rebecca", "Rebecca P\xE9rez C."), "Rebecca P\xE9rez C.");
+    const pedidoPres = buildNaturalQuestion("presupuesto", {
+      extracted: emptyExtracted({ modo_servicio: "pedido_entrega" }),
+      history: []
+    });
+    assert.ok(/pedido|bandejas|piezas/i.test(pedidoPres), pedidoPres);
+    assert.ok(!/por\s+persona|pp\b/i.test(pedidoPres), pedidoPres);
+    const closingOnly = buildClosingWithCatalogPriceHint(
+      emptyExtracted({ requerimientos_evento: "servicio inexistente xyz" }),
+      mockClosing
+    );
+    assert.ok(closingOnly.includes("Perfecto, ya tengo todo."), closingOnly);
+    const filledClosing = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      EMAIL_WAIVED_LABEL,
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "N\xFAmero de invitados",
+      "Lugar/direcci\xF3n del evento",
+      "Fecha y horario",
+      "Presupuesto (MXN)"
+    ]);
+    const closingGuard = runGuards({
+      aiResponse: "Perfecto, ya tengo todo.",
+      extracted: emptyExtracted({
+        nombre: "Rebecca",
+        requerimientos_evento: "bandejas de sushi",
+        num_invitados: 20,
+        presupuesto: 200,
+        modo_servicio: "pedido_entrega"
+      }),
+      filledSet: filledClosing,
+      readyForClosing: true,
+      currentMessage: "bandejas de sushi, $200 por persona, 20 personas",
+      history: []
+    });
+    assert.ok(closingGuard.includes("Perfecto, ya tengo todo."), closingGuard);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

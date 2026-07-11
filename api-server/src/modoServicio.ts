@@ -2,7 +2,7 @@
 export type ModoServicio = "pedido_entrega" | "servicio_montado" | null;
 
 const PEDIDO_ENTREGA =
-  /\b(para\s+llevar|entrega|que\s+me\s+dejen|que\s+me\s+entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
+  /\b(para\s+llevar|entrega|que\s+me\s+(?:dejen|entreguen|los?\s+dejen)|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s*(?:de)?|rollos?\s*(?:de)?|bandejas?\s*(?:de)?|charolas?\s*(?:de)?|orden(?:es)?\s*(?:de)?|\d+\s+(?:bandejas?|charolas?|piezas?|rollos?))\b/i;
 
 const SERVICIO_MONTADO =
   /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
@@ -24,7 +24,7 @@ export function needsModoServicioClarification(
   const t = text?.trim() ?? "";
   if (!t) return false;
   return (
-    /\b(\d+\s+rollos?|\d+\s+piezas?|\d+\s+platos?|quiero\s+\d+|necesito\s+\d+)\b/i.test(t) &&
+    /\b(\d+\s+(?:rollos?|piezas?|platos?|bandejas?|charolas?)|quiero\s+\d+|necesito\s+\d+)\b/i.test(t) &&
     !PEDIDO_ENTREGA.test(t) &&
     !SERVICIO_MONTADO.test(t)
   );

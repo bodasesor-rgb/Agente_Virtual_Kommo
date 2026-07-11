@@ -35,7 +35,7 @@ import {
   clientAsksServiceInfo,
   recoverClienteNombreFromHistory,
 } from "../conversation-understanding.js";
-import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre } from "../contact-name.js";
+import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, shouldUpdateName } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
 import {
   resolveTipoContacto,
@@ -69,6 +69,8 @@ import {
   isValidRequerimientosValue,
   crmStoredValue,
   stripImageAnnotation,
+  buildClosingWithCatalogPriceHint,
+  buildNaturalQuestion,
   stripCatalogBlockShared,
   pickTransition,
   stripRobotAcknowledgments,
@@ -1287,8 +1289,11 @@ async function runAll(): Promise<void> {
 
   await test("28. Lucy V7 — pedido/entrega, número ambiguo, orden ubicación→fecha→invitados", () => {
     assert.equal(detectModoServicio("quiero 50 rollos para llevar"), "pedido_entrega");
+    assert.equal(detectModoServicio("quiero 3 bandejas de sushi"), "pedido_entrega");
+    assert.equal(detectModoServicio("necesito 2 charolas de tacos"), "pedido_entrega");
     assert.equal(detectModoServicio("barra de sushi montada en el evento"), "servicio_montado");
-    assert.ok(needsModoServicioClarification("necesito 50 rollos de sushi", null));
+    assert.equal(detectModoServicio("necesito 50 rollos de sushi"), "pedido_entrega");
+    assert.ok(!needsModoServicioClarification("quiero 3 bandejas de sushi", null));
     assert.equal(parseInvitadosFromText("5"), null);
     assert.equal(parseInvitadosFromText("el 5"), null);
     assert.equal(parseInvitadosFromText("150 personas"), "150");
@@ -1542,6 +1547,51 @@ async function runAll(): Promise<void> {
       assert.ok(/DATOS DEL SERVICIO/i.test(promptBlock), promptBlock);
       assert.ok(/taquiza/i.test(promptBlock), promptBlock);
     }
+  });
+
+  await test("35. Rebecca — nombre completo, pedido bandejas, precio antes de cierre", () => {
+    assert.ok(!shouldUpdateName("Rebecca Pérez C.", "Rebecca"));
+    assert.ok(shouldUpdateName("Rebecca", "Rebecca Pérez C."));
+    assert.equal(pickBetterNombre("Rebecca", "Rebecca Pérez C."), "Rebecca Pérez C.");
+
+    const pedidoPres = buildNaturalQuestion("presupuesto", {
+      extracted: emptyExtracted({ modo_servicio: "pedido_entrega" }),
+      history: [],
+    });
+    assert.ok(/pedido|bandejas|piezas/i.test(pedidoPres), pedidoPres);
+    assert.ok(!/por\s+persona|pp\b/i.test(pedidoPres), pedidoPres);
+
+    const closingOnly = buildClosingWithCatalogPriceHint(
+      emptyExtracted({ requerimientos_evento: "servicio inexistente xyz" }),
+      mockClosing
+    );
+    assert.ok(closingOnly.includes("Perfecto, ya tengo todo."), closingOnly);
+
+    const filledClosing = new Set([
+      "Nombre del cliente",
+      EMAIL_WAIVED_LABEL,
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Presupuesto (MXN)",
+    ]);
+    const closingGuard = runGuards({
+      aiResponse: "Perfecto, ya tengo todo.",
+      extracted: emptyExtracted({
+        nombre: "Rebecca",
+        requerimientos_evento: "bandejas de sushi",
+        num_invitados: 20,
+        presupuesto: 200,
+        modo_servicio: "pedido_entrega",
+      }),
+      filledSet: filledClosing,
+      readyForClosing: true,
+      currentMessage: "bandejas de sushi, $200 por persona, 20 personas",
+      history: [],
+    });
+    assert.ok(closingGuard.includes("Perfecto, ya tengo todo."), closingGuard);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
