@@ -219,6 +219,16 @@ export function isAmbiguousShortNumber(text: string | null | undefined): boolean
   return /^el\s+\d{1,2}$/i.test(t) || /^\d{1,2}$/.test(t);
 }
 
+/** Limpia extracción GPT cuando el turno es un número suelto ambiguo. */
+export function sanitizeExtractedAmbiguousNumbers(
+  extracted: { num_invitados?: number | null },
+  messageText: string | null | undefined
+): void {
+  if (isAmbiguousShortNumber(messageText)) {
+    extracted.num_invitados = null;
+  }
+}
+
 /** Cliente pregunta ubicación o cobertura de Bodasesor. */
 export function clientAsksLocation(message?: string): boolean {
   if (!message?.trim()) return false;

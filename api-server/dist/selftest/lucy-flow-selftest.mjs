@@ -2190,7 +2190,7 @@ function applyLucyMessageGuards(input) {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
-  } else if (isAmbiguousShortNumber(currentMessage) && !filledSet.has("N\xFAmero de invitados")) {
+  } else if (isAmbiguousShortNumber(currentMessage)) {
     mensaje = "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: n\xFAmero ambiguo \u2014 pedir aclaraci\xF3n");
@@ -2579,6 +2579,11 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     }
   }
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
+  if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !filledSet.has("Lugar/direcci\xF3n del evento")) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `${pickTransition(presHistory)} ${nombre}, \xBFme confirmas la ciudad o colonia del evento?` : `${pickTransition(presHistory)} \xBFMe confirmas la ciudad o colonia del evento?`;
+    log?.info({ entityId }, "GUARD: segunda pregunta de zona \u2014 variante corta");
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripGammaLinks(text) {

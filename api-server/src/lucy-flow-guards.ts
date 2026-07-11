@@ -1482,7 +1482,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente preguntó por correo de Bodasesor");
-  } else if (isAmbiguousShortNumber(currentMessage) && !filledSet.has("Número de invitados")) {
+  } else if (isAmbiguousShortNumber(currentMessage)) {
     mensaje = "¿Te refieres a 5 invitados o al día 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: número ambiguo — pedir aclaración");
@@ -1963,6 +1963,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
+
+  if (
+    mensajeAsksForField(mensaje, "zona") &&
+    countLucyFieldAsks(presHistory, "zona") >= 1 &&
+    !filledSet.has("Lugar/dirección del evento")
+  ) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre
+      ? `${pickTransition(presHistory)} ${nombre}, ¿me confirmas la ciudad o colonia del evento?`
+      : `${pickTransition(presHistory)} ¿Me confirmas la ciudad o colonia del evento?`;
+    log?.info({ entityId }, "GUARD: segunda pregunta de zona — variante corta");
+  }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }

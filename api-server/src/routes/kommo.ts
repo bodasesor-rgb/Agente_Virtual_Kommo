@@ -75,6 +75,7 @@ import {
   parseTipoEventoFromText,
   inferLucyAskedField,
   scanConversationForCaptures,
+  sanitizeExtractedAmbiguousNumbers,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
 import {
@@ -1273,6 +1274,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       .join(", ");
 
     const extracted = await extractData(fullHistory, combinedUserText, filledFieldNames);
+    sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
 
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
@@ -1296,6 +1298,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       }
     } else {
       enrichExtractedFromText(extracted, conversationText);
+      sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
       if (!extracted.modo_servicio) {
         extracted.modo_servicio = detectModoServicio(conversationText);
       }
@@ -2028,6 +2031,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       : null;
 
     const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
+    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
@@ -2040,6 +2044,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       messageText,
     ].join(" ");
     enrichExtractedFromText(extracted, conversationText);
+    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     if (!extracted.modo_servicio) {
       extracted.modo_servicio = detectModoServicio(conversationText);
     }
@@ -2522,6 +2527,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
 
     const extracted = await extractData(history, messageText, crmLines.join("\n"));
+    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
 
     extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
 
@@ -2532,6 +2538,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       messageText,
     ].join(" ");
     enrichExtractedFromText(extracted, conversationText);
+    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     if (!extracted.modo_servicio) {
       extracted.modo_servicio = detectModoServicio(conversationText);
     }

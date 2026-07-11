@@ -79257,6 +79257,11 @@ function isAmbiguousShortNumber(text2) {
   if (!t) return false;
   return /^el\s+\d{1,2}$/i.test(t) || /^\d{1,2}$/.test(t);
 }
+function sanitizeExtractedAmbiguousNumbers(extracted, messageText) {
+  if (isAmbiguousShortNumber(messageText)) {
+    extracted.num_invitados = null;
+  }
+}
 function clientAsksLocation(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
@@ -81523,7 +81528,7 @@ function applyLucyMessageGuards(input) {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
-  } else if (isAmbiguousShortNumber(currentMessage) && !filledSet.has("N\xFAmero de invitados")) {
+  } else if (isAmbiguousShortNumber(currentMessage)) {
     mensaje = "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: n\xFAmero ambiguo \u2014 pedir aclaraci\xF3n");
@@ -81912,6 +81917,11 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     }
   }
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
+  if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !filledSet.has("Lugar/direcci\xF3n del evento")) {
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `${pickTransition(presHistory)} ${nombre}, \xBFme confirmas la ciudad o colonia del evento?` : `${pickTransition(presHistory)} \xBFMe confirmas la ciudad o colonia del evento?`;
+    log?.info({ entityId }, "GUARD: segunda pregunta de zona \u2014 variante corta");
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripGammaLinks(text2) {
@@ -89248,6 +89258,7 @@ async function processBatch(batch, accessToken, log) {
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
     const filledFieldNames = crmLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? "").filter(Boolean).join(", ");
     const extracted = await extractData(fullHistory, combinedUserText, filledFieldNames);
+    sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
@@ -89266,6 +89277,7 @@ async function processBatch(batch, accessToken, log) {
       }
     } else {
       enrichExtractedFromText(extracted, conversationText);
+      sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
       if (!extracted.modo_servicio) {
         extracted.modo_servicio = detectModoServicio(conversationText);
       }
@@ -89790,6 +89802,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
     const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null) : null;
     const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
+    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre);
     if (extracted.correo) {
       extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
@@ -89799,6 +89812,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
       messageText
     ].join(" ");
     enrichExtractedFromText(extracted, conversationText);
+    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     if (!extracted.modo_servicio) {
       extracted.modo_servicio = detectModoServicio(conversationText);
     }
@@ -90156,12 +90170,14 @@ router3.post("/kommo/simulator", async (req, res) => {
     const normalizedLastLucyResponse = isLegacyStoredLucyResponse(lastLucyResponse) ? null : lastLucyResponse;
     const isFirstInteraction = !hasAssistantMsg && !normalizedLastLucyResponse;
     const extracted = await extractData(history, messageText, crmLines.join("\n"));
+    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
     const conversationText = [
       ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
       messageText
     ].join(" ");
     enrichExtractedFromText(extracted, conversationText);
+    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
     if (!extracted.modo_servicio) {
       extracted.modo_servicio = detectModoServicio(conversationText);
     }
