@@ -19,7 +19,15 @@ import {
   type SheetCatalogRow,
 } from "./googleSheetsCatalog.js";
 import { loadGammaCatalog, loadGammaKnowledgeFromSheet } from "./gammaCatalog.js";
-import { clientMentionsCatering } from "../conversation-understanding.js";
+import {
+  clientMentionsCatering,
+  clientAsksServiceInfo,
+  parsePrimaryService,
+  isServiceRelatedMessage,
+} from "../conversation-understanding.js";
+
+const GENERIC_CATERING_MENU_MARKERS =
+  /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
 
 export interface CatalogStatus {
   loaded: boolean;
@@ -43,7 +51,7 @@ export interface CatalogSnapshot {
   status: CatalogStatus;
 }
 
-const REFRESH_MS = Number(process.env["CATALOG_REFRESH_MINUTES"] ?? "30") * 60_000;
+const REFRESH_MS = Number(process.env["CATALOG_REFRESH_MINUTES"] ?? "10") * 60_000;
 
 let snapshot: CatalogSnapshot | null = null;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -513,30 +521,116 @@ export function buildCatalogComparisonAnswer(): string | null {
   return parts.filter((l) => l !== undefined && l !== "").join("\n").trim();
 }
 
-/** Cuando dicen catering, orientar a opciones de alimentos del Sheet. */
-export function buildCatalogCateringAnswer(): string | null {
+export function getCatalogoServicios(): SheetCatalogRow[] {
+  return snapshot?.rows ?? [];
+}
+
+export async function ensureCatalogLoaded(): Promise<SheetCatalogRow[]> {
+  if (!snapshot?.rows.length) await refreshCatalog();
+  return snapshot?.rows ?? [];
+}
+
+/** Bloque para inyectar en briefing/LLM con datos reales del Sheet. */
+export function formatServiceDataForPrompt(query: string): string | null {
+  const matches = lookupCatalogServices(query);
+  if (!matches.length) return null;
+
+  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()].slice(0, 6);
+  const lines = unique.map((row) => {
+    const parsed = parseRowNotes(row.notas);
+    const price =
+      row.tienePrecio && row.precio
+        ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
+        : "Precio: sin listar — Alejandro cotiza";
+    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "";
+    return `- ${row.servicio} | ${price}${inclusion ? ` | ${inclusion}` : ""}`;
+  });
+
+  return ["DATOS DEL SERVICIO (fuente Google Sheet — usar solo esto, no inventar):", ...lines].join(
+    "\n"
+  );
+}
+
+function mentionedServiceLabel(query: string): string | null {
+  return parsePrimaryService(query);
+}
+
+export function buildCatalogNotFoundAnswer(serviceLabel: string): string {
+  return (
+    `Sí, podemos ayudarte con *${serviceLabel}*. ` +
+    `Lo confirmo con nuestro equipo para darte descripción, precio e inclusiones exactas y lo anoto en tu solicitud.`
+  );
+}
+
+/** Respuesta con datos reales del Sheet para un servicio concreto (precio y/o inclusiones). */
+export function buildCatalogServiceDetailAnswer(query: string): string | null {
   if (!snapshot?.rows.length) return null;
 
-  const taquizaLine = summarizeServicePrices("taquiza", 1);
-  const banqueteLine = summarizeServicePrices("banquete 3 tiempos", 1);
-  const brunchLine = summarizeServicePrices("brunch", 1);
-  const coffeeLine = summarizeServicePrices("coffee", 1);
+  const priceAnswer = buildCatalogPriceAnswer(query);
+  if (priceAnswer) return priceAnswer;
 
-  const options = [
-    taquizaLine ? `• *Taquiza* — desde ${taquizaLine.match(/\$[\d,.]+/)?.[0] ?? "consultar"}/pp` : "",
-    banqueteLine ? `• *Banquete* — desde ${banqueteLine.match(/\$[\d,.]+/)?.[0] ?? "consultar"}/pp` : "",
-    brunchLine ? `• *Brunch*` : "",
-    coffeeLine ? `• *Coffee break*` : "",
-    "• *Barras temáticas* (pizzas, sushi, mariscos, etc.)",
-  ].filter(Boolean);
+  const inclusionAnswer = buildCatalogInclusionAnswer(query);
+  if (inclusionAnswer) return inclusionAnswer;
+
+  const matches = lookupCatalogServices(query);
+  if (!matches.length) return null;
+
+  const row = matches[0]!;
+  const baseName = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+  const parsed = parseRowNotes(row.notas);
+  if (parsed.inclusion) {
+    return `Sí, manejamos *${baseName}*.\n\n${parsed.inclusion}`;
+  }
+
+  return null;
+}
+
+function responseLooksLikeGenericCateringMenu(text: string): boolean {
+  return GENERIC_CATERING_MENU_MARKERS.test(text);
+}
+
+export { responseLooksLikeGenericCateringMenu };
+
+/** Overview de categorías del Sheet — solo cuando el cliente pregunta genérico por catering. */
+export function buildCatalogCateringOverviewFromSheet(): string | null {
+  if (!snapshot?.rows.length) return null;
+
+  const byCategory = new Map<string, SheetCatalogRow>();
+  for (const row of snapshot.rows) {
+    const cat = row.categoria || row.servicio.split(" (")[0] || "Servicio";
+    if (!byCategory.has(cat)) byCategory.set(cat, row);
+  }
+
+  const foodCats = [...byCategory.entries()]
+    .filter(([cat]) =>
+      /taquiza|banquete|brunch|coffee|pizza|sushi|barra|parrillada|canap|crep|paella|pozole|americana|kosher|navide/i.test(
+        cat
+      )
+    )
+    .slice(0, 8);
+
+  if (!foodCats.length) return null;
+
+  const options = foodCats.map(([cat, row]) => {
+    const desde =
+      row.tienePrecio && row.precio
+        ? ` — desde ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}`
+        : "";
+    return `• *${cat}*${desde}`;
+  });
 
   return [
-    "Sí, manejamos catering para eventos. Estas son las opciones más pedidas:",
+    "Sí, manejamos catering para eventos. Del catálogo actual, estas son algunas opciones:",
     "",
     ...options,
     "",
-    "¿Cuál te interesa? Con eso te paso precios e inclusiones por nivel.",
+    "¿Cuál te interesa? Te paso precios e inclusiones de la que elijas.",
   ].join("\n");
+}
+
+/** @deprecated Usar buildCatalogServiceDetailAnswer o buildCatalogCateringOverviewFromSheet. */
+export function buildCatalogCateringAnswer(): string | null {
+  return buildCatalogCateringOverviewFromSheet();
 }
 
 /** Si preguntan qué incluye / menú, responde con detalle del Sheet. */
@@ -548,13 +642,50 @@ export function injectCatalogInclusionIfAsked(
   return buildCatalogInclusionAnswer(clientMessage) ?? aiResponse;
 }
 
-/** Si preguntan catering, orientar a opciones de alimentos del Sheet. */
+/** Si preguntan catering/servicio, enriquece con datos del Sheet (sin menú fijo). */
 export function injectCatalogCateringIfAsked(
   clientMessage: string | undefined,
   aiResponse: string
 ): string {
-  if (!clientMessage?.trim() || !clientMentionsCatering(clientMessage)) return aiResponse;
-  return buildCatalogCateringAnswer() ?? aiResponse;
+  if (!clientMessage?.trim()) return aiResponse;
+
+  const asksService = clientAsksServiceInfo(clientMessage) || clientAsksPrice(clientMessage);
+  const genericCatering =
+    clientMentionsCatering(clientMessage) && !parsePrimaryService(clientMessage);
+  const mentionsService =
+    isServiceRelatedMessage(clientMessage) && !!parsePrimaryService(clientMessage);
+
+  if (!asksService && !genericCatering && !mentionsService) return aiResponse;
+
+  if (responseLooksLikeGenericCateringMenu(aiResponse)) {
+    const detail = buildCatalogServiceDetailAnswer(clientMessage);
+    if (detail) return detail;
+  }
+
+  const detail = buildCatalogServiceDetailAnswer(clientMessage);
+  if (detail) {
+    if (
+      asksService ||
+      clientAsksInclusion(clientMessage) ||
+      responseLooksLikeGenericCateringMenu(aiResponse) ||
+      !aiResponse.trim()
+    ) {
+      return detail;
+    }
+    return aiResponse;
+  }
+
+  const label = mentionedServiceLabel(clientMessage);
+  if (label && (asksService || mentionsService)) {
+    return buildCatalogNotFoundAnswer(label);
+  }
+
+  if (genericCatering && !responseLooksLikeGenericCateringMenu(aiResponse)) {
+    const overview = buildCatalogCateringOverviewFromSheet();
+    if (overview) return overview;
+  }
+
+  return aiResponse;
 }
 
 /** Si el cliente preguntó precio, sustituye la respuesta GPT por tarifas del Sheet. */

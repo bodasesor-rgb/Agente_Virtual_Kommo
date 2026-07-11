@@ -32,6 +32,7 @@ import {
   clientAsksLocation,
   clientMentionsItalianTheme,
   isAmbiguousShortNumber,
+  clientAsksServiceInfo,
   recoverClienteNombreFromHistory,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre } from "../contact-name.js";
@@ -81,7 +82,13 @@ import { buildConsultativeNoPriceReply } from "../price-guard.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { getCatalogStatus } from "../services/catalogService.js";
+import {
+  getCatalogStatus,
+  buildCatalogNotFoundAnswer,
+  formatServiceDataForPrompt,
+  injectCatalogCateringIfAsked,
+  responseLooksLikeGenericCateringMenu,
+} from "../services/catalogService.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
 import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests } from "../services/imageProcessor.js";
 import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
@@ -1511,6 +1518,30 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/c[oó]mo\s+te\s+llamas/i.test(presWaiver), `${presWaiver} | logs: ${logs.join("; ")}`);
     assert.ok(/definir|propong|equipo/i.test(presWaiver), presWaiver);
+  });
+
+  await test("34. Catálogo — sin menú hardcodeado; datos del Sheet", () => {
+    assert.ok(clientAsksServiceInfo("Quiero información sobre la barra de pizzas"));
+    assert.ok(responseLooksLikeGenericCateringMenu(
+      "Sí, manejamos catering para eventos. Estas son las opciones más pedidas:\n\n¿Cuál te interesa?"
+    ));
+
+    const genericMenu =
+      "Sí, manejamos catering para eventos. Estas son las opciones más pedidas:\n\n• Taquiza\n\n¿Cuál te interesa? Con eso te paso precios";
+    const injected = injectCatalogCateringIfAsked(
+      "quiero cotizar banquete para mi boda",
+      genericMenu
+    );
+    assert.ok(!responseLooksLikeGenericCateringMenu(injected) || injected !== genericMenu, injected);
+
+    const notFound = buildCatalogNotFoundAnswer("Barra de pizzas");
+    assert.ok(/equipo|confirmo/i.test(notFound), notFound);
+
+    const promptBlock = formatServiceDataForPrompt("taquiza");
+    if (promptBlock) {
+      assert.ok(/DATOS DEL SERVICIO/i.test(promptBlock), promptBlock);
+      assert.ok(/taquiza/i.test(promptBlock), promptBlock);
+    }
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

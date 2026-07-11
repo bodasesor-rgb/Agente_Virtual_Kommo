@@ -32,7 +32,9 @@ import {
   buildCatalogPriceAnswer,
   buildCatalogInclusionAnswer,
   buildCatalogComparisonAnswer,
-  buildCatalogCateringAnswer,
+  buildCatalogServiceDetailAnswer,
+  buildCatalogNotFoundAnswer,
+  responseLooksLikeGenericCateringMenu,
   clientAsksInclusion,
 } from "./services/catalogService.js";
 import {
@@ -511,7 +513,9 @@ function buildFoodSalesReply(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   entityId?: string | number,
-  currentMessage?: string
+  currentMessage?: string,
+  filledSet?: Set<string>,
+  ctx?: NaturalQuestionContext
 ): string {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel =
@@ -525,22 +529,33 @@ function buildFoodSalesReply(
             ? `un ${tipo}`
             : "tu evento";
 
-  // Si el cliente ya nombró un servicio específico (ej. "Coffee Break"), se
-  // confirma ESE servicio en vez de empujar genéricamente banquete/taquiza —
-  // evita ignorar lo que realmente pidió.
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
+  const query = currentMessage?.trim() || mentionedService || "";
 
-  const catering = buildCatalogCateringAnswer();
-  const intro = mentionedService
-    ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
-    : `Para ${eventLabel}, lo más pedido es banquete o taquiza — banquete es más formal; taquiza más casual.`;
-  if (catering) {
-    return `${intro}\n\n${catering}`;
+  const appendNext = (body: string): string => {
+    if (!filledSet || !ctx) return body;
+    const pending = getNextPendingField(extracted, filledSet);
+    if (!pending) return body;
+    const nextQ = buildNaturalQuestion(pending, ctx);
+    if (body.includes(nextQ)) return body;
+    return `${body}\n\n${nextQ}`;
+  };
+
+  if (mentionedService || (currentMessage && isServiceRelatedMessage(currentMessage))) {
+    const detail = query ? buildCatalogServiceDetailAnswer(query) : null;
+    const intro = mentionedService
+      ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
+      : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
+
+    if (detail) {
+      return appendNext(`${intro}\n\n${detail}`);
+    }
+
+    const label = mentionedService ?? parsePrimaryService(currentMessage ?? "") ?? "ese servicio";
+    return appendNext(`${intro}\n\n${buildCatalogNotFoundAnswer(label)}`);
   }
-  const recomendaciones = buildRecommendationsReply(extracted, history, entityId, currentMessage);
-  // Si el cliente nombró un servicio específico, no se pierde la confirmación
-  // aunque el catálogo del Sheet no esté disponible en este momento.
-  return mentionedService ? `${intro} ${recomendaciones}` : recomendaciones;
+
+  return buildRecommendationsReply(extracted, history, entityId, currentMessage);
 }
 
 /** Sugerencias por tipo de evento cuando el cliente pide recomendaciones. */
@@ -1634,7 +1649,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     (clientMentionsCatering(currentMessage) ||
       (justAnsweredReq && isServiceRelatedMessage(currentMessage)))
   ) {
-    const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
+    const cateringAnswer = buildFoodSalesReply(
+      extracted,
+      history,
+      entityId,
+      currentMessage,
+      filledSet,
+      ctx
+    );
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info(
@@ -2081,6 +2103,30 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+
+  const historyHadGenericMenu = presHistory.some(
+    (m) =>
+      m.role === "assistant" &&
+      typeof m.content === "string" &&
+      responseLooksLikeGenericCateringMenu(m.content as string)
+  );
+  if (
+    responseLooksLikeGenericCateringMenu(mensaje) &&
+    historyHadGenericMenu &&
+    currentMessage?.trim()
+  ) {
+    const detail = buildCatalogServiceDetailAnswer(currentMessage);
+    if (detail) {
+      mensaje = detail;
+      log?.info({ entityId }, "GUARD: menú genérico repetido — detalle del Sheet");
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      if (pending) {
+        mensaje = buildNaturalQuestion(pending, ctx);
+        log?.info({ entityId }, "GUARD: menú genérico repetido — avanzar flujo");
+      }
+    }
+  }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }

@@ -248,6 +248,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Cocteler\xEDa", /\bcocteler[ií]a\b/i],
   ["M\xF3cteles", /\bm[oó]cteles?\b/i],
   ["Canap\xE9s", /\b(canap[eé]s?|bocadillos?)\b/i],
+  ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
   ["Pizzas", /\bpizza/i],
   ["Sushi", /\b(sushi|poke)\b/i],
   ["Taquiza", /\b(taquiza|tacos?)\b/i],
@@ -401,6 +402,12 @@ function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
   return /\bcatering\b/i.test(t) || /\b(brunch|desayuno)\b/i.test(t) || /\bbrunch\s*\/\s*desayuno/i.test(t) || /\bcoffee\s*break\b/i.test(t) || /\bbarra\s+de\s+caf[eé](?!\w)/i.test(t) || /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t) || /\bcomida\s+para\b/i.test(t) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t);
+}
+function clientAsksServiceInfo(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (!isServiceRelatedMessage(message)) return false;
+  return /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?)\b/i.test(t) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t);
 }
 function clientAsksPhone(message) {
   if (!message?.trim()) return false;
@@ -1182,7 +1189,8 @@ function parseRowNotes(notas) {
 }
 
 // src/services/catalogService.ts
-var REFRESH_MS = Number(process.env["CATALOG_REFRESH_MINUTES"] ?? "30") * 6e4;
+var GENERIC_CATERING_MENU_MARKERS = /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
+var REFRESH_MS = Number(process.env["CATALOG_REFRESH_MINUTES"] ?? "10") * 6e4;
 var snapshot = null;
 function emptyStatus() {
   return {
@@ -1399,26 +1407,98 @@ function buildCatalogComparisonAnswer() {
   ];
   return parts.filter((l) => l !== void 0 && l !== "").join("\n").trim();
 }
-function buildCatalogCateringAnswer() {
+function formatServiceDataForPrompt(query) {
+  const matches = lookupCatalogServices(query);
+  if (!matches.length) return null;
+  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()].slice(0, 6);
+  const lines = unique.map((row) => {
+    const parsed = parseRowNotes(row.notas);
+    const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
+    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "";
+    return `- ${row.servicio} | ${price}${inclusion ? ` | ${inclusion}` : ""}`;
+  });
+  return ["DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar solo esto, no inventar):", ...lines].join(
+    "\n"
+  );
+}
+function mentionedServiceLabel(query) {
+  return parsePrimaryService(query);
+}
+function buildCatalogNotFoundAnswer(serviceLabel) {
+  return `S\xED, podemos ayudarte con *${serviceLabel}*. Lo confirmo con nuestro equipo para darte descripci\xF3n, precio e inclusiones exactas y lo anoto en tu solicitud.`;
+}
+function buildCatalogServiceDetailAnswer(query) {
   if (!snapshot?.rows.length) return null;
-  const taquizaLine = summarizeServicePrices("taquiza", 1);
-  const banqueteLine = summarizeServicePrices("banquete 3 tiempos", 1);
-  const brunchLine = summarizeServicePrices("brunch", 1);
-  const coffeeLine = summarizeServicePrices("coffee", 1);
-  const options = [
-    taquizaLine ? `\u2022 *Taquiza* \u2014 desde ${taquizaLine.match(/\$[\d,.]+/)?.[0] ?? "consultar"}/pp` : "",
-    banqueteLine ? `\u2022 *Banquete* \u2014 desde ${banqueteLine.match(/\$[\d,.]+/)?.[0] ?? "consultar"}/pp` : "",
-    brunchLine ? `\u2022 *Brunch*` : "",
-    coffeeLine ? `\u2022 *Coffee break*` : "",
-    "\u2022 *Barras tem\xE1ticas* (pizzas, sushi, mariscos, etc.)"
-  ].filter(Boolean);
+  const priceAnswer = buildCatalogPriceAnswer(query);
+  if (priceAnswer) return priceAnswer;
+  const inclusionAnswer = buildCatalogInclusionAnswer(query);
+  if (inclusionAnswer) return inclusionAnswer;
+  const matches = lookupCatalogServices(query);
+  if (!matches.length) return null;
+  const row = matches[0];
+  const baseName = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+  const parsed = parseRowNotes(row.notas);
+  if (parsed.inclusion) {
+    return `S\xED, manejamos *${baseName}*.
+
+${parsed.inclusion}`;
+  }
+  return null;
+}
+function responseLooksLikeGenericCateringMenu(text) {
+  return GENERIC_CATERING_MENU_MARKERS.test(text);
+}
+function buildCatalogCateringOverviewFromSheet() {
+  if (!snapshot?.rows.length) return null;
+  const byCategory = /* @__PURE__ */ new Map();
+  for (const row of snapshot.rows) {
+    const cat = row.categoria || row.servicio.split(" (")[0] || "Servicio";
+    if (!byCategory.has(cat)) byCategory.set(cat, row);
+  }
+  const foodCats = [...byCategory.entries()].filter(
+    ([cat]) => /taquiza|banquete|brunch|coffee|pizza|sushi|barra|parrillada|canap|crep|paella|pozole|americana|kosher|navide/i.test(
+      cat
+    )
+  ).slice(0, 8);
+  if (!foodCats.length) return null;
+  const options = foodCats.map(([cat, row]) => {
+    const desde = row.tienePrecio && row.precio ? ` \u2014 desde ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+    return `\u2022 *${cat}*${desde}`;
+  });
   return [
-    "S\xED, manejamos catering para eventos. Estas son las opciones m\xE1s pedidas:",
+    "S\xED, manejamos catering para eventos. Del cat\xE1logo actual, estas son algunas opciones:",
     "",
     ...options,
     "",
-    "\xBFCu\xE1l te interesa? Con eso te paso precios e inclusiones por nivel."
+    "\xBFCu\xE1l te interesa? Te paso precios e inclusiones de la que elijas."
   ].join("\n");
+}
+function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
+  if (!clientMessage?.trim()) return aiResponse;
+  const asksService = clientAsksServiceInfo(clientMessage) || clientAsksPrice(clientMessage);
+  const genericCatering = clientMentionsCatering(clientMessage) && !parsePrimaryService(clientMessage);
+  const mentionsService = isServiceRelatedMessage(clientMessage) && !!parsePrimaryService(clientMessage);
+  if (!asksService && !genericCatering && !mentionsService) return aiResponse;
+  if (responseLooksLikeGenericCateringMenu(aiResponse)) {
+    const detail2 = buildCatalogServiceDetailAnswer(clientMessage);
+    if (detail2) return detail2;
+  }
+  const detail = buildCatalogServiceDetailAnswer(clientMessage);
+  if (detail) {
+    if (asksService || clientAsksInclusion(clientMessage) || responseLooksLikeGenericCateringMenu(aiResponse) || !aiResponse.trim()) {
+      return detail;
+    }
+    return aiResponse;
+  }
+  const label = mentionedServiceLabel(clientMessage);
+  if (label && (asksService || mentionsService)) {
+    return buildCatalogNotFoundAnswer(label);
+  }
+  if (genericCatering && !responseLooksLikeGenericCateringMenu(aiResponse)) {
+    const overview = buildCatalogCateringOverviewFromSheet();
+    if (overview) return overview;
+  }
+  return aiResponse;
 }
 
 // src/lucy-flow-guards.ts
@@ -1668,19 +1748,35 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
   const follow = pickVariant("requerimientos", history, entityId);
   return `${intro} ${ideas} ${follow}`.trim();
 }
-function buildFoodSalesReply(extracted, history, entityId, currentMessage) {
+function buildFoodSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
-  const catering = buildCatalogCateringAnswer();
-  const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `Para ${eventLabel}, lo m\xE1s pedido es banquete o taquiza \u2014 banquete es m\xE1s formal; taquiza m\xE1s casual.`;
-  if (catering) {
-    return `${intro}
+  const query = currentMessage?.trim() || mentionedService || "";
+  const appendNext = (body) => {
+    if (!filledSet || !ctx) return body;
+    const pending = getNextPendingField(extracted, filledSet);
+    if (!pending) return body;
+    const nextQ = buildNaturalQuestion(pending, ctx);
+    if (body.includes(nextQ)) return body;
+    return `${body}
 
-${catering}`;
+${nextQ}`;
+  };
+  if (mentionedService || currentMessage && isServiceRelatedMessage(currentMessage)) {
+    const detail = query ? buildCatalogServiceDetailAnswer(query) : null;
+    const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
+    if (detail) {
+      return appendNext(`${intro}
+
+${detail}`);
+    }
+    const label = mentionedService ?? parsePrimaryService(currentMessage ?? "") ?? "ese servicio";
+    return appendNext(`${intro}
+
+${buildCatalogNotFoundAnswer(label)}`);
   }
-  const recomendaciones = buildRecommendationsReply(extracted, history, entityId, currentMessage);
-  return mentionedService ? `${intro} ${recomendaciones}` : recomendaciones;
+  return buildRecommendationsReply(extracted, history, entityId, currentMessage);
 }
 function buildRecommendationsReply(extracted, history, entityId, currentMessage) {
   if (clientAsksBanqueteVsTaquiza(currentMessage)) {
@@ -2348,7 +2444,14 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
   } else if (allowSalesReplyOverride && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage))) {
-    const cateringAnswer = buildFoodSalesReply(extracted, history, entityId, currentMessage);
+    const cateringAnswer = buildFoodSalesReply(
+      extracted,
+      history,
+      entityId,
+      currentMessage,
+      filledSet,
+      ctx
+    );
     mensaje = cateringAnswer ?? buildRecommendationsReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info(
@@ -2703,6 +2806,22 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     log?.info({ entityId }, "GUARD: segunda pregunta de fecha \u2014 variante corta");
   }
   mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+  const historyHadGenericMenu = presHistory.some(
+    (m) => m.role === "assistant" && typeof m.content === "string" && responseLooksLikeGenericCateringMenu(m.content)
+  );
+  if (responseLooksLikeGenericCateringMenu(mensaje) && historyHadGenericMenu && currentMessage?.trim()) {
+    const detail = buildCatalogServiceDetailAnswer(currentMessage);
+    if (detail) {
+      mensaje = detail;
+      log?.info({ entityId }, "GUARD: men\xFA gen\xE9rico repetido \u2014 detalle del Sheet");
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      if (pending) {
+        mensaje = buildNaturalQuestion(pending, ctx);
+        log?.info({ entityId }, "GUARD: men\xFA gen\xE9rico repetido \u2014 avanzar flujo");
+      }
+    }
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripGammaLinks(text) {
@@ -14412,6 +14531,25 @@ async function runAll() {
     });
     assert.ok(!/c[oó]mo\s+te\s+llamas/i.test(presWaiver), `${presWaiver} | logs: ${logs.join("; ")}`);
     assert.ok(/definir|propong|equipo/i.test(presWaiver), presWaiver);
+  });
+  await test("34. Cat\xE1logo \u2014 sin men\xFA hardcodeado; datos del Sheet", () => {
+    assert.ok(clientAsksServiceInfo("Quiero informaci\xF3n sobre la barra de pizzas"));
+    assert.ok(responseLooksLikeGenericCateringMenu(
+      "S\xED, manejamos catering para eventos. Estas son las opciones m\xE1s pedidas:\n\n\xBFCu\xE1l te interesa?"
+    ));
+    const genericMenu = "S\xED, manejamos catering para eventos. Estas son las opciones m\xE1s pedidas:\n\n\u2022 Taquiza\n\n\xBFCu\xE1l te interesa? Con eso te paso precios";
+    const injected = injectCatalogCateringIfAsked(
+      "quiero cotizar banquete para mi boda",
+      genericMenu
+    );
+    assert.ok(!responseLooksLikeGenericCateringMenu(injected) || injected !== genericMenu, injected);
+    const notFound = buildCatalogNotFoundAnswer("Barra de pizzas");
+    assert.ok(/equipo|confirmo/i.test(notFound), notFound);
+    const promptBlock = formatServiceDataForPrompt("taquiza");
+    if (promptBlock) {
+      assert.ok(/DATOS DEL SERVICIO/i.test(promptBlock), promptBlock);
+      assert.ok(/taquiza/i.test(promptBlock), promptBlock);
+    }
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

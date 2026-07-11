@@ -2,7 +2,13 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
-import { getCatalogPromptBlock, injectCatalogPriceIfAsked, injectCatalogInclusionIfAsked, injectCatalogCateringIfAsked } from "../services/catalogService.js";
+import {
+  getCatalogPromptBlock,
+  injectCatalogPriceIfAsked,
+  injectCatalogInclusionIfAsked,
+  injectCatalogCateringIfAsked,
+  formatServiceDataForPrompt,
+} from "../services/catalogService.js";
 import { getTrainingExamples } from "../lib/training.js";
 import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
@@ -400,7 +406,7 @@ function buildLucyRedactionBriefing(opts: {
   const leadScore = calculateLeadScore(scoreContext);
   const stage = detectStage(scoreContext);
 
-  return buildRedactionBriefing({
+  const briefing = buildRedactionBriefing({
     extracted: opts.extracted,
     filledSet: opts.filledSet,
     crmMergedLines: opts.crmMergedLines,
@@ -414,6 +420,9 @@ function buildLucyRedactionBriefing(opts: {
     objectionType: objectionResult.type,
     cierreYaEnviado: opts.cierreYaEnviado,
   });
+
+  const serviceBlock = formatServiceDataForPrompt(opts.messageText);
+  return serviceBlock ? `${briefing}\n\n${serviceBlock}` : briefing;
 }
 
 async function applyCierreRefinement(

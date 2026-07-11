@@ -71,6 +71,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Coctelería", /\bcocteler[ií]a\b/i],
   ["Mócteles", /\bm[oó]cteles?\b/i],
   ["Canapés", /\b(canap[eé]s?|bocadillos?)\b/i],
+  ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
   ["Pizzas", /\bpizza/i],
   ["Sushi", /\b(sushi|poke)\b/i],
   ["Taquiza", /\b(taquiza|tacos?)\b/i],
@@ -344,6 +345,18 @@ export function clientMentionsCatering(message?: string): boolean {
     /\bcomida\s+para\b/i.test(t) ||
     /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) ||
     /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t)
+  );
+}
+
+/** Cliente pide información, precio o detalle de un servicio concreto. */
+export function clientAsksServiceInfo(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (!isServiceRelatedMessage(message)) return false;
+  return (
+    /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?)\b/i.test(t) ||
+    /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t) ||
+    /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t)
   );
 }
 
