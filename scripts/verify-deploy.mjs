@@ -52,6 +52,13 @@ async function main() {
           const got = h.git_commit.slice(0, 7);
           const want = EXPECTED_COMMIT.slice(0, 7);
           if (got !== want) {
+            console.log(
+              `[verify] Intento ${attempt}/${MAX_ATTEMPTS} — commit en servidor (${got}) ≠ esperado (${want}); esperando redeploy…`,
+            );
+            if (attempt < MAX_ATTEMPTS) {
+              await sleep(INTERVAL_MS);
+              continue;
+            }
             console.error(`[verify] ERROR: commit en servidor (${got}) ≠ esperado (${want})`);
             console.error("[verify] Hostinger aún no aplicó el último push — redeploy manual en hPanel.");
             process.exit(1);
