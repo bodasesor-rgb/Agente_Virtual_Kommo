@@ -1,0 +1,55 @@
+
+Lucy — Batería de 20 pruebas en vivo
+Base: https://midnightblue-mosquito-424375.hostingersite.com
+Juez LLM: gpt-4o-mini
+========================================================================
+Servidor: ok · prompt V7 · 10 jul 2026, 6:34 p.m.
+
+Test 01 — Cliente empresa — coffee break (no proveedor)… PASA
+Test 02 — Correo propio bodasesor — no guardar… PASA
+Test 03 — Corrige correo — nunca el nuestro… PASA
+Test 04 — Brief completo en un mensaje… PASA
+Test 05 — Pregunta de ubicación… FALLA
+Test 06 — Tema italiano — no taquiza… FALLA
+Test 07 — Razonamiento fútbol Italia… FALLA
+Test 08 — Anti-bucle menú sushi… PASA
+Test 09 — Pedido/entrega sushi (no barra pp)… PASA
+Test 10 — Precio taquiza con número… PASA
+Test 11 — Número ambiguo «el 5»… FALLA
+Test 12 — No reiniciar tras cierre… PASA
+Test 13 — Nombre completo Ana Pérez… PASA
+Test 14 — Precio a media captura… PASA
+Test 15 — Valet y flores — nunca «no tenemos»… PASA
+Test 16 — Tres servicios juntos… PASA
+Test 17 — Presentación correcta (Hola)… FALLA
+Test 18 — Expo corporativa / stand café… FALLA
+Test 19 — Saludo vago «buenas, información»… PASA
+Test 20 — Presupuesto «aún no sé» — sin bucle… FALLA
+
+========================================================================
+RESULTADO GLOBAL: 13/20 PASA
+
+| Test | Resultado | Qué se observó | Motivo | Tipo |
+|------|-----------|----------------|--------|------|
+| 1 | PASA | tipo=cliente, coffee break reconocido | Cumple criterio | - |
+| 2 | PASA | No guardó correo propio; respuesta: Sí, capybaraeventos@gmail.com es el correo d | Cumple criterio | - |
+| 3 | PASA | Correo final: laura.mtz@empresa.com | Cumple criterio | - |
+| 4 | PASA | Capturó datos del brief sin repreguntar lo obvio | Cumple criterio | - |
+| 5 | FALLA | Hola, soy Lucy, agente virtual de Bodasesor. Con gusto te ayudo. ¿Cómo te llamas | Sin ubicación clara | PROMPT |
+| 6 | FALLA | Hola, soy Lucy, agente virtual de Bodasesor. Con gusto te ayudo. ¿Cómo te llamas | No ofreció comida italiana | PROMPT |
+| 7 | FALLA | Lo más común es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, il | Sin recomendación italiana | PROMPT |
+| 8 | PASA | Sin repetir menú; avanza en sushi | Cumple criterio | - |
+| 9 | PASA | modo=pedido/entrega, Hola, soy Lucy, agente virtual de Bodasesor. Con gusto te a | Cumple criterio | - |
+| 10 | PASA | Precio: $300.00 | Cumple criterio | - |
+| 11 | FALLA | Para mandarte la info y que nuestro equipo te arme la propuesta, ¿a qué correo t | No pidió aclaración | PROMPT |
+| 12 | PASA | Cierre + respuesta post-gracias OK | Cumple criterio | - |
+| 13 | PASA | Nombre: Ana Pérez | Cumple criterio | - |
+| 14 | PASA | Precio + captura: Sí, manejamos Banquete 3 tiempos: • *Solo Alimentos* — $450.00 | Cumple criterio | - |
+| 15 | PASA | Hola, soy Lucy, agente virtual de Bodasesor. Con gusto te ayudo. ¿Cómo te llamas | Cumple criterio | - |
+| 16 | PASA | Requerimientos: taquiza, barra de bebidas y dj | Cumple criterio | - |
+| 17 | FALLA | Hola, soy Lucy, agente virtual de Bodasesor. Estoy aquí para ayudarte con lo que | No pidió nombre | PROMPT |
+| 18 | FALLA | forzó categoría boda | No entendió expo corporativa | CODIGO |
+| 19 | PASA | Hola, soy Lucy, agente virtual de Bodasesor. Con gusto te ayudo. ¿Cómo te llamas | Cumple criterio | - |
+| 20 | FALLA | Presupuesto flexible, 0 pregunta(s), flujo avanzó | GLOBAL: repite bloque de texto muy similar | CODIGO |
+
+Reporte JSON: /workspace/lucy-20-tests-report.json

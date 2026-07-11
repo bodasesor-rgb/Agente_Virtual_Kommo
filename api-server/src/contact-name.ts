@@ -78,6 +78,7 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   const firstToken = cleaned.split(/\s+/)[0] ?? "";
   const firstName = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
   if (!firstName || firstName.length < 2) return null;
+  if (/^(el|la|los|las|un|una)$/i.test(firstName)) return null;
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
   if (isQuoteIntentMessage(trimmed)) return null;

@@ -116,6 +116,7 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
 };
 
 const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
+  [/\b(expo(sición)?|feria|stand\s+de|congreso)\b/i, "evento corporativo"],
   [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
   [/\b(baby\s*shower)\b/i, "baby shower"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV años"],
@@ -208,6 +209,34 @@ export function clientAsksForRecommendations(message?: string): boolean {
     /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) ||
     /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) ||
     /algo\s+m[aá]s\s*\?/i.test(t)
+  );
+}
+
+/** Número suelto ambiguo — no es invitados ni nombre. */
+export function isAmbiguousShortNumber(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return /^el\s+\d{1,2}$/i.test(t) || /^\d{1,2}$/.test(t);
+}
+
+/** Cliente pregunta ubicación o cobertura de Bodasesor. */
+export function clientAsksLocation(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /d[oó]nde\s+(se\s+)?ubican/i.test(t) ||
+    /d[oó]nde\s+est[aá]n\s+ubicados/i.test(t) ||
+    /cu[aá]l\s+es\s+su\s+ubicaci[oó]n/i.test(t) ||
+    /zona\s+de\s+cobertura/i.test(t) ||
+    /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t)
+  );
+}
+
+/** Temática o comida italiana (incluye partido de Italia, mafia italiana, etc.). */
+export function clientMentionsItalianTheme(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return /\b(italian[ao]?|italia|mafia\s+italiana|pastas?|pizzas?|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
+    message
   );
 }
 
@@ -517,6 +546,9 @@ export function parseZonaFromText(text: string): string | null {
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
+
+  const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
+  if (expoMatch?.[0]) return expoMatch[0].trim();
 
   if (KNOWN_ZONES.test(trimmed)) {
     const m = trimmed.match(KNOWN_ZONES);
@@ -932,6 +964,7 @@ export function captureContextualAnswer(
     (asked === "nombre" || (!history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg))) &&
     !isAffirmativeOnlyMessage(msg) &&
     !isQuoteIntentMessage(msg) &&
+    !isAmbiguousShortNumber(msg) &&
     /[a-záéíóúüñ]/i.test(msg) &&
     !/@/.test(msg) &&
     !/\d{4,}/.test(msg)

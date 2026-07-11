@@ -40,6 +40,9 @@ import {
   clientAsksForRecommendations,
   clientAsksAboutTeam,
   clientAsksPhone,
+  clientAsksLocation,
+  clientMentionsItalianTheme,
+  isAmbiguousShortNumber,
   clientDeclinesMoreServices,
   clientMentionsEntertainment,
   clientMentionsPistaTarima,
@@ -452,6 +455,20 @@ export function buildPhoneAnswer(): string {
   ].join("\n");
 }
 
+/** Respuesta estándar de ubicación y cobertura (prompt sección 7). */
+export function buildLocationAnswer(): string {
+  return "Estamos en Ciudad de México y damos servicio en toda la CDMX y zona metropolitana. Para eventos fuera de la ciudad también podemos, según la fecha y el lugar.";
+}
+
+/** Pitch de comida italiana para temáticas o recomendaciones contextuales. */
+export function buildItalianFoodPitch(message?: string): string {
+  const inv = message?.match(/(\d+)\s*(?:personas?|invitados?)/i);
+  let pitch =
+    "Para temática italiana manejamos pastas, pizzas, barras de antipasti y estaciones de comida italiana";
+  if (inv) pitch += ` para ${inv[1]} personas`;
+  return `${pitch}.`;
+}
+
 function buildPistaTarimaSalesReply(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -550,6 +567,9 @@ export function buildRecommendationsReply(
   } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
     ideas =
       "Para XV años suele ir banquete o taquiza, mesa de dulces, mobiliario, DJ, iluminación y pista de baile.";
+  } else if (clientMentionsItalianTheme(texts) || clientMentionsItalianTheme(currentMessage)) {
+    ideas =
+      "Para algo con temática italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana — ideal si ven el partido o quieren ambiente italiano.";
   } else {
     ideas =
       "Lo más común es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, iluminación y mesa de dulces según el estilo del evento.";
@@ -760,6 +780,15 @@ export function buildOpeningAcknowledgment(
   if (/\bpista(\s+de\s+baile)?\b|\btarima/i.test(t)) {
     return "Claro, te ayudo con pista de baile o tarima para tu evento.";
   }
+  if (/expo|stand\s+de\s+caf[eé]|feria|congreso/i.test(t)) {
+    const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
+    return inv
+      ? `Te ayudo con el stand de café para tu expo (${inv[1]} personas).`
+      : "Te ayudo con el stand de café para tu expo.";
+  }
+  if (/italian|italia|mafia\s+italiana|men[uú]\s+italiano|pastas?|pizzas?/i.test(t)) {
+    return buildItalianFoodPitch(userText).replace(/\.$/, "");
+  }
   if (/cotiz|evento/.test(t)) return "Claro que te ayudo con tu evento.";
   if (/^hola[.!?\s]*$/i.test(userText.trim())) {
     return "Estoy aquí para ayudarte con lo que necesites para tu evento.";
@@ -778,6 +807,20 @@ export function buildFirstInteractionMessage(
   const filledSet = ctx.filledSet ?? new Set<string>();
   const ack = buildOpeningAcknowledgment(history, ctx.currentMessage);
   const intro = withIntro ? `${LUCY_INTRO} ` : "";
+
+  if (clientAsksLocation(ctx.currentMessage)) {
+    const nameQ = pickVariant("nombre", history, ctx.entityId);
+    return `${intro}${buildLocationAnswer()} ${nameQ}`.trim();
+  }
+
+  const userText = collectUserTexts(history, ctx.currentMessage).join(" ");
+  if (
+    clientMentionsItalianTheme(ctx.currentMessage) ||
+    (clientAsksForRecommendations(ctx.currentMessage) && clientMentionsItalianTheme(userText))
+  ) {
+    const nameQ = pickVariant("nombre", history, ctx.entityId);
+    return `${intro}${buildItalianFoodPitch(ctx.currentMessage)} ${nameQ}`.trim();
+  }
 
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
@@ -966,6 +1009,43 @@ function mergeWithPendingQuestion(
     return mensaje;
   }
   return `${base}\n\n${nextQ}`;
+}
+
+function textOverlapRatio(a: string, b: string): number {
+  const na = a.toLowerCase().replace(/\s+/g, " ").trim();
+  const nb = b.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  const wordsA = new Set(na.split(" ").filter((w) => w.length > 3));
+  const wordsB = new Set(nb.split(" ").filter((w) => w.length > 3));
+  if (!wordsA.size || !wordsB.size) return 0;
+  let shared = 0;
+  for (const w of wordsA) if (wordsB.has(w)) shared++;
+  return shared / Math.max(wordsA.size, wordsB.size);
+}
+
+/** Evita enviar al cliente el mismo bloque casi idéntico que el turno anterior. */
+function avoidRepeatPreviousReply(
+  mensaje: string,
+  presHistory: OpenAI.Chat.ChatCompletionMessageParam[]
+): string {
+  const prev = presHistory
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .map((m) => (m.content as string).trim())
+    .filter(Boolean);
+  if (prev.length === 0) return mensaje;
+
+  const last = prev[prev.length - 1]!;
+  if (textOverlapRatio(mensaje, last) < 0.68) return mensaje;
+
+  let out = mensaje
+    .replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "")
+    .replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
+  if (textOverlapRatio(out, last) < 0.65) return out.trim();
+
+  const questionLine =
+    mensaje.split("\n").find((l) => l.includes("?")) ?? mensaje.split("\n").pop();
+  return questionLine?.trim() || mensaje;
 }
 
 /** Evita re-preguntar lo ya capturado; si hace falta, pide solo el siguiente dato pendiente. */
@@ -1216,6 +1296,8 @@ export function buildPostCierreThanksReply(clientName?: string | null): string {
 function isInformativeClientAnswer(currentMessage?: string): boolean {
   if (!currentMessage?.trim()) return false;
   return (
+    clientAsksLocation(currentMessage) ||
+    clientMentionsItalianTheme(currentMessage) ||
     clientAsksForRecommendations(currentMessage) ||
     clientAsksBanqueteVsTaquiza(currentMessage) ||
     clientMentionsCatering(currentMessage) ||
@@ -1234,6 +1316,7 @@ function clientAskedFreeformQuestion(message?: string): boolean {
   const t = message.toLowerCase();
   if (/\?/.test(message)) return true;
   return (
+    clientAsksLocation(message) ||
     /cu[aá]nto|precio|costo|cat[aá]logo|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@/i.test(
       message
     ) ||
@@ -1399,6 +1482,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente preguntó por correo de Bodasesor");
+  } else if (isAmbiguousShortNumber(currentMessage) && !filledSet.has("Número de invitados")) {
+    mensaje = "¿Te refieres a 5 invitados o al día 5 del mes?";
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: número ambiguo — pedir aclaración");
+  } else if (clientAsksLocation(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
+    mensaje = `${buildLocationAnswer()} ${pickVariant("nombre", presHistory, entityId)}`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: ubicación + pedir nombre");
   } else if (
     needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)
   ) {
@@ -1870,6 +1961,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       mensaje = stripped;
     }
   }
+
+  mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }

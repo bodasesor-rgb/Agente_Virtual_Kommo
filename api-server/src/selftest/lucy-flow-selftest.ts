@@ -29,6 +29,9 @@ import {
   countLucyFieldAsks,
   clientDeclinesMoreServices,
   parseTipoEventoFromText,
+  clientAsksLocation,
+  clientMentionsItalianTheme,
+  isAmbiguousShortNumber,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
@@ -37,6 +40,11 @@ import {
   clientAsksIfCompanyEmailCorrect,
   buildCompanyEmailConfirmReply,
 } from "../tipoContacto.js";
+import {
+  buildFirstInteractionMessage,
+  buildLocationAnswer,
+  buildRecommendationsReply,
+} from "../lucy-flow-guards.js";
 import { advisorLabelForClient, normalizeAdvisorReferences, getAdvisorName, LEGACY_ADVISOR_NAMES, stripInternalCrmBlock, isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
 import {
@@ -1406,6 +1414,62 @@ async function runAll(): Promise<void> {
     assert.ok(closeReply.includes(CLOSING_SIGNATURE), closeReply);
     assert.ok(!/DATOS DEL CLIENTE/i.test(closeReply), closeReply);
     assert.ok(!/Información completa obtenida/i.test(closeReply), closeReply);
+  });
+
+  await test("32. Batería 20 — ubicación, italiano, expo, número ambiguo", () => {
+    assert.ok(clientAsksLocation("¿Dónde se ubican?"));
+    assert.ok(clientMentionsItalianTheme("fiesta temática de mafia italiana"));
+    assert.ok(buildLocationAnswer().includes("CDMX"));
+    assert.equal(parseTipoEventoFromText("stand de café para una expo"), "evento corporativo");
+    assert.equal(parseZonaFromText("en Expo Santa Fe"), "Expo Santa Fe");
+    assert.equal(sanitizeDisplayName("el 5"), null);
+
+    const locFirst = buildFirstInteractionMessage(
+      {
+        extracted: emptyExtracted(),
+        filledSet: new Set(),
+        history: [],
+        currentMessage: "¿Dónde se ubican?",
+      },
+      true
+    );
+    assert.ok(/CDMX|Ciudad de México/i.test(locFirst), locFirst);
+    assert.ok(/llamas|nombre/i.test(locFirst), locFirst);
+
+    const ambig = runGuards({
+      aiResponse: "¿A qué correo te lo envío?",
+      extracted: emptyExtracted({ tipo_evento: "cumpleaños" }),
+      filledSet: new Set(["Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "el 5",
+      history: [
+        { role: "user", content: "quiero cotizar un cumpleaños" },
+        { role: "assistant", content: "¿Cómo te llamas?" },
+      ],
+    });
+    assert.ok(/invitados|día\s*5|fecha/i.test(ambig), ambig);
+
+    const expoCaptures = scanConversationForCaptures(
+      [],
+      "Necesito un stand de café para una expo, 200 personas por día, en Expo Santa Fe.",
+      new Set()
+    );
+    assert.ok(
+      expoCaptures.some((c) => c.label === "Tipo de evento" && /corporativo/i.test(c.value)),
+      JSON.stringify(expoCaptures)
+    );
+    assert.ok(
+      expoCaptures.some((c) => c.label === "Número de invitados" && c.value === "200"),
+      JSON.stringify(expoCaptures)
+    );
+
+    const itRec = buildRecommendationsReply(
+      emptyExtracted(),
+      [],
+      1,
+      "Vamos a ver el partido de la selección de Italia, ¿qué me recomiendas de comida?"
+    );
+    assert.ok(/pasta|pizza|italian/i.test(itRec), itRec);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
