@@ -37,7 +37,7 @@ import {
   clientAsksIfCompanyEmailCorrect,
   buildCompanyEmailConfirmReply,
 } from "../tipoContacto.js";
-import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
+import { advisorLabelForClient, normalizeAdvisorReferences, getAdvisorName, LEGACY_ADVISOR_NAMES } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   applyLucyMessageGuards,
@@ -63,6 +63,10 @@ import {
   pickTransition,
   stripRobotAcknowledgments,
 } from "../lucy-flow-guards.js";
+import {
+  sanitizeKommoCrmLines,
+  sanitizeExtractedFromExternal,
+} from "../lib/external-ingest-sanitize.js";
 import { buildConsultativeNoPriceReply } from "../price-guard.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -1310,6 +1314,41 @@ async function runAll(): Promise<void> {
     assert.ok(/DJ/i.test(priceGuard), priceGuard);
     assert.ok(!/\$\s*5,?000/.test(priceGuard), priceGuard);
     assert.ok(/nuestro equipo/i.test(priceGuard), priceGuard);
+  });
+
+  await test("30. Asesor Alejandro + sanitización datos externos (Kommo/CRM)", () => {
+    assert.equal(getAdvisorName(), "Alejandro");
+
+    const rodrigoNorm = normalizeAdvisorReferences(
+      "Perfecto, ya tengo todo. Le paso estos datos a Rodrigo para que te arme una cotización.",
+      "María"
+    );
+    assert.ok(!/Rodrigo/i.test(rodrigoNorm), rodrigoNorm);
+    assert.ok(/nuestro equipo/i.test(rodrigoNorm), rodrigoNorm);
+
+    const dirtyCrm = sanitizeKommoCrmLines([
+      "- Nombre del cliente: Quiero hacer una cotización",
+      "- Correo electrónico: capybaraeventos@gmail.com",
+      "- Lugar/dirección del evento: 6m x 12m",
+      "- Tipo de evento: boda",
+    ]);
+    assert.equal(dirtyCrm.length, 1);
+    assert.ok(/boda/i.test(dirtyCrm[0] ?? ""));
+
+    const clean = sanitizeExtractedFromExternal(
+      emptyExtracted({
+        tipo_contacto: "proveedor",
+        correo: "bodasesor@gmail.com",
+        nombre: "Quiero cotizar",
+        direccion_evento: "8m x 10m",
+      }),
+      "Solicitud de cotización de café para evento corporativo Saint-Gobain"
+    );
+    assert.equal(clean.tipo_contacto, "cliente");
+    assert.equal(clean.correo, null);
+    assert.equal(clean.nombre, null);
+    assert.equal(clean.direccion_evento, null);
+    assert.ok(LEGACY_ADVISOR_NAMES.includes("Rodrigo"));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

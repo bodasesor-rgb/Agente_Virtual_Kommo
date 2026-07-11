@@ -44,6 +44,10 @@ import {
   markWebhookMessageProcessed,
   webhookMessageKey,
 } from "../lib/webhookDedup.js";
+import {
+  sanitizeExtractedFromExternal,
+  sanitizeKommoCrmLines,
+} from "../lib/external-ingest-sanitize.js";
 import { generateSummary, enrichExtractedFromText, buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   isPlaceholderLeadName,
@@ -541,7 +545,10 @@ function buildCrmContext(
   whatsappDisplayName?: string | null,
   fullHistory?: OpenAI.Chat.ChatCompletionMessageParam[]
 ): { context: string; allFieldsFilled: boolean; mergedLines: string[]; filledLabels: Set<string> } {
-  const mergedLines = [...crmLines];
+  const conversationText = collectUserTexts(fullHistory ?? history, currentMessage).join(" ");
+  extracted = sanitizeExtractedFromExternal(extracted, conversationText);
+
+  const mergedLines = [...sanitizeKommoCrmLines(crmLines)];
   const filledSet = new Set(mergedLines.map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
   const historyFull = fullHistory ?? history;
 
@@ -821,7 +828,7 @@ async function fetchLeadCurrentFields(
       lines.push(`- ${label}: ${val}`);
     }
 
-    return { crmLines: lines, lastLucyResponse };
+    return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse };
   } catch (err) {
     log.warn({ err }, "Error leyendo campos actuales del lead");
     return empty;
@@ -2379,7 +2386,7 @@ function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResul
     const lastLucy = cf["cf_respuesta_ia_1"];
     const lastLucyResponse =
       typeof lastLucy === "string" && lastLucy.trim() ? lastLucy.trim() : null;
-    return { crmLines: lines, lastLucyResponse };
+    return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse };
   }
 
   const lines: string[] = [];
@@ -2413,7 +2420,7 @@ function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResul
   const lastLucyResponse =
     typeof lastLucy === "string" && lastLucy.trim() ? lastLucy.trim() : null;
 
-  return { crmLines: lines, lastLucyResponse };
+  return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse };
 }
 
 function mapExtractedToSimulatorFields(

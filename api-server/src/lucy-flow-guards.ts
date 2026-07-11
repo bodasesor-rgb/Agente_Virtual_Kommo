@@ -129,14 +129,18 @@ export type PendingField =
   | "fecha"
   | "presupuesto";
 
-const QUESTION_VARIANTS: Record<PendingField, string[]> = {
+import { advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
+
+function getQuestionVariants(): Record<PendingField, string[]> {
+  const team = advisorLabelForClient();
+  return {
   nombre: [
     "¿Me regalas tu nombre para iniciar?",
     "¿Con quién tengo el gusto?",
     "¿Cómo te llamas?",
   ],
   correo: [
-    "Para mandarte la info y que Rodrigo te arme la propuesta, ¿a qué correo te lo envío?",
+    `Para mandarte la info y que ${team} te arme la propuesta, ¿a qué correo te lo envío?`,
     "¿Me compartes un correo para enviarte los detalles de la cotización?",
     "¿A qué correo te mando la información?",
   ],
@@ -168,9 +172,10 @@ const QUESTION_VARIANTS: Record<PendingField, string[]> = {
   presupuesto: [
     "¿Tienen algún rango de presupuesto en mente?",
     "¿Manejan algún presupuesto estimado para el evento?",
-    "¿Tienen idea del presupuesto o prefieren que Rodrigo les proponga opciones?",
+    `¿Tienen idea del presupuesto o prefieren que ${team} les proponga opciones?`,
   ],
 };
+}
 
 const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
@@ -411,7 +416,7 @@ function variantIndex(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   entityId?: string | number
 ): number {
-  const variants = QUESTION_VARIANTS[field];
+  const variants = getQuestionVariants()[field];
   const assistantTurns = history.filter((m) => m.role === "assistant").length;
   const seed = entityId != null ? String(entityId).length : 0;
   return (assistantTurns + seed) % variants.length;
@@ -422,7 +427,7 @@ function pickVariant(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   entityId?: string | number
 ): string {
-  const variants = QUESTION_VARIANTS[field];
+  const variants = getQuestionVariants()[field];
   const lastAssistant = history
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
     .slice(-1)[0]?.content as string | undefined;

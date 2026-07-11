@@ -64,7 +64,7 @@ function getObjectionModule(type: string): string {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 OBJECIÓN: PRECIO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Valida brevemente. Rodrigo puede armar opciones dentro de su presupuesto.
+Valida brevemente. Alejandro puede armar opciones dentro de su presupuesto.
 Pregunta el rango. NUNCA digas "es caro pero vale la pena". Máximo 3 líneas.`,
     tiempo: `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

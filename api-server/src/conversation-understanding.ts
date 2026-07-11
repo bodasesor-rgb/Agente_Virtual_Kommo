@@ -12,7 +12,7 @@ import {
   sanitizeDisplayName,
 } from "./contact-name.js";
 import { filterClientEmail } from "./client-email.js";
-import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
+import { getAdvisorName, LEGACY_ADVISOR_NAMES } from "./lib/bodasesorAdvisor.js";
 
 export type UnderstandingField =
   | "nombre"
@@ -159,7 +159,17 @@ export function clientAsksAboutTeam(message?: string, clientName?: string | null
     return false;
   }
 
+  const legacyTeamAsk = LEGACY_ADVISOR_NAMES.some((legacy) => {
+    const esc = legacy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return (
+      new RegExp(`^${esc}$`, "i").test(normalized) ||
+      new RegExp(`\\bqui[eé]n\\s+es\\s+${esc}\\b`, "i").test(t) ||
+      new RegExp(`\\best[aá]\\s+${esc}\\b`, "i").test(t)
+    );
+  });
+
   return (
+    legacyTeamAsk ||
     (new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name && name === advisor)) ||
     new RegExp(`\\bqui[eé]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t) ||
     /\bqui[eé]n\s+es\s+alejandro\b/i.test(t) ||
@@ -475,8 +485,10 @@ export function isDimensionText(text: string | null | undefined): boolean {
   if (!t) return false;
   return (
     /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) ||
+    /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t) ||
     /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) ||
-    /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t)
+    /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t) ||
+    /^\d+m\s*x\s*\d+m$/i.test(t)
   );
 }
 

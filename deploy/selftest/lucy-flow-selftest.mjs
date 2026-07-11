@@ -128,16 +128,24 @@ function filterClientEmail(email) {
 }
 
 // src/lib/bodasesorAdvisor.ts
+var LEGACY_ADVISOR_NAMES = ["Rodrigo"];
 function getAdvisorName() {
-  return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Rodrigo";
+  return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Alejandro";
 }
 function advisorLabelForClient(_clientName) {
   return "nuestro equipo";
 }
+function isLegacyAdvisorName(name) {
+  const lower = name.toLowerCase();
+  return LEGACY_ADVISOR_NAMES.some((legacy) => legacy.toLowerCase() === lower);
+}
 function normalizeAdvisorReferences(text, clientName) {
   const advisor = advisorLabelForClient(clientName);
   if (!text?.trim()) return text;
-  let out = text.replace(/\bRodrigo\b/gi, advisor);
+  let out = text;
+  for (const legacy of LEGACY_ADVISOR_NAMES) {
+    out = out.replace(new RegExp(`\\b${legacy}\\b`, "gi"), advisor);
+  }
   out = out.replace(
     /\b(le\s+paso\s+estos\s+datos\s+a|paso\s+estos\s+datos\s+a)\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
     `$1 ${advisor}`
@@ -150,7 +158,7 @@ function normalizeAdvisorReferences(text, clientName) {
   out = out.replace(
     /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+te\s+(arma|armar[aá]|incluir[aá]|cotiza)/g,
     (m, name) => {
-      if (name.toLowerCase() === "rodrigo") return m.replace(name, advisor);
+      if (isLegacyAdvisorName(name)) return m.replace(name, advisor);
       if (name.toLowerCase() === getAdvisorName().toLowerCase()) {
         return m.replace(name, advisor);
       }
@@ -279,7 +287,11 @@ function clientAsksAboutTeam(message, clientName) {
   if (name && name === advisor && new RegExp(`^${advisorEsc}$`, "i").test(normalized)) {
     return false;
   }
-  return new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name && name === advisor) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t) || /\bqui[eé]n\s+es\s+alejandro\b/i.test(t) || new RegExp(`\\best[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bd[o\xF3]nde\\s+est[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t) || /\bel\s+asesor\b/i.test(t);
+  const legacyTeamAsk = LEGACY_ADVISOR_NAMES.some((legacy) => {
+    const esc = legacy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`^${esc}$`, "i").test(normalized) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${esc}\\b`, "i").test(t) || new RegExp(`\\best[a\xE1]\\s+${esc}\\b`, "i").test(t);
+  });
+  return legacyTeamAsk || new RegExp(`^${advisorEsc}$`, "i").test(normalized) && !(name && name === advisor) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${advisorEsc}\\b`, "i").test(t) || /\bqui[eé]n\s+es\s+alejandro\b/i.test(t) || new RegExp(`\\best[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bhablo\\s+con\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bpuedo\\s+hablar\\s+con\\s+${advisorEsc}\\b`, "i").test(t) || new RegExp(`\\bd[o\xF3]nde\\s+est[a\xE1]\\s+${advisorEsc}\\b`, "i").test(t) || /\bel\s+asesor\b/i.test(t);
 }
 function clientAddsToQuote(message) {
   if (!message?.trim()) return false;
@@ -448,7 +460,7 @@ function parseInvitadosFromText(text) {
 function isDimensionText(text) {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  return /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t);
+  return /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) || /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t) || /^\d+m\s*x\s*\d+m$/i.test(t);
 }
 function parseSpaceDimensions(text) {
   const m = text.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
@@ -1036,10 +1048,33 @@ function stripStalePriceTalk(mensaje, currentMessage) {
   if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
   return mensaje.split(/(?<=[.!?])\s+|\n+/).filter((s) => !/\bdj\b/i.test(s) || clientAsksPrice(currentMessage)).filter((s) => !/alejandro te (incluye|da) el precio/i.test(s)).join(" ").replace(/\s{2,}/g, " ").trim();
 }
-function buildAlejandroPriceReply(serviceHint) {
+function buildConsultativeNoPriceReply(message) {
+  if (!message?.trim()) return null;
+  const t = message.toLowerCase();
+  const team = advisorLabelForClient();
+  if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t)) {
+    return `Las carpas protegen del sol y la lluvia en jard\xEDn o terraza. Hay Cathedral (techos altos), Pir\xE1mide (modernas) y Planas (funcionales). ${team} incluir\xE1 el precio seg\xFAn el tama\xF1o. \xBFQu\xE9 estilo va m\xE1s con tu evento?`;
+  }
+  if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t)) {
+    return `El DJ incluye equipo completo, micr\xF3fono para brindis e iluminaci\xF3n b\xE1sica; puedes mandar playlist. ${team} incluir\xE1 el precio en tu cotizaci\xF3n. \xBFYa tienes estilo de m\xFAsica o prefieres que lea el ambiente?`;
+  }
+  if (/iluminaci[oó]n/.test(t)) {
+    return `Opciones: uplighting LED en paredes, luces colgantes tipo edison o luces de pista. ${team} cotiza seg\xFAn el espacio. \xBFQu\xE9 ambiente buscas: elegante, rom\xE1ntico o fiesta?`;
+  }
+  if (/pista(\s+de\s+baile)?|tarimas?\b/.test(t)) {
+    return `Manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} incluir\xE1 el precio seg\xFAn las medidas de tu espacio. \xBFYa tienes idea del tama\xF1o?`;
+  }
+  if (/mobiliario/.test(t)) {
+    return `Manejamos mesas, sillas y mobiliario para eventos en distintos estilos. ${team} cotiza seg\xFAn cantidad y tipo. \xBFQu\xE9 mobiliario necesitas?`;
+  }
+  return null;
+}
+function buildAlejandroPriceReply(serviceHint, clientMessage) {
+  const consultative = clientMessage ? buildConsultativeNoPriceReply(clientMessage) : null;
+  if (consultative) return consultative;
   const svc = serviceHint?.trim() || "ese servicio";
-  const advisor = getAdvisorName();
-  return `S\xED, manejamos ${svc}. El precio exacto depende del evento \u2014 ${advisor} te lo incluye en tu cotizaci\xF3n personalizada.`;
+  const team = advisorLabelForClient();
+  return `S\xED, manejamos ${svc}. El precio depende del evento \u2014 ${team} te lo incluye en tu cotizaci\xF3n.`;
 }
 function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
   if (!responseHasInventedPrice(mensaje, currentMessage, recentContext)) {
@@ -1048,7 +1083,7 @@ function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
   const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`;
   const service = detectServiceLabel(ctx);
   const cleaned = stripPriceSentences(mensaje);
-  const safe = buildAlejandroPriceReply(service);
+  const safe = buildAlejandroPriceReply(service, currentMessage);
   if (!cleaned || cleaned.length < 15) return safe;
   const withoutCorreoInsist = cleaned.replace(/[^.!?\n]*correo[^.!?\n]*\?[^.!?\n]*/gi, "").trim();
   const base = withoutCorreoInsist.length > 20 ? withoutCorreoInsist : "";
@@ -1356,48 +1391,51 @@ function appendServiciosCatalogoHint(pregunta, adicional = false) {
   const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
   return `${pregunta.trim()} ${hint}`.trim();
 }
-var QUESTION_VARIANTS = {
-  nombre: [
-    "\xBFMe regalas tu nombre para iniciar?",
-    "\xBFCon qui\xE9n tengo el gusto?",
-    "\xBFC\xF3mo te llamas?"
-  ],
-  correo: [
-    "Para mandarte la info y que Rodrigo te arme la propuesta, \xBFa qu\xE9 correo te lo env\xEDo?",
-    "\xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?",
-    "\xBFA qu\xE9 correo te mando la informaci\xF3n?"
-  ],
-  tipo_evento: [
-    "\xBFQu\xE9 tipo de celebraci\xF3n es?",
-    "\xBFQu\xE9 festejan o qu\xE9 evento est\xE1n planeando?",
-    "Cu\xE9ntame, \xBFde qu\xE9 se trata el evento?"
-  ],
-  requerimientos: [
-    "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?",
-    "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
-    "\xBFQu\xE9 necesitas para el evento?"
-  ],
-  invitados: [
-    "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?",
-    "\xBFCu\xE1ntos invitados tienen contemplados?",
-    "\xBFTienen un estimado de invitados? Si a\xFAn no lo saben, sin problema \u2014 pueden darme un rango aproximado."
-  ],
-  zona: [
-    "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal.",
-    "\xBFEn qu\xE9 ciudad lo tendr\xEDan? Con la direcci\xF3n exacta podemos cotizar mejor.",
-    "\xBFCu\xE1l ser\xEDa la ciudad del evento? Si ya tienen sal\xF3n o direcci\xF3n, comp\xE1rtanmela."
-  ],
-  fecha: [
-    "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
-    "\xBFPara cu\xE1ndo lo tienen pensado?",
-    "\xBFYa hay d\xEDa definido o siguen viendo opciones?"
-  ],
-  presupuesto: [
-    "\xBFTienen alg\xFAn rango de presupuesto en mente?",
-    "\xBFManejan alg\xFAn presupuesto estimado para el evento?",
-    "\xBFTienen idea del presupuesto o prefieren que Rodrigo les proponga opciones?"
-  ]
-};
+function getQuestionVariants() {
+  const team = advisorLabelForClient();
+  return {
+    nombre: [
+      "\xBFMe regalas tu nombre para iniciar?",
+      "\xBFCon qui\xE9n tengo el gusto?",
+      "\xBFC\xF3mo te llamas?"
+    ],
+    correo: [
+      `Para mandarte la info y que ${team} te arme la propuesta, \xBFa qu\xE9 correo te lo env\xEDo?`,
+      "\xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?",
+      "\xBFA qu\xE9 correo te mando la informaci\xF3n?"
+    ],
+    tipo_evento: [
+      "\xBFQu\xE9 tipo de celebraci\xF3n es?",
+      "\xBFQu\xE9 festejan o qu\xE9 evento est\xE1n planeando?",
+      "Cu\xE9ntame, \xBFde qu\xE9 se trata el evento?"
+    ],
+    requerimientos: [
+      "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?",
+      "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+      "\xBFQu\xE9 necesitas para el evento?"
+    ],
+    invitados: [
+      "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?",
+      "\xBFCu\xE1ntos invitados tienen contemplados?",
+      "\xBFTienen un estimado de invitados? Si a\xFAn no lo saben, sin problema \u2014 pueden darme un rango aproximado."
+    ],
+    zona: [
+      "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal.",
+      "\xBFEn qu\xE9 ciudad lo tendr\xEDan? Con la direcci\xF3n exacta podemos cotizar mejor.",
+      "\xBFCu\xE1l ser\xEDa la ciudad del evento? Si ya tienen sal\xF3n o direcci\xF3n, comp\xE1rtanmela."
+    ],
+    fecha: [
+      "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
+      "\xBFPara cu\xE1ndo lo tienen pensado?",
+      "\xBFYa hay d\xEDa definido o siguen viendo opciones?"
+    ],
+    presupuesto: [
+      "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      "\xBFManejan alg\xFAn presupuesto estimado para el evento?",
+      `\xBFTienen idea del presupuesto o prefieren que ${team} les proponga opciones?`
+    ]
+  };
+}
 var FIELD_ASK_PATTERNS = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
   correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
@@ -1524,13 +1562,13 @@ function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
   return mensaje.replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo\.?\s*/gi, "").replace(/^\s+/, "").trim();
 }
 function variantIndex(field, history, entityId) {
-  const variants = QUESTION_VARIANTS[field];
+  const variants = getQuestionVariants()[field];
   const assistantTurns = history.filter((m) => m.role === "assistant").length;
   const seed = entityId != null ? String(entityId).length : 0;
   return (assistantTurns + seed) % variants.length;
 }
 function pickVariant(field, history, entityId) {
-  const variants = QUESTION_VARIANTS[field];
+  const variants = getQuestionVariants()[field];
   const lastAssistant = history.filter((m) => m.role === "assistant" && typeof m.content === "string").slice(-1)[0]?.content;
   const start = variantIndex(field, history, entityId);
   for (let i = 0; i < variants.length; i++) {
@@ -1570,7 +1608,7 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage) {
   const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
   const catering = buildCatalogCateringAnswer();
-  const intro = mentionedService ? `Perfecto, s\xED manejamos ${mentionedService} para ${eventLabel}.` : `Para ${eventLabel}, lo m\xE1s pedido es banquete o taquiza seg\xFAn el estilo que busquen \u2014 banquete es m\xE1s formal con servicio de meseros; taquiza es m\xE1s casual y flexible.`;
+  const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `Para ${eventLabel}, lo m\xE1s pedido es banquete o taquiza \u2014 banquete es m\xE1s formal; taquiza m\xE1s casual.`;
   if (catering) {
     return `${intro}
 
@@ -1605,14 +1643,46 @@ ${comparison}`;
   const follow = pickVariant("requerimientos", history, entityId);
   return appendServiciosCatalogoHint(`${ideas} ${follow}`.trim());
 }
-function contextualPrefix(field, extracted, currentMessage) {
+var LUCY_TRANSITIONS = [
+  "Genial.",
+  "Perfecto.",
+  "Excelente.",
+  "Suena muy bien.",
+  "Listo.",
+  "Claro.",
+  "Qu\xE9 padre."
+];
+var TRANSITION_START_PATTERN = /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\./i;
+function pickTransition(history) {
+  const assistants = history.filter((m) => m.role === "assistant" && typeof m.content === "string").map((m) => m.content.trim());
+  const last = assistants[assistants.length - 1] ?? "";
+  const lastMatch = last.match(TRANSITION_START_PATTERN);
+  const lastTransition = lastMatch ? lastMatch[0] : null;
+  const start = assistants.length % LUCY_TRANSITIONS.length;
+  for (let i = 0; i < LUCY_TRANSITIONS.length; i++) {
+    const candidate = LUCY_TRANSITIONS[(start + i) % LUCY_TRANSITIONS.length];
+    if (candidate !== lastTransition) return candidate;
+  }
+  return LUCY_TRANSITIONS[0];
+}
+function stripRobotAcknowledgments(mensaje) {
+  let out = mensaje;
+  out = out.replace(
+    /(?:Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)[,.]?\s+(?:\w+[,.]?\s+)?ya\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi,
+    ""
+  );
+  out = out.replace(/\bYa\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi, "");
+  out = out.replace(/\bPerfecto,\s+\w+\.\s+Ya\s+tengo\b[^.?!]+\.\s*/gi, "");
+  return out.replace(/\s{2,}/g, " ").trim();
+}
+function contextualPrefix(field, extracted, currentMessage, history = []) {
   const msg = currentMessage?.trim() ?? "";
   if (!msg) return "";
   if (field === "requerimientos" && clientMentionsCatering(currentMessage)) {
-    return "Perfecto. ";
+    return `${pickTransition(history)} `;
   }
   if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) {
-    return "Perfecto. ";
+    return `${pickTransition(history)} `;
   }
   if (field === "zona" && /\d+/.test(msg)) {
     return "Entendido. ";
@@ -1621,7 +1691,7 @@ function contextualPrefix(field, extracted, currentMessage) {
     return "Muy bien. ";
   }
   if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) {
-    return "Genial. ";
+    return `${pickTransition(history)} `;
   }
   return "";
 }
@@ -1716,7 +1786,7 @@ function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPrese
   const isTrueFirstTurn = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !alreadyStarted;
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
-      return "Perfecto. \xBFMe regalas tu nombre?";
+      return `${pickTransition(presHistory)} \xBFMe regalas tu nombre?`;
     }
     if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
       return buildFirstInteractionMessage(ctx, true);
@@ -1830,7 +1900,7 @@ function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
 function buildNaturalQuestion(field, ctx) {
   const history = ctx.history ?? [];
   const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage);
+  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history);
   const variant = pickVariant(field, history, ctx.entityId);
   if (field === "correo") {
     const correoCore = pickVariant("correo", history, ctx.entityId);
@@ -1853,7 +1923,7 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
   const userText = collectUserTexts(history, currentMessage).join(" ");
   const fromExtracted = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
   const service = fromExtracted ?? findMentionedService(userText);
-  const prefix = contextualPrefix("requerimientos", extracted, currentMessage);
+  const prefix = contextualPrefix("requerimientos", extracted, currentMessage, history);
   if (service) {
     const idx = variantIndex("requerimientos", history, entityId);
     const followUps = [
@@ -2115,7 +2185,7 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     const pending = getNextPendingField(extracted, filledSet);
     const needsAlejandroQuote = mentionsNoListedPriceService(currentMessage) || responseHasInventedPrice(aiResponse, currentMessage, ctxText2) && !mentionsListedPriceService(currentMessage);
     if (needsAlejandroQuote) {
-      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage));
+      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
       mensaje = needsNextStep && pending && pending !== "correo" ? `${priceReply}
 
 ${buildNaturalQuestion(pending, ctx)}` : priceReply;
@@ -2425,6 +2495,13 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     log?.warn({ entityId }, "GUARD: anotaci\xF3n interna de imagen filtrada al cliente \u2014 removida");
     mensaje = withoutImageAnnotation || "Gracias por la imagen.";
   }
+  if (conversationAlreadyStarted(filledSet, presHistoryForIntro)) {
+    const stripped = stripRobotAcknowledgments(mensaje);
+    if (stripped !== mensaje) {
+      log?.info({ entityId }, "GUARD: reconocimiento robot de dato capturado eliminado");
+      mensaje = stripped;
+    }
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripGammaLinks(text) {
@@ -2434,6 +2511,55 @@ function stripGammaLinks(text) {
 function stripImageAnnotation(text) {
   if (!text || !/\[imagen\s+adjunta:/i.test(text)) return text;
   return text.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+
+// src/lib/external-ingest-sanitize.ts
+function lineValue(line, label) {
+  const re = new RegExp(`^-?\\s*${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:\\s*`, "i");
+  return line.replace(re, "").trim();
+}
+function purgeOwnCompanyEmailLines(lines) {
+  return lines.filter((line) => {
+    if (!/^-?\s*Correo electrónico:/i.test(line)) return true;
+    const raw = lineValue(line, "Correo electr\xF3nico");
+    return !isOwnCompanyEmail(raw) && !!filterClientEmail(raw);
+  });
+}
+function purgeDimensionUbicacionLines(lines) {
+  return lines.filter((line) => {
+    if (!/^-?\s*Lugar\/dirección del evento:/i.test(line)) return true;
+    const raw = lineValue(line, "Lugar/direcci\xF3n del evento");
+    return !isDimensionText(raw);
+  });
+}
+function purgeInvalidNombreLines(lines) {
+  return lines.filter((line) => {
+    if (!/^-?\s*Nombre del cliente:/i.test(line)) return true;
+    const raw = lineValue(line, "Nombre del cliente");
+    return !!sanitizeCrmNombre(raw) && !isQuoteIntentMessage(raw);
+  });
+}
+function sanitizeKommoCrmLines(lines) {
+  let out = [...lines];
+  out = purgeInvalidNombreLines(out);
+  out = purgeOwnCompanyEmailLines(out);
+  out = purgeDimensionUbicacionLines(out);
+  return out;
+}
+function sanitizeExtractedFromExternal(extracted, conversationText) {
+  const out = { ...extracted };
+  out.tipo_contacto = resolveTipoContacto(out.tipo_contacto, conversationText ?? "") ?? "cliente";
+  const correo = filterClientEmail(out.correo);
+  out.correo = correo;
+  const nombre = sanitizeCrmNombre(out.nombre);
+  out.nombre = nombre && !isQuoteIntentMessage(nombre) ? nombre : null;
+  if (out.direccion_evento && isDimensionText(out.direccion_evento)) {
+    out.direccion_evento = null;
+  }
+  if (out.requerimientos_evento?.trim() && out.tipo_evento?.trim() && out.requerimientos_evento.trim().toLowerCase() === out.tipo_evento.trim().toLowerCase()) {
+    out.requerimientos_evento = null;
+  }
+  return out;
 }
 
 // src/selftest/lucy-flow-selftest.ts
@@ -13844,6 +13970,63 @@ async function runAll() {
       "Requerimientos o servicios"
     ]);
     assert.equal(getNextPendingField(emptyExtracted(), filled), "zona");
+  });
+  await test("29. Replit \u2014 transiciones, anti-robot, servicios sin precio consultivos", () => {
+    const hist = [
+      { role: "assistant", content: "Perfecto. \xBFA qu\xE9 correo te lo env\xEDo?" }
+    ];
+    const t1 = pickTransition(hist);
+    assert.notEqual(t1, "Perfecto.", t1);
+    const stripped = stripRobotAcknowledgments(
+      "Perfecto, Pelene. Ya tengo tu correo. \xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?"
+    );
+    assert.ok(!/ya\s+tengo\s+tu\s+correo/i.test(stripped), stripped);
+    assert.ok(/personas/i.test(stripped), stripped);
+    const dj = buildConsultativeNoPriceReply("\xBFCu\xE1nto cuesta el DJ?");
+    assert.ok(dj && /DJ/i.test(dj) && /nuestro equipo/i.test(dj) && dj.includes("?"), dj ?? "");
+    const carpa = buildConsultativeNoPriceReply("necesito carpas para el jard\xEDn");
+    assert.ok(carpa && /carpas?/i.test(carpa) && /Cathedral|Pirámide|Planas/i.test(carpa), carpa ?? "");
+    const priceGuard = runGuards({
+      aiResponse: "El DJ cuesta $5,000.",
+      extracted: emptyExtracted({ nombre: "Ana" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "\xBFCu\xE1nto cuesta el DJ?"
+    });
+    assert.ok(/DJ/i.test(priceGuard), priceGuard);
+    assert.ok(!/\$\s*5,?000/.test(priceGuard), priceGuard);
+    assert.ok(/nuestro equipo/i.test(priceGuard), priceGuard);
+  });
+  await test("30. Asesor Alejandro + sanitizaci\xF3n datos externos (Kommo/CRM)", () => {
+    assert.equal(getAdvisorName(), "Alejandro");
+    const rodrigoNorm = normalizeAdvisorReferences(
+      "Perfecto, ya tengo todo. Le paso estos datos a Rodrigo para que te arme una cotizaci\xF3n.",
+      "Mar\xEDa"
+    );
+    assert.ok(!/Rodrigo/i.test(rodrigoNorm), rodrigoNorm);
+    assert.ok(/nuestro equipo/i.test(rodrigoNorm), rodrigoNorm);
+    const dirtyCrm = sanitizeKommoCrmLines([
+      "- Nombre del cliente: Quiero hacer una cotizaci\xF3n",
+      "- Correo electr\xF3nico: capybaraeventos@gmail.com",
+      "- Lugar/direcci\xF3n del evento: 6m x 12m",
+      "- Tipo de evento: boda"
+    ]);
+    assert.equal(dirtyCrm.length, 1);
+    assert.ok(/boda/i.test(dirtyCrm[0] ?? ""));
+    const clean = sanitizeExtractedFromExternal(
+      emptyExtracted({
+        tipo_contacto: "proveedor",
+        correo: "bodasesor@gmail.com",
+        nombre: "Quiero cotizar",
+        direccion_evento: "8m x 10m"
+      }),
+      "Solicitud de cotizaci\xF3n de caf\xE9 para evento corporativo Saint-Gobain"
+    );
+    assert.equal(clean.tipo_contacto, "cliente");
+    assert.equal(clean.correo, null);
+    assert.equal(clean.nombre, null);
+    assert.equal(clean.direccion_evento, null);
+    assert.ok(LEGACY_ADVISOR_NAMES.includes("Rodrigo"));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
