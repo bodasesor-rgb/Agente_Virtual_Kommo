@@ -30,3 +30,21 @@ export function filterClientEmail(email: string | null | undefined): string | nu
   if (!norm || isOwnCompanyEmail(norm)) return null;
   return email!.trim();
 }
+
+const SUSPICIOUS_TLD = /\.(comm|con|cmo|gmial|gmal|gmai|hotmial|yaho|outlok)\b/i;
+
+/** Dominio/TLD básico — detecta typos como gmail.comm antes de guardar. */
+export function looksLikeValidClientEmail(email: string | null | undefined): boolean {
+  const norm = normalizeEmail(email);
+  if (!norm) return false;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm)) return false;
+  const domain = norm.split("@")[1] ?? "";
+  if (!domain || /\.\./.test(domain) || domain.startsWith(".") || domain.endsWith(".")) return false;
+  if (SUSPICIOUS_TLD.test(domain)) return false;
+  const tld = domain.split(".").pop() ?? "";
+  return tld.length >= 2 && /^[a-z]{2,}$/i.test(tld);
+}
+
+export function buildEmailConfirmationPrompt(email: string): string {
+  return `¿Me confirmas tu correo? Lo leí como ${email.trim()}, quiero anotarlo bien.`;
+}

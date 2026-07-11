@@ -213,11 +213,24 @@ export function clientAsksForRecommendations(message?: string): boolean {
   );
 }
 
-/** Número suelto ambiguo — no es invitados ni nombre. */
+/** Número suelto ambiguo — solo 1-2 dígitos ≤ 31 (día del mes vs pocos invitados). */
 export function isAmbiguousShortNumber(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  return /^el\s+\d{1,2}$/i.test(t) || /^\d{1,2}$/.test(t);
+
+  const elMatch = t.match(/^el\s+(\d{1,2})$/i);
+  if (elMatch) {
+    const n = parseInt(elMatch[1]!, 10);
+    return n >= 1 && n <= 31;
+  }
+
+  const bareMatch = t.match(/^(\d{1,2})$/);
+  if (bareMatch) {
+    const n = parseInt(bareMatch[1]!, 10);
+    return n >= 1 && n <= 31;
+  }
+
+  return false;
 }
 
 /** Limpia extracción GPT cuando el turno es un número suelto ambiguo. */
@@ -348,8 +361,19 @@ export function clientMentionsCatering(message?: string): boolean {
   );
 }
 
+/** Cliente pregunta si manejan / tienen un servicio (aunque no pida precio). */
+export function clientAsksIfWeOfferService(message?: string): boolean {
+  if (!message?.trim() || !/\?/.test(message)) return false;
+  const t = message.toLowerCase();
+  return (
+    isServiceRelatedMessage(message) &&
+    /\b(tienen|tienes|manejan|manejas|ofrecen|ofreces|cuentan|hay|traen)\b/i.test(t)
+  );
+}
+
 /** Cliente pide información, precio o detalle de un servicio concreto. */
 export function clientAsksServiceInfo(message?: string): boolean {
+  if (clientAsksIfWeOfferService(message)) return true;
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
   if (!isServiceRelatedMessage(message)) return false;

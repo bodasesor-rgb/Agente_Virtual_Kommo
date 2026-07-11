@@ -36,7 +36,8 @@ import {
   recoverClienteNombreFromHistory,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre } from "../contact-name.js";
-import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
+import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
+import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
 import {
   resolveTipoContacto,
   clientAsksIfCompanyEmailCorrect,
@@ -73,6 +74,7 @@ import {
   pickTransition,
   stripRobotAcknowledgments,
   buildCorreoQuestion,
+  buildNaturalQuestion,
 } from "../lucy-flow-guards.js";
 import {
   sanitizeKommoCrmLines,
@@ -1383,6 +1385,14 @@ async function runAll(): Promise<void> {
     assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm), norm);
     assert.ok(/nuestro equipo te arme/i.test(norm), norm);
 
+    const vocative1 = normalizeAdvisorReferences("Qué padre. Alejandro, ¿me confirmas la ciudad?", "Alejandro");
+    assert.ok(/Qué padre/i.test(vocative1), vocative1);
+    assert.ok(/Alejandro,\s*¿me confirmas/i.test(vocative1), vocative1);
+    assert.ok(!/nuestro equipo,\s*¿me confirmas/i.test(vocative1), vocative1);
+
+    const vocative2 = normalizeAdvisorReferences("¡Con gusto, Alejandro! Nuestro equipo ya tiene tus datos.", "Alejandro");
+    assert.ok(/Con gusto,\s+Alejandro/i.test(vocative2), vocative2);
+
     assert.ok(isStaffAdvisorName("Rodrigo"));
     assert.ok(!isValidRequerimientosValue("bautizo"));
     assert.ok(isValidRequerimientosValue("servicio completo"));
@@ -1456,6 +1466,36 @@ async function runAll(): Promise<void> {
       ],
     });
     assert.ok(/invitados|día\s*5|fecha/i.test(ambig), ambig);
+
+    assert.ok(!isAmbiguousShortNumber("40"));
+    assert.ok(isAmbiguousShortNumber("5"));
+    assert.ok(isAmbiguousShortNumber("el 5"));
+    assert.equal(parseInvitadosFromText("40"), "40");
+
+    const babyRec = buildRecommendationsReply(
+      emptyExtracted({ tipo_evento: "baby shower" }),
+      [],
+      1,
+      "¿qué opciones de alimentos me recomiendas?"
+    );
+    assert.ok(/baby shower|brunch|dulces|canap/i.test(babyRec), babyRec);
+    assert.ok(!/^[^.]*taquiza/i.test(babyRec.split(".")[0] ?? ""), babyRec);
+
+    const mobGuard = runGuards({
+      aiResponse: "¿Ya tienen fecha?",
+      extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "¿Tienes mobiliario?",
+    });
+    assert.ok(/mobiliario|mesas|sillas/i.test(mobGuard), mobGuard);
+    assert.ok(/fecha/i.test(mobGuard), mobGuard);
 
     const expoCaptures = scanConversationForCaptures(
       [],
@@ -1542,6 +1582,26 @@ async function runAll(): Promise<void> {
       assert.ok(/DATOS DEL SERVICIO/i.test(promptBlock), promptBlock);
       assert.ok(/taquiza/i.test(promptBlock), promptBlock);
     }
+  });
+
+  await test("36. Pulido WhatsApp — formato, correo sospechoso, transición post-email", () => {
+    const formatted = formatForWhatsApp("**Taquiza**\n\n- opción 1\n- opción 2\n\n## Precios");
+    assert.ok(!/\*\*/.test(formatted), formatted);
+    assert.ok(/\*Taquiza\*/.test(formatted), formatted);
+    assert.ok(/• opción 1/.test(formatted), formatted);
+    assert.ok(!/^##/m.test(formatted), formatted);
+
+    assert.ok(!looksLikeValidClientEmail("a.juan@gmail.comm"));
+    assert.ok(looksLikeValidClientEmail("a.juan@gmail.com"));
+    assert.ok(/confirmas tu correo/i.test(buildEmailConfirmationPrompt("a.juan@gmail.comm")));
+
+    const afterEmail = buildNaturalQuestion("tipo_evento", {
+      extracted: emptyExtracted({ nombre: "María", correo: "maria@test.com", tipo_evento: null }),
+      history: [{ role: "user", content: "maria@test.com" }],
+      currentMessage: "maria@test.com",
+    });
+    assert.ok(/gracias por tu correo/i.test(afterEmail), afterEmail);
+    assert.ok(!/^Genial/i.test(afterEmail), afterEmail);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
