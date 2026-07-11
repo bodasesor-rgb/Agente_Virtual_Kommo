@@ -11,6 +11,10 @@ imports/
 api-server/data/
 api-server/data/lucy-pgdata/
 **/postmaster.pid
+lucy-20-tests-report.json
+lucy-20-tests.log
+lucy-20-retest.json
+lucy-20-retest.log
 lib/db/node_modules/
 whatsapp-sender/node_modules/
 **/node_modules/
