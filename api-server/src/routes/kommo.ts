@@ -1,6 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import {
+  AUTO_CLIENTS,
+  getClientById,
+  runAllAutoClients,
+  runAutoClient,
+} from "../../scripts/simulator-auto-client-lib.mjs";
 import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
@@ -2723,18 +2727,11 @@ router.post("/kommo/simulator/reset", (req: Request, res: Response) => {
   res.json({ status: "success", lead_id: leadId });
 });
 
-async function loadAutoClientLib() {
-  const deployRoot = path.dirname(fileURLToPath(import.meta.url));
-  const libPath = path.join(deployRoot, "scripts/simulator-auto-client-lib.mjs");
-  return import(libPath);
-}
-
 router.get("/kommo/simulator/auto-clients", async (_req: Request, res: Response) => {
   try {
-    const lib = await loadAutoClientLib();
     res.json({
       status: "success",
-      clients: lib.AUTO_CLIENTS.map((c) => ({
+      clients: AUTO_CLIENTS.map((c) => ({
         id: c.id,
         slug: c.slug,
         name: c.name,
@@ -2766,8 +2763,7 @@ router.post("/kommo/simulator/auto-client", async (req: Request, res: Response) 
   }
 
   try {
-    const lib = await loadAutoClientLib();
-    const client = lib.getClientById(clientId);
+    const client = getClientById(clientId);
     if (!client) {
       res.status(400).json({ status: "error", error: "unknown_client", client_id: clientId });
       return;
@@ -2779,7 +2775,7 @@ router.post("/kommo/simulator/auto-client", async (req: Request, res: Response) 
 
     req.log.info({ clientId: client.id, name: client.name }, "Simulator: iniciando auto-cliente");
 
-    const result = await lib.runAutoClient(base, client, { useJudge });
+    const result = await runAutoClient(base, client, { useJudge });
 
     req.log.info(
       { clientId: client.id, pass: result.pass, turns: result.transcript?.length },
@@ -2813,12 +2809,11 @@ router.post("/kommo/simulator/auto-clients/run", async (req: Request, res: Respo
   }
 
   try {
-    const lib = await loadAutoClientLib();
     const base =
       (typeof body.base_url === "string" && body.base_url.trim()) ||
       `${req.protocol}://${req.get("host")}`;
 
-    const report = await lib.runAllAutoClients(base, {
+    const report = await runAllAutoClients(base, {
       useJudge,
       clientIds: clientIds ?? undefined,
     });
