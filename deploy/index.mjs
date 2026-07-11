@@ -80565,7 +80565,7 @@ var health_default = router;
 var import_express3 = __toESM(require_express2(), 1);
 
 // scripts/simulator-auto-client-lib.mjs
-var DEFAULT_BASE = process.env.LUCY_SIM_BASE?.replace(/\/$/, "") || "https://midnightblue-mosquito-424375.hostingersite.com";
+var DEFAULT_BASE = process.env.LUCY_SIM_BASE?.replace(/\/$/, "") || process.env.LUCY_PUBLIC_URL?.replace(/\/$/, "") || "https://midnightblue-mosquito-424375.hostingersite.com";
 var CLIENT_MODEL = process.env.LUCY_CLIENT_MODEL ?? "gpt-4o-mini";
 var JUDGE_MODEL = process.env.LUCY_JUDGE_MODEL ?? "gpt-4o-mini";
 var DELAY_MS = Number(process.env.LUCY_TEST_DELAY_MS ?? 900);
@@ -80800,19 +80800,28 @@ function getClientById(id) {
   const n3 = Number(id);
   return AUTO_CLIENTS.find((c2) => c2.id === n3 || c2.leadId === n3 || c2.slug === id);
 }
+function normalizeSimulatorBase(base) {
+  const trimmed = String(base || DEFAULT_BASE).replace(/\/$/, "");
+  if (trimmed.startsWith("http://") && /hostingersite\.com|bodasesor/i.test(trimmed)) {
+    return trimmed.replace(/^http:\/\//i, "https://");
+  }
+  return trimmed;
+}
 var leadState = /* @__PURE__ */ new Map();
 async function resetSimulator(base, leadId) {
+  const apiBase = normalizeSimulatorBase(base);
   leadState.delete(leadId);
-  await fetch(`${base}/api/kommo/simulator/reset`, {
+  await fetch(`${apiBase}/api/kommo/simulator/reset`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ lead_id: leadId })
   });
 }
 async function sendToLucy(base, leadId, text2, client2) {
+  const apiBase = normalizeSimulatorBase(base);
   const prev = leadState.get(leadId);
   const custom_fields = { ...prev?.fields ?? {} };
-  const res = await fetch(`${base}/api/kommo/simulator`, {
+  const res = await fetch(`${apiBase}/api/kommo/simulator`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -80831,7 +80840,21 @@ async function sendToLucy(base, leadId, text2, client2) {
       }
     })
   });
-  const data = await res.json();
+  const raw = await res.text();
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    data = {
+      status: "error",
+      error: `HTTP ${res.status}`,
+      reply: raw.slice(0, 200) || `Respuesta no JSON (${res.status})`
+    };
+  }
+  if (!res.ok && !data.error) {
+    data.error = data.error || `HTTP ${res.status}`;
+    data.status = data.status || "error";
+  }
   if (data.status === "success") leadState.set(leadId, data);
   return data;
 }
@@ -81142,6 +81165,22 @@ async function runAllAutoClients(base, options = {}) {
   }
   const passed = results.filter((r2) => r2.pass).length;
   return { base, at: (/* @__PURE__ */ new Date()).toISOString(), passed, total: results.length, results };
+}
+
+// src/lib/publicUrl.ts
+var DEFAULT_PUBLIC_BASE = "https://midnightblue-mosquito-424375.hostingersite.com";
+function resolveLucyPublicBase(req) {
+  const fromEnv = process.env.LUCY_PUBLIC_URL?.trim();
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+  if (req) {
+    const host = (req.get("x-forwarded-host") || req.get("host") || "").split(",")[0]?.trim();
+    if (host) {
+      let proto = (req.get("x-forwarded-proto") || req.protocol || "https").split(",")[0]?.trim();
+      if (/hostingersite\.com|bodasesor/i.test(host)) proto = "https";
+      return `${proto}://${host}`.replace(/\/$/, "");
+    }
+  }
+  return DEFAULT_PUBLIC_BASE;
 }
 
 // src/routes/kommo.ts
@@ -91173,7 +91212,7 @@ router3.post("/kommo/simulator/auto-client", async (req, res) => {
       res.status(400).json({ status: "error", error: "unknown_client", client_id: clientId });
       return;
     }
-    const base = typeof body2.base_url === "string" && body2.base_url.trim() || `${req.protocol}://${req.get("host")}`;
+    const base = typeof body2.base_url === "string" && body2.base_url.trim() || resolveLucyPublicBase(req);
     req.log.info({ clientId: client2.id, name: client2.name }, "Simulator: iniciando auto-cliente");
     const result = await runAutoClient(base, client2, { useJudge });
     req.log.info(
@@ -91202,7 +91241,7 @@ router3.post("/kommo/simulator/auto-clients/run", async (req, res) => {
     return;
   }
   try {
-    const base = typeof body2.base_url === "string" && body2.base_url.trim() || `${req.protocol}://${req.get("host")}`;
+    const base = typeof body2.base_url === "string" && body2.base_url.trim() || resolveLucyPublicBase(req);
     const report = await runAllAutoClients(base, {
       useJudge,
       clientIds: clientIds ?? void 0
@@ -91811,6 +91850,7 @@ init_logger3();
 var app = (0, import_express12.default)();
 var simuladorDir = path3.join(__dirname, "simulador");
 var simuladorIndex = path3.join(simuladorDir, "index.html");
+app.set("trust proxy", 1);
 app.use(
   (0, import_pino_http.default)({
     logger,

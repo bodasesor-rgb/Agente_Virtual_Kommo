@@ -5,6 +5,7 @@ import {
   runAllAutoClients,
   runAutoClient,
 } from "../../scripts/simulator-auto-client-lib.mjs";
+import { resolveLucyPublicBase } from "../lib/publicUrl.js";
 import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
@@ -2770,8 +2771,7 @@ router.post("/kommo/simulator/auto-client", async (req: Request, res: Response) 
     }
 
     const base =
-      (typeof body.base_url === "string" && body.base_url.trim()) ||
-      `${req.protocol}://${req.get("host")}`;
+      (typeof body.base_url === "string" && body.base_url.trim()) || resolveLucyPublicBase(req);
 
     req.log.info({ clientId: client.id, name: client.name }, "Simulator: iniciando auto-cliente");
 
@@ -2810,8 +2810,7 @@ router.post("/kommo/simulator/auto-clients/run", async (req: Request, res: Respo
 
   try {
     const base =
-      (typeof body.base_url === "string" && body.base_url.trim()) ||
-      `${req.protocol}://${req.get("host")}`;
+      (typeof body.base_url === "string" && body.base_url.trim()) || resolveLucyPublicBase(req);
 
     const report = await runAllAutoClients(base, {
       useJudge,

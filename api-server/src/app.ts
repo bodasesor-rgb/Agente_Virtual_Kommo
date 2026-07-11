@@ -9,6 +9,8 @@ const app: Express = express();
 const simuladorDir = path.join(__dirname, "simulador");
 const simuladorIndex = path.join(simuladorDir, "index.html");
 
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,

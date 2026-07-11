@@ -4,6 +4,7 @@
 
 export const DEFAULT_BASE =
   process.env.LUCY_SIM_BASE?.replace(/\/$/, "") ||
+  process.env.LUCY_PUBLIC_URL?.replace(/\/$/, "") ||
   "https://midnightblue-mosquito-424375.hostingersite.com";
 
 export const CLIENT_MODEL = process.env.LUCY_CLIENT_MODEL ?? "gpt-4o-mini";
@@ -270,11 +271,20 @@ export function getClientById(id) {
 
 // ─── Simulator API ──────────────────────────────────────────────────────────
 
+function normalizeSimulatorBase(base) {
+  const trimmed = String(base || DEFAULT_BASE).replace(/\/$/, "");
+  if (trimmed.startsWith("http://") && /hostingersite\.com|bodasesor/i.test(trimmed)) {
+    return trimmed.replace(/^http:\/\//i, "https://");
+  }
+  return trimmed;
+}
+
 const leadState = new Map();
 
 export async function resetSimulator(base, leadId) {
+  const apiBase = normalizeSimulatorBase(base);
   leadState.delete(leadId);
-  await fetch(`${base}/api/kommo/simulator/reset`, {
+  await fetch(`${apiBase}/api/kommo/simulator/reset`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ lead_id: leadId }),
@@ -282,9 +292,10 @@ export async function resetSimulator(base, leadId) {
 }
 
 export async function sendToLucy(base, leadId, text, client) {
+  const apiBase = normalizeSimulatorBase(base);
   const prev = leadState.get(leadId);
   const custom_fields = { ...(prev?.fields ?? {}) };
-  const res = await fetch(`${base}/api/kommo/simulator`, {
+  const res = await fetch(`${apiBase}/api/kommo/simulator`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -303,7 +314,21 @@ export async function sendToLucy(base, leadId, text, client) {
       },
     }),
   });
-  const data = await res.json();
+  const raw = await res.text();
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    data = {
+      status: "error",
+      error: `HTTP ${res.status}`,
+      reply: raw.slice(0, 200) || `Respuesta no JSON (${res.status})`,
+    };
+  }
+  if (!res.ok && !data.error) {
+    data.error = data.error || `HTTP ${res.status}`;
+    data.status = data.status || "error";
+  }
   if (data.status === "success") leadState.set(leadId, data);
   return data;
 }
