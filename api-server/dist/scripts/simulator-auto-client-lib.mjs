@@ -262,6 +262,30 @@ export const AUTO_CLIENTS = [
     },
     opening: "qué onda! ando viendo lo de mi boda, oye ¿hacen bodas en la playa?",
   },
+  {
+    id: 11,
+    slug: "jesus",
+    name: "Jesús",
+    leadId: 93011,
+    phone: "+5215519301111",
+    scenario: "XV años con servicio fuera de catálogo (renta de letras).",
+    style: "Directo, pides un solo servicio y luego dices que no quieres nada más.",
+    behavior:
+      'Pides "renta de letras" o "letra XV"; si Lucy pregunta por más servicios respondes "no gracias", "ninguno" o "solo ese".',
+    observe:
+      "Lucy acepta el servicio fuera de catálogo, NO repite la pregunta de otros servicios y avanza o cierra.",
+    hiddenFacts: {
+      nombre: "Jesús",
+      correo: "jesus.xv@gmail.com",
+      tipo_evento: "xv años",
+      requerimientos: "renta de letras / letra XV",
+      invitados: "100",
+      lugar: "Tlalnepantla",
+      fecha: "próximo mes",
+      presupuesto: "60 mil",
+    },
+    opening: "hola quiero renta de letras para mis XV",
+  },
 ];
 
 export function getClientById(id) {

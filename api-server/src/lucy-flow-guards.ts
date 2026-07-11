@@ -33,10 +33,10 @@ import {
   buildCatalogInclusionAnswer,
   buildCatalogComparisonAnswer,
   buildCatalogServiceDetailAnswer,
-  buildCatalogNotFoundAnswer,
   responseLooksLikeGenericCateringMenu,
   clientAsksInclusion,
 } from "./services/catalogService.js";
+import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
 import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
@@ -646,9 +646,13 @@ function buildFoodSalesReply(
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
   const query = currentMessage?.trim() || mentionedService || "";
 
-  const appendNext = (body: string): string => {
+  const appendNext = (body: string, acceptedService?: string | null): string => {
     if (!filledSet || !ctx) return body;
-    const pending = getNextPendingField(extracted, filledSet);
+    const filledAfterService = new Set(filledSet);
+    if (acceptedService) {
+      filledAfterService.add("Requerimientos o servicios");
+    }
+    const pending = getNextPendingField(extracted, filledAfterService);
     if (!pending) return body;
     const nextQ = buildNaturalQuestion(pending, ctx);
     if (body.includes(nextQ)) return body;
@@ -666,12 +670,13 @@ function buildFoodSalesReply(
       const intro = mentionedService
         ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
         : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
-      return appendNext(`${intro}\n\n${detail}`);
+      return appendNext(`${intro}\n\n${detail}`, serviceLabel);
     }
 
-    if (serviceLabel) {
+    if (serviceLabel && currentMessage) {
       return appendNext(
-        `${pickTransition(history)} ${buildCatalogNotFoundAnswer(serviceLabel)}`
+        `${pickTransition(history)} ${buildGuardServiceAck(currentMessage)}`,
+        serviceLabel
       );
     }
 

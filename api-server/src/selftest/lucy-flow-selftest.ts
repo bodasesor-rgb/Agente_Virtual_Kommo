@@ -89,6 +89,13 @@ import {
   injectCatalogCateringIfAsked,
   responseLooksLikeGenericCateringMenu,
 } from "../services/catalogService.js";
+import {
+  classifyServiceKnowledgeLevel,
+  buildLevel2Ack,
+  buildLevel3Ack,
+  getServiceKnowledge,
+  SERVICE_KNOWLEDGE_GOLDEN_RULE,
+} from "../services/serviceKnowledge.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
 import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests } from "../services/imageProcessor.js";
 import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
@@ -1535,7 +1542,7 @@ async function runAll(): Promise<void> {
     assert.ok(!responseLooksLikeGenericCateringMenu(injected) || injected !== genericMenu, injected);
 
     const notFound = buildCatalogNotFoundAnswer("Barra de pizzas");
-    assert.ok(/equipo|confirmo/i.test(notFound), notFound);
+    assert.ok(/anoto|equipo/i.test(notFound), notFound);
 
     const promptBlock = formatServiceDataForPrompt("taquiza");
     if (promptBlock) {
@@ -1638,6 +1645,52 @@ async function runAll(): Promise<void> {
       !/alg[uú]n\s+otro\s+servicio|te\s+gustar[ií]a\s+cotizar\s+alg[uú]n\s+otro/i.test(replyRepeat),
       `no debe repetir follow-up: "${replyRepeat.slice(0, 200)}"`
     );
+  });
+
+  await test("36. Modelo 3 niveles — Sheet, evento sin Sheet, solicitud especial", () => {
+    assert.ok(SERVICE_KNOWLEDGE_GOLDEN_RULE.includes("no esté en el catálogo"));
+    const catalogStatus = getCatalogStatus();
+    if (catalogStatus.rowCount > 0) {
+      assert.equal(classifyServiceKnowledgeLevel("taquiza"), 1);
+    }
+    assert.equal(classifyServiceKnowledgeLevel("renta de letras"), 2);
+    assert.equal(classifyServiceKnowledgeLevel("valet parking para mi boda"), 2);
+    assert.equal(classifyServiceKnowledgeLevel("quiero seguro de auto"), 3);
+
+    const level2 = getServiceKnowledge("renta de letras");
+    assert.ok(level2);
+    assert.equal(level2!.level, 2);
+    assert.ok(/anoto/i.test(level2!.guardAck), level2!.guardAck);
+    assert.ok(/NIVEL 2/i.test(level2!.promptBlock), level2!.promptBlock);
+
+    const level3 = getServiceKnowledge("necesito seguro de auto para el evento");
+    assert.ok(level3);
+    assert.equal(level3!.level, 3);
+    assert.ok(/solicitud especial/i.test(level3!.guardAck), level3!.guardAck);
+
+    assert.ok(/anoto/i.test(buildLevel2Ack("pirotecnia fría")));
+    assert.ok(/disponibilidad/i.test(buildLevel3Ack("seguro de auto")));
+
+    const filledPartial = new Set([
+      "Nombre del cliente",
+      EMAIL_WAIVED_LABEL,
+      "Tipo de evento",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Jesús",
+      tipo_evento: "xv años",
+    });
+    const reply = runGuards({
+      aiResponse: "¿Qué servicios te gustaría cotizar?",
+      extracted,
+      filledSet: new Set(filledPartial),
+      readyForClosing: false,
+      currentMessage: "quiero renta de letras",
+      history: [{ role: "assistant", content: "¿Qué tipo de celebración festejan?" }],
+    });
+    assert.ok(/anoto|renta de letras/i.test(reply), reply.slice(0, 250));
+    assert.ok(!/alg[uú]n\s+otro\s+servicio/i.test(reply), reply);
+    assert.ok(/invitados|ciudad|fecha|presupuesto/i.test(reply), reply.slice(0, 250));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -79172,9 +79172,12 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Crepas", /\bcrep[aá]s?\b/i],
   ["Brunch", /\bbrunch\b/i],
   ["Poptails", /\bpoptails?\b/i],
-  ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i]
+  ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
+  ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
+  ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
+  ["Mesa imperial", /\bmesa\s+imperial\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch|renta\s+de|letras?/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch|renta\s+de|letras?|valet|pirotecnia|imperial/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
@@ -80005,6 +80008,106 @@ function enrichExtractedFromConversation(extracted, conversationText) {
   }
 }
 
+// src/services/serviceKnowledge.ts
+var SERVICE_KNOWLEDGE_GOLDEN_RULE = "Que un servicio no est\xE9 en el cat\xE1logo significa que no tengo el precio a la mano, NO que no sepa qu\xE9 es. Acepta cualquier servicio de eventos, an\xF3talo y avanza. Nunca te quedes pidiendo 'otros servicios' ni repitas la misma pregunta por no tener el dato.";
+var NON_EVENT_REQUEST_PATTERN = /\b(seguro\s+de|abogad|plomer|electricista|internet\s+en\s+casa|plan\s+de\s+celular|lavad|reparaci[oó]n\s+de\s+(auto|celular)|vpn|software\s+de\s+contab|consulta\s+m[eé]dic|veterinar|notari|traducci[oó]n\s+oficial|impresi[oó]n\s+de\s+actas)\b/i;
+var EVENT_CONTEXT_PATTERN = /\b(evento|fiesta|boda|xv|quince|cumple|corporativ|celebraci[oó]n|banquete|taquiza|barra|renta|valet|pirotecnia|mesa\s+imperial|flor|decoraci|animaci|dj|mobiliario|carpa|iluminaci|pantalla|mesero|catering|invitados)\b/i;
+function serviceLabelFromQuery(query) {
+  const trimmed = query.trim();
+  if (!trimmed) return "ese servicio";
+  return parsePrimaryService(trimmed) ?? trimmed.slice(0, 80);
+}
+function isDubiousNonEventRequest(query) {
+  const t = query.trim();
+  if (!t) return false;
+  if (NON_EVENT_REQUEST_PATTERN.test(t)) return true;
+  if (isServiceRelatedMessage(t) || EVENT_CONTEXT_PATTERN.test(t)) return false;
+  if (/\b(quiero|necesito|busco|cotizar)\b/i.test(t) && t.length < 120) return false;
+  return t.length >= 8 && !EVENT_CONTEXT_PATTERN.test(t);
+}
+function hasSheetKnowledge(query) {
+  return !!(buildCatalogServiceDetailAnswer(query) || buildCatalogPriceAnswer(query) || buildCatalogInclusionAnswer(query) || lookupCatalogServices(query).length);
+}
+function classifyServiceKnowledgeLevel(query) {
+  if (hasSheetKnowledge(query)) return 1;
+  if (isDubiousNonEventRequest(query)) return 3;
+  return 2;
+}
+function buildLevel2Ack(serviceLabel) {
+  const label = serviceLabel.trim() || "ese servicio";
+  return `\xA1Claro! *${label}* la anoto en tu solicitud. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones en la cotizaci\xF3n.`;
+}
+function buildLevel3Ack(serviceLabel) {
+  const label = serviceLabel.trim() || "tu solicitud";
+  return `Tomo nota de tu solicitud especial (*${label}*). Nuestro equipo revisa disponibilidad y te confirma si podemos apoyarte.`;
+}
+function buildGuardServiceAck(query) {
+  const label = serviceLabelFromQuery(query);
+  const level = classifyServiceKnowledgeLevel(query);
+  if (level === 1) {
+    const detail = buildCatalogServiceDetailAnswer(query) ?? buildCatalogPriceAnswer(query) ?? buildCatalogInclusionAnswer(query);
+    if (detail) return detail;
+  }
+  if (level === 3) return buildLevel3Ack(label);
+  return buildLevel2Ack(label);
+}
+function getServiceKnowledge(query) {
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.length < 3) return null;
+  if (!isServiceRelatedMessage(trimmed) && !EVENT_CONTEXT_PATTERN.test(trimmed)) {
+    if (!/\b(quiero|necesito|busco|cotizar|precio|incluye)\b/i.test(trimmed)) return null;
+  }
+  const label = serviceLabelFromQuery(trimmed);
+  const level = classifyServiceKnowledgeLevel(trimmed);
+  const sheetBlock = formatServiceDataForPrompt(trimmed);
+  const sheetPrice = !!buildCatalogPriceAnswer(trimmed);
+  const sheetDetail = buildCatalogServiceDetailAnswer(trimmed) ?? buildCatalogInclusionAnswer(trimmed) ?? null;
+  if (level === 1 && (sheetBlock || sheetDetail)) {
+    const parts2 = ["CONOCIMIENTO DE SERVICIO (Google Sheet \u2014 precio solo de aqu\xED):"];
+    if (sheetBlock) parts2.push(sheetBlock);
+    else if (sheetDetail) parts2.push(sheetDetail);
+    parts2.push("Usa estos datos. No inventes precios ni inclusiones.");
+    return {
+      level: 1,
+      label,
+      hasSheetPrice: sheetPrice,
+      promptBlock: parts2.join("\n"),
+      guardAck: sheetDetail ?? buildGuardServiceAck(trimmed)
+    };
+  }
+  if (level === 3) {
+    return {
+      level: 3,
+      label,
+      hasSheetPrice: false,
+      promptBlock: [
+        "CONOCIMIENTO DE SERVICIO (solicitud especial \u2014 NIVEL 3):",
+        `Servicio: ${label}`,
+        "Acci\xF3n: anota como solicitud especial. El equipo confirma disponibilidad.",
+        "NUNCA digas 'no lo tenemos'. NUNCA inventes precio.",
+        SERVICE_KNOWLEDGE_GOLDEN_RULE
+      ].join("\n"),
+      guardAck: buildLevel3Ack(label)
+    };
+  }
+  return {
+    level: 2,
+    label,
+    hasSheetPrice: false,
+    promptBlock: [
+      "CONOCIMIENTO DE SERVICIO (eventos \u2014 NIVEL 2, sin precio en Sheet):",
+      `Servicio: ${label}`,
+      "Acci\xF3n: ACEPTA, anota en requerimientos y AVANZA al siguiente dato o cierre.",
+      "Acuse breve + siguiente pregunta. NUNCA inventes precio. NUNCA repitas '\xBFotros servicios?'.",
+      SERVICE_KNOWLEDGE_GOLDEN_RULE
+    ].join("\n"),
+    guardAck: buildLevel2Ack(label)
+  };
+}
+function formatServiceKnowledgeForPrompt(query) {
+  return getServiceKnowledge(query)?.promptBlock ?? null;
+}
+
 // src/services/catalogService.ts
 var GENERIC_CATERING_MENU_MARKERS = /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
 var REFRESH_MS = Number(process.env["CATALOG_REFRESH_MINUTES"] ?? "10") * 6e4;
@@ -80370,8 +80473,11 @@ function formatServiceDataForPrompt(query) {
 function mentionedServiceLabel(query) {
   return parsePrimaryService(query);
 }
-function buildCatalogNotFoundAnswer(serviceLabel) {
-  return `S\xED, podemos ayudarte con *${serviceLabel}*. Lo confirmo con nuestro equipo para darte descripci\xF3n, precio e inclusiones exactas y lo anoto en tu solicitud.`;
+function buildCatalogNotFoundAnswer(serviceLabel, query) {
+  if (query && classifyServiceKnowledgeLevel(query) === 3) {
+    return buildLevel3Ack(serviceLabel);
+  }
+  return buildLevel2Ack(serviceLabel);
 }
 function buildCatalogServiceDetailAnswer(query) {
   if (!snapshot?.rows.length) return null;
@@ -80442,7 +80548,7 @@ function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
   }
   const label = mentionedServiceLabel(clientMessage);
   if (label && (asksService || mentionsService)) {
-    return buildCatalogNotFoundAnswer(label);
+    return buildCatalogNotFoundAnswer(label, clientMessage);
   }
   if (genericCatering && !responseLooksLikeGenericCateringMenu(aiResponse)) {
     const overview = buildCatalogCateringOverviewFromSheet();
@@ -81289,14 +81395,31 @@ Pedido/entrega vs servicio en evento:
 - Si no queda claro: "\xBFLo quieres montado en tu evento o solo la entrega del producto?"
 
 ===================================================================
-## 5. SERVICIOS Y PRECIOS (consultivo, no gen\xE9rico)
+## 5. SERVICIOS Y PRECIOS \u2014 3 NIVELES (Sheet = precios, no existencia)
 ===================================================================
-Cuando preguntan por un servicio:
-1. Explica qu\xE9 es y para qu\xE9 sirve (breve).
-2. Da opciones, tama\xF1os o variantes relevantes.
-3. Si hay precio en cat\xE1logo \u2192 dalo con "aprox." y que ${ADVISOR} confirma el total.
-4. Si NO hay precio \u2192 info \xFAtil + preferencias + ${ADVISOR} lo incluye en la cotizaci\xF3n.
-NUNCA digas solo "eso lo maneja ${ADVISOR}" sin dar informaci\xF3n \xFAtil primero.
+Clasifica cada servicio que pide el cliente y act\xFAa seg\xFAn el nivel.
+NUNCA dependas del Sheet para saber si un servicio existe.
+
+**REGLA DE ORO:** Que un servicio no est\xE9 en el cat\xE1logo significa que no tienes el
+precio a la mano, NO que no sepas qu\xE9 es. Acepta cualquier servicio de eventos,
+an\xF3talo y avanza. Nunca te quedes pidiendo "otros servicios" ni repitas la misma
+pregunta por no tener el dato.
+
+- **NIVEL 1 \u2014 Est\xE1 en el Sheet:** da precio e inclusiones exactas del cat\xE1logo inyectado.
+- **NIVEL 2 \u2014 Servicio de eventos sin Sheet** (renta de letras, valet, pirotecnia fr\xEDa,
+  mesa imperial, etc.): ACEPTA, ANOTA en requerimientos y AVANZA. Acuse breve
+  ("\xA1Claro! La renta de letras la anoto en tu solicitud.") + siguiente dato o cierre.
+  NUNCA inventes precio; el equipo lo cotiza.
+- **NIVEL 3 \u2014 Solicitud dudosa o fuera de eventos:** anota como solicitud especial.
+  Di que el equipo confirma disponibilidad. NUNCA digas "no lo tenemos" a secas.
+
+Cuando pregunten por un servicio:
+1. Explica qu\xE9 es y para qu\xE9 sirve (breve) si lo conoces.
+2. Da opciones o variantes si aplica.
+3. Si hay precio en cat\xE1logo (NIVEL 1) \u2192 dalo con "aprox." y que ${ADVISOR} confirma el total.
+4. Si NO hay precio (NIVEL 2/3) \u2192 acuse breve + anota + AVANZA; ${ADVISOR} cotiza despu\xE9s.
+NUNCA digas solo "eso lo maneja ${ADVISOR}" sin contexto \xFAtil primero.
+Tras aceptar un servicio (est\xE9 o no en Sheet), NO vuelvas a preguntar "\xBFalg\xFAn otro servicio?".
 
 Formato estricto: m\xE1ximo 2 l\xEDneas de info + 1 pregunta.
 Sin adjetivos marketeros (deliciosa, incre\xEDble, popular, perfecta).
@@ -81362,10 +81485,12 @@ Puedes "escuchar" y "ver" \u2014 el sistema ya procesa antes de que llegue el te
 - Imagen: formato "[Imagen adjunta: descripci\xF3n]". Reacciona natural; nunca repitas esa frase al cliente.
 
 ===================================================================
-## CAT\xC1LOGO = FUENTE DE VERDAD
+## CAT\xC1LOGO = FUENTE DE PRECIOS (no de existencia)
 ===================================================================
-La informaci\xF3n del cat\xE1logo inyectado tiene prioridad absoluta sobre ejemplos gen\xE9ricos.
-Si el cliente pregunta algo del cat\xE1logo, resp\xF3ndelo con precisi\xF3n ANTES de pedir datos.
+La informaci\xF3n del cat\xE1logo inyectado tiene prioridad absoluta para PRECIOS e inclusiones.
+Si el cliente pregunta algo del cat\xE1logo con precio, resp\xF3ndelo con precisi\xF3n ANTES de pedir datos.
+Si el servicio NO est\xE1 en el cat\xE1logo pero es de eventos \u2192 NIVEL 2: acepta, anota y avanza.
+El Sheet dice cu\xE1nto cuesta; NO define qu\xE9 servicios existen.
 `;
 
 // src/lib/training.ts
@@ -81778,9 +81903,13 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
   const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
   const query = currentMessage?.trim() || mentionedService || "";
-  const appendNext = (body2) => {
+  const appendNext = (body2, acceptedService) => {
     if (!filledSet || !ctx) return body2;
-    const pending = getNextPendingField(extracted, filledSet);
+    const filledAfterService = new Set(filledSet);
+    if (acceptedService) {
+      filledAfterService.add("Requerimientos o servicios");
+    }
+    const pending = getNextPendingField(extracted, filledAfterService);
     if (!pending) return body2;
     const nextQ = buildNaturalQuestion(pending, ctx);
     if (body2.includes(nextQ)) return body2;
@@ -81795,11 +81924,12 @@ ${nextQ}`;
       const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
       return appendNext(`${intro}
 
-${detail}`);
+${detail}`, serviceLabel);
     }
-    if (serviceLabel) {
+    if (serviceLabel && currentMessage) {
       return appendNext(
-        `${pickTransition(history)} ${buildCatalogNotFoundAnswer(serviceLabel)}`
+        `${pickTransition(history)} ${buildGuardServiceAck(currentMessage)}`,
+        serviceLabel
       );
     }
     return null;
@@ -83516,7 +83646,9 @@ function buildRedactionBriefing(input) {
     lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
     if (pending === "requerimientos") {
       lines.push(
-        "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces."
+        "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces.",
+        SERVICE_KNOWLEDGE_GOLDEN_RULE,
+        "Si el cliente ya nombr\xF3 un servicio, NO repitas '\xBFalg\xFAn otro servicio?' \u2014 avanza al siguiente dato."
       );
     }
   } else {
@@ -83539,9 +83671,14 @@ function buildRedactionBriefing(input) {
   }
   lines.push(
     `NUNCA inventes precios. DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile sin precio en cat\xE1logo \u2014 da info \xFAtil y di que nuestro equipo lo incluye en la cotizaci\xF3n.`,
+    SERVICE_KNOWLEDGE_GOLDEN_RULE,
+    "Servicios fuera del Sheet pero de eventos: acepta, anota y avanza (NIVEL 2). Precio solo del Sheet.",
     "Si el cliente hizo una pregunta en este mensaje, resp\xF3ndela ANTES de pedir el siguiente dato.",
     "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
   );
+  if (input.serviceKnowledgeBlock) {
+    lines.push("", input.serviceKnowledgeBlock);
+  }
   return lines.join("\n");
 }
 function appendRedactionBriefing(messages2, briefing) {
@@ -89757,7 +89894,7 @@ function buildLucyRedactionBriefing(opts) {
     objectionType: objectionResult.type,
     cierreYaEnviado: opts.cierreYaEnviado
   });
-  const serviceBlock = formatServiceDataForPrompt(opts.messageText);
+  const serviceBlock = formatServiceKnowledgeForPrompt(opts.messageText) ?? formatServiceDataForPrompt(opts.messageText);
   return serviceBlock ? `${briefing}
 
 ${serviceBlock}` : briefing;
@@ -90352,6 +90489,7 @@ async function processBatch(batch, accessToken, log) {
       ...history,
       { role: "user", content: combinedUserText }
     ];
+    const serviceKnowledgeBlock = formatServiceKnowledgeForPrompt(combinedUserText);
     const redactionBriefing = buildRedactionBriefing({
       extracted,
       filledSet: filledLabels,
@@ -90364,7 +90502,8 @@ async function processBatch(batch, accessToken, log) {
       isFirstInteraction,
       hasObjection: objectionResult.hasObjection,
       objectionType: objectionResult.type,
-      cierreYaEnviado
+      cierreYaEnviado,
+      serviceKnowledgeBlock
     });
     let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
     aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);

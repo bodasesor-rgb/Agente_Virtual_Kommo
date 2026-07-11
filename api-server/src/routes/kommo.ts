@@ -16,6 +16,7 @@ import {
   injectCatalogCateringIfAsked,
   formatServiceDataForPrompt,
 } from "../services/catalogService.js";
+import { formatServiceKnowledgeForPrompt } from "../services/serviceKnowledge.js";
 import { getTrainingExamples } from "../lib/training.js";
 import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
@@ -428,7 +429,9 @@ function buildLucyRedactionBriefing(opts: {
     cierreYaEnviado: opts.cierreYaEnviado,
   });
 
-  const serviceBlock = formatServiceDataForPrompt(opts.messageText);
+  const serviceBlock =
+    formatServiceKnowledgeForPrompt(opts.messageText) ??
+    formatServiceDataForPrompt(opts.messageText);
   return serviceBlock ? `${briefing}\n\n${serviceBlock}` : briefing;
 }
 
@@ -1402,6 +1405,8 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       { role: "user", content: combinedUserText },
     ];
 
+    const serviceKnowledgeBlock = formatServiceKnowledgeForPrompt(combinedUserText);
+
     const redactionBriefing = buildRedactionBriefing({
       extracted,
       filledSet: filledLabels,
@@ -1415,6 +1420,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       hasObjection: objectionResult.hasObjection,
       objectionType: objectionResult.type,
       cierreYaEnviado,
+      serviceKnowledgeBlock,
     });
 
     let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);

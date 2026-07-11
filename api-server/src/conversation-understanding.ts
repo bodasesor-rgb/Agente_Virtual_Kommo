@@ -80,10 +80,13 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Brunch", /\bbrunch\b/i],
   ["Poptails", /\bpoptails?\b/i],
   ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
+  ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
+  ["Pirotecnia fría", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
+  ["Mesa imperial", /\bmesa\s+imperial\b/i],
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch|renta\s+de|letras?/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch|renta\s+de|letras?|valet|pirotecnia|imperial/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",

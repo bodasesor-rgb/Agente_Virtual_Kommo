@@ -10,6 +10,7 @@ import {
 } from "../lucy-flow-guards.js";
 import type { IntentResult, SentimentResult } from "./intentDetection.js";
 import { CLOSING_CORE_FIELDS } from "../lucy-flow-guards.js";
+import { SERVICE_KNOWLEDGE_GOLDEN_RULE } from "./serviceKnowledge.js";
 
 export const LUCY_REDACTION_MODEL = "gpt-4o-mini";
 
@@ -46,6 +47,8 @@ export interface RedactionBriefingInput {
   hasObjection?: boolean;
   objectionType?: string | null;
   cierreYaEnviado?: boolean;
+  currentMessage?: string;
+  serviceKnowledgeBlock?: string | null;
 }
 
 function mapPriorityToUrgency(priority: string): "alta" | "media" | "baja" {
@@ -91,7 +94,9 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
     lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
     if (pending === "requerimientos") {
       lines.push(
-        "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces."
+        "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces.",
+        SERVICE_KNOWLEDGE_GOLDEN_RULE,
+        "Si el cliente ya nombró un servicio, NO repitas '¿algún otro servicio?' — avanza al siguiente dato."
       );
     }
   } else {
@@ -117,9 +122,15 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
 
   lines.push(
     `NUNCA inventes precios. DJ, iluminación, carpas, mobiliario, pantallas y pista de baile sin precio en catálogo — da info útil y di que nuestro equipo lo incluye en la cotización.`,
+    SERVICE_KNOWLEDGE_GOLDEN_RULE,
+    "Servicios fuera del Sheet pero de eventos: acepta, anota y avanza (NIVEL 2). Precio solo del Sheet.",
     "Si el cliente hizo una pregunta en este mensaje, respóndela ANTES de pedir el siguiente dato.",
     "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
   );
+
+  if (input.serviceKnowledgeBlock) {
+    lines.push("", input.serviceKnowledgeBlock);
+  }
 
   return lines.join("\n");
 }

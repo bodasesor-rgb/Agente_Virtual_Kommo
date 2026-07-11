@@ -25,6 +25,7 @@ import {
   parsePrimaryService,
   isServiceRelatedMessage,
 } from "../conversation-understanding.js";
+import { buildLevel2Ack, buildLevel3Ack, classifyServiceKnowledgeLevel } from "./serviceKnowledge.js";
 
 const GENERIC_CATERING_MENU_MARKERS =
   /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
@@ -555,11 +556,11 @@ function mentionedServiceLabel(query: string): string | null {
   return parsePrimaryService(query);
 }
 
-export function buildCatalogNotFoundAnswer(serviceLabel: string): string {
-  return (
-    `Sí, podemos ayudarte con *${serviceLabel}*. ` +
-    `Lo confirmo con nuestro equipo para darte descripción, precio e inclusiones exactas y lo anoto en tu solicitud.`
-  );
+export function buildCatalogNotFoundAnswer(serviceLabel: string, query?: string): string {
+  if (query && classifyServiceKnowledgeLevel(query) === 3) {
+    return buildLevel3Ack(serviceLabel);
+  }
+  return buildLevel2Ack(serviceLabel);
 }
 
 /** Respuesta con datos reales del Sheet para un servicio concreto (precio y/o inclusiones). */
@@ -677,7 +678,7 @@ export function injectCatalogCateringIfAsked(
 
   const label = mentionedServiceLabel(clientMessage);
   if (label && (asksService || mentionsService)) {
-    return buildCatalogNotFoundAnswer(label);
+    return buildCatalogNotFoundAnswer(label, clientMessage);
   }
 
   if (genericCatering && !responseLooksLikeGenericCateringMenu(aiResponse)) {
