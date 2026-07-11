@@ -1,4 +1,5 @@
 import { logger } from "../lib/logger.js";
+import { stripInternalCrmBlock } from "../lib/bodasesorAdvisor.js";
 import { agregarNota } from "./embudo.js";
 import {
   registrarMensajeSalienteKommo,
@@ -28,7 +29,7 @@ export async function deliverLucyOutbound(
 ): Promise<"meta" | "kommo_talks" | "failed"> {
   const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId } = opts;
 
-  const trimmed = texto?.trim() ?? "";
+  const trimmed = stripInternalCrmBlock(texto?.trim() ?? "");
   if (!trimmed) {
     logger.warn({ entityId, talkId, chatId }, "Lucy: texto vacío — omitiendo envío Meta");
     await logDeliveryFailureNote(

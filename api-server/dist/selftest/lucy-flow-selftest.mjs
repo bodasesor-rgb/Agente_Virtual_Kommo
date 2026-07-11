@@ -135,9 +135,40 @@ function getAdvisorName() {
 function advisorLabelForClient(_clientName) {
   return "nuestro equipo";
 }
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function isStaffAdvisorName(name) {
+  const raw = name?.trim() ?? "";
+  if (!raw) return false;
+  const first = raw.split(/\s+/)[0]?.toLowerCase() ?? "";
+  const staff = /* @__PURE__ */ new Set([
+    getAdvisorName().toLowerCase(),
+    ...LEGACY_ADVISOR_NAMES.map((n) => n.toLowerCase()),
+    "lucy",
+    "bodasesor",
+    "kommo"
+  ]);
+  return staff.has(raw.toLowerCase()) || staff.has(first);
+}
 function isLegacyAdvisorName(name) {
   const lower = name.toLowerCase();
   return LEGACY_ADVISOR_NAMES.some((legacy) => legacy.toLowerCase() === lower);
+}
+var CLIENT_GREETING_PREFIX = /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
+function replaceAdvisorTokensPreservingClientName(text, token, replacement, clientName) {
+  const clientFirst = clientName?.trim().split(/\s+/)[0];
+  if (!clientFirst || clientFirst.toLowerCase() !== token.toLowerCase()) {
+    return text.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
+  }
+  const placeholder = "\uE000CLIENT_NAME\uE001";
+  const clientEsc = escapeRegex(clientFirst);
+  let out = text.replace(
+    new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
+    `$1${placeholder}`
+  );
+  out = out.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
+  return out.replace(new RegExp(placeholder, "g"), clientFirst);
 }
 function normalizeAdvisorReferences(text, clientName) {
   const advisor = advisorLabelForClient(clientName);
@@ -165,15 +196,14 @@ function normalizeAdvisorReferences(text, clientName) {
       return m;
     }
   );
-  const advisorName = getAdvisorName();
-  if (advisorName.toLowerCase() !== advisor.toLowerCase()) {
-    const esc = advisorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    out = out.replace(new RegExp(`\\b${esc}\\b`, "gi"), advisor);
-  }
-  if (advisor.toLowerCase() === "nuestro equipo") {
-    out = out.replace(/\bAlejandro\b/gi, advisor);
-  }
+  out = replaceAdvisorTokensPreservingClientName(out, getAdvisorName(), advisor, clientName);
   return out;
+}
+function stripInternalCrmBlock(mensaje) {
+  if (!/DATOS DEL CLIENTE:|Información completa obtenida/i.test(mensaje)) return mensaje;
+  const cut = mensaje.search(/DATOS DEL CLIENTE:|Información completa obtenida/i);
+  if (cut <= 0) return mensaje;
+  return mensaje.slice(0, cut).trim();
 }
 
 // src/conversation-understanding.ts
@@ -287,6 +317,7 @@ function clientAsksAboutTeam(message, clientName) {
   if (name && name === advisor && new RegExp(`^${advisorEsc}$`, "i").test(normalized)) {
     return false;
   }
+  if (/^[a-záéíóúñ]{2,30}!?$/i.test(normalized)) return false;
   const legacyTeamAsk = LEGACY_ADVISOR_NAMES.some((legacy) => {
     const esc = legacy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return new RegExp(`^${esc}$`, "i").test(normalized) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${esc}\\b`, "i").test(t) || new RegExp(`\\best[a\xE1]\\s+${esc}\\b`, "i").test(t);
@@ -409,6 +440,7 @@ function normalizeShortServicePhrase(text) {
 function isServiceRelatedMessage(text) {
   const trimmed = text?.trim() ?? "";
   if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
+  if (/\bservicio\s+completo\b/i.test(trimmed)) return true;
   if (SERVICE_HINT.test(trimmed)) return true;
   if (parsePrimaryService(trimmed)) return true;
   if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
@@ -1947,11 +1979,7 @@ function requerimientosNeedsFollowUp(extracted, filledSet) {
   return !isValidRequerimientosValue(req);
 }
 function buildCorreoQuestion(nombre, history = [], entityId) {
-  const advisor = advisorLabelForClient(nombre);
-  let correoCore = pickVariant("correo", history, entityId);
-  if (advisor === "nuestro equipo") {
-    correoCore = correoCore.replace(/\bpara que Alejandro te arme\b/gi, "para que nuestro equipo te arme").replace(/\bAlejandro\b/gi, "nuestro equipo");
-  }
+  const correoCore = pickVariant("correo", history, entityId);
   if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
   return correoCore;
 }
@@ -2094,11 +2122,20 @@ function applyLucyMessageGuards(input) {
   applyPresupuestoWaiver(
     filledSet,
     [],
-    collectUserTexts(presHistory),
+    collectUserTexts(presHistory, currentMessage),
     presHistory
   );
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
+  if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet)) {
+    return normalizeAdvisorReferences(
+      buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      ),
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
   const emailOk = isEmailSatisfied(filledSet);
@@ -2536,7 +2573,18 @@ function purgeInvalidNombreLines(lines) {
   return lines.filter((line) => {
     if (!/^-?\s*Nombre del cliente:/i.test(line)) return true;
     const raw = lineValue(line, "Nombre del cliente");
+    if (isStaffAdvisorName(raw)) return false;
     return !!sanitizeCrmNombre(raw) && !isQuoteIntentMessage(raw);
+  });
+}
+function purgeRequerimientosEqualsTipoLines(lines) {
+  const tipoLine = lines.find((l) => /^-?\s*Tipo de evento:/i.test(l));
+  const tipo = tipoLine ? lineValue(tipoLine, "Tipo de evento").toLowerCase() : "";
+  if (!tipo) return lines;
+  return lines.filter((line) => {
+    if (!/^-?\s*Requerimientos o servicios:/i.test(line)) return true;
+    const req = lineValue(line, "Requerimientos o servicios").toLowerCase();
+    return req !== tipo;
   });
 }
 function sanitizeKommoCrmLines(lines) {
@@ -2544,6 +2592,7 @@ function sanitizeKommoCrmLines(lines) {
   out = purgeInvalidNombreLines(out);
   out = purgeOwnCompanyEmailLines(out);
   out = purgeDimensionUbicacionLines(out);
+  out = purgeRequerimientosEqualsTipoLines(out);
   return out;
 }
 function sanitizeExtractedFromExternal(extracted, conversationText) {
@@ -14027,6 +14076,53 @@ async function runAll() {
     assert.equal(clean.nombre, null);
     assert.equal(clean.direccion_evento, null);
     assert.ok(LEGACY_ADVISOR_NAMES.includes("Rodrigo"));
+  });
+  await test("31. A14786 \u2014 cliente Alejandro: saludo correcto, no confundir con asesor", () => {
+    assert.equal(clientAsksAboutTeam("Alejandro!", null), false);
+    assert.equal(clientAsksAboutTeam("Alejandro!", "Mar\xEDa"), false);
+    const correoQ = buildCorreoQuestion("Alejandro", [], 14786);
+    assert.ok(/Mucho gusto,\s+Alejandro/i.test(correoQ), correoQ);
+    assert.ok(!/Mucho gusto,\s+nuestro equipo/i.test(correoQ), correoQ);
+    const norm = normalizeAdvisorReferences(
+      "Mucho gusto, Alejandro. \xBFA qu\xE9 correo te env\xEDo la info para que nuestro equipo te arme la propuesta?",
+      "Alejandro"
+    );
+    assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm), norm);
+    assert.ok(/nuestro equipo te arme/i.test(norm), norm);
+    assert.ok(isStaffAdvisorName("Rodrigo"));
+    assert.ok(!isValidRequerimientosValue("bautizo"));
+    assert.ok(isValidRequerimientosValue("servicio completo"));
+    const dirty = sanitizeKommoCrmLines([
+      "- Nombre del cliente: Rodrigo",
+      "- Tipo de evento: bautizo",
+      "- Requerimientos o servicios: bautizo"
+    ]);
+    assert.equal(dirty.length, 1);
+    assert.ok(/bautizo/i.test(dirty[0] ?? ""));
+    const leaked = "Perfecto. Informaci\xF3n completa obtenida.\n\nDATOS DEL CLIENTE:\n- Nombre: Alejandro";
+    const clean = stripInternalCrmBlock(leaked);
+    assert.ok(!/DATOS DEL CLIENTE/i.test(clean));
+    assert.ok(/^Perfecto\./i.test(clean));
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/direcci\xF3n del evento",
+      "Fecha y horario",
+      "N\xFAmero de invitados",
+      "Presupuesto (MXN)"
+    ]);
+    const closeReply = runGuards({
+      aiResponse: "Informaci\xF3n completa obtenida. DATOS DEL CLIENTE:\n- Nombre: Alejandro\n\n\xBFTe interesa algo m\xE1s?",
+      extracted: emptyExtracted({ nombre: "Alejandro", tipo_evento: "bautizo", requerimientos_evento: "servicio completo" }),
+      filledSet: filled,
+      readyForClosing: true,
+      currentMessage: "Estamos cotizando apenas"
+    });
+    assert.ok(closeReply.includes(CLOSING_SIGNATURE), closeReply);
+    assert.ok(!/DATOS DEL CLIENTE/i.test(closeReply), closeReply);
+    assert.ok(!/Información completa obtenida/i.test(closeReply), closeReply);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

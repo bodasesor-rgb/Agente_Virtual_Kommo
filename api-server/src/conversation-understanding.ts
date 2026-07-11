@@ -159,6 +159,9 @@ export function clientAsksAboutTeam(message?: string, clientName?: string | null
     return false;
   }
 
+  // Presentación: "Alejandro", "Alejandro!" — no es pregunta por el asesor
+  if (/^[a-záéíóúñ]{2,30}!?$/i.test(normalized)) return false;
+
   const legacyTeamAsk = LEGACY_ADVISOR_NAMES.some((legacy) => {
     const esc = legacy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return (
@@ -415,6 +418,7 @@ function normalizeShortServicePhrase(text: string): string | null {
 export function isServiceRelatedMessage(text: string | null | undefined): boolean {
   const trimmed = text?.trim() ?? "";
   if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
+  if (/\bservicio\s+completo\b/i.test(trimmed)) return true;
   if (SERVICE_HINT.test(trimmed)) return true;
   if (parsePrimaryService(trimmed)) return true;
   if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;

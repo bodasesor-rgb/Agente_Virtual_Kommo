@@ -21,7 +21,7 @@ router.get("/health", (_req, res) => {
     uptime: process.uptime(),
     service: "Lucy Bodasesor",
     version: "3.3",
-    lucy_prompt: "V6",
+    lucy_prompt: "V7",
     features: [
       "understanding",
       "redaction-briefing",

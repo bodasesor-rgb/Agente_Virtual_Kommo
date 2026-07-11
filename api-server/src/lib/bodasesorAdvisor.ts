@@ -20,9 +20,52 @@ export function advisorLabelForClient(_clientName?: string | null): string {
   return "nuestro equipo";
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Nombres del equipo/asesor que Kommo a veces pone como nombre del lead — no son el cliente. */
+export function isStaffAdvisorName(name: string | null | undefined): boolean {
+  const raw = name?.trim() ?? "";
+  if (!raw) return false;
+  const first = raw.split(/\s+/)[0]?.toLowerCase() ?? "";
+  const staff = new Set([
+    getAdvisorName().toLowerCase(),
+    ...LEGACY_ADVISOR_NAMES.map((n) => n.toLowerCase()),
+    "lucy",
+    "bodasesor",
+    "kommo",
+  ]);
+  return staff.has(raw.toLowerCase()) || staff.has(first);
+}
+
 function isLegacyAdvisorName(name: string): boolean {
   const lower = name.toLowerCase();
   return LEGACY_ADVISOR_NAMES.some((legacy) => legacy.toLowerCase() === lower);
+}
+
+const CLIENT_GREETING_PREFIX =
+  /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
+
+function replaceAdvisorTokensPreservingClientName(
+  text: string,
+  token: string,
+  replacement: string,
+  clientName?: string | null
+): string {
+  const clientFirst = clientName?.trim().split(/\s+/)[0];
+  if (!clientFirst || clientFirst.toLowerCase() !== token.toLowerCase()) {
+    return text.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
+  }
+
+  const placeholder = "\uE000CLIENT_NAME\uE001";
+  const clientEsc = escapeRegex(clientFirst);
+  let out = text.replace(
+    new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
+    `$1${placeholder}`
+  );
+  out = out.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
+  return out.replace(new RegExp(placeholder, "g"), clientFirst);
 }
 
 /** Corrige nombres de asesor obsoletos (Rodrigo) o inventados por GPT en mensajes al cliente. */
@@ -35,10 +78,6 @@ export function normalizeAdvisorReferences(text: string, clientName?: string | n
     out = out.replace(new RegExp(`\\b${legacy}\\b`, "gi"), advisor);
   }
 
-  // OJO: con el flag /i, [A-ZÁÉÍÓÚÑ] también matchea minúsculas — sin el
-  // "(?!nuestro\\b)" de abajo, "a nuestro equipo" (ya correcto) se detecta
-  // como "a Nuestro" + nombre propio, se reemplaza por "nuestro equipo" y
-  // deja el resto de la palabra original pegado: "nuestro equipo equipo".
   out = out.replace(
     /\b(le\s+paso\s+estos\s+datos\s+a|paso\s+estos\s+datos\s+a)\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
     `$1 ${advisor}`
@@ -62,16 +101,16 @@ export function normalizeAdvisorReferences(text: string, clientName?: string | n
     }
   );
 
-  const advisorName = getAdvisorName();
-  if (advisorName.toLowerCase() !== advisor.toLowerCase()) {
-    const esc = advisorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    out = out.replace(new RegExp(`\\b${esc}\\b`, "gi"), advisor);
-  }
-
-  // Evita confundir al cliente si se llama igual que el asesor (ej. cliente "Alejandro").
-  if (advisor.toLowerCase() === "nuestro equipo") {
-    out = out.replace(/\bAlejandro\b/gi, advisor);
-  }
+  out = replaceAdvisorTokensPreservingClientName(out, getAdvisorName(), advisor, clientName);
 
   return out;
+}
+
+/** Quita bloques internos de CRM que GPT a veces filtra al mensaje al cliente. */
+export function stripInternalCrmBlock(mensaje: string): string {
+  if (!/DATOS DEL CLIENTE:|Información completa obtenida/i.test(mensaje)) return mensaje;
+  const cut =
+    mensaje.search(/DATOS DEL CLIENTE:|Información completa obtenida/i);
+  if (cut <= 0) return mensaje;
+  return mensaje.slice(0, cut).trim();
 }

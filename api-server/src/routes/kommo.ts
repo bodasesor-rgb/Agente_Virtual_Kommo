@@ -102,7 +102,7 @@ import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/c
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { getKommoAccessToken, getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
-import { advisorLabelForClient, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
+import { advisorLabelForClient, isStaffAdvisorName, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
 
 const router: IRouter = Router();
 
@@ -748,6 +748,20 @@ function buildCrmContext(
 
   purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extracted, currentMessage);
 
+  const tipoIdx = mergedLines.findIndex((l) => /^-?\s*Tipo de evento:/i.test(l));
+  const reqIdx = mergedLines.findIndex((l) => /^-?\s*Requerimientos o servicios:/i.test(l));
+  if (tipoIdx >= 0 && reqIdx >= 0) {
+    const tipo = mergedLines[tipoIdx]!.replace(/^-?\s*Tipo de evento:\s*/i, "").trim().toLowerCase();
+    const req = mergedLines[reqIdx]!.replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim().toLowerCase();
+    if (tipo && req === tipo) {
+      mergedLines.splice(reqIdx, 1);
+      filledSet.delete("Requerimientos o servicios");
+      if (extracted.requerimientos_evento?.trim().toLowerCase() === tipo) {
+        extracted.requerimientos_evento = null;
+      }
+    }
+  }
+
   const allFieldsFilled = isReadyForClosing(filledSet);
 
   let context = "";
@@ -802,10 +816,10 @@ async function fetchLeadCurrentFields(
     const lines: string[] = [];
     let lastLucyResponse: string | null = null;
 
-    // Lead name (contact name hint) — skip generic CRM placeholders and phone numbers
+    // Lead name (contact name hint) — skip generic CRM placeholders, phones y nombres del equipo
     if (data.name) {
       const stripped = data.name.replace(/^Lead:\s*/i, "").trim();
-      if (!isPlaceholderLeadName(stripped)) {
+      if (!isPlaceholderLeadName(stripped) && !isStaffAdvisorName(stripped)) {
         lines.push(`- Nombre del cliente: ${stripped}`);
       }
     }

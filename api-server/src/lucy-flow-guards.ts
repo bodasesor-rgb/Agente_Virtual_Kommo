@@ -1090,13 +1090,7 @@ export function buildCorreoQuestion(
   history: OpenAI.Chat.ChatCompletionMessageParam[] = [],
   entityId?: string | number
 ): string {
-  const advisor = advisorLabelForClient(nombre);
-  let correoCore = pickVariant("correo", history, entityId);
-  if (advisor === "nuestro equipo") {
-    correoCore = correoCore
-      .replace(/\bpara que Alejandro te arme\b/gi, "para que nuestro equipo te arme")
-      .replace(/\bAlejandro\b/gi, "nuestro equipo");
-  }
+  const correoCore = pickVariant("correo", history, entityId);
   if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
   return correoCore;
 }
@@ -1343,12 +1337,27 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   applyPresupuestoWaiver(
     filledSet,
     [],
-    collectUserTexts(presHistory),
+    collectUserTexts(presHistory, currentMessage),
     presHistory
   );
 
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
+
+  if (
+    trulyReadyForClosing &&
+    !cierreYaEnviado &&
+    !requerimientosNeedsFollowUp(extracted, filledSet)
+  ) {
+    return normalizeAdvisorReferences(
+      buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      ),
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
   const emailOk = isEmailSatisfied(filledSet);

@@ -72581,7 +72581,7 @@ var require_follow_redirects = __commonJS({
           self2.emit("error", cause instanceof RedirectionError ? cause : new RedirectionError({ cause }));
         }
       };
-      this._headerFilter = new RegExp("^(?:" + sensitiveHeaders.concat(options.sensitiveHeaders).map(escapeRegex2).join("|") + ")$", "i");
+      this._headerFilter = new RegExp("^(?:" + sensitiveHeaders.concat(options.sensitiveHeaders).map(escapeRegex3).join("|") + ")$", "i");
       this._performRequest();
     }
     RedirectableRequest.prototype = Object.create(Writable.prototype);
@@ -72991,7 +72991,7 @@ var require_follow_redirects = __commonJS({
     function isURL(value) {
       return URL2 && value instanceof URL2;
     }
-    function escapeRegex2(regex) {
+    function escapeRegex3(regex) {
       return regex.replace(/[\]\\/()*+?.$]/g, "\\$&");
     }
     module2.exports = wrap({ http: http3, https: https2 });
@@ -78332,9 +78332,40 @@ function getAdvisorName() {
 function advisorLabelForClient(_clientName) {
   return "nuestro equipo";
 }
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function isStaffAdvisorName(name2) {
+  const raw = name2?.trim() ?? "";
+  if (!raw) return false;
+  const first = raw.split(/\s+/)[0]?.toLowerCase() ?? "";
+  const staff = /* @__PURE__ */ new Set([
+    getAdvisorName().toLowerCase(),
+    ...LEGACY_ADVISOR_NAMES.map((n3) => n3.toLowerCase()),
+    "lucy",
+    "bodasesor",
+    "kommo"
+  ]);
+  return staff.has(raw.toLowerCase()) || staff.has(first);
+}
 function isLegacyAdvisorName(name2) {
   const lower = name2.toLowerCase();
   return LEGACY_ADVISOR_NAMES.some((legacy) => legacy.toLowerCase() === lower);
+}
+var CLIENT_GREETING_PREFIX = /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
+function replaceAdvisorTokensPreservingClientName(text2, token, replacement, clientName) {
+  const clientFirst = clientName?.trim().split(/\s+/)[0];
+  if (!clientFirst || clientFirst.toLowerCase() !== token.toLowerCase()) {
+    return text2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
+  }
+  const placeholder = "\uE000CLIENT_NAME\uE001";
+  const clientEsc = escapeRegex(clientFirst);
+  let out2 = text2.replace(
+    new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
+    `$1${placeholder}`
+  );
+  out2 = out2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
+  return out2.replace(new RegExp(placeholder, "g"), clientFirst);
 }
 function normalizeAdvisorReferences(text2, clientName) {
   const advisor = advisorLabelForClient(clientName);
@@ -78362,15 +78393,14 @@ function normalizeAdvisorReferences(text2, clientName) {
       return m4;
     }
   );
-  const advisorName = getAdvisorName();
-  if (advisorName.toLowerCase() !== advisor.toLowerCase()) {
-    const esc = advisorName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    out2 = out2.replace(new RegExp(`\\b${esc}\\b`, "gi"), advisor);
-  }
-  if (advisor.toLowerCase() === "nuestro equipo") {
-    out2 = out2.replace(/\bAlejandro\b/gi, advisor);
-  }
+  out2 = replaceAdvisorTokensPreservingClientName(out2, getAdvisorName(), advisor, clientName);
   return out2;
+}
+function stripInternalCrmBlock(mensaje) {
+  if (!/DATOS DEL CLIENTE:|Información completa obtenida/i.test(mensaje)) return mensaje;
+  const cut = mensaje.search(/DATOS DEL CLIENTE:|Información completa obtenida/i);
+  if (cut <= 0) return mensaje;
+  return mensaje.slice(0, cut).trim();
 }
 
 // src/price-guard.ts
@@ -78378,11 +78408,11 @@ var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|c
 var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
 var dynamicListedPattern = null;
 var dynamicNoListedPattern = null;
-function escapeRegex(value) {
+function escapeRegex2(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 function buildServicePattern(labels) {
-  const terms = labels.map((label) => label.trim().toLowerCase()).filter((label) => label.length >= 2).map((label) => escapeRegex(label).replace(/\s+/g, "\\s+"));
+  const terms = labels.map((label) => label.trim().toLowerCase()).filter((label) => label.length >= 2).map((label) => escapeRegex2(label).replace(/\s+/g, "\\s+"));
   if (!terms.length) return null;
   return new RegExp(`\\b(?:${terms.join("|")})\\b`, "i");
 }
@@ -79179,6 +79209,7 @@ function clientAsksAboutTeam(message, clientName) {
   if (name2 && name2 === advisor && new RegExp(`^${advisorEsc}$`, "i").test(normalized)) {
     return false;
   }
+  if (/^[a-záéíóúñ]{2,30}!?$/i.test(normalized)) return false;
   const legacyTeamAsk = LEGACY_ADVISOR_NAMES.some((legacy) => {
     const esc = legacy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return new RegExp(`^${esc}$`, "i").test(normalized) || new RegExp(`\\bqui[e\xE9]n\\s+es\\s+${esc}\\b`, "i").test(t) || new RegExp(`\\best[a\xE1]\\s+${esc}\\b`, "i").test(t);
@@ -79312,6 +79343,7 @@ function normalizeShortServicePhrase(text2) {
 function isServiceRelatedMessage(text2) {
   const trimmed = text2?.trim() ?? "";
   if (!trimmed || /^info pendiente$/i.test(trimmed)) return false;
+  if (/\bservicio\s+completo\b/i.test(trimmed)) return true;
   if (SERVICE_HINT.test(trimmed)) return true;
   if (parsePrimaryService(trimmed)) return true;
   if (/^(una?\s+)?(pista|tarima|dj|mesas?|sillas?|carpa|banquete|taquiza)\b/i.test(trimmed)) return true;
@@ -80273,7 +80305,7 @@ router.get("/health", (_req, res) => {
     uptime: process.uptime(),
     service: "Lucy Bodasesor",
     version: "3.3",
-    lucy_prompt: "V6",
+    lucy_prompt: "V7",
     features: [
       "understanding",
       "redaction-briefing",
@@ -81154,11 +81186,7 @@ function requerimientosNeedsFollowUp(extracted, filledSet) {
   return !isValidRequerimientosValue(req);
 }
 function buildCorreoQuestion(nombre, history = [], entityId) {
-  const advisor = advisorLabelForClient(nombre);
-  let correoCore = pickVariant("correo", history, entityId);
-  if (advisor === "nuestro equipo") {
-    correoCore = correoCore.replace(/\bpara que Alejandro te arme\b/gi, "para que nuestro equipo te arme").replace(/\bAlejandro\b/gi, "nuestro equipo");
-  }
+  const correoCore = pickVariant("correo", history, entityId);
   if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
   return correoCore;
 }
@@ -81301,11 +81329,20 @@ function applyLucyMessageGuards(input) {
   applyPresupuestoWaiver(
     filledSet,
     [],
-    collectUserTexts(presHistory),
+    collectUserTexts(presHistory, currentMessage),
     presHistory
   );
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
+  if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet)) {
+    return normalizeAdvisorReferences(
+      buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      ),
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
   const emailOk = isEmailSatisfied(filledSet);
@@ -82764,7 +82801,18 @@ function purgeInvalidNombreLines(lines) {
   return lines.filter((line2) => {
     if (!/^-?\s*Nombre del cliente:/i.test(line2)) return true;
     const raw = lineValue(line2, "Nombre del cliente");
+    if (isStaffAdvisorName(raw)) return false;
     return !!sanitizeCrmNombre(raw) && !isQuoteIntentMessage(raw);
+  });
+}
+function purgeRequerimientosEqualsTipoLines(lines) {
+  const tipoLine = lines.find((l4) => /^-?\s*Tipo de evento:/i.test(l4));
+  const tipo = tipoLine ? lineValue(tipoLine, "Tipo de evento").toLowerCase() : "";
+  if (!tipo) return lines;
+  return lines.filter((line2) => {
+    if (!/^-?\s*Requerimientos o servicios:/i.test(line2)) return true;
+    const req = lineValue(line2, "Requerimientos o servicios").toLowerCase();
+    return req !== tipo;
   });
 }
 function sanitizeKommoCrmLines(lines) {
@@ -82772,6 +82820,7 @@ function sanitizeKommoCrmLines(lines) {
   out2 = purgeInvalidNombreLines(out2);
   out2 = purgeOwnCompanyEmailLines(out2);
   out2 = purgeDimensionUbicacionLines(out2);
+  out2 = purgeRequerimientosEqualsTipoLines(out2);
   return out2;
 }
 function sanitizeExtractedFromExternal(extracted, conversationText) {
@@ -88058,7 +88107,7 @@ init_logger3();
 await init_embudo();
 async function deliverLucyOutbound(opts) {
   const { subdomain, accessToken, talkId, chatId, whatsappPhone, texto, entityId } = opts;
-  const trimmed = texto?.trim() ?? "";
+  const trimmed = stripInternalCrmBlock(texto?.trim() ?? "");
   if (!trimmed) {
     logger.warn({ entityId, talkId, chatId }, "Lucy: texto vac\xEDo \u2014 omitiendo env\xEDo Meta");
     await logDeliveryFailureNote(
@@ -88748,6 +88797,19 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   purgeDimensionAsUbicacion(mergedLines, filledSet, extracted);
   appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, historyFull, currentMessage);
   purgeRequerimientosIfAskingRecommendations(mergedLines, filledSet, extracted, currentMessage);
+  const tipoIdx = mergedLines.findIndex((l4) => /^-?\s*Tipo de evento:/i.test(l4));
+  const reqIdx = mergedLines.findIndex((l4) => /^-?\s*Requerimientos o servicios:/i.test(l4));
+  if (tipoIdx >= 0 && reqIdx >= 0) {
+    const tipo = mergedLines[tipoIdx].replace(/^-?\s*Tipo de evento:\s*/i, "").trim().toLowerCase();
+    const req = mergedLines[reqIdx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim().toLowerCase();
+    if (tipo && req === tipo) {
+      mergedLines.splice(reqIdx, 1);
+      filledSet.delete("Requerimientos o servicios");
+      if (extracted.requerimientos_evento?.trim().toLowerCase() === tipo) {
+        extracted.requerimientos_evento = null;
+      }
+    }
+  }
   const allFieldsFilled = isReadyForClosing(filledSet);
   let context = "";
   if (mergedLines.length > 0) {
@@ -88795,7 +88857,7 @@ async function fetchLeadCurrentFields(subdomain, accessToken, leadId, log) {
     let lastLucyResponse = null;
     if (data.name) {
       const stripped = data.name.replace(/^Lead:\s*/i, "").trim();
-      if (!isPlaceholderLeadName(stripped)) {
+      if (!isPlaceholderLeadName(stripped) && !isStaffAdvisorName(stripped)) {
         lines.push(`- Nombre del cliente: ${stripped}`);
       }
     }

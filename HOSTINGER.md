@@ -17,7 +17,7 @@ O desde tu máquina (con el token):
 HOSTINGER_API_TOKEN=xxx npm run deploy:hostinger
 ```
 
-Tras el deploy, `/api/health` debe mostrar `"version":"3.1"` y `"lucy_prompt":"V6"`.
+Tras el deploy, `/api/health` debe mostrar `"version":"3.3"` y `"lucy_prompt":"V7"`.
 
 ---
 

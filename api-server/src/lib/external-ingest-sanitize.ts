@@ -8,6 +8,7 @@ import {
   sanitizeCrmNombre,
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
+import { isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { resolveTipoContacto } from "../tipoContacto.js";
 import { isDimensionText } from "../conversation-understanding.js";
 
@@ -38,12 +39,25 @@ export function purgeDimensionUbicacionLines(lines: string[]): string[] {
   });
 }
 
-/** Nombres basura del CRM ("Quiero cotización", saludos, placeholders). */
+/** Nombres basura del CRM ("Quiero cotización", saludos, placeholders, nombres del equipo). */
 export function purgeInvalidNombreLines(lines: string[]): string[] {
   return lines.filter((line) => {
     if (!/^-?\s*Nombre del cliente:/i.test(line)) return true;
     const raw = lineValue(line, "Nombre del cliente");
+    if (isStaffAdvisorName(raw)) return false;
     return !!sanitizeCrmNombre(raw) && !isQuoteIntentMessage(raw);
+  });
+}
+
+/** Tipo de evento copiado por error como requerimiento (ej. "bautizo"). */
+export function purgeRequerimientosEqualsTipoLines(lines: string[]): string[] {
+  const tipoLine = lines.find((l) => /^-?\s*Tipo de evento:/i.test(l));
+  const tipo = tipoLine ? lineValue(tipoLine, "Tipo de evento").toLowerCase() : "";
+  if (!tipo) return lines;
+  return lines.filter((line) => {
+    if (!/^-?\s*Requerimientos o servicios:/i.test(line)) return true;
+    const req = lineValue(line, "Requerimientos o servicios").toLowerCase();
+    return req !== tipo;
   });
 }
 
@@ -53,6 +67,7 @@ export function sanitizeKommoCrmLines(lines: string[]): string[] {
   out = purgeInvalidNombreLines(out);
   out = purgeOwnCompanyEmailLines(out);
   out = purgeDimensionUbicacionLines(out);
+  out = purgeRequerimientosEqualsTipoLines(out);
   return out;
 }
 

@@ -37,7 +37,7 @@ import {
   clientAsksIfCompanyEmailCorrect,
   buildCompanyEmailConfirmReply,
 } from "../tipoContacto.js";
-import { advisorLabelForClient, normalizeAdvisorReferences, getAdvisorName, LEGACY_ADVISOR_NAMES } from "../lib/bodasesorAdvisor.js";
+import { advisorLabelForClient, normalizeAdvisorReferences, getAdvisorName, LEGACY_ADVISOR_NAMES, stripInternalCrmBlock, isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   applyLucyMessageGuards,
@@ -62,6 +62,7 @@ import {
   stripCatalogBlockShared,
   pickTransition,
   stripRobotAcknowledgments,
+  buildCorreoQuestion,
 } from "../lucy-flow-guards.js";
 import {
   sanitizeKommoCrmLines,
@@ -1349,6 +1350,62 @@ async function runAll(): Promise<void> {
     assert.equal(clean.nombre, null);
     assert.equal(clean.direccion_evento, null);
     assert.ok(LEGACY_ADVISOR_NAMES.includes("Rodrigo"));
+  });
+
+  await test("31. A14786 — cliente Alejandro: saludo correcto, no confundir con asesor", () => {
+    assert.equal(clientAsksAboutTeam("Alejandro!", null), false);
+    assert.equal(clientAsksAboutTeam("Alejandro!", "María"), false);
+
+    const correoQ = buildCorreoQuestion("Alejandro", [], 14786);
+    assert.ok(/Mucho gusto,\s+Alejandro/i.test(correoQ), correoQ);
+    assert.ok(!/Mucho gusto,\s+nuestro equipo/i.test(correoQ), correoQ);
+
+    const norm = normalizeAdvisorReferences(
+      "Mucho gusto, Alejandro. ¿A qué correo te envío la info para que nuestro equipo te arme la propuesta?",
+      "Alejandro"
+    );
+    assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm), norm);
+    assert.ok(/nuestro equipo te arme/i.test(norm), norm);
+
+    assert.ok(isStaffAdvisorName("Rodrigo"));
+    assert.ok(!isValidRequerimientosValue("bautizo"));
+    assert.ok(isValidRequerimientosValue("servicio completo"));
+
+    const dirty = sanitizeKommoCrmLines([
+      "- Nombre del cliente: Rodrigo",
+      "- Tipo de evento: bautizo",
+      "- Requerimientos o servicios: bautizo",
+    ]);
+    assert.equal(dirty.length, 1);
+    assert.ok(/bautizo/i.test(dirty[0] ?? ""));
+
+    const leaked =
+      "Perfecto. Información completa obtenida.\n\nDATOS DEL CLIENTE:\n- Nombre: Alejandro";
+    const clean = stripInternalCrmBlock(leaked);
+    assert.ok(!/DATOS DEL CLIENTE/i.test(clean));
+    assert.ok(/^Perfecto\./i.test(clean));
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+      "Presupuesto (MXN)",
+    ]);
+    const closeReply = runGuards({
+      aiResponse:
+        "Información completa obtenida. DATOS DEL CLIENTE:\n- Nombre: Alejandro\n\n¿Te interesa algo más?",
+      extracted: emptyExtracted({ nombre: "Alejandro", tipo_evento: "bautizo", requerimientos_evento: "servicio completo" }),
+      filledSet: filled,
+      readyForClosing: true,
+      currentMessage: "Estamos cotizando apenas",
+    });
+    assert.ok(closeReply.includes(CLOSING_SIGNATURE), closeReply);
+    assert.ok(!/DATOS DEL CLIENTE/i.test(closeReply), closeReply);
+    assert.ok(!/Información completa obtenida/i.test(closeReply), closeReply);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
