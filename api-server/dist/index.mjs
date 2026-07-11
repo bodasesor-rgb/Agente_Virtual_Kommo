@@ -90638,6 +90638,7 @@ router10.get("/ops/status", async (_req, res) => {
       ...status,
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
       version: "3.3",
+      lucy_prompt: "V7",
       uptime: process.uptime()
     });
   } catch (err2) {
@@ -90685,10 +90686,10 @@ router11.use(catalog_default);
 router11.use(kommo_default);
 router11.use(lucy_default);
 router11.use(auth_default);
-router11.use(examples_default);
-router11.use(learning_default);
 router11.use(knowledgeGaps_default);
 router11.use(ops_default);
+router11.use(examples_default);
+router11.use(learning_default);
 router11.use(analytics_default);
 var routes_default = router11;
 

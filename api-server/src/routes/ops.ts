@@ -110,6 +110,7 @@ router.get("/ops/status", async (_req: Request, res: Response) => {
       ...status,
       timestamp: new Date().toISOString(),
       version: "3.3",
+      lucy_prompt: "V7",
       uptime: process.uptime(),
     });
   } catch (err) {

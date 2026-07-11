@@ -14,12 +14,14 @@ const OVERALL_LABEL = {
 const CHECK_ICON = { ok: "✓", warn: "!", error: "✕" };
 
 async function loadStatus() {
-  const data = await fetch("/api/ops/status").then((r) => r.json());
+  const res = await fetch("/api/ops/status");
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   if (data.error) throw new Error(data.error);
 
   overallCard.className = `overall-card ${data.overall}`;
   overallText.textContent = OVERALL_LABEL[data.overall] ?? data.overall;
-  overallDetail.textContent = `v${data.version ?? "?"} · ${Math.floor(data.uptime ?? 0)}s en línea`;
+  overallDetail.textContent = `v${data.version ?? "?"} · prompt ${data.lucy_prompt ?? "?"} · ${Math.floor(data.uptime ?? 0)}s en línea`;
 
   checksGrid.innerHTML = (data.checks ?? [])
     .map(
