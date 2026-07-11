@@ -45,7 +45,7 @@ function isLegacyAdvisorName(name: string): boolean {
 }
 
 const CLIENT_GREETING_PREFIX =
-  /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
+  /(Mucho gusto[,.]?|Hola[,.]?|Genial[,.]?|Perfecto[,.]?|Excelente[,.]?|Listo[,.]?|Claro[,.]?|Qué padre[,.]?|Con gusto[,.]?|¡Con gusto[,.]?)\s*/i;
 
 function replaceAdvisorTokensPreservingClientName(
   text: string,
@@ -54,6 +54,20 @@ function replaceAdvisorTokensPreservingClientName(
   clientName?: string | null
 ): string {
   const clientFirst = clientName?.trim().split(/\s+/)[0];
+  if (clientFirst && clientFirst.toLowerCase() === token.toLowerCase()) {
+    // Cliente con el mismo nombre que el asesor — no reemplazar vocativos ("Qué padre, Alejandro").
+    // Las frases de acción del asesor ya se corrigen arriba ("X te arma/cotiza").
+    const placeholder = "\uE000CLIENT_NAME\uE001";
+    const clientEsc = escapeRegex(clientFirst);
+    let out = text.replace(
+      new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
+      `$1${placeholder}`
+    );
+    out = out.replace(new RegExp(`\\b${clientEsc}\\b(?=\\s*,)`, "gi"), placeholder);
+    out = out.replace(new RegExp(`(?<=,\\s*)${clientEsc}\\b`, "gi"), placeholder);
+    return out.replace(new RegExp(placeholder, "g"), clientFirst);
+  }
+
   if (!clientFirst || clientFirst.toLowerCase() !== token.toLowerCase()) {
     return text.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
   }

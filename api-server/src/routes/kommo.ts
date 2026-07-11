@@ -70,7 +70,7 @@ import {
   sanitizeDisplayName,
   sanitizeCrmNombre,
 } from "../contact-name.js";
-import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
+import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail } from "../client-email.js";
 import { resolveTipoContacto } from "../tipoContacto.js";
 import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
 import {
@@ -119,6 +119,7 @@ import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { getKommoAccessToken, getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
 import { advisorLabelForClient, isStaffAdvisorName, normalizeAdvisorReferences } from "../lib/bodasesorAdvisor.js";
+import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
 
 const router: IRouter = Router();
 
@@ -667,9 +668,11 @@ function buildCrmContext(
       correoFromHistory ??
       correoFromCrm ??
       null;
-    if (correoVal) {
+    if (correoVal && looksLikeValidClientEmail(correoVal)) {
       mergedLines.push(`- Correo electrónico: ${correoVal}`);
       filledSet.add("Correo electrónico");
+      extracted.correo = correoVal;
+    } else if (correoVal) {
       extracted.correo = correoVal;
     }
   } else if (filledSet.has("Correo electrónico")) {
@@ -682,10 +685,16 @@ function buildCrmContext(
       filterClientEmail(parseCorreoFromText(extracted.correo)) ??
       filterClientEmail(parseCorreoFromText(currentMessage)) ??
       null;
-    if (newCorreo && (isOwnCompanyEmail(existingRaw) || newCorreo.toLowerCase() !== existingRaw.toLowerCase())) {
+    if (
+      newCorreo &&
+      looksLikeValidClientEmail(newCorreo) &&
+      (isOwnCompanyEmail(existingRaw) || newCorreo.toLowerCase() !== existingRaw.toLowerCase())
+    ) {
       if (idx >= 0) mergedLines[idx] = `- Correo electrónico: ${newCorreo}`;
       else mergedLines.push(`- Correo electrónico: ${newCorreo}`);
       filledSet.add("Correo electrónico");
+      extracted.correo = newCorreo;
+    } else if (newCorreo && !looksLikeValidClientEmail(newCorreo)) {
       extracted.correo = newCorreo;
     }
   }
@@ -1477,6 +1486,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       cierreYaEnviado: cierreYaEnviadoForGuards,
     });
     mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
+    mensajeParaCliente = formatForWhatsApp(mensajeParaCliente);
 
     if (cierreYaEnviado && combinedUserText.trim()) {
       const updatedReq = appendPostCierreRequirements(
@@ -2154,6 +2164,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       cierreYaEnviado: sbCierreYaEnviado,
     });
     mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
+    mensajeParaCliente = formatForWhatsApp(mensajeParaCliente);
 
     // ── P3 GUARD: Catálogo ya enviado → strip URL del catálogo en respuesta ───────
     if (sbCierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL)) {
@@ -2648,6 +2659,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       cierreYaEnviado: simCierreYaEnviado,
     });
     mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
+    mensajeParaCliente = formatForWhatsApp(mensajeParaCliente);
 
     if (!mensajeParaCliente.trim()) {
       mensajeParaCliente =

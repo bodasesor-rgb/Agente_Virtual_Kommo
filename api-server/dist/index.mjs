@@ -78376,9 +78376,20 @@ function isLegacyAdvisorName(name2) {
   const lower = name2.toLowerCase();
   return LEGACY_ADVISOR_NAMES.some((legacy) => legacy.toLowerCase() === lower);
 }
-var CLIENT_GREETING_PREFIX = /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
+var CLIENT_GREETING_PREFIX = /(Mucho gusto[,.]?|Hola[,.]?|Genial[,.]?|Perfecto[,.]?|Excelente[,.]?|Listo[,.]?|Claro[,.]?|Qué padre[,.]?|Con gusto[,.]?|¡Con gusto[,.]?)\s*/i;
 function replaceAdvisorTokensPreservingClientName(text2, token, replacement, clientName) {
   const clientFirst = clientName?.trim().split(/\s+/)[0];
+  if (clientFirst && clientFirst.toLowerCase() === token.toLowerCase()) {
+    const placeholder2 = "\uE000CLIENT_NAME\uE001";
+    const clientEsc2 = escapeRegex(clientFirst);
+    let out3 = text2.replace(
+      new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc2}\\b`, "gi"),
+      `$1${placeholder2}`
+    );
+    out3 = out3.replace(new RegExp(`\\b${clientEsc2}\\b(?=\\s*,)`, "gi"), placeholder2);
+    out3 = out3.replace(new RegExp(`(?<=,\\s*)${clientEsc2}\\b`, "gi"), placeholder2);
+    return out3.replace(new RegExp(placeholder2, "g"), clientFirst);
+  }
   if (!clientFirst || clientFirst.toLowerCase() !== token.toLowerCase()) {
     return text2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
   }
@@ -79122,6 +79133,20 @@ function filterClientEmail(email) {
   if (!norm || isOwnCompanyEmail(norm)) return null;
   return email.trim();
 }
+var SUSPICIOUS_TLD = /\.(comm|con|cmo|gmial|gmal|gmai|hotmial|yaho|outlok)\b/i;
+function looksLikeValidClientEmail(email) {
+  const norm = normalizeEmail(email);
+  if (!norm) return false;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm)) return false;
+  const domain = norm.split("@")[1] ?? "";
+  if (!domain || /\.\./.test(domain) || domain.startsWith(".") || domain.endsWith(".")) return false;
+  if (SUSPICIOUS_TLD.test(domain)) return false;
+  const tld = domain.split(".").pop() ?? "";
+  return tld.length >= 2 && /^[a-z]{2,}$/i.test(tld);
+}
+function buildEmailConfirmationPrompt(email) {
+  return `\xBFMe confirmas tu correo? Lo le\xED como ${email.trim()}, quiero anotarlo bien.`;
+}
 
 // src/conversation-understanding.ts
 var LUCY_FIELD_ASK_PATTERNS = {
@@ -79256,7 +79281,17 @@ function clientAsksForRecommendations(message) {
 function isAmbiguousShortNumber(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
-  return /^el\s+\d{1,2}$/i.test(t) || /^\d{1,2}$/.test(t);
+  const elMatch = t.match(/^el\s+(\d{1,2})$/i);
+  if (elMatch) {
+    const n3 = parseInt(elMatch[1], 10);
+    return n3 >= 1 && n3 <= 31;
+  }
+  const bareMatch = t.match(/^(\d{1,2})$/);
+  if (bareMatch) {
+    const n3 = parseInt(bareMatch[1], 10);
+    return n3 >= 1 && n3 <= 31;
+  }
+  return false;
 }
 function sanitizeExtractedAmbiguousNumbers(extracted, messageText) {
   if (isAmbiguousShortNumber(messageText)) {
@@ -79324,7 +79359,13 @@ function clientMentionsCatering(message) {
   const t = message.toLowerCase();
   return /\bcatering\b/i.test(t) || /\b(brunch|desayuno)\b/i.test(t) || /\bbrunch\s*\/\s*desayuno/i.test(t) || /\bcoffee\s*break\b/i.test(t) || /\bbarra\s+de\s+caf[eé](?!\w)/i.test(t) || /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t) || /\bcomida\s+para\b/i.test(t) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t);
 }
+function clientAsksIfWeOfferService(message) {
+  if (!message?.trim() || !/\?/.test(message)) return false;
+  const t = message.toLowerCase();
+  return isServiceRelatedMessage(message) && /\b(tienen|tienes|manejan|manejas|ofrecen|ofreces|cuentan|hay|traen)\b/i.test(t);
+}
 function clientAsksServiceInfo(message) {
+  if (clientAsksIfWeOfferService(message)) return true;
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
   if (!isServiceRelatedMessage(message)) return false;
@@ -80390,18 +80431,36 @@ ${parsed.inclusion}`;
 function responseLooksLikeGenericCateringMenu(text2) {
   return GENERIC_CATERING_MENU_MARKERS.test(text2);
 }
-function buildCatalogCateringOverviewFromSheet() {
+function buildCatalogCateringOverviewFromSheet(eventHint) {
   if (!snapshot?.rows.length) return null;
   const byCategory = /* @__PURE__ */ new Map();
   for (const row of snapshot.rows) {
     const cat = row.categoria || row.servicio.split(" (")[0] || "Servicio";
     if (!byCategory.has(cat)) byCategory.set(cat, row);
   }
+  const hint = (eventHint ?? "").toLowerCase();
+  const categoryPriority = (cat) => {
+    const c2 = cat.toLowerCase();
+    if (/baby|shower/.test(hint)) {
+      if (/brunch|banquete|dulce|canap|bocadillo|coffee/i.test(c2)) return 0;
+      if (/taquiza/i.test(c2)) return 8;
+      return 3;
+    }
+    if (/bautizo/.test(hint)) {
+      if (/brunch|banquete|dulce/i.test(c2)) return 0;
+      if (/taquiza/i.test(c2)) return 6;
+      return 3;
+    }
+    if (/taquiza/.test(hint) && /taquiza/i.test(c2)) return 0;
+    if (/banquete/i.test(c2)) return 1;
+    if (/taquiza/i.test(c2)) return 4;
+    return 2;
+  };
   const foodCats = [...byCategory.entries()].filter(
-    ([cat]) => /taquiza|banquete|brunch|coffee|pizza|sushi|barra|parrillada|canap|crep|paella|pozole|americana|kosher|navide/i.test(
+    ([cat]) => /taquiza|banquete|brunch|coffee|pizza|sushi|barra|parrillada|canap|crep|paella|pozole|americana|kosher|navide|dulce/i.test(
       cat
     )
-  ).slice(0, 8);
+  ).sort((a2, b4) => categoryPriority(a2[0]) - categoryPriority(b4[0])).slice(0, 8);
   if (!foodCats.length) return null;
   const options = foodCats.map(([cat, row]) => {
     const desde = row.tienePrecio && row.precio ? ` \u2014 desde ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
@@ -80441,7 +80500,7 @@ function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
     return buildCatalogNotFoundAnswer(label);
   }
   if (genericCatering && !responseLooksLikeGenericCateringMenu(aiResponse)) {
-    const overview = buildCatalogCateringOverviewFromSheet();
+    const overview = buildCatalogCateringOverviewFromSheet(clientMessage);
     if (overview) return overview;
   }
   return aiResponse;
@@ -81229,8 +81288,17 @@ Anti-robot (despu\xE9s del primer mensaje):
 ## 2. TRANSICIONES (var\xEDa siempre)
 ===================================================================
 Antes de cada pregunta usa UNA transici\xF3n corta. NUNCA repitas la misma dos veces seguidas.
-Rota entre: Genial / Perfecto / Excelente / Suena muy bien / Listo / Claro / Qu\xE9 padre.
+Rota entre: Perfecto / Excelente / Suena muy bien / Listo / Claro / Qu\xE9 padre / Muy bien / Entendido (usa "Genial" con moderaci\xF3n).
+Tras recibir el CORREO del cliente: "Gracias por tu correo, {nombre}." \u2014 no uses "Genial" ah\xED.
 NUNCA hagas una pregunta sin transici\xF3n antes (excepto el primer mensaje con presentaci\xF3n).
+
+===================================================================
+## FORMATO WHATSAPP (obligatorio)
+===================================================================
+- Nada de markdown: sin **doble asterisco**, sin ## encabezados, sin tablas.
+- Negritas con UN solo asterisco: *as\xED*.
+- Listas cortas con \u2022 (no guiones - ni asteriscos de lista).
+- Mensajes de 2-4 l\xEDneas; sin p\xE1rrafos largos.
 
 ===================================================================
 ## 3. DATOS A CAPTURAR (orden natural)
@@ -81744,10 +81812,12 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
     ideas = "Para boda lo m\xE1s pedido es banquete o taquiza, barra de bebidas, mobiliario, carpas o pista de baile, DJ e iluminaci\xF3n. Tambi\xE9n mesa de dulces o quesos.";
   } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
     ideas = "Para XV a\xF1os suele ir banquete o taquiza, mesa de dulces, mobiliario, DJ, iluminaci\xF3n y pista de baile.";
+  } else if (/baby|shower/.test(tipo) || /\bbaby\s*shower\b/.test(texts)) {
+    ideas = "Para un baby shower solemos armar banquete o brunch, mesa de dulces, bocadillos o canap\xE9s, y barras tem\xE1ticas. Tambi\xE9n mobiliario, decoraci\xF3n y DJ suave.";
   } else if (clientMentionsItalianTheme(texts) || clientMentionsItalianTheme(currentMessage)) {
     ideas = "Para algo con tem\xE1tica italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana \u2014 ideal si ven el partido o quieren ambiente italiano.";
   } else {
-    ideas = "Lo m\xE1s com\xFAn es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, iluminaci\xF3n y mesa de dulces seg\xFAn el estilo del evento.";
+    ideas = "Seg\xFAn el estilo del evento podemos armar banquete o brunch, mesa de dulces, barras de bebidas, mobiliario, carpas, DJ e iluminaci\xF3n.";
   }
   const comparison = buildCatalogComparisonAnswer();
   if (comparison && /banquete|taquiza|recomiendas?/i.test(currentMessage ?? "")) {
@@ -81759,15 +81829,17 @@ ${comparison}`;
   return appendServiciosCatalogoHint(`${ideas} ${follow}`.trim());
 }
 var LUCY_TRANSITIONS = [
-  "Genial.",
   "Perfecto.",
   "Excelente.",
   "Suena muy bien.",
   "Listo.",
   "Claro.",
-  "Qu\xE9 padre."
+  "Qu\xE9 padre.",
+  "Muy bien.",
+  "Entendido.",
+  "Genial."
 ];
-var TRANSITION_START_PATTERN = /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\./i;
+var TRANSITION_START_PATTERN = /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre|Muy bien|Entendido)\./i;
 function pickTransition(history) {
   const assistants = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").map((m4) => m4.content.trim());
   const last = assistants[assistants.length - 1] ?? "";
@@ -81807,6 +81879,13 @@ function contextualPrefix(field, extracted, currentMessage, history = []) {
   }
   if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) {
     return `${pickTransition(history)} `;
+  }
+  if (field === "tipo_evento" && extracted.correo?.trim()) {
+    const nombre = getDisplayName(extracted, void 0);
+    return nombre ? `Gracias por tu correo, ${nombre}. ` : "Gracias por tu correo. ";
+  }
+  if (field === "correo" && /correo|@|arroba/i.test(msg)) {
+    return "";
   }
   return "";
 }
@@ -82145,9 +82224,32 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
       true
     );
   }
+  const eventIdeas = eventServiceSuggestions(extracted);
+  if (eventIdeas) {
+    return appendServiciosCatalogoHint(`${prefix}${eventIdeas} \xBFQu\xE9 te gustar\xEDa incluir?`.trim());
+  }
   const variant = pickVariant("requerimientos", history, entityId);
   const core = prefix ? `${prefix}${variant}` : variant;
   return appendServiciosCatalogoHint(core);
+}
+function eventServiceSuggestions(extracted) {
+  const tipo = (extracted.tipo_evento ?? "").toLowerCase();
+  if (/baby|shower/.test(tipo)) {
+    return "Para un baby shower solemos armar banquete o brunch, mesa de dulces, bocadillos y barras tem\xE1ticas.";
+  }
+  if (/bautizo/.test(tipo)) {
+    return "Para un bautizo suele ir banquete o brunch, pastel, mesa de dulces y mobiliario.";
+  }
+  if (/boda/.test(tipo)) {
+    return "Para boda lo m\xE1s pedido es banquete, barra de bebidas, mobiliario, DJ e iluminaci\xF3n.";
+  }
+  if (/xv|quince/.test(tipo)) {
+    return "Para XV a\xF1os solemos banquete, mesa de dulces, DJ, iluminaci\xF3n y pista de baile.";
+  }
+  if (/corporativo|expo|empresa/.test(tipo)) {
+    return "Para eventos corporativos manejamos coffee break, brunch, barras de bebidas y estaciones de comida.";
+  }
+  return "Podemos armar banquete o brunch, barras de bebidas, mobiliario, carpas, DJ e iluminaci\xF3n seg\xFAn tu evento.";
 }
 function requerimientosNeedsFollowUp(extracted, filledSet) {
   if (filledSet.has("Requerimientos o servicios")) return false;
@@ -82342,6 +82444,26 @@ function applyLucyMessageGuards(input) {
     mensaje = "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: n\xFAmero ambiguo \u2014 pedir aclaraci\xF3n");
+  } else if (currentMessage && (() => {
+    const pendingEmail = filterClientEmail(parseCorreoFromText(currentMessage));
+    return !!pendingEmail && !looksLikeValidClientEmail(pendingEmail) && !filledSet.has("Correo electr\xF3nico") && !filledSet.has(EMAIL_WAIVED_LABEL);
+  })()) {
+    const pendingEmail = filterClientEmail(parseCorreoFromText(currentMessage));
+    mensaje = buildEmailConfirmationPrompt(pendingEmail);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: correo sospechoso \u2014 pedir confirmaci\xF3n");
+  } else if (currentMessage && (clientAsksServiceInfo(currentMessage) || /\?/.test(currentMessage) && isServiceRelatedMessage(currentMessage))) {
+    const serviceReply = buildCatalogServiceDetailAnswer(currentMessage) ?? buildConsultativeNoPriceReply(currentMessage) ?? buildAlejandroPriceReply(findMentionedService(currentMessage) ?? "ese servicio", currentMessage);
+    const pendingSvc = getNextPendingField(extracted, filledSet);
+    if (pendingSvc && needsNextStep && !trulyReadyForClosing && !cierreYaEnviado) {
+      mensaje = `${serviceReply}
+
+${buildNaturalQuestion(pendingSvc, ctx)}`;
+    } else {
+      mensaje = serviceReply;
+    }
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 responder y seguir flujo");
   } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && clientMentionsItalianTheme(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
@@ -89479,6 +89601,12 @@ async function recordKnowledgeGapIfNeeded(opts) {
   }
 }
 
+// src/lib/formatForWhatsApp.ts
+function formatForWhatsApp(text2) {
+  if (!text2?.trim()) return text2;
+  return text2.replace(/\*\*(.+?)\*\*/g, "*$1*").replace(/^#{1,6}\s*/gm, "").replace(/^\s*[-*]\s+/gm, "\u2022 ").replace(/`{1,3}/g, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 // src/routes/kommo.ts
 var router3 = (0, import_express3.Router)();
 var openai4 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
@@ -89809,19 +89937,23 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     const correoFromHistory = collectUserTexts(historyFull, currentMessage).map((t) => parseCorreoFromText(t)).map((e) => filterClientEmail(e)).find(Boolean);
     const correoFromCrm = mergedLines.map((l4) => parseCorreoFromText(l4)).map((e) => filterClientEmail(e)).find(Boolean);
     const correoVal = filterClientEmail(parseCorreoFromText(extracted.correo)) ?? filterClientEmail(parseCorreoFromText(clientEmailFromDB)) ?? correoFromHistory ?? correoFromCrm ?? null;
-    if (correoVal) {
+    if (correoVal && looksLikeValidClientEmail(correoVal)) {
       mergedLines.push(`- Correo electr\xF3nico: ${correoVal}`);
       filledSet.add("Correo electr\xF3nico");
+      extracted.correo = correoVal;
+    } else if (correoVal) {
       extracted.correo = correoVal;
     }
   } else if (filledSet.has("Correo electr\xF3nico")) {
     const idx = mergedLines.findIndex((l4) => /^-?\s*Correo electrónico:/i.test(l4));
     const existingRaw = idx >= 0 ? mergedLines[idx].replace(/^-?\s*Correo electrónico:\s*/i, "").trim() : "";
     const newCorreo = filterClientEmail(parseCorreoFromText(extracted.correo)) ?? filterClientEmail(parseCorreoFromText(currentMessage)) ?? null;
-    if (newCorreo && (isOwnCompanyEmail(existingRaw) || newCorreo.toLowerCase() !== existingRaw.toLowerCase())) {
+    if (newCorreo && looksLikeValidClientEmail(newCorreo) && (isOwnCompanyEmail(existingRaw) || newCorreo.toLowerCase() !== existingRaw.toLowerCase())) {
       if (idx >= 0) mergedLines[idx] = `- Correo electr\xF3nico: ${newCorreo}`;
       else mergedLines.push(`- Correo electr\xF3nico: ${newCorreo}`);
       filledSet.add("Correo electr\xF3nico");
+      extracted.correo = newCorreo;
+    } else if (newCorreo && !looksLikeValidClientEmail(newCorreo)) {
       extracted.correo = newCorreo;
     }
   }
@@ -90302,6 +90434,7 @@ async function processBatch(batch, accessToken, log) {
       cierreYaEnviado: cierreYaEnviadoForGuards
     });
     mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
+    mensajeParaCliente = formatForWhatsApp(mensajeParaCliente);
     if (cierreYaEnviado && combinedUserText.trim()) {
       const updatedReq = appendPostCierreRequirements(
         extracted.requerimientos_evento,
@@ -90801,6 +90934,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
       cierreYaEnviado: sbCierreYaEnviado
     });
     mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
+    mensajeParaCliente = formatForWhatsApp(mensajeParaCliente);
     if (sbCierreYaEnviado && mensajeParaCliente.includes(CATALOG_URL2)) {
       log.warn({ entityId }, "Salesbot P3 GUARD: cat\xE1logo repetido en respuesta post-cierre \u2014 stripping");
       mensajeParaCliente = stripCatalogBlock(mensajeParaCliente);
@@ -91167,6 +91301,7 @@ router3.post("/kommo/simulator", async (req, res) => {
       cierreYaEnviado: simCierreYaEnviado
     });
     mensajeParaCliente = normalizeAdvisorReferences(mensajeParaCliente, extracted.nombre);
+    mensajeParaCliente = formatForWhatsApp(mensajeParaCliente);
     if (!mensajeParaCliente.trim()) {
       mensajeParaCliente = simCierreYaEnviado && clientSaysThanks(messageText) ? buildPostCierreThanksReply(extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     }

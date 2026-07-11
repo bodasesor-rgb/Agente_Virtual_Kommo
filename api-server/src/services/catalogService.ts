@@ -592,7 +592,7 @@ function responseLooksLikeGenericCateringMenu(text: string): boolean {
 export { responseLooksLikeGenericCateringMenu };
 
 /** Overview de categorías del Sheet — solo cuando el cliente pregunta genérico por catering. */
-export function buildCatalogCateringOverviewFromSheet(): string | null {
+export function buildCatalogCateringOverviewFromSheet(eventHint?: string): string | null {
   if (!snapshot?.rows.length) return null;
 
   const byCategory = new Map<string, SheetCatalogRow>();
@@ -601,12 +601,32 @@ export function buildCatalogCateringOverviewFromSheet(): string | null {
     if (!byCategory.has(cat)) byCategory.set(cat, row);
   }
 
+  const hint = (eventHint ?? "").toLowerCase();
+  const categoryPriority = (cat: string): number => {
+    const c = cat.toLowerCase();
+    if (/baby|shower/.test(hint)) {
+      if (/brunch|banquete|dulce|canap|bocadillo|coffee/i.test(c)) return 0;
+      if (/taquiza/i.test(c)) return 8;
+      return 3;
+    }
+    if (/bautizo/.test(hint)) {
+      if (/brunch|banquete|dulce/i.test(c)) return 0;
+      if (/taquiza/i.test(c)) return 6;
+      return 3;
+    }
+    if (/taquiza/.test(hint) && /taquiza/i.test(c)) return 0;
+    if (/banquete/i.test(c)) return 1;
+    if (/taquiza/i.test(c)) return 4;
+    return 2;
+  };
+
   const foodCats = [...byCategory.entries()]
     .filter(([cat]) =>
-      /taquiza|banquete|brunch|coffee|pizza|sushi|barra|parrillada|canap|crep|paella|pozole|americana|kosher|navide/i.test(
+      /taquiza|banquete|brunch|coffee|pizza|sushi|barra|parrillada|canap|crep|paella|pozole|americana|kosher|navide|dulce/i.test(
         cat
       )
     )
+    .sort((a, b) => categoryPriority(a[0]) - categoryPriority(b[0]))
     .slice(0, 8);
 
   if (!foodCats.length) return null;
@@ -681,7 +701,7 @@ export function injectCatalogCateringIfAsked(
   }
 
   if (genericCatering && !responseLooksLikeGenericCateringMenu(aiResponse)) {
-    const overview = buildCatalogCateringOverviewFromSheet();
+    const overview = buildCatalogCateringOverviewFromSheet(clientMessage);
     if (overview) return overview;
   }
 

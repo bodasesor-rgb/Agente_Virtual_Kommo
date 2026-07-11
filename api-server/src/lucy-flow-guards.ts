@@ -19,6 +19,7 @@ import {
 } from "./tipoContacto.js";
 import {
   buildAlejandroPriceReply,
+  buildConsultativeNoPriceReply,
   clientAsksPrice,
   getPriceServiceLabel,
   mentionsListedPriceService,
@@ -37,6 +38,12 @@ import {
   responseLooksLikeGenericCateringMenu,
   clientAsksInclusion,
 } from "./services/catalogService.js";
+import {
+  buildEmailConfirmationPrompt,
+  filterClientEmail,
+  looksLikeValidClientEmail,
+} from "./client-email.js";
+import { parseCorreoFromText } from "./conversation-understanding.js";
 import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
@@ -57,6 +64,7 @@ import {
   clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
   clientMentionsCatering,
+  clientAsksServiceInfo,
   inferLucyAskedField,
   isServiceRelatedMessage,
   parsePrimaryService,
@@ -624,12 +632,15 @@ export function buildRecommendationsReply(
   } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
     ideas =
       "Para XV años suele ir banquete o taquiza, mesa de dulces, mobiliario, DJ, iluminación y pista de baile.";
+  } else if (/baby|shower/.test(tipo) || /\bbaby\s*shower\b/.test(texts)) {
+    ideas =
+      "Para un baby shower solemos armar banquete o brunch, mesa de dulces, bocadillos o canapés, y barras temáticas. También mobiliario, decoración y DJ suave.";
   } else if (clientMentionsItalianTheme(texts) || clientMentionsItalianTheme(currentMessage)) {
     ideas =
       "Para algo con temática italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana — ideal si ven el partido o quieren ambiente italiano.";
   } else {
     ideas =
-      "Lo más común es banquete o taquiza, barra de bebidas, mobiliario, carpas, DJ, iluminación y mesa de dulces según el estilo del evento.";
+      "Según el estilo del evento podemos armar banquete o brunch, mesa de dulces, barras de bebidas, mobiliario, carpas, DJ e iluminación.";
   }
 
   const comparison = buildCatalogComparisonAnswer();
@@ -642,17 +653,19 @@ export function buildRecommendationsReply(
 }
 
 const LUCY_TRANSITIONS = [
-  "Genial.",
   "Perfecto.",
   "Excelente.",
   "Suena muy bien.",
   "Listo.",
   "Claro.",
   "Qué padre.",
+  "Muy bien.",
+  "Entendido.",
+  "Genial.",
 ] as const;
 
 const TRANSITION_START_PATTERN =
-  /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\./i;
+  /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre|Muy bien|Entendido)\./i;
 
 /** Rota transiciones — nunca la misma dos veces seguidas (regla Replit). */
 export function pickTransition(
@@ -709,6 +722,13 @@ function contextualPrefix(
   }
   if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) {
     return `${pickTransition(history)} `;
+  }
+  if (field === "tipo_evento" && extracted.correo?.trim()) {
+    const nombre = getDisplayName(extracted, undefined);
+    return nombre ? `Gracias por tu correo, ${nombre}. ` : "Gracias por tu correo. ";
+  }
+  if (field === "correo" && /correo|@|arroba/i.test(msg)) {
+    return "";
   }
   return "";
 }
@@ -1256,9 +1276,34 @@ export function buildRequerimientosQuestion(
     );
   }
 
+  const eventIdeas = eventServiceSuggestions(extracted);
+  if (eventIdeas) {
+    return appendServiciosCatalogoHint(`${prefix}${eventIdeas} ¿Qué te gustaría incluir?`.trim());
+  }
+
   const variant = pickVariant("requerimientos", history, entityId);
   const core = prefix ? `${prefix}${variant}` : variant;
   return appendServiciosCatalogoHint(core);
+}
+
+function eventServiceSuggestions(extracted: ExtractedData): string | null {
+  const tipo = (extracted.tipo_evento ?? "").toLowerCase();
+  if (/baby|shower/.test(tipo)) {
+    return "Para un baby shower solemos armar banquete o brunch, mesa de dulces, bocadillos y barras temáticas.";
+  }
+  if (/bautizo/.test(tipo)) {
+    return "Para un bautizo suele ir banquete o brunch, pastel, mesa de dulces y mobiliario.";
+  }
+  if (/boda/.test(tipo)) {
+    return "Para boda lo más pedido es banquete, barra de bebidas, mobiliario, DJ e iluminación.";
+  }
+  if (/xv|quince/.test(tipo)) {
+    return "Para XV años solemos banquete, mesa de dulces, DJ, iluminación y pista de baile.";
+  }
+  if (/corporativo|expo|empresa/.test(tipo)) {
+    return "Para eventos corporativos manejamos coffee break, brunch, barras de bebidas y estaciones de comida.";
+  }
+  return "Podemos armar banquete o brunch, barras de bebidas, mobiliario, carpas, DJ e iluminación según tu evento.";
 }
 
 export function requerimientosNeedsFollowUp(
@@ -1599,6 +1644,39 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = "¿Te refieres a 5 invitados o al día 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: número ambiguo — pedir aclaración");
+  } else if (
+    currentMessage &&
+    (() => {
+      const pendingEmail = filterClientEmail(parseCorreoFromText(currentMessage));
+      return (
+        !!pendingEmail &&
+        !looksLikeValidClientEmail(pendingEmail) &&
+        !filledSet.has("Correo electrónico") &&
+        !filledSet.has(EMAIL_WAIVED_LABEL)
+      );
+    })()
+  ) {
+    const pendingEmail = filterClientEmail(parseCorreoFromText(currentMessage))!;
+    mensaje = buildEmailConfirmationPrompt(pendingEmail);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: correo sospechoso — pedir confirmación");
+  } else if (
+    currentMessage &&
+    (clientAsksServiceInfo(currentMessage) ||
+      (/\?/.test(currentMessage) && isServiceRelatedMessage(currentMessage)))
+  ) {
+    const serviceReply =
+      buildCatalogServiceDetailAnswer(currentMessage) ??
+      buildConsultativeNoPriceReply(currentMessage) ??
+      buildAlejandroPriceReply(findMentionedService(currentMessage) ?? "ese servicio", currentMessage);
+    const pendingSvc = getNextPendingField(extracted, filledSet);
+    if (pendingSvc && needsNextStep && !trulyReadyForClosing && !cierreYaEnviado) {
+      mensaje = `${serviceReply}\n\n${buildNaturalQuestion(pendingSvc, ctx)}`;
+    } else {
+      mensaje = serviceReply;
+    }
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: pregunta de servicio — responder y seguir flujo");
   } else if (
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
     !conversationAlreadyStarted(filledSet, presHistory) &&
