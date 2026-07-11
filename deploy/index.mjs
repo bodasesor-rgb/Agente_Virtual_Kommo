@@ -90182,7 +90182,21 @@ router3.post("/kommo/simulator", async (req, res) => {
       fields,
       stage_id,
       lead_updates,
-      all_fields_filled: allFieldsFilled
+      all_fields_filled: allFieldsFilled,
+      extracted: {
+        tipo_contacto: extracted.tipo_contacto,
+        nombre: extracted.nombre,
+        correo: extracted.correo,
+        telefono: extracted.telefono,
+        tipo_evento: extracted.tipo_evento,
+        requerimientos_evento: extracted.requerimientos_evento,
+        num_invitados: extracted.num_invitados,
+        direccion_evento: extracted.direccion_evento,
+        fecha_horario: extracted.fecha_horario,
+        presupuesto: extracted.presupuesto,
+        modo_servicio: extracted.modo_servicio,
+        empresa: extracted.empresa
+      }
     });
   } catch (err2) {
     log.error({ err: err2 }, "Simulator: processing error");

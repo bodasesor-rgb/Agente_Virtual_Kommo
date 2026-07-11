@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "selftest": "pnpm run build && node ./dist/selftest/lucy-flow-selftest.mjs"
+    "selftest": "pnpm run build && node ./dist/selftest/lucy-flow-selftest.mjs",
+    "live-20": "node ./scripts/lucy-live-20-tests.mjs"
   },
   "dependencies": {
     "@workspace/api-zod": "*",
