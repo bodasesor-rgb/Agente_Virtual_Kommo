@@ -15,6 +15,7 @@ import {
   parseInvitadosFromText,
   parseFechaFromText,
 } from "../conversation-understanding.js";
+import { formatRequerimientoLabelFromQuery } from "./catalogService.js";
 
 function extraerEstilo(texto: string): string | null {
   const estilos: Array<[string, RegExp]> = [
@@ -163,12 +164,17 @@ export function buildResumenClienteLargo(
 
   const reqFromLines = pickFromMergedLines(mergedLines, /Requerimientos/i);
   const reqFromServices = extracted.requerimientos_evento?.trim();
+  const reqFromCatalog =
+    conversationText && conversationText.trim().length > 3
+      ? formatRequerimientoLabelFromQuery(conversationText)
+      : null;
   const reqFromConversation =
     conversationText && conversationText.trim().length > 20
       ? parseServicesFromText(conversationText).slice(0, 3).join(", ")
       : null;
   const reqs =
     (reqFromLines && reqFromLines !== "Info pendiente" ? reqFromLines : null) ||
+    reqFromCatalog ||
     (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) ||
     (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
 

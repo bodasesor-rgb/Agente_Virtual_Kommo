@@ -7,6 +7,7 @@
 
 export interface SheetCatalogRow {
   servicio: string;
+  nivel: string;
   categoria: string;
   precio: string;
   unidad: string;
@@ -32,9 +33,11 @@ const HEADER_ALIASES: Record<string, keyof Omit<SheetCatalogRow, "tienePrecio">>
   categoría: "categoria",
   category: "categoria",
   tipo: "categoria",
-  nivel: "categoria",
-  precio: "precio",
+  nivel: "nivel",
+  tier: "nivel",
+  paquete: "nivel",
   "precio unitario": "precio",
+  precio: "precio",
   price: "precio",
   costo: "precio",
   tarifa: "precio",
@@ -50,6 +53,30 @@ const HEADER_ALIASES: Record<string, keyof Omit<SheetCatalogRow, "tienePrecio">>
   "que incluye": "notas",
   extras: "notas",
 };
+
+/** Macro-categoría derivada del nombre de servicio (el Sheet no trae columna categoría). */
+export function deriveCatalogCategory(servicio: string): string {
+  const s = servicio.toLowerCase();
+  if (/barra de bebida|cocteler|mixolog|m[oó]ctel/.test(s)) return "Bebidas";
+  if (
+    /banquete|taquiza|brunch|coffee|barra|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i.test(
+      s
+    )
+  ) {
+    return "Alimentos";
+  }
+  if (/mobiliario|silla/.test(s)) return "Mobiliario";
+  if (/dj|animaci|iluminaci|pantalla|audio|pista/.test(s)) return "Entretenimiento";
+  return "Servicios";
+}
+
+/** Etiqueta legible servicio + nivel para CRM/resumen. */
+export function formatCatalogRowLabel(row: Pick<SheetCatalogRow, "servicio" | "nivel">): string {
+  const svc = row.servicio.trim();
+  const nivel = row.nivel.trim();
+  if (!nivel || nivel.toLowerCase() === svc.toLowerCase()) return svc;
+  return `${svc} — ${nivel}`;
+}
 
 function normalizeHeader(h: string): string {
   return h
@@ -245,8 +272,9 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
       if (revisado === "false" || revisado === "no" || revisado === "0") continue;
     }
 
-    const nivel = get("categoria");
-    const servicio = nivel ? `${servicioBase} (${nivel})` : servicioBase;
+    const servicio = servicioBase;
+    const nivelVal = get("nivel");
+    const categoria = get("categoria") || deriveCatalogCategory(servicioBase);
 
     const precio = get("precio");
     const flag =
@@ -275,7 +303,8 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
 
     rows.push({
       servicio,
-      categoria: servicioBase,
+      nivel: nivelVal,
+      categoria,
       precio,
       unidad,
       notas: notasParts.join(" | "),
@@ -307,19 +336,38 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
 
   for (const [cat, items] of byCategory) {
     lines.push(`## ${cat}`, "");
+    const byService = new Map<string, SheetCatalogRow[]>();
     for (const item of items) {
-      if (item.tienePrecio && item.precio) {
-        const unit = item.unidad ? ` ${item.unidad}` : "";
-        lines.push(`• **${item.servicio}**: ${item.precio}${unit}`);
+      const key = item.servicio;
+      if (!byService.has(key)) byService.set(key, []);
+      byService.get(key)!.push(item);
+    }
+    for (const [svc, levels] of byService) {
+      if (levels.length === 1) {
+        const item = levels[0]!;
+        const label = formatCatalogRowLabel(item);
+        if (item.tienePrecio && item.precio) {
+          const unit = item.unidad ? ` ${item.unidad}` : "";
+          lines.push(`• **${label}**: ${item.precio}${unit}`);
+        } else {
+          lines.push(`• **${label}**: sin precio listado — Alejandro cotiza`);
+        }
+        if (item.notas) {
+          const parsed = parseRowNotes(item.notas);
+          const clientNotes = [parsed.inclusion, parsed.minimo ? `Mínimo de salida: ${parsed.minimo}` : ""]
+            .filter(Boolean)
+            .join(" | ");
+          if (clientNotes) lines.push(`  ${clientNotes}`);
+        }
       } else {
-        lines.push(`• **${item.servicio}**: sin precio listado — Alejandro cotiza`);
-      }
-      if (item.notas) {
-        const parsed = parseRowNotes(item.notas);
-        const clientNotes = [parsed.inclusion, parsed.minimo ? `Mínimo de salida: ${parsed.minimo}` : ""]
-          .filter(Boolean)
-          .join(" | ");
-        if (clientNotes) lines.push(`  ${clientNotes}`);
+        lines.push(`• **${svc}** (${levels.length} niveles)`);
+        for (const item of levels.slice(0, 6)) {
+          const label = item.nivel || formatCatalogRowLabel(item);
+          if (item.tienePrecio && item.precio) {
+            const unit = item.unidad ? ` ${item.unidad}` : "";
+            lines.push(`  - ${label}: ${item.precio}${unit}`);
+          }
+        }
       }
     }
     lines.push("");

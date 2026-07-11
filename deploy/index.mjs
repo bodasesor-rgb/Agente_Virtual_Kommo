@@ -78550,9 +78550,11 @@ var HEADER_ALIASES = {
   categor\u00EDa: "categoria",
   category: "categoria",
   tipo: "categoria",
-  nivel: "categoria",
-  precio: "precio",
+  nivel: "nivel",
+  tier: "nivel",
+  paquete: "nivel",
   "precio unitario": "precio",
+  precio: "precio",
   price: "precio",
   costo: "precio",
   tarifa: "precio",
@@ -78568,6 +78570,24 @@ var HEADER_ALIASES = {
   "que incluye": "notas",
   extras: "notas"
 };
+function deriveCatalogCategory(servicio) {
+  const s4 = servicio.toLowerCase();
+  if (/barra de bebida|cocteler|mixolog|m[oó]ctel/.test(s4)) return "Bebidas";
+  if (/banquete|taquiza|brunch|coffee|barra|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i.test(
+    s4
+  )) {
+    return "Alimentos";
+  }
+  if (/mobiliario|silla/.test(s4)) return "Mobiliario";
+  if (/dj|animaci|iluminaci|pantalla|audio|pista/.test(s4)) return "Entretenimiento";
+  return "Servicios";
+}
+function formatCatalogRowLabel(row) {
+  const svc = row.servicio.trim();
+  const nivel = row.nivel.trim();
+  if (!nivel || nivel.toLowerCase() === svc.toLowerCase()) return svc;
+  return `${svc} \u2014 ${nivel}`;
+}
 function normalizeHeader(h3) {
   return h3.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 }
@@ -78727,8 +78747,9 @@ function parseSheetCatalogCsv(csvText) {
       const revisado = (line2[catalogoRevisadoCol] ?? "").trim().toLowerCase();
       if (revisado === "false" || revisado === "no" || revisado === "0") continue;
     }
-    const nivel = get("categoria");
-    const servicio = nivel ? `${servicioBase} (${nivel})` : servicioBase;
+    const servicio = servicioBase;
+    const nivelVal = get("nivel");
+    const categoria = get("categoria") || deriveCatalogCategory(servicioBase);
     const precio = get("precio");
     const flag = tienePrecioCol !== null ? truthyPrecioFlag(line2[tienePrecioCol]) : null;
     const tienePrecio = flag === true || flag === null && rowHasPriceValue(precio);
@@ -78751,7 +78772,8 @@ function parseSheetCatalogCsv(csvText) {
     if (!unidad && /\$/.test(precio)) unidad = "/pp";
     rows.push({
       servicio,
-      categoria: servicioBase,
+      nivel: nivelVal,
+      categoria,
       precio,
       unidad,
       notas: notasParts.join(" | "),
@@ -78778,17 +78800,36 @@ function sheetRowsToMarkdown(rows) {
   ];
   for (const [cat, items] of byCategory) {
     lines.push(`## ${cat}`, "");
+    const byService = /* @__PURE__ */ new Map();
     for (const item of items) {
-      if (item.tienePrecio && item.precio) {
-        const unit = item.unidad ? ` ${item.unidad}` : "";
-        lines.push(`\u2022 **${item.servicio}**: ${item.precio}${unit}`);
+      const key = item.servicio;
+      if (!byService.has(key)) byService.set(key, []);
+      byService.get(key).push(item);
+    }
+    for (const [svc, levels] of byService) {
+      if (levels.length === 1) {
+        const item = levels[0];
+        const label = formatCatalogRowLabel(item);
+        if (item.tienePrecio && item.precio) {
+          const unit = item.unidad ? ` ${item.unidad}` : "";
+          lines.push(`\u2022 **${label}**: ${item.precio}${unit}`);
+        } else {
+          lines.push(`\u2022 **${label}**: sin precio listado \u2014 Alejandro cotiza`);
+        }
+        if (item.notas) {
+          const parsed = parseRowNotes(item.notas);
+          const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
+          if (clientNotes) lines.push(`  ${clientNotes}`);
+        }
       } else {
-        lines.push(`\u2022 **${item.servicio}**: sin precio listado \u2014 Alejandro cotiza`);
-      }
-      if (item.notas) {
-        const parsed = parseRowNotes(item.notas);
-        const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
-        if (clientNotes) lines.push(`  ${clientNotes}`);
+        lines.push(`\u2022 **${svc}** (${levels.length} niveles)`);
+        for (const item of levels.slice(0, 6)) {
+          const label = item.nivel || formatCatalogRowLabel(item);
+          if (item.tienePrecio && item.precio) {
+            const unit = item.unidad ? ` ${item.unidad}` : "";
+            lines.push(`  - ${label}: ${item.precio}${unit}`);
+          }
+        }
       }
     }
     lines.push("");
@@ -80292,7 +80333,213 @@ function parseCatalogQueryFilters(query) {
   };
 }
 function rowHaystack(row) {
-  return normalizeForMatch(`${row.servicio} ${row.categoria}`).replace(/\s+/g, " ");
+  return normalizeForMatch(`${row.categoria} ${row.servicio} ${row.nivel}`).replace(/\s+/g, " ");
+}
+function extractNivelLabel(row) {
+  if (typeof row === "string") {
+    const match = row.match(/\(([^)]+)\)\s*$/);
+    return match?.[1]?.trim() || row;
+  }
+  return row.nivel?.trim() || row.servicio.match(/\(([^)]+)\)\s*$/)?.[1]?.trim() || row.servicio;
+}
+var MACRO_CATEGORIES = [
+  {
+    label: "Alimentos",
+    queryPattern: /^(alimentos?|comida|catering|men[uú]s?)$/i,
+    servicePattern: /banquete|taquiza|brunch|coffee|barra(?! de bebida)|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i
+  },
+  {
+    label: "Bebidas",
+    queryPattern: /^(bebidas?|barra\s+de\s+bebidas?)$/i,
+    servicePattern: /barra de bebida|cocteler|mixolog|m[oó]ctel/i
+  },
+  {
+    label: "Barras tem\xE1ticas",
+    queryPattern: /^(barras?|barras?\s+tem[aá]ticas?)$/i,
+    servicePattern: /^barra(?! de bebida)/i
+  },
+  {
+    label: "Mobiliario",
+    queryPattern: /^mobiliario$/i,
+    servicePattern: /mobiliario|silla/i
+  }
+];
+function uniqueServicios(rows) {
+  return [...new Set(rows.map((r2) => r2.servicio.trim()).filter(Boolean))].sort();
+}
+function uniqueNiveles(rows) {
+  return [...new Set(rows.map((r2) => r2.nivel.trim()).filter(Boolean))];
+}
+function matchesSpecificServicioInQuery(query, rows) {
+  const q2 = normalizeForMatch(query);
+  for (const svc of uniqueServicios(rows)) {
+    const normSvc = normalizeForMatch(svc);
+    if (q2.includes(normSvc) || normSvc.includes(q2)) return true;
+    const svcTokens = normSvc.split(/\s+/).filter((t) => t.length >= 4);
+    if (svcTokens.some((t) => q2.includes(t))) return true;
+  }
+  if (/\b(banquete|taquiza|barra de|coffee break|brunch)\b/.test(q2)) return true;
+  return false;
+}
+function detectMacroCategoryQuery(query) {
+  const trimmed = query.trim();
+  for (const cat of MACRO_CATEGORIES) {
+    if (cat.queryPattern.test(trimmed)) return { label: cat.label, servicePattern: cat.servicePattern };
+  }
+  const q2 = normalizeForMatch(query);
+  if (/^alimentos?$/.test(q2) || q2 === "comida" || q2 === "catering") {
+    return { label: "Alimentos", servicePattern: MACRO_CATEGORIES[0].servicePattern };
+  }
+  return null;
+}
+function matchesNivelFilter(row, filters, query) {
+  const nivelHay = normalizeForMatch(row.nivel || extractNivelLabel(row.servicio));
+  const svcHay = normalizeForMatch(row.servicio);
+  if (filters.nivel) {
+    const want = normalizeForMatch(filters.nivel);
+    if (nivelHay.includes(want) || want.includes(nivelHay)) return true;
+  }
+  if (filters.cuatroTiempos && /\b4\s*tiempos\b/.test(svcHay)) return true;
+  if (filters.tresTiempos && /\b3\s*tiempos\b/.test(svcHay)) return true;
+  const q2 = normalizeForMatch(query);
+  if (/\bpremium\b/.test(q2) && /\bpremium\b/.test(nivelHay)) return true;
+  if (/\bbasico\b/.test(q2) && /\bbasico\b/.test(nivelHay)) return true;
+  return false;
+}
+function simplifyServiceNamesForList(servicios) {
+  const out2 = /* @__PURE__ */ new Set();
+  for (const svc of servicios) {
+    if (/^banquete\b/i.test(svc) && !/kosher|mexicano|navide/i.test(svc)) {
+      if (/\b3\s*tiempos\b/i.test(svc)) out2.add("banquete 3 tiempos");
+      else if (/\b4\s*tiempos\b/i.test(svc)) out2.add("banquete 4 tiempos");
+      else out2.add(svc);
+    } else {
+      out2.add(svc);
+    }
+  }
+  return [...out2];
+}
+function resolveCatalogQuery(query) {
+  if (!snapshot?.rows.length) return null;
+  const rows = snapshot.rows;
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  const macro = detectMacroCategoryQuery(trimmed);
+  if (macro && !matchesSpecificServicioInQuery(trimmed, rows)) {
+    const catRows = rows.filter((r2) => macro.servicePattern.test(r2.servicio));
+    if (catRows.length) {
+      return { kind: "category", categoryLabel: macro.label, rows: catRows };
+    }
+  }
+  const tokens = queryTokens(query);
+  if (!tokens.length) return null;
+  const filters = parseCatalogQueryFilters(query);
+  const scored = rows.map((row) => ({ row, score: scoreCatalogRow(row, tokens, filters, query) })).filter((item) => item.score > 0).sort((a2, b4) => b4.score - a2.score);
+  if (!scored.length) return null;
+  const top = scored[0].score;
+  const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
+  let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
+  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasico\b|\btradicional\b/i.test(query));
+  if (hasNivelFilter) {
+    const nivelRows = matchedRows.filter((r2) => matchesNivelFilter(r2, filters, query));
+    if (nivelRows.length) matchedRows = nivelRows;
+  }
+  const servicios = uniqueServicios(matchedRows);
+  if (!servicios.length) return null;
+  if (hasNivelFilter && matchedRows.length === 1) {
+    const row = matchedRows[0];
+    return {
+      kind: "service_nivel",
+      serviceName: row.servicio,
+      nivel: row.nivel,
+      rows: [row]
+    };
+  }
+  if (servicios.length === 1) {
+    const svc = servicios[0];
+    const svcRows = matchedRows.filter((r2) => r2.servicio === svc);
+    const niveles = uniqueNiveles(svcRows);
+    if (niveles.length > 1 && !hasNivelFilter) {
+      return { kind: "service", serviceName: svc, rows: svcRows };
+    }
+    if (svcRows.length === 1) {
+      return {
+        kind: "service_nivel",
+        serviceName: svc,
+        nivel: svcRows[0].nivel,
+        rows: svcRows
+      };
+    }
+    return { kind: "service", serviceName: svc, rows: svcRows };
+  }
+  const q2 = normalizeForMatch(query);
+  if (/\bbanquete\b/.test(q2)) {
+    return { kind: "service", serviceName: "Banquete", rows: matchedRows };
+  }
+  if (/\bbarra\b/.test(q2) && !/\bbarra de bebida/.test(q2)) {
+    return { kind: "service", serviceName: "Barra", rows: matchedRows };
+  }
+  return { kind: "service", serviceName: servicios[0], rows: matchedRows };
+}
+function buildCategoryServicesAnswer(result) {
+  const label = result.categoryLabel ?? "esa categor\xEDa";
+  const servicios = simplifyServiceNamesForList(uniqueServicios(result.rows));
+  const list = servicios.slice(0, 10).join(", ");
+  return `Para *${label.toLowerCase()}* tenemos: ${list}. \xBFCu\xE1l te interesa?`;
+}
+function buildServiceNivelChoiceAnswer(result) {
+  const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
+  const svcRows = result.rows.filter((r2) => r2.servicio === svc || result.rows.length <= 6);
+  const niveles = uniqueNiveles(svcRows.length ? svcRows : result.rows);
+  if (niveles.length <= 1) {
+    const row = svcRows[0] ?? result.rows[0];
+    return buildExactRowDetailAnswer(row);
+  }
+  const nivelList = niveles.slice(0, 6).map((n3) => `*${n3}*`).join(", ");
+  if (uniqueServicios(result.rows).length > 1) {
+    const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
+    return `Manejamos *${svc}* en varias opciones: ${variants}. Cada una tiene niveles como ${nivelList}. \xBFCu\xE1l variante y nivel prefieres?`;
+  }
+  return `*${svc}* lo tenemos en: ${nivelList}. \xBFCu\xE1l prefieres?`;
+}
+function buildExactRowDetailAnswer(row) {
+  const label = formatCatalogRowLabel(row);
+  const parsed = parseRowNotes(row.notas);
+  const price = row.tienePrecio && row.precio ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
+  const inclusion = parsed.inclusion ? `
+
+${parsed.inclusion}` : "";
+  return `S\xED, manejamos *${label}*.${price ? `
+${price}` : ""}${inclusion}`.trim();
+}
+function buildExactRowPriceAnswer(row) {
+  const label = formatCatalogRowLabel(row);
+  const parsed = parseRowNotes(row.notas);
+  const unit = row.unidad ? ` ${row.unidad}` : "";
+  const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
+  const inclusion = parsed.inclusion ? `
+
+*Incluye:* ${parsed.inclusion}` : "";
+  return `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`;
+}
+function formatRequerimientoLabelFromQuery(query) {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (resolved.kind === "category") return null;
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return formatCatalogRowLabel(resolved.rows[0]);
+  }
+  if (resolved.rows.length === 1) {
+    return formatCatalogRowLabel(resolved.rows[0]);
+  }
+  if (resolved.serviceName && resolved.kind === "service") {
+    const niveles = uniqueNiveles(resolved.rows);
+    if (niveles.length === 1 && resolved.rows[0]) {
+      return formatCatalogRowLabel(resolved.rows[0]);
+    }
+    return resolved.serviceName;
+  }
+  return null;
 }
 function scoreCatalogRow(row, tokens, filters, query) {
   const haystack = rowHaystack(row).replace(/\s+/g, "");
@@ -80314,9 +80561,12 @@ function scoreCatalogRow(row, tokens, filters, query) {
     if (/\b4\s*tiempos\b/.test(rowHaystack(row))) score -= 8;
   }
   if (filters.nivel) {
-    const nivel = normalizeForMatch(extractNivelLabel(row.servicio));
-    if (nivel === normalizeForMatch(filters.nivel)) score += 8;
-    else score -= 4;
+    const nivelHay = normalizeForMatch(row.nivel || extractNivelLabel(row.servicio));
+    if (nivelHay === normalizeForMatch(filters.nivel) || nivelHay.includes(normalizeForMatch(filters.nivel))) {
+      score += 8;
+    } else {
+      score -= 4;
+    }
   }
   const hay = rowHaystack(row);
   const q2 = normalizeForMatch(query);
@@ -80326,14 +80576,11 @@ function scoreCatalogRow(row, tokens, filters, query) {
   return score;
 }
 function rankCatalogMatches(query, rows, requirePrice = false) {
-  const tokens = queryTokens(query);
-  if (!tokens.length) return [];
-  const filters = parseCatalogQueryFilters(query);
-  const scored = rows.filter((row) => !requirePrice || row.tienePrecio && row.precio).map((row) => ({ row, score: scoreCatalogRow(row, tokens, filters, query) })).filter((item) => item.score > 0).sort((a2, b4) => b4.score - a2.score);
-  if (!scored.length) return [];
-  const top = scored[0].score;
-  const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
-  return scored.filter((item) => item.score >= minScore).map((item) => item.row);
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return [];
+  if (resolved.kind === "category") return [];
+  const filtered = requirePrice ? resolved.rows.filter((r2) => r2.tienePrecio && r2.precio) : resolved.rows;
+  return filtered;
 }
 function lookupCatalogPrices(query) {
   if (!snapshot?.rows.length) return [];
@@ -80343,13 +80590,9 @@ function lookupCatalogServices(query) {
   if (!snapshot?.rows.length) return [];
   return rankCatalogMatches(query, snapshot.rows, false);
 }
-function extractNivelLabel(servicio) {
-  const match = servicio.match(/\(([^)]+)\)\s*$/);
-  return match?.[1]?.trim() || servicio;
-}
 function buildInclusionBlock(rows, maxPerLevel = 220) {
   const inclusionByLevel = rows.map((row) => ({
-    nivel: extractNivelLabel(row.servicio),
+    nivel: extractNivelLabel(row),
     inclusion: parseRowNotes(row.notas).inclusion
   }));
   const uniqueTexts = [...new Set(inclusionByLevel.map((r2) => r2.inclusion).filter(Boolean))];
@@ -80375,49 +80618,68 @@ function clientAsksInclusion(message) {
   ) && !/\bcu[aá]nto\s+cuesta|\bprecio\b/i.test(t);
 }
 function buildCatalogInclusionAnswer(query) {
-  const filters = parseCatalogQueryFilters(query);
-  const matches = lookupCatalogServices(query);
-  if (!matches.length) return null;
-  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
-  const specificQuery = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos);
-  if (specificQuery && unique.length >= 1) {
-    const row = unique[0];
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (resolved.kind === "category") {
+    return buildCategoryServicesAnswer(resolved);
+  }
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    const row = resolved.rows[0];
     const parsed = parseRowNotes(row.notas);
-    const nivel = extractNivelLabel(row.servicio);
-    const baseName2 = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+    const label = formatCatalogRowLabel(row);
     const price = row.tienePrecio && row.precio ? `
 *Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
-    const inclusion = parsed.inclusion || "Alejandro puede darte el detalle completo del men\xFA.";
-    return `Te comparto qu\xE9 incluye *${baseName2} \u2014 ${nivel}*:${price}
+    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del men\xFA.";
+    return `Te comparto qu\xE9 incluye *${label}*:${price}
 
 ${inclusion}`;
   }
-  const baseName = unique[0].categoria || unique[0].servicio.split(" (")[0] || unique[0].servicio;
+  if (resolved.kind === "service") {
+    return buildServiceNivelChoiceAnswer(resolved);
+  }
+  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
+  const baseName = resolved.serviceName ?? unique[0].servicio;
   const blocks = unique.slice(0, 5).map((row) => {
     const parsed = parseRowNotes(row.notas);
-    const nivel = extractNivelLabel(row.servicio);
+    const nivel = extractNivelLabel(row);
     const price = row.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? `, m\xEDn. ${parsed.minimo}` : ""}` : "";
-    const inclusion = parsed.inclusion || "Alejandro puede darte el detalle completo del men\xFA.";
+    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del men\xFA.";
     return `*${nivel}*${price}
 ${inclusion}`;
   });
-  let msg = `Te comparto qu\xE9 incluye *${baseName}*:
+  return `Te comparto qu\xE9 incluye *${baseName}*:
 
 ${blocks.join("\n\n")}`;
-  return msg;
 }
 function buildCatalogPriceAnswer(query) {
-  const matches = lookupCatalogPrices(query);
-  if (!matches.length) return null;
-  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
-  const baseName = unique[0].categoria || unique[0].servicio.split(" (")[0] || unique[0].servicio;
-  const priceLines = unique.slice(0, 6).map((row) => {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (resolved.kind === "category") {
+    return buildCategoryServicesAnswer(resolved);
+  }
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return buildExactRowPriceAnswer(resolved.rows[0]);
+  }
+  if (resolved.kind === "service") {
+    const priced = resolved.rows.filter((r2) => r2.tienePrecio && r2.precio);
+    if (priced.length > 1) {
+      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
+    }
+    if (priced.length === 1) {
+      return buildExactRowPriceAnswer(priced[0]);
+    }
+    return buildServiceNivelChoiceAnswer(resolved);
+  }
+  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
+  const baseName = resolved.serviceName ?? unique[0].servicio;
+  const priceLines = unique.filter((r2) => r2.tienePrecio && r2.precio).slice(0, 6).map((row) => {
     const parsed = parseRowNotes(row.notas);
-    const nivel = extractNivelLabel(row.servicio);
+    const nivel = extractNivelLabel(row);
     const unit = row.unidad ? ` ${row.unidad}` : "";
     const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
     return `\u2022 *${nivel}* \u2014 ${row.precio}${unit}${min}`;
   }).join("\n");
+  if (!priceLines) return buildServiceNivelChoiceAnswer(resolved);
   const inclusionBlock = buildInclusionBlock(unique, 280);
   return `S\xED, manejamos ${baseName}:
 
@@ -80425,13 +80687,13 @@ ${priceLines}${inclusionBlock}`;
 }
 function summarizeServicePrices(serviceKey, maxLevels = 4) {
   const rows = snapshot?.rows.filter(
-    (r2) => r2.tienePrecio && r2.precio && normalizeForMatch(`${r2.categoria} ${r2.servicio}`).includes(normalizeForMatch(serviceKey))
+    (r2) => r2.tienePrecio && r2.precio && normalizeForMatch(`${r2.servicio} ${r2.nivel}`).includes(normalizeForMatch(serviceKey))
   );
   if (!rows?.length) return null;
-  const unique = [...new Map(rows.map((row) => [row.servicio, row])).values()];
-  const label = unique[0].categoria || unique[0].servicio.split(" (")[0] || serviceKey;
+  const unique = [...new Map(rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
+  const label = unique[0].servicio;
   const lines = unique.slice(0, maxLevels).map((row) => {
-    const nivel = extractNivelLabel(row.servicio);
+    const nivel = extractNivelLabel(row);
     const parsed = parseRowNotes(row.notas);
     const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
     return `\u2022 *${nivel}:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${min}`;
@@ -80457,18 +80719,36 @@ function buildCatalogComparisonAnswer() {
   return parts2.filter((l4) => l4 !== void 0 && l4 !== "").join("\n").trim();
 }
 function formatServiceDataForPrompt(query) {
-  const matches = lookupCatalogServices(query);
-  if (!matches.length) return null;
-  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()].slice(0, 6);
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (resolved.kind === "category") {
+    return [
+      "DATOS DEL SERVICIO (Google Sheet \u2014 consulta de categor\xEDa, NO listar todo):",
+      `Categor\xEDa: ${resolved.categoryLabel}`,
+      `Servicios disponibles: ${simplifyServiceNamesForList(uniqueServicios(resolved.rows)).join(", ")}`,
+      "Pide al cliente que elija UN servicio concreto antes de dar precios."
+    ].join("\n");
+  }
+  if (resolved.kind === "service" && uniqueNiveles(resolved.rows).length > 1) {
+    const svc = resolved.serviceName ?? uniqueServicios(resolved.rows)[0];
+    return [
+      "DATOS DEL SERVICIO (Google Sheet \u2014 elegir nivel):",
+      `Servicio: ${svc}`,
+      `Niveles: ${uniqueNiveles(resolved.rows).join(", ")}`,
+      "Pregunta cu\xE1l nivel prefiere antes de dar precio detallado."
+    ].join("\n");
+  }
+  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()].slice(
+    0,
+    6
+  );
   const lines = unique.map((row) => {
     const parsed = parseRowNotes(row.notas);
     const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
     const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "";
-    return `- ${row.servicio} | ${price}${inclusion ? ` | ${inclusion}` : ""}`;
+    return `- ${formatCatalogRowLabel(row)} | ${price}${inclusion ? ` | ${inclusion}` : ""}`;
   });
-  return ["DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar solo esto, no inventar):", ...lines].join(
-    "\n"
-  );
+  return ["DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar solo esto, no inventar):", ...lines].join("\n");
 }
 function mentionedServiceLabel(query) {
   return parsePrimaryService(query);
@@ -80481,6 +80761,16 @@ function buildCatalogNotFoundAnswer(serviceLabel, query) {
 }
 function buildCatalogServiceDetailAnswer(query) {
   if (!snapshot?.rows.length) return null;
+  const resolved = resolveCatalogQuery(query);
+  if (resolved?.kind === "category") {
+    return buildCategoryServicesAnswer(resolved);
+  }
+  if (resolved?.kind === "service") {
+    return buildServiceNivelChoiceAnswer(resolved);
+  }
+  if (resolved?.kind === "service_nivel" && resolved.rows[0]) {
+    return buildExactRowDetailAnswer(resolved.rows[0]);
+  }
   const priceAnswer = buildCatalogPriceAnswer(query);
   if (priceAnswer) return priceAnswer;
   const inclusionAnswer = buildCatalogInclusionAnswer(query);
@@ -80488,10 +80778,9 @@ function buildCatalogServiceDetailAnswer(query) {
   const matches = lookupCatalogServices(query);
   if (!matches.length) return null;
   const row = matches[0];
-  const baseName = row.categoria || row.servicio.split(" (")[0] || row.servicio;
   const parsed = parseRowNotes(row.notas);
   if (parsed.inclusion) {
-    return `S\xED, manejamos *${baseName}*.
+    return `S\xED, manejamos *${formatCatalogRowLabel(row)}*.
 
 ${parsed.inclusion}`;
   }
@@ -84248,8 +84537,9 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const ppto = pptoFromLine || (extracted.presupuesto !== null && extracted.presupuesto > 0 ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN` : null);
   const reqFromLines = pickFromMergedLines(mergedLines, /Requerimientos/i);
   const reqFromServices = extracted.requerimientos_evento?.trim();
+  const reqFromCatalog = conversationText && conversationText.trim().length > 3 ? formatRequerimientoLabelFromQuery(conversationText) : null;
   const reqFromConversation = conversationText && conversationText.trim().length > 20 ? parseServicesFromText(conversationText).slice(0, 3).join(", ") : null;
-  const reqs = (reqFromLines && reqFromLines !== "Info pendiente" ? reqFromLines : null) || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
+  const reqs = (reqFromLines && reqFromLines !== "Info pendiente" ? reqFromLines : null) || reqFromCatalog || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
   const lineas = ["RESUMEN LUCY \u2014 lo que el cliente quiere:", ""];
   if (nombre) lineas.push(`\u2022 Nombre: ${nombre}`);
   if (correo) lineas.push(`\u2022 Correo: ${correo}`);

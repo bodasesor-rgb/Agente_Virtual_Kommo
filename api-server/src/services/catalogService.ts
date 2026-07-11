@@ -16,6 +16,7 @@ import {
   parseSheetCatalogCsv,
   sheetRowsToMarkdown,
   parseRowNotes,
+  formatCatalogRowLabel,
   type SheetCatalogRow,
 } from "./googleSheetsCatalog.js";
 import { loadGammaCatalog, loadGammaKnowledgeFromSheet } from "./gammaCatalog.js";
@@ -224,6 +225,17 @@ export function getCatalogStatus(): CatalogStatus {
   return snapshot?.status ?? emptyStatus();
 }
 
+/** Solo para selftest — inyecta filas del catálogo sin red. */
+export function setCatalogSnapshotForTests(rows: SheetCatalogRow[]): void {
+  const status = emptyStatus();
+  status.loaded = true;
+  status.sources.sheets = true;
+  status.sources.sheetsRows = rows.length;
+  status.pricedServicesCount = rows.filter((r) => r.tienePrecio && r.precio).length;
+  snapshot = { rows, promptBlock: "", status };
+  applyPriceIndex(rows);
+}
+
 export async function bootstrapCatalog(): Promise<CatalogSnapshot> {
   return refreshCatalog(true);
 }
@@ -294,7 +306,259 @@ function parseCatalogQueryFilters(query: string): CatalogQueryFilters {
 }
 
 function rowHaystack(row: SheetCatalogRow): string {
-  return normalizeForMatch(`${row.servicio} ${row.categoria}`).replace(/\s+/g, " ");
+  return normalizeForMatch(`${row.categoria} ${row.servicio} ${row.nivel}`).replace(/\s+/g, " ");
+}
+
+function extractNivelLabel(row: SheetCatalogRow | string): string {
+  if (typeof row === "string") {
+    const match = row.match(/\(([^)]+)\)\s*$/);
+    return match?.[1]?.trim() || row;
+  }
+  return row.nivel?.trim() || row.servicio.match(/\(([^)]+)\)\s*$/)?.[1]?.trim() || row.servicio;
+}
+
+const MACRO_CATEGORIES: ReadonlyArray<{
+  label: string;
+  queryPattern: RegExp;
+  servicePattern: RegExp;
+}> = [
+  {
+    label: "Alimentos",
+    queryPattern: /^(alimentos?|comida|catering|men[uú]s?)$/i,
+    servicePattern:
+      /banquete|taquiza|brunch|coffee|barra(?! de bebida)|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i,
+  },
+  {
+    label: "Bebidas",
+    queryPattern: /^(bebidas?|barra\s+de\s+bebidas?)$/i,
+    servicePattern: /barra de bebida|cocteler|mixolog|m[oó]ctel/i,
+  },
+  {
+    label: "Barras temáticas",
+    queryPattern: /^(barras?|barras?\s+tem[aá]ticas?)$/i,
+    servicePattern: /^barra(?! de bebida)/i,
+  },
+  {
+    label: "Mobiliario",
+    queryPattern: /^mobiliario$/i,
+    servicePattern: /mobiliario|silla/i,
+  },
+];
+
+export type CatalogQueryKind = "category" | "service" | "service_nivel";
+
+export interface CatalogMatchResult {
+  kind: CatalogQueryKind;
+  categoryLabel?: string;
+  serviceName?: string;
+  nivel?: string;
+  rows: SheetCatalogRow[];
+}
+
+function uniqueServicios(rows: SheetCatalogRow[]): string[] {
+  return [...new Set(rows.map((r) => r.servicio.trim()).filter(Boolean))].sort();
+}
+
+function uniqueNiveles(rows: SheetCatalogRow[]): string[] {
+  return [...new Set(rows.map((r) => r.nivel.trim()).filter(Boolean))];
+}
+
+function matchesSpecificServicioInQuery(query: string, rows: SheetCatalogRow[]): boolean {
+  const q = normalizeForMatch(query);
+  for (const svc of uniqueServicios(rows)) {
+    const normSvc = normalizeForMatch(svc);
+    if (q.includes(normSvc) || normSvc.includes(q)) return true;
+    const svcTokens = normSvc.split(/\s+/).filter((t) => t.length >= 4);
+    if (svcTokens.some((t) => q.includes(t))) return true;
+  }
+  if (/\b(banquete|taquiza|barra de|coffee break|brunch)\b/.test(q)) return true;
+  return false;
+}
+
+function detectMacroCategoryQuery(
+  query: string
+): { label: string; servicePattern: RegExp } | null {
+  const trimmed = query.trim();
+  for (const cat of MACRO_CATEGORIES) {
+    if (cat.queryPattern.test(trimmed)) return { label: cat.label, servicePattern: cat.servicePattern };
+  }
+  const q = normalizeForMatch(query);
+  if (/^alimentos?$/.test(q) || q === "comida" || q === "catering") {
+    return { label: "Alimentos", servicePattern: MACRO_CATEGORIES[0]!.servicePattern };
+  }
+  return null;
+}
+
+function matchesNivelFilter(row: SheetCatalogRow, filters: CatalogQueryFilters, query: string): boolean {
+  const nivelHay = normalizeForMatch(row.nivel || extractNivelLabel(row.servicio));
+  const svcHay = normalizeForMatch(row.servicio);
+  if (filters.nivel) {
+    const want = normalizeForMatch(filters.nivel);
+    if (nivelHay.includes(want) || want.includes(nivelHay)) return true;
+  }
+  if (filters.cuatroTiempos && /\b4\s*tiempos\b/.test(svcHay)) return true;
+  if (filters.tresTiempos && /\b3\s*tiempos\b/.test(svcHay)) return true;
+  const q = normalizeForMatch(query);
+  if (/\bpremium\b/.test(q) && /\bpremium\b/.test(nivelHay)) return true;
+  if (/\bbasico\b/.test(q) && /\bbasico\b/.test(nivelHay)) return true;
+  return false;
+}
+
+function simplifyServiceNamesForList(servicios: string[]): string[] {
+  const out = new Set<string>();
+  for (const svc of servicios) {
+    if (/^banquete\b/i.test(svc) && !/kosher|mexicano|navide/i.test(svc)) {
+      if (/\b3\s*tiempos\b/i.test(svc)) out.add("banquete 3 tiempos");
+      else if (/\b4\s*tiempos\b/i.test(svc)) out.add("banquete 4 tiempos");
+      else out.add(svc);
+    } else {
+      out.add(svc);
+    }
+  }
+  return [...out];
+}
+
+export function resolveCatalogQuery(query: string): CatalogMatchResult | null {
+  if (!snapshot?.rows.length) return null;
+  const rows = snapshot.rows;
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+
+  const macro = detectMacroCategoryQuery(trimmed);
+  if (macro && !matchesSpecificServicioInQuery(trimmed, rows)) {
+    const catRows = rows.filter((r) => macro.servicePattern.test(r.servicio));
+    if (catRows.length) {
+      return { kind: "category", categoryLabel: macro.label, rows: catRows };
+    }
+  }
+
+  const tokens = queryTokens(query);
+  if (!tokens.length) return null;
+
+  const filters = parseCatalogQueryFilters(query);
+  const scored = rows
+    .map((row) => ({ row, score: scoreCatalogRow(row, tokens, filters, query) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (!scored.length) return null;
+
+  const top = scored[0]!.score;
+  const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
+  let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
+
+  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasico\b|\btradicional\b/i.test(query));
+  if (hasNivelFilter) {
+    const nivelRows = matchedRows.filter((r) => matchesNivelFilter(r, filters, query));
+    if (nivelRows.length) matchedRows = nivelRows;
+  }
+
+  const servicios = uniqueServicios(matchedRows);
+  if (!servicios.length) return null;
+
+  if (hasNivelFilter && matchedRows.length === 1) {
+    const row = matchedRows[0]!;
+    return {
+      kind: "service_nivel",
+      serviceName: row.servicio,
+      nivel: row.nivel,
+      rows: [row],
+    };
+  }
+
+  if (servicios.length === 1) {
+    const svc = servicios[0]!;
+    const svcRows = matchedRows.filter((r) => r.servicio === svc);
+    const niveles = uniqueNiveles(svcRows);
+    if (niveles.length > 1 && !hasNivelFilter) {
+      return { kind: "service", serviceName: svc, rows: svcRows };
+    }
+    if (svcRows.length === 1) {
+      return {
+        kind: "service_nivel",
+        serviceName: svc,
+        nivel: svcRows[0]!.nivel,
+        rows: svcRows,
+      };
+    }
+    return { kind: "service", serviceName: svc, rows: svcRows };
+  }
+
+  const q = normalizeForMatch(query);
+  if (/\bbanquete\b/.test(q)) {
+    return { kind: "service", serviceName: "Banquete", rows: matchedRows };
+  }
+  if (/\bbarra\b/.test(q) && !/\bbarra de bebida/.test(q)) {
+    return { kind: "service", serviceName: "Barra", rows: matchedRows };
+  }
+
+  return { kind: "service", serviceName: servicios[0], rows: matchedRows };
+}
+
+function buildCategoryServicesAnswer(result: CatalogMatchResult): string {
+  const label = result.categoryLabel ?? "esa categoría";
+  const servicios = simplifyServiceNamesForList(uniqueServicios(result.rows));
+  const list = servicios.slice(0, 10).join(", ");
+  return `Para *${label.toLowerCase()}* tenemos: ${list}. ¿Cuál te interesa?`;
+}
+
+function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
+  const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
+  const svcRows = result.rows.filter((r) => r.servicio === svc || result.rows.length <= 6);
+  const niveles = uniqueNiveles(svcRows.length ? svcRows : result.rows);
+
+  if (niveles.length <= 1) {
+    const row = (svcRows[0] ?? result.rows[0])!;
+    return buildExactRowDetailAnswer(row);
+  }
+
+  const nivelList = niveles.slice(0, 6).map((n) => `*${n}*`).join(", ");
+  if (uniqueServicios(result.rows).length > 1) {
+    const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
+    return `Manejamos *${svc}* en varias opciones: ${variants}. Cada una tiene niveles como ${nivelList}. ¿Cuál variante y nivel prefieres?`;
+  }
+  return `*${svc}* lo tenemos en: ${nivelList}. ¿Cuál prefieres?`;
+}
+
+function buildExactRowDetailAnswer(row: SheetCatalogRow): string {
+  const label = formatCatalogRowLabel(row);
+  const parsed = parseRowNotes(row.notas);
+  const price =
+    row.tienePrecio && row.precio
+      ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
+      : "";
+  const inclusion = parsed.inclusion ? `\n\n${parsed.inclusion}` : "";
+  return `Sí, manejamos *${label}*.${price ? `\n${price}` : ""}${inclusion}`.trim();
+}
+
+function buildExactRowPriceAnswer(row: SheetCatalogRow): string {
+  const label = formatCatalogRowLabel(row);
+  const parsed = parseRowNotes(row.notas);
+  const unit = row.unidad ? ` ${row.unidad}` : "";
+  const min = parsed.minimo ? ` (mín. ${parsed.minimo})` : "";
+  const inclusion = parsed.inclusion ? `\n\n*Incluye:* ${parsed.inclusion}` : "";
+  return `*${label}* — ${row.precio}${unit}${min}${inclusion}`;
+}
+
+/** Etiqueta servicio+nivel para CRM/resumen cuando el texto del cliente matchea el catálogo. */
+export function formatRequerimientoLabelFromQuery(query: string): string | null {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (resolved.kind === "category") return null;
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return formatCatalogRowLabel(resolved.rows[0]);
+  }
+  if (resolved.rows.length === 1) {
+    return formatCatalogRowLabel(resolved.rows[0]!);
+  }
+  if (resolved.serviceName && resolved.kind === "service") {
+    const niveles = uniqueNiveles(resolved.rows);
+    if (niveles.length === 1 && resolved.rows[0]) {
+      return formatCatalogRowLabel(resolved.rows[0]);
+    }
+    return resolved.serviceName;
+  }
+  return null;
 }
 
 function scoreCatalogRow(
@@ -326,9 +590,12 @@ function scoreCatalogRow(
   }
 
   if (filters.nivel) {
-    const nivel = normalizeForMatch(extractNivelLabel(row.servicio));
-    if (nivel === normalizeForMatch(filters.nivel)) score += 8;
-    else score -= 4;
+    const nivelHay = normalizeForMatch(row.nivel || extractNivelLabel(row.servicio));
+    if (nivelHay === normalizeForMatch(filters.nivel) || nivelHay.includes(normalizeForMatch(filters.nivel))) {
+      score += 8;
+    } else {
+      score -= 4;
+    }
   }
 
   const hay = rowHaystack(row);
@@ -345,21 +612,13 @@ function rankCatalogMatches(
   rows: SheetCatalogRow[],
   requirePrice = false
 ): SheetCatalogRow[] {
-  const tokens = queryTokens(query);
-  if (!tokens.length) return [];
-
-  const filters = parseCatalogQueryFilters(query);
-  const scored = rows
-    .filter((row) => !requirePrice || (row.tienePrecio && row.precio))
-    .map((row) => ({ row, score: scoreCatalogRow(row, tokens, filters, query) }))
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score);
-
-  if (!scored.length) return [];
-
-  const top = scored[0]!.score;
-  const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
-  return scored.filter((item) => item.score >= minScore).map((item) => item.row);
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return [];
+  if (resolved.kind === "category") return [];
+  const filtered = requirePrice
+    ? resolved.rows.filter((r) => r.tienePrecio && r.precio)
+    : resolved.rows;
+  return filtered;
 }
 
 /** Busca filas del Sheet que coincidan con la pregunta del cliente. */
@@ -374,18 +633,9 @@ export function lookupCatalogServices(query: string): SheetCatalogRow[] {
   return rankCatalogMatches(query, snapshot.rows, false);
 }
 
-function extractNivelLabel(servicio: string): string {
-  const match = servicio.match(/\(([^)]+)\)\s*$/);
-  return match?.[1]?.trim() || servicio;
-}
-
-function pickGammaLink(_rows: SheetCatalogRow[]): string | undefined {
-  return undefined;
-}
-
 function buildInclusionBlock(rows: SheetCatalogRow[], maxPerLevel = 220): string {
   const inclusionByLevel = rows.map((row) => ({
-    nivel: extractNivelLabel(row.servicio),
+    nivel: extractNivelLabel(row),
     inclusion: parseRowNotes(row.notas).inclusion,
   }));
 
@@ -419,61 +669,80 @@ export function clientAsksInclusion(message?: string): boolean {
 
 /** Respuesta detallada cuando preguntan qué incluye / menú / detalle. */
 export function buildCatalogInclusionAnswer(query: string): string | null {
-  const filters = parseCatalogQueryFilters(query);
-  const matches = lookupCatalogServices(query);
-  if (!matches.length) return null;
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
 
-  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
-  const specificQuery = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos);
-
-  if (specificQuery && unique.length >= 1) {
-    const row = unique[0]!;
+  if (resolved.kind === "category") {
+    return buildCategoryServicesAnswer(resolved);
+  }
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    const row = resolved.rows[0];
     const parsed = parseRowNotes(row.notas);
-    const nivel = extractNivelLabel(row.servicio);
-    const baseName = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+    const label = formatCatalogRowLabel(row);
     const price =
       row.tienePrecio && row.precio
         ? `\n*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
         : "";
-    const inclusion = parsed.inclusion || "Alejandro puede darte el detalle completo del menú.";
-    return `Te comparto qué incluye *${baseName} — ${nivel}*:${price}\n\n${inclusion}`;
+    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del menú.";
+    return `Te comparto qué incluye *${label}*:${price}\n\n${inclusion}`;
+  }
+  if (resolved.kind === "service") {
+    return buildServiceNivelChoiceAnswer(resolved);
   }
 
-  const baseName = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || unique[0]!.servicio;
+  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
+  const baseName = resolved.serviceName ?? unique[0]!.servicio;
   const blocks = unique.slice(0, 5).map((row) => {
     const parsed = parseRowNotes(row.notas);
-    const nivel = extractNivelLabel(row.servicio);
+    const nivel = extractNivelLabel(row);
     const price =
       row.tienePrecio && row.precio
         ? ` — ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? `, mín. ${parsed.minimo}` : ""}`
         : "";
-    const inclusion = parsed.inclusion || "Alejandro puede darte el detalle completo del menú.";
+    const inclusion = parsed.inclusion || "Nuestro equipo puede darte el detalle completo del menú.";
     return `*${nivel}*${price}\n${inclusion}`;
   });
 
-  let msg = `Te comparto qué incluye *${baseName}*:\n\n${blocks.join("\n\n")}`;
-  return msg;
+  return `Te comparto qué incluye *${baseName}*:\n\n${blocks.join("\n\n")}`;
 }
 
 /** Respuesta con precios + inclusiones del Sheet. */
 export function buildCatalogPriceAnswer(query: string): string | null {
-  const matches = lookupCatalogPrices(query);
-  if (!matches.length) return null;
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
 
-  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()];
-  const baseName = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || unique[0]!.servicio;
+  if (resolved.kind === "category") {
+    return buildCategoryServicesAnswer(resolved);
+  }
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return buildExactRowPriceAnswer(resolved.rows[0]);
+  }
+  if (resolved.kind === "service") {
+    const priced = resolved.rows.filter((r) => r.tienePrecio && r.precio);
+    if (priced.length > 1) {
+      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
+    }
+    if (priced.length === 1) {
+      return buildExactRowPriceAnswer(priced[0]!);
+    }
+    return buildServiceNivelChoiceAnswer(resolved);
+  }
 
+  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
+  const baseName = resolved.serviceName ?? unique[0]!.servicio;
   const priceLines = unique
+    .filter((r) => r.tienePrecio && r.precio)
     .slice(0, 6)
     .map((row) => {
       const parsed = parseRowNotes(row.notas);
-      const nivel = extractNivelLabel(row.servicio);
+      const nivel = extractNivelLabel(row);
       const unit = row.unidad ? ` ${row.unidad}` : "";
       const min = parsed.minimo ? ` (mín. ${parsed.minimo})` : "";
       return `• *${nivel}* — ${row.precio}${unit}${min}`;
     })
     .join("\n");
 
+  if (!priceLines) return buildServiceNivelChoiceAnswer(resolved);
   const inclusionBlock = buildInclusionBlock(unique, 280);
   return `Sí, manejamos ${baseName}:\n\n${priceLines}${inclusionBlock}`;
 }
@@ -483,15 +752,15 @@ function summarizeServicePrices(serviceKey: string, maxLevels = 4): string | nul
     (r) =>
       r.tienePrecio &&
       r.precio &&
-      normalizeForMatch(`${r.categoria} ${r.servicio}`).includes(normalizeForMatch(serviceKey))
+      normalizeForMatch(`${r.servicio} ${r.nivel}`).includes(normalizeForMatch(serviceKey))
   );
   if (!rows?.length) return null;
 
-  const unique = [...new Map(rows.map((row) => [row.servicio, row])).values()];
-  const label = unique[0]!.categoria || unique[0]!.servicio.split(" (")[0] || serviceKey;
+  const unique = [...new Map(rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
+  const label = unique[0]!.servicio;
 
   const lines = unique.slice(0, maxLevels).map((row) => {
-    const nivel = extractNivelLabel(row.servicio);
+    const nivel = extractNivelLabel(row);
     const parsed = parseRowNotes(row.notas);
     const min = parsed.minimo ? ` (mín. ${parsed.minimo})` : "";
     return `• *${nivel}:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${min}`;
@@ -533,10 +802,32 @@ export async function ensureCatalogLoaded(): Promise<SheetCatalogRow[]> {
 
 /** Bloque para inyectar en briefing/LLM con datos reales del Sheet. */
 export function formatServiceDataForPrompt(query: string): string | null {
-  const matches = lookupCatalogServices(query);
-  if (!matches.length) return null;
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
 
-  const unique = [...new Map(matches.map((row) => [row.servicio, row])).values()].slice(0, 6);
+  if (resolved.kind === "category") {
+    return [
+      "DATOS DEL SERVICIO (Google Sheet — consulta de categoría, NO listar todo):",
+      `Categoría: ${resolved.categoryLabel}`,
+      `Servicios disponibles: ${simplifyServiceNamesForList(uniqueServicios(resolved.rows)).join(", ")}`,
+      "Pide al cliente que elija UN servicio concreto antes de dar precios.",
+    ].join("\n");
+  }
+
+  if (resolved.kind === "service" && uniqueNiveles(resolved.rows).length > 1) {
+    const svc = resolved.serviceName ?? uniqueServicios(resolved.rows)[0];
+    return [
+      "DATOS DEL SERVICIO (Google Sheet — elegir nivel):",
+      `Servicio: ${svc}`,
+      `Niveles: ${uniqueNiveles(resolved.rows).join(", ")}`,
+      "Pregunta cuál nivel prefiere antes de dar precio detallado.",
+    ].join("\n");
+  }
+
+  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()].slice(
+    0,
+    6
+  );
   const lines = unique.map((row) => {
     const parsed = parseRowNotes(row.notas);
     const price =
@@ -544,12 +835,10 @@ export function formatServiceDataForPrompt(query: string): string | null {
         ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
         : "Precio: sin listar — Alejandro cotiza";
     const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "";
-    return `- ${row.servicio} | ${price}${inclusion ? ` | ${inclusion}` : ""}`;
+    return `- ${formatCatalogRowLabel(row)} | ${price}${inclusion ? ` | ${inclusion}` : ""}`;
   });
 
-  return ["DATOS DEL SERVICIO (fuente Google Sheet — usar solo esto, no inventar):", ...lines].join(
-    "\n"
-  );
+  return ["DATOS DEL SERVICIO (fuente Google Sheet — usar solo esto, no inventar):", ...lines].join("\n");
 }
 
 function mentionedServiceLabel(query: string): string | null {
@@ -567,6 +856,17 @@ export function buildCatalogNotFoundAnswer(serviceLabel: string, query?: string)
 export function buildCatalogServiceDetailAnswer(query: string): string | null {
   if (!snapshot?.rows.length) return null;
 
+  const resolved = resolveCatalogQuery(query);
+  if (resolved?.kind === "category") {
+    return buildCategoryServicesAnswer(resolved);
+  }
+  if (resolved?.kind === "service") {
+    return buildServiceNivelChoiceAnswer(resolved);
+  }
+  if (resolved?.kind === "service_nivel" && resolved.rows[0]) {
+    return buildExactRowDetailAnswer(resolved.rows[0]);
+  }
+
   const priceAnswer = buildCatalogPriceAnswer(query);
   if (priceAnswer) return priceAnswer;
 
@@ -577,10 +877,9 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
   if (!matches.length) return null;
 
   const row = matches[0]!;
-  const baseName = row.categoria || row.servicio.split(" (")[0] || row.servicio;
   const parsed = parseRowNotes(row.notas);
   if (parsed.inclusion) {
-    return `Sí, manejamos *${baseName}*.\n\n${parsed.inclusion}`;
+    return `Sí, manejamos *${formatCatalogRowLabel(row)}*.\n\n${parsed.inclusion}`;
   }
 
   return null;

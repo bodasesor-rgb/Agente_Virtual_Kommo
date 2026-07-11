@@ -88,7 +88,16 @@ import {
   formatServiceDataForPrompt,
   injectCatalogCateringIfAsked,
   responseLooksLikeGenericCateringMenu,
+  setCatalogSnapshotForTests,
+  resolveCatalogQuery,
+  buildCatalogPriceAnswer,
+  formatRequerimientoLabelFromQuery,
 } from "../services/catalogService.js";
+import {
+  parseSheetCatalogCsv,
+  deriveCatalogCategory,
+  formatCatalogRowLabel,
+} from "../services/googleSheetsCatalog.js";
 import {
   classifyServiceKnowledgeLevel,
   buildLevel2Ack,
@@ -1691,6 +1700,54 @@ async function runAll(): Promise<void> {
     assert.ok(/anoto|renta de letras/i.test(reply), reply.slice(0, 250));
     assert.ok(!/alg[uú]n\s+otro\s+servicio/i.test(reply), reply);
     assert.ok(/invitados|ciudad|fecha|presupuesto/i.test(reply), reply.slice(0, 250));
+  });
+
+  await test("37. Jerarquía catálogo — categoría / servicio / nivel", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados"',
+      '"Taquiza","Premium","$450.00","$9,000.00","TRUE","7 guisados"',
+      '"Banquete 4 tiempos","Basico","$500.00","$15,000.00","TRUE","3 tiempos menu"',
+      '"Banquete 4 tiempos","Premium","$750.00","$15,000.00","TRUE","4 tiempos menu"',
+      '"Barra de pizzas","Basico","$320.00","$8,000.00","TRUE","pizzas variadas"',
+    ].join("\n");
+
+    const rows = parseSheetCatalogCsv(csv);
+    assert.equal(rows.length, 5);
+    assert.equal(rows[0]!.servicio, "Taquiza");
+    assert.equal(rows[0]!.nivel, "Solo Alimentos");
+    assert.equal(rows[0]!.categoria, "Alimentos");
+    assert.equal(formatCatalogRowLabel(rows[0]!), "Taquiza — Solo Alimentos");
+    assert.equal(deriveCatalogCategory("Barra de bebidas"), "Bebidas");
+
+    setCatalogSnapshotForTests(rows);
+
+    const cat = resolveCatalogQuery("alimentos");
+    assert.ok(cat);
+    assert.equal(cat!.kind, "category");
+    const catPrice = buildCatalogPriceAnswer("alimentos");
+    assert.ok(catPrice);
+    assert.ok(/tenemos:/i.test(catPrice!), catPrice);
+    assert.ok(!/\$300|\$450|\$500/i.test(catPrice!), `no debe volcar precios: ${catPrice}`);
+
+    const banquete = resolveCatalogQuery("banquete");
+    assert.ok(banquete);
+    assert.equal(banquete!.kind, "service");
+    const banquetePrice = buildCatalogPriceAnswer("banquete");
+    assert.ok(banquetePrice);
+    assert.ok(/prefieres|niveles|opciones|tiempos/i.test(banquetePrice!), banquetePrice);
+
+    const exact = resolveCatalogQuery("banquete premium 4 tiempos");
+    assert.ok(exact);
+    assert.equal(exact!.kind, "service_nivel");
+    assert.ok(/Premium/i.test(exact!.rows[0]!.nivel));
+    const exactPrice = buildCatalogPriceAnswer("banquete premium 4 tiempos");
+    assert.ok(exactPrice);
+    assert.ok(/\$750/.test(exactPrice!), exactPrice);
+
+    const label = formatRequerimientoLabelFromQuery("banquete 4 tiempos premium");
+    assert.ok(label);
+    assert.ok(/Banquete 4 tiempos.*Premium/i.test(label!), label);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
