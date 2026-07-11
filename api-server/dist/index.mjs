@@ -81206,6 +81206,12 @@ function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPrese
   const alreadyStarted = conversationAlreadyStarted(filledSet, presHistory);
   const isTrueFirstTurn = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !alreadyStarted;
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
+    const recovered = recoverClienteNombreFromHistory(presHistory, ctx.currentMessage);
+    if (recovered) {
+      filledSet.add("Nombre del cliente");
+      extracted.nombre = recovered;
+      return stripRepeatLucyIntro(_mensaje, presHistory, true);
+    }
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
       return `${pickTransition(presHistory)} \xBFMe regalas tu nombre?`;
     }
@@ -81603,6 +81609,10 @@ function applyLucyMessageGuards(input) {
     mensaje = "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: n\xFAmero ambiguo \u2014 pedir aclaraci\xF3n");
+  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && clientMentionsItalianTheme(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: primer mensaje \u2014 tem\xE1tica italiana");
   } else if (currentMessage && detectPresupuestoRefusal(currentMessage)) {
     if (!filledSet.has("Presupuesto (MXN)")) {
       applyPresupuestoWaiver(
@@ -82012,8 +82022,18 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
   if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !filledSet.has("Lugar/direcci\xF3n del evento")) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre ? `${pickTransition(presHistory)} ${nombre}, \xBFme confirmas la ciudad o colonia del evento?` : `${pickTransition(presHistory)} \xBFMe confirmas la ciudad o colonia del evento?`;
-    log?.info({ entityId }, "GUARD: segunda pregunta de zona \u2014 variante corta");
+    const zonaAsks = countLucyFieldAsks(presHistory, "zona");
+    const zonaVariants = nombre ? [
+      `${pickTransition(presHistory)} ${nombre}, \xBFme confirmas la ciudad o colonia del evento?`,
+      `${pickTransition(presHistory)} ${nombre}, \xBFen qu\xE9 zona o sal\xF3n lo tendr\xEDan?`,
+      `${pickTransition(presHistory)} ${nombre}, \xBFya tienen el lugar del evento?`
+    ] : [
+      `${pickTransition(presHistory)} \xBFMe confirmas la ciudad o colonia del evento?`,
+      `${pickTransition(presHistory)} \xBFEn qu\xE9 zona o sal\xF3n lo tendr\xEDan?`,
+      `${pickTransition(presHistory)} \xBFYa tienen el lugar del evento?`
+    ];
+    mensaje = zonaVariants[Math.min(zonaAsks - 1, zonaVariants.length - 1)];
+    log?.info({ entityId, zonaAsks }, "GUARD: pregunta de zona \u2014 variante alterna");
   }
   if (mensajeAsksForField(mensaje, "fecha") && countLucyFieldAsks(presHistory, "fecha") >= 1 && !filledSet.has("Fecha y horario")) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);

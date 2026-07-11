@@ -60,6 +60,7 @@ import {
   parsePrimaryService,
   parseSpaceDimensions,
   parseFechaFromText,
+  recoverClienteNombreFromHistory,
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
@@ -866,6 +867,12 @@ export function enforceNombreFirst(
     (forceFirstPresentation || isFirstLucyReply(presHistory)) && !alreadyStarted;
 
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
+    const recovered = recoverClienteNombreFromHistory(presHistory, ctx.currentMessage);
+    if (recovered) {
+      filledSet.add("Nombre del cliente");
+      extracted.nombre = recovered;
+      return stripRepeatLucyIntro(_mensaje, presHistory, true);
+    }
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
       return `${pickTransition(presHistory)} ¿Me regalas tu nombre?`;
     }
@@ -1529,6 +1536,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = "¿Te refieres a 5 invitados o al día 5 del mes?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: número ambiguo — pedir aclaración");
+  } else if (
+    (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+    !conversationAlreadyStarted(filledSet, presHistory) &&
+    clientMentionsItalianTheme(currentMessage) &&
+    !isFieldSatisfied("nombre", filledSet, extracted)
+  ) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: primer mensaje — temática italiana");
   } else if (currentMessage && detectPresupuestoRefusal(currentMessage)) {
     if (!filledSet.has("Presupuesto (MXN)")) {
       applyPresupuestoWaiver(
@@ -2036,10 +2052,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !filledSet.has("Lugar/dirección del evento")
   ) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre
-      ? `${pickTransition(presHistory)} ${nombre}, ¿me confirmas la ciudad o colonia del evento?`
-      : `${pickTransition(presHistory)} ¿Me confirmas la ciudad o colonia del evento?`;
-    log?.info({ entityId }, "GUARD: segunda pregunta de zona — variante corta");
+    const zonaAsks = countLucyFieldAsks(presHistory, "zona");
+    const zonaVariants = nombre
+      ? [
+          `${pickTransition(presHistory)} ${nombre}, ¿me confirmas la ciudad o colonia del evento?`,
+          `${pickTransition(presHistory)} ${nombre}, ¿en qué zona o salón lo tendrían?`,
+          `${pickTransition(presHistory)} ${nombre}, ¿ya tienen el lugar del evento?`,
+        ]
+      : [
+          `${pickTransition(presHistory)} ¿Me confirmas la ciudad o colonia del evento?`,
+          `${pickTransition(presHistory)} ¿En qué zona o salón lo tendrían?`,
+          `${pickTransition(presHistory)} ¿Ya tienen el lugar del evento?`,
+        ];
+    mensaje = zonaVariants[Math.min(zonaAsks - 1, zonaVariants.length - 1)]!;
+    log?.info({ entityId, zonaAsks }, "GUARD: pregunta de zona — variante alterna");
   }
 
   if (
