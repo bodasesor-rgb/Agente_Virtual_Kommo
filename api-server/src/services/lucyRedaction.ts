@@ -46,6 +46,8 @@ export interface RedactionBriefingInput {
   hasObjection?: boolean;
   objectionType?: string | null;
   cierreYaEnviado?: boolean;
+  /** Análisis Vision del turno actual — solo contexto interno, nunca citar al cliente. */
+  imageContext?: string | null;
 }
 
 function mapPriorityToUrgency(priority: string): "alta" | "media" | "baja" {
@@ -101,6 +103,16 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
   if (input.hasObjection) {
     lines.push(
       `Objeción detectada${input.objectionType ? ` (${input.objectionType})` : ""}: atiéndela antes de insistir en datos.`
+    );
+  }
+
+  if (input.imageContext?.trim()) {
+    lines.push(
+      "━━━━━━━━ IMAGEN DEL CLIENTE (contexto interno) ━━━━━━━━",
+      input.imageContext.trim(),
+      "Usa este contexto para entender qué busca el cliente. Responde con opciones concretas del catálogo según SERVICIOS_COTIZABLES.",
+      "PROHIBIDO describir la imagen al cliente (no digas 'veo que', 'la foto muestra', 'tiene X decoración', etc.).",
+      "Ve directo a preguntas útiles o sugerencias de servicios/paquetes."
     );
   }
 

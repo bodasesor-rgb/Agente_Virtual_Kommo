@@ -69,6 +69,7 @@ import {
   isValidRequerimientosValue,
   crmStoredValue,
   stripImageAnnotation,
+  stripImageDescriptionLeaks,
   stripCatalogBlockShared,
   pickTransition,
   stripRobotAcknowledgments,
@@ -90,6 +91,7 @@ import {
   responseLooksLikeGenericCateringMenu,
 } from "../services/catalogService.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
+import { buildRedactionBriefing } from "../services/lucyRedaction.js";
 import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests } from "../services/imageProcessor.js";
 import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
 import {
@@ -1097,6 +1099,28 @@ async function runAll(): Promise<void> {
     const cleaned = stripImageAnnotation(leaked);
     assert.ok(!/imagen adjunta/i.test(cleaned), cleaned);
     assert.ok(/qué bonito salón/i.test(cleaned));
+
+    const described = "Ya vi tu imagen, María. La foto muestra un salón con carpa blanca. ¿Te cotizo mobiliario?";
+    const noDescribe = stripImageDescriptionLeaks(described);
+    assert.ok(!/ya vi tu imagen/i.test(noDescribe), noDescribe);
+    assert.ok(!/la foto muestra/i.test(noDescribe), noDescribe);
+    assert.ok(/te cotizo mobiliario/i.test(noDescribe), noDescribe);
+
+    const briefing = buildRedactionBriefing({
+      extracted: {},
+      filledSet: new Set(),
+      crmMergedLines: [],
+      intent: { intent: "cotizacion", confidence: 0.9 },
+      sentiment: { sentiment: "neutral", score: 0 },
+      stage: "discovery",
+      priority: "warm",
+      allFieldsFilled: false,
+      isFirstInteraction: false,
+      imageContext: "TIPO: referencia_estilo\nSERVICIOS_COTIZABLES: carpas, iluminación",
+    });
+    assert.ok(/IMAGEN DEL CLIENTE/i.test(briefing));
+    assert.ok(/PROHIBIDO describir la imagen/i.test(briefing));
+    assert.ok(!/\[Imagen adjunta:/i.test(briefing));
   });
 
   await test("24. Sinónimos de captura (del prompt de Opus) — presupuesto, invitados, correo, zona", () => {

@@ -2142,7 +2142,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const withoutImageAnnotation = stripImageAnnotation(mensaje);
   if (withoutImageAnnotation !== mensaje) {
     log?.warn({ entityId }, "GUARD: anotación interna de imagen filtrada al cliente — removida");
-    mensaje = withoutImageAnnotation || "Gracias por la imagen.";
+    mensaje = withoutImageAnnotation || "¿Qué servicios te gustaría que cotizáramos para tu evento?";
+  }
+
+  const withoutImageDescription = stripImageDescriptionLeaks(mensaje);
+  if (withoutImageDescription !== mensaje) {
+    log?.warn({ entityId }, "GUARD: descripción de imagen filtrada al cliente — removida");
+    mensaje = withoutImageDescription;
   }
 
   if (conversationAlreadyStarted(filledSet, presHistoryForIntro)) {
@@ -2233,6 +2239,27 @@ export function stripImageAnnotation(text: string): string {
   if (!text || !/\[imagen\s+adjunta:/i.test(text)) return text;
   return text
     .replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+/** Quita frases típicas donde GPT describe la imagen al cliente. */
+export function stripImageDescriptionLeaks(text: string): string {
+  if (!text) return text;
+  const patterns = [
+    /(?:ya\s+)?vi\s+tu\s+imagen[^.!?\n]*[.!?]?\s*/gi,
+    /(?:ya\s+)?revis[eé]\s+tu\s+(?:foto|imagen)[^.!?\n]*[.!?]?\s*/gi,
+    /(?:la\s+)?(?:foto|imagen)\s+muestra[^.!?\n]*[.!?]?\s*/gi,
+    /veo\s+que\s+(?:es|hay|tiene|se\s+ve)[^.!?\n]*[.!?]?\s*/gi,
+    /(?:se\s+ve|parece\s+ser)\s+(?:un|una)\s+[^.!?\n]*[.!?]?\s*/gi,
+    /qu[eé]\s+bonit[oa]\s+(?:sal[oó]n|lugar|espacio|decoraci[oó]n)[^.!?\n]*[.!?]?\s*/gi,
+  ];
+  let out = text;
+  for (const re of patterns) {
+    out = out.replace(re, "");
+  }
+  return out
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();

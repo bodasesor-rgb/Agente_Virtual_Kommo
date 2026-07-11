@@ -2829,7 +2829,12 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
   const withoutImageAnnotation = stripImageAnnotation(mensaje);
   if (withoutImageAnnotation !== mensaje) {
     log?.warn({ entityId }, "GUARD: anotaci\xF3n interna de imagen filtrada al cliente \u2014 removida");
-    mensaje = withoutImageAnnotation || "Gracias por la imagen.";
+    mensaje = withoutImageAnnotation || "\xBFQu\xE9 servicios te gustar\xEDa que cotiz\xE1ramos para tu evento?";
+  }
+  const withoutImageDescription = stripImageDescriptionLeaks(mensaje);
+  if (withoutImageDescription !== mensaje) {
+    log?.warn({ entityId }, "GUARD: descripci\xF3n de imagen filtrada al cliente \u2014 removida");
+    mensaje = withoutImageDescription;
   }
   if (conversationAlreadyStarted(filledSet, presHistoryForIntro)) {
     const stripped = stripRobotAcknowledgments(mensaje);
@@ -2885,6 +2890,22 @@ function stripGammaLinks(text) {
 function stripImageAnnotation(text) {
   if (!text || !/\[imagen\s+adjunta:/i.test(text)) return text;
   return text.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+function stripImageDescriptionLeaks(text) {
+  if (!text) return text;
+  const patterns = [
+    /(?:ya\s+)?vi\s+tu\s+imagen[^.!?\n]*[.!?]?\s*/gi,
+    /(?:ya\s+)?revis[eé]\s+tu\s+(?:foto|imagen)[^.!?\n]*[.!?]?\s*/gi,
+    /(?:la\s+)?(?:foto|imagen)\s+muestra[^.!?\n]*[.!?]?\s*/gi,
+    /veo\s+que\s+(?:es|hay|tiene|se\s+ve)[^.!?\n]*[.!?]?\s*/gi,
+    /(?:se\s+ve|parece\s+ser)\s+(?:un|una)\s+[^.!?\n]*[.!?]?\s*/gi,
+    /qu[eé]\s+bonit[oa]\s+(?:sal[oó]n|lugar|espacio|decoraci[oó]n)[^.!?\n]*[.!?]?\s*/gi
+  ];
+  let out = text;
+  for (const re of patterns) {
+    out = out.replace(re, "");
+  }
+  return out.replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 
 // src/services/summaryService.ts
@@ -13295,6 +13316,89 @@ function getVoiceNoteUrl(message) {
   return null;
 }
 
+// src/services/lucyRedaction.ts
+var PENDING_FIELD_LABELS = {
+  nombre: "Nombre del cliente",
+  correo: "Correo electr\xF3nico (opcional \u2014 intentar sin insistir)",
+  tipo_evento: "Tipo de evento",
+  requerimientos: "Requerimientos o servicios",
+  invitados: "N\xFAmero de invitados",
+  zona: "Lugar o ciudad del evento",
+  fecha: "Fecha y horario",
+  presupuesto: "Presupuesto estimado (MXN)"
+};
+function mapPriorityToUrgency(priority) {
+  if (priority === "hot") return "alta";
+  if (priority === "cold") return "baja";
+  return "media";
+}
+function buildRedactionBriefing(input) {
+  const pending = getNextPendingField(input.extracted, input.filledSet);
+  const pendingLabel = pending ? PENDING_FIELD_LABELS[pending] : null;
+  const urgencia = mapPriorityToUrgency(input.priority);
+  const datosCapturados = input.crmMergedLines.length > 0 ? input.crmMergedLines.map((l) => l.replace(/^- /, "")).join("; ") : "ninguno a\xFAn";
+  const faltantes = CLOSING_CORE_FIELDS.filter((f) => !input.filledSet.has(f));
+  const lines = [
+    "[Contexto interno \u2014 NO lo menciones ni cites al cliente]",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 ESTADO ACTUAL \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    `Capturado: ${datosCapturados}`,
+    `Falta: ${faltantes.length ? faltantes.join(", ") : "nada \u2014 datos clave completos"}`,
+    `Intenci\xF3n detectada: ${input.intent.intent} (confianza ${Math.round(input.intent.confidence * 100)}%)`,
+    `Sentimiento: ${input.sentiment.sentiment}`,
+    `Etapa del lead: ${input.stage} | Prioridad: ${input.priority} | Urgencia: ${urgencia}`
+  ];
+  if (input.cierreYaEnviado) {
+    lines.push(
+      "CIERRE YA ENVIADO \u2014 NO reinicies el flujo ni vuelvas a preguntar datos capturados. Responde en contexto de cierre (confirmar, agradecer, anotar pedidos extra)."
+    );
+  } else if (input.extracted.modo_servicio === "pedido_entrega") {
+    lines.push(
+      "MODO PEDIDO/ENTREGA \u2014 cotiza por producto/cantidad, NO por persona ni con chefs/montaje en evento."
+    );
+  } else if (input.allFieldsFilled) {
+    lines.push("Todos los datos clave est\xE1n capturados \u2014 si corresponde, aplica el cierre.");
+  } else if (pendingLabel) {
+    lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
+    if (pending === "requerimientos") {
+      lines.push(
+        "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces."
+      );
+    }
+  } else {
+    lines.push("Revisa el CRM y pide solo el primer dato que falte.");
+  }
+  if (input.hasObjection) {
+    lines.push(
+      `Objeci\xF3n detectada${input.objectionType ? ` (${input.objectionType})` : ""}: ati\xE9ndela antes de insistir en datos.`
+    );
+  }
+  if (input.imageContext?.trim()) {
+    lines.push(
+      "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 IMAGEN DEL CLIENTE (contexto interno) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+      input.imageContext.trim(),
+      "Usa este contexto para entender qu\xE9 busca el cliente. Responde con opciones concretas del cat\xE1logo seg\xFAn SERVICIOS_COTIZABLES.",
+      "PROHIBIDO describir la imagen al cliente (no digas 'veo que', 'la foto muestra', 'tiene X decoraci\xF3n', etc.).",
+      "Ve directo a preguntas \xFAtiles o sugerencias de servicios/paquetes."
+    );
+  }
+  if (input.isFirstInteraction) {
+    lines.push("Es el PRIMER mensaje de Lucy: presentaci\xF3n + pedir nombre.");
+  } else {
+    lines.push("NO te presentes de nuevo.");
+    lines.push(
+      "Anti-robot: NO digas 'Ya tengo tu correo/zona' antes de preguntar \u2014 ve directo a la siguiente pregunta.",
+      "Transiciones: var\xEDa (Genial/Perfecto/Excelente/Listo/Claro/Qu\xE9 padre) \u2014 nunca la misma dos veces seguidas.",
+      "Servicios: m\xE1x 2 l\xEDneas de info + 1 pregunta; da detalles \xFAtiles antes de decir que el equipo cotiza."
+    );
+  }
+  lines.push(
+    `NUNCA inventes precios. DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile sin precio en cat\xE1logo \u2014 da info \xFAtil y di que nuestro equipo lo incluye en la cotizaci\xF3n.`,
+    "Si el cliente hizo una pregunta en este mensaje, resp\xF3ndela ANTES de pedir el siguiente dato.",
+    "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
+  );
+  return lines.join("\n");
+}
+
 // src/lib/webhookDedup.ts
 var TTL_MS = 24 * 60 * 60 * 1e3;
 var MAX_ENTRIES = 1e4;
@@ -14238,6 +14342,26 @@ async function runAll() {
     const cleaned = stripImageAnnotation(leaked);
     assert.ok(!/imagen adjunta/i.test(cleaned), cleaned);
     assert.ok(/qué bonito salón/i.test(cleaned));
+    const described = "Ya vi tu imagen, Mar\xEDa. La foto muestra un sal\xF3n con carpa blanca. \xBFTe cotizo mobiliario?";
+    const noDescribe = stripImageDescriptionLeaks(described);
+    assert.ok(!/ya vi tu imagen/i.test(noDescribe), noDescribe);
+    assert.ok(!/la foto muestra/i.test(noDescribe), noDescribe);
+    assert.ok(/te cotizo mobiliario/i.test(noDescribe), noDescribe);
+    const briefing = buildRedactionBriefing({
+      extracted: {},
+      filledSet: /* @__PURE__ */ new Set(),
+      crmMergedLines: [],
+      intent: { intent: "cotizacion", confidence: 0.9 },
+      sentiment: { sentiment: "neutral", score: 0 },
+      stage: "discovery",
+      priority: "warm",
+      allFieldsFilled: false,
+      isFirstInteraction: false,
+      imageContext: "TIPO: referencia_estilo\nSERVICIOS_COTIZABLES: carpas, iluminaci\xF3n"
+    });
+    assert.ok(/IMAGEN DEL CLIENTE/i.test(briefing));
+    assert.ok(/PROHIBIDO describir la imagen/i.test(briefing));
+    assert.ok(!/\[Imagen adjunta:/i.test(briefing));
   });
   await test("24. Sin\xF3nimos de captura (del prompt de Opus) \u2014 presupuesto, invitados, correo, zona", () => {
     assert.equal(parsePresupuestoFromText("$500 por persona"), "$500 MXN por persona");
