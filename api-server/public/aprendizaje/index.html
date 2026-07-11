@@ -23,6 +23,19 @@
 
       <div class="dashboard" id="stats-row"></div>
 
+      <section id="system-errors" class="system-errors hidden" aria-live="polite">
+        <div class="system-errors-head">
+          <div>
+            <p class="eyebrow">Diagnóstico</p>
+            <h2 id="system-errors-title">Estado del sistema</h2>
+            <p id="system-errors-summary" class="system-errors-summary"></p>
+          </div>
+          <button type="button" id="btn-retry-errors" class="btn-ghost">Revisar de nuevo</button>
+        </div>
+        <ul id="system-errors-list" class="system-errors-list"></ul>
+        <p id="system-errors-checked" class="system-errors-checked"></p>
+      </section>
+
       <nav class="view-tabs" id="view-tabs">
         <button type="button" class="view-tab active" data-status="pending">
           <span class="tab-title">No sabe</span>
@@ -44,6 +57,6 @@
     </section>
   </div>
 
-  <script src="/aprendizaje/app.js?v=3" type="module"></script>
+  <script src="/aprendizaje/app.js?v=4" type="module"></script>
 </body>
 </html>

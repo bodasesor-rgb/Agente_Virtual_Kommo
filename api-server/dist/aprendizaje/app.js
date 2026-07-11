@@ -4,8 +4,226 @@ const sectionIntro = document.getElementById("section-intro");
 const statsRow = document.getElementById("stats-row");
 const gapsList = document.getElementById("gaps-list");
 const emptyState = document.getElementById("empty-state");
+const systemErrorsBox = document.getElementById("system-errors");
+const systemErrorsTitle = document.getElementById("system-errors-title");
+const systemErrorsSummary = document.getElementById("system-errors-summary");
+const systemErrorsList = document.getElementById("system-errors-list");
+const systemErrorsChecked = document.getElementById("system-errors-checked");
+const btnRetryErrors = document.getElementById("btn-retry-errors");
 
 let currentStatus = "pending";
+let lastLoadError = null;
+
+const ERROR_HINTS = {
+  unauthorized:
+    "El servidor bloqueó esta API. Suele pasar si Hostinger no tiene el último deploy — revisa Panel → Estado o redeploy en hPanel.",
+  failed_to_load_gaps:
+    "No se pudo leer la base de datos de aprendizaje. Pulsa «Revisar de nuevo»; si persiste, reinicia Lucy en Hostinger.",
+  failed_to_load_stats: "No se pudieron cargar las estadísticas de aprendizaje.",
+  not_json: "El servidor respondió HTML en lugar de JSON (503 o página de error de Hostinger).",
+  network: "No hay conexión con el servidor. Comprueba que Lucy esté en línea.",
+};
+
+function friendlyError(code, fallback) {
+  if (!code) return fallback || "Error desconocido";
+  const lower = String(code).toLowerCase();
+  if (lower === "unauthorized") return "Sin autorización (unauthorized)";
+  if (lower.startsWith("http ")) return `Error del servidor (${code})`;
+  return ERROR_HINTS[lower] ? ERROR_HINTS[lower] : fallback || String(code);
+}
+
+async function fetchJson(path) {
+  const res = await fetch(`${API}${path}`, {
+    headers: { Accept: "application/json" },
+  });
+  const text = await res.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    return { ok: false, status: res.status, error: "not_json", preview: text.slice(0, 120) };
+  }
+  if (!res.ok) {
+    return { ok: false, status: res.status, error: data.error || `HTTP ${res.status}`, data };
+  }
+  return { ok: true, status: res.status, data };
+}
+
+function diagItem({ id, label, status, detail, fix, resolved }) {
+  const icon = status === "ok" ? "✓" : status === "warn" ? "!" : "✕";
+  const statusLabel = resolved ? "Resuelto" : status === "warn" ? "Revisar" : "Pendiente";
+  const statusClass = resolved ? "resolved" : status === "warn" ? "watch" : "pending";
+  return `
+    <li class="system-error-item ${status}" data-check="${escapeHtml(id)}">
+      <span class="system-error-icon" aria-hidden="true">${icon}</span>
+      <div class="system-error-body">
+        <strong>${escapeHtml(label)}</strong>
+        <p>${escapeHtml(detail)}</p>
+        ${fix ? `<p class="system-error-fix">${escapeHtml(fix)}</p>` : ""}
+      </div>
+      <span class="system-error-status ${statusClass}">${statusLabel}</span>
+    </li>
+  `;
+}
+
+async function loadSystemDiagnostics() {
+  const items = [];
+  const checkedAt = new Date().toLocaleString("es-MX", {
+    timeZone: "America/Mexico_City",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  let health = { ok: false, error: "network" };
+  let ops = { ok: false };
+  let gaps = { ok: false };
+
+  try {
+    health = await fetchJson("/health");
+  } catch (err) {
+    health = { ok: false, error: err instanceof Error ? err.message : "network" };
+  }
+
+  if (!health.ok) {
+    const is503 = health.status === 503 || health.error === "not_json";
+    items.push({
+      id: "server",
+      label: "Servidor Lucy",
+      status: "error",
+      resolved: false,
+      detail: is503
+        ? "Lucy no responde (503). El proceso Node en Hostinger está caído o reiniciando."
+        : friendlyError(health.error, "No se pudo conectar con Lucy"),
+      fix: "hPanel → Node.js → Reiniciar o Redesplegar desde main. Luego pulsa «Revisar de nuevo».",
+    });
+  } else {
+    const h = health.data;
+    items.push({
+      id: "server",
+      label: "Servidor Lucy",
+      status: "ok",
+      resolved: true,
+      detail: `En línea · prompt ${h.lucy_prompt ?? "?"} · ${h.built_at_display ?? "sin fecha de build"}`,
+    });
+
+    items.push({
+      id: "openai",
+      label: "OpenAI",
+      status: h.openai_configured ? "ok" : "error",
+      resolved: !!h.openai_configured,
+      detail: h.openai_configured
+        ? "Key configurada — Lucy puede usar GPT."
+        : "Falta la variable OPEN_AI en Hostinger.",
+      fix: h.openai_configured ? null : "hPanel → Variables de entorno → OPEN_AI = sk-proj-…",
+    });
+
+    const catalog = h.catalog ?? {};
+    const catalogOk = catalog.loaded && !catalog.lastError;
+    items.push({
+      id: "catalog",
+      label: "Catálogo de precios",
+      status: catalogOk ? "ok" : catalog.lastError ? "error" : "warn",
+      resolved: catalogOk,
+      detail: catalog.lastError
+        ? `Error al cargar Sheet: ${catalog.lastError}`
+        : catalog.loaded
+          ? `${catalog.pricedServicesCount ?? 0} precios cargados.`
+          : "El catálogo aún no terminó de cargar (normal tras reinicio).",
+      fix: catalog.lastError ? "Panel → Estado → «Reparar ahora» recarga el Sheet." : null,
+    });
+  }
+
+  try {
+    gaps = await fetchJson("/knowledge-gaps/stats");
+  } catch (err) {
+    gaps = { ok: false, error: err instanceof Error ? err.message : "network" };
+  }
+
+  if (!gaps.ok) {
+    items.push({
+      id: "gaps_api",
+      label: "API de aprendizaje",
+      status: "error",
+      resolved: false,
+      detail: friendlyError(gaps.error, "No se pudo leer /api/knowledge-gaps/stats"),
+      fix: gaps.error === "unauthorized"
+        ? "Confirma en Panel → Estado que no diga «unauthorized». Si persiste, redeploy en Hostinger."
+        : "Espera 1 minuto tras un reinicio y pulsa «Revisar de nuevo».",
+    });
+  } else {
+    items.push({
+      id: "gaps_api",
+      label: "API de aprendizaje",
+      status: "ok",
+      resolved: true,
+      detail: `Conectada · ${gaps.data.pending ?? 0} pendientes · ${gaps.data.answered ?? 0} ya enseñadas.`,
+    });
+  }
+
+  if (health.ok) {
+    try {
+      ops = await fetchJson("/ops/status");
+    } catch {
+      ops = { ok: false };
+    }
+    if (!ops.ok && ops.error === "unauthorized") {
+      items.push({
+        id: "ops_auth",
+        label: "Panel de vigilancia",
+        status: "error",
+        resolved: false,
+        detail: "Estado de Lucy también devuelve unauthorized.",
+        fix: "Hostinger necesita el último código (commit con fix de rutas). Redeploy desde main.",
+      });
+    }
+  }
+
+  if (lastLoadError) {
+    items.push({
+      id: "load_gaps",
+      label: "Lista de preguntas",
+      status: "error",
+      resolved: false,
+      detail: friendlyError(lastLoadError, lastLoadError),
+      fix: "Corrige los errores de arriba y pulsa «Revisar de nuevo».",
+    });
+  } else if (health.ok && gaps.ok) {
+    items.push({
+      id: "load_gaps",
+      label: "Lista de preguntas",
+      status: "ok",
+      resolved: true,
+      detail: "La lista de aprendizaje se cargó correctamente.",
+    });
+  }
+
+  const errors = items.filter((i) => i.status === "error").length;
+  const warns = items.filter((i) => i.status === "warn").length;
+  const allOk = errors === 0 && warns === 0;
+
+  systemErrorsBox.classList.remove("hidden", "all-ok", "has-errors", "has-warns");
+  if (allOk) {
+    systemErrorsBox.classList.add("all-ok");
+    systemErrorsTitle.textContent = "Sin errores detectados";
+    systemErrorsSummary.textContent =
+      "Aprendizaje, servidor y catálogo responden bien. Puedes enseñar respuestas con normalidad.";
+  } else if (errors > 0) {
+    systemErrorsBox.classList.add("has-errors");
+    systemErrorsTitle.textContent =
+      errors === 1 ? "1 error activo" : `${errors} errores activos`;
+    systemErrorsSummary.textContent =
+      "Hay problemas que impiden usar Aprendizaje hasta que se resuelvan (marca «Pendiente»).";
+  } else {
+    systemErrorsBox.classList.add("has-warns");
+    systemErrorsTitle.textContent = "Avisos — sin bloqueo grave";
+    systemErrorsSummary.textContent =
+      "Algo requiere atención pero puedes seguir trabajando.";
+  }
+
+  systemErrorsList.innerHTML = items.map(diagItem).join("");
+  systemErrorsChecked.textContent = `Última revisión: ${checkedAt}`;
+}
+
 
 const INTRO = {
   pending:
@@ -65,8 +283,10 @@ function updateTabCounts(stats) {
 }
 
 async function loadStats() {
-  const stats = await api("/knowledge-gaps/stats");
-  const total = stats.pending + stats.answered + stats.dismissed;
+  try {
+    const stats = await api("/knowledge-gaps/stats");
+    lastLoadError = null;
+    const total = stats.pending + stats.answered + stats.dismissed;
 
   statsRow.innerHTML = `
     <div class="stat-card pending">
@@ -87,7 +307,15 @@ async function loadStats() {
     </div>
   `;
 
-  updateTabCounts(stats);
+    updateTabCounts(stats);
+  } catch (err) {
+    lastLoadError = err instanceof Error ? err.message : String(err);
+    statsRow.innerHTML = `
+      <div class="stat-card pending"><strong>—</strong><span>No sabe — error al cargar</span></div>
+      <div class="stat-card learned"><strong>—</strong><span>Ya aprendió</span></div>
+    `;
+    throw err;
+  }
 }
 
 function renderPendingCard(gap) {
@@ -190,9 +418,11 @@ async function loadGaps() {
   sectionIntro.innerHTML = INTRO[currentStatus] ?? "";
   gapsList.innerHTML = "";
 
-  const data = await api(`/knowledge-gaps?status=${currentStatus}&limit=50`);
+  try {
+    const data = await api(`/knowledge-gaps?status=${currentStatus}&limit=50`);
+    lastLoadError = null;
 
-  if (!data.gaps?.length) {
+    if (!data.gaps?.length) {
     emptyState.classList.remove("hidden");
     emptyState.innerHTML =
       currentStatus === "pending"
@@ -203,10 +433,16 @@ async function loadGaps() {
 
   emptyState.classList.add("hidden");
 
-  for (const gap of data.gaps) {
-    gapsList.appendChild(
-      currentStatus === "pending" ? renderPendingCard(gap) : renderLearnedCard(gap),
-    );
+    for (const gap of data.gaps) {
+      gapsList.appendChild(
+        currentStatus === "pending" ? renderPendingCard(gap) : renderLearnedCard(gap),
+      );
+    }
+  } catch (err) {
+    lastLoadError = err instanceof Error ? err.message : String(err);
+    emptyState.classList.remove("hidden");
+    emptyState.innerHTML = `<strong>No se pudo cargar la lista</strong>${escapeHtml(lastLoadError)} — revisa el cuadro de diagnóstico arriba.`;
+    throw err;
   }
 }
 
@@ -244,9 +480,25 @@ async function dismissGap(id) {
 }
 
 async function refresh() {
-  await loadStats();
-  await loadGaps();
+  await loadSystemDiagnostics();
+  try {
+    await loadStats();
+    await loadGaps();
+  } catch {
+    await loadSystemDiagnostics();
+  }
 }
+
+btnRetryErrors?.addEventListener("click", () => {
+  btnRetryErrors.disabled = true;
+  btnRetryErrors.textContent = "Revisando…";
+  refresh()
+    .catch(() => {})
+    .finally(() => {
+      btnRetryErrors.disabled = false;
+      btnRetryErrors.textContent = "Revisar de nuevo";
+    });
+});
 
 document.querySelectorAll(".view-tab").forEach((btn) => {
   btn.addEventListener("click", async () => {
@@ -257,7 +509,6 @@ document.querySelectorAll(".view-tab").forEach((btn) => {
   });
 });
 
-refresh().catch((err) => {
-  emptyState.classList.remove("hidden");
-  emptyState.innerHTML = `<strong>No se pudo cargar</strong>${escapeHtml(err.message)}`;
+refresh().catch(() => {
+  /* errores mostrados en system-errors y empty-state */
 });
