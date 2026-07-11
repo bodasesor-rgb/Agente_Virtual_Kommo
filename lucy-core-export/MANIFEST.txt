@@ -1,0 +1,42 @@
+lucy-core-export/
+├── LEEME.md                          ← Empieza aquí (arquitectura + síntomas)
+├── MANIFEST.txt                      ← Este archivo
+├── docs/
+│   └── PROMPT-PARA-CLAUDE.txt        ← Prompt sugerido para pegar en Claude
+├── scripts/
+│   ├── simulator-auto-client-lib.mjs ← 10 clientes LLM + juez QA
+│   └── lucy-live-20-tests.mjs        ← Batería 20 tests en vivo
+└── src/
+    ├── app.ts
+    ├── catalogo.ts
+    ├── chat-history.ts
+    ├── client-email.ts
+    ├── contact-name.ts
+    ├── conversation-understanding.ts  ← Parsing y captura contextual
+    ├── lucy-flow-guards.ts              ← Guards post-GPT (CRÍTICO)
+    ├── lucy-prompt.ts                   ← System prompt V7
+    ├── modoServicio.ts
+    ├── price-guard.ts
+    ├── tipoContacto.ts
+    ├── types.ts
+    ├── lib/
+    │   ├── bodasesorAdvisor.ts
+    │   ├── lucyHistoryConfig.ts         ← Límites memoria chat
+    │   ├── openaiEnv.ts
+    │   ├── publicUrl.ts
+    │   └── training.ts
+    ├── routes/
+    │   ├── health.ts
+    │   ├── index.ts                     ← Orden routers (público vs auth)
+    │   └── kommo.ts                     ← ORQUESTADOR PRINCIPAL (~2800 líneas)
+    └── services/
+        ├── catalogService.ts            ← Sheet + inyección menú/precio
+        ├── gammaCatalog.ts
+        ├── googleSheetsCatalog.ts
+        ├── intentDetection.ts
+        ├── leadScoring.ts
+        ├── lucyRedaction.ts             ← Llamada GPT redacción
+        ├── promptBuilder.ts
+        └── summaryService.ts
+
+Total: 28 archivos fuente (~6500 líneas en los 3 más grandes)

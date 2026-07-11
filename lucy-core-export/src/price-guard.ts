@@ -1,0 +1,198 @@
+/**
+ * Evita que Lucy invente precios para servicios sin tarifa en catálogo.
+ * Solo servicios listados en catalogo.ts (alimentos, barras con $/pp, etc.) pueden citarse.
+ */
+
+/** Servicios sin precio publicado — Alejandro cotiza (fallback estático). */
+const NO_LISTED_PRICE_PATTERN =
+  /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
+
+/** Servicios con precios en catálogo (fallback estático). */
+const LISTED_PRICE_PATTERN =
+  /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
+
+let dynamicListedPattern: RegExp | null = null;
+let dynamicNoListedPattern: RegExp | null = null;
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildServicePattern(labels: string[]): RegExp | null {
+  const terms = labels
+    .map((label) => label.trim().toLowerCase())
+    .filter((label) => label.length >= 2)
+    .map((label) => escapeRegex(label).replace(/\s+/g, "\\s+"));
+
+  if (!terms.length) return null;
+  return new RegExp(`\\b(?:${terms.join("|")})\\b`, "i");
+}
+
+/** Actualiza índice de precios desde Google Sheets (vía catalogService). */
+export function setCatalogPriceIndex(priced: string[], noPrice: string[]): void {
+  dynamicListedPattern = buildServicePattern(priced);
+  dynamicNoListedPattern = buildServicePattern(noPrice);
+}
+
+const PRICE_CLAIM_PATTERN =
+  /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
+
+const PRICE_QUESTION_PATTERN =
+  /\bcu[aá]nto\s+cuesta|\bprecio\b|\bcosto\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b/i;
+
+export function clientAsksPrice(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return PRICE_QUESTION_PATTERN.test(message);
+}
+
+export function mentionsNoListedPriceService(text: string): boolean {
+  if (dynamicNoListedPattern?.test(text)) return true;
+  return NO_LISTED_PRICE_PATTERN.test(text);
+}
+
+export function mentionsListedPriceService(text: string): boolean {
+  if (dynamicListedPattern?.test(text)) return true;
+  return LISTED_PRICE_PATTERN.test(text);
+}
+
+/** True si el mensaje afirma un monto monetario. */
+export function messageClaimsPrice(mensaje: string): boolean {
+  return PRICE_CLAIM_PATTERN.test(mensaje);
+}
+
+/**
+ * True si Lucy está dando precios que no debe (ej. DJ $3,000–$5,000).
+ */
+export function responseHasInventedPrice(
+  mensaje: string,
+  currentMessage?: string,
+  recentContext?: string
+): boolean {
+  if (!messageClaimsPrice(mensaje)) return false;
+
+  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`.toLowerCase();
+
+  if (mentionsNoListedPriceService(ctx)) return true;
+
+  // Precio genérico sin servicio de catálogo claro — sospechoso
+  if (!mentionsListedPriceService(ctx) && messageClaimsPrice(mensaje)) {
+    return true;
+  }
+
+  return false;
+}
+
+function detectServiceLabel(text: string): string {
+  const t = text.toLowerCase();
+  if (/\bdj\b/.test(t)) return "DJ";
+  if (/iluminaci[oó]n/.test(t)) return "iluminación";
+  if (/mobiliario/.test(t)) return "mobiliario";
+  if (/carpas?|lonas?/.test(t)) return "carpas";
+  if (/pantallas?/.test(t)) return "pantallas";
+  if (/pista(\s+de\s+baile)?|tarimas?/.test(t)) return "pista de baile";
+  if (/flor/.test(t)) return "floristería";
+  return "ese servicio";
+}
+
+export function getPriceServiceLabel(text: string): string {
+  return detectServiceLabel(text);
+}
+
+/** Quita oraciones con montos inventados. */
+export function stripPriceSentences(mensaje: string): string {
+  const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);
+  const kept = sentences.filter((s) => !PRICE_CLAIM_PATTERN.test(s));
+  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
+}
+
+export function stripStalePriceTalk(mensaje: string, currentMessage?: string): string {
+  if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
+  if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
+  return mensaje
+    .split(/(?<=[.!?])\s+|\n+/)
+    .filter((s) => !/\bdj\b/i.test(s) || clientAsksPrice(currentMessage))
+    .filter((s) => !/alejandro te (incluye|da) el precio/i.test(s))
+    .join(" ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+import { advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
+
+/** Respuesta consultiva (Replit) para servicios sin precio en catálogo — info útil + cotización. */
+export function buildConsultativeNoPriceReply(message?: string): string | null {
+  if (!message?.trim()) return null;
+  const t = message.toLowerCase();
+  const team = advisorLabelForClient();
+
+  if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t)) {
+    return (
+      `Las carpas protegen del sol y la lluvia en jardín o terraza. Hay Cathedral (techos altos), Pirámide (modernas) y Planas (funcionales). ` +
+      `${team} incluirá el precio según el tamaño. ¿Qué estilo va más con tu evento?`
+    );
+  }
+  if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t)) {
+    return (
+      `El DJ incluye equipo completo, micrófono para brindis e iluminación básica; puedes mandar playlist. ` +
+      `${team} incluirá el precio en tu cotización. ¿Ya tienes estilo de música o prefieres que lea el ambiente?`
+    );
+  }
+  if (/iluminaci[oó]n/.test(t)) {
+    return (
+      `Opciones: uplighting LED en paredes, luces colgantes tipo edison o luces de pista. ` +
+      `${team} cotiza según el espacio. ¿Qué ambiente buscas: elegante, romántico o fiesta?`
+    );
+  }
+  if (/pista(\s+de\s+baile)?|tarimas?\b/.test(t)) {
+    return (
+      `Manejamos pistas de baile y tarimas en varios tamaños, con opción iluminada. ` +
+      `${team} incluirá el precio según las medidas de tu espacio. ¿Ya tienes idea del tamaño?`
+    );
+  }
+  if (/mobiliario/.test(t)) {
+    return (
+      `Manejamos mesas, sillas y mobiliario para eventos en distintos estilos. ` +
+      `${team} cotiza según cantidad y tipo. ¿Qué mobiliario necesitas?`
+    );
+  }
+  return null;
+}
+
+export function buildAlejandroPriceReply(serviceHint?: string, clientMessage?: string): string {
+  const consultative = clientMessage ? buildConsultativeNoPriceReply(clientMessage) : null;
+  if (consultative) return consultative;
+
+  const svc = serviceHint?.trim() || "ese servicio";
+  const team = advisorLabelForClient();
+  return `Sí, manejamos ${svc}. El precio depende del evento — ${team} te lo incluye en tu cotización.`;
+}
+
+/**
+ * Reemplaza precios inventados por respuesta segura.
+ * Si el cliente preguntó precio de un servicio sin tarifa en catálogo, no se cita monto.
+ */
+export function sanitizeInventedPrices(
+  mensaje: string,
+  currentMessage?: string,
+  recentContext?: string
+): string {
+  if (!responseHasInventedPrice(mensaje, currentMessage, recentContext)) {
+    return mensaje;
+  }
+
+  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`;
+  const service = detectServiceLabel(ctx);
+  const cleaned = stripPriceSentences(mensaje);
+
+  const safe = buildAlejandroPriceReply(service, currentMessage);
+
+  if (!cleaned || cleaned.length < 15) return safe;
+
+  // Conservar texto útil sin precios + aclaración
+  const withoutCorreoInsist = cleaned.replace(/[^.!?\n]*correo[^.!?\n]*\?[^.!?\n]*/gi, "").trim();
+  const base = withoutCorreoInsist.length > 20 ? withoutCorreoInsist : "";
+  if (base && !/alejandro/i.test(base)) {
+    return `${base} ${safe}`.trim();
+  }
+  return safe;
+}
