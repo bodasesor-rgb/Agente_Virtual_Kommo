@@ -2724,8 +2724,8 @@ router.post("/kommo/simulator/reset", (req: Request, res: Response) => {
 });
 
 async function loadAutoClientLib() {
-  const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-  const libPath = path.join(apiRoot, "scripts/simulator-auto-client-lib.mjs");
+  const deployRoot = path.dirname(fileURLToPath(import.meta.url));
+  const libPath = path.join(deployRoot, "scripts/simulator-auto-client-lib.mjs");
   return import(libPath);
 }
 

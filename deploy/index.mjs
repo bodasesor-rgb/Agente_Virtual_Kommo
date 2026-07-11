@@ -90556,8 +90556,8 @@ router3.post("/kommo/simulator/reset", (req, res) => {
   res.json({ status: "success", lead_id: leadId });
 });
 async function loadAutoClientLib() {
-  const apiRoot = path3.resolve(path3.dirname(fileURLToPath3(import.meta.url)), "../..");
-  const libPath = path3.join(apiRoot, "scripts/simulator-auto-client-lib.mjs");
+  const deployRoot = path3.dirname(fileURLToPath3(import.meta.url));
+  const libPath = path3.join(deployRoot, "scripts/simulator-auto-client-lib.mjs");
   return import(libPath);
 }
 router3.get("/kommo/simulator/auto-clients", async (_req, res) => {

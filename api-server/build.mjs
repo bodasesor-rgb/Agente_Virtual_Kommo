@@ -179,6 +179,13 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   await cp(trainingSrc, path.join(distDir, "training-examples.json"));
   console.log("[build] Training examples copiados a dist/");
 
+  const scriptsDir = path.join(distDir, "scripts");
+  await mkdir(scriptsDir, { recursive: true });
+  for (const script of ["simulator-auto-client-lib.mjs", "lucy-simulator-10-clients.mjs"]) {
+    await cp(path.resolve(artifactDir, "scripts", script), path.join(scriptsDir, script));
+  }
+  console.log("[build] Scripts auto-cliente copiados a dist/scripts/");
+
   const reqFromDb = createRequire(path.resolve(artifactDir, "../lib/db/package.json"));
   const pgliteDist = path.dirname(reqFromDb.resolve("@electric-sql/pglite"));
   for (const asset of ["postgres.data", "postgres.wasm"]) {
