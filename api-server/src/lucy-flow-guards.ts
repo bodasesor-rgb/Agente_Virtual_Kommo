@@ -1904,6 +1904,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre distinto al del contacto — confirmar");
   } else if (
+    (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+    !conversationAlreadyStarted(filledSet, presHistory) &&
+    !!parseWebLeadBrief(currentMessage ?? "")
+  ) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: primer mensaje — brief web con datos del formulario");
+  } else if (
     allowSalesReplyOverride &&
     isVagueFoodTerm(currentMessage) &&
     !clientAsksForRecommendations(currentMessage)

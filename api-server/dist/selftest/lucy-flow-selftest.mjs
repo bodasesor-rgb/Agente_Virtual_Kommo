@@ -3361,6 +3361,10 @@ function applyLucyMessageGuards(input) {
     mensaje = nameMismatchReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre distinto al del contacto \u2014 confirmar");
+  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !!parseWebLeadBrief(currentMessage ?? "")) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: primer mensaje \u2014 brief web con datos del formulario");
   } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage)) {
     mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
@@ -3985,6 +3989,12 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
 import { readFileSync } from "node:fs";
 import path2 from "node:path";
 import { fileURLToPath } from "node:url";
+
+// src/lib/formatForWhatsApp.ts
+function formatForWhatsApp(text) {
+  if (!text?.trim()) return text;
+  return text.replace(/\*\*(.+?)\*\*/g, "*$1*").replace(/^#{1,6}\s*/gm, "").replace(/^\s*[-*]\s+/gm, "\u2022 ").replace(/`{1,3}/g, "").replace(/\n{3,}/g, "\n\n").trim();
+}
 
 // node_modules/openai/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f) {
@@ -15930,6 +15940,26 @@ async function runAll() {
     assert.ok(/parrillada argentina|cortes argentinos/i.test(detail), detail);
     assert.ok(!/banquete\s+3\s+tiempos/i.test(detail), detail);
     assert.ok(catalogAnswerMatchesRequestedService("quiero parrillada argentina", detail), detail);
+  });
+  await test("44. Fase 0 \u2014 formatForWhatsApp y brief web en primer turno", () => {
+    const formatted = formatForWhatsApp("**Hola** \u2014 precio:\n\n- item uno\n\n## T\xEDtulo");
+    assert.ok(/\*Hola\*/.test(formatted), formatted);
+    assert.ok(!/\*\*/.test(formatted), formatted);
+    assert.ok(/• item uno/.test(formatted), formatted);
+    assert.ok(!/^##/m.test(formatted), formatted);
+    const webMsg = "Hola, me interesa cotizar para mi evento: boda en jard\xEDn. Ser\xEDa el 15 de agosto en Cuernavaca para 80 personas";
+    const first = runGuards({
+      aiResponse: "Estas son las opciones m\xE1s pedidas: banquete o taquiza.",
+      extracted: emptyExtracted({ tipo_evento: "boda", num_invitados: 80 }),
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: webMsg,
+      history: [],
+      forceFirstPresentation: true
+    });
+    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert.ok(/boda|solicitud|80\s+personas/i.test(first), first);
+    assert.ok(!/opciones m[aá]s pedidas/i.test(first), first);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -62367,25 +62367,25 @@ var init_drizzle_orm = __esm({
 });
 
 // src/lib/trainingPaths.ts
-import { existsSync as existsSync3 } from "fs";
-import { join as join3, dirname } from "path";
-import { fileURLToPath } from "url";
+import { existsSync as existsSync4 } from "fs";
+import { join as join4, dirname as dirname2 } from "path";
+import { fileURLToPath as fileURLToPath2 } from "url";
 function resolveTrainingJsonFile() {
   const candidates = [
-    join3(moduleDir, "training-examples.json"),
-    join3(moduleDir, "data/training-examples.json"),
-    join3(moduleDir, "../../data/training-examples.json"),
-    join3(moduleDir, "../data/training-examples.json")
+    join4(moduleDir, "training-examples.json"),
+    join4(moduleDir, "data/training-examples.json"),
+    join4(moduleDir, "../../data/training-examples.json"),
+    join4(moduleDir, "../data/training-examples.json")
   ];
   for (const path4 of candidates) {
-    if (existsSync3(path4)) return path4;
+    if (existsSync4(path4)) return path4;
   }
   return candidates[1];
 }
 var moduleDir;
 var init_trainingPaths = __esm({
   "src/lib/trainingPaths.ts"() {
-    moduleDir = dirname(fileURLToPath(import.meta.url));
+    moduleDir = dirname2(fileURLToPath2(import.meta.url));
   }
 });
 
@@ -62413,7 +62413,7 @@ var init_logger3 = __esm({
 });
 
 // src/services/trainingStore.ts
-import { readFileSync as readFileSync2 } from "fs";
+import { readFileSync as readFileSync3 } from "fs";
 import { randomUUID } from "crypto";
 function rowToExample(row) {
   return {
@@ -62426,7 +62426,7 @@ function rowToExample(row) {
 }
 function loadExamplesFromJsonFile() {
   try {
-    const raw = readFileSync2(resolveTrainingJsonFile(), "utf-8");
+    const raw = readFileSync3(resolveTrainingJsonFile(), "utf-8");
     const parsed = JSON.parse(raw);
     return parsed.examples ?? [];
   } catch {
@@ -81847,20 +81847,17 @@ function resolveLucyPublicBase(req) {
 init_openaiEnv();
 init_openai();
 
-// src/lib/training.ts
-await init_trainingStore();
-
 // src/chat-history.ts
-import { readFileSync as readFileSync3, writeFileSync, existsSync as existsSync4 } from "fs";
-import { join as join4, dirname as dirname2 } from "path";
-import { fileURLToPath as fileURLToPath2 } from "url";
-var __dirname2 = dirname2(fileURLToPath2(import.meta.url));
-var DATA_FILE = join4(__dirname2, "../../data/chat-history.json");
+import { readFileSync as readFileSync2, writeFileSync, existsSync as existsSync2 } from "fs";
+import { join as join2, dirname } from "path";
+import { fileURLToPath } from "url";
+var __dirname2 = dirname(fileURLToPath(import.meta.url));
+var DATA_FILE = join2(__dirname2, "../../data/chat-history.json");
 var MAX_MESSAGES = 40;
 function load() {
   try {
-    if (existsSync4(DATA_FILE)) {
-      return JSON.parse(readFileSync3(DATA_FILE, "utf-8"));
+    if (existsSync2(DATA_FILE)) {
+      return JSON.parse(readFileSync2(DATA_FILE, "utf-8"));
     }
   } catch {
   }
@@ -83026,6 +83023,10 @@ function applyLucyMessageGuards(input) {
     mensaje = nameMismatchReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre distinto al del contacto \u2014 confirmar");
+  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !!parseWebLeadBrief(currentMessage ?? "")) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: primer mensaje \u2014 brief web con datos del formulario");
   } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage)) {
     mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
@@ -84003,373 +84004,6 @@ function detectObjection(text2) {
   return { hasObjection: false };
 }
 
-// src/lucy-prompt.ts
-var ADVISOR = getAdvisorName();
-var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf";
-var SYSTEM_PROMPT = `Eres **Lucy, agente virtual de Bodasesor**. Atiendes por WhatsApp a personas que
-planean bodas, cumplea\xF1os, XV a\xF1os, eventos corporativos y celebraciones sociales.
-Tu trabajo: entender lo que el cliente necesita, capturar sus datos y dejar el lead
-listo para que **${ADVISOR}** (el asesor humano) arme la propuesta. T\xFA NUNCA mueves
-etapas del embudo; solo calificas.
-
-Antes de cada respuesta recibir\xE1s un bloque **ESTADO ACTUAL** con lo capturado y lo
-que falta. Es tu memoria: OBED\xC9CELO. Nunca preguntes por algo que ya aparezca ah\xED.
-
-===================================================================
-## 0. RESPONDE LO QUE EL CLIENTE PREGUNTA (antes que nada)
-===================================================================
-Lee el mensaje y responde DIRECTO lo que pregunt\xF3, antes de seguir calificando.
-- Pregunta de ubicaci\xF3n/cobertura \u2192 responde (secci\xF3n 7).
-- "\xBFQu\xE9 tienen de X?" \u2192 dile qu\xE9 tienes de ESO en concreto (cat\xE1logo inyectado abajo).
-- Pregunta de precio \u2192 da cifra o rango si est\xE1 en cat\xE1logo; si no, ${ADVISOR} lo confirma en la cotizaci\xF3n.
-Estructura: 1) responde su pregunta, 2) confirma lo que ya dijo, 3) pide UN solo dato que falte.
-
-===================================================================
-## 1. NUNCA REPITAS
-===================================================================
-- Compara con tu mensaje anterior: si es casi igual, reescribe o avanza.
-- Pres\xE9ntate UNA sola vez al inicio: "Hola, soy Lucy, agente virtual de Bodasesor."
-- Una pregunta por mensaje; solo datos que falten en ESTADO ACTUAL.
-- Si da varios datos juntos, capt\xFAralos TODOS y salta al que falte.
-- Cat\xE1logo y cierre UNA sola vez (secci\xF3n 8).
-- Si ya eligi\xF3 un servicio, avanza a detalles; no vuelvas a "\xBFcu\xE1l te interesa?".
-
-Anti-robot (despu\xE9s del primer mensaje):
-- Si el cliente da varios datos de golpe \u2192 ve directo a la siguiente pregunta SIN listar los capturados.
-- NUNCA digas "Ya tengo tu correo", "Ya tengo la zona" ni confirmes datos antes de preguntar lo siguiente.
-- Ejemplo malo: "Perfecto, Pelene. Ya tengo tu correo. \xBFCu\xE1ntos invitados?"
-- Ejemplo bien: "Genial, Pelene. \xBFM\xE1s o menos cu\xE1ntas personas van?"
-
-===================================================================
-## 2. TRANSICIONES (var\xEDa siempre)
-===================================================================
-Antes de cada pregunta usa UNA transici\xF3n corta. NUNCA repitas la misma dos veces seguidas.
-Rota entre: Genial / Perfecto / Excelente / Suena muy bien / Listo / Claro / Qu\xE9 padre.
-NUNCA hagas una pregunta sin transici\xF3n antes (excepto el primer mensaje con presentaci\xF3n).
-
-===================================================================
-## 3. DATOS A CAPTURAR (orden natural)
-===================================================================
-Nombre \xB7 Correo \xB7 Tipo de evento \xB7 Servicios/requerimientos \xB7 Ubicaci\xF3n \xB7 Fecha \xB7
-Invitados \xB7 Presupuesto.
-- Empieza por el nombre (temprano). Si Kommo ya tiene nombre, sal\xFAdalo y no lo preguntes.
-- Conserva nombre COMPLETO (nombre y apellido); no lo recortes.
-- Ubicaci\xF3n: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal."
-
-Reglas de captura:
-- **Cliente vs proveedor:** quien PIDE cotizaci\xF3n = CLIENTE. Solo PROVEEDOR si OFRECE venderte algo.
-  Ante la duda \u2192 CLIENTE.
-- **Correos propios:** capybaraeventos@gmail.com y bodasesor@gmail.com son NUESTROS. No los guardes
-  como correo del cliente. Si pregunta si son correctos, confirma y pide SU correo.
-- **N\xFAmero suelto:** "el 5" o un d\xEDgito ambiguo NO es invitados sin contexto (personas/pax).
-- **Servicio espec\xEDfico:** guarda lo que dijo ("Barra de Sushi"), no gen\xE9rico ("barra de alimentos").
-- **Pedido vs montaje:** entrega/para llevar = pedido por producto; barra/meseros en evento = servicio/pp.
-
-===================================================================
-## 4. C\xD3MO ENTENDER LO QUE PIDE
-===================================================================
-Usa tu conocimiento del mundo. Temas \u2192 cocina: italiano/mafia \u2192 pastas+pizzas; hawaiana \u2192 mariscos;
-mexicana/D\xEDa de Muertos \u2192 banquete mexicano/tacos; Gatsby \u2192 formal+canap\xE9s; vaquera \u2192 parrillada.
-Nunca digas "no entiendo". Si no ves relaci\xF3n, UNA pregunta corta para aclarar.
-
-Pedido/entrega vs servicio en evento:
-- "que me dejen / para llevar / solo los rollos" \u2192 pedido, NO cotices por persona ni chefs.
-- "barra en el evento / montado / meseros" \u2192 servicio por persona.
-- Si no queda claro: "\xBFLo quieres montado en tu evento o solo la entrega del producto?"
-
-===================================================================
-## 5. SERVICIOS Y PRECIOS \u2014 3 NIVELES (Sheet = precios, no existencia)
-===================================================================
-Clasifica cada servicio que pide el cliente y act\xFAa seg\xFAn el nivel.
-NUNCA dependas del Sheet para saber si un servicio existe.
-
-**REGLA DE ORO:** Que un servicio no est\xE9 en el cat\xE1logo significa que no tienes el
-precio a la mano, NO que no sepas qu\xE9 es. Acepta cualquier servicio de eventos,
-an\xF3talo y avanza. Nunca te quedes pidiendo "otros servicios" ni repitas la misma
-pregunta por no tener el dato.
-
-- **NIVEL 1 \u2014 Est\xE1 en el Sheet:** da precio e inclusiones exactas del cat\xE1logo inyectado.
-  NUNCA inventes qu\xE9 incluye un servicio o nivel: solo menciona inclusiones que aparezcan
-  en los datos del cat\xE1logo inyectado (campo Incluye). Si no tienes el detalle,
-  di que el equipo lo confirma en la cotizaci\xF3n. No des ejemplos de tu propia cabeza
-  (marcas, bebidas, platillos) que no est\xE9n en el cat\xE1logo.
-- **NIVEL 2 \u2014 Servicio de eventos sin Sheet** (renta de letras, valet, pirotecnia fr\xEDa,
-  mesa imperial, etc.): ACEPTA, ANOTA en requerimientos y AVANZA. Acuse breve
-  ("\xA1Claro! La renta de letras la anoto en tu solicitud.") + siguiente dato o cierre.
-  NUNCA inventes precio; el equipo lo cotiza.
-- **NIVEL 3 \u2014 Solicitud dudosa o fuera de eventos:** anota como solicitud especial.
-  Di que el equipo confirma disponibilidad. NUNCA digas "no lo tenemos" a secas.
-
-Cuando pregunten por un servicio:
-1. Explica qu\xE9 es y para qu\xE9 sirve (breve) si lo conoces.
-2. Da opciones o variantes si aplica.
-3. Si hay precio en cat\xE1logo (NIVEL 1) \u2192 dalo con "aprox." y que ${ADVISOR} confirma el total.
-4. Si NO hay precio (NIVEL 2/3) \u2192 acuse breve + anota + AVANZA; ${ADVISOR} cotiza despu\xE9s.
-NUNCA digas solo "eso lo maneja ${ADVISOR}" sin contexto \xFAtil primero.
-Tras aceptar un servicio (est\xE9 o no en Sheet), NO vuelvas a preguntar "\xBFalg\xFAn otro servicio?".
-
-Formato estricto: m\xE1ximo 2 l\xEDneas de info + 1 pregunta.
-Sin adjetivos marketeros (deliciosa, incre\xEDble, popular, perfecta).
-Sin frases de relleno ("Es una excelente opci\xF3n", "Muchos de nuestros clientes...").
-
-Con precio (ejemplos de estructura):
-"Tenemos Formal desde $750/pp, Mexicano desde $670/pp y Kosher desde $1,170/pp. \xBFCu\xE1l te interesa?"
-"Barra Americana desde $750/pp todo incluido, eliges 5 opciones. \xBFTe interesa?"
-"Mesa de dulces $250/pp, 15 opciones y decoraci\xF3n personalizada. \xBFTe interesa?"
-
-Sin precio (DJ, carpas, iluminaci\xF3n, mobiliario):
-Info \xFAtil \u2192 pregunta preferencia \u2192 ${ADVISOR} cotiza seg\xFAn tama\xF1o/estilo.
-Referencias base si no hay detalle en cat\xE1logo:
-- Taquiza \u2014 desde $300/pp \xB7 Banquete \u2014 desde $450/pp \xB7 Barra de sushi \u2014 desde $420/pp
-NUNCA inventes precios. Sin dato en cat\xE1logo \u2192 ${ADVISOR} lo incluye en la cotizaci\xF3n.
-
-===================================================================
-## 6. ESTILO
-===================================================================
-C\xE1lida, cercana, profesional. Espa\xF1ol mexicano. M\xE1ximo 2 l\xEDneas + 1 pregunta. Sin emojis.
-Prohibido: "Estimado cliente", "quedo a sus \xF3rdenes".
-
-===================================================================
-## 7. UBICACI\xD3N Y COBERTURA
-===================================================================
-"Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el
-lugar de tu evento, coordinamos el servicio."
-Contacto si lo piden: hola@bodasesor.com | 55 4008 0373 | @bodasesormx
-
-===================================================================
-## 8. CIERRE (una sola vez, cuando ESTADO est\xE9 completo)
-===================================================================
-Texto obligatorio (solo reemplaza [LO QUE PIDI\xD3 EL CLIENTE]):
-
-"Perfecto, ya tengo todo. Le paso estos datos a ${ADVISOR} para que te arme una cotizaci\xF3n personalizada.
-
-Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
-${CATALOG_URL}
-
-Por cierto, adem\xE1s de [LO QUE PIDI\xD3 EL CLIENTE], tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y m\xE1s.
-
-\xBFTe gustar\xEDa cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en dec\xEDrnoslo y nosotros te lo conseguimos."
-
-Post-cierre: NO reinicies el flujo. "Gracias" / "m\xE1ndalo a mi correo" \u2192 confirma y agradece.
-NUNCA repitas el link del cat\xE1logo ni vuelvas a "\xBFqu\xE9 tienes pensado?".
-
-\u{1F6AB} NUNCA generes "DATOS DEL CLIENTE:" ni bloques internos de CRM al cliente.
-
-===================================================================
-## PRIMER MENSAJE \u2014 OBLIGATORIO
-===================================================================
-1. "Hola, soy Lucy, agente virtual de Bodasesor."
-2. Reconoce brevemente lo que mencion\xF3 (si aplica).
-3. Pide el nombre (no pidas correo, fecha, invitados ni presupuesto antes del nombre).
-Si en el primer mensaje ya dio zona, fecha, servicios o invitados, recon\xF3celos y NO los repitas.
-En el primer mensaje NO des precios extensos; solo reconoce y pide nombre.
-
-===================================================================
-## NOTAS DE VOZ E IM\xC1GENES
-===================================================================
-Puedes "escuchar" y "ver" \u2014 el sistema ya procesa antes de que llegue el texto.
-- Voz: llega transcrita; responde normal.
-- Imagen: formato "[Imagen adjunta: descripci\xF3n]". Reacciona natural; nunca repitas esa frase al cliente.
-
-===================================================================
-## CAT\xC1LOGO = FUENTE DE PRECIOS (no de existencia)
-===================================================================
-La informaci\xF3n del cat\xE1logo inyectado tiene prioridad absoluta para PRECIOS e inclusiones.
-Si el cliente pregunta algo del cat\xE1logo con precio, resp\xF3ndelo con precisi\xF3n ANTES de pedir datos.
-Si el servicio NO est\xE1 en el cat\xE1logo pero es de eventos \u2192 NIVEL 2: acepta, anota y avanza.
-El Sheet dice cu\xE1nto cuesta; NO define qu\xE9 servicios existen.
-`;
-
-// src/services/promptBuilder.ts
-function buildDynamicPrompt(context) {
-  const { hasObjection } = context;
-  const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
-  let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
-  if (context.isFirstInteraction) {
-    prompt += `
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-PRIMERA INTERACCION \u2014 OBLIGATORIO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-1. SIEMPRE empieza con: "Hola, soy Lucy, agente virtual de Bodasesor."
-2. Reconoce brevemente lo que el cliente mencion\xF3 (si aplica).
-3. SIEMPRE pide el nombre como primer dato en el primer mensaje de Lucy.
-4. Si el cliente escribe su nombre, usa ese. Si NUNCA lo escribe, puedes usar el de WhatsApp solo despu\xE9s de haberlo preguntado (no saltes el paso).
-5. En el primer mensaje NO pidas correo, fecha, invitados ni presupuesto antes de preguntar el nombre.
-6. Si el cliente ya dio su nombre en ese mismo primer mensaje, pres\xE9ntate y contin\xFAa con correo.`;
-  } else {
-    prompt += `
-
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-CONVERSACI\xD3N EN CURSO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-
-NO te presentes de nuevo.
-Sigue el orden del flujo. Revisa el CRM para saber qu\xE9 dato falta.`;
-  }
-  if (hasObjection?.hasObjection && hasObjection.type) {
-    prompt += "\n\n" + getObjectionModule(hasObjection.type);
-  }
-  if (context.crmContext) {
-    prompt += context.crmContext;
-  }
-  return prompt;
-}
-function getObjectionModule(type) {
-  const modules = {
-    precio: `
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-OBJECI\xD3N: PRECIO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-Valida brevemente. Alejandro puede armar opciones dentro de su presupuesto.
-Pregunta el rango. NUNCA digas "es caro pero vale la pena". M\xE1ximo 3 l\xEDneas.`,
-    tiempo: `
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-OBJECI\xD3N: NECESITA TIEMPO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-Respeta su tiempo. Ofrece propuesta por escrito. M\xE1ximo 2 l\xEDneas.`,
-    duda: `
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-OBJECI\xD3N: DUDAS
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-Pregunta espec\xEDficamente: "\xBFHay algo en particular que te preocupa?" M\xE1ximo 2 l\xEDneas.`,
-    comparacion: `
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-OBJECI\xD3N: COMPARANDO
-\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-No compitas en precio. "Cada evento es \xFAnico, no vendemos paquetes gen\xE9ricos."
-Ofrece propuesta para comparar. M\xE1ximo 2 l\xEDneas.`
-  };
-  return modules[type] ?? "";
-}
-
-// src/services/lucyRedaction.ts
-var LUCY_REDACTION_MODEL = "gpt-4o-mini";
-var PENDING_FIELD_LABELS = {
-  nombre: "Nombre del cliente",
-  correo: "Correo electr\xF3nico (opcional \u2014 intentar sin insistir)",
-  tipo_evento: "Tipo de evento",
-  requerimientos: "Requerimientos o servicios",
-  invitados: "N\xFAmero de invitados",
-  zona: "Lugar o ciudad del evento",
-  fecha: "Fecha y horario",
-  presupuesto: "Presupuesto estimado (MXN)"
-};
-var LUCY_REDACTION_PARAMS = {
-  model: LUCY_REDACTION_MODEL,
-  max_tokens: 1200,
-  temperature: 0.6,
-  frequency_penalty: 0.4,
-  presence_penalty: 0.2,
-  top_p: 0.9
-};
-function mapPriorityToUrgency(priority) {
-  if (priority === "hot") return "alta";
-  if (priority === "cold") return "baja";
-  return "media";
-}
-function buildRedactionBriefing(input) {
-  const pending = getNextPendingField(input.extracted, input.filledSet);
-  const pendingLabel = pending ? PENDING_FIELD_LABELS[pending] : null;
-  const urgencia = mapPriorityToUrgency(input.priority);
-  const datosCapturados = input.crmMergedLines.length > 0 ? input.crmMergedLines.map((l4) => l4.replace(/^- /, "")).join("; ") : "ninguno a\xFAn";
-  const faltantes = CLOSING_CORE_FIELDS.filter((f3) => !input.filledSet.has(f3));
-  const lines = [
-    "[Contexto interno \u2014 NO lo menciones ni cites al cliente]",
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 ESTADO ACTUAL \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    `Capturado: ${datosCapturados}`,
-    `Falta: ${faltantes.length ? faltantes.join(", ") : "nada \u2014 datos clave completos"}`,
-    `Intenci\xF3n detectada: ${input.intent.intent} (confianza ${Math.round(input.intent.confidence * 100)}%)`,
-    `Sentimiento: ${input.sentiment.sentiment}`,
-    `Etapa del lead: ${input.stage} | Prioridad: ${input.priority} | Urgencia: ${urgencia}`
-  ];
-  if (input.cierreYaEnviado) {
-    lines.push(
-      "CIERRE YA ENVIADO \u2014 NO reinicies el flujo ni vuelvas a preguntar datos capturados. Responde en contexto de cierre (confirmar, agradecer, anotar pedidos extra)."
-    );
-  } else if (input.extracted.modo_servicio === "pedido_entrega") {
-    lines.push(
-      "MODO PEDIDO/ENTREGA \u2014 cotiza por producto/cantidad, NO por persona ni con chefs/montaje en evento."
-    );
-  } else if (input.allFieldsFilled) {
-    lines.push("Todos los datos clave est\xE1n capturados \u2014 si corresponde, aplica el cierre.");
-  } else if (pendingLabel) {
-    lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
-    if (pending === "requerimientos") {
-      lines.push(
-        "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces.",
-        SERVICE_KNOWLEDGE_GOLDEN_RULE,
-        "Si el cliente ya nombr\xF3 un servicio, NO repitas '\xBFalg\xFAn otro servicio?' \u2014 avanza al siguiente dato."
-      );
-    }
-  } else {
-    lines.push("Revisa el CRM y pide solo el primer dato que falte.");
-  }
-  if (input.hasObjection) {
-    lines.push(
-      `Objeci\xF3n detectada${input.objectionType ? ` (${input.objectionType})` : ""}: ati\xE9ndela antes de insistir en datos.`
-    );
-  }
-  if (input.isFirstInteraction) {
-    lines.push("Es el PRIMER mensaje de Lucy: presentaci\xF3n + pedir nombre.");
-  } else {
-    lines.push("NO te presentes de nuevo.");
-    lines.push(
-      "Anti-robot: NO digas 'Ya tengo tu correo/zona' antes de preguntar \u2014 ve directo a la siguiente pregunta.",
-      "Transiciones: var\xEDa (Genial/Perfecto/Excelente/Listo/Claro/Qu\xE9 padre) \u2014 nunca la misma dos veces seguidas.",
-      "Servicios: m\xE1x 2 l\xEDneas de info + 1 pregunta; da detalles \xFAtiles antes de decir que el equipo cotiza."
-    );
-  }
-  lines.push(
-    `NUNCA inventes precios ni inclusiones. DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile sin precio en cat\xE1logo \u2014 da info \xFAtil y di que nuestro equipo lo incluye en la cotizaci\xF3n.`,
-    `Si preguntan qu\xE9 incluye un servicio/nivel: SOLO texto del campo Incluye del cat\xE1logo. Si est\xE1 vac\xEDo \u2192 "el equipo lo confirma en la cotizaci\xF3n". Jam\xE1s rellenes con cervezas, vinos, platillos ni marcas inventadas.`,
-    SERVICE_KNOWLEDGE_GOLDEN_RULE,
-    "Servicios fuera del Sheet pero de eventos: acepta, anota y avanza (NIVEL 2). Precio solo del Sheet.",
-    "Si el cliente hizo una pregunta en este mensaje, resp\xF3ndela ANTES de pedir el siguiente dato.",
-    "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
-  );
-  if (input.serviceKnowledgeBlock) {
-    lines.push("", input.serviceKnowledgeBlock);
-  }
-  return lines.join("\n");
-}
-function appendRedactionBriefing(messages2, briefing) {
-  return [...messages2, { role: "system", content: briefing }];
-}
-async function completeLucyRedaction(openai5, baseMessages, briefing) {
-  const completion = await openai5.chat.completions.create({
-    ...LUCY_REDACTION_PARAMS,
-    messages: appendRedactionBriefing(baseMessages, briefing)
-  });
-  return completion.choices[0]?.message?.content ?? "";
-}
-async function refinarRespuestaCierre(openai5, borrador) {
-  const resp = await openai5.chat.completions.create({
-    model: LUCY_REDACTION_MODEL,
-    temperature: 0.3,
-    max_tokens: 1200,
-    messages: [
-      {
-        role: "system",
-        content: "Eres editora de estilo de Lucy (asesora de eventos Bodasesor). Reescribe el mensaje para que suene m\xE1s c\xE1lido, natural y profesional en WhatsApp, sin emojis y sin lenguaje corporativo rob\xF3tico. Conserva TODA la informaci\xF3n factual, el texto 'Perfecto, ya tengo todo.', la URL del cat\xE1logo si aparece, las preguntas y el cierre. Devuelve SOLO el mensaje corregido, sin explicaciones."
-      },
-      { role: "user", content: borrador }
-    ]
-  });
-  return (resp.choices[0]?.message?.content ?? borrador).trim();
-}
-async function maybeRefinarMensajeCierre(openai5, mensaje, opts) {
-  const { readyForClosing, cierreYaEnviado, closingSignature, catalogUrl } = opts;
-  if (!readyForClosing || cierreYaEnviado || !mensaje.includes(closingSignature)) {
-    return mensaje;
-  }
-  const refined = await refinarRespuestaCierre(openai5, mensaje);
-  if (!refined.includes(closingSignature)) return mensaje;
-  if (catalogUrl && mensaje.includes(catalogUrl) && !refined.includes(catalogUrl)) return mensaje;
-  return refined;
-}
-
 // src/services/voiceProcessor.ts
 init_openai();
 init_openaiEnv();
@@ -84921,6 +84555,376 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   return lineas.join("\n").slice(0, 8e3);
 }
 
+// src/lucy-prompt.ts
+var ADVISOR = getAdvisorName();
+var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf";
+var SYSTEM_PROMPT = `Eres **Lucy, agente virtual de Bodasesor**. Atiendes por WhatsApp a personas que
+planean bodas, cumplea\xF1os, XV a\xF1os, eventos corporativos y celebraciones sociales.
+Tu trabajo: entender lo que el cliente necesita, capturar sus datos y dejar el lead
+listo para que **${ADVISOR}** (el asesor humano) arme la propuesta. T\xFA NUNCA mueves
+etapas del embudo; solo calificas.
+
+Antes de cada respuesta recibir\xE1s un bloque **ESTADO ACTUAL** con lo capturado y lo
+que falta. Es tu memoria: OBED\xC9CELO. Nunca preguntes por algo que ya aparezca ah\xED.
+
+===================================================================
+## 0. RESPONDE LO QUE EL CLIENTE PREGUNTA (antes que nada)
+===================================================================
+Lee el mensaje y responde DIRECTO lo que pregunt\xF3, antes de seguir calificando.
+- Pregunta de ubicaci\xF3n/cobertura \u2192 responde (secci\xF3n 7).
+- "\xBFQu\xE9 tienen de X?" \u2192 dile qu\xE9 tienes de ESO en concreto (cat\xE1logo inyectado abajo).
+- Pregunta de precio \u2192 da cifra o rango si est\xE1 en cat\xE1logo; si no, ${ADVISOR} lo confirma en la cotizaci\xF3n.
+Estructura: 1) responde su pregunta, 2) confirma lo que ya dijo, 3) pide UN solo dato que falte.
+
+===================================================================
+## 1. NUNCA REPITAS
+===================================================================
+- Compara con tu mensaje anterior: si es casi igual, reescribe o avanza.
+- Pres\xE9ntate UNA sola vez al inicio: "Hola, soy Lucy, agente virtual de Bodasesor."
+- Una pregunta por mensaje; solo datos que falten en ESTADO ACTUAL.
+- Si da varios datos juntos, capt\xFAralos TODOS y salta al que falte.
+- Cat\xE1logo y cierre UNA sola vez (secci\xF3n 8).
+- Si ya eligi\xF3 un servicio, avanza a detalles; no vuelvas a "\xBFcu\xE1l te interesa?".
+
+Anti-robot (despu\xE9s del primer mensaje):
+- Si el cliente da varios datos de golpe \u2192 ve directo a la siguiente pregunta SIN listar los capturados.
+- NUNCA digas "Ya tengo tu correo", "Ya tengo la zona" ni confirmes datos antes de preguntar lo siguiente.
+- Ejemplo malo: "Perfecto, Pelene. Ya tengo tu correo. \xBFCu\xE1ntos invitados?"
+- Ejemplo bien: "Genial, Pelene. \xBFM\xE1s o menos cu\xE1ntas personas van?"
+
+===================================================================
+## 2. TRANSICIONES (var\xEDa siempre)
+===================================================================
+Antes de cada pregunta usa UNA transici\xF3n corta. NUNCA repitas la misma dos veces seguidas.
+Rota entre: Genial / Perfecto / Excelente / Suena muy bien / Listo / Claro / Qu\xE9 padre.
+NUNCA hagas una pregunta sin transici\xF3n antes (excepto el primer mensaje con presentaci\xF3n).
+
+===================================================================
+## 3. DATOS A CAPTURAR (orden natural)
+===================================================================
+Nombre \xB7 Correo \xB7 Tipo de evento \xB7 Servicios/requerimientos \xB7 Ubicaci\xF3n \xB7 Fecha \xB7
+Invitados \xB7 Presupuesto.
+- Empieza por el nombre (temprano). Si Kommo ya tiene nombre, sal\xFAdalo y no lo preguntes.
+- Conserva nombre COMPLETO (nombre y apellido); no lo recortes.
+- Ubicaci\xF3n: "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal."
+
+Reglas de captura:
+- **Cliente vs proveedor:** quien PIDE cotizaci\xF3n = CLIENTE. Solo PROVEEDOR si OFRECE venderte algo.
+  Ante la duda \u2192 CLIENTE.
+- **Correos propios:** capybaraeventos@gmail.com y bodasesor@gmail.com son NUESTROS. No los guardes
+  como correo del cliente. Si pregunta si son correctos, confirma y pide SU correo.
+- **N\xFAmero suelto:** "el 5" o un d\xEDgito ambiguo NO es invitados sin contexto (personas/pax).
+- **Servicio espec\xEDfico:** guarda lo que dijo ("Barra de Sushi"), no gen\xE9rico ("barra de alimentos").
+- **Pedido vs montaje:** entrega/para llevar = pedido por producto; barra/meseros en evento = servicio/pp.
+
+===================================================================
+## 4. C\xD3MO ENTENDER LO QUE PIDE
+===================================================================
+Usa tu conocimiento del mundo. Temas \u2192 cocina: italiano/mafia \u2192 pastas+pizzas; hawaiana \u2192 mariscos;
+mexicana/D\xEDa de Muertos \u2192 banquete mexicano/tacos; Gatsby \u2192 formal+canap\xE9s; vaquera \u2192 parrillada.
+Nunca digas "no entiendo". Si no ves relaci\xF3n, UNA pregunta corta para aclarar.
+
+Pedido/entrega vs servicio en evento:
+- "que me dejen / para llevar / solo los rollos" \u2192 pedido, NO cotices por persona ni chefs.
+- "barra en el evento / montado / meseros" \u2192 servicio por persona.
+- Si no queda claro: "\xBFLo quieres montado en tu evento o solo la entrega del producto?"
+
+===================================================================
+## 5. SERVICIOS Y PRECIOS \u2014 3 NIVELES (Sheet = precios, no existencia)
+===================================================================
+Clasifica cada servicio que pide el cliente y act\xFAa seg\xFAn el nivel.
+NUNCA dependas del Sheet para saber si un servicio existe.
+
+**REGLA DE ORO:** Que un servicio no est\xE9 en el cat\xE1logo significa que no tienes el
+precio a la mano, NO que no sepas qu\xE9 es. Acepta cualquier servicio de eventos,
+an\xF3talo y avanza. Nunca te quedes pidiendo "otros servicios" ni repitas la misma
+pregunta por no tener el dato.
+
+- **NIVEL 1 \u2014 Est\xE1 en el Sheet:** da precio e inclusiones exactas del cat\xE1logo inyectado.
+  NUNCA inventes qu\xE9 incluye un servicio o nivel: solo menciona inclusiones que aparezcan
+  en los datos del cat\xE1logo inyectado (campo Incluye). Si no tienes el detalle,
+  di que el equipo lo confirma en la cotizaci\xF3n. No des ejemplos de tu propia cabeza
+  (marcas, bebidas, platillos) que no est\xE9n en el cat\xE1logo.
+- **NIVEL 2 \u2014 Servicio de eventos sin Sheet** (renta de letras, valet, pirotecnia fr\xEDa,
+  mesa imperial, etc.): ACEPTA, ANOTA en requerimientos y AVANZA. Acuse breve
+  ("\xA1Claro! La renta de letras la anoto en tu solicitud.") + siguiente dato o cierre.
+  NUNCA inventes precio; el equipo lo cotiza.
+- **NIVEL 3 \u2014 Solicitud dudosa o fuera de eventos:** anota como solicitud especial.
+  Di que el equipo confirma disponibilidad. NUNCA digas "no lo tenemos" a secas.
+
+Cuando pregunten por un servicio:
+1. Explica qu\xE9 es y para qu\xE9 sirve (breve) si lo conoces.
+2. Da opciones o variantes si aplica.
+3. Si hay precio en cat\xE1logo (NIVEL 1) \u2192 dalo con "aprox." y que ${ADVISOR} confirma el total.
+4. Si NO hay precio (NIVEL 2/3) \u2192 acuse breve + anota + AVANZA; ${ADVISOR} cotiza despu\xE9s.
+NUNCA digas solo "eso lo maneja ${ADVISOR}" sin contexto \xFAtil primero.
+Tras aceptar un servicio (est\xE9 o no en Sheet), NO vuelvas a preguntar "\xBFalg\xFAn otro servicio?".
+
+Formato estricto: m\xE1ximo 2 l\xEDneas de info + 1 pregunta.
+Sin adjetivos marketeros (deliciosa, incre\xEDble, popular, perfecta).
+Sin frases de relleno ("Es una excelente opci\xF3n", "Muchos de nuestros clientes...").
+
+Con precio (ejemplos de estructura):
+"Tenemos Formal desde $750/pp, Mexicano desde $670/pp y Kosher desde $1,170/pp. \xBFCu\xE1l te interesa?"
+"Barra Americana desde $750/pp todo incluido, eliges 5 opciones. \xBFTe interesa?"
+"Mesa de dulces $250/pp, 15 opciones y decoraci\xF3n personalizada. \xBFTe interesa?"
+
+Sin precio (DJ, carpas, iluminaci\xF3n, mobiliario):
+Info \xFAtil \u2192 pregunta preferencia \u2192 ${ADVISOR} cotiza seg\xFAn tama\xF1o/estilo.
+Referencias base si no hay detalle en cat\xE1logo:
+- Taquiza \u2014 desde $300/pp \xB7 Banquete \u2014 desde $450/pp \xB7 Barra de sushi \u2014 desde $420/pp
+NUNCA inventes precios. Sin dato en cat\xE1logo \u2192 ${ADVISOR} lo incluye en la cotizaci\xF3n.
+
+===================================================================
+## 6. ESTILO
+===================================================================
+C\xE1lida, cercana, profesional. Espa\xF1ol mexicano. M\xE1ximo 2 l\xEDneas + 1 pregunta. Sin emojis.
+Prohibido: "Estimado cliente", "quedo a sus \xF3rdenes".
+
+===================================================================
+## 7. UBICACI\xD3N Y COBERTURA
+===================================================================
+"Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el
+lugar de tu evento, coordinamos el servicio."
+Contacto si lo piden: hola@bodasesor.com | 55 4008 0373 | @bodasesormx
+
+===================================================================
+## 8. CIERRE (una sola vez, cuando ESTADO est\xE9 completo)
+===================================================================
+Texto obligatorio (solo reemplaza [LO QUE PIDI\xD3 EL CLIENTE]):
+
+"Perfecto, ya tengo todo. Le paso estos datos a ${ADVISOR} para que te arme una cotizaci\xF3n personalizada.
+
+Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
+${CATALOG_URL}
+
+Por cierto, adem\xE1s de [LO QUE PIDI\xD3 EL CLIENTE], tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y m\xE1s.
+
+\xBFTe gustar\xEDa cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en dec\xEDrnoslo y nosotros te lo conseguimos."
+
+Post-cierre: NO reinicies el flujo. "Gracias" / "m\xE1ndalo a mi correo" \u2192 confirma y agradece.
+NUNCA repitas el link del cat\xE1logo ni vuelvas a "\xBFqu\xE9 tienes pensado?".
+
+\u{1F6AB} NUNCA generes "DATOS DEL CLIENTE:" ni bloques internos de CRM al cliente.
+
+===================================================================
+## PRIMER MENSAJE \u2014 OBLIGATORIO
+===================================================================
+1. "Hola, soy Lucy, agente virtual de Bodasesor."
+2. Reconoce brevemente lo que mencion\xF3 (si aplica).
+3. Pide el nombre (no pidas correo, fecha, invitados ni presupuesto antes del nombre).
+Si en el primer mensaje ya dio zona, fecha, servicios o invitados, recon\xF3celos y NO los repitas.
+En el primer mensaje NO des precios extensos; solo reconoce y pide nombre.
+
+===================================================================
+## NOTAS DE VOZ E IM\xC1GENES
+===================================================================
+Puedes "escuchar" y "ver" \u2014 el sistema ya procesa antes de que llegue el texto.
+- Voz: llega transcrita; responde normal.
+- Imagen: formato "[Imagen adjunta: descripci\xF3n]". Reacciona natural; nunca repitas esa frase al cliente.
+
+===================================================================
+## CAT\xC1LOGO = FUENTE DE PRECIOS (no de existencia)
+===================================================================
+La informaci\xF3n del cat\xE1logo inyectado tiene prioridad absoluta para PRECIOS e inclusiones.
+Si el cliente pregunta algo del cat\xE1logo con precio, resp\xF3ndelo con precisi\xF3n ANTES de pedir datos.
+Si el servicio NO est\xE1 en el cat\xE1logo pero es de eventos \u2192 NIVEL 2: acepta, anota y avanza.
+El Sheet dice cu\xE1nto cuesta; NO define qu\xE9 servicios existen.
+`;
+
+// src/services/promptBuilder.ts
+function buildDynamicPrompt(context) {
+  const { hasObjection } = context;
+  const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
+  let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
+  if (context.isFirstInteraction) {
+    prompt += `
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PRIMERA INTERACCION \u2014 OBLIGATORIO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+1. SIEMPRE empieza con: "Hola, soy Lucy, agente virtual de Bodasesor."
+2. Reconoce brevemente lo que el cliente mencion\xF3 (si aplica).
+3. SIEMPRE pide el nombre como primer dato en el primer mensaje de Lucy.
+4. Si el cliente escribe su nombre, usa ese. Si NUNCA lo escribe, puedes usar el de WhatsApp solo despu\xE9s de haberlo preguntado (no saltes el paso).
+5. En el primer mensaje NO pidas correo, fecha, invitados ni presupuesto antes de preguntar el nombre.
+6. Si el cliente ya dio su nombre en ese mismo primer mensaje, pres\xE9ntate y contin\xFAa con correo.`;
+  } else {
+    prompt += `
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CONVERSACI\xD3N EN CURSO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+NO te presentes de nuevo.
+Sigue el orden del flujo. Revisa el CRM para saber qu\xE9 dato falta.`;
+  }
+  if (hasObjection?.hasObjection && hasObjection.type) {
+    prompt += "\n\n" + getObjectionModule(hasObjection.type);
+  }
+  if (context.crmContext) {
+    prompt += context.crmContext;
+  }
+  return prompt;
+}
+function getObjectionModule(type) {
+  const modules = {
+    precio: `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+OBJECI\xD3N: PRECIO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+Valida brevemente. Alejandro puede armar opciones dentro de su presupuesto.
+Pregunta el rango. NUNCA digas "es caro pero vale la pena". M\xE1ximo 3 l\xEDneas.`,
+    tiempo: `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+OBJECI\xD3N: NECESITA TIEMPO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+Respeta su tiempo. Ofrece propuesta por escrito. M\xE1ximo 2 l\xEDneas.`,
+    duda: `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+OBJECI\xD3N: DUDAS
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+Pregunta espec\xEDficamente: "\xBFHay algo en particular que te preocupa?" M\xE1ximo 2 l\xEDneas.`,
+    comparacion: `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+OBJECI\xD3N: COMPARANDO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+No compitas en precio. "Cada evento es \xFAnico, no vendemos paquetes gen\xE9ricos."
+Ofrece propuesta para comparar. M\xE1ximo 2 l\xEDneas.`
+  };
+  return modules[type] ?? "";
+}
+
+// src/services/lucyRedaction.ts
+var LUCY_REDACTION_MODEL = "gpt-4o-mini";
+var PENDING_FIELD_LABELS = {
+  nombre: "Nombre del cliente",
+  correo: "Correo electr\xF3nico (opcional \u2014 intentar sin insistir)",
+  tipo_evento: "Tipo de evento",
+  requerimientos: "Requerimientos o servicios",
+  invitados: "N\xFAmero de invitados",
+  zona: "Lugar o ciudad del evento",
+  fecha: "Fecha y horario",
+  presupuesto: "Presupuesto estimado (MXN)"
+};
+var LUCY_REDACTION_PARAMS = {
+  model: LUCY_REDACTION_MODEL,
+  max_tokens: 1200,
+  temperature: 0.6,
+  frequency_penalty: 0.4,
+  presence_penalty: 0.2,
+  top_p: 0.9
+};
+function mapPriorityToUrgency(priority) {
+  if (priority === "hot") return "alta";
+  if (priority === "cold") return "baja";
+  return "media";
+}
+function buildRedactionBriefing(input) {
+  const pending = getNextPendingField(input.extracted, input.filledSet);
+  const pendingLabel = pending ? PENDING_FIELD_LABELS[pending] : null;
+  const urgencia = mapPriorityToUrgency(input.priority);
+  const datosCapturados = input.crmMergedLines.length > 0 ? input.crmMergedLines.map((l4) => l4.replace(/^- /, "")).join("; ") : "ninguno a\xFAn";
+  const faltantes = CLOSING_CORE_FIELDS.filter((f3) => !input.filledSet.has(f3));
+  const lines = [
+    "[Contexto interno \u2014 NO lo menciones ni cites al cliente]",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 ESTADO ACTUAL \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    `Capturado: ${datosCapturados}`,
+    `Falta: ${faltantes.length ? faltantes.join(", ") : "nada \u2014 datos clave completos"}`,
+    `Intenci\xF3n detectada: ${input.intent.intent} (confianza ${Math.round(input.intent.confidence * 100)}%)`,
+    `Sentimiento: ${input.sentiment.sentiment}`,
+    `Etapa del lead: ${input.stage} | Prioridad: ${input.priority} | Urgencia: ${urgencia}`
+  ];
+  if (input.cierreYaEnviado) {
+    lines.push(
+      "CIERRE YA ENVIADO \u2014 NO reinicies el flujo ni vuelvas a preguntar datos capturados. Responde en contexto de cierre (confirmar, agradecer, anotar pedidos extra)."
+    );
+  } else if (input.extracted.modo_servicio === "pedido_entrega") {
+    lines.push(
+      "MODO PEDIDO/ENTREGA \u2014 cotiza por producto/cantidad, NO por persona ni con chefs/montaje en evento."
+    );
+  } else if (input.allFieldsFilled) {
+    lines.push("Todos los datos clave est\xE1n capturados \u2014 si corresponde, aplica el cierre.");
+  } else if (pendingLabel) {
+    lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
+    if (pending === "requerimientos") {
+      lines.push(
+        "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces.",
+        SERVICE_KNOWLEDGE_GOLDEN_RULE,
+        "Si el cliente ya nombr\xF3 un servicio, NO repitas '\xBFalg\xFAn otro servicio?' \u2014 avanza al siguiente dato."
+      );
+    }
+  } else {
+    lines.push("Revisa el CRM y pide solo el primer dato que falte.");
+  }
+  if (input.hasObjection) {
+    lines.push(
+      `Objeci\xF3n detectada${input.objectionType ? ` (${input.objectionType})` : ""}: ati\xE9ndela antes de insistir en datos.`
+    );
+  }
+  if (input.isFirstInteraction) {
+    lines.push("Es el PRIMER mensaje de Lucy: presentaci\xF3n + pedir nombre.");
+  } else {
+    lines.push("NO te presentes de nuevo.");
+    lines.push(
+      "Anti-robot: NO digas 'Ya tengo tu correo/zona' antes de preguntar \u2014 ve directo a la siguiente pregunta.",
+      "Transiciones: var\xEDa (Genial/Perfecto/Excelente/Listo/Claro/Qu\xE9 padre) \u2014 nunca la misma dos veces seguidas.",
+      "Servicios: m\xE1x 2 l\xEDneas de info + 1 pregunta; da detalles \xFAtiles antes de decir que el equipo cotiza."
+    );
+  }
+  lines.push(
+    `NUNCA inventes precios ni inclusiones. DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile sin precio en cat\xE1logo \u2014 da info \xFAtil y di que nuestro equipo lo incluye en la cotizaci\xF3n.`,
+    `Si preguntan qu\xE9 incluye un servicio/nivel: SOLO texto del campo Incluye del cat\xE1logo. Si est\xE1 vac\xEDo \u2192 "el equipo lo confirma en la cotizaci\xF3n". Jam\xE1s rellenes con cervezas, vinos, platillos ni marcas inventadas.`,
+    SERVICE_KNOWLEDGE_GOLDEN_RULE,
+    "Servicios fuera del Sheet pero de eventos: acepta, anota y avanza (NIVEL 2). Precio solo del Sheet.",
+    "Si el cliente hizo una pregunta en este mensaje, resp\xF3ndela ANTES de pedir el siguiente dato.",
+    "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
+  );
+  if (input.serviceKnowledgeBlock) {
+    lines.push("", input.serviceKnowledgeBlock);
+  }
+  return lines.join("\n");
+}
+function appendRedactionBriefing(messages2, briefing) {
+  return [...messages2, { role: "system", content: briefing }];
+}
+async function completeLucyRedaction(openai5, baseMessages, briefing) {
+  const completion = await openai5.chat.completions.create({
+    ...LUCY_REDACTION_PARAMS,
+    messages: appendRedactionBriefing(baseMessages, briefing)
+  });
+  return completion.choices[0]?.message?.content ?? "";
+}
+async function refinarRespuestaCierre(openai5, borrador) {
+  const resp = await openai5.chat.completions.create({
+    model: LUCY_REDACTION_MODEL,
+    temperature: 0.3,
+    max_tokens: 1200,
+    messages: [
+      {
+        role: "system",
+        content: "Eres editora de estilo de Lucy (asesora de eventos Bodasesor). Reescribe el mensaje para que suene m\xE1s c\xE1lido, natural y profesional en WhatsApp, sin emojis y sin lenguaje corporativo rob\xF3tico. Conserva TODA la informaci\xF3n factual, el texto 'Perfecto, ya tengo todo.', la URL del cat\xE1logo si aparece, las preguntas y el cierre. Devuelve SOLO el mensaje corregido, sin explicaciones."
+      },
+      { role: "user", content: borrador }
+    ]
+  });
+  return (resp.choices[0]?.message?.content ?? borrador).trim();
+}
+async function maybeRefinarMensajeCierre(openai5, mensaje, opts) {
+  const { readyForClosing, cierreYaEnviado, closingSignature, catalogUrl } = opts;
+  if (!readyForClosing || cierreYaEnviado || !mensaje.includes(closingSignature)) {
+    return mensaje;
+  }
+  const refined = await refinarRespuestaCierre(openai5, mensaje);
+  if (!refined.includes(closingSignature)) return mensaje;
+  if (catalogUrl && mensaje.includes(catalogUrl) && !refined.includes(catalogUrl)) return mensaje;
+  return refined;
+}
+
+// src/lib/training.ts
+await init_trainingStore();
+
 // src/lib/formatForWhatsApp.ts
 function formatForWhatsApp(text2) {
   if (!text2?.trim()) return text2;
@@ -84946,6 +84950,192 @@ async function finalizeLucyOutboundMessage(input) {
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vac\xEDo \u2014 respuesta de respaldo");
   }
   return formatForWhatsApp(mensaje);
+}
+
+// src/lucyTurnProcessor.ts
+async function prepareLucyExtraction(input) {
+  const { fullHistory, messageText, crmLines, extractFn } = input;
+  const extracted = await extractFn(fullHistory, messageText, crmLines.join("\n"));
+  sanitizeExtractedAmbiguousNumbers(extracted, messageText);
+  applyWebLeadBrief(extracted, messageText);
+  extracted.nombre = sanitizeCrmNombre(extracted.nombre);
+  if (extracted.correo) {
+    extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+  }
+  const conversationText = [
+    ...fullHistory.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
+    messageText
+  ].join(" ");
+  if (extracted.tipo_contacto === "proveedor") {
+    const empresa = extracted.empresa ?? "";
+    const desc3 = extracted.requerimientos_evento ?? "";
+    if (empresa || desc3) {
+      extracted.requerimientos_evento = `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${desc3}`.slice(
+        0,
+        240
+      );
+    }
+  } else {
+    enrichExtractedFromText(extracted, conversationText);
+    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
+    if (!extracted.modo_servicio) {
+      extracted.modo_servicio = detectModoServicio(conversationText);
+    }
+  }
+  extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+  if (extracted.correo) {
+    extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+  }
+  return { extracted, conversationText };
+}
+async function buildLucySystemPrompt(opts) {
+  const intentResult = detectIntent(opts.messageText);
+  const objectionResult = detectObjection(opts.messageText);
+  const scoreContext = {
+    extracted: opts.extracted,
+    messageCount: opts.messageCount ?? 1,
+    hasResponded: true,
+    conversationAge: opts.conversationAgeHours ?? 0,
+    lastIntent: intentResult.intent,
+    conversationText: opts.conversationText
+  };
+  const leadScore = calculateLeadScore(scoreContext);
+  const stage = detectStage(scoreContext);
+  const catalogBlock = await getCatalogPromptBlock();
+  return buildDynamicPrompt({
+    stage,
+    priority: leadScore.priority,
+    extracted: opts.extracted,
+    hasObjection: objectionResult.hasObjection ? objectionResult : void 0,
+    crmContext: opts.crmContext,
+    isFirstInteraction: opts.isFirstInteraction,
+    hasClientName: opts.filledLabels.has("Nombre del cliente"),
+    catalogBlock
+  });
+}
+function buildLucyRedactionBriefing(opts) {
+  const intentResult = detectIntent(opts.messageText);
+  const sentimentResult = analyzeSentiment(opts.messageText);
+  const objectionResult = detectObjection(opts.messageText);
+  const scoreContext = {
+    extracted: opts.extracted,
+    messageCount: opts.messageCount ?? 1,
+    hasResponded: true,
+    conversationAge: opts.conversationAgeHours ?? 0,
+    lastIntent: intentResult.intent,
+    conversationText: opts.conversationText
+  };
+  const leadScore = calculateLeadScore(scoreContext);
+  const stage = detectStage(scoreContext);
+  const briefing = buildRedactionBriefing({
+    extracted: opts.extracted,
+    filledSet: opts.filledSet,
+    crmMergedLines: opts.crmMergedLines,
+    intent: intentResult,
+    sentiment: sentimentResult,
+    stage,
+    priority: leadScore.priority,
+    allFieldsFilled: opts.allFieldsFilled,
+    isFirstInteraction: opts.isFirstInteraction,
+    hasObjection: objectionResult.hasObjection,
+    objectionType: objectionResult.type,
+    cierreYaEnviado: opts.cierreYaEnviado
+  });
+  const serviceBlock = formatServiceKnowledgeForPrompt(opts.messageText) ?? formatServiceDataForPrompt(opts.messageText);
+  return serviceBlock ? `${briefing}
+
+${serviceBlock}` : briefing;
+}
+async function generateLucyOutbound(input) {
+  const {
+    messageText,
+    history,
+    fullHistory,
+    extracted,
+    crmContext,
+    crmMergedLines,
+    filledLabels,
+    allFieldsFilled,
+    isFirstInteraction,
+    cierreYaEnviado,
+    whatsappDisplayName,
+    conversationText,
+    openai: openai5,
+    buildClosing,
+    entityId,
+    messageCount,
+    conversationAgeHours,
+    prependToAiResponse,
+    log
+  } = input;
+  const systemContent = await buildLucySystemPrompt({
+    messageText,
+    conversationText,
+    extracted,
+    crmContext,
+    filledLabels,
+    isFirstInteraction,
+    messageCount,
+    conversationAgeHours
+  });
+  const trainingExamples2 = await getTrainingExamples();
+  const fewShot = trainingExamples2.flatMap((ex) => [
+    { role: "user", content: ex.userMessage },
+    { role: "assistant", content: ex.lucyResponse }
+  ]);
+  const lucyMessages = [
+    { role: "system", content: systemContent },
+    ...fewShot,
+    ...history,
+    { role: "user", content: messageText }
+  ];
+  const redactionBriefing = buildLucyRedactionBriefing({
+    extracted,
+    filledSet: filledLabels,
+    crmMergedLines,
+    messageText,
+    conversationText,
+    allFieldsFilled,
+    isFirstInteraction,
+    cierreYaEnviado,
+    messageCount,
+    conversationAgeHours
+  });
+  let aiResponse = await completeLucyRedaction(openai5, lucyMessages, redactionBriefing);
+  aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
+  aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
+  aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
+  if (prependToAiResponse?.trim()) {
+    aiResponse = prependToAiResponse + aiResponse;
+  }
+  const emailRefusedThisTurn = detectEmailRefusal([messageText]);
+  let mensajeParaCliente = applyLucyMessageGuards({
+    aiResponse,
+    extracted,
+    filledSet: filledLabels,
+    readyForClosing: allFieldsFilled,
+    cierreYaEnviado,
+    emailRefusedThisTurn,
+    history,
+    presentationHistory: fullHistory,
+    currentMessage: messageText,
+    whatsappDisplayName,
+    buildClosing,
+    log,
+    entityId,
+    forceFirstPresentation: isFirstInteraction
+  });
+  mensajeParaCliente = await finalizeLucyOutboundMessage({
+    mensaje: mensajeParaCliente,
+    extracted,
+    readyForClosing: allFieldsFilled,
+    cierreYaEnviado,
+    currentMessage: messageText,
+    openai: openai5,
+    entityId,
+    log
+  });
+  return { mensajeParaCliente, aiResponse };
 }
 
 // node_modules/axios/lib/helpers/bind.js
@@ -90545,64 +90735,6 @@ ${CATALOG_URL2}
 
 \xBFTe gustar\xEDa cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en dec\xEDrnoslo y nosotros te lo conseguimos.`;
 }
-function buildLucyRedactionBriefing(opts) {
-  const intentResult = detectIntent(opts.messageText);
-  const sentimentResult = analyzeSentiment(opts.messageText);
-  const objectionResult = detectObjection(opts.messageText);
-  const scoreContext = {
-    extracted: opts.extracted,
-    messageCount: opts.messageCount ?? 1,
-    hasResponded: true,
-    conversationAge: opts.conversationAgeHours ?? 0,
-    lastIntent: intentResult.intent,
-    conversationText: opts.conversationText
-  };
-  const leadScore = calculateLeadScore(scoreContext);
-  const stage = detectStage(scoreContext);
-  const briefing = buildRedactionBriefing({
-    extracted: opts.extracted,
-    filledSet: opts.filledSet,
-    crmMergedLines: opts.crmMergedLines,
-    intent: intentResult,
-    sentiment: sentimentResult,
-    stage,
-    priority: leadScore.priority,
-    allFieldsFilled: opts.allFieldsFilled,
-    isFirstInteraction: opts.isFirstInteraction,
-    hasObjection: objectionResult.hasObjection,
-    objectionType: objectionResult.type,
-    cierreYaEnviado: opts.cierreYaEnviado
-  });
-  const serviceBlock = formatServiceKnowledgeForPrompt(opts.messageText) ?? formatServiceDataForPrompt(opts.messageText);
-  return serviceBlock ? `${briefing}
-
-${serviceBlock}` : briefing;
-}
-async function buildLucySystemPrompt(opts) {
-  const intentResult = detectIntent(opts.messageText);
-  const objectionResult = detectObjection(opts.messageText);
-  const scoreContext = {
-    extracted: opts.extracted,
-    messageCount: opts.messageCount ?? 1,
-    hasResponded: true,
-    conversationAge: opts.conversationAgeHours ?? 0,
-    lastIntent: intentResult.intent,
-    conversationText: opts.conversationText
-  };
-  const leadScore = calculateLeadScore(scoreContext);
-  const stage = detectStage(scoreContext);
-  const catalogBlock = await getCatalogPromptBlock();
-  return buildDynamicPrompt({
-    stage,
-    priority: leadScore.priority,
-    extracted: opts.extracted,
-    hasObjection: objectionResult.hasObjection ? objectionResult : void 0,
-    crmContext: opts.crmContext,
-    isFirstInteraction: opts.isFirstInteraction,
-    hasClientName: opts.filledLabels.has("Nombre del cliente"),
-    catalogBlock
-  });
-}
 function buildLeadCalificadoNota(extracted, mergedLines) {
   const fromLines = (labelPattern) => {
     const line2 = mergedLines.find((l4) => labelPattern.test(l4));
@@ -91106,36 +91238,14 @@ async function processBatch(batch, accessToken, log) {
       historySource = historySource === "file" ? recoverySource : `${historySource}+${recoverySource}`;
     }
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
-    const filledFieldNames = crmLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? "").filter(Boolean).join(", ");
-    const extracted = await extractData(fullHistory, combinedUserText, filledFieldNames);
-    sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
-    applyWebLeadBrief(extracted, combinedUserText);
-    extracted.nombre = sanitizeCrmNombre(extracted.nombre);
-    if (extracted.correo) {
-      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
-    }
-    const conversationText = [
-      ...history.filter((m4) => m4.role === "user").map((m4) => typeof m4.content === "string" ? m4.content : ""),
-      combinedUserText
-    ].join(" ");
-    if (extracted.tipo_contacto === "proveedor") {
-      const empresa = extracted.empresa ?? "";
-      const desc3 = extracted.requerimientos_evento ?? "";
-      if (empresa || desc3) {
-        const resumenProv = `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${desc3}`.slice(0, 240);
-        extracted.requerimientos_evento = resumenProv;
-        log.info({ resumenProv }, "Resumen proveedor generado");
-      }
-    } else {
-      enrichExtractedFromText(extracted, conversationText);
-      sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
-      if (!extracted.modo_servicio) {
-        extracted.modo_servicio = detectModoServicio(conversationText);
-      }
-    }
-    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
-    if (extracted.correo) {
-      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+    const { extracted, conversationText } = await prepareLucyExtraction({
+      fullHistory,
+      messageText: combinedUserText,
+      crmLines,
+      extractFn: extractData
+    });
+    if (extracted.tipo_contacto === "proveedor" && extracted.requerimientos_evento) {
+      log.info({ resumenProv: extracted.requerimientos_evento }, "Resumen proveedor generado");
     }
     const cierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
     const leadNameFromCrm = crmLines.find((l4) => /Nombre del cliente:/i.test(l4))?.replace(/^-?\s*Nombre del cliente:\s*/i, "").trim();
@@ -91164,74 +91274,41 @@ async function processBatch(batch, accessToken, log) {
     };
     const leadScore = calculateLeadScore(scoreContext);
     const stage = detectStage(scoreContext);
+    const messageCount = conversation.messageCount + 1;
+    const conversationAgeHours = (Date.now() - new Date(conversation.createdAt).getTime()) / (1e3 * 60 * 60);
     log.info({ score: leadScore.total, priority: leadScore.priority, stage }, "Lead scoring complete");
-    const catalogBlock = await getCatalogPromptBlock();
-    const dynamicPrompt = buildDynamicPrompt({
-      stage,
-      priority: leadScore.priority,
-      extracted,
-      hasObjection: objectionResult.hasObjection ? objectionResult : void 0,
-      crmContext,
-      isFirstInteraction,
-      hasClientName: filledLabels.has("Nombre del cliente"),
-      catalogBlock
-    });
-    const trainingExamples2 = await getTrainingExamples();
-    const fewShot = trainingExamples2.flatMap((ex) => [
-      { role: "user", content: ex.userMessage },
-      { role: "assistant", content: ex.lucyResponse }
-    ]);
-    const lucyMessages = [
-      { role: "system", content: dynamicPrompt },
-      ...fewShot,
-      ...history,
-      { role: "user", content: combinedUserText }
-    ];
-    const serviceKnowledgeBlock = formatServiceKnowledgeForPrompt(combinedUserText);
-    const redactionBriefing = buildRedactionBriefing({
-      extracted,
-      filledSet: filledLabels,
-      crmMergedLines,
-      intent: intentResult,
-      sentiment: sentimentResult,
-      stage,
-      priority: leadScore.priority,
-      allFieldsFilled,
-      isFirstInteraction,
-      hasObjection: objectionResult.hasObjection,
-      objectionType: objectionResult.type,
-      cierreYaEnviado,
-      serviceKnowledgeBlock
-    });
-    let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
-    aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
-    aiResponse = injectCatalogCateringIfAsked(combinedUserText, aiResponse);
-    aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
+    let prependToAiResponse;
     if (batch.isVoice || batch.isImage) {
       const clientName = sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? sanitizeDisplayName(conversation.clientName) ?? void 0;
-      const ack = batch.isVoice ? getVoiceAcknowledgment(clientName ?? void 0) : getImageAcknowledgment(clientName ?? void 0);
-      aiResponse = ack + aiResponse;
-      log.info({ ack, isVoice: batch.isVoice, isImage: batch.isImage }, "Media acknowledgment prepended");
+      prependToAiResponse = batch.isVoice ? getVoiceAcknowledgment(clientName ?? void 0) : getImageAcknowledgment(clientName ?? void 0);
+      log.info(
+        { ack: prependToAiResponse, isVoice: batch.isVoice, isImage: batch.isImage },
+        "Media acknowledgment prepended"
+      );
     }
-    log.info({ aiResponse, extracted }, "OpenAI response received");
     const cierreYaEnviadoForGuards = cierreYaEnviado;
-    const emailRefusedThisTurn = detectEmailRefusal([combinedUserText]);
-    let mensajeParaCliente = applyLucyMessageGuards({
-      aiResponse,
-      extracted,
-      filledSet: filledLabels,
-      readyForClosing: allFieldsFilled,
-      cierreYaEnviado: cierreYaEnviadoForGuards,
-      emailRefusedThisTurn,
+    const { mensajeParaCliente, aiResponse } = await generateLucyOutbound({
+      messageText: combinedUserText,
       history,
-      presentationHistory: fullHistory,
-      currentMessage: combinedUserText,
+      fullHistory,
+      extracted,
+      crmContext,
+      crmMergedLines,
+      filledLabels,
+      allFieldsFilled,
+      isFirstInteraction,
+      cierreYaEnviado: cierreYaEnviadoForGuards,
       whatsappDisplayName,
+      conversationText,
+      openai: openai4,
       buildClosing: buildClosingMessage,
-      log,
       entityId,
-      forceFirstPresentation: isFirstInteraction
+      messageCount,
+      conversationAgeHours,
+      prependToAiResponse,
+      log
     });
+    log.info({ aiResponse, extracted }, "OpenAI response received");
     if (cierreYaEnviado && combinedUserText.trim()) {
       const updatedReq = appendPostCierreRequirements(
         extracted.requerimientos_evento,
@@ -91242,16 +91319,6 @@ async function processBatch(batch, accessToken, log) {
         log.info({ entityId, requerimientos: updatedReq }, "Post-cierre: requerimientos actualizados en CRM");
       }
     }
-    mensajeParaCliente = await finalizeLucyOutboundMessage({
-      mensaje: mensajeParaCliente,
-      extracted,
-      readyForClosing: allFieldsFilled,
-      cierreYaEnviado: cierreYaEnviadoForGuards,
-      currentMessage: combinedUserText,
-      openai: openai4,
-      entityId,
-      log
-    });
     if (allFieldsFilled && !cierreYaEnviado) {
       try {
         const notaTexto = buildLeadCalificadoNota(extracted, crmMergedLines);
@@ -91612,6 +91679,10 @@ router3.post("/kommo/salesbot", async (req, res) => {
     return;
   }
   try {
+    log.warn(
+      { entityId },
+      "DEPRECATED: /kommo/salesbot \u2014 desactivar SalesBot en Kommo; usar webhook directo"
+    );
     const histKey = entityId ? String(entityId) : chatId ?? "salesbot-default";
     let fullHistory = getHistory(histKey);
     let historySource = "file";
@@ -91654,23 +91725,12 @@ router3.post("/kommo/salesbot", async (req, res) => {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
     }
     const whatsappDisplayName = entityId ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null) : null;
-    const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
-    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
-    applyWebLeadBrief(extracted, messageText);
-    extracted.nombre = sanitizeCrmNombre(extracted.nombre);
-    if (extracted.correo) {
-      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
-    }
-    const conversationText = [
-      ...fullHistory.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
-      messageText
-    ].join(" ");
-    enrichExtractedFromText(extracted, conversationText);
-    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
-    if (!extracted.modo_servicio) {
-      extracted.modo_servicio = detectModoServicio(conversationText);
-    }
-    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+    const { extracted, conversationText } = await prepareLucyExtraction({
+      fullHistory,
+      messageText,
+      crmLines,
+      extractFn: extractData
+    });
     const sbCierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
     const crmResultFinal = buildCrmContext(
       crmLines,
@@ -91685,68 +91745,26 @@ router3.post("/kommo/salesbot", async (req, res) => {
     const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
     const salesbotMergedLines = crmResultFinal.mergedLines;
     salesbotFilledLabels = crmResultFinal.filledLabels;
-    const systemContent = await buildLucySystemPrompt({
+    log.info({ isFirstInteraction, messageText, historyLength: history.length }, "Salesbot: llamando OpenAI");
+    const { mensajeParaCliente, aiResponse } = await generateLucyOutbound({
       messageText,
-      conversationText,
+      history,
+      fullHistory,
       extracted,
       crmContext,
-      filledLabels: salesbotFilledLabels,
-      isFirstInteraction
-    });
-    const trainingExamples2 = await getTrainingExamples();
-    const fewShot = trainingExamples2.flatMap((ex) => [
-      { role: "user", content: ex.userMessage },
-      { role: "assistant", content: ex.lucyResponse }
-    ]);
-    const lucyMessages = [
-      { role: "system", content: systemContent },
-      ...fewShot,
-      ...history,
-      { role: "user", content: messageText }
-    ];
-    log.info({ isFirstInteraction, messageText, historyLength: history.length }, "Salesbot: llamando OpenAI");
-    const redactionBriefing = buildLucyRedactionBriefing({
-      extracted,
-      filledSet: salesbotFilledLabels,
       crmMergedLines: salesbotMergedLines,
-      messageText,
-      conversationText,
+      filledLabels: salesbotFilledLabels,
       allFieldsFilled: salesbotAllFieldsFilled,
       isFirstInteraction,
-      cierreYaEnviado: sbCierreYaEnviado
-    });
-    let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
-    aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
-    aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
-    aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
-    log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
-    const emailRefusedThisTurn = detectEmailRefusal([messageText]);
-    let mensajeParaCliente = applyLucyMessageGuards({
-      aiResponse,
-      extracted,
-      filledSet: salesbotFilledLabels,
-      readyForClosing: salesbotAllFieldsFilled,
       cierreYaEnviado: sbCierreYaEnviado,
-      emailRefusedThisTurn,
-      history,
-      presentationHistory: fullHistory,
-      currentMessage: messageText,
       whatsappDisplayName,
-      buildClosing: buildClosingMessage,
-      log,
-      entityId,
-      forceFirstPresentation: isFirstInteraction
-    });
-    mensajeParaCliente = await finalizeLucyOutboundMessage({
-      mensaje: mensajeParaCliente,
-      extracted,
-      readyForClosing: salesbotAllFieldsFilled,
-      cierreYaEnviado: sbCierreYaEnviado,
-      currentMessage: messageText,
+      conversationText,
       openai: openai4,
+      buildClosing: buildClosingMessage,
       entityId,
       log
     });
+    log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
     appendHistory(histKey, messageText, mensajeParaCliente);
     if (entityId) {
       lastResponseCache.set(String(entityId), mensajeParaCliente);
@@ -91793,7 +91811,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
         }
       });
     }
-    res.json({ status: "success" });
+    res.json({ status: "success", deprecated: true, note: "Usar webhook directo; desactivar SalesBot en Kommo" });
   } catch (err2) {
     log.error({ err: err2 }, "Salesbot: processing error");
     res.status(500).json({ error: "processing_failed" });
@@ -92036,23 +92054,13 @@ router3.post("/kommo/simulator", async (req, res) => {
     if (!hasAssistantMsg && effectiveLastResponse) {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
     }
-    const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
-    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
-    applyWebLeadBrief(extracted, messageText);
+    const { extracted, conversationText } = await prepareLucyExtraction({
+      fullHistory,
+      messageText,
+      crmLines,
+      extractFn: extractData
+    });
     extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
-    const conversationText = [
-      ...history.filter((m4) => m4.role === "user" && typeof m4.content === "string").map((m4) => m4.content),
-      messageText
-    ].join(" ");
-    enrichExtractedFromText(extracted, conversationText);
-    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
-    if (!extracted.modo_servicio) {
-      extracted.modo_servicio = detectModoServicio(conversationText);
-    }
-    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
-    if (extracted.correo) {
-      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
-    }
     const simCierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
     const crmResultFinal = buildCrmContext(
       crmLines,
@@ -92067,63 +92075,21 @@ router3.post("/kommo/simulator", async (req, res) => {
     const allFieldsFilled = crmResultFinal.allFieldsFilled;
     const filledLabels = crmResultFinal.filledLabels;
     const crmMergedLines = crmResultFinal.mergedLines;
-    const trainingExamples2 = await getTrainingExamples();
-    const fewShot = trainingExamples2.flatMap((ex) => [
-      { role: "user", content: ex.userMessage },
-      { role: "assistant", content: ex.lucyResponse }
-    ]);
-    const systemContent = await buildLucySystemPrompt({
+    const { mensajeParaCliente } = await generateLucyOutbound({
       messageText,
-      conversationText,
+      history,
+      fullHistory,
       extracted,
       crmContext,
-      filledLabels,
-      isFirstInteraction
-    });
-    const lucyMessages = [
-      { role: "system", content: systemContent },
-      ...fewShot,
-      ...history,
-      { role: "user", content: messageText }
-    ];
-    const redactionBriefing = buildLucyRedactionBriefing({
-      extracted,
-      filledSet: filledLabels,
       crmMergedLines,
-      messageText,
-      conversationText,
+      filledLabels,
       allFieldsFilled,
       isFirstInteraction,
-      cierreYaEnviado: simCierreYaEnviado
-    });
-    let aiResponse = await completeLucyRedaction(openai4, lucyMessages, redactionBriefing);
-    aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
-    aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
-    aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
-    const emailRefusedThisTurn = detectEmailRefusal([messageText]);
-    let mensajeParaCliente = applyLucyMessageGuards({
-      aiResponse,
-      extracted,
-      filledSet: filledLabels,
-      readyForClosing: allFieldsFilled,
       cierreYaEnviado: simCierreYaEnviado,
-      emailRefusedThisTurn,
-      history,
-      presentationHistory: fullHistory,
-      currentMessage: messageText,
       whatsappDisplayName,
-      buildClosing: buildClosingMessage,
-      log,
-      entityId: leadId,
-      forceFirstPresentation: isFirstInteraction
-    });
-    mensajeParaCliente = await finalizeLucyOutboundMessage({
-      mensaje: mensajeParaCliente,
-      extracted,
-      readyForClosing: allFieldsFilled,
-      cierreYaEnviado: simCierreYaEnviado,
-      currentMessage: messageText,
+      conversationText,
       openai: openai4,
+      buildClosing: buildClosingMessage,
       entityId: leadId,
       log
     });

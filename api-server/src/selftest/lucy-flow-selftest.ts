@@ -118,6 +118,7 @@ import {
   getServiceKnowledge,
   SERVICE_KNOWLEDGE_GOLDEN_RULE,
 } from "../services/serviceKnowledge.js";
+import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
 import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests } from "../services/imageProcessor.js";
 import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
@@ -1952,6 +1953,29 @@ async function runAll(): Promise<void> {
     assert.ok(/parrillada argentina|cortes argentinos/i.test(detail!), detail);
     assert.ok(!/banquete\s+3\s+tiempos/i.test(detail!), detail);
     assert.ok(catalogAnswerMatchesRequestedService("quiero parrillada argentina", detail!), detail);
+  });
+
+  await test("44. Fase 0 — formatForWhatsApp y brief web en primer turno", () => {
+    const formatted = formatForWhatsApp("**Hola** — precio:\n\n- item uno\n\n## Título");
+    assert.ok(/\*Hola\*/.test(formatted), formatted);
+    assert.ok(!/\*\*/.test(formatted), formatted);
+    assert.ok(/• item uno/.test(formatted), formatted);
+    assert.ok(!/^##/m.test(formatted), formatted);
+
+    const webMsg =
+      "Hola, me interesa cotizar para mi evento: boda en jardín. Sería el 15 de agosto en Cuernavaca para 80 personas";
+    const first = runGuards({
+      aiResponse: "Estas son las opciones más pedidas: banquete o taquiza.",
+      extracted: emptyExtracted({ tipo_evento: "boda", num_invitados: 80 }),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: webMsg,
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert.ok(/boda|solicitud|80\s+personas/i.test(first), first);
+    assert.ok(!/opciones m[aá]s pedidas/i.test(first), first);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

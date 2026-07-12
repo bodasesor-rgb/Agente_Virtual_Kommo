@@ -8,26 +8,15 @@ import {
 import { resolveLucyPublicBase } from "../lib/publicUrl.js";
 import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import OpenAI from "openai";
-import {
-  getCatalogPromptBlock,
-  injectCatalogPriceIfAsked,
-  injectCatalogInclusionIfAsked,
-  injectCatalogCateringIfAsked,
-  formatServiceDataForPrompt,
-} from "../services/catalogService.js";
-import { formatServiceKnowledgeForPrompt } from "../services/serviceKnowledge.js";
-import { getTrainingExamples } from "../lib/training.js";
 import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
   applyEmailWaiver,
-  applyLucyMessageGuards,
   applyPresupuestoWaiver,
   applyWhatsappNombreFallback,
   detectCierreEnviado,
   WHATSAPP_NOMBRE_NOTE,
   CLOSING_CORE_FIELDS,
   collectUserTexts,
-  detectEmailRefusal,
   EMAIL_WAIVED_LABEL,
   isEmailSatisfied,
   isReadyForClosing,
@@ -41,11 +30,6 @@ import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { calculateLeadScore, detectStage } from "../services/leadScoring.js";
 import { detectIntent, analyzeSentiment, detectObjection } from "../services/intentDetection.js";
-import { buildDynamicPrompt } from "../services/promptBuilder.js";
-import {
-  buildRedactionBriefing,
-  completeLucyRedaction,
-} from "../services/lucyRedaction.js";
 import { processMessage, getVoiceAcknowledgment, getImageAcknowledgment } from "../services/voiceProcessor.js";
 import {
   isDuplicateWebhookMessage,
@@ -57,7 +41,7 @@ import {
   sanitizeExtractedFromExternal,
   sanitizeKommoCrmLines,
 } from "../lib/external-ingest-sanitize.js";
-import { generateSummary, enrichExtractedFromText, buildResumenClienteLargo } from "../services/summaryService.js";
+import { generateSummary, buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   isPlaceholderLeadName,
   isQuoteIntentMessage,
@@ -68,9 +52,10 @@ import {
   shouldUpdateName,
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
-import { resolveTipoContacto } from "../tipoContacto.js";
-import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
-import { finalizeLucyOutboundMessage } from "../lucyOutboundPipeline.js";
+import {
+  prepareLucyExtraction,
+  generateLucyOutbound,
+} from "../lucyTurnProcessor.js";
 import {
   applyCapturesToCrm,
   captureContextualAnswer,
@@ -86,10 +71,8 @@ import {
   parseTipoEventoFromText,
   inferLucyAskedField,
   scanConversationForCaptures,
-  sanitizeExtractedAmbiguousNumbers,
   recoverClienteNombreFromHistory,
   isAmbiguousShortNumber,
-  applyWebLeadBrief,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
 import {
@@ -382,88 +365,6 @@ function buildClosingMessage(
     introServicios + `\n\n` +
     `¿Te gustaría cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en decírnoslo y nosotros te lo conseguimos.`
   );
-}
-
-function buildLucyRedactionBriefing(opts: {
-  extracted: ExtractedData;
-  filledSet: Set<string>;
-  crmMergedLines: string[];
-  messageText: string;
-  conversationText: string;
-  messageCount?: number;
-  conversationAgeHours?: number;
-  allFieldsFilled: boolean;
-  isFirstInteraction: boolean;
-  cierreYaEnviado?: boolean;
-}): string {
-  const intentResult = detectIntent(opts.messageText);
-  const sentimentResult = analyzeSentiment(opts.messageText);
-  const objectionResult = detectObjection(opts.messageText);
-  const scoreContext = {
-    extracted: opts.extracted,
-    messageCount: opts.messageCount ?? 1,
-    hasResponded: true,
-    conversationAge: opts.conversationAgeHours ?? 0,
-    lastIntent: intentResult.intent,
-    conversationText: opts.conversationText,
-  };
-  const leadScore = calculateLeadScore(scoreContext);
-  const stage = detectStage(scoreContext);
-
-  const briefing = buildRedactionBriefing({
-    extracted: opts.extracted,
-    filledSet: opts.filledSet,
-    crmMergedLines: opts.crmMergedLines,
-    intent: intentResult,
-    sentiment: sentimentResult,
-    stage,
-    priority: leadScore.priority,
-    allFieldsFilled: opts.allFieldsFilled,
-    isFirstInteraction: opts.isFirstInteraction,
-    hasObjection: objectionResult.hasObjection,
-    objectionType: objectionResult.type,
-    cierreYaEnviado: opts.cierreYaEnviado,
-  });
-
-  const serviceBlock =
-    formatServiceKnowledgeForPrompt(opts.messageText) ??
-    formatServiceDataForPrompt(opts.messageText);
-  return serviceBlock ? `${briefing}\n\n${serviceBlock}` : briefing;
-}
-
-async function buildLucySystemPrompt(opts: {
-  messageText: string;
-  conversationText: string;
-  extracted: ExtractedData;
-  crmContext: string;
-  filledLabels: Set<string>;
-  isFirstInteraction: boolean;
-  messageCount?: number;
-  conversationAgeHours?: number;
-}): Promise<string> {
-  const intentResult = detectIntent(opts.messageText);
-  const objectionResult = detectObjection(opts.messageText);
-  const scoreContext = {
-    extracted: opts.extracted,
-    messageCount: opts.messageCount ?? 1,
-    hasResponded: true,
-    conversationAge: opts.conversationAgeHours ?? 0,
-    lastIntent: intentResult.intent,
-    conversationText: opts.conversationText,
-  };
-  const leadScore = calculateLeadScore(scoreContext);
-  const stage = detectStage(scoreContext);
-  const catalogBlock = await getCatalogPromptBlock();
-  return buildDynamicPrompt({
-    stage,
-    priority: leadScore.priority,
-    extracted: opts.extracted,
-    hasObjection: objectionResult.hasObjection ? objectionResult : undefined,
-    crmContext: opts.crmContext,
-    isFirstInteraction: opts.isFirstInteraction,
-    hasClientName: opts.filledLabels.has("Nombre del cliente"),
-    catalogBlock,
-  });
 }
 
 // ─── Internal Kommo note when lead is fully qualified ─────────────────────────
@@ -1315,48 +1216,17 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     log.info({ historyLength: history.length, historySource, crmLinesCount: crmLines.length }, "Context loaded");
 
     // ══════════════════════════════════════════════════════════════════════
-    // PASO 5: Extracción de datos
+    // PASO 5: Extracción de datos (pipeline unificado)
     // ══════════════════════════════════════════════════════════════════════
-    const filledFieldNames = crmLines
-      .map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? "")
-      .filter(Boolean)
-      .join(", ");
+    const { extracted, conversationText } = await prepareLucyExtraction({
+      fullHistory,
+      messageText: combinedUserText,
+      crmLines,
+      extractFn: extractData,
+    });
 
-    const extracted = await extractData(fullHistory, combinedUserText, filledFieldNames);
-    sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
-    applyWebLeadBrief(extracted, combinedUserText);
-
-    extracted.nombre = sanitizeCrmNombre(extracted.nombre);
-    if (extracted.correo) {
-      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
-    }
-
-    const conversationText = [
-      ...history
-        .filter((m) => m.role === "user")
-        .map((m) => (typeof m.content === "string" ? m.content : "")),
-      combinedUserText,
-    ].join(" ");
-
-    if (extracted.tipo_contacto === "proveedor") {
-      const empresa = extracted.empresa ?? "";
-      const desc = extracted.requerimientos_evento ?? "";
-      if (empresa || desc) {
-        const resumenProv = `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${desc}`.slice(0, 240);
-        extracted.requerimientos_evento = resumenProv;
-        log.info({ resumenProv }, "Resumen proveedor generado");
-      }
-    } else {
-      enrichExtractedFromText(extracted, conversationText);
-      sanitizeExtractedAmbiguousNumbers(extracted, combinedUserText);
-      if (!extracted.modo_servicio) {
-        extracted.modo_servicio = detectModoServicio(conversationText);
-      }
-    }
-
-    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
-    if (extracted.correo) {
-      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+    if (extracted.tipo_contacto === "proveedor" && extracted.requerimientos_evento) {
+      log.info({ resumenProv: extracted.requerimientos_evento }, "Resumen proveedor generado");
     }
 
     const cierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
@@ -1395,111 +1265,53 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     const leadScore = calculateLeadScore(scoreContext);
     const stage = detectStage(scoreContext);
 
+    const messageCount = conversation.messageCount + 1;
+    const conversationAgeHours =
+      (Date.now() - new Date(conversation.createdAt).getTime()) / (1000 * 60 * 60);
+
     log.info({ score: leadScore.total, priority: leadScore.priority, stage }, "Lead scoring complete");
 
-    // ══════════════════════════════════════════════════════════════════════
-    // PASO 7: Prompt dinámico según etapa
-    // ══════════════════════════════════════════════════════════════════════
-    const catalogBlock = await getCatalogPromptBlock();
-    const dynamicPrompt = buildDynamicPrompt({
-      stage,
-      priority: leadScore.priority,
-      extracted,
-      hasObjection: objectionResult.hasObjection ? objectionResult : undefined,
-      crmContext,
-      isFirstInteraction,
-      hasClientName: filledLabels.has("Nombre del cliente"),
-      catalogBlock,
-    });
-
-    // ══════════════════════════════════════════════════════════════════════
-    // PASO 8: Llamada a OpenAI con prompt dinámico
-    // ══════════════════════════════════════════════════════════════════════
-    const trainingExamples = await getTrainingExamples();
-    const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
-      { role: "user" as const, content: ex.userMessage },
-      { role: "assistant" as const, content: ex.lucyResponse },
-    ]);
-
-    const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: dynamicPrompt },
-      ...fewShot,
-      ...history,
-      { role: "user", content: combinedUserText },
-    ];
-
-    const serviceKnowledgeBlock = formatServiceKnowledgeForPrompt(combinedUserText);
-
-    const redactionBriefing = buildRedactionBriefing({
-      extracted,
-      filledSet: filledLabels,
-      crmMergedLines,
-      intent: intentResult,
-      sentiment: sentimentResult,
-      stage,
-      priority: leadScore.priority,
-      allFieldsFilled,
-      isFirstInteraction,
-      hasObjection: objectionResult.hasObjection,
-      objectionType: objectionResult.type,
-      cierreYaEnviado,
-      serviceKnowledgeBlock,
-    });
-
-    let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
-    aiResponse = injectCatalogInclusionIfAsked(combinedUserText, aiResponse);
-    aiResponse = injectCatalogCateringIfAsked(combinedUserText, aiResponse);
-    aiResponse = injectCatalogPriceIfAsked(combinedUserText, aiResponse);
-    // ══════════════════════════════════════════════════════════════════════
+    let prependToAiResponse: string | undefined;
     if (batch.isVoice || batch.isImage) {
       const clientName =
         sanitizeDisplayName(extracted.nombre) ??
         whatsappDisplayName ??
         sanitizeDisplayName(conversation.clientName) ??
         undefined;
-      // Si llegaron ambos en el mismo batch, la voz tiene prioridad (es lo más
-      // frecuente y el ack de audio ya cubre "recibí tu mensaje").
-      const ack = batch.isVoice
+      prependToAiResponse = batch.isVoice
         ? getVoiceAcknowledgment(clientName ?? undefined)
         : getImageAcknowledgment(clientName ?? undefined);
-      aiResponse = ack + aiResponse;
-      log.info({ ack, isVoice: batch.isVoice, isImage: batch.isImage }, "Media acknowledgment prepended");
+      log.info(
+        { ack: prependToAiResponse, isVoice: batch.isVoice, isImage: batch.isImage },
+        "Media acknowledgment prepended"
+      );
     }
 
-    log.info({ aiResponse, extracted }, "OpenAI response received");
-
-    // ══════════════════════════════════════════════════════════════════════
-    // PASO 8.7: Enviar respuesta directamente a WhatsApp via API de Kommo
-    // Si Lucy generó el bloque DATOS DEL CLIENTE (nota interna), extraer
-    // solo la parte del mensaje al cliente (después de "Lead calificado").
-    // ══════════════════════════════════════════════════════════════════════
-    // PASO 8.7: Si ya tenemos los 6 datos → mensaje de cierre exacto desde
-    // plantilla de código (no depender de GPT para este texto crítico).
-    //
-    // GUARD: solo enviar cierre la PRIMERA VEZ. Se detecta buscando en el
-    // historial de chat si Lucy ya envió el texto de cierre antes.
-    // El lead NO se mueve de etapa — Alejandro lo hace manualmente.
-    // ══════════════════════════════════════════════════════════════════════
     const cierreYaEnviadoForGuards = cierreYaEnviado;
 
-    const emailRefusedThisTurn = detectEmailRefusal([combinedUserText]);
-
-    let mensajeParaCliente = applyLucyMessageGuards({
-      aiResponse,
-      extracted,
-      filledSet: filledLabels,
-      readyForClosing: allFieldsFilled,
-      cierreYaEnviado: cierreYaEnviadoForGuards,
-      emailRefusedThisTurn,
+    const { mensajeParaCliente, aiResponse } = await generateLucyOutbound({
+      messageText: combinedUserText,
       history,
-      presentationHistory: fullHistory,
-      currentMessage: combinedUserText,
+      fullHistory,
+      extracted,
+      crmContext,
+      crmMergedLines,
+      filledLabels,
+      allFieldsFilled,
+      isFirstInteraction,
+      cierreYaEnviado: cierreYaEnviadoForGuards,
       whatsappDisplayName,
+      conversationText,
+      openai,
       buildClosing: buildClosingMessage,
-      log,
       entityId,
-      forceFirstPresentation: isFirstInteraction,
+      messageCount,
+      conversationAgeHours,
+      prependToAiResponse,
+      log,
     });
+
+    log.info({ aiResponse, extracted }, "OpenAI response received");
 
     if (cierreYaEnviado && combinedUserText.trim()) {
       const updatedReq = appendPostCierreRequirements(
@@ -1511,17 +1323,6 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         log.info({ entityId, requerimientos: updatedReq }, "Post-cierre: requerimientos actualizados en CRM");
       }
     }
-
-    mensajeParaCliente = await finalizeLucyOutboundMessage({
-      mensaje: mensajeParaCliente,
-      extracted,
-      readyForClosing: allFieldsFilled,
-      cierreYaEnviado: cierreYaEnviadoForGuards,
-      currentMessage: combinedUserText,
-      openai,
-      entityId,
-      log,
-    });
 
     // ══════════════════════════════════════════════════════════════════════
     // PASO 8.8: Crear nota en Kommo cuando el lead queda calificado (6 datos)
@@ -2022,6 +1823,11 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
   }
 
   try {
+    log.warn(
+      { entityId },
+      "DEPRECATED: /kommo/salesbot — desactivar SalesBot en Kommo; usar webhook directo"
+    );
+
     // ── Load history (misma clave que webhook: entityId, no chatId) ───────────
     const histKey = entityId ? String(entityId) : (chatId ?? "salesbot-default");
     let fullHistory: OpenAI.Chat.ChatCompletionMessageParam[] = getHistory(histKey);
@@ -2075,26 +1881,12 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       ? await resolveWhatsappDisplayName(subdomain, accessToken, entityId, null)
       : null;
 
-    const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
-    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
-    applyWebLeadBrief(extracted, messageText);
-    extracted.nombre = sanitizeCrmNombre(extracted.nombre);
-    if (extracted.correo) {
-      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
-    }
-
-    const conversationText = [
-      ...fullHistory
-        .filter((m) => m.role === "user" && typeof m.content === "string")
-        .map((m) => m.content as string),
+    const { extracted, conversationText } = await prepareLucyExtraction({
+      fullHistory,
       messageText,
-    ].join(" ");
-    enrichExtractedFromText(extracted, conversationText);
-    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
-    if (!extracted.modo_servicio) {
-      extracted.modo_servicio = detectModoServicio(conversationText);
-    }
-    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+      crmLines,
+      extractFn: extractData,
+    });
 
     const sbCierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
 
@@ -2112,76 +1904,28 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     const salesbotMergedLines = crmResultFinal.mergedLines;
     salesbotFilledLabels = crmResultFinal.filledLabels;
 
-    const systemContent = await buildLucySystemPrompt({
-      messageText,
-      conversationText,
-      extracted,
-      crmContext,
-      filledLabels: salesbotFilledLabels,
-      isFirstInteraction,
-    });
-
-    const trainingExamples = await getTrainingExamples();
-    const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
-      { role: "user" as const, content: ex.userMessage },
-      { role: "assistant" as const, content: ex.lucyResponse },
-    ]);
-
-    const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: systemContent },
-      ...fewShot,
-      ...history,
-      { role: "user", content: messageText },
-    ];
-
     log.info({ isFirstInteraction, messageText, historyLength: history.length }, "Salesbot: llamando OpenAI");
 
-    const redactionBriefing = buildLucyRedactionBriefing({
-      extracted,
-      filledSet: salesbotFilledLabels,
-      crmMergedLines: salesbotMergedLines,
+    const { mensajeParaCliente, aiResponse } = await generateLucyOutbound({
       messageText,
-      conversationText,
+      history,
+      fullHistory,
+      extracted,
+      crmContext,
+      crmMergedLines: salesbotMergedLines,
+      filledLabels: salesbotFilledLabels,
       allFieldsFilled: salesbotAllFieldsFilled,
       isFirstInteraction,
       cierreYaEnviado: sbCierreYaEnviado,
-    });
-
-    let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
-    aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
-    aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
-    aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
-    log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
-
-    const emailRefusedThisTurn = detectEmailRefusal([messageText]);
-
-    let mensajeParaCliente = applyLucyMessageGuards({
-      aiResponse,
-      extracted,
-      filledSet: salesbotFilledLabels,
-      readyForClosing: salesbotAllFieldsFilled,
-      cierreYaEnviado: sbCierreYaEnviado,
-      emailRefusedThisTurn,
-      history,
-      presentationHistory: fullHistory,
-      currentMessage: messageText,
       whatsappDisplayName,
+      conversationText,
+      openai,
       buildClosing: buildClosingMessage,
-      log,
       entityId,
-      forceFirstPresentation: isFirstInteraction,
+      log,
     });
 
-    mensajeParaCliente = await finalizeLucyOutboundMessage({
-      mensaje: mensajeParaCliente,
-      extracted,
-      readyForClosing: salesbotAllFieldsFilled,
-      cierreYaEnviado: sbCierreYaEnviado,
-      currentMessage: messageText,
-      openai,
-      entityId,
-      log,
-    });
+    log.info({ aiResponse, extracted, isFirstInteraction }, "Salesbot: OpenAI response");
 
     // Guardar mensaje REAL enviado (no aiResponse) para que cierreYaEnviado funcione.
     appendHistory(histKey, messageText, mensajeParaCliente);
@@ -2242,7 +1986,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     // No incluimos `message` en el callback: el mensaje ya fue enviado directamente
     // via Meta API. Devolver `message` aquí causaría un duplicado si el SalesBot
     // sigue activo en la configuración de Kommo.
-    res.json({ status: "success" });
+    res.json({ status: "success", deprecated: true, note: "Usar webhook directo; desactivar SalesBot en Kommo" });
   } catch (err) {
     log.error({ err }, "Salesbot: processing error");
     res.status(500).json({ error: "processing_failed" });
@@ -2574,27 +2318,13 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
     }
 
-    const extracted = await extractData(fullHistory, messageText, crmLines.join("\n"));
-    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
-    applyWebLeadBrief(extracted, messageText);
-
-    extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
-
-    const conversationText = [
-      ...history
-        .filter((m) => m.role === "user" && typeof m.content === "string")
-        .map((m) => m.content as string),
+    const { extracted, conversationText } = await prepareLucyExtraction({
+      fullHistory,
       messageText,
-    ].join(" ");
-    enrichExtractedFromText(extracted, conversationText);
-    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
-    if (!extracted.modo_servicio) {
-      extracted.modo_servicio = detectModoServicio(conversationText);
-    }
-    extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
-    if (extracted.correo) {
-      extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
-    }
+      crmLines,
+      extractFn: extractData,
+    });
+    extracted.nombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
 
     const simCierreYaEnviado = detectCierreEnviado(fullHistory, effectiveLastResponse);
 
@@ -2612,70 +2342,21 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const filledLabels = crmResultFinal.filledLabels;
     const crmMergedLines = crmResultFinal.mergedLines;
 
-    const trainingExamples = await getTrainingExamples();
-    const fewShot: OpenAI.Chat.ChatCompletionMessageParam[] = trainingExamples.flatMap((ex) => [
-      { role: "user" as const, content: ex.userMessage },
-      { role: "assistant" as const, content: ex.lucyResponse },
-    ]);
-
-    const systemContent = await buildLucySystemPrompt({
+    const { mensajeParaCliente } = await generateLucyOutbound({
       messageText,
-      conversationText,
+      history,
+      fullHistory,
       extracted,
       crmContext,
-      filledLabels,
-      isFirstInteraction,
-    });
-
-    const lucyMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      { role: "system", content: systemContent },
-      ...fewShot,
-      ...history,
-      { role: "user", content: messageText },
-    ];
-
-    const redactionBriefing = buildLucyRedactionBriefing({
-      extracted,
-      filledSet: filledLabels,
       crmMergedLines,
-      messageText,
-      conversationText,
+      filledLabels,
       allFieldsFilled,
       isFirstInteraction,
       cierreYaEnviado: simCierreYaEnviado,
-    });
-
-    let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
-    aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
-    aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
-    aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
-
-    const emailRefusedThisTurn = detectEmailRefusal([messageText]);
-
-    let mensajeParaCliente = applyLucyMessageGuards({
-      aiResponse,
-      extracted,
-      filledSet: filledLabels,
-      readyForClosing: allFieldsFilled,
-      cierreYaEnviado: simCierreYaEnviado,
-      emailRefusedThisTurn,
-      history,
-      presentationHistory: fullHistory,
-      currentMessage: messageText,
       whatsappDisplayName,
-      buildClosing: buildClosingMessage,
-      log,
-      entityId: leadId,
-      forceFirstPresentation: isFirstInteraction,
-    });
-
-    mensajeParaCliente = await finalizeLucyOutboundMessage({
-      mensaje: mensajeParaCliente,
-      extracted,
-      readyForClosing: allFieldsFilled,
-      cierreYaEnviado: simCierreYaEnviado,
-      currentMessage: messageText,
+      conversationText,
       openai,
+      buildClosing: buildClosingMessage,
       entityId: leadId,
       log,
     });
