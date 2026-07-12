@@ -1754,7 +1754,7 @@ async function runAll(): Promise<void> {
     assert.equal(banquete!.kind, "service");
     const banquetePrice = buildCatalogPriceAnswer("banquete");
     assert.ok(banquetePrice);
-    assert.ok(/prefieres|niveles|opciones|tiempos/i.test(banquetePrice!), banquetePrice);
+    assert.ok(/\$500|\$750|\$300|\$450|precios de referencia/i.test(banquetePrice!), banquetePrice);
 
     const exact = resolveCatalogQuery("banquete premium 4 tiempos");
     assert.ok(exact);
@@ -2018,6 +2018,75 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/valet|flor|coordin|anot|equipo/i.test(valetFirst), valetFirst.slice(0, 200));
     assert.ok(!/no tenemos|no manejamos/i.test(valetFirst), valetFirst);
+  });
+
+  await test("46. Live-20 — precio taquiza con $ y anti-repetición banquete", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados"',
+      '"Taquiza","Premium","$450.00","$9,000.00","TRUE","7 guisados"',
+      '"Banquete 4 tiempos","Basico","$500.00","$15,000.00","TRUE","3 tiempos menu"',
+      '"Banquete 4 tiempos","Premium","$750.00","$15,000.00","TRUE","4 tiempos menu"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const taquizaPrice = buildCatalogPriceAnswer("¿Cuánto cuesta la taquiza?");
+    assert.ok(taquizaPrice, "debe responder precio taquiza");
+    assert.ok(/\$300|\$450/.test(taquizaPrice!), taquizaPrice);
+    assert.ok(!/lo tenemos en:/i.test(taquizaPrice!), `sin solo niveles: ${taquizaPrice}`);
+
+    const banqueteMidFlow = runGuards({
+      aiResponse: "El banquete depende del menú.",
+      extracted: emptyExtracted({ tipo_evento: "boda" }),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: "¿cuánto cuesta el banquete?",
+      history: [
+        { role: "user", content: "quiero un banquete para mi boda" },
+        {
+          role: "assistant",
+          content:
+            "Sí manejamos Banquete para una boda.\n\n*Banquete 4 tiempos* lo tenemos en: *Basico*, *Premium*. ¿Cuál prefieres?",
+        },
+      ],
+    });
+    assert.ok(/\$500|\$750|precios de referencia/i.test(banqueteMidFlow), banqueteMidFlow.slice(0, 250));
+    assert.ok(/nombre|correo|invitados|gusto|llamas/i.test(banqueteMidFlow), banqueteMidFlow.slice(0, 250));
+
+    const banqueteRepeat = runGuards({
+      aiResponse: "¿Qué servicios te gustaría cotizar?",
+      extracted: emptyExtracted({
+        nombre: "Mario",
+        tipo_evento: "aniversario",
+        requerimientos_evento: "Banquete",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Banquete",
+      history: [
+        { role: "user", content: "Hola, banquete para aniversario" },
+        {
+          role: "assistant",
+          content:
+            "Sí manejamos Banquete para tu evento.\n\n*Banquete 4 tiempos* lo tenemos en: *Basico*, *Premium*. ¿Cuál prefieres?",
+        },
+        { role: "user", content: "Mario" },
+        { role: "assistant", content: "Mucho gusto, Mario. ¿A qué correo te lo envío?" },
+        { role: "user", content: "mario@test.com" },
+        { role: "assistant", content: "¿Qué tipo de celebración festejan?" },
+        { role: "user", content: "Aniversario" },
+      ],
+    });
+    assert.ok(
+      !/lo tenemos en:.*basico.*premium/i.test(banqueteRepeat) ||
+        /anoto|invitados|personas|fecha/i.test(banqueteRepeat),
+      banqueteRepeat.slice(0, 300)
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

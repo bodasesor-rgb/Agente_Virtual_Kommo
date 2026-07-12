@@ -80723,6 +80723,21 @@ function buildExactRowPriceAnswer(row) {
 *Incluye:* ${parsed.inclusion}` : "";
   return `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`;
 }
+function buildMultiLevelPriceAnswer(result, priced) {
+  const svc = result.serviceName ?? uniqueServicios(priced)[0] ?? "ese servicio";
+  const unique = [...new Map(priced.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
+  const priceLines = unique.slice(0, 6).map((row) => {
+    const parsed = parseRowNotes(row.notas);
+    const nivel = extractNivelLabel(row);
+    const unit = row.unidad ? ` ${row.unidad}` : "";
+    const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
+    return `\u2022 *${nivel}* \u2014 ${row.precio}${unit}${min}`;
+  }).join("\n");
+  const inclusionBlock = buildInclusionBlock(unique, 280);
+  return `*${svc}* \u2014 precios de referencia:
+
+${priceLines}${inclusionBlock}`;
+}
 function formatRequerimientoLabelFromQuery(query) {
   const resolved = resolveCatalogQuery(query);
   if (!resolved) return null;
@@ -80898,7 +80913,7 @@ function buildCatalogPriceAnswer(query) {
   if (resolved.kind === "service") {
     const priced = resolved.rows.filter((r2) => r2.tienePrecio && r2.precio);
     if (priced.length > 1) {
-      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
+      return buildMultiLevelPriceAnswer(resolved, priced);
     }
     if (priced.length === 1) {
       return buildExactRowPriceAnswer(priced[0]);
@@ -81006,6 +81021,10 @@ function buildCatalogServiceDetailAnswer(query) {
     return buildCategoryServicesAnswer(resolved);
   }
   if (resolved?.kind === "service") {
+    if (clientAsksPrice(query)) {
+      const priceAnswer2 = buildCatalogPriceAnswer(query);
+      if (priceAnswer2) return priceAnswer2;
+    }
     return buildServiceNivelChoiceAnswer(resolved);
   }
   if (resolved?.kind === "service_nivel" && resolved.rows[0]) {
@@ -82232,6 +82251,43 @@ function requerimientosFollowUpTemplate(text2, clientName) {
   }
   return null;
 }
+function textOverlapRatio(a2, b4) {
+  const na = a2.toLowerCase().replace(/\s+/g, " ").trim();
+  const nb = b4.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  const wordsA = new Set(na.split(" ").filter((w4) => w4.length > 3));
+  const wordsB = new Set(nb.split(" ").filter((w4) => w4.length > 3));
+  if (!wordsA.size || !wordsB.size) return 0;
+  let shared = 0;
+  for (const w4 of wordsA) if (wordsB.has(w4)) shared++;
+  return shared / Math.max(wordsA.size, wordsB.size);
+}
+function servicesMatchForPitch(a2, b4) {
+  if (!a2 || !b4) return false;
+  const na = stripAccents(a2.toLowerCase());
+  const nb = stripAccents(b4.toLowerCase());
+  if (na === nb || na.includes(nb) || nb.includes(na)) return true;
+  const families = ["sushi", "banquete", "taquiza", "coffee break", "barra de bebidas"];
+  for (const fam of families) {
+    if (na.includes(fam) && nb.includes(fam)) return true;
+  }
+  return false;
+}
+function assistantAlreadyPitchedService(history, currentMessage) {
+  if (!currentMessage?.trim()) return false;
+  const mentioned = findMentionedService(currentMessage);
+  if (!mentioned) return false;
+  const assistantMsgs = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").map((m4) => m4.content.trim()).filter(Boolean);
+  for (const prev of assistantMsgs.slice(-6)) {
+    const prevMentioned = findMentionedService(prev);
+    if (!servicesMatchForPitch(mentioned, prevMentioned)) continue;
+    if (/manejamos|tenemos en:|niveles|prefieres|precio|incluye|\$|lo tenemos en/i.test(prev)) {
+      return true;
+    }
+  }
+  return false;
+}
 function bodyEqualsLastAssistant(msg, history, clientName) {
   const last = [...history].reverse().find((m4) => m4.role === "assistant");
   if (!last || typeof last.content !== "string") return false;
@@ -82243,7 +82299,11 @@ function bodyEqualsLastAssistant(msg, history, clientName) {
   const templateB = requerimientosFollowUpTemplate(b4, clientName);
   if (templateA && templateB && templateA === templateB) return true;
   const normText = (s4) => stripAccents(stripLeadingTransition(s4).toLowerCase()).replace(/\s+/g, " ").trim();
-  return normText(a2) === normText(b4);
+  if (normText(a2) === normText(b4)) return true;
+  if (textOverlapRatio(a2, b4) >= 0.72) return true;
+  const prevAssistants = history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").map((m4) => m4.content.trim()).filter(Boolean);
+  if (prevAssistants.some((p3) => textOverlapRatio(a2, p3) >= 0.72)) return true;
+  return false;
 }
 function hasMeaningfulRequerimientos(extracted, filledSet) {
   if (filledSet.has("Requerimientos o servicios")) return true;
@@ -82317,6 +82377,22 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
 ${nextQ}`;
   };
   if (mentionedService || currentMessage && isServiceRelatedMessage(currentMessage)) {
+    if (assistantAlreadyPitchedService(history, currentMessage)) {
+      const serviceLabel2 = mentionedService ?? parsePrimaryService(currentMessage ?? "") ?? (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
+      if (filledSet && ctx) {
+        const filledAfterService = new Set(filledSet);
+        if (serviceLabel2) filledAfterService.add("Requerimientos o servicios");
+        const pending = getNextPendingField(extracted, filledAfterService);
+        if (pending) {
+          const nextQ = buildNaturalQuestion(pending, ctx);
+          const ack = serviceLabel2 ? `${pickTransition(history)} Perfecto, anoto ${serviceLabel2}.` : `${pickTransition(history)} Perfecto, lo anoto.`;
+          return `${ack}
+
+${nextQ}`;
+        }
+      }
+      return null;
+    }
     let detail = query ? buildCatalogServiceDetailAnswer(query) : null;
     if (detail && mentionedService && !catalogAnswerMatchesRequestedService(currentMessage ?? "", detail)) {
       detail = null;
@@ -82698,18 +82774,6 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
 
 ${nextQ}`;
 }
-function textOverlapRatio(a2, b4) {
-  const na = a2.toLowerCase().replace(/\s+/g, " ").trim();
-  const nb = b4.toLowerCase().replace(/\s+/g, " ").trim();
-  if (!na || !nb) return 0;
-  if (na === nb) return 1;
-  const wordsA = new Set(na.split(" ").filter((w4) => w4.length > 3));
-  const wordsB = new Set(nb.split(" ").filter((w4) => w4.length > 3));
-  if (!wordsA.size || !wordsB.size) return 0;
-  let shared = 0;
-  for (const w4 of wordsA) if (wordsB.has(w4)) shared++;
-  return shared / Math.max(wordsA.size, wordsB.size);
-}
 function avoidRepeatPreviousReply(mensaje, presHistory) {
   const prev = presHistory.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").map((m4) => m4.content.trim()).filter(Boolean);
   if (prev.length === 0) return mensaje;
@@ -82718,7 +82782,14 @@ function avoidRepeatPreviousReply(mensaje, presHistory) {
   if (maxOverlap < 0.68) return mensaje;
   let out2 = mensaje.replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "").replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
   const outOverlap = Math.max(...prev.map((p3) => textOverlapRatio(out2, p3)));
-  if (outOverlap < 0.65) return out2.trim();
+  const pendingQuestion = mensaje.split("\n").map((l4) => l4.trim()).filter((l4) => l4.includes("?")).pop();
+  const attachPendingQuestion = (body2) => {
+    if (!pendingQuestion || body2.includes(pendingQuestion)) return body2.trim();
+    return `${body2.trim()}
+
+${pendingQuestion}`;
+  };
+  if (outOverlap < 0.65) return attachPendingQuestion(out2);
   const questionLine = mensaje.split("\n").find((l4) => l4.includes("?")) ?? mensaje.split("\n").pop();
   const q2 = questionLine?.trim() || mensaje;
   const qOverlap = Math.max(...prev.map((p3) => textOverlapRatio(q2, p3)));
@@ -83006,7 +83077,7 @@ function applyLucyMessageGuards(input) {
   const readyToCloseAndReqDone = trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet);
   const allowSalesReplyOverride = !readyToCloseAndReqDone || (currentMessage?.includes("?") ?? false);
   const mentionedServiceNow = currentMessage ? findMentionedService(currentMessage) : null;
-  const serviceAlreadyCaptured = filledSet.has("Requerimientos o servicios") && !!mentionedServiceNow && (extracted.requerimientos_evento ?? "").toLowerCase().includes(mentionedServiceNow.toLowerCase());
+  const serviceAlreadyCaptured = filledSet.has("Requerimientos o servicios") && !!mentionedServiceNow && (servicesMatchForPitch(mentionedServiceNow, extracted.requerimientos_evento ?? null) || (extracted.requerimientos_evento ?? "").toLowerCase().includes(mentionedServiceNow.toLowerCase()) || mentionedServiceNow.toLowerCase().includes((extracted.requerimientos_evento ?? "").toLowerCase()));
   const requerimientosFollowUpAlreadyAsked = presHistory.some(
     (m4) => m4.role === "assistant" && typeof m4.content === "string" && /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m4.content)
   );
@@ -83137,6 +83208,36 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
       );
     }
     log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 avanzar o cierre");
+  } else if (clientAsksPrice(currentMessage)) {
+    const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
+    const pending = getNextPendingField(extracted, filledSet);
+    const needsAlejandroQuote = mentionsNoListedPriceService(currentMessage) || responseHasInventedPrice(aiResponse, currentMessage, ctxText2) && !mentionsListedPriceService(currentMessage);
+    if (needsAlejandroQuote) {
+      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
+      mensaje = needsNextStep && pending && pending !== "correo" ? `${priceReply}
+
+${buildNaturalQuestion(pending, ctx)}` : priceReply;
+      log?.info({ entityId, pending }, "GUARD: precio sin cat\xE1logo \u2014 Alejandro cotiza");
+    } else {
+      const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText2);
+      let priceContent = safe;
+      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+      if (fromCatalog && mentionsListedPriceService(currentMessage)) {
+        priceContent = fromCatalog;
+      } else if (!messageClaimsPrice(safe) && fromCatalog) {
+        priceContent = fromCatalog;
+      }
+      const pendingPrice = getNextPendingField(extracted, filledSet);
+      mensaje = pendingPrice && !trulyReadyForClosing ? `${priceContent.trim()}
+
+${buildNaturalQuestion(pendingPrice, ctx)}` : priceContent.trim() || aiResponse;
+      log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con cat\xE1logo");
+    }
+  } else if (serviceAlreadyCaptured && mentionedServiceNow && !(currentMessage?.includes("?") ?? false) && !clientAsksPrice(currentMessage)) {
+    const pending = getNextPendingField(extracted, filledSet);
+    mensaje = pending ? buildNaturalQuestion(pending, ctx) : mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+    appliedDirectReply = true;
+    log?.info({ entityId, service: mentionedServiceNow }, "GUARD: servicio ya capturado \u2014 avanzar");
   } else if (allowSalesReplyOverride && (clientMentionsEntertainment(currentMessage) || justAnsweredReq && clientMentionsEntertainment(currentMessage))) {
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
@@ -83145,7 +83246,7 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
-  } else if (allowSalesReplyOverride && !serviceAlreadyCaptured && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
+  } else if (allowSalesReplyOverride && !clientAsksPrice(currentMessage) && !serviceAlreadyCaptured && !assistantAlreadyPitchedService(presHistory, currentMessage) && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
       history,
@@ -83199,28 +83300,6 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     }
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
-  } else if (clientAsksPrice(currentMessage)) {
-    const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
-    const pending = getNextPendingField(extracted, filledSet);
-    const needsAlejandroQuote = mentionsNoListedPriceService(currentMessage) || responseHasInventedPrice(aiResponse, currentMessage, ctxText2) && !mentionsListedPriceService(currentMessage);
-    if (needsAlejandroQuote) {
-      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
-      mensaje = needsNextStep && pending && pending !== "correo" ? `${priceReply}
-
-${buildNaturalQuestion(pending, ctx)}` : priceReply;
-      log?.info({ entityId, pending }, "GUARD: precio sin cat\xE1logo \u2014 Alejandro cotiza");
-    } else {
-      const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText2);
-      let priceContent = safe;
-      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
-      if (fromCatalog && mentionsListedPriceService(currentMessage)) {
-        priceContent = fromCatalog;
-      } else if (!messageClaimsPrice(safe) && fromCatalog) {
-        priceContent = fromCatalog;
-      }
-      mensaje = needsNextStep ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx) : priceContent.trim() || aiResponse;
-      log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con cat\xE1logo");
-    }
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
@@ -83475,7 +83554,7 @@ ${nextQ}`;
     const fromCatalog = buildCatalogPriceAnswer(currentMessage);
     if (fromCatalog) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
-      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+      if (pendingFinal && !trulyReadyForClosing) {
         mensaje = `${fromCatalog}
 
 ${buildNaturalQuestion(pendingFinal, ctx)}`;
@@ -83488,7 +83567,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     const fromCatalog = buildCatalogPriceAnswer(currentMessage);
     if (fromCatalog) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
-      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+      if (pendingFinal && !trulyReadyForClosing) {
         mensaje = `${fromCatalog}
 
 ${buildNaturalQuestion(pendingFinal, ctx)}`;
@@ -83501,7 +83580,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     const inclusionAnswer = resolveCatalogInclusionReply(currentMessage);
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
-      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+      if (pendingFinal && !trulyReadyForClosing) {
         mensaje = `${inclusionAnswer}
 
 ${buildNaturalQuestion(pendingFinal, ctx)}`;
