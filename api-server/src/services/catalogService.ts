@@ -1100,6 +1100,17 @@ export function injectCatalogCateringIfAsked(
 
   if (!asksService && !genericCatering && !mentionsService) return aiResponse;
 
+  const primary = parsePrimaryService(clientMessage);
+  if (primary && /sushi|coffee\s*break|barra de bebidas/i.test(primary)) {
+    const detail = buildCatalogServiceDetailAnswer(clientMessage);
+    if (detail && !responseLooksLikeGenericCateringMenu(aiResponse)) {
+      return aiResponse;
+    }
+    if (detail && responseLooksLikeGenericCateringMenu(aiResponse)) {
+      return detail;
+    }
+  }
+
   if (responseLooksLikeGenericCateringMenu(aiResponse)) {
     const detail = buildCatalogServiceDetailAnswer(clientMessage);
     if (detail) return detail;

@@ -494,6 +494,25 @@ function buildCrmContext(
   const filledSet = new Set(mergedLines.map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
   const historyFull = fullHistory ?? history;
 
+  if (!filledSet.has("Nombre del cliente")) {
+    const recoveredNombre = recoverClienteNombreFromHistory(historyFull, currentMessage);
+    if (recoveredNombre) {
+      mergedLines.push(`- Nombre del cliente: ${recoveredNombre}`);
+      filledSet.add("Nombre del cliente");
+      extracted.nombre = recoveredNombre;
+    }
+  }
+
+  const lastAssistantEarly = [...historyFull]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  const lastAskedEarly = lastAssistantEarly
+    ? inferLucyAskedField(lastAssistantEarly.content as string)
+    : null;
+  if (currentMessage && isAmbiguousShortNumber(currentMessage, { lastAskedField: lastAskedEarly })) {
+    extracted.num_invitados = null;
+  }
+
   if (extracted.presupuesto !== null && extracted.presupuesto !== undefined) {
     const validPres = collectUserTexts(historyFull, currentMessage)
       .map((t) => parsePresupuestoFromText(t))

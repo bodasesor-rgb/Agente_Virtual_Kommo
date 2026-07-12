@@ -47,6 +47,21 @@ export function isGreetingOnlyMessage(text: string | null | undefined): boolean 
   );
 }
 
+/** Colonia/ciudad — no es nombre de persona ("Narvarte CDMX", "Polanco"). */
+export function isLikelyUbicacionNotNombre(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t || /^(me llamo|soy)\s+/i.test(t)) return false;
+  if (
+    /\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|sat[eé]lite|interlomas|expo\s+santa)\b/i.test(
+      t
+    ) &&
+    t.split(/\s+/).length <= 5
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** "sí", "ok", "claro" — afirmación, no es el nombre del cliente. */
 export function isAffirmativeOnlyMessage(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
@@ -82,6 +97,7 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
   if (isQuoteIntentMessage(trimmed)) return null;
+  if (isLikelyUbicacionNotNombre(trimmed)) return null;
 
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
@@ -90,6 +106,7 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
 export function sanitizeCrmNombre(name: string | null | undefined): string | null {
   const trimmed = name?.trim() ?? "";
   if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
+  if (isLikelyUbicacionNotNombre(trimmed)) return null;
 
   const cleaned = trimmed
     .replace(/^Lead:\s*/i, "")

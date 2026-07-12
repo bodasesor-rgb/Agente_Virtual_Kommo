@@ -8,6 +8,7 @@ import type { ExtractedData } from "./types.js";
 import {
   isAffirmativeOnlyMessage,
   isGreetingOnlyMessage,
+  isLikelyUbicacionNotNombre,
   isQuoteIntentMessage,
   sanitizeDisplayName,
 } from "./contact-name.js";
@@ -350,9 +351,10 @@ export function isVagueFoodTerm(text: string | null | undefined): boolean {
 /** Limpia extracción GPT cuando el turno es un número suelto ambiguo. */
 export function sanitizeExtractedAmbiguousNumbers(
   extracted: { num_invitados?: number | null },
-  messageText: string | null | undefined
+  messageText: string | null | undefined,
+  ctx?: AmbiguousNumberContext
 ): void {
-  if (isAmbiguousShortNumber(messageText)) {
+  if (isAmbiguousShortNumber(messageText, ctx)) {
     extracted.num_invitados = null;
   }
 }
@@ -1162,6 +1164,7 @@ export function captureContextualAnswer(
     !isAffirmativeOnlyMessage(msg) &&
     !isQuoteIntentMessage(msg) &&
     !isAmbiguousShortNumber(msg) &&
+    !isLikelyUbicacionNotNombre(msg) &&
     /[a-záéíóúüñ]/i.test(msg) &&
     !/@/.test(msg) &&
     !/\d{4,}/.test(msg)
@@ -1294,7 +1297,7 @@ export function scanConversationForCaptures(
       pending.add("Requerimientos o servicios");
     }
 
-    if (!pending.has("Número de invitados")) {
+    if (!pending.has("Número de invitados") && !isAmbiguousShortNumber(msg)) {
       const inv = parseInvitadosFromText(msg);
       if (inv) {
         captures.push({ label: "Número de invitados", value: inv });

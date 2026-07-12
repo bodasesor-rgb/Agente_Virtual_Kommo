@@ -37,8 +37,9 @@ import {
   parseWebLeadBrief,
   applyWebLeadBrief,
   isVagueFoodTerm,
+  sanitizeExtractedAmbiguousNumbers,
 } from "../conversation-understanding.js";
-import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre } from "../contact-name.js";
+import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
   resolveTipoContacto,
@@ -1976,6 +1977,47 @@ async function runAll(): Promise<void> {
     assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 200));
     assert.ok(/boda|solicitud|80\s+personas/i.test(first), first);
     assert.ok(!/opciones m[aá]s pedidas/i.test(first), first);
+  });
+
+  await test("45. Live-20 regresiones — el 5, nombre persistente, ubicación no es nombre", () => {
+    assert.ok(isLikelyUbicacionNotNombre("Narvarte CDMX"));
+    assert.equal(sanitizeCrmNombre("Narvarte CDMX"), null);
+    assert.equal(sanitizeCrmNombre("Mario"), "Mario");
+
+    const extractedAmbig = emptyExtracted({ num_invitados: 5 });
+    sanitizeExtractedAmbiguousNumbers(extractedAmbig, "el 5", { lastAskedField: "nombre" });
+    assert.equal(extractedAmbig.num_invitados, null);
+
+    const filledElena = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    const replyInvitados = runGuards({
+      aiResponse: "¿Cómo te llamas?",
+      extracted: emptyExtracted({ nombre: "Elena", tipo_evento: "boda", num_invitados: 100 }),
+      filledSet: new Set(filledElena),
+      readyForClosing: false,
+      currentMessage: "100 personas",
+      history: [
+        { role: "user", content: "Elena" },
+        { role: "assistant", content: "Mucho gusto, Elena. ¿A qué correo te lo envío?" },
+      ],
+    });
+    assert.ok(!/c[oó]mo\s+te\s+llamas/i.test(replyInvitados), replyInvitados);
+
+    const valetFirst = runGuards({
+      aiResponse: "Hola, soy Lucy, agente virtual de Bodasesor. ¿Cómo te llamas?",
+      extracted: emptyExtracted(),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: "¿También manejan valet parking y flores?",
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(/valet|flor|coordin|anot|equipo/i.test(valetFirst), valetFirst.slice(0, 200));
+    assert.ok(!/no tenemos|no manejamos/i.test(valetFirst), valetFirst);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

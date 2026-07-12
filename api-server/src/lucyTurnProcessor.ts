@@ -10,7 +10,9 @@ import { detectModoServicio } from "./modoServicio.js";
 import {
   applyWebLeadBrief,
   parseCorreoFromText,
+  recoverClienteNombreFromHistory,
   sanitizeExtractedAmbiguousNumbers,
+  inferLucyAskedField,
 } from "./conversation-understanding.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
 import { sanitizeCrmNombre } from "./contact-name.js";
@@ -59,7 +61,14 @@ export async function prepareLucyExtraction(
   const { fullHistory, messageText, crmLines, extractFn } = input;
 
   const extracted = await extractFn(fullHistory, messageText, crmLines.join("\n"));
-  sanitizeExtractedAmbiguousNumbers(extracted, messageText);
+
+  const lastAssistantForAmbig = [...fullHistory]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  const lastAskedAmbig = lastAssistantForAmbig
+    ? inferLucyAskedField(lastAssistantForAmbig.content as string)
+    : null;
+  sanitizeExtractedAmbiguousNumbers(extracted, messageText, { lastAskedField: lastAskedAmbig });
   applyWebLeadBrief(extracted, messageText);
 
   extracted.nombre = sanitizeCrmNombre(extracted.nombre);
@@ -85,7 +94,7 @@ export async function prepareLucyExtraction(
     }
   } else {
     enrichExtractedFromText(extracted, conversationText);
-    sanitizeExtractedAmbiguousNumbers(extracted, messageText);
+    sanitizeExtractedAmbiguousNumbers(extracted, messageText, { lastAskedField: lastAskedAmbig });
     if (!extracted.modo_servicio) {
       extracted.modo_servicio = detectModoServicio(conversationText);
     }

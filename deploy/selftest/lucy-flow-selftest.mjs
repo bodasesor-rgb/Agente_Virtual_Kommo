@@ -35,6 +35,16 @@ function isGreetingOnlyMessage(text) {
   if (/^soy\s+/i.test(t)) return false;
   return /^hola[.!?\s,]*$/i.test(t) || /^buen(os|as)?\s*(d[ií]as|tardes|noches)?[.!?\s,]*$/i.test(t) || /^qu[eé]\s*tal[.!?\s,]*$/i.test(t) || /^buenas?[.!?\s,]*$/i.test(t) || /^saludos?[.!?\s,]*$/i.test(t);
 }
+function isLikelyUbicacionNotNombre(text) {
+  const t = text?.trim() ?? "";
+  if (!t || /^(me llamo|soy)\s+/i.test(t)) return false;
+  if (/\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|sat[eé]lite|interlomas|expo\s+santa)\b/i.test(
+    t
+  ) && t.split(/\s+/).length <= 5) {
+    return true;
+  }
+  return false;
+}
 function isAffirmativeOnlyMessage(text) {
   const t = text?.trim() ?? "";
   if (!t) return false;
@@ -59,11 +69,13 @@ function sanitizeDisplayName(name) {
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
   if (isQuoteIntentMessage(trimmed)) return null;
+  if (isLikelyUbicacionNotNombre(trimmed)) return null;
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
 function sanitizeCrmNombre(name) {
   const trimmed = name?.trim() ?? "";
   if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
+  if (isLikelyUbicacionNotNombre(trimmed)) return null;
   const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   const parts = cleaned.split(/\s+/).filter((part) => {
@@ -468,6 +480,11 @@ function isVagueFoodTerm(text) {
     return true;
   }
   return /\b(quiero|necesito|busco)\s+(comida|alimentos?|desayuno|algo\s+de\s+comer)\b/i.test(t);
+}
+function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
+  if (isAmbiguousShortNumber(messageText, ctx)) {
+    extracted.num_invitados = null;
+  }
 }
 function recoverClienteNombreFromHistory(history, currentMessage) {
   let lastAssistant = "";
@@ -976,7 +993,7 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   const lastLucy = getLastLucyMessage(history);
   const asked = inferLucyAskedField(lastLucy);
   const captures = [];
-  if (!filledSet.has("Nombre del cliente") && (asked === "nombre" || !history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isAmbiguousShortNumber(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+  if (!filledSet.has("Nombre del cliente") && (asked === "nombre" || !history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
     const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
     const candidato = soyMatch ? soyMatch[1].trim() : msg;
     const nombre = sanitizeDisplayName(candidato);
@@ -1074,7 +1091,7 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
       });
       pending.add("Requerimientos o servicios");
     }
-    if (!pending.has("N\xFAmero de invitados")) {
+    if (!pending.has("N\xFAmero de invitados") && !isAmbiguousShortNumber(msg)) {
       const inv = parseInvitadosFromText(msg);
       if (inv) {
         captures.push({ label: "N\xFAmero de invitados", value: inv });
@@ -2272,6 +2289,16 @@ function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
   const genericCatering = clientMentionsCatering(clientMessage) && !parsePrimaryService(clientMessage);
   const mentionsService = isServiceRelatedMessage(clientMessage) && !!parsePrimaryService(clientMessage);
   if (!asksService && !genericCatering && !mentionsService) return aiResponse;
+  const primary = parsePrimaryService(clientMessage);
+  if (primary && /sushi|coffee\s*break|barra de bebidas/i.test(primary)) {
+    const detail2 = buildCatalogServiceDetailAnswer(clientMessage);
+    if (detail2 && !responseLooksLikeGenericCateringMenu(aiResponse)) {
+      return aiResponse;
+    }
+    if (detail2 && responseLooksLikeGenericCateringMenu(aiResponse)) {
+      return detail2;
+    }
+  }
   if (responseLooksLikeGenericCateringMenu(aiResponse)) {
     const detail2 = buildCatalogServiceDetailAnswer(clientMessage);
     if (detail2) return detail2;
@@ -2764,7 +2791,7 @@ function contextualPrefix(field, extracted, currentMessage, history = []) {
 }
 function getNextPendingField(extracted, filledSet) {
   const filled = filledSet ?? /* @__PURE__ */ new Set();
-  if (!filled.has("Nombre del cliente")) return "nombre";
+  if (!filled.has("Nombre del cliente") && !sanitizeCrmNombre(extracted.nombre)) return "nombre";
   if (!isEmailSatisfied(filled)) return "correo";
   const hasReq = filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
   const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
@@ -2920,6 +2947,10 @@ function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPrese
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
       return `${pickTransition(presHistory)} \xBFMe regalas tu nombre?`;
     }
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "nombre") {
+      return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
+    }
     if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
       return buildFirstInteractionMessage(ctx, true);
     }
@@ -2936,7 +2967,7 @@ function mensajeAsksForField(mensaje, field) {
 function isFieldSatisfied(field, filledSet, extracted) {
   switch (field) {
     case "nombre":
-      return filledSet.has("Nombre del cliente");
+      return filledSet.has("Nombre del cliente") || !!sanitizeCrmNombre(extracted.nombre);
     case "correo":
       return isEmailSatisfied(filledSet);
     case "tipo_evento":
@@ -3399,6 +3430,10 @@ function applyLucyMessageGuards(input) {
     mensaje = `${buildLocationAnswer()} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: ubicaci\xF3n + pedir nombre");
+  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && isServiceRelatedMessage(currentMessage) && (currentMessage?.includes("?") ?? false) && !clientAsksForRecommendations(currentMessage) && !clientAsksLocation(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
+    mensaje = `${buildGuardServiceAck(currentMessage)} ${pickVariant("nombre", presHistory, entityId)}`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: servicio consultivo en primer turno");
   } else if (needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
     mensaje = buildModoServicioClarificationQuestion();
     appliedDirectReply = true;
@@ -3856,6 +3891,13 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre ? `${pickTransition(presHistory)} ${nombre}, \xBFtienen d\xEDa u horario ya definido?` : `${pickTransition(presHistory)} \xBFTienen d\xEDa u horario ya definido?`;
     log?.info({ entityId }, "GUARD: segunda pregunta de fecha \u2014 variante corta");
+  }
+  if (mensajeAsksForField(mensaje, "nombre") && isFieldSatisfied("nombre", filledSet, extracted)) {
+    const pendingNombre = getNextPendingField(extracted, filledSet);
+    if (pendingNombre && pendingNombre !== "nombre") {
+      mensaje = buildNaturalQuestion(pendingNombre, ctx);
+      log?.info({ entityId, pending: pendingNombre }, "GUARD: nombre ya capturado \u2014 siguiente dato");
+    }
   }
   mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
   const historyHadGenericMenu = presHistory.some(
@@ -15960,6 +16002,43 @@ async function runAll() {
     assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 200));
     assert.ok(/boda|solicitud|80\s+personas/i.test(first), first);
     assert.ok(!/opciones m[aá]s pedidas/i.test(first), first);
+  });
+  await test("45. Live-20 regresiones \u2014 el 5, nombre persistente, ubicaci\xF3n no es nombre", () => {
+    assert.ok(isLikelyUbicacionNotNombre("Narvarte CDMX"));
+    assert.equal(sanitizeCrmNombre("Narvarte CDMX"), null);
+    assert.equal(sanitizeCrmNombre("Mario"), "Mario");
+    const extractedAmbig = emptyExtracted({ num_invitados: 5 });
+    sanitizeExtractedAmbiguousNumbers(extractedAmbig, "el 5", { lastAskedField: "nombre" });
+    assert.equal(extractedAmbig.num_invitados, null);
+    const filledElena = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento",
+      "Requerimientos o servicios"
+    ]);
+    const replyInvitados = runGuards({
+      aiResponse: "\xBFC\xF3mo te llamas?",
+      extracted: emptyExtracted({ nombre: "Elena", tipo_evento: "boda", num_invitados: 100 }),
+      filledSet: new Set(filledElena),
+      readyForClosing: false,
+      currentMessage: "100 personas",
+      history: [
+        { role: "user", content: "Elena" },
+        { role: "assistant", content: "Mucho gusto, Elena. \xBFA qu\xE9 correo te lo env\xEDo?" }
+      ]
+    });
+    assert.ok(!/c[oó]mo\s+te\s+llamas/i.test(replyInvitados), replyInvitados);
+    const valetFirst = runGuards({
+      aiResponse: "Hola, soy Lucy, agente virtual de Bodasesor. \xBFC\xF3mo te llamas?",
+      extracted: emptyExtracted(),
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: "\xBFTambi\xE9n manejan valet parking y flores?",
+      history: [],
+      forceFirstPresentation: true
+    });
+    assert.ok(/valet|flor|coordin|anot|equipo/i.test(valetFirst), valetFirst.slice(0, 200));
+    assert.ok(!/no tenemos|no manejamos/i.test(valetFirst), valetFirst);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

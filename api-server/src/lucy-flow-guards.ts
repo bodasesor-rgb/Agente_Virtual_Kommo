@@ -885,7 +885,7 @@ export function getNextPendingField(
 ): PendingField | null {
   const filled = filledSet ?? new Set<string>();
 
-  if (!filled.has("Nombre del cliente")) return "nombre";
+  if (!filled.has("Nombre del cliente") && !sanitizeCrmNombre(extracted.nombre)) return "nombre";
   if (!isEmailSatisfied(filled)) return "correo";
 
   const hasReq =
@@ -1149,6 +1149,10 @@ export function enforceNombreFirst(
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
       return `${pickTransition(presHistory)} ¿Me regalas tu nombre?`;
     }
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "nombre") {
+      return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
+    }
     if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
       return buildFirstInteractionMessage(ctx, true);
     }
@@ -1175,7 +1179,7 @@ export function isFieldSatisfied(
 ): boolean {
   switch (field) {
     case "nombre":
-      return filledSet.has("Nombre del cliente");
+      return filledSet.has("Nombre del cliente") || !!sanitizeCrmNombre(extracted.nombre);
     case "correo":
       return isEmailSatisfied(filledSet);
     case "tipo_evento":
@@ -1956,6 +1960,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: ubicación + pedir nombre");
   } else if (
+    (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+    !conversationAlreadyStarted(filledSet, presHistory) &&
+    isServiceRelatedMessage(currentMessage) &&
+    (currentMessage?.includes("?") ?? false) &&
+    !clientAsksForRecommendations(currentMessage) &&
+    !clientAsksLocation(currentMessage) &&
+    !isFieldSatisfied("nombre", filledSet, extracted)
+  ) {
+    mensaje = `${buildGuardServiceAck(currentMessage)} ${pickVariant("nombre", presHistory, entityId)}`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: servicio consultivo en primer turno");
+  } else if (
     needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)
   ) {
     mensaje = buildModoServicioClarificationQuestion();
@@ -2538,6 +2554,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ? `${pickTransition(presHistory)} ${nombre}, ¿tienen día u horario ya definido?`
       : `${pickTransition(presHistory)} ¿Tienen día u horario ya definido?`;
     log?.info({ entityId }, "GUARD: segunda pregunta de fecha — variante corta");
+  }
+
+  if (
+    mensajeAsksForField(mensaje, "nombre") &&
+    isFieldSatisfied("nombre", filledSet, extracted)
+  ) {
+    const pendingNombre = getNextPendingField(extracted, filledSet);
+    if (pendingNombre && pendingNombre !== "nombre") {
+      mensaje = buildNaturalQuestion(pendingNombre, ctx);
+      log?.info({ entityId, pending: pendingNombre }, "GUARD: nombre ya capturado — siguiente dato");
+    }
   }
 
   mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
