@@ -31,13 +31,6 @@ async function startServer(): Promise<void> {
   void ensureKnowledgeGapSchema().catch((err) => {
     logger.warn({ err }, "knowledgeGapSchema init en background falló");
   });
-  try {
-    await bootstrapCatalog();
-    logger.info("Catálogo Google Sheets cargado al arranque");
-  } catch (err) {
-    logger.warn({ err }, "bootstrapCatalog falló — se usará fallback estático hasta el próximo refresh");
-  }
-  startCatalogAutoRefresh();
 
   app.listen(port, "0.0.0.0", (err) => {
   if (err) {
@@ -98,6 +91,18 @@ async function startServer(): Promise<void> {
 
   logger.info({ intervalMinutes: 3, healthUrl }, "Keep-alive activado");
   });
+
+  startCatalogAutoRefresh();
+  void bootstrapCatalog()
+    .then(() => {
+      logger.info("Catálogo Google Sheets cargado al arranque");
+    })
+    .catch((err) => {
+      logger.warn(
+        { err },
+        "bootstrapCatalog falló — se usará fallback estático hasta el próximo refresh",
+      );
+    });
 }
 
 void startServer().catch((err) => {

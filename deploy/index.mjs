@@ -92933,13 +92933,6 @@ async function startServer() {
   void ensureKnowledgeGapSchema().catch((err2) => {
     logger.warn({ err: err2 }, "knowledgeGapSchema init en background fall\xF3");
   });
-  try {
-    await bootstrapCatalog();
-    logger.info("Cat\xE1logo Google Sheets cargado al arranque");
-  } catch (err2) {
-    logger.warn({ err: err2 }, "bootstrapCatalog fall\xF3 \u2014 se usar\xE1 fallback est\xE1tico hasta el pr\xF3ximo refresh");
-  }
-  startCatalogAutoRefresh();
   app_default.listen(port, "0.0.0.0", (err2) => {
     if (err2) {
       logger.error({ err: err2 }, "Error listening on port");
@@ -92981,6 +92974,15 @@ async function startServer() {
       }, PING_INTERVAL_MS);
     }, 1e4);
     logger.info({ intervalMinutes: 3, healthUrl }, "Keep-alive activado");
+  });
+  startCatalogAutoRefresh();
+  void bootstrapCatalog().then(() => {
+    logger.info("Cat\xE1logo Google Sheets cargado al arranque");
+  }).catch((err2) => {
+    logger.warn(
+      { err: err2 },
+      "bootstrapCatalog fall\xF3 \u2014 se usar\xE1 fallback est\xE1tico hasta el pr\xF3ximo refresh"
+    );
   });
 }
 void startServer().catch((err2) => {
