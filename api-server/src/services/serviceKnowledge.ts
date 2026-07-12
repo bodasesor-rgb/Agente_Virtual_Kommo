@@ -67,7 +67,7 @@ export function classifyServiceKnowledgeLevel(query: string): ServiceKnowledgeLe
 /** Acuse NIVEL 2 — servicio de eventos sin precio en Sheet. */
 export function buildLevel2Ack(serviceLabel: string): string {
   const label = serviceLabel.trim() || "ese servicio";
-  return `¡Claro! *${label}* la anoto en tu solicitud. Nuestro equipo te confirma descripción, precio e inclusiones en la cotización.`;
+  return `¡Claro! *${label}* la anoto para tu cotización. Nuestro equipo te confirma descripción, precio e inclusiones.`;
 }
 
 /** Acuse NIVEL 3 — solicitud especial; el equipo confirma disponibilidad. */
@@ -119,7 +119,7 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
     const parts = ["CONOCIMIENTO DE SERVICIO (Google Sheet — precio solo de aquí):"];
     if (sheetBlock) parts.push(sheetBlock);
     else if (sheetDetail) parts.push(sheetDetail);
-    parts.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita el campo Incluye (dato real del Sheet).");
+    parts.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita Incluye si aparece en el bloque.");
     return {
       level: 1,
       label,

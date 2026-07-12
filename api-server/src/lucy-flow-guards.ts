@@ -42,6 +42,7 @@ import {
   resolveCatalogInclusionReply,
   buildCatalogComparisonAnswer,
   buildCatalogServiceDetailAnswer,
+  catalogAnswerMatchesRequestedService,
   responseLooksLikeGenericCateringMenu,
   clientAsksInclusion,
 } from "./services/catalogService.js";
@@ -479,7 +480,7 @@ export function buildPhoneAnswer(): string {
 
 /** Respuesta estándar de ubicación y cobertura (prompt sección 7). */
 export function buildLocationAnswer(): string {
-  return "Estamos en Ciudad de México y damos servicio en toda la CDMX y zona metropolitana. Para eventos fuera de la ciudad también podemos, según la fecha y el lugar.";
+  return "Estamos en Ciudad de México y trabajamos en toda la república. Según la fecha y el lugar de tu evento, coordinamos el servicio.";
 }
 
 /** Pitch de comida italiana para temáticas o recomendaciones contextuales. */
@@ -710,7 +711,10 @@ function buildFoodSalesReply(
   };
 
   if (mentionedService || (currentMessage && isServiceRelatedMessage(currentMessage))) {
-    const detail = query ? buildCatalogServiceDetailAnswer(query) : null;
+    let detail = query ? buildCatalogServiceDetailAnswer(query) : null;
+    if (detail && mentionedService && !catalogAnswerMatchesRequestedService(currentMessage ?? "", detail)) {
+      detail = null;
+    }
     const serviceLabel =
       mentionedService ??
       parsePrimaryService(currentMessage ?? "") ??

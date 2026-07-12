@@ -357,7 +357,7 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
           const clientNotes = [parsed.inclusion, parsed.minimo ? `Mínimo de salida: ${parsed.minimo}` : ""]
             .filter(Boolean)
             .join(" | ");
-          if (clientNotes) lines.push(`  Incluye (dato real del Sheet): ${clientNotes}`);
+          if (clientNotes) lines.push(`  Incluye: ${clientNotes}`);
         }
       } else {
         lines.push(`• **${svc}** (${levels.length} niveles)`);

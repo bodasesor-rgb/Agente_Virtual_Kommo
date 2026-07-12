@@ -363,6 +363,78 @@ function uniqueNiveles(rows: SheetCatalogRow[]): string[] {
   return [...new Set(rows.map((r) => r.nivel.trim()).filter(Boolean))];
 }
 
+/** True si la fila del Sheet corresponde al servicio que el cliente pidió por nombre. */
+export function rowMatchesServiceLabel(row: SheetCatalogRow, label: string): boolean {
+  const normLabel = normalizeForMatch(label).replace(/\s+/g, "");
+  const normSvc = normalizeForMatch(row.servicio).replace(/\s+/g, "");
+  if (!normLabel || !normSvc) return false;
+  if (normSvc.includes(normLabel) || normLabel.includes(normSvc)) return true;
+  const labelTokens = normalizeForMatch(label).split(/\s+/).filter((t) => t.length >= 4);
+  if (labelTokens.length >= 2) {
+    return labelTokens.every((t) => normSvc.includes(t));
+  }
+  return normSvc.includes(normLabel);
+}
+
+/** Palabras clave del servicio en el texto del cliente (más fiable que alias CRM como "Banquete Formal"). */
+function catalogKeywordsFromQuery(query: string): string[] {
+  if (isVagueCatalogFoodQuery(query.trim())) return [];
+
+  const q = normalizeForMatch(query);
+  const keys: string[] = [];
+
+  if (/\bparrillada\b/.test(q)) keys.push("parrillada");
+  if (/\bargentina\b/.test(q) && keys.includes("parrillada")) keys.push("argentina");
+  if (/\bbanquete\b/.test(q)) return ["banquete"];
+  if (/\btaquiza\b/.test(q)) return ["taquiza"];
+  if (keys.length) return keys;
+
+  const requested = parsePrimaryService(query);
+  if (!requested?.trim()) return [];
+  return normalizeForMatch(requested)
+    .split(/\s+/)
+    .filter((t) => t.length >= 4);
+}
+
+function rowMatchesCatalogKeywords(row: SheetCatalogRow, keywords: string[]): boolean {
+  if (!keywords.length) return true;
+  const hay = normalizeForMatch(row.servicio);
+  return keywords.every((k) => hay.includes(k));
+}
+
+/** Filas del Sheet para el servicio pedido; null = pedido explícito pero no está en catálogo. */
+function rowsForRequestedService(allRows: SheetCatalogRow[], query: string): SheetCatalogRow[] | null {
+  if (isVagueCatalogFoodQuery(query.trim())) return allRows;
+
+  const keywords = catalogKeywordsFromQuery(query);
+  if (keywords.length) {
+    const matched = allRows.filter((r) => rowMatchesCatalogKeywords(r, keywords));
+    return matched.length ? matched : null;
+  }
+
+  const requested = parsePrimaryService(query);
+  if (!requested) return allRows;
+  const matched = allRows.filter((r) => rowMatchesServiceLabel(r, requested));
+  return matched.length ? matched : null;
+}
+
+/** Evita sustituir el servicio pedido (ej. parrillada) por otro (ej. banquete) en la respuesta. */
+export function catalogAnswerMatchesRequestedService(query: string, answer: string): boolean {
+  const keywords = catalogKeywordsFromQuery(query);
+  if (!keywords.length) return true;
+  const norm = normalizeForMatch(answer);
+  return keywords.every((k) => norm.includes(k));
+}
+
+function catalogResultMatchesRequestedService(
+  query: string,
+  result: CatalogMatchResult | null
+): boolean {
+  const keywords = catalogKeywordsFromQuery(query);
+  if (!keywords.length || !result) return true;
+  return result.rows.some((r) => rowMatchesCatalogKeywords(r, keywords));
+}
+
 function isVagueCatalogFoodQuery(query: string): boolean {
   const q = normalizeForMatch(query.trim());
   return /^(comida|alimentos?|men[uú]s?|desayuno|catering)$/.test(q);
@@ -378,7 +450,7 @@ function matchesSpecificServicioInQuery(query: string, rows: SheetCatalogRow[]):
     const svcTokens = normSvc.split(/\s+/).filter((t) => t.length >= 4);
     if (svcTokens.some((t) => q.includes(t))) return true;
   }
-  if (/\b(banquete|taquiza|barra de|coffee break|brunch)\b/.test(q)) return true;
+  if (/\b(banquete|taquiza|barra de|coffee break|brunch|parrillada)\b/.test(q)) return true;
   return false;
 }
 
@@ -428,17 +500,21 @@ function simplifyServiceNamesForList(servicios: string[]): string[] {
 
 export function resolveCatalogQuery(query: string): CatalogMatchResult | null {
   if (!snapshot?.rows.length) return null;
-  const rows = snapshot.rows;
+  const allRows = snapshot.rows;
   const trimmed = query.trim();
   if (!trimmed) return null;
 
   const macro = detectMacroCategoryQuery(trimmed);
-  if (macro && !matchesSpecificServicioInQuery(trimmed, rows)) {
-    const catRows = rows.filter((r) => macro.servicePattern.test(r.servicio));
+  if (macro && !matchesSpecificServicioInQuery(trimmed, allRows)) {
+    const catRows = allRows.filter((r) => macro.servicePattern.test(r.servicio));
     if (catRows.length) {
       return { kind: "category", categoryLabel: macro.label, rows: catRows };
     }
   }
+
+  const serviceScoped = rowsForRequestedService(allRows, trimmed);
+  if (serviceScoped === null) return null;
+  const rows = serviceScoped;
 
   const tokens = queryTokens(query);
   if (!tokens.length) return null;
@@ -535,9 +611,7 @@ function buildExactRowDetailAnswer(row: SheetCatalogRow): string {
     row.tienePrecio && row.precio
       ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
       : "";
-  const inclusion = parsed.inclusion
-    ? `\n\n*Incluye (dato real del Sheet):* ${parsed.inclusion}`
-    : "";
+  const inclusion = parsed.inclusion ? `\n\n*Incluye:* ${parsed.inclusion}` : "";
   return `Sí, manejamos *${label}*.${price ? `\n${price}` : ""}${inclusion}`.trim();
 }
 
@@ -546,9 +620,7 @@ function buildExactRowPriceAnswer(row: SheetCatalogRow): string {
   const parsed = parseRowNotes(row.notas);
   const unit = row.unidad ? ` ${row.unidad}` : "";
   const min = parsed.minimo ? ` (mín. ${parsed.minimo})` : "";
-  const inclusion = parsed.inclusion
-    ? `\n\n*Incluye (dato real del Sheet):* ${parsed.inclusion}`
-    : "";
+  const inclusion = parsed.inclusion ? `\n\n*Incluye:* ${parsed.inclusion}` : "";
   return `*${label}* — ${row.precio}${unit}${min}${inclusion}`;
 }
 
@@ -614,6 +686,17 @@ function scoreCatalogRow(
 
   const hay = rowHaystack(row);
   const q = normalizeForMatch(query);
+  const keywords = catalogKeywordsFromQuery(query);
+  if (keywords.length) {
+    if (rowMatchesCatalogKeywords(row, keywords)) score += 12;
+    else if (keywords.includes("parrillada") && /\bbanquete\b/.test(hay) && !/parrillada/.test(hay)) {
+      score -= 20;
+    } else if (keywords.includes("banquete") && /parrillada/.test(hay) && !/banquete/.test(hay)) {
+      score -= 20;
+    } else {
+      score -= 8;
+    }
+  }
   if (!/\bmexicano\b/.test(q) && /\bmexicano\b/.test(hay)) score -= 6;
   if (!/\bkosher\b/.test(q) && /\bkosher\b/.test(hay)) score -= 6;
   if (!/\bnavide/.test(q) && /\bnavide/.test(hay)) score -= 6;
@@ -657,7 +740,7 @@ function buildInclusionBlock(rows: SheetCatalogRow[], maxPerLevel = 220): string
   if (!uniqueTexts.length) return "";
 
   if (uniqueTexts.length === 1) {
-    return `\n\n*Incluye (dato real del Sheet):* ${uniqueTexts[0]}`;
+    return `\n\n*Incluye:* ${uniqueTexts[0]}`;
   }
 
   const lines = inclusionByLevel
@@ -668,7 +751,7 @@ function buildInclusionBlock(rows: SheetCatalogRow[], maxPerLevel = 220): string
         `• *${r.nivel}:* ${r.inclusion!.slice(0, maxPerLevel)}${r.inclusion!.length > maxPerLevel ? "…" : ""}`
     );
 
-  return lines.length ? `\n\n*Qué incluye cada nivel (dato real del Sheet):*\n${lines.join("\n")}` : "";
+  return lines.length ? `\n\n*Qué incluye cada nivel:*\n${lines.join("\n")}` : "";
 }
 
 function getInclusionFromRow(row: SheetCatalogRow): string | null {
@@ -730,7 +813,7 @@ export function buildCatalogInclusionAnswer(query: string): string | null {
     const inclusion = getInclusionFromRow(row);
     if (!inclusion) return null;
     const label = formatCatalogRowLabel(row);
-    return `*${label}* — *Incluye (dato real del Sheet):* ${inclusion}`;
+    return `*${label}* — *Incluye:* ${inclusion}`;
   }
 
   if (resolved.kind === "service") {
@@ -739,7 +822,7 @@ export function buildCatalogInclusionAnswer(query: string): string | null {
 
     if (rowsWithInclusion.length === 1) {
       const row = rowsWithInclusion[0]!;
-      return `*${formatCatalogRowLabel(row)}* — *Incluye (dato real del Sheet):* ${getInclusionFromRow(row)}`;
+      return `*${formatCatalogRowLabel(row)}* — *Incluye:* ${getInclusionFromRow(row)}`;
     }
 
     const baseName = resolved.serviceName ?? rowsWithInclusion[0]!.servicio;
@@ -747,7 +830,7 @@ export function buildCatalogInclusionAnswer(query: string): string | null {
       const nivel = extractNivelLabel(row);
       return `• *${nivel}:* ${getInclusionFromRow(row)}`;
     });
-    return `*Incluye (dato real del Sheet)* — *${baseName}*:\n${blocks.join("\n")}`;
+    return `*Incluye:* — *${baseName}*:\n${blocks.join("\n")}`;
   }
 
   return null;
@@ -757,6 +840,7 @@ export function buildCatalogInclusionAnswer(query: string): string | null {
 export function buildCatalogPriceAnswer(query: string): string | null {
   const resolved = resolveCatalogQuery(query);
   if (!resolved) return null;
+  if (!catalogResultMatchesRequestedService(query, resolved)) return null;
 
   if (resolved.kind === "category") {
     return buildCategoryServicesAnswer(resolved);
@@ -882,8 +966,8 @@ export function formatServiceDataForPrompt(query: string): string | null {
         ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
         : "Precio: sin listar — Alejandro cotiza";
     const inclusion = parsed.inclusion
-      ? `Incluye (dato real del Sheet): ${parsed.inclusion}`
-      : "Incluye: sin dato en Sheet — el equipo confirma en cotización";
+      ? `Incluye: ${parsed.inclusion}`
+      : "Incluye: (vacío en catálogo — equipo confirma en cotización)";
     return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}`;
   });
 
@@ -909,6 +993,8 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
   if (!snapshot?.rows.length) return null;
 
   const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (!catalogResultMatchesRequestedService(query, resolved)) return null;
   if (resolved?.kind === "category") {
     return buildCategoryServicesAnswer(resolved);
   }
@@ -929,6 +1015,9 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
   if (!matches.length) return null;
 
   const row = matches[0]!;
+  if (!catalogResultMatchesRequestedService(query, { kind: "service_nivel", rows: [row] })) {
+    return null;
+  }
   const parsed = parseRowNotes(row.notas);
   if (parsed.inclusion) {
     return `Sí, manejamos *${formatCatalogRowLabel(row)}*.\n\n${parsed.inclusion}`;

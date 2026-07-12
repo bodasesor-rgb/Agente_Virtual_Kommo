@@ -102,6 +102,9 @@ import {
   buildInclusionTeamConfirmationAnswer,
   injectCatalogInclusionIfAsked,
   resolveCatalogInclusionReply,
+  catalogAnswerMatchesRequestedService,
+  rowMatchesServiceLabel,
+  buildCatalogServiceDetailAnswer,
 } from "../services/catalogService.js";
 import {
   parseSheetCatalogCsv,
@@ -1457,7 +1460,7 @@ async function runAll(): Promise<void> {
   await test("32. Batería 20 — ubicación, italiano, expo, número ambiguo", () => {
     assert.ok(clientAsksLocation("¿Dónde se ubican?"));
     assert.ok(clientMentionsItalianTheme("fiesta temática de mafia italiana"));
-    assert.ok(buildLocationAnswer().includes("CDMX"));
+    assert.ok(buildLocationAnswer().includes("república"));
     assert.equal(parseTipoEventoFromText("stand de café para una expo"), "evento corporativo");
     assert.equal(parseZonaFromText("en Expo Santa Fe"), "Expo Santa Fe");
     assert.equal(sanitizeDisplayName("el 5"), null);
@@ -1471,7 +1474,7 @@ async function runAll(): Promise<void> {
       },
       true
     );
-    assert.ok(/CDMX|Ciudad de México/i.test(locFirst), locFirst);
+    assert.ok(/CDMX|Ciudad de México|república/i.test(locFirst), locFirst);
     assert.ok(/llamas|nombre/i.test(locFirst), locFirst);
 
     const ambig = runGuards({
@@ -1906,6 +1909,7 @@ async function runAll(): Promise<void> {
     assert.ok(filled);
     assert.ok(/Refrescos, aguas y 3 licores premium/.test(filled!), filled);
     assert.ok(!/cerveza|vino com[uú]n/i.test(filled!), filled);
+    assert.ok(!/dato real del Sheet/i.test(filled!), filled);
 
     const hallucinated = "La barra básica incluye cervezas, vinos y licores comunes.";
     const injected = injectCatalogInclusionIfAsked("qué incluye la barra básica", hallucinated);
@@ -1915,6 +1919,39 @@ async function runAll(): Promise<void> {
     const reply = resolveCatalogInclusionReply("qué incluye la barra básica");
     assert.ok(reply);
     assert.equal(reply, team);
+  });
+
+  await test("43. Alejandra — parrillada argentina no se sustituye por banquete", () => {
+    const csvBanqueteOnly = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Banquete 3 tiempos","Basico","$500.00","$15,000.00","TRUE","3 tiempos"',
+      '"Banquete 4 tiempos","Premium","$750.00","$15,000.00","TRUE","4 tiempos"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvBanqueteOnly));
+
+    assert.equal(resolveCatalogQuery("quiero parrillada argentina"), null);
+    assert.equal(buildCatalogServiceDetailAnswer("quiero parrillada argentina"), null);
+    assert.equal(buildCatalogPriceAnswer("quiero parrillada argentina"), null);
+
+    const ack = buildLevel2Ack("Parrillada Argentina");
+    assert.ok(/parrillada argentina/i.test(ack), ack);
+    assert.ok(!/banquete/i.test(ack), ack);
+
+    const csvConParrillada = [
+      csvBanqueteOnly,
+      '"Parrillada Argentina","Basica","$420.00","$8,400.00","TRUE","Cortes argentinos y guarniciones"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvConParrillada));
+
+    const resolved = resolveCatalogQuery("quiero parrillada argentina");
+    assert.ok(resolved);
+    assert.ok(rowMatchesServiceLabel(resolved!.rows[0]!, "Parrillada Argentina"));
+
+    const detail = buildCatalogServiceDetailAnswer("quiero parrillada argentina");
+    assert.ok(detail, detail);
+    assert.ok(/parrillada argentina|cortes argentinos/i.test(detail!), detail);
+    assert.ok(!/banquete\s+3\s+tiempos/i.test(detail!), detail);
+    assert.ok(catalogAnswerMatchesRequestedService("quiero parrillada argentina", detail!), detail);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -1540,7 +1540,7 @@ function classifyServiceKnowledgeLevel(query) {
 }
 function buildLevel2Ack(serviceLabel) {
   const label = serviceLabel.trim() || "ese servicio";
-  return `\xA1Claro! *${label}* la anoto en tu solicitud. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones en la cotizaci\xF3n.`;
+  return `\xA1Claro! *${label}* la anoto para tu cotizaci\xF3n. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones.`;
 }
 function buildLevel3Ack(serviceLabel) {
   const label = serviceLabel.trim() || "tu solicitud";
@@ -1571,7 +1571,7 @@ function getServiceKnowledge(query) {
     const parts = ["CONOCIMIENTO DE SERVICIO (Google Sheet \u2014 precio solo de aqu\xED):"];
     if (sheetBlock) parts.push(sheetBlock);
     else if (sheetDetail) parts.push(sheetDetail);
-    parts.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita el campo Incluye (dato real del Sheet).");
+    parts.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita Incluye si aparece en el bloque.");
     return {
       level: 1,
       label,
@@ -1716,6 +1716,58 @@ function uniqueServicios(rows) {
 function uniqueNiveles(rows) {
   return [...new Set(rows.map((r) => r.nivel.trim()).filter(Boolean))];
 }
+function rowMatchesServiceLabel(row, label) {
+  const normLabel = normalizeForMatch(label).replace(/\s+/g, "");
+  const normSvc = normalizeForMatch(row.servicio).replace(/\s+/g, "");
+  if (!normLabel || !normSvc) return false;
+  if (normSvc.includes(normLabel) || normLabel.includes(normSvc)) return true;
+  const labelTokens = normalizeForMatch(label).split(/\s+/).filter((t) => t.length >= 4);
+  if (labelTokens.length >= 2) {
+    return labelTokens.every((t) => normSvc.includes(t));
+  }
+  return normSvc.includes(normLabel);
+}
+function catalogKeywordsFromQuery(query) {
+  if (isVagueCatalogFoodQuery(query.trim())) return [];
+  const q = normalizeForMatch(query);
+  const keys = [];
+  if (/\bparrillada\b/.test(q)) keys.push("parrillada");
+  if (/\bargentina\b/.test(q) && keys.includes("parrillada")) keys.push("argentina");
+  if (/\bbanquete\b/.test(q)) return ["banquete"];
+  if (/\btaquiza\b/.test(q)) return ["taquiza"];
+  if (keys.length) return keys;
+  const requested = parsePrimaryService(query);
+  if (!requested?.trim()) return [];
+  return normalizeForMatch(requested).split(/\s+/).filter((t) => t.length >= 4);
+}
+function rowMatchesCatalogKeywords(row, keywords) {
+  if (!keywords.length) return true;
+  const hay = normalizeForMatch(row.servicio);
+  return keywords.every((k) => hay.includes(k));
+}
+function rowsForRequestedService(allRows, query) {
+  if (isVagueCatalogFoodQuery(query.trim())) return allRows;
+  const keywords = catalogKeywordsFromQuery(query);
+  if (keywords.length) {
+    const matched2 = allRows.filter((r) => rowMatchesCatalogKeywords(r, keywords));
+    return matched2.length ? matched2 : null;
+  }
+  const requested = parsePrimaryService(query);
+  if (!requested) return allRows;
+  const matched = allRows.filter((r) => rowMatchesServiceLabel(r, requested));
+  return matched.length ? matched : null;
+}
+function catalogAnswerMatchesRequestedService(query, answer) {
+  const keywords = catalogKeywordsFromQuery(query);
+  if (!keywords.length) return true;
+  const norm = normalizeForMatch(answer);
+  return keywords.every((k) => norm.includes(k));
+}
+function catalogResultMatchesRequestedService(query, result) {
+  const keywords = catalogKeywordsFromQuery(query);
+  if (!keywords.length || !result) return true;
+  return result.rows.some((r) => rowMatchesCatalogKeywords(r, keywords));
+}
 function isVagueCatalogFoodQuery(query) {
   const q = normalizeForMatch(query.trim());
   return /^(comida|alimentos?|men[uú]s?|desayuno|catering)$/.test(q);
@@ -1730,7 +1782,7 @@ function matchesSpecificServicioInQuery(query, rows) {
     const svcTokens = normSvc.split(/\s+/).filter((t) => t.length >= 4);
     if (svcTokens.some((t) => q.includes(t))) return true;
   }
-  if (/\b(banquete|taquiza|barra de|coffee break|brunch)\b/.test(q)) return true;
+  if (/\b(banquete|taquiza|barra de|coffee break|brunch|parrillada)\b/.test(q)) return true;
   return false;
 }
 function detectMacroCategoryQuery(query) {
@@ -1774,16 +1826,19 @@ function simplifyServiceNamesForList(servicios) {
 }
 function resolveCatalogQuery(query) {
   if (!snapshot?.rows.length) return null;
-  const rows = snapshot.rows;
+  const allRows = snapshot.rows;
   const trimmed = query.trim();
   if (!trimmed) return null;
   const macro = detectMacroCategoryQuery(trimmed);
-  if (macro && !matchesSpecificServicioInQuery(trimmed, rows)) {
-    const catRows = rows.filter((r) => macro.servicePattern.test(r.servicio));
+  if (macro && !matchesSpecificServicioInQuery(trimmed, allRows)) {
+    const catRows = allRows.filter((r) => macro.servicePattern.test(r.servicio));
     if (catRows.length) {
       return { kind: "category", categoryLabel: macro.label, rows: catRows };
     }
   }
+  const serviceScoped = rowsForRequestedService(allRows, trimmed);
+  if (serviceScoped === null) return null;
+  const rows = serviceScoped;
   const tokens = queryTokens(query);
   if (!tokens.length) return null;
   const filters = parseCatalogQueryFilters(query);
@@ -1861,7 +1916,7 @@ function buildExactRowDetailAnswer(row) {
   const price = row.tienePrecio && row.precio ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
   const inclusion = parsed.inclusion ? `
 
-*Incluye (dato real del Sheet):* ${parsed.inclusion}` : "";
+*Incluye:* ${parsed.inclusion}` : "";
   return `S\xED, manejamos *${label}*.${price ? `
 ${price}` : ""}${inclusion}`.trim();
 }
@@ -1872,7 +1927,7 @@ function buildExactRowPriceAnswer(row) {
   const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
   const inclusion = parsed.inclusion ? `
 
-*Incluye (dato real del Sheet):* ${parsed.inclusion}` : "";
+*Incluye:* ${parsed.inclusion}` : "";
   return `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`;
 }
 function formatRequerimientoLabelFromQuery(query) {
@@ -1925,6 +1980,17 @@ function scoreCatalogRow(row, tokens, filters, query) {
   }
   const hay = rowHaystack(row);
   const q = normalizeForMatch(query);
+  const keywords = catalogKeywordsFromQuery(query);
+  if (keywords.length) {
+    if (rowMatchesCatalogKeywords(row, keywords)) score += 12;
+    else if (keywords.includes("parrillada") && /\bbanquete\b/.test(hay) && !/parrillada/.test(hay)) {
+      score -= 20;
+    } else if (keywords.includes("banquete") && /parrillada/.test(hay) && !/banquete/.test(hay)) {
+      score -= 20;
+    } else {
+      score -= 8;
+    }
+  }
   if (!/\bmexicano\b/.test(q) && /\bmexicano\b/.test(hay)) score -= 6;
   if (!/\bkosher\b/.test(q) && /\bkosher\b/.test(hay)) score -= 6;
   if (!/\bnavide/.test(q) && /\bnavide/.test(hay)) score -= 6;
@@ -1951,14 +2017,14 @@ function buildInclusionBlock(rows, maxPerLevel = 220) {
   if (uniqueTexts.length === 1) {
     return `
 
-*Incluye (dato real del Sheet):* ${uniqueTexts[0]}`;
+*Incluye:* ${uniqueTexts[0]}`;
   }
   const lines = inclusionByLevel.filter((r) => r.inclusion).slice(0, 5).map(
     (r) => `\u2022 *${r.nivel}:* ${r.inclusion.slice(0, maxPerLevel)}${r.inclusion.length > maxPerLevel ? "\u2026" : ""}`
   );
   return lines.length ? `
 
-*Qu\xE9 incluye cada nivel (dato real del Sheet):*
+*Qu\xE9 incluye cada nivel:*
 ${lines.join("\n")}` : "";
 }
 function getInclusionFromRow(row) {
@@ -2003,21 +2069,21 @@ function buildCatalogInclusionAnswer(query) {
     const inclusion = getInclusionFromRow(row);
     if (!inclusion) return null;
     const label = formatCatalogRowLabel(row);
-    return `*${label}* \u2014 *Incluye (dato real del Sheet):* ${inclusion}`;
+    return `*${label}* \u2014 *Incluye:* ${inclusion}`;
   }
   if (resolved.kind === "service") {
     const rowsWithInclusion = resolved.rows.filter((r) => getInclusionFromRow(r));
     if (!rowsWithInclusion.length) return null;
     if (rowsWithInclusion.length === 1) {
       const row = rowsWithInclusion[0];
-      return `*${formatCatalogRowLabel(row)}* \u2014 *Incluye (dato real del Sheet):* ${getInclusionFromRow(row)}`;
+      return `*${formatCatalogRowLabel(row)}* \u2014 *Incluye:* ${getInclusionFromRow(row)}`;
     }
     const baseName = resolved.serviceName ?? rowsWithInclusion[0].servicio;
     const blocks = rowsWithInclusion.slice(0, 5).map((row) => {
       const nivel = extractNivelLabel(row);
       return `\u2022 *${nivel}:* ${getInclusionFromRow(row)}`;
     });
-    return `*Incluye (dato real del Sheet)* \u2014 *${baseName}*:
+    return `*Incluye:* \u2014 *${baseName}*:
 ${blocks.join("\n")}`;
   }
   return null;
@@ -2025,6 +2091,7 @@ ${blocks.join("\n")}`;
 function buildCatalogPriceAnswer(query) {
   const resolved = resolveCatalogQuery(query);
   if (!resolved) return null;
+  if (!catalogResultMatchesRequestedService(query, resolved)) return null;
   if (resolved.kind === "category") {
     return buildCategoryServicesAnswer(resolved);
   }
@@ -2116,7 +2183,7 @@ function formatServiceDataForPrompt(query) {
   const lines = unique.map((row) => {
     const parsed = parseRowNotes(row.notas);
     const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
-    const inclusion = parsed.inclusion ? `Incluye (dato real del Sheet): ${parsed.inclusion}` : "Incluye: sin dato en Sheet \u2014 el equipo confirma en cotizaci\xF3n";
+    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "Incluye: (vac\xEDo en cat\xE1logo \u2014 equipo confirma en cotizaci\xF3n)";
     return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}`;
   });
   return [
@@ -2136,6 +2203,8 @@ function buildCatalogNotFoundAnswer(serviceLabel, query) {
 function buildCatalogServiceDetailAnswer(query) {
   if (!snapshot?.rows.length) return null;
   const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (!catalogResultMatchesRequestedService(query, resolved)) return null;
   if (resolved?.kind === "category") {
     return buildCategoryServicesAnswer(resolved);
   }
@@ -2152,6 +2221,9 @@ function buildCatalogServiceDetailAnswer(query) {
   const matches = lookupCatalogServices(query);
   if (!matches.length) return null;
   const row = matches[0];
+  if (!catalogResultMatchesRequestedService(query, { kind: "service_nivel", rows: [row] })) {
+    return null;
+  }
   const parsed = parseRowNotes(row.notas);
   if (parsed.inclusion) {
     return `S\xED, manejamos *${formatCatalogRowLabel(row)}*.
@@ -2450,7 +2522,7 @@ function buildPhoneAnswer() {
   ].join("\n");
 }
 function buildLocationAnswer() {
-  return "Estamos en Ciudad de M\xE9xico y damos servicio en toda la CDMX y zona metropolitana. Para eventos fuera de la ciudad tambi\xE9n podemos, seg\xFAn la fecha y el lugar.";
+  return "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el lugar de tu evento, coordinamos el servicio.";
 }
 function buildItalianFoodPitch(message) {
   const inv = message?.match(/(\d+)\s*(?:personas?|invitados?)/i);
@@ -2579,7 +2651,10 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
 ${nextQ}`;
   };
   if (mentionedService || currentMessage && isServiceRelatedMessage(currentMessage)) {
-    const detail = query ? buildCatalogServiceDetailAnswer(query) : null;
+    let detail = query ? buildCatalogServiceDetailAnswer(query) : null;
+    if (detail && mentionedService && !catalogAnswerMatchesRequestedService(currentMessage ?? "", detail)) {
+      detail = null;
+    }
     const serviceLabel = mentionedService ?? parsePrimaryService(currentMessage ?? "") ?? (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
     if (detail) {
       const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
@@ -15424,7 +15499,7 @@ async function runAll() {
   await test("32. Bater\xEDa 20 \u2014 ubicaci\xF3n, italiano, expo, n\xFAmero ambiguo", () => {
     assert.ok(clientAsksLocation("\xBFD\xF3nde se ubican?"));
     assert.ok(clientMentionsItalianTheme("fiesta tem\xE1tica de mafia italiana"));
-    assert.ok(buildLocationAnswer().includes("CDMX"));
+    assert.ok(buildLocationAnswer().includes("rep\xFAblica"));
     assert.equal(parseTipoEventoFromText("stand de caf\xE9 para una expo"), "evento corporativo");
     assert.equal(parseZonaFromText("en Expo Santa Fe"), "Expo Santa Fe");
     assert.equal(sanitizeDisplayName("el 5"), null);
@@ -15437,7 +15512,7 @@ async function runAll() {
       },
       true
     );
-    assert.ok(/CDMX|Ciudad de México/i.test(locFirst), locFirst);
+    assert.ok(/CDMX|Ciudad de México|república/i.test(locFirst), locFirst);
     assert.ok(/llamas|nombre/i.test(locFirst), locFirst);
     const ambig = runGuards({
       aiResponse: "\xBFA qu\xE9 correo te lo env\xEDo?",
@@ -15820,6 +15895,7 @@ async function runAll() {
     assert.ok(filled);
     assert.ok(/Refrescos, aguas y 3 licores premium/.test(filled), filled);
     assert.ok(!/cerveza|vino com[uú]n/i.test(filled), filled);
+    assert.ok(!/dato real del Sheet/i.test(filled), filled);
     const hallucinated = "La barra b\xE1sica incluye cervezas, vinos y licores comunes.";
     const injected = injectCatalogInclusionIfAsked("qu\xE9 incluye la barra b\xE1sica", hallucinated);
     assert.ok(!/cerveza|vino/i.test(injected), injected);
@@ -15827,6 +15903,33 @@ async function runAll() {
     const reply = resolveCatalogInclusionReply("qu\xE9 incluye la barra b\xE1sica");
     assert.ok(reply);
     assert.equal(reply, team);
+  });
+  await test("43. Alejandra \u2014 parrillada argentina no se sustituye por banquete", () => {
+    const csvBanqueteOnly = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Banquete 3 tiempos","Basico","$500.00","$15,000.00","TRUE","3 tiempos"',
+      '"Banquete 4 tiempos","Premium","$750.00","$15,000.00","TRUE","4 tiempos"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvBanqueteOnly));
+    assert.equal(resolveCatalogQuery("quiero parrillada argentina"), null);
+    assert.equal(buildCatalogServiceDetailAnswer("quiero parrillada argentina"), null);
+    assert.equal(buildCatalogPriceAnswer("quiero parrillada argentina"), null);
+    const ack = buildLevel2Ack("Parrillada Argentina");
+    assert.ok(/parrillada argentina/i.test(ack), ack);
+    assert.ok(!/banquete/i.test(ack), ack);
+    const csvConParrillada = [
+      csvBanqueteOnly,
+      '"Parrillada Argentina","Basica","$420.00","$8,400.00","TRUE","Cortes argentinos y guarniciones"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvConParrillada));
+    const resolved = resolveCatalogQuery("quiero parrillada argentina");
+    assert.ok(resolved);
+    assert.ok(rowMatchesServiceLabel(resolved.rows[0], "Parrillada Argentina"));
+    const detail = buildCatalogServiceDetailAnswer("quiero parrillada argentina");
+    assert.ok(detail, detail);
+    assert.ok(/parrillada argentina|cortes argentinos/i.test(detail), detail);
+    assert.ok(!/banquete\s+3\s+tiempos/i.test(detail), detail);
+    assert.ok(catalogAnswerMatchesRequestedService("quiero parrillada argentina", detail), detail);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
