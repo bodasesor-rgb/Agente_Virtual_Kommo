@@ -624,6 +624,23 @@ function buildExactRowPriceAnswer(row: SheetCatalogRow): string {
   return `*${label}* — ${row.precio}${unit}${min}${inclusion}`;
 }
 
+function buildMultiLevelPriceAnswer(result: CatalogMatchResult, priced: SheetCatalogRow[]): string {
+  const svc = result.serviceName ?? uniqueServicios(priced)[0] ?? "ese servicio";
+  const unique = [...new Map(priced.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
+  const priceLines = unique
+    .slice(0, 6)
+    .map((row) => {
+      const parsed = parseRowNotes(row.notas);
+      const nivel = extractNivelLabel(row);
+      const unit = row.unidad ? ` ${row.unidad}` : "";
+      const min = parsed.minimo ? ` (mín. ${parsed.minimo})` : "";
+      return `• *${nivel}* — ${row.precio}${unit}${min}`;
+    })
+    .join("\n");
+  const inclusionBlock = buildInclusionBlock(unique, 280);
+  return `*${svc}* — precios de referencia:\n\n${priceLines}${inclusionBlock}`;
+}
+
 /** Etiqueta servicio+nivel para CRM/resumen cuando el texto del cliente matchea el catálogo. */
 export function formatRequerimientoLabelFromQuery(query: string): string | null {
   const resolved = resolveCatalogQuery(query);
@@ -851,7 +868,7 @@ export function buildCatalogPriceAnswer(query: string): string | null {
   if (resolved.kind === "service") {
     const priced = resolved.rows.filter((r) => r.tienePrecio && r.precio);
     if (priced.length > 1) {
-      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
+      return buildMultiLevelPriceAnswer(resolved, priced);
     }
     if (priced.length === 1) {
       return buildExactRowPriceAnswer(priced[0]!);
@@ -999,6 +1016,10 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
     return buildCategoryServicesAnswer(resolved);
   }
   if (resolved?.kind === "service") {
+    if (clientAsksPrice(query)) {
+      const priceAnswer = buildCatalogPriceAnswer(query);
+      if (priceAnswer) return priceAnswer;
+    }
     return buildServiceNivelChoiceAnswer(resolved);
   }
   if (resolved?.kind === "service_nivel" && resolved.rows[0]) {

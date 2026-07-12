@@ -564,6 +564,54 @@ function requerimientosFollowUpTemplate(text: string, clientName?: string | null
   return null;
 }
 
+function textOverlapRatio(a: string, b: string): number {
+  const na = a.toLowerCase().replace(/\s+/g, " ").trim();
+  const nb = b.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  const wordsA = new Set(na.split(" ").filter((w) => w.length > 3));
+  const wordsB = new Set(nb.split(" ").filter((w) => w.length > 3));
+  if (!wordsA.size || !wordsB.size) return 0;
+  let shared = 0;
+  for (const w of wordsA) if (wordsB.has(w)) shared++;
+  return shared / Math.max(wordsA.size, wordsB.size);
+}
+
+function servicesMatchForPitch(a: string | null, b: string | null): boolean {
+  if (!a || !b) return false;
+  const na = stripAccents(a.toLowerCase());
+  const nb = stripAccents(b.toLowerCase());
+  if (na === nb || na.includes(nb) || nb.includes(na)) return true;
+  const families = ["sushi", "banquete", "taquiza", "coffee break", "barra de bebidas"];
+  for (const fam of families) {
+    if (na.includes(fam) && nb.includes(fam)) return true;
+  }
+  return false;
+}
+
+function assistantAlreadyPitchedService(
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): boolean {
+  if (!currentMessage?.trim()) return false;
+  const mentioned = findMentionedService(currentMessage);
+  if (!mentioned) return false;
+
+  const assistantMsgs = history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .map((m) => (m.content as string).trim())
+    .filter(Boolean);
+
+  for (const prev of assistantMsgs.slice(-6)) {
+    const prevMentioned = findMentionedService(prev);
+    if (!servicesMatchForPitch(mentioned, prevMentioned)) continue;
+    if (/manejamos|tenemos en:|niveles|prefieres|precio|incluye|\$|lo tenemos en/i.test(prev)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function bodyEqualsLastAssistant(
   msg: string,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -583,7 +631,17 @@ function bodyEqualsLastAssistant(
 
   const normText = (s: string) =>
     stripAccents(stripLeadingTransition(s).toLowerCase()).replace(/\s+/g, " ").trim();
-  return normText(a) === normText(b);
+  if (normText(a) === normText(b)) return true;
+
+  if (textOverlapRatio(a, b) >= 0.72) return true;
+
+  const prevAssistants = history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .map((m) => (m.content as string).trim())
+    .filter(Boolean);
+  if (prevAssistants.some((p) => textOverlapRatio(a, p) >= 0.72)) return true;
+
+  return false;
 }
 
 function hasMeaningfulRequerimientos(extracted: ExtractedData, filledSet: Set<string>): boolean {
@@ -711,6 +769,26 @@ function buildFoodSalesReply(
   };
 
   if (mentionedService || (currentMessage && isServiceRelatedMessage(currentMessage))) {
+    if (assistantAlreadyPitchedService(history, currentMessage)) {
+      const serviceLabel =
+        mentionedService ??
+        parsePrimaryService(currentMessage ?? "") ??
+        (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
+      if (filledSet && ctx) {
+        const filledAfterService = new Set(filledSet);
+        if (serviceLabel) filledAfterService.add("Requerimientos o servicios");
+        const pending = getNextPendingField(extracted, filledAfterService);
+        if (pending) {
+          const nextQ = buildNaturalQuestion(pending, ctx);
+          const ack = serviceLabel
+            ? `${pickTransition(history)} Perfecto, anoto ${serviceLabel}.`
+            : `${pickTransition(history)} Perfecto, lo anoto.`;
+          return `${ack}\n\n${nextQ}`;
+        }
+      }
+      return null;
+    }
+
     let detail = query ? buildCatalogServiceDetailAnswer(query) : null;
     if (detail && mentionedService && !catalogAnswerMatchesRequestedService(currentMessage ?? "", detail)) {
       detail = null;
@@ -1300,19 +1378,6 @@ function mergeWithPendingQuestion(
   return `${base}\n\n${nextQ}`;
 }
 
-function textOverlapRatio(a: string, b: string): number {
-  const na = a.toLowerCase().replace(/\s+/g, " ").trim();
-  const nb = b.toLowerCase().replace(/\s+/g, " ").trim();
-  if (!na || !nb) return 0;
-  if (na === nb) return 1;
-  const wordsA = new Set(na.split(" ").filter((w) => w.length > 3));
-  const wordsB = new Set(nb.split(" ").filter((w) => w.length > 3));
-  if (!wordsA.size || !wordsB.size) return 0;
-  let shared = 0;
-  for (const w of wordsA) if (wordsB.has(w)) shared++;
-  return shared / Math.max(wordsA.size, wordsB.size);
-}
-
 /** Evita enviar al cliente el mismo bloque casi idéntico que un turno anterior. */
 function avoidRepeatPreviousReply(
   mensaje: string,
@@ -1332,7 +1397,18 @@ function avoidRepeatPreviousReply(
     .replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "")
     .replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
   const outOverlap = Math.max(...prev.map((p) => textOverlapRatio(out, p)));
-  if (outOverlap < 0.65) return out.trim();
+  const pendingQuestion = mensaje
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.includes("?"))
+    .pop();
+
+  const attachPendingQuestion = (body: string): string => {
+    if (!pendingQuestion || body.includes(pendingQuestion)) return body.trim();
+    return `${body.trim()}\n\n${pendingQuestion}`;
+  };
+
+  if (outOverlap < 0.65) return attachPendingQuestion(out);
 
   const questionLine =
     mensaje.split("\n").find((l) => l.includes("?")) ?? mensaje.split("\n").pop();
@@ -1836,9 +1912,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const serviceAlreadyCaptured =
     filledSet.has("Requerimientos o servicios") &&
     !!mentionedServiceNow &&
-    (extracted.requerimientos_evento ?? "")
-      .toLowerCase()
-      .includes(mentionedServiceNow.toLowerCase());
+    (servicesMatchForPitch(mentionedServiceNow, extracted.requerimientos_evento ?? null) ||
+      (extracted.requerimientos_evento ?? "")
+        .toLowerCase()
+        .includes(mentionedServiceNow.toLowerCase()) ||
+      mentionedServiceNow
+        .toLowerCase()
+        .includes((extracted.requerimientos_evento ?? "").toLowerCase()));
   // El follow-up "¿algún otro servicio?" solo se pregunta una vez — si ya aparece
   // en el historial, no se vuelve a preguntar (evita el bucle infinito).
   const requerimientosFollowUpAlreadyAsked = presHistory.some(
@@ -2032,6 +2112,49 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           );
     }
     log?.info({ entityId }, "GUARD: cliente no quiere más servicios — avanzar o cierre");
+  } else if (clientAsksPrice(currentMessage)) {
+    const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
+    const pending = getNextPendingField(extracted, filledSet);
+    const needsAlejandroQuote =
+      mentionsNoListedPriceService(currentMessage) ||
+      (responseHasInventedPrice(aiResponse, currentMessage, ctxText) &&
+        !mentionsListedPriceService(currentMessage));
+
+    if (needsAlejandroQuote) {
+      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
+      mensaje =
+        needsNextStep && pending && pending !== "correo"
+          ? `${priceReply}\n\n${buildNaturalQuestion(pending, ctx)}`
+          : priceReply;
+      log?.info({ entityId, pending }, "GUARD: precio sin catálogo — Alejandro cotiza");
+    } else {
+      const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText);
+      let priceContent = safe;
+      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+      if (fromCatalog && mentionsListedPriceService(currentMessage)) {
+        priceContent = fromCatalog;
+      } else if (!messageClaimsPrice(safe) && fromCatalog) {
+        priceContent = fromCatalog;
+      }
+      const pendingPrice = getNextPendingField(extracted, filledSet);
+      mensaje =
+        pendingPrice && !trulyReadyForClosing
+          ? `${priceContent.trim()}\n\n${buildNaturalQuestion(pendingPrice, ctx)}`
+          : priceContent.trim() || aiResponse;
+      log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con catálogo");
+    }
+  } else if (
+    serviceAlreadyCaptured &&
+    mentionedServiceNow &&
+    !(currentMessage?.includes("?") ?? false) &&
+    !clientAsksPrice(currentMessage)
+  ) {
+    const pending = getNextPendingField(extracted, filledSet);
+    mensaje = pending
+      ? buildNaturalQuestion(pending, ctx)
+      : mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+    appliedDirectReply = true;
+    log?.info({ entityId, service: mentionedServiceNow }, "GUARD: servicio ya capturado — avanzar");
   } else if (
     allowSalesReplyOverride &&
     (clientMentionsEntertainment(currentMessage) ||
@@ -2046,7 +2169,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: pista/tarima — orientación de venta");
   } else if (
     allowSalesReplyOverride &&
+    !clientAsksPrice(currentMessage) &&
     !serviceAlreadyCaptured &&
+    !assistantAlreadyPitchedService(presHistory, currentMessage) &&
     (clientMentionsCatering(currentMessage) ||
       (justAnsweredReq && isServiceRelatedMessage(currentMessage)) ||
       (!!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage)))
@@ -2107,35 +2232,6 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
-  } else if (clientAsksPrice(currentMessage)) {
-    const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
-    const pending = getNextPendingField(extracted, filledSet);
-    const needsAlejandroQuote =
-      mentionsNoListedPriceService(currentMessage) ||
-      (responseHasInventedPrice(aiResponse, currentMessage, ctxText) &&
-        !mentionsListedPriceService(currentMessage));
-
-    if (needsAlejandroQuote) {
-      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
-      mensaje =
-        needsNextStep && pending && pending !== "correo"
-          ? `${priceReply}\n\n${buildNaturalQuestion(pending, ctx)}`
-          : priceReply;
-      log?.info({ entityId, pending }, "GUARD: precio sin catálogo — Alejandro cotiza");
-    } else {
-      const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText);
-      let priceContent = safe;
-      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
-      if (fromCatalog && mentionsListedPriceService(currentMessage)) {
-        priceContent = fromCatalog;
-      } else if (!messageClaimsPrice(safe) && fromCatalog) {
-        priceContent = fromCatalog;
-      }
-      mensaje = needsNextStep
-        ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx)
-        : priceContent.trim() || aiResponse;
-      log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con catálogo");
-    }
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
@@ -2465,7 +2561,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const fromCatalog = buildCatalogPriceAnswer(currentMessage);
     if (fromCatalog) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
-      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+      if (pendingFinal && !trulyReadyForClosing) {
         mensaje = `${fromCatalog}\n\n${buildNaturalQuestion(pendingFinal, ctx)}`;
       } else {
         mensaje = fromCatalog;
@@ -2480,7 +2576,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const fromCatalog = buildCatalogPriceAnswer(currentMessage);
     if (fromCatalog) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
-      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+      if (pendingFinal && !trulyReadyForClosing) {
         mensaje = `${fromCatalog}\n\n${buildNaturalQuestion(pendingFinal, ctx)}`;
       } else {
         mensaje = fromCatalog;
@@ -2491,7 +2587,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const inclusionAnswer = resolveCatalogInclusionReply(currentMessage);
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
-      if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
+      if (pendingFinal && !trulyReadyForClosing) {
         mensaje = `${inclusionAnswer}\n\n${buildNaturalQuestion(pendingFinal, ctx)}`;
       } else {
         mensaje = inclusionAnswer;
