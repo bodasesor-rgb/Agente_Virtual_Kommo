@@ -134,6 +134,13 @@ const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumpleaños"],
   [/\b(bautizos?)\b/i, "bautizo"],
   [/\b(comuni[oó]n|graduaci[oó]n)\b/i, "celebración"],
+  [/\bpozolada\b/i, "pozolada"],
+  [/\bpaellada\b/i, "paellada"],
+  [/\btaquiza\b/i, "taquiza"],
+  [/\bparrillada\b/i, "parrillada"],
+  [/\bcarne\s+asada\b/i, "carne asada"],
+  [/\bposada\b/i, "posada"],
+  [/\bcena\s+navide[nñ]a\b/i, "cena navideña"],
 ];
 
 /** Normaliza para comparar presentaciones ("Alejandro?", "¿Alejandro"). */
@@ -953,6 +960,7 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
   if (!t) return false;
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
+  if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t)) return true;
   if (/^\.{2,}$/.test(t)) return true;
   return (
     /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) ||
@@ -974,8 +982,21 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) ||
     /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) ||
     /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) ||
+    /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t) ||
     (/\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t))
   );
+}
+
+/** Flag único: presupuesto ya resuelto (monto, waiver o “que propongan”). */
+export function isPresupuestoResuelto(
+  filledSet: Set<string>,
+  texts: string[] = [],
+  history?: import("openai").OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  if (filledSet.has("Presupuesto (MXN)")) return true;
+  if (findPresupuestoInTexts(texts, history)) return true;
+  if (texts.some((t) => detectPresupuestoRefusal(t))) return true;
+  return false;
 }
 
 /** Busca presupuesto (monto o waiver) en mensajes del cliente con contexto de la pregunta previa. */
@@ -1015,6 +1036,18 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     return "Sin definir (cliente pidió que propongamos)";
   }
 
+  if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
+    return "Sin definir (cliente pidió que propongamos)";
+  }
+
+  if (
+    /\b(que\s+(me\s+)?propongan|el\s+equipo\s+(me\s+)?propong|ustedes\s+(me\s+)?propong)/i.test(
+      trimmed
+    )
+  ) {
+    return "Sin definir (cliente pidió que propongamos)";
+  }
+
   if (detectPresupuestoRefusal(trimmed)) {
     return "Sin definir (cliente indicó que no tiene)";
   }
@@ -1039,8 +1072,10 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   }
 
   if (opts?.askedField === "presupuesto") {
-    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo)[\s.,!]*$/i.test(trimmed)) {
-      return PRESUPUESTO_AUTO_WAIVER;
+    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
+      return trimmed.match(/^opciones?|^propuestas?/i)
+        ? "Sin definir (cliente pidió que propongamos)"
+        : PRESUPUESTO_AUTO_WAIVER;
     }
     if (/^(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea|\.\.+)[\s.,!]*$/i.test(trimmed)) {
       return "Sin definir (cliente indicó que no tiene)";

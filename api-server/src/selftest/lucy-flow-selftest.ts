@@ -85,6 +85,7 @@ import {
   preferEventOfferReply,
   aiLooksLikeEventServiceOffer,
   isDryRequerimientosAsk,
+  dedupeTransitionsInMessage,
 } from "../lucy-flow-guards.js";
 import {
   sanitizeKommoCrmLines,
@@ -114,6 +115,7 @@ import {
   listCatalogServicesForEvent,
   buildEventOfferCatalogHint,
 } from "../services/catalogService.js";
+import { resolveServiceFocusFromText } from "../services/serviceSynonyms.js";
 import {
   parseSheetCatalogCsv,
   deriveCatalogCategory,
@@ -829,7 +831,7 @@ async function runAll(): Promise<void> {
     assert.ok(detectPresupuestoRefusal("Que me propongan opciones"));
     assert.equal(
       parsePresupuestoFromText("Que me propongan opciones"),
-      "Sin definir (cliente indicó que no tiene)"
+      "Sin definir (cliente pidió que propongamos)"
     );
 
     const baseFilled = new Set([
@@ -2260,6 +2262,104 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/rango de presupuesto|presupuesto en mente/i.test(reply), reply);
     assert.ok(/perfecto, ya tengo todo|sin problema|por definir/i.test(reply), reply);
+  });
+
+  await test("52. Luis — pozolada ofrece pozole, no banquete/taquiza", () => {
+    const focus = resolveServiceFocusFromText("pozolada");
+    assert.ok(focus && /pozole/i.test(focus.label), JSON.stringify(focus));
+    const services = listCatalogServicesForEvent("pozolada");
+    assert.ok(services.some((s) => /pozole/i.test(s)), services.join(", "));
+    assert.ok(!services.some((s) => /^banquete$/i.test(s) || /^taquiza$/i.test(s)), services.join(", "));
+
+    const hint = buildEventOfferCatalogHint("pozolada") ?? "";
+    assert.ok(/pozole/i.test(hint), hint.slice(0, 200));
+    assert.ok(/no banquete|ESE servicio|EVENTO = SERVICIO/i.test(hint), hint.slice(0, 250));
+
+    const filled = new Set(["Nombre del cliente", "Correo electrónico", "Tipo de evento"]);
+    const reply = runGuards({
+      aiResponse: "¡Claro! Para tu pozolada tenemos pozole rojo, verde o blanco con tostadas. ¿Para cuántas personas?",
+      extracted: emptyExtracted({
+        nombre: "Luis",
+        correo: "l@test.com",
+        tipo_evento: "pozolada",
+      }),
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "es una pozolada",
+      history: [{ role: "assistant", content: "¿Qué tipo de celebración es?" }],
+    });
+    assert.ok(/pozole/i.test(reply), reply);
+    assert.ok(!/banquete.*taquiza|taquiza.*banquete/i.test(reply) || /pozole/i.test(reply), reply);
+  });
+
+  await test("53. Luis — 'opciones' resuelve presupuesto y no re-pregunta", () => {
+    assert.ok(detectPresupuestoRefusal("Opciones"));
+    assert.ok(detectPresupuestoRefusal("opciones"));
+    assert.equal(
+      parsePresupuestoFromText("Opciones"),
+      "Sin definir (cliente pidió que propongamos)"
+    );
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+    ]);
+    applyPresupuestoWaiver(filled, [], ["Opciones"]);
+    assert.ok(filled.has("Presupuesto (MXN)"));
+
+    const reply = runGuards({
+      aiResponse: "¿Tienen algún rango de presupuesto en mente?",
+      extracted: emptyExtracted({
+        nombre: "Luis",
+        correo: "l@test.com",
+        tipo_evento: "pozolada",
+        requerimientos_evento: "Pozole y Tostadas",
+        num_invitados: 70,
+        direccion_evento: "CDMX Narvarte",
+        fecha_horario: "15 de agosto",
+      }),
+      filledSet: filled,
+      readyForClosing: true,
+      currentMessage: "Opciones",
+      history: [{ role: "assistant", content: "¿Tienen algún rango de presupuesto en mente?" }],
+    });
+    assert.ok(!/rango de presupuesto|presupuesto en mente/i.test(reply), reply);
+  });
+
+  await test("54. Luis — sin transición doble ni cierre enlatado", () => {
+    const deduped = dedupeTransitionsInMessage(
+      "Suena muy bien. ¡Claro! Para tu evento. Suena muy bien. ¿Tienen fecha?"
+    );
+    assert.equal((deduped.match(/suena muy bien/gi) || []).length, 1, deduped);
+
+    const closeReply = runGuards({
+      aiResponse:
+        "Perfecto, ya tengo todo. Por cierto, también manejamos bebidas, DJ, iluminación, carpas, pantallas, mesas de dulces, barras de alimentos y más. ¿Algo más?",
+      extracted: emptyExtracted({
+        nombre: "Luis",
+        tipo_evento: "pozolada",
+        requerimientos_evento: "pozole",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      currentMessage: "ok",
+      history: [],
+    });
+    assert.ok(!/tambi[eé]n manejamos bebidas,?\s*DJ/i.test(closeReply), closeReply.slice(0, 300));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

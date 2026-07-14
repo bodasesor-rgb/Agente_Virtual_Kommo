@@ -46,6 +46,7 @@ import {
   responseLooksLikeGenericCateringMenu,
   clientAsksInclusion,
 } from "./services/catalogService.js";
+import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
 import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
 import {
   extractImageClientReply,
@@ -68,6 +69,7 @@ import {
   PRESUPUESTO_MAX_ASKS,
   PRESUPUESTO_AUTO_WAIVER,
   parsePresupuestoFromText,
+  isPresupuestoResuelto,
   clientAddsToQuote,
   clientAsksBanqueteVsTaquiza,
   parseCorreoFromText,
@@ -278,9 +280,12 @@ export function applyPresupuestoWaiver(
     return;
   }
 
-  // "no" / "no tengo" / rechazo: registrar sin definir aunque no haya monto parseable.
   if (texts.some((t) => detectPresupuestoRefusal(t))) {
-    mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
+    const last = texts[texts.length - 1] ?? "";
+    const label = /^(opciones?|propuestas?)[\s.,!]*$/i.test(last.trim())
+      ? "Sin definir (cliente pidió que propongamos)"
+      : "Sin definir (cliente indicó que no tiene)";
+    mergedLines.push(`- Presupuesto (MXN): ${label}`);
     filledSet.add("Presupuesto (MXN)");
     return;
   }
@@ -293,9 +298,11 @@ export function applyPresupuestoWaiver(
     : null;
   if (
     lastAsked === "presupuesto" &&
-    texts.some((t) => /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin)[\s.,!]*$/i.test(t.trim()))
+    texts.some((t) =>
+      /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin|opciones?|propuestas?)[\s.,!]*$/i.test(t.trim())
+    )
   ) {
-    mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
+    mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente pidió que propongamos)`);
     filledSet.add("Presupuesto (MXN)");
     return;
   }
@@ -783,6 +790,19 @@ export function buildRecommendationsReply(
   const inv = extracted.num_invitados ?? 0;
   const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
 
+  // Evento = servicio (pozolada, taquiza…) → ofrecer ESE servicio.
+  const focus = resolveServiceFocusFromText(
+    `${extracted.tipo_evento ?? ""} ${currentMessage ?? ""} ${texts}`
+  );
+  if (focus && /pozole|taquiza|paella|parrillada|navide|posada|carne\s+asada/i.test(focus.familyKey + focus.label + (extracted.tipo_evento ?? ""))) {
+    const primary = focus.label;
+    const comps = focus.complements.slice(0, 2).join(" y ");
+    const ideas = `Para tu ${extracted.tipo_evento || focus.label} tenemos *${primary}*. Si quieres, también podemos sumar ${comps} — sin compromiso.`;
+    const follow = pickVariant("invitados", history, entityId);
+    // Prefer asking invitados when offering a focused food event
+    return `${pickTransition(history)} ${ideas} ${follow}`.trim();
+  }
+
   let ideas: string;
   if (gettingReady || (/\bboda\b/.test(tipo) && inv > 0 && inv <= 30)) {
     ideas =
@@ -852,6 +872,24 @@ export function pickTransition(
     if (candidate !== lastTransition) return candidate;
   }
   return LUCY_TRANSITIONS[0]!;
+}
+
+/** Evita "Suena muy bien. … Suena muy bien. …" en el mismo mensaje. */
+export function dedupeTransitionsInMessage(mensaje: string): string {
+  if (!mensaje?.trim()) return mensaje;
+  const pattern =
+    /\b(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\./gi;
+  let seen: string | null = null;
+  return mensaje
+    .replace(pattern, (match) => {
+      const key = match.toLowerCase();
+      if (seen === key) return "";
+      if (!seen) seen = key;
+      return match;
+    })
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+\n/g, "\n")
+    .trim();
 }
 
 /** Quita "Ya tengo tu correo/zona..." antes de la siguiente pregunta (anti-robot Replit). */
@@ -1325,7 +1363,7 @@ export function aiLooksLikeEventServiceOffer(text: string | null | undefined): b
   if (isDryRequerimientosAsk(t)) return false;
   if (t.length < 50) return false;
   const mentionsService =
-    /\b(banquete|taquiza|brunch|coffee\s*break|mobiliario|mesa\s+de\s+(dulces|postres)|barra|bebidas?|mixolog|\bdj\b|iluminaci|pista|carpa|bocadillo|canap|catering)\b/i.test(
+    /\b(banquete|taquiza|brunch|coffee\s*break|mobiliario|mesa\s+de\s+(dulces|postres)|barra|bebidas?|mixolog|\bdj\b|iluminaci|pista|carpa|bocadillo|canap|catering|pozole|tostadas|paella|parrillada|asado)\b/i.test(
       t
     );
   const invitesChoice =
@@ -1366,6 +1404,20 @@ export function preferEventOfferReply(opts: {
 
   const ai = aiResponse.trim();
   if (aiLooksLikeEventServiceOffer(ai) && !responseHasInventedPrice(ai, currentMessage)) {
+    return ai;
+  }
+
+  // Oferta del modelo enfocada al servicio-evento (pozole, etc.) aunque pregunte invitados.
+  const focus = resolveServiceFocusFromText(
+    `${extracted.tipo_evento ?? ""} ${currentMessage ?? ""}`
+  );
+  if (
+    focus &&
+    ai.length > 40 &&
+    new RegExp(focus.serviceHints.map((h) => h.replace(/\s+/g, "\\s+")).join("|"), "i").test(ai) &&
+    !responseHasInventedPrice(ai, currentMessage) &&
+    !isDryRequerimientosAsk(ai)
+  ) {
     return ai;
   }
 
@@ -2908,6 +2960,46 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       }
     }
   }
+
+  // presupuesto_resuelto: ninguna ruta re-pregunta.
+  if (
+    isPresupuestoResuelto(filledSet, collectUserTexts(presHistory, currentMessage), presHistory) ||
+    filledSet.has("Presupuesto (MXN)")
+  ) {
+    if (mensajeAsksForField(mensaje, "presupuesto") || /rango\s+de\s+(presupuesto|inversi)/i.test(mensaje)) {
+      applyPresupuestoWaiver(
+        filledSet,
+        [],
+        collectUserTexts(presHistory, currentMessage),
+        presHistory
+      );
+      const pending = getNextPendingField(extracted, filledSet);
+      if (pending && pending !== "presupuesto") {
+        mensaje = buildNaturalQuestion(pending, ctx);
+      } else if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+      } else {
+        mensaje =
+          "Sin problema, lo dejamos por definir. Nuestro equipo te propone opciones según lo que platicamos.";
+      }
+      log?.info({ entityId }, "GUARD: presupuesto_resuelto — no re-preguntar");
+    }
+  }
+
+  // Quitar bloque enlatado de cierre si el modelo lo inventó.
+  if (/tambi[eé]n manejamos bebidas,?\s*DJ,?\s*iluminaci/i.test(mensaje)) {
+    mensaje = mensaje
+      .replace(/Por cierto,?[^.]*bebidas[^.]*\./gi, "")
+      .replace(/tambi[eé]n manejamos bebidas[^.]*\./gi, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    log?.info({ entityId }, "GUARD: quitó bloque genérico fijo del cierre");
+  }
+
+  mensaje = dedupeTransitionsInMessage(mensaje);
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }

@@ -139,7 +139,9 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
     SERVICE_KNOWLEDGE_GOLDEN_RULE,
     "Servicios fuera del Sheet pero de eventos: acepta, anota y avanza (NIVEL 2). Precio solo del Sheet.",
     "Si el cliente hizo una pregunta en este mensaje, respóndela ANTES de pedir el siguiente dato.",
-    "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados."
+    "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados.",
+    "Estilo humano: una sola transición de apertura por mensaje (nunca 'Suena muy bien' dos veces).",
+    "Preguntas: varía el cómo, no omitas el qué. Encadena con lo que dijo el cliente."
   );
 
   if (input.serviceKnowledgeBlock) {
