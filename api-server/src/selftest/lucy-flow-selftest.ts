@@ -80,6 +80,8 @@ import {
   isLegacyStoredLucyResponse,
   isResumenClienteLargo,
   resolveEffectiveLastLucyResponse,
+  buildSoftComplementOffer,
+  looksLikeMinimalServiceAsk,
 } from "../lucy-flow-guards.js";
 import {
   sanitizeKommoCrmLines,
@@ -121,7 +123,7 @@ import {
 } from "../services/serviceKnowledge.js";
 import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
-import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests } from "../services/imageProcessor.js";
+import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests, parseVisionImageJson, formatImageTurnText, extractImageClientReply } from "../services/imageProcessor.js";
 import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
 import {
   webhookMessageKey,
@@ -2018,6 +2020,153 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/valet|flor|coordin|anot|equipo/i.test(valetFirst), valetFirst.slice(0, 200));
     assert.ok(!/no tenemos|no manejamos/i.test(valetFirst), valetFirst);
+  });
+
+  await test("46. Karime — imagen accionable (montaje + comprobante), no descripción dueño", () => {
+    const montaje = parseVisionImageJson(
+      JSON.stringify({
+        intent: "montaje_referencia",
+        internal_description: "El espacio es un área al aire libre con césped y mesas rústicas.",
+        client_reply:
+          "¡Sí! Manejamos mesas y sillas de ese estilo rústico. Lo anoto para tu cotización.",
+      })
+    );
+    assert.ok(montaje);
+    assert.equal(montaje!.intent, "montaje_referencia");
+    assert.ok(/anoto|estilo rústico|mesas/i.test(montaje!.clientReply));
+    assert.ok(!/^El espacio es/i.test(montaje!.clientReply));
+
+    const turn = formatImageTurnText(montaje!);
+    assert.ok(extractImageClientReply(turn));
+    const cleaned = stripImageAnnotation(
+      `Qué bonito. ${turn}`
+    );
+    assert.ok(!/\[Imagen/i.test(cleaned), cleaned);
+
+    const replyMontaje = runGuards({
+      aiResponse: "El espacio es un área al aire libre con césped y mesas de madera.",
+      extracted: emptyExtracted({ nombre: "Karime" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: turn,
+      history: [{ role: "assistant", content: "¿Qué servicios te gustaría cotizar?" }],
+    });
+    assert.ok(/anoto|estilo|mesas|sillas/i.test(replyMontaje), replyMontaje);
+    assert.ok(!/área al aire libre con césped/i.test(replyMontaje), replyMontaje);
+
+    const pago = parseVisionImageJson(
+      JSON.stringify({
+        intent: "comprobante_pago",
+        internal_description: "Captura SPEI por $5000 a cuenta ****1234",
+        client_reply: "¡Gracias por tu pago! Lo registro y el equipo da seguimiento.",
+      })
+    )!;
+    const replyPago = runGuards({
+      aiResponse: "Veo una transferencia bancaria con monto y CLABE.",
+      extracted: emptyExtracted({ nombre: "Karime" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: formatImageTurnText(pago),
+      history: [],
+    });
+    assert.ok(/gracias por tu pago|registro|seguimiento/i.test(replyPago), replyPago);
+    assert.ok(!/CLABE|\*\*\*\*1234|Veo una transferencia/i.test(replyPago), replyPago);
+  });
+
+  await test("47. Karime — ofrecer complementos en pedido solo mesa y sillas", () => {
+    assert.ok(looksLikeMinimalServiceAsk("solo mesa y sillas para 12 personas"));
+    const soft = buildSoftComplementOffer(
+      emptyExtracted({
+        nombre: "Karime",
+        tipo_evento: "cumpleaños",
+        num_invitados: 12,
+        requerimientos_evento: "solo mesa y sillas",
+      }),
+      [],
+      "solo mesa y sillas para 12 personas"
+    );
+    assert.ok(soft);
+    assert.ok(/mantel|postres|bebidas/i.test(soft!), soft);
+
+    const filled = new Set(["Nombre del cliente", "Correo electrónico", "Tipo de evento"]);
+    const reply = runGuards({
+      aiResponse: "¿En qué ciudad sería tu evento?",
+      extracted: emptyExtracted({
+        nombre: "Karime",
+        correo: "k@test.com",
+        tipo_evento: "cumpleaños",
+        num_invitados: 12,
+        requerimientos_evento: "solo mesa y sillas",
+      }),
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "solo mesa y sillas para 12 personas",
+      history: [{ role: "assistant", content: "¿Qué servicios te gustaría cotizar?" }],
+    });
+    assert.ok(/mantel|postres|bebidas|opcional/i.test(reply), reply);
+  });
+
+  await test("48. Karime — ubicación forzada antes de presupuesto/cierre", () => {
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    const reply = runGuards({
+      aiResponse: "Perfecto, ya tengo todo. Aquí el catálogo completo.",
+      extracted: emptyExtracted({
+        nombre: "Karime",
+        correo: "k@test.com",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "mesa y sillas",
+        num_invitados: 12,
+      }),
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "ok",
+      history: [],
+    });
+    assert.ok(/ciudad|colonia|sal[oó]n|ubicaci/i.test(reply), reply);
+    assert.ok(!/ya tengo todo/i.test(reply), reply);
+  });
+
+  await test("49. Karime — 'no tengo' en presupuesto = sin definir, no repetir", () => {
+    assert.ok(detectPresupuestoRefusal("no tengo"));
+    assert.equal(
+      parsePresupuestoFromText("no tengo"),
+      "Sin definir (cliente indicó que no tiene)"
+    );
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+    ]);
+    applyPresupuestoWaiver(filled, [], ["no tengo"]);
+    assert.ok(filled.has("Presupuesto (MXN)"));
+
+    const reply = runGuards({
+      aiResponse: "¿Tienen algún rango de presupuesto en mente?",
+      extracted: emptyExtracted({
+        nombre: "Karime",
+        correo: "k@test.com",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "mesa y sillas",
+        num_invitados: 12,
+        direccion_evento: "Narvarte CDMX",
+        fecha_horario: "15 de agosto",
+      }),
+      filledSet: filled,
+      readyForClosing: true,
+      currentMessage: "no tengo",
+      history: [{ role: "assistant", content: "¿Tienen algún rango de presupuesto en mente?" }],
+    });
+    assert.ok(!/rango de presupuesto|presupuesto en mente/i.test(reply), reply);
+    assert.ok(/perfecto, ya tengo todo|sin problema|por definir/i.test(reply), reply);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

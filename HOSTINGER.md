@@ -1,5 +1,38 @@
 # Hostinger — pasos si sigue fallando
 
+## Canal de deploy (leer primero)
+
+**Hostinger despliega SOLO la rama `main`.** Los fixes en `cursor/*` no llegan a producción hasta merge a `main`.
+
+### Flujo real paso a paso
+
+1. Trabajar y commitear en una rama `cursor/<fix>-6f2e`.
+2. En `api-server`: `npm run build` (regenera `deploy/` + `deploy/build-meta.json` con el SHA).
+3. Commit del código **y** de `deploy/`.
+4. Abrir PR → **merge a `main`** (o push directo a `main` si aplica).
+5. Push a `main` dispara `.github/workflows/deploy-hostinger.yml`:
+   - Verifica `deploy/build-meta.json`
+   - POST a `HOSTINGER_WEBHOOK_URL` (auto-deploy Git de Hostinger)
+   - Opcional: `HOSTINGER_API_TOKEN` vía `scripts/deploy-hostinger.mjs`
+6. Hostinger hace `git pull` de **`main`**, build (`npm run build` en hPanel) y reinicia Node (`start.mjs`).
+7. Verificar: `curl https://midnightblue-mosquito-424375.hostingersite.com/api/health`
+   - `git_commit_short` debe coincidir con el SHA de `main` (o el de `build-meta.json` embebido en el bundle).
+   - Si sigue en un SHA viejo → el canal está roto: webhook, rama en hPanel ≠ `main`, o bundle no commitado.
+
+### Checklist hPanel Git
+
+| Campo | Valor correcto |
+|-------|----------------|
+| Rama | **`main`** (no una feature branch) |
+| Auto Deployment | ON + webhook en secret `HOSTINGER_WEBHOOK_URL` |
+| Archivo entrada | `start.mjs` |
+
+### Por qué “los cambios no se notan”
+
+Producción históricamente quedó en commits viejos (`051a340`) mientras los agentes solo pusheaban ramas `cursor/*`. **Sin merge a `main`, Hostinger no actualiza.**
+
+---
+
 ## Desplegar automáticamente (recomendado)
 
 El repo incluye `.github/workflows/deploy-hostinger.yml` que redespliega en cada push a `main`.
