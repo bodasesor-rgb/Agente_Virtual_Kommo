@@ -82,6 +82,9 @@ import {
   resolveEffectiveLastLucyResponse,
   buildSoftComplementOffer,
   looksLikeMinimalServiceAsk,
+  preferEventOfferReply,
+  aiLooksLikeEventServiceOffer,
+  isDryRequerimientosAsk,
 } from "../lucy-flow-guards.js";
 import {
   sanitizeKommoCrmLines,
@@ -108,6 +111,8 @@ import {
   catalogAnswerMatchesRequestedService,
   rowMatchesServiceLabel,
   buildCatalogServiceDetailAnswer,
+  listCatalogServicesForEvent,
+  buildEventOfferCatalogHint,
 } from "../services/catalogService.js";
 import {
   parseSheetCatalogCsv,
@@ -2071,6 +2076,94 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/gracias por tu pago|registro|seguimiento/i.test(replyPago), replyPago);
     assert.ok(!/CLABE|\*\*\*\*1234|Veo una transferencia/i.test(replyPago), replyPago);
+  });
+
+  await test("50. Offer temprano — boda: OpenAI propone, no 'qué servicios quieres'", () => {
+    assert.ok(isDryRequerimientosAsk("¿Qué servicios te gustaría cotizar?"));
+    assert.ok(!aiLooksLikeEventServiceOffer("¿Qué servicios te gustaría cotizar?"));
+
+    const bodaAi =
+      "¡Qué emoción! Para una boda manejamos banquete, barras de bebidas, mobiliario, DJ e iluminación y mesa de postres. ¿Qué te gustaría ir armando?";
+    assert.ok(aiLooksLikeEventServiceOffer(bodaAi));
+
+    const filled = new Set(["Nombre del cliente", "Correo electrónico", "Tipo de evento"]);
+    const extracted = emptyExtracted({
+      nombre: "Karime",
+      correo: "k@test.com",
+      tipo_evento: "boda",
+    });
+
+    const offer = preferEventOfferReply({
+      aiResponse: bodaAi,
+      extracted,
+      filledSet: filled,
+      history: [{ role: "assistant", content: "¿Qué tipo de celebración es?" }],
+      currentMessage: "es una boda",
+    });
+    assert.ok(offer && /banquete|dj|armando/i.test(offer), offer ?? "");
+    assert.ok(!isDryRequerimientosAsk(offer!));
+
+    const dryReplaced = preferEventOfferReply({
+      aiResponse: "¿Qué servicios te gustaría cotizar?",
+      extracted,
+      filledSet: filled,
+      history: [],
+      currentMessage: "es una boda",
+    });
+    assert.ok(dryReplaced);
+    assert.ok(!isDryRequerimientosAsk(dryReplaced!), dryReplaced);
+    assert.ok(/boda|banquete|taquiza|bebidas|mobiliario/i.test(dryReplaced!), dryReplaced);
+
+    const guarded = runGuards({
+      aiResponse: bodaAi,
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "es una boda",
+      history: [{ role: "assistant", content: "¿Qué tipo de celebración es?" }],
+    });
+    assert.ok(/banquete|dj|bebidas|armando|mobiliario/i.test(guarded), guarded);
+    assert.ok(!/qu[eé]\s+servicios\s+te\s+gustar/i.test(guarded), guarded);
+  });
+
+  await test("51. Offer temprano — boda vs baby shower: propuestas distintas", () => {
+    const bodaServices = listCatalogServicesForEvent("boda");
+    const babyServices = listCatalogServicesForEvent("baby shower");
+    assert.ok(bodaServices.some((s) => /dj|banquete|barra|ilumin/i.test(s)), bodaServices.join(","));
+    assert.ok(babyServices.some((s) => /brunch|dulce|bocadillo/i.test(s)), babyServices.join(","));
+    assert.ok(
+      buildEventOfferCatalogHint("boda") !== buildEventOfferCatalogHint("baby shower"),
+      "hints deben diferir por evento"
+    );
+
+    const filled = new Set(["Nombre del cliente", "Correo electrónico", "Tipo de evento"]);
+    const bodaReply = runGuards({
+      aiResponse:
+        "¡Qué emoción! Para tu boda armamos banquete, barras de bebidas, DJ e iluminación. ¿Qué te gustaría ir cotizando?",
+      extracted: emptyExtracted({ nombre: "Ana", correo: "a@t.com", tipo_evento: "boda" }),
+      filledSet: new Set(filled),
+      readyForClosing: false,
+      currentMessage: "boda",
+      history: [],
+    });
+    const babyReply = runGuards({
+      aiResponse:
+        "¡Qué bonito! Para un baby shower suele ir brunch, mesa de dulces, bocadillos y mobiliario. ¿Qué te late incluir?",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        correo: "a@t.com",
+        tipo_evento: "baby shower",
+      }),
+      filledSet: new Set(filled),
+      readyForClosing: false,
+      currentMessage: "baby shower",
+      history: [],
+    });
+    assert.ok(/banquete|dj|bebidas/i.test(bodaReply), bodaReply);
+    assert.ok(/brunch|dulces|bocadillo/i.test(babyReply), babyReply);
+    assert.ok(bodaReply !== babyReply, "redacciones distintas por evento");
+    assert.ok(!/qu[eé]\s+servicios\s+te\s+gustar/i.test(bodaReply));
+    assert.ok(!/qu[eé]\s+servicios\s+te\s+gustar/i.test(babyReply));
   });
 
   await test("47. Karime — ofrecer complementos en pedido solo mesa y sillas", () => {

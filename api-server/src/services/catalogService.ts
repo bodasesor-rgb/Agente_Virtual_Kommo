@@ -1069,6 +1069,137 @@ export function buildCatalogCateringOverviewFromSheet(): string | null {
   ].join("\n");
 }
 
+/**
+ * Nombres de servicios del Sheet relevantes para un tipo de evento.
+ * Solo hechos del catálogo — para inyectar al LLM al ofrecer temprano.
+ */
+const EVENT_OFFER_PATTERNS: Array<{ match: RegExp; servicePatterns: RegExp[] }> = [
+  {
+    match: /baby\s*shower/i,
+    servicePatterns: [/brunch/i, /banquete/i, /mesa de dulce/i, /bocadillo/i, /canap/i, /mobiliario/i, /silla/i],
+  },
+  {
+    match: /bautizo/i,
+    servicePatterns: [/brunch/i, /banquete/i, /mesa de dulce/i, /pastel/i, /mobiliario/i, /carpa/i],
+  },
+  {
+    match: /corporativ|empresarial|empresa/i,
+    servicePatterns: [/coffee/i, /banquete/i, /catering/i, /mobiliario/i, /mixolog/i, /barra de beb/i, /coctel/i],
+  },
+  {
+    match: /xv|quince/i,
+    servicePatterns: [/banquete/i, /taquiza/i, /mesa de dulce/i, /mobiliario/i, /\bdj\b/i, /ilumin/i, /pista/i],
+  },
+  {
+    match: /cumple/i,
+    servicePatterns: [/banquete/i, /taquiza/i, /brunch/i, /mesa de dulce/i, /mobiliario/i, /barra de beb/i, /\bdj\b/i],
+  },
+  {
+    match: /boda/i,
+    servicePatterns: [
+      /banquete/i,
+      /taquiza/i,
+      /barra de beb/i,
+      /mixolog/i,
+      /mobiliario/i,
+      /\bdj\b/i,
+      /ilumin/i,
+      /mesa de (dulce|postre)/i,
+      /carpa/i,
+      /pista/i,
+    ],
+  },
+];
+
+const EVENT_OFFER_FALLBACK: Record<string, string[]> = {
+  boda: [
+    "Banquete",
+    "Taquiza",
+    "Barras de bebidas y temáticas",
+    "Mobiliario",
+    "DJ e iluminación",
+    "Mesa de postres / dulces",
+  ],
+  "baby shower": ["Brunch", "Banquete ligero", "Mesa de dulces", "Bocadillos", "Mobiliario"],
+  corporativo: ["Coffee Break", "Catering / banquete", "Mobiliario", "Mixología / barras"],
+  "xv años": ["Banquete", "Taquiza", "Mesa de dulces", "Mobiliario", "DJ", "Iluminación"],
+  bautizo: ["Brunch", "Banquete", "Mesa de dulces", "Mobiliario"],
+  cumpleaños: ["Banquete", "Taquiza", "Mesa de dulces", "Mobiliario", "Barras de bebidas"],
+};
+
+function normalizeEventKey(tipo: string): string {
+  const t = tipo.trim().toLowerCase();
+  if (/baby\s*shower/.test(t)) return "baby shower";
+  if (/xv|quince/.test(t)) return "xv años";
+  if (/corporativ|empresarial/.test(t)) return "corporativo";
+  if (/bautizo/.test(t)) return "bautizo";
+  if (/cumple/.test(t)) return "cumpleaños";
+  if (/boda/.test(t)) return "boda";
+  return t.slice(0, 40);
+}
+
+/** Lista corta de servicios del Sheet (o fallback tipado) para el ofrecimiento temprano. */
+export function listCatalogServicesForEvent(tipoEvento: string | null | undefined): string[] {
+  const tipo = (tipoEvento ?? "").trim();
+  if (!tipo) return [];
+
+  const key = normalizeEventKey(tipo);
+  const patterns =
+    EVENT_OFFER_PATTERNS.find((p) => p.match.test(tipo))?.servicePatterns ??
+    EVENT_OFFER_PATTERNS.find((p) => p.match.test(key))?.servicePatterns;
+
+  const names: string[] = [];
+  const seen = new Set<string>();
+
+  if (snapshot?.rows.length && patterns) {
+    for (const row of snapshot.rows) {
+      const label = formatCatalogRowLabel(row);
+      const blob = `${row.categoria} ${row.servicio} ${row.nivel}`;
+      if (!patterns.some((re) => re.test(blob))) continue;
+      const base = row.servicio.trim() || label;
+      const norm = base.toLowerCase();
+      if (seen.has(norm)) continue;
+      seen.add(norm);
+      names.push(base);
+      if (names.length >= 10) break;
+    }
+  }
+
+  if (names.length >= 3) return names;
+
+  const fallback = EVENT_OFFER_FALLBACK[key] ?? [
+    "Banquete",
+    "Taquiza",
+    "Barras de bebidas",
+    "Mobiliario",
+    "DJ e iluminación",
+    "Mesa de dulces",
+  ];
+  return fallback;
+}
+
+/**
+ * Bloque de prompt: servicios del catálogo que encajan con el tipo de evento.
+ * Hechos solamente — la redacción la hace OpenAI.
+ */
+export function buildEventOfferCatalogHint(tipoEvento: string | null | undefined): string | null {
+  const tipo = (tipoEvento ?? "").trim();
+  if (!tipo) return null;
+  const services = listCatalogServicesForEvent(tipo);
+  if (!services.length) return null;
+  return [
+    "━━━━━━━━ OFRECIMIENTO TEMPRANO (tipo de evento ya conocido) ━━━━━━━━",
+    `Tipo de evento: ${tipo}`,
+    "Servicios del catálogo que suelen encajar (SOLO estos y otros que existan en el Sheet inyectado):",
+    ...services.map((s) => `• ${s}`),
+    "",
+    "Instrucción: propón con criterio 4–6 de estos servicios para ESTE evento, con tono de asesora cálida y natural.",
+    "Pregunta qué le gustaría ir armando. Varía tus palabras; NO uses siempre la misma frase.",
+    "NUNCA digas solo «¿qué servicios quieres cotizar?» o «¿qué tienes pensado?» sin haber propuesto nada.",
+    "NO inventes servicios fuera del catálogo. Precios/inclusiones solo si el cliente pregunta y están en el Sheet; si no, «el equipo confirma».",
+  ].join("\n");
+}
+
 /** @deprecated Usar buildCatalogServiceDetailAnswer o buildCatalogCateringOverviewFromSheet. */
 export function buildCatalogCateringAnswer(): string | null {
   return buildCatalogCateringOverviewFromSheet();

@@ -1,5 +1,8 @@
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
-import { getCatalogPromptBlockSync } from "./catalogService.js";
+import {
+  getCatalogPromptBlockSync,
+  buildEventOfferCatalogHint,
+} from "./catalogService.js";
 import type { ObjectionDetection } from "./intentDetection.js";
 import type { ExtractedData } from "../types.js";
 
@@ -22,6 +25,15 @@ export function buildDynamicPrompt(context: {
   const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
 
   let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
+
+  const tipo = context.extracted.tipo_evento?.trim();
+  const hasReq = !!(context.extracted.requerimientos_evento?.trim());
+  if (tipo && !hasReq) {
+    const offerHint = buildEventOfferCatalogHint(tipo);
+    if (offerHint) {
+      prompt += `\n\n${offerHint}`;
+    }
+  }
 
   if (context.isFirstInteraction) {
     prompt += `

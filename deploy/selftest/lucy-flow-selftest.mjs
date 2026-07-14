@@ -2278,6 +2278,116 @@ function buildCatalogCateringOverviewFromSheet() {
     "\xBFCu\xE1l te interesa? Te paso precios e inclusiones de la que elijas."
   ].join("\n");
 }
+var EVENT_OFFER_PATTERNS = [
+  {
+    match: /baby\s*shower/i,
+    servicePatterns: [/brunch/i, /banquete/i, /mesa de dulce/i, /bocadillo/i, /canap/i, /mobiliario/i, /silla/i]
+  },
+  {
+    match: /bautizo/i,
+    servicePatterns: [/brunch/i, /banquete/i, /mesa de dulce/i, /pastel/i, /mobiliario/i, /carpa/i]
+  },
+  {
+    match: /corporativ|empresarial|empresa/i,
+    servicePatterns: [/coffee/i, /banquete/i, /catering/i, /mobiliario/i, /mixolog/i, /barra de beb/i, /coctel/i]
+  },
+  {
+    match: /xv|quince/i,
+    servicePatterns: [/banquete/i, /taquiza/i, /mesa de dulce/i, /mobiliario/i, /\bdj\b/i, /ilumin/i, /pista/i]
+  },
+  {
+    match: /cumple/i,
+    servicePatterns: [/banquete/i, /taquiza/i, /brunch/i, /mesa de dulce/i, /mobiliario/i, /barra de beb/i, /\bdj\b/i]
+  },
+  {
+    match: /boda/i,
+    servicePatterns: [
+      /banquete/i,
+      /taquiza/i,
+      /barra de beb/i,
+      /mixolog/i,
+      /mobiliario/i,
+      /\bdj\b/i,
+      /ilumin/i,
+      /mesa de (dulce|postre)/i,
+      /carpa/i,
+      /pista/i
+    ]
+  }
+];
+var EVENT_OFFER_FALLBACK = {
+  boda: [
+    "Banquete",
+    "Taquiza",
+    "Barras de bebidas y tem\xE1ticas",
+    "Mobiliario",
+    "DJ e iluminaci\xF3n",
+    "Mesa de postres / dulces"
+  ],
+  "baby shower": ["Brunch", "Banquete ligero", "Mesa de dulces", "Bocadillos", "Mobiliario"],
+  corporativo: ["Coffee Break", "Catering / banquete", "Mobiliario", "Mixolog\xEDa / barras"],
+  "xv a\xF1os": ["Banquete", "Taquiza", "Mesa de dulces", "Mobiliario", "DJ", "Iluminaci\xF3n"],
+  bautizo: ["Brunch", "Banquete", "Mesa de dulces", "Mobiliario"],
+  cumplea\u00F1os: ["Banquete", "Taquiza", "Mesa de dulces", "Mobiliario", "Barras de bebidas"]
+};
+function normalizeEventKey(tipo) {
+  const t = tipo.trim().toLowerCase();
+  if (/baby\s*shower/.test(t)) return "baby shower";
+  if (/xv|quince/.test(t)) return "xv a\xF1os";
+  if (/corporativ|empresarial/.test(t)) return "corporativo";
+  if (/bautizo/.test(t)) return "bautizo";
+  if (/cumple/.test(t)) return "cumplea\xF1os";
+  if (/boda/.test(t)) return "boda";
+  return t.slice(0, 40);
+}
+function listCatalogServicesForEvent(tipoEvento) {
+  const tipo = (tipoEvento ?? "").trim();
+  if (!tipo) return [];
+  const key = normalizeEventKey(tipo);
+  const patterns = EVENT_OFFER_PATTERNS.find((p) => p.match.test(tipo))?.servicePatterns ?? EVENT_OFFER_PATTERNS.find((p) => p.match.test(key))?.servicePatterns;
+  const names = [];
+  const seen = /* @__PURE__ */ new Set();
+  if (snapshot?.rows.length && patterns) {
+    for (const row of snapshot.rows) {
+      const label = formatCatalogRowLabel(row);
+      const blob = `${row.categoria} ${row.servicio} ${row.nivel}`;
+      if (!patterns.some((re) => re.test(blob))) continue;
+      const base = row.servicio.trim() || label;
+      const norm = base.toLowerCase();
+      if (seen.has(norm)) continue;
+      seen.add(norm);
+      names.push(base);
+      if (names.length >= 10) break;
+    }
+  }
+  if (names.length >= 3) return names;
+  const fallback = EVENT_OFFER_FALLBACK[key] ?? [
+    "Banquete",
+    "Taquiza",
+    "Barras de bebidas",
+    "Mobiliario",
+    "DJ e iluminaci\xF3n",
+    "Mesa de dulces"
+  ];
+  return fallback;
+}
+function buildEventOfferCatalogHint(tipoEvento) {
+  const tipo = (tipoEvento ?? "").trim();
+  if (!tipo) return null;
+  const services = listCatalogServicesForEvent(tipo);
+  if (!services.length) return null;
+  return [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 OFRECIMIENTO TEMPRANO (tipo de evento ya conocido) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    `Tipo de evento: ${tipo}`,
+    "Servicios del cat\xE1logo que suelen encajar (SOLO estos y otros que existan en el Sheet inyectado):",
+    ...services.map((s) => `\u2022 ${s}`),
+    "",
+    "Instrucci\xF3n: prop\xF3n con criterio 4\u20136 de estos servicios para ESTE evento, con tono de asesora c\xE1lida y natural.",
+    "Pregunta qu\xE9 le gustar\xEDa ir armando. Var\xEDa tus palabras; NO uses siempre la misma frase.",
+    "NUNCA digas solo \xAB\xBFqu\xE9 servicios quieres cotizar?\xBB o \xAB\xBFqu\xE9 tienes pensado?\xBB sin haber propuesto nada.",
+    "NO inventes servicios fuera del cat\xE1logo. Precios/inclusiones solo si el cliente pregunta y est\xE1n en el Sheet; si no, \xABel equipo confirma\xBB."
+  ].join("\n");
+}
 function injectCatalogInclusionIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
   const fromCatalog = resolveCatalogInclusionReply(clientMessage);
@@ -13357,6 +13467,9 @@ function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage
   if (mensajeAsksWrongField(trimmed, filledSet, extracted)) return false;
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return true;
+  if (pending === "requerimientos" && hasTipoEvento(filledSet, extracted) && aiLooksLikeEventServiceOffer(trimmed)) {
+    return true;
+  }
   if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
   if (currentMessage && currentMessage.trim().length > 12 && trimmed.length > 25) {
     if (clientAskedFreeformQuestion(currentMessage)) return true;
@@ -13364,6 +13477,58 @@ function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage
     if (justAnsweredReqContext(currentMessage, trimmed)) return true;
   }
   return false;
+}
+function isDryRequerimientosAsk(text) {
+  if (!text?.trim()) return false;
+  const t = text.trim();
+  if (/qu[eé]\s+servicios?\s+(te\s+)?(gustar[ií]a|quieres|deseas|necesitas)\s+(cotizar|para)/i.test(t)) {
+    return true;
+  }
+  if (/plat[ií]came,?\s*[¿?]?\s*qu[eé]\s+tienes\s+pensado/i.test(t) && t.length < 120) {
+    return true;
+  }
+  if (/^[^.!?]{0,40}qu[eé]\s+necesitas\s+para\s+el\s+evento\s*\?/i.test(t) && t.length < 100) {
+    return true;
+  }
+  return false;
+}
+function aiLooksLikeEventServiceOffer(text) {
+  if (!text?.trim()) return false;
+  const t = text.trim();
+  if (isDryRequerimientosAsk(t)) return false;
+  if (t.length < 50) return false;
+  const mentionsService = /\b(banquete|taquiza|brunch|coffee\s*break|mobiliario|mesa\s+de\s+(dulces|postres)|barra|bebidas?|mixolog|\bdj\b|iluminaci|pista|carpa|bocadillo|canap|catering)\b/i.test(
+    t
+  );
+  const invitesChoice = /\?/.test(t) || /\b(armando|armar|gustar[ií]a|te\s+late|interes|propon|inclu|cotiz)/i.test(t);
+  return mentionsService && invitesChoice;
+}
+function preferEventOfferReply(opts) {
+  const { aiResponse, extracted, filledSet, history, currentMessage, entityId } = opts;
+  if (!hasTipoEvento(filledSet, extracted)) return null;
+  if (getNextPendingField(extracted, filledSet) !== "requerimientos") return null;
+  if (isValidRequerimientosValue(extracted.requerimientos_evento)) return null;
+  const msg = currentMessage?.trim() ?? "";
+  if (msg) {
+    const namedService = !!(findMentionedService(msg) || parsePrimaryService(msg));
+    const onlyEventType = !!parseTipoEventoFromText(msg) && !namedService && !isServiceRelatedMessage(msg);
+    if (!onlyEventType && (namedService || isServiceRelatedMessage(msg))) {
+      return null;
+    }
+  }
+  const ai = aiResponse.trim();
+  if (aiLooksLikeEventServiceOffer(ai) && !responseHasInventedPrice(ai, currentMessage)) {
+    return ai;
+  }
+  if (!ai || isDryRequerimientosAsk(ai)) {
+    return buildRecommendationsReply(extracted, history, entityId, currentMessage);
+  }
+  if (ai.length > 40 && !mensajeAsksForFilledField(ai, filledSet, extracted)) {
+    if (!mensajeAsksWrongField(ai, filledSet, extracted) || mensajeAsksForField(ai, "requerimientos")) {
+      return ai;
+    }
+  }
+  return null;
 }
 function justAnsweredReqContext(currentMessage, aiResponse) {
   if (!clientMentionsCatering(currentMessage) && !isServiceRelatedMessage(currentMessage)) return false;
@@ -13378,7 +13543,13 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return base;
     if (!mensajeAsksForField(base, pending)) return base;
   }
+  if (pending === "requerimientos" && hasTipoEvento(filledSet, extracted) && aiLooksLikeEventServiceOffer(base)) {
+    return base;
+  }
   const nextQ = buildNaturalQuestion(pending, ctx);
+  if (pending === "requerimientos" && hasTipoEvento(filledSet, extracted) && isDryRequerimientosAsk(nextQ)) {
+    return base;
+  }
   if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted) && !mensajeAsksForFilledField(mensaje, filledSet, extracted)) {
     return mensaje;
   }
@@ -13794,6 +13965,24 @@ function applyLucyMessageGuards(input) {
     mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: t\xE9rmino vago de comida \u2014 ofrecer opciones");
+  } else if (preferEventOfferReply({
+    aiResponse,
+    extracted,
+    filledSet,
+    history: presHistory,
+    currentMessage,
+    entityId
+  })) {
+    mensaje = preferEventOfferReply({
+      aiResponse,
+      extracted,
+      filledSet,
+      history: presHistory,
+      currentMessage,
+      entityId
+    });
+    appliedDirectReply = true;
+    log?.info({ entityId, tipo: extracted.tipo_evento }, "GUARD: ofrecimiento temprano \u2014 redacci\xF3n OpenAI");
   } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && clientMentionsItalianTheme(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
@@ -13854,9 +14043,28 @@ function applyLucyMessageGuards(input) {
     }
     log?.info({ entityId }, "GUARD: correo capturado \u2014 tipo de evento con opciones");
   } else if (justGaveEmail && hasTipoEvento(filledSet, extracted)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    mensaje = nextQ ?? aiResponse;
-    if (nextQ) log?.info({ entityId }, "GUARD: correo capturado \u2014 tipo ya tenido, siguiente dato");
+    const offer = preferEventOfferReply({
+      aiResponse,
+      extracted,
+      filledSet,
+      history: presHistory,
+      currentMessage,
+      entityId
+    }) ?? (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) ? aiResponse : null);
+    if (offer) {
+      mensaje = offer;
+    } else {
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
+      mensaje = nextQ ?? aiResponse;
+    }
+    log?.info({ entityId }, "GUARD: correo capturado \u2014 tipo ya tenido, ofrecer o siguiente dato");
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
@@ -13929,7 +14137,21 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
       "GUARD: comida/servicio \u2014 orientaci\xF3n de venta"
     );
   } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
-    mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    const offer = preferEventOfferReply({
+      aiResponse,
+      extracted,
+      filledSet,
+      history: presHistory,
+      currentMessage,
+      entityId
+    });
+    if (offer && aiLooksLikeEventServiceOffer(offer)) {
+      mensaje = offer;
+    } else if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+      mensaje = aiResponse;
+    } else {
+      mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    }
     if (bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
       const nextQ = nextFieldQuestion(
         extracted,
@@ -13942,7 +14164,7 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
       if (nextQ) mensaje = nextQ;
     }
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 sugerencias + servicios");
+    log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 preferir OpenAI");
   } else if (clientAsksPrice(currentMessage)) {
     const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
     const pending = getNextPendingField(extracted, filledSet);
@@ -13968,30 +14190,43 @@ ${buildNaturalQuestion(pending, ctx)}` : priceReply;
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
-  } else if (needsNextStep && aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
-    mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
-    log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
-  } else if (needsNextStep && aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    mensaje = nextQ ?? aiResponse;
-    log?.info({ entityId }, "GUARD: GPT repiti\xF3 dato ya capturado \u2014 siguiente paso");
   } else if (needsNextStep) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    if (clientAsksPrice(currentMessage)) {
-      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
-      if (fromCatalog && nextQ) {
-        mensaje = `${fromCatalog}
+    const earlyOffer = preferEventOfferReply({
+      aiResponse,
+      extracted,
+      filledSet,
+      history: presHistory,
+      currentMessage,
+      entityId
+    });
+    if (earlyOffer) {
+      mensaje = earlyOffer;
+      log?.info({ entityId }, "GUARD: ofrecimiento temprano en needsNextStep");
+    } else if (aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
+      mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+      log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
+    } else if (aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      mensaje = nextQ ?? aiResponse;
+      log?.info({ entityId }, "GUARD: GPT repiti\xF3 dato ya capturado \u2014 siguiente paso");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (clientAsksPrice(currentMessage)) {
+        const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+        if (fromCatalog && nextQ) {
+          mensaje = `${fromCatalog}
 
 ${nextQ}`;
-      } else if (fromCatalog) {
-        mensaje = fromCatalog;
+        } else if (fromCatalog) {
+          mensaje = fromCatalog;
+        } else {
+          mensaje = nextQ ?? aiResponse;
+        }
       } else {
         mensaje = nextQ ?? aiResponse;
       }
-    } else {
-      mensaje = nextQ ?? aiResponse;
+      if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
     }
-    if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
   } else if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosFollowUpAlreadyAsked && (requerimientosNeedsFollowUp(extracted, filledSet) || justAnsweredReq)) {
     mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
     log?.info({ entityId }, "GUARD: profundizar antes del cierre");
@@ -16252,6 +16487,83 @@ async function runAll() {
     });
     assert.ok(/gracias por tu pago|registro|seguimiento/i.test(replyPago), replyPago);
     assert.ok(!/CLABE|\*\*\*\*1234|Veo una transferencia/i.test(replyPago), replyPago);
+  });
+  await test("50. Offer temprano \u2014 boda: OpenAI propone, no 'qu\xE9 servicios quieres'", () => {
+    assert.ok(isDryRequerimientosAsk("\xBFQu\xE9 servicios te gustar\xEDa cotizar?"));
+    assert.ok(!aiLooksLikeEventServiceOffer("\xBFQu\xE9 servicios te gustar\xEDa cotizar?"));
+    const bodaAi = "\xA1Qu\xE9 emoci\xF3n! Para una boda manejamos banquete, barras de bebidas, mobiliario, DJ e iluminaci\xF3n y mesa de postres. \xBFQu\xE9 te gustar\xEDa ir armando?";
+    assert.ok(aiLooksLikeEventServiceOffer(bodaAi));
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const extracted = emptyExtracted({
+      nombre: "Karime",
+      correo: "k@test.com",
+      tipo_evento: "boda"
+    });
+    const offer = preferEventOfferReply({
+      aiResponse: bodaAi,
+      extracted,
+      filledSet: filled,
+      history: [{ role: "assistant", content: "\xBFQu\xE9 tipo de celebraci\xF3n es?" }],
+      currentMessage: "es una boda"
+    });
+    assert.ok(offer && /banquete|dj|armando/i.test(offer), offer ?? "");
+    assert.ok(!isDryRequerimientosAsk(offer));
+    const dryReplaced = preferEventOfferReply({
+      aiResponse: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+      extracted,
+      filledSet: filled,
+      history: [],
+      currentMessage: "es una boda"
+    });
+    assert.ok(dryReplaced);
+    assert.ok(!isDryRequerimientosAsk(dryReplaced), dryReplaced);
+    assert.ok(/boda|banquete|taquiza|bebidas|mobiliario/i.test(dryReplaced), dryReplaced);
+    const guarded = runGuards({
+      aiResponse: bodaAi,
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "es una boda",
+      history: [{ role: "assistant", content: "\xBFQu\xE9 tipo de celebraci\xF3n es?" }]
+    });
+    assert.ok(/banquete|dj|bebidas|armando|mobiliario/i.test(guarded), guarded);
+    assert.ok(!/qu[eé]\s+servicios\s+te\s+gustar/i.test(guarded), guarded);
+  });
+  await test("51. Offer temprano \u2014 boda vs baby shower: propuestas distintas", () => {
+    const bodaServices = listCatalogServicesForEvent("boda");
+    const babyServices = listCatalogServicesForEvent("baby shower");
+    assert.ok(bodaServices.some((s) => /dj|banquete|barra|ilumin/i.test(s)), bodaServices.join(","));
+    assert.ok(babyServices.some((s) => /brunch|dulce|bocadillo/i.test(s)), babyServices.join(","));
+    assert.ok(
+      buildEventOfferCatalogHint("boda") !== buildEventOfferCatalogHint("baby shower"),
+      "hints deben diferir por evento"
+    );
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]);
+    const bodaReply = runGuards({
+      aiResponse: "\xA1Qu\xE9 emoci\xF3n! Para tu boda armamos banquete, barras de bebidas, DJ e iluminaci\xF3n. \xBFQu\xE9 te gustar\xEDa ir cotizando?",
+      extracted: emptyExtracted({ nombre: "Ana", correo: "a@t.com", tipo_evento: "boda" }),
+      filledSet: new Set(filled),
+      readyForClosing: false,
+      currentMessage: "boda",
+      history: []
+    });
+    const babyReply = runGuards({
+      aiResponse: "\xA1Qu\xE9 bonito! Para un baby shower suele ir brunch, mesa de dulces, bocadillos y mobiliario. \xBFQu\xE9 te late incluir?",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        correo: "a@t.com",
+        tipo_evento: "baby shower"
+      }),
+      filledSet: new Set(filled),
+      readyForClosing: false,
+      currentMessage: "baby shower",
+      history: []
+    });
+    assert.ok(/banquete|dj|bebidas/i.test(bodaReply), bodaReply);
+    assert.ok(/brunch|dulces|bocadillo/i.test(babyReply), babyReply);
+    assert.ok(bodaReply !== babyReply, "redacciones distintas por evento");
+    assert.ok(!/qu[eé]\s+servicios\s+te\s+gustar/i.test(bodaReply));
+    assert.ok(!/qu[eé]\s+servicios\s+te\s+gustar/i.test(babyReply));
   });
   await test("47. Karime \u2014 ofrecer complementos en pedido solo mesa y sillas", () => {
     assert.ok(looksLikeMinimalServiceAsk("solo mesa y sillas para 12 personas"));
