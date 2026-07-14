@@ -11,6 +11,11 @@
  */
 import { extractText, getDocumentProxy } from "unpdf";
 import { logger } from "../lib/logger.js";
+import {
+  aliasesForPdfLabel,
+  expandQueryWithPdfSynonyms,
+  synonymScoreForPdf,
+} from "./pdfServiceAliases.js";
 
 /** Carpeta compartida: Catalogó bodasesor 2026 finales */
 export const DEFAULT_DRIVE_CATALOG_FOLDER_ID = "1Z_qYCwmu1y9t5WcapjhizcVzW_xAEfag";
@@ -41,6 +46,8 @@ export interface DrivePdfCard {
   serviceLabel: string;
   about: string;
   topics: string[];
+  /** Tokens/alias (sinónimos) para matching. */
+  aliases: string[];
   charCount: number;
 }
 
@@ -224,6 +231,7 @@ export function buildDrivePdfCard(file: DrivePdfFile, fullText: string): DrivePd
     serviceLabel: label,
     about: stripPriceClaims(about),
     topics: [...new Set(topics)].slice(0, 8),
+    aliases: aliasesForPdfLabel(file.name, label),
     charCount: cleaned.length,
   };
 }
@@ -235,38 +243,31 @@ export function getDrivePdfCards(): DrivePdfCard[] {
 /** Busca fichas (de qué trata) por query — no el texto completo. */
 export function searchDrivePdfCards(query: string, limit = 5): DrivePdfCard[] {
   if (!snapshot?.cards.length) return [];
-  const tokens = tokenizeQuery(query);
+  const expanded = expandQueryWithPdfSynonyms(query);
+  const tokens = expanded.tokens.length ? expanded.tokens : tokenizeQuery(query);
   const queryNorm = normalizeSearch(query);
   if (!tokens.length && !queryNorm) return snapshot.cards.slice(0, limit);
 
   const ranked = snapshot.cards
     .map((card) => {
-      const hay = normalizeSearch(`${card.serviceLabel} ${card.fileName} ${card.about} ${card.topics.join(" ")}`);
-      let score = 0;
+      const hay = normalizeSearch(
+        `${card.serviceLabel} ${card.fileName} ${card.about} ${card.topics.join(" ")} ${card.aliases.join(" ")}`
+      );
+      let score = synonymScoreForPdf(query, card.fileName, card.serviceLabel, card.aliases);
       for (const t of tokens) {
         if (normalizeSearch(card.serviceLabel).includes(t)) score += 10;
         if (hay.includes(t)) score += 3;
         if (card.topics.some((tp) => normalizeSearch(tp).includes(t))) score += 4;
+        if (card.aliases.some((a) => normalizeSearch(a) === t || normalizeSearch(a).includes(t))) {
+          score += 6;
+        }
       }
-      for (const hint of [
-        "banquete",
-        "taquiza",
-        "sushi",
-        "coffee",
-        "pizza",
-        "parrillada",
-        "desayuno",
-        "canapes",
-        "bebidas",
-        "paella",
-        "pista",
-        "mobiliario",
-      ]) {
-        if (queryNorm.includes(hint) && hay.includes(hint)) score += 12;
+      for (const hint of expanded.boostedHints) {
+        if (hay.includes(hint)) score += 8;
       }
       return { card, score };
     })
-    .filter((r) => r.score >= 6)
+    .filter((r) => r.score >= 8)
     .sort((a, b) => b.score - a.score);
 
   return ranked.slice(0, limit).map((r) => r.card);
@@ -408,7 +409,7 @@ function stripPriceClaims(text: string): string {
     .replace(/\b[\d,]+\s*pesos?\b/gi, "[precio — ver Sheet / equipo]");
 }
 
-function scoreChunk(chunk: DrivePdfChunk, tokens: string[], queryNorm: string): number {
+function scoreChunk(chunk: DrivePdfChunk, tokens: string[], queryNorm: string, queryRaw: string): number {
   const labelNorm = normalizeSearch(chunk.serviceLabel);
   const fileNorm = normalizeSearch(chunk.fileName);
   const textNorm = normalizeSearch(chunk.text);
@@ -417,12 +418,21 @@ function scoreChunk(chunk: DrivePdfChunk, tokens: string[], queryNorm: string): 
   const card = snapshot?.cards.find((c) => c.fileId === chunk.fileId);
   const aboutNorm = card ? normalizeSearch(card.about) : "";
   const topicsNorm = card ? normalizeSearch(card.topics.join(" ")) : "";
+  const aliasesNorm = card ? normalizeSearch(card.aliases.join(" ")) : "";
+
+  score += synonymScoreForPdf(
+    queryRaw,
+    chunk.fileName,
+    chunk.serviceLabel,
+    card?.aliases ?? []
+  );
 
   for (const t of tokens) {
     if (labelNorm.includes(t)) score += 8;
     if (fileNorm.includes(t)) score += 6;
     if (aboutNorm.includes(t)) score += 5;
     if (topicsNorm.includes(t)) score += 4;
+    if (aliasesNorm.includes(t)) score += 5;
     if (textNorm.includes(t)) score += 2;
   }
 
@@ -466,12 +476,13 @@ function scoreChunk(chunk: DrivePdfChunk, tokens: string[], queryNorm: string): 
 /** Búsqueda de chunks relevantes para una pregunta de servicio. */
 export function searchDrivePdfChunks(query: string, limit = MAX_CHUNKS_IN_PROMPT): DrivePdfChunk[] {
   if (!snapshot?.chunks.length) return [];
-  const tokens = tokenizeQuery(query);
+  const expanded = expandQueryWithPdfSynonyms(query);
+  const tokens = expanded.tokens.length ? expanded.tokens : tokenizeQuery(query);
   if (!tokens.length) return [];
   const queryNorm = normalizeSearch(query);
 
   const ranked = snapshot.chunks
-    .map((chunk) => ({ chunk, score: scoreChunk(chunk, tokens, queryNorm) }))
+    .map((chunk) => ({ chunk, score: scoreChunk(chunk, tokens, queryNorm, query) }))
     .filter((r) => r.score >= 8)
     .sort((a, b) => b.score - a.score);
 
@@ -499,10 +510,17 @@ export function formatDrivePdfKnowledgeForPrompt(query: string): string | null {
   const chunks = searchDrivePdfChunks(query);
   if (!chunks.length && !cards.length) return null;
 
+  const expanded = expandQueryWithPdfSynonyms(query);
   const parts: string[] = [
     "CONOCIMIENTO PDF (Google Drive — menús / inclusiones / descripción):",
     "Usa este texto para describir el servicio. NO cites precios del PDF: los precios salen SOLO del Google Sheet o los confirma el equipo.",
   ];
+
+  if (expanded.familyKeys.length && cards[0]) {
+    parts.push(
+      `Resolución de sinónimos: el cliente dijo algo como "${query.trim().slice(0, 80)}" → servicio PDF *${cards[0].serviceLabel}*. No confunda con otro servicio similar.`
+    );
+  }
 
   if (cards.length) {
     parts.push(

@@ -130,6 +130,7 @@ import {
   buildDrivePdfCard,
   serviceLabelFromPdfName,
 } from "../services/drivePdfKnowledge.js";
+import { expandQueryWithPdfSynonyms } from "../services/pdfServiceAliases.js";
 import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
 import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests } from "../services/imageProcessor.js";
@@ -2070,6 +2071,13 @@ async function runAll(): Promise<void> {
           index: 0,
           text: "Coffee Break corporativo con café, pan dulce y snacks para juntas y expos.",
         },
+        {
+          fileId: "pdf4",
+          fileName: "Taquiza-bodaseor-2026.pdf",
+          serviceLabel: "Taquiza",
+          index: 0,
+          text: "Taquiza Bodasesor. Guisados, tortillas y estación de tacos para tu evento. Niveles básico y premium.",
+        },
       ],
       [
         cardBanquete,
@@ -2077,6 +2085,10 @@ async function runAll(): Promise<void> {
         buildDrivePdfCard(
           { id: "pdf3", name: "Coffee-Break-Bodasesor-2026.pdf" },
           "Coffee Break corporativo con café, pan dulce y snacks para juntas y expos."
+        ),
+        buildDrivePdfCard(
+          { id: "pdf4", name: "Taquiza-bodaseor-2026.pdf" },
+          "Taquiza Bodasesor. Guisados, tortillas y estación de tacos para tu evento. Niveles básico y premium."
         ),
       ]
     );
@@ -2088,6 +2100,31 @@ async function runAll(): Promise<void> {
     const sushiCards = searchDrivePdfCards("barra de sushi");
     assert.ok(sushiCards.length >= 1, "ficha sushi");
     assert.ok(/sushi|poke/i.test(sushiCards[0]!.about), sushiCards[0]!.about);
+
+    // Sinónimos: no confundir
+    const synTacos = expandQueryWithPdfSynonyms("quiero tacos");
+    assert.ok(synTacos.familyKeys.includes("taquiza"), synTacos.familyKeys.join(","));
+    const synJap = expandQueryWithPdfSynonyms("comida japonesa");
+    assert.ok(synJap.familyKeys.includes("sushi"), synJap.familyKeys.join(","));
+
+    const tacosCard = searchDrivePdfCards("quiero tacos para mi fiesta");
+    assert.ok(tacosCard.length >= 1, "tacos → taquiza");
+    assert.ok(/taquiza/i.test(tacosCard[0]!.serviceLabel + tacosCard[0]!.fileName), tacosCard[0]!.serviceLabel);
+
+    const japonesa = searchDrivePdfCards("comida japonesa");
+    assert.ok(japonesa.length >= 1, "japonesa → sushi");
+    assert.ok(/sushi|poke/i.test(japonesa[0]!.serviceLabel + japonesa[0]!.fileName), japonesa[0]!.serviceLabel);
+
+    const tacosNotBanquete = searchDrivePdfChunks("quiero tacos");
+    assert.ok(tacosNotBanquete.length >= 1);
+    assert.ok(
+      !/banquete formal/i.test(tacosNotBanquete[0]!.fileName) || /taquiza/i.test(tacosNotBanquete[0]!.fileName),
+      `no debe preferir banquete formal ante tacos: ${tacosNotBanquete[0]!.fileName}`
+    );
+
+    const coffeeSyn = searchDrivePdfCards("stand de café para una junta");
+    assert.ok(coffeeSyn.length >= 1, "café junta → coffee break");
+    assert.ok(/coffee|cafe|café/i.test(coffeeSyn[0]!.serviceLabel + coffeeSyn[0]!.fileName), coffeeSyn[0]!.serviceLabel);
 
     const learned = formatDrivePdfLearnedCatalogForPrompt({ compact: true });
     assert.ok(learned);

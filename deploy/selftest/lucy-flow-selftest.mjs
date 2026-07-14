@@ -4497,23 +4497,23 @@ function normalizeEmail(email) {
   return trimmed || null;
 }
 function isOwnCompanyEmail(email) {
-  const norm = normalizeEmail(email);
-  if (!norm) return false;
-  if (OWN_EMAILS.has(norm)) return true;
-  return /@bodasesor\.com$/i.test(norm) || /@capybaraeventos\./i.test(norm);
+  const norm2 = normalizeEmail(email);
+  if (!norm2) return false;
+  if (OWN_EMAILS.has(norm2)) return true;
+  return /@bodasesor\.com$/i.test(norm2) || /@capybaraeventos\./i.test(norm2);
 }
 function filterClientEmail(email) {
-  const norm = normalizeEmail(email);
-  if (!norm || isOwnCompanyEmail(norm)) return null;
+  const norm2 = normalizeEmail(email);
+  if (!norm2 || isOwnCompanyEmail(norm2)) return null;
   return email.trim();
 }
 var SUSPICIOUS_TLD = /\.(comm|con|cmo|gmial|gmal|gmai|hotmial|yaho|outlok)\b/i;
 function looksLikeValidClientEmail(email) {
-  const norm = normalizeEmail(email);
-  if (!norm) return false;
+  const norm2 = normalizeEmail(email);
+  if (!norm2) return false;
   if (/\s/.test(email ?? "")) return false;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm)) return false;
-  const domain = norm.split("@")[1] ?? "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm2)) return false;
+  const domain = norm2.split("@")[1] ?? "";
   if (!domain || /\.\./.test(domain) || domain.startsWith(".") || domain.endsWith(".")) return false;
   if (SUSPICIOUS_TLD.test(domain)) return false;
   const tld = domain.split(".").pop() ?? "";
@@ -5894,6 +5894,358 @@ var logger = (0, import_pino.default)({
   }
 });
 
+// src/services/pdfServiceAliases.ts
+function norm(s) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+var PDF_ALIAS_FAMILIES = [
+  {
+    key: "banquete_kosher",
+    aliases: ["kosher", "banquete kosher", "comida kosher", "menu kosher"],
+    pdfHints: ["kosher"]
+  },
+  {
+    key: "banquete_navideno",
+    aliases: ["navideno", "navide\xF1o", "cena navidad", "banquete navidad", "navidad"],
+    pdfHints: ["navideno", "navide\xF1o", "navidad"]
+  },
+  {
+    key: "banquete_mexicano",
+    aliases: ["banquete mexicano", "comida mexicana", "mexicano formal", "menu mexicano"],
+    pdfHints: ["mexicano"],
+    excludeIf: ["taquiza", "tacos", "antojitos"]
+  },
+  {
+    key: "banquete_formal",
+    aliases: [
+      "banquete formal",
+      "banquete",
+      "comida formal",
+      "menu formal",
+      "servicio a la rusa",
+      "4 tiempos",
+      "tres tiempos",
+      "3 tiempos",
+      "plated",
+      "emplatado"
+    ],
+    pdfHints: ["banquete formal", "banquete"],
+    excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos"]
+  },
+  {
+    key: "taquiza",
+    aliases: [
+      "taquiza",
+      "tacos",
+      "taco",
+      "taquiza de",
+      "estacion de tacos",
+      "barra de tacos",
+      "tacos al pastor",
+      "guisados"
+    ],
+    pdfHints: ["taquiza"],
+    excludeIf: ["parrillada tacos", "parrillada"]
+  },
+  {
+    key: "parrillada_argentina",
+    aliases: [
+      "parrillada argentina",
+      "parillada argentina",
+      "asado argentino",
+      "asado",
+      "carne argentina",
+      "cortes argentinos",
+      "argentino"
+    ],
+    pdfHints: ["parrillada argentina", "parillada argentina", "argentina"]
+  },
+  {
+    key: "parrillada_tacos",
+    aliases: ["parrillada tacos", "parrillada de tacos", "tacos parrilla"],
+    pdfHints: ["parrillada tacos", "parrillada"]
+  },
+  {
+    key: "sushi",
+    aliases: [
+      "sushi",
+      "poke",
+      "poke bowl",
+      "barra de sushi",
+      "comida japonesa",
+      "japones",
+      "japon\xE9s",
+      "rolls",
+      "rollos",
+      "nigiri",
+      "sashimi",
+      "makis"
+    ],
+    pdfHints: ["sushi", "poke"]
+  },
+  {
+    key: "coffee_break",
+    aliases: [
+      "coffee break",
+      "coffeebreak",
+      "coffee",
+      "barra de cafe",
+      "barra de caf\xE9",
+      "cafe para junta",
+      "caf\xE9 para junta",
+      "stand de cafe",
+      "stand de caf\xE9",
+      "coffee station",
+      "breaks",
+      "coffee breaks"
+    ],
+    pdfHints: ["coffee break", "cafe", "caf\xE9"]
+  },
+  {
+    key: "barra_bebidas",
+    aliases: [
+      "barra de bebidas",
+      "barra de alcohol",
+      "bebidas alcoholicas",
+      "bebidas alcoh\xF3licas",
+      "open bar",
+      "barra libre",
+      "barra alcohol"
+    ],
+    pdfHints: ["barra de bebidas", "bebidas"],
+    excludeIf: ["mocteles", "mocktail", "sin alcohol", "cafe", "caf\xE9"]
+  },
+  {
+    key: "mocteles",
+    aliases: ["mocteles", "mocktails", "mocktail", "sin alcohol", "barra sin alcohol"],
+    pdfHints: ["mocteles"]
+  },
+  {
+    key: "cocteles",
+    aliases: ["cocteles", "c\xF3cteles", "mixologia", "mixolog\xEDa", "bartender", "cocteleria", "cocteler\xEDa"],
+    pdfHints: ["cocteles", "mixologia", "mixolog\xEDa"]
+  },
+  {
+    key: "barra_americana",
+    aliases: ["barra americana", "americana", "comida americana", "hot dogs", "hamburguesas"],
+    pdfHints: ["americana"]
+  },
+  {
+    key: "barra_yucateca",
+    aliases: ["barra yucateca", "yucateca", "comida yucateca", "cochinita"],
+    pdfHints: ["yucateca"]
+  },
+  {
+    key: "pizza",
+    aliases: ["pizza", "pizzas", "barra de pizzas", "barra pizza"],
+    pdfHints: ["pizza"]
+  },
+  {
+    key: "crepas",
+    aliases: ["crepas", "crepes", "barra de crepas"],
+    pdfHints: ["crepas", "crepa"]
+  },
+  {
+    key: "mariscos",
+    aliases: ["mariscos", "barra de mariscos", "seafood", "camaron", "camar\xF3n", "ostiones"],
+    pdfHints: ["mariscos"]
+  },
+  {
+    key: "paninis",
+    aliases: ["paninis", "panini", "sandwiches", "s\xE1ndwiches"],
+    pdfHints: ["paninis", "panini"]
+  },
+  {
+    key: "pastas",
+    aliases: ["pastas", "ensaladas", "barra de pastas", "pasta", "italian food", "italiana"],
+    pdfHints: ["pastas", "ensaladas"]
+  },
+  {
+    key: "paella",
+    aliases: ["paella", "paellas", "comida espa\xF1ola", "espa\xF1ola"],
+    pdfHints: ["paella"]
+  },
+  {
+    key: "pozole",
+    aliases: ["pozole", "tostadas", "pozole y tostadas"],
+    pdfHints: ["pozole", "tostadas"]
+  },
+  {
+    key: "antojitos",
+    aliases: ["antojitos", "puestos de comida", "street food", "comida mexicana casual"],
+    pdfHints: ["antojitos", "puestos"]
+  },
+  {
+    key: "canapes",
+    aliases: ["canapes", "canap\xE9s", "bocadillos", "botanas finas", "finger food"],
+    pdfHints: ["canapes", "canap\xE9s", "bocadillos"]
+  },
+  {
+    key: "bocadillos",
+    aliases: ["bocadillos", "bocadillo"],
+    pdfHints: ["bocadillos"]
+  },
+  {
+    key: "desayuno",
+    aliases: ["desayuno", "desayunos", "breakfast", "getting ready desayuno"],
+    pdfHints: ["desayuno"]
+  },
+  {
+    key: "comida_corrida",
+    aliases: ["comida corrida", "menu del dia", "men\xFA del d\xEDa"],
+    pdfHints: ["comida corrida", "corrida"]
+  },
+  {
+    key: "snacks",
+    aliases: ["snacks", "carrito de snacks", "botanas", "snack"],
+    pdfHints: ["snacks", "snack"]
+  },
+  {
+    key: "mesa_dulces",
+    aliases: ["mesa de dulces", "dulces", "candy bar"],
+    pdfHints: ["mesa de dulces", "dulces"],
+    excludeIf: ["postres", "cupcakes"]
+  },
+  {
+    key: "mesa_postres",
+    aliases: ["mesa de postres", "postres", "dessert bar"],
+    pdfHints: ["mesa de postres", "postres"]
+  },
+  {
+    key: "mesa_quesos",
+    aliases: ["mesa de quesos", "quesos", "tabla de quesos", "grazing"],
+    pdfHints: ["quesos"]
+  },
+  {
+    key: "cupcakes",
+    aliases: ["cupcakes", "cupcake", "pastelitos"],
+    pdfHints: ["cupcakes"]
+  },
+  {
+    key: "helados",
+    aliases: ["helados", "paletas", "paletas de hielo", "nieve"],
+    pdfHints: ["helados", "paletas"]
+  },
+  {
+    key: "mobiliario",
+    aliases: ["mobiliario", "mesas y sillas", "mesas", "sillas", "renta de mesas"],
+    pdfHints: ["mesas", "sillas", "mobiliario"]
+  },
+  {
+    key: "salas_periqueras",
+    aliases: ["periqueras", "salas lounge", "lounge", "salas"],
+    pdfHints: ["periqueras", "salas"]
+  },
+  {
+    key: "pista_tarima",
+    aliases: ["pista", "pista de baile", "tarima", "dance floor"],
+    pdfHints: ["pista", "tarima"]
+  },
+  {
+    key: "audio_video",
+    aliases: ["audio", "iluminacion", "iluminaci\xF3n", "video", "pantallas", "dj setup", "sonido"],
+    pdfHints: ["audio", "iluminacion", "video"]
+  },
+  {
+    key: "colgantes",
+    aliases: ["colgantes", "decoracion aerea", "decoraci\xF3n a\xE9rea", "aerea"],
+    pdfHints: ["colgantes", "aerea", "a\xE9rea"]
+  },
+  {
+    key: "entelados",
+    aliases: ["entelados", "entelado", "toldo techo", "techo tela"],
+    pdfHints: ["entelados", "entelado"]
+  },
+  {
+    key: "vajillas",
+    aliases: ["vajillas", "vajilla", "loza", "cristaleria", "cristaler\xEDa"],
+    pdfHints: ["vajillas", "vajilla"]
+  },
+  {
+    key: "fiesta_infantil",
+    aliases: ["fiesta infantil", "infantil", "kids", "ni\xF1os", "ninos", "softplay", "inflables"],
+    pdfHints: ["infantil", "fiesta infantil"]
+  }
+];
+function expandQueryWithPdfSynonyms(query) {
+  const q = norm(query);
+  const baseTokens = q.split(" ").filter((w) => w.length >= 3);
+  const familyKeys = [];
+  const boostedHints = [];
+  const extraTokens = new Set(baseTokens);
+  for (const fam of PDF_ALIAS_FAMILIES) {
+    if (fam.excludeIf?.some((ex) => q.includes(norm(ex)))) {
+      const specificHit = fam.aliases.some((a) => {
+        const na = norm(a);
+        return na.includes(" ") && q.includes(na);
+      });
+      if (!specificHit) continue;
+    }
+    const hit = fam.aliases.some((a) => {
+      const na = norm(a);
+      if (na.includes(" ")) return q.includes(na);
+      return new RegExp(`\\b${na}\\b`).test(q);
+    });
+    if (!hit) continue;
+    familyKeys.push(fam.key);
+    for (const h of fam.pdfHints) {
+      const nh = norm(h);
+      boostedHints.push(nh);
+      for (const t of nh.split(" ")) if (t.length >= 3) extraTokens.add(t);
+    }
+    for (const a of fam.aliases) {
+      const na = norm(a);
+      for (const t of na.split(" ")) if (t.length >= 3) extraTokens.add(t);
+    }
+  }
+  return {
+    tokens: [...extraTokens],
+    familyKeys,
+    boostedHints: [...new Set(boostedHints)]
+  };
+}
+function aliasesForPdfLabel(fileName, serviceLabel) {
+  const hay = norm(`${fileName} ${serviceLabel}`);
+  const out = /* @__PURE__ */ new Set();
+  for (const t of hay.split(" ").filter((w) => w.length >= 3)) out.add(t);
+  for (const fam of PDF_ALIAS_FAMILIES) {
+    const matchesHint = fam.pdfHints.some((h) => hay.includes(norm(h)));
+    if (!matchesHint) continue;
+    out.add(fam.key);
+    for (const a of fam.aliases) {
+      const na = norm(a);
+      out.add(na);
+      for (const t of na.split(" ")) if (t.length >= 3) out.add(t);
+    }
+  }
+  return [...out];
+}
+function synonymScoreForPdf(query, fileName, serviceLabel, aliases = []) {
+  const expanded = expandQueryWithPdfSynonyms(query);
+  if (!expanded.familyKeys.length && !expanded.boostedHints.length) return 0;
+  const hay = norm(`${fileName} ${serviceLabel} ${aliases.join(" ")}`);
+  let score = 0;
+  for (const hint of expanded.boostedHints) {
+    if (hay.includes(hint)) score += hint.includes(" ") ? 22 : 14;
+  }
+  for (const key of expanded.familyKeys) {
+    if (aliases.includes(key) || hay.includes(key.replace(/_/g, " "))) score += 18;
+  }
+  if (expanded.familyKeys.includes("taquiza") && /banquete/.test(hay) && !/taquiza/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_formal") && /taquiza/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("sushi") && /banquete|taquiza/.test(hay) && !/sushi|poke/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_mexicano") && /banquete formal/.test(hay) && !/mexicano/.test(hay)) {
+    score -= 20;
+  }
+  return score;
+}
+
 // src/services/drivePdfKnowledge.ts
 var MAX_CHUNKS_IN_PROMPT = 3;
 var MAX_PROMPT_CHARS = 2800;
@@ -5957,40 +6309,34 @@ function buildDrivePdfCard(file, fullText) {
     serviceLabel: label,
     about: stripPriceClaims(about),
     topics: [...new Set(topics)].slice(0, 8),
+    aliases: aliasesForPdfLabel(file.name, label),
     charCount: cleaned.length
   };
 }
 function searchDrivePdfCards(query, limit2 = 5) {
   if (!snapshot?.cards.length) return [];
-  const tokens = tokenizeQuery(query);
+  const expanded = expandQueryWithPdfSynonyms(query);
+  const tokens = expanded.tokens.length ? expanded.tokens : tokenizeQuery(query);
   const queryNorm = normalizeSearch(query);
   if (!tokens.length && !queryNorm) return snapshot.cards.slice(0, limit2);
   const ranked = snapshot.cards.map((card) => {
-    const hay = normalizeSearch(`${card.serviceLabel} ${card.fileName} ${card.about} ${card.topics.join(" ")}`);
-    let score = 0;
+    const hay = normalizeSearch(
+      `${card.serviceLabel} ${card.fileName} ${card.about} ${card.topics.join(" ")} ${card.aliases.join(" ")}`
+    );
+    let score = synonymScoreForPdf(query, card.fileName, card.serviceLabel, card.aliases);
     for (const t of tokens) {
       if (normalizeSearch(card.serviceLabel).includes(t)) score += 10;
       if (hay.includes(t)) score += 3;
       if (card.topics.some((tp) => normalizeSearch(tp).includes(t))) score += 4;
+      if (card.aliases.some((a) => normalizeSearch(a) === t || normalizeSearch(a).includes(t))) {
+        score += 6;
+      }
     }
-    for (const hint of [
-      "banquete",
-      "taquiza",
-      "sushi",
-      "coffee",
-      "pizza",
-      "parrillada",
-      "desayuno",
-      "canapes",
-      "bebidas",
-      "paella",
-      "pista",
-      "mobiliario"
-    ]) {
-      if (queryNorm.includes(hint) && hay.includes(hint)) score += 12;
+    for (const hint of expanded.boostedHints) {
+      if (hay.includes(hint)) score += 8;
     }
     return { card, score };
-  }).filter((r) => r.score >= 6).sort((a, b) => b.score - a.score);
+  }).filter((r) => r.score >= 8).sort((a, b) => b.score - a.score);
   return ranked.slice(0, limit2).map((r) => r.card);
 }
 function formatDrivePdfLearnedCatalogForPrompt(opts) {
@@ -6032,7 +6378,7 @@ function shouldInjectLearnedPdfCatalog(message) {
 function stripPriceClaims(text) {
   return text.replace(/\$\s*[\d,.]+(?:\s*(?:\/\s*)?pp)?/gi, "[precio \u2014 ver Sheet / equipo]").replace(/\bdesde\s+\$[\d,.]+/gi, "precio seg\xFAn cotizaci\xF3n").replace(/\b[\d,]+\s*pesos?\b/gi, "[precio \u2014 ver Sheet / equipo]");
 }
-function scoreChunk(chunk, tokens, queryNorm) {
+function scoreChunk(chunk, tokens, queryNorm, queryRaw) {
   const labelNorm = normalizeSearch(chunk.serviceLabel);
   const fileNorm = normalizeSearch(chunk.fileName);
   const textNorm = normalizeSearch(chunk.text);
@@ -6040,11 +6386,19 @@ function scoreChunk(chunk, tokens, queryNorm) {
   const card = snapshot?.cards.find((c) => c.fileId === chunk.fileId);
   const aboutNorm = card ? normalizeSearch(card.about) : "";
   const topicsNorm = card ? normalizeSearch(card.topics.join(" ")) : "";
+  const aliasesNorm = card ? normalizeSearch(card.aliases.join(" ")) : "";
+  score += synonymScoreForPdf(
+    queryRaw,
+    chunk.fileName,
+    chunk.serviceLabel,
+    card?.aliases ?? []
+  );
   for (const t of tokens) {
     if (labelNorm.includes(t)) score += 8;
     if (fileNorm.includes(t)) score += 6;
     if (aboutNorm.includes(t)) score += 5;
     if (topicsNorm.includes(t)) score += 4;
+    if (aliasesNorm.includes(t)) score += 5;
     if (textNorm.includes(t)) score += 2;
   }
   if (tokens.length && tokens.every((t) => labelNorm.includes(t) || fileNorm.includes(t))) {
@@ -6082,10 +6436,11 @@ function scoreChunk(chunk, tokens, queryNorm) {
 }
 function searchDrivePdfChunks(query, limit2 = MAX_CHUNKS_IN_PROMPT) {
   if (!snapshot?.chunks.length) return [];
-  const tokens = tokenizeQuery(query);
+  const expanded = expandQueryWithPdfSynonyms(query);
+  const tokens = expanded.tokens.length ? expanded.tokens : tokenizeQuery(query);
   if (!tokens.length) return [];
   const queryNorm = normalizeSearch(query);
-  const ranked = snapshot.chunks.map((chunk) => ({ chunk, score: scoreChunk(chunk, tokens, queryNorm) })).filter((r) => r.score >= 8).sort((a, b) => b.score - a.score);
+  const ranked = snapshot.chunks.map((chunk) => ({ chunk, score: scoreChunk(chunk, tokens, queryNorm, query) })).filter((r) => r.score >= 8).sort((a, b) => b.score - a.score);
   const picked = [];
   const seenFiles = /* @__PURE__ */ new Set();
   for (const { chunk } of ranked) {
@@ -6105,10 +6460,16 @@ function formatDrivePdfKnowledgeForPrompt(query) {
   const cards = searchDrivePdfCards(query, 2);
   const chunks = searchDrivePdfChunks(query);
   if (!chunks.length && !cards.length) return null;
+  const expanded = expandQueryWithPdfSynonyms(query);
   const parts = [
     "CONOCIMIENTO PDF (Google Drive \u2014 men\xFAs / inclusiones / descripci\xF3n):",
     "Usa este texto para describir el servicio. NO cites precios del PDF: los precios salen SOLO del Google Sheet o los confirma el equipo."
   ];
+  if (expanded.familyKeys.length && cards[0]) {
+    parts.push(
+      `Resoluci\xF3n de sin\xF3nimos: el cliente dijo algo como "${query.trim().slice(0, 80)}" \u2192 servicio PDF *${cards[0].serviceLabel}*. No confunda con otro servicio similar.`
+    );
+  }
   if (cards.length) {
     parts.push(
       "Ficha(s) del servicio:",
@@ -6455,8 +6816,8 @@ function rowsForRequestedService(allRows, query) {
 function catalogAnswerMatchesRequestedService(query, answer) {
   const keywords = catalogKeywordsFromQuery(query);
   if (!keywords.length) return true;
-  const norm = normalizeForMatch(answer);
-  return keywords.every((k) => norm.includes(k));
+  const norm2 = normalizeForMatch(answer);
+  return keywords.every((k) => norm2.includes(k));
 }
 function catalogResultMatchesRequestedService(query, result) {
   const keywords = catalogKeywordsFromQuery(query);
@@ -7274,9 +7635,9 @@ function requerimientosFollowUpTemplate(text, clientName) {
 function bodyEqualsLastAssistant(msg, history, clientName) {
   const last = [...history].reverse().find((m) => m.role === "assistant");
   if (!last || typeof last.content !== "string") return false;
-  const norm = (s) => stripLeadingTransition(s).trim();
-  const a = norm(msg);
-  const b = norm(last.content);
+  const norm2 = (s) => stripLeadingTransition(s).trim();
+  const a = norm2(msg);
+  const b = norm2(last.content);
   if (a === b) return true;
   const templateA = requerimientosFollowUpTemplate(a, clientName);
   const templateB = requerimientosFollowUpTemplate(b, clientName);
@@ -19362,11 +19723,11 @@ async function runAll() {
     assert.equal(clientAsksAboutTeam("Alejandro", "Alejandro"), false);
     assert.equal(clientAsksAboutTeam("\xBFQui\xE9n es Rodrigo?", "Mar\xEDa"), true);
     assert.equal(clientAsksAboutTeam("\xBFQui\xE9n es Alejandro?", "Mar\xEDa"), true);
-    const norm = normalizeAdvisorReferences(
+    const norm2 = normalizeAdvisorReferences(
       "Le paso estos datos a Alejandro para que te arme una cotizaci\xF3n.",
       "Alejandro"
     );
-    assert.ok(norm.includes("nuestro equipo"));
+    assert.ok(norm2.includes("nuestro equipo"));
     const healthFeatures = [
       "understanding",
       "redaction-briefing",
@@ -19618,12 +19979,12 @@ async function runAll() {
     assert.ok(!/correo/i.test(reply), reply.slice(0, 200));
     assert.ok(!/Alejandro/i.test(reply), reply);
     assert.ok(/seguimos por aquí|invitados|servicios|pensado/i.test(reply), reply.slice(0, 200));
-    const norm = normalizeAdvisorReferences(
+    const norm2 = normalizeAdvisorReferences(
       "para que Alejandro te arme la propuesta",
       "Ver\xF3nica"
     );
-    assert.ok(norm.includes("nuestro equipo"));
-    assert.ok(!/Alejandro/i.test(norm));
+    assert.ok(norm2.includes("nuestro equipo"));
+    assert.ok(!/Alejandro/i.test(norm2));
   });
   await test("19. Fer A14751 \u2014 no repetir presupuesto tras waiver ni 2+ preguntas", () => {
     const baseFilled = /* @__PURE__ */ new Set([
@@ -20185,12 +20546,12 @@ async function runAll() {
     const correoQ = buildCorreoQuestion("Alejandro", [], 14786);
     assert.ok(/Mucho gusto,\s+Alejandro/i.test(correoQ), correoQ);
     assert.ok(!/Mucho gusto,\s+nuestro equipo/i.test(correoQ), correoQ);
-    const norm = normalizeAdvisorReferences(
+    const norm2 = normalizeAdvisorReferences(
       "Mucho gusto, Alejandro. \xBFA qu\xE9 correo te env\xEDo la info para que nuestro equipo te arme la propuesta?",
       "Alejandro"
     );
-    assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm), norm);
-    assert.ok(/nuestro equipo te arme/i.test(norm), norm);
+    assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm2), norm2);
+    assert.ok(/nuestro equipo te arme/i.test(norm2), norm2);
     assert.ok(isStaffAdvisorName("Rodrigo"));
     assert.ok(!isValidRequerimientosValue("bautizo"));
     assert.ok(isValidRequerimientosValue("servicio completo"));
@@ -20751,6 +21112,13 @@ async function runAll() {
           serviceLabel: "Coffee Break",
           index: 0,
           text: "Coffee Break corporativo con caf\xE9, pan dulce y snacks para juntas y expos."
+        },
+        {
+          fileId: "pdf4",
+          fileName: "Taquiza-bodaseor-2026.pdf",
+          serviceLabel: "Taquiza",
+          index: 0,
+          text: "Taquiza Bodasesor. Guisados, tortillas y estaci\xF3n de tacos para tu evento. Niveles b\xE1sico y premium."
         }
       ],
       [
@@ -20759,6 +21127,10 @@ async function runAll() {
         buildDrivePdfCard(
           { id: "pdf3", name: "Coffee-Break-Bodasesor-2026.pdf" },
           "Coffee Break corporativo con caf\xE9, pan dulce y snacks para juntas y expos."
+        ),
+        buildDrivePdfCard(
+          { id: "pdf4", name: "Taquiza-bodaseor-2026.pdf" },
+          "Taquiza Bodasesor. Guisados, tortillas y estaci\xF3n de tacos para tu evento. Niveles b\xE1sico y premium."
         )
       ]
     );
@@ -20768,6 +21140,21 @@ async function runAll() {
     const sushiCards = searchDrivePdfCards("barra de sushi");
     assert.ok(sushiCards.length >= 1, "ficha sushi");
     assert.ok(/sushi|poke/i.test(sushiCards[0].about), sushiCards[0].about);
+    const tacosCard = searchDrivePdfCards("quiero tacos para mi fiesta");
+    assert.ok(tacosCard.length >= 1, "tacos \u2192 taquiza");
+    assert.ok(/taquiza/i.test(tacosCard[0].serviceLabel + tacosCard[0].fileName), tacosCard[0].serviceLabel);
+    const japonesa = searchDrivePdfCards("comida japonesa");
+    assert.ok(japonesa.length >= 1, "japonesa \u2192 sushi");
+    assert.ok(/sushi|poke/i.test(japonesa[0].serviceLabel + japonesa[0].fileName), japonesa[0].serviceLabel);
+    const tacosNotBanquete = searchDrivePdfChunks("quiero tacos");
+    assert.ok(tacosNotBanquete.length >= 1);
+    assert.ok(
+      !/banquete formal/i.test(tacosNotBanquete[0].fileName) || /taquiza/i.test(tacosNotBanquete[0].fileName),
+      `no debe preferir banquete formal ante tacos: ${tacosNotBanquete[0].fileName}`
+    );
+    const coffeeSyn = searchDrivePdfCards("stand de caf\xE9 para una junta");
+    assert.ok(coffeeSyn.length >= 1, "caf\xE9 junta \u2192 coffee break");
+    assert.ok(/coffee|cafe|café/i.test(coffeeSyn[0].serviceLabel + coffeeSyn[0].fileName), coffeeSyn[0].serviceLabel);
     const learned = formatDrivePdfLearnedCatalogForPrompt({ compact: true });
     assert.ok(learned);
     assert.ok(/Banquete Formal|Sushi|Coffee Break/i.test(learned), learned);
