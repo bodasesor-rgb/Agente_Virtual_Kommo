@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "note": "Overlays editables: clave = nombre de servicio Sheet; valor = aliases separados. Se fusionan con defaults de código y columna Sinónimos del Sheet.",
+  "sinonimos": {
+    "Pozole y Tostadas": [
+      "pozolada",
+      "pozole",
+      "pozole rojo",
+      "pozole verde",
+      "pozole blanco",
+      "tostadas"
+    ],
+    "Taquiza": ["taquizas", "tacos para evento", "barra de tacos"],
+    "Paella": ["paellada", "paella para evento"],
+    "Parrillada Argentina": ["asado", "carne asada", "parrillada", "asador"],
+    "Banquete Navideño": ["posada", "cena navideña", "cena navideña", "navidad"]
+  }
+}

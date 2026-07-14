@@ -26,7 +26,19 @@ import {
   parsePrimaryService,
   isServiceRelatedMessage,
 } from "../conversation-understanding.js";
-import { buildLevel2Ack, buildLevel3Ack, classifyServiceKnowledgeLevel } from "./serviceKnowledge.js";
+import {
+  buildLevel2Ack,
+  buildLevel3Ack,
+  classifyServiceKnowledgeLevel,
+} from "./serviceKnowledge.js";
+import {
+  registerSheetSynonyms,
+  loadSinonimosJson,
+  resolveServiceFocusFromText,
+} from "./serviceSynonyms.js";
+import { readFileSync, existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const GENERIC_CATERING_MENU_MARKERS =
   /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
@@ -144,8 +156,13 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
           sheetsMd = sheetRowsToMarkdown(rows);
           status.sources.sheets = true;
           status.sources.sheetsRows = rows.length;
+          registerSheetSynonyms(
+            rows.map((r) => ({ servicio: r.servicio, sinonimos: r.sinonimos ?? null }))
+          );
         }
       }
+
+      tryLoadSinonimosJsonFile();
 
       const textUrl = buildSheetsTextCsvUrl();
       if (textUrl) {
@@ -234,6 +251,31 @@ export function setCatalogSnapshotForTests(rows: SheetCatalogRow[]): void {
   status.pricedServicesCount = rows.filter((r) => r.tienePrecio && r.precio).length;
   snapshot = { rows, promptBlock: "", status };
   applyPriceIndex(rows);
+  registerSheetSynonyms(
+    rows.map((r) => ({ servicio: r.servicio, sinonimos: r.sinonimos ?? null }))
+  );
+  tryLoadSinonimosJsonFile();
+}
+
+function tryLoadSinonimosJsonFile(): void {
+  const candidates = [
+    path.resolve(process.cwd(), "config/sinonimos.json"),
+    path.resolve(process.cwd(), "data/sinonimos.json"),
+    path.resolve(process.cwd(), "dist/data/sinonimos.json"),
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../config/sinonimos.json"),
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../data/sinonimos.json"),
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../data/sinonimos.json"),
+  ];
+  for (const p of candidates) {
+    if (!existsSync(p)) continue;
+    try {
+      const raw = JSON.parse(readFileSync(p, "utf8"));
+      const n = loadSinonimosJson(raw);
+      if (n > 0) return;
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 export async function bootstrapCatalog(): Promise<CatalogSnapshot> {
@@ -1143,6 +1185,32 @@ export function listCatalogServicesForEvent(tipoEvento: string | null | undefine
   const tipo = (tipoEvento ?? "").trim();
   if (!tipo) return [];
 
+  // Evento = servicio (pozolada, taquiza, paella…): ofrecer ESE servicio, no banquete genérico.
+  const focus = resolveServiceFocusFromText(tipo);
+  if (focus) {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    if (snapshot?.rows.length) {
+      for (const row of snapshot.rows) {
+        const blob = `${row.categoria} ${row.servicio} ${row.nivel}`.toLowerCase();
+        if (!focus.serviceHints.some((h) => blob.includes(h.toLowerCase()))) continue;
+        const base = row.servicio.trim();
+        const n = base.toLowerCase();
+        if (seen.has(n)) continue;
+        seen.add(n);
+        names.push(base);
+        if (names.length >= 6) break;
+      }
+    }
+    if (!names.length) names.push(focus.label);
+    for (const c of focus.complements) {
+      if (!names.some((n) => n.toLowerCase().includes(c.toLowerCase().split(" ")[0]!))) {
+        names.push(c);
+      }
+    }
+    return names;
+  }
+
   const key = normalizeEventKey(tipo);
   const patterns =
     EVENT_OFFER_PATTERNS.find((p) => p.match.test(tipo))?.servicePatterns ??
@@ -1157,9 +1225,9 @@ export function listCatalogServicesForEvent(tipoEvento: string | null | undefine
       const blob = `${row.categoria} ${row.servicio} ${row.nivel}`;
       if (!patterns.some((re) => re.test(blob))) continue;
       const base = row.servicio.trim() || label;
-      const norm = base.toLowerCase();
-      if (seen.has(norm)) continue;
-      seen.add(norm);
+      const normed = base.toLowerCase();
+      if (seen.has(normed)) continue;
+      seen.add(normed);
       names.push(base);
       if (names.length >= 10) break;
     }
@@ -1167,15 +1235,11 @@ export function listCatalogServicesForEvent(tipoEvento: string | null | undefine
 
   if (names.length >= 3) return names;
 
-  const fallback = EVENT_OFFER_FALLBACK[key] ?? [
-    "Banquete",
-    "Taquiza",
-    "Barras de bebidas",
-    "Mobiliario",
-    "DJ e iluminación",
-    "Mesa de dulces",
-  ];
-  return fallback;
+  const fallback = EVENT_OFFER_FALLBACK[key];
+  if (fallback) return fallback;
+
+  // Evento desconocido: NO caer a banquete/taquiza por defecto.
+  return ["Mobiliario", "Barras de bebidas", "Mesa de dulces"];
 }
 
 /**
@@ -1185,8 +1249,23 @@ export function listCatalogServicesForEvent(tipoEvento: string | null | undefine
 export function buildEventOfferCatalogHint(tipoEvento: string | null | undefined): string | null {
   const tipo = (tipoEvento ?? "").trim();
   if (!tipo) return null;
+  const focus = resolveServiceFocusFromText(tipo);
   const services = listCatalogServicesForEvent(tipo);
   if (!services.length) return null;
+
+  if (focus) {
+    return [
+      "━━━━━━━━ OFRECIMIENTO — EVENTO = SERVICIO ━━━━━━━━",
+      `El cliente describió su evento como «${tipo}» → sirve el servicio *${focus.label}* (no banquete/taquiza genéricos salvo que pidan eso).`,
+      `Servicios del catálogo a proponer:`,
+      ...services.map((s) => `• ${s}`),
+      "",
+      `Prioriza *${focus.label}* (variantes si hay). Puedes sugerir 1–2 complementos (bebidas, mobiliario) sin forzar.`,
+      "Pregunta invitados o qué armar. Varía palabras. NO ofrezcas banquete/taquiza si no aplican a este evento.",
+      "Precios/inclusiones solo del Sheet; si no hay dato, «el equipo confirma».",
+    ].join("\n");
+  }
+
   return [
     "━━━━━━━━ OFRECIMIENTO TEMPRANO (tipo de evento ya conocido) ━━━━━━━━",
     `Tipo de evento: ${tipo}`,

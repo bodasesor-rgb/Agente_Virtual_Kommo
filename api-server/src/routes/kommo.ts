@@ -350,20 +350,20 @@ function buildClosingMessage(
   serviciosPedidos: string | null | undefined,
   clientName?: string | null
 ): string {
-  const servicio = serviciosPedidos?.trim() || null;
-  const advisor = advisorLabelForClient(clientName);
-  const introServicios = servicio
-    ? `Por cierto, además de ${servicio}, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.`
-    : `Por cierto, también manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces, barras de alimentos y más.`;
+  const asesor = advisorLabelForClient(clientName);
   const handoff =
-    advisor === "nuestro equipo"
+    asesor === "nuestro equipo"
       ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
-      : `Le paso estos datos a ${advisor} para que te arme una cotización personalizada.`;
+      : `Le paso estos datos a ${asesor} para que te arme una cotización personalizada.`;
+  const servicio = serviciosPedidos?.trim();
+  const softExtra = servicio
+    ? `Si más adelante quieres sumar algo además de ${servicio}, con gusto lo vemos.`
+    : `Si más adelante quieres sumar algún complemento, con gusto lo vemos.`;
   return (
     `Perfecto, ya tengo todo. ${handoff}\n\n` +
     `Mientras tanto, aquí está nuestro catálogo completo:\n${CATALOG_URL}\n\n` +
-    introServicios + `\n\n` +
-    `¿Te gustaría cotizar algo adicional? Si te falta algo o tienes alguna duda, no dudes en decírnoslo y nosotros te lo conseguimos.`
+    `${softExtra}\n\n` +
+    `¿Te gustaría cotizar algo adicional o tienes alguna duda?`
   );
 }
 

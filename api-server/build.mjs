@@ -179,6 +179,15 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   await cp(trainingSrc, path.join(distDir, "training-examples.json"));
   console.log("[build] Training examples copiados a dist/");
 
+  const sinonimosSrc = path.resolve(artifactDir, "config/sinonimos.json");
+  try {
+    await cp(sinonimosSrc, path.join(distDir, "data/sinonimos.json"));
+    await mkdir(path.join(distDir, "config"), { recursive: true });
+    await cp(sinonimosSrc, path.join(distDir, "config/sinonimos.json"));
+    console.log("[build] sinonimos.json copiado a dist/");
+  } catch (err) {
+    console.warn("[build] sinonimos.json no copiado:", err.message);
+  }
   const scriptsDir = path.join(distDir, "scripts");
   await mkdir(scriptsDir, { recursive: true });
   for (const script of ["simulator-auto-client-lib.mjs", "lucy-simulator-10-clients.mjs"]) {
