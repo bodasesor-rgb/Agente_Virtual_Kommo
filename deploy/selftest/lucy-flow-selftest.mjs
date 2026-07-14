@@ -5907,6 +5907,128 @@ function normalizeSearch(text) {
 function tokenizeQuery(query) {
   return normalizeSearch(query).split(" ").filter((w) => w.length >= 3).filter((w) => !/^(quiero|necesito|busco|cotizar|cuanto|cuesta|precio|incluye|para|tiene|como|tiene|me|del|los|las|una|uno|con|por|the|and)$/.test(w));
 }
+var TOPIC_PATTERNS = [
+  { topic: "men\xFA", re: /\bmen[uú]s?\b/i },
+  { topic: "niveles", re: /\b(b[aá]sico|premium|tradicional|nivel|paquete)\b/i },
+  { topic: "entrada", re: /\bentradas?\b/i },
+  { topic: "plato fuerte", re: /\b(plato\s+(fuerte|principal)|lomo|pollo|res)\b/i },
+  { topic: "postre", re: /\bpostres?\b/i },
+  { topic: "barra", re: /\bbarra\b/i },
+  { topic: "chefs", re: /\bchefs?\b/i },
+  { topic: "montaje", re: /\bmontaje\b/i },
+  { topic: "bebidas", re: /\b(bebidas?|licores?|vino|cerveza|coctel|mixolog)\b/i },
+  { topic: "mobiliario", re: /\b(mesas?|sillas?|mobiliario|periqueras?)\b/i },
+  { topic: "pista", re: /\b(pista|tarima)\b/i },
+  { topic: "audio", re: /\b(audio|dj|iluminaci|pantalla|video)\b/i },
+  { topic: "dulces", re: /\b(dulces?|cupcakes?|postres?|helados?)\b/i },
+  { topic: "corporativo", re: /\b(coffee\s*break|corporativ|junta|expo)\b/i },
+  { topic: "kosher", re: /\bkosher\b/i },
+  { topic: "infantil", re: /\b(infantil|ni[nñ]os?)\b/i }
+];
+function buildDrivePdfCard(file, fullText) {
+  const label = serviceLabelFromPdfName(file.name);
+  const cleaned = fullText.replace(/\s+/g, " ").trim();
+  const sentences = cleaned.split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter((s) => s.length >= 40 && s.length <= 280).filter((s) => !/^https?:\/\//i.test(s));
+  const labelTokens = normalizeSearch(label).split(" ").filter((w) => w.length >= 3);
+  const scoreSentence = (s) => {
+    const n = normalizeSearch(s);
+    let score = 0;
+    for (const t of labelTokens) if (n.includes(t)) score += 3;
+    if (/especialistas|experiencia|incluye|men[uú]|prepar|ofrecemos/i.test(s)) score += 1;
+    if (s.length < 60) score -= 1;
+    return score;
+  };
+  const preferred = [...sentences].sort((a, b) => scoreSentence(b) - scoreSentence(a))[0] ?? cleaned.slice(0, 220);
+  let about = preferred.replace(/\s+/g, " ").trim();
+  const aboutNorm = normalizeSearch(about);
+  const missingLabel = labelTokens.filter((t) => !aboutNorm.includes(t));
+  if (missingLabel.length === labelTokens.length) {
+    about = `${label}. ${about}`;
+  }
+  if (about.length > 220) about = `${about.slice(0, 217).trim()}\u2026`;
+  if (!about) about = `Cat\xE1logo ${label} Bodasesor 2026.`;
+  const topics = TOPIC_PATTERNS.filter((t) => t.re.test(cleaned)).map((t) => t.topic).slice(0, 6);
+  for (const w of normalizeSearch(label).split(" ").filter((x) => x.length >= 4)) {
+    if (!topics.includes(w)) topics.unshift(w);
+  }
+  return {
+    fileId: file.id,
+    fileName: file.name,
+    serviceLabel: label,
+    about: stripPriceClaims(about),
+    topics: [...new Set(topics)].slice(0, 8),
+    charCount: cleaned.length
+  };
+}
+function searchDrivePdfCards(query, limit2 = 5) {
+  if (!snapshot?.cards.length) return [];
+  const tokens = tokenizeQuery(query);
+  const queryNorm = normalizeSearch(query);
+  if (!tokens.length && !queryNorm) return snapshot.cards.slice(0, limit2);
+  const ranked = snapshot.cards.map((card) => {
+    const hay = normalizeSearch(`${card.serviceLabel} ${card.fileName} ${card.about} ${card.topics.join(" ")}`);
+    let score = 0;
+    for (const t of tokens) {
+      if (normalizeSearch(card.serviceLabel).includes(t)) score += 10;
+      if (hay.includes(t)) score += 3;
+      if (card.topics.some((tp) => normalizeSearch(tp).includes(t))) score += 4;
+    }
+    for (const hint of [
+      "banquete",
+      "taquiza",
+      "sushi",
+      "coffee",
+      "pizza",
+      "parrillada",
+      "desayuno",
+      "canapes",
+      "bebidas",
+      "paella",
+      "pista",
+      "mobiliario"
+    ]) {
+      if (queryNorm.includes(hint) && hay.includes(hint)) score += 12;
+    }
+    return { card, score };
+  }).filter((r) => r.score >= 6).sort((a, b) => b.score - a.score);
+  return ranked.slice(0, limit2).map((r) => r.card);
+}
+function formatDrivePdfLearnedCatalogForPrompt(opts) {
+  if (!snapshot?.cards.length) return null;
+  const maxItems = opts?.maxItems ?? (opts?.compact ? 24 : 16);
+  const query = opts?.query?.trim();
+  let cards = snapshot.cards;
+  if (query && tokenizeQuery(query).length) {
+    const matched = searchDrivePdfCards(query, maxItems);
+    cards = matched.length ? matched : cards;
+  }
+  cards = [...cards].sort((a, b) => a.serviceLabel.localeCompare(b.serviceLabel, "es"));
+  cards = cards.slice(0, maxItems);
+  if (opts?.compact) {
+    const names = cards.map((c) => c.serviceLabel).join(", ");
+    return [
+      "CAT\xC1LOGO APRENDIDO (PDFs Drive \u2014 servicios que conoces):",
+      names,
+      "Si el cliente pide opciones, sugiere 2\u20134 relevantes al tipo de evento. Detalle fino solo del PDF/Sheet del servicio elegido.",
+      "NO cites precios de los PDF."
+    ].join("\n");
+  }
+  const lines = cards.map(
+    (c) => `\u2022 *${c.serviceLabel}* \u2014 ${c.about}${c.topics.length ? ` [temas: ${c.topics.slice(0, 4).join(", ")}]` : ""}`
+  );
+  return [
+    "FICHAS APRENDIDAS DE PDFs (sabes de qu\xE9 habla cada uno):",
+    ...lines,
+    "Usa estas fichas para orientar. Para detalle de men\xFA, usa los chunks del PDF del servicio. Precios SOLO del Sheet."
+  ].join("\n");
+}
+function shouldInjectLearnedPdfCatalog(message) {
+  if (!message?.trim() || !snapshot?.cards.length) return false;
+  if (searchDrivePdfChunks(message, 1).length > 0) return false;
+  return /qu[eé]\s+(servicios|opciones|tienen|ofrecen|manejan)|cat[aá]logo|recomiend|suger|opciones|ideas\s+de\s+comida|qu[eé]\s+me\s+recomiend/i.test(
+    message
+  ) || /\b(comida|alimentos?|catering)\b/i.test(message);
+}
 function stripPriceClaims(text) {
   return text.replace(/\$\s*[\d,.]+(?:\s*(?:\/\s*)?pp)?/gi, "[precio \u2014 ver Sheet / equipo]").replace(/\bdesde\s+\$[\d,.]+/gi, "precio seg\xFAn cotizaci\xF3n").replace(/\b[\d,]+\s*pesos?\b/gi, "[precio \u2014 ver Sheet / equipo]");
 }
@@ -5915,9 +6037,14 @@ function scoreChunk(chunk, tokens, queryNorm) {
   const fileNorm = normalizeSearch(chunk.fileName);
   const textNorm = normalizeSearch(chunk.text);
   let score = 0;
+  const card = snapshot?.cards.find((c) => c.fileId === chunk.fileId);
+  const aboutNorm = card ? normalizeSearch(card.about) : "";
+  const topicsNorm = card ? normalizeSearch(card.topics.join(" ")) : "";
   for (const t of tokens) {
     if (labelNorm.includes(t)) score += 8;
     if (fileNorm.includes(t)) score += 6;
+    if (aboutNorm.includes(t)) score += 5;
+    if (topicsNorm.includes(t)) score += 4;
     if (textNorm.includes(t)) score += 2;
   }
   if (tokens.length && tokens.every((t) => labelNorm.includes(t) || fileNorm.includes(t))) {
@@ -5972,16 +6099,23 @@ function searchDrivePdfChunks(query, limit2 = MAX_CHUNKS_IN_PROMPT) {
   return picked;
 }
 function hasDrivePdfKnowledge(query) {
-  return searchDrivePdfChunks(query, 1).length > 0;
+  return searchDrivePdfChunks(query, 1).length > 0 || searchDrivePdfCards(query, 1).length > 0;
 }
 function formatDrivePdfKnowledgeForPrompt(query) {
+  const cards = searchDrivePdfCards(query, 2);
   const chunks = searchDrivePdfChunks(query);
-  if (!chunks.length) return null;
+  if (!chunks.length && !cards.length) return null;
   const parts = [
     "CONOCIMIENTO PDF (Google Drive \u2014 men\xFAs / inclusiones / descripci\xF3n):",
     "Usa este texto para describir el servicio. NO cites precios del PDF: los precios salen SOLO del Google Sheet o los confirma el equipo."
   ];
-  let used = 0;
+  if (cards.length) {
+    parts.push(
+      "Ficha(s) del servicio:",
+      ...cards.map((c) => `\u2022 *${c.serviceLabel}* \u2014 ${c.about}`)
+    );
+  }
+  let used = parts.join("\n").length;
   for (const chunk of chunks) {
     const body = stripPriceClaims(chunk.text);
     const block = `\u2014 Fuente: ${chunk.fileName} (${chunk.serviceLabel})
@@ -6004,20 +6138,26 @@ ${detail}
 
 El precio exacto te lo confirma nuestro equipo seg\xFAn invitados y nivel.`;
 }
-function setDrivePdfSnapshotForTests(chunks) {
+function setDrivePdfSnapshotForTests(chunks, cards) {
+  const inferredCards = cards ?? [...new Map(chunks.map((c) => [c.fileId, c])).values()].map(
+    (c) => buildDrivePdfCard({ id: c.fileId, name: c.fileName }, c.text)
+  );
   snapshot = {
     folderId: "test",
     files: [...new Map(chunks.map((c) => [c.fileId, { id: c.fileId, name: c.fileName }])).values()],
     chunks,
+    cards: inferredCards,
     status: {
       enabled: true,
       loaded: true,
       folderId: "test",
       fileCount: new Set(chunks.map((c) => c.fileId)).size,
       chunkCount: chunks.length,
+      cardCount: inferredCards.length,
       lastRefresh: (/* @__PURE__ */ new Date()).toISOString(),
       lastError: null,
-      files: [...new Set(chunks.map((c) => c.fileName))]
+      files: [...new Set(chunks.map((c) => c.fileName))],
+      learnedPreview: inferredCards.slice(0, 5).map((c) => `${c.serviceLabel}: ${c.about.slice(0, 80)}`)
     }
   };
 }
@@ -6130,6 +6270,25 @@ function getServiceKnowledge(query) {
       ].filter(Boolean).join("\n"),
       guardAck: pdfAnswer ?? buildLevel2Ack(label)
     };
+  }
+  if (shouldInjectLearnedPdfCatalog(trimmed)) {
+    const learned = formatDrivePdfLearnedCatalogForPrompt({ query: trimmed, compact: true }) ?? formatDrivePdfLearnedCatalogForPrompt({ compact: true });
+    if (learned) {
+      return {
+        level: 2,
+        label,
+        hasSheetPrice: false,
+        promptBlock: [
+          "CONOCIMIENTO DE SERVICIO (mapa aprendido de PDFs \u2014 NIVEL 2):",
+          `Consulta del cliente: ${label}`,
+          "Sabes de qu\xE9 habla cada PDF del cat\xE1logo. Sugiere 2\u20134 opciones relevantes y pide que elija UNA.",
+          "NUNCA inventes precios. NUNCA digas que no tienes el servicio si est\xE1 en el mapa.",
+          learned,
+          SERVICE_KNOWLEDGE_GOLDEN_RULE
+        ].join("\n"),
+        guardAck: buildLevel2Ack(label)
+      };
+    }
   }
   return {
     level: 2,
@@ -20559,36 +20718,73 @@ async function runAll() {
     assert.ok(/valet|flor|coordin|anot|equipo/i.test(valetFirst), valetFirst.slice(0, 200));
     assert.ok(!/no tenemos|no manejamos/i.test(valetFirst), valetFirst);
   });
-  await test("46. Drive PDF RAG \u2014 \xEDndice de prueba y conocimiento enriquecido", () => {
+  await test("46. Drive PDF RAG \u2014 fichas aprendidas y conocimiento enriquecido", () => {
     clearDrivePdfSnapshotForTests();
     assert.equal(serviceLabelFromPdfName("Banquete-Formal-Bodasesor-2026.pdf"), "Banquete Formal");
-    setDrivePdfSnapshotForTests([
-      {
-        fileId: "pdf1",
-        fileName: "Banquete-Formal-Bodasesor-2026.pdf",
-        serviceLabel: "Banquete Formal",
-        index: 0,
-        text: "Banquete Formal Bodasesor. Men\xFA 4 tiempos B\xE1sico: una entrada, una sopa o pasta, un plato principal lomo o pollo, una guarnici\xF3n y un postre. Servicio profesional de cinco horas."
-      },
-      {
-        fileId: "pdf2",
-        fileName: "Barra-de-Sushi-y-Poke-Bow-2026.pdf",
-        serviceLabel: "Barra de Sushi y Poke",
-        index: 0,
-        text: "Barra de Sushi y Poke Bowl. Incluye chefs en sitio, rollos california, philadelphia, nigiris y poke bowls. Montaje de barra completa para el evento."
-      }
-    ]);
+    const banqueteText = "Banquete Formal Bodasesor. Especialistas en banquetes. Men\xFA 4 tiempos B\xE1sico: una entrada, una sopa o pasta, un plato principal lomo o pollo, una guarnici\xF3n y un postre. Servicio profesional de cinco horas.";
+    const sushiText = "Barra de Sushi y Poke Bowl. Incluye chefs en sitio, rollos california, philadelphia, nigiris y poke bowls. Montaje de barra completa para el evento.";
+    const cardBanquete = buildDrivePdfCard(
+      { id: "pdf1", name: "Banquete-Formal-Bodasesor-2026.pdf" },
+      banqueteText
+    );
+    assert.ok(/banquete/i.test(cardBanquete.about), cardBanquete.about);
+    assert.ok(cardBanquete.topics.length >= 1, String(cardBanquete.topics));
+    setDrivePdfSnapshotForTests(
+      [
+        {
+          fileId: "pdf1",
+          fileName: "Banquete-Formal-Bodasesor-2026.pdf",
+          serviceLabel: "Banquete Formal",
+          index: 0,
+          text: banqueteText
+        },
+        {
+          fileId: "pdf2",
+          fileName: "Barra-de-Sushi-y-Poke-Bow-2026.pdf",
+          serviceLabel: "Barra de Sushi y Poke",
+          index: 0,
+          text: sushiText
+        },
+        {
+          fileId: "pdf3",
+          fileName: "Coffee-Break-Bodasesor-2026.pdf",
+          serviceLabel: "Coffee Break",
+          index: 0,
+          text: "Coffee Break corporativo con caf\xE9, pan dulce y snacks para juntas y expos."
+        }
+      ],
+      [
+        cardBanquete,
+        buildDrivePdfCard({ id: "pdf2", name: "Barra-de-Sushi-y-Poke-Bow-2026.pdf" }, sushiText),
+        buildDrivePdfCard(
+          { id: "pdf3", name: "Coffee-Break-Bodasesor-2026.pdf" },
+          "Coffee Break corporativo con caf\xE9, pan dulce y snacks para juntas y expos."
+        )
+      ]
+    );
     const sushiChunks = searchDrivePdfChunks("quiero cotizar sushi");
     assert.ok(sushiChunks.length >= 1, "debe encontrar PDF de sushi");
     assert.ok(/sushi/i.test(sushiChunks[0].fileName), sushiChunks[0].fileName);
+    const sushiCards = searchDrivePdfCards("barra de sushi");
+    assert.ok(sushiCards.length >= 1, "ficha sushi");
+    assert.ok(/sushi|poke/i.test(sushiCards[0].about), sushiCards[0].about);
+    const learned = formatDrivePdfLearnedCatalogForPrompt({ compact: true });
+    assert.ok(learned);
+    assert.ok(/Banquete Formal|Sushi|Coffee Break/i.test(learned), learned);
     const prompt = formatDrivePdfKnowledgeForPrompt("men\xFA banquete formal 4 tiempos");
     assert.ok(prompt, "prompt PDF banquete");
-    assert.ok(/Banquete-Formal/i.test(prompt), prompt);
+    assert.ok(/Banquete-Formal|Banquete Formal/i.test(prompt), prompt);
     assert.ok(/entrada|sopa|postre/i.test(prompt), prompt);
     const knowledge = getServiceKnowledge("quiero barra de sushi para mi boda");
     assert.ok(knowledge);
     assert.equal(knowledge.level, 2);
-    assert.ok(/PDF|Drive|sushi|rollos/i.test(knowledge.promptBlock), knowledge.promptBlock.slice(0, 300));
+    assert.ok(/PDF|Drive|sushi|rollos|ficha/i.test(knowledge.promptBlock), knowledge.promptBlock.slice(0, 300));
+    const vague = getServiceKnowledge("busco comida para mi evento");
+    assert.ok(vague);
+    assert.ok(
+      /aprendido|FICHAS|CATÁLOGO APRENDIDO|Banquete|Sushi|Coffee/i.test(vague.promptBlock) || vague.level === 2,
+      vague.promptBlock.slice(0, 400)
+    );
     const ack = buildGuardServiceAck("qu\xE9 incluye el banquete formal");
     assert.ok(/banquete|tiempos|entrada/i.test(ack), ack.slice(0, 250));
     assert.ok(!/\$\d/.test(ack) || /equipo|confirma/i.test(ack), ack);

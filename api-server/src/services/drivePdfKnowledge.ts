@@ -34,21 +34,35 @@ export interface DrivePdfChunk {
   index: number;
 }
 
+/** Ficha aprendida: de qué trata cada PDF (resumen + temas). */
+export interface DrivePdfCard {
+  fileId: string;
+  fileName: string;
+  serviceLabel: string;
+  about: string;
+  topics: string[];
+  charCount: number;
+}
+
 export interface DrivePdfStatus {
   enabled: boolean;
   loaded: boolean;
   folderId: string | null;
   fileCount: number;
   chunkCount: number;
+  cardCount: number;
   lastRefresh: string | null;
   lastError: string | null;
   files: string[];
+  /** Primeras fichas para diagnóstico. */
+  learnedPreview?: string[];
 }
 
 interface DrivePdfSnapshot {
   folderId: string;
   files: DrivePdfFile[];
   chunks: DrivePdfChunk[];
+  cards: DrivePdfCard[];
   status: DrivePdfStatus;
 }
 
@@ -75,6 +89,7 @@ function emptyStatus(folderId: string | null = null): DrivePdfStatus {
     folderId,
     fileCount: 0,
     chunkCount: 0,
+    cardCount: 0,
     lastRefresh: null,
     lastError: null,
     files: [],
@@ -139,6 +154,176 @@ function chunkText(text: string, file: DrivePdfFile): DrivePdfChunk[] {
     i = Math.max(end - CHUNK_OVERLAP, i + 1);
   }
   return chunks;
+}
+
+const TOPIC_PATTERNS: Array<{ topic: string; re: RegExp }> = [
+  { topic: "menú", re: /\bmen[uú]s?\b/i },
+  { topic: "niveles", re: /\b(b[aá]sico|premium|tradicional|nivel|paquete)\b/i },
+  { topic: "entrada", re: /\bentradas?\b/i },
+  { topic: "plato fuerte", re: /\b(plato\s+(fuerte|principal)|lomo|pollo|res)\b/i },
+  { topic: "postre", re: /\bpostres?\b/i },
+  { topic: "barra", re: /\bbarra\b/i },
+  { topic: "chefs", re: /\bchefs?\b/i },
+  { topic: "montaje", re: /\bmontaje\b/i },
+  { topic: "bebidas", re: /\b(bebidas?|licores?|vino|cerveza|coctel|mixolog)\b/i },
+  { topic: "mobiliario", re: /\b(mesas?|sillas?|mobiliario|periqueras?)\b/i },
+  { topic: "pista", re: /\b(pista|tarima)\b/i },
+  { topic: "audio", re: /\b(audio|dj|iluminaci|pantalla|video)\b/i },
+  { topic: "dulces", re: /\b(dulces?|cupcakes?|postres?|helados?)\b/i },
+  { topic: "corporativo", re: /\b(coffee\s*break|corporativ|junta|expo)\b/i },
+  { topic: "kosher", re: /\bkosher\b/i },
+  { topic: "infantil", re: /\b(infantil|ni[nñ]os?)\b/i },
+];
+
+/** Aprende una ficha compacta: de qué habla el PDF. */
+export function buildDrivePdfCard(file: DrivePdfFile, fullText: string): DrivePdfCard {
+  const label = serviceLabelFromPdfName(file.name);
+  const cleaned = fullText.replace(/\s+/g, " ").trim();
+  const sentences = cleaned
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 40 && s.length <= 280)
+    .filter((s) => !/^https?:\/\//i.test(s));
+
+  const labelTokens = normalizeSearch(label)
+    .split(" ")
+    .filter((w) => w.length >= 3);
+  const scoreSentence = (s: string): number => {
+    const n = normalizeSearch(s);
+    let score = 0;
+    for (const t of labelTokens) if (n.includes(t)) score += 3;
+    if (/especialistas|experiencia|incluye|men[uú]|prepar|ofrecemos/i.test(s)) score += 1;
+    if (s.length < 60) score -= 1;
+    return score;
+  };
+  const preferred =
+    [...sentences].sort((a, b) => scoreSentence(b) - scoreSentence(a))[0] ??
+    cleaned.slice(0, 220);
+
+  let about = preferred.replace(/\s+/g, " ").trim();
+  const aboutNorm = normalizeSearch(about);
+  const missingLabel = labelTokens.filter((t) => !aboutNorm.includes(t));
+  if (missingLabel.length === labelTokens.length) {
+    about = `${label}. ${about}`;
+  }
+  if (about.length > 220) about = `${about.slice(0, 217).trim()}…`;
+  if (!about) about = `Catálogo ${label} Bodasesor 2026.`;
+
+  const topics = TOPIC_PATTERNS.filter((t) => t.re.test(cleaned))
+    .map((t) => t.topic)
+    .slice(0, 6);
+
+  // Palabras distintivas del label
+  for (const w of normalizeSearch(label).split(" ").filter((x) => x.length >= 4)) {
+    if (!topics.includes(w)) topics.unshift(w);
+  }
+
+  return {
+    fileId: file.id,
+    fileName: file.name,
+    serviceLabel: label,
+    about: stripPriceClaims(about),
+    topics: [...new Set(topics)].slice(0, 8),
+    charCount: cleaned.length,
+  };
+}
+
+export function getDrivePdfCards(): DrivePdfCard[] {
+  return snapshot?.cards ?? [];
+}
+
+/** Busca fichas (de qué trata) por query — no el texto completo. */
+export function searchDrivePdfCards(query: string, limit = 5): DrivePdfCard[] {
+  if (!snapshot?.cards.length) return [];
+  const tokens = tokenizeQuery(query);
+  const queryNorm = normalizeSearch(query);
+  if (!tokens.length && !queryNorm) return snapshot.cards.slice(0, limit);
+
+  const ranked = snapshot.cards
+    .map((card) => {
+      const hay = normalizeSearch(`${card.serviceLabel} ${card.fileName} ${card.about} ${card.topics.join(" ")}`);
+      let score = 0;
+      for (const t of tokens) {
+        if (normalizeSearch(card.serviceLabel).includes(t)) score += 10;
+        if (hay.includes(t)) score += 3;
+        if (card.topics.some((tp) => normalizeSearch(tp).includes(t))) score += 4;
+      }
+      for (const hint of [
+        "banquete",
+        "taquiza",
+        "sushi",
+        "coffee",
+        "pizza",
+        "parrillada",
+        "desayuno",
+        "canapes",
+        "bebidas",
+        "paella",
+        "pista",
+        "mobiliario",
+      ]) {
+        if (queryNorm.includes(hint) && hay.includes(hint)) score += 12;
+      }
+      return { card, score };
+    })
+    .filter((r) => r.score >= 6)
+    .sort((a, b) => b.score - a.score);
+
+  return ranked.slice(0, limit).map((r) => r.card);
+}
+
+/**
+ * Mapa aprendido: todos los PDFs que Lucy conoce y de qué hablan.
+ * compact=true → solo nombres (recomendaciones vagas).
+ */
+export function formatDrivePdfLearnedCatalogForPrompt(opts?: {
+  query?: string;
+  compact?: boolean;
+  maxItems?: number;
+}): string | null {
+  if (!snapshot?.cards.length) return null;
+  const maxItems = opts?.maxItems ?? (opts?.compact ? 24 : 16);
+  const query = opts?.query?.trim();
+
+  let cards = snapshot.cards;
+  if (query && tokenizeQuery(query).length) {
+    const matched = searchDrivePdfCards(query, maxItems);
+    cards = matched.length ? matched : cards;
+  }
+
+  cards = [...cards].sort((a, b) => a.serviceLabel.localeCompare(b.serviceLabel, "es"));
+  cards = cards.slice(0, maxItems);
+
+  if (opts?.compact) {
+    const names = cards.map((c) => c.serviceLabel).join(", ");
+    return [
+      "CATÁLOGO APRENDIDO (PDFs Drive — servicios que conoces):",
+      names,
+      "Si el cliente pide opciones, sugiere 2–4 relevantes al tipo de evento. Detalle fino solo del PDF/Sheet del servicio elegido.",
+      "NO cites precios de los PDF.",
+    ].join("\n");
+  }
+
+  const lines = cards.map(
+    (c) => `• *${c.serviceLabel}* — ${c.about}${c.topics.length ? ` [temas: ${c.topics.slice(0, 4).join(", ")}]` : ""}`
+  );
+  return [
+    "FICHAS APRENDIDAS DE PDFs (sabes de qué habla cada uno):",
+    ...lines,
+    "Usa estas fichas para orientar. Para detalle de menú, usa los chunks del PDF del servicio. Precios SOLO del Sheet.",
+  ].join("\n");
+}
+
+/** True si conviene inyectar el mapa aprendido (pregunta vaga / recomendaciones). */
+export function shouldInjectLearnedPdfCatalog(message?: string): boolean {
+  if (!message?.trim() || !snapshot?.cards.length) return false;
+  if (searchDrivePdfChunks(message, 1).length > 0) return false; // ya hay detalle puntual
+  return (
+    /qu[eé]\s+(servicios|opciones|tienen|ofrecen|manejan)|cat[aá]logo|recomiend|suger|opciones|ideas\s+de\s+comida|qu[eé]\s+me\s+recomiend/i.test(
+      message
+    ) ||
+    /\b(comida|alimentos?|catering)\b/i.test(message)
+  );
 }
 
 /** Lista PDFs de una carpeta pública vía embeddedfolderview (sin API key). */
@@ -229,9 +414,15 @@ function scoreChunk(chunk: DrivePdfChunk, tokens: string[], queryNorm: string): 
   const textNorm = normalizeSearch(chunk.text);
   let score = 0;
 
+  const card = snapshot?.cards.find((c) => c.fileId === chunk.fileId);
+  const aboutNorm = card ? normalizeSearch(card.about) : "";
+  const topicsNorm = card ? normalizeSearch(card.topics.join(" ")) : "";
+
   for (const t of tokens) {
     if (labelNorm.includes(t)) score += 8;
     if (fileNorm.includes(t)) score += 6;
+    if (aboutNorm.includes(t)) score += 5;
+    if (topicsNorm.includes(t)) score += 4;
     if (textNorm.includes(t)) score += 2;
   }
 
@@ -299,20 +490,28 @@ export function searchDrivePdfChunks(query: string, limit = MAX_CHUNKS_IN_PROMPT
 }
 
 export function hasDrivePdfKnowledge(query: string): boolean {
-  return searchDrivePdfChunks(query, 1).length > 0;
+  return searchDrivePdfChunks(query, 1).length > 0 || searchDrivePdfCards(query, 1).length > 0;
 }
 
 /** Bloque para el prompt GPT — menús/descripciones; precios censurados. */
 export function formatDrivePdfKnowledgeForPrompt(query: string): string | null {
+  const cards = searchDrivePdfCards(query, 2);
   const chunks = searchDrivePdfChunks(query);
-  if (!chunks.length) return null;
+  if (!chunks.length && !cards.length) return null;
 
   const parts: string[] = [
     "CONOCIMIENTO PDF (Google Drive — menús / inclusiones / descripción):",
     "Usa este texto para describir el servicio. NO cites precios del PDF: los precios salen SOLO del Google Sheet o los confirma el equipo.",
   ];
 
-  let used = 0;
+  if (cards.length) {
+    parts.push(
+      "Ficha(s) del servicio:",
+      ...cards.map((c) => `• *${c.serviceLabel}* — ${c.about}`)
+    );
+  }
+
+  let used = parts.join("\n").length;
   for (const chunk of chunks) {
     const body = stripPriceClaims(chunk.text);
     const block = `— Fuente: ${chunk.fileName} (${chunk.serviceLabel})\n${body}`;
@@ -339,20 +538,28 @@ export function buildDrivePdfServiceAnswer(query: string): string | null {
   );
 }
 
-export function setDrivePdfSnapshotForTests(chunks: DrivePdfChunk[]): void {
+export function setDrivePdfSnapshotForTests(chunks: DrivePdfChunk[], cards?: DrivePdfCard[]): void {
+  const inferredCards =
+    cards ??
+    [...new Map(chunks.map((c) => [c.fileId, c])).values()].map((c) =>
+      buildDrivePdfCard({ id: c.fileId, name: c.fileName }, c.text)
+    );
   snapshot = {
     folderId: "test",
     files: [...new Map(chunks.map((c) => [c.fileId, { id: c.fileId, name: c.fileName }])).values()],
     chunks,
+    cards: inferredCards,
     status: {
       enabled: true,
       loaded: true,
       folderId: "test",
       fileCount: new Set(chunks.map((c) => c.fileId)).size,
       chunkCount: chunks.length,
+      cardCount: inferredCards.length,
       lastRefresh: new Date().toISOString(),
       lastError: null,
       files: [...new Set(chunks.map((c) => c.fileName))],
+      learnedPreview: inferredCards.slice(0, 5).map((c) => `${c.serviceLabel}: ${c.about.slice(0, 80)}`),
     },
   };
 }
@@ -384,6 +591,7 @@ export async function refreshDrivePdfKnowledge(force = false): Promise<DrivePdfS
       }
 
       const chunks: DrivePdfChunk[] = [];
+      const cards: DrivePdfCard[] = [];
       const errors: string[] = [];
 
       await mapPool(files, DOWNLOAD_CONCURRENCY, async (file) => {
@@ -391,10 +599,17 @@ export async function refreshDrivePdfKnowledge(force = false): Promise<DrivePdfS
           const buf = await downloadDriveFile(file.id);
           const text = await extractPdfText(buf);
           const fileChunks = chunkText(text, file);
+          const card = buildDrivePdfCard(file, text);
           chunks.push(...fileChunks);
+          cards.push(card);
           logger.info(
-            { file: file.name, chars: text.length, chunks: fileChunks.length },
-            "Drive PDF: indexado"
+            {
+              file: file.name,
+              chars: text.length,
+              chunks: fileChunks.length,
+              about: card.about.slice(0, 100),
+            },
+            "Drive PDF: aprendido e indexado"
           );
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
@@ -410,14 +625,23 @@ export async function refreshDrivePdfKnowledge(force = false): Promise<DrivePdfS
       status.loaded = true;
       status.fileCount = new Set(chunks.map((c) => c.fileId)).size;
       status.chunkCount = chunks.length;
+      status.cardCount = cards.length;
       status.lastRefresh = new Date().toISOString();
       status.lastError = errors.length ? `${errors.length} PDF(s) fallaron` : null;
       status.files = [...new Set(chunks.map((c) => c.fileName))].sort();
+      status.learnedPreview = cards
+        .slice(0, 8)
+        .map((c) => `${c.serviceLabel}: ${c.about.slice(0, 90)}`);
 
-      snapshot = { folderId, files, chunks, status };
+      snapshot = { folderId, files, chunks, cards, status };
       logger.info(
-        { files: status.fileCount, chunks: status.chunkCount, errors: errors.length },
-        "Drive PDF: índice listo"
+        {
+          files: status.fileCount,
+          chunks: status.chunkCount,
+          cards: status.cardCount,
+          errors: errors.length,
+        },
+        "Drive PDF: índice + fichas aprendidas listas"
       );
       return snapshot;
     } catch (err) {
@@ -427,7 +651,7 @@ export async function refreshDrivePdfKnowledge(force = false): Promise<DrivePdfS
       if (snapshot) {
         snapshot = { ...snapshot, status: { ...snapshot.status, lastError: msg } };
       } else {
-        snapshot = { folderId, files: [], chunks: [], status };
+        snapshot = { folderId, files: [], chunks: [], cards: [], status };
       }
       logger.warn({ err: msg, folderId }, "Drive PDF: refresh falló");
       return snapshot;

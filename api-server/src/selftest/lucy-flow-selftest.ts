@@ -124,7 +124,10 @@ import {
   setDrivePdfSnapshotForTests,
   clearDrivePdfSnapshotForTests,
   searchDrivePdfChunks,
+  searchDrivePdfCards,
   formatDrivePdfKnowledgeForPrompt,
+  formatDrivePdfLearnedCatalogForPrompt,
+  buildDrivePdfCard,
   serviceLabelFromPdfName,
 } from "../services/drivePdfKnowledge.js";
 import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
@@ -2028,42 +2031,85 @@ async function runAll(): Promise<void> {
     assert.ok(!/no tenemos|no manejamos/i.test(valetFirst), valetFirst);
   });
 
-  await test("46. Drive PDF RAG — índice de prueba y conocimiento enriquecido", () => {
+  await test("46. Drive PDF RAG — fichas aprendidas y conocimiento enriquecido", () => {
     clearDrivePdfSnapshotForTests();
     assert.equal(serviceLabelFromPdfName("Banquete-Formal-Bodasesor-2026.pdf"), "Banquete Formal");
 
-    setDrivePdfSnapshotForTests([
-      {
-        fileId: "pdf1",
-        fileName: "Banquete-Formal-Bodasesor-2026.pdf",
-        serviceLabel: "Banquete Formal",
-        index: 0,
-        text:
-          "Banquete Formal Bodasesor. Menú 4 tiempos Básico: una entrada, una sopa o pasta, un plato principal lomo o pollo, una guarnición y un postre. Servicio profesional de cinco horas.",
-      },
-      {
-        fileId: "pdf2",
-        fileName: "Barra-de-Sushi-y-Poke-Bow-2026.pdf",
-        serviceLabel: "Barra de Sushi y Poke",
-        index: 0,
-        text:
-          "Barra de Sushi y Poke Bowl. Incluye chefs en sitio, rollos california, philadelphia, nigiris y poke bowls. Montaje de barra completa para el evento.",
-      },
-    ]);
+    const banqueteText =
+      "Banquete Formal Bodasesor. Especialistas en banquetes. Menú 4 tiempos Básico: una entrada, una sopa o pasta, un plato principal lomo o pollo, una guarnición y un postre. Servicio profesional de cinco horas.";
+    const sushiText =
+      "Barra de Sushi y Poke Bowl. Incluye chefs en sitio, rollos california, philadelphia, nigiris y poke bowls. Montaje de barra completa para el evento.";
+
+    const cardBanquete = buildDrivePdfCard(
+      { id: "pdf1", name: "Banquete-Formal-Bodasesor-2026.pdf" },
+      banqueteText
+    );
+    assert.ok(/banquete/i.test(cardBanquete.about), cardBanquete.about);
+    assert.ok(cardBanquete.topics.length >= 1, String(cardBanquete.topics));
+
+    setDrivePdfSnapshotForTests(
+      [
+        {
+          fileId: "pdf1",
+          fileName: "Banquete-Formal-Bodasesor-2026.pdf",
+          serviceLabel: "Banquete Formal",
+          index: 0,
+          text: banqueteText,
+        },
+        {
+          fileId: "pdf2",
+          fileName: "Barra-de-Sushi-y-Poke-Bow-2026.pdf",
+          serviceLabel: "Barra de Sushi y Poke",
+          index: 0,
+          text: sushiText,
+        },
+        {
+          fileId: "pdf3",
+          fileName: "Coffee-Break-Bodasesor-2026.pdf",
+          serviceLabel: "Coffee Break",
+          index: 0,
+          text: "Coffee Break corporativo con café, pan dulce y snacks para juntas y expos.",
+        },
+      ],
+      [
+        cardBanquete,
+        buildDrivePdfCard({ id: "pdf2", name: "Barra-de-Sushi-y-Poke-Bow-2026.pdf" }, sushiText),
+        buildDrivePdfCard(
+          { id: "pdf3", name: "Coffee-Break-Bodasesor-2026.pdf" },
+          "Coffee Break corporativo con café, pan dulce y snacks para juntas y expos."
+        ),
+      ]
+    );
 
     const sushiChunks = searchDrivePdfChunks("quiero cotizar sushi");
     assert.ok(sushiChunks.length >= 1, "debe encontrar PDF de sushi");
     assert.ok(/sushi/i.test(sushiChunks[0]!.fileName), sushiChunks[0]!.fileName);
 
+    const sushiCards = searchDrivePdfCards("barra de sushi");
+    assert.ok(sushiCards.length >= 1, "ficha sushi");
+    assert.ok(/sushi|poke/i.test(sushiCards[0]!.about), sushiCards[0]!.about);
+
+    const learned = formatDrivePdfLearnedCatalogForPrompt({ compact: true });
+    assert.ok(learned);
+    assert.ok(/Banquete Formal|Sushi|Coffee Break/i.test(learned!), learned);
+
     const prompt = formatDrivePdfKnowledgeForPrompt("menú banquete formal 4 tiempos");
     assert.ok(prompt, "prompt PDF banquete");
-    assert.ok(/Banquete-Formal/i.test(prompt!), prompt);
+    assert.ok(/Banquete-Formal|Banquete Formal/i.test(prompt!), prompt);
     assert.ok(/entrada|sopa|postre/i.test(prompt!), prompt);
 
     const knowledge = getServiceKnowledge("quiero barra de sushi para mi boda");
     assert.ok(knowledge);
     assert.equal(knowledge!.level, 2);
-    assert.ok(/PDF|Drive|sushi|rollos/i.test(knowledge!.promptBlock), knowledge!.promptBlock.slice(0, 300));
+    assert.ok(/PDF|Drive|sushi|rollos|ficha/i.test(knowledge!.promptBlock), knowledge!.promptBlock.slice(0, 300));
+
+    const vague = getServiceKnowledge("busco comida para mi evento");
+    assert.ok(vague);
+    assert.ok(
+      /aprendido|FICHAS|CATÁLOGO APRENDIDO|Banquete|Sushi|Coffee/i.test(vague!.promptBlock) ||
+        vague!.level === 2,
+      vague!.promptBlock.slice(0, 400)
+    );
 
     const ack = buildGuardServiceAck("qué incluye el banquete formal");
     assert.ok(/banquete|tiempos|entrada/i.test(ack), ack.slice(0, 250));

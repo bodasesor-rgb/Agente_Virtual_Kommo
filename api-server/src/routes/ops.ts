@@ -86,7 +86,7 @@ async function buildOpsStatus(): Promise<{
       detail: drivePdf.lastError
         ? `Error: ${drivePdf.lastError}`
         : drivePdf.loaded
-          ? `${drivePdf.fileCount} PDFs · ${drivePdf.chunkCount} chunks`
+          ? `${drivePdf.fileCount} PDFs · ${drivePdf.cardCount} fichas · ${drivePdf.chunkCount} chunks`
           : "Aún indexando PDFs de Drive…",
     });
     if (!drivePdf.loaded || drivePdf.lastError) {

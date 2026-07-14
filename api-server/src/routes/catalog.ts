@@ -11,7 +11,9 @@ import {
   getDrivePdfStatus,
   refreshDrivePdfKnowledge,
   searchDrivePdfChunks,
+  searchDrivePdfCards,
   formatDrivePdfKnowledgeForPrompt,
+  getDrivePdfCards,
 } from "../services/drivePdfKnowledge.js";
 
 const router: IRouter = Router();
@@ -44,12 +46,19 @@ router.get("/catalog/lookup", (req, res) => {
     answer: buildCatalogPriceAnswer(q),
     inject: injectCatalogPriceIfAsked(q, sampleAi),
     drive_pdf: {
+      cards: searchDrivePdfCards(q, 3).map((c) => ({
+        label: c.serviceLabel,
+        about: c.about,
+        topics: c.topics,
+        file: c.fileName,
+      })),
       chunks: searchDrivePdfChunks(q, 2).map((c) => ({
         file: c.fileName,
         label: c.serviceLabel,
         preview: c.text.slice(0, 220),
       })),
       prompt: formatDrivePdfKnowledgeForPrompt(q)?.slice(0, 500) ?? null,
+      learned_total: getDrivePdfCards().length,
     },
   });
 });

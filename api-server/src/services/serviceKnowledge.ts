@@ -20,7 +20,9 @@ import {
 import {
   buildDrivePdfServiceAnswer,
   formatDrivePdfKnowledgeForPrompt,
+  formatDrivePdfLearnedCatalogForPrompt,
   hasDrivePdfKnowledge,
+  shouldInjectLearnedPdfCatalog,
 } from "./drivePdfKnowledge.js";
 
 export type ServiceKnowledgeLevel = 1 | 2 | 3;
@@ -175,6 +177,28 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
         .join("\n"),
       guardAck: pdfAnswer ?? buildLevel2Ack(label),
     };
+  }
+
+  if (shouldInjectLearnedPdfCatalog(trimmed)) {
+    const learned =
+      formatDrivePdfLearnedCatalogForPrompt({ query: trimmed, compact: true }) ??
+      formatDrivePdfLearnedCatalogForPrompt({ compact: true });
+    if (learned) {
+      return {
+        level: 2,
+        label,
+        hasSheetPrice: false,
+        promptBlock: [
+          "CONOCIMIENTO DE SERVICIO (mapa aprendido de PDFs — NIVEL 2):",
+          `Consulta del cliente: ${label}`,
+          "Sabes de qué habla cada PDF del catálogo. Sugiere 2–4 opciones relevantes y pide que elija UNA.",
+          "NUNCA inventes precios. NUNCA digas que no tienes el servicio si está en el mapa.",
+          learned,
+          SERVICE_KNOWLEDGE_GOLDEN_RULE,
+        ].join("\n"),
+        guardAck: buildLevel2Ack(label),
+      };
+    }
   }
 
   return {
