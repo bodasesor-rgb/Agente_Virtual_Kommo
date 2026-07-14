@@ -24,7 +24,8 @@
     "openai": "^6.35.0",
     "pino": "^9",
     "pino-http": "^10",
-    "resend": "^6.12.2"
+    "resend": "^6.12.2",
+    "unpdf": "^1.6.2"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

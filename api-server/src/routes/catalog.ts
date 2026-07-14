@@ -7,11 +7,22 @@ import {
   buildCatalogPriceAnswer,
   injectCatalogPriceIfAsked,
 } from "../services/catalogService.js";
+import {
+  getDrivePdfStatus,
+  refreshDrivePdfKnowledge,
+  searchDrivePdfChunks,
+  formatDrivePdfKnowledgeForPrompt,
+} from "../services/drivePdfKnowledge.js";
 
 const router: IRouter = Router();
 
 router.get("/catalog/status", (_req, res) => {
-  res.json({ status: "ok", catalog: getCatalogStatus(), parser: "bodasesor-v3" });
+  res.json({
+    status: "ok",
+    catalog: getCatalogStatus(),
+    drive_pdf: getDrivePdfStatus(),
+    parser: "bodasesor-v3",
+  });
 });
 
 router.get("/catalog/lookup", (req, res) => {
@@ -32,13 +43,33 @@ router.get("/catalog/lookup", (req, res) => {
     })),
     answer: buildCatalogPriceAnswer(q),
     inject: injectCatalogPriceIfAsked(q, sampleAi),
+    drive_pdf: {
+      chunks: searchDrivePdfChunks(q, 2).map((c) => ({
+        file: c.fileName,
+        label: c.serviceLabel,
+        preview: c.text.slice(0, 220),
+      })),
+      prompt: formatDrivePdfKnowledgeForPrompt(q)?.slice(0, 500) ?? null,
+    },
   });
 });
 
 router.post("/catalog/refresh", requireAuth, async (_req: Request, res: Response) => {
   try {
     const snap = await refreshCatalog(true);
-    res.json({ status: "ok", catalog: snap.status });
+    res.json({ status: "ok", catalog: snap.status, drive_pdf: getDrivePdfStatus() });
+  } catch (err) {
+    res.status(500).json({
+      status: "error",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+});
+
+router.post("/catalog/drive-pdf/refresh", requireAuth, async (_req: Request, res: Response) => {
+  try {
+    const snap = await refreshDrivePdfKnowledge(true);
+    res.json({ status: "ok", drive_pdf: snap?.status ?? getDrivePdfStatus() });
   } catch (err) {
     res.status(500).json({
       status: "error",

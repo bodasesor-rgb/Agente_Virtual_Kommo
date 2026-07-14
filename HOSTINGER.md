@@ -79,6 +79,14 @@ Variable de entorno obligatoria en Hostinger:
 |--------|-------|
 | **`OPEN_AI`** | `sk-proj-...` (tu key de OpenAI) |
 
+Opcional — catálogo PDF (Google Drive):
+
+| Nombre | Valor |
+|--------|-------|
+| `GOOGLE_DRIVE_CATALOG_FOLDER_ID` | ID de la carpeta Drive (default ya apunta a `Catalogó bodasesor 2026 finales`) |
+| `GOOGLE_DRIVE_PDF_DISABLED` | `1` para apagar el índice PDF |
+| `DRIVE_PDF_REFRESH_MINUTES` | Intervalo de refresco (default `60`) |
+
 También acepta `OPENAI_API_KEY` si prefieres ese nombre.
 
 ---

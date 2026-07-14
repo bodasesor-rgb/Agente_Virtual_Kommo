@@ -4,6 +4,7 @@ import { getOpenAiApiKey, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import { getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
 import { isAuthConfigured } from "../lib/authJwt.js";
 import { getCatalogStatus } from "../services/catalogService.js";
+import { getDrivePdfStatus } from "../services/drivePdfKnowledge.js";
 import { getBuildMeta } from "../lib/buildMeta.js";
 
 const router: IRouter = Router();
@@ -34,6 +35,7 @@ router.get("/health", (_req, res) => {
       "debounce-5s",
       "learning-from-human-chats",
       "knowledge-gaps-aprendizaje",
+      "drive-pdf-rag",
     ],
     auth_configured: isAuthConfigured(),
     git_commit: build.git_commit,
@@ -52,6 +54,7 @@ router.get("/health", (_req, res) => {
       note: "Campo 1048786 = resumen interno CRM, no mensaje WhatsApp",
     },
     catalog: getCatalogStatus(),
+    drive_pdf: getDrivePdfStatus(),
   });
 });
 
