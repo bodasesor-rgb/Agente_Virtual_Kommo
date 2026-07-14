@@ -87,6 +87,12 @@ Opcional — catálogo PDF (Google Drive):
 | `GOOGLE_DRIVE_PDF_DISABLED` | `1` para apagar el índice PDF |
 | `DRIVE_PDF_REFRESH_MINUTES` | Intervalo de refresco (default `60`) |
 
+### Columna Sinónimos en Google Sheet
+
+En el Sheet de precios puedes agregar una columna **`Sinonimos`** (o `Sinónimos`) con frases separadas por coma.
+Lucy las lee al refrescar el catálogo y las combina con los sinónimos default del código
+(tacos→taquiza, comida japonesa→sushi, open bar→barra de bebidas, etc.).
+
 También acepta `OPENAI_API_KEY` si prefieres ese nombre.
 
 ---

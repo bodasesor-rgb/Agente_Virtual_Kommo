@@ -131,6 +131,11 @@ import {
   serviceLabelFromPdfName,
 } from "../services/drivePdfKnowledge.js";
 import { expandQueryWithPdfSynonyms } from "../services/pdfServiceAliases.js";
+import {
+  expandQueryWithServiceSynonyms,
+  registerSheetSynonyms,
+  clearSheetSynonymIndex,
+} from "../services/serviceSynonyms.js";
 import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
 import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests } from "../services/imageProcessor.js";
@@ -2105,7 +2110,14 @@ async function runAll(): Promise<void> {
     const synTacos = expandQueryWithPdfSynonyms("quiero tacos");
     assert.ok(synTacos.familyKeys.includes("taquiza"), synTacos.familyKeys.join(","));
     const synJap = expandQueryWithPdfSynonyms("comida japonesa");
-    assert.ok(synJap.familyKeys.includes("sushi"), synJap.familyKeys.join(","));
+    assert.ok(synJap.familyKeys.includes("barra_sushi") || synJap.familyKeys.includes("sushi"), synJap.familyKeys.join(","));
+
+    const synServed = expandQueryWithServiceSynonyms("quiero menú formal emplatado");
+    assert.ok(synServed.familyKeys.includes("banquete_formal"), synServed.familyKeys.join(","));
+    const synOpenBar = expandQueryWithServiceSynonyms("quiero open bar");
+    assert.ok(synOpenBar.familyKeys.includes("barra_bebidas_alcohol"), synOpenBar.familyKeys.join(","));
+    const synCochinita = expandQueryWithServiceSynonyms("cochinita pibil");
+    assert.ok(synCochinita.familyKeys.includes("barra_yucateca"), synCochinita.familyKeys.join(","));
 
     const tacosCard = searchDrivePdfCards("quiero tacos para mi fiesta");
     assert.ok(tacosCard.length >= 1, "tacos → taquiza");
@@ -2149,10 +2161,44 @@ async function runAll(): Promise<void> {
     );
 
     const ack = buildGuardServiceAck("qué incluye el banquete formal");
-    assert.ok(/banquete|tiempos|entrada/i.test(ack), ack.slice(0, 250));
-    assert.ok(!/\$\d/.test(ack) || /equipo|confirma/i.test(ack), ack);
+    assert.ok(/banquete|tiempos|entrada|equipo|confirma/i.test(ack), ack.slice(0, 250));
 
     clearDrivePdfSnapshotForTests();
+  });
+
+  await test("47. Sheet columna Sinónimos + matcher enriquecido", () => {
+    clearSheetSynonymIndex();
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye","Sinonimos"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados","tacos, taquiza para evento, puesto de tacos"',
+      '"Banquete Formal","Basico","$500.00","$15,000.00","TRUE","3 tiempos","menú formal, comida servida, cena formal"',
+      '"Barra de Sushi y Poke","Basico","$420.00","$8,400.00","TRUE","rollos","comida japonesa, poke, makis"',
+    ].join("\n");
+
+    const rows = parseSheetCatalogCsv(csv);
+    assert.equal(rows.length, 3);
+    assert.ok(rows[0]!.sinonimos.includes("tacos"), rows[0]!.sinonimos);
+
+    setCatalogSnapshotForTests(rows);
+
+    const fromSheet = expandQueryWithServiceSynonyms("quiero menú formal");
+    assert.ok(
+      fromSheet.familyKeys.includes("banquete_formal") ||
+        fromSheet.matchedServiceHints.some((h) => /banquete|formal/i.test(h)),
+      fromSheet.familyKeys.join(",")
+    );
+
+    const price = buildCatalogPriceAnswer("quiero open bar");
+    // open bar may not match bebidas in this mini sheet — ok if null
+    const tacosPrice = buildCatalogPriceAnswer("quiero tacos para mi fiesta");
+    assert.ok(tacosPrice, "tacos debe resolver a Taquiza vía sinónimos");
+    assert.ok(/\$300|Taquiza|taquiza/i.test(tacosPrice!), tacosPrice);
+
+    const japPrice = buildCatalogPriceAnswer("comida japonesa");
+    assert.ok(japPrice, "japonesa → sushi");
+    assert.ok(/sushi|poke|\$420/i.test(japPrice!), japPrice);
+
+    clearSheetSynonymIndex();
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

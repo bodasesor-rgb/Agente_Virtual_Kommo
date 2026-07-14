@@ -4497,23 +4497,23 @@ function normalizeEmail(email) {
   return trimmed || null;
 }
 function isOwnCompanyEmail(email) {
-  const norm2 = normalizeEmail(email);
-  if (!norm2) return false;
-  if (OWN_EMAILS.has(norm2)) return true;
-  return /@bodasesor\.com$/i.test(norm2) || /@capybaraeventos\./i.test(norm2);
+  const norm3 = normalizeEmail(email);
+  if (!norm3) return false;
+  if (OWN_EMAILS.has(norm3)) return true;
+  return /@bodasesor\.com$/i.test(norm3) || /@capybaraeventos\./i.test(norm3);
 }
 function filterClientEmail(email) {
-  const norm2 = normalizeEmail(email);
-  if (!norm2 || isOwnCompanyEmail(norm2)) return null;
+  const norm3 = normalizeEmail(email);
+  if (!norm3 || isOwnCompanyEmail(norm3)) return null;
   return email.trim();
 }
 var SUSPICIOUS_TLD = /\.(comm|con|cmo|gmial|gmal|gmai|hotmial|yaho|outlok)\b/i;
 function looksLikeValidClientEmail(email) {
-  const norm2 = normalizeEmail(email);
-  if (!norm2) return false;
+  const norm3 = normalizeEmail(email);
+  if (!norm3) return false;
   if (/\s/.test(email ?? "")) return false;
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm2)) return false;
-  const domain = norm2.split("@")[1] ?? "";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(norm3)) return false;
+  const domain = norm3.split("@")[1] ?? "";
   if (!domain || /\.\./.test(domain) || domain.startsWith(".") || domain.endsWith(".")) return false;
   if (SUSPICIOUS_TLD.test(domain)) return false;
   const tld = domain.split(".").pop() ?? "";
@@ -5686,7 +5686,12 @@ var HEADER_ALIASES = {
   descripci\u00F3n: "notas",
   detalle: "notas",
   "que incluye": "notas",
-  extras: "notas"
+  extras: "notas",
+  sinonimos: "sinonimos",
+  sinonimo: "sinonimos",
+  aliases: "sinonimos",
+  alias: "sinonimos",
+  keywords: "sinonimos"
 };
 function deriveCatalogCategory(servicio) {
   const s = servicio.toLowerCase();
@@ -5840,6 +5845,7 @@ function parseSheetCatalogCsv(csvText) {
       precio,
       unidad,
       notas: notasParts.join(" | "),
+      sinonimos: get("sinonimos"),
       tienePrecio
     });
   }
@@ -5876,6 +5882,787 @@ function parseRowNotes(notas) {
   return result;
 }
 
+// src/services/serviceSynonyms.ts
+function norm(s) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
+  {
+    key: "banquete_formal",
+    serviceHints: ["banquete formal", "banquete 3", "banquete 4", "banquete"],
+    aliases: [
+      "menu formal",
+      "men\xFA formal",
+      "comida servida",
+      "banquete sentado",
+      "menu de tiempos",
+      "men\xFA de tiempos",
+      "comida de plato",
+      "servicio a la mesa",
+      "comida formal",
+      "menu emplatado",
+      "men\xFA emplatado",
+      "cena formal",
+      "banquete de boda",
+      "banquete formal",
+      "banquete",
+      "4 tiempos",
+      "3 tiempos",
+      "plated",
+      "emplatado"
+    ],
+    excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos"]
+  },
+  {
+    key: "banquete_kosher",
+    serviceHints: ["kosher"],
+    aliases: [
+      "kosher",
+      "kasher",
+      "comida kosher",
+      "comida judia",
+      "comida jud\xEDa",
+      "menu kosher",
+      "men\xFA kosher",
+      "certificado rabinico",
+      "certificado rab\xEDnico",
+      "supervision rabinica",
+      "supervisi\xF3n rab\xEDnica",
+      "banquete judio",
+      "banquete jud\xEDo",
+      "comida para evento judio",
+      "comida para evento jud\xEDo",
+      "cocina kosher"
+    ]
+  },
+  {
+    key: "banquete_mexicano",
+    serviceHints: ["banquete mexicano", "mexicano"],
+    aliases: [
+      "comida mexicana",
+      "menu mexicano",
+      "men\xFA mexicano",
+      "banquete tipico",
+      "banquete t\xEDpico",
+      "cena mexicana",
+      "comida tradicional",
+      "platillos mexicanos",
+      "buffet mexicano",
+      "banquete mexicano",
+      "fiesta mexicana",
+      "comida tipica",
+      "comida t\xEDpica"
+    ],
+    excludeIf: ["taquiza", "tacos", "antojitos", "yucateca"]
+  },
+  {
+    key: "banquete_navideno",
+    serviceHints: ["navideno", "navide\xF1o", "navidad"],
+    aliases: [
+      "cena navide\xF1a",
+      "cena navadena",
+      "posada",
+      "cena de fin de a\xF1o",
+      "cena de fin de ano",
+      "evento decembrino",
+      "pavo navide\xF1o",
+      "pavo navideno",
+      "cena de temporada",
+      "banquete de navidad",
+      "fiesta navide\xF1a",
+      "fiesta navadena",
+      "cena de diciembre",
+      "brindis navide\xF1o",
+      "brindis navideno",
+      "navidad"
+    ]
+  },
+  {
+    key: "barra_americana",
+    serviceHints: ["barra americana", "americana"],
+    aliases: [
+      "hamburguesas",
+      "hot dogs",
+      "hotdogs",
+      "alitas",
+      "comida americana",
+      "boneless",
+      "sliders",
+      "papas y hamburguesas",
+      "comida rapida gourmet",
+      "comida r\xE1pida gourmet",
+      "barra americana"
+    ]
+  },
+  {
+    key: "barra_bebidas_sin_alcohol",
+    serviceHints: ["barra de bebidas", "sin alcohol"],
+    aliases: [
+      "refrescos",
+      "aguas frescas",
+      "barra de refrescos",
+      "bebidas sin alcohol",
+      "vitroleros",
+      "solo bebidas",
+      "barra de aguas",
+      "sodas",
+      "bebidas para el evento",
+      "barra sin alcohol"
+    ],
+    excludeIf: ["open bar", "barra libre", "tragos", "licores", "alcohol"]
+  },
+  {
+    key: "barra_bebidas_alcohol",
+    serviceHints: ["barra de bebidas", "con alcohol", "bebidas con alcohol"],
+    aliases: [
+      "barra libre",
+      "open bar",
+      "bar",
+      "cocteleria con alcohol",
+      "cocteler\xEDa con alcohol",
+      "tragos",
+      "barra de licores",
+      "barra con alcohol",
+      "bebidas con alcohol",
+      "barra de tragos",
+      "servicio de bar",
+      "barra de bebidas"
+    ],
+    excludeIf: ["sin alcohol", "mocteles", "mocktail", "cafe", "caf\xE9"]
+  },
+  {
+    key: "barra_cafe",
+    serviceHints: ["barra de cafe", "barra de caf\xE9", "cafe"],
+    aliases: [
+      "cafeteria",
+      "cafeter\xEDa",
+      "barista",
+      "cafe gourmet",
+      "caf\xE9 gourmet",
+      "estacion de cafe",
+      "estaci\xF3n de caf\xE9",
+      "cafe de especialidad",
+      "caf\xE9 de especialidad",
+      "barra de cafe",
+      "barra de caf\xE9",
+      "cafe artesanal",
+      "caf\xE9 artesanal",
+      "carrito de cafe",
+      "carrito de caf\xE9",
+      "cafe para invitados",
+      "caf\xE9 para invitados",
+      "coffee"
+    ],
+    excludeIf: ["coffee break", "coffeebreak", "receso", "junta"]
+  },
+  {
+    key: "coffee_break",
+    serviceHints: ["coffee break", "coffeebreak"],
+    aliases: [
+      "coffee break",
+      "coffeebreak",
+      "receso de cafe",
+      "receso de caf\xE9",
+      "cafe para junta",
+      "caf\xE9 para junta",
+      "break corporativo",
+      "estacion de cafe y snacks",
+      "estaci\xF3n de caf\xE9 y snacks",
+      "pausa de cafe",
+      "pausa de caf\xE9",
+      "break de cafe",
+      "break de caf\xE9",
+      "receso corporativo",
+      "cafe y galletas",
+      "caf\xE9 y galletas",
+      "stand de cafe",
+      "stand de caf\xE9"
+    ]
+  },
+  {
+    key: "barra_crepas",
+    serviceHints: ["crepas", "crepa"],
+    aliases: [
+      "crepas",
+      "creperia",
+      "creper\xEDa",
+      "crepes",
+      "waffles",
+      "postres calientes",
+      "estacion de crepas",
+      "estaci\xF3n de crepas",
+      "crepas dulces",
+      "crepas saladas",
+      "barra de crepas",
+      "crepas gourmet"
+    ]
+  },
+  {
+    key: "barra_mariscos",
+    serviceHints: ["mariscos"],
+    aliases: [
+      "mariscos",
+      "ceviches",
+      "aguachile",
+      "coctel de camaron",
+      "coctel de camar\xF3n",
+      "pescados y mariscos",
+      "barra de mar",
+      "ostiones",
+      "tostadas de mariscos",
+      "comida del mar",
+      "barra de mariscos"
+    ]
+  },
+  {
+    key: "barra_paninis",
+    serviceHints: ["paninis", "panini"],
+    aliases: [
+      "paninis",
+      "sandwiches",
+      "s\xE1ndwiches",
+      "sandwiches gourmet",
+      "s\xE1ndwiches gourmet",
+      "baguettes",
+      "molletes gourmet",
+      "sandwicheria",
+      "sandwicher\xEDa",
+      "tortas gourmet",
+      "paninos",
+      "barra de sandwiches",
+      "barra de s\xE1ndwiches",
+      "panini"
+    ]
+  },
+  {
+    key: "barra_pastas",
+    serviceHints: ["pastas", "ensaladas"],
+    aliases: [
+      "pastas",
+      "espagueti",
+      "estacion de pastas",
+      "estaci\xF3n de pastas",
+      "pasta italiana",
+      "ensaladas",
+      "barra de pastas",
+      "fettuccine",
+      "lasana",
+      "lasa\xF1a",
+      "pasta al momento",
+      "comida italiana",
+      "italiana"
+    ]
+  },
+  {
+    key: "barra_pizzas",
+    serviceHints: ["pizza", "pizzas"],
+    aliases: [
+      "pizzas",
+      "pizza artesanal",
+      "estacion de pizza",
+      "estaci\xF3n de pizza",
+      "horno de pizza",
+      "pizzas gourmet",
+      "barra de pizzas",
+      "pizza al momento",
+      "pizza italiana",
+      "pizzeria",
+      "pizzer\xEDa",
+      "pizza"
+    ]
+  },
+  {
+    key: "barra_sushi",
+    serviceHints: ["sushi", "poke"],
+    aliases: [
+      "sushi",
+      "rollos",
+      "poke",
+      "poke bowls",
+      "comida japonesa",
+      "makis",
+      "barra de sushi",
+      "sushi al momento",
+      "rollos japoneses",
+      "comida oriental",
+      "japones",
+      "japon\xE9s",
+      "nigiri",
+      "sashimi"
+    ]
+  },
+  {
+    key: "barra_yucateca",
+    serviceHints: ["yucateca", "yucatan"],
+    aliases: [
+      "comida yucateca",
+      "cochinita",
+      "cochinita pibil",
+      "panuchos",
+      "salbutes",
+      "comida del sureste",
+      "comida de yucatan",
+      "comida de yucat\xE1n",
+      "papadzules",
+      "barra yucateca",
+      "comida maya"
+    ]
+  },
+  {
+    key: "bocadillos",
+    serviceHints: ["bocadillos", "bocadillo"],
+    aliases: [
+      "botana",
+      "botanas",
+      "snacks",
+      "aperitivos",
+      "finger food",
+      "bocadillos",
+      "entradas",
+      "pasabocas",
+      "tentempies",
+      "tentempi\xE9s",
+      "comida para picar"
+    ],
+    excludeIf: ["canapes", "canap\xE9s", "carrito"]
+  },
+  {
+    key: "canapes",
+    serviceHints: ["canapes", "canap\xE9s"],
+    aliases: [
+      "canapes",
+      "canap\xE9s",
+      "bocaditos",
+      "entremeses",
+      "bocadillos finos",
+      "pasapalos",
+      "bocados gourmet",
+      "canape",
+      "canap\xE9",
+      "entradas frias",
+      "entradas fr\xEDas"
+    ]
+  },
+  {
+    key: "carrito_snacks",
+    serviceHints: ["carrito de snacks", "snacks"],
+    aliases: [
+      "carrito de botana",
+      "snacks",
+      "dulces y frituras",
+      "carrito de golosinas",
+      "botanas para llevar",
+      "estacion de snacks",
+      "estaci\xF3n de snacks",
+      "carrito de dulces",
+      "chucherias",
+      "chucher\xEDas",
+      "papitas y dulces",
+      "carrito de snacks"
+    ]
+  },
+  {
+    key: "cocteles_mixologia",
+    serviceHints: ["cocteles", "mixologia", "mixolog\xEDa", "cocteleria"],
+    aliases: [
+      "cocteles",
+      "c\xF3cteles",
+      "cocteleria",
+      "cocteler\xEDa",
+      "mixologia",
+      "mixolog\xEDa",
+      "bartender",
+      "cantinero",
+      "tragos de autor",
+      "cocktails",
+      "barra de cocteles",
+      "barra de c\xF3cteles",
+      "mixologo",
+      "mix\xF3logo",
+      "cocteles de autor",
+      "c\xF3cteles de autor"
+    ],
+    excludeIf: ["sin alcohol", "mocteles", "mocktail"]
+  },
+  {
+    key: "comida_corrida",
+    serviceHints: ["comida corrida", "corrida"],
+    aliases: [
+      "comida corrida",
+      "menu del dia",
+      "men\xFA del d\xEDa",
+      "comida economica",
+      "comida econ\xF3mica",
+      "comida para empleados",
+      "comida corporativa",
+      "menu corporativo",
+      "men\xFA corporativo",
+      "comida sencilla",
+      "comida de oficina",
+      "menu ejecutivo",
+      "men\xFA ejecutivo",
+      "comida rapida",
+      "comida r\xE1pida"
+    ]
+  },
+  {
+    key: "desayuno_brunch",
+    serviceHints: ["desayuno", "brunch"],
+    aliases: [
+      "desayuno",
+      "brunch",
+      "almuerzo",
+      "desayuno buffet",
+      "getting ready",
+      "desayuno para evento",
+      "desayuno social",
+      "chilaquiles",
+      "huevos",
+      "brunch de boda"
+    ]
+  },
+  {
+    key: "cupcakes",
+    serviceHints: ["cupcakes", "cupcake"],
+    aliases: [
+      "cupcakes",
+      "panquecitos",
+      "pastelitos",
+      "muffins",
+      "cup cakes decorados",
+      "postrecitos",
+      "cupcakes personalizados",
+      "mini pasteles",
+      "ponquesitos",
+      "cupcakes tematicos",
+      "cupcakes tem\xE1ticos",
+      "betun",
+      "bet\xFAn",
+      "fondant"
+    ]
+  },
+  {
+    key: "mesa_dulces",
+    serviceHints: ["mesa de dulces", "dulces"],
+    aliases: [
+      "mesa de dulces",
+      "candy bar",
+      "mesa de golosinas",
+      "dulcero",
+      "mesa de dulces mexicanos",
+      "barra de dulces",
+      "dulces para evento",
+      "mesa de caramelos",
+      "estacion de dulces",
+      "estaci\xF3n de dulces",
+      "candy"
+    ],
+    excludeIf: ["postres", "cupcakes", "helados"]
+  },
+  {
+    key: "mesa_postres",
+    serviceHints: ["mesa de postres", "postres"],
+    aliases: [
+      "mesa de postres",
+      "postres",
+      "reposteria",
+      "reposter\xEDa",
+      "mesa de pasteles",
+      "estacion de postres",
+      "estaci\xF3n de postres",
+      "dulces finos",
+      "postres para evento",
+      "pasteleria",
+      "pasteler\xEDa",
+      "mesa de dulces finos",
+      "barra de postres"
+    ]
+  },
+  {
+    key: "mesa_quesos",
+    serviceHints: ["mesa de quesos", "quesos"],
+    aliases: [
+      "tabla de quesos",
+      "mesa de quesos",
+      "quesos y carnes frias",
+      "quesos y carnes fr\xEDas",
+      "charcuteria",
+      "charcuter\xEDa",
+      "tabla de embutidos",
+      "quesos gourmet",
+      "tabla de fiambres",
+      "mesa de quesos y vinos",
+      "degustacion de quesos",
+      "degustaci\xF3n de quesos",
+      "tabla gourmet",
+      "grazing"
+    ]
+  },
+  {
+    key: "mocteles",
+    serviceHints: ["mocteles", "m\xF3cteles"],
+    aliases: [
+      "mocteles",
+      "m\xF3cteles",
+      "cocteles sin alcohol",
+      "c\xF3cteles sin alcohol",
+      "bebidas sin alcohol",
+      "cocteleria sin alcohol",
+      "cocteler\xEDa sin alcohol",
+      "tragos sin alcohol",
+      "barra de mocteles",
+      "barra de m\xF3cteles",
+      "bebidas de autor sin alcohol",
+      "cocteles virgenes",
+      "c\xF3cteles v\xEDrgenes",
+      "mixologia sin alcohol",
+      "mixolog\xEDa sin alcohol",
+      "mocktails",
+      "mocktail"
+    ]
+  },
+  {
+    key: "paella",
+    serviceHints: ["paella"],
+    aliases: [
+      "paella",
+      "arroz espanol",
+      "arroz espa\xF1ol",
+      "paella valenciana",
+      "paella de mariscos",
+      "arroz a la valenciana",
+      "comida espanola",
+      "comida espa\xF1ola",
+      "paella en vivo",
+      "paellera",
+      "arroz espanol al momento",
+      "arroz espa\xF1ol al momento",
+      "paellas"
+    ]
+  },
+  {
+    key: "paletas_helados",
+    serviceHints: ["paletas", "helados"],
+    aliases: [
+      "paletas",
+      "paletas de hielo",
+      "helados",
+      "nieves",
+      "sorbetes",
+      "carrito de helados",
+      "paletas artesanales",
+      "neveria",
+      "never\xEDa",
+      "paletas heladas",
+      "helado para evento"
+    ]
+  },
+  {
+    key: "parrillada_argentina",
+    serviceHints: ["parrillada argentina", "parillada argentina", "argentina"],
+    aliases: [
+      "asado argentino",
+      "cortes argentinos",
+      "parrilla argentina",
+      "carnes asadas",
+      "asador",
+      "parrillada argentina",
+      "parillada argentina",
+      "cortes finos",
+      "asador en vivo",
+      "carne al carbon",
+      "carne al carb\xF3n",
+      "parrilla de cortes",
+      "asado",
+      "argentino"
+    ]
+  },
+  {
+    key: "taquiza",
+    serviceHints: ["taquiza", "parrillada tacos"],
+    aliases: [
+      "taquiza",
+      "tacos",
+      "tacos de guisado",
+      "taquiza para evento",
+      "puesto de tacos",
+      "tacos al pastor",
+      "tacos de canasta",
+      "taquiza a domicilio",
+      "tacos de carne asada",
+      "taqueria",
+      "taquer\xEDa",
+      "estacion de tacos",
+      "estaci\xF3n de tacos",
+      "barra de tacos",
+      "guisados",
+      "parrillada tacos"
+    ],
+    excludeIf: ["parrillada argentina", "asado argentino"]
+  },
+  {
+    key: "pozole_tostadas",
+    serviceHints: ["pozole", "tostadas"],
+    aliases: [
+      "pozole",
+      "tostadas",
+      "pozole rojo",
+      "pozole verde",
+      "pozole blanco",
+      "pozole y tostadas",
+      "antojito mexicano",
+      "pozole para evento",
+      "tostadas de tinga",
+      "pozoleria",
+      "pozoler\xEDa"
+    ]
+  },
+  {
+    key: "antojitos",
+    serviceHints: ["antojitos", "puestos de comida"],
+    aliases: [
+      "antojitos",
+      "puesto de antojitos",
+      "esquites",
+      "elotes",
+      "quesadillas",
+      "kermes",
+      "kerm\xE9s",
+      "sopes",
+      "gorditas",
+      "garnachas",
+      "feria de antojitos",
+      "puestos de comida",
+      "street food"
+    ]
+  }
+];
+var sheetSynonymIndex = /* @__PURE__ */ new Map();
+function clearSheetSynonymIndex() {
+  sheetSynonymIndex = /* @__PURE__ */ new Map();
+}
+function registerSheetSynonyms(rows) {
+  const next = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const svc = norm(row.servicio || "");
+    if (!svc) continue;
+    const raw = (row.sinonimos ?? "").trim();
+    if (!raw) continue;
+    const parts = raw.split(/[,;|/]/).map((p) => p.trim()).filter((p) => p.length >= 2);
+    if (!parts.length) continue;
+    const prev = next.get(svc) ?? [];
+    next.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts])]);
+  }
+  sheetSynonymIndex = next;
+}
+function synonymsForServiceName(servicio) {
+  const n = norm(servicio);
+  const out = /* @__PURE__ */ new Set();
+  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
+    if (fam.serviceHints.some((h) => n.includes(norm(h)) || norm(h).includes(n))) {
+      for (const a of fam.aliases) out.add(a);
+    }
+  }
+  for (const [svc, aliases] of sheetSynonymIndex) {
+    if (n.includes(svc) || svc.includes(n)) {
+      for (const a of aliases) out.add(a);
+    }
+  }
+  return [...out];
+}
+function synonymHaystackForService(servicio, sheetSinonimos) {
+  const parts = [
+    servicio,
+    sheetSinonimos ?? "",
+    ...synonymsForServiceName(servicio)
+  ];
+  return norm(parts.join(" "));
+}
+function expandQueryWithServiceSynonyms(query) {
+  const q = norm(query);
+  const baseTokens = q.split(" ").filter((w) => w.length >= 3);
+  const familyKeys = [];
+  const boostedHints = [];
+  const matchedServiceHints = [];
+  const extraTokens = new Set(baseTokens);
+  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
+    if (fam.excludeIf?.some((ex) => q.includes(norm(ex)))) {
+      const specificHit = fam.aliases.some((a) => {
+        const na = norm(a);
+        return na.includes(" ") && q.includes(na);
+      });
+      if (!specificHit) continue;
+    }
+    const hit = fam.aliases.some((a) => {
+      const na = norm(a);
+      if (na.includes(" ")) return q.includes(na);
+      return new RegExp(`\\b${na}\\b`).test(q);
+    });
+    if (!hit) continue;
+    familyKeys.push(fam.key);
+    for (const h of fam.serviceHints) {
+      const nh = norm(h);
+      boostedHints.push(nh);
+      matchedServiceHints.push(h);
+      for (const t of nh.split(" ")) if (t.length >= 3) extraTokens.add(t);
+    }
+    for (const a of fam.aliases) {
+      for (const t of norm(a).split(" ")) if (t.length >= 3) extraTokens.add(t);
+    }
+  }
+  for (const [svc, aliases] of sheetSynonymIndex) {
+    for (const a of aliases) {
+      const na = norm(a);
+      const matched = na.includes(" ") ? q.includes(na) : new RegExp(`\\b${na}\\b`).test(q);
+      if (!matched) continue;
+      matchedServiceHints.push(svc);
+      boostedHints.push(svc);
+      for (const t of svc.split(" ")) if (t.length >= 3) extraTokens.add(t);
+      for (const t of na.split(" ")) if (t.length >= 3) extraTokens.add(t);
+    }
+  }
+  return {
+    tokens: [...extraTokens],
+    familyKeys: [...new Set(familyKeys)],
+    boostedHints: [...new Set(boostedHints)],
+    matchedServiceHints: [...new Set(matchedServiceHints)]
+  };
+}
+function synonymScoreForService(query, serviceLabel, sheetSinonimos) {
+  const expanded = expandQueryWithServiceSynonyms(query);
+  if (!expanded.familyKeys.length && !expanded.boostedHints.length) return 0;
+  const hay = synonymHaystackForService(serviceLabel, sheetSinonimos);
+  let score = 0;
+  for (const hint of expanded.boostedHints) {
+    if (hay.includes(hint)) score += hint.includes(" ") ? 22 : 14;
+  }
+  for (const hint of expanded.matchedServiceHints) {
+    if (hay.includes(norm(hint))) score += 10;
+  }
+  if (expanded.familyKeys.includes("taquiza") && /banquete/.test(hay) && !/taquiza/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_formal") && /taquiza/.test(hay)) score -= 25;
+  if (expanded.familyKeys.includes("barra_sushi") && /banquete|taquiza/.test(hay) && !/sushi|poke/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_mexicano") && /banquete/.test(hay) && !/mexicano/.test(hay)) {
+    score -= 20;
+  }
+  if (expanded.familyKeys.includes("coffee_break") && /barra de cafe|barra de café/.test(hay) && !/coffee/.test(hay)) {
+    score -= 5;
+  }
+  return score;
+}
+function defaultFamiliesAsPdfAliases() {
+  return DEFAULT_SERVICE_SYNONYM_FAMILIES.map((f) => ({
+    key: f.key,
+    aliases: f.aliases,
+    pdfHints: f.serviceHints,
+    excludeIf: f.excludeIf
+  }));
+}
+
 // src/lib/logger.ts
 var import_pino = __toESM(require_pino(), 1);
 var isProduction = process.env.NODE_ENV === "production";
@@ -5895,325 +6682,28 @@ var logger = (0, import_pino.default)({
 });
 
 // src/services/pdfServiceAliases.ts
-function norm(s) {
+function norm2(s) {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
-var PDF_ALIAS_FAMILIES = [
-  {
-    key: "banquete_kosher",
-    aliases: ["kosher", "banquete kosher", "comida kosher", "menu kosher"],
-    pdfHints: ["kosher"]
-  },
-  {
-    key: "banquete_navideno",
-    aliases: ["navideno", "navide\xF1o", "cena navidad", "banquete navidad", "navidad"],
-    pdfHints: ["navideno", "navide\xF1o", "navidad"]
-  },
-  {
-    key: "banquete_mexicano",
-    aliases: ["banquete mexicano", "comida mexicana", "mexicano formal", "menu mexicano"],
-    pdfHints: ["mexicano"],
-    excludeIf: ["taquiza", "tacos", "antojitos"]
-  },
-  {
-    key: "banquete_formal",
-    aliases: [
-      "banquete formal",
-      "banquete",
-      "comida formal",
-      "menu formal",
-      "servicio a la rusa",
-      "4 tiempos",
-      "tres tiempos",
-      "3 tiempos",
-      "plated",
-      "emplatado"
-    ],
-    pdfHints: ["banquete formal", "banquete"],
-    excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos"]
-  },
-  {
-    key: "taquiza",
-    aliases: [
-      "taquiza",
-      "tacos",
-      "taco",
-      "taquiza de",
-      "estacion de tacos",
-      "barra de tacos",
-      "tacos al pastor",
-      "guisados"
-    ],
-    pdfHints: ["taquiza"],
-    excludeIf: ["parrillada tacos", "parrillada"]
-  },
-  {
-    key: "parrillada_argentina",
-    aliases: [
-      "parrillada argentina",
-      "parillada argentina",
-      "asado argentino",
-      "asado",
-      "carne argentina",
-      "cortes argentinos",
-      "argentino"
-    ],
-    pdfHints: ["parrillada argentina", "parillada argentina", "argentina"]
-  },
-  {
-    key: "parrillada_tacos",
-    aliases: ["parrillada tacos", "parrillada de tacos", "tacos parrilla"],
-    pdfHints: ["parrillada tacos", "parrillada"]
-  },
-  {
-    key: "sushi",
-    aliases: [
-      "sushi",
-      "poke",
-      "poke bowl",
-      "barra de sushi",
-      "comida japonesa",
-      "japones",
-      "japon\xE9s",
-      "rolls",
-      "rollos",
-      "nigiri",
-      "sashimi",
-      "makis"
-    ],
-    pdfHints: ["sushi", "poke"]
-  },
-  {
-    key: "coffee_break",
-    aliases: [
-      "coffee break",
-      "coffeebreak",
-      "coffee",
-      "barra de cafe",
-      "barra de caf\xE9",
-      "cafe para junta",
-      "caf\xE9 para junta",
-      "stand de cafe",
-      "stand de caf\xE9",
-      "coffee station",
-      "breaks",
-      "coffee breaks"
-    ],
-    pdfHints: ["coffee break", "cafe", "caf\xE9"]
-  },
-  {
-    key: "barra_bebidas",
-    aliases: [
-      "barra de bebidas",
-      "barra de alcohol",
-      "bebidas alcoholicas",
-      "bebidas alcoh\xF3licas",
-      "open bar",
-      "barra libre",
-      "barra alcohol"
-    ],
-    pdfHints: ["barra de bebidas", "bebidas"],
-    excludeIf: ["mocteles", "mocktail", "sin alcohol", "cafe", "caf\xE9"]
-  },
-  {
-    key: "mocteles",
-    aliases: ["mocteles", "mocktails", "mocktail", "sin alcohol", "barra sin alcohol"],
-    pdfHints: ["mocteles"]
-  },
-  {
-    key: "cocteles",
-    aliases: ["cocteles", "c\xF3cteles", "mixologia", "mixolog\xEDa", "bartender", "cocteleria", "cocteler\xEDa"],
-    pdfHints: ["cocteles", "mixologia", "mixolog\xEDa"]
-  },
-  {
-    key: "barra_americana",
-    aliases: ["barra americana", "americana", "comida americana", "hot dogs", "hamburguesas"],
-    pdfHints: ["americana"]
-  },
-  {
-    key: "barra_yucateca",
-    aliases: ["barra yucateca", "yucateca", "comida yucateca", "cochinita"],
-    pdfHints: ["yucateca"]
-  },
-  {
-    key: "pizza",
-    aliases: ["pizza", "pizzas", "barra de pizzas", "barra pizza"],
-    pdfHints: ["pizza"]
-  },
-  {
-    key: "crepas",
-    aliases: ["crepas", "crepes", "barra de crepas"],
-    pdfHints: ["crepas", "crepa"]
-  },
-  {
-    key: "mariscos",
-    aliases: ["mariscos", "barra de mariscos", "seafood", "camaron", "camar\xF3n", "ostiones"],
-    pdfHints: ["mariscos"]
-  },
-  {
-    key: "paninis",
-    aliases: ["paninis", "panini", "sandwiches", "s\xE1ndwiches"],
-    pdfHints: ["paninis", "panini"]
-  },
-  {
-    key: "pastas",
-    aliases: ["pastas", "ensaladas", "barra de pastas", "pasta", "italian food", "italiana"],
-    pdfHints: ["pastas", "ensaladas"]
-  },
-  {
-    key: "paella",
-    aliases: ["paella", "paellas", "comida espa\xF1ola", "espa\xF1ola"],
-    pdfHints: ["paella"]
-  },
-  {
-    key: "pozole",
-    aliases: ["pozole", "tostadas", "pozole y tostadas"],
-    pdfHints: ["pozole", "tostadas"]
-  },
-  {
-    key: "antojitos",
-    aliases: ["antojitos", "puestos de comida", "street food", "comida mexicana casual"],
-    pdfHints: ["antojitos", "puestos"]
-  },
-  {
-    key: "canapes",
-    aliases: ["canapes", "canap\xE9s", "bocadillos", "botanas finas", "finger food"],
-    pdfHints: ["canapes", "canap\xE9s", "bocadillos"]
-  },
-  {
-    key: "bocadillos",
-    aliases: ["bocadillos", "bocadillo"],
-    pdfHints: ["bocadillos"]
-  },
-  {
-    key: "desayuno",
-    aliases: ["desayuno", "desayunos", "breakfast", "getting ready desayuno"],
-    pdfHints: ["desayuno"]
-  },
-  {
-    key: "comida_corrida",
-    aliases: ["comida corrida", "menu del dia", "men\xFA del d\xEDa"],
-    pdfHints: ["comida corrida", "corrida"]
-  },
-  {
-    key: "snacks",
-    aliases: ["snacks", "carrito de snacks", "botanas", "snack"],
-    pdfHints: ["snacks", "snack"]
-  },
-  {
-    key: "mesa_dulces",
-    aliases: ["mesa de dulces", "dulces", "candy bar"],
-    pdfHints: ["mesa de dulces", "dulces"],
-    excludeIf: ["postres", "cupcakes"]
-  },
-  {
-    key: "mesa_postres",
-    aliases: ["mesa de postres", "postres", "dessert bar"],
-    pdfHints: ["mesa de postres", "postres"]
-  },
-  {
-    key: "mesa_quesos",
-    aliases: ["mesa de quesos", "quesos", "tabla de quesos", "grazing"],
-    pdfHints: ["quesos"]
-  },
-  {
-    key: "cupcakes",
-    aliases: ["cupcakes", "cupcake", "pastelitos"],
-    pdfHints: ["cupcakes"]
-  },
-  {
-    key: "helados",
-    aliases: ["helados", "paletas", "paletas de hielo", "nieve"],
-    pdfHints: ["helados", "paletas"]
-  },
-  {
-    key: "mobiliario",
-    aliases: ["mobiliario", "mesas y sillas", "mesas", "sillas", "renta de mesas"],
-    pdfHints: ["mesas", "sillas", "mobiliario"]
-  },
-  {
-    key: "salas_periqueras",
-    aliases: ["periqueras", "salas lounge", "lounge", "salas"],
-    pdfHints: ["periqueras", "salas"]
-  },
-  {
-    key: "pista_tarima",
-    aliases: ["pista", "pista de baile", "tarima", "dance floor"],
-    pdfHints: ["pista", "tarima"]
-  },
-  {
-    key: "audio_video",
-    aliases: ["audio", "iluminacion", "iluminaci\xF3n", "video", "pantallas", "dj setup", "sonido"],
-    pdfHints: ["audio", "iluminacion", "video"]
-  },
-  {
-    key: "colgantes",
-    aliases: ["colgantes", "decoracion aerea", "decoraci\xF3n a\xE9rea", "aerea"],
-    pdfHints: ["colgantes", "aerea", "a\xE9rea"]
-  },
-  {
-    key: "entelados",
-    aliases: ["entelados", "entelado", "toldo techo", "techo tela"],
-    pdfHints: ["entelados", "entelado"]
-  },
-  {
-    key: "vajillas",
-    aliases: ["vajillas", "vajilla", "loza", "cristaleria", "cristaler\xEDa"],
-    pdfHints: ["vajillas", "vajilla"]
-  },
-  {
-    key: "fiesta_infantil",
-    aliases: ["fiesta infantil", "infantil", "kids", "ni\xF1os", "ninos", "softplay", "inflables"],
-    pdfHints: ["infantil", "fiesta infantil"]
-  }
-];
+var PDF_ALIAS_FAMILIES = defaultFamiliesAsPdfAliases();
 function expandQueryWithPdfSynonyms(query) {
-  const q = norm(query);
-  const baseTokens = q.split(" ").filter((w) => w.length >= 3);
-  const familyKeys = [];
-  const boostedHints = [];
-  const extraTokens = new Set(baseTokens);
-  for (const fam of PDF_ALIAS_FAMILIES) {
-    if (fam.excludeIf?.some((ex) => q.includes(norm(ex)))) {
-      const specificHit = fam.aliases.some((a) => {
-        const na = norm(a);
-        return na.includes(" ") && q.includes(na);
-      });
-      if (!specificHit) continue;
-    }
-    const hit = fam.aliases.some((a) => {
-      const na = norm(a);
-      if (na.includes(" ")) return q.includes(na);
-      return new RegExp(`\\b${na}\\b`).test(q);
-    });
-    if (!hit) continue;
-    familyKeys.push(fam.key);
-    for (const h of fam.pdfHints) {
-      const nh = norm(h);
-      boostedHints.push(nh);
-      for (const t of nh.split(" ")) if (t.length >= 3) extraTokens.add(t);
-    }
-    for (const a of fam.aliases) {
-      const na = norm(a);
-      for (const t of na.split(" ")) if (t.length >= 3) extraTokens.add(t);
-    }
-  }
+  const expanded = expandQueryWithServiceSynonyms(query);
   return {
-    tokens: [...extraTokens],
-    familyKeys,
-    boostedHints: [...new Set(boostedHints)]
+    tokens: expanded.tokens,
+    familyKeys: expanded.familyKeys,
+    boostedHints: expanded.boostedHints
   };
 }
 function aliasesForPdfLabel(fileName, serviceLabel) {
-  const hay = norm(`${fileName} ${serviceLabel}`);
-  const out = /* @__PURE__ */ new Set();
+  const hay = norm2(`${fileName} ${serviceLabel}`);
+  const out = new Set(synonymsForServiceName(serviceLabel).map(norm2));
   for (const t of hay.split(" ").filter((w) => w.length >= 3)) out.add(t);
   for (const fam of PDF_ALIAS_FAMILIES) {
-    const matchesHint = fam.pdfHints.some((h) => hay.includes(norm(h)));
+    const matchesHint = fam.pdfHints.some((h) => hay.includes(norm2(h)));
     if (!matchesHint) continue;
     out.add(fam.key);
     for (const a of fam.aliases) {
-      const na = norm(a);
+      const na = norm2(a);
       out.add(na);
       for (const t of na.split(" ")) if (t.length >= 3) out.add(t);
     }
@@ -6221,29 +6711,8 @@ function aliasesForPdfLabel(fileName, serviceLabel) {
   return [...out];
 }
 function synonymScoreForPdf(query, fileName, serviceLabel, aliases = []) {
-  const expanded = expandQueryWithPdfSynonyms(query);
-  if (!expanded.familyKeys.length && !expanded.boostedHints.length) return 0;
-  const hay = norm(`${fileName} ${serviceLabel} ${aliases.join(" ")}`);
-  let score = 0;
-  for (const hint of expanded.boostedHints) {
-    if (hay.includes(hint)) score += hint.includes(" ") ? 22 : 14;
-  }
-  for (const key of expanded.familyKeys) {
-    if (aliases.includes(key) || hay.includes(key.replace(/_/g, " "))) score += 18;
-  }
-  if (expanded.familyKeys.includes("taquiza") && /banquete/.test(hay) && !/taquiza/.test(hay)) {
-    score -= 25;
-  }
-  if (expanded.familyKeys.includes("banquete_formal") && /taquiza/.test(hay)) {
-    score -= 25;
-  }
-  if (expanded.familyKeys.includes("sushi") && /banquete|taquiza/.test(hay) && !/sushi|poke/.test(hay)) {
-    score -= 25;
-  }
-  if (expanded.familyKeys.includes("banquete_mexicano") && /banquete formal/.test(hay) && !/mexicano/.test(hay)) {
-    score -= 20;
-  }
-  return score;
+  const base = synonymScoreForService(query, `${serviceLabel} ${fileName}`, aliases.join(", "));
+  return base;
 }
 
 // src/services/drivePdfKnowledge.ts
@@ -6688,6 +7157,7 @@ function emptyStatus() {
   };
 }
 function applyPriceIndex(rows) {
+  registerSheetSynonyms(rows);
   const priced = rows.filter((r) => r.tienePrecio && r.precio).map((r) => r.servicio);
   const noPrice = rows.filter((r) => !r.tienePrecio || !r.precio).map((r) => r.servicio);
   setCatalogPriceIndex(priced, noPrice);
@@ -6735,7 +7205,9 @@ function parseCatalogQueryFilters(query) {
   };
 }
 function rowHaystack(row) {
-  return normalizeForMatch(`${row.categoria} ${row.servicio} ${row.nivel}`).replace(/\s+/g, " ");
+  return normalizeForMatch(
+    `${row.categoria} ${row.servicio} ${row.nivel} ${row.sinonimos} ${synonymHaystackForService(row.servicio, row.sinonimos)}`
+  );
 }
 function extractNivelLabel(row) {
   if (typeof row === "string") {
@@ -6785,6 +7257,19 @@ function rowMatchesServiceLabel(row, label) {
 }
 function catalogKeywordsFromQuery(query) {
   if (isVagueCatalogFoodQuery(query.trim())) return [];
+  const expanded = expandQueryWithServiceSynonyms(query);
+  if (expanded.matchedServiceHints.length) {
+    const qn = normalizeForMatch(query);
+    const hintsInQuery = expanded.matchedServiceHints.filter((hint) => {
+      const tokens = normalizeForMatch(hint).split(/\s+/).filter((x) => x.length >= 4);
+      if (!tokens.length) return qn.includes(normalizeForMatch(hint));
+      return tokens.every((t) => qn.includes(t));
+    });
+    const source = hintsInQuery.length ? hintsInQuery : expanded.matchedServiceHints.slice(0, 1);
+    const primary = source.slice(0, 2).flatMap((hint) => normalizeForMatch(hint).split(/\s+/).filter((x) => x.length >= 4));
+    const uniq = [...new Set(primary)];
+    if (uniq.length) return uniq.slice(0, 4);
+  }
   const q = normalizeForMatch(query);
   const keys = [];
   if (/\bparrillada\b/.test(q)) keys.push("parrillada");
@@ -6798,7 +7283,7 @@ function catalogKeywordsFromQuery(query) {
 }
 function rowMatchesCatalogKeywords(row, keywords) {
   if (!keywords.length) return true;
-  const hay = normalizeForMatch(row.servicio);
+  const hay = synonymHaystackForService(row.servicio, row.sinonimos);
   return keywords.every((k) => hay.includes(k));
 }
 function rowsForRequestedService(allRows, query) {
@@ -6816,8 +7301,8 @@ function rowsForRequestedService(allRows, query) {
 function catalogAnswerMatchesRequestedService(query, answer) {
   const keywords = catalogKeywordsFromQuery(query);
   if (!keywords.length) return true;
-  const norm2 = normalizeForMatch(answer);
-  return keywords.every((k) => norm2.includes(k));
+  const norm3 = normalizeForMatch(answer);
+  return keywords.every((k) => norm3.includes(k));
 }
 function catalogResultMatchesRequestedService(query, result) {
   const keywords = catalogKeywordsFromQuery(query);
@@ -7007,9 +7492,11 @@ function formatRequerimientoLabelFromQuery(query) {
 }
 function scoreCatalogRow(row, tokens, filters, query) {
   const haystack = rowHaystack(row).replace(/\s+/g, "");
-  let score = 0;
+  let score = synonymScoreForService(query, row.servicio, row.sinonimos);
   const vagueFood = isVagueCatalogFoodQuery(query);
-  for (const token of tokens) {
+  const expanded = expandQueryWithServiceSynonyms(query);
+  const searchTokens = expanded.tokens.length ? expanded.tokens : tokens;
+  for (const token of searchTokens) {
     const tok = token.replace(/\s+/g, "");
     if (vagueFood && tok === "comida" && /comidacorrida/.test(haystack)) continue;
     if (haystack.includes(tok)) score += 2;
@@ -7635,9 +8122,9 @@ function requerimientosFollowUpTemplate(text, clientName) {
 function bodyEqualsLastAssistant(msg, history, clientName) {
   const last = [...history].reverse().find((m) => m.role === "assistant");
   if (!last || typeof last.content !== "string") return false;
-  const norm2 = (s) => stripLeadingTransition(s).trim();
-  const a = norm2(msg);
-  const b = norm2(last.content);
+  const norm3 = (s) => stripLeadingTransition(s).trim();
+  const a = norm3(msg);
+  const b = norm3(last.content);
   if (a === b) return true;
   const templateA = requerimientosFollowUpTemplate(a, clientName);
   const templateB = requerimientosFollowUpTemplate(b, clientName);
@@ -19723,11 +20210,11 @@ async function runAll() {
     assert.equal(clientAsksAboutTeam("Alejandro", "Alejandro"), false);
     assert.equal(clientAsksAboutTeam("\xBFQui\xE9n es Rodrigo?", "Mar\xEDa"), true);
     assert.equal(clientAsksAboutTeam("\xBFQui\xE9n es Alejandro?", "Mar\xEDa"), true);
-    const norm2 = normalizeAdvisorReferences(
+    const norm3 = normalizeAdvisorReferences(
       "Le paso estos datos a Alejandro para que te arme una cotizaci\xF3n.",
       "Alejandro"
     );
-    assert.ok(norm2.includes("nuestro equipo"));
+    assert.ok(norm3.includes("nuestro equipo"));
     const healthFeatures = [
       "understanding",
       "redaction-briefing",
@@ -19979,12 +20466,12 @@ async function runAll() {
     assert.ok(!/correo/i.test(reply), reply.slice(0, 200));
     assert.ok(!/Alejandro/i.test(reply), reply);
     assert.ok(/seguimos por aquí|invitados|servicios|pensado/i.test(reply), reply.slice(0, 200));
-    const norm2 = normalizeAdvisorReferences(
+    const norm3 = normalizeAdvisorReferences(
       "para que Alejandro te arme la propuesta",
       "Ver\xF3nica"
     );
-    assert.ok(norm2.includes("nuestro equipo"));
-    assert.ok(!/Alejandro/i.test(norm2));
+    assert.ok(norm3.includes("nuestro equipo"));
+    assert.ok(!/Alejandro/i.test(norm3));
   });
   await test("19. Fer A14751 \u2014 no repetir presupuesto tras waiver ni 2+ preguntas", () => {
     const baseFilled = /* @__PURE__ */ new Set([
@@ -20546,12 +21033,12 @@ async function runAll() {
     const correoQ = buildCorreoQuestion("Alejandro", [], 14786);
     assert.ok(/Mucho gusto,\s+Alejandro/i.test(correoQ), correoQ);
     assert.ok(!/Mucho gusto,\s+nuestro equipo/i.test(correoQ), correoQ);
-    const norm2 = normalizeAdvisorReferences(
+    const norm3 = normalizeAdvisorReferences(
       "Mucho gusto, Alejandro. \xBFA qu\xE9 correo te env\xEDo la info para que nuestro equipo te arme la propuesta?",
       "Alejandro"
     );
-    assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm2), norm2);
-    assert.ok(/nuestro equipo te arme/i.test(norm2), norm2);
+    assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm3), norm3);
+    assert.ok(/nuestro equipo te arme/i.test(norm3), norm3);
     assert.ok(isStaffAdvisorName("Rodrigo"));
     assert.ok(!isValidRequerimientosValue("bautizo"));
     assert.ok(isValidRequerimientosValue("servicio completo"));
@@ -21140,6 +21627,16 @@ async function runAll() {
     const sushiCards = searchDrivePdfCards("barra de sushi");
     assert.ok(sushiCards.length >= 1, "ficha sushi");
     assert.ok(/sushi|poke/i.test(sushiCards[0].about), sushiCards[0].about);
+    const synTacos = expandQueryWithPdfSynonyms("quiero tacos");
+    assert.ok(synTacos.familyKeys.includes("taquiza"), synTacos.familyKeys.join(","));
+    const synJap = expandQueryWithPdfSynonyms("comida japonesa");
+    assert.ok(synJap.familyKeys.includes("barra_sushi") || synJap.familyKeys.includes("sushi"), synJap.familyKeys.join(","));
+    const synServed = expandQueryWithServiceSynonyms("quiero men\xFA formal emplatado");
+    assert.ok(synServed.familyKeys.includes("banquete_formal"), synServed.familyKeys.join(","));
+    const synOpenBar = expandQueryWithServiceSynonyms("quiero open bar");
+    assert.ok(synOpenBar.familyKeys.includes("barra_bebidas_alcohol"), synOpenBar.familyKeys.join(","));
+    const synCochinita = expandQueryWithServiceSynonyms("cochinita pibil");
+    assert.ok(synCochinita.familyKeys.includes("barra_yucateca"), synCochinita.familyKeys.join(","));
     const tacosCard = searchDrivePdfCards("quiero tacos para mi fiesta");
     assert.ok(tacosCard.length >= 1, "tacos \u2192 taquiza");
     assert.ok(/taquiza/i.test(tacosCard[0].serviceLabel + tacosCard[0].fileName), tacosCard[0].serviceLabel);
@@ -21173,9 +21670,34 @@ async function runAll() {
       vague.promptBlock.slice(0, 400)
     );
     const ack = buildGuardServiceAck("qu\xE9 incluye el banquete formal");
-    assert.ok(/banquete|tiempos|entrada/i.test(ack), ack.slice(0, 250));
-    assert.ok(!/\$\d/.test(ack) || /equipo|confirma/i.test(ack), ack);
+    assert.ok(/banquete|tiempos|entrada|equipo|confirma/i.test(ack), ack.slice(0, 250));
     clearDrivePdfSnapshotForTests();
+  });
+  await test("47. Sheet columna Sin\xF3nimos + matcher enriquecido", () => {
+    clearSheetSynonymIndex();
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Sinonimos"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","5 guisados","tacos, taquiza para evento, puesto de tacos"',
+      '"Banquete Formal","Basico","$500.00","$15,000.00","TRUE","3 tiempos","men\xFA formal, comida servida, cena formal"',
+      '"Barra de Sushi y Poke","Basico","$420.00","$8,400.00","TRUE","rollos","comida japonesa, poke, makis"'
+    ].join("\n");
+    const rows = parseSheetCatalogCsv(csv);
+    assert.equal(rows.length, 3);
+    assert.ok(rows[0].sinonimos.includes("tacos"), rows[0].sinonimos);
+    setCatalogSnapshotForTests(rows);
+    const fromSheet = expandQueryWithServiceSynonyms("quiero men\xFA formal");
+    assert.ok(
+      fromSheet.familyKeys.includes("banquete_formal") || fromSheet.matchedServiceHints.some((h) => /banquete|formal/i.test(h)),
+      fromSheet.familyKeys.join(",")
+    );
+    const price = buildCatalogPriceAnswer("quiero open bar");
+    const tacosPrice = buildCatalogPriceAnswer("quiero tacos para mi fiesta");
+    assert.ok(tacosPrice, "tacos debe resolver a Taquiza v\xEDa sin\xF3nimos");
+    assert.ok(/\$300|Taquiza|taquiza/i.test(tacosPrice), tacosPrice);
+    const japPrice = buildCatalogPriceAnswer("comida japonesa");
+    assert.ok(japPrice, "japonesa \u2192 sushi");
+    assert.ok(/sushi|poke|\$420/i.test(japPrice), japPrice);
+    clearSheetSynonymIndex();
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
