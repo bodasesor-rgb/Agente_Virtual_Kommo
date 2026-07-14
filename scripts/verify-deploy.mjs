@@ -5,7 +5,16 @@
  * Uso:
  *   node scripts/verify-deploy.mjs
  *   EXPECTED_COMMIT=abc123 LUCY_PUBLIC_URL=https://... node scripts/verify-deploy.mjs
+ *
+ * Nota: el bundle en `deploy/build-meta.json` suele llevar el SHA del commit
+ * que regeneró el bundle (a menudo el padre del merge/push). Hostinger sirve
+ * ese SHA embebido — se acepta tanto GITHUB_SHA como el de build-meta.
  */
+import { readFileSync, existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const BASE =
   process.env.LUCY_PUBLIC_URL?.trim() ||
   "https://midnightblue-mosquito-424375.hostingersite.com";
@@ -17,6 +26,26 @@ const EXPECTED_COMMIT = (
 ).trim();
 const MAX_ATTEMPTS = Number(process.env.VERIFY_ATTEMPTS ?? 36);
 const INTERVAL_MS = Number(process.env.VERIFY_INTERVAL_MS ?? 10_000);
+
+function shortSha(sha) {
+  return (sha || "").trim().slice(0, 7);
+}
+
+function loadAcceptedCommits() {
+  const set = new Set();
+  if (EXPECTED_COMMIT) set.add(shortSha(EXPECTED_COMMIT));
+  const metaPath = path.join(ROOT, "deploy/build-meta.json");
+  if (existsSync(metaPath)) {
+    try {
+      const meta = JSON.parse(readFileSync(metaPath, "utf8"));
+      if (meta.git_commit) set.add(shortSha(meta.git_commit));
+      if (meta.git_commit_short) set.add(shortSha(meta.git_commit_short));
+    } catch {
+      /* ignore */
+    }
+  }
+  return [...set].filter(Boolean);
+}
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -35,9 +64,10 @@ async function fetchHealth() {
 }
 
 async function main() {
+  const accepted = loadAcceptedCommits();
   console.log(`[verify] URL: ${URL}`);
-  if (EXPECTED_COMMIT) {
-    console.log(`[verify] Commit esperado: ${EXPECTED_COMMIT.slice(0, 7)}…`);
+  if (accepted.length) {
+    console.log(`[verify] Commits aceptados: ${accepted.join(", ")}`);
   }
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -48,18 +78,19 @@ async function main() {
         console.log(`[verify] OK — prompt ${h.lucy_prompt} · ${h.built_at_display ?? h.built_at}`);
         if (h.git_commit_short) console.log(`[verify] Commit en servidor: ${h.git_commit_short}`);
 
-        if (EXPECTED_COMMIT && h.git_commit && !h.git_commit.startsWith(EXPECTED_COMMIT.slice(0, 7))) {
-          const got = h.git_commit.slice(0, 7);
-          const want = EXPECTED_COMMIT.slice(0, 7);
-          if (got !== want) {
+        if (accepted.length) {
+          const got = shortSha(h.git_commit || h.git_commit_short || "");
+          if (got && !accepted.includes(got)) {
             console.log(
-              `[verify] Intento ${attempt}/${MAX_ATTEMPTS} — commit en servidor (${got}) ≠ esperado (${want}); esperando redeploy…`,
+              `[verify] Intento ${attempt}/${MAX_ATTEMPTS} — commit en servidor (${got}) ≠ aceptados (${accepted.join("|")}); esperando redeploy…`,
             );
             if (attempt < MAX_ATTEMPTS) {
               await sleep(INTERVAL_MS);
               continue;
             }
-            console.error(`[verify] ERROR: commit en servidor (${got}) ≠ esperado (${want})`);
+            console.error(
+              `[verify] ERROR: commit en servidor (${got}) ≠ aceptados (${accepted.join("|")})`,
+            );
             console.error("[verify] Hostinger aún no aplicó el último push — redeploy manual en hPanel.");
             process.exit(1);
           }
