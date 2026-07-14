@@ -19,6 +19,12 @@ import {
   formatCatalogRowLabel,
   type SheetCatalogRow,
 } from "./googleSheetsCatalog.js";
+import {
+  expandQueryWithServiceSynonyms,
+  registerSheetSynonyms,
+  synonymHaystackForService,
+  synonymScoreForService,
+} from "./serviceSynonyms.js";
 import { loadGammaCatalog, loadGammaKnowledgeFromSheet } from "./gammaCatalog.js";
 import {
   clientMentionsCatering,
@@ -78,6 +84,7 @@ function emptyStatus(): CatalogStatus {
 }
 
 function applyPriceIndex(rows: SheetCatalogRow[]): void {
+  registerSheetSynonyms(rows);
   const priced = rows.filter((r) => r.tienePrecio && r.precio).map((r) => r.servicio);
   const noPrice = rows.filter((r) => !r.tienePrecio || !r.precio).map((r) => r.servicio);
   setCatalogPriceIndex(priced, noPrice);
@@ -306,7 +313,9 @@ function parseCatalogQueryFilters(query: string): CatalogQueryFilters {
 }
 
 function rowHaystack(row: SheetCatalogRow): string {
-  return normalizeForMatch(`${row.categoria} ${row.servicio} ${row.nivel}`).replace(/\s+/g, " ");
+  return normalizeForMatch(
+    `${row.categoria} ${row.servicio} ${row.nivel} ${row.sinonimos} ${synonymHaystackForService(row.servicio, row.sinonimos)}`
+  );
 }
 
 function extractNivelLabel(row: SheetCatalogRow | string): string {
@@ -380,6 +389,23 @@ export function rowMatchesServiceLabel(row: SheetCatalogRow, label: string): boo
 function catalogKeywordsFromQuery(query: string): string[] {
   if (isVagueCatalogFoodQuery(query.trim())) return [];
 
+  const expanded = expandQueryWithServiceSynonyms(query);
+  if (expanded.matchedServiceHints.length) {
+    const qn = normalizeForMatch(query);
+    // Solo hints cuyas piezas aparecen en el query (evita "parillada" typo-hint).
+    const hintsInQuery = expanded.matchedServiceHints.filter((hint) => {
+      const tokens = normalizeForMatch(hint).split(/\s+/).filter((x) => x.length >= 4);
+      if (!tokens.length) return qn.includes(normalizeForMatch(hint));
+      return tokens.every((t) => qn.includes(t));
+    });
+    const source = hintsInQuery.length ? hintsInQuery : expanded.matchedServiceHints.slice(0, 1);
+    const primary = source
+      .slice(0, 2)
+      .flatMap((hint) => normalizeForMatch(hint).split(/\s+/).filter((x) => x.length >= 4));
+    const uniq = [...new Set(primary)];
+    if (uniq.length) return uniq.slice(0, 4);
+  }
+
   const q = normalizeForMatch(query);
   const keys: string[] = [];
 
@@ -398,7 +424,7 @@ function catalogKeywordsFromQuery(query: string): string[] {
 
 function rowMatchesCatalogKeywords(row: SheetCatalogRow, keywords: string[]): boolean {
   if (!keywords.length) return true;
-  const hay = normalizeForMatch(row.servicio);
+  const hay = synonymHaystackForService(row.servicio, row.sinonimos);
   return keywords.every((k) => hay.includes(k));
 }
 
@@ -652,10 +678,13 @@ function scoreCatalogRow(
   query: string
 ): number {
   const haystack = rowHaystack(row).replace(/\s+/g, "");
-  let score = 0;
+  let score = synonymScoreForService(query, row.servicio, row.sinonimos);
   const vagueFood = isVagueCatalogFoodQuery(query);
 
-  for (const token of tokens) {
+  const expanded = expandQueryWithServiceSynonyms(query);
+  const searchTokens = expanded.tokens.length ? expanded.tokens : tokens;
+
+  for (const token of searchTokens) {
     const tok = token.replace(/\s+/g, "");
     if (vagueFood && tok === "comida" && /comidacorrida/.test(haystack)) continue;
     if (haystack.includes(tok)) score += 2;

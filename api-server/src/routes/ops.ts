@@ -1,6 +1,10 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { getOpenAiApiKey, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import { getCatalogStatus, refreshCatalog } from "../services/catalogService.js";
+import {
+  getDrivePdfStatus,
+  refreshDrivePdfKnowledge,
+} from "../services/drivePdfKnowledge.js";
 import { getKnowledgeGapStats } from "../services/knowledgeGapStore.js";
 import { logger } from "../lib/logger.js";
 import { getBuildMeta } from "../lib/buildMeta.js";
@@ -27,6 +31,7 @@ async function buildOpsStatus(): Promise<{
 }> {
   const build = getBuildMeta();
   const catalog = getCatalogStatus();
+  const drivePdf = getDrivePdfStatus();
   const gaps = await getKnowledgeGapStats().catch(() => ({
     pending: 0,
     answered: 0,
@@ -71,6 +76,22 @@ async function buildOpsStatus(): Promise<{
 
   if (catalog.lastError) {
     healActions.push("refresh_catalog");
+  }
+
+  if (drivePdf.enabled) {
+    checks.push({
+      id: "drive_pdf",
+      label: "Catálogo PDF (Drive)",
+      status: drivePdf.loaded && !drivePdf.lastError ? "ok" : drivePdf.lastError ? "warn" : "warn",
+      detail: drivePdf.lastError
+        ? `Error: ${drivePdf.lastError}`
+        : drivePdf.loaded
+          ? `${drivePdf.fileCount} PDFs · ${drivePdf.cardCount} fichas · ${drivePdf.chunkCount} chunks`
+          : "Aún indexando PDFs de Drive…",
+    });
+    if (!drivePdf.loaded || drivePdf.lastError) {
+      healActions.push("refresh_drive_pdf");
+    }
   }
 
   const lastRefresh = catalog.lastRefresh ? new Date(catalog.lastRefresh).getTime() : 0;
@@ -146,6 +167,17 @@ router.post("/ops/heal", async (_req: Request, res: Response) => {
         await refreshCatalog(true);
         healed.push("catalog_refreshed");
         logger.info("ops/heal: catálogo recargado");
+      } catch (err) {
+        errors.push(err instanceof Error ? err.message : String(err));
+      }
+    }
+
+    const driveBefore = getDrivePdfStatus();
+    if (driveBefore.enabled && (!driveBefore.loaded || driveBefore.lastError)) {
+      try {
+        await refreshDrivePdfKnowledge(true);
+        healed.push("drive_pdf_refreshed");
+        logger.info("ops/heal: índice PDF Drive recargado");
       } catch (err) {
         errors.push(err instanceof Error ? err.message : String(err));
       }

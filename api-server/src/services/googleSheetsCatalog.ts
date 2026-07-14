@@ -12,6 +12,8 @@ export interface SheetCatalogRow {
   precio: string;
   unidad: string;
   notas: string;
+  /** Columna Sinónimos del Sheet (coma-separados). */
+  sinonimos: string;
   tienePrecio: boolean;
 }
 
@@ -52,6 +54,11 @@ const HEADER_ALIASES: Record<string, keyof Omit<SheetCatalogRow, "tienePrecio">>
   detalle: "notas",
   "que incluye": "notas",
   extras: "notas",
+  sinonimos: "sinonimos",
+  sinonimo: "sinonimos",
+  aliases: "sinonimos",
+  alias: "sinonimos",
+  keywords: "sinonimos",
 };
 
 /** Macro-categoría derivada del nombre de servicio (el Sheet no trae columna categoría). */
@@ -308,6 +315,7 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
       precio,
       unidad,
       notas: notasParts.join(" | "),
+      sinonimos: get("sinonimos"),
       tienePrecio,
     });
   }

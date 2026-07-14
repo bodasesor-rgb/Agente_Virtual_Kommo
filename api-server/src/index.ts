@@ -11,6 +11,10 @@ import { initializeTrainingStore } from "./services/trainingStore.js";
 import { ensureLearningSchema } from "./services/learningSchema.js";
 import { ensureKnowledgeGapSchema } from "./services/knowledgeGapSchema.js";
 import { bootstrapCatalog, startCatalogAutoRefresh } from "./services/catalogService.js";
+import {
+  bootstrapDrivePdfKnowledge,
+  startDrivePdfAutoRefresh,
+} from "./services/drivePdfKnowledge.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 
@@ -93,6 +97,7 @@ async function startServer(): Promise<void> {
   });
 
   startCatalogAutoRefresh();
+  startDrivePdfAutoRefresh();
   void bootstrapCatalog()
     .then(() => {
       logger.info("Catálogo Google Sheets cargado al arranque");
@@ -102,6 +107,14 @@ async function startServer(): Promise<void> {
         { err },
         "bootstrapCatalog falló — se usará fallback estático hasta el próximo refresh",
       );
+    });
+  // PDFs de Drive en background — no bloquean /api/health
+  void bootstrapDrivePdfKnowledge()
+    .then(() => {
+      logger.info("Índice PDF Drive listo");
+    })
+    .catch((err) => {
+      logger.warn({ err }, "bootstrapDrivePdfKnowledge falló — Lucy sigue con Sheet");
     });
 }
 

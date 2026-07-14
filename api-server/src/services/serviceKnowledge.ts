@@ -1,11 +1,10 @@
 /**
- * Router de conocimiento de servicios — modelo de 3 niveles.
+ * Router de conocimiento de servicios — modelo de 3 niveles + RAG PDF.
  *
  * NIVEL 1: está en Google Sheet → precio e inclusiones exactas.
- * NIVEL 2: servicio de eventos sin Sheet → acepta, anota, avanza (sin inventar precio).
+ * NIVEL 1.5 / enriquecido: Sheet + detalle de menú desde PDFs de Drive.
+ * NIVEL 2: servicio de eventos — PDF Drive si hay; si no, acepta sin inventar precio.
  * NIVEL 3: solicitud dudosa / fuera de eventos → anota como solicitud especial.
- *
- * FASE 2 (futuro): RAG de PDFs en Drive se insertará entre Sheet y conocimiento general.
  */
 import {
   isServiceRelatedMessage,
@@ -18,6 +17,13 @@ import {
   formatServiceDataForPrompt,
   lookupCatalogServices,
 } from "./catalogService.js";
+import {
+  buildDrivePdfServiceAnswer,
+  formatDrivePdfKnowledgeForPrompt,
+  formatDrivePdfLearnedCatalogForPrompt,
+  hasDrivePdfKnowledge,
+  shouldInjectLearnedPdfCatalog,
+} from "./drivePdfKnowledge.js";
 
 export type ServiceKnowledgeLevel = 1 | 2 | 3;
 
@@ -87,6 +93,8 @@ export function buildGuardServiceAck(query: string): string {
     if (detail) return detail;
   }
   if (level === 3) return buildLevel3Ack(label);
+  const fromPdf = buildDrivePdfServiceAnswer(query);
+  if (fromPdf) return fromPdf;
   return buildLevel2Ack(label);
 }
 
@@ -98,7 +106,7 @@ export interface ServiceKnowledgeResult {
   guardAck: string;
 }
 
-/** Mejor conocimiento disponible: Sheet → (futuro PDF RAG) → nivel 2/3. */
+/** Mejor conocimiento disponible: Sheet → PDF Drive → nivel 2/3. */
 export function getServiceKnowledge(query: string): ServiceKnowledgeResult | null {
   const trimmed = query.trim();
   if (!trimmed || trimmed.length < 3) return null;
@@ -114,12 +122,17 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
     buildCatalogServiceDetailAnswer(trimmed) ??
     buildCatalogInclusionAnswer(trimmed) ??
     null;
+  const pdfBlock = formatDrivePdfKnowledgeForPrompt(trimmed);
+  const pdfAnswer = buildDrivePdfServiceAnswer(trimmed);
 
   if (level === 1 && (sheetBlock || sheetDetail)) {
     const parts = ["CONOCIMIENTO DE SERVICIO (Google Sheet — precio solo de aquí):"];
     if (sheetBlock) parts.push(sheetBlock);
     else if (sheetDetail) parts.push(sheetDetail);
     parts.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita Incluye si aparece en el bloque.");
+    if (pdfBlock) {
+      parts.push("", pdfBlock);
+    }
     return {
       level: 1,
       label,
@@ -143,6 +156,49 @@ export function getServiceKnowledge(query: string): ServiceKnowledgeResult | nul
       ].join("\n"),
       guardAck: buildLevel3Ack(label),
     };
+  }
+
+  // Nivel 2 — con o sin PDF
+  if (pdfBlock || hasDrivePdfKnowledge(trimmed)) {
+    return {
+      level: 2,
+      label,
+      hasSheetPrice: false,
+      promptBlock: [
+        "CONOCIMIENTO DE SERVICIO (PDF Drive — NIVEL 2, sin precio en Sheet):",
+        `Servicio: ${label}`,
+        "Hay descripción/menú en el catálogo PDF. Úsalo para explicar qué incluye.",
+        "NUNCA cites precios del PDF. Precio: 'nuestro equipo te confirma según invitados/nivel'.",
+        "ACEPTA, anota en requerimientos y AVANZA. NUNCA digas que no lo tienes.",
+        pdfBlock ?? "",
+        SERVICE_KNOWLEDGE_GOLDEN_RULE,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      guardAck: pdfAnswer ?? buildLevel2Ack(label),
+    };
+  }
+
+  if (shouldInjectLearnedPdfCatalog(trimmed)) {
+    const learned =
+      formatDrivePdfLearnedCatalogForPrompt({ query: trimmed, compact: true }) ??
+      formatDrivePdfLearnedCatalogForPrompt({ compact: true });
+    if (learned) {
+      return {
+        level: 2,
+        label,
+        hasSheetPrice: false,
+        promptBlock: [
+          "CONOCIMIENTO DE SERVICIO (mapa aprendido de PDFs — NIVEL 2):",
+          `Consulta del cliente: ${label}`,
+          "Sabes de qué habla cada PDF del catálogo. Sugiere 2–4 opciones relevantes y pide que elija UNA.",
+          "NUNCA inventes precios. NUNCA digas que no tienes el servicio si está en el mapa.",
+          learned,
+          SERVICE_KNOWLEDGE_GOLDEN_RULE,
+        ].join("\n"),
+        guardAck: buildLevel2Ack(label),
+      };
+    }
   }
 
   return {

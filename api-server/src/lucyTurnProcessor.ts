@@ -31,6 +31,10 @@ import {
   formatServiceDataForPrompt,
 } from "./services/catalogService.js";
 import { formatServiceKnowledgeForPrompt } from "./services/serviceKnowledge.js";
+import {
+  formatDrivePdfLearnedCatalogForPrompt,
+  shouldInjectLearnedPdfCatalog,
+} from "./services/drivePdfKnowledge.js";
 import { getTrainingExamples } from "./lib/training.js";
 import {
   applyLucyMessageGuards,
@@ -187,7 +191,19 @@ export function buildLucyRedactionBriefing(opts: {
   const serviceBlock =
     formatServiceKnowledgeForPrompt(opts.messageText) ??
     formatServiceDataForPrompt(opts.messageText);
-  return serviceBlock ? `${briefing}\n\n${serviceBlock}` : briefing;
+
+  const learnedMap =
+    shouldInjectLearnedPdfCatalog(opts.messageText) &&
+    !serviceBlock?.includes("FICHAS APRENDIDAS") &&
+    !serviceBlock?.includes("CATÁLOGO APRENDIDO")
+      ? formatDrivePdfLearnedCatalogForPrompt({
+          query: opts.messageText,
+          compact: true,
+        })
+      : null;
+
+  const extras = [serviceBlock, learnedMap].filter(Boolean).join("\n\n");
+  return extras ? `${briefing}\n\n${extras}` : briefing;
 }
 
 export interface GenerateLucyOutboundInput {
