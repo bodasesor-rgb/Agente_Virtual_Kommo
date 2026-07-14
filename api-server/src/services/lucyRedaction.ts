@@ -11,6 +11,7 @@ import {
 import type { IntentResult, SentimentResult } from "./intentDetection.js";
 import { CLOSING_CORE_FIELDS } from "../lucy-flow-guards.js";
 import { SERVICE_KNOWLEDGE_GOLDEN_RULE } from "./serviceKnowledge.js";
+import { buildEventOfferCatalogHint } from "./catalogService.js";
 
 export const LUCY_REDACTION_MODEL = "gpt-4o-mini";
 
@@ -93,11 +94,23 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
   } else if (pendingLabel) {
     lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
     if (pending === "requerimientos") {
-      lines.push(
-        "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces.",
-        SERVICE_KNOWLEDGE_GOLDEN_RULE,
-        "Si el cliente ya nombró un servicio, NO repitas '¿algún otro servicio?' — avanza al siguiente dato."
-      );
+      const tipo = input.extracted.tipo_evento?.trim();
+      if (tipo) {
+        lines.push(
+          `OFRECIMIENTO TEMPRANO — tipo de evento ya conocido: ${tipo}.`,
+          "Propón con criterio servicios que encajen (del catálogo) y pregunta qué le gustaría ir armando.",
+          "Suena asesora experta, cálida y natural. Varía palabras. NO digas solo «¿qué servicios quieres cotizar?» sin proponer.",
+          SERVICE_KNOWLEDGE_GOLDEN_RULE
+        );
+        const offerHint = buildEventOfferCatalogHint(tipo);
+        if (offerHint) lines.push(offerHint);
+      } else {
+        lines.push(
+          "Al preguntar servicios, menciona opciones: alimentos/barras, mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces.",
+          SERVICE_KNOWLEDGE_GOLDEN_RULE,
+          "Si el cliente ya nombró un servicio, NO repitas '¿algún otro servicio?' — avanza al siguiente dato."
+        );
+      }
     }
   } else {
     lines.push("Revisa el CRM y pide solo el primer dato que falte.");

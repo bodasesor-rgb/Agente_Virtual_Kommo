@@ -1279,6 +1279,15 @@ function shouldPreferAiResponse(
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return true;
 
+  // Ofrecimiento temprano: dejar que OpenAI redacte la propuesta por tipo de evento.
+  if (
+    pending === "requerimientos" &&
+    hasTipoEvento(filledSet, extracted) &&
+    aiLooksLikeEventServiceOffer(trimmed)
+  ) {
+    return true;
+  }
+
   if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
 
   // Cliente hizo una pregunta o dio contexto útil — priorizar GPT sobre plantilla rígida
@@ -1289,6 +1298,89 @@ function shouldPreferAiResponse(
   }
 
   return false;
+}
+
+/** Pregunta seca de formulario — NO sirve como ofrecimiento. */
+export function isDryRequerimientosAsk(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  const t = text.trim();
+  if (
+    /qu[eé]\s+servicios?\s+(te\s+)?(gustar[ií]a|quieres|deseas|necesitas)\s+(cotizar|para)/i.test(t)
+  ) {
+    return true;
+  }
+  if (/plat[ií]came,?\s*[¿?]?\s*qu[eé]\s+tienes\s+pensado/i.test(t) && t.length < 120) {
+    return true;
+  }
+  if (/^[^.!?]{0,40}qu[eé]\s+necesitas\s+para\s+el\s+evento\s*\?/i.test(t) && t.length < 100) {
+    return true;
+  }
+  return false;
+}
+
+/** Respuesta de asesora que propone servicios según el evento. */
+export function aiLooksLikeEventServiceOffer(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  const t = text.trim();
+  if (isDryRequerimientosAsk(t)) return false;
+  if (t.length < 50) return false;
+  const mentionsService =
+    /\b(banquete|taquiza|brunch|coffee\s*break|mobiliario|mesa\s+de\s+(dulces|postres)|barra|bebidas?|mixolog|\bdj\b|iluminaci|pista|carpa|bocadillo|canap|catering)\b/i.test(
+      t
+    );
+  const invitesChoice =
+    /\?/.test(t) ||
+    /\b(armando|armar|gustar[ií]a|te\s+late|interes|propon|inclu|cotiz)/i.test(t);
+  return mentionsService && invitesChoice;
+}
+
+/**
+ * Cuando ya hay tipo de evento y falta servicios: preferir redacción OpenAI.
+ * Solo cae a plantilla si el modelo no propuso nada útil.
+ */
+export function preferEventOfferReply(opts: {
+  aiResponse: string;
+  extracted: ExtractedData;
+  filledSet: Set<string>;
+  history: OpenAI.Chat.ChatCompletionMessageParam[];
+  currentMessage?: string;
+  entityId?: string | number;
+}): string | null {
+  const { aiResponse, extracted, filledSet, history, currentMessage, entityId } = opts;
+  if (!hasTipoEvento(filledSet, extracted)) return null;
+  if (getNextPendingField(extracted, filledSet) !== "requerimientos") return null;
+  if (isValidRequerimientosValue(extracted.requerimientos_evento)) return null;
+
+  // Si el cliente ya eligió un servicio concreto, no reemplazar con oferta genérica.
+  const msg = currentMessage?.trim() ?? "";
+  if (msg) {
+    const namedService = !!(findMentionedService(msg) || parsePrimaryService(msg));
+    const onlyEventType =
+      !!parseTipoEventoFromText(msg) &&
+      !namedService &&
+      !isServiceRelatedMessage(msg);
+    if (!onlyEventType && (namedService || isServiceRelatedMessage(msg))) {
+      return null;
+    }
+  }
+
+  const ai = aiResponse.trim();
+  if (aiLooksLikeEventServiceOffer(ai) && !responseHasInventedPrice(ai, currentMessage)) {
+    return ai;
+  }
+
+  // AI vacía o pregunta seca → no devolver dry ask; usar propuesta tipada solo como red de seguridad.
+  if (!ai || isDryRequerimientosAsk(ai)) {
+    return buildRecommendationsReply(extracted, history, entityId, currentMessage);
+  }
+
+  // AI dijo algo útil (pregunta abierta no seca) — respetar redacción.
+  if (ai.length > 40 && !mensajeAsksForFilledField(ai, filledSet, extracted)) {
+    if (!mensajeAsksWrongField(ai, filledSet, extracted) || mensajeAsksForField(ai, "requerimientos")) {
+      return ai;
+    }
+  }
+  return null;
 }
 
 function justAnsweredReqContext(currentMessage: string, aiResponse: string): boolean {
@@ -1315,7 +1407,23 @@ function mergeWithPendingQuestion(
     if (!mensajeAsksForField(base, pending)) return base;
   }
 
+  // Ofrecimiento temprano ya redactado — no anexar «¿qué servicios quieres?».
+  if (
+    pending === "requerimientos" &&
+    hasTipoEvento(filledSet, extracted) &&
+    aiLooksLikeEventServiceOffer(base)
+  ) {
+    return base;
+  }
+
   const nextQ = buildNaturalQuestion(pending, ctx);
+  if (
+    pending === "requerimientos" &&
+    hasTipoEvento(filledSet, extracted) &&
+    isDryRequerimientosAsk(nextQ)
+  ) {
+    return base;
+  }
   if (
     base.includes("?") &&
     !mensajeAsksWrongField(mensaje, filledSet, extracted) &&
@@ -2033,6 +2141,26 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: término vago de comida — ofrecer opciones");
   } else if (
+    preferEventOfferReply({
+      aiResponse,
+      extracted,
+      filledSet,
+      history: presHistory,
+      currentMessage,
+      entityId,
+    })
+  ) {
+    mensaje = preferEventOfferReply({
+      aiResponse,
+      extracted,
+      filledSet,
+      history: presHistory,
+      currentMessage,
+      entityId,
+    })!;
+    appliedDirectReply = true;
+    log?.info({ entityId, tipo: extracted.tipo_evento }, "GUARD: ofrecimiento temprano — redacción OpenAI");
+  } else if (
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
     !conversationAlreadyStarted(filledSet, presHistory) &&
     clientMentionsItalianTheme(currentMessage) &&
@@ -2117,9 +2245,32 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     log?.info({ entityId }, "GUARD: correo capturado — tipo de evento con opciones");
   } else if (justGaveEmail && hasTipoEvento(filledSet, extracted)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    mensaje = nextQ ?? aiResponse;
-    if (nextQ) log?.info({ entityId }, "GUARD: correo capturado — tipo ya tenido, siguiente dato");
+    const offer =
+      preferEventOfferReply({
+        aiResponse,
+        extracted,
+        filledSet,
+        history: presHistory,
+        currentMessage,
+        entityId,
+      }) ??
+      (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)
+        ? aiResponse
+        : null);
+    if (offer) {
+      mensaje = offer;
+    } else {
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
+      mensaje = nextQ ?? aiResponse;
+    }
+    log?.info({ entityId }, "GUARD: correo capturado — tipo ya tenido, ofrecer o siguiente dato");
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
@@ -2214,7 +2365,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       "GUARD: comida/servicio — orientación de venta"
     );
   } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
-    mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    const offer = preferEventOfferReply({
+      aiResponse,
+      extracted,
+      filledSet,
+      history: presHistory,
+      currentMessage,
+      entityId,
+    });
+    if (offer && aiLooksLikeEventServiceOffer(offer)) {
+      mensaje = offer;
+    } else if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+      mensaje = aiResponse;
+    } else {
+      mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+    }
     if (bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
       const nextQ = nextFieldQuestion(
         extracted,
@@ -2227,7 +2392,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       if (nextQ) mensaje = nextQ;
     }
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — sugerencias + servicios");
+    log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — preferir OpenAI");
   } else if (clientAsksPrice(currentMessage)) {
     const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
     const pending = getNextPendingField(extracted, filledSet);
@@ -2260,28 +2425,41 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
-  } else if (needsNextStep && aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
-    mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
-    log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
-  } else if (needsNextStep && aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    mensaje = nextQ ?? aiResponse;
-    log?.info({ entityId }, "GUARD: GPT repitió dato ya capturado — siguiente paso");
   } else if (needsNextStep) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    if (clientAsksPrice(currentMessage)) {
-      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
-      if (fromCatalog && nextQ) {
-        mensaje = `${fromCatalog}\n\n${nextQ}`;
-      } else if (fromCatalog) {
-        mensaje = fromCatalog;
+    const earlyOffer = preferEventOfferReply({
+      aiResponse,
+      extracted,
+      filledSet,
+      history: presHistory,
+      currentMessage,
+      entityId,
+    });
+    if (earlyOffer) {
+      mensaje = earlyOffer;
+      log?.info({ entityId }, "GUARD: ofrecimiento temprano en needsNextStep");
+    } else if (aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
+      mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+      log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
+    } else if (aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      mensaje = nextQ ?? aiResponse;
+      log?.info({ entityId }, "GUARD: GPT repitió dato ya capturado — siguiente paso");
+    } else {
+      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+      if (clientAsksPrice(currentMessage)) {
+        const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+        if (fromCatalog && nextQ) {
+          mensaje = `${fromCatalog}\n\n${nextQ}`;
+        } else if (fromCatalog) {
+          mensaje = fromCatalog;
+        } else {
+          mensaje = nextQ ?? aiResponse;
+        }
       } else {
         mensaje = nextQ ?? aiResponse;
       }
-    } else {
-      mensaje = nextQ ?? aiResponse;
+      if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (semántico)");
     }
-    if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (semántico)");
   } else if (
     trulyReadyForClosing &&
     !cierreYaEnviado &&
