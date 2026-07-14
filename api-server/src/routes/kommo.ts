@@ -30,7 +30,7 @@ import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { calculateLeadScore, detectStage } from "../services/leadScoring.js";
 import { detectIntent, analyzeSentiment, detectObjection } from "../services/intentDetection.js";
-import { processMessage, getVoiceAcknowledgment, getImageAcknowledgment } from "../services/voiceProcessor.js";
+import { processMessage, getVoiceAcknowledgment } from "../services/voiceProcessor.js";
 import {
   isDuplicateWebhookMessage,
   isIncomingClientMessage,
@@ -1299,7 +1299,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         undefined;
       prependToAiResponse = batch.isVoice
         ? getVoiceAcknowledgment(clientName ?? undefined)
-        : getImageAcknowledgment(clientName ?? undefined);
+        : undefined; // Imágenes: respuesta accionable en guards (sin "Ya vi tu imagen" + descripción)
       log.info(
         { ack: prependToAiResponse, isVoice: batch.isVoice, isImage: batch.isImage },
         "Media acknowledgment prepended"
@@ -1722,7 +1722,9 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   // Nota interna en Kommo con la transcripción/descripción — visible para el
   // equipo humano aunque no abran el audio/imagen desde WhatsApp.
   if (messageData.mediaNote && entityId && subdomain && accessToken) {
-    const label = isVoice ? "Nota de voz (transcripción automática)" : "Imagen recibida (descripción automática)";
+    const label = isVoice
+      ? "Nota de voz (transcripción automática)"
+      : "Imagen recibida (análisis interno — no enviar al cliente)";
     void agregarNota(subdomain, accessToken, entityId, `${label}:\n\n${messageData.mediaNote}`).catch(
       (err: unknown) => log.warn({ err, entityId }, "No se pudo agregar nota interna de media")
     );

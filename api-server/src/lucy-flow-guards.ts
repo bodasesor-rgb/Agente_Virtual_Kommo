@@ -48,6 +48,10 @@ import {
 } from "./services/catalogService.js";
 import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
 import {
+  extractImageClientReply,
+  extractImageIntent,
+} from "./services/imageProcessor.js";
+import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
   clientAsksAboutTeam,
@@ -134,7 +138,7 @@ export const FLOW_QUESTIONS = {
   tipoEventoTrasCorreo: "¿Qué tipo de celebración están planeando?",
   requerimientos: "Platícame, ¿qué tienes pensado para tu evento?",
   invitados: "¿Más o menos para cuántas personas sería?",
-  zona: "¿En qué ciudad sería tu evento? Si tienes la dirección exacta, sería lo ideal.",
+  zona: "¿En qué ciudad y colonia (o salón) sería tu evento? Si tienes la dirección exacta, mejor.",
   fecha: "¿Ya tienen fecha o todavía la van definiendo?",
   presupuesto: "¿Tienen algún rango de presupuesto en mente?",
   serviciosExtra: SERVICIOS_CATALOGO_HINT_ADICIONAL,
@@ -181,9 +185,9 @@ function getQuestionVariants(): Record<PendingField, string[]> {
     "¿Tienen un estimado de invitados? Si aún no lo saben, sin problema — pueden darme un rango aproximado.",
   ],
   zona: [
-    "¿En qué ciudad sería tu evento? Si tienes la dirección exacta, sería lo ideal.",
-    "¿En qué ciudad lo tendrían? Con la dirección exacta podemos cotizar mejor.",
-    "¿Cuál sería la ciudad del evento? Si ya tienen salón o dirección, compártanmela.",
+    "¿En qué ciudad y colonia (o salón) sería tu evento? Si tienes la dirección exacta, mejor.",
+    "¿Me compartes ciudad y colonia o el nombre del salón donde sería?",
+    "¿Cuál sería la ubicación del evento? Necesito ciudad y colonia o salón para cotizar bien.",
   ],
   fecha: [
     "¿Ya tienen fecha o todavía la van definiendo?",
@@ -270,6 +274,28 @@ export function applyPresupuestoWaiver(
   const pres = findPresupuestoInTexts(texts, history);
   if (pres) {
     mergedLines.push(`- Presupuesto (MXN): ${pres}`);
+    filledSet.add("Presupuesto (MXN)");
+    return;
+  }
+
+  // "no" / "no tengo" / rechazo: registrar sin definir aunque no haya monto parseable.
+  if (texts.some((t) => detectPresupuestoRefusal(t))) {
+    mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
+    filledSet.add("Presupuesto (MXN)");
+    return;
+  }
+
+  const lastAssistant = [...(history ?? [])]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  const lastAsked = lastAssistant
+    ? inferLucyAskedField(lastAssistant.content as string)
+    : null;
+  if (
+    lastAsked === "presupuesto" &&
+    texts.some((t) => /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin)[\s.,!]*$/i.test(t.trim()))
+  ) {
+    mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indicó que no tiene)`);
     filledSet.add("Presupuesto (MXN)");
     return;
   }
@@ -1681,6 +1707,81 @@ function responseLooksLikePrematureClose(mensaje: string): boolean {
   );
 }
 
+/** Pedido mínimo (ej. solo mesa y sillas) → ofrecer 1-2 complementos UNA vez. */
+const MINIMAL_SERVICE_PATTERN =
+  /\b(solo\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|solo\s+(mesas?|sillas?|mobiliario))\b/i;
+
+function historyAlreadyOfferedComplements(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  return history.some(
+    (m) =>
+      m.role === "assistant" &&
+      typeof m.content === "string" &&
+      /si\s+te\s+parece,?\s+tambi[eé]n\s+podemos|como\s+complemento\s+suele\s+ir|te\s+sugerir[ií]a\s+(tambi[eé]n|agregar)|opcional(es)?:\s*(mantel|postre|bebida)/i.test(
+        m.content as string
+      )
+  );
+}
+
+export function looksLikeMinimalServiceAsk(text: string | null | undefined): boolean {
+  return !!text && MINIMAL_SERVICE_PATTERN.test(text);
+}
+
+/** Ofrece 1-2 complementos acordes al evento, sin forzar. Null si ya se ofreció o no aplica. */
+export function buildSoftComplementOffer(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): string | null {
+  if (historyAlreadyOfferedComplements(history)) return null;
+  const req = `${extracted.requerimientos_evento ?? ""} ${currentMessage ?? ""}`;
+  if (!looksLikeMinimalServiceAsk(req)) return null;
+
+  const tipo = (extracted.tipo_evento ?? "").toLowerCase();
+  const inv = extracted.num_invitados ?? 0;
+
+  if (/cumple|infantil|bautizo|baby/i.test(tipo) || (inv > 0 && inv <= 30)) {
+    return (
+      "Lo anoto (mesa y sillas). Si te parece, también podemos sumar mantelería o mesa de postres, " +
+      "y bebidas — es opcional, solo si te late."
+    );
+  }
+  if (/boda|xv|quince/i.test(tipo)) {
+    return (
+      "Perfecto, mesa y sillas anotadas. Como complemento suele ir mantelería y, si quieres, " +
+      "barra de bebidas o iluminación — dime si te interesa alguno."
+    );
+  }
+  return (
+    "Anoto mesa y sillas. Si quieres, como opcional: mantelería o bebidas para redondear el montaje — " +
+    "sin compromiso."
+  );
+}
+
+function buildImageActionReply(
+  currentMessage: string | undefined,
+  extracted: ExtractedData,
+  filledSet: Set<string>,
+  ctx: NaturalQuestionContext
+): string | null {
+  const action = extractImageClientReply(currentMessage);
+  if (!action) return null;
+  const intent = extractImageIntent(currentMessage);
+  // Comprobante: thank + follow-up del equipo; no empujar captura pesada en el mismo turno.
+  if (intent === "comprobante_pago") {
+    return action;
+  }
+  const pending = getNextPendingField(extracted, filledSet);
+  if (pending && !isFieldSatisfied(pending, filledSet, extracted)) {
+    const nextQ = buildNaturalQuestion(pending, ctx);
+    if (nextQ && !mensajeAsksForField(action, pending)) {
+      return `${action} ${nextQ}`;
+    }
+  }
+  return action;
+}
+
 function mensajeLooksOnTrack(
   mensaje: string,
   filledSet: Set<string>,
@@ -1907,6 +2008,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = nameMismatchReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre distinto al del contacto — confirmar");
+  } else if (extractImageClientReply(currentMessage)) {
+    const imageReply = buildImageActionReply(currentMessage, extracted, filledSet, ctx);
+    mensaje = imageReply ?? extractImageClientReply(currentMessage)!;
+    appliedDirectReply = true;
+    log?.info(
+      { entityId, intent: extractImageIntent(currentMessage) },
+      "GUARD: imagen accionable — respuesta al cliente"
+    );
   } else if (
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
     !conversationAlreadyStarted(filledSet, presHistory) &&
@@ -1955,6 +2064,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente sin presupuesto — waiver directo");
+  } else if (
+    (justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) &&
+    !cierreYaEnviado &&
+    buildSoftComplementOffer(extracted, presHistory, currentMessage)
+  ) {
+    const soft = buildSoftComplementOffer(extracted, presHistory, currentMessage)!;
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
+    mensaje = nextQ ? `${soft} ${nextQ}` : soft;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: pedido mínimo — ofrecer complementos una vez");
   } else if (clientAsksLocation(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = `${buildLocationAnswer()} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
@@ -2383,6 +2504,23 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // Zona/ubicación REQUERIDA antes del cierre (ciudad + colonia/salón).
+  if (
+    !cierreYaEnviado &&
+    !filledSet.has("Lugar/dirección del evento") &&
+    (responseLooksLikePrematureClose(mensaje) ||
+      trulyReadyForClosing ||
+      mensajeAsksForField(mensaje, "presupuesto") ||
+      mensajeAsksForField(mensaje, "fecha") ||
+      mensajeAsksForField(mensaje, "invitados"))
+  ) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending === "zona" || !mensajeAsksForField(mensaje, "zona")) {
+      mensaje = buildNaturalQuestion("zona", ctx);
+      log?.info({ entityId }, "GUARD: forzar ubicación antes de avance/cierre");
+    }
+  }
+
   if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage) && !appliedSalesReply) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending) {
@@ -2606,11 +2744,22 @@ export function stripGammaLinks(text: string): string {
     .trim();
 }
 
-/** Evita que GPT repita literalmente la anotación interna "[Imagen adjunta: ...]". */
+/** Evita que GPT repita literalmente anotaciones internas de imagen. */
 export function stripImageAnnotation(text: string): string {
-  if (!text || !/\[imagen\s+adjunta:/i.test(text)) return text;
+  if (!text) return text;
+  if (
+    !/\[imagen\s+adjunta:/i.test(text) &&
+    !/\[imagen\s+respuesta\s+cliente\]:/i.test(text) &&
+    !/\[imagen\s+nota\s+interna\]:/i.test(text) &&
+    !/\[imagen\s+intent\]:/i.test(text)
+  ) {
+    return text;
+  }
   return text
     .replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "")
+    .replace(/\[imagen\s+respuesta\s+cliente\]:\s*[^\n]*/gi, "")
+    .replace(/\[imagen\s+nota\s+interna\]:\s*[^\n]*/gi, "")
+    .replace(/\[imagen\s+intent\]:\s*[^\n]*/gi, "")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();

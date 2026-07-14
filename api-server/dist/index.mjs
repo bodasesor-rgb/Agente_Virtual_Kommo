@@ -79842,6 +79842,7 @@ function detectPresupuestoRefusal(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
+  if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
   if (/^\.{2,}$/.test(t)) return true;
   return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) || /\bt[uú]\s+m[aá]ndame\b/i.test(t) || /\bsi\s+quieres\s+vemos\b/i.test(t) || /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s|$|[.,!?])/i.test(t) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t) || /\btodav[ií]a\s+no\b/i.test(t) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
 }
@@ -81959,6 +81960,263 @@ function buildCompanyEmailConfirmReply() {
   return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
 }
 
+// src/services/imageProcessor.ts
+init_openai();
+init_openaiEnv();
+var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
+var VISION_MODEL = "gpt-4o-mini";
+var IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
+var IMAGE_CACHE_MAX = 500;
+var imageAnalysisCache = /* @__PURE__ */ new Map();
+function pruneImageCache() {
+  const now = Date.now();
+  for (const [url2, entry] of imageAnalysisCache) {
+    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url2);
+  }
+  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
+  const sorted = [...imageAnalysisCache.entries()].sort((a2, b4) => a2[1].at - b4[1].at);
+  for (let i3 = 0; i3 < sorted.length - IMAGE_CACHE_MAX; i3++) {
+    imageAnalysisCache.delete(sorted[i3][0]);
+  }
+}
+function getCachedImageAnalysis(imageUrl) {
+  const entry = imageAnalysisCache.get(imageUrl);
+  if (!entry) return null;
+  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
+    imageAnalysisCache.delete(imageUrl);
+    return null;
+  }
+  return entry.analysis;
+}
+function cacheImageAnalysis(imageUrl, analysis) {
+  imageAnalysisCache.set(imageUrl, { analysis, at: Date.now() });
+  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
+}
+function isImageMessage(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a2 = att;
+    if (IMAGE_TYPES.has(String(a2["type"] ?? ""))) return true;
+    if (typeof a2["mime_type"] === "string" && a2["mime_type"].startsWith("image/")) return true;
+  }
+  const atts = message["attachments"];
+  if (Array.isArray(atts)) {
+    for (const item of atts) {
+      if (typeof item === "object" && item !== null) {
+        const a2 = item;
+        if (IMAGE_TYPES.has(String(a2["type"] ?? ""))) return true;
+        if (typeof a2["mime_type"] === "string" && a2["mime_type"].startsWith("image/")) return true;
+      }
+    }
+  }
+  const mediaType = String(message["media_type"] ?? "");
+  if (IMAGE_TYPES.has(mediaType)) return true;
+  const mimeType = String(message["mime_type"] ?? "");
+  if (mimeType.startsWith("image/")) return true;
+  return false;
+}
+function getImageUrl(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a2 = att;
+    for (const key of ["link", "url", "media_url"]) {
+      if (typeof a2[key] === "string" && a2[key].length > 0) return a2[key];
+    }
+  }
+  const atts = message["attachments"];
+  if (Array.isArray(atts)) {
+    for (const item of atts) {
+      if (typeof item === "object" && item !== null) {
+        const a2 = item;
+        if (IMAGE_TYPES.has(String(a2["type"] ?? ""))) {
+          for (const key of ["link", "url", "media_url"]) {
+            if (typeof a2[key] === "string" && a2[key].length > 0) return a2[key];
+          }
+        }
+      }
+    }
+  }
+  for (const key of ["media_url", "file_url", "url"]) {
+    if (typeof message[key] === "string" && message[key].length > 0) {
+      return message[key];
+    }
+  }
+  const media = message["media"];
+  if (typeof media === "object" && media !== null) {
+    const m4 = media;
+    if (typeof m4["url"] === "string" && m4["url"].length > 0) return m4["url"];
+  }
+  return null;
+}
+function getImageCaption(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a2 = att;
+    const caption = (typeof a2["text"] === "string" ? a2["text"] : "") || (typeof a2["caption"] === "string" ? a2["caption"] : "") || (typeof a2["title"] === "string" ? a2["title"] : "");
+    if (caption.trim()) return caption.trim();
+  }
+  const rawText = message["text"];
+  if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
+  return null;
+}
+var VALID_INTENTS = /* @__PURE__ */ new Set([
+  "montaje_referencia",
+  "comprobante_pago",
+  "comida_producto",
+  "lugar_evento",
+  "documento",
+  "otro",
+  "no_claro"
+]);
+var VISION_PROMPT = `Eres Lucy de Bodasesor (bodas y eventos en M\xE9xico). Un cliente envi\xF3 una imagen por WhatsApp.
+Tu trabajo: interpretar la INTENCI\xD3N de la imagen y producir una RESPUESTA ACCIONABLE PARA EL CLIENTE.
+NO escribas una descripci\xF3n t\xE9cnica para el due\xF1o del negocio (prohibido: 'El espacio es un \xE1rea al aire libre\u2026').
+
+Clasifica intent como UNO de:
+- montaje_referencia: foto de montaje, mesas/sillas, decoraci\xF3n o estilo de referencia ('\xBFtendr\xE1n de este estilo?')
+- comprobante_pago: captura de transferencia, SPEI, ticket o comprobante de pago
+- comida_producto: comida, men\xFA, taquiza, pastel, bebida u otro producto de catering de referencia
+- lugar_evento: foto del sal\xF3n, jard\xEDn o venue del evento
+- documento: INE, contrato u otro documento
+- otro: relacionado con el evento pero no encaja arriba
+- no_claro: no se entiende qu\xE9 quiere el cliente con la foto
+
+Responde SOLO JSON v\xE1lido (sin markdown) con exactamente estas claves:
+{"intent":"...","internal_description":"1-2 oraciones t\xE9cnicas para el equipo interno","client_reply":"1-2 oraciones amables al cliente"}
+
+Reglas para client_reply:
+- montaje_referencia: confirma que se puede lograr ese estilo/mobiliario y an\xF3talo para la cotizaci\xF3n.
+- comprobante_pago: agradece el pago, di que lo registras y que el equipo da seguimiento. NO pidas datos que ya se ven en el comprobante.
+- comida_producto: nombra qu\xE9 parece ser y ligalo a un servicio cotizable (taquiza, banquete, barra, etc.).
+- lugar_evento: reconoce el espacio y pregunta si ah\xED ser\xEDa el evento (o an\xF3talo).
+- documento: confirma recepci\xF3n sin leer datos sensibles en voz alta.
+- no_claro / otro: pregunta amable qu\xE9 le gustar\xEDa de esa imagen.
+- Habla de t\xFA, espa\xF1ol mexicano, c\xE1lida y breve. Sin mencionarle al cliente el JSON ni 'internal_description'.`;
+var FALLBACK_REPLIES = {
+  montaje_referencia: "\xA1S\xED! Manejamos mesas, sillas y montajes de ese estilo. Lo anoto para tu cotizaci\xF3n.",
+  comprobante_pago: "\xA1Gracias por tu pago! Lo registro y el equipo da seguimiento.",
+  comida_producto: "\xA1Qu\xE9 rico! Lo tomo como referencia de lo que buscas y lo anoto para tu cotizaci\xF3n.",
+  lugar_evento: "Recib\xED la foto del lugar. \xBFConfirmas que ah\xED ser\xEDa tu evento?",
+  documento: "Listo, recib\xED el documento. El equipo lo revisa y te confirma.",
+  otro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto para tu evento?",
+  no_claro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto?"
+};
+function normalizeIntent(raw) {
+  const s4 = String(raw ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+  if (VALID_INTENTS.has(s4)) return s4;
+  if (/montaje|referencia|estilo|mobiliario|mesa|silla|decor/i.test(s4)) return "montaje_referencia";
+  if (/comprobante|pago|transfer|spei|ticket/i.test(s4)) return "comprobante_pago";
+  if (/comida|producto|menu|taquiza|banquete|pastel/i.test(s4)) return "comida_producto";
+  if (/lugar|salon|salón|venue|jard[ií]n/i.test(s4)) return "lugar_evento";
+  if (/documento|ine|identific/i.test(s4)) return "documento";
+  return "no_claro";
+}
+function looksLikeOwnerDescription(text2) {
+  return /^(el|la|los|las)\s+(espacio|área|area|imagen|foto|sal[oó]n|jard[ií]n|mesa)/i.test(text2.trim()) || /\b(se observa|se aprecia|la imagen muestra|en la fotograf[ií]a)\b/i.test(text2);
+}
+function buildAnalysisFromParts(intentRaw, internalRaw, clientRaw) {
+  const intent = normalizeIntent(intentRaw);
+  const internalDescription = String(internalRaw ?? "").trim().slice(0, 500) || "Imagen recibida sin detalle.";
+  let clientReply = String(clientRaw ?? "").trim().slice(0, 400);
+  if (!clientReply || looksLikeOwnerDescription(clientReply)) {
+    clientReply = FALLBACK_REPLIES[intent];
+  }
+  return { intent, internalDescription, clientReply };
+}
+function parseVisionImageJson(raw) {
+  const trimmed = raw.trim();
+  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return buildAnalysisFromParts(
+      parsed.intent ?? parsed.Intent,
+      parsed.internal_description ?? parsed.internalDescription ?? parsed.description,
+      parsed.client_reply ?? parsed.clientReply ?? parsed.reply
+    );
+  } catch {
+    return null;
+  }
+}
+async function analyzeImageFull(imageUrl, accessToken, log) {
+  const cached2 = getCachedImageAnalysis(imageUrl);
+  if (cached2) {
+    log.info({ imageUrl: imageUrl.slice(0, 80), intent: cached2.intent }, "Imagen en cach\xE9 (Vision)");
+    return cached2;
+  }
+  try {
+    const imgResponse = await fetch(imageUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!imgResponse.ok) {
+      log.warn({ status: imgResponse.status, imageUrl }, "Error descargando imagen del cliente");
+      return null;
+    }
+    const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
+    const buffer = await imgResponse.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+    const dataUrl = `data:${contentType};base64,${base64}`;
+    const completion = await openai.chat.completions.create({
+      model: VISION_MODEL,
+      max_tokens: 320,
+      temperature: 0.3,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: VISION_PROMPT },
+            { type: "image_url", image_url: { url: dataUrl } }
+          ]
+        }
+      ]
+    });
+    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+    const parsed = raw ? parseVisionImageJson(raw) : null;
+    const analysis = parsed ?? buildAnalysisFromParts(
+      "no_claro",
+      raw || "No se pudo parsear la visi\xF3n",
+      FALLBACK_REPLIES.no_claro
+    );
+    cacheImageAnalysis(imageUrl, analysis);
+    log.info(
+      { intent: analysis.intent, chars: analysis.clientReply.length },
+      "Imagen analizada (Vision accionable)"
+    );
+    return analysis;
+  } catch (err2) {
+    log.error({ err: err2 }, "Error analizando imagen con Vision");
+    return null;
+  }
+}
+var IMAGE_ACTION_MARKER = "[Imagen respuesta cliente]:";
+var IMAGE_NOTE_MARKER = "[Imagen nota interna]:";
+var IMAGE_INTENT_MARKER = "[Imagen intent]:";
+function formatImageTurnText(analysis, caption) {
+  const parts2 = [
+    `${IMAGE_INTENT_MARKER} ${analysis.intent}`,
+    `${IMAGE_ACTION_MARKER} ${analysis.clientReply}`,
+    `${IMAGE_NOTE_MARKER} ${analysis.internalDescription}`
+  ];
+  if (caption?.trim()) {
+    return `${caption.trim()}
+
+${parts2.join("\n")}`;
+  }
+  return parts2.join("\n");
+}
+function extractImageClientReply(text2) {
+  if (!text2) return null;
+  const m4 = text2.match(/\[Imagen respuesta cliente\]:\s*([^\n\[]+)/i);
+  return m4?.[1]?.trim() || null;
+}
+function extractImageIntent(text2) {
+  if (!text2) return null;
+  const m4 = text2.match(/\[Imagen intent\]:\s*([a-z_]+)/i);
+  if (!m4?.[1]) return null;
+  return normalizeIntent(m4[1]);
+}
+
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
@@ -82015,9 +82273,9 @@ function getQuestionVariants() {
       "\xBFTienen un estimado de invitados? Si a\xFAn no lo saben, sin problema \u2014 pueden darme un rango aproximado."
     ],
     zona: [
-      "\xBFEn qu\xE9 ciudad ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, ser\xEDa lo ideal.",
-      "\xBFEn qu\xE9 ciudad lo tendr\xEDan? Con la direcci\xF3n exacta podemos cotizar mejor.",
-      "\xBFCu\xE1l ser\xEDa la ciudad del evento? Si ya tienen sal\xF3n o direcci\xF3n, comp\xE1rtanmela."
+      "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, mejor.",
+      "\xBFMe compartes ciudad y colonia o el nombre del sal\xF3n donde ser\xEDa?",
+      "\xBFCu\xE1l ser\xEDa la ubicaci\xF3n del evento? Necesito ciudad y colonia o sal\xF3n para cotizar bien."
     ],
     fecha: [
       "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
@@ -82073,6 +82331,18 @@ function applyPresupuestoWaiver(filledSet, mergedLines, texts, history) {
   const pres = findPresupuestoInTexts(texts, history);
   if (pres) {
     mergedLines.push(`- Presupuesto (MXN): ${pres}`);
+    filledSet.add("Presupuesto (MXN)");
+    return;
+  }
+  if (texts.some((t) => detectPresupuestoRefusal(t))) {
+    mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indic\xF3 que no tiene)`);
+    filledSet.add("Presupuesto (MXN)");
+    return;
+  }
+  const lastAssistant = [...history ?? []].reverse().find((m4) => m4.role === "assistant" && typeof m4.content === "string");
+  const lastAsked = lastAssistant ? inferLucyAskedField(lastAssistant.content) : null;
+  if (lastAsked === "presupuesto" && texts.some((t) => /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin)[\s.,!]*$/i.test(t.trim()))) {
+    mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente indic\xF3 que no tiene)`);
     filledSet.add("Presupuesto (MXN)");
     return;
   }
@@ -82923,6 +83193,47 @@ function clientAskedFreeformQuestion(message) {
 function responseLooksLikePrematureClose(mensaje) {
   return mensaje.includes(CLOSING_SIGNATURE) || /cotizaci[oó]n personalizada/i.test(mensaje) || /cdn\.shopify\.com/i.test(mensaje) || /cat[aá]logo completo/i.test(mensaje) || /ya tengo todos los datos/i.test(mensaje);
 }
+var MINIMAL_SERVICE_PATTERN = /\b(solo\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|solo\s+(mesas?|sillas?|mobiliario))\b/i;
+function historyAlreadyOfferedComplements(history) {
+  return history.some(
+    (m4) => m4.role === "assistant" && typeof m4.content === "string" && /si\s+te\s+parece,?\s+tambi[eé]n\s+podemos|como\s+complemento\s+suele\s+ir|te\s+sugerir[ií]a\s+(tambi[eé]n|agregar)|opcional(es)?:\s*(mantel|postre|bebida)/i.test(
+      m4.content
+    )
+  );
+}
+function looksLikeMinimalServiceAsk(text2) {
+  return !!text2 && MINIMAL_SERVICE_PATTERN.test(text2);
+}
+function buildSoftComplementOffer(extracted, history, currentMessage) {
+  if (historyAlreadyOfferedComplements(history)) return null;
+  const req = `${extracted.requerimientos_evento ?? ""} ${currentMessage ?? ""}`;
+  if (!looksLikeMinimalServiceAsk(req)) return null;
+  const tipo = (extracted.tipo_evento ?? "").toLowerCase();
+  const inv = extracted.num_invitados ?? 0;
+  if (/cumple|infantil|bautizo|baby/i.test(tipo) || inv > 0 && inv <= 30) {
+    return "Lo anoto (mesa y sillas). Si te parece, tambi\xE9n podemos sumar manteler\xEDa o mesa de postres, y bebidas \u2014 es opcional, solo si te late.";
+  }
+  if (/boda|xv|quince/i.test(tipo)) {
+    return "Perfecto, mesa y sillas anotadas. Como complemento suele ir manteler\xEDa y, si quieres, barra de bebidas o iluminaci\xF3n \u2014 dime si te interesa alguno.";
+  }
+  return "Anoto mesa y sillas. Si quieres, como opcional: manteler\xEDa o bebidas para redondear el montaje \u2014 sin compromiso.";
+}
+function buildImageActionReply(currentMessage, extracted, filledSet, ctx) {
+  const action = extractImageClientReply(currentMessage);
+  if (!action) return null;
+  const intent = extractImageIntent(currentMessage);
+  if (intent === "comprobante_pago") {
+    return action;
+  }
+  const pending = getNextPendingField(extracted, filledSet);
+  if (pending && !isFieldSatisfied(pending, filledSet, extracted)) {
+    const nextQ = buildNaturalQuestion(pending, ctx);
+    if (nextQ && !mensajeAsksForField(action, pending)) {
+      return `${action} ${nextQ}`;
+    }
+  }
+  return action;
+}
 function mensajeLooksOnTrack(mensaje, filledSet, extracted) {
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return true;
@@ -83049,6 +83360,14 @@ function applyLucyMessageGuards(input) {
     mensaje = nameMismatchReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre distinto al del contacto \u2014 confirmar");
+  } else if (extractImageClientReply(currentMessage)) {
+    const imageReply = buildImageActionReply(currentMessage, extracted, filledSet, ctx);
+    mensaje = imageReply ?? extractImageClientReply(currentMessage);
+    appliedDirectReply = true;
+    log?.info(
+      { entityId, intent: extractImageIntent(currentMessage) },
+      "GUARD: imagen accionable \u2014 respuesta al cliente"
+    );
   } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !!parseWebLeadBrief(currentMessage ?? "")) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
@@ -83083,6 +83402,13 @@ function applyLucyMessageGuards(input) {
     }
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente sin presupuesto \u2014 waiver directo");
+  } else if ((justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) && !cierreYaEnviado && buildSoftComplementOffer(extracted, presHistory, currentMessage)) {
+    const soft = buildSoftComplementOffer(extracted, presHistory, currentMessage);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
+    mensaje = nextQ ? `${soft} ${nextQ}` : soft;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: pedido m\xEDnimo \u2014 ofrecer complementos una vez");
   } else if (clientAsksLocation(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = `${buildLocationAnswer()} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
@@ -83415,6 +83741,13 @@ ${nextQ}`;
       mensaje = forcedNext;
     }
   }
+  if (!cierreYaEnviado && !filledSet.has("Lugar/direcci\xF3n del evento") && (responseLooksLikePrematureClose(mensaje) || trulyReadyForClosing || mensajeAsksForField(mensaje, "presupuesto") || mensajeAsksForField(mensaje, "fecha") || mensajeAsksForField(mensaje, "invitados"))) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending === "zona" || !mensajeAsksForField(mensaje, "zona")) {
+      mensaje = buildNaturalQuestion("zona", ctx);
+      log?.info({ entityId }, "GUARD: forzar ubicaci\xF3n antes de avance/cierre");
+    }
+  }
   if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage) && !appliedSalesReply) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending) {
@@ -83580,8 +83913,11 @@ function stripGammaLinks(text2) {
   return text2.replace(/https?:\/\/[^\s]*gamma\.app[^\s]*/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 function stripImageAnnotation(text2) {
-  if (!text2 || !/\[imagen\s+adjunta:/i.test(text2)) return text2;
-  return text2.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+  if (!text2) return text2;
+  if (!/\[imagen\s+adjunta:/i.test(text2) && !/\[imagen\s+respuesta\s+cliente\]:/i.test(text2) && !/\[imagen\s+nota\s+interna\]:/i.test(text2) && !/\[imagen\s+intent\]:/i.test(text2)) {
+    return text2;
+  }
+  return text2.replace(/\[imagen\s+adjunta:[^\]]*\]/gi, "").replace(/\[imagen\s+respuesta\s+cliente\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+nota\s+interna\]:\s*[^\n]*/gi, "").replace(/\[imagen\s+intent\]:\s*[^\n]*/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 
 // src/routes/kommo.ts
@@ -84044,162 +84380,6 @@ function detectObjection(text2) {
 // src/services/voiceProcessor.ts
 init_openai();
 init_openaiEnv();
-
-// src/services/imageProcessor.ts
-init_openai();
-init_openaiEnv();
-var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
-var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
-var VISION_MODEL = "gpt-4o-mini";
-var IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
-var IMAGE_CACHE_MAX = 500;
-var imageAnalysisCache = /* @__PURE__ */ new Map();
-function pruneImageCache() {
-  const now = Date.now();
-  for (const [url2, entry] of imageAnalysisCache) {
-    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url2);
-  }
-  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
-  const sorted = [...imageAnalysisCache.entries()].sort((a2, b4) => a2[1].at - b4[1].at);
-  for (let i3 = 0; i3 < sorted.length - IMAGE_CACHE_MAX; i3++) {
-    imageAnalysisCache.delete(sorted[i3][0]);
-  }
-}
-function getCachedImageDescription(imageUrl) {
-  const entry = imageAnalysisCache.get(imageUrl);
-  if (!entry) return null;
-  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
-    imageAnalysisCache.delete(imageUrl);
-    return null;
-  }
-  return entry.description;
-}
-function cacheImageDescription(imageUrl, description) {
-  imageAnalysisCache.set(imageUrl, { description, at: Date.now() });
-  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
-}
-function isImageMessage(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a2 = att;
-    if (IMAGE_TYPES.has(String(a2["type"] ?? ""))) return true;
-    if (typeof a2["mime_type"] === "string" && a2["mime_type"].startsWith("image/")) return true;
-  }
-  const atts = message["attachments"];
-  if (Array.isArray(atts)) {
-    for (const item of atts) {
-      if (typeof item === "object" && item !== null) {
-        const a2 = item;
-        if (IMAGE_TYPES.has(String(a2["type"] ?? ""))) return true;
-        if (typeof a2["mime_type"] === "string" && a2["mime_type"].startsWith("image/")) return true;
-      }
-    }
-  }
-  const mediaType = String(message["media_type"] ?? "");
-  if (IMAGE_TYPES.has(mediaType)) return true;
-  const mimeType = String(message["mime_type"] ?? "");
-  if (mimeType.startsWith("image/")) return true;
-  return false;
-}
-function getImageUrl(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a2 = att;
-    for (const key of ["link", "url", "media_url"]) {
-      if (typeof a2[key] === "string" && a2[key].length > 0) return a2[key];
-    }
-  }
-  const atts = message["attachments"];
-  if (Array.isArray(atts)) {
-    for (const item of atts) {
-      if (typeof item === "object" && item !== null) {
-        const a2 = item;
-        if (IMAGE_TYPES.has(String(a2["type"] ?? ""))) {
-          for (const key of ["link", "url", "media_url"]) {
-            if (typeof a2[key] === "string" && a2[key].length > 0) return a2[key];
-          }
-        }
-      }
-    }
-  }
-  for (const key of ["media_url", "file_url", "url"]) {
-    if (typeof message[key] === "string" && message[key].length > 0) {
-      return message[key];
-    }
-  }
-  const media = message["media"];
-  if (typeof media === "object" && media !== null) {
-    const m4 = media;
-    if (typeof m4["url"] === "string" && m4["url"].length > 0) return m4["url"];
-  }
-  return null;
-}
-function getImageCaption(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a2 = att;
-    const caption = (typeof a2["text"] === "string" ? a2["text"] : "") || (typeof a2["caption"] === "string" ? a2["caption"] : "") || (typeof a2["title"] === "string" ? a2["title"] : "");
-    if (caption.trim()) return caption.trim();
-  }
-  const rawText = message["text"];
-  if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
-  return null;
-}
-var VISION_PROMPT = "Describe brevemente esta imagen enviada por un cliente de Bodasesor (empresa de organizaci\xF3n de bodas y eventos sociales en M\xE9xico). Enf\xF3cate en lo relevante para cotizar un evento: tipo de espacio o sal\xF3n, decoraci\xF3n, mobiliario, comida, capacidad aproximada de personas, si parece ser una referencia/inspiraci\xF3n de estilo, una foto del lugar del evento, una captura de pantalla de otra cotizaci\xF3n, un comprobante de pago, una identificaci\xF3n/documento, o algo no relacionado con un evento. Responde en espa\xF1ol, en 1-2 oraciones concretas, sin rodeos ni frases como 'la imagen muestra'.";
-async function analyzeImage(imageUrl, accessToken, log) {
-  const cached2 = getCachedImageDescription(imageUrl);
-  if (cached2) {
-    log.info({ imageUrl: imageUrl.slice(0, 80) }, "Imagen ya analizada \u2014 usando cach\xE9 (sin Vision)");
-    return cached2;
-  }
-  try {
-    const imgResponse = await fetch(imageUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!imgResponse.ok) {
-      log.warn({ status: imgResponse.status, imageUrl }, "Error descargando imagen del cliente");
-      return null;
-    }
-    const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
-    const buffer = await imgResponse.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-    const dataUrl = `data:${contentType};base64,${base64}`;
-    const completion = await openai.chat.completions.create({
-      model: VISION_MODEL,
-      max_tokens: 200,
-      temperature: 0.3,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: VISION_PROMPT },
-            { type: "image_url", image_url: { url: dataUrl } }
-          ]
-        }
-      ]
-    });
-    const description = completion.choices[0]?.message?.content?.trim() ?? null;
-    if (description) {
-      cacheImageDescription(imageUrl, description);
-      log.info({ chars: description.length }, "Imagen analizada exitosamente (Vision)");
-    }
-    return description;
-  } catch (err2) {
-    log.error({ err: err2 }, "Error analizando imagen con Vision");
-    return null;
-  }
-}
-function getImageAcknowledgment(clientName) {
-  const suffix = clientName ? `, ${clientName}` : "";
-  const options = [
-    `Ya vi tu imagen${suffix}. `,
-    `Perfecto, recib\xED la foto${suffix}. `,
-    `Listo${suffix}, ya la revis\xE9. `
-  ];
-  return options[Math.floor(Math.random() * options.length)];
-}
-
-// src/services/voiceProcessor.ts
 var openai2 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var AUDIO_TYPES = /* @__PURE__ */ new Set(["audio", "voice"]);
 async function transcribeVoiceNote(audioUrl, accessToken, log) {
@@ -84316,12 +84496,20 @@ async function processMessage(message, accessToken, log) {
     const imageUrl = getImageUrl(message);
     const caption = getImageCaption(message);
     if (imageUrl) {
-      const description = await analyzeImage(imageUrl, accessToken, log);
-      if (description) {
-        const text2 = caption ? `${caption}
-
-[Imagen adjunta: ${description}]` : `[Imagen adjunta: ${description}]`;
-        return { text: text2, isVoice: false, isImage: true, mediaNote: description };
+      const analysis = await analyzeImageFull(imageUrl, accessToken, log);
+      if (analysis) {
+        const text2 = formatImageTurnText(analysis, caption);
+        const mediaNote = `Intent: ${analysis.intent}
+Respuesta al cliente: ${analysis.clientReply}
+Nota interna: ${analysis.internalDescription}`;
+        return {
+          text: text2,
+          isVoice: false,
+          isImage: true,
+          mediaNote,
+          imageClientReply: analysis.clientReply,
+          imageIntent: analysis.intent
+        };
       }
     } else {
       log.warn({ messageKeys: Object.keys(message) }, "Imagen sin URL \u2014 revisar estructura");
@@ -84330,7 +84518,9 @@ async function processMessage(message, accessToken, log) {
       text: caption ? caption : "[El cliente envi\xF3 una imagen pero no se pudo analizar]",
       isVoice: false,
       isImage: true,
-      mediaNote: null
+      mediaNote: null,
+      imageClientReply: null,
+      imageIntent: null
     };
   }
   const rawText = message["text"];
@@ -84758,7 +84948,10 @@ En el primer mensaje NO des precios extensos; solo reconoce y pide nombre.
 ===================================================================
 Puedes "escuchar" y "ver" \u2014 el sistema ya procesa antes de que llegue el texto.
 - Voz: llega transcrita; responde normal.
-- Imagen: formato "[Imagen adjunta: descripci\xF3n]". Reacciona natural; nunca repitas esa frase al cliente.
+- Imagen: el sistema ya interpreta la intenci\xF3n y te da una RESPUESTA ACCIONABLE al cliente
+  (confirmar estilo, agradecer pago, ligar a un servicio, o preguntar qu\xE9 quiere de la foto).
+  NUNCA mandes al cliente una descripci\xF3n t\xE9cnica del espacio ("El \xE1rea es un jard\xEDn\u2026").
+  Si hay marcadores [Imagen \u2026], no los repitas literalmente.
 
 ===================================================================
 ## CAT\xC1LOGO = FUENTE DE PRECIOS (no de existencia)
@@ -91332,7 +91525,7 @@ async function processBatch(batch, accessToken, log) {
     let prependToAiResponse;
     if (batch.isVoice || batch.isImage) {
       const clientName = sanitizeDisplayName(extracted.nombre) ?? whatsappDisplayName ?? sanitizeDisplayName(conversation.clientName) ?? void 0;
-      prependToAiResponse = batch.isVoice ? getVoiceAcknowledgment(clientName ?? void 0) : getImageAcknowledgment(clientName ?? void 0);
+      prependToAiResponse = batch.isVoice ? getVoiceAcknowledgment(clientName ?? void 0) : void 0;
       log.info(
         { ack: prependToAiResponse, isVoice: batch.isVoice, isImage: batch.isImage },
         "Media acknowledgment prepended"
@@ -91653,7 +91846,7 @@ router3.post("/kommo/webhook", async (req, res) => {
     "Kommo webhook received"
   );
   if (messageData.mediaNote && entityId && subdomain && accessToken) {
-    const label = isVoice ? "Nota de voz (transcripci\xF3n autom\xE1tica)" : "Imagen recibida (descripci\xF3n autom\xE1tica)";
+    const label = isVoice ? "Nota de voz (transcripci\xF3n autom\xE1tica)" : "Imagen recibida (an\xE1lisis interno \u2014 no enviar al cliente)";
     void agregarNota(subdomain, accessToken, entityId, `${label}:
 
 ${messageData.mediaNote}`).catch(

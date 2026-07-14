@@ -1,6 +1,13 @@
 import OpenAI from "openai";
 import { getOpenAiApiKeyForClient } from "../lib/openaiEnv.js";
-import { isImageMessage, getImageUrl, getImageCaption, analyzeImage } from "./imageProcessor.js";
+import {
+  isImageMessage,
+  getImageUrl,
+  getImageCaption,
+  analyzeImageFull,
+  formatImageTurnText,
+  type ImageAnalysis,
+} from "./imageProcessor.js";
 import type pino from "pino";
 
 const openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
@@ -130,6 +137,9 @@ export interface ProcessedMessage {
   isImage: boolean;
   /** Texto crudo de la transcripción/descripción, para guardar como nota interna en Kommo. */
   mediaNote: string | null;
+  /** Respuesta accionable al cliente cuando el mensaje es una imagen. */
+  imageClientReply?: string | null;
+  imageIntent?: ImageAnalysis["intent"] | null;
 }
 
 export async function processMessage(
@@ -167,12 +177,21 @@ export async function processMessage(
     const imageUrl = getImageUrl(message);
     const caption = getImageCaption(message);
     if (imageUrl) {
-      const description = await analyzeImage(imageUrl, accessToken, log);
-      if (description) {
-        const text = caption
-          ? `${caption}\n\n[Imagen adjunta: ${description}]`
-          : `[Imagen adjunta: ${description}]`;
-        return { text, isVoice: false, isImage: true, mediaNote: description };
+      const analysis = await analyzeImageFull(imageUrl, accessToken, log);
+      if (analysis) {
+        const text = formatImageTurnText(analysis, caption);
+        const mediaNote =
+          `Intent: ${analysis.intent}\n` +
+          `Respuesta al cliente: ${analysis.clientReply}\n` +
+          `Nota interna: ${analysis.internalDescription}`;
+        return {
+          text,
+          isVoice: false,
+          isImage: true,
+          mediaNote,
+          imageClientReply: analysis.clientReply,
+          imageIntent: analysis.intent,
+        };
       }
     } else {
       log.warn({ messageKeys: Object.keys(message) }, "Imagen sin URL — revisar estructura");
@@ -184,6 +203,8 @@ export async function processMessage(
       isVoice: false,
       isImage: true,
       mediaNote: null,
+      imageClientReply: null,
+      imageIntent: null,
     };
   }
 
