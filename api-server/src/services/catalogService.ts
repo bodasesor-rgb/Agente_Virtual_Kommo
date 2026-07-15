@@ -21,6 +21,12 @@ import {
 } from "./googleSheetsCatalog.js";
 import { loadGammaCatalog, loadGammaKnowledgeFromSheet } from "./gammaCatalog.js";
 import {
+  refreshCatalogWebKnowledge,
+  getCatalogWebKnowledgeBlock,
+  buildCatalogWebDetailHint,
+  getCatalogWebUrlForQuery,
+} from "./catalogWebKnowledge.js";
+import {
   clientMentionsCatering,
   clientAsksServiceInfo,
   parsePrimaryService,
@@ -100,6 +106,7 @@ function buildPromptBlock(parts: {
   sheetsMd: string;
   sheetsTextCsv: string;
   gammaBlock: string;
+  webCatalogBlock: string;
   useStatic: boolean;
 }): string {
   const blocks: string[] = [];
@@ -116,6 +123,7 @@ function buildPromptBlock(parts: {
       ].join("\n")
     );
   }
+  if (parts.webCatalogBlock) blocks.push(parts.webCatalogBlock);
   if (parts.gammaBlock) blocks.push(parts.gammaBlock);
 
   if (!blocks.length && parts.useStatic) {
@@ -190,6 +198,12 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
         status.sources.gamma = true;
       }
 
+      // Catálogos web (bodasesor.com/catalogos) — fuente completa de menús/inclusiones.
+      const webCatalogBlock = await refreshCatalogWebKnowledge().catch(
+        () => getCatalogWebKnowledgeBlock() || ""
+      );
+      if (webCatalogBlock) status.sources.gamma = status.sources.gamma || true;
+
       const useStatic = !status.sources.sheets;
       status.sources.staticFallback = useStatic;
 
@@ -197,6 +211,7 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
         sheetsMd,
         sheetsTextCsv: sheetsTextExtra,
         gammaBlock,
+        webCatalogBlock,
         useStatic,
       });
 
@@ -687,7 +702,20 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
     ? "¿Cuál nivel prefieres para tu evento?"
     : "¿Cuál nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotización.";
 
-  return `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
+  let body = `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
+
+  // Si el Sheet no trae (o trae poco) Incluye, complementar con catálogo web bodasesor.com.
+  if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
+    const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
+    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "");
+    if (webHint) {
+      body += `\n\n${webHint}`;
+    } else if (webUrl) {
+      body += `\n\nEl detalle completo de menús e inclusiones está en el catálogo: ${webUrl}`;
+    }
+  }
+
+  return body;
 }
 
 /** Detecta oferta de niveles solo con nombres (sin explicar Incluye). */

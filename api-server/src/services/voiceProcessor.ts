@@ -6,6 +6,7 @@ import {
   getImageCaption,
   analyzeImageFull,
   formatImageTurnText,
+  formatImageTeamNote,
   type ImageAnalysis,
 } from "./imageProcessor.js";
 import type pino from "pino";
@@ -180,10 +181,7 @@ export async function processMessage(
       const analysis = await analyzeImageFull(imageUrl, accessToken, log);
       if (analysis) {
         const text = formatImageTurnText(analysis, caption);
-        const mediaNote =
-          `Intent: ${analysis.intent}\n` +
-          `Respuesta al cliente: ${analysis.clientReply}\n` +
-          `Nota interna: ${analysis.internalDescription}`;
+        const mediaNote = formatImageTeamNote(analysis);
         return {
           text,
           isVoice: false,

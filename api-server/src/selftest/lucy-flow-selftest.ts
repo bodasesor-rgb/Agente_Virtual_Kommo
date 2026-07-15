@@ -145,7 +145,13 @@ import {
 } from "../services/serviceKnowledge.js";
 import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
-import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests, parseVisionImageJson, formatImageTurnText, extractImageClientReply } from "../services/imageProcessor.js";
+import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests, parseVisionImageJson, formatImageTurnText, formatImageTeamNote, extractImageClientReply, looksLikeImageInternalSummary } from "../services/imageProcessor.js";
+import {
+  resolveCatalogWebSlug,
+  getCatalogWebUrlForQuery,
+  loadCatalogEmbeds,
+  buildCatalogWebDetailHint,
+} from "../services/catalogWebKnowledge.js";
 import { detectModoServicio, needsModoServicioClarification } from "../modoServicio.js";
 import {
   webhookMessageKey,
@@ -2068,6 +2074,8 @@ async function runAll(): Promise<void> {
 
     const turn = formatImageTurnText(montaje!);
     assert.ok(extractImageClientReply(turn));
+    assert.ok(!/\[Imagen nota interna\]/i.test(turn), "el turno NO debe llevar resumen interno al LLM");
+    assert.ok(formatImageTeamNote(montaje!).includes("Ref. equipo"));
     const cleaned = stripImageAnnotation(
       `Qué bonito. ${turn}`
     );
@@ -2083,6 +2091,7 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/anoto|estilo|mesas|sillas/i.test(replyMontaje), replyMontaje);
     assert.ok(!/área al aire libre con césped/i.test(replyMontaje), replyMontaje);
+    assert.ok(looksLikeImageInternalSummary("La imagen muestra un jardín con mesas."));
 
     const pago = parseVisionImageJson(
       JSON.stringify({
@@ -2897,6 +2906,47 @@ async function runAll(): Promise<void> {
     assert.ok(/Incluye:/i.test(guardBare), guardBare.slice(0, 500));
     assert.ok(/Refrescos y aguas/i.test(guardBare), guardBare.slice(0, 500));
     assert.ok(enrichBareNivelOffer(bare, "Barra de bebidas"), "enrich debe devolver detalle");
+  });
+
+  await test("65. Catálogos web + foto sin resumen interno", () => {
+    const embeds = loadCatalogEmbeds();
+    assert.ok(embeds.length > 5, `embeds.json vacío: ${embeds.length}`);
+    assert.equal(resolveCatalogWebSlug("barra de bebidas"), "barra-de-bebidas");
+    assert.equal(
+      getCatalogWebUrlForQuery("barra de bebidas"),
+      "https://bodasesor.com/catalogos/barra-de-bebidas"
+    );
+    const hint = buildCatalogWebDetailHint("barra de bebidas");
+    assert.ok(hint && /bodasesor\.com\/catalogos\/barra-de-bebidas/.test(hint), hint ?? "");
+
+    // Sheet sin Inclusuye → la oferta de niveles apunta al catálogo web.
+    const csvEmpty = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE",""',
+      '"Barra de bebidas","Tradicional","$220.00","$6,600.00","TRUE",""',
+      '"Barra de bebidas","Premium","$320.00","$9,600.00","TRUE",""',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvEmpty));
+    const detailEmpty = buildCatalogServiceDetailAnswer("barra de bebidas");
+    assert.ok(detailEmpty);
+    assert.ok(
+      /bodasesor\.com\/catalogos\/barra-de-bebidas/i.test(detailEmpty!),
+      detailEmpty
+    );
+
+    const summaryAi =
+      "La imagen muestra un jardín con mesas rústicas y sillas de madera alrededor.";
+    assert.ok(looksLikeImageInternalSummary(summaryAi));
+    const blocked = runGuards({
+      aiResponse: summaryAi,
+      extracted: emptyExtracted({ nombre: "Karime" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "[Imagen intent]: montaje_referencia\n[Imagen respuesta cliente]: ¡Me encanta el estilo rústico de tu foto! Lo anoto para armar ese montaje.",
+      history: [],
+    });
+    assert.ok(/estilo rústico|anoto|montaje/i.test(blocked), blocked);
+    assert.ok(!/La imagen muestra/i.test(blocked), blocked);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

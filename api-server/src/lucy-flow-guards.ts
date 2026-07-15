@@ -60,6 +60,7 @@ import { buildGuardServiceAck, buildMobiliarioRentDetailReply } from "./services
 import {
   extractImageClientReply,
   extractImageIntent,
+  looksLikeImageInternalSummary,
 } from "./services/imageProcessor.js";
 import {
   BODASESOR_SERVICE_PATTERNS,
@@ -2510,6 +2511,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       { entityId, intent: extractImageIntent(currentMessage) },
       "GUARD: imagen accionable — respuesta al cliente"
     );
+  } else if (
+    looksLikeImageInternalSummary(aiResponse) &&
+    (/imagen|foto|montaje|comprobante/i.test(currentMessage ?? "") ||
+      /\[Imagen/i.test(currentMessage ?? ""))
+  ) {
+    const fromMarkers = extractImageClientReply(currentMessage);
+    mensaje =
+      fromMarkers ||
+      "Recibí tu imagen. ¿Me confirmas qué te gustaría de esta foto para tu evento?";
+    appliedDirectReply = true;
+    log?.warn({ entityId }, "GUARD: bloqueó resumen interno de imagen — respuesta al cliente");
   } else if (
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
     !conversationAlreadyStarted(filledSet, presHistory) &&

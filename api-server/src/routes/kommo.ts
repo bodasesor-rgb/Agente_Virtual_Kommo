@@ -1719,7 +1719,7 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   if (messageData.mediaNote && entityId && subdomain && accessToken) {
     const label = isVoice
       ? "Nota de voz (transcripción automática)"
-      : "Imagen recibida (análisis interno — no enviar al cliente)";
+      : "Foto del cliente — respuesta de Lucy (ref. equipo, no es el resumen del chat)";
     void agregarNota(subdomain, accessToken, entityId, `${label}:\n\n${messageData.mediaNote}`).catch(
       (err: unknown) => log.warn({ err, entityId }, "No se pudo agregar nota interna de media")
     );
