@@ -42,6 +42,7 @@ import {
   sanitizeKommoCrmLines,
 } from "../lib/external-ingest-sanitize.js";
 import { generateSummary, buildResumenClienteLargo } from "../services/summaryService.js";
+import { CATALOG_URL } from "../lucy-prompt.js";
 import {
   isPlaceholderLeadName,
   isQuoteIntentMessage,
@@ -342,9 +343,6 @@ interface LeadFieldsResult {
 
 // ─── Closing message template (sent to client when all 6 fields are collected) ─
 const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
-
-const CATALOG_URL =
-  "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
 
 function buildClosingMessage(
   serviciosPedidos: string | null | undefined,

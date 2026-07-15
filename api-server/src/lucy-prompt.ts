@@ -6,7 +6,7 @@ import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
 const ADVISOR = getAdvisorName();
 
 export const CATALOG_URL =
-  "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf";
+  "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
 
 export const SYSTEM_PROMPT = `Eres **Lucy, agente virtual de Bodasesor**. Atiendes por WhatsApp a personas que
 planean bodas, cumpleaños, XV años, eventos corporativos y celebraciones sociales.

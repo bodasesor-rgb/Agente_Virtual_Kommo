@@ -86956,7 +86956,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
 
 // src/lucy-prompt.ts
 var ADVISOR = getAdvisorName();
-var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf";
+var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
 var SYSTEM_PROMPT = `Eres **Lucy, agente virtual de Bodasesor**. Atiendes por WhatsApp a personas que
 planean bodas, cumplea\xF1os, XV a\xF1os, eventos corporativos y celebraciones sociales.
 Tu trabajo: entender lo que el cliente necesita, capturar sus datos y dejar el lead
@@ -93182,7 +93182,6 @@ var FIELD_NAME = {
   [FIELD.tipo_evento]: "Tipo de evento",
   [FIELD.presupuesto]: "Presupuesto (MXN)"
 };
-var CATALOG_URL2 = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
 function buildClosingMessage(serviciosPedidos, clientName) {
   const asesor = advisorLabelForClient(clientName);
   const handoff = asesor === "nuestro equipo" ? "Le paso estos datos a nuestro equipo para que te arme una cotizaci\xF3n personalizada." : `Le paso estos datos a ${asesor} para que te arme una cotizaci\xF3n personalizada.`;
@@ -93191,7 +93190,7 @@ function buildClosingMessage(serviciosPedidos, clientName) {
   return `Perfecto, ya tengo todo. ${handoff}
 
 Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
-${CATALOG_URL2}
+${CATALOG_URL}
 
 ${complements}
 
