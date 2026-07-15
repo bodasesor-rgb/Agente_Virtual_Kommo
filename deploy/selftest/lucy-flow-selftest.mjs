@@ -2927,6 +2927,15 @@ function buildCategoryServicesAnswer(result) {
   const list = servicios.slice(0, 10).join(", ");
   return `Para *${label.toLowerCase()}* tenemos: ${list}. \xBFCu\xE1l te interesa?`;
 }
+var CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
+function withCatalogOfferQuestion(text) {
+  const body = text.trim();
+  if (!body) return body;
+  if (/quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(body)) return body;
+  return `${body}
+
+${CATALOG_OFFER_QUESTION}`;
+}
 function buildServiceNivelChoiceAnswer(result) {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r) => r.servicio === svc || result.rows.length <= 6);
@@ -2949,8 +2958,10 @@ function buildExactRowDetailAnswer(row) {
   const inclusion = parsed.inclusion ? `
 
 *Incluye:* ${parsed.inclusion}` : "";
-  return `S\xED, manejamos *${label}*.${price ? `
-${price}` : ""}${inclusion}`.trim();
+  return withCatalogOfferQuestion(
+    `S\xED, manejamos *${label}*.${price ? `
+${price}` : ""}${inclusion}`.trim()
+  );
 }
 function buildExactRowPriceAnswer(row) {
   const label = formatCatalogRowLabel(row);
@@ -3592,7 +3603,6 @@ function stripUnsolicitedCatalogWebLinks(text, clientAsked) {
     ""
   ).replace(/[ \t]*\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
-var CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
 function messageOffersCatalogLink(text) {
   if (!text?.trim()) return false;
   return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(

@@ -1558,9 +1558,6 @@ export function stripUnsolicitedCatalogWebLinks(text: string, clientAsked: boole
     .trim();
 }
 
-/** Pregunta opt-in típica tras ofrecer un servicio. */
-export { CATALOG_OFFER_QUESTION };
-
 export function messageOffersCatalogLink(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
   return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(
