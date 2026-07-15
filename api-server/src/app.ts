@@ -93,6 +93,23 @@ function mountEstado(basePath: string) {
 
 mountEstado("/estado");
 
+mountEstado("/estado");
+
+/** Catálogos livianos: click-to-load (Gamma solo bajo demanda). */
+const catalogosLightDir = path.join(__dirname, "catalogos-light");
+const catalogosLightIndex = path.join(catalogosLightDir, "index.html");
+
+app.get(["/catalogos", "/catalogos/"], (_req, res) => {
+  res.sendFile(catalogosLightIndex);
+});
+app.get("/catalogos/embeds.json", (_req, res) => {
+  res.sendFile(path.join(catalogosLightDir, "embeds.json"));
+});
+app.get("/catalogos/:slug", (req, res, next) => {
+  if (req.params.slug === "embeds.json") return next();
+  res.sendFile(catalogosLightIndex);
+});
+
 app.get("/", (_req, res) => {
   res.redirect(302, "/panel");
 });

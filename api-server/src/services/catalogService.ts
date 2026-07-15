@@ -1401,6 +1401,30 @@ export function isBodasesorCatalogWebUrl(url: string | null | undefined): boolea
   return !!url?.trim() && BODASESOR_CATALOG_WEB_URL.test(url.trim());
 }
 
+/**
+ * Entrega al cliente una URL liviana (Hostinger) con click-to-load.
+ * La fuente del Sheet sigue siendo bodasesor.com; aquí solo cambia el link enviado.
+ * Desactivar: CATALOG_USE_LIGHT_PAGES=0
+ */
+export function toDeliverableCatalogUrl(sheetUrl: string): string {
+  if (process.env["CATALOG_USE_LIGHT_PAGES"] === "0") return sheetUrl;
+  const base = (
+    process.env["CATALOG_LIGHT_BASE_URL"] ||
+    process.env["LUCY_PUBLIC_URL"] ||
+    "https://midnightblue-mosquito-424375.hostingersite.com"
+  ).replace(/\/+$/, "");
+
+  const m = sheetUrl.trim().match(
+    /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/([a-z0-9-]+))?\/?/i
+  );
+  if (!m) return sheetUrl;
+  return m[1] ? `${base}/catalogos/${m[1]}` : `${base}/catalogos`;
+}
+
+export function getCatalogWebHubDeliveryUrl(): string {
+  return toDeliverableCatalogUrl(CATALOG_WEB_HUB_URL);
+}
+
 /** Extrae link web válido de la fila (columna o legacy en notas). Nunca inventa slug. */
 export function getRowCatalogWebLink(row: SheetCatalogRow): string | null {
   const direct = row.linkCatalogo?.trim();
@@ -1511,7 +1535,7 @@ export function buildCatalogWebLinkReply(opts: {
   if (opts.wantFull) {
     return [
       "Claro. Aquí tienes el catálogo general con todos los servicios:",
-      CATALOG_WEB_HUB_URL,
+      getCatalogWebHubDeliveryUrl(),
       "",
       "Si luego quieres el de un servicio en concreto, dímelo y te mando ese link.",
     ].join("\n");
@@ -1524,7 +1548,7 @@ export function buildCatalogWebLinkReply(opts: {
     const label = match.serviceName ? ` de *${match.serviceName}*` : "";
     return [
       `Claro, aquí tienes el catálogo${label}:`,
-      match.url,
+      toDeliverableCatalogUrl(match.url),
       "",
       "Si quieres el de otro servicio, dímelo y te mando ese.",
     ].join("\n");
@@ -1534,23 +1558,27 @@ export function buildCatalogWebLinkReply(opts: {
     return [
       `Para *${match.serviceName}* aún no tengo el link web en el catálogo vivo.`,
       `Te dejo el índice general mientras el equipo te comparte el detalle:`,
-      CATALOG_WEB_HUB_URL,
+      getCatalogWebHubDeliveryUrl(),
     ].join("\n");
   }
 
   return [
     "Con gusto te paso el catálogo. ¿De qué servicio lo quieres, o te mando el general?",
-    CATALOG_WEB_HUB_URL,
+    getCatalogWebHubDeliveryUrl(),
   ].join("\n");
 }
 
-/** Quita links bodasesor.com/catalogos si el cliente NO los pidió (evita spam). */
+/** Quita links de catálogo web si el cliente NO los pidió (evita spam). */
 export function stripUnsolicitedCatalogWebLinks(text: string, clientAsked: boolean): string {
   if (!text || clientAsked) return text;
-  if (!/bodasesor\.com\/catalogos/i.test(text)) return text;
+  if (!/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text)) return text;
   return text
     .replace(
       /https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
+      ""
+    )
+    .replace(
+      /https?:\/\/[^\s]*hostingersite\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
       ""
     )
     .replace(/[ \t]*\n{3,}/g, "\n\n")

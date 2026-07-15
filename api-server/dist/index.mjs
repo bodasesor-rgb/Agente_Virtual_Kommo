@@ -82291,6 +82291,18 @@ var BODASESOR_CATALOG_WEB_URL = /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos
 function isBodasesorCatalogWebUrl(url2) {
   return !!url2?.trim() && BODASESOR_CATALOG_WEB_URL.test(url2.trim());
 }
+function toDeliverableCatalogUrl(sheetUrl) {
+  if (process.env["CATALOG_USE_LIGHT_PAGES"] === "0") return sheetUrl;
+  const base = (process.env["CATALOG_LIGHT_BASE_URL"] || process.env["LUCY_PUBLIC_URL"] || "https://midnightblue-mosquito-424375.hostingersite.com").replace(/\/+$/, "");
+  const m4 = sheetUrl.trim().match(
+    /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/([a-z0-9-]+))?\/?/i
+  );
+  if (!m4) return sheetUrl;
+  return m4[1] ? `${base}/catalogos/${m4[1]}` : `${base}/catalogos`;
+}
+function getCatalogWebHubDeliveryUrl() {
+  return toDeliverableCatalogUrl(CATALOG_WEB_HUB_URL);
+}
 function getRowCatalogWebLink(row) {
   const direct = row.linkCatalogo?.trim();
   if (isBodasesorCatalogWebUrl(direct)) return direct.replace(/\/+$/, "");
@@ -82365,7 +82377,7 @@ function buildCatalogWebLinkReply(opts) {
   if (opts.wantFull) {
     return [
       "Claro. Aqu\xED tienes el cat\xE1logo general con todos los servicios:",
-      CATALOG_WEB_HUB_URL,
+      getCatalogWebHubDeliveryUrl(),
       "",
       "Si luego quieres el de un servicio en concreto, d\xEDmelo y te mando ese link."
     ].join("\n");
@@ -82376,7 +82388,7 @@ function buildCatalogWebLinkReply(opts) {
     const label = match.serviceName ? ` de *${match.serviceName}*` : "";
     return [
       `Claro, aqu\xED tienes el cat\xE1logo${label}:`,
-      match.url,
+      toDeliverableCatalogUrl(match.url),
       "",
       "Si quieres el de otro servicio, d\xEDmelo y te mando ese."
     ].join("\n");
@@ -82385,19 +82397,22 @@ function buildCatalogWebLinkReply(opts) {
     return [
       `Para *${match.serviceName}* a\xFAn no tengo el link web en el cat\xE1logo vivo.`,
       `Te dejo el \xEDndice general mientras el equipo te comparte el detalle:`,
-      CATALOG_WEB_HUB_URL
+      getCatalogWebHubDeliveryUrl()
     ].join("\n");
   }
   return [
     "Con gusto te paso el cat\xE1logo. \xBFDe qu\xE9 servicio lo quieres, o te mando el general?",
-    CATALOG_WEB_HUB_URL
+    getCatalogWebHubDeliveryUrl()
   ].join("\n");
 }
 function stripUnsolicitedCatalogWebLinks(text2, clientAsked) {
   if (!text2 || clientAsked) return text2;
-  if (!/bodasesor\.com\/catalogos/i.test(text2)) return text2;
+  if (!/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text2)) return text2;
   return text2.replace(
     /https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
+    ""
+  ).replace(
+    /https?:\/\/[^\s]*hostingersite\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
     ""
   ).replace(/[ \t]*\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
@@ -94706,6 +94721,19 @@ function mountEstado(basePath) {
   app.use(basePath, import_express12.default.static(estadoDir, { index: false }));
 }
 mountEstado("/estado");
+mountEstado("/estado");
+var catalogosLightDir = path4.join(__dirname, "catalogos-light");
+var catalogosLightIndex = path4.join(catalogosLightDir, "index.html");
+app.get(["/catalogos", "/catalogos/"], (_req, res) => {
+  res.sendFile(catalogosLightIndex);
+});
+app.get("/catalogos/embeds.json", (_req, res) => {
+  res.sendFile(path4.join(catalogosLightDir, "embeds.json"));
+});
+app.get("/catalogos/:slug", (req, res, next) => {
+  if (req.params.slug === "embeds.json") return next();
+  res.sendFile(catalogosLightIndex);
+});
 app.get("/", (_req, res) => {
   res.redirect(302, "/panel");
 });

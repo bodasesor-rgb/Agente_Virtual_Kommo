@@ -2419,10 +2419,19 @@ async function runAll(): Promise<void> {
     const replyPizza = buildCatalogWebLinkReply({
       query: "catálogo de la barra de pizzas",
     });
-    assert.ok(replyPizza.includes("https://bodasesor.com/catalogos/barra-de-pizzas"), replyPizza);
+    assert.ok(
+      replyPizza.includes("/catalogos/barra-de-pizzas"),
+      replyPizza
+    );
+    assert.ok(
+      /hostingersite\.com\/catalogos\/barra-de-pizzas|bodasesor\.com\/catalogos\/barra-de-pizzas/.test(
+        replyPizza
+      ),
+      replyPizza
+    );
 
     const replyFull = buildCatalogWebLinkReply({ query: "todo", wantFull: true });
-    assert.ok(replyFull.includes(CATALOG_WEB_HUB_URL), replyFull);
+    assert.ok(/\/catalogos\b/.test(replyFull), replyFull);
 
     const unsolicited = stripUnsolicitedCatalogWebLinks(
       "Mira https://bodasesor.com/catalogos/barra-de-pizzas está padre",
@@ -2460,7 +2469,7 @@ async function runAll(): Promise<void> {
       ],
     });
     assert.ok(
-      guardSend.includes("https://bodasesor.com/catalogos/barra-de-pizzas"),
+      guardSend.includes("/catalogos/barra-de-pizzas"),
       guardSend
     );
 
@@ -2498,7 +2507,7 @@ async function runAll(): Promise<void> {
       ],
     });
     assert.ok(
-      guardAffirm.includes("https://bodasesor.com/catalogos/colgantes-premium"),
+      guardAffirm.includes("/catalogos/colgantes-premium"),
       guardAffirm
     );
   });

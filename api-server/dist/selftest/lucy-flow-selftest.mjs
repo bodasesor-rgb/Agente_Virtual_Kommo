@@ -3493,6 +3493,18 @@ var BODASESOR_CATALOG_WEB_URL = /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos
 function isBodasesorCatalogWebUrl(url) {
   return !!url?.trim() && BODASESOR_CATALOG_WEB_URL.test(url.trim());
 }
+function toDeliverableCatalogUrl(sheetUrl) {
+  if (process.env["CATALOG_USE_LIGHT_PAGES"] === "0") return sheetUrl;
+  const base = (process.env["CATALOG_LIGHT_BASE_URL"] || process.env["LUCY_PUBLIC_URL"] || "https://midnightblue-mosquito-424375.hostingersite.com").replace(/\/+$/, "");
+  const m = sheetUrl.trim().match(
+    /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/([a-z0-9-]+))?\/?/i
+  );
+  if (!m) return sheetUrl;
+  return m[1] ? `${base}/catalogos/${m[1]}` : `${base}/catalogos`;
+}
+function getCatalogWebHubDeliveryUrl() {
+  return toDeliverableCatalogUrl(CATALOG_WEB_HUB_URL);
+}
 function getRowCatalogWebLink(row) {
   const direct = row.linkCatalogo?.trim();
   if (isBodasesorCatalogWebUrl(direct)) return direct.replace(/\/+$/, "");
@@ -3567,7 +3579,7 @@ function buildCatalogWebLinkReply(opts) {
   if (opts.wantFull) {
     return [
       "Claro. Aqu\xED tienes el cat\xE1logo general con todos los servicios:",
-      CATALOG_WEB_HUB_URL,
+      getCatalogWebHubDeliveryUrl(),
       "",
       "Si luego quieres el de un servicio en concreto, d\xEDmelo y te mando ese link."
     ].join("\n");
@@ -3578,7 +3590,7 @@ function buildCatalogWebLinkReply(opts) {
     const label = match.serviceName ? ` de *${match.serviceName}*` : "";
     return [
       `Claro, aqu\xED tienes el cat\xE1logo${label}:`,
-      match.url,
+      toDeliverableCatalogUrl(match.url),
       "",
       "Si quieres el de otro servicio, d\xEDmelo y te mando ese."
     ].join("\n");
@@ -3587,19 +3599,22 @@ function buildCatalogWebLinkReply(opts) {
     return [
       `Para *${match.serviceName}* a\xFAn no tengo el link web en el cat\xE1logo vivo.`,
       `Te dejo el \xEDndice general mientras el equipo te comparte el detalle:`,
-      CATALOG_WEB_HUB_URL
+      getCatalogWebHubDeliveryUrl()
     ].join("\n");
   }
   return [
     "Con gusto te paso el cat\xE1logo. \xBFDe qu\xE9 servicio lo quieres, o te mando el general?",
-    CATALOG_WEB_HUB_URL
+    getCatalogWebHubDeliveryUrl()
   ].join("\n");
 }
 function stripUnsolicitedCatalogWebLinks(text, clientAsked) {
   if (!text || clientAsked) return text;
-  if (!/bodasesor\.com\/catalogos/i.test(text)) return text;
+  if (!/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text)) return text;
   return text.replace(
     /https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
+    ""
+  ).replace(
+    /https?:\/\/[^\s]*hostingersite\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
     ""
   ).replace(/[ \t]*\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
@@ -18053,9 +18068,18 @@ ${CATALOG_OFFER_QUESTION}`)
     const replyPizza = buildCatalogWebLinkReply({
       query: "cat\xE1logo de la barra de pizzas"
     });
-    assert.ok(replyPizza.includes("https://bodasesor.com/catalogos/barra-de-pizzas"), replyPizza);
+    assert.ok(
+      replyPizza.includes("/catalogos/barra-de-pizzas"),
+      replyPizza
+    );
+    assert.ok(
+      /hostingersite\.com\/catalogos\/barra-de-pizzas|bodasesor\.com\/catalogos\/barra-de-pizzas/.test(
+        replyPizza
+      ),
+      replyPizza
+    );
     const replyFull = buildCatalogWebLinkReply({ query: "todo", wantFull: true });
-    assert.ok(replyFull.includes(CATALOG_WEB_HUB_URL), replyFull);
+    assert.ok(/\/catalogos\b/.test(replyFull), replyFull);
     const unsolicited = stripUnsolicitedCatalogWebLinks(
       "Mira https://bodasesor.com/catalogos/barra-de-pizzas est\xE1 padre",
       false
@@ -18091,7 +18115,7 @@ ${CATALOG_OFFER_QUESTION}`
       ]
     });
     assert.ok(
-      guardSend.includes("https://bodasesor.com/catalogos/barra-de-pizzas"),
+      guardSend.includes("/catalogos/barra-de-pizzas"),
       guardSend
     );
     const guardNoSend = runGuards({
@@ -18127,7 +18151,7 @@ ${CATALOG_OFFER_QUESTION}`
       ]
     });
     assert.ok(
-      guardAffirm.includes("https://bodasesor.com/catalogos/colgantes-premium"),
+      guardAffirm.includes("/catalogos/colgantes-premium"),
       guardAffirm
     );
   });
