@@ -2999,17 +2999,57 @@ ${CATALOG_OFFER_QUESTION}`;
 function buildServiceNivelChoiceAnswer(result) {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r) => r.servicio === svc || result.rows.length <= 6);
-  const niveles = uniqueNiveles(svcRows.length ? svcRows : result.rows);
+  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 6);
+  const niveles = uniqueNiveles(rowsForChoice);
   if (niveles.length <= 1) {
     const row = svcRows[0] ?? result.rows[0];
     return buildExactRowDetailAnswer(row);
   }
-  const nivelList = niveles.slice(0, 6).map((n) => `*${n}*`).join(", ");
   if (uniqueServicios(result.rows).length > 1) {
     const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
-    return `Manejamos *${svc}* en varias opciones: ${variants}. Cada una tiene niveles como ${nivelList}. \xBFCu\xE1l variante y nivel prefieres?`;
+    const inclusionBlock = buildInclusionBlock(rowsForChoice, 180).trim();
+    const detail = inclusionBlock ? `${inclusionBlock}
+
+` : `Niveles disponibles: ${niveles.slice(0, 6).map((n) => `*${n}*`).join(", ")}.
+
+`;
+    return `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}\xBFCu\xE1l variante y nivel prefieres?`;
   }
-  return `*${svc}* lo tenemos en: ${nivelList}. \xBFCu\xE1l prefieres?`;
+  const lines = niveles.slice(0, 6).map((n, i) => {
+    const row = rowsForChoice.find(
+      (r) => normalizeForMatch(extractNivelLabel(r)) === normalizeForMatch(n)
+    );
+    const incl = row ? getInclusionFromRow(row) : null;
+    const price = row?.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+    if (incl) {
+      const clipped = incl.length > 220 ? `${incl.slice(0, 217)}\u2026` : incl;
+      return `${i + 1}. *${n}*${price}
+   Incluye: ${clipped}`;
+    }
+    return `${i + 1}. *${n}*${price}
+   Incluye: el equipo lo confirma en la cotizaci\xF3n.`;
+  });
+  const hasAnyIncl = rowsForChoice.some((r) => !!getInclusionFromRow(r));
+  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotizaci\xF3n.";
+  return `Para *${svc}* manejamos estos niveles:
+
+${lines.join("\n")}
+
+${footer}`;
+}
+function messageOffersLevelsWithoutInclusions(text) {
+  if (!text?.trim()) return false;
+  const t = text.trim();
+  if (/\bincluye\b/i.test(t)) return false;
+  return /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t);
+}
+function enrichBareNivelOffer(mensaje, serviceHint) {
+  if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
+  const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
+  const detail = buildCatalogServiceDetailAnswer(hint);
+  if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
+  if (!/incluye|nivel/i.test(detail)) return null;
+  return detail;
 }
 function buildExactRowDetailAnswer(row) {
   const label = formatCatalogRowLabel(row);
@@ -3272,11 +3312,20 @@ function formatServiceDataForPrompt(query) {
   }
   if (resolved.kind === "service" && uniqueNiveles(resolved.rows).length > 1) {
     const svc = resolved.serviceName ?? uniqueServicios(resolved.rows)[0];
+    const levelLines = uniqueNiveles(resolved.rows).slice(0, 6).map((n) => {
+      const row = resolved.rows.find(
+        (r) => normalizeForMatch(extractNivelLabel(r)) === normalizeForMatch(n)
+      );
+      const incl = row ? getInclusionFromRow(row) : null;
+      const price = row?.tienePrecio && row.precio ? ` | Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+      return incl ? `- ${n}${price} | Incluye: ${incl}` : `- ${n}${price} | Incluye: (vac\xEDo en cat\xE1logo \u2014 di que el equipo confirma; NO inventes)`;
+    });
     return [
       "DATOS DEL SERVICIO (Google Sheet \u2014 elegir nivel):",
       `Servicio: ${svc}`,
-      `Niveles: ${uniqueNiveles(resolved.rows).join(", ")}`,
-      "Pregunta cu\xE1l nivel prefiere antes de dar precio detallado."
+      "Al ofrecer niveles, EXPLICA qu\xE9 incluye cada uno con el texto del Sheet. NUNCA digas solo los nombres.",
+      ...levelLines,
+      "Pregunta cu\xE1l nivel prefiere DESPU\xC9S de mostrar inclusiones. No inventes inclusiones ni marcas."
     ].join("\n");
   }
   const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()].slice(
@@ -16170,6 +16219,18 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   );
   mensaje = stripUnsolicitedCatalogWebLinks(mensaje, clientWantedCatalog);
+  if (messageOffersLevelsWithoutInclusions(mensaje)) {
+    const hint = [
+      extracted.requerimientos_evento,
+      currentMessage,
+      ...presHistory.filter((m) => m.role === "user" && typeof m.content === "string").slice(-3).map((m) => m.content)
+    ].filter(Boolean).join(" ");
+    const enriched = enrichBareNivelOffer(mensaje, hint);
+    if (enriched) {
+      mensaje = enriched;
+      log?.info({ entityId }, "GUARD: niveles sin inclusiones \u2014 detalle del Sheet");
+    }
+  }
   mensaje = stripInternalCrmBlock(mensaje);
   if (!mensaje.trim() && (/Información completa obtenida|DATOS DEL CLIENTE/i.test(aiResponse) || isReadyForClosing(filledSet))) {
     mensaje = buildClosing(
@@ -18842,6 +18903,45 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert.ok(!/DATOS DEL CLIENTE/i.test(internalLeak), internalLeak.slice(0, 300));
     assert.ok(!/Información completa obtenida/i.test(internalLeak), internalLeak.slice(0, 300));
+  });
+  await test("64. Niveles \u2014 Basica/Tradicional/Premium con qu\xE9 incluye cada uno", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE","Refrescos y aguas"',
+      '"Barra de bebidas","Tradicional","$220.00","$6,600.00","TRUE","Refrescos, aguas y 2 licores"',
+      '"Barra de bebidas","Premium","$320.00","$9,600.00","TRUE","Refrescos, aguas y 3 licores premium"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const bare = "Perfecto, Edgar. Para la *Barra de Bebidas*, manejamos tres niveles: 1. *B\xE1sica* 2. *Tradicional* 3. *Premium* \xBFCu\xE1l nivel prefieres para tu evento?";
+    assert.ok(messageOffersLevelsWithoutInclusions(bare));
+    const detail = buildCatalogServiceDetailAnswer("barra de bebidas");
+    assert.ok(detail, "debe armar oferta de niveles");
+    assert.ok(/Incluye:.*Refrescos y aguas/i.test(detail), detail);
+    assert.ok(/Incluye:.*2 licores/i.test(detail), detail);
+    assert.ok(/Incluye:.*3 licores premium/i.test(detail), detail);
+    assert.ok(/Cuál nivel prefieres/i.test(detail), detail);
+    assert.ok(!messageOffersLevelsWithoutInclusions(detail), detail);
+    const promptBlock = formatServiceDataForPrompt("barra de bebidas");
+    assert.ok(promptBlock && /Incluye:/i.test(promptBlock), promptBlock ?? "");
+    assert.ok(/EXPLICA qué incluye/i.test(promptBlock), promptBlock);
+    const guardBare = runGuards({
+      aiResponse: bare,
+      extracted: emptyExtracted({
+        nombre: "Edgar",
+        tipo_evento: "concierto",
+        requerimientos_evento: "Barra de bebidas"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Hola, me interesa cotizar Barra de Bebidas",
+      history: [
+        { role: "user", content: "Hola, me interesa cotizar Barra de Bebidas" },
+        { role: "assistant", content: "\xBFQu\xE9 nivel te interesa?" }
+      ]
+    });
+    assert.ok(/Incluye:/i.test(guardBare), guardBare.slice(0, 500));
+    assert.ok(/Refrescos y aguas/i.test(guardBare), guardBare.slice(0, 500));
+    assert.ok(enrichBareNivelOffer(bare, "Barra de bebidas"), "enrich debe devolver detalle");
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

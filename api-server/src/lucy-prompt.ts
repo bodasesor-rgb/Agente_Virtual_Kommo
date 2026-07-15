@@ -119,6 +119,8 @@ pregunta por no tener el dato.
   en los datos del catálogo inyectado (campo Incluye). Si no tienes el detalle,
   di que el equipo lo confirma en la cotización. No des ejemplos de tu propia cabeza
   (marcas, bebidas, platillos) que no estén en el catálogo.
+  Cuando ofrezcas niveles (Básica / Tradicional / Premium u otros): NO digas solo los
+  nombres. Explica qué incluye cada uno con el texto del Sheet y luego pregunta cuál prefiere.
 - **NIVEL 2 — Servicio de eventos sin Sheet** (renta de letras, valet, pirotecnia fría,
   mesa imperial, etc.): ACEPTA, ANOTA en requerimientos y AVANZA. Acuse breve
   ("¡Claro! La renta de letras la anoto en tu solicitud.") + siguiente dato o cierre.

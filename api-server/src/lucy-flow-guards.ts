@@ -52,6 +52,8 @@ import {
   stripUnsolicitedCatalogWebLinks,
   CATALOG_OFFER_QUESTION,
   messageOffersCatalogLink,
+  enrichBareNivelOffer,
+  messageOffersLevelsWithoutInclusions,
 } from "./services/catalogService.js";
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
 import { buildGuardServiceAck, buildMobiliarioRentDetailReply } from "./services/serviceKnowledge.js";
@@ -3482,6 +3484,25 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : null
     );
   mensaje = stripUnsolicitedCatalogWebLinks(mensaje, clientWantedCatalog);
+
+  // Oferta de niveles sin inclusiones → reemplazar con detalle del Sheet.
+  if (messageOffersLevelsWithoutInclusions(mensaje)) {
+    const hint = [
+      extracted.requerimientos_evento,
+      currentMessage,
+      ...presHistory
+        .filter((m) => m.role === "user" && typeof m.content === "string")
+        .slice(-3)
+        .map((m) => m.content as string),
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const enriched = enrichBareNivelOffer(mensaje, hint);
+    if (enriched) {
+      mensaje = enriched;
+      log?.info({ entityId }, "GUARD: niveles sin inclusiones — detalle del Sheet");
+    }
+  }
 
   mensaje = stripInternalCrmBlock(mensaje);
   if (

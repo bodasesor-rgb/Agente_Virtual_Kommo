@@ -125,6 +125,9 @@ import {
   CATALOG_WEB_HUB_URL,
   CATALOG_OFFER_QUESTION,
   toDeliverableCatalogUrl,
+  enrichBareNivelOffer,
+  messageOffersLevelsWithoutInclusions,
+  formatServiceDataForPrompt,
 } from "../services/catalogService.js";
 import { buildMobiliarioRentDetailReply } from "../services/serviceKnowledge.js";
 import { resolveServiceFocusFromText, expandQueryWithServiceSynonyms } from "../services/serviceSynonyms.js";
@@ -2849,6 +2852,51 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/DATOS DEL CLIENTE/i.test(internalLeak), internalLeak.slice(0, 300));
     assert.ok(!/Información completa obtenida/i.test(internalLeak), internalLeak.slice(0, 300));
+  });
+
+  await test("64. Niveles — Basica/Tradicional/Premium con qué incluye cada uno", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE","Refrescos y aguas"',
+      '"Barra de bebidas","Tradicional","$220.00","$6,600.00","TRUE","Refrescos, aguas y 2 licores"',
+      '"Barra de bebidas","Premium","$320.00","$9,600.00","TRUE","Refrescos, aguas y 3 licores premium"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const bare =
+      "Perfecto, Edgar. Para la *Barra de Bebidas*, manejamos tres niveles: 1. *Básica* 2. *Tradicional* 3. *Premium* ¿Cuál nivel prefieres para tu evento?";
+    assert.ok(messageOffersLevelsWithoutInclusions(bare));
+
+    const detail = buildCatalogServiceDetailAnswer("barra de bebidas");
+    assert.ok(detail, "debe armar oferta de niveles");
+    assert.ok(/Incluye:.*Refrescos y aguas/i.test(detail!), detail);
+    assert.ok(/Incluye:.*2 licores/i.test(detail!), detail);
+    assert.ok(/Incluye:.*3 licores premium/i.test(detail!), detail);
+    assert.ok(/Cuál nivel prefieres/i.test(detail!), detail);
+    assert.ok(!messageOffersLevelsWithoutInclusions(detail), detail);
+
+    const promptBlock = formatServiceDataForPrompt("barra de bebidas");
+    assert.ok(promptBlock && /Incluye:/i.test(promptBlock), promptBlock ?? "");
+    assert.ok(/EXPLICA qué incluye/i.test(promptBlock!), promptBlock);
+
+    const guardBare = runGuards({
+      aiResponse: bare,
+      extracted: emptyExtracted({
+        nombre: "Edgar",
+        tipo_evento: "concierto",
+        requerimientos_evento: "Barra de bebidas",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Hola, me interesa cotizar Barra de Bebidas",
+      history: [
+        { role: "user", content: "Hola, me interesa cotizar Barra de Bebidas" },
+        { role: "assistant", content: "¿Qué nivel te interesa?" },
+      ],
+    });
+    assert.ok(/Incluye:/i.test(guardBare), guardBare.slice(0, 500));
+    assert.ok(/Refrescos y aguas/i.test(guardBare), guardBare.slice(0, 500));
+    assert.ok(enrichBareNivelOffer(bare, "Barra de bebidas"), "enrich debe devolver detalle");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

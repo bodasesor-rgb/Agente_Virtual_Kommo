@@ -81781,17 +81781,57 @@ ${CATALOG_OFFER_QUESTION}`;
 function buildServiceNivelChoiceAnswer(result) {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r2) => r2.servicio === svc || result.rows.length <= 6);
-  const niveles = uniqueNiveles(svcRows.length ? svcRows : result.rows);
+  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 6);
+  const niveles = uniqueNiveles(rowsForChoice);
   if (niveles.length <= 1) {
     const row = svcRows[0] ?? result.rows[0];
     return buildExactRowDetailAnswer(row);
   }
-  const nivelList = niveles.slice(0, 6).map((n3) => `*${n3}*`).join(", ");
   if (uniqueServicios(result.rows).length > 1) {
     const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
-    return `Manejamos *${svc}* en varias opciones: ${variants}. Cada una tiene niveles como ${nivelList}. \xBFCu\xE1l variante y nivel prefieres?`;
+    const inclusionBlock = buildInclusionBlock(rowsForChoice, 180).trim();
+    const detail = inclusionBlock ? `${inclusionBlock}
+
+` : `Niveles disponibles: ${niveles.slice(0, 6).map((n3) => `*${n3}*`).join(", ")}.
+
+`;
+    return `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}\xBFCu\xE1l variante y nivel prefieres?`;
   }
-  return `*${svc}* lo tenemos en: ${nivelList}. \xBFCu\xE1l prefieres?`;
+  const lines = niveles.slice(0, 6).map((n3, i3) => {
+    const row = rowsForChoice.find(
+      (r2) => normalizeForMatch(extractNivelLabel(r2)) === normalizeForMatch(n3)
+    );
+    const incl = row ? getInclusionFromRow(row) : null;
+    const price = row?.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+    if (incl) {
+      const clipped = incl.length > 220 ? `${incl.slice(0, 217)}\u2026` : incl;
+      return `${i3 + 1}. *${n3}*${price}
+   Incluye: ${clipped}`;
+    }
+    return `${i3 + 1}. *${n3}*${price}
+   Incluye: el equipo lo confirma en la cotizaci\xF3n.`;
+  });
+  const hasAnyIncl = rowsForChoice.some((r2) => !!getInclusionFromRow(r2));
+  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotizaci\xF3n.";
+  return `Para *${svc}* manejamos estos niveles:
+
+${lines.join("\n")}
+
+${footer}`;
+}
+function messageOffersLevelsWithoutInclusions(text2) {
+  if (!text2?.trim()) return false;
+  const t = text2.trim();
+  if (/\bincluye\b/i.test(t)) return false;
+  return /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t);
+}
+function enrichBareNivelOffer(mensaje, serviceHint) {
+  if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
+  const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
+  const detail = buildCatalogServiceDetailAnswer(hint);
+  if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
+  if (!/incluye|nivel/i.test(detail)) return null;
+  return detail;
 }
 function buildExactRowDetailAnswer(row) {
   const label = formatCatalogRowLabel(row);
@@ -82058,11 +82098,20 @@ function formatServiceDataForPrompt(query) {
   }
   if (resolved.kind === "service" && uniqueNiveles(resolved.rows).length > 1) {
     const svc = resolved.serviceName ?? uniqueServicios(resolved.rows)[0];
+    const levelLines = uniqueNiveles(resolved.rows).slice(0, 6).map((n3) => {
+      const row = resolved.rows.find(
+        (r2) => normalizeForMatch(extractNivelLabel(r2)) === normalizeForMatch(n3)
+      );
+      const incl = row ? getInclusionFromRow(row) : null;
+      const price = row?.tienePrecio && row.precio ? ` | Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+      return incl ? `- ${n3}${price} | Incluye: ${incl}` : `- ${n3}${price} | Incluye: (vac\xEDo en cat\xE1logo \u2014 di que el equipo confirma; NO inventes)`;
+    });
     return [
       "DATOS DEL SERVICIO (Google Sheet \u2014 elegir nivel):",
       `Servicio: ${svc}`,
-      `Niveles: ${uniqueNiveles(resolved.rows).join(", ")}`,
-      "Pregunta cu\xE1l nivel prefiere antes de dar precio detallado."
+      "Al ofrecer niveles, EXPLICA qu\xE9 incluye cada uno con el texto del Sheet. NUNCA digas solo los nombres.",
+      ...levelLines,
+      "Pregunta cu\xE1l nivel prefiere DESPU\xC9S de mostrar inclusiones. No inventes inclusiones ni marcas."
     ].join("\n");
   }
   const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()].slice(
@@ -85758,6 +85807,18 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   );
   mensaje = stripUnsolicitedCatalogWebLinks(mensaje, clientWantedCatalog);
+  if (messageOffersLevelsWithoutInclusions(mensaje)) {
+    const hint = [
+      extracted.requerimientos_evento,
+      currentMessage,
+      ...presHistory.filter((m4) => m4.role === "user" && typeof m4.content === "string").slice(-3).map((m4) => m4.content)
+    ].filter(Boolean).join(" ");
+    const enriched = enrichBareNivelOffer(mensaje, hint);
+    if (enriched) {
+      mensaje = enriched;
+      log?.info({ entityId }, "GUARD: niveles sin inclusiones \u2014 detalle del Sheet");
+    }
+  }
   mensaje = stripInternalCrmBlock(mensaje);
   if (!mensaje.trim() && (/Información completa obtenida|DATOS DEL CLIENTE/i.test(aiResponse) || isReadyForClosing(filledSet))) {
     mensaje = buildClosing(
@@ -86796,6 +86857,8 @@ pregunta por no tener el dato.
   en los datos del cat\xE1logo inyectado (campo Incluye). Si no tienes el detalle,
   di que el equipo lo confirma en la cotizaci\xF3n. No des ejemplos de tu propia cabeza
   (marcas, bebidas, platillos) que no est\xE9n en el cat\xE1logo.
+  Cuando ofrezcas niveles (B\xE1sica / Tradicional / Premium u otros): NO digas solo los
+  nombres. Explica qu\xE9 incluye cada uno con el texto del Sheet y luego pregunta cu\xE1l prefiere.
 - **NIVEL 2 \u2014 Servicio de eventos sin Sheet** (renta de letras, valet, pirotecnia fr\xEDa,
   mesa imperial, etc.): ACEPTA, ANOTA en requerimientos y AVANZA. Acuse breve
   ("\xA1Claro! La renta de letras la anoto en tu solicitud.") + siguiente dato o cierre.
