@@ -78763,9 +78763,12 @@ function parseSheetCatalogCsv(csvText) {
       const min = (line2[precioMinimoCol] ?? "").trim();
       if (min) notasParts.push(`M\xEDnimo de salida: ${min}`);
     }
+    let linkCatalogo;
     if (linkCatalogoCol !== null) {
       const link = (line2[linkCatalogoCol] ?? "").trim();
-      if (link) notasParts.push(`Cat\xE1logo: ${link}`);
+      if (link && /^https?:\/\//i.test(link)) {
+        linkCatalogo = link;
+      }
     }
     if (extrasCol !== null) {
       const extras = (line2[extrasCol] ?? "").trim();
@@ -78781,7 +78784,8 @@ function parseSheetCatalogCsv(csvText) {
       unidad,
       notas: notasParts.join(" | "),
       tienePrecio,
-      sinonimos: get("sinonimos") || void 0
+      sinonimos: get("sinonimos") || void 0,
+      linkCatalogo
     });
   }
   return rows;
@@ -78800,6 +78804,7 @@ function sheetRowsToMarkdown(rows) {
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
     "",
     "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vac\xEDo \u2192 el equipo confirma en cotizaci\xF3n. NUNCA inventes bebidas, platillos ni marcas.",
+    "REGLA LINK WEB: Si una fila trae Link cat\xE1logo (bodasesor.com/catalogos/\u2026), SOLO env\xEDalo cuando el cliente lo pida. Un link a la vez. No inventes URLs.",
     ""
   ];
   for (const [cat, items] of byCategory) {
@@ -78825,6 +78830,9 @@ function sheetRowsToMarkdown(rows) {
           const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
           if (clientNotes) lines.push(`  Incluye: ${clientNotes}`);
         }
+        if (item.linkCatalogo) {
+          lines.push(`  Link cat\xE1logo (solo si lo piden): ${item.linkCatalogo}`);
+        }
       } else {
         lines.push(`\u2022 **${svc}** (${levels.length} niveles)`);
         for (const item of levels.slice(0, 6)) {
@@ -78834,6 +78842,8 @@ function sheetRowsToMarkdown(rows) {
             lines.push(`  - ${label}: ${item.precio}${unit}`);
           }
         }
+        const link = levels.find((l4) => l4.linkCatalogo)?.linkCatalogo;
+        if (link) lines.push(`  Link cat\xE1logo (solo si lo piden): ${link}`);
       }
     }
     lines.push("");
@@ -79532,6 +79542,46 @@ function clientAsksPhone(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
   return /\btel[eé]fono/i.test(t) || /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t) || /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t) || /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t) || /\btienen\s+whatsapp/i.test(t);
+}
+function clientAsksForCatalog(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (/\b(manda|env[ií]a|pasa|comparte|m[aá]ndame|env[ií]ame|pasame|pásame|quiero|necesito|dame)\b.{0,40}\bcat[aá]logo/i.test(
+    t
+  )) {
+    return true;
+  }
+  if (/\bel\s+cat[aá]logo\s+(de|con|completo|general|web)/i.test(t)) return true;
+  if (/\bcat[aá]logo\s+(de|web|completo|general)\b/i.test(t)) return true;
+  if (/\blink\s+(del\s+)?cat[aá]logo/i.test(t)) return true;
+  if (/bodasesor\.com\/catalogos/i.test(t)) return true;
+  if (/\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame|dame)\s+el\s+(de|del)\b/i.test(t) || /\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+el\s+link\b/i.test(t)) {
+    return true;
+  }
+  return false;
+}
+function clientWantsFullCatalog(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (/\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+todo\b/i.test(t)) return true;
+  if (/\bcat[aá]logo\s+(completo|general|todo|todos)\b/i.test(t)) return true;
+  if (/\b(todo|todos)\s+(el\s+)?cat[aá]logo/i.test(t)) return true;
+  if (/\bno\s+s[eé]\s+cu[aá]l\b/i.test(t) && /\bcat[aá]logo/i.test(t)) return true;
+  if (/\bindeciso|todas\s+las\s+opciones/i.test(t) && /\bcat[aá]logo/i.test(t)) return true;
+  return false;
+}
+function clientAffirmsCatalogOffer(message, lastAssistantText) {
+  if (!message?.trim() || !lastAssistantText?.trim()) return false;
+  if (!/cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(
+    lastAssistantText
+  )) {
+    return false;
+  }
+  const t = message.trim().toLowerCase();
+  if (clientAsksForCatalog(message)) return true;
+  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|mándame|env[ií]a|envíame)([.!?]|\s|$)/i.test(
+    t
+  );
 }
 function clientAsksBanqueteVsTaquiza(message) {
   if (!message?.trim()) return false;
@@ -80756,7 +80806,7 @@ var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
   },
   {
     key: "cupcakes",
-    serviceHints: ["cupcakes", "cupcake"],
+    serviceHints: ["cupcakes", "cupcake", "bet\xFAn", "betun", "cupcakes y bet\xFAn"],
     aliases: [
       "cupcakes",
       "panquecitos",
@@ -80771,7 +80821,10 @@ var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
       "cupcakes tem\xE1ticos",
       "betun",
       "bet\xFAn",
-      "fondant"
+      "betunes",
+      "fondant",
+      "cupcakes y betun",
+      "cupcakes y bet\xFAn"
     ]
   },
   {
@@ -80913,11 +80966,12 @@ var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
   },
   {
     key: "taquiza",
-    serviceHints: ["taquiza", "parrillada tacos"],
+    serviceHints: ["taquiza"],
     aliases: [
       "taquiza",
       "tacos",
       "tacos de guisado",
+      "tacos de guisados",
       "taquiza para evento",
       "puesto de tacos",
       "tacos al pastor",
@@ -80929,10 +80983,59 @@ var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
       "estacion de tacos",
       "estaci\xF3n de tacos",
       "barra de tacos",
-      "guisados",
-      "parrillada tacos"
+      "guisados"
     ],
-    excludeIf: ["parrillada argentina", "asado argentino"]
+    excludeIf: [
+      "parrillada tacos",
+      "parrillada de tacos",
+      "parrillada argentina",
+      "asado argentino"
+    ]
+  },
+  {
+    key: "parrillada_tacos",
+    serviceHints: ["parrillada tacos"],
+    aliases: [
+      "parrillada tacos",
+      "parrillada de tacos",
+      "tacos a la parrilla",
+      "tacos parrillada",
+      "estacion de tacos a la parrilla",
+      "estaci\xF3n de tacos a la parrilla"
+    ],
+    excludeIf: ["parrillada argentina", "asado argentino", "argentina"]
+  },
+  {
+    key: "entelados_techo",
+    serviceHints: ["entelados para techo", "entelado", "entelados"],
+    aliases: [
+      "entelados",
+      "entelado",
+      "entelado para techo",
+      "entelados para techo",
+      "tela en techo",
+      "tela de techo",
+      "telas para techo",
+      "tela para techo",
+      "techo entelado",
+      "entelado de techo"
+    ],
+    excludeIf: ["colgante", "colgantes"]
+  },
+  {
+    key: "colgantes_premium",
+    serviceHints: ["colgantes premium", "colgantes"],
+    aliases: [
+      "colgantes",
+      "colgante",
+      "colgantes premium",
+      "decoracion colgante",
+      "decoraci\xF3n colgante",
+      "estructuras colgantes",
+      "flores colgantes",
+      "wisteria"
+    ],
+    excludeIf: ["entelado", "entelados", "tela en techo", "tela de techo"]
   },
   {
     key: "pozole_tostadas",
@@ -80991,6 +81094,29 @@ function parseSynonymList(raw) {
   if (!raw?.trim()) return [];
   return raw.split(/[,;|/]/).map((p3) => p3.trim()).filter((p3) => p3.length >= 2);
 }
+function synonymsForServiceName(servicio) {
+  const n3 = norm(servicio);
+  const out2 = /* @__PURE__ */ new Set();
+  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
+    if (fam.serviceHints.some((h3) => n3.includes(norm(h3)) || norm(h3).includes(n3))) {
+      for (const a2 of fam.aliases) out2.add(a2);
+    }
+  }
+  for (const [svc, aliases] of sheetSynonymIndex) {
+    if (n3.includes(svc) || svc.includes(n3)) {
+      for (const a2 of aliases) out2.add(a2);
+    }
+  }
+  return [...out2];
+}
+function synonymHaystackForService(servicio, sheetSinonimos) {
+  const parts2 = [
+    servicio,
+    sheetSinonimos ?? "",
+    ...synonymsForServiceName(servicio)
+  ];
+  return norm(parts2.join(" "));
+}
 function expandQueryWithServiceSynonyms(query) {
   const q2 = norm(query);
   const baseTokens = q2.split(" ").filter((w4) => w4.length >= 3);
@@ -81041,6 +81167,32 @@ function expandQueryWithServiceSynonyms(query) {
     matchedServiceHints: [...new Set(matchedServiceHints)]
   };
 }
+function synonymScoreForService(query, serviceLabel, sheetSinonimos) {
+  const expanded = expandQueryWithServiceSynonyms(query);
+  if (!expanded.familyKeys.length && !expanded.boostedHints.length) return 0;
+  const hay = synonymHaystackForService(serviceLabel, sheetSinonimos);
+  let score = 0;
+  for (const hint of expanded.boostedHints) {
+    if (hay.includes(hint)) score += hint.includes(" ") ? 22 : 14;
+  }
+  for (const hint of expanded.matchedServiceHints) {
+    if (hay.includes(norm(hint))) score += 10;
+  }
+  if (expanded.familyKeys.includes("taquiza") && /banquete/.test(hay) && !/taquiza/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_formal") && /taquiza/.test(hay)) score -= 25;
+  if (expanded.familyKeys.includes("barra_sushi") && /banquete|taquiza/.test(hay) && !/sushi|poke/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_mexicano") && /banquete/.test(hay) && !/mexicano/.test(hay)) {
+    score -= 20;
+  }
+  if (expanded.familyKeys.includes("coffee_break") && /barra de cafe|barra de café/.test(hay) && !/coffee/.test(hay)) {
+    score -= 5;
+  }
+  return score;
+}
 var FAMILY_DISPLAY = {
   pozole_tostadas: {
     label: "Pozole y Tostadas",
@@ -81048,6 +81200,10 @@ var FAMILY_DISPLAY = {
   },
   taquiza: {
     label: "Taquiza",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  parrillada_tacos: {
+    label: "Parrillada Tacos",
     complements: ["Barras de bebidas", "Mobiliario"]
   },
   paella: {
@@ -81061,6 +81217,14 @@ var FAMILY_DISPLAY = {
   banquete_navideno: {
     label: "Banquete Navide\xF1o",
     complements: ["Barras de bebidas", "Mobiliario", "Mesa de dulces"]
+  },
+  entelados_techo: {
+    label: "Entelados para Techo",
+    complements: ["Colgantes Premium", "Iluminaci\xF3n"]
+  },
+  colgantes_premium: {
+    label: "Colgantes Premium",
+    complements: ["Entelados para Techo", "Iluminaci\xF3n"]
   }
 };
 function resolveServiceFocusFromText(text2) {
@@ -81069,12 +81233,15 @@ function resolveServiceFocusFromText(text2) {
   if (!expanded.familyKeys.length) return null;
   const preferredOrder = [
     "pozole_tostadas",
+    "parrillada_tacos",
     "taquiza",
     "paella",
     "parrillada_argentina",
     "banquete_navideno",
     "barra_americana",
-    "barra_sushi"
+    "barra_sushi",
+    "entelados_techo",
+    "colgantes_premium"
   ];
   const familyKey = preferredOrder.find((k4) => expanded.familyKeys.includes(k4)) ?? expanded.familyKeys[0];
   const fam = DEFAULT_SERVICE_SYNONYM_FAMILIES.find((f3) => f3.key === familyKey);
@@ -81835,7 +82002,8 @@ function formatServiceDataForPrompt(query) {
     const parsed = parseRowNotes(row.notas);
     const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
     const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "Incluye: (vac\xEDo en cat\xE1logo \u2014 equipo confirma en cotizaci\xF3n)";
-    return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}`;
+    const link = row.linkCatalogo ? ` | Link cat\xE1logo (SOLO si lo piden): ${row.linkCatalogo}` : "";
+    return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}${link}`;
   });
   return [
     "DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar SOLO esto; no inventar precios ni inclusiones):",
@@ -82106,6 +82274,128 @@ function injectCatalogPriceIfAsked(clientMessage, aiResponse) {
     return aiResponse;
   }
   return aiResponse;
+}
+var CATALOG_WEB_HUB_URL = "https://bodasesor.com/catalogos";
+var BODASESOR_CATALOG_WEB_URL = /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]+)?\/?(?:[?#].*)?$/i;
+function isBodasesorCatalogWebUrl(url2) {
+  return !!url2?.trim() && BODASESOR_CATALOG_WEB_URL.test(url2.trim());
+}
+function getRowCatalogWebLink(row) {
+  const direct = row.linkCatalogo?.trim();
+  if (isBodasesorCatalogWebUrl(direct)) return direct.replace(/\/+$/, "");
+  const fromNotes = parseRowNotes(row.notas).gammaLink?.trim();
+  if (isBodasesorCatalogWebUrl(fromNotes)) return fromNotes.replace(/\/+$/, "");
+  return null;
+}
+function scoreServiceForWebLink(query, row) {
+  const nq = normalizeForMatch(query);
+  const ns = normalizeForMatch(row.servicio);
+  let score = synonymScoreForService(query, row.servicio, row.sinonimos);
+  if (!nq || !ns) return score;
+  if (nq === ns) score += 80;
+  else if (nq.includes(ns) || ns.includes(nq)) score += 45;
+  const svcTokens = ns.split(/\s+/).filter((t) => t.length >= 4);
+  const hitTokens = svcTokens.filter((t) => nq.includes(t));
+  score += hitTokens.length * 8;
+  if (/\bcolgante/.test(nq) && /entelado|tela/.test(ns)) score -= 60;
+  if (/\bentelad|tela\s+(en\s+)?techo/.test(nq) && /colgante/.test(ns)) score -= 60;
+  if (/\btaquiza\b/.test(nq) && /parrillada\s+tacos/.test(ns)) score -= 40;
+  if (/parrillada\s+tacos/.test(nq) && /^taquiza$/.test(ns)) score -= 40;
+  if (/\bargentina\b/.test(nq) && /parrillada\s+tacos/.test(ns)) score -= 30;
+  return score;
+}
+function resolveCatalogWebLink(query, opts) {
+  if (opts?.preferHub) {
+    return { url: CATALOG_WEB_HUB_URL, serviceName: null, kind: "hub" };
+  }
+  const trimmed = query?.trim() ?? "";
+  if (!trimmed || !snapshot?.rows.length) {
+    return { url: null, serviceName: null, kind: "missing" };
+  }
+  const byService = /* @__PURE__ */ new Map();
+  for (const row of snapshot.rows) {
+    const key = row.servicio.trim();
+    if (!key) continue;
+    const existing = byService.get(key);
+    if (!existing) {
+      byService.set(key, row);
+      continue;
+    }
+    if (!getRowCatalogWebLink(existing) && getRowCatalogWebLink(row)) {
+      byService.set(key, row);
+    }
+  }
+  const scored = [...byService.values()].map((row) => ({ row, score: scoreServiceForWebLink(trimmed, row) })).filter((x5) => x5.score > 0).sort((a2, b4) => b4.score - a2.score);
+  if (!scored.length) {
+    const resolved = resolveCatalogQuery(trimmed);
+    if (resolved && resolved.kind !== "category") {
+      for (const row of resolved.rows) {
+        const url3 = getRowCatalogWebLink(row);
+        if (url3) {
+          return { url: url3, serviceName: row.servicio, kind: "service" };
+        }
+      }
+      const name2 = resolved.serviceName ?? resolved.rows[0]?.servicio ?? null;
+      return { url: null, serviceName: name2, kind: "missing" };
+    }
+    return { url: null, serviceName: null, kind: "missing" };
+  }
+  const best = scored[0];
+  if (best.score < 14) {
+    return { url: null, serviceName: null, kind: "missing" };
+  }
+  const url2 = getRowCatalogWebLink(best.row);
+  if (url2) {
+    return { url: url2, serviceName: best.row.servicio, kind: "service" };
+  }
+  return { url: null, serviceName: best.row.servicio, kind: "missing" };
+}
+function buildCatalogWebLinkReply(opts) {
+  if (opts.wantFull) {
+    return [
+      "Claro. Aqu\xED tienes el cat\xE1logo general con todos los servicios:",
+      CATALOG_WEB_HUB_URL,
+      "",
+      "Si luego quieres el de un servicio en concreto, d\xEDmelo y te mando ese link."
+    ].join("\n");
+  }
+  const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
+  const match = resolveCatalogWebLink(query);
+  if (match.kind === "service" && match.url) {
+    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
+    return [
+      `Claro, aqu\xED tienes el cat\xE1logo${label}:`,
+      match.url,
+      "",
+      "Si quieres el de otro servicio, d\xEDmelo y te mando ese."
+    ].join("\n");
+  }
+  if (match.serviceName) {
+    return [
+      `Para *${match.serviceName}* a\xFAn no tengo el link web en el cat\xE1logo vivo.`,
+      `Te dejo el \xEDndice general mientras el equipo te comparte el detalle:`,
+      CATALOG_WEB_HUB_URL
+    ].join("\n");
+  }
+  return [
+    "Con gusto te paso el cat\xE1logo. \xBFDe qu\xE9 servicio lo quieres, o te mando el general?",
+    CATALOG_WEB_HUB_URL
+  ].join("\n");
+}
+function stripUnsolicitedCatalogWebLinks(text2, clientAsked) {
+  if (!text2 || clientAsked) return text2;
+  if (!/bodasesor\.com\/catalogos/i.test(text2)) return text2;
+  return text2.replace(
+    /https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
+    ""
+  ).replace(/[ \t]*\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+var CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
+function messageOffersCatalogLink(text2) {
+  if (!text2?.trim()) return false;
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(
+    text2
+  );
 }
 
 // src/lib/buildMeta.ts
@@ -83592,9 +83882,11 @@ ${nextQ}`;
     const serviceLabel = mentionedService ?? parsePrimaryService(currentMessage ?? "") ?? (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
     if (detail) {
       const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
-      return appendNext(`${intro}
+      return `${intro}
 
-${detail}`, serviceLabel);
+${detail}
+
+${CATALOG_OFFER_QUESTION}`;
     }
     if (serviceLabel && currentMessage) {
       return appendNext(
@@ -84430,6 +84722,28 @@ function applyLucyMessageGuards(input) {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
+  } else if (clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
+    currentMessage,
+    lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
+  )) {
+    const wantFull = clientWantsFullCatalog(currentMessage);
+    const hintParts = [];
+    if (extracted.requerimientos_evento?.trim()) hintParts.push(extracted.requerimientos_evento);
+    if (mentionedServiceNow) hintParts.push(mentionedServiceNow);
+    if (lastAssistantMsg && typeof lastAssistantMsg.content === "string" && messageOffersCatalogLink(lastAssistantMsg.content)) {
+      hintParts.push(lastAssistantMsg.content);
+    }
+    const historyHint = [
+      ...presHistory.filter((m4) => m4.role === "user" && typeof m4.content === "string").slice(-4).map((m4) => m4.content),
+      currentMessage ?? ""
+    ].join(" ").trim();
+    mensaje = buildCatalogWebLinkReply({
+      query: wantFull ? "cat\xE1logo general" : historyHint || (currentMessage ?? ""),
+      wantFull,
+      serviceHint: hintParts.join(" ") || null
+    });
+    appliedDirectReply = true;
+    log?.info({ entityId, wantFull }, "GUARD: cliente pidi\xF3 cat\xE1logo web \u2014 link del Sheet");
   } else if (isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     mensaje = "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?";
     appliedDirectReply = true;
@@ -85083,6 +85397,11 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     log?.info({ entityId }, "GUARD: quit\xF3 bloque gen\xE9rico fijo del cierre");
   }
   mensaje = dedupeTransitionsInMessage(mensaje);
+  const clientWantedCatalog = clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
+    currentMessage,
+    lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
+  );
+  mensaje = stripUnsolicitedCatalogWebLinks(mensaje, clientWantedCatalog);
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripGammaLinks(text2) {
@@ -85989,6 +86308,13 @@ Estructura: 1) responde su pregunta, 2) confirma lo que ya dijo, 3) pide UN solo
 - Si da varios datos juntos, capt\xFAralos TODOS y salta al que falte.
 - Cat\xE1logo y cierre UNA sola vez (secci\xF3n 8).
 - Si ya eligi\xF3 un servicio, avanza a detalles; no vuelvas a "\xBFcu\xE1l te interesa?".
+
+Cat\xE1logo WEB (bodasesor.com/catalogos/\u2026 \u2014 columna "Link cat\xE1logo" del Sheet):
+- NUNCA lo mandes si el cliente no lo pidi\xF3.
+- Despu\xE9s de explicar/ofrecer un servicio concreto, pregunta: "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?"
+- Si dice que s\xED o pide "m\xE1ndame el de X", manda SOLO el Link cat\xE1logo de ESE servicio (del Sheet). Un link a la vez.
+- Si pide "todo" / est\xE1 indeciso \u2192 cat\xE1logo general https://bodasesor.com/catalogos
+- Si el servicio no tiene link en el Sheet \u2192 ofrece el general o di que el equipo lo comparte. NUNCA inventes URL ni slugs.
 
 Anti-robot (despu\xE9s del primer mensaje):
 - Si el cliente da varios datos de golpe \u2192 ve directo a la siguiente pregunta SIN listar los capturados.

@@ -38,6 +38,9 @@ import {
   applyWebLeadBrief,
   isVagueFoodTerm,
   sanitizeExtractedAmbiguousNumbers,
+  clientAsksForCatalog,
+  clientWantsFullCatalog,
+  clientAffirmsCatalogOffer,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
@@ -114,8 +117,13 @@ import {
   buildCatalogServiceDetailAnswer,
   listCatalogServicesForEvent,
   buildEventOfferCatalogHint,
+  resolveCatalogWebLink,
+  buildCatalogWebLinkReply,
+  stripUnsolicitedCatalogWebLinks,
+  CATALOG_WEB_HUB_URL,
+  CATALOG_OFFER_QUESTION,
 } from "../services/catalogService.js";
-import { resolveServiceFocusFromText } from "../services/serviceSynonyms.js";
+import { resolveServiceFocusFromText, expandQueryWithServiceSynonyms } from "../services/serviceSynonyms.js";
 import {
   parseSheetCatalogCsv,
   deriveCatalogCategory,
@@ -2360,6 +2368,139 @@ async function runAll(): Promise<void> {
       history: [],
     });
     assert.ok(!/tambi[eé]n manejamos bebidas,?\s*DJ/i.test(closeReply), closeReply.slice(0, 300));
+  });
+
+  await test("55. Catálogo web — Link del Sheet solo a petición", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+      '"Barra de pizzas","Basico","$320.00","$8,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-pizzas","Pizzas artesanales","pizza"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","5 guisados","tacos de guisados"',
+      '"Parrillada Tacos","Basico","$350.00","$10,000.00","TRUE","https://bodasesor.com/catalogos/parrillada-tacos","Tacos a la parrilla","parrillada de tacos"',
+      '"Cupcakes","Basico","$45.00","$2,000.00","TRUE","https://bodasesor.com/catalogos/cupcakes-y-betun","Cupcakes","betún"',
+      '"Entelados para Techo","Basico","","","TRUE","https://bodasesor.com/catalogos/entelados-para-techo","Telas para techo","entelado|tela en techo"',
+      '"Colgantes Premium","Basico","","","TRUE","https://bodasesor.com/catalogos/colgantes-premium","Colgantes","colgantes|wisteria"',
+    ].join("\n");
+    const rows = parseSheetCatalogCsv(csv);
+    setCatalogSnapshotForTests(rows);
+
+    const pizzaRow = rows.find((r) => /pizzas/i.test(r.servicio));
+    assert.ok(pizzaRow?.linkCatalogo?.includes("barra-de-pizzas"), String(pizzaRow?.linkCatalogo));
+
+    assert.ok(clientAsksForCatalog("mándame el catálogo de la barra de pizzas"));
+    assert.ok(clientAsksForCatalog("pásame el de colgantes"));
+    assert.equal(clientAsksForCatalog("cuánto cuesta la barra de pizzas"), false);
+    assert.ok(clientWantsFullCatalog("mándame todo el catálogo"));
+    assert.ok(
+      clientAffirmsCatalogOffer("sí", `Genial.\n\nDetalle\n\n${CATALOG_OFFER_QUESTION}`)
+    );
+
+    const pizza = resolveCatalogWebLink("el catálogo de la barra de pizzas");
+    assert.equal(pizza.url, "https://bodasesor.com/catalogos/barra-de-pizzas");
+    assert.ok(/pizzas/i.test(pizza.serviceName ?? ""), pizza.serviceName);
+
+    const colgantes = resolveCatalogWebLink("colgantes");
+    assert.equal(colgantes.url, "https://bodasesor.com/catalogos/colgantes-premium");
+
+    const entelados = resolveCatalogWebLink("entelados");
+    assert.equal(entelados.url, "https://bodasesor.com/catalogos/entelados-para-techo");
+
+    const tela = resolveCatalogWebLink("tela en techo");
+    assert.equal(tela.url, "https://bodasesor.com/catalogos/entelados-para-techo");
+
+    const taquiza = resolveCatalogWebLink("taquiza");
+    assert.equal(taquiza.url, "https://bodasesor.com/catalogos/taquiza");
+
+    const parrTacos = resolveCatalogWebLink("parrillada tacos");
+    assert.equal(parrTacos.url, "https://bodasesor.com/catalogos/parrillada-tacos");
+
+    const cupcakes = resolveCatalogWebLink("betún");
+    assert.equal(cupcakes.url, "https://bodasesor.com/catalogos/cupcakes-y-betun");
+
+    const replyPizza = buildCatalogWebLinkReply({
+      query: "catálogo de la barra de pizzas",
+    });
+    assert.ok(replyPizza.includes("https://bodasesor.com/catalogos/barra-de-pizzas"), replyPizza);
+
+    const replyFull = buildCatalogWebLinkReply({ query: "todo", wantFull: true });
+    assert.ok(replyFull.includes(CATALOG_WEB_HUB_URL), replyFull);
+
+    const unsolicited = stripUnsolicitedCatalogWebLinks(
+      "Mira https://bodasesor.com/catalogos/barra-de-pizzas está padre",
+      false
+    );
+    assert.ok(!/bodasesor\.com\/catalogos/i.test(unsolicited), unsolicited);
+
+    const kept = stripUnsolicitedCatalogWebLinks(
+      "Claro https://bodasesor.com/catalogos/barra-de-pizzas",
+      true
+    );
+    assert.ok(kept.includes("barra-de-pizzas"), kept);
+
+    const famCol = expandQueryWithServiceSynonyms("colgantes");
+    assert.ok(famCol.familyKeys.includes("colgantes_premium"), String(famCol.familyKeys));
+    const famEnt = expandQueryWithServiceSynonyms("tela en techo");
+    assert.ok(famEnt.familyKeys.includes("entelados_techo"), String(famEnt.familyKeys));
+
+    const guardSend = runGuards({
+      aiResponse: "¿Qué más necesitas?",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        requerimientos_evento: "barra de pizzas",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "mándame el catálogo de la barra de pizzas",
+      history: [
+        { role: "user", content: "quiero barra de pizzas" },
+        {
+          role: "assistant",
+          content: `Perfecto. Sí manejamos barra de pizzas.\n\n${CATALOG_OFFER_QUESTION}`,
+        },
+      ],
+    });
+    assert.ok(
+      guardSend.includes("https://bodasesor.com/catalogos/barra-de-pizzas"),
+      guardSend
+    );
+
+    const guardNoSend = runGuards({
+      aiResponse:
+        "Claro, te dejo el catálogo https://bodasesor.com/catalogos/barra-de-pizzas ¿cuántos invitados?",
+      extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "quiero info de barra de pizzas",
+      history: [],
+    });
+    assert.ok(
+      !/bodasesor\.com\/catalogos/i.test(guardNoSend) ||
+        /quieres que te mande el catálogo/i.test(guardNoSend),
+      guardNoSend.slice(0, 400)
+    );
+
+    const guardAffirm = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        requerimientos_evento: "Colgantes Premium",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "sí",
+      history: [
+        { role: "user", content: "me interesan colgantes" },
+        {
+          role: "assistant",
+          content: `Perfecto. Sí manejamos Colgantes Premium.\n\n${CATALOG_OFFER_QUESTION}`,
+        },
+      ],
+    });
+    assert.ok(
+      guardAffirm.includes("https://bodasesor.com/catalogos/colgantes-premium"),
+      guardAffirm
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

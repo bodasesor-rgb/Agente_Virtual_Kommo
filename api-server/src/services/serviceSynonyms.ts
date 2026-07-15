@@ -466,7 +466,7 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
   },
   {
     key: "cupcakes",
-    serviceHints: ["cupcakes", "cupcake"],
+    serviceHints: ["cupcakes", "cupcake", "betún", "betun", "cupcakes y betún"],
     aliases: [
       "cupcakes",
       "panquecitos",
@@ -481,7 +481,10 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
       "cupcakes temáticos",
       "betun",
       "betún",
+      "betunes",
       "fondant",
+      "cupcakes y betun",
+      "cupcakes y betún",
     ],
   },
   {
@@ -623,11 +626,12 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
   },
   {
     key: "taquiza",
-    serviceHints: ["taquiza", "parrillada tacos"],
+    serviceHints: ["taquiza"],
     aliases: [
       "taquiza",
       "tacos",
       "tacos de guisado",
+      "tacos de guisados",
       "taquiza para evento",
       "puesto de tacos",
       "tacos al pastor",
@@ -640,9 +644,58 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
       "estación de tacos",
       "barra de tacos",
       "guisados",
-      "parrillada tacos",
     ],
-    excludeIf: ["parrillada argentina", "asado argentino"],
+    excludeIf: [
+      "parrillada tacos",
+      "parrillada de tacos",
+      "parrillada argentina",
+      "asado argentino",
+    ],
+  },
+  {
+    key: "parrillada_tacos",
+    serviceHints: ["parrillada tacos"],
+    aliases: [
+      "parrillada tacos",
+      "parrillada de tacos",
+      "tacos a la parrilla",
+      "tacos parrillada",
+      "estacion de tacos a la parrilla",
+      "estación de tacos a la parrilla",
+    ],
+    excludeIf: ["parrillada argentina", "asado argentino", "argentina"],
+  },
+  {
+    key: "entelados_techo",
+    serviceHints: ["entelados para techo", "entelado", "entelados"],
+    aliases: [
+      "entelados",
+      "entelado",
+      "entelado para techo",
+      "entelados para techo",
+      "tela en techo",
+      "tela de techo",
+      "telas para techo",
+      "tela para techo",
+      "techo entelado",
+      "entelado de techo",
+    ],
+    excludeIf: ["colgante", "colgantes"],
+  },
+  {
+    key: "colgantes_premium",
+    serviceHints: ["colgantes premium", "colgantes"],
+    aliases: [
+      "colgantes",
+      "colgante",
+      "colgantes premium",
+      "decoracion colgante",
+      "decoración colgante",
+      "estructuras colgantes",
+      "flores colgantes",
+      "wisteria",
+    ],
+    excludeIf: ["entelado", "entelados", "tela en techo", "tela de techo"],
   },
   {
     key: "pozole_tostadas",
@@ -885,6 +938,10 @@ const FAMILY_DISPLAY: Record<string, { label: string; complements: string[] }> =
     label: "Taquiza",
     complements: ["Barras de bebidas", "Mobiliario"],
   },
+  parrillada_tacos: {
+    label: "Parrillada Tacos",
+    complements: ["Barras de bebidas", "Mobiliario"],
+  },
   paella: {
     label: "Paella",
     complements: ["Barras de bebidas", "Mobiliario"],
@@ -896,6 +953,14 @@ const FAMILY_DISPLAY: Record<string, { label: string; complements: string[] }> =
   banquete_navideno: {
     label: "Banquete Navideño",
     complements: ["Barras de bebidas", "Mobiliario", "Mesa de dulces"],
+  },
+  entelados_techo: {
+    label: "Entelados para Techo",
+    complements: ["Colgantes Premium", "Iluminación"],
+  },
+  colgantes_premium: {
+    label: "Colgantes Premium",
+    complements: ["Entelados para Techo", "Iluminación"],
   },
 };
 
@@ -916,12 +981,15 @@ export function resolveServiceFocusFromText(text: string | null | undefined): {
   // Prefer food-event families over generic banquet when the query is a food-event word.
   const preferredOrder = [
     "pozole_tostadas",
+    "parrillada_tacos",
     "taquiza",
     "paella",
     "parrillada_argentina",
     "banquete_navideno",
     "barra_americana",
     "barra_sushi",
+    "entelados_techo",
+    "colgantes_premium",
   ];
   const familyKey =
     preferredOrder.find((k) => expanded.familyKeys.includes(k)) ?? expanded.familyKeys[0]!;

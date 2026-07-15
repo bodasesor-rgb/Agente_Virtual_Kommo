@@ -35,6 +35,7 @@ import {
   registerSheetSynonyms,
   loadSinonimosJson,
   resolveServiceFocusFromText,
+  synonymScoreForService,
 } from "./serviceSynonyms.js";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
@@ -1010,7 +1011,10 @@ export function formatServiceDataForPrompt(query: string): string | null {
     const inclusion = parsed.inclusion
       ? `Incluye: ${parsed.inclusion}`
       : "Incluye: (vacío en catálogo — equipo confirma en cotización)";
-    return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}`;
+    const link = row.linkCatalogo
+      ? ` | Link catálogo (SOLO si lo piden): ${row.linkCatalogo}`
+      : "";
+    return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}${link}`;
   });
 
   return [
@@ -1372,4 +1376,181 @@ export function injectCatalogPriceIfAsked(
   }
 
   return aiResponse;
+}
+
+/** Hub general de catálogos web (no PDF Shopify). */
+export const CATALOG_WEB_HUB_URL = "https://bodasesor.com/catalogos";
+
+const BODASESOR_CATALOG_WEB_URL =
+  /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]+)?\/?(?:[?#].*)?$/i;
+
+export function isBodasesorCatalogWebUrl(url: string | null | undefined): boolean {
+  return !!url?.trim() && BODASESOR_CATALOG_WEB_URL.test(url.trim());
+}
+
+/** Extrae link web válido de la fila (columna o legacy en notas). Nunca inventa slug. */
+export function getRowCatalogWebLink(row: SheetCatalogRow): string | null {
+  const direct = row.linkCatalogo?.trim();
+  if (isBodasesorCatalogWebUrl(direct)) return direct!.replace(/\/+$/, "");
+  const fromNotes = parseRowNotes(row.notas).gammaLink?.trim();
+  if (isBodasesorCatalogWebUrl(fromNotes)) return fromNotes!.replace(/\/+$/, "");
+  return null;
+}
+
+export type CatalogWebLinkMatch = {
+  url: string | null;
+  serviceName: string | null;
+  kind: "service" | "hub" | "missing";
+};
+
+function scoreServiceForWebLink(query: string, row: SheetCatalogRow): number {
+  const nq = normalizeForMatch(query);
+  const ns = normalizeForMatch(row.servicio);
+  let score = synonymScoreForService(query, row.servicio, row.sinonimos);
+
+  if (!nq || !ns) return score;
+  if (nq === ns) score += 80;
+  else if (nq.includes(ns) || ns.includes(nq)) score += 45;
+
+  const svcTokens = ns.split(/\s+/).filter((t) => t.length >= 4);
+  const hitTokens = svcTokens.filter((t) => nq.includes(t));
+  score += hitTokens.length * 8;
+
+  // Distinciones críticas
+  if (/\bcolgante/.test(nq) && /entelado|tela/.test(ns)) score -= 60;
+  if (/\bentelad|tela\s+(en\s+)?techo/.test(nq) && /colgante/.test(ns)) score -= 60;
+  if (/\btaquiza\b/.test(nq) && /parrillada\s+tacos/.test(ns)) score -= 40;
+  if (/parrillada\s+tacos/.test(nq) && /^taquiza$/.test(ns)) score -= 40;
+  if (/\bargentina\b/.test(nq) && /parrillada\s+tacos/.test(ns)) score -= 30;
+
+  return score;
+}
+
+/**
+ * Resuelve UN link de catálogo web desde el Sheet para el servicio pedido.
+ * No construye URLs a partir de slugs hardcodeados.
+ */
+export function resolveCatalogWebLink(
+  query: string,
+  opts?: { preferHub?: boolean }
+): CatalogWebLinkMatch {
+  if (opts?.preferHub) {
+    return { url: CATALOG_WEB_HUB_URL, serviceName: null, kind: "hub" };
+  }
+
+  const trimmed = query?.trim() ?? "";
+  if (!trimmed || !snapshot?.rows.length) {
+    return { url: null, serviceName: null, kind: "missing" };
+  }
+
+  const byService = new Map<string, SheetCatalogRow>();
+  for (const row of snapshot.rows) {
+    const key = row.servicio.trim();
+    if (!key) continue;
+    const existing = byService.get(key);
+    if (!existing) {
+      byService.set(key, row);
+      continue;
+    }
+    if (!getRowCatalogWebLink(existing) && getRowCatalogWebLink(row)) {
+      byService.set(key, row);
+    }
+  }
+
+  const scored = [...byService.values()]
+    .map((row) => ({ row, score: scoreServiceForWebLink(trimmed, row) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  if (!scored.length) {
+    const resolved = resolveCatalogQuery(trimmed);
+    if (resolved && resolved.kind !== "category") {
+      for (const row of resolved.rows) {
+        const url = getRowCatalogWebLink(row);
+        if (url) {
+          return { url, serviceName: row.servicio, kind: "service" };
+        }
+      }
+      const name = resolved.serviceName ?? resolved.rows[0]?.servicio ?? null;
+      return { url: null, serviceName: name, kind: "missing" };
+    }
+    return { url: null, serviceName: null, kind: "missing" };
+  }
+
+  const best = scored[0]!;
+  if (best.score < 14) {
+    return { url: null, serviceName: null, kind: "missing" };
+  }
+
+  const url = getRowCatalogWebLink(best.row);
+  if (url) {
+    return { url, serviceName: best.row.servicio, kind: "service" };
+  }
+  return { url: null, serviceName: best.row.servicio, kind: "missing" };
+}
+
+/** Construye el mensaje WhatsApp con el link web (o fallback sin URL rota). */
+export function buildCatalogWebLinkReply(opts: {
+  query: string;
+  wantFull?: boolean;
+  serviceHint?: string | null;
+}): string {
+  if (opts.wantFull) {
+    return [
+      "Claro. Aquí tienes el catálogo general con todos los servicios:",
+      CATALOG_WEB_HUB_URL,
+      "",
+      "Si luego quieres el de un servicio en concreto, dímelo y te mando ese link.",
+    ].join("\n");
+  }
+
+  const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
+  const match = resolveCatalogWebLink(query);
+
+  if (match.kind === "service" && match.url) {
+    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
+    return [
+      `Claro, aquí tienes el catálogo${label}:`,
+      match.url,
+      "",
+      "Si quieres el de otro servicio, dímelo y te mando ese.",
+    ].join("\n");
+  }
+
+  if (match.serviceName) {
+    return [
+      `Para *${match.serviceName}* aún no tengo el link web en el catálogo vivo.`,
+      `Te dejo el índice general mientras el equipo te comparte el detalle:`,
+      CATALOG_WEB_HUB_URL,
+    ].join("\n");
+  }
+
+  return [
+    "Con gusto te paso el catálogo. ¿De qué servicio lo quieres, o te mando el general?",
+    CATALOG_WEB_HUB_URL,
+  ].join("\n");
+}
+
+/** Quita links bodasesor.com/catalogos si el cliente NO los pidió (evita spam). */
+export function stripUnsolicitedCatalogWebLinks(text: string, clientAsked: boolean): string {
+  if (!text || clientAsked) return text;
+  if (!/bodasesor\.com\/catalogos/i.test(text)) return text;
+  return text
+    .replace(
+      /https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
+      ""
+    )
+    .replace(/[ \t]*\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+/** Pregunta opt-in típica tras ofrecer un servicio. */
+export const CATALOG_OFFER_QUESTION = "¿Quieres que te mande el catálogo con más detalle?";
+
+export function messageOffersCatalogLink(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(
+    text
+  );
 }

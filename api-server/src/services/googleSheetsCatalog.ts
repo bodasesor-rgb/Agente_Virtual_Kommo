@@ -15,6 +15,11 @@ export interface SheetCatalogRow {
   tienePrecio: boolean;
   /** Columna opcional Sinónimos/Sinonimos del Sheet. */
   sinonimos?: string;
+  /**
+   * URL web del catálogo del servicio (columna "Link catálogo").
+   * Fuente viva del Sheet — no hardcodear slugs en código.
+   */
+  linkCatalogo?: string;
 }
 
 export interface SheetCatalogResult {
@@ -294,9 +299,12 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
       const min = (line[precioMinimoCol] ?? "").trim();
       if (min) notasParts.push(`Mínimo de salida: ${min}`);
     }
+    let linkCatalogo: string | undefined;
     if (linkCatalogoCol !== null) {
       const link = (line[linkCatalogoCol] ?? "").trim();
-      if (link) notasParts.push(`Catálogo: ${link}`);
+      if (link && /^https?:\/\//i.test(link)) {
+        linkCatalogo = link;
+      }
     }
     if (extrasCol !== null) {
       const extras = (line[extrasCol] ?? "").trim();
@@ -315,6 +323,7 @@ export function parseSheetCatalogCsv(csvText: string): SheetCatalogRow[] {
       notas: notasParts.join(" | "),
       tienePrecio,
       sinonimos: get("sinonimos") || undefined,
+      linkCatalogo,
     });
   }
 
@@ -337,6 +346,7 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     "",
     "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vacío → el equipo confirma en cotización. NUNCA inventes bebidas, platillos ni marcas.",
+    "REGLA LINK WEB: Si una fila trae Link catálogo (bodasesor.com/catalogos/…), SOLO envíalo cuando el cliente lo pida. Un link a la vez. No inventes URLs.",
     "",
   ];
 
@@ -365,6 +375,9 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
             .join(" | ");
           if (clientNotes) lines.push(`  Incluye: ${clientNotes}`);
         }
+        if (item.linkCatalogo) {
+          lines.push(`  Link catálogo (solo si lo piden): ${item.linkCatalogo}`);
+        }
       } else {
         lines.push(`• **${svc}** (${levels.length} niveles)`);
         for (const item of levels.slice(0, 6)) {
@@ -374,6 +387,8 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
             lines.push(`  - ${label}: ${item.precio}${unit}`);
           }
         }
+        const link = levels.find((l) => l.linkCatalogo)?.linkCatalogo;
+        if (link) lines.push(`  Link catálogo (solo si lo piden): ${link}`);
       }
     }
     lines.push("");
@@ -385,6 +400,7 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
 export interface ParsedRowNotes {
   inclusion: string;
   minimo: string;
+  /** Legacy: URL en notas "Catálogo: …" (hoy suele ser link web, no Gamma). */
   gammaLink: string;
   extras: string;
 }

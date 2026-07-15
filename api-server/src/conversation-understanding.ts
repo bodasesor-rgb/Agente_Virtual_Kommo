@@ -512,6 +512,66 @@ export function clientAsksPhone(message?: string): boolean {
   );
 }
 
+/**
+ * Cliente pide el catálogo web (link bodasesor.com/catalogos/…).
+ * No confundir con "qué incluye" ni con pedir precio.
+ */
+export function clientAsksForCatalog(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (
+    /\b(manda|env[ií]a|pasa|comparte|m[aá]ndame|env[ií]ame|pasame|pásame|quiero|necesito|dame)\b.{0,40}\bcat[aá]logo/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  if (/\bel\s+cat[aá]logo\s+(de|con|completo|general|web)/i.test(t)) return true;
+  if (/\bcat[aá]logo\s+(de|web|completo|general)\b/i.test(t)) return true;
+  if (/\blink\s+(del\s+)?cat[aá]logo/i.test(t)) return true;
+  if (/bodasesor\.com\/catalogos/i.test(t)) return true;
+  // "mándame el de la barra de pizzas" / "pásame el de colgantes"
+  if (
+    /\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame|dame)\s+el\s+(de|del)\b/i.test(t) ||
+    /\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+el\s+link\b/i.test(t)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Cliente quiere el catálogo general / todos los servicios. */
+export function clientWantsFullCatalog(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (/\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+todo\b/i.test(t)) return true;
+  if (/\bcat[aá]logo\s+(completo|general|todo|todos)\b/i.test(t)) return true;
+  if (/\b(todo|todos)\s+(el\s+)?cat[aá]logo/i.test(t)) return true;
+  if (/\bno\s+s[eé]\s+cu[aá]l\b/i.test(t) && /\bcat[aá]logo/i.test(t)) return true;
+  if (/\bindeciso|todas\s+las\s+opciones/i.test(t) && /\bcat[aá]logo/i.test(t)) return true;
+  return false;
+}
+
+/** Lucy ofreció mandar el catálogo y el cliente acepta con un sí corto. */
+export function clientAffirmsCatalogOffer(
+  message: string | undefined,
+  lastAssistantText: string | null | undefined
+): boolean {
+  if (!message?.trim() || !lastAssistantText?.trim()) return false;
+  if (
+    !/cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(
+      lastAssistantText
+    )
+  ) {
+    return false;
+  }
+  const t = message.trim().toLowerCase();
+  if (clientAsksForCatalog(message)) return true;
+  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|mándame|env[ií]a|envíame)([.!?]|\s|$)/i.test(
+    t
+  );
+}
+
 /** Comparación directa banquete vs taquiza. */
 export function clientAsksBanqueteVsTaquiza(message?: string): boolean {
   if (!message?.trim()) return false;

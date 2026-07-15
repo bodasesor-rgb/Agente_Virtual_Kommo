@@ -45,6 +45,10 @@ import {
   catalogAnswerMatchesRequestedService,
   responseLooksLikeGenericCateringMenu,
   clientAsksInclusion,
+  buildCatalogWebLinkReply,
+  stripUnsolicitedCatalogWebLinks,
+  CATALOG_OFFER_QUESTION,
+  messageOffersCatalogLink,
 } from "./services/catalogService.js";
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
 import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
@@ -84,6 +88,9 @@ import {
   isVagueFoodTerm,
   isGettingReadyContext,
   parseWebLeadBrief,
+  clientAsksForCatalog,
+  clientWantsFullCatalog,
+  clientAffirmsCatalogOffer,
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
@@ -757,7 +764,8 @@ function buildFoodSalesReply(
       const intro = mentionedService
         ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
         : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
-      return appendNext(`${intro}\n\n${detail}`, serviceLabel);
+      // Tras explicar: ofrecer el link web solo si el cliente lo pide.
+      return `${intro}\n\n${detail}\n\n${CATALOG_OFFER_QUESTION}`;
     }
 
     if (serviceLabel && currentMessage) {
@@ -2144,6 +2152,42 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente preguntó por correo de Bodasesor");
+  } else if (
+    clientAsksForCatalog(currentMessage) ||
+    clientAffirmsCatalogOffer(
+      currentMessage,
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+        ? (lastAssistantMsg.content as string)
+        : null
+    )
+  ) {
+    const wantFull = clientWantsFullCatalog(currentMessage);
+    const hintParts: string[] = [];
+    if (extracted.requerimientos_evento?.trim()) hintParts.push(extracted.requerimientos_evento);
+    if (mentionedServiceNow) hintParts.push(mentionedServiceNow);
+    if (
+      lastAssistantMsg &&
+      typeof lastAssistantMsg.content === "string" &&
+      messageOffersCatalogLink(lastAssistantMsg.content as string)
+    ) {
+      hintParts.push(lastAssistantMsg.content as string);
+    }
+    const historyHint = [
+      ...presHistory
+        .filter((m) => m.role === "user" && typeof m.content === "string")
+        .slice(-4)
+        .map((m) => m.content as string),
+      currentMessage ?? "",
+    ]
+      .join(" ")
+      .trim();
+    mensaje = buildCatalogWebLinkReply({
+      query: wantFull ? "catálogo general" : historyHint || (currentMessage ?? ""),
+      wantFull,
+      serviceHint: hintParts.join(" ") || null,
+    });
+    appliedDirectReply = true;
+    log?.info({ entityId, wantFull }, "GUARD: cliente pidió catálogo web — link del Sheet");
   } else if (isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     mensaje = "¿Te refieres a 5 invitados o al día 5 del mes?";
     appliedDirectReply = true;
@@ -3000,6 +3044,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = dedupeTransitionsInMessage(mensaje);
+
+  const clientWantedCatalog =
+    clientAsksForCatalog(currentMessage) ||
+    clientAffirmsCatalogOffer(
+      currentMessage,
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+        ? (lastAssistantMsg.content as string)
+        : null
+    );
+  mensaje = stripUnsolicitedCatalogWebLinks(mensaje, clientWantedCatalog);
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }

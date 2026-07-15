@@ -10,9 +10,13 @@
       "pozole blanco",
       "tostadas"
     ],
-    "Taquiza": ["taquizas", "tacos para evento", "barra de tacos"],
+    "Taquiza": ["taquizas", "tacos para evento", "barra de tacos", "tacos de guisados"],
+    "Parrillada Tacos": ["parrillada de tacos", "tacos a la parrilla"],
     "Paella": ["paellada", "paella para evento"],
     "Parrillada Argentina": ["asado", "carne asada", "parrillada", "asador"],
-    "Banquete Navideño": ["posada", "cena navideña", "cena navideña", "navidad"]
+    "Banquete Navideño": ["posada", "cena navideña", "cena navideña", "navidad"],
+    "Cupcakes": ["cupcakes y betún", "betún", "betunes"],
+    "Entelados para Techo": ["entelados", "entelado", "tela en techo", "tela de techo"],
+    "Colgantes Premium": ["colgantes", "colgante", "wisteria", "estructuras colgantes"]
   }
 }
