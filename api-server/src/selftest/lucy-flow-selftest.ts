@@ -192,7 +192,11 @@ function mockClosing(servicios: string | null | undefined, clientName?: string |
     advisor === "nuestro equipo"
       ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
       : `Le paso estos datos a ${advisor} para que te arme una cotización personalizada.`;
-  return `Perfecto, ya tengo todo. ${handoff}\n\nMientras tanto, aquí está nuestro catálogo completo:\n${CATALOG_URL}\n\nServicios: ${servicios ?? "varios"}`;
+  const svc = servicios?.trim();
+  const complements = svc
+    ? `Por cierto, además de ${svc}, también armamos banquetes y barras de alimentos, mobiliario, DJ e iluminación — si quieres sumar alguno, dímelo.`
+    : `Por cierto, también armamos banquetes y barras de alimentos, mobiliario, DJ e iluminación — si quieres sumar alguno, dímelo.`;
+  return `Perfecto, ya tengo todo. ${handoff}\n\nMientras tanto, aquí está nuestro catálogo completo:\n${CATALOG_URL}\n\n${complements}\n\n¿Te gustaría cotizar algo adicional o tienes alguna duda?`;
 }
 
 function runGuards(opts: {
@@ -564,7 +568,9 @@ async function runAll(): Promise<void> {
       currentMessage: "Hola, me gustaría cotizar una pista de baile o tarima para mi evento",
       history: [],
     });
-    assert.ok(/pista|tarima|iluminada|tamaño/i.test(reply), reply.slice(0, 200));
+    assert.ok(/pista|tarima|iluminada|tamaño|anoto/i.test(reply), reply.slice(0, 200));
+    // NIVEL 2: no volver a volcar el menú de "¿otro servicio?".
+    assert.ok(!/alg[uú]n\s+otro\s+servicio|qu[eé]\s+otros\s+servicios/i.test(reply), reply);
   });
 
   await test("15. Fer A14756 — 6m x 12m NO es ubicación", () => {
@@ -2510,6 +2516,55 @@ async function runAll(): Promise<void> {
       guardAffirm.includes("/catalogos/colgantes-premium"),
       guardAffirm
     );
+
+  });
+
+  await test("56. Tarima sin precio — aceptar-anotar-avanzar (no menú)", () => {
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+    ]);
+    const reply = runGuards({
+      aiResponse:
+        "Claro. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ… ¿Qué otros servicios te gustaría?",
+      extracted: emptyExtracted({
+        nombre: "Fer",
+        correo: "fer@test.com",
+        tipo_evento: "cumpleaños",
+      }),
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Quiero la renta de una tarima / pista de 4 x 4",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Platícame qué necesitas. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ, iluminación y más.",
+        },
+      ],
+    });
+    assert.ok(/tarima|pista|anoto|cotizaci[oó]n/i.test(reply), reply.slice(0, 300));
+    assert.ok(
+      !/alg[uú]n\s+otro\s+servicio|qu[eé]\s+otros\s+servicios|manejamos alimentos y barras.{0,40}dj/i.test(
+        reply
+      ),
+      reply.slice(0, 400)
+    );
+    // Debe avanzar a un dato pendiente (invitados/zona/fecha…), no quedarse en menú.
+    assert.ok(
+      /invitados|personas|ciudad|colonia|sal[oó]n|fecha|horario|presupuesto/i.test(reply),
+      reply.slice(0, 400)
+    );
+  });
+
+  await test("57. Cierre menciona complementos (alimentos, DJ, mobiliario)", () => {
+    const close = mockClosing("renta de tarima/pista 4x4", "Ana");
+    assert.ok(/banquetes|alimentos/i.test(close), close);
+    assert.ok(/\bDJ\b/i.test(close), close);
+    assert.ok(/mobiliario/i.test(close), close);
+    assert.ok(/tarima|pista/i.test(close), close);
+    assert.ok(!/Si más adelante quieres sumar algo además/i.test(close), close);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

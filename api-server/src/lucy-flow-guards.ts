@@ -134,6 +134,22 @@ export function mensajeMencionaCatalogoServicios(mensaje: string): boolean {
   );
 }
 
+/** Lista genérica de servicios / "¿otro servicio?" — para cortar el bucle anti-menú. */
+export function looksLikeServicesMenuDump(text: string): boolean {
+  if (!text?.trim()) return false;
+  const t = text.toLowerCase();
+  if (/alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios/i.test(t)) return true;
+  if (/tambi[eé]n\s+manejamos\s+(bebidas|alimentos|mobiliario|dj)/i.test(t)) return true;
+  if (
+    /manejamos\s+(alimentos|bebidas|mobiliario|pistas?|banquetes?).{0,80}(dj|iluminaci|carpas?|pantallas?)/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
 function appendServiciosCatalogoHint(pregunta: string, adicional = false): string {
   if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
   const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
@@ -536,16 +552,29 @@ function buildPistaTarimaSalesReply(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   currentMessage?: string,
-  entityId?: string | number
+  entityId?: string | number,
+  filledSet?: Set<string>,
+  ctx?: NaturalQuestionContext
 ): string {
   const dims =
     parseSpaceDimensions(currentMessage ?? "") ||
     (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const spaceNote = dims ? ` Veo que el espacio es de unos ${dims.replace(/m/g, " metros")} — con eso podemos recomendar el tamaño ideal.` : "";
-  const intro =
-    "Manejamos pistas de baile y tarimas en varios tamaños: tarima básica, pista iluminada, y combinaciones con DJ o iluminación.";
-  const follow = pickVariant("requerimientos", history, entityId);
-  return `${intro}${spaceNote} ${follow}`.trim();
+  const spaceNote = dims
+    ? ` Con unos ${dims.replace(/m/gi, " m")} podemos proponer el tamaño ideal.`
+    : "";
+  // NIVEL 2: aceptar + anotar + avanzar (sin precio en Sheet). NO volver a preguntar "¿otro servicio?".
+  const intro = dims
+    ? `Claro, anoto la pista/tarima para tu cotización.${spaceNote} El equipo te confirma el precio según las medidas.`
+    : `Claro, anoto la pista de baile o tarima para tu cotización. Hay varios tamaños (incluye opción iluminada); el equipo te confirma el precio.`;
+
+  const filledAfter = new Set(filledSet ?? []);
+  filledAfter.add("Requerimientos o servicios");
+  const pending = getNextPendingField(extracted, filledAfter);
+  if (pending && pending !== "requerimientos" && ctx) {
+    const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+    return `${pickTransition(history)} ${intro}\n\n${nextQ}`.trim();
+  }
+  return `${pickTransition(history)} ${intro}`.trim();
 }
 
 function buildEntertainmentSalesReply(
@@ -2409,9 +2438,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento — orientación de venta");
   } else if (allowSalesReplyOverride && clientMentionsPistaTarima(currentMessage)) {
-    mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
+    mensaje = buildPistaTarimaSalesReply(
+      extracted,
+      history,
+      currentMessage,
+      entityId,
+      filledSet,
+      ctx
+    );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: pista/tarima — orientación de venta");
+    log?.info({ entityId }, "GUARD: pista/tarima — aceptar, anotar y avanzar");
   } else if (
     allowSalesReplyOverride &&
     !serviceAlreadyCaptured &&
@@ -2985,22 +3021,39 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     (m) =>
       m.role === "assistant" &&
       typeof m.content === "string" &&
-      responseLooksLikeGenericCateringMenu(m.content as string)
+      (responseLooksLikeGenericCateringMenu(m.content as string) ||
+        looksLikeServicesMenuDump(m.content as string))
   );
   if (
-    responseLooksLikeGenericCateringMenu(mensaje) &&
-    historyHadGenericMenu &&
+    (responseLooksLikeGenericCateringMenu(mensaje) || looksLikeServicesMenuDump(mensaje)) &&
+    (historyHadGenericMenu || clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage)) &&
     currentMessage?.trim()
   ) {
-    const detail = buildCatalogServiceDetailAnswer(currentMessage);
-    if (detail) {
-      mensaje = detail;
-      log?.info({ entityId }, "GUARD: menú genérico repetido — detalle del Sheet");
+    // Servicio concreto sin precio en Sheet (pista, DJ, etc.) → aceptar-anotar-avanzar, no otro menú.
+    if (
+      clientMentionsPistaTarima(currentMessage) ||
+      mentionsNoListedPriceService(currentMessage)
+    ) {
+      const ack = buildGuardServiceAck(currentMessage);
+      const filledAfter = new Set(filledSet);
+      filledAfter.add("Requerimientos o servicios");
+      const pending = getNextPendingField(extracted, filledAfter);
+      mensaje =
+        pending && pending !== "requerimientos"
+          ? `${ack}\n\n${buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter })}`
+          : ack;
+      log?.info({ entityId }, "GUARD: servicio sin precio — aceptar y avanzar (anti-menú)");
     } else {
-      const pending = getNextPendingField(extracted, filledSet);
-      if (pending) {
-        mensaje = buildNaturalQuestion(pending, ctx);
-        log?.info({ entityId }, "GUARD: menú genérico repetido — avanzar flujo");
+      const detail = buildCatalogServiceDetailAnswer(currentMessage);
+      if (detail) {
+        mensaje = detail;
+        log?.info({ entityId }, "GUARD: menú genérico repetido — detalle del Sheet");
+      } else {
+        const pending = getNextPendingField(extracted, filledSet);
+        if (pending) {
+          mensaje = buildNaturalQuestion(pending, ctx);
+          log?.info({ entityId }, "GUARD: menú genérico repetido — avanzar flujo");
+        }
       }
     }
   }
@@ -3033,8 +3086,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  // Quitar bloque enlatado de cierre si el modelo lo inventó.
-  if (/tambi[eé]n manejamos bebidas,?\s*DJ,?\s*iluminaci/i.test(mensaje)) {
+  // Quitar bloque enlatado VIEJO de cierre si el modelo lo inventó (lista robótica).
+  // Permitimos la mención natural de alimentos/mobiliario/DJ en buildClosing.
+  if (
+    /tambi[eé]n manejamos bebidas,?\s*DJ,?\s*iluminaci[oó]n,?\s*carpas,?\s*pantallas/i.test(mensaje)
+  ) {
     mensaje = mensaje
       .replace(/Por cierto,?[^.]*bebidas[^.]*\./gi, "")
       .replace(/tambi[eé]n manejamos bebidas[^.]*\./gi, "")

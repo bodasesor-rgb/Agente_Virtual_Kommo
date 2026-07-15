@@ -13978,6 +13978,18 @@ function mensajeMencionaCatalogoServicios(mensaje) {
     mensaje
   );
 }
+function looksLikeServicesMenuDump(text) {
+  if (!text?.trim()) return false;
+  const t = text.toLowerCase();
+  if (/alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios/i.test(t)) return true;
+  if (/tambi[eé]n\s+manejamos\s+(bebidas|alimentos|mobiliario|dj)/i.test(t)) return true;
+  if (/manejamos\s+(alimentos|bebidas|mobiliario|pistas?|banquetes?).{0,80}(dj|iluminaci|carpas?|pantallas?)/i.test(
+    t
+  )) {
+    return true;
+  }
+  return false;
+}
 function appendServiciosCatalogoHint(pregunta, adicional = false) {
   if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
   const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
@@ -14209,12 +14221,20 @@ function buildItalianFoodPitch(message) {
   if (inv) pitch += ` para ${inv[1]} personas`;
   return `${pitch}.`;
 }
-function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId) {
+function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId, filledSet, ctx) {
   const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const spaceNote = dims ? ` Veo que el espacio es de unos ${dims.replace(/m/g, " metros")} \u2014 con eso podemos recomendar el tama\xF1o ideal.` : "";
-  const intro = "Manejamos pistas de baile y tarimas en varios tama\xF1os: tarima b\xE1sica, pista iluminada, y combinaciones con DJ o iluminaci\xF3n.";
-  const follow = pickVariant("requerimientos", history, entityId);
-  return `${intro}${spaceNote} ${follow}`.trim();
+  const spaceNote = dims ? ` Con unos ${dims.replace(/m/gi, " m")} podemos proponer el tama\xF1o ideal.` : "";
+  const intro = dims ? `Claro, anoto la pista/tarima para tu cotizaci\xF3n.${spaceNote} El equipo te confirma el precio seg\xFAn las medidas.` : `Claro, anoto la pista de baile o tarima para tu cotizaci\xF3n. Hay varios tama\xF1os (incluye opci\xF3n iluminada); el equipo te confirma el precio.`;
+  const filledAfter = new Set(filledSet ?? []);
+  filledAfter.add("Requerimientos o servicios");
+  const pending = getNextPendingField(extracted, filledAfter);
+  if (pending && pending !== "requerimientos" && ctx) {
+    const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+    return `${pickTransition(history)} ${intro}
+
+${nextQ}`.trim();
+  }
+  return `${pickTransition(history)} ${intro}`.trim();
 }
 function buildEntertainmentSalesReply(extracted, history, entityId, currentMessage) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
@@ -15342,9 +15362,16 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 orientaci\xF3n de venta");
   } else if (allowSalesReplyOverride && clientMentionsPistaTarima(currentMessage)) {
-    mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
+    mensaje = buildPistaTarimaSalesReply(
+      extracted,
+      history,
+      currentMessage,
+      entityId,
+      filledSet,
+      ctx
+    );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
+    log?.info({ entityId }, "GUARD: pista/tarima \u2014 aceptar, anotar y avanzar");
   } else if (allowSalesReplyOverride && !serviceAlreadyCaptured && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
@@ -15792,18 +15819,29 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
   }
   mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
   const historyHadGenericMenu = presHistory.some(
-    (m) => m.role === "assistant" && typeof m.content === "string" && responseLooksLikeGenericCateringMenu(m.content)
+    (m) => m.role === "assistant" && typeof m.content === "string" && (responseLooksLikeGenericCateringMenu(m.content) || looksLikeServicesMenuDump(m.content))
   );
-  if (responseLooksLikeGenericCateringMenu(mensaje) && historyHadGenericMenu && currentMessage?.trim()) {
-    const detail = buildCatalogServiceDetailAnswer(currentMessage);
-    if (detail) {
-      mensaje = detail;
-      log?.info({ entityId }, "GUARD: men\xFA gen\xE9rico repetido \u2014 detalle del Sheet");
+  if ((responseLooksLikeGenericCateringMenu(mensaje) || looksLikeServicesMenuDump(mensaje)) && (historyHadGenericMenu || clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage)) && currentMessage?.trim()) {
+    if (clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage)) {
+      const ack = buildGuardServiceAck(currentMessage);
+      const filledAfter = new Set(filledSet);
+      filledAfter.add("Requerimientos o servicios");
+      const pending = getNextPendingField(extracted, filledAfter);
+      mensaje = pending && pending !== "requerimientos" ? `${ack}
+
+${buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter })}` : ack;
+      log?.info({ entityId }, "GUARD: servicio sin precio \u2014 aceptar y avanzar (anti-men\xFA)");
     } else {
-      const pending = getNextPendingField(extracted, filledSet);
-      if (pending) {
-        mensaje = buildNaturalQuestion(pending, ctx);
-        log?.info({ entityId }, "GUARD: men\xFA gen\xE9rico repetido \u2014 avanzar flujo");
+      const detail = buildCatalogServiceDetailAnswer(currentMessage);
+      if (detail) {
+        mensaje = detail;
+        log?.info({ entityId }, "GUARD: men\xFA gen\xE9rico repetido \u2014 detalle del Sheet");
+      } else {
+        const pending = getNextPendingField(extracted, filledSet);
+        if (pending) {
+          mensaje = buildNaturalQuestion(pending, ctx);
+          log?.info({ entityId }, "GUARD: men\xFA gen\xE9rico repetido \u2014 avanzar flujo");
+        }
       }
     }
   }
@@ -15829,7 +15867,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId }, "GUARD: presupuesto_resuelto \u2014 no re-preguntar");
     }
   }
-  if (/tambi[eé]n manejamos bebidas,?\s*DJ,?\s*iluminaci/i.test(mensaje)) {
+  if (/tambi[eé]n manejamos bebidas,?\s*DJ,?\s*iluminaci[oó]n,?\s*carpas,?\s*pantallas/i.test(mensaje)) {
     mensaje = mensaje.replace(/Por cierto,?[^.]*bebidas[^.]*\./gi, "").replace(/tambi[eé]n manejamos bebidas[^.]*\./gi, "").replace(/\n{3,}/g, "\n\n").trim();
     log?.info({ entityId }, "GUARD: quit\xF3 bloque gen\xE9rico fijo del cierre");
   }
@@ -16126,12 +16164,16 @@ function emptyExtracted(overrides = {}) {
 function mockClosing(servicios, clientName) {
   const advisor = advisorLabelForClient(clientName);
   const handoff = advisor === "nuestro equipo" ? "Le paso estos datos a nuestro equipo para que te arme una cotizaci\xF3n personalizada." : `Le paso estos datos a ${advisor} para que te arme una cotizaci\xF3n personalizada.`;
+  const svc = servicios?.trim();
+  const complements = svc ? `Por cierto, adem\xE1s de ${svc}, tambi\xE9n armamos banquetes y barras de alimentos, mobiliario, DJ e iluminaci\xF3n \u2014 si quieres sumar alguno, d\xEDmelo.` : `Por cierto, tambi\xE9n armamos banquetes y barras de alimentos, mobiliario, DJ e iluminaci\xF3n \u2014 si quieres sumar alguno, d\xEDmelo.`;
   return `Perfecto, ya tengo todo. ${handoff}
 
 Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
 ${CATALOG_URL}
 
-Servicios: ${servicios ?? "varios"}`;
+${complements}
+
+\xBFTe gustar\xEDa cotizar algo adicional o tienes alguna duda?`;
 }
 function runGuards(opts) {
   return applyLucyMessageGuards({
@@ -16456,7 +16498,8 @@ async function runAll() {
       currentMessage: "Hola, me gustar\xEDa cotizar una pista de baile o tarima para mi evento",
       history: []
     });
-    assert.ok(/pista|tarima|iluminada|tamaño/i.test(reply), reply.slice(0, 200));
+    assert.ok(/pista|tarima|iluminada|tamaño|anoto/i.test(reply), reply.slice(0, 200));
+    assert.ok(!/alg[uú]n\s+otro\s+servicio|qu[eé]\s+otros\s+servicios/i.test(reply), reply);
   });
   await test("15. Fer A14756 \u2014 6m x 12m NO es ubicaci\xF3n", () => {
     assert.ok(isDimensionText("Son 50 personas. El espacio es de 6 metros por 12"));
@@ -18154,6 +18197,49 @@ ${CATALOG_OFFER_QUESTION}`
       guardAffirm.includes("/catalogos/colgantes-premium"),
       guardAffirm
     );
+  });
+  await test("56. Tarima sin precio \u2014 aceptar-anotar-avanzar (no men\xFA)", () => {
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento"
+    ]);
+    const reply = runGuards({
+      aiResponse: "Claro. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ\u2026 \xBFQu\xE9 otros servicios te gustar\xEDa?",
+      extracted: emptyExtracted({
+        nombre: "Fer",
+        correo: "fer@test.com",
+        tipo_evento: "cumplea\xF1os"
+      }),
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Quiero la renta de una tarima / pista de 4 x 4",
+      history: [
+        {
+          role: "assistant",
+          content: "Plat\xEDcame qu\xE9 necesitas. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n y m\xE1s."
+        }
+      ]
+    });
+    assert.ok(/tarima|pista|anoto|cotizaci[oó]n/i.test(reply), reply.slice(0, 300));
+    assert.ok(
+      !/alg[uú]n\s+otro\s+servicio|qu[eé]\s+otros\s+servicios|manejamos alimentos y barras.{0,40}dj/i.test(
+        reply
+      ),
+      reply.slice(0, 400)
+    );
+    assert.ok(
+      /invitados|personas|ciudad|colonia|sal[oó]n|fecha|horario|presupuesto/i.test(reply),
+      reply.slice(0, 400)
+    );
+  });
+  await test("57. Cierre menciona complementos (alimentos, DJ, mobiliario)", () => {
+    const close = mockClosing("renta de tarima/pista 4x4", "Ana");
+    assert.ok(/banquetes|alimentos/i.test(close), close);
+    assert.ok(/\bDJ\b/i.test(close), close);
+    assert.ok(/mobiliario/i.test(close), close);
+    assert.ok(/tarima|pista/i.test(close), close);
+    assert.ok(!/Si más adelante quieres sumar algo además/i.test(close), close);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

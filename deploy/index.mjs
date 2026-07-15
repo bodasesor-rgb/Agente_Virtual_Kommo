@@ -83548,6 +83548,18 @@ function mensajeMencionaCatalogoServicios(mensaje) {
     mensaje
   );
 }
+function looksLikeServicesMenuDump(text2) {
+  if (!text2?.trim()) return false;
+  const t = text2.toLowerCase();
+  if (/alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios/i.test(t)) return true;
+  if (/tambi[eé]n\s+manejamos\s+(bebidas|alimentos|mobiliario|dj)/i.test(t)) return true;
+  if (/manejamos\s+(alimentos|bebidas|mobiliario|pistas?|banquetes?).{0,80}(dj|iluminaci|carpas?|pantallas?)/i.test(
+    t
+  )) {
+    return true;
+  }
+  return false;
+}
 function appendServiciosCatalogoHint(pregunta, adicional = false) {
   if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
   const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
@@ -83779,12 +83791,20 @@ function buildItalianFoodPitch(message) {
   if (inv) pitch += ` para ${inv[1]} personas`;
   return `${pitch}.`;
 }
-function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId) {
+function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId, filledSet, ctx) {
   const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const spaceNote = dims ? ` Veo que el espacio es de unos ${dims.replace(/m/g, " metros")} \u2014 con eso podemos recomendar el tama\xF1o ideal.` : "";
-  const intro = "Manejamos pistas de baile y tarimas en varios tama\xF1os: tarima b\xE1sica, pista iluminada, y combinaciones con DJ o iluminaci\xF3n.";
-  const follow = pickVariant("requerimientos", history, entityId);
-  return `${intro}${spaceNote} ${follow}`.trim();
+  const spaceNote = dims ? ` Con unos ${dims.replace(/m/gi, " m")} podemos proponer el tama\xF1o ideal.` : "";
+  const intro = dims ? `Claro, anoto la pista/tarima para tu cotizaci\xF3n.${spaceNote} El equipo te confirma el precio seg\xFAn las medidas.` : `Claro, anoto la pista de baile o tarima para tu cotizaci\xF3n. Hay varios tama\xF1os (incluye opci\xF3n iluminada); el equipo te confirma el precio.`;
+  const filledAfter = new Set(filledSet ?? []);
+  filledAfter.add("Requerimientos o servicios");
+  const pending = getNextPendingField(extracted, filledAfter);
+  if (pending && pending !== "requerimientos" && ctx) {
+    const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+    return `${pickTransition(history)} ${intro}
+
+${nextQ}`.trim();
+  }
+  return `${pickTransition(history)} ${intro}`.trim();
 }
 function buildEntertainmentSalesReply(extracted, history, entityId, currentMessage) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
@@ -84930,9 +84950,16 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 orientaci\xF3n de venta");
   } else if (allowSalesReplyOverride && clientMentionsPistaTarima(currentMessage)) {
-    mensaje = buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId);
+    mensaje = buildPistaTarimaSalesReply(
+      extracted,
+      history,
+      currentMessage,
+      entityId,
+      filledSet,
+      ctx
+    );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: pista/tarima \u2014 orientaci\xF3n de venta");
+    log?.info({ entityId }, "GUARD: pista/tarima \u2014 aceptar, anotar y avanzar");
   } else if (allowSalesReplyOverride && !serviceAlreadyCaptured && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
@@ -85380,18 +85407,29 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
   }
   mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
   const historyHadGenericMenu = presHistory.some(
-    (m4) => m4.role === "assistant" && typeof m4.content === "string" && responseLooksLikeGenericCateringMenu(m4.content)
+    (m4) => m4.role === "assistant" && typeof m4.content === "string" && (responseLooksLikeGenericCateringMenu(m4.content) || looksLikeServicesMenuDump(m4.content))
   );
-  if (responseLooksLikeGenericCateringMenu(mensaje) && historyHadGenericMenu && currentMessage?.trim()) {
-    const detail = buildCatalogServiceDetailAnswer(currentMessage);
-    if (detail) {
-      mensaje = detail;
-      log?.info({ entityId }, "GUARD: men\xFA gen\xE9rico repetido \u2014 detalle del Sheet");
+  if ((responseLooksLikeGenericCateringMenu(mensaje) || looksLikeServicesMenuDump(mensaje)) && (historyHadGenericMenu || clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage)) && currentMessage?.trim()) {
+    if (clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage)) {
+      const ack = buildGuardServiceAck(currentMessage);
+      const filledAfter = new Set(filledSet);
+      filledAfter.add("Requerimientos o servicios");
+      const pending = getNextPendingField(extracted, filledAfter);
+      mensaje = pending && pending !== "requerimientos" ? `${ack}
+
+${buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter })}` : ack;
+      log?.info({ entityId }, "GUARD: servicio sin precio \u2014 aceptar y avanzar (anti-men\xFA)");
     } else {
-      const pending = getNextPendingField(extracted, filledSet);
-      if (pending) {
-        mensaje = buildNaturalQuestion(pending, ctx);
-        log?.info({ entityId }, "GUARD: men\xFA gen\xE9rico repetido \u2014 avanzar flujo");
+      const detail = buildCatalogServiceDetailAnswer(currentMessage);
+      if (detail) {
+        mensaje = detail;
+        log?.info({ entityId }, "GUARD: men\xFA gen\xE9rico repetido \u2014 detalle del Sheet");
+      } else {
+        const pending = getNextPendingField(extracted, filledSet);
+        if (pending) {
+          mensaje = buildNaturalQuestion(pending, ctx);
+          log?.info({ entityId }, "GUARD: men\xFA gen\xE9rico repetido \u2014 avanzar flujo");
+        }
       }
     }
   }
@@ -85417,7 +85455,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId }, "GUARD: presupuesto_resuelto \u2014 no re-preguntar");
     }
   }
-  if (/tambi[eé]n manejamos bebidas,?\s*DJ,?\s*iluminaci/i.test(mensaje)) {
+  if (/tambi[eé]n manejamos bebidas,?\s*DJ,?\s*iluminaci[oó]n,?\s*carpas,?\s*pantallas/i.test(mensaje)) {
     mensaje = mensaje.replace(/Por cierto,?[^.]*bebidas[^.]*\./gi, "").replace(/tambi[eé]n manejamos bebidas[^.]*\./gi, "").replace(/\n{3,}/g, "\n\n").trim();
     log?.info({ entityId }, "GUARD: quit\xF3 bloque gen\xE9rico fijo del cierre");
   }
@@ -86467,21 +86505,21 @@ Contacto si lo piden: hola@bodasesor.com | 55 4008 0373 | @bodasesormx
 ===================================================================
 ## 8. CIERRE (una sola vez, cuando ESTADO est\xE9 completo)
 ===================================================================
-Texto obligatorio (solo reemplaza [LO QUE PIDI\xD3 EL CLIENTE]):
+Texto base (adapta el servicio del cliente):
 
 "Perfecto, ya tengo todo. Le paso estos datos a ${ADVISOR} para que te arme una cotizaci\xF3n personalizada.
 
 Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
 ${CATALOG_URL}
 
-Por cierto, si quieres, puedo sugerirte 1\u20132 complementos acordes a lo que pediste (seg\xFAn tu evento) \u2014 en palabras naturales, sin lista gen\xE9rica fija de DJ/carpas/pantallas.
-Si el cliente ya dijo que no quiere m\xE1s servicios, OMIT\xC9 esa parte.
+Por cierto, adem\xE1s de [lo que pedi\xF3], tambi\xE9n armamos banquetes y barras de alimentos, mobiliario, DJ e iluminaci\xF3n \u2014 si quieres sumar alguno, d\xEDmelo.
+Si el cliente ya dijo que no quiere m\xE1s servicios, OMIT\xC9 esa parte de complementos.
 
 \xBFTe gustar\xEDa cotizar algo adicional? Si te falta algo o tienes alguna duda, con gusto te ayudamos."
 
 Post-cierre: NO reinicies el flujo. "Gracias" / "m\xE1ndalo a mi correo" \u2192 confirma y agradece.
 NUNCA repitas el link del cat\xE1logo ni vuelvas a "\xBFqu\xE9 tienes pensado?".
-NUNCA sueltes el bloque enlatado "tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, pantallas\u2026".
+NUNCA copies el bloque enlatado viejo "tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, pantallas\u2026" palabra por palabra; s\xED puedes sugerir alimentos/mobiliario/DJ/iluminaci\xF3n en tono natural.
 
 \u{1F6AB} NUNCA generes "DATOS DEL CLIENTE:" ni bloques internos de CRM al cliente.
 
@@ -92532,13 +92570,13 @@ function buildClosingMessage(serviciosPedidos, clientName) {
   const asesor = advisorLabelForClient(clientName);
   const handoff = asesor === "nuestro equipo" ? "Le paso estos datos a nuestro equipo para que te arme una cotizaci\xF3n personalizada." : `Le paso estos datos a ${asesor} para que te arme una cotizaci\xF3n personalizada.`;
   const servicio = serviciosPedidos?.trim();
-  const softExtra = servicio ? `Si m\xE1s adelante quieres sumar algo adem\xE1s de ${servicio}, con gusto lo vemos.` : `Si m\xE1s adelante quieres sumar alg\xFAn complemento, con gusto lo vemos.`;
+  const complements = servicio ? `Por cierto, adem\xE1s de ${servicio}, tambi\xE9n armamos banquetes y barras de alimentos, mobiliario, DJ e iluminaci\xF3n \u2014 si quieres sumar alguno, d\xEDmelo.` : `Por cierto, tambi\xE9n armamos banquetes y barras de alimentos, mobiliario, DJ e iluminaci\xF3n \u2014 si quieres sumar alguno, d\xEDmelo.`;
   return `Perfecto, ya tengo todo. ${handoff}
 
 Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
 ${CATALOG_URL2}
 
-${softExtra}
+${complements}
 
 \xBFTe gustar\xEDa cotizar algo adicional o tienes alguna duda?`;
 }

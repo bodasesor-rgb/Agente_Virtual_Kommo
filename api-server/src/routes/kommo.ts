@@ -356,13 +356,14 @@ function buildClosingMessage(
       ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
       : `Le paso estos datos a ${asesor} para que te arme una cotización personalizada.`;
   const servicio = serviciosPedidos?.trim();
-  const softExtra = servicio
-    ? `Si más adelante quieres sumar algo además de ${servicio}, con gusto lo vemos.`
-    : `Si más adelante quieres sumar algún complemento, con gusto lo vemos.`;
+  // Mencionar complementos reales para que el cliente sepa qué más tienen (sin lista robótica fija).
+  const complements = servicio
+    ? `Por cierto, además de ${servicio}, también armamos banquetes y barras de alimentos, mobiliario, DJ e iluminación — si quieres sumar alguno, dímelo.`
+    : `Por cierto, también armamos banquetes y barras de alimentos, mobiliario, DJ e iluminación — si quieres sumar alguno, dímelo.`;
   return (
     `Perfecto, ya tengo todo. ${handoff}\n\n` +
     `Mientras tanto, aquí está nuestro catálogo completo:\n${CATALOG_URL}\n\n` +
-    `${softExtra}\n\n` +
+    `${complements}\n\n` +
     `¿Te gustaría cotizar algo adicional o tienes alguna duda?`
   );
 }
