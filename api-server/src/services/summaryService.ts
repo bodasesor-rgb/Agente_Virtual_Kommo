@@ -19,12 +19,12 @@ import { formatRequerimientoLabelFromQuery } from "./catalogService.js";
 
 function extraerEstilo(texto: string): string | null {
   const estilos: Array<[string, RegExp]> = [
-    ["elegante",  /\b(elegante|formal|sofisticado|lujoso|lujo)\b/i],
-    ["moderno",   /\b(moderno|contemporáneo|vanguardia|innovador)\b/i],
-    ["rústico",   /\b(rústico|campestre|campo)\b/i],
-    ["vintage",   /\bvintage\b/i],
-    ["juvenil",   /\b(juvenil|dinámico|divertido)\b/i],
-    ["casual",    /\b(casual|sencillo|informal)\b/i],
+    ["elegante", /\b(elegante|formal|sofisticado|lujoso|lujo)\b/i],
+    ["moderno", /\b(moderno|contemporáneo|vanguardia|innovador)\b/i],
+    ["rústico", /\b(rústico|campestre|campo)\b/i],
+    ["vintage", /\bvintage\b/i],
+    ["juvenil", /\b(juvenil|dinámico|divertido)\b/i],
+    ["casual", /\b(casual|sencillo|informal)\b/i],
   ];
   for (const [nombre, patron] of estilos) {
     if (patron.test(texto)) return nombre;
@@ -44,7 +44,7 @@ function extraerPresupuesto(texto: string): string | null {
       const num = parseInt(m[1]!.replace(/,/g, ""), 10);
       if (isNaN(num) || num <= 0) continue;
       if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
-      if (num >= 1_000)     return `$${Math.round(num / 1_000)}k`;
+      if (num >= 1_000) return `$${Math.round(num / 1_000)}k`;
       return `$${num}`;
     }
   }
@@ -76,54 +76,41 @@ function extraerServicios(texto: string): string[] {
   return parseServicesFromText(texto);
 }
 
-// ─── Función principal ────────────────────────────────────────────────────────
-
 /**
  * Genera un resumen estructurado de hasta 240 caracteres con los
  * requerimientos del cliente, listo para el campo de Kommo.
- *
- * @param conversationText Texto completo de la conversación (history + mensaje actual)
- * @returns Resumen de hasta 240 chars, nunca vacío
  */
 export function generateSummary(conversationText: string): string {
   const texto = conversationText.toLowerCase();
 
-  const tipoEvento  = extraerTipoEvento(texto);
-  const fecha       = extraerFecha(texto);
-  const invitados   = extraerInvitados(texto);
-  const servicios   = extraerServicios(texto);
-  const estilo      = extraerEstilo(texto);
+  const tipoEvento = extraerTipoEvento(texto);
+  const fecha = extraerFecha(texto);
+  const invitados = extraerInvitados(texto);
+  const servicios = extraerServicios(texto);
+  const estilo = extraerEstilo(texto);
   const presupuesto = extraerPresupuesto(texto);
 
   const partes: string[] = [];
 
-  // Encabezado: tipo + fecha
   const encabezado = [tipoEvento, fecha].filter(Boolean).join(" ");
   if (encabezado) partes.push(encabezado);
 
-  // Invitados
   if (invitados !== null) partes.push(`${invitados} pax`);
 
-  // Servicios (máx 3 para no exceder 240)
   if (servicios.length > 0) {
     partes.push(`Quiere: ${servicios.slice(0, 3).join(", ")}`);
   }
 
-  // Estilo
   if (estilo) partes.push(`Estilo ${estilo}`);
-
-  // Presupuesto
   if (presupuesto) partes.push(`Presup: ${presupuesto}`);
 
   const resumen = partes.join(". ");
 
   if (!resumen.trim()) return "Info pendiente";
 
-  // Hard-cap en 240 caracteres (límite del campo en Kommo)
   return resumen.length <= 240 ? resumen : `${resumen.slice(0, 237)}...`;
 }
 
-/** Lee un valor de las líneas CRM tipo "- Etiqueta: valor". */
 function pickFromMergedLines(mergedLines: string[], labelPattern: RegExp): string | null {
   const line = mergedLines.find((l) => labelPattern.test(l));
   if (!line) return null;
@@ -131,20 +118,51 @@ function pickFromMergedLines(mergedLines: string[], labelPattern: RegExp): strin
   return val || null;
 }
 
+function pendingFields(mergedLines: string[], extracted: ExtractedData): string[] {
+  const pending: string[] = [];
+  if (!pickFromMergedLines(mergedLines, /Nombre del cliente/i) && !extracted.nombre?.trim()) {
+    pending.push("nombre");
+  }
+  if (
+    !pickFromMergedLines(mergedLines, /Correo electrónico/i) &&
+    !mergedLines.some((l) => /continuar por whatsapp/i.test(l)) &&
+    !extracted.correo?.trim()
+  ) {
+    pending.push("correo");
+  }
+  if (!pickFromMergedLines(mergedLines, /Tipo de evento/i) && !extracted.tipo_evento?.trim()) {
+    pending.push("tipo de evento");
+  }
+  if (
+    !pickFromMergedLines(mergedLines, /Requerimientos/i) &&
+    !extracted.requerimientos_evento?.trim()
+  ) {
+    pending.push("servicios / requerimientos");
+  }
+  if (!pickFromMergedLines(mergedLines, /Lugar\/dirección/i) && !extracted.direccion_evento?.trim()) {
+    pending.push("ubicación");
+  }
+  if (!pickFromMergedLines(mergedLines, /Fecha y horario/i) && !extracted.fecha_horario?.trim()) {
+    pending.push("fecha");
+  }
+  if (!pickFromMergedLines(mergedLines, /Número de invitados/i) && !extracted.num_invitados) {
+    pending.push("invitados");
+  }
+  if (!pickFromMergedLines(mergedLines, /Presupuesto/i) && extracted.presupuesto == null) {
+    pending.push("presupuesto");
+  }
+  return pending;
+}
+
 /**
- * Resumen ejecutivo para el campo texto largo de Kommo (1048786).
- * Se actualiza en cada mensaje con todo lo capturado hasta el momento.
+ * Resumen estilo Conversation Summary para Kommo (campo 1048786).
+ * Puntos clave + qué quiere el cliente (con detalle) + próximos pasos.
  */
 export function buildResumenClienteLargo(
   extracted: ExtractedData,
   mergedLines: string[],
   conversationText?: string
 ): string {
-  // IMPORTANTE: se prioriza el valor YA GUARDADO en el CRM (mergedLines) sobre
-  // la extracción del turno actual. La extracción de GPT es inestable mensaje
-  // a mensaje (p.ej. "Coffee Break para Eventos Corporativos" un turno y solo
-  // "Coffee Break" al siguiente) — usar siempre el valor estable evita que el
-  // resumen pierda información ya confirmada.
   const nombre = pickFromMergedLines(mergedLines, /Nombre del cliente/i) || extracted.nombre?.trim() || null;
   const correo = pickFromMergedLines(mergedLines, /Correo electrónico/i) || extracted.correo?.trim() || null;
   const emailWaived = mergedLines.some((l) => /continuar por whatsapp/i.test(l));
@@ -170,7 +188,7 @@ export function buildResumenClienteLargo(
       : null;
   const reqFromConversation =
     conversationText && conversationText.trim().length > 20
-      ? parseServicesFromText(conversationText).slice(0, 3).join(", ")
+      ? parseServicesFromText(conversationText).slice(0, 5).join(", ")
       : null;
   const reqs =
     (reqFromLines && reqFromLines !== "Info pendiente" ? reqFromLines : null) ||
@@ -178,22 +196,36 @@ export function buildResumenClienteLargo(
     (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) ||
     (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
 
-  const lineas: string[] = ["RESUMEN LUCY — lo que el cliente quiere:", ""];
+  const modo = extracted.modo_servicio?.trim();
+  const pendientes = pendingFields(mergedLines, extracted);
 
+  const lineas: string[] = ["RESUMEN DE CONVERSACIÓN — Lucy", ""];
+
+  lineas.push("Qué busca el cliente:");
+  if (reqs) lineas.push(`• Servicios: ${reqs}`);
+  else lineas.push("• Servicios: (aún por definir con más detalle)");
+  if (modo) lineas.push(`• Modalidad: ${modo}`);
+  if (evento) lineas.push(`• Evento: ${evento}`);
+  if (invitados) lineas.push(`• Escala: ${invitados} personas / piezas`);
+  lineas.push("");
+
+  lineas.push("Datos capturados:");
   if (nombre) lineas.push(`• Nombre: ${nombre}`);
   if (correo) lineas.push(`• Correo: ${correo}`);
-  else if (emailWaived) lineas.push("• Correo: no proporcionó (continúa por WhatsApp)");
-  if (evento) lineas.push(`• Tipo de evento: ${evento}`);
-  if (reqs) lineas.push(`• El cliente quiere: ${reqs}`);
-  if (invitados) lineas.push(`• Invitados: ${invitados}`);
+  else if (emailWaived) lineas.push("• Correo: no compartió (sigue por WhatsApp)");
   if (ubicacion) lineas.push(`• Ubicación: ${ubicacion}`);
-  if (fecha) lineas.push(`• Fecha: ${fecha}`);
+  if (fecha) lineas.push(`• Fecha/horario: ${fecha}`);
   if (ppto) lineas.push(`• Presupuesto: ${ppto}`);
+  lineas.push("");
 
-  if (lineas.length <= 2) {
-    return "RESUMEN LUCY\n\n(Captura en progreso — aún faltan datos del cliente)";
+  if (pendientes.length) {
+    lineas.push("Pendiente / próximo paso:");
+    lineas.push(`• Completar: ${pendientes.join(", ")}`);
+    lineas.push("• Equipo: armar cotización con lo ya platicado.");
+  } else {
+    lineas.push("Estado: datos completos — listo para cotización del equipo.");
   }
 
-  lineas.push("", "— Actualizado automáticamente por Lucy en cada mensaje —");
+  lineas.push("", "— Actualizado por Lucy en cada mensaje —");
   return lineas.join("\n").slice(0, 8000);
 }

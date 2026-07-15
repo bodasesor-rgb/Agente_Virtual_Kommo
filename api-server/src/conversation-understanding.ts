@@ -232,6 +232,22 @@ export interface AmbiguousNumberContext {
   lastAskedField?: UnderstandingField | null;
 }
 
+/** Cliente elige nivel de barra/catálogo (1, 2, 3, básica, tradicional, premium). */
+export function isCatalogLevelSelection(
+  text: string | null | undefined,
+  lastAssistantText?: string | null
+): boolean {
+  const t = text?.trim().toLowerCase() ?? "";
+  if (!t) return false;
+  const last = lastAssistantText?.toLowerCase() ?? "";
+  const askedNivel =
+    /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sica.*tradicional.*premium|1\.\s*\*?b[aá]sica/i.test(
+      last
+    );
+  if (!askedNivel) return false;
+  return /^(b[aá]sica|tradicional|premium|[123])$/.test(t);
+}
+
 /** Número suelto ambiguo — solo dígitos 1-9 (día vs pocos invitados), nunca 10+. */
 export function isAmbiguousShortNumber(
   text: string | null | undefined,

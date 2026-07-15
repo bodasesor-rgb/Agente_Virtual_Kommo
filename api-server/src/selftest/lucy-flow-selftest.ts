@@ -41,6 +41,7 @@ import {
   clientAsksForCatalog,
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
+  isCatalogLevelSelection,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, clientAsksCompanyIdentity, buildCompanyIdentityReply } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
@@ -123,7 +124,9 @@ import {
   stripUnsolicitedCatalogWebLinks,
   CATALOG_WEB_HUB_URL,
   CATALOG_OFFER_QUESTION,
+  toDeliverableCatalogUrl,
 } from "../services/catalogService.js";
+import { buildMobiliarioRentDetailReply } from "../services/serviceKnowledge.js";
 import { resolveServiceFocusFromText, expandQueryWithServiceSynonyms } from "../services/serviceSynonyms.js";
 import {
   parseSheetCatalogCsv,
@@ -442,10 +445,12 @@ async function runAll(): Promise<void> {
     );
     assert.ok(!/[\u{1F300}-\u{1FAFF}]/u.test(text), "contiene emojis");
     assert.ok(text.includes("banquete"));
-    assert.ok(text.includes("Invitados: 60"));
+    assert.ok(/Escala: 60|60 personas/i.test(text), text);
     assert.ok(text.includes("CDMX"));
     assert.ok(!text.includes("Servicios / requerimientos: cumpleaños"));
-    assert.ok(text.includes("continúa por WhatsApp"));
+    assert.ok(/sigue por WhatsApp|no compartió/i.test(text), text);
+    assert.ok(text.includes("RESUMEN DE CONVERSACIÓN"));
+    assert.ok(text.includes("Qué busca el cliente"));
   });
 
   await test("10. Integraciones — módulos conectados y features activas", () => {
@@ -1233,8 +1238,8 @@ async function runAll(): Promise<void> {
       `no debe perder el detalle ya guardado: ${resumen}`
     );
     assert.ok(
-      resumen.includes("El cliente quiere:"),
-      `debe usar la frase 'El cliente quiere:' en vez de 'Servicios / requerimientos:': ${resumen}`
+      resumen.includes("Qué busca el cliente") || resumen.includes("Servicios:"),
+      `debe resumir qué busca el cliente: ${resumen}`
     );
     assert.ok(!/servicios\s*\/\s*requerimientos/i.test(resumen), resumen);
 
@@ -2748,6 +2753,102 @@ async function runAll(): Promise<void> {
       `debe confirmar que es Cap&Bara/Bodasesor: ${companyReply.slice(0, 250)}`
     );
     assert.ok(buildCompanyIdentityReply("Omar").includes("Omar"));
+  });
+
+  await test("63. Edgar A14861 — intro, correo, nivel barra, catálogo bodasesor", () => {
+    const mesasFirst = runGuards({
+      aiResponse: "Anoto mesa y sillas. Si quieres, como opcional: mantelería o bebidas. ¿Cómo te llamas?",
+      extracted: emptyExtracted({ requerimientos_evento: "Renta de Mesas y Sillas para Eventos" }),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: "Hola, me interesa cotizar: Renta de Mesas y Sillas para Eventos",
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(/soy Lucy.*agente virtual/i.test(mesasFirst), mesasFirst.slice(0, 200));
+    assert.ok(/llamas|nombre/i.test(mesasFirst), mesasFirst);
+    assert.ok(!/manteler[ií]a|bebidas para redondear/i.test(mesasFirst), mesasFirst);
+
+    const mobDetail = buildMobiliarioRentDetailReply("Necesito 900 sillas para un concierto");
+    assert.ok(mobDetail && /sillas|mesas|periquera/i.test(mobDetail), mobDetail ?? "");
+
+    const emailReply = runGuards({
+      aiResponse: "Genial, Edgar. ¿En qué ciudad sería el evento?",
+      extracted: emptyExtracted({
+        nombre: "Edgar",
+        correo: "edagarcruz85@hotmaill.com",
+        tipo_evento: "concierto",
+        requerimientos_evento: "Renta de Mesas y Sillas para Eventos",
+        num_invitados: 900,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "edagarcruz85@hotmaill.com",
+      history: [
+        { role: "assistant", content: "¿Me compartes un correo para enviarte los detalles de la cotización?" },
+      ],
+    });
+    assert.ok(/gracias por tu correo/i.test(emailReply), emailReply);
+    assert.ok(!/^genial/i.test(emailReply.trim()), emailReply);
+    assert.ok(/ciudad|ubicaci[oó]n/i.test(emailReply), emailReply);
+
+    const nivelAsk =
+      "Perfecto, Edgar. Para la *Barra de Bebidas*, manejamos tres niveles: 1. *Básica* 2. *Tradicional* 3. *Premium* ¿Cuál nivel prefieres para tu evento?";
+    assert.ok(isCatalogLevelSelection("1", nivelAsk));
+    const nivelReply = runGuards({
+      aiResponse: "¿Te refieres a 5 invitados o al día 5 del mes?",
+      extracted: emptyExtracted({
+        nombre: "Edgar",
+        tipo_evento: "concierto",
+        requerimientos_evento: "Barra de Bebidas",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "1",
+      history: [
+        { role: "user", content: "Hola, me interesa cotizar Barra de Bebidas" },
+        { role: "assistant", content: nivelAsk },
+      ],
+    });
+    assert.ok(!/invitados o al d[ií]a 5/i.test(nivelReply), nivelReply);
+
+    const prevLight = process.env["CATALOG_USE_LIGHT_PAGES"];
+    delete process.env["CATALOG_USE_LIGHT_PAGES"];
+    assert.equal(
+      toDeliverableCatalogUrl("https://bodasesor.com/catalogos/barra-de-bebidas"),
+      "https://bodasesor.com/catalogos/barra-de-bebidas"
+    );
+    if (prevLight !== undefined) process.env["CATALOG_USE_LIGHT_PAGES"] = prevLight;
+
+    const internalLeak = runGuards({
+      aiResponse:
+        "Información completa obtenida y verificada.\n\nDATOS DEL CLIENTE:\n- Nombre: Edgar\n- Correo: edagarcruz85@hotmaill.com\n\nPerfecto, ya tengo todo. Voy a compartir esta información con nuestro equipo.",
+      extracted: emptyExtracted({
+        nombre: "Edgar",
+        correo: "edagarcruz85@hotmaill.com",
+        tipo_evento: "concierto",
+        requerimientos_evento: "Renta de Mesas y Sillas para Eventos",
+        num_invitados: 900,
+        direccion_evento: "Mérida..club campestre",
+        fecha_horario: "19 sep 20 a 24 HRS",
+      }),
+      filledSet: new Set([
+        ...CLOSING_CORE_FIELDS,
+        "Requerimientos o servicios",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      currentMessage: "19 sep 20 a 24 HRS",
+      history: [],
+    });
+    assert.ok(!/DATOS DEL CLIENTE/i.test(internalLeak), internalLeak.slice(0, 300));
+    assert.ok(!/Información completa obtenida/i.test(internalLeak), internalLeak.slice(0, 300));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

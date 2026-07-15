@@ -70,6 +70,20 @@ export function buildLevel2Ack(serviceLabel: string): string {
   return `¡Claro! *${label}* la anoto para tu cotización. Nuestro equipo te confirma descripción, precio e inclusiones.`;
 }
 
+/** Detalle técnico renta de mesas/sillas (NIVEL 2 mobiliario). */
+export function buildMobiliarioRentDetailReply(query: string): string | null {
+  if (!/\b(mesas?|sillas?|mobiliario|periquera|lounge)\b/i.test(query)) return null;
+  const qtyMatch = query.match(/(\d+)\s*(?:sillas?|mesas?|personas?|pax)?/i);
+  const qty = qtyMatch ? parseInt(qtyMatch[1]!, 10) : null;
+  let body =
+    "Manejamos renta de *mesas y sillas* para eventos: sillas Tiffany y versátiles, mesas redondas y rectangulares, periqueras, salas lounge y más.";
+  if (qty && qty >= 10) {
+    body += ` Para *${qty} sillas* cotizamos montaje, logística y tipo de silla según el evento y el sitio.`;
+  }
+  body += " Podemos incluir mantelería y montaje en sitio.";
+  return body;
+}
+
 /** Acuse NIVEL 3 — solicitud especial; el equipo confirma disponibilidad. */
 export function buildLevel3Ack(serviceLabel: string): string {
   const label = serviceLabel.trim() || "tu solicitud";

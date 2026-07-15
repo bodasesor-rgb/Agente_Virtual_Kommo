@@ -111,6 +111,6 @@ export function stripInternalCrmBlock(mensaje: string): string {
   if (!/DATOS DEL CLIENTE:|Información completa obtenida/i.test(mensaje)) return mensaje;
   const cut =
     mensaje.search(/DATOS DEL CLIENTE:|Información completa obtenida/i);
-  if (cut <= 0) return mensaje;
-  return mensaje.slice(0, cut).trim();
+  if (cut > 0) return mensaje.slice(0, cut).trim();
+  return "";
 }

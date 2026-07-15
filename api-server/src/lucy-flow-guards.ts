@@ -24,7 +24,7 @@ import {
   buildModoServicioClarificationQuestion,
   needsModoServicioClarification,
 } from "./modoServicio.js";
-import { normalizeAdvisorReferences, advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
+import { normalizeAdvisorReferences, advisorLabelForClient, stripInternalCrmBlock } from "./lib/bodasesorAdvisor.js";
 import {
   buildCompanyEmailConfirmReply,
   clientAsksIfCompanyEmailCorrect,
@@ -54,7 +54,7 @@ import {
   messageOffersCatalogLink,
 } from "./services/catalogService.js";
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
-import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
+import { buildGuardServiceAck, buildMobiliarioRentDetailReply } from "./services/serviceKnowledge.js";
 import {
   extractImageClientReply,
   extractImageIntent,
@@ -67,6 +67,7 @@ import {
   clientAsksLocation,
   clientMentionsItalianTheme,
   isAmbiguousShortNumber,
+  isCatalogLevelSelection,
   clientDeclinesMoreServices,
   clientMentionsEntertainment,
   clientMentionsPistaTarima,
@@ -87,6 +88,7 @@ import {
   parseSpaceDimensions,
   parseFechaFromText,
   parseTipoEventoFromText,
+  parseServicesFromText,
   recoverClienteNombreFromHistory,
   isVagueFoodTerm,
   isGettingReadyContext,
@@ -1037,6 +1039,24 @@ function contextualPrefix(
   return "";
 }
 
+function emailThanksPrefix(ctx: NaturalQuestionContext): string {
+  if (!ctx.afterEmail) return "";
+  const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
+  return nombre ? `Gracias por tu correo, ${nombre}. ` : "Gracias por tu correo. ";
+}
+
+/** Tras capturar correo: agradecer y quitar aperturas casuales (Genial, Perfecto…). */
+function applyEmailCaptureTone(mensaje: string, ctx: NaturalQuestionContext): string {
+  const thanks = emailThanksPrefix(ctx);
+  if (!thanks) return mensaje;
+  let out = mensaje.trim();
+  if (/gracias por tu correo/i.test(out)) return out;
+  out = out
+    .replace(/^(genial|perfecto|excelente|muy bien),?\s+/i, "")
+    .replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
+  return `${thanks}${out}`.trim();
+}
+
 export interface NaturalQuestionContext {
   extracted: ExtractedData;
   filledSet?: Set<string>;
@@ -1154,6 +1174,24 @@ export function buildOpeningAcknowledgment(
   if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
   if (/\bbautizo\b/.test(t)) return "Con gusto te ayudo con la cotización para tu bautizo.";
   if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) {
+    const colonMatch = userText.match(
+      /(?:me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
+    );
+    if (colonMatch) {
+      const serviceChunk = colonMatch[1]!.trim().replace(/\.$/, "");
+      if (/coffee\s*break/i.test(serviceChunk)) {
+        return "Vi que te interesa un coffee break para eventos corporativos.";
+      }
+      if (/\b(mesas?|sillas?|mobiliario|periquera)\b/i.test(serviceChunk)) {
+        return "Vi tu solicitud de renta de mesas y sillas para el evento.";
+      }
+      const services = parseServicesFromText(serviceChunk);
+      if (services.length) {
+        return `Vi que te interesa cotizar ${services[0]}.`;
+      }
+      const short = serviceChunk.split(/[,.]/)[0]!.trim();
+      if (short.length > 3) return `Vi tu solicitud de ${short}.`;
+    }
     const tipo = parseTipoEventoFromText(userText);
     const inv = userText.match(/para\s+(\d+)\s*(?:personas?|invitados?)/i);
     if (tipo) {
@@ -1250,9 +1288,10 @@ export function isResumenClienteLargo(text: string | null | undefined): boolean 
   const t = text.trim();
   if (!t || t === "-") return true;
   return (
-    /^RESUMEN\s+LUCY/i.test(t) ||
+    /^RESUMEN\s+(DE\s+CONVERSACI[ÓO]N\s+—\s+)?LUCY/i.test(t) ||
     /lo que el cliente quiere:/i.test(t) ||
-    /actualizado autom[aá]ticamente por lucy/i.test(t) ||
+    /qu[eé]\s+busca el cliente:/i.test(t) ||
+    /actualizado (autom[aá]ticamente )?por lucy/i.test(t) ||
     /captura en progreso/i.test(t)
   );
 }
@@ -1786,6 +1825,7 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
   const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
   const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history);
   const variant = pickVariant(field, history, ctx.entityId);
+  const thanks = emailThanksPrefix(ctx);
 
   if (field === "correo") {
     const correoCore = pickVariant("correo", history, ctx.entityId);
@@ -1800,9 +1840,13 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
     const tipoVariant = pickVariant("tipo_evento", history, ctx.entityId);
     const withHint = `${tipoVariant} ${TIPO_EVENTO_HINT}`.trim();
     if (ctx.afterEmail) {
-      return nombre ? `Muchas gracias. ${withHint}` : `Muchas gracias. ${withHint}`;
+      return nombre ? `Gracias por tu correo, ${nombre}. ${withHint}` : `Gracias por tu correo. ${withHint}`;
     }
     return prefix ? `${prefix}${withHint}` : withHint;
+  }
+
+  if (thanks && (field === "zona" || field === "fecha" || field === "invitados" || field === "presupuesto")) {
+    return `${thanks}${variant}`;
   }
 
   return prefix ? `${prefix}${variant}` : variant;
@@ -2341,6 +2385,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: post-cierre — servicios adicionales");
   } else if (
     cierreYaEnviado &&
+    !clientDeclinesMoreServices(currentMessage) &&
+    !clientSaysThanks(currentMessage) &&
+    isServiceRelatedMessage(currentMessage) &&
+    currentMessage?.trim()
+  ) {
+    const ack = buildGuardServiceAck(currentMessage);
+    const nombre = extracted.nombre?.trim();
+    mensaje = nombre
+      ? `${ack}\n\nPerfecto, ${nombre}. Lo sumo a tu cotización. ¿Algo más que quieras agregar?`
+      : `${ack}\n\nLo sumo a tu cotización. ¿Algo más que quieras agregar?`;
+    log?.info({ entityId }, "GUARD: post-cierre — servicio adicional con detalle");
+  } else if (
+    cierreYaEnviado &&
     (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))
   ) {
     mensaje = buildPostCierreThanksReply(extracted.nombre);
@@ -2393,6 +2450,32 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     });
     appliedDirectReply = true;
     log?.info({ entityId, wantFull }, "GUARD: cliente pidió catálogo web — link del Sheet");
+  } else if (
+    isCatalogLevelSelection(
+      currentMessage,
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+        ? (lastAssistantMsg.content as string)
+        : null
+    )
+  ) {
+    const nivelMap: Record<string, string> = {
+      "1": "basica",
+      "2": "tradicional",
+      "3": "premium",
+      basica: "basica",
+      básica: "basica",
+      tradicional: "tradicional",
+      premium: "premium",
+    };
+    const key = currentMessage!.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const nivel = nivelMap[key] ?? key;
+    const hint = extracted.requerimientos_evento ?? "barra de bebidas";
+    const detail = buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
+    mensaje =
+      detail ??
+      `Perfecto, anoto *${nivel}* para tu cotización. Nuestro equipo te confirma el detalle y precio.`;
+    appliedDirectReply = true;
+    log?.info({ entityId, nivel }, "GUARD: selección de nivel de catálogo");
   } else if (isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     mensaje = "¿Te refieres a 5 invitados o al día 5 del mes?";
     appliedDirectReply = true;
@@ -2494,8 +2577,29 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente sin presupuesto — waiver directo");
   } else if (
+    (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+    !conversationAlreadyStarted(filledSet, presHistory) &&
+    isServiceRelatedMessage(currentMessage) &&
+    (currentMessage?.includes("?") ?? false) &&
+    !clientAsksForRecommendations(currentMessage) &&
+    !clientAsksLocation(currentMessage) &&
+    !isFieldSatisfied("nombre", filledSet, extracted)
+  ) {
+    mensaje = `${LUCY_INTRO} ${buildGuardServiceAck(currentMessage)} ${pickVariant("nombre", presHistory, entityId)}`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: servicio consultivo en primer turno");
+  } else if (
+    (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+    !conversationAlreadyStarted(filledSet, presHistory) &&
+    !isFieldSatisfied("nombre", filledSet, extracted)
+  ) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: primer mensaje — presentación Lucy + nombre (sin oferta)");
+  } else if (
     (justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) &&
     !cierreYaEnviado &&
+    isFieldSatisfied("nombre", filledSet, extracted) &&
     buildSoftComplementOffer(extracted, presHistory, currentMessage)
   ) {
     const soft = buildSoftComplementOffer(extracted, presHistory, currentMessage)!;
@@ -2510,17 +2614,27 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: ubicación + pedir nombre");
   } else if (
-    (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
-    !conversationAlreadyStarted(filledSet, presHistory) &&
-    isServiceRelatedMessage(currentMessage) &&
-    (currentMessage?.includes("?") ?? false) &&
-    !clientAsksForRecommendations(currentMessage) &&
-    !clientAsksLocation(currentMessage) &&
-    !isFieldSatisfied("nombre", filledSet, extracted)
+    !cierreYaEnviado &&
+    buildMobiliarioRentDetailReply(currentMessage ?? "") &&
+    needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)
   ) {
-    mensaje = `${buildGuardServiceAck(currentMessage)} ${pickVariant("nombre", presHistory, entityId)}`;
+    mensaje = `${buildMobiliarioRentDetailReply(currentMessage ?? "")}\n\n${buildModoServicioClarificationQuestion()}`;
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: servicio consultivo en primer turno");
+    log?.info({ entityId }, "GUARD: mobiliario — detalle técnico + aclarar montado/entrega");
+  } else if (
+    !cierreYaEnviado &&
+    isFieldSatisfied("nombre", filledSet, extracted) &&
+    buildMobiliarioRentDetailReply(currentMessage ?? "") &&
+    !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)
+  ) {
+    const detail = buildMobiliarioRentDetailReply(currentMessage ?? "")!;
+    const pending = getNextPendingField(extracted, filledSet);
+    mensaje =
+      pending && pending !== "requerimientos"
+        ? `${detail}\n\n${buildNaturalQuestion(pending, ctx)}`
+        : detail;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: mobiliario — detalle técnico y avanzar");
   } else if (
     needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)
   ) {
@@ -2539,27 +2653,30 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : `${advisor} es parte del equipo de Bodasesor; arma las cotizaciones personalizadas con base en lo que platicamos. Yo te ayudo a recopilar los datos y te envían la propuesta.`;
     log?.info({ entityId }, "GUARD: cliente preguntó por el asesor/equipo");
   } else if (justGaveEmail && !hasTipoEvento(filledSet, extracted)) {
+    const emailCtx = { ...ctx, afterEmail: true };
     if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
-      mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, { ...ctx, afterEmail: true });
+      mensaje = applyEmailCaptureTone(
+        mergeWithPendingQuestion(aiResponse, filledSet, extracted, emailCtx),
+        emailCtx
+      );
     } else {
-      mensaje = buildNaturalQuestion("tipo_evento", { ...ctx, afterEmail: true });
+      mensaje = buildNaturalQuestion("tipo_evento", emailCtx);
     }
     log?.info({ entityId }, "GUARD: correo capturado — tipo de evento con opciones");
   } else if (justGaveEmail && hasTipoEvento(filledSet, extracted)) {
-    const offer =
-      preferEventOfferReply({
-        aiResponse,
-        extracted,
-        filledSet,
-        history: presHistory,
-        currentMessage,
-        entityId,
-      }) ??
-      (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)
-        ? aiResponse
-        : null);
-    if (offer) {
-      mensaje = offer;
+    const emailCtx = { ...ctx, afterEmail: true };
+    const eventOffer = preferEventOfferReply({
+      aiResponse,
+      extracted,
+      filledSet,
+      history: presHistory,
+      currentMessage,
+      entityId,
+    });
+    if (eventOffer) {
+      mensaje = eventOffer;
+    } else if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+      mensaje = applyEmailCaptureTone(aiResponse, emailCtx);
     } else {
       const nextQ = nextFieldQuestion(
         extracted,
@@ -2569,9 +2686,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         currentMessage,
         entityId
       );
-      mensaje = nextQ ?? aiResponse;
+      const pending = getNextPendingField(extracted, filledSet);
+      if (nextQ && pending) {
+        mensaje = buildNaturalQuestion(pending, emailCtx);
+      } else {
+        mensaje = applyEmailCaptureTone(nextQ ?? aiResponse, emailCtx);
+      }
     }
-    log?.info({ entityId }, "GUARD: correo capturado — tipo ya tenido, ofrecer o siguiente dato");
+    log?.info({ entityId }, "GUARD: correo capturado — siguiente dato tras agradecer");
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
@@ -3360,6 +3482,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : null
     );
   mensaje = stripUnsolicitedCatalogWebLinks(mensaje, clientWantedCatalog);
+
+  mensaje = stripInternalCrmBlock(mensaje);
+  if (
+    !mensaje.trim() &&
+    (/Información completa obtenida|DATOS DEL CLIENTE/i.test(aiResponse) ||
+      isReadyForClosing(filledSet))
+  ) {
+    mensaje = buildClosing(
+      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+      extracted.nombre
+    );
+    log?.warn({ entityId }, "GUARD: bloqueó nota interna CRM — solo cierre al cliente");
+  }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }

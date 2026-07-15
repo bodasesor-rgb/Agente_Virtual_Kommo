@@ -1402,12 +1402,11 @@ export function isBodasesorCatalogWebUrl(url: string | null | undefined): boolea
 }
 
 /**
- * Entrega al cliente una URL liviana (Hostinger) con click-to-load.
- * La fuente del Sheet sigue siendo bodasesor.com; aquí solo cambia el link enviado.
- * Desactivar: CATALOG_USE_LIGHT_PAGES=0
+ * Entrega al cliente la URL del Sheet (bodasesor.com por defecto).
+ * Solo reescribe a Hostinger si CATALOG_USE_LIGHT_PAGES=1 (páginas click-to-load).
  */
 export function toDeliverableCatalogUrl(sheetUrl: string): string {
-  if (process.env["CATALOG_USE_LIGHT_PAGES"] === "0") return sheetUrl;
+  if (process.env["CATALOG_USE_LIGHT_PAGES"] !== "1") return sheetUrl;
   const base = (
     process.env["CATALOG_LIGHT_BASE_URL"] ||
     process.env["LUCY_PUBLIC_URL"] ||
