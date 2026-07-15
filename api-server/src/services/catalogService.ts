@@ -629,6 +629,16 @@ function buildCategoryServicesAnswer(result: CatalogMatchResult): string {
   return `Para *${label.toLowerCase()}* tenemos: ${list}. ¿Cuál te interesa?`;
 }
 
+/** Opt-in al link web del Sheet — no enviar el URL sin que lo pidan. */
+export const CATALOG_OFFER_QUESTION = "¿Quieres que te mande el catálogo con más detalle?";
+
+function withCatalogOfferQuestion(text: string): string {
+  const body = text.trim();
+  if (!body) return body;
+  if (/quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(body)) return body;
+  return `${body}\n\n${CATALOG_OFFER_QUESTION}`;
+}
+
 function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r) => r.servicio === svc || result.rows.length <= 6);
@@ -644,6 +654,7 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
     const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
     return `Manejamos *${svc}* en varias opciones: ${variants}. Cada una tiene niveles como ${nivelList}. ¿Cuál variante y nivel prefieres?`;
   }
+  // Una pregunta: nivel; el catálogo web se ofrece cuando el cliente afina o lo pide.
   return `*${svc}* lo tenemos en: ${nivelList}. ¿Cuál prefieres?`;
 }
 
@@ -655,7 +666,9 @@ function buildExactRowDetailAnswer(row: SheetCatalogRow): string {
       ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
       : "";
   const inclusion = parsed.inclusion ? `\n\n*Incluye:* ${parsed.inclusion}` : "";
-  return `Sí, manejamos *${label}*.${price ? `\n${price}` : ""}${inclusion}`.trim();
+  return withCatalogOfferQuestion(
+    `Sí, manejamos *${label}*.${price ? `\n${price}` : ""}${inclusion}`.trim()
+  );
 }
 
 function buildExactRowPriceAnswer(row: SheetCatalogRow): string {
@@ -1546,7 +1559,7 @@ export function stripUnsolicitedCatalogWebLinks(text: string, clientAsked: boole
 }
 
 /** Pregunta opt-in típica tras ofrecer un servicio. */
-export const CATALOG_OFFER_QUESTION = "¿Quieres que te mande el catálogo con más detalle?";
+export { CATALOG_OFFER_QUESTION };
 
 export function messageOffersCatalogLink(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
