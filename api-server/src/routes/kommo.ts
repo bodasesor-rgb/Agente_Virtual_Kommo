@@ -1345,17 +1345,11 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     }
 
     // ══════════════════════════════════════════════════════════════════════
-    // PASO 8.8: Crear nota en Kommo cuando el lead queda calificado (6 datos)
-    // Solo la PRIMERA vez — mismo guard que PASO 8.7 (cierreYaEnviado).
+    // PASO 8.8: Lead calificado — datos ya van en campos CRM + resumen 1048786.
+    // No duplicar con nota "DATOS DEL CLIENTE" en timeline.
     // ══════════════════════════════════════════════════════════════════════
     if (allFieldsFilled && !cierreYaEnviado) {
-      try {
-        const notaTexto = buildLeadCalificadoNota(extracted, crmMergedLines);
-        await agregarNota(subdomain, accessToken, entityId, notaTexto);
-        log.info({ entityId }, "Nota de lead calificado creada en Kommo");
-      } catch (notaErr) {
-        log.warn({ notaErr }, "No se pudo crear nota de calificación (no crítico)");
-      }
+      log.info({ entityId }, "Lead calificado — campos CRM y resumen 1048786 actualizados (sin nota duplicada)");
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -1725,7 +1719,7 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   if (messageData.mediaNote && entityId && subdomain && accessToken) {
     const label = isVoice
       ? "Nota de voz (transcripción automática)"
-      : "Imagen recibida (análisis interno — no enviar al cliente)";
+      : "Foto del cliente — respuesta de Lucy (ref. equipo, no es el resumen del chat)";
     void agregarNota(subdomain, accessToken, entityId, `${label}:\n\n${messageData.mediaNote}`).catch(
       (err: unknown) => log.warn({ err, entityId }, "No se pudo agregar nota interna de media")
     );

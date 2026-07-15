@@ -21,6 +21,12 @@ import {
 } from "./googleSheetsCatalog.js";
 import { loadGammaCatalog, loadGammaKnowledgeFromSheet } from "./gammaCatalog.js";
 import {
+  refreshCatalogWebKnowledge,
+  getCatalogWebKnowledgeBlock,
+  buildCatalogWebDetailHint,
+  getCatalogWebUrlForQuery,
+} from "./catalogWebKnowledge.js";
+import {
   clientMentionsCatering,
   clientAsksServiceInfo,
   parsePrimaryService,
@@ -100,6 +106,7 @@ function buildPromptBlock(parts: {
   sheetsMd: string;
   sheetsTextCsv: string;
   gammaBlock: string;
+  webCatalogBlock: string;
   useStatic: boolean;
 }): string {
   const blocks: string[] = [];
@@ -116,6 +123,7 @@ function buildPromptBlock(parts: {
       ].join("\n")
     );
   }
+  if (parts.webCatalogBlock) blocks.push(parts.webCatalogBlock);
   if (parts.gammaBlock) blocks.push(parts.gammaBlock);
 
   if (!blocks.length && parts.useStatic) {
@@ -190,6 +198,12 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
         status.sources.gamma = true;
       }
 
+      // Catálogos web (bodasesor.com/catalogos) — fuente completa de menús/inclusiones.
+      const webCatalogBlock = await refreshCatalogWebKnowledge().catch(
+        () => getCatalogWebKnowledgeBlock() || ""
+      );
+      if (webCatalogBlock) status.sources.gamma = status.sources.gamma || true;
+
       const useStatic = !status.sources.sheets;
       status.sources.staticFallback = useStatic;
 
@@ -197,6 +211,7 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
         sheetsMd,
         sheetsTextCsv: sheetsTextExtra,
         gammaBlock,
+        webCatalogBlock,
         useStatic,
       });
 
@@ -639,23 +654,94 @@ function withCatalogOfferQuestion(text: string): string {
   return `${body}\n\n${CATALOG_OFFER_QUESTION}`;
 }
 
+/**
+ * Oferta de niveles con detalle de inclusiones (y precio si hay en Sheet).
+ * El cliente no puede elegir "Tradicional vs Premium" sin saber qué incluye cada una.
+ */
 function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r) => r.servicio === svc || result.rows.length <= 6);
-  const niveles = uniqueNiveles(svcRows.length ? svcRows : result.rows);
+  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 6);
+  const niveles = uniqueNiveles(rowsForChoice);
 
   if (niveles.length <= 1) {
     const row = (svcRows[0] ?? result.rows[0])!;
     return buildExactRowDetailAnswer(row);
   }
 
-  const nivelList = niveles.slice(0, 6).map((n) => `*${n}*`).join(", ");
   if (uniqueServicios(result.rows).length > 1) {
     const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
-    return `Manejamos *${svc}* en varias opciones: ${variants}. Cada una tiene niveles como ${nivelList}. ¿Cuál variante y nivel prefieres?`;
+    const inclusionBlock = buildInclusionBlock(rowsForChoice, 180).trim();
+    const detail = inclusionBlock
+      ? `${inclusionBlock}\n\n`
+      : `Niveles disponibles: ${niveles
+          .slice(0, 6)
+          .map((n) => `*${n}*`)
+          .join(", ")}.\n\n`;
+    return `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}¿Cuál variante y nivel prefieres?`;
   }
-  // Una pregunta: nivel; el catálogo web se ofrece cuando el cliente afina o lo pide.
-  return `*${svc}* lo tenemos en: ${nivelList}. ¿Cuál prefieres?`;
+
+  const lines = niveles.slice(0, 6).map((n, i) => {
+    const row = rowsForChoice.find(
+      (r) => normalizeForMatch(extractNivelLabel(r)) === normalizeForMatch(n)
+    );
+    const incl = row ? getInclusionFromRow(row) : null;
+    const price =
+      row?.tienePrecio && row.precio
+        ? ` — ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}`
+        : "";
+    if (incl) {
+      const clipped = incl.length > 220 ? `${incl.slice(0, 217)}…` : incl;
+      return `${i + 1}. *${n}*${price}\n   Incluye: ${clipped}`;
+    }
+    return `${i + 1}. *${n}*${price}\n   Incluye: el equipo lo confirma en la cotización.`;
+  });
+
+  const hasAnyIncl = rowsForChoice.some((r) => !!getInclusionFromRow(r));
+  const footer = hasAnyIncl
+    ? "¿Cuál nivel prefieres para tu evento?"
+    : "¿Cuál nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotización.";
+
+  let body = `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
+
+  // Si el Sheet no trae (o trae poco) Incluye, complementar con catálogo web bodasesor.com.
+  if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
+    const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
+    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "");
+    if (webHint) {
+      body += `\n\n${webHint}`;
+    } else if (webUrl) {
+      body += `\n\nEl detalle completo de menús e inclusiones está en el catálogo: ${webUrl}`;
+    }
+  }
+
+  return body;
+}
+
+/** Detecta oferta de niveles solo con nombres (sin explicar Incluye). */
+export function messageOffersLevelsWithoutInclusions(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  const t = text.trim();
+  if (/\bincluye\b/i.test(t)) return false;
+  return (
+    /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) ||
+    /lo tenemos en:\s*\*?b[aá]sic/i.test(t) ||
+    (/1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t)) ||
+    (/\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t))
+  );
+}
+
+/** Si GPT listó niveles sin inclusiones, reemplaza con detalle del Sheet. */
+export function enrichBareNivelOffer(
+  mensaje: string,
+  serviceHint?: string | null
+): string | null {
+  if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
+  const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
+  const detail = buildCatalogServiceDetailAnswer(hint);
+  if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
+  if (!/incluye|nivel/i.test(detail)) return null;
+  return detail;
 }
 
 function buildExactRowDetailAnswer(row: SheetCatalogRow): string {
@@ -1003,11 +1089,25 @@ export function formatServiceDataForPrompt(query: string): string | null {
 
   if (resolved.kind === "service" && uniqueNiveles(resolved.rows).length > 1) {
     const svc = resolved.serviceName ?? uniqueServicios(resolved.rows)[0];
+    const levelLines = uniqueNiveles(resolved.rows).slice(0, 6).map((n) => {
+      const row = resolved.rows.find(
+        (r) => normalizeForMatch(extractNivelLabel(r)) === normalizeForMatch(n)
+      );
+      const incl = row ? getInclusionFromRow(row) : null;
+      const price =
+        row?.tienePrecio && row.precio
+          ? ` | Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}`
+          : "";
+      return incl
+        ? `- ${n}${price} | Incluye: ${incl}`
+        : `- ${n}${price} | Incluye: (vacío en catálogo — di que el equipo confirma; NO inventes)`;
+    });
     return [
       "DATOS DEL SERVICIO (Google Sheet — elegir nivel):",
       `Servicio: ${svc}`,
-      `Niveles: ${uniqueNiveles(resolved.rows).join(", ")}`,
-      "Pregunta cuál nivel prefiere antes de dar precio detallado.",
+      "Al ofrecer niveles, EXPLICA qué incluye cada uno con el texto del Sheet. NUNCA digas solo los nombres.",
+      ...levelLines,
+      "Pregunta cuál nivel prefiere DESPUÉS de mostrar inclusiones. No inventes inclusiones ni marcas.",
     ].join("\n");
   }
 
@@ -1402,12 +1502,11 @@ export function isBodasesorCatalogWebUrl(url: string | null | undefined): boolea
 }
 
 /**
- * Entrega al cliente una URL liviana (Hostinger) con click-to-load.
- * La fuente del Sheet sigue siendo bodasesor.com; aquí solo cambia el link enviado.
- * Desactivar: CATALOG_USE_LIGHT_PAGES=0
+ * Entrega al cliente la URL del Sheet (bodasesor.com por defecto).
+ * Solo reescribe a Hostinger si CATALOG_USE_LIGHT_PAGES=1 (páginas click-to-load).
  */
 export function toDeliverableCatalogUrl(sheetUrl: string): string {
-  if (process.env["CATALOG_USE_LIGHT_PAGES"] === "0") return sheetUrl;
+  if (process.env["CATALOG_USE_LIGHT_PAGES"] !== "1") return sheetUrl;
   const base = (
     process.env["CATALOG_LIGHT_BASE_URL"] ||
     process.env["LUCY_PUBLIC_URL"] ||

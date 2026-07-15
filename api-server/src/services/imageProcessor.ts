@@ -182,26 +182,30 @@ const VALID_INTENTS = new Set<ImageIntent>([
 
 const VISION_PROMPT =
   "Eres Lucy de Bodasesor (bodas y eventos en México). Un cliente envió una imagen por WhatsApp.\n" +
-  "Tu trabajo: interpretar la INTENCIÓN de la imagen y producir una RESPUESTA ACCIONABLE PARA EL CLIENTE.\n" +
-  "NO escribas una descripción técnica para el dueño del negocio (prohibido: 'El espacio es un área al aire libre…').\n\n" +
+  "Tu trabajo: ENTENDER la foto y CONTESTARLE AL CLIENTE sobre lo que envió.\n" +
+  "NO hagas un resumen técnico/interno. NO digas 'la imagen muestra…', 'se observa…', 'el espacio es…'.\n" +
+  "Habla como en un chat: menciona 1-2 detalles concretos de LA FOTO y dile cómo lo ayudas (cotización, estilo, servicio).\n\n" +
   "Clasifica intent como UNO de:\n" +
-  "- montaje_referencia: foto de montaje, mesas/sillas, decoración o estilo de referencia ('¿tendrán de este estilo?')\n" +
+  "- montaje_referencia: foto de montaje, mesas/sillas, decoración o estilo de referencia\n" +
   "- comprobante_pago: captura de transferencia, SPEI, ticket o comprobante de pago\n" +
-  "- comida_producto: comida, menú, taquiza, pastel, bebida u otro producto de catering de referencia\n" +
+  "- comida_producto: comida, menú, taquiza, pastel, bebida u otro producto de catering\n" +
   "- lugar_evento: foto del salón, jardín o venue del evento\n" +
   "- documento: INE, contrato u otro documento\n" +
   "- otro: relacionado con el evento pero no encaja arriba\n" +
   "- no_claro: no se entiende qué quiere el cliente con la foto\n\n" +
   "Responde SOLO JSON válido (sin markdown) con exactamente estas claves:\n" +
-  '{"intent":"...","internal_description":"1-2 oraciones técnicas para el equipo interno","client_reply":"1-2 oraciones amables al cliente"}\n\n' +
-  "Reglas para client_reply:\n" +
-  "- montaje_referencia: confirma que se puede lograr ese estilo/mobiliario y anótalo para la cotización.\n" +
-  "- comprobante_pago: agradece el pago, di que lo registras y que el equipo da seguimiento. NO pidas datos que ya se ven en el comprobante.\n" +
-  "- comida_producto: nombra qué parece ser y ligalo a un servicio cotizable (taquiza, banquete, barra, etc.).\n" +
-  "- lugar_evento: reconoce el espacio y pregunta si ahí sería el evento (o anótalo).\n" +
-  "- documento: confirma recepción sin leer datos sensibles en voz alta.\n" +
-  "- no_claro / otro: pregunta amable qué le gustaría de esa imagen.\n" +
-  "- Habla de tú, español mexicano, cálida y breve. Sin mencionarle al cliente el JSON ni 'internal_description'.";
+  '{"intent":"...","internal_description":"muy breve para el equipo (max 12 palabras)","client_reply":"2-3 oraciones AL CLIENTE sobre su foto"}\n\n' +
+  "Reglas para client_reply (ES LO IMPORTANTE):\n" +
+  "- Es la respuesta que el cliente leerá en WhatsApp.\n" +
+  "- Debe sonar a conversación: 'Vi que… / Me encanta el estilo… / Anoto… / ¿Quieres…?'\n" +
+  "- Nombra algo concreto que salga en la foto (color, tipo de mesa, plato, jardín, etc.).\n" +
+  "- montaje_referencia: confirma que pueden armar ese estilo/mobiliario y anótalo.\n" +
+  "- comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles).\n" +
+  "- comida_producto: diga qué parece ser y ligalo a un servicio (taquiza, banquete, barra…).\n" +
+  "- lugar_evento: reconoce el espacio y confirma si ahí sería el evento.\n" +
+  "- documento: confirma recepción sin leer datos sensibles.\n" +
+  "- no_claro / otro: pregunta qué le gustaría de esa foto para su evento.\n" +
+  "- Español mexicano, de tú, cálida. NUNCA digas 'resumen', 'descripción' ni 'análisis'.";
 
 const FALLBACK_REPLIES: Record<ImageIntent, string> = {
   montaje_referencia:
@@ -234,8 +238,17 @@ function normalizeIntent(raw: unknown): ImageIntent {
 function looksLikeOwnerDescription(text: string): boolean {
   return (
     /^(el|la|los|las)\s+(espacio|área|area|imagen|foto|sal[oó]n|jard[ií]n|mesa)/i.test(text.trim()) ||
-    /\b(se observa|se aprecia|la imagen muestra|en la fotograf[ií]a)\b/i.test(text)
+    /\b(se observa|se aprecia|la imagen muestra|en la fotograf[ií]a|resumen\s+de\s+la\s+(imagen|foto)|descripci[oó]n\s+de\s+la\s+(imagen|foto))\b/i.test(
+      text
+    ) ||
+    /\ban[aá]lisis\s+(interno|de\s+la\s+imagen|visual)\b/i.test(text)
   );
+}
+
+/** True si un texto al cliente parece un resumen técnico de la foto (no conversación). */
+export function looksLikeImageInternalSummary(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  return looksLikeOwnerDescription(text) || /\[Imagen nota interna\]/i.test(text);
 }
 
 export function buildAnalysisFromParts(
@@ -353,6 +366,10 @@ export const IMAGE_ACTION_MARKER = "[Imagen respuesta cliente]:";
 export const IMAGE_NOTE_MARKER = "[Imagen nota interna]:";
 export const IMAGE_INTENT_MARKER = "[Imagen intent]:";
 
+/**
+ * Texto del turno para Lucy/historial: SOLO lo útil para contestar al cliente.
+ * La nota interna NO va aquí (evita que el modelo conteste con un "resumen").
+ */
 export function formatImageTurnText(
   analysis: ImageAnalysis,
   caption?: string | null
@@ -360,12 +377,20 @@ export function formatImageTurnText(
   const parts = [
     `${IMAGE_INTENT_MARKER} ${analysis.intent}`,
     `${IMAGE_ACTION_MARKER} ${analysis.clientReply}`,
-    `${IMAGE_NOTE_MARKER} ${analysis.internalDescription}`,
   ];
   if (caption?.trim()) {
     return `${caption.trim()}\n\n${parts.join("\n")}`;
   }
   return parts.join("\n");
+}
+
+/** Nota corta para el equipo en Kommo (no es el mensaje al cliente). */
+export function formatImageTeamNote(analysis: ImageAnalysis): string {
+  return (
+    `Intent: ${analysis.intent}\n` +
+    `Respuesta enviada al cliente: ${analysis.clientReply}\n` +
+    `Ref. equipo (no enviar): ${analysis.internalDescription}`
+  );
 }
 
 export function extractImageClientReply(text: string | null | undefined): string | null {
