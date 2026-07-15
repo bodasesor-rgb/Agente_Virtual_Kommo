@@ -162,8 +162,7 @@ import {
 } from "../lib/webhookDedup.js";
 import type { ExtractedData } from "../types.js";
 
-const CATALOG_URL =
-  "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
+const CATALOG_URL = "https://bodasesor.com/catalogos";
 
 let passed = 0;
 let failed = 0;
@@ -1256,7 +1255,7 @@ async function runAll(): Promise<void> {
     // toda la respuesta (filtrado por línea completa) dejando un mensaje vacío
     // que caía al fallback "Gracias por tu mensaje. Nuestro equipo te atiende en breve."
     const mezclado =
-      "No hay ningún problema, ya anoté que el evento es en Cuernavaca. Mientras tanto, aquí tienes nuestro catálogo completo: https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499. ¿Hay algo más en lo que te pueda ayudar?";
+      "No hay ningún problema, ya anoté que el evento es en Cuernavaca. Mientras tanto, aquí tienes nuestro catálogo completo: https://bodasesor.com/catalogos. ¿Hay algo más en lo que te pueda ayudar?";
     const limpio = stripCatalogBlockShared(mezclado);
     assert.ok(limpio.trim().length > 0, "no debe quedar vacío");
     assert.ok(!/cdn\.shopify\.com/i.test(limpio), limpio);
