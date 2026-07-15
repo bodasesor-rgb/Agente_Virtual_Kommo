@@ -72,6 +72,7 @@ import {
   getNextPendingField,
   isReadyForClosing,
   mensajeAsksForFilledField,
+  mensajeAsksForField,
   LUCY_INTRO,
   isValidRequerimientosValue,
   crmStoredValue,
@@ -2565,6 +2566,134 @@ async function runAll(): Promise<void> {
     assert.ok(/mobiliario/i.test(close), close);
     assert.ok(/tarima|pista/i.test(close), close);
     assert.ok(!/Si más adelante quieres sumar algo además/i.test(close), close);
+  });
+
+  await test("58. Anti-repetición — correo ya en extracted no se vuelve a pedir", () => {
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    const reply = runGuards({
+      aiResponse: "Perfecto. ¿Me compartes tu correo para enviarte la información?",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        correo: "ana@test.com",
+        tipo_evento: "boda",
+        requerimientos_evento: "banquete",
+      }),
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Quiero banquete formal",
+      history: [
+        { role: "assistant", content: "¿Qué servicios te gustaría cotizar?" },
+        { role: "user", content: "banquete" },
+      ],
+    });
+    assert.ok(!/correo|e-?mail/i.test(reply) || !/\?/.test(reply.split(/correo/i)[0] + "?"), reply.slice(0, 300));
+    assert.ok(!mensajeAsksForField(reply, "correo") && !/necesito.{0,20}correo/i.test(reply), reply.slice(0, 400));
+  });
+
+  await test("59. Anti-repetición — presupuesto ya capturado no se re-pregunta en venta", () => {
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+      "Presupuesto (MXN)",
+    ]);
+    const reply = runGuards({
+      aiResponse:
+        "Claro, el DJ lo anoto. ¿Tienen algún rango de presupuesto en mente?",
+      extracted: emptyExtracted({
+        nombre: "Luis",
+        correo: "l@test.com",
+        tipo_evento: "xv años",
+        requerimientos_evento: "DJ",
+        direccion_evento: "CDMX Polanco",
+        fecha_horario: "15 agosto 2026",
+        num_invitados: 100,
+        presupuesto: "50000",
+      }),
+      filledSet: filled,
+      readyForClosing: true,
+      currentMessage: "también quiero DJ",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, ya tengo todo. Voy a compartir estos datos con nuestro equipo.",
+        },
+      ],
+    });
+    assert.ok(!mensajeAsksForField(reply, "presupuesto"), reply.slice(0, 400));
+    assert.ok(!/rango\s+de\s+presupuesto/i.test(reply), reply.slice(0, 400));
+  });
+
+  await test("60. Anti-repetición — segundo menú de servicios se corta y avanza", () => {
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+    ]);
+    const reply = runGuards({
+      aiResponse:
+        "También manejamos bebidas, DJ, iluminación, carpas… ¿Qué otros servicios te gustaría?",
+      extracted: emptyExtracted({
+        nombre: "Fer",
+        correo: "fer@test.com",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "mobiliario",
+      }),
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "necesito mobiliario",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Platícame qué necesitas. Manejamos alimentos y barras, mobiliario, carpas, pistas de baile, DJ, iluminación y más.",
+        },
+      ],
+    });
+    assert.ok(
+      !/qu[eé]\s+otros\s+servicios|alg[uú]n\s+otro\s+servicio/i.test(reply),
+      reply.slice(0, 400)
+    );
+    assert.ok(
+      /mobiliario|anot|ciudad|colonia|sal[oó]n|fecha|personas|invitados/i.test(reply),
+      reply.slice(0, 400)
+    );
+  });
+
+  await test("61. Anti-repetición — zona en extracted no se vuelve a pedir", () => {
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    const reply = runGuards({
+      aiResponse: "Genial. ¿En qué ciudad y colonia sería tu evento?",
+      extracted: emptyExtracted({
+        nombre: "Karime",
+        correo: "k@test.com",
+        tipo_evento: "boda",
+        requerimientos_evento: "banquete",
+        direccion_evento: "Guadalajara, Providencia",
+      }),
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "sí el banquete",
+      history: [{ role: "assistant", content: "¿Qué servicios te gustaría?" }],
+    });
+    assert.ok(!mensajeAsksForField(reply, "zona"), reply.slice(0, 400));
+    assert.ok(
+      /fecha|horario|cu[aá]ndo|invitados|personas|presupuesto|pensado/i.test(reply),
+      reply.slice(0, 400)
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

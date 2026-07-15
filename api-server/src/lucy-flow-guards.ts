@@ -134,11 +134,15 @@ export function mensajeMencionaCatalogoServicios(mensaje: string): boolean {
   );
 }
 
+/** Follow-up de "¿otro servicio?" en cualquier variante (para anti-bucle). */
+export const OTRO_SERVICIO_ASK_PATTERN =
+  /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro/i;
+
 /** Lista genérica de servicios / "¿otro servicio?" — para cortar el bucle anti-menú. */
 export function looksLikeServicesMenuDump(text: string): boolean {
   if (!text?.trim()) return false;
   const t = text.toLowerCase();
-  if (/alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios/i.test(t)) return true;
+  if (OTRO_SERVICIO_ASK_PATTERN.test(t)) return true;
   if (/tambi[eé]n\s+manejamos\s+(bebidas|alimentos|mobiliario|dj)/i.test(t)) return true;
   if (
     /manejamos\s+(alimentos|bebidas|mobiliario|pistas?|banquetes?).{0,80}(dj|iluminaci|carpas?|pantallas?)/i.test(
@@ -147,13 +151,61 @@ export function looksLikeServicesMenuDump(text: string): boolean {
   ) {
     return true;
   }
+  // Fingerprint del hint hardcodeado (alimentos + mobiliario + DJ/luz).
+  if (/alimentos\s+y\s+barras/.test(t) && /mobiliario/.test(t) && /\bdj\b|iluminaci/.test(t)) {
+    return true;
+  }
   return false;
 }
 
-function appendServiciosCatalogoHint(pregunta: string, adicional = false): string {
+/** True si Lucy ya tiró el menú / "¿otro servicio?" en el historial. */
+export function historyAlreadyHadServicesCatalog(
+  history?: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  if (!history?.length) return false;
+  return history.some(
+    (m) =>
+      m.role === "assistant" &&
+      typeof m.content === "string" &&
+      looksLikeServicesMenuDump(m.content as string)
+  );
+}
+
+function appendServiciosCatalogoHint(
+  pregunta: string,
+  adicional = false,
+  history?: OpenAI.Chat.ChatCompletionMessageParam[]
+): string {
   if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
+  // No volver a inyectar el catálogo si ya salió en un turno anterior.
+  if (historyAlreadyHadServicesCatalog(history)) return pregunta.trim();
   const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
   return `${pregunta.trim()} ${hint}`.trim();
+}
+
+function hasPresupuestoValue(extracted: ExtractedData): boolean {
+  const p = extracted.presupuesto as unknown;
+  if (p == null || p === "") return false;
+  if (typeof p === "number") return Number.isFinite(p);
+  return String(p).trim().length > 0;
+}
+
+/**
+ * Sincroniza filledSet desde extracted cuando la captura GPT/CRM vino desfasada.
+ * Evita re-preguntar correo/zona/fecha/servicios ya presentes en extracted.
+ */
+export function syncFilledFromExtracted(filledSet: Set<string>, extracted: ExtractedData): void {
+  if (sanitizeCrmNombre(extracted.nombre)) filledSet.add("Nombre del cliente");
+  const email = filterClientEmail(extracted.correo);
+  if (email && looksLikeValidClientEmail(email)) filledSet.add("Correo electrónico");
+  if (extracted.tipo_evento?.trim()) filledSet.add("Tipo de evento");
+  if (isValidRequerimientosValue(extracted.requerimientos_evento)) {
+    filledSet.add("Requerimientos o servicios");
+  }
+  if (extracted.direccion_evento?.trim()) filledSet.add("Lugar/dirección del evento");
+  if (extracted.fecha_horario?.trim()) filledSet.add("Fecha y horario");
+  if (extracted.num_invitados) filledSet.add("Número de invitados");
+  if (hasPresupuestoValue(extracted)) filledSet.add("Presupuesto (MXN)");
 }
 
 /** Plantillas legacy — preferir variantes naturales vía buildNaturalQuestion(). */
@@ -385,8 +437,11 @@ function blockExcessivePresupuestoAsk(
   return "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos y te arma la cotización.";
 }
 
-export function isEmailSatisfied(filledSet: Set<string>): boolean {
-  return filledSet.has("Correo electrónico") || filledSet.has(EMAIL_WAIVED_LABEL);
+export function isEmailSatisfied(filledSet: Set<string>, extracted?: ExtractedData): boolean {
+  if (filledSet.has("Correo electrónico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
+  if (!extracted) return false;
+  const email = filterClientEmail(extracted.correo);
+  return !!(email && looksLikeValidClientEmail(email));
 }
 
 export function isReadyForClosing(filledSet: Set<string>): boolean {
@@ -566,6 +621,15 @@ function buildPistaTarimaSalesReply(
   const intro = dims
     ? `Claro, anoto la pista/tarima para tu cotización.${spaceNote} El equipo te confirma el precio según las medidas.`
     : `Claro, anoto la pista de baile o tarima para tu cotización. Hay varios tamaños (incluye opción iluminada); el equipo te confirma el precio.`;
+
+  if (filledSet) {
+    filledSet.add("Requerimientos o servicios");
+  }
+  if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+    extracted.requerimientos_evento = dims
+      ? `pista/tarima ${dims.replace(/m/gi, " m")}`
+      : "pista de baile / tarima";
+  }
 
   const filledAfter = new Set(filledSet ?? []);
   filledAfter.add("Requerimientos o servicios");
@@ -768,13 +832,15 @@ function buildFoodSalesReply(
 
   const appendNext = (body: string, acceptedService?: string | null): string => {
     if (!filledSet || !ctx) return body;
-    const filledAfterService = new Set(filledSet);
     if (acceptedService) {
-      filledAfterService.add("Requerimientos o servicios");
+      filledSet.add("Requerimientos o servicios");
+      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+        extracted.requerimientos_evento = acceptedService;
+      }
     }
-    const pending = getNextPendingField(extracted, filledAfterService);
+    const pending = getNextPendingField(extracted, filledSet);
     if (!pending) return body;
-    const nextQ = buildNaturalQuestion(pending, ctx);
+    const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
     if (body.includes(nextQ)) return body;
     return `${body}\n\n${nextQ}`;
   };
@@ -987,18 +1053,20 @@ export function getNextPendingField(
   const filled = filledSet ?? new Set<string>();
 
   if (!filled.has("Nombre del cliente") && !sanitizeCrmNombre(extracted.nombre)) return "nombre";
-  if (!isEmailSatisfied(filled)) return "correo";
+  if (!isEmailSatisfied(filled, extracted)) return "correo";
 
   const hasReq =
     filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
   const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
+  const hasZona = filled.has("Lugar/dirección del evento") || !!extracted.direccion_evento?.trim();
+  const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
 
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
   if (!hasReq) return "requerimientos";
-  if (!filled.has("Lugar/dirección del evento")) return "zona";
-  if (!filled.has("Fecha y horario")) return "fecha";
+  if (!hasZona) return "zona";
+  if (!hasFecha) return "fecha";
   if (!hasInv) return "invitados";
-  if (!filled.has("Presupuesto (MXN)")) return "presupuesto";
+  if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
   return null;
 }
 
@@ -1282,7 +1350,7 @@ export function isFieldSatisfied(
     case "nombre":
       return filledSet.has("Nombre del cliente") || !!sanitizeCrmNombre(extracted.nombre);
     case "correo":
-      return isEmailSatisfied(filledSet);
+      return isEmailSatisfied(filledSet, extracted);
     case "tipo_evento":
       return hasTipoEvento(filledSet, extracted);
     case "requerimientos":
@@ -1293,12 +1361,27 @@ export function isFieldSatisfied(
     case "invitados":
       return filledSet.has("Número de invitados") || !!extracted.num_invitados;
     case "zona":
-      return filledSet.has("Lugar/dirección del evento");
+      return filledSet.has("Lugar/dirección del evento") || !!extracted.direccion_evento?.trim();
     case "fecha":
-      return filledSet.has("Fecha y horario");
+      return filledSet.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
     case "presupuesto":
-      return filledSet.has("Presupuesto (MXN)");
+      return filledSet.has("Presupuesto (MXN)") || hasPresupuestoValue(extracted);
   }
+}
+
+/** Pedidos suaves de correo/presupuesto sin "?" (GPT a veces no pone interrogación). */
+function softAsksFilledField(mensaje: string, field: PendingField): boolean {
+  if (field === "correo") {
+    return /(?:regalas?|compartes?|me\s+das|necesito|podr[ií]as?\s+(?:darme|compartir)|pasa(?:rme)?).{0,40}(?:correo|e-?mail)|(?:correo|e-?mail).{0,40}(?:por\s+favor|para\s+(?:enviarte|mandarte|enviar))/i.test(
+      mensaje
+    );
+  }
+  if (field === "presupuesto") {
+    return /(?:tienen|tienen?\s+alg[uú]n|me\s+compartes?|necesito|cu[aá]l\s+es).{0,40}(?:presupuesto|rango\s+de\s+inversi)|rango\s+de\s+presupuesto/i.test(
+      mensaje
+    );
+  }
+  return false;
 }
 
 const FIELD_ORDER: PendingField[] = [
@@ -1318,11 +1401,10 @@ export function mensajeAsksForFilledField(
   filledSet: Set<string>,
   extracted: ExtractedData
 ): boolean {
-  if (!mensaje.includes("?")) return false;
   for (const field of FIELD_ORDER) {
-    if (isFieldSatisfied(field, filledSet, extracted) && mensajeAsksForField(mensaje, field)) {
-      return true;
-    }
+    if (!isFieldSatisfied(field, filledSet, extracted)) continue;
+    if (mensaje.includes("?") && mensajeAsksForField(mensaje, field)) return true;
+    if (softAsksFilledField(mensaje, field)) return true;
   }
   return false;
 }
@@ -1485,9 +1567,12 @@ function mergeWithPendingQuestion(
   ctx: NaturalQuestionContext
 ): string {
   const pending = getNextPendingField(extracted, filledSet);
-  if (!pending) return mensaje;
-
   const base = mensaje.trim();
+  if (!pending) {
+    // Embudo completo: no devolver vacío al cortar una re-pregunta.
+    return base || "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos.";
+  }
+
   if (!base) return buildNaturalQuestion(pending, ctx);
 
   // GPT ya respondió bien a una pregunta del cliente — no machacar con plantilla
@@ -1613,30 +1698,72 @@ export function sanitizeOutboundMessage(
 ): string {
   const pending = getNextPendingField(extracted, filledSet);
 
-  // Respuesta de venta (comida/servicios/show/pista) — no reemplazar por plantilla
-  if (
-    ctx.currentMessage &&
+  const isSalesishBody =
+    !!ctx.currentMessage &&
     (clientMentionsCatering(ctx.currentMessage) ||
       clientMentionsEntertainment(ctx.currentMessage) ||
       clientMentionsPistaTarima(ctx.currentMessage) ||
       isServiceRelatedMessage(ctx.currentMessage)) &&
-    /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada/i.test(
+    /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada|anoto/i.test(
       mensaje
-    )
-  ) {
-    return mensaje.trim();
-  }
+    );
 
   const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
   const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
 
-  if ((repeatsFilled || asksWrong) && pending && !isInformativeClientAnswer(ctx.currentMessage)) {
+  // Siempre cortar re-pregunta de dato ya capturado (correo, presupuesto, etc.),
+  // incluso dentro de una respuesta de venta.
+  if (repeatsFilled || asksWrong) {
     log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetición — dato ya capturado");
-    return mergeWithPendingQuestion("", filledSet, extracted, ctx);
+    if (isSalesishBody) {
+      const body = mensaje
+        .split(/\n+/)
+        .filter(
+          (line) =>
+            !mensajeAsksForFilledField(line, filledSet, extracted) &&
+            !(line.includes("?") && mensajeAsksWrongField(line, filledSet, extracted))
+        )
+        .join("\n")
+        .trim();
+      return mergeWithPendingQuestion(body, filledSet, extracted, ctx);
+    }
+    if (!isInformativeClientAnswer(ctx.currentMessage)) {
+      if (!pending) {
+        const texts = collectUserTexts(ctx.history ?? [], ctx.currentMessage);
+        const pres = findPresupuestoInTexts(texts, ctx.history);
+        if (pres && /econ[oó]mic/i.test(pres)) {
+          return "Entendido, buscamos opciones económicas. Nuestro equipo te propone alternativas según lo que platicamos.";
+        }
+        // Ya no falta nada: si GPT re-preguntó un dato lleno, avanzamos a ack corto.
+        return (
+          mensaje
+            .split(/\n+/)
+            .filter((line) => !mensajeAsksForFilledField(line, filledSet, extracted))
+            .join("\n")
+            .trim() ||
+          "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos."
+        );
+      }
+      return mergeWithPendingQuestion("", filledSet, extracted, ctx);
+    }
   }
 
-  if (pending === "requerimientos" && mensaje.includes("?") && !mensajeMencionaCatalogoServicios(mensaje)) {
-    mensaje = appendServiciosCatalogoHint(mensaje);
+  // Respuesta de venta limpia — no forzar plantilla ni re-inyectar menú.
+  if (isSalesishBody) {
+    return mensaje.trim();
+  }
+
+  if (
+    pending === "requerimientos" &&
+    mensaje.includes("?") &&
+    !mensajeMencionaCatalogoServicios(mensaje) &&
+    !historyAlreadyHadServicesCatalog(ctx.presentationHistory ?? ctx.history)
+  ) {
+    mensaje = appendServiciosCatalogoHint(
+      mensaje,
+      false,
+      ctx.presentationHistory ?? ctx.history
+    );
   }
 
   if (
@@ -1691,8 +1818,19 @@ export function buildRequerimientosQuestion(
       : null;
   const service = fromExtracted ?? findMentionedService(userText);
   const prefix = contextualPrefix("requerimientos", extracted, currentMessage, history);
+  const alreadyFollowedUp = history.some(
+    (m) =>
+      m.role === "assistant" &&
+      typeof m.content === "string" &&
+      OTRO_SERVICIO_ASK_PATTERN.test(m.content as string)
+  );
+  const alreadyDumpedMenu = historyAlreadyHadServicesCatalog(history);
 
   if (service) {
+    // Ya preguntamos "¿otro servicio?" o tiramos el menú → no repetir el follow-up.
+    if (alreadyFollowedUp || alreadyDumpedMenu) {
+      return `${prefix}Queda anotado lo de ${service}.`.trim();
+    }
     const idx = variantIndex("requerimientos", history, entityId);
     const followUps = [
       `Además del ${service}, ¿te gustaría cotizar algún otro servicio?`,
@@ -1701,13 +1839,14 @@ export function buildRequerimientosQuestion(
     ];
     return appendServiciosCatalogoHint(
       `${prefix}${followUps[idx % followUps.length]}`,
-      true
+      true,
+      history
     );
   }
 
   const variant = pickVariant("requerimientos", history, entityId);
   const core = prefix ? `${prefix}${variant}` : variant;
-  return appendServiciosCatalogoHint(core);
+  return appendServiciosCatalogoHint(core, false, history);
 }
 
 export function requerimientosNeedsFollowUp(
@@ -1749,7 +1888,7 @@ export function buildRequerimientosFollowUp(
     (m) =>
       m.role === "assistant" &&
       typeof m.content === "string" &&
-      /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m.content as string)
+      OTRO_SERVICIO_ASK_PATTERN.test(m.content as string)
   );
   if (followUpAlreadyAsked) {
     const pending = getNextPendingField(extracted, filledSet);
@@ -2094,12 +2233,36 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
 
+  syncFilledFromExtracted(filledSet, extracted);
+
   applyPresupuestoWaiver(
     filledSet,
     [],
     collectUserTexts(presHistory, currentMessage),
     presHistory
   );
+
+  // Tras un menú / "¿otro servicio?", si el cliente ya nombró algo, no reabrir requisitos.
+  if (
+    !filledSet.has("Requerimientos o servicios") &&
+    historyAlreadyHadServicesCatalog(presHistory)
+  ) {
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    const mentioned =
+      findMentionedService(userBlob) ||
+      (isValidRequerimientosValue(extracted.requerimientos_evento)
+        ? extracted.requerimientos_evento
+        : null) ||
+      (clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage)
+        ? (currentMessage ?? "").trim().slice(0, 80)
+        : null);
+    if (mentioned || isServiceRelatedMessage(currentMessage) || isValidRequerimientosValue(extracted.requerimientos_evento)) {
+      filledSet.add("Requerimientos o servicios");
+      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+        extracted.requerimientos_evento = mentioned || "servicios solicitados";
+      }
+    }
+  }
 
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
@@ -2120,7 +2283,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   const justGaveEmail = clientJustGaveEmail(history, currentMessage);
   const justAnsweredReq = clientJustAnsweredRequerimientosQuestion(history, currentMessage);
-  const emailOk = isEmailSatisfied(filledSet);
+  const emailOk = isEmailSatisfied(filledSet, extracted);
   const needsNextStep = emailOk && !trulyReadyForClosing && !cierreYaEnviado;
 
   // Cuando ya se puede cerrar y los requerimientos ya son válidos, no re-abrir
@@ -2139,12 +2302,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       .includes(mentionedServiceNow.toLowerCase());
   // El follow-up "¿algún otro servicio?" solo se pregunta una vez — si ya aparece
   // en el historial, no se vuelve a preguntar (evita el bucle infinito).
-  const requerimientosFollowUpAlreadyAsked = presHistory.some(
-    (m) =>
-      m.role === "assistant" &&
-      typeof m.content === "string" &&
-      /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b/i.test(m.content as string)
-  );
+  const requerimientosFollowUpAlreadyAsked = historyAlreadyHadServicesCatalog(presHistory);
 
   const lastAssistantMsg = [...presHistory]
     .reverse()
@@ -2769,10 +2927,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = nextQ;
   }
 
-  const correoYaTenido = !!(extracted.correo?.trim()) || filledSet.has("Correo electrónico");
-  if (correoYaTenido && /correo/i.test(mensaje) && mensaje.includes("?") && !trulyReadyForClosing) {
+  const correoYaTenido = isEmailSatisfied(filledSet, extracted);
+  if (
+    correoYaTenido &&
+    (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo")) &&
+    !trulyReadyForClosing
+  ) {
     const pending = getNextPendingField(extracted, filledSet);
-    if (pending && pending !== "correo" && !mensajeAsksForField(mensaje, pending)) {
+    if (pending && pending !== "correo") {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
       if (nextQ) {
         log?.warn({ entityId }, "GUARD: GPT preguntó correo ya capturado");
@@ -2781,7 +2943,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (filledSet.has(EMAIL_WAIVED_LABEL) && /correo/i.test(mensaje) && mensaje.includes("?") && !trulyReadyForClosing) {
+  if (
+    filledSet.has(EMAIL_WAIVED_LABEL) &&
+    (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo")) &&
+    !trulyReadyForClosing
+  ) {
     const nextQ =
       nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ??
       emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
@@ -2839,11 +3005,74 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  if (!cierreYaEnviado && !appliedSalesReply && !appliedDirectReply) {
+  if (!cierreYaEnviado && !appliedDirectReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   }
 
+  // Ventas: sanitizar + cortar re-preguntas, pero no pasar por enforceNombreFirst
+  // (si no, el pitch de coffee break / pista en el primer turno se sustituye por "¿nombre?").
   if (appliedSalesReply) {
+    mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+    mensaje = blockExcessivePresupuestoAsk(
+      mensaje,
+      filledSet,
+      extracted,
+      presHistory,
+      currentMessage,
+      buildClosing,
+      cierreYaEnviado,
+      whatsappDisplayName,
+      entityId,
+      log
+    );
+    if (
+      isPresupuestoResuelto(filledSet, collectUserTexts(presHistory, currentMessage), presHistory) ||
+      filledSet.has("Presupuesto (MXN)")
+    ) {
+      if (
+        mensajeAsksForField(mensaje, "presupuesto") ||
+        softAsksFilledField(mensaje, "presupuesto") ||
+        /rango\s+de\s+(presupuesto|inversi)/i.test(mensaje)
+      ) {
+        const pending = getNextPendingField(extracted, filledSet);
+        mensaje =
+          pending && pending !== "presupuesto"
+            ? buildNaturalQuestion(pending, ctx)
+            : isReadyForClosing(filledSet) && !cierreYaEnviado
+              ? buildClosing(
+                  extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+                  extracted.nombre
+                )
+              : "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos.";
+      }
+    }
+    const historyHadGenericMenu = presHistory.some(
+      (m) =>
+        m.role === "assistant" &&
+        typeof m.content === "string" &&
+        (responseLooksLikeGenericCateringMenu(m.content as string) ||
+          looksLikeServicesMenuDump(m.content as string))
+    );
+    if (
+      (responseLooksLikeGenericCateringMenu(mensaje) || looksLikeServicesMenuDump(mensaje)) &&
+      (historyHadGenericMenu ||
+        clientMentionsPistaTarima(currentMessage) ||
+        mentionsNoListedPriceService(currentMessage)) &&
+      currentMessage?.trim()
+    ) {
+      if (
+        clientMentionsPistaTarima(currentMessage) ||
+        mentionsNoListedPriceService(currentMessage)
+      ) {
+        const ack = buildGuardServiceAck(currentMessage);
+        filledSet.add("Requerimientos o servicios");
+        const pending = getNextPendingField(extracted, filledSet);
+        mensaje =
+          pending && pending !== "requerimientos"
+            ? `${ack}\n\n${buildNaturalQuestion(pending, { ...ctx, filledSet })}`
+            : ack;
+      }
+    }
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
 
@@ -2973,7 +3202,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   if (
     mensajeAsksForField(mensaje, "zona") &&
     countLucyFieldAsks(presHistory, "zona") >= 1 &&
-    !filledSet.has("Lugar/dirección del evento")
+    !isFieldSatisfied("zona", filledSet, extracted)
   ) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     const zonaAsks = countLucyFieldAsks(presHistory, "zona");
@@ -2995,7 +3224,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   if (
     mensajeAsksForField(mensaje, "fecha") &&
     countLucyFieldAsks(presHistory, "fecha") >= 1 &&
-    !filledSet.has("Fecha y horario")
+    !isFieldSatisfied("fecha", filledSet, extracted)
   ) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre
@@ -3035,12 +3264,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       mentionsNoListedPriceService(currentMessage)
     ) {
       const ack = buildGuardServiceAck(currentMessage);
-      const filledAfter = new Set(filledSet);
-      filledAfter.add("Requerimientos o servicios");
-      const pending = getNextPendingField(extracted, filledAfter);
+      filledSet.add("Requerimientos o servicios");
+      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+        const mentioned = findMentionedService(currentMessage) || currentMessage.trim().slice(0, 80);
+        extracted.requerimientos_evento = mentioned;
+      }
+      const pending = getNextPendingField(extracted, filledSet);
       mensaje =
         pending && pending !== "requerimientos"
-          ? `${ack}\n\n${buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter })}`
+          ? `${ack}\n\n${buildNaturalQuestion(pending, { ...ctx, filledSet })}`
           : ack;
       log?.info({ entityId }, "GUARD: servicio sin precio — aceptar y avanzar (anti-menú)");
     } else {
