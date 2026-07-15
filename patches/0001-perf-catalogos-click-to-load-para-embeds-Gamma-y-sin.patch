@@ -1,0 +1,231 @@
+From c7e74809e581b20208497b4ddfce5db39ed9d1cd Mon Sep 17 00:00:00 2001
+From: Cursor Agent <cursoragent@cursor.com>
+Date: Wed, 15 Jul 2026 02:27:38 +0000
+Subject: [PATCH] perf(catalogos): click-to-load para embeds Gamma y sin hero
+ en /catalogos
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Gamma pesa ~600KB+; ya no se descarga al abrir la ficha. En detalle
+aparece un poster con “Ver catálogo visual”. El listado solo carga
+cuando el usuario abre un ítem. En rutas no-home no se precarga el hero.
+---
+ index.html                       | 42 +++++++++++++++++++----
+ src/components/CatalogEmbed.tsx  | 59 ++++++++++++++++++++++++--------
+ src/pages/CatalogoDetailPage.tsx |  5 +--
+ src/pages/CatalogosPage.tsx      |  3 +-
+ 4 files changed, 85 insertions(+), 24 deletions(-)
+
+diff --git a/index.html b/index.html
+index 465b54e..11565e7 100644
+--- a/index.html
++++ b/index.html
+@@ -17,8 +17,24 @@
+     <meta property="og:url" content="https://bodasesor.com/" />
+     <meta property="og:locale" content="es_MX" />
+     <meta name="twitter:card" content="summary_large_image" />
+-    <link rel="preload" as="image" href="/images/hero-bg-new-mobile.webp" type="image/webp" media="(max-width: 768px)" fetchpriority="high" />
+-    <link rel="preload" as="image" href="/images/hero-bg-new.webp" type="image/webp" media="(min-width: 769px)" fetchpriority="high" />
++    <script>
++      (function () {
++        var p = location.pathname.replace(/\/+$/, "") || "/";
++        if (p !== "/") return;
++        function addPreload(href, media) {
++          var l = document.createElement("link");
++          l.rel = "preload";
++          l.as = "image";
++          l.href = href;
++          l.type = "image/webp";
++          if (media) l.media = media;
++          l.fetchPriority = "high";
++          document.head.appendChild(l);
++        }
++        addPreload("/images/hero-bg-new-mobile.webp", "(max-width: 768px)");
++        addPreload("/images/hero-bg-new.webp", "(min-width: 769px)");
++      })();
++    </script>
+     <script>
+       if (/^\/(products|collections|blogs|pages)\//.test(location.pathname)) {
+         var s = document.createElement('script');
+@@ -69,18 +85,32 @@
+       <div class="nav-sub"></div>
+     </div>
+     <picture id="lcp-hero-wrap" aria-hidden="true">
+-      <source media="(max-width: 768px)" srcset="/images/hero-bg-new-mobile.webp" type="image/webp" />
+-      <source srcset="/images/hero-bg-new.webp" type="image/webp" />
++      <source media="(max-width: 768px)" data-srcset="/images/hero-bg-new-mobile.webp" type="image/webp" />
++      <source data-srcset="/images/hero-bg-new.webp" type="image/webp" />
+       <img
+         id="lcp-hero"
+-        src="/images/hero-bg-new.webp"
++        data-src="/images/hero-bg-new.webp"
+         alt=""
+         width="1408"
+         height="768"
+-        fetchpriority="high"
+         decoding="async"
+       />
+     </picture>
++    <script>
++      (function () {
++        if (document.documentElement.classList.contains("no-lcp-hero")) return;
++        var img = document.getElementById("lcp-hero");
++        if (img && img.getAttribute("data-src")) {
++          img.setAttribute("src", img.getAttribute("data-src"));
++          img.setAttribute("fetchpriority", "high");
++          img.removeAttribute("data-src");
++        }
++        document.querySelectorAll("#lcp-hero-wrap source[data-srcset]").forEach(function (s) {
++          s.setAttribute("srcset", s.getAttribute("data-srcset"));
++          s.removeAttribute("data-srcset");
++        });
++      })();
++    </script>
+     <div id="static-hero-copy">
+       <h1>Banquetes, catering y servicios para eventos en México</h1>
+       <p class="hero-sub">Banquetes premium, catering gourmet y mobiliario elegante para bodas, quinceañeras, eventos corporativos y celebraciones en todo México</p>
+diff --git a/src/components/CatalogEmbed.tsx b/src/components/CatalogEmbed.tsx
+index 2e3e13a..c477265 100644
+--- a/src/components/CatalogEmbed.tsx
++++ b/src/components/CatalogEmbed.tsx
+@@ -6,61 +6,90 @@ type CatalogoEmbedData = {
+   embedSrc: string;
+ };
+ 
+-/** Embed only — never link to gamma.app / canva edit URLs. */
++type LoadMode = "click" | "lazy" | "eager";
++
++/**
++ * Embed de catálogo — Gamma/Canva pesan ~600KB+ por iframe.
++ * Por defecto: click-to-load (no pide el recurso externo hasta que el usuario lo pide).
++ * Nunca enlazamos a gamma.app / canva edit.
++ */
+ export default function CatalogEmbed({
+   catalog,
++  mode,
+   eager = false,
+   minHeight,
+ }: {
+   catalog: CatalogoEmbedData;
++  /** click = poster + botón (recomendado). lazy = IntersectionObserver. eager = inmediato. */
++  mode?: LoadMode;
++  /** @deprecated usa mode="eager" */
+   eager?: boolean;
+   minHeight?: number;
+ }) {
++  const resolvedMode: LoadMode = mode ?? (eager ? "eager" : "click");
+   const ref = useRef<HTMLDivElement>(null);
+-  const [visible, setVisible] = useState(eager);
+-  const height = minHeight ?? (catalog.provider === "canva" ? 640 : 560);
++  const height = minHeight ?? (catalog.provider === "canva" ? 640 : 720);
++  const [activated, setActivated] = useState(resolvedMode === "eager");
++  const [inView, setInView] = useState(resolvedMode === "eager");
+ 
+   useEffect(() => {
+-    if (eager) return;
++    if (resolvedMode !== "lazy" || activated) return;
+     const el = ref.current;
+     if (!el) return;
+     const io = new IntersectionObserver(
+       ([entry]) => {
+         if (entry?.isIntersecting) {
+-          setVisible(true);
++          setInView(true);
+           io.disconnect();
+         }
+       },
+-      { rootMargin: "200px 0px" },
++      { rootMargin: "80px 0px" },
+     );
+     io.observe(el);
+     return () => io.disconnect();
+-  }, [eager]);
++  }, [resolvedMode, activated]);
++
++  const showIframe =
++    activated || (resolvedMode === "lazy" && inView) || resolvedMode === "eager";
+ 
+   return (
+     <div
+       ref={ref}
+       className="w-full bg-[#f5efe8] rounded-xl overflow-hidden border border-[#162040]/10"
+     >
+-      {visible ? (
++      {showIframe ? (
+         <iframe
+           src={catalog.embedSrc}
+           title={`Catálogo ${catalog.title} | Bodasesor`}
+           className="w-full border-0"
+           style={{ height }}
+           allow="fullscreen"
+-          loading={eager ? "eager" : "lazy"}
++          loading="lazy"
+           referrerPolicy="no-referrer"
+-          // Keep interaction inside the embed; no top-level navigation to Gamma/Canva.
+           sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-presentation"
+         />
+       ) : (
+-        <div
+-          className="flex items-center justify-center text-[#162040]/50 font-serif text-sm"
+-          style={{ height: Math.min(height, 280) }}
++        <button
++          type="button"
++          onClick={() => setActivated(true)}
++          className="group relative flex w-full flex-col items-center justify-center gap-4 px-6 py-14 text-center transition-colors hover:bg-[#ebe3d8] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#162040] focus-visible:ring-offset-2"
++          style={{ minHeight: Math.min(height, 320) }}
++          aria-label={`Cargar catálogo visual de ${catalog.title}`}
+         >
+-          Cargando catálogo…
+-        </div>
++          <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-[#162040] text-white shadow-sm transition-transform group-hover:scale-105">
++            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
++              <path d="M8 5.5v13l11-6.5L8 5.5Z" fill="currentColor" />
++            </svg>
++          </span>
++          <span className="max-w-md">
++            <span className="block font-serif text-lg font-bold text-[#162040] md:text-xl">
++              Ver catálogo visual
++            </span>
++            <span className="mt-1 block font-serif text-sm text-[#162040]/65">
++              {catalog.title} — se carga al tocar (contenido externo bajo demanda)
++            </span>
++          </span>
++        </button>
+       )}
+     </div>
+   );
+diff --git a/src/pages/CatalogoDetailPage.tsx b/src/pages/CatalogoDetailPage.tsx
+index 4b32fd0..5d0b36a 100644
+--- a/src/pages/CatalogoDetailPage.tsx
++++ b/src/pages/CatalogoDetailPage.tsx
+@@ -83,9 +83,10 @@ export default function CatalogoDetailPage({ slug }: { slug: string }) {
+       </section>
+ 
+       <div className="max-w-5xl mx-auto px-4 py-8 md:py-12">
+-        <CatalogEmbed catalog={catalog} eager minHeight={720} />
++        {/* Sin eager: Gamma ~600KB+ solo al hacer clic → página mucho más liviana */}
++        <CatalogEmbed catalog={catalog} mode="click" minHeight={720} />
+         <p className="mt-4 text-center text-sm text-gray-500 font-serif">
+-          Vista segura en bodasesor.com — el contenido se muestra embebido, sin abrir herramientas externas.
++          Vista segura en bodasesor.com — el catálogo visual se carga solo si lo pides.
+         </p>
+       </div>
+ 
+diff --git a/src/pages/CatalogosPage.tsx b/src/pages/CatalogosPage.tsx
+index 1bf1c61..a20f620 100644
+--- a/src/pages/CatalogosPage.tsx
++++ b/src/pages/CatalogosPage.tsx
+@@ -157,7 +157,8 @@ export default function CatalogosPage() {
+               </div>
+               {isOpen && (
+                 <div className="px-4 pb-5 md:px-6 md:pb-6">
+-                  <CatalogEmbed catalog={catalog} />
++                  {/* El usuario ya pulsó "Ver catálogo": cargar al estar visible, no los 38 de golpe */}
++                  <CatalogEmbed catalog={catalog} mode="lazy" />
+                 </div>
+               )}
+             </article>
+-- 
+2.43.0
+
