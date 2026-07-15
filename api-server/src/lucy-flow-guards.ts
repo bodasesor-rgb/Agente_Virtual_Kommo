@@ -11,6 +11,9 @@ import {
   sanitizeCrmNombre,
   buildNameConfirmationPrompt,
   namesAreLikelySamePerson,
+  isLikelyNotPersonNameMessage,
+  clientAsksCompanyIdentity,
+  buildCompanyIdentityReply,
 } from "./contact-name.js";
 import {
   buildEmailConfirmationPrompt,
@@ -2190,7 +2193,9 @@ function buildNameMismatchReplyIfNeeded(
     !currentMessage ||
     isFieldSatisfied("nombre", filledSet, extracted) ||
     isGreetingOnlyMessage(currentMessage) ||
+    isLikelyNotPersonNameMessage(currentMessage) ||
     isQuoteIntentMessage(currentMessage) ||
+    clientAsksCompanyIdentity(currentMessage) ||
     isAmbiguousShortNumber(currentMessage, { lastAskedField })
   ) {
     return null;
@@ -2198,7 +2203,7 @@ function buildNameMismatchReplyIfNeeded(
 
   const existingNombre =
     sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(whatsappDisplayName) ?? null;
-  const soyMatch = currentMessage.trim().match(/^\s*soy\s+(.+)$/i);
+  const soyMatch = currentMessage.trim().match(/^\s*(?:soy|me\s+llamo|c[oó]mo)\s+(.+)$/i);
   const rawIncoming = soyMatch ? soyMatch[1]!.trim() : currentMessage.trim();
   const incomingNombre = sanitizeCrmNombre(rawIncoming) ?? sanitizeDisplayName(rawIncoming);
   if (
@@ -2206,9 +2211,14 @@ function buildNameMismatchReplyIfNeeded(
     incomingNombre &&
     !namesAreLikelySamePerson(existingNombre, incomingNombre) &&
     rawIncoming.length < 50 &&
-    !/@/.test(rawIncoming)
+    !/@/.test(rawIncoming) &&
+    !isLikelyNotPersonNameMessage(rawIncoming)
   ) {
-    return buildNameConfirmationPrompt(existingNombre, incomingNombre);
+    // Preferir no acortar "Omar Ponce" → preguntar con el nombre más completo.
+    const askExisting = isNombreMoreComplete(existingNombre, incomingNombre)
+      ? existingNombre
+      : existingNombre;
+    return buildNameConfirmationPrompt(askExisting, incomingNombre);
   }
   return null;
 }
@@ -2339,6 +2349,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente preguntó por correo de Bodasesor");
+  } else if (clientAsksCompanyIdentity(currentMessage)) {
+    const knownName =
+      sanitizeCrmNombre(extracted.nombre) ??
+      sanitizeCrmNombre(whatsappDisplayName) ??
+      sanitizeDisplayName(whatsappDisplayName);
+    mensaje = buildCompanyIdentityReply(knownName);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: cliente preguntó si es Cap&Bara/Bodasesor");
   } else if (
     clientAsksForCatalog(currentMessage) ||
     clientAffirmsCatalogOffer(

@@ -42,7 +42,7 @@ import {
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
 } from "../conversation-understanding.js";
-import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre } from "../contact-name.js";
+import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, clientAsksCompanyIdentity, buildCompanyIdentityReply } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
   resolveTipoContacto,
@@ -2694,6 +2694,60 @@ async function runAll(): Promise<void> {
       /fecha|horario|cu[aá]ndo|invitados|personas|presupuesto|pensado/i.test(reply),
       reply.slice(0, 400)
     );
+  });
+
+  await test("62. A14856 Omar — saludo/Cap&Bara NO se confunden con nombre", () => {
+    assert.equal(isGreetingOnlyMessage("Hola buen día"), true);
+    assert.equal(isGreetingOnlyMessage("buen día"), true);
+    assert.equal(isGreetingOnlyMessage("Buenos días"), true);
+    assert.equal(sanitizeCrmNombre("Buen Día"), null);
+    assert.equal(sanitizeDisplayName("Hola buen día"), null);
+
+    assert.ok(clientAsksCompanyIdentity("¿Me comunico con Cap&Bata eventos?"));
+    assert.ok(clientAsksCompanyIdentity("¿Me comunico con Cap&Bara eventos?"));
+    assert.ok(isLikelyNotPersonNameMessage("¿Me comunico con Cap&Bata eventos?"));
+    assert.ok(isLikelyNotPersonNameMessage("Hola buen día"));
+    assert.equal(isLikelyNotPersonNameMessage("Omar"), false);
+    assert.equal(isLikelyNotPersonNameMessage("Cómo Omar"), false);
+
+    const filled = new Set<string>();
+    const greetingReply = runGuards({
+      aiResponse: "¿Me regalas tu nombre?",
+      extracted: emptyExtracted({ nombre: null }),
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Hola buen día",
+      whatsappDisplayName: "Omar Ponce",
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(
+      !/eres\s+Buen|sigues?\s+contigo\s+como/i.test(greetingReply),
+      `no debe preguntar si es Buen Día: ${greetingReply.slice(0, 250)}`
+    );
+
+    const filled2 = new Set<string>();
+    const companyReply = runGuards({
+      aiResponse: "¿Me regalas tu nombre?",
+      extracted: emptyExtracted({ nombre: null }),
+      filledSet: filled2,
+      readyForClosing: false,
+      currentMessage: "¿Me comunico con Cap&Bata eventos?",
+      whatsappDisplayName: "Omar Ponce",
+      history: [
+        { role: "user", content: "Hola buen día" },
+        { role: "assistant", content: "Hola, soy Lucy. ¿Me regalas tu nombre?" },
+      ],
+    });
+    assert.ok(
+      !/Me Comunico|Capbata|eres\s+Me/i.test(companyReply),
+      `no debe tomar Cap&Bata como nombre: ${companyReply.slice(0, 250)}`
+    );
+    assert.ok(
+      /Bodasesor|Cap&Bara|Lucy/i.test(companyReply),
+      `debe confirmar que es Cap&Bara/Bodasesor: ${companyReply.slice(0, 250)}`
+    );
+    assert.ok(buildCompanyIdentityReply("Omar").includes("Omar"));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

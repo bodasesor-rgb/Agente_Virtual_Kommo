@@ -19,7 +19,15 @@ const PLACEHOLDER_PATTERNS = [
 
 /** Saludos y frases que NO son nombres de persona. */
 const GREETING_NAME_PATTERN =
-  /^(hola|hello|hi|hey|buenos?|buenas?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco)$/i;
+  /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
+
+/** Cap&Bara / Bodasesor / Lucy — preguntas de canal, no nombre del cliente. */
+const COMPANY_OR_CHANNEL_PATTERN =
+  /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
+
+/** Verbos de frase/pregunta — el mensaje no es un nombre propio. */
+const SENTENCE_VERB_PATTERN =
+  /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|ofrecen|manejan|pueden|puedo|gustar[ií]a)\b/i;
 
 /** Intención de cotización — no es el nombre del cliente ("Quiero hacer una cotización"). */
 export function isQuoteIntentMessage(text: string | null | undefined): boolean {
@@ -37,14 +45,67 @@ export function isQuoteIntentMessage(text: string | null | undefined): boolean {
 export function isGreetingOnlyMessage(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  if (/^soy\s+/i.test(t)) return false;
+  if (/^soy\s+/i.test(t) || /^me\s+llamo\s+/i.test(t)) return false;
+
+  const normalized = t
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[!?.,…¡¿]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+  // "hola", "hola buen dia", "buen dia", "buenos dias", etc.
+  const withoutHola = normalized.replace(/^(hola|hello|hi|hey)\s+/, "");
+  if (/^(hola|hello|hi|hey)$/.test(normalized)) return true;
+  if (
+    /^(buen(os|as)?\s+)?(dias?|tardes?|noches?)(\s+(a\s+todos|equipo))?$/.test(withoutHola)
+  ) {
+    return true;
+  }
+  if (/^que\s*tal$/.test(normalized) || /^buenas?$/.test(normalized) || /^saludos?$/.test(normalized)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * True si el texto NO debe tratarse como nombre de persona
+ * (saludo, pregunta, Cap&Bara/empresa, frase con verbo, ubicación…).
+ */
+export function isLikelyNotPersonNameMessage(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return true;
+  // Presentación explícita sí puede ser nombre.
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
+  if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 4) return false;
+
+  if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
+  if (isLikelyUbicacionNotNombre(t)) return true;
+  if (/\?/.test(t)) return true;
+  if (COMPANY_OR_CHANNEL_PATTERN.test(t)) return true;
+  if (SENTENCE_VERB_PATTERN.test(t)) return true;
+  // Frase larga sin "soy/me llamo" ≠ nombre.
+  if (t.split(/\s+/).length >= 4) return true;
+  return false;
+}
+
+/** Cliente pregunta si habla con Cap&Bara / Bodasesor / el canal correcto. */
+export function clientAsksCompanyIdentity(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  if (!COMPANY_OR_CHANNEL_PATTERN.test(t) && !/cap\s*[&y]?\s*bata/i.test(t)) return false;
   return (
-    /^hola[.!?\s,]*$/i.test(t) ||
-    /^buen(os|as)?\s*(d[ií]as|tardes|noches)?[.!?\s,]*$/i.test(t) ||
-    /^qu[eé]\s*tal[.!?\s,]*$/i.test(t) ||
-    /^buenas?[.!?\s,]*$/i.test(t) ||
-    /^saludos?[.!?\s,]*$/i.test(t)
+    /\?/i.test(t) ||
+    /\b(comunico|hablo|escribo|estoy|este\s+(es|chat|n[uú]mero)|es\s+(el|la)|son)\b/i.test(t)
   );
+}
+
+export function buildCompanyIdentityReply(clientName?: string | null): string {
+  const nombre = clientName?.trim();
+  const base =
+    "Sí, soy Lucy de Bodasesor (Cap&Bara Eventos). Te ayudo a armar tu cotización por aquí.";
+  return nombre ? `${base} ¿Seguimos, ${nombre}?` : `${base} ¿Me regalas tu nombre para iniciar?`;
 }
 
 /** Colonia/ciudad — no es nombre de persona ("Narvarte CDMX", "Polanco"). */
@@ -81,6 +142,7 @@ export function isPlaceholderLeadName(name: string | null | undefined): boolean 
 export function sanitizeDisplayName(name: string | null | undefined): string | null {
   const trimmed = name?.trim() ?? "";
   if (!trimmed || isPlaceholderLeadName(trimmed)) return null;
+  if (isGreetingOnlyMessage(trimmed)) return null;
 
   const cleaned = trimmed
     .replace(/^Lead:\s*/i, "")
@@ -89,6 +151,7 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
     .trim();
 
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+  if (isGreetingOnlyMessage(cleaned)) return null;
 
   const firstToken = cleaned.split(/\s+/)[0] ?? "";
   const firstName = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
@@ -106,6 +169,7 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
 export function sanitizeCrmNombre(name: string | null | undefined): string | null {
   const trimmed = name?.trim() ?? "";
   if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
+  if (isGreetingOnlyMessage(trimmed)) return null;
   if (isLikelyUbicacionNotNombre(trimmed)) return null;
 
   const cleaned = trimmed
@@ -115,6 +179,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     .trim();
 
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+  if (isGreetingOnlyMessage(cleaned)) return null;
 
   const parts = cleaned.split(/\s+/).filter((part) => {
     const trimmed = part.trim();

@@ -79072,7 +79072,9 @@ var PLACEHOLDER_PATTERNS = [
   /^cliente$/i,
   /^\d+$/
 ];
-var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buenos?|buenas?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco)$/i;
+var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
+var COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
+var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|ofrecen|manejan|pueden|puedo|gustar[ií]a)\b/i;
 function isQuoteIntentMessage(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
@@ -79082,8 +79084,41 @@ function isQuoteIntentMessage(text2) {
 function isGreetingOnlyMessage(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
-  if (/^soy\s+/i.test(t)) return false;
-  return /^hola[.!?\s,]*$/i.test(t) || /^buen(os|as)?\s*(d[ií]as|tardes|noches)?[.!?\s,]*$/i.test(t) || /^qu[eé]\s*tal[.!?\s,]*$/i.test(t) || /^buenas?[.!?\s,]*$/i.test(t) || /^saludos?[.!?\s,]*$/i.test(t);
+  if (/^soy\s+/i.test(t) || /^me\s+llamo\s+/i.test(t)) return false;
+  const normalized = t.normalize("NFD").replace(/\p{M}/gu, "").replace(/[!?.,…¡¿]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  const withoutHola = normalized.replace(/^(hola|hello|hi|hey)\s+/, "");
+  if (/^(hola|hello|hi|hey)$/.test(normalized)) return true;
+  if (/^(buen(os|as)?\s+)?(dias?|tardes?|noches?)(\s+(a\s+todos|equipo))?$/.test(withoutHola)) {
+    return true;
+  }
+  if (/^que\s*tal$/.test(normalized) || /^buenas?$/.test(normalized) || /^saludos?$/.test(normalized)) {
+    return true;
+  }
+  return false;
+}
+function isLikelyNotPersonNameMessage(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return true;
+  if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
+  if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 4) return false;
+  if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
+  if (isLikelyUbicacionNotNombre(t)) return true;
+  if (/\?/.test(t)) return true;
+  if (COMPANY_OR_CHANNEL_PATTERN.test(t)) return true;
+  if (SENTENCE_VERB_PATTERN.test(t)) return true;
+  if (t.split(/\s+/).length >= 4) return true;
+  return false;
+}
+function clientAsksCompanyIdentity(message) {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  if (!COMPANY_OR_CHANNEL_PATTERN.test(t) && !/cap\s*[&y]?\s*bata/i.test(t)) return false;
+  return /\?/i.test(t) || /\b(comunico|hablo|escribo|estoy|este\s+(es|chat|n[uú]mero)|es\s+(el|la)|son)\b/i.test(t);
+}
+function buildCompanyIdentityReply(clientName) {
+  const nombre = clientName?.trim();
+  const base = "S\xED, soy Lucy de Bodasesor (Cap&Bara Eventos). Te ayudo a armar tu cotizaci\xF3n por aqu\xED.";
+  return nombre ? `${base} \xBFSeguimos, ${nombre}?` : `${base} \xBFMe regalas tu nombre para iniciar?`;
 }
 function isLikelyUbicacionNotNombre(text2) {
   const t = text2?.trim() ?? "";
@@ -79110,8 +79145,10 @@ function isPlaceholderLeadName(name2) {
 function sanitizeDisplayName(name2) {
   const trimmed = name2?.trim() ?? "";
   if (!trimmed || isPlaceholderLeadName(trimmed)) return null;
+  if (isGreetingOnlyMessage(trimmed)) return null;
   const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+  if (isGreetingOnlyMessage(cleaned)) return null;
   const firstToken = cleaned.split(/\s+/)[0] ?? "";
   const firstName = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
   if (!firstName || firstName.length < 2) return null;
@@ -79125,9 +79162,11 @@ function sanitizeDisplayName(name2) {
 function sanitizeCrmNombre(name2) {
   const trimmed = name2?.trim() ?? "";
   if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
+  if (isGreetingOnlyMessage(trimmed)) return null;
   if (isLikelyUbicacionNotNombre(trimmed)) return null;
   const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
+  if (isGreetingOnlyMessage(cleaned)) return null;
   const parts2 = cleaned.split(/\s+/).filter((part) => {
     const trimmed2 = part.trim();
     const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
@@ -84772,15 +84811,16 @@ function makeQuestionCtx(input) {
   };
 }
 function buildNameMismatchReplyIfNeeded(currentMessage, extracted, filledSet, whatsappDisplayName, lastAskedField) {
-  if (!currentMessage || isFieldSatisfied("nombre", filledSet, extracted) || isGreetingOnlyMessage(currentMessage) || isQuoteIntentMessage(currentMessage) || isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
+  if (!currentMessage || isFieldSatisfied("nombre", filledSet, extracted) || isGreetingOnlyMessage(currentMessage) || isLikelyNotPersonNameMessage(currentMessage) || isQuoteIntentMessage(currentMessage) || clientAsksCompanyIdentity(currentMessage) || isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     return null;
   }
   const existingNombre = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(whatsappDisplayName) ?? null;
-  const soyMatch = currentMessage.trim().match(/^\s*soy\s+(.+)$/i);
+  const soyMatch = currentMessage.trim().match(/^\s*(?:soy|me\s+llamo|c[oó]mo)\s+(.+)$/i);
   const rawIncoming = soyMatch ? soyMatch[1].trim() : currentMessage.trim();
   const incomingNombre = sanitizeCrmNombre(rawIncoming) ?? sanitizeDisplayName(rawIncoming);
-  if (existingNombre && incomingNombre && !namesAreLikelySamePerson(existingNombre, incomingNombre) && rawIncoming.length < 50 && !/@/.test(rawIncoming)) {
-    return buildNameConfirmationPrompt(existingNombre, incomingNombre);
+  if (existingNombre && incomingNombre && !namesAreLikelySamePerson(existingNombre, incomingNombre) && rawIncoming.length < 50 && !/@/.test(rawIncoming) && !isLikelyNotPersonNameMessage(rawIncoming)) {
+    const askExisting = isNombreMoreComplete(existingNombre, incomingNombre) ? existingNombre : existingNombre;
+    return buildNameConfirmationPrompt(askExisting, incomingNombre);
   }
   return null;
 }
@@ -84862,6 +84902,11 @@ function applyLucyMessageGuards(input) {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
+  } else if (clientAsksCompanyIdentity(currentMessage)) {
+    const knownName = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName);
+    mensaje = buildCompanyIdentityReply(knownName);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: cliente pregunt\xF3 si es Cap&Bara/Bodasesor");
   } else if (clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
