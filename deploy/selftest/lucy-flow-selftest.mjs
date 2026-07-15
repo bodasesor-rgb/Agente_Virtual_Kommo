@@ -16664,7 +16664,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/selftest/lucy-flow-selftest.ts
-var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf";
+var CATALOG_URL = "https://cdn.shopify.com/s/files/1/0809/1215/4936/files/Catalogo-Menus-Bodasesor-2026_4_b5efa97c-ce47-4bef-b189-aca2d91fefa7.pdf?v=1778695499";
 var passed = 0;
 var failed = 0;
 async function test(name, fn) {
