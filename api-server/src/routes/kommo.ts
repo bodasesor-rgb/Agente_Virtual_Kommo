@@ -42,7 +42,6 @@ import {
   sanitizeKommoCrmLines,
 } from "../lib/external-ingest-sanitize.js";
 import { generateSummary, buildResumenClienteLargo } from "../services/summaryService.js";
-import { CATALOG_URL } from "../lucy-prompt.js";
 import {
   isPlaceholderLeadName,
   isQuoteIntentMessage,
