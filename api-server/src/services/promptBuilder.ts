@@ -8,7 +8,7 @@ import type { ExtractedData } from "../types.js";
 
 /**
  * Construye el prompt final para Lucy.
- * Base: SYSTEM_PROMPT V7 (maestro consolidado) + catálogo inyectado en runtime.
+ * Base: SYSTEM_PROMPT V8 (consolidado sobrio) + catálogo inyectado en runtime.
  * Agrega módulos de objeción + contexto de primera interacción o conversación en curso.
  */
 export function buildDynamicPrompt(context: {

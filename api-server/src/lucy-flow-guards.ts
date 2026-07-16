@@ -676,7 +676,7 @@ function stripAccents(text: string): string {
 
 function stripLeadingTransition(text: string): string {
   return text
-    .replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\.\s*/i, "")
+    .replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\.\s*/i, "")
     .trim();
 }
 
@@ -953,17 +953,16 @@ export function buildRecommendationsReply(
 }
 
 const LUCY_TRANSITIONS = [
-  "Genial.",
   "Perfecto.",
-  "Excelente.",
-  "Suena muy bien.",
+  "De acuerdo.",
+  "Claro que sí.",
+  "Con gusto.",
   "Listo.",
   "Claro.",
-  "Qué padre.",
 ] as const;
 
 const TRANSITION_START_PATTERN =
-  /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\./i;
+  /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./i;
 
 /** Rota transiciones — nunca la misma dos veces seguidas (regla Replit). */
 export function pickTransition(
@@ -989,7 +988,7 @@ export function pickTransition(
 export function dedupeTransitionsInMessage(mensaje: string): string {
   if (!mensaje?.trim()) return mensaje;
   const pattern =
-    /\b(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\./gi;
+    /\b(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./gi;
   let seen: string | null = null;
   return mensaje
     .replace(pattern, (match) => {
@@ -1007,7 +1006,7 @@ export function dedupeTransitionsInMessage(mensaje: string): string {
 export function stripRobotAcknowledgments(mensaje: string): string {
   let out = mensaje;
   out = out.replace(
-    /(?:Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)[,.]?\s+(?:\w+[,.]?\s+)?ya\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi,
+    /(?:Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)[,.]?\s+(?:\w+[,.]?\s+)?ya\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi,
     ""
   );
   out = out.replace(/\bYa\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi, "");
