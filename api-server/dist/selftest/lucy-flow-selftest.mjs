@@ -14524,7 +14524,7 @@ function stripAccents(text) {
   return text.normalize("NFD").replace(/\p{M}/gu, "");
 }
 function stripLeadingTransition(text) {
-  return text.replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\.\s*/i, "").trim();
+  return text.replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\.\s*/i, "").trim();
 }
 function requerimientosFollowUpTemplate(text, clientName) {
   let s = stripLeadingTransition(text);
@@ -14700,15 +14700,14 @@ ${comparison}`;
   return appendServiciosCatalogoHint(`${ideas} ${follow}`.trim());
 }
 var LUCY_TRANSITIONS = [
-  "Genial.",
   "Perfecto.",
-  "Excelente.",
-  "Suena muy bien.",
+  "De acuerdo.",
+  "Claro que s\xED.",
+  "Con gusto.",
   "Listo.",
-  "Claro.",
-  "Qu\xE9 padre."
+  "Claro."
 ];
-var TRANSITION_START_PATTERN = /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\./i;
+var TRANSITION_START_PATTERN = /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./i;
 function pickTransition(history) {
   const assistants = history.filter((m) => m.role === "assistant" && typeof m.content === "string").map((m) => m.content.trim());
   const last = assistants[assistants.length - 1] ?? "";
@@ -14723,7 +14722,7 @@ function pickTransition(history) {
 }
 function dedupeTransitionsInMessage(mensaje) {
   if (!mensaje?.trim()) return mensaje;
-  const pattern = /\b(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)\./gi;
+  const pattern = /\b(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./gi;
   let seen = null;
   return mensaje.replace(pattern, (match) => {
     const key = match.toLowerCase();
@@ -14735,7 +14734,7 @@ function dedupeTransitionsInMessage(mensaje) {
 function stripRobotAcknowledgments(mensaje) {
   let out = mensaje;
   out = out.replace(
-    /(?:Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro|Qué padre)[,.]?\s+(?:\w+[,.]?\s+)?ya\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi,
+    /(?:Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)[,.]?\s+(?:\w+[,.]?\s+)?ya\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi,
     ""
   );
   out = out.replace(/\bYa\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi, "");
@@ -16700,15 +16699,12 @@ function mockClosing(servicios, clientName) {
   const advisor = advisorLabelForClient(clientName);
   const handoff = advisor === "nuestro equipo" ? "Le paso estos datos a nuestro equipo para que te arme una cotizaci\xF3n personalizada." : `Le paso estos datos a ${advisor} para que te arme una cotizaci\xF3n personalizada.`;
   const svc = servicios?.trim();
-  const complements = svc ? `Por cierto, adem\xE1s de ${svc}, tambi\xE9n armamos banquetes y barras de alimentos, mobiliario, DJ e iluminaci\xF3n \u2014 si quieres sumar alguno, d\xEDmelo.` : `Por cierto, tambi\xE9n armamos banquetes y barras de alimentos, mobiliario, DJ e iluminaci\xF3n \u2014 si quieres sumar alguno, d\xEDmelo.`;
+  const complements = svc ? `Si quieres sumar algo adem\xE1s de ${svc} (alimentos, mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar alimentos, mobiliario, DJ o iluminaci\xF3n, d\xEDmelo.`;
   return `Perfecto, ya tengo todo. ${handoff}
-
-Mientras tanto, aqu\xED est\xE1 nuestro cat\xE1logo completo:
-${CATALOG_URL}
 
 ${complements}
 
-\xBFTe gustar\xEDa cotizar algo adicional o tienes alguna duda?`;
+Si necesitas algo m\xE1s, con gusto te apoyo.`;
 }
 function runGuards(opts) {
   return applyLucyMessageGuards({
@@ -16791,7 +16787,8 @@ async function runAll() {
     assert.ok(reply.includes("Perfecto, ya tengo todo"));
     assert.ok(reply.includes("nuestro equipo"));
     assert.ok(!/pasar.*a Alejandro/i.test(reply));
-    assert.ok(reply.includes(CATALOG_URL));
+    assert.ok(!reply.includes(CATALOG_URL), reply);
+    assert.ok(/con gusto te apoyo/i.test(reply), reply);
   });
   await test("3. 60 invitados no marca presupuesto ni cierra el embudo", () => {
     assert.equal(parsePresupuestoFromText("60"), null);

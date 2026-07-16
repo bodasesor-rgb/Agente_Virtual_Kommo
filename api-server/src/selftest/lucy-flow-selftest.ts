@@ -206,9 +206,9 @@ function mockClosing(servicios: string | null | undefined, clientName?: string |
       : `Le paso estos datos a ${advisor} para que te arme una cotización personalizada.`;
   const svc = servicios?.trim();
   const complements = svc
-    ? `Por cierto, además de ${svc}, también armamos banquetes y barras de alimentos, mobiliario, DJ e iluminación — si quieres sumar alguno, dímelo.`
-    : `Por cierto, también armamos banquetes y barras de alimentos, mobiliario, DJ e iluminación — si quieres sumar alguno, dímelo.`;
-  return `Perfecto, ya tengo todo. ${handoff}\n\nMientras tanto, aquí está nuestro catálogo completo:\n${CATALOG_URL}\n\n${complements}\n\n¿Te gustaría cotizar algo adicional o tienes alguna duda?`;
+    ? `Si quieres sumar algo además de ${svc} (alimentos, mobiliario, DJ o iluminación), dímelo.`
+    : `Si quieres sumar alimentos, mobiliario, DJ o iluminación, dímelo.`;
+  return `Perfecto, ya tengo todo. ${handoff}\n\n${complements}\n\nSi necesitas algo más, con gusto te apoyo.`;
 }
 
 function runGuards(opts: {
@@ -309,7 +309,9 @@ async function runAll(): Promise<void> {
     assert.ok(reply.includes("Perfecto, ya tengo todo"));
     assert.ok(reply.includes("nuestro equipo"));
     assert.ok(!/pasar.*a Alejandro/i.test(reply));
-    assert.ok(reply.includes(CATALOG_URL));
+    // Prompt V8: catálogo solo a petición — el cierre no avienta el hub automáticamente.
+    assert.ok(!reply.includes(CATALOG_URL), reply);
+    assert.ok(/con gusto te apoyo/i.test(reply), reply);
   });
 
   await test("3. 60 invitados no marca presupuesto ni cierra el embudo", () => {

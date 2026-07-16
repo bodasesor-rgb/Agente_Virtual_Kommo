@@ -42,7 +42,6 @@ import {
   sanitizeKommoCrmLines,
 } from "../lib/external-ingest-sanitize.js";
 import { generateSummary, buildResumenClienteLargo } from "../services/summaryService.js";
-import { CATALOG_URL } from "../lucy-prompt.js";
 import {
   isPlaceholderLeadName,
   isQuoteIntentMessage,
@@ -354,15 +353,14 @@ function buildClosingMessage(
       ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
       : `Le paso estos datos a ${asesor} para que te arme una cotización personalizada.`;
   const servicio = serviciosPedidos?.trim();
-  // Mencionar complementos reales para que el cliente sepa qué más tienen (sin lista robótica fija).
+  // Cierre sobrio (prompt V8): sin aventar catálogo; catálogos solo a petición.
   const complements = servicio
-    ? `Por cierto, además de ${servicio}, también armamos banquetes y barras de alimentos, mobiliario, DJ e iluminación — si quieres sumar alguno, dímelo.`
-    : `Por cierto, también armamos banquetes y barras de alimentos, mobiliario, DJ e iluminación — si quieres sumar alguno, dímelo.`;
+    ? `Si quieres sumar algo además de ${servicio} (alimentos, mobiliario, DJ o iluminación), dímelo.`
+    : `Si quieres sumar alimentos, mobiliario, DJ o iluminación, dímelo.`;
   return (
     `Perfecto, ya tengo todo. ${handoff}\n\n` +
-    `Mientras tanto, aquí está nuestro catálogo completo:\n${CATALOG_URL}\n\n` +
     `${complements}\n\n` +
-    `¿Te gustaría cotizar algo adicional o tienes alguna duda?`
+    `Si necesitas algo más, con gusto te apoyo.`
   );
 }
 
