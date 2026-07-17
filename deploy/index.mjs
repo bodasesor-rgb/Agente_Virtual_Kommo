@@ -73482,8 +73482,195 @@ var init_learningSchema = __esm({
   }
 });
 
-// src/services/chatIngest.ts
+// src/services/learningStore.ts
+function rowToDto(row) {
+  return {
+    id: row.id,
+    kommoLeadId: row.kommoLeadId,
+    userMessage: row.userMessage,
+    suggestedResponse: row.suggestedResponse,
+    label: row.label ?? void 0,
+    status: row.status,
+    source: row.source,
+    confidence: row.confidence ?? void 0,
+    contextSnippet: row.contextSnippet ?? void 0,
+    createdAt: row.createdAt.toISOString()
+  };
+}
+async function listLearningCandidates(status = "pending", limit2 = 50) {
+  await ensureLearningSchema();
+  const rows = await db.select().from(learningCandidates).where(eq2(learningCandidates.status, status)).orderBy(desc2(learningCandidates.createdAt)).limit(limit2);
+  return rows.map(rowToDto);
+}
+async function getLearningStats() {
+  await ensureLearningSchema();
+  const rows = await db.select().from(learningCandidates);
+  return {
+    pending: rows.filter((r2) => r2.status === "pending").length,
+    approved: rows.filter((r2) => r2.status === "approved").length,
+    rejected: rows.filter((r2) => r2.status === "rejected").length
+  };
+}
+async function approveLearningCandidate(id, reviewerEmail, patch) {
+  await ensureLearningSchema();
+  const [row] = await db.select().from(learningCandidates).where(eq2(learningCandidates.id, id)).limit(1);
+  if (!row || row.status !== "pending") return null;
+  const userMessage = patch?.userMessage?.trim() ?? row.userMessage;
+  const suggestedResponse = patch?.suggestedResponse?.trim() ?? row.suggestedResponse;
+  const label = patch?.label?.trim() ?? row.label ?? "Aprendido de chat humano";
+  await createTrainingExample({
+    userMessage,
+    lucyResponse: suggestedResponse,
+    label: label.startsWith("Aprendido") ? label : `Aprendido: ${label}`
+  });
+  const [updated] = await db.update(learningCandidates).set({
+    status: "approved",
+    userMessage,
+    suggestedResponse,
+    label,
+    reviewedAt: /* @__PURE__ */ new Date(),
+    reviewedBy: reviewerEmail ?? null,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq2(learningCandidates.id, id)).returning();
+  return updated ? rowToDto(updated) : null;
+}
+async function rejectLearningCandidate(id, reviewerEmail) {
+  await ensureLearningSchema();
+  const updated = await db.update(learningCandidates).set({
+    status: "rejected",
+    reviewedAt: /* @__PURE__ */ new Date(),
+    reviewedBy: reviewerEmail ?? null,
+    updatedAt: /* @__PURE__ */ new Date()
+  }).where(eq2(learningCandidates.id, id)).returning({ id: learningCandidates.id });
+  return updated.length > 0;
+}
+var init_learningStore = __esm({
+  async "src/services/learningStore.ts"() {
+    await init_src();
+    init_drizzle_orm();
+    await init_learningSchema();
+    await init_trainingStore();
+  }
+});
+
+// src/services/learningExtractor.ts
+var learningExtractor_exports = {};
+__export(learningExtractor_exports, {
+  extractLearningCandidatesForLead: () => extractLearningCandidatesForLead
+});
 import { createHash } from "crypto";
+function dedupeKey(leadId, userMsg, response) {
+  return createHash("sha256").update(`${leadId}|${userMsg.trim()}|${response.trim()}`).digest("hex");
+}
+function messageTimeMs(m4) {
+  return m4.timestamp ? new Date(m4.timestamp).getTime() : 0;
+}
+async function extractLearningCandidatesForLead(kommoLeadId, options = {}) {
+  await ensureLearningSchema();
+  if (!isOpenAiConfigured()) {
+    logger.warn("learningExtractor: OpenAI no configurado");
+    return 0;
+  }
+  const leadId = String(kommoLeadId);
+  const conv = await db.query.conversations.findFirst({
+    where: eq2(conversations.kommoLeadId, leadId)
+  });
+  const rows = await db.select().from(messages).where(eq2(messages.kommoLeadId, leadId)).orderBy(asc2(messages.timestamp));
+  const humanMsgs = rows.filter((m4) => m4.authorType === "human_agent" || m4.role === "human");
+  if (humanMsgs.length === 0) return 0;
+  const lastExtract = conv?.lastLearningExtractAt?.getTime() ?? 0;
+  const newestHuman = humanMsgs.reduce((max, m4) => Math.max(max, messageTimeMs(m4)), 0);
+  const hasNewHuman = newestHuman > lastExtract;
+  const sinceLast = Date.now() - lastExtract;
+  if (!options.force && lastExtract > 0) {
+    if (sinceLast < MIN_EXTRACT_GAP_MS) return 0;
+    if (!hasNewHuman && sinceLast < IDLE_EXTRACT_GAP_MS) return 0;
+  }
+  const transcript = rows.slice(-40).map((m4) => {
+    const who = m4.authorType === "human_agent" || m4.role === "human" ? "ALEJANDRO" : m4.authorType === "lucy" || m4.role === "assistant" ? "LUCY" : "CLIENTE";
+    return `${who}: ${m4.content}`;
+  }).join("\n");
+  const system = `Eres un analista de entrenamiento para Lucy, agente virtual de Bodasesor (banquetes y eventos).
+Extrae pares \xFAtiles para few-shot learning a partir de conversaciones donde ALEJANDRO (humano) atendi\xF3 al cliente.
+
+Reglas:
+- Solo pares donde la respuesta de ALEJANDRO sea \xFAtil para futuros clientes (precios, servicios, cobertura, tiempos, objeciones, tono).
+- NO incluyas saludos vac\xEDos, "ok", "gracias" solos, ni datos personales sensibles.
+- La suggested_response debe sonar natural en espa\xF1ol mexicano, como Lucy (profesional, c\xE1lida, sin emojis excesivos).
+- M\xE1ximo 5 pares.
+- Responde SOLO JSON: { "pairs": [ { "user_message", "suggested_response", "label", "confidence" (0-1), "context_snippet" } ] }`;
+  try {
+    const completion = await openai3.chat.completions.create({
+      model: process.env["OPENAI_MODEL"] ?? "gpt-4o-mini",
+      temperature: 0.2,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: `Transcript:
+${transcript}` }
+      ],
+      max_tokens: 2e3
+    });
+    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const parsed = JSON.parse(raw);
+    const pairs = (parsed.pairs ?? []).filter(
+      (p3) => p3.user_message?.trim() && p3.suggested_response?.trim()
+    );
+    let created = 0;
+    let autoApproved = 0;
+    for (const pair of pairs.slice(0, 5)) {
+      const key = dedupeKey(leadId, pair.user_message, pair.suggested_response);
+      const confidence = typeof pair.confidence === "number" ? pair.confidence : null;
+      try {
+        const [inserted] = await db.insert(learningCandidates).values({
+          kommoLeadId: leadId,
+          userMessage: pair.user_message.trim(),
+          suggestedResponse: pair.suggested_response.trim(),
+          label: pair.label?.trim() || "Aprendido de chat humano",
+          status: "pending",
+          source: "human_chat",
+          confidence: confidence != null ? String(confidence) : null,
+          contextSnippet: pair.context_snippet?.trim() || null,
+          dedupeKey: key
+        }).returning({ id: learningCandidates.id });
+        created++;
+        if (inserted?.id && confidence != null && confidence >= AUTO_APPROVE_CONFIDENCE) {
+          const approved = await approveLearningCandidate(inserted.id, "auto-learning@lucy");
+          if (approved) autoApproved++;
+        }
+      } catch {
+      }
+    }
+    await db.update(conversations).set({ lastLearningExtractAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, leadId));
+    logger.info(
+      { leadId, created, autoApproved, hasNewHuman },
+      "learningExtractor: candidatos generados"
+    );
+    return created;
+  } catch (err2) {
+    logger.warn({ err: err2, leadId }, "learningExtractor: extracci\xF3n fall\xF3");
+    return 0;
+  }
+}
+var openai3, AUTO_APPROVE_CONFIDENCE, MIN_EXTRACT_GAP_MS, IDLE_EXTRACT_GAP_MS;
+var init_learningExtractor = __esm({
+  async "src/services/learningExtractor.ts"() {
+    init_openai();
+    await init_src();
+    init_drizzle_orm();
+    init_openaiEnv();
+    init_logger3();
+    await init_learningSchema();
+    await init_learningStore();
+    openai3 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+    AUTO_APPROVE_CONFIDENCE = 0.85;
+    MIN_EXTRACT_GAP_MS = 15 * 60 * 1e3;
+    IDLE_EXTRACT_GAP_MS = 45 * 60 * 1e3;
+  }
+});
+
+// src/services/chatIngest.ts
+import { createHash as createHash2 } from "crypto";
 function mapKommoAuthor(authorType) {
   if (authorType === "external") return "client";
   if (authorType === "bot") return "lucy";
@@ -73495,7 +73682,7 @@ function roleFromAuthor(author) {
   return "human";
 }
 function contentHash(leadId, author, text2) {
-  return createHash("sha256").update(`${leadId}|${author}|${text2.trim()}`).digest("hex").slice(0, 40);
+  return createHash2("sha256").update(`${leadId}|${author}|${text2.trim()}`).digest("hex").slice(0, 40);
 }
 async function fetchKommoTalkMessages(subdomain, accessToken, talkId, limit2 = 50) {
   try {
@@ -73576,7 +73763,13 @@ async function captureInboundWhileLucyInactive(input) {
       talkId: input.talkId,
       subdomain: input.subdomain,
       accessToken: input.accessToken
-    }).catch((err2) => logger.warn({ err: err2, leadId }, "chatIngest: sync background fall\xF3"));
+    }).then(async () => {
+      const { extractLearningCandidatesForLead: extractLearningCandidatesForLead2 } = await init_learningExtractor().then(() => learningExtractor_exports);
+      const created = await extractLearningCandidatesForLead2(leadId);
+      if (created > 0) {
+        logger.info({ leadId, created }, "chatIngest: candidatos de aprendizaje tras sync");
+      }
+    }).catch((err2) => logger.warn({ err: err2, leadId }, "chatIngest: sync/extract background fall\xF3"));
   }
 }
 async function syncLeadTranscript(input) {
@@ -73626,97 +73819,6 @@ var init_chatIngest = __esm({
     init_drizzle_orm();
     init_logger3();
     await init_learningSchema();
-  }
-});
-
-// src/services/learningExtractor.ts
-import { createHash as createHash2 } from "crypto";
-function dedupeKey(leadId, userMsg, response) {
-  return createHash2("sha256").update(`${leadId}|${userMsg.trim()}|${response.trim()}`).digest("hex");
-}
-async function extractLearningCandidatesForLead(kommoLeadId, options = {}) {
-  await ensureLearningSchema();
-  if (!isOpenAiConfigured()) {
-    logger.warn("learningExtractor: OpenAI no configurado");
-    return 0;
-  }
-  const leadId = String(kommoLeadId);
-  const conv = await db.query.conversations.findFirst({
-    where: eq2(conversations.kommoLeadId, leadId)
-  });
-  if (!options.force && conv?.lastLearningExtractAt && Date.now() - conv.lastLearningExtractAt.getTime() < 6 * 60 * 60 * 1e3) {
-    return 0;
-  }
-  const rows = await db.select().from(messages).where(eq2(messages.kommoLeadId, leadId)).orderBy(asc2(messages.timestamp));
-  const humanMsgs = rows.filter((m4) => m4.authorType === "human_agent" || m4.role === "human");
-  if (humanMsgs.length === 0) return 0;
-  const transcript = rows.slice(-40).map((m4) => {
-    const who = m4.authorType === "human_agent" || m4.role === "human" ? "ALEJANDRO" : m4.authorType === "lucy" || m4.role === "assistant" ? "LUCY" : "CLIENTE";
-    return `${who}: ${m4.content}`;
-  }).join("\n");
-  const system = `Eres un analista de entrenamiento para Lucy, agente virtual de Bodasesor (banquetes y eventos).
-Extrae pares \xFAtiles para few-shot learning a partir de conversaciones donde ALEJANDRO (humano) atendi\xF3 al cliente.
-
-Reglas:
-- Solo pares donde la respuesta de ALEJANDRO sea \xFAtil para futuros clientes (precios, servicios, cobertura, tiempos, objeciones, tono).
-- NO incluyas saludos vac\xEDos, "ok", "gracias" solos, ni datos personales sensibles.
-- La suggested_response debe sonar natural en espa\xF1ol mexicano, como Lucy (profesional, c\xE1lida, sin emojis excesivos).
-- M\xE1ximo 5 pares.
-- Responde SOLO JSON: { "pairs": [ { "user_message", "suggested_response", "label", "confidence" (0-1), "context_snippet" } ] }`;
-  try {
-    const completion = await openai3.chat.completions.create({
-      model: process.env["OPENAI_MODEL"] ?? "gpt-4o-mini",
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: `Transcript:
-${transcript}` }
-      ],
-      max_tokens: 2e3
-    });
-    const raw = completion.choices[0]?.message?.content ?? "{}";
-    const parsed = JSON.parse(raw);
-    const pairs = (parsed.pairs ?? []).filter(
-      (p3) => p3.user_message?.trim() && p3.suggested_response?.trim()
-    );
-    let created = 0;
-    for (const pair of pairs.slice(0, 5)) {
-      const key = dedupeKey(leadId, pair.user_message, pair.suggested_response);
-      try {
-        await db.insert(learningCandidates).values({
-          kommoLeadId: leadId,
-          userMessage: pair.user_message.trim(),
-          suggestedResponse: pair.suggested_response.trim(),
-          label: pair.label?.trim() || "Aprendido de chat humano",
-          status: "pending",
-          source: "human_chat",
-          confidence: pair.confidence != null ? String(pair.confidence) : null,
-          contextSnippet: pair.context_snippet?.trim() || null,
-          dedupeKey: key
-        });
-        created++;
-      } catch {
-      }
-    }
-    await db.update(conversations).set({ lastLearningExtractAt: /* @__PURE__ */ new Date(), updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, leadId));
-    logger.info({ leadId, created }, "learningExtractor: candidatos generados");
-    return created;
-  } catch (err2) {
-    logger.warn({ err: err2, leadId }, "learningExtractor: extracci\xF3n fall\xF3");
-    return 0;
-  }
-}
-var openai3;
-var init_learningExtractor = __esm({
-  async "src/services/learningExtractor.ts"() {
-    init_openai();
-    await init_src();
-    init_drizzle_orm();
-    init_openaiEnv();
-    init_logger3();
-    await init_learningSchema();
-    openai3 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
   }
 });
 
@@ -73783,7 +73885,7 @@ async function runLearningSyncCron(subdomain, accessToken) {
       const inLearningStage = lead.status_id === ETAPA.HUMANO_TRABAJA || lead.status_id === ETAPA.COTIZACION_REALIZADA;
       if (!inLearningStage && conv.learningPhase == null) continue;
       const result = await syncHumanPhaseLead(subdomain, accessToken, conv.kommoLeadId, {
-        extract: lead.status_id === ETAPA.COTIZACION_REALIZADA
+        extract: lead.status_id === ETAPA.COTIZACION_REALIZADA || lead.status_id === ETAPA.HUMANO_TRABAJA
       });
       if (result.synced) processed++;
       totalCandidates += result.candidates;
@@ -73842,77 +73944,6 @@ function requireRole(...roles) {
 var init_requireAuth = __esm({
   "src/middleware/requireAuth.ts"() {
     init_authJwt();
-  }
-});
-
-// src/services/learningStore.ts
-function rowToDto2(row) {
-  return {
-    id: row.id,
-    kommoLeadId: row.kommoLeadId,
-    userMessage: row.userMessage,
-    suggestedResponse: row.suggestedResponse,
-    label: row.label ?? void 0,
-    status: row.status,
-    source: row.source,
-    confidence: row.confidence ?? void 0,
-    contextSnippet: row.contextSnippet ?? void 0,
-    createdAt: row.createdAt.toISOString()
-  };
-}
-async function listLearningCandidates(status = "pending", limit2 = 50) {
-  await ensureLearningSchema();
-  const rows = await db.select().from(learningCandidates).where(eq2(learningCandidates.status, status)).orderBy(desc2(learningCandidates.createdAt)).limit(limit2);
-  return rows.map(rowToDto2);
-}
-async function getLearningStats() {
-  await ensureLearningSchema();
-  const rows = await db.select().from(learningCandidates);
-  return {
-    pending: rows.filter((r2) => r2.status === "pending").length,
-    approved: rows.filter((r2) => r2.status === "approved").length,
-    rejected: rows.filter((r2) => r2.status === "rejected").length
-  };
-}
-async function approveLearningCandidate(id, reviewerEmail, patch) {
-  await ensureLearningSchema();
-  const [row] = await db.select().from(learningCandidates).where(eq2(learningCandidates.id, id)).limit(1);
-  if (!row || row.status !== "pending") return null;
-  const userMessage = patch?.userMessage?.trim() ?? row.userMessage;
-  const suggestedResponse = patch?.suggestedResponse?.trim() ?? row.suggestedResponse;
-  const label = patch?.label?.trim() ?? row.label ?? "Aprendido de chat humano";
-  await createTrainingExample({
-    userMessage,
-    lucyResponse: suggestedResponse,
-    label: label.startsWith("Aprendido") ? label : `Aprendido: ${label}`
-  });
-  const [updated] = await db.update(learningCandidates).set({
-    status: "approved",
-    userMessage,
-    suggestedResponse,
-    label,
-    reviewedAt: /* @__PURE__ */ new Date(),
-    reviewedBy: reviewerEmail ?? null,
-    updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq2(learningCandidates.id, id)).returning();
-  return updated ? rowToDto2(updated) : null;
-}
-async function rejectLearningCandidate(id, reviewerEmail) {
-  await ensureLearningSchema();
-  const updated = await db.update(learningCandidates).set({
-    status: "rejected",
-    reviewedAt: /* @__PURE__ */ new Date(),
-    reviewedBy: reviewerEmail ?? null,
-    updatedAt: /* @__PURE__ */ new Date()
-  }).where(eq2(learningCandidates.id, id)).returning({ id: learningCandidates.id });
-  return updated.length > 0;
-}
-var init_learningStore = __esm({
-  async "src/services/learningStore.ts"() {
-    await init_src();
-    init_drizzle_orm();
-    await init_learningSchema();
-    await init_trainingStore();
   }
 });
 
@@ -82829,7 +82860,7 @@ import { join } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.1";
+var LUCY_PROMPT_VERSION = "V8.2";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -82908,8 +82939,14 @@ router.get("/health", (_req, res) => {
       "lucy-admin",
       "debounce-5s",
       "learning-from-human-chats",
+      "learning-cron-keepalive",
+      "learning-auto-approve-high-confidence",
       "knowledge-gaps-aprendizaje"
     ],
+    learning: {
+      note: "Sync Kommo Talks + extracci\xF3n en Humano Trabaja/Cotizaci\xF3n; cron v\xEDa keep-alive cada 5 min; auto-aprueba confidence\u22650.85",
+      cron_path: "/api/kommo/cron/learning"
+    },
     auth_configured: isAuthConfigured(),
     git_commit: build.git_commit,
     git_commit_short: build.git_commit_short,
@@ -92998,7 +93035,7 @@ async function ensureKnowledgeGapSchema() {
 // src/services/knowledgeGapStore.ts
 await init_trainingStore();
 init_logger3();
-function rowToDto(row) {
+function rowToDto2(row) {
   return {
     id: row.id,
     kommoLeadId: row.kommoLeadId ?? void 0,
@@ -93021,7 +93058,7 @@ function normalizeDedupeKey(question, gapType) {
 async function listKnowledgeGaps(status = "pending", limit2 = 50) {
   await ensureKnowledgeGapSchema();
   const rows = await db.select().from(knowledgeGaps).where(eq2(knowledgeGaps.status, status)).orderBy(desc2(knowledgeGaps.createdAt)).limit(limit2);
-  return rows.map(rowToDto);
+  return rows.map(rowToDto2);
 }
 async function getKnowledgeGapStats() {
   await ensureKnowledgeGapSchema();
@@ -93084,7 +93121,7 @@ async function answerKnowledgeGap(id, answer, reviewerEmail) {
     answeredBy: reviewerEmail ?? null,
     updatedAt: /* @__PURE__ */ new Date()
   }).where(eq2(knowledgeGaps.id, id)).returning();
-  return updated ? rowToDto(updated) : null;
+  return updated ? rowToDto2(updated) : null;
 }
 async function dismissKnowledgeGap(id, reviewerEmail) {
   await ensureKnowledgeGapSchema();
@@ -94385,10 +94422,10 @@ router3.post("/kommo/pipeline-change", async (req, res) => {
     try {
       await limpiarCampoRespuesta(subdomain, accessToken, leadId);
       await setLearningPhase(leadId, "human_active");
-      void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: false }).catch(
+      void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: true }).catch(
         (err2) => log.warn({ err: err2, leadId }, "Pipeline-change: sync aprendizaje fall\xF3")
       );
-      log.info({ leadId }, "Pipeline-change: fase humana \u2014 sync de chat iniciado");
+      log.info({ leadId }, "Pipeline-change: fase humana \u2014 sync + extracci\xF3n de aprendizaje");
     } catch (err2) {
       log.error({ err: err2, leadId }, "Pipeline-change: error en Humano Trabaja");
     }

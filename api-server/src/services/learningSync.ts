@@ -94,8 +94,12 @@ export async function runLearningSyncCron(
         lead.status_id === ETAPA.COTIZACION_REALIZADA;
       if (!inLearningStage && conv.learningPhase == null) continue;
 
+      // Extraer tanto en Humano Trabaja como en Cotización — antes solo Cotización,
+      // por eso Lucy "nunca aprendía" mientras Alejandro atendía.
       const result = await syncHumanPhaseLead(subdomain, accessToken, conv.kommoLeadId, {
-        extract: lead.status_id === ETAPA.COTIZACION_REALIZADA,
+        extract:
+          lead.status_id === ETAPA.COTIZACION_REALIZADA ||
+          lead.status_id === ETAPA.HUMANO_TRABAJA,
       });
       if (result.synced) processed++;
       totalCandidates += result.candidates;

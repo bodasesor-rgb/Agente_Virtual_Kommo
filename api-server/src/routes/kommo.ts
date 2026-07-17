@@ -2045,10 +2045,11 @@ router.post("/kommo/pipeline-change", async (req: Request, res: Response) => {
     try {
       await limpiarCampoRespuesta(subdomain, accessToken, leadId);
       await setLearningPhase(leadId, "human_active");
-      void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: false }).catch((err) =>
+      // Sync + extracción: leer el chat humano y proponer aprendizajes (throttled).
+      void syncHumanPhaseLead(subdomain, accessToken, leadId, { extract: true }).catch((err) =>
         log.warn({ err, leadId }, "Pipeline-change: sync aprendizaje falló")
       );
-      log.info({ leadId }, "Pipeline-change: fase humana — sync de chat iniciado");
+      log.info({ leadId }, "Pipeline-change: fase humana — sync + extracción de aprendizaje");
     } catch (err) {
       log.error({ err, leadId }, "Pipeline-change: error en Humano Trabaja");
     }
