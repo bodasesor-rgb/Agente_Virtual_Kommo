@@ -92,6 +92,11 @@ import {
   parseFechaFromText,
   parseTipoEventoFromText,
   parseServicesFromText,
+  mergeServiceRequirements,
+  buildMultiServiceAck,
+  formatServicesList,
+  isUsableDireccionEvento,
+  isVagueVenueOnly,
   recoverClienteNombreFromHistory,
   isVagueFoodTerm,
   isGettingReadyContext,
@@ -210,7 +215,16 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
   if (isValidRequerimientosValue(extracted.requerimientos_evento)) {
     filledSet.add("Requerimientos o servicios");
   }
-  if (extracted.direccion_evento?.trim()) filledSet.add("Lugar/dirección del evento");
+  // Solo invalidar zona si extracted trae un valor NO usable (salón/edificio/medidas).
+  // Si extracted viene vacío, respetar lo ya marcado en CRM/filledSet.
+  if (extracted.direccion_evento?.trim()) {
+    if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/dirección del evento");
+    } else {
+      filledSet.add("Lugar/dirección del evento");
+    }
+  }
   if (extracted.fecha_horario?.trim()) filledSet.add("Fecha y horario");
   if (extracted.num_invitados) filledSet.add("Número de invitados");
   if (hasPresupuestoValue(extracted)) filledSet.add("Presupuesto (MXN)");
@@ -842,9 +856,8 @@ function buildFoodSalesReply(
     if (!filledSet || !ctx) return body;
     if (acceptedService) {
       filledSet.add("Requerimientos o servicios");
-      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
-        extracted.requerimientos_evento = acceptedService;
-      }
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, acceptedService, 6);
+      if (merged) extracted.requerimientos_evento = merged;
     }
     const pending = getNextPendingField(extracted, filledSet);
     if (!pending) return body;
@@ -853,14 +866,24 @@ function buildFoodSalesReply(
     return `${body}\n\n${nextQ}`;
   };
 
+  const allServices = currentMessage ? parseServicesFromText(currentMessage) : [];
+  if (allServices.length >= 2) {
+    const listLabel = allServices.join(", ");
+    return appendNext(
+      `${pickTransition(history)} ${buildMultiServiceAck(allServices)} Si quieres, te mando los catálogos o pasamos el paquete completo a ${advisorLabelForClient()}.`,
+      listLabel
+    );
+  }
+
   if (mentionedService || (currentMessage && isServiceRelatedMessage(currentMessage))) {
     let detail = query ? buildCatalogServiceDetailAnswer(query) : null;
     if (detail && mentionedService && !catalogAnswerMatchesRequestedService(currentMessage ?? "", detail)) {
       detail = null;
     }
     const serviceLabel =
-      mentionedService ??
-      parsePrimaryService(currentMessage ?? "") ??
+      (allServices.length > 0 ? allServices.join(", ") : null) ||
+      mentionedService ||
+      parsePrimaryService(currentMessage ?? "") ||
       (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
 
     if (detail) {
@@ -1083,7 +1106,8 @@ export function getNextPendingField(
   const hasReq =
     filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
   const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
-  const hasZona = filled.has("Lugar/dirección del evento") || !!extracted.direccion_evento?.trim();
+  const hasZona =
+    filled.has("Lugar/dirección del evento") || isUsableDireccionEvento(extracted.direccion_evento);
   const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
 
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
@@ -1149,6 +1173,12 @@ export function buildOpeningAcknowledgment(
   const userText = texts[texts.length - 1] ?? texts.join(" ");
   const t = userText.toLowerCase();
 
+  // Brief con varios servicios → reconocer la lista completa (no solo el primero).
+  const multiServices = parseServicesFromText(userText);
+  if (multiServices.length >= 2) {
+    return buildMultiServiceAck(multiServices);
+  }
+
   if (/taquiza|tacos/.test(t)) {
     const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
     const zona = userText.match(/\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,24})/i);
@@ -1181,14 +1211,17 @@ export function buildOpeningAcknowledgment(
     );
     if (colonMatch) {
       const serviceChunk = colonMatch[1]!.trim().replace(/\.$/, "");
-      if (/coffee\s*break/i.test(serviceChunk)) {
+      const services = parseServicesFromText(serviceChunk);
+      if (services.length >= 2) {
+        return `Vi que necesitas ${formatServicesList(services)}. Te cotizamos todo eso.`;
+      }
+      if (/coffee\s*break/i.test(serviceChunk) && services.length <= 1) {
         return "Vi que te interesa un coffee break para eventos corporativos.";
       }
-      if (/\b(mesas?|sillas?|mobiliario|periquera)\b/i.test(serviceChunk)) {
+      if (/\b(mesas?|sillas?|mobiliario|periquera)\b/i.test(serviceChunk) && services.length <= 1) {
         return "Vi tu solicitud de renta de mesas y sillas para el evento.";
       }
-      const services = parseServicesFromText(serviceChunk);
-      if (services.length) {
+      if (services.length === 1) {
         return `Vi que te interesa cotizar ${services[0]}.`;
       }
       const short = serviceChunk.split(/[,.]/)[0]!.trim();
@@ -1405,7 +1438,10 @@ export function isFieldSatisfied(
     case "invitados":
       return filledSet.has("Número de invitados") || !!extracted.num_invitados;
     case "zona":
-      return filledSet.has("Lugar/dirección del evento") || !!extracted.direccion_evento?.trim();
+      return (
+        filledSet.has("Lugar/dirección del evento") ||
+        isUsableDireccionEvento(extracted.direccion_evento)
+      );
     case "fecha":
       return filledSet.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
     case "presupuesto":
@@ -2298,13 +2334,34 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     presHistory
   );
 
+  // Captura canónica: TODOS los servicios del mensaje (y del historial de usuario).
+  // No capturar "Comida" suelta cuando el cliente aún está en término vago.
+  const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
+  const userBlobForServices = collectUserTexts(presHistory, currentMessage).join(" ");
+  const servicesFromTurn = parseServicesFromText(
+    `${currentMessage ?? ""} ${userBlobForServices}`
+  );
+  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(currentMessage)) {
+    const mergedReq = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      servicesFromTurn.join(", "),
+      6
+    );
+    if (mergedReq) {
+      extracted.requerimientos_evento = mergedReq;
+      filledSet.add("Requerimientos o servicios");
+    }
+  }
+
   // Tras un menú / "¿otro servicio?", si el cliente ya nombró algo, no reabrir requisitos.
   if (
     !filledSet.has("Requerimientos o servicios") &&
     historyAlreadyHadServicesCatalog(presHistory)
   ) {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    const allMentioned = parseServicesFromText(userBlob);
     const mentioned =
+      (allMentioned.length > 0 ? allMentioned.join(", ") : null) ||
       findMentionedService(userBlob) ||
       (isValidRequerimientosValue(extracted.requerimientos_evento)
         ? extracted.requerimientos_evento
@@ -2350,12 +2407,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const allowSalesReplyOverride =
     !readyToCloseAndReqDone || (currentMessage?.includes("?") ?? false);
   const mentionedServiceNow = currentMessage ? findMentionedService(currentMessage) : null;
+  // Solo "ya capturado" si venía de turnos previos — no por el merge de este mismo turno
+  // (si no, se salta el ack de venta y solo queda la siguiente pregunta del embudo).
   const serviceAlreadyCaptured =
-    filledSet.has("Requerimientos o servicios") &&
     !!mentionedServiceNow &&
-    (extracted.requerimientos_evento ?? "")
-      .toLowerCase()
-      .includes(mentionedServiceNow.toLowerCase());
+    !!reqBeforeServiceMerge &&
+    reqBeforeServiceMerge.toLowerCase().includes(mentionedServiceNow.toLowerCase());
   // El follow-up "¿algún otro servicio?" solo se pregunta una vez — si ya aparece
   // en el historial, no se vuelve a preguntar (evita el bucle infinito).
   const requerimientosFollowUpAlreadyAsked = historyAlreadyHadServicesCatalog(presHistory);
@@ -2529,6 +2586,40 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje — brief web con datos del formulario");
+  } else if (
+    allowSalesReplyOverride &&
+    servicesFromTurn.length >= 2 &&
+    !cierreYaEnviado &&
+    // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro.
+    !(
+      (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+      !conversationAlreadyStarted(filledSet, presHistory) &&
+      !isFieldSatisfied("nombre", filledSet, extracted)
+    )
+  ) {
+    // Brief con múltiples servicios: reconocer TODOS; no plantilla de un solo servicio.
+    const ack = buildMultiServiceAck(servicesFromTurn);
+    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+      const aiAlreadyLists =
+        servicesFromTurn.filter((s) =>
+          aiResponse.toLowerCase().includes(s.toLowerCase().split(/\s+/)[0]!)
+        ).length >= Math.min(2, servicesFromTurn.length);
+      mensaje = aiAlreadyLists
+        ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx)
+        : mergeWithPendingQuestion(`${ack} ${aiResponse}`.trim(), filledSet, extracted, ctx);
+    } else {
+      mensaje = mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} ${ack} Si quieres, te mando los catálogos o pasamos el paquete completo a ${advisorLabelForClient()}.`,
+        filledSet,
+        extracted,
+        ctx
+      );
+    }
+    appliedDirectReply = true;
+    log?.info(
+      { entityId, services: servicesFromTurn.length },
+      "GUARD: brief multi-servicio — reconocer lista completa"
+    );
   } else if (
     allowSalesReplyOverride &&
     isVagueFoodTerm(currentMessage) &&

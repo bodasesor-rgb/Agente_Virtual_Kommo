@@ -37,6 +37,11 @@ import {
   parseWebLeadBrief,
   applyWebLeadBrief,
   isVagueFoodTerm,
+  parseServicesFromText,
+  mergeServiceRequirements,
+  enrichExtractedFromConversation,
+  isVagueVenueOnly,
+  isUsableDireccionEvento,
   sanitizeExtractedAmbiguousNumbers,
   clientAsksForCatalog,
   clientWantsFullCatalog,
@@ -1829,7 +1834,8 @@ async function runAll(): Promise<void> {
     assert.equal(isAmbiguousShortNumber("5", { lastAskedField: "invitados" }), false);
 
     assert.ok(isVagueFoodTerm("comida"));
-    assert.ok(isVagueFoodTerm("quiero desayuno"));
+    // "desayuno" solo ya es un servicio concreto (no menú genérico).
+    assert.ok(!isVagueFoodTerm("quiero desayuno"));
     assert.ok(!isVagueFoodTerm("banquete premium 4 tiempos"));
 
     const vagueReply = buildVagueFoodOptionsReply(
@@ -2948,6 +2954,129 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/estilo rústico|anoto|montaje/i.test(blocked), blocked);
     assert.ok(!/La imagen muestra/i.test(blocked), blocked);
+  });
+
+  await test("66. Brief multi-servicio Alexa + salón/edificio no es ubicación", () => {
+    const alexaBrief =
+      "Hola, para un corporativo necesito coffee break, desayuno, snack, comida, cena y menú staff para 80 personas el 12 de septiembre en Polanco";
+    const services = parseServicesFromText(alexaBrief);
+    assert.ok(services.length >= 5, `esperaba ≥5 servicios, got ${services.join(", ")}`);
+    assert.ok(services.some((s) => /coffee/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /desayuno/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /snack/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /^comida$/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /cena/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /staff|meseros/i.test(s)), services.join(", "));
+
+    const extracted = emptyExtracted();
+    enrichExtractedFromConversation(extracted, alexaBrief);
+    assert.ok(
+      (extracted.requerimientos_evento ?? "").split(",").length >= 5,
+      extracted.requerimientos_evento
+    );
+    assert.ok(/polanco/i.test(extracted.direccion_evento ?? ""), extracted.direccion_evento);
+    assert.equal(extracted.num_invitados, 80);
+
+    // Misma captura por WhatsApp directo (guards) — primer turno con intro + lista.
+    const waReply = runGuards({
+      aiResponse: "¿Qué servicios te gustaría cotizar?",
+      extracted: emptyExtracted(),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: alexaBrief,
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(/hola,?\s*soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
+    assert.ok(/coffee/i.test(waReply), waReply.slice(0, 500));
+    assert.ok(/desayuno/i.test(waReply), waReply.slice(0, 500));
+    assert.ok(/cena/i.test(waReply), waReply.slice(0, 500));
+    assert.ok(/snack|comida|staff|meseros/i.test(waReply), waReply.slice(0, 500));
+
+    // Turno siguiente (ya con nombre): sigue reconociendo el paquete completo.
+    const midReply = runGuards({
+      aiResponse: "¿Solo el coffee break?",
+      extracted: emptyExtracted({
+        nombre: "Alexa",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee break",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage:
+        "Además necesito desayuno, snack, comida, cena y menú staff",
+      history: [
+        { role: "user", content: alexaBrief },
+        { role: "assistant", content: "Hola, soy Lucy. ¿Me regalas tu nombre?" },
+        { role: "user", content: "Alexa" },
+        { role: "assistant", content: "Perfecto, Alexa. ¿Me confirmas los servicios?" },
+      ],
+    });
+    assert.ok(/desayuno/i.test(midReply), midReply.slice(0, 400));
+    assert.ok(/cena/i.test(midReply), midReply.slice(0, 400));
+    assert.ok(/todo eso|paquete|cat[aá]logos?/i.test(midReply), midReply.slice(0, 400));
+
+    // Pre-fill web con varios servicios → misma lista.
+    const webMsg =
+      "Hola, me interesa cotizar para mi evento: corporativo coffee break desayuno snack comida cena menú staff. Sería el 12 de septiembre en Polanco para 80 personas";
+    const brief = parseWebLeadBrief(webMsg);
+    assert.ok(brief);
+    const webExtracted = emptyExtracted();
+    applyWebLeadBrief(webExtracted, webMsg);
+    enrichExtractedFromConversation(webExtracted, webMsg);
+    const webServices = parseServicesFromText(webExtracted.requerimientos_evento ?? webMsg);
+    assert.ok(webServices.length >= 4, webExtracted.requerimientos_evento);
+
+    const webReply = runGuards({
+      aiResponse: "¿Qué servicios te gustaría cotizar?",
+      extracted: webExtracted,
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: webMsg,
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(/coffee|desayuno|comida|cena/i.test(webReply), webReply.slice(0, 400));
+
+    // "salón" / "edificio" no cierran ubicación.
+    assert.equal(parseZonaFromText("en el salón"), null);
+    assert.equal(parseZonaFromText("en el edificio"), null);
+    assert.ok(isVagueVenueOnly("salón"));
+    assert.ok(isVagueVenueOnly("edificio"));
+    assert.ok(isVagueVenueOnly("salón de eventos"));
+    assert.ok(!isUsableDireccionEvento("salón"));
+    assert.ok(isUsableDireccionEvento("Polanco CDMX"));
+    assert.ok(isUsableDireccionEvento("Salón Hacienda Los Olivos"));
+
+    const vagueLoc = emptyExtracted({ direccion_evento: "salón" });
+    const cleaned = sanitizeExtractedFromExternal(vagueLoc);
+    assert.equal(cleaned.direccion_evento, null);
+
+    const pendingZona = getNextPendingField(
+      emptyExtracted({
+        nombre: "Alexa",
+        correo: "a@x.com",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee break, Desayuno",
+        direccion_evento: "salón",
+        fecha_horario: "12 de septiembre",
+        num_invitados: 80,
+        presupuesto: null,
+      }),
+      new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Fecha y horario",
+        "Número de invitados",
+      ])
+    );
+    assert.equal(pendingZona, "zona");
+
+    // Merge no se queda con el primero.
+    const merged = mergeServiceRequirements("Coffee break", alexaBrief, 6);
+    assert.ok(merged && merged.split(",").length >= 5, merged);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

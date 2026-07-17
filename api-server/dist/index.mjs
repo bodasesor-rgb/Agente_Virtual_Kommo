@@ -79453,7 +79453,10 @@ var LUCY_FIELD_ASK_PATTERNS = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
   correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
   tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
-  requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|cotizaci[oó]n|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar|animaci[oó]n|hora\s+loca|happening|show|incluir\s+en\s+la\s+cotiz/i,
+  requerimientos: (
+    // No usar "cotización" suelta: "la anoto para tu cotización" NO es pregunta de servicios.
+    /pensado|servicios?|banquete|taquiza|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar|qu[eé].{0,40}cotizar|animaci[oó]n|hora\s+loca|happening|show|incluir\s+en\s+la\s+cotiz|\bmen[uú]\b(?!\s+staff)/i
+  ),
   invitados: /invitados|personas|gente|pax|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an|asistir[aá]n/i,
   zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n|es)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n|venue|sede|colonia|municipio/i,
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo|qu[eé]\s+d[ií]a/i,
@@ -79470,7 +79473,13 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
   ["Mesa de postres", /\b(mesa\s+de\s+postres|postres|dulces)\b/i],
   ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
-  ["Coffee break", /\b(barra\s+de\s+caf[eé]|coffee\s*break)\b/i],
+  ["Coffee break", /\b(barra\s+de\s+caf[eé]|coffee\s*break|coffeebreak)\b/i],
+  // Tiempos de comida corporativos (briefs con varios servicios).
+  ["Desayuno", /\bdesayunos?\b/i],
+  ["Snack", /\bsnacks?\b/i],
+  ["Comida", /\bcomidas?\b/i],
+  ["Cena", /\bcenas?\b/i],
+  ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
   ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
@@ -79483,7 +79492,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Estructuras", /\b(estructura|colgante|wisteria)\b/i],
   ["Inflables", /\binflable/i],
   ["Softplay", /\bsoft\s*play\b/i],
-  ["Meseros", /\bmeseros?\b/i],
+  ["Meseros", /\b(meseros?|staff|personal\s+de\s+servicio)\b/i],
   ["DJ", /\bdj\b/i],
   ["Mixolog\xEDa", /\bmixolog[ií]a\b/i],
   ["Cocteler\xEDa", /\bcocteler[ií]a\b/i],
@@ -79502,7 +79511,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
   ["Mesa imperial", /\bmesa\s+imperial\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch|renta\s+de|letras?|valet|pirotecnia|imperial/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
@@ -79636,7 +79645,7 @@ function parseWebLeadBrief(text2) {
     const tipo = parseTipoEventoFromText(chunk);
     if (tipo) result.tipo_evento = tipo;
     const services = parseServicesFromText(chunk);
-    if (services.length) result.requerimientos_evento = services.slice(0, 3).join(", ");
+    if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
     else if (!tipo) result.requerimientos_evento = chunk;
   }
   const seriaMatch = t.match(/ser[ií]a\s+(?:el\s+)?([^,.\n]+?)\s+en\s+([^,.\n]+?)(?:\.|,|\s+para\s+)/i);
@@ -79654,13 +79663,18 @@ function applyWebLeadBrief(extracted, text2) {
   const brief = parseWebLeadBrief(text2);
   if (!brief) return false;
   if (!extracted.tipo_evento?.trim() && brief.tipo_evento) extracted.tipo_evento = brief.tipo_evento;
-  if (!extracted.requerimientos_evento?.trim() && brief.requerimientos_evento) {
-    extracted.requerimientos_evento = brief.requerimientos_evento;
+  if (brief.requerimientos_evento) {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      brief.requerimientos_evento,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
   }
   if (!extracted.fecha_horario?.trim() && brief.fecha_horario) {
     extracted.fecha_horario = brief.fecha_horario;
   }
-  if (!extracted.direccion_evento?.trim() && brief.direccion_evento) {
+  if (!isUsableDireccionEvento(extracted.direccion_evento) && brief.direccion_evento && isUsableDireccionEvento(brief.direccion_evento)) {
     extracted.direccion_evento = brief.direccion_evento;
   }
   if (!extracted.num_invitados && brief.num_invitados) extracted.num_invitados = brief.num_invitados;
@@ -79681,14 +79695,21 @@ function isVagueFoodTerm(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
   if (hasSpecificFoodService(t)) return false;
-  if (parseServicesFromText(t).length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t)) {
-    return false;
+  const services = parseServicesFromText(t);
+  if (services.length >= 2) return false;
+  if (services.length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t) && !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t)) {
+    if (services.length === 1 && /^(Desayuno|Snack|Cena|Coffee break|Brunch)$/i.test(services[0])) {
+      return false;
+    }
+    if (services.length === 1 && !/^(Comida)$/i.test(services[0])) {
+      return false;
+    }
   }
   const cleaned = t.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las)\s+/i, "").trim();
-  if (/^(comida|alimentos?|men[uú]s?|desayuno|brunch|catering|algo\s+de\s+comer)$/i.test(cleaned)) {
+  if (/^(comida|alimentos?|men[uú]s?|catering|algo\s+de\s+comer)$/i.test(cleaned)) {
     return true;
   }
-  return /\b(quiero|necesito|busco)\s+(comida|alimentos?|desayuno|algo\s+de\s+comer)\b/i.test(t);
+  return /\b(quiero|necesito|busco)\s+(comida|alimentos?|algo\s+de\s+comer)\b/i.test(t);
 }
 function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
   if (isAmbiguousShortNumber(messageText, ctx)) {
@@ -79843,7 +79864,24 @@ var WRITTEN_NUMBERS = {
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|coyoac[aá]n|xochimilco)\b/i;
-var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su)\b/i;
+var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])\b/i;
+function isVagueVenueOnly(text2) {
+  const t = (text2 ?? "").trim();
+  if (!t) return true;
+  const cleaned = t.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
+  if (!cleaned) return true;
+  if (/^(sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  if (/^(sal[oó]n|edificio|venue|jard[ií]n)(\s+de)?(\s+(eventos?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  return false;
+}
 function inferLucyAskedField(lastLucyMessage) {
   const msg = lastLucyMessage?.trim() ?? "";
   if (!msg) return null;
@@ -79865,14 +79903,52 @@ function inferLucyAskedField(lastLucyMessage) {
 function parseServicesFromText(text2) {
   const found = [];
   const lower = text2.toLowerCase();
+  const hasMealListContext = /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || (text2.match(/,/g) ?? []).length >= 1 || /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text2);
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
+    if (label === "Comida" && !hasMealListContext) continue;
     if (pattern.test(lower)) found.push(label);
   }
+  if (found.includes("Men\xFA staff")) {
+    const meserosIdx = found.indexOf("Meseros");
+    if (meserosIdx >= 0) found.splice(meserosIdx, 1);
+  }
   const normalized = normalizeShortServicePhrase(text2);
-  if (normalized && !found.some((s4) => s4.toLowerCase().includes(normalized.toLowerCase()))) {
-    found.push(normalized);
+  if (normalized) {
+    const normLower = normalized.toLowerCase();
+    const already = found.some(
+      (s4) => s4.toLowerCase().includes(normLower) || normLower.includes(s4.toLowerCase())
+    );
+    const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
+    if (!already && !(isVagueFoodAlias && found.length > 0)) {
+      found.push(normalized);
+    }
   }
   return [...new Set(found)];
+}
+function formatServicesList(services) {
+  const clean = services.map((s4) => s4.trim()).filter(Boolean);
+  if (clean.length === 0) return "";
+  if (clean.length === 1) return clean[0];
+  if (clean.length === 2) return `${clean[0]} y ${clean[1]}`;
+  return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
+}
+function mergeServiceRequirements(existing, text2, max = 6) {
+  const fromExisting = existing?.trim() ? parseServicesFromText(existing) : [];
+  const fromText = text2?.trim() ? parseServicesFromText(text2) : [];
+  const merged = [.../* @__PURE__ */ new Set([...fromExisting, ...fromText])].slice(0, max);
+  if (merged.length === 0) {
+    const fallback = existing?.trim() || text2?.trim() || "";
+    return fallback ? fallback.slice(0, 250) : null;
+  }
+  return merged.join(", ");
+}
+function buildMultiServiceAck(services) {
+  const list = formatServicesList(services);
+  if (!list) return "Perfecto, anoto lo que necesitas para tu evento.";
+  if (services.length === 1) {
+    return `Perfecto, veo que necesitas ${list}.`;
+  }
+  return `Perfecto, veo que necesitas ${list}. Te cotizamos todo eso.`;
 }
 function appendPostCierreRequirements(existing, message) {
   const t = message.trim();
@@ -79919,6 +79995,10 @@ function parseTipoEventoFromText(text2) {
 function parseInvitadosFromText(text2) {
   const trimmed = text2.trim();
   if (!trimmed) return null;
+  const numMatchEarly = trimmed.match(
+    /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
+  );
+  if (numMatchEarly) return numMatchEarly[1];
   if (isServiceRelatedMessage(trimmed)) return null;
   if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
     trimmed
@@ -79958,6 +80038,13 @@ function isDimensionText(text2) {
   if (!t) return false;
   return /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) || /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t) || /^\d+m\s*x\s*\d+m$/i.test(t);
 }
+function isUsableDireccionEvento(value) {
+  const t = value?.trim() ?? "";
+  if (!t) return false;
+  if (isDimensionText(t)) return false;
+  if (isVagueVenueOnly(t)) return false;
+  return true;
+}
 function parseSpaceDimensions(text2) {
   const m4 = text2.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
   if (m4) return `${m4[1]}m x ${m4[3]}m`;
@@ -79992,7 +80079,7 @@ function parseZonaFromText(text2) {
     const lugar = enMatch[1].trim();
     const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
     const candidato = sinArticulo || lugar;
-    if (!MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !/\b(solo|para\s+la|total|comida|pista)\b/i.test(candidato)) {
+    if (!MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !/\b(solo|para\s+la|total|comida|pista)\b/i.test(candidato)) {
       return candidato;
     }
   }
@@ -80299,7 +80386,8 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
     }
   }
   if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
-    const service = parsePrimaryService(msg);
+    const services = parseServicesFromText(msg);
+    const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
     const dims = parseSpaceDimensions(msg);
     if (service || isServiceRelatedMessage(msg)) {
       let value = service ?? msg.slice(0, 120);
@@ -80317,7 +80405,9 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   }
   if (!filledSet.has("Lugar/direcci\xF3n del evento") && asked === "zona") {
     const zona = parseZonaFromText(msg);
-    if (zona) captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
+    if (zona && isUsableDireccionEvento(zona)) {
+      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
+    }
   }
   if (!filledSet.has("Fecha y horario") && asked === "fecha") {
     const fecha = parseFechaFromText(msg);
@@ -80356,7 +80446,8 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
       }
     }
     if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && isServiceRelatedMessage(msg)) {
-      const service = parsePrimaryService(msg);
+      const services = parseServicesFromText(msg);
+      const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
       const dims2 = parseSpaceDimensions(msg);
       let value = service ?? msg.trim().slice(0, 120);
       if (dims2 && service) value = `${service} (espacio ${dims2})`;
@@ -80376,7 +80467,7 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
     }
     if (!pending.has("Lugar/direcci\xF3n del evento")) {
       const zona = parseZonaFromText(msg);
-      if (zona && !isDimensionText(zona)) {
+      if (zona && isUsableDireccionEvento(zona)) {
         captures.push({ label: "Lugar/direcci\xF3n del evento", value: zona });
         pending.add("Lugar/direcci\xF3n del evento");
       }
@@ -80459,15 +80550,20 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     const inv = parseInvitadosFromText(conversationText);
     if (inv) extracted.num_invitados = parseInt(inv, 10);
   }
-  if (!extracted.direccion_evento?.trim()) {
-    const zona = parseZonaFromText(conversationText);
-    if (zona) extracted.direccion_evento = zona;
-  }
-  if (!extracted.requerimientos_evento?.trim()) {
-    const services = parseServicesFromText(conversationText);
-    if (services.length > 0) {
-      extracted.requerimientos_evento = services.slice(0, 3).join(", ");
+  if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+    if (isVagueVenueOnly(extracted.direccion_evento) || isDimensionText(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
     }
+    const zona = parseZonaFromText(conversationText);
+    if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
+  }
+  {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      conversationText,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
   }
   if (extracted.presupuesto === null || extracted.presupuesto === void 0) {
     const presChunks = conversationText.split(/\n|\.|;/).map((s4) => s4.trim()).filter((s4) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s4));
@@ -82733,7 +82829,7 @@ import { join } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8";
+var LUCY_PROMPT_VERSION = "V8.1";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -83907,7 +84003,14 @@ function syncFilledFromExtracted(filledSet, extracted) {
   if (isValidRequerimientosValue(extracted.requerimientos_evento)) {
     filledSet.add("Requerimientos o servicios");
   }
-  if (extracted.direccion_evento?.trim()) filledSet.add("Lugar/direcci\xF3n del evento");
+  if (extracted.direccion_evento?.trim()) {
+    if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    } else {
+      filledSet.add("Lugar/direcci\xF3n del evento");
+    }
+  }
   if (extracted.fecha_horario?.trim()) filledSet.add("Fecha y horario");
   if (extracted.num_invitados) filledSet.add("N\xFAmero de invitados");
   if (hasPresupuestoValue(extracted)) filledSet.add("Presupuesto (MXN)");
@@ -84265,9 +84368,8 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
     if (!filledSet || !ctx) return body2;
     if (acceptedService) {
       filledSet.add("Requerimientos o servicios");
-      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
-        extracted.requerimientos_evento = acceptedService;
-      }
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, acceptedService, 6);
+      if (merged) extracted.requerimientos_evento = merged;
     }
     const pending = getNextPendingField(extracted, filledSet);
     if (!pending) return body2;
@@ -84277,12 +84379,20 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
 
 ${nextQ}`;
   };
+  const allServices = currentMessage ? parseServicesFromText(currentMessage) : [];
+  if (allServices.length >= 2) {
+    const listLabel = allServices.join(", ");
+    return appendNext(
+      `${pickTransition(history)} ${buildMultiServiceAck(allServices)} Si quieres, te mando los cat\xE1logos o pasamos el paquete completo a ${advisorLabelForClient()}.`,
+      listLabel
+    );
+  }
   if (mentionedService || currentMessage && isServiceRelatedMessage(currentMessage)) {
     let detail = query ? buildCatalogServiceDetailAnswer(query) : null;
     if (detail && mentionedService && !catalogAnswerMatchesRequestedService(currentMessage ?? "", detail)) {
       detail = null;
     }
-    const serviceLabel = mentionedService ?? parsePrimaryService(currentMessage ?? "") ?? (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
+    const serviceLabel = (allServices.length > 0 ? allServices.join(", ") : null) || mentionedService || parsePrimaryService(currentMessage ?? "") || (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
     if (detail) {
       const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
       return `${intro}
@@ -84430,7 +84540,7 @@ function getNextPendingField(extracted, filledSet) {
   if (!isEmailSatisfied(filled, extracted)) return "correo";
   const hasReq = filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
   const hasInv = filled.has("N\xFAmero de invitados") || !!extracted.num_invitados;
-  const hasZona = filled.has("Lugar/direcci\xF3n del evento") || !!extracted.direccion_evento?.trim();
+  const hasZona = filled.has("Lugar/direcci\xF3n del evento") || isUsableDireccionEvento(extracted.direccion_evento);
   const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
   if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
   if (!hasReq) return "requerimientos";
@@ -84465,6 +84575,10 @@ function buildOpeningAcknowledgment(history, currentMessage) {
   const texts = collectUserTexts(history, currentMessage);
   const userText = texts[texts.length - 1] ?? texts.join(" ");
   const t = userText.toLowerCase();
+  const multiServices = parseServicesFromText(userText);
+  if (multiServices.length >= 2) {
+    return buildMultiServiceAck(multiServices);
+  }
   if (/taquiza|tacos/.test(t)) {
     const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
     const zona = userText.match(/\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,24})/i);
@@ -84495,14 +84609,17 @@ function buildOpeningAcknowledgment(history, currentMessage) {
     );
     if (colonMatch) {
       const serviceChunk = colonMatch[1].trim().replace(/\.$/, "");
-      if (/coffee\s*break/i.test(serviceChunk)) {
+      const services = parseServicesFromText(serviceChunk);
+      if (services.length >= 2) {
+        return `Vi que necesitas ${formatServicesList(services)}. Te cotizamos todo eso.`;
+      }
+      if (/coffee\s*break/i.test(serviceChunk) && services.length <= 1) {
         return "Vi que te interesa un coffee break para eventos corporativos.";
       }
-      if (/\b(mesas?|sillas?|mobiliario|periquera)\b/i.test(serviceChunk)) {
+      if (/\b(mesas?|sillas?|mobiliario|periquera)\b/i.test(serviceChunk) && services.length <= 1) {
         return "Vi tu solicitud de renta de mesas y sillas para el evento.";
       }
-      const services = parseServicesFromText(serviceChunk);
-      if (services.length) {
+      if (services.length === 1) {
         return `Vi que te interesa cotizar ${services[0]}.`;
       }
       const short = serviceChunk.split(/[,.]/)[0].trim();
@@ -84650,7 +84767,7 @@ function isFieldSatisfied(field, filledSet, extracted) {
     case "invitados":
       return filledSet.has("N\xFAmero de invitados") || !!extracted.num_invitados;
     case "zona":
-      return filledSet.has("Lugar/direcci\xF3n del evento") || !!extracted.direccion_evento?.trim();
+      return filledSet.has("Lugar/direcci\xF3n del evento") || isUsableDireccionEvento(extracted.direccion_evento);
     case "fecha":
       return filledSet.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
     case "presupuesto":
@@ -85161,9 +85278,26 @@ function applyLucyMessageGuards(input) {
     collectUserTexts(presHistory, currentMessage),
     presHistory
   );
+  const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
+  const userBlobForServices = collectUserTexts(presHistory, currentMessage).join(" ");
+  const servicesFromTurn = parseServicesFromText(
+    `${currentMessage ?? ""} ${userBlobForServices}`
+  );
+  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(currentMessage)) {
+    const mergedReq = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      servicesFromTurn.join(", "),
+      6
+    );
+    if (mergedReq) {
+      extracted.requerimientos_evento = mergedReq;
+      filledSet.add("Requerimientos o servicios");
+    }
+  }
   if (!filledSet.has("Requerimientos o servicios") && historyAlreadyHadServicesCatalog(presHistory)) {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
-    const mentioned = findMentionedService(userBlob) || (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || (clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage) ? (currentMessage ?? "").trim().slice(0, 80) : null);
+    const allMentioned = parseServicesFromText(userBlob);
+    const mentioned = (allMentioned.length > 0 ? allMentioned.join(", ") : null) || findMentionedService(userBlob) || (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || (clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage) ? (currentMessage ?? "").trim().slice(0, 80) : null);
     if (mentioned || isServiceRelatedMessage(currentMessage) || isValidRequerimientosValue(extracted.requerimientos_evento)) {
       filledSet.add("Requerimientos o servicios");
       if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
@@ -85189,7 +85323,7 @@ function applyLucyMessageGuards(input) {
   const readyToCloseAndReqDone = trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet);
   const allowSalesReplyOverride = !readyToCloseAndReqDone || (currentMessage?.includes("?") ?? false);
   const mentionedServiceNow = currentMessage ? findMentionedService(currentMessage) : null;
-  const serviceAlreadyCaptured = filledSet.has("Requerimientos o servicios") && !!mentionedServiceNow && (extracted.requerimientos_evento ?? "").toLowerCase().includes(mentionedServiceNow.toLowerCase());
+  const serviceAlreadyCaptured = !!mentionedServiceNow && !!reqBeforeServiceMerge && reqBeforeServiceMerge.toLowerCase().includes(mentionedServiceNow.toLowerCase());
   const requerimientosFollowUpAlreadyAsked = historyAlreadyHadServicesCatalog(presHistory);
   const lastAssistantMsg = [...presHistory].reverse().find((m4) => m4.role === "assistant" && typeof m4.content === "string");
   const lastAskedField = lastAssistantMsg ? inferLucyAskedField(lastAssistantMsg.content) : null;
@@ -85303,6 +85437,27 @@ Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 brief web con datos del formulario");
+  } else if (allowSalesReplyOverride && servicesFromTurn.length >= 2 && !cierreYaEnviado && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro.
+  !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
+    const ack = buildMultiServiceAck(servicesFromTurn);
+    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+      const aiAlreadyLists = servicesFromTurn.filter(
+        (s4) => aiResponse.toLowerCase().includes(s4.toLowerCase().split(/\s+/)[0])
+      ).length >= Math.min(2, servicesFromTurn.length);
+      mensaje = aiAlreadyLists ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx) : mergeWithPendingQuestion(`${ack} ${aiResponse}`.trim(), filledSet, extracted, ctx);
+    } else {
+      mensaje = mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} ${ack} Si quieres, te mando los cat\xE1logos o pasamos el paquete completo a ${advisorLabelForClient()}.`,
+        filledSet,
+        extracted,
+        ctx
+      );
+    }
+    appliedDirectReply = true;
+    log?.info(
+      { entityId, services: servicesFromTurn.length },
+      "GUARD: brief multi-servicio \u2014 reconocer lista completa"
+    );
   } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage)) {
     mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
@@ -86760,7 +86915,7 @@ function purgeDimensionUbicacionLines(lines) {
   return lines.filter((line2) => {
     if (!/^-?\s*Lugar\/dirección del evento:/i.test(line2)) return true;
     const raw = lineValue(line2, "Lugar/direcci\xF3n del evento");
-    return !isDimensionText(raw);
+    return !isDimensionText(raw) && !isVagueVenueOnly(raw);
   });
 }
 function purgeInvalidNombreLines(lines) {
@@ -86796,7 +86951,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
   out2.correo = correo;
   const nombre = sanitizeCrmNombre(out2.nombre);
   out2.nombre = nombre && !isQuoteIntentMessage(nombre) ? nombre : null;
-  if (out2.direccion_evento && isDimensionText(out2.direccion_evento)) {
+  if (out2.direccion_evento && (isDimensionText(out2.direccion_evento) || isVagueVenueOnly(out2.direccion_evento))) {
     out2.direccion_evento = null;
   }
   if (out2.requerimientos_evento?.trim() && out2.tipo_evento?.trim() && out2.requerimientos_evento.trim().toLowerCase() === out2.tipo_evento.trim().toLowerCase()) {
@@ -86922,7 +87077,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const reqFromLines = pickFromMergedLines(mergedLines, /Requerimientos/i);
   const reqFromServices = extracted.requerimientos_evento?.trim();
   const reqFromCatalog = conversationText && conversationText.trim().length > 3 ? formatRequerimientoLabelFromQuery(conversationText) : null;
-  const reqFromConversation = conversationText && conversationText.trim().length > 20 ? parseServicesFromText(conversationText).slice(0, 5).join(", ") : null;
+  const reqFromConversation = conversationText && conversationText.trim().length > 20 ? parseServicesFromText(conversationText).slice(0, 6).join(", ") : null;
   const reqs = (reqFromLines && reqFromLines !== "Info pendiente" ? reqFromLines : null) || reqFromCatalog || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
   const modo = extracted.modo_servicio?.trim();
   const pendientes = pendingFields(mergedLines, extracted);
@@ -87024,6 +87179,13 @@ banquete"), NO des el men\xFA de categor\xEDas: ve directo a ese servicio.
 - Libre para interpretar; ESTRICTA con los datos: solo servicios que existen; precios
   e inclusiones SOLO del Sheet. Si no hay dato \u2192 "el equipo te lo confirma". NUNCA
   inventes qu\xE9 incluye ni precios.
+- Brief con VARIOS servicios (ej. coffee break, desayuno, snack, comida, cena, staff):
+  reconoce la lista COMPLETA en el mismo turno. No te quedes solo con el primero.
+  Si son muchos, confirma el paquete y ofrece cat\xE1logos o pasar a ${ADVISOR}; no
+  vuelques niveles de cada servicio uno por uno.
+- Primer mensaje largo con datos (evento, fecha, ubicaci\xF3n, invitados, servicios):
+  capt\xFAralos TODOS y reconoce lo ya dado; no respondas con un men\xFA gen\xE9rico como si
+  no hubieras le\xEDdo.
 
 ===================================================================
 ## 5. DATOS OBLIGATORIOS \u2014 no cerrar sin todos (CR\xCDTICO)
@@ -87058,6 +87220,8 @@ Reglas:
 ===================================================================
 "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el
 lugar de tu evento, coordinamos el servicio."
+- "sal\xF3n", "edificio", "en el sal\xF3n" o "en el edificio" SIN nombre propio / ciudad /
+  colonia NO es ubicaci\xF3n completa: pide ciudad y colonia (o el nombre del sal\xF3n).
 
 ===================================================================
 ## 7. CAT\xC1LOGOS (a petici\xF3n)
@@ -93170,10 +93334,10 @@ function purgeDimensionAsUbicacion(mergedLines, filledSet, extracted) {
   const idx = mergedLines.findIndex((l4) => /^-?\s*Lugar\/dirección del evento:/i.test(l4));
   if (idx < 0) return;
   const value = mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim();
-  if (!isDimensionText(value)) return;
+  if (!isDimensionText(value) && !isVagueVenueOnly(value)) return;
   mergedLines.splice(idx, 1);
   filledSet.delete("Lugar/direcci\xF3n del evento");
-  if (extracted.direccion_evento && isDimensionText(extracted.direccion_evento)) {
+  if (extracted.direccion_evento && (isDimensionText(extracted.direccion_evento) || isVagueVenueOnly(extracted.direccion_evento))) {
     extracted.direccion_evento = null;
   }
 }

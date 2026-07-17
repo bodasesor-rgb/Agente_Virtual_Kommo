@@ -188,7 +188,7 @@ export function buildResumenClienteLargo(
       : null;
   const reqFromConversation =
     conversationText && conversationText.trim().length > 20
-      ? parseServicesFromText(conversationText).slice(0, 5).join(", ")
+      ? parseServicesFromText(conversationText).slice(0, 6).join(", ")
       : null;
   const reqs =
     (reqFromLines && reqFromLines !== "Info pendiente" ? reqFromLines : null) ||
