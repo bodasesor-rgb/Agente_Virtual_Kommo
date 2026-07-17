@@ -81,54 +81,58 @@ export async function syncHumanPhaseLead(
   return { synced: true, candidates, talkId };
 }
 
+const LEARNING_STATUS_IDS = new Set<number>([
+  ETAPA.HUMANO_TRABAJA,
+  ETAPA.COTIZACION_REALIZADA,
+]);
+
 /** Leads en Humano Trabaja / Cotización desde Kommo (no solo BD local). */
 export async function listKommoLeadsInLearningStages(
   subdomain: string,
   accessToken: string,
   limitPerStage = 50
 ): Promise<string[]> {
-  const statusIds = [ETAPA.HUMANO_TRABAJA, ETAPA.COTIZACION_REALIZADA];
   const ids = new Set<string>();
 
-  for (const statusId of statusIds) {
-    const urls = [
-      // Formato oficial filter[statuses][n][pipeline_id|status_id]
-      `https://${subdomain}.kommo.com/api/v4/leads` +
+  const tryUrls = [
+    // Formato oficial por etapa
+    ...[ETAPA.HUMANO_TRABAJA, ETAPA.COTIZACION_REALIZADA].map(
+      (statusId) =>
+        `https://${subdomain}.kommo.com/api/v4/leads` +
         `?filter[statuses][0][pipeline_id]=${PIPELINE_ID}` +
         `&filter[statuses][0][status_id]=${statusId}` +
-        `&limit=${limitPerStage}&order[updated_at]=desc`,
-      // Fallback: status_id plano
-      `https://${subdomain}.kommo.com/api/v4/leads` +
-        `?filter[pipeline_id]=${PIPELINE_ID}&filter[statuses][]=${statusId}` +
-        `&limit=${limitPerStage}&order[updated_at]=desc`,
-    ];
+        `&limit=${limitPerStage}&order[updated_at]=desc`
+    ),
+    // Fallback: recientes del pipeline y filtrar status en cliente
+    `https://${subdomain}.kommo.com/api/v4/leads` +
+      `?filter[pipeline_id]=${PIPELINE_ID}&limit=100&order[updated_at]=desc`,
+    `https://${subdomain}.kommo.com/api/v4/leads?limit=100&order[updated_at]=desc`,
+  ];
 
-    for (const url of urls) {
-      try {
-        const res = await fetch(url, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (!res.ok) {
-          logger.warn(
-            { statusId, status: res.status, url: url.slice(0, 120) },
-            "learningSync: list leads falló"
-          );
-          continue;
-        }
-        const data = (await res.json()) as {
-          _embedded?: { leads?: Array<{ id?: number; status_id?: number }> };
-        };
-        const leads = data._embedded?.leads ?? [];
-        for (const lead of leads) {
-          if (lead.id == null) continue;
-          // Si el fallback trajo otros status, filtramos.
-          if (lead.status_id != null && lead.status_id !== statusId) continue;
-          ids.add(String(lead.id));
-        }
-        if (leads.length > 0) break;
-      } catch (err) {
-        logger.warn({ err, statusId }, "learningSync: error listando leads Kommo");
+  for (const url of tryUrls) {
+    try {
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) {
+        logger.warn({ status: res.status, url: url.slice(0, 140) }, "learningSync: list leads falló");
+        continue;
       }
+      const data = (await res.json()) as {
+        _embedded?: { leads?: Array<{ id?: number; status_id?: number; pipeline_id?: number }> };
+      };
+      const leads = data._embedded?.leads ?? [];
+      for (const lead of leads) {
+        if (lead.id == null || lead.status_id == null) continue;
+        if (!LEARNING_STATUS_IDS.has(lead.status_id)) continue;
+        ids.add(String(lead.id));
+      }
+      if (ids.size > 0) {
+        logger.info({ count: ids.size, url: url.slice(0, 100) }, "learningSync: leads elegibles Kommo");
+        break;
+      }
+    } catch (err) {
+      logger.warn({ err }, "learningSync: error listando leads Kommo");
     }
   }
 

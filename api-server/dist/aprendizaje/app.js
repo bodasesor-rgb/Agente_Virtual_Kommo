@@ -459,7 +459,7 @@ async function loadList() {
         emptyState.innerHTML =
           status === "pending"
             ? `<strong>No hay candidatos por revisar</strong>Cuando Alejandro atienda en Humano Trabaja, Lucy extrae pares automáticamente. Pulsa «Sincronizar chats ahora» para forzar una pasada.`
-            : `<strong>Aún no hay aprendizajes de chats</strong>Lucy aprende cuando Alejandro responde en Kommo (etapa Humano Trabaja o Cotización). El cron corre cada 5 minutos.`;
+            : `<strong>Aún no hay aprendizajes de chats</strong>Lucy aprende cuando Alejandro responde en Kommo (etapa Humano Trabaja o Cotización). El cron corre cada 5 minutos. Usa «Sincronizar chats ahora».`;
         return;
       }
       emptyState.classList.add("hidden");
