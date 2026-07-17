@@ -112,6 +112,9 @@ import {
   clientAsksToRereadBrief,
   clientAsksDistributorPricing,
   clientRequestsCallback,
+  isGenericQuoteIntentRequerimiento,
+  FECHA_MAX_ASKS,
+  FECHA_AUTO_WAIVER,
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
@@ -326,9 +329,15 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
 export function isValidRequerimientosValue(value: string | null | undefined): boolean {
   const trimmed = value?.trim() ?? "";
   if (!trimmed) return false;
-  if (isServiceRelatedMessage(trimmed)) return true;
-  // Texto libre capturado (p. ej. servicio fuera de catálogo) cuenta como requerimiento válido.
-  if (trimmed.length >= 4 && !parseTipoEventoFromText(trimmed)) return true;
+  // "Quiero una cotización" / intención genérica ≠ servicio real (Núria A14894).
+  if (isGenericQuoteIntentRequerimiento(trimmed) || isQuoteIntentMessage(trimmed)) return false;
+  // Servicios reales del catálogo siempre cuentan.
+  if (parseServicesFromText(trimmed).length > 0 || isServiceRelatedMessage(trimmed)) return true;
+  // Tipo de evento o temática sola ("fiesta toscana") ≠ requerimientos.
+  if (parseTipoEventoFromText(trimmed)) return false;
+  if (clientMentionsItalianTheme(trimmed) && trimmed.length < 48) return false;
+  // Texto libre capturado (p. ej. servicio fuera de catálogo).
+  if (trimmed.length >= 4) return true;
   return false;
 }
 
@@ -1095,15 +1104,28 @@ function emailThanksPrefix(ctx: NaturalQuestionContext): string {
   return nombre ? `Gracias por tu correo, ${nombre}. ` : "Gracias por tu correo. ";
 }
 
+/** Quita un nombre suelto al inicio para no duplicar "Núria. Núria.". */
+function stripLeadingDisplayName(mensaje: string, displayName: string | null | undefined): string {
+  const nombre = displayName?.trim();
+  if (!nombre) return mensaje;
+  const escaped = nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return mensaje
+    .replace(new RegExp(`^${escaped}\\s*[.!,:—\\-]*\\s*`, "i"), "")
+    .replace(new RegExp(`^${escaped}\\s+`, "i"), "")
+    .trim();
+}
+
 /** Tras capturar correo: agradecer y quitar aperturas casuales (Genial, Perfecto…). */
 function applyEmailCaptureTone(mensaje: string, ctx: NaturalQuestionContext): string {
   const thanks = emailThanksPrefix(ctx);
   if (!thanks) return mensaje;
   let out = mensaje.trim();
   if (/gracias por tu correo/i.test(out)) return out;
+  const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
   out = out
     .replace(/^(genial|perfecto|excelente|muy bien),?\s+/i, "")
     .replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
+  out = stripLeadingDisplayName(out, nombre);
   return `${thanks}${out}`.trim();
 }
 
@@ -1283,7 +1305,7 @@ export function buildOpeningAcknowledgment(
       ? `Te ayudo con el stand de café para tu expo (${inv[1]} personas).`
       : "Te ayudo con el stand de café para tu expo.";
   }
-  if (/italian|italia|mafia\s+italiana|men[uú]\s+italiano|pastas?|pizzas?/i.test(t)) {
+  if (/italian|italia|toscana|toscano|mafia\s+italiana|men[uú]\s+italiano|pastas?|pizzas?|antipasti/i.test(t)) {
     return buildItalianFoodPitch(userText).replace(/\.$/, "");
   }
   if (/cotiz|evento/.test(t)) return "Claro que te ayudo con tu evento.";
@@ -2601,6 +2623,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = nombre
       ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?`
       : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?";
+    appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — servicios adicionales");
   } else if (
     cierreYaEnviado &&
@@ -2609,17 +2632,23 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     isServiceRelatedMessage(currentMessage) &&
     currentMessage?.trim()
   ) {
-    const ack = buildGuardServiceAck(currentMessage);
+    const services = parseServicesFromText(currentMessage);
+    const ack =
+      services.length >= 2
+        ? `Perfecto, anoto ${formatServicesList(services)}.`
+        : buildGuardServiceAck(currentMessage);
     const nombre = extracted.nombre?.trim();
     mensaje = nombre
       ? `${ack}\n\nPerfecto, ${nombre}. Lo sumo a tu cotización. ¿Algo más que quieras agregar?`
       : `${ack}\n\nLo sumo a tu cotización. ¿Algo más que quieras agregar?`;
+    appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — servicio adicional con detalle");
   } else if (
     cierreYaEnviado &&
     (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))
   ) {
     mensaje = buildPostCierreThanksReply(extracted.nombre);
+    appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — agradecimiento o sin más que agregar");
   } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {
     mensaje = buildCompanyEmailConfirmReply();
@@ -3461,9 +3490,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   // Zona/ubicación REQUERIDA antes del cierre (ciudad + colonia/salón).
+  // Usar isFieldSatisfied (no solo filledSet): si extracted ya tiene Querétaro,
+  // no volver a preguntar zona al avanzar a fecha (Núria A14894).
   if (
     !cierreYaEnviado &&
-    !filledSet.has("Lugar/dirección del evento") &&
+    !isFieldSatisfied("zona", filledSet, extracted) &&
     (responseLooksLikePrematureClose(mensaje) ||
       trulyReadyForClosing ||
       mensajeAsksForField(mensaje, "presupuesto") ||
@@ -3703,14 +3734,74 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   if (
     mensajeAsksForField(mensaje, "fecha") &&
+    countLucyFieldAsks(presHistory, "fecha") >= FECHA_MAX_ASKS &&
+    !isFieldSatisfied("fecha", filledSet, extracted)
+  ) {
+    // Ya preguntamos fecha suficiente veces: no repetir, avanzar o waiver.
+    filledSet.add("Fecha y horario");
+    if (!extracted.fecha_horario?.trim()) extracted.fecha_horario = FECHA_AUTO_WAIVER;
+    const nextQ = nextFieldQuestion(
+      extracted,
+      filledSet,
+      whatsappDisplayName,
+      history,
+      currentMessage,
+      entityId
+    );
+    if (nextQ && !mensajeAsksForField(nextQ, "fecha")) {
+      mensaje = nextQ;
+    } else if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+    } else {
+      const nombre = getDisplayName(extracted, whatsappDisplayName);
+      mensaje = nombre
+        ? `Sin problema, ${nombre}. Seguimos sin fecha fija por ahora.`
+        : "Sin problema. Seguimos sin fecha fija por ahora.";
+    }
+    log?.info({ entityId }, "GUARD: tope de preguntas fecha — auto-waiver");
+  } else if (
+    mensajeAsksForField(mensaje, "fecha") &&
     countLucyFieldAsks(presHistory, "fecha") >= 1 &&
     !isFieldSatisfied("fecha", filledSet, extracted)
   ) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre
+    const lastFechaAsk = [...presHistory]
+      .reverse()
+      .find(
+        (m) =>
+          m.role === "assistant" &&
+          typeof m.content === "string" &&
+          mensajeAsksForField(m.content as string, "fecha")
+      )?.content as string | undefined;
+    const variant = nombre
       ? `${pickTransition(presHistory)} ${nombre}, ¿tienen día u horario ya definido?`
       : `${pickTransition(presHistory)} ¿Tienen día u horario ya definido?`;
-    log?.info({ entityId }, "GUARD: segunda pregunta de fecha — variante corta");
+    // Si la variante sigue casi idéntica a la pregunta previa, no reenviar otra fecha.
+    if (lastFechaAsk && textOverlapRatio(variant, lastFechaAsk) >= 0.72) {
+      filledSet.add("Fecha y horario");
+      if (!extracted.fecha_horario?.trim()) extracted.fecha_horario = FECHA_AUTO_WAIVER;
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
+      mensaje =
+        nextQ && !mensajeAsksForField(nextQ, "fecha")
+          ? nextQ
+          : nombre
+            ? `Sin problema, ${nombre}. Seguimos sin fecha fija por ahora.`
+            : "Sin problema. Seguimos sin fecha fija por ahora.";
+      log?.info({ entityId }, "GUARD: fecha casi idéntica — avanzar sin repetir");
+    } else {
+      mensaje = variant;
+      log?.info({ entityId }, "GUARD: segunda pregunta de fecha — variante corta");
+    }
   }
 
   if (
@@ -3853,6 +3944,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       extracted.nombre
     );
     log?.warn({ entityId }, "GUARD: bloqueó nota interna CRM — solo cierre al cliente");
+  }
+
+  // "estos/los servicios" sin enumerar → anexar lista capturada (Núria A14894).
+  if (/\b(estos|los)\s+servicios\b/i.test(mensaje)) {
+    const listed = parseServicesFromText(
+      [extracted.requerimientos_evento, currentMessage].filter(Boolean).join(" ")
+    );
+    if (listed.length > 0 && !listed.some((s) => mensaje.toLowerCase().includes(s.toLowerCase()))) {
+      const lista = formatServicesList(listed);
+      mensaje = mensaje.replace(
+        /\b(estos|los)\s+servicios\b/i,
+        `$1 servicios (${lista})`
+      );
+      log?.info({ entityId, lista }, "GUARD: enumeró servicios vagos");
+    }
   }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);

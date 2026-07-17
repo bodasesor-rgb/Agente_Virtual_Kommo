@@ -102,6 +102,18 @@ export function sanitizeExtractedFromExternal(
     out.requerimientos_evento = null;
   }
 
+  // Cotización genérica ≠ requerimiento de servicio.
+  if (
+    out.requerimientos_evento?.trim() &&
+    (isQuoteIntentMessage(out.requerimientos_evento) ||
+      /^(quiero|necesito|requiero|busco|me\s+interesa)\s+(una?\s+)?cotiz/i.test(
+        out.requerimientos_evento.trim()
+      ) ||
+      /^cotizaci[oó]n$/i.test(out.requerimientos_evento.trim()))
+  ) {
+    out.requerimientos_evento = null;
+  }
+
   return out;
 }
 

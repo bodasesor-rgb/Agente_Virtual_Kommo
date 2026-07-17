@@ -700,6 +700,33 @@ function buildCrmContext(
     );
   }
 
+  // Sincroniza extracted.direccion_evento con el valor CRM (incluye afinado municipio).
+  {
+    const zonaLine = mergedLines.find((l) => /^-?\s*Lugar\/dirección del evento:/i.test(l));
+    if (zonaLine) {
+      const zonaVal = zonaLine.replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim();
+      if (zonaVal && isUsableDireccionEvento(zonaVal)) {
+        extracted.direccion_evento = zonaVal;
+      }
+    }
+  }
+
+  // Cotización genérica nunca debe quedar como requerimiento capturado.
+  if (
+    extracted.requerimientos_evento?.trim() &&
+    !isValidRequerimientosValue(extracted.requerimientos_evento)
+  ) {
+    const idx = mergedLines.findIndex((l) => /^-?\s*Requerimientos o servicios:/i.test(l));
+    if (idx >= 0) {
+      const raw = mergedLines[idx]!.replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
+      if (!isValidRequerimientosValue(raw)) {
+        mergedLines.splice(idx, 1);
+        filledSet.delete("Requerimientos o servicios");
+      }
+    }
+    extracted.requerimientos_evento = null;
+  }
+
   // Nombre de WhatsApp: solo si Lucy ya preguntó y el cliente nunca lo escribió
   applyWhatsappNombreFallback(filledSet, mergedLines, whatsappDisplayName, history);
 

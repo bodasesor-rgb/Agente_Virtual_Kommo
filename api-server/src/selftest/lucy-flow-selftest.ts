@@ -53,6 +53,9 @@ import {
   clientAsksToRereadBrief,
   clientAsksDistributorPricing,
   buildRichBriefAcknowledgment,
+  isGenericQuoteIntentRequerimiento,
+  mergeZonaDetail,
+  FECHA_MAX_ASKS,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, clientAsksCompanyIdentity, buildCompanyIdentityReply } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
@@ -3427,6 +3430,163 @@ async function runAll(): Promise<void> {
     );
     assert.ok(/Alejandra/.test(buildPostCierreCallbackAck("Alejandra")));
     assert.ok(/corporativo|15 de agosto|200/i.test(buildRichBriefAcknowledgment(alejandraBrief)));
+  });
+
+  await test("71. Núria A14894 — post-cierre No. Gracias no reinicia embudo", () => {
+    assert.ok(clientDeclinesMoreServices("No. Gracias"));
+    assert.ok(clientDeclinesMoreServices("No, gracias"));
+    assert.ok(clientSaysThanks("No. Gracias"));
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Número de invitados",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Presupuesto (MXN)",
+    ]);
+    const reply = applyLucyMessageGuards({
+      aiResponse: "¿Me regalas tu correo para enviarte la cotización?",
+      extracted: emptyExtracted({
+        nombre: "Núria",
+        correo: "nuria@example.com",
+        tipo_evento: "fiesta",
+        requerimientos_evento: "Barra de pastas, Barra de pizzas",
+        direccion_evento: "Querétaro, El Marqués",
+        fecha_horario: "Sin definir (pendiente)",
+        num_invitados: 80,
+        presupuesto: "Sin definir",
+      }),
+      filledSet: filled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }],
+      currentMessage: "No. Gracias",
+      buildClosing: mockClosing,
+    });
+    assert.ok(/con gusto|equipo/i.test(reply), reply);
+    assert.ok(!/correo|e-?mail/i.test(reply), `no debe pedir correo: ${reply}`);
+    assert.ok(filled.has("Correo electrónico"));
+  });
+
+  await test("72. Núria A14894 — cotización genérica ≠ requerimiento; toscana/pastas", () => {
+    assert.ok(isGenericQuoteIntentRequerimiento("Quiero una cotización"));
+    assert.ok(!isValidRequerimientosValue("Quiero una cotización"));
+    assert.ok(!isValidRequerimientosValue("cotización"));
+    assert.equal(parseTipoEventoFromText("Fiesta toscana"), "fiesta");
+    assert.ok(clientMentionsItalianTheme("Fiesta toscana"));
+    assert.ok(!isValidRequerimientosValue("Fiesta toscana"));
+
+    const services = parseServicesFromText("Solo barra de pastas y pizzas");
+    assert.ok(services.some((s) => /pasta/i.test(s)), String(services));
+    assert.ok(services.some((s) => /pizza/i.test(s)), String(services));
+    assert.ok(services.length >= 2, String(services));
+
+    const italianFirst = buildFirstInteractionMessage(
+      {
+        extracted: emptyExtracted(),
+        filledSet: new Set(),
+        history: [],
+        currentMessage: "Fiesta toscana",
+      },
+      true
+    );
+    assert.ok(/pasta|pizza|italian|antipasti/i.test(italianFirst), italianFirst);
+
+    const sanitized = sanitizeExtractedFromExternal({
+      ...emptyExtracted(),
+      requerimientos_evento: "Quiero una cotización",
+      nombre: "Núria",
+    });
+    assert.equal(sanitized.requerimientos_evento, null);
+
+    const pending = getNextPendingField(
+      emptyExtracted({
+        nombre: "Núria",
+        correo: "nuria@example.com",
+        tipo_evento: "fiesta",
+        requerimientos_evento: "Quiero una cotización",
+      }),
+      new Set(["Nombre del cliente", "Correo electrónico", "Tipo de evento"])
+    );
+    assert.equal(pending, "requerimientos");
+  });
+
+  await test("73. Núria A14894 — zona/fecha sin dobles + nombre tras correo", () => {
+    assert.ok(/marqu/i.test(parseZonaFromText("El Marques") ?? ""));
+    assert.ok(/quer/i.test(parseZonaFromText("Querétaro") ?? ""));
+    assert.equal(
+      mergeZonaDetail("Querétaro", "El Marqués"),
+      "Querétaro, El Marqués"
+    );
+
+    const filledZona = new Set(["Nombre del cliente", "Correo electrónico", "Tipo de evento"]);
+    const extractedZona = emptyExtracted({
+      nombre: "Núria",
+      correo: "nuria@example.com",
+      tipo_evento: "fiesta",
+      direccion_evento: "Querétaro",
+    });
+    // Con ciudad usable en extracted, no forzar otra pregunta de zona al pedir fecha.
+    const zonaGuard = runGuards({
+      aiResponse: "¿Me confirmas la colonia o salón del evento?",
+      extracted: extractedZona,
+      filledSet: filledZona,
+      readyForClosing: false,
+      currentMessage: "Querétaro",
+      history: [
+        { role: "assistant", content: "¿En qué ciudad o zona sería el evento?" },
+        { role: "user", content: "Querétaro" },
+      ],
+      buildClosing: mockClosing,
+    });
+    assert.ok(
+      !mensajeAsksForField(zonaGuard, "zona") || /fecha|invitad|presupuesto|servicio|pasta|pizza/i.test(zonaGuard),
+      `no debe insistir zona: ${zonaGuard.slice(0, 220)}`
+    );
+
+    assert.equal(FECHA_MAX_ASKS, 2);
+    assert.ok(parseFechaFromText("todavía no la definimos"));
+    assert.ok(parseFechaFromText("aún no tenemos fecha"));
+
+    // Nombre no duplicado tras capturar correo.
+    const emailTone = runGuards({
+      aiResponse: "Núria. ¿Qué tipo de celebración es?",
+      extracted: emptyExtracted({ nombre: "Núria", correo: "nuria@example.com" }),
+      filledSet: new Set(["Nombre del cliente", "Correo electrónico"]),
+      readyForClosing: false,
+      currentMessage: "nuria@example.com",
+      history: [{ role: "assistant", content: "¿Me regalas tu correo?" }],
+    });
+    assert.ok(/gracias por tu correo,\s*Núria/i.test(emailTone), emailTone);
+    assert.ok(!/Núria\.\s*Núria/i.test(emailTone), emailTone);
+
+    // Follow-up vago enumera servicios (post-cierre directo).
+    const vague = applyLucyMessageGuards({
+      aiResponse: "Perfecto, actualizo estos servicios en tu cotización. ¿Algo más?",
+      extracted: emptyExtracted({
+        nombre: "Núria",
+        correo: "nuria@example.com",
+        tipo_evento: "fiesta",
+        requerimientos_evento: "Barra de pastas, Barra de pizzas",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }],
+      currentMessage: "Solo barra de pastas y pizzas",
+      buildClosing: mockClosing,
+    });
+    assert.ok(/pasta/i.test(vague) && /pizza/i.test(vague), vague.slice(0, 400));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
