@@ -3,6 +3,8 @@ name: Keep Alive Hostinger
 # Hostinger puede suspender la app Node si no recibe tráfico HTTP externo.
 # El ping interno (localhost) en index.ts no cuenta para el panel de Hostinger.
 # Este workflow hace un GET cada 5 min desde GitHub → despierta Lucy antes de webhooks Kommo.
+# También dispara el cron de aprendizaje (sync chats humanos + extracción) para que
+# Lucy lea de verdad los chats de Alejandro y genere/aprueba ejemplos.
 
 on:
   schedule:
@@ -12,7 +14,7 @@ on:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 3
     steps:
       - name: Ping /api/health
         env:
@@ -34,3 +36,27 @@ jobs:
           fi
           PROMPT=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/lucy-health.json','utf8'));console.log((j.lucy_prompt||'?')+' · '+(j.built_at_display||j.built_at||'?'))" 2>/dev/null || echo "?")
           echo "OK — Lucy despierta (HTTP $HTTP) — $PROMPT"
+
+      - name: Ping cron aprendizaje (sync + extract chats humanos)
+        env:
+          LUCY_PUBLIC_URL: ${{ vars.LUCY_PUBLIC_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          BASE="${LUCY_PUBLIC_URL:-https://midnightblue-mosquito-424375.hostingersite.com}"
+          URL="${BASE%/}/api/kommo/cron/learning"
+          if [ -n "$CRON_SECRET" ]; then
+            URL="${URL}?secret=${CRON_SECRET}"
+          fi
+          echo "Aprendizaje cron → $URL"
+          HTTP=$(curl -sS -o /tmp/lucy-learning.json -w "%{http_code}" --max-time 90 "$URL" || echo "000")
+          cat /tmp/lucy-learning.json || true
+          echo ""
+          if [ "$HTTP" = "200" ]; then
+            echo "OK — cron aprendizaje HTTP $HTTP"
+            node -e "try{const j=JSON.parse(require('fs').readFileSync('/tmp/lucy-learning.json','utf8'));console.log('leads='+(j.leads??'?')+' candidates='+(j.candidates??'?'))}catch{}"
+          elif [ "$HTTP" = "401" ]; then
+            echo "AVISO: cron learning unauthorized (revisa secret CRON_SECRET en GitHub Actions)."
+          else
+            # No fallar el keep-alive por un error puntual del cron de aprendizaje.
+            echo "AVISO: cron aprendizaje HTTP $HTTP — Lucy sigue despierta; se reintentará en 5 min."
+          fi

@@ -496,16 +496,9 @@ async function runAll(): Promise<void> {
     );
     assert.ok(norm.includes("nuestro equipo"));
 
-    const healthFeatures = [
-      "understanding",
-      "redaction-briefing",
-      "training-db",
-      "lucy-admin",
-      "debounce-5s",
-      "learning-from-human-chats",
-      "knowledge-gaps-aprendizaje",
-    ];
-    assert.equal(healthFeatures.length, 7);
+    assert.ok(healthSrc.includes("learning-from-human-chats"));
+    assert.ok(healthSrc.includes("learning-cron-keepalive"));
+    assert.ok(healthSrc.includes("learning-auto-approve-high-confidence"));
   });
 
   await test('11. Bakar — "Quiero cotización" NO es nombre', () => {
@@ -2954,6 +2947,43 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/estilo rústico|anoto|montaje/i.test(blocked), blocked);
     assert.ok(!/La imagen muestra/i.test(blocked), blocked);
+  });
+
+  await test("67. Aprendizaje continuo — cron + extract en Humano Trabaja", () => {
+    const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const repoRoot = path.resolve(apiRoot, "..");
+    const syncSrc = readFileSync(path.join(apiRoot, "src/services/learningSync.ts"), "utf8");
+    const extractorSrc = readFileSync(path.join(apiRoot, "src/services/learningExtractor.ts"), "utf8");
+    const ingestSrc = readFileSync(path.join(apiRoot, "src/services/chatIngest.ts"), "utf8");
+    const kommoSrc = readFileSync(path.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const keepAlive = readFileSync(
+      path.join(repoRoot, ".github/workflows/keep-alive-hostinger.yml"),
+      "utf8"
+    );
+
+    // Cron debe extraer también en Humano Trabaja (no solo Cotización).
+    assert.ok(/HUMANO_TRABAJA/.test(syncSrc));
+    assert.ok(
+      /extract:\s*[\s\S]*HUMANO_TRABAJA/.test(syncSrc) ||
+        /HUMANO_TRABAJA[\s\S]*extract:\s*true/.test(syncSrc) ||
+        /extract:[\s\S]*COTIZACION_REALIZADA[\s\S]*HUMANO_TRABAJA/.test(syncSrc),
+      "cron debe pasar extract=true en Humano Trabaja"
+    );
+
+    // Pipeline Humano Trabaja ya no debe forzar extract:false.
+    assert.ok(!/syncHumanPhaseLead\([\s\S]*extract:\s*false/.test(kommoSrc));
+    assert.ok(/syncHumanPhaseLead\([\s\S]*extract:\s*true/.test(kommoSrc));
+
+    // Tras sync de chat inactivo → extracción.
+    assert.ok(/extractLearningCandidatesForLead/.test(ingestSrc));
+
+    // Auto-approve alta confianza + throttle más corto que 6h.
+    assert.ok(/AUTO_APPROVE_CONFIDENCE/.test(extractorSrc));
+    assert.ok(/approveLearningCandidate/.test(extractorSrc));
+    assert.ok(!/6 \* 60 \* 60 \* 1000/.test(extractorSrc));
+
+    // Keep-alive dispara el cron de aprendizaje.
+    assert.ok(/kommo\/cron\/learning/.test(keepAlive));
   });
 
   await test("66. Brief multi-servicio Alexa + salón/edificio no es ubicación", () => {

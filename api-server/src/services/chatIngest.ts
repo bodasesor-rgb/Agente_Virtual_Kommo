@@ -147,7 +147,17 @@ export async function captureInboundWhileLucyInactive(input: {
       talkId: input.talkId,
       subdomain: input.subdomain,
       accessToken: input.accessToken,
-    }).catch((err) => logger.warn({ err, leadId }, "chatIngest: sync background falló"));
+    })
+      .then(async () => {
+        // Tras sincronizar el chat de Alejandro, intentar extraer aprendizajes
+        // (el extractor aplica throttle si no hay mensajes humanos nuevos).
+        const { extractLearningCandidatesForLead } = await import("./learningExtractor.js");
+        const created = await extractLearningCandidatesForLead(leadId);
+        if (created > 0) {
+          logger.info({ leadId, created }, "chatIngest: candidatos de aprendizaje tras sync");
+        }
+      })
+      .catch((err) => logger.warn({ err, leadId }, "chatIngest: sync/extract background falló"));
   }
 }
 
