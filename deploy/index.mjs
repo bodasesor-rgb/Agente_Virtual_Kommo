@@ -73951,25 +73951,39 @@ async function syncHumanPhaseLead(subdomain, accessToken, kommoLeadId, options =
   }
   return { synced: true, candidates, talkId };
 }
-async function listKommoLeadsInLearningStages(subdomain, accessToken, limitPerStage = 40) {
+async function listKommoLeadsInLearningStages(subdomain, accessToken, limitPerStage = 50) {
   const statusIds = [ETAPA.HUMANO_TRABAJA, ETAPA.COTIZACION_REALIZADA];
   const ids = /* @__PURE__ */ new Set();
   for (const statusId of statusIds) {
-    try {
-      const url2 = `https://${subdomain}.kommo.com/api/v4/leads?filter[statuses][0][pipeline_id]=${PIPELINE_ID}&filter[statuses][0][status_id]=${statusId}&limit=${limitPerStage}&order[updated_at]=desc`;
-      const res = await fetch(url2, {
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
-      if (!res.ok) {
-        logger.warn({ statusId, status: res.status }, "learningSync: list leads fall\xF3");
-        continue;
+    const urls = [
+      // Formato oficial filter[statuses][n][pipeline_id|status_id]
+      `https://${subdomain}.kommo.com/api/v4/leads?filter[statuses][0][pipeline_id]=${PIPELINE_ID}&filter[statuses][0][status_id]=${statusId}&limit=${limitPerStage}&order[updated_at]=desc`,
+      // Fallback: status_id plano
+      `https://${subdomain}.kommo.com/api/v4/leads?filter[pipeline_id]=${PIPELINE_ID}&filter[statuses][]=${statusId}&limit=${limitPerStage}&order[updated_at]=desc`
+    ];
+    for (const url2 of urls) {
+      try {
+        const res = await fetch(url2, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        if (!res.ok) {
+          logger.warn(
+            { statusId, status: res.status, url: url2.slice(0, 120) },
+            "learningSync: list leads fall\xF3"
+          );
+          continue;
+        }
+        const data = await res.json();
+        const leads = data._embedded?.leads ?? [];
+        for (const lead of leads) {
+          if (lead.id == null) continue;
+          if (lead.status_id != null && lead.status_id !== statusId) continue;
+          ids.add(String(lead.id));
+        }
+        if (leads.length > 0) break;
+      } catch (err2) {
+        logger.warn({ err: err2, statusId }, "learningSync: error listando leads Kommo");
       }
-      const data = await res.json();
-      for (const lead of data._embedded?.leads ?? []) {
-        if (lead.id != null) ids.add(String(lead.id));
-      }
-    } catch (err2) {
-      logger.warn({ err: err2, statusId }, "learningSync: error listando leads Kommo");
     }
   }
   return [...ids];
@@ -95996,9 +96010,9 @@ router11.use(kommo_default);
 router11.use(lucy_default);
 router11.use(auth_default);
 router11.use(knowledgeGaps_default);
+router11.use(learning_default);
 router11.use(ops_default);
 router11.use(examples_default);
-router11.use(learning_default);
 router11.use(analytics_default);
 var routes_default = router11;
 
