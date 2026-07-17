@@ -82871,7 +82871,7 @@ import { join } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.3";
+var LUCY_PROMPT_VERSION = "V8.4";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -84283,16 +84283,16 @@ function pickVariant(field, history, entityId) {
 function buildPhoneAnswer() {
   return [
     "Claro, te paso los n\xFAmeros:",
-    "Ventas (solo l\xEDnea telef\xF3nica, sin WhatsApp): 55 4008 0373",
-    "Gerencia / corporativo (l\xEDnea telef\xF3nica y WhatsApp): 56 4671 0585",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
     "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
   ].join("\n");
 }
 function buildEmergencyContactAnswer() {
   return [
     "Claro, te paso los contactos de emergencia del equipo:",
-    "Ventas (solo llamada): 55 4008 0373",
-    "Gerencia / corporativo (llamada y WhatsApp): 56 4671 0585",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
     "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
   ].join("\n");
 }
@@ -87308,7 +87308,10 @@ cotizaci\xF3n personalizada. Si necesitas algo m\xE1s, con gusto te apoyo."
 
 \u{1F6AB} NUNCA generes "DATOS DEL CLIENTE:" ni bloques internos de CRM al cliente.
 
-Contacto (solo si lo piden): bodasesor@gmail.com | 55 4008 0373 | @bodasesormx
+Contacto (solo si lo piden):
+- Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).
+- Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.
+- Correo: bodasesor@gmail.com | Instagram: @bodasesormx
 
 ===================================================================
 ## PRIMER MENSAJE \u2014 OBLIGATORIO
