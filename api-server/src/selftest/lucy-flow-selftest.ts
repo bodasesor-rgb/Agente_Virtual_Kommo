@@ -17,6 +17,7 @@ import {
   parseCorreoFromText,
   isServiceLabelNotTipoEvento,
   clientAsksPhone,
+  clientRequestsCallback,
   clientAsksForRecommendations,
   parsePrimaryService,
   scanConversationForCaptures,
@@ -48,6 +49,10 @@ import {
   clientAffirmsCatalogOffer,
   isCatalogLevelSelection,
   clientNeedsEmergencyContact,
+  isRichQuoteBrief,
+  clientAsksToRereadBrief,
+  clientAsksDistributorPricing,
+  buildRichBriefAcknowledgment,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, clientAsksCompanyIdentity, buildCompanyIdentityReply } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
@@ -71,6 +76,10 @@ import {
   buildPhoneAnswer,
   buildRecommendationsReply,
   buildPostCierreThanksReply,
+  buildPostCierreCallbackAck,
+  buildStandardClosingMessage,
+  buildMultiServicePackageReply,
+  buildPackageCatalogOfferBlock,
   clientSaysThanks,
   detectCierreEnviado,
   CLOSING_SIGNATURE,
@@ -103,7 +112,7 @@ import {
   sanitizeKommoCrmLines,
   sanitizeExtractedFromExternal,
 } from "../lib/external-ingest-sanitize.js";
-import { buildConsultativeNoPriceReply } from "../price-guard.js";
+import { buildConsultativeNoPriceReply, clientAsksPrice } from "../price-guard.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -206,16 +215,7 @@ function emptyExtracted(overrides: Partial<ExtractedData> = {}): ExtractedData {
 }
 
 function mockClosing(servicios: string | null | undefined, clientName?: string | null): string {
-  const advisor = advisorLabelForClient(clientName);
-  const handoff =
-    advisor === "nuestro equipo"
-      ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
-      : `Le paso estos datos a ${advisor} para que te arme una cotización personalizada.`;
-  const svc = servicios?.trim();
-  const complements = svc
-    ? `Si quieres sumar algo además de ${svc} (alimentos, mobiliario, DJ o iluminación), dímelo.`
-    : `Si quieres sumar alimentos, mobiliario, DJ o iluminación, dímelo.`;
-  return `Perfecto, ya tengo todo. ${handoff}\n\n${complements}\n\nSi necesitas algo más, con gusto te apoyo.`;
+  return buildStandardClosingMessage(servicios, clientName);
 }
 
 function runGuards(opts: {
@@ -316,9 +316,10 @@ async function runAll(): Promise<void> {
     assert.ok(reply.includes("Perfecto, ya tengo todo"));
     assert.ok(reply.includes("nuestro equipo"));
     assert.ok(!/pasar.*a Alejandro/i.test(reply));
-    // Prompt V8: catálogo solo a petición — el cierre no avienta el hub automáticamente.
+    // Servicio único: cierre sobrio sin hub. Paquete multi-servicio sí lleva catálogo (test 69).
     assert.ok(!reply.includes(CATALOG_URL), reply);
     assert.ok(/con gusto te apoyo/i.test(reply), reply);
+    assert.ok(/alimentos|mobiliario|DJ|iluminaci/i.test(reply), reply);
   });
 
   await test("3. 60 invitados no marca presupuesto ni cierra el embudo", () => {
@@ -3136,6 +3137,229 @@ async function runAll(): Promise<void> {
     // Merge no se queda con el primero.
     const merged = mergeServiceRequirements("Coffee break", alexaBrief, 6);
     assert.ok(merged && merged.split(",").length >= 5, merged);
+  });
+
+  await test("69. Alejandra A14893 — RFQ B2B: leer brief, catálogo, cierre, llamada, sin SKU", () => {
+    const alejandraBrief = [
+      "Buenas tardes!! Quiero pedirte tu apoyo con una cotización para un evento corporativo",
+      "el próximo 15 de agosto, en Santa Fe, Ciudad de México.",
+      "En Punto de Imagen ALRO somos distribuidores de artículos promocionales.",
+      "Asistentes: 200 personas. Horario para servir alimentos: 5:00 p.m.",
+      "Me gustaría tres propuestas de menú, con diferentes rangos de precio.",
+      "Opción 1 – Parrillada (arrachera, carne asada, BBQ, chorizo, brochetas, verduras, aguas).",
+      "Opción 2 – Parrillada con excelente relación costo-beneficio.",
+      "Opción 3 – Menú Casual: hamburguesas, hot dogs, papas, aguas frescas.",
+      "Incluir: servicio de meseros, mesas redondas, mantelería, cristalería, cubiertos,",
+      "sillas con fundas, montaje y desmontaje. Fotografías del mobiliario.",
+      "Mejor precio para distribuidor; no somos el cliente final; margen comercial.",
+      "Sin perder de vista el presupuesto.",
+    ].join(" ");
+
+    // Ruta A — detectores
+    assert.ok(isRichQuoteBrief(alejandraBrief), "debe detectar RFQ largo");
+    assert.ok(!detectPresupuestoRefusal(alejandraBrief), "RFQ ≠ sin presupuesto");
+    assert.ok(!clientAsksPrice(alejandraBrief), "RFQ ≠ pregunta de precio SKU");
+    assert.ok(clientAsksDistributorPricing(alejandraBrief));
+    const services = parseServicesFromText(alejandraBrief);
+    assert.ok(services.some((s) => /parrillada/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /meseros/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /mobiliario/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /casual|hamburguesa/i.test(s)), services.join(", "));
+
+    // Ruta B — primer turno: intro + ack del brief + catálogo + nombre (NO "lo dejamos por definir")
+    const first = runGuards({
+      aiResponse: "¿Qué servicios te gustaría cotizar?",
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: alejandraBrief,
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 300));
+    assert.ok(!/lo dejamos por definir/i.test(first), first.slice(0, 400));
+    assert.ok(/15 de agosto|santa fe|200/i.test(first), first.slice(0, 500));
+    assert.ok(/parrillada|men[uú]\s+casual|tres propuestas/i.test(first), first.slice(0, 600));
+    assert.ok(/distribuidor|mayoreo/i.test(first), first.slice(0, 600));
+    assert.ok(first.includes(CATALOG_URL) || /cat[aá]logo/i.test(first), first.slice(0, 700));
+    assert.ok(/nombre|c[oó]mo te llamas|regalas/i.test(first), first.slice(0, 700));
+
+    // Ruta C — "Favor de leer especificaciones": re-ack + catálogo, no solo empujar correo
+    const reread = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Alejandra Velázquez",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Mobiliario, Meseros, Parrillada, Menú Casual",
+        direccion_evento: "Santa Fe, Ciudad de México",
+        fecha_horario: "15 de agosto, 5:00 p.m.",
+        num_invitados: 200,
+        presupuesto: "Sin definir (cliente indicó que no tiene)",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Número de invitados",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Favor de leer muy bien las especificaciones",
+      history: [
+        { role: "user", content: alejandraBrief },
+        { role: "assistant", content: "Hola, soy Lucy. ¿Me regalas tu nombre?" },
+        { role: "user", content: "Alejandra Velázquez" },
+        {
+          role: "assistant",
+          content: "Perfecto, veo que necesitas Mobiliario. ¿A qué correo te lo envío?",
+        },
+      ],
+    });
+    assert.ok(clientAsksToRereadBrief("Favor de leer muy bien las especificaciones"));
+    assert.ok(/reviso|revis[eé]|anoto|solicitud|propuestas/i.test(reread), reread.slice(0, 500));
+    assert.ok(reread.includes(CATALOG_URL) || /cat[aá]logo/i.test(reread), reread.slice(0, 600));
+
+    // Ruta D — cierre multi-servicio: ofrecimiento final + catálogo
+    const close = runGuards({
+      aiResponse: "Información completa",
+      extracted: emptyExtracted({
+        nombre: "Alejandra Velázquez",
+        correo: "alejandra@puntodeimagen.mx",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Mobiliario, Meseros, Parrillada, Menú Casual",
+        direccion_evento: "Santa Fe, Ciudad de México",
+        fecha_horario: "15 de agosto, 5:00 p.m.",
+        num_invitados: 200,
+        presupuesto: "Sin definir",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Número de invitados",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      currentMessage: "alejandra@puntodeimagen.mx",
+    });
+    assert.ok(/perfecto, ya tengo todo/i.test(close), close.slice(0, 400));
+    assert.ok(/alimentos|mobiliario|DJ|iluminaci/i.test(close), close);
+    assert.ok(close.includes(CATALOG_URL), close);
+
+    // Ruta E — pedir llamada post-cierre: teléfonos; gracias después no repite cierre genérico
+    assert.ok(
+      clientRequestsCallback("Me gustaría una atención personalizada. Si me pueden marcar por favor")
+    );
+    const callFilled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+      "Presupuesto (MXN)",
+    ]);
+    const callExtracted = emptyExtracted({
+      nombre: "Alejandra Velázquez",
+      correo: "alejandra@puntodeimagen.mx",
+      tipo_evento: "evento corporativo",
+      requerimientos_evento: "Mobiliario, Meseros, Parrillada",
+      direccion_evento: "Santa Fe",
+      fecha_horario: "15 de agosto",
+      num_invitados: 200,
+      presupuesto: "Sin definir",
+    });
+    const callReply = applyLucyMessageGuards({
+      aiResponse: "ok",
+      extracted: callExtracted,
+      filledSet: callFilled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: [{ role: "assistant", content: "Perfecto, ya tengo todo. Le paso a nuestro equipo." }],
+      currentMessage: "Me gustaría una atención personalizada. Si me pueden marcar por favor",
+      buildClosing: mockClosing,
+    });
+    assert.ok(/4008|4671/.test(callReply), callReply.slice(0, 400));
+    assert.ok(/asesor|atender/i.test(callReply), callReply.slice(0, 400));
+
+    const callPost = applyLucyMessageGuards({
+      aiResponse: "ok",
+      extracted: callExtracted,
+      filledSet: new Set(callFilled),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: [{ role: "assistant", content: buildPhoneAnswer() }],
+      currentMessage: "Gracias",
+      buildClosing: mockClosing,
+    });
+    assert.ok(/asesor|n[uú]meros|atender/i.test(callPost), callPost);
+    assert.ok(!/ya tengo todo/i.test(callPost), callPost);
+
+    // Ruta F — segundo RFQ post-cierre (con DJ): paquete + catálogo, NO SKU $930
+    const briefConDj =
+      alejandraBrief +
+      " Adicionalmente dos escenarios: con DJ e iluminación, y sin DJ ni iluminación. Precio para distribuidor.";
+    const postRfq = applyLucyMessageGuards({
+      aiResponse:
+        "Sí, manejamos *Parrillada Argentina — Premium*. *Precio:* $930.00 /pp (mín. $27,900.00)",
+      extracted: emptyExtracted({
+        nombre: "Alejandra Velázquez",
+        correo: "alejandra@puntodeimagen.mx",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Mobiliario, Meseros, Parrillada, Menú Casual",
+        direccion_evento: "Santa Fe, Ciudad de México",
+        fecha_horario: "15 de agosto, 5:00 p.m.",
+        num_invitados: 200,
+        presupuesto: "Sin definir",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Número de invitados",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      emailRefusedThisTurn: false,
+      history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }],
+      currentMessage: briefConDj,
+      buildClosing: mockClosing,
+    });
+    assert.ok(!/\$\s*930/i.test(postRfq), postRfq.slice(0, 500));
+    assert.ok(!/Premium.*\/pp|mín\./i.test(postRfq), postRfq.slice(0, 500));
+    assert.ok(/parrillada|men[uú]|meseros|mobiliario|dj|iluminaci/i.test(postRfq), postRfq.slice(0, 700));
+    assert.ok(postRfq.includes(CATALOG_URL) || /cat[aá]logo/i.test(postRfq), postRfq.slice(0, 700));
+    assert.ok(/mayoreo|distribuidor|equipo/i.test(postRfq), postRfq.slice(0, 700));
+
+    // Helpers de paquete
+    const pkg = buildMultiServicePackageReply(
+      ["Parrillada", "Meseros", "Mobiliario"],
+      alejandraBrief
+    );
+    assert.ok(pkg.includes(CATALOG_URL), pkg);
+    assert.ok(buildPackageCatalogOfferBlock().includes(CATALOG_OFFER_QUESTION));
+    assert.ok(
+      buildStandardClosingMessage("Mobiliario, Meseros, Parrillada", "Alejandra").includes(
+        CATALOG_URL
+      )
+    );
+    assert.ok(
+      !buildStandardClosingMessage("banquete", "Ana").includes(CATALOG_URL)
+    );
+    assert.ok(/Alejandra/.test(buildPostCierreCallbackAck("Alejandra")));
+    assert.ok(/corporativo|15 de agosto|200/i.test(buildRichBriefAcknowledgment(alejandraBrief)));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

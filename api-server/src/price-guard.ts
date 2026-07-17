@@ -40,9 +40,23 @@ const PRICE_CLAIM_PATTERN =
 const PRICE_QUESTION_PATTERN =
   /\bcu[aá]nto\s+cuesta|\bprecio\b|\bcosto\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b/i;
 
+/**
+ * Cliente pregunta el precio de un servicio concreto (SKU / lista).
+ * No aplica a RFQs largos ni a "precio distribuidor" (eso lo cotiza el equipo).
+ */
 export function clientAsksPrice(message?: string): boolean {
   if (!message?.trim()) return false;
-  return PRICE_QUESTION_PATTERN.test(message);
+  if (!PRICE_QUESTION_PATTERN.test(message)) return false;
+  // Briefs multi-línea con "rangos de precio" / "precio distribuidor" no son pregunta de SKU.
+  if (message.trim().length > 220 && /\b(cotiz|propuestas?|opci[oó]n\s*[123]|distribuidor)\b/i.test(message)) {
+    return false;
+  }
+  if (/\bprecio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  if (/\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  if (/\brangos?\s+de\s+precio\b/i.test(message) && /\b(propuestas?|opci[oó]n|men[uú])\b/i.test(message)) {
+    return false;
+  }
+  return true;
 }
 
 export function mentionsNoListedPriceService(text: string): boolean {

@@ -26,6 +26,7 @@ import {
   parseNombreFromCrmLines,
   crmStoredValue,
   buildEmergencyContactAnswer,
+  buildStandardClosingMessage,
 } from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -356,21 +357,9 @@ function buildClosingMessage(
   serviciosPedidos: string | null | undefined,
   clientName?: string | null
 ): string {
-  const asesor = advisorLabelForClient(clientName);
-  const handoff =
-    asesor === "nuestro equipo"
-      ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
-      : `Le paso estos datos a ${asesor} para que te arme una cotización personalizada.`;
-  const servicio = serviciosPedidos?.trim();
-  // Cierre sobrio (prompt V8): sin aventar catálogo; catálogos solo a petición.
-  const complements = servicio
-    ? `Si quieres sumar algo además de ${servicio} (alimentos, mobiliario, DJ o iluminación), dímelo.`
-    : `Si quieres sumar alimentos, mobiliario, DJ o iluminación, dímelo.`;
-  return (
-    `Perfecto, ya tengo todo. ${handoff}\n\n` +
-    `${complements}\n\n` +
-    `Si necesitas algo más, con gusto te apoyo.`
-  );
+  // Paquete multi-servicio: cierre + ofrecimiento final + link de catálogo.
+  // Servicio único: cierre sobrio sin aventar hub (catálogo a petición).
+  return buildStandardClosingMessage(serviciosPedidos, clientName);
 }
 
 // ─── Internal Kommo note when lead is fully qualified ─────────────────────────

@@ -54,6 +54,7 @@ import {
   messageOffersCatalogLink,
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
+  getCatalogWebHubDeliveryUrl,
 } from "./services/catalogService.js";
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
 import { buildGuardServiceAck, buildMobiliarioRentDetailReply } from "./services/serviceKnowledge.js";
@@ -94,6 +95,7 @@ import {
   parseServicesFromText,
   mergeServiceRequirements,
   buildMultiServiceAck,
+  buildRichBriefAcknowledgment,
   formatServicesList,
   isUsableDireccionEvento,
   isVagueVenueOnly,
@@ -104,6 +106,10 @@ import {
   clientAsksForCatalog,
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
+  isRichQuoteBrief,
+  clientAsksToRereadBrief,
+  clientAsksDistributorPricing,
+  clientRequestsCallback,
 } from "./conversation-understanding.js";
 
 export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
@@ -880,12 +886,13 @@ function buildFoodSalesReply(
   };
 
   const allServices = currentMessage ? parseServicesFromText(currentMessage) : [];
-  if (allServices.length >= 2) {
+  if (allServices.length >= 2 || (currentMessage && isRichQuoteBrief(currentMessage))) {
     const listLabel = allServices.join(", ");
-    return appendNext(
-      `${pickTransition(history)} ${buildMultiServiceAck(allServices)} Si quieres, te mando los catálogos o pasamos el paquete completo a ${advisorLabelForClient()}.`,
-      listLabel
+    const packageReply = buildMultiServicePackageReply(
+      allServices,
+      currentMessage
     );
+    return appendNext(`${pickTransition(history)} ${packageReply}`, listLabel || null);
   }
 
   if (mentionedService || (currentMessage && isServiceRelatedMessage(currentMessage))) {
@@ -1186,6 +1193,11 @@ export function buildOpeningAcknowledgment(
   const userText = texts[texts.length - 1] ?? texts.join(" ");
   const t = userText.toLowerCase();
 
+  // RFQ largo (Alejandra / B2B): reconocer fecha, zona, menús y paquete completo.
+  if (isRichQuoteBrief(userText)) {
+    return buildRichBriefAcknowledgment(userText);
+  }
+
   // Brief con varios servicios → reconocer la lista completa (no solo el primero).
   const multiServices = parseServicesFromText(userText);
   if (multiServices.length >= 2) {
@@ -1287,13 +1299,17 @@ export function buildFirstInteractionMessage(
   const filledSet = ctx.filledSet ?? new Set<string>();
   const ack = buildOpeningAcknowledgment(history, ctx.currentMessage);
   const intro = withIntro ? `${LUCY_INTRO} ` : "";
+  const userText = collectUserTexts(history, ctx.currentMessage).join(" ");
+  const richBrief = isRichQuoteBrief(ctx.currentMessage) || isRichQuoteBrief(userText);
+  const multiServices = parseServicesFromText(userText);
+  const includeCatalog =
+    richBrief || multiServices.length >= 2;
 
   if (clientAsksLocation(ctx.currentMessage)) {
     const nameQ = pickVariant("nombre", history, ctx.entityId);
     return `${intro}${buildLocationAnswer()} ${nameQ}`.trim();
   }
 
-  const userText = collectUserTexts(history, ctx.currentMessage).join(" ");
   if (
     clientMentionsItalianTheme(ctx.currentMessage) ||
     (clientAsksForRecommendations(ctx.currentMessage) && clientMentionsItalianTheme(userText))
@@ -1302,25 +1318,30 @@ export function buildFirstInteractionMessage(
     return `${intro}${buildItalianFoodPitch(ctx.currentMessage)} ${nameQ}`.trim();
   }
 
+  const catalogBlock = includeCatalog ? `\n\n${buildPackageCatalogOfferBlock()}` : "";
+
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
     const pending = getNextPendingField(ctx.extracted, filledSet);
     if (pending === "correo") {
       const correoQ = buildCorreoQuestion(nombre, history, ctx.entityId);
-      return withIntro ? `${intro}${ack} ${correoQ}`.trim() : correoQ;
+      const body = `${ack}${catalogBlock}\n\n${correoQ}`.trim();
+      return withIntro ? `${intro}${body}`.trim() : body;
     }
     if (pending) {
       const greet = nombre ? `Mucho gusto, ${nombre}. ` : "";
       const q = buildNaturalQuestion(pending, ctx);
-      return withIntro ? `${intro}${ack} ${greet}${q}`.trim() : `${greet}${q}`.trim();
+      const body = `${ack}${catalogBlock}\n\n${greet}${q}`.trim();
+      return withIntro ? `${intro}${body}`.trim() : body;
     }
-    return nombre
-      ? `${intro}${ack} Mucho gusto, ${nombre}.`.trim()
-      : `${intro}${ack}`.trim();
+    const body = nombre
+      ? `${ack}${catalogBlock}\n\nMucho gusto, ${nombre}.`.trim()
+      : `${ack}${catalogBlock}`.trim();
+    return withIntro ? `${intro}${body}`.trim() : body;
   }
 
   const nameQ = pickVariant("nombre", history, ctx.entityId);
-  return `${intro}${ack} ${nameQ}`.trim();
+  return `${intro}${ack}${catalogBlock}\n\n${nameQ}`.trim();
 }
 
 function usesLegacyLucyIntro(mensaje: string): boolean {
@@ -2096,6 +2117,76 @@ export function buildPostCierreThanksReply(clientName?: string | null): string {
     : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.";
 }
 
+/** Tras pasar teléfonos / pedir llamada: no cerrar otra vez con plantilla genérica. */
+export function buildPostCierreCallbackAck(clientName?: string | null): string {
+  const nombre = clientName?.trim();
+  return nombre
+    ? `Con gusto, ${nombre}. Un asesor te puede atender por esos números; tu caso ya quedó con el equipo.`
+    : "Con gusto. Un asesor te puede atender por esos números; tu caso ya quedó con el equipo.";
+}
+
+function lastAssistantWasPhoneAnswer(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  const last = [...history]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  if (!last || typeof last.content !== "string") return false;
+  return /55\s*4008\s*0373|56\s*4671\s*0585|l[ií]nea telef[oó]nica/i.test(last.content);
+}
+
+/** Bloque de catálogo para paquetes multi-servicio / RFQ (sí se envía el link). */
+export function buildPackageCatalogOfferBlock(): string {
+  return [
+    "Te dejo el catálogo general para que veas montajes, menús y opciones:",
+    getCatalogWebHubDeliveryUrl(),
+    "",
+    CATALOG_OFFER_QUESTION,
+  ].join("\n");
+}
+
+/**
+ * Cierre estándar + ofrecimiento final de complementos.
+ * En paquetes multi-servicio incluye link de catálogo (el cliente ya pidió propuestas).
+ */
+export function buildStandardClosingMessage(
+  serviciosPedidos: string | null | undefined,
+  clientName?: string | null
+): string {
+  const asesor = advisorLabelForClient(clientName);
+  const handoff =
+    asesor === "nuestro equipo"
+      ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
+      : `Le paso estos datos a ${asesor} para que te arme una cotización personalizada.`;
+  const servicio = serviciosPedidos?.trim() || "";
+  const serviceParts = servicio
+    ? servicio.split(/,\s*/).map((s) => s.trim()).filter(Boolean)
+    : [];
+  const multiPackage = serviceParts.length >= 2;
+  const complements = servicio
+    ? `Si quieres sumar algo además de ${servicio} (alimentos, mobiliario, DJ o iluminación), dímelo.`
+    : `Si quieres sumar alimentos, mobiliario, DJ o iluminación, dímelo.`;
+
+  const parts = [`Perfecto, ya tengo todo. ${handoff}`, "", complements];
+  if (multiPackage) {
+    parts.push("", buildPackageCatalogOfferBlock());
+  }
+  parts.push("", "Si necesitas algo más, con gusto te apoyo.");
+  return parts.join("\n");
+}
+
+/** Ack de paquete + catálogo (multi-servicio o RFQ). */
+export function buildMultiServicePackageReply(
+  services: string[],
+  sourceText?: string
+): string {
+  const ack =
+    sourceText && isRichQuoteBrief(sourceText)
+      ? buildRichBriefAcknowledgment(sourceText)
+      : buildMultiServiceAck(services);
+  return `${ack}\n\n${buildPackageCatalogOfferBlock()}`;
+}
+
 function isInformativeClientAnswer(currentMessage?: string): boolean {
   if (!currentMessage?.trim()) return false;
   if (parseWebLeadBrief(currentMessage)) return true;
@@ -2355,10 +2446,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     `${currentMessage ?? ""} ${userBlobForServices}`
   );
   if (servicesFromTurn.length > 0 && !isVagueFoodTerm(currentMessage)) {
+    const mergeMax =
+      isRichQuoteBrief(currentMessage) || servicesFromTurn.length >= 4 ? 8 : 6;
     const mergedReq = mergeServiceRequirements(
       extracted.requerimientos_evento,
       servicesFromTurn.join(", "),
-      6
+      mergeMax
     );
     if (mergedReq) {
       extracted.requerimientos_evento = mergedReq;
@@ -2449,7 +2542,40 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   let appliedSalesReply = false;
   let appliedDirectReply = false;
 
-  if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
+  if (cierreYaEnviado && clientAsksPhone(currentMessage)) {
+    mensaje = `${buildPhoneAnswer()}\n\nUn asesor te puede atender por ahí; tu caso ya quedó con el equipo.`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: post-cierre — cliente pidió llamada/teléfonos");
+  } else if (
+    cierreYaEnviado &&
+    clientSaysThanks(currentMessage) &&
+    lastAssistantWasPhoneAnswer(presHistory)
+  ) {
+    mensaje = buildPostCierreCallbackAck(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: post-cierre — gracias tras pedir llamada");
+  } else if (
+    cierreYaEnviado &&
+    !clientDeclinesMoreServices(currentMessage) &&
+    !clientSaysThanks(currentMessage) &&
+    (isRichQuoteBrief(currentMessage) ||
+      parseServicesFromText(currentMessage ?? "").length >= 2)
+  ) {
+    // Antes de clientAddsToQuote: un RFQ con "Incluir: meseros…" no es un add corto.
+    const pkg = buildMultiServicePackageReply(
+      parseServicesFromText(currentMessage ?? ""),
+      currentMessage
+    );
+    const nombre = extracted.nombre?.trim();
+    const distributorNote = clientAsksDistributorPricing(currentMessage)
+      ? "\n\nEl precio de mayoreo lo confirma el equipo; no te paso un precio de lista suelto."
+      : "";
+    mensaje = nombre
+      ? `${pkg}${distributorNote}\n\nPerfecto, ${nombre}. Actualizo tu cotización con esto. ¿Algo más que quieras agregar?`
+      : `${pkg}${distributorNote}\n\nActualizo tu cotización con esto. ¿Algo más que quieras agregar?`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: post-cierre — RFQ/paquete completo (no SKU suelto)");
+  } else if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
     mensaje = nombre
       ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?`
@@ -2599,30 +2725,60 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje — brief web con datos del formulario");
+  } else if (clientAsksToRereadBrief(currentMessage) && !cierreYaEnviado) {
+    const blob = collectUserTexts(presHistory, currentMessage).join(" ");
+    const services = parseServicesFromText(
+      `${blob} ${extracted.requerimientos_evento ?? ""}`
+    );
+    const ack =
+      isRichQuoteBrief(blob) || isRichQuoteBrief(currentMessage)
+        ? buildRichBriefAcknowledgment(blob || (currentMessage ?? ""))
+        : buildMultiServiceAck(
+            services.length
+              ? services
+              : parseServicesFromText(extracted.requerimientos_evento ?? "")
+          );
+    mensaje = mergeWithPendingQuestion(
+      `Claro, lo reviso con calma.\n\n${ack}\n\n${buildPackageCatalogOfferBlock()}`,
+      filledSet,
+      extracted,
+      ctx
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: cliente pidió releer especificaciones — ack completo + catálogo");
   } else if (
     allowSalesReplyOverride &&
-    servicesFromTurn.length >= 2 &&
+    (servicesFromTurn.length >= 2 || isRichQuoteBrief(currentMessage)) &&
     !cierreYaEnviado &&
-    // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro.
+    // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
     !(
       (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
       !conversationAlreadyStarted(filledSet, presHistory) &&
       !isFieldSatisfied("nombre", filledSet, extracted)
     )
   ) {
-    // Brief con múltiples servicios: reconocer TODOS; no plantilla de un solo servicio.
-    const ack = buildMultiServiceAck(servicesFromTurn);
+    // Brief con múltiples servicios / RFQ: reconocer TODOS + enviar catálogo.
+    const packageReply = buildMultiServicePackageReply(
+      servicesFromTurn,
+      currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
+    );
     if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
       const aiAlreadyLists =
         servicesFromTurn.filter((s) =>
           aiResponse.toLowerCase().includes(s.toLowerCase().split(/\s+/)[0]!)
         ).length >= Math.min(2, servicesFromTurn.length);
-      mensaje = aiAlreadyLists
+      const aiHasCatalog = /bodasesor\.com\/catalogos|cat[aá]logo/i.test(aiResponse);
+      mensaje = aiAlreadyLists && aiHasCatalog
         ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx)
-        : mergeWithPendingQuestion(`${ack} ${aiResponse}`.trim(), filledSet, extracted, ctx);
+        : mergeWithPendingQuestion(
+            `${packageReply}\n\n${aiAlreadyLists ? "" : aiResponse}`.trim(),
+            filledSet,
+            extracted,
+            ctx
+          );
     } else {
       mensaje = mergeWithPendingQuestion(
-        `${pickTransition(presHistory)} ${ack} Si quieres, te mando los catálogos o pasamos el paquete completo a ${advisorLabelForClient()}.`,
+        `${pickTransition(presHistory)} ${packageReply}`,
         filledSet,
         extracted,
         ctx
@@ -2631,7 +2787,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info(
       { entityId, services: servicesFromTurn.length },
-      "GUARD: brief multi-servicio — reconocer lista completa"
+      "GUARD: brief multi-servicio — lista completa + catálogo"
     );
   } else if (
     allowSalesReplyOverride &&
@@ -2670,7 +2826,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje — temática italiana");
-  } else if (currentMessage && detectPresupuestoRefusal(currentMessage)) {
+  } else if (
+    (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+    !conversationAlreadyStarted(filledSet, presHistory) &&
+    isRichQuoteBrief(currentMessage) &&
+    !isFieldSatisfied("nombre", filledSet, extracted)
+  ) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: primer mensaje — RFQ largo (ack + catálogo + nombre)");
+  } else if (
+    currentMessage &&
+    detectPresupuestoRefusal(currentMessage) &&
+    !isRichQuoteBrief(currentMessage)
+  ) {
     if (!filledSet.has("Presupuesto (MXN)")) {
       applyPresupuestoWaiver(
         filledSet,
@@ -2814,14 +2983,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
-  } else if (clientAsksPhone(currentMessage)) {
+  } else if (clientAsksPhone(currentMessage) || clientRequestsCallback(currentMessage)) {
     const phoneAnswer = buildPhoneAnswer();
+    const callbackNote = clientRequestsCallback(currentMessage)
+      ? "\n\nUn asesor te puede atender por ahí."
+      : "";
     const pending = getNextPendingField(extracted, filledSet);
     mensaje =
       needsNextStep && pending && pending !== "correo"
-        ? `${phoneAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
-        : phoneAnswer;
-    log?.info({ entityId }, "GUARD: cliente preguntó teléfonos");
+        ? `${phoneAnswer}${callbackNote}\n\n${buildNaturalQuestion(pending, ctx)}`
+        : `${phoneAnswer}${callbackNote}`;
+    log?.info({ entityId }, "GUARD: cliente preguntó teléfonos / pidió llamada");
   } else if (
     clientDeclinesMoreServices(currentMessage) &&
     hasMeaningfulRequerimientos(extracted, filledSet) &&
@@ -2940,34 +3112,64 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — preferir OpenAI");
-  } else if (clientAsksPrice(currentMessage)) {
+  } else if (
+    clientAsksPrice(currentMessage) ||
+    clientAsksDistributorPricing(currentMessage)
+  ) {
     const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
     const pending = getNextPendingField(extracted, filledSet);
-    const needsAlejandroQuote =
-      mentionsNoListedPriceService(currentMessage) ||
-      (responseHasInventedPrice(aiResponse, currentMessage, ctxText) &&
-        !mentionsListedPriceService(currentMessage));
 
-    if (needsAlejandroQuote) {
-      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
-      mensaje =
-        needsNextStep && pending && pending !== "correo"
-          ? `${priceReply}\n\n${buildNaturalQuestion(pending, ctx)}`
-          : priceReply;
-      log?.info({ entityId, pending }, "GUARD: precio sin catálogo — Alejandro cotiza");
-    } else {
-      const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText);
-      let priceContent = safe;
-      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
-      if (fromCatalog && mentionsListedPriceService(currentMessage)) {
-        priceContent = fromCatalog;
-      } else if (!messageClaimsPrice(safe) && fromCatalog) {
-        priceContent = fromCatalog;
-      }
+    // RFQ / precio distribuidor: el equipo cotiza; no tirar un SKU retail.
+    if (
+      isRichQuoteBrief(currentMessage) ||
+      clientAsksDistributorPricing(currentMessage) ||
+      (clientAsksDistributorPricing(ctxText) && parseServicesFromText(ctxText).length >= 2)
+    ) {
+      const services = parseServicesFromText(
+        `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+      );
+      const packageReply = buildMultiServicePackageReply(
+        services,
+        currentMessage ?? ctxText
+      );
+      const teamNote =
+        "El precio de mayoreo / la propuesta a la medida la arma nuestro equipo; no te paso un precio de lista suelto.";
       mensaje = needsNextStep
-        ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx)
-        : priceContent.trim() || aiResponse;
-      log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con catálogo");
+        ? mergeWithPendingQuestion(
+            `${packageReply}\n\n${teamNote}`,
+            filledSet,
+            extracted,
+            ctx
+          )
+        : `${packageReply}\n\n${teamNote}`;
+      log?.info({ entityId }, "GUARD: precio distribuidor / RFQ — sin SKU retail");
+    } else {
+      const needsAlejandroQuote =
+        mentionsNoListedPriceService(currentMessage) ||
+        (responseHasInventedPrice(aiResponse, currentMessage, ctxText) &&
+          !mentionsListedPriceService(currentMessage));
+
+      if (needsAlejandroQuote) {
+        const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
+        mensaje =
+          needsNextStep && pending && pending !== "correo"
+            ? `${priceReply}\n\n${buildNaturalQuestion(pending, ctx)}`
+            : priceReply;
+        log?.info({ entityId, pending }, "GUARD: precio sin catálogo — Alejandro cotiza");
+      } else {
+        const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText);
+        let priceContent = safe;
+        const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+        if (fromCatalog && mentionsListedPriceService(currentMessage)) {
+          priceContent = fromCatalog;
+        } else if (!messageClaimsPrice(safe) && fromCatalog) {
+          priceContent = fromCatalog;
+        }
+        mensaje = needsNextStep
+          ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx)
+          : priceContent.trim() || aiResponse;
+        log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con catálogo");
+      }
     }
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;

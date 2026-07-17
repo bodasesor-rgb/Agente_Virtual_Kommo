@@ -78479,7 +78479,16 @@ var PRICE_CLAIM_PATTERN = /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?
 var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecio\b|\bcosto\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b/i;
 function clientAsksPrice(message) {
   if (!message?.trim()) return false;
-  return PRICE_QUESTION_PATTERN.test(message);
+  if (!PRICE_QUESTION_PATTERN.test(message)) return false;
+  if (message.trim().length > 220 && /\b(cotiz|propuestas?|opci[oó]n\s*[123]|distribuidor)\b/i.test(message)) {
+    return false;
+  }
+  if (/\bprecio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  if (/\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  if (/\brangos?\s+de\s+precio\b/i.test(message) && /\b(propuestas?|opci[oó]n|men[uú])\b/i.test(message)) {
+    return false;
+  }
+  return true;
 }
 function mentionsNoListedPriceService(text2) {
   if (dynamicNoListedPattern?.test(text2)) return true;
@@ -79534,6 +79543,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Sushi", /\b(sushi|poke)\b/i],
   ["Taquiza", /\b(taquiza|tacos?)\b/i],
   ["Parrillada", /\bparrillada\b/i],
+  ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/i],
   ["Crepas", /\bcrep[aá]s?\b/i],
   ["Brunch", /\bbrunch\b/i],
   ["Poptails", /\bpoptails?\b/i],
@@ -79542,7 +79552,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
   ["Mesa imperial", /\bmesa\s+imperial\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
@@ -79624,6 +79634,7 @@ function clientAsksAboutTeam(message, clientName) {
 }
 function clientAddsToQuote(message) {
   if (!message?.trim()) return false;
+  if (isRichQuoteBrief(message)) return false;
   const t = message.toLowerCase();
   return /\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t) && /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t);
 }
@@ -79814,10 +79825,52 @@ function clientAsksServiceInfo(message) {
   if (!isServiceRelatedMessage(message)) return false;
   return /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?)\b/i.test(t) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t);
 }
-function clientAsksPhone(message) {
+function clientRequestsCallback(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
+  return /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t) || /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t) || /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t) || /\batenci[oó]n\s+personalizada\b/i.test(t) || /\bque\s+me\s+(marquen|llamen)\b/i.test(t) || /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t);
+}
+function clientAsksPhone(message) {
+  if (!message?.trim()) return false;
+  if (clientRequestsCallback(message)) return true;
+  const t = message.toLowerCase();
   return /\btel[eé]fono/i.test(t) || /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t) || /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t) || /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t) || /\btienen\s+whatsapp/i.test(t);
+}
+function isRichQuoteBrief(text2) {
+  const t = text2?.trim() ?? "";
+  if (t.length < 180) return false;
+  let score = 0;
+  if (/\bcotiz/i.test(t)) score += 1;
+  if (/\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|fecha\s*:)/i.test(
+    t
+  )) {
+    score += 1;
+  }
+  if (/\b(ubicaci[oó]n|santa\s+fe|ciudad\s+de\s+m[eé]xico|cdmx|polanco|narvarte|coyoac[aá]n|pedregal)\b/i.test(
+    t
+  ) || /\ben\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s*,\s*|\s+)(?:ciudad\s+de\s+m[eé]xico|cdmx|m[eé]xico)/i.test(t)) {
+    score += 1;
+  }
+  if (/\b\d{2,4}\s*(?:personas?|invitados?|asistentes?)\b/i.test(t)) score += 1;
+  if (parseServicesFromText(t).length >= 2) score += 1;
+  if (/\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú]|diferentes\s+rangos?\s+de\s+precio)\b/i.test(
+    t
+  )) {
+    score += 1;
+  }
+  if (/\b(distribuidor|precio\s+para\s+distribuidor|margen\s+comercial)\b/i.test(t)) score += 1;
+  if (/\b(meseros?|mobiliario|manteler|cristal|sillas?\s+con\s+fundas?)\b/i.test(t)) score += 1;
+  if (/\b(fotograf[ií]as?|fotos?)\b.{0,40}\b(mobiliario|mesas?|sillas?)/i.test(t)) score += 1;
+  return score >= 3;
+}
+function clientAsksToRereadBrief(message) {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  return /\bleer.{0,40}especificaciones\b/i.test(t) || /\bespecificaciones\b/i.test(t) || /\blee\s+(muy\s+)?bien\b/i.test(t) || /\bno\s+le[ií]ste\b/i.test(t) || /\bfavor\s+de\s+leer\b/i.test(t);
+}
+function clientAsksDistributorPricing(message) {
+  if (!message?.trim()) return false;
+  return /\bprecio\s+(para\s+)?distribuidor\b/i.test(message) || /\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message) || /\b(somos|como)\s+distribuidores?\b/i.test(message) || /\bmargen\s+comercial\b/i.test(message) || /\bprecio\s+de\s+mayoreo\b/i.test(message);
 }
 function clientNeedsEmergencyContact(message) {
   if (!message?.trim()) return false;
@@ -79991,6 +80044,36 @@ function buildMultiServiceAck(services) {
     return `Perfecto, veo que necesitas ${list}.`;
   }
   return `Perfecto, veo que necesitas ${list}. Te cotizamos todo eso.`;
+}
+function buildRichBriefAcknowledgment(text2) {
+  const services = parseServicesFromText(text2);
+  const tipo = parseTipoEventoFromText(text2);
+  const inv = text2.match(/\b(\d{2,4})\s*(?:personas?|invitados?|asistentes?)\b/i);
+  const fecha = text2.match(
+    /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+\d{4})?)/i
+  );
+  const zona = text2.match(/\ben\s+(Santa\s+Fe(?:,?\s*Ciudad\s+de\s+M[eé]xico)?)/i)?.[1] || text2.match(/\bUbicaci[oó]n:\s*([^\n.*]{4,60})/i)?.[1]?.trim() || text2.match(/\ben\s+([A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3}),?\s*(?:Ciudad\s+de\s+M[eé]xico|CDMX)/i)?.[0]?.replace(/^en\s+/i, "");
+  const hasThreeMenus = /\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú])\b/i.test(text2);
+  const distributor = clientAsksDistributorPricing(text2);
+  const bits = [];
+  if (tipo) bits.push(tipo);
+  if (fecha) bits.push(fecha[1]);
+  if (zona) bits.push(zona.trim());
+  if (inv) bits.push(`${inv[1]} personas`);
+  let ack = bits.length > 0 ? `De acuerdo, revis\xE9 tu solicitud para ${bits.join(", ")}.` : "De acuerdo, revis\xE9 con detalle tu solicitud de cotizaci\xF3n.";
+  if (hasThreeMenus) {
+    ack += " Anoto las tres propuestas de men\xFA (parrillada, opci\xF3n costo-beneficio y men\xFA casual) junto con meseros y mobiliario.";
+  } else if (services.length >= 2) {
+    ack += ` Anoto ${formatServicesList(services)}.`;
+  } else if (services.length === 1) {
+    ack += ` Anoto ${services[0]}.`;
+  }
+  if (distributor) {
+    ack += " Como cotizan como distribuidores, el equipo les arma precio de mayoreo (no lista al p\xFAblico).";
+  } else {
+    ack += " Nuestro equipo arma la cotizaci\xF3n a la medida con lo que pediste.";
+  }
+  return ack;
 }
 function appendPostCierreRequirements(existing, message) {
   const t = message.trim();
@@ -80255,11 +80338,21 @@ function countLucyFieldAsks(history, field) {
 function detectPresupuestoRefusal(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
+  if (isRichQuoteBrief(t)) return false;
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t)) return true;
   if (/^\.{2,}$/.test(t)) return true;
-  return /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) || /\bt[uú]\s+m[aá]ndame\b/i.test(t) || /\bsi\s+quieres\s+vemos\b/i.test(t) || /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s|$|[.,!?])/i.test(t) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t) || /\btodav[ií]a\s+no\b/i.test(t) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t) || /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t);
+  const explicitNoBudget = /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t);
+  if (explicitNoBudget) return true;
+  const budgetCareLanguage = /\b(dentro\s+del\s+presupuesto|sin\s+perder.{0,40}presupuesto|al\s+presupuesto|bajo\s+presupuesto|mantener.{0,25}presupuesto|seg[uú]n\s+(el\s+)?presupuesto|cuidando.{0,25}presupuesto)\b/i.test(
+    t
+  );
+  if (!budgetCareLanguage && t.length <= 160 && /\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t)) {
+    return true;
+  }
+  if (t.length > 140) return false;
+  return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) || /\bt[uú]\s+m[aá]ndame\b/i.test(t) || /\bsi\s+quieres\s+vemos\b/i.test(t) || /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s|$|[.,!?])/i.test(t) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t) || /\btodav[ií]a\s+no\b/i.test(t) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t);
 }
 function isPresupuestoResuelto(filledSet, texts = [], history) {
   if (filledSet.has("Presupuesto (MXN)")) return true;
@@ -82871,7 +82964,7 @@ import { join } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.4";
+var LUCY_PROMPT_VERSION = "V8.5";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -84441,12 +84534,13 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
 ${nextQ}`;
   };
   const allServices = currentMessage ? parseServicesFromText(currentMessage) : [];
-  if (allServices.length >= 2) {
+  if (allServices.length >= 2 || currentMessage && isRichQuoteBrief(currentMessage)) {
     const listLabel = allServices.join(", ");
-    return appendNext(
-      `${pickTransition(history)} ${buildMultiServiceAck(allServices)} Si quieres, te mando los cat\xE1logos o pasamos el paquete completo a ${advisorLabelForClient()}.`,
-      listLabel
+    const packageReply = buildMultiServicePackageReply(
+      allServices,
+      currentMessage
     );
+    return appendNext(`${pickTransition(history)} ${packageReply}`, listLabel || null);
   }
   if (mentionedService || currentMessage && isServiceRelatedMessage(currentMessage)) {
     let detail = query ? buildCatalogServiceDetailAnswer(query) : null;
@@ -84636,6 +84730,9 @@ function buildOpeningAcknowledgment(history, currentMessage) {
   const texts = collectUserTexts(history, currentMessage);
   const userText = texts[texts.length - 1] ?? texts.join(" ");
   const t = userText.toLowerCase();
+  if (isRichQuoteBrief(userText)) {
+    return buildRichBriefAcknowledgment(userText);
+  }
   const multiServices = parseServicesFromText(userText);
   if (multiServices.length >= 2) {
     return buildMultiServiceAck(multiServices);
@@ -84723,31 +84820,48 @@ function buildFirstInteractionMessage(ctx, withIntro = true) {
   const filledSet = ctx.filledSet ?? /* @__PURE__ */ new Set();
   const ack = buildOpeningAcknowledgment(history, ctx.currentMessage);
   const intro = withIntro ? `${LUCY_INTRO} ` : "";
+  const userText = collectUserTexts(history, ctx.currentMessage).join(" ");
+  const richBrief = isRichQuoteBrief(ctx.currentMessage) || isRichQuoteBrief(userText);
+  const multiServices = parseServicesFromText(userText);
+  const includeCatalog = richBrief || multiServices.length >= 2;
   if (clientAsksLocation(ctx.currentMessage)) {
     const nameQ2 = pickVariant("nombre", history, ctx.entityId);
     return `${intro}${buildLocationAnswer()} ${nameQ2}`.trim();
   }
-  const userText = collectUserTexts(history, ctx.currentMessage).join(" ");
   if (clientMentionsItalianTheme(ctx.currentMessage) || clientAsksForRecommendations(ctx.currentMessage) && clientMentionsItalianTheme(userText)) {
     const nameQ2 = pickVariant("nombre", history, ctx.entityId);
     return `${intro}${buildItalianFoodPitch(ctx.currentMessage)} ${nameQ2}`.trim();
   }
+  const catalogBlock = includeCatalog ? `
+
+${buildPackageCatalogOfferBlock()}` : "";
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
     const pending = getNextPendingField(ctx.extracted, filledSet);
     if (pending === "correo") {
       const correoQ = buildCorreoQuestion(nombre, history, ctx.entityId);
-      return withIntro ? `${intro}${ack} ${correoQ}`.trim() : correoQ;
+      const body3 = `${ack}${catalogBlock}
+
+${correoQ}`.trim();
+      return withIntro ? `${intro}${body3}`.trim() : body3;
     }
     if (pending) {
       const greet = nombre ? `Mucho gusto, ${nombre}. ` : "";
       const q2 = buildNaturalQuestion(pending, ctx);
-      return withIntro ? `${intro}${ack} ${greet}${q2}`.trim() : `${greet}${q2}`.trim();
+      const body3 = `${ack}${catalogBlock}
+
+${greet}${q2}`.trim();
+      return withIntro ? `${intro}${body3}`.trim() : body3;
     }
-    return nombre ? `${intro}${ack} Mucho gusto, ${nombre}.`.trim() : `${intro}${ack}`.trim();
+    const body2 = nombre ? `${ack}${catalogBlock}
+
+Mucho gusto, ${nombre}.`.trim() : `${ack}${catalogBlock}`.trim();
+    return withIntro ? `${intro}${body2}`.trim() : body2;
   }
   const nameQ = pickVariant("nombre", history, ctx.entityId);
-  return `${intro}${ack} ${nameQ}`.trim();
+  return `${intro}${ack}${catalogBlock}
+
+${nameQ}`.trim();
 }
 function usesLegacyLucyIntro(mensaje) {
   return /te\s+saluda\s+lucy/i.test(mensaje) || /¡?hola,?\s+lead\s*#/i.test(mensaje);
@@ -85212,6 +85326,43 @@ function buildPostCierreThanksReply(clientName) {
   const nombre = clientName?.trim();
   return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
 }
+function buildPostCierreCallbackAck(clientName) {
+  const nombre = clientName?.trim();
+  return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.";
+}
+function lastAssistantWasPhoneAnswer(history) {
+  const last = [...history].reverse().find((m4) => m4.role === "assistant" && typeof m4.content === "string");
+  if (!last || typeof last.content !== "string") return false;
+  return /55\s*4008\s*0373|56\s*4671\s*0585|l[ií]nea telef[oó]nica/i.test(last.content);
+}
+function buildPackageCatalogOfferBlock() {
+  return [
+    "Te dejo el cat\xE1logo general para que veas montajes, men\xFAs y opciones:",
+    getCatalogWebHubDeliveryUrl(),
+    "",
+    CATALOG_OFFER_QUESTION
+  ].join("\n");
+}
+function buildStandardClosingMessage(serviciosPedidos, clientName) {
+  const asesor = advisorLabelForClient(clientName);
+  const handoff = asesor === "nuestro equipo" ? "Le paso estos datos a nuestro equipo para que te arme una cotizaci\xF3n personalizada." : `Le paso estos datos a ${asesor} para que te arme una cotizaci\xF3n personalizada.`;
+  const servicio = serviciosPedidos?.trim() || "";
+  const serviceParts = servicio ? servicio.split(/,\s*/).map((s4) => s4.trim()).filter(Boolean) : [];
+  const multiPackage = serviceParts.length >= 2;
+  const complements = servicio ? `Si quieres sumar algo adem\xE1s de ${servicio} (alimentos, mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar alimentos, mobiliario, DJ o iluminaci\xF3n, d\xEDmelo.`;
+  const parts2 = [`Perfecto, ya tengo todo. ${handoff}`, "", complements];
+  if (multiPackage) {
+    parts2.push("", buildPackageCatalogOfferBlock());
+  }
+  parts2.push("", "Si necesitas algo m\xE1s, con gusto te apoyo.");
+  return parts2.join("\n");
+}
+function buildMultiServicePackageReply(services, sourceText) {
+  const ack = sourceText && isRichQuoteBrief(sourceText) ? buildRichBriefAcknowledgment(sourceText) : buildMultiServiceAck(services);
+  return `${ack}
+
+${buildPackageCatalogOfferBlock()}`;
+}
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
   if (parseWebLeadBrief(currentMessage)) return true;
@@ -85345,10 +85496,11 @@ function applyLucyMessageGuards(input) {
     `${currentMessage ?? ""} ${userBlobForServices}`
   );
   if (servicesFromTurn.length > 0 && !isVagueFoodTerm(currentMessage)) {
+    const mergeMax = isRichQuoteBrief(currentMessage) || servicesFromTurn.length >= 4 ? 8 : 6;
     const mergedReq = mergeServiceRequirements(
       extracted.requerimientos_evento,
       servicesFromTurn.join(", "),
-      6
+      mergeMax
     );
     if (mergedReq) {
       extracted.requerimientos_evento = mergedReq;
@@ -85398,7 +85550,31 @@ function applyLucyMessageGuards(input) {
   let mensaje;
   let appliedSalesReply = false;
   let appliedDirectReply = false;
-  if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
+  if (cierreYaEnviado && clientAsksPhone(currentMessage)) {
+    mensaje = `${buildPhoneAnswer()}
+
+Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: post-cierre \u2014 cliente pidi\xF3 llamada/tel\xE9fonos");
+  } else if (cierreYaEnviado && clientSaysThanks(currentMessage) && lastAssistantWasPhoneAnswer(presHistory)) {
+    mensaje = buildPostCierreCallbackAck(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: post-cierre \u2014 gracias tras pedir llamada");
+  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && (isRichQuoteBrief(currentMessage) || parseServicesFromText(currentMessage ?? "").length >= 2)) {
+    const pkg = buildMultiServicePackageReply(
+      parseServicesFromText(currentMessage ?? ""),
+      currentMessage
+    );
+    const nombre = extracted.nombre?.trim();
+    const distributorNote = clientAsksDistributorPricing(currentMessage) ? "\n\nEl precio de mayoreo lo confirma el equipo; no te paso un precio de lista suelto." : "";
+    mensaje = nombre ? `${pkg}${distributorNote}
+
+Perfecto, ${nombre}. Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?` : `${pkg}${distributorNote}
+
+Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: post-cierre \u2014 RFQ/paquete completo (no SKU suelto)");
+  } else if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
     const nombre = extracted.nombre?.trim();
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales");
@@ -85498,17 +85674,48 @@ Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 brief web con datos del formulario");
-  } else if (allowSalesReplyOverride && servicesFromTurn.length >= 2 && !cierreYaEnviado && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro.
+  } else if (clientAsksToRereadBrief(currentMessage) && !cierreYaEnviado) {
+    const blob = collectUserTexts(presHistory, currentMessage).join(" ");
+    const services = parseServicesFromText(
+      `${blob} ${extracted.requerimientos_evento ?? ""}`
+    );
+    const ack = isRichQuoteBrief(blob) || isRichQuoteBrief(currentMessage) ? buildRichBriefAcknowledgment(blob || (currentMessage ?? "")) : buildMultiServiceAck(
+      services.length ? services : parseServicesFromText(extracted.requerimientos_evento ?? "")
+    );
+    mensaje = mergeWithPendingQuestion(
+      `Claro, lo reviso con calma.
+
+${ack}
+
+${buildPackageCatalogOfferBlock()}`,
+      filledSet,
+      extracted,
+      ctx
+    );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: cliente pidi\xF3 releer especificaciones \u2014 ack completo + cat\xE1logo");
+  } else if (allowSalesReplyOverride && (servicesFromTurn.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
-    const ack = buildMultiServiceAck(servicesFromTurn);
+    const packageReply = buildMultiServicePackageReply(
+      servicesFromTurn,
+      currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
+    );
     if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
       const aiAlreadyLists = servicesFromTurn.filter(
         (s4) => aiResponse.toLowerCase().includes(s4.toLowerCase().split(/\s+/)[0])
       ).length >= Math.min(2, servicesFromTurn.length);
-      mensaje = aiAlreadyLists ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx) : mergeWithPendingQuestion(`${ack} ${aiResponse}`.trim(), filledSet, extracted, ctx);
+      const aiHasCatalog = /bodasesor\.com\/catalogos|cat[aá]logo/i.test(aiResponse);
+      mensaje = aiAlreadyLists && aiHasCatalog ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx) : mergeWithPendingQuestion(
+        `${packageReply}
+
+${aiAlreadyLists ? "" : aiResponse}`.trim(),
+        filledSet,
+        extracted,
+        ctx
+      );
     } else {
       mensaje = mergeWithPendingQuestion(
-        `${pickTransition(presHistory)} ${ack} Si quieres, te mando los cat\xE1logos o pasamos el paquete completo a ${advisorLabelForClient()}.`,
+        `${pickTransition(presHistory)} ${packageReply}`,
         filledSet,
         extracted,
         ctx
@@ -85517,7 +85724,7 @@ Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info(
       { entityId, services: servicesFromTurn.length },
-      "GUARD: brief multi-servicio \u2014 reconocer lista completa"
+      "GUARD: brief multi-servicio \u2014 lista completa + cat\xE1logo"
     );
   } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage)) {
     mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
@@ -85545,7 +85752,11 @@ Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 tem\xE1tica italiana");
-  } else if (currentMessage && detectPresupuestoRefusal(currentMessage)) {
+  } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && isRichQuoteBrief(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
+    mensaje = buildFirstInteractionMessage(ctx, true);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: primer mensaje \u2014 RFQ largo (ack + cat\xE1logo + nombre)");
+  } else if (currentMessage && detectPresupuestoRefusal(currentMessage) && !isRichQuoteBrief(currentMessage)) {
     if (!filledSet.has("Presupuesto (MXN)")) {
       applyPresupuestoWaiver(
         filledSet,
@@ -85656,13 +85867,14 @@ ${buildNaturalQuestion(pending, ctx)}` : detail;
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo \u2014 se contin\xFAa el flujo");
-  } else if (clientAsksPhone(currentMessage)) {
+  } else if (clientAsksPhone(currentMessage) || clientRequestsCallback(currentMessage)) {
     const phoneAnswer = buildPhoneAnswer();
+    const callbackNote = clientRequestsCallback(currentMessage) ? "\n\nUn asesor te puede atender por ah\xED." : "";
     const pending = getNextPendingField(extracted, filledSet);
-    mensaje = needsNextStep && pending && pending !== "correo" ? `${phoneAnswer}
+    mensaje = needsNextStep && pending && pending !== "correo" ? `${phoneAnswer}${callbackNote}
 
-${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
-    log?.info({ entityId }, "GUARD: cliente pregunt\xF3 tel\xE9fonos");
+${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
+    log?.info({ entityId }, "GUARD: cliente pregunt\xF3 tel\xE9fonos / pidi\xF3 llamada");
   } else if (clientDeclinesMoreServices(currentMessage) && hasMeaningfulRequerimientos(extracted, filledSet) && (requerimientosFollowUpAlreadyAsked || justAnsweredReq || lastAssistantAskedMoreServices(presHistory))) {
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
@@ -85760,27 +85972,49 @@ ${buildNaturalQuestion(pending, ctx)}` : phoneAnswer;
     }
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 preferir OpenAI");
-  } else if (clientAsksPrice(currentMessage)) {
+  } else if (clientAsksPrice(currentMessage) || clientAsksDistributorPricing(currentMessage)) {
     const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
     const pending = getNextPendingField(extracted, filledSet);
-    const needsAlejandroQuote = mentionsNoListedPriceService(currentMessage) || responseHasInventedPrice(aiResponse, currentMessage, ctxText2) && !mentionsListedPriceService(currentMessage);
-    if (needsAlejandroQuote) {
-      const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
-      mensaje = needsNextStep && pending && pending !== "correo" ? `${priceReply}
+    if (isRichQuoteBrief(currentMessage) || clientAsksDistributorPricing(currentMessage) || clientAsksDistributorPricing(ctxText2) && parseServicesFromText(ctxText2).length >= 2) {
+      const services = parseServicesFromText(
+        `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+      );
+      const packageReply = buildMultiServicePackageReply(
+        services,
+        currentMessage ?? ctxText2
+      );
+      const teamNote = "El precio de mayoreo / la propuesta a la medida la arma nuestro equipo; no te paso un precio de lista suelto.";
+      mensaje = needsNextStep ? mergeWithPendingQuestion(
+        `${packageReply}
+
+${teamNote}`,
+        filledSet,
+        extracted,
+        ctx
+      ) : `${packageReply}
+
+${teamNote}`;
+      log?.info({ entityId }, "GUARD: precio distribuidor / RFQ \u2014 sin SKU retail");
+    } else {
+      const needsAlejandroQuote = mentionsNoListedPriceService(currentMessage) || responseHasInventedPrice(aiResponse, currentMessage, ctxText2) && !mentionsListedPriceService(currentMessage);
+      if (needsAlejandroQuote) {
+        const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
+        mensaje = needsNextStep && pending && pending !== "correo" ? `${priceReply}
 
 ${buildNaturalQuestion(pending, ctx)}` : priceReply;
-      log?.info({ entityId, pending }, "GUARD: precio sin cat\xE1logo \u2014 Alejandro cotiza");
-    } else {
-      const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText2);
-      let priceContent = safe;
-      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
-      if (fromCatalog && mentionsListedPriceService(currentMessage)) {
-        priceContent = fromCatalog;
-      } else if (!messageClaimsPrice(safe) && fromCatalog) {
-        priceContent = fromCatalog;
+        log?.info({ entityId, pending }, "GUARD: precio sin cat\xE1logo \u2014 Alejandro cotiza");
+      } else {
+        const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText2);
+        let priceContent = safe;
+        const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+        if (fromCatalog && mentionsListedPriceService(currentMessage)) {
+          priceContent = fromCatalog;
+        } else if (!messageClaimsPrice(safe) && fromCatalog) {
+          priceContent = fromCatalog;
+        }
+        mensaje = needsNextStep ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx) : priceContent.trim() || aiResponse;
+        log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con cat\xE1logo");
       }
-      mensaje = needsNextStep ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx) : priceContent.trim() || aiResponse;
-      log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con cat\xE1logo");
     }
   } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
@@ -87242,11 +87476,13 @@ banquete"), NO des el men\xFA de categor\xEDas: ve directo a ese servicio.
   inventes qu\xE9 incluye ni precios.
 - Brief con VARIOS servicios (ej. coffee break, desayuno, snack, comida, cena, staff):
   reconoce la lista COMPLETA en el mismo turno. No te quedes solo con el primero.
-  Si son muchos, confirma el paquete y ofrece cat\xE1logos o pasar a ${ADVISOR}; no
-  vuelques niveles de cada servicio uno por uno.
-- Primer mensaje largo con datos (evento, fecha, ubicaci\xF3n, invitados, servicios):
-  capt\xFAralos TODOS y reconoce lo ya dado; no respondas con un men\xFA gen\xE9rico como si
-  no hubieras le\xEDdo.
+  Si son muchos, confirma el paquete, ENV\xCDA el link del cat\xE1logo general y ofrece
+  pasar a ${ADVISOR}; no vuelques niveles de cada servicio uno por uno.
+- Primer mensaje largo / RFQ con datos (evento, fecha, ubicaci\xF3n, invitados, 2+ men\xFAs
+  u opciones, meseros, mobiliario, precio distribuidor): capt\xFAralos TODOS, reconoce
+  el brief con calma, manda el cat\xE1logo y pide el siguiente dato faltante (nombre o
+  correo). NUNCA respondas "lo dejamos por definir" ni un precio de un solo SKU.
+- Precio distribuidor / agencia / mayoreo \u2192 el equipo cotiza; no des precio de lista.
 
 ===================================================================
 ## 5. DATOS OBLIGATORIOS \u2014 no cerrar sin todos (CR\xCDTICO)
@@ -93370,15 +93606,7 @@ var FIELD_NAME = {
   [FIELD.presupuesto]: "Presupuesto (MXN)"
 };
 function buildClosingMessage(serviciosPedidos, clientName) {
-  const asesor = advisorLabelForClient(clientName);
-  const handoff = asesor === "nuestro equipo" ? "Le paso estos datos a nuestro equipo para que te arme una cotizaci\xF3n personalizada." : `Le paso estos datos a ${asesor} para que te arme una cotizaci\xF3n personalizada.`;
-  const servicio = serviciosPedidos?.trim();
-  const complements = servicio ? `Si quieres sumar algo adem\xE1s de ${servicio} (alimentos, mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar alimentos, mobiliario, DJ o iluminaci\xF3n, d\xEDmelo.`;
-  return `Perfecto, ya tengo todo. ${handoff}
-
-${complements}
-
-Si necesitas algo m\xE1s, con gusto te apoyo.`;
+  return buildStandardClosingMessage(serviciosPedidos, clientName);
 }
 async function resolveWhatsappDisplayName(subdomain, accessToken, entityId, leadNameFromCrm) {
   const entityKey = String(entityId);
