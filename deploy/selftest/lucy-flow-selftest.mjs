@@ -19606,8 +19606,8 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/aprendizaje\/from-chats/.test(panelApp));
     assert.ok(/Sincronizar chats|kommo\/cron\/learning/.test(panelApp));
     const routesIndex = readFileSync3(path4.join(apiRoot, "src/routes/index.ts"), "utf8");
-    const learningMount = routesIndex.indexOf("learningRouter");
-    const examplesMount = routesIndex.indexOf("examplesRouter");
+    const learningMount = routesIndex.indexOf("router.use(learningRouter)");
+    const examplesMount = routesIndex.indexOf("router.use(examplesRouter)");
     assert.ok(
       learningMount > 0 && examplesMount > 0 && learningMount < examplesMount,
       "learningRouter debe ir antes de examplesRouter para no bloquear GET p\xFAblicos"
