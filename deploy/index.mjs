@@ -79841,7 +79841,8 @@ var TIPO_EVENTO_PATTERNS = [
   [/\b(eventos?\s+corporativos?|convenci[oó]n(es)?|conferencias?|corporativos?)\b/i, "evento corporativo"],
   [/\b(cumplea[nñ]os?|cumple)\b/i, "cumplea\xF1os"],
   [/\b(bautizos?)\b/i, "bautizo"],
-  [/\b(comuni[oó]n|graduaci[oó]n)\b/i, "celebraci\xF3n"],
+  [/\b(graduaci[oó]n(es)?)\b/i, "graduaci\xF3n"],
+  [/\b(comuni[oó]n)\b/i, "celebraci\xF3n"],
   [/\bpozolada\b/i, "pozolada"],
   [/\bpaellada\b/i, "paellada"],
   [/\btaquiza\b/i, "taquiza"],
@@ -82877,7 +82878,34 @@ var EVENT_OFFER_PATTERNS = [
   },
   {
     match: /bautizo/i,
-    servicePatterns: [/brunch/i, /banquete/i, /mesa de dulce/i, /pastel/i, /mobiliario/i, /carpa/i]
+    servicePatterns: [
+      /brunch/i,
+      /banquete/i,
+      /mesa de dulce/i,
+      /pastel/i,
+      /mobiliario/i,
+      /carpa/i,
+      /barra de beb/i,
+      /ilumin/i
+    ]
+  },
+  {
+    match: /graduaci|celebraci[oó]n/i,
+    servicePatterns: [
+      /banquete/i,
+      /taquiza/i,
+      /brunch/i,
+      /barra de beb/i,
+      /mixolog/i,
+      /mesa de (dulce|postre)/i,
+      /mobiliario/i,
+      /\bdj\b/i,
+      /ilumin/i,
+      /pista/i,
+      /carpa/i,
+      /pantalla/i,
+      /audio|sonido/i
+    ]
   },
   {
     match: /corporativ|empresarial|empresa/i,
@@ -82885,11 +82913,21 @@ var EVENT_OFFER_PATTERNS = [
   },
   {
     match: /xv|quince/i,
-    servicePatterns: [/banquete/i, /taquiza/i, /mesa de dulce/i, /mobiliario/i, /\bdj\b/i, /ilumin/i, /pista/i]
+    servicePatterns: [/banquete/i, /taquiza/i, /mesa de dulce/i, /mobiliario/i, /\bdj\b/i, /ilumin/i, /pista/i, /barra de beb/i]
   },
   {
     match: /cumple/i,
-    servicePatterns: [/banquete/i, /taquiza/i, /brunch/i, /mesa de dulce/i, /mobiliario/i, /barra de beb/i, /\bdj\b/i]
+    servicePatterns: [
+      /banquete/i,
+      /taquiza/i,
+      /brunch/i,
+      /mesa de dulce/i,
+      /mobiliario/i,
+      /barra de beb/i,
+      /\bdj\b/i,
+      /ilumin/i,
+      /pista/i
+    ]
   },
   {
     match: /boda/i,
@@ -82907,20 +82945,46 @@ var EVENT_OFFER_PATTERNS = [
     ]
   }
 ];
+var BROAD_SOCIAL_OFFER = [
+  "Alimentos (banquete, taquiza, brunch o barras tem\xE1ticas)",
+  "Barras de bebidas / cocteler\xEDa",
+  "Mesa de dulces o postres",
+  "Mobiliario (mesas, sillas, periqueras)",
+  "DJ e iluminaci\xF3n",
+  "Pista de baile o tarima",
+  "Carpas (si es exterior)",
+  "Pantallas y audio"
+];
 var EVENT_OFFER_FALLBACK = {
   boda: [
-    "Banquete",
-    "Taquiza",
+    "Banquete / taquiza",
     "Barras de bebidas y tem\xE1ticas",
     "Mobiliario",
     "DJ e iluminaci\xF3n",
-    "Mesa de postres / dulces"
+    "Mesa de postres / dulces",
+    "Carpas y pista de baile"
   ],
-  "baby shower": ["Brunch", "Banquete ligero", "Mesa de dulces", "Bocadillos", "Mobiliario"],
-  corporativo: ["Coffee Break", "Catering / banquete", "Mobiliario", "Mixolog\xEDa / barras"],
-  "xv a\xF1os": ["Banquete", "Taquiza", "Mesa de dulces", "Mobiliario", "DJ", "Iluminaci\xF3n"],
-  bautizo: ["Brunch", "Banquete", "Mesa de dulces", "Mobiliario"],
-  cumplea\u00F1os: ["Banquete", "Taquiza", "Mesa de dulces", "Mobiliario", "Barras de bebidas"]
+  "baby shower": ["Brunch", "Banquete ligero", "Mesa de dulces", "Bocadillos", "Mobiliario", "Decoraci\xF3n ligera"],
+  corporativo: ["Coffee Break", "Catering / banquete", "Mobiliario", "Mixolog\xEDa / barras", "Pantallas / audio"],
+  "xv a\xF1os": [
+    "Banquete / taquiza",
+    "Barras de bebidas",
+    "Mesa de dulces",
+    "Mobiliario",
+    "DJ e iluminaci\xF3n",
+    "Pista de baile"
+  ],
+  bautizo: ["Brunch / banquete", "Mesa de dulces", "Mobiliario", "Barras de bebidas", "Carpas (exterior)"],
+  cumplea\u00F1os: [
+    "Banquete / taquiza",
+    "Barras de bebidas",
+    "Mesa de dulces",
+    "Mobiliario",
+    "DJ e iluminaci\xF3n",
+    "Pista de baile"
+  ],
+  graduaci\u00F3n: [...BROAD_SOCIAL_OFFER],
+  celebraci\u00F3n: [...BROAD_SOCIAL_OFFER]
 };
 function normalizeEventKey(tipo) {
   const t = tipo.trim().toLowerCase();
@@ -82930,6 +82994,8 @@ function normalizeEventKey(tipo) {
   if (/bautizo/.test(t)) return "bautizo";
   if (/cumple/.test(t)) return "cumplea\xF1os";
   if (/boda/.test(t)) return "boda";
+  if (/graduaci/.test(t)) return "graduaci\xF3n";
+  if (/celebraci/.test(t)) return "celebraci\xF3n";
   return t.slice(0, 40);
 }
 function listCatalogServicesForEvent(tipoEvento) {
@@ -82976,10 +83042,51 @@ function listCatalogServicesForEvent(tipoEvento) {
       if (names.length >= 10) break;
     }
   }
-  if (names.length >= 3) return names;
+  if (names.length >= 5) return names;
   const fallback = EVENT_OFFER_FALLBACK[key];
   if (fallback) return fallback;
-  return ["Mobiliario", "Barras de bebidas", "Mesa de dulces"];
+  return [...BROAD_SOCIAL_OFFER];
+}
+function buildBroadLevel1Offer(tipoEvento) {
+  const tipo = (tipoEvento ?? "").trim() || "evento";
+  const lines = [
+    `Con gusto te apoyo con tu ${tipo}. Manejamos varias l\xEDneas para armarlo completo:`,
+    "",
+    "\u2022 *Alimentos*: banquete, taquiza, brunch o barras tem\xE1ticas.",
+    "\u2022 *Barras de bebidas*: cocteler\xEDa, m\xF3cteles o barra de caf\xE9.",
+    "\u2022 *Mesa de dulces o postres*: para un cierre especial.",
+    "\u2022 *Mobiliario*: mesas, sillas, periqueras y montaje.",
+    "\u2022 *DJ e iluminaci\xF3n*: ambiente y baile.",
+    "\u2022 *Pista de baile o tarima*: si quieren pista definida.",
+    "\u2022 *Carpas*: si el evento es en jard\xEDn o exterior.",
+    "\u2022 *Pantallas y audio*: proyecciones, micr\xF3fonos, sonido.",
+    "",
+    "\xBFQu\xE9 te gustar\xEDa revisar primero? Tambi\xE9n podemos armar un paquete con varias opciones."
+  ];
+  return lines.join("\n");
+}
+function countOfferCategories(text2) {
+  if (!text2?.trim()) return 0;
+  const t = text2.toLowerCase();
+  let n3 = 0;
+  if (/\b(alimento|banquete|taquiza|brunch|catering|parrillada|barra\s+de\s+(pizzas?|alimentos?))\b/i.test(t))
+    n3++;
+  if (/\b(bebida|coctel|mixolog|m[oó]ctel|barra\s+de\s+bebidas?)\b/i.test(t)) n3++;
+  if (/\b(mesa\s+de\s+(dulces?|postres?)|postres?|cupcakes?)\b/i.test(t)) n3++;
+  if (/\b(mobiliario|mesas?|sillas?|periquera)\b/i.test(t)) n3++;
+  if (/\bdj\b/i.test(t)) n3++;
+  if (/\biluminaci[oó]n\b/i.test(t)) n3++;
+  if (/\b(pista|tarima)\b/i.test(t)) n3++;
+  if (/\b(carpa|toldo)\b/i.test(t)) n3++;
+  if (/\b(pantalla|audio|sonido|microfon)\b/i.test(t)) n3++;
+  return n3;
+}
+function isNarrowSocialEventOffer(text2, tipoEvento) {
+  const tipo = (tipoEvento ?? "").toLowerCase();
+  const social = /graduaci|celebraci|cumple|boda|xv|quince|bautizo|fiesta|aniversario|baby\s*shower/.test(tipo) || !tipo.trim();
+  if (!social) return false;
+  if (/corporativ|empresarial|coffee/.test(tipo)) return false;
+  return countOfferCategories(text2) > 0 && countOfferCategories(text2) < 5;
 }
 function buildEventOfferCatalogHint(tipoEvento) {
   const tipo = (tipoEvento ?? "").trim();
@@ -83002,13 +83109,14 @@ function buildEventOfferCatalogHint(tipoEvento) {
   return [
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 OFRECIMIENTO TEMPRANO (tipo de evento ya conocido) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
     `Tipo de evento: ${tipo}`,
-    "Servicios del cat\xE1logo que suelen encajar (SOLO estos y otros que existan en el Sheet inyectado):",
+    "Servicios / categor\xEDas a proponer (AMPLIO \u2014 m\xEDnimo 6 l\xEDneas distintas):",
     ...services.map((s4) => `\u2022 ${s4}`),
     "",
-    "Instrucci\xF3n: prop\xF3n con criterio 4\u20136 de estos servicios para ESTE evento, con tono de asesora c\xE1lida y natural.",
-    "Pregunta qu\xE9 le gustar\xEDa ir armando. Var\xEDa tus palabras; NO uses siempre la misma frase.",
-    "NUNCA digas solo \xAB\xBFqu\xE9 servicios quieres cotizar?\xBB o \xAB\xBFqu\xE9 tienes pensado?\xBB sin haber propuesto nada.",
-    "NO inventes servicios fuera del cat\xE1logo. Precios/inclusiones solo si el cliente pregunta y est\xE1n en el Sheet; si no, \xABel equipo confirma\xBB."
+    "Instrucci\xF3n CR\xCDTICA: ofrece un men\xFA Nivel 1 AMPLIO (alimentos, bebidas, dulces/postres, mobiliario, DJ, iluminaci\xF3n, pista/tarima, carpas si aplica, pantallas/audio).",
+    "NUNCA te limites a solo 2\u20133 cosas (ej. solo mobiliario + bebidas + mesa de dulces).",
+    "Pregunta qu\xE9 le gustar\xEDa revisar primero o si arman un paquete. Tono asesora sobria.",
+    "NUNCA digas solo \xAB\xBFqu\xE9 servicios quieres cotizar?\xBB sin haber propuesto el abanico.",
+    "NO inventes precios. Inclusiones solo del Sheet."
   ].join("\n");
 }
 function injectCatalogInclusionIfAsked(clientMessage, aiResponse) {
@@ -83209,7 +83317,7 @@ import { join } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.6";
+var LUCY_PROMPT_VERSION = "V8.7";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -84847,10 +84955,12 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
     }
   } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
     ideas = "Para XV a\xF1os suele ir banquete o taquiza, mesa de dulces, mobiliario, DJ, iluminaci\xF3n y pista de baile.";
+  } else if (/graduaci|celebraci/.test(tipo) || /graduaci|celebraci/.test(texts)) {
+    return buildBroadLevel1Offer(extracted.tipo_evento || "graduaci\xF3n");
   } else if (clientMentionsItalianTheme(texts) || clientMentionsItalianTheme(currentMessage)) {
     ideas = "Para algo con tem\xE1tica italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana.";
   } else {
-    ideas = "Seg\xFAn el evento podemos ofrecerte banquete, taquiza, barra de bebidas, mobiliario, DJ o mesa de dulces.";
+    return buildBroadLevel1Offer(extracted.tipo_evento || "evento");
   }
   const comparison = buildCatalogComparisonAnswer();
   if (comparison && /banquete|taquiza|recomiendas?/i.test(currentMessage ?? "")) {
@@ -85286,6 +85396,10 @@ function preferEventOfferReply(opts) {
     }
   }
   const ai = aiResponse.trim();
+  const tipo = extracted.tipo_evento ?? "";
+  if (aiLooksLikeEventServiceOffer(ai) && isNarrowSocialEventOffer(ai, tipo)) {
+    return buildBroadLevel1Offer(tipo);
+  }
   if (aiLooksLikeEventServiceOffer(ai) && !responseHasInventedPrice(ai, currentMessage)) {
     return ai;
   }
@@ -85297,6 +85411,9 @@ function preferEventOfferReply(opts) {
   }
   if (!ai || isDryRequerimientosAsk(ai)) {
     return buildRecommendationsReply(extracted, history, entityId, currentMessage);
+  }
+  if (ai.length > 40 && !mensajeAsksForFilledField(ai, filledSet, extracted) && isNarrowSocialEventOffer(ai, tipo)) {
+    return buildBroadLevel1Offer(tipo);
   }
   if (ai.length > 40 && !mensajeAsksForFilledField(ai, filledSet, extracted)) {
     if (!mensajeAsksWrongField(ai, filledSet, extracted) || mensajeAsksForField(ai, "requerimientos")) {
@@ -87687,12 +87804,15 @@ seguir capturando.
 ## 3. OFRECER EN DOS NIVELES
 ===================================================================
 ### Nivel 1 \u2014 Categor\xEDas generales (al saber el tipo de evento)
-No saltes directo a banquetes. Ofrece las categor\xEDas que maneja Bodasesor y deja
-elegir:
-"Con gusto te apoyo con tu boda. Manejamos alimentos, barras de bebidas, mobiliario,
-DJ e iluminaci\xF3n, carpas, tarimas y mesas de postres, entre otros. \xBFQu\xE9 te gustar\xEDa
+No saltes directo a un solo servicio. Ofrece un ABANICO amplio (m\xEDnimo 6 categor\xEDas)
+y deja elegir. Ejemplo para graduaci\xF3n / fiesta / boda:
+"Con gusto te apoyo con tu graduaci\xF3n. Manejamos alimentos (banquete, taquiza, brunch
+o barras), barras de bebidas, mesa de dulces o postres, mobiliario, DJ e iluminaci\xF3n,
+pista de baile o tarima, carpas si es exterior, y pantallas/audio. \xBFQu\xE9 te gustar\xEDa
 revisar primero?"
-Las categor\xEDas se adaptan al evento (una boda ofrece m\xE1s que un coffee corporativo).
+NUNCA te limites a 2\u20133 cosas (ej. solo mobiliario + bebidas + dulces).
+Las categor\xEDas se adaptan al evento (un coffee corporativo puede ser m\xE1s corto;
+graduaci\xF3n, boda, XV y cumplea\xF1os llevan el abanico completo).
 
 ### Nivel 2 \u2014 Detalle (cuando elige una categor\xEDa)
 - "banquete" \u2192 banquete formal, mexicano, kosher, paella... 3 o 4 tiempos.

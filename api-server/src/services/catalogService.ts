@@ -1239,7 +1239,34 @@ const EVENT_OFFER_PATTERNS: Array<{ match: RegExp; servicePatterns: RegExp[] }> 
   },
   {
     match: /bautizo/i,
-    servicePatterns: [/brunch/i, /banquete/i, /mesa de dulce/i, /pastel/i, /mobiliario/i, /carpa/i],
+    servicePatterns: [
+      /brunch/i,
+      /banquete/i,
+      /mesa de dulce/i,
+      /pastel/i,
+      /mobiliario/i,
+      /carpa/i,
+      /barra de beb/i,
+      /ilumin/i,
+    ],
+  },
+  {
+    match: /graduaci|celebraci[oó]n/i,
+    servicePatterns: [
+      /banquete/i,
+      /taquiza/i,
+      /brunch/i,
+      /barra de beb/i,
+      /mixolog/i,
+      /mesa de (dulce|postre)/i,
+      /mobiliario/i,
+      /\bdj\b/i,
+      /ilumin/i,
+      /pista/i,
+      /carpa/i,
+      /pantalla/i,
+      /audio|sonido/i,
+    ],
   },
   {
     match: /corporativ|empresarial|empresa/i,
@@ -1247,11 +1274,21 @@ const EVENT_OFFER_PATTERNS: Array<{ match: RegExp; servicePatterns: RegExp[] }> 
   },
   {
     match: /xv|quince/i,
-    servicePatterns: [/banquete/i, /taquiza/i, /mesa de dulce/i, /mobiliario/i, /\bdj\b/i, /ilumin/i, /pista/i],
+    servicePatterns: [/banquete/i, /taquiza/i, /mesa de dulce/i, /mobiliario/i, /\bdj\b/i, /ilumin/i, /pista/i, /barra de beb/i],
   },
   {
     match: /cumple/i,
-    servicePatterns: [/banquete/i, /taquiza/i, /brunch/i, /mesa de dulce/i, /mobiliario/i, /barra de beb/i, /\bdj\b/i],
+    servicePatterns: [
+      /banquete/i,
+      /taquiza/i,
+      /brunch/i,
+      /mesa de dulce/i,
+      /mobiliario/i,
+      /barra de beb/i,
+      /\bdj\b/i,
+      /ilumin/i,
+      /pista/i,
+    ],
   },
   {
     match: /boda/i,
@@ -1270,20 +1307,48 @@ const EVENT_OFFER_PATTERNS: Array<{ match: RegExp; servicePatterns: RegExp[] }> 
   },
 ];
 
+/** Nivel 1 amplio para eventos sociales (graduación, fiesta, celebración…). */
+export const BROAD_SOCIAL_OFFER: readonly string[] = [
+  "Alimentos (banquete, taquiza, brunch o barras temáticas)",
+  "Barras de bebidas / coctelería",
+  "Mesa de dulces o postres",
+  "Mobiliario (mesas, sillas, periqueras)",
+  "DJ e iluminación",
+  "Pista de baile o tarima",
+  "Carpas (si es exterior)",
+  "Pantallas y audio",
+];
+
 const EVENT_OFFER_FALLBACK: Record<string, string[]> = {
   boda: [
-    "Banquete",
-    "Taquiza",
+    "Banquete / taquiza",
     "Barras de bebidas y temáticas",
     "Mobiliario",
     "DJ e iluminación",
     "Mesa de postres / dulces",
+    "Carpas y pista de baile",
   ],
-  "baby shower": ["Brunch", "Banquete ligero", "Mesa de dulces", "Bocadillos", "Mobiliario"],
-  corporativo: ["Coffee Break", "Catering / banquete", "Mobiliario", "Mixología / barras"],
-  "xv años": ["Banquete", "Taquiza", "Mesa de dulces", "Mobiliario", "DJ", "Iluminación"],
-  bautizo: ["Brunch", "Banquete", "Mesa de dulces", "Mobiliario"],
-  cumpleaños: ["Banquete", "Taquiza", "Mesa de dulces", "Mobiliario", "Barras de bebidas"],
+  "baby shower": ["Brunch", "Banquete ligero", "Mesa de dulces", "Bocadillos", "Mobiliario", "Decoración ligera"],
+  corporativo: ["Coffee Break", "Catering / banquete", "Mobiliario", "Mixología / barras", "Pantallas / audio"],
+  "xv años": [
+    "Banquete / taquiza",
+    "Barras de bebidas",
+    "Mesa de dulces",
+    "Mobiliario",
+    "DJ e iluminación",
+    "Pista de baile",
+  ],
+  bautizo: ["Brunch / banquete", "Mesa de dulces", "Mobiliario", "Barras de bebidas", "Carpas (exterior)"],
+  cumpleaños: [
+    "Banquete / taquiza",
+    "Barras de bebidas",
+    "Mesa de dulces",
+    "Mobiliario",
+    "DJ e iluminación",
+    "Pista de baile",
+  ],
+  graduación: [...BROAD_SOCIAL_OFFER],
+  celebración: [...BROAD_SOCIAL_OFFER],
 };
 
 function normalizeEventKey(tipo: string): string {
@@ -1294,6 +1359,8 @@ function normalizeEventKey(tipo: string): string {
   if (/bautizo/.test(t)) return "bautizo";
   if (/cumple/.test(t)) return "cumpleaños";
   if (/boda/.test(t)) return "boda";
+  if (/graduaci/.test(t)) return "graduación";
+  if (/celebraci/.test(t)) return "celebración";
   return t.slice(0, 40);
 }
 
@@ -1350,13 +1417,69 @@ export function listCatalogServicesForEvent(tipoEvento: string | null | undefine
     }
   }
 
-  if (names.length >= 3) return names;
+  if (names.length >= 5) return names;
 
   const fallback = EVENT_OFFER_FALLBACK[key];
   if (fallback) return fallback;
 
-  // Evento desconocido: NO caer a banquete/taquiza por defecto.
-  return ["Mobiliario", "Barras de bebidas", "Mesa de dulces"];
+  // Evento social desconocido: menú Nivel 1 amplio (no solo 3 ítems).
+  return [...BROAD_SOCIAL_OFFER];
+}
+
+/**
+ * Ofrecimiento Nivel 1 amplio (plantilla) — graduación, fiesta, celebración, etc.
+ * Evita respuestas cortas tipo solo mobiliario + bebidas + dulces.
+ */
+export function buildBroadLevel1Offer(tipoEvento: string | null | undefined): string {
+  const tipo = (tipoEvento ?? "").trim() || "evento";
+  const lines = [
+    `Con gusto te apoyo con tu ${tipo}. Manejamos varias líneas para armarlo completo:`,
+    "",
+    "• *Alimentos*: banquete, taquiza, brunch o barras temáticas.",
+    "• *Barras de bebidas*: coctelería, mócteles o barra de café.",
+    "• *Mesa de dulces o postres*: para un cierre especial.",
+    "• *Mobiliario*: mesas, sillas, periqueras y montaje.",
+    "• *DJ e iluminación*: ambiente y baile.",
+    "• *Pista de baile o tarima*: si quieren pista definida.",
+    "• *Carpas*: si el evento es en jardín o exterior.",
+    "• *Pantallas y audio*: proyecciones, micrófonos, sonido.",
+    "",
+    "¿Qué te gustaría revisar primero? También podemos armar un paquete con varias opciones.",
+  ];
+  return lines.join("\n");
+}
+
+/** Cuenta cuántas macro-categorías menciona un ofrecimiento (para detectar ofertas demasiado cortas). */
+export function countOfferCategories(text: string | null | undefined): number {
+  if (!text?.trim()) return 0;
+  const t = text.toLowerCase();
+  let n = 0;
+  if (/\b(alimento|banquete|taquiza|brunch|catering|parrillada|barra\s+de\s+(pizzas?|alimentos?))\b/i.test(t))
+    n++;
+  if (/\b(bebida|coctel|mixolog|m[oó]ctel|barra\s+de\s+bebidas?)\b/i.test(t)) n++;
+  if (/\b(mesa\s+de\s+(dulces?|postres?)|postres?|cupcakes?)\b/i.test(t)) n++;
+  if (/\b(mobiliario|mesas?|sillas?|periquera)\b/i.test(t)) n++;
+  if (/\bdj\b/i.test(t)) n++;
+  if (/\biluminaci[oó]n\b/i.test(t)) n++;
+  if (/\b(pista|tarima)\b/i.test(t)) n++;
+  if (/\b(carpa|toldo)\b/i.test(t)) n++;
+  if (/\b(pantalla|audio|sonido|microfon)\b/i.test(t)) n++;
+  return n;
+}
+
+/** True si el ofrecimiento es demasiado estrecho para un evento social. */
+export function isNarrowSocialEventOffer(
+  text: string | null | undefined,
+  tipoEvento?: string | null
+): boolean {
+  const tipo = (tipoEvento ?? "").toLowerCase();
+  const social =
+    /graduaci|celebraci|cumple|boda|xv|quince|bautizo|fiesta|aniversario|baby\s*shower/.test(tipo) ||
+    !tipo.trim();
+  if (!social) return false;
+  // Corporativo puede ser más corto (coffee + mobiliario).
+  if (/corporativ|empresarial|coffee/.test(tipo)) return false;
+  return countOfferCategories(text) > 0 && countOfferCategories(text) < 5;
 }
 
 /**
@@ -1386,13 +1509,14 @@ export function buildEventOfferCatalogHint(tipoEvento: string | null | undefined
   return [
     "━━━━━━━━ OFRECIMIENTO TEMPRANO (tipo de evento ya conocido) ━━━━━━━━",
     `Tipo de evento: ${tipo}`,
-    "Servicios del catálogo que suelen encajar (SOLO estos y otros que existan en el Sheet inyectado):",
+    "Servicios / categorías a proponer (AMPLIO — mínimo 6 líneas distintas):",
     ...services.map((s) => `• ${s}`),
     "",
-    "Instrucción: propón con criterio 4–6 de estos servicios para ESTE evento, con tono de asesora cálida y natural.",
-    "Pregunta qué le gustaría ir armando. Varía tus palabras; NO uses siempre la misma frase.",
-    "NUNCA digas solo «¿qué servicios quieres cotizar?» o «¿qué tienes pensado?» sin haber propuesto nada.",
-    "NO inventes servicios fuera del catálogo. Precios/inclusiones solo si el cliente pregunta y están en el Sheet; si no, «el equipo confirma».",
+    "Instrucción CRÍTICA: ofrece un menú Nivel 1 AMPLIO (alimentos, bebidas, dulces/postres, mobiliario, DJ, iluminación, pista/tarima, carpas si aplica, pantallas/audio).",
+    "NUNCA te limites a solo 2–3 cosas (ej. solo mobiliario + bebidas + mesa de dulces).",
+    "Pregunta qué le gustaría revisar primero o si arman un paquete. Tono asesora sobria.",
+    "NUNCA digas solo «¿qué servicios quieres cotizar?» sin haber propuesto el abanico.",
+    "NO inventes precios. Inclusiones solo del Sheet.",
   ].join("\n");
 }
 
