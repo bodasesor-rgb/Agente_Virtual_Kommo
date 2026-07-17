@@ -40,6 +40,35 @@ router.get("/aprendizaje/from-chats", async (req: Request, res: Response) => {
       statusParam === "pending" || statusParam === "rejected" ? statusParam : "approved";
     const limit = Math.min(Number(req.query.limit ?? 50), 100);
     const candidates = await listLearningCandidates(status, limit);
+
+    // Si no hay candidatos aprobados, mostrar training_examples (lo que Lucy ya usa).
+    if (status === "approved" && candidates.length === 0) {
+      try {
+        const examples = await listTrainingExamples();
+        const fromChats = examples.filter((e) => /aprendido/i.test(e.label ?? ""));
+        const pool = fromChats.length > 0 ? fromChats : examples;
+        const asCandidates = pool.slice(0, limit).map((e) => ({
+          id: e.id,
+          kommoLeadId: "",
+          userMessage: e.userMessage,
+          suggestedResponse: e.lucyResponse,
+          label: e.label ?? "Ejemplo de entrenamiento",
+          status: "approved" as const,
+          source: "training_examples",
+          createdAt: e.createdAt ?? new Date().toISOString(),
+        }));
+        res.json({
+          candidates: asCandidates,
+          total: asCandidates.length,
+          status,
+          source: "training_examples",
+        });
+        return;
+      } catch {
+        // fall through
+      }
+    }
+
     res.json({ candidates, total: candidates.length, status });
   } catch {
     res.status(500).json({ error: "failed_to_load_chat_learning" });
