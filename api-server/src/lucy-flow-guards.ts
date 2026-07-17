@@ -55,6 +55,8 @@ import {
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
   getCatalogWebHubDeliveryUrl,
+  buildBroadLevel1Offer,
+  isNarrowSocialEventOffer,
 } from "./services/catalogService.js";
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
 import { buildGuardServiceAck, buildMobiliarioRentDetailReply } from "./services/serviceKnowledge.js";
@@ -978,12 +980,15 @@ export function buildRecommendationsReply(
   } else if (/xv|quince/.test(tipo) || /\bxv\b|quince/.test(texts)) {
     ideas =
       "Para XV años suele ir banquete o taquiza, mesa de dulces, mobiliario, DJ, iluminación y pista de baile.";
+  } else if (/graduaci|celebraci/.test(tipo) || /graduaci|celebraci/.test(texts)) {
+    // Ofrecimiento amplio Nivel 1 (no solo 3 ítems).
+    return buildBroadLevel1Offer(extracted.tipo_evento || "graduación");
   } else if (clientMentionsItalianTheme(texts) || clientMentionsItalianTheme(currentMessage)) {
     ideas =
       "Para algo con temática italiana van muy bien pastas, pizzas, barras de antipasti o estaciones de comida italiana.";
   } else {
-    ideas =
-      "Según el evento podemos ofrecerte banquete, taquiza, barra de bebidas, mobiliario, DJ o mesa de dulces.";
+    // Default social: abanico completo, no 3 líneas cortas.
+    return buildBroadLevel1Offer(extracted.tipo_evento || "evento");
   }
 
   const comparison = buildCatalogComparisonAnswer();
@@ -1636,6 +1641,13 @@ export function preferEventOfferReply(opts: {
   }
 
   const ai = aiResponse.trim();
+  const tipo = extracted.tipo_evento ?? "";
+
+  // Oferta del modelo demasiado corta (ej. solo mobiliario + bebidas + dulces) → ampliar.
+  if (aiLooksLikeEventServiceOffer(ai) && isNarrowSocialEventOffer(ai, tipo)) {
+    return buildBroadLevel1Offer(tipo);
+  }
+
   if (aiLooksLikeEventServiceOffer(ai) && !responseHasInventedPrice(ai, currentMessage)) {
     return ai;
   }
@@ -1657,6 +1669,15 @@ export function preferEventOfferReply(opts: {
   // AI vacía o pregunta seca → no devolver dry ask; usar propuesta tipada solo como red de seguridad.
   if (!ai || isDryRequerimientosAsk(ai)) {
     return buildRecommendationsReply(extracted, history, entityId, currentMessage);
+  }
+
+  // AI dijo algo útil pero estrecho para evento social → ampliar.
+  if (
+    ai.length > 40 &&
+    !mensajeAsksForFilledField(ai, filledSet, extracted) &&
+    isNarrowSocialEventOffer(ai, tipo)
+  ) {
+    return buildBroadLevel1Offer(tipo);
   }
 
   // AI dijo algo útil (pregunta abierta no seca) — respetar redacción.

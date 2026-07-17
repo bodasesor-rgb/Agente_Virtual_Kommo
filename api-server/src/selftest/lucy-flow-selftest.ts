@@ -135,6 +135,9 @@ import {
   buildCatalogServiceDetailAnswer,
   listCatalogServicesForEvent,
   buildEventOfferCatalogHint,
+  buildBroadLevel1Offer,
+  isNarrowSocialEventOffer,
+  countOfferCategories,
   resolveCatalogWebLink,
   buildCatalogWebLinkReply,
   stripUnsolicitedCatalogWebLinks,
@@ -3158,6 +3161,49 @@ async function runAll(): Promise<void> {
     // Merge no se queda con el primero.
     const merged = mergeServiceRequirements("Coffee break", alexaBrief, 6);
     assert.ok(merged && merged.split(",").length >= 5, merged);
+  });
+
+  await test("70. Ximena A14889 — graduación ofrece abanico amplio (no solo 3 ítems)", () => {
+    assert.equal(parseTipoEventoFromText("Graduación"), "graduación");
+    assert.ok(!isNarrowSocialEventOffer(buildBroadLevel1Offer("graduación"), "graduación"));
+
+    const services = listCatalogServicesForEvent("graduación");
+    assert.ok(services.length >= 6, services.join(", "));
+    assert.ok(services.some((s) => /alimento|banquete|taquiza|brunch/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /dj|ilumin/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /mobiliario/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /pista|tarima|carpa|pantalla|audio/i.test(s)), services.join(", "));
+
+    const narrowAi =
+      "Para tu graduación, podemos ofrecerte varios servicios que podrían encajar bien:\n" +
+      "• *Mobiliario*: Mesas y sillas para tus invitados.\n" +
+      "• *Barras de bebidas*: Incluyendo opciones de coctelería o bebidas no alcohólicas.\n" +
+      "• *Mesa de dulces*: Para un toque especial en la celebración.\n" +
+      "¿Qué te gustaría ir armando primero?";
+    assert.ok(isNarrowSocialEventOffer(narrowAi, "graduación"));
+    assert.ok(countOfferCategories(narrowAi) < 5);
+
+    const filled = new Set(["Nombre del cliente", "Correo electrónico", "Tipo de evento"]);
+    const reply = runGuards({
+      aiResponse: narrowAi,
+      extracted: emptyExtracted({
+        nombre: "Ximena Fuentes",
+        correo: "x@test.com",
+        tipo_evento: "graduación",
+      }),
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Graduación",
+      history: [{ role: "assistant", content: "¿Qué tipo de celebración es?" }],
+    });
+    assert.ok(countOfferCategories(reply) >= 5, reply.slice(0, 600));
+    assert.ok(/alimento|banquete|taquiza|brunch/i.test(reply), reply.slice(0, 500));
+    assert.ok(/dj/i.test(reply), reply.slice(0, 500));
+    assert.ok(/pista|tarima|carpa|pantalla|audio/i.test(reply), reply.slice(0, 500));
+    assert.ok(!/^Para tu graduación[\s\S]*Mobiliario[\s\S]*Barras de bebidas[\s\S]*Mesa de dulces[\s\S]*armando primero\?$/i.test(reply.trim()));
+
+    const hint = buildEventOfferCatalogHint("graduación") ?? "";
+    assert.ok(/AMPLIO|mínimo 6|NUNCA te limites/i.test(hint), hint.slice(0, 400));
   });
 
   await test("69. Alejandra A14893 — RFQ B2B: leer brief, catálogo, cierre, llamada, sin SKU", () => {
