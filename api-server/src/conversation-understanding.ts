@@ -84,6 +84,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Sushi", /\b(sushi|poke)\b/i],
   ["Taquiza", /\b(taquiza|tacos?)\b/i],
   ["Parrillada", /\bparrillada\b/i],
+  ["Menú Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/i],
   ["Crepas", /\bcrep[aá]s?\b/i],
   ["Brunch", /\bbrunch\b/i],
   ["Poptails", /\bpoptails?\b/i],
@@ -94,7 +95,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -211,6 +212,8 @@ export function clientAsksAboutTeam(message?: string, clientName?: string | null
 /** Tras el cierre, cliente pide agregar servicios a la cotización. */
 export function clientAddsToQuote(message?: string): boolean {
   if (!message?.trim()) return false;
+  // RFQ completo no es un "agrega X a la cotización" corto.
+  if (isRichQuoteBrief(message)) return false;
   const t = message.toLowerCase();
   return (
     /\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t) &&
@@ -544,9 +547,24 @@ export function clientAsksServiceInfo(message?: string): boolean {
   );
 }
 
-/** Cliente pregunta por teléfonos de contacto. */
+/** Cliente pide que lo llamen / atención personalizada por teléfono. */
+export function clientRequestsCallback(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\b(m[aá]rquenme|marquenme|ll[aá]menme|llamarme|me\s+marcan|me\s+llaman)\b/i.test(t) ||
+    /\bme\s+pueden\s+(marcar|llamar)\b/i.test(t) ||
+    /\b(pueden|pueden\s+ustedes)\s+(marcar|llamar)\b/i.test(t) ||
+    /\batenci[oó]n\s+personalizada\b/i.test(t) ||
+    /\bque\s+me\s+(marquen|llamen)\b/i.test(t) ||
+    /\bnecesito\s+que\s+me\s+(marquen|llamen)\b/i.test(t)
+  );
+}
+
+/** Cliente pregunta por teléfonos de contacto o pide que lo marquen. */
 export function clientAsksPhone(message?: string): boolean {
   if (!message?.trim()) return false;
+  if (clientRequestsCallback(message)) return true;
   const t = message.toLowerCase();
   return (
     /\btel[eé]fono/i.test(t) ||
@@ -554,6 +572,70 @@ export function clientAsksPhone(message?: string): boolean {
     /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t) ||
     /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t) ||
     /\btienen\s+whatsapp/i.test(t)
+  );
+}
+
+/**
+ * Brief / RFQ largo con varios datos (fecha, zona, invitados, servicios, cotización).
+ * No debe tratarse como rechazo de presupuesto ni como pregunta de precio de un SKU.
+ */
+export function isRichQuoteBrief(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (t.length < 180) return false;
+  let score = 0;
+  if (/\bcotiz/i.test(t)) score += 1;
+  if (
+    /\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|fecha\s*:)/i.test(
+      t
+    )
+  ) {
+    score += 1;
+  }
+  if (
+    /\b(ubicaci[oó]n|santa\s+fe|ciudad\s+de\s+m[eé]xico|cdmx|polanco|narvarte|coyoac[aá]n|pedregal)\b/i.test(
+      t
+    ) ||
+    /\ben\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s*,\s*|\s+)(?:ciudad\s+de\s+m[eé]xico|cdmx|m[eé]xico)/i.test(t)
+  ) {
+    score += 1;
+  }
+  if (/\b\d{2,4}\s*(?:personas?|invitados?|asistentes?)\b/i.test(t)) score += 1;
+  if (parseServicesFromText(t).length >= 2) score += 1;
+  if (
+    /\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú]|diferentes\s+rangos?\s+de\s+precio)\b/i.test(
+      t
+    )
+  ) {
+    score += 1;
+  }
+  if (/\b(distribuidor|precio\s+para\s+distribuidor|margen\s+comercial)\b/i.test(t)) score += 1;
+  if (/\b(meseros?|mobiliario|manteler|cristal|sillas?\s+con\s+fundas?)\b/i.test(t)) score += 1;
+  if (/\b(fotograf[ií]as?|fotos?)\b.{0,40}\b(mobiliario|mesas?|sillas?)/i.test(t)) score += 1;
+  return score >= 3;
+}
+
+/** Cliente pide que releamos el brief / especificaciones. */
+export function clientAsksToRereadBrief(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  return (
+    /\bleer.{0,40}especificaciones\b/i.test(t) ||
+    /\bespecificaciones\b/i.test(t) ||
+    /\blee\s+(muy\s+)?bien\b/i.test(t) ||
+    /\bno\s+le[ií]ste\b/i.test(t) ||
+    /\bfavor\s+de\s+leer\b/i.test(t)
+  );
+}
+
+/** Cotiza como agencia/distribuidor (precio mayoreo, no lista retail). */
+export function clientAsksDistributorPricing(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return (
+    /\bprecio\s+(para\s+)?distribuidor\b/i.test(message) ||
+    /\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message) ||
+    /\b(somos|como)\s+distribuidores?\b/i.test(message) ||
+    /\bmargen\s+comercial\b/i.test(message) ||
+    /\bprecio\s+de\s+mayoreo\b/i.test(message)
   );
 }
 
@@ -820,6 +902,56 @@ export function buildMultiServiceAck(services: string[]): string {
     return `Perfecto, veo que necesitas ${list}.`;
   }
   return `Perfecto, veo que necesitas ${list}. Te cotizamos todo eso.`;
+}
+
+/**
+ * Reconocimiento de un RFQ largo: evento + datos + paquete + (si aplica) menús / distribuidor.
+ * No pide datos; solo confirma que leímos el brief.
+ */
+export function buildRichBriefAcknowledgment(text: string): string {
+  const services = parseServicesFromText(text);
+  const tipo = parseTipoEventoFromText(text);
+  const inv = text.match(/\b(\d{2,4})\s*(?:personas?|invitados?|asistentes?)\b/i);
+  const fecha = text.match(
+    /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+\d{4})?)/i
+  );
+  const zona =
+    text.match(/\ben\s+(Santa\s+Fe(?:,?\s*Ciudad\s+de\s+M[eé]xico)?)/i)?.[1] ||
+    text.match(/\bUbicaci[oó]n:\s*([^\n.*]{4,60})/i)?.[1]?.trim() ||
+    text.match(/\ben\s+([A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3}),?\s*(?:Ciudad\s+de\s+M[eé]xico|CDMX)/i)?.[0]?.replace(/^en\s+/i, "");
+
+  const hasThreeMenus =
+    /\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú])\b/i.test(text);
+  const distributor = clientAsksDistributorPricing(text);
+
+  const bits: string[] = [];
+  if (tipo) bits.push(tipo);
+  if (fecha) bits.push(fecha[1]!);
+  if (zona) bits.push(zona.trim());
+  if (inv) bits.push(`${inv[1]} personas`);
+
+  let ack =
+    bits.length > 0
+      ? `De acuerdo, revisé tu solicitud para ${bits.join(", ")}.`
+      : "De acuerdo, revisé con detalle tu solicitud de cotización.";
+
+  if (hasThreeMenus) {
+    ack +=
+      " Anoto las tres propuestas de menú (parrillada, opción costo-beneficio y menú casual) junto con meseros y mobiliario.";
+  } else if (services.length >= 2) {
+    ack += ` Anoto ${formatServicesList(services)}.`;
+  } else if (services.length === 1) {
+    ack += ` Anoto ${services[0]}.`;
+  }
+
+  if (distributor) {
+    ack +=
+      " Como cotizan como distribuidores, el equipo les arma precio de mayoreo (no lista al público).";
+  } else {
+    ack += " Nuestro equipo arma la cotización a la medida con lo que pediste.";
+  }
+
+  return ack;
 }
 
 /** Tras el cierre, anexa servicios o detalles nuevos al campo requerimientos. */
@@ -1196,16 +1328,43 @@ export function countLucyFieldAsks(
 export function detectPresupuestoRefusal(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
+  // RFQ largo con datos del evento ≠ "no tengo presupuesto".
+  if (isRichQuoteBrief(t)) return false;
+
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t)) return true;
   if (/^\.{2,}$/.test(t)) return true;
-  return (
+
+  const explicitNoBudget =
     /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) ||
     /\bno\s+me\s+brindaron\b/i.test(t) ||
     /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) ||
     /\bsin\s+presupuesto\b/i.test(t) ||
-    /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t) ||
+    /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t);
+
+  if (explicitNoBudget) return true;
+
+  // "no" + "presupuesto" en la misma frase corta = rechazo.
+  // En textos largos ("sin perder de vista el presupuesto" + "no somos…") NO aplica.
+  const budgetCareLanguage =
+    /\b(dentro\s+del\s+presupuesto|sin\s+perder.{0,40}presupuesto|al\s+presupuesto|bajo\s+presupuesto|mantener.{0,25}presupuesto|seg[uú]n\s+(el\s+)?presupuesto|cuidando.{0,25}presupuesto)\b/i.test(
+      t
+    );
+  if (
+    !budgetCareLanguage &&
+    t.length <= 160 &&
+    /\bno\b/i.test(t) &&
+    /\bpresupuesto\b/i.test(t)
+  ) {
+    return true;
+  }
+
+  // Frases ambiguas ("manden cotización", "todavía no", "no sé"): solo en mensajes cortos.
+  // En un brief largo son parte de la solicitud, no waiver de presupuesto.
+  if (t.length > 140) return false;
+
+  return (
     /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) ||
     /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) ||
     /\bt[uú]\s+m[aá]ndame\b/i.test(t) ||
@@ -1220,8 +1379,7 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
     /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) ||
     /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) ||
     /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) ||
-    /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t) ||
-    (/\bno\b/i.test(t) && /\bpresupuesto\b/i.test(t))
+    /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t)
   );
 }
 
