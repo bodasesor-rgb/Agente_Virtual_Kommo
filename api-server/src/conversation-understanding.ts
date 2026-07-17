@@ -558,6 +558,36 @@ export function clientAsksPhone(message?: string): boolean {
 }
 
 /**
+ * En etapas donde Lucy NO escribe (Humano Trabaja, Cotización, etc.),
+ * la ÚNICA excepción es pedir contacto/ayuda de emergencia → pasar teléfonos.
+ * No confundir con "ayúdame con el banquete" (pedido de servicio).
+ */
+export function clientNeedsEmergencyContact(message?: string): boolean {
+  if (!message?.trim()) return false;
+  if (clientAsksPhone(message)) return true;
+  const t = message.trim();
+  // Pedido de servicio con "ayuda" no es emergencia.
+  if (
+    /\b(ayuda|ayudar|ayudame|ayúdame)\b/i.test(t) &&
+    isServiceRelatedMessage(t) &&
+    !/\b(emergencia|urgente|me\s+urge|auxilio|nadie\s+(me\s+)?(contesta|atiende))\b/i.test(t)
+  ) {
+    return false;
+  }
+  return (
+    /\b(emergencia|urgente|me\s+urge|es\s+urgente|auxilio)\b/i.test(t) ||
+    /\b(contacto\s+(de\s+)?emergencia|n[uú]mero\s+de\s+emergencia)\b/i.test(t) ||
+    /\b(necesito|quiero|puedo)\s+(hablar|contactar|llamar).{0,40}(alguien|humano|asesor|persona|equipo|ustedes)\b/i.test(
+      t
+    ) ||
+    /\b(nadie\s+(me\s+)?(contesta|atiende)|no\s+me\s+(contesta|atiende|responde))\b/i.test(t) ||
+    /\b(ayuda|auxilio).{0,25}(urgente|emergencia|humano|asesor|persona)\b/i.test(t) ||
+    /\b(pasame|pásame|dame|necesito)\s+(un\s+)?(contacto|tel[eé]fono|n[uú]mero)\b/i.test(t) ||
+    /\bhablar\s+con\s+(un\s+)?(asesor|humano|persona)\b/i.test(t)
+  );
+}
+
+/**
  * Cliente pide el catálogo web (link bodasesor.com/catalogos/…).
  * No confundir con "qué incluye" ni con pedir precio.
  */

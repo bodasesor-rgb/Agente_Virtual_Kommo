@@ -35,11 +35,16 @@ router.get("/health", (_req, res) => {
       "learning-from-human-chats",
       "learning-cron-keepalive",
       "learning-auto-approve-high-confidence",
+      "silent-crm-watch",
+      "emergency-contact-in-humano-trabaja",
       "knowledge-gaps-aprendizaje",
     ],
     learning: {
       note: "Sync Kommo Talks + extracción en Humano Trabaja/Cotización; cron vía keep-alive cada 5 min; auto-aprueba confidence≥0.85",
       cron_path: "/api/kommo/cron/learning",
+    },
+    silent_watch: {
+      note: "En Humano Trabaja/Cotización/seguimientos Lucy no cotiza; actualiza CRM si cambian datos; solo escribe teléfonos de emergencia",
     },
     auth_configured: isAuthConfigured(),
     git_commit: build.git_commit,

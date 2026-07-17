@@ -79819,6 +79819,17 @@ function clientAsksPhone(message) {
   const t = message.toLowerCase();
   return /\btel[eé]fono/i.test(t) || /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t) || /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t) || /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t) || /\btienen\s+whatsapp/i.test(t);
 }
+function clientNeedsEmergencyContact(message) {
+  if (!message?.trim()) return false;
+  if (clientAsksPhone(message)) return true;
+  const t = message.trim();
+  if (/\b(ayuda|ayudar|ayudame|ayúdame)\b/i.test(t) && isServiceRelatedMessage(t) && !/\b(emergencia|urgente|me\s+urge|auxilio|nadie\s+(me\s+)?(contesta|atiende))\b/i.test(t)) {
+    return false;
+  }
+  return /\b(emergencia|urgente|me\s+urge|es\s+urgente|auxilio)\b/i.test(t) || /\b(contacto\s+(de\s+)?emergencia|n[uú]mero\s+de\s+emergencia)\b/i.test(t) || /\b(necesito|quiero|puedo)\s+(hablar|contactar|llamar).{0,40}(alguien|humano|asesor|persona|equipo|ustedes)\b/i.test(
+    t
+  ) || /\b(nadie\s+(me\s+)?(contesta|atiende)|no\s+me\s+(contesta|atiende|responde))\b/i.test(t) || /\b(ayuda|auxilio).{0,25}(urgente|emergencia|humano|asesor|persona)\b/i.test(t) || /\b(pasame|pásame|dame|necesito)\s+(un\s+)?(contacto|tel[eé]fono|n[uú]mero)\b/i.test(t) || /\bhablar\s+con\s+(un\s+)?(asesor|humano|persona)\b/i.test(t);
+}
 function clientAsksForCatalog(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
@@ -82860,7 +82871,7 @@ import { join } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.2";
+var LUCY_PROMPT_VERSION = "V8.3";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -82941,11 +82952,16 @@ router.get("/health", (_req, res) => {
       "learning-from-human-chats",
       "learning-cron-keepalive",
       "learning-auto-approve-high-confidence",
+      "silent-crm-watch",
+      "emergency-contact-in-humano-trabaja",
       "knowledge-gaps-aprendizaje"
     ],
     learning: {
       note: "Sync Kommo Talks + extracci\xF3n en Humano Trabaja/Cotizaci\xF3n; cron v\xEDa keep-alive cada 5 min; auto-aprueba confidence\u22650.85",
       cron_path: "/api/kommo/cron/learning"
+    },
+    silent_watch: {
+      note: "En Humano Trabaja/Cotizaci\xF3n/seguimientos Lucy no cotiza; actualiza CRM si cambian datos; solo escribe tel\xE9fonos de emergencia"
     },
     auth_configured: isAuthConfigured(),
     git_commit: build.git_commit,
@@ -84270,6 +84286,14 @@ function buildPhoneAnswer() {
     "Ventas (solo l\xEDnea telef\xF3nica, sin WhatsApp): 55 4008 0373",
     "Gerencia / corporativo (l\xEDnea telef\xF3nica y WhatsApp): 56 4671 0585",
     "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
+  ].join("\n");
+}
+function buildEmergencyContactAnswer() {
+  return [
+    "Claro, te paso los contactos de emergencia del equipo:",
+    "Ventas (solo llamada): 55 4008 0373",
+    "Gerencia / corporativo (llamada y WhatsApp): 56 4671 0585",
+    "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
   ].join("\n");
 }
 function buildLocationAnswer() {
@@ -87304,6 +87328,17 @@ Puedes "escuchar" y "ver" \u2014 el sistema ya procesa antes de que llegue el te
   (confirmar estilo, agradecer pago, ligar a un servicio, o preguntar qu\xE9 quiere de la foto).
   NUNCA mandes al cliente una descripci\xF3n t\xE9cnica del espacio ("El \xE1rea es un jard\xEDn\u2026").
   Si hay marcadores [Imagen \u2026], no los repitas literalmente.
+
+===================================================================
+## 9. VIGILANCIA EN SILENCIO (Humano Trabaja y etapas posteriores)
+===================================================================
+En Humano Trabaja, Cotizaci\xF3n realizada, seguimientos, etc. el sistema te deja
+en silencio: NO cotices, NO reinicies el flujo, NO escribas al cliente.
+Pero SIEMPRE lee el chat: si el cliente cambia direcci\xF3n, fecha/horario,
+invitados u otros datos, an\xF3talos (el sistema actualiza el CRM).
+EXCEPCI\xD3N \xFAnica para escribir: si pide ayuda/contacto/emergencia o un tel\xE9fono
+humano \u2192 solo entonces pasas los tel\xE9fonos de emergencia (ventas / gerencia).
+Nada m\xE1s en esa etapa.
 
 ===================================================================
 ## RECORDATORIOS CLAVE
@@ -93734,6 +93769,129 @@ function buildPatchPayload(extracted, mergedLines, conversationText) {
   }
   return payload;
 }
+function buildSilentWatchPatchPayload(text2, extracted) {
+  const customFields = [];
+  const zona = parseZonaFromText(text2);
+  const direccion = (zona && isUsableDireccionEvento(zona) ? zona : null) || (extracted.direccion_evento && isUsableDireccionEvento(extracted.direccion_evento) ? extracted.direccion_evento : null);
+  if (direccion && (zona || /\b(direcci[oó]n|ubicaci[oó]n|colonia|en\s+)/i.test(text2))) {
+    customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(direccion) }] });
+  }
+  const fecha = parseFechaFromText(text2) || extracted.fecha_horario;
+  if (fecha && (parseFechaFromText(text2) || /\b(fecha|horario|hora|el\s+\d)/i.test(text2))) {
+    customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap255(fecha) }] });
+  }
+  const invRaw = parseInvitadosFromText(text2);
+  const invitados = invRaw ? parseInt(invRaw, 10) : extracted.num_invitados;
+  if (invitados && invitados > 0 && (invRaw || /\b(invitados?|personas?|pax)\b/i.test(text2))) {
+    customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(invitados) }] });
+  }
+  const tipo = parseTipoEventoFromText(text2) || extracted.tipo_evento;
+  if (tipo && (parseTipoEventoFromText(text2) || /\b(boda|xv|cumple|corporativo|evento)\b/i.test(text2))) {
+    customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(tipo) }] });
+  }
+  const services = parseServicesFromText(text2);
+  if (services.length > 0) {
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, text2, 6);
+    if (merged) {
+      customFields.push({
+        field_id: FIELD.requerimientos_evento,
+        values: [{ value: cap255(merged) }]
+      });
+    }
+  }
+  if (customFields.length === 0) return null;
+  return { custom_fields_values: customFields };
+}
+async function handleLucyInactiveInbound(opts) {
+  const { entityId, chatId, talkId, text: text2, subdomain, accessToken, log } = opts;
+  void captureInboundWhileLucyInactive({
+    kommoLeadId: String(entityId),
+    chatId,
+    talkId,
+    text: text2,
+    subdomain,
+    accessToken
+  }).catch((err2) => log.warn({ err: err2, entityId }, "Captura en fase humana fall\xF3"));
+  try {
+    const { crmLines } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
+    const histKey = String(entityId);
+    const fullHistory = getHistory(histKey);
+    const { extracted } = await prepareLucyExtraction({
+      fullHistory,
+      messageText: text2,
+      crmLines,
+      extractFn: extractData
+    });
+    const silentPayload = buildSilentWatchPatchPayload(text2, extracted);
+    if (silentPayload) {
+      const patchController = new AbortController();
+      const patchTimer = setTimeout(() => patchController.abort(), 12e3);
+      try {
+        const updateRes = await fetch(
+          `https://${subdomain}.kommo.com/api/v4/leads/${entityId}`,
+          {
+            method: "PATCH",
+            signal: patchController.signal,
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(silentPayload)
+          }
+        );
+        const n3 = silentPayload["custom_fields_values"].length;
+        if (updateRes.ok) {
+          log.info({ entityId, fieldsUpdated: n3 }, "Embudo: Lucy en silencio actualiz\xF3 datos CRM");
+          void agregarNota(
+            subdomain,
+            accessToken,
+            entityId,
+            `Lucy (silencio): actualic\xE9 ${n3} dato(s) del chat mientras el lead est\xE1 con el equipo.`
+          ).catch(() => void 0);
+        } else {
+          log.warn({ entityId, status: updateRes.status }, "Embudo: PATCH silencio fall\xF3");
+        }
+      } finally {
+        clearTimeout(patchTimer);
+      }
+    }
+  } catch (err2) {
+    log.warn({ err: err2, entityId }, "Embudo: vigilancia silenciosa fall\xF3 (no cr\xEDtico)");
+  }
+  if (!clientNeedsEmergencyContact(text2)) {
+    return "watched";
+  }
+  const emergencyMsg = buildEmergencyContactAnswer();
+  const entityKey = String(entityId);
+  let whatsappPhone = phoneCache.get(entityKey) ?? null;
+  if (!whatsappPhone) {
+    whatsappPhone = await fetchContactPhone(subdomain, accessToken, entityId);
+    if (whatsappPhone) phoneCache.set(entityKey, whatsappPhone);
+  }
+  const channel = await deliverLucyOutbound({
+    subdomain,
+    accessToken,
+    talkId,
+    chatId,
+    whatsappPhone,
+    texto: emergencyMsg,
+    entityId
+  });
+  if (channel !== "failed") {
+    appendHistory(entityKey, text2, emergencyMsg);
+    lastResponseCache.set(entityKey, emergencyMsg);
+    void agregarNota(
+      subdomain,
+      accessToken,
+      entityId,
+      "Lucy (excepci\xF3n emergencia): envi\xE9 tel\xE9fonos de contacto al cliente."
+    ).catch(() => void 0);
+    log.info({ entityId, channel }, "Embudo: excepci\xF3n emergencia \u2014 tel\xE9fonos enviados");
+    return "emergency_sent";
+  }
+  log.warn({ entityId }, "Embudo: excepci\xF3n emergencia \u2014 no se pudo enviar");
+  return "watched";
+}
 function safeParseDate(raw) {
   if (!raw) return null;
   const d2 = new Date(raw);
@@ -93760,18 +93918,18 @@ async function processBatch(batch, accessToken, log) {
         if (!debeResponder) {
           log.info(
             { entityId, statusId: leadKommo.status_id, tags: leadKommo.tags },
-            "Embudo: Lucy desactivada \u2014 capturando mensaje para aprendizaje"
+            "Embudo: Lucy en silencio \u2014 vigila chat, actualiza datos; solo escribe en emergencia"
           );
-          void captureInboundWhileLucyInactive({
-            kommoLeadId: String(entityId),
+          await handleLucyInactiveInbound({
+            entityId,
             chatId,
             talkId,
             text: combinedUserText,
             subdomain,
-            accessToken
-          }).catch(
-            (err2) => log.warn({ err: err2, entityId }, "Captura en fase humana fall\xF3")
-          );
+            accessToken,
+            statusId: leadKommo.status_id,
+            log
+          });
           return;
         }
       }

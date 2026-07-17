@@ -47,6 +47,7 @@ import {
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
   isCatalogLevelSelection,
+  clientNeedsEmergencyContact,
 } from "../conversation-understanding.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, clientAsksCompanyIdentity, buildCompanyIdentityReply } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
@@ -59,6 +60,7 @@ import {
   buildFirstInteractionMessage,
   buildLocationAnswer,
   buildVagueFoodOptionsReply,
+  buildEmergencyContactAnswer,
 } from "../lucy-flow-guards.js";
 import { advisorLabelForClient, normalizeAdvisorReferences, getAdvisorName, LEGACY_ADVISOR_NAMES, stripInternalCrmBlock, isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
@@ -2947,6 +2949,29 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/estilo rústico|anoto|montaje/i.test(blocked), blocked);
     assert.ok(!/La imagen muestra/i.test(blocked), blocked);
+  });
+
+  await test("68. Silencio + emergencia — vigila datos; solo teléfonos en Humano Trabaja", () => {
+    assert.ok(clientNeedsEmergencyContact("necesito un teléfono de emergencia"));
+    assert.ok(clientNeedsEmergencyContact("nadie me contesta, es urgente"));
+    assert.ok(clientNeedsEmergencyContact("pásame un contacto por favor"));
+    assert.ok(clientNeedsEmergencyContact("¿Tienen teléfono de ventas?"));
+    assert.ok(!clientNeedsEmergencyContact("ayúdame con el banquete para 100"));
+    assert.ok(!clientNeedsEmergencyContact("la dirección ahora es Polanco CDMX"));
+
+    const emergency = buildEmergencyContactAnswer();
+    assert.ok(/55 4008 0373/.test(emergency));
+    assert.ok(/56 4671 0585/.test(emergency));
+    assert.ok(/emergencia/i.test(emergency));
+
+    const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const kommoSrc = readFileSync(path.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const embudoSrc = readFileSync(path.join(apiRoot, "src/services/embudo.ts"), "utf8");
+    assert.ok(/handleLucyInactiveInbound/.test(kommoSrc));
+    assert.ok(/buildSilentWatchPatchPayload/.test(kommoSrc));
+    assert.ok(/clientNeedsEmergencyContact/.test(kommoSrc));
+    assert.ok(/lucyEstaEnSilencio|lucyDebeResponder/.test(embudoSrc));
+    assert.ok(/Humano Trabaja/.test(embudoSrc) || /HUMANO_TRABAJA/.test(embudoSrc));
   });
 
   await test("67. Aprendizaje continuo — cron + extract en Humano Trabaja", () => {

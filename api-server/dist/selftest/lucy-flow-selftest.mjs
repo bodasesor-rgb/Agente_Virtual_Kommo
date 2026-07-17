@@ -635,6 +635,17 @@ function clientAsksPhone(message) {
   const t = message.toLowerCase();
   return /\btel[eé]fono/i.test(t) || /\bn[uú]mero\s+(de\s+)?(contacto|atenci[oó]n|ventas|gerencia)/i.test(t) || /\b(llamar|marcar|contestar|contestan|nadie\s+contesta|me\s+urge)\b/i.test(t) || /\bwhatsapp\s+(de\s+)?(ventas|gerencia|corporativo|bodasesor)/i.test(t) || /\btienen\s+whatsapp/i.test(t);
 }
+function clientNeedsEmergencyContact(message) {
+  if (!message?.trim()) return false;
+  if (clientAsksPhone(message)) return true;
+  const t = message.trim();
+  if (/\b(ayuda|ayudar|ayudame|ayúdame)\b/i.test(t) && isServiceRelatedMessage(t) && !/\b(emergencia|urgente|me\s+urge|auxilio|nadie\s+(me\s+)?(contesta|atiende))\b/i.test(t)) {
+    return false;
+  }
+  return /\b(emergencia|urgente|me\s+urge|es\s+urgente|auxilio)\b/i.test(t) || /\b(contacto\s+(de\s+)?emergencia|n[uú]mero\s+de\s+emergencia)\b/i.test(t) || /\b(necesito|quiero|puedo)\s+(hablar|contactar|llamar).{0,40}(alguien|humano|asesor|persona|equipo|ustedes)\b/i.test(
+    t
+  ) || /\b(nadie\s+(me\s+)?(contesta|atiende)|no\s+me\s+(contesta|atiende|responde))\b/i.test(t) || /\b(ayuda|auxilio).{0,25}(urgente|emergencia|humano|asesor|persona)\b/i.test(t) || /\b(pasame|pásame|dame|necesito)\s+(un\s+)?(contacto|tel[eé]fono|n[uú]mero)\b/i.test(t) || /\bhablar\s+con\s+(un\s+)?(asesor|humano|persona)\b/i.test(t);
+}
 function clientAsksForCatalog(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
@@ -14627,6 +14638,14 @@ function buildPhoneAnswer() {
     "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
   ].join("\n");
 }
+function buildEmergencyContactAnswer() {
+  return [
+    "Claro, te paso los contactos de emergencia del equipo:",
+    "Ventas (solo llamada): 55 4008 0373",
+    "Gerencia / corporativo (llamada y WhatsApp): 56 4671 0585",
+    "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
+  ].join("\n");
+}
 function buildLocationAnswer() {
   return "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el lugar de tu evento, coordinamos el servicio.";
 }
@@ -19301,6 +19320,26 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert.ok(/estilo rústico|anoto|montaje/i.test(blocked), blocked);
     assert.ok(!/La imagen muestra/i.test(blocked), blocked);
+  });
+  await test("68. Silencio + emergencia \u2014 vigila datos; solo tel\xE9fonos en Humano Trabaja", () => {
+    assert.ok(clientNeedsEmergencyContact("necesito un tel\xE9fono de emergencia"));
+    assert.ok(clientNeedsEmergencyContact("nadie me contesta, es urgente"));
+    assert.ok(clientNeedsEmergencyContact("p\xE1same un contacto por favor"));
+    assert.ok(clientNeedsEmergencyContact("\xBFTienen tel\xE9fono de ventas?"));
+    assert.ok(!clientNeedsEmergencyContact("ay\xFAdame con el banquete para 100"));
+    assert.ok(!clientNeedsEmergencyContact("la direcci\xF3n ahora es Polanco CDMX"));
+    const emergency = buildEmergencyContactAnswer();
+    assert.ok(/55 4008 0373/.test(emergency));
+    assert.ok(/56 4671 0585/.test(emergency));
+    assert.ok(/emergencia/i.test(emergency));
+    const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");
+    const kommoSrc = readFileSync3(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const embudoSrc = readFileSync3(path4.join(apiRoot, "src/services/embudo.ts"), "utf8");
+    assert.ok(/handleLucyInactiveInbound/.test(kommoSrc));
+    assert.ok(/buildSilentWatchPatchPayload/.test(kommoSrc));
+    assert.ok(/clientNeedsEmergencyContact/.test(kommoSrc));
+    assert.ok(/lucyEstaEnSilencio|lucyDebeResponder/.test(embudoSrc));
+    assert.ok(/Humano Trabaja/.test(embudoSrc) || /HUMANO_TRABAJA/.test(embudoSrc));
   });
   await test("67. Aprendizaje continuo \u2014 cron + extract en Humano Trabaja", () => {
     const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");

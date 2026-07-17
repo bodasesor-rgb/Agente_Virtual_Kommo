@@ -25,6 +25,7 @@ import {
   resolveEffectiveLastLucyResponse,
   parseNombreFromCrmLines,
   crmStoredValue,
+  buildEmergencyContactAnswer,
 } from "../lucy-flow-guards.js";
 import { db, conversations, leadScores, messages } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -74,6 +75,13 @@ import {
   scanConversationForCaptures,
   recoverClienteNombreFromHistory,
   isAmbiguousShortNumber,
+  clientNeedsEmergencyContact,
+  parseZonaFromText,
+  parseFechaFromText,
+  parseInvitadosFromText,
+  parseServicesFromText,
+  mergeServiceRequirements,
+  isUsableDireccionEvento,
 } from "../conversation-understanding.js";
 import type { ExtractedData } from "../types.js";
 import {
@@ -984,6 +992,172 @@ function buildPatchPayload(
   return payload;
 }
 
+/**
+ * PATCH solo con campos que el cliente acaba de cambiar en este mensaje.
+ * Preferimos el valor nuevo (no el CRM viejo) para dirección/fecha/etc.
+ */
+function buildSilentWatchPatchPayload(
+  text: string,
+  extracted: ExtractedData
+): Record<string, unknown> | null {
+  const customFields: Array<{ field_id: number; values: Array<{ value: unknown }> }> = [];
+
+  const zona = parseZonaFromText(text);
+  const direccion =
+    (zona && isUsableDireccionEvento(zona) ? zona : null) ||
+    (extracted.direccion_evento && isUsableDireccionEvento(extracted.direccion_evento)
+      ? extracted.direccion_evento
+      : null);
+  if (direccion && (zona || /\b(direcci[oó]n|ubicaci[oó]n|colonia|en\s+)/i.test(text))) {
+    customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(direccion) }] });
+  }
+
+  const fecha = parseFechaFromText(text) || extracted.fecha_horario;
+  if (fecha && (parseFechaFromText(text) || /\b(fecha|horario|hora|el\s+\d)/i.test(text))) {
+    customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap255(fecha) }] });
+  }
+
+  const invRaw = parseInvitadosFromText(text);
+  const invitados = invRaw ? parseInt(invRaw, 10) : extracted.num_invitados;
+  if (invitados && invitados > 0 && (invRaw || /\b(invitados?|personas?|pax)\b/i.test(text))) {
+    customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(invitados) }] });
+  }
+
+  const tipo = parseTipoEventoFromText(text) || extracted.tipo_evento;
+  if (tipo && (parseTipoEventoFromText(text) || /\b(boda|xv|cumple|corporativo|evento)\b/i.test(text))) {
+    customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(tipo) }] });
+  }
+
+  const services = parseServicesFromText(text);
+  if (services.length > 0) {
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, text, 6);
+    if (merged) {
+      customFields.push({
+        field_id: FIELD.requerimientos_evento,
+        values: [{ value: cap255(merged) }],
+      });
+    }
+  }
+
+  if (customFields.length === 0) return null;
+  return { custom_fields_values: customFields };
+}
+
+/**
+ * Lucy en silencio (Humano Trabaja / Cotización / seguimientos):
+ * 1) Siempre lee el chat y actualiza CRM si hay cambios de datos.
+ * 2) Solo escribe si el cliente pide contacto/ayuda de emergencia → teléfonos.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleLucyInactiveInbound(opts: {
+  entityId: string | number;
+  chatId: string;
+  talkId: string | null;
+  text: string;
+  subdomain: string;
+  accessToken: string;
+  statusId?: number;
+  log: any;
+}): Promise<"emergency_sent" | "watched"> {
+  const { entityId, chatId, talkId, text, subdomain, accessToken, log } = opts;
+
+  void captureInboundWhileLucyInactive({
+    kommoLeadId: String(entityId),
+    chatId,
+    talkId,
+    text,
+    subdomain,
+    accessToken,
+  }).catch((err: unknown) => log.warn({ err, entityId }, "Captura en fase humana falló"));
+
+  // Actualizar CRM en silencio si el cliente cambió un dato.
+  try {
+    const { crmLines } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
+    const histKey = String(entityId);
+    const fullHistory = getHistory(histKey);
+    const { extracted } = await prepareLucyExtraction({
+      fullHistory,
+      messageText: text,
+      crmLines,
+      extractFn: extractData,
+    });
+    const silentPayload = buildSilentWatchPatchPayload(text, extracted);
+    if (silentPayload) {
+      const patchController = new AbortController();
+      const patchTimer = setTimeout(() => patchController.abort(), 12_000);
+      try {
+        const updateRes = await fetch(
+          `https://${subdomain}.kommo.com/api/v4/leads/${entityId}`,
+          {
+            method: "PATCH",
+            signal: patchController.signal,
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(silentPayload),
+          }
+        );
+        const n = (silentPayload["custom_fields_values"] as unknown[]).length;
+        if (updateRes.ok) {
+          log.info({ entityId, fieldsUpdated: n }, "Embudo: Lucy en silencio actualizó datos CRM");
+          void agregarNota(
+            subdomain,
+            accessToken,
+            entityId,
+            `Lucy (silencio): actualicé ${n} dato(s) del chat mientras el lead está con el equipo.`
+          ).catch(() => undefined);
+        } else {
+          log.warn({ entityId, status: updateRes.status }, "Embudo: PATCH silencio falló");
+        }
+      } finally {
+        clearTimeout(patchTimer);
+      }
+    }
+  } catch (err) {
+    log.warn({ err, entityId }, "Embudo: vigilancia silenciosa falló (no crítico)");
+  }
+
+  // Única escritura permitida en silencio: contactos de emergencia.
+  if (!clientNeedsEmergencyContact(text)) {
+    return "watched";
+  }
+
+  const emergencyMsg = buildEmergencyContactAnswer();
+  const entityKey = String(entityId);
+  let whatsappPhone = phoneCache.get(entityKey) ?? null;
+  if (!whatsappPhone) {
+    whatsappPhone = await fetchContactPhone(subdomain, accessToken, entityId);
+    if (whatsappPhone) phoneCache.set(entityKey, whatsappPhone);
+  }
+
+  const channel = await deliverLucyOutbound({
+    subdomain,
+    accessToken,
+    talkId,
+    chatId,
+    whatsappPhone,
+    texto: emergencyMsg,
+    entityId,
+  });
+
+  if (channel !== "failed") {
+    appendHistory(entityKey, text, emergencyMsg);
+    lastResponseCache.set(entityKey, emergencyMsg);
+    void agregarNota(
+      subdomain,
+      accessToken,
+      entityId,
+      "Lucy (excepción emergencia): envié teléfonos de contacto al cliente."
+    ).catch(() => undefined);
+    log.info({ entityId, channel }, "Embudo: excepción emergencia — teléfonos enviados");
+    return "emergency_sent";
+  }
+
+  log.warn({ entityId }, "Embudo: excepción emergencia — no se pudo enviar");
+  return "watched";
+}
+
 // ─── Welcome email: fire once when all 5 key fields are present ───────────────
 // In-memory dedup guard (fast path — avoids Kommo API call on repeat messages)
 const emailSentLeads = new Set<string>();
@@ -1136,18 +1310,18 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         if (!debeResponder) {
           log.info(
             { entityId, statusId: leadKommo.status_id, tags: leadKommo.tags },
-            "Embudo: Lucy desactivada — capturando mensaje para aprendizaje"
+            "Embudo: Lucy en silencio — vigila chat, actualiza datos; solo escribe en emergencia"
           );
-          void captureInboundWhileLucyInactive({
-            kommoLeadId: String(entityId),
+          await handleLucyInactiveInbound({
+            entityId,
             chatId,
             talkId,
             text: combinedUserText,
             subdomain,
             accessToken,
-          }).catch((err: unknown) =>
-            log.warn({ err, entityId }, "Captura en fase humana falló")
-          );
+            statusId: leadKommo.status_id,
+            log,
+          });
           return;
         }
       }
