@@ -73953,6 +73953,8 @@ async function syncHumanPhaseLead(subdomain, accessToken, kommoLeadId, options =
 }
 async function listKommoLeadsInLearningStages(subdomain, accessToken, limitPerStage = 50) {
   const ids = /* @__PURE__ */ new Set();
+  let scanned = 0;
+  const statusCounts = {};
   const tryUrls = [
     // Formato oficial por etapa
     ...[ETAPA.HUMANO_TRABAJA, ETAPA.COTIZACION_REALIZADA].map(
@@ -73973,20 +73975,26 @@ async function listKommoLeadsInLearningStages(subdomain, accessToken, limitPerSt
       }
       const data = await res.json();
       const leads = data._embedded?.leads ?? [];
+      scanned = Math.max(scanned, leads.length);
       for (const lead of leads) {
         if (lead.id == null || lead.status_id == null) continue;
+        const key = String(lead.status_id);
+        statusCounts[key] = (statusCounts[key] ?? 0) + 1;
         if (!LEARNING_STATUS_IDS.has(lead.status_id)) continue;
         ids.add(String(lead.id));
       }
-      if (ids.size > 0) {
-        logger.info({ count: ids.size, url: url2.slice(0, 100) }, "learningSync: leads elegibles Kommo");
-        break;
+      if (ids.size > 0 || leads.length > 0) {
+        logger.info(
+          { count: ids.size, scanned: leads.length, statusCounts, url: url2.slice(0, 100) },
+          "learningSync: leads elegibles Kommo"
+        );
+        if (ids.size > 0 || leads.length > 0) break;
       }
     } catch (err2) {
       logger.warn({ err: err2 }, "learningSync: error listando leads Kommo");
     }
   }
-  return [...ids];
+  return { ids: [...ids], scanned, statusCounts };
 }
 async function runLearningSyncCron(subdomain, accessToken) {
   await ensureLearningSchema();
@@ -74029,9 +74037,9 @@ async function runLearningSyncCron(subdomain, accessToken) {
     logger.warn({ err: err2 }, "learningSync cron: error leyendo stage humano_trabaja");
   }
   const fromDb = leadIds.size;
-  const fromKommoList = await listKommoLeadsInLearningStages(subdomain, accessToken);
-  for (const id of fromKommoList) leadIds.add(id);
-  const fromKommo = fromKommoList.length;
+  const kommoScan = await listKommoLeadsInLearningStages(subdomain, accessToken);
+  for (const id of kommoScan.ids) leadIds.add(id);
+  const fromKommo = kommoScan.ids.length;
   let totalCandidates = 0;
   let processed = 0;
   let skippedNoTalkId = 0;
@@ -74058,7 +74066,9 @@ async function runLearningSyncCron(subdomain, accessToken) {
       eligible: leadIds.size,
       skippedNoTalkId,
       fromDb,
-      fromKommo
+      fromKommo,
+      scanned: kommoScan.scanned,
+      statusCounts: kommoScan.statusCounts
     },
     "learningSync cron: completado"
   );
@@ -74068,7 +74078,10 @@ async function runLearningSyncCron(subdomain, accessToken) {
     eligible: leadIds.size,
     skippedNoTalkId,
     fromKommo,
-    fromDb
+    fromDb,
+    scanned: kommoScan.scanned,
+    statusCounts: kommoScan.statusCounts,
+    expectedStatusIds: [ETAPA.HUMANO_TRABAJA, ETAPA.COTIZACION_REALIZADA]
   };
 }
 var LEARNING_PHASES, LEARNING_STATUS_IDS;
