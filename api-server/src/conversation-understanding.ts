@@ -79,6 +79,9 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Coctelería", /\bcocteler[ií]a\b/i],
   ["Mócteles", /\bm[oó]cteles?\b/i],
   ["Canapés", /\b(canap[eé]s?|bocadillos?)\b/i],
+  // Compuesto "barra de pastas y pizzas" → ambos servicios (antes solo capturaba Pizzas).
+  ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
+  ["Pastas", /\bpastas?\b/i],
   ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
   ["Pizzas", /\bpizza/i],
   ["Sushi", /\b(sushi|poke)\b/i],
@@ -95,7 +98,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -113,6 +116,8 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   tacos: "taquiza",
   pizza: "pizzas",
   pizzas: "pizzas",
+  pasta: "pastas",
+  pastas: "pastas",
   sushi: "sushi",
   kosher: "banquete kosher",
   meseros: "meseros",
@@ -143,6 +148,8 @@ const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(bautizos?)\b/i, "bautizo"],
   [/\b(graduaci[oó]n(es)?)\b/i, "graduación"],
   [/\b(comuni[oó]n)\b/i, "celebración"],
+  // Fiesta / celebración social genérica (p. ej. "fiesta toscana").
+  [/\b(fiesta|celebraci[oó]n|reun[ií]on\s+social)\b/i, "fiesta"],
   [/\bpozolada\b/i, "pozolada"],
   [/\bpaellada\b/i, "paellada"],
   [/\btaquiza\b/i, "taquiza"],
@@ -471,10 +478,10 @@ export function clientAsksLocation(message?: string): boolean {
   );
 }
 
-/** Temática o comida italiana (incluye partido de Italia, mafia italiana, etc.). */
+/** Temática o comida italiana (incluye partido de Italia, mafia italiana, toscana, etc.). */
 export function clientMentionsItalianTheme(message?: string): boolean {
   if (!message?.trim()) return false;
-  return /\b(italian[ao]?|italia|mafia\s+italiana|pastas?|pizzas?|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
+  return /\b(italian[ao]?|italia|toscana|toscano|mafia\s+italiana|pastas?|pizzas?|antipasti|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
     message
   );
 }
@@ -504,6 +511,7 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
     /\bnada\s+m[aá]s\b/i.test(t) ||
     /\bning[uú]n[a]?\b/i.test(t) ||
     /\bning[uú]n\s+otro\b/i.test(t) ||
+    /\bno[.\s,¡!]+gracias\b/i.test(t) ||
     /\bno\s+gracias\b/i.test(t) ||
     /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) ||
     /\beso\s+es\s+todo\b/i.test(t) ||
@@ -771,7 +779,7 @@ const MONTH_PATTERN =
   /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|coyoac[aá]n|xochimilco)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|coyoac[aá]n|xochimilco)\b/i;
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
@@ -852,6 +860,25 @@ export function parseServicesFromText(text: string): string[] {
   if (found.includes("Menú staff")) {
     const meserosIdx = found.indexOf("Meseros");
     if (meserosIdx >= 0) found.splice(meserosIdx, 1);
+  }
+
+  // "barra de pastas" ya implica Pastas; no dejar ambos.
+  if (found.includes("Barra de pastas")) {
+    const pastasIdx = found.indexOf("Pastas");
+    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
+  }
+  if (found.includes("Barra de pizzas")) {
+    const pizzasIdx = found.indexOf("Pizzas");
+    if (pizzasIdx >= 0) found.splice(pizzasIdx, 1);
+  }
+
+  // "barra de pastas y pizzas" / "solo pastas y pizzas" → asegurar ambos.
+  if (
+    /\b(pastas?\s+y\s+pizzas?|pizzas?\s+y\s+pastas?)\b/i.test(text) ||
+    /\bbarra\s+de\s+pastas?\s+y\s+pizzas?\b/i.test(text)
+  ) {
+    if (!found.some((s) => /pasta/i.test(s))) found.push("Barra de pastas");
+    if (!found.some((s) => /pizza/i.test(s))) found.push("Barra de pizzas");
   }
 
   const normalized = normalizeShortServicePhrase(text);
@@ -1276,7 +1303,7 @@ export function parseFechaFromText(text: string): string | null {
   }
 
   if (
-    /\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha)\b/i.test(
+    /\b(todav[ií]a\s+la\s+vamos\s+a\s+definir|todav[ií]a\s+(no\s+)?la\s+van?\s+a\s+definir|vamos\s+a\s+definir|siguen\s+viendo\s+opciones?|a[uú]n\s+sin\s+fecha|la\s+fecha\s+(a[uú]n\s+)?no\s+est[aá]|a[uú]n\s+no\s+(la\s+)?defin|no\s+tenemos\s+(fecha|d[ií]a)|sin\s+definir\s+(a[uú]n|todav[ií]a)|todav[ií]a\s+no\s+sabemos)\b/i.test(
       trimmed
     )
   ) {
@@ -1298,6 +1325,57 @@ export function parseFechaFromText(text: string): string | null {
   return null;
 }
 
+/** Intención genérica de cotizar — NO es un servicio/requerimiento real. */
+export function isGenericQuoteIntentRequerimiento(value: string | null | undefined): boolean {
+  const t = value?.trim() ?? "";
+  if (!t) return false;
+  if (isServiceRelatedMessage(t) && parseServicesFromText(t).length > 0) return false;
+  if (isQuoteIntentMessage(t)) return true;
+  return (
+    /^(quiero|necesito|requiero|busco|me\s+interesa)\s+(una?\s+)?cotiz/i.test(t) ||
+    /^cotizaci[oó]n$/i.test(t) ||
+    /^una?\s+cotizaci[oó]n$/i.test(t) ||
+    /\bquiero\s+una?\s+cotizaci[oó]n\b/i.test(t) ||
+    /\bsolicito\s+(una?\s+)?cotizaci[oó]n\b/i.test(t)
+  );
+}
+
+/**
+ * Si ya hay ciudad amplia y el cliente afina municipio/colonia, une ambos.
+ * Ej: "Querétaro" + "El Marqués" → "Querétaro, El Marqués".
+ */
+export function mergeZonaDetail(
+  existing: string | null | undefined,
+  incoming: string | null | undefined
+): string | null {
+  const prev = existing?.trim() ?? "";
+  const next = incoming?.trim() ?? "";
+  if (!next) return prev || null;
+  if (!prev) return next;
+  if (prev.toLowerCase().includes(next.toLowerCase())) return prev;
+  if (next.toLowerCase().includes(prev.toLowerCase())) return next;
+  // Evita duplicar si son casi iguales.
+  if (textOverlapLoose(prev, next) >= 0.85) return prev.length >= next.length ? prev : next;
+  return `${prev}, ${next}`;
+}
+
+function textOverlapLoose(a: string, b: string): number {
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .split(/\s+/)
+      .filter(Boolean);
+  const wa = new Set(norm(a));
+  const wb = new Set(norm(b));
+  if (!wa.size || !wb.size) return 0;
+  let shared = 0;
+  for (const w of wa) if (wb.has(w)) shared++;
+  return shared / Math.max(wa.size, wb.size);
+}
+
 export interface PresupuestoParseOptions {
   /** Si Lucy acaba de preguntar presupuesto, aceptar respuestas cortas con contexto. */
   askedField?: UnderstandingField | null;
@@ -1311,8 +1389,14 @@ function bareNumberLooksLikeInvitados(num: number, trimmed: string): boolean {
 /** Tras cuántas preguntas de Lucy por presupuesto se deja de insistir. */
 export const PRESUPUESTO_MAX_ASKS = 2;
 
+/** Tras cuántas preguntas de fecha se acepta "Sin definir" y se avanza. */
+export const FECHA_MAX_ASKS = 2;
+
 /** Valor CRM cuando el cliente no dio monto tras varios intentos. */
 export const PRESUPUESTO_AUTO_WAIVER = "Sin definir (no indicó monto)";
+
+/** Valor CRM cuando Lucy ya preguntó fecha dos veces sin fecha concreta. */
+export const FECHA_AUTO_WAIVER = "Sin definir (pendiente)";
 
 /** Cuenta cuántas veces Lucy preguntó por un dato en el historial. */
 export function countLucyFieldAsks(
@@ -1660,7 +1744,7 @@ export function captureContextualAnswer(
     if (inv) captures.push({ label: "Número de invitados", value: inv });
   }
 
-  if (!filledSet.has("Lugar/dirección del evento") && asked === "zona") {
+  if (asked === "zona") {
     const zona = parseZonaFromText(msg);
     if (zona && isUsableDireccionEvento(zona)) {
       captures.push({ label: "Lugar/dirección del evento", value: zona });
@@ -1743,9 +1827,10 @@ export function scanConversationForCaptures(
       }
     }
 
-    if (!pending.has("Lugar/dirección del evento")) {
+    {
       const zona = parseZonaFromText(msg);
       if (zona && isUsableDireccionEvento(zona)) {
+        // Permite afinar (Querétaro → El Marqués) aunque ya haya ciudad.
         captures.push({ label: "Lugar/dirección del evento", value: zona });
         pending.add("Lugar/dirección del evento");
       }
@@ -1832,7 +1917,19 @@ export function applyCapturesToCrm(
   captures: CrmCapture[]
 ): void {
   for (const { label, value } of captures) {
-    if (filledSet.has(label) || !value?.trim()) continue;
+    if (!value?.trim()) continue;
+    if (label === "Lugar/dirección del evento" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l) => /^-?\s*Lugar\/dirección del evento:/i.test(l));
+      if (idx >= 0) {
+        const existing = mergedLines[idx]!.replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim();
+        const merged = mergeZonaDetail(existing, value);
+        if (merged && merged !== existing) {
+          mergedLines[idx] = `- Lugar/dirección del evento: ${merged}`;
+        }
+      }
+      continue;
+    }
+    if (filledSet.has(label)) continue;
     mergedLines.push(`- ${label}: ${value}`);
     filledSet.add(label);
   }
@@ -1864,6 +1961,23 @@ export function enrichExtractedFromConversation(
     }
     const zona = parseZonaFromText(conversationText);
     if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
+  } else {
+    // Une ciudad + municipio si ambos aparecen en la conversación.
+    const zones = [...conversationText.matchAll(new RegExp(KNOWN_ZONES.source, "gi"))]
+      .map((m) => m[0]!.trim())
+      .filter(Boolean);
+    let merged = extracted.direccion_evento;
+    for (const z of zones) {
+      if (isUsableDireccionEvento(z)) merged = mergeZonaDetail(merged, z);
+    }
+    if (merged) extracted.direccion_evento = merged;
+  }
+
+  if (
+    extracted.requerimientos_evento?.trim() &&
+    isGenericQuoteIntentRequerimiento(extracted.requerimientos_evento)
+  ) {
+    extracted.requerimientos_evento = null;
   }
 
   {

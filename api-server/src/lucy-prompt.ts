@@ -1,4 +1,4 @@
-// PROMPT LUCY — V8.7 (ofrecimiento Nivel 1 amplio por tipo de evento)
+// PROMPT LUCY — V8.8 (Núria A14894: post-cierre, cotización≠servicio, toscana/pastas, anti-doble zona/fecha)
 // El bloque de catálogo/precios lo agrega catalogService vía buildDynamicPrompt.
 
 import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
