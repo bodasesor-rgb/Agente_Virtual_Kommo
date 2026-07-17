@@ -4,15 +4,23 @@ const sectionIntro = document.getElementById("section-intro");
 const statsRow = document.getElementById("stats-row");
 const gapsList = document.getElementById("gaps-list");
 const emptyState = document.getElementById("empty-state");
+const syncStatus = document.getElementById("sync-status");
 const systemErrorsBox = document.getElementById("system-errors");
 const systemErrorsTitle = document.getElementById("system-errors-title");
 const systemErrorsSummary = document.getElementById("system-errors-summary");
 const systemErrorsList = document.getElementById("system-errors-list");
 const systemErrorsChecked = document.getElementById("system-errors-checked");
 const btnRetryErrors = document.getElementById("btn-retry-errors");
+const btnSyncNow = document.getElementById("btn-sync-now");
+const viewTabs = document.getElementById("view-tabs");
 
-let currentStatus = "pending";
+/** @type {"chats" | "gaps"} */
+let currentMode = "chats";
+/** @type {string} */
+let currentStatus = "approved";
 let lastLoadError = null;
+let lastChatStats = { pending: 0, approved: 0, rejected: 0, trainingExamples: 0 };
+let lastGapStats = { pending: 0, answered: 0, dismissed: 0 };
 
 const ERROR_HINTS = {
   unauthorized:
@@ -32,9 +40,14 @@ function friendlyError(code, fallback) {
   return ERROR_HINTS[lower] ? ERROR_HINTS[lower] : fallback || String(code);
 }
 
-async function fetchJson(path) {
+async function fetchJson(path, options = {}) {
   const res = await fetch(`${API}${path}`, {
-    headers: { Accept: "application/json" },
+    ...options,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
   });
   const text = await res.text();
   let data = {};
@@ -75,9 +88,6 @@ async function loadSystemDiagnostics() {
   });
 
   let health = { ok: false, error: "network" };
-  let ops = { ok: false };
-  let gaps = { ok: false };
-
   try {
     health = await fetchJson("/health");
   } catch (err) {
@@ -85,16 +95,13 @@ async function loadSystemDiagnostics() {
   }
 
   if (!health.ok) {
-    const is503 = health.status === 503 || health.error === "not_json";
     items.push({
       id: "server",
       label: "Servidor Lucy",
       status: "error",
       resolved: false,
-      detail: is503
-        ? "Lucy no responde (503). El proceso Node en Hostinger está caído o reiniciando."
-        : friendlyError(health.error, "No se pudo conectar con Lucy"),
-      fix: "hPanel → Node.js → Reiniciar o Redesplegar desde main. Luego pulsa «Revisar de nuevo».",
+      detail: friendlyError(health.error, "No se pudo conectar con Lucy"),
+      fix: "hPanel → Node.js → Reiniciar o Redesplegar desde main.",
     });
   } else {
     const h = health.data;
@@ -105,95 +112,53 @@ async function loadSystemDiagnostics() {
       resolved: true,
       detail: `En línea · prompt ${h.lucy_prompt ?? "?"} · ${h.built_at_display ?? "sin fecha de build"}`,
     });
+  }
 
+  const chatStats = await fetchJson("/aprendizaje/from-chats/stats");
+  if (!chatStats.ok) {
     items.push({
-      id: "openai",
-      label: "OpenAI",
-      status: h.openai_configured ? "ok" : "error",
-      resolved: !!h.openai_configured,
-      detail: h.openai_configured
-        ? "Key configurada — Lucy puede usar GPT."
-        : "Falta la variable OPEN_AI en Hostinger.",
-      fix: h.openai_configured ? null : "hPanel → Variables de entorno → OPEN_AI = sk-proj-…",
+      id: "chat_learning",
+      label: "Aprendizaje de chats",
+      status: "error",
+      resolved: false,
+      detail: friendlyError(chatStats.error, "No se pudo leer /api/aprendizaje/from-chats/stats"),
+      fix: "Redeploy a main con el fix V8.6 del panel de aprendizaje.",
     });
-
-    const catalog = h.catalog ?? {};
-    const catalogOk = catalog.loaded && !catalog.lastError;
+  } else {
+    const s = chatStats.data;
+    const learned = (s.approved ?? 0) + (s.trainingExamples ?? 0);
     items.push({
-      id: "catalog",
-      label: "Catálogo de precios",
-      status: catalogOk ? "ok" : catalog.lastError ? "error" : "warn",
-      resolved: catalogOk,
-      detail: catalog.lastError
-        ? `Error al cargar Sheet: ${catalog.lastError}`
-        : catalog.loaded
-          ? `${catalog.pricedServicesCount ?? 0} precios cargados.`
-          : "El catálogo aún no terminó de cargar (normal tras reinicio).",
-      fix: catalog.lastError ? "Panel → Estado → «Reparar ahora» recarga el Sheet." : null,
+      id: "chat_learning",
+      label: "Aprendizaje de chats",
+      status: learned > 0 || (s.pending ?? 0) > 0 ? "ok" : "warn",
+      resolved: learned > 0,
+      detail:
+        learned > 0
+          ? `${s.approved ?? 0} aprobados · ${s.pending ?? 0} por revisar · ${s.trainingExamples ?? 0} en entrenamiento.`
+          : "Aún no hay pares aprendidos de chats. Usa «Sincronizar chats ahora» tras mover leads a Humano Trabaja.",
+      fix:
+        learned > 0
+          ? null
+          : "El cron corre cada 5 min. Si sigue en 0, confirma que Alejandro ya escribió en esos chats.",
     });
   }
 
-  try {
-    gaps = await fetchJson("/knowledge-gaps/stats");
-  } catch (err) {
-    gaps = { ok: false, error: err instanceof Error ? err.message : "network" };
-  }
-
+  const gaps = await fetchJson("/knowledge-gaps/stats");
   if (!gaps.ok) {
     items.push({
       id: "gaps_api",
-      label: "API de aprendizaje",
+      label: "Huecos de catálogo",
       status: "error",
       resolved: false,
-      detail: friendlyError(gaps.error, "No se pudo leer /api/knowledge-gaps/stats"),
-      fix: gaps.error === "unauthorized"
-        ? "Confirma en Panel → Estado que no diga «unauthorized». Si persiste, redeploy en Hostinger."
-        : "Espera 1 minuto tras un reinicio y pulsa «Revisar de nuevo».",
+      detail: friendlyError(gaps.error, "No se pudo leer knowledge-gaps"),
     });
   } else {
     items.push({
       id: "gaps_api",
-      label: "API de aprendizaje",
+      label: "Huecos de catálogo",
       status: "ok",
       resolved: true,
-      detail: `Conectada · ${gaps.data.pending ?? 0} pendientes · ${gaps.data.answered ?? 0} ya enseñadas.`,
-    });
-  }
-
-  if (health.ok) {
-    try {
-      ops = await fetchJson("/ops/status");
-    } catch {
-      ops = { ok: false };
-    }
-    if (!ops.ok && ops.error === "unauthorized") {
-      items.push({
-        id: "ops_auth",
-        label: "Panel de vigilancia",
-        status: "error",
-        resolved: false,
-        detail: "Estado de Lucy también devuelve unauthorized.",
-        fix: "Hostinger necesita el último código (commit con fix de rutas). Redeploy desde main.",
-      });
-    }
-  }
-
-  if (lastLoadError) {
-    items.push({
-      id: "load_gaps",
-      label: "Lista de preguntas",
-      status: "error",
-      resolved: false,
-      detail: friendlyError(lastLoadError, lastLoadError),
-      fix: "Corrige los errores de arriba y pulsa «Revisar de nuevo».",
-    });
-  } else if (health.ok && gaps.ok) {
-    items.push({
-      id: "load_gaps",
-      label: "Lista de preguntas",
-      status: "ok",
-      resolved: true,
-      detail: "La lista de aprendizaje se cargó correctamente.",
+      detail: `${gaps.data.pending ?? 0} pendientes · ${gaps.data.answered ?? 0} enseñadas.`,
     });
   }
 
@@ -206,30 +171,31 @@ async function loadSystemDiagnostics() {
     systemErrorsBox.classList.add("all-ok");
     systemErrorsTitle.textContent = "Sin errores detectados";
     systemErrorsSummary.textContent =
-      "Aprendizaje, servidor y catálogo responden bien. Puedes enseñar respuestas con normalidad.";
+      "Panel, chats y catálogo responden. Lucy puede aprender de Alejandro y de lo que enseñas aquí.";
   } else if (errors > 0) {
     systemErrorsBox.classList.add("has-errors");
-    systemErrorsTitle.textContent =
-      errors === 1 ? "1 error activo" : `${errors} errores activos`;
-    systemErrorsSummary.textContent =
-      "Hay problemas que impiden usar Aprendizaje hasta que se resuelvan (marca «Pendiente»).";
+    systemErrorsTitle.textContent = errors === 1 ? "1 error activo" : `${errors} errores activos`;
+    systemErrorsSummary.textContent = "Hay problemas que impiden ver o guardar aprendizajes.";
   } else {
     systemErrorsBox.classList.add("has-warns");
     systemErrorsTitle.textContent = "Avisos — sin bloqueo grave";
     systemErrorsSummary.textContent =
-      "Algo requiere atención pero puedes seguir trabajando.";
+      "El sistema responde, pero todavía no hay aprendizajes de chats. Sincroniza o espera a que Alejandro atienda.";
   }
 
   systemErrorsList.innerHTML = items.map(diagItem).join("");
   systemErrorsChecked.textContent = `Última revisión: ${checkedAt}`;
 }
 
-
 const INTRO = {
-  pending:
-    "Estas son preguntas de clientes reales donde <strong>Lucy no encontró precio o servicio en el catálogo</strong>. Escribe la respuesta correcta y Lucy la usará en futuras conversaciones.",
-  answered:
-    "Todo lo que <strong>ya le enseñaste a Lucy</strong>: la pregunta del cliente, lo que Lucy dijo sin datos, y la respuesta correcta que quedó guardada.",
+  chats_approved:
+    "Pares que Lucy <strong>ya usa</strong> al responder: salieron de chats reales donde Alejandro atendió al cliente (auto-aprobados o revisados).",
+  chats_pending:
+    "Candidatos nuevos extraídos de chats en <strong>Humano Trabaja / Cotización</strong>. Los de alta confianza se aprueban solos; el resto espera revisión en Lucy Admin.",
+  gaps_pending:
+    "Preguntas donde <strong>Lucy no encontró precio/servicio en el Sheet</strong>. Escribe la respuesta correcta y Lucy la usará después.",
+  gaps_answered:
+    "Respuestas que <strong>tú le enseñaste</strong> sobre huecos del catálogo.",
 };
 
 async function api(path, options = {}) {
@@ -258,12 +224,7 @@ function formatDate(iso) {
 }
 
 function gapTypeLabel(type) {
-  const map = {
-    price: "Precio",
-    inclusion: "Inclusión",
-    service: "Servicio",
-    unknown: "General",
-  };
+  const map = { price: "Precio", inclusion: "Inclusión", service: "Servicio", unknown: "General" };
   return map[type] || type;
 }
 
@@ -275,61 +236,148 @@ function escapeHtml(str) {
     .replace(/"/g, "&quot;");
 }
 
-function updateTabCounts(stats) {
+function updateTabCounts() {
+  const map = {
+    chatLearned: lastChatStats.approved + (lastChatStats.trainingExamples || 0),
+    gapPending: lastGapStats.pending,
+    approved: currentMode === "chats" ? lastChatStats.approved : lastGapStats.answered,
+    pending: currentMode === "chats" ? lastChatStats.pending : lastGapStats.pending,
+  };
   document.querySelectorAll("[data-count]").forEach((el) => {
     const key = el.dataset.count;
-    if (key && stats[key] !== undefined) el.textContent = String(stats[key]);
+    if (key && map[key] !== undefined) el.textContent = String(map[key]);
+  });
+}
+
+function syncStatusTabsForMode() {
+  const tabs = viewTabs.querySelectorAll(".view-tab");
+  // Tabs fijos: data-status = approved | pending (chats) o answered|pending via mapping
+  tabs.forEach((btn) => {
+    const key = btn.dataset.statusKey || btn.dataset.status;
+    if (!btn.dataset.statusKey) btn.dataset.statusKey = key;
+    const title = btn.querySelector(".tab-title");
+    const desc = btn.querySelector(".tab-desc");
+    if (currentMode === "chats") {
+      btn.dataset.status = btn.dataset.statusKey; // approved | pending
+      if (btn.dataset.statusKey === "approved") {
+        title.textContent = "Ya aprendió";
+        desc.textContent = "En uso por Lucy";
+      } else {
+        title.textContent = "Por revisar";
+        desc.textContent = "Candidatos nuevos";
+      }
+    } else {
+      btn.dataset.status = btn.dataset.statusKey === "approved" ? "answered" : "pending";
+      if (btn.dataset.statusKey === "approved") {
+        title.textContent = "Ya aprendió";
+        desc.textContent = "Enseñadas por ti";
+      } else {
+        title.textContent = "No sabe";
+        desc.textContent = "Huecos del Sheet";
+      }
+    }
+  });
+
+  if (currentMode === "chats" && (currentStatus === "answered" || !currentStatus)) {
+    currentStatus = "approved";
+  }
+  if (currentMode === "gaps" && currentStatus === "approved") {
+    currentStatus = "answered";
+  }
+
+  tabs.forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.status === currentStatus);
   });
 }
 
 async function loadStats() {
-  try {
-    const stats = await api("/knowledge-gaps/stats");
-    lastLoadError = null;
-    const total = stats.pending + stats.answered + stats.dismissed;
+  const [chatRes, gapRes] = await Promise.all([
+    fetchJson("/aprendizaje/from-chats/stats"),
+    fetchJson("/knowledge-gaps/stats"),
+  ]);
+
+  if (chatRes.ok) lastChatStats = chatRes.data;
+  if (gapRes.ok) lastGapStats = gapRes.data;
+
+  if (!chatRes.ok && !gapRes.ok) {
+    lastLoadError = chatRes.error || gapRes.error;
+    throw new Error(lastLoadError);
+  }
+  lastLoadError = null;
+
+  const chatLearned = (lastChatStats.approved ?? 0) + (lastChatStats.trainingExamples ?? 0);
 
   statsRow.innerHTML = `
-    <div class="stat-card pending">
-      <strong>${stats.pending}</strong>
-      <span>No sabe — pendientes</span>
-    </div>
     <div class="stat-card learned">
-      <strong>${stats.answered}</strong>
-      <span>Ya aprendió</span>
+      <strong>${chatLearned}</strong>
+      <span>Aprendido de chats</span>
     </div>
-    <div class="stat-card dismissed">
-      <strong>${stats.dismissed}</strong>
-      <span>Descartadas</span>
+    <div class="stat-card pending">
+      <strong>${lastChatStats.pending ?? 0}</strong>
+      <span>Chats por revisar</span>
     </div>
     <div class="stat-card total">
-      <strong>${total}</strong>
-      <span>Total registradas</span>
+      <strong>${lastGapStats.answered ?? 0}</strong>
+      <span>Huecos enseñados</span>
+    </div>
+    <div class="stat-card dismissed">
+      <strong>${lastGapStats.pending ?? 0}</strong>
+      <span>Huecos pendientes</span>
     </div>
   `;
 
-    updateTabCounts(stats);
-  } catch (err) {
-    lastLoadError = err instanceof Error ? err.message : String(err);
-    statsRow.innerHTML = `
-      <div class="stat-card pending"><strong>—</strong><span>No sabe — error al cargar</span></div>
-      <div class="stat-card learned"><strong>—</strong><span>Ya aprendió</span></div>
-    `;
-    throw err;
-  }
+  updateTabCounts();
 }
 
-function renderPendingCard(gap) {
+function renderChatCard(c, status) {
   const card = document.createElement("article");
-  card.className = "gap-card pending-card";
-  card.dataset.id = gap.id;
-
-  const badgeClass = gap.gapType === "price" ? "gap-badge price" : "gap-badge";
-
+  card.className = `gap-card ${status === "pending" ? "pending-card" : "learned-card"}`;
   card.innerHTML = `
     <div class="gap-top">
       <div>
-        <div class="gap-topic">${escapeHtml(gap.topic || "Sin tema en catálogo")}</div>
+        <div class="gap-topic">${escapeHtml(c.label || "Aprendido de chat humano")}</div>
       </div>
+      <div class="gap-badges">
+        <span class="gap-badge ${status === "pending" ? "pending" : "learned"}">
+          ${status === "pending" ? "Por revisar" : "Aprendido"}
+        </span>
+        ${c.confidence ? `<span class="gap-badge">${escapeHtml(String(c.confidence))}</span>` : ""}
+      </div>
+    </div>
+    <div class="info-grid">
+      <div class="info-block question">
+        <div class="label">Cliente dijo</div>
+        <div class="value">${escapeHtml(c.userMessage)}</div>
+      </div>
+      <div class="info-block answer">
+        <div class="label">${status === "pending" ? "Respuesta sugerida (estilo Alejandro)" : "Lo que Lucy puede usar ahora"}</div>
+        <div class="value">${escapeHtml(c.suggestedResponse)}</div>
+      </div>
+    </div>
+    ${
+      c.contextSnippet
+        ? `<div class="info-block" style="border-top:1px solid var(--border);background:#fff">
+            <div class="label">Contexto</div>
+            <div class="value">${escapeHtml(c.contextSnippet)}</div>
+          </div>`
+        : ""
+    }
+    <div class="gap-footer">
+      <span>${c.kommoLeadId ? `Lead Kommo #${escapeHtml(c.kommoLeadId)}` : "Sin lead"}</span>
+      <span>${formatDate(c.createdAt)}</span>
+    </div>
+  `;
+  return card;
+}
+
+function renderPendingGapCard(gap) {
+  const card = document.createElement("article");
+  card.className = "gap-card pending-card";
+  card.dataset.id = gap.id;
+  const badgeClass = gap.gapType === "price" ? "gap-badge price" : "gap-badge";
+  card.innerHTML = `
+    <div class="gap-top">
+      <div><div class="gap-topic">${escapeHtml(gap.topic || "Sin tema en catálogo")}</div></div>
       <div class="gap-badges">
         <span class="gap-badge pending">Pendiente</span>
         <span class="${badgeClass}">${escapeHtml(gapTypeLabel(gap.gapType))}</span>
@@ -342,20 +390,12 @@ function renderPendingCard(gap) {
       </div>
       <div class="info-block lucy-said">
         <div class="label">Lucy respondió (sin dato en catálogo)</div>
-        <div class="value">${escapeHtml(gap.lucyResponse || "— Aún no respondió en el chat —")}</div>
+        <div class="value">${escapeHtml(gap.lucyResponse || "—")}</div>
       </div>
     </div>
-    ${
-      gap.contextSnippet
-        ? `<div class="info-block" style="border-top:1px solid var(--border);background:#fff">
-            <div class="label">Contexto de la conversación</div>
-            <div class="value">${escapeHtml(gap.contextSnippet)}</div>
-          </div>`
-        : ""
-    }
     <div class="answer-form">
       <label>Tu respuesta — esto es lo que Lucy aprenderá
-        <textarea class="answer-box" data-answer placeholder="Ej: El DJ desde $8,500 por 4 horas, incluye equipo básico. Alejandro confirma según el evento."></textarea>
+        <textarea class="answer-box" data-answer placeholder="Escribe la respuesta correcta…"></textarea>
       </label>
       <div class="gap-actions">
         <button type="button" class="btn-save save-btn">Guardar y enseñar a Lucy</button>
@@ -363,85 +403,91 @@ function renderPendingCard(gap) {
       </div>
     </div>
     <div class="gap-footer">
-      <span>${gap.kommoLeadId ? `Lead Kommo #${escapeHtml(gap.kommoLeadId)}` : "Sin lead vinculado"}</span>
-      <span>Detectado: ${formatDate(gap.createdAt)}</span>
+      <span>${gap.kommoLeadId ? `Lead #${escapeHtml(gap.kommoLeadId)}` : "Sin lead"}</span>
+      <span>${formatDate(gap.createdAt)}</span>
     </div>
   `;
-
   card.querySelector(".save-btn")?.addEventListener("click", () => saveAnswer(gap.id, card));
   card.querySelector(".dismiss-btn")?.addEventListener("click", () => dismissGap(gap.id));
-
   return card;
 }
 
-function renderLearnedCard(gap) {
+function renderLearnedGapCard(gap) {
   const card = document.createElement("article");
   card.className = "gap-card learned-card";
-  card.dataset.id = gap.id;
-
-  const badgeClass = gap.gapType === "price" ? "gap-badge price" : "gap-badge";
-
   card.innerHTML = `
     <div class="gap-top">
-      <div>
-        <div class="gap-topic">${escapeHtml(gap.topic || "Conocimiento enseñado")}</div>
-      </div>
-      <div class="gap-badges">
-        <span class="gap-badge learned">Aprendido</span>
-        <span class="${badgeClass}">${escapeHtml(gapTypeLabel(gap.gapType))}</span>
-      </div>
+      <div><div class="gap-topic">${escapeHtml(gap.topic || "Conocimiento enseñado")}</div></div>
+      <div class="gap-badges"><span class="gap-badge learned">Aprendido</span></div>
     </div>
     <div class="info-grid">
       <div class="info-block question">
         <div class="label">Pregunta del cliente</div>
         <div class="value">${escapeHtml(gap.question)}</div>
       </div>
-      <div class="info-block lucy-said">
-        <div class="label">Lo que Lucy dijo antes</div>
-        <div class="value">${escapeHtml(gap.lucyResponse || "—")}</div>
-      </div>
       <div class="info-block answer">
-        <div class="label">Respuesta enseñada (lo que Lucy usa ahora)</div>
+        <div class="label">Respuesta enseñada</div>
         <div class="value">${escapeHtml(gap.answer || "—")}</div>
       </div>
     </div>
     <div class="gap-footer">
-      <span>${gap.answeredBy ? `Enseñado por ${escapeHtml(gap.answeredBy)}` : "Enseñado desde el panel"}</span>
-      <span>${formatDate(gap.answeredAt)}${gap.kommoLeadId ? ` · Lead #${escapeHtml(gap.kommoLeadId)}` : ""}</span>
+      <span>${formatDate(gap.answeredAt)}</span>
     </div>
   `;
-
   return card;
 }
 
-async function loadGaps() {
-  sectionIntro.innerHTML = INTRO[currentStatus] ?? "";
+async function loadList() {
+  const introKey =
+    currentMode === "chats"
+      ? currentStatus === "pending"
+        ? "chats_pending"
+        : "chats_approved"
+      : currentStatus === "pending"
+        ? "gaps_pending"
+        : "gaps_answered";
+  sectionIntro.innerHTML = INTRO[introKey] ?? "";
   gapsList.innerHTML = "";
 
   try {
-    const data = await api(`/knowledge-gaps?status=${currentStatus}&limit=50`);
+    if (currentMode === "chats") {
+      const status = currentStatus === "pending" ? "pending" : "approved";
+      const data = await api(`/aprendizaje/from-chats?status=${status}&limit=50`);
+      lastLoadError = null;
+      if (!data.candidates?.length) {
+        emptyState.classList.remove("hidden");
+        emptyState.innerHTML =
+          status === "pending"
+            ? `<strong>No hay candidatos por revisar</strong>Cuando Alejandro atienda en Humano Trabaja, Lucy extrae pares automáticamente. Pulsa «Sincronizar chats ahora» para forzar una pasada.`
+            : `<strong>Aún no hay aprendizajes de chats</strong>Lucy aprende cuando Alejandro responde en Kommo (etapa Humano Trabaja o Cotización). El cron corre cada 5 minutos.`;
+        return;
+      }
+      emptyState.classList.add("hidden");
+      for (const c of data.candidates) gapsList.appendChild(renderChatCard(c, status));
+      return;
+    }
+
+    const status = currentStatus === "answered" ? "answered" : "pending";
+    const data = await api(`/knowledge-gaps?status=${status}&limit=50`);
     lastLoadError = null;
-
     if (!data.gaps?.length) {
-    emptyState.classList.remove("hidden");
-    emptyState.innerHTML =
-      currentStatus === "pending"
-        ? `<strong>No hay preguntas pendientes</strong>Lucy está al día con el catálogo del Sheet. Cuando un cliente pregunte algo sin precio, aparecerá aquí.`
-        : `<strong>Aún no hay aprendizajes guardados</strong>Cuando enseñes una respuesta en la pestaña «No sabe», aparecerá aquí con la pregunta y la respuesta correcta.`;
-    return;
-  }
-
-  emptyState.classList.add("hidden");
-
+      emptyState.classList.remove("hidden");
+      emptyState.innerHTML =
+        status === "pending"
+          ? `<strong>No hay huecos pendientes</strong>El catálogo del Sheet cubre las preguntas recientes.`
+          : `<strong>Aún no hay huecos enseñados</strong>Cuando enseñes una respuesta en «No sabe», aparecerá aquí.`;
+      return;
+    }
+    emptyState.classList.add("hidden");
     for (const gap of data.gaps) {
       gapsList.appendChild(
-        currentStatus === "pending" ? renderPendingCard(gap) : renderLearnedCard(gap),
+        status === "pending" ? renderPendingGapCard(gap) : renderLearnedGapCard(gap)
       );
     }
   } catch (err) {
     lastLoadError = err instanceof Error ? err.message : String(err);
     emptyState.classList.remove("hidden");
-    emptyState.innerHTML = `<strong>No se pudo cargar la lista</strong>${escapeHtml(lastLoadError)} — revisa el cuadro de diagnóstico arriba.`;
+    emptyState.innerHTML = `<strong>No se pudo cargar la lista</strong>${escapeHtml(lastLoadError)}`;
     throw err;
   }
 }
@@ -479,11 +525,32 @@ async function dismissGap(id) {
   await refresh();
 }
 
+async function runSyncNow() {
+  if (!btnSyncNow) return;
+  btnSyncNow.disabled = true;
+  btnSyncNow.textContent = "Sincronizando…";
+  syncStatus.classList.remove("hidden");
+  syncStatus.textContent = "Leyendo chats de Humano Trabaja / Cotización en Kommo…";
+  try {
+    const res = await fetchJson("/kommo/cron/learning");
+    if (!res.ok) throw new Error(res.error || "sync_failed");
+    const d = res.data;
+    syncStatus.textContent = `Listo: ${d.leads ?? 0} chats sincronizados · ${d.candidates ?? 0} aprendizajes nuevos · elegibles ${d.eligible ?? "?"} · sin talkId ${d.skippedNoTalkId ?? 0}`;
+    await refresh();
+  } catch (err) {
+    syncStatus.textContent = `Error al sincronizar: ${err instanceof Error ? err.message : String(err)}`;
+  } finally {
+    btnSyncNow.disabled = false;
+    btnSyncNow.textContent = "Sincronizar chats ahora";
+  }
+}
+
 async function refresh() {
+  syncStatusTabsForMode();
   await loadSystemDiagnostics();
   try {
     await loadStats();
-    await loadGaps();
+    await loadList();
   } catch {
     await loadSystemDiagnostics();
   }
@@ -500,15 +567,31 @@ btnRetryErrors?.addEventListener("click", () => {
     });
 });
 
-document.querySelectorAll(".view-tab").forEach((btn) => {
+btnSyncNow?.addEventListener("click", () => {
+  runSyncNow().catch(() => {});
+});
+
+document.querySelectorAll("#mode-tabs .view-tab").forEach((btn) => {
   btn.addEventListener("click", async () => {
-    document.querySelectorAll(".view-tab").forEach((b) => b.classList.remove("active"));
+    document.querySelectorAll("#mode-tabs .view-tab").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
-    currentStatus = btn.dataset.status;
-    await loadGaps();
+    currentMode = btn.dataset.mode === "gaps" ? "gaps" : "chats";
+    currentStatus = currentMode === "chats" ? "approved" : "pending";
+    syncStatusTabsForMode();
+    updateTabCounts();
+    await loadList();
+  });
+});
+
+document.querySelectorAll("#view-tabs .view-tab").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    document.querySelectorAll("#view-tabs .view-tab").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    currentStatus = btn.dataset.status || "approved";
+    await loadList();
   });
 });
 
 refresh().catch(() => {
-  /* errores mostrados en system-errors y empty-state */
+  /* errores en diagnóstico */
 });

@@ -8,8 +8,43 @@ import {
 } from "../services/learningStore.js";
 import { syncHumanPhaseLead, runLearningSyncCron } from "../services/learningSync.js";
 import { extractLearningCandidatesForLead } from "../services/learningExtractor.js";
+import { listTrainingExamples } from "../services/trainingStore.js";
 
 const router: IRouter = Router();
+
+/**
+ * Lectura pública para el panel /aprendizaje (igual que knowledge-gaps).
+ * Mutaciones (approve/reject/sync forzado) siguen con auth abajo.
+ */
+router.get("/aprendizaje/from-chats/stats", async (_req: Request, res: Response) => {
+  try {
+    const stats = await getLearningStats();
+    let trainingExamples = 0;
+    try {
+      const examples = await listTrainingExamples();
+      const fromChats = examples.filter((e) => /aprendido/i.test(e.label ?? ""));
+      trainingExamples = fromChats.length > 0 ? fromChats.length : examples.length;
+    } catch {
+      // training table opcional
+    }
+    res.json({ ...stats, trainingExamples });
+  } catch {
+    res.status(500).json({ error: "failed_to_load_chat_learning_stats" });
+  }
+});
+
+router.get("/aprendizaje/from-chats", async (req: Request, res: Response) => {
+  try {
+    const statusParam = String(req.query.status ?? "approved");
+    const status =
+      statusParam === "pending" || statusParam === "rejected" ? statusParam : "approved";
+    const limit = Math.min(Number(req.query.limit ?? 50), 100);
+    const candidates = await listLearningCandidates(status, limit);
+    res.json({ candidates, total: candidates.length, status });
+  } catch {
+    res.status(500).json({ error: "failed_to_load_chat_learning" });
+  }
+});
 
 router.use(requireAuth);
 

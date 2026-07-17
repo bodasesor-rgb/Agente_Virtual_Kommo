@@ -62203,6 +62203,22 @@ function and2(...unfilteredConditions) {
     new StringChunk2(")")
   ]);
 }
+function or3(...unfilteredConditions) {
+  const conditions = unfilteredConditions.filter(
+    (c2) => c2 !== void 0
+  );
+  if (conditions.length === 0) {
+    return void 0;
+  }
+  if (conditions.length === 1) {
+    return new SQL2(conditions);
+  }
+  return new SQL2([
+    new StringChunk2("("),
+    sql2.join(conditions, new StringChunk2(" or ")),
+    new StringChunk2(")")
+  ]);
+}
 function inArray2(column, values) {
   if (Array.isArray(values)) {
     if (values.length === 0) {
@@ -73030,7 +73046,7 @@ function kommoHeaders(accessToken) {
 async function fetchLead(subdomain, accessToken, leadId) {
   try {
     const res = await fetch(
-      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags`,
+      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags,chats`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     if (!res.ok) return null;
@@ -73822,26 +73838,104 @@ var init_chatIngest = __esm({
   }
 });
 
+// src/services/kommoTalks.ts
+async function fetchTalkIdFromLeadChats(subdomain, accessToken, leadId) {
+  try {
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags,chats`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const chats = data._embedded?.chats ?? [];
+    for (const chat of chats) {
+      const id = chat.id ?? chat.chat_id;
+      if (id != null && String(id).trim()) return String(id);
+    }
+    return null;
+  } catch (err2) {
+    logger.warn({ err: err2, leadId }, "kommoTalks: error leyendo chats del lead");
+    return null;
+  }
+}
+async function fetchTalkIdFromTalksFilter(subdomain, accessToken, leadId) {
+  const entityId = String(leadId);
+  const urls = [
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=leads&limit=10`,
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=lead&limit=10`,
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&limit=10`
+  ];
+  for (const url2 of urls) {
+    try {
+      const res = await fetch(url2, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const talks = data._embedded?.talks ?? [];
+      for (const talk of talks) {
+        const id = talk.id ?? talk.talk_id;
+        if (id != null && String(id).trim()) return String(id);
+      }
+    } catch {
+    }
+  }
+  return null;
+}
+async function resolveKommoTalkId(opts) {
+  if (opts.knownTalkId?.trim()) return opts.knownTalkId.trim();
+  if (opts.knownChatId?.trim()) {
+  }
+  const fromChats = await fetchTalkIdFromLeadChats(
+    opts.subdomain,
+    opts.accessToken,
+    opts.leadId
+  );
+  if (fromChats) return fromChats;
+  const fromTalks = await fetchTalkIdFromTalksFilter(
+    opts.subdomain,
+    opts.accessToken,
+    opts.leadId
+  );
+  if (fromTalks) return fromTalks;
+  if (opts.knownChatId?.trim()) return opts.knownChatId.trim();
+  return null;
+}
+var init_kommoTalks = __esm({
+  "src/services/kommoTalks.ts"() {
+    init_logger3();
+  }
+});
+
 // src/services/learningSync.ts
 async function syncHumanPhaseLead(subdomain, accessToken, kommoLeadId, options = {}) {
   await ensureLearningSchema();
   const leadId = String(kommoLeadId);
   const lead = await fetchLead(subdomain, accessToken, leadId);
-  if (!lead) return { synced: false, candidates: 0 };
-  let talkId = null;
+  if (!lead) return { synced: false, candidates: 0, reason: "lead_not_found" };
   const conv = await db.query.conversations.findFirst({
     where: eq2(conversations.kommoLeadId, leadId)
   });
-  talkId = conv?.kommoTalkId ?? lead.chatId;
+  const talkId = await resolveKommoTalkId({
+    subdomain,
+    accessToken,
+    leadId,
+    knownTalkId: conv?.kommoTalkId ?? null,
+    knownChatId: conv?.kommoChatId ?? lead.chatId
+  });
   if (!talkId) {
     logger.warn({ leadId }, "learningSync: sin talkId para sincronizar");
-    return { synced: false, candidates: 0 };
+    if (lead.status_id === ETAPA.HUMANO_TRABAJA) {
+      await setLearningPhase(leadId, "human_active");
+    } else if (lead.status_id === ETAPA.COTIZACION_REALIZADA) {
+      await setLearningPhase(leadId, "post_quote");
+    }
+    return { synced: false, candidates: 0, talkId: null, reason: "no_talk_id" };
   }
   if (lead.status_id === ETAPA.HUMANO_TRABAJA) {
     await setLearningPhase(leadId, "human_active");
   } else if (lead.status_id === ETAPA.COTIZACION_REALIZADA) {
     await setLearningPhase(leadId, "post_quote");
   }
+  await db.update(conversations).set({ kommoTalkId: talkId, updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, leadId));
   await syncLeadTranscript({
     kommoLeadId: leadId,
     talkId: String(talkId),
@@ -73855,46 +73949,113 @@ async function syncHumanPhaseLead(subdomain, accessToken, kommoLeadId, options =
       candidates = await extractLearningCandidatesForLead(leadId);
     }
   }
-  return { synced: true, candidates };
+  return { synced: true, candidates, talkId };
+}
+async function listKommoLeadsInLearningStages(subdomain, accessToken, limitPerStage = 40) {
+  const statusIds = [ETAPA.HUMANO_TRABAJA, ETAPA.COTIZACION_REALIZADA];
+  const ids = /* @__PURE__ */ new Set();
+  for (const statusId of statusIds) {
+    try {
+      const url2 = `https://${subdomain}.kommo.com/api/v4/leads?filter[statuses][0][pipeline_id]=${PIPELINE_ID}&filter[statuses][0][status_id]=${statusId}&limit=${limitPerStage}&order[updated_at]=desc`;
+      const res = await fetch(url2, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (!res.ok) {
+        logger.warn({ statusId, status: res.status }, "learningSync: list leads fall\xF3");
+        continue;
+      }
+      const data = await res.json();
+      for (const lead of data._embedded?.leads ?? []) {
+        if (lead.id != null) ids.add(String(lead.id));
+      }
+    } catch (err2) {
+      logger.warn({ err: err2, statusId }, "learningSync: error listando leads Kommo");
+    }
+  }
+  return [...ids];
 }
 async function runLearningSyncCron(subdomain, accessToken) {
   await ensureLearningSchema();
   if (!subdomain || !accessToken) {
     logger.warn("learningSync cron: sin credenciales Kommo");
-    return { leads: 0, candidates: 0 };
+    return {
+      leads: 0,
+      candidates: 0,
+      eligible: 0,
+      skippedNoTalkId: 0,
+      fromKommo: 0,
+      fromDb: 0
+    };
   }
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1e3);
-  let convs;
+  const leadIds = /* @__PURE__ */ new Set();
   try {
-    convs = await db.query.conversations.findMany({
+    const byPhase = await db.query.conversations.findMany({
       where: and2(
         inArray2(conversations.learningPhase, [...LEARNING_PHASES]),
         gte2(conversations.updatedAt, thirtyDaysAgo)
       )
     });
+    for (const c2 of byPhase) leadIds.add(c2.kommoLeadId);
   } catch (err2) {
-    logger.warn({ err: err2 }, "learningSync cron: error leyendo conversaciones");
-    return { leads: 0, candidates: 0 };
+    logger.warn({ err: err2 }, "learningSync cron: error leyendo learning_phase");
   }
+  try {
+    const byStage = await db.query.conversations.findMany({
+      where: and2(
+        or3(
+          eq2(conversations.stage, "humano_trabaja"),
+          eq2(conversations.status, "qualified")
+        ),
+        gte2(conversations.updatedAt, thirtyDaysAgo)
+      )
+    });
+    for (const c2 of byStage) leadIds.add(c2.kommoLeadId);
+  } catch (err2) {
+    logger.warn({ err: err2 }, "learningSync cron: error leyendo stage humano_trabaja");
+  }
+  const fromDb = leadIds.size;
+  const fromKommoList = await listKommoLeadsInLearningStages(subdomain, accessToken);
+  for (const id of fromKommoList) leadIds.add(id);
+  const fromKommo = fromKommoList.length;
   let totalCandidates = 0;
   let processed = 0;
-  for (const conv of convs) {
+  let skippedNoTalkId = 0;
+  for (const leadId of leadIds) {
     try {
-      const lead = await fetchLead(subdomain, accessToken, conv.kommoLeadId);
+      const lead = await fetchLead(subdomain, accessToken, leadId);
       if (!lead) continue;
       const inLearningStage = lead.status_id === ETAPA.HUMANO_TRABAJA || lead.status_id === ETAPA.COTIZACION_REALIZADA;
-      if (!inLearningStage && conv.learningPhase == null) continue;
-      const result = await syncHumanPhaseLead(subdomain, accessToken, conv.kommoLeadId, {
-        extract: lead.status_id === ETAPA.COTIZACION_REALIZADA || lead.status_id === ETAPA.HUMANO_TRABAJA
+      if (!inLearningStage) continue;
+      const result = await syncHumanPhaseLead(subdomain, accessToken, leadId, {
+        extract: true
       });
+      if (result.reason === "no_talk_id") skippedNoTalkId++;
       if (result.synced) processed++;
       totalCandidates += result.candidates;
     } catch (err2) {
-      logger.warn({ err: err2, leadId: conv.kommoLeadId }, "learningSync cron: lead fall\xF3");
+      logger.warn({ err: err2, leadId }, "learningSync cron: lead fall\xF3");
     }
   }
-  logger.info({ processed, totalCandidates }, "learningSync cron: completado");
-  return { leads: processed, candidates: totalCandidates };
+  logger.info(
+    {
+      processed,
+      totalCandidates,
+      eligible: leadIds.size,
+      skippedNoTalkId,
+      fromDb,
+      fromKommo
+    },
+    "learningSync cron: completado"
+  );
+  return {
+    leads: processed,
+    candidates: totalCandidates,
+    eligible: leadIds.size,
+    skippedNoTalkId,
+    fromKommo,
+    fromDb
+  };
 }
 var LEARNING_PHASES;
 var init_learningSync = __esm({
@@ -73906,6 +74067,7 @@ var init_learningSync = __esm({
     await init_learningSchema();
     await init_chatIngest();
     await init_learningExtractor();
+    init_kommoTalks();
     LEARNING_PHASES = ["human_active", "post_quote"];
   }
 });
@@ -73972,7 +74134,34 @@ var init_learning = __esm({
     await init_learningStore();
     await init_learningSync();
     await init_learningExtractor();
+    await init_trainingStore();
     router2 = (0, import_express2.Router)();
+    router2.get("/aprendizaje/from-chats/stats", async (_req, res) => {
+      try {
+        const stats = await getLearningStats();
+        let trainingExamples2 = 0;
+        try {
+          const examples = await listTrainingExamples();
+          const fromChats = examples.filter((e) => /aprendido/i.test(e.label ?? ""));
+          trainingExamples2 = fromChats.length > 0 ? fromChats.length : examples.length;
+        } catch {
+        }
+        res.json({ ...stats, trainingExamples: trainingExamples2 });
+      } catch {
+        res.status(500).json({ error: "failed_to_load_chat_learning_stats" });
+      }
+    });
+    router2.get("/aprendizaje/from-chats", async (req, res) => {
+      try {
+        const statusParam = String(req.query.status ?? "approved");
+        const status = statusParam === "pending" || statusParam === "rejected" ? statusParam : "approved";
+        const limit2 = Math.min(Number(req.query.limit ?? 50), 100);
+        const candidates = await listLearningCandidates(status, limit2);
+        res.json({ candidates, total: candidates.length, status });
+      } catch {
+        res.status(500).json({ error: "failed_to_load_chat_learning" });
+      }
+    });
     router2.use(requireAuth);
     router2.get("/learning/candidates", async (req, res) => {
       try {
@@ -82964,7 +83153,7 @@ import { join } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.5";
+var LUCY_PROMPT_VERSION = "V8.6";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -83047,11 +83236,13 @@ router.get("/health", (_req, res) => {
       "learning-auto-approve-high-confidence",
       "silent-crm-watch",
       "emergency-contact-in-humano-trabaja",
-      "knowledge-gaps-aprendizaje"
+      "knowledge-gaps-aprendizaje",
+      "aprendizaje-panel-from-chats"
     ],
     learning: {
-      note: "Sync Kommo Talks + extracci\xF3n en Humano Trabaja/Cotizaci\xF3n; cron v\xEDa keep-alive cada 5 min; auto-aprueba confidence\u22650.85",
-      cron_path: "/api/kommo/cron/learning"
+      note: "Panel /aprendizaje muestra chats; sync Kommo (fase + etapas vivas); talkId resuelto; extract Humano Trabaja/Cotizaci\xF3n; cron 5 min; auto-aprueba \u22650.85",
+      cron_path: "/api/kommo/cron/learning",
+      panel_path: "/aprendizaje"
     },
     silent_watch: {
       note: "En Humano Trabaja/Cotizaci\xF3n/seguimientos Lucy no cotiza; actualiza CRM si cambian datos; solo escribe tel\xE9fonos de emergencia"
@@ -94179,6 +94370,16 @@ async function processBatch(batch, accessToken, log) {
       }).returning();
       conversation = newConv;
       log.info({ entityId }, "Nueva conversaci\xF3n creada en BD");
+    } else if (talkId || chatId) {
+      const patch = {
+        updatedAt: /* @__PURE__ */ new Date()
+      };
+      if (talkId && talkId !== conversation.kommoTalkId) patch.kommoTalkId = talkId;
+      if (chatId && chatId !== conversation.kommoChatId) patch.kommoChatId = chatId;
+      if (patch.kommoTalkId || patch.kommoChatId) {
+        await db.update(conversations).set(patch).where(eq2(conversations.id, conversation.id));
+        conversation = { ...conversation, ...patch };
+      }
     }
     const intentResult = detectIntent(combinedUserText);
     const sentimentResult = analyzeSentiment(combinedUserText);

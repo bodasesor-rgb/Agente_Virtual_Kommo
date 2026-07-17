@@ -19579,22 +19579,32 @@ ${CATALOG_OFFER_QUESTION}`
     const extractorSrc = readFileSync3(path4.join(apiRoot, "src/services/learningExtractor.ts"), "utf8");
     const ingestSrc = readFileSync3(path4.join(apiRoot, "src/services/chatIngest.ts"), "utf8");
     const kommoSrc = readFileSync3(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const embudoSrc = readFileSync3(path4.join(apiRoot, "src/services/embudo.ts"), "utf8");
+    const learningRoutes = readFileSync3(path4.join(apiRoot, "src/routes/learning.ts"), "utf8");
+    const talksSrc = readFileSync3(path4.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
     const keepAlive = readFileSync3(
       path4.join(repoRoot, ".github/workflows/keep-alive-hostinger.yml"),
       "utf8"
     );
+    const panelApp = readFileSync3(path4.join(apiRoot, "public/aprendizaje/app.js"), "utf8");
     assert.ok(/HUMANO_TRABAJA/.test(syncSrc));
-    assert.ok(
-      /extract:\s*[\s\S]*HUMANO_TRABAJA/.test(syncSrc) || /HUMANO_TRABAJA[\s\S]*extract:\s*true/.test(syncSrc) || /extract:[\s\S]*COTIZACION_REALIZADA[\s\S]*HUMANO_TRABAJA/.test(syncSrc),
-      "cron debe pasar extract=true en Humano Trabaja"
-    );
+    assert.ok(/listKommoLeadsInLearningStages/.test(syncSrc), "cron lista leads vivos en Kommo");
+    assert.ok(/resolveKommoTalkId/.test(syncSrc), "sync resuelve talkId");
+    assert.ok(/with=contacts,tags,chats/.test(embudoSrc), "fetchLead incluye chats");
+    assert.ok(/learningPhase:\s*"human_active"/.test(embudoSrc), embudoSrc.slice(0, 200));
+    assert.ok(/syncHumanPhaseLead/.test(embudoSrc));
     assert.ok(!/syncHumanPhaseLead\([\s\S]*extract:\s*false/.test(kommoSrc));
     assert.ok(/syncHumanPhaseLead\([\s\S]*extract:\s*true/.test(kommoSrc));
+    assert.ok(/kommoTalkId/.test(kommoSrc));
     assert.ok(/extractLearningCandidatesForLead/.test(ingestSrc));
+    assert.ok(/resolveKommoTalkId|fetchTalkIdFromLeadChats/.test(talksSrc));
     assert.ok(/AUTO_APPROVE_CONFIDENCE/.test(extractorSrc));
     assert.ok(/approveLearningCandidate/.test(extractorSrc));
     assert.ok(!/6 \* 60 \* 60 \* 1000/.test(extractorSrc));
     assert.ok(/kommo\/cron\/learning/.test(keepAlive));
+    assert.ok(/aprendizaje\/from-chats/.test(learningRoutes));
+    assert.ok(/aprendizaje\/from-chats/.test(panelApp));
+    assert.ok(/Sincronizar chats|kommo\/cron\/learning/.test(panelApp));
   });
   await test("66. Brief multi-servicio Alexa + sal\xF3n/edificio no es ubicaci\xF3n", () => {
     const alexaBrief = "Hola, para un corporativo necesito coffee break, desayuno, snack, comida, cena y men\xFA staff para 80 personas el 12 de septiembre en Polanco";

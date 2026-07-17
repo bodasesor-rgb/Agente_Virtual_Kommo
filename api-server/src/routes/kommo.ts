@@ -1334,6 +1334,20 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       }).returning();
       conversation = newConv!;
       log.info({ entityId }, "Nueva conversación creada en BD");
+    } else if (talkId || chatId) {
+      // Persistir talk/chat en cada inbound — sin esto el cron de aprendizaje no sincroniza.
+      const patch: { kommoTalkId?: string; kommoChatId?: string; updatedAt: Date } = {
+        updatedAt: new Date(),
+      };
+      if (talkId && talkId !== conversation.kommoTalkId) patch.kommoTalkId = talkId;
+      if (chatId && chatId !== conversation.kommoChatId) patch.kommoChatId = chatId;
+      if (patch.kommoTalkId || patch.kommoChatId) {
+        await db
+          .update(conversations)
+          .set(patch)
+          .where(eq(conversations.id, conversation.id));
+        conversation = { ...conversation, ...patch };
+      }
     }
 
     // ══════════════════════════════════════════════════════════════════════

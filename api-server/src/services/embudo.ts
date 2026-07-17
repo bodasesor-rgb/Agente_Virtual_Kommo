@@ -62,7 +62,7 @@ export async function fetchLead(
 ): Promise<LeadKommo | null> {
   try {
     const res = await fetch(
-      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags`,
+      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags,chats`,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     if (!res.ok) return null;
@@ -361,14 +361,47 @@ export async function moverAHumanoTrabaja(
 
   await agregarNota(subdomain, accessToken, leadId, nota);
 
-  // Marcar en BD
+  // Marcar en BD + activar fase de aprendizaje (si no, el cron nunca ve el lead).
   try {
-    await db.update(conversations)
-      .set({ stage: "humano_trabaja", status: "qualified", updatedAt: new Date() })
-      .where(eq(conversations.kommoLeadId, String(leadId)));
-  } catch {
-    // no crítico
+    const leadKey = String(leadId);
+    const existing = await db.query.conversations.findFirst({
+      where: eq(conversations.kommoLeadId, leadKey),
+    });
+    if (existing) {
+      await db
+        .update(conversations)
+        .set({
+          stage: "humano_trabaja",
+          status: "qualified",
+          learningPhase: "human_active",
+          updatedAt: new Date(),
+        })
+        .where(eq(conversations.kommoLeadId, leadKey));
+    } else {
+      await db.insert(conversations).values({
+        kommoLeadId: leadKey,
+        kommoChatId: leadKey,
+        stage: "humano_trabaja",
+        status: "qualified",
+        learningPhase: "human_active",
+        messageCount: 0,
+      });
+    }
+  } catch (err) {
+    logger.warn({ err, leadId }, "Embudo: no se pudo marcar learningPhase human_active");
   }
+
+  // Arrancar sync/extract en background (Talks de Alejandro → candidatos).
+  void import("./learningSync.js")
+    .then(({ syncHumanPhaseLead }) =>
+      syncHumanPhaseLead(subdomain, accessToken, String(leadId), { extract: true })
+    )
+    .then((r) =>
+      logger.info({ leadId, ...r }, "Embudo: sync aprendizaje tras Humano Trabaja")
+    )
+    .catch((err) =>
+      logger.warn({ err, leadId }, "Embudo: sync aprendizaje post-cierre falló")
+    );
 
   logger.info({ leadId }, "Embudo: lead movido a Humano Trabaja");
 }

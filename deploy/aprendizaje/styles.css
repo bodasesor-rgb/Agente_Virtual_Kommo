@@ -41,6 +41,21 @@ body {
 
 .hidden { display: none !important; }
 
+.secondary-tabs {
+  margin-top: 0.5rem;
+  opacity: 0.98;
+}
+
+.sync-status {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--blue-soft);
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
 a { color: var(--accent-dark); text-decoration: none; font-weight: 500; }
 a:hover { text-decoration: underline; }
 

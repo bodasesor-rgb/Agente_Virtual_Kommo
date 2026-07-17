@@ -38,10 +38,12 @@ router.get("/health", (_req, res) => {
       "silent-crm-watch",
       "emergency-contact-in-humano-trabaja",
       "knowledge-gaps-aprendizaje",
+      "aprendizaje-panel-from-chats",
     ],
     learning: {
-      note: "Sync Kommo Talks + extracción en Humano Trabaja/Cotización; cron vía keep-alive cada 5 min; auto-aprueba confidence≥0.85",
+      note: "Panel /aprendizaje muestra chats; sync Kommo (fase + etapas vivas); talkId resuelto; extract Humano Trabaja/Cotización; cron 5 min; auto-aprueba ≥0.85",
       cron_path: "/api/kommo/cron/learning",
+      panel_path: "/aprendizaje",
     },
     silent_watch: {
       note: "En Humano Trabaja/Cotización/seguimientos Lucy no cotiza; actualiza CRM si cambian datos; solo escribe teléfonos de emergencia",
