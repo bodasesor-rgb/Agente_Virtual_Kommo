@@ -85,31 +85,50 @@ export async function syncHumanPhaseLead(
 export async function listKommoLeadsInLearningStages(
   subdomain: string,
   accessToken: string,
-  limitPerStage = 40
+  limitPerStage = 50
 ): Promise<string[]> {
   const statusIds = [ETAPA.HUMANO_TRABAJA, ETAPA.COTIZACION_REALIZADA];
   const ids = new Set<string>();
 
   for (const statusId of statusIds) {
-    try {
-      const url =
-        `https://${subdomain}.kommo.com/api/v4/leads` +
+    const urls = [
+      // Formato oficial filter[statuses][n][pipeline_id|status_id]
+      `https://${subdomain}.kommo.com/api/v4/leads` +
         `?filter[statuses][0][pipeline_id]=${PIPELINE_ID}` +
         `&filter[statuses][0][status_id]=${statusId}` +
-        `&limit=${limitPerStage}&order[updated_at]=desc`;
-      const res = await fetch(url, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      if (!res.ok) {
-        logger.warn({ statusId, status: res.status }, "learningSync: list leads falló");
-        continue;
+        `&limit=${limitPerStage}&order[updated_at]=desc`,
+      // Fallback: status_id plano
+      `https://${subdomain}.kommo.com/api/v4/leads` +
+        `?filter[pipeline_id]=${PIPELINE_ID}&filter[statuses][]=${statusId}` +
+        `&limit=${limitPerStage}&order[updated_at]=desc`,
+    ];
+
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok) {
+          logger.warn(
+            { statusId, status: res.status, url: url.slice(0, 120) },
+            "learningSync: list leads falló"
+          );
+          continue;
+        }
+        const data = (await res.json()) as {
+          _embedded?: { leads?: Array<{ id?: number; status_id?: number }> };
+        };
+        const leads = data._embedded?.leads ?? [];
+        for (const lead of leads) {
+          if (lead.id == null) continue;
+          // Si el fallback trajo otros status, filtramos.
+          if (lead.status_id != null && lead.status_id !== statusId) continue;
+          ids.add(String(lead.id));
+        }
+        if (leads.length > 0) break;
+      } catch (err) {
+        logger.warn({ err, statusId }, "learningSync: error listando leads Kommo");
       }
-      const data = (await res.json()) as { _embedded?: { leads?: Array<{ id?: number }> } };
-      for (const lead of data._embedded?.leads ?? []) {
-        if (lead.id != null) ids.add(String(lead.id));
-      }
-    } catch (err) {
-      logger.warn({ err, statusId }, "learningSync: error listando leads Kommo");
     }
   }
 

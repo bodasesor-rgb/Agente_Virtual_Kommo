@@ -19605,6 +19605,13 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/aprendizaje\/from-chats/.test(learningRoutes));
     assert.ok(/aprendizaje\/from-chats/.test(panelApp));
     assert.ok(/Sincronizar chats|kommo\/cron\/learning/.test(panelApp));
+    const routesIndex = readFileSync3(path4.join(apiRoot, "src/routes/index.ts"), "utf8");
+    const learningMount = routesIndex.indexOf("learningRouter");
+    const examplesMount = routesIndex.indexOf("examplesRouter");
+    assert.ok(
+      learningMount > 0 && examplesMount > 0 && learningMount < examplesMount,
+      "learningRouter debe ir antes de examplesRouter para no bloquear GET p\xFAblicos"
+    );
   });
   await test("66. Brief multi-servicio Alexa + sal\xF3n/edificio no es ubicaci\xF3n", () => {
     const alexaBrief = "Hola, para un corporativo necesito coffee break, desayuno, snack, comida, cena y men\xFA staff para 80 personas el 12 de septiembre en Polanco";

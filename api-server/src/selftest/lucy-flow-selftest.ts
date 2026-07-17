@@ -3026,6 +3026,13 @@ async function runAll(): Promise<void> {
     assert.ok(/aprendizaje\/from-chats/.test(learningRoutes));
     assert.ok(/aprendizaje\/from-chats/.test(panelApp));
     assert.ok(/Sincronizar chats|kommo\/cron\/learning/.test(panelApp));
+
+    // learningRouter debe montarse ANTES de examples (requireAuth global).
+    const routesIndex = readFileSync(path.join(apiRoot, "src/routes/index.ts"), "utf8");
+    const learningMount = routesIndex.indexOf("learningRouter");
+    const examplesMount = routesIndex.indexOf("examplesRouter");
+    assert.ok(learningMount > 0 && examplesMount > 0 && learningMount < examplesMount,
+      "learningRouter debe ir antes de examplesRouter para no bloquear GET públicos");
   });
 
   await test("66. Brief multi-servicio Alexa + salón/edificio no es ubicación", () => {
