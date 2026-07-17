@@ -10,7 +10,7 @@ import {
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
 import { isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { resolveTipoContacto } from "../tipoContacto.js";
-import { isDimensionText } from "../conversation-understanding.js";
+import { isDimensionText, isVagueVenueOnly } from "../conversation-understanding.js";
 
 function lineLabel(line: string): string {
   return line.replace(/^-?\s*/, "").split(":")[0]?.trim() ?? "";
@@ -30,12 +30,12 @@ export function purgeOwnCompanyEmailLines(lines: string[]): string[] {
   });
 }
 
-/** "6m x 12m" u otras medidas no son ubicación del evento. */
+/** "6m x 12m" u otras medidas / "salón" genérico no son ubicación del evento. */
 export function purgeDimensionUbicacionLines(lines: string[]): string[] {
   return lines.filter((line) => {
     if (!/^-?\s*Lugar\/dirección del evento:/i.test(line)) return true;
     const raw = lineValue(line, "Lugar/dirección del evento");
-    return !isDimensionText(raw);
+    return !isDimensionText(raw) && !isVagueVenueOnly(raw);
   });
 }
 
@@ -87,7 +87,10 @@ export function sanitizeExtractedFromExternal(
   const nombre = sanitizeCrmNombre(out.nombre);
   out.nombre = nombre && !isQuoteIntentMessage(nombre) ? nombre : null;
 
-  if (out.direccion_evento && isDimensionText(out.direccion_evento)) {
+  if (
+    out.direccion_evento &&
+    (isDimensionText(out.direccion_evento) || isVagueVenueOnly(out.direccion_evento))
+  ) {
     out.direccion_evento = null;
   }
 

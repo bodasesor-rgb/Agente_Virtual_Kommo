@@ -32,7 +32,8 @@ export const LUCY_FIELD_ASK_PATTERNS: Record<UnderstandingField, RegExp> = {
   tipo_evento:
     /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
   requerimientos:
-    /pensado|servicios?|banquete|taquiza|cotizar|cotizaci[oó]n|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar|animaci[oó]n|hora\s+loca|happening|show|incluir\s+en\s+la\s+cotiz/i,
+    // No usar "cotización" suelta: "la anoto para tu cotización" NO es pregunta de servicios.
+    /pensado|servicios?|banquete|taquiza|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|plat[ií]came|otro\s+servicio|te\s+gustar[ií]a\s+cotizar|qu[eé].{0,40}cotizar|animaci[oó]n|hora\s+loca|happening|show|incluir\s+en\s+la\s+cotiz|\bmen[uú]\b(?!\s+staff)/i,
   invitados:
     /invitados|personas|gente|pax|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an|asistir[aá]n/i,
   zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n|es)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n|venue|sede|colonia|municipio/i,
@@ -53,7 +54,13 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
   ["Mesa de postres", /\b(mesa\s+de\s+postres|postres|dulces)\b/i],
   ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
-  ["Coffee break", /\b(barra\s+de\s+caf[eé]|coffee\s*break)\b/i],
+  ["Coffee break", /\b(barra\s+de\s+caf[eé]|coffee\s*break|coffeebreak)\b/i],
+  // Tiempos de comida corporativos (briefs con varios servicios).
+  ["Desayuno", /\bdesayunos?\b/i],
+  ["Snack", /\bsnacks?\b/i],
+  ["Comida", /\bcomidas?\b/i],
+  ["Cena", /\bcenas?\b/i],
+  ["Menú staff", /\bmen[uú]\s+(para\s+)?staff\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
   ["Iluminación", /\biluminaci[oó]n\b/i],
@@ -66,7 +73,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Estructuras", /\b(estructura|colgante|wisteria)\b/i],
   ["Inflables", /\binflable/i],
   ["Softplay", /\bsoft\s*play\b/i],
-  ["Meseros", /\bmeseros?\b/i],
+  ["Meseros", /\b(meseros?|staff|personal\s+de\s+servicio)\b/i],
   ["DJ", /\bdj\b/i],
   ["Mixología", /\bmixolog[ií]a\b/i],
   ["Coctelería", /\bcocteler[ií]a\b/i],
@@ -87,7 +94,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|decoraci[oó]n|flor|brunch|renta\s+de|letras?|valet|pirotecnia|imperial/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|sushi|parrillada|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -303,7 +310,7 @@ export function parseWebLeadBrief(text: string): WebLeadBrief | null {
     const tipo = parseTipoEventoFromText(chunk);
     if (tipo) result.tipo_evento = tipo;
     const services = parseServicesFromText(chunk);
-    if (services.length) result.requerimientos_evento = services.slice(0, 3).join(", ");
+    if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
     else if (!tipo) result.requerimientos_evento = chunk;
   }
 
@@ -326,13 +333,22 @@ export function applyWebLeadBrief(extracted: ExtractedData, text: string): boole
   const brief = parseWebLeadBrief(text);
   if (!brief) return false;
   if (!extracted.tipo_evento?.trim() && brief.tipo_evento) extracted.tipo_evento = brief.tipo_evento;
-  if (!extracted.requerimientos_evento?.trim() && brief.requerimientos_evento) {
-    extracted.requerimientos_evento = brief.requerimientos_evento;
+  if (brief.requerimientos_evento) {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      brief.requerimientos_evento,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
   }
   if (!extracted.fecha_horario?.trim() && brief.fecha_horario) {
     extracted.fecha_horario = brief.fecha_horario;
   }
-  if (!extracted.direccion_evento?.trim() && brief.direccion_evento) {
+  if (
+    !isUsableDireccionEvento(extracted.direccion_evento) &&
+    brief.direccion_evento &&
+    isUsableDireccionEvento(brief.direccion_evento)
+  ) {
     extracted.direccion_evento = brief.direccion_evento;
   }
   if (!extracted.num_invitados && brief.num_invitados) extracted.num_invitados = brief.num_invitados;
@@ -358,17 +374,30 @@ export function isVagueFoodTerm(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
   if (hasSpecificFoodService(t)) return false;
-  if (parseServicesFromText(t).length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t)) {
-    return false;
+  const services = parseServicesFromText(t);
+  // Brief con varios servicios (coffee break + desayuno + …) no es "comida vaga".
+  if (services.length >= 2) return false;
+  if (
+    services.length > 0 &&
+    !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t) &&
+    !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t)
+  ) {
+    // "quiero desayuno" solo → Desayuno concreto (ya no vago).
+    if (services.length === 1 && /^(Desayuno|Snack|Cena|Coffee break|Brunch)$/i.test(services[0]!)) {
+      return false;
+    }
+    if (services.length === 1 && !/^(Comida)$/i.test(services[0]!)) {
+      return false;
+    }
   }
   const cleaned = t
     .replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "")
     .replace(/^(una?|el|la|los|las)\s+/i, "")
     .trim();
-  if (/^(comida|alimentos?|men[uú]s?|desayuno|brunch|catering|algo\s+de\s+comer)$/i.test(cleaned)) {
+  if (/^(comida|alimentos?|men[uú]s?|catering|algo\s+de\s+comer)$/i.test(cleaned)) {
     return true;
   }
-  return /\b(quiero|necesito|busco)\s+(comida|alimentos?|desayuno|algo\s+de\s+comer)\b/i.test(t);
+  return /\b(quiero|necesito|busco)\s+(comida|alimentos?|algo\s+de\s+comer)\b/i.test(t);
 }
 
 /** Limpia extracción GPT cuando el turno es un número suelto ambiguo. */
@@ -633,7 +662,36 @@ const KNOWN_ZONES =
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
-  /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su)\b/i;
+  /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])\b/i;
+
+/**
+ * "salón", "edificio", "en el salón" sin nombre propio / ciudad / colonia
+ * NO cuentan como ubicación completa del evento.
+ */
+export function isVagueVenueOnly(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return true;
+  const cleaned = t
+    .replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "")
+    .trim();
+  if (!cleaned) return true;
+  if (
+    /^(sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])$/i.test(
+      cleaned
+    )
+  ) {
+    return true;
+  }
+  // Compuestos genéricos sin nombre propio.
+  if (
+    /^(sal[oó]n|edificio|venue|jard[ií]n)(\s+de)?(\s+(eventos?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
+      cleaned
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
 
 export interface CrmCapture {
   label: string;
@@ -665,16 +723,73 @@ export function parseServicesFromText(text: string): string[] {
   const found: string[] = [];
   const lower = text.toLowerCase();
 
+  // "Comida" como tiempo de menú solo en briefs con varios servicios/tiempos.
+  // Si el cliente dice solo "busco comida", sigue el alias banquete/taquiza.
+  const hasMealListContext =
+    /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text) ||
+    (text.match(/,/g) ?? []).length >= 1 ||
+    /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text);
+
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
+    if (label === "Comida" && !hasMealListContext) continue;
     if (pattern.test(lower)) found.push(label);
   }
 
+  // Evita duplicar "Menú staff" + "Meseros" cuando el cliente dijo "menú staff".
+  if (found.includes("Menú staff")) {
+    const meserosIdx = found.indexOf("Meseros");
+    if (meserosIdx >= 0) found.splice(meserosIdx, 1);
+  }
+
   const normalized = normalizeShortServicePhrase(text);
-  if (normalized && !found.some((s) => s.toLowerCase().includes(normalized.toLowerCase()))) {
-    found.push(normalized);
+  if (normalized) {
+    const normLower = normalized.toLowerCase();
+    const already = found.some(
+      (s) => s.toLowerCase().includes(normLower) || normLower.includes(s.toLowerCase())
+    );
+    // No expandir "comida"→banquete/taquiza si ya hay tiempos de comida u otros servicios.
+    const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
+    if (!already && !(isVagueFoodAlias && found.length > 0)) {
+      found.push(normalized);
+    }
   }
 
   return [...new Set(found)];
+}
+
+/** Lista natural en español: "A, B y C". */
+export function formatServicesList(services: string[]): string {
+  const clean = services.map((s) => s.trim()).filter(Boolean);
+  if (clean.length === 0) return "";
+  if (clean.length === 1) return clean[0]!;
+  if (clean.length === 2) return `${clean[0]} y ${clean[1]}`;
+  return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
+}
+
+/** Une servicios de un texto con los ya capturados (hasta max). */
+export function mergeServiceRequirements(
+  existing: string | null | undefined,
+  text: string | null | undefined,
+  max = 6
+): string | null {
+  const fromExisting = existing?.trim() ? parseServicesFromText(existing) : [];
+  const fromText = text?.trim() ? parseServicesFromText(text) : [];
+  const merged = [...new Set([...fromExisting, ...fromText])].slice(0, max);
+  if (merged.length === 0) {
+    const fallback = existing?.trim() || text?.trim() || "";
+    return fallback ? fallback.slice(0, 250) : null;
+  }
+  return merged.join(", ");
+}
+
+/** Ack cuando el cliente pidió varios servicios en un brief. */
+export function buildMultiServiceAck(services: string[]): string {
+  const list = formatServicesList(services);
+  if (!list) return "Perfecto, anoto lo que necesitas para tu evento.";
+  if (services.length === 1) {
+    return `Perfecto, veo que necesitas ${list}.`;
+  }
+  return `Perfecto, veo que necesitas ${list}. Te cotizamos todo eso.`;
 }
 
 /** Tras el cierre, anexa servicios o detalles nuevos al campo requerimientos. */
@@ -745,6 +860,13 @@ export function parseTipoEventoFromText(text: string): string | null {
 export function parseInvitadosFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
+
+  // "N personas/invitados" siempre, aunque el brief también nombre servicios.
+  const numMatchEarly = trimmed.match(
+    /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
+  );
+  if (numMatchEarly) return numMatchEarly[1]!;
+
   if (isServiceRelatedMessage(trimmed)) return null;
 
   if (
@@ -806,6 +928,15 @@ export function isDimensionText(text: string | null | undefined): boolean {
   );
 }
 
+/** Ubicación usable: no vacía, no medidas, no venue genérico ("salón"/"edificio"). */
+export function isUsableDireccionEvento(value: string | null | undefined): boolean {
+  const t = value?.trim() ?? "";
+  if (!t) return false;
+  if (isDimensionText(t)) return false;
+  if (isVagueVenueOnly(t)) return false;
+  return true;
+}
+
 /** Medidas del espacio para tarima/pista (ej. 6 metros por 12). */
 export function parseSpaceDimensions(text: string): string | null {
   const m = text.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
@@ -856,6 +987,7 @@ export function parseZonaFromText(text: string): string | null {
       !/^\d/.test(candidato) &&
       !isGreetingOnlyMessage(candidato) &&
       !NON_LOCATION_WORDS.test(candidato) &&
+      !isVagueVenueOnly(candidato) &&
       !/\b(solo|para\s+la|total|comida|pista)\b/i.test(candidato)
     ) {
       return candidato;
@@ -1319,7 +1451,9 @@ export function captureContextualAnswer(
     !clientAsksForRecommendations(msg) &&
     (asked === "requerimientos" || isServiceRelatedMessage(msg))
   ) {
-    const service = parsePrimaryService(msg);
+    const services = parseServicesFromText(msg);
+    const service =
+      services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
     const dims = parseSpaceDimensions(msg);
     if (service || isServiceRelatedMessage(msg)) {
       let value = service ?? msg.slice(0, 120);
@@ -1339,7 +1473,9 @@ export function captureContextualAnswer(
 
   if (!filledSet.has("Lugar/dirección del evento") && asked === "zona") {
     const zona = parseZonaFromText(msg);
-    if (zona) captures.push({ label: "Lugar/dirección del evento", value: zona });
+    if (zona && isUsableDireccionEvento(zona)) {
+      captures.push({ label: "Lugar/dirección del evento", value: zona });
+    }
   }
 
   if (!filledSet.has("Fecha y horario") && asked === "fecha") {
@@ -1397,7 +1533,8 @@ export function scanConversationForCaptures(
       !clientAsksForRecommendations(msg) &&
       isServiceRelatedMessage(msg)
     ) {
-      const service = parsePrimaryService(msg);
+      const services = parseServicesFromText(msg);
+      const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
       const dims = parseSpaceDimensions(msg);
       let value = service ?? msg.trim().slice(0, 120);
       if (dims && service) value = `${service} (espacio ${dims})`;
@@ -1419,7 +1556,7 @@ export function scanConversationForCaptures(
 
     if (!pending.has("Lugar/dirección del evento")) {
       const zona = parseZonaFromText(msg);
-      if (zona && !isDimensionText(zona)) {
+      if (zona && isUsableDireccionEvento(zona)) {
         captures.push({ label: "Lugar/dirección del evento", value: zona });
         pending.add("Lugar/dirección del evento");
       }
@@ -1532,16 +1669,21 @@ export function enrichExtractedFromConversation(
     if (inv) extracted.num_invitados = parseInt(inv, 10);
   }
 
-  if (!extracted.direccion_evento?.trim()) {
+  if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+    if (isVagueVenueOnly(extracted.direccion_evento) || isDimensionText(extracted.direccion_evento)) {
+      extracted.direccion_evento = null;
+    }
     const zona = parseZonaFromText(conversationText);
-    if (zona) extracted.direccion_evento = zona;
+    if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
   }
 
-  if (!extracted.requerimientos_evento?.trim()) {
-    const services = parseServicesFromText(conversationText);
-    if (services.length > 0) {
-      extracted.requerimientos_evento = services.slice(0, 3).join(", ");
-    }
+  {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      conversationText,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
   }
 
   if (extracted.presupuesto === null || extracted.presupuesto === undefined) {
