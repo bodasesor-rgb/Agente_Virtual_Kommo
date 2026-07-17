@@ -605,8 +605,8 @@ function pickVariant(
 export function buildPhoneAnswer(): string {
   return [
     "Claro, te paso los números:",
-    "Ventas (solo línea telefónica, sin WhatsApp): 55 4008 0373",
-    "Gerencia / corporativo (línea telefónica y WhatsApp): 56 4671 0585",
+    "Ventas: 55 4008 0373 — solo por línea telefónica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 — sí aceptamos llamadas por WhatsApp y por línea telefónica.",
     "Por aquí por chat también te podemos ayudar con lo que necesites.",
   ].join("\n");
 }
@@ -618,8 +618,8 @@ export function buildPhoneAnswer(): string {
 export function buildEmergencyContactAnswer(): string {
   return [
     "Claro, te paso los contactos de emergencia del equipo:",
-    "Ventas (solo llamada): 55 4008 0373",
-    "Gerencia / corporativo (llamada y WhatsApp): 56 4671 0585",
+    "Ventas: 55 4008 0373 — solo por línea telefónica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 — sí aceptamos llamadas por WhatsApp y por línea telefónica.",
     "Un asesor te puede atender por ahí. Tu caso sigue en seguimiento con el equipo.",
   ].join("\n");
 }

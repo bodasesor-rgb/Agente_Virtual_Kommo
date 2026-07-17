@@ -368,8 +368,9 @@ async function runAll(): Promise<void> {
     const phone = buildPhoneAnswer();
     assert.ok(/4008\s*0373/.test(phone));
     assert.ok(/4671\s*0585/.test(phone));
-    assert.ok(/sin WhatsApp/i.test(phone));
-    assert.ok(/Gerencia.*WhatsApp/is.test(phone));
+    assert.ok(/solo por l[ií]nea telef[oó]nica/i.test(phone));
+    assert.ok(/no WhatsApp/i.test(phone));
+    assert.ok(/WhatsApp y por l[ií]nea telef[oó]nica/i.test(phone));
 
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const reply = runGuards({
@@ -380,7 +381,8 @@ async function runAll(): Promise<void> {
       currentMessage: "¿Tienen teléfono? Nadie contesta",
     });
     assert.ok(/4008|4671/.test(reply));
-    assert.ok(/sin WhatsApp/i.test(reply));
+    assert.ok(/no WhatsApp/i.test(reply));
+    assert.ok(/WhatsApp y por l[ií]nea telef[oó]nica/i.test(reply));
   });
 
   await test('6. "No sé aún" en invitados — captura sin re-preguntar invitados', () => {
@@ -2963,6 +2965,8 @@ async function runAll(): Promise<void> {
     assert.ok(/55 4008 0373/.test(emergency));
     assert.ok(/56 4671 0585/.test(emergency));
     assert.ok(/emergencia/i.test(emergency));
+    assert.ok(/solo por l[ií]nea telef[oó]nica/i.test(emergency));
+    assert.ok(/WhatsApp y por l[ií]nea telef[oó]nica/i.test(emergency));
 
     const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
     const kommoSrc = readFileSync(path.join(apiRoot, "src/routes/kommo.ts"), "utf8");

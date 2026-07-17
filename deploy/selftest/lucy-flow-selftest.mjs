@@ -14633,16 +14633,16 @@ function pickVariant(field, history, entityId) {
 function buildPhoneAnswer() {
   return [
     "Claro, te paso los n\xFAmeros:",
-    "Ventas (solo l\xEDnea telef\xF3nica, sin WhatsApp): 55 4008 0373",
-    "Gerencia / corporativo (l\xEDnea telef\xF3nica y WhatsApp): 56 4671 0585",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
     "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
   ].join("\n");
 }
 function buildEmergencyContactAnswer() {
   return [
     "Claro, te paso los contactos de emergencia del equipo:",
-    "Ventas (solo llamada): 55 4008 0373",
-    "Gerencia / corporativo (llamada y WhatsApp): 56 4671 0585",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
     "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
   ].join("\n");
 }
@@ -17048,8 +17048,9 @@ async function runAll() {
     const phone = buildPhoneAnswer();
     assert.ok(/4008\s*0373/.test(phone));
     assert.ok(/4671\s*0585/.test(phone));
-    assert.ok(/sin WhatsApp/i.test(phone));
-    assert.ok(/Gerencia.*WhatsApp/is.test(phone));
+    assert.ok(/solo por l[ií]nea telef[oó]nica/i.test(phone));
+    assert.ok(/no WhatsApp/i.test(phone));
+    assert.ok(/WhatsApp y por l[ií]nea telef[oó]nica/i.test(phone));
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const reply = runGuards({
       aiResponse: "ok",
@@ -17059,7 +17060,8 @@ async function runAll() {
       currentMessage: "\xBFTienen tel\xE9fono? Nadie contesta"
     });
     assert.ok(/4008|4671/.test(reply));
-    assert.ok(/sin WhatsApp/i.test(reply));
+    assert.ok(/no WhatsApp/i.test(reply));
+    assert.ok(/WhatsApp y por l[ií]nea telef[oó]nica/i.test(reply));
   });
   await test('6. "No s\xE9 a\xFAn" en invitados \u2014 captura sin re-preguntar invitados', () => {
     const inv = parseInvitadosFromText("No s\xE9 a\xFAn");
@@ -19332,6 +19334,8 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/55 4008 0373/.test(emergency));
     assert.ok(/56 4671 0585/.test(emergency));
     assert.ok(/emergencia/i.test(emergency));
+    assert.ok(/solo por l[ií]nea telef[oó]nica/i.test(emergency));
+    assert.ok(/WhatsApp y por l[ií]nea telef[oó]nica/i.test(emergency));
     const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");
     const kommoSrc = readFileSync3(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
     const embudoSrc = readFileSync3(path4.join(apiRoot, "src/services/embudo.ts"), "utf8");
