@@ -260,11 +260,20 @@ export async function enviarMensaje(
  * Lucy está activa si:
  *  1. La etapa es una de las permitidas (Leads Entrantes, Datos e Intereses, No Contesta)
  *  2. El lead NO tiene el tag "lucy_desactivada"
+ *
+ * En el resto de etapas (Humano Trabaja, Cotización, Seguimientos, etc.) Lucy
+ * NO escribe — salvo la excepción de contacto de emergencia (ver processBatch).
+ * Aunque no escriba, siempre vigila el chat y puede actualizar datos en CRM.
  */
 export function lucyDebeResponder(statusId: number, tags: string[]): boolean {
   if (!ETAPAS_LUCY_ACTIVA.has(statusId)) return false;
   if (tags.includes("lucy_desactivada")) return false;
   return true;
+}
+
+/** Etapas donde Lucy está en silencio (solo vigila; no cotiza ni avanza el flujo). */
+export function lucyEstaEnSilencio(statusId: number, tags: string[]): boolean {
+  return !lucyDebeResponder(statusId, tags);
 }
 
 /**

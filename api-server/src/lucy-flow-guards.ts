@@ -611,6 +611,19 @@ export function buildPhoneAnswer(): string {
   ].join("\n");
 }
 
+/**
+ * Única respuesta permitida cuando Lucy está en silencio (Humano Trabaja, etc.)
+ * y el cliente pide ayuda/contacto/emergencia.
+ */
+export function buildEmergencyContactAnswer(): string {
+  return [
+    "Claro, te paso los contactos de emergencia del equipo:",
+    "Ventas (solo llamada): 55 4008 0373",
+    "Gerencia / corporativo (llamada y WhatsApp): 56 4671 0585",
+    "Un asesor te puede atender por ahí. Tu caso sigue en seguimiento con el equipo.",
+  ].join("\n");
+}
+
 /** Respuesta estándar de ubicación y cobertura (prompt sección 7). */
 export function buildLocationAnswer(): string {
   return "Estamos en Ciudad de México y trabajamos en toda la república. Según la fecha y el lugar de tu evento, coordinamos el servicio.";
