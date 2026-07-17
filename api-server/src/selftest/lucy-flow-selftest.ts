@@ -2986,26 +2986,33 @@ async function runAll(): Promise<void> {
     const extractorSrc = readFileSync(path.join(apiRoot, "src/services/learningExtractor.ts"), "utf8");
     const ingestSrc = readFileSync(path.join(apiRoot, "src/services/chatIngest.ts"), "utf8");
     const kommoSrc = readFileSync(path.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const embudoSrc = readFileSync(path.join(apiRoot, "src/services/embudo.ts"), "utf8");
+    const learningRoutes = readFileSync(path.join(apiRoot, "src/routes/learning.ts"), "utf8");
+    const talksSrc = readFileSync(path.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
     const keepAlive = readFileSync(
       path.join(repoRoot, ".github/workflows/keep-alive-hostinger.yml"),
       "utf8"
     );
+    const panelApp = readFileSync(path.join(apiRoot, "public/aprendizaje/app.js"), "utf8");
 
     // Cron debe extraer también en Humano Trabaja (no solo Cotización).
     assert.ok(/HUMANO_TRABAJA/.test(syncSrc));
-    assert.ok(
-      /extract:\s*[\s\S]*HUMANO_TRABAJA/.test(syncSrc) ||
-        /HUMANO_TRABAJA[\s\S]*extract:\s*true/.test(syncSrc) ||
-        /extract:[\s\S]*COTIZACION_REALIZADA[\s\S]*HUMANO_TRABAJA/.test(syncSrc),
-      "cron debe pasar extract=true en Humano Trabaja"
-    );
+    assert.ok(/listKommoLeadsInLearningStages/.test(syncSrc), "cron lista leads vivos en Kommo");
+    assert.ok(/resolveKommoTalkId/.test(syncSrc), "sync resuelve talkId");
+    assert.ok(/with=contacts,tags,chats/.test(embudoSrc), "fetchLead incluye chats");
+
+    // Al cerrar, moverAHumanoTrabaja marca learningPhase + dispara sync.
+    assert.ok(/learningPhase:\s*"human_active"/.test(embudoSrc), embudoSrc.slice(0, 200));
+    assert.ok(/syncHumanPhaseLead/.test(embudoSrc));
 
     // Pipeline Humano Trabaja ya no debe forzar extract:false.
     assert.ok(!/syncHumanPhaseLead\([\s\S]*extract:\s*false/.test(kommoSrc));
     assert.ok(/syncHumanPhaseLead\([\s\S]*extract:\s*true/.test(kommoSrc));
+    assert.ok(/kommoTalkId/.test(kommoSrc));
 
     // Tras sync de chat inactivo → extracción.
     assert.ok(/extractLearningCandidatesForLead/.test(ingestSrc));
+    assert.ok(/resolveKommoTalkId|fetchTalkIdFromLeadChats/.test(talksSrc));
 
     // Auto-approve alta confianza + throttle más corto que 6h.
     assert.ok(/AUTO_APPROVE_CONFIDENCE/.test(extractorSrc));
@@ -3014,6 +3021,11 @@ async function runAll(): Promise<void> {
 
     // Keep-alive dispara el cron de aprendizaje.
     assert.ok(/kommo\/cron\/learning/.test(keepAlive));
+
+    // Panel /aprendizaje muestra aprendizaje de chats (no solo knowledge-gaps).
+    assert.ok(/aprendizaje\/from-chats/.test(learningRoutes));
+    assert.ok(/aprendizaje\/from-chats/.test(panelApp));
+    assert.ok(/Sincronizar chats|kommo\/cron\/learning/.test(panelApp));
   });
 
   await test("66. Brief multi-servicio Alexa + salón/edificio no es ubicación", () => {

@@ -5,18 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Aprendizaje de Lucy — Bodasesor</title>
   <base href="/aprendizaje/" />
-  <link rel="stylesheet" href="/aprendizaje/styles.css?v=2" />
+  <link rel="stylesheet" href="/aprendizaje/styles.css?v=3" />
 </head>
 <body>
   <div id="app">
     <section id="main-view" class="page">
       <header class="page-header">
         <div class="page-header-text">
-          <p class="eyebrow">Lucy · Catálogo</p>
+          <p class="eyebrow">Lucy · Aprendizaje continuo</p>
           <h1>Aprendizaje de Lucy</h1>
-          <p class="subtitle">Preguntas sin precio en el Sheet, respuestas que tú enseñas y conocimiento ya guardado.</p>
+          <p class="subtitle">
+            Lo que Lucy aprende de los chats de Alejandro (Humano Trabaja / Cotización)
+            y los huecos del catálogo que tú le enseñas.
+          </p>
         </div>
         <div class="page-header-actions">
+          <button type="button" id="btn-sync-now" class="btn-ghost">Sincronizar chats ahora</button>
           <a href="/panel">← Panel</a>
         </div>
       </header>
@@ -36,27 +40,41 @@
         <p id="system-errors-checked" class="system-errors-checked"></p>
       </section>
 
-      <nav class="view-tabs" id="view-tabs">
-        <button type="button" class="view-tab active" data-status="pending">
-          <span class="tab-title">No sabe</span>
-          <span class="tab-desc">Pendientes de enseñar</span>
-          <span class="tab-count" data-count="pending">0</span>
+      <nav class="view-tabs" id="mode-tabs">
+        <button type="button" class="view-tab active" data-mode="chats">
+          <span class="tab-title">De chats</span>
+          <span class="tab-desc">Aprendido con Alejandro</span>
+          <span class="tab-count" data-count="chatLearned">0</span>
         </button>
-        <button type="button" class="view-tab" data-status="answered">
+        <button type="button" class="view-tab" data-mode="gaps">
+          <span class="tab-title">Huecos de catálogo</span>
+          <span class="tab-desc">Preguntas sin precio en Sheet</span>
+          <span class="tab-count" data-count="gapPending">0</span>
+        </button>
+      </nav>
+
+      <nav class="view-tabs secondary-tabs" id="view-tabs">
+        <button type="button" class="view-tab active" data-status-key="approved" data-status="approved">
           <span class="tab-title">Ya aprendió</span>
-          <span class="tab-desc">Respuestas guardadas</span>
-          <span class="tab-count" data-count="answered">0</span>
+          <span class="tab-desc">En uso por Lucy</span>
+          <span class="tab-count" data-count="approved">0</span>
+        </button>
+        <button type="button" class="view-tab" data-status-key="pending" data-status="pending">
+          <span class="tab-title">Por revisar</span>
+          <span class="tab-desc">Candidatos nuevos</span>
+          <span class="tab-count" data-count="pending">0</span>
         </button>
       </nav>
 
       <div class="content-area">
         <div id="section-intro" class="section-intro"></div>
+        <p id="sync-status" class="sync-status hidden"></p>
         <div id="gaps-list" class="gaps-list"></div>
         <p id="empty-state" class="empty-state hidden"></p>
       </div>
     </section>
   </div>
 
-  <script src="/aprendizaje/app.js?v=4" type="module"></script>
+  <script src="/aprendizaje/app.js?v=5" type="module"></script>
 </body>
 </html>
