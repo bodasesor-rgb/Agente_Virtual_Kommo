@@ -141,6 +141,7 @@ import {
   buildCatalogPriceAnswer,
   formatRequerimientoLabelFromQuery,
   buildCatalogInclusionAnswer,
+  clientAsksInclusion,
   buildInclusionTeamConfirmationAnswer,
   injectCatalogInclusionIfAsked,
   resolveCatalogInclusionReply,
@@ -168,6 +169,7 @@ import {
   parseSheetCatalogCsv,
   deriveCatalogCategory,
   formatCatalogRowLabel,
+  sheetRowsToMarkdown,
 } from "../services/googleSheetsCatalog.js";
 import {
   classifyServiceKnowledgeLevel,
@@ -3844,6 +3846,29 @@ async function runAll(): Promise<void> {
     assert.ok(!/Campos/.test(thanks), thanks);
 
     assert.equal(parseNombreFromCrmLines(["- Nombre del cliente: Patricia Campos"]), "Patricia Campos");
+  });
+
+  await test("77. Multi-nivel — markdown del catálogo incluye descripción (Que Incluye)", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE","Refrescos y aguas"',
+      '"Barra de bebidas","Tradicional","$220.00","$6,600.00","TRUE","Refrescos, aguas y 2 licores"',
+      '"Barra de bebidas","Premium","$320.00","$9,600.00","TRUE","Refrescos, aguas y 3 licores premium"',
+    ].join("\n");
+    const rows = parseSheetCatalogCsv(csv);
+    const md = sheetRowsToMarkdown(rows);
+    assert.ok(/\$150/.test(md), md);
+    assert.ok(/Incluye:.*Refrescos y aguas/i.test(md), md);
+    assert.ok(/Incluye:.*2 licores/i.test(md), md);
+    assert.ok(/Incluye:.*3 licores premium/i.test(md), md);
+
+    assert.ok(clientAsksInclusion("dame la descripción de cada paquete"));
+    assert.ok(clientAsksInclusion("qué incluye cada nivel y el precio"));
+    assert.ok(
+      messageOffersLevelsWithoutInclusions(
+        "La barra viene en Básica $150, Tradicional $220 y Premium $320. ¿Cuál prefieres?"
+      )
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

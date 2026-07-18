@@ -2006,6 +2006,76 @@ function parseSheetCatalogCsv(csvText) {
   }
   return rows;
 }
+function sheetRowsToMarkdown(rows) {
+  if (!rows.length) return "";
+  const byCategory = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const cat = row.categoria || "Servicios";
+    if (!byCategory.has(cat)) byCategory.set(cat, []);
+    byCategory.get(cat).push(row);
+  }
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "CAT\xC1LOGO BODASESOR \u2014 GOOGLE SHEETS (fuente viva)",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "",
+    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vac\xEDo \u2192 el equipo confirma en cotizaci\xF3n. NUNCA inventes bebidas, platillos ni marcas.",
+    "REGLA LINK WEB: Si una fila trae Link cat\xE1logo (bodasesor.com/catalogos/\u2026), SOLO env\xEDalo cuando el cliente lo pida. Un link a la vez. No inventes URLs.",
+    ""
+  ];
+  for (const [cat, items] of byCategory) {
+    lines.push(`## ${cat}`, "");
+    const byService = /* @__PURE__ */ new Map();
+    for (const item of items) {
+      const key = item.servicio;
+      if (!byService.has(key)) byService.set(key, []);
+      byService.get(key).push(item);
+    }
+    for (const [svc, levels] of byService) {
+      if (levels.length === 1) {
+        const item = levels[0];
+        const label = formatCatalogRowLabel(item);
+        if (item.tienePrecio && item.precio) {
+          const unit = item.unidad ? ` ${item.unidad}` : "";
+          lines.push(`\u2022 **${label}**: ${item.precio}${unit}`);
+        } else {
+          lines.push(`\u2022 **${label}**: sin precio listado \u2014 Alejandro cotiza`);
+        }
+        if (item.notas) {
+          const parsed = parseRowNotes(item.notas);
+          const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
+          if (clientNotes) lines.push(`  Incluye: ${clientNotes}`);
+        }
+        if (item.linkCatalogo) {
+          lines.push(`  Link cat\xE1logo (solo si lo piden): ${item.linkCatalogo}`);
+        }
+      } else {
+        lines.push(`\u2022 **${svc}** (${levels.length} niveles)`);
+        for (const item of levels.slice(0, 6)) {
+          const label = item.nivel || formatCatalogRowLabel(item);
+          if (item.tienePrecio && item.precio) {
+            const unit = item.unidad ? ` ${item.unidad}` : "";
+            lines.push(`  - ${label}: ${item.precio}${unit}`);
+          } else {
+            lines.push(`  - ${label}: sin precio listado \u2014 el equipo cotiza`);
+          }
+          if (item.notas) {
+            const parsed = parseRowNotes(item.notas);
+            const bits = [
+              parsed.inclusion ? formatInclusionForWhatsApp(parsed.inclusion, 280) : "",
+              parsed.minimo ? `M\xEDn. salida: ${parsed.minimo}` : ""
+            ].filter(Boolean);
+            if (bits.length) lines.push(`    Incluye: ${bits.join(" | ")}`);
+          }
+        }
+        const link = levels.find((l) => l.linkCatalogo)?.linkCatalogo;
+        if (link) lines.push(`  Link cat\xE1logo (solo si lo piden): ${link}`);
+      }
+    }
+    lines.push("");
+  }
+  return lines.join("\n").trim();
+}
 function formatInclusionForWhatsApp(text, maxLen = 420) {
   let cleaned = text.replace(/\s+/g, " ").replace(/ incluido\s+/gi, ". ").replace(/ servicio base incluye:/gi, " Incluye:").replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚ])/g, "$1. $2").trim();
   if (cleaned.length > maxLen) {
@@ -3566,7 +3636,9 @@ function messageOffersLevelsWithoutInclusions(text) {
   if (!text?.trim()) return false;
   const t = text.trim();
   if (/\bincluye\b/i.test(t)) return false;
-  return /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t);
+  const mentionsTriad = /\bb[aá]sic/i.test(t) && /\btradicional\b/i.test(t) && /\bpremium\b/i.test(t);
+  return /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
+  mentionsTriad && (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t) || /prefieres|nivel|opci[oó]n/i.test(t));
 }
 function enrichBareNivelOffer(mensaje, serviceHint) {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
@@ -3725,9 +3797,9 @@ function resolveCatalogInclusionReply(query) {
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b/i.test(
+  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b/i.test(
     t
-  ) && !/\bcu[aá]nto\s+cuesta|\bprecio\b/i.test(t);
+  );
 }
 function buildCatalogInclusionAnswer(query) {
   const resolved = resolveCatalogQuery(query);
@@ -20946,6 +21018,27 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/¡Con gusto, Patricia!/.test(thanks), thanks);
     assert.ok(!/Campos/.test(thanks), thanks);
     assert.equal(parseNombreFromCrmLines(["- Nombre del cliente: Patricia Campos"]), "Patricia Campos");
+  });
+  await test("77. Multi-nivel \u2014 markdown del cat\xE1logo incluye descripci\xF3n (Que Incluye)", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE","Refrescos y aguas"',
+      '"Barra de bebidas","Tradicional","$220.00","$6,600.00","TRUE","Refrescos, aguas y 2 licores"',
+      '"Barra de bebidas","Premium","$320.00","$9,600.00","TRUE","Refrescos, aguas y 3 licores premium"'
+    ].join("\n");
+    const rows = parseSheetCatalogCsv(csv);
+    const md = sheetRowsToMarkdown(rows);
+    assert.ok(/\$150/.test(md), md);
+    assert.ok(/Incluye:.*Refrescos y aguas/i.test(md), md);
+    assert.ok(/Incluye:.*2 licores/i.test(md), md);
+    assert.ok(/Incluye:.*3 licores premium/i.test(md), md);
+    assert.ok(clientAsksInclusion("dame la descripci\xF3n de cada paquete"));
+    assert.ok(clientAsksInclusion("qu\xE9 incluye cada nivel y el precio"));
+    assert.ok(
+      messageOffersLevelsWithoutInclusions(
+        "La barra viene en B\xE1sica $150, Tradicional $220 y Premium $320. \xBFCu\xE1l prefieres?"
+      )
+    );
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

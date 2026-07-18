@@ -718,16 +718,21 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
   return body;
 }
 
-/** Detecta oferta de niveles solo con nombres (sin explicar Incluye). */
+/** Detecta oferta de niveles solo con nombres/precios (sin explicar Incluye). */
 export function messageOffersLevelsWithoutInclusions(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
   const t = text.trim();
   if (/\bincluye\b/i.test(t)) return false;
+  const mentionsTriad =
+    /\bb[aá]sic/i.test(t) && /\btradicional\b/i.test(t) && /\bpremium\b/i.test(t);
   return (
     /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) ||
     /lo tenemos en:\s*\*?b[aá]sic/i.test(t) ||
     (/1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t)) ||
-    (/\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t))
+    (/\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t)) ||
+    // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
+    (mentionsTriad &&
+      (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t) || /prefieres|nivel|opci[oó]n/i.test(t)))
   );
 }
 
@@ -938,10 +943,9 @@ export function resolveCatalogInclusionReply(query: string): string | null {
 export function clientAsksInclusion(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return (
-    /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b/i.test(
-      t
-    ) && !/\bcu[aá]nto\s+cuesta|\bprecio\b/i.test(t)
+  // "descripción", "qué incluye", "detalle" — aunque también pregunten precio.
+  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b/i.test(
+    t
   );
 }
 

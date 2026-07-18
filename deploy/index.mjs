@@ -79127,6 +79127,16 @@ function sheetRowsToMarkdown(rows) {
           if (item.tienePrecio && item.precio) {
             const unit = item.unidad ? ` ${item.unidad}` : "";
             lines.push(`  - ${label}: ${item.precio}${unit}`);
+          } else {
+            lines.push(`  - ${label}: sin precio listado \u2014 el equipo cotiza`);
+          }
+          if (item.notas) {
+            const parsed = parseRowNotes(item.notas);
+            const bits = [
+              parsed.inclusion ? formatInclusionForWhatsApp(parsed.inclusion, 280) : "",
+              parsed.minimo ? `M\xEDn. salida: ${parsed.minimo}` : ""
+            ].filter(Boolean);
+            if (bits.length) lines.push(`    Incluye: ${bits.join(" | ")}`);
           }
         }
         const link = levels.find((l4) => l4.linkCatalogo)?.linkCatalogo;
@@ -82658,7 +82668,9 @@ function messageOffersLevelsWithoutInclusions(text2) {
   if (!text2?.trim()) return false;
   const t = text2.trim();
   if (/\bincluye\b/i.test(t)) return false;
-  return /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t);
+  const mentionsTriad = /\bb[aá]sic/i.test(t) && /\btradicional\b/i.test(t) && /\bpremium\b/i.test(t);
+  return /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
+  mentionsTriad && (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t) || /prefieres|nivel|opci[oó]n/i.test(t));
 }
 function enrichBareNivelOffer(mensaje, serviceHint) {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
@@ -82821,9 +82833,9 @@ function resolveCatalogInclusionReply(query) {
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b/i.test(
+  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b/i.test(
     t
-  ) && !/\bcu[aá]nto\s+cuesta|\bprecio\b/i.test(t);
+  );
 }
 function buildCatalogInclusionAnswer(query) {
   const resolved = resolveCatalogQuery(query);

@@ -379,12 +379,26 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
           lines.push(`  Link catálogo (solo si lo piden): ${item.linkCatalogo}`);
         }
       } else {
+        // Multi-nivel (Básica/Tradicional/Premium): precio + Incluye por nivel.
+        // Sin Incluye aquí GPT solo ve precios y no puede describir cada paquete.
         lines.push(`• **${svc}** (${levels.length} niveles)`);
         for (const item of levels.slice(0, 6)) {
           const label = item.nivel || formatCatalogRowLabel(item);
           if (item.tienePrecio && item.precio) {
             const unit = item.unidad ? ` ${item.unidad}` : "";
             lines.push(`  - ${label}: ${item.precio}${unit}`);
+          } else {
+            lines.push(`  - ${label}: sin precio listado — el equipo cotiza`);
+          }
+          if (item.notas) {
+            const parsed = parseRowNotes(item.notas);
+            const bits = [
+              parsed.inclusion
+                ? formatInclusionForWhatsApp(parsed.inclusion, 280)
+                : "",
+              parsed.minimo ? `Mín. salida: ${parsed.minimo}` : "",
+            ].filter(Boolean);
+            if (bits.length) lines.push(`    Incluye: ${bits.join(" | ")}`);
           }
         }
         const link = levels.find((l) => l.linkCatalogo)?.linkCatalogo;
