@@ -3821,12 +3821,22 @@ function resolveCatalogInclusionReply(query, serviceHint) {
   for (const q of attempts) {
     if (wantsAllLevels) {
       const detail2 = buildCatalogServiceDetailAnswer(q);
-      if (detail2 && /\bincluye\b/i.test(detail2)) return detail2;
+      if (detail2) return detail2;
     }
     const hit = buildCatalogInclusionAnswer(q) ?? buildInclusionTeamConfirmationAnswer(q);
     if (hit) return hit;
     const detail = buildCatalogServiceDetailAnswer(q);
-    if (detail && /\bincluye\b/i.test(detail)) return detail;
+    if (detail) return detail;
+  }
+  const webQ = serviceHint || query;
+  const webHint = buildCatalogWebDetailHint(webQ) ?? buildCatalogWebDetailHint(query);
+  const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
+  if (webHint || webUrl) {
+    return `El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.
+
+${webHint ?? `Cat\xE1logo: ${webUrl}`}
+
+\xBFCu\xE1l nivel prefieres?`;
   }
   return null;
 }

@@ -990,12 +990,20 @@ export function resolveCatalogInclusionReply(
   for (const q of attempts) {
     if (wantsAllLevels) {
       const detail = buildCatalogServiceDetailAnswer(q);
-      if (detail && /\bincluye\b/i.test(detail)) return detail;
+      if (detail) return detail;
     }
     const hit = buildCatalogInclusionAnswer(q) ?? buildInclusionTeamConfirmationAnswer(q);
     if (hit) return hit;
     const detail = buildCatalogServiceDetailAnswer(q);
-    if (detail && /\bincluye\b/i.test(detail)) return detail;
+    if (detail) return detail;
+  }
+
+  // Último recurso: link del catálogo web aunque resolve falle.
+  const webQ = serviceHint || query;
+  const webHint = buildCatalogWebDetailHint(webQ) ?? buildCatalogWebDetailHint(query);
+  const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
+  if (webHint || webUrl) {
+    return `El detalle de lo que incluye cada nivel está en el catálogo web.\n\n${webHint ?? `Catálogo: ${webUrl}`}\n\n¿Cuál nivel prefieres?`;
   }
   return null;
 }
