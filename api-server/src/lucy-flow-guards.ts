@@ -3218,12 +3218,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima — aceptar, anotar y pedir medidas");
-  } else if (
-    allowSalesReplyOverride &&
-    clientAsksInclusion(currentMessage) &&
-    !cierreYaEnviado
-  ) {
-    // "qué incluye / descripción de cada nivel" — responder YA (Sheet o catálogo web).
+  } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+    // Prioridad absoluta: describir paquetes (no depende de allowSalesReplyOverride).
     const serviceHint =
       (isValidRequerimientosValue(extracted.requerimientos_evento)
         ? extracted.requerimientos_evento
@@ -3946,10 +3942,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
     }
   } else if (clientAsksInclusion(currentMessage)) {
-    const inclusionAnswer = resolveCatalogInclusionReply(
-      currentMessage,
-      extracted.requerimientos_evento
-    );
+    const serviceHint =
+      (isValidRequerimientosValue(extracted.requerimientos_evento)
+        ? extracted.requerimientos_evento
+        : null) ||
+      parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) ||
+      findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage, serviceHint);
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -4090,7 +4089,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+  if (!clientAsksInclusion(currentMessage)) {
+    mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+  }
 
   const historyHadGenericMenu = presHistory.some(
     (m) =>

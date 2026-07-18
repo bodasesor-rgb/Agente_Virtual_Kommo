@@ -16728,7 +16728,7 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     );
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 aceptar, anotar y pedir medidas");
-  } else if (allowSalesReplyOverride && clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+  } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     const serviceHint = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
     const inclusionAnswer = resolveCatalogInclusionReply(
       currentMessage ?? "",
@@ -17255,10 +17255,8 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
     }
   } else if (clientAsksInclusion(currentMessage)) {
-    const inclusionAnswer = resolveCatalogInclusionReply(
-      currentMessage,
-      extracted.requerimientos_evento
-    );
+    const serviceHint = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage, serviceHint);
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -17358,7 +17356,9 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId, pending: pendingNombre }, "GUARD: nombre ya capturado \u2014 siguiente dato");
     }
   }
-  mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+  if (!clientAsksInclusion(currentMessage)) {
+    mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+  }
   const historyHadGenericMenu = presHistory.some(
     (m) => m.role === "assistant" && typeof m.content === "string" && (responseLooksLikeGenericCateringMenu(m.content) || looksLikeServicesMenuDump(m.content))
   );
