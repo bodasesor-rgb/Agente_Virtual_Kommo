@@ -3904,6 +3904,24 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/incluye/i.test(guardIncl), guardIncl.slice(0, 500));
     assert.ok(/Refrescos y aguas|2 licores|3 licores/i.test(guardIncl), guardIncl.slice(0, 500));
+
+    // Anti-repeat no debe destruir detalle de catálogo (menús ≠ re-pregunta de reqs).
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje: `${guardIncl}\n\nEl detalle completo de menús e inclusiones está en el catálogo: https://bodasesor.com/catalogos/barra-de-bebidas`,
+      history: [
+        { role: "assistant", content: "¿Qué servicios te gustaría cotizar?" },
+        { role: "user", content: "barra de bebidas" },
+      ],
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        requerimientos_evento: "Barra de bebidas",
+      }),
+      clientName: "Ana",
+    });
+    assert.ok(!/Ya lo tengo anotado/i.test(anti.mensaje), anti.mensaje.slice(0, 300));
+    assert.ok(/incluye|bodasesor\.com\/catalogos/i.test(anti.mensaje), anti.mensaje.slice(0, 400));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

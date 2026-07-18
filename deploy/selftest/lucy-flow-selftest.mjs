@@ -17528,7 +17528,10 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("postcierre-algo-mas-dedupe");
     }
   }
-  if (!cierre && mensajeAsksForFilledField(mensaje, filled, extracted)) {
+  const isCatalogDetailReply = /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s/i.test(
+    mensaje
+  );
+  if (!cierre && !isCatalogDetailReply && mensajeAsksForFilledField(mensaje, filled, extracted)) {
     const stripped = mensaje.split("\n").filter((line) => {
       const t = line.trim();
       if (!t) return false;
@@ -21110,6 +21113,24 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert.ok(/incluye/i.test(guardIncl), guardIncl.slice(0, 500));
     assert.ok(/Refrescos y aguas|2 licores|3 licores/i.test(guardIncl), guardIncl.slice(0, 500));
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje: `${guardIncl}
+
+El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https://bodasesor.com/catalogos/barra-de-bebidas`,
+      history: [
+        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" },
+        { role: "user", content: "barra de bebidas" }
+      ],
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        requerimientos_evento: "Barra de bebidas"
+      }),
+      clientName: "Ana"
+    });
+    assert.ok(!/Ya lo tengo anotado/i.test(anti.mensaje), anti.mensaje.slice(0, 300));
+    assert.ok(/incluye|bodasesor\.com\/catalogos/i.test(anti.mensaje), anti.mensaje.slice(0, 400));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
