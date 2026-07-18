@@ -16373,7 +16373,8 @@ ${buildPackageCatalogOfferBlock()}`,
     );
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 releer especificaciones \u2014 ack completo + cat\xE1logo");
-  } else if (allowSalesReplyOverride && (servicesFromTurn.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
+  } else if (allowSalesReplyOverride && (servicesFromTurn.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
+  !clientAsksServiceInfo(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
     const packageReply = buildMultiServicePackageReply(
       servicesFromTurn,
@@ -20858,6 +20859,31 @@ ${CATALOG_OFFER_QUESTION}`
       requerimientos_evento: "Mobiliario"
     });
     assert.equal(clean.direccion_evento, null);
+    const carpasVsRfq = runGuards({
+      aiResponse: "Perfecto, veo que necesitas salas y carpas. Te dejo el cat\xE1logo.",
+      extracted: emptyExtracted({
+        nombre: "Maria",
+        correo: "maria@test.com",
+        tipo_evento: "cumplea\xF1os",
+        requerimientos_evento: "4 salas Luxor Rosa"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "\xBFCuentan con carpas transparentes?",
+      history: [
+        { role: "user", content: "sala: Luxor Rosa. Ser\xEDan 4 salas" },
+        { role: "assistant", content: "Perfecto, anoto 4 salas. \xBFQu\xE9 tipo de evento es?" },
+        { role: "user", content: "cumplea\xF1os" }
+      ]
+    });
+    assert.ok(/transparent|contamos|manejamos/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
+    assert.ok(/medidas?/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
+    assert.ok(!/bodasesor\.com\/catalogos/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -1,4 +1,4 @@
-// PROMPT LUCY — V8.10 (María A14906: recolección completa, carpas/medidas, sala≠ubicación)
+// PROMPT LUCY — V8.11 (carpas/pista no pierden vs RFQ multi-servicio)
 // El bloque de catálogo/precios lo agrega catalogService vía buildDynamicPrompt.
 
 import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
