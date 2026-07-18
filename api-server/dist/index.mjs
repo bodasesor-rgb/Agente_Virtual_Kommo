@@ -86994,7 +86994,9 @@ ${nextQ}`;
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   }
   if (appliedSalesReply) {
-    mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+    if (!clientAsksInclusion(currentMessage)) {
+      mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+    }
     mensaje = blockExcessivePresupuestoAsk(
       mensaje,
       filledSet,

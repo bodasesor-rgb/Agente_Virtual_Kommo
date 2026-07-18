@@ -17146,7 +17146,9 @@ ${nextQ}`;
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
   }
   if (appliedSalesReply) {
-    mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+    if (!clientAsksInclusion(currentMessage)) {
+      mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+    }
     mensaje = blockExcessivePresupuestoAsk(
       mensaje,
       filledSet,
@@ -21161,6 +21163,48 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     });
     assert.ok(!/Ya lo tengo anotado/i.test(anti.mensaje), anti.mensaje.slice(0, 300));
     assert.ok(/incluye|bodasesor\.com\/catalogos/i.test(anti.mensaje), anti.mensaje.slice(0, 400));
+    const csvEmptyIncl = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
+      '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"',
+      '"Barra de bebidas","Tradicional","$180.00","$5,400.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"',
+      '"Barra de bebidas","Premium","$200.00","$6,000.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvEmptyIncl));
+    const emptyHint = resolveCatalogInclusionReply(
+      "qu\xE9 incluye cada nivel B\xE1sica Tradicional y Premium",
+      "Barra de bebidas"
+    );
+    assert.ok(emptyHint, "debe haber respuesta aunque Que Incluye est\xE9 vac\xEDo");
+    assert.ok(/bodasesor\.com\/catalogos|Incluye:/i.test(emptyHint), emptyHint);
+    const liveGuard = runGuards({
+      aiResponse: "\xBFCu\xE1l ser\xEDa la ubicaci\xF3n del evento? Necesito ciudad y colonia o sal\xF3n para cotizar bien.",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        requerimientos_evento: "Barra de bebidas"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "qu\xE9 incluye cada nivel B\xE1sica Tradicional y Premium",
+      history: [
+        { role: "assistant", content: "\xBFEn qu\xE9 ciudad ser\xE1 tu boda?" },
+        { role: "user", content: "barra de bebidas" },
+        {
+          role: "assistant",
+          content: "Para la barra manejamos tres niveles. El equipo confirma qu\xE9 incluye. \xBFCu\xE1l prefieres? \xBFEn qu\xE9 ciudad?"
+        }
+      ]
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos|Incluye:|nivel/i.test(liveGuard),
+      `no debe quedar solo zona: ${liveGuard.slice(0, 400)}`
+    );
+    assert.ok(!/^¿Cuál sería la ubicación/i.test(liveGuard.trim()), liveGuard.slice(0, 200));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

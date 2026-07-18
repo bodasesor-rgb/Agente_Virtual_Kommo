@@ -3790,7 +3790,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // Ventas: sanitizar + cortar re-preguntas, pero no pasar por enforceNombreFirst
   // (si no, el pitch de coffee break / pista en el primer turno se sustituye por "¿nombre?").
   if (appliedSalesReply) {
-    mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+    // Preguntas de inclusiones/descripciones: nunca redirect al siguiente campo del embudo.
+    if (!clientAsksInclusion(currentMessage)) {
+      mensaje = redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx);
+    }
     mensaje = blockExcessivePresupuestoAsk(
       mensaje,
       filledSet,

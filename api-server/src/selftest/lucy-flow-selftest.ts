@@ -3922,6 +3922,52 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/Ya lo tengo anotado/i.test(anti.mensaje), anti.mensaje.slice(0, 300));
     assert.ok(/incluye|bodasesor\.com\/catalogos/i.test(anti.mensaje), anti.mensaje.slice(0, 400));
+
+    // Caso vivo: Sheet sin Que Incluye + cliente pregunta descripciones con zona pendiente.
+    const csvEmptyIncl = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye","Link catalogo"',
+      '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"',
+      '"Barra de bebidas","Tradicional","$180.00","$5,400.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"',
+      '"Barra de bebidas","Premium","$200.00","$6,000.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvEmptyIncl));
+    const emptyHint = resolveCatalogInclusionReply(
+      "qué incluye cada nivel Básica Tradicional y Premium",
+      "Barra de bebidas"
+    );
+    assert.ok(emptyHint, "debe haber respuesta aunque Que Incluye esté vacío");
+    assert.ok(/bodasesor\.com\/catalogos|Incluye:/i.test(emptyHint!), emptyHint);
+
+    const liveGuard = runGuards({
+      aiResponse: "¿Cuál sería la ubicación del evento? Necesito ciudad y colonia o salón para cotizar bien.",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        requerimientos_evento: "Barra de bebidas",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "qué incluye cada nivel Básica Tradicional y Premium",
+      history: [
+        { role: "assistant", content: "¿En qué ciudad será tu boda?" },
+        { role: "user", content: "barra de bebidas" },
+        {
+          role: "assistant",
+          content:
+            "Para la barra manejamos tres niveles. El equipo confirma qué incluye. ¿Cuál prefieres? ¿En qué ciudad?",
+        },
+      ],
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos|Incluye:|nivel/i.test(liveGuard),
+      `no debe quedar solo zona: ${liveGuard.slice(0, 400)}`
+    );
+    assert.ok(!/^¿Cuál sería la ubicación/i.test(liveGuard.trim()), liveGuard.slice(0, 200));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
