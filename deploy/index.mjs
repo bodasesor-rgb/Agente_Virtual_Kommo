@@ -85741,6 +85741,11 @@ function avoidRepeatPreviousReply(mensaje, presHistory) {
   return q2;
 }
 function redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx) {
+  if (/\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|cu[aá]l nivel prefieres|detalle completo de men[uú]s/i.test(
+    mensaje
+  )) {
+    return mensaje;
+  }
   const fields = [
     "nombre",
     "correo",

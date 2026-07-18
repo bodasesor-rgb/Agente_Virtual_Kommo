@@ -1891,6 +1891,15 @@ function redirectIfAskingFilledField(
   extracted: ExtractedData,
   ctx: NaturalQuestionContext
 ): string {
+  // Respuestas de catálogo (Incluye / niveles / link) a veces matchean
+  // "requerimientos" por la palabra menú — no reemplazar por la siguiente pregunta.
+  if (
+    /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|cu[aá]l nivel prefieres|detalle completo de men[uú]s/i.test(
+      mensaje
+    )
+  ) {
+    return mensaje;
+  }
   const fields: PendingField[] = [
     "nombre",
     "correo",
