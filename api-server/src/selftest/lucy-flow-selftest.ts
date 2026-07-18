@@ -162,6 +162,7 @@ import {
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
   formatServiceDataForPrompt,
+  lookupStaticInclusion,
 } from "../services/catalogService.js";
 import { buildMobiliarioRentDetailReply } from "../services/serviceKnowledge.js";
 import { resolveServiceFocusFromText, expandQueryWithServiceSynonyms } from "../services/serviceSynonyms.js";
@@ -1954,7 +1955,7 @@ async function runAll(): Promise<void> {
     assert.equal(ignoresResumenCache, null);
   });
 
-  await test("42. Anti-alucinación — inclusiones solo del Sheet", () => {
+  await test("42. Anti-alucinación — inclusiones Sheet o respaldo estático (nunca inventar)", () => {
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
       '"Barra de bebidas con alcohol","Basica","$450.00","$9,000.00","TRUE",""',
@@ -1962,33 +1963,26 @@ async function runAll(): Promise<void> {
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
 
-    assert.equal(buildCatalogInclusionAnswer("qué incluye la barra básica"), null);
+    // Que Incluye vacío en Sheet → catálogo estático oficial (no inventar cerveza/vino).
+    const basica = buildCatalogInclusionAnswer("qué incluye la barra básica");
+    assert.ok(basica, "respaldo estático debe describir la barra básica");
+    assert.ok(/Capit[aá]n Morgan|Cuervo|Wyborowa|Licores:/i.test(basica!), basica);
+    assert.ok(!/cervezas?,\s*vinos y licores comunes/i.test(basica!), basica);
 
-    const team = buildInclusionTeamConfirmationAnswer("qué incluye la barra básica");
-    assert.ok(team, "sin Incluye en Sheet → catálogo web o equipo (nunca inventar)");
-    assert.ok(
-      /confirma nuestro equipo|cat[aá]logo web|bodasesor\.com\/catalogos/i.test(team!),
-      team
-    );
-    assert.ok(!/cerveza|vino|licor com[uú]n/i.test(team!), team);
-
+    // Si el Sheet trae Que Incluye, gana el Sheet.
     const filled = buildCatalogInclusionAnswer("qué incluye la barra premium");
     assert.ok(filled);
     assert.ok(/Refrescos, aguas y 3 licores premium/.test(filled!), filled);
     assert.ok(!/cerveza|vino com[uú]n/i.test(filled!), filled);
-    assert.ok(!/dato real del Sheet/i.test(filled!), filled);
 
     const hallucinated = "La barra básica incluye cervezas, vinos y licores comunes.";
     const injected = injectCatalogInclusionIfAsked("qué incluye la barra básica", hallucinated);
-    assert.ok(!/cerveza|vino/i.test(injected), injected);
-    assert.ok(
-      /confirma nuestro equipo|cat[aá]logo web|bodasesor\.com\/catalogos/i.test(injected),
-      injected
-    );
+    assert.ok(!/cervezas,\s*vinos y licores comunes/i.test(injected), injected);
+    assert.ok(/Capit[aá]n Morgan|Cuervo|Incluye:|Licores:/i.test(injected), injected);
 
     const reply = resolveCatalogInclusionReply("qué incluye la barra básica");
     assert.ok(reply);
-    assert.equal(reply, team);
+    assert.ok(/Capit[aá]n Morgan|Cuervo|Licores:|Incluye:/i.test(reply!), reply);
   });
 
   await test("43. Alejandra — parrillada argentina no se sustituye por banquete", () => {
@@ -2949,7 +2943,7 @@ async function runAll(): Promise<void> {
     const hint = buildCatalogWebDetailHint("barra de bebidas");
     assert.ok(hint && /bodasesor\.com\/catalogos\/barra-de-bebidas/.test(hint), hint ?? "");
 
-    // Sheet sin Inclusuye → la oferta de niveles apunta al catálogo web.
+    // Sheet sin Que Incluye → respaldo estático (descripciones) y/o link catálogo web.
     const csvEmpty = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
       '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE",""',
@@ -2960,9 +2954,10 @@ async function runAll(): Promise<void> {
     const detailEmpty = buildCatalogServiceDetailAnswer("barra de bebidas");
     assert.ok(detailEmpty);
     assert.ok(
-      /bodasesor\.com\/catalogos\/barra-de-bebidas/i.test(detailEmpty!),
+      /Incluye:.*refrescos|bodasesor\.com\/catalogos\/barra-de-bebidas/i.test(detailEmpty!),
       detailEmpty
     );
+    assert.ok(/Incluye:/i.test(detailEmpty!), detailEmpty);
 
     const summaryAi =
       "La imagen muestra un jardín con mesas rústicas y sillas de madera alrededor.";
@@ -3923,7 +3918,7 @@ async function runAll(): Promise<void> {
     assert.ok(!/Ya lo tengo anotado/i.test(anti.mensaje), anti.mensaje.slice(0, 300));
     assert.ok(/incluye|bodasesor\.com\/catalogos/i.test(anti.mensaje), anti.mensaje.slice(0, 400));
 
-    // Caso vivo: Sheet sin Que Incluye + cliente pregunta descripciones con zona pendiente.
+    // Caso vivo: Sheet sin Que Incluye → respaldo del catálogo estático (descripciones reales).
     const csvEmptyIncl = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye","Link catalogo"',
       '"Barra de bebidas","Basica","$150.00","$4,500.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"',
@@ -3931,12 +3926,22 @@ async function runAll(): Promise<void> {
       '"Barra de bebidas","Premium","$200.00","$6,000.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"',
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csvEmptyIncl));
+    assert.ok(
+      /refrescos|vitrolero|agua fresca/i.test(lookupStaticInclusion("Barra de bebidas", "Basica") ?? ""),
+      "lookupStaticInclusion Básica"
+    );
+    assert.ok(
+      /fruta|margarita|caf[eé]/i.test(lookupStaticInclusion("Barra de bebidas", "Tradicional") ?? ""),
+      "lookupStaticInclusion Tradicional"
+    );
     const emptyHint = resolveCatalogInclusionReply(
       "qué incluye cada nivel Básica Tradicional y Premium",
       "Barra de bebidas"
     );
     assert.ok(emptyHint, "debe haber respuesta aunque Que Incluye esté vacío");
-    assert.ok(/bodasesor\.com\/catalogos|Incluye:/i.test(emptyHint!), emptyHint);
+    assert.ok(/Incluye:/i.test(emptyHint!), emptyHint);
+    assert.ok(/refrescos|vitrolero|agua/i.test(emptyHint!), emptyHint);
+    assert.ok(/fruta|margarita|jugo/i.test(emptyHint!), emptyHint);
 
     const liveGuard = runGuards({
       aiResponse: "¿Cuál sería la ubicación del evento? Necesito ciudad y colonia o salón para cotizar bien.",
@@ -3964,8 +3969,8 @@ async function runAll(): Promise<void> {
       ],
     });
     assert.ok(
-      /bodasesor\.com\/catalogos|Incluye:|nivel/i.test(liveGuard),
-      `no debe quedar solo zona: ${liveGuard.slice(0, 400)}`
+      /Incluye:.*refrescos|vitrolero|agua fresca/i.test(liveGuard),
+      `debe describir paquetes con respaldo estático: ${liveGuard.slice(0, 500)}`
     );
     assert.ok(!/^¿Cuál sería la ubicación/i.test(liveGuard.trim()), liveGuard.slice(0, 200));
   });

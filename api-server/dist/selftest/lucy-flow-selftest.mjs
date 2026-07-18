@@ -1811,6 +1811,335 @@ function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
   return safe;
 }
 
+// src/catalogo.ts
+var CATALOGO_BODASESOR = `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CAT\xC1LOGO BODASESOR 2026 \u2014 INFORMACI\xD3N COMPLETA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+CONDICIONES GENERALES:
+\u2022 Precios NO incluyen IVA (16%)
+\u2022 Propina 15% recomendada (no obligatoria)
+\u2022 Inversi\xF3n m\xEDnima general: $18,000 MXN por evento (excepto Kosher: $29,000; barras: desde $6,000)
+\u2022 Duraci\xF3n est\xE1ndar banquetes: 5 horas
+\u2022 Barras tem\xE1ticas: 3 horas o hasta agotar producto
+\u2022 Anticipo 50% para apartar fecha
+\u2022 Liquidaci\xF3n 10 d\xEDas antes del evento
+\u2022 Cambios: hasta 30 d\xEDas antes
+\u2022 Formas de pago: efectivo o transferencia
+\u2022 Atendemos de 30 hasta 10,000 personas
+\u2022 Montaje y desmontaje incluidos. Trabajamos en el venue del cliente.
+\u2022 Men\xFAs adaptables a restricciones alimenticias y opci\xF3n vegetariana disponible
+\u2022 Hora extra: $60/pp (m\xEDnimo 10 personas)
+\u2022 Eventos con +100 personas: opci\xF3n de 2 men\xFAs distintos
+\u2022 Prueba de men\xFA: $5,000 MXN para 4 personas (se descuentan $2,500 al confirmar)
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE FORMAL
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Cocina internacional: res, pollo, pescado, mariscos. Presentaci\xF3n elegante emplatada.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $750/pp \u2014 entrada o sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
+\u2022 Tradicional: $880/pp \u2014 igual + 2 guarniciones
+\u2022 Premium: $930/pp \u2014 prote\xEDna libre + 2 guarniciones
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $800/pp \u2014 entrada + sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
+\u2022 Tradicional: $930/pp \u2014 igual + 2 guarniciones
+\u2022 Premium: $980/pp \u2014 prote\xEDna libre + 2 guarniciones
+
+BUFFET: $1,200/pp (2 prote\xEDnas + opciones de pasta/ensalada/sopa + guarnici\xF3n + postre)
+SOLO ALIMENTOS (sin mobiliario): desde $400/pp (+$150 con vajilla decorativa)
+
+INCLUIDO EN TODOS LOS PAQUETES COMPLETOS:
+\u2022 Mesa redonda con mantel (color a elecci\xF3n) + silla Tiffany + centro de mesa con flores
+\u2022 Vajilla blanca + cuberter\xEDa + cristaler\xEDa (copa + vaso)
+\u2022 Meseros: 1 c/20 personas (B\xE1sico), 1 c/15 (Tradicional), 1 c/10 (Premium)
+\u2022 Barra de bebidas sin alcohol: vitroleros (2 sabores), agua natural, caf\xE9
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE MEXICANO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Gastronom\xEDa mexicana: moles, pozoles, ceviches, platillos regionales, salsas artesanales,
+aguas frescas de sabores tradicionales. Diferente al formal en men\xFA, misma calidad de servicio.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $670/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $770/pp \u2014 2 guarniciones
+\u2022 Premium: $830/pp \u2014 prote\xEDna libre
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $720/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $830/pp \u2014 2 guarniciones
+\u2022 Premium: $880/pp \u2014 prote\xEDna libre
+
+BUFFET: $1,200/pp
+SOLO ALIMENTOS: desde $450/pp
+
+Incluye lo mismo que Banquete Formal (mobiliario, vajilla, meseros, barra sin alcohol).
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE NAVIDE\xD1O (solo noviembre\u2013enero)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Pavos con 3 preparaciones distintas, bacalao, romeritos, decoraci\xF3n festiva incluida.
+Diciembre: alta demanda \u2014 reservar desde octubre.
+
+\u2022 Premium 3 tiempos: $830/pp
+\u2022 Premium 4 tiempos: $880/pp
+\u2022 Buffet Navide\xF1o: $1,200/pp (pollo o lomo incluido; pavo: +$100/pp extra)
+\u2022 Solo alimentos: desde $500/pp
+
+PREGUNTAS FRECUENTES NAVIDE\xD1O:
+\u2022 \xBFEl pavo es por persona? S\xED, porciones individuales.
+\u2022 \xBFEl buffet incluye pavo? El base incluye pollo o lomo. Pavo: +$100/pp.
+\u2022 \xBFCrepas Suzette incluidas? No, tienen costo adicional de $100/pp (flambeado especial).
+\u2022 \xBFCu\xE1ndo reservar? Para diciembre, desde octubre.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE KOSHER
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Certificaci\xF3n Kosher completa + supervisi\xF3n rab\xEDnica permanente.
+Separaci\xF3n absoluta: el evento es 100% L\xC1CTEO (Jalav) O 100% CARNE (Basar) \u2014 nunca mezclados.
+Utensilios Kosher certificados dedicados exclusivamente.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $1,170/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $1,330/pp \u2014 2 guarniciones
+\u2022 Premium: $1,430/pp \u2014 prote\xEDna libre
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $1,250/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $1,430/pp \u2014 2 guarniciones
+\u2022 Premium: $1,500/pp \u2014 prote\xEDna libre
+
+BUFFET KOSHER: $2,000/pp (2 prote\xEDnas + pasta/ensalada/sopa + guarnici\xF3n + postre)
+SOLO ALIMENTOS KOSHER: $600/pp
+Inversi\xF3n m\xEDnima: $29,000 MXN
+
+INCLUIDO: mismos servicios que Banquete Formal + vajilla y utensilios certificados Kosher.
+
+PREGUNTAS FRECUENTES KOSHER:
+\u2022 \xBFMezclar l\xE1cteos y carne? NUNCA \u2014 las leyes Kosher lo proh\xEDben absolutamente.
+\u2022 \xBFQu\xE9 es parve? Alimentos neutros (frutas, vegetales, huevos, pescado) \u2014 combinables con l\xE1cteos o carne.
+\u2022 \xBFEl vino es Kosher? S\xED, solo vinos y bebidas certificadas Kosher.
+\u2022 \xBFLa supervisi\xF3n rab\xEDnica tiene costo extra? No, est\xE1 incluida en todos los precios.
+\u2022 \xBFPuedo coordinar con mi rabino? S\xED, Alejandro coordina todos los detalles.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+DESAYUNO / BRUNCH
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 B\xE1sico: $550/pp (entrada + plato fuerte + jugo + caf\xE9)
+\u2022 Premium: $650/pp (+ 2 guarniciones + pan dulce y salado)
+\u2022 Buffet: $750/pp (fruta + 3 platillos salados + 2 dulces)
+\u2022 Inversi\xF3n m\xEDnima: $18,000 MXN
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PAELLA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 Solo alimentos: $450/pp
+\u2022 Tradicional (con mobiliario): $800/pp
+\u2022 Premium: $900/pp
+\u2022 Inversi\xF3n m\xEDnima: $19,500 MXN
+\u2022 Incluye: chistorra, croquetas de serrano, tortilla espa\xF1ola, paella al momento
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+TAQUIZA & PARRILLADA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+TAQUIZA (guisados \u2014 tacos de canasta/cazuela, NO al carb\xF3n):
+\u2022 5 guisados: $300/pp \u2014 arroz, frijol, tortillas, salsas incluidos
+\u2022 6 guisados: $320/pp | Guisado extra: +$20/pp
+\u2022 Vajilla y cubiertos: +$20/pp adicional
+\u2022 Servicio Completo Premium: $750/pp (con mobiliario, cristaler\xEDa, meseros)
+\u2022 M\xEDnimo 40 personas / inversi\xF3n m\xEDnima $10,000 / duraci\xF3n: 3 horas
+
+PARRILLADA MEXICANA (tacos al carb\xF3n \u2014 \u2260 taquiza):
+\u2022 5 platillos: $300/pp \u2014 nopales, cebollitas, tortillas, salsas incluidos
+\u2022 Platillo extra: +$30/pp
+\u2022 Todo incluido (con bebidas sin alcohol): $700/pp
+\u2022 Inversi\xF3n m\xEDnima: $11,000 / duraci\xF3n: 3 horas
+
+PARRILLADA ARGENTINA (cortes premium al carb\xF3n \u2014 5 horas completas):
+\u2022 $900/pp | Inversi\xF3n m\xEDnima: $19,500 MXN
+\u2022 Cortes: Pica\xF1a, New York, Arrachera, Rib Eye, Pollo BBQ
+\u2022 Asador solo alimentos: +$500 adicional
+\u2022 Incluye: mesa, mantel, silla Tiffany, vajilla, cristaler\xEDa, hielos, barra de bebidas sin alcohol
+
+DIFERENCIA CLAVE \u2014 Tacos: preguntarle al cliente si quiere guisados (taquiza) o al carb\xF3n (parrillada).
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA AMERICANA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Comida estilo americano casual. El cliente elige 5 opciones del men\xFA completo.
+Ideal para eventos informales, cumplea\xF1os, graduaciones, fiestas en jard\xEDn.
+
+NIVELES:
+\u2022 B\xE1sica: $350/pp \u2014 3h o hasta agotar, desechables, sin mobiliario, 1 mesero c/50
+\u2022 Completo B\xE1sico: $750/pp \u2014 5h, todo incluido, 1 mesero c/20
+\u2022 Completo Tradicional: $800/pp \u2014 5h, mejor presentaci\xF3n, 1 mesero c/15 (M\xC1S POPULAR)
+\u2022 Completo Premium: $900/pp \u2014 5h, atenci\xF3n VIP 1 mesero c/10, copas de color
+
+Inversi\xF3n m\xEDnima B\xE1sica: $10,500 MXN
+
+LO QUE INCLUYE CADA NIVEL:
+\u2022 B\xE1sica: solo comida + desechables. Sin mobiliario ni bebidas.
+\u2022 Completo B\xE1sico: mesa + mantel + silla Tiffany + centro de mesa + vajilla blanca + cristaler\xEDa copa/vaso
+  + barra de bebidas: aguas (2 sabores), agua natural, caf\xE9
+\u2022 Completo Tradicional: + plato base decorativo + cristaler\xEDa premium completa + margaritas sin alcohol
+  + Coca Light, Coca Normal, Squirt, agua mineral (1 sabor de agua fresca)
+\u2022 Completo Premium: = Tradicional + copas de color (elemento distintivo) + 1 mesero c/10 personas
+
+MEN\xDA COMPLETO \u2014 OPCIONES PRINCIPALES (elegir 5):
+Hamburguesas y hot dogs: mini sliders, mini hot dogs, pulled pork, corn dogs
+Pollo: tiras empanizadas (chicken tenders), alitas BBQ / b\xFAfalo / habanero-miel
+Mini wraps y tacos: burritos tex-mex, mini tacos de carne asada
+Pizzas y pasta: mini pizzas (pepperoni/queso/vegetales), mac & cheese en vasito
+
+ACOMPA\xD1AMIENTOS (tambi\xE9n cuentan como 1 opci\xF3n):
+Papas: a la francesa, papas gajo con especias, tater tots, aros de cebolla empanizados
+Quesos y nachos: nachos con cheddar y jalape\xF1os, chili con carne, mozzarella sticks
+Otros: palomitas saborizadas (mantequilla/queso/caramelo), coleslaw, elotes en vasito (americano o mexicano)
+
+EXTRAS (costo adicional):
+\u2022 Mesero adicional: $800 (5 horas, ideal +150 personas)
+\u2022 Mesa de madera para barra: $600
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+ANTOJITOS & PUESTOS DE COMIDA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Puestos de madera elegantes con cocina mexicana aut\xE9ntica al momento. 3 horas de servicio.
+Ideal para cocktail de bienvenida, complemento al banquete, XV a\xF1os, cumplea\xF1os.
+
+\u2022 $300/pp (8 piezas por persona) \u2014 m\xEDnimo 240 piezas / inversi\xF3n m\xEDnima $9,000
+\u2022 Pieza adicional: $38/pp | Puestos adicionales: $1,500 c/u (1 puesto por cada 100 personas incluido)
+\u2022 Incluye: puesto de madera, desechables, queso fresco, crema, salsas artesanales, personal uniformado
+
+MEN\xDA DISPONIBLE (todo al momento):
+QUESADILLAS FRITAS: queso fundido, chicharr\xF3n en salsa, tinga de pollo o res, papa con especias, hongos con epazote
+FLAUTAS CRUJIENTES: pollo deshebrado, carne deshebrada, papa con queso, queso derretido
+SOPES Y GORDITAS: frijoles, pollo, chorizo, chicharr\xF3n prensado, queso derretido
+MINI TORTAS: cochinita pibil, chilaquiles, tacos de canasta
+ANTOJITOS Y SNACKS: esquites, elotes asados, espiropapas, hot dogs, banderillas
+BEBIDAS Y SNACKS SALUDABLES: ponche de frutas, crudit\xE9s, jicaletas, paletas de sand\xEDa, pepinos con cacahuate
+DULCES Y POSTRES: algodones de az\xFAcar, manzanas chamoy, churros reci\xE9n fritos, crepaletas
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRAS TEM\xC1TICAS (otras)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 Barra de Pizzas (horno de piedra, chef en vivo): desde $9,515 total (hasta 10 pax) \u2014 3 horas
+  Rangos: 11-15 pax $10,780 | 16-20 $11,385 | 21-25 $12,650 | 26-30 $13,915
+  31-40 $14,575\u2013$15,180 | 41-50 $15,950\u2013$17,050 | 51-60 $18,040\u2013$19,690
+  61-100 $22,110\u2013$29,755 | 101-160 $30,360\u2013$37,400 | +160 pax: $200/pp extra
+\u2022 Barra de Sushi y Poke Bowl: $13,800 fijo (-30 pax) / $460/pp (30+) \u2014 3 horas
+\u2022 Barra de Crepas: $280/pp (5 crepas), $320/pp (6 crepas), Premium $750/pp \u2014 m\xEDn. 40 pax
+\u2022 Barra de Mariscos: $580/pp \u2014 inversi\xF3n m\xEDnima $16,000 \u2014 3 horas
+\u2022 Barra de Pastas y Ensaladas: $380/pp simple ($750/pp completo) \u2014 2 lasa\xF1as + 2 pastas + 2 ensaladas
+\u2022 Barra de Paninis y Ensaladas: $350/pp (4 paninis + 2 ensaladas) / $800/pp completo
+\u2022 Barra Yucateca: $350/pp \u2014 Sopa de Lima, Cochinita Pibil, Panuchos, Papadzules, Empanadas, tortillas frescas
+\u2022 Pozole y Tostadas: $300/pp b\xE1sico ($680/pp completo premium) \u2014 Rojo, Blanco o Verde
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA DE BEBIDAS
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Servicio profesional de bar: barra de madera, bartenders certificados, cristaler\xEDa completa,
+hielo ilimitado. Servicio libre durante 5 horas. Inversi\xF3n m\xEDnima: $6,000 MXN.
+1 barman por cada 50 personas (incluido en el precio).
+
+BARRAS SIN ALCOHOL (3 niveles \u2014 5 horas):
+\u2022 B\xE1sica: $150/pp
+  Incluye: refrescos (Coca Light, Coca Normal, Squirt), agua mineral, agua natural,
+  vitrolero con 1 sabor de agua fresca a elegir (jamaica, lim\xF3n, tamarindo, horchata,
+  pepino-lim\xF3n-menta, sand\xEDa, mel\xF3n, mango)
+
+\u2022 Tradicional: $180/pp
+  Incluye todo lo de B\xE1sica + fruta picada + margaritas sin alcohol (mango y tamarindo)
+  + caf\xE9 y t\xE9 | (solo +$30 sobre B\xE1sica \u2014 MEJOR VALOR)
+
+\u2022 Premium: $200/pp
+  Incluye todo lo de Tradicional + jugos naturales frescos
+
+BARRAS CON ALCOHOL (5 horas \u2014 incluyen autom\xE1ticamente Barra sin Alcohol Tradicional completa):
+\u2022 B\xE1sica: $370/pp
+  Licores: Capit\xE1n Morgan (ron), Cuervo Especial (tequila), Wyborowa (vodka),
+  Black & White (whisky), Larios (gin)
+
+\u2022 Tradicional: $410/pp \u2014 LA M\xC1S POPULAR (solo +$40 sobre b\xE1sica, marcas premium + mezcal)
+  Licores: Bacard\xED (ron), Jos\xE9 Cuervo Tradicional (tequila), Absolut (vodka),
+  Johnnie Walker Red Label (whisky), Diega (gin), Mezcal incluido
+
+\u2022 Premium: $600/pp
+  Licores top shelf: Bacard\xED (ron), Maestro Dobel (tequila), Stolichnaya (vodka),
+  Johnnie Walker Black Label (whisky), Tanqueray (gin), 400 Conejos (mezcal)
+
+EXTRAS (solo como complemento a un paquete de barra \u2014 NO se venden solos):
+\u2022 Cerveza: $35/pieza (servicio libre 5 horas)
+\u2022 Vino tinto o blanco: $50/copa (servicio libre 5 horas)
+
+M\xCDNIMOS EN PERSONAS (inversi\xF3n m\xEDnima $6,000):
+Sin alcohol \u2014 B\xE1sica: 40 pax | Tradicional: 34 pax | Premium: 30 pax
+Con alcohol \u2014 B\xE1sica: 17 pax | Tradicional: 15 pax | Premium: 10 pax
+
+DIFERENCIA CLAVE: Barra de Bebidas = SOLO bebidas. Barra Americana = SOLO comida.
+Se pueden contratar juntas para un evento completo.
+Si el banquete ya incluye bebidas sin alcohol y quieren agregar alcohol:
+Banquete Formal 4T ($800/pp) + Barra con alcohol B\xE1sica ($370/pp) = $1,170/pp completo.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA DE CAF\xC9
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 $180/pp \u2014 inversi\xF3n m\xEDnima $7,000
+\u2022 Baristas profesionales, caf\xE9 de altura tostado tipo italiano
+\u2022 Bebidas: Americano, Espresso, Capuchino, Latte, Frappuccino, Moka, Vainilla,
+  Chocolate caliente, Chai Latte, Matcha, 9 variedades de t\xE9s
+
+COFFEE BREAK:
+\u2022 Desde $160/pp \u2014 inversi\xF3n m\xEDnima $7,500
+\u2022 Opciones b\xE1sica, intermedia y completa
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+COCTELER\xCDA Y MIXOLOG\xCDA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+(Servicio de c\xF3cteles especializados \u2014 diferente a Barra de Bebidas)
+\u2022 Cocteler\xEDa Cl\xE1sica: $285/pp (6 c\xF3cteles para 100+ pax / 3 c\xF3cteles para menos)
+\u2022 Mixolog\xEDa Premium: $460/pp \u2014 3 c\xF3cteles exclusivos personalizados (m\xEDn. 40 pax)
+\u2022 Inversi\xF3n m\xEDnima B\xE1sica (2h): $7,000
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+POSTRES & EXTRAS
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+MESA DE DULCES:
+\u2022 $250/pp \u2014 inversi\xF3n m\xEDnima $8,000
+\u2022 15 opciones de dulces a elegir (tradicionales + premium)
+\u2022 Decoraci\xF3n, personalizaci\xF3n y montaje incluido
+
+PASTELES / CUPCAKES:
+\u2022 Bet\xFAn Cl\xE1sico: $35/pc | Bet\xFAn Decorado: $45/pc | Bet\xFAn + Cake Topper: $40/pc
+\u2022 Fondant 2D: $55/pc | Fondant 3D: $60/pc
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+SERVICIOS SIN PRECIO LISTADO \u2192 RODRIGO DA EL PRECIO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Mobiliario extra (mesas, sillas Tiffany, periqueras, salas lounge), decoraci\xF3n floral,
+estructuras colgantes, pistas de baile personalizadas, vajillas premium, paletas/helados,
+DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
+\u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
+`;
+
 // src/services/googleSheetsCatalog.ts
 var HEADER_ALIASES = {
   servicio: "servicio",
@@ -2019,7 +2348,7 @@ function sheetRowsToMarkdown(rows) {
     "CAT\xC1LOGO BODASESOR \u2014 GOOGLE SHEETS (fuente viva)",
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
     "",
-    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vac\xEDo \u2192 el equipo confirma en cotizaci\xF3n. NUNCA inventes bebidas, platillos ni marcas.",
+    "REGLA: Precios oficiales = esta tabla. Inclusiones: usa 'Incluye' de cada fila; si est\xE1 vac\xEDo, usa el CAT\xC1LOGO EST\xC1TICO DE RESPALDO del prompt (no inventes). Si tampoco hay respaldo \u2192 el equipo confirma en cotizaci\xF3n.",
     "REGLA LINK WEB: Si una fila trae Link cat\xE1logo (bodasesor.com/catalogos/\u2026), SOLO env\xEDalo cuando el cliente lo pida. Un link a la vez. No inventes URLs.",
     ""
   ];
@@ -3767,9 +4096,84 @@ function buildInclusionBlock(rows, maxPerLevel = 220) {
 *Qu\xE9 incluye cada nivel:*
 ${lines.join("\n")}` : "";
 }
+function lookupStaticInclusion(servicio, nivel) {
+  if (!servicio?.trim() || !nivel?.trim()) return null;
+  const svc = normalizeForMatch(servicio);
+  const nivRaw = normalizeForMatch(nivel);
+  const niv = nivRaw.replace(/\bbasico\b/g, "basica");
+  if (!niv) return null;
+  let searchText = CATALOGO_BODASESOR;
+  if (/barra/.test(svc) && /bebida/.test(svc)) {
+    if (/alcohol|licor|con\s*alcohol/.test(svc)) {
+      const m2 = searchText.match(
+        /BARRAS CON ALCOHOL[\s\S]*?(?=EXTRAS\b|M[IÍ]NIMOS\b|DIFERENCIA\b|━{8}|$)/i
+      );
+      if (m2) searchText = m2[0];
+    } else {
+      const m2 = searchText.match(
+        /BARRAS SIN ALCOHOL[\s\S]*?(?=BARRAS CON ALCOHOL|━{8}|$)/i
+      );
+      if (m2) searchText = m2[0];
+    }
+  } else {
+    const sections = searchText.split(/━{8,}/);
+    let best = "";
+    let bestScore = 0;
+    const tokens = svc.split(/\s+/).filter((t) => t.length > 3);
+    for (const sec of sections) {
+      const head = normalizeForMatch(sec.slice(0, 120));
+      let score = 0;
+      for (const tok of tokens) {
+        if (head.includes(tok)) score += 2;
+        else if (normalizeForMatch(sec.slice(0, 400)).includes(tok)) score += 1;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = sec;
+      }
+    }
+    if (bestScore < 2 || !best) return null;
+    searchText = best;
+  }
+  const nivelAlt = niv === "basica" ? "b[a\xE1]sic[ao]" : niv === "tradicional" ? "tradicional" : niv === "premium" ? "premium" : niv.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/[aeiou]/g, (c) => {
+    const map = {
+      a: "[a\xE1]",
+      e: "[e\xE9]",
+      i: "[i\xED]",
+      o: "[o\xF3]",
+      u: "[u\xFA]"
+    };
+    return map[c] ?? c;
+  });
+  const bulletRe = new RegExp(
+    `[\u2022\\-]\\s*\\*?\\s*(?:${nivelAlt})\\s*\\*?\\s*:\\s*([^\\n]+)((?:\\n[ \\t]+[^\\n]+){0,4})`,
+    "i"
+  );
+  const m = searchText.match(bulletRe);
+  if (!m) return null;
+  const sameLine = (m[1] || "").trim();
+  const continuation = (m[2] || "").split("\n").map((l) => l.trim()).filter(Boolean).join(" ");
+  const fromIncluye = continuation.match(/incluye\s*:?\s*(.+)/i);
+  if (fromIncluye?.[1]) {
+    return fromIncluye[1].replace(/\s+/g, " ").trim().slice(0, 320);
+  }
+  const liquor = continuation.match(/licores?\s*:\s*(.+)/i);
+  if (liquor?.[1]) {
+    return `Licores: ${liquor[1].replace(/\s+/g, " ").trim()}`.slice(0, 320);
+  }
+  const dashDesc = sameLine.match(/[—–-]\s*(.+)/);
+  if (dashDesc?.[1] && !/^\$?\d/.test(dashDesc[1].trim())) {
+    return dashDesc[1].replace(/\s+/g, " ").trim().slice(0, 320);
+  }
+  if (continuation && !/^\$?\d/.test(continuation)) {
+    return continuation.replace(/incluye\s*:?\s*/i, "").replace(/\s+/g, " ").trim().slice(0, 320);
+  }
+  return null;
+}
 function getInclusionFromRow(row) {
   const text = parseRowNotes(row.notas).inclusion?.trim();
-  return text || null;
+  if (text) return text;
+  return lookupStaticInclusion(row.servicio, extractNivelLabel(row));
 }
 function resolvedHasInclusionData(resolved) {
   return resolved.rows.some((r) => !!getInclusionFromRow(r));
@@ -3961,12 +4365,12 @@ function formatServiceDataForPrompt(query) {
       );
       const incl = row ? getInclusionFromRow(row) : null;
       const price = row?.tienePrecio && row.precio ? ` | Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
-      return incl ? `- ${n}${price} | Incluye: ${incl}` : `- ${n}${price} | Incluye: (vac\xEDo en cat\xE1logo \u2014 di que el equipo confirma; NO inventes)`;
+      return incl ? `- ${n}${price} | Incluye: ${incl}` : `- ${n}${price} | Incluye: (vac\xEDo en Sheet y respaldo \u2014 di que el equipo confirma; NO inventes)`;
     });
     return [
-      "DATOS DEL SERVICIO (Google Sheet \u2014 elegir nivel):",
+      "DATOS DEL SERVICIO (Google Sheet + inclusiones de respaldo \u2014 elegir nivel):",
       `Servicio: ${svc}`,
-      "Al ofrecer niveles, EXPLICA qu\xE9 incluye cada uno con el texto del Sheet. NUNCA digas solo los nombres.",
+      "Al ofrecer niveles, EXPLICA qu\xE9 incluye cada uno (Sheet o cat\xE1logo est\xE1tico de respaldo). NUNCA digas solo los nombres.",
       ...levelLines,
       "Pregunta cu\xE1l nivel prefiere DESPU\xC9S de mostrar inclusiones. No inventes inclusiones ni marcas."
     ].join("\n");
@@ -3978,12 +4382,13 @@ function formatServiceDataForPrompt(query) {
   const lines = unique.map((row) => {
     const parsed = parseRowNotes(row.notas);
     const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
-    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "Incluye: (vac\xEDo en cat\xE1logo \u2014 equipo confirma en cotizaci\xF3n)";
+    const incl = getInclusionFromRow(row);
+    const inclusion = incl ? `Incluye: ${incl}` : "Incluye: (vac\xEDo en Sheet y respaldo \u2014 equipo confirma en cotizaci\xF3n)";
     const link = row.linkCatalogo ? ` | Link cat\xE1logo (SOLO si lo piden): ${row.linkCatalogo}` : "";
     return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}${link}`;
   });
   return [
-    "DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar SOLO esto; no inventar precios ni inclusiones):",
+    "DATOS DEL SERVICIO (precios Sheet; inclusiones Sheet o cat\xE1logo est\xE1tico \u2014 no inventar):",
     ...lines
   ].join("\n");
 }
@@ -19441,36 +19846,28 @@ async function runAll() {
     });
     assert.equal(ignoresResumenCache, null);
   });
-  await test("42. Anti-alucinaci\xF3n \u2014 inclusiones solo del Sheet", () => {
+  await test("42. Anti-alucinaci\xF3n \u2014 inclusiones Sheet o respaldo est\xE1tico (nunca inventar)", () => {
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
       '"Barra de bebidas con alcohol","Basica","$450.00","$9,000.00","TRUE",""',
       '"Barra de bebidas con alcohol","Premium","$750.00","$15,000.00","TRUE","Refrescos, aguas y 3 licores premium"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
-    assert.equal(buildCatalogInclusionAnswer("qu\xE9 incluye la barra b\xE1sica"), null);
-    const team = buildInclusionTeamConfirmationAnswer("qu\xE9 incluye la barra b\xE1sica");
-    assert.ok(team, "sin Incluye en Sheet \u2192 cat\xE1logo web o equipo (nunca inventar)");
-    assert.ok(
-      /confirma nuestro equipo|cat[aá]logo web|bodasesor\.com\/catalogos/i.test(team),
-      team
-    );
-    assert.ok(!/cerveza|vino|licor com[uú]n/i.test(team), team);
+    const basica = buildCatalogInclusionAnswer("qu\xE9 incluye la barra b\xE1sica");
+    assert.ok(basica, "respaldo est\xE1tico debe describir la barra b\xE1sica");
+    assert.ok(/Capit[aá]n Morgan|Cuervo|Wyborowa|Licores:/i.test(basica), basica);
+    assert.ok(!/cervezas?,\s*vinos y licores comunes/i.test(basica), basica);
     const filled = buildCatalogInclusionAnswer("qu\xE9 incluye la barra premium");
     assert.ok(filled);
     assert.ok(/Refrescos, aguas y 3 licores premium/.test(filled), filled);
     assert.ok(!/cerveza|vino com[uú]n/i.test(filled), filled);
-    assert.ok(!/dato real del Sheet/i.test(filled), filled);
     const hallucinated = "La barra b\xE1sica incluye cervezas, vinos y licores comunes.";
     const injected = injectCatalogInclusionIfAsked("qu\xE9 incluye la barra b\xE1sica", hallucinated);
-    assert.ok(!/cerveza|vino/i.test(injected), injected);
-    assert.ok(
-      /confirma nuestro equipo|cat[aá]logo web|bodasesor\.com\/catalogos/i.test(injected),
-      injected
-    );
+    assert.ok(!/cervezas,\s*vinos y licores comunes/i.test(injected), injected);
+    assert.ok(/Capit[aá]n Morgan|Cuervo|Incluye:|Licores:/i.test(injected), injected);
     const reply = resolveCatalogInclusionReply("qu\xE9 incluye la barra b\xE1sica");
     assert.ok(reply);
-    assert.equal(reply, team);
+    assert.ok(/Capit[aá]n Morgan|Cuervo|Licores:|Incluye:/i.test(reply), reply);
   });
   await test("43. Alejandra \u2014 parrillada argentina no se sustituye por banquete", () => {
     const csvBanqueteOnly = [
@@ -20353,9 +20750,10 @@ ${CATALOG_OFFER_QUESTION}`
     const detailEmpty = buildCatalogServiceDetailAnswer("barra de bebidas");
     assert.ok(detailEmpty);
     assert.ok(
-      /bodasesor\.com\/catalogos\/barra-de-bebidas/i.test(detailEmpty),
+      /Incluye:.*refrescos|bodasesor\.com\/catalogos\/barra-de-bebidas/i.test(detailEmpty),
       detailEmpty
     );
+    assert.ok(/Incluye:/i.test(detailEmpty), detailEmpty);
     const summaryAi = "La imagen muestra un jard\xEDn con mesas r\xFAsticas y sillas de madera alrededor.";
     assert.ok(looksLikeImageInternalSummary(summaryAi));
     const blocked = runGuards({
@@ -21199,12 +21597,22 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       '"Barra de bebidas","Premium","$200.00","$6,000.00","TRUE","","https://bodasesor.com/catalogos/barra-de-bebidas"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csvEmptyIncl));
+    assert.ok(
+      /refrescos|vitrolero|agua fresca/i.test(lookupStaticInclusion("Barra de bebidas", "Basica") ?? ""),
+      "lookupStaticInclusion B\xE1sica"
+    );
+    assert.ok(
+      /fruta|margarita|caf[eé]/i.test(lookupStaticInclusion("Barra de bebidas", "Tradicional") ?? ""),
+      "lookupStaticInclusion Tradicional"
+    );
     const emptyHint = resolveCatalogInclusionReply(
       "qu\xE9 incluye cada nivel B\xE1sica Tradicional y Premium",
       "Barra de bebidas"
     );
     assert.ok(emptyHint, "debe haber respuesta aunque Que Incluye est\xE9 vac\xEDo");
-    assert.ok(/bodasesor\.com\/catalogos|Incluye:/i.test(emptyHint), emptyHint);
+    assert.ok(/Incluye:/i.test(emptyHint), emptyHint);
+    assert.ok(/refrescos|vitrolero|agua/i.test(emptyHint), emptyHint);
+    assert.ok(/fruta|margarita|jugo/i.test(emptyHint), emptyHint);
     const liveGuard = runGuards({
       aiResponse: "\xBFCu\xE1l ser\xEDa la ubicaci\xF3n del evento? Necesito ciudad y colonia o sal\xF3n para cotizar bien.",
       extracted: emptyExtracted({
@@ -21230,8 +21638,8 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       ]
     });
     assert.ok(
-      /bodasesor\.com\/catalogos|Incluye:|nivel/i.test(liveGuard),
-      `no debe quedar solo zona: ${liveGuard.slice(0, 400)}`
+      /Incluye:.*refrescos|vitrolero|agua fresca/i.test(liveGuard),
+      `debe describir paquetes con respaldo est\xE1tico: ${liveGuard.slice(0, 500)}`
     );
     assert.ok(!/^¿Cuál sería la ubicación/i.test(liveGuard.trim()), liveGuard.slice(0, 200));
   });

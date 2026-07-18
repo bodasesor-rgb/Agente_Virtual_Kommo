@@ -134,8 +134,13 @@ function buildPromptBlock(parts: {
     blocks.push(
       [
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-        "CATÁLOGO ESTÁTICO DE RESPALDO (usar solo si no contradice Sheets/Gamma)",
+        "CATÁLOGO ESTÁTICO — INCLUSIONES DE RESPALDO",
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        "",
+        "REGLA PRECIOS: los precios oficiales son los de Google Sheets arriba (ganan si hay diferencia).",
+        "REGLA INCLUSIONES: si el Sheet tiene 'Que Incluye' vacío, USA las descripciones de este bloque",
+        "(qué trae Básica/Tradicional/Premium, menús, licores, etc.). No digas 'el equipo confirma'",
+        "si aquí ya está el detalle. No inventes marcas ni platillos que no aparezcan aquí ni en Sheets.",
         "",
         CATALOGO_BODASESOR,
       ].join("\n")
@@ -204,7 +209,12 @@ export async function refreshCatalog(force = false): Promise<CatalogSnapshot> {
       );
       if (webCatalogBlock) status.sources.gamma = status.sources.gamma || true;
 
-      const useStatic = !status.sources.sheets;
+      // Sheet vivo suele traer precios pero Que Incluye vacío (caso actual: 0/139).
+      // Sin el estático, GPT solo ve nombres/precios y la anti-alucinación le prohíbe describir.
+      const sheetHasInclusions = rows.some(
+        (r) => !!parseRowNotes(r.notas).inclusion?.trim()
+      );
+      const useStatic = !status.sources.sheets || !sheetHasInclusions;
       status.sources.staticFallback = useStatic;
 
       const promptBlock = buildPromptBlock({
@@ -904,9 +914,118 @@ function buildInclusionBlock(rows: SheetCatalogRow[], maxPerLevel = 220): string
   return lines.length ? `\n\n*Qué incluye cada nivel:*\n${lines.join("\n")}` : "";
 }
 
+/**
+ * Busca la descripción de un nivel en el catálogo estático (catalogo.ts)
+ * cuando el Sheet no trae Que Incluye.
+ */
+export function lookupStaticInclusion(
+  servicio: string,
+  nivel?: string | null
+): string | null {
+  if (!servicio?.trim() || !nivel?.trim()) return null;
+  const svc = normalizeForMatch(servicio);
+  const nivRaw = normalizeForMatch(nivel);
+  const niv = nivRaw.replace(/\bbasico\b/g, "basica");
+  if (!niv) return null;
+
+  let searchText = CATALOGO_BODASESOR;
+  if (/barra/.test(svc) && /bebida/.test(svc)) {
+    if (/alcohol|licor|con\s*alcohol/.test(svc)) {
+      const m = searchText.match(
+        /BARRAS CON ALCOHOL[\s\S]*?(?=EXTRAS\b|M[IÍ]NIMOS\b|DIFERENCIA\b|━{8}|$)/i
+      );
+      if (m) searchText = m[0];
+    } else {
+      const m = searchText.match(
+        /BARRAS SIN ALCOHOL[\s\S]*?(?=BARRAS CON ALCOHOL|━{8}|$)/i
+      );
+      if (m) searchText = m[0];
+    }
+  } else {
+    const sections = searchText.split(/━{8,}/);
+    let best = "";
+    let bestScore = 0;
+    const tokens = svc.split(/\s+/).filter((t) => t.length > 3);
+    for (const sec of sections) {
+      const head = normalizeForMatch(sec.slice(0, 120));
+      let score = 0;
+      for (const tok of tokens) {
+        if (head.includes(tok)) score += 2;
+        else if (normalizeForMatch(sec.slice(0, 400)).includes(tok)) score += 1;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = sec;
+      }
+    }
+    if (bestScore < 2 || !best) return null;
+    searchText = best;
+  }
+
+  // El catálogo estático usa tildes (Básica); normalizeForMatch las quita → patrón flexible.
+  const nivelAlt =
+    niv === "basica"
+      ? "b[aá]sic[ao]"
+      : niv === "tradicional"
+        ? "tradicional"
+        : niv === "premium"
+          ? "premium"
+          : niv.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/[aeiou]/g, (c) => {
+              const map: Record<string, string> = {
+                a: "[aá]",
+                e: "[eé]",
+                i: "[ií]",
+                o: "[oó]",
+                u: "[uú]",
+              };
+              return map[c] ?? c;
+            });
+  const bulletRe = new RegExp(
+    `[•\\-]\\s*\\*?\\s*(?:${nivelAlt})\\s*\\*?\\s*:\\s*([^\\n]+)((?:\\n[ \\t]+[^\\n]+){0,4})`,
+    "i"
+  );
+  const m = searchText.match(bulletRe);
+  if (!m) return null;
+
+  const sameLine = (m[1] || "").trim();
+  const continuation = (m[2] || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join(" ");
+
+  // Conservar "todo lo de Básica +" (no usar \w+: corta en tildes → "ásica +…").
+  const fromIncluye = continuation.match(/incluye\s*:?\s*(.+)/i);
+  if (fromIncluye?.[1]) {
+    return fromIncluye[1].replace(/\s+/g, " ").trim().slice(0, 320);
+  }
+
+  const liquor = continuation.match(/licores?\s*:\s*(.+)/i);
+  if (liquor?.[1]) {
+    return `Licores: ${liquor[1].replace(/\s+/g, " ").trim()}`.slice(0, 320);
+  }
+
+  const dashDesc = sameLine.match(/[—–-]\s*(.+)/);
+  if (dashDesc?.[1] && !/^\$?\d/.test(dashDesc[1].trim())) {
+    return dashDesc[1].replace(/\s+/g, " ").trim().slice(0, 320);
+  }
+
+  if (continuation && !/^\$?\d/.test(continuation)) {
+    return continuation
+      .replace(/incluye\s*:?\s*/i, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 320);
+  }
+
+  return null;
+}
+
 function getInclusionFromRow(row: SheetCatalogRow): string | null {
   const text = parseRowNotes(row.notas).inclusion?.trim();
-  return text || null;
+  if (text) return text;
+  // Sheet vivo: precios sí, Que Incluye no → catálogo estático oficial.
+  return lookupStaticInclusion(row.servicio, extractNivelLabel(row));
 }
 
 function resolvedHasInclusionData(resolved: CatalogMatchResult): boolean {
@@ -1172,12 +1291,12 @@ export function formatServiceDataForPrompt(query: string): string | null {
           : "";
       return incl
         ? `- ${n}${price} | Incluye: ${incl}`
-        : `- ${n}${price} | Incluye: (vacío en catálogo — di que el equipo confirma; NO inventes)`;
+        : `- ${n}${price} | Incluye: (vacío en Sheet y respaldo — di que el equipo confirma; NO inventes)`;
     });
     return [
-      "DATOS DEL SERVICIO (Google Sheet — elegir nivel):",
+      "DATOS DEL SERVICIO (Google Sheet + inclusiones de respaldo — elegir nivel):",
       `Servicio: ${svc}`,
-      "Al ofrecer niveles, EXPLICA qué incluye cada uno con el texto del Sheet. NUNCA digas solo los nombres.",
+      "Al ofrecer niveles, EXPLICA qué incluye cada uno (Sheet o catálogo estático de respaldo). NUNCA digas solo los nombres.",
       ...levelLines,
       "Pregunta cuál nivel prefiere DESPUÉS de mostrar inclusiones. No inventes inclusiones ni marcas.",
     ].join("\n");
@@ -1193,9 +1312,10 @@ export function formatServiceDataForPrompt(query: string): string | null {
       row.tienePrecio && row.precio
         ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (mín. ${parsed.minimo})` : ""}`
         : "Precio: sin listar — Alejandro cotiza";
-    const inclusion = parsed.inclusion
-      ? `Incluye: ${parsed.inclusion}`
-      : "Incluye: (vacío en catálogo — equipo confirma en cotización)";
+    const incl = getInclusionFromRow(row);
+    const inclusion = incl
+      ? `Incluye: ${incl}`
+      : "Incluye: (vacío en Sheet y respaldo — equipo confirma en cotización)";
     const link = row.linkCatalogo
       ? ` | Link catálogo (SOLO si lo piden): ${row.linkCatalogo}`
       : "";
@@ -1203,7 +1323,7 @@ export function formatServiceDataForPrompt(query: string): string | null {
   });
 
   return [
-    "DATOS DEL SERVICIO (fuente Google Sheet — usar SOLO esto; no inventar precios ni inclusiones):",
+    "DATOS DEL SERVICIO (precios Sheet; inclusiones Sheet o catálogo estático — no inventar):",
     ...lines,
   ].join("\n");
 }

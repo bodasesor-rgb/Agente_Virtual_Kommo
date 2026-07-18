@@ -345,7 +345,7 @@ export function sheetRowsToMarkdown(rows: SheetCatalogRow[]): string {
     "CATÁLOGO BODASESOR — GOOGLE SHEETS (fuente viva)",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     "",
-    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vacío → el equipo confirma en cotización. NUNCA inventes bebidas, platillos ni marcas.",
+    "REGLA: Precios oficiales = esta tabla. Inclusiones: usa 'Incluye' de cada fila; si está vacío, usa el CATÁLOGO ESTÁTICO DE RESPALDO del prompt (no inventes). Si tampoco hay respaldo → el equipo confirma en cotización.",
     "REGLA LINK WEB: Si una fila trae Link catálogo (bodasesor.com/catalogos/…), SOLO envíalo cuando el cliente lo pida. Un link a la vez. No inventes URLs.",
     "",
   ];
