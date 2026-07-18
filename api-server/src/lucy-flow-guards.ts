@@ -341,6 +341,24 @@ export function isValidRequerimientosValue(value: string | null | undefined): bo
   if (!trimmed) return false;
   // "Quiero una cotización" / intención genérica ≠ servicio real (Núria A14894).
   if (isGenericQuoteIntentRequerimiento(trimmed) || isQuoteIntentMessage(trimmed)) return false;
+  if (isGreetingOnlyMessage(trimmed)) return false;
+  // "Hola soy Ana" / solo nombre ≠ requerimientos.
+  if (
+    /^(hola|buen[oa]s?\b|me\s+llamo|soy|mi\s+nombre\s+es)\b/i.test(trimmed) &&
+    parseServicesFromText(trimmed).length === 0 &&
+    !isServiceRelatedMessage(trimmed)
+  ) {
+    return false;
+  }
+  if (
+    sanitizeCrmNombre(trimmed) &&
+    parseServicesFromText(trimmed).length === 0 &&
+    !isServiceRelatedMessage(trimmed) &&
+    trimmed.split(/\s+/).length <= 4 &&
+    !/\d/.test(trimmed)
+  ) {
+    return false;
+  }
   // Servicios reales del catálogo siempre cuentan.
   if (parseServicesFromText(trimmed).length > 0 || isServiceRelatedMessage(trimmed)) return true;
   // Tipo de evento o temática sola ("fiesta toscana") ≠ requerimientos.
@@ -3197,12 +3215,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado
   ) {
     // "qué incluye / descripción de cada nivel" — responder YA (Sheet o catálogo web).
+    const serviceHint =
+      (isValidRequerimientosValue(extracted.requerimientos_evento)
+        ? extracted.requerimientos_evento
+        : null) ||
+      parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) ||
+      findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
     const inclusionAnswer = resolveCatalogInclusionReply(
       currentMessage ?? "",
-      extracted.requerimientos_evento
+      serviceHint
     );
     if (inclusionAnswer) {
       const pending = getNextPendingField(extracted, filledSet);
+      // Tras describir paquetes, puede seguir el embudo (zona), pero NUNCA borrar el detalle.
       mensaje =
         pending && needsNextStep && !trulyReadyForClosing
           ? `${inclusionAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
@@ -3721,8 +3746,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // Zona/ubicación REQUERIDA antes del cierre (ciudad + colonia/salón).
   // Usar isFieldSatisfied (no solo filledSet): si extracted ya tiene Querétaro,
   // no volver a preguntar zona al avanzar a fecha (Núria A14894).
+  // No pisar respuestas de "qué incluye / descripción de paquetes".
   if (
     !cierreYaEnviado &&
+    !clientAsksInclusion(currentMessage) &&
+    !appliedDirectReply &&
+    !/\bincluye\s*:|bodasesor\.com\/catalogos/i.test(mensaje) &&
     !isFieldSatisfied("zona", filledSet, extracted) &&
     (responseLooksLikePrematureClose(mensaje) ||
       trulyReadyForClosing ||

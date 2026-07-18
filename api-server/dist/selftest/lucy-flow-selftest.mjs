@@ -14951,6 +14951,13 @@ function isValidRequerimientosValue(value) {
   const trimmed = value?.trim() ?? "";
   if (!trimmed) return false;
   if (isGenericQuoteIntentRequerimiento(trimmed) || isQuoteIntentMessage(trimmed)) return false;
+  if (isGreetingOnlyMessage(trimmed)) return false;
+  if (/^(hola|buen[oa]s?\b|me\s+llamo|soy|mi\s+nombre\s+es)\b/i.test(trimmed) && parseServicesFromText(trimmed).length === 0 && !isServiceRelatedMessage(trimmed)) {
+    return false;
+  }
+  if (sanitizeCrmNombre(trimmed) && parseServicesFromText(trimmed).length === 0 && !isServiceRelatedMessage(trimmed) && trimmed.split(/\s+/).length <= 4 && !/\d/.test(trimmed)) {
+    return false;
+  }
   if (parseServicesFromText(trimmed).length > 0 || isServiceRelatedMessage(trimmed)) return true;
   if (parseTipoEventoFromText(trimmed)) return false;
   if (clientMentionsItalianTheme(trimmed) && trimmed.length < 48) return false;
@@ -16717,9 +16724,10 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 aceptar, anotar y pedir medidas");
   } else if (allowSalesReplyOverride && clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+    const serviceHint = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
     const inclusionAnswer = resolveCatalogInclusionReply(
       currentMessage ?? "",
-      extracted.requerimientos_evento
+      serviceHint
     );
     if (inclusionAnswer) {
       const pending = getNextPendingField(extracted, filledSet);
@@ -17115,7 +17123,7 @@ ${nextQ}`;
       mensaje = forcedNext;
     }
   }
-  if (!cierreYaEnviado && !isFieldSatisfied("zona", filledSet, extracted) && (responseLooksLikePrematureClose(mensaje) || trulyReadyForClosing || mensajeAsksForField(mensaje, "presupuesto") || mensajeAsksForField(mensaje, "fecha") || mensajeAsksForField(mensaje, "invitados"))) {
+  if (!cierreYaEnviado && !clientAsksInclusion(currentMessage) && !appliedDirectReply && !/\bincluye\s*:|bodasesor\.com\/catalogos/i.test(mensaje) && !isFieldSatisfied("zona", filledSet, extracted) && (responseLooksLikePrematureClose(mensaje) || trulyReadyForClosing || mensajeAsksForField(mensaje, "presupuesto") || mensajeAsksForField(mensaje, "fecha") || mensajeAsksForField(mensaje, "invitados"))) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending === "zona" || !mensajeAsksForField(mensaje, "zona")) {
       mensaje = buildNaturalQuestion("zona", ctx);
