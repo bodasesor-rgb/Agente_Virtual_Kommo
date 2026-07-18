@@ -315,6 +315,8 @@ export async function generateLucyOutbound(
     readyForClosing: allFieldsFilled,
     cierreYaEnviado,
     currentMessage: messageText,
+    history: fullHistory,
+    filledSet: filledLabels,
     openai,
     entityId,
     log,

@@ -57,6 +57,10 @@ import {
   mergeZonaDetail,
   FECHA_MAX_ASKS,
 } from "../conversation-understanding.js";
+import {
+  applyLucyGlobalAntiRepetition,
+  lucyTextOverlapRatio,
+} from "../lucyOutboundAntiRepeat.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, clientAsksCompanyIdentity, buildCompanyIdentityReply } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
@@ -3589,8 +3593,94 @@ async function runAll(): Promise<void> {
     assert.ok(/pasta/i.test(vague) && /pizza/i.test(vague), vague.slice(0, 400));
   });
 
+  await test("74. Anti-repetición global — filtro outbound", () => {
+    assert.equal(
+      lucyTextOverlapRatio(
+        "¿Me confirmas la ciudad o colonia del evento?",
+        "¿Me confirmas la ciudad o colonia del evento?"
+      ),
+      1
+    );
+    assert.ok(
+      lucyTextOverlapRatio(
+        "Perfecto. Lo sumo a tu cotización. ¿Algo más que quieras agregar?",
+        "Perfecto, Núria. Lo sumo a tu cotización. ¿Algo más que quieras agregar?"
+      ) >= 0.65
+    );
+
+    // Casi idéntico al turno anterior → no reenvía el mismo bloque.
+    const dup = applyLucyGlobalAntiRepetition({
+      mensaje: "¿Me confirmas la ciudad o colonia del evento?",
+      history: [
+        {
+          role: "assistant",
+          content: "¿Me confirmas la ciudad o colonia del evento?",
+        },
+      ],
+      filledSet: new Set(["Nombre del cliente"]),
+      extracted: emptyExtracted({ nombre: "Núria" }),
+    });
+    assert.ok(dup.applied.length > 0, String(dup.applied));
+    assert.ok(
+      lucyTextOverlapRatio(dup.mensaje, "¿Me confirmas la ciudad o colonia del evento?") < 0.72 ||
+        !/ciudad o colonia/i.test(dup.mensaje),
+      dup.mensaje
+    );
+
+    // Post-cierre: segundo "gracias" no repite el mismo ack largo.
+    const thanks1 =
+      "¡Con gusto, Núria! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.";
+    const thanks2 = applyLucyGlobalAntiRepetition({
+      mensaje: thanks1,
+      history: [{ role: "assistant", content: thanks1 }],
+      cierreYaEnviado: true,
+      clientName: "Núria",
+      extracted: emptyExtracted({ nombre: "Núria" }),
+    });
+    assert.ok(thanks2.applied.includes("postcierre-thanks-dedupe"), String(thanks2.applied));
+    assert.ok(/con gusto/i.test(thanks2.mensaje), thanks2.mensaje);
+    assert.ok(lucyTextOverlapRatio(thanks2.mensaje, thanks1) < 0.9, thanks2.mensaje);
+
+    // Post-cierre: segundo "¿algo más?" se corta.
+    const algo = applyLucyGlobalAntiRepetition({
+      mensaje: "Perfecto. Lo sumo a tu cotización. ¿Algo más que quieras agregar?",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, Núria. Lo sumo a tu cotización. ¿Algo más que quieras agregar?",
+        },
+      ],
+      cierreYaEnviado: true,
+      clientName: "Núria",
+    });
+    assert.ok(
+      algo.applied.includes("postcierre-algo-mas-dedupe") ||
+        algo.applied.includes("near-duplicate-postcierre"),
+      String(algo.applied)
+    );
+    assert.ok(!ALGO_MAS_OR_EMPTY(algo.mensaje), algo.mensaje);
+
+    // Campo ya capturado: quita la re-pregunta de correo.
+    const filledAsk = applyLucyGlobalAntiRepetition({
+      mensaje: "Genial. ¿Me compartes tu correo para enviarte la info?",
+      history: [{ role: "assistant", content: "¿Qué servicios te gustaría?" }],
+      filledSet: new Set(["Nombre del cliente", "Correo electrónico"]),
+      extracted: emptyExtracted({ nombre: "Ana", correo: "ana@test.com" }),
+    });
+    assert.ok(
+      filledAsk.applied.includes("filled-field-strip") ||
+        filledAsk.applied.includes("filled-field-ack"),
+      String(filledAsk.applied)
+    );
+    assert.ok(!mensajeAsksForField(filledAsk.mensaje, "correo"), filledAsk.mensaje);
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
+}
+
+function ALGO_MAS_OR_EMPTY(msg: string): boolean {
+  return /\b(algo\s+m[aá]s|alg[uú]n\s+otro\s+servicio)\b/i.test(msg);
 }
 
 runAll().catch((err) => {

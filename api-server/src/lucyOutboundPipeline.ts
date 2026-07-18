@@ -2,6 +2,7 @@
  * Post-procesado unificado de respuestas Lucy — webhook, salesbot y simulador.
  */
 import type OpenAI from "openai";
+import type { ExtractedData } from "./types.js";
 import { formatForWhatsApp } from "./lib/formatForWhatsApp.js";
 import { normalizeAdvisorReferences } from "./lib/bodasesorAdvisor.js";
 import { CATALOG_URL } from "./lucy-prompt.js";
@@ -11,14 +12,17 @@ import {
   CLOSING_SIGNATURE,
   stripCatalogBlockShared,
 } from "./lucy-flow-guards.js";
+import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
 import { maybeRefinarMensajeCierre } from "./services/lucyRedaction.js";
 
 export interface FinalizeLucyOutboundInput {
   mensaje: string;
-  extracted: { nombre?: string | null };
+  extracted: Partial<ExtractedData> & { nombre?: string | null };
   readyForClosing: boolean;
   cierreYaEnviado: boolean;
   currentMessage?: string;
+  history?: OpenAI.Chat.ChatCompletionMessageParam[];
+  filledSet?: Set<string>;
   openai: OpenAI;
   entityId?: string | number;
   log?: { warn: (obj: object, msg?: string) => void; info?: (obj: object, msg?: string) => void };
@@ -39,6 +43,24 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
   if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
     input.log?.warn({ entityId: input.entityId }, "P3 GUARD: catálogo repetido post-cierre — stripping");
     mensaje = stripCatalogBlockShared(mensaje);
+  }
+
+  // Última malla: anti-repetición global (direct/sales/cierre/post-cierre).
+  const anti = applyLucyGlobalAntiRepetition({
+    mensaje,
+    history: input.history,
+    filledSet: input.filledSet,
+    extracted: input.extracted,
+    currentMessage: input.currentMessage,
+    cierreYaEnviado: input.cierreYaEnviado,
+    clientName: input.extracted.nombre,
+  });
+  if (anti.applied.length) {
+    input.log?.info?.(
+      { entityId: input.entityId, applied: anti.applied },
+      "GUARD: anti-repetición global"
+    );
+    mensaje = anti.mensaje;
   }
 
   if (!mensaje.trim()) {
