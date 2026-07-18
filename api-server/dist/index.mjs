@@ -88706,7 +88706,10 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("postcierre-algo-mas-dedupe");
     }
   }
-  if (!cierre && mensajeAsksForFilledField(mensaje, filled, extracted)) {
+  const isCatalogDetailReply = /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s/i.test(
+    mensaje
+  );
+  if (!cierre && !isCatalogDetailReply && mensajeAsksForFilledField(mensaje, filled, extracted)) {
     const stripped = mensaje.split("\n").filter((line2) => {
       const t = line2.trim();
       if (!t) return false;
