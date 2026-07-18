@@ -82827,8 +82827,32 @@ function buildInclusionTeamConfirmationAnswer(query) {
   }
   return `El detalle exacto de lo que incluye *${label}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
 }
-function resolveCatalogInclusionReply(query) {
-  return buildCatalogInclusionAnswer(query) ?? buildInclusionTeamConfirmationAnswer(query);
+function resolveCatalogInclusionReply(query, serviceHint) {
+  const wantsAllLevels = /\bcada\s+nivel|\btodos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada/i.test(
+    query
+  );
+  if (wantsAllLevels && serviceHint?.trim()) {
+    const detail = buildCatalogServiceDetailAnswer(serviceHint);
+    if (detail && /\bincluye\b/i.test(detail)) return detail;
+    const all3 = buildCatalogInclusionAnswer(serviceHint);
+    if (all3) return all3;
+  }
+  const attempts = [
+    query,
+    serviceHint ? `${serviceHint} ${query}` : null,
+    serviceHint || null
+  ].filter((q2) => !!q2?.trim());
+  for (const q2 of attempts) {
+    if (wantsAllLevels) {
+      const detail2 = buildCatalogServiceDetailAnswer(q2);
+      if (detail2 && /\bincluye\b/i.test(detail2)) return detail2;
+    }
+    const hit = buildCatalogInclusionAnswer(q2) ?? buildInclusionTeamConfirmationAnswer(q2);
+    if (hit) return hit;
+    const detail = buildCatalogServiceDetailAnswer(q2);
+    if (detail && /\bincluye\b/i.test(detail)) return detail;
+  }
+  return null;
 }
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
@@ -83294,9 +83318,9 @@ function buildEventOfferCatalogHint(tipoEvento) {
     "NO inventes precios. Inclusiones solo del Sheet."
   ].join("\n");
 }
-function injectCatalogInclusionIfAsked(clientMessage, aiResponse) {
+function injectCatalogInclusionIfAsked(clientMessage, aiResponse, serviceHint) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
-  const fromCatalog = resolveCatalogInclusionReply(clientMessage);
+  const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
   if (fromCatalog) return fromCatalog;
   return aiResponse;
 }
@@ -87038,7 +87062,10 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
     }
   } else if (clientAsksInclusion(currentMessage)) {
-    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage);
+    const inclusionAnswer = resolveCatalogInclusionReply(
+      currentMessage,
+      extracted.requerimientos_evento
+    );
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -87069,7 +87096,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     }
   }
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
-  if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !isFieldSatisfied("zona", filledSet, extracted)) {
+  if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !isFieldSatisfied("zona", filledSet, extracted) && !/\bincluye\b|\bniveles?\b|\$\s*\d/i.test(mensaje)) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     const zonaAsks = countLucyFieldAsks(presHistory, "zona");
     const zonaVariants = nombre ? [
@@ -88907,7 +88934,11 @@ async function generateLucyOutbound(input) {
     conversationAgeHours
   });
   let aiResponse = await completeLucyRedaction(openai5, lucyMessages, redactionBriefing);
-  aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
+  aiResponse = injectCatalogInclusionIfAsked(
+    messageText,
+    aiResponse,
+    extracted.requerimientos_evento ?? extracted.tipo_evento
+  );
   aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
   aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
   if (prependToAiResponse?.trim()) {

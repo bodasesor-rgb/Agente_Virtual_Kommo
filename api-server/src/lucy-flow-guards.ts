@@ -3885,7 +3885,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
     }
   } else if (clientAsksInclusion(currentMessage)) {
-    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage);
+    const inclusionAnswer = resolveCatalogInclusionReply(
+      currentMessage,
+      extracted.requerimientos_evento
+    );
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -3919,10 +3922,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
 
+  // No pisar una respuesta de catálogo (Incluye / niveles / precios) solo para variar la zona.
   if (
     mensajeAsksForField(mensaje, "zona") &&
     countLucyFieldAsks(presHistory, "zona") >= 1 &&
-    !isFieldSatisfied("zona", filledSet, extracted)
+    !isFieldSatisfied("zona", filledSet, extracted) &&
+    !/\bincluye\b|\bniveles?\b|\$\s*\d/i.test(mensaje)
   ) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     const zonaAsks = countLucyFieldAsks(presHistory, "zona");
