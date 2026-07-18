@@ -56,11 +56,17 @@ import {
   isGenericQuoteIntentRequerimiento,
   mergeZonaDetail,
   FECHA_MAX_ASKS,
+  parseSalaProductFromText,
+  isLikelyProductNameNotLocation,
+  clientMentionsCarpas,
+  clientAsksServiceInfo,
 } from "../conversation-understanding.js";
 import {
   applyLucyGlobalAntiRepetition,
   lucyTextOverlapRatio,
 } from "../lucyOutboundAntiRepeat.js";
+import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
+import { buildConsultativeNoPriceReply } from "../price-guard.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, clientAsksCompanyIdentity, buildCompanyIdentityReply } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
@@ -3673,6 +3679,94 @@ async function runAll(): Promise<void> {
       String(filledAsk.applied)
     );
     assert.ok(!mensajeAsksForField(filledAsk.mensaje, "correo"), filledAsk.mensaje);
+  });
+
+  await test("75. María A14906 — salas≠invitados, Luxor≠zona, carpas con medidas", () => {
+    assert.equal(parseInvitadosFromText("Serían 4 salas"), null);
+    assert.equal(parseInvitadosFromText("serían 4 mesas"), null);
+    assert.ok(parseInvitadosFromText("serían 40 personas") === "40");
+
+    assert.ok(parseSalaProductFromText("cotizar la sala: Luxor Rosa")?.includes("Luxor"));
+    assert.ok(parseSalaProductFromText("Serían 4 salas")?.includes("4"));
+    assert.ok(isLikelyProductNameNotLocation("Luxor Rosa"));
+    assert.ok(isLikelyProductNameNotLocation("sala: Luxor Rosa"));
+    assert.equal(isUsableDireccionEvento("Luxor Rosa"), false);
+    assert.equal(parseZonaFromText("sala: Luxor Rosa"), null);
+    assert.ok(isUsableDireccionEvento("Polanco, CDMX"));
+
+    const services = parseServicesFromText(
+      "Hola, me interesa cotizar la sala: Luxor Rosa. Serían 4 salas"
+    );
+    assert.ok(services.some((s) => /sala|luxor/i.test(s)), String(services));
+
+    assert.ok(clientAsksServiceInfo("¿Cuentan con carpas transparentes?"));
+    assert.ok(clientMentionsCarpas("¿Cuentan con carpas transparentes?"));
+    const carpasAck = buildGuardServiceAck("¿Cuentan con carpas transparentes?");
+    assert.ok(/s[ií]|contamos|manejamos/i.test(carpasAck), carpasAck);
+    assert.ok(/transparent/i.test(carpasAck), carpasAck);
+    assert.ok(/agreg|cotiz/i.test(carpasAck), carpasAck);
+    assert.ok(/medidas?/i.test(carpasAck), carpasAck);
+    assert.ok(!/^¡?claro!.{0,40}la anoto/i.test(carpasAck), carpasAck);
+
+    const carpasConsult = buildConsultativeNoPriceReply("¿Cuentan con carpas transparentes?");
+    assert.ok(carpasConsult && /transparent|medidas?/i.test(carpasConsult), carpasConsult ?? "");
+
+    // Flujo: pregunta carpas no se ignora; pide medidas.
+    const carpasReply = runGuards({
+      aiResponse: "¡Claro! Carpas la anoto para tu cotización.",
+      extracted: emptyExtracted({
+        nombre: "Maria",
+        correo: "maria.gomez@gopop.mx",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "Sala Luxor Rosa",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Cuentan con carpas transparentes ?",
+      history: [
+        { role: "assistant", content: "Gracias por tu correo, Maria. ¿Qué tipo de evento es?" },
+        { role: "user", content: "Fiesta de cumpleaños" },
+      ],
+    });
+    assert.ok(/s[ií]|contamos|manejamos|carpa/i.test(carpasReply), carpasReply.slice(0, 400));
+    assert.ok(/medidas?/i.test(carpasReply), carpasReply.slice(0, 400));
+    assert.ok(!/la anoto para tu cotizaci[oó]n\.?\s*$/i.test(carpasReply.trim()), carpasReply);
+
+    // Correo: tras ask previo + "4 salas", acusa salas y no clona el mismo ask.
+    const emailAgain = runGuards({
+      aiResponse: "Mucho gusto, Maria. Para mandarte la info, ¿a qué correo te lo envío?",
+      extracted: emptyExtracted({ nombre: "Maria" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Serían 4 salas",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Con gusto te apoyo con la cotización para el salón Luxor Rosa. ¿Me podrías proporcionar tu correo electrónico para enviarte la información?",
+        },
+      ],
+      whatsappDisplayName: "Maria",
+    });
+    assert.ok(/sala|luxor|anoto/i.test(emailAgain), emailAgain.slice(0, 400));
+    assert.ok(
+      !/me podr[ií]as proporcionar tu correo electr[oó]nico/i.test(emailAgain),
+      emailAgain.slice(0, 400)
+    );
+
+    // Producto no debe quedar como ubicación en sanitize.
+    const clean = sanitizeExtractedFromExternal({
+      ...emptyExtracted({ nombre: "Maria" }),
+      direccion_evento: "Luxor Rosa",
+      num_invitados: 4,
+      requerimientos_evento: "Mobiliario",
+    });
+    assert.equal(clean.direccion_evento, null);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

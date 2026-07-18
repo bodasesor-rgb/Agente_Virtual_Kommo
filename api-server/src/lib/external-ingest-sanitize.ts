@@ -10,7 +10,11 @@ import {
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
 import { isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { resolveTipoContacto } from "../tipoContacto.js";
-import { isDimensionText, isVagueVenueOnly } from "../conversation-understanding.js";
+import {
+  isDimensionText,
+  isLikelyProductNameNotLocation,
+  isVagueVenueOnly,
+} from "../conversation-understanding.js";
 
 function lineLabel(line: string): string {
   return line.replace(/^-?\s*/, "").split(":")[0]?.trim() ?? "";
@@ -89,7 +93,9 @@ export function sanitizeExtractedFromExternal(
 
   if (
     out.direccion_evento &&
-    (isDimensionText(out.direccion_evento) || isVagueVenueOnly(out.direccion_evento))
+    (isDimensionText(out.direccion_evento) ||
+      isVagueVenueOnly(out.direccion_evento) ||
+      isLikelyProductNameNotLocation(out.direccion_evento))
   ) {
     out.direccion_evento = null;
   }

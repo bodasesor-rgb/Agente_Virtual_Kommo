@@ -66,7 +66,9 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Iluminación", /\biluminaci[oó]n\b/i],
   ["Decoración", /\bdecoraci[oó]n\b/i],
   ["Floristería", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
-  ["Mobiliario", /\b(mobiliario|m[aá]rmol|sillas?|mesas?)\b/i],
+  // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
+  ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
+  ["Mobiliario", /\b(mobiliario|m[aá]rmol|sillas?|mesas?|periqueras?)\b/i],
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
@@ -98,7 +100,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -108,7 +110,13 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   mesas: "mobiliario",
   silla: "mobiliario",
   sillas: "mobiliario",
+  sala: "salas lounge",
+  salas: "salas lounge",
+  lounge: "salas lounge",
+  periquera: "mobiliario",
+  periqueras: "mobiliario",
   carpa: "carpas",
+  carpas: "carpas",
   bebidas: "barra de bebidas",
   bebida: "barra de bebidas",
   banquete: "banquete",
@@ -552,8 +560,63 @@ export function clientAsksServiceInfo(message?: string): boolean {
   return (
     /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?)\b/i.test(t) ||
     /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t) ||
-    /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t)
+    /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t) ||
+    // "¿Cuentan con carpas transparentes?" / "¿tienen pista?"
+    /\b(cuentan|tienen|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t) ||
+    /\b(cuentan|tienen|manejan|ofrecen)\s+con\b/i.test(t)
   );
+}
+
+/** Unidades que NO son invitados ("4 salas", "10 mesas", "2 carpas"). */
+const NON_GUEST_UNIT_PATTERN =
+  /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
+
+/** Producto de catálogo / sala lounge — NO es dirección del evento. */
+export function isLikelyProductNameNotLocation(value: string | null | undefined): boolean {
+  const t = (value ?? "").trim();
+  if (!t) return false;
+  if (/^sala\s*:/i.test(t)) return true;
+  if (/\bsala\s*:/i.test(t)) return true;
+  if (/^luxor(\s+rosa)?$/i.test(t)) return true;
+  if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?)$/i.test(t)) {
+    return true;
+  }
+  // "Luxor Rosa", "Sala Luxor Rosa" sin tokens de ciudad/colonia.
+  if (
+    /\b(luxor|tiffany|vers[aá]til)\b/i.test(t) &&
+    !/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida|quer[eé]taro|polanco|santa\s+fe)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Extrae producto "sala: Luxor Rosa" / "4 salas" para requerimientos. */
+export function parseSalaProductFromText(text: string): string | null {
+  const named = text.match(/\bsala\s*:\s*([A-Za-zÁÉÍÓÚáéíóúñ0-9][\w\s.-]{1,40})/i);
+  if (named?.[1]) {
+    const qty = text.match(/\b(\d+)\s+salas?\b/i);
+    const name = named[1].trim().replace(/[.,;]+$/, "");
+    return qty ? `${qty[1]} salas ${name}` : `Sala ${name}`;
+  }
+  const qtyOnly = text.match(/\b(\d+)\s+salas?\b/i);
+  if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
+  if (/\bsalas?\s+lounge\b/i.test(text)) return "Salas lounge";
+  return null;
+}
+
+/** Cliente menciona carpas (incl. transparentes). */
+export function clientMentionsCarpas(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return /\bcarpas?\b|\btoldos?\b|\blonas?\b/i.test(message);
+}
+
+/** Carpas / pista / tarima: hay que pedir medidas. */
+export function clientMentionsMeasureRequiredService(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return clientMentionsCarpas(message) || clientMentionsPistaTarima(message);
 }
 
 /** Cliente pide que lo llamen / atención personalizada por teléfono. */
@@ -881,6 +944,14 @@ export function parseServicesFromText(text: string): string[] {
     if (!found.some((s) => /pizza/i.test(s))) found.push("Barra de pizzas");
   }
 
+  // "sala: Luxor Rosa" / "4 salas" → etiqueta concreta en requerimientos.
+  const salaProduct = parseSalaProductFromText(text);
+  if (salaProduct) {
+    const idx = found.findIndex((s) => /salas?\s*lounge/i.test(s));
+    if (idx >= 0) found[idx] = salaProduct;
+    else if (!found.some((s) => /sala|luxor/i.test(s))) found.push(salaProduct);
+  }
+
   const normalized = normalizeShortServicePhrase(text);
   if (normalized) {
     const normLower = normalized.toLowerCase();
@@ -1057,6 +1128,9 @@ export function parseInvitadosFromText(text: string): string | null {
   );
   if (numMatchEarly) return numMatchEarly[1]!;
 
+  // "Serían 4 salas" / "10 mesas" / "2 carpas" ≠ invitados (María A14906).
+  if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
+
   if (isServiceRelatedMessage(trimmed)) return null;
 
   if (
@@ -1079,7 +1153,14 @@ export function parseInvitadosFromText(text: string): string | null {
   if (numMatch) return numMatch[1]!;
 
   const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
-  if (paraMatch) return paraMatch[1]!;
+  if (paraMatch) {
+    // "serían 4 salas" ya bloqueado arriba; evita "serían 4" suelto si sigue unidad no-persona.
+    const after = trimmed.slice(paraMatch.index! + paraMatch[0].length);
+    if (/^\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?)\b/i.test(after)) {
+      return null;
+    }
+    return paraMatch[1]!;
+  }
 
   // "más o menos 120", "aproximadamente 80" — número suelto con calificador aproximado
   const aproxMatch = trimmed.match(
@@ -1118,21 +1199,24 @@ export function isDimensionText(text: string | null | undefined): boolean {
   );
 }
 
-/** Ubicación usable: no vacía, no medidas, no venue genérico ("salón"/"edificio"). */
+/** Ubicación usable: no vacía, no medidas, no venue genérico, no producto de catálogo. */
 export function isUsableDireccionEvento(value: string | null | undefined): boolean {
   const t = value?.trim() ?? "";
   if (!t) return false;
   if (isDimensionText(t)) return false;
   if (isVagueVenueOnly(t)) return false;
+  if (isLikelyProductNameNotLocation(t)) return false;
   return true;
 }
 
-/** Medidas del espacio para tarima/pista (ej. 6 metros por 12). */
+/** Medidas del espacio para tarima/pista/carpa (ej. 6 metros por 12, 6x12). */
 export function parseSpaceDimensions(text: string): string | null {
   const m = text.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
   if (m) return `${m[1]}m x ${m[3]}m`;
   const m2 = text.match(/\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(por|x)\s*(\d+)/i);
   if (m2) return `${m2[1]}m x ${m2[3]}m`;
+  const m3 = text.match(/\b(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/i);
+  if (m3) return `${m3[1]}m x ${m3[2]}m`;
   return null;
 }
 
@@ -1148,6 +1232,9 @@ export function parseZonaFromText(text: string): string | null {
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
+  // "sala: Luxor Rosa" / producto de mobiliario ≠ zona del evento.
+  if (isLikelyProductNameNotLocation(trimmed)) return null;
+  if (/\bsala\s*:/i.test(trimmed)) return null;
 
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
   if (expoMatch?.[0]) return expoMatch[0].trim();
@@ -1887,7 +1974,7 @@ export function appendSpaceDimensionsToRequerimientos(
 ): void {
   const userTexts = collectUserMessages(history, currentMessage);
   const contextText = userTexts.join(" ");
-  if (!/pista|tarima/i.test(contextText)) return;
+  if (!/pista|tarima|carpa/i.test(contextText)) return;
 
   const dims = userTexts.map((t) => parseSpaceDimensions(t)).find(Boolean);
   if (!dims) return;
@@ -1905,7 +1992,9 @@ export function appendSpaceDimensionsToRequerimientos(
   }
 
   if (!filledSet.has("Requerimientos o servicios")) {
-    const service = parsePrimaryService(contextText) ?? "Pista de baile";
+    const service =
+      parsePrimaryService(contextText) ??
+      (/\bcarpa/i.test(contextText) ? "Carpas" : "Pista de baile");
     mergedLines.push(`- Requerimientos o servicios: ${service} (espacio ${dims})`);
     filledSet.add("Requerimientos o servicios");
   }

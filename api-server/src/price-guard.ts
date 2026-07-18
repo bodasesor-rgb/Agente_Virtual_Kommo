@@ -140,9 +140,13 @@ export function buildConsultativeNoPriceReply(message?: string): string | null {
   const team = advisorLabelForClient();
 
   if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t)) {
+    const transparent = /transparent/i.test(t);
+    const head = transparent
+      ? "Sí, contamos con *carpas transparentes* (y también Cathedral, Pirámide y Planas)."
+      : "Sí, manejamos carpas para jardín o terraza: Cathedral (techos altos), Pirámide, Planas y transparentes.";
     return (
-      `Las carpas protegen del sol y la lluvia en jardín o terraza. Hay Cathedral (techos altos), Pirámide (modernas) y Planas (funcionales). ` +
-      `${team} incluirá el precio según el tamaño. ¿Qué estilo va más con tu evento?`
+      `${head} Se cotizan según medidas, montaje y sede. ` +
+      `${team} arma el precio. ¿Quieres que las agregue a tu cotización? ¿Qué medidas aproximadas necesitas?`
     );
   }
   if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t)) {
@@ -159,8 +163,8 @@ export function buildConsultativeNoPriceReply(message?: string): string | null {
   }
   if (/pista(\s+de\s+baile)?|tarimas?\b/.test(t)) {
     return (
-      `Manejamos pistas de baile y tarimas en varios tamaños, con opción iluminada. ` +
-      `${team} incluirá el precio según las medidas de tu espacio. ¿Ya tienes idea del tamaño?`
+      `Sí, manejamos pistas de baile y tarimas en varios tamaños, con opción iluminada. ` +
+      `${team} cotiza según las medidas. ¿Quieres que lo agregue a tu cotización? ¿Qué medidas aproximadas tiene el espacio?`
     );
   }
   if (/mobiliario/.test(t)) {
