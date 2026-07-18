@@ -16264,6 +16264,25 @@ function applyLucyMessageGuards(input) {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+    const serviceHint = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+    const inclusionAnswer = resolveCatalogInclusionReply(
+      currentMessage ?? "",
+      serviceHint
+    );
+    if (inclusionAnswer) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const emailOkEarly = isEmailSatisfied(filledSet, extracted);
+      const withNext = pending && emailOkEarly && pending !== "requerimientos" ? `${inclusionAnswer}
+
+${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
+      log?.info({ entityId, serviceHint }, "GUARD: inclusiones \u2014 return temprano");
+      return normalizeAdvisorReferences(
+        withNext,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
   applyPresupuestoWaiver(
     filledSet,
     [],

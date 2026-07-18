@@ -2554,6 +2554,34 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   syncFilledFromExtracted(filledSet, extracted);
 
+  // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
+  // por redirect a zona ni anti-repeat de embudo.
+  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+    const serviceHint =
+      (isValidRequerimientosValue(extracted.requerimientos_evento)
+        ? extracted.requerimientos_evento
+        : null) ||
+      parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) ||
+      findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+    const inclusionAnswer = resolveCatalogInclusionReply(
+      currentMessage ?? "",
+      serviceHint
+    );
+    if (inclusionAnswer) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const emailOkEarly = isEmailSatisfied(filledSet, extracted);
+      const withNext =
+        pending && emailOkEarly && pending !== "requerimientos"
+          ? `${inclusionAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
+          : inclusionAnswer;
+      log?.info({ entityId, serviceHint }, "GUARD: inclusiones — return temprano");
+      return normalizeAdvisorReferences(
+        withNext,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+
   applyPresupuestoWaiver(
     filledSet,
     [],
