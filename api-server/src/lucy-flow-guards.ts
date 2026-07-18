@@ -77,6 +77,10 @@ import {
   clientDeclinesMoreServices,
   clientMentionsEntertainment,
   clientMentionsPistaTarima,
+  clientMentionsCarpas,
+  clientAsksServiceInfo,
+  parseSalaProductFromText,
+  isLikelyProductNameNotLocation,
   detectPresupuestoRefusal,
   findPresupuestoInTexts,
   countLucyFieldAsks,
@@ -218,6 +222,9 @@ function hasPresupuestoValue(extracted: ExtractedData): boolean {
  * Sincroniza filledSet desde extracted cuando la captura GPT/CRM vino desfasada.
  * Evita re-preguntar correo/zona/fecha/servicios ya presentes en extracted.
  */
+/** Máx. intentos de correo con redacción distinta — no spamear el mismo ask. */
+export const CORREO_MAX_ASKS = 2;
+
 export function syncFilledFromExtracted(filledSet: Set<string>, extracted: ExtractedData): void {
   if (sanitizeCrmNombre(extracted.nombre)) filledSet.add("Nombre del cliente");
   const email = filterClientEmail(extracted.correo);
@@ -226,10 +233,13 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
   if (isValidRequerimientosValue(extracted.requerimientos_evento)) {
     filledSet.add("Requerimientos o servicios");
   }
-  // Solo invalidar zona si extracted trae un valor NO usable (salón/edificio/medidas).
+  // Solo invalidar zona si extracted trae un valor NO usable (salón/edificio/medidas/producto).
   // Si extracted viene vacío, respetar lo ya marcado en CRM/filledSet.
   if (extracted.direccion_evento?.trim()) {
-    if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+    if (
+      !isUsableDireccionEvento(extracted.direccion_evento) ||
+      isLikelyProductNameNotLocation(extracted.direccion_evento)
+    ) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/dirección del evento");
     } else {
@@ -666,13 +676,9 @@ function buildPistaTarimaSalesReply(
   const dims =
     parseSpaceDimensions(currentMessage ?? "") ||
     (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const spaceNote = dims
-    ? ` Con unos ${dims.replace(/m/gi, " m")} podemos proponer el tamaño ideal.`
-    : "";
-  // NIVEL 2: aceptar + anotar + avanzar (sin precio en Sheet). NO volver a preguntar "¿otro servicio?".
   const intro = dims
-    ? `Claro, anoto la pista/tarima para tu cotización.${spaceNote} El equipo te confirma el precio según las medidas.`
-    : `Claro, anoto la pista de baile o tarima para tu cotización. Hay varios tamaños (incluye opción iluminada); el equipo te confirma el precio.`;
+    ? `Sí, anoto la pista/tarima (${dims.replace(/m/gi, " m")}) para tu cotización. El equipo confirma el precio según esas medidas.`
+    : `Sí, manejamos pista de baile y tarima (opción iluminada). ¿Quieres que lo agregue a tu cotización? ¿Qué medidas aproximadas tiene el espacio?`;
 
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
@@ -681,6 +687,13 @@ function buildPistaTarimaSalesReply(
     extracted.requerimientos_evento = dims
       ? `pista/tarima ${dims.replace(/m/gi, " m")}`
       : "pista de baile / tarima";
+  } else if (dims && !extracted.requerimientos_evento.includes(dims)) {
+    extracted.requerimientos_evento = `${extracted.requerimientos_evento}; pista/tarima ${dims}`;
+  }
+
+  // Sin medidas: prioriza la pregunta de medidas (no saltar al siguiente campo).
+  if (!dims) {
+    return `${pickTransition(history)} ${intro}`.trim();
   }
 
   const filledAfter = new Set(filledSet ?? []);
@@ -691,6 +704,45 @@ function buildPistaTarimaSalesReply(
     return `${pickTransition(history)} ${intro}\n\n${nextQ}`.trim();
   }
   return `${pickTransition(history)} ${intro}`.trim();
+}
+
+/** Carpas: sí/no real + agregar a cotización + medidas (María A14906). */
+function buildCarpasSalesReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string,
+  filledSet?: Set<string>,
+  ctx?: NaturalQuestionContext
+): string {
+  const dims =
+    parseSpaceDimensions(currentMessage ?? "") ||
+    (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+  const transparent = /transparent/i.test(currentMessage ?? "");
+  const ack = buildGuardServiceAck(currentMessage ?? "carpas transparentes");
+
+  if (filledSet) filledSet.add("Requerimientos o servicios");
+  const baseLabel = transparent ? "Carpas transparentes" : "Carpas";
+  if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+    extracted.requerimientos_evento = dims ? `${baseLabel} (${dims})` : baseLabel;
+  } else if (!/carpa/i.test(extracted.requerimientos_evento)) {
+    extracted.requerimientos_evento = dims
+      ? `${extracted.requerimientos_evento}; ${baseLabel} (${dims})`
+      : `${extracted.requerimientos_evento}; ${baseLabel}`;
+  }
+
+  if (!dims) {
+    // Ya incluye pregunta de medidas en buildGuardServiceAck / consultive.
+    return `${pickTransition(history)} ${ack}`.trim();
+  }
+
+  const filledAfter = new Set(filledSet ?? []);
+  filledAfter.add("Requerimientos o servicios");
+  const pending = getNextPendingField(extracted, filledAfter);
+  if (pending && pending !== "requerimientos" && ctx) {
+    const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+    return `${pickTransition(history)} ${ack}\n\n${nextQ}`.trim();
+  }
+  return `${pickTransition(history)} ${ack}`.trim();
 }
 
 function buildEntertainmentSalesReply(
@@ -2481,6 +2533,42 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     presHistory
   );
 
+  // "4 salas" ≠ 4 invitados; "Luxor Rosa" ≠ ubicación.
+  {
+    const blob = collectUserTexts(presHistory, currentMessage).join(" ");
+    if (
+      extracted.num_invitados != null &&
+      new RegExp(
+        `\\b${extracted.num_invitados}\\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?)\\b`,
+        "i"
+      ).test(blob)
+    ) {
+      extracted.num_invitados = null;
+      filledSet.delete("Número de invitados");
+    }
+    if (
+      extracted.direccion_evento &&
+      (isLikelyProductNameNotLocation(extracted.direccion_evento) ||
+        (/\bsala\s*:/i.test(blob) &&
+          new RegExp(
+            extracted.direccion_evento.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+            "i"
+          ).test(blob)))
+    ) {
+      const sala = parseSalaProductFromText(blob);
+      if (sala) {
+        extracted.requerimientos_evento = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          sala,
+          6
+        );
+        if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
+      }
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/dirección del evento");
+    }
+  }
+
   // Captura canónica: TODOS los servicios del mensaje (y del historial de usuario).
   // No capturar "Comida" suelta cuando el cliente aún está en término vago.
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
@@ -2500,6 +2588,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       extracted.requerimientos_evento = mergedReq;
       filledSet.add("Requerimientos o servicios");
     }
+  }
+  const salaTurn = parseSalaProductFromText(currentMessage ?? "");
+  if (salaTurn) {
+    extracted.requerimientos_evento = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      salaTurn,
+      6
+    );
+    if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
   }
 
   // Tras un menú / "¿otro servicio?", si el cliente ya nombró algo, no reabrir requisitos.
@@ -3074,6 +3171,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento — orientación de venta");
+  } else if (allowSalesReplyOverride && clientMentionsCarpas(currentMessage)) {
+    mensaje = buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: carpas — responder, agregar y pedir medidas");
   } else if (allowSalesReplyOverride && clientMentionsPistaTarima(currentMessage)) {
     mensaje = buildPistaTarimaSalesReply(
       extracted,
@@ -3084,7 +3185,42 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ctx
     );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: pista/tarima — aceptar, anotar y avanzar");
+    log?.info({ entityId }, "GUARD: pista/tarima — aceptar, anotar y pedir medidas");
+  } else if (
+    allowSalesReplyOverride &&
+    clientAsksServiceInfo(currentMessage) &&
+    isServiceRelatedMessage(currentMessage) &&
+    !cierreYaEnviado
+  ) {
+    // Pregunta de disponibilidad/detalle: NUNCA ignorar con solo "lo anoto".
+    const ack = buildGuardServiceAck(currentMessage ?? "");
+    const sala = parseSalaProductFromText(currentMessage ?? "");
+    if (sala && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
+      extracted.requerimientos_evento = sala;
+      filledSet.add("Requerimientos o servicios");
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    // Si el ack ya pide medidas (carpas/pista), no apilar otra pregunta del embudo.
+    const asksMeasures = /medidas?/i.test(ack);
+    if (!asksMeasures && pending && ctx) {
+      const nextQ = buildNaturalQuestion(pending, ctx);
+      // Evita repetir el mismo campo que ya preguntó el turno anterior.
+      const lastAsk = inferLucyAskedField(
+        [...presHistory]
+          .reverse()
+          .find((m) => m.role === "assistant" && typeof m.content === "string")
+          ?.content as string | undefined
+      );
+      if (lastAsk && pending === lastAsk && countLucyFieldAsks(presHistory, pending) >= 1) {
+        mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
+      } else {
+        mensaje = `${pickTransition(presHistory)} ${ack}\n\n${nextQ}`.trim();
+      }
+    } else {
+      mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
+    }
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: pregunta de servicio — responder con detalle");
   } else if (
     allowSalesReplyOverride &&
     !serviceAlreadyCaptured &&
@@ -3434,6 +3570,74 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.warn({ entityId }, "GUARD: correo forzado tras rechazo — reemplazando respuesta");
     mensaje = nextQ;
+  }
+
+  // Correo pendiente: si el cliente aportó salas/servicios, acusar y NO repetir el mismo ask.
+  // Tras CORREO_MAX_ASKS sin respuesta, avanza al siguiente dato (el correo se vuelve a pedir
+  // cuando toque por getNextPendingField / cierre — no se olvida del embudo).
+  if (
+    !cierreYaEnviado &&
+    !appliedDirectReply &&
+    !isEmailSatisfied(filledSet, extracted) &&
+    !detectEmailRefusal([currentMessage ?? ""]) &&
+    !parseCorreoFromText(currentMessage ?? "")
+  ) {
+    const correoAsks = countLucyFieldAsks(presHistory, "correo");
+    const lastAskedCorreo =
+      inferLucyAskedField(
+        [...presHistory]
+          .reverse()
+          .find((m) => m.role === "assistant" && typeof m.content === "string")
+          ?.content as string | undefined
+      ) === "correo";
+    const usefulNow =
+      !!parseSalaProductFromText(currentMessage ?? "") ||
+      parseServicesFromText(currentMessage ?? "").length > 0 ||
+      isServiceRelatedMessage(currentMessage) ||
+      !!parseTipoEventoFromText(currentMessage ?? "");
+
+    if (usefulNow && (mensajeAsksForField(mensaje, "correo") || lastAskedCorreo)) {
+      const ackBits: string[] = [];
+      const sala = parseSalaProductFromText(currentMessage ?? "");
+      if (sala) ackBits.push(`Perfecto, anoto *${sala}*.`);
+      else if (parseServicesFromText(currentMessage ?? "").length) {
+        ackBits.push(
+          `Perfecto, anoto ${formatServicesList(parseServicesFromText(currentMessage ?? ""))}.`
+        );
+      } else if (parseTipoEventoFromText(currentMessage ?? "")) {
+        ackBits.push(`Perfecto, anoto el tipo de evento.`);
+      }
+      const ack = ackBits.join(" ") || "Perfecto, lo anoto.";
+
+      if (correoAsks >= CORREO_MAX_ASKS) {
+        // Ya preguntamos correo bastante: sigue el embudo (tipo/servicios/zona…).
+        const skipEmail = new Set(filledSet);
+        // Marca temporal solo para elegir siguiente pregunta; NO waiver permanente.
+        skipEmail.add("Correo electrónico");
+        const pending = getNextPendingField(extracted, skipEmail);
+        const nextQ =
+          pending && pending !== "correo"
+            ? buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail })
+            : null;
+        mensaje = nextQ ? `${ack} ${nextQ}`.trim() : ack;
+        log?.info({ entityId, correoAsks }, "GUARD: correo — tope de asks, avanza embudo");
+      } else if (correoAsks >= 1 || lastAskedCorreo) {
+        const emailQ = pickVariant("correo", presHistory, entityId);
+        mensaje = `${ack} ${emailQ}`.trim();
+        log?.info({ entityId }, "GUARD: correo — acusa dato útil + variante distinta");
+      }
+    } else if (
+      correoAsks >= CORREO_MAX_ASKS &&
+      mensajeAsksForField(mensaje, "correo")
+    ) {
+      const skipEmail = new Set(filledSet);
+      skipEmail.add("Correo electrónico");
+      const pending = getNextPendingField(extracted, skipEmail);
+      if (pending && pending !== "correo") {
+        mensaje = buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail });
+        log?.info({ entityId, correoAsks }, "GUARD: correo — evita 3ª repetición");
+      }
+    }
   }
 
   const correoYaTenido = isEmailSatisfied(filledSet, extracted);

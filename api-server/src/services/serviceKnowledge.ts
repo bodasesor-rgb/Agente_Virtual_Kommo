@@ -8,8 +8,12 @@
  * FASE 2 (futuro): RAG de PDFs en Drive se insertará entre Sheet y conocimiento general.
  */
 import {
+  clientMentionsCarpas,
+  clientMentionsPistaTarima,
   isServiceRelatedMessage,
   parsePrimaryService,
+  parseSalaProductFromText,
+  parseSpaceDimensions,
 } from "../conversation-understanding.js";
 import {
   buildCatalogInclusionAnswer,
@@ -18,6 +22,7 @@ import {
   formatServiceDataForPrompt,
   lookupCatalogServices,
 } from "./catalogService.js";
+import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
 
 export type ServiceKnowledgeLevel = 1 | 2 | 3;
 
@@ -101,6 +106,40 @@ export function buildGuardServiceAck(query: string): string {
     if (detail) return detail;
   }
   if (level === 3) return buildLevel3Ack(label);
+
+  // Carpas / pista / tarima: responder de verdad + pedir agregar + medidas (María A14906).
+  if (clientMentionsCarpas(query)) {
+    const team = advisorLabelForClient();
+    const transparent = /transparent/i.test(query);
+    const head = transparent
+      ? "Sí, contamos con *carpas transparentes* (y también Cathedral, Pirámide y Planas)."
+      : "Sí, manejamos carpas para jardín o terraza: Cathedral, Pirámide, Planas y transparentes.";
+    return `${head} Se cotizan según medidas, montaje y sede. ${team} arma el precio. ¿Quieres que las agregue a tu cotización? ¿Qué medidas aproximadas necesitas?`;
+  }
+  if (clientMentionsPistaTarima(query)) {
+    const team = advisorLabelForClient();
+    return (
+      `Sí, manejamos pistas de baile y tarimas en varios tamaños, con opción iluminada. ` +
+      `${team} cotiza según las medidas. ¿Quieres que lo agregue a tu cotización? ¿Qué medidas aproximadas tiene el espacio?`
+    );
+  }
+
+  const sala = parseSalaProductFromText(query);
+  if (sala) {
+    return (
+      `Con gusto. Anoto *${sala}* para tu cotización (salas lounge / mobiliario). ` +
+      `¿Quieres que lo dejemos en la propuesta?`
+    );
+  }
+
+  const mobiliario = buildMobiliarioRentDetailReply(query);
+  if (mobiliario) {
+    const dims = parseSpaceDimensions(query);
+    return dims
+      ? `${mobiliario} Con espacio ${dims}, el equipo afina la propuesta.`
+      : `${mobiliario} ¿Lo agregamos a tu cotización?`;
+  }
+
   return buildLevel2Ack(label);
 }
 

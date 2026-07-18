@@ -78784,7 +78784,9 @@ function buildConsultativeNoPriceReply(message) {
   const t = message.toLowerCase();
   const team = advisorLabelForClient();
   if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t)) {
-    return `Las carpas protegen del sol y la lluvia en jard\xEDn o terraza. Hay Cathedral (techos altos), Pir\xE1mide (modernas) y Planas (funcionales). ${team} incluir\xE1 el precio seg\xFAn el tama\xF1o. \xBFQu\xE9 estilo va m\xE1s con tu evento?`;
+    const transparent = /transparent/i.test(t);
+    const head = transparent ? "S\xED, contamos con *carpas transparentes* (y tambi\xE9n Cathedral, Pir\xE1mide y Planas)." : "S\xED, manejamos carpas para jard\xEDn o terraza: Cathedral (techos altos), Pir\xE1mide, Planas y transparentes.";
+    return `${head} Se cotizan seg\xFAn medidas, montaje y sede. ${team} arma el precio. \xBFQuieres que las agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas necesitas?`;
   }
   if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t)) {
     return `El DJ incluye equipo completo, micr\xF3fono para brindis e iluminaci\xF3n b\xE1sica; puedes mandar playlist. ${team} incluir\xE1 el precio en tu cotizaci\xF3n. \xBFYa tienes estilo de m\xFAsica o prefieres que lea el ambiente?`;
@@ -78793,7 +78795,7 @@ function buildConsultativeNoPriceReply(message) {
     return `Opciones: uplighting LED en paredes, luces colgantes tipo edison o luces de pista. ${team} cotiza seg\xFAn el espacio. \xBFQu\xE9 ambiente buscas: elegante, rom\xE1ntico o fiesta?`;
   }
   if (/pista(\s+de\s+baile)?|tarimas?\b/.test(t)) {
-    return `Manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} incluir\xE1 el precio seg\xFAn las medidas de tu espacio. \xBFYa tienes idea del tama\xF1o?`;
+    return `S\xED, manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} cotiza seg\xFAn las medidas. \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
   }
   if (/mobiliario/.test(t)) {
     return `Manejamos mesas, sillas y mobiliario para eventos en distintos estilos. ${team} cotiza seg\xFAn cantidad y tipo. \xBFQu\xE9 mobiliario necesitas?`;
@@ -79770,7 +79772,9 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
   ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
   ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
-  ["Mobiliario", /\b(mobiliario|m[aá]rmol|sillas?|mesas?)\b/i],
+  // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
+  ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
+  ["Mobiliario", /\b(mobiliario|m[aá]rmol|sillas?|mesas?|periqueras?)\b/i],
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
@@ -79800,7 +79804,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
   ["Mesa imperial", /\bmesa\s+imperial\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
@@ -79809,7 +79813,13 @@ var SHORT_SERVICE_ALIASES = {
   mesas: "mobiliario",
   silla: "mobiliario",
   sillas: "mobiliario",
+  sala: "salas lounge",
+  salas: "salas lounge",
+  lounge: "salas lounge",
+  periquera: "mobiliario",
+  periqueras: "mobiliario",
   carpa: "carpas",
+  carpas: "carpas",
   bebidas: "barra de bebidas",
   bebida: "barra de bebidas",
   banquete: "banquete",
@@ -80076,7 +80086,41 @@ function clientAsksServiceInfo(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
   if (!isServiceRelatedMessage(message)) return false;
-  return /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?)\b/i.test(t) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t);
+  return /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?)\b/i.test(t) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t) || // "¿Cuentan con carpas transparentes?" / "¿tienen pista?"
+  /\b(cuentan|tienen|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t) || /\b(cuentan|tienen|manejan|ofrecen)\s+con\b/i.test(t);
+}
+var NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
+function isLikelyProductNameNotLocation(value) {
+  const t = (value ?? "").trim();
+  if (!t) return false;
+  if (/^sala\s*:/i.test(t)) return true;
+  if (/\bsala\s*:/i.test(t)) return true;
+  if (/^luxor(\s+rosa)?$/i.test(t)) return true;
+  if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?)$/i.test(t)) {
+    return true;
+  }
+  if (/\b(luxor|tiffany|vers[aá]til)\b/i.test(t) && !/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida|quer[eé]taro|polanco|santa\s+fe)\b/i.test(
+    t
+  )) {
+    return true;
+  }
+  return false;
+}
+function parseSalaProductFromText(text2) {
+  const named = text2.match(/\bsala\s*:\s*([A-Za-zÁÉÍÓÚáéíóúñ0-9][\w\s.-]{1,40})/i);
+  if (named?.[1]) {
+    const qty = text2.match(/\b(\d+)\s+salas?\b/i);
+    const name2 = named[1].trim().replace(/[.,;]+$/, "");
+    return qty ? `${qty[1]} salas ${name2}` : `Sala ${name2}`;
+  }
+  const qtyOnly = text2.match(/\b(\d+)\s+salas?\b/i);
+  if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
+  if (/\bsalas?\s+lounge\b/i.test(text2)) return "Salas lounge";
+  return null;
+}
+function clientMentionsCarpas(message) {
+  if (!message?.trim()) return false;
+  return /\bcarpas?\b|\btoldos?\b|\blonas?\b/i.test(message);
 }
 function clientRequestsCallback(message) {
   if (!message?.trim()) return false;
@@ -80272,6 +80316,12 @@ function parseServicesFromText(text2) {
     if (!found.some((s4) => /pasta/i.test(s4))) found.push("Barra de pastas");
     if (!found.some((s4) => /pizza/i.test(s4))) found.push("Barra de pizzas");
   }
+  const salaProduct = parseSalaProductFromText(text2);
+  if (salaProduct) {
+    const idx = found.findIndex((s4) => /salas?\s*lounge/i.test(s4));
+    if (idx >= 0) found[idx] = salaProduct;
+    else if (!found.some((s4) => /sala|luxor/i.test(s4))) found.push(salaProduct);
+  }
   const normalized = normalizeShortServicePhrase(text2);
   if (normalized) {
     const normLower = normalized.toLowerCase();
@@ -80389,6 +80439,7 @@ function parseInvitadosFromText(text2) {
     /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
   );
   if (numMatchEarly) return numMatchEarly[1];
+  if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
   if (isServiceRelatedMessage(trimmed)) return null;
   if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
     trimmed
@@ -80404,7 +80455,13 @@ function parseInvitadosFromText(text2) {
   const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
   if (numMatch) return numMatch[1];
   const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
-  if (paraMatch) return paraMatch[1];
+  if (paraMatch) {
+    const after = trimmed.slice(paraMatch.index + paraMatch[0].length);
+    if (/^\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?)\b/i.test(after)) {
+      return null;
+    }
+    return paraMatch[1];
+  }
   const aproxMatch = trimmed.match(
     /\b(?:m[aá]s\s+o\s+menos|aproximadamente|al\s+rededor\s+de|alrededor\s+de|cerca\s+de)\s+(\d+)\b/i
   );
@@ -80433,6 +80490,7 @@ function isUsableDireccionEvento(value) {
   if (!t) return false;
   if (isDimensionText(t)) return false;
   if (isVagueVenueOnly(t)) return false;
+  if (isLikelyProductNameNotLocation(t)) return false;
   return true;
 }
 function parseSpaceDimensions(text2) {
@@ -80440,6 +80498,8 @@ function parseSpaceDimensions(text2) {
   if (m4) return `${m4[1]}m x ${m4[3]}m`;
   const m22 = text2.match(/\bespacio\s+(?:es\s+de|de|mide)\s+(\d+)\s*metros?\s*(por|x)\s*(\d+)/i);
   if (m22) return `${m22[1]}m x ${m22[3]}m`;
+  const m32 = text2.match(/\b(\d+)\s*m?\s*[x×]\s*(\d+)\s*m?\b/i);
+  if (m32) return `${m32[1]}m x ${m32[2]}m`;
   return null;
 }
 function clientMentionsPistaTarima(message) {
@@ -80452,6 +80512,8 @@ function parseZonaFromText(text2) {
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
+  if (isLikelyProductNameNotLocation(trimmed)) return null;
+  if (/\bsala\s*:/i.test(trimmed)) return null;
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
   if (expoMatch?.[0]) return expoMatch[0].trim();
   if (KNOWN_ZONES.test(trimmed)) {
@@ -80941,7 +81003,7 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
 function appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, history, currentMessage) {
   const userTexts = collectUserMessages(history, currentMessage);
   const contextText = userTexts.join(" ");
-  if (!/pista|tarima/i.test(contextText)) return;
+  if (!/pista|tarima|carpa/i.test(contextText)) return;
   const dims = userTexts.map((t) => parseSpaceDimensions(t)).find(Boolean);
   if (!dims) return;
   const idx = mergedLines.findIndex((l4) => /^-?\s*Requerimientos o servicios:/i.test(l4));
@@ -80953,7 +81015,7 @@ function appendSpaceDimensionsToRequerimientos(mergedLines, filledSet, history, 
     return;
   }
   if (!filledSet.has("Requerimientos o servicios")) {
-    const service = parsePrimaryService(contextText) ?? "Pista de baile";
+    const service = parsePrimaryService(contextText) ?? (/\bcarpa/i.test(contextText) ? "Carpas" : "Pista de baile");
     mergedLines.push(`- Requerimientos o servicios: ${service} (espacio ${dims})`);
     filledSet.add("Requerimientos o servicios");
   }
@@ -81087,6 +81149,25 @@ function buildGuardServiceAck(query) {
     if (detail) return detail;
   }
   if (level === 3) return buildLevel3Ack(label);
+  if (clientMentionsCarpas(query)) {
+    const team = advisorLabelForClient();
+    const transparent = /transparent/i.test(query);
+    const head = transparent ? "S\xED, contamos con *carpas transparentes* (y tambi\xE9n Cathedral, Pir\xE1mide y Planas)." : "S\xED, manejamos carpas para jard\xEDn o terraza: Cathedral, Pir\xE1mide, Planas y transparentes.";
+    return `${head} Se cotizan seg\xFAn medidas, montaje y sede. ${team} arma el precio. \xBFQuieres que las agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas necesitas?`;
+  }
+  if (clientMentionsPistaTarima(query)) {
+    const team = advisorLabelForClient();
+    return `S\xED, manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} cotiza seg\xFAn las medidas. \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
+  }
+  const sala = parseSalaProductFromText(query);
+  if (sala) {
+    return `Con gusto. Anoto *${sala}* para tu cotizaci\xF3n (salas lounge / mobiliario). \xBFQuieres que lo dejemos en la propuesta?`;
+  }
+  const mobiliario = buildMobiliarioRentDetailReply(query);
+  if (mobiliario) {
+    const dims = parseSpaceDimensions(query);
+    return dims ? `${mobiliario} Con espacio ${dims}, el equipo afina la propuesta.` : `${mobiliario} \xBFLo agregamos a tu cotizaci\xF3n?`;
+  }
   return buildLevel2Ack(label);
 }
 function getServiceKnowledge(query) {
@@ -83386,7 +83467,7 @@ import { join } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.9";
+var LUCY_PROMPT_VERSION = "V8.10";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -84565,6 +84646,7 @@ function hasPresupuestoValue(extracted) {
   if (typeof p3 === "number") return Number.isFinite(p3);
   return String(p3).trim().length > 0;
 }
+var CORREO_MAX_ASKS = 2;
 function syncFilledFromExtracted(filledSet, extracted) {
   if (sanitizeCrmNombre(extracted.nombre)) filledSet.add("Nombre del cliente");
   const email = filterClientEmail(extracted.correo);
@@ -84574,7 +84656,7 @@ function syncFilledFromExtracted(filledSet, extracted) {
     filledSet.add("Requerimientos o servicios");
   }
   if (extracted.direccion_evento?.trim()) {
-    if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+    if (!isUsableDireccionEvento(extracted.direccion_evento) || isLikelyProductNameNotLocation(extracted.direccion_evento)) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
     } else {
@@ -84827,13 +84909,17 @@ function buildItalianFoodPitch(message) {
 }
 function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId, filledSet, ctx) {
   const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const spaceNote = dims ? ` Con unos ${dims.replace(/m/gi, " m")} podemos proponer el tama\xF1o ideal.` : "";
-  const intro = dims ? `Claro, anoto la pista/tarima para tu cotizaci\xF3n.${spaceNote} El equipo te confirma el precio seg\xFAn las medidas.` : `Claro, anoto la pista de baile o tarima para tu cotizaci\xF3n. Hay varios tama\xF1os (incluye opci\xF3n iluminada); el equipo te confirma el precio.`;
+  const intro = dims ? `S\xED, anoto la pista/tarima (${dims.replace(/m/gi, " m")}) para tu cotizaci\xF3n. El equipo confirma el precio seg\xFAn esas medidas.` : `S\xED, manejamos pista de baile y tarima (opci\xF3n iluminada). \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
   }
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
     extracted.requerimientos_evento = dims ? `pista/tarima ${dims.replace(/m/gi, " m")}` : "pista de baile / tarima";
+  } else if (dims && !extracted.requerimientos_evento.includes(dims)) {
+    extracted.requerimientos_evento = `${extracted.requerimientos_evento}; pista/tarima ${dims}`;
+  }
+  if (!dims) {
+    return `${pickTransition(history)} ${intro}`.trim();
   }
   const filledAfter = new Set(filledSet ?? []);
   filledAfter.add("Requerimientos o servicios");
@@ -84845,6 +84931,31 @@ function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId
 ${nextQ}`.trim();
   }
   return `${pickTransition(history)} ${intro}`.trim();
+}
+function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx) {
+  const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+  const transparent = /transparent/i.test(currentMessage ?? "");
+  const ack = buildGuardServiceAck(currentMessage ?? "carpas transparentes");
+  if (filledSet) filledSet.add("Requerimientos o servicios");
+  const baseLabel = transparent ? "Carpas transparentes" : "Carpas";
+  if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+    extracted.requerimientos_evento = dims ? `${baseLabel} (${dims})` : baseLabel;
+  } else if (!/carpa/i.test(extracted.requerimientos_evento)) {
+    extracted.requerimientos_evento = dims ? `${extracted.requerimientos_evento}; ${baseLabel} (${dims})` : `${extracted.requerimientos_evento}; ${baseLabel}`;
+  }
+  if (!dims) {
+    return `${pickTransition(history)} ${ack}`.trim();
+  }
+  const filledAfter = new Set(filledSet ?? []);
+  filledAfter.add("Requerimientos o servicios");
+  const pending = getNextPendingField(extracted, filledAfter);
+  if (pending && pending !== "requerimientos" && ctx) {
+    const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+    return `${pickTransition(history)} ${ack}
+
+${nextQ}`.trim();
+  }
+  return `${pickTransition(history)} ${ack}`.trim();
 }
 function buildEntertainmentSalesReply(extracted, history, entityId, currentMessage) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
@@ -85934,6 +86045,32 @@ function applyLucyMessageGuards(input) {
     collectUserTexts(presHistory, currentMessage),
     presHistory
   );
+  {
+    const blob = collectUserTexts(presHistory, currentMessage).join(" ");
+    if (extracted.num_invitados != null && new RegExp(
+      `\\b${extracted.num_invitados}\\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?)\\b`,
+      "i"
+    ).test(blob)) {
+      extracted.num_invitados = null;
+      filledSet.delete("N\xFAmero de invitados");
+    }
+    if (extracted.direccion_evento && (isLikelyProductNameNotLocation(extracted.direccion_evento) || /\bsala\s*:/i.test(blob) && new RegExp(
+      extracted.direccion_evento.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      "i"
+    ).test(blob))) {
+      const sala = parseSalaProductFromText(blob);
+      if (sala) {
+        extracted.requerimientos_evento = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          sala,
+          6
+        );
+        if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
+      }
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    }
+  }
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
   const userBlobForServices = collectUserTexts(presHistory, currentMessage).join(" ");
   const servicesFromTurn = parseServicesFromText(
@@ -85950,6 +86087,15 @@ function applyLucyMessageGuards(input) {
       extracted.requerimientos_evento = mergedReq;
       filledSet.add("Requerimientos o servicios");
     }
+  }
+  const salaTurn = parseSalaProductFromText(currentMessage ?? "");
+  if (salaTurn) {
+    extracted.requerimientos_evento = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      salaTurn,
+      6
+    );
+    if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
   }
   if (!filledSet.has("Requerimientos o servicios") && historyAlreadyHadServicesCatalog(presHistory)) {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
@@ -86341,6 +86487,10 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 orientaci\xF3n de venta");
+  } else if (allowSalesReplyOverride && clientMentionsCarpas(currentMessage)) {
+    mensaje = buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx);
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: carpas \u2014 responder, agregar y pedir medidas");
   } else if (allowSalesReplyOverride && clientMentionsPistaTarima(currentMessage)) {
     mensaje = buildPistaTarimaSalesReply(
       extracted,
@@ -86351,7 +86501,33 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
       ctx
     );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: pista/tarima \u2014 aceptar, anotar y avanzar");
+    log?.info({ entityId }, "GUARD: pista/tarima \u2014 aceptar, anotar y pedir medidas");
+  } else if (allowSalesReplyOverride && clientAsksServiceInfo(currentMessage) && isServiceRelatedMessage(currentMessage) && !cierreYaEnviado) {
+    const ack = buildGuardServiceAck(currentMessage ?? "");
+    const sala = parseSalaProductFromText(currentMessage ?? "");
+    if (sala && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
+      extracted.requerimientos_evento = sala;
+      filledSet.add("Requerimientos o servicios");
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    const asksMeasures = /medidas?/i.test(ack);
+    if (!asksMeasures && pending && ctx) {
+      const nextQ = buildNaturalQuestion(pending, ctx);
+      const lastAsk = inferLucyAskedField(
+        [...presHistory].reverse().find((m4) => m4.role === "assistant" && typeof m4.content === "string")?.content
+      );
+      if (lastAsk && pending === lastAsk && countLucyFieldAsks(presHistory, pending) >= 1) {
+        mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
+      } else {
+        mensaje = `${pickTransition(presHistory)} ${ack}
+
+${nextQ}`.trim();
+      }
+    } else {
+      mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
+    }
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 responder con detalle");
   } else if (allowSalesReplyOverride && !serviceAlreadyCaptured && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
@@ -86635,6 +86811,46 @@ ${nextQ}`;
     const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
     log?.warn({ entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
     mensaje = nextQ;
+  }
+  if (!cierreYaEnviado && !appliedDirectReply && !isEmailSatisfied(filledSet, extracted) && !detectEmailRefusal([currentMessage ?? ""]) && !parseCorreoFromText(currentMessage ?? "")) {
+    const correoAsks = countLucyFieldAsks(presHistory, "correo");
+    const lastAskedCorreo = inferLucyAskedField(
+      [...presHistory].reverse().find((m4) => m4.role === "assistant" && typeof m4.content === "string")?.content
+    ) === "correo";
+    const usefulNow = !!parseSalaProductFromText(currentMessage ?? "") || parseServicesFromText(currentMessage ?? "").length > 0 || isServiceRelatedMessage(currentMessage) || !!parseTipoEventoFromText(currentMessage ?? "");
+    if (usefulNow && (mensajeAsksForField(mensaje, "correo") || lastAskedCorreo)) {
+      const ackBits = [];
+      const sala = parseSalaProductFromText(currentMessage ?? "");
+      if (sala) ackBits.push(`Perfecto, anoto *${sala}*.`);
+      else if (parseServicesFromText(currentMessage ?? "").length) {
+        ackBits.push(
+          `Perfecto, anoto ${formatServicesList(parseServicesFromText(currentMessage ?? ""))}.`
+        );
+      } else if (parseTipoEventoFromText(currentMessage ?? "")) {
+        ackBits.push(`Perfecto, anoto el tipo de evento.`);
+      }
+      const ack = ackBits.join(" ") || "Perfecto, lo anoto.";
+      if (correoAsks >= CORREO_MAX_ASKS) {
+        const skipEmail = new Set(filledSet);
+        skipEmail.add("Correo electr\xF3nico");
+        const pending = getNextPendingField(extracted, skipEmail);
+        const nextQ = pending && pending !== "correo" ? buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail }) : null;
+        mensaje = nextQ ? `${ack} ${nextQ}`.trim() : ack;
+        log?.info({ entityId, correoAsks }, "GUARD: correo \u2014 tope de asks, avanza embudo");
+      } else if (correoAsks >= 1 || lastAskedCorreo) {
+        const emailQ = pickVariant("correo", presHistory, entityId);
+        mensaje = `${ack} ${emailQ}`.trim();
+        log?.info({ entityId }, "GUARD: correo \u2014 acusa dato \xFAtil + variante distinta");
+      }
+    } else if (correoAsks >= CORREO_MAX_ASKS && mensajeAsksForField(mensaje, "correo")) {
+      const skipEmail = new Set(filledSet);
+      skipEmail.add("Correo electr\xF3nico");
+      const pending = getNextPendingField(extracted, skipEmail);
+      if (pending && pending !== "correo") {
+        mensaje = buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail });
+        log?.info({ entityId, correoAsks }, "GUARD: correo \u2014 evita 3\xAA repetici\xF3n");
+      }
+    }
   }
   const correoYaTenido = isEmailSatisfied(filledSet, extracted);
   if (correoYaTenido && (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo")) && !trulyReadyForClosing) {
@@ -87749,7 +87965,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
   out2.correo = correo;
   const nombre = sanitizeCrmNombre(out2.nombre);
   out2.nombre = nombre && !isQuoteIntentMessage(nombre) ? nombre : null;
-  if (out2.direccion_evento && (isDimensionText(out2.direccion_evento) || isVagueVenueOnly(out2.direccion_evento))) {
+  if (out2.direccion_evento && (isDimensionText(out2.direccion_evento) || isVagueVenueOnly(out2.direccion_evento) || isLikelyProductNameNotLocation(out2.direccion_evento))) {
     out2.direccion_evento = null;
   }
   if (out2.requerimientos_evento?.trim() && out2.tipo_evento?.trim() && out2.requerimientos_evento.trim().toLowerCase() === out2.tipo_evento.trim().toLowerCase()) {
@@ -87942,7 +88158,9 @@ Lee el mensaje y responde DIRECTO lo que pregunt\xF3, en ese mismo turno, antes 
 seguir capturando.
 - Ubicaci\xF3n \u2192 responde cobertura (ver \xA76).
 - Precio \u2192 da cifra/rango del Sheet, o explica que se cotiza a la medida y sigue.
-- "qu\xE9 tienen de X" \u2192 dile qu\xE9 hay de ESO. Nunca ignores una pregunta.
+- "qu\xE9 tienen de X" / "\xBFcuentan con X?" \u2192 responde S\xCD/NO con detalle breve,
+  pregunta si lo agregamos a la cotizaci\xF3n. NUNCA digas solo "lo anoto".
+- Carpas, pista o tarima \u2192 pide SIEMPRE las medidas aproximadas.
 
 ===================================================================
 ## 3. OFRECER EN DOS NIVELES
@@ -88012,9 +88230,14 @@ Ofrecer servicios NO debe hacerte olvidar recolectar. Lucy NO cierra ni marca
 Reglas:
 - Lleva un checklist por lead. Antes de cerrar, pide el siguiente dato faltante.
 - Pide UN dato a la vez, de forma natural, encadenando con lo que el cliente dijo.
-- Cada dato se pide UNA vez (respeta ESTADO ACTUAL); ninguno se omite.
+- Cada dato se pide con redacci\xF3n distinta si hay que insistir; NUNCA copies la misma
+  pregunta. El refuerzo es no olvidar campos, no martillar el mismo texto.
+- Si el cliente aporta un dato \xFAtil (servicios, tipo, fecha) mientras falta otro,
+  primero acusa lo que dijo y luego pide el faltante.
 - Presupuesto resuelto por CUALQUIERA: monto/rango, "no"/"no s\xE9", "que el equipo
   proponga"/"opciones". En cuanto est\xE1 resuelto, NO se vuelve a preguntar.
+- "4 salas" / "10 mesas" / "2 carpas" NO son invitados. "sala: Luxor Rosa" es
+  PRODUCTO de mobiliario, no la direcci\xF3n del evento.
 - N\xFAmero ambiguo peque\xF1o ("el 5") \u2192 confirma; un n\xFAmero claro (40, 60) se captura.
 - Nombre: no lo recortes ni lo degrades; no tomes como nombre una palabra que sea un
   servicio ("Bebidas") ni el nombre de WhatsApp pegado sin espacios \u2014 pide el real.
@@ -88022,6 +88245,8 @@ Reglas:
   los guardes como correo del cliente.
 - Pedido vs montaje: si no queda claro, pregunta si lo quiere montado en el evento o
   solo la entrega del producto.
+- Al corregir datos (direcci\xF3n, etc.): solo escribe lo que el cliente dijo o confirm\xF3.
+  Nunca inventes calles, colonias ni detalles que no dio.
 
 ===================================================================
 ## 6. UBICACI\xD3N / COBERTURA
@@ -88030,6 +88255,8 @@ Reglas:
 lugar de tu evento, coordinamos el servicio."
 - "sal\xF3n", "edificio", "en el sal\xF3n" o "en el edificio" SIN nombre propio / ciudad /
   colonia NO es ubicaci\xF3n completa: pide ciudad y colonia (o el nombre del sal\xF3n).
+- Nombre de producto/sala lounge (ej. "Luxor Rosa", "sala: Luxor Rosa") NO es
+  ubicaci\xF3n: an\xF3talo en requerimientos y pregunta ciudad/sede del evento.
 
 ===================================================================
 ## 7. CAT\xC1LOGOS (a petici\xF3n)
