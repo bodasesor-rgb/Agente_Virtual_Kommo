@@ -82667,10 +82667,10 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: ${webUr
 function messageOffersLevelsWithoutInclusions(text2) {
   if (!text2?.trim()) return false;
   const t = text2.trim();
-  if (/\bincluye\b/i.test(t)) return false;
+  if (/incluye\s*:/i.test(t)) return false;
   const mentionsTriad = /\bb[aá]sic/i.test(t) && /\btradicional\b/i.test(t) && /\bpremium\b/i.test(t);
   return /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
-  mentionsTriad && (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t) || /prefieres|nivel|opci[oó]n/i.test(t));
+  mentionsTriad && (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t) || /prefieres|nivel|opci[oó]n/i.test(t)) || mentionsTriad && /confirma\s+(nuestro\s+)?equipo|el\s+equipo\s+te\s+confirma/i.test(t);
 }
 function enrichBareNivelOffer(mensaje, serviceHint) {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
@@ -82822,6 +82822,16 @@ function buildInclusionTeamConfirmationAnswer(query) {
   if (resolvedHasInclusionData(resolved)) return null;
   const label = inclusionLabelForResolved(resolved);
   const nivel = resolved.kind === "service_nivel" && resolved.rows[0] ? extractNivelLabel(resolved.rows[0]) : parseCatalogQueryFilters(query).nivel;
+  const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
+  const webUrl = getCatalogWebUrlForQuery(label) ?? getCatalogWebUrlForQuery(resolved.serviceName ?? "") ?? getCatalogWebUrlForQuery(query);
+  if (webHint || webUrl) {
+    const head = nivel ? `Para *${label}* el detalle de lo que incluye cada nivel (incl. *${nivel}*) est\xE1 en el cat\xE1logo web.` : `Para *${label}* el detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.`;
+    return `${head}
+
+${webHint ?? `Cat\xE1logo: ${webUrl}`}
+
+\xBFCu\xE1l nivel prefieres?`;
+  }
   if (nivel) {
     return `El detalle exacto de lo que incluye la barra *${nivel}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
   }
@@ -82833,9 +82843,11 @@ function resolveCatalogInclusionReply(query, serviceHint) {
   );
   if (wantsAllLevels && serviceHint?.trim()) {
     const detail = buildCatalogServiceDetailAnswer(serviceHint);
-    if (detail && /\bincluye\b/i.test(detail)) return detail;
+    if (detail) return detail;
     const all3 = buildCatalogInclusionAnswer(serviceHint);
     if (all3) return all3;
+    const team = buildInclusionTeamConfirmationAnswer(serviceHint);
+    if (team) return team;
   }
   const attempts = [
     query,

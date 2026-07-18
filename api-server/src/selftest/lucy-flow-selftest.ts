@@ -1965,8 +1965,11 @@ async function runAll(): Promise<void> {
     assert.equal(buildCatalogInclusionAnswer("qué incluye la barra básica"), null);
 
     const team = buildInclusionTeamConfirmationAnswer("qué incluye la barra básica");
-    assert.ok(team, "debe pedir confirmación al equipo");
-    assert.ok(/confirma nuestro equipo/i.test(team!), team);
+    assert.ok(team, "sin Incluye en Sheet → catálogo web o equipo (nunca inventar)");
+    assert.ok(
+      /confirma nuestro equipo|cat[aá]logo web|bodasesor\.com\/catalogos/i.test(team!),
+      team
+    );
     assert.ok(!/cerveza|vino|licor com[uú]n/i.test(team!), team);
 
     const filled = buildCatalogInclusionAnswer("qué incluye la barra premium");
@@ -1978,7 +1981,10 @@ async function runAll(): Promise<void> {
     const hallucinated = "La barra básica incluye cervezas, vinos y licores comunes.";
     const injected = injectCatalogInclusionIfAsked("qué incluye la barra básica", hallucinated);
     assert.ok(!/cerveza|vino/i.test(injected), injected);
-    assert.ok(/confirma nuestro equipo/i.test(injected), injected);
+    assert.ok(
+      /confirma nuestro equipo|cat[aá]logo web|bodasesor\.com\/catalogos/i.test(injected),
+      injected
+    );
 
     const reply = resolveCatalogInclusionReply("qué incluye la barra básica");
     assert.ok(reply);

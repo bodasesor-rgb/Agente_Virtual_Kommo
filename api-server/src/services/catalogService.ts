@@ -722,7 +722,9 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
 export function messageOffersLevelsWithoutInclusions(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
   const t = text.trim();
-  if (/\bincluye\b/i.test(t)) return false;
+  // Tiene "Incluye: …" real del Sheet → ya está bien.
+  if (/incluye\s*:/i.test(t)) return false;
+  // "el equipo confirma lo que incluye" NO cuenta como descripción real.
   const mentionsTriad =
     /\bb[aá]sic/i.test(t) && /\btradicional\b/i.test(t) && /\bpremium\b/i.test(t);
   return (
@@ -732,7 +734,8 @@ export function messageOffersLevelsWithoutInclusions(text: string | null | undef
     (/\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t)) ||
     // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
     (mentionsTriad &&
-      (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t) || /prefieres|nivel|opci[oó]n/i.test(t)))
+      (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t) || /prefieres|nivel|opci[oó]n/i.test(t))) ||
+    (mentionsTriad && /confirma\s+(nuestro\s+)?equipo|el\s+equipo\s+te\s+confirma/i.test(t))
   );
 }
 
@@ -929,6 +932,23 @@ export function buildInclusionTeamConfirmationAnswer(query: string): string | nu
       ? extractNivelLabel(resolved.rows[0])
       : parseCatalogQueryFilters(query).nivel;
 
+  const webHint =
+    buildCatalogWebDetailHint(label) ??
+    buildCatalogWebDetailHint(resolved.serviceName ?? query) ??
+    buildCatalogWebDetailHint(query);
+  const webUrl =
+    getCatalogWebUrlForQuery(label) ??
+    getCatalogWebUrlForQuery(resolved.serviceName ?? "") ??
+    getCatalogWebUrlForQuery(query);
+
+  // Preferir catálogo web (ahí suele estar el detalle de cada nivel) vs solo "el equipo confirma".
+  if (webHint || webUrl) {
+    const head = nivel
+      ? `Para *${label}* el detalle de lo que incluye cada nivel (incl. *${nivel}*) está en el catálogo web.`
+      : `Para *${label}* el detalle de lo que incluye cada nivel está en el catálogo web.`;
+    return `${head}\n\n${webHint ?? `Catálogo: ${webUrl}`}\n\n¿Cuál nivel prefieres?`;
+  }
+
   if (nivel) {
     return `El detalle exacto de lo que incluye la barra *${nivel}* te lo confirma nuestro equipo en la cotización. ¿Te la preparo con ese nivel?`;
   }
@@ -953,9 +973,12 @@ export function resolveCatalogInclusionReply(
   // no un solo nivel porque la frase menciona "Premium".
   if (wantsAllLevels && serviceHint?.trim()) {
     const detail = buildCatalogServiceDetailAnswer(serviceHint);
-    if (detail && /\bincluye\b/i.test(detail)) return detail;
+    // Con o sin Que Incluye en Sheet: el detalle trae precios + link web si falta texto.
+    if (detail) return detail;
     const all = buildCatalogInclusionAnswer(serviceHint);
     if (all) return all;
+    const team = buildInclusionTeamConfirmationAnswer(serviceHint);
+    if (team) return team;
   }
 
   const attempts = [
