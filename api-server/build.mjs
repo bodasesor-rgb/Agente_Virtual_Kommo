@@ -25,7 +25,7 @@ async function writeBuildMeta(targetDir) {
   const gitCommit = resolveGitCommit();
   const meta = {
     version: "3.3",
-    lucy_prompt: "V8.11",
+    lucy_prompt: "V8.12",
     built_at: builtAt.toISOString(),
     built_at_display: builtAt.toLocaleString("es-MX", {
       timeZone: "America/Mexico_City",
@@ -194,10 +194,14 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   }
   const scriptsDir = path.join(distDir, "scripts");
   await mkdir(scriptsDir, { recursive: true });
-  for (const script of ["simulator-auto-client-lib.mjs", "lucy-simulator-10-clients.mjs"]) {
+  for (const script of [
+    "simulator-auto-client-lib.mjs",
+    "lucy-simulator-10-clients.mjs",
+    "probe-sim-campos-kommo.mjs",
+  ]) {
     await cp(path.resolve(artifactDir, "scripts", script), path.join(scriptsDir, script));
   }
-  console.log("[build] Scripts auto-cliente copiados a dist/scripts/");
+  console.log("[build] Scripts auto-cliente / probe campos copiados a dist/scripts/");
 
   const reqFromDb = createRequire(path.resolve(artifactDir, "../lib/db/package.json"));
   const pgliteDist = path.dirname(reqFromDb.resolve("@electric-sql/pglite"));

@@ -1,5 +1,5 @@
 const STORAGE_KEY = "bodasesor-kommo-sim-v6";
-const DEMO_PACK_VERSION = 2;
+const DEMO_PACK_VERSION = 3;
 const STAGE_COLORS = ["#99ccff", "#b5e8b5", "#ffb3ba", "#d4b5ff", "#ffd666", "#c0c0c0"];
 
 const state = {
@@ -103,10 +103,10 @@ async function ensureStore() {
     loadedFresh = true;
   } else {
     syncedAuto = mergeAutoClientsFromDemo(store, demo);
-    if (syncedAuto) {
-      store.demo_pack_version = DEMO_PACK_VERSION;
-      writeStore(store);
-    } else if ((store.demo_pack_version ?? 0) < DEMO_PACK_VERSION) {
+    const packBump = (store.demo_pack_version ?? 0) < DEMO_PACK_VERSION;
+    // Al subir de pack, sincronizar labels/IDs de custom_fields con Kommo (demo.json).
+    const fieldsSynced = packBump ? syncCustomFieldsFromDemo(store, demo) : false;
+    if (syncedAuto || packBump || fieldsSynced) {
       store.demo_pack_version = DEMO_PACK_VERSION;
       writeStore(store);
     }
@@ -114,6 +114,16 @@ async function ensureStore() {
 
   state.store = store;
   return { store, loadedFresh, syncedAuto };
+}
+
+/** Alinea nombres/tipos/IDs Kommo del simulador con demo.json (UI idéntica a Kommo). */
+function syncCustomFieldsFromDemo(store, demo) {
+  const demoFields = demo?.config?.custom_fields;
+  if (!Array.isArray(demoFields) || !demoFields.length) return false;
+  const prev = JSON.stringify(store.config?.custom_fields ?? []);
+  store.config = store.config || {};
+  store.config.custom_fields = demoFields.map((f) => ({ ...f }));
+  return JSON.stringify(store.config.custom_fields) !== prev;
 }
 
 function mergeAutoClientsFromDemo(store, demo) {
@@ -521,19 +531,42 @@ function renderFields(lead) {
 
   for (const field of state.store.config.custom_fields) {
     const value = lead.custom_fields?.[field.id] ?? "";
+    const label = field.kommo_field_id
+      ? `${field.name} <span class="field-kommo-id">· ID ${field.kommo_field_id}</span>`
+      : field.name;
     if (field.field_type === "select" && field.options?.length) {
-      grid.innerHTML += fieldSelect(field, value);
+      grid.innerHTML += fieldSelect({ ...field, name: label }, value);
     } else {
-      grid.innerHTML += fieldInput(field.name, field.id, field.field_type, value, true);
+      grid.innerHTML += fieldInput(label, field.id, field.field_type, value, true, true);
     }
+  }
+
+  // Memoria CRM interna (etiquetas Lucy = las que usa el embudo / PATCH real).
+  const snap = lead.custom_fields?.cf_crm_snapshot;
+  if (typeof snap === "string" && snap.trim()) {
+    grid.innerHTML += `
+      <div class="field-row field-row-wide" data-key="cf_crm_snapshot" data-custom="true">
+        <label>Memoria CRM (Lucy / mismo criterio que Kommo)</label>
+        <textarea readonly rows="8" data-field="cf_crm_snapshot">${escapeHtml(snap)}</textarea>
+      </div>
+    `;
   }
 }
 
-function fieldInput(label, key, type, value, isCustom = false) {
+function fieldInput(label, key, type, value, isCustom = false, allowHtmlLabel = false) {
+  const labelHtml = allowHtmlLabel ? label : escapeHtml(label);
+  if (type === "textarea") {
+    return `
+    <div class="field-row field-row-wide" data-key="${key}" data-custom="${isCustom}">
+      <label>${labelHtml}</label>
+      <textarea rows="4" data-field="${key}">${escapeHtml(value ?? "")}</textarea>
+    </div>
+  `;
+  }
   const inputType = type === "number" ? "number" : "text";
   return `
     <div class="field-row" data-key="${key}" data-custom="${isCustom}">
-      <label>${escapeHtml(label)}</label>
+      <label>${labelHtml}</label>
       <input type="${inputType}" value="${escapeHtml(value ?? "")}" data-field="${key}" />
     </div>
   `;
@@ -852,7 +885,7 @@ function saveFields() {
 
   $$("#fields-grid .field-row").forEach((row) => {
     const isCustom = row.dataset.custom === "true";
-    const input = row.querySelector("input, select");
+    const input = row.querySelector("input, select, textarea");
     if (!input) return;
     const key = input.dataset.field;
     const value = input.type === "number" && input.value !== "" ? Number(input.value) : input.value;

@@ -20,16 +20,16 @@
       }
     ],
     "custom_fields": [
-      { "id": "cf_presupuesto", "name": "Presupuesto", "field_type": "text", "kommo_field_id": 1048784 },
-      { "id": "cf_direccion", "name": "Dirección del evento", "field_type": "text", "kommo_field_id": 1048774 },
-      { "id": "cf_requerimiento", "name": "Requerimiento", "field_type": "text", "kommo_field_id": 1048776 },
-      { "id": "cf_fecha_horario", "name": "Fecha Y horari", "field_type": "text", "kommo_field_id": 1048778 },
-      { "id": "cf_num_invitados", "name": "Numero de Inv", "field_type": "number", "kommo_field_id": 1048780 },
-      { "id": "cf_tipo_evento", "name": "Tipo de evento", "field_type": "text", "kommo_field_id": 1048782 },
-      { "id": "cf_respuesta_ia_1", "name": "Respuesta IA 1", "field_type": "text", "kommo_field_id": 1048786 }
+      { "id": "cf_presupuesto", "name": "Presupuesto", "field_type": "text", "kommo_field_id": 1048784, "lucy_label": "Presupuesto (MXN)" },
+      { "id": "cf_direccion", "name": "Dirección del evento", "field_type": "text", "kommo_field_id": 1048774, "lucy_label": "Lugar/dirección del evento" },
+      { "id": "cf_requerimiento", "name": "Requerimientos para el evento", "field_type": "text", "kommo_field_id": 1048776, "lucy_label": "Requerimientos o servicios" },
+      { "id": "cf_fecha_horario", "name": "Fecha Y horario del evento", "field_type": "text", "kommo_field_id": 1048778, "lucy_label": "Fecha y horario" },
+      { "id": "cf_num_invitados", "name": "Numero de Invitados", "field_type": "number", "kommo_field_id": 1048780, "lucy_label": "Número de invitados" },
+      { "id": "cf_tipo_evento", "name": "Tipo de evento", "field_type": "text", "kommo_field_id": 1048782, "lucy_label": "Tipo de evento" },
+      { "id": "cf_respuesta_ia_1", "name": "Respuesta IA Texto Largo", "field_type": "textarea", "kommo_field_id": 1048786, "lucy_label": "Resumen / respuesta IA" }
     ]
   },
-  "demo_pack_version": 2,
+  "demo_pack_version": 3,
   "next_lead_id": 93011,
   "next_message_id": 1,
   "leads": [

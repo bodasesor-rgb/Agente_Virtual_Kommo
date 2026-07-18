@@ -2467,14 +2467,27 @@ function mapExtractedToSimulatorFields(
   if (isValidExtractedString(direccionForCf)) fields.cf_direccion = direccionForCf;
   const reqForCf = crmStoredValue(mergedLines, "Requerimientos o servicios") ?? extracted.requerimientos_evento;
   if (isValidExtractedString(reqForCf)) fields.cf_requerimiento = reqForCf;
-  if (isValidExtractedString(extracted.fecha_horario)) fields.cf_fecha_horario = extracted.fecha_horario;
-  if (extracted.num_invitados !== null && extracted.num_invitados > 0) fields.cf_num_invitados = extracted.num_invitados;
+  const fechaForCf = crmStoredValue(mergedLines, "Fecha y horario") ?? extracted.fecha_horario;
+  if (isValidExtractedString(fechaForCf)) fields.cf_fecha_horario = fechaForCf;
+  const invLine = crmStoredValue(mergedLines, "Número de invitados");
+  if (invLine && /^\d+$/.test(invLine.trim())) {
+    fields.cf_num_invitados = parseInt(invLine.trim(), 10);
+  } else if (extracted.num_invitados !== null && extracted.num_invitados > 0) {
+    fields.cf_num_invitados = extracted.num_invitados;
+  }
   const tipoEventoForCf = crmStoredValue(mergedLines, "Tipo de evento") ?? extracted.tipo_evento;
   if (isValidExtractedString(tipoEventoForCf)) fields.cf_tipo_evento = tipoEventoForCf;
   const presLine = mergedLines.find((l) => /^-?\s*Presupuesto \(MXN\):/i.test(l));
   if (presLine) {
     fields.cf_presupuesto = presLine.replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
+  } else if (extracted.presupuesto !== null && extracted.presupuesto !== undefined) {
+    fields.cf_presupuesto = String(extracted.presupuesto);
   }
+  // Nombre / correo de contacto (espejo de lo que Kommo muestra arriba del lead).
+  const nombreCf = crmStoredValue(mergedLines, "Nombre del cliente") ?? extracted.nombre;
+  if (isValidExtractedString(nombreCf)) fields.cf_nombre = nombreCf;
+  const correoCf = crmStoredValue(mergedLines, "Correo electrónico") ?? extracted.correo;
+  if (isValidExtractedString(correoCf)) fields.cf_correo = correoCf;
   return fields;
 }
 
