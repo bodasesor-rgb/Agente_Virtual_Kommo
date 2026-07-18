@@ -83386,7 +83386,7 @@ import { join } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.8";
+var LUCY_PROMPT_VERSION = "V8.9";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -88325,6 +88325,146 @@ function formatForWhatsApp(text2) {
   return text2.replace(/\*\*(.+?)\*\*/g, "*$1*").replace(/^#{1,6}\s*/gm, "").replace(/^\s*[-*]\s+/gm, "\u2022 ").replace(/`{1,3}/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+// src/lucyOutboundAntiRepeat.ts
+var FIELD_ORDER2 = [
+  "nombre",
+  "correo",
+  "tipo_evento",
+  "requerimientos",
+  "invitados",
+  "zona",
+  "fecha",
+  "presupuesto"
+];
+var ALGO_MAS_PATTERN = /\b(algo\s+m[aá]s|hay\s+algo\s+m[aá]s|alg[uú]n\s+otro\s+servicio|quieres\s+agregar|deseas\s+agregar)\b/i;
+var THANKS_ACK_PATTERN = /\b(con\s+gusto|nuestro\s+equipo\s+ya\s+tiene|si\s+necesitas\s+algo\s+m[aá]s|aqu[ií]\s+estamos)\b/i;
+var SERVICES_MENU_PATTERN = /\b(manejamos|tambi[eé]n\s+(ofrecemos|manejamos)|alimentos?|mobiliario|carpas?|pista|iluminaci[oó]n|pantallas?)\b/i;
+function lucyTextOverlapRatio(a2, b4) {
+  const na = normalizeForOverlap(a2);
+  const nb = normalizeForOverlap(b4);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  const wordsA = new Set(na.split(" ").filter((w4) => w4.length > 3));
+  const wordsB = new Set(nb.split(" ").filter((w4) => w4.length > 3));
+  if (!wordsA.size || !wordsB.size) return 0;
+  let shared = 0;
+  for (const w4 of wordsA) if (wordsB.has(w4)) shared++;
+  return shared / Math.max(wordsA.size, wordsB.size);
+}
+function normalizeForOverlap(text2) {
+  return text2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^\p{L}\p{N}\s?]/gu, " ").replace(/\s+/g, " ").trim();
+}
+function recentAssistantTexts(history, limit2 = 6) {
+  if (!history?.length) return [];
+  return history.filter((m4) => m4.role === "assistant" && typeof m4.content === "string").map((m4) => m4.content.trim()).filter(Boolean).slice(-limit2);
+}
+function asExtracted(partial) {
+  return {
+    tipo_contacto: partial?.tipo_contacto ?? null,
+    nombre: partial?.nombre ?? null,
+    empresa: partial?.empresa ?? null,
+    telefono: partial?.telefono ?? null,
+    correo: partial?.correo ?? null,
+    presupuesto: partial?.presupuesto ?? null,
+    direccion_evento: partial?.direccion_evento ?? null,
+    requerimientos_evento: partial?.requerimientos_evento ?? null,
+    fecha_horario: partial?.fecha_horario ?? null,
+    num_invitados: partial?.num_invitados ?? null,
+    tipo_evento: partial?.tipo_evento ?? null,
+    modo_servicio: partial?.modo_servicio ?? null
+  };
+}
+function stripRepeatedQuestionLines(mensaje, previous) {
+  const lines = mensaje.split("\n").map((l4) => l4.trim()).filter(Boolean);
+  if (lines.length <= 1) return mensaje.trim();
+  const kept = lines.filter((line2) => {
+    if (!line2.includes("?")) return true;
+    return !previous.some((p3) => lucyTextOverlapRatio(line2, p3) >= 0.72);
+  });
+  if (kept.length === 0) return lines[lines.length - 1];
+  return kept.join("\n").trim();
+}
+function shortPostCierreAck(clientName, thanks = false) {
+  const nombre = clientName?.trim();
+  if (thanks) {
+    return nombre ? `\xA1Con gusto, ${nombre}! Aqu\xED seguimos cuando lo necesites.` : "\xA1Con gusto! Aqu\xED seguimos cuando lo necesites.";
+  }
+  return nombre ? `Queda anotado, ${nombre}. Nuestro equipo sigue con tu cotizaci\xF3n.` : "Queda anotado. Nuestro equipo sigue con tu cotizaci\xF3n.";
+}
+function applyLucyGlobalAntiRepetition(input) {
+  let mensaje = (input.mensaje ?? "").trim();
+  const applied = [];
+  if (!mensaje) return { mensaje, applied };
+  const previous = recentAssistantTexts(input.history);
+  const filled = input.filledSet ?? /* @__PURE__ */ new Set();
+  const extracted = asExtracted(input.extracted);
+  const cierre = !!input.cierreYaEnviado;
+  const nombre = input.clientName ?? extracted.nombre;
+  if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p3) => THANKS_ACK_PATTERN.test(p3))) {
+    const lastThanks = [...previous].reverse().find((p3) => THANKS_ACK_PATTERN.test(p3));
+    if (lastThanks && lucyTextOverlapRatio(mensaje, lastThanks) >= 0.55) {
+      mensaje = shortPostCierreAck(nombre, true);
+      applied.push("postcierre-thanks-dedupe");
+    }
+  }
+  if (cierre && ALGO_MAS_PATTERN.test(mensaje)) {
+    const prevAlgoMas = previous.filter((p3) => ALGO_MAS_PATTERN.test(p3));
+    if (prevAlgoMas.length >= 1 && prevAlgoMas.some((p3) => lucyTextOverlapRatio(mensaje, p3) >= 0.5)) {
+      mensaje = shortPostCierreAck(nombre, false);
+      applied.push("postcierre-algo-mas-dedupe");
+    }
+  }
+  if (!cierre && mensajeAsksForFilledField(mensaje, filled, extracted)) {
+    const stripped = mensaje.split("\n").filter((line2) => {
+      const t = line2.trim();
+      if (!t) return false;
+      for (const field of FIELD_ORDER2) {
+        if (isFieldSatisfied(field, filled, extracted) && mensajeAsksForField(t, field)) {
+          return false;
+        }
+      }
+      return true;
+    }).join("\n").trim();
+    if (stripped && stripped !== mensaje) {
+      mensaje = stripped;
+      applied.push("filled-field-strip");
+    } else if (!stripped || mensajeAsksForFilledField(mensaje, filled, extracted)) {
+      mensaje = nombre ? `Perfecto, ${nombre}. Ya lo tengo anotado.` : "Perfecto, ya lo tengo anotado.";
+      applied.push("filled-field-ack");
+    }
+  }
+  if (previous.length > 0) {
+    const maxOverlap = Math.max(...previous.map((p3) => lucyTextOverlapRatio(mensaje, p3)));
+    if (maxOverlap >= 0.72) {
+      const trimmed = stripRepeatedQuestionLines(mensaje, previous);
+      if (trimmed && lucyTextOverlapRatio(trimmed, previous[previous.length - 1]) < 0.65) {
+        mensaje = trimmed;
+        applied.push("near-duplicate-trim");
+      } else if (cierre) {
+        mensaje = shortPostCierreAck(nombre, THANKS_ACK_PATTERN.test(mensaje));
+        applied.push("near-duplicate-postcierre");
+      } else {
+        const q2 = mensaje.split("\n").map((l4) => l4.trim()).filter((l4) => l4.includes("?")).find((l4) => previous.every((p3) => lucyTextOverlapRatio(l4, p3) < 0.68));
+        if (q2) {
+          mensaje = q2;
+          applied.push("near-duplicate-keep-question");
+        } else {
+          mensaje = nombre ? `Entendido, ${nombre}. Seguimos con lo que ya platicamos.` : "Entendido. Seguimos con lo que ya platicamos.";
+          applied.push("near-duplicate-ack");
+        }
+      }
+    }
+  }
+  if (!cierre && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p3) => SERVICES_MENU_PATTERN.test(p3) && /¿/.test(p3))) {
+    const qOnly = mensaje.split("\n").map((l4) => l4.trim()).filter((l4) => l4.includes("?") && !SERVICES_MENU_PATTERN.test(l4));
+    if (qOnly.length) {
+      mensaje = qOnly[qOnly.length - 1];
+      applied.push("services-menu-dedupe");
+    }
+  }
+  return { mensaje: mensaje.trim(), applied };
+}
+
 // src/lucyOutboundPipeline.ts
 async function finalizeLucyOutboundMessage(input) {
   let mensaje = input.mensaje;
@@ -88338,6 +88478,22 @@ async function finalizeLucyOutboundMessage(input) {
   if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
     input.log?.warn({ entityId: input.entityId }, "P3 GUARD: cat\xE1logo repetido post-cierre \u2014 stripping");
     mensaje = stripCatalogBlockShared(mensaje);
+  }
+  const anti = applyLucyGlobalAntiRepetition({
+    mensaje,
+    history: input.history,
+    filledSet: input.filledSet,
+    extracted: input.extracted,
+    currentMessage: input.currentMessage,
+    cierreYaEnviado: input.cierreYaEnviado,
+    clientName: input.extracted.nombre
+  });
+  if (anti.applied.length) {
+    input.log?.info?.(
+      { entityId: input.entityId, applied: anti.applied },
+      "GUARD: anti-repetici\xF3n global"
+    );
+    mensaje = anti.mensaje;
   }
   if (!mensaje.trim()) {
     mensaje = input.cierreYaEnviado && clientSaysThanks(input.currentMessage) ? buildPostCierreThanksReply(input.extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
@@ -88527,6 +88683,8 @@ async function generateLucyOutbound(input) {
     readyForClosing: allFieldsFilled,
     cierreYaEnviado,
     currentMessage: messageText,
+    history: fullHistory,
+    filledSet: filledLabels,
     openai: openai5,
     entityId,
     log

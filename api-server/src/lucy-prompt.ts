@@ -1,4 +1,4 @@
-// PROMPT LUCY — V8.8 (Núria A14894: post-cierre, cotización≠servicio, toscana/pastas, anti-doble zona/fecha)
+// PROMPT LUCY — V8.9 (filtro global anti-repetición en outbound)
 // El bloque de catálogo/precios lo agrega catalogService vía buildDynamicPrompt.
 
 import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
