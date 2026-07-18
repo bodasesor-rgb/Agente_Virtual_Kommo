@@ -2897,6 +2897,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     allowSalesReplyOverride &&
     (servicesFromTurn.length >= 2 || isRichQuoteBrief(currentMessage)) &&
     !cierreYaEnviado &&
+    // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
+    !clientAsksServiceInfo(currentMessage) &&
+    !clientMentionsCarpas(currentMessage) &&
+    !clientMentionsPistaTarima(currentMessage) &&
     // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
     !(
       (forceFirstPresentation || isFirstLucyReply(presHistory)) &&

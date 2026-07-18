@@ -3767,6 +3767,33 @@ async function runAll(): Promise<void> {
       requerimientos_evento: "Mobiliario",
     });
     assert.equal(clean.direccion_evento, null);
+
+    // Con salas previas en historial, "¿carpas transparentes?" NO debe virar a RFQ/catálogo.
+    const carpasVsRfq = runGuards({
+      aiResponse: "Perfecto, veo que necesitas salas y carpas. Te dejo el catálogo.",
+      extracted: emptyExtracted({
+        nombre: "Maria",
+        correo: "maria@test.com",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "4 salas Luxor Rosa",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "¿Cuentan con carpas transparentes?",
+      history: [
+        { role: "user", content: "sala: Luxor Rosa. Serían 4 salas" },
+        { role: "assistant", content: "Perfecto, anoto 4 salas. ¿Qué tipo de evento es?" },
+        { role: "user", content: "cumpleaños" },
+      ],
+    });
+    assert.ok(/transparent|contamos|manejamos/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
+    assert.ok(/medidas?/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
+    assert.ok(!/bodasesor\.com\/catalogos/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
