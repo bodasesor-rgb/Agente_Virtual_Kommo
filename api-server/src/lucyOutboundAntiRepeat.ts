@@ -164,11 +164,20 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   // 3) Re-pregunta de campo ya capturado (aunque el cuerpo sea distinto).
   // No tocar respuestas de catálogo: "menús e inclusiones" / Incluye / link bodasesor
   // matchean el patrón de requerimientos y se destruían con "Ya lo tengo anotado".
+  const clientAskedInclusion =
+    /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(
+      input.currentMessage ?? ""
+    );
   const isCatalogDetailReply =
-    /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s/i.test(
+    /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres/i.test(
       mensaje
     );
-  if (!cierre && !isCatalogDetailReply && mensajeAsksForFilledField(mensaje, filled, extracted)) {
+  if (
+    !cierre &&
+    !isCatalogDetailReply &&
+    !clientAskedInclusion &&
+    mensajeAsksForFilledField(mensaje, filled, extracted)
+  ) {
     const stripped = mensaje
       .split("\n")
       .filter((line) => {

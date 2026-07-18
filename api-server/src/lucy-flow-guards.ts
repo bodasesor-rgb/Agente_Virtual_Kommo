@@ -3193,6 +3193,26 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: pista/tarima — aceptar, anotar y pedir medidas");
   } else if (
     allowSalesReplyOverride &&
+    clientAsksInclusion(currentMessage) &&
+    !cierreYaEnviado
+  ) {
+    // "qué incluye / descripción de cada nivel" — responder YA (Sheet o catálogo web).
+    const inclusionAnswer = resolveCatalogInclusionReply(
+      currentMessage ?? "",
+      extracted.requerimientos_evento
+    );
+    if (inclusionAnswer) {
+      const pending = getNextPendingField(extracted, filledSet);
+      mensaje =
+        pending && needsNextStep && !trulyReadyForClosing
+          ? `${inclusionAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
+          : inclusionAnswer;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+    }
+  } else if (
+    allowSalesReplyOverride &&
     clientAsksServiceInfo(currentMessage) &&
     isServiceRelatedMessage(currentMessage) &&
     !cierreYaEnviado

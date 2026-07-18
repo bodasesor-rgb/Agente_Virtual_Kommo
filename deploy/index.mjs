@@ -86564,6 +86564,20 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     );
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 aceptar, anotar y pedir medidas");
+  } else if (allowSalesReplyOverride && clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+    const inclusionAnswer = resolveCatalogInclusionReply(
+      currentMessage ?? "",
+      extracted.requerimientos_evento
+    );
+    if (inclusionAnswer) {
+      const pending = getNextPendingField(extracted, filledSet);
+      mensaje = pending && needsNextStep && !trulyReadyForClosing ? `${inclusionAnswer}
+
+${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+    }
   } else if (allowSalesReplyOverride && clientAsksServiceInfo(currentMessage) && isServiceRelatedMessage(currentMessage) && !cierreYaEnviado) {
     const ack = buildGuardServiceAck(currentMessage ?? "");
     const sala = parseSalaProductFromText(currentMessage ?? "");
@@ -88706,10 +88720,13 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("postcierre-algo-mas-dedupe");
     }
   }
-  const isCatalogDetailReply = /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s/i.test(
+  const clientAskedInclusion = /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(
+    input.currentMessage ?? ""
+  );
+  const isCatalogDetailReply = /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres/i.test(
     mensaje
   );
-  if (!cierre && !isCatalogDetailReply && mensajeAsksForFilledField(mensaje, filled, extracted)) {
+  if (!cierre && !isCatalogDetailReply && !clientAskedInclusion && mensajeAsksForFilledField(mensaje, filled, extracted)) {
     const stripped = mensaje.split("\n").filter((line2) => {
       const t = line2.trim();
       if (!t) return false;
