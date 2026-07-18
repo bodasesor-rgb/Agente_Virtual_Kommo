@@ -79558,11 +79558,23 @@ function isGreetingOnlyMessage(text2) {
   }
   return false;
 }
+function looksLikePersonFullName(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return false;
+  const parts2 = t.split(/\s+/);
+  if (parts2.length < 2 || parts2.length > 5) return false;
+  return parts2.every((part) => {
+    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(part) && letters.length >= 1) return true;
+    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
+  });
+}
 function isLikelyNotPersonNameMessage(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return true;
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
-  if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 4) return false;
+  if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
+  if (looksLikePersonFullName(t)) return false;
   if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
   if (isLikelyUbicacionNotNombre(t)) return true;
   if (/\?/.test(t)) return true;
@@ -79578,7 +79590,7 @@ function clientAsksCompanyIdentity(message) {
   return /\?/i.test(t) || /\b(comunico|hablo|escribo|estoy|este\s+(es|chat|n[uú]mero)|es\s+(el|la)|son)\b/i.test(t);
 }
 function buildCompanyIdentityReply(clientName) {
-  const nombre = clientName?.trim();
+  const nombre = sanitizeDisplayName(clientName);
   const base = "S\xED, soy Lucy de Bodasesor (Cap&Bara Eventos). Te ayudo a armar tu cotizaci\xF3n por aqu\xED.";
   return nombre ? `${base} \xBFSeguimos, ${nombre}?` : `${base} \xBFMe regalas tu nombre para iniciar?`;
 }
@@ -80021,6 +80033,10 @@ function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
     extracted.num_invitados = null;
   }
 }
+function stripNombrePresentationPrefix(raw) {
+  const m4 = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
+  return (m4?.[1] ?? raw).trim();
+}
 function recoverClienteNombreFromHistory(history, currentMessage) {
   let lastAssistant = "";
   for (const msg of history) {
@@ -80033,10 +80049,9 @@ function recoverClienteNombreFromHistory(history, currentMessage) {
     if (asked !== "nombre" && !LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) continue;
     const raw = msg.content.trim();
     if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
-    const soyMatch = raw.match(/^\s*soy\s+(.+)$/i);
-    const candidato = soyMatch ? soyMatch[1].trim() : raw;
-    const nombre = sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 40 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+    const candidato = stripNombrePresentationPrefix(raw);
+    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
       return nombre;
     }
   }
@@ -80045,10 +80060,9 @@ function recoverClienteNombreFromHistory(history, currentMessage) {
     if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
       const raw = currentMessage.trim();
       if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw)) {
-        const soyMatch = raw.match(/^\s*soy\s+(.+)$/i);
-        const candidato = soyMatch ? soyMatch[1].trim() : raw;
-        const nombre = sanitizeDisplayName(candidato);
-        if (nombre && candidato.length < 40 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+        const candidato = stripNombrePresentationPrefix(raw);
+        const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+        if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
           return nombre;
         }
       }
@@ -80847,10 +80861,9 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   const asked = inferLucyAskedField(lastLucy);
   const captures = [];
   if (!filledSet.has("Nombre del cliente") && (asked === "nombre" || !history.some((m4) => m4.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
-    const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
-    const candidato = soyMatch ? soyMatch[1].trim() : msg;
-    const nombre = sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 40 && !/\?/.test(candidato)) {
+    const candidato = stripNombrePresentationPrefix(msg);
+    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato)) {
       captures.push({ label: "Nombre del cliente", value: nombre });
     }
   }
@@ -85262,7 +85275,7 @@ function lucyAskedForNombre(history) {
 function applyWhatsappNombreFallback(filledSet, mergedLines, whatsappDisplayName, history) {
   if (filledSet.has("Nombre del cliente")) return false;
   if (!lucyAskedForNombre(history)) return false;
-  const waName = sanitizeDisplayName(whatsappDisplayName);
+  const waName = sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName);
   if (!waName) return false;
   mergedLines.push(`- Nombre del cliente: ${waName} ${WHATSAPP_NOMBRE_NOTE}`);
   filledSet.add("Nombre del cliente");
@@ -85272,7 +85285,7 @@ function parseNombreFromCrmLines(mergedLines) {
   const line2 = mergedLines.find((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
   if (!line2) return null;
   const raw = line2.replace(/^-?\s*Nombre del cliente:\s*/i, "").replace(WHATSAPP_NOMBRE_NOTE, "").trim();
-  return sanitizeDisplayName(raw);
+  return sanitizeCrmNombre(raw) ?? sanitizeDisplayName(raw);
 }
 function buildOpeningAcknowledgment(history, currentMessage) {
   const texts = collectUserTexts(history, currentMessage);
@@ -85878,11 +85891,11 @@ function clientSaysThanks(message) {
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
 }
 function buildPostCierreThanksReply(clientName) {
-  const nombre = clientName?.trim();
+  const nombre = sanitizeDisplayName(clientName);
   return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
 }
 function buildPostCierreCallbackAck(clientName) {
-  const nombre = clientName?.trim();
+  const nombre = sanitizeDisplayName(clientName);
   return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.";
 }
 function lastAssistantWasPhoneAnswer(history) {
@@ -86155,7 +86168,7 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
       parseServicesFromText(currentMessage ?? ""),
       currentMessage
     );
-    const nombre = extracted.nombre?.trim();
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
     const distributorNote = clientAsksDistributorPricing(currentMessage) ? "\n\nEl precio de mayoreo lo confirma el equipo; no te paso un precio de lista suelto." : "";
     mensaje = nombre ? `${pkg}${distributorNote}
 
@@ -86165,14 +86178,14 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 RFQ/paquete completo (no SKU suelto)");
   } else if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
-    const nombre = extracted.nombre?.trim();
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales");
   } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim()) {
     const services = parseServicesFromText(currentMessage);
     const ack = services.length >= 2 ? `Perfecto, anoto ${formatServicesList(services)}.` : buildGuardServiceAck(currentMessage);
-    const nombre = extracted.nombre?.trim();
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre ? `${ack}
 
 Perfecto, ${nombre}. Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `${ack}
@@ -94434,7 +94447,7 @@ IMPORTANTE: Si el cliente responde con un n\xFAmero suelto (ej: "200"), determin
 
 Campos a extraer:
 - tipo_contacto: "cliente" si PIDE/COMPRA un servicio para su evento; "proveedor" SOLO si claramente OFRECE vender algo A Bodasesor; ante la duda \u2192 "cliente" (string)
-- nombre: nombre propio del contacto \u2014 nombre Y apellido si los dio (string o null)
+- nombre: nombre propio del contacto \u2014 si dio nombre Y apellido, guarda AMBOS (ej. "Ana P\xE9rez"); nunca recortes el apellido (string o null)
 - empresa: nombre de la empresa si es proveedor (string o null)
 - telefono: n\xFAmero de tel\xE9fono (string o null)
 - correo: correo electr\xF3nico (string o null)
@@ -94451,11 +94464,11 @@ Se\xF1ales de CLIENTE (pedir/comprar): "solicito cotizaci\xF3n", "solicitud para
 REGLA CR\xCDTICA: mencionar una empresa (Saint-Gobain, etc.) o un producto (caf\xE9 gourmet) al PEDIR cotizaci\xF3n = CLIENTE, no proveedor. Ante la duda \u2192 cliente.
 NO uses correos de Bodasesor (capybaraeventos@gmail.com, bodasesor@gmail.com) como correo del cliente \u2014 esos son nuestros.
 
-Ejemplo CLIENTE \u2014 "Me llamo Ana, quiero una boda para 100 personas":
-{"tipo_contacto":"cliente","nombre":"Ana","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda","modo_servicio":null}
+Ejemplo CLIENTE \u2014 "Me llamo Ana P\xE9rez, quiero una boda para 100 personas":
+{"tipo_contacto":"cliente","nombre":"Ana P\xE9rez","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda","modo_servicio":null}
 
-Ejemplo PROVEEDOR \u2014 "Hola, soy Mar\xEDa de Flores del Valle, ofrecemos arreglos florales para eventos":
-{"tipo_contacto":"proveedor","nombre":"Mar\xEDa","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
+Ejemplo PROVEEDOR \u2014 "Hola, soy Mar\xEDa L\xF3pez de Flores del Valle, ofrecemos arreglos florales para eventos":
+{"tipo_contacto":"proveedor","nombre":"Mar\xEDa L\xF3pez","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Reglas estrictas:
 - SOLO extrae lo que el contacto dijo, nunca lo que Lucy pregunt\xF3.
@@ -94613,7 +94626,12 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     if (idx >= 0) {
       const rawLine = mergedLines[idx];
       const existing = rawLine.replace(/^-?\s*Nombre del cliente:\s*/i, "").replace(WHATSAPP_NOMBRE_NOTE, "").trim();
-      const upgraded = pickBetterNombre(extracted.nombre, existing);
+      const presented = !!currentMessage && /^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(currentMessage);
+      const fromTurn = currentMessage && (lastAskedEarly === "nombre" || presented) ? sanitizeCrmNombre(stripNombrePresentationPrefix(currentMessage)) : null;
+      const upgraded = pickBetterNombre(
+        pickBetterNombre(extracted.nombre, fromTurn),
+        existing
+      );
       if (upgraded && isNombreMoreComplete(upgraded, existing)) {
         const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
         mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;

@@ -10,6 +10,7 @@ import {
   isGreetingOnlyMessage,
   isLikelyUbicacionNotNombre,
   isQuoteIntentMessage,
+  sanitizeCrmNombre,
   sanitizeDisplayName,
 } from "./contact-name.js";
 import { filterClientEmail } from "./client-email.js";
@@ -430,7 +431,18 @@ export function sanitizeExtractedAmbiguousNumbers(
   }
 }
 
-/** Recupera el nombre que el cliente dio cuando Lucy lo pidió (persistencia entre turnos). */
+/** Quita "soy / me llamo / …" y deja el nombre (completo para CRM). */
+export function stripNombrePresentationPrefix(raw: string): string {
+  const m = raw
+    .trim()
+    .match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
+  return (m?.[1] ?? raw).trim();
+}
+
+/**
+ * Recupera el nombre que el cliente dio cuando Lucy lo pidió (persistencia entre turnos).
+ * Guarda nombre + apellido si los dijo; el saludo en chat usa solo el primer nombre.
+ */
 export function recoverClienteNombreFromHistory(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   currentMessage?: string
@@ -447,10 +459,9 @@ export function recoverClienteNombreFromHistory(
 
     const raw = msg.content.trim();
     if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
-    const soyMatch = raw.match(/^\s*soy\s+(.+)$/i);
-    const candidato = soyMatch ? soyMatch[1]!.trim() : raw;
-    const nombre = sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 40 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+    const candidato = stripNombrePresentationPrefix(raw);
+    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
       return nombre;
     }
   }
@@ -460,10 +471,9 @@ export function recoverClienteNombreFromHistory(
     if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
       const raw = currentMessage.trim();
       if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw)) {
-        const soyMatch = raw.match(/^\s*soy\s+(.+)$/i);
-        const candidato = soyMatch ? soyMatch[1]!.trim() : raw;
-        const nombre = sanitizeDisplayName(candidato);
-        if (nombre && candidato.length < 40 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+        const candidato = stripNombrePresentationPrefix(raw);
+        const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+        if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
           return nombre;
         }
       }
@@ -1773,10 +1783,9 @@ export function captureContextualAnswer(
     !/@/.test(msg) &&
     !/\d{4,}/.test(msg)
   ) {
-    const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
-    const candidato = soyMatch ? soyMatch[1]!.trim() : msg;
-    const nombre = sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 40 && !/\?/.test(candidato)) {
+    const candidato = stripNombrePresentationPrefix(msg);
+    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato)) {
       captures.push({ label: "Nombre del cliente", value: nombre });
     }
   }

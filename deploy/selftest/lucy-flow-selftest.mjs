@@ -46,11 +46,23 @@ function isGreetingOnlyMessage(text) {
   }
   return false;
 }
+function looksLikePersonFullName(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  const parts = t.split(/\s+/);
+  if (parts.length < 2 || parts.length > 5) return false;
+  return parts.every((part) => {
+    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(part) && letters.length >= 1) return true;
+    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
+  });
+}
 function isLikelyNotPersonNameMessage(text) {
   const t = text?.trim() ?? "";
   if (!t) return true;
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
-  if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 4) return false;
+  if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
+  if (looksLikePersonFullName(t)) return false;
   if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
   if (isLikelyUbicacionNotNombre(t)) return true;
   if (/\?/.test(t)) return true;
@@ -66,7 +78,7 @@ function clientAsksCompanyIdentity(message) {
   return /\?/i.test(t) || /\b(comunico|hablo|escribo|estoy|este\s+(es|chat|n[uú]mero)|es\s+(el|la)|son)\b/i.test(t);
 }
 function buildCompanyIdentityReply(clientName) {
-  const nombre = clientName?.trim();
+  const nombre = sanitizeDisplayName(clientName);
   const base = "S\xED, soy Lucy de Bodasesor (Cap&Bara Eventos). Te ayudo a armar tu cotizaci\xF3n por aqu\xED.";
   return nombre ? `${base} \xBFSeguimos, ${nombre}?` : `${base} \xBFMe regalas tu nombre para iniciar?`;
 }
@@ -581,6 +593,10 @@ function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
     extracted.num_invitados = null;
   }
 }
+function stripNombrePresentationPrefix(raw) {
+  const m = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
+  return (m?.[1] ?? raw).trim();
+}
 function recoverClienteNombreFromHistory(history, currentMessage) {
   let lastAssistant = "";
   for (const msg of history) {
@@ -593,10 +609,9 @@ function recoverClienteNombreFromHistory(history, currentMessage) {
     if (asked !== "nombre" && !LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) continue;
     const raw = msg.content.trim();
     if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
-    const soyMatch = raw.match(/^\s*soy\s+(.+)$/i);
-    const candidato = soyMatch ? soyMatch[1].trim() : raw;
-    const nombre = sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 40 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+    const candidato = stripNombrePresentationPrefix(raw);
+    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
       return nombre;
     }
   }
@@ -605,10 +620,9 @@ function recoverClienteNombreFromHistory(history, currentMessage) {
     if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
       const raw = currentMessage.trim();
       if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw)) {
-        const soyMatch = raw.match(/^\s*soy\s+(.+)$/i);
-        const candidato = soyMatch ? soyMatch[1].trim() : raw;
-        const nombre = sanitizeDisplayName(candidato);
-        if (nombre && candidato.length < 40 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+        const candidato = stripNombrePresentationPrefix(raw);
+        const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+        if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
           return nombre;
         }
       }
@@ -1396,10 +1410,9 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   const asked = inferLucyAskedField(lastLucy);
   const captures = [];
   if (!filledSet.has("Nombre del cliente") && (asked === "nombre" || !history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
-    const soyMatch = msg.match(/^\s*soy\s+(.+)$/i);
-    const candidato = soyMatch ? soyMatch[1].trim() : msg;
-    const nombre = sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 40 && !/\?/.test(candidato)) {
+    const candidato = stripNombrePresentationPrefix(msg);
+    const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato)) {
       captures.push({ label: "Nombre del cliente", value: nombre });
     }
   }
@@ -14696,6 +14709,7 @@ function extractImageIntent(text) {
 
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
+var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
 var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
@@ -15359,6 +15373,12 @@ function getNextPendingField(extracted, filledSet) {
 function isFirstLucyReply(history) {
   return !history.some((m) => m.role === "assistant");
 }
+function parseNombreFromCrmLines(mergedLines) {
+  const line = mergedLines.find((l) => /^-?\s*Nombre del cliente:/i.test(l));
+  if (!line) return null;
+  const raw = line.replace(/^-?\s*Nombre del cliente:\s*/i, "").replace(WHATSAPP_NOMBRE_NOTE, "").trim();
+  return sanitizeCrmNombre(raw) ?? sanitizeDisplayName(raw);
+}
 function buildOpeningAcknowledgment(history, currentMessage) {
   const texts = collectUserTexts(history, currentMessage);
   const userText = texts[texts.length - 1] ?? texts.join(" ");
@@ -15963,11 +15983,11 @@ function clientSaysThanks(message) {
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
 }
 function buildPostCierreThanksReply(clientName) {
-  const nombre = clientName?.trim();
+  const nombre = sanitizeDisplayName(clientName);
   return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
 }
 function buildPostCierreCallbackAck(clientName) {
-  const nombre = clientName?.trim();
+  const nombre = sanitizeDisplayName(clientName);
   return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.";
 }
 function lastAssistantWasPhoneAnswer(history) {
@@ -16240,7 +16260,7 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
       parseServicesFromText(currentMessage ?? ""),
       currentMessage
     );
-    const nombre = extracted.nombre?.trim();
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
     const distributorNote = clientAsksDistributorPricing(currentMessage) ? "\n\nEl precio de mayoreo lo confirma el equipo; no te paso un precio de lista suelto." : "";
     mensaje = nombre ? `${pkg}${distributorNote}
 
@@ -16250,14 +16270,14 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 RFQ/paquete completo (no SKU suelto)");
   } else if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
-    const nombre = extracted.nombre?.trim();
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales");
   } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim()) {
     const services = parseServicesFromText(currentMessage);
     const ack = services.length >= 2 ? `Perfecto, anoto ${formatServicesList(services)}.` : buildGuardServiceAck(currentMessage);
-    const nombre = extracted.nombre?.trim();
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre ? `${ack}
 
 Perfecto, ${nombre}. Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `${ack}
@@ -20884,6 +20904,48 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/transparent|contamos|manejamos/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
     assert.ok(/medidas?/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
     assert.ok(!/bodasesor\.com\/catalogos/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
+  });
+  await test("76. Nombre+apellido en CRM; Lucy saluda solo con nombre", () => {
+    assert.equal(sanitizeCrmNombre("Patricia Campos"), "Patricia Campos");
+    assert.equal(sanitizeDisplayName("Patricia Campos"), "Patricia");
+    assert.equal(sanitizeCrmNombre("Mar\xEDa Jos\xE9 P\xE9rez Garc\xEDa"), "Mar\xEDa Jos\xE9 P\xE9rez Garc\xEDa");
+    assert.equal(sanitizeDisplayName("Mar\xEDa Jos\xE9 P\xE9rez Garc\xEDa"), "Mar\xEDa");
+    assert.ok(looksLikePersonFullName("Patricia Campos L\xF3pez"));
+    assert.equal(isLikelyNotPersonNameMessage("Patricia Campos L\xF3pez"), false);
+    assert.equal(isLikelyNotPersonNameMessage("Mar\xEDa Jos\xE9 P\xE9rez Garc\xEDa"), false);
+    const hist = [
+      { role: "user", content: "Hola, quiero cotizar" },
+      { role: "assistant", content: "\xBFMe regalas tu nombre para iniciar?" },
+      { role: "user", content: "Me llamo Patricia Campos" }
+    ];
+    assert.equal(recoverClienteNombreFromHistory(hist), "Patricia Campos");
+    assert.equal(
+      recoverClienteNombreFromHistory(
+        [
+          { role: "assistant", content: "\xBFC\xF3mo te llamas?" }
+        ],
+        "Elena Garc\xEDa L\xF3pez"
+      ),
+      "Elena Garc\xEDa L\xF3pez"
+    );
+    assert.equal(pickBetterNombre("Patricia Campos", "Patricia"), "Patricia Campos");
+    assert.equal(isNombreMoreComplete("Patricia Campos", "Patricia"), true);
+    const captures = captureContextualAnswer(
+      [{ role: "assistant", content: "\xBFMe regalas tu nombre para iniciar?" }],
+      "Ver\xF3nica Camarillo",
+      /* @__PURE__ */ new Set()
+    );
+    assert.ok(
+      captures.some((c) => c.label === "Nombre del cliente" && c.value === "Ver\xF3nica Camarillo"),
+      JSON.stringify(captures)
+    );
+    const greet = buildCompanyIdentityReply("Patricia Campos");
+    assert.ok(/¿Seguimos, Patricia\?/.test(greet), greet);
+    assert.ok(!/Campos/.test(greet), greet);
+    const thanks = buildPostCierreThanksReply("Patricia Campos");
+    assert.ok(/¡Con gusto, Patricia!/.test(thanks), thanks);
+    assert.ok(!/Campos/.test(thanks), thanks);
+    assert.equal(parseNombreFromCrmLines(["- Nombre del cliente: Patricia Campos"]), "Patricia Campos");
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

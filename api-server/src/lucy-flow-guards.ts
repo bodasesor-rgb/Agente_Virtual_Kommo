@@ -1244,7 +1244,8 @@ export function applyWhatsappNombreFallback(
   if (filledSet.has("Nombre del cliente")) return false;
   if (!lucyAskedForNombre(history)) return false;
 
-  const waName = sanitizeDisplayName(whatsappDisplayName);
+  // WhatsApp a menudo trae nombre + apellido: guardar completo en CRM.
+  const waName = sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName);
   if (!waName) return false;
 
   mergedLines.push(`- Nombre del cliente: ${waName} ${WHATSAPP_NOMBRE_NOTE}`);
@@ -1252,7 +1253,7 @@ export function applyWhatsappNombreFallback(
   return true;
 }
 
-/** Lee el nombre capturado en líneas CRM (incluye fallback de WhatsApp). */
+/** Lee el nombre capturado en líneas CRM (incluye fallback de WhatsApp). Nombre completo. */
 export function parseNombreFromCrmLines(mergedLines: string[]): string | null {
   const line = mergedLines.find((l) => /^-?\s*Nombre del cliente:/i.test(l));
   if (!line) return null;
@@ -1260,7 +1261,7 @@ export function parseNombreFromCrmLines(mergedLines: string[]): string | null {
     .replace(/^-?\s*Nombre del cliente:\s*/i, "")
     .replace(WHATSAPP_NOMBRE_NOTE, "")
     .trim();
-  return sanitizeDisplayName(raw);
+  return sanitizeCrmNombre(raw) ?? sanitizeDisplayName(raw);
 }
 
 /** Reconocimiento breve del primer mensaje del cliente (sin pedir otros datos). */
@@ -2206,7 +2207,7 @@ export function clientSaysThanks(message?: string): boolean {
 }
 
 export function buildPostCierreThanksReply(clientName?: string | null): string {
-  const nombre = clientName?.trim();
+  const nombre = sanitizeDisplayName(clientName);
   return nombre
     ? `¡Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.`
     : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.";
@@ -2214,7 +2215,7 @@ export function buildPostCierreThanksReply(clientName?: string | null): string {
 
 /** Tras pasar teléfonos / pedir llamada: no cerrar otra vez con plantilla genérica. */
 export function buildPostCierreCallbackAck(clientName?: string | null): string {
-  const nombre = clientName?.trim();
+  const nombre = sanitizeDisplayName(clientName);
   return nombre
     ? `Con gusto, ${nombre}. Un asesor te puede atender por esos números; tu caso ya quedó con el equipo.`
     : "Con gusto. Un asesor te puede atender por esos números; tu caso ya quedó con el equipo.";
@@ -2706,7 +2707,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       parseServicesFromText(currentMessage ?? ""),
       currentMessage
     );
-    const nombre = extracted.nombre?.trim();
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
     const distributorNote = clientAsksDistributorPricing(currentMessage)
       ? "\n\nEl precio de mayoreo lo confirma el equipo; no te paso un precio de lista suelto."
       : "";
@@ -2716,7 +2717,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — RFQ/paquete completo (no SKU suelto)");
   } else if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
-    const nombre = extracted.nombre?.trim();
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre
       ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?`
       : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?";
@@ -2734,7 +2735,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       services.length >= 2
         ? `Perfecto, anoto ${formatServicesList(services)}.`
         : buildGuardServiceAck(currentMessage);
-    const nombre = extracted.nombre?.trim();
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre
       ? `${ack}\n\nPerfecto, ${nombre}. Lo sumo a tu cotización. ¿Algo más que quieras agregar?`
       : `${ack}\n\nLo sumo a tu cotización. ¿Algo más que quieras agregar?`;

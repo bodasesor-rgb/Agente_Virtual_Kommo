@@ -69,6 +69,19 @@ export function isGreetingOnlyMessage(text: string | null | undefined): boolean 
   return false;
 }
 
+/** ¿Todos los tokens parecen partes de un nombre propio (nombre + apellidos)? */
+export function looksLikePersonFullName(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  const parts = t.split(/\s+/);
+  if (parts.length < 2 || parts.length > 5) return false;
+  return parts.every((part) => {
+    const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(part) && letters.length >= 1) return true;
+    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
+  });
+}
+
 /**
  * True si el texto NO debe tratarse como nombre de persona
  * (saludo, pregunta, Cap&Bara/empresa, frase con verbo, ubicación…).
@@ -78,14 +91,16 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   if (!t) return true;
   // Presentación explícita sí puede ser nombre.
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
-  if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 4) return false;
+  if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
+  // "Patricia Campos López" / "María José Pérez García" sin "me llamo" sigue siendo nombre.
+  if (looksLikePersonFullName(t)) return false;
 
   if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
   if (isLikelyUbicacionNotNombre(t)) return true;
   if (/\?/.test(t)) return true;
   if (COMPANY_OR_CHANNEL_PATTERN.test(t)) return true;
   if (SENTENCE_VERB_PATTERN.test(t)) return true;
-  // Frase larga sin "soy/me llamo" ≠ nombre.
+  // Frase larga sin forma de nombre ≠ nombre.
   if (t.split(/\s+/).length >= 4) return true;
   return false;
 }
@@ -102,7 +117,8 @@ export function clientAsksCompanyIdentity(message?: string): boolean {
 }
 
 export function buildCompanyIdentityReply(clientName?: string | null): string {
-  const nombre = clientName?.trim();
+  // En chat solo primer nombre; el CRM puede tener apellido.
+  const nombre = sanitizeDisplayName(clientName);
   const base =
     "Sí, soy Lucy de Bodasesor (Cap&Bara Eventos). Te ayudo a armar tu cotización por aquí.";
   return nombre ? `${base} ¿Seguimos, ${nombre}?` : `${base} ¿Me regalas tu nombre para iniciar?`;

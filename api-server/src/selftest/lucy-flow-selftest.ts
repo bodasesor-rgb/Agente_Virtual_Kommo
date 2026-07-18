@@ -67,7 +67,7 @@ import {
 } from "../lucyOutboundAntiRepeat.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
 import { buildConsultativeNoPriceReply } from "../price-guard.js";
-import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, clientAsksCompanyIdentity, buildCompanyIdentityReply } from "../contact-name.js";
+import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
   resolveTipoContacto,
@@ -120,6 +120,7 @@ import {
   aiLooksLikeEventServiceOffer,
   isDryRequerimientosAsk,
   dedupeTransitionsInMessage,
+  parseNombreFromCrmLines,
 } from "../lucy-flow-guards.js";
 import {
   sanitizeKommoCrmLines,
@@ -3794,6 +3795,55 @@ async function runAll(): Promise<void> {
     assert.ok(/transparent|contamos|manejamos/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
     assert.ok(/medidas?/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
     assert.ok(!/bodasesor\.com\/catalogos/i.test(carpasVsRfq), carpasVsRfq.slice(0, 400));
+  });
+
+  await test("76. Nombre+apellido en CRM; Lucy saluda solo con nombre", () => {
+    assert.equal(sanitizeCrmNombre("Patricia Campos"), "Patricia Campos");
+    assert.equal(sanitizeDisplayName("Patricia Campos"), "Patricia");
+    assert.equal(sanitizeCrmNombre("María José Pérez García"), "María José Pérez García");
+    assert.equal(sanitizeDisplayName("María José Pérez García"), "María");
+    assert.ok(looksLikePersonFullName("Patricia Campos López"));
+    assert.equal(isLikelyNotPersonNameMessage("Patricia Campos López"), false);
+    assert.equal(isLikelyNotPersonNameMessage("María José Pérez García"), false);
+
+    const hist: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "user", content: "Hola, quiero cotizar" },
+      { role: "assistant", content: "¿Me regalas tu nombre para iniciar?" },
+      { role: "user", content: "Me llamo Patricia Campos" },
+    ];
+    assert.equal(recoverClienteNombreFromHistory(hist), "Patricia Campos");
+    assert.equal(
+      recoverClienteNombreFromHistory(
+        [
+          { role: "assistant", content: "¿Cómo te llamas?" },
+        ],
+        "Elena García López"
+      ),
+      "Elena García López"
+    );
+
+    assert.equal(pickBetterNombre("Patricia Campos", "Patricia"), "Patricia Campos");
+    assert.equal(isNombreMoreComplete("Patricia Campos", "Patricia"), true);
+
+    const captures = captureContextualAnswer(
+      [{ role: "assistant", content: "¿Me regalas tu nombre para iniciar?" }],
+      "Verónica Camarillo",
+      new Set()
+    );
+    assert.ok(
+      captures.some((c) => c.label === "Nombre del cliente" && c.value === "Verónica Camarillo"),
+      JSON.stringify(captures)
+    );
+
+    const greet = buildCompanyIdentityReply("Patricia Campos");
+    assert.ok(/¿Seguimos, Patricia\?/.test(greet), greet);
+    assert.ok(!/Campos/.test(greet), greet);
+
+    const thanks = buildPostCierreThanksReply("Patricia Campos");
+    assert.ok(/¡Con gusto, Patricia!/.test(thanks), thanks);
+    assert.ok(!/Campos/.test(thanks), thanks);
+
+    assert.equal(parseNombreFromCrmLines(["- Nombre del cliente: Patricia Campos"]), "Patricia Campos");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

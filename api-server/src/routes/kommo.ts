@@ -75,6 +75,7 @@ import {
   inferLucyAskedField,
   scanConversationForCaptures,
   recoverClienteNombreFromHistory,
+  stripNombrePresentationPrefix,
   isAmbiguousShortNumber,
   clientNeedsEmergencyContact,
   parseZonaFromText,
@@ -246,7 +247,7 @@ async function extractData(
 
 Campos a extraer:
 - tipo_contacto: "cliente" si PIDE/COMPRA un servicio para su evento; "proveedor" SOLO si claramente OFRECE vender algo A Bodasesor; ante la duda → "cliente" (string)
-- nombre: nombre propio del contacto — nombre Y apellido si los dio (string o null)
+- nombre: nombre propio del contacto — si dio nombre Y apellido, guarda AMBOS (ej. "Ana Pérez"); nunca recortes el apellido (string o null)
 - empresa: nombre de la empresa si es proveedor (string o null)
 - telefono: número de teléfono (string o null)
 - correo: correo electrónico (string o null)
@@ -263,11 +264,11 @@ Señales de CLIENTE (pedir/comprar): "solicito cotización", "solicitud para cot
 REGLA CRÍTICA: mencionar una empresa (Saint-Gobain, etc.) o un producto (café gourmet) al PEDIR cotización = CLIENTE, no proveedor. Ante la duda → cliente.
 NO uses correos de Bodasesor (capybaraeventos@gmail.com, bodasesor@gmail.com) como correo del cliente — esos son nuestros.
 
-Ejemplo CLIENTE — "Me llamo Ana, quiero una boda para 100 personas":
-{"tipo_contacto":"cliente","nombre":"Ana","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda","modo_servicio":null}
+Ejemplo CLIENTE — "Me llamo Ana Pérez, quiero una boda para 100 personas":
+{"tipo_contacto":"cliente","nombre":"Ana Pérez","empresa":null,"telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":null,"fecha_horario":null,"num_invitados":100,"tipo_evento":"boda","modo_servicio":null}
 
-Ejemplo PROVEEDOR — "Hola, soy María de Flores del Valle, ofrecemos arreglos florales para eventos":
-{"tipo_contacto":"proveedor","nombre":"María","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
+Ejemplo PROVEEDOR — "Hola, soy María López de Flores del Valle, ofrecemos arreglos florales para eventos":
+{"tipo_contacto":"proveedor","nombre":"María López","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Reglas estrictas:
 - SOLO extrae lo que el contacto dijo, nunca lo que Lucy preguntó.
@@ -582,7 +583,18 @@ function buildCrmContext(
         .replace(/^-?\s*Nombre del cliente:\s*/i, "")
         .replace(WHATSAPP_NOMBRE_NOTE, "")
         .trim();
-      const upgraded = pickBetterNombre(extracted.nombre, existing);
+      // Si el cliente acaba de decir nombre+apellido, ampliar el corto ya guardado.
+      const presented =
+        !!currentMessage &&
+        /^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(currentMessage);
+      const fromTurn =
+        currentMessage && (lastAskedEarly === "nombre" || presented)
+          ? sanitizeCrmNombre(stripNombrePresentationPrefix(currentMessage))
+          : null;
+      const upgraded = pickBetterNombre(
+        pickBetterNombre(extracted.nombre, fromTurn),
+        existing
+      );
       if (upgraded && isNombreMoreComplete(upgraded, existing)) {
         const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
         mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
