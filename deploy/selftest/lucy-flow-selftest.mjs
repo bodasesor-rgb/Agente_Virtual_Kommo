@@ -3791,8 +3791,32 @@ function buildInclusionTeamConfirmationAnswer(query) {
   }
   return `El detalle exacto de lo que incluye *${label}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
 }
-function resolveCatalogInclusionReply(query) {
-  return buildCatalogInclusionAnswer(query) ?? buildInclusionTeamConfirmationAnswer(query);
+function resolveCatalogInclusionReply(query, serviceHint) {
+  const wantsAllLevels = /\bcada\s+nivel|\btodos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada/i.test(
+    query
+  );
+  if (wantsAllLevels && serviceHint?.trim()) {
+    const detail = buildCatalogServiceDetailAnswer(serviceHint);
+    if (detail && /\bincluye\b/i.test(detail)) return detail;
+    const all = buildCatalogInclusionAnswer(serviceHint);
+    if (all) return all;
+  }
+  const attempts = [
+    query,
+    serviceHint ? `${serviceHint} ${query}` : null,
+    serviceHint || null
+  ].filter((q) => !!q?.trim());
+  for (const q of attempts) {
+    if (wantsAllLevels) {
+      const detail2 = buildCatalogServiceDetailAnswer(q);
+      if (detail2 && /\bincluye\b/i.test(detail2)) return detail2;
+    }
+    const hit = buildCatalogInclusionAnswer(q) ?? buildInclusionTeamConfirmationAnswer(q);
+    if (hit) return hit;
+    const detail = buildCatalogServiceDetailAnswer(q);
+    if (detail && /\bincluye\b/i.test(detail)) return detail;
+  }
+  return null;
 }
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
@@ -4258,9 +4282,9 @@ function buildEventOfferCatalogHint(tipoEvento) {
     "NO inventes precios. Inclusiones solo del Sheet."
   ].join("\n");
 }
-function injectCatalogInclusionIfAsked(clientMessage, aiResponse) {
+function injectCatalogInclusionIfAsked(clientMessage, aiResponse, serviceHint) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
-  const fromCatalog = resolveCatalogInclusionReply(clientMessage);
+  const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
   if (fromCatalog) return fromCatalog;
   return aiResponse;
 }
@@ -17190,7 +17214,10 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
     }
   } else if (clientAsksInclusion(currentMessage)) {
-    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage);
+    const inclusionAnswer = resolveCatalogInclusionReply(
+      currentMessage,
+      extracted.requerimientos_evento
+    );
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -17221,7 +17248,7 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     }
   }
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
-  if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !isFieldSatisfied("zona", filledSet, extracted)) {
+  if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !isFieldSatisfied("zona", filledSet, extracted) && !/\bincluye\b|\bniveles?\b|\$\s*\d/i.test(mensaje)) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     const zonaAsks = countLucyFieldAsks(presHistory, "zona");
     const zonaVariants = nombre ? [
@@ -21027,6 +21054,7 @@ ${CATALOG_OFFER_QUESTION}`
       '"Barra de bebidas","Premium","$320.00","$9,600.00","TRUE","Refrescos, aguas y 3 licores premium"'
     ].join("\n");
     const rows = parseSheetCatalogCsv(csv);
+    setCatalogSnapshotForTests(rows);
     const md = sheetRowsToMarkdown(rows);
     assert.ok(/\$150/.test(md), md);
     assert.ok(/Incluye:.*Refrescos y aguas/i.test(md), md);
@@ -21039,6 +21067,31 @@ ${CATALOG_OFFER_QUESTION}`
         "La barra viene en B\xE1sica $150, Tradicional $220 y Premium $320. \xBFCu\xE1l prefieres?"
       )
     );
+    const withHint = resolveCatalogInclusionReply(
+      "qu\xE9 incluye cada nivel B\xE1sica Tradicional y Premium",
+      "Barra de bebidas"
+    );
+    assert.ok(withHint && /Refrescos y aguas/i.test(withHint), withHint ?? "");
+    assert.ok(/2 licores/i.test(withHint), withHint);
+    const guardIncl = runGuards({
+      aiResponse: "Listo. Ana, \xBFen qu\xE9 zona o sal\xF3n lo tendr\xEDan?",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        requerimientos_evento: "Barra de bebidas"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "qu\xE9 incluye cada nivel B\xE1sica Tradicional y Premium",
+      history: [
+        { role: "user", content: "quiero barra de bebidas" },
+        { role: "assistant", content: "Perfecto. \xBFEn qu\xE9 ciudad ser\xE1 tu boda?" },
+        { role: "user", content: "quiero barra de bebidas" },
+        { role: "assistant", content: "Con gusto. Ana, \xBFme confirmas la ciudad o colonia del evento?" }
+      ]
+    });
+    assert.ok(/incluye/i.test(guardIncl), guardIncl.slice(0, 500));
+    assert.ok(/Refrescos y aguas|2 licores|3 licores/i.test(guardIncl), guardIncl.slice(0, 500));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

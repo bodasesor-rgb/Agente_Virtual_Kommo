@@ -935,9 +935,46 @@ export function buildInclusionTeamConfirmationAnswer(query: string): string | nu
   return `El detalle exacto de lo que incluye *${label}* te lo confirma nuestro equipo en la cotización. ¿Te la preparo con ese nivel?`;
 }
 
-/** Respuesta de inclusiones: Sheet con dato, o confirmación del equipo si está vacío. */
-export function resolveCatalogInclusionReply(query: string): string | null {
-  return buildCatalogInclusionAnswer(query) ?? buildInclusionTeamConfirmationAnswer(query);
+/**
+ * Respuesta de inclusiones: Sheet con dato, o confirmación del equipo si está vacío.
+ * `serviceHint` = requerimiento ya capturado (ej. "barra de bebidas") cuando el cliente
+ * pregunta solo "qué incluye cada nivel" sin repetir el servicio.
+ */
+export function resolveCatalogInclusionReply(
+  query: string,
+  serviceHint?: string | null
+): string | null {
+  const wantsAllLevels =
+    /\bcada\s+nivel|\btodos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada/i.test(
+      query
+    );
+
+  // "qué incluye cada nivel Básica/Tradicional/Premium" → detalle multi-nivel del servicio,
+  // no un solo nivel porque la frase menciona "Premium".
+  if (wantsAllLevels && serviceHint?.trim()) {
+    const detail = buildCatalogServiceDetailAnswer(serviceHint);
+    if (detail && /\bincluye\b/i.test(detail)) return detail;
+    const all = buildCatalogInclusionAnswer(serviceHint);
+    if (all) return all;
+  }
+
+  const attempts = [
+    query,
+    serviceHint ? `${serviceHint} ${query}` : null,
+    serviceHint || null,
+  ].filter((q): q is string => !!q?.trim());
+
+  for (const q of attempts) {
+    if (wantsAllLevels) {
+      const detail = buildCatalogServiceDetailAnswer(q);
+      if (detail && /\bincluye\b/i.test(detail)) return detail;
+    }
+    const hit = buildCatalogInclusionAnswer(q) ?? buildInclusionTeamConfirmationAnswer(q);
+    if (hit) return hit;
+    const detail = buildCatalogServiceDetailAnswer(q);
+    if (detail && /\bincluye\b/i.test(detail)) return detail;
+  }
+  return null;
 }
 
 export function clientAsksInclusion(message?: string): boolean {
@@ -1532,10 +1569,11 @@ export function buildCatalogCateringAnswer(): string | null {
 /** Si preguntan qué incluye / menú, responde SOLO con dato del Sheet o aviso al equipo. */
 export function injectCatalogInclusionIfAsked(
   clientMessage: string | undefined,
-  aiResponse: string
+  aiResponse: string,
+  serviceHint?: string | null
 ): string {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
-  const fromCatalog = resolveCatalogInclusionReply(clientMessage);
+  const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
   if (fromCatalog) return fromCatalog;
   return aiResponse;
 }

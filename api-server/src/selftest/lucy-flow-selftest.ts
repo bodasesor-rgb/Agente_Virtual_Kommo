@@ -3856,6 +3856,7 @@ async function runAll(): Promise<void> {
       '"Barra de bebidas","Premium","$320.00","$9,600.00","TRUE","Refrescos, aguas y 3 licores premium"',
     ].join("\n");
     const rows = parseSheetCatalogCsv(csv);
+    setCatalogSnapshotForTests(rows);
     const md = sheetRowsToMarkdown(rows);
     assert.ok(/\$150/.test(md), md);
     assert.ok(/Incluye:.*Refrescos y aguas/i.test(md), md);
@@ -3869,6 +3870,34 @@ async function runAll(): Promise<void> {
         "La barra viene en Básica $150, Tradicional $220 y Premium $320. ¿Cuál prefieres?"
       )
     );
+
+    // Pregunta "qué incluye cada nivel" sin repetir el servicio → usa hint CRM.
+    const withHint = resolveCatalogInclusionReply(
+      "qué incluye cada nivel Básica Tradicional y Premium",
+      "Barra de bebidas"
+    );
+    assert.ok(withHint && /Refrescos y aguas/i.test(withHint), withHint ?? "");
+    assert.ok(/2 licores/i.test(withHint!), withHint);
+
+    const guardIncl = runGuards({
+      aiResponse: "Listo. Ana, ¿en qué zona o salón lo tendrían?",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        requerimientos_evento: "Barra de bebidas",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "qué incluye cada nivel Básica Tradicional y Premium",
+      history: [
+        { role: "user", content: "quiero barra de bebidas" },
+        { role: "assistant", content: "Perfecto. ¿En qué ciudad será tu boda?" },
+        { role: "user", content: "quiero barra de bebidas" },
+        { role: "assistant", content: "Con gusto. Ana, ¿me confirmas la ciudad o colonia del evento?" },
+      ],
+    });
+    assert.ok(/incluye/i.test(guardIncl), guardIncl.slice(0, 500));
+    assert.ok(/Refrescos y aguas|2 licores|3 licores/i.test(guardIncl), guardIncl.slice(0, 500));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

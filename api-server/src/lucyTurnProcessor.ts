@@ -282,7 +282,11 @@ export async function generateLucyOutbound(
   });
 
   let aiResponse = await completeLucyRedaction(openai, lucyMessages, redactionBriefing);
-  aiResponse = injectCatalogInclusionIfAsked(messageText, aiResponse);
+  aiResponse = injectCatalogInclusionIfAsked(
+    messageText,
+    aiResponse,
+    extracted.requerimientos_evento ?? extracted.tipo_evento
+  );
   aiResponse = injectCatalogCateringIfAsked(messageText, aiResponse);
   aiResponse = injectCatalogPriceIfAsked(messageText, aiResponse);
 
