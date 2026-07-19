@@ -79090,7 +79090,7 @@ function sheetRowsToMarkdown(rows) {
     "CAT\xC1LOGO BODASESOR \u2014 GOOGLE SHEETS (fuente viva)",
     "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
     "",
-    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vac\xEDo \u2192 el equipo confirma en cotizaci\xF3n. NUNCA inventes bebidas, platillos ni marcas.",
+    "REGLA: Precios oficiales = esta tabla. Inclusiones: usa 'Incluye' de cada fila; si est\xE1 vac\xEDo, usa el CAT\xC1LOGO EST\xC1TICO DE RESPALDO del prompt (no inventes). Si tampoco hay respaldo \u2192 el equipo confirma en cotizaci\xF3n.",
     "REGLA LINK WEB: Si una fila trae Link cat\xE1logo (bodasesor.com/catalogos/\u2026), SOLO env\xEDalo cuando el cliente lo pida. Un link a la vez. No inventes URLs.",
     ""
   ];
@@ -82222,8 +82222,13 @@ function buildPromptBlock(parts2) {
     blocks.push(
       [
         "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-        "CAT\xC1LOGO EST\xC1TICO DE RESPALDO (usar solo si no contradice Sheets/Gamma)",
+        "CAT\xC1LOGO EST\xC1TICO \u2014 INCLUSIONES DE RESPALDO",
         "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+        "",
+        "REGLA PRECIOS: los precios oficiales son los de Google Sheets arriba (ganan si hay diferencia).",
+        "REGLA INCLUSIONES: si el Sheet tiene 'Que Incluye' vac\xEDo, USA las descripciones de este bloque",
+        "(qu\xE9 trae B\xE1sica/Tradicional/Premium, men\xFAs, licores, etc.). No digas 'el equipo confirma'",
+        "si aqu\xED ya est\xE1 el detalle. No inventes marcas ni platillos que no aparezcan aqu\xED ni en Sheets.",
         "",
         CATALOGO_BODASESOR
       ].join("\n")
@@ -82279,7 +82284,10 @@ async function refreshCatalog(force = false) {
         () => getCatalogWebKnowledgeBlock() || ""
       );
       if (webCatalogBlock) status.sources.gamma = status.sources.gamma || true;
-      const useStatic = !status.sources.sheets;
+      const sheetHasInclusions = rows.some(
+        (r2) => !!parseRowNotes(r2.notas).inclusion?.trim()
+      );
+      const useStatic = !status.sources.sheets || !sheetHasInclusions;
       status.sources.staticFallback = useStatic;
       const promptBlock = buildPromptBlock({
         sheetsMd,
@@ -82803,9 +82811,84 @@ function buildInclusionBlock(rows, maxPerLevel = 220) {
 *Qu\xE9 incluye cada nivel:*
 ${lines.join("\n")}` : "";
 }
+function lookupStaticInclusion(servicio, nivel) {
+  if (!servicio?.trim() || !nivel?.trim()) return null;
+  const svc = normalizeForMatch(servicio);
+  const nivRaw = normalizeForMatch(nivel);
+  const niv = nivRaw.replace(/\bbasico\b/g, "basica");
+  if (!niv) return null;
+  let searchText = CATALOGO_BODASESOR;
+  if (/barra/.test(svc) && /bebida/.test(svc)) {
+    if (/alcohol|licor|con\s*alcohol/.test(svc)) {
+      const m5 = searchText.match(
+        /BARRAS CON ALCOHOL[\s\S]*?(?=EXTRAS\b|M[IÍ]NIMOS\b|DIFERENCIA\b|━{8}|$)/i
+      );
+      if (m5) searchText = m5[0];
+    } else {
+      const m5 = searchText.match(
+        /BARRAS SIN ALCOHOL[\s\S]*?(?=BARRAS CON ALCOHOL|━{8}|$)/i
+      );
+      if (m5) searchText = m5[0];
+    }
+  } else {
+    const sections = searchText.split(/━{8,}/);
+    let best = "";
+    let bestScore = 0;
+    const tokens = svc.split(/\s+/).filter((t) => t.length > 3);
+    for (const sec of sections) {
+      const head = normalizeForMatch(sec.slice(0, 120));
+      let score = 0;
+      for (const tok of tokens) {
+        if (head.includes(tok)) score += 2;
+        else if (normalizeForMatch(sec.slice(0, 400)).includes(tok)) score += 1;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        best = sec;
+      }
+    }
+    if (bestScore < 2 || !best) return null;
+    searchText = best;
+  }
+  const nivelAlt = niv === "basica" ? "b[a\xE1]sic[ao]" : niv === "tradicional" ? "tradicional" : niv === "premium" ? "premium" : niv.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/[aeiou]/g, (c2) => {
+    const map = {
+      a: "[a\xE1]",
+      e: "[e\xE9]",
+      i: "[i\xED]",
+      o: "[o\xF3]",
+      u: "[u\xFA]"
+    };
+    return map[c2] ?? c2;
+  });
+  const bulletRe = new RegExp(
+    `[\u2022\\-]\\s*\\*?\\s*(?:${nivelAlt})\\s*\\*?\\s*:\\s*([^\\n]+)((?:\\n[ \\t]+[^\\n]+){0,4})`,
+    "i"
+  );
+  const m4 = searchText.match(bulletRe);
+  if (!m4) return null;
+  const sameLine = (m4[1] || "").trim();
+  const continuation = (m4[2] || "").split("\n").map((l4) => l4.trim()).filter(Boolean).join(" ");
+  const fromIncluye = continuation.match(/incluye\s*:?\s*(.+)/i);
+  if (fromIncluye?.[1]) {
+    return fromIncluye[1].replace(/\s+/g, " ").trim().slice(0, 320);
+  }
+  const liquor = continuation.match(/licores?\s*:\s*(.+)/i);
+  if (liquor?.[1]) {
+    return `Licores: ${liquor[1].replace(/\s+/g, " ").trim()}`.slice(0, 320);
+  }
+  const dashDesc = sameLine.match(/[—–-]\s*(.+)/);
+  if (dashDesc?.[1] && !/^\$?\d/.test(dashDesc[1].trim())) {
+    return dashDesc[1].replace(/\s+/g, " ").trim().slice(0, 320);
+  }
+  if (continuation && !/^\$?\d/.test(continuation)) {
+    return continuation.replace(/incluye\s*:?\s*/i, "").replace(/\s+/g, " ").trim().slice(0, 320);
+  }
+  return null;
+}
 function getInclusionFromRow(row) {
   const text2 = parseRowNotes(row.notas).inclusion?.trim();
-  return text2 || null;
+  if (text2) return text2;
+  return lookupStaticInclusion(row.servicio, extractNivelLabel(row));
 }
 function resolvedHasInclusionData(resolved) {
   return resolved.rows.some((r2) => !!getInclusionFromRow(r2));
@@ -82997,12 +83080,12 @@ function formatServiceDataForPrompt(query) {
       );
       const incl = row ? getInclusionFromRow(row) : null;
       const price = row?.tienePrecio && row.precio ? ` | Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
-      return incl ? `- ${n3}${price} | Incluye: ${incl}` : `- ${n3}${price} | Incluye: (vac\xEDo en cat\xE1logo \u2014 di que el equipo confirma; NO inventes)`;
+      return incl ? `- ${n3}${price} | Incluye: ${incl}` : `- ${n3}${price} | Incluye: (vac\xEDo en Sheet y respaldo \u2014 di que el equipo confirma; NO inventes)`;
     });
     return [
-      "DATOS DEL SERVICIO (Google Sheet \u2014 elegir nivel):",
+      "DATOS DEL SERVICIO (Google Sheet + inclusiones de respaldo \u2014 elegir nivel):",
       `Servicio: ${svc}`,
-      "Al ofrecer niveles, EXPLICA qu\xE9 incluye cada uno con el texto del Sheet. NUNCA digas solo los nombres.",
+      "Al ofrecer niveles, EXPLICA qu\xE9 incluye cada uno (Sheet o cat\xE1logo est\xE1tico de respaldo). NUNCA digas solo los nombres.",
       ...levelLines,
       "Pregunta cu\xE1l nivel prefiere DESPU\xC9S de mostrar inclusiones. No inventes inclusiones ni marcas."
     ].join("\n");
@@ -83014,12 +83097,13 @@ function formatServiceDataForPrompt(query) {
   const lines = unique.map((row) => {
     const parsed = parseRowNotes(row.notas);
     const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
-    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "Incluye: (vac\xEDo en cat\xE1logo \u2014 equipo confirma en cotizaci\xF3n)";
+    const incl = getInclusionFromRow(row);
+    const inclusion = incl ? `Incluye: ${incl}` : "Incluye: (vac\xEDo en Sheet y respaldo \u2014 equipo confirma en cotizaci\xF3n)";
     const link = row.linkCatalogo ? ` | Link cat\xE1logo (SOLO si lo piden): ${row.linkCatalogo}` : "";
     return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}${link}`;
   });
   return [
-    "DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar SOLO esto; no inventar precios ni inclusiones):",
+    "DATOS DEL SERVICIO (precios Sheet; inclusiones Sheet o cat\xE1logo est\xE1tico \u2014 no inventar):",
     ...lines
   ].join("\n");
 }
