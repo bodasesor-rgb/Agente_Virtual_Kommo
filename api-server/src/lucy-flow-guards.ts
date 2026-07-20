@@ -3241,6 +3241,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     (justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) &&
     !cierreYaEnviado &&
     isFieldSatisfied("nombre", filledSet, extracted) &&
+    !clientMentionsEntertainment(currentMessage) &&
     buildSoftComplementOffer(extracted, presHistory, currentMessage)
   ) {
     const soft = buildSoftComplementOffer(extracted, presHistory, currentMessage)!;
@@ -4192,12 +4193,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
 
-  // No pisar una respuesta de catálogo (Incluye / niveles / precios) solo para variar la zona.
+  // No pisar una respuesta de catálogo (Incluye / niveles / precios / entretenimiento) solo para variar la zona.
   if (
     mensajeAsksForField(mensaje, "zona") &&
     countLucyFieldAsks(presHistory, "zona") >= 1 &&
     !isFieldSatisfied("zona", filledSet, extracted) &&
-    !/\bincluye\b|\bniveles?\b|\$\s*\d/i.test(mensaje)
+    !/\bincluye\b|\bniveles?\b|\$\s*\d|bodasesor\.com\/catalogos|cat[aá]logo general|shows?\s+en\s+vivo|maestro\s+de\s+ceremonias/i.test(
+      mensaje
+    )
   ) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     const zonaAsks = countLucyFieldAsks(presHistory, "zona");

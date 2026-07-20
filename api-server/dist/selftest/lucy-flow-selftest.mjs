@@ -16775,7 +16775,7 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 presentaci\xF3n Lucy + nombre (sin oferta)");
-  } else if ((justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) && !cierreYaEnviado && isFieldSatisfied("nombre", filledSet, extracted) && buildSoftComplementOffer(extracted, presHistory, currentMessage)) {
+  } else if ((justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) && !cierreYaEnviado && isFieldSatisfied("nombre", filledSet, extracted) && !clientMentionsEntertainment(currentMessage) && buildSoftComplementOffer(extracted, presHistory, currentMessage)) {
     const soft = buildSoftComplementOffer(extracted, presHistory, currentMessage);
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
@@ -17488,7 +17488,9 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
     }
   }
   mensaje = avoidRepeatPreviousReply(mensaje, presHistory);
-  if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !isFieldSatisfied("zona", filledSet, extracted) && !/\bincluye\b|\bniveles?\b|\$\s*\d/i.test(mensaje)) {
+  if (mensajeAsksForField(mensaje, "zona") && countLucyFieldAsks(presHistory, "zona") >= 1 && !isFieldSatisfied("zona", filledSet, extracted) && !/\bincluye\b|\bniveles?\b|\$\s*\d|bodasesor\.com\/catalogos|cat[aá]logo general|shows?\s+en\s+vivo|maestro\s+de\s+ceremonias/i.test(
+    mensaje
+  )) {
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     const zonaAsks = countLucyFieldAsks(presHistory, "zona");
     const zonaVariants = nombre ? [
