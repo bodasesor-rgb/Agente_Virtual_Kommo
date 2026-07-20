@@ -715,7 +715,8 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
     }
   }
 
-  return body;
+  // Misma oferta de catálogo que en filas de un solo nivel (coffee / exact row).
+  return withCatalogOfferQuestion(body);
 }
 
 /** Detecta oferta de niveles solo con nombres/precios (sin explicar Incluye). */

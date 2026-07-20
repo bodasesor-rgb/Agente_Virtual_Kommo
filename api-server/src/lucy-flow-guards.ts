@@ -992,7 +992,10 @@ function buildFoodSalesReply(
         ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
         : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
       // Tras explicar: ofrecer el link web solo si el cliente lo pide.
-      return `${intro}\n\n${detail}\n\n${CATALOG_OFFER_QUESTION}`;
+      const body = `${intro}\n\n${detail}`.trim();
+      return messageOffersCatalogLink(body)
+        ? body
+        : `${body}\n\n${CATALOG_OFFER_QUESTION}`;
     }
 
     if (serviceLabel && currentMessage) {
@@ -2268,6 +2271,66 @@ export function buildPackageCatalogOfferBlock(): string {
   ].join("\n");
 }
 
+/** ¿Lucy ya ofreció niveles / precios / catálogo de un servicio en esta conversación? */
+export function historyAlreadyOfferedServiceDetail(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  return history.some((m) => {
+    if (m.role !== "assistant" || typeof m.content !== "string") return false;
+    const t = m.content;
+    if (messageOffersCatalogLink(t)) return true;
+    if (/manejamos estos niveles|¿cu[aá]l nivel prefieres/i.test(t)) return true;
+    if (/\*precio:\*/i.test(t) && /manejamos/i.test(t)) return true;
+    // Oferta con precios de niveles (Básico/Tradicional/Premium).
+    if (
+      /\$\s*\d/.test(t) &&
+      /\b(b[aá]sic|tradicional|premium|solo alimentos)\b/i.test(t) &&
+      /\b(nivel|manejamos|pp|\/pp|por persona)\b/i.test(t)
+    ) {
+      return true;
+    }
+    return false;
+  });
+}
+
+/**
+ * Tras capturar el nombre en un lead con servicio ya conocido (formulario web),
+ * ofrecer niveles/precios + pregunta de catálogo ANTES de seguir el embudo (correo…).
+ * Cubre A14916 Liliana / Barra de Sushi: antes solo pedía correo y cerraba sin oferta.
+ */
+export function buildDeferredKnownServiceOffer(opts: {
+  extracted: ExtractedData;
+  filledSet: Set<string>;
+  history: OpenAI.Chat.ChatCompletionMessageParam[];
+  ctx: NaturalQuestionContext;
+  whatsappName?: string | null;
+}): string | null {
+  const { extracted, filledSet, history, ctx, whatsappName } = opts;
+  if (!isFieldSatisfied("nombre", filledSet, extracted)) return null;
+  if (!isValidRequerimientosValue(extracted.requerimientos_evento)) return null;
+  if (historyAlreadyOfferedServiceDetail(history)) return null;
+
+  const svc = extracted.requerimientos_evento!.trim();
+  const detail = buildCatalogServiceDetailAnswer(svc);
+  if (!detail || !/nivel|precio|manejamos|\$/i.test(detail)) return null;
+
+  const nombre = getDisplayName(extracted, whatsappName);
+  const intro = nombre ? `Perfecto, ${nombre}.` : "Perfecto.";
+  let body = `${intro} ${detail}`.trim();
+  if (!messageOffersCatalogLink(body)) {
+    body = `${body}\n\n${CATALOG_OFFER_QUESTION}`;
+  }
+
+  const pending = getNextPendingField(extracted, filledSet);
+  if (pending && pending !== "requerimientos" && pending !== "nombre") {
+    const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
+    if (nextQ && !body.includes(nextQ)) {
+      body = `${body}\n\n${nextQ}`;
+    }
+  }
+  return body;
+}
+
 /**
  * Cierre estándar + ofrecimiento final de complementos.
  * En paquetes multi-servicio incluye link de catálogo (el cliente ya pidió propuestas).
@@ -2726,6 +2789,30 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     ? inferLucyAskedField(lastAssistantMsg.content as string)
     : null;
 
+  // Lead formulario (sushi, barras, etc.): tras el nombre, ofrecer niveles+catálogo
+  // antes de correo — evita A14916 (embudo completo sin nunca ofertar).
+  const deferredKnownServiceOffer =
+    !cierreYaEnviado &&
+    lastAskedField === "nombre" &&
+    isFieldSatisfied("nombre", filledSet, extracted) &&
+    !clientAsksInclusion(currentMessage) &&
+    !clientAsksPrice(currentMessage) &&
+    !clientAsksForCatalog(currentMessage) &&
+    !clientAffirmsCatalogOffer(
+      currentMessage,
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+        ? (lastAssistantMsg.content as string)
+        : null
+    )
+      ? buildDeferredKnownServiceOffer({
+          extracted,
+          filledSet,
+          history: presHistory,
+          ctx,
+          whatsappName: whatsappDisplayName,
+        })
+      : null;
+
   const nameMismatchReply = buildNameMismatchReplyIfNeeded(
     currentMessage,
     extracted,
@@ -2901,6 +2988,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = nameMismatchReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre distinto al del contacto — confirmar");
+  } else if (deferredKnownServiceOffer) {
+    mensaje = deferredKnownServiceOffer;
+    appliedSalesReply = true;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: servicio conocido — oferta niveles/catálogo tras nombre");
   } else if (extractImageClientReply(currentMessage)) {
     const imageReply = buildImageActionReply(currentMessage, extracted, filledSet, ctx);
     mensaje = imageReply ?? extractImageClientReply(currentMessage)!;
@@ -3275,6 +3367,31 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     isServiceRelatedMessage(currentMessage) &&
     !cierreYaEnviado
   ) {
+    // Preferir oferta con niveles + pregunta de catálogo (como food-sales),
+    // no solo un ack corto que salta al embudo.
+    const cateringAnswer = buildFoodSalesReply(
+      extracted,
+      history,
+      entityId,
+      currentMessage,
+      filledSet,
+      ctx
+    );
+    if (cateringAnswer && /nivel|precio|manejamos|cat[aá]logo|\$/i.test(cateringAnswer)) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const asksMeasures = /medidas?/i.test(cateringAnswer);
+      if (!asksMeasures && pending && pending !== "requerimientos" && ctx) {
+        const nextQ = buildNaturalQuestion(pending, ctx);
+        mensaje = cateringAnswer.includes(nextQ)
+          ? cateringAnswer
+          : `${cateringAnswer}\n\n${nextQ}`;
+      } else {
+        mensaje = cateringAnswer;
+      }
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: pregunta de servicio — detalle Sheet + oferta catálogo");
+    } else {
     // Pregunta de disponibilidad/detalle: NUNCA ignorar con solo "lo anoto".
     const ack = buildGuardServiceAck(currentMessage ?? "");
     const sala = parseSalaProductFromText(currentMessage ?? "");
@@ -3304,6 +3421,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pregunta de servicio — responder con detalle");
+    }
   } else if (
     allowSalesReplyOverride &&
     !serviceAlreadyCaptured &&

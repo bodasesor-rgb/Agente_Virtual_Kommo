@@ -79,6 +79,8 @@ import {
   buildLocationAnswer,
   buildVagueFoodOptionsReply,
   buildEmergencyContactAnswer,
+  buildDeferredKnownServiceOffer,
+  historyAlreadyOfferedServiceDetail,
 } from "../lucy-flow-guards.js";
 import { advisorLabelForClient, normalizeAdvisorReferences, getAdvisorName, LEGACY_ADVISOR_NAMES, stripInternalCrmBlock, isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
@@ -3968,6 +3970,119 @@ async function runAll(): Promise<void> {
       `no debe quedar solo zona: ${liveGuard.slice(0, 400)}`
     );
     assert.ok(!/^¿Cuál sería la ubicación/i.test(liveGuard.trim()), liveGuard.slice(0, 200));
+  });
+
+  await test("78. Liliana A14916 — form Sushi ofrece niveles+catálogo tras el nombre (no solo embudo)", () => {
+    assert.ok(
+      clientMentionsCatering("Hola, me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos")
+    );
+    const brief = parseWebLeadBrief(
+      "Hola, me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos"
+    );
+    assert.ok(brief?.requerimientos_evento, "brief form corto debe capturar servicio");
+    assert.ok(/sushi/i.test(brief!.requerimientos_evento!), brief);
+
+    const services = parseServicesFromText(
+      "Hola, me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos"
+    );
+    assert.ok(services.some((s) => /sushi/i.test(s)), String(services));
+
+    const csvSushi = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye","Link catalogo"',
+      '"Barra de sushi","Solo Alimentos","$420.00","$8,400.00","TRUE","","https://bodasesor.com/catalogos/barra-de-sushi"',
+      '"Barra de sushi","Basico","$800.00","$16,000.00","TRUE","","https://bodasesor.com/catalogos/barra-de-sushi"',
+      '"Barra de sushi","Tradicional","$850.00","$17,000.00","TRUE","","https://bodasesor.com/catalogos/barra-de-sushi"',
+      '"Barra de sushi","Premium","$900.00","$18,000.00","TRUE","","https://bodasesor.com/catalogos/barra-de-sushi"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvSushi));
+
+    const formMsg = "Hola, me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos";
+    const t1 = runGuards({
+      aiResponse: "¿Cómo te llamas?",
+      extracted: emptyExtracted({ requerimientos_evento: "Barra de sushi" }),
+      filledSet: new Set(["Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: formMsg,
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(/sushi|lucy/i.test(t1), t1.slice(0, 300));
+    assert.ok(/nombre|llam[oa]|gusto/i.test(t1), `T1 debe pedir nombre: ${t1.slice(0, 300)}`);
+
+    // Tras el nombre: DEBE ofrecer niveles/precios + pregunta de catálogo (no solo correo).
+    const t2 = runGuards({
+      aiResponse: "Perfecto, Liliana. ¿A qué correo te envío la información?",
+      extracted: emptyExtracted({
+        nombre: "Liliana",
+        requerimientos_evento: "Barra de sushi",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Liliana",
+      history: [
+        { role: "user", content: formMsg },
+        {
+          role: "assistant",
+          content:
+            "Hola, soy Lucy, agente virtual de Bodasesor. Vi que te interesa cotizar Sushi.\n\n¿Cómo te llamas?",
+        },
+      ],
+    });
+    assert.ok(
+      /nivel|\$800|\$850|\$900|\$420|basico|tradicional|premium|solo alimentos/i.test(t2),
+      `T2 debe ofrecer niveles/precios del sushi: ${t2.slice(0, 500)}`
+    );
+    assert.ok(
+      /mande el cat[aá]logo|cat[aá]logo con m[aá]s detalle/i.test(t2),
+      `T2 debe ofrecer catálogo: ${t2.slice(0, 500)}`
+    );
+    assert.ok(
+      historyAlreadyOfferedServiceDetail([{ role: "assistant", content: t2 }]),
+      "historyAlreadyOfferedServiceDetail debe detectar la oferta"
+    );
+
+    const deferred = buildDeferredKnownServiceOffer({
+      extracted: emptyExtracted({
+        nombre: "Liliana",
+        requerimientos_evento: "Barra de sushi",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      history: [
+        { role: "user", content: formMsg },
+        { role: "assistant", content: "¿Cómo te llamas?" },
+      ],
+      ctx: {
+        extracted: emptyExtracted({
+          nombre: "Liliana",
+          requerimientos_evento: "Barra de sushi",
+        }),
+        filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+        history: [],
+        currentMessage: "Liliana",
+      },
+      whatsappName: null,
+    });
+    assert.ok(deferred && /Liliana/i.test(deferred), deferred ?? "");
+    assert.ok(/cat[aá]logo/i.test(deferred!), deferred);
+
+    // Si ya ofreció, no repetir.
+    assert.equal(
+      buildDeferredKnownServiceOffer({
+        extracted: emptyExtracted({
+          nombre: "Liliana",
+          requerimientos_evento: "Barra de sushi",
+        }),
+        filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+        history: [{ role: "assistant", content: deferred! }],
+        ctx: {
+          extracted: emptyExtracted({ nombre: "Liliana", requerimientos_evento: "Barra de sushi" }),
+          filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+          history: [],
+          currentMessage: "ok",
+        },
+      }),
+      null
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

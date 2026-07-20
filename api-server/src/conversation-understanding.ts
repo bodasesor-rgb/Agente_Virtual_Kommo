@@ -87,7 +87,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Pastas", /\bpastas?\b/i],
   ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
   ["Pizzas", /\bpizza/i],
-  ["Sushi", /\b(sushi|poke)\b/i],
+  // Sheet: "Barra de sushi" (niveles Solo Alimentos / Básico / Tradicional / Premium).
+  ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   ["Taquiza", /\b(taquiza|tacos?)\b/i],
   ["Parrillada", /\bparrillada\b/i],
   ["Menú Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/i],
@@ -334,6 +335,23 @@ export function parseWebLeadBrief(text: string): WebLeadBrief | null {
     else if (!tipo) result.requerimientos_evento = chunk;
   }
 
+  // Form corto: "me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos"
+  // (sin "evento:" / "Sería el…") — antes devolvía null y Lucy saltaba al embudo sin oferta.
+  if (!result.requerimientos_evento) {
+    const colonSvc = t.match(/me\s+interesa\s+cotizar\s*:\s*([^.\n]+)/i);
+    if (colonSvc?.[1]) {
+      const raw = colonSvc[1].trim();
+      const chunk = raw
+        .replace(/\s+para\s+eventos?(?:\s+\w+)*\s*$/i, "")
+        .trim();
+      const services = parseServicesFromText(chunk || raw);
+      if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
+      else if (chunk) result.requerimientos_evento = chunk;
+      const tipo = parseTipoEventoFromText(raw);
+      if (tipo && !result.tipo_evento) result.tipo_evento = tipo;
+    }
+  }
+
   const seriaMatch = t.match(/ser[ií]a\s+(?:el\s+)?([^,.\n]+?)\s+en\s+([^,.\n]+?)(?:\.|,|\s+para\s+)/i);
   if (seriaMatch) {
     const fechaPart = seriaMatch[1]!.trim();
@@ -384,7 +402,7 @@ export function isGettingReadyContext(text: string | null | undefined): boolean 
 }
 
 function hasSpecificFoodService(text: string): boolean {
-  return /\b(banquete|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos)|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
+  return /\b(banquete|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
     text
   );
 }
@@ -555,6 +573,9 @@ export function clientMentionsCatering(message?: string): boolean {
     /\bbrunch\s*\/\s*desayuno/i.test(t) ||
     /\bcoffee\s*break\b/i.test(t) ||
     /\bbarra\s+de\s+caf[eé](?!\w)/i.test(t) ||
+    // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
+    /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?)\b/i.test(t) ||
+    /\b(sushi|poke(\s*bowl)?)\b/i.test(t) ||
     /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t) ||
     /\bcomida\s+para\b/i.test(t) ||
     /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) ||
