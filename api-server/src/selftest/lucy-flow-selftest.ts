@@ -60,6 +60,7 @@ import {
   isLikelyProductNameNotLocation,
   clientMentionsCarpas,
   clientAsksServiceInfo,
+  clientAddsToQuote,
 } from "../conversation-understanding.js";
 import {
   applyLucyGlobalAntiRepetition,
@@ -249,6 +250,7 @@ function runGuards(opts: {
   emailRefusedThisTurn?: boolean;
   whatsappDisplayName?: string | null;
   forceFirstPresentation?: boolean;
+  cierreYaEnviado?: boolean;
   debugLogs?: string[];
 }): string {
   return applyLucyMessageGuards({
@@ -256,7 +258,7 @@ function runGuards(opts: {
     extracted: opts.extracted,
     filledSet: opts.filledSet,
     readyForClosing: opts.readyForClosing,
-    cierreYaEnviado: false,
+    cierreYaEnviado: opts.cierreYaEnviado ?? false,
     emailRefusedThisTurn: opts.emailRefusedThisTurn ?? false,
     history: opts.history ?? [],
     currentMessage: opts.currentMessage,
@@ -4083,6 +4085,82 @@ async function runAll(): Promise<void> {
       }),
       null
     );
+  });
+
+  await test("79. Lorena A14918 — crepas: nombre≠pregunta, invitados niños+adultos, post-cierre corto", () => {
+    // Bug 1: "tienes crepas para eventos" NO es nombre.
+    assert.ok(isLikelyNotPersonNameMessage("tienes crepas para eventos"));
+    assert.ok(isLikelyNotPersonNameMessage("Tienes Crepas Para Eventos"));
+    assert.equal(sanitizeCrmNombre("tienes crepas para eventos"), null);
+    assert.equal(sanitizeCrmNombre("Tienes Crepas Para Eventos"), null);
+    assert.ok(isServiceRelatedMessage("tienes crepas para eventos"));
+
+    // Bug 2: "8 niños y 18 adultos" → 26 invitados.
+    assert.equal(parseInvitadosFromText("es un evento de 8 niños y 18 adultos"), "26");
+    assert.equal(parseInvitadosFromText("18 adultos y 8 niños"), "26");
+
+    // Bug 3: "Quiero hacer una cotizacion" no es requerimiento válido.
+    assert.ok(isQuoteIntentMessage("Quiero hacer una cotizacion"));
+    assert.ok(!isValidRequerimientosValue("Quiero hacer una cotizacion"));
+
+    // Bug 4: post-cierre "helado, crepas y frutas" → ack corto, sin dump de niveles.
+    assert.ok(clientAddsToQuote("queremos helado, crepas y frutas en vasito"));
+    const services = parseServicesFromText("queremos helado, crepas y frutas en vasito");
+    assert.ok(services.some((s) => /crepas/i.test(s)), String(services));
+    assert.ok(services.some((s) => /helado/i.test(s)), String(services));
+
+    const post = runGuards({
+      aiResponse: "Para *Barra de Crepas* manejamos estos niveles:\n1. *Basico* — $730",
+      extracted: emptyExtracted({
+        nombre: "Lorena",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "Crepas",
+        correo: "lorsgro@gmail.com",
+        direccion_evento: "CDMX Lomas de Chapultepec",
+        fecha_horario: "2 de agosto comida",
+        num_invitados: 26,
+        presupuesto: "Sin definir — proponer opciones",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Número de invitados",
+        "Presupuesto",
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "queremos helado, crepas y frutas en vasito",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto, ya tengo todo. Voy a compartir esta información con nuestro equipo para que te prepare una cotización personalizada.",
+        },
+      ],
+    });
+    assert.ok(/anoto|sume|helado|crepas|frutas/i.test(post), post.slice(0, 400));
+    assert.ok(!/manejamos estos niveles|\$730|\$280/i.test(post), post.slice(0, 400));
+
+    // Tras preguntar nombre, "tienes crepas…" no debe llenar Nombre.
+    const badName = runGuards({
+      aiResponse: "¿Cómo te llamas?",
+      extracted: emptyExtracted(),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: "tienes crepas para eventos",
+      history: [
+        { role: "user", content: "Quiero hacer una cotizacion" },
+        {
+          role: "assistant",
+          content: "Hola, soy Lucy. ¿Cómo te llamas?",
+        },
+      ],
+    });
+    assert.ok(!/mucho gusto,\s*tienes/i.test(badName), badName.slice(0, 300));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -8,6 +8,7 @@ import type { ExtractedData } from "./types.js";
 import {
   isAffirmativeOnlyMessage,
   isGreetingOnlyMessage,
+  isLikelyNotPersonNameMessage,
   isLikelyUbicacionNotNombre,
   isQuoteIntentMessage,
   sanitizeCrmNombre,
@@ -93,6 +94,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Parrillada", /\bparrillada\b/i],
   ["Menú Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/i],
   ["Crepas", /\bcrep[aá]s?\b/i],
+  ["Helado", /\bhelados?\b/i],
+  ["Frutas en vasito", /\bfrutas?\s+en\s+vasitos?\b|\bvasitos?\s+de\s+fruta/i],
   ["Brunch", /\bbrunch\b/i],
   ["Poptails", /\bpoptails?\b/i],
   ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
@@ -102,7 +105,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -233,10 +236,20 @@ export function clientAddsToQuote(message?: string): boolean {
   // RFQ completo no es un "agrega X a la cotización" corto.
   if (isRichQuoteBrief(message)) return false;
   const t = message.toLowerCase();
-  return (
-    /\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t) &&
-    /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t)
-  ) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t);
+  if (
+    (/\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t) &&
+      /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t)) ||
+    /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t)
+  ) {
+    return true;
+  }
+  // "queremos helado, crepas y frutas" / "algo así" con lista de servicios (A14918).
+  if (/\b(queremos|quisiera|me\s+gustar[ií]a|sumamos|ponemos|buscamos)\b/i.test(t)) {
+    const services = parseServicesFromText(message);
+    if (services.length >= 1) return true;
+    if (/\b(helado|frutas?|vasitos?|postres?|dulces?)\b/i.test(t)) return true;
+  }
+  return false;
 }
 
 /** Cliente pide ideas, recomendaciones o pregunta qué ofrece Bodasesor. */
@@ -477,9 +490,18 @@ export function recoverClienteNombreFromHistory(
 
     const raw = msg.content.trim();
     if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
+    if (isLikelyNotPersonNameMessage(raw) || isServiceRelatedMessage(raw) || isQuoteIntentMessage(raw)) {
+      continue;
+    }
     const candidato = stripNombrePresentationPrefix(raw);
     const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+    if (
+      nombre &&
+      candidato.length < 60 &&
+      !/\?/.test(candidato) &&
+      !/@/.test(candidato) &&
+      !isLikelyNotPersonNameMessage(candidato)
+    ) {
       return nombre;
     }
   }
@@ -1159,6 +1181,27 @@ export function parseInvitadosFromText(text: string): string | null {
   );
   if (numMatchEarly) return numMatchEarly[1]!;
 
+  // "8 niños y 18 adultos" / "18 adultos y 8 niños" → suma (Lorena A14918).
+  const kidsAdults = trimmed.match(
+    /\b(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\s*y\s*(\d+)\s*(adultos?|mayores?)\b/i
+  );
+  if (kidsAdults) {
+    return String(parseInt(kidsAdults[1]!, 10) + parseInt(kidsAdults[3]!, 10));
+  }
+  const adultsKids = trimmed.match(
+    /\b(\d+)\s*(adultos?|mayores?)\s*y\s*(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\b/i
+  );
+  if (adultsKids) {
+    return String(parseInt(adultsKids[1]!, 10) + parseInt(adultsKids[3]!, 10));
+  }
+  // "evento de 8 niños y 18 adultos" ya cubierto; fallback si ambos roles + 2 números.
+  if (/\bniñ[oa]s?\b/i.test(trimmed) && /\badultos?\b/i.test(trimmed)) {
+    const nums = [...trimmed.matchAll(/\b(\d{1,4})\b/g)].map((m) => parseInt(m[1]!, 10));
+    if (nums.length >= 2 && nums.every((n) => n >= 1 && n <= 500)) {
+      return String(nums[0]! + nums[1]!);
+    }
+  }
+
   // "Serían 4 salas" / "10 mesas" / "2 carpas" ≠ invitados (María A14906).
   if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
 
@@ -1798,6 +1841,8 @@ export function captureContextualAnswer(
     (asked === "nombre" || (!history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg))) &&
     !isAffirmativeOnlyMessage(msg) &&
     !isQuoteIntentMessage(msg) &&
+    !isLikelyNotPersonNameMessage(msg) &&
+    !isServiceRelatedMessage(msg) &&
     !isAmbiguousShortNumber(msg) &&
     !isLikelyUbicacionNotNombre(msg) &&
     /[a-záéíóúüñ]/i.test(msg) &&
@@ -1806,7 +1851,13 @@ export function captureContextualAnswer(
   ) {
     const candidato = stripNombrePresentationPrefix(msg);
     const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 60 && !/\?/.test(candidato)) {
+    if (
+      nombre &&
+      candidato.length < 60 &&
+      !/\?/.test(candidato) &&
+      !isLikelyNotPersonNameMessage(candidato) &&
+      !isServiceRelatedMessage(candidato)
+    ) {
       captures.push({ label: "Nombre del cliente", value: nombre });
     }
   }

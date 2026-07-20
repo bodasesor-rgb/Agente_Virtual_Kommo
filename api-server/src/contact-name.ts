@@ -27,7 +27,7 @@ const COMPANY_OR_CHANNEL_PATTERN =
 
 /** Verbos de frase/pregunta — el mensaje no es un nombre propio. */
 const SENTENCE_VERB_PATTERN =
-  /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|ofrecen|manejan|pueden|puedo|gustar[ií]a)\b/i;
+  /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan)\b/i;
 
 /** Intención de cotización — no es el nombre del cliente ("Quiero hacer una cotización"). */
 export function isQuoteIntentMessage(text: string | null | undefined): boolean {
@@ -92,14 +92,27 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   // Presentación explícita sí puede ser nombre.
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
+
+  // Pregunta / verbo de servicio ANTES de looksLikePersonFullName:
+  // "Tienes Crepas Para Eventos" matcheaba como "nombre completo" (4 tokens).
+  if (/\?/.test(t)) return true;
+  if (SENTENCE_VERB_PATTERN.test(t)) return true;
+  if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
+  if (isLikelyUbicacionNotNombre(t)) return true;
+  if (COMPANY_OR_CHANNEL_PATTERN.test(t)) return true;
+  // Servicio del catálogo sin verbo ("crepas para eventos", "barra de sushi").
+  if (
+    /\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?)\b/i.test(
+      t
+    ) &&
+    !/^(soy|me\s+llamo)/i.test(t)
+  ) {
+    return true;
+  }
+
   // "Patricia Campos López" / "María José Pérez García" sin "me llamo" sigue siendo nombre.
   if (looksLikePersonFullName(t)) return false;
 
-  if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
-  if (isLikelyUbicacionNotNombre(t)) return true;
-  if (/\?/.test(t)) return true;
-  if (COMPANY_OR_CHANNEL_PATTERN.test(t)) return true;
-  if (SENTENCE_VERB_PATTERN.test(t)) return true;
   // Frase larga sin forma de nombre ≠ nombre.
   if (t.split(/\s+/).length >= 4) return true;
   return false;
@@ -187,6 +200,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isLikelyUbicacionNotNombre(trimmed)) return null;
+  if (isLikelyNotPersonNameMessage(trimmed)) return null;
 
   const cleaned = trimmed
     .replace(/^Lead:\s*/i, "")
@@ -196,6 +210,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
 
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
+  if (isLikelyNotPersonNameMessage(cleaned)) return null;
 
   const parts = cleaned.split(/\s+/).filter((part) => {
     const trimmed = part.trim();

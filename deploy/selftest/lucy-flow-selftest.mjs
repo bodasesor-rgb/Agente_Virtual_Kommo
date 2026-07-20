@@ -24,7 +24,7 @@ var PLACEHOLDER_PATTERNS = [
 ];
 var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
 var COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
-var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|ofrecen|manejan|pueden|puedo|gustar[ií]a)\b/i;
+var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan)\b/i;
 function isQuoteIntentMessage(text) {
   const t = text?.trim() ?? "";
   if (!t) return false;
@@ -62,12 +62,17 @@ function isLikelyNotPersonNameMessage(text) {
   if (!t) return true;
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
-  if (looksLikePersonFullName(t)) return false;
+  if (/\?/.test(t)) return true;
+  if (SENTENCE_VERB_PATTERN.test(t)) return true;
   if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
   if (isLikelyUbicacionNotNombre(t)) return true;
-  if (/\?/.test(t)) return true;
   if (COMPANY_OR_CHANNEL_PATTERN.test(t)) return true;
-  if (SENTENCE_VERB_PATTERN.test(t)) return true;
+  if (/\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?)\b/i.test(
+    t
+  ) && !/^(soy|me\s+llamo)/i.test(t)) {
+    return true;
+  }
+  if (looksLikePersonFullName(t)) return false;
   if (t.split(/\s+/).length >= 4) return true;
   return false;
 }
@@ -126,9 +131,11 @@ function sanitizeCrmNombre(name) {
   if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isLikelyUbicacionNotNombre(trimmed)) return null;
+  if (isLikelyNotPersonNameMessage(trimmed)) return null;
   const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
+  if (isLikelyNotPersonNameMessage(cleaned)) return null;
   const parts = cleaned.split(/\s+/).filter((part) => {
     const trimmed2 = part.trim();
     const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
@@ -370,6 +377,8 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Parrillada", /\bparrillada\b/i],
   ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/i],
   ["Crepas", /\bcrep[aá]s?\b/i],
+  ["Helado", /\bhelados?\b/i],
+  ["Frutas en vasito", /\bfrutas?\s+en\s+vasitos?\b|\bvasitos?\s+de\s+fruta/i],
   ["Brunch", /\bbrunch\b/i],
   ["Poptails", /\bpoptails?\b/i],
   ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
@@ -377,7 +386,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
   ["Mesa imperial", /\bmesa\s+imperial\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
@@ -472,7 +481,15 @@ function clientAddsToQuote(message) {
   if (!message?.trim()) return false;
   if (isRichQuoteBrief(message)) return false;
   const t = message.toLowerCase();
-  return /\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t) && /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t);
+  if (/\b(incluir|agregar|sumar|tambi[eé]n|adem[aá]s)\b/i.test(t) && /\b(cotizaci[oó]n|propuesta|cotizar)\b/i.test(t) || /\bincluir\b.+\b(en\s+la\s+)?cotiz/i.test(t)) {
+    return true;
+  }
+  if (/\b(queremos|quisiera|me\s+gustar[ií]a|sumamos|ponemos|buscamos)\b/i.test(t)) {
+    const services = parseServicesFromText(message);
+    if (services.length >= 1) return true;
+    if (/\b(helado|frutas?|vasitos?|postres?|dulces?)\b/i.test(t)) return true;
+  }
+  return false;
 }
 function clientAsksForRecommendations(message) {
   if (!message?.trim()) return false;
@@ -622,9 +639,12 @@ function recoverClienteNombreFromHistory(history, currentMessage) {
     if (asked !== "nombre" && !LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) continue;
     const raw = msg.content.trim();
     if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
+    if (isLikelyNotPersonNameMessage(raw) || isServiceRelatedMessage(raw) || isQuoteIntentMessage(raw)) {
+      continue;
+    }
     const candidato = stripNombrePresentationPrefix(raw);
     const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato) && !isLikelyNotPersonNameMessage(candidato)) {
       return nombre;
     }
   }
@@ -1016,6 +1036,24 @@ function parseInvitadosFromText(text) {
     /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
   );
   if (numMatchEarly) return numMatchEarly[1];
+  const kidsAdults = trimmed.match(
+    /\b(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\s*y\s*(\d+)\s*(adultos?|mayores?)\b/i
+  );
+  if (kidsAdults) {
+    return String(parseInt(kidsAdults[1], 10) + parseInt(kidsAdults[3], 10));
+  }
+  const adultsKids = trimmed.match(
+    /\b(\d+)\s*(adultos?|mayores?)\s*y\s*(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\b/i
+  );
+  if (adultsKids) {
+    return String(parseInt(adultsKids[1], 10) + parseInt(adultsKids[3], 10));
+  }
+  if (/\bniñ[oa]s?\b/i.test(trimmed) && /\badultos?\b/i.test(trimmed)) {
+    const nums = [...trimmed.matchAll(/\b(\d{1,4})\b/g)].map((m) => parseInt(m[1], 10));
+    if (nums.length >= 2 && nums.every((n) => n >= 1 && n <= 500)) {
+      return String(nums[0] + nums[1]);
+    }
+  }
   if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
   if (isServiceRelatedMessage(trimmed)) return null;
   if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
@@ -1423,10 +1461,10 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   const lastLucy = getLastLucyMessage(history);
   const asked = inferLucyAskedField(lastLucy);
   const captures = [];
-  if (!filledSet.has("Nombre del cliente") && (asked === "nombre" || !history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
+  if (!filledSet.has("Nombre del cliente") && (asked === "nombre" || !history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isLikelyNotPersonNameMessage(msg) && !isServiceRelatedMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
     const candidato = stripNombrePresentationPrefix(msg);
     const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
-    if (nombre && candidato.length < 60 && !/\?/.test(candidato)) {
+    if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !isLikelyNotPersonNameMessage(candidato) && !isServiceRelatedMessage(candidato)) {
       captures.push({ label: "Nombre del cliente", value: nombre });
     }
   }
@@ -16469,6 +16507,15 @@ Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     mensaje = buildPostCierreCallbackAck(extracted.nombre);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 gracias tras pedir llamada");
+  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && (clientAddsToQuote(currentMessage) || parseServicesFromText(currentMessage ?? "").length >= 1 && !isRichQuoteBrief(currentMessage) && /\b(queremos|quisiera|sumamos|adem[aá]s|tambi[eé]n|helado|frutas?|crepas?)\b/i.test(
+    currentMessage ?? ""
+  ))) {
+    const services = parseServicesFromText(currentMessage ?? "");
+    const list = services.length > 0 ? formatServicesList(services) : (currentMessage ?? "").trim().replace(/\s+/g, " ").slice(0, 100);
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales (ack corto)");
   } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && (isRichQuoteBrief(currentMessage) || parseServicesFromText(currentMessage ?? "").length >= 2)) {
     const pkg = buildMultiServicePackageReply(
       parseServicesFromText(currentMessage ?? ""),
@@ -16483,22 +16530,13 @@ Perfecto, ${nombre}. Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que qu
 Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 RFQ/paquete completo (no SKU suelto)");
-  } else if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
-    const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?` : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotizaci\xF3n. \xBFHay algo m\xE1s que quieras agregar?";
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre \u2014 servicios adicionales");
   } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim()) {
     const services = parseServicesFromText(currentMessage);
-    const ack = services.length >= 2 ? `Perfecto, anoto ${formatServicesList(services)}.` : buildGuardServiceAck(currentMessage);
+    const list = services.length > 0 ? formatServicesList(services) : currentMessage.trim().replace(/\s+/g, " ").slice(0, 80);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre ? `${ack}
-
-Perfecto, ${nombre}. Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `${ack}
-
-Lo sumo a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
+    mensaje = nombre ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotizaci\xF3n. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre \u2014 servicio adicional con detalle");
+    log?.info({ entityId }, "GUARD: post-cierre \u2014 servicio adicional (ack corto, sin niveles)");
   } else if (cierreYaEnviado && (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))) {
     mensaje = buildPostCierreThanksReply(extracted.nombre);
     appliedDirectReply = true;
@@ -18061,7 +18099,7 @@ function runGuards(opts) {
     extracted: opts.extracted,
     filledSet: opts.filledSet,
     readyForClosing: opts.readyForClosing,
-    cierreYaEnviado: false,
+    cierreYaEnviado: opts.cierreYaEnviado ?? false,
     emailRefusedThisTurn: opts.emailRefusedThisTurn ?? false,
     history: opts.history ?? [],
     currentMessage: opts.currentMessage,
@@ -21431,6 +21469,70 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       }),
       null
     );
+  });
+  await test("79. Lorena A14918 \u2014 crepas: nombre\u2260pregunta, invitados ni\xF1os+adultos, post-cierre corto", () => {
+    assert.ok(isLikelyNotPersonNameMessage("tienes crepas para eventos"));
+    assert.ok(isLikelyNotPersonNameMessage("Tienes Crepas Para Eventos"));
+    assert.equal(sanitizeCrmNombre("tienes crepas para eventos"), null);
+    assert.equal(sanitizeCrmNombre("Tienes Crepas Para Eventos"), null);
+    assert.ok(isServiceRelatedMessage("tienes crepas para eventos"));
+    assert.equal(parseInvitadosFromText("es un evento de 8 ni\xF1os y 18 adultos"), "26");
+    assert.equal(parseInvitadosFromText("18 adultos y 8 ni\xF1os"), "26");
+    assert.ok(isQuoteIntentMessage("Quiero hacer una cotizacion"));
+    assert.ok(!isValidRequerimientosValue("Quiero hacer una cotizacion"));
+    assert.ok(clientAddsToQuote("queremos helado, crepas y frutas en vasito"));
+    const services = parseServicesFromText("queremos helado, crepas y frutas en vasito");
+    assert.ok(services.some((s) => /crepas/i.test(s)), String(services));
+    assert.ok(services.some((s) => /helado/i.test(s)), String(services));
+    const post = runGuards({
+      aiResponse: "Para *Barra de Crepas* manejamos estos niveles:\n1. *Basico* \u2014 $730",
+      extracted: emptyExtracted({
+        nombre: "Lorena",
+        tipo_evento: "cumplea\xF1os",
+        requerimientos_evento: "Crepas",
+        correo: "lorsgro@gmail.com",
+        direccion_evento: "CDMX Lomas de Chapultepec",
+        fecha_horario: "2 de agosto comida",
+        num_invitados: 26,
+        presupuesto: "Sin definir \u2014 proponer opciones"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "Fecha y horario",
+        "N\xFAmero de invitados",
+        "Presupuesto"
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "queremos helado, crepas y frutas en vasito",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, ya tengo todo. Voy a compartir esta informaci\xF3n con nuestro equipo para que te prepare una cotizaci\xF3n personalizada."
+        }
+      ]
+    });
+    assert.ok(/anoto|sume|helado|crepas|frutas/i.test(post), post.slice(0, 400));
+    assert.ok(!/manejamos estos niveles|\$730|\$280/i.test(post), post.slice(0, 400));
+    const badName = runGuards({
+      aiResponse: "\xBFC\xF3mo te llamas?",
+      extracted: emptyExtracted(),
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: "tienes crepas para eventos",
+      history: [
+        { role: "user", content: "Quiero hacer una cotizacion" },
+        {
+          role: "assistant",
+          content: "Hola, soy Lucy. \xBFC\xF3mo te llamas?"
+        }
+      ]
+    });
+    assert.ok(!/mucho gusto,\s*tienes/i.test(badName), badName.slice(0, 300));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

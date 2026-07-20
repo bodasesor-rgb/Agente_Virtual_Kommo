@@ -2841,10 +2841,33 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     cierreYaEnviado &&
     !clientDeclinesMoreServices(currentMessage) &&
     !clientSaysThanks(currentMessage) &&
+    (clientAddsToQuote(currentMessage) ||
+      (parseServicesFromText(currentMessage ?? "").length >= 1 &&
+        !isRichQuoteBrief(currentMessage) &&
+        /\b(queremos|quisiera|sumamos|adem[aá]s|tambi[eé]n|helado|frutas?|crepas?)\b/i.test(
+          currentMessage ?? ""
+        )))
+  ) {
+    // Lista corta post-cierre ("helado, crepas y frutas") — anotar, NO re-mandar niveles.
+    const services = parseServicesFromText(currentMessage ?? "");
+    const list =
+      services.length > 0
+        ? formatServicesList(services)
+        : (currentMessage ?? "").trim().replace(/\s+/g, " ").slice(0, 100);
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre
+      ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`
+      : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: post-cierre — servicios adicionales (ack corto)");
+  } else if (
+    cierreYaEnviado &&
+    !clientDeclinesMoreServices(currentMessage) &&
+    !clientSaysThanks(currentMessage) &&
     (isRichQuoteBrief(currentMessage) ||
       parseServicesFromText(currentMessage ?? "").length >= 2)
   ) {
-    // Antes de clientAddsToQuote: un RFQ con "Incluir: meseros…" no es un add corto.
+    // RFQ largo post-cierre (brief completo), no una lista corta de extras.
     const pkg = buildMultiServicePackageReply(
       parseServicesFromText(currentMessage ?? ""),
       currentMessage
@@ -2858,13 +2881,6 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       : `${pkg}${distributorNote}\n\nActualizo tu cotización con esto. ¿Algo más que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — RFQ/paquete completo (no SKU suelto)");
-  } else if (cierreYaEnviado && clientAddsToQuote(currentMessage)) {
-    const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre
-      ? `Perfecto, ${nombre}. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?`
-      : "Perfecto. Lo anoto para que nuestro equipo lo incluya en tu cotización. ¿Hay algo más que quieras agregar?";
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre — servicios adicionales");
   } else if (
     cierreYaEnviado &&
     !clientDeclinesMoreServices(currentMessage) &&
@@ -2872,17 +2888,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     isServiceRelatedMessage(currentMessage) &&
     currentMessage?.trim()
   ) {
+    // Post-cierre: anotar sin re-dump de niveles/precios (A14918 helado+crepas+frutas).
     const services = parseServicesFromText(currentMessage);
-    const ack =
-      services.length >= 2
-        ? `Perfecto, anoto ${formatServicesList(services)}.`
-        : buildGuardServiceAck(currentMessage);
+    const list =
+      services.length > 0
+        ? formatServicesList(services)
+        : currentMessage.trim().replace(/\s+/g, " ").slice(0, 80);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
     mensaje = nombre
-      ? `${ack}\n\nPerfecto, ${nombre}. Lo sumo a tu cotización. ¿Algo más que quieras agregar?`
-      : `${ack}\n\nLo sumo a tu cotización. ¿Algo más que quieras agregar?`;
+      ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`
+      : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`;
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre — servicio adicional con detalle");
+    log?.info({ entityId }, "GUARD: post-cierre — servicio adicional (ack corto, sin niveles)");
   } else if (
     cierreYaEnviado &&
     (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))
