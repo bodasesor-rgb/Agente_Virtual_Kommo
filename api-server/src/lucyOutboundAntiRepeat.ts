@@ -205,7 +205,8 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   }
 
   // 4) Casi idéntico a una respuesta reciente del asistente.
-  if (previous.length > 0) {
+  // No tocar pitch de show/MC + catálogo (A14920): "manejamos" solapa con menús previos.
+  if (!isCatalogDetailReply && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p) => lucyTextOverlapRatio(mensaje, p)));
     if (maxOverlap >= 0.72) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);
@@ -236,8 +237,11 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   }
 
   // 5) Segundo menú genérico de servicios en historial reciente.
+  // Excluir entretenimiento + link de catálogo (A14920 Karina): si no, "manejamos
+  // maestro de ceremonias… + catálogo" se reduce a solo la pregunta de zona.
   if (
     !cierre &&
+    !isCatalogDetailReply &&
     SERVICES_MENU_PATTERN.test(mensaje) &&
     /¿/.test(mensaje) &&
     previous.some((p) => SERVICES_MENU_PATTERN.test(p) && /¿/.test(p))

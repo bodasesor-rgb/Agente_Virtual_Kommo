@@ -88981,7 +88981,7 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("filled-field-ack");
     }
   }
-  if (previous.length > 0) {
+  if (!isCatalogDetailReply && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p3) => lucyTextOverlapRatio(mensaje, p3)));
     if (maxOverlap >= 0.72) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);
@@ -89003,7 +89003,7 @@ function applyLucyGlobalAntiRepetition(input) {
       }
     }
   }
-  if (!cierre && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p3) => SERVICES_MENU_PATTERN.test(p3) && /¿/.test(p3))) {
+  if (!cierre && !isCatalogDetailReply && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p3) => SERVICES_MENU_PATTERN.test(p3) && /¿/.test(p3))) {
     const qOnly = mensaje.split("\n").map((l4) => l4.trim()).filter((l4) => l4.includes("?") && !SERVICES_MENU_PATTERN.test(l4));
     if (qOnly.length) {
       mensaje = qOnly[qOnly.length - 1];

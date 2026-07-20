@@ -17789,7 +17789,7 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("filled-field-ack");
     }
   }
-  if (previous.length > 0) {
+  if (!isCatalogDetailReply && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p) => lucyTextOverlapRatio(mensaje, p)));
     if (maxOverlap >= 0.72) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);
@@ -17811,7 +17811,7 @@ function applyLucyGlobalAntiRepetition(input) {
       }
     }
   }
-  if (!cierre && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p) => SERVICES_MENU_PATTERN.test(p) && /¿/.test(p))) {
+  if (!cierre && !isCatalogDetailReply && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p) => SERVICES_MENU_PATTERN.test(p) && /¿/.test(p))) {
     const qOnly = mensaje.split("\n").map((l) => l.trim()).filter((l) => l.includes("?") && !SERVICES_MENU_PATTERN.test(l));
     if (qOnly.length) {
       mensaje = qOnly[qOnly.length - 1];
@@ -21601,6 +21601,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
   await test("80. Karina A14920 \u2014 maestro de ceremonias/show manda cat\xE1logo (no 'Ya lo tengo anotado')", () => {
     assert.ok(clientMentionsEntertainment("estaba buscando maestro de ceremonias y un show"));
     assert.ok(clientMentionsEntertainment("Disculpame, estaba buscando maestro de ceremonias y un show"));
+    const banqueteMenu = "Perfecto, Karina. Para tus XV a\xF1os, manejamos una variedad de servicios que pueden ser de inter\xE9s:\n\n\u2022 Banquete Formal 3 o 4 tiempos\n\u2022 Barra de bebidas\n\u2022 Mobiliario\n\u2022 DJ e iluminaci\xF3n\n\u2022 Pista de baile\n\n\xBFTe gustar\xEDa revisar alguno de estos servicios en particular?";
     const reply = runGuards({
       aiResponse: "Perfecto, Karina Fierro. Ya lo tengo anotado.",
       extracted: emptyExtracted({
@@ -21620,7 +21621,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: [
         {
           role: "assistant",
-          content: "Perfecto, Karina. Para tus XV a\xF1os, manejamos una variedad de servicios: Banquete Formal 3 tiempos\u2026"
+          content: banqueteMenu
         }
       ]
     });
@@ -21633,6 +21634,36 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `debe mandar link de cat\xE1logo: ${reply.slice(0, 500)}`
     );
     assert.ok(!/Ya lo tengo anotado/i.test(reply), reply.slice(0, 300));
+    const afterAnti = applyLucyGlobalAntiRepetition({
+      mensaje: reply,
+      history: [{ role: "assistant", content: banqueteMenu }],
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      extracted: emptyExtracted({
+        nombre: "Karina Fierro",
+        correo: "fierro.karina.tr@gmail.com",
+        tipo_evento: "xv a\xF1os",
+        requerimientos_evento: "Banquete Formal"
+      }),
+      currentMessage: "Disculpame, estaba buscando maestro de ceremonias y un show",
+      clientName: "Karina Fierro"
+    });
+    assert.ok(
+      !afterAnti.applied.includes("services-menu-dedupe"),
+      `anti-repeat no debe dedupear men\xFA de entretenimiento: ${afterAnti.applied.join(",")}`
+    );
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(afterAnti.mensaje),
+      `cat\xE1logo debe sobrevivir anti-repeat: ${afterAnti.mensaje.slice(0, 500)}`
+    );
+    assert.ok(
+      /maestro\s+de\s+ceremonias|shows?\s+en\s+vivo|hora\s+loca/i.test(afterAnti.mensaje),
+      afterAnti.mensaje.slice(0, 400)
+    );
     const resumen = buildResumenClienteLargo(
       emptyExtracted({ nombre: "Karina" }),
       ["- Nombre del cliente: Karina"],

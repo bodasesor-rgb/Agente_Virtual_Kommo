@@ -4171,6 +4171,11 @@ async function runAll(): Promise<void> {
     assert.ok(clientMentionsEntertainment("estaba buscando maestro de ceremonias y un show"));
     assert.ok(clientMentionsEntertainment("Disculpame, estaba buscando maestro de ceremonias y un show"));
 
+    const banqueteMenu =
+      "Perfecto, Karina. Para tus XV años, manejamos una variedad de servicios que pueden ser de interés:\n\n" +
+      "• Banquete Formal 3 o 4 tiempos\n• Barra de bebidas\n• Mobiliario\n• DJ e iluminación\n• Pista de baile\n\n" +
+      "¿Te gustaría revisar alguno de estos servicios en particular?";
+
     const reply = runGuards({
       aiResponse: "Perfecto, Karina Fierro. Ya lo tengo anotado.",
       extracted: emptyExtracted({
@@ -4190,8 +4195,7 @@ async function runAll(): Promise<void> {
       history: [
         {
           role: "assistant",
-          content:
-            "Perfecto, Karina. Para tus XV años, manejamos una variedad de servicios: Banquete Formal 3 tiempos…",
+          content: banqueteMenu,
         },
       ],
     });
@@ -4204,6 +4208,38 @@ async function runAll(): Promise<void> {
       `debe mandar link de catálogo: ${reply.slice(0, 500)}`
     );
     assert.ok(!/Ya lo tengo anotado/i.test(reply), reply.slice(0, 300));
+
+    // La malla anti-repeat (post-guards) no debe dejar solo la pregunta de zona.
+    const afterAnti = applyLucyGlobalAntiRepetition({
+      mensaje: reply,
+      history: [{ role: "assistant", content: banqueteMenu }],
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      extracted: emptyExtracted({
+        nombre: "Karina Fierro",
+        correo: "fierro.karina.tr@gmail.com",
+        tipo_evento: "xv años",
+        requerimientos_evento: "Banquete Formal",
+      }),
+      currentMessage: "Disculpame, estaba buscando maestro de ceremonias y un show",
+      clientName: "Karina Fierro",
+    });
+    assert.ok(
+      !afterAnti.applied.includes("services-menu-dedupe"),
+      `anti-repeat no debe dedupear menú de entretenimiento: ${afterAnti.applied.join(",")}`
+    );
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(afterAnti.mensaje),
+      `catálogo debe sobrevivir anti-repeat: ${afterAnti.mensaje.slice(0, 500)}`
+    );
+    assert.ok(
+      /maestro\s+de\s+ceremonias|shows?\s+en\s+vivo|hora\s+loca/i.test(afterAnti.mensaje),
+      afterAnti.mensaje.slice(0, 400)
+    );
 
     // Saludo no es servicio en resumen.
     const resumen = buildResumenClienteLargo(
