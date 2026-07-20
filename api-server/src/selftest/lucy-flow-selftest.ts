@@ -4250,6 +4250,131 @@ async function runAll(): Promise<void> {
     assert.ok(!/Servicios:\s*Buenas\s+tardes/i.test(resumen), resumen);
   });
 
+  await test("81. Nicole A14924 — nombre, quote≠servicio, un tipo ask, no re-dump, no reinicio", () => {
+    // Nombre: "Me llamo Nicole" / "Hola, Lucy" / mashup
+    assert.equal(sanitizeCrmNombre("Me llamo Nicole"), "Nicole");
+    assert.equal(sanitizeCrmNombre("Me llamo NIcole"), "Nicole");
+    assert.equal(sanitizeCrmNombre("Hola, Lucy"), null);
+    assert.equal(sanitizeCrmNombre("Lucy Llamo Nicole"), "Nicole");
+    assert.equal(sanitizeDisplayName("Hola, Lucy"), null);
+
+    // Cotización genérica ≠ servicio
+    assert.equal(mergeServiceRequirements(null, "Quiero hacer una cotizacion"), null);
+    assert.ok(isGenericQuoteIntentRequerimiento("Quiero hacer una cotizacion"));
+    const enriched = emptyExtracted({ requerimientos_evento: "Quiero hacer una cotizacion" });
+    enrichExtractedFromConversation(enriched, "Quiero hacer una cotizacion\nHola, Lucy\nMe llamo Nicole");
+    assert.ok(
+      !enriched.requerimientos_evento ||
+        !/quiero\s+hacer\s+una\s+cotiz/i.test(enriched.requerimientos_evento),
+      String(enriched.requerimientos_evento)
+    );
+
+    const brief =
+      "Es un evento para 70 personas. La comida es de 2 a 3 pm. Quiero una barra de pizzas, pasta y ensaldas";
+    const multi = runGuards({
+      aiResponse:
+        "Perfecto, Nicole. ¿Qué tipo de evento es?\n\nCuéntame, ¿de qué se trata el evento? Manejamos bodas, XV años y cumpleaños.",
+      extracted: emptyExtracted({
+        nombre: "Nicole",
+        correo: "lazarinnicole@gmail.com",
+        num_invitados: 70,
+        fecha_horario: "2 a 3 pm",
+        requerimientos_evento: "Barra de pizzas, Pastas",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Número de invitados",
+        "Fecha y horario",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: brief,
+      history: [
+        { role: "assistant", content: "Gracias por tu correo, Nicole. ¿Qué tipo de evento estás planeando?" },
+      ],
+    });
+    assert.ok(/bodasesor\.com\/catalogos|barra de pizzas|pastas/i.test(multi), multi.slice(0, 400));
+    // Colapsar variantes duplicadas de la misma pregunta de tipo (A14924).
+    const tipoBlocks = multi
+      .split(/\n{2,}/)
+      .filter((b) => /tipo de evento|de qu[eé] se trata|qu[eé] festejan/i.test(b));
+    assert.ok(
+      tipoBlocks.length <= 1,
+      `solo un bloque de tipo: ${tipoBlocks.length} — ${multi.slice(0, 600)}`
+    );
+
+    // "cumpleaños" no reenvía el paquete multi-servicio
+    const afterTipo = runGuards({
+      aiResponse: "Perfecto, veo que necesitas Comida, Pastas y Barra de pizzas...",
+      extracted: emptyExtracted({
+        nombre: "Nicole",
+        correo: "lazarinnicole@gmail.com",
+        num_invitados: 70,
+        fecha_horario: "2 a 3 pm",
+        requerimientos_evento: "Barra de pizzas, Pastas, Comida",
+        tipo_evento: "cumpleaños",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Número de invitados",
+        "Fecha y horario",
+        "Requerimientos o servicios",
+        "Tipo de evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "cumpleaños",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto, veo que necesitas Comida, Pastas y Barra de pizzas. Te cotizamos todo eso.\n\n" +
+            buildPackageCatalogOfferBlock() +
+            "\n\nPerfecto, Nicole. ¿Qué tipo de evento es?",
+        },
+        { role: "user", content: brief },
+      ],
+    });
+    assert.ok(
+      !/Te dejo el catálogo general/i.test(afterTipo),
+      `no re-dump catálogo en cumpleaños: ${afterTipo.slice(0, 400)}`
+    );
+    assert.ok(
+      /ciudad|ubicaci|zona|sal[oó]n/i.test(afterTipo),
+      `debe pedir zona tras tipo: ${afterTipo.slice(0, 400)}`
+    );
+
+    // Con CRM avanzado + historial vacío, "Ciudad de México" no reinicia intro
+    const noReinicio = runGuards({
+      aiResponse: "Hola, soy Lucy...",
+      extracted: emptyExtracted({
+        nombre: "Nicole",
+        correo: "lazarinnicole@gmail.com",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "Barra de pizzas, Pastas",
+        num_invitados: 70,
+        direccion_evento: "Ciudad de México",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Ciudad de México",
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(
+      !/Hola,?\s*soy\s+Lucy/i.test(noReinicio) || /ubicaci|colonia|sal[oó]n|fecha|invitados|presupuesto/i.test(noReinicio),
+      `no reinicio puro: ${noReinicio.slice(0, 300)}`
+    );
+    assert.ok(!/c[oó]mo\s+te\s+llamas/i.test(noReinicio), noReinicio.slice(0, 300));
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }

@@ -24,6 +24,14 @@ var PLACEHOLDER_PATTERNS = [
 ];
 var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
 var COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
+var BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|alejandro|rodrigo|salesbot)$/i;
+function isGreetingToLucy(text) {
+  return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text.trim());
+}
+function stripPresentationPrefixLocal(raw) {
+  const m = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
+  return (m?.[1] ?? raw).trim();
+}
 var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan)\b/i;
 function isQuoteIntentMessage(text) {
   const t = text?.trim() ?? "";
@@ -60,6 +68,7 @@ function looksLikePersonFullName(text) {
 function isLikelyNotPersonNameMessage(text) {
   const t = text?.trim() ?? "";
   if (!t) return true;
+  if (isGreetingToLucy(t)) return true;
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
   if (/\?/.test(t)) return true;
@@ -110,10 +119,12 @@ function isPlaceholderLeadName(name) {
   return PLACEHOLDER_PATTERNS.some((p) => p.test(trimmed));
 }
 function sanitizeDisplayName(name) {
-  const trimmed = name?.trim() ?? "";
-  if (!trimmed || isPlaceholderLeadName(trimmed)) return null;
-  if (isGreetingOnlyMessage(trimmed)) return null;
-  const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  const raw = name?.trim() ?? "";
+  if (!raw || isPlaceholderLeadName(raw)) return null;
+  if (isGreetingToLucy(raw)) return null;
+  if (isGreetingOnlyMessage(raw)) return null;
+  const stripped = stripPresentationPrefixLocal(raw);
+  const cleaned = stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
   const firstToken = cleaned.split(/\s+/)[0] ?? "";
@@ -122,35 +133,57 @@ function sanitizeDisplayName(name) {
   if (/^(el|la|los|las|un|una)$/i.test(firstName)) return null;
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
-  if (isQuoteIntentMessage(trimmed)) return null;
-  if (isLikelyUbicacionNotNombre(trimmed)) return null;
+  if (BOT_OR_META_NAME_TOKEN.test(firstName)) return null;
+  if (isQuoteIntentMessage(raw)) return null;
+  if (isLikelyUbicacionNotNombre(raw) || isLikelyUbicacionNotNombre(cleaned)) return null;
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
 function sanitizeCrmNombre(name) {
-  const trimmed = name?.trim() ?? "";
-  if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
-  if (isGreetingOnlyMessage(trimmed)) return null;
-  if (isLikelyUbicacionNotNombre(trimmed)) return null;
-  if (isLikelyNotPersonNameMessage(trimmed)) return null;
-  const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  const raw = name?.trim() ?? "";
+  if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
+  if (isGreetingToLucy(raw)) return null;
+  if (isGreetingOnlyMessage(raw)) return null;
+  if (isLikelyUbicacionNotNombre(raw)) return null;
+  const isPresentation = /^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
+  if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
+    const maybeRepair = stripPresentationPrefixLocal(raw).replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim().split(/\s+/).filter((part) => {
+      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
+      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters);
+    });
+    if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
+      return null;
+    }
+    const repaired = maybeRepair.slice(0, 4).join(" ");
+    if (SENTENCE_VERB_PATTERN.test(repaired) || isLikelyNotPersonNameMessage(repaired)) return null;
+    return maybeRepair.slice(0, 4).map((part) => {
+      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+      return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
+    }).join(" ");
+  }
+  const stripped = stripPresentationPrefixLocal(raw);
+  const cleaned = stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
-  if (isLikelyNotPersonNameMessage(cleaned)) return null;
+  if (isLikelyUbicacionNotNombre(cleaned)) return null;
   const parts = cleaned.split(/\s+/).filter((part) => {
-    const trimmed2 = part.trim();
-    const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(trimmed2) && letters.length >= 1) return true;
+    const token = part.trim();
+    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (!letters) return false;
+    if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
   if (parts.length === 0) return sanitizeDisplayName(cleaned);
-  return parts.slice(0, 4).map((part) => {
-    const trimmed2 = part.trim();
-    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(trimmed2)) {
-      return `${trimmed2.charAt(0).toUpperCase()}.`;
+  const candidate = parts.slice(0, 4).map((part) => {
+    const token = part.trim();
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(token)) {
+      return `${token.charAt(0).toUpperCase()}.`;
     }
-    const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
     return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
   }).join(" ");
+  if (SENTENCE_VERB_PATTERN.test(candidate)) return null;
+  return candidate;
 }
 function normalizeNameTokens(name) {
   return name.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").split(/\s+/).filter((t) => t.length >= 2);
@@ -957,7 +990,14 @@ function mergeServiceRequirements(existing, text, max = 6) {
   const merged = [.../* @__PURE__ */ new Set([...fromExisting, ...fromText])].slice(0, max);
   if (merged.length === 0) {
     const fallback = existing?.trim() || text?.trim() || "";
-    return fallback ? fallback.slice(0, 250) : null;
+    if (!fallback) return null;
+    if (isGenericQuoteIntentRequerimiento(fallback) || isQuoteIntentMessage(fallback) || isGreetingOnlyMessage(fallback)) {
+      return null;
+    }
+    if (existing?.trim() && !isGenericQuoteIntentRequerimiento(existing)) {
+      return existing.trim().slice(0, 250);
+    }
+    return null;
   }
   return merged.join(", ");
 }
@@ -1665,9 +1705,12 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
   {
+    const serviceSource = conversationText.split(/\n+/).map((l) => l.trim()).filter(
+      (l) => l && !isGenericQuoteIntentRequerimiento(l) && !isQuoteIntentMessage(l) && !isGreetingOnlyMessage(l)
+    ).join(" ");
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
-      conversationText,
+      serviceSource,
       6
     );
     if (merged) extracted.requerimientos_evento = merged;
@@ -15004,7 +15047,10 @@ var FIELD_ASK_PATTERNS = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
   correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
   tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
-  requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
+  requerimientos: (
+    // No usar "menú" suelto: el bloque de catálogo dice "montajes, menús y opciones" (A14924).
+    /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|qu[eé]\s+men[uú]|men[uú]\s+(prefieres|te\s+gustar|quieres)|plat[ií]came/i
+  ),
   invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
@@ -15928,6 +15974,20 @@ function justAnsweredReqContext(currentMessage, aiResponse) {
   if (!clientMentionsCatering(currentMessage) && !isServiceRelatedMessage(currentMessage)) return false;
   return aiResponse.length > 40 && !/^\s*¿/.test(aiResponse);
 }
+function collapseDuplicateFieldQuestions(mensaje, field) {
+  const blocks = mensaje.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
+  if (blocks.length <= 1) return mensaje.trim();
+  let seen = false;
+  const kept = [];
+  for (const block of blocks) {
+    if (block.includes("?") && FIELD_ASK_PATTERNS[field].test(block)) {
+      if (seen) continue;
+      seen = true;
+    }
+    kept.push(block);
+  }
+  return kept.join("\n\n").trim();
+}
 function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
   const pending = getNextPendingField(extracted, filledSet);
   const base = mensaje.trim();
@@ -15935,6 +15995,9 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     return base || "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.";
   }
   if (!base) return buildNaturalQuestion(pending, ctx);
+  if (mensajeAsksForField(base, pending)) {
+    return collapseDuplicateFieldQuestions(base, pending);
+  }
   if (clientAskedFreeformQuestion(ctx.currentMessage) && base.length > 50) {
     if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return base;
     if (!mensajeAsksForField(base, pending)) return base;
@@ -15947,11 +16010,11 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     return base;
   }
   if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted) && !mensajeAsksForFilledField(mensaje, filledSet, extracted)) {
-    return mensaje;
+    return collapseDuplicateFieldQuestions(mensaje, pending);
   }
-  return `${base}
+  return collapseDuplicateFieldQuestions(`${base}
 
-${nextQ}`;
+${nextQ}`, pending);
 }
 function textOverlapRatio(a, b) {
   const na = a.toLowerCase().replace(/\s+/g, " ").trim();
@@ -16448,6 +16511,7 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   }
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
   const userBlobForServices = collectUserTexts(presHistory, currentMessage).join(" ");
+  const servicesFromCurrentMessage = parseServicesFromText(currentMessage ?? "");
   const servicesFromTurn = parseServicesFromText(
     `${currentMessage ?? ""} ${userBlobForServices}`
   );
@@ -16678,21 +16742,23 @@ ${buildPackageCatalogOfferBlock()}`,
     );
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 releer especificaciones \u2014 ack completo + cat\xE1logo");
-  } else if (allowSalesReplyOverride && (servicesFromTurn.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
+  } else if (allowSalesReplyOverride && // Solo servicios del MENSAJE ACTUAL (no historial) — A14924: "cumpleaños" no re-dump.
+  (servicesFromCurrentMessage.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
   !clientAsksServiceInfo(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
   !clientMentionsEntertainment(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
+    const packageServices = servicesFromCurrentMessage.length >= 2 ? servicesFromCurrentMessage : servicesFromTurn;
     const packageReply = buildMultiServicePackageReply(
-      servicesFromTurn,
+      packageServices,
       currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
     );
     const aiIsUselessAck = /ya\s+lo\s+tengo\s+anotado|perfecto,?\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+\.?$/i.test(
       aiResponse.trim()
     ) || aiResponse.trim().length < 40;
     if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && !aiIsUselessAck) {
-      const aiAlreadyLists = servicesFromTurn.filter(
+      const aiAlreadyLists = packageServices.filter(
         (s) => aiResponse.toLowerCase().includes(s.toLowerCase().split(/\s+/)[0])
-      ).length >= Math.min(2, servicesFromTurn.length);
+      ).length >= Math.min(2, packageServices.length);
       const aiHasCatalog = /bodasesor\.com\/catalogos|cat[aá]logo/i.test(aiResponse);
       mensaje = aiAlreadyLists && aiHasCatalog ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx) : mergeWithPendingQuestion(
         `${packageReply}
@@ -16712,7 +16778,7 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
     }
     appliedDirectReply = true;
     log?.info(
-      { entityId, services: servicesFromTurn.length },
+      { entityId, services: packageServices.length },
       "GUARD: brief multi-servicio \u2014 lista completa + cat\xE1logo"
     );
   } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage)) {
@@ -21670,6 +21736,113 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       "Buenas tardes"
     );
     assert.ok(!/Servicios:\s*Buenas\s+tardes/i.test(resumen), resumen);
+  });
+  await test("81. Nicole A14924 \u2014 nombre, quote\u2260servicio, un tipo ask, no re-dump, no reinicio", () => {
+    assert.equal(sanitizeCrmNombre("Me llamo Nicole"), "Nicole");
+    assert.equal(sanitizeCrmNombre("Me llamo NIcole"), "Nicole");
+    assert.equal(sanitizeCrmNombre("Hola, Lucy"), null);
+    assert.equal(sanitizeCrmNombre("Lucy Llamo Nicole"), "Nicole");
+    assert.equal(sanitizeDisplayName("Hola, Lucy"), null);
+    assert.equal(mergeServiceRequirements(null, "Quiero hacer una cotizacion"), null);
+    assert.ok(isGenericQuoteIntentRequerimiento("Quiero hacer una cotizacion"));
+    const enriched = emptyExtracted({ requerimientos_evento: "Quiero hacer una cotizacion" });
+    enrichExtractedFromConversation(enriched, "Quiero hacer una cotizacion\nHola, Lucy\nMe llamo Nicole");
+    assert.ok(
+      !enriched.requerimientos_evento || !/quiero\s+hacer\s+una\s+cotiz/i.test(enriched.requerimientos_evento),
+      String(enriched.requerimientos_evento)
+    );
+    const brief = "Es un evento para 70 personas. La comida es de 2 a 3 pm. Quiero una barra de pizzas, pasta y ensaldas";
+    const multi = runGuards({
+      aiResponse: "Perfecto, Nicole. \xBFQu\xE9 tipo de evento es?\n\nCu\xE9ntame, \xBFde qu\xE9 se trata el evento? Manejamos bodas, XV a\xF1os y cumplea\xF1os.",
+      extracted: emptyExtracted({
+        nombre: "Nicole",
+        correo: "lazarinnicole@gmail.com",
+        num_invitados: 70,
+        fecha_horario: "2 a 3 pm",
+        requerimientos_evento: "Barra de pizzas, Pastas"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "N\xFAmero de invitados",
+        "Fecha y horario",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: brief,
+      history: [
+        { role: "assistant", content: "Gracias por tu correo, Nicole. \xBFQu\xE9 tipo de evento est\xE1s planeando?" }
+      ]
+    });
+    assert.ok(/bodasesor\.com\/catalogos|barra de pizzas|pastas/i.test(multi), multi.slice(0, 400));
+    const tipoBlocks = multi.split(/\n{2,}/).filter((b) => /tipo de evento|de qu[eé] se trata|qu[eé] festejan/i.test(b));
+    assert.ok(
+      tipoBlocks.length <= 1,
+      `solo un bloque de tipo: ${tipoBlocks.length} \u2014 ${multi.slice(0, 600)}`
+    );
+    const afterTipo = runGuards({
+      aiResponse: "Perfecto, veo que necesitas Comida, Pastas y Barra de pizzas...",
+      extracted: emptyExtracted({
+        nombre: "Nicole",
+        correo: "lazarinnicole@gmail.com",
+        num_invitados: 70,
+        fecha_horario: "2 a 3 pm",
+        requerimientos_evento: "Barra de pizzas, Pastas, Comida",
+        tipo_evento: "cumplea\xF1os"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "N\xFAmero de invitados",
+        "Fecha y horario",
+        "Requerimientos o servicios",
+        "Tipo de evento"
+      ]),
+      readyForClosing: false,
+      currentMessage: "cumplea\xF1os",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, veo que necesitas Comida, Pastas y Barra de pizzas. Te cotizamos todo eso.\n\n" + buildPackageCatalogOfferBlock() + "\n\nPerfecto, Nicole. \xBFQu\xE9 tipo de evento es?"
+        },
+        { role: "user", content: brief }
+      ]
+    });
+    assert.ok(
+      !/Te dejo el catálogo general/i.test(afterTipo),
+      `no re-dump cat\xE1logo en cumplea\xF1os: ${afterTipo.slice(0, 400)}`
+    );
+    assert.ok(
+      /ciudad|ubicaci|zona|sal[oó]n/i.test(afterTipo),
+      `debe pedir zona tras tipo: ${afterTipo.slice(0, 400)}`
+    );
+    const noReinicio = runGuards({
+      aiResponse: "Hola, soy Lucy...",
+      extracted: emptyExtracted({
+        nombre: "Nicole",
+        correo: "lazarinnicole@gmail.com",
+        tipo_evento: "cumplea\xF1os",
+        requerimientos_evento: "Barra de pizzas, Pastas",
+        num_invitados: 70,
+        direccion_evento: "Ciudad de M\xE9xico"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Ciudad de M\xE9xico",
+      history: [],
+      forceFirstPresentation: true
+    });
+    assert.ok(
+      !/Hola,?\s*soy\s+Lucy/i.test(noReinicio) || /ubicaci|colonia|sal[oó]n|fecha|invitados|presupuesto/i.test(noReinicio),
+      `no reinicio puro: ${noReinicio.slice(0, 300)}`
+    );
+    assert.ok(!/c[oó]mo\s+te\s+llamas/i.test(noReinicio), noReinicio.slice(0, 300));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

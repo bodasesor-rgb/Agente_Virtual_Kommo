@@ -328,7 +328,8 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
   tipo_evento:
     /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
   requerimientos:
-    /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
+    // No usar "menú" suelto: el bloque de catálogo dice "montajes, menús y opciones" (A14924).
+    /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|qu[eé]\s+men[uú]|men[uú]\s+(prefieres|te\s+gustar|quieres)|plat[ií]came/i,
   invitados:
     /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
@@ -594,6 +595,9 @@ function conversationAlreadyStarted(
   if (history.some((m) => m.role === "assistant")) return true;
   if (filledSet.has("Nombre del cliente")) return true;
   if (filledSet.has("Correo electrónico") || filledSet.has(EMAIL_WAIVED_LABEL)) return true;
+  // No usar Tipo/Requerimientos aquí: el merge del mismo turno los llena antes
+  // del branch de primer mensaje y rompía intro+ack en RFQ (tests 38/44/66/69).
+  // El anti-reinicio A14924 vive en kommo.ts (isFirstInteraction + CRM).
   return false;
 }
 
@@ -1824,6 +1828,25 @@ function justAnsweredReqContext(currentMessage: string, aiResponse: string): boo
 }
 
 /** Si hay texto útil sin pregunta, añade la pregunta pendiente en lugar de reemplazar todo. */
+/** Si el mensaje pregunta el mismo campo dos veces, deja solo la primera. */
+function collapseDuplicateFieldQuestions(mensaje: string, field: PendingField): string {
+  const blocks = mensaje
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+  if (blocks.length <= 1) return mensaje.trim();
+  let seen = false;
+  const kept: string[] = [];
+  for (const block of blocks) {
+    if (block.includes("?") && FIELD_ASK_PATTERNS[field].test(block)) {
+      if (seen) continue;
+      seen = true;
+    }
+    kept.push(block);
+  }
+  return kept.join("\n\n").trim();
+}
+
 function mergeWithPendingQuestion(
   mensaje: string,
   filledSet: Set<string>,
@@ -1838,6 +1861,11 @@ function mergeWithPendingQuestion(
   }
 
   if (!base) return buildNaturalQuestion(pending, ctx);
+
+  // Ya pregunta el campo pendiente — no duplicar (A14924: doble "¿qué tipo de evento?").
+  if (mensajeAsksForField(base, pending)) {
+    return collapseDuplicateFieldQuestions(base, pending);
+  }
 
   // GPT ya respondió bien a una pregunta del cliente — no machacar con plantilla
   if (clientAskedFreeformQuestion(ctx.currentMessage) && base.length > 50) {
@@ -1867,9 +1895,9 @@ function mergeWithPendingQuestion(
     !mensajeAsksWrongField(mensaje, filledSet, extracted) &&
     !mensajeAsksForFilledField(mensaje, filledSet, extracted)
   ) {
-    return mensaje;
+    return collapseDuplicateFieldQuestions(mensaje, pending);
   }
-  return `${base}\n\n${nextQ}`;
+  return collapseDuplicateFieldQuestions(`${base}\n\n${nextQ}`, pending);
 }
 
 function textOverlapRatio(a: string, b: string): number {
@@ -2721,10 +2749,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  // Captura canónica: TODOS los servicios del mensaje (y del historial de usuario).
-  // No capturar "Comida" suelta cuando el cliente aún está en término vago.
+  // Captura canónica: servicios del mensaje + historial (CRM).
+  // La RESPUESTA multi-servicio solo mira el mensaje actual (A14924: "cumpleaños"
+  // no debe reenviar el paquete pizza/pasta del turno anterior).
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
   const userBlobForServices = collectUserTexts(presHistory, currentMessage).join(" ");
+  const servicesFromCurrentMessage = parseServicesFromText(currentMessage ?? "");
   const servicesFromTurn = parseServicesFromText(
     `${currentMessage ?? ""} ${userBlobForServices}`
   );
@@ -3093,7 +3123,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: cliente pidió releer especificaciones — ack completo + catálogo");
   } else if (
     allowSalesReplyOverride &&
-    (servicesFromTurn.length >= 2 || isRichQuoteBrief(currentMessage)) &&
+    // Solo servicios del MENSAJE ACTUAL (no historial) — A14924: "cumpleaños" no re-dump.
+    (servicesFromCurrentMessage.length >= 2 || isRichQuoteBrief(currentMessage)) &&
     !cierreYaEnviado &&
     // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
     !clientAsksServiceInfo(currentMessage) &&
@@ -3109,8 +3140,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     )
   ) {
     // Brief con múltiples servicios / RFQ: reconocer TODOS + enviar catálogo.
+    const packageServices =
+      servicesFromCurrentMessage.length >= 2
+        ? servicesFromCurrentMessage
+        : servicesFromTurn;
     const packageReply = buildMultiServicePackageReply(
-      servicesFromTurn,
+      packageServices,
       currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
     );
     const aiIsUselessAck =
@@ -3119,9 +3154,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ) || aiResponse.trim().length < 40;
     if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && !aiIsUselessAck) {
       const aiAlreadyLists =
-        servicesFromTurn.filter((s) =>
+        packageServices.filter((s) =>
           aiResponse.toLowerCase().includes(s.toLowerCase().split(/\s+/)[0]!)
-        ).length >= Math.min(2, servicesFromTurn.length);
+        ).length >= Math.min(2, packageServices.length);
       const aiHasCatalog = /bodasesor\.com\/catalogos|cat[aá]logo/i.test(aiResponse);
       mensaje = aiAlreadyLists && aiHasCatalog
         ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx)
@@ -3141,7 +3176,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     appliedDirectReply = true;
     log?.info(
-      { entityId, services: servicesFromTurn.length },
+      { entityId, services: packageServices.length },
       "GUARD: brief multi-servicio — lista completa + catálogo"
     );
   } else if (

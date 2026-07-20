@@ -1042,8 +1042,21 @@ export function mergeServiceRequirements(
   const fromText = text?.trim() ? parseServicesFromText(text) : [];
   const merged = [...new Set([...fromExisting, ...fromText])].slice(0, max);
   if (merged.length === 0) {
+    // Nunca degradar a intención de cotización / saludo (A14924: "Quiero hacer una cotizacion").
     const fallback = existing?.trim() || text?.trim() || "";
-    return fallback ? fallback.slice(0, 250) : null;
+    if (!fallback) return null;
+    if (
+      isGenericQuoteIntentRequerimiento(fallback) ||
+      isQuoteIntentMessage(fallback) ||
+      isGreetingOnlyMessage(fallback)
+    ) {
+      return null;
+    }
+    // Sin servicios parseados, solo conservar existing si ya era usable.
+    if (existing?.trim() && !isGenericQuoteIntentRequerimiento(existing)) {
+      return existing.trim().slice(0, 250);
+    }
+    return null;
   }
   return merged.join(", ");
 }
@@ -2153,9 +2166,21 @@ export function enrichExtractedFromConversation(
   }
 
   {
+    // No reinyectar "Quiero hacer una cotizacion" / saludos como servicios.
+    const serviceSource = conversationText
+      .split(/\n+/)
+      .map((l) => l.trim())
+      .filter(
+        (l) =>
+          l &&
+          !isGenericQuoteIntentRequerimiento(l) &&
+          !isQuoteIntentMessage(l) &&
+          !isGreetingOnlyMessage(l)
+      )
+      .join(" ");
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
-      conversationText,
+      serviceSource,
       6
     );
     if (merged) extracted.requerimientos_evento = merged;

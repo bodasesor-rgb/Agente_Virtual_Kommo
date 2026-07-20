@@ -79546,6 +79546,14 @@ var PLACEHOLDER_PATTERNS = [
 ];
 var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
 var COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
+var BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|alejandro|rodrigo|salesbot)$/i;
+function isGreetingToLucy(text2) {
+  return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text2.trim());
+}
+function stripPresentationPrefixLocal(raw) {
+  const m4 = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
+  return (m4?.[1] ?? raw).trim();
+}
 var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan)\b/i;
 function isQuoteIntentMessage(text2) {
   const t = text2?.trim() ?? "";
@@ -79582,6 +79590,7 @@ function looksLikePersonFullName(text2) {
 function isLikelyNotPersonNameMessage(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return true;
+  if (isGreetingToLucy(t)) return true;
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
   if (/\?/.test(t)) return true;
@@ -79632,10 +79641,12 @@ function isPlaceholderLeadName(name2) {
   return PLACEHOLDER_PATTERNS.some((p3) => p3.test(trimmed));
 }
 function sanitizeDisplayName(name2) {
-  const trimmed = name2?.trim() ?? "";
-  if (!trimmed || isPlaceholderLeadName(trimmed)) return null;
-  if (isGreetingOnlyMessage(trimmed)) return null;
-  const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  const raw = name2?.trim() ?? "";
+  if (!raw || isPlaceholderLeadName(raw)) return null;
+  if (isGreetingToLucy(raw)) return null;
+  if (isGreetingOnlyMessage(raw)) return null;
+  const stripped = stripPresentationPrefixLocal(raw);
+  const cleaned = stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
   const firstToken = cleaned.split(/\s+/)[0] ?? "";
@@ -79644,35 +79655,57 @@ function sanitizeDisplayName(name2) {
   if (/^(el|la|los|las|un|una)$/i.test(firstName)) return null;
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
-  if (isQuoteIntentMessage(trimmed)) return null;
-  if (isLikelyUbicacionNotNombre(trimmed)) return null;
+  if (BOT_OR_META_NAME_TOKEN.test(firstName)) return null;
+  if (isQuoteIntentMessage(raw)) return null;
+  if (isLikelyUbicacionNotNombre(raw) || isLikelyUbicacionNotNombre(cleaned)) return null;
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
 function sanitizeCrmNombre(name2) {
-  const trimmed = name2?.trim() ?? "";
-  if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
-  if (isGreetingOnlyMessage(trimmed)) return null;
-  if (isLikelyUbicacionNotNombre(trimmed)) return null;
-  if (isLikelyNotPersonNameMessage(trimmed)) return null;
-  const cleaned = trimmed.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  const raw = name2?.trim() ?? "";
+  if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
+  if (isGreetingToLucy(raw)) return null;
+  if (isGreetingOnlyMessage(raw)) return null;
+  if (isLikelyUbicacionNotNombre(raw)) return null;
+  const isPresentation = /^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
+  if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
+    const maybeRepair = stripPresentationPrefixLocal(raw).replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim().split(/\s+/).filter((part) => {
+      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
+      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters);
+    });
+    if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
+      return null;
+    }
+    const repaired = maybeRepair.slice(0, 4).join(" ");
+    if (SENTENCE_VERB_PATTERN.test(repaired) || isLikelyNotPersonNameMessage(repaired)) return null;
+    return maybeRepair.slice(0, 4).map((part) => {
+      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+      return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
+    }).join(" ");
+  }
+  const stripped = stripPresentationPrefixLocal(raw);
+  const cleaned = stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
-  if (isLikelyNotPersonNameMessage(cleaned)) return null;
+  if (isLikelyUbicacionNotNombre(cleaned)) return null;
   const parts2 = cleaned.split(/\s+/).filter((part) => {
-    const trimmed2 = part.trim();
-    const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(trimmed2) && letters.length >= 1) return true;
+    const token = part.trim();
+    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (!letters) return false;
+    if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
   if (parts2.length === 0) return sanitizeDisplayName(cleaned);
-  return parts2.slice(0, 4).map((part) => {
-    const trimmed2 = part.trim();
-    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(trimmed2)) {
-      return `${trimmed2.charAt(0).toUpperCase()}.`;
+  const candidate = parts2.slice(0, 4).map((part) => {
+    const token = part.trim();
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(token)) {
+      return `${token.charAt(0).toUpperCase()}.`;
     }
-    const letters = trimmed2.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
     return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
   }).join(" ");
+  if (SENTENCE_VERB_PATTERN.test(candidate)) return null;
+  return candidate;
 }
 function shouldUpdateName(current, incoming) {
   const c2 = (current ?? "").trim();
@@ -80407,7 +80440,14 @@ function mergeServiceRequirements(existing, text2, max = 6) {
   const merged = [.../* @__PURE__ */ new Set([...fromExisting, ...fromText])].slice(0, max);
   if (merged.length === 0) {
     const fallback = existing?.trim() || text2?.trim() || "";
-    return fallback ? fallback.slice(0, 250) : null;
+    if (!fallback) return null;
+    if (isGenericQuoteIntentRequerimiento(fallback) || isQuoteIntentMessage(fallback) || isGreetingOnlyMessage(fallback)) {
+      return null;
+    }
+    if (existing?.trim() && !isGenericQuoteIntentRequerimiento(existing)) {
+      return existing.trim().slice(0, 250);
+    }
+    return null;
   }
   return merged.join(", ");
 }
@@ -81146,9 +81186,12 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     extracted.requerimientos_evento = null;
   }
   {
+    const serviceSource = conversationText.split(/\n+/).map((l4) => l4.trim()).filter(
+      (l4) => l4 && !isGenericQuoteIntentRequerimiento(l4) && !isQuoteIntentMessage(l4) && !isGreetingOnlyMessage(l4)
+    ).join(" ");
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
-      conversationText,
+      serviceSource,
       6
     );
     if (merged) extracted.requerimientos_evento = merged;
@@ -84840,7 +84883,10 @@ var FIELD_ASK_PATTERNS = {
   nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
   correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
   tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
-  requerimientos: /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|men[uú]|plat[ií]came/i,
+  requerimientos: (
+    // No usar "menú" suelto: el bloque de catálogo dice "montajes, menús y opciones" (A14924).
+    /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|qu[eé]\s+men[uú]|men[uú]\s+(prefieres|te\s+gustar|quieres)|plat[ií]came/i
+  ),
   invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
@@ -85776,6 +85822,20 @@ function justAnsweredReqContext(currentMessage, aiResponse) {
   if (!clientMentionsCatering(currentMessage) && !isServiceRelatedMessage(currentMessage)) return false;
   return aiResponse.length > 40 && !/^\s*¿/.test(aiResponse);
 }
+function collapseDuplicateFieldQuestions(mensaje, field) {
+  const blocks = mensaje.split(/\n{2,}/).map((b4) => b4.trim()).filter(Boolean);
+  if (blocks.length <= 1) return mensaje.trim();
+  let seen = false;
+  const kept = [];
+  for (const block of blocks) {
+    if (block.includes("?") && FIELD_ASK_PATTERNS[field].test(block)) {
+      if (seen) continue;
+      seen = true;
+    }
+    kept.push(block);
+  }
+  return kept.join("\n\n").trim();
+}
 function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
   const pending = getNextPendingField(extracted, filledSet);
   const base = mensaje.trim();
@@ -85783,6 +85843,9 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     return base || "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.";
   }
   if (!base) return buildNaturalQuestion(pending, ctx);
+  if (mensajeAsksForField(base, pending)) {
+    return collapseDuplicateFieldQuestions(base, pending);
+  }
   if (clientAskedFreeformQuestion(ctx.currentMessage) && base.length > 50) {
     if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted)) return base;
     if (!mensajeAsksForField(base, pending)) return base;
@@ -85795,11 +85858,11 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     return base;
   }
   if (base.includes("?") && !mensajeAsksWrongField(mensaje, filledSet, extracted) && !mensajeAsksForFilledField(mensaje, filledSet, extracted)) {
-    return mensaje;
+    return collapseDuplicateFieldQuestions(mensaje, pending);
   }
-  return `${base}
+  return collapseDuplicateFieldQuestions(`${base}
 
-${nextQ}`;
+${nextQ}`, pending);
 }
 function textOverlapRatio(a2, b4) {
   const na = a2.toLowerCase().replace(/\s+/g, " ").trim();
@@ -86296,6 +86359,7 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   }
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
   const userBlobForServices = collectUserTexts(presHistory, currentMessage).join(" ");
+  const servicesFromCurrentMessage = parseServicesFromText(currentMessage ?? "");
   const servicesFromTurn = parseServicesFromText(
     `${currentMessage ?? ""} ${userBlobForServices}`
   );
@@ -86526,21 +86590,23 @@ ${buildPackageCatalogOfferBlock()}`,
     );
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 releer especificaciones \u2014 ack completo + cat\xE1logo");
-  } else if (allowSalesReplyOverride && (servicesFromTurn.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
+  } else if (allowSalesReplyOverride && // Solo servicios del MENSAJE ACTUAL (no historial) — A14924: "cumpleaños" no re-dump.
+  (servicesFromCurrentMessage.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
   !clientAsksServiceInfo(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
   !clientMentionsEntertainment(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
+    const packageServices = servicesFromCurrentMessage.length >= 2 ? servicesFromCurrentMessage : servicesFromTurn;
     const packageReply = buildMultiServicePackageReply(
-      servicesFromTurn,
+      packageServices,
       currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
     );
     const aiIsUselessAck = /ya\s+lo\s+tengo\s+anotado|perfecto,?\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+\.?$/i.test(
       aiResponse.trim()
     ) || aiResponse.trim().length < 40;
     if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && !aiIsUselessAck) {
-      const aiAlreadyLists = servicesFromTurn.filter(
+      const aiAlreadyLists = packageServices.filter(
         (s4) => aiResponse.toLowerCase().includes(s4.toLowerCase().split(/\s+/)[0])
-      ).length >= Math.min(2, servicesFromTurn.length);
+      ).length >= Math.min(2, packageServices.length);
       const aiHasCatalog = /bodasesor\.com\/catalogos|cat[aá]logo/i.test(aiResponse);
       mensaje = aiAlreadyLists && aiHasCatalog ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx) : mergeWithPendingQuestion(
         `${packageReply}
@@ -86560,7 +86626,7 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
     }
     appliedDirectReply = true;
     log?.info(
-      { entityId, services: servicesFromTurn.length },
+      { entityId, services: packageServices.length },
       "GUARD: brief multi-servicio \u2014 lista completa + cat\xE1logo"
     );
   } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage)) {
@@ -94865,15 +94931,28 @@ function purgeDimensionAsUbicacion(mergedLines, filledSet, extracted) {
     extracted.direccion_evento = null;
   }
 }
+function crmSuggestsOngoingConversation(filledLabels) {
+  return filledLabels.has("Nombre del cliente") || filledLabels.has("Correo electr\xF3nico") || filledLabels.has("Tipo de evento") || filledLabels.has("Requerimientos o servicios") || filledLabels.has("N\xFAmero de invitados") || filledLabels.has("Lugar/direcci\xF3n del evento") || filledLabels.has("Fecha y horario");
+}
 function purgeInvalidNombre(mergedLines, filledSet, extracted) {
   const idx = mergedLines.findIndex((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
   if (idx < 0) return;
   const raw = mergedLines[idx].replace(/^-?\s*Nombre del cliente:\s*/i, "").trim();
-  if (sanitizeDisplayName(raw) && !isQuoteIntentMessage(raw)) return;
+  const cleaned = sanitizeCrmNombre(raw);
+  if (cleaned && !isQuoteIntentMessage(raw)) {
+    if (cleaned !== raw) {
+      mergedLines[idx] = `- Nombre del cliente: ${cleaned}`;
+      extracted.nombre = cleaned;
+    }
+    return;
+  }
   mergedLines.splice(idx, 1);
   filledSet.delete("Nombre del cliente");
-  if (!sanitizeDisplayName(extracted.nombre) || isQuoteIntentMessage(extracted.nombre)) {
+  const extractedClean = sanitizeCrmNombre(extracted.nombre);
+  if (!extractedClean || isQuoteIntentMessage(extracted.nombre)) {
     extracted.nombre = null;
+  } else {
+    extracted.nombre = extractedClean;
   }
 }
 function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, currentMessage, whatsappDisplayName, fullHistory) {
@@ -95466,7 +95545,7 @@ async function processBatch(batch, accessToken, log) {
       cachedResponse: lastResponseCache.get(String(entityId)),
       crmFieldValue: lastLucyResponse
     });
-    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+    let isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
     if (!hasAssistantMsg && effectiveLastResponse) {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
       const recoverySource = lastResponseCache.has(String(entityId)) ? "cache-recovery" : "history-recovery";
@@ -95499,6 +95578,10 @@ async function processBatch(batch, accessToken, log) {
       whatsappDisplayName,
       fullHistory
     );
+    if (isFirstInteraction && crmSuggestsOngoingConversation(filledLabels)) {
+      isFirstInteraction = false;
+      log.info({ filled: [...filledLabels] }, "Not first interaction \u2014 CRM already has progress");
+    }
     const scoreContext = {
       extracted,
       messageCount: conversation.messageCount + 1,
@@ -95949,7 +96032,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
       cachedResponse: entityId ? lastResponseCache.get(String(entityId)) : null,
       crmFieldValue: null
     });
-    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+    let isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
     if (!hasAssistantMsg && effectiveLastResponse) {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
     }
@@ -95974,6 +96057,9 @@ router3.post("/kommo/salesbot", async (req, res) => {
     const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
     const salesbotMergedLines = crmResultFinal.mergedLines;
     salesbotFilledLabels = crmResultFinal.filledLabels;
+    if (isFirstInteraction && crmSuggestsOngoingConversation(salesbotFilledLabels)) {
+      isFirstInteraction = false;
+    }
     log.info({ isFirstInteraction, messageText, historyLength: history.length }, "Salesbot: llamando OpenAI");
     const { mensajeParaCliente, aiResponse } = await generateLucyOutbound({
       messageText,
@@ -96291,7 +96377,7 @@ router3.post("/kommo/simulator", async (req, res) => {
       cachedResponse: lastResponseCache.get(`sim-${leadId}`),
       crmFieldValue: lastLucyResponse
     });
-    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+    let isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
     if (!hasAssistantMsg && effectiveLastResponse) {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
     }
@@ -96316,6 +96402,9 @@ router3.post("/kommo/simulator", async (req, res) => {
     const allFieldsFilled = crmResultFinal.allFieldsFilled;
     const filledLabels = crmResultFinal.filledLabels;
     const crmMergedLines = crmResultFinal.mergedLines;
+    if (isFirstInteraction && crmSuggestsOngoingConversation(filledLabels)) {
+      isFirstInteraction = false;
+    }
     const { mensajeParaCliente } = await generateLucyOutbound({
       messageText,
       history,

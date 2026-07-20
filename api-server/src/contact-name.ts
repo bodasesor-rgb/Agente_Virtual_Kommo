@@ -25,6 +25,23 @@ const GREETING_NAME_PATTERN =
 const COMPANY_OR_CHANNEL_PATTERN =
   /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
 
+/** Tokens del bot / meta que nunca son nombre del cliente (A14924: "Lucy Llamo Nicole"). */
+const BOT_OR_META_NAME_TOKEN =
+  /^(lucy|llamo|llam[oó]|bodasesor|capybara|alejandro|rodrigo|salesbot)$/i;
+
+/** "Hola, Lucy" / saludo al bot — no es el nombre del cliente. */
+function isGreetingToLucy(text: string): boolean {
+  return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text.trim());
+}
+
+/** Quita "soy / me llamo / mi nombre es" dejando el nombre. */
+function stripPresentationPrefixLocal(raw: string): string {
+  const m = raw
+    .trim()
+    .match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
+  return (m?.[1] ?? raw).trim();
+}
+
 /** Verbos de frase/pregunta — el mensaje no es un nombre propio. */
 const SENTENCE_VERB_PATTERN =
   /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan)\b/i;
@@ -89,6 +106,7 @@ export function looksLikePersonFullName(text: string | null | undefined): boolea
 export function isLikelyNotPersonNameMessage(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return true;
+  if (isGreetingToLucy(t)) return true;
   // Presentación explícita sí puede ser nombre.
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
@@ -169,11 +187,13 @@ export function isPlaceholderLeadName(name: string | null | undefined): boolean 
 
 /** Primer nombre legible para saludos (Mucho gusto, María). */
 export function sanitizeDisplayName(name: string | null | undefined): string | null {
-  const trimmed = name?.trim() ?? "";
-  if (!trimmed || isPlaceholderLeadName(trimmed)) return null;
-  if (isGreetingOnlyMessage(trimmed)) return null;
+  const raw = name?.trim() ?? "";
+  if (!raw || isPlaceholderLeadName(raw)) return null;
+  if (isGreetingToLucy(raw)) return null;
+  if (isGreetingOnlyMessage(raw)) return null;
 
-  const cleaned = trimmed
+  const stripped = stripPresentationPrefixLocal(raw);
+  const cleaned = stripped
     .replace(/^Lead:\s*/i, "")
     .replace(/[~_]+/g, " ")
     .replace(/\s+/g, " ")
@@ -188,21 +208,57 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   if (/^(el|la|los|las|un|una)$/i.test(firstName)) return null;
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
-  if (isQuoteIntentMessage(trimmed)) return null;
-  if (isLikelyUbicacionNotNombre(trimmed)) return null;
+  if (BOT_OR_META_NAME_TOKEN.test(firstName)) return null;
+  if (isQuoteIntentMessage(raw)) return null;
+  if (isLikelyUbicacionNotNombre(raw) || isLikelyUbicacionNotNombre(cleaned)) return null;
 
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
 
 /** Nombre completo para CRM (conserva apellido cuando viene de WhatsApp/Kommo). */
 export function sanitizeCrmNombre(name: string | null | undefined): string | null {
-  const trimmed = name?.trim() ?? "";
-  if (!trimmed || isPlaceholderLeadName(trimmed) || isQuoteIntentMessage(trimmed)) return null;
-  if (isGreetingOnlyMessage(trimmed)) return null;
-  if (isLikelyUbicacionNotNombre(trimmed)) return null;
-  if (isLikelyNotPersonNameMessage(trimmed)) return null;
+  const raw = name?.trim() ?? "";
+  if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
+  if (isGreetingToLucy(raw)) return null;
+  if (isGreetingOnlyMessage(raw)) return null;
+  if (isLikelyUbicacionNotNombre(raw)) return null;
 
-  const cleaned = trimmed
+  const isPresentation = /^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
+  // Frases de servicio/saludo (no presentación, no mashup reparable).
+  if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
+    // A14924: "Lucy Llamo Nicole" tiene verbo pero se puede reparar quitando meta.
+    const maybeRepair = stripPresentationPrefixLocal(raw)
+      .replace(/^Lead:\s*/i, "")
+      .replace(/[~_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .split(/\s+/)
+      .filter((part) => {
+        const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
+        return (
+          letters.length >= 2 &&
+          !BOT_OR_META_NAME_TOKEN.test(letters) &&
+          !GREETING_NAME_PATTERN.test(letters) &&
+          !SENTENCE_VERB_PATTERN.test(letters)
+        );
+      });
+    if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
+      return null;
+    }
+    // Continuar solo con tokens de persona reparados.
+    const repaired = maybeRepair.slice(0, 4).join(" ");
+    if (SENTENCE_VERB_PATTERN.test(repaired) || isLikelyNotPersonNameMessage(repaired)) return null;
+    return maybeRepair
+      .slice(0, 4)
+      .map((part) => {
+        const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+        return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
+      })
+      .join(" ");
+  }
+
+  const stripped = stripPresentationPrefixLocal(raw);
+  const cleaned = stripped
     .replace(/^Lead:\s*/i, "")
     .replace(/[~_]+/g, " ")
     .replace(/\s+/g, " ")
@@ -210,28 +266,33 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
 
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
-  if (isLikelyNotPersonNameMessage(cleaned)) return null;
+  if (isLikelyUbicacionNotNombre(cleaned)) return null;
 
   const parts = cleaned.split(/\s+/).filter((part) => {
-    const trimmed = part.trim();
-    const letters = trimmed.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(trimmed) && letters.length >= 1) return true;
+    const token = part.trim();
+    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (!letters) return false;
+    if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
 
   if (parts.length === 0) return sanitizeDisplayName(cleaned);
 
-  return parts
+  const candidate = parts
     .slice(0, 4)
     .map((part) => {
-      const trimmed = part.trim();
-      if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(trimmed)) {
-        return `${trimmed.charAt(0).toUpperCase()}.`;
+      const token = part.trim();
+      if (/^[A-Za-zÁÉÍÓÚÜÑ]\.$/.test(token)) {
+        return `${token.charAt(0).toUpperCase()}.`;
       }
-      const letters = trimmed.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+      const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
       return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
     })
     .join(" ");
+
+  if (SENTENCE_VERB_PATTERN.test(candidate)) return null;
+  return candidate;
 }
 
 /** Nunca sobrescribir un nombre existente con uno más corto (menos palabras). */

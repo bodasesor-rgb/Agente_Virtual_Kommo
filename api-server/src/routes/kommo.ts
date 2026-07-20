@@ -463,17 +463,41 @@ function purgeDimensionAsUbicacion(
   }
 }
 
+/** CRM con datos del embudo → no reiniciar con intro (A14924). */
+function crmSuggestsOngoingConversation(filledLabels: Set<string>): boolean {
+  return (
+    filledLabels.has("Nombre del cliente") ||
+    filledLabels.has("Correo electrónico") ||
+    filledLabels.has("Tipo de evento") ||
+    filledLabels.has("Requerimientos o servicios") ||
+    filledLabels.has("Número de invitados") ||
+    filledLabels.has("Lugar/dirección del evento") ||
+    filledLabels.has("Fecha y horario")
+  );
+}
+
 function purgeInvalidNombre(mergedLines: string[], filledSet: Set<string>, extracted: ExtractedData): void {
   const idx = mergedLines.findIndex((l) => /^-?\s*Nombre del cliente:/i.test(l));
   if (idx < 0) return;
   const raw = mergedLines[idx]!
     .replace(/^-?\s*Nombre del cliente:\s*/i, "")
     .trim();
-  if (sanitizeDisplayName(raw) && !isQuoteIntentMessage(raw)) return;
+  // Exigir sanitizeCrmNombre (no solo display): "Lucy Llamo Nicole" / "Llamo Nicole" salen.
+  const cleaned = sanitizeCrmNombre(raw);
+  if (cleaned && !isQuoteIntentMessage(raw)) {
+    if (cleaned !== raw) {
+      mergedLines[idx] = `- Nombre del cliente: ${cleaned}`;
+      extracted.nombre = cleaned;
+    }
+    return;
+  }
   mergedLines.splice(idx, 1);
   filledSet.delete("Nombre del cliente");
-  if (!sanitizeDisplayName(extracted.nombre) || isQuoteIntentMessage(extracted.nombre)) {
+  const extractedClean = sanitizeCrmNombre(extracted.nombre);
+  if (!extractedClean || isQuoteIntentMessage(extracted.nombre)) {
     extracted.nombre = null;
+  } else {
+    extracted.nombre = extractedClean;
   }
 }
 
@@ -1441,7 +1465,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     });
 
     // True solo cuando Lucy NUNCA ha respondido a este lead.
-    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+    let isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
 
     if (!hasAssistantMsg && effectiveLastResponse) {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
@@ -1488,6 +1512,12 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         whatsappDisplayName,
         fullHistory
       );
+
+    // Si el CRM ya tiene progreso, nunca tratar como primer contacto (A14924 reinicio).
+    if (isFirstInteraction && crmSuggestsOngoingConversation(filledLabels)) {
+      isFirstInteraction = false;
+      log.info({ filled: [...filledLabels] }, "Not first interaction — CRM already has progress");
+    }
 
     const scoreContext = {
       extracted,
@@ -2103,7 +2133,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       cachedResponse: entityId ? lastResponseCache.get(String(entityId)) : null,
       crmFieldValue: null,
     });
-    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+    let isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
 
     if (!hasAssistantMsg && effectiveLastResponse) {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
@@ -2135,6 +2165,9 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     const salesbotAllFieldsFilled = crmResultFinal.allFieldsFilled;
     const salesbotMergedLines = crmResultFinal.mergedLines;
     salesbotFilledLabels = crmResultFinal.filledLabels;
+    if (isFirstInteraction && crmSuggestsOngoingConversation(salesbotFilledLabels)) {
+      isFirstInteraction = false;
+    }
 
     log.info({ isFirstInteraction, messageText, historyLength: history.length }, "Salesbot: llamando OpenAI");
 
@@ -2558,7 +2591,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
       cachedResponse: lastResponseCache.get(`sim-${leadId}`),
       crmFieldValue: lastLucyResponse,
     });
-    const isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
+    let isFirstInteraction = !hasAssistantMsg && !effectiveLastResponse;
 
     if (!hasAssistantMsg && effectiveLastResponse) {
       history = [...history, { role: "assistant", content: effectiveLastResponse }];
@@ -2587,6 +2620,9 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const allFieldsFilled = crmResultFinal.allFieldsFilled;
     const filledLabels = crmResultFinal.filledLabels;
     const crmMergedLines = crmResultFinal.mergedLines;
+    if (isFirstInteraction && crmSuggestsOngoingConversation(filledLabels)) {
+      isFirstInteraction = false;
+    }
 
     const { mensajeParaCliente } = await generateLucyOutbound({
       messageText,
