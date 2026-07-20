@@ -64,6 +64,7 @@ import {
 } from "../conversation-understanding.js";
 import {
   applyLucyGlobalAntiRepetition,
+  cleanupBrokenOutboundFragments,
   lucyTextOverlapRatio,
 } from "../lucyOutboundAntiRepeat.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
@@ -3696,6 +3697,65 @@ async function runAll(): Promise<void> {
       String(filledAsk.applied)
     );
     assert.ok(!mensajeAsksForField(filledAsk.mensaje, "correo"), filledAsk.mensaje);
+
+    // Paráfrasis del mismo campo (planeando → organizando) no se reenvía igual.
+    const paraphrase = applyLucyGlobalAntiRepetition({
+      mensaje: "Perfecto, Nicole. ¿Qué tipo de evento estás organizando?",
+      history: [
+        {
+          role: "assistant",
+          content: "Gracias por tu correo, Nicole. ¿Qué tipo de evento estás planeando?",
+        },
+      ],
+      filledSet: new Set(["Nombre del cliente", "Correo electrónico"]),
+      extracted: emptyExtracted({ nombre: "Nicole", correo: "n@test.com" }),
+      clientName: "Nicole",
+    });
+    assert.ok(
+      paraphrase.applied.some((a) => a.startsWith("same-field") || a.startsWith("near-duplicate")),
+      String(paraphrase.applied)
+    );
+    assert.ok(
+      lucyTextOverlapRatio(
+        paraphrase.mensaje,
+        "¿Qué tipo de evento estás planeando?"
+      ) < 0.9 || paraphrase.applied.includes("same-field-reask-ack"),
+      paraphrase.mensaje
+    );
+
+    // Segundo envío de catálogo se corta.
+    const catalog2 = applyLucyGlobalAntiRepetition({
+      mensaje:
+        "Perfecto, veo que necesitas Comida y Pastas.\n\nTe dejo el catálogo general para que veas montajes, menús y opciones:\nhttps://bodasesor.com/catalogos\n\n¿Quieres que te mande el catálogo con más detalle?\n\n¿Qué tipo de evento es?",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto, veo que necesitas Comida y Pastas.\n\nTe dejo el catálogo general para que veas montajes, menús y opciones:\nhttps://bodasesor.com/catalogos\n\n¿Quieres que te mande el catálogo con más detalle?\n\n¿Qué tipo de evento es?",
+        },
+      ],
+      filledSet: new Set(["Nombre del cliente", "Correo electrónico", "Requerimientos o servicios"]),
+      extracted: emptyExtracted({
+        nombre: "Nicole",
+        correo: "n@test.com",
+        requerimientos_evento: "Comida, Pastas",
+      }),
+      clientName: "Nicole",
+      currentMessage: "cumpleaños",
+    });
+    assert.ok(
+      catalog2.applied.includes("catalog-resend-dedupe") ||
+        !/bodasesor\.com\/catalogos/i.test(catalog2.mensaje),
+      `${catalog2.applied.join(",")} | ${catalog2.mensaje.slice(0, 300)}`
+    );
+    assert.ok(!/bodasesor\.com\/catalogos/i.test(catalog2.mensaje), catalog2.mensaje.slice(0, 300));
+
+    // Fragmento roto tras strip.
+    const broken = cleanupBrokenOutboundFragments(
+      "Hola, Nicole. con la cotización. ¿A qué correo te envío la información?"
+    );
+    assert.ok(!/\.\s+con la cotizaci/i.test(broken), broken);
+    assert.ok(/correo/i.test(broken), broken);
   });
 
   await test("75. María A14906 — salas≠invitados, Luxor≠zona, carpas con medidas", () => {

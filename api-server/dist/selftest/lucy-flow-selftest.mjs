@@ -128,15 +128,15 @@ function sanitizeDisplayName(name) {
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
   const firstToken = cleaned.split(/\s+/)[0] ?? "";
-  const firstName = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
-  if (!firstName || firstName.length < 2) return null;
-  if (/^(el|la|los|las|un|una)$/i.test(firstName)) return null;
-  if (/^\d+$/.test(firstName)) return null;
-  if (GREETING_NAME_PATTERN.test(firstName)) return null;
-  if (BOT_OR_META_NAME_TOKEN.test(firstName)) return null;
+  const firstName2 = firstToken.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+  if (!firstName2 || firstName2.length < 2) return null;
+  if (/^(el|la|los|las|un|una)$/i.test(firstName2)) return null;
+  if (/^\d+$/.test(firstName2)) return null;
+  if (GREETING_NAME_PATTERN.test(firstName2)) return null;
+  if (BOT_OR_META_NAME_TOKEN.test(firstName2)) return null;
   if (isQuoteIntentMessage(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw) || isLikelyUbicacionNotNombre(cleaned)) return null;
-  return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+  return firstName2.charAt(0).toUpperCase() + firstName2.slice(1).toLowerCase();
 }
 function sanitizeCrmNombre(name) {
   const raw = name?.trim() ?? "";
@@ -17755,6 +17755,8 @@ var FIELD_ORDER2 = [
 var ALGO_MAS_PATTERN = /\b(algo\s+m[aá]s|hay\s+algo\s+m[aá]s|alg[uú]n\s+otro\s+servicio|quieres\s+agregar|deseas\s+agregar)\b/i;
 var THANKS_ACK_PATTERN = /\b(con\s+gusto|nuestro\s+equipo\s+ya\s+tiene|si\s+necesitas\s+algo\s+m[aá]s|aqu[ií]\s+estamos)\b/i;
 var SERVICES_MENU_PATTERN = /\b(manejamos|tambi[eé]n\s+(ofrecemos|manejamos)|alimentos?|mobiliario|carpas?|pista|iluminaci[oó]n|pantallas?)\b/i;
+var CATALOG_SEND_PATTERN = /bodasesor\.com\/catalogos|te dejo el cat[aá]logo general|mande el cat[aá]logo/i;
+var ENTERTAINMENT_PITCH_PATTERN = /shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento/i;
 function lucyTextOverlapRatio(a, b) {
   const na = normalizeForOverlap(a);
   const nb = normalizeForOverlap(b);
@@ -17790,32 +17792,80 @@ function asExtracted(partial) {
     modo_servicio: partial?.modo_servicio ?? null
   };
 }
+function firstName(clientName) {
+  const n = clientName?.trim();
+  if (!n) return null;
+  return n.split(/\s+/)[0] ?? null;
+}
+function questionLines(text) {
+  return text.split(/\n+/).map((l) => l.trim()).filter((l) => l.includes("?"));
+}
+function detectAskedFields(text) {
+  return FIELD_ORDER2.filter((f) => mensajeAsksForField(text, f));
+}
 function stripRepeatedQuestionLines(mensaje, previous) {
   const lines = mensaje.split("\n").map((l) => l.trim()).filter(Boolean);
   if (lines.length <= 1) return mensaje.trim();
   const kept = lines.filter((line) => {
     if (!line.includes("?")) return true;
-    return !previous.some((p) => lucyTextOverlapRatio(line, p) >= 0.72);
+    return !previous.some((p) => lucyTextOverlapRatio(line, p) >= 0.62);
   });
   if (kept.length === 0) return lines[lines.length - 1];
   return kept.join("\n").trim();
 }
 function shortPostCierreAck(clientName, thanks = false) {
-  const nombre = clientName?.trim();
+  const nombre = firstName(clientName);
   if (thanks) {
     return nombre ? `\xA1Con gusto, ${nombre}! Aqu\xED seguimos cuando lo necesites.` : "\xA1Con gusto! Aqu\xED seguimos cuando lo necesites.";
   }
   return nombre ? `Queda anotado, ${nombre}. Nuestro equipo sigue con tu cotizaci\xF3n.` : "Queda anotado. Nuestro equipo sigue con tu cotizaci\xF3n.";
+}
+function cleanupBrokenOutboundFragments(text) {
+  let t = text.trim();
+  if (!t) return t;
+  t = t.replace(
+    /\b((?:Hola|Perfecto|Excelente|Genial|Claro|Listo),?\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+(con|para|de|en|a|y|la|el|las|los)\s+[^.?!\n]{0,40}\.\s*/gi,
+    "$1. "
+  );
+  t = t.replace(
+    /\b((?:Hola|Perfecto|Excelente|Genial|Claro),?\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+([a-záéíóúüñ])/g,
+    (_m, greet, letter) => `${greet}. ${letter.toUpperCase()}`
+  );
+  t = t.replace(
+    /\b((?:Perfecto|Excelente|Genial|Claro),?\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,}\.)\s+\1/gi,
+    "$1"
+  );
+  return t.replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+function stripCatalogOfferBlock(text) {
+  let t = text.replace(
+    /\n*Te dejo el cat[aá]logo general[^\n]*\n?https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi,
+    "\n"
+  ).replace(/\n*https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi, "\n").replace(/\n*¿Quieres que te mande el cat[aá]logo[^\n?]*\?\n*/gi, "\n");
+  return t.replace(/\n{3,}/g, "\n\n").trim();
+}
+function isEntertainmentCatalogReply(mensaje) {
+  return CATALOG_SEND_PATTERN.test(mensaje) && ENTERTAINMENT_PITCH_PATTERN.test(mensaje);
 }
 function applyLucyGlobalAntiRepetition(input) {
   let mensaje = (input.mensaje ?? "").trim();
   const applied = [];
   if (!mensaje) return { mensaje, applied };
   const previous = recentAssistantTexts(input.history);
+  const lastPrev = previous.length ? previous[previous.length - 1] : null;
   const filled = input.filledSet ?? /* @__PURE__ */ new Set();
   const extracted = asExtracted(input.extracted);
   const cierre = !!input.cierreYaEnviado;
   const nombre = input.clientName ?? extracted.nombre;
+  const display = firstName(nombre);
+  const clientAskedInclusion = /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(
+    input.currentMessage ?? ""
+  );
+  const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
+  const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
+  const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres/i.test(
+    mensaje
+  ) || isEntertainmentCatalog;
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p) => THANKS_ACK_PATTERN.test(p))) {
     const lastThanks = [...previous].reverse().find((p) => THANKS_ACK_PATTERN.test(p));
     if (lastThanks && lucyTextOverlapRatio(mensaje, lastThanks) >= 0.55) {
@@ -17830,12 +17880,6 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("postcierre-algo-mas-dedupe");
     }
   }
-  const clientAskedInclusion = /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(
-    input.currentMessage ?? ""
-  );
-  const isCatalogDetailReply = /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres|te dejo el cat[aá]logo|mande el cat[aá]logo|shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias/i.test(
-    mensaje
-  );
   if (!cierre && !isCatalogDetailReply && !clientAskedInclusion && mensajeAsksForFilledField(mensaje, filled, extracted)) {
     const stripped = mensaje.split("\n").filter((line) => {
       const t = line.trim();
@@ -17851,38 +17895,92 @@ function applyLucyGlobalAntiRepetition(input) {
       mensaje = stripped;
       applied.push("filled-field-strip");
     } else if (!stripped || mensajeAsksForFilledField(mensaje, filled, extracted)) {
-      mensaje = nombre ? `Perfecto, ${nombre}. Ya lo tengo anotado.` : "Perfecto, ya lo tengo anotado.";
+      mensaje = display ? `Perfecto, ${display}. Ya lo tengo anotado.` : "Perfecto, ya lo tengo anotado.";
       applied.push("filled-field-ack");
     }
   }
+  if (!cierre && hasCatalogNow && !clientAskedInclusion && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p) => CATALOG_SEND_PATTERN.test(p))) {
+    const without = stripCatalogOfferBlock(mensaje);
+    const qs = questionLines(without).filter(
+      (q) => !/cat[aá]logo/i.test(q) && previous.every((p) => lucyTextOverlapRatio(q, p) < 0.68)
+    );
+    if (without && lucyTextOverlapRatio(without, mensaje) < 0.95) {
+      if (qs.length) {
+        mensaje = display ? `Perfecto, ${display}. ${qs[qs.length - 1]}` : qs[qs.length - 1];
+      } else if (without.includes("?") && lucyTextOverlapRatio(without, lastPrev ?? "") < 0.7) {
+        mensaje = without;
+      } else {
+        mensaje = display ? `Perfecto, ${display}. \xBFSeguimos con el siguiente dato del evento?` : "Perfecto. \xBFSeguimos con el siguiente dato del evento?";
+      }
+      applied.push("catalog-resend-dedupe");
+    }
+  }
+  if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe")) {
+    const nowFields = detectAskedFields(mensaje);
+    const prevField = inferLucyAskedField(lastPrev) || detectAskedFields(lastPrev)[0] || null;
+    const repeatedField = prevField && nowFields.includes(prevField) && !isFieldSatisfied(prevField, filled, extracted) ? prevField : null;
+    if (repeatedField) {
+      const nowQs = questionLines(mensaje).filter((q) => mensajeAsksForField(q, repeatedField));
+      const prevQs = questionLines(lastPrev).filter((q) => mensajeAsksForField(q, repeatedField));
+      const qOverlap = Math.max(
+        0,
+        ...nowQs.flatMap((nq) => prevQs.map((pq) => lucyTextOverlapRatio(nq, pq))),
+        lucyTextOverlapRatio(mensaje, lastPrev)
+      );
+      if (qOverlap >= 0.48 || prevQs.length > 0) {
+        const freshQ = nowQs.find(
+          (q) => previous.every((p) => lucyTextOverlapRatio(q, p) < 0.62)
+        );
+        if (freshQ && qOverlap < 0.85) {
+          mensaje = display ? `Perfecto, ${display}. ${freshQ}` : freshQ;
+          applied.push("same-field-reask-trim");
+        } else {
+          mensaje = display ? `Sigo aqu\xED, ${display}. Cuando puedas, \xBFme confirmas ese dato?` : "Sigo aqu\xED. Cuando puedas, \xBFme confirmas ese dato?";
+          applied.push("same-field-reask-ack");
+        }
+      }
+    }
+  }
+  const nearDupThreshold = questionLines(mensaje).length > 0 && mensaje.length < 220 ? 0.55 : 0.62;
   if (!isCatalogDetailReply && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p) => lucyTextOverlapRatio(mensaje, p)));
-    if (maxOverlap >= 0.72) {
+    if (maxOverlap >= nearDupThreshold) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);
-      if (trimmed && lucyTextOverlapRatio(trimmed, previous[previous.length - 1]) < 0.65) {
+      if (trimmed && lucyTextOverlapRatio(trimmed, lastPrev ?? "") < 0.6) {
         mensaje = trimmed;
         applied.push("near-duplicate-trim");
       } else if (cierre) {
         mensaje = shortPostCierreAck(nombre, THANKS_ACK_PATTERN.test(mensaje));
         applied.push("near-duplicate-postcierre");
       } else {
-        const q = mensaje.split("\n").map((l) => l.trim()).filter((l) => l.includes("?")).find((l) => previous.every((p) => lucyTextOverlapRatio(l, p) < 0.68));
+        const q = questionLines(mensaje).find(
+          (l) => previous.every((p) => lucyTextOverlapRatio(l, p) < 0.62)
+        );
         if (q) {
-          mensaje = q;
+          mensaje = display ? `Perfecto, ${display}. ${q}` : q;
           applied.push("near-duplicate-keep-question");
-        } else {
-          mensaje = nombre ? `Entendido, ${nombre}. Seguimos con lo que ya platicamos.` : "Entendido. Seguimos con lo que ya platicamos.";
+        } else if (!applied.some((a) => a.startsWith("same-field"))) {
+          mensaje = display ? `Entendido, ${display}. Seguimos con lo que ya platicamos.` : "Entendido. Seguimos con lo que ya platicamos.";
           applied.push("near-duplicate-ack");
         }
       }
     }
   }
-  if (!cierre && !isCatalogDetailReply && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p) => SERVICES_MENU_PATTERN.test(p) && /¿/.test(p))) {
-    const qOnly = mensaje.split("\n").map((l) => l.trim()).filter((l) => l.includes("?") && !SERVICES_MENU_PATTERN.test(l));
+  if (!cierre && !isCatalogDetailReply && !applied.includes("catalog-resend-dedupe") && SERVICES_MENU_PATTERN.test(mensaje) && /¿/.test(mensaje) && previous.some((p) => SERVICES_MENU_PATTERN.test(p) && /¿/.test(p))) {
+    const qOnly = questionLines(mensaje).filter((l) => !SERVICES_MENU_PATTERN.test(l));
     if (qOnly.length) {
       mensaje = qOnly[qOnly.length - 1];
       applied.push("services-menu-dedupe");
     }
+  }
+  const cleaned = cleanupBrokenOutboundFragments(mensaje);
+  if (cleaned !== mensaje) {
+    mensaje = cleaned;
+    applied.push("broken-fragment-cleanup");
+  }
+  if (!mensaje.trim()) {
+    mensaje = display ? `Gracias, ${display}. \xBFEn qu\xE9 m\xE1s te ayudo con tu evento?` : "Gracias. \xBFEn qu\xE9 m\xE1s te ayudo con tu evento?";
+    applied.push("empty-fallback");
   }
   return { mensaje: mensaje.trim(), applied };
 }
@@ -21246,6 +21344,56 @@ ${CATALOG_OFFER_QUESTION}`
       String(filledAsk.applied)
     );
     assert.ok(!mensajeAsksForField(filledAsk.mensaje, "correo"), filledAsk.mensaje);
+    const paraphrase = applyLucyGlobalAntiRepetition({
+      mensaje: "Perfecto, Nicole. \xBFQu\xE9 tipo de evento est\xE1s organizando?",
+      history: [
+        {
+          role: "assistant",
+          content: "Gracias por tu correo, Nicole. \xBFQu\xE9 tipo de evento est\xE1s planeando?"
+        }
+      ],
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"]),
+      extracted: emptyExtracted({ nombre: "Nicole", correo: "n@test.com" }),
+      clientName: "Nicole"
+    });
+    assert.ok(
+      paraphrase.applied.some((a) => a.startsWith("same-field") || a.startsWith("near-duplicate")),
+      String(paraphrase.applied)
+    );
+    assert.ok(
+      lucyTextOverlapRatio(
+        paraphrase.mensaje,
+        "\xBFQu\xE9 tipo de evento est\xE1s planeando?"
+      ) < 0.9 || paraphrase.applied.includes("same-field-reask-ack"),
+      paraphrase.mensaje
+    );
+    const catalog2 = applyLucyGlobalAntiRepetition({
+      mensaje: "Perfecto, veo que necesitas Comida y Pastas.\n\nTe dejo el cat\xE1logo general para que veas montajes, men\xFAs y opciones:\nhttps://bodasesor.com/catalogos\n\n\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?\n\n\xBFQu\xE9 tipo de evento es?",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, veo que necesitas Comida y Pastas.\n\nTe dejo el cat\xE1logo general para que veas montajes, men\xFAs y opciones:\nhttps://bodasesor.com/catalogos\n\n\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?\n\n\xBFQu\xE9 tipo de evento es?"
+        }
+      ],
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Requerimientos o servicios"]),
+      extracted: emptyExtracted({
+        nombre: "Nicole",
+        correo: "n@test.com",
+        requerimientos_evento: "Comida, Pastas"
+      }),
+      clientName: "Nicole",
+      currentMessage: "cumplea\xF1os"
+    });
+    assert.ok(
+      catalog2.applied.includes("catalog-resend-dedupe") || !/bodasesor\.com\/catalogos/i.test(catalog2.mensaje),
+      `${catalog2.applied.join(",")} | ${catalog2.mensaje.slice(0, 300)}`
+    );
+    assert.ok(!/bodasesor\.com\/catalogos/i.test(catalog2.mensaje), catalog2.mensaje.slice(0, 300));
+    const broken = cleanupBrokenOutboundFragments(
+      "Hola, Nicole. con la cotizaci\xF3n. \xBFA qu\xE9 correo te env\xEDo la informaci\xF3n?"
+    );
+    assert.ok(!/\.\s+con la cotizaci/i.test(broken), broken);
+    assert.ok(/correo/i.test(broken), broken);
   });
   await test("75. Mar\xEDa A14906 \u2014 salas\u2260invitados, Luxor\u2260zona, carpas con medidas", () => {
     assert.equal(parseInvitadosFromText("Ser\xEDan 4 salas"), null);

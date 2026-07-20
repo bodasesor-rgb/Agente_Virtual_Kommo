@@ -5,8 +5,8 @@
  */
 import type OpenAI from "openai";
 import type { ExtractedData } from "./types.js";
+import { inferLucyAskedField } from "./conversation-understanding.js";
 import {
-  buildPostCierreThanksReply,
   isFieldSatisfied,
   mensajeAsksForField,
   mensajeAsksForFilledField,
@@ -32,6 +32,13 @@ const THANKS_ACK_PATTERN =
 
 const SERVICES_MENU_PATTERN =
   /\b(manejamos|tambi[eé]n\s+(ofrecemos|manejamos)|alimentos?|mobiliario|carpas?|pista|iluminaci[oó]n|pantallas?)\b/i;
+
+const CATALOG_SEND_PATTERN =
+  /bodasesor\.com\/catalogos|te dejo el cat[aá]logo general|mande el cat[aá]logo/i;
+
+/** Pitch de entretenimiento/show — no tratar como menú genérico repetido. */
+const ENTERTAINMENT_PITCH_PATTERN =
+  /shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento/i;
 
 export interface LucyAntiRepeatInput {
   mensaje: string;
@@ -102,6 +109,23 @@ function asExtracted(partial?: Partial<ExtractedData> | null): ExtractedData {
   };
 }
 
+function firstName(clientName?: string | null): string | null {
+  const n = clientName?.trim();
+  if (!n) return null;
+  return n.split(/\s+/)[0] ?? null;
+}
+
+function questionLines(text: string): string[] {
+  return text
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter((l) => l.includes("?"));
+}
+
+function detectAskedFields(text: string): PendingField[] {
+  return FIELD_ORDER.filter((f) => mensajeAsksForField(text, f));
+}
+
 function stripRepeatedQuestionLines(mensaje: string, previous: string[]): string {
   const lines = mensaje
     .split("\n")
@@ -111,14 +135,14 @@ function stripRepeatedQuestionLines(mensaje: string, previous: string[]): string
 
   const kept = lines.filter((line) => {
     if (!line.includes("?")) return true;
-    return !previous.some((p) => lucyTextOverlapRatio(line, p) >= 0.72);
+    return !previous.some((p) => lucyTextOverlapRatio(line, p) >= 0.62);
   });
   if (kept.length === 0) return lines[lines.length - 1]!;
   return kept.join("\n").trim();
 }
 
 function shortPostCierreAck(clientName?: string | null, thanks = false): string {
-  const nombre = clientName?.trim();
+  const nombre = firstName(clientName);
   if (thanks) {
     return nombre
       ? `¡Con gusto, ${nombre}! Aquí seguimos cuando lo necesites.`
@@ -127,6 +151,47 @@ function shortPostCierreAck(clientName?: string | null, thanks = false): string 
   return nombre
     ? `Queda anotado, ${nombre}. Nuestro equipo sigue con tu cotización.`
     : "Queda anotado. Nuestro equipo sigue con tu cotización.";
+}
+
+/** Quita bloques rotos tipo "Hola, Nicole. con la cotización." */
+export function cleanupBrokenOutboundFragments(text: string): string {
+  let t = text.trim();
+  if (!t) return t;
+
+  // "Hola, X. con la cotización." / "Perfecto, X. para tu evento." (huérfano tras strip)
+  t = t.replace(
+    /\b((?:Hola|Perfecto|Excelente|Genial|Claro|Listo),?\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+(con|para|de|en|a|y|la|el|las|los)\s+[^.?!\n]{0,40}\.\s*/gi,
+    "$1. "
+  );
+
+  // Frase que empieza en minúscula tras un saludo (resto de strip malo)
+  t = t.replace(
+    /\b((?:Hola|Perfecto|Excelente|Genial|Claro),?\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+([a-záéíóúüñ])/g,
+    (_m, greet: string, letter: string) => `${greet}. ${letter.toUpperCase()}`
+  );
+
+  // Doble "Perfecto, Name." seguidos
+  t = t.replace(
+    /\b((?:Perfecto|Excelente|Genial|Claro),?\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,}\.)\s+\1/gi,
+    "$1"
+  );
+
+  return t.replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+
+function stripCatalogOfferBlock(text: string): string {
+  let t = text
+    .replace(
+      /\n*Te dejo el cat[aá]logo general[^\n]*\n?https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi,
+      "\n"
+    )
+    .replace(/\n*https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi, "\n")
+    .replace(/\n*¿Quieres que te mande el cat[aá]logo[^\n?]*\?\n*/gi, "\n");
+  return t.replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function isEntertainmentCatalogReply(mensaje: string): boolean {
+  return CATALOG_SEND_PATTERN.test(mensaje) && ENTERTAINMENT_PITCH_PATTERN.test(mensaje);
 }
 
 /**
@@ -138,10 +203,24 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   if (!mensaje) return { mensaje, applied };
 
   const previous = recentAssistantTexts(input.history);
+  const lastPrev = previous.length ? previous[previous.length - 1]! : null;
   const filled = input.filledSet ?? new Set<string>();
   const extracted = asExtracted(input.extracted);
   const cierre = !!input.cierreYaEnviado;
   const nombre = input.clientName ?? extracted.nombre;
+  const display = firstName(nombre);
+
+  const clientAskedInclusion =
+    /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(
+      input.currentMessage ?? ""
+    );
+  const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
+  const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
+  // Catálogo "de detalle" (inclusiones/niveles/show) — proteger salvo reenvío idéntico.
+  const isCatalogDetailReply =
+    /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres/i.test(
+      mensaje
+    ) || isEntertainmentCatalog;
 
   // 1) Post-cierre: no repetir el mismo agradecimiento.
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p) => THANKS_ACK_PATTERN.test(p))) {
@@ -162,16 +241,6 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   }
 
   // 3) Re-pregunta de campo ya capturado (aunque el cuerpo sea distinto).
-  // No tocar respuestas de catálogo: "menús e inclusiones" / Incluye / link bodasesor
-  // matchean el patrón de requerimientos y se destruían con "Ya lo tengo anotado".
-  const clientAskedInclusion =
-    /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(
-      input.currentMessage ?? ""
-    );
-  const isCatalogDetailReply =
-    /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres|te dejo el cat[aá]logo|mande el cat[aá]logo|shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias/i.test(
-      mensaje
-    );
   if (
     !cierre &&
     !isCatalogDetailReply &&
@@ -196,39 +265,103 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
       mensaje = stripped;
       applied.push("filled-field-strip");
     } else if (!stripped || mensajeAsksForFilledField(mensaje, filled, extracted)) {
-      // Si solo quedaba la re-pregunta, acuse corto sin volver a pedir el dato.
-      mensaje = nombre
-        ? `Perfecto, ${nombre}. Ya lo tengo anotado.`
+      mensaje = display
+        ? `Perfecto, ${display}. Ya lo tengo anotado.`
         : "Perfecto, ya lo tengo anotado.";
       applied.push("filled-field-ack");
     }
   }
 
-  // 4) Casi idéntico a una respuesta reciente del asistente.
-  // No tocar pitch de show/MC + catálogo (A14920): "manejamos" solapa con menús previos.
+  // 4) Catálogo ya enviado en un turno reciente → no reenviar el bloque completo.
+  // (A14920 show/MC: primer envío se conserva; A14924 cumpleaños: segundo se corta.)
+  if (
+    !cierre &&
+    hasCatalogNow &&
+    !clientAskedInclusion &&
+    !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") &&
+    previous.some((p) => CATALOG_SEND_PATTERN.test(p))
+  ) {
+    const without = stripCatalogOfferBlock(mensaje);
+    const qs = questionLines(without).filter(
+      (q) => !/cat[aá]logo/i.test(q) && previous.every((p) => lucyTextOverlapRatio(q, p) < 0.68)
+    );
+    if (without && lucyTextOverlapRatio(without, mensaje) < 0.95) {
+      if (qs.length) {
+        mensaje = display ? `Perfecto, ${display}. ${qs[qs.length - 1]}` : qs[qs.length - 1]!;
+      } else if (without.includes("?") && lucyTextOverlapRatio(without, lastPrev ?? "") < 0.7) {
+        mensaje = without;
+      } else {
+        mensaje = display
+          ? `Perfecto, ${display}. ¿Seguimos con el siguiente dato del evento?`
+          : "Perfecto. ¿Seguimos con el siguiente dato del evento?";
+      }
+      applied.push("catalog-resend-dedupe");
+    }
+  }
+
+  // 5) Misma pregunta de embudo (campo semántico) aunque el wording cambie.
+  // Ej: "¿qué tipo de evento estás planeando?" → "…organizando?"
+  if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe")) {
+    const nowFields = detectAskedFields(mensaje);
+    const prevField =
+      (inferLucyAskedField(lastPrev) as PendingField | null) ||
+      detectAskedFields(lastPrev)[0] ||
+      null;
+    const repeatedField =
+      prevField && nowFields.includes(prevField) && !isFieldSatisfied(prevField, filled, extracted)
+        ? prevField
+        : null;
+
+    if (repeatedField) {
+      const nowQs = questionLines(mensaje).filter((q) => mensajeAsksForField(q, repeatedField));
+      const prevQs = questionLines(lastPrev).filter((q) => mensajeAsksForField(q, repeatedField));
+      const qOverlap = Math.max(
+        0,
+        ...nowQs.flatMap((nq) => prevQs.map((pq) => lucyTextOverlapRatio(nq, pq))),
+        lucyTextOverlapRatio(mensaje, lastPrev)
+      );
+      // Paráfrasis típica ~0.50–0.75; cortar si ya preguntamos ese campo.
+      if (qOverlap >= 0.48 || prevQs.length > 0) {
+        const freshQ = nowQs.find((q) =>
+          previous.every((p) => lucyTextOverlapRatio(q, p) < 0.62)
+        );
+        if (freshQ && qOverlap < 0.85) {
+          mensaje = display ? `Perfecto, ${display}. ${freshQ}` : freshQ;
+          applied.push("same-field-reask-trim");
+        } else {
+          // Misma pregunta: no reenviar; acuse corto (el cliente aún no respondió).
+          mensaje = display
+            ? `Sigo aquí, ${display}. Cuando puedas, ¿me confirmas ese dato?`
+            : "Sigo aquí. Cuando puedas, ¿me confirmas ese dato?";
+          applied.push("same-field-reask-ack");
+        }
+      }
+    }
+  }
+
+  // 6) Casi idéntico a una respuesta reciente del asistente.
+  const nearDupThreshold =
+    questionLines(mensaje).length > 0 && mensaje.length < 220 ? 0.55 : 0.62;
   if (!isCatalogDetailReply && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p) => lucyTextOverlapRatio(mensaje, p)));
-    if (maxOverlap >= 0.72) {
+    if (maxOverlap >= nearDupThreshold) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);
-      if (trimmed && lucyTextOverlapRatio(trimmed, previous[previous.length - 1]!) < 0.65) {
+      if (trimmed && lucyTextOverlapRatio(trimmed, lastPrev ?? "") < 0.6) {
         mensaje = trimmed;
         applied.push("near-duplicate-trim");
       } else if (cierre) {
         mensaje = shortPostCierreAck(nombre, THANKS_ACK_PATTERN.test(mensaje));
         applied.push("near-duplicate-postcierre");
       } else {
-        // Evita reenviar el mismo bloque: deja un acuse + la pregunta distinta si existe.
-        const q = mensaje
-          .split("\n")
-          .map((l) => l.trim())
-          .filter((l) => l.includes("?"))
-          .find((l) => previous.every((p) => lucyTextOverlapRatio(l, p) < 0.68));
+        const q = questionLines(mensaje).find((l) =>
+          previous.every((p) => lucyTextOverlapRatio(l, p) < 0.62)
+        );
         if (q) {
-          mensaje = q;
+          mensaje = display ? `Perfecto, ${display}. ${q}` : q;
           applied.push("near-duplicate-keep-question");
-        } else {
-          mensaje = nombre
-            ? `Entendido, ${nombre}. Seguimos con lo que ya platicamos.`
+        } else if (!applied.some((a) => a.startsWith("same-field"))) {
+          mensaje = display
+            ? `Entendido, ${display}. Seguimos con lo que ya platicamos.`
             : "Entendido. Seguimos con lo que ya platicamos.";
           applied.push("near-duplicate-ack");
         }
@@ -236,24 +369,35 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     }
   }
 
-  // 5) Segundo menú genérico de servicios en historial reciente.
-  // Excluir entretenimiento + link de catálogo (A14920 Karina): si no, "manejamos
-  // maestro de ceremonias… + catálogo" se reduce a solo la pregunta de zona.
+  // 7) Segundo menú genérico de servicios en historial reciente.
   if (
     !cierre &&
     !isCatalogDetailReply &&
+    !applied.includes("catalog-resend-dedupe") &&
     SERVICES_MENU_PATTERN.test(mensaje) &&
     /¿/.test(mensaje) &&
     previous.some((p) => SERVICES_MENU_PATTERN.test(p) && /¿/.test(p))
   ) {
-    const qOnly = mensaje
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.includes("?") && !SERVICES_MENU_PATTERN.test(l));
+    const qOnly = questionLines(mensaje).filter((l) => !SERVICES_MENU_PATTERN.test(l));
     if (qOnly.length) {
       mensaje = qOnly[qOnly.length - 1]!;
       applied.push("services-menu-dedupe");
     }
+  }
+
+  // 8) Limpieza de fragmentos rotos tras strips.
+  const cleaned = cleanupBrokenOutboundFragments(mensaje);
+  if (cleaned !== mensaje) {
+    mensaje = cleaned;
+    applied.push("broken-fragment-cleanup");
+  }
+
+  // Evitar mensaje vacío.
+  if (!mensaje.trim()) {
+    mensaje = display
+      ? `Gracias, ${display}. ¿En qué más te ayudo con tu evento?`
+      : "Gracias. ¿En qué más te ayudo con tu evento?";
+    applied.push("empty-fallback");
   }
 
   return { mensaje: mensaje.trim(), applied };
