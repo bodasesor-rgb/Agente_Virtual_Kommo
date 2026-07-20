@@ -14,8 +14,24 @@ import {
   parseTipoEventoFromText,
   parseInvitadosFromText,
   parseFechaFromText,
+  isServiceRelatedMessage,
 } from "../conversation-understanding.js";
 import { formatRequerimientoLabelFromQuery } from "./catalogService.js";
+import { isGreetingOnlyMessage, isQuoteIntentMessage, sanitizeCrmNombre } from "../contact-name.js";
+
+/** No meter saludos / nombres / "quiero cotizar" como si fueran el servicio. */
+function isUsableResumenServicio(value: string | null | undefined): boolean {
+  const t = value?.trim() ?? "";
+  if (!t || t === "Info pendiente") return false;
+  if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t)) return false;
+  if (sanitizeCrmNombre(t) && parseServicesFromText(t).length === 0 && !isServiceRelatedMessage(t)) {
+    return false;
+  }
+  if (parseTipoEventoFromText(t) && parseServicesFromText(t).length === 0 && !isServiceRelatedMessage(t)) {
+    return false;
+  }
+  return true;
+}
 
 function extraerEstilo(texto: string): string | null {
   const estilos: Array<[string, RegExp]> = [
@@ -180,8 +196,10 @@ export function buildResumenClienteLargo(
       ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN`
       : null);
 
-  const reqFromLines = pickFromMergedLines(mergedLines, /Requerimientos/i);
-  const reqFromServices = extracted.requerimientos_evento?.trim();
+  const reqFromLinesRaw = pickFromMergedLines(mergedLines, /Requerimientos/i);
+  const reqFromLines = isUsableResumenServicio(reqFromLinesRaw) ? reqFromLinesRaw : null;
+  const reqFromServicesRaw = extracted.requerimientos_evento?.trim();
+  const reqFromServices = isUsableResumenServicio(reqFromServicesRaw) ? reqFromServicesRaw : null;
   const reqFromCatalog =
     conversationText && conversationText.trim().length > 3
       ? formatRequerimientoLabelFromQuery(conversationText)
@@ -191,8 +209,8 @@ export function buildResumenClienteLargo(
       ? parseServicesFromText(conversationText).slice(0, 6).join(", ")
       : null;
   const reqs =
-    (reqFromLines && reqFromLines !== "Info pendiente" ? reqFromLines : null) ||
-    reqFromCatalog ||
+    reqFromLines ||
+    (isUsableResumenServicio(reqFromCatalog) ? reqFromCatalog : null) ||
     (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) ||
     (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
 

@@ -767,7 +767,9 @@ function buildEntertainmentSalesReply(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   entityId?: string | number,
-  currentMessage?: string
+  currentMessage?: string,
+  filledSet?: Set<string>,
+  ctx?: NaturalQuestionContext
 ): string {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel =
@@ -777,11 +779,42 @@ function buildEntertainmentSalesReply(
         ? `tu ${tipo}`
         : "tu evento";
 
-  const intro = `Para ${eventLabel}, manejamos shows en vivo, animación, hora loca, happening, espejos, láser y más opciones de entretenimiento.`;
+  const wantsMc = /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(
+    currentMessage ?? ""
+  );
+  const services = parseServicesFromText(currentMessage ?? "");
+  const label =
+    (services.length ? services.join(", ") : null) ||
+    (wantsMc ? "Maestro de ceremonias y show" : "Animación / Hora loca y shows");
+
+  if (filledSet) {
+    filledSet.add("Requerimientos o servicios");
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
+    if (merged) extracted.requerimientos_evento = merged;
+  }
+
+  const intro = wantsMc
+    ? `Sí, para ${eventLabel} también manejamos *maestro de ceremonias*, shows en vivo, animación y hora loca.`
+    : `Para ${eventLabel}, manejamos shows en vivo, animación, hora loca, happening, espejos, láser y más opciones de entretenimiento.`;
   const ideas =
-    "Lo más pedido para eventos así es un show de grupo versátil o animación tipo hora loca según el estilo que busquen — desde ambiente elegante hasta fiesta más dinámica.";
-  const follow = pickVariant("requerimientos", history, entityId);
-  return `${intro} ${ideas} ${follow}`.trim();
+    "Lo más pedido es un show de grupo versátil o animación tipo hora loca, según el estilo que busquen.";
+
+  // Entretenimiento no tiene precios en Sheet: mandar catálogo general (A14920).
+  const catalog = buildPackageCatalogOfferBlock();
+  let body = `${intro} ${ideas}\n\n${catalog}`;
+
+  if (filledSet && ctx) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "requerimientos") {
+      const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
+      if (nextQ && !body.includes(nextQ)) body = `${body}\n\n${nextQ}`;
+    }
+  } else {
+    const follow = pickVariant("requerimientos", history, entityId);
+    body = `${body}\n\n${follow}`.trim();
+  }
+
+  return body.trim();
 }
 
 function stripAccents(text: string): string {
@@ -3066,6 +3099,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !clientAsksServiceInfo(currentMessage) &&
     !clientMentionsCarpas(currentMessage) &&
     !clientMentionsPistaTarima(currentMessage) &&
+    // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
+    !clientMentionsEntertainment(currentMessage) &&
     // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
     !(
       (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
@@ -3078,7 +3113,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       servicesFromTurn,
       currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
     );
-    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+    const aiIsUselessAck =
+      /ya\s+lo\s+tengo\s+anotado|perfecto,?\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+\.?$/i.test(
+        aiResponse.trim()
+      ) || aiResponse.trim().length < 40;
+    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && !aiIsUselessAck) {
       const aiAlreadyLists =
         servicesFromTurn.filter((s) =>
           aiResponse.toLowerCase().includes(s.toLowerCase().split(/\s+/)[0]!)
@@ -3337,9 +3376,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     (clientMentionsEntertainment(currentMessage) ||
       (justAnsweredReq && clientMentionsEntertainment(currentMessage)))
   ) {
-    mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
+    mensaje = buildEntertainmentSalesReply(
+      extracted,
+      history,
+      entityId,
+      currentMessage,
+      filledSet,
+      ctx
+    );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: show/entretenimiento — orientación de venta");
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: show/entretenimiento — orientación + catálogo");
   } else if (allowSalesReplyOverride && clientMentionsCarpas(currentMessage)) {
     mensaje = buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx);
     appliedSalesReply = true;
@@ -4351,7 +4398,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         ? (lastAssistantMsg.content as string)
         : null
     );
-  mensaje = stripUnsolicitedCatalogWebLinks(mensaje, clientWantedCatalog);
+  // Entretenimiento / RFQ: el bloque "Te dejo el catálogo general" es intencional (A14920).
+  const intentionalCatalogSend =
+    /te dejo el cat[aá]logo general/i.test(mensaje) ||
+    (/bodasesor\.com\/catalogos/i.test(mensaje) &&
+      /shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento/i.test(mensaje));
+  mensaje = stripUnsolicitedCatalogWebLinks(
+    mensaje,
+    clientWantedCatalog || intentionalCatalogSend
+  );
 
   // Oferta de niveles sin inclusiones → reemplazar con detalle del Sheet.
   if (messageOffersLevelsWithoutInclusions(mensaje)) {

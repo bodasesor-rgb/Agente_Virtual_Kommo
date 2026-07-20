@@ -65,6 +65,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Menú staff", /\bmen[uú]\s+(para\s+)?staff\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
+  ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
   ["Iluminación", /\biluminaci[oó]n\b/i],
   ["Decoración", /\bdecoraci[oó]n\b/i],
   ["Floristería", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
@@ -553,7 +554,8 @@ export function clientMentionsEntertainment(message?: string): boolean {
     /\bgrupo\s+vers[aá]til\b/i.test(t) ||
     /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) ||
     /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) ||
-    /\b(requerimos|necesitamos|buscamos)\s+un\s+show\b/i.test(t)
+    /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t) ||
+    /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(show|maestro|animaci)/i.test(t)
   );
 }
 

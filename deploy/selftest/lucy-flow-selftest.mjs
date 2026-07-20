@@ -348,6 +348,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
+  ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
   ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
   ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
   ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
@@ -677,7 +678,7 @@ function clientMentionsItalianTheme(message) {
 function clientMentionsEntertainment(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /\bshow\b/i.test(t) || /\bgrupo\s+vers[aá]til\b/i.test(t) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) || /\b(requerimos|necesitamos|buscamos)\s+un\s+show\b/i.test(t);
+  return /\bshow\b/i.test(t) || /\bgrupo\s+vers[aá]til\b/i.test(t) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(show|maestro|animaci)/i.test(t);
 }
 function clientDeclinesMoreServices(message) {
   if (!message?.trim()) return false;
@@ -15251,13 +15252,40 @@ ${nextQ}`.trim();
   }
   return `${pickTransition(history)} ${ack}`.trim();
 }
-function buildEntertainmentSalesReply(extracted, history, entityId, currentMessage) {
+function buildEntertainmentSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel = /corporativo|empresa/.test(tipo) || /empresa|corporativo/i.test(currentMessage ?? "") ? "tu evento corporativo" : tipo ? `tu ${tipo}` : "tu evento";
-  const intro = `Para ${eventLabel}, manejamos shows en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser y m\xE1s opciones de entretenimiento.`;
-  const ideas = "Lo m\xE1s pedido para eventos as\xED es un show de grupo vers\xE1til o animaci\xF3n tipo hora loca seg\xFAn el estilo que busquen \u2014 desde ambiente elegante hasta fiesta m\xE1s din\xE1mica.";
-  const follow = pickVariant("requerimientos", history, entityId);
-  return `${intro} ${ideas} ${follow}`.trim();
+  const wantsMc = /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(
+    currentMessage ?? ""
+  );
+  const services = parseServicesFromText(currentMessage ?? "");
+  const label = (services.length ? services.join(", ") : null) || (wantsMc ? "Maestro de ceremonias y show" : "Animaci\xF3n / Hora loca y shows");
+  if (filledSet) {
+    filledSet.add("Requerimientos o servicios");
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
+    if (merged) extracted.requerimientos_evento = merged;
+  }
+  const intro = wantsMc ? `S\xED, para ${eventLabel} tambi\xE9n manejamos *maestro de ceremonias*, shows en vivo, animaci\xF3n y hora loca.` : `Para ${eventLabel}, manejamos shows en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser y m\xE1s opciones de entretenimiento.`;
+  const ideas = "Lo m\xE1s pedido es un show de grupo vers\xE1til o animaci\xF3n tipo hora loca, seg\xFAn el estilo que busquen.";
+  const catalog = buildPackageCatalogOfferBlock();
+  let body = `${intro} ${ideas}
+
+${catalog}`;
+  if (filledSet && ctx) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "requerimientos") {
+      const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
+      if (nextQ && !body.includes(nextQ)) body = `${body}
+
+${nextQ}`;
+    }
+  } else {
+    const follow = pickVariant("requerimientos", history, entityId);
+    body = `${body}
+
+${follow}`.trim();
+  }
+  return body.trim();
 }
 function stripAccents(text) {
   return text.normalize("NFD").replace(/\p{M}/gu, "");
@@ -16651,13 +16679,17 @@ ${buildPackageCatalogOfferBlock()}`,
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 releer especificaciones \u2014 ack completo + cat\xE1logo");
   } else if (allowSalesReplyOverride && (servicesFromTurn.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
-  !clientAsksServiceInfo(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
+  !clientAsksServiceInfo(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
+  !clientMentionsEntertainment(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
     const packageReply = buildMultiServicePackageReply(
       servicesFromTurn,
       currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
     );
-    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+    const aiIsUselessAck = /ya\s+lo\s+tengo\s+anotado|perfecto,?\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+\.?$/i.test(
+      aiResponse.trim()
+    ) || aiResponse.trim().length < 40;
+    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && !aiIsUselessAck) {
       const aiAlreadyLists = servicesFromTurn.filter(
         (s) => aiResponse.toLowerCase().includes(s.toLowerCase().split(/\s+/)[0])
       ).length >= Math.min(2, servicesFromTurn.length);
@@ -16847,9 +16879,17 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     }
     log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 avanzar o cierre");
   } else if (allowSalesReplyOverride && (clientMentionsEntertainment(currentMessage) || justAnsweredReq && clientMentionsEntertainment(currentMessage))) {
-    mensaje = buildEntertainmentSalesReply(extracted, history, entityId, currentMessage);
+    mensaje = buildEntertainmentSalesReply(
+      extracted,
+      history,
+      entityId,
+      currentMessage,
+      filledSet,
+      ctx
+    );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 orientaci\xF3n de venta");
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 orientaci\xF3n + cat\xE1logo");
   } else if (allowSalesReplyOverride && clientMentionsCarpas(currentMessage)) {
     mensaje = buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx);
     appliedSalesReply = true;
@@ -17581,7 +17621,11 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   );
-  mensaje = stripUnsolicitedCatalogWebLinks(mensaje, clientWantedCatalog);
+  const intentionalCatalogSend = /te dejo el cat[aá]logo general/i.test(mensaje) || /bodasesor\.com\/catalogos/i.test(mensaje) && /shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento/i.test(mensaje);
+  mensaje = stripUnsolicitedCatalogWebLinks(
+    mensaje,
+    clientWantedCatalog || intentionalCatalogSend
+  );
   if (messageOffersLevelsWithoutInclusions(mensaje)) {
     const hint = [
       extracted.requerimientos_evento,
@@ -17721,7 +17765,7 @@ function applyLucyGlobalAntiRepetition(input) {
   const clientAskedInclusion = /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(
     input.currentMessage ?? ""
   );
-  const isCatalogDetailReply = /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres/i.test(
+  const isCatalogDetailReply = /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres|te dejo el cat[aá]logo|mande el cat[aá]logo|shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias/i.test(
     mensaje
   );
   if (!cierre && !isCatalogDetailReply && !clientAskedInclusion && mensajeAsksForFilledField(mensaje, filled, extracted)) {
@@ -17776,6 +17820,18 @@ function applyLucyGlobalAntiRepetition(input) {
 }
 
 // src/services/summaryService.ts
+function isUsableResumenServicio(value) {
+  const t = value?.trim() ?? "";
+  if (!t || t === "Info pendiente") return false;
+  if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t)) return false;
+  if (sanitizeCrmNombre(t) && parseServicesFromText(t).length === 0 && !isServiceRelatedMessage(t)) {
+    return false;
+  }
+  if (parseTipoEventoFromText(t) && parseServicesFromText(t).length === 0 && !isServiceRelatedMessage(t)) {
+    return false;
+  }
+  return true;
+}
 function pickFromMergedLines(mergedLines, labelPattern) {
   const line = mergedLines.find((l) => labelPattern.test(l));
   if (!line) return null;
@@ -17820,11 +17876,13 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const ubicacion = pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
   const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
   const ppto = pptoFromLine || (extracted.presupuesto !== null && extracted.presupuesto > 0 ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN` : null);
-  const reqFromLines = pickFromMergedLines(mergedLines, /Requerimientos/i);
-  const reqFromServices = extracted.requerimientos_evento?.trim();
+  const reqFromLinesRaw = pickFromMergedLines(mergedLines, /Requerimientos/i);
+  const reqFromLines = isUsableResumenServicio(reqFromLinesRaw) ? reqFromLinesRaw : null;
+  const reqFromServicesRaw = extracted.requerimientos_evento?.trim();
+  const reqFromServices = isUsableResumenServicio(reqFromServicesRaw) ? reqFromServicesRaw : null;
   const reqFromCatalog = conversationText && conversationText.trim().length > 3 ? formatRequerimientoLabelFromQuery(conversationText) : null;
   const reqFromConversation = conversationText && conversationText.trim().length > 20 ? parseServicesFromText(conversationText).slice(0, 6).join(", ") : null;
-  const reqs = (reqFromLines && reqFromLines !== "Info pendiente" ? reqFromLines : null) || reqFromCatalog || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
+  const reqs = reqFromLines || (isUsableResumenServicio(reqFromCatalog) ? reqFromCatalog : null) || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
   const modo = extracted.modo_servicio?.trim();
   const pendientes = pendingFields(mergedLines, extracted);
   const lineas = ["RESUMEN DE CONVERSACI\xD3N \u2014 Lucy", ""];
@@ -18402,6 +18460,10 @@ async function runAll() {
       history: [{ role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }]
     });
     assert.ok(/show|animaci|hora\s+loca|entretenimiento|vers[aá]til/i.test(reply), reply.slice(0, 150));
+    assert.ok(
+      /bodasesor\.com\/catalogos|mande el cat[aá]logo/i.test(reply),
+      `show debe incluir cat\xE1logo: ${reply.slice(0, 350)}`
+    );
   });
   await test("14. Fer A14756 \u2014 pista/tarima ofrece orientaci\xF3n de venta", () => {
     assert.ok(clientMentionsPistaTarima("quiero cotizar una pista de baile o tarima"));
@@ -21533,6 +21595,48 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       ]
     });
     assert.ok(!/mucho gusto,\s*tienes/i.test(badName), badName.slice(0, 300));
+  });
+  await test("80. Karina A14920 \u2014 maestro de ceremonias/show manda cat\xE1logo (no 'Ya lo tengo anotado')", () => {
+    assert.ok(clientMentionsEntertainment("estaba buscando maestro de ceremonias y un show"));
+    assert.ok(clientMentionsEntertainment("Disculpame, estaba buscando maestro de ceremonias y un show"));
+    const reply = runGuards({
+      aiResponse: "Perfecto, Karina Fierro. Ya lo tengo anotado.",
+      extracted: emptyExtracted({
+        nombre: "Karina Fierro",
+        correo: "fierro.karina.tr@gmail.com",
+        tipo_evento: "xv a\xF1os",
+        requerimientos_evento: "Banquete Formal"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Disculpame, estaba buscando maestro de ceremonias y un show",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, Karina. Para tus XV a\xF1os, manejamos una variedad de servicios: Banquete Formal 3 tiempos\u2026"
+        }
+      ]
+    });
+    assert.ok(
+      /maestro\s+de\s+ceremonias|show|animaci|hora\s+loca/i.test(reply),
+      `debe ofrecer entretenimiento: ${reply.slice(0, 400)}`
+    );
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(reply),
+      `debe mandar link de cat\xE1logo: ${reply.slice(0, 500)}`
+    );
+    assert.ok(!/Ya lo tengo anotado/i.test(reply), reply.slice(0, 300));
+    const resumen = buildResumenClienteLargo(
+      emptyExtracted({ nombre: "Karina" }),
+      ["- Nombre del cliente: Karina"],
+      "Buenas tardes"
+    );
+    assert.ok(!/Servicios:\s*Buenas\s+tardes/i.test(resumen), resumen);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

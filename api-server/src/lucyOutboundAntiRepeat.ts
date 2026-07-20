@@ -169,7 +169,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
       input.currentMessage ?? ""
     );
   const isCatalogDetailReply =
-    /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres/i.test(
+    /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres|te dejo el cat[aá]logo|mande el cat[aá]logo|shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias/i.test(
       mensaje
     );
   if (

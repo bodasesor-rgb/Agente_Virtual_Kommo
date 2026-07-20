@@ -596,6 +596,10 @@ async function runAll(): Promise<void> {
       history: [{ role: "assistant", content: "¿Qué servicios te gustaría cotizar?" }],
     });
     assert.ok(/show|animaci|hora\s+loca|entretenimiento|vers[aá]til/i.test(reply), reply.slice(0, 150));
+    assert.ok(
+      /bodasesor\.com\/catalogos|mande el cat[aá]logo/i.test(reply),
+      `show debe incluir catálogo: ${reply.slice(0, 350)}`
+    );
   });
 
   await test("14. Fer A14756 — pista/tarima ofrece orientación de venta", () => {
@@ -4161,6 +4165,53 @@ async function runAll(): Promise<void> {
       ],
     });
     assert.ok(!/mucho gusto,\s*tienes/i.test(badName), badName.slice(0, 300));
+  });
+
+  await test("80. Karina A14920 — maestro de ceremonias/show manda catálogo (no 'Ya lo tengo anotado')", () => {
+    assert.ok(clientMentionsEntertainment("estaba buscando maestro de ceremonias y un show"));
+    assert.ok(clientMentionsEntertainment("Disculpame, estaba buscando maestro de ceremonias y un show"));
+
+    const reply = runGuards({
+      aiResponse: "Perfecto, Karina Fierro. Ya lo tengo anotado.",
+      extracted: emptyExtracted({
+        nombre: "Karina Fierro",
+        correo: "fierro.karina.tr@gmail.com",
+        tipo_evento: "xv años",
+        requerimientos_evento: "Banquete Formal",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Disculpame, estaba buscando maestro de ceremonias y un show",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto, Karina. Para tus XV años, manejamos una variedad de servicios: Banquete Formal 3 tiempos…",
+        },
+      ],
+    });
+    assert.ok(
+      /maestro\s+de\s+ceremonias|show|animaci|hora\s+loca/i.test(reply),
+      `debe ofrecer entretenimiento: ${reply.slice(0, 400)}`
+    );
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(reply),
+      `debe mandar link de catálogo: ${reply.slice(0, 500)}`
+    );
+    assert.ok(!/Ya lo tengo anotado/i.test(reply), reply.slice(0, 300));
+
+    // Saludo no es servicio en resumen.
+    const resumen = buildResumenClienteLargo(
+      emptyExtracted({ nombre: "Karina" }),
+      ["- Nombre del cliente: Karina"],
+      "Buenas tardes"
+    );
+    assert.ok(!/Servicios:\s*Buenas\s+tardes/i.test(resumen), resumen);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
