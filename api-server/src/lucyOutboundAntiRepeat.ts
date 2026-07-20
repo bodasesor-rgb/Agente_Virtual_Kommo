@@ -164,13 +164,29 @@ export function cleanupBrokenOutboundFragments(text: string): string {
     "$1. "
   );
 
+  // "Claro, con la cotización." sin verbo → "Claro."
+  t = t.replace(
+    /\b(Claro|Perfecto|Excelente|Genial|Listo)\.\s*con la cotizaci[oó]n\.\s*/gi,
+    "$1. "
+  );
+  t = t.replace(
+    /\b(Claro|Perfecto|Excelente|Genial|Listo),\s+con la cotizaci[oó]n\.\s*/gi,
+    "$1. "
+  );
+
   // Frase que empieza en minúscula tras un saludo (resto de strip malo)
   t = t.replace(
     /\b((?:Hola|Perfecto|Excelente|Genial|Claro),?\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+([a-záéíóúüñ])/g,
     (_m, greet: string, letter: string) => `${greet}. ${letter.toUpperCase()}`
   );
 
-  // Doble "Perfecto, Name." seguidos
+  // "Perfecto, Nicole. Perfecto. Nicole, ¿…?" → "Perfecto, Nicole. ¿…?"
+  t = t.replace(
+    /\b(Perfecto|Excelente|Genial|Claro),?\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+(?:\1\.?\s+)?\2,?\s*/gi,
+    "$1, $2. "
+  );
+
+  // Doble transición idéntica
   t = t.replace(
     /\b((?:Perfecto|Excelente|Genial|Claro),?\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,}\.)\s+\1/gi,
     "$1"

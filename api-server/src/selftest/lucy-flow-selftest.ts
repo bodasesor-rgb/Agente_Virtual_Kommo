@@ -3756,6 +3756,17 @@ async function runAll(): Promise<void> {
     );
     assert.ok(!/\.\s+con la cotizaci/i.test(broken), broken);
     assert.ok(/correo/i.test(broken), broken);
+
+    const doublePerf = cleanupBrokenOutboundFragments(
+      "Perfecto, Nicole. Perfecto. Nicole, ¿tienen día u horario ya definido?"
+    );
+    assert.ok(!/Perfecto\.\s*Nicole/i.test(doublePerf), doublePerf);
+    assert.equal(
+      (doublePerf.match(/Perfecto/gi) ?? []).length,
+      1,
+      doublePerf
+    );
+    assert.ok(/horario|fecha|d[ií]a/i.test(doublePerf), doublePerf);
   });
 
   await test("75. María A14906 — salas≠invitados, Luxor≠zona, carpas con medidas", () => {

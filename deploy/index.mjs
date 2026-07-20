@@ -89020,8 +89020,20 @@ function cleanupBrokenOutboundFragments(text2) {
     "$1. "
   );
   t = t.replace(
+    /\b(Claro|Perfecto|Excelente|Genial|Listo)\.\s*con la cotizaci[oó]n\.\s*/gi,
+    "$1. "
+  );
+  t = t.replace(
+    /\b(Claro|Perfecto|Excelente|Genial|Listo),\s+con la cotizaci[oó]n\.\s*/gi,
+    "$1. "
+  );
+  t = t.replace(
     /\b((?:Hola|Perfecto|Excelente|Genial|Claro),?\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+([a-záéíóúüñ])/g,
     (_m, greet, letter) => `${greet}. ${letter.toUpperCase()}`
+  );
+  t = t.replace(
+    /\b(Perfecto|Excelente|Genial|Claro),?\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+(?:\1\.?\s+)?\2,?\s*/gi,
+    "$1, $2. "
   );
   t = t.replace(
     /\b((?:Perfecto|Excelente|Genial|Claro),?\s+[A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,}\.)\s+\1/gi,
