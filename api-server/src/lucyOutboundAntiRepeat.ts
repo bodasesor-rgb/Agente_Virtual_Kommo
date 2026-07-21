@@ -5,13 +5,23 @@
  */
 import type OpenAI from "openai";
 import type { ExtractedData } from "./types.js";
-import { inferLucyAskedField } from "./conversation-understanding.js";
+import {
+  inferLucyAskedField,
+  parseInvitadosFromText,
+  parseCorreoFromText,
+  parseTipoEventoFromText,
+  parseFechaFromText,
+  parsePresupuestoFromText,
+  parseZonaFromText,
+  isUsableDireccionEvento,
+} from "./conversation-understanding.js";
 import {
   isFieldSatisfied,
   mensajeAsksForField,
   mensajeAsksForFilledField,
   type PendingField,
 } from "./lucy-flow-guards.js";
+import { filterClientEmail, looksLikeValidClientEmail } from "./client-email.js";
 
 const FIELD_ORDER: PendingField[] = [
   "nombre",
@@ -126,6 +136,73 @@ function detectAskedFields(text: string): PendingField[] {
   return FIELD_ORDER.filter((f) => mensajeAsksForField(text, f));
 }
 
+/**
+ * Si el cliente ya respondió en ESTE turno el campo que Lucy acaba de pedir,
+ * márcalo filled antes de anti-repetir — evita "Sigo aquí… ¿me confirmas?" (A14934: "40").
+ */
+function syncFilledFromCurrentAnswer(
+  field: PendingField | null,
+  message: string | null | undefined,
+  filled: Set<string>,
+  extracted: ExtractedData,
+  inputExtracted?: Partial<ExtractedData> | null
+): void {
+  if (!field || !message?.trim()) return;
+  const t = message.trim();
+  switch (field) {
+    case "invitados": {
+      const inv = parseInvitadosFromText(t);
+      if (!inv) return;
+      const n = parseInt(inv, 10);
+      if (!Number.isFinite(n)) return;
+      filled.add("Número de invitados");
+      extracted.num_invitados = n;
+      if (inputExtracted) inputExtracted.num_invitados = n;
+      return;
+    }
+    case "correo": {
+      const email = filterClientEmail(parseCorreoFromText(t));
+      if (!email || !looksLikeValidClientEmail(email)) return;
+      filled.add("Correo electrónico");
+      extracted.correo = email;
+      if (inputExtracted) inputExtracted.correo = email;
+      return;
+    }
+    case "tipo_evento": {
+      const tipo = parseTipoEventoFromText(t);
+      if (!tipo) return;
+      filled.add("Tipo de evento");
+      extracted.tipo_evento = tipo;
+      if (inputExtracted) inputExtracted.tipo_evento = tipo;
+      return;
+    }
+    case "fecha": {
+      const fecha = parseFechaFromText(t);
+      if (!fecha) return;
+      filled.add("Fecha y horario");
+      extracted.fecha_horario = fecha;
+      if (inputExtracted) inputExtracted.fecha_horario = fecha;
+      return;
+    }
+    case "presupuesto": {
+      const pres = parsePresupuestoFromText(t, { askedField: "presupuesto" });
+      if (!pres) return;
+      filled.add("Presupuesto (MXN)");
+      return;
+    }
+    case "zona": {
+      const zona = parseZonaFromText(t);
+      if (!zona || !isUsableDireccionEvento(zona)) return;
+      filled.add("Lugar/dirección del evento");
+      extracted.direccion_evento = zona;
+      if (inputExtracted) inputExtracted.direccion_evento = zona;
+      return;
+    }
+    default:
+      return;
+  }
+}
+
 function stripRepeatedQuestionLines(mensaje: string, previous: string[]): string {
   const lines = mensaje
     .split("\n")
@@ -225,6 +302,37 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   const cierre = !!input.cierreYaEnviado;
   const nombre = input.clientName ?? extracted.nombre;
   const display = firstName(nombre);
+
+  // A14934: cliente ya contestó el dato pedido (ej. "40" invitados) → marcar filled
+  // antes de detectar re-preguntas / "Sigo aquí".
+  const lastAsked = lastPrev
+    ? ((inferLucyAskedField(lastPrev) as PendingField | null) ??
+      detectAskedFields(lastPrev)[0] ??
+      null)
+    : null;
+  syncFilledFromCurrentAnswer(
+    lastAsked,
+    input.currentMessage,
+    filled,
+    extracted,
+    input.extracted
+  );
+  // A14934: número suelto tras pregunta de invitados aunque inferLucyAskedField falle.
+  if (
+    input.currentMessage &&
+    /^\d{2,4}$/.test(input.currentMessage.trim()) &&
+    lastPrev &&
+    /invitados|cu[aá]ntos|asistir[aá]n|personas/i.test(lastPrev) &&
+    !filled.has("Número de invitados")
+  ) {
+    syncFilledFromCurrentAnswer(
+      "invitados",
+      input.currentMessage,
+      filled,
+      extracted,
+      input.extracted
+    );
+  }
 
   const clientAskedInclusion =
     /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(

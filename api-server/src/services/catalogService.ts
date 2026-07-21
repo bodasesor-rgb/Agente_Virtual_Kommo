@@ -445,6 +445,9 @@ function catalogKeywordsFromQuery(query: string): string[] {
   if (/\bargentina\b/.test(q) && keys.includes("parrillada")) keys.push("argentina");
   if (/\bbanquete\b/.test(q)) return ["banquete"];
   if (/\btaquiza\b/.test(q)) return ["taquiza"];
+  // Barra específica: no devolver solo "barra" (A14934 Yucateca vs dump de todas).
+  if (/\byucateca\b/.test(q)) return ["yucateca"];
+  if (/\bamericana\b/.test(q) && /\bbarra\b/.test(q)) return ["americana"];
   if (keys.length) return keys;
 
   const requested = parsePrimaryService(query);
@@ -630,7 +633,12 @@ export function resolveCatalogQuery(query: string): CatalogMatchResult | null {
   if (/\bbanquete\b/.test(q)) {
     return { kind: "service", serviceName: "Banquete", rows: matchedRows };
   }
-  if (/\bbarra\b/.test(q) && !/\bbarra de bebida/.test(q)) {
+  // Solo colapsar a "Barra" multi-variante si NO hay subtipo concreto (A14934).
+  if (
+    /\bbarra\b/.test(q) &&
+    !/\bbarra de bebida/.test(q) &&
+    !/\b(yucateca|americana|crepas?|mariscos?|paninis?|pastas?|sushi|poke|caf[eé])\b/.test(q)
+  ) {
     return { kind: "service", serviceName: "Barra", rows: matchedRows };
   }
 
@@ -670,6 +678,30 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
   }
 
   if (uniqueServicios(result.rows).length > 1) {
+    // Si el servicio pedido es concreto (Barra Yucateca), no listar hermanas (A14934).
+    const svcOnly = result.rows.filter(
+      (r) => normalizeForMatch(r.servicio) === normalizeForMatch(svc) || rowMatchesServiceLabel(r, svc)
+    );
+    if (svcOnly.length && uniqueServicios(svcOnly).length === 1) {
+      const nivelesOnly = uniqueNiveles(svcOnly);
+      if (nivelesOnly.length > 1) {
+        const lines = nivelesOnly.slice(0, 6).map((n, i) => {
+          const row = svcOnly.find(
+            (r) => normalizeForMatch(extractNivelLabel(r)) === normalizeForMatch(n)
+          );
+          const incl = row ? getInclusionFromRow(row) : null;
+          const price =
+            row?.tienePrecio && row.precio
+              ? ` — ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}`
+              : "";
+          const inclTxt = incl ? `: ${incl.slice(0, 120)}` : "";
+          return `${i + 1}. *${n}*${price}${inclTxt}`;
+        });
+        return withCatalogOfferQuestion(
+          `Para *${svc}* manejamos estos niveles:\n${lines.join("\n")}\n\n¿Cuál nivel prefieres?`
+        );
+      }
+    }
     const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
     const inclusionBlock = buildInclusionBlock(rowsForChoice, 180).trim();
     const detail = inclusionBlock

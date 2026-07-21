@@ -75,6 +75,7 @@ import {
   clientMentionsItalianTheme,
   isAmbiguousShortNumber,
   isCatalogLevelSelection,
+  extractCatalogNivelFromText,
   clientDeclinesMoreServices,
   clientMentionsEntertainment,
   clientMentionsPistaTarima,
@@ -99,6 +100,7 @@ import {
   parseSpaceDimensions,
   parseFechaFromText,
   parseTipoEventoFromText,
+  parseInvitadosFromText,
   parseServicesFromText,
   mergeServiceRequirements,
   buildMultiServiceAck,
@@ -1377,8 +1379,23 @@ export function buildOpeningAcknowledgment(
     const colonMatch = userText.match(
       /(?:me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
     );
-    if (colonMatch) {
-      const serviceChunk = colonMatch[1]!.trim().replace(/\.$/, "");
+    // A14934: cotizar "Barra Yucateca" en CDMX (sin dos puntos).
+    const quotedMatch = userText.match(
+      /(?:me\s+interesa\s+)?cotizar\s*[“"']([^”"']+)[”"']/i
+    );
+    const enZonaMatch = userText.match(
+      /(?:me\s+interesa\s+)?cotizar\s+(.+?)\s+en\s+(?:ciudad\s+de\s+m[eé]xico|cdmx|[A-Za-zÁÉÍÓÚáéíóúñÑ])/i
+    );
+    const serviceChunk = (
+      colonMatch?.[1] ??
+      quotedMatch?.[1] ??
+      enZonaMatch?.[1] ??
+      ""
+    )
+      .trim()
+      .replace(/\.$/, "")
+      .replace(/^["'“”]+|["'“”]+$/g, "");
+    if (serviceChunk) {
       const services = parseServicesFromText(serviceChunk);
       if (services.length >= 2) {
         return `Vi que necesitas ${formatServicesList(services)}. Te cotizamos todo eso.`;
@@ -2710,6 +2727,34 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   syncFilledFromExtracted(filledSet, extracted);
 
+  // A14934: "40" tras pregunta de invitados — sincronizar antes de que GPT re-pregunte.
+  {
+    const lastAsst = [...presHistory]
+      .reverse()
+      .find((m) => m.role === "assistant" && typeof m.content === "string");
+    const askedNow = lastAsst
+      ? inferLucyAskedField(lastAsst.content as string)
+      : null;
+    if (
+      currentMessage &&
+      !filledSet.has("Número de invitados") &&
+      !extracted.num_invitados &&
+      (askedNow === "invitados" ||
+        (lastAsst &&
+          /invitados|cu[aá]ntos|asistir[aá]n/i.test(lastAsst.content as string)))
+    ) {
+      const inv = parseInvitadosFromText(currentMessage);
+      if (inv) {
+        const n = parseInt(inv, 10);
+        if (Number.isFinite(n) && n >= 1) {
+          extracted.num_invitados = n;
+          filledSet.add("Número de invitados");
+          log?.info({ entityId, n }, "GUARD: invitados desde mensaje actual");
+        }
+      }
+    }
+  }
+
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
   // por redirect a zona ni anti-repeat de embudo.
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
@@ -3058,24 +3103,47 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : null
     )
   ) {
-    const nivelMap: Record<string, string> = {
-      "1": "basica",
-      "2": "tradicional",
-      "3": "premium",
-      basica: "basica",
-      básica: "basica",
-      tradicional: "tradicional",
-      premium: "premium",
-    };
-    const key = currentMessage!.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-    const nivel = nivelMap[key] ?? key;
-    const hint = extracted.requerimientos_evento ?? "barra de bebidas";
+    // A14934: mensaje compuesto (correo + servicio + nivel) — no usar el texto entero como nivel.
+    const nivel =
+      extractCatalogNivelFromText(currentMessage) ??
+      currentMessage!.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const emailNow = filterClientEmail(parseCorreoFromText(currentMessage ?? ""));
+    if (emailNow && looksLikeValidClientEmail(emailNow)) {
+      filledSet.add("Correo electrónico");
+      extracted.correo = emailNow;
+    }
+    const svcNow =
+      findMentionedService(currentMessage ?? "") ||
+      extracted.requerimientos_evento?.trim() ||
+      null;
+    if (svcNow) {
+      filledSet.add("Requerimientos o servicios");
+      const withNivel = `${svcNow} (nivel ${nivel})`;
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, withNivel, 6);
+      if (merged) extracted.requerimientos_evento = merged;
+    }
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos"
+        ? buildNaturalQuestion(pending, { ...ctx, filledSet })
+        : null;
+    const ackParts = [
+      display ? `Perfecto, ${display}.` : "Perfecto.",
+      `Anoto nivel *${nivel}*${svcNow ? ` para ${svcNow}` : ""}${
+        emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""
+      }.`,
+    ];
+    // Si el Sheet tiene detalle del nivel, úsalo; si no, ack + siguiente dato del embudo.
+    const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
     const detail = buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
-    mensaje =
-      detail ??
-      `Perfecto, anoto *${nivel}* para tu cotización. Nuestro equipo te confirma el detalle y precio.`;
+    if (detail && /incluye|\$\s*\d|nivel/i.test(detail) && !(emailNow && nextQ)) {
+      mensaje = detail;
+    } else {
+      mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
+    }
     appliedDirectReply = true;
-    log?.info({ entityId, nivel }, "GUARD: selección de nivel de catálogo");
+    log?.info({ entityId, nivel, hasEmail: !!emailNow }, "GUARD: selección de nivel de catálogo");
   } else if (isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     mensaje = "¿Te refieres a 5 invitados o al día 5 del mes?";
     appliedDirectReply = true;

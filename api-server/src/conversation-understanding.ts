@@ -51,6 +51,12 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Banquete Navideño", /\bnavide[nñ]o\b/i],
   ["Banquete Mexicano", /\b(banquete\s+mexicano|mexicano)\b/i],
   ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
+  // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
+  ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
+  ["Barra Americana", /\bbarra\s+americana\b/i],
+  ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b/i],
+  ["Barra de paninis", /\bbarra\s+de\s+paninis?\b/i],
+  ["Barra de Crepas", /\bbarra\s+de\s+crepas?\b/i],
   ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?)\b/i],
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
   ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
@@ -276,6 +282,22 @@ export interface AmbiguousNumberContext {
 }
 
 /** Cliente elige nivel de barra/catálogo (1, 2, 3, básica, tradicional, premium). */
+export function extractCatalogNivelFromText(text: string | null | undefined): string | null {
+  const t = text?.trim().toLowerCase() ?? "";
+  if (!t) return null;
+  const m =
+    t.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) ||
+    t.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) ||
+    t.match(/^(1|2|3|4)$/);
+  if (!m) return null;
+  const raw = (m[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (raw === "1" || raw.startsWith("basic")) return "basica";
+  if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
+  if (raw === "3" || raw.startsWith("premium")) return "premium";
+  if (raw === "4" || /solo\s*alimento/.test(raw)) return "solo alimentos";
+  return null;
+}
+
 export function isCatalogLevelSelection(
   text: string | null | undefined,
   lastAssistantText?: string | null
@@ -284,11 +306,13 @@ export function isCatalogLevelSelection(
   if (!t) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
   const askedNivel =
-    /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sica.*tradicional.*premium|1\.\s*\*?b[aá]sica/i.test(
+    /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles/i.test(
       last
     );
   if (!askedNivel) return false;
-  return /^(b[aá]sica|tradicional|premium|[123])$/.test(t);
+  // Mensaje solo nivel, o compuesto con correo/servicio (A14934).
+  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1234])$/i.test(t)) return true;
+  return !!extractCatalogNivelFromText(t);
 }
 
 /** Número suelto ambiguo — solo dígitos 1-9 (día vs pocos invitados), nunca 10+. */
@@ -350,20 +374,35 @@ export function parseWebLeadBrief(text: string): WebLeadBrief | null {
     else if (!tipo) result.requerimientos_evento = chunk;
   }
 
-  // Form corto: "me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos"
-  // (sin "evento:" / "Sería el…") — antes devolvía null y Lucy saltaba al embudo sin oferta.
+  // Form corto: "me interesa cotizar: Barra de Sushi…" / cotizar "Barra Yucateca" en CDMX (A14934).
   if (!result.requerimientos_evento) {
     const colonSvc = t.match(/me\s+interesa\s+cotizar\s*:\s*([^.\n]+)/i);
-    if (colonSvc?.[1]) {
-      const raw = colonSvc[1].trim();
+    const quotedSvc = t.match(
+      /(?:me\s+interesa\s+)?cotizar\s*[“"']([^”"']+)[”"']/i
+    );
+    const enSvc = t.match(
+      /(?:me\s+interesa\s+)?cotizar\s+(.+?)\s+en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]/i
+    );
+    const raw = (colonSvc?.[1] ?? quotedSvc?.[1] ?? enSvc?.[1] ?? "").trim();
+    if (raw) {
       const chunk = raw
         .replace(/\s+para\s+eventos?(?:\s+\w+)*\s*$/i, "")
+        .replace(/^["'“”]+|["'“”]+$/g, "")
         .trim();
       const services = parseServicesFromText(chunk || raw);
       if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
       else if (chunk) result.requerimientos_evento = chunk;
       const tipo = parseTipoEventoFromText(raw);
       if (tipo && !result.tipo_evento) result.tipo_evento = tipo;
+    }
+  }
+
+  // Zona: "… en Ciudad de México para mi evento"
+  if (!result.direccion_evento) {
+    const enZona = t.match(/\ben\s+((?:Ciudad\s+de\s+)?M[eé]xico|CDMX|[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ\s.-]{2,40})(?:\s+para\s+mi\s+evento)?/i);
+    if (enZona?.[1]) {
+      const z = parseZonaFromText(enZona[1]) ?? enZona[1].trim();
+      if (z && isUsableDireccionEvento(z)) result.direccion_evento = z;
     }
   }
 
@@ -2059,6 +2098,17 @@ export function captureContextualAnswer(
   }
 
   if (!filledSet.has("Número de invitados") && asked === "invitados") {
+    const inv = parseInvitadosFromText(msg);
+    if (inv) captures.push({ label: "Número de invitados", value: inv });
+  }
+  // A14934: "40" tras "¿cuántos invitados…?" aunque inferLucyAskedField priorice otro campo.
+  if (
+    !filledSet.has("Número de invitados") &&
+    asked !== "invitados" &&
+    lastLucy &&
+    /invitados|cu[aá]ntos\s+invit|asistir[aá]n/i.test(lastLucy) &&
+    /^\d{2,4}$/.test(msg)
+  ) {
     const inv = parseInvitadosFromText(msg);
     if (inv) captures.push({ label: "Número de invitados", value: inv });
   }

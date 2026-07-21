@@ -395,6 +395,12 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Banquete Navide\xF1o", /\bnavide[nñ]o\b/i],
   ["Banquete Mexicano", /\b(banquete\s+mexicano|mexicano)\b/i],
   ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
+  // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
+  ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
+  ["Barra Americana", /\bbarra\s+americana\b/i],
+  ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b/i],
+  ["Barra de paninis", /\bbarra\s+de\s+paninis?\b/i],
+  ["Barra de Crepas", /\bbarra\s+de\s+crepas?\b/i],
   ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?)\b/i],
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
   ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
@@ -559,15 +565,28 @@ function clientAsksForRecommendations(message) {
   const t = message.toLowerCase();
   return /recomendaciones?|recomiendas?/i.test(t) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
 }
+function extractCatalogNivelFromText(text) {
+  const t = text?.trim().toLowerCase() ?? "";
+  if (!t) return null;
+  const m = t.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t.match(/^(1|2|3|4)$/);
+  if (!m) return null;
+  const raw = (m[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (raw === "1" || raw.startsWith("basic")) return "basica";
+  if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
+  if (raw === "3" || raw.startsWith("premium")) return "premium";
+  if (raw === "4" || /solo\s*alimento/.test(raw)) return "solo alimentos";
+  return null;
+}
 function isCatalogLevelSelection(text, lastAssistantText) {
   const t = text?.trim().toLowerCase() ?? "";
   if (!t) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
-  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sica.*tradicional.*premium|1\.\s*\*?b[aá]sica/i.test(
+  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles/i.test(
     last
   );
   if (!askedNivel) return false;
-  return /^(b[aá]sica|tradicional|premium|[123])$/.test(t);
+  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1234])$/i.test(t)) return true;
+  return !!extractCatalogNivelFromText(t);
 }
 function isAmbiguousShortNumber(text, ctx) {
   const t = text?.trim() ?? "";
@@ -608,14 +627,27 @@ function parseWebLeadBrief(text) {
   }
   if (!result.requerimientos_evento) {
     const colonSvc = t.match(/me\s+interesa\s+cotizar\s*:\s*([^.\n]+)/i);
-    if (colonSvc?.[1]) {
-      const raw = colonSvc[1].trim();
-      const chunk = raw.replace(/\s+para\s+eventos?(?:\s+\w+)*\s*$/i, "").trim();
+    const quotedSvc = t.match(
+      /(?:me\s+interesa\s+)?cotizar\s*[“"']([^”"']+)[”"']/i
+    );
+    const enSvc = t.match(
+      /(?:me\s+interesa\s+)?cotizar\s+(.+?)\s+en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]/i
+    );
+    const raw = (colonSvc?.[1] ?? quotedSvc?.[1] ?? enSvc?.[1] ?? "").trim();
+    if (raw) {
+      const chunk = raw.replace(/\s+para\s+eventos?(?:\s+\w+)*\s*$/i, "").replace(/^["'“”]+|["'“”]+$/g, "").trim();
       const services = parseServicesFromText(chunk || raw);
       if (services.length) result.requerimientos_evento = services.slice(0, 6).join(", ");
       else if (chunk) result.requerimientos_evento = chunk;
       const tipo = parseTipoEventoFromText(raw);
       if (tipo && !result.tipo_evento) result.tipo_evento = tipo;
+    }
+  }
+  if (!result.direccion_evento) {
+    const enZona = t.match(/\ben\s+((?:Ciudad\s+de\s+)?M[eé]xico|CDMX|[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ\s.-]{2,40})(?:\s+para\s+mi\s+evento)?/i);
+    if (enZona?.[1]) {
+      const z = parseZonaFromText(enZona[1]) ?? enZona[1].trim();
+      if (z && isUsableDireccionEvento(z)) result.direccion_evento = z;
     }
   }
   const seriaMatch = t.match(/ser[ií]a\s+(?:el\s+)?([^,.\n]+?)\s+en\s+([^,.\n]+?)(?:\.|,|\s+para\s+)/i);
@@ -1656,6 +1688,10 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
     }
   }
   if (!filledSet.has("N\xFAmero de invitados") && asked === "invitados") {
+    const inv = parseInvitadosFromText(msg);
+    if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
+  }
+  if (!filledSet.has("N\xFAmero de invitados") && asked !== "invitados" && lastLucy && /invitados|cu[aá]ntos\s+invit|asistir[aá]n/i.test(lastLucy) && /^\d{2,4}$/.test(msg)) {
     const inv = parseInvitadosFromText(msg);
     if (inv) captures.push({ label: "N\xFAmero de invitados", value: inv });
   }
@@ -3652,6 +3688,8 @@ function catalogKeywordsFromQuery(query) {
   if (/\bargentina\b/.test(q) && keys.includes("parrillada")) keys.push("argentina");
   if (/\bbanquete\b/.test(q)) return ["banquete"];
   if (/\btaquiza\b/.test(q)) return ["taquiza"];
+  if (/\byucateca\b/.test(q)) return ["yucateca"];
+  if (/\bamericana\b/.test(q) && /\bbarra\b/.test(q)) return ["americana"];
   if (keys.length) return keys;
   const requested = parsePrimaryService(query);
   if (!requested?.trim()) return [];
@@ -3801,7 +3839,7 @@ function resolveCatalogQuery(query) {
   if (/\bbanquete\b/.test(q)) {
     return { kind: "service", serviceName: "Banquete", rows: matchedRows };
   }
-  if (/\bbarra\b/.test(q) && !/\bbarra de bebida/.test(q)) {
+  if (/\bbarra\b/.test(q) && !/\bbarra de bebida/.test(q) && !/\b(yucateca|americana|crepas?|mariscos?|paninis?|pastas?|sushi|poke|caf[eé])\b/.test(q)) {
     return { kind: "service", serviceName: "Barra", rows: matchedRows };
   }
   return { kind: "service", serviceName: servicios[0], rows: matchedRows };
@@ -3831,6 +3869,29 @@ function buildServiceNivelChoiceAnswer(result) {
     return buildExactRowDetailAnswer(row);
   }
   if (uniqueServicios(result.rows).length > 1) {
+    const svcOnly = result.rows.filter(
+      (r) => normalizeForMatch(r.servicio) === normalizeForMatch(svc) || rowMatchesServiceLabel(r, svc)
+    );
+    if (svcOnly.length && uniqueServicios(svcOnly).length === 1) {
+      const nivelesOnly = uniqueNiveles(svcOnly);
+      if (nivelesOnly.length > 1) {
+        const lines2 = nivelesOnly.slice(0, 6).map((n, i) => {
+          const row = svcOnly.find(
+            (r) => normalizeForMatch(extractNivelLabel(r)) === normalizeForMatch(n)
+          );
+          const incl = row ? getInclusionFromRow(row) : null;
+          const price = row?.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+          const inclTxt = incl ? `: ${incl.slice(0, 120)}` : "";
+          return `${i + 1}. *${n}*${price}${inclTxt}`;
+        });
+        return withCatalogOfferQuestion(
+          `Para *${svc}* manejamos estos niveles:
+${lines2.join("\n")}
+
+\xBFCu\xE1l nivel prefieres?`
+        );
+      }
+    }
     const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
     const inclusionBlock = buildInclusionBlock(rowsForChoice, 180).trim();
     const detail = inclusionBlock ? `${inclusionBlock}
@@ -15836,8 +15897,14 @@ function buildOpeningAcknowledgment(history, currentMessage) {
     const colonMatch = userText.match(
       /(?:me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
     );
-    if (colonMatch) {
-      const serviceChunk = colonMatch[1].trim().replace(/\.$/, "");
+    const quotedMatch = userText.match(
+      /(?:me\s+interesa\s+)?cotizar\s*[“"']([^”"']+)[”"']/i
+    );
+    const enZonaMatch = userText.match(
+      /(?:me\s+interesa\s+)?cotizar\s+(.+?)\s+en\s+(?:ciudad\s+de\s+m[eé]xico|cdmx|[A-Za-zÁÉÍÓÚáéíóúñÑ])/i
+    );
+    const serviceChunk = (colonMatch?.[1] ?? quotedMatch?.[1] ?? enZonaMatch?.[1] ?? "").trim().replace(/\.$/, "").replace(/^["'“”]+|["'“”]+$/g, "");
+    if (serviceChunk) {
       const services = parseServicesFromText(serviceChunk);
       if (services.length >= 2) {
         return `Vi que necesitas ${formatServicesList(services)}. Te cotizamos todo eso.`;
@@ -16636,6 +16703,21 @@ function applyLucyMessageGuards(input) {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  {
+    const lastAsst = [...presHistory].reverse().find((m) => m.role === "assistant" && typeof m.content === "string");
+    const askedNow = lastAsst ? inferLucyAskedField(lastAsst.content) : null;
+    if (currentMessage && !filledSet.has("N\xFAmero de invitados") && !extracted.num_invitados && (askedNow === "invitados" || lastAsst && /invitados|cu[aá]ntos|asistir[aá]n/i.test(lastAsst.content))) {
+      const inv = parseInvitadosFromText(currentMessage);
+      if (inv) {
+        const n = parseInt(inv, 10);
+        if (Number.isFinite(n) && n >= 1) {
+          extracted.num_invitados = n;
+          filledSet.add("N\xFAmero de invitados");
+          log?.info({ entityId, n }, "GUARD: invitados desde mensaje actual");
+        }
+      }
+    }
+  }
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     const serviceHint = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
     const inclusionAnswer = resolveCatalogInclusionReply(
@@ -16846,22 +16928,35 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   )) {
-    const nivelMap = {
-      "1": "basica",
-      "2": "tradicional",
-      "3": "premium",
-      basica: "basica",
-      b\u00E1sica: "basica",
-      tradicional: "tradicional",
-      premium: "premium"
-    };
-    const key = currentMessage.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-    const nivel = nivelMap[key] ?? key;
-    const hint = extracted.requerimientos_evento ?? "barra de bebidas";
+    const nivel = extractCatalogNivelFromText(currentMessage) ?? currentMessage.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const emailNow = filterClientEmail(parseCorreoFromText(currentMessage ?? ""));
+    if (emailNow && looksLikeValidClientEmail(emailNow)) {
+      filledSet.add("Correo electr\xF3nico");
+      extracted.correo = emailNow;
+    }
+    const svcNow = findMentionedService(currentMessage ?? "") || extracted.requerimientos_evento?.trim() || null;
+    if (svcNow) {
+      filledSet.add("Requerimientos o servicios");
+      const withNivel = `${svcNow} (nivel ${nivel})`;
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, withNivel, 6);
+      if (merged) extracted.requerimientos_evento = merged;
+    }
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, { ...ctx, filledSet }) : null;
+    const ackParts = [
+      display ? `Perfecto, ${display}.` : "Perfecto.",
+      `Anoto nivel *${nivel}*${svcNow ? ` para ${svcNow}` : ""}${emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""}.`
+    ];
+    const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
     const detail = buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
-    mensaje = detail ?? `Perfecto, anoto *${nivel}* para tu cotizaci\xF3n. Nuestro equipo te confirma el detalle y precio.`;
+    if (detail && /incluye|\$\s*\d|nivel/i.test(detail) && !(emailNow && nextQ)) {
+      mensaje = detail;
+    } else {
+      mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
+    }
     appliedDirectReply = true;
-    log?.info({ entityId, nivel }, "GUARD: selecci\xF3n de nivel de cat\xE1logo");
+    log?.info({ entityId, nivel, hasEmail: !!emailNow }, "GUARD: selecci\xF3n de nivel de cat\xE1logo");
   } else if (isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     mensaje = "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?";
     appliedDirectReply = true;
@@ -18026,6 +18121,62 @@ function questionLines(text) {
 function detectAskedFields(text) {
   return FIELD_ORDER2.filter((f) => mensajeAsksForField(text, f));
 }
+function syncFilledFromCurrentAnswer(field, message, filled, extracted, inputExtracted) {
+  if (!field || !message?.trim()) return;
+  const t = message.trim();
+  switch (field) {
+    case "invitados": {
+      const inv = parseInvitadosFromText(t);
+      if (!inv) return;
+      const n = parseInt(inv, 10);
+      if (!Number.isFinite(n)) return;
+      filled.add("N\xFAmero de invitados");
+      extracted.num_invitados = n;
+      if (inputExtracted) inputExtracted.num_invitados = n;
+      return;
+    }
+    case "correo": {
+      const email = filterClientEmail(parseCorreoFromText(t));
+      if (!email || !looksLikeValidClientEmail(email)) return;
+      filled.add("Correo electr\xF3nico");
+      extracted.correo = email;
+      if (inputExtracted) inputExtracted.correo = email;
+      return;
+    }
+    case "tipo_evento": {
+      const tipo = parseTipoEventoFromText(t);
+      if (!tipo) return;
+      filled.add("Tipo de evento");
+      extracted.tipo_evento = tipo;
+      if (inputExtracted) inputExtracted.tipo_evento = tipo;
+      return;
+    }
+    case "fecha": {
+      const fecha = parseFechaFromText(t);
+      if (!fecha) return;
+      filled.add("Fecha y horario");
+      extracted.fecha_horario = fecha;
+      if (inputExtracted) inputExtracted.fecha_horario = fecha;
+      return;
+    }
+    case "presupuesto": {
+      const pres = parsePresupuestoFromText(t, { askedField: "presupuesto" });
+      if (!pres) return;
+      filled.add("Presupuesto (MXN)");
+      return;
+    }
+    case "zona": {
+      const zona = parseZonaFromText(t);
+      if (!zona || !isUsableDireccionEvento(zona)) return;
+      filled.add("Lugar/direcci\xF3n del evento");
+      extracted.direccion_evento = zona;
+      if (inputExtracted) inputExtracted.direccion_evento = zona;
+      return;
+    }
+    default:
+      return;
+  }
+}
 function stripRepeatedQuestionLines(mensaje, previous) {
   const lines = mensaje.split("\n").map((l) => l.trim()).filter(Boolean);
   if (lines.length <= 1) return mensaje.trim();
@@ -18093,6 +18244,23 @@ function applyLucyGlobalAntiRepetition(input) {
   const cierre = !!input.cierreYaEnviado;
   const nombre = input.clientName ?? extracted.nombre;
   const display = firstName(nombre);
+  const lastAsked = lastPrev ? inferLucyAskedField(lastPrev) ?? detectAskedFields(lastPrev)[0] ?? null : null;
+  syncFilledFromCurrentAnswer(
+    lastAsked,
+    input.currentMessage,
+    filled,
+    extracted,
+    input.extracted
+  );
+  if (input.currentMessage && /^\d{2,4}$/.test(input.currentMessage.trim()) && lastPrev && /invitados|cu[aá]ntos|asistir[aá]n|personas/i.test(lastPrev) && !filled.has("N\xFAmero de invitados")) {
+    syncFilledFromCurrentAnswer(
+      "invitados",
+      input.currentMessage,
+      filled,
+      extracted,
+      input.extracted
+    );
+  }
   const clientAskedInclusion = /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(
     input.currentMessage ?? ""
   );
@@ -22564,6 +22732,103 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       "Hola, me gustar\xEDa cotizar salas o periqueras para mi evento."
     );
     assert.ok(/periqueras?|mobiliario|salas/i.test(opening), opening);
+  });
+  await test("86. Brenda A14934 \u2014 Barra Yucateca, nivel+correo, 40 invitados sin Sigo aqu\xED", () => {
+    const lead = 'Hola, me interesa cotizar "Barra Yucateca" en Ciudad de M\xE9xico para mi evento.';
+    const brief = parseWebLeadBrief(lead);
+    assert.ok(brief, "debe parsear lead web sin dos puntos");
+    assert.ok(
+      /yucateca/i.test(brief.requerimientos_evento ?? ""),
+      String(brief?.requerimientos_evento)
+    );
+    assert.ok(
+      /m[eé]xico|cdmx/i.test(brief.direccion_evento ?? ""),
+      String(brief?.direccion_evento)
+    );
+    assert.ok(parseServicesFromText(lead).includes("Barra Yucateca"));
+    const opening = buildOpeningAcknowledgment([], lead);
+    assert.ok(/Barra Yucateca/i.test(opening), opening);
+    assert.ok(!/Vi los datos de tu evento/i.test(opening), opening);
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Barra Yucateca","Basico","$350.00","$5,000.00","TRUE","Cochinita, panuchos"',
+      '"Barra Yucateca","Tradicional","$450.00","$6,500.00","TRUE","Cochinita, panuchos, sopa de lima"',
+      '"Barra Americana","Basico","$300.00","$4,500.00","TRUE","Hamburguesas"',
+      '"Barra de Crepas","Basico","$280.00","$4,000.00","TRUE","Crepas dulces"',
+      '"Barra de paninis","Basico","$260.00","$3,800.00","TRUE","Paninis"',
+      '"Barra de mariscos","Basico","$400.00","$6,000.00","TRUE","Mariscos"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const yucDetail = buildCatalogServiceDetailAnswer("Barra Yucateca");
+    assert.ok(yucDetail && /yucateca/i.test(yucDetail), yucDetail ?? "null");
+    assert.ok(
+      !/americana|crepas|paninis|mariscos/i.test(yucDetail),
+      `no dump de otras barras: ${yucDetail.slice(0, 300)}`
+    );
+    assert.ok(/nivel|Basico|Tradicional/i.test(yucDetail), yucDetail.slice(0, 300));
+    const nivelAsk = "Manejamos *Barra Yucateca* en varias opciones. Niveles disponibles: *Basico*, *Tradicional*. \xBFCu\xE1l variante y nivel prefieres?\n\n\xBFa qu\xE9 correo te lo env\xEDo?";
+    const compound = "beom93@gmail.com\nBarra yucateca\nNivel b\xE1sico";
+    assert.equal(extractCatalogNivelFromText(compound), "basica");
+    assert.ok(isCatalogLevelSelection(compound, nivelAsk));
+    const nivelGuard = runGuards({
+      aiResponse: "Perfecto. \xBFQu\xE9 tipo de evento es?",
+      extracted: emptyExtracted({
+        nombre: "Brenda Orozco",
+        requerimientos_evento: "Barra Yucateca",
+        direccion_evento: "Ciudad de M\xE9xico"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios", "Lugar/direcci\xF3n del evento"]),
+      readyForClosing: false,
+      currentMessage: compound,
+      history: [
+        { role: "user", content: lead },
+        { role: "assistant", content: "\xBFC\xF3mo te llamas?" },
+        { role: "user", content: "Brenda Orozco" },
+        { role: "assistant", content: nivelAsk }
+      ],
+      whatsappDisplayName: "Brenda Orozco"
+    });
+    assert.ok(/b[aá]sic/i.test(nivelGuard), `debe anotar nivel: ${nivelGuard.slice(0, 400)}`);
+    assert.ok(
+      /correo|tipo de evento|festejan|celebr/i.test(nivelGuard),
+      `debe seguir embudo: ${nivelGuard.slice(0, 400)}`
+    );
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje: "Excelente. \xBFCu\xE1ntos invitados asistir\xE1n a la boda civil?",
+      history: [
+        {
+          role: "assistant",
+          content: "Excelente, Brenda. \xBFCu\xE1ntos invitados asistir\xE1n a la boda civil?"
+        }
+      ],
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "Fecha y horario"
+      ]),
+      extracted: emptyExtracted({
+        nombre: "Brenda Orozco",
+        correo: "beom93@gmail.com",
+        tipo_evento: "boda",
+        requerimientos_evento: "Barra Yucateca",
+        direccion_evento: "Ciudad de M\xE9xico",
+        fecha_horario: "03 de agosto 12:30",
+        num_invitados: null
+      }),
+      currentMessage: "40",
+      clientName: "Brenda Orozco"
+    });
+    assert.ok(
+      !/Sigo aqu[ií]/i.test(anti.mensaje),
+      `no debe decir Sigo aqu\xED: ${anti.mensaje}`
+    );
+    assert.ok(
+      !mensajeAsksForField(anti.mensaje, "invitados") || /presupuesto|Perfecto|anotad/i.test(anti.mensaje),
+      anti.mensaje
+    );
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

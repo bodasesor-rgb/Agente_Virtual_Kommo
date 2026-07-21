@@ -48,6 +48,7 @@ import {
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
   isCatalogLevelSelection,
+  extractCatalogNivelFromText,
   clientNeedsEmergencyContact,
   isRichQuoteBrief,
   clientAsksToRereadBrief,
@@ -4780,6 +4781,115 @@ async function runAll(): Promise<void> {
       "Hola, me gustaría cotizar salas o periqueras para mi evento."
     );
     assert.ok(/periqueras?|mobiliario|salas/i.test(opening), opening);
+  });
+
+  await test("86. Brenda A14934 — Barra Yucateca, nivel+correo, 40 invitados sin Sigo aquí", () => {
+    const lead =
+      'Hola, me interesa cotizar "Barra Yucateca" en Ciudad de México para mi evento.';
+    const brief = parseWebLeadBrief(lead);
+    assert.ok(brief, "debe parsear lead web sin dos puntos");
+    assert.ok(
+      /yucateca/i.test(brief!.requerimientos_evento ?? ""),
+      String(brief?.requerimientos_evento)
+    );
+    assert.ok(
+      /m[eé]xico|cdmx/i.test(brief!.direccion_evento ?? ""),
+      String(brief?.direccion_evento)
+    );
+    assert.ok(parseServicesFromText(lead).includes("Barra Yucateca"));
+
+    const opening = buildOpeningAcknowledgment([], lead);
+    assert.ok(/Barra Yucateca/i.test(opening), opening);
+    assert.ok(!/Vi los datos de tu evento/i.test(opening), opening);
+
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Barra Yucateca","Basico","$350.00","$5,000.00","TRUE","Cochinita, panuchos"',
+      '"Barra Yucateca","Tradicional","$450.00","$6,500.00","TRUE","Cochinita, panuchos, sopa de lima"',
+      '"Barra Americana","Basico","$300.00","$4,500.00","TRUE","Hamburguesas"',
+      '"Barra de Crepas","Basico","$280.00","$4,000.00","TRUE","Crepas dulces"',
+      '"Barra de paninis","Basico","$260.00","$3,800.00","TRUE","Paninis"',
+      '"Barra de mariscos","Basico","$400.00","$6,000.00","TRUE","Mariscos"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const yucDetail = buildCatalogServiceDetailAnswer("Barra Yucateca");
+    assert.ok(yucDetail && /yucateca/i.test(yucDetail), yucDetail ?? "null");
+    assert.ok(
+      !/americana|crepas|paninis|mariscos/i.test(yucDetail!),
+      `no dump de otras barras: ${yucDetail!.slice(0, 300)}`
+    );
+    assert.ok(/nivel|Basico|Tradicional/i.test(yucDetail!), yucDetail!.slice(0, 300));
+
+    const nivelAsk =
+      "Manejamos *Barra Yucateca* en varias opciones. Niveles disponibles: *Basico*, *Tradicional*. ¿Cuál variante y nivel prefieres?\n\n¿a qué correo te lo envío?";
+    const compound =
+      "beom93@gmail.com\nBarra yucateca\nNivel básico";
+    assert.equal(extractCatalogNivelFromText(compound), "basica");
+    assert.ok(isCatalogLevelSelection(compound, nivelAsk));
+
+    const nivelGuard = runGuards({
+      aiResponse: "Perfecto. ¿Qué tipo de evento es?",
+      extracted: emptyExtracted({
+        nombre: "Brenda Orozco",
+        requerimientos_evento: "Barra Yucateca",
+        direccion_evento: "Ciudad de México",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios", "Lugar/dirección del evento"]),
+      readyForClosing: false,
+      currentMessage: compound,
+      history: [
+        { role: "user", content: lead },
+        { role: "assistant", content: "¿Cómo te llamas?" },
+        { role: "user", content: "Brenda Orozco" },
+        { role: "assistant", content: nivelAsk },
+      ],
+      whatsappDisplayName: "Brenda Orozco",
+    });
+    assert.ok(/b[aá]sic/i.test(nivelGuard), `debe anotar nivel: ${nivelGuard.slice(0, 400)}`);
+    assert.ok(
+      /correo|tipo de evento|festejan|celebr/i.test(nivelGuard),
+      `debe seguir embudo: ${nivelGuard.slice(0, 400)}`
+    );
+
+    // "40" tras pregunta de invitados → no "Sigo aquí"
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje: "Excelente. ¿Cuántos invitados asistirán a la boda civil?",
+      history: [
+        {
+          role: "assistant",
+          content: "Excelente, Brenda. ¿Cuántos invitados asistirán a la boda civil?",
+        },
+      ],
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+      ]),
+      extracted: emptyExtracted({
+        nombre: "Brenda Orozco",
+        correo: "beom93@gmail.com",
+        tipo_evento: "boda",
+        requerimientos_evento: "Barra Yucateca",
+        direccion_evento: "Ciudad de México",
+        fecha_horario: "03 de agosto 12:30",
+        num_invitados: null,
+      }),
+      currentMessage: "40",
+      clientName: "Brenda Orozco",
+    });
+    assert.ok(
+      !/Sigo aqu[ií]/i.test(anti.mensaje),
+      `no debe decir Sigo aquí: ${anti.mensaje}`
+    );
+    assert.ok(
+      !mensajeAsksForField(anti.mensaje, "invitados") ||
+        /presupuesto|Perfecto|anotad/i.test(anti.mensaje),
+      anti.mensaje
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
