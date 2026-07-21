@@ -48,7 +48,11 @@ function stripPresentationPrefixLocal(raw: string): string {
 
 /** Verbos de frase/pregunta — el mensaje no es un nombre propio. */
 const SENTENCE_VERB_PATTERN =
-  /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan)\b/i;
+  /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale)\b/i;
+
+/** Palabras de pregunta de precio/servicio que nunca son tokens de nombre (A14933). */
+const PRICE_OR_SERVICE_NAME_TOKEN =
+  /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
 
 /** Intención de cotización — no es el nombre del cliente ("Quiero hacer una cotización"). */
 export function isQuoteIntentMessage(text: string | null | undefined): boolean {
@@ -119,12 +123,20 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   // "Tienes Crepas Para Eventos" matcheaba como "nombre completo" (4 tokens).
   if (/\?/.test(t)) return true;
   if (SENTENCE_VERB_PATTERN.test(t)) return true;
+  // "Cuánto cuesta la renta de mesas…" / precio (A14933 Anylam).
+  if (
+    /\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran|sale)\b/i.test(t) ||
+    /\b(precio|costo|tarifa)\s+(de|para|por)\b/i.test(t) ||
+    /\bcu[aá]nto\s+cuesta\s+la\s+renta\b/i.test(t)
+  ) {
+    return true;
+  }
   if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
   if (isLikelyUbicacionNotNombre(t)) return true;
   if (COMPANY_OR_CHANNEL_PATTERN.test(t)) return true;
-  // Servicio del catálogo sin verbo ("crepas para eventos", "barra de sushi").
+  // Servicio del catálogo sin verbo ("crepas para eventos", "barra de sushi", mesas/periqueras).
   if (
-    /\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?)\b/i.test(
+    /\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge)\b/i.test(
       t
     ) &&
     !/^(soy|me\s+llamo)/i.test(t)
@@ -231,6 +243,14 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   const isPresentation = /^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
   // Frases de servicio/saludo (no presentación, no mashup reparable).
   if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
+    // A14933: preguntas de precio/renta NUNCA se "reparan" a nombre ("Cuánto Cuesta La Renta").
+    if (
+      /\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran)\b/i.test(raw) ||
+      /\b(precio|costo)\b.{0,20}\b(renta|mesa|silla|periquera)/i.test(raw) ||
+      PRICE_OR_SERVICE_NAME_TOKEN.test((raw.split(/\s+/)[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, ""))
+    ) {
+      return null;
+    }
     // A14924: "Lucy Llamo Nicole" tiene verbo pero se puede reparar quitando meta.
     const maybeRepair = stripPresentationPrefixLocal(raw)
       .replace(/^Lead:\s*/i, "")
@@ -245,19 +265,26 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
           !BOT_OR_META_NAME_TOKEN.test(letters) &&
           !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) &&
           !GREETING_NAME_PATTERN.test(letters) &&
-          !SENTENCE_VERB_PATTERN.test(letters)
+          !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) &&
+          !SENTENCE_VERB_PATTERN.test(letters) &&
+          !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters)
         );
       });
     if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
       return null;
     }
+    // Frase larga que deja 1–2 tokens basura ≠ nombre de persona.
+    if (maybeRepair.length <= 2 && raw.split(/\s+/).length >= 5) {
+      return null;
+    }
     // Continuar solo con tokens de persona reparados.
     const repaired = maybeRepair.slice(0, 4).join(" ");
     if (SENTENCE_VERB_PATTERN.test(repaired) || isLikelyNotPersonNameMessage(repaired)) return null;
+    if (PRICE_OR_SERVICE_NAME_TOKEN.test(maybeRepair[0] ?? "")) return null;
     return maybeRepair
       .slice(0, 4)
       .map((part) => {
-        const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+        const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
         return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
       })
       .join(" ");

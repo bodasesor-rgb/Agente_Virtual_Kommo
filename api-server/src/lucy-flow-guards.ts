@@ -31,6 +31,7 @@ import {
 } from "./tipoContacto.js";
 import {
   buildAlejandroPriceReply,
+  buildConsultativeNoPriceReply,
   clientAsksPrice,
   getPriceServiceLabel,
   mentionsListedPriceService,
@@ -1405,6 +1406,11 @@ export function buildOpeningAcknowledgment(
   }
   if (isGettingReadyContext(userText)) return "Te ayudo con el catering para el getting ready.";
   // (isVagueFoodTerm se evalúa más arriba, antes de "me interesa cotizar")
+  if (/\b(mesas?|sillas?|periqueras?|mobiliario|salas?\s*(lounge)?)\b/i.test(t)) {
+    if (/periqueras?/.test(t)) return "Te ayudo con la renta de periqueras y mesas tipo bar.";
+    if (/salas?/.test(t)) return "Te ayudo con salas lounge y mobiliario para tu evento.";
+    return "Te ayudo con la renta de mesas, sillas y mobiliario.";
+  }
   if (/banquete/.test(t)) {
     const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
     return inv
@@ -3299,10 +3305,33 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje — presentación Lucy + nombre (sin oferta)");
   } else if (
+    // A14933: precio ANTES de upsell mantelería / detalle mobiliario genérico.
+    !cierreYaEnviado &&
+    clientAsksPrice(currentMessage) &&
+    mentionsNoListedPriceService(currentMessage)
+  ) {
+    const priceReply =
+      buildConsultativeNoPriceReply(currentMessage) ||
+      buildAlejandroPriceReply(
+        findMentionedService(currentMessage) || "mobiliario",
+        currentMessage
+      );
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos" && !isFieldSatisfied("nombre", filledSet, extracted)
+        ? buildNaturalQuestion("nombre", ctx)
+        : pending && pending !== "requerimientos"
+          ? buildNaturalQuestion(pending, ctx)
+          : null;
+    mensaje = nextQ ? `${priceReply}\n\n${nextQ}` : priceReply;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: pregunta de precio mobiliario/periqueras — respuesta consultiva");
+  } else if (
     (justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) &&
     !cierreYaEnviado &&
     isFieldSatisfied("nombre", filledSet, extracted) &&
     !clientMentionsEntertainment(currentMessage) &&
+    !clientAsksPrice(currentMessage) &&
     buildSoftComplementOffer(extracted, presHistory, currentMessage)
   ) {
     const soft = buildSoftComplementOffer(extracted, presHistory, currentMessage)!;
@@ -3318,6 +3347,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: ubicación + pedir nombre");
   } else if (
     !cierreYaEnviado &&
+    !clientAsksPrice(currentMessage) &&
     buildMobiliarioRentDetailReply(currentMessage ?? "") &&
     needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)
   ) {
@@ -3326,6 +3356,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: mobiliario — detalle técnico + aclarar montado/entrega");
   } else if (
     !cierreYaEnviado &&
+    !clientAsksPrice(currentMessage) &&
     isFieldSatisfied("nombre", filledSet, extracted) &&
     buildMobiliarioRentDetailReply(currentMessage ?? "") &&
     !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)

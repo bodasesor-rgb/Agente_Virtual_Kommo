@@ -539,7 +539,13 @@ export function recoverClienteNombreFromHistory(
     const asked = inferLucyAskedField(lastAssistant);
     if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
       const raw = currentMessage.trim();
-      if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw)) {
+      if (
+        !isAffirmativeOnlyMessage(raw) &&
+        !isAmbiguousShortNumber(raw) &&
+        !isLikelyNotPersonNameMessage(raw) &&
+        !isServiceRelatedMessage(raw) &&
+        !isQuoteIntentMessage(raw)
+      ) {
         const candidato = stripNombrePresentationPrefix(raw);
         const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
         if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
@@ -1593,6 +1599,15 @@ export function parseFechaFromText(text: string): string | null {
     return trimmed.slice(0, 80);
   }
 
+  // A14933: "este sábado de 3 a 12" / "sí este sábado de 3 a 12"
+  const relativeDay = trimmed.match(
+    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+de\s+(\d{1,2})\s*(?:a|[-–]|hasta)\s*(\d{1,2}))?\b/i
+  );
+  if (relativeDay) {
+    const day = relativeDay[0]!.replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim();
+    return day.slice(0, 80);
+  }
+
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
     return trimmed.slice(0, 80);
   }
@@ -1852,6 +1867,28 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   }
   if (/\b\d+\s*(personas?|invitados?|pax)\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
     return null;
+  }
+  // A14933: "este sábado de 3 a 12" es horario, NO presupuesto "3 - 12 MXN".
+  if (
+    /\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana|esta?\s+semana|este\s+s[aá]bado|pr[oó]ximo)\b/i.test(
+      trimmed
+    ) &&
+    /\b\d{1,2}\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}\b/i.test(trimmed) &&
+    !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)
+  ) {
+    return null;
+  }
+  // Rango horario suelto "de 3 a 12" / "3 a 12" con horas típicas (0–24), sin señal de dinero.
+  {
+    const hourRange = trimmed.match(/\b(\d{1,2})\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*(\d{1,2})\b/i);
+    if (hourRange && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
+      const a = parseInt(hourRange[1]!, 10);
+      const b = parseInt(hourRange[2]!, 10);
+      if (a >= 0 && a <= 24 && b >= 0 && b <= 24 && a < 1000 && b < 1000) {
+        // Sin miles → casi seguro horario, no presupuesto en MXN.
+        if (a < 100 && b < 100) return null;
+      }
+    }
   }
 
   const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);

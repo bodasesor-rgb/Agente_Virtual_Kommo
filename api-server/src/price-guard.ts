@@ -5,7 +5,7 @@
 
 /** Servicios sin precio publicado — Alejandro cotiza (fallback estático). */
 const NO_LISTED_PRICE_PATTERN =
-  /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
+  /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|mesas?|sillas?|periqueras?|salas?\s*(lounge)?|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
 
 /** Servicios con precios en catálogo (fallback estático). */
 const LISTED_PRICE_PATTERN =
@@ -100,6 +100,11 @@ function detectServiceLabel(text: string): string {
   const t = text.toLowerCase();
   if (/\bdj\b/.test(t)) return "DJ";
   if (/iluminaci[oó]n/.test(t)) return "iluminación";
+  if (/periqueras?/.test(t)) return "periqueras";
+  if (/mesas?/.test(t) && /sillas?/.test(t)) return "mesas y sillas";
+  if (/mesas?/.test(t)) return "mesas";
+  if (/sillas?/.test(t)) return "sillas";
+  if (/salas?\s*lounge|lounge/.test(t)) return "salas lounge";
   if (/mobiliario/.test(t)) return "mobiliario";
   if (/carpas?|lonas?/.test(t)) return "carpas";
   if (/pantallas?/.test(t)) return "pantallas";
@@ -167,10 +172,17 @@ export function buildConsultativeNoPriceReply(message?: string): string | null {
       `${team} cotiza según las medidas. ¿Quieres que lo agregue a tu cotización? ¿Qué medidas aproximadas tiene el espacio?`
     );
   }
-  if (/mobiliario/.test(t)) {
+  if (/periqueras?|mesas?\s+(peque[nñ]as?|tipo\s+bar)|mesas?\s+periqueras?/.test(t)) {
     return (
-      `Manejamos mesas, sillas y mobiliario para eventos en distintos estilos. ` +
-      `${team} cotiza según cantidad y tipo. ¿Qué mobiliario necesitas?`
+      `Sí, rentamos periqueras y mesas tipo bar en distintos acabados. ` +
+      `El precio depende de cantidad, estilo y si llevan montaje en sitio. ` +
+      `${team} cotiza según lo que necesites. ¿Cuántas periqueras/mesas necesitas y para cuándo?`
+    );
+  }
+  if (/mesas?|sillas?|mobiliario|salas?\s*lounge/.test(t)) {
+    return (
+      `Manejamos mesas, sillas, periqueras y salas lounge para eventos en distintos estilos. ` +
+      `${team} cotiza según cantidad y tipo. ¿Qué mobiliario necesitas y para cuántas personas?`
     );
   }
   return null;

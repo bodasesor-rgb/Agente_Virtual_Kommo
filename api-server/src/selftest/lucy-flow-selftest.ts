@@ -68,7 +68,6 @@ import {
   lucyTextOverlapRatio,
 } from "../lucyOutboundAntiRepeat.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
-import { buildConsultativeNoPriceReply } from "../price-guard.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
@@ -125,12 +124,13 @@ import {
   isDryRequerimientosAsk,
   dedupeTransitionsInMessage,
   parseNombreFromCrmLines,
+  buildOpeningAcknowledgment,
 } from "../lucy-flow-guards.js";
 import {
   sanitizeKommoCrmLines,
   sanitizeExtractedFromExternal,
 } from "../lib/external-ingest-sanitize.js";
-import { buildConsultativeNoPriceReply, clientAsksPrice } from "../price-guard.js";
+import { buildConsultativeNoPriceReply, clientAsksPrice, mentionsNoListedPriceService } from "../price-guard.js";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -4728,6 +4728,58 @@ async function runAll(): Promise<void> {
         `team confirmation siempre con link: ${team}`
       );
     }
+  });
+
+  await test("85. Anylam A14933 — precio≠nombre, horario≠presupuesto, responde costo periqueras", () => {
+    const priceQ = "Cuánto cuesta la renta de mesas periqueras para 10 personas";
+    assert.ok(isLikelyNotPersonNameMessage(priceQ));
+    assert.equal(sanitizeCrmNombre(priceQ), null);
+    assert.equal(sanitizeCrmNombre("Cuánto Cuesta La Renta"), null);
+    assert.equal(shouldUpdateName("Cuánto Cuesta La Renta", "Anylam"), true);
+    assert.ok(clientAsksPrice(priceQ));
+    assert.ok(mentionsNoListedPriceService(priceQ));
+    assert.equal(parsePresupuestoFromText("Si este sábado de 3 a 12"), null);
+    assert.ok(parseFechaFromText("Si este sábado de 3 a 12"));
+
+    const recovered = recoverClienteNombreFromHistory(
+      [{ role: "assistant", content: "¿Cómo te llamas?" }],
+      priceQ
+    );
+    assert.equal(recovered, null);
+
+    const consult = buildConsultativeNoPriceReply(priceQ);
+    assert.ok(consult && /periqueras?/i.test(consult), consult ?? "");
+
+    const priceGuard = runGuards({
+      aiResponse: "Lo anoto (mesa y sillas). También mantelería. ¿A qué correo te lo envío?",
+      extracted: emptyExtracted({ nombre: null }),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage: priceQ,
+      history: [
+        { role: "user", content: "Hola, me gustaría cotizar salas o periqueras para mi evento." },
+        { role: "assistant", content: "Hola, soy Lucy. ¿Cómo te llamas?" },
+      ],
+      whatsappDisplayName: "Anylam",
+    });
+    assert.ok(
+      /periqueras?|mesas?\s+tipo\s+bar|cotiz/i.test(priceGuard),
+      `debe responder precio/consultivo: ${priceGuard.slice(0, 400)}`
+    );
+    assert.ok(
+      !/manteler[ií]a|mesa de postres/i.test(priceGuard),
+      `no upsell mantelería ante pregunta de precio: ${priceGuard.slice(0, 400)}`
+    );
+    assert.ok(
+      !/Cu[aá]nto Cuesta|Nombre.*Renta/i.test(priceGuard),
+      priceGuard.slice(0, 200)
+    );
+
+    const opening = buildOpeningAcknowledgment(
+      [],
+      "Hola, me gustaría cotizar salas o periqueras para mi evento."
+    );
+    assert.ok(/periqueras?|mobiliario|salas/i.test(opening), opening);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

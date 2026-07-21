@@ -33,7 +33,8 @@ function stripPresentationPrefixLocal(raw) {
   const m = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
   return (m?.[1] ?? raw).trim();
 }
-var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan)\b/i;
+var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale)\b/i;
+var PRICE_OR_SERVICE_NAME_TOKEN = /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
 function isQuoteIntentMessage(text) {
   const t = text?.trim() ?? "";
   if (!t) return false;
@@ -74,10 +75,13 @@ function isLikelyNotPersonNameMessage(text) {
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
   if (/\?/.test(t)) return true;
   if (SENTENCE_VERB_PATTERN.test(t)) return true;
+  if (/\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran|sale)\b/i.test(t) || /\b(precio|costo|tarifa)\s+(de|para|por)\b/i.test(t) || /\bcu[aá]nto\s+cuesta\s+la\s+renta\b/i.test(t)) {
+    return true;
+  }
   if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
   if (isLikelyUbicacionNotNombre(t)) return true;
   if (COMPANY_OR_CHANNEL_PATTERN.test(t)) return true;
-  if (/\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?)\b/i.test(
+  if (/\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge)\b/i.test(
     t
   ) && !/^(soy|me\s+llamo)/i.test(t)) {
     return true;
@@ -148,17 +152,24 @@ function sanitizeCrmNombre(name) {
   if (isLikelyUbicacionNotNombre(raw)) return null;
   const isPresentation = /^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
   if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
+    if (/\bcu[aá]nto\s+(cuesta|cuestan|vale|valen|cobran)\b/i.test(raw) || /\b(precio|costo)\b.{0,20}\b(renta|mesa|silla|periquera)/i.test(raw) || PRICE_OR_SERVICE_NAME_TOKEN.test((raw.split(/\s+/)[0] ?? "").replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, ""))) {
+      return null;
+    }
     const maybeRepair = stripPresentationPrefixLocal(raw).replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim().split(/\s+/).filter((part) => {
       const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
-      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters);
+      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters) && !/^(la|el|los|las|de|del|para|por|un|una|con|sin|tipo|bar)$/i.test(letters);
     });
     if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
       return null;
     }
+    if (maybeRepair.length <= 2 && raw.split(/\s+/).length >= 5) {
+      return null;
+    }
     const repaired = maybeRepair.slice(0, 4).join(" ");
     if (SENTENCE_VERB_PATTERN.test(repaired) || isLikelyNotPersonNameMessage(repaired)) return null;
+    if (PRICE_OR_SERVICE_NAME_TOKEN.test(maybeRepair[0] ?? "")) return null;
     return maybeRepair.slice(0, 4).map((part) => {
-      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+      const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
       return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
     }).join(" ");
   }
@@ -722,7 +733,7 @@ function recoverClienteNombreFromHistory(history, currentMessage) {
     const asked = inferLucyAskedField(lastAssistant);
     if (asked === "nombre" || LUCY_FIELD_ASK_PATTERNS.nombre.test(lastAssistant)) {
       const raw = currentMessage.trim();
-      if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw)) {
+      if (!isAffirmativeOnlyMessage(raw) && !isAmbiguousShortNumber(raw) && !isLikelyNotPersonNameMessage(raw) && !isServiceRelatedMessage(raw) && !isQuoteIntentMessage(raw)) {
         const candidato = stripNombrePresentationPrefix(raw);
         const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
         if (nombre && candidato.length < 60 && !/\?/.test(candidato) && !/@/.test(candidato)) {
@@ -1379,6 +1390,13 @@ function parseFechaFromText(text) {
   )) {
     return trimmed.slice(0, 80);
   }
+  const relativeDay = trimmed.match(
+    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+de\s+(\d{1,2})\s*(?:a|[-–]|hasta)\s*(\d{1,2}))?\b/i
+  );
+  if (relativeDay) {
+    const day = relativeDay[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim();
+    return day.slice(0, 80);
+  }
   if (MONTH_PATTERN.test(trimmed) && !/\b(pedregal|zona|ciudad|lugar|sal[oó]n|jard[ií]n)\b/i.test(trimmed)) {
     return trimmed.slice(0, 80);
   }
@@ -1517,6 +1535,21 @@ function parsePresupuestoFromText(text, opts) {
   }
   if (/\b\d+\s*(personas?|invitados?|pax)\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b)/i.test(trimmed)) {
     return null;
+  }
+  if (/\b(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|hoy|ma[nñ]ana|esta?\s+semana|este\s+s[aá]bado|pr[oó]ximo)\b/i.test(
+    trimmed
+  ) && /\b\d{1,2}\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*\d{1,2}\b/i.test(trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
+    return null;
+  }
+  {
+    const hourRange = trimmed.match(/\b(\d{1,2})\s*(?:[:.]\d{2})?\s*(?:a|[-–]|hasta)\s*(\d{1,2})\b/i);
+    if (hourRange && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
+      const a = parseInt(hourRange[1], 10);
+      const b = parseInt(hourRange[2], 10);
+      if (a >= 0 && a <= 24 && b >= 0 && b <= 24 && a < 1e3 && b < 1e3) {
+        if (a < 100 && b < 100) return null;
+      }
+    }
   }
   const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
   if (rangeMatch) {
@@ -1892,7 +1925,7 @@ function buildCompanyEmailConfirmReply() {
 }
 
 // src/price-guard.ts
-var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
+var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|mesas?|sillas?|periqueras?|salas?\s*(lounge)?|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
 var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
 var dynamicListedPattern = null;
 var dynamicNoListedPattern = null;
@@ -1947,6 +1980,11 @@ function detectServiceLabel(text) {
   const t = text.toLowerCase();
   if (/\bdj\b/.test(t)) return "DJ";
   if (/iluminaci[oó]n/.test(t)) return "iluminaci\xF3n";
+  if (/periqueras?/.test(t)) return "periqueras";
+  if (/mesas?/.test(t) && /sillas?/.test(t)) return "mesas y sillas";
+  if (/mesas?/.test(t)) return "mesas";
+  if (/sillas?/.test(t)) return "sillas";
+  if (/salas?\s*lounge|lounge/.test(t)) return "salas lounge";
   if (/mobiliario/.test(t)) return "mobiliario";
   if (/carpas?|lonas?/.test(t)) return "carpas";
   if (/pantallas?/.test(t)) return "pantallas";
@@ -1985,8 +2023,11 @@ function buildConsultativeNoPriceReply(message) {
   if (/pista(\s+de\s+baile)?|tarimas?\b/.test(t)) {
     return `S\xED, manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} cotiza seg\xFAn las medidas. \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
   }
-  if (/mobiliario/.test(t)) {
-    return `Manejamos mesas, sillas y mobiliario para eventos en distintos estilos. ${team} cotiza seg\xFAn cantidad y tipo. \xBFQu\xE9 mobiliario necesitas?`;
+  if (/periqueras?|mesas?\s+(peque[nñ]as?|tipo\s+bar)|mesas?\s+periqueras?/.test(t)) {
+    return `S\xED, rentamos periqueras y mesas tipo bar en distintos acabados. El precio depende de cantidad, estilo y si llevan montaje en sitio. ${team} cotiza seg\xFAn lo que necesites. \xBFCu\xE1ntas periqueras/mesas necesitas y para cu\xE1ndo?`;
+  }
+  if (/mesas?|sillas?|mobiliario|salas?\s*lounge/.test(t)) {
+    return `Manejamos mesas, sillas, periqueras y salas lounge para eventos en distintos estilos. ${team} cotiza seg\xFAn cantidad y tipo. \xBFQu\xE9 mobiliario necesitas y para cu\xE1ntas personas?`;
   }
   return null;
 }
@@ -15823,6 +15864,11 @@ function buildOpeningAcknowledgment(history, currentMessage) {
     return "Vi los datos de tu evento en la solicitud.";
   }
   if (isGettingReadyContext(userText)) return "Te ayudo con el catering para el getting ready.";
+  if (/\b(mesas?|sillas?|periqueras?|mobiliario|salas?\s*(lounge)?)\b/i.test(t)) {
+    if (/periqueras?/.test(t)) return "Te ayudo con la renta de periqueras y mesas tipo bar.";
+    if (/salas?/.test(t)) return "Te ayudo con salas lounge y mobiliario para tu evento.";
+    return "Te ayudo con la renta de mesas, sillas y mobiliario.";
+  }
   if (/banquete/.test(t)) {
     const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
     return inv ? `Te ayudo con el banquete para ${inv[1]} personas.` : "Con gusto te ayudo con informaci\xF3n de banquetes.";
@@ -16973,7 +17019,22 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: primer mensaje \u2014 presentaci\xF3n Lucy + nombre (sin oferta)");
-  } else if ((justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) && !cierreYaEnviado && isFieldSatisfied("nombre", filledSet, extracted) && !clientMentionsEntertainment(currentMessage) && buildSoftComplementOffer(extracted, presHistory, currentMessage)) {
+  } else if (
+    // A14933: precio ANTES de upsell mantelería / detalle mobiliario genérico.
+    !cierreYaEnviado && clientAsksPrice(currentMessage) && mentionsNoListedPriceService(currentMessage)
+  ) {
+    const priceReply = buildConsultativeNoPriceReply(currentMessage) || buildAlejandroPriceReply(
+      findMentionedService(currentMessage) || "mobiliario",
+      currentMessage
+    );
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending && pending !== "requerimientos" && !isFieldSatisfied("nombre", filledSet, extracted) ? buildNaturalQuestion("nombre", ctx) : pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
+    mensaje = nextQ ? `${priceReply}
+
+${nextQ}` : priceReply;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: pregunta de precio mobiliario/periqueras \u2014 respuesta consultiva");
+  } else if ((justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) && !cierreYaEnviado && isFieldSatisfied("nombre", filledSet, extracted) && !clientMentionsEntertainment(currentMessage) && !clientAsksPrice(currentMessage) && buildSoftComplementOffer(extracted, presHistory, currentMessage)) {
     const soft = buildSoftComplementOffer(extracted, presHistory, currentMessage);
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
@@ -16984,13 +17045,13 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
     mensaje = `${buildLocationAnswer()} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: ubicaci\xF3n + pedir nombre");
-  } else if (!cierreYaEnviado && buildMobiliarioRentDetailReply(currentMessage ?? "") && needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
     mensaje = `${buildMobiliarioRentDetailReply(currentMessage ?? "")}
 
 ${buildModoServicioClarificationQuestion()}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: mobiliario \u2014 detalle t\xE9cnico + aclarar montado/entrega");
-  } else if (!cierreYaEnviado && isFieldSatisfied("nombre", filledSet, extracted) && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && isFieldSatisfied("nombre", filledSet, extracted) && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
     const detail = buildMobiliarioRentDetailReply(currentMessage ?? "");
     const pending = getNextPendingField(extracted, filledSet);
     mensaje = pending && pending !== "requerimientos" ? `${detail}
@@ -22456,6 +22517,53 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         `team confirmation siempre con link: ${team}`
       );
     }
+  });
+  await test("85. Anylam A14933 \u2014 precio\u2260nombre, horario\u2260presupuesto, responde costo periqueras", () => {
+    const priceQ = "Cu\xE1nto cuesta la renta de mesas periqueras para 10 personas";
+    assert.ok(isLikelyNotPersonNameMessage(priceQ));
+    assert.equal(sanitizeCrmNombre(priceQ), null);
+    assert.equal(sanitizeCrmNombre("Cu\xE1nto Cuesta La Renta"), null);
+    assert.equal(shouldUpdateName("Cu\xE1nto Cuesta La Renta", "Anylam"), true);
+    assert.ok(clientAsksPrice(priceQ));
+    assert.ok(mentionsNoListedPriceService(priceQ));
+    assert.equal(parsePresupuestoFromText("Si este s\xE1bado de 3 a 12"), null);
+    assert.ok(parseFechaFromText("Si este s\xE1bado de 3 a 12"));
+    const recovered = recoverClienteNombreFromHistory(
+      [{ role: "assistant", content: "\xBFC\xF3mo te llamas?" }],
+      priceQ
+    );
+    assert.equal(recovered, null);
+    const consult = buildConsultativeNoPriceReply(priceQ);
+    assert.ok(consult && /periqueras?/i.test(consult), consult ?? "");
+    const priceGuard = runGuards({
+      aiResponse: "Lo anoto (mesa y sillas). Tambi\xE9n manteler\xEDa. \xBFA qu\xE9 correo te lo env\xEDo?",
+      extracted: emptyExtracted({ nombre: null }),
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: priceQ,
+      history: [
+        { role: "user", content: "Hola, me gustar\xEDa cotizar salas o periqueras para mi evento." },
+        { role: "assistant", content: "Hola, soy Lucy. \xBFC\xF3mo te llamas?" }
+      ],
+      whatsappDisplayName: "Anylam"
+    });
+    assert.ok(
+      /periqueras?|mesas?\s+tipo\s+bar|cotiz/i.test(priceGuard),
+      `debe responder precio/consultivo: ${priceGuard.slice(0, 400)}`
+    );
+    assert.ok(
+      !/manteler[ií]a|mesa de postres/i.test(priceGuard),
+      `no upsell manteler\xEDa ante pregunta de precio: ${priceGuard.slice(0, 400)}`
+    );
+    assert.ok(
+      !/Cu[aá]nto Cuesta|Nombre.*Renta/i.test(priceGuard),
+      priceGuard.slice(0, 200)
+    );
+    const opening = buildOpeningAcknowledgment(
+      [],
+      "Hola, me gustar\xEDa cotizar salas o periqueras para mi evento."
+    );
+    assert.ok(/periqueras?|mobiliario|salas/i.test(opening), opening);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
