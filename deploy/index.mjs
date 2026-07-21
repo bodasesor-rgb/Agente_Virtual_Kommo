@@ -79861,6 +79861,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["M\xF3cteles", /\bm[oó]cteles?\b/i],
   ["Canap\xE9s", /\b(canap[eé]s?|bocadillos?)\b/i],
   // Compuesto "barra de pastas y pizzas" → ambos servicios (antes solo capturaba Pizzas).
+  ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
   ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
   ["Pastas", /\bpastas?\b/i],
   ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
@@ -80182,8 +80183,12 @@ function clientAsksLocation(message) {
 }
 function clientMentionsItalianTheme(message) {
   if (!message?.trim()) return false;
+  const t = message.trim();
+  if (/\bbarra\s+de\s+pastas?\b/i.test(t) && !/\b(italian[ao]?|italia|toscana|mafia\s+italiana)\b/i.test(t)) {
+    return false;
+  }
   return /\b(italian[ao]?|italia|toscana|toscano|mafia\s+italiana|pastas?|pizzas?|antipasti|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
-    message
+    t
   );
 }
 function clientMentionsEntertainment(message) {
@@ -80450,6 +80455,10 @@ function parseServicesFromText(text2) {
   if (found.includes("Barra de pastas")) {
     const pastasIdx = found.indexOf("Pastas");
     if (pastasIdx >= 0) found.splice(pastasIdx, 1);
+  }
+  if (found.includes("Barra de pastas y ensaladas")) {
+    const shortIdx = found.indexOf("Barra de pastas");
+    if (shortIdx >= 0) found.splice(shortIdx, 1);
   }
   if (found.includes("Barra de pizzas")) {
     const pizzasIdx = found.indexOf("Pizzas");
@@ -82826,11 +82835,10 @@ function buildServiceNivelChoiceAnswer(result) {
       return `${i3 + 1}. *${n3}*${price}
    Incluye: ${clipped}`;
     }
-    return `${i3 + 1}. *${n3}*${price}
-   Incluye: el equipo lo confirma en la cotizaci\xF3n.`;
+    return `${i3 + 1}. *${n3}*${price}`;
   });
   const hasAnyIncl = rowsForChoice.some((r2) => !!getInclusionFromRow(r2));
-  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotizaci\xF3n.";
+  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres? Te paso el cat\xE1logo con el detalle de lo que incluye cada uno.";
   let body2 = `Para *${svc}* manejamos estos niveles:
 
 ${lines.join("\n")}
@@ -82838,7 +82846,7 @@ ${lines.join("\n")}
 ${footer}`;
   if (!hasAnyIncl || rowsForChoice.filter((r2) => getInclusionFromRow(r2)).length < niveles.length) {
     const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
-    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "");
+    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "") ?? resolveCatalogWebLink(svc).url ?? resolveCatalogWebLink(result.serviceName ?? svc).url;
     if (webHint) {
       body2 += `
 
@@ -82846,7 +82854,13 @@ ${webHint}`;
     } else if (webUrl) {
       body2 += `
 
-El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: ${webUrl}`;
+El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo:
+${toDeliverableCatalogUrl(webUrl)}`;
+    } else {
+      body2 += `
+
+Cat\xE1logo general:
+${getCatalogWebHubDeliveryUrl()}`;
     }
   }
   return withCatalogOfferQuestion(body2);
@@ -82854,9 +82868,15 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: ${webUr
 function messageOffersLevelsWithoutInclusions(text2) {
   if (!text2?.trim()) return false;
   const t = text2.trim();
-  if (/incluye\s*:/i.test(t)) return false;
+  const hasIncluyeLine = /incluye\s*:/i.test(t);
+  const hasTeamPlaceholder = /el\s+equipo\s+lo\s+confirma/i.test(t);
+  const hasRealInclusionLine = t.split(/\n/).some(
+    (line2) => /incluye\s*:/i.test(line2) && !/el\s+equipo\s+lo\s+confirma/i.test(line2) && /incluye\s*:\s*\S.{7,}/i.test(line2)
+  );
+  const onlyTeamPlaceholder = hasIncluyeLine && hasTeamPlaceholder && !hasRealInclusionLine;
+  if (hasIncluyeLine && !onlyTeamPlaceholder) return false;
   const mentionsTriad = /\bb[aá]sic/i.test(t) && /\btradicional\b/i.test(t) && /\bpremium\b/i.test(t);
-  return /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
+  return onlyTeamPlaceholder || /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
   mentionsTriad && (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t) || /prefieres|nivel|opci[oó]n/i.test(t)) || mentionsTriad && /confirma\s+(nuestro\s+)?equipo|el\s+equipo\s+te\s+confirma/i.test(t);
 }
 function enrichBareNivelOffer(mensaje, serviceHint) {
@@ -83010,22 +83030,26 @@ function buildInclusionTeamConfirmationAnswer(query) {
   const label = inclusionLabelForResolved(resolved);
   const nivel = resolved.kind === "service_nivel" && resolved.rows[0] ? extractNivelLabel(resolved.rows[0]) : parseCatalogQueryFilters(query).nivel;
   const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
-  const webUrl = getCatalogWebUrlForQuery(label) ?? getCatalogWebUrlForQuery(resolved.serviceName ?? "") ?? getCatalogWebUrlForQuery(query);
+  const webUrl = getCatalogWebUrlForQuery(label) ?? getCatalogWebUrlForQuery(resolved.serviceName ?? "") ?? getCatalogWebUrlForQuery(query) ?? resolveCatalogWebLink(label).url ?? resolveCatalogWebLink(resolved.serviceName ?? query).url ?? resolveCatalogWebLink(query).url;
   if (webHint || webUrl) {
-    const head = nivel ? `Para *${label}* el detalle de lo que incluye cada nivel (incl. *${nivel}*) est\xE1 en el cat\xE1logo web.` : `Para *${label}* el detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.`;
-    return `${head}
+    const head2 = nivel ? `Para *${label}* el detalle de lo que incluye cada nivel (incl. *${nivel}*) est\xE1 en el cat\xE1logo web.` : `Para *${label}* el detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.`;
+    const linkBlock = webHint ?? `Cat\xE1logo: ${toDeliverableCatalogUrl(webUrl)}`;
+    return `${head2}
 
-${webHint ?? `Cat\xE1logo: ${webUrl}`}
+${linkBlock}
 
 \xBFCu\xE1l nivel prefieres?`;
   }
-  if (nivel) {
-    return `El detalle exacto de lo que incluye la barra *${nivel}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
-  }
-  return `El detalle exacto de lo que incluye *${label}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
+  const hub = getCatalogWebHubDeliveryUrl();
+  const head = nivel ? `Para *${label}* (*${nivel}*) el detalle de inclusiones est\xE1 en el cat\xE1logo.` : `Para *${label}* el detalle de inclusiones est\xE1 en el cat\xE1logo.`;
+  return `${head}
+
+${hub}
+
+\xBFCu\xE1l nivel prefieres?`;
 }
 function resolveCatalogInclusionReply(query, serviceHint) {
-  const wantsAllLevels = /\bcada\s+nivel|\btodos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada/i.test(
+  const wantsAllLevels = /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
     query
   );
   if (wantsAllLevels && serviceHint?.trim()) {
@@ -87648,10 +87672,12 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   );
-  const intentionalCatalogSend = /te dejo el cat[aá]logo general/i.test(mensaje) || /bodasesor\.com\/catalogos/i.test(mensaje) && /shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento/i.test(mensaje);
+  const intentionalCatalogSend = /te dejo el cat[aá]logo general/i.test(mensaje) || /detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo/i.test(mensaje) || /el detalle de (lo que incluye|inclusiones).{0,40}cat[aá]logo/i.test(mensaje) || /bodasesor\.com\/catalogos/i.test(mensaje) && (/shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento|niveles?|incluye|men[uú]s/i.test(
+    mensaje
+  ) || messageOffersCatalogLink(mensaje));
   mensaje = stripUnsolicitedCatalogWebLinks(
     mensaje,
-    clientWantedCatalog || intentionalCatalogSend
+    clientWantedCatalog || intentionalCatalogSend || clientAsksInclusion(currentMessage)
   );
   if ((clientWantedCatalog || intentionalCatalogSend) && /cat[aá]logo|enlace|link/i.test(mensaje) && !/bodasesor\.com\/catalogos/i.test(mensaje)) {
     const wantFull = clientWantsFullCatalog(currentMessage) || /cat[aá]logo\s+(completo|general)/i.test(currentMessage ?? "");
@@ -89032,7 +89058,7 @@ function buildRedactionBriefing(input) {
   }
   lines.push(
     `NUNCA inventes precios ni inclusiones. DJ, iluminaci\xF3n, carpas, mobiliario, pantallas y pista de baile sin precio en cat\xE1logo \u2014 da info \xFAtil y di que nuestro equipo lo incluye en la cotizaci\xF3n.`,
-    `Si preguntan qu\xE9 incluye un servicio/nivel: SOLO texto del campo Incluye del cat\xE1logo. Si est\xE1 vac\xEDo \u2192 "el equipo lo confirma en la cotizaci\xF3n". Jam\xE1s rellenes con cervezas, vinos, platillos ni marcas inventadas.`,
+    `Si preguntan qu\xE9 incluye un servicio/nivel: SOLO texto del campo Incluye del cat\xE1logo. Si est\xE1 vac\xEDo \u2192 manda el link del cat\xE1logo web del servicio (bodasesor.com/catalogos/\u2026) o el hub general; no digas solo "el equipo lo confirma" sin link. Jam\xE1s rellenes con cervezas, vinos, platillos ni marcas inventadas.`,
     SERVICE_KNOWLEDGE_GOLDEN_RULE,
     "Servicios fuera del Sheet pero de eventos: acepta, anota y avanza (NIVEL 2). Precio solo del Sheet.",
     "Si el cliente hizo una pregunta en este mensaje, resp\xF3ndela ANTES de pedir el siguiente dato.",

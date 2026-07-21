@@ -418,6 +418,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["M\xF3cteles", /\bm[oó]cteles?\b/i],
   ["Canap\xE9s", /\b(canap[eé]s?|bocadillos?)\b/i],
   // Compuesto "barra de pastas y pizzas" → ambos servicios (antes solo capturaba Pizzas).
+  ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
   ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
   ["Pastas", /\bpastas?\b/i],
   ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
@@ -739,8 +740,12 @@ function clientAsksLocation(message) {
 }
 function clientMentionsItalianTheme(message) {
   if (!message?.trim()) return false;
+  const t = message.trim();
+  if (/\bbarra\s+de\s+pastas?\b/i.test(t) && !/\b(italian[ao]?|italia|toscana|mafia\s+italiana)\b/i.test(t)) {
+    return false;
+  }
   return /\b(italian[ao]?|italia|toscana|toscano|mafia\s+italiana|pastas?|pizzas?|antipasti|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
-    message
+    t
   );
 }
 function clientMentionsEntertainment(message) {
@@ -1007,6 +1012,10 @@ function parseServicesFromText(text) {
   if (found.includes("Barra de pastas")) {
     const pastasIdx = found.indexOf("Pastas");
     if (pastasIdx >= 0) found.splice(pastasIdx, 1);
+  }
+  if (found.includes("Barra de pastas y ensaladas")) {
+    const shortIdx = found.indexOf("Barra de pastas");
+    if (shortIdx >= 0) found.splice(shortIdx, 1);
   }
   if (found.includes("Barra de pizzas")) {
     const pizzasIdx = found.indexOf("Pizzas");
@@ -3801,11 +3810,10 @@ function buildServiceNivelChoiceAnswer(result) {
       return `${i + 1}. *${n}*${price}
    Incluye: ${clipped}`;
     }
-    return `${i + 1}. *${n}*${price}
-   Incluye: el equipo lo confirma en la cotizaci\xF3n.`;
+    return `${i + 1}. *${n}*${price}`;
   });
   const hasAnyIncl = rowsForChoice.some((r) => !!getInclusionFromRow(r));
-  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotizaci\xF3n.";
+  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres? Te paso el cat\xE1logo con el detalle de lo que incluye cada uno.";
   let body = `Para *${svc}* manejamos estos niveles:
 
 ${lines.join("\n")}
@@ -3813,7 +3821,7 @@ ${lines.join("\n")}
 ${footer}`;
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
     const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
-    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "");
+    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "") ?? resolveCatalogWebLink(svc).url ?? resolveCatalogWebLink(result.serviceName ?? svc).url;
     if (webHint) {
       body += `
 
@@ -3821,7 +3829,13 @@ ${webHint}`;
     } else if (webUrl) {
       body += `
 
-El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: ${webUrl}`;
+El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo:
+${toDeliverableCatalogUrl(webUrl)}`;
+    } else {
+      body += `
+
+Cat\xE1logo general:
+${getCatalogWebHubDeliveryUrl()}`;
     }
   }
   return withCatalogOfferQuestion(body);
@@ -3829,9 +3843,15 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: ${webUr
 function messageOffersLevelsWithoutInclusions(text) {
   if (!text?.trim()) return false;
   const t = text.trim();
-  if (/incluye\s*:/i.test(t)) return false;
+  const hasIncluyeLine = /incluye\s*:/i.test(t);
+  const hasTeamPlaceholder = /el\s+equipo\s+lo\s+confirma/i.test(t);
+  const hasRealInclusionLine = t.split(/\n/).some(
+    (line) => /incluye\s*:/i.test(line) && !/el\s+equipo\s+lo\s+confirma/i.test(line) && /incluye\s*:\s*\S.{7,}/i.test(line)
+  );
+  const onlyTeamPlaceholder = hasIncluyeLine && hasTeamPlaceholder && !hasRealInclusionLine;
+  if (hasIncluyeLine && !onlyTeamPlaceholder) return false;
   const mentionsTriad = /\bb[aá]sic/i.test(t) && /\btradicional\b/i.test(t) && /\bpremium\b/i.test(t);
-  return /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
+  return onlyTeamPlaceholder || /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t) || /1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t) && /prefieres|nivel/i.test(t) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
   mentionsTriad && (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t) || /prefieres|nivel|opci[oó]n/i.test(t)) || mentionsTriad && /confirma\s+(nuestro\s+)?equipo|el\s+equipo\s+te\s+confirma/i.test(t);
 }
 function enrichBareNivelOffer(mensaje, serviceHint) {
@@ -3981,22 +4001,26 @@ function buildInclusionTeamConfirmationAnswer(query) {
   const label = inclusionLabelForResolved(resolved);
   const nivel = resolved.kind === "service_nivel" && resolved.rows[0] ? extractNivelLabel(resolved.rows[0]) : parseCatalogQueryFilters(query).nivel;
   const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
-  const webUrl = getCatalogWebUrlForQuery(label) ?? getCatalogWebUrlForQuery(resolved.serviceName ?? "") ?? getCatalogWebUrlForQuery(query);
+  const webUrl = getCatalogWebUrlForQuery(label) ?? getCatalogWebUrlForQuery(resolved.serviceName ?? "") ?? getCatalogWebUrlForQuery(query) ?? resolveCatalogWebLink(label).url ?? resolveCatalogWebLink(resolved.serviceName ?? query).url ?? resolveCatalogWebLink(query).url;
   if (webHint || webUrl) {
-    const head = nivel ? `Para *${label}* el detalle de lo que incluye cada nivel (incl. *${nivel}*) est\xE1 en el cat\xE1logo web.` : `Para *${label}* el detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.`;
-    return `${head}
+    const head2 = nivel ? `Para *${label}* el detalle de lo que incluye cada nivel (incl. *${nivel}*) est\xE1 en el cat\xE1logo web.` : `Para *${label}* el detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.`;
+    const linkBlock = webHint ?? `Cat\xE1logo: ${toDeliverableCatalogUrl(webUrl)}`;
+    return `${head2}
 
-${webHint ?? `Cat\xE1logo: ${webUrl}`}
+${linkBlock}
 
 \xBFCu\xE1l nivel prefieres?`;
   }
-  if (nivel) {
-    return `El detalle exacto de lo que incluye la barra *${nivel}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
-  }
-  return `El detalle exacto de lo que incluye *${label}* te lo confirma nuestro equipo en la cotizaci\xF3n. \xBFTe la preparo con ese nivel?`;
+  const hub = getCatalogWebHubDeliveryUrl();
+  const head = nivel ? `Para *${label}* (*${nivel}*) el detalle de inclusiones est\xE1 en el cat\xE1logo.` : `Para *${label}* el detalle de inclusiones est\xE1 en el cat\xE1logo.`;
+  return `${head}
+
+${hub}
+
+\xBFCu\xE1l nivel prefieres?`;
 }
 function resolveCatalogInclusionReply(query, serviceHint) {
-  const wantsAllLevels = /\bcada\s+nivel|\btodos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada/i.test(
+  const wantsAllLevels = /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
     query
   );
   if (wantsAllLevels && serviceHint?.trim()) {
@@ -17807,10 +17831,12 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   );
-  const intentionalCatalogSend = /te dejo el cat[aá]logo general/i.test(mensaje) || /bodasesor\.com\/catalogos/i.test(mensaje) && /shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento/i.test(mensaje);
+  const intentionalCatalogSend = /te dejo el cat[aá]logo general/i.test(mensaje) || /detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo/i.test(mensaje) || /el detalle de (lo que incluye|inclusiones).{0,40}cat[aá]logo/i.test(mensaje) || /bodasesor\.com\/catalogos/i.test(mensaje) && (/shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento|niveles?|incluye|men[uú]s/i.test(
+    mensaje
+  ) || messageOffersCatalogLink(mensaje));
   mensaje = stripUnsolicitedCatalogWebLinks(
     mensaje,
-    clientWantedCatalog || intentionalCatalogSend
+    clientWantedCatalog || intentionalCatalogSend || clientAsksInclusion(currentMessage)
   );
   if ((clientWantedCatalog || intentionalCatalogSend) && /cat[aá]logo|enlace|link/i.test(mensaje) && !/bodasesor\.com\/catalogos/i.test(mensaje)) {
     const wantFull = clientWantsFullCatalog(currentMessage) || /cat[aá]logo\s+(completo|general)/i.test(currentMessage ?? "");
@@ -22359,6 +22385,77 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.ok(/100000|100,000/i.test(resumen), resumen);
     assert.ok(/Nombre:\s*Jeny/i.test(resumen), resumen);
     assert.ok(!/Nombre:\s*Premium/i.test(resumen), resumen);
+  });
+  await test("84. Paola A14932 \u2014 qu\xE9 incluye cada cosa manda cat\xE1logo (no solo 'equipo confirma')", () => {
+    assert.ok(clientAsksInclusion("Que incluye cada cosa?"));
+    assert.ok(clientAsksInclusion("qu\xE9 incluye cada cosa"));
+    assert.equal(
+      clientMentionsItalianTheme("Hola, me interesa cotizar: Barra de Pastas y Ensaladas para Eventos"),
+      false
+    );
+    assert.ok(
+      parseServicesFromText("Barra de Pastas y Ensaladas para Eventos").includes(
+        "Barra de pastas y ensaladas"
+      )
+    );
+    const placeholderLevels = `Para *Barra de pastas* manejamos estos niveles:
+
+1. *Basico* \u2014 $780.00 /pp
+   Incluye: el equipo lo confirma en la cotizaci\xF3n.
+2. *Tradicional* \u2014 $830.00 /pp
+   Incluye: el equipo lo confirma en la cotizaci\xF3n.
+3. *Premium* \u2014 $880.00 /pp
+   Incluye: el equipo lo confirma en la cotizaci\xF3n.
+
+\xBFCu\xE1l nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotizaci\xF3n.`;
+    assert.ok(
+      messageOffersLevelsWithoutInclusions(placeholderLevels),
+      "placeholder 'equipo confirma' no cuenta como inclusi\xF3n real"
+    );
+    const inclReply = resolveCatalogInclusionReply(
+      "Que incluye cada cosa?",
+      "Barra de pastas y ensaladas"
+    );
+    assert.ok(inclReply, "debe responder inclusiones/cat\xE1logo");
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(inclReply),
+      `debe incluir URL de cat\xE1logo: ${inclReply}`
+    );
+    assert.ok(
+      !/^El detalle exacto de lo que incluye\b.*equipo en la cotización\.?\s*$/i.test(
+        inclReply.replace(/\n/g, " ")
+      ),
+      `no debe ser solo 'equipo confirma' sin link: ${inclReply}`
+    );
+    const guard = runGuards({
+      aiResponse: "El detalle exacto te lo confirma el equipo. \xBFTe la preparo?",
+      extracted: emptyExtracted({
+        nombre: "Paola",
+        requerimientos_evento: "Barra de pastas y ensaladas"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Que incluye cada cosa?",
+      history: [
+        {
+          role: "assistant",
+          content: placeholderLevels + "\n\n\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?\n\n\xBFA qu\xE9 correo te lo env\xEDo?"
+        }
+      ],
+      whatsappDisplayName: "Paola Ovalles"
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(guard),
+      `guard debe mandar cat\xE1logo: ${guard.slice(0, 500)}`
+    );
+    assert.ok(!/Betún|Cupcakes/i.test(guard), guard.slice(0, 300));
+    const team = buildInclusionTeamConfirmationAnswer("Barra de pastas");
+    if (team) {
+      assert.ok(
+        /bodasesor\.com\/catalogos/i.test(team),
+        `team confirmation siempre con link: ${team}`
+      );
+    }
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -4652,6 +4652,84 @@ async function runAll(): Promise<void> {
     assert.ok(!/Nombre:\s*Premium/i.test(resumen), resumen);
   });
 
+  await test("84. Paola A14932 — qué incluye cada cosa manda catálogo (no solo 'equipo confirma')", () => {
+    assert.ok(clientAsksInclusion("Que incluye cada cosa?"));
+    assert.ok(clientAsksInclusion("qué incluye cada cosa"));
+    assert.equal(
+      clientMentionsItalianTheme("Hola, me interesa cotizar: Barra de Pastas y Ensaladas para Eventos"),
+      false
+    );
+    assert.ok(
+      parseServicesFromText("Barra de Pastas y Ensaladas para Eventos").includes(
+        "Barra de pastas y ensaladas"
+      )
+    );
+
+    const placeholderLevels = `Para *Barra de pastas* manejamos estos niveles:
+
+1. *Basico* — $780.00 /pp
+   Incluye: el equipo lo confirma en la cotización.
+2. *Tradicional* — $830.00 /pp
+   Incluye: el equipo lo confirma en la cotización.
+3. *Premium* — $880.00 /pp
+   Incluye: el equipo lo confirma en la cotización.
+
+¿Cuál nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotización.`;
+    assert.ok(
+      messageOffersLevelsWithoutInclusions(placeholderLevels),
+      "placeholder 'equipo confirma' no cuenta como inclusión real"
+    );
+
+    const inclReply = resolveCatalogInclusionReply(
+      "Que incluye cada cosa?",
+      "Barra de pastas y ensaladas"
+    );
+    assert.ok(inclReply, "debe responder inclusiones/catálogo");
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(inclReply!),
+      `debe incluir URL de catálogo: ${inclReply}`
+    );
+    assert.ok(
+      !/^El detalle exacto de lo que incluye\b.*equipo en la cotización\.?\s*$/i.test(
+        inclReply!.replace(/\n/g, " ")
+      ),
+      `no debe ser solo 'equipo confirma' sin link: ${inclReply}`
+    );
+
+    const guard = runGuards({
+      aiResponse: "El detalle exacto te lo confirma el equipo. ¿Te la preparo?",
+      extracted: emptyExtracted({
+        nombre: "Paola",
+        requerimientos_evento: "Barra de pastas y ensaladas",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Que incluye cada cosa?",
+      history: [
+        {
+          role: "assistant",
+          content:
+            placeholderLevels +
+            "\n\n¿Quieres que te mande el catálogo con más detalle?\n\n¿A qué correo te lo envío?",
+        },
+      ],
+      whatsappDisplayName: "Paola Ovalles",
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(guard),
+      `guard debe mandar catálogo: ${guard.slice(0, 500)}`
+    );
+    assert.ok(!/Betún|Cupcakes/i.test(guard), guard.slice(0, 300));
+
+    const team = buildInclusionTeamConfirmationAnswer("Barra de pastas");
+    if (team) {
+      assert.ok(
+        /bodasesor\.com\/catalogos/i.test(team),
+        `team confirmation siempre con link: ${team}`
+      );
+    }
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }

@@ -85,6 +85,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Mócteles", /\bm[oó]cteles?\b/i],
   ["Canapés", /\b(canap[eé]s?|bocadillos?)\b/i],
   // Compuesto "barra de pastas y pizzas" → ambos servicios (antes solo capturaba Pizzas).
+  ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
   ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
   ["Pastas", /\bpastas?\b/i],
   ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
@@ -567,8 +568,13 @@ export function clientAsksLocation(message?: string): boolean {
 /** Temática o comida italiana (incluye partido de Italia, mafia italiana, toscana, etc.). */
 export function clientMentionsItalianTheme(message?: string): boolean {
   if (!message?.trim()) return false;
+  const t = message.trim();
+  // Producto concreto del catálogo ("Barra de Pastas y Ensaladas") ≠ temática italiana (A14932).
+  if (/\bbarra\s+de\s+pastas?\b/i.test(t) && !/\b(italian[ao]?|italia|toscana|mafia\s+italiana)\b/i.test(t)) {
+    return false;
+  }
   return /\b(italian[ao]?|italia|toscana|toscano|mafia\s+italiana|pastas?|pizzas?|antipasti|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
-    message
+    t
   );
 }
 
@@ -1055,6 +1061,11 @@ export function parseServicesFromText(text: string): string[] {
   if (found.includes("Barra de pastas")) {
     const pastasIdx = found.indexOf("Pastas");
     if (pastasIdx >= 0) found.splice(pastasIdx, 1);
+  }
+  // Preferir el nombre completo del Sheet (A14932).
+  if (found.includes("Barra de pastas y ensaladas")) {
+    const shortIdx = found.indexOf("Barra de pastas");
+    if (shortIdx >= 0) found.splice(shortIdx, 1);
   }
   if (found.includes("Barra de pizzas")) {
     const pizzasIdx = found.indexOf("Pizzas");

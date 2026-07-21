@@ -694,24 +694,31 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
       const clipped = incl.length > 220 ? `${incl.slice(0, 217)}…` : incl;
       return `${i + 1}. *${n}*${price}\n   Incluye: ${clipped}`;
     }
-    return `${i + 1}. *${n}*${price}\n   Incluye: el equipo lo confirma en la cotización.`;
+    // Sin texto de Incluye en Sheet: no inventar "el equipo confirma" en cada nivel (A14932).
+    return `${i + 1}. *${n}*${price}`;
   });
 
   const hasAnyIncl = rowsForChoice.some((r) => !!getInclusionFromRow(r));
   const footer = hasAnyIncl
     ? "¿Cuál nivel prefieres para tu evento?"
-    : "¿Cuál nivel prefieres? El detalle exacto de inclusiones te lo confirma el equipo en la cotización.";
+    : "¿Cuál nivel prefieres? Te paso el catálogo con el detalle de lo que incluye cada uno.";
 
   let body = `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
 
   // Si el Sheet no trae (o trae poco) Incluye, complementar con catálogo web bodasesor.com.
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
     const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
-    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "");
+    const webUrl =
+      getCatalogWebUrlForQuery(svc) ??
+      getCatalogWebUrlForQuery(result.serviceName ?? "") ??
+      resolveCatalogWebLink(svc).url ??
+      resolveCatalogWebLink(result.serviceName ?? svc).url;
     if (webHint) {
       body += `\n\n${webHint}`;
     } else if (webUrl) {
-      body += `\n\nEl detalle completo de menús e inclusiones está en el catálogo: ${webUrl}`;
+      body += `\n\nEl detalle completo de menús e inclusiones está en el catálogo:\n${toDeliverableCatalogUrl(webUrl)}`;
+    } else {
+      body += `\n\nCatálogo general:\n${getCatalogWebHubDeliveryUrl()}`;
     }
   }
 
@@ -723,12 +730,23 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
 export function messageOffersLevelsWithoutInclusions(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
   const t = text.trim();
+  // "Incluye: el equipo lo confirma…" NO es detalle real (A14932 Paola).
+  const hasIncluyeLine = /incluye\s*:/i.test(t);
+  const hasTeamPlaceholder = /el\s+equipo\s+lo\s+confirma/i.test(t);
+  const hasRealInclusionLine = t.split(/\n/).some(
+    (line) =>
+      /incluye\s*:/i.test(line) &&
+      !/el\s+equipo\s+lo\s+confirma/i.test(line) &&
+      /incluye\s*:\s*\S.{7,}/i.test(line)
+  );
+  const onlyTeamPlaceholder = hasIncluyeLine && hasTeamPlaceholder && !hasRealInclusionLine;
   // Tiene "Incluye: …" real del Sheet → ya está bien.
-  if (/incluye\s*:/i.test(t)) return false;
+  if (hasIncluyeLine && !onlyTeamPlaceholder) return false;
   // "el equipo confirma lo que incluye" NO cuenta como descripción real.
   const mentionsTriad =
     /\bb[aá]sic/i.test(t) && /\btradicional\b/i.test(t) && /\bpremium\b/i.test(t);
   return (
+    onlyTeamPlaceholder ||
     /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) ||
     /lo tenemos en:\s*\*?b[aá]sic/i.test(t) ||
     (/1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t)) ||
@@ -940,20 +958,26 @@ export function buildInclusionTeamConfirmationAnswer(query: string): string | nu
   const webUrl =
     getCatalogWebUrlForQuery(label) ??
     getCatalogWebUrlForQuery(resolved.serviceName ?? "") ??
-    getCatalogWebUrlForQuery(query);
+    getCatalogWebUrlForQuery(query) ??
+    resolveCatalogWebLink(label).url ??
+    resolveCatalogWebLink(resolved.serviceName ?? query).url ??
+    resolveCatalogWebLink(query).url;
 
   // Preferir catálogo web (ahí suele estar el detalle de cada nivel) vs solo "el equipo confirma".
   if (webHint || webUrl) {
     const head = nivel
       ? `Para *${label}* el detalle de lo que incluye cada nivel (incl. *${nivel}*) está en el catálogo web.`
       : `Para *${label}* el detalle de lo que incluye cada nivel está en el catálogo web.`;
-    return `${head}\n\n${webHint ?? `Catálogo: ${webUrl}`}\n\n¿Cuál nivel prefieres?`;
+    const linkBlock = webHint ?? `Catálogo: ${toDeliverableCatalogUrl(webUrl!)}`;
+    return `${head}\n\n${linkBlock}\n\n¿Cuál nivel prefieres?`;
   }
 
-  if (nivel) {
-    return `El detalle exacto de lo que incluye la barra *${nivel}* te lo confirma nuestro equipo en la cotización. ¿Te la preparo con ese nivel?`;
-  }
-  return `El detalle exacto de lo que incluye *${label}* te lo confirma nuestro equipo en la cotización. ¿Te la preparo con ese nivel?`;
+  // Último recurso: hub general — nunca dejar a la clienta sin link (A14932).
+  const hub = getCatalogWebHubDeliveryUrl();
+  const head = nivel
+    ? `Para *${label}* (*${nivel}*) el detalle de inclusiones está en el catálogo.`
+    : `Para *${label}* el detalle de inclusiones está en el catálogo.`;
+  return `${head}\n\n${hub}\n\n¿Cuál nivel prefieres?`;
 }
 
 /**
@@ -966,7 +990,7 @@ export function resolveCatalogInclusionReply(
   serviceHint?: string | null
 ): string | null {
   const wantsAllLevels =
-    /\bcada\s+nivel|\btodos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada/i.test(
+    /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
       query
     );
 

@@ -4481,11 +4481,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // Entretenimiento / RFQ: el bloque "Te dejo el catálogo general" es intencional (A14920).
   const intentionalCatalogSend =
     /te dejo el cat[aá]logo general/i.test(mensaje) ||
+    /detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo/i.test(mensaje) ||
+    /el detalle de (lo que incluye|inclusiones).{0,40}cat[aá]logo/i.test(mensaje) ||
     (/bodasesor\.com\/catalogos/i.test(mensaje) &&
-      /shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento/i.test(mensaje));
+      (/shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento|niveles?|incluye|men[uú]s/i.test(
+        mensaje
+      ) ||
+        messageOffersCatalogLink(mensaje)));
   mensaje = stripUnsolicitedCatalogWebLinks(
     mensaje,
-    clientWantedCatalog || intentionalCatalogSend
+    clientWantedCatalog || intentionalCatalogSend || clientAsksInclusion(currentMessage)
   );
 
   // A14929: si dijo que manda enlace/catálogo pero no hay URL, forzar link del Sheet.

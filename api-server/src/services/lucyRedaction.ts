@@ -135,7 +135,7 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
 
   lines.push(
     `NUNCA inventes precios ni inclusiones. DJ, iluminación, carpas, mobiliario, pantallas y pista de baile sin precio en catálogo — da info útil y di que nuestro equipo lo incluye en la cotización.`,
-    `Si preguntan qué incluye un servicio/nivel: SOLO texto del campo Incluye del catálogo. Si está vacío → "el equipo lo confirma en la cotización". Jamás rellenes con cervezas, vinos, platillos ni marcas inventadas.`,
+    `Si preguntan qué incluye un servicio/nivel: SOLO texto del campo Incluye del catálogo. Si está vacío → manda el link del catálogo web del servicio (bodasesor.com/catalogos/…) o el hub general; no digas solo "el equipo lo confirma" sin link. Jamás rellenes con cervezas, vinos, platillos ni marcas inventadas.`,
     SERVICE_KNOWLEDGE_GOLDEN_RULE,
     "Servicios fuera del Sheet pero de eventos: acepta, anota y avanza (NIVEL 2). Precio solo del Sheet.",
     "Si el cliente hizo una pregunta en este mensaje, respóndela ANTES de pedir el siguiente dato.",
