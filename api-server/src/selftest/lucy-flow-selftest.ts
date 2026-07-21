@@ -69,7 +69,7 @@ import {
 } from "../lucyOutboundAntiRepeat.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
 import { buildConsultativeNoPriceReply } from "../price-guard.js";
-import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply } from "../contact-name.js";
+import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
   resolveTipoContacto,
@@ -4512,6 +4512,144 @@ async function runAll(): Promise<void> {
       `debe pedir ubicación, no cerrar: ${mid.slice(0, 400)}`
     );
     assert.ok(!/ya tengo todo|preparen una cotizaci/i.test(mid), mid.slice(0, 300));
+  });
+
+  await test("83. Jeny A14929 — Premium≠nombre, banquetes vagos, catálogo con URL, CRM upgrade", () => {
+    // Nombre: Premium (nivel/WA) nunca es nombre; Jeny no se sobrescribe.
+    assert.equal(sanitizeCrmNombre("Premium"), null);
+    assert.equal(sanitizeDisplayName("Premium"), null);
+    assert.equal(sanitizeCrmNombre("Jeny"), "Jeny");
+    assert.equal(shouldUpdateName("Jeny", "Premium"), false);
+    assert.equal(shouldUpdateName("Premium", "Jeny"), true);
+
+    // Banquetes/catering vago → opciones, no dump Formal+postres.
+    assert.ok(
+      isVagueFoodTerm(
+        "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. ¿Me pueden dar información?"
+      )
+    );
+    assert.ok(isVagueFoodTerm("servicio de banquetes o catering"));
+    const vagueReply = runGuards({
+      aiResponse:
+        "Manejamos *Banquete Formal 3 tiempos* en varias opciones: banquete 3 tiempos, Betún Clásico, Cupcakes. ¿Cuál variante?",
+      extracted: emptyExtracted({}),
+      filledSet: new Set<string>(),
+      readyForClosing: false,
+      currentMessage:
+        "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. ¿Me pueden dar información?",
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(/Lucy|Bodasesor/i.test(vagueReply), vagueReply.slice(0, 200));
+    assert.ok(
+      !/Betún|Cupcakes|Paletas de hielo/i.test(vagueReply),
+      `no debe dump postres: ${vagueReply.slice(0, 400)}`
+    );
+    assert.ok(
+      /banquete|taquiza|brunch|coffee|alimentos|comida/i.test(vagueReply),
+      `debe ofrecer opciones de alimentos: ${vagueReply.slice(0, 400)}`
+    );
+    assert.ok(/nombre|llamas/i.test(vagueReply), vagueReply.slice(0, 200));
+
+    // "mandarme el catálogo" / afirmación → URL bodasesor.
+    assert.ok(clientAsksForCatalog("Puedes mandarme el catalogo por favor"));
+    assert.ok(
+      clientAffirmsCatalogOffer("Si", "¿Quieres que te mande el catálogo con más detalle?")
+    );
+    const catalogReply = runGuards({
+      aiResponse: "Claro, aquí tienes el enlace al catálogo completo para que revises las opciones:",
+      extracted: emptyExtracted({
+        nombre: "Jeny",
+        requerimientos_evento: "Banquete Formal, Mobiliario, DJ, Iluminación",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Puedes mandarme el catalogo por favor",
+      history: [
+        { role: "assistant", content: "Te dejo el catálogo general para que veas montajes." },
+      ],
+      whatsappDisplayName: "Premium",
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(catalogReply),
+      `debe incluir URL: ${catalogReply.slice(0, 400)}`
+    );
+
+    // No inventar banquete Premium desde nombre WA.
+    const noFakePremium = runGuards({
+      aiResponse:
+        "Genial, Jeny. El banquete Premium incluye un servicio completo con platillos de alta calidad. ¿A qué correo te puedo enviar la información?",
+      extracted: emptyExtracted({ nombre: "Jeny" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Jeny",
+      history: [
+        {
+          role: "assistant",
+          content: "¿Cuál variante y nivel prefieres? ¿Cómo te llamas?",
+        },
+      ],
+      whatsappDisplayName: "Premium",
+    });
+    assert.ok(
+      !/banquete\s+premium/i.test(noFakePremium),
+      `no inventar banquete Premium: ${noFakePremium.slice(0, 400)}`
+    );
+
+    // Cierre no inventa taquiza.
+    const closing = buildStandardClosingMessage("servicio de banquetes o catering", "Jeny");
+    assert.ok(!/taquiza/i.test(closing), closing);
+
+    // CRM upgrade: más servicios + presupuesto mayor.
+    const merged: string[] = [
+      "- Requerimientos o servicios: servicio de banquetes o catering",
+      "- Presupuesto (MXN): 50000",
+    ];
+    const filled = new Set(["Requerimientos o servicios", "Presupuesto (MXN)"]);
+    applyCapturesToCrm(merged, filled, [
+      {
+        label: "Requerimientos o servicios",
+        value: "banquete, mobiliario, DJ, iluminación",
+      },
+      { label: "Presupuesto (MXN)", value: "100000" },
+    ]);
+    assert.ok(
+      /Mobiliario|DJ|Iluminaci/i.test(merged.find((l) => /Requerimientos/i.test(l)) ?? ""),
+      merged.join("\n")
+    );
+    assert.ok(
+      /100000|100,000/i.test(merged.find((l) => /Presupuesto/i.test(l)) ?? ""),
+      merged.join("\n")
+    );
+
+    const resumen = buildResumenClienteLargo(
+      emptyExtracted({
+        nombre: "Jeny",
+        correo: "Jennymujica450@gmail.com",
+        tipo_evento: "boda",
+        requerimientos_evento: "servicio de banquetes o catering",
+        num_invitados: 150,
+        fecha_horario: "20 de noviembre del 2027",
+        direccion_evento:
+          "Calle tepetenco manzana 16 lote 5 san lorenzo parte alta chimalhuacan estado de mexico 56340",
+        presupuesto: 50000,
+      }),
+      [
+        "- Nombre del cliente: Jeny",
+        "- Correo electrónico: Jennymujica450@gmail.com",
+        "- Tipo de evento: boda",
+        "- Requerimientos o servicios: servicio de banquetes o catering",
+        "- Número de invitados: 150",
+        "- Fecha y horario: 20 de noviembre del 2027",
+        "- Lugar/dirección del evento: Calle tepetenco manzana 16 lote 5 san lorenzo parte alta chimalhuacan estado de mexico 56340",
+        "- Presupuesto (MXN): 50000",
+      ],
+      "Con banquete, catering, mobiliario, dj,iluminación para 150 personas, me presupuesto entonces seria de 100,000"
+    );
+    assert.ok(/Mobiliario|DJ|Iluminaci|Banquete/i.test(resumen), resumen);
+    assert.ok(/100000|100,000/i.test(resumen), resumen);
+    assert.ok(/Nombre:\s*Jeny/i.test(resumen), resumen);
+    assert.ok(!/Nombre:\s*Premium/i.test(resumen), resumen);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

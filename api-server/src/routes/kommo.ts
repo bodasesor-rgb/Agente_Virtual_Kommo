@@ -624,7 +624,7 @@ function buildCrmContext(
         pickBetterNombre(extracted.nombre, fromTurn),
         existing
       );
-      if (upgraded && isNombreMoreComplete(upgraded, existing)) {
+      if (upgraded && shouldUpdateName(existing, upgraded)) {
         const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
         mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
         extracted.nombre = upgraded;
@@ -722,6 +722,57 @@ function buildCrmContext(
       } else if (value !== null && value !== undefined && value !== 0) {
         mergedLines.push(`- ${label}: ${value}`);
         filledSet.add(label);
+      }
+    }
+  }
+
+  // A14929: si el cliente amplía servicios o sube presupuesto, actualizar aunque el campo ya esté lleno.
+  if (currentMessage?.trim()) {
+    const reqIdx = mergedLines.findIndex((l) => /^-?\s*Requerimientos o servicios:/i.test(l));
+    if (reqIdx >= 0) {
+      const existingReq = mergedLines[reqIdx]!
+        .replace(/^-?\s*Requerimientos o servicios:\s*/i, "")
+        .trim();
+      const mergedReq = mergeServiceRequirements(existingReq, currentMessage, 6);
+      const prevCount = parseServicesFromText(existingReq).length;
+      const nextCount = mergedReq ? parseServicesFromText(mergedReq).length : 0;
+      if (mergedReq && nextCount > prevCount) {
+        mergedLines[reqIdx] = `- Requerimientos o servicios: ${mergedReq}`;
+        extracted.requerimientos_evento = mergedReq;
+      }
+    } else if (!filledSet.has("Requerimientos o servicios")) {
+      const fromMsg = mergeServiceRequirements(extracted.requerimientos_evento, currentMessage, 6);
+      if (fromMsg && parseServicesFromText(fromMsg).length > 0) {
+        mergedLines.push(`- Requerimientos o servicios: ${fromMsg}`);
+        filledSet.add("Requerimientos o servicios");
+        extracted.requerimientos_evento = fromMsg;
+      }
+    }
+
+    const askedPres = inferLucyAskedField(
+      history.filter((m) => m.role === "assistant").slice(-1)[0]?.content as string | undefined ?? ""
+    );
+    const fromPres = parsePresupuestoFromText(currentMessage, {
+      askedField: askedPres === "presupuesto" ? "presupuesto" : null,
+    });
+    if (fromPres) {
+      const newNum = parseInt(fromPres.replace(/[^\d]/g, ""), 10);
+      const presIdx = mergedLines.findIndex((l) => /^-?\s*Presupuesto \(MXN\):/i.test(l));
+      if (!isNaN(newNum) && newNum >= 1000) {
+        if (presIdx >= 0) {
+          const existingPres = mergedLines[presIdx]!
+            .replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "")
+            .trim();
+          const oldNum = parseInt(existingPres.replace(/[^\d]/g, ""), 10);
+          if (isNaN(oldNum) || newNum > oldNum) {
+            mergedLines[presIdx] = `- Presupuesto (MXN): ${fromPres}`;
+            extracted.presupuesto = newNum;
+          }
+        } else if (!filledSet.has("Presupuesto (MXN)")) {
+          mergedLines.push(`- Presupuesto (MXN): ${fromPres}`);
+          filledSet.add("Presupuesto (MXN)");
+          extracted.presupuesto = newNum;
+        }
       }
     }
   }
@@ -1037,11 +1088,12 @@ function buildPatchPayload(
 
   const payload: Record<string, unknown> = { custom_fields_values: customFields };
 
-  if (isValidExtractedString(extracted.nombre)) {
+  {
     const currentNombre = parseNombreFromCrmLines(mergedLines);
+    // Nunca escribir niveles/marca WA (Premium) ni basura: sin fallback al raw (A14929).
     const nombrePatch =
-      sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
-    if (shouldUpdateName(currentNombre ?? undefined, nombrePatch)) {
+      sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
+    if (nombrePatch && shouldUpdateName(currentNombre ?? undefined, nombrePatch)) {
       payload["name"] = cap255(nombrePatch);
     }
   }

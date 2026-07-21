@@ -203,11 +203,6 @@ export function buildResumenClienteLargo(
     pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
   const ubicacion = isUsableResumenUbicacion(ubicacionRaw) ? ubicacionRaw : null;
   const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
-  const ppto =
-    pptoFromLine ||
-    (extracted.presupuesto !== null && extracted.presupuesto > 0
-      ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN`
-      : null);
 
   const reqFromLinesRaw = pickFromMergedLines(mergedLines, /Requerimientos/i);
   const reqFromLines = isUsableResumenServicio(reqFromLinesRaw) ? reqFromLinesRaw : null;
@@ -217,15 +212,47 @@ export function buildResumenClienteLargo(
     conversationText && conversationText.trim().length > 3
       ? formatRequerimientoLabelFromQuery(conversationText)
       : null;
-  const reqFromConversation =
+  const convServices =
     conversationText && conversationText.trim().length > 20
-      ? parseServicesFromText(conversationText).slice(0, 6).join(", ")
-      : null;
-  const reqs =
-    reqFromLines ||
-    (isUsableResumenServicio(reqFromCatalog) ? reqFromCatalog : null) ||
-    (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) ||
-    (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
+      ? parseServicesFromText(conversationText).slice(0, 6)
+      : [];
+  const reqFromConversation =
+    convServices.length > 0 ? convServices.join(", ") : null;
+  // Preferir lista de servicios más completa (A14929: banquete+mobiliario+DJ vs "banquetes o catering").
+  // Si el conteo es igual, conservar el detalle ya guardado en CRM (Coffee Break para Eventos…).
+  const lineSvcCount = reqFromLines ? parseServicesFromText(reqFromLines).length : 0;
+  const convSvcCount = convServices.length;
+  const extractedSvcCount = reqFromServices ? parseServicesFromText(reqFromServices).length : 0;
+  let reqs: string | null = null;
+  if (convSvcCount > lineSvcCount && convSvcCount > extractedSvcCount) {
+    reqs = reqFromConversation;
+  } else if (extractedSvcCount > lineSvcCount && reqFromServices) {
+    reqs = reqFromServices !== extracted.tipo_evento ? reqFromServices : null;
+  } else {
+    reqs =
+      reqFromLines ||
+      (isUsableResumenServicio(reqFromCatalog) ? reqFromCatalog : null) ||
+      (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) ||
+      reqFromConversation;
+  }
+
+  // Presupuesto: tomar el mayor entre línea CRM, extracted y montos en la conversación.
+  let ppto: string | null = pptoFromLine;
+  const convAmounts = conversationText
+    ? [...conversationText.matchAll(/\$?\s*([\d][\d,]{2,})\b/g)]
+        .map((m) => parseInt(m[1]!.replace(/,/g, ""), 10))
+        .filter((n) => !isNaN(n) && n >= 1000 && n <= 50_000_000)
+    : [];
+  const maxConv = convAmounts.length ? Math.max(...convAmounts) : 0;
+  const lineNum = pptoFromLine ? parseInt(pptoFromLine.replace(/[^\d]/g, ""), 10) : 0;
+  const extNum =
+    extracted.presupuesto !== null && extracted.presupuesto > 0 ? extracted.presupuesto : 0;
+  const bestPpto = Math.max(lineNum || 0, extNum || 0, maxConv || 0);
+  if (bestPpto >= 1000) {
+    ppto = String(bestPpto);
+  } else if (!ppto && extNum > 0) {
+    ppto = `$${extNum.toLocaleString("es-MX")} MXN`;
+  }
 
   const modo = extracted.modo_servicio?.trim();
   const pendientes = pendingFields(mergedLines, extracted);

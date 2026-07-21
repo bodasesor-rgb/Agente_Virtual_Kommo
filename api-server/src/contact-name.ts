@@ -29,6 +29,10 @@ const COMPANY_OR_CHANNEL_PATTERN =
 const BOT_OR_META_NAME_TOKEN =
   /^(lucy|llamo|llam[oó]|bodasesor|capybara|alejandro|rodrigo|salesbot)$/i;
 
+/** Niveles de catálogo / marcas WA que NO son nombre de persona (A14929: "Premium"). */
+const CATALOG_LEVEL_OR_BRAND_NAME =
+  /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip|gold|silver|platinum|business|premium\s*events?)$/i;
+
 /** "Hola, Lucy" / saludo al bot — no es el nombre del cliente. */
 function isGreetingToLucy(text: string): boolean {
   return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text.trim());
@@ -209,6 +213,7 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
   if (BOT_OR_META_NAME_TOKEN.test(firstName)) return null;
+  if (CATALOG_LEVEL_OR_BRAND_NAME.test(firstName)) return null;
   if (isQuoteIntentMessage(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw) || isLikelyUbicacionNotNombre(cleaned)) return null;
 
@@ -238,6 +243,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
         return (
           letters.length >= 2 &&
           !BOT_OR_META_NAME_TOKEN.test(letters) &&
+          !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) &&
           !GREETING_NAME_PATTERN.test(letters) &&
           !SENTENCE_VERB_PATTERN.test(letters)
         );
@@ -273,6 +279,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
@@ -292,6 +299,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     .join(" ");
 
   if (SENTENCE_VERB_PATTERN.test(candidate)) return null;
+  if (CATALOG_LEVEL_OR_BRAND_NAME.test(candidate.split(/\s+/)[0] ?? "")) return null;
   return candidate;
 }
 
@@ -300,8 +308,16 @@ export function shouldUpdateName(current?: string, incoming?: string): boolean {
   const c = (current ?? "").trim();
   const i = (incoming ?? "").trim();
   if (!i) return false;
+  const iClean = sanitizeCrmNombre(i) ?? sanitizeDisplayName(i);
+  if (!iClean) return false;
   if (!c) return true;
-  return isNombreMoreComplete(i, c);
+  // Nivel/marca WA basura en CRM → siempre reemplazable por un nombre real (A14929).
+  if (CATALOG_LEVEL_OR_BRAND_NAME.test(c.split(/\s+/)[0] ?? "") || !sanitizeCrmNombre(c)) {
+    return true;
+  }
+  // No reemplazar "Jeny" por otro nombre distinto (p. ej. intento con Premium ya filtrado arriba).
+  if (!namesAreLikelySamePerson(c, iClean)) return false;
+  return isNombreMoreComplete(iClean, c);
 }
 
 function normalizeNameTokens(name: string): string[] {

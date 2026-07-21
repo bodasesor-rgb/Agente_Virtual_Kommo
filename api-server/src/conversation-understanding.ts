@@ -416,7 +416,15 @@ export function isGettingReadyContext(text: string | null | undefined): boolean 
 }
 
 function hasSpecificFoodService(text: string): boolean {
-  return /\b(banquete|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
+  // "banquetes o catering" / "servicio de banquetes" es VAGO — no cuenta como servicio concreto.
+  if (
+    /\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b|\bbanquetes?\s+o\s+catering\b/i.test(
+      text
+    )
+  ) {
+    return false;
+  }
+  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
     text
   );
 }
@@ -425,14 +433,27 @@ function hasSpecificFoodService(text: string): boolean {
 export function isVagueFoodTerm(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
+  // A14929: frases explícitamente vagas (no "banquete premium 4 tiempos").
+  if (
+    /\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
+      t
+    ) ||
+    /^(me\s+interesa\s+(cotizar\s+)?)?(un\s+)?(servicio\s+de\s+)?(banquetes?|catering)(\s+para\s+mi\s+evento)?[.!?¿?]*$/i.test(
+      t
+    )
+  ) {
+    if (!/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional|\d\s+tiempos)|\d\s+tiempos|taquiza|coffee\s*break|barra\s+de|sushi|parrillada)\b/i.test(t)) {
+      return true;
+    }
+  }
   if (hasSpecificFoodService(t)) return false;
   const services = parseServicesFromText(t);
   // Brief con varios servicios (coffee break + desayuno + …) no es "comida vaga".
   if (services.length >= 2) return false;
   if (
     services.length > 0 &&
-    !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t) &&
-    !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t)
+    !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t) &&
+    !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t)
   ) {
     // "quiero desayuno" solo → Desayuno concreto (ya no vago).
     if (services.length === 1 && /^(Desayuno|Snack|Cena|Coffee break|Brunch)$/i.test(services[0]!)) {
@@ -444,12 +465,18 @@ export function isVagueFoodTerm(text: string | null | undefined): boolean {
   }
   const cleaned = t
     .replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "")
-    .replace(/^(una?|el|la|los|las)\s+/i, "")
+    .replace(/^(una?|el|la|los|las|un\s+servicio\s+de)\s+/i, "")
     .trim();
-  if (/^(comida|alimentos?|men[uú]s?|catering|algo\s+de\s+comer)$/i.test(cleaned)) {
+  if (
+    /^(comida|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+banquetes?(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
+      cleaned
+    )
+  ) {
     return true;
   }
-  return /\b(quiero|necesito|busco)\s+(comida|alimentos?|algo\s+de\s+comer)\b/i.test(t);
+  return /\b(quiero|necesito|busco|me\s+interesa\s+cotizar)\s+(comida|alimentos?|algo\s+de\s+comer|banquetes?|catering)\b/i.test(
+    t
+  );
 }
 
 /** Limpia extracción GPT cuando el turno es un número suelto ambiguo. */
@@ -803,8 +830,9 @@ export function clientNeedsEmergencyContact(message?: string): boolean {
 export function clientAsksForCatalog(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
+  // "mandarme" / "puedes mandarme" / "me puedes enviar" (A14929 Jeny).
   if (
-    /\b(manda|env[ií]a|pasa|comparte|m[aá]ndame|env[ií]ame|pasame|pásame|quiero|necesito|dame)\b.{0,40}\bcat[aá]logo/i.test(
+    /\b(manda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|comparte|quiero|necesito|dame|puedes\s+(manda|envia|pasar)|me\s+puedes\s+(manda|envia|pasar))\b.{0,50}\bcat[aá]logo/i.test(
       t
     )
   ) {
@@ -816,8 +844,8 @@ export function clientAsksForCatalog(message?: string): boolean {
   if (/bodasesor\.com\/catalogos/i.test(t)) return true;
   // "mándame el de la barra de pizzas" / "pásame el de colgantes"
   if (
-    /\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame|dame)\s+el\s+(de|del)\b/i.test(t) ||
-    /\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+el\s+link\b/i.test(t)
+    /\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|dame)\s+el\s+(de|del)\b/i.test(t) ||
+    /\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same)\s+el\s+link\b/i.test(t)
   ) {
     return true;
   }
@@ -843,7 +871,7 @@ export function clientAffirmsCatalogOffer(
 ): boolean {
   if (!message?.trim() || !lastAssistantText?.trim()) return false;
   if (
-    !/cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(
+    !/cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando)\s+el\s+cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir)\s+el\s+cat[aá]logo|link\s+(del\s+)?cat[aá]logo/i.test(
       lastAssistantText
     )
   ) {
@@ -851,7 +879,7 @@ export function clientAffirmsCatalogOffer(
   }
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
-  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|mándame|env[ií]a|envíame)([.!?]|\s|$)/i.test(
+  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
     t
   );
 }
@@ -2174,6 +2202,32 @@ export function applyCapturesToCrm(
       }
       continue;
     }
+    // A14929: ampliar servicios o subir presupuesto aunque el campo ya esté lleno.
+    if (label === "Requerimientos o servicios" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l) => /^-?\s*Requerimientos o servicios:/i.test(l));
+      if (idx >= 0) {
+        const existing = mergedLines[idx]!.replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
+        const merged = mergeServiceRequirements(existing, value, 6);
+        const prev = parseServicesFromText(existing).length;
+        const next = merged ? parseServicesFromText(merged).length : 0;
+        if (merged && next > prev) {
+          mergedLines[idx] = `- Requerimientos o servicios: ${merged}`;
+        }
+      }
+      continue;
+    }
+    if (label === "Presupuesto (MXN)" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l) => /^-?\s*Presupuesto \(MXN\):/i.test(l));
+      if (idx >= 0) {
+        const existing = mergedLines[idx]!.replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
+        const oldNum = parseInt(existing.replace(/[^\d]/g, ""), 10);
+        const newNum = parseInt(value.replace(/[^\d]/g, ""), 10);
+        if (!isNaN(newNum) && newNum >= 1000 && (isNaN(oldNum) || newNum > oldNum)) {
+          mergedLines[idx] = `- Presupuesto (MXN): ${value}`;
+        }
+      }
+      continue;
+    }
     if (filledSet.has(label)) continue;
     mergedLines.push(`- ${label}: ${value}`);
     filledSet.add(label);
@@ -2258,6 +2312,15 @@ export function enrichExtractedFromConversation(
         extracted.presupuesto = num;
         break;
       }
+    }
+  } else {
+    // A14929: si el cliente sube el presupuesto en un mensaje posterior, tomar el mayor.
+    const amounts = [...conversationText.matchAll(/\$?\s*([\d][\d,]{2,})\b/g)]
+      .map((m) => parseInt(m[1]!.replace(/,/g, ""), 10))
+      .filter((n) => !isNaN(n) && n >= 1000 && n <= 50_000_000);
+    const maxAmt = amounts.length ? Math.max(...amounts) : 0;
+    if (maxAmt > extracted.presupuesto) {
+      extracted.presupuesto = maxAmt;
     }
   }
 

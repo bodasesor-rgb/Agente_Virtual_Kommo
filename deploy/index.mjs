@@ -79547,6 +79547,7 @@ var PLACEHOLDER_PATTERNS = [
 var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
 var COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
 var BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|alejandro|rodrigo|salesbot)$/i;
+var CATALOG_LEVEL_OR_BRAND_NAME = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip|gold|silver|platinum|business|premium\s*events?)$/i;
 function isGreetingToLucy(text2) {
   return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text2.trim());
 }
@@ -79656,6 +79657,7 @@ function sanitizeDisplayName(name2) {
   if (/^\d+$/.test(firstName2)) return null;
   if (GREETING_NAME_PATTERN.test(firstName2)) return null;
   if (BOT_OR_META_NAME_TOKEN.test(firstName2)) return null;
+  if (CATALOG_LEVEL_OR_BRAND_NAME.test(firstName2)) return null;
   if (isQuoteIntentMessage(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw) || isLikelyUbicacionNotNombre(cleaned)) return null;
   return firstName2.charAt(0).toUpperCase() + firstName2.slice(1).toLowerCase();
@@ -79670,7 +79672,7 @@ function sanitizeCrmNombre(name2) {
   if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
     const maybeRepair = stripPresentationPrefixLocal(raw).replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim().split(/\s+/).filter((part) => {
       const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
-      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters);
+      return letters.length >= 2 && !BOT_OR_META_NAME_TOKEN.test(letters) && !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) && !GREETING_NAME_PATTERN.test(letters) && !SENTENCE_VERB_PATTERN.test(letters);
     });
     if (maybeRepair.length === 0 || maybeRepair.length === raw.split(/\s+/).length) {
       return null;
@@ -79692,6 +79694,7 @@ function sanitizeCrmNombre(name2) {
     const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
@@ -79705,14 +79708,21 @@ function sanitizeCrmNombre(name2) {
     return letters.charAt(0).toUpperCase() + letters.slice(1).toLowerCase();
   }).join(" ");
   if (SENTENCE_VERB_PATTERN.test(candidate)) return null;
+  if (CATALOG_LEVEL_OR_BRAND_NAME.test(candidate.split(/\s+/)[0] ?? "")) return null;
   return candidate;
 }
 function shouldUpdateName(current, incoming) {
   const c2 = (current ?? "").trim();
   const i3 = (incoming ?? "").trim();
   if (!i3) return false;
+  const iClean = sanitizeCrmNombre(i3) ?? sanitizeDisplayName(i3);
+  if (!iClean) return false;
   if (!c2) return true;
-  return isNombreMoreComplete(i3, c2);
+  if (CATALOG_LEVEL_OR_BRAND_NAME.test(c2.split(/\s+/)[0] ?? "") || !sanitizeCrmNombre(c2)) {
+    return true;
+  }
+  if (!namesAreLikelySamePerson(c2, iClean)) return false;
+  return isNombreMoreComplete(iClean, c2);
 }
 function normalizeNameTokens(name2) {
   return name2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").split(/\s+/).filter((t) => t.length >= 2);
@@ -80078,17 +80088,31 @@ function isGettingReadyContext(text2) {
   );
 }
 function hasSpecificFoodService(text2) {
-  return /\b(banquete|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
+  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b|\bbanquetes?\s+o\s+catering\b/i.test(
+    text2
+  )) {
+    return false;
+  }
+  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
     text2
   );
 }
 function isVagueFoodTerm(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
+  if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
+    t
+  ) || /^(me\s+interesa\s+(cotizar\s+)?)?(un\s+)?(servicio\s+de\s+)?(banquetes?|catering)(\s+para\s+mi\s+evento)?[.!?¿?]*$/i.test(
+    t
+  )) {
+    if (!/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional|\d\s+tiempos)|\d\s+tiempos|taquiza|coffee\s*break|barra\s+de|sushi|parrillada)\b/i.test(t)) {
+      return true;
+    }
+  }
   if (hasSpecificFoodService(t)) return false;
   const services = parseServicesFromText(t);
   if (services.length >= 2) return false;
-  if (services.length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t) && !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering)$/i.test(t)) {
+  if (services.length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t) && !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t)) {
     if (services.length === 1 && /^(Desayuno|Snack|Cena|Coffee break|Brunch)$/i.test(services[0])) {
       return false;
     }
@@ -80096,11 +80120,15 @@ function isVagueFoodTerm(text2) {
       return false;
     }
   }
-  const cleaned = t.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las)\s+/i, "").trim();
-  if (/^(comida|alimentos?|men[uú]s?|catering|algo\s+de\s+comer)$/i.test(cleaned)) {
+  const cleaned = t.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las|un\s+servicio\s+de)\s+/i, "").trim();
+  if (/^(comida|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+banquetes?(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
+    cleaned
+  )) {
     return true;
   }
-  return /\b(quiero|necesito|busco)\s+(comida|alimentos?|algo\s+de\s+comer)\b/i.test(t);
+  return /\b(quiero|necesito|busco|me\s+interesa\s+cotizar)\s+(comida|alimentos?|algo\s+de\s+comer|banquetes?|catering)\b/i.test(
+    t
+  );
 }
 function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
   if (isAmbiguousShortNumber(messageText, ctx)) {
@@ -80275,7 +80303,7 @@ function clientNeedsEmergencyContact(message) {
 function clientAsksForCatalog(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  if (/\b(manda|env[ií]a|pasa|comparte|m[aá]ndame|env[ií]ame|pasame|pásame|quiero|necesito|dame)\b.{0,40}\bcat[aá]logo/i.test(
+  if (/\b(manda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|comparte|quiero|necesito|dame|puedes\s+(manda|envia|pasar)|me\s+puedes\s+(manda|envia|pasar))\b.{0,50}\bcat[aá]logo/i.test(
     t
   )) {
     return true;
@@ -80284,7 +80312,7 @@ function clientAsksForCatalog(message) {
   if (/\bcat[aá]logo\s+(de|web|completo|general)\b/i.test(t)) return true;
   if (/\blink\s+(del\s+)?cat[aá]logo/i.test(t)) return true;
   if (/bodasesor\.com\/catalogos/i.test(t)) return true;
-  if (/\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame|dame)\s+el\s+(de|del)\b/i.test(t) || /\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+el\s+link\b/i.test(t)) {
+  if (/\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|dame)\s+el\s+(de|del)\b/i.test(t) || /\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same)\s+el\s+link\b/i.test(t)) {
     return true;
   }
   return false;
@@ -80301,14 +80329,14 @@ function clientWantsFullCatalog(message) {
 }
 function clientAffirmsCatalogOffer(message, lastAssistantText) {
   if (!message?.trim() || !lastAssistantText?.trim()) return false;
-  if (!/cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(
+  if (!/cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando)\s+el\s+cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir)\s+el\s+cat[aá]logo|link\s+(del\s+)?cat[aá]logo/i.test(
     lastAssistantText
   )) {
     return false;
   }
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
-  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|mándame|env[ií]a|envíame)([.!?]|\s|$)/i.test(
+  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
     t
   );
 }
@@ -81184,6 +81212,31 @@ function applyCapturesToCrm(mergedLines, filledSet, captures) {
       }
       continue;
     }
+    if (label === "Requerimientos o servicios" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l4) => /^-?\s*Requerimientos o servicios:/i.test(l4));
+      if (idx >= 0) {
+        const existing = mergedLines[idx].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
+        const merged = mergeServiceRequirements(existing, value, 6);
+        const prev = parseServicesFromText(existing).length;
+        const next = merged ? parseServicesFromText(merged).length : 0;
+        if (merged && next > prev) {
+          mergedLines[idx] = `- Requerimientos o servicios: ${merged}`;
+        }
+      }
+      continue;
+    }
+    if (label === "Presupuesto (MXN)" && filledSet.has(label)) {
+      const idx = mergedLines.findIndex((l4) => /^-?\s*Presupuesto \(MXN\):/i.test(l4));
+      if (idx >= 0) {
+        const existing = mergedLines[idx].replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
+        const oldNum = parseInt(existing.replace(/[^\d]/g, ""), 10);
+        const newNum = parseInt(value.replace(/[^\d]/g, ""), 10);
+        if (!isNaN(newNum) && newNum >= 1e3 && (isNaN(oldNum) || newNum > oldNum)) {
+          mergedLines[idx] = `- Presupuesto (MXN): ${value}`;
+        }
+      }
+      continue;
+    }
     if (filledSet.has(label)) continue;
     mergedLines.push(`- ${label}: ${value}`);
     filledSet.add(label);
@@ -81238,6 +81291,12 @@ function enrichExtractedFromConversation(extracted, conversationText) {
         extracted.presupuesto = num;
         break;
       }
+    }
+  } else {
+    const amounts = [...conversationText.matchAll(/\$?\s*([\d][\d,]{2,})\b/g)].map((m4) => parseInt(m4[1].replace(/,/g, ""), 10)).filter((n3) => !isNaN(n3) && n3 >= 1e3 && n3 <= 5e7);
+    const maxAmt = amounts.length ? Math.max(...amounts) : 0;
+    if (maxAmt > extracted.presupuesto) {
+      extracted.presupuesto = maxAmt;
     }
   }
   if (extracted.presupuesto !== null && extracted.num_invitados !== null && extracted.presupuesto === extracted.num_invitados && extracted.presupuesto < 1e3) {
@@ -85546,6 +85605,9 @@ function buildOpeningAcknowledgment(history, currentMessage) {
   }
   if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
   if (/\bbautizo\b/.test(t)) return "Con gusto te ayudo con la cotizaci\xF3n para tu bautizo.";
+  if (isVagueFoodTerm(userText)) {
+    return "Para alimentos manejamos banquete, taquiza, brunch o coffee break \u2014 \xBFcu\xE1l te interesa?";
+  }
   if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) {
     const colonMatch = userText.match(
       /(?:me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
@@ -85965,7 +86027,11 @@ function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
       const body2 = mensaje.split(/\n+/).filter(
         (line2) => !mensajeAsksForFilledField(line2, filledSet, extracted) && !(line2.includes("?") && mensajeAsksWrongField(line2, filledSet, extracted))
       ).join("\n").trim();
-      return mergeWithPendingQuestion(body2, filledSet, extracted, ctx);
+      let kept = body2;
+      if (!kept && /banquete|taquiza|brunch|coffee\s*break|alimentos/i.test(mensaje)) {
+        kept = mensaje.replace(/\s*¿\s*cu[aá]l\s+(te\s+interesa|prefieres|variante)[^?]*\?/gi, "").replace(/\?\s*$/g, ".").trim();
+      }
+      return mergeWithPendingQuestion(kept || mensaje, filledSet, extracted, ctx);
     }
     if (!isInformativeClientAnswer(ctx.currentMessage)) {
       if (!pending) {
@@ -86200,9 +86266,12 @@ ${nextQ}`;
 function buildStandardClosingMessage(serviciosPedidos, clientName) {
   const asesor = advisorLabelForClient(clientName);
   const handoff = asesor === "nuestro equipo" ? "Le paso estos datos a nuestro equipo para que te arme una cotizaci\xF3n personalizada." : `Le paso estos datos a ${asesor} para que te arme una cotizaci\xF3n personalizada.`;
-  const servicio = serviciosPedidos?.trim() || "";
+  const servicioRaw = serviciosPedidos?.trim() || "";
+  const isSlashFoodAlias = /banquete\s*\/\s*taquiza/i.test(servicioRaw);
+  const parsed = parseServicesFromText(servicioRaw);
+  const servicio = isSlashFoodAlias ? "banquete / taquiza" : parsed.length > 0 ? parsed.slice(0, 4).join(", ") : isValidRequerimientosValue(servicioRaw) && !/banquetes?\s+o\s+catering|servicio\s+de\s+banquetes?/i.test(servicioRaw) ? servicioRaw : "";
   const serviceParts = servicio ? servicio.split(/,\s*/).map((s4) => s4.trim()).filter(Boolean) : [];
-  const multiPackage = serviceParts.length >= 2;
+  const multiPackage = !isSlashFoodAlias && serviceParts.length >= 2;
   const complements = servicio ? `Si quieres sumar algo adem\xE1s de ${servicio} (alimentos, mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar alimentos, mobiliario, DJ o iluminaci\xF3n, d\xEDmelo.`;
   const parts2 = [`Perfecto, ya tengo todo. ${handoff}`, "", complements];
   if (multiPackage) {
@@ -87330,6 +87399,16 @@ ${nextQ}`;
 ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
       }
     }
+    if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted)) {
+      if (!/hola,?\s*soy\s+lucy/i.test(mensaje)) {
+        mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
+      }
+      if (!mensajeAsksForField(mensaje, "nombre") && !/\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(mensaje)) {
+        mensaje = `${mensaje}
+
+${pickVariant("nombre", history, entityId)}`.trim();
+      }
+    }
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
@@ -87574,6 +87653,24 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     mensaje,
     clientWantedCatalog || intentionalCatalogSend
   );
+  if ((clientWantedCatalog || intentionalCatalogSend) && /cat[aá]logo|enlace|link/i.test(mensaje) && !/bodasesor\.com\/catalogos/i.test(mensaje)) {
+    const wantFull = clientWantsFullCatalog(currentMessage) || /cat[aá]logo\s+(completo|general)/i.test(currentMessage ?? "");
+    mensaje = buildCatalogWebLinkReply({
+      query: wantFull ? "cat\xE1logo general" : currentMessage ?? "cat\xE1logo general",
+      wantFull,
+      serviceHint: extracted.requerimientos_evento ?? null
+    });
+    log?.info({ entityId }, "GUARD: forz\xF3 URL de cat\xE1logo (mensaje sin link)");
+  }
+  const waRaw = (whatsappDisplayName ?? "").trim();
+  const waIsCatalogLevel = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip)$/i.test(waRaw);
+  if (waIsCatalogLevel && /banquete\s+premium/i.test(mensaje) && currentMessage && !/\bpremium\b/i.test(currentMessage) && !isCatalogLevelSelection(
+    currentMessage,
+    lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
+  )) {
+    mensaje = mensaje.replace(/[^.!?]*\bbanquete\s+premium\b[^.!?]*[.!?]/gi, "").replace(/\n{3,}/g, "\n\n").trim();
+    log?.info({ entityId }, "GUARD: quit\xF3 banquete Premium inventado desde nombre WA");
+  }
   if (messageOffersLevelsWithoutInclusions(mensaje)) {
     const hint = [
       extracted.requerimientos_evento,
@@ -88510,14 +88607,35 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const ubicacionRaw = pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
   const ubicacion = isUsableResumenUbicacion(ubicacionRaw) ? ubicacionRaw : null;
   const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
-  const ppto = pptoFromLine || (extracted.presupuesto !== null && extracted.presupuesto > 0 ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN` : null);
   const reqFromLinesRaw = pickFromMergedLines(mergedLines, /Requerimientos/i);
   const reqFromLines = isUsableResumenServicio(reqFromLinesRaw) ? reqFromLinesRaw : null;
   const reqFromServicesRaw = extracted.requerimientos_evento?.trim();
   const reqFromServices = isUsableResumenServicio(reqFromServicesRaw) ? reqFromServicesRaw : null;
   const reqFromCatalog = conversationText && conversationText.trim().length > 3 ? formatRequerimientoLabelFromQuery(conversationText) : null;
-  const reqFromConversation = conversationText && conversationText.trim().length > 20 ? parseServicesFromText(conversationText).slice(0, 6).join(", ") : null;
-  const reqs = reqFromLines || (isUsableResumenServicio(reqFromCatalog) ? reqFromCatalog : null) || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || (reqFromConversation && reqFromConversation.length > 0 ? reqFromConversation : null);
+  const convServices = conversationText && conversationText.trim().length > 20 ? parseServicesFromText(conversationText).slice(0, 6) : [];
+  const reqFromConversation = convServices.length > 0 ? convServices.join(", ") : null;
+  const lineSvcCount = reqFromLines ? parseServicesFromText(reqFromLines).length : 0;
+  const convSvcCount = convServices.length;
+  const extractedSvcCount = reqFromServices ? parseServicesFromText(reqFromServices).length : 0;
+  let reqs = null;
+  if (convSvcCount > lineSvcCount && convSvcCount > extractedSvcCount) {
+    reqs = reqFromConversation;
+  } else if (extractedSvcCount > lineSvcCount && reqFromServices) {
+    reqs = reqFromServices !== extracted.tipo_evento ? reqFromServices : null;
+  } else {
+    reqs = reqFromLines || (isUsableResumenServicio(reqFromCatalog) ? reqFromCatalog : null) || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || reqFromConversation;
+  }
+  let ppto = pptoFromLine;
+  const convAmounts = conversationText ? [...conversationText.matchAll(/\$?\s*([\d][\d,]{2,})\b/g)].map((m4) => parseInt(m4[1].replace(/,/g, ""), 10)).filter((n3) => !isNaN(n3) && n3 >= 1e3 && n3 <= 5e7) : [];
+  const maxConv = convAmounts.length ? Math.max(...convAmounts) : 0;
+  const lineNum = pptoFromLine ? parseInt(pptoFromLine.replace(/[^\d]/g, ""), 10) : 0;
+  const extNum = extracted.presupuesto !== null && extracted.presupuesto > 0 ? extracted.presupuesto : 0;
+  const bestPpto = Math.max(lineNum || 0, extNum || 0, maxConv || 0);
+  if (bestPpto >= 1e3) {
+    ppto = String(bestPpto);
+  } else if (!ppto && extNum > 0) {
+    ppto = `$${extNum.toLocaleString("es-MX")} MXN`;
+  }
   const modo = extracted.modo_servicio?.trim();
   const pendientes = pendingFields(mergedLines, extracted);
   const lineas = ["RESUMEN DE CONVERSACI\xD3N \u2014 Lucy", ""];
@@ -95173,7 +95291,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
         pickBetterNombre(extracted.nombre, fromTurn),
         existing
       );
-      if (upgraded && isNombreMoreComplete(upgraded, existing)) {
+      if (upgraded && shouldUpdateName(existing, upgraded)) {
         const suffix = rawLine.includes(WHATSAPP_NOMBRE_NOTE) ? ` ${WHATSAPP_NOMBRE_NOTE}` : "";
         mergedLines[idx] = `- Nombre del cliente: ${upgraded}${suffix}`;
         extracted.nombre = upgraded;
@@ -95238,6 +95356,50 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       } else if (value !== null && value !== void 0 && value !== 0) {
         mergedLines.push(`- ${label}: ${value}`);
         filledSet.add(label);
+      }
+    }
+  }
+  if (currentMessage?.trim()) {
+    const reqIdx2 = mergedLines.findIndex((l4) => /^-?\s*Requerimientos o servicios:/i.test(l4));
+    if (reqIdx2 >= 0) {
+      const existingReq = mergedLines[reqIdx2].replace(/^-?\s*Requerimientos o servicios:\s*/i, "").trim();
+      const mergedReq = mergeServiceRequirements(existingReq, currentMessage, 6);
+      const prevCount = parseServicesFromText(existingReq).length;
+      const nextCount = mergedReq ? parseServicesFromText(mergedReq).length : 0;
+      if (mergedReq && nextCount > prevCount) {
+        mergedLines[reqIdx2] = `- Requerimientos o servicios: ${mergedReq}`;
+        extracted.requerimientos_evento = mergedReq;
+      }
+    } else if (!filledSet.has("Requerimientos o servicios")) {
+      const fromMsg = mergeServiceRequirements(extracted.requerimientos_evento, currentMessage, 6);
+      if (fromMsg && parseServicesFromText(fromMsg).length > 0) {
+        mergedLines.push(`- Requerimientos o servicios: ${fromMsg}`);
+        filledSet.add("Requerimientos o servicios");
+        extracted.requerimientos_evento = fromMsg;
+      }
+    }
+    const askedPres = inferLucyAskedField(
+      history.filter((m4) => m4.role === "assistant").slice(-1)[0]?.content ?? ""
+    );
+    const fromPres = parsePresupuestoFromText(currentMessage, {
+      askedField: askedPres === "presupuesto" ? "presupuesto" : null
+    });
+    if (fromPres) {
+      const newNum = parseInt(fromPres.replace(/[^\d]/g, ""), 10);
+      const presIdx = mergedLines.findIndex((l4) => /^-?\s*Presupuesto \(MXN\):/i.test(l4));
+      if (!isNaN(newNum) && newNum >= 1e3) {
+        if (presIdx >= 0) {
+          const existingPres = mergedLines[presIdx].replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
+          const oldNum = parseInt(existingPres.replace(/[^\d]/g, ""), 10);
+          if (isNaN(oldNum) || newNum > oldNum) {
+            mergedLines[presIdx] = `- Presupuesto (MXN): ${fromPres}`;
+            extracted.presupuesto = newNum;
+          }
+        } else if (!filledSet.has("Presupuesto (MXN)")) {
+          mergedLines.push(`- Presupuesto (MXN): ${fromPres}`);
+          filledSet.add("Presupuesto (MXN)");
+          extracted.presupuesto = newNum;
+        }
       }
     }
   }
@@ -95467,10 +95629,10 @@ function buildPatchPayload(extracted, mergedLines, conversationText) {
     customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(extracted.presupuesto) }] });
   }
   const payload = { custom_fields_values: customFields };
-  if (isValidExtractedString(extracted.nombre)) {
+  {
     const currentNombre = parseNombreFromCrmLines(mergedLines);
-    const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? extracted.nombre;
-    if (shouldUpdateName(currentNombre ?? void 0, nombrePatch)) {
+    const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
+    if (nombrePatch && shouldUpdateName(currentNombre ?? void 0, nombrePatch)) {
       payload["name"] = cap255(nombrePatch);
     }
   }

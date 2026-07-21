@@ -1368,6 +1368,10 @@ export function buildOpeningAcknowledgment(
 
   if (/baby\s*shower/.test(t)) return "Claro que te ayudamos con tu baby shower.";
   if (/\bbautizo\b/.test(t)) return "Con gusto te ayudo con la cotización para tu bautizo.";
+  // A14929: antes de "me interesa cotizar…", detectar banquetes/catering vago.
+  if (isVagueFoodTerm(userText)) {
+    return "Para alimentos manejamos banquete, taquiza, brunch o coffee break — ¿cuál te interesa?";
+  }
   if (/me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento/i.test(t)) {
     const colonMatch = userText.match(
       /(?:me\s+interesa\s+cotizar|cotizar\s+para\s+mi\s+evento)\s*:\s*(.+)/i
@@ -1400,6 +1404,7 @@ export function buildOpeningAcknowledgment(
     return "Vi los datos de tu evento en la solicitud.";
   }
   if (isGettingReadyContext(userText)) return "Te ayudo con el catering para el getting ready.";
+  // (isVagueFoodTerm se evalúa más arriba, antes de "me interesa cotizar")
   if (/banquete/.test(t)) {
     const inv = userText.match(/(\d+)\s*(?:personas?|invitados?)/i);
     return inv
@@ -2026,7 +2031,16 @@ export function sanitizeOutboundMessage(
         )
         .join("\n")
         .trim();
-      return mergeWithPendingQuestion(body, filledSet, extracted, ctx);
+      // A14929: oferta banquete/taquiza/"¿cuál te interesa?" matchea requerimientos y
+      // vaciaba todo el pitch → solo quedaba "¿nombre?". Conservar el cuerpo de venta.
+      let kept = body;
+      if (!kept && /banquete|taquiza|brunch|coffee\s*break|alimentos/i.test(mensaje)) {
+        kept = mensaje
+          .replace(/\s*¿\s*cu[aá]l\s+(te\s+interesa|prefieres|variante)[^?]*\?/gi, "")
+          .replace(/\?\s*$/g, ".")
+          .trim();
+      }
+      return mergeWithPendingQuestion(kept || mensaje, filledSet, extracted, ctx);
     }
     if (!isInformativeClientAnswer(ctx.currentMessage)) {
       if (!pending) {
@@ -2405,11 +2419,23 @@ export function buildStandardClosingMessage(
     asesor === "nuestro equipo"
       ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
       : `Le paso estos datos a ${asesor} para que te arme una cotización personalizada.`;
-  const servicio = serviciosPedidos?.trim() || "";
+  const servicioRaw = serviciosPedidos?.trim() || "";
+  // Solo listar servicios concretos parseables — evita "además de la taquiza" inventada (A14929).
+  // "banquete / taquiza" es alternativa (1 pedido), no paquete multi-servicio con catálogo.
+  const isSlashFoodAlias = /banquete\s*\/\s*taquiza/i.test(servicioRaw);
+  const parsed = parseServicesFromText(servicioRaw);
+  const servicio = isSlashFoodAlias
+    ? "banquete / taquiza"
+    : parsed.length > 0
+      ? parsed.slice(0, 4).join(", ")
+      : isValidRequerimientosValue(servicioRaw) &&
+          !/banquetes?\s+o\s+catering|servicio\s+de\s+banquetes?/i.test(servicioRaw)
+        ? servicioRaw
+        : "";
   const serviceParts = servicio
     ? servicio.split(/,\s*/).map((s) => s.trim()).filter(Boolean)
     : [];
-  const multiPackage = serviceParts.length >= 2;
+  const multiPackage = !isSlashFoodAlias && serviceParts.length >= 2;
   const complements = servicio
     ? `Si quieres sumar algo además de ${servicio} (alimentos, mobiliario, DJ o iluminación), dímelo.`
     : `Si quieres sumar alimentos, mobiliario, DJ o iluminación, dímelo.`;
@@ -4096,6 +4122,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
             : ack;
       }
     }
+    // Primer turno con pitch de venta: intro Lucy + nombre si falta (A14929).
+    if (
+      (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+      !conversationAlreadyStarted(filledSet, presHistory) &&
+      !isFieldSatisfied("nombre", filledSet, extracted)
+    ) {
+      if (!/hola,?\s*soy\s+lucy/i.test(mensaje)) {
+        mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
+      }
+      if (
+        !mensajeAsksForField(mensaje, "nombre") &&
+        !/\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(mensaje)
+      ) {
+        mensaje = `${mensaje}\n\n${pickVariant("nombre", history, entityId)}`.trim();
+      }
+    }
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
   }
 
@@ -4445,6 +4487,43 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje,
     clientWantedCatalog || intentionalCatalogSend
   );
+
+  // A14929: si dijo que manda enlace/catálogo pero no hay URL, forzar link del Sheet.
+  if (
+    (clientWantedCatalog || intentionalCatalogSend) &&
+    /cat[aá]logo|enlace|link/i.test(mensaje) &&
+    !/bodasesor\.com\/catalogos/i.test(mensaje)
+  ) {
+    const wantFull = clientWantsFullCatalog(currentMessage) || /cat[aá]logo\s+(completo|general)/i.test(currentMessage ?? "");
+    mensaje = buildCatalogWebLinkReply({
+      query: wantFull ? "catálogo general" : (currentMessage ?? "catálogo general"),
+      wantFull,
+      serviceHint: extracted.requerimientos_evento ?? null,
+    });
+    log?.info({ entityId }, "GUARD: forzó URL de catálogo (mensaje sin link)");
+  }
+
+  // A14929: no inventar "banquete Premium" cuando Premium es el nombre de WhatsApp, no un nivel elegido.
+  const waRaw = (whatsappDisplayName ?? "").trim();
+  const waIsCatalogLevel = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip)$/i.test(waRaw);
+  if (
+    waIsCatalogLevel &&
+    /banquete\s+premium/i.test(mensaje) &&
+    currentMessage &&
+    !/\bpremium\b/i.test(currentMessage) &&
+    !isCatalogLevelSelection(
+      currentMessage,
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+        ? (lastAssistantMsg.content as string)
+        : null
+    )
+  ) {
+    mensaje = mensaje
+      .replace(/[^.!?]*\bbanquete\s+premium\b[^.!?]*[.!?]/gi, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    log?.info({ entityId }, "GUARD: quitó banquete Premium inventado desde nombre WA");
+  }
 
   // Oferta de niveles sin inclusiones → reemplazar con detalle del Sheet.
   if (messageOffersLevelsWithoutInclusions(mensaje)) {
