@@ -62,6 +62,7 @@ import {
   clientMentionsCarpas,
   clientAsksServiceInfo,
   clientAddsToQuote,
+  appendPostCierreRequirements,
 } from "../conversation-understanding.js";
 import {
   applyLucyGlobalAntiRepetition,
@@ -4890,6 +4891,128 @@ async function runAll(): Promise<void> {
         /presupuesto|Perfecto|anotad/i.test(anti.mensaje),
       anti.mensaje
     );
+  });
+
+  await test("87. Ilana A14938 — ubicación≠nombre, pizzas en evento, sin $300 presupuesto", () => {
+    // Nombre del lead NO puede ser la dirección.
+    assert.ok(isLikelyUbicacionNotNombre("en Tlalnepantla"));
+    assert.ok(isLikelyUbicacionNotNombre("En Tlalnepantla"));
+    assert.ok(isLikelyUbicacionNotNombre("Tlalnepantla"));
+    assert.equal(sanitizeCrmNombre("en Tlalnepantla"), null);
+    assert.equal(sanitizeCrmNombre("En Tlalnepantla"), null);
+    assert.ok(!looksLikePersonFullName("en Tlalnepantla"));
+    assert.ok(shouldUpdateName("En Tlalnepantla", "Ilana Berman"));
+
+    const zona = parseZonaFromText("en Tlalnepantla");
+    assert.ok(zona && /tlalnepantla/i.test(zona), String(zona));
+
+    const filled = new Set<string>();
+    const caps = captureContextualAnswer(
+      [{ role: "assistant", content: "Hola, soy Lucy. ¿Cómo te llamas?" }],
+      "en Tlalnepantla",
+      filled
+    );
+    assert.ok(
+      caps.some((c) => c.label === "Lugar/dirección del evento"),
+      JSON.stringify(caps)
+    );
+    assert.ok(
+      !caps.some((c) => c.label === "Nombre del cliente"),
+      `ubicación no es nombre: ${JSON.stringify(caps)}`
+    );
+
+    // Precio de catálogo "$300 por persona" ≠ presupuesto del cliente.
+    assert.equal(
+      parsePresupuestoFromText("Perfecto, en Tlalnepantla manejamos taquizas desde $300 por persona."),
+      null
+    );
+    assert.ok(
+      parsePresupuestoFromText("Mi presupuesto es $300 por persona", {
+        askedField: "presupuesto",
+      })
+    );
+
+    // ¿Hacen las pizzas en el evento?
+    assert.ok(clientAsksServiceInfo("Hacen las pizzas en el evento?"));
+    const pizzaAck = buildGuardServiceAck("Hacen las pizzas en el evento?");
+    assert.ok(/pizza|monta|evento|momento/i.test(pizzaAck), pizzaAck);
+
+    const pizzaGuard = runGuards({
+      aiResponse: "Perfecto, anoto Pizzas. ¿Me compartes un correo?",
+      extracted: emptyExtracted({
+        nombre: "Ilana Berman",
+        requerimientos_evento: "Pizzas",
+        tipo_evento: "corporativo",
+        num_invitados: 550,
+        fecha_horario: "12 de dic",
+        direccion_evento: "Tlalnepantla",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Requerimientos o servicios",
+        "Tipo de evento",
+        "Número de invitados",
+        "Fecha y horario",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Hacen las pizzas en el evento?",
+      history: [
+        {
+          role: "user",
+          content:
+            "Quiero hacer una cotizacion de pizzas para un evento empresarial de 550 personas el 12 de dic",
+        },
+        { role: "assistant", content: "¿Cómo te llamas?" },
+        { role: "user", content: "Ilana Berman" },
+        { role: "assistant", content: "Perfecto, Ilana. ¿Me compartes un correo?" },
+      ],
+      whatsappDisplayName: "Ilana Berman",
+    });
+    assert.ok(
+      /monta|evento|prepar|momento|s[ií]/i.test(pizzaGuard),
+      `debe responder si hacen pizzas en el evento: ${pizzaGuard.slice(0, 400)}`
+    );
+    assert.ok(!/anoto Pizzas\.?\s*$/i.test(pizzaGuard.trim()), pizzaGuard.slice(0, 200));
+
+    // Zona + pizzas: no inventar taquiza.
+    const zonaGuard = runGuards({
+      aiResponse:
+        "Perfecto, en Tlalnepantla manejamos taquizas desde $300 por persona. ¿Tienes un correo?",
+      extracted: emptyExtracted({
+        requerimientos_evento: "Pizzas",
+        tipo_evento: "corporativo",
+        num_invitados: 550,
+        fecha_horario: "12 de dic",
+        direccion_evento: "Tlalnepantla",
+      }),
+      filledSet: new Set([
+        "Requerimientos o servicios",
+        "Tipo de evento",
+        "Número de invitados",
+        "Fecha y horario",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "en Tlalnepantla",
+      history: [
+        {
+          role: "user",
+          content:
+            "Quiero hacer una cotizacion de pizzas para un evento empresarial de 550 personas el 12 de dic",
+        },
+        { role: "assistant", content: "¿Cómo te llamas?" },
+      ],
+      whatsappDisplayName: "Ilana Berman",
+    });
+    assert.ok(!/\btaquiza/i.test(zonaGuard), `no inventar taquiza: ${zonaGuard.slice(0, 400)}`);
+    assert.ok(/pizza|Tlalnepantla/i.test(zonaGuard), zonaGuard.slice(0, 300));
+
+    // Post-cierre entradas + postre.
+    const merged = appendPostCierreRequirements("Pizzas, Mobiliario", "Entradas y postre");
+    assert.ok(/entrada/i.test(merged ?? ""), merged);
+    assert.ok(/postre/i.test(merged ?? ""), merged);
+    assert.ok(parseServicesFromText("Entradas y postre").length >= 1);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

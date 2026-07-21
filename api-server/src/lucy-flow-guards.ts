@@ -12,6 +12,7 @@ import {
   buildNameConfirmationPrompt,
   namesAreLikelySamePerson,
   isLikelyNotPersonNameMessage,
+  isLikelyUbicacionNotNombre,
   clientAsksCompanyIdentity,
   buildCompanyIdentityReply,
 } from "./contact-name.js";
@@ -101,6 +102,7 @@ import {
   parseFechaFromText,
   parseTipoEventoFromText,
   parseInvitadosFromText,
+  parseZonaFromText,
   parseServicesFromText,
   mergeServiceRequirements,
   buildMultiServiceAck,
@@ -2755,6 +2757,68 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // A14938: "¿Hacen las pizzas en el evento?" — responder operativo antes del embudo.
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    clientAsksServiceInfo(currentMessage) &&
+    /\b(hacen|preparan|cocinan|montan|sirven|elaboran)\b/i.test(currentMessage) &&
+    /\b(pizza|barra|estaci[oó]n|evento)\b/i.test(currentMessage)
+  ) {
+    const ack = buildGuardServiceAck(currentMessage);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos"
+        ? buildNaturalQuestion(pending, ctx)
+        : null;
+    const body = nextQ && !ack.includes(nextQ) ? `${ack}\n\n${nextQ}` : ack;
+    log?.info({ entityId }, "GUARD: servicio en el evento — respuesta operativa");
+    return normalizeAdvisorReferences(
+      body,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+
+  // A14938: "en Tlalnepantla" con pizzas ya pedidas — anotar zona, no inventar taquiza.
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    (() => {
+      const z = parseZonaFromText(currentMessage);
+      return (
+        !!z &&
+        currentMessage.trim().split(/\s+/).length <= 6 &&
+        (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage))
+      );
+    })()
+  ) {
+    const zonaNow = parseZonaFromText(currentMessage)!;
+    if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+      extracted.direccion_evento = zonaNow;
+      filledSet.add("Lugar/dirección del evento");
+    }
+    const wantsPizza =
+      /pizza/i.test(extracted.requerimientos_evento ?? "") ||
+      /pizza/i.test(
+        collectUserTexts(presHistory, currentMessage).join(" ")
+      );
+    if (wantsPizza) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      const body = [
+        display ? `Perfecto, ${display}.` : "Perfecto.",
+        `Anoto la ubicación en *${zonaNow}*.`,
+        "Seguimos con la cotización de *pizzas* para tu evento.",
+        nextQ,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      log?.info({ entityId, zonaNow }, "GUARD: zona + pizzas — ack sin taquiza");
+      return normalizeAdvisorReferences(body, display);
+    }
+  }
+
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
   // por redirect a zona ni anti-repeat de embudo.
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
@@ -4551,6 +4615,37 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           "Sin problema, lo dejamos por definir. Nuestro equipo te propone opciones según lo que platicamos.";
       }
       log?.info({ entityId }, "GUARD: presupuesto_resuelto — no re-preguntar");
+    }
+  }
+
+  // A14938: ubicación sola + pizzas ya pedidas → no inventar taquiza/$300.
+  {
+    const zonaNow = currentMessage ? parseZonaFromText(currentMessage) : null;
+    const locOnly =
+      !!zonaNow &&
+      !!currentMessage &&
+      currentMessage.trim().split(/\s+/).length <= 6 &&
+      (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage));
+    const wantsPizza = /pizza/i.test(extracted.requerimientos_evento ?? "") ||
+      /pizza/i.test(currentMessage ?? "");
+    if (
+      locOnly &&
+      wantsPizza &&
+      /\btaquiza/i.test(mensaje) &&
+      !/\btaquiza/i.test(extracted.requerimientos_evento ?? "")
+    ) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      const display = getDisplayName(extracted, whatsappDisplayName);
+      mensaje = [
+        display ? `Perfecto, ${display}.` : "Perfecto.",
+        `Anoto la ubicación en *${zonaNow}*.`,
+        "Seguimos con la cotización de *pizzas* para tu evento.",
+        nextQ,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      log?.info({ entityId, zonaNow }, "GUARD: zona + pizzas — no inventar taquiza");
     }
   }
 

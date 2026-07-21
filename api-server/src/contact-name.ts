@@ -94,6 +94,10 @@ export function isGreetingOnlyMessage(text: string | null | undefined): boolean 
   return false;
 }
 
+/** Preposiciones / artículos que no forman parte de un nombre propio. */
+const NAME_STOPWORDS =
+  /^(en|de|del|la|el|los|las|un|una|al|para|por|con|sin|y|o)$/i;
+
 /** ¿Todos los tokens parecen partes de un nombre propio (nombre + apellidos)? */
 export function looksLikePersonFullName(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
@@ -102,6 +106,7 @@ export function looksLikePersonFullName(text: string | null | undefined): boolea
   if (parts.length < 2 || parts.length > 5) return false;
   return parts.every((part) => {
     const letters = part.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    if (NAME_STOPWORDS.test(letters)) return false;
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(part) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
@@ -171,12 +176,19 @@ export function buildCompanyIdentityReply(clientName?: string | null): string {
   return nombre ? `${base} ¿Seguimos, ${nombre}?` : `${base} ¿Me regalas tu nombre para iniciar?`;
 }
 
-/** Colonia/ciudad — no es nombre de persona ("Narvarte CDMX", "Polanco"). */
+/** Colonia/ciudad — no es nombre de persona ("Narvarte CDMX", "en Tlalnepantla"). */
 export function isLikelyUbicacionNotNombre(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t || /^(me llamo|soy)\s+/i.test(t)) return false;
+  // "en Tlalnepantla" / "en Naucalpan" — preposición de lugar + topónimo (A14938 Ilana).
   if (
-    /\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|sat[eé]lite|interlomas|expo\s+santa)\b/i.test(
+    /^en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.'\s-]{2,40}$/i.test(t) &&
+    t.split(/\s+/).length <= 6
+  ) {
+    return true;
+  }
+  if (
+    /\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex)\b/i.test(
       t
     ) &&
     t.split(/\s+/).length <= 5
@@ -338,8 +350,12 @@ export function shouldUpdateName(current?: string, incoming?: string): boolean {
   const iClean = sanitizeCrmNombre(i) ?? sanitizeDisplayName(i);
   if (!iClean) return false;
   if (!c) return true;
-  // Nivel/marca WA basura en CRM → siempre reemplazable por un nombre real (A14929).
-  if (CATALOG_LEVEL_OR_BRAND_NAME.test(c.split(/\s+/)[0] ?? "") || !sanitizeCrmNombre(c)) {
+  // Ubicación / nivel / basura en CRM → siempre reemplazable por un nombre real (A14929/A14938).
+  if (
+    isLikelyUbicacionNotNombre(c) ||
+    CATALOG_LEVEL_OR_BRAND_NAME.test(c.split(/\s+/)[0] ?? "") ||
+    !sanitizeCrmNombre(c)
+  ) {
     return true;
   }
   // No reemplazar "Jeny" por otro nombre distinto (p. ej. intento con Premium ya filtrado arriba).

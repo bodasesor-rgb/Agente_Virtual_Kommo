@@ -107,6 +107,18 @@ export function buildGuardServiceAck(query: string): string {
   }
   if (level === 3) return buildLevel3Ack(label);
 
+  // A14938: "¿Hacen las pizzas en el evento?" — sí, barra/estación montada.
+  if (
+    /\bpizzas?\b/i.test(query) &&
+    /\b(hacen|preparan|cocinan|montan|sirven|elaboran|en\s+el\s+evento|en\s+vivo)\b/i.test(query)
+  ) {
+    return (
+      "Sí: la *barra de pizzas* se monta en tu evento y se preparan al momento " +
+      "(estación con hornos/equipo según el paquete). " +
+      "También podemos sumar pastas u otras estaciones italianas si te interesa."
+    );
+  }
+
   // Carpas / pista / tarima: responder de verdad + pedir agregar + medidas (María A14906).
   if (clientMentionsCarpas(query)) {
     const team = advisorLabelForClient();

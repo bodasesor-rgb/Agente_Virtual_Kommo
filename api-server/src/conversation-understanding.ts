@@ -60,9 +60,11 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?)\b/i],
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
   ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
-  ["Mesa de postres", /\b(mesa\s+de\s+postres|postres|dulces)\b/i],
+  ["Mesa de postres", /\b(mesa\s+de\s+postres|postres?|dulces)\b/i],
   ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
   ["Coffee break", /\b(barra\s+de\s+caf[eé]|coffee\s*break|coffeebreak)\b/i],
+  // Entradas / canapés (A14938 Ilana — post-cierre "Entradas y postre").
+  ["Entradas", /\b(entradas?|canap[eé]s?|bocadillos?)\b/i],
   // Tiempos de comida corporativos (briefs con varios servicios).
   ["Desayuno", /\bdesayunos?\b/i],
   ["Snack", /\bsnacks?\b/i],
@@ -696,7 +698,9 @@ export function clientAsksServiceInfo(message?: string): boolean {
     /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t) ||
     // "¿Cuentan con carpas transparentes?" / "¿tienen pista?"
     /\b(cuentan|tienen|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t) ||
-    /\b(cuentan|tienen|manejan|ofrecen)\s+con\b/i.test(t)
+    /\b(cuentan|tienen|manejan|ofrecen)\s+con\b/i.test(t) ||
+    // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
+    /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t)
   );
 }
 
@@ -976,7 +980,7 @@ const MONTH_PATTERN =
   /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|coyoac[aá]n|xochimilco)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
@@ -1260,12 +1264,18 @@ export function appendPostCierreRequirements(
   const hasServiceIntent =
     services.length > 0 ||
     clientAddsToQuote(t) ||
-    /\b(pantalla|audio|microfon|led|dj)\b/i.test(t);
+    isServiceRelatedMessage(t) ||
+    /\b(pantalla|audio|microfon|led|dj|entradas?|postres?|canap)\b/i.test(t);
 
   if (!hasServiceIntent) return existing?.trim() || null;
 
-  const snippet = t.replace(/\s+/g, " ").slice(0, 250);
   const base = existing?.trim() || "";
+  if (services.length > 0) {
+    const merged = mergeServiceRequirements(base || null, services.join(", "), 8);
+    return merged || base || null;
+  }
+
+  const snippet = t.replace(/\s+/g, " ").slice(0, 250);
   if (base && base.toLowerCase().includes(snippet.toLowerCase().slice(0, 40))) return base;
   return base ? `${base}; ${snippet}` : snippet;
 }
@@ -1935,13 +1945,21 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     return `${rangeMatch[1]!.replace(/,/g, "")} - ${rangeMatch[2]!.replace(/,/g, "")} MXN`;
   }
 
-  // "$500 por persona", "500 por cabeza", "500 x persona", "unos 600 pp", "500 c/u"
+  // "$500 por persona" del cliente sí; "manejamos … desde $300 por persona" de Lucy no (A14938).
   const perPersonMatch = trimmed.match(
     /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
   );
   if (perPersonMatch) {
-    const num = parseInt(perPersonMatch[1]!.replace(/,/g, ""), 10);
-    if (!isNaN(num) && num > 0) return `$${num.toLocaleString("es-MX")} MXN por persona`;
+    const hasBudgetIntent =
+      opts?.askedField === "presupuesto" ||
+      /\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta|m[aá]ximo)\b/i.test(trimmed);
+    const looksLikeCatalogPitch =
+      /\b(manejamos|desde|ofrecemos|tenemos|niveles?|incluye)\b/i.test(trimmed) ||
+      trimmed.length > 90;
+    if (hasBudgetIntent || !looksLikeCatalogPitch) {
+      const num = parseInt(perPersonMatch[1]!.replace(/,/g, ""), 10);
+      if (!isNaN(num) && num > 0) return `$${num.toLocaleString("es-MX")} MXN por persona`;
+    }
   }
 
   const menosDeMatch = trimmed.match(
@@ -1971,13 +1989,24 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     if (!isNaN(num) && num > 0) return `$${num * 1000}`;
   }
 
-  if (
-    /\$/.test(trimmed) ||
+  // "$300" suelto / "desde $300" de catálogo no es presupuesto del cliente (A14938).
+  const hasMoneyWord =
     /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) ||
-    /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed)
-  ) {
+    opts?.askedField === "presupuesto";
+  const hasAproxBudget =
+    hasMoneyWord &&
+    /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed);
+  if (hasMoneyWord || hasAproxBudget || (/\$/.test(trimmed) && hasMoneyWord)) {
     const amountMatch = trimmed.match(/\$?\s*([\d][\d,.]*)/);
     if (amountMatch) return trimmed.slice(0, 80);
+  }
+  // "$80,000" / "presupuesto 50 mil" con $ y monto alto sin palabra clave aún puede ser presupuesto.
+  if (/\$\s*[\d][\d,.]{3,}/.test(trimmed) && !/\bdesde\s+\$/i.test(trimmed)) {
+    const amountMatch = trimmed.match(/\$\s*([\d][\d,.]*)/);
+    if (amountMatch) {
+      const num = parseInt(amountMatch[1]!.replace(/,/g, ""), 10);
+      if (!isNaN(num) && num >= 1000) return trimmed.slice(0, 80);
+    }
   }
 
   const bareMatch = trimmed.match(/^\$?\s*([\d][\d,.]*)\s*(k|mxn|mnx|pesos)?$/i);
@@ -2026,8 +2055,24 @@ export function captureContextualAnswer(
   const asked = inferLucyAskedField(lastLucy);
   const captures: CrmCapture[] = [];
 
+  // A14938: "en Tlalnepantla" es ubicación — NUNCA nombre (aunque Lucy haya pedido nombre).
+  const zonaFromMsg = parseZonaFromText(msg);
+  const msgIsLocation =
+    !!zonaFromMsg &&
+    isUsableDireccionEvento(zonaFromMsg) &&
+    (isLikelyUbicacionNotNombre(msg) ||
+      asked === "zona" ||
+      /^en\s+/i.test(msg.trim()) ||
+      (msg.trim().split(/\s+/).length <= 4 && !!zonaFromMsg));
+
+  if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/dirección del evento")) {
+    captures.push({ label: "Lugar/dirección del evento", value: zonaFromMsg });
+  }
+
   if (
+    !msgIsLocation &&
     !filledSet.has("Nombre del cliente") &&
+    asked !== "zona" &&
     (asked === "nombre" || (!history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg))) &&
     !isAffirmativeOnlyMessage(msg) &&
     !isQuoteIntentMessage(msg) &&
@@ -2035,6 +2080,7 @@ export function captureContextualAnswer(
     !isServiceRelatedMessage(msg) &&
     !isAmbiguousShortNumber(msg) &&
     !isLikelyUbicacionNotNombre(msg) &&
+    !parseZonaFromText(msg) &&
     /[a-záéíóúüñ]/i.test(msg) &&
     !/@/.test(msg) &&
     !/\d{4,}/.test(msg)
@@ -2046,7 +2092,8 @@ export function captureContextualAnswer(
       candidato.length < 60 &&
       !/\?/.test(candidato) &&
       !isLikelyNotPersonNameMessage(candidato) &&
-      !isServiceRelatedMessage(candidato)
+      !isServiceRelatedMessage(candidato) &&
+      !isLikelyUbicacionNotNombre(candidato)
     ) {
       captures.push({ label: "Nombre del cliente", value: nombre });
     }

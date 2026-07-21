@@ -908,11 +908,12 @@ async function fetchLeadCurrentFields(
 
     const lines: string[] = [];
 
-    // Lead name (contact name hint) — skip generic CRM placeholders, phones y nombres del equipo
+    // Lead name — no reinyectar ubicación/basura como nombre (A14938 "En Tlalnepantla").
     if (data.name) {
       const stripped = data.name.replace(/^Lead:\s*/i, "").trim();
-      if (!isPlaceholderLeadName(stripped) && !isStaffAdvisorName(stripped)) {
-        lines.push(`- Nombre del cliente: ${stripped}`);
+      const cleaned = sanitizeCrmNombre(stripped);
+      if (cleaned && !isPlaceholderLeadName(cleaned) && !isStaffAdvisorName(cleaned)) {
+        lines.push(`- Nombre del cliente: ${cleaned}`);
       }
     }
 
@@ -1082,7 +1083,11 @@ function buildPatchPayload(
     } else if (presText) {
       customFields.push({ field_id: FIELD.presupuesto, values: [{ value: cap255(presText) }] });
     }
-  } else if (extracted.presupuesto !== null && extracted.presupuesto > 0) {
+  } else if (
+    extracted.presupuesto !== null &&
+    extracted.presupuesto >= 1000
+  ) {
+    // A14938: no escribir 300 (precio/pp inventado) como presupuesto total del lead.
     customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(extracted.presupuesto) }] });
   }
 
