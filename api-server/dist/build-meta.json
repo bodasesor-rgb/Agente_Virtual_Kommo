@@ -1,8 +1,8 @@
 {
   "version": "3.3",
-  "lucy_prompt": "V8.21",
-  "built_at": "2026-07-20T22:26:56.274Z",
-  "built_at_display": "20 jul 2026, 4:26 p.m.",
-  "git_commit": "61c7db05177899898ad4440cbab45f0ee80a8fd1",
-  "git_commit_short": "61c7db0"
+  "lucy_prompt": "V8.22",
+  "built_at": "2026-07-21T16:12:36.889Z",
+  "built_at_display": "21 jul 2026, 10:12 a.m.",
+  "git_commit": "0353ade8ad6e6fb18b4286eae515ab259279a00d",
+  "git_commit_short": "0353ade"
 }

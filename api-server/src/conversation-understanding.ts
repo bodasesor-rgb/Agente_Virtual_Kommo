@@ -901,7 +901,50 @@ const KNOWN_ZONES =
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
-  /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])\b/i;
+  /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?)\b/i;
+
+/**
+ * Frases de negocio / cotización que GPT o el parser "en …" confunden con dirección
+ * (A14883 Khris: "incluirlo en la cotización" → Ubicación: cotización).
+ * Solo aplica a candidatos cortos (el fragmento capturado), no al mensaje entero.
+ */
+export function isNonLocationBusinessPhrase(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t) return true;
+  const cleaned = t
+    .replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "")
+    .trim();
+  if (!cleaned) return true;
+  // Exacto / casi exacto — no usar ^salón\b sobre "Salón Hacienda Los Olivos".
+  if (
+    /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?)$/i.test(
+      cleaned
+    )
+  ) {
+    return true;
+  }
+  if (/^cotizaci[oó]n\b/i.test(cleaned) && cleaned.split(/\s+/).length <= 2) return true;
+  // Candidatos cortos: "cotización", "la propuesta", "el montaje".
+  if (cleaned.split(/\s+/).length <= 4) {
+    if (
+      /^(quiero|necesito|requiero|busco|me\s+interesa)\b/i.test(cleaned) ||
+      /^(una?\s+)?cotizaci[oó]n$/i.test(cleaned) ||
+      /^(la\s+)?(propuesta|montaje|presentaci[oó]n|informaci[oó]n)$/i.test(cleaned)
+    ) {
+      return true;
+    }
+    if (
+      /\b(cotizaci[oó]n|propuesta|montaje|presentaci[oó]n)\b/i.test(cleaned) &&
+      !KNOWN_ZONES.test(cleaned) &&
+      !/\b(colonia|delegaci[oó]n|alcald[ií]a|calle|av\.|avenida|cdmx|ciudad|sal[oó]n\s+\w)/i.test(
+        cleaned
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
 
 /**
  * "salón", "edificio", "en el salón" sin nombre propio / ciudad / colonia
@@ -1295,6 +1338,7 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
   if (isDimensionText(t)) return false;
   if (isVagueVenueOnly(t)) return false;
   if (isLikelyProductNameNotLocation(t)) return false;
+  if (isNonLocationBusinessPhrase(t)) return false;
   return true;
 }
 
@@ -1326,24 +1370,28 @@ export function parseZonaFromText(text: string): string | null {
   if (/\bsala\s*:/i.test(trimmed)) return null;
 
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
-  if (expoMatch?.[0]) return expoMatch[0].trim();
+  if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
+    return expoMatch[0].trim();
+  }
 
   if (KNOWN_ZONES.test(trimmed)) {
     const m = trimmed.match(KNOWN_ZONES);
-    if (m) return m[0]!.trim();
+    if (m && isUsableDireccionEvento(m[0]!.trim())) return m[0]!.trim();
   }
 
   // "colonia Roma", "delegación Coyoacán", "alcaldía Benito Juárez", "fraccionamiento X"
   const coloniaMatch = trimmed.match(
     /\b((?:colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+[A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,28})/i
   );
-  if (coloniaMatch?.[1]) return coloniaMatch[1].trim();
+  if (coloniaMatch?.[1] && isUsableDireccionEvento(coloniaMatch[1].trim())) {
+    return coloniaMatch[1].trim();
+  }
 
   const enMatch = trimmed.match(
     /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
   );
   if (enMatch) {
-    const lugar = enMatch[1]!.trim();
+    const lugar = enMatch[1]!.trim().replace(/[.,;:]+$/g, "").trim();
     // Quita el artículo antes de validar (pero lo conserva del resultado si aplica),
     // así "en el Estado de México" o "en la colonia Roma" ya no se descartan.
     const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
@@ -1354,7 +1402,9 @@ export function parseZonaFromText(text: string): string | null {
       !isGreetingOnlyMessage(candidato) &&
       !NON_LOCATION_WORDS.test(candidato) &&
       !isVagueVenueOnly(candidato) &&
-      !/\b(solo|para\s+la|total|comida|pista)\b/i.test(candidato)
+      !isNonLocationBusinessPhrase(candidato) &&
+      !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje)\b/i.test(candidato) &&
+      isUsableDireccionEvento(candidato)
     ) {
       return candidato;
     }
@@ -1364,14 +1414,24 @@ export function parseZonaFromText(text: string): string | null {
   const venueMatch = trimmed.match(
     /\b((?:la\s+)?casa\s+del\s+corregidor|cd\.?\s*nezahualc[oó]yotl)\b/i
   );
-  if (venueMatch?.[1]) return venueMatch[1].trim();
+  if (venueMatch?.[1] && isUsableDireccionEvento(venueMatch[1].trim())) {
+    return venueMatch[1].trim();
+  }
 
   const clubMatch = trimmed.match(/\b(club\s+de\s+golf\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]{2,30})/i);
-  if (clubMatch?.[1]) return clubMatch[1].trim();
+  if (clubMatch?.[1] && isUsableDireccionEvento(clubMatch[1].trim())) {
+    return clubMatch[1].trim();
+  }
 
   if (/\b(se\s+llevar[aá]|llevaremos|ser[aá])\s+(a\s+cabo\s+)?en\s+(el\s+)?/i.test(trimmed)) {
     const enVenue = trimmed.match(/\ben\s+(el\s+)?([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚáéíóúñ\s]{4,40})/);
-    if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2])) return enVenue[2].trim();
+    if (
+      enVenue?.[2] &&
+      !MONTH_PATTERN.test(enVenue[2]) &&
+      isUsableDireccionEvento(enVenue[2].trim())
+    ) {
+      return enVenue[2].trim();
+    }
   }
 
   return null;
@@ -2141,9 +2201,8 @@ export function enrichExtractedFromConversation(
   }
 
   if (!isUsableDireccionEvento(extracted.direccion_evento)) {
-    if (isVagueVenueOnly(extracted.direccion_evento) || isDimensionText(extracted.direccion_evento)) {
-      extracted.direccion_evento = null;
-    }
+    // Siempre limpiar basura (cotización, salón genérico, medidas…) — A14883.
+    extracted.direccion_evento = null;
     const zona = parseZonaFromText(conversationText);
     if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
   } else {

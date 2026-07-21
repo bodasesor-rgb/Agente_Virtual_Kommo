@@ -68,6 +68,7 @@ import {
   appendSpaceDimensionsToRequerimientos,
   isDimensionText,
   isVagueVenueOnly,
+  isNonLocationBusinessPhrase,
   isServiceLabelNotTipoEvento,
   parseCorreoFromText,
   parsePresupuestoFromText,
@@ -452,13 +453,17 @@ function purgeDimensionAsUbicacion(
   const value = mergedLines[idx]!
     .replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "")
     .trim();
-  if (!isDimensionText(value) && !isVagueVenueOnly(value)) return;
+  if (
+    !isDimensionText(value) &&
+    !isVagueVenueOnly(value) &&
+    !isNonLocationBusinessPhrase(value) &&
+    isUsableDireccionEvento(value)
+  ) {
+    return;
+  }
   mergedLines.splice(idx, 1);
   filledSet.delete("Lugar/dirección del evento");
-  if (
-    extracted.direccion_evento &&
-    (isDimensionText(extracted.direccion_evento) || isVagueVenueOnly(extracted.direccion_evento))
-  ) {
+  if (extracted.direccion_evento && !isUsableDireccionEvento(extracted.direccion_evento)) {
     extracted.direccion_evento = null;
   }
 }

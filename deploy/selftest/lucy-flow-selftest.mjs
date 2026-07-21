@@ -898,7 +898,30 @@ var WRITTEN_NUMBERS = {
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|coyoac[aá]n|xochimilco)\b/i;
-var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])\b/i;
+var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?)\b/i;
+function isNonLocationBusinessPhrase(text) {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t) return true;
+  const cleaned = t.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
+  if (!cleaned) return true;
+  if (/^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?)$/i.test(
+    cleaned
+  )) {
+    return true;
+  }
+  if (/^cotizaci[oó]n\b/i.test(cleaned) && cleaned.split(/\s+/).length <= 2) return true;
+  if (cleaned.split(/\s+/).length <= 4) {
+    if (/^(quiero|necesito|requiero|busco|me\s+interesa)\b/i.test(cleaned) || /^(una?\s+)?cotizaci[oó]n$/i.test(cleaned) || /^(la\s+)?(propuesta|montaje|presentaci[oó]n|informaci[oó]n)$/i.test(cleaned)) {
+      return true;
+    }
+    if (/\b(cotizaci[oó]n|propuesta|montaje|presentaci[oó]n)\b/i.test(cleaned) && !KNOWN_ZONES.test(cleaned) && !/\b(colonia|delegaci[oó]n|alcald[ií]a|calle|av\.|avenida|cdmx|ciudad|sal[oó]n\s+\w)/i.test(
+      cleaned
+    )) {
+      return true;
+    }
+  }
+  return false;
+}
 function isVagueVenueOnly(text) {
   const t = (text ?? "").trim();
   if (!t) return true;
@@ -1147,6 +1170,7 @@ function isUsableDireccionEvento(value) {
   if (isDimensionText(t)) return false;
   if (isVagueVenueOnly(t)) return false;
   if (isLikelyProductNameNotLocation(t)) return false;
+  if (isNonLocationBusinessPhrase(t)) return false;
   return true;
 }
 function parseSpaceDimensions(text) {
@@ -1171,35 +1195,45 @@ function parseZonaFromText(text) {
   if (isLikelyProductNameNotLocation(trimmed)) return null;
   if (/\bsala\s*:/i.test(trimmed)) return null;
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
-  if (expoMatch?.[0]) return expoMatch[0].trim();
+  if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
+    return expoMatch[0].trim();
+  }
   if (KNOWN_ZONES.test(trimmed)) {
     const m = trimmed.match(KNOWN_ZONES);
-    if (m) return m[0].trim();
+    if (m && isUsableDireccionEvento(m[0].trim())) return m[0].trim();
   }
   const coloniaMatch = trimmed.match(
     /\b((?:colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento)\s+[A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{1,28})/i
   );
-  if (coloniaMatch?.[1]) return coloniaMatch[1].trim();
+  if (coloniaMatch?.[1] && isUsableDireccionEvento(coloniaMatch[1].trim())) {
+    return coloniaMatch[1].trim();
+  }
   const enMatch = trimmed.match(
     /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
   );
   if (enMatch) {
-    const lugar = enMatch[1].trim();
+    const lugar = enMatch[1].trim().replace(/[.,;:]+$/g, "").trim();
     const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
     const candidato = sinArticulo || lugar;
-    if (!MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !/\b(solo|para\s+la|total|comida|pista)\b/i.test(candidato)) {
+    if (!MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje)\b/i.test(candidato) && isUsableDireccionEvento(candidato)) {
       return candidato;
     }
   }
   const venueMatch = trimmed.match(
     /\b((?:la\s+)?casa\s+del\s+corregidor|cd\.?\s*nezahualc[oó]yotl)\b/i
   );
-  if (venueMatch?.[1]) return venueMatch[1].trim();
+  if (venueMatch?.[1] && isUsableDireccionEvento(venueMatch[1].trim())) {
+    return venueMatch[1].trim();
+  }
   const clubMatch = trimmed.match(/\b(club\s+de\s+golf\s+[A-Za-zÁÉÍÓÚáéíóúñ\s]{2,30})/i);
-  if (clubMatch?.[1]) return clubMatch[1].trim();
+  if (clubMatch?.[1] && isUsableDireccionEvento(clubMatch[1].trim())) {
+    return clubMatch[1].trim();
+  }
   if (/\b(se\s+llevar[aá]|llevaremos|ser[aá])\s+(a\s+cabo\s+)?en\s+(el\s+)?/i.test(trimmed)) {
     const enVenue = trimmed.match(/\ben\s+(el\s+)?([A-ZÁÉÍÓÚ][A-Za-zÁÉÍÓÚáéíóúñ\s]{4,40})/);
-    if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2])) return enVenue[2].trim();
+    if (enVenue?.[2] && !MONTH_PATTERN.test(enVenue[2]) && isUsableDireccionEvento(enVenue[2].trim())) {
+      return enVenue[2].trim();
+    }
   }
   return null;
 }
@@ -1688,9 +1722,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     if (inv) extracted.num_invitados = parseInt(inv, 10);
   }
   if (!isUsableDireccionEvento(extracted.direccion_evento)) {
-    if (isVagueVenueOnly(extracted.direccion_evento) || isDimensionText(extracted.direccion_evento)) {
-      extracted.direccion_evento = null;
-    }
+    extracted.direccion_evento = null;
     const zona = parseZonaFromText(conversationText);
     if (zona && isUsableDireccionEvento(zona)) extracted.direccion_evento = zona;
   } else {
@@ -18010,6 +18042,12 @@ function isUsableResumenServicio(value) {
   }
   return true;
 }
+function isUsableResumenUbicacion(value) {
+  const t = value?.trim() ?? "";
+  if (!t) return false;
+  if (isNonLocationBusinessPhrase(t)) return false;
+  return isUsableDireccionEvento(t);
+}
 function pickFromMergedLines(mergedLines, labelPattern) {
   const line = mergedLines.find((l) => labelPattern.test(l));
   if (!line) return null;
@@ -18030,7 +18068,7 @@ function pendingFields(mergedLines, extracted) {
   if (!pickFromMergedLines(mergedLines, /Requerimientos/i) && !extracted.requerimientos_evento?.trim()) {
     pending.push("servicios / requerimientos");
   }
-  if (!pickFromMergedLines(mergedLines, /Lugar\/dirección/i) && !extracted.direccion_evento?.trim()) {
+  if (!isUsableResumenUbicacion(pickFromMergedLines(mergedLines, /Lugar\/dirección/i)) && !isUsableResumenUbicacion(extracted.direccion_evento)) {
     pending.push("ubicaci\xF3n");
   }
   if (!pickFromMergedLines(mergedLines, /Fecha y horario/i) && !extracted.fecha_horario?.trim()) {
@@ -18051,7 +18089,8 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const evento = pickFromMergedLines(mergedLines, /Tipo de evento/i) || extracted.tipo_evento?.trim() || null;
   const fecha = pickFromMergedLines(mergedLines, /Fecha y horario/i) || extracted.fecha_horario?.trim() || null;
   const invitados = pickFromMergedLines(mergedLines, /Número de invitados/i) || (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
-  const ubicacion = pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
+  const ubicacionRaw = pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
+  const ubicacion = isUsableResumenUbicacion(ubicacionRaw) ? ubicacionRaw : null;
   const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
   const ppto = pptoFromLine || (extracted.presupuesto !== null && extracted.presupuesto > 0 ? `$${extracted.presupuesto.toLocaleString("es-MX")} MXN` : null);
   const reqFromLinesRaw = pickFromMergedLines(mergedLines, /Requerimientos/i);
@@ -18106,7 +18145,7 @@ function purgeDimensionUbicacionLines(lines) {
   return lines.filter((line) => {
     if (!/^-?\s*Lugar\/dirección del evento:/i.test(line)) return true;
     const raw = lineValue(line, "Lugar/direcci\xF3n del evento");
-    return !isDimensionText(raw) && !isVagueVenueOnly(raw);
+    return !isDimensionText(raw) && !isVagueVenueOnly(raw) && !isNonLocationBusinessPhrase(raw) && !isLikelyProductNameNotLocation(raw);
   });
 }
 function purgeInvalidNombreLines(lines) {
@@ -18142,7 +18181,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
   out.correo = correo;
   const nombre = sanitizeCrmNombre(out.nombre);
   out.nombre = nombre && !isQuoteIntentMessage(nombre) ? nombre : null;
-  if (out.direccion_evento && (isDimensionText(out.direccion_evento) || isVagueVenueOnly(out.direccion_evento) || isLikelyProductNameNotLocation(out.direccion_evento))) {
+  if (out.direccion_evento && (isDimensionText(out.direccion_evento) || isVagueVenueOnly(out.direccion_evento) || isLikelyProductNameNotLocation(out.direccion_evento) || isNonLocationBusinessPhrase(out.direccion_evento))) {
     out.direccion_evento = null;
   }
   if (out.requerimientos_evento?.trim() && out.tipo_evento?.trim() && out.requerimientos_evento.trim().toLowerCase() === out.tipo_evento.trim().toLowerCase()) {
@@ -22013,6 +22052,67 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `no reinicio puro: ${noReinicio.slice(0, 300)}`
     );
     assert.ok(!/c[oó]mo\s+te\s+llamas/i.test(noReinicio), noReinicio.slice(0, 300));
+  });
+  await test("82. Khris A14883 \u2014 'en la cotizaci\xF3n' NO es ubicaci\xF3n", () => {
+    const brief = "Me gustar\xEDa solicitar una cotizaci\xF3n para una barra de carnes fr\xEDas y quesos. Favor de incluirlo en la cotizaci\xF3n. Gracias!";
+    assert.equal(parseZonaFromText(brief), null);
+    assert.equal(parseZonaFromText("incluirlo en la cotizaci\xF3n"), null);
+    assert.equal(parseZonaFromText("cotizaci\xF3n"), null);
+    assert.equal(parseZonaFromText("la cotizaci\xF3n"), null);
+    assert.ok(!isUsableDireccionEvento("cotizaci\xF3n"));
+    assert.ok(!isUsableDireccionEvento("cotizaci\xF3n."));
+    assert.ok(!isUsableDireccionEvento("la cotizaci\xF3n"));
+    assert.ok(isUsableDireccionEvento("Cuauht\xE9moc, CDMX"));
+    assert.ok(isUsableDireccionEvento("Rio Guadalquivir 94, Cuauhtemoc, CDMX"));
+    const extracted = emptyExtracted({
+      direccion_evento: "cotizaci\xF3n",
+      requerimientos_evento: "Mesa de quesos, Meseros",
+      num_invitados: 25
+    });
+    enrichExtractedFromConversation(extracted, brief);
+    assert.equal(extracted.direccion_evento, null);
+    const resumen = buildResumenClienteLargo(
+      emptyExtracted({
+        nombre: "Khris",
+        direccion_evento: "cotizaci\xF3n",
+        requerimientos_evento: "Mesa de quesos, Meseros"
+      }),
+      ["- Nombre del cliente: Khris", "- Lugar/direcci\xF3n del evento: cotizaci\xF3n"],
+      brief
+    );
+    assert.ok(!/Ubicaci[oó]n:\s*cotizaci/i.test(resumen), resumen);
+    assert.ok(/ubicaci[oó]n/i.test(resumen) || /Completar:.*ubicaci/i.test(resumen), resumen);
+    const mid = runGuards({
+      aiResponse: "Perfecto, ya tengo todo.",
+      extracted: emptyExtracted({
+        nombre: "Khris",
+        correo: "khris@honemaxwell.com",
+        tipo_evento: "empresarial",
+        requerimientos_evento: "Mesa de quesos, Meseros",
+        num_invitados: 25,
+        fecha_horario: "Septiembre 1, 2026, tarde",
+        direccion_evento: "cotizaci\xF3n"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "N\xFAmero de invitados",
+        "Fecha y horario"
+        // Sin "Lugar/dirección" válido en filledSet
+      ]),
+      readyForClosing: false,
+      currentMessage: "La fecha ser\xEDa Septiembre 1, 2026. A\xFAn no tenemos horario definido pero ser\xE1 por la tarde",
+      history: [
+        { role: "assistant", content: "Perfecto, Khris. \xBFTienen ya definida la fecha y horario del evento?" }
+      ]
+    });
+    assert.ok(
+      /ciudad|ubicaci|zona|sal[oó]n|direcci/i.test(mid),
+      `debe pedir ubicaci\xF3n, no cerrar: ${mid.slice(0, 400)}`
+    );
+    assert.ok(!/ya tengo todo|preparen una cotizaci/i.test(mid), mid.slice(0, 300));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

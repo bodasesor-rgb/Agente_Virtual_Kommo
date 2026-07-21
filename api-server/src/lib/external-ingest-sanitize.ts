@@ -13,6 +13,7 @@ import { resolveTipoContacto } from "../tipoContacto.js";
 import {
   isDimensionText,
   isLikelyProductNameNotLocation,
+  isNonLocationBusinessPhrase,
   isVagueVenueOnly,
 } from "../conversation-understanding.js";
 
@@ -34,12 +35,17 @@ export function purgeOwnCompanyEmailLines(lines: string[]): string[] {
   });
 }
 
-/** "6m x 12m" u otras medidas / "salón" genérico no son ubicación del evento. */
+/** "6m x 12m" u otras medidas / "salón" genérico / "cotización" no son ubicación del evento. */
 export function purgeDimensionUbicacionLines(lines: string[]): string[] {
   return lines.filter((line) => {
     if (!/^-?\s*Lugar\/dirección del evento:/i.test(line)) return true;
     const raw = lineValue(line, "Lugar/dirección del evento");
-    return !isDimensionText(raw) && !isVagueVenueOnly(raw);
+    return (
+      !isDimensionText(raw) &&
+      !isVagueVenueOnly(raw) &&
+      !isNonLocationBusinessPhrase(raw) &&
+      !isLikelyProductNameNotLocation(raw)
+    );
   });
 }
 
@@ -95,7 +101,8 @@ export function sanitizeExtractedFromExternal(
     out.direccion_evento &&
     (isDimensionText(out.direccion_evento) ||
       isVagueVenueOnly(out.direccion_evento) ||
-      isLikelyProductNameNotLocation(out.direccion_evento))
+      isLikelyProductNameNotLocation(out.direccion_evento) ||
+      isNonLocationBusinessPhrase(out.direccion_evento))
   ) {
     out.direccion_evento = null;
   }

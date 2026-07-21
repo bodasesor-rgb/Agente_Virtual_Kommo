@@ -15,6 +15,8 @@ import {
   parseInvitadosFromText,
   parseFechaFromText,
   isServiceRelatedMessage,
+  isUsableDireccionEvento,
+  isNonLocationBusinessPhrase,
 } from "../conversation-understanding.js";
 import { formatRequerimientoLabelFromQuery } from "./catalogService.js";
 import { isGreetingOnlyMessage, isQuoteIntentMessage, sanitizeCrmNombre } from "../contact-name.js";
@@ -31,6 +33,13 @@ function isUsableResumenServicio(value: string | null | undefined): boolean {
     return false;
   }
   return true;
+}
+
+function isUsableResumenUbicacion(value: string | null | undefined): boolean {
+  const t = value?.trim() ?? "";
+  if (!t) return false;
+  if (isNonLocationBusinessPhrase(t)) return false;
+  return isUsableDireccionEvento(t);
 }
 
 function extraerEstilo(texto: string): string | null {
@@ -155,7 +164,10 @@ function pendingFields(mergedLines: string[], extracted: ExtractedData): string[
   ) {
     pending.push("servicios / requerimientos");
   }
-  if (!pickFromMergedLines(mergedLines, /Lugar\/dirección/i) && !extracted.direccion_evento?.trim()) {
+  if (
+    !isUsableResumenUbicacion(pickFromMergedLines(mergedLines, /Lugar\/dirección/i)) &&
+    !isUsableResumenUbicacion(extracted.direccion_evento)
+  ) {
     pending.push("ubicación");
   }
   if (!pickFromMergedLines(mergedLines, /Fecha y horario/i) && !extracted.fecha_horario?.trim()) {
@@ -187,8 +199,9 @@ export function buildResumenClienteLargo(
   const invitados =
     pickFromMergedLines(mergedLines, /Número de invitados/i) ||
     (extracted.num_invitados !== null && extracted.num_invitados > 0 ? String(extracted.num_invitados) : null);
-  const ubicacion =
+  const ubicacionRaw =
     pickFromMergedLines(mergedLines, /Lugar\/dirección/i) || extracted.direccion_evento?.trim() || null;
+  const ubicacion = isUsableResumenUbicacion(ubicacionRaw) ? ubicacionRaw : null;
   const pptoFromLine = pickFromMergedLines(mergedLines, /Presupuesto/i);
   const ppto =
     pptoFromLine ||

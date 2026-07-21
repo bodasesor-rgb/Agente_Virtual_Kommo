@@ -4446,6 +4446,74 @@ async function runAll(): Promise<void> {
     assert.ok(!/c[oó]mo\s+te\s+llamas/i.test(noReinicio), noReinicio.slice(0, 300));
   });
 
+  await test("82. Khris A14883 — 'en la cotización' NO es ubicación", () => {
+    const brief =
+      "Me gustaría solicitar una cotización para una barra de carnes frías y quesos. " +
+      "Favor de incluirlo en la cotización. Gracias!";
+    assert.equal(parseZonaFromText(brief), null);
+    assert.equal(parseZonaFromText("incluirlo en la cotización"), null);
+    assert.equal(parseZonaFromText("cotización"), null);
+    assert.equal(parseZonaFromText("la cotización"), null);
+    assert.ok(!isUsableDireccionEvento("cotización"));
+    assert.ok(!isUsableDireccionEvento("cotización."));
+    assert.ok(!isUsableDireccionEvento("la cotización"));
+    assert.ok(isUsableDireccionEvento("Cuauhtémoc, CDMX"));
+    assert.ok(isUsableDireccionEvento("Rio Guadalquivir 94, Cuauhtemoc, CDMX"));
+
+    const extracted = emptyExtracted({
+      direccion_evento: "cotización",
+      requerimientos_evento: "Mesa de quesos, Meseros",
+      num_invitados: 25,
+    });
+    enrichExtractedFromConversation(extracted, brief);
+    assert.equal(extracted.direccion_evento, null);
+
+    const resumen = buildResumenClienteLargo(
+      emptyExtracted({
+        nombre: "Khris",
+        direccion_evento: "cotización",
+        requerimientos_evento: "Mesa de quesos, Meseros",
+      }),
+      ["- Nombre del cliente: Khris", "- Lugar/dirección del evento: cotización"],
+      brief
+    );
+    assert.ok(!/Ubicaci[oó]n:\s*cotizaci/i.test(resumen), resumen);
+    assert.ok(/ubicaci[oó]n/i.test(resumen) || /Completar:.*ubicaci/i.test(resumen), resumen);
+
+    // Con cotización falsa como zona, el embudo debe seguir pidiendo ubicación (no cerrar).
+    const mid = runGuards({
+      aiResponse: "Perfecto, ya tengo todo.",
+      extracted: emptyExtracted({
+        nombre: "Khris",
+        correo: "khris@honemaxwell.com",
+        tipo_evento: "empresarial",
+        requerimientos_evento: "Mesa de quesos, Meseros",
+        num_invitados: 25,
+        fecha_horario: "Septiembre 1, 2026, tarde",
+        direccion_evento: "cotización",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+        "Fecha y horario",
+        // Sin "Lugar/dirección" válido en filledSet
+      ]),
+      readyForClosing: false,
+      currentMessage: "La fecha sería Septiembre 1, 2026. Aún no tenemos horario definido pero será por la tarde",
+      history: [
+        { role: "assistant", content: "Perfecto, Khris. ¿Tienen ya definida la fecha y horario del evento?" },
+      ],
+    });
+    assert.ok(
+      /ciudad|ubicaci|zona|sal[oó]n|direcci/i.test(mid),
+      `debe pedir ubicación, no cerrar: ${mid.slice(0, 400)}`
+    );
+    assert.ok(!/ya tengo todo|preparen una cotizaci/i.test(mid), mid.slice(0, 300));
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }
