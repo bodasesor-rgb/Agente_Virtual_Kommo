@@ -89805,19 +89805,6 @@ async function finalizeLucyOutboundMessage(input) {
       "GUARD: cierre prematuro bloqueado (invariante)"
     );
   }
-  if (!input.cierreYaEnviado && input.currentMessage && clientAsksServiceInfo(input.currentMessage) && isServiceRelatedMessage(input.currentMessage) && !/\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos)\b/i.test(
-    mensaje
-  )) {
-    const ack = buildGuardServiceAck(input.currentMessage);
-    const q2 = mensaje.includes("?") ? `
-
-${mensaje}` : "";
-    mensaje = `${ack}${q2}`.trim();
-    input.log?.info?.(
-      { entityId: input.entityId },
-      "GUARD: pregunta de servicio \u2014 ack forzado (invariante)"
-    );
-  }
   const anti = applyLucyGlobalAntiRepetition({
     mensaje,
     history: input.history,
@@ -89833,6 +89820,19 @@ ${mensaje}` : "";
       "GUARD: anti-repetici\xF3n global"
     );
     mensaje = anti.mensaje;
+  }
+  if (!input.cierreYaEnviado && input.currentMessage && clientAsksServiceInfo(input.currentMessage) && isServiceRelatedMessage(input.currentMessage) && !/\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn)\b/i.test(
+    mensaje
+  )) {
+    const ack = buildGuardServiceAck(input.currentMessage);
+    const keepQ = (mensaje.match(/[^.!?]*\?/g) ?? []).join(" ").trim();
+    mensaje = keepQ ? `${ack}
+
+${keepQ}` : ack;
+    input.log?.info?.(
+      { entityId: input.entityId },
+      "GUARD: pregunta de servicio \u2014 ack forzado post anti-repeat"
+    );
   }
   if (!mensaje.trim()) {
     mensaje = input.cierreYaEnviado && clientSaysThanks(input.currentMessage) ? buildPostCierreThanksReply(input.extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";

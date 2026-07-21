@@ -71,25 +71,6 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     );
   }
 
-  // Contrato: pregunta de servicio → debe haber respuesta operativa (no solo embudo).
-  if (
-    !input.cierreYaEnviado &&
-    input.currentMessage &&
-    clientAsksServiceInfo(input.currentMessage) &&
-    isServiceRelatedMessage(input.currentMessage) &&
-    !/\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos)\b/i.test(
-      mensaje
-    )
-  ) {
-    const ack = buildGuardServiceAck(input.currentMessage);
-    const q = mensaje.includes("?") ? `\n\n${mensaje}` : "";
-    mensaje = `${ack}${q}`.trim();
-    input.log?.info?.(
-      { entityId: input.entityId },
-      "GUARD: pregunta de servicio — ack forzado (invariante)"
-    );
-  }
-
   // Última malla: anti-repetición global (direct/sales/cierre/post-cierre).
   const anti = applyLucyGlobalAntiRepetition({
     mensaje,
@@ -106,6 +87,26 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       "GUARD: anti-repetición global"
     );
     mensaje = anti.mensaje;
+  }
+
+  // Contrato DESPUÉS del anti-repeat: si el cliente preguntó por un servicio,
+  // la respuesta operativa no puede quedar solo en embudo/correo (A14938 pizzas).
+  if (
+    !input.cierreYaEnviado &&
+    input.currentMessage &&
+    clientAsksServiceInfo(input.currentMessage) &&
+    isServiceRelatedMessage(input.currentMessage) &&
+    !/\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn)\b/i.test(
+      mensaje
+    )
+  ) {
+    const ack = buildGuardServiceAck(input.currentMessage);
+    const keepQ = (mensaje.match(/[^.!?]*\?/g) ?? []).join(" ").trim();
+    mensaje = keepQ ? `${ack}\n\n${keepQ}` : ack;
+    input.log?.info?.(
+      { entityId: input.entityId },
+      "GUARD: pregunta de servicio — ack forzado post anti-repeat"
+    );
   }
 
   if (!mensaje.trim()) {
