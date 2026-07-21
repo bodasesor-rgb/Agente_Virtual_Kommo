@@ -1952,6 +1952,92 @@ function enrichExtractedFromConversation(extracted, conversationText) {
   }
 }
 
+// src/lucyCrmInvariants.ts
+function userTextsBlob(userTexts) {
+  return userTexts.filter(Boolean).join("\n");
+}
+function userJustifiesPresupuesto(userTexts) {
+  for (const t of userTexts) {
+    const pres = parsePresupuestoFromText(t, { askedField: null });
+    if (!pres) continue;
+    if (/sin definir|econ[oó]mic|flexible|opciones|propong/i.test(pres)) return true;
+    const n = parseInt(pres.replace(/[^\d]/g, ""), 10);
+    if (!isNaN(n) && n > 0) return true;
+  }
+  for (const t of userTexts) {
+    if (!/\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta)\b/i.test(t)) {
+      continue;
+    }
+    if (parsePresupuestoFromText(t, { askedField: "presupuesto" })) return true;
+  }
+  return false;
+}
+function isInvalidCrmNombre(value) {
+  const raw = value?.trim() ?? "";
+  if (!raw) return true;
+  if (isQuoteIntentMessage(raw)) return true;
+  if (isLikelyUbicacionNotNombre(raw)) return true;
+  if (isLikelyNotPersonNameMessage(raw) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw)) {
+    return true;
+  }
+  const zona = parseZonaFromText(raw);
+  if (zona && isUsableDireccionEvento(zona) && raw.split(/\s+/).length <= 6) {
+    if (/^en\s+/i.test(raw) || raw.toLowerCase() === zona.toLowerCase()) return true;
+  }
+  return !sanitizeCrmNombre(raw);
+}
+function applyCrmWriteInvariants(extracted, userTexts = []) {
+  const out = { ...extracted };
+  const applied = [];
+  const blob = userTextsBlob(userTexts);
+  if (out.nombre && isInvalidCrmNombre(out.nombre)) {
+    const zona = parseZonaFromText(out.nombre) ?? parseZonaFromText(blob);
+    if (zona && isUsableDireccionEvento(zona) && !isUsableDireccionEvento(out.direccion_evento)) {
+      out.direccion_evento = zona;
+      applied.push("nombre-to-zona");
+    }
+    out.nombre = null;
+    applied.push("nombre-invalid-cleared");
+  } else if (out.nombre) {
+    const cleaned = sanitizeCrmNombre(out.nombre);
+    if (!cleaned) {
+      out.nombre = null;
+      applied.push("nombre-sanitize-null");
+    } else if (cleaned !== out.nombre) {
+      out.nombre = cleaned;
+      applied.push("nombre-sanitized");
+    }
+  }
+  if (out.presupuesto !== null && out.presupuesto !== void 0) {
+    if (!userJustifiesPresupuesto(userTexts)) {
+      out.presupuesto = null;
+      applied.push("presupuesto-no-user-source");
+    } else if (typeof out.presupuesto === "number" && out.presupuesto > 0 && out.presupuesto < 1e3) {
+      const userSaidSmall = userTexts.some((t) => {
+        const p = parsePresupuestoFromText(t, { askedField: "presupuesto" });
+        if (!p) return false;
+        const n = parseInt(p.replace(/[^\d]/g, ""), 10);
+        return n === out.presupuesto;
+      }) && userTexts.some(
+        (t) => /\b(presupuesto|rango|inversi[oó]n|tope|menos\s+de|hasta)\b/i.test(t)
+      );
+      if (!userSaidSmall) {
+        out.presupuesto = null;
+        applied.push("presupuesto-too-small-cleared");
+      }
+    }
+  }
+  if (out.direccion_evento && !isUsableDireccionEvento(out.direccion_evento)) {
+    out.direccion_evento = null;
+    applied.push("zona-unusable-cleared");
+  }
+  return { extracted: out, applied };
+}
+function purgeUnjustifiedPresupuestoLines(lines, userTexts) {
+  if (userJustifiesPresupuesto(userTexts)) return lines;
+  return lines.filter((line) => !/^-?\s*Presupuesto \(MXN\):/i.test(line));
+}
+
 // src/modoServicio.ts
 var PEDIDO_ENTREGA = /\b(para\s+llevar|entrega|que\s+me\s+dejen|que\s+me\s+entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
 var SERVICIO_MONTADO = /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
@@ -23035,6 +23121,40 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.ok(/entrada/i.test(merged ?? ""), merged);
     assert.ok(/postre/i.test(merged ?? ""), merged);
     assert.ok(parseServicesFromText("Entradas y postre").length >= 1);
+  });
+  await test("88. Invariantes CRM \u2014 nombre/presupuesto no se contaminan", () => {
+    assert.ok(isInvalidCrmNombre("En Tlalnepantla"));
+    assert.ok(isInvalidCrmNombre("en Naucalpan"));
+    assert.ok(!isInvalidCrmNombre("Ilana Berman"));
+    const badName = applyCrmWriteInvariants(
+      emptyExtracted({
+        nombre: "En Tlalnepantla",
+        requerimientos_evento: "Pizzas",
+        presupuesto: 300
+      }),
+      [
+        "Quiero cotizacion de pizzas para 550 personas",
+        "en Tlalnepantla"
+      ]
+    );
+    assert.equal(badName.extracted.nombre, null);
+    assert.ok(/tlalnepantla/i.test(badName.extracted.direccion_evento ?? ""));
+    assert.equal(badName.extracted.presupuesto, null);
+    assert.ok(badName.applied.includes("nombre-invalid-cleared"));
+    assert.ok(badName.applied.includes("presupuesto-no-user-source"));
+    assert.equal(
+      userJustifiesPresupuesto([
+        "Perfecto, en Tlalnepantla manejamos taquizas desde $300 por persona."
+      ]),
+      false
+    );
+    assert.ok(userJustifiesPresupuesto(["Mi presupuesto es 80000"]));
+    const lines = purgeUnjustifiedPresupuestoLines(
+      ["- Nombre del cliente: Ilana", "- Presupuesto (MXN): 300"],
+      ["en Tlalnepantla", "quiero pizzas"]
+    );
+    assert.ok(!lines.some((l) => /Presupuesto/i.test(l)));
+    assert.ok(lines.some((l) => /Ilana/i.test(l)));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

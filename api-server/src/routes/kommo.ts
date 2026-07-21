@@ -43,6 +43,11 @@ import {
   sanitizeExtractedFromExternal,
   sanitizeKommoCrmLines,
 } from "../lib/external-ingest-sanitize.js";
+import {
+  applyCrmWriteInvariants,
+  purgeInvalidNombreInvariantLines,
+  purgeUnjustifiedPresupuestoLines,
+} from "../lucyCrmInvariants.js";
 import { generateSummary, buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   isPlaceholderLeadName,
@@ -277,9 +282,12 @@ Reglas estrictas:
 - Si el contacto dio un rango de presupuesto, usa el promedio.
 - Si un dato no está presente, el valor ES null (no el texto "null", sino el valor JSON null).${crmHint}`;
 
+    // Solo mensajes del CLIENTE (+ último turno). El historial de Lucy
+    // contaminaba presupuesto/nombre (A14938: "$300 por persona" → CRM).
+    const userOnlyHistory = history.filter((m) => m.role === "user");
     const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
       { role: "system", content: extractionPrompt },
-      ...history,
+      ...userOnlyHistory,
       { role: "user", content: latestUserText },
     ];
 
@@ -515,12 +523,21 @@ function buildCrmContext(
   whatsappDisplayName?: string | null,
   fullHistory?: OpenAI.Chat.ChatCompletionMessageParam[]
 ): { context: string; allFieldsFilled: boolean; mergedLines: string[]; filledLabels: Set<string> } {
-  const conversationText = collectUserTexts(fullHistory ?? history, currentMessage).join(" ");
-  extracted = sanitizeExtractedFromExternal(extracted, conversationText);
-
-  const mergedLines = [...sanitizeKommoCrmLines(crmLines)];
-  const filledSet = new Set(mergedLines.map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
   const historyFull = fullHistory ?? history;
+  const userTexts = collectUserTexts(historyFull, currentMessage);
+  const conversationText = userTexts.join(" ");
+  extracted = sanitizeExtractedFromExternal(extracted, conversationText);
+  // Invariantes duros: nombre≠ubicación, presupuesto solo si el cliente lo dijo.
+  {
+    const inv = applyCrmWriteInvariants(extracted, userTexts);
+    extracted = inv.extracted;
+  }
+
+  const mergedLines = purgeUnjustifiedPresupuestoLines(
+    purgeInvalidNombreInvariantLines(sanitizeKommoCrmLines(crmLines)),
+    userTexts
+  );
+  const filledSet = new Set(mergedLines.map((l) => l.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
 
   if (!filledSet.has("Nombre del cliente")) {
     const recoveredNombre = recoverClienteNombreFromHistory(historyFull, currentMessage);
@@ -542,9 +559,7 @@ function buildCrmContext(
   }
 
   if (extracted.presupuesto !== null && extracted.presupuesto !== undefined) {
-    const validPres = collectUserTexts(historyFull, currentMessage)
-      .map((t) => parsePresupuestoFromText(t))
-      .find(Boolean);
+    const validPres = userTexts.map((t) => parsePresupuestoFromText(t)).find(Boolean);
     if (!validPres) extracted.presupuesto = null;
   }
 
@@ -555,6 +570,29 @@ function buildCrmContext(
     extracted.presupuesto < 1000
   ) {
     extracted.presupuesto = null;
+  }
+
+  // Segunda pasada de invariantes tras ajustes de invitados/presupuesto.
+  {
+    const inv = applyCrmWriteInvariants(extracted, userTexts);
+    extracted = inv.extracted;
+    if (inv.applied.includes("nombre-invalid-cleared")) {
+      const idx = mergedLines.findIndex((l) => /^-?\s*Nombre del cliente:/i.test(l));
+      if (idx >= 0) {
+        mergedLines.splice(idx, 1);
+        filledSet.delete("Nombre del cliente");
+      }
+    }
+    if (
+      inv.applied.includes("presupuesto-no-user-source") ||
+      inv.applied.includes("presupuesto-too-small-cleared")
+    ) {
+      const pIdx = mergedLines.findIndex((l) => /^-?\s*Presupuesto \(MXN\):/i.test(l));
+      if (pIdx >= 0) {
+        mergedLines.splice(pIdx, 1);
+        filledSet.delete("Presupuesto (MXN)");
+      }
+    }
   }
 
   if (

@@ -65,6 +65,12 @@ import {
   appendPostCierreRequirements,
 } from "../conversation-understanding.js";
 import {
+  applyCrmWriteInvariants,
+  isInvalidCrmNombre,
+  userJustifiesPresupuesto,
+  purgeUnjustifiedPresupuestoLines,
+} from "../lucyCrmInvariants.js";
+import {
   applyLucyGlobalAntiRepetition,
   cleanupBrokenOutboundFragments,
   lucyTextOverlapRatio,
@@ -5013,6 +5019,44 @@ async function runAll(): Promise<void> {
     assert.ok(/entrada/i.test(merged ?? ""), merged);
     assert.ok(/postre/i.test(merged ?? ""), merged);
     assert.ok(parseServicesFromText("Entradas y postre").length >= 1);
+  });
+
+  await test("88. Invariantes CRM — nombre/presupuesto no se contaminan", () => {
+    assert.ok(isInvalidCrmNombre("En Tlalnepantla"));
+    assert.ok(isInvalidCrmNombre("en Naucalpan"));
+    assert.ok(!isInvalidCrmNombre("Ilana Berman"));
+
+    const badName = applyCrmWriteInvariants(
+      emptyExtracted({
+        nombre: "En Tlalnepantla",
+        requerimientos_evento: "Pizzas",
+        presupuesto: 300,
+      }),
+      [
+        "Quiero cotizacion de pizzas para 550 personas",
+        "en Tlalnepantla",
+      ]
+    );
+    assert.equal(badName.extracted.nombre, null);
+    assert.ok(/tlalnepantla/i.test(badName.extracted.direccion_evento ?? ""));
+    assert.equal(badName.extracted.presupuesto, null);
+    assert.ok(badName.applied.includes("nombre-invalid-cleared"));
+    assert.ok(badName.applied.includes("presupuesto-no-user-source"));
+
+    assert.equal(
+      userJustifiesPresupuesto([
+        "Perfecto, en Tlalnepantla manejamos taquizas desde $300 por persona.",
+      ]),
+      false
+    );
+    assert.ok(userJustifiesPresupuesto(["Mi presupuesto es 80000"]));
+
+    const lines = purgeUnjustifiedPresupuestoLines(
+      ["- Nombre del cliente: Ilana", "- Presupuesto (MXN): 300"],
+      ["en Tlalnepantla", "quiero pizzas"]
+    );
+    assert.ok(!lines.some((l) => /Presupuesto/i.test(l)));
+    assert.ok(lines.some((l) => /Ilana/i.test(l)));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

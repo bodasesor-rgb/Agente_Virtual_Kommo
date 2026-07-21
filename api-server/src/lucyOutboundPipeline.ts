@@ -14,6 +14,11 @@ import {
 } from "./lucy-flow-guards.js";
 import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
 import { maybeRefinarMensajeCierre } from "./services/lucyRedaction.js";
+import {
+  clientAsksServiceInfo,
+  isServiceRelatedMessage,
+} from "./conversation-understanding.js";
+import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
 
 export interface FinalizeLucyOutboundInput {
   mensaje: string;
@@ -43,6 +48,46 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
   if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
     input.log?.warn({ entityId: input.entityId }, "P3 GUARD: catálogo repetido post-cierre — stripping");
     mensaje = stripCatalogBlockShared(mensaje);
+  }
+
+  // Contrato: no cierre prematuro si el embudo aún no está listo.
+  if (
+    !input.readyForClosing &&
+    !input.cierreYaEnviado &&
+    mensaje.includes(CLOSING_SIGNATURE)
+  ) {
+    const without = mensaje
+      .split(CLOSING_SIGNATURE)
+      .join(" ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    mensaje =
+      without && without.length > 20
+        ? without
+        : "Perfecto, lo anoto. ¿Seguimos con el siguiente dato del evento?";
+    input.log?.warn?.(
+      { entityId: input.entityId },
+      "GUARD: cierre prematuro bloqueado (invariante)"
+    );
+  }
+
+  // Contrato: pregunta de servicio → debe haber respuesta operativa (no solo embudo).
+  if (
+    !input.cierreYaEnviado &&
+    input.currentMessage &&
+    clientAsksServiceInfo(input.currentMessage) &&
+    isServiceRelatedMessage(input.currentMessage) &&
+    !/\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos)\b/i.test(
+      mensaje
+    )
+  ) {
+    const ack = buildGuardServiceAck(input.currentMessage);
+    const q = mensaje.includes("?") ? `\n\n${mensaje}` : "";
+    mensaje = `${ack}${q}`.trim();
+    input.log?.info?.(
+      { entityId: input.entityId },
+      "GUARD: pregunta de servicio — ack forzado (invariante)"
+    );
   }
 
   // Última malla: anti-repetición global (direct/sales/cierre/post-cierre).

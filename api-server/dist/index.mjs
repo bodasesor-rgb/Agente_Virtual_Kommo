@@ -88746,6 +88746,99 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
   return out2;
 }
 
+// src/lucyCrmInvariants.ts
+function userTextsBlob(userTexts) {
+  return userTexts.filter(Boolean).join("\n");
+}
+function userJustifiesPresupuesto(userTexts) {
+  for (const t of userTexts) {
+    const pres = parsePresupuestoFromText(t, { askedField: null });
+    if (!pres) continue;
+    if (/sin definir|econ[oó]mic|flexible|opciones|propong/i.test(pres)) return true;
+    const n3 = parseInt(pres.replace(/[^\d]/g, ""), 10);
+    if (!isNaN(n3) && n3 > 0) return true;
+  }
+  for (const t of userTexts) {
+    if (!/\b(presupuesto|rango|inversi[oó]n|budget|tope|menos\s+de|hasta)\b/i.test(t)) {
+      continue;
+    }
+    if (parsePresupuestoFromText(t, { askedField: "presupuesto" })) return true;
+  }
+  return false;
+}
+function isInvalidCrmNombre(value) {
+  const raw = value?.trim() ?? "";
+  if (!raw) return true;
+  if (isQuoteIntentMessage(raw)) return true;
+  if (isLikelyUbicacionNotNombre(raw)) return true;
+  if (isLikelyNotPersonNameMessage(raw) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw)) {
+    return true;
+  }
+  const zona = parseZonaFromText(raw);
+  if (zona && isUsableDireccionEvento(zona) && raw.split(/\s+/).length <= 6) {
+    if (/^en\s+/i.test(raw) || raw.toLowerCase() === zona.toLowerCase()) return true;
+  }
+  return !sanitizeCrmNombre(raw);
+}
+function applyCrmWriteInvariants(extracted, userTexts = []) {
+  const out2 = { ...extracted };
+  const applied = [];
+  const blob = userTextsBlob(userTexts);
+  if (out2.nombre && isInvalidCrmNombre(out2.nombre)) {
+    const zona = parseZonaFromText(out2.nombre) ?? parseZonaFromText(blob);
+    if (zona && isUsableDireccionEvento(zona) && !isUsableDireccionEvento(out2.direccion_evento)) {
+      out2.direccion_evento = zona;
+      applied.push("nombre-to-zona");
+    }
+    out2.nombre = null;
+    applied.push("nombre-invalid-cleared");
+  } else if (out2.nombre) {
+    const cleaned = sanitizeCrmNombre(out2.nombre);
+    if (!cleaned) {
+      out2.nombre = null;
+      applied.push("nombre-sanitize-null");
+    } else if (cleaned !== out2.nombre) {
+      out2.nombre = cleaned;
+      applied.push("nombre-sanitized");
+    }
+  }
+  if (out2.presupuesto !== null && out2.presupuesto !== void 0) {
+    if (!userJustifiesPresupuesto(userTexts)) {
+      out2.presupuesto = null;
+      applied.push("presupuesto-no-user-source");
+    } else if (typeof out2.presupuesto === "number" && out2.presupuesto > 0 && out2.presupuesto < 1e3) {
+      const userSaidSmall = userTexts.some((t) => {
+        const p3 = parsePresupuestoFromText(t, { askedField: "presupuesto" });
+        if (!p3) return false;
+        const n3 = parseInt(p3.replace(/[^\d]/g, ""), 10);
+        return n3 === out2.presupuesto;
+      }) && userTexts.some(
+        (t) => /\b(presupuesto|rango|inversi[oó]n|tope|menos\s+de|hasta)\b/i.test(t)
+      );
+      if (!userSaidSmall) {
+        out2.presupuesto = null;
+        applied.push("presupuesto-too-small-cleared");
+      }
+    }
+  }
+  if (out2.direccion_evento && !isUsableDireccionEvento(out2.direccion_evento)) {
+    out2.direccion_evento = null;
+    applied.push("zona-unusable-cleared");
+  }
+  return { extracted: out2, applied };
+}
+function purgeUnjustifiedPresupuestoLines(lines, userTexts) {
+  if (userJustifiesPresupuesto(userTexts)) return lines;
+  return lines.filter((line2) => !/^-?\s*Presupuesto \(MXN\):/i.test(line2));
+}
+function purgeInvalidNombreInvariantLines(lines) {
+  return lines.filter((line2) => {
+    if (!/^-?\s*Nombre del cliente:/i.test(line2)) return true;
+    const raw = line2.replace(/^-?\s*Nombre del cliente:\s*/i, "").trim();
+    return !isInvalidCrmNombre(raw);
+  });
+}
+
 // src/services/summaryService.ts
 function isUsableResumenServicio(value) {
   const t = value?.trim() ?? "";
@@ -89703,6 +89796,27 @@ async function finalizeLucyOutboundMessage(input) {
   if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
     input.log?.warn({ entityId: input.entityId }, "P3 GUARD: cat\xE1logo repetido post-cierre \u2014 stripping");
     mensaje = stripCatalogBlockShared(mensaje);
+  }
+  if (!input.readyForClosing && !input.cierreYaEnviado && mensaje.includes(CLOSING_SIGNATURE)) {
+    const without = mensaje.split(CLOSING_SIGNATURE).join(" ").replace(/\s{2,}/g, " ").trim();
+    mensaje = without && without.length > 20 ? without : "Perfecto, lo anoto. \xBFSeguimos con el siguiente dato del evento?";
+    input.log?.warn?.(
+      { entityId: input.entityId },
+      "GUARD: cierre prematuro bloqueado (invariante)"
+    );
+  }
+  if (!input.cierreYaEnviado && input.currentMessage && clientAsksServiceInfo(input.currentMessage) && isServiceRelatedMessage(input.currentMessage) && !/\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos)\b/i.test(
+    mensaje
+  )) {
+    const ack = buildGuardServiceAck(input.currentMessage);
+    const q2 = mensaje.includes("?") ? `
+
+${mensaje}` : "";
+    mensaje = `${ack}${q2}`.trim();
+    input.log?.info?.(
+      { entityId: input.entityId },
+      "GUARD: pregunta de servicio \u2014 ack forzado (invariante)"
+    );
   }
   const anti = applyLucyGlobalAntiRepetition({
     mensaje,
@@ -95463,9 +95577,10 @@ Reglas estrictas:
 - presupuesto y num_invitados son n\xFAmeros, nunca strings.
 - Si el contacto dio un rango de presupuesto, usa el promedio.
 - Si un dato no est\xE1 presente, el valor ES null (no el texto "null", sino el valor JSON null).${crmHint}`;
+    const userOnlyHistory = history.filter((m4) => m4.role === "user");
     const messages2 = [
       { role: "system", content: extractionPrompt },
-      ...history,
+      ...userOnlyHistory,
       { role: "user", content: latestUserText }
     ];
     const completion = await openai4.chat.completions.create({
@@ -95569,11 +95684,19 @@ function purgeInvalidNombre(mergedLines, filledSet, extracted) {
   }
 }
 function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, currentMessage, whatsappDisplayName, fullHistory) {
-  const conversationText = collectUserTexts(fullHistory ?? history, currentMessage).join(" ");
-  extracted = sanitizeExtractedFromExternal(extracted, conversationText);
-  const mergedLines = [...sanitizeKommoCrmLines(crmLines)];
-  const filledSet = new Set(mergedLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
   const historyFull = fullHistory ?? history;
+  const userTexts = collectUserTexts(historyFull, currentMessage);
+  const conversationText = userTexts.join(" ");
+  extracted = sanitizeExtractedFromExternal(extracted, conversationText);
+  {
+    const inv = applyCrmWriteInvariants(extracted, userTexts);
+    extracted = inv.extracted;
+  }
+  const mergedLines = purgeUnjustifiedPresupuestoLines(
+    purgeInvalidNombreInvariantLines(sanitizeKommoCrmLines(crmLines)),
+    userTexts
+  );
+  const filledSet = new Set(mergedLines.map((l4) => l4.replace(/^- /, "").split(":")[0]?.trim() ?? ""));
   if (!filledSet.has("Nombre del cliente")) {
     const recoveredNombre = recoverClienteNombreFromHistory(historyFull, currentMessage);
     if (recoveredNombre) {
@@ -95588,11 +95711,29 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     extracted.num_invitados = null;
   }
   if (extracted.presupuesto !== null && extracted.presupuesto !== void 0) {
-    const validPres = collectUserTexts(historyFull, currentMessage).map((t) => parsePresupuestoFromText(t)).find(Boolean);
+    const validPres = userTexts.map((t) => parsePresupuestoFromText(t)).find(Boolean);
     if (!validPres) extracted.presupuesto = null;
   }
   if (extracted.presupuesto !== null && extracted.num_invitados !== null && extracted.presupuesto === extracted.num_invitados && extracted.presupuesto < 1e3) {
     extracted.presupuesto = null;
+  }
+  {
+    const inv = applyCrmWriteInvariants(extracted, userTexts);
+    extracted = inv.extracted;
+    if (inv.applied.includes("nombre-invalid-cleared")) {
+      const idx = mergedLines.findIndex((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
+      if (idx >= 0) {
+        mergedLines.splice(idx, 1);
+        filledSet.delete("Nombre del cliente");
+      }
+    }
+    if (inv.applied.includes("presupuesto-no-user-source") || inv.applied.includes("presupuesto-too-small-cleared")) {
+      const pIdx = mergedLines.findIndex((l4) => /^-?\s*Presupuesto \(MXN\):/i.test(l4));
+      if (pIdx >= 0) {
+        mergedLines.splice(pIdx, 1);
+        filledSet.delete("Presupuesto (MXN)");
+      }
+    }
   }
   if (extracted.requerimientos_evento?.trim() && extracted.tipo_evento?.trim() && extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()) {
     extracted.requerimientos_evento = null;
