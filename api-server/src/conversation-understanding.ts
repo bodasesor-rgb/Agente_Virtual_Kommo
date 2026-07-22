@@ -284,9 +284,41 @@ export interface AmbiguousNumberContext {
 }
 
 /** Cliente elige nivel de barra/catálogo (1, 2, 3, básica, tradicional, premium). */
-export function extractCatalogNivelFromText(text: string | null | undefined): string | null {
+/** ¿El último mensaje de Lucy listó paquetes numerados tipo Coffee Break 1–5? */
+export function lastAssistantOfferedNumberedPackages(
+  lastAssistantText?: string | null
+): boolean {
+  const last = lastAssistantText ?? "";
+  return (
+    /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) ||
+    /\d\.\s*\*?coffee\s*break/i.test(last) ||
+    (/cu[aá]l\s+nivel\s+prefieres/i.test(last) &&
+      /coffee\s*break|coffe{1,2}\s*break/i.test(last) &&
+      /\$\s*\d/.test(last))
+  );
+}
+
+/**
+ * Extrae nivel de catálogo. Soporta Básica/Tradicional/Premium y
+ * paquetes numerados "Coffee Break 5" (A14949).
+ */
+export function extractCatalogNivelFromText(
+  text: string | null | undefined,
+  lastAssistantText?: string | null
+): string | null {
   const t = text?.trim().toLowerCase() ?? "";
   if (!t) return null;
+
+  // A14949: "Me interesaría el coffe break 5" / "coffee break 5" / "el 5" tras listar CB 1–5.
+  const coffeeNamed = t.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
+  if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    const bare = t.match(/^(?:el\s+)?([1-9])$/i) || t.match(/\bel\s+([1-9])\b/i);
+    if (bare) return `Coffee Break ${bare[1]}`;
+    const nivelN = t.match(/\bnivel\s*([1-9])\b/i);
+    if (nivelN) return `Coffee Break ${nivelN[1]}`;
+  }
+
   const m =
     t.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) ||
     t.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) ||
@@ -308,13 +340,19 @@ export function isCatalogLevelSelection(
   if (!t) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
   const askedNivel =
-    /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles/i.test(
+    /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(
       last
     );
-  if (!askedNivel) return false;
-  // Mensaje solo nivel, o compuesto con correo/servicio (A14934).
-  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1234])$/i.test(t)) return true;
-  return !!extractCatalogNivelFromText(t);
+  if (!askedNivel) {
+    // Aunque no haya "¿cuál nivel?", "coffee break 5" explícito cuenta (A14949).
+    return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t);
+  }
+  // Mensaje solo nivel, o compuesto con correo/servicio (A14934 / A14949).
+  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t)) return true;
+  if (/^(?:el\s+)?[1-9]$/i.test(t) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    return true;
+  }
+  return !!extractCatalogNivelFromText(t, lastAssistantText);
 }
 
 /** Número suelto ambiguo — solo dígitos 1-9 (día vs pocos invitados), nunca 10+. */
@@ -528,6 +566,11 @@ export function sanitizeExtractedAmbiguousNumbers(
   ctx?: AmbiguousNumberContext
 ): void {
   if (isAmbiguousShortNumber(messageText, ctx)) {
+    extracted.num_invitados = null;
+  }
+  // A14949: GPT a veces pone invitados=5 desde "Coffee Break 5".
+  const m = (messageText ?? "").match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  if (m && extracted.num_invitados === parseInt(m[1]!, 10)) {
     extracted.num_invitados = null;
   }
 }
@@ -1333,6 +1376,21 @@ export function parseInvitadosFromText(text: string): string | null {
   );
   if (numMatchEarly) return numMatchEarly[1]!;
 
+  // A14949: mensaje corto "coffee break 5" / "el 5" tras oferta = NIVEL, no invitados.
+  if (
+    /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(trimmed) &&
+    trimmed.split(/\s+/).length <= 14
+  ) {
+    return null;
+  }
+  if (
+    isCatalogLevelSelection(trimmed) &&
+    trimmed.split(/\s+/).length <= 10 &&
+    !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)
+  ) {
+    return null;
+  }
+
   // "8 niños y 18 adultos" / "18 adultos y 8 niños" → suma (Lorena A14918).
   const kidsAdults = trimmed.match(
     /\b(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\s*y\s*(\d+)\s*(adultos?|mayores?)\b/i
@@ -1646,6 +1704,14 @@ export function parseFechaFromText(text: string): string | null {
     )
   ) {
     return trimmed.slice(0, 80);
+  }
+
+  // A14949: "Viernes 24" / "el viernes 24" / "viernes 24 de julio"
+  const weekdayDate = trimmed.match(
+    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+(\d{1,2})(?:\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))?\b/i
+  );
+  if (weekdayDate) {
+    return weekdayDate[0]!.replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim().slice(0, 80);
   }
 
   // A14933: "este sábado de 3 a 12" / "sí este sábado de 3 a 12"

@@ -80049,9 +80049,21 @@ function clientAsksForRecommendations(message) {
   const t = message.toLowerCase();
   return /recomendaciones?|recomiendas?/i.test(t) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
 }
-function extractCatalogNivelFromText(text2) {
+function lastAssistantOfferedNumberedPackages(lastAssistantText) {
+  const last = lastAssistantText ?? "";
+  return /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) || /\d\.\s*\*?coffee\s*break/i.test(last) || /cu[aá]l\s+nivel\s+prefieres/i.test(last) && /coffee\s*break|coffe{1,2}\s*break/i.test(last) && /\$\s*\d/.test(last);
+}
+function extractCatalogNivelFromText(text2, lastAssistantText) {
   const t = text2?.trim().toLowerCase() ?? "";
   if (!t) return null;
+  const coffeeNamed = t.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
+  if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    const bare = t.match(/^(?:el\s+)?([1-9])$/i) || t.match(/\bel\s+([1-9])\b/i);
+    if (bare) return `Coffee Break ${bare[1]}`;
+    const nivelN = t.match(/\bnivel\s*([1-9])\b/i);
+    if (nivelN) return `Coffee Break ${nivelN[1]}`;
+  }
   const m4 = t.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t.match(/^(1|2|3|4)$/);
   if (!m4) return null;
   const raw = (m4[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -80065,12 +80077,17 @@ function isCatalogLevelSelection(text2, lastAssistantText) {
   const t = text2?.trim().toLowerCase() ?? "";
   if (!t) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
-  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles/i.test(
+  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(
     last
   );
-  if (!askedNivel) return false;
-  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1234])$/i.test(t)) return true;
-  return !!extractCatalogNivelFromText(t);
+  if (!askedNivel) {
+    return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t);
+  }
+  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t)) return true;
+  if (/^(?:el\s+)?[1-9]$/i.test(t) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    return true;
+  }
+  return !!extractCatalogNivelFromText(t, lastAssistantText);
 }
 function isAmbiguousShortNumber(text2, ctx) {
   const t = text2?.trim() ?? "";
@@ -80217,6 +80234,10 @@ function isVagueFoodTerm(text2) {
 }
 function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
   if (isAmbiguousShortNumber(messageText, ctx)) {
+    extracted.num_invitados = null;
+  }
+  const m4 = (messageText ?? "").match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  if (m4 && extracted.num_invitados === parseInt(m4[1], 10)) {
     extracted.num_invitados = null;
   }
 }
@@ -80687,6 +80708,12 @@ function parseInvitadosFromText(text2) {
     /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
   );
   if (numMatchEarly) return numMatchEarly[1];
+  if (/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(trimmed) && trimmed.split(/\s+/).length <= 14) {
+    return null;
+  }
+  if (isCatalogLevelSelection(trimmed) && trimmed.split(/\s+/).length <= 10 && !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)) {
+    return null;
+  }
   const kidsAdults = trimmed.match(
     /\b(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\s*y\s*(\d+)\s*(adultos?|mayores?)\b/i
   );
@@ -80921,6 +80948,12 @@ function parseFechaFromText(text2) {
     trimmed
   )) {
     return trimmed.slice(0, 80);
+  }
+  const weekdayDate = trimmed.match(
+    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+(\d{1,2})(?:\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))?\b/i
+  );
+  if (weekdayDate) {
+    return weekdayDate[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim().slice(0, 80);
   }
   const relativeDay = trimmed.match(
     /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+de\s+(\d{1,2})\s*(?:a|[-–]|hasta)\s*(\d{1,2}))?\b/i
@@ -83064,7 +83097,7 @@ ${lines2.join("\n")}
     return `${i3 + 1}. *${n3}*${price}`;
   });
   const hasAnyIncl = rowsForChoice.some((r2) => !!getInclusionFromRow(r2));
-  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres? Te paso el cat\xE1logo con el detalle de lo que incluye cada uno.";
+  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres?";
   let body2 = `Para *${svc}* manejamos estos niveles:
 
 ${lines.join("\n")}
@@ -87096,16 +87129,25 @@ ${link}
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   )) {
-    const nivel = extractCatalogNivelFromText(currentMessage) ?? currentMessage.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const lastAsst = lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null;
+    const nivel = extractCatalogNivelFromText(currentMessage, lastAsst) ?? currentMessage.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
     const emailNow = filterClientEmail(parseCorreoFromText(currentMessage ?? ""));
     if (emailNow && looksLikeValidClientEmail(emailNow)) {
       filledSet.add("Correo electr\xF3nico");
       extracted.correo = emailNow;
     }
-    const svcNow = findMentionedService(currentMessage ?? "") || extracted.requerimientos_evento?.trim() || null;
-    if (svcNow) {
+    const nivelDigit = String(nivel).match(/(?:coffee\s*break\s*)?([1-9])$/i)?.[1];
+    if (nivelDigit && extracted.num_invitados === parseInt(nivelDigit, 10)) {
+      extracted.num_invitados = null;
+      filledSet.delete("N\xFAmero de invitados");
+    }
+    sanitizeExtractedAmbiguousNumbers(extracted, currentMessage, {
+      lastAskedField: lastAskedField ?? void 0
+    });
+    const svcNow = findMentionedService(currentMessage ?? "") || extracted.requerimientos_evento?.trim() || (/coffee|coffe/i.test(String(nivel)) ? "Coffee Break" : null);
+    if (svcNow || /coffee\s*break\s*[1-9]/i.test(String(nivel))) {
       filledSet.add("Requerimientos o servicios");
-      const withNivel = `${svcNow} (nivel ${nivel})`;
+      const withNivel = /coffee\s*break\s*[1-9]/i.test(String(nivel)) ? String(nivel) : `${svcNow} (nivel ${nivel})`;
       const merged = mergeServiceRequirements(extracted.requerimientos_evento, withNivel, 6);
       if (merged) extracted.requerimientos_evento = merged;
     }
@@ -87114,19 +87156,16 @@ ${link}
     const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, { ...ctx, filledSet }) : null;
     const ackParts = [
       display ? `Perfecto, ${display}.` : "Perfecto.",
-      `Anoto nivel *${nivel}*${svcNow ? ` para ${svcNow}` : ""}${emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""}.`
+      `Anoto *${nivel}*${svcNow && !/coffee\s*break\s*[1-9]/i.test(String(nivel)) ? ` para ${svcNow}` : ""}${emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""}.`
     ];
     const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
-    const detail = attachAvailableSheetDetail(`${hint} ${nivel}`, hint) || buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
-    if (detail && /incluye|\$\s*\d|nivel/i.test(detail)) {
-      mensaje = nextQ ? `${ensureCatalogWebLink(detail, hint)}
+    const levelDetail = /coffee\s*break\s*[1-9]/i.test(String(nivel)) ? buildCatalogServiceDetailAnswer(String(nivel)) || buildCatalogPriceAnswer(String(nivel)) : null;
+    if (levelDetail && /\$\s*\d|incluye/i.test(levelDetail) && !nextQ) {
+      mensaje = `${ackParts.join(" ")}
 
-${nextQ}` : ensureCatalogWebLink(detail, hint);
+${ensureCatalogWebLink(levelDetail, hint)}`;
     } else {
-      mensaje = ensureCatalogWebLink(
-        `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim(),
-        hint
-      );
+      mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
     }
     appliedDirectReply = true;
     appliedSalesReply = true;

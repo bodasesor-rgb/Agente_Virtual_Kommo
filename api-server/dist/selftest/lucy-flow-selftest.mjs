@@ -598,9 +598,21 @@ function clientAsksForRecommendations(message) {
   const t = message.toLowerCase();
   return /recomendaciones?|recomiendas?/i.test(t) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) || /qu[eé]\s+opciones/i.test(t) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) || /algo\s+m[aá]s\s*\?/i.test(t);
 }
-function extractCatalogNivelFromText(text) {
+function lastAssistantOfferedNumberedPackages(lastAssistantText) {
+  const last = lastAssistantText ?? "";
+  return /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) || /\d\.\s*\*?coffee\s*break/i.test(last) || /cu[aá]l\s+nivel\s+prefieres/i.test(last) && /coffee\s*break|coffe{1,2}\s*break/i.test(last) && /\$\s*\d/.test(last);
+}
+function extractCatalogNivelFromText(text, lastAssistantText) {
   const t = text?.trim().toLowerCase() ?? "";
   if (!t) return null;
+  const coffeeNamed = t.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
+  if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    const bare = t.match(/^(?:el\s+)?([1-9])$/i) || t.match(/\bel\s+([1-9])\b/i);
+    if (bare) return `Coffee Break ${bare[1]}`;
+    const nivelN = t.match(/\bnivel\s*([1-9])\b/i);
+    if (nivelN) return `Coffee Break ${nivelN[1]}`;
+  }
   const m = t.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t.match(/^(1|2|3|4)$/);
   if (!m) return null;
   const raw = (m[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -614,12 +626,17 @@ function isCatalogLevelSelection(text, lastAssistantText) {
   const t = text?.trim().toLowerCase() ?? "";
   if (!t) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
-  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles/i.test(
+  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(
     last
   );
-  if (!askedNivel) return false;
-  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1234])$/i.test(t)) return true;
-  return !!extractCatalogNivelFromText(t);
+  if (!askedNivel) {
+    return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t);
+  }
+  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t)) return true;
+  if (/^(?:el\s+)?[1-9]$/i.test(t) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    return true;
+  }
+  return !!extractCatalogNivelFromText(t, lastAssistantText);
 }
 function isAmbiguousShortNumber(text, ctx) {
   const t = text?.trim() ?? "";
@@ -766,6 +783,10 @@ function isVagueFoodTerm(text) {
 }
 function sanitizeExtractedAmbiguousNumbers(extracted, messageText, ctx) {
   if (isAmbiguousShortNumber(messageText, ctx)) {
+    extracted.num_invitados = null;
+  }
+  const m = (messageText ?? "").match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  if (m && extracted.num_invitados === parseInt(m[1], 10)) {
     extracted.num_invitados = null;
   }
 }
@@ -1236,6 +1257,12 @@ function parseInvitadosFromText(text) {
     /\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i
   );
   if (numMatchEarly) return numMatchEarly[1];
+  if (/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(trimmed) && trimmed.split(/\s+/).length <= 14) {
+    return null;
+  }
+  if (isCatalogLevelSelection(trimmed) && trimmed.split(/\s+/).length <= 10 && !/\b(personas?|invitados?|pax|guests?)\b/i.test(trimmed)) {
+    return null;
+  }
   const kidsAdults = trimmed.match(
     /\b(\d+)\s*(niñ[oa]s?|chiquit[oa]s?|peques?|infantes?)\s*y\s*(\d+)\s*(adultos?|mayores?)\b/i
   );
@@ -1470,6 +1497,12 @@ function parseFechaFromText(text) {
     trimmed
   )) {
     return trimmed.slice(0, 80);
+  }
+  const weekdayDate = trimmed.match(
+    /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+(\d{1,2})(?:\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre))?\b/i
+  );
+  if (weekdayDate) {
+    return weekdayDate[0].replace(/^(s[ií]|ok|vale)[,.]?\s+/i, "").trim().slice(0, 80);
   }
   const relativeDay = trimmed.match(
     /\b((?:este|el|pr[oó]ximo)\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)(?:\s+de\s+(\d{1,2})\s*(?:a|[-–]|hasta)\s*(\d{1,2}))?\b/i
@@ -4144,7 +4177,7 @@ ${lines2.join("\n")}
     return `${i + 1}. *${n}*${price}`;
   });
   const hasAnyIncl = rowsForChoice.some((r) => !!getInclusionFromRow(r));
-  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres? Te paso el cat\xE1logo con el detalle de lo que incluye cada uno.";
+  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres?";
   let body = `Para *${svc}* manejamos estos niveles:
 
 ${lines.join("\n")}
@@ -17371,16 +17404,25 @@ ${link}
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   )) {
-    const nivel = extractCatalogNivelFromText(currentMessage) ?? currentMessage.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const lastAsst = lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null;
+    const nivel = extractCatalogNivelFromText(currentMessage, lastAsst) ?? currentMessage.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
     const emailNow = filterClientEmail(parseCorreoFromText(currentMessage ?? ""));
     if (emailNow && looksLikeValidClientEmail(emailNow)) {
       filledSet.add("Correo electr\xF3nico");
       extracted.correo = emailNow;
     }
-    const svcNow = findMentionedService(currentMessage ?? "") || extracted.requerimientos_evento?.trim() || null;
-    if (svcNow) {
+    const nivelDigit = String(nivel).match(/(?:coffee\s*break\s*)?([1-9])$/i)?.[1];
+    if (nivelDigit && extracted.num_invitados === parseInt(nivelDigit, 10)) {
+      extracted.num_invitados = null;
+      filledSet.delete("N\xFAmero de invitados");
+    }
+    sanitizeExtractedAmbiguousNumbers(extracted, currentMessage, {
+      lastAskedField: lastAskedField ?? void 0
+    });
+    const svcNow = findMentionedService(currentMessage ?? "") || extracted.requerimientos_evento?.trim() || (/coffee|coffe/i.test(String(nivel)) ? "Coffee Break" : null);
+    if (svcNow || /coffee\s*break\s*[1-9]/i.test(String(nivel))) {
       filledSet.add("Requerimientos o servicios");
-      const withNivel = `${svcNow} (nivel ${nivel})`;
+      const withNivel = /coffee\s*break\s*[1-9]/i.test(String(nivel)) ? String(nivel) : `${svcNow} (nivel ${nivel})`;
       const merged = mergeServiceRequirements(extracted.requerimientos_evento, withNivel, 6);
       if (merged) extracted.requerimientos_evento = merged;
     }
@@ -17389,19 +17431,16 @@ ${link}
     const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, { ...ctx, filledSet }) : null;
     const ackParts = [
       display ? `Perfecto, ${display}.` : "Perfecto.",
-      `Anoto nivel *${nivel}*${svcNow ? ` para ${svcNow}` : ""}${emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""}.`
+      `Anoto *${nivel}*${svcNow && !/coffee\s*break\s*[1-9]/i.test(String(nivel)) ? ` para ${svcNow}` : ""}${emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""}.`
     ];
     const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
-    const detail = attachAvailableSheetDetail(`${hint} ${nivel}`, hint) || buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
-    if (detail && /incluye|\$\s*\d|nivel/i.test(detail)) {
-      mensaje = nextQ ? `${ensureCatalogWebLink(detail, hint)}
+    const levelDetail = /coffee\s*break\s*[1-9]/i.test(String(nivel)) ? buildCatalogServiceDetailAnswer(String(nivel)) || buildCatalogPriceAnswer(String(nivel)) : null;
+    if (levelDetail && /\$\s*\d|incluye/i.test(levelDetail) && !nextQ) {
+      mensaje = `${ackParts.join(" ")}
 
-${nextQ}` : ensureCatalogWebLink(detail, hint);
+${ensureCatalogWebLink(levelDetail, hint)}`;
     } else {
-      mensaje = ensureCatalogWebLink(
-        `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim(),
-        hint
-      );
+      mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
     }
     appliedDirectReply = true;
     appliedSalesReply = true;
@@ -23919,6 +23958,73 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const price = buildCatalogPriceAnswer("barra de sushi") || "";
     assert.ok(/\$\s*\d/.test(price), price);
     assert.ok(/incluye|rollos/i.test(price), `precio multi-nivel debe traer Incluye: ${price}`);
+  });
+  await test("94. Car A14949 \u2014 Coffee Break 5 = nivel (no 5 invitados), Viernes 24", () => {
+    const lastOffer = [
+      "Para *Coffee Break* manejamos estos niveles:",
+      "",
+      "1. *Coffee Break 1* \u2014 $120.00 /pp",
+      "2. *Coffee Break 2* \u2014 $200.00 /pp",
+      "3. *Coffee Break 3* \u2014 $280.00 /pp",
+      "4. *Coffee Break 4* \u2014 $350.00 /pp",
+      "5. *Coffee Break 5* \u2014 $400.00 /pp",
+      "",
+      "\xBFCu\xE1l nivel prefieres?",
+      "https://bodasesor.com/catalogos/coffee-break",
+      "",
+      "\xBFC\xF3mo te llamas?"
+    ].join("\n");
+    assert.equal(parseInvitadosFromText("Me interesar\xEDa el coffe break 5"), null);
+    assert.equal(parseInvitadosFromText("coffee break 5"), null);
+    assert.equal(
+      extractCatalogNivelFromText("Me interesar\xEDa el coffe break 5", lastOffer),
+      "Coffee Break 5"
+    );
+    assert.equal(extractCatalogNivelFromText("el 5", lastOffer), "Coffee Break 5");
+    assert.ok(isCatalogLevelSelection("Me interesar\xEDa el coffe break 5", lastOffer));
+    assert.ok(isCatalogLevelSelection("5", lastOffer));
+    const amb = { num_invitados: 5 };
+    sanitizeExtractedAmbiguousNumbers(amb, "Me interesar\xEDa el coffe break 5");
+    assert.equal(amb.num_invitados, null);
+    assert.equal(parseFechaFromText("Viernes 24"), "Viernes 24");
+    assert.ok(/viernes\s+24/i.test(parseFechaFromText("el viernes 24") || ""));
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Coffee Break","Coffee Break 5","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Men\xFA premium CB5"',
+      '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Men\xFA CB1"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const pick = runGuards({
+      aiResponse: "Mucho gusto, Car. \xBFA qu\xE9 correo te lo env\xEDo?",
+      extracted: emptyExtracted({
+        nombre: "Car",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee Break",
+        num_invitados: 5
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Me interesar\xEDa el coffe break 5",
+      history: [
+        {
+          role: "user",
+          content: "Hola, me interesa cotizar: Coffee Break para Eventos Corporativos"
+        },
+        { role: "assistant", content: lastOffer }
+      ],
+      whatsappDisplayName: "Car"
+    });
+    assert.ok(/anoto|Coffee Break 5|\*Coffee Break 5\*/i.test(pick), pick.slice(0, 400));
+    assert.ok(!/5\s*invitados|somos 5/i.test(pick), pick.slice(0, 300));
+    assert.ok(
+      /correo|invitados|cu[aá]ntos/i.test(pick),
+      `debe seguir embudo tras ack nivel: ${pick.slice(0, 400)}`
+    );
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

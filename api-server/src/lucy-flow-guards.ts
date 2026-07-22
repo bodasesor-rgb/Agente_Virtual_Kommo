@@ -82,6 +82,7 @@ import {
   isAmbiguousShortNumber,
   isCatalogLevelSelection,
   extractCatalogNivelFromText,
+  sanitizeExtractedAmbiguousNumbers,
   clientDeclinesMoreServices,
   clientMentionsEntertainment,
   clientMentionsPistaTarima,
@@ -3371,22 +3372,42 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : null
     )
   ) {
-    // A14934: mensaje compuesto (correo + servicio + nivel) — no usar el texto entero como nivel.
+    // A14934/A14949: nivel Básica/Premium o paquete numerado "Coffee Break 5".
+    const lastAsst =
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+        ? (lastAssistantMsg.content as string)
+        : null;
     const nivel =
-      extractCatalogNivelFromText(currentMessage) ??
+      extractCatalogNivelFromText(currentMessage, lastAsst) ??
       currentMessage!.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
     const emailNow = filterClientEmail(parseCorreoFromText(currentMessage ?? ""));
     if (emailNow && looksLikeValidClientEmail(emailNow)) {
       filledSet.add("Correo electrónico");
       extracted.correo = emailNow;
     }
+    // A14949: el dígito del paquete NUNCA es invitados.
+    const nivelDigit = String(nivel).match(/(?:coffee\s*break\s*)?([1-9])$/i)?.[1];
+    if (
+      nivelDigit &&
+      extracted.num_invitados === parseInt(nivelDigit, 10)
+    ) {
+      extracted.num_invitados = null;
+      filledSet.delete("Número de invitados");
+    }
+    sanitizeExtractedAmbiguousNumbers(extracted, currentMessage, {
+      lastAskedField: lastAskedField ?? undefined,
+    });
+
     const svcNow =
       findMentionedService(currentMessage ?? "") ||
       extracted.requerimientos_evento?.trim() ||
-      null;
-    if (svcNow) {
+      (/coffee|coffe/i.test(String(nivel)) ? "Coffee Break" : null);
+    if (svcNow || /coffee\s*break\s*[1-9]/i.test(String(nivel))) {
       filledSet.add("Requerimientos o servicios");
-      const withNivel = `${svcNow} (nivel ${nivel})`;
+      // "Coffee Break 5" ya es el SKU completo; no anidar "(nivel Coffee Break 5)".
+      const withNivel = /coffee\s*break\s*[1-9]/i.test(String(nivel))
+        ? String(nivel)
+        : `${svcNow} (nivel ${nivel})`;
       const merged = mergeServiceRequirements(extracted.requerimientos_evento, withNivel, 6);
       if (merged) extracted.requerimientos_evento = merged;
     }
@@ -3398,25 +3419,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : null;
     const ackParts = [
       display ? `Perfecto, ${display}.` : "Perfecto.",
-      `Anoto nivel *${nivel}*${svcNow ? ` para ${svcNow}` : ""}${
+      `Anoto *${nivel}*${svcNow && !/coffee\s*break\s*[1-9]/i.test(String(nivel)) ? ` para ${svcNow}` : ""}${
         emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""
       }.`,
     ];
-    // Si el Sheet tiene detalle del nivel, úsalo; si no, ack + siguiente dato del embudo.
+    // Preferir ack del nivel + siguiente dato (no re-dump de todos los niveles).
     const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
-    const detail =
-      attachAvailableSheetDetail(`${hint} ${nivel}`, hint) ||
-      buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
-    if (detail && /incluye|\$\s*\d|nivel/i.test(detail)) {
-      // V8.35: detalle Sheet primero; embudo (correo/zona) después, no en su lugar.
-      mensaje = nextQ
-        ? `${ensureCatalogWebLink(detail, hint)}\n\n${nextQ}`
-        : ensureCatalogWebLink(detail, hint);
+    const levelDetail =
+      /coffee\s*break\s*[1-9]/i.test(String(nivel))
+        ? buildCatalogServiceDetailAnswer(String(nivel)) ||
+          buildCatalogPriceAnswer(String(nivel))
+        : null;
+    if (levelDetail && /\$\s*\d|incluye/i.test(levelDetail) && !nextQ) {
+      mensaje = `${ackParts.join(" ")}\n\n${ensureCatalogWebLink(levelDetail, hint)}`;
     } else {
-      mensaje = ensureCatalogWebLink(
-        `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim(),
-        hint
-      );
+      mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
     }
     appliedDirectReply = true;
     appliedSalesReply = true;
