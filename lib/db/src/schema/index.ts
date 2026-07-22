@@ -210,3 +210,20 @@ export const knowledgeGaps = pgTable("knowledge_gaps", {
 
 export type KnowledgeGapRecord = typeof knowledgeGaps.$inferSelect;
 export type InsertKnowledgeGap = typeof knowledgeGaps.$inferInsert;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// INFORMACIÓN MANUAL PARA LUCY (PDFs→texto + tendencias / consejos)
+// Panel /aprendizaje → pestaña «Información para Lucy»
+// ═══════════════════════════════════════════════════════════════════════════
+export const lucyInfoDocuments = pgTable("lucy_info_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  kind: varchar("kind", { length: 30 }).notNull().default("catalog"),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  sourceFilename: text("source_filename"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export type LucyInfoDocumentRecord = typeof lucyInfoDocuments.$inferSelect;
+export type InsertLucyInfoDocument = typeof lucyInfoDocuments.$inferInsert;

@@ -76,6 +76,7 @@ import {
   lucyTextOverlapRatio,
 } from "../lucyOutboundAntiRepeat.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
+import { buildDynamicPrompt } from "../services/promptBuilder.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName, resolveKommoLeadNamePatch } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
@@ -5583,6 +5584,26 @@ async function runAll(): Promise<void> {
       /correo|invitados|cu[aá]ntos/i.test(pick),
       `debe seguir embudo tras ack nivel: ${pick.slice(0, 400)}`
     );
+  });
+
+  // ─── 95. V8.37 — Información manual (PDF/tips) entra al system prompt ───
+  await test("95. Información para Lucy se inyecta en el prompt", async () => {
+    const prompt = buildDynamicPrompt({
+      stage: "discovery",
+      priority: "medium",
+      extracted: emptyExtracted({ tipo_evento: "boda" }),
+      crmContext: "",
+      catalogBlock: "CATALOGO_TEST",
+      lucyInfoBlock: [
+        "INFORMACIÓN MANUAL PARA LUCY (panel Aprendizaje → Información para Lucy)",
+        "—— Tendencias, modas y consejos ——",
+        "### Tendencias 2026",
+        "Bodas íntimas con coffee break premium y flores silvestres.",
+      ].join("\n"),
+    });
+    assert.ok(prompt.includes("CATALOGO_TEST"));
+    assert.ok(/INFORMACIÓN MANUAL PARA LUCY/i.test(prompt));
+    assert.ok(/Bodas íntimas con coffee break premium/i.test(prompt));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

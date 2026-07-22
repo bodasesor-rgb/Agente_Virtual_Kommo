@@ -13,14 +13,24 @@ const systemErrorsChecked = document.getElementById("system-errors-checked");
 const btnRetryErrors = document.getElementById("btn-retry-errors");
 const btnSyncNow = document.getElementById("btn-sync-now");
 const viewTabs = document.getElementById("view-tabs");
+const infoPanel = document.getElementById("info-panel");
 
-/** @type {"chats" | "gaps"} */
+/** @type {"chats" | "gaps" | "info"} */
 let currentMode = "chats";
 /** @type {string} */
 let currentStatus = "approved";
 let lastLoadError = null;
 let lastChatStats = { pending: 0, approved: 0, rejected: 0, trainingExamples: 0 };
 let lastGapStats = { pending: 0, answered: 0, dismissed: 0 };
+let lastInfoStats = { catalog: 0, tips: 0, total: 0 };
+
+/** Estado temporal del extractor PDF en la pestaña info */
+let pendingPdf = {
+  kind: "catalog",
+  filename: "",
+  text: "",
+  pages: 0,
+};
 
 const ERROR_HINTS = {
   unauthorized:
@@ -162,6 +172,26 @@ async function loadSystemDiagnostics() {
     });
   }
 
+  const info = await fetchJson("/lucy-info/stats");
+  if (!info.ok) {
+    items.push({
+      id: "lucy_info",
+      label: "Información para Lucy",
+      status: "error",
+      resolved: false,
+      detail: friendlyError(info.error, "No se pudo leer /api/lucy-info"),
+      fix: "Redeploy a main con V8.37 (pestaña Información para Lucy).",
+    });
+  } else {
+    items.push({
+      id: "lucy_info",
+      label: "Información para Lucy",
+      status: "ok",
+      resolved: true,
+      detail: `${info.data.catalog ?? 0} catálogos/PDF · ${info.data.tips ?? 0} notas de tendencias.`,
+    });
+  }
+
   const errors = items.filter((i) => i.status === "error").length;
   const warns = items.filter((i) => i.status === "warn").length;
   const allOk = errors === 0 && warns === 0;
@@ -196,6 +226,8 @@ const INTRO = {
     "Preguntas donde <strong>Lucy no encontró precio/servicio en el Sheet</strong>. Escribe la respuesta correcta y Lucy la usará después.",
   gaps_answered:
     "Respuestas que <strong>tú le enseñaste</strong> sobre huecos del catálogo.",
+  info:
+    "Sube <strong>PDFs de catálogos/servicios</strong> (se convierten a texto plano para que Lucy los lea) y escribe <strong>tendencias, modas y consejos</strong> para que ofrezca con más naturalidad. Los precios del Sheet siguen mandando.",
 };
 
 async function api(path, options = {}) {
@@ -240,6 +272,7 @@ function updateTabCounts() {
   const map = {
     chatLearned: lastChatStats.approved + (lastChatStats.trainingExamples || 0),
     gapPending: lastGapStats.pending,
+    infoTotal: lastInfoStats.total || 0,
     approved: currentMode === "chats" ? lastChatStats.approved : lastGapStats.answered,
     pending: currentMode === "chats" ? lastChatStats.pending : lastGapStats.pending,
   };
@@ -250,6 +283,14 @@ function updateTabCounts() {
 }
 
 function syncStatusTabsForMode() {
+  if (!viewTabs) return;
+
+  if (currentMode === "info") {
+    viewTabs.classList.add("hidden");
+    return;
+  }
+  viewTabs.classList.remove("hidden");
+
   const tabs = viewTabs.querySelectorAll(".view-tab");
   // Tabs fijos: data-status = approved | pending (chats) o answered|pending via mapping
   tabs.forEach((btn) => {
@@ -291,16 +332,18 @@ function syncStatusTabsForMode() {
 }
 
 async function loadStats() {
-  const [chatRes, gapRes] = await Promise.all([
+  const [chatRes, gapRes, infoRes] = await Promise.all([
     fetchJson("/aprendizaje/from-chats/stats"),
     fetchJson("/knowledge-gaps/stats"),
+    fetchJson("/lucy-info/stats"),
   ]);
 
   if (chatRes.ok) lastChatStats = chatRes.data;
   if (gapRes.ok) lastGapStats = gapRes.data;
+  if (infoRes.ok) lastInfoStats = infoRes.data;
 
-  if (!chatRes.ok && !gapRes.ok) {
-    lastLoadError = chatRes.error || gapRes.error;
+  if (!chatRes.ok && !gapRes.ok && !infoRes.ok) {
+    lastLoadError = chatRes.error || gapRes.error || infoRes.error;
     throw new Error(lastLoadError);
   }
   lastLoadError = null;
@@ -321,12 +364,263 @@ async function loadStats() {
       <span>Huecos enseñados</span>
     </div>
     <div class="stat-card dismissed">
-      <strong>${lastGapStats.pending ?? 0}</strong>
-      <span>Huecos pendientes</span>
+      <strong>${lastInfoStats.total ?? 0}</strong>
+      <span>Docs / tips para Lucy</span>
     </div>
   `;
 
   updateTabCounts();
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      const comma = result.indexOf(",");
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.onerror = () => reject(new Error("read_failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderInfoDocCard(doc) {
+  const card = document.createElement("article");
+  card.className = "gap-card learned-card info-doc-card";
+  card.dataset.id = doc.id;
+  const kindLabel = doc.kind === "tips" ? "Tendencias / consejos" : "Catálogo / servicio";
+  card.innerHTML = `
+    <div class="gap-top">
+      <div>
+        <div class="gap-topic">${escapeHtml(doc.title)}</div>
+        <div class="info-meta">${escapeHtml(kindLabel)}${
+          doc.sourceFilename ? ` · ${escapeHtml(doc.sourceFilename)}` : ""
+        } · ${doc.charCount ?? doc.content?.length ?? 0} caracteres</div>
+      </div>
+      <div class="gap-badges">
+        <span class="gap-badge learned">${doc.kind === "tips" ? "Consejos" : "Catálogo"}</span>
+      </div>
+    </div>
+    <div class="info-block answer">
+      <div class="label">Texto que Lucy puede leer</div>
+      <pre class="info-preview">${escapeHtml((doc.content || "").slice(0, 900))}${
+        (doc.content || "").length > 900 ? "…" : ""
+      }</pre>
+    </div>
+    <details class="info-edit">
+      <summary>Editar texto</summary>
+      <label>Título
+        <input type="text" class="info-title-input" value="${escapeHtml(doc.title)}" />
+      </label>
+      <label>Contenido (texto plano)
+        <textarea class="answer-box info-content-input">${escapeHtml(doc.content || "")}</textarea>
+      </label>
+      <div class="gap-actions">
+        <button type="button" class="btn-save info-save-btn">Guardar cambios</button>
+        <button type="button" class="btn-ghost info-delete-btn">Eliminar</button>
+      </div>
+    </details>
+    <div class="gap-footer">
+      <span>Actualizado ${formatDate(doc.updatedAt)}</span>
+    </div>
+  `;
+  card.querySelector(".info-save-btn")?.addEventListener("click", () => saveInfoDoc(doc.id, card));
+  card.querySelector(".info-delete-btn")?.addEventListener("click", () => deleteInfoDoc(doc.id));
+  return card;
+}
+
+async function saveInfoDoc(id, card) {
+  const title = card.querySelector(".info-title-input")?.value?.trim();
+  const content = card.querySelector(".info-content-input")?.value?.trim();
+  if (!title || !content) {
+    alert("Título y contenido son obligatorios.");
+    return;
+  }
+  const btn = card.querySelector(".info-save-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "Guardando…";
+  }
+  try {
+    await api(`/lucy-info/documents/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ title, content }),
+    });
+    await refresh();
+  } catch (err) {
+    alert(err.message || "Error al guardar");
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Guardar cambios";
+    }
+  }
+}
+
+async function deleteInfoDoc(id) {
+  if (!confirm("¿Eliminar esta información? Lucy dejará de usarla.")) return;
+  await api(`/lucy-info/documents/${id}`, { method: "DELETE" });
+  await refresh();
+}
+
+async function extractPdfFromInput(fileInput, statusEl, previewEl) {
+  const file = fileInput?.files?.[0];
+  if (!file) {
+    alert("Elige un PDF primero.");
+    return null;
+  }
+  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
+    alert("Solo se aceptan archivos PDF.");
+    return null;
+  }
+  if (statusEl) statusEl.textContent = "Extrayendo texto del PDF…";
+  try {
+    const pdfBase64 = await fileToBase64(file);
+    const res = await fetchJson("/lucy-info/extract-pdf", {
+      method: "POST",
+      body: JSON.stringify({ pdfBase64, filename: file.name }),
+    });
+    if (!res.ok) throw new Error(res.error || "extract_failed");
+    pendingPdf = {
+      kind: pendingPdf.kind,
+      filename: file.name,
+      text: res.data.text || "",
+      pages: res.data.pages || 0,
+    };
+    if (previewEl) previewEl.value = pendingPdf.text;
+    if (statusEl) {
+      statusEl.textContent = `Listo: ${pendingPdf.pages} página(s) · ${pendingPdf.text.length} caracteres. Revisa el texto y guarda.`;
+    }
+    return pendingPdf;
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
+    return null;
+  }
+}
+
+async function saveInfoFromForm(kind) {
+  const titleEl = document.getElementById(`info-title-${kind}`);
+  const contentEl = document.getElementById(`info-content-${kind}`);
+  const statusEl = document.getElementById(`info-status-${kind}`);
+  const title = titleEl?.value?.trim() || "";
+  const content = contentEl?.value?.trim() || "";
+  if (!content) {
+    alert(kind === "tips" ? "Escribe las tendencias o consejos." : "Sube un PDF o pega el texto del catálogo.");
+    return;
+  }
+  if (statusEl) statusEl.textContent = "Guardando para Lucy…";
+  try {
+    await api("/lucy-info/documents", {
+      method: "POST",
+      body: JSON.stringify({
+        kind,
+        title: title || (kind === "tips" ? "Tendencias y consejos" : pendingPdf.filename || "Catálogo"),
+        content,
+        sourceFilename: kind === "catalog" ? pendingPdf.filename || null : null,
+      }),
+    });
+    if (titleEl) titleEl.value = "";
+    if (contentEl) contentEl.value = "";
+    pendingPdf = { kind: "catalog", filename: "", text: "", pages: 0 };
+    const fileInput = document.getElementById("info-pdf-input");
+    if (fileInput) fileInput.value = "";
+    if (statusEl) statusEl.textContent = "Guardado. Lucy ya puede usar este texto en las siguientes conversaciones.";
+    await refresh();
+  } catch (err) {
+    if (statusEl) statusEl.textContent = `Error: ${err instanceof Error ? err.message : String(err)}`;
+  }
+}
+
+function renderInfoPanelShell() {
+  if (!infoPanel) return;
+  infoPanel.classList.remove("hidden");
+  infoPanel.innerHTML = `
+    <div class="info-grid-panels">
+      <section class="info-upload-card">
+        <p class="eyebrow">Catálogos y servicios</p>
+        <h3>Subir PDF → texto plano</h3>
+        <p class="info-help">Lucy no lee el PDF como imagen: lo convertimos a texto para que conozca menús, inclusiones y detalle de servicios.</p>
+        <label>Título (opcional)
+          <input type="text" id="info-title-catalog" placeholder="Ej. Coffee Break — niveles e inclusiones" />
+        </label>
+        <label class="file-label">PDF del catálogo
+          <input type="file" id="info-pdf-input" accept="application/pdf,.pdf" />
+        </label>
+        <div class="gap-actions">
+          <button type="button" class="btn-ghost" id="btn-extract-pdf">Extraer texto del PDF</button>
+        </div>
+        <label>Texto plano (editable)
+          <textarea id="info-content-catalog" class="answer-box info-textarea" placeholder="Aquí aparecerá el texto extraído. También puedes pegarlo a mano…"></textarea>
+        </label>
+        <div class="gap-actions">
+          <button type="button" class="btn-save" id="btn-save-catalog">Guardar catálogo para Lucy</button>
+        </div>
+        <p id="info-status-catalog" class="info-status"></p>
+      </section>
+
+      <section class="info-upload-card tips-card">
+        <p class="eyebrow">Tendencias y consejos</p>
+        <h3>Lo que Lucy puede ofrecer con naturalidad</h3>
+        <p class="info-help">Modas de bodas, tipologías de eventos corporativos, ideas de montaje, temporada, etc. Lucy usará esto para aconsejar sin inventar precios.</p>
+        <label>Título (opcional)
+          <input type="text" id="info-title-tips" placeholder="Ej. Tendencias 2026 — bodas íntimas" />
+        </label>
+        <label>Notas para Lucy
+          <textarea id="info-content-tips" class="answer-box info-textarea" placeholder="Escribe tendencias, modas o consejos que quieras que Lucy use al conversar…"></textarea>
+        </label>
+        <div class="gap-actions">
+          <button type="button" class="btn-save" id="btn-save-tips">Guardar consejos para Lucy</button>
+        </div>
+        <p id="info-status-tips" class="info-status"></p>
+      </section>
+    </div>
+    <div class="info-docs-head">
+      <h3>Ya cargado para Lucy</h3>
+      <p class="info-help">Se inyecta en el prompt (con límite de caracteres). Prioridad de precios: Google Sheet.</p>
+    </div>
+    <div id="info-docs-list" class="gaps-list"></div>
+  `;
+
+  document.getElementById("btn-extract-pdf")?.addEventListener("click", async () => {
+    pendingPdf.kind = "catalog";
+    await extractPdfFromInput(
+      document.getElementById("info-pdf-input"),
+      document.getElementById("info-status-catalog"),
+      document.getElementById("info-content-catalog"),
+    );
+  });
+  document.getElementById("btn-save-catalog")?.addEventListener("click", () => saveInfoFromForm("catalog"));
+  document.getElementById("btn-save-tips")?.addEventListener("click", () => saveInfoFromForm("tips"));
+}
+
+async function loadInfoMode() {
+  sectionIntro.innerHTML = INTRO.info;
+  gapsList.innerHTML = "";
+  emptyState.classList.add("hidden");
+  renderInfoPanelShell();
+
+  const listEl = document.getElementById("info-docs-list");
+  try {
+    const data = await api("/lucy-info?limit=50");
+    lastLoadError = null;
+    if (!data.documents?.length) {
+      if (listEl) {
+        listEl.innerHTML =
+          `<p class="empty-inline">Aún no hay documentos. Sube un PDF de catálogo o escribe tendencias arriba.</p>`;
+      }
+      return;
+    }
+    if (listEl) {
+      listEl.innerHTML = "";
+      for (const doc of data.documents) listEl.appendChild(renderInfoDocCard(doc));
+    }
+  } catch (err) {
+    lastLoadError = err instanceof Error ? err.message : String(err);
+    if (listEl) {
+      listEl.innerHTML = `<p class="empty-inline"><strong>No se pudo cargar</strong> ${escapeHtml(lastLoadError)}</p>`;
+    }
+    throw err;
+  }
 }
 
 function renderChatCard(c, status) {
@@ -438,6 +732,16 @@ function renderLearnedGapCard(gap) {
 }
 
 async function loadList() {
+  if (currentMode === "info") {
+    await loadInfoMode();
+    return;
+  }
+
+  if (infoPanel) {
+    infoPanel.classList.add("hidden");
+    infoPanel.innerHTML = "";
+  }
+
   const introKey =
     currentMode === "chats"
       ? currentStatus === "pending"
@@ -575,8 +879,11 @@ document.querySelectorAll("#mode-tabs .view-tab").forEach((btn) => {
   btn.addEventListener("click", async () => {
     document.querySelectorAll("#mode-tabs .view-tab").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
-    currentMode = btn.dataset.mode === "gaps" ? "gaps" : "chats";
-    currentStatus = currentMode === "chats" ? "approved" : "pending";
+    const mode = btn.dataset.mode;
+    currentMode = mode === "gaps" ? "gaps" : mode === "info" ? "info" : "chats";
+    currentStatus =
+      currentMode === "chats" ? "approved" : currentMode === "gaps" ? "pending" : currentStatus;
+    if (btnSyncNow) btnSyncNow.classList.toggle("hidden", currentMode === "info");
     syncStatusTabsForMode();
     updateTabCounts();
     await loadList();

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Aprendizaje de Lucy — Bodasesor</title>
   <base href="/aprendizaje/" />
-  <link rel="stylesheet" href="/aprendizaje/styles.css?v=3" />
+  <link rel="stylesheet" href="/aprendizaje/styles.css?v=4" />
 </head>
 <body>
   <div id="app">
@@ -15,8 +15,8 @@
           <p class="eyebrow">Lucy · Aprendizaje continuo</p>
           <h1>Aprendizaje de Lucy</h1>
           <p class="subtitle">
-            Lo que Lucy aprende de los chats de Alejandro (Humano Trabaja / Cotización)
-            y los huecos del catálogo que tú le enseñas.
+            Lo que Lucy aprende de los chats de Alejandro, los huecos del catálogo
+            y la información (PDFs y tendencias) que subes para ella.
           </p>
         </div>
         <div class="page-header-actions">
@@ -40,7 +40,7 @@
         <p id="system-errors-checked" class="system-errors-checked"></p>
       </section>
 
-      <nav class="view-tabs" id="mode-tabs">
+      <nav class="view-tabs mode-tabs-3" id="mode-tabs">
         <button type="button" class="view-tab active" data-mode="chats">
           <span class="tab-title">De chats</span>
           <span class="tab-desc">Aprendido con Alejandro</span>
@@ -50,6 +50,11 @@
           <span class="tab-title">Huecos de catálogo</span>
           <span class="tab-desc">Preguntas sin precio en Sheet</span>
           <span class="tab-count" data-count="gapPending">0</span>
+        </button>
+        <button type="button" class="view-tab" data-mode="info">
+          <span class="tab-title">Información para Lucy</span>
+          <span class="tab-desc">PDFs, catálogos y tendencias</span>
+          <span class="tab-count" data-count="infoTotal">0</span>
         </button>
       </nav>
 
@@ -69,12 +74,13 @@
       <div class="content-area">
         <div id="section-intro" class="section-intro"></div>
         <p id="sync-status" class="sync-status hidden"></p>
+        <div id="info-panel" class="info-panel hidden"></div>
         <div id="gaps-list" class="gaps-list"></div>
         <p id="empty-state" class="empty-state hidden"></p>
       </div>
     </section>
   </div>
 
-  <script src="/aprendizaje/app.js?v=5" type="module"></script>
+  <script src="/aprendizaje/app.js?v=6" type="module"></script>
 </body>
 </html>

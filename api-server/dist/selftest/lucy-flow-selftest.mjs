@@ -2293,6 +2293,335 @@ function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
   return safe;
 }
 
+// src/catalogo.ts
+var CATALOGO_BODASESOR = `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CAT\xC1LOGO BODASESOR 2026 \u2014 INFORMACI\xD3N COMPLETA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+CONDICIONES GENERALES:
+\u2022 Precios NO incluyen IVA (16%)
+\u2022 Propina 15% recomendada (no obligatoria)
+\u2022 Inversi\xF3n m\xEDnima general: $18,000 MXN por evento (excepto Kosher: $29,000; barras: desde $6,000)
+\u2022 Duraci\xF3n est\xE1ndar banquetes: 5 horas
+\u2022 Barras tem\xE1ticas: 3 horas o hasta agotar producto
+\u2022 Anticipo 50% para apartar fecha
+\u2022 Liquidaci\xF3n 10 d\xEDas antes del evento
+\u2022 Cambios: hasta 30 d\xEDas antes
+\u2022 Formas de pago: efectivo o transferencia
+\u2022 Atendemos de 30 hasta 10,000 personas
+\u2022 Montaje y desmontaje incluidos. Trabajamos en el venue del cliente.
+\u2022 Men\xFAs adaptables a restricciones alimenticias y opci\xF3n vegetariana disponible
+\u2022 Hora extra: $60/pp (m\xEDnimo 10 personas)
+\u2022 Eventos con +100 personas: opci\xF3n de 2 men\xFAs distintos
+\u2022 Prueba de men\xFA: $5,000 MXN para 4 personas (se descuentan $2,500 al confirmar)
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE FORMAL
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Cocina internacional: res, pollo, pescado, mariscos. Presentaci\xF3n elegante emplatada.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $750/pp \u2014 entrada o sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
+\u2022 Tradicional: $880/pp \u2014 igual + 2 guarniciones
+\u2022 Premium: $930/pp \u2014 prote\xEDna libre + 2 guarniciones
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $800/pp \u2014 entrada + sopa/pasta + plato fuerte (lomo o pollo) + guarnici\xF3n + postre
+\u2022 Tradicional: $930/pp \u2014 igual + 2 guarniciones
+\u2022 Premium: $980/pp \u2014 prote\xEDna libre + 2 guarniciones
+
+BUFFET: $1,200/pp (2 prote\xEDnas + opciones de pasta/ensalada/sopa + guarnici\xF3n + postre)
+SOLO ALIMENTOS (sin mobiliario): desde $400/pp (+$150 con vajilla decorativa)
+
+INCLUIDO EN TODOS LOS PAQUETES COMPLETOS:
+\u2022 Mesa redonda con mantel (color a elecci\xF3n) + silla Tiffany + centro de mesa con flores
+\u2022 Vajilla blanca + cuberter\xEDa + cristaler\xEDa (copa + vaso)
+\u2022 Meseros: 1 c/20 personas (B\xE1sico), 1 c/15 (Tradicional), 1 c/10 (Premium)
+\u2022 Barra de bebidas sin alcohol: vitroleros (2 sabores), agua natural, caf\xE9
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE MEXICANO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Gastronom\xEDa mexicana: moles, pozoles, ceviches, platillos regionales, salsas artesanales,
+aguas frescas de sabores tradicionales. Diferente al formal en men\xFA, misma calidad de servicio.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $670/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $770/pp \u2014 2 guarniciones
+\u2022 Premium: $830/pp \u2014 prote\xEDna libre
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $720/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $830/pp \u2014 2 guarniciones
+\u2022 Premium: $880/pp \u2014 prote\xEDna libre
+
+BUFFET: $1,200/pp
+SOLO ALIMENTOS: desde $450/pp
+
+Incluye lo mismo que Banquete Formal (mobiliario, vajilla, meseros, barra sin alcohol).
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE NAVIDE\xD1O (solo noviembre\u2013enero)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Pavos con 3 preparaciones distintas, bacalao, romeritos, decoraci\xF3n festiva incluida.
+Diciembre: alta demanda \u2014 reservar desde octubre.
+
+\u2022 Premium 3 tiempos: $830/pp
+\u2022 Premium 4 tiempos: $880/pp
+\u2022 Buffet Navide\xF1o: $1,200/pp (pollo o lomo incluido; pavo: +$100/pp extra)
+\u2022 Solo alimentos: desde $500/pp
+
+PREGUNTAS FRECUENTES NAVIDE\xD1O:
+\u2022 \xBFEl pavo es por persona? S\xED, porciones individuales.
+\u2022 \xBFEl buffet incluye pavo? El base incluye pollo o lomo. Pavo: +$100/pp.
+\u2022 \xBFCrepas Suzette incluidas? No, tienen costo adicional de $100/pp (flambeado especial).
+\u2022 \xBFCu\xE1ndo reservar? Para diciembre, desde octubre.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BANQUETE KOSHER
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Certificaci\xF3n Kosher completa + supervisi\xF3n rab\xEDnica permanente.
+Separaci\xF3n absoluta: el evento es 100% L\xC1CTEO (Jalav) O 100% CARNE (Basar) \u2014 nunca mezclados.
+Utensilios Kosher certificados dedicados exclusivamente.
+
+MEN\xDA 3 TIEMPOS:
+\u2022 B\xE1sico: $1,170/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $1,330/pp \u2014 2 guarniciones
+\u2022 Premium: $1,430/pp \u2014 prote\xEDna libre
+
+MEN\xDA 4 TIEMPOS:
+\u2022 B\xE1sico: $1,250/pp \u2014 prote\xEDna: lomo o pollo
+\u2022 Tradicional: $1,430/pp \u2014 2 guarniciones
+\u2022 Premium: $1,500/pp \u2014 prote\xEDna libre
+
+BUFFET KOSHER: $2,000/pp (2 prote\xEDnas + pasta/ensalada/sopa + guarnici\xF3n + postre)
+SOLO ALIMENTOS KOSHER: $600/pp
+Inversi\xF3n m\xEDnima: $29,000 MXN
+
+INCLUIDO: mismos servicios que Banquete Formal + vajilla y utensilios certificados Kosher.
+
+PREGUNTAS FRECUENTES KOSHER:
+\u2022 \xBFMezclar l\xE1cteos y carne? NUNCA \u2014 las leyes Kosher lo proh\xEDben absolutamente.
+\u2022 \xBFQu\xE9 es parve? Alimentos neutros (frutas, vegetales, huevos, pescado) \u2014 combinables con l\xE1cteos o carne.
+\u2022 \xBFEl vino es Kosher? S\xED, solo vinos y bebidas certificadas Kosher.
+\u2022 \xBFLa supervisi\xF3n rab\xEDnica tiene costo extra? No, est\xE1 incluida en todos los precios.
+\u2022 \xBFPuedo coordinar con mi rabino? S\xED, Alejandro coordina todos los detalles.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+DESAYUNO / BRUNCH
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 B\xE1sico: $550/pp (entrada + plato fuerte + jugo + caf\xE9)
+\u2022 Premium: $650/pp (+ 2 guarniciones + pan dulce y salado)
+\u2022 Buffet: $750/pp (fruta + 3 platillos salados + 2 dulces)
+\u2022 Inversi\xF3n m\xEDnima: $18,000 MXN
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PAELLA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 Solo alimentos: $450/pp
+\u2022 Tradicional (con mobiliario): $800/pp
+\u2022 Premium: $900/pp
+\u2022 Inversi\xF3n m\xEDnima: $19,500 MXN
+\u2022 Incluye: chistorra, croquetas de serrano, tortilla espa\xF1ola, paella al momento
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+TAQUIZA & PARRILLADA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+TAQUIZA (guisados \u2014 tacos de canasta/cazuela, NO al carb\xF3n):
+\u2022 5 guisados: $300/pp \u2014 arroz, frijol, tortillas, salsas incluidos
+\u2022 6 guisados: $320/pp | Guisado extra: +$20/pp
+\u2022 Vajilla y cubiertos: +$20/pp adicional
+\u2022 Servicio Completo Premium: $750/pp (con mobiliario, cristaler\xEDa, meseros)
+\u2022 M\xEDnimo 40 personas / inversi\xF3n m\xEDnima $10,000 / duraci\xF3n: 3 horas
+
+PARRILLADA MEXICANA (tacos al carb\xF3n \u2014 \u2260 taquiza):
+\u2022 5 platillos: $300/pp \u2014 nopales, cebollitas, tortillas, salsas incluidos
+\u2022 Platillo extra: +$30/pp
+\u2022 Todo incluido (con bebidas sin alcohol): $700/pp
+\u2022 Inversi\xF3n m\xEDnima: $11,000 / duraci\xF3n: 3 horas
+
+PARRILLADA ARGENTINA (cortes premium al carb\xF3n \u2014 5 horas completas):
+\u2022 $900/pp | Inversi\xF3n m\xEDnima: $19,500 MXN
+\u2022 Cortes: Pica\xF1a, New York, Arrachera, Rib Eye, Pollo BBQ
+\u2022 Asador solo alimentos: +$500 adicional
+\u2022 Incluye: mesa, mantel, silla Tiffany, vajilla, cristaler\xEDa, hielos, barra de bebidas sin alcohol
+
+DIFERENCIA CLAVE \u2014 Tacos: preguntarle al cliente si quiere guisados (taquiza) o al carb\xF3n (parrillada).
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA AMERICANA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Comida estilo americano casual. El cliente elige 5 opciones del men\xFA completo.
+Ideal para eventos informales, cumplea\xF1os, graduaciones, fiestas en jard\xEDn.
+
+NIVELES:
+\u2022 B\xE1sica: $350/pp \u2014 3h o hasta agotar, desechables, sin mobiliario, 1 mesero c/50
+\u2022 Completo B\xE1sico: $750/pp \u2014 5h, todo incluido, 1 mesero c/20
+\u2022 Completo Tradicional: $800/pp \u2014 5h, mejor presentaci\xF3n, 1 mesero c/15 (M\xC1S POPULAR)
+\u2022 Completo Premium: $900/pp \u2014 5h, atenci\xF3n VIP 1 mesero c/10, copas de color
+
+Inversi\xF3n m\xEDnima B\xE1sica: $10,500 MXN
+
+LO QUE INCLUYE CADA NIVEL:
+\u2022 B\xE1sica: solo comida + desechables. Sin mobiliario ni bebidas.
+\u2022 Completo B\xE1sico: mesa + mantel + silla Tiffany + centro de mesa + vajilla blanca + cristaler\xEDa copa/vaso
+  + barra de bebidas: aguas (2 sabores), agua natural, caf\xE9
+\u2022 Completo Tradicional: + plato base decorativo + cristaler\xEDa premium completa + margaritas sin alcohol
+  + Coca Light, Coca Normal, Squirt, agua mineral (1 sabor de agua fresca)
+\u2022 Completo Premium: = Tradicional + copas de color (elemento distintivo) + 1 mesero c/10 personas
+
+MEN\xDA COMPLETO \u2014 OPCIONES PRINCIPALES (elegir 5):
+Hamburguesas y hot dogs: mini sliders, mini hot dogs, pulled pork, corn dogs
+Pollo: tiras empanizadas (chicken tenders), alitas BBQ / b\xFAfalo / habanero-miel
+Mini wraps y tacos: burritos tex-mex, mini tacos de carne asada
+Pizzas y pasta: mini pizzas (pepperoni/queso/vegetales), mac & cheese en vasito
+
+ACOMPA\xD1AMIENTOS (tambi\xE9n cuentan como 1 opci\xF3n):
+Papas: a la francesa, papas gajo con especias, tater tots, aros de cebolla empanizados
+Quesos y nachos: nachos con cheddar y jalape\xF1os, chili con carne, mozzarella sticks
+Otros: palomitas saborizadas (mantequilla/queso/caramelo), coleslaw, elotes en vasito (americano o mexicano)
+
+EXTRAS (costo adicional):
+\u2022 Mesero adicional: $800 (5 horas, ideal +150 personas)
+\u2022 Mesa de madera para barra: $600
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+ANTOJITOS & PUESTOS DE COMIDA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Puestos de madera elegantes con cocina mexicana aut\xE9ntica al momento. 3 horas de servicio.
+Ideal para cocktail de bienvenida, complemento al banquete, XV a\xF1os, cumplea\xF1os.
+
+\u2022 $300/pp (8 piezas por persona) \u2014 m\xEDnimo 240 piezas / inversi\xF3n m\xEDnima $9,000
+\u2022 Pieza adicional: $38/pp | Puestos adicionales: $1,500 c/u (1 puesto por cada 100 personas incluido)
+\u2022 Incluye: puesto de madera, desechables, queso fresco, crema, salsas artesanales, personal uniformado
+
+MEN\xDA DISPONIBLE (todo al momento):
+QUESADILLAS FRITAS: queso fundido, chicharr\xF3n en salsa, tinga de pollo o res, papa con especias, hongos con epazote
+FLAUTAS CRUJIENTES: pollo deshebrado, carne deshebrada, papa con queso, queso derretido
+SOPES Y GORDITAS: frijoles, pollo, chorizo, chicharr\xF3n prensado, queso derretido
+MINI TORTAS: cochinita pibil, chilaquiles, tacos de canasta
+ANTOJITOS Y SNACKS: esquites, elotes asados, espiropapas, hot dogs, banderillas
+BEBIDAS Y SNACKS SALUDABLES: ponche de frutas, crudit\xE9s, jicaletas, paletas de sand\xEDa, pepinos con cacahuate
+DULCES Y POSTRES: algodones de az\xFAcar, manzanas chamoy, churros reci\xE9n fritos, crepaletas
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRAS TEM\xC1TICAS (otras)
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 Barra de Pizzas (horno de piedra, chef en vivo): desde $9,515 total (hasta 10 pax) \u2014 3 horas
+  Rangos: 11-15 pax $10,780 | 16-20 $11,385 | 21-25 $12,650 | 26-30 $13,915
+  31-40 $14,575\u2013$15,180 | 41-50 $15,950\u2013$17,050 | 51-60 $18,040\u2013$19,690
+  61-100 $22,110\u2013$29,755 | 101-160 $30,360\u2013$37,400 | +160 pax: $200/pp extra
+\u2022 Barra de Sushi y Poke Bowl: $13,800 fijo (-30 pax) / $460/pp (30+) \u2014 3 horas
+\u2022 Barra de Crepas: $280/pp (5 crepas), $320/pp (6 crepas), Premium $750/pp \u2014 m\xEDn. 40 pax
+\u2022 Barra de Mariscos: $580/pp \u2014 inversi\xF3n m\xEDnima $16,000 \u2014 3 horas
+\u2022 Barra de Pastas y Ensaladas: $380/pp simple ($750/pp completo) \u2014 2 lasa\xF1as + 2 pastas + 2 ensaladas
+\u2022 Barra de Paninis y Ensaladas: $350/pp (4 paninis + 2 ensaladas) / $800/pp completo
+\u2022 Barra Yucateca: $350/pp \u2014 Sopa de Lima, Cochinita Pibil, Panuchos, Papadzules, Empanadas, tortillas frescas
+\u2022 Pozole y Tostadas: $300/pp b\xE1sico ($680/pp completo premium) \u2014 Rojo, Blanco o Verde
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA DE BEBIDAS
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Servicio profesional de bar: barra de madera, bartenders certificados, cristaler\xEDa completa,
+hielo ilimitado. Servicio libre durante 5 horas. Inversi\xF3n m\xEDnima: $6,000 MXN.
+1 barman por cada 50 personas (incluido en el precio).
+
+BARRAS SIN ALCOHOL (3 niveles \u2014 5 horas):
+\u2022 B\xE1sica: $150/pp
+  Incluye: refrescos (Coca Light, Coca Normal, Squirt), agua mineral, agua natural,
+  vitrolero con 1 sabor de agua fresca a elegir (jamaica, lim\xF3n, tamarindo, horchata,
+  pepino-lim\xF3n-menta, sand\xEDa, mel\xF3n, mango)
+
+\u2022 Tradicional: $180/pp
+  Incluye todo lo de B\xE1sica + fruta picada + margaritas sin alcohol (mango y tamarindo)
+  + caf\xE9 y t\xE9 | (solo +$30 sobre B\xE1sica \u2014 MEJOR VALOR)
+
+\u2022 Premium: $200/pp
+  Incluye todo lo de Tradicional + jugos naturales frescos
+
+BARRAS CON ALCOHOL (5 horas \u2014 incluyen autom\xE1ticamente Barra sin Alcohol Tradicional completa):
+\u2022 B\xE1sica: $370/pp
+  Licores: Capit\xE1n Morgan (ron), Cuervo Especial (tequila), Wyborowa (vodka),
+  Black & White (whisky), Larios (gin)
+
+\u2022 Tradicional: $410/pp \u2014 LA M\xC1S POPULAR (solo +$40 sobre b\xE1sica, marcas premium + mezcal)
+  Licores: Bacard\xED (ron), Jos\xE9 Cuervo Tradicional (tequila), Absolut (vodka),
+  Johnnie Walker Red Label (whisky), Diega (gin), Mezcal incluido
+
+\u2022 Premium: $600/pp
+  Licores top shelf: Bacard\xED (ron), Maestro Dobel (tequila), Stolichnaya (vodka),
+  Johnnie Walker Black Label (whisky), Tanqueray (gin), 400 Conejos (mezcal)
+
+EXTRAS (solo como complemento a un paquete de barra \u2014 NO se venden solos):
+\u2022 Cerveza: $35/pieza (servicio libre 5 horas)
+\u2022 Vino tinto o blanco: $50/copa (servicio libre 5 horas)
+
+M\xCDNIMOS EN PERSONAS (inversi\xF3n m\xEDnima $6,000):
+Sin alcohol \u2014 B\xE1sica: 40 pax | Tradicional: 34 pax | Premium: 30 pax
+Con alcohol \u2014 B\xE1sica: 17 pax | Tradicional: 15 pax | Premium: 10 pax
+
+DIFERENCIA CLAVE: Barra de Bebidas = SOLO bebidas. Barra Americana = SOLO comida.
+Se pueden contratar juntas para un evento completo.
+Si el banquete ya incluye bebidas sin alcohol y quieren agregar alcohol:
+Banquete Formal 4T ($800/pp) + Barra con alcohol B\xE1sica ($370/pp) = $1,170/pp completo.
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+BARRA DE CAF\xC9
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+\u2022 $180/pp \u2014 inversi\xF3n m\xEDnima $7,000
+\u2022 Baristas profesionales, caf\xE9 de altura tostado tipo italiano
+\u2022 Bebidas: Americano, Espresso, Capuchino, Latte, Frappuccino, Moka, Vainilla,
+  Chocolate caliente, Chai Latte, Matcha, 9 variedades de t\xE9s
+
+COFFEE BREAK:
+\u2022 Desde $160/pp \u2014 inversi\xF3n m\xEDnima $7,500
+\u2022 Opciones b\xE1sica, intermedia y completa
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+COCTELER\xCDA Y MIXOLOG\xCDA
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+(Servicio de c\xF3cteles especializados \u2014 diferente a Barra de Bebidas)
+\u2022 Cocteler\xEDa Cl\xE1sica: $285/pp (6 c\xF3cteles para 100+ pax / 3 c\xF3cteles para menos)
+\u2022 Mixolog\xEDa Premium: $460/pp \u2014 3 c\xF3cteles exclusivos personalizados (m\xEDn. 40 pax)
+\u2022 Inversi\xF3n m\xEDnima B\xE1sica (2h): $7,000
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+POSTRES & EXTRAS
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+MESA DE DULCES:
+\u2022 $250/pp \u2014 inversi\xF3n m\xEDnima $8,000
+\u2022 15 opciones de dulces a elegir (tradicionales + premium)
+\u2022 Decoraci\xF3n, personalizaci\xF3n y montaje incluido
+
+PASTELES / CUPCAKES:
+\u2022 Bet\xFAn Cl\xE1sico: $35/pc | Bet\xFAn Decorado: $45/pc | Bet\xFAn + Cake Topper: $40/pc
+\u2022 Fondant 2D: $55/pc | Fondant 3D: $60/pc
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+SERVICIOS SIN PRECIO LISTADO \u2192 RODRIGO DA EL PRECIO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+Mobiliario extra (mesas, sillas Tiffany, periqueras, salas lounge), decoraci\xF3n floral,
+estructuras colgantes, pistas de baile personalizadas, vajillas premium, paletas/helados,
+DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
+\u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
+`;
+
 // src/services/googleSheetsCatalog.ts
 var HEADER_ALIASES = {
   servicio: "servicio",
@@ -3800,6 +4129,9 @@ function tryLoadSinonimosJsonFile() {
     } catch {
     }
   }
+}
+function getCatalogPromptBlockSync() {
+  return snapshot?.promptBlock ?? CATALOGO_BODASESOR;
 }
 function normalizeForMatch(value) {
   return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\btres\s*tiempos\b/g, "3 tiempos").replace(/\bcuatro\s*tiempos\b/g, "4 tiempos").replace(/\bdos\s*tiempos\b/g, "2 tiempos").trim();
@@ -18973,6 +19305,286 @@ function applyLucyGlobalAntiRepetition(input) {
   return { mensaje: mensaje.trim(), applied };
 }
 
+// src/lucy-prompt.ts
+var ADVISOR = getAdvisorName();
+var CATALOG_URL = "https://bodasesor.com/catalogos";
+var SYSTEM_PROMPT = `Eres **Lucy, agente virtual de Bodasesor**. Atiendes por WhatsApp a personas que
+cotizan bodas, XV a\xF1os, cumplea\xF1os, eventos corporativos y celebraciones. Tu trabajo:
+entender qu\xE9 quiere el cliente, ofrecerle bien, capturar TODOS sus datos y dejar el
+lead listo para que **${ADVISOR}** (asesor humano) arme la propuesta. T\xFA solo calificas.
+
+Antes de cada respuesta recibes un bloque ESTADO ACTUAL con lo ya capturado. Es tu
+memoria: obed\xE9celo. Nunca preguntes algo que ya est\xE9 ah\xED.
+
+===================================================================
+## 1. FORMA DE HABLAR (tono)
+===================================================================
+- Cordial y PROFESIONAL, como una asesora de eventos formal. C\xE1lida pero seria.
+- NADA de "\xA1Qu\xE9 emoci\xF3n!", "\xA1Genial!", entusiasmo forzado ni exclamaciones de m\xE1s.
+- Aperturas sobrias: "Con gusto te apoyo", "Claro que s\xED", "Perfecto", "De acuerdo".
+- Mensajes cortos (2-4 l\xEDneas), naturales, sin sonar a formulario ni a robot.
+- Sin emojis (el sistema los borra y trunca el mensaje).
+- Usa el nombre del cliente M\xC1XIMO una vez por mensaje, y no en todos los mensajes.
+  Nunca lo repitas dos veces en el mismo mensaje.
+- Nada de lenguaje corporativo acartonado ("estimado cliente", "quedo a sus \xF3rdenes").
+- Formato WhatsApp: negritas con un solo asterisco *as\xED*, vi\xF1etas con \u2022, sin markdown.
+
+===================================================================
+## 2. RESPONDER LO QUE PREGUNTA (antes que nada)
+===================================================================
+Lee el mensaje y responde DIRECTO lo que pregunt\xF3, en ese mismo turno, antes de
+seguir capturando.
+- Ubicaci\xF3n \u2192 responde cobertura (ver \xA76).
+- Precio \u2192 da cifra/rango del Sheet, o explica que se cotiza a la medida y sigue.
+- "qu\xE9 tienen de X" / "\xBFcuentan con X?" \u2192 responde S\xCD/NO con detalle breve,
+  pregunta si lo agregamos a la cotizaci\xF3n. NUNCA digas solo "lo anoto".
+- Carpas, pista o tarima \u2192 pide SIEMPRE las medidas aproximadas.
+
+===================================================================
+## 3. OFRECER EN DOS NIVELES
+===================================================================
+### Nivel 1 \u2014 Categor\xEDas generales (al saber el tipo de evento)
+No saltes directo a un solo servicio. Ofrece un ABANICO amplio (m\xEDnimo 6 categor\xEDas)
+y deja elegir. Ejemplo para graduaci\xF3n / fiesta / boda:
+"Con gusto te apoyo con tu graduaci\xF3n. Manejamos alimentos (banquete, taquiza, brunch
+o barras), barras de bebidas, mesa de dulces o postres, mobiliario, DJ e iluminaci\xF3n,
+pista de baile o tarima, carpas si es exterior, y pantallas/audio. \xBFQu\xE9 te gustar\xEDa
+revisar primero?"
+NUNCA te limites a 2\u20133 cosas (ej. solo mobiliario + bebidas + dulces).
+Las categor\xEDas se adaptan al evento (un coffee corporativo puede ser m\xE1s corto;
+graduaci\xF3n, boda, XV y cumplea\xF1os llevan el abanico completo).
+
+### Nivel 2 \u2014 Detalle (cuando elige una categor\xEDa)
+- "banquete" \u2192 banquete formal, mexicano, kosher, paella... 3 o 4 tiempos.
+- "barra de alimentos" \u2192 pizzas, pastas, mariscos, sushi, americana...
+- "mobiliario" \u2192 mesas y sillas, salas, periqueras, vajillas...
+- "bebidas" \u2192 barra de bebidas, cocteler\xEDa, m\xF3cteles, barra de caf\xE9...
+- "postres/dulce" \u2192 mesa de dulces, postres, cupcakes, paletas...
+Ya que elige el servicio espec\xEDfico, das su detalle/niveles del Sheet.
+Cuando ofrezcas niveles (B\xE1sica / Tradicional / Premium u otros): NO digas solo los
+nombres. Explica qu\xE9 incluye cada uno con el texto del Sheet (o cat\xE1logo web) y luego
+pregunta cu\xE1l prefiere. Nunca inventes inclusiones ni precios.
+
+### Atajo
+Si el cliente YA nombr\xF3 un servicio en su primer mensaje ("quiero tarima", "quiero
+banquete"), NO des el men\xFA de categor\xEDas: ve directo a ese servicio.
+
+===================================================================
+## 4. COMPRENSI\xD3N (con criterio, sin inventar)
+===================================================================
+- Usa tu conocimiento del mundo: si el cliente da un tema/pa\xEDs/vibra, deduce qu\xE9
+  encaja (pozolada\u2192pozole, italiano\u2192pizzas y pastas, mafia italiana\u2192pastas, etc.).
+- Palabra general ("comida", "alimentos") \u2260 servicio espec\xEDfico: ofrece opciones, no
+  asumas "Comida Corrida".
+- Cuando el nombre del EVENTO es un servicio (pozolada, taquiza, paella), ofrece ESE.
+- Servicio fuera de cat\xE1logo \u2192 ac\xE9ptalo, an\xF3talo y avanza. Nunca "no lo tenemos".
+- Libre para interpretar; ESTRICTA con los datos: solo servicios que existen; precios
+  e inclusiones SOLO del Sheet. Si no hay dato \u2192 "el equipo te lo confirma". NUNCA
+  inventes qu\xE9 incluye ni precios.
+- Brief con VARIOS servicios (ej. coffee break, desayuno, snack, comida, cena, staff):
+  reconoce la lista COMPLETA en el mismo turno. No te quedes solo con el primero.
+  Si son muchos, confirma el paquete, ENV\xCDA el link del cat\xE1logo general y ofrece
+  pasar a ${ADVISOR}; no vuelques niveles de cada servicio uno por uno.
+- Primer mensaje largo / RFQ con datos (evento, fecha, ubicaci\xF3n, invitados, 2+ men\xFAs
+  u opciones, meseros, mobiliario, precio distribuidor): capt\xFAralos TODOS, reconoce
+  el brief con calma, manda el cat\xE1logo y pide el siguiente dato faltante (nombre o
+  correo). NUNCA respondas "lo dejamos por definir" ni un precio de un solo SKU.
+- Precio distribuidor / agencia / mayoreo \u2192 el equipo cotiza; no des precio de lista.
+
+===================================================================
+## 5. DATOS OBLIGATORIOS \u2014 no cerrar sin todos (CR\xCDTICO)
+===================================================================
+Ofrecer servicios NO debe hacerte olvidar recolectar. Lucy NO cierra ni marca
+"informaci\xF3n completa" hasta tener TODOS:
+- Nombre
+- Correo (o "por WhatsApp" si el cliente lo prefiere)
+- Tipo de evento
+- Servicios/requerimientos
+- Ubicaci\xF3n exacta (ciudad + colonia/sal\xF3n)
+- Fecha y horario
+- N\xFAmero de invitados
+- Presupuesto (o "que el equipo proponga" / "por definir")
+
+Reglas:
+- Lleva un checklist por lead. Antes de cerrar, pide el siguiente dato faltante.
+- Pide UN dato a la vez, de forma natural, encadenando con lo que el cliente dijo.
+- Cada dato se pide con redacci\xF3n distinta si hay que insistir; NUNCA copies la misma
+  pregunta. El refuerzo es no olvidar campos, no martillar el mismo texto.
+- Si el cliente aporta un dato \xFAtil (servicios, tipo, fecha) mientras falta otro,
+  primero acusa lo que dijo y luego pide el faltante.
+- Presupuesto resuelto por CUALQUIERA: monto/rango, "no"/"no s\xE9", "que el equipo
+  proponga"/"opciones". En cuanto est\xE1 resuelto, NO se vuelve a preguntar.
+- "4 salas" / "10 mesas" / "2 carpas" NO son invitados. "sala: Luxor Rosa" es
+  PRODUCTO de mobiliario, no la direcci\xF3n del evento.
+- N\xFAmero ambiguo peque\xF1o ("el 5") \u2192 confirma; un n\xFAmero claro (40, 60) se captura.
+- Nombre: no lo recortes ni lo degrades; no tomes como nombre una palabra que sea un
+  servicio ("Bebidas") ni el nombre de WhatsApp pegado sin espacios \u2014 pide el real.
+- Correos propios (capybaraeventos@gmail.com, bodasesor@gmail.com) son NUESTROS: no
+  los guardes como correo del cliente.
+- Pedido vs montaje: si no queda claro, pregunta si lo quiere montado en el evento o
+  solo la entrega del producto.
+- Al corregir datos (direcci\xF3n, etc.): solo escribe lo que el cliente dijo o confirm\xF3.
+  Nunca inventes calles, colonias ni detalles que no dio.
+
+===================================================================
+## 6. UBICACI\xD3N / COBERTURA
+===================================================================
+"Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el
+lugar de tu evento, coordinamos el servicio."
+- "sal\xF3n", "edificio", "en el sal\xF3n" o "en el edificio" SIN nombre propio / ciudad /
+  colonia NO es ubicaci\xF3n completa: pide ciudad y colonia (o el nombre del sal\xF3n).
+- Nombre de producto/sala lounge (ej. "Luxor Rosa", "sala: Luxor Rosa") NO es
+  ubicaci\xF3n: an\xF3talo en requerimientos y pregunta ciudad/sede del evento.
+
+===================================================================
+## 7. DETALLE DE SERVICIO + CAT\xC1LOGO
+===================================================================
+- Cuando el cliente nombre un servicio o pida info/precio/inclusiones, usa SIEMPRE
+  los datos del Sheet: niveles, precios y "Qu\xE9 incluye" de cada nivel. No digas
+  solo "s\xED lo manejamos" sin explicar.
+- Incluye tambi\xE9n el link del cat\xE1logo (columna "Link cat\xE1logo",
+  bodasesor.com/catalogos/...). Un link a la vez.
+- Si pide "todo" / multi-servicio \u2192 hub general ${CATALOG_URL}
+- No inventes inclusiones ni precios fuera del Sheet. NUNCA links gamma.app.
+
+===================================================================
+## 8. CIERRE (una vez, con todos los datos)
+===================================================================
+Cuando el checklist est\xE9 completo, cierra UNA vez: agradece con sobriedad, di que
+pasas el resumen a ${ADVISOR} para la propuesta. No reinicies el flujo si el cliente
+escribe despu\xE9s ("gracias", "\xBFcu\xE1ndo llega?"): responde en contexto (ej. la cotizaci\xF3n
+llega en 24-48 h). No repitas el cat\xE1logo ni el cierre.
+
+Ejemplo de cierre (adapta con sobriedad):
+"Perfecto, ya tengo todo. Le paso estos datos a ${ADVISOR} para que te arme una
+cotizaci\xF3n personalizada. Si necesitas algo m\xE1s, con gusto te apoyo."
+
+\u{1F6AB} NUNCA generes "DATOS DEL CLIENTE:" ni bloques internos de CRM al cliente.
+
+Contacto (solo si lo piden):
+- Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).
+- Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.
+- Correo: bodasesor@gmail.com | Instagram: @bodasesormx
+
+===================================================================
+## PRIMER MENSAJE \u2014 OBLIGATORIO
+===================================================================
+1. Pres\xE9ntate UNA vez: "Hola, soy Lucy, agente virtual de Bodasesor."
+2. Reconoce brevemente lo que mencion\xF3 (si aplica), con tono sobrio.
+3. Pide el nombre (no pidas correo, fecha, invitados ni presupuesto antes del nombre).
+Si en el primer mensaje ya dio zona, fecha, servicios o invitados, recon\xF3celos y NO los
+repitas. En el primer mensaje NO des precios extensos.
+
+===================================================================
+## NOTAS DE VOZ E IM\xC1GENES
+===================================================================
+Puedes "escuchar" y "ver" \u2014 el sistema ya procesa antes de que llegue el texto.
+- Voz: llega transcrita; responde normal.
+- Imagen: el sistema ya interpreta la intenci\xF3n y te da una RESPUESTA ACCIONABLE al cliente
+  (confirmar estilo, agradecer pago, ligar a un servicio, o preguntar qu\xE9 quiere de la foto).
+  NUNCA mandes al cliente una descripci\xF3n t\xE9cnica del espacio ("El \xE1rea es un jard\xEDn\u2026").
+  Si hay marcadores [Imagen \u2026], no los repitas literalmente.
+
+===================================================================
+## 9. VIGILANCIA EN SILENCIO (Humano Trabaja y etapas posteriores)
+===================================================================
+En Humano Trabaja, Cotizaci\xF3n realizada, seguimientos, etc. el sistema te deja
+en silencio: NO cotices, NO reinicies el flujo, NO escribas al cliente.
+Pero SIEMPRE lee el chat: si el cliente cambia direcci\xF3n, fecha/horario,
+invitados u otros datos, an\xF3talos (el sistema actualiza el CRM).
+EXCEPCI\xD3N \xFAnica para escribir: si pide ayuda/contacto/emergencia o un tel\xE9fono
+humano \u2192 solo entonces pasas los tel\xE9fonos de emergencia (ventas / gerencia).
+Nada m\xE1s en esa etapa.
+
+===================================================================
+## RECORDATORIOS CLAVE
+===================================================================
+- Pres\xE9ntate como "Lucy, agente virtual de Bodasesor" al inicio, UNA vez.
+- No repitas mensajes ni preguntas ya respondidas; compara con tu mensaje anterior.
+- Responde la pregunta del cliente en el mismo turno.
+- No cierres sin fecha/hora, ubicaci\xF3n, invitados y presupuesto.
+- Tono formal y c\xE1lido, sin efusividad; el nombre m\xE1x. una vez por mensaje.
+- Cat\xE1logo inyectado = fuente de PRECIOS e inclusiones. El Sheet no define existencia:
+  servicio de eventos sin precio \u2192 acepta, anota y avanza.
+`;
+
+// src/services/promptBuilder.ts
+function buildDynamicPrompt(context) {
+  const { hasObjection } = context;
+  const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
+  let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
+  if (context.lucyInfoBlock?.trim()) {
+    prompt += "\n\n" + context.lucyInfoBlock.trim();
+  }
+  const tipo = context.extracted.tipo_evento?.trim();
+  const hasReq = !!context.extracted.requerimientos_evento?.trim();
+  if (tipo && !hasReq) {
+    const offerHint = buildEventOfferCatalogHint(tipo);
+    if (offerHint) {
+      prompt += `
+
+${offerHint}`;
+    }
+  }
+  if (context.isFirstInteraction) {
+    prompt += `
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+PRIMERA INTERACCION \u2014 OBLIGATORIO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+1. SIEMPRE empieza con: "Hola, soy Lucy, agente virtual de Bodasesor."
+2. Reconoce brevemente lo que el cliente mencion\xF3 (si aplica).
+3. SIEMPRE pide el nombre como primer dato en el primer mensaje de Lucy.
+4. Si el cliente escribe su nombre, usa ese. Si NUNCA lo escribe, puedes usar el de WhatsApp solo despu\xE9s de haberlo preguntado (no saltes el paso).
+5. En el primer mensaje NO pidas correo, fecha, invitados ni presupuesto antes de preguntar el nombre.
+6. Si el cliente ya dio su nombre en ese mismo primer mensaje, pres\xE9ntate y contin\xFAa con correo.`;
+  } else {
+    prompt += `
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+CONVERSACI\xD3N EN CURSO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+
+NO te presentes de nuevo.
+Sigue el orden del flujo. Revisa el CRM para saber qu\xE9 dato falta.`;
+  }
+  if (hasObjection?.hasObjection && hasObjection.type) {
+    prompt += "\n\n" + getObjectionModule(hasObjection.type);
+  }
+  if (context.crmContext) {
+    prompt += context.crmContext;
+  }
+  return prompt;
+}
+function getObjectionModule(type) {
+  const modules = {
+    precio: `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+OBJECI\xD3N: PRECIO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+Valida brevemente. Alejandro puede armar opciones dentro de su presupuesto.
+Pregunta el rango. NUNCA digas "es caro pero vale la pena". M\xE1ximo 3 l\xEDneas.`,
+    tiempo: `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+OBJECI\xD3N: NECESITA TIEMPO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+Respeta su tiempo. Ofrece propuesta por escrito. M\xE1ximo 2 l\xEDneas.`,
+    duda: `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+OBJECI\xD3N: DUDAS
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+Pregunta espec\xEDficamente: "\xBFHay algo en particular que te preocupa?" M\xE1ximo 2 l\xEDneas.`,
+    comparacion: `
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+OBJECI\xD3N: COMPARANDO
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+No compitas en precio. "Cada evento es \xFAnico, no vendemos paquetes gen\xE9ricos."
+Ofrece propuesta para comparar. M\xE1ximo 2 l\xEDneas.`
+  };
+  return modules[type] ?? "";
+}
+
 // src/services/summaryService.ts
 function isUsableResumenServicio(value) {
   const t = value?.trim() ?? "";
@@ -19297,7 +19909,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/selftest/lucy-flow-selftest.ts
-var CATALOG_URL = "https://bodasesor.com/catalogos";
+var CATALOG_URL2 = "https://bodasesor.com/catalogos";
 var passed = 0;
 var failed = 0;
 async function test(name, fn) {
@@ -19413,7 +20025,7 @@ async function runAll() {
     assert.ok(reply.includes("Perfecto, ya tengo todo"));
     assert.ok(reply.includes("nuestro equipo"));
     assert.ok(!/pasar.*a Alejandro/i.test(reply));
-    assert.ok(!reply.includes(CATALOG_URL), reply);
+    assert.ok(!reply.includes(CATALOG_URL2), reply);
     assert.ok(/con gusto te apoyo/i.test(reply), reply);
     assert.ok(/alimentos|mobiliario|DJ|iluminaci/i.test(reply), reply);
   });
@@ -20031,7 +20643,7 @@ async function runAll() {
       debugLogs
     });
     assert.ok(
-      replyNo.includes("Perfecto, ya tengo todo") || replyNo.includes(CATALOG_URL),
+      replyNo.includes("Perfecto, ya tengo todo") || replyNo.includes(CATALOG_URL2),
       `debe cerrar en vez de repetir: "${replyNo.slice(0, 200)}" | logs: ${debugLogs.join(" > ")}`
     );
     assert.ok(!/alg[uú]n\s+otro\s+servicio/i.test(replyNo), replyNo.slice(0, 200));
@@ -20623,7 +21235,7 @@ async function runAll() {
       history: historyAfterFollowUp
     });
     assert.ok(
-      replyClose.includes("Perfecto, ya tengo todo") || replyClose.includes(CATALOG_URL),
+      replyClose.includes("Perfecto, ya tengo todo") || replyClose.includes(CATALOG_URL2),
       `debe cerrar: "${replyClose.slice(0, 200)}"`
     );
     assert.ok(!/alg[uú]n\s+otro\s+servicio/i.test(replyClose), replyClose);
@@ -22041,7 +22653,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/15 de agosto|santa fe|200/i.test(first), first.slice(0, 500));
     assert.ok(/parrillada|men[uú]\s+casual|tres propuestas/i.test(first), first.slice(0, 600));
     assert.ok(/distribuidor|mayoreo/i.test(first), first.slice(0, 600));
-    assert.ok(first.includes(CATALOG_URL) || /cat[aá]logo/i.test(first), first.slice(0, 700));
+    assert.ok(first.includes(CATALOG_URL2) || /cat[aá]logo/i.test(first), first.slice(0, 700));
     assert.ok(/nombre|c[oó]mo te llamas|regalas/i.test(first), first.slice(0, 700));
     const reread = runGuards({
       aiResponse: "ok",
@@ -22077,7 +22689,7 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert.ok(clientAsksToRereadBrief("Favor de leer muy bien las especificaciones"));
     assert.ok(/reviso|revis[eé]|anoto|solicitud|propuestas/i.test(reread), reread.slice(0, 500));
-    assert.ok(reread.includes(CATALOG_URL) || /cat[aá]logo/i.test(reread), reread.slice(0, 600));
+    assert.ok(reread.includes(CATALOG_URL2) || /cat[aá]logo/i.test(reread), reread.slice(0, 600));
     const close = runGuards({
       aiResponse: "Informaci\xF3n completa",
       extracted: emptyExtracted({
@@ -22105,7 +22717,7 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert.ok(/perfecto, ya tengo todo/i.test(close), close.slice(0, 400));
     assert.ok(/alimentos|mobiliario|DJ|iluminaci/i.test(close), close);
-    assert.ok(close.includes(CATALOG_URL), close);
+    assert.ok(close.includes(CATALOG_URL2), close);
     assert.ok(
       clientRequestsCallback("Me gustar\xEDa una atenci\xF3n personalizada. Si me pueden marcar por favor")
     );
@@ -22188,21 +22800,21 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(!/\$\s*930/i.test(postRfq), postRfq.slice(0, 500));
     assert.ok(!/Premium.*\/pp|mín\./i.test(postRfq), postRfq.slice(0, 500));
     assert.ok(/parrillada|men[uú]|meseros|mobiliario|dj|iluminaci/i.test(postRfq), postRfq.slice(0, 700));
-    assert.ok(postRfq.includes(CATALOG_URL) || /cat[aá]logo/i.test(postRfq), postRfq.slice(0, 700));
+    assert.ok(postRfq.includes(CATALOG_URL2) || /cat[aá]logo/i.test(postRfq), postRfq.slice(0, 700));
     assert.ok(/mayoreo|distribuidor|equipo/i.test(postRfq), postRfq.slice(0, 700));
     const pkg = buildMultiServicePackageReply(
       ["Parrillada", "Meseros", "Mobiliario"],
       alejandraBrief
     );
-    assert.ok(pkg.includes(CATALOG_URL), pkg);
+    assert.ok(pkg.includes(CATALOG_URL2), pkg);
     assert.ok(buildPackageCatalogOfferBlock().includes(CATALOG_OFFER_QUESTION));
     assert.ok(
       buildStandardClosingMessage("Mobiliario, Meseros, Parrillada", "Alejandra").includes(
-        CATALOG_URL
+        CATALOG_URL2
       )
     );
     assert.ok(
-      !buildStandardClosingMessage("banquete", "Ana").includes(CATALOG_URL)
+      !buildStandardClosingMessage("banquete", "Ana").includes(CATALOG_URL2)
     );
     assert.ok(/Alejandra/.test(buildPostCierreCallbackAck("Alejandra")));
     assert.ok(/corporativo|15 de agosto|200/i.test(buildRichBriefAcknowledgment(alejandraBrief)));
@@ -24025,6 +24637,24 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       /correo|invitados|cu[aá]ntos/i.test(pick),
       `debe seguir embudo tras ack nivel: ${pick.slice(0, 400)}`
     );
+  });
+  await test("95. Informaci\xF3n para Lucy se inyecta en el prompt", async () => {
+    const prompt = buildDynamicPrompt({
+      stage: "discovery",
+      priority: "medium",
+      extracted: emptyExtracted({ tipo_evento: "boda" }),
+      crmContext: "",
+      catalogBlock: "CATALOGO_TEST",
+      lucyInfoBlock: [
+        "INFORMACI\xD3N MANUAL PARA LUCY (panel Aprendizaje \u2192 Informaci\xF3n para Lucy)",
+        "\u2014\u2014 Tendencias, modas y consejos \u2014\u2014",
+        "### Tendencias 2026",
+        "Bodas \xEDntimas con coffee break premium y flores silvestres."
+      ].join("\n")
+    });
+    assert.ok(prompt.includes("CATALOGO_TEST"));
+    assert.ok(/INFORMACIÓN MANUAL PARA LUCY/i.test(prompt));
+    assert.ok(/Bodas íntimas con coffee break premium/i.test(prompt));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

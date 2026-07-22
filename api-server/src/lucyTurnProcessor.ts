@@ -23,6 +23,7 @@ import {
   buildRedactionBriefing,
   completeLucyRedaction,
 } from "./services/lucyRedaction.js";
+import { buildLucyInfoPromptBlock } from "./services/lucyInfoStore.js";
 import {
   getCatalogPromptBlock,
   injectCatalogPriceIfAsked,
@@ -130,7 +131,10 @@ export async function buildLucySystemPrompt(opts: {
   };
   const leadScore = calculateLeadScore(scoreContext);
   const stage = detectStage(scoreContext);
-  const catalogBlock = await getCatalogPromptBlock();
+  const [catalogBlock, lucyInfoBlock] = await Promise.all([
+    getCatalogPromptBlock(),
+    buildLucyInfoPromptBlock().catch(() => ""),
+  ]);
   return buildDynamicPrompt({
     stage,
     priority: leadScore.priority,
@@ -140,6 +144,7 @@ export async function buildLucySystemPrompt(opts: {
     isFirstInteraction: opts.isFirstInteraction,
     hasClientName: opts.filledLabels.has("Nombre del cliente"),
     catalogBlock,
+    lucyInfoBlock: lucyInfoBlock || undefined,
   });
 }
 

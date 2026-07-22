@@ -7,6 +7,7 @@ import analyticsRouter from "./analytics";
 import authRouter from "./auth";
 import learningRouter from "./learning";
 import knowledgeGapsRouter from "./knowledgeGaps";
+import lucyInfoRouter from "./lucyInfo";
 import catalogRouter from "./catalog";
 import opsRouter from "./ops";
 
@@ -21,6 +22,7 @@ router.use(kommoRouter);
 router.use(lucyRouter);
 router.use(authRouter);
 router.use(knowledgeGapsRouter);
+router.use(lucyInfoRouter);
 // learning ANTES de examples/analytics: tiene GET públicos del panel /aprendizaje.
 router.use(learningRouter);
 router.use(opsRouter);

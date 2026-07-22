@@ -39,11 +39,13 @@ router.get("/health", (_req, res) => {
       "emergency-contact-in-humano-trabaja",
       "knowledge-gaps-aprendizaje",
       "aprendizaje-panel-from-chats",
+      "lucy-info-pdf-text",
     ],
     learning: {
-      note: "Panel /aprendizaje muestra chats; sync Kommo (fase + etapas vivas); talkId resuelto; extract Humano Trabaja/Cotización; cron 5 min; auto-aprueba ≥0.85",
+      note: "Panel /aprendizaje: chats, huecos Sheet e Información para Lucy (PDF→texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba ≥0.85",
       cron_path: "/api/kommo/cron/learning",
       panel_path: "/aprendizaje",
+      lucy_info_path: "/api/lucy-info",
     },
     silent_watch: {
       note: "En Humano Trabaja/Cotización/seguimientos Lucy no cotiza; actualiza CRM si cambian datos; solo escribe teléfonos de emergencia",

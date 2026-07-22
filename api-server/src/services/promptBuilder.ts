@@ -20,11 +20,17 @@ export function buildDynamicPrompt(context: {
   isFirstInteraction?: boolean;
   hasClientName?: boolean;
   catalogBlock?: string;
+  /** Texto de PDFs/notas del panel Aprendizaje → Información para Lucy */
+  lucyInfoBlock?: string;
 }): string {
   const { hasObjection } = context;
   const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
 
   let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
+
+  if (context.lucyInfoBlock?.trim()) {
+    prompt += "\n\n" + context.lucyInfoBlock.trim();
+  }
 
   const tipo = context.extracted.tipo_evento?.trim();
   const hasReq = !!(context.extracted.requerimientos_evento?.trim());
