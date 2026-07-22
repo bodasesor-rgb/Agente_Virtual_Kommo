@@ -76,7 +76,7 @@ import {
   lucyTextOverlapRatio,
 } from "../lucyOutboundAntiRepeat.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
-import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName } from "../contact-name.js";
+import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName, resolveKommoLeadNamePatch } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
   resolveTipoContacto,
@@ -5266,6 +5266,15 @@ async function runAll(): Promise<void> {
     assert.equal(sanitizeCrmNombre("Alexandra\nEs boda"), "Alexandra");
     assert.equal(sanitizeCrmNombre("Alexandra"), "Alexandra");
     assert.ok(!shouldUpdateName("Alexandra", "Alexandra Es Boda"));
+    // lead.name sucio → limpiar para Alejandro/SalesBot
+    assert.ok(shouldUpdateName("Alexandra Es Boda", "Alexandra"));
+    assert.equal(resolveKommoLeadNamePatch("Alexandra Es Boda", "Alexandra"), "Alexandra");
+    // Bug: comparar contra línea CRM ya capturada dejaba lead.name vacío
+    assert.equal(resolveKommoLeadNamePatch(null, "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("", "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("Nuevo lead", "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra"), null);
+    assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra Es Boda"), null);
 
     assert.equal(
       detectPresupuestoRefusal(
@@ -5352,6 +5361,19 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/lo dejamos por definir/i.test(incl), incl.slice(0, 300));
     assert.ok(/incluye|nivel|Basico|Premium|cat[aá]logo|\$/i.test(incl), incl.slice(0, 500));
+    assert.ok(!/bet[uú]n|cupcakes?/i.test(incl), incl.slice(0, 400));
+  });
+
+  await test("91. Alejandro — lead.name se escribe aunque CRM ya tenga Nombre del cliente", () => {
+    // Caso real: Lucy capturó nombre en mergedLines pero nunca patcheó lead.name →
+    // SalesBot saluda "¡Mucho gusto! Soy Alejandro..." sin nombre del lead.
+    assert.equal(resolveKommoLeadNamePatch(undefined, "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("+52 55 1234 5678", "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("Lead: 26669772", "Alexandra"), "Alexandra");
+    // Ya limpio → no reescribir
+    assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra"), null);
+    // Ampliar apellido
+    assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra Ruiz"), "Alexandra Ruiz");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

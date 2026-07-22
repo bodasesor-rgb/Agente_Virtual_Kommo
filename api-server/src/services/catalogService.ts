@@ -1047,24 +1047,41 @@ export function resolveCatalogInclusionReply(
   }
 
   const attempts = [
-    query,
     serviceHint ? `${serviceHint} ${query}` : null,
     serviceHint || null,
+    // Solo usar el mensaje crudo si menciona un servicio; si no, evita match basura (Betún).
+    /\b(banquete|taquiza|barra|coffee|brunch|pizza|sushi|crepas?|mesa\s+de|dj|carpa|pista)\b/i.test(
+      query
+    )
+      ? query
+      : null,
   ].filter((q): q is string => !!q?.trim());
 
   for (const q of attempts) {
     if (wantsAllLevels) {
       const detail = buildCatalogServiceDetailAnswer(q);
-      if (detail) return detail;
+      if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return detail;
     }
     const hit = buildCatalogInclusionAnswer(q) ?? buildInclusionTeamConfirmationAnswer(q);
-    if (hit) return hit;
+    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return hit;
     const detail = buildCatalogServiceDetailAnswer(q);
-    if (detail) return detail;
+    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return detail;
   }
 
   // Último recurso: link del catálogo web aunque resolve falle.
   const webQ = serviceHint || query;
+  // A14947: no mandar Betún/Cupcakes si el hint es banquete.
+  if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
+    const banqueteQ = /\b4\s*tiempos|mexicano/i.test(`${webQ} ${serviceHint ?? ""}`)
+      ? "Banquete Mexicano 4 tiempos"
+      : /\b3\s*tiempos|formal/i.test(`${webQ} ${serviceHint ?? ""}`)
+        ? "Banquete Formal 3 tiempos"
+        : "banquete";
+    const detail = buildCatalogServiceDetailAnswer(banqueteQ) ?? buildCatalogPriceAnswer(banqueteQ);
+    const link = buildCatalogWebLinkReply({ query: banqueteQ, serviceHint: banqueteQ });
+    if (detail) return `${detail}\n\n${link}`;
+    return link;
+  }
   const webHint = buildCatalogWebDetailHint(webQ) ?? buildCatalogWebDetailHint(query);
   const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
   if (webHint || webUrl) {

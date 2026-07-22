@@ -57,6 +57,7 @@ import {
   sanitizeDisplayName,
   sanitizeCrmNombre,
   shouldUpdateName,
+  resolveKommoLeadNamePatch,
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
 import {
@@ -354,6 +355,8 @@ const REQUIRED_FIELDS_ORDERED: Array<{ label: string; question: string }> = [
 interface LeadFieldsResult {
   crmLines: string[];           // raw "- Label: value" lines from Kommo
   lastLucyResponse: string | null;
+  /** Nombre crudo de Kommo `lead.name` (SalesBot/Alejandro lo usa al saludar). */
+  leadName?: string | null;
 }
 
 // ─── Strip catalog block from a response (used when cierre already sent) ────────
@@ -930,7 +933,7 @@ async function fetchLeadCurrentFields(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   log: any
 ): Promise<LeadFieldsResult> {
-  const empty: LeadFieldsResult = { crmLines: [], lastLucyResponse: null };
+  const empty: LeadFieldsResult = { crmLines: [], lastLucyResponse: null, leadName: null };
   try {
     const res = await fetch(
       `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
@@ -943,12 +946,13 @@ async function fetchLeadCurrentFields(
 
     const data = (await res.json()) as KommoLeadFieldsResponse;
     const cfv = data.custom_fields_values ?? [];
+    const rawLeadName = typeof data.name === "string" ? data.name.trim() : null;
 
     const lines: string[] = [];
 
     // Lead name — no reinyectar ubicación/basura como nombre (A14938 "En Tlalnepantla").
-    if (data.name) {
-      const stripped = data.name.replace(/^Lead:\s*/i, "").trim();
+    if (rawLeadName) {
+      const stripped = rawLeadName.replace(/^Lead:\s*/i, "").trim();
       const cleaned = sanitizeCrmNombre(stripped);
       if (cleaned && !isPlaceholderLeadName(cleaned) && !isStaffAdvisorName(cleaned)) {
         lines.push(`- Nombre del cliente: ${cleaned}`);
@@ -968,7 +972,11 @@ async function fetchLeadCurrentFields(
       lines.push(`- ${label}: ${val}`);
     }
 
-    return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse: null };
+    return {
+      crmLines: sanitizeKommoCrmLines(lines),
+      lastLucyResponse: null,
+      leadName: rawLeadName,
+    };
   } catch (err) {
     log.warn({ err }, "Error leyendo campos actuales del lead");
     return empty;
@@ -1078,7 +1086,9 @@ function withCrmNombre(extracted: ExtractedData, mergedLines: string[]): Extract
 function buildPatchPayload(
   extracted: ExtractedData,
   mergedLines: string[],
-  conversationText?: string
+  conversationText?: string,
+  /** Nombre actual de Kommo lead.name — NO la línea CRM (ya capturada en el mismo turno). */
+  currentLeadName?: string | null
 ): Record<string, unknown> {
   const customFields: Array<{ field_id: number; values: Array<{ value: unknown }> }> = [];
 
@@ -1132,11 +1142,14 @@ function buildPatchPayload(
   const payload: Record<string, unknown> = { custom_fields_values: customFields };
 
   {
-    const currentNombre = parseNombreFromCrmLines(mergedLines);
-    // Nunca escribir niveles/marca WA (Premium) ni basura: sin fallback al raw (A14929).
-    const nombrePatch =
-      sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
-    if (nombrePatch && shouldUpdateName(currentNombre ?? undefined, nombrePatch)) {
+    // SalesBot/Alejandro saluda con lead.name. Hay que sincronizarlo aunque
+    // mergedLines ya tenga "Nombre del cliente" (mismo turno = no-op falso).
+    const candidate =
+      sanitizeCrmNombre(extracted.nombre) ??
+      sanitizeDisplayName(extracted.nombre) ??
+      parseNombreFromCrmLines(mergedLines);
+    const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, candidate);
+    if (nombrePatch) {
       payload["name"] = cap255(nombrePatch);
     }
   }
@@ -1147,10 +1160,12 @@ function buildPatchPayload(
 /**
  * PATCH solo con campos que el cliente acaba de cambiar en este mensaje.
  * Preferimos el valor nuevo (no el CRM viejo) para dirección/fecha/etc.
+ * También sincroniza lead.name si el cliente da su nombre en Humano Trabaja.
  */
 function buildSilentWatchPatchPayload(
   text: string,
-  extracted: ExtractedData
+  extracted: ExtractedData,
+  currentLeadName?: string | null
 ): Record<string, unknown> | null {
   const customFields: Array<{ field_id: number; values: Array<{ value: unknown }> }> = [];
 
@@ -1191,8 +1206,18 @@ function buildSilentWatchPatchPayload(
     }
   }
 
-  if (customFields.length === 0) return null;
-  return { custom_fields_values: customFields };
+  const nombreCandidate =
+    sanitizeCrmNombre(extracted.nombre) ??
+    sanitizeDisplayName(extracted.nombre) ??
+    sanitizeCrmNombre(text) ??
+    sanitizeDisplayName(text);
+  const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, nombreCandidate);
+
+  if (customFields.length === 0 && !nombrePatch) return null;
+  const payload: Record<string, unknown> = {};
+  if (customFields.length > 0) payload["custom_fields_values"] = customFields;
+  if (nombrePatch) payload["name"] = cap255(nombrePatch);
+  return payload;
 }
 
 /**
@@ -1224,7 +1249,12 @@ async function handleLucyInactiveInbound(opts: {
 
   // Actualizar CRM en silencio si el cliente cambió un dato.
   try {
-    const { crmLines } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
+    const { crmLines, leadName: silentLeadName } = await fetchLeadCurrentFields(
+      subdomain,
+      accessToken,
+      entityId,
+      log
+    );
     const histKey = String(entityId);
     const fullHistory = getHistory(histKey);
     const { extracted } = await prepareLucyExtraction({
@@ -1233,7 +1263,7 @@ async function handleLucyInactiveInbound(opts: {
       crmLines,
       extractFn: extractData,
     });
-    const silentPayload = buildSilentWatchPatchPayload(text, extracted);
+    const silentPayload = buildSilentWatchPatchPayload(text, extracted, silentLeadName);
     if (silentPayload) {
       const patchController = new AbortController();
       const patchTimer = setTimeout(() => patchController.abort(), 12_000);
@@ -1553,7 +1583,11 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     // ══════════════════════════════════════════════════════════════════════
     // PASO 4: Leer campos del CRM (sin construir crmContext aún)
     // ══════════════════════════════════════════════════════════════════════
-    const { crmLines, lastLucyResponse } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
+    const {
+      crmLines,
+      lastLucyResponse,
+      leadName: kommoLeadName,
+    } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
 
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
 
@@ -1752,7 +1786,8 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     const payload = buildPatchPayload(
       withCrmNombre(extracted, crmMergedLines),
       crmMergedLines,
-      conversationText
+      conversationText,
+      kommoLeadName
     );
     const cfvToSend = payload["custom_fields_values"] as Array<{ field_id: number; values: Array<{ value: unknown }> }>;
 
@@ -2216,11 +2251,13 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     // ── Load CRM context ──────────────────────────────────────────────────────
     let crmContext = "";
     let crmLines: string[] = [];
+    let salesbotLeadName: string | null = null;
     let salesbotFilledLabels = new Set<string>();
     if (entityId) {
       try {
         const fields = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
         crmLines = fields.crmLines;
+        salesbotLeadName = fields.leadName ?? null;
       } catch {
         log.warn("Salesbot: could not load CRM context");
       }
@@ -2332,7 +2369,12 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       }
 
       // ── Update CRM fields + resumen texto largo ───────────────────────────
-      const patchPayload = buildPatchPayload(extracted, salesbotMergedLines, conversationText);
+      const patchPayload = buildPatchPayload(
+        withCrmNombre(extracted, salesbotMergedLines),
+        salesbotMergedLines,
+        conversationText,
+        salesbotLeadName
+      );
       void fetch(`https://${subdomain}.kommo.com/api/v4/leads/${entityId}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -2556,7 +2598,11 @@ function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResul
     const lastLucy = cf["cf_respuesta_ia_1"];
     const lastLucyResponse =
       typeof lastLucy === "string" && lastLucy.trim() ? lastLucy.trim() : null;
-    return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse };
+    return {
+      crmLines: sanitizeKommoCrmLines(lines),
+      lastLucyResponse,
+      leadName: lead.name?.trim() || null,
+    };
   }
 
   const lines: string[] = [];
@@ -2590,7 +2636,11 @@ function buildCrmLinesFromSimulator(lead: SimulatorLeadPayload): LeadFieldsResul
   const lastLucyResponse =
     typeof lastLucy === "string" && lastLucy.trim() ? lastLucy.trim() : null;
 
-  return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse };
+  return {
+    crmLines: sanitizeKommoCrmLines(lines),
+    lastLucyResponse,
+    leadName: lead.name?.trim() || null,
+  };
 }
 
 function mapExtractedToSimulatorFields(
@@ -2757,14 +2807,18 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
 
     const lead_updates: Record<string, string> = {};
-    const currentLeadName = sanitizeCrmNombre(lead.name);
-    if (isValidExtractedString(extracted.nombre)) {
-      const incomingNombre = sanitizeCrmNombre(extracted.nombre) ?? extracted.nombre;
-      if (shouldUpdateName(currentLeadName ?? undefined, incomingNombre)) {
-        lead_updates.name = incomingNombre;
-      }
-    } else if (whatsappDisplayName && shouldUpdateName(currentLeadName ?? undefined, whatsappDisplayName)) {
-      lead_updates.name = whatsappDisplayName;
+    // Misma regla que buildPatchPayload: sincronizar lead.name para Alejandro/SalesBot.
+    const simCandidate =
+      (isValidExtractedString(extracted.nombre)
+        ? sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre)
+        : null) ??
+      parseNombreFromCrmLines(crmMergedLines) ??
+      (whatsappDisplayName
+        ? sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName)
+        : null);
+    const simNamePatch = resolveKommoLeadNamePatch(lead.name, simCandidate);
+    if (simNamePatch) {
+      lead_updates.name = simNamePatch;
     }
     if (isValidExtractedString(extracted.correo)) lead_updates.contact_email = extracted.correo;
     if (isValidExtractedString(extracted.telefono)) lead_updates.contact_phone = extracted.telefono;

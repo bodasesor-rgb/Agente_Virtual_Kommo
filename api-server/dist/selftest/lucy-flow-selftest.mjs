@@ -231,8 +231,18 @@ function shouldUpdateName(current, incoming) {
   }
   if (!namesAreLikelySamePerson(c, iClean)) return false;
   const cClean = sanitizeCrmNombre(c) ?? sanitizeDisplayName(c) ?? c;
+  const cRawNorm = c.toLowerCase().replace(/\s+/g, " ").trim();
+  if (cClean.toLowerCase() !== cRawNorm && iClean.toLowerCase() === cClean.toLowerCase()) {
+    return true;
+  }
   if (cClean.toLowerCase() === iClean.toLowerCase()) return false;
   return isNombreMoreComplete(iClean, cClean);
+}
+function resolveKommoLeadNamePatch(currentLeadName, candidateNombre) {
+  const patch = sanitizeCrmNombre(candidateNombre) ?? sanitizeDisplayName(candidateNombre);
+  if (!patch) return null;
+  if (!shouldUpdateName(currentLeadName ?? void 0, patch)) return null;
+  return patch;
 }
 function normalizeNameTokens(name) {
   return name.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").split(/\s+/).filter((t) => t.length >= 2);
@@ -4294,21 +4304,33 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     if (team) return team;
   }
   const attempts = [
-    query,
     serviceHint ? `${serviceHint} ${query}` : null,
-    serviceHint || null
+    serviceHint || null,
+    // Solo usar el mensaje crudo si menciona un servicio; si no, evita match basura (Betún).
+    /\b(banquete|taquiza|barra|coffee|brunch|pizza|sushi|crepas?|mesa\s+de|dj|carpa|pista)\b/i.test(
+      query
+    ) ? query : null
   ].filter((q) => !!q?.trim());
   for (const q of attempts) {
     if (wantsAllLevels) {
       const detail2 = buildCatalogServiceDetailAnswer(q);
-      if (detail2) return detail2;
+      if (detail2 && !/bet[uú]n|cupcakes?/i.test(detail2)) return detail2;
     }
     const hit = buildCatalogInclusionAnswer(q) ?? buildInclusionTeamConfirmationAnswer(q);
-    if (hit) return hit;
+    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return hit;
     const detail = buildCatalogServiceDetailAnswer(q);
-    if (detail) return detail;
+    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return detail;
   }
   const webQ = serviceHint || query;
+  if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
+    const banqueteQ = /\b4\s*tiempos|mexicano/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Mexicano 4 tiempos" : /\b3\s*tiempos|formal/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Formal 3 tiempos" : "banquete";
+    const detail = buildCatalogServiceDetailAnswer(banqueteQ) ?? buildCatalogPriceAnswer(banqueteQ);
+    const link = buildCatalogWebLinkReply({ query: banqueteQ, serviceHint: banqueteQ });
+    if (detail) return `${detail}
+
+${link}`;
+    return link;
+  }
   const webHint = buildCatalogWebDetailHint(webQ) ?? buildCatalogWebDetailHint(query);
   const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
   if (webHint || webUrl) {
@@ -17592,19 +17614,45 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 aceptar, anotar y pedir medidas");
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
-    const serviceHint = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    const req = extracted.requerimientos_evento?.trim() ?? "";
+    let serviceHint = null;
+    if (/\bbanquete|\bcatering\b/i.test(`${req} ${userBlob}`)) {
+      if (/\b(3\s*tiempos|tres\s*tiempos|formal)\b/i.test(`${req} ${userBlob}`)) {
+        serviceHint = "Banquete Formal 3 tiempos";
+      } else if (/\b(4\s*tiempos|cuatro\s*tiempos|mexicano)\b/i.test(`${req} ${userBlob}`)) {
+        serviceHint = "Banquete Mexicano 4 tiempos";
+      } else {
+        serviceHint = "banquete";
+      }
+    } else {
+      serviceHint = (isValidRequerimientosValue(req) ? req : null) || parsePrimaryService(userBlob) || findMentionedService(userBlob);
+    }
     const inclusionAnswer = resolveCatalogInclusionReply(
       currentMessage ?? "",
       serviceHint
     );
-    if (inclusionAnswer) {
+    if (inclusionAnswer && !/bet[uú]n|cupcakes?/i.test(inclusionAnswer)) {
       const pending = getNextPendingField(extracted, filledSet);
       mensaje = pending && needsNextStep && !trulyReadyForClosing ? `${inclusionAnswer}
 
 ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       appliedSalesReply = true;
       appliedDirectReply = true;
-      log?.info({ entityId }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+      log?.info({ entityId, serviceHint }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+    } else if (serviceHint && /\bbanquete/i.test(serviceHint)) {
+      const detail = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
+      const link = buildCatalogWebLinkReply({ query: serviceHint, serviceHint });
+      mensaje = detail ? `${detail}
+
+${link}
+
+\xBFCu\xE1l nivel te late?` : `${link}
+
+\xBFCu\xE1l nivel te late?`;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId, serviceHint }, "GUARD: inclusiones banquete \u2014 Sheet + link forzado");
     } else {
       const packageOverview = buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage);
       mensaje = packageOverview;
@@ -23536,6 +23584,13 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.equal(sanitizeCrmNombre("Alexandra\nEs boda"), "Alexandra");
     assert.equal(sanitizeCrmNombre("Alexandra"), "Alexandra");
     assert.ok(!shouldUpdateName("Alexandra", "Alexandra Es Boda"));
+    assert.ok(shouldUpdateName("Alexandra Es Boda", "Alexandra"));
+    assert.equal(resolveKommoLeadNamePatch("Alexandra Es Boda", "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch(null, "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("", "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("Nuevo lead", "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra"), null);
+    assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra Es Boda"), null);
     assert.equal(
       detectPresupuestoRefusal(
         "Pero no s\xE9 muy bien cu\xE1l podr\xEDa ser o que incluiria"
@@ -23615,6 +23670,14 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     });
     assert.ok(!/lo dejamos por definir/i.test(incl), incl.slice(0, 300));
     assert.ok(/incluye|nivel|Basico|Premium|cat[aá]logo|\$/i.test(incl), incl.slice(0, 500));
+    assert.ok(!/bet[uú]n|cupcakes?/i.test(incl), incl.slice(0, 400));
+  });
+  await test("91. Alejandro \u2014 lead.name se escribe aunque CRM ya tenga Nombre del cliente", () => {
+    assert.equal(resolveKommoLeadNamePatch(void 0, "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("+52 55 1234 5678", "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("Lead: 26669772", "Alexandra"), "Alexandra");
+    assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra"), null);
+    assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra Ruiz"), "Alexandra Ruiz");
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

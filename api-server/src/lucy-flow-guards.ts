@@ -3812,17 +3812,29 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: pista/tarima — aceptar, anotar y pedir medidas");
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     // Prioridad absoluta: describir paquetes (no depende de allowSalesReplyOverride).
-    const serviceHint =
-      (isValidRequerimientosValue(extracted.requerimientos_evento)
-        ? extracted.requerimientos_evento
-        : null) ||
-      parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) ||
-      findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    const req = extracted.requerimientos_evento?.trim() ?? "";
+    // A14947: si el hilo es banquete/catering, NUNCA resolver a Betún/Cupcakes.
+    let serviceHint: string | null = null;
+    if (/\bbanquete|\bcatering\b/i.test(`${req} ${userBlob}`)) {
+      if (/\b(3\s*tiempos|tres\s*tiempos|formal)\b/i.test(`${req} ${userBlob}`)) {
+        serviceHint = "Banquete Formal 3 tiempos";
+      } else if (/\b(4\s*tiempos|cuatro\s*tiempos|mexicano)\b/i.test(`${req} ${userBlob}`)) {
+        serviceHint = "Banquete Mexicano 4 tiempos";
+      } else {
+        serviceHint = "banquete";
+      }
+    } else {
+      serviceHint =
+        (isValidRequerimientosValue(req) ? req : null) ||
+        parsePrimaryService(userBlob) ||
+        findMentionedService(userBlob);
+    }
     const inclusionAnswer = resolveCatalogInclusionReply(
       currentMessage ?? "",
       serviceHint
     );
-    if (inclusionAnswer) {
+    if (inclusionAnswer && !/bet[uú]n|cupcakes?/i.test(inclusionAnswer)) {
       const pending = getNextPendingField(extracted, filledSet);
       // Tras describir paquetes, puede seguir el embudo (zona), pero NUNCA borrar el detalle.
       mensaje =
@@ -3831,7 +3843,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           : inclusionAnswer;
       appliedSalesReply = true;
       appliedDirectReply = true;
-      log?.info({ entityId }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+      log?.info({ entityId, serviceHint }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+    } else if (serviceHint && /\bbanquete/i.test(serviceHint)) {
+      const detail =
+        buildCatalogPriceAnswer(serviceHint) ||
+        buildCatalogServiceDetailAnswer(serviceHint);
+      const link = buildCatalogWebLinkReply({ query: serviceHint, serviceHint });
+      mensaje = detail
+        ? `${detail}\n\n${link}\n\n¿Cuál nivel te late?`
+        : `${link}\n\n¿Cuál nivel te late?`;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId, serviceHint }, "GUARD: inclusiones banquete — Sheet + link forzado");
     } else {
       // A14943: "Quiero ver los paquetes" sin SKU — mostrar overview, no saltar a zona.
       const packageOverview = buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage);
