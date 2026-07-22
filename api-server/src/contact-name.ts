@@ -382,8 +382,28 @@ export function shouldUpdateName(current?: string, incoming?: string): boolean {
   // No reemplazar "Jeny" por otro nombre distinto (p. ej. intento con Premium ya filtrado arriba).
   if (!namesAreLikelySamePerson(c, iClean)) return false;
   const cClean = sanitizeCrmNombre(c) ?? sanitizeDisplayName(c) ?? c;
+  // Nombre sucio en lead.name ("Alexandra Es Boda") → escribir la forma limpia para Alejandro/SalesBot.
+  const cRawNorm = c.toLowerCase().replace(/\s+/g, " ").trim();
+  if (cClean.toLowerCase() !== cRawNorm && iClean.toLowerCase() === cClean.toLowerCase()) {
+    return true;
+  }
   if (cClean.toLowerCase() === iClean.toLowerCase()) return false;
   return isNombreMoreComplete(iClean, cClean);
+}
+
+/**
+ * Decide qué escribir en Kommo `lead.name` (lo que usa SalesBot/Alejandro al saludar).
+ * Compara contra el nombre REAL del lead, no contra la línea CRM ya capturada:
+ * si se compara solo con mergedLines, shouldUpdateName(mismo, mismo) deja lead.name vacío.
+ */
+export function resolveKommoLeadNamePatch(
+  currentLeadName: string | null | undefined,
+  candidateNombre: string | null | undefined
+): string | null {
+  const patch = sanitizeCrmNombre(candidateNombre) ?? sanitizeDisplayName(candidateNombre);
+  if (!patch) return null;
+  if (!shouldUpdateName(currentLeadName ?? undefined, patch)) return null;
+  return patch;
 }
 
 function normalizeNameTokens(name: string): string[] {

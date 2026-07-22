@@ -79761,8 +79761,18 @@ function shouldUpdateName(current, incoming) {
   }
   if (!namesAreLikelySamePerson(c2, iClean)) return false;
   const cClean = sanitizeCrmNombre(c2) ?? sanitizeDisplayName(c2) ?? c2;
+  const cRawNorm = c2.toLowerCase().replace(/\s+/g, " ").trim();
+  if (cClean.toLowerCase() !== cRawNorm && iClean.toLowerCase() === cClean.toLowerCase()) {
+    return true;
+  }
   if (cClean.toLowerCase() === iClean.toLowerCase()) return false;
   return isNombreMoreComplete(iClean, cClean);
+}
+function resolveKommoLeadNamePatch(currentLeadName, candidateNombre) {
+  const patch = sanitizeCrmNombre(candidateNombre) ?? sanitizeDisplayName(candidateNombre);
+  if (!patch) return null;
+  if (!shouldUpdateName(currentLeadName ?? void 0, patch)) return null;
+  return patch;
 }
 function normalizeNameTokens(name2) {
   return name2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").split(/\s+/).filter((t) => t.length >= 2);
@@ -83199,21 +83209,33 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     if (team) return team;
   }
   const attempts = [
-    query,
     serviceHint ? `${serviceHint} ${query}` : null,
-    serviceHint || null
+    serviceHint || null,
+    // Solo usar el mensaje crudo si menciona un servicio; si no, evita match basura (Betún).
+    /\b(banquete|taquiza|barra|coffee|brunch|pizza|sushi|crepas?|mesa\s+de|dj|carpa|pista)\b/i.test(
+      query
+    ) ? query : null
   ].filter((q2) => !!q2?.trim());
   for (const q2 of attempts) {
     if (wantsAllLevels) {
       const detail2 = buildCatalogServiceDetailAnswer(q2);
-      if (detail2) return detail2;
+      if (detail2 && !/bet[uú]n|cupcakes?/i.test(detail2)) return detail2;
     }
     const hit = buildCatalogInclusionAnswer(q2) ?? buildInclusionTeamConfirmationAnswer(q2);
-    if (hit) return hit;
+    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return hit;
     const detail = buildCatalogServiceDetailAnswer(q2);
-    if (detail) return detail;
+    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return detail;
   }
   const webQ = serviceHint || query;
+  if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
+    const banqueteQ = /\b4\s*tiempos|mexicano/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Mexicano 4 tiempos" : /\b3\s*tiempos|formal/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Formal 3 tiempos" : "banquete";
+    const detail = buildCatalogServiceDetailAnswer(banqueteQ) ?? buildCatalogPriceAnswer(banqueteQ);
+    const link = buildCatalogWebLinkReply({ query: banqueteQ, serviceHint: banqueteQ });
+    if (detail) return `${detail}
+
+${link}`;
+    return link;
+  }
   const webHint = buildCatalogWebDetailHint(webQ) ?? buildCatalogWebDetailHint(query);
   const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
   if (webHint || webUrl) {
@@ -87317,19 +87339,45 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima \u2014 aceptar, anotar y pedir medidas");
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
-    const serviceHint = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    const req = extracted.requerimientos_evento?.trim() ?? "";
+    let serviceHint = null;
+    if (/\bbanquete|\bcatering\b/i.test(`${req} ${userBlob}`)) {
+      if (/\b(3\s*tiempos|tres\s*tiempos|formal)\b/i.test(`${req} ${userBlob}`)) {
+        serviceHint = "Banquete Formal 3 tiempos";
+      } else if (/\b(4\s*tiempos|cuatro\s*tiempos|mexicano)\b/i.test(`${req} ${userBlob}`)) {
+        serviceHint = "Banquete Mexicano 4 tiempos";
+      } else {
+        serviceHint = "banquete";
+      }
+    } else {
+      serviceHint = (isValidRequerimientosValue(req) ? req : null) || parsePrimaryService(userBlob) || findMentionedService(userBlob);
+    }
     const inclusionAnswer = resolveCatalogInclusionReply(
       currentMessage ?? "",
       serviceHint
     );
-    if (inclusionAnswer) {
+    if (inclusionAnswer && !/bet[uú]n|cupcakes?/i.test(inclusionAnswer)) {
       const pending = getNextPendingField(extracted, filledSet);
       mensaje = pending && needsNextStep && !trulyReadyForClosing ? `${inclusionAnswer}
 
 ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       appliedSalesReply = true;
       appliedDirectReply = true;
-      log?.info({ entityId }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+      log?.info({ entityId, serviceHint }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+    } else if (serviceHint && /\bbanquete/i.test(serviceHint)) {
+      const detail = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
+      const link = buildCatalogWebLinkReply({ query: serviceHint, serviceHint });
+      mensaje = detail ? `${detail}
+
+${link}
+
+\xBFCu\xE1l nivel te late?` : `${link}
+
+\xBFCu\xE1l nivel te late?`;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId, serviceHint }, "GUARD: inclusiones banquete \u2014 Sheet + link forzado");
     } else {
       const packageOverview = buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage);
       mensaje = packageOverview;
@@ -96150,7 +96198,7 @@ ESTADO ACTUAL \u2014 FALTA: ${missing.join(", ")} \u2014 pregunta SOLO el primer
   return { context, allFieldsFilled, mergedLines, filledLabels: filledSet };
 }
 async function fetchLeadCurrentFields(subdomain, accessToken, leadId, log) {
-  const empty = { crmLines: [], lastLucyResponse: null };
+  const empty = { crmLines: [], lastLucyResponse: null, leadName: null };
   try {
     const res = await fetch(
       `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
@@ -96162,9 +96210,10 @@ async function fetchLeadCurrentFields(subdomain, accessToken, leadId, log) {
     }
     const data = await res.json();
     const cfv = data.custom_fields_values ?? [];
+    const rawLeadName = typeof data.name === "string" ? data.name.trim() : null;
     const lines = [];
-    if (data.name) {
-      const stripped = data.name.replace(/^Lead:\s*/i, "").trim();
+    if (rawLeadName) {
+      const stripped = rawLeadName.replace(/^Lead:\s*/i, "").trim();
       const cleaned = sanitizeCrmNombre(stripped);
       if (cleaned && !isPlaceholderLeadName(cleaned) && !isStaffAdvisorName(cleaned)) {
         lines.push(`- Nombre del cliente: ${cleaned}`);
@@ -96178,7 +96227,11 @@ async function fetchLeadCurrentFields(subdomain, accessToken, leadId, log) {
       if (val === null || val === void 0 || val === "") continue;
       lines.push(`- ${label}: ${val}`);
     }
-    return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse: null };
+    return {
+      crmLines: sanitizeKommoCrmLines(lines),
+      lastLucyResponse: null,
+      leadName: rawLeadName
+    };
   } catch (err2) {
     log.warn({ err: err2 }, "Error leyendo campos actuales del lead");
     return empty;
@@ -96252,7 +96305,7 @@ function withCrmNombre(extracted, mergedLines) {
   if (!nombreCrm || isValidExtractedString(extracted.nombre)) return extracted;
   return { ...extracted, nombre: nombreCrm };
 }
-function buildPatchPayload(extracted, mergedLines, conversationText) {
+function buildPatchPayload(extracted, mergedLines, conversationText, currentLeadName) {
   const customFields = [];
   const resumenLargo = buildResumenClienteLargo(extracted, mergedLines, conversationText);
   customFields.push({
@@ -96287,15 +96340,15 @@ function buildPatchPayload(extracted, mergedLines, conversationText) {
   }
   const payload = { custom_fields_values: customFields };
   {
-    const currentNombre = parseNombreFromCrmLines(mergedLines);
-    const nombrePatch = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
-    if (nombrePatch && shouldUpdateName(currentNombre ?? void 0, nombrePatch)) {
+    const candidate = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? parseNombreFromCrmLines(mergedLines);
+    const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, candidate);
+    if (nombrePatch) {
       payload["name"] = cap255(nombrePatch);
     }
   }
   return payload;
 }
-function buildSilentWatchPatchPayload(text2, extracted) {
+function buildSilentWatchPatchPayload(text2, extracted, currentLeadName) {
   const customFields = [];
   const zona = parseZonaFromText(text2);
   const direccion = (zona && isUsableDireccionEvento(zona) ? zona : null) || (extracted.direccion_evento && isUsableDireccionEvento(extracted.direccion_evento) ? extracted.direccion_evento : null);
@@ -96325,8 +96378,13 @@ function buildSilentWatchPatchPayload(text2, extracted) {
       });
     }
   }
-  if (customFields.length === 0) return null;
-  return { custom_fields_values: customFields };
+  const nombreCandidate = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? sanitizeCrmNombre(text2) ?? sanitizeDisplayName(text2);
+  const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, nombreCandidate);
+  if (customFields.length === 0 && !nombrePatch) return null;
+  const payload = {};
+  if (customFields.length > 0) payload["custom_fields_values"] = customFields;
+  if (nombrePatch) payload["name"] = cap255(nombrePatch);
+  return payload;
 }
 async function handleLucyInactiveInbound(opts) {
   const { entityId, chatId, talkId, text: text2, subdomain, accessToken, log } = opts;
@@ -96339,7 +96397,12 @@ async function handleLucyInactiveInbound(opts) {
     accessToken
   }).catch((err2) => log.warn({ err: err2, entityId }, "Captura en fase humana fall\xF3"));
   try {
-    const { crmLines } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
+    const { crmLines, leadName: silentLeadName } = await fetchLeadCurrentFields(
+      subdomain,
+      accessToken,
+      entityId,
+      log
+    );
     const histKey = String(entityId);
     const fullHistory = getHistory(histKey);
     const { extracted } = await prepareLucyExtraction({
@@ -96348,7 +96411,7 @@ async function handleLucyInactiveInbound(opts) {
       crmLines,
       extractFn: extractData
     });
-    const silentPayload = buildSilentWatchPatchPayload(text2, extracted);
+    const silentPayload = buildSilentWatchPatchPayload(text2, extracted, silentLeadName);
     if (silentPayload) {
       const patchController = new AbortController();
       const patchTimer = setTimeout(() => patchController.abort(), 12e3);
@@ -96507,7 +96570,11 @@ async function processBatch(batch, accessToken, log) {
       }
     }
     let history = fullHistory.slice(-16);
-    const { crmLines, lastLucyResponse } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
+    const {
+      crmLines,
+      lastLucyResponse,
+      leadName: kommoLeadName
+    } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const effectiveLastResponse = resolveEffectiveLastLucyResponse({
       entityId,
@@ -96644,7 +96711,8 @@ async function processBatch(batch, accessToken, log) {
     const payload = buildPatchPayload(
       withCrmNombre(extracted, crmMergedLines),
       crmMergedLines,
-      conversationText
+      conversationText,
+      kommoLeadName
     );
     const cfvToSend = payload["custom_fields_values"];
     log.info(
@@ -96986,11 +97054,13 @@ router3.post("/kommo/salesbot", async (req, res) => {
     log.info({ histKey, historyLength: history.length, historySource }, "Salesbot: historial cargado");
     let crmContext = "";
     let crmLines = [];
+    let salesbotLeadName = null;
     let salesbotFilledLabels = /* @__PURE__ */ new Set();
     if (entityId) {
       try {
         const fields = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
         crmLines = fields.crmLines;
+        salesbotLeadName = fields.leadName ?? null;
       } catch {
         log.warn("Salesbot: could not load CRM context");
       }
@@ -97082,7 +97152,12 @@ router3.post("/kommo/salesbot", async (req, res) => {
       if (channel === "failed") {
         log.error({ entityId, talkId, sbPhone }, "Salesbot: mensaje no enviado \u274C");
       }
-      const patchPayload = buildPatchPayload(extracted, salesbotMergedLines, conversationText);
+      const patchPayload = buildPatchPayload(
+        withCrmNombre(extracted, salesbotMergedLines),
+        salesbotMergedLines,
+        conversationText,
+        salesbotLeadName
+      );
       void fetch(`https://${subdomain}.kommo.com/api/v4/leads/${entityId}`, {
         method: "PATCH",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
@@ -97245,7 +97320,11 @@ function buildCrmLinesFromSimulator(lead) {
     const lines2 = snapshot2.split("\n").map((l4) => l4.trim()).filter(Boolean).map((l4) => l4.startsWith("- ") ? l4 : `- ${l4}`);
     const lastLucy2 = cf["cf_respuesta_ia_1"];
     const lastLucyResponse2 = typeof lastLucy2 === "string" && lastLucy2.trim() ? lastLucy2.trim() : null;
-    return { crmLines: sanitizeKommoCrmLines(lines2), lastLucyResponse: lastLucyResponse2 };
+    return {
+      crmLines: sanitizeKommoCrmLines(lines2),
+      lastLucyResponse: lastLucyResponse2,
+      leadName: lead.name?.trim() || null
+    };
   }
   const lines = [];
   if (lead.contact_email?.trim()) {
@@ -97271,7 +97350,11 @@ function buildCrmLinesFromSimulator(lead) {
   }
   const lastLucy = cfFields["cf_respuesta_ia_1"];
   const lastLucyResponse = typeof lastLucy === "string" && lastLucy.trim() ? lastLucy.trim() : null;
-  return { crmLines: sanitizeKommoCrmLines(lines), lastLucyResponse };
+  return {
+    crmLines: sanitizeKommoCrmLines(lines),
+    lastLucyResponse,
+    leadName: lead.name?.trim() || null
+  };
 }
 function mapExtractedToSimulatorFields(extracted, reply, mergedLines = []) {
   const fields = {
@@ -97404,14 +97487,10 @@ router3.post("/kommo/simulator", async (req, res) => {
     const fields = mapExtractedToSimulatorFields(extracted, mensajeParaCliente, crmMergedLines);
     const stage_id = suggestSimulatorStage(messageText, allFieldsFilled, lead.stage_id);
     const lead_updates = {};
-    const currentLeadName = sanitizeCrmNombre(lead.name);
-    if (isValidExtractedString(extracted.nombre)) {
-      const incomingNombre = sanitizeCrmNombre(extracted.nombre) ?? extracted.nombre;
-      if (shouldUpdateName(currentLeadName ?? void 0, incomingNombre)) {
-        lead_updates.name = incomingNombre;
-      }
-    } else if (whatsappDisplayName && shouldUpdateName(currentLeadName ?? void 0, whatsappDisplayName)) {
-      lead_updates.name = whatsappDisplayName;
+    const simCandidate = (isValidExtractedString(extracted.nombre) ? sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) : null) ?? parseNombreFromCrmLines(crmMergedLines) ?? (whatsappDisplayName ? sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName) : null);
+    const simNamePatch = resolveKommoLeadNamePatch(lead.name, simCandidate);
+    if (simNamePatch) {
+      lead_updates.name = simNamePatch;
     }
     if (isValidExtractedString(extracted.correo)) lead_updates.contact_email = extracted.correo;
     if (isValidExtractedString(extracted.telefono)) lead_updates.contact_phone = extracted.telefono;
