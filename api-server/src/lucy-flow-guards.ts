@@ -947,6 +947,26 @@ export function buildVagueFoodOptionsReply(
   const tipo = (extracted.tipo_evento ?? parseTipoEventoFromText(texts) ?? "").toLowerCase();
   const inv = extracted.num_invitados ?? 0;
   const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
+  const msg = currentMessage ?? "";
+  const wantsInfo = /\binformaci[oó]n|info|detalle|incluye|cotiz|me\s+pueden\s+dar\b/i.test(msg);
+  const isBanqueteVague =
+    /\bbanquetes?\b|\bcatering\b/i.test(msg) &&
+    !/\b(taquiza|coffee\s*break|sushi|parrillada)\b/i.test(msg);
+
+  // A14947: "banquetes o catering… ¿información?" → detalle Sheet + link, no dump Betún/Cupcakes.
+  if (isBanqueteVague && wantsInfo) {
+    const detail =
+      buildCatalogPriceAnswer("banquete") ||
+      buildCatalogServiceDetailAnswer("banquete formal 3 tiempos") ||
+      buildCatalogServiceDetailAnswer("banquete");
+    const link = buildCatalogWebLinkReply({ query: "banquete" });
+    const intro =
+      "Claro. Para banquetes manejamos *Formal 3 tiempos* y *Mexicano 4 tiempos*, cada uno en varios niveles (Solo Alimentos, Básico, Tradicional, Premium).";
+    const body = detail
+      ? `${intro}\n\n${detail}\n\n${link}`
+      : `${intro}\n\n${link}`;
+    return `${pickTransition(history)} ${body}`.trim();
+  }
 
   let options: string;
   if (gettingReady || (/\bboda\b/.test(tipo) && inv > 0 && inv <= 30)) {
@@ -1811,8 +1831,17 @@ export function preferEventOfferReply(opts: {
   // A14943: precios/paquetes no son "ofrecimiento temprano" — no tapar con upsell.
   if (clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage)) return null;
 
-  // Si el cliente ya eligió un servicio concreto, no reemplazar con oferta genérica.
+  // A14947: dump Betún/Cupcakes/Helados cuando el cliente pidió banquete/catering → rechazar.
   const msg = currentMessage?.trim() ?? "";
+  const userBlob = collectUserTexts(history, currentMessage).join(" ");
+  if (
+    /bet[uú]n|cupcakes?|paletas?\s+de\s+hielo|helados?/i.test(aiResponse) &&
+    /\bbanquetes?\b|\bcatering\b/i.test(`${msg} ${userBlob} ${extracted.requerimientos_evento ?? ""}`)
+  ) {
+    return null;
+  }
+
+  // Si el cliente ya eligió un servicio concreto, no reemplazar con oferta genérica.
   if (msg) {
     const namedService = !!(findMentionedService(msg) || parsePrimaryService(msg));
     const onlyEventType =
@@ -3253,6 +3282,36 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     });
     appliedDirectReply = true;
     log?.info({ entityId, wantFull }, "GUARD: cliente pidió catálogo web — link del Sheet");
+  } else if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) &&
+    !isCatalogLevelSelection(
+      currentMessage,
+      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+        ? (lastAssistantMsg.content as string)
+        : null
+    )
+  ) {
+    // A14947: "De tres tiempos" = variante de banquete, no nivel Básica/Premium.
+    const tres = /\b(tres|3)\s*tiempos\b/i.test(currentMessage);
+    const label = tres ? "Banquete Formal 3 tiempos" : "Banquete Mexicano 4 tiempos";
+    filledSet.add("Requerimientos o servicios");
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
+    if (merged) extracted.requerimientos_evento = merged;
+    const detail =
+      buildCatalogPriceAnswer(label) ||
+      buildCatalogServiceDetailAnswer(label) ||
+      resolveCatalogInclusionReply(label, label);
+    const link = buildCatalogWebLinkReply({ query: label, serviceHint: label });
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
+    mensaje = detail
+      ? `${ack} Anoto *${label}*.\n\n${detail}\n\n${link}\n\n¿Cuál nivel prefieres (Solo Alimentos, Básico, Tradicional o Premium)?`
+      : `${ack} Anoto *${label}*.\n\n${link}\n\n¿Cuál nivel prefieres?`;
+    appliedDirectReply = true;
+    appliedSalesReply = true;
+    log?.info({ entityId, label }, "GUARD: variante banquete por tiempos + detalle/link");
   } else if (
     isCatalogLevelSelection(
       currentMessage,

@@ -316,6 +316,10 @@ function normalizeForMatch(value: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
+    // A14947: "tres/cuatro tiempos" ≡ "3/4 tiempos" para Sheet.
+    .replace(/\btres\s*tiempos\b/g, "3 tiempos")
+    .replace(/\bcuatro\s*tiempos\b/g, "4 tiempos")
+    .replace(/\bdos\s*tiempos\b/g, "2 tiempos")
     .trim();
 }
 
@@ -1072,8 +1076,8 @@ export function resolveCatalogInclusionReply(
 export function clientAsksInclusion(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  // "descripción", "qué incluye", "detalle", "paquetes/niveles" — aunque también pregunten precio.
-  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+manejan)\b/i.test(
+  // "descripción", "qué incluye/incluiría", "detalle", "paquetes/niveles".
+  return /\bqu[eé]\s+incluye|\bqu[eé]\s+incluir[ií]a|\bincluir[ií]a\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+manejan)\b|\bno\s+s[eé]\s+(muy\s+bien\s+)?cu[aá]l\b.{0,40}\b(incluir|nivel|opci[oó]n|variante|paquete)\b|\bcu[aá]l\s+podr[ií]a\s+ser\b/i.test(
     t
   );
 }

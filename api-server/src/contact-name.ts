@@ -321,6 +321,11 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   const cleaned = stripped
     .replace(/^Lead:\s*/i, "")
     .replace(/[~_]+/g, " ")
+    // A14947: "Alexandra Es Boda" / "Alexandra\nEs boda" → solo el nombre.
+    .replace(
+      /\b(es\s+)?(una?\s+)?(boda|xv\s*a[nñ]os?|cumplea[nñ]os|bautizo|baby\s*shower|aniversario|graduaci[oó]n|evento\s+corporativo)\b/gi,
+      " "
+    )
     .replace(/\s+/g, " ")
     .trim();
 
@@ -334,6 +339,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
+    if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
@@ -375,7 +381,9 @@ export function shouldUpdateName(current?: string, incoming?: string): boolean {
   }
   // No reemplazar "Jeny" por otro nombre distinto (p. ej. intento con Premium ya filtrado arriba).
   if (!namesAreLikelySamePerson(c, iClean)) return false;
-  return isNombreMoreComplete(iClean, c);
+  const cClean = sanitizeCrmNombre(c) ?? sanitizeDisplayName(c) ?? c;
+  if (cClean.toLowerCase() === iClean.toLowerCase()) return false;
+  return isNombreMoreComplete(iClean, cClean);
 }
 
 function normalizeNameTokens(name: string): string[] {

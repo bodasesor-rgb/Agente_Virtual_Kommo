@@ -5261,6 +5261,99 @@ async function runAll(): Promise<void> {
     assert.ok(!/comida\s+corrida/i.test(resumen), resumen);
   });
 
+  await test("90. Alexandra A14947 — banquete info, nombre≠boda, tres tiempos, inclusiones", () => {
+    assert.equal(sanitizeCrmNombre("Alexandra Es Boda"), "Alexandra");
+    assert.equal(sanitizeCrmNombre("Alexandra\nEs boda"), "Alexandra");
+    assert.equal(sanitizeCrmNombre("Alexandra"), "Alexandra");
+    assert.ok(!shouldUpdateName("Alexandra", "Alexandra Es Boda"));
+
+    assert.equal(
+      detectPresupuestoRefusal(
+        "Pero no sé muy bien cuál podría ser o que incluiria"
+      ),
+      false
+    );
+    assert.ok(
+      clientAsksInclusion("Pero no sé muy bien cuál podría ser o que incluiria")
+    );
+
+    const vagueInfo =
+      "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. ¿Me pueden dar información?";
+    assert.ok(isVagueFoodTerm(vagueInfo));
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","Entrada, plato fuerte y postre"',
+      '"Banquete Formal 3 tiempos","Premium","$750.00","$15,000.00","TRUE","Entrada premium, fuerte y postre"',
+      '"Banquete Mexicano 4 tiempos","Basico","$600.00","$18,000.00","TRUE","4 tiempos mexicanos"',
+      '"Betún Clásico","Basico","$200.00","$5,000.00","TRUE","betún"',
+      '"Cupcakes","Basico","$150.00","$3,000.00","TRUE","cupcakes"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const first = runGuards({
+      aiResponse:
+        "Manejamos Banquete Formal 3 tiempos en varias opciones: banquete 3 tiempos, Betún Clásico, Cupcakes. ¿Cuál variante?",
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: vagueInfo,
+      forceFirstPresentation: true,
+    });
+    assert.ok(/banquete/i.test(first), first.slice(0, 300));
+    assert.ok(!/bet[uú]n|cupcakes?/i.test(first), first.slice(0, 400));
+    assert.ok(/lucy|bodasesor/i.test(first), first.slice(0, 200));
+    assert.ok(
+      /bodasesor\.com\/catalogos|\$\s*[\d,.]+|nivel|tiempos/i.test(first),
+      first.slice(0, 500)
+    );
+
+    const tiempos = runGuards({
+      aiResponse: "¿Cuál nivel prefieres?",
+      extracted: emptyExtracted({
+        nombre: "Alexandra",
+        tipo_evento: "boda",
+        requerimientos_evento: "banquete",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "De tres tiempos",
+      history: [
+        {
+          role: "assistant",
+          content: "¿Cuál variante y nivel prefieres? Formal 3 tiempos o Mexicano 4 tiempos.",
+        },
+      ],
+    });
+    assert.ok(/3\s*tiempos|Formal/i.test(tiempos), tiempos.slice(0, 400));
+    assert.ok(/nivel|incluye|\$|cat[aá]logo/i.test(tiempos), tiempos.slice(0, 400));
+
+    const incl = runGuards({
+      aiResponse: "Sin problema, lo dejamos por definir. ¿A qué correo te mando la información?",
+      extracted: emptyExtracted({
+        nombre: "Alexandra",
+        tipo_evento: "boda",
+        requerimientos_evento: "Banquete Formal 3 tiempos",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Pero no sé muy bien cuál podría ser o que incluiria",
+      history: [
+        { role: "user", content: "De tres tiempos" },
+        { role: "assistant", content: "¿Cuál nivel prefieres?" },
+      ],
+    });
+    assert.ok(!/lo dejamos por definir/i.test(incl), incl.slice(0, 300));
+    assert.ok(/incluye|nivel|Basico|Premium|cat[aá]logo|\$/i.test(incl), incl.slice(0, 500));
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }

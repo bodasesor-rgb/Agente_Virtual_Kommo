@@ -335,7 +335,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   }
 
   const clientAskedInclusion =
-    /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bpaquetes?\b|\bniveles?\b/i.test(
+    /\bqu[eé]\s+incluye|\bqu[eé]\s+incluir[ií]a|\bincluir[ií]a\b|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bpaquetes?\b|\bniveles?\b|\bno\s+s[eé]\s+(muy\s+bien\s+)?cu[aá]l\b.{0,40}\b(incluir|nivel|opci[oó]n|variante)\b/i.test(
       input.currentMessage ?? ""
     );
   const clientAskedPrice =

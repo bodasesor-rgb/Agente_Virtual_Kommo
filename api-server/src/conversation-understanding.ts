@@ -1788,6 +1788,18 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
   // En un brief largo son parte de la solicitud, no waiver de presupuesto.
   if (t.length > 140) return false;
 
+  // A14947: "no sé cuál nivel / qué incluiría" ≠ waiver de presupuesto.
+  const norm = t
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  if (
+    /\bno\s+se\b/.test(norm) &&
+    /\b(cual|nivel|opcion|variante|paquete|incluir|incluye|podria\s+ser)\b/.test(norm)
+  ) {
+    return false;
+  }
+
   return (
     /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) ||
     /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) ||

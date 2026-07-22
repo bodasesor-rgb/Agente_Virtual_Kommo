@@ -79719,7 +79719,10 @@ function sanitizeCrmNombre(name2) {
     }).join(" ");
   }
   const stripped = stripPresentationPrefixLocal(raw);
-  const cleaned = stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(/\s+/g, " ").trim();
+  const cleaned = stripped.replace(/^Lead:\s*/i, "").replace(/[~_]+/g, " ").replace(
+    /\b(es\s+)?(una?\s+)?(boda|xv\s*a[nñ]os?|cumplea[nñ]os|bautizo|baby\s*shower|aniversario|graduaci[oó]n|evento\s+corporativo)\b/gi,
+    " "
+  ).replace(/\s+/g, " ").trim();
   if (!cleaned || isPlaceholderLeadName(cleaned)) return null;
   if (isGreetingOnlyMessage(cleaned)) return null;
   if (isLikelyUbicacionNotNombre(cleaned)) return null;
@@ -79729,6 +79732,7 @@ function sanitizeCrmNombre(name2) {
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
+    if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
     return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
   });
@@ -79756,7 +79760,9 @@ function shouldUpdateName(current, incoming) {
     return true;
   }
   if (!namesAreLikelySamePerson(c2, iClean)) return false;
-  return isNombreMoreComplete(iClean, c2);
+  const cClean = sanitizeCrmNombre(c2) ?? sanitizeDisplayName(c2) ?? c2;
+  if (cClean.toLowerCase() === iClean.toLowerCase()) return false;
+  return isNombreMoreComplete(iClean, cClean);
 }
 function normalizeNameTokens(name2) {
   return name2.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").split(/\s+/).filter((t) => t.length >= 2);
@@ -80975,6 +80981,10 @@ function detectPresupuestoRefusal(text2) {
     return true;
   }
   if (t.length > 140) return false;
+  const norm2 = t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (/\bno\s+se\b/.test(norm2) && /\b(cual|nivel|opcion|variante|paquete|incluir|incluye|podria\s+ser)\b/.test(norm2)) {
+    return false;
+  }
   return /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?presupuesto\b/i.test(t) || /\b(m[aá]ndame|m[aá]nden)\s+(la\s+)?cotiz/i.test(t) || /\bt[uú]\s+m[aá]ndame\b/i.test(t) || /\bsi\s+quieres\s+vemos\b/i.test(t) || /\b(no\s+s[eé]|no\s+lo\s+s[eé]|ni\s+idea|no\s+tengo\s+idea)(?:\s|$|[.,!?])/i.test(t) || /\ba[uú]n\s+no\s+(?:s[eé]|lo\s+s[eé]|s[eé]\s+cu[aá]nto)/i.test(t) || /\btodav[ií]a\s+no\b/i.test(t) || /\bdespu[eé]s\s+(vemos|platicamos|veo)\b/i.test(t) || /\bcuando\s+(veamos|tengamos|me\s+manden)\b/i.test(t) || /\bustedes\s+me\s+(mandan|env[ií]an|pasan)\b/i.test(t) || /\bmejor\s+(que\s+)?(me\s+)?mand/i.test(t) || /\bque\s+(nos|me|ustedes|ellos)\s+propong/i.test(t) || /\bpropong(an|a)\s+(opciones|algo)\b/i.test(t) || /\bque\s+(nos|me)\s+(den|de)\s+opciones\b/i.test(t) || /\b(el\s+)?equipo\s+(me\s+)?propong/i.test(t);
 }
 function isPresupuestoResuelto(filledSet, texts = [], history) {
@@ -82669,7 +82679,7 @@ function getCatalogPromptBlockSync() {
   return snapshot?.promptBlock ?? CATALOGO_BODASESOR;
 }
 function normalizeForMatch(value) {
-  return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").trim();
+  return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\btres\s*tiempos\b/g, "3 tiempos").replace(/\bcuatro\s*tiempos\b/g, "4 tiempos").replace(/\bdos\s*tiempos\b/g, "2 tiempos").trim();
 }
 function queryTokens(query) {
   const stop2 = /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con|incluye|trae|lleva)$/;
@@ -83218,7 +83228,7 @@ ${webHint ?? `Cat\xE1logo: ${webUrl}`}
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+manejan)\b/i.test(
+  return /\bqu[eé]\s+incluye|\bqu[eé]\s+incluir[ií]a|\bincluir[ií]a\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+manejan)\b|\bno\s+s[eé]\s+(muy\s+bien\s+)?cu[aá]l\b.{0,40}\b(incluir|nivel|opci[oó]n|variante|paquete)\b|\bcu[aá]l\s+podr[ií]a\s+ser\b/i.test(
     t
   );
 }
@@ -85504,6 +85514,22 @@ function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId
   const tipo = (extracted.tipo_evento ?? parseTipoEventoFromText(texts) ?? "").toLowerCase();
   const inv = extracted.num_invitados ?? 0;
   const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
+  const msg = currentMessage ?? "";
+  const wantsInfo = /\binformaci[oó]n|info|detalle|incluye|cotiz|me\s+pueden\s+dar\b/i.test(msg);
+  const isBanqueteVague = /\bbanquetes?\b|\bcatering\b/i.test(msg) && !/\b(taquiza|coffee\s*break|sushi|parrillada)\b/i.test(msg);
+  if (isBanqueteVague && wantsInfo) {
+    const detail = buildCatalogPriceAnswer("banquete") || buildCatalogServiceDetailAnswer("banquete formal 3 tiempos") || buildCatalogServiceDetailAnswer("banquete");
+    const link = buildCatalogWebLinkReply({ query: "banquete" });
+    const intro = "Claro. Para banquetes manejamos *Formal 3 tiempos* y *Mexicano 4 tiempos*, cada uno en varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).";
+    const body2 = detail ? `${intro}
+
+${detail}
+
+${link}` : `${intro}
+
+${link}`;
+    return `${pickTransition(history)} ${body2}`.trim();
+  }
   let options;
   if (gettingReady || /\bboda\b/.test(tipo) && inv > 0 && inv <= 30) {
     options = "Para el getting ready suele ir desayuno o brunch ligero, canap\xE9s o coffee break \u2014 sin pista ni DJ.";
@@ -86079,6 +86105,10 @@ function preferEventOfferReply(opts) {
   if (isValidRequerimientosValue(extracted.requerimientos_evento)) return null;
   if (clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage)) return null;
   const msg = currentMessage?.trim() ?? "";
+  const userBlob = collectUserTexts(history, currentMessage).join(" ");
+  if (/bet[uú]n|cupcakes?|paletas?\s+de\s+hielo|helados?/i.test(aiResponse) && /\bbanquetes?\b|\bcatering\b/i.test(`${msg} ${userBlob} ${extracted.requerimientos_evento ?? ""}`)) {
+    return null;
+  }
   if (msg) {
     const namedService = !!(findMentionedService(msg) || parsePrimaryService(msg));
     const onlyEventType = !!parseTipoEventoFromText(msg) && !namedService && !isServiceRelatedMessage(msg);
@@ -86910,6 +86940,33 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     });
     appliedDirectReply = true;
     log?.info({ entityId, wantFull }, "GUARD: cliente pidi\xF3 cat\xE1logo web \u2014 link del Sheet");
+  } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && !isCatalogLevelSelection(
+    currentMessage,
+    lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
+  )) {
+    const tres = /\b(tres|3)\s*tiempos\b/i.test(currentMessage);
+    const label = tres ? "Banquete Formal 3 tiempos" : "Banquete Mexicano 4 tiempos";
+    filledSet.add("Requerimientos o servicios");
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
+    if (merged) extracted.requerimientos_evento = merged;
+    const detail = buildCatalogPriceAnswer(label) || buildCatalogServiceDetailAnswer(label) || resolveCatalogInclusionReply(label, label);
+    const link = buildCatalogWebLinkReply({ query: label, serviceHint: label });
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
+    mensaje = detail ? `${ack} Anoto *${label}*.
+
+${detail}
+
+${link}
+
+\xBFCu\xE1l nivel prefieres (Solo Alimentos, B\xE1sico, Tradicional o Premium)?` : `${ack} Anoto *${label}*.
+
+${link}
+
+\xBFCu\xE1l nivel prefieres?`;
+    appliedDirectReply = true;
+    appliedSalesReply = true;
+    log?.info({ entityId, label }, "GUARD: variante banquete por tiempos + detalle/link");
   } else if (isCatalogLevelSelection(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
@@ -89767,7 +89824,7 @@ function applyLucyGlobalAntiRepetition(input) {
       input.extracted
     );
   }
-  const clientAskedInclusion = /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bpaquetes?\b|\bniveles?\b/i.test(
+  const clientAskedInclusion = /\bqu[eé]\s+incluye|\bqu[eé]\s+incluir[ií]a|\bincluir[ií]a\b|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bpaquetes?\b|\bniveles?\b|\bno\s+s[eé]\s+(muy\s+bien\s+)?cu[aá]l\b.{0,40}\b(incluir|nivel|opci[oó]n|variante)\b/i.test(
     input.currentMessage ?? ""
   );
   const clientAskedPrice = /\bprecios?\b|\bcostos?\b|\bcu[aá]nto\s+cuesta|\btarifa\b|\bver\s+(los\s+)?precios?\b/i.test(
