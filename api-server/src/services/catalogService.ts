@@ -1122,6 +1122,26 @@ export function buildCatalogPriceAnswer(query: string): string | null {
   if (resolved.kind === "service") {
     const priced = resolved.rows.filter((r) => r.tienePrecio && r.precio);
     if (priced.length > 1) {
+      // Pregunta de precio: siempre citar cifras ($), no solo nombres de nivel/variante.
+      const unique = [
+        ...new Map(priced.map((row) => [`${row.servicio}|${row.nivel}`, row])).values(),
+      ];
+      const baseName = resolved.serviceName ?? unique[0]!.servicio;
+      const priceLines = unique
+        .slice(0, 6)
+        .map((row) => {
+          const parsed = parseRowNotes(row.notas);
+          const nivel = extractNivelLabel(row);
+          const unit = row.unidad ? ` ${row.unidad}` : "";
+          const min = parsed.minimo ? ` (mín. ${parsed.minimo})` : "";
+          const svcBit =
+            uniqueServicios(unique).length > 1 ? `${row.servicio} — ` : "";
+          return `• *${svcBit}${nivel}* — ${row.precio}${unit}${min}`;
+        })
+        .join("\n");
+      if (priceLines) {
+        return `Sí, manejamos ${baseName}:\n\n${priceLines}\n\n¿Qué nivel te interesa?`;
+      }
       return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
     }
     if (priced.length === 1) {

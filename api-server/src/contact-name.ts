@@ -91,6 +91,21 @@ export function isGreetingOnlyMessage(text: string | null | undefined): boolean 
   if (/^que\s*tal$/.test(normalized) || /^buenas?$/.test(normalized) || /^saludos?$/.test(normalized)) {
     return true;
   }
+  // "buenas, información" / "hola info" / "buenas cotización" — apertura vaga, no nombre.
+  if (
+    /^(hola|hello|hi|hey|buenas?)([,\s]+)+(informacion|info|ayuda|cotizar|cotizacion)\s*$/.test(
+      normalized
+    )
+  ) {
+    return true;
+  }
+  if (
+    /^(buen(os|as)?\s+(dias?|tardes?|noches?))([,\s]+)+(informacion|info|ayuda|cotizar|cotizacion)\s*$/.test(
+      normalized
+    )
+  ) {
+    return true;
+  }
   return false;
 }
 

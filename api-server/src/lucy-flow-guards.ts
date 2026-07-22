@@ -23,6 +23,8 @@ import {
 } from "./client-email.js";
 import {
   buildModoServicioClarificationQuestion,
+  buildPedidoEntregaReply,
+  detectModoServicio,
   needsModoServicioClarification,
 } from "./modoServicio.js";
 import { normalizeAdvisorReferences, advisorLabelForClient, stripInternalCrmBlock } from "./lib/bodasesorAdvisor.js";
@@ -1603,6 +1605,22 @@ export function enforceNombreFirst(
     }
     if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
       return buildFirstInteractionMessage(ctx, true);
+    }
+    // Precio a media captura: no borrar la cifra/niveles por forzar solo el nombre.
+    if (
+      clientAsksPrice(ctx.currentMessage) &&
+      _mensaje.trim().length > 40 &&
+      (messageClaimsPrice(_mensaje) || /\$\s*\d|precio|costo|nivel|manejamos/i.test(_mensaje))
+    ) {
+      if (
+        !mensajeAsksForField(_mensaje, "nombre") &&
+        !/\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo)\b/i.test(
+          _mensaje
+        )
+      ) {
+        return `${_mensaje}\n\n${buildNaturalQuestion("nombre", ctx)}`.trim();
+      }
+      return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
     }
     return buildNaturalQuestion("nombre", ctx);
   }
@@ -3372,6 +3390,36 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId, tipo: extracted.tipo_evento }, "GUARD: ofrecimiento temprano — redacción OpenAI");
   } else if (
+    !cierreYaEnviado &&
+    (extracted.modo_servicio === "pedido_entrega" ||
+      detectModoServicio(currentMessage) === "pedido_entrega")
+  ) {
+    // Pedido/entrega a domicilio: NUNCA cotizar como barra por persona / chefs en sitio.
+    // Debe ir ANTES del primer turno con buildGuardServiceAck (barra/niveles).
+    extracted.modo_servicio = "pedido_entrega";
+    if (/\bsushi|pizza|poke|rollos?\b/i.test(currentMessage ?? "")) {
+      filledSet.add("Requerimientos o servicios");
+      const label = /\bsushi\b/i.test(currentMessage ?? "")
+        ? "pedido sushi (entrega)"
+        : /\bpizzas?\b/i.test(currentMessage ?? "")
+          ? "pedido pizza (entrega)"
+          : "pedido/entrega";
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
+      if (merged) extracted.requerimientos_evento = merged;
+    }
+    const pedidoBody = buildPedidoEntregaReply(currentMessage);
+    const isOpening =
+      (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+      !conversationAlreadyStarted(filledSet, presHistory);
+    const pedidoReply =
+      isOpening && !/hola,?\s*soy\s+lucy/i.test(pedidoBody)
+        ? `${LUCY_INTRO} ${pedidoBody}`
+        : pedidoBody;
+    // buildPedidoEntregaReply ya pide nombre; no apilar otra pregunta del embudo.
+    mensaje = pedidoReply;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: modo pedido/entrega — sin barra pp");
+  } else if (
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
     !conversationAlreadyStarted(filledSet, presHistory) &&
     clientMentionsItalianTheme(currentMessage) &&
@@ -3654,10 +3702,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     allowSalesReplyOverride &&
     clientAsksServiceInfo(currentMessage) &&
     isServiceRelatedMessage(currentMessage) &&
+    !clientAsksPrice(currentMessage) &&
     !cierreYaEnviado
   ) {
     // Preferir oferta con niveles + pregunta de catálogo (como food-sales),
     // no solo un ack corto que salta al embudo.
+    // Precio SKU → rama clientAsksPrice (buildCatalogPriceAnswer), no detalle sin $.
     const cateringAnswer = buildFoodSalesReply(
       extracted,
       history,
@@ -3714,6 +3764,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     allowSalesReplyOverride &&
     !serviceAlreadyCaptured &&
+    !clientAsksPrice(currentMessage) &&
     (clientMentionsCatering(currentMessage) ||
       (justAnsweredReq && isServiceRelatedMessage(currentMessage)) ||
       (!!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage)))
@@ -4283,6 +4334,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           pending && pending !== "requerimientos"
             ? `${ack}\n\n${buildNaturalQuestion(pending, { ...ctx, filledSet })}`
             : ack;
+      }
+    }
+    // Precio a media captura: el early-return de ventas no debe saltarse el Sheet.
+    if (clientAsksPrice(currentMessage) && !messageClaimsPrice(mensaje)) {
+      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+      if (fromCatalog) {
+        const pendingFinal = getNextPendingField(extracted, filledSet);
+        mensaje =
+          pendingFinal && needsNextStep && !trulyReadyForClosing
+            ? `${fromCatalog}\n\n${buildNaturalQuestion(pendingFinal, ctx)}`
+            : fromCatalog;
+        log?.info({ entityId }, "GUARD: precio del Sheet en rama de ventas");
       }
     }
     // Primer turno con pitch de venta: intro Lucy + nombre si falta (A14929).

@@ -79584,6 +79584,16 @@ function isGreetingOnlyMessage(text2) {
   if (/^que\s*tal$/.test(normalized) || /^buenas?$/.test(normalized) || /^saludos?$/.test(normalized)) {
     return true;
   }
+  if (/^(hola|hello|hi|hey|buenas?)([,\s]+)+(informacion|info|ayuda|cotizar|cotizacion)\s*$/.test(
+    normalized
+  )) {
+    return true;
+  }
+  if (/^(buen(os|as)?\s+(dias?|tardes?|noches?))([,\s]+)+(informacion|info|ayuda|cotizar|cotizacion)\s*$/.test(
+    normalized
+  )) {
+    return true;
+  }
   return false;
 }
 var NAME_STOPWORDS = /^(en|de|del|la|el|los|las|un|una|al|para|por|con|sin|y|o)$/i;
@@ -83269,6 +83279,25 @@ function buildCatalogPriceAnswer(query) {
   if (resolved.kind === "service") {
     const priced = resolved.rows.filter((r2) => r2.tienePrecio && r2.precio);
     if (priced.length > 1) {
+      const unique2 = [
+        ...new Map(priced.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()
+      ];
+      const baseName2 = resolved.serviceName ?? unique2[0].servicio;
+      const priceLines2 = unique2.slice(0, 6).map((row) => {
+        const parsed = parseRowNotes(row.notas);
+        const nivel = extractNivelLabel(row);
+        const unit = row.unidad ? ` ${row.unidad}` : "";
+        const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
+        const svcBit = uniqueServicios(unique2).length > 1 ? `${row.servicio} \u2014 ` : "";
+        return `\u2022 *${svcBit}${nivel}* \u2014 ${row.precio}${unit}${min}`;
+      }).join("\n");
+      if (priceLines2) {
+        return `S\xED, manejamos ${baseName2}:
+
+${priceLines2}
+
+\xBFQu\xE9 nivel te interesa?`;
+      }
       return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
     }
     if (priced.length === 1) {
@@ -84689,7 +84718,7 @@ function appendHistory(chatId, userText, assistantText) {
 }
 
 // src/modoServicio.ts
-var PEDIDO_ENTREGA = /\b(para\s+llevar|entrega|que\s+me\s+dejen|que\s+me\s+entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
+var PEDIDO_ENTREGA = /\b(para\s+llevar|a\s+domicilio|en\s+mi\s+casa|entrega|que\s+me\s+(los?\s+|las?\s+)?dejen|que\s+me\s+(los?\s+|las?\s+)?entreguen|solo\s+los?\s+rollos?|solo\s+el\s+producto|sin\s+montaje|pedido\s+de|un\s+pedido\s+de|cantidad\s+de\s+\d+|piezas?\s+de)\b/i;
 var SERVICIO_MONTADO = /\b(montado\s+en|en\s+el\s+evento|barra\s+en|estaci[oó]n\s+en|meseros|servicio\s+en\s+el|montaje\s+en|en\s+mi\s+evento|en\s+la\s+fiesta)\b/i;
 function detectModoServicio(text2) {
   const t = text2?.trim() ?? "";
@@ -84706,6 +84735,14 @@ function needsModoServicioClarification(text2, current) {
 }
 function buildModoServicioClarificationQuestion() {
   return "\xBFLo quieres montado en tu evento con barra y servicio, o solo la entrega del producto?";
+}
+function buildPedidoEntregaReply(message) {
+  const t = message?.trim() ?? "";
+  const qtyMatch = t.match(/(\d+)\s*(rollos?|piezas?|platos?)/i);
+  const qtyLabel = qtyMatch ? `${qtyMatch[1]} ${qtyMatch[2]}` : null;
+  const product = /\bsushi\b/i.test(t) ? "sushi" : /\bpizzas?\b/i.test(t) ? "pizza" : /\bpoke\b/i.test(t) ? "poke" : "producto";
+  const what = qtyLabel ? `${qtyLabel} de ${product}` : `tu pedido de ${product}`;
+  return `Perfecto \u2014 lo tomo como *pedido/entrega a domicilio* (sin barra ni chefs en el evento). Para ${what}, nuestro equipo te arma la cotizaci\xF3n exacta seg\xFAn cantidad y zona de entrega. \xBFMe regalas tu nombre para pas\xE1rselo?`;
 }
 
 // src/tipoContacto.ts
@@ -85936,6 +85973,16 @@ function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPrese
     if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
       return buildFirstInteractionMessage(ctx, true);
     }
+    if (clientAsksPrice(ctx.currentMessage) && _mensaje.trim().length > 40 && (messageClaimsPrice(_mensaje) || /\$\s*\d|precio|costo|nivel|manejamos/i.test(_mensaje))) {
+      if (!mensajeAsksForField(_mensaje, "nombre") && !/\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo)\b/i.test(
+        _mensaje
+      )) {
+        return `${_mensaje}
+
+${buildNaturalQuestion("nombre", ctx)}`.trim();
+      }
+      return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
+    }
     return buildNaturalQuestion("nombre", ctx);
   }
   return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
@@ -86989,6 +87036,20 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
     });
     appliedDirectReply = true;
     log?.info({ entityId, tipo: extracted.tipo_evento }, "GUARD: ofrecimiento temprano \u2014 redacci\xF3n OpenAI");
+  } else if (!cierreYaEnviado && (extracted.modo_servicio === "pedido_entrega" || detectModoServicio(currentMessage) === "pedido_entrega")) {
+    extracted.modo_servicio = "pedido_entrega";
+    if (/\bsushi|pizza|poke|rollos?\b/i.test(currentMessage ?? "")) {
+      filledSet.add("Requerimientos o servicios");
+      const label = /\bsushi\b/i.test(currentMessage ?? "") ? "pedido sushi (entrega)" : /\bpizzas?\b/i.test(currentMessage ?? "") ? "pedido pizza (entrega)" : "pedido/entrega";
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
+      if (merged) extracted.requerimientos_evento = merged;
+    }
+    const pedidoBody = buildPedidoEntregaReply(currentMessage);
+    const isOpening = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory);
+    const pedidoReply = isOpening && !/hola,?\s*soy\s+lucy/i.test(pedidoBody) ? `${LUCY_INTRO} ${pedidoBody}` : pedidoBody;
+    mensaje = pedidoReply;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: modo pedido/entrega \u2014 sin barra pp");
   } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && clientMentionsItalianTheme(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
@@ -87187,7 +87248,7 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: inclusiones/descripciones de paquete (temprano)");
     }
-  } else if (allowSalesReplyOverride && clientAsksServiceInfo(currentMessage) && isServiceRelatedMessage(currentMessage) && !cierreYaEnviado) {
+  } else if (allowSalesReplyOverride && clientAsksServiceInfo(currentMessage) && isServiceRelatedMessage(currentMessage) && !clientAsksPrice(currentMessage) && !cierreYaEnviado) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
       history,
@@ -87237,7 +87298,7 @@ ${nextQ}`.trim();
       appliedSalesReply = true;
       log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 responder con detalle");
     }
-  } else if (allowSalesReplyOverride && !serviceAlreadyCaptured && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
+  } else if (allowSalesReplyOverride && !serviceAlreadyCaptured && !clientAsksPrice(currentMessage) && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
       history,
@@ -87649,6 +87710,16 @@ ${nextQ}`;
         mensaje = pending && pending !== "requerimientos" ? `${ack}
 
 ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
+      }
+    }
+    if (clientAsksPrice(currentMessage) && !messageClaimsPrice(mensaje)) {
+      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+      if (fromCatalog) {
+        const pendingFinal = getNextPendingField(extracted, filledSet);
+        mensaje = pendingFinal && needsNextStep && !trulyReadyForClosing ? `${fromCatalog}
+
+${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
+        log?.info({ entityId }, "GUARD: precio del Sheet en rama de ventas");
       }
     }
     if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted)) {

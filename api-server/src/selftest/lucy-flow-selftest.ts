@@ -1400,6 +1400,10 @@ async function runAll(): Promise<void> {
 
   await test("28. Lucy V7 — pedido/entrega, número ambiguo, orden ubicación→fecha→invitados", () => {
     assert.equal(detectModoServicio("quiero 50 rollos para llevar"), "pedido_entrega");
+    assert.equal(
+      detectModoServicio("Solo quiero 50 rollos de sushi y que me los dejen en mi casa, ¿cuánto?"),
+      "pedido_entrega"
+    );
     assert.equal(detectModoServicio("barra de sushi montada en el evento"), "servicio_montado");
     assert.ok(needsModoServicioClarification("necesito 50 rollos de sushi", null));
     assert.equal(parseInvitadosFromText("5"), null);
@@ -1413,6 +1417,23 @@ async function runAll(): Promise<void> {
       "Requerimientos o servicios",
     ]);
     assert.equal(getNextPendingField(emptyExtracted(), filled), "zona");
+
+    const pedidoMsg =
+      "Solo quiero 50 rollos de sushi y que me los dejen en mi casa, ¿cuánto?";
+    const pedidoEx = emptyExtracted();
+    const pedidoReply = runGuards({
+      aiResponse: "Sí, la barra de sushi inicia en $280 por persona con chefs en sitio.",
+      extracted: pedidoEx,
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: pedidoMsg,
+      forceFirstPresentation: true,
+    });
+    assert.equal(pedidoEx.modo_servicio, "pedido_entrega");
+    assert.ok(/pedido\/entrega|domicilio|entrega/i.test(pedidoReply), pedidoReply);
+    assert.ok(/nuestro equipo|cotizaci[oó]n exacta/i.test(pedidoReply), pedidoReply);
+    assert.ok(!/por persona|chefs en sitio|montaje de barra/i.test(pedidoReply), pedidoReply);
+    assert.ok(/lucy|bodasesor/i.test(pedidoReply), pedidoReply);
   });
 
   await test("29. Replit — transiciones, anti-robot, servicios sin precio consultivos", () => {
@@ -1832,7 +1853,31 @@ async function runAll(): Promise<void> {
     assert.equal(banquete!.kind, "service");
     const banquetePrice = buildCatalogPriceAnswer("banquete");
     assert.ok(banquetePrice);
-    assert.ok(/prefieres|niveles|opciones|tiempos/i.test(banquetePrice!), banquetePrice);
+    assert.ok(
+      /\$\s*[\d,.]+|[\d,.]+\s*(?:mil|mxn|pesos)|desde\s+\$?\s*[\d,.]+/i.test(banquetePrice!),
+      `precio banquete debe citar cifra: ${banquetePrice}`
+    );
+    assert.ok(/nivel|interes|prefieres|opciones|tiempos/i.test(banquetePrice!), banquetePrice);
+
+    const midPriceEx = emptyExtracted({
+      requerimientos_evento: "banquete",
+      tipo_evento: "boda",
+    });
+    const midPrice = runGuards({
+      aiResponse: "Manejamos varios niveles de banquete. ¿Cómo te llamas?",
+      extracted: midPriceEx,
+      filledSet: new Set(["Requerimientos o servicios", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "¿cuánto cuesta el banquete?",
+      history: [
+        { role: "user", content: "quiero un banquete para mi boda" },
+        { role: "assistant", content: "Claro. ¿Cómo te llamas?" },
+      ],
+    });
+    assert.ok(
+      /\$\s*[\d,.]+|[\d,.]+\s*(?:mil|mxn|pesos)|desde\s+\$?\s*[\d,.]+/i.test(midPrice),
+      midPrice.slice(0, 400)
+    );
 
     const exact = resolveCatalogQuery("banquete premium 4 tiempos");
     assert.ok(exact);
@@ -2764,8 +2809,20 @@ async function runAll(): Promise<void> {
     assert.equal(isGreetingOnlyMessage("Hola buen día"), true);
     assert.equal(isGreetingOnlyMessage("buen día"), true);
     assert.equal(isGreetingOnlyMessage("Buenos días"), true);
+    assert.equal(isGreetingOnlyMessage("buenas, información"), true);
+    assert.equal(isGreetingOnlyMessage("hola info"), true);
     assert.equal(sanitizeCrmNombre("Buen Día"), null);
     assert.equal(sanitizeDisplayName("Hola buen día"), null);
+
+    const vagueOpen = runGuards({
+      aiResponse: "Claro, ¿qué necesitas?",
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: "buenas, información",
+      forceFirstPresentation: true,
+    });
+    assert.ok(/lucy|agente virtual|bodasesor/i.test(vagueOpen), vagueOpen);
 
     assert.ok(clientAsksCompanyIdentity("¿Me comunico con Cap&Bata eventos?"));
     assert.ok(clientAsksCompanyIdentity("¿Me comunico con Cap&Bara eventos?"));
