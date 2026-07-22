@@ -342,11 +342,16 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     /\bprecios?\b|\bcostos?\b|\bcu[aá]nto\s+cuesta|\btarifa\b|\bver\s+(los\s+)?precios?\b/i.test(
       input.currentMessage ?? ""
     );
+  // Info de servicio / "dame información" — no colapsar detalle Sheet (V8.35).
+  const clientAskedServiceInfo =
+    /\binformaci[oó]n|\binfo\b|\bdame\s+(info|detalle|datos)|\bme\s+(pueden|pueden)\s+dar|\bcu[eé]ntenme|\bexpl[ií]ca/i.test(
+      input.currentMessage ?? ""
+    );
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
   const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
   // Catálogo "de detalle" (inclusiones/niveles/show) — proteger salvo reenvío idéntico.
   const isCatalogDetailReply =
-    /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres/i.test(
+    /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d/i.test(
       mensaje
     ) || isEntertainmentCatalog;
 
@@ -402,10 +407,15 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
 
   // 4) Catálogo ya enviado en un turno reciente → no reenviar el bloque completo.
   // (A14920 show/MC: primer envío se conserva; A14924 cumpleaños: segundo se corta.)
+  // V8.35: NUNCA colapsar si el mensaje trae detalle Sheet (Incluye/niveles/precio)
+  // ni si el cliente pide info/inclusiones/precio.
   if (
     !cierre &&
     hasCatalogNow &&
+    !isCatalogDetailReply &&
     !clientAskedInclusion &&
+    !clientAskedPrice &&
+    !clientAskedServiceInfo &&
     !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") &&
     previous.some((p) => CATALOG_SEND_PATTERN.test(p))
   ) {

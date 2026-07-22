@@ -173,6 +173,8 @@ import {
   CATALOG_WEB_HUB_URL,
   CATALOG_OFFER_QUESTION,
   ensureCatalogWebLink,
+  attachAvailableSheetDetail,
+  messageHasSheetServiceDetail,
   toDeliverableCatalogUrl,
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
@@ -5443,6 +5445,71 @@ async function runAll(): Promise<void> {
     });
     assert.ok(hasUrl(sushiInfo), sushiInfo.slice(0, 500));
     assert.ok(!/quieres que te mande el catálogo/i.test(sushiInfo) || hasUrl(sushiInfo), sushiInfo.slice(0, 300));
+  });
+
+  await test("93. Detalle Sheet — niveles/incluye en info y primer turno (no solo link)", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye"',
+      '"Coffee Break","Basico","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café, pan dulce y fruta"',
+      '"Coffee Break","Premium","$250.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café premium, jugo y snacks"',
+      '"Barra de sushi","Basico","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","8 rollos y soya"',
+      '"Barra de sushi","Premium","$550.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","12 rollos y chef"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const detail = attachAvailableSheetDetail("coffee break");
+    assert.ok(detail, "attachAvailableSheetDetail debe devolver texto");
+    assert.ok(messageHasSheetServiceDetail(detail!), detail);
+    assert.ok(/incluye|Café|pan dulce|\$\s*180|Basico|Premium/i.test(detail!), detail);
+    assert.ok(/bodasesor\.com\/catalogos/i.test(detail!), detail);
+
+    // Solo URL no cuenta como detalle Sheet.
+    assert.equal(
+      messageHasSheetServiceDetail("Catálogo:\nhttps://bodasesor.com/catalogos/coffee-break"),
+      false
+    );
+    assert.equal(
+      historyAlreadyOfferedServiceDetail([
+        { role: "assistant", content: "Catálogo:\nhttps://bodasesor.com/catalogos/coffee-break" },
+      ]),
+      false
+    );
+    assert.ok(
+      historyAlreadyOfferedServiceDetail([{ role: "assistant", content: detail! }])
+    );
+
+    const first = buildFirstInteractionMessage(
+      {
+        extracted: emptyExtracted({ requerimientos_evento: "coffee break" }),
+        filledSet: new Set(["Requerimientos o servicios"]),
+        history: [],
+        currentMessage: "Hola, me interesa cotizar coffee break para un evento corporativo",
+      },
+      true
+    );
+    assert.ok(/lucy|bodasesor/i.test(first), first.slice(0, 200));
+    assert.ok(
+      /incluye|Café|Basico|Premium|\$\s*180|nivel/i.test(first),
+      `primer turno debe traer detalle Sheet: ${first.slice(0, 600)}`
+    );
+
+    const info = runGuards({
+      aiResponse: "Claro, ¿cuántos invitados?",
+      extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "corporativo" }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "dame información del coffee break",
+      history: [],
+    });
+    assert.ok(
+      /incluye|Café|pan dulce|Basico|Premium/i.test(info),
+      `info debe usar Incluye del Sheet: ${info.slice(0, 600)}`
+    );
+    assert.ok(/bodasesor\.com\/catalogos/i.test(info), info.slice(0, 400));
+
+    const price = buildCatalogPriceAnswer("barra de sushi") || "";
+    assert.ok(/\$\s*\d/.test(price), price);
+    assert.ok(/incluye|rollos/i.test(price), `precio multi-nivel debe traer Incluye: ${price}`);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

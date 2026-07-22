@@ -57,6 +57,8 @@ import {
   CATALOG_OFFER_QUESTION,
   messageOffersCatalogLink,
   ensureCatalogWebLink,
+  attachAvailableSheetDetail,
+  messageHasSheetServiceDetail,
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
   getCatalogWebHubDeliveryUrl,
@@ -1065,19 +1067,34 @@ function buildFoodSalesReply(
       const intro = mentionedService
         ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
         : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
-      // V8.34: al explicar el servicio, siempre va el link del catálogo.
+      // V8.34/V8.35: detalle Sheet + link del catálogo.
       return ensureCatalogWebLink(
         `${intro}\n\n${detail}`.trim(),
         mentionedService || query || serviceLabel
       );
     }
 
+    // Fallback: precio/inclusiones si el detail principal falló el match filter.
+    const forced =
+      attachAvailableSheetDetail(
+        mentionedService || query || serviceLabel || currentMessage || "",
+        mentionedService || serviceLabel
+      ) || null;
+    if (forced) {
+      const intro = mentionedService
+        ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
+        : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
+      return `${intro}\n\n${forced}`.trim();
+    }
+
     if (serviceLabel && currentMessage) {
+      const ack = buildGuardServiceAck(currentMessage);
+      // Si el ack ya trae Sheet detail, no diluirlo.
+      if (messageHasSheetServiceDetail(ack)) {
+        return ensureCatalogWebLink(ack, serviceLabel);
+      }
       return ensureCatalogWebLink(
-        appendNext(
-          `${pickTransition(history)} ${buildGuardServiceAck(currentMessage)}`,
-          serviceLabel
-        ),
+        appendNext(`${pickTransition(history)} ${ack}`, serviceLabel),
         serviceLabel
       );
     }
@@ -1531,7 +1548,23 @@ export function buildFirstInteractionMessage(
     return `${intro}${buildItalianFoodPitch(ctx.currentMessage)} ${nameQ}`.trim();
   }
 
-  const catalogBlock = includeCatalog ? `\n\n${buildPackageCatalogOfferBlock()}` : "";
+  // V8.35: servicio concreto → detalle Sheet (niveles/incluye/precio) en el primer turno.
+  const svcHint =
+    (isValidRequerimientosValue(ctx.extracted.requerimientos_evento)
+      ? ctx.extracted.requerimientos_evento
+      : null) ||
+    parsePrimaryService(userText) ||
+    parsePrimaryService(ctx.currentMessage ?? "") ||
+    (multiServices.length === 1 ? multiServices[0]! : null);
+  const sheetDetail =
+    !includeCatalog && svcHint
+      ? attachAvailableSheetDetail(svcHint, svcHint)
+      : null;
+  const catalogBlock = includeCatalog
+    ? `\n\n${buildPackageCatalogOfferBlock()}`
+    : sheetDetail
+      ? `\n\n${sheetDetail}`
+      : "";
 
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
@@ -1646,14 +1679,16 @@ export function enforceNombreFirst(
     if (pending && pending !== "nombre") {
       return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
     }
-    if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
-      return buildFirstInteractionMessage(ctx, true);
-    }
-    // Precio a media captura: no borrar la cifra/niveles por forzar solo el nombre.
+    // V8.35: si ya hay detalle Sheet (niveles/incluye/precio), no borrarlo —
+    // pedir nombre al final (igual que precio mid-captura).
     if (
-      clientAsksPrice(ctx.currentMessage) &&
-      _mensaje.trim().length > 40 &&
-      (messageClaimsPrice(_mensaje) || /\$\s*\d|precio|costo|nivel|manejamos/i.test(_mensaje))
+      messageHasSheetServiceDetail(_mensaje) ||
+      (clientAsksPrice(ctx.currentMessage) &&
+        _mensaje.trim().length > 40 &&
+        (messageClaimsPrice(_mensaje) || /\$\s*\d|precio|costo|nivel|manejamos/i.test(_mensaje))) ||
+      (clientAsksServiceInfo(ctx.currentMessage) &&
+        _mensaje.trim().length > 40 &&
+        /\$\s*\d|nivel|incluye|manejamos/i.test(_mensaje))
     ) {
       if (
         !mensajeAsksForField(_mensaje, "nombre") &&
@@ -1664,6 +1699,9 @@ export function enforceNombreFirst(
         return `${_mensaje}\n\n${buildNaturalQuestion("nombre", ctx)}`.trim();
       }
       return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
+    }
+    if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
+      return buildFirstInteractionMessage(ctx, true);
     }
     return buildNaturalQuestion("nombre", ctx);
   }
@@ -2444,25 +2482,14 @@ export function buildPackageCatalogOfferBlock(): string {
   ].join("\n");
 }
 
-/** ¿Lucy ya ofreció niveles / precios / catálogo de un servicio en esta conversación? */
+/** ¿Lucy ya ofreció niveles / Incluye / precios del Sheet (no solo un link)? */
 export function historyAlreadyOfferedServiceDetail(
   history: OpenAI.Chat.ChatCompletionMessageParam[]
 ): boolean {
   return history.some((m) => {
     if (m.role !== "assistant" || typeof m.content !== "string") return false;
-    const t = m.content;
-    if (messageOffersCatalogLink(t)) return true;
-    if (/manejamos estos niveles|¿cu[aá]l nivel prefieres/i.test(t)) return true;
-    if (/\*precio:\*/i.test(t) && /manejamos/i.test(t)) return true;
-    // Oferta con precios de niveles (Básico/Tradicional/Premium).
-    if (
-      /\$\s*\d/.test(t) &&
-      /\b(b[aá]sic|tradicional|premium|solo alimentos)\b/i.test(t) &&
-      /\b(nivel|manejamos|pp|\/pp|por persona)\b/i.test(t)
-    ) {
-      return true;
-    }
-    return false;
+    // V8.35: URL sola (ensureCatalogWebLink) NO cuenta como detalle Sheet.
+    return messageHasSheetServiceDetail(m.content);
   });
 }
 
@@ -3377,9 +3404,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     ];
     // Si el Sheet tiene detalle del nivel, úsalo; si no, ack + siguiente dato del embudo.
     const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
-    const detail = buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
-    if (detail && /incluye|\$\s*\d|nivel/i.test(detail) && !(emailNow && nextQ)) {
-      mensaje = ensureCatalogWebLink(detail, hint);
+    const detail =
+      attachAvailableSheetDetail(`${hint} ${nivel}`, hint) ||
+      buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
+    if (detail && /incluye|\$\s*\d|nivel/i.test(detail)) {
+      // V8.35: detalle Sheet primero; embudo (correo/zona) después, no en su lugar.
+      mensaje = nextQ
+        ? `${ensureCatalogWebLink(detail, hint)}\n\n${nextQ}`
+        : ensureCatalogWebLink(detail, hint);
     } else {
       mensaje = ensureCatalogWebLink(
         `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim(),
@@ -3387,6 +3419,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       );
     }
     appliedDirectReply = true;
+    appliedSalesReply = true;
     log?.info({ entityId, nivel, hasEmail: !!emailNow }, "GUARD: selección de nivel de catálogo");
   } else if (isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     mensaje = "¿Te refieres a 5 invitados o al día 5 del mes?";
@@ -3635,9 +3668,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !clientAsksLocation(currentMessage) &&
     !isFieldSatisfied("nombre", filledSet, extracted)
   ) {
-    mensaje = `${LUCY_INTRO} ${buildGuardServiceAck(currentMessage)} ${pickVariant("nombre", presHistory, entityId)}`;
+    const svc =
+      parsePrimaryService(currentMessage ?? "") ||
+      findMentionedService(currentMessage ?? "") ||
+      currentMessage ||
+      "";
+    const sheet =
+      attachAvailableSheetDetail(svc, svc) ||
+      (messageHasSheetServiceDetail(buildGuardServiceAck(currentMessage ?? ""))
+        ? buildGuardServiceAck(currentMessage ?? "")
+        : null);
+    mensaje = sheet
+      ? `${LUCY_INTRO}\n\n${sheet}\n\n${pickVariant("nombre", presHistory, entityId)}`
+      : `${LUCY_INTRO} ${buildGuardServiceAck(currentMessage)} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: servicio consultivo en primer turno");
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: servicio consultivo en primer turno + detalle Sheet");
   } else if (
     (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
     !conversationAlreadyStarted(filledSet, presHistory) &&
@@ -3645,7 +3691,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   ) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: primer mensaje — presentación Lucy + nombre (sin oferta)");
+    if (messageHasSheetServiceDetail(mensaje)) appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: primer mensaje — presentación Lucy + nombre (+ detalle si hay servicio)");
   } else if (
     // A14933: precio ANTES de upsell mantelería / detalle mobiliario genérico.
     !cierreYaEnviado &&
@@ -3955,9 +4002,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   } else if (
     allowSalesReplyOverride &&
-    !serviceAlreadyCaptured &&
+    // V8.35: si pide info/detalle, reexplicar aunque el servicio ya esté capturado.
+    (!serviceAlreadyCaptured ||
+      clientAsksServiceInfo(currentMessage) ||
+      clientAsksInclusion(currentMessage)) &&
     !clientAsksPrice(currentMessage) &&
     (clientMentionsCatering(currentMessage) ||
+      clientAsksServiceInfo(currentMessage) ||
       (justAnsweredReq && isServiceRelatedMessage(currentMessage)) ||
       (!!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage)))
   ) {

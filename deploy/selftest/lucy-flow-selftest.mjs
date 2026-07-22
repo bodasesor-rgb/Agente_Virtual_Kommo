@@ -4040,6 +4040,45 @@ ${toDeliverableCatalogUrl(url)}`;
 Cat\xE1logo:
 ${getCatalogWebHubDeliveryUrl()}`;
 }
+function messageHasSheetServiceDetail(text) {
+  if (!text?.trim()) return false;
+  const t = text;
+  if (/detalle de lo que incluye cada nivel est[aá] en el cat[aá]logo/i.test(t) && !/\$\s*\d/.test(t) && !/incluye\s*:\s*\S.{7,}/i.test(t)) {
+    return false;
+  }
+  if (/incluye\s*:\s*\S.{7,}/i.test(t) && !/el\s+equipo\s+lo\s+confirma/i.test(t)) return true;
+  if (/qu[eé]\s+incluye\s+cada\s+nivel\s*:/i.test(t)) return true;
+  if (/manejamos estos niveles/i.test(t)) return true;
+  if (/\*precio:\*/i.test(t) && /manejamos/i.test(t)) return true;
+  if (/\$\s*\d/.test(t) && /\b(b[aá]sic|tradicional|premium|solo alimentos)\b/i.test(t) && /\b(nivel|manejamos|pp|\/pp|por persona)\b/i.test(t)) {
+    return true;
+  }
+  return false;
+}
+function attachAvailableSheetDetail(query, serviceHint) {
+  const attempts = [
+    serviceHint?.trim() || null,
+    query.trim() || null,
+    [serviceHint, query].filter(Boolean).join(" ").trim() || null
+  ].filter((a) => !!a);
+  for (const a of attempts) {
+    const candidates = [
+      buildCatalogServiceDetailAnswer(a),
+      buildCatalogPriceAnswer(a),
+      buildCatalogInclusionAnswer(a),
+      buildInclusionTeamConfirmationAnswer(a)
+    ].filter((d) => !!d);
+    for (const detail of candidates) {
+      if (/detalle de lo que incluye cada nivel est[aá] en el cat[aá]logo/i.test(detail) && !/\$\s*\d/.test(detail) && !/incluye\s*:\s*\S.{7,}/i.test(detail)) {
+        continue;
+      }
+      if (messageHasSheetServiceDetail(detail) || /\$\s*\d/.test(detail) && /\b(nivel|Basico|Básico|Premium|Tradicional|manejamos|pp)\b/i.test(detail)) {
+        return ensureCatalogWebLink(detail, a);
+      }
+    }
+  }
+  return null;
+}
 function withCatalogOfferQuestion(text, query) {
   const body = text.trim();
   if (!body) return body;
@@ -4435,11 +4474,14 @@ function buildCatalogPriceAnswer(query) {
         return `\u2022 *${svcBit}${nivel}* \u2014 ${row.precio}${unit}${min}`;
       }).join("\n");
       if (priceLines2) {
-        return withLink(`S\xED, manejamos ${baseName2}:
+        const inclusionBlock2 = buildInclusionBlock(unique2, 220);
+        return withLink(
+          `S\xED, manejamos ${baseName2}:
 
-${priceLines2}
+${priceLines2}${inclusionBlock2}
 
-\xBFQu\xE9 nivel te interesa?`);
+\xBFQu\xE9 nivel te interesa?`
+        );
       }
       return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
     }
@@ -15947,12 +15989,23 @@ ${detail}`.trim(),
         mentionedService || query || serviceLabel
       );
     }
+    const forced = attachAvailableSheetDetail(
+      mentionedService || query || serviceLabel || currentMessage || "",
+      mentionedService || serviceLabel
+    ) || null;
+    if (forced) {
+      const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
+      return `${intro}
+
+${forced}`.trim();
+    }
     if (serviceLabel && currentMessage) {
+      const ack = buildGuardServiceAck(currentMessage);
+      if (messageHasSheetServiceDetail(ack)) {
+        return ensureCatalogWebLink(ack, serviceLabel);
+      }
       return ensureCatalogWebLink(
-        appendNext(
-          `${pickTransition(history)} ${buildGuardServiceAck(currentMessage)}`,
-          serviceLabel
-        ),
+        appendNext(`${pickTransition(history)} ${ack}`, serviceLabel),
         serviceLabel
       );
     }
@@ -16244,9 +16297,13 @@ function buildFirstInteractionMessage(ctx, withIntro = true) {
     const nameQ2 = pickVariant("nombre", history, ctx.entityId);
     return `${intro}${buildItalianFoodPitch(ctx.currentMessage)} ${nameQ2}`.trim();
   }
+  const svcHint = (isValidRequerimientosValue(ctx.extracted.requerimientos_evento) ? ctx.extracted.requerimientos_evento : null) || parsePrimaryService(userText) || parsePrimaryService(ctx.currentMessage ?? "") || (multiServices.length === 1 ? multiServices[0] : null);
+  const sheetDetail = !includeCatalog && svcHint ? attachAvailableSheetDetail(svcHint, svcHint) : null;
   const catalogBlock = includeCatalog ? `
 
-${buildPackageCatalogOfferBlock()}` : "";
+${buildPackageCatalogOfferBlock()}` : sheetDetail ? `
+
+${sheetDetail}` : "";
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
     const pending = getNextPendingField(ctx.extracted, filledSet);
@@ -16328,10 +16385,7 @@ function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPrese
     if (pending && pending !== "nombre") {
       return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
     }
-    if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
-      return buildFirstInteractionMessage(ctx, true);
-    }
-    if (clientAsksPrice(ctx.currentMessage) && _mensaje.trim().length > 40 && (messageClaimsPrice(_mensaje) || /\$\s*\d|precio|costo|nivel|manejamos/i.test(_mensaje))) {
+    if (messageHasSheetServiceDetail(_mensaje) || clientAsksPrice(ctx.currentMessage) && _mensaje.trim().length > 40 && (messageClaimsPrice(_mensaje) || /\$\s*\d|precio|costo|nivel|manejamos/i.test(_mensaje)) || clientAsksServiceInfo(ctx.currentMessage) && _mensaje.trim().length > 40 && /\$\s*\d|nivel|incluye|manejamos/i.test(_mensaje)) {
       if (!mensajeAsksForField(_mensaje, "nombre") && !/\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo)\b/i.test(
         _mensaje
       )) {
@@ -16340,6 +16394,9 @@ function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPrese
 ${buildNaturalQuestion("nombre", ctx)}`.trim();
       }
       return stripRepeatLucyIntro(_mensaje, presHistory, alreadyStarted);
+    }
+    if (isTrueFirstTurn || usesLegacyLucyIntro(_mensaje)) {
+      return buildFirstInteractionMessage(ctx, true);
     }
     return buildNaturalQuestion("nombre", ctx);
   }
@@ -16806,14 +16863,7 @@ function buildPackageCatalogOfferBlock() {
 function historyAlreadyOfferedServiceDetail(history) {
   return history.some((m) => {
     if (m.role !== "assistant" || typeof m.content !== "string") return false;
-    const t = m.content;
-    if (messageOffersCatalogLink(t)) return true;
-    if (/manejamos estos niveles|¿cu[aá]l nivel prefieres/i.test(t)) return true;
-    if (/\*precio:\*/i.test(t) && /manejamos/i.test(t)) return true;
-    if (/\$\s*\d/.test(t) && /\b(b[aá]sic|tradicional|premium|solo alimentos)\b/i.test(t) && /\b(nivel|manejamos|pp|\/pp|por persona)\b/i.test(t)) {
-      return true;
-    }
-    return false;
+    return messageHasSheetServiceDetail(m.content);
   });
 }
 function buildDeferredKnownServiceOffer(opts) {
@@ -17342,9 +17392,11 @@ ${link}
       `Anoto nivel *${nivel}*${svcNow ? ` para ${svcNow}` : ""}${emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""}.`
     ];
     const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
-    const detail = buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
-    if (detail && /incluye|\$\s*\d|nivel/i.test(detail) && !(emailNow && nextQ)) {
-      mensaje = ensureCatalogWebLink(detail, hint);
+    const detail = attachAvailableSheetDetail(`${hint} ${nivel}`, hint) || buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
+    if (detail && /incluye|\$\s*\d|nivel/i.test(detail)) {
+      mensaje = nextQ ? `${ensureCatalogWebLink(detail, hint)}
+
+${nextQ}` : ensureCatalogWebLink(detail, hint);
     } else {
       mensaje = ensureCatalogWebLink(
         `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim(),
@@ -17352,6 +17404,7 @@ ${link}
       );
     }
     appliedDirectReply = true;
+    appliedSalesReply = true;
     log?.info({ entityId, nivel, hasEmail: !!emailNow }, "GUARD: selecci\xF3n de nivel de cat\xE1logo");
   } else if (isAmbiguousShortNumber(currentMessage, { lastAskedField })) {
     mensaje = "\xBFTe refieres a 5 invitados o al d\xEDa 5 del mes?";
@@ -17517,13 +17570,21 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente sin presupuesto \u2014 waiver directo");
   } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && isServiceRelatedMessage(currentMessage) && (currentMessage?.includes("?") ?? false) && !clientAsksForRecommendations(currentMessage) && !clientAsksLocation(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
-    mensaje = `${LUCY_INTRO} ${buildGuardServiceAck(currentMessage)} ${pickVariant("nombre", presHistory, entityId)}`;
+    const svc = parsePrimaryService(currentMessage ?? "") || findMentionedService(currentMessage ?? "") || currentMessage || "";
+    const sheet = attachAvailableSheetDetail(svc, svc) || (messageHasSheetServiceDetail(buildGuardServiceAck(currentMessage ?? "")) ? buildGuardServiceAck(currentMessage ?? "") : null);
+    mensaje = sheet ? `${LUCY_INTRO}
+
+${sheet}
+
+${pickVariant("nombre", presHistory, entityId)}` : `${LUCY_INTRO} ${buildGuardServiceAck(currentMessage)} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: servicio consultivo en primer turno");
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: servicio consultivo en primer turno + detalle Sheet");
   } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: primer mensaje \u2014 presentaci\xF3n Lucy + nombre (sin oferta)");
+    if (messageHasSheetServiceDetail(mensaje)) appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: primer mensaje \u2014 presentaci\xF3n Lucy + nombre (+ detalle si hay servicio)");
   } else if (
     // A14933: precio ANTES de upsell mantelería / detalle mobiliario genérico.
     !cierreYaEnviado && clientAsksPrice(currentMessage) && mentionsNoListedPriceService(currentMessage)
@@ -17766,7 +17827,8 @@ ${nextQ}`.trim();
       appliedSalesReply = true;
       log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 responder con detalle");
     }
-  } else if (allowSalesReplyOverride && !serviceAlreadyCaptured && !clientAsksPrice(currentMessage) && (clientMentionsCatering(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
+  } else if (allowSalesReplyOverride && // V8.35: si pide info/detalle, reexplicar aunque el servicio ya esté capturado.
+  (!serviceAlreadyCaptured || clientAsksServiceInfo(currentMessage) || clientAsksInclusion(currentMessage)) && !clientAsksPrice(currentMessage) && (clientMentionsCatering(currentMessage) || clientAsksServiceInfo(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
     const cateringAnswer = buildFoodSalesReply(
       extracted,
       history,
@@ -18745,9 +18807,12 @@ function applyLucyGlobalAntiRepetition(input) {
   const clientAskedPrice = /\bprecios?\b|\bcostos?\b|\bcu[aá]nto\s+cuesta|\btarifa\b|\bver\s+(los\s+)?precios?\b/i.test(
     input.currentMessage ?? ""
   );
+  const clientAskedServiceInfo = /\binformaci[oó]n|\binfo\b|\bdame\s+(info|detalle|datos)|\bme\s+(pueden|pueden)\s+dar|\bcu[eé]ntenme|\bexpl[ií]ca/i.test(
+    input.currentMessage ?? ""
+  );
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
   const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
-  const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|niveles?\s*:|cu[aá]l nivel prefieres/i.test(
+  const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d/i.test(
     mensaje
   ) || isEntertainmentCatalog;
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p) => THANKS_ACK_PATTERN.test(p))) {
@@ -18783,7 +18848,7 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("filled-field-ack");
     }
   }
-  if (!cierre && hasCatalogNow && !clientAskedInclusion && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p) => CATALOG_SEND_PATTERN.test(p))) {
+  if (!cierre && hasCatalogNow && !isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientAskedServiceInfo && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p) => CATALOG_SEND_PATTERN.test(p))) {
     const without = stripCatalogOfferBlock(mensaje);
     const qs = questionLines(without).filter(
       (q) => !/cat[aá]logo/i.test(q) && previous.every((p) => lucyTextOverlapRatio(q, p) < 0.68)
@@ -23796,6 +23861,64 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     });
     assert.ok(hasUrl(sushiInfo), sushiInfo.slice(0, 500));
     assert.ok(!/quieres que te mande el catálogo/i.test(sushiInfo) || hasUrl(sushiInfo), sushiInfo.slice(0, 300));
+  });
+  await test("93. Detalle Sheet \u2014 niveles/incluye en info y primer turno (no solo link)", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Coffee Break","Basico","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9, pan dulce y fruta"',
+      '"Coffee Break","Premium","$250.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9 premium, jugo y snacks"',
+      '"Barra de sushi","Basico","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","8 rollos y soya"',
+      '"Barra de sushi","Premium","$550.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","12 rollos y chef"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const detail = attachAvailableSheetDetail("coffee break");
+    assert.ok(detail, "attachAvailableSheetDetail debe devolver texto");
+    assert.ok(messageHasSheetServiceDetail(detail), detail);
+    assert.ok(/incluye|Café|pan dulce|\$\s*180|Basico|Premium/i.test(detail), detail);
+    assert.ok(/bodasesor\.com\/catalogos/i.test(detail), detail);
+    assert.equal(
+      messageHasSheetServiceDetail("Cat\xE1logo:\nhttps://bodasesor.com/catalogos/coffee-break"),
+      false
+    );
+    assert.equal(
+      historyAlreadyOfferedServiceDetail([
+        { role: "assistant", content: "Cat\xE1logo:\nhttps://bodasesor.com/catalogos/coffee-break" }
+      ]),
+      false
+    );
+    assert.ok(
+      historyAlreadyOfferedServiceDetail([{ role: "assistant", content: detail }])
+    );
+    const first = buildFirstInteractionMessage(
+      {
+        extracted: emptyExtracted({ requerimientos_evento: "coffee break" }),
+        filledSet: /* @__PURE__ */ new Set(["Requerimientos o servicios"]),
+        history: [],
+        currentMessage: "Hola, me interesa cotizar coffee break para un evento corporativo"
+      },
+      true
+    );
+    assert.ok(/lucy|bodasesor/i.test(first), first.slice(0, 200));
+    assert.ok(
+      /incluye|Café|Basico|Premium|\$\s*180|nivel/i.test(first),
+      `primer turno debe traer detalle Sheet: ${first.slice(0, 600)}`
+    );
+    const info = runGuards({
+      aiResponse: "Claro, \xBFcu\xE1ntos invitados?",
+      extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "corporativo" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "dame informaci\xF3n del coffee break",
+      history: []
+    });
+    assert.ok(
+      /incluye|Café|pan dulce|Basico|Premium/i.test(info),
+      `info debe usar Incluye del Sheet: ${info.slice(0, 600)}`
+    );
+    assert.ok(/bodasesor\.com\/catalogos/i.test(info), info.slice(0, 400));
+    const price = buildCatalogPriceAnswer("barra de sushi") || "";
+    assert.ok(/\$\s*\d/.test(price), price);
+    assert.ok(/incluye|rollos/i.test(price), `precio multi-nivel debe traer Incluye: ${price}`);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

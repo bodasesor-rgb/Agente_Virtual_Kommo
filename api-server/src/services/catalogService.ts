@@ -685,6 +685,78 @@ export function ensureCatalogWebLink(
   return `${body}\n\nCatálogo:\n${getCatalogWebHubDeliveryUrl()}`;
 }
 
+/**
+ * True si el texto ya trae detalle real del Sheet (niveles / Incluye / precio),
+ * no solo un link de catálogo ni el fallback genérico.
+ */
+export function messageHasSheetServiceDetail(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  const t = text;
+  // Fallback vacío ("detalle… está en el catálogo" + URL) ≠ detalle Sheet.
+  if (
+    /detalle de lo que incluye cada nivel est[aá] en el cat[aá]logo/i.test(t) &&
+    !/\$\s*\d/.test(t) &&
+    !/incluye\s*:\s*\S.{7,}/i.test(t)
+  ) {
+    return false;
+  }
+  if (/incluye\s*:\s*\S.{7,}/i.test(t) && !/el\s+equipo\s+lo\s+confirma/i.test(t)) return true;
+  if (/qu[eé]\s+incluye\s+cada\s+nivel\s*:/i.test(t)) return true;
+  if (/manejamos estos niveles/i.test(t)) return true;
+  if (/\*precio:\*/i.test(t) && /manejamos/i.test(t)) return true;
+  if (
+    /\$\s*\d/.test(t) &&
+    /\b(b[aá]sic|tradicional|premium|solo alimentos)\b/i.test(t) &&
+    /\b(nivel|manejamos|pp|\/pp|por persona)\b/i.test(t)
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Mejor detalle disponible del Sheet para un servicio (niveles + incluye + precio + link).
+ * Usar en primer turno, food-sales, info y cuando el ACK genérico no alcanza.
+ * No usa el fallback genérico de inclusiones (hub sin datos).
+ */
+export function attachAvailableSheetDetail(
+  query: string,
+  serviceHint?: string | null
+): string | null {
+  const attempts = [
+    serviceHint?.trim() || null,
+    query.trim() || null,
+    [serviceHint, query].filter(Boolean).join(" ").trim() || null,
+  ].filter((a): a is string => !!a);
+
+  for (const a of attempts) {
+    const candidates = [
+      buildCatalogServiceDetailAnswer(a),
+      buildCatalogPriceAnswer(a),
+      buildCatalogInclusionAnswer(a),
+      buildInclusionTeamConfirmationAnswer(a),
+    ].filter((d): d is string => !!d);
+
+    for (const detail of candidates) {
+      if (
+        /detalle de lo que incluye cada nivel est[aá] en el cat[aá]logo/i.test(detail) &&
+        !/\$\s*\d/.test(detail) &&
+        !/incluye\s*:\s*\S.{7,}/i.test(detail)
+      ) {
+        continue;
+      }
+      if (
+        messageHasSheetServiceDetail(detail) ||
+        (/\$\s*\d/.test(detail) &&
+          /\b(nivel|Basico|Básico|Premium|Tradicional|manejamos|pp)\b/i.test(detail))
+      ) {
+        return ensureCatalogWebLink(detail, a);
+      }
+    }
+  }
+  return null;
+}
+
 function withCatalogOfferQuestion(text: string, query?: string | null): string {
   const body = text.trim();
   if (!body) return body;
@@ -1210,7 +1282,11 @@ export function buildCatalogPriceAnswer(query: string): string | null {
         })
         .join("\n");
       if (priceLines) {
-        return withLink(`Sí, manejamos ${baseName}:\n\n${priceLines}\n\n¿Qué nivel te interesa?`);
+        // V8.35: precios + qué incluye cada nivel (no solo cifras).
+        const inclusionBlock = buildInclusionBlock(unique, 220);
+        return withLink(
+          `Sí, manejamos ${baseName}:\n\n${priceLines}${inclusionBlock}\n\n¿Qué nivel te interesa?`
+        );
       }
       return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
     }
