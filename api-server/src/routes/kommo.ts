@@ -1548,7 +1548,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       }
     }
 
-    let history = fullHistory.slice(-6);
+    let history = fullHistory.slice(-16);
 
     // ══════════════════════════════════════════════════════════════════════
     // PASO 4: Leer campos del CRM (sin construir crmContext aún)
@@ -2210,7 +2210,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       }
     }
 
-    let history = fullHistory.slice(-6);
+    let history = fullHistory.slice(-16);
     log.info({ histKey, historyLength: history.length, historySource }, "Salesbot: historial cargado");
 
     // ── Load CRM context ──────────────────────────────────────────────────────
@@ -2679,7 +2679,7 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
   try {
     const histKey = `sim-${leadId}`;
     const fullHistory = getHistory(histKey);
-    let history = fullHistory.slice(-6);
+    let history = fullHistory.slice(-16);
 
     const { crmLines, lastLucyResponse } = buildCrmLinesFromSimulator(lead);
     const whatsappDisplayName = sanitizeDisplayName(lead.name);

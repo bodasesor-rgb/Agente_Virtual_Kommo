@@ -133,6 +133,8 @@ import {
   dedupeTransitionsInMessage,
   parseNombreFromCrmLines,
   buildOpeningAcknowledgment,
+  buildGenericPriceClarifyReply,
+  buildGenericPackagesOverviewReply,
 } from "../lucy-flow-guards.js";
 import {
   sanitizeKommoCrmLines,
@@ -5114,6 +5116,149 @@ async function runAll(): Promise<void> {
     );
     assert.ok(!lines.some((l) => /Presupuesto/i.test(l)));
     assert.ok(lines.some((l) => /Ilana/i.test(l)));
+  });
+
+  await test("89. Marco A14943 — precios plural, paquetes, correo, no Comida Corrida", () => {
+    assert.ok(clientAsksPrice("Me gustaría ver los precios"));
+    assert.ok(clientAsksPrice("Antes quisiera ver los precios"));
+    assert.ok(clientAsksPrice("Precios!!"));
+    assert.ok(clientAsksInclusion("Quiero ver los paquetes"));
+    assert.ok(clientAsksInclusion("ver los paquetes"));
+
+    const corporateOffer =
+      "Perfecto, Marco. Para tu evento corporativo, manejamos varias opciones.\n• Banquete Formal 3 tiempos\n• Barra de bebidas\n• Coffee break\n¿Te gustaría revisar primero algún servicio?";
+    const priceClarify = buildGenericPriceClarifyReply(
+      emptyExtracted({ nombre: "Marco Santos", tipo_evento: "evento corporativo" }),
+      [
+        { role: "assistant", content: corporateOffer },
+        { role: "user", content: "Me gustaría ver los precios" },
+      ],
+      "Me gustaría ver los precios"
+    );
+    assert.ok(/precio|banquete|barra|coffee/i.test(priceClarify), priceClarify);
+    assert.ok(!/Sigo aquí/i.test(priceClarify), priceClarify);
+
+    const priceGuard = runGuards({
+      aiResponse: "Además podemos incluir mobiliario y DJ. ¿Armamos un paquete completo?",
+      extracted: emptyExtracted({
+        nombre: "Marco Santos",
+        correo: "becerrilsantosmarcoantonio@gmail.com",
+        tipo_evento: "evento corporativo",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Precios!!",
+      history: [
+        { role: "assistant", content: corporateOffer },
+        { role: "user", content: "Antes quisiera ver los precios" },
+        {
+          role: "assistant",
+          content: "Además podemos incluir mobiliario. ¿Armamos un paquete completo?",
+        },
+      ],
+    });
+    assert.ok(/precio|banquete|coffee|barra|servicio/i.test(priceGuard), priceGuard);
+    assert.ok(!/Sigo aquí/i.test(priceGuard), priceGuard);
+    assert.ok(!/paquete completo/i.test(priceGuard), priceGuard);
+
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje: "¿Te gustaría revisar primero algún servicio en particular o armar un paquete completo?",
+      history: [
+        { role: "assistant", content: corporateOffer },
+        { role: "user", content: "Precios!!" },
+      ],
+      extracted: emptyExtracted({ nombre: "Marco Santos", tipo_evento: "evento corporativo" }),
+      filledSet: new Set(["Nombre del cliente", "Correo electrónico", "Tipo de evento"]),
+      currentMessage: "Precios!!",
+      clientName: "Marco Santos",
+    });
+    assert.ok(!/Sigo aquí/i.test(anti.mensaje), anti.mensaje);
+
+    const packages = runGuards({
+      aiResponse: "¿En qué ciudad será el evento?",
+      extracted: emptyExtracted({
+        nombre: "Marco Santos",
+        correo: "becerrilsantosmarcoantonio@gmail.com",
+        tipo_evento: "evento corporativo",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Quiero ver los paquetes",
+      history: [{ role: "assistant", content: corporateOffer }],
+    });
+    assert.ok(/paquete|nivel|banquete|coffee|servicio/i.test(packages), packages);
+    assert.ok(!/^¿En qué ciudad/i.test(packages.trim()), packages);
+
+    // Correo ya en historial → no re-preguntar tras fecha.
+    const emailRecovered = emptyExtracted({
+      nombre: "Marco Santos",
+      tipo_evento: "evento corporativo",
+      direccion_evento: "CDMX",
+      fecha_horario: "21 de Noviembre",
+    });
+    enrichExtractedFromConversation(
+      emailRecovered,
+      "becerrilsantosmarcoantonio@gmail.com\nEvento de trabajo\nCDMX\n21 de Noviembre"
+    );
+    assert.ok(
+      /becerrilsantosmarcoantonio@gmail\.com/i.test(emailRecovered.correo ?? ""),
+      emailRecovered.correo ?? ""
+    );
+
+    const reAskCorreo = runGuards({
+      aiResponse: "¿Me puedes proporcionar un correo electrónico donde enviarte la información?",
+      extracted: emailRecovered,
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+      ]),
+      readyForClosing: false,
+      currentMessage: "21 de Noviembre",
+      history: [
+        { role: "user", content: "becerrilsantosmarcoantonio@gmail.com" },
+        { role: "assistant", content: "Gracias. ¿Qué tipo de evento es?" },
+        { role: "user", content: "Evento de trabajo" },
+        { role: "assistant", content: corporateOffer },
+        { role: "user", content: "CDMX" },
+        { role: "assistant", content: "¿Tienen día u horario ya definido?" },
+      ],
+    });
+    assert.ok(!mensajeAsksForField(reAskCorreo, "correo"), reAskCorreo.slice(0, 300));
+
+    // Resumen no inventa Comida Corrida.
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
+      '"Comida Corrida","Basico","$280.00","$8,400.00","TRUE","3 tiempos"',
+      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","3 tiempos"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const resumen = buildResumenClienteLargo(
+      emptyExtracted({
+        nombre: "Marco Santos",
+        tipo_evento: "evento corporativo",
+        correo: "becerrilsantosmarcoantonio@gmail.com",
+        direccion_evento: "CDMX",
+        fecha_horario: "21 de Noviembre",
+      }),
+      [
+        "- Nombre del cliente: Marco Santos",
+        "- Tipo de evento: evento corporativo",
+        "- Correo electrónico: becerrilsantosmarcoantonio@gmail.com",
+      ],
+      "¡Hola, me gustaría cotizar un evento con ustedes! Evento de trabajo Quiero ver los paquetes CDMX"
+    );
+    assert.ok(!/comida\s+corrida/i.test(resumen), resumen);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -436,16 +436,11 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
       "menú del día",
       "comida economica",
       "comida económica",
-      "comida para empleados",
-      "comida corporativa",
-      "menu corporativo",
-      "menú corporativo",
+      // NO: "comida corporativa" / "menu corporativo" — A14943 confundía evento de trabajo.
       "comida sencilla",
       "comida de oficina",
       "menu ejecutivo",
       "menú ejecutivo",
-      "comida rapida",
-      "comida rápida",
     ],
   },
   {

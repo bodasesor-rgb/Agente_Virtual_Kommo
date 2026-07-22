@@ -18,7 +18,6 @@ import {
   isUsableDireccionEvento,
   isNonLocationBusinessPhrase,
 } from "../conversation-understanding.js";
-import { formatRequerimientoLabelFromQuery } from "./catalogService.js";
 import { isGreetingOnlyMessage, isQuoteIntentMessage, sanitizeCrmNombre } from "../contact-name.js";
 
 /** No meter saludos / nombres / "quiero cotizar" como si fueran el servicio. */
@@ -208,10 +207,8 @@ export function buildResumenClienteLargo(
   const reqFromLines = isUsableResumenServicio(reqFromLinesRaw) ? reqFromLinesRaw : null;
   const reqFromServicesRaw = extracted.requerimientos_evento?.trim();
   const reqFromServices = isUsableResumenServicio(reqFromServicesRaw) ? reqFromServicesRaw : null;
-  const reqFromCatalog =
-    conversationText && conversationText.trim().length > 3
-      ? formatRequerimientoLabelFromQuery(conversationText)
-      : null;
+  // NUNCA formatRequerimientoLabelFromQuery(conversationText completo):
+  // un "comida" suelto en el hilo mapeaba a Comida Corrida (A14943).
   const convServices =
     conversationText && conversationText.trim().length > 20
       ? parseServicesFromText(conversationText).slice(0, 6)
@@ -231,7 +228,6 @@ export function buildResumenClienteLargo(
   } else {
     reqs =
       reqFromLines ||
-      (isUsableResumenServicio(reqFromCatalog) ? reqFromCatalog : null) ||
       (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) ||
       reqFromConversation;
   }

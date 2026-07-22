@@ -335,7 +335,11 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   }
 
   const clientAskedInclusion =
-    /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(
+    /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bpaquetes?\b|\bniveles?\b/i.test(
+      input.currentMessage ?? ""
+    );
+  const clientAskedPrice =
+    /\bprecios?\b|\bcostos?\b|\bcu[aá]nto\s+cuesta|\btarifa\b|\bver\s+(los\s+)?precios?\b/i.test(
       input.currentMessage ?? ""
     );
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
@@ -425,7 +429,8 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
 
   // 5) Misma pregunta de embudo (campo semántico) aunque el wording cambie.
   // Ej: "¿qué tipo de evento estás planeando?" → "…organizando?"
-  if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe")) {
+  // A14943: si el cliente insiste en precios/paquetes, NUNCA decir "Sigo aquí".
+  if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe") && !clientAskedPrice && !clientAskedInclusion) {
     const nowFields = detectAskedFields(mensaje);
     const prevField =
       (inferLucyAskedField(lastPrev) as PendingField | null) ||

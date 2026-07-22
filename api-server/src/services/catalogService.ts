@@ -858,6 +858,10 @@ function scoreCatalogRow(
 
   for (const token of tokens) {
     const tok = token.replace(/\s+/g, "");
+    // "comida" suelta NUNCA puntúa Comida Corrida (A14943 Marco: corporativo ≠ corrida).
+    if (tok === "comida" && /comidacorrida/.test(haystack) && !/\bcomida\s+corrida\b/i.test(query)) {
+      continue;
+    }
     if (vagueFood && tok === "comida" && /comidacorrida/.test(haystack)) continue;
     if (haystack.includes(tok)) score += 2;
   }
@@ -1068,8 +1072,8 @@ export function resolveCatalogInclusionReply(
 export function clientAsksInclusion(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  // "descripción", "qué incluye", "detalle" — aunque también pregunten precio.
-  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b/i.test(
+  // "descripción", "qué incluye", "detalle", "paquetes/niveles" — aunque también pregunten precio.
+  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+manejan)\b/i.test(
     t
   );
 }

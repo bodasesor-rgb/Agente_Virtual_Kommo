@@ -1808,6 +1808,9 @@ export function preferEventOfferReply(opts: {
   if (getNextPendingField(extracted, filledSet) !== "requerimientos") return null;
   if (isValidRequerimientosValue(extracted.requerimientos_evento)) return null;
 
+  // A14943: precios/paquetes no son "ofrecimiento temprano" — no tapar con upsell.
+  if (clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage)) return null;
+
   // Si el cliente ya eligió un servicio concreto, no reemplazar con oferta genérica.
   const msg = currentMessage?.trim() ?? "";
   if (msg) {
@@ -2501,6 +2504,79 @@ export function buildMultiServicePackageReply(
       ? buildRichBriefAcknowledgment(sourceText)
       : buildMultiServiceAck(services);
   return `${ack}\n\n${buildPackageCatalogOfferBlock()}`;
+}
+
+/** Extrae servicios mencionados en una oferta reciente de Lucy (bullets). */
+function extractOfferedServicesFromHistory(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): string[] {
+  const lastAsst = [...history]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  if (!lastAsst || typeof lastAsst.content !== "string") return [];
+  const text = lastAsst.content;
+  const fromParse = parseServicesFromText(text);
+  if (fromParse.length) return fromParse.slice(0, 6);
+  const bullets = [...text.matchAll(/^[•\-*]\s*\*?([^*\n]{3,60})\*?/gm)].map((m) =>
+    m[1]!.trim().replace(/\s+/g, " ")
+  );
+  return bullets.slice(0, 6);
+}
+
+/**
+ * Cliente pide precios sin SKU concreto (A14943: "ver los precios" / "Precios!!").
+ * Aclara de cuál servicio, o cotiza el único ya anotado.
+ */
+export function buildGenericPriceClarifyReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): string {
+  const fromReq = parseServicesFromText(extracted.requerimientos_evento ?? "");
+  const fromCtx = parseServicesFromText(
+    collectUserTexts(history, currentMessage).join(" ")
+  );
+  const fromOffer = extractOfferedServicesFromHistory(history);
+  const options = [...new Set([...fromReq, ...fromCtx, ...fromOffer])].filter(
+    (s) => !/comida\s+corrida/i.test(s)
+  );
+  if (options.length === 1) {
+    const priced = buildCatalogPriceAnswer(options[0]!);
+    if (priced && messageClaimsPrice(priced)) return priced;
+  }
+  if (options.length >= 2) {
+    const list = options.slice(0, 5).join(", ");
+    return `Claro. ¿De cuál te paso precios de referencia: ${list}?`;
+  }
+  return "Claro. ¿De qué servicio te paso precios: coffee break, banquete, barra de bebidas, taquiza u otro?";
+}
+
+/** Cliente pide ver paquetes/niveles sin servicio concreto. */
+export function buildGenericPackagesOverviewReply(
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage?: string
+): string {
+  const hint =
+    (isValidRequerimientosValue(extracted.requerimientos_evento)
+      ? extracted.requerimientos_evento
+      : null) ||
+    parsePrimaryService(collectUserTexts(history, currentMessage).join(" ")) ||
+    extractOfferedServicesFromHistory(history)[0] ||
+    null;
+  if (hint) {
+    const detail =
+      buildCatalogPriceAnswer(hint) ||
+      resolveCatalogInclusionReply(hint, hint) ||
+      buildCatalogServiceDetailAnswer(hint);
+    if (detail) {
+      return `Claro. Para *${hint}* manejamos varios paquetes/niveles:\n\n${detail}`;
+    }
+  }
+  return (
+    "Claro. Armamos paquetes a la medida (por ejemplo coffee break, banquete, barra de bebidas, mobiliario y DJ). " +
+    "¿Con cuál servicio quieres empezar a ver paquetes y precios?"
+  );
 }
 
 function isInformativeClientAnswer(currentMessage?: string): boolean {
@@ -3697,6 +3773,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       appliedSalesReply = true;
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+    } else {
+      // A14943: "Quiero ver los paquetes" sin SKU — mostrar overview, no saltar a zona.
+      const packageOverview = buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage);
+      mensaje = packageOverview;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: paquetes genéricos — overview / aclarar servicio");
     }
   } else if (
     allowSalesReplyOverride &&
@@ -3891,6 +3974,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           priceContent = fromCatalog;
         } else if (!messageClaimsPrice(safe) && fromCatalog) {
           priceContent = fromCatalog;
+        } else if (!fromCatalog || !messageClaimsPrice(priceContent)) {
+          // A14943: "ver los precios" / "Precios!!" sin SKU → aclarar, no upsell ni Sigo aquí.
+          const clarify = buildGenericPriceClarifyReply(extracted, presHistory, currentMessage);
+          priceContent = clarify;
         }
         mensaje = needsNextStep
           ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx)

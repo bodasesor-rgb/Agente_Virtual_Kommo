@@ -2478,6 +2478,12 @@ export function enrichExtractedFromConversation(
     extracted.presupuesto = null;
   }
 
+  // Recuperar correo del historial (A14943: no es campo Kommo durable).
+  if (!extracted.correo?.trim()) {
+    const fromConv = parseCorreoFromText(conversationText);
+    if (fromConv) extracted.correo = fromConv;
+  }
+
   if (
     extracted.requerimientos_evento?.trim() &&
     extracted.tipo_evento?.trim() &&

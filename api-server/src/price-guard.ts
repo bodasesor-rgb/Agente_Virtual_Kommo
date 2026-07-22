@@ -38,7 +38,7 @@ const PRICE_CLAIM_PATTERN =
   /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
 
 const PRICE_QUESTION_PATTERN =
-  /\bcu[aá]nto\s+cuesta|\bprecio\b|\bcosto\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b/i;
+  /\bcu[aá]nto\s+cuesta|\bprecios?\b|\bcostos?\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b|\bver\s+(los\s+)?precios?\b|\bpasar?(me)?\s+(los\s+)?precios?\b/i;
 
 /**
  * Cliente pregunta el precio de un servicio concreto (SKU / lista).

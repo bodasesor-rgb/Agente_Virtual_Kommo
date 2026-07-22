@@ -1957,6 +1957,10 @@ function enrichExtractedFromConversation(extracted, conversationText) {
   if (extracted.presupuesto !== null && extracted.num_invitados !== null && extracted.presupuesto === extracted.num_invitados && extracted.presupuesto < 1e3) {
     extracted.presupuesto = null;
   }
+  if (!extracted.correo?.trim()) {
+    const fromConv = parseCorreoFromText(conversationText);
+    if (fromConv) extracted.correo = fromConv;
+  }
   if (extracted.requerimientos_evento?.trim() && extracted.tipo_evento?.trim() && extracted.requerimientos_evento.trim().toLowerCase() === extracted.tipo_evento.trim().toLowerCase()) {
     extracted.requerimientos_evento = null;
   }
@@ -2123,7 +2127,7 @@ function setCatalogPriceIndex(priced, noPrice) {
   dynamicNoListedPattern = buildServicePattern(noPrice);
 }
 var PRICE_CLAIM_PATTERN = /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
-var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecio\b|\bcosto\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b/i;
+var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecios?\b|\bcostos?\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b|\bver\s+(los\s+)?precios?\b|\bpasar?(me)?\s+(los\s+)?precios?\b/i;
 function clientAsksPrice(message) {
   if (!message?.trim()) return false;
   if (!PRICE_QUESTION_PATTERN.test(message)) return false;
@@ -3178,16 +3182,11 @@ var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
       "men\xFA del d\xEDa",
       "comida economica",
       "comida econ\xF3mica",
-      "comida para empleados",
-      "comida corporativa",
-      "menu corporativo",
-      "men\xFA corporativo",
+      // NO: "comida corporativa" / "menu corporativo" — A14943 confundía evento de trabajo.
       "comida sencilla",
       "comida de oficina",
       "menu ejecutivo",
-      "men\xFA ejecutivo",
-      "comida rapida",
-      "comida r\xE1pida"
+      "men\xFA ejecutivo"
     ]
   },
   {
@@ -4159,6 +4158,9 @@ function scoreCatalogRow(row, tokens, filters, query) {
   const vagueFood = isVagueCatalogFoodQuery(query);
   for (const token of tokens) {
     const tok = token.replace(/\s+/g, "");
+    if (tok === "comida" && /comidacorrida/.test(haystack) && !/\bcomida\s+corrida\b/i.test(query)) {
+      continue;
+    }
     if (vagueFood && tok === "comida" && /comidacorrida/.test(haystack)) continue;
     if (haystack.includes(tok)) score += 2;
   }
@@ -4311,7 +4313,7 @@ ${webHint ?? `Cat\xE1logo: ${webUrl}`}
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b/i.test(
+  return /\bqu[eé]\s+incluye|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+manejan)\b/i.test(
     t
   );
 }
@@ -16350,6 +16352,7 @@ function preferEventOfferReply(opts) {
   if (!hasTipoEvento(filledSet, extracted)) return null;
   if (getNextPendingField(extracted, filledSet) !== "requerimientos") return null;
   if (isValidRequerimientosValue(extracted.requerimientos_evento)) return null;
+  if (clientAsksPrice(currentMessage) || clientAsksInclusion(currentMessage)) return null;
   const msg = currentMessage?.trim() ?? "";
   if (msg) {
     const namedService = !!(findMentionedService(msg) || parsePrimaryService(msg));
@@ -16758,6 +16761,48 @@ function buildMultiServicePackageReply(services, sourceText) {
   return `${ack}
 
 ${buildPackageCatalogOfferBlock()}`;
+}
+function extractOfferedServicesFromHistory(history) {
+  const lastAsst = [...history].reverse().find((m) => m.role === "assistant" && typeof m.content === "string");
+  if (!lastAsst || typeof lastAsst.content !== "string") return [];
+  const text = lastAsst.content;
+  const fromParse = parseServicesFromText(text);
+  if (fromParse.length) return fromParse.slice(0, 6);
+  const bullets = [...text.matchAll(/^[•\-*]\s*\*?([^*\n]{3,60})\*?/gm)].map(
+    (m) => m[1].trim().replace(/\s+/g, " ")
+  );
+  return bullets.slice(0, 6);
+}
+function buildGenericPriceClarifyReply(extracted, history, currentMessage) {
+  const fromReq = parseServicesFromText(extracted.requerimientos_evento ?? "");
+  const fromCtx = parseServicesFromText(
+    collectUserTexts(history, currentMessage).join(" ")
+  );
+  const fromOffer = extractOfferedServicesFromHistory(history);
+  const options = [.../* @__PURE__ */ new Set([...fromReq, ...fromCtx, ...fromOffer])].filter(
+    (s) => !/comida\s+corrida/i.test(s)
+  );
+  if (options.length === 1) {
+    const priced = buildCatalogPriceAnswer(options[0]);
+    if (priced && messageClaimsPrice(priced)) return priced;
+  }
+  if (options.length >= 2) {
+    const list = options.slice(0, 5).join(", ");
+    return `Claro. \xBFDe cu\xE1l te paso precios de referencia: ${list}?`;
+  }
+  return "Claro. \xBFDe qu\xE9 servicio te paso precios: coffee break, banquete, barra de bebidas, taquiza u otro?";
+}
+function buildGenericPackagesOverviewReply(extracted, history, currentMessage) {
+  const hint = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(history, currentMessage).join(" ")) || extractOfferedServicesFromHistory(history)[0] || null;
+  if (hint) {
+    const detail = buildCatalogPriceAnswer(hint) || resolveCatalogInclusionReply(hint, hint) || buildCatalogServiceDetailAnswer(hint);
+    if (detail) {
+      return `Claro. Para *${hint}* manejamos varios paquetes/niveles:
+
+${detail}`;
+    }
+  }
+  return "Claro. Armamos paquetes a la medida (por ejemplo coffee break, banquete, barra de bebidas, mobiliario y DJ). \xBFCon cu\xE1l servicio quieres empezar a ver paquetes y precios?";
 }
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
@@ -17503,6 +17548,12 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       appliedSalesReply = true;
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+    } else {
+      const packageOverview = buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage);
+      mensaje = packageOverview;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: paquetes gen\xE9ricos \u2014 overview / aclarar servicio");
     }
   } else if (allowSalesReplyOverride && clientAsksServiceInfo(currentMessage) && isServiceRelatedMessage(currentMessage) && !clientAsksPrice(currentMessage) && !cierreYaEnviado) {
     const cateringAnswer = buildFoodSalesReply(
@@ -17661,6 +17712,9 @@ ${buildNaturalQuestion(pending, ctx)}` : priceReply;
           priceContent = fromCatalog;
         } else if (!messageClaimsPrice(safe) && fromCatalog) {
           priceContent = fromCatalog;
+        } else if (!fromCatalog || !messageClaimsPrice(priceContent)) {
+          const clarify = buildGenericPriceClarifyReply(extracted, presHistory, currentMessage);
+          priceContent = clarify;
         }
         mensaje = needsNextStep ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx) : priceContent.trim() || aiResponse;
         log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con cat\xE1logo");
@@ -18518,7 +18572,10 @@ function applyLucyGlobalAntiRepetition(input) {
       input.extracted
     );
   }
-  const clientAskedInclusion = /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva/i.test(
+  const clientAskedInclusion = /\bqu[eé]\s+incluye|\bdescripci[oó]n(es)?\b|\bmen[uú]s?\b|\bdetalle\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bpaquetes?\b|\bniveles?\b/i.test(
+    input.currentMessage ?? ""
+  );
+  const clientAskedPrice = /\bprecios?\b|\bcostos?\b|\bcu[aá]nto\s+cuesta|\btarifa\b|\bver\s+(los\s+)?precios?\b/i.test(
     input.currentMessage ?? ""
   );
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
@@ -18575,7 +18632,7 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("catalog-resend-dedupe");
     }
   }
-  if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe")) {
+  if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe") && !clientAskedPrice && !clientAskedInclusion) {
     const nowFields = detectAskedFields(mensaje);
     const prevField = inferLucyAskedField(lastPrev) || detectAskedFields(lastPrev)[0] || null;
     const repeatedField = prevField && nowFields.includes(prevField) && !isFieldSatisfied(prevField, filled, extracted) ? prevField : null;
@@ -18712,7 +18769,6 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   const reqFromLines = isUsableResumenServicio(reqFromLinesRaw) ? reqFromLinesRaw : null;
   const reqFromServicesRaw = extracted.requerimientos_evento?.trim();
   const reqFromServices = isUsableResumenServicio(reqFromServicesRaw) ? reqFromServicesRaw : null;
-  const reqFromCatalog = conversationText && conversationText.trim().length > 3 ? formatRequerimientoLabelFromQuery(conversationText) : null;
   const convServices = conversationText && conversationText.trim().length > 20 ? parseServicesFromText(conversationText).slice(0, 6) : [];
   const reqFromConversation = convServices.length > 0 ? convServices.join(", ") : null;
   const lineSvcCount = reqFromLines ? parseServicesFromText(reqFromLines).length : 0;
@@ -18724,7 +18780,7 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   } else if (extractedSvcCount > lineSvcCount && reqFromServices) {
     reqs = reqFromServices !== extracted.tipo_evento ? reqFromServices : null;
   } else {
-    reqs = reqFromLines || (isUsableResumenServicio(reqFromCatalog) ? reqFromCatalog : null) || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || reqFromConversation;
+    reqs = reqFromLines || (reqFromServices && reqFromServices !== extracted.tipo_evento ? reqFromServices : null) || reqFromConversation;
   }
   let ppto = pptoFromLine;
   const convAmounts = conversationText ? [...conversationText.matchAll(/\$?\s*([\d][\d,]{2,})\b/g)].map((m) => parseInt(m[1].replace(/,/g, ""), 10)).filter((n) => !isNaN(n) && n >= 1e3 && n <= 5e7) : [];
@@ -23279,6 +23335,138 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     assert.ok(!lines.some((l) => /Presupuesto/i.test(l)));
     assert.ok(lines.some((l) => /Ilana/i.test(l)));
+  });
+  await test("89. Marco A14943 \u2014 precios plural, paquetes, correo, no Comida Corrida", () => {
+    assert.ok(clientAsksPrice("Me gustar\xEDa ver los precios"));
+    assert.ok(clientAsksPrice("Antes quisiera ver los precios"));
+    assert.ok(clientAsksPrice("Precios!!"));
+    assert.ok(clientAsksInclusion("Quiero ver los paquetes"));
+    assert.ok(clientAsksInclusion("ver los paquetes"));
+    const corporateOffer = "Perfecto, Marco. Para tu evento corporativo, manejamos varias opciones.\n\u2022 Banquete Formal 3 tiempos\n\u2022 Barra de bebidas\n\u2022 Coffee break\n\xBFTe gustar\xEDa revisar primero alg\xFAn servicio?";
+    const priceClarify = buildGenericPriceClarifyReply(
+      emptyExtracted({ nombre: "Marco Santos", tipo_evento: "evento corporativo" }),
+      [
+        { role: "assistant", content: corporateOffer },
+        { role: "user", content: "Me gustar\xEDa ver los precios" }
+      ],
+      "Me gustar\xEDa ver los precios"
+    );
+    assert.ok(/precio|banquete|barra|coffee/i.test(priceClarify), priceClarify);
+    assert.ok(!/Sigo aquí/i.test(priceClarify), priceClarify);
+    const priceGuard = runGuards({
+      aiResponse: "Adem\xE1s podemos incluir mobiliario y DJ. \xBFArmamos un paquete completo?",
+      extracted: emptyExtracted({
+        nombre: "Marco Santos",
+        correo: "becerrilsantosmarcoantonio@gmail.com",
+        tipo_evento: "evento corporativo"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Precios!!",
+      history: [
+        { role: "assistant", content: corporateOffer },
+        { role: "user", content: "Antes quisiera ver los precios" },
+        {
+          role: "assistant",
+          content: "Adem\xE1s podemos incluir mobiliario. \xBFArmamos un paquete completo?"
+        }
+      ]
+    });
+    assert.ok(/precio|banquete|coffee|barra|servicio/i.test(priceGuard), priceGuard);
+    assert.ok(!/Sigo aquí/i.test(priceGuard), priceGuard);
+    assert.ok(!/paquete completo/i.test(priceGuard), priceGuard);
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje: "\xBFTe gustar\xEDa revisar primero alg\xFAn servicio en particular o armar un paquete completo?",
+      history: [
+        { role: "assistant", content: corporateOffer },
+        { role: "user", content: "Precios!!" }
+      ],
+      extracted: emptyExtracted({ nombre: "Marco Santos", tipo_evento: "evento corporativo" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico", "Tipo de evento"]),
+      currentMessage: "Precios!!",
+      clientName: "Marco Santos"
+    });
+    assert.ok(!/Sigo aquí/i.test(anti.mensaje), anti.mensaje);
+    const packages = runGuards({
+      aiResponse: "\xBFEn qu\xE9 ciudad ser\xE1 el evento?",
+      extracted: emptyExtracted({
+        nombre: "Marco Santos",
+        correo: "becerrilsantosmarcoantonio@gmail.com",
+        tipo_evento: "evento corporativo"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Quiero ver los paquetes",
+      history: [{ role: "assistant", content: corporateOffer }]
+    });
+    assert.ok(/paquete|nivel|banquete|coffee|servicio/i.test(packages), packages);
+    assert.ok(!/^¿En qué ciudad/i.test(packages.trim()), packages);
+    const emailRecovered = emptyExtracted({
+      nombre: "Marco Santos",
+      tipo_evento: "evento corporativo",
+      direccion_evento: "CDMX",
+      fecha_horario: "21 de Noviembre"
+    });
+    enrichExtractedFromConversation(
+      emailRecovered,
+      "becerrilsantosmarcoantonio@gmail.com\nEvento de trabajo\nCDMX\n21 de Noviembre"
+    );
+    assert.ok(
+      /becerrilsantosmarcoantonio@gmail\.com/i.test(emailRecovered.correo ?? ""),
+      emailRecovered.correo ?? ""
+    );
+    const reAskCorreo = runGuards({
+      aiResponse: "\xBFMe puedes proporcionar un correo electr\xF3nico donde enviarte la informaci\xF3n?",
+      extracted: emailRecovered,
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Lugar/direcci\xF3n del evento",
+        "Fecha y horario"
+      ]),
+      readyForClosing: false,
+      currentMessage: "21 de Noviembre",
+      history: [
+        { role: "user", content: "becerrilsantosmarcoantonio@gmail.com" },
+        { role: "assistant", content: "Gracias. \xBFQu\xE9 tipo de evento es?" },
+        { role: "user", content: "Evento de trabajo" },
+        { role: "assistant", content: corporateOffer },
+        { role: "user", content: "CDMX" },
+        { role: "assistant", content: "\xBFTienen d\xEDa u horario ya definido?" }
+      ]
+    });
+    assert.ok(!mensajeAsksForField(reAskCorreo, "correo"), reAskCorreo.slice(0, 300));
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
+      '"Comida Corrida","Basico","$280.00","$8,400.00","TRUE","3 tiempos"',
+      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","3 tiempos"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const resumen = buildResumenClienteLargo(
+      emptyExtracted({
+        nombre: "Marco Santos",
+        tipo_evento: "evento corporativo",
+        correo: "becerrilsantosmarcoantonio@gmail.com",
+        direccion_evento: "CDMX",
+        fecha_horario: "21 de Noviembre"
+      }),
+      [
+        "- Nombre del cliente: Marco Santos",
+        "- Tipo de evento: evento corporativo",
+        "- Correo electr\xF3nico: becerrilsantosmarcoantonio@gmail.com"
+      ],
+      "\xA1Hola, me gustar\xEDa cotizar un evento con ustedes! Evento de trabajo Quiero ver los paquetes CDMX"
+    );
+    assert.ok(!/comida\s+corrida/i.test(resumen), resumen);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
