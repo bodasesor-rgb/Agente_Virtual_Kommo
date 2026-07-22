@@ -82938,13 +82938,32 @@ function buildCategoryServicesAnswer(result) {
   return `Para *${label.toLowerCase()}* tenemos: ${list}. \xBFCu\xE1l te interesa?`;
 }
 var CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
-function withCatalogOfferQuestion(text2) {
+function ensureCatalogWebLink(text2, query) {
   const body2 = text2.trim();
   if (!body2) return body2;
-  if (/quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(body2)) return body2;
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(body2)) {
+    return body2;
+  }
+  const q2 = (query ?? "").trim();
+  const match = q2 ? resolveCatalogWebLink(q2) : { url: null, serviceName: null, kind: "missing" };
+  const embedUrl = q2 ? getCatalogWebUrlForQuery(q2) : null;
+  const url2 = match.url || embedUrl || null;
+  if (url2) {
+    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
+    return `${body2}
+
+Cat\xE1logo${label}:
+${toDeliverableCatalogUrl(url2)}`;
+  }
   return `${body2}
 
-${CATALOG_OFFER_QUESTION}`;
+Cat\xE1logo:
+${getCatalogWebHubDeliveryUrl()}`;
+}
+function withCatalogOfferQuestion(text2, query) {
+  const body2 = text2.trim();
+  if (!body2) return body2;
+  return ensureCatalogWebLink(body2, query);
 }
 function buildServiceNivelChoiceAnswer(result) {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
@@ -82975,7 +82994,8 @@ function buildServiceNivelChoiceAnswer(result) {
           `Para *${svc}* manejamos estos niveles:
 ${lines2.join("\n")}
 
-\xBFCu\xE1l nivel prefieres?`
+\xBFCu\xE1l nivel prefieres?`,
+          svc
         );
       }
     }
@@ -82986,7 +83006,10 @@ ${lines2.join("\n")}
 ` : `Niveles disponibles: ${niveles.slice(0, 6).map((n3) => `*${n3}*`).join(", ")}.
 
 `;
-    return `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}\xBFCu\xE1l variante y nivel prefieres?`;
+    return withCatalogOfferQuestion(
+      `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}\xBFCu\xE1l variante y nivel prefieres?`,
+      svc
+    );
   }
   const lines = niveles.slice(0, 6).map((n3, i3) => {
     const row = rowsForChoice.find(
@@ -83027,7 +83050,7 @@ Cat\xE1logo general:
 ${getCatalogWebHubDeliveryUrl()}`;
     }
   }
-  return withCatalogOfferQuestion(body2);
+  return withCatalogOfferQuestion(body2, svc);
 }
 function messageOffersLevelsWithoutInclusions(text2) {
   if (!text2?.trim()) return false;
@@ -83060,7 +83083,8 @@ function buildExactRowDetailAnswer(row) {
 *Incluye:* ${parsed.inclusion}` : "";
   return withCatalogOfferQuestion(
     `S\xED, manejamos *${label}*.${price ? `
-${price}` : ""}${inclusion}`.trim()
+${price}` : ""}${inclusion}`.trim(),
+    row.servicio
   );
 }
 function buildExactRowPriceAnswer(row) {
@@ -83071,7 +83095,10 @@ function buildExactRowPriceAnswer(row) {
   const inclusion = parsed.inclusion ? `
 
 *Incluye:* ${parsed.inclusion}` : "";
-  return `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`;
+  return ensureCatalogWebLink(
+    `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`,
+    row.servicio
+  );
 }
 function scoreCatalogRow(row, tokens, filters, query) {
   const haystack = rowHaystack(row).replace(/\s+/g, "");
@@ -83200,13 +83227,15 @@ function resolveCatalogInclusionReply(query, serviceHint) {
   const wantsAllLevels = /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
     query
   );
+  const linkQ = serviceHint?.trim() || query;
+  const withLink = (text2) => text2 ? ensureCatalogWebLink(text2, linkQ) : null;
   if (wantsAllLevels && serviceHint?.trim()) {
     const detail = buildCatalogServiceDetailAnswer(serviceHint);
-    if (detail) return detail;
+    if (detail) return withLink(detail);
     const all3 = buildCatalogInclusionAnswer(serviceHint);
-    if (all3) return all3;
+    if (all3) return withLink(all3);
     const team = buildInclusionTeamConfirmationAnswer(serviceHint);
-    if (team) return team;
+    if (team) return withLink(team);
   }
   const attempts = [
     serviceHint ? `${serviceHint} ${query}` : null,
@@ -83219,33 +83248,35 @@ function resolveCatalogInclusionReply(query, serviceHint) {
   for (const q2 of attempts) {
     if (wantsAllLevels) {
       const detail2 = buildCatalogServiceDetailAnswer(q2);
-      if (detail2 && !/bet[uú]n|cupcakes?/i.test(detail2)) return detail2;
+      if (detail2 && !/bet[uú]n|cupcakes?/i.test(detail2)) return withLink(detail2);
     }
     const hit = buildCatalogInclusionAnswer(q2) ?? buildInclusionTeamConfirmationAnswer(q2);
-    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return hit;
+    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q2);
-    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return detail;
+    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
   }
   const webQ = serviceHint || query;
   if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
     const banqueteQ = /\b4\s*tiempos|mexicano/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Mexicano 4 tiempos" : /\b3\s*tiempos|formal/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Formal 3 tiempos" : "banquete";
     const detail = buildCatalogServiceDetailAnswer(banqueteQ) ?? buildCatalogPriceAnswer(banqueteQ);
-    const link = buildCatalogWebLinkReply({ query: banqueteQ, serviceHint: banqueteQ });
-    if (detail) return `${detail}
-
-${link}`;
-    return link;
+    return ensureCatalogWebLink(detail || "Claro, te dejo el cat\xE1logo de banquetes.", banqueteQ);
   }
   const webHint = buildCatalogWebDetailHint(webQ) ?? buildCatalogWebDetailHint(query);
   const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
   if (webHint || webUrl) {
-    return `El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.
+    return ensureCatalogWebLink(
+      `El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.
 
 ${webHint ?? `Cat\xE1logo: ${webUrl}`}
 
-\xBFCu\xE1l nivel prefieres?`;
+\xBFCu\xE1l nivel prefieres?`,
+      webQ
+    );
   }
-  return null;
+  return ensureCatalogWebLink(
+    "El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo.",
+    linkQ
+  );
 }
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
@@ -83285,8 +83316,10 @@ function buildCatalogPriceAnswer(query) {
   const resolved = resolveCatalogQuery(query);
   if (!resolved) return null;
   if (!catalogResultMatchesRequestedService(query, resolved)) return null;
+  const svcHint = resolved.serviceName ?? query;
+  const withLink = (text2) => text2 ? ensureCatalogWebLink(text2, svcHint) : null;
   if (resolved.kind === "category") {
-    return buildCategoryServicesAnswer(resolved);
+    return withLink(buildCategoryServicesAnswer(resolved));
   }
   if (resolved.kind === "service_nivel" && resolved.rows[0]) {
     return buildExactRowPriceAnswer(resolved.rows[0]);
@@ -83307,11 +83340,11 @@ function buildCatalogPriceAnswer(query) {
         return `\u2022 *${svcBit}${nivel}* \u2014 ${row.precio}${unit}${min}`;
       }).join("\n");
       if (priceLines2) {
-        return `S\xED, manejamos ${baseName2}:
+        return withLink(`S\xED, manejamos ${baseName2}:
 
 ${priceLines2}
 
-\xBFQu\xE9 nivel te interesa?`;
+\xBFQu\xE9 nivel te interesa?`);
       }
       return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
     }
@@ -83331,9 +83364,9 @@ ${priceLines2}
   }).join("\n");
   if (!priceLines) return buildServiceNivelChoiceAnswer(resolved);
   const inclusionBlock = buildInclusionBlock(unique, 280);
-  return `S\xED, manejamos ${baseName}:
+  return withLink(`S\xED, manejamos ${baseName}:
 
-${priceLines}${inclusionBlock}`;
+${priceLines}${inclusionBlock}`);
 }
 function summarizeServicePrices(serviceKey, maxLevels = 4) {
   const rows = snapshot?.rows.filter(
@@ -83674,7 +83707,7 @@ function buildBroadLevel1Offer(tipoEvento) {
     "",
     "\xBFQu\xE9 te gustar\xEDa revisar primero? Tambi\xE9n podemos armar un paquete con varias opciones."
   ];
-  return lines.join("\n");
+  return ensureCatalogWebLink(lines.join("\n"), null);
 }
 function countOfferCategories(text2) {
   if (!text2?.trim()) return 0;
@@ -83917,7 +83950,8 @@ function stripUnsolicitedCatalogWebLinks(text2, clientAsked) {
 }
 function messageOffersCatalogLink(text2) {
   if (!text2?.trim()) return false;
-  return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text2)) return true;
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(
     text2
   );
 }
@@ -85553,22 +85587,31 @@ ${link}`;
     return `${pickTransition(history)} ${body2}`.trim();
   }
   let options;
+  let linkHint = "banquete";
   if (gettingReady || /\bboda\b/.test(tipo) && inv > 0 && inv <= 30) {
     options = "Para el getting ready suele ir desayuno o brunch ligero, canap\xE9s o coffee break \u2014 sin pista ni DJ.";
+    linkHint = "coffee break";
   } else if (/baby\s*shower/.test(tipo) || /baby\s*shower/.test(texts)) {
     options = "Para baby shower van bien brunch o banquete ligero, mesa de dulces o bocadillos.";
+    linkHint = "brunch";
   } else if (/\bboda\b/.test(tipo) && inv >= 150) {
     options = "Para boda grande lo m\xE1s pedido es banquete, taquiza o barra de bebidas.";
+    linkHint = "banquete";
   } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
     options = "Para bautizo suele ir banquete o brunch, mesa de dulces o bocadillos.";
+    linkHint = "banquete";
   } else if (/corporativo/.test(tipo) || /corporativ/.test(texts)) {
     options = "Para eventos corporativos manejamos coffee break, banquete o barra de alimentos.";
+    linkHint = "coffee break";
   } else {
     options = "Seg\xFAn el evento podemos ofrecerte banquete, taquiza o brunch \u2014 \xBFcu\xE1l te interesa?";
-    return `${pickTransition(history)} ${options}`;
+    return ensureCatalogWebLink(`${pickTransition(history)} ${options}`, "banquete");
   }
   const follow = pickVariant("requerimientos", history, entityId);
-  return `${pickTransition(history)} ${options} ${follow}`.trim();
+  return ensureCatalogWebLink(
+    `${pickTransition(history)} ${options} ${follow}`.trim(),
+    linkHint
+  );
 }
 function buildFoodSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
   if (isVagueFoodTerm(currentMessage)) {
@@ -85610,16 +85653,19 @@ ${nextQ}`;
     const serviceLabel = (allServices.length > 0 ? allServices.join(", ") : null) || mentionedService || parsePrimaryService(currentMessage ?? "") || (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
     if (detail) {
       const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
-      const body2 = `${intro}
+      return ensureCatalogWebLink(
+        `${intro}
 
-${detail}`.trim();
-      return messageOffersCatalogLink(body2) ? body2 : `${body2}
-
-${CATALOG_OFFER_QUESTION}`;
+${detail}`.trim(),
+        mentionedService || query || serviceLabel
+      );
     }
     if (serviceLabel && currentMessage) {
-      return appendNext(
-        `${pickTransition(history)} ${buildGuardServiceAck(currentMessage)}`,
+      return ensureCatalogWebLink(
+        appendNext(
+          `${pickTransition(history)} ${buildGuardServiceAck(currentMessage)}`,
+          serviceLabel
+        ),
         serviceLabel
       );
     }
@@ -85644,7 +85690,10 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
     const comps = focus.complements.slice(0, 2).join(" y ");
     const ideas2 = `Para tu ${extracted.tipo_evento || focus.label} tenemos *${primary}*. Si quieres, tambi\xE9n podemos sumar ${comps} \u2014 sin compromiso.`;
     const follow2 = pickVariant("invitados", history, entityId);
-    return `${pickTransition(history)} ${ideas2} ${follow2}`.trim();
+    return ensureCatalogWebLink(
+      `${pickTransition(history)} ${ideas2} ${follow2}`.trim(),
+      primary
+    );
   }
   let ideas;
   if (gettingReady || /\bboda\b/.test(tipo) && inv > 0 && inv <= 30) {
@@ -85670,12 +85719,15 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
   }
   const comparison = buildCatalogComparisonAnswer();
   if (comparison && /banquete|taquiza|recomiendas?/i.test(currentMessage ?? "")) {
-    return `${ideas}
+    return ensureCatalogWebLink(`${ideas}
 
-${comparison}`;
+${comparison}`, "banquete");
   }
   const follow = pickVariant("requerimientos", history, entityId);
-  return appendServiciosCatalogoHint(`${ideas} ${follow}`.trim());
+  return ensureCatalogWebLink(
+    appendServiciosCatalogoHint(`${ideas} ${follow}`.trim()),
+    /\bboda|xv|bautizo|banquete/i.test(`${tipo} ${texts}`) ? "banquete" : /\bcoffee|corporativ/i.test(`${tipo} ${texts}`) ? "coffee break" : null
+  );
 }
 var LUCY_TRANSITIONS = [
   "Perfecto.",
@@ -86499,12 +86551,7 @@ function buildDeferredKnownServiceOffer(opts) {
   if (!detail || !/nivel|precio|manejamos|\$/i.test(detail)) return null;
   const nombre = getDisplayName(extracted, whatsappName);
   const intro = nombre ? `Perfecto, ${nombre}.` : "Perfecto.";
-  let body2 = `${intro} ${detail}`.trim();
-  if (!messageOffersCatalogLink(body2)) {
-    body2 = `${body2}
-
-${CATALOG_OFFER_QUESTION}`;
-  }
+  let body2 = ensureCatalogWebLink(`${intro} ${detail}`.trim(), svc);
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && pending !== "requerimientos" && pending !== "nombre") {
     const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
@@ -86574,12 +86621,18 @@ function buildGenericPackagesOverviewReply(extracted, history, currentMessage) {
   if (hint) {
     const detail = buildCatalogPriceAnswer(hint) || resolveCatalogInclusionReply(hint, hint) || buildCatalogServiceDetailAnswer(hint);
     if (detail) {
-      return `Claro. Para *${hint}* manejamos varios paquetes/niveles:
+      return ensureCatalogWebLink(
+        `Claro. Para *${hint}* manejamos varios paquetes/niveles:
 
-${detail}`;
+${detail}`,
+        hint
+      );
     }
   }
-  return "Claro. Armamos paquetes a la medida (por ejemplo coffee break, banquete, barra de bebidas, mobiliario y DJ). \xBFCon cu\xE1l servicio quieres empezar a ver paquetes y precios?";
+  return ensureCatalogWebLink(
+    "Claro. Armamos paquetes a la medida (por ejemplo coffee break, banquete, barra de bebidas, mobiliario y DJ). \xBFCon cu\xE1l servicio quieres empezar a ver paquetes y precios?",
+    null
+  );
 }
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
@@ -87016,9 +87069,12 @@ ${link}
     const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
     const detail = buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
     if (detail && /incluye|\$\s*\d|nivel/i.test(detail) && !(emailNow && nextQ)) {
-      mensaje = detail;
+      mensaje = ensureCatalogWebLink(detail, hint);
     } else {
-      mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
+      mensaje = ensureCatalogWebLink(
+        `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim(),
+        hint
+      );
     }
     appliedDirectReply = true;
     log?.info({ entityId, nivel, hasEmail: !!emailNow }, "GUARD: selecci\xF3n de nivel de cat\xE1logo");
@@ -88134,12 +88190,12 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   );
-  const intentionalCatalogSend = /te dejo el cat[aá]logo general/i.test(mensaje) || /detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo/i.test(mensaje) || /el detalle de (lo que incluye|inclusiones).{0,40}cat[aá]logo/i.test(mensaje) || /bodasesor\.com\/catalogos/i.test(mensaje) && (/shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento|niveles?|incluye|men[uú]s/i.test(
+  const intentionalCatalogSend = /te dejo el cat[aá]logo general/i.test(mensaje) || /detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo/i.test(mensaje) || /el detalle de (lo que incluye|inclusiones).{0,40}cat[aá]logo/i.test(mensaje) || /aqu[ií]\s+tienes\s+el\s+cat[aá]logo/i.test(mensaje) || /\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(mensaje) || messageOffersCatalogLink(mensaje) || /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(mensaje) && (/shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento|niveles?|incluye|men[uú]s|precio|manejamos|paquetes?/i.test(
     mensaje
-  ) || messageOffersCatalogLink(mensaje));
+  ) || clientAsksServiceInfo(currentMessage) || clientAsksPrice(currentMessage));
   mensaje = stripUnsolicitedCatalogWebLinks(
     mensaje,
-    clientWantedCatalog || intentionalCatalogSend || clientAsksInclusion(currentMessage)
+    clientWantedCatalog || intentionalCatalogSend || clientAsksInclusion(currentMessage) || clientAsksServiceInfo(currentMessage) || clientAsksPrice(currentMessage)
   );
   if ((clientWantedCatalog || intentionalCatalogSend) && /cat[aá]logo|enlace|link/i.test(mensaje) && !/bodasesor\.com\/catalogos/i.test(mensaje)) {
     const wantFull = clientWantsFullCatalog(currentMessage) || /cat[aá]logo\s+(completo|general)/i.test(currentMessage ?? "");
@@ -89377,14 +89433,15 @@ lugar de tu evento, coordinamos el servicio."
   ubicaci\xF3n: an\xF3talo en requerimientos y pregunta ciudad/sede del evento.
 
 ===================================================================
-## 7. CAT\xC1LOGOS (a petici\xF3n)
+## 7. CAT\xC1LOGOS (con el detalle del servicio)
 ===================================================================
-- No avientes cat\xE1logos sin que los pidan. Tras ofrecer, pregunta "\xBFquieres que te
-  mande el cat\xE1logo con m\xE1s detalle?".
-- Si el cliente acepta, manda el link del servicio (columna "Link cat\xE1logo" del Sheet,
-  bodasesor.com/catalogos/...). Un link a la vez, el del servicio que interesa.
-- Si pide "todo" / m\xE1s opciones \u2192 hub general ${CATALOG_URL}
-- NUNCA inventes URL ni slugs. NUNCA compartas links gamma.app.
+- Cuando expliques un servicio (precios, niveles, inclusiones o "informaci\xF3n"),
+  incluye SIEMPRE el link del cat\xE1logo de ese servicio (columna "Link cat\xE1logo"
+  del Sheet, bodasesor.com/catalogos/...). Un link a la vez.
+- Si el cliente pide "todo" / m\xE1s opciones / entretenimiento multi-servicio \u2192 hub
+  general ${CATALOG_URL}
+- No inventes URL ni slugs. NUNCA compartas links gamma.app.
+- No repitas el mismo link en cada mensaje si ya lo mandaste hace poco.
 
 ===================================================================
 ## 8. CIERRE (una vez, con todos los datos)

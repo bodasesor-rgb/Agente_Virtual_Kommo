@@ -656,14 +656,39 @@ function buildCategoryServicesAnswer(result: CatalogMatchResult): string {
   return `Para *${label.toLowerCase()}* tenemos: ${list}. ¿Cuál te interesa?`;
 }
 
-/** Opt-in al link web del Sheet — no enviar el URL sin que lo pidan. */
+/** Pregunta legacy (aún válida si el cliente afirma); el link ya se manda con el detalle. */
 export const CATALOG_OFFER_QUESTION = "¿Quieres que te mande el catálogo con más detalle?";
 
-function withCatalogOfferQuestion(text: string): string {
+/**
+ * Asegura URL de catálogo en el mensaje (servicio del Sheet o hub).
+ * Política V8.34: al explicar servicio/precio/inclusiones, SIEMPRE va el link.
+ */
+export function ensureCatalogWebLink(
+  text: string,
+  query?: string | null
+): string {
   const body = text.trim();
   if (!body) return body;
-  if (/quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(body)) return body;
-  return `${body}\n\n${CATALOG_OFFER_QUESTION}`;
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(body)) {
+    return body;
+  }
+  const q = (query ?? "").trim();
+  const match = q
+    ? resolveCatalogWebLink(q)
+    : { url: null as string | null, serviceName: null as string | null, kind: "missing" as const };
+  const embedUrl = q ? getCatalogWebUrlForQuery(q) : null;
+  const url = match.url || embedUrl || null;
+  if (url) {
+    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
+    return `${body}\n\nCatálogo${label}:\n${toDeliverableCatalogUrl(url)}`;
+  }
+  return `${body}\n\nCatálogo:\n${getCatalogWebHubDeliveryUrl()}`;
+}
+
+function withCatalogOfferQuestion(text: string, query?: string | null): string {
+  const body = text.trim();
+  if (!body) return body;
+  return ensureCatalogWebLink(body, query);
 }
 
 /**
@@ -702,7 +727,8 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
           return `${i + 1}. *${n}*${price}${inclTxt}`;
         });
         return withCatalogOfferQuestion(
-          `Para *${svc}* manejamos estos niveles:\n${lines.join("\n")}\n\n¿Cuál nivel prefieres?`
+          `Para *${svc}* manejamos estos niveles:\n${lines.join("\n")}\n\n¿Cuál nivel prefieres?`,
+          svc
         );
       }
     }
@@ -714,7 +740,10 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
           .slice(0, 6)
           .map((n) => `*${n}*`)
           .join(", ")}.\n\n`;
-    return `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}¿Cuál variante y nivel prefieres?`;
+    return withCatalogOfferQuestion(
+      `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}¿Cuál variante y nivel prefieres?`,
+      svc
+    );
   }
 
   const lines = niveles.slice(0, 6).map((n, i) => {
@@ -758,8 +787,8 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
     }
   }
 
-  // Misma oferta de catálogo que en filas de un solo nivel (coffee / exact row).
-  return withCatalogOfferQuestion(body);
+  // Siempre incluir link del servicio (V8.34 — no solo pregunta opt-in).
+  return withCatalogOfferQuestion(body, svc);
 }
 
 /** Detecta oferta de niveles solo con nombres/precios (sin explicar Incluye). */
@@ -816,7 +845,8 @@ function buildExactRowDetailAnswer(row: SheetCatalogRow): string {
       : "";
   const inclusion = parsed.inclusion ? `\n\n*Incluye:* ${parsed.inclusion}` : "";
   return withCatalogOfferQuestion(
-    `Sí, manejamos *${label}*.${price ? `\n${price}` : ""}${inclusion}`.trim()
+    `Sí, manejamos *${label}*.${price ? `\n${price}` : ""}${inclusion}`.trim(),
+    row.servicio
   );
 }
 
@@ -826,7 +856,10 @@ function buildExactRowPriceAnswer(row: SheetCatalogRow): string {
   const unit = row.unidad ? ` ${row.unidad}` : "";
   const min = parsed.minimo ? ` (mín. ${parsed.minimo})` : "";
   const inclusion = parsed.inclusion ? `\n\n*Incluye:* ${parsed.inclusion}` : "";
-  return `*${label}* — ${row.precio}${unit}${min}${inclusion}`;
+  return ensureCatalogWebLink(
+    `*${label}* — ${row.precio}${unit}${min}${inclusion}`,
+    row.servicio
+  );
 }
 
 /** Etiqueta servicio+nivel para CRM/resumen cuando el texto del cliente matchea el catálogo. */
@@ -1036,14 +1069,18 @@ export function resolveCatalogInclusionReply(
 
   // "qué incluye cada nivel Básica/Tradicional/Premium" → detalle multi-nivel del servicio,
   // no un solo nivel porque la frase menciona "Premium".
+  const linkQ = serviceHint?.trim() || query;
+  const withLink = (text: string | null): string | null =>
+    text ? ensureCatalogWebLink(text, linkQ) : null;
+
   if (wantsAllLevels && serviceHint?.trim()) {
     const detail = buildCatalogServiceDetailAnswer(serviceHint);
     // Con o sin Que Incluye en Sheet: el detalle trae precios + link web si falta texto.
-    if (detail) return detail;
+    if (detail) return withLink(detail);
     const all = buildCatalogInclusionAnswer(serviceHint);
-    if (all) return all;
+    if (all) return withLink(all);
     const team = buildInclusionTeamConfirmationAnswer(serviceHint);
-    if (team) return team;
+    if (team) return withLink(team);
   }
 
   const attempts = [
@@ -1060,12 +1097,12 @@ export function resolveCatalogInclusionReply(
   for (const q of attempts) {
     if (wantsAllLevels) {
       const detail = buildCatalogServiceDetailAnswer(q);
-      if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return detail;
+      if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
     }
     const hit = buildCatalogInclusionAnswer(q) ?? buildInclusionTeamConfirmationAnswer(q);
-    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return hit;
+    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
-    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return detail;
+    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
   }
 
   // Último recurso: link del catálogo web aunque resolve falle.
@@ -1078,16 +1115,20 @@ export function resolveCatalogInclusionReply(
         ? "Banquete Formal 3 tiempos"
         : "banquete";
     const detail = buildCatalogServiceDetailAnswer(banqueteQ) ?? buildCatalogPriceAnswer(banqueteQ);
-    const link = buildCatalogWebLinkReply({ query: banqueteQ, serviceHint: banqueteQ });
-    if (detail) return `${detail}\n\n${link}`;
-    return link;
+    return ensureCatalogWebLink(detail || "Claro, te dejo el catálogo de banquetes.", banqueteQ);
   }
   const webHint = buildCatalogWebDetailHint(webQ) ?? buildCatalogWebDetailHint(query);
   const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
   if (webHint || webUrl) {
-    return `El detalle de lo que incluye cada nivel está en el catálogo web.\n\n${webHint ?? `Catálogo: ${webUrl}`}\n\n¿Cuál nivel prefieres?`;
+    return ensureCatalogWebLink(
+      `El detalle de lo que incluye cada nivel está en el catálogo web.\n\n${webHint ?? `Catálogo: ${webUrl}`}\n\n¿Cuál nivel prefieres?`,
+      webQ
+    );
   }
-  return null;
+  return ensureCatalogWebLink(
+    "El detalle de lo que incluye cada nivel está en el catálogo.",
+    linkQ
+  );
 }
 
 export function clientAsksInclusion(message?: string): boolean {
@@ -1138,11 +1179,15 @@ export function buildCatalogPriceAnswer(query: string): string | null {
   if (!resolved) return null;
   if (!catalogResultMatchesRequestedService(query, resolved)) return null;
 
+  const svcHint = resolved.serviceName ?? query;
+  const withLink = (text: string | null): string | null =>
+    text ? ensureCatalogWebLink(text, svcHint) : null;
+
   if (resolved.kind === "category") {
-    return buildCategoryServicesAnswer(resolved);
+    return withLink(buildCategoryServicesAnswer(resolved));
   }
   if (resolved.kind === "service_nivel" && resolved.rows[0]) {
-    return buildExactRowPriceAnswer(resolved.rows[0]);
+    return buildExactRowPriceAnswer(resolved.rows[0]); // ya trae link
   }
   if (resolved.kind === "service") {
     const priced = resolved.rows.filter((r) => r.tienePrecio && r.precio);
@@ -1165,7 +1210,7 @@ export function buildCatalogPriceAnswer(query: string): string | null {
         })
         .join("\n");
       if (priceLines) {
-        return `Sí, manejamos ${baseName}:\n\n${priceLines}\n\n¿Qué nivel te interesa?`;
+        return withLink(`Sí, manejamos ${baseName}:\n\n${priceLines}\n\n¿Qué nivel te interesa?`);
       }
       return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
     }
@@ -1191,7 +1236,7 @@ export function buildCatalogPriceAnswer(query: string): string | null {
 
   if (!priceLines) return buildServiceNivelChoiceAnswer(resolved);
   const inclusionBlock = buildInclusionBlock(unique, 280);
-  return `Sí, manejamos ${baseName}:\n\n${priceLines}${inclusionBlock}`;
+  return withLink(`Sí, manejamos ${baseName}:\n\n${priceLines}${inclusionBlock}`);
 }
 
 function summarizeServicePrices(serviceKey: string, maxLevels = 4): string | null {
@@ -1620,7 +1665,7 @@ export function buildBroadLevel1Offer(tipoEvento: string | null | undefined): st
     "",
     "¿Qué te gustaría revisar primero? También podemos armar un paquete con varias opciones.",
   ];
-  return lines.join("\n");
+  return ensureCatalogWebLink(lines.join("\n"), null);
 }
 
 /** Cuenta cuántas macro-categorías menciona un ofrecimiento (para detectar ofertas demasiado cortas). */
@@ -1986,7 +2031,9 @@ export function stripUnsolicitedCatalogWebLinks(text: string, clientAsked: boole
 
 export function messageOffersCatalogLink(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
-  return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(
+  // URL ya enviada cuenta como oferta (anti-repeat + strip intencional).
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text)) return true;
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(
     text
   );
 }

@@ -172,10 +172,10 @@ import {
   stripUnsolicitedCatalogWebLinks,
   CATALOG_WEB_HUB_URL,
   CATALOG_OFFER_QUESTION,
+  ensureCatalogWebLink,
   toDeliverableCatalogUrl,
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
-  formatServiceDataForPrompt,
 } from "../services/catalogService.js";
 import { buildMobiliarioRentDetailReply } from "../services/serviceKnowledge.js";
 import { resolveServiceFocusFromText, expandQueryWithServiceSynonyms } from "../services/serviceSynonyms.js";
@@ -2488,7 +2488,7 @@ async function runAll(): Promise<void> {
     assert.ok(!/tambi[eé]n manejamos bebidas,?\s*DJ/i.test(closeReply), closeReply.slice(0, 300));
   });
 
-  await test("55. Catálogo web — Link del Sheet solo a petición", () => {
+  await test("55. Catálogo web — links en info de servicio + strip GPT suelto", () => {
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
       '"Barra de pizzas","Basico","$320.00","$8,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-pizzas","Pizzas artesanales","pizza"',
@@ -2591,9 +2591,9 @@ async function runAll(): Promise<void> {
       guardSend
     );
 
-    const guardNoSend = runGuards({
-      aiResponse:
-        "Claro, te dejo el catálogo https://bodasesor.com/catalogos/barra-de-pizzas ¿cuántos invitados?",
+    // V8.34: info de servicio SIEMPRE incluye link (ya no solo pregunta opt-in).
+    const guardInfo = runGuards({
+      aiResponse: "Claro, ¿cuántos invitados?",
       extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
       filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
       readyForClosing: false,
@@ -2601,10 +2601,16 @@ async function runAll(): Promise<void> {
       history: [],
     });
     assert.ok(
-      !/bodasesor\.com\/catalogos/i.test(guardNoSend) ||
-        /quieres que te mande el catálogo/i.test(guardNoSend),
-      guardNoSend.slice(0, 400)
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(guardInfo),
+      guardInfo.slice(0, 500)
     );
+
+    // GPT inventando URL sin contexto de servicio → strip (sin fingerprint intencional).
+    const strippedBare = stripUnsolicitedCatalogWebLinks(
+      "Mira https://bodasesor.com/catalogos/barra-de-pizzas está padre",
+      false
+    );
+    assert.ok(!/bodasesor\.com\/catalogos/i.test(strippedBare), strippedBare);
 
     const guardAffirm = runGuards({
       aiResponse: "ok",
@@ -4177,8 +4183,10 @@ async function runAll(): Promise<void> {
       `T2 debe ofrecer niveles/precios del sushi: ${t2.slice(0, 500)}`
     );
     assert.ok(
-      /mande el cat[aá]logo|cat[aá]logo con m[aá]s detalle/i.test(t2),
-      `T2 debe ofrecer catálogo: ${t2.slice(0, 500)}`
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos|mande el cat[aá]logo|cat[aá]logo con m[aá]s detalle/i.test(
+        t2
+      ),
+      `T2 debe ofrecer catálogo (URL o pregunta): ${t2.slice(0, 500)}`
     );
     assert.ok(
       historyAlreadyOfferedServiceDetail([{ role: "assistant", content: t2 }]),
@@ -5290,12 +5298,12 @@ async function runAll(): Promise<void> {
       "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. ¿Me pueden dar información?";
     assert.ok(isVagueFoodTerm(vagueInfo));
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye"',
-      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","Entrada, plato fuerte y postre"',
-      '"Banquete Formal 3 tiempos","Premium","$750.00","$15,000.00","TRUE","Entrada premium, fuerte y postre"',
-      '"Banquete Mexicano 4 tiempos","Basico","$600.00","$18,000.00","TRUE","4 tiempos mexicanos"',
-      '"Betún Clásico","Basico","$200.00","$5,000.00","TRUE","betún"',
-      '"Cupcakes","Basico","$150.00","$3,000.00","TRUE","cupcakes"',
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye"',
+      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada, plato fuerte y postre"',
+      '"Banquete Formal 3 tiempos","Premium","$750.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada premium, fuerte y postre"',
+      '"Banquete Mexicano 4 tiempos","Basico","$600.00","$18,000.00","TRUE","https://bodasesor.com/catalogos/banquete-mexicano","4 tiempos mexicanos"',
+      '"Betún Clásico","Basico","$200.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/cupcakes-y-betun","betún"',
+      '"Cupcakes","Basico","$150.00","$3,000.00","TRUE","https://bodasesor.com/catalogos/cupcakes-y-betun","cupcakes"',
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
 
@@ -5312,7 +5320,7 @@ async function runAll(): Promise<void> {
     assert.ok(!/bet[uú]n|cupcakes?/i.test(first), first.slice(0, 400));
     assert.ok(/lucy|bodasesor/i.test(first), first.slice(0, 200));
     assert.ok(
-      /bodasesor\.com\/catalogos|\$\s*[\d,.]+|nivel|tiempos/i.test(first),
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(first),
       first.slice(0, 500)
     );
 
@@ -5338,7 +5346,10 @@ async function runAll(): Promise<void> {
       ],
     });
     assert.ok(/3\s*tiempos|Formal/i.test(tiempos), tiempos.slice(0, 400));
-    assert.ok(/nivel|incluye|\$|cat[aá]logo/i.test(tiempos), tiempos.slice(0, 400));
+    assert.ok(
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(tiempos),
+      tiempos.slice(0, 500)
+    );
 
     const incl = runGuards({
       aiResponse: "Sin problema, lo dejamos por definir. ¿A qué correo te mando la información?",
@@ -5361,6 +5372,10 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/lo dejamos por definir/i.test(incl), incl.slice(0, 300));
     assert.ok(/incluye|nivel|Basico|Premium|cat[aá]logo|\$/i.test(incl), incl.slice(0, 500));
+    assert.ok(
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(incl),
+      incl.slice(0, 500)
+    );
     assert.ok(!/bet[uú]n|cupcakes?/i.test(incl), incl.slice(0, 400));
   });
 
@@ -5374,6 +5389,60 @@ async function runAll(): Promise<void> {
     assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra"), null);
     // Ampliar apellido
     assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra Ruiz"), "Alexandra Ruiz");
+  });
+
+  await test("92. Catálogo — todas las ramas de servicio envían link", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye"',
+      '"Coffee Break","Basico","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café y pan dulce"',
+      '"Coffee Break","Premium","$250.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café premium"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","5 guisados"',
+      '"Barra de sushi","Basico","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","Rollos"',
+      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","3 tiempos"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const hasUrl = (t: string) =>
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(t);
+
+    assert.ok(hasUrl(ensureCatalogWebLink("Detalle coffee", "coffee break")));
+    assert.ok(hasUrl(buildCatalogPriceAnswer("coffee break") || ""));
+    assert.ok(hasUrl(buildCatalogServiceDetailAnswer("taquiza") || ""));
+    assert.ok(hasUrl(resolveCatalogInclusionReply("qué incluye", "barra de sushi") || ""));
+    assert.ok(hasUrl(buildBroadLevel1Offer("graduación")));
+    assert.ok(hasUrl(buildVagueFoodOptionsReply(emptyExtracted({ tipo_evento: "boda" }), [], "¿recomiendas algo?")));
+    assert.ok(hasUrl(buildGenericPackagesOverviewReply(emptyExtracted({ requerimientos_evento: "coffee break" }), [], "ver los paquetes")));
+    assert.ok(hasUrl(buildPackageCatalogOfferBlock()));
+
+    const priceGuard = runGuards({
+      aiResponse: "Te cotizo luego",
+      extracted: emptyExtracted({
+        nombre: "Luis",
+        tipo_evento: "corporativo",
+        requerimientos_evento: "coffee break",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "cuánto cuesta el coffee break",
+      history: [],
+    });
+    assert.ok(hasUrl(priceGuard), priceGuard.slice(0, 500));
+    assert.ok(/\$\s*[\d,.]+|180|250/i.test(priceGuard), priceGuard.slice(0, 400));
+
+    const sushiInfo = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "me interesa la barra de sushi, dame información",
+      history: [],
+    });
+    assert.ok(hasUrl(sushiInfo), sushiInfo.slice(0, 500));
+    assert.ok(!/quieres que te mande el catálogo/i.test(sushiInfo) || hasUrl(sushiInfo), sushiInfo.slice(0, 300));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
