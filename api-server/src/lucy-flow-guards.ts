@@ -56,6 +56,7 @@ import {
   stripUnsolicitedCatalogWebLinks,
   CATALOG_OFFER_QUESTION,
   messageOffersCatalogLink,
+  ensureCatalogWebLink,
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
   getCatalogWebHubDeliveryUrl,
@@ -969,24 +970,33 @@ export function buildVagueFoodOptionsReply(
   }
 
   let options: string;
+  let linkHint = "banquete";
   if (gettingReady || (/\bboda\b/.test(tipo) && inv > 0 && inv <= 30)) {
     options =
       "Para el getting ready suele ir desayuno o brunch ligero, canapés o coffee break — sin pista ni DJ.";
+    linkHint = "coffee break";
   } else if (/baby\s*shower/.test(tipo) || /baby\s*shower/.test(texts)) {
     options = "Para baby shower van bien brunch o banquete ligero, mesa de dulces o bocadillos.";
+    linkHint = "brunch";
   } else if (/\bboda\b/.test(tipo) && inv >= 150) {
     options = "Para boda grande lo más pedido es banquete, taquiza o barra de bebidas.";
+    linkHint = "banquete";
   } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
     options = "Para bautizo suele ir banquete o brunch, mesa de dulces o bocadillos.";
+    linkHint = "banquete";
   } else if (/corporativo/.test(tipo) || /corporativ/.test(texts)) {
     options = "Para eventos corporativos manejamos coffee break, banquete o barra de alimentos.";
+    linkHint = "coffee break";
   } else {
     options = "Según el evento podemos ofrecerte banquete, taquiza o brunch — ¿cuál te interesa?";
-    return `${pickTransition(history)} ${options}`;
+    return ensureCatalogWebLink(`${pickTransition(history)} ${options}`, "banquete");
   }
 
   const follow = pickVariant("requerimientos", history, entityId);
-  return `${pickTransition(history)} ${options} ${follow}`.trim();
+  return ensureCatalogWebLink(
+    `${pickTransition(history)} ${options} ${follow}`.trim(),
+    linkHint
+  );
 }
 
 function buildFoodSalesReply(
@@ -1055,16 +1065,19 @@ function buildFoodSalesReply(
       const intro = mentionedService
         ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
         : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
-      // Tras explicar: ofrecer el link web solo si el cliente lo pide.
-      const body = `${intro}\n\n${detail}`.trim();
-      return messageOffersCatalogLink(body)
-        ? body
-        : `${body}\n\n${CATALOG_OFFER_QUESTION}`;
+      // V8.34: al explicar el servicio, siempre va el link del catálogo.
+      return ensureCatalogWebLink(
+        `${intro}\n\n${detail}`.trim(),
+        mentionedService || query || serviceLabel
+      );
     }
 
     if (serviceLabel && currentMessage) {
-      return appendNext(
-        `${pickTransition(history)} ${buildGuardServiceAck(currentMessage)}`,
+      return ensureCatalogWebLink(
+        appendNext(
+          `${pickTransition(history)} ${buildGuardServiceAck(currentMessage)}`,
+          serviceLabel
+        ),
         serviceLabel
       );
     }
@@ -1102,7 +1115,10 @@ export function buildRecommendationsReply(
     const ideas = `Para tu ${extracted.tipo_evento || focus.label} tenemos *${primary}*. Si quieres, también podemos sumar ${comps} — sin compromiso.`;
     const follow = pickVariant("invitados", history, entityId);
     // Prefer asking invitados when offering a focused food event
-    return `${pickTransition(history)} ${ideas} ${follow}`.trim();
+    return ensureCatalogWebLink(
+      `${pickTransition(history)} ${ideas} ${follow}`.trim(),
+      primary
+    );
   }
 
   let ideas: string;
@@ -1139,11 +1155,18 @@ export function buildRecommendationsReply(
 
   const comparison = buildCatalogComparisonAnswer();
   if (comparison && /banquete|taquiza|recomiendas?/i.test(currentMessage ?? "")) {
-    return `${ideas}\n\n${comparison}`;
+    return ensureCatalogWebLink(`${ideas}\n\n${comparison}`, "banquete");
   }
 
   const follow = pickVariant("requerimientos", history, entityId);
-  return appendServiciosCatalogoHint(`${ideas} ${follow}`.trim());
+  return ensureCatalogWebLink(
+    appendServiciosCatalogoHint(`${ideas} ${follow}`.trim()),
+    /\bboda|xv|bautizo|banquete/i.test(`${tipo} ${texts}`)
+      ? "banquete"
+      : /\bcoffee|corporativ/i.test(`${tipo} ${texts}`)
+        ? "coffee break"
+        : null
+  );
 }
 
 const LUCY_TRANSITIONS = [
@@ -2466,10 +2489,7 @@ export function buildDeferredKnownServiceOffer(opts: {
 
   const nombre = getDisplayName(extracted, whatsappName);
   const intro = nombre ? `Perfecto, ${nombre}.` : "Perfecto.";
-  let body = `${intro} ${detail}`.trim();
-  if (!messageOffersCatalogLink(body)) {
-    body = `${body}\n\n${CATALOG_OFFER_QUESTION}`;
-  }
+  let body = ensureCatalogWebLink(`${intro} ${detail}`.trim(), svc);
 
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && pending !== "requerimientos" && pending !== "nombre") {
@@ -2599,12 +2619,16 @@ export function buildGenericPackagesOverviewReply(
       resolveCatalogInclusionReply(hint, hint) ||
       buildCatalogServiceDetailAnswer(hint);
     if (detail) {
-      return `Claro. Para *${hint}* manejamos varios paquetes/niveles:\n\n${detail}`;
+      return ensureCatalogWebLink(
+        `Claro. Para *${hint}* manejamos varios paquetes/niveles:\n\n${detail}`,
+        hint
+      );
     }
   }
-  return (
+  return ensureCatalogWebLink(
     "Claro. Armamos paquetes a la medida (por ejemplo coffee break, banquete, barra de bebidas, mobiliario y DJ). " +
-    "¿Con cuál servicio quieres empezar a ver paquetes y precios?"
+      "¿Con cuál servicio quieres empezar a ver paquetes y precios?",
+    null
   );
 }
 
@@ -3355,9 +3379,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
     const detail = buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
     if (detail && /incluye|\$\s*\d|nivel/i.test(detail) && !(emailNow && nextQ)) {
-      mensaje = detail;
+      mensaje = ensureCatalogWebLink(detail, hint);
     } else {
-      mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
+      mensaje = ensureCatalogWebLink(
+        `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim(),
+        hint
+      );
     }
     appliedDirectReply = true;
     log?.info({ entityId, nivel, hasEmail: !!emailNow }, "GUARD: selección de nivel de catálogo");
@@ -4919,19 +4946,27 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         ? (lastAssistantMsg.content as string)
         : null
     );
-  // Entretenimiento / RFQ: el bloque "Te dejo el catálogo general" es intencional (A14920).
+  // Entretenimiento / RFQ / detalle de servicio: links intencionales (A14920 + V8.34).
   const intentionalCatalogSend =
     /te dejo el cat[aá]logo general/i.test(mensaje) ||
     /detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo/i.test(mensaje) ||
     /el detalle de (lo que incluye|inclusiones).{0,40}cat[aá]logo/i.test(mensaje) ||
-    (/bodasesor\.com\/catalogos/i.test(mensaje) &&
-      (/shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento|niveles?|incluye|men[uú]s/i.test(
+    /aqu[ií]\s+tienes\s+el\s+cat[aá]logo/i.test(mensaje) ||
+    /\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(mensaje) ||
+    messageOffersCatalogLink(mensaje) ||
+    (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(mensaje) &&
+      (/shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento|niveles?|incluye|men[uú]s|precio|manejamos|paquetes?/i.test(
         mensaje
       ) ||
-        messageOffersCatalogLink(mensaje)));
+        clientAsksServiceInfo(currentMessage) ||
+        clientAsksPrice(currentMessage)));
   mensaje = stripUnsolicitedCatalogWebLinks(
     mensaje,
-    clientWantedCatalog || intentionalCatalogSend || clientAsksInclusion(currentMessage)
+    clientWantedCatalog ||
+      intentionalCatalogSend ||
+      clientAsksInclusion(currentMessage) ||
+      clientAsksServiceInfo(currentMessage) ||
+      clientAsksPrice(currentMessage)
   );
 
   // A14929: si dijo que manda enlace/catálogo pero no hay URL, forzar link del Sheet.

@@ -4018,13 +4018,32 @@ function buildCategoryServicesAnswer(result) {
   return `Para *${label.toLowerCase()}* tenemos: ${list}. \xBFCu\xE1l te interesa?`;
 }
 var CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
-function withCatalogOfferQuestion(text) {
+function ensureCatalogWebLink(text, query) {
   const body = text.trim();
   if (!body) return body;
-  if (/quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(body)) return body;
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(body)) {
+    return body;
+  }
+  const q = (query ?? "").trim();
+  const match = q ? resolveCatalogWebLink(q) : { url: null, serviceName: null, kind: "missing" };
+  const embedUrl = q ? getCatalogWebUrlForQuery(q) : null;
+  const url = match.url || embedUrl || null;
+  if (url) {
+    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
+    return `${body}
+
+Cat\xE1logo${label}:
+${toDeliverableCatalogUrl(url)}`;
+  }
   return `${body}
 
-${CATALOG_OFFER_QUESTION}`;
+Cat\xE1logo:
+${getCatalogWebHubDeliveryUrl()}`;
+}
+function withCatalogOfferQuestion(text, query) {
+  const body = text.trim();
+  if (!body) return body;
+  return ensureCatalogWebLink(body, query);
 }
 function buildServiceNivelChoiceAnswer(result) {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
@@ -4055,7 +4074,8 @@ function buildServiceNivelChoiceAnswer(result) {
           `Para *${svc}* manejamos estos niveles:
 ${lines2.join("\n")}
 
-\xBFCu\xE1l nivel prefieres?`
+\xBFCu\xE1l nivel prefieres?`,
+          svc
         );
       }
     }
@@ -4066,7 +4086,10 @@ ${lines2.join("\n")}
 ` : `Niveles disponibles: ${niveles.slice(0, 6).map((n) => `*${n}*`).join(", ")}.
 
 `;
-    return `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}\xBFCu\xE1l variante y nivel prefieres?`;
+    return withCatalogOfferQuestion(
+      `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}\xBFCu\xE1l variante y nivel prefieres?`,
+      svc
+    );
   }
   const lines = niveles.slice(0, 6).map((n, i) => {
     const row = rowsForChoice.find(
@@ -4107,7 +4130,7 @@ Cat\xE1logo general:
 ${getCatalogWebHubDeliveryUrl()}`;
     }
   }
-  return withCatalogOfferQuestion(body);
+  return withCatalogOfferQuestion(body, svc);
 }
 function messageOffersLevelsWithoutInclusions(text) {
   if (!text?.trim()) return false;
@@ -4140,7 +4163,8 @@ function buildExactRowDetailAnswer(row) {
 *Incluye:* ${parsed.inclusion}` : "";
   return withCatalogOfferQuestion(
     `S\xED, manejamos *${label}*.${price ? `
-${price}` : ""}${inclusion}`.trim()
+${price}` : ""}${inclusion}`.trim(),
+    row.servicio
   );
 }
 function buildExactRowPriceAnswer(row) {
@@ -4151,7 +4175,10 @@ function buildExactRowPriceAnswer(row) {
   const inclusion = parsed.inclusion ? `
 
 *Incluye:* ${parsed.inclusion}` : "";
-  return `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`;
+  return ensureCatalogWebLink(
+    `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`,
+    row.servicio
+  );
 }
 function formatRequerimientoLabelFromQuery(query) {
   const resolved = resolveCatalogQuery(query);
@@ -4295,13 +4322,15 @@ function resolveCatalogInclusionReply(query, serviceHint) {
   const wantsAllLevels = /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
     query
   );
+  const linkQ = serviceHint?.trim() || query;
+  const withLink = (text) => text ? ensureCatalogWebLink(text, linkQ) : null;
   if (wantsAllLevels && serviceHint?.trim()) {
     const detail = buildCatalogServiceDetailAnswer(serviceHint);
-    if (detail) return detail;
+    if (detail) return withLink(detail);
     const all = buildCatalogInclusionAnswer(serviceHint);
-    if (all) return all;
+    if (all) return withLink(all);
     const team = buildInclusionTeamConfirmationAnswer(serviceHint);
-    if (team) return team;
+    if (team) return withLink(team);
   }
   const attempts = [
     serviceHint ? `${serviceHint} ${query}` : null,
@@ -4314,33 +4343,35 @@ function resolveCatalogInclusionReply(query, serviceHint) {
   for (const q of attempts) {
     if (wantsAllLevels) {
       const detail2 = buildCatalogServiceDetailAnswer(q);
-      if (detail2 && !/bet[uú]n|cupcakes?/i.test(detail2)) return detail2;
+      if (detail2 && !/bet[uú]n|cupcakes?/i.test(detail2)) return withLink(detail2);
     }
     const hit = buildCatalogInclusionAnswer(q) ?? buildInclusionTeamConfirmationAnswer(q);
-    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return hit;
+    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
-    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return detail;
+    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
   }
   const webQ = serviceHint || query;
   if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
     const banqueteQ = /\b4\s*tiempos|mexicano/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Mexicano 4 tiempos" : /\b3\s*tiempos|formal/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Formal 3 tiempos" : "banquete";
     const detail = buildCatalogServiceDetailAnswer(banqueteQ) ?? buildCatalogPriceAnswer(banqueteQ);
-    const link = buildCatalogWebLinkReply({ query: banqueteQ, serviceHint: banqueteQ });
-    if (detail) return `${detail}
-
-${link}`;
-    return link;
+    return ensureCatalogWebLink(detail || "Claro, te dejo el cat\xE1logo de banquetes.", banqueteQ);
   }
   const webHint = buildCatalogWebDetailHint(webQ) ?? buildCatalogWebDetailHint(query);
   const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
   if (webHint || webUrl) {
-    return `El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.
+    return ensureCatalogWebLink(
+      `El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.
 
 ${webHint ?? `Cat\xE1logo: ${webUrl}`}
 
-\xBFCu\xE1l nivel prefieres?`;
+\xBFCu\xE1l nivel prefieres?`,
+      webQ
+    );
   }
-  return null;
+  return ensureCatalogWebLink(
+    "El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo.",
+    linkQ
+  );
 }
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
@@ -4380,8 +4411,10 @@ function buildCatalogPriceAnswer(query) {
   const resolved = resolveCatalogQuery(query);
   if (!resolved) return null;
   if (!catalogResultMatchesRequestedService(query, resolved)) return null;
+  const svcHint = resolved.serviceName ?? query;
+  const withLink = (text) => text ? ensureCatalogWebLink(text, svcHint) : null;
   if (resolved.kind === "category") {
-    return buildCategoryServicesAnswer(resolved);
+    return withLink(buildCategoryServicesAnswer(resolved));
   }
   if (resolved.kind === "service_nivel" && resolved.rows[0]) {
     return buildExactRowPriceAnswer(resolved.rows[0]);
@@ -4402,11 +4435,11 @@ function buildCatalogPriceAnswer(query) {
         return `\u2022 *${svcBit}${nivel}* \u2014 ${row.precio}${unit}${min}`;
       }).join("\n");
       if (priceLines2) {
-        return `S\xED, manejamos ${baseName2}:
+        return withLink(`S\xED, manejamos ${baseName2}:
 
 ${priceLines2}
 
-\xBFQu\xE9 nivel te interesa?`;
+\xBFQu\xE9 nivel te interesa?`);
       }
       return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
     }
@@ -4426,9 +4459,9 @@ ${priceLines2}
   }).join("\n");
   if (!priceLines) return buildServiceNivelChoiceAnswer(resolved);
   const inclusionBlock = buildInclusionBlock(unique, 280);
-  return `S\xED, manejamos ${baseName}:
+  return withLink(`S\xED, manejamos ${baseName}:
 
-${priceLines}${inclusionBlock}`;
+${priceLines}${inclusionBlock}`);
 }
 function summarizeServicePrices(serviceKey, maxLevels = 4) {
   const rows = snapshot?.rows.filter(
@@ -4769,7 +4802,7 @@ function buildBroadLevel1Offer(tipoEvento) {
     "",
     "\xBFQu\xE9 te gustar\xEDa revisar primero? Tambi\xE9n podemos armar un paquete con varias opciones."
   ];
-  return lines.join("\n");
+  return ensureCatalogWebLink(lines.join("\n"), null);
 }
 function countOfferCategories(text) {
   if (!text?.trim()) return 0;
@@ -5000,7 +5033,8 @@ function stripUnsolicitedCatalogWebLinks(text, clientAsked) {
 }
 function messageOffersCatalogLink(text) {
   if (!text?.trim()) return false;
-  return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo/i.test(
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text)) return true;
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(
     text
   );
 }
@@ -15840,22 +15874,31 @@ ${link}`;
     return `${pickTransition(history)} ${body}`.trim();
   }
   let options;
+  let linkHint = "banquete";
   if (gettingReady || /\bboda\b/.test(tipo) && inv > 0 && inv <= 30) {
     options = "Para el getting ready suele ir desayuno o brunch ligero, canap\xE9s o coffee break \u2014 sin pista ni DJ.";
+    linkHint = "coffee break";
   } else if (/baby\s*shower/.test(tipo) || /baby\s*shower/.test(texts)) {
     options = "Para baby shower van bien brunch o banquete ligero, mesa de dulces o bocadillos.";
+    linkHint = "brunch";
   } else if (/\bboda\b/.test(tipo) && inv >= 150) {
     options = "Para boda grande lo m\xE1s pedido es banquete, taquiza o barra de bebidas.";
+    linkHint = "banquete";
   } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
     options = "Para bautizo suele ir banquete o brunch, mesa de dulces o bocadillos.";
+    linkHint = "banquete";
   } else if (/corporativo/.test(tipo) || /corporativ/.test(texts)) {
     options = "Para eventos corporativos manejamos coffee break, banquete o barra de alimentos.";
+    linkHint = "coffee break";
   } else {
     options = "Seg\xFAn el evento podemos ofrecerte banquete, taquiza o brunch \u2014 \xBFcu\xE1l te interesa?";
-    return `${pickTransition(history)} ${options}`;
+    return ensureCatalogWebLink(`${pickTransition(history)} ${options}`, "banquete");
   }
   const follow = pickVariant("requerimientos", history, entityId);
-  return `${pickTransition(history)} ${options} ${follow}`.trim();
+  return ensureCatalogWebLink(
+    `${pickTransition(history)} ${options} ${follow}`.trim(),
+    linkHint
+  );
 }
 function buildFoodSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
   if (isVagueFoodTerm(currentMessage)) {
@@ -15897,16 +15940,19 @@ ${nextQ}`;
     const serviceLabel = (allServices.length > 0 ? allServices.join(", ") : null) || mentionedService || parsePrimaryService(currentMessage ?? "") || (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
     if (detail) {
       const intro = mentionedService ? `${pickTransition(history)} S\xED manejamos ${mentionedService} para ${eventLabel}.` : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
-      const body = `${intro}
+      return ensureCatalogWebLink(
+        `${intro}
 
-${detail}`.trim();
-      return messageOffersCatalogLink(body) ? body : `${body}
-
-${CATALOG_OFFER_QUESTION}`;
+${detail}`.trim(),
+        mentionedService || query || serviceLabel
+      );
     }
     if (serviceLabel && currentMessage) {
-      return appendNext(
-        `${pickTransition(history)} ${buildGuardServiceAck(currentMessage)}`,
+      return ensureCatalogWebLink(
+        appendNext(
+          `${pickTransition(history)} ${buildGuardServiceAck(currentMessage)}`,
+          serviceLabel
+        ),
         serviceLabel
       );
     }
@@ -15931,7 +15977,10 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
     const comps = focus.complements.slice(0, 2).join(" y ");
     const ideas2 = `Para tu ${extracted.tipo_evento || focus.label} tenemos *${primary}*. Si quieres, tambi\xE9n podemos sumar ${comps} \u2014 sin compromiso.`;
     const follow2 = pickVariant("invitados", history, entityId);
-    return `${pickTransition(history)} ${ideas2} ${follow2}`.trim();
+    return ensureCatalogWebLink(
+      `${pickTransition(history)} ${ideas2} ${follow2}`.trim(),
+      primary
+    );
   }
   let ideas;
   if (gettingReady || /\bboda\b/.test(tipo) && inv > 0 && inv <= 30) {
@@ -15957,12 +16006,15 @@ function buildRecommendationsReply(extracted, history, entityId, currentMessage)
   }
   const comparison = buildCatalogComparisonAnswer();
   if (comparison && /banquete|taquiza|recomiendas?/i.test(currentMessage ?? "")) {
-    return `${ideas}
+    return ensureCatalogWebLink(`${ideas}
 
-${comparison}`;
+${comparison}`, "banquete");
   }
   const follow = pickVariant("requerimientos", history, entityId);
-  return appendServiciosCatalogoHint(`${ideas} ${follow}`.trim());
+  return ensureCatalogWebLink(
+    appendServiciosCatalogoHint(`${ideas} ${follow}`.trim()),
+    /\bboda|xv|bautizo|banquete/i.test(`${tipo} ${texts}`) ? "banquete" : /\bcoffee|corporativ/i.test(`${tipo} ${texts}`) ? "coffee break" : null
+  );
 }
 var LUCY_TRANSITIONS = [
   "Perfecto.",
@@ -16774,12 +16826,7 @@ function buildDeferredKnownServiceOffer(opts) {
   if (!detail || !/nivel|precio|manejamos|\$/i.test(detail)) return null;
   const nombre = getDisplayName(extracted, whatsappName);
   const intro = nombre ? `Perfecto, ${nombre}.` : "Perfecto.";
-  let body = `${intro} ${detail}`.trim();
-  if (!messageOffersCatalogLink(body)) {
-    body = `${body}
-
-${CATALOG_OFFER_QUESTION}`;
-  }
+  let body = ensureCatalogWebLink(`${intro} ${detail}`.trim(), svc);
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && pending !== "requerimientos" && pending !== "nombre") {
     const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
@@ -16849,12 +16896,18 @@ function buildGenericPackagesOverviewReply(extracted, history, currentMessage) {
   if (hint) {
     const detail = buildCatalogPriceAnswer(hint) || resolveCatalogInclusionReply(hint, hint) || buildCatalogServiceDetailAnswer(hint);
     if (detail) {
-      return `Claro. Para *${hint}* manejamos varios paquetes/niveles:
+      return ensureCatalogWebLink(
+        `Claro. Para *${hint}* manejamos varios paquetes/niveles:
 
-${detail}`;
+${detail}`,
+        hint
+      );
     }
   }
-  return "Claro. Armamos paquetes a la medida (por ejemplo coffee break, banquete, barra de bebidas, mobiliario y DJ). \xBFCon cu\xE1l servicio quieres empezar a ver paquetes y precios?";
+  return ensureCatalogWebLink(
+    "Claro. Armamos paquetes a la medida (por ejemplo coffee break, banquete, barra de bebidas, mobiliario y DJ). \xBFCon cu\xE1l servicio quieres empezar a ver paquetes y precios?",
+    null
+  );
 }
 function isInformativeClientAnswer(currentMessage) {
   if (!currentMessage?.trim()) return false;
@@ -17291,9 +17344,12 @@ ${link}
     const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
     const detail = buildCatalogServiceDetailAnswer(`${hint} ${nivel}`);
     if (detail && /incluye|\$\s*\d|nivel/i.test(detail) && !(emailNow && nextQ)) {
-      mensaje = detail;
+      mensaje = ensureCatalogWebLink(detail, hint);
     } else {
-      mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
+      mensaje = ensureCatalogWebLink(
+        `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim(),
+        hint
+      );
     }
     appliedDirectReply = true;
     log?.info({ entityId, nivel, hasEmail: !!emailNow }, "GUARD: selecci\xF3n de nivel de cat\xE1logo");
@@ -18409,12 +18465,12 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   );
-  const intentionalCatalogSend = /te dejo el cat[aá]logo general/i.test(mensaje) || /detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo/i.test(mensaje) || /el detalle de (lo que incluye|inclusiones).{0,40}cat[aá]logo/i.test(mensaje) || /bodasesor\.com\/catalogos/i.test(mensaje) && (/shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento|niveles?|incluye|men[uú]s/i.test(
+  const intentionalCatalogSend = /te dejo el cat[aá]logo general/i.test(mensaje) || /detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo/i.test(mensaje) || /el detalle de (lo que incluye|inclusiones).{0,40}cat[aá]logo/i.test(mensaje) || /aqu[ií]\s+tienes\s+el\s+cat[aá]logo/i.test(mensaje) || /\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(mensaje) || messageOffersCatalogLink(mensaje) || /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(mensaje) && (/shows?\s+en\s+vivo|hora\s+loca|maestro\s+de\s+ceremonias|entretenimiento|niveles?|incluye|men[uú]s|precio|manejamos|paquetes?/i.test(
     mensaje
-  ) || messageOffersCatalogLink(mensaje));
+  ) || clientAsksServiceInfo(currentMessage) || clientAsksPrice(currentMessage));
   mensaje = stripUnsolicitedCatalogWebLinks(
     mensaje,
-    clientWantedCatalog || intentionalCatalogSend || clientAsksInclusion(currentMessage)
+    clientWantedCatalog || intentionalCatalogSend || clientAsksInclusion(currentMessage) || clientAsksServiceInfo(currentMessage) || clientAsksPrice(currentMessage)
   );
   if ((clientWantedCatalog || intentionalCatalogSend) && /cat[aá]logo|enlace|link/i.test(mensaje) && !/bodasesor\.com\/catalogos/i.test(mensaje)) {
     const wantFull = clientWantsFullCatalog(currentMessage) || /cat[aá]logo\s+(completo|general)/i.test(currentMessage ?? "");
@@ -21119,7 +21175,7 @@ async function runAll() {
     });
     assert.ok(!/tambi[eé]n manejamos bebidas,?\s*DJ/i.test(closeReply), closeReply.slice(0, 300));
   });
-  await test("55. Cat\xE1logo web \u2014 Link del Sheet solo a petici\xF3n", () => {
+  await test("55. Cat\xE1logo web \u2014 links en info de servicio + strip GPT suelto", () => {
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye","Sinonimos"',
       '"Barra de pizzas","Basico","$320.00","$8,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-pizzas","Pizzas artesanales","pizza"',
@@ -21212,8 +21268,8 @@ ${CATALOG_OFFER_QUESTION}`
       guardSend.includes("/catalogos/barra-de-pizzas"),
       guardSend
     );
-    const guardNoSend = runGuards({
-      aiResponse: "Claro, te dejo el cat\xE1logo https://bodasesor.com/catalogos/barra-de-pizzas \xBFcu\xE1ntos invitados?",
+    const guardInfo = runGuards({
+      aiResponse: "Claro, \xBFcu\xE1ntos invitados?",
       extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
       filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
       readyForClosing: false,
@@ -21221,9 +21277,14 @@ ${CATALOG_OFFER_QUESTION}`
       history: []
     });
     assert.ok(
-      !/bodasesor\.com\/catalogos/i.test(guardNoSend) || /quieres que te mande el catálogo/i.test(guardNoSend),
-      guardNoSend.slice(0, 400)
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(guardInfo),
+      guardInfo.slice(0, 500)
     );
+    const strippedBare = stripUnsolicitedCatalogWebLinks(
+      "Mira https://bodasesor.com/catalogos/barra-de-pizzas est\xE1 padre",
+      false
+    );
+    assert.ok(!/bodasesor\.com\/catalogos/i.test(strippedBare), strippedBare);
     const guardAffirm = runGuards({
       aiResponse: "ok",
       extracted: emptyExtracted({
@@ -22618,8 +22679,10 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `T2 debe ofrecer niveles/precios del sushi: ${t2.slice(0, 500)}`
     );
     assert.ok(
-      /mande el cat[aá]logo|cat[aá]logo con m[aá]s detalle/i.test(t2),
-      `T2 debe ofrecer cat\xE1logo: ${t2.slice(0, 500)}`
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos|mande el cat[aá]logo|cat[aá]logo con m[aá]s detalle/i.test(
+        t2
+      ),
+      `T2 debe ofrecer cat\xE1logo (URL o pregunta): ${t2.slice(0, 500)}`
     );
     assert.ok(
       historyAlreadyOfferedServiceDetail([{ role: "assistant", content: t2 }]),
@@ -23603,12 +23666,12 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const vagueInfo = "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. \xBFMe pueden dar informaci\xF3n?";
     assert.ok(isVagueFoodTerm(vagueInfo));
     const csv = [
-      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye"',
-      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","Entrada, plato fuerte y postre"',
-      '"Banquete Formal 3 tiempos","Premium","$750.00","$15,000.00","TRUE","Entrada premium, fuerte y postre"',
-      '"Banquete Mexicano 4 tiempos","Basico","$600.00","$18,000.00","TRUE","4 tiempos mexicanos"',
-      '"Bet\xFAn Cl\xE1sico","Basico","$200.00","$5,000.00","TRUE","bet\xFAn"',
-      '"Cupcakes","Basico","$150.00","$3,000.00","TRUE","cupcakes"'
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada, plato fuerte y postre"',
+      '"Banquete Formal 3 tiempos","Premium","$750.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada premium, fuerte y postre"',
+      '"Banquete Mexicano 4 tiempos","Basico","$600.00","$18,000.00","TRUE","https://bodasesor.com/catalogos/banquete-mexicano","4 tiempos mexicanos"',
+      '"Bet\xFAn Cl\xE1sico","Basico","$200.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/cupcakes-y-betun","bet\xFAn"',
+      '"Cupcakes","Basico","$150.00","$3,000.00","TRUE","https://bodasesor.com/catalogos/cupcakes-y-betun","cupcakes"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
     const first = runGuards({
@@ -23623,7 +23686,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.ok(!/bet[uú]n|cupcakes?/i.test(first), first.slice(0, 400));
     assert.ok(/lucy|bodasesor/i.test(first), first.slice(0, 200));
     assert.ok(
-      /bodasesor\.com\/catalogos|\$\s*[\d,.]+|nivel|tiempos/i.test(first),
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(first),
       first.slice(0, 500)
     );
     const tiempos = runGuards({
@@ -23648,7 +23711,10 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       ]
     });
     assert.ok(/3\s*tiempos|Formal/i.test(tiempos), tiempos.slice(0, 400));
-    assert.ok(/nivel|incluye|\$|cat[aá]logo/i.test(tiempos), tiempos.slice(0, 400));
+    assert.ok(
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(tiempos),
+      tiempos.slice(0, 500)
+    );
     const incl = runGuards({
       aiResponse: "Sin problema, lo dejamos por definir. \xBFA qu\xE9 correo te mando la informaci\xF3n?",
       extracted: emptyExtracted({
@@ -23670,6 +23736,10 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     });
     assert.ok(!/lo dejamos por definir/i.test(incl), incl.slice(0, 300));
     assert.ok(/incluye|nivel|Basico|Premium|cat[aá]logo|\$/i.test(incl), incl.slice(0, 500));
+    assert.ok(
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(incl),
+      incl.slice(0, 500)
+    );
     assert.ok(!/bet[uú]n|cupcakes?/i.test(incl), incl.slice(0, 400));
   });
   await test("91. Alejandro \u2014 lead.name se escribe aunque CRM ya tenga Nombre del cliente", () => {
@@ -23678,6 +23748,54 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.equal(resolveKommoLeadNamePatch("Lead: 26669772", "Alexandra"), "Alexandra");
     assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra"), null);
     assert.equal(resolveKommoLeadNamePatch("Alexandra", "Alexandra Ruiz"), "Alexandra Ruiz");
+  });
+  await test("92. Cat\xE1logo \u2014 todas las ramas de servicio env\xEDan link", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Coffee Break","Basico","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9 y pan dulce"',
+      '"Coffee Break","Premium","$250.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Caf\xE9 premium"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","5 guisados"',
+      '"Barra de sushi","Basico","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","Rollos"',
+      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","3 tiempos"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const hasUrl = (t) => /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(t);
+    assert.ok(hasUrl(ensureCatalogWebLink("Detalle coffee", "coffee break")));
+    assert.ok(hasUrl(buildCatalogPriceAnswer("coffee break") || ""));
+    assert.ok(hasUrl(buildCatalogServiceDetailAnswer("taquiza") || ""));
+    assert.ok(hasUrl(resolveCatalogInclusionReply("qu\xE9 incluye", "barra de sushi") || ""));
+    assert.ok(hasUrl(buildBroadLevel1Offer("graduaci\xF3n")));
+    assert.ok(hasUrl(buildVagueFoodOptionsReply(emptyExtracted({ tipo_evento: "boda" }), [], "\xBFrecomiendas algo?")));
+    assert.ok(hasUrl(buildGenericPackagesOverviewReply(emptyExtracted({ requerimientos_evento: "coffee break" }), [], "ver los paquetes")));
+    assert.ok(hasUrl(buildPackageCatalogOfferBlock()));
+    const priceGuard = runGuards({
+      aiResponse: "Te cotizo luego",
+      extracted: emptyExtracted({
+        nombre: "Luis",
+        tipo_evento: "corporativo",
+        requerimientos_evento: "coffee break"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "cu\xE1nto cuesta el coffee break",
+      history: []
+    });
+    assert.ok(hasUrl(priceGuard), priceGuard.slice(0, 500));
+    assert.ok(/\$\s*[\d,.]+|180|250/i.test(priceGuard), priceGuard.slice(0, 400));
+    const sushiInfo = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "me interesa la barra de sushi, dame informaci\xF3n",
+      history: []
+    });
+    assert.ok(hasUrl(sushiInfo), sushiInfo.slice(0, 500));
+    assert.ok(!/quieres que te mande el catálogo/i.test(sushiInfo) || hasUrl(sushiInfo), sushiInfo.slice(0, 300));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
