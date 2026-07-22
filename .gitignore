@@ -10,6 +10,8 @@ deploy/data/
 imports/
 api-server/data/
 api-server/data/lucy-pgdata/
+api-server/dist/data/lucy-pgdata/
+deploy/data/lucy-pgdata/
 **/postmaster.pid
 lucy-20-tests-report.json
 lucy-20-tests.log
