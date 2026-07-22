@@ -17697,8 +17697,14 @@ ${teamNote}`,
 ${teamNote}`;
       log?.info({ entityId }, "GUARD: precio distribuidor / RFQ \u2014 sin SKU retail");
     } else {
-      const needsAlejandroQuote = mentionsNoListedPriceService(currentMessage) || responseHasInventedPrice(aiResponse, currentMessage, ctxText2) && !mentionsListedPriceService(currentMessage);
-      if (needsAlejandroQuote) {
+      const genericPriceAsk = clientAsksPrice(currentMessage) && !mentionsListedPriceService(currentMessage ?? "") && !mentionsNoListedPriceService(currentMessage ?? "") && !findMentionedService(currentMessage ?? "") && !parsePrimaryService(currentMessage ?? "");
+      const needsAlejandroQuote = !genericPriceAsk && (mentionsNoListedPriceService(currentMessage) || responseHasInventedPrice(aiResponse, currentMessage, ctxText2) && !mentionsListedPriceService(currentMessage));
+      if (genericPriceAsk) {
+        const clarify = buildGenericPriceClarifyReply(extracted, presHistory, currentMessage);
+        mensaje = needsNextStep ? mergeWithPendingQuestion(clarify, filledSet, extracted, ctx) : clarify;
+        appliedDirectReply = true;
+        log?.info({ entityId }, "GUARD: precios gen\xE9ricos \u2014 aclarar servicio");
+      } else if (needsAlejandroQuote) {
         const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
         mensaje = needsNextStep && pending && pending !== "correo" ? `${priceReply}
 
