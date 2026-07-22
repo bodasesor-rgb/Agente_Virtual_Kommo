@@ -838,11 +838,12 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
   const hasAnyIncl = rowsForChoice.some((r) => !!getInclusionFromRow(r));
   const footer = hasAnyIncl
     ? "¿Cuál nivel prefieres para tu evento?"
-    : "¿Cuál nivel prefieres? Te paso el catálogo con el detalle de lo que incluye cada uno.";
+    : "¿Cuál nivel prefieres?";
 
   let body = `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
 
   // Si el Sheet no trae (o trae poco) Incluye, complementar con catálogo web bodasesor.com.
+  // (Sin repetir "¿quieres que te mande el catálogo?" — el link ya va abajo.)
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
     const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
     const webUrl =

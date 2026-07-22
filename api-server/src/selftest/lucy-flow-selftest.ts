@@ -5512,6 +5512,79 @@ async function runAll(): Promise<void> {
     assert.ok(/incluye|rollos/i.test(price), `precio multi-nivel debe traer Incluye: ${price}`);
   });
 
+  await test("94. Car A14949 — Coffee Break 5 = nivel (no 5 invitados), Viernes 24", () => {
+    const lastOffer = [
+      "Para *Coffee Break* manejamos estos niveles:",
+      "",
+      "1. *Coffee Break 1* — $120.00 /pp",
+      "2. *Coffee Break 2* — $200.00 /pp",
+      "3. *Coffee Break 3* — $280.00 /pp",
+      "4. *Coffee Break 4* — $350.00 /pp",
+      "5. *Coffee Break 5* — $400.00 /pp",
+      "",
+      "¿Cuál nivel prefieres?",
+      "https://bodasesor.com/catalogos/coffee-break",
+      "",
+      "¿Cómo te llamas?",
+    ].join("\n");
+
+    assert.equal(parseInvitadosFromText("Me interesaría el coffe break 5"), null);
+    assert.equal(parseInvitadosFromText("coffee break 5"), null);
+    assert.equal(
+      extractCatalogNivelFromText("Me interesaría el coffe break 5", lastOffer),
+      "Coffee Break 5"
+    );
+    assert.equal(extractCatalogNivelFromText("el 5", lastOffer), "Coffee Break 5");
+    assert.ok(isCatalogLevelSelection("Me interesaría el coffe break 5", lastOffer));
+    assert.ok(isCatalogLevelSelection("5", lastOffer));
+
+    const amb = { num_invitados: 5 as number | null };
+    sanitizeExtractedAmbiguousNumbers(amb, "Me interesaría el coffe break 5");
+    assert.equal(amb.num_invitados, null);
+
+    assert.equal(parseFechaFromText("Viernes 24"), "Viernes 24");
+    assert.ok(/viernes\s+24/i.test(parseFechaFromText("el viernes 24") || ""));
+
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye"',
+      '"Coffee Break","Coffee Break 5","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Menú premium CB5"',
+      '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Menú CB1"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const pick = runGuards({
+      aiResponse: "Mucho gusto, Car. ¿A qué correo te lo envío?",
+      extracted: emptyExtracted({
+        nombre: "Car",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Coffee Break",
+        num_invitados: 5,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Me interesaría el coffe break 5",
+      history: [
+        {
+          role: "user",
+          content: "Hola, me interesa cotizar: Coffee Break para Eventos Corporativos",
+        },
+        { role: "assistant", content: lastOffer },
+      ],
+      whatsappDisplayName: "Car",
+    });
+    assert.ok(/anoto|Coffee Break 5|\*Coffee Break 5\*/i.test(pick), pick.slice(0, 400));
+    assert.ok(!/5\s*invitados|somos 5/i.test(pick), pick.slice(0, 300));
+    assert.ok(
+      /correo|invitados|cu[aá]ntos/i.test(pick),
+      `debe seguir embudo tras ack nivel: ${pick.slice(0, 400)}`
+    );
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }
