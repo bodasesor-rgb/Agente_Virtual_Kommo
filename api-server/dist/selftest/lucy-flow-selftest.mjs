@@ -2394,8 +2394,12 @@ ${section}
 function ensureCacheFromSeedSync() {
   if (cacheState().docs.length > 0) return;
   try {
+    const here = typeof __dirname === "string" && __dirname ? __dirname : process.cwd();
     const candidates = [
       process.env["LUCY_INFO_SEED_PATH"]?.trim(),
+      join(here, "config", "lucy-info-seed.json"),
+      join(here, "lucy-info-seed.json"),
+      join(here, "data", "lucy-info-seed.json"),
       join(process.cwd(), "config", "lucy-info-seed.json"),
       join(process.cwd(), "lucy-info-seed.json"),
       join(process.cwd(), "data", "lucy-info-seed.json")
@@ -4826,7 +4830,7 @@ ${lines.join("\n")}
 
 ${footer}`;
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
-    const fromPdf = buildLucyInfoInclusionReply(svc) || buildLucyInfoInclusionReply(result.serviceName ?? svc);
+    const fromPdf = buildLucyInfoInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) || buildLucyInfoInclusionReply(svc);
     if (fromPdf) {
       body += `
 

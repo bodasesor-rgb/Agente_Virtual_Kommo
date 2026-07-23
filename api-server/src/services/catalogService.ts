@@ -716,18 +716,16 @@ export function messageHasSheetServiceDetail(text: string | null | undefined): b
 }
 
 /**
- * Mejor detalle disponible del Sheet para un servicio (niveles + incluye + precio + link).
- * Usar en primer turno, food-sales, info y cuando el ACK genérico no alcanza.
- * No usa el fallback genérico de inclusiones (hub sin datos).
+ * Mejor detalle disponible: PDF aprendido primero, luego Sheet.
  */
 export function attachAvailableSheetDetail(
   query: string,
   serviceHint?: string | null
 ): string | null {
   const attempts = [
+    [serviceHint, query].filter(Boolean).join(" ").trim() || null,
     serviceHint?.trim() || null,
     query.trim() || null,
-    [serviceHint, query].filter(Boolean).join(" ").trim() || null,
   ].filter((a): a is string => !!a);
 
   for (const a of attempts) {
@@ -735,10 +733,10 @@ export function attachAvailableSheetDetail(
     if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
 
     const candidates = [
-      buildCatalogServiceDetailAnswer(a),
-      buildCatalogPriceAnswer(a),
       buildCatalogInclusionAnswer(a),
       buildInclusionTeamConfirmationAnswer(a),
+      buildCatalogServiceDetailAnswer(a),
+      buildCatalogPriceAnswer(a),
     ].filter((d): d is string => !!d);
 
     for (const detail of candidates) {
@@ -846,9 +844,11 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
 
   let body = `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
 
-  // Si el Sheet no trae Incluye, complementar con PDF aprendido y/o catálogo web.
+  // Si el Sheet no trae Incluye, complementar con PDF aprendido (con el query completo si hay nivel).
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
-    const fromPdf = buildLucyInfoInclusionReply(svc) || buildLucyInfoInclusionReply(result.serviceName ?? svc);
+    const fromPdf =
+      buildLucyInfoInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) ||
+      buildLucyInfoInclusionReply(svc);
     if (fromPdf) {
       body += `\n\n${fromPdf}`;
     } else {
