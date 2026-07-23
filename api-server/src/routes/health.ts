@@ -5,6 +5,7 @@ import { getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
 import { isAuthConfigured } from "../lib/authJwt.js";
 import { getCatalogStatus } from "../services/catalogService.js";
 import { getBuildMeta } from "../lib/buildMeta.js";
+import { getLucyInfoStats } from "../services/lucyInfoStore.js";
 
 const router: IRouter = Router();
 
@@ -14,9 +15,15 @@ router.get("/healthz", (_req, res) => {
 });
 
 // Endpoint detallado para keep-alive y diagnóstico externo
-router.get("/health", (_req, res) => {
+router.get("/health", async (_req, res) => {
   const key = getOpenAiApiKey();
   const build = getBuildMeta();
+  let lucy_info = { catalog: 0, tips: 0, total: 0 };
+  try {
+    lucy_info = await getLucyInfoStats();
+  } catch {
+    /* ignore — health debe responder igual */
+  }
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -47,6 +54,7 @@ router.get("/health", (_req, res) => {
       panel_path: "/aprendizaje",
       lucy_info_path: "/api/lucy-info",
     },
+    lucy_info,
     silent_watch: {
       note: "En Humano Trabaja/Cotización/seguimientos Lucy no cotiza; actualiza CRM si cambian datos; solo escribe teléfonos de emergencia",
     },
