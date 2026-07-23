@@ -844,27 +844,26 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
 
   let body = `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
 
-  // Si el Sheet no trae Incluye, complementar con PDF aprendido (con el query completo si hay nivel).
+  // Si el Sheet no trae Incluye: preferir SOLO el PDF (no concatenar lista + PDF → mashup confuso).
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
     const fromPdf =
       buildLucyInfoInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) ||
       buildLucyInfoInclusionReply(svc);
     if (fromPdf) {
-      body += `\n\n${fromPdf}`;
+      return fromPdf;
+    }
+    const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
+    const webUrl =
+      getCatalogWebUrlForQuery(svc) ??
+      getCatalogWebUrlForQuery(result.serviceName ?? "") ??
+      resolveCatalogWebLink(svc).url ??
+      resolveCatalogWebLink(result.serviceName ?? svc).url;
+    if (webHint) {
+      body += `\n\n${webHint}`;
+    } else if (webUrl) {
+      body += `\n\nEl detalle completo de menús e inclusiones está en el catálogo:\n${toDeliverableCatalogUrl(webUrl)}`;
     } else {
-      const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
-      const webUrl =
-        getCatalogWebUrlForQuery(svc) ??
-        getCatalogWebUrlForQuery(result.serviceName ?? "") ??
-        resolveCatalogWebLink(svc).url ??
-        resolveCatalogWebLink(result.serviceName ?? svc).url;
-      if (webHint) {
-        body += `\n\n${webHint}`;
-      } else if (webUrl) {
-        body += `\n\nEl detalle completo de menús e inclusiones está en el catálogo:\n${toDeliverableCatalogUrl(webUrl)}`;
-      } else {
-        body += `\n\nCatálogo general:\n${getCatalogWebHubDeliveryUrl()}`;
-      }
+      body += `\n\nCatálogo general:\n${getCatalogWebHubDeliveryUrl()}`;
     }
   }
 
@@ -1486,17 +1485,36 @@ export function buildCatalogNotFoundAnswer(serviceLabel: string, query?: string)
 export function buildCatalogServiceDetailAnswer(query: string): string | null {
   if (!snapshot?.rows.length) return null;
 
+  // Inclusión de un nivel concreto (CB5, Tradicional, etc.): PDF primero, sin listar todos los niveles.
+  if (clientAsksInclusion(query) || /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic)/i.test(query)) {
+    const fromPdf = buildLucyInfoInclusionReply(query);
+    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+  }
+
   const resolved = resolveCatalogQuery(query);
   if (!resolved) return null;
   if (!catalogResultMatchesRequestedService(query, resolved)) return null;
   if (resolved?.kind === "category") {
     return buildCategoryServicesAnswer(resolved);
   }
-  if (resolved?.kind === "service") {
-    return buildServiceNivelChoiceAnswer(resolved);
-  }
   if (resolved?.kind === "service_nivel" && resolved.rows[0]) {
-    return buildExactRowDetailAnswer(resolved.rows[0]);
+    const row = resolved.rows[0];
+    const incl = getInclusionFromRow(row);
+    if (!incl) {
+      const fromPdf =
+        buildLucyInfoInclusionReply(query) ||
+        buildLucyInfoInclusionReply(formatCatalogRowLabel(row));
+      if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+    }
+    return buildExactRowDetailAnswer(row);
+  }
+  if (resolved?.kind === "service") {
+    // "qué incluye Coffee Break 5" a veces resuelve como service (no service_nivel).
+    if (/\bcoffee\s*break\s*\d|\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
+      const fromPdf = buildLucyInfoInclusionReply(query);
+      if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+    }
+    return buildServiceNivelChoiceAnswer(resolved);
   }
 
   const priceAnswer = buildCatalogPriceAnswer(query);
@@ -1880,6 +1898,8 @@ export function injectCatalogCateringIfAsked(
   aiResponse: string
 ): string {
   if (!clientMessage?.trim()) return aiResponse;
+  // No pisar una respuesta de inclusiones (PDF/Sheet) con el listado de niveles.
+  if (clientAsksInclusion(clientMessage)) return aiResponse;
 
   const asksService = clientAsksServiceInfo(clientMessage) || clientAsksPrice(clientMessage);
   const genericCatering =

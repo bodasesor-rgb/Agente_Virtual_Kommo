@@ -25,7 +25,7 @@ async function writeBuildMeta(targetDir) {
   const gitCommit = resolveGitCommit();
   const meta = {
     version: "3.3",
-    lucy_prompt: "V8.55",
+    lucy_prompt: "V8.56",
     built_at: builtAt.toISOString(),
     built_at_display: builtAt.toLocaleString("es-MX", {
       timeZone: "America/Mexico_City",

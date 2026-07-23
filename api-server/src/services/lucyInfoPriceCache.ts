@@ -283,7 +283,7 @@ export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): str
 
   const ranked = [...docs]
     .map((d) => ({ d, s: scoreDoc(d, tokens) }))
-    .filter((x) => x.s >= 10)
+    .filter((x) => x.s >= 6)
     .sort((a, b) => b.s - a.s);
   if (!ranked.length) return null;
 
@@ -315,13 +315,19 @@ function ensureCacheFromSeedSync(): void {
   try {
     let moduleDir = "";
     try {
-      // ESM / bundle: preferir carpeta del entry (dist/ o deploy/).
       moduleDir = dirname(fileURLToPath(import.meta.url));
     } catch {
       /* ignore */
     }
+    let argvDir = "";
+    try {
+      const entry = process.argv[1];
+      if (entry) argvDir = dirname(entry);
+    } catch {
+      /* ignore */
+    }
     const here =
-      (typeof __dirname === "string" && __dirname) || moduleDir || process.cwd();
+      (typeof __dirname === "string" && __dirname) || moduleDir || argvDir || process.cwd();
     const candidates = [
       process.env["LUCY_INFO_SEED_PATH"]?.trim(),
       join(here, "config", "lucy-info-seed.json"),
@@ -329,6 +335,8 @@ function ensureCacheFromSeedSync(): void {
       join(here, "data", "lucy-info-seed.json"),
       join(moduleDir, "config", "lucy-info-seed.json"),
       join(moduleDir, "lucy-info-seed.json"),
+      join(argvDir, "lucy-info-seed.json"),
+      join(argvDir, "config", "lucy-info-seed.json"),
       join(process.cwd(), "config", "lucy-info-seed.json"),
       join(process.cwd(), "lucy-info-seed.json"),
       join(process.cwd(), "data", "lucy-info-seed.json"),

@@ -2371,7 +2371,7 @@ function buildLucyInfoInclusionReply(query, maxChars = 1100) {
   if (!docs.length || !query?.trim()) return null;
   const tokens = tokenize(query);
   if (!tokens.length) return null;
-  const ranked = [...docs].map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x) => x.s >= 10).sort((a, b) => b.s - a.s);
+  const ranked = [...docs].map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x) => x.s >= 6).sort((a, b) => b.s - a.s);
   if (!ranked.length) return null;
   const serviceHints = ["coffee", "banquete", "taquiza", "sushi", "paella", "pozole", "pista", "sala", "barra"];
   const qf = fold(query);
@@ -2400,7 +2400,13 @@ function ensureCacheFromSeedSync() {
       moduleDir = dirname(fileURLToPath(import.meta.url));
     } catch {
     }
-    const here = typeof __dirname === "string" && __dirname || moduleDir || process.cwd();
+    let argvDir = "";
+    try {
+      const entry = process.argv[1];
+      if (entry) argvDir = dirname(entry);
+    } catch {
+    }
+    const here = typeof __dirname === "string" && __dirname || moduleDir || argvDir || process.cwd();
     const candidates = [
       process.env["LUCY_INFO_SEED_PATH"]?.trim(),
       join(here, "config", "lucy-info-seed.json"),
@@ -2408,6 +2414,8 @@ function ensureCacheFromSeedSync() {
       join(here, "data", "lucy-info-seed.json"),
       join(moduleDir, "config", "lucy-info-seed.json"),
       join(moduleDir, "lucy-info-seed.json"),
+      join(argvDir, "lucy-info-seed.json"),
+      join(argvDir, "config", "lucy-info-seed.json"),
       join(process.cwd(), "config", "lucy-info-seed.json"),
       join(process.cwd(), "lucy-info-seed.json"),
       join(process.cwd(), "data", "lucy-info-seed.json"),
@@ -4843,27 +4851,24 @@ ${footer}`;
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
     const fromPdf = buildLucyInfoInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) || buildLucyInfoInclusionReply(svc);
     if (fromPdf) {
+      return fromPdf;
+    }
+    const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
+    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "") ?? resolveCatalogWebLink(svc).url ?? resolveCatalogWebLink(result.serviceName ?? svc).url;
+    if (webHint) {
       body += `
 
-${fromPdf}`;
-    } else {
-      const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
-      const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "") ?? resolveCatalogWebLink(svc).url ?? resolveCatalogWebLink(result.serviceName ?? svc).url;
-      if (webHint) {
-        body += `
-
 ${webHint}`;
-      } else if (webUrl) {
-        body += `
+    } else if (webUrl) {
+      body += `
 
 El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo:
 ${toDeliverableCatalogUrl(webUrl)}`;
-      } else {
-        body += `
+    } else {
+      body += `
 
 Cat\xE1logo general:
 ${getCatalogWebHubDeliveryUrl()}`;
-      }
     }
   }
   return withCatalogOfferQuestion(body, svc);
@@ -5309,17 +5314,31 @@ function buildCatalogNotFoundAnswer(serviceLabel, query) {
 }
 function buildCatalogServiceDetailAnswer(query) {
   if (!snapshot?.rows.length) return null;
+  if (clientAsksInclusion(query) || /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic)/i.test(query)) {
+    const fromPdf = buildLucyInfoInclusionReply(query);
+    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+  }
   const resolved = resolveCatalogQuery(query);
   if (!resolved) return null;
   if (!catalogResultMatchesRequestedService(query, resolved)) return null;
   if (resolved?.kind === "category") {
     return buildCategoryServicesAnswer(resolved);
   }
-  if (resolved?.kind === "service") {
-    return buildServiceNivelChoiceAnswer(resolved);
-  }
   if (resolved?.kind === "service_nivel" && resolved.rows[0]) {
-    return buildExactRowDetailAnswer(resolved.rows[0]);
+    const row2 = resolved.rows[0];
+    const incl = getInclusionFromRow(row2);
+    if (!incl) {
+      const fromPdf = buildLucyInfoInclusionReply(query) || buildLucyInfoInclusionReply(formatCatalogRowLabel(row2));
+      if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+    }
+    return buildExactRowDetailAnswer(row2);
+  }
+  if (resolved?.kind === "service") {
+    if (/\bcoffee\s*break\s*\d|\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
+      const fromPdf = buildLucyInfoInclusionReply(query);
+      if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+    }
+    return buildServiceNivelChoiceAnswer(resolved);
   }
   const priceAnswer = buildCatalogPriceAnswer(query);
   if (priceAnswer) return priceAnswer;
@@ -5625,6 +5644,7 @@ function injectCatalogInclusionIfAsked(clientMessage, aiResponse, serviceHint) {
 }
 function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim()) return aiResponse;
+  if (clientAsksInclusion(clientMessage)) return aiResponse;
   const asksService = clientAsksServiceInfo(clientMessage) || clientAsksPrice(clientMessage);
   const genericCatering = clientMentionsCatering(clientMessage) && !parsePrimaryService(clientMessage);
   const mentionsService = isServiceRelatedMessage(clientMessage) && !!parsePrimaryService(clientMessage);
@@ -17856,20 +17876,17 @@ ${nextQ}` : ack;
     }
   }
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
-    const pdfOnly = buildLucyInfoInclusionReply(currentMessage ?? "");
+    const userBlobEarly = collectUserTexts(presHistory, currentMessage).join(" ");
+    const serviceHintEarly = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(userBlobEarly) || findMentionedService(userBlobEarly);
+    const pdfOnly = buildLucyInfoInclusionReply(currentMessage ?? "") || (serviceHintEarly ? buildLucyInfoInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`) : null) || (serviceHintEarly ? buildLucyInfoInclusionReply(serviceHintEarly) : null);
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
-      const pending = getNextPendingField(extracted, filledSet);
-      const emailOkEarly = isEmailSatisfied(filledSet, extracted);
-      const withNext = pending && emailOkEarly && pending !== "requerimientos" ? `${pdfOnly}
-
-${buildNaturalQuestion(pending, ctx)}` : pdfOnly;
       log?.info({ entityId }, "GUARD: inclusiones \u2014 PDF aprendido (return temprano)");
       return normalizeAdvisorReferences(
-        withNext,
+        pdfOnly,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
-    const serviceHint = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+    const serviceHint = serviceHintEarly;
     const inclusionAnswer = resolveCatalogInclusionReply(
       currentMessage ?? "",
       serviceHint
@@ -18485,37 +18502,45 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     } else {
       serviceHint = (isValidRequerimientosValue(req) ? req : null) || parsePrimaryService(userBlob) || findMentionedService(userBlob);
     }
-    const inclusionAnswer = resolveCatalogInclusionReply(
-      currentMessage ?? "",
-      serviceHint
-    );
-    if (inclusionAnswer && !/bet[uú]n|cupcakes?/i.test(inclusionAnswer)) {
-      const pending = getNextPendingField(extracted, filledSet);
-      mensaje = pending && needsNextStep && !trulyReadyForClosing ? `${inclusionAnswer}
-
-${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
+    const pdfOnly = buildLucyInfoInclusionReply(currentMessage ?? "") || (serviceHint ? buildLucyInfoInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) : null) || (serviceHint ? buildLucyInfoInclusionReply(serviceHint) : null);
+    if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
+      mensaje = pdfOnly;
       appliedSalesReply = true;
       appliedDirectReply = true;
-      log?.info({ entityId, serviceHint }, "GUARD: inclusiones/descripciones de paquete (temprano)");
-    } else if (serviceHint && /\bbanquete/i.test(serviceHint)) {
-      const detail = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
-      const link = buildCatalogWebLinkReply({ query: serviceHint, serviceHint });
-      mensaje = detail ? `${detail}
+      log?.info({ entityId, serviceHint }, "GUARD: inclusiones \u2014 PDF aprendido");
+    } else {
+      const inclusionAnswer = resolveCatalogInclusionReply(
+        currentMessage ?? "",
+        serviceHint
+      );
+      if (inclusionAnswer && !/bet[uú]n|cupcakes?/i.test(inclusionAnswer)) {
+        const pending = getNextPendingField(extracted, filledSet);
+        mensaje = pending && needsNextStep && !trulyReadyForClosing ? `${inclusionAnswer}
+
+${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
+        appliedSalesReply = true;
+        appliedDirectReply = true;
+        log?.info({ entityId, serviceHint }, "GUARD: inclusiones/descripciones de paquete (temprano)");
+      } else if (serviceHint && /\bbanquete/i.test(serviceHint)) {
+        const detail = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
+        const link = buildCatalogWebLinkReply({ query: serviceHint, serviceHint });
+        mensaje = detail ? `${detail}
 
 ${link}
 
 \xBFCu\xE1l nivel te late?` : `${link}
 
 \xBFCu\xE1l nivel te late?`;
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId, serviceHint }, "GUARD: inclusiones banquete \u2014 Sheet + link forzado");
-    } else {
-      const packageOverview = buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage);
-      mensaje = packageOverview;
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId }, "GUARD: paquetes gen\xE9ricos \u2014 overview / aclarar servicio");
+        appliedSalesReply = true;
+        appliedDirectReply = true;
+        log?.info({ entityId, serviceHint }, "GUARD: inclusiones banquete \u2014 Sheet + link forzado");
+      } else {
+        const packageOverview = buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage);
+        mensaje = packageOverview;
+        appliedSalesReply = true;
+        appliedDirectReply = true;
+        log?.info({ entityId }, "GUARD: paquetes gen\xE9ricos \u2014 overview / aclarar servicio");
+      }
     }
   } else if (allowSalesReplyOverride && clientAsksServiceInfo(currentMessage) && isServiceRelatedMessage(currentMessage) && !clientAsksPrice(currentMessage) && !cierreYaEnviado) {
     const cateringAnswer = buildFoodSalesReply(

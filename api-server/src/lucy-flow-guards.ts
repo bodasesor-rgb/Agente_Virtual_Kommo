@@ -3007,27 +3007,28 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
   // por redirect a zona ni anti-repeat de embudo.
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
-    // PDF del panel primero (texto completo del nivel/servicio).
-    const pdfOnly = buildLucyInfoInclusionReply(currentMessage ?? "");
-    if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
-      const pending = getNextPendingField(extracted, filledSet);
-      const emailOkEarly = isEmailSatisfied(filledSet, extracted);
-      const withNext =
-        pending && emailOkEarly && pending !== "requerimientos"
-          ? `${pdfOnly}\n\n${buildNaturalQuestion(pending, ctx)}`
-          : pdfOnly;
-      log?.info({ entityId }, "GUARD: inclusiones — PDF aprendido (return temprano)");
-      return normalizeAdvisorReferences(
-        withNext,
-        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
-      );
-    }
-    const serviceHint =
+    const userBlobEarly = collectUserTexts(presHistory, currentMessage).join(" ");
+    const serviceHintEarly =
       (isValidRequerimientosValue(extracted.requerimientos_evento)
         ? extracted.requerimientos_evento
         : null) ||
-      parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) ||
-      findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+      parsePrimaryService(userBlobEarly) ||
+      findMentionedService(userBlobEarly);
+    // PDF del panel primero (texto completo del nivel/servicio). Probar variantes.
+    const pdfOnly =
+      buildLucyInfoInclusionReply(currentMessage ?? "") ||
+      (serviceHintEarly
+        ? buildLucyInfoInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`)
+        : null) ||
+      (serviceHintEarly ? buildLucyInfoInclusionReply(serviceHintEarly) : null);
+    if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
+      log?.info({ entityId }, "GUARD: inclusiones — PDF aprendido (return temprano)");
+      return normalizeAdvisorReferences(
+        pdfOnly,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+    const serviceHint = serviceHintEarly;
     const inclusionAnswer = resolveCatalogInclusionReply(
       currentMessage ?? "",
       serviceHint
@@ -3946,6 +3947,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         parsePrimaryService(userBlob) ||
         findMentionedService(userBlob);
     }
+    const pdfOnly =
+      buildLucyInfoInclusionReply(currentMessage ?? "") ||
+      (serviceHint
+        ? buildLucyInfoInclusionReply(`${serviceHint} ${currentMessage ?? ""}`)
+        : null) ||
+      (serviceHint ? buildLucyInfoInclusionReply(serviceHint) : null);
+    if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
+      mensaje = pdfOnly;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId, serviceHint }, "GUARD: inclusiones — PDF aprendido");
+    } else {
     const inclusionAnswer = resolveCatalogInclusionReply(
       currentMessage ?? "",
       serviceHint
@@ -3978,6 +3991,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       appliedSalesReply = true;
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: paquetes genéricos — overview / aclarar servicio");
+    }
     }
   } else if (
     allowSalesReplyOverride &&

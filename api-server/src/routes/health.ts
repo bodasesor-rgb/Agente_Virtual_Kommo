@@ -6,6 +6,7 @@ import { isAuthConfigured } from "../lib/authJwt.js";
 import { getCatalogStatus } from "../services/catalogService.js";
 import { getBuildMeta } from "../lib/buildMeta.js";
 import { getLucyInfoStats } from "../services/lucyInfoStore.js";
+import { getLucyInfoCachedDocs } from "../services/lucyInfoPriceCache.js";
 
 const router: IRouter = Router();
 
@@ -55,6 +56,10 @@ router.get("/health", async (_req, res) => {
       lucy_info_path: "/api/lucy-info",
     },
     lucy_info,
+    lucy_info_cache: {
+      docs: getLucyInfoCachedDocs().length,
+      note: "Caché en memoria para inclusiones/precios PDF (seed o DB al arranque)",
+    },
     silent_watch: {
       note: "En Humano Trabaja/Cotización/seguimientos Lucy no cotiza; actualiza CRM si cambian datos; solo escribe teléfonos de emergencia",
     },
