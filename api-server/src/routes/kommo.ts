@@ -2076,30 +2076,43 @@ router.get("/kommo/status", async (_req, res) => {
     };
     type TalkRow = { origin?: string; talk_id?: number; id?: number; chat_id?: string };
 
-    const [sourcesRes, talksRes] = await Promise.all([
+    const [sourcesRes, talksRes, widgetsRes] = await Promise.all([
       fetch(`https://${subdomain}.kommo.com/api/v4/sources`, { headers }),
       fetch(`https://${subdomain}.kommo.com/api/v4/talks?limit=50`, { headers }),
+      fetch(`https://${subdomain}.kommo.com/api/v4/widgets`, { headers }),
     ]);
 
+    const safeJson = async <T>(
+      resp: globalThis.Response
+    ): Promise<{ data: T | null; error: string | null }> => {
+      const raw = await resp.text().catch(() => "");
+      if (!resp.ok) return { data: null, error: `HTTP ${resp.status}: ${raw.slice(0, 120)}` };
+      if (!raw.trim()) return { data: null, error: null };
+      try {
+        return { data: JSON.parse(raw) as T, error: null };
+      } catch (e) {
+        return {
+          data: null,
+          error: `JSON inválido (${resp.status}): ${e instanceof Error ? e.message : String(e)}`,
+        };
+      }
+    };
+
     let sources: SourceRow[] = [];
-    let sourcesError: string | null = null;
-    if (sourcesRes.ok) {
-      const sj = (await sourcesRes.json()) as { _embedded?: { sources?: SourceRow[] } };
-      sources = sj._embedded?.sources ?? [];
-    } else {
-      sourcesError = `HTTP ${sourcesRes.status}`;
+    const sourcesParsed = await safeJson<{ _embedded?: { sources?: SourceRow[] } }>(sourcesRes);
+    const sourcesError = sourcesParsed.error;
+    if (sourcesParsed.data) {
+      sources = sourcesParsed.data._embedded?.sources ?? [];
     }
 
     const originCounts: Record<string, number> = {};
-    let talksError: string | null = null;
-    if (talksRes.ok) {
-      const tj = (await talksRes.json()) as { _embedded?: { talks?: TalkRow[] } };
-      for (const t of tj._embedded?.talks ?? []) {
+    const talksParsed = await safeJson<{ _embedded?: { talks?: TalkRow[] } }>(talksRes);
+    const talksError = talksParsed.error;
+    if (talksParsed.data) {
+      for (const t of talksParsed.data._embedded?.talks ?? []) {
         const origin = (t.origin || "unknown").toLowerCase();
         originCounts[origin] = (originCounts[origin] ?? 0) + 1;
       }
-    } else {
-      talksError = `HTTP ${talksRes.status}`;
     }
 
     const sourceSummaries = sources.map((s) => ({
@@ -2110,12 +2123,29 @@ router.get("/kommo/status", async (_req, res) => {
       default: s.default ?? null,
     }));
 
-    const blob = JSON.stringify(sourceSummaries).toLowerCase();
-    const originsBlob = Object.keys(originCounts).join(" ");
-    const hasFacebook =
-      /facebook|messenger|\bfb\b/.test(blob) || /facebook|messenger/.test(originsBlob);
-    const hasInstagram = /instagram|\big\b/.test(blob) || /instagram/.test(originsBlob);
-    const hasWhatsapp = /whats?app|waba/.test(blob) || /whats?app|waba/.test(originsBlob);
+    type WidgetRow = {
+      code?: string;
+      name?: string;
+      active?: boolean | number | string;
+      is_active?: boolean | number;
+    };
+    const widgetsParsed = await safeJson<{ _embedded?: { widgets?: WidgetRow[] } }>(widgetsRes);
+    const widgets = (widgetsParsed.data?._embedded?.widgets ?? []).map((w) => ({
+      code: w.code ?? null,
+      name: w.name ?? null,
+      active: Boolean(w.active ?? w.is_active),
+    }));
+
+    const blob = [
+      JSON.stringify(sourceSummaries),
+      JSON.stringify(widgets),
+      Object.keys(originCounts).join(" "),
+    ]
+      .join(" ")
+      .toLowerCase();
+    const hasFacebook = /facebook|messenger|\bfb[_-]/.test(blob);
+    const hasInstagram = /instagram|\big[_-]/.test(blob);
+    const hasWhatsapp = /whats?app|waba/.test(blob);
 
     res.json({
       ok: true,
@@ -2130,6 +2160,12 @@ router.get("/kommo/status", async (_req, res) => {
       },
       sources: sourceSummaries,
       sources_error: sourcesError,
+      widgets: widgets.filter((w) =>
+        /facebook|instagram|messenger|whats?app|waba|meta/i.test(
+          `${w.code ?? ""} ${w.name ?? ""}`
+        )
+      ),
+      widgets_error: widgetsParsed.error,
       recent_talk_origins: originCounts,
       talks_error: talksError,
     });
