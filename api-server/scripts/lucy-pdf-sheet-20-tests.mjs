@@ -162,11 +162,16 @@ const tests = [
   },
   {
     id: 12,
-    name: "CB4 inclusiones (nivel correcto, no CB1)",
+    name: "CB4: PDF si existe; si no, Sheet (nunca CB1 disfrazado)",
     messages: ["qué incluye el Coffee Break 4?"],
-    check: (t) =>
-      /Coffee Break 4/i.test(t) &&
-      !(/^[\s\S]*Coffee Break 1 — Lo Esencial[\s\S]*¿Te late/i.test(t) && !/Coffee Break 4/i.test(t)),
+    check: (t) => {
+      const wrongCb1 =
+        /Coffee Break 1 — Lo Esencial/i.test(t) && !/Coffee Break 4/i.test(t);
+      const ok =
+        /Coffee Break 4/i.test(t) ||
+        (/\$\s*350|350\.00/i.test(t) && /coffee|break|incluye|nivel/i.test(t));
+      return ok && !wrongCb1;
+    },
   },
   {
     id: 13,

@@ -1261,9 +1261,20 @@ export function resolveCatalogInclusionReply(
     );
 
   // PDF del panel primero (nivel concreto o servicio con detalle en Aprendizaje).
+  // "qué incluye cada nivel" también puede usar PDF del servicio + precios Sheet.
   const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
   const fromPdfEarly = buildPdfInclusionReply(pdfQ) || buildPdfInclusionReply(query);
   if (fromPdfEarly && !wantsAllLevels) {
+    return fromPdfEarly;
+  }
+  if (fromPdfEarly && wantsAllLevels && serviceHint?.trim()) {
+    // Combinar overview de precios Sheet + un bloque PDF representativo.
+    const priced = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
+    if (priced && /\$\s*\d/.test(priced)) {
+      return collapseDuplicatedInclusionReply(
+        `${priced}\n\nDetalle de un nivel (catálogo PDF):\n${fromPdfEarly}`
+      );
+    }
     return fromPdfEarly;
   }
 

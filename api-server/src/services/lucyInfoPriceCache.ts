@@ -171,9 +171,11 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
   const f = fold(c);
 
   const anchors: string[] = [];
-  // Coffee Break N
+  // Coffee Break N — si piden un nivel que no está en el PDF, no devolver otro.
   const cb = q.match(/coffee\s*break\s*(\d)/);
   if (cb) {
+    const needle = `coffee break ${cb[1]}`;
+    if (!f.includes(needle)) return null;
     anchors.unshift(`coffee break ${cb[1]} —`, `coffee break ${cb[1]}`, `cb${cb[1]}`);
   }
   if (/gourmet con sandwich|sandwich/.test(q) && /coffee|break/.test(q)) {

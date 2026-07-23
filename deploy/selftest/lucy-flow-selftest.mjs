@@ -2292,6 +2292,8 @@ function findInclusionSection(content, query, maxChars = 1100) {
   const anchors = [];
   const cb = q.match(/coffee\s*break\s*(\d)/);
   if (cb) {
+    const needle = `coffee break ${cb[1]}`;
+    if (!f.includes(needle)) return null;
     anchors.unshift(`coffee break ${cb[1]} \u2014`, `coffee break ${cb[1]}`, `cb${cb[1]}`);
   }
   if (/gourmet con sandwich|sandwich/.test(q) && /coffee|break/.test(q)) {
@@ -5168,6 +5170,18 @@ function resolveCatalogInclusionReply(query, serviceHint) {
   const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
   const fromPdfEarly = buildPdfInclusionReply(pdfQ) || buildPdfInclusionReply(query);
   if (fromPdfEarly && !wantsAllLevels) {
+    return fromPdfEarly;
+  }
+  if (fromPdfEarly && wantsAllLevels && serviceHint?.trim()) {
+    const priced = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
+    if (priced && /\$\s*\d/.test(priced)) {
+      return collapseDuplicatedInclusionReply(
+        `${priced}
+
+Detalle de un nivel (cat\xE1logo PDF):
+${fromPdfEarly}`
+      );
+    }
     return fromPdfEarly;
   }
   const linkQ = serviceHint?.trim() || query;
@@ -19677,7 +19691,7 @@ function applyLucyGlobalAntiRepetition(input) {
   );
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
   const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
-  const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d/i.test(
+  const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
     mensaje
   ) || isEntertainmentCatalog;
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p) => THANKS_ACK_PATTERN.test(p))) {
@@ -19756,7 +19770,7 @@ function applyLucyGlobalAntiRepetition(input) {
     }
   }
   const nearDupThreshold = questionLines(mensaje).length > 0 && mensaje.length < 220 ? 0.55 : 0.62;
-  if (!isCatalogDetailReply && previous.length > 0) {
+  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p) => lucyTextOverlapRatio(mensaje, p)));
     if (maxOverlap >= nearDupThreshold) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);

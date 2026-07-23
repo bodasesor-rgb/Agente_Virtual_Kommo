@@ -351,7 +351,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
   // Catálogo "de detalle" (inclusiones/niveles/show) — proteger salvo reenvío idéntico.
   const isCatalogDetailReply =
-    /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d/i.test(
+    /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
       mensaje
     ) || isEntertainmentCatalog;
 
@@ -481,7 +481,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   // 6) Casi idéntico a una respuesta reciente del asistente.
   const nearDupThreshold =
     questionLines(mensaje).length > 0 && mensaje.length < 220 ? 0.55 : 0.62;
-  if (!isCatalogDetailReply && previous.length > 0) {
+  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p) => lucyTextOverlapRatio(mensaje, p)));
     if (maxOverlap >= nearDupThreshold) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);
