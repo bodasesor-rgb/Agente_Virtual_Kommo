@@ -706,6 +706,158 @@ export function buildItalianFoodPitch(message?: string): string {
   return `${pitch}.`;
 }
 
+/** Variantes concretas del catálogo Pistas/Tarimas (A14967 — menú primero, detalle después). */
+const PISTA_TARIMA_VARIANTS: ReadonlyArray<{
+  key: string;
+  label: string;
+  pattern: RegExp;
+  query: string;
+}> = [
+  {
+    key: "pista_pintada",
+    label: "Pista Pintada a Mano",
+    pattern: /\bpista\s+pintada|\bpintada\s+a\s+mano\b/i,
+    query: "pista pintada a mano",
+  },
+  {
+    key: "pista_led",
+    label: "Pista LED Interactiva",
+    pattern: /\bpista\s+led\b|\bled\s+interactiva\b|\bpista\s+interactiva\b/i,
+    query: "pista LED interactiva",
+  },
+  {
+    key: "pista_iluminada",
+    label: "Pista Iluminada",
+    pattern: /\bpista\s+iluminada\b/i,
+    query: "pista iluminada",
+  },
+  {
+    key: "pista_madera_premium",
+    label: "Pista Madera Premium",
+    pattern: /\bpista\s+madera\s+premium\b/i,
+    query: "pista madera premium",
+  },
+  {
+    key: "pista_logo",
+    label: "Pista Vinil con Logo",
+    pattern:
+      /\bpista\s+(vinil|charol)\b|\bcon\s+logo\b|\bmonograma\b|\blogotipo\b|\blogos?\s+en\s+vinil\b/i,
+    query: "pista vinil logo charol personalizado",
+  },
+  {
+    key: "pista_madera",
+    label: "Pista Madera",
+    pattern: /\bpista\s+madera\b(?!\s+premium)/i,
+    query: "pista madera",
+  },
+  {
+    key: "tarima_charol",
+    label: "Tarima Charol",
+    pattern: /\btarima\s+charol\b/i,
+    query: "tarima charol",
+  },
+  {
+    key: "tarima_madera",
+    label: "Tarima Básica Madera",
+    pattern: /\btarima\s+(b[aá]sica\s+)?madera\b/i,
+    query: "tarima básica madera",
+  },
+  {
+    key: "tarima_gris",
+    label: "Tarima Básica Gris/Blanco",
+    pattern: /\btarima\s+(b[aá]sica\s+)?(gris|blanco)\b|\btarima\s+b[aá]sica\b/i,
+    query: "tarima básica gris blanco",
+  },
+  {
+    key: "escenario",
+    label: "Escenario / Estrado",
+    pattern: /\bescenario\b|\bestrado\b/i,
+    query: "escenario estrado",
+  },
+];
+
+/** Detecta si el cliente ya eligió un tipo concreto de pista/tarima. */
+export function parsePistaTarimaVariant(
+  text: string | null | undefined
+): { key: string; label: string; query: string } | null {
+  const t = text?.trim() ?? "";
+  if (!t) return null;
+  // "personalizada" sola es vaga — no elegir variante (A14967 Angélica).
+  for (const v of PISTA_TARIMA_VARIANTS) {
+    if (v.pattern.test(t)) return { key: v.key, label: v.label, query: v.query };
+  }
+  // Respuestas cortas tras el menú ("la LED", "charol", "pintada").
+  const short = t
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[¿?¡!.,;:]+/g, "")
+    .trim();
+  if (/^(la\s+)?led(\s+interactiva)?$/.test(short) || /^interactiva$/.test(short)) {
+    return { key: "pista_led", label: "Pista LED Interactiva", query: "pista LED interactiva" };
+  }
+  if (/^(la\s+)?iluminada$/.test(short)) {
+    return { key: "pista_iluminada", label: "Pista Iluminada", query: "pista iluminada" };
+  }
+  if (/^(la\s+)?pintada(\s+a\s+mano)?$/.test(short)) {
+    return { key: "pista_pintada", label: "Pista Pintada a Mano", query: "pista pintada a mano" };
+  }
+  if (/^(con\s+)?logo|vinil|monograma$/.test(short)) {
+    return {
+      key: "pista_logo",
+      label: "Pista Vinil con Logo",
+      query: "pista vinil logo charol personalizado",
+    };
+  }
+  if (/^charol$/.test(short)) {
+    return { key: "tarima_charol", label: "Tarima Charol", query: "tarima charol" };
+  }
+  if (/^(pista\s+)?madera(\s+premium)?$/.test(short)) {
+    return /\bpremium\b/.test(short)
+      ? { key: "pista_madera_premium", label: "Pista Madera Premium", query: "pista madera premium" }
+      : { key: "pista_madera", label: "Pista Madera", query: "pista madera" };
+  }
+  return null;
+}
+
+function buildPistaTarimaOptionsMenu(currentMessage?: string, dims?: string | null): string {
+  const personalizada = /\bpersonalizad/i.test(currentMessage ?? "");
+  const dimsNote = dims
+    ? ` Anoto espacio aprox. *${dims.replace(/m/gi, " m")}*.`
+    : "";
+  const personalHint = personalizada
+    ? " Para personalizada suelen ir *Vinil con logo* o *Pintada a mano*."
+    : "";
+  return (
+    `Sí, manejamos *pista de baile* y *tarima* a medida.${dimsNote}${personalHint}\n\n` +
+    `Opciones principales:\n` +
+    `• *Tarimas básicas* — gris/blanco, madera o charol\n` +
+    `• *Pista madera* / madera premium\n` +
+    `• *Pista LED* o *iluminada*\n` +
+    `• *Pista vinil con logo* o *pintada a mano*\n` +
+    `• Escenarios / estrados\n\n` +
+    `¿Cuál estilo te late?` +
+    (dims ? "" : " Si ya tienes medidas del espacio, mándamelas y afinamos.")
+  );
+}
+
+function collapseDuplicateMedidasAsk(text: string): string {
+  if (!text?.trim()) return text;
+  const askRe = /¿Qué medidas aproximadas tiene el espacio\?/gi;
+  const matches = [...text.matchAll(askRe)];
+  if (matches.length <= 1) return text;
+  // Dejar solo la primera aparición de la pregunta.
+  let seen = false;
+  return text
+    .replace(askRe, (m) => {
+      if (seen) return "";
+      seen = true;
+      return m;
+    })
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function buildPistaTarimaSalesReply(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -717,30 +869,67 @@ function buildPistaTarimaSalesReply(
   const dims =
     parseSpaceDimensions(currentMessage ?? "") ||
     (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const fromPdf = buildLucyInfoLearnedPriceReply(
-    currentMessage?.trim() || "pista de baile tarima precios",
-  );
-  const intro = dims
-    ? fromPdf
-      ? `${fromPdf}\nAnoto medidas ${dims.replace(/m/gi, " m")} para afinar la cotización.`
-      : `Sí, anoto la pista/tarima (${dims.replace(/m/gi, " m")}) para tu cotización. El equipo confirma el precio según esas medidas.`
-    : fromPdf ||
-      `Sí, manejamos pista de baile y tarima (opción iluminada). ¿Quieres que lo agregue a tu cotización? ¿Qué medidas aproximadas tiene el espacio?`;
+
+  // Buscar variante en el mensaje actual o en el historial reciente del cliente.
+  const histBlob = collectUserTexts(history, currentMessage).slice(-6).join(" ");
+  const variant =
+    parsePistaTarimaVariant(currentMessage) || parsePistaTarimaVariant(histBlob);
 
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
   }
-  if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = dims
+  const reqLabel = variant
+    ? dims
+      ? `${variant.label} (${dims.replace(/m/gi, " m")})`
+      : variant.label
+    : dims
       ? `pista/tarima ${dims.replace(/m/gi, " m")}`
       : "pista de baile / tarima";
+  if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+    extracted.requerimientos_evento = reqLabel;
+  } else if (variant && !new RegExp(variant.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(
+    extracted.requerimientos_evento
+  )) {
+    extracted.requerimientos_evento = dims
+      ? `${extracted.requerimientos_evento}; ${variant.label} (${dims.replace(/m/gi, " m")})`
+      : `${extracted.requerimientos_evento}; ${variant.label}`;
   } else if (dims && !extracted.requerimientos_evento.includes(dims)) {
     extracted.requerimientos_evento = `${extracted.requerimientos_evento}; pista/tarima ${dims}`;
   }
 
-  // Sin medidas: prioriza la pregunta de medidas (no saltar al siguiente campo).
+  // A14967: sin tipo elegido → menú corto (NO bombardear precios del PDF).
+  if (!variant) {
+    const menu = buildPistaTarimaOptionsMenu(currentMessage, dims);
+    return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${menu}`.trim());
+  }
+
+  // Ya eligieron estilo → detalle técnico/precios de ESA variante.
+  const fromPdf = buildLucyInfoLearnedPriceReply(variant.query);
+  let intro: string;
+  if (fromPdf) {
+    const focused = fromPdf
+      .replace(
+        /Según el catálogo que ya cargamos en Aprendizaje:/i,
+        `Perfecto, te detallo *${variant.label}*:`
+      )
+      .trim();
+    intro = dims
+      ? `${focused}\nAnoto medidas ${dims.replace(/m/gi, " m")} para afinar la cotización.`
+      : focused;
+  } else if (dims) {
+    intro = `Perfecto, anoto *${variant.label}* (${dims.replace(/m/gi, " m")}) para tu cotización. El equipo confirma el precio según esas medidas.`;
+  } else {
+    intro = `Perfecto, anoto *${variant.label}*. ¿Qué medidas aproximadas tiene el espacio?`;
+  }
+
+  intro = collapseDuplicateMedidasAsk(intro);
+
   if (!dims) {
-    return `${pickTransition(history)} ${intro}`.trim();
+    // Asegurar una sola pregunta de medidas.
+    if (!/medidas aproximadas/i.test(intro)) {
+      intro = `${intro}\n\n¿Qué medidas aproximadas tiene el espacio?`;
+    }
+    return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${intro}`.trim());
   }
 
   const filledAfter = new Set(filledSet ?? []);
@@ -748,9 +937,11 @@ function buildPistaTarimaSalesReply(
   const pending = getNextPendingField(extracted, filledAfter);
   if (pending && pending !== "requerimientos" && ctx) {
     const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
-    return `${pickTransition(history)} ${intro}\n\n${nextQ}`.trim();
+    return collapseDuplicateMedidasAsk(
+      `${pickTransition(history)} ${intro}\n\n${nextQ}`.trim()
+    );
   }
-  return `${pickTransition(history)} ${intro}`.trim();
+  return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${intro}`.trim());
 }
 
 /** Carpas: sí/no real + agregar a cotización + medidas (María A14906). */
@@ -4011,7 +4202,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: carpas — responder, agregar y pedir medidas");
-  } else if (allowSalesReplyOverride && clientMentionsPistaTarima(currentMessage)) {
+  } else if (
+    allowSalesReplyOverride &&
+    (clientMentionsPistaTarima(currentMessage) ||
+      // A14967: tras menú de tipos, "La LED" / "pintada" sin repetir "pista".
+      (parsePistaTarimaVariant(currentMessage) &&
+        (/pista|tarima|estilo te late|opciones principales|vinil con logo|pintada a mano/i.test(
+          typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
+        ) ||
+          /pista|tarima/i.test(extracted.requerimientos_evento ?? ""))))
+  ) {
     mensaje = buildPistaTarimaSalesReply(
       extracted,
       history,
@@ -4021,7 +4221,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ctx
     );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: pista/tarima — aceptar, anotar y pedir medidas");
+    log?.info({ entityId }, "GUARD: pista/tarima — menú o detalle según elección");
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     // Prioridad absoluta: describir paquetes (no depende de allowSalesReplyOverride).
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");

@@ -2559,6 +2559,7 @@ function extractPriceWindows(content, max = 8) {
   return (content || "").split(/\n+/).map((l) => l.trim()).filter((l) => l.length > 8 && /\$\s*\d/.test(l)).slice(0, max);
 }
 function buildLucyInfoPriceSnippet(query, maxChars = 520) {
+  ensureCacheFromSeedSync();
   const docs = cacheState().docs;
   if (!docs.length || !query?.trim()) return null;
   const tokens = tokenize(query);
@@ -2580,7 +2581,10 @@ function buildLucyInfoPriceSnippet(query, maxChars = 520) {
   return `*${top.title}*: ${body}`;
 }
 function buildLucyInfoLearnedPriceReply(message) {
-  const snip = buildLucyInfoPriceSnippet(message);
+  const focusedPista = /\b(pintada|led|iluminada|madera\s+premium|vinil|charol|logo|tarima\s+b[aá]sica|escenario|estrado)\b/i.test(
+    message
+  );
+  const snip = buildLucyInfoPriceSnippet(message, focusedPista ? 420 : 520);
   if (!snip) return null;
   const t = fold(message);
   let ask = "\xBFLo agregamos a tu cotizaci\xF3n?";
@@ -2589,8 +2593,9 @@ function buildLucyInfoLearnedPriceReply(message) {
   } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t)) {
     ask = "\xBFCu\xE1ntas piezas necesitas y para cu\xE1ndo?";
   }
+  const body = snip.replace(/\s*¿Qué medidas aproximadas tiene el espacio\?\s*/gi, " ").trim();
   return `Seg\xFAn el cat\xE1logo que ya cargamos en Aprendizaje:
-${snip}
+${body}
 ${ask}`;
 }
 
@@ -16708,34 +16713,182 @@ function buildItalianFoodPitch(message) {
   if (inv) pitch += ` para ${inv[1]} personas`;
   return `${pitch}.`;
 }
+var PISTA_TARIMA_VARIANTS = [
+  {
+    key: "pista_pintada",
+    label: "Pista Pintada a Mano",
+    pattern: /\bpista\s+pintada|\bpintada\s+a\s+mano\b/i,
+    query: "pista pintada a mano"
+  },
+  {
+    key: "pista_led",
+    label: "Pista LED Interactiva",
+    pattern: /\bpista\s+led\b|\bled\s+interactiva\b|\bpista\s+interactiva\b/i,
+    query: "pista LED interactiva"
+  },
+  {
+    key: "pista_iluminada",
+    label: "Pista Iluminada",
+    pattern: /\bpista\s+iluminada\b/i,
+    query: "pista iluminada"
+  },
+  {
+    key: "pista_madera_premium",
+    label: "Pista Madera Premium",
+    pattern: /\bpista\s+madera\s+premium\b/i,
+    query: "pista madera premium"
+  },
+  {
+    key: "pista_logo",
+    label: "Pista Vinil con Logo",
+    pattern: /\bpista\s+(vinil|charol)\b|\bcon\s+logo\b|\bmonograma\b|\blogotipo\b|\blogos?\s+en\s+vinil\b/i,
+    query: "pista vinil logo charol personalizado"
+  },
+  {
+    key: "pista_madera",
+    label: "Pista Madera",
+    pattern: /\bpista\s+madera\b(?!\s+premium)/i,
+    query: "pista madera"
+  },
+  {
+    key: "tarima_charol",
+    label: "Tarima Charol",
+    pattern: /\btarima\s+charol\b/i,
+    query: "tarima charol"
+  },
+  {
+    key: "tarima_madera",
+    label: "Tarima B\xE1sica Madera",
+    pattern: /\btarima\s+(b[aá]sica\s+)?madera\b/i,
+    query: "tarima b\xE1sica madera"
+  },
+  {
+    key: "tarima_gris",
+    label: "Tarima B\xE1sica Gris/Blanco",
+    pattern: /\btarima\s+(b[aá]sica\s+)?(gris|blanco)\b|\btarima\s+b[aá]sica\b/i,
+    query: "tarima b\xE1sica gris blanco"
+  },
+  {
+    key: "escenario",
+    label: "Escenario / Estrado",
+    pattern: /\bescenario\b|\bestrado\b/i,
+    query: "escenario estrado"
+  }
+];
+function parsePistaTarimaVariant(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return null;
+  for (const v of PISTA_TARIMA_VARIANTS) {
+    if (v.pattern.test(t)) return { key: v.key, label: v.label, query: v.query };
+  }
+  const short = t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (/^(la\s+)?led(\s+interactiva)?$/.test(short) || /^interactiva$/.test(short)) {
+    return { key: "pista_led", label: "Pista LED Interactiva", query: "pista LED interactiva" };
+  }
+  if (/^(la\s+)?iluminada$/.test(short)) {
+    return { key: "pista_iluminada", label: "Pista Iluminada", query: "pista iluminada" };
+  }
+  if (/^(la\s+)?pintada(\s+a\s+mano)?$/.test(short)) {
+    return { key: "pista_pintada", label: "Pista Pintada a Mano", query: "pista pintada a mano" };
+  }
+  if (/^(con\s+)?logo|vinil|monograma$/.test(short)) {
+    return {
+      key: "pista_logo",
+      label: "Pista Vinil con Logo",
+      query: "pista vinil logo charol personalizado"
+    };
+  }
+  if (/^charol$/.test(short)) {
+    return { key: "tarima_charol", label: "Tarima Charol", query: "tarima charol" };
+  }
+  if (/^(pista\s+)?madera(\s+premium)?$/.test(short)) {
+    return /\bpremium\b/.test(short) ? { key: "pista_madera_premium", label: "Pista Madera Premium", query: "pista madera premium" } : { key: "pista_madera", label: "Pista Madera", query: "pista madera" };
+  }
+  return null;
+}
+function buildPistaTarimaOptionsMenu(currentMessage, dims) {
+  const personalizada = /\bpersonalizad/i.test(currentMessage ?? "");
+  const dimsNote = dims ? ` Anoto espacio aprox. *${dims.replace(/m/gi, " m")}*.` : "";
+  const personalHint = personalizada ? " Para personalizada suelen ir *Vinil con logo* o *Pintada a mano*." : "";
+  return `S\xED, manejamos *pista de baile* y *tarima* a medida.${dimsNote}${personalHint}
+
+Opciones principales:
+\u2022 *Tarimas b\xE1sicas* \u2014 gris/blanco, madera o charol
+\u2022 *Pista madera* / madera premium
+\u2022 *Pista LED* o *iluminada*
+\u2022 *Pista vinil con logo* o *pintada a mano*
+\u2022 Escenarios / estrados
+
+\xBFCu\xE1l estilo te late?` + (dims ? "" : " Si ya tienes medidas del espacio, m\xE1ndamelas y afinamos.");
+}
+function collapseDuplicateMedidasAsk(text) {
+  if (!text?.trim()) return text;
+  const askRe = /¿Qué medidas aproximadas tiene el espacio\?/gi;
+  const matches = [...text.matchAll(askRe)];
+  if (matches.length <= 1) return text;
+  let seen = false;
+  return text.replace(askRe, (m) => {
+    if (seen) return "";
+    seen = true;
+    return m;
+  }).replace(/\n{3,}/g, "\n\n").trim();
+}
 function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId, filledSet, ctx) {
   const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const fromPdf = buildLucyInfoLearnedPriceReply(
-    currentMessage?.trim() || "pista de baile tarima precios"
-  );
-  const intro = dims ? fromPdf ? `${fromPdf}
-Anoto medidas ${dims.replace(/m/gi, " m")} para afinar la cotizaci\xF3n.` : `S\xED, anoto la pista/tarima (${dims.replace(/m/gi, " m")}) para tu cotizaci\xF3n. El equipo confirma el precio seg\xFAn esas medidas.` : fromPdf || `S\xED, manejamos pista de baile y tarima (opci\xF3n iluminada). \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
+  const histBlob = collectUserTexts(history, currentMessage).slice(-6).join(" ");
+  const variant = parsePistaTarimaVariant(currentMessage) || parsePistaTarimaVariant(histBlob);
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
   }
+  const reqLabel = variant ? dims ? `${variant.label} (${dims.replace(/m/gi, " m")})` : variant.label : dims ? `pista/tarima ${dims.replace(/m/gi, " m")}` : "pista de baile / tarima";
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = dims ? `pista/tarima ${dims.replace(/m/gi, " m")}` : "pista de baile / tarima";
+    extracted.requerimientos_evento = reqLabel;
+  } else if (variant && !new RegExp(variant.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(
+    extracted.requerimientos_evento
+  )) {
+    extracted.requerimientos_evento = dims ? `${extracted.requerimientos_evento}; ${variant.label} (${dims.replace(/m/gi, " m")})` : `${extracted.requerimientos_evento}; ${variant.label}`;
   } else if (dims && !extracted.requerimientos_evento.includes(dims)) {
     extracted.requerimientos_evento = `${extracted.requerimientos_evento}; pista/tarima ${dims}`;
   }
+  if (!variant) {
+    const menu = buildPistaTarimaOptionsMenu(currentMessage, dims);
+    return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${menu}`.trim());
+  }
+  const fromPdf = buildLucyInfoLearnedPriceReply(variant.query);
+  let intro;
+  if (fromPdf) {
+    const focused = fromPdf.replace(
+      /Según el catálogo que ya cargamos en Aprendizaje:/i,
+      `Perfecto, te detallo *${variant.label}*:`
+    ).trim();
+    intro = dims ? `${focused}
+Anoto medidas ${dims.replace(/m/gi, " m")} para afinar la cotizaci\xF3n.` : focused;
+  } else if (dims) {
+    intro = `Perfecto, anoto *${variant.label}* (${dims.replace(/m/gi, " m")}) para tu cotizaci\xF3n. El equipo confirma el precio seg\xFAn esas medidas.`;
+  } else {
+    intro = `Perfecto, anoto *${variant.label}*. \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
+  }
+  intro = collapseDuplicateMedidasAsk(intro);
   if (!dims) {
-    return `${pickTransition(history)} ${intro}`.trim();
+    if (!/medidas aproximadas/i.test(intro)) {
+      intro = `${intro}
+
+\xBFQu\xE9 medidas aproximadas tiene el espacio?`;
+    }
+    return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${intro}`.trim());
   }
   const filledAfter = new Set(filledSet ?? []);
   filledAfter.add("Requerimientos o servicios");
   const pending = getNextPendingField(extracted, filledAfter);
   if (pending && pending !== "requerimientos" && ctx) {
     const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
-    return `${pickTransition(history)} ${intro}
+    return collapseDuplicateMedidasAsk(
+      `${pickTransition(history)} ${intro}
 
-${nextQ}`.trim();
+${nextQ}`.trim()
+    );
   }
-  return `${pickTransition(history)} ${intro}`.trim();
+  return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${intro}`.trim());
 }
 function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx) {
   const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
@@ -18750,7 +18903,10 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     mensaje = buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: carpas \u2014 responder, agregar y pedir medidas");
-  } else if (allowSalesReplyOverride && clientMentionsPistaTarima(currentMessage)) {
+  } else if (allowSalesReplyOverride && (clientMentionsPistaTarima(currentMessage) || // A14967: tras menú de tipos, "La LED" / "pintada" sin repetir "pista".
+  parsePistaTarimaVariant(currentMessage) && (/pista|tarima|estilo te late|opciones principales|vinil con logo|pintada a mano/i.test(
+    typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
+  ) || /pista|tarima/i.test(extracted.requerimientos_evento ?? "")))) {
     mensaje = buildPistaTarimaSalesReply(
       extracted,
       history,
@@ -18760,7 +18916,7 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
       ctx
     );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: pista/tarima \u2014 aceptar, anotar y pedir medidas");
+    log?.info({ entityId }, "GUARD: pista/tarima \u2014 men\xFA o detalle seg\xFAn elecci\xF3n");
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
     const req = extracted.requerimientos_evento?.trim() ?? "";
@@ -20967,7 +21123,9 @@ async function runAll() {
       currentMessage: "Hola, me gustar\xEDa cotizar una pista de baile o tarima para mi evento",
       history: []
     });
-    assert.ok(/pista|tarima|iluminada|tamaño|anoto/i.test(reply), reply.slice(0, 200));
+    assert.ok(/pista|tarima/i.test(reply), reply.slice(0, 200));
+    assert.ok(/LED|iluminada|vinil|pintada|madera|charol|estilo/i.test(reply), reply.slice(0, 400));
+    assert.ok(!/Según el catálogo que ya cargamos/i.test(reply), reply.slice(0, 300));
     assert.ok(!/alg[uú]n\s+otro\s+servicio|qu[eé]\s+otros\s+servicios/i.test(reply), reply);
   });
   await test("15. Fer A14756 \u2014 6m x 12m NO es ubicaci\xF3n", () => {
@@ -22746,17 +22904,15 @@ ${CATALOG_OFFER_QUESTION}`
         }
       ]
     });
-    assert.ok(/tarima|pista|anoto|cotizaci[oó]n/i.test(reply), reply.slice(0, 300));
+    assert.ok(/tarima|pista/i.test(reply), reply.slice(0, 300));
     assert.ok(
       !/alg[uú]n\s+otro\s+servicio|qu[eé]\s+otros\s+servicios|manejamos alimentos y barras.{0,40}dj/i.test(
         reply
       ),
       reply.slice(0, 400)
     );
-    assert.ok(
-      /invitados|personas|ciudad|colonia|sal[oó]n|fecha|horario|presupuesto/i.test(reply),
-      reply.slice(0, 400)
-    );
+    assert.ok(/4\s*m|estilo|LED|vinil|pintada|charol/i.test(reply), reply.slice(0, 400));
+    assert.ok(!/Según el catálogo que ya cargamos/i.test(reply), reply.slice(0, 300));
   });
   await test("57. Cierre menciona complementos (alimentos, DJ, mobiliario)", () => {
     const close = mockClosing("renta de tarima/pista 4x4", "Ana");
@@ -25446,6 +25602,48 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     });
     assert.ok(!/correo|e-?mail/i.test(afterBudget), afterBudget.slice(0, 400));
     assert.ok(/sin problema|por definir|equipo|propon/i.test(afterBudget), afterBudget.slice(0, 400));
+  });
+  await test("97. A14967 Ang\xE9lica \u2014 pista: men\xFA de tipos primero, detalle tras elecci\xF3n", () => {
+    assert.equal(parsePistaTarimaVariant("pista de baile personalizada"), null);
+    assert.equal(parsePistaTarimaVariant("Quisiera cotizar una pista personalizada"), null);
+    assert.ok(parsePistaTarimaVariant("pista LED interactiva")?.key === "pista_led");
+    assert.ok(parsePistaTarimaVariant("la LED")?.key === "pista_led");
+    assert.ok(parsePistaTarimaVariant("pintada a mano")?.key === "pista_pintada");
+    assert.ok(parsePistaTarimaVariant("con logo")?.key === "pista_logo");
+    const first = runGuards({
+      aiResponse: "Seg\xFAn el cat\xE1logo que ya cargamos en Aprendizaje:\n*Pistas-y-Tarimas-2026*: $7,430 Pista 6x6m\u2026\n\xBFQu\xE9 medidas aproximadas tiene el espacio?",
+      extracted: emptyExtracted({ nombre: "Ang\xE9lica" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Quisiera una cotizaci\xF3n por favor para una pista de baile personalizada. Mi nombre es Ang\xE9lica",
+      history: [{ role: "assistant", content: "\xBFC\xF3mo te llamas?" }]
+    });
+    assert.ok(/pista|tarima/i.test(first), first.slice(0, 300));
+    assert.ok(/vinil|pintada|LED|estilo|opciones/i.test(first), first.slice(0, 500));
+    assert.ok(!/Según el catálogo que ya cargamos/i.test(first), first.slice(0, 400));
+    assert.ok(!/\$7,?430|Pista 6x6m|\$20,?250/i.test(first), first.slice(0, 400));
+    const medidasAsks = (first.match(/¿Qué medidas aproximadas tiene el espacio\?/gi) || []).length;
+    assert.ok(medidasAsks <= 1, first.slice(0, 400));
+    const detail = runGuards({
+      aiResponse: "\xBFCu\xE1l estilo te late?",
+      extracted: emptyExtracted({
+        nombre: "Ang\xE9lica",
+        requerimientos_evento: "pista de baile / tarima"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "La LED",
+      history: [
+        { role: "assistant", content: first }
+      ]
+    });
+    assert.ok(/LED|interactiva/i.test(detail), detail.slice(0, 400));
+    assert.ok(
+      /\$|m²|medidas|Aprendizaje|detallo/i.test(detail),
+      detail.slice(0, 500)
+    );
+    const medidas2 = (detail.match(/¿Qué medidas aproximadas tiene el espacio\?/gi) || []).length;
+    assert.equal(medidas2, 1, detail.slice(0, 500));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

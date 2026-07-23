@@ -94,6 +94,7 @@ import {
   buildEmergencyContactAnswer,
   buildDeferredKnownServiceOffer,
   historyAlreadyOfferedServiceDetail,
+  parsePistaTarimaVariant,
 } from "../lucy-flow-guards.js";
 import { advisorLabelForClient, normalizeAdvisorReferences, getAdvisorName, LEGACY_ADVISOR_NAMES, stripInternalCrmBlock, isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
@@ -631,7 +632,10 @@ async function runAll(): Promise<void> {
       currentMessage: "Hola, me gustaría cotizar una pista de baile o tarima para mi evento",
       history: [],
     });
-    assert.ok(/pista|tarima|iluminada|tamaño|anoto/i.test(reply), reply.slice(0, 200));
+    // A14967: menú de tipos primero (no dump de precios del PDF).
+    assert.ok(/pista|tarima/i.test(reply), reply.slice(0, 200));
+    assert.ok(/LED|iluminada|vinil|pintada|madera|charol|estilo/i.test(reply), reply.slice(0, 400));
+    assert.ok(!/Según el catálogo que ya cargamos/i.test(reply), reply.slice(0, 300));
     // NIVEL 2: no volver a volcar el menú de "¿otro servicio?".
     assert.ok(!/alg[uú]n\s+otro\s+servicio|qu[eé]\s+otros\s+servicios/i.test(reply), reply);
   });
@@ -2668,18 +2672,16 @@ async function runAll(): Promise<void> {
         },
       ],
     });
-    assert.ok(/tarima|pista|anoto|cotizaci[oó]n/i.test(reply), reply.slice(0, 300));
+    assert.ok(/tarima|pista/i.test(reply), reply.slice(0, 300));
     assert.ok(
       !/alg[uú]n\s+otro\s+servicio|qu[eé]\s+otros\s+servicios|manejamos alimentos y barras.{0,40}dj/i.test(
         reply
       ),
       reply.slice(0, 400)
     );
-    // Debe avanzar a un dato pendiente (invitados/zona/fecha…), no quedarse en menú.
-    assert.ok(
-      /invitados|personas|ciudad|colonia|sal[oó]n|fecha|horario|presupuesto/i.test(reply),
-      reply.slice(0, 400)
-    );
+    // A14967: con medidas pero sin estilo → menú de tipos (no dump PDF ni embudo aún).
+    assert.ok(/4\s*m|estilo|LED|vinil|pintada|charol/i.test(reply), reply.slice(0, 400));
+    assert.ok(!/Según el catálogo que ya cargamos/i.test(reply), reply.slice(0, 300));
   });
 
   await test("57. Cierre menciona complementos (alimentos, DJ, mobiliario)", () => {
@@ -5710,6 +5712,56 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/correo|e-?mail/i.test(afterBudget), afterBudget.slice(0, 400));
     assert.ok(/sin problema|por definir|equipo|propon/i.test(afterBudget), afterBudget.slice(0, 400));
+  });
+
+  // ─── 97. A14967 Angélica — pista personalizada: tipos primero, detalle después ───
+  await test("97. A14967 Angélica — pista: menú de tipos primero, detalle tras elección", () => {
+    assert.equal(parsePistaTarimaVariant("pista de baile personalizada"), null);
+    assert.equal(parsePistaTarimaVariant("Quisiera cotizar una pista personalizada"), null);
+    assert.ok(parsePistaTarimaVariant("pista LED interactiva")?.key === "pista_led");
+    assert.ok(parsePistaTarimaVariant("la LED")?.key === "pista_led");
+    assert.ok(parsePistaTarimaVariant("pintada a mano")?.key === "pista_pintada");
+    assert.ok(parsePistaTarimaVariant("con logo")?.key === "pista_logo");
+
+    const first = runGuards({
+      aiResponse:
+        "Según el catálogo que ya cargamos en Aprendizaje:\n*Pistas-y-Tarimas-2026*: $7,430 Pista 6x6m…\n¿Qué medidas aproximadas tiene el espacio?",
+      extracted: emptyExtracted({ nombre: "Angélica" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage:
+        "Quisiera una cotización por favor para una pista de baile personalizada. Mi nombre es Angélica",
+      history: [{ role: "assistant", content: "¿Cómo te llamas?" }],
+    });
+    assert.ok(/pista|tarima/i.test(first), first.slice(0, 300));
+    assert.ok(/vinil|pintada|LED|estilo|opciones/i.test(first), first.slice(0, 500));
+    assert.ok(!/Según el catálogo que ya cargamos/i.test(first), first.slice(0, 400));
+    assert.ok(!/\$7,?430|Pista 6x6m|\$20,?250/i.test(first), first.slice(0, 400));
+    // Una sola pregunta de medidas (si aparece), sin bloquear el menú.
+    const medidasAsks = (first.match(/¿Qué medidas aproximadas tiene el espacio\?/gi) || []).length;
+    assert.ok(medidasAsks <= 1, first.slice(0, 400));
+
+    const detail = runGuards({
+      aiResponse: "¿Cuál estilo te late?",
+      extracted: emptyExtracted({
+        nombre: "Angélica",
+        requerimientos_evento: "pista de baile / tarima",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "La LED",
+      history: [
+        { role: "assistant", content: first },
+      ],
+    });
+    assert.ok(/LED|interactiva/i.test(detail), detail.slice(0, 400));
+    // Tras elegir: sí puede haber precios/detalle, y pide medidas (sin duplicar).
+    assert.ok(
+      /\$|m²|medidas|Aprendizaje|detallo/i.test(detail),
+      detail.slice(0, 500)
+    );
+    const medidas2 = (detail.match(/¿Qué medidas aproximadas tiene el espacio\?/gi) || []).length;
+    assert.equal(medidas2, 1, detail.slice(0, 500));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -430,6 +430,7 @@ function extractPriceWindows(content: string, max = 8): string[] {
 
 /** Líneas con precio del PDF más relevante a la pregunta. */
 export function buildLucyInfoPriceSnippet(query: string, maxChars = 520): string | null {
+  ensureCacheFromSeedSync();
   const docs = cacheState().docs;
   if (!docs.length || !query?.trim()) return null;
   const tokens = tokenize(query);
@@ -466,7 +467,12 @@ export function buildLucyInfoPriceSnippet(query: string, maxChars = 520): string
  * Null si no hay match útil.
  */
 export function buildLucyInfoLearnedPriceReply(message: string): string | null {
-  const snip = buildLucyInfoPriceSnippet(message);
+  // Variante concreta (pista LED, tarima charol…) → snippet más enfocado y corto.
+  const focusedPista =
+    /\b(pintada|led|iluminada|madera\s+premium|vinil|charol|logo|tarima\s+b[aá]sica|escenario|estrado)\b/i.test(
+      message
+    );
+  const snip = buildLucyInfoPriceSnippet(message, focusedPista ? 420 : 520);
   if (!snip) return null;
   const t = fold(message);
   let ask = "¿Lo agregamos a tu cotización?";
@@ -475,5 +481,7 @@ export function buildLucyInfoLearnedPriceReply(message: string): string | null {
   } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t)) {
     ask = "¿Cuántas piezas necesitas y para cuándo?";
   }
-  return `Según el catálogo que ya cargamos en Aprendizaje:\n${snip}\n${ask}`;
+  // Evitar preguntar medidas dos veces si el snippet ya lo trae.
+  const body = snip.replace(/\s*¿Qué medidas aproximadas tiene el espacio\?\s*/gi, " ").trim();
+  return `Según el catálogo que ya cargamos en Aprendizaje:\n${body}\n${ask}`;
 }
