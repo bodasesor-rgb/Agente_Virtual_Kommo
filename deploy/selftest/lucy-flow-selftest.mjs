@@ -2290,10 +2290,16 @@ function findInclusionSection(content, query, maxChars = 1100) {
     anchors.push(`menu ${tiempos[1]} tiempos ${nivel}`.trim());
     anchors.push(`${tiempos[1]} tiempos ${nivel}`.trim());
     if (nivel === "tradicional" && tiempos[1] === "3") {
-      anchors.push("tradicional $830", "servicio completo 3 tiempos");
+      anchors.unshift("tradicional $830 por persona", "tradicional $830");
     }
     if (nivel === "tradicional" && tiempos[1] === "4") {
-      anchors.push("tradicional $880", "servicio completo 4 tiempos");
+      anchors.unshift("tradicional $880 por persona", "tradicional $880");
+    }
+    if (nivel === "basico" && tiempos[1] === "3") {
+      anchors.unshift("basico $780 por persona", "basico $780");
+    }
+    if (nivel === "premium" && tiempos[1] === "3") {
+      anchors.unshift("premium $880 por persona", "premium $880");
     }
   }
   if (/banquete/.test(q) && nivel) {
@@ -2329,14 +2335,17 @@ function findInclusionSection(content, query, maxChars = 1100) {
     if (dollar < 0) return null;
     bestIdx = dollar;
   }
-  let start = Math.max(0, bestIdx - 60);
-  let end = Math.min(c.length, start + maxChars);
-  const tail = c.slice(bestIdx + 20, end);
-  const nextPkg = tail.search(
-    /\n|Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i
+  const atHeading = /coffee break \d|tradicional \$\d|basico \$\d|premium \$\d|menu \d tiempos/i.test(
+    f.slice(bestIdx, bestIdx + 48)
   );
-  if (nextPkg > 280) {
-    end = bestIdx + 20 + nextPkg;
+  let start = atHeading ? bestIdx : Math.max(0, bestIdx - 40);
+  let end = Math.min(c.length, start + maxChars);
+  const tail = c.slice(Math.max(start, bestIdx) + 40, end);
+  const nextPkg = tail.search(
+    /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i
+  );
+  if (nextPkg > 200) {
+    end = Math.max(start, bestIdx) + 40 + nextPkg;
   }
   let slice = c.slice(start, end).replace(/\s+/g, " ").trim();
   slice = slice.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9🥐☕🍽*•]+/, "");
@@ -4965,13 +4974,16 @@ function inclusionLabelForResolved(resolved) {
 function buildInclusionTeamConfirmationAnswer(query) {
   const resolved = resolveCatalogQuery(query);
   if (!resolved || resolved.kind === "category") return null;
-  if (resolvedHasInclusionData(resolved)) return null;
   const label = inclusionLabelForResolved(resolved);
   const nivel = resolved.kind === "service_nivel" && resolved.rows[0] ? extractNivelLabel(resolved.rows[0]) : parseCatalogQueryFilters(query).nivel;
+  if (resolved.kind === "service_nivel" && resolved.rows[0] && getInclusionFromRow(resolved.rows[0])) {
+    return null;
+  }
   const fromPdf = buildLucyInfoInclusionReply(
     [label, nivel, query].filter(Boolean).join(" ")
   ) || buildLucyInfoInclusionReply(query);
   if (fromPdf) return fromPdf;
+  if (resolvedHasInclusionData(resolved)) return null;
   const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
   const webUrl = getCatalogWebUrlForQuery(label) ?? getCatalogWebUrlForQuery(resolved.serviceName ?? "") ?? getCatalogWebUrlForQuery(query) ?? resolveCatalogWebLink(label).url ?? resolveCatalogWebLink(resolved.serviceName ?? query).url ?? resolveCatalogWebLink(query).url;
   if (webHint || webUrl) {
@@ -4995,6 +5007,14 @@ function resolveCatalogInclusionReply(query, serviceHint) {
   const wantsAllLevels = /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
     query
   );
+  const specificLevel = /coffee\s*break\s*\d|\bcb\s*\d\b|\btradicional\b|\bpremium\b|\bb[aá]sic[ao]?\b|\d\s*tiempos?/i.test(
+    query
+  );
+  if (specificLevel && !wantsAllLevels) {
+    const pdfQ2 = [serviceHint, query].filter(Boolean).join(" ");
+    const fromPdf2 = buildLucyInfoInclusionReply(pdfQ2) || buildLucyInfoInclusionReply(query);
+    if (fromPdf2 && !/bet[uú]n|cupcakes?/i.test(fromPdf2)) return fromPdf2;
+  }
   const linkQ = serviceHint?.trim() || query;
   const withLink = (text) => text ? ensureCatalogWebLink(text, linkQ) : null;
   if (wantsAllLevels && serviceHint?.trim()) {
