@@ -185,7 +185,7 @@ async function fetchLeadMainContact(
   subdomain: string,
   accessToken: string,
   leadId: string | number
-): Promise<{ phone: string | null; displayName: string | null } | null> {
+): Promise<{ phone: string | null; displayName: string | null; email: string | null } | null> {
   try {
     const leadRes = await fetch(
       `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts`,
@@ -210,13 +210,21 @@ async function fetchLeadMainContact(
     );
     const phoneRaw = phoneField?.values[0]?.value;
     const phone = typeof phoneRaw === "string" && phoneRaw.trim() ? phoneRaw.trim() : null;
+    const emailField = contactData.custom_fields_values?.find(
+      (f) => f.field_code === "EMAIL"
+    );
+    const emailRaw = emailField?.values[0]?.value;
+    const email = typeof emailRaw === "string" && emailRaw.trim() ? emailRaw.trim() : null;
     const displayName =
       typeof contactData.name === "string" && contactData.name.trim()
         ? contactData.name.trim()
         : null;
 
-    logger.info({ leadId, phone: !!phone, displayName: !!displayName }, "Contacto principal obtenido de Kommo");
-    return { phone, displayName };
+    logger.info(
+      { leadId, phone: !!phone, displayName: !!displayName, email: !!email },
+      "Contacto principal obtenido de Kommo"
+    );
+    return { phone, displayName, email };
   } catch (err) {
     logger.warn({ leadId, err }, "fetchLeadMainContact: no se pudo obtener contacto");
     return null;
@@ -230,6 +238,16 @@ export async function fetchContactDisplayName(
 ): Promise<string | null> {
   const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
   return contact?.displayName ?? null;
+}
+
+/** EMAIL del contacto principal (Lucy lo escribe ahí; no hay CF de correo en el lead). */
+export async function fetchContactEmail(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number
+): Promise<string | null> {
+  const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
+  return contact?.email ?? null;
 }
 
 // ─── Registrar mensaje saliente en el historial de chat de Kommo ───────────────

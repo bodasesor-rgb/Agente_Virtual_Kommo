@@ -27,6 +27,7 @@ import {
   inferLucyAskedField,
   isServiceRelatedMessage,
   detectPresupuestoRefusal,
+  clientSaysEmailAlreadyGiven,
   countLucyFieldAsks,
   clientDeclinesMoreServices,
   parseTipoEventoFromText,
@@ -5582,6 +5583,139 @@ async function runAll(): Promise<void> {
     assert.ok(
       /correo|invitados|cu[aá]ntos/i.test(pick),
       `debe seguir embudo tras ack nivel: ${pick.slice(0, 400)}`
+    );
+  });
+
+  // ─── 96. A14954 Nathaly — correo durable; ubicación/Maps; no re-pedir tras waiver ───
+  await test("96. Nathaly A14954 — correo no se pierde ni se re-pide", () => {
+    assert.ok(
+      detectPresupuestoRefusal(
+        "Es que no tenemos idea ya que el presupuesto es para toda la fiesta"
+      )
+    );
+    assert.ok(
+      clientSaysEmailAlreadyGiven(
+        "Ya le había proporcionado la el correo por qué lo piden tanto"
+      )
+    );
+    assert.ok(clientSaysEmailAlreadyGiven("por qué lo piden tanto el correo?"));
+
+    const zonaCdmx = parseZonaFromText("Cdmx, sería en un jardín.");
+    assert.ok(zonaCdmx && /cdmx/i.test(zonaCdmx), String(zonaCdmx));
+
+    const mapsMsg = [
+      "https://maps.app.goo.gl/6UJSTiKxn3Sh9DQu8?g_st=ac",
+      "Álvaro Obregón 61 · Tláhuac, Mexico City, Mexico City",
+    ].join("\n");
+    const zonaMaps = parseZonaFromText(mapsMsg);
+    assert.ok(zonaMaps && /tl[aá]huac/i.test(zonaMaps) && /obreg/i.test(zonaMaps), String(zonaMaps));
+
+    const history: Array<{ role: "user" | "assistant"; content: string }> = [
+      { role: "user", content: "Quiero hacer una cotizacion" },
+      { role: "assistant", content: "¿Cómo te llamas?" },
+      { role: "user", content: "Nathaly" },
+      {
+        role: "assistant",
+        content: "Perfecto, Nathaly. ¿A qué correo te envío la información para tu cotización?",
+      },
+      { role: "user", content: "Naty.islas.nvri@gmail.com" },
+      { role: "assistant", content: "¿Qué tipo de evento estás planeando?" },
+      { role: "user", content: "Boda" },
+      {
+        role: "assistant",
+        content: "Claro. Para tu boda manejamos banquetes, mobiliario, carpas… ¿Qué necesitas?",
+      },
+      { role: "user", content: "Mobiliario y carpa" },
+      {
+        role: "assistant",
+        content: "¿En qué ciudad y colonia (o salón) sería tu evento?",
+      },
+    ];
+    const captures = scanConversationForCaptures(history, "Cdmx, sería en un jardín.", new Set());
+    const correoCap = captures.find((c) => c.label === "Correo electrónico");
+    assert.ok(correoCap?.value && /naty\.islas/i.test(correoCap.value), JSON.stringify(captures));
+
+    // Tras presupuesto waived + correo en extracted/CRM → NO re-preguntar correo.
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+      "Presupuesto (MXN)",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Nathaly",
+      correo: "Naty.islas.nvri@gmail.com",
+      tipo_evento: "boda",
+      requerimientos_evento: "Mobiliario, Carpas",
+      direccion_evento: "CDMX, Tláhuac",
+      fecha_horario: "26 septiembre a las 5 de la tarde",
+      num_invitados: 100,
+      presupuesto: null,
+    });
+    assert.equal(getNextPendingField(extracted, filled), null);
+
+    const afterWaiver = runGuards({
+      aiResponse: "Sin problema. Mucho gusto, Nathaly. ¿A qué correo te mando la información?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      currentMessage: "Es que no tenemos idea ya que el presupuesto es para toda la fiesta",
+      history: [
+        ...history,
+        { role: "user", content: "Cdmx, sería en un jardín." },
+        { role: "assistant", content: "¿Cuál es la fecha y horario de tu boda?" },
+        { role: "user", content: "26 septiembre a las 5 de la tarde" },
+        { role: "assistant", content: "¿Cuántos invitados tienen contemplados?" },
+        { role: "user", content: "100" },
+        {
+          role: "assistant",
+          content: "¿Cuál es el rango estimado de presupuesto?",
+        },
+      ],
+      whatsappDisplayName: "Nathaly",
+    });
+    assert.ok(/ya tengo todo/i.test(afterWaiver), afterWaiver.slice(0, 400));
+    assert.ok(!/a qu[eé] correo|compart(e|ir).{0,20}correo/i.test(afterWaiver), afterWaiver.slice(0, 400));
+
+    const complain = runGuards({
+      aiResponse: "Perfecto. ¿Me puedes compartir tu correo para enviarte la cotización?",
+      extracted: emptyExtracted({
+        nombre: "Nathaly",
+        correo: null,
+        tipo_evento: "boda",
+        requerimientos_evento: "Mobiliario, Carpas",
+        direccion_evento: "CDMX",
+        fecha_horario: "26 septiembre a las 5 de la tarde",
+        num_invitados: 100,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Número de invitados",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Ya le había proporcionado la el correo por qué lo piden tanto",
+      history: [
+        ...history,
+        { role: "assistant", content: "¿A qué correo te mando la información?" },
+      ],
+      whatsappDisplayName: "Nathaly",
+    });
+    assert.ok(
+      !/me puedes compartir tu correo|a qu[eé] correo te/i.test(complain),
+      complain.slice(0, 400)
+    );
+    assert.ok(
+      /naty\.islas|ya lo tengo|anotado|raz[oó]n|ya tengo todo/i.test(complain),
+      complain.slice(0, 400)
     );
   });
 

@@ -96,6 +96,7 @@ import type { ExtractedData } from "../types.js";
 import {
   fetchContactPhone,
   fetchContactDisplayName,
+  fetchContactEmail,
 } from "../services/whatsappDirectSender.js";
 import {
   fetchLead,
@@ -529,11 +530,13 @@ function buildCrmContext(
   const historyFull = fullHistory ?? history;
   const userTexts = collectUserTexts(historyFull, currentMessage);
   const conversationText = userTexts.join(" ");
-  extracted = sanitizeExtractedFromExternal(extracted, conversationText);
+  // Mutar el mismo objeto del caller: si reasignamos, el correo recuperado
+  // se pierde y el PATCH/DB no lo ven (A14954 Nathaly — re-pedía correo).
+  Object.assign(extracted, sanitizeExtractedFromExternal(extracted, conversationText));
   // Invariantes duros: nombre≠ubicación, presupuesto solo si el cliente lo dijo.
   {
     const inv = applyCrmWriteInvariants(extracted, userTexts);
-    extracted = inv.extracted;
+    Object.assign(extracted, inv.extracted);
   }
 
   const mergedLines = purgeUnjustifiedPresupuestoLines(
@@ -578,7 +581,7 @@ function buildCrmContext(
   // Segunda pasada de invariantes tras ajustes de invitados/presupuesto.
   {
     const inv = applyCrmWriteInvariants(extracted, userTexts);
-    extracted = inv.extracted;
+    Object.assign(extracted, inv.extracted);
     if (inv.applied.includes("nombre-invalid-cleared")) {
       const idx = mergedLines.findIndex((l) => /^-?\s*Nombre del cliente:/i.test(l));
       if (idx >= 0) {
@@ -841,6 +844,17 @@ function buildCrmContext(
       if (zonaVal && isUsableDireccionEvento(zonaVal)) {
         extracted.direccion_evento = zonaVal;
       }
+    }
+  }
+
+  // A14954: si el correo quedó en CRM/historial pero extracted venía vacío, sincronizar.
+  {
+    const correoLine = mergedLines.find((l) => /^-?\s*Correo electrónico:/i.test(l));
+    if (correoLine) {
+      const correoVal = filterClientEmail(
+        parseCorreoFromText(correoLine.replace(/^-?\s*Correo electrónico:\s*/i, "").trim())
+      );
+      if (correoVal) extracted.correo = correoVal;
     }
   }
 
@@ -1255,6 +1269,16 @@ async function handleLucyInactiveInbound(opts: {
       entityId,
       log
     );
+    try {
+      const silentEmail = filterClientEmail(
+        await fetchContactEmail(subdomain, accessToken, entityId)
+      );
+      if (silentEmail && !crmLines.some((l) => /^-?\s*Correo electrónico:/i.test(l))) {
+        crmLines.push(`- Correo electrónico: ${silentEmail}`);
+      }
+    } catch {
+      /* no crítico */
+    }
     const histKey = String(entityId);
     const fullHistory = getHistory(histKey);
     const { extracted } = await prepareLucyExtraction({
@@ -1589,6 +1613,24 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
       leadName: kommoLeadName,
     } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
 
+    // Correo vive en el CONTACTO Kommo (no en CF del lead). Reinyectar cada turno (A14954).
+    let contactEmailFromKommo: string | null = null;
+    try {
+      contactEmailFromKommo = await fetchContactEmail(subdomain, accessToken, entityId);
+    } catch {
+      contactEmailFromKommo = null;
+    }
+    const durableEmail =
+      filterClientEmail(contactEmailFromKommo) ??
+      filterClientEmail(conversation.clientEmail) ??
+      null;
+    if (
+      durableEmail &&
+      !crmLines.some((l) => /^-?\s*Correo electrónico:/i.test(l))
+    ) {
+      crmLines.push(`- Correo electrónico: ${durableEmail}`);
+    }
+
     const hasAssistantMsg = history.some((m) => m.role === "assistant");
 
     const effectiveLastResponse = resolveEffectiveLastLucyResponse({
@@ -1641,7 +1683,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         crmLines,
         extracted,
         history,
-        conversation.clientEmail,
+        durableEmail ?? conversation.clientEmail,
         combinedUserText,
         whatsappDisplayName,
         fullHistory
@@ -2253,6 +2295,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
     let crmLines: string[] = [];
     let salesbotLeadName: string | null = null;
     let salesbotFilledLabels = new Set<string>();
+    let salesbotContactEmail: string | null = null;
     if (entityId) {
       try {
         const fields = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
@@ -2260,6 +2303,19 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
         salesbotLeadName = fields.leadName ?? null;
       } catch {
         log.warn("Salesbot: could not load CRM context");
+      }
+      try {
+        salesbotContactEmail = filterClientEmail(
+          await fetchContactEmail(subdomain, accessToken, entityId)
+        );
+      } catch {
+        salesbotContactEmail = null;
+      }
+      if (
+        salesbotContactEmail &&
+        !crmLines.some((l) => /^-?\s*Correo electrónico:/i.test(l))
+      ) {
+        crmLines.push(`- Correo electrónico: ${salesbotContactEmail}`);
       }
     }
 
@@ -2293,7 +2349,7 @@ router.post("/kommo/salesbot", async (req: Request, res: Response) => {
       crmLines,
       extracted,
       history,
-      undefined,
+      salesbotContactEmail,
       messageText,
       whatsappDisplayName,
       fullHistory

@@ -1035,7 +1035,7 @@ var WRITTEN_NUMBERS = {
   quinientos: "500"
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
+var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|tl[aá]huac|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|[aá]lvaro\s+obreg[oó]n)\b/i;
 var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?)\b/i;
 function isNonLocationBusinessPhrase(text) {
   const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
@@ -1350,13 +1350,20 @@ function clientMentionsPistaTarima(message) {
   return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
 }
 function parseZonaFromText(text) {
-  const trimmed = text.trim();
-  if (!trimmed || /@/.test(trimmed)) return null;
+  const trimmed = text.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ").replace(/https?:\/\/\S+/gi, " ").replace(/\s+/g, " ").trim();
+  if (!trimmed) return null;
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
   if (isLikelyProductNameNotLocation(trimmed)) return null;
   if (/\bsala\s*:/i.test(trimmed)) return null;
+  const mapsStreet = trimmed.match(
+    /\b([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.]{2,40}?\s+\d{1,5})\s*[·•,\-]\s*([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.]{2,40}?)(?:,\s*(?:Mexico\s*City|CDMX|Ciudad\s+de\s+M[eé]xico|M[eé]xico))?/i
+  );
+  if (mapsStreet?.[1] && mapsStreet?.[2]) {
+    const street = `${mapsStreet[1].trim()}, ${mapsStreet[2].trim()}`;
+    if (isUsableDireccionEvento(street)) return street;
+  }
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
   if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
     return expoMatch[0].trim();
@@ -1556,6 +1563,14 @@ function countLucyFieldAsks(history, field) {
     (m) => m.role === "assistant" && typeof m.content === "string" && pattern.test(m.content)
   ).length;
 }
+function clientSaysEmailAlreadyGiven(message) {
+  const t = message?.trim() ?? "";
+  if (!t) return false;
+  if (!/\b(correo|e-?mail|mail)\b/i.test(t)) return false;
+  return /\bya\s+(le\s+|te\s+)?(hab[ií]a\s+)?(proporcionad[oa]|dado|mandad[oa]|enviad[oa]|compartid[oa]|pasad[oa]|dije|di)\b/i.test(
+    t
+  ) || /\bpor\s+qu[eé]\s+(lo\s+)?pide(n)?\s+tanto\b/i.test(t) || /\bya\s+se\s+lo\s+(hab[ií]a\s+)?(di|dije|mand[eé]|envi[eé]|proporcion[eé])\b/i.test(t);
+}
 function detectPresupuestoRefusal(text) {
   const t = text?.trim() ?? "";
   if (!t) return false;
@@ -1564,6 +1579,10 @@ function detectPresupuestoRefusal(text) {
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t)) return true;
   if (/^\.{2,}$/.test(t)) return true;
+  if (/\bno\s+(tengo|tenemos|cuento)\s+idea\b/i.test(t) && /\bpresupuesto\b/i.test(t)) {
+    return true;
+  }
+  if (/\bsin\s+idea\b/i.test(t) && /\bpresupuesto\b/i.test(t)) return true;
   const explicitNoBudget = /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t);
   if (explicitNoBudget) return true;
   const budgetCareLanguage = /\b(dentro\s+del\s+presupuesto|sin\s+perder.{0,40}presupuesto|al\s+presupuesto|bajo\s+presupuesto|mantener.{0,25}presupuesto|seg[uú]n\s+(el\s+)?presupuesto|cuidando.{0,25}presupuesto)\b/i.test(
@@ -1831,6 +1850,13 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
     if (nombre) {
       captures.push({ label: "Nombre del cliente", value: nombre });
       pending.add("Nombre del cliente");
+    }
+  }
+  if (!pending.has("Correo electr\xF3nico") && !pending.has("Correo (prefiere no compartir)")) {
+    const correo = userTexts.map((t) => parseCorreoFromText(t)).map((e) => filterClientEmail(e)).find((e) => !!(e && looksLikeValidClientEmail(e)));
+    if (correo) {
+      captures.push({ label: "Correo electr\xF3nico", value: correo });
+      pending.add("Correo electr\xF3nico");
     }
   }
   for (const msg of userTexts) {
@@ -18160,7 +18186,33 @@ ${nextQ}`;
     log?.warn({ entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
     mensaje = nextQ;
   }
-  if (!cierreYaEnviado && !appliedDirectReply && !isEmailSatisfied(filledSet, extracted) && !detectEmailRefusal([currentMessage ?? ""]) && !parseCorreoFromText(currentMessage ?? "")) {
+  if (!cierreYaEnviado && clientSaysEmailAlreadyGiven(currentMessage) && !isEmailSatisfied(filledSet, extracted)) {
+    const recovered = collectUserTexts(presHistory, currentMessage).map((t) => filterClientEmail(parseCorreoFromText(t))).find((e) => e && looksLikeValidClientEmail(e));
+    if (recovered) {
+      extracted.correo = recovered;
+      filledSet.add("Correo electr\xF3nico");
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
+      if (nextQ && !mensajeAsksForField(nextQ, "correo")) {
+        mensaje = `Tienes raz\xF3n, ya lo tengo anotado (${recovered}). ${nextQ}`.trim();
+      } else if (isReadyForClosing(filledSet)) {
+        mensaje = buildStandardClosingMessage(
+          extracted.requerimientos_evento,
+          extracted.nombre
+        );
+      } else {
+        mensaje = `Tienes raz\xF3n, ya tengo tu correo (${recovered}). Seguimos con la cotizaci\xF3n.`;
+      }
+      log?.info({ entityId, recovered }, "GUARD: cliente ya dio correo \u2014 recuperado del historial");
+    }
+  }
+  if (!cierreYaEnviado && !appliedDirectReply && !isEmailSatisfied(filledSet, extracted) && !detectEmailRefusal([currentMessage ?? ""]) && !parseCorreoFromText(currentMessage ?? "") && !clientSaysEmailAlreadyGiven(currentMessage)) {
     const correoAsks = countLucyFieldAsks(presHistory, "correo");
     const lastAskedCorreo = inferLucyAskedField(
       [...presHistory].reverse().find((m) => m.role === "assistant" && typeof m.content === "string")?.content
@@ -24024,6 +24076,130 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.ok(
       /correo|invitados|cu[aá]ntos/i.test(pick),
       `debe seguir embudo tras ack nivel: ${pick.slice(0, 400)}`
+    );
+  });
+  await test("96. Nathaly A14954 \u2014 correo no se pierde ni se re-pide", () => {
+    assert.ok(
+      detectPresupuestoRefusal(
+        "Es que no tenemos idea ya que el presupuesto es para toda la fiesta"
+      )
+    );
+    assert.ok(
+      clientSaysEmailAlreadyGiven(
+        "Ya le hab\xEDa proporcionado la el correo por qu\xE9 lo piden tanto"
+      )
+    );
+    assert.ok(clientSaysEmailAlreadyGiven("por qu\xE9 lo piden tanto el correo?"));
+    const zonaCdmx = parseZonaFromText("Cdmx, ser\xEDa en un jard\xEDn.");
+    assert.ok(zonaCdmx && /cdmx/i.test(zonaCdmx), String(zonaCdmx));
+    const mapsMsg = [
+      "https://maps.app.goo.gl/6UJSTiKxn3Sh9DQu8?g_st=ac",
+      "\xC1lvaro Obreg\xF3n 61 \xB7 Tl\xE1huac, Mexico City, Mexico City"
+    ].join("\n");
+    const zonaMaps = parseZonaFromText(mapsMsg);
+    assert.ok(zonaMaps && /tl[aá]huac|obreg/i.test(zonaMaps), String(zonaMaps));
+    const history = [
+      { role: "user", content: "Quiero hacer una cotizacion" },
+      { role: "assistant", content: "\xBFC\xF3mo te llamas?" },
+      { role: "user", content: "Nathaly" },
+      {
+        role: "assistant",
+        content: "Perfecto, Nathaly. \xBFA qu\xE9 correo te env\xEDo la informaci\xF3n para tu cotizaci\xF3n?"
+      },
+      { role: "user", content: "Naty.islas.nvri@gmail.com" },
+      { role: "assistant", content: "\xBFQu\xE9 tipo de evento est\xE1s planeando?" },
+      { role: "user", content: "Boda" },
+      {
+        role: "assistant",
+        content: "Claro. Para tu boda manejamos banquetes, mobiliario, carpas\u2026 \xBFQu\xE9 necesitas?"
+      },
+      { role: "user", content: "Mobiliario y carpa" },
+      {
+        role: "assistant",
+        content: "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa tu evento?"
+      }
+    ];
+    const captures = scanConversationForCaptures(history, "Cdmx, ser\xEDa en un jard\xEDn.", /* @__PURE__ */ new Set());
+    const correoCap = captures.find((c) => c.label === "Correo electr\xF3nico");
+    assert.ok(correoCap?.value && /naty\.islas/i.test(correoCap.value), JSON.stringify(captures));
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/direcci\xF3n del evento",
+      "Fecha y horario",
+      "N\xFAmero de invitados",
+      "Presupuesto (MXN)"
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Nathaly",
+      correo: "Naty.islas.nvri@gmail.com",
+      tipo_evento: "boda",
+      requerimientos_evento: "Mobiliario, Carpas",
+      direccion_evento: "CDMX, Tl\xE1huac",
+      fecha_horario: "26 septiembre a las 5 de la tarde",
+      num_invitados: 100,
+      presupuesto: null
+    });
+    assert.equal(getNextPendingField(extracted, filled), null);
+    const afterWaiver = runGuards({
+      aiResponse: "Sin problema. Mucho gusto, Nathaly. \xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: true,
+      currentMessage: "Es que no tenemos idea ya que el presupuesto es para toda la fiesta",
+      history: [
+        ...history,
+        { role: "user", content: "Cdmx, ser\xEDa en un jard\xEDn." },
+        { role: "assistant", content: "\xBFCu\xE1l es la fecha y horario de tu boda?" },
+        { role: "user", content: "26 septiembre a las 5 de la tarde" },
+        { role: "assistant", content: "\xBFCu\xE1ntos invitados tienen contemplados?" },
+        { role: "user", content: "100" },
+        {
+          role: "assistant",
+          content: "\xBFCu\xE1l es el rango estimado de presupuesto?"
+        }
+      ],
+      whatsappDisplayName: "Nathaly"
+    });
+    assert.ok(/ya tengo todo/i.test(afterWaiver), afterWaiver.slice(0, 400));
+    assert.ok(!/a qu[eé] correo|compart(e|ir).{0,20}correo/i.test(afterWaiver), afterWaiver.slice(0, 400));
+    const complain = runGuards({
+      aiResponse: "Perfecto. \xBFMe puedes compartir tu correo para enviarte la cotizaci\xF3n?",
+      extracted: emptyExtracted({
+        nombre: "Nathaly",
+        correo: null,
+        tipo_evento: "boda",
+        requerimientos_evento: "Mobiliario, Carpas",
+        direccion_evento: "CDMX",
+        fecha_horario: "26 septiembre a las 5 de la tarde",
+        num_invitados: 100
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "Fecha y horario",
+        "N\xFAmero de invitados",
+        "Presupuesto (MXN)"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Ya le hab\xEDa proporcionado la el correo por qu\xE9 lo piden tanto",
+      history: [
+        ...history,
+        { role: "assistant", content: "\xBFA qu\xE9 correo te mando la informaci\xF3n?" }
+      ],
+      whatsappDisplayName: "Nathaly"
+    });
+    assert.ok(
+      !/me puedes compartir tu correo|a qu[eé] correo te/i.test(complain),
+      complain.slice(0, 400)
+    );
+    assert.ok(
+      /naty\.islas|ya lo tengo|anotado|raz[oó]n|ya tengo todo/i.test(complain),
+      complain.slice(0, 400)
     );
   });
   console.log(`
