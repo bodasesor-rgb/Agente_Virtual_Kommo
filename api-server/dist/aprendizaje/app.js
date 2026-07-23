@@ -24,13 +24,23 @@ let lastChatStats = { pending: 0, approved: 0, rejected: 0, trainingExamples: 0 
 let lastGapStats = { pending: 0, answered: 0, dismissed: 0 };
 let lastInfoStats = { catalog: 0, tips: 0, total: 0 };
 
-/** Estado temporal del extractor PDF en la pestaña info */
+/** Estado temporal del extractor PDF en la pestaña info (vista previa manual) */
 let pendingPdf = {
   kind: "catalog",
   filename: "",
   text: "",
   pages: 0,
 };
+
+/** Cola de PDFs: procesa uno a uno (extraer → guardar para Lucy). */
+const PDF_QUEUE_MAX = 25;
+const PDF_MAX_MB = 12;
+/** @type {Array<{ id: string, file: File, name: string, status: string, detail: string, startedAt: number|null, ms: number|null }>} */
+let pdfQueue = [];
+let pdfQueueRunning = false;
+let pdfQueueCancelled = false;
+let pdfQueueTimerId = null;
+let pdfQueueBatchStartedAt = null;
 
 const ERROR_HINTS = {
   unauthorized:
@@ -227,7 +237,7 @@ const INTRO = {
   gaps_answered:
     "Respuestas que <strong>tú le enseñaste</strong> sobre huecos del catálogo.",
   info:
-    "Sube <strong>PDFs de catálogos/servicios</strong> (se convierten a texto plano para que Lucy los lea) y escribe <strong>tendencias, modas y consejos</strong> para que ofrezca con más naturalidad. Los precios del Sheet siguen mandando.",
+    "Sube <strong>varios PDFs</strong> (cola de uno en uno, con temporizador), arrástralos o pégalos, y escribe <strong>tendencias</strong>. Este material es lo <strong>primero</strong> que Lucy lee para ofrecer; el Sheet manda solo si choca el precio.",
 };
 
 async function api(path, options = {}) {
@@ -463,13 +473,254 @@ async function deleteInfoDoc(id) {
   await refresh();
 }
 
+function formatDuration(ms) {
+  const s = Math.max(0, Math.round((ms || 0) / 1000));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return m > 0 ? `${m}m ${r}s` : `${r}s`;
+}
+
+function isPdfFile(file) {
+  if (!file) return false;
+  return file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+}
+
+function enqueuePdfFiles(fileList) {
+  const files = Array.from(fileList || []).filter(isPdfFile);
+  if (!files.length) {
+    alert("Solo se aceptan archivos PDF.");
+    return 0;
+  }
+  let added = 0;
+  for (const file of files) {
+    if (pdfQueue.length >= PDF_QUEUE_MAX) {
+      alert(`Máximo ${PDF_QUEUE_MAX} PDFs en cola. Espera a que terminen o cancela la cola.`);
+      break;
+    }
+    if (file.size > PDF_MAX_MB * 1024 * 1024) {
+      pdfQueue.push({
+        id: `skip-${Date.now()}-${added}`,
+        file,
+        name: file.name,
+        status: "error",
+        detail: `Demasiado grande (>${PDF_MAX_MB} MB)`,
+        startedAt: null,
+        ms: 0,
+      });
+      continue;
+    }
+    const dup = pdfQueue.some(
+      (q) => q.name === file.name && q.file.size === file.size && q.status !== "error"
+    );
+    if (dup) continue;
+    pdfQueue.push({
+      id: `pdf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      file,
+      name: file.name,
+      status: "queued",
+      detail: "En espera",
+      startedAt: null,
+      ms: null,
+    });
+    added += 1;
+  }
+  renderPdfQueue();
+  return added;
+}
+
+function renderPdfQueue() {
+  const listEl = document.getElementById("pdf-queue-list");
+  const summaryEl = document.getElementById("pdf-queue-summary");
+  const progressEl = document.getElementById("pdf-queue-progress");
+  const timerEl = document.getElementById("pdf-queue-timer");
+  if (!listEl) return;
+
+  const total = pdfQueue.length;
+  const done = pdfQueue.filter((q) => q.status === "done").length;
+  const errors = pdfQueue.filter((q) => q.status === "error").length;
+  const active = pdfQueue.find((q) => q.status === "processing");
+  const pending = pdfQueue.filter((q) => q.status === "queued").length;
+
+  if (summaryEl) {
+    summaryEl.textContent = total
+      ? `${done}/${total} listos` +
+        (pending ? ` · ${pending} en cola` : "") +
+        (errors ? ` · ${errors} con error` : "") +
+        (active ? ` · procesando: ${active.name}` : "")
+      : `Puedes subir hasta ${PDF_QUEUE_MAX} PDFs. Se procesan de uno en uno.`;
+  }
+
+  if (progressEl) {
+    const pct = total ? Math.round(((done + errors) / total) * 100) : 0;
+    progressEl.style.width = `${pct}%`;
+    progressEl.parentElement?.classList.toggle("active", pdfQueueRunning || total > 0);
+  }
+
+  if (timerEl) {
+    if (pdfQueueBatchStartedAt) {
+      const elapsed = Date.now() - pdfQueueBatchStartedAt;
+      timerEl.textContent = pdfQueueRunning
+        ? `Tiempo: ${formatDuration(elapsed)}`
+        : `Lote: ${formatDuration(elapsed)}`;
+    } else {
+      timerEl.textContent = "Temporizador: —";
+    }
+  }
+
+  listEl.innerHTML = pdfQueue
+    .map((q) => {
+      const statusLabel =
+        q.status === "queued"
+          ? "En cola"
+          : q.status === "processing"
+            ? "Procesando…"
+            : q.status === "done"
+              ? "Guardado"
+              : q.status === "cancelled"
+                ? "Cancelado"
+                : "Error";
+      const time =
+        q.status === "processing" && q.startedAt
+          ? formatDuration(Date.now() - q.startedAt)
+          : q.ms != null
+            ? formatDuration(q.ms)
+            : "—";
+      return `
+        <li class="pdf-queue-item status-${escapeHtml(q.status)}" data-id="${escapeHtml(q.id)}">
+          <div class="pdf-queue-name">${escapeHtml(q.name)}</div>
+          <div class="pdf-queue-meta">
+            <span class="pdf-queue-badge">${statusLabel}</span>
+            <span>${escapeHtml(q.detail || "")}</span>
+            <span class="pdf-queue-time">${time}</span>
+          </div>
+        </li>`;
+    })
+    .join("");
+
+  const startBtn = document.getElementById("btn-start-pdf-queue");
+  const cancelBtn = document.getElementById("btn-cancel-pdf-queue");
+  if (startBtn) startBtn.disabled = pdfQueueRunning || pending === 0;
+  if (cancelBtn) cancelBtn.disabled = !pdfQueueRunning;
+}
+
+function startPdfQueueTimer() {
+  if (pdfQueueTimerId) return;
+  pdfQueueTimerId = setInterval(() => {
+    if (!pdfQueueRunning && !pdfQueue.some((q) => q.status === "processing")) {
+      clearInterval(pdfQueueTimerId);
+      pdfQueueTimerId = null;
+    }
+    renderPdfQueue();
+  }, 500);
+}
+
+async function processOnePdf(item) {
+  item.status = "processing";
+  item.startedAt = Date.now();
+  item.detail = "Extrayendo texto…";
+  renderPdfQueue();
+
+  const pdfBase64 = await fileToBase64(item.file);
+  const extracted = await fetchJson("/lucy-info/extract-pdf", {
+    method: "POST",
+    body: JSON.stringify({ pdfBase64, filename: item.name }),
+  });
+  if (!extracted.ok) throw new Error(extracted.error || "extract_failed");
+
+  item.detail = `Texto listo (${extracted.data.pages || "?"} pág.) · guardando…`;
+  renderPdfQueue();
+
+  const title =
+    document.getElementById("info-title-catalog")?.value?.trim() ||
+    item.name.replace(/\.pdf$/i, "");
+  const saved = await fetchJson("/lucy-info/documents", {
+    method: "POST",
+    body: JSON.stringify({
+      kind: "catalog",
+      title,
+      content: extracted.data.text || "",
+      sourceFilename: item.name,
+    }),
+  });
+  if (!saved.ok) throw new Error(saved.error || "save_failed");
+
+  item.status = "done";
+  item.ms = Date.now() - (item.startedAt || Date.now());
+  item.detail = `${extracted.data.charCount || extracted.data.text?.length || 0} caracteres · listo para Lucy`;
+}
+
+async function runPdfQueue() {
+  if (pdfQueueRunning) return;
+  const pending = pdfQueue.filter((q) => q.status === "queued");
+  if (!pending.length) return;
+
+  pdfQueueRunning = true;
+  pdfQueueCancelled = false;
+  if (!pdfQueueBatchStartedAt) pdfQueueBatchStartedAt = Date.now();
+  startPdfQueueTimer();
+  renderPdfQueue();
+
+  for (const item of pdfQueue) {
+    if (pdfQueueCancelled) {
+      if (item.status === "queued") {
+        item.status = "cancelled";
+        item.detail = "Cancelado";
+      }
+      continue;
+    }
+    if (item.status !== "queued") continue;
+    try {
+      await processOnePdf(item);
+    } catch (err) {
+      item.status = "error";
+      item.ms = item.startedAt ? Date.now() - item.startedAt : 0;
+      item.detail = err instanceof Error ? err.message : String(err);
+    }
+    renderPdfQueue();
+  }
+
+  pdfQueueRunning = false;
+  renderPdfQueue();
+  const statusEl = document.getElementById("info-status-catalog");
+  const done = pdfQueue.filter((q) => q.status === "done").length;
+  const errors = pdfQueue.filter((q) => q.status === "error").length;
+  if (statusEl) {
+    statusEl.textContent = pdfQueueCancelled
+      ? `Cola detenida. ${done} guardados · ${errors} con error.`
+      : `Cola terminada. ${done} PDF(s) guardados para Lucy` +
+        (errors ? ` · ${errors} con error` : "") +
+        ".";
+  }
+  if (done > 0) {
+    try {
+      await loadStats();
+      await loadInfoModeDocsOnly();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+async function loadInfoModeDocsOnly() {
+  const listEl = document.getElementById("info-docs-list");
+  if (!listEl) return;
+  const data = await api("/lucy-info?limit=80");
+  listEl.innerHTML = "";
+  if (!data.documents?.length) {
+    listEl.innerHTML =
+      `<p class="empty-inline">Aún no hay documentos. Sube PDFs o escribe tendencias arriba.</p>`;
+    return;
+  }
+  for (const doc of data.documents) listEl.appendChild(renderInfoDocCard(doc));
+}
+
 async function extractPdfFromInput(fileInput, statusEl, previewEl) {
   const file = fileInput?.files?.[0];
   if (!file) {
     alert("Elige un PDF primero.");
     return null;
   }
-  if (!/\.pdf$/i.test(file.name) && file.type !== "application/pdf") {
+  if (!isPdfFile(file)) {
     alert("Solo se aceptan archivos PDF.");
     return null;
   }
@@ -531,30 +782,125 @@ async function saveInfoFromForm(kind) {
   }
 }
 
+function wirePdfDropZone() {
+  const zone = document.getElementById("pdf-drop-zone");
+  const fileInput = document.getElementById("info-pdf-input");
+  if (!zone || !fileInput) return;
+
+  const onFiles = (files) => {
+    const n = enqueuePdfFiles(files);
+    if (n > 0) {
+      const statusEl = document.getElementById("info-status-catalog");
+      if (statusEl) {
+        statusEl.textContent = pdfQueueRunning
+          ? `${n} PDF(s) agregados; entrarán cuando toque en la cola.`
+          : `${n} PDF(s) en cola — iniciando proceso uno por uno…`;
+      }
+      if (!pdfQueueRunning) runPdfQueue().catch(() => {});
+    }
+  };
+
+  zone.addEventListener("click", () => fileInput.click());
+  zone.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fileInput.click();
+    }
+  });
+
+  ["dragenter", "dragover"].forEach((ev) => {
+    zone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.classList.add("drag-over");
+    });
+  });
+  ["dragleave", "drop"].forEach((ev) => {
+    zone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      zone.classList.remove("drag-over");
+    });
+  });
+  zone.addEventListener("drop", (e) => {
+    onFiles(e.dataTransfer?.files);
+  });
+
+  fileInput.addEventListener("change", () => {
+    onFiles(fileInput.files);
+    fileInput.value = "";
+  });
+
+  // Pegar PDF desde portapapeles (si el SO lo permite)
+  zone.addEventListener("paste", (e) => {
+    const items = e.clipboardData?.files;
+    if (items?.length) {
+      e.preventDefault();
+      onFiles(items);
+    }
+  });
+  document.addEventListener("paste", (e) => {
+    if (currentMode !== "info") return;
+    const items = Array.from(e.clipboardData?.items || []);
+    const files = items
+      .filter((it) => it.kind === "file")
+      .map((it) => it.getAsFile())
+      .filter(Boolean);
+    if (files.some(isPdfFile)) {
+      e.preventDefault();
+      onFiles(files);
+    }
+  });
+}
+
 function renderInfoPanelShell() {
   if (!infoPanel) return;
   infoPanel.classList.remove("hidden");
   infoPanel.innerHTML = `
     <div class="info-grid-panels">
       <section class="info-upload-card">
-        <p class="eyebrow">Catálogos y servicios</p>
-        <h3>Subir PDF → texto plano</h3>
-        <p class="info-help">Lucy no lee el PDF como imagen: lo convertimos a texto para que conozca menús, inclusiones y detalle de servicios.</p>
-        <label>Título (opcional)
+        <p class="eyebrow">Catálogos y servicios · prioridad 1 para Lucy</p>
+        <h3>Cola de PDFs → texto plano</h3>
+        <p class="info-help">
+          Sube varios PDFs (hasta ${PDF_QUEUE_MAX}). Se procesan <strong>uno por uno</strong>: extraer texto y guardar para Lucy.
+          Arrastra, pega o elige archivos. Lucy lee este material <strong>primero</strong> al ofrecer servicios.
+        </p>
+        <label>Título base (opcional, se usa si el PDF no trae nombre claro)
           <input type="text" id="info-title-catalog" placeholder="Ej. Coffee Break — niveles e inclusiones" />
         </label>
-        <label class="file-label">PDF del catálogo
-          <input type="file" id="info-pdf-input" accept="application/pdf,.pdf" />
-        </label>
-        <div class="gap-actions">
-          <button type="button" class="btn-ghost" id="btn-extract-pdf">Extraer texto del PDF</button>
+
+        <div id="pdf-drop-zone" class="pdf-drop-zone" tabindex="0" role="button" aria-label="Zona para soltar o pegar PDFs">
+          <strong>Arrastra y suelta PDFs aquí</strong>
+          <span>o haz clic para seleccionar varios · también puedes pegar (Ctrl+V)</span>
+          <input type="file" id="info-pdf-input" accept="application/pdf,.pdf" multiple hidden />
         </div>
-        <label>Texto plano (editable)
-          <textarea id="info-content-catalog" class="answer-box info-textarea" placeholder="Aquí aparecerá el texto extraído. También puedes pegarlo a mano…"></textarea>
-        </label>
-        <div class="gap-actions">
-          <button type="button" class="btn-save" id="btn-save-catalog">Guardar catálogo para Lucy</button>
+
+        <div class="pdf-queue-toolbar">
+          <div class="pdf-queue-progress-wrap" aria-hidden="true">
+            <div id="pdf-queue-progress" class="pdf-queue-progress"></div>
+          </div>
+          <div class="pdf-queue-stats">
+            <span id="pdf-queue-summary">Puedes subir hasta ${PDF_QUEUE_MAX} PDFs. Se procesan de uno en uno.</span>
+            <span id="pdf-queue-timer">Temporizador: —</span>
+          </div>
+          <div class="gap-actions">
+            <button type="button" class="btn-save" id="btn-start-pdf-queue">Procesar cola</button>
+            <button type="button" class="btn-ghost" id="btn-cancel-pdf-queue" disabled>Cancelar cola</button>
+            <button type="button" class="btn-ghost" id="btn-clear-pdf-queue">Limpiar lista</button>
+          </div>
         </div>
+        <ul id="pdf-queue-list" class="pdf-queue-list"></ul>
+
+        <details class="info-manual-text">
+          <summary>Opcional: pegar / editar un texto a mano (sin cola)</summary>
+          <label>Texto plano (editable)
+            <textarea id="info-content-catalog" class="answer-box info-textarea" placeholder="Pega texto de un catálogo o revisa un extracto…"></textarea>
+          </label>
+          <div class="gap-actions">
+            <button type="button" class="btn-ghost" id="btn-extract-pdf-single">Extraer 1 PDF (vista previa)</button>
+            <button type="button" class="btn-save" id="btn-save-catalog">Guardar este texto para Lucy</button>
+          </div>
+        </details>
         <p id="info-status-catalog" class="info-status"></p>
       </section>
 
@@ -576,18 +922,46 @@ function renderInfoPanelShell() {
     </div>
     <div class="info-docs-head">
       <h3>Ya cargado para Lucy</h3>
-      <p class="info-help">Se inyecta en el prompt (con límite de caracteres). Prioridad de precios: Google Sheet.</p>
+      <p class="info-help">Prioridad 1 en el prompt (antes del Sheet). Si choca el precio, manda el Sheet; en descripción/inclusiones manda este material.</p>
     </div>
     <div id="info-docs-list" class="gaps-list"></div>
   `;
 
-  document.getElementById("btn-extract-pdf")?.addEventListener("click", async () => {
-    pendingPdf.kind = "catalog";
-    await extractPdfFromInput(
-      document.getElementById("info-pdf-input"),
-      document.getElementById("info-status-catalog"),
-      document.getElementById("info-content-catalog"),
-    );
+  wirePdfDropZone();
+  renderPdfQueue();
+
+  document.getElementById("btn-start-pdf-queue")?.addEventListener("click", () => {
+    runPdfQueue().catch(() => {});
+  });
+  document.getElementById("btn-cancel-pdf-queue")?.addEventListener("click", () => {
+    pdfQueueCancelled = true;
+    const statusEl = document.getElementById("info-status-catalog");
+    if (statusEl) statusEl.textContent = "Cancelando tras el archivo actual…";
+  });
+  document.getElementById("btn-clear-pdf-queue")?.addEventListener("click", () => {
+    if (pdfQueueRunning) {
+      alert("Espera a que termine o cancela la cola antes de limpiar.");
+      return;
+    }
+    pdfQueue = [];
+    pdfQueueBatchStartedAt = null;
+    renderPdfQueue();
+  });
+
+  document.getElementById("btn-extract-pdf-single")?.addEventListener("click", async () => {
+    // Vista previa de un solo archivo: abre el picker otra vez solo para preview
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "application/pdf,.pdf";
+    input.addEventListener("change", async () => {
+      pendingPdf.kind = "catalog";
+      await extractPdfFromInput(
+        input,
+        document.getElementById("info-status-catalog"),
+        document.getElementById("info-content-catalog"),
+      );
+    });
+    input.click();
   });
   document.getElementById("btn-save-catalog")?.addEventListener("click", () => saveInfoFromForm("catalog"));
   document.getElementById("btn-save-tips")?.addEventListener("click", () => saveInfoFromForm("tips"));
@@ -597,25 +971,17 @@ async function loadInfoMode() {
   sectionIntro.innerHTML = INTRO.info;
   gapsList.innerHTML = "";
   emptyState.classList.add("hidden");
+  // Conservar cola si ya hay una en curso al refrescar stats.
+  const keepQueue = pdfQueueRunning || pdfQueue.some((q) => q.status === "queued" || q.status === "processing");
   renderInfoPanelShell();
+  if (keepQueue) renderPdfQueue();
 
-  const listEl = document.getElementById("info-docs-list");
   try {
-    const data = await api("/lucy-info?limit=50");
     lastLoadError = null;
-    if (!data.documents?.length) {
-      if (listEl) {
-        listEl.innerHTML =
-          `<p class="empty-inline">Aún no hay documentos. Sube un PDF de catálogo o escribe tendencias arriba.</p>`;
-      }
-      return;
-    }
-    if (listEl) {
-      listEl.innerHTML = "";
-      for (const doc of data.documents) listEl.appendChild(renderInfoDocCard(doc));
-    }
+    await loadInfoModeDocsOnly();
   } catch (err) {
     lastLoadError = err instanceof Error ? err.message : String(err);
+    const listEl = document.getElementById("info-docs-list");
     if (listEl) {
       listEl.innerHTML = `<p class="empty-inline"><strong>No se pudo cargar</strong> ${escapeHtml(lastLoadError)}</p>`;
     }

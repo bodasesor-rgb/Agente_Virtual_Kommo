@@ -19512,10 +19512,11 @@ Nada m\xE1s en esa etapa.
 function buildDynamicPrompt(context) {
   const { hasObjection } = context;
   const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
-  let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
+  let prompt = SYSTEM_PROMPT;
   if (context.lucyInfoBlock?.trim()) {
     prompt += "\n\n" + context.lucyInfoBlock.trim();
   }
+  prompt += "\n\n" + catalog;
   const tipo = context.extracted.tipo_evento?.trim();
   const hasReq = !!context.extracted.requerimientos_evento?.trim();
   if (tipo && !hasReq) {
@@ -24638,7 +24639,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `debe seguir embudo tras ack nivel: ${pick.slice(0, 400)}`
     );
   });
-  await test("95. Informaci\xF3n para Lucy se inyecta en el prompt", async () => {
+  await test("95. Informaci\xF3n para Lucy se inyecta PRIMERO en el prompt", async () => {
     const prompt = buildDynamicPrompt({
       stage: "discovery",
       priority: "medium",
@@ -24646,15 +24647,18 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       crmContext: "",
       catalogBlock: "CATALOGO_TEST",
       lucyInfoBlock: [
-        "INFORMACI\xD3N MANUAL PARA LUCY (panel Aprendizaje \u2192 Informaci\xF3n para Lucy)",
+        "PRIORIDAD 1 \u2014 INFORMACI\xD3N MANUAL PARA LUCY (PDFs y tips del panel Aprendizaje)",
         "\u2014\u2014 Tendencias, modas y consejos \u2014\u2014",
         "### Tendencias 2026",
         "Bodas \xEDntimas con coffee break premium y flores silvestres."
       ].join("\n")
     });
     assert.ok(prompt.includes("CATALOGO_TEST"));
-    assert.ok(/INFORMACIÓN MANUAL PARA LUCY/i.test(prompt));
+    assert.ok(/INFORMACIÓN MANUAL PARA LUCY|PRIORIDAD 1/i.test(prompt));
     assert.ok(/Bodas íntimas con coffee break premium/i.test(prompt));
+    const infoIdx = prompt.search(/PRIORIDAD 1|INFORMACIÓN MANUAL PARA LUCY/i);
+    const catalogIdx = prompt.indexOf("CATALOGO_TEST");
+    assert.ok(infoIdx >= 0 && catalogIdx >= 0 && infoIdx < catalogIdx, "info manual debe ir antes del Sheet");
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

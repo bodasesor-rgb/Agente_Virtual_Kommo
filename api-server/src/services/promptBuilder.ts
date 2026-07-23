@@ -26,11 +26,13 @@ export function buildDynamicPrompt(context: {
   const { hasObjection } = context;
   const catalog = context.catalogBlock ?? getCatalogPromptBlockSync();
 
-  let prompt = SYSTEM_PROMPT + "\n\n" + catalog;
-
+  // Información manual (PDFs/tips del panel) PRIMERO: es lo que el equipo
+  // sube para que Lucy ofrezca con conocimiento real; el Sheet complementa precios.
+  let prompt = SYSTEM_PROMPT;
   if (context.lucyInfoBlock?.trim()) {
     prompt += "\n\n" + context.lucyInfoBlock.trim();
   }
+  prompt += "\n\n" + catalog;
 
   const tipo = context.extracted.tipo_evento?.trim();
   const hasReq = !!(context.extracted.requerimientos_evento?.trim());

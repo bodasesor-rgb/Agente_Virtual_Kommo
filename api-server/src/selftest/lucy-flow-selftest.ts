@@ -5586,8 +5586,8 @@ async function runAll(): Promise<void> {
     );
   });
 
-  // ─── 95. V8.37 — Información manual (PDF/tips) entra al system prompt ───
-  await test("95. Información para Lucy se inyecta en el prompt", async () => {
+  // ─── 95. V8.40 — Información manual (PDF/tips) PRIMERO en el system prompt ───
+  await test("95. Información para Lucy se inyecta PRIMERO en el prompt", async () => {
     const prompt = buildDynamicPrompt({
       stage: "discovery",
       priority: "medium",
@@ -5595,15 +5595,18 @@ async function runAll(): Promise<void> {
       crmContext: "",
       catalogBlock: "CATALOGO_TEST",
       lucyInfoBlock: [
-        "INFORMACIÓN MANUAL PARA LUCY (panel Aprendizaje → Información para Lucy)",
+        "PRIORIDAD 1 — INFORMACIÓN MANUAL PARA LUCY (PDFs y tips del panel Aprendizaje)",
         "—— Tendencias, modas y consejos ——",
         "### Tendencias 2026",
         "Bodas íntimas con coffee break premium y flores silvestres.",
       ].join("\n"),
     });
     assert.ok(prompt.includes("CATALOGO_TEST"));
-    assert.ok(/INFORMACIÓN MANUAL PARA LUCY/i.test(prompt));
+    assert.ok(/INFORMACIÓN MANUAL PARA LUCY|PRIORIDAD 1/i.test(prompt));
     assert.ok(/Bodas íntimas con coffee break premium/i.test(prompt));
+    const infoIdx = prompt.search(/PRIORIDAD 1|INFORMACIÓN MANUAL PARA LUCY/i);
+    const catalogIdx = prompt.indexOf("CATALOGO_TEST");
+    assert.ok(infoIdx >= 0 && catalogIdx >= 0 && infoIdx < catalogIdx, "info manual debe ir antes del Sheet");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

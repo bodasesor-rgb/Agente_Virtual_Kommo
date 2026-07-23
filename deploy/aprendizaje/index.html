@@ -658,6 +658,132 @@ textarea.answer-box { min-height: 110px; }
   background: var(--surface-soft);
 }
 
+.pdf-drop-zone {
+  margin: 0.75rem 0 1rem;
+  padding: 1.35rem 1rem;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #fffef8 0%, #fff 100%);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+
+.pdf-drop-zone strong {
+  display: block;
+  font-size: 1rem;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.pdf-drop-zone span {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.pdf-drop-zone:hover,
+.pdf-drop-zone:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(184, 148, 31, 0.12);
+}
+
+.pdf-drop-zone.drag-over {
+  border-color: var(--accent-dark);
+  background: var(--accent-soft);
+}
+
+.pdf-queue-toolbar { margin-bottom: 0.75rem; }
+
+.pdf-queue-progress-wrap {
+  height: 8px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 0.55rem;
+  opacity: 0.55;
+}
+
+.pdf-queue-progress-wrap.active { opacity: 1; }
+
+.pdf-queue-progress {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #d4af37, #b8941f);
+  transition: width 0.25s ease;
+}
+
+.pdf-queue-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.pdf-queue-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.pdf-queue-item {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.pdf-queue-item:last-child { border-bottom: none; }
+
+.pdf-queue-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.pdf-queue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.pdf-queue-badge {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+}
+
+.pdf-queue-item.status-processing .pdf-queue-badge { color: var(--blue); }
+.pdf-queue-item.status-done .pdf-queue-badge { color: var(--success); }
+.pdf-queue-item.status-error .pdf-queue-badge { color: var(--danger); }
+.pdf-queue-item.status-queued .pdf-queue-badge { color: var(--warn); }
+
+.pdf-queue-time { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+.info-manual-text {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border);
+}
+
+.info-manual-text summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent-dark);
+  margin-bottom: 0.5rem;
+}
+
 .info-docs-head h3 {
   margin: 0 0 0.25rem;
   font-size: 1.05rem;
@@ -789,6 +915,6 @@ textarea.answer-box { min-height: 110px; }
     </section>
   </div>
 
-  <script src="/aprendizaje/app.js?v=7" type="module"></script>
+  <script src="/aprendizaje/app.js?v=8" type="module"></script>
 </body>
 </html>

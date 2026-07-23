@@ -135,16 +135,17 @@ export async function deleteLucyInfoDocument(id: string): Promise<boolean> {
   return deleted.length > 0;
 }
 
-/** Texto plano para el system prompt de Lucy (recortado). */
+/** Texto plano para el system prompt de Lucy (recortado). Prioridad alta: va primero. */
 export async function buildLucyInfoPromptBlock(opts?: {
   maxCatalogChars?: number;
   maxTipsChars?: number;
 }): Promise<string> {
   await ensureLucyInfoSchema();
-  const maxCatalog = opts?.maxCatalogChars ?? 7000;
-  const maxTips = opts?.maxTipsChars ?? 4500;
+  // Presupuesto amplio: varios PDFs de catálogo + tips (el system prompt ya va primero).
+  const maxCatalog = opts?.maxCatalogChars ?? 14_000;
+  const maxTips = opts?.maxTipsChars ?? 6_000;
 
-  const docs = await listLucyInfoDocuments(undefined, 40);
+  const docs = await listLucyInfoDocuments(undefined, 80);
   if (!docs.length) return "";
 
   const catalogParts: string[] = [];
@@ -172,15 +173,15 @@ export async function buildLucyInfoPromptBlock(opts?: {
 
   const sections: string[] = [
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "INFORMACIÓN MANUAL PARA LUCY (panel Aprendizaje → Información para Lucy)",
+    "PRIORIDAD 1 — INFORMACIÓN MANUAL PARA LUCY (PDFs y tips del panel Aprendizaje)",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-    "Usa este material para conocer mejor catálogos/servicios y dar consejos naturales (tendencias, modas, tipologías).",
-    "NO inventes precios ni inclusiones fuera del Sheet + este texto. Si el Sheet y este texto chocan en precio, gana el Sheet.",
-    "No copies bloques enteros: resume con naturalidad y ofrece lo relevante al cliente.",
+    "LEE ESTO PRIMERO. Es el material que el equipo cargó para que ofrezcas servicios con conocimiento real (catálogos, inclusiones, tendencias).",
+    "Úsalo activamente al recomendar y explicar. Resume con naturalidad; no copies bloques enteros.",
+    "Si este texto y el Sheet chocan en PRECIO, gana el Sheet. En descripción/inclusiones/estilo, prioriza este material.",
   ];
 
   if (catalogParts.length) {
-    sections.push("", "—— Catálogos y detalle de servicios ——", ...catalogParts);
+    sections.push("", "—— Catálogos y detalle de servicios (PDFs) ——", ...catalogParts);
   }
   if (tipParts.length) {
     sections.push("", "—— Tendencias, modas y consejos ——", ...tipParts);
