@@ -71,8 +71,8 @@ router.get("/health", async (_req, res) => {
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
     lucy_outbound: {
-      mode: "meta_plus_note",
-      note: "Meta API envía al cliente; nota en timeline del lead para el equipo",
+      mode: "meta_wa_or_kommo_external",
+      note: "WhatsApp → Meta API; Facebook/Instagram → Kommo talks/send_message; nota en timeline",
     },
     lucy_pipeline: "unified-v2",
     lucy_memory: {

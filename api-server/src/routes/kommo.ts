@@ -160,6 +160,8 @@ interface PendingBatch {
   subdomain: string;
   isVoice: boolean;
   isImage: boolean;
+  /** Origin del canal Kommo (whatsapp, facebook, instagram…) si viene en el webhook. */
+  channelOrigin: string | null;
   timer: ReturnType<typeof setTimeout>;
 }
 
@@ -174,10 +176,23 @@ interface KommoMessageEntry {
   chat_id?: string;
   talk_id?: string;
   type?: string;
+  origin?: string;
+  source?: string | { type?: string; name?: string };
   created_at?: string | number;
   author?: { type?: string; id?: string };
   attachment?: { type?: string; mime_type?: string; link?: string; url?: string };
   attachments?: Array<{ type?: string; mime_type?: string; link?: string; url?: string }>;
+}
+
+function extractChannelOriginFromMessage(msg: KommoMessageEntry | null | undefined): string | null {
+  if (!msg) return null;
+  if (typeof msg.origin === "string" && msg.origin.trim()) return msg.origin.trim();
+  if (typeof msg.source === "string" && msg.source.trim()) return msg.source.trim();
+  if (msg.source && typeof msg.source === "object") {
+    const t = msg.source.type || msg.source.name;
+    if (typeof t === "string" && t.trim()) return t.trim();
+  }
+  return null;
 }
 
 interface KommoWebhookBody {
@@ -1489,7 +1504,7 @@ function safeParseDate(raw: string | null): Date | null {
 // ─── Core processing after debounce ──────────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processBatch(batch: PendingBatch, accessToken: string, log: any): Promise<void> {
-  const { texts, entityId, chatId, talkId, subdomain } = batch;
+  const { texts, entityId, chatId, talkId, subdomain, channelOrigin } = batch;
   const combinedUserText = texts.join("\n");
 
   log.info({ messageCount: texts.length, combinedUserText, chatId }, "Processing debounced batch");
@@ -1801,9 +1816,13 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         whatsappPhone,
         texto: mensajeParaCliente,
         entityId,
+        channelOrigin,
       });
       if (channel === "failed") {
-        log.error({ entityId, talkId, whatsappPhone }, "Mensaje de Lucy no pudo enviarse ❌");
+        log.error(
+          { entityId, talkId, whatsappPhone, channelOrigin },
+          "Mensaje de Lucy no pudo enviarse ❌"
+        );
       }
     }
 
@@ -2085,6 +2104,7 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
   const entityId = firstMessage?.entity_id ?? null;
   const chatId = firstMessage?.chat_id ?? null;
   const talkId = firstMessage?.talk_id ?? null;
+  const channelOrigin = extractChannelOriginFromMessage(firstMessage);
 
   if (firstMessage && !isIncomingClientMessage(firstMessage as unknown as Record<string, unknown>)) {
     log.info({ entityId, chatId, type: firstMessage.type }, "Webhook ignorado — mensaje saliente o interno");
@@ -2117,6 +2137,7 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
       entityId,
       chatId,
       talkId,
+      channelOrigin,
       isVoice,
       isImage,
     },
@@ -2162,6 +2183,7 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
     existing.texts.push(text);
     existing.entityId = entityId;
     existing.talkId = talkId;
+    if (channelOrigin) existing.channelOrigin = channelOrigin;
     existing.isVoice = existing.isVoice || isVoice; // sticky: if any message in batch was voice
     existing.isImage = existing.isImage || isImage; // sticky: if any message in batch was an image
     log.info({ chatId, buffered: existing.texts.length }, "Message added to pending batch");
@@ -2179,9 +2201,22 @@ router.post("/kommo/webhook", async (req: Request, res: Response) => {
       });
     }, DEBOUNCE_MS);
 
-    const batch: PendingBatch = { texts: [text], entityId, chatId, talkId, subdomain, isVoice, isImage, timer };
+    const batch: PendingBatch = {
+      texts: [text],
+      entityId,
+      chatId,
+      talkId,
+      subdomain,
+      isVoice,
+      isImage,
+      channelOrigin,
+      timer,
+    };
     pendingBatches.set(chatId, batch);
-    log.info({ chatId, debounceMs: DEBOUNCE_MS, isVoice, isImage }, "New batch started, waiting for more messages");
+    log.info(
+      { chatId, debounceMs: DEBOUNCE_MS, isVoice, isImage, channelOrigin },
+      "New batch started, waiting for more messages"
+    );
   }
 });
 

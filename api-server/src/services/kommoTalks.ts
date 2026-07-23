@@ -1,8 +1,118 @@
 /**
  * Resolución de talk_id de Kommo para sincronizar transcripts (aprendizaje).
  * chat_id ≠ talk_id; sin talk_id el sync de mensajes humanos falla en silencio.
+ *
+ * También: origen del canal (WhatsApp / Facebook / Instagram) y envío por
+ * POST /api/v4/talks/{id}/send_message (FB/IG y otros chats externos).
  */
 import { logger } from "../lib/logger.js";
+
+/** Canal de mensajería del talk Kommo. */
+export type KommoChatChannel =
+  | "whatsapp"
+  | "facebook"
+  | "instagram"
+  | "telegram"
+  | "other"
+  | "unknown";
+
+/** Normaliza el campo `origin` de un talk Kommo. */
+export function classifyKommoOrigin(origin: string | null | undefined): KommoChatChannel {
+  const o = (origin ?? "").trim().toLowerCase();
+  if (!o) return "unknown";
+  if (/whats?app|waba|wa_/.test(o)) return "whatsapp";
+  if (/instagram|ig_/.test(o)) return "instagram";
+  if (/facebook|messenger|fb_/.test(o)) return "facebook";
+  if (/telegram|tg_/.test(o)) return "telegram";
+  return "other";
+}
+
+/** Canales que NO usan Meta WhatsApp Cloud API (van por Kommo send_message). */
+export function usesKommoExternalSend(channel: KommoChatChannel): boolean {
+  return channel === "facebook" || channel === "instagram" || channel === "telegram" || channel === "other";
+}
+
+/** GET /api/v4/talks/{id} → origin del canal. */
+export async function fetchTalkOrigin(
+  subdomain: string,
+  accessToken: string,
+  talkId: string | number
+): Promise<string | null> {
+  try {
+    const res = await fetch(`https://${subdomain}.kommo.com/api/v4/talks/${talkId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) {
+      logger.warn(
+        { talkId, status: res.status },
+        "kommoTalks: no se pudo leer origin del talk"
+      );
+      return null;
+    }
+    const data = (await res.json()) as { origin?: string; talk_id?: number; id?: number };
+    const origin = typeof data.origin === "string" ? data.origin.trim() : "";
+    return origin || null;
+  } catch (err) {
+    logger.warn({ err, talkId }, "kommoTalks: excepción leyendo origin");
+    return null;
+  }
+}
+
+/**
+ * Envía un mensaje al chat externo (Facebook, Instagram, etc.) vía Kommo.
+ * Endpoint: POST /api/v4/talks/{talk_id}/send_message
+ * Requiere scope OAuth "Sending to external chats".
+ */
+export async function sendKommoTalkMessage(opts: {
+  subdomain: string;
+  accessToken: string;
+  talkId: string | number;
+  texto: string;
+  entityId?: string | number;
+}): Promise<{ ok: boolean; messageId?: string; error?: string; status?: number }> {
+  const { subdomain, accessToken, talkId, texto, entityId } = opts;
+  const url = `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/send_message`;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12_000);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      signal: controller.signal,
+      body: JSON.stringify({ text: texto }),
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      logger.warn(
+        { entityId, talkId, status: res.status, errBody: errBody.slice(0, 400) },
+        "sendKommoTalkMessage: Kommo rechazó el envío"
+      );
+      let hint = errBody.slice(0, 200);
+      if (res.status === 403) {
+        hint =
+          "403 Forbidden — el token necesita el scope «Sending to external chats» en la integración Kommo.";
+      } else if (res.status === 402) {
+        hint = "402 — límite de Chats API o plan insuficiente para enviar a chats externos.";
+      } else if (res.status === 422) {
+        hint = "422 — el talk está cerrado; reabre la conversación en Kommo.";
+      }
+      return { ok: false, error: hint, status: res.status };
+    }
+    const data = (await res.json().catch(() => ({}))) as { id?: string };
+    logger.info(
+      { entityId, talkId, messageId: data.id },
+      "sendKommoTalkMessage: mensaje aceptado por Kommo ✅"
+    );
+    return { ok: true, messageId: data.id };
+  } catch (err) {
+    logger.warn({ err, talkId, entityId }, "sendKommoTalkMessage: excepción de red");
+    return { ok: false, error: err instanceof Error ? err.message : "error de red" };
+  }
+}
 
 export async function fetchTalkIdFromLeadChats(
   subdomain: string,

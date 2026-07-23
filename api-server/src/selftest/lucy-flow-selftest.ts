@@ -187,6 +187,10 @@ import {
 import { buildMobiliarioRentDetailReply } from "../services/serviceKnowledge.js";
 import { resolveServiceFocusFromText, expandQueryWithServiceSynonyms } from "../services/serviceSynonyms.js";
 import {
+  classifyKommoOrigin,
+  usesKommoExternalSend,
+} from "../services/kommoTalks.js";
+import {
   parseSheetCatalogCsv,
   deriveCatalogCategory,
   formatCatalogRowLabel,
@@ -520,7 +524,11 @@ async function runAll(): Promise<void> {
     const healthSrc = readFileSync(path.join(apiRoot, "src/routes/health.ts"), "utf8");
     assert.ok(mirrorSrc.includes("deliverLucyOutbound"));
     assert.ok(mirrorSrc.includes("sendWhatsAppDirect"));
-    assert.ok(healthSrc.includes('mode: "meta_plus_note"'));
+    assert.ok(mirrorSrc.includes("sendKommoTalkMessage") || mirrorSrc.includes("sendViaKommoTalk"));
+    assert.ok(
+      healthSrc.includes("meta_wa_or_kommo_external") || healthSrc.includes("meta_plus_note"),
+      "health debe documentar outbound multi-canal"
+    );
 
     const catalog = getCatalogStatus();
     assert.equal(typeof catalog.loaded, "boolean");
@@ -5900,6 +5908,24 @@ async function runAll(): Promise<void> {
     assert.ok(/Coffee Break|paquetes|detallada|diferencia/i.test(coffeeAsk), coffeeAsk.slice(0, 400));
     assert.ok(!/\$180|\$400/i.test(coffeeAsk), coffeeAsk.slice(0, 300));
     assert.ok(!/correo|e-?mail/i.test(coffeeAsk), coffeeAsk.slice(0, 300));
+  });
+
+  // ─── 99. V8.69 — Facebook/Instagram: canal Kommo ≠ WhatsApp Meta ───
+  await test("99. V8.69 — clasifica origen FB/IG y usa Kommo send_message", () => {
+    assert.equal(classifyKommoOrigin("facebook"), "facebook");
+    assert.equal(classifyKommoOrigin("Facebook Messenger"), "facebook");
+    assert.equal(classifyKommoOrigin("instagram"), "instagram");
+    assert.equal(classifyKommoOrigin("whatsapp"), "whatsapp");
+    assert.equal(classifyKommoOrigin("waba"), "whatsapp");
+    assert.ok(usesKommoExternalSend("facebook"));
+    assert.ok(usesKommoExternalSend("instagram"));
+    assert.ok(!usesKommoExternalSend("whatsapp"));
+
+    const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const talksSrc = readFileSync(path.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
+    const mirrorSrc = readFileSync(path.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    assert.ok(/sendKommoTalkMessage|send_message/.test(talksSrc));
+    assert.ok(/sin teléfono — intentando envío por Kommo/i.test(mirrorSrc));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
