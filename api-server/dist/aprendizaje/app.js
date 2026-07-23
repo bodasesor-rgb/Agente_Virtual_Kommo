@@ -875,17 +875,22 @@ btnSyncNow?.addEventListener("click", () => {
   runSyncNow().catch(() => {});
 });
 
+function applyModeTabUi() {
+  document.querySelectorAll("#mode-tabs .view-tab").forEach((b) => {
+    b.classList.toggle("active", b.dataset.mode === currentMode);
+  });
+  if (btnSyncNow) btnSyncNow.classList.toggle("hidden", currentMode === "info");
+  syncStatusTabsForMode();
+  updateTabCounts();
+}
+
 document.querySelectorAll("#mode-tabs .view-tab").forEach((btn) => {
   btn.addEventListener("click", async () => {
-    document.querySelectorAll("#mode-tabs .view-tab").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
     const mode = btn.dataset.mode;
     currentMode = mode === "gaps" ? "gaps" : mode === "info" ? "info" : "chats";
     currentStatus =
       currentMode === "chats" ? "approved" : currentMode === "gaps" ? "pending" : currentStatus;
-    if (btnSyncNow) btnSyncNow.classList.toggle("hidden", currentMode === "info");
-    syncStatusTabsForMode();
-    updateTabCounts();
+    applyModeTabUi();
     await loadList();
   });
 });
@@ -898,6 +903,17 @@ document.querySelectorAll("#view-tabs .view-tab").forEach((btn) => {
     await loadList();
   });
 });
+
+// Deep-link: /aprendizaje/?tab=info (desde Panel → Información para Lucy)
+try {
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  if (tab === "info") {
+    currentMode = "info";
+    applyModeTabUi();
+  }
+} catch {
+  /* ignore */
+}
 
 refresh().catch(() => {
   /* errores en diagnóstico */

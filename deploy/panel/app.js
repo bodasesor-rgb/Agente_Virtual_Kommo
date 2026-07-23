@@ -2,6 +2,10 @@ const VIEWS = {
   home: { frame: null, title: "Panel general" },
   simulador: { frame: "/simulator", title: "Simulador para pruebas de Lucy" },
   aprendizaje: { frame: "/aprendizaje", title: "Aprendizaje de Lucy" },
+  "aprendizaje-info": {
+    frame: "/aprendizaje/?tab=info",
+    title: "Información para Lucy — PDFs y tips",
+  },
   estado: { frame: "/estado", title: "Estado de Lucy" },
 };
 
@@ -13,8 +17,9 @@ const heroStatus = document.getElementById("hero-status");
 const frameTitle = document.getElementById("frame-title");
 
 function setActiveNav(viewId) {
+  const navId = viewId === "aprendizaje-info" ? "aprendizaje" : viewId;
   document.querySelectorAll(".nav-item").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.view === viewId);
+    btn.classList.toggle("active", btn.dataset.view === navId);
   });
 }
 
@@ -33,15 +38,30 @@ function showView(viewId) {
   viewHome.classList.add("hidden");
   viewFrame.classList.remove("hidden");
   frameTitle.textContent = config.title;
-  if (appFrame.src !== new URL(config.frame, window.location.origin).href) {
-    appFrame.src = config.frame;
+  const nextSrc = new URL(config.frame, window.location.origin).href;
+  // Forzar reload al cambiar entre Aprendizaje e Información (mismo path, distinto query).
+  if (appFrame.src !== nextSrc) {
+    appFrame.src = nextSrc;
+  } else {
+    try {
+      appFrame.contentWindow?.location?.reload();
+    } catch {
+      appFrame.src = nextSrc;
+    }
   }
   history.replaceState({ view: viewId }, "", `/panel#${viewId}`);
 }
 
 function parseHash() {
   const hash = window.location.hash.replace("#", "").trim();
-  if (hash === "simulador" || hash === "aprendizaje" || hash === "estado") return hash;
+  if (
+    hash === "simulador" ||
+    hash === "aprendizaje" ||
+    hash === "aprendizaje-info" ||
+    hash === "estado"
+  ) {
+    return hash;
+  }
   return "home";
 }
 
