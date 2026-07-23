@@ -80486,7 +80486,7 @@ var WRITTEN_NUMBERS = {
   quinientos: "500"
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
-var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
+var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|tl[aá]huac|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|[aá]lvaro\s+obreg[oó]n)\b/i;
 var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?)\b/i;
 function isNonLocationBusinessPhrase(text2) {
   const t = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
@@ -80801,13 +80801,20 @@ function clientMentionsPistaTarima(message) {
   return /\bpista(\s+de\s+baile)?\b|\btarima/i.test(message);
 }
 function parseZonaFromText(text2) {
-  const trimmed = text2.trim();
-  if (!trimmed || /@/.test(trimmed)) return null;
+  const trimmed = text2.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ").replace(/https?:\/\/\S+/gi, " ").replace(/\s+/g, " ").trim();
+  if (!trimmed) return null;
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
   if (isLikelyProductNameNotLocation(trimmed)) return null;
   if (/\bsala\s*:/i.test(trimmed)) return null;
+  const mapsStreet = trimmed.match(
+    /\b([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.]{2,40}?\s+\d{1,5})\s*[·•,\-]\s*([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.]{2,40}?)(?:,\s*(?:Mexico\s*City|CDMX|Ciudad\s+de\s+M[eé]xico|M[eé]xico))?/i
+  );
+  if (mapsStreet?.[1] && mapsStreet?.[2]) {
+    const street = `${mapsStreet[1].trim()}, ${mapsStreet[2].trim()}`;
+    if (isUsableDireccionEvento(street)) return street;
+  }
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
   if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
     return expoMatch[0].trim();
@@ -81007,6 +81014,14 @@ function countLucyFieldAsks(history, field) {
     (m4) => m4.role === "assistant" && typeof m4.content === "string" && pattern.test(m4.content)
   ).length;
 }
+function clientSaysEmailAlreadyGiven(message) {
+  const t = message?.trim() ?? "";
+  if (!t) return false;
+  if (!/\b(correo|e-?mail|mail)\b/i.test(t)) return false;
+  return /\bya\s+(le\s+|te\s+)?(hab[ií]a\s+)?(proporcionad[oa]|dado|mandad[oa]|enviad[oa]|compartid[oa]|pasad[oa]|dije|di)\b/i.test(
+    t
+  ) || /\bpor\s+qu[eé]\s+(lo\s+)?pide(n)?\s+tanto\b/i.test(t) || /\bya\s+se\s+lo\s+(hab[ií]a\s+)?(di|dije|mand[eé]|envi[eé]|proporcion[eé])\b/i.test(t);
+}
 function detectPresupuestoRefusal(text2) {
   const t = text2?.trim() ?? "";
   if (!t) return false;
@@ -81015,6 +81030,10 @@ function detectPresupuestoRefusal(text2) {
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t)) return true;
   if (/^\.{2,}$/.test(t)) return true;
+  if (/\bno\s+(tengo|tenemos|cuento)\s+idea\b/i.test(t) && /\bpresupuesto\b/i.test(t)) {
+    return true;
+  }
+  if (/\bsin\s+idea\b/i.test(t) && /\bpresupuesto\b/i.test(t)) return true;
   const explicitNoBudget = /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t);
   if (explicitNoBudget) return true;
   const budgetCareLanguage = /\b(dentro\s+del\s+presupuesto|sin\s+perder.{0,40}presupuesto|al\s+presupuesto|bajo\s+presupuesto|mantener.{0,25}presupuesto|seg[uú]n\s+(el\s+)?presupuesto|cuidando.{0,25}presupuesto)\b/i.test(
@@ -81282,6 +81301,13 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
     if (nombre) {
       captures.push({ label: "Nombre del cliente", value: nombre });
       pending.add("Nombre del cliente");
+    }
+  }
+  if (!pending.has("Correo electr\xF3nico") && !pending.has("Correo (prefiere no compartir)")) {
+    const correo = userTexts.map((t) => parseCorreoFromText(t)).map((e) => filterClientEmail(e)).find((e) => !!(e && looksLikeValidClientEmail(e)));
+    if (correo) {
+      captures.push({ label: "Correo electr\xF3nico", value: correo });
+      pending.add("Correo electr\xF3nico");
     }
   }
   for (const msg of userTexts) {
@@ -84121,10 +84147,11 @@ router.get("/health", (_req, res) => {
       "silent-crm-watch",
       "emergency-contact-in-humano-trabaja",
       "knowledge-gaps-aprendizaje",
-      "aprendizaje-panel-from-chats"
+      "aprendizaje-panel-from-chats",
+      "correo-contacto-durable"
     ],
     learning: {
-      note: "Panel /aprendizaje muestra chats; sync Kommo (fase + etapas vivas); talkId resuelto; extract Humano Trabaja/Cotizaci\xF3n; cron 5 min; auto-aprueba \u22650.85",
+      note: "Panel /aprendizaje muestra chats; sync Kommo (fase + etapas vivas); talkId resuelto; extract Humano Trabaja/Cotizaci\xF3n; cron 5 min; auto-aprueba \u22650.85; correo se relee del contacto Kommo (A14954)",
       cron_path: "/api/kommo/cron/learning",
       panel_path: "/aprendizaje"
     },
@@ -87885,7 +87912,33 @@ ${nextQ}`;
     log?.warn({ entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
     mensaje = nextQ;
   }
-  if (!cierreYaEnviado && !appliedDirectReply && !isEmailSatisfied(filledSet, extracted) && !detectEmailRefusal([currentMessage ?? ""]) && !parseCorreoFromText(currentMessage ?? "")) {
+  if (!cierreYaEnviado && clientSaysEmailAlreadyGiven(currentMessage) && !isEmailSatisfied(filledSet, extracted)) {
+    const recovered = collectUserTexts(presHistory, currentMessage).map((t) => filterClientEmail(parseCorreoFromText(t))).find((e) => e && looksLikeValidClientEmail(e));
+    if (recovered) {
+      extracted.correo = recovered;
+      filledSet.add("Correo electr\xF3nico");
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
+      if (nextQ && !mensajeAsksForField(nextQ, "correo")) {
+        mensaje = `Tienes raz\xF3n, ya lo tengo anotado (${recovered}). ${nextQ}`.trim();
+      } else if (isReadyForClosing(filledSet)) {
+        mensaje = buildStandardClosingMessage(
+          extracted.requerimientos_evento,
+          extracted.nombre
+        );
+      } else {
+        mensaje = `Tienes raz\xF3n, ya tengo tu correo (${recovered}). Seguimos con la cotizaci\xF3n.`;
+      }
+      log?.info({ entityId, recovered }, "GUARD: cliente ya dio correo \u2014 recuperado del historial");
+    }
+  }
+  if (!cierreYaEnviado && !appliedDirectReply && !isEmailSatisfied(filledSet, extracted) && !detectEmailRefusal([currentMessage ?? ""]) && !parseCorreoFromText(currentMessage ?? "") && !clientSaysEmailAlreadyGiven(currentMessage)) {
     const correoAsks = countLucyFieldAsks(presHistory, "correo");
     const lastAskedCorreo = inferLucyAskedField(
       [...presHistory].reverse().find((m4) => m4.role === "assistant" && typeof m4.content === "string")?.content
@@ -95493,9 +95546,17 @@ async function fetchLeadMainContact(subdomain, accessToken, leadId) {
     );
     const phoneRaw = phoneField?.values[0]?.value;
     const phone = typeof phoneRaw === "string" && phoneRaw.trim() ? phoneRaw.trim() : null;
+    const emailField = contactData.custom_fields_values?.find(
+      (f3) => f3.field_code === "EMAIL"
+    );
+    const emailRaw = emailField?.values[0]?.value;
+    const email = typeof emailRaw === "string" && emailRaw.trim() ? emailRaw.trim() : null;
     const displayName = typeof contactData.name === "string" && contactData.name.trim() ? contactData.name.trim() : null;
-    logger.info({ leadId, phone: !!phone, displayName: !!displayName }, "Contacto principal obtenido de Kommo");
-    return { phone, displayName };
+    logger.info(
+      { leadId, phone: !!phone, displayName: !!displayName, email: !!email },
+      "Contacto principal obtenido de Kommo"
+    );
+    return { phone, displayName, email };
   } catch (err2) {
     logger.warn({ leadId, err: err2 }, "fetchLeadMainContact: no se pudo obtener contacto");
     return null;
@@ -95504,6 +95565,10 @@ async function fetchLeadMainContact(subdomain, accessToken, leadId) {
 async function fetchContactDisplayName(subdomain, accessToken, leadId) {
   const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
   return contact?.displayName ?? null;
+}
+async function fetchContactEmail(subdomain, accessToken, leadId) {
+  const contact = await fetchLeadMainContact(subdomain, accessToken, leadId);
+  return contact?.email ?? null;
 }
 async function registrarMensajeSalienteKommo(opts) {
   const { subdomain, accessToken, chatId, texto, toPhone, metaMessageId, entityId } = opts;
@@ -96067,10 +96132,10 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   const historyFull = fullHistory ?? history;
   const userTexts = collectUserTexts(historyFull, currentMessage);
   const conversationText = userTexts.join(" ");
-  extracted = sanitizeExtractedFromExternal(extracted, conversationText);
+  Object.assign(extracted, sanitizeExtractedFromExternal(extracted, conversationText));
   {
     const inv = applyCrmWriteInvariants(extracted, userTexts);
-    extracted = inv.extracted;
+    Object.assign(extracted, inv.extracted);
   }
   const mergedLines = purgeUnjustifiedPresupuestoLines(
     purgeInvalidNombreInvariantLines(sanitizeKommoCrmLines(crmLines)),
@@ -96099,7 +96164,7 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
   }
   {
     const inv = applyCrmWriteInvariants(extracted, userTexts);
-    extracted = inv.extracted;
+    Object.assign(extracted, inv.extracted);
     if (inv.applied.includes("nombre-invalid-cleared")) {
       const idx = mergedLines.findIndex((l4) => /^-?\s*Nombre del cliente:/i.test(l4));
       if (idx >= 0) {
@@ -96287,6 +96352,15 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
       if (zonaVal && isUsableDireccionEvento(zonaVal)) {
         extracted.direccion_evento = zonaVal;
       }
+    }
+  }
+  {
+    const correoLine = mergedLines.find((l4) => /^-?\s*Correo electrónico:/i.test(l4));
+    if (correoLine) {
+      const correoVal = filterClientEmail(
+        parseCorreoFromText(correoLine.replace(/^-?\s*Correo electrónico:\s*/i, "").trim())
+      );
+      if (correoVal) extracted.correo = correoVal;
     }
   }
   if (extracted.requerimientos_evento?.trim() && !isValidRequerimientosValue(extracted.requerimientos_evento)) {
@@ -96564,6 +96638,15 @@ async function handleLucyInactiveInbound(opts) {
       entityId,
       log
     );
+    try {
+      const silentEmail = filterClientEmail(
+        await fetchContactEmail(subdomain, accessToken, entityId)
+      );
+      if (silentEmail && !crmLines.some((l4) => /^-?\s*Correo electrónico:/i.test(l4))) {
+        crmLines.push(`- Correo electr\xF3nico: ${silentEmail}`);
+      }
+    } catch {
+    }
     const histKey = String(entityId);
     const fullHistory = getHistory(histKey);
     const { extracted } = await prepareLucyExtraction({
@@ -96736,6 +96819,16 @@ async function processBatch(batch, accessToken, log) {
       lastLucyResponse,
       leadName: kommoLeadName
     } = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
+    let contactEmailFromKommo = null;
+    try {
+      contactEmailFromKommo = await fetchContactEmail(subdomain, accessToken, entityId);
+    } catch {
+      contactEmailFromKommo = null;
+    }
+    const durableEmail = filterClientEmail(contactEmailFromKommo) ?? filterClientEmail(conversation.clientEmail) ?? null;
+    if (durableEmail && !crmLines.some((l4) => /^-?\s*Correo electrónico:/i.test(l4))) {
+      crmLines.push(`- Correo electr\xF3nico: ${durableEmail}`);
+    }
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
     const effectiveLastResponse = resolveEffectiveLastLucyResponse({
       entityId,
@@ -96771,7 +96864,7 @@ async function processBatch(batch, accessToken, log) {
       crmLines,
       extracted,
       history,
-      conversation.clientEmail,
+      durableEmail ?? conversation.clientEmail,
       combinedUserText,
       whatsappDisplayName,
       fullHistory
@@ -97217,6 +97310,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
     let crmLines = [];
     let salesbotLeadName = null;
     let salesbotFilledLabels = /* @__PURE__ */ new Set();
+    let salesbotContactEmail = null;
     if (entityId) {
       try {
         const fields = await fetchLeadCurrentFields(subdomain, accessToken, entityId, log);
@@ -97224,6 +97318,16 @@ router3.post("/kommo/salesbot", async (req, res) => {
         salesbotLeadName = fields.leadName ?? null;
       } catch {
         log.warn("Salesbot: could not load CRM context");
+      }
+      try {
+        salesbotContactEmail = filterClientEmail(
+          await fetchContactEmail(subdomain, accessToken, entityId)
+        );
+      } catch {
+        salesbotContactEmail = null;
+      }
+      if (salesbotContactEmail && !crmLines.some((l4) => /^-?\s*Correo electrónico:/i.test(l4))) {
+        crmLines.push(`- Correo electr\xF3nico: ${salesbotContactEmail}`);
       }
     }
     const hasAssistantMsg = history.some((m4) => m4.role === "assistant");
@@ -97249,7 +97353,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
       crmLines,
       extracted,
       history,
-      void 0,
+      salesbotContactEmail,
       messageText,
       whatsappDisplayName,
       fullHistory

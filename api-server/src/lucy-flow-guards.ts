@@ -91,6 +91,7 @@ import {
   parseSalaProductFromText,
   isLikelyProductNameNotLocation,
   detectPresupuestoRefusal,
+  clientSaysEmailAlreadyGiven,
   findPresupuestoInTexts,
   countLucyFieldAsks,
   PRESUPUESTO_MAX_ASKS,
@@ -4392,6 +4393,40 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = nextQ;
   }
 
+  // A14954: "ya les había dado el correo / por qué lo piden tanto" → recuperar del historial.
+  if (
+    !cierreYaEnviado &&
+    clientSaysEmailAlreadyGiven(currentMessage) &&
+    !isEmailSatisfied(filledSet, extracted)
+  ) {
+    const recovered = collectUserTexts(presHistory, currentMessage)
+      .map((t) => filterClientEmail(parseCorreoFromText(t)))
+      .find((e) => e && looksLikeValidClientEmail(e));
+    if (recovered) {
+      extracted.correo = recovered;
+      filledSet.add("Correo electrónico");
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
+      if (nextQ && !mensajeAsksForField(nextQ, "correo")) {
+        mensaje = `Tienes razón, ya lo tengo anotado (${recovered}). ${nextQ}`.trim();
+      } else if (isReadyForClosing(filledSet)) {
+        mensaje = buildStandardClosingMessage(
+          extracted.requerimientos_evento,
+          extracted.nombre
+        );
+      } else {
+        mensaje = `Tienes razón, ya tengo tu correo (${recovered}). Seguimos con la cotización.`;
+      }
+      log?.info({ entityId, recovered }, "GUARD: cliente ya dio correo — recuperado del historial");
+    }
+  }
+
   // Correo pendiente: si el cliente aportó salas/servicios, acusar y NO repetir el mismo ask.
   // Tras CORREO_MAX_ASKS sin respuesta, avanza al siguiente dato (el correo se vuelve a pedir
   // cuando toque por getNextPendingField / cierre — no se olvida del embudo).
@@ -4400,7 +4435,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !appliedDirectReply &&
     !isEmailSatisfied(filledSet, extracted) &&
     !detectEmailRefusal([currentMessage ?? ""]) &&
-    !parseCorreoFromText(currentMessage ?? "")
+    !parseCorreoFromText(currentMessage ?? "") &&
+    !clientSaysEmailAlreadyGiven(currentMessage)
   ) {
     const correoAsks = countLucyFieldAsks(presHistory, "correo");
     const lastAskedCorreo =

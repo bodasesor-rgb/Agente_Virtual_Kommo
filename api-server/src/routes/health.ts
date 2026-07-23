@@ -39,9 +39,10 @@ router.get("/health", (_req, res) => {
       "emergency-contact-in-humano-trabaja",
       "knowledge-gaps-aprendizaje",
       "aprendizaje-panel-from-chats",
+      "correo-contacto-durable",
     ],
     learning: {
-      note: "Panel /aprendizaje muestra chats; sync Kommo (fase + etapas vivas); talkId resuelto; extract Humano Trabaja/Cotización; cron 5 min; auto-aprueba ≥0.85",
+      note: "Panel /aprendizaje muestra chats; sync Kommo (fase + etapas vivas); talkId resuelto; extract Humano Trabaja/Cotización; cron 5 min; auto-aprueba ≥0.85; correo se relee del contacto Kommo (A14954)",
       cron_path: "/api/kommo/cron/learning",
       panel_path: "/aprendizaje",
     },

@@ -14,7 +14,7 @@ import {
   sanitizeCrmNombre,
   sanitizeDisplayName,
 } from "./contact-name.js";
-import { filterClientEmail } from "./client-email.js";
+import { filterClientEmail, looksLikeValidClientEmail } from "./client-email.js";
 import { getAdvisorName, LEGACY_ADVISOR_NAMES } from "./lib/bodasesorAdvisor.js";
 
 export type UnderstandingField =
@@ -1023,7 +1023,7 @@ const MONTH_PATTERN =
   /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 
 const KNOWN_ZONES =
-  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
+  /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|tl[aá]huac|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco|[aá]lvaro\s+obreg[oó]n)\b/i;
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
@@ -1512,14 +1512,29 @@ export function clientMentionsPistaTarima(message?: string): boolean {
 }
 
 export function parseZonaFromText(text: string): string | null {
-  const trimmed = text.trim();
-  if (!trimmed || /@/.test(trimmed)) return null;
+  // Quitar correos/URLs antes de parsear: un Maps+dirección no debe fallar por un @ suelto,
+  // ni un correo solo debe leerse como zona (A14954).
+  const trimmed = text
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ")
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!trimmed) return null;
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
   // "sala: Luxor Rosa" / producto de mobiliario ≠ zona del evento.
   if (isLikelyProductNameNotLocation(trimmed)) return null;
   if (/\bsala\s*:/i.test(trimmed)) return null;
+
+  // Share de Google Maps: "Álvaro Obregón 61 · Tláhuac, Mexico City"
+  const mapsStreet = trimmed.match(
+    /([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚáéíóúñü\s.]{2,50}\d{1,5})\s*[·•,\-–]\s*([A-Za-zÁÉÍÓÚáéíóúñü][^,\n]{2,40})(?:,\s*(?:Mexico\s*City|CDMX|Ciudad\s+de\s+M[eé]xico|M[eé]xico))?/i
+  );
+  if (mapsStreet?.[1] && mapsStreet?.[2]) {
+    const street = `${mapsStreet[1].trim()}, ${mapsStreet[2].trim()}`;
+    if (isUsableDireccionEvento(street)) return street;
+  }
 
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
   if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
@@ -1815,6 +1830,20 @@ export function countLucyFieldAsks(
 }
 
 /** Cliente rechazó dar presupuesto (incluye "no" suelto tras pregunta de Lucy). */
+/** Cliente reclama que ya dio el correo (A14954 Nathaly). */
+export function clientSaysEmailAlreadyGiven(message?: string | null): boolean {
+  const t = message?.trim() ?? "";
+  if (!t) return false;
+  if (!/\b(correo|e-?mail|mail)\b/i.test(t)) return false;
+  return (
+    /\bya\s+(le\s+|te\s+)?(hab[ií]a\s+)?(proporcionad[oa]|dado|mandad[oa]|enviad[oa]|compartid[oa]|pasad[oa]|dije|di)\b/i.test(
+      t
+    ) ||
+    /\bpor\s+qu[eé]\s+(lo\s+)?pide(n)?\s+tanto\b/i.test(t) ||
+    /\bya\s+se\s+lo\s+(hab[ií]a\s+)?(di|dije|mand[eé]|envi[eé]|proporcion[eé])\b/i.test(t)
+  );
+}
+
 export function detectPresupuestoRefusal(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
@@ -1825,6 +1854,11 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t)) return true;
   if (/^\.{2,}$/.test(t)) return true;
+  // "no tenemos idea…" / "sin idea del presupuesto" (A14954).
+  if (/\bno\s+(tengo|tenemos|cuento)\s+idea\b/i.test(t) && /\bpresupuesto\b/i.test(t)) {
+    return true;
+  }
+  if (/\bsin\s+idea\b/i.test(t) && /\bpresupuesto\b/i.test(t)) return true;
 
   const explicitNoBudget =
     /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) ||
@@ -2283,6 +2317,18 @@ export function scanConversationForCaptures(
     if (nombre) {
       captures.push({ label: "Nombre del cliente", value: nombre });
       pending.add("Nombre del cliente");
+    }
+  }
+
+  // A14954: correo debe re-capturarse del historial aunque el lead CF no lo tenga.
+  if (!pending.has("Correo electrónico") && !pending.has("Correo (prefiere no compartir)")) {
+    const correo = userTexts
+      .map((t) => parseCorreoFromText(t))
+      .map((e) => filterClientEmail(e))
+      .find((e) => !!(e && looksLikeValidClientEmail(e)));
+    if (correo) {
+      captures.push({ label: "Correo electrónico", value: correo });
+      pending.add("Correo electrónico");
     }
   }
 
