@@ -25,7 +25,7 @@ async function writeBuildMeta(targetDir) {
   const gitCommit = resolveGitCommit();
   const meta = {
     version: "3.3",
-    lucy_prompt: "V8.46",
+    lucy_prompt: "V8.47",
     built_at: builtAt.toISOString(),
     built_at_display: builtAt.toLocaleString("es-MX", {
       timeZone: "America/Mexico_City",
@@ -182,6 +182,17 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   await cp(trainingSrc, path.join(distDir, "data/training-examples.json"));
   await cp(trainingSrc, path.join(distDir, "training-examples.json"));
   console.log("[build] Training examples copiados a dist/");
+
+  const lucyInfoSeedSrc = path.resolve(artifactDir, "config/lucy-info-seed.json");
+  try {
+    await mkdir(path.join(distDir, "config"), { recursive: true });
+    await cp(lucyInfoSeedSrc, path.join(distDir, "config/lucy-info-seed.json"));
+    await cp(lucyInfoSeedSrc, path.join(distDir, "lucy-info-seed.json"));
+    await cp(lucyInfoSeedSrc, path.join(distDir, "data/lucy-info-seed.json"));
+    console.log("[build] lucy-info-seed.json (41 catálogos PDF) copiado a dist/");
+  } catch (err) {
+    console.warn("[build] lucy-info-seed.json no copiado:", err.message);
+  }
 
   const sinonimosSrc = path.resolve(artifactDir, "config/sinonimos.json");
   try {

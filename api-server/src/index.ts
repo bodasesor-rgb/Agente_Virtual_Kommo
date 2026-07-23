@@ -11,7 +11,7 @@ import { initializeTrainingStore } from "./services/trainingStore.js";
 import { ensureLearningSchema } from "./services/learningSchema.js";
 import { ensureKnowledgeGapSchema } from "./services/knowledgeGapSchema.js";
 import { ensureLucyInfoSchema } from "./services/lucyInfoSchema.js";
-import { warmLucyInfoPriceCache } from "./services/lucyInfoStore.js";
+import { seedLucyInfoIfEmpty, warmLucyInfoPriceCache } from "./services/lucyInfoStore.js";
 import { bootstrapCatalog, startCatalogAutoRefresh } from "./services/catalogService.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
@@ -34,12 +34,16 @@ async function startServer(): Promise<void> {
     logger.warn({ err }, "knowledgeGapSchema init en background falló");
   });
   void ensureLucyInfoSchema()
-    .then(() => warmLucyInfoPriceCache())
+    .then(() => seedLucyInfoIfEmpty())
+    .then((r) => {
+      if (r.seeded > 0) logger.info({ seeded: r.seeded }, "lucyInfo: seed tras DB vacía");
+      return warmLucyInfoPriceCache();
+    })
     .then((n) => {
       if (n > 0) logger.info({ catalogs: n }, "lucyInfoPriceCache warm ok");
     })
     .catch((err) => {
-      logger.warn({ err }, "lucyInfoSchema/caché PDF init en background falló");
+      logger.warn({ err }, "lucyInfoSchema/seed/caché PDF init en background falló");
     });
 
   app.listen(port, "0.0.0.0", (err) => {

@@ -1,7 +1,10 @@
 import { db, lucyInfoDocuments, type LucyInfoDocumentRecord } from "@workspace/db";
 import { desc, eq, sql } from "drizzle-orm";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { ensureLucyInfoSchema } from "./lucyInfoSchema.js";
 import { refreshLucyInfoPriceCache } from "./lucyInfoPriceCache.js";
+import { logger } from "../lib/logger.js";
 
 export type LucyInfoKind = "catalog" | "tips";
 
@@ -253,6 +256,70 @@ function formatDocBody(doc: LucyInfoDocumentRecord): string {
 export async function warmLucyInfoPriceCache(): Promise<number> {
   const docs = await listLucyInfoDocuments(undefined, 100);
   return docs.filter((d) => d.kind !== "tips").length;
+}
+
+function resolveLucyInfoSeedPath(): string | null {
+  const candidates = [
+    process.env["LUCY_INFO_SEED_PATH"]?.trim(),
+    join(process.cwd(), "config", "lucy-info-seed.json"),
+    join(process.cwd(), "data", "lucy-info-seed.json"),
+    join(process.cwd(), "lucy-info-seed.json"),
+    join(process.cwd(), "dist", "config", "lucy-info-seed.json"),
+    join(process.cwd(), "dist", "data", "lucy-info-seed.json"),
+  ].filter(Boolean) as string[];
+  for (const p of candidates) {
+    if (existsSync(p)) return p;
+  }
+  return null;
+}
+
+/**
+ * Si la tabla está vacía (redeploy PGlite / DB nueva), restaura catálogos
+ * desde data/lucy-info-seed.json. No sobrescribe docs existentes.
+ */
+export async function seedLucyInfoIfEmpty(): Promise<{ seeded: number; skipped: boolean }> {
+  await ensureLucyInfoSchema();
+  const stats = await getLucyInfoStats();
+  if (stats.total > 0) {
+    return { seeded: 0, skipped: true };
+  }
+  const seedPath = resolveLucyInfoSeedPath();
+  if (!seedPath) {
+    logger.warn("lucyInfo seed: tabla vacía y no hay lucy-info-seed.json");
+    return { seeded: 0, skipped: false };
+  }
+  let payload: { documents?: Array<{ kind?: string; title?: string; content?: string; sourceFilename?: string | null }> };
+  try {
+    payload = JSON.parse(readFileSync(seedPath, "utf8")) as typeof payload;
+  } catch (err) {
+    logger.warn({ err, seedPath }, "lucyInfo seed: no se pudo leer JSON");
+    return { seeded: 0, skipped: false };
+  }
+  const docs = payload.documents || [];
+  let seeded = 0;
+  for (const d of docs) {
+    const content = normalizeContent(d.content || "");
+    if (!content) continue;
+    const kind = normalizeKind(d.kind);
+    const title = normalizeTitle(d.title, kind, d.sourceFilename);
+    try {
+      await db.insert(lucyInfoDocuments).values({
+        kind,
+        title,
+        content,
+        sourceFilename: d.sourceFilename?.trim() || null,
+        updatedAt: new Date(),
+      });
+      seeded += 1;
+    } catch (err) {
+      logger.warn({ err, title }, "lucyInfo seed: falló un documento");
+    }
+  }
+  if (seeded > 0) {
+    await warmLucyInfoPriceCache().catch(() => 0);
+  }
+  logger.info({ seeded, seedPath }, "lucyInfo seed: restaurados catálogos PDF");
+  return { seeded, skipped: false };
 }
 
 /**
