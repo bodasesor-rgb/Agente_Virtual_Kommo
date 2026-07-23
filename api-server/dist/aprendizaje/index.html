@@ -768,6 +768,75 @@ textarea.answer-box { min-height: 110px; }
 .pdf-queue-item.status-done .pdf-queue-badge { color: var(--success); }
 .pdf-queue-item.status-error .pdf-queue-badge { color: var(--danger); }
 .pdf-queue-item.status-queued .pdf-queue-badge { color: var(--warn); }
+.pdf-queue-item.status-skipped .pdf-queue-badge { color: var(--muted); }
+.pdf-queue-item.status-skipped { background: var(--surface-soft); opacity: 0.92; }
+
+.learned-pdfs-zone {
+  margin: 0 0 1.5rem;
+  padding: 1.15rem 1.25rem;
+  background: var(--success-soft);
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius);
+}
+
+.learned-pdfs-zone .info-docs-head { margin-bottom: 0.75rem; }
+.learned-pdfs-zone .info-docs-head h3 { margin: 0 0 0.25rem; }
+
+.learned-pdfs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.learned-pdf-chip {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  padding: 0.65rem 0.85rem;
+  background: #fff;
+  border: 1px solid var(--success-border);
+  border-radius: 8px;
+}
+
+.learned-pdf-icon {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: var(--success);
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+}
+
+.learned-pdf-name {
+  font-weight: 600;
+  word-break: break-all;
+  font-size: 0.9rem;
+}
+
+.learned-pdf-meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.learned-pdf-delete {
+  padding: 0.3rem 0.55rem !important;
+  font-size: 0.78rem !important;
+}
+
+@media (max-width: 768px) {
+  .learned-pdf-chip {
+    grid-template-columns: auto 1fr;
+  }
+  .learned-pdf-meta,
+  .learned-pdf-delete {
+    grid-column: 1 / -1;
+  }
+}
 
 .pdf-queue-time { margin-left: auto; font-variant-numeric: tabular-nums; }
 
@@ -915,6 +984,6 @@ textarea.answer-box { min-height: 110px; }
     </section>
   </div>
 
-  <script src="/aprendizaje/app.js?v=8" type="module"></script>
+  <script src="/aprendizaje/app.js?v=9" type="module"></script>
 </body>
 </html>
