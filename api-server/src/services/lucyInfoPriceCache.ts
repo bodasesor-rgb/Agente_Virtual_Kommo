@@ -173,7 +173,7 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
   // Coffee Break N
   const cb = q.match(/coffee\s*break\s*(\d)/);
   if (cb) {
-    anchors.push(`coffee break ${cb[1]}`, `cb${cb[1]}`);
+    anchors.unshift(`coffee break ${cb[1]} —`, `coffee break ${cb[1]}`, `cb${cb[1]}`);
   }
   if (/gourmet con sandwich|sandwich/.test(q) && /coffee|break/.test(q)) {
     anchors.push("coffee break 5", "gourmet con sandwich");

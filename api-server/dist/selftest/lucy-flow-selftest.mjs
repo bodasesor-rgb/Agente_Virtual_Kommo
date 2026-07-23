@@ -2291,7 +2291,7 @@ function findInclusionSection(content, query, maxChars = 1100) {
   const anchors = [];
   const cb = q.match(/coffee\s*break\s*(\d)/);
   if (cb) {
-    anchors.push(`coffee break ${cb[1]}`, `cb${cb[1]}`);
+    anchors.unshift(`coffee break ${cb[1]} \u2014`, `coffee break ${cb[1]}`, `cb${cb[1]}`);
   }
   if (/gourmet con sandwich|sandwich/.test(q) && /coffee|break/.test(q)) {
     anchors.push("coffee break 5", "gourmet con sandwich");
@@ -4734,18 +4734,18 @@ function messageHasSheetServiceDetail(text) {
 }
 function attachAvailableSheetDetail(query, serviceHint) {
   const attempts = [
+    [serviceHint, query].filter(Boolean).join(" ").trim() || null,
     serviceHint?.trim() || null,
-    query.trim() || null,
-    [serviceHint, query].filter(Boolean).join(" ").trim() || null
+    query.trim() || null
   ].filter((a) => !!a);
   for (const a of attempts) {
     const fromPdf = buildLucyInfoInclusionReply(a);
     if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
     const candidates = [
-      buildCatalogServiceDetailAnswer(a),
-      buildCatalogPriceAnswer(a),
       buildCatalogInclusionAnswer(a),
-      buildInclusionTeamConfirmationAnswer(a)
+      buildInclusionTeamConfirmationAnswer(a),
+      buildCatalogServiceDetailAnswer(a),
+      buildCatalogPriceAnswer(a)
     ].filter((d) => !!d);
     for (const detail of candidates) {
       if (/detalle de lo que incluye cada nivel est[aá] en el cat[aá]logo/i.test(detail) && !/\$\s*\d/.test(detail) && !/incluye\s*:\s*\S.{7,}/i.test(detail)) {

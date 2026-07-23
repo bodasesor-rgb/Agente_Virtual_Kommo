@@ -1860,13 +1860,15 @@ export function buildCatalogCateringAnswer(): string | null {
   return buildCatalogCateringOverviewFromSheet();
 }
 
-/** Si preguntan qué incluye / menú, responde SOLO con dato del Sheet o aviso al equipo. */
+/** Si preguntan qué incluye / menú, responde con Sheet o PDF aprendido. */
 export function injectCatalogInclusionIfAsked(
   clientMessage: string | undefined,
   aiResponse: string,
   serviceHint?: string | null
 ): string {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
+  const fromPdf = buildLucyInfoInclusionReply(clientMessage);
+  if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
   const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
   if (fromCatalog) return fromCatalog;
   return aiResponse;
