@@ -16258,7 +16258,11 @@ function buildItalianFoodPitch(message) {
 }
 function buildPistaTarimaSalesReply(extracted, history, currentMessage, entityId, filledSet, ctx) {
   const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const intro = dims ? `S\xED, anoto la pista/tarima (${dims.replace(/m/gi, " m")}) para tu cotizaci\xF3n. El equipo confirma el precio seg\xFAn esas medidas.` : `S\xED, manejamos pista de baile y tarima (opci\xF3n iluminada). \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
+  const fromPdf = buildLucyInfoLearnedPriceReply(
+    currentMessage?.trim() || "pista de baile tarima precios"
+  );
+  const intro = dims ? fromPdf ? `${fromPdf}
+Anoto medidas ${dims.replace(/m/gi, " m")} para afinar la cotizaci\xF3n.` : `S\xED, anoto la pista/tarima (${dims.replace(/m/gi, " m")}) para tu cotizaci\xF3n. El equipo confirma el precio seg\xFAn esas medidas.` : fromPdf || `S\xED, manejamos pista de baile y tarima (opci\xF3n iluminada). \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
   }

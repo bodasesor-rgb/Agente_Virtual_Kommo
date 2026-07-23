@@ -44,6 +44,7 @@ import {
   sanitizeInventedPrices,
   stripStalePriceTalk,
 } from "./price-guard.js";
+import { buildLucyInfoLearnedPriceReply } from "./services/lucyInfoPriceCache.js";
 import {
   buildCatalogPriceAnswer,
   resolveCatalogInclusionReply,
@@ -709,9 +710,15 @@ function buildPistaTarimaSalesReply(
   const dims =
     parseSpaceDimensions(currentMessage ?? "") ||
     (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+  const fromPdf = buildLucyInfoLearnedPriceReply(
+    currentMessage?.trim() || "pista de baile tarima precios",
+  );
   const intro = dims
-    ? `Sí, anoto la pista/tarima (${dims.replace(/m/gi, " m")}) para tu cotización. El equipo confirma el precio según esas medidas.`
-    : `Sí, manejamos pista de baile y tarima (opción iluminada). ¿Quieres que lo agregue a tu cotización? ¿Qué medidas aproximadas tiene el espacio?`;
+    ? fromPdf
+      ? `${fromPdf}\nAnoto medidas ${dims.replace(/m/gi, " m")} para afinar la cotización.`
+      : `Sí, anoto la pista/tarima (${dims.replace(/m/gi, " m")}) para tu cotización. El equipo confirma el precio según esas medidas.`
+    : fromPdf ||
+      `Sí, manejamos pista de baile y tarima (opción iluminada). ¿Quieres que lo agregue a tu cotización? ¿Qué medidas aproximadas tiene el espacio?`;
 
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
