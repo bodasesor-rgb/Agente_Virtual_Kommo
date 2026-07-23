@@ -44,7 +44,10 @@ import {
   sanitizeInventedPrices,
   stripStalePriceTalk,
 } from "./price-guard.js";
-import { buildLucyInfoLearnedPriceReply } from "./services/lucyInfoPriceCache.js";
+import {
+  buildLucyInfoInclusionReply,
+  buildLucyInfoLearnedPriceReply,
+} from "./services/lucyInfoPriceCache.js";
 import {
   buildCatalogPriceAnswer,
   resolveCatalogInclusionReply,

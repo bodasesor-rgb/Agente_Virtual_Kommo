@@ -2164,7 +2164,8 @@ function buildCompanyEmailConfirmReply() {
 
 // src/services/lucyInfoPriceCache.ts
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 function cacheState() {
   const g = globalThis;
   if (!g.__lucyInfoPriceCache) {
@@ -2364,7 +2365,7 @@ function findInclusionSection(content, query, maxChars = 1100) {
   if (slice.length < 80) return null;
   return slice.slice(0, maxChars);
 }
-function buildLucyInfoInclusionReply2(query, maxChars = 1100) {
+function buildLucyInfoInclusionReply(query, maxChars = 1100) {
   ensureCacheFromSeedSync();
   const docs = cacheState().docs;
   if (!docs.length || !query?.trim()) return null;
@@ -2394,15 +2395,25 @@ ${section}
 function ensureCacheFromSeedSync() {
   if (cacheState().docs.length > 0) return;
   try {
-    const here = typeof __dirname === "string" && __dirname ? __dirname : process.cwd();
+    let moduleDir = "";
+    try {
+      moduleDir = dirname(fileURLToPath(import.meta.url));
+    } catch {
+    }
+    const here = typeof __dirname === "string" && __dirname || moduleDir || process.cwd();
     const candidates = [
       process.env["LUCY_INFO_SEED_PATH"]?.trim(),
       join(here, "config", "lucy-info-seed.json"),
       join(here, "lucy-info-seed.json"),
       join(here, "data", "lucy-info-seed.json"),
+      join(moduleDir, "config", "lucy-info-seed.json"),
+      join(moduleDir, "lucy-info-seed.json"),
       join(process.cwd(), "config", "lucy-info-seed.json"),
       join(process.cwd(), "lucy-info-seed.json"),
-      join(process.cwd(), "data", "lucy-info-seed.json")
+      join(process.cwd(), "data", "lucy-info-seed.json"),
+      join(process.cwd(), "api-server", "config", "lucy-info-seed.json"),
+      join(process.cwd(), "api-server", "dist", "lucy-info-seed.json"),
+      join(process.cwd(), "deploy", "lucy-info-seed.json")
     ].filter(Boolean);
     for (const p of candidates) {
       if (!existsSync(p)) continue;
@@ -3229,12 +3240,12 @@ function parseRowNotes(notas) {
 // src/services/catalogWebKnowledge.ts
 import { readFileSync as readFileSync2 } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
 var CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
 var embedsCache = null;
 var knowledgeCache = [];
 function embedsJsonPath() {
-  const here = path.dirname(fileURLToPath(import.meta.url));
+  const here = path.dirname(fileURLToPath2(import.meta.url));
   const candidates = [
     path.resolve(here, "../../public/catalogos-light/embeds.json"),
     path.resolve(here, "../catalogos-light/embeds.json"),
@@ -4381,7 +4392,7 @@ function loadSinonimosJson(raw) {
 // src/services/catalogService.ts
 import { readFileSync as readFileSync3, existsSync as existsSync2 } from "node:fs";
 import path2 from "node:path";
-import { fileURLToPath as fileURLToPath2 } from "node:url";
+import { fileURLToPath as fileURLToPath3 } from "node:url";
 var GENERIC_CATERING_MENU_MARKERS = /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
 var REFRESH_MS = Number(process.env["CATALOG_REFRESH_MINUTES"] ?? "10") * 6e4;
 var snapshot = null;
@@ -4428,9 +4439,9 @@ function tryLoadSinonimosJsonFile() {
     path2.resolve(process.cwd(), "config/sinonimos.json"),
     path2.resolve(process.cwd(), "data/sinonimos.json"),
     path2.resolve(process.cwd(), "dist/data/sinonimos.json"),
-    path2.resolve(path2.dirname(fileURLToPath2(import.meta.url)), "../../config/sinonimos.json"),
-    path2.resolve(path2.dirname(fileURLToPath2(import.meta.url)), "../../data/sinonimos.json"),
-    path2.resolve(path2.dirname(fileURLToPath2(import.meta.url)), "../data/sinonimos.json")
+    path2.resolve(path2.dirname(fileURLToPath3(import.meta.url)), "../../config/sinonimos.json"),
+    path2.resolve(path2.dirname(fileURLToPath3(import.meta.url)), "../../data/sinonimos.json"),
+    path2.resolve(path2.dirname(fileURLToPath3(import.meta.url)), "../data/sinonimos.json")
   ];
   for (const p of candidates) {
     if (!existsSync2(p)) continue;
@@ -4739,7 +4750,7 @@ function attachAvailableSheetDetail(query, serviceHint) {
     query.trim() || null
   ].filter((a) => !!a);
   for (const a of attempts) {
-    const fromPdf = buildLucyInfoInclusionReply2(a);
+    const fromPdf = buildLucyInfoInclusionReply(a);
     if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
     const candidates = [
       buildCatalogInclusionAnswer(a),
@@ -4830,7 +4841,7 @@ ${lines.join("\n")}
 
 ${footer}`;
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
-    const fromPdf = buildLucyInfoInclusionReply2(`${svc} ${result.serviceName ?? ""}`.trim()) || buildLucyInfoInclusionReply2(svc);
+    const fromPdf = buildLucyInfoInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) || buildLucyInfoInclusionReply(svc);
     if (fromPdf) {
       body += `
 
@@ -4874,7 +4885,7 @@ function messageOffersLevelsWithoutInclusions(text) {
 function enrichBareNivelOffer(mensaje, serviceHint) {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
   const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
-  const fromPdf = buildLucyInfoInclusionReply2(hint);
+  const fromPdf = buildLucyInfoInclusionReply(hint);
   if (fromPdf) return fromPdf;
   const detail = buildCatalogServiceDetailAnswer(hint);
   if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
@@ -5028,9 +5039,9 @@ function buildInclusionTeamConfirmationAnswer(query) {
   if (resolved.kind === "service_nivel" && resolved.rows[0] && getInclusionFromRow(resolved.rows[0])) {
     return null;
   }
-  const fromPdf = buildLucyInfoInclusionReply2(
+  const fromPdf = buildLucyInfoInclusionReply(
     [label, nivel, query].filter(Boolean).join(" ")
-  ) || buildLucyInfoInclusionReply2(query);
+  ) || buildLucyInfoInclusionReply(query);
   if (fromPdf) return fromPdf;
   if (resolvedHasInclusionData(resolved)) return null;
   const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
@@ -5057,7 +5068,7 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     query
   );
   const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
-  const fromPdfEarly = buildLucyInfoInclusionReply2(pdfQ) || buildLucyInfoInclusionReply2(query);
+  const fromPdfEarly = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
   if (fromPdfEarly && !wantsAllLevels && !/bet[uú]n|cupcakes?/i.test(fromPdfEarly)) {
     return fromPdfEarly;
   }
@@ -5088,10 +5099,10 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
     if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
-    const fromPdf = buildLucyInfoInclusionReply2(q);
+    const fromPdf = buildLucyInfoInclusionReply(q);
     if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
   }
-  const fromPdfLate = buildLucyInfoInclusionReply2(pdfQ) || buildLucyInfoInclusionReply2(query);
+  const fromPdfLate = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
   if (fromPdfLate) return fromPdfLate;
   const webQ = serviceHint || query;
   if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
@@ -5606,7 +5617,7 @@ function buildEventOfferCatalogHint(tipoEvento) {
 }
 function injectCatalogInclusionIfAsked(clientMessage, aiResponse, serviceHint) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
-  const fromPdf = buildLucyInfoInclusionReply2(clientMessage);
+  const fromPdf = buildLucyInfoInclusionReply(clientMessage);
   if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
   const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
   if (fromCatalog) return fromCatalog;
@@ -20134,7 +20145,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
 // src/selftest/lucy-flow-selftest.ts
 import { readFileSync as readFileSync4 } from "node:fs";
 import path4 from "node:path";
-import { fileURLToPath as fileURLToPath3 } from "node:url";
+import { fileURLToPath as fileURLToPath4 } from "node:url";
 
 // src/lib/formatForWhatsApp.ts
 function formatForWhatsApp(text) {
@@ -20526,7 +20537,7 @@ async function runAll() {
     assert.ok(text.includes("Qu\xE9 busca el cliente"));
   });
   await test("10. Integraciones \u2014 m\xF3dulos conectados y features activas", () => {
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");
+    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
     const mirrorSrc = readFileSync4(path4.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     const healthSrc = readFileSync4(path4.join(apiRoot, "src/routes/health.ts"), "utf8");
     assert.ok(mirrorSrc.includes("deliverLucyOutbound"));
@@ -20706,7 +20717,7 @@ async function runAll() {
     assert.ok(thanksReply.trim().length > 0, "respuesta vac\xEDa");
     assert.ok(clientSaysThanks("Muchas gracias"));
     assert.ok(buildPostCierreThanksReply("Fer").includes("Fer"));
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");
+    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
     const mirrorSrc = readFileSync4(path4.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     assert.ok(mirrorSrc.includes("texto vac\xEDo"));
   });
@@ -22787,7 +22798,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/emergencia/i.test(emergency));
     assert.ok(/solo por l[ií]nea telef[oó]nica/i.test(emergency));
     assert.ok(/WhatsApp y por l[ií]nea telef[oó]nica/i.test(emergency));
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");
+    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
     const kommoSrc = readFileSync4(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
     const embudoSrc = readFileSync4(path4.join(apiRoot, "src/services/embudo.ts"), "utf8");
     assert.ok(/handleLucyInactiveInbound/.test(kommoSrc));
@@ -22797,7 +22808,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/Humano Trabaja/.test(embudoSrc) || /HUMANO_TRABAJA/.test(embudoSrc));
   });
   await test("67. Aprendizaje continuo \u2014 cron + extract en Humano Trabaja", () => {
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");
+    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
     const repoRoot = path4.resolve(apiRoot, "..");
     const syncSrc = readFileSync4(path4.join(apiRoot, "src/services/learningSync.ts"), "utf8");
     const extractorSrc = readFileSync4(path4.join(apiRoot, "src/services/learningExtractor.ts"), "utf8");

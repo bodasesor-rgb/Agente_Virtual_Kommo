@@ -6,7 +6,8 @@
  */
 
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export type LucyInfoCacheDoc = {
   title: string;
@@ -312,18 +313,28 @@ export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): str
 function ensureCacheFromSeedSync(): void {
   if (cacheState().docs.length > 0) return;
   try {
+    let moduleDir = "";
+    try {
+      // ESM / bundle: preferir carpeta del entry (dist/ o deploy/).
+      moduleDir = dirname(fileURLToPath(import.meta.url));
+    } catch {
+      /* ignore */
+    }
     const here =
-      typeof __dirname === "string" && __dirname
-        ? __dirname
-        : process.cwd();
+      (typeof __dirname === "string" && __dirname) || moduleDir || process.cwd();
     const candidates = [
       process.env["LUCY_INFO_SEED_PATH"]?.trim(),
       join(here, "config", "lucy-info-seed.json"),
       join(here, "lucy-info-seed.json"),
       join(here, "data", "lucy-info-seed.json"),
+      join(moduleDir, "config", "lucy-info-seed.json"),
+      join(moduleDir, "lucy-info-seed.json"),
       join(process.cwd(), "config", "lucy-info-seed.json"),
       join(process.cwd(), "lucy-info-seed.json"),
       join(process.cwd(), "data", "lucy-info-seed.json"),
+      join(process.cwd(), "api-server", "config", "lucy-info-seed.json"),
+      join(process.cwd(), "api-server", "dist", "lucy-info-seed.json"),
+      join(process.cwd(), "deploy", "lucy-info-seed.json"),
     ].filter(Boolean) as string[];
     for (const p of candidates) {
       if (!existsSync(p)) continue;
