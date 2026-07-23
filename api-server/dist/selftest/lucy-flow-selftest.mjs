@@ -5440,7 +5440,12 @@ function buildCatalogServiceDetailAnswer(query) {
     return buildExactRowDetailAnswer(row2);
   }
   if (resolved?.kind === "service") {
-    if (/\bcoffee\s*break\s*\d|\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
+    if (/\bcoffee\s*break\s*\d/.test(query)) {
+      const fromPdf = buildPdfInclusionReply(query);
+      if (fromPdf) return fromPdf;
+      const priced = buildCatalogPriceAnswer(query);
+      if (priced) return priced;
+    } else if (/\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
       if (fromPdf) return fromPdf;
     }

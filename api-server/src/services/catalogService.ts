@@ -1257,9 +1257,13 @@ export function resolveCatalogInclusionReply(
     );
 
   // PDF del panel primero (nivel concreto o servicio con detalle en Aprendizaje).
-  // "qué incluye cada nivel" también puede usar PDF del servicio + precios Sheet.
   const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
-  const fromPdfEarly = buildPdfInclusionReply(pdfQ) || buildPdfInclusionReply(query);
+  const specificNivelAsk =
+    /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(query);
+  const fromPdfEarly =
+    buildPdfInclusionReply(query) ||
+    (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null) ||
+    (!specificNivelAsk && serviceHint ? buildPdfInclusionReply(serviceHint) : null);
   if (fromPdfEarly && !wantsAllLevels) {
     return fromPdfEarly;
   }
