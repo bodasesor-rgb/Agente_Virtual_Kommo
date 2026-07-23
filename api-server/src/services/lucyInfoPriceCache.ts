@@ -10,8 +10,19 @@ export type LucyInfoCacheDoc = {
   kind?: string;
 };
 
-let docs: LucyInfoCacheDoc[] = [];
-let corpusFold = "";
+type LucyInfoCacheState = {
+  docs: LucyInfoCacheDoc[];
+  corpusFold: string;
+};
+
+/** globalThis evita estado vacío si el bundler duplicara el módulo. */
+function cacheState(): LucyInfoCacheState {
+  const g = globalThis as typeof globalThis & { __lucyInfoPriceCache?: LucyInfoCacheState };
+  if (!g.__lucyInfoPriceCache) {
+    g.__lucyInfoPriceCache = { docs: [], corpusFold: "" };
+  }
+  return g.__lucyInfoPriceCache;
+}
 
 function fold(text: string): string {
   return (text || "")
@@ -22,22 +33,23 @@ function fold(text: string): string {
 }
 
 export function refreshLucyInfoPriceCache(input: LucyInfoCacheDoc[]): void {
-  docs = (input || [])
+  const state = cacheState();
+  state.docs = (input || [])
     .filter((d) => d?.content?.trim())
     .map((d) => ({
       title: (d.title || "").trim() || "Catálogo",
       content: d.content.trim(),
       kind: d.kind,
     }));
-  corpusFold = fold(docs.map((d) => `${d.title}\n${d.content}`).join("\n\n"));
+  state.corpusFold = fold(state.docs.map((d) => `${d.title}\n${d.content}`).join("\n\n"));
 }
 
 export function getLucyInfoCachedDocs(): LucyInfoCacheDoc[] {
-  return docs.slice();
+  return cacheState().docs.slice();
 }
 
 export function lucyInfoCacheReady(): boolean {
-  return docs.length > 0;
+  return cacheState().docs.length > 0;
 }
 
 /** Extrae montos normalizados ($3,650 → 3650). */
@@ -56,6 +68,7 @@ export function extractPriceAmounts(text: string): string[] {
 
 /** True si los $ del mensaje aparecen en los PDFs aprendidos (no son inventados). */
 export function lucyInfoSupportsPriceClaim(mensaje: string): boolean {
+  const { corpusFold } = cacheState();
   if (!corpusFold || !mensaje?.trim()) return false;
   const amounts = extractPriceAmounts(mensaje);
   if (!amounts.length) return false;
@@ -119,25 +132,40 @@ function tokenize(text: string): string[] {
   return out.slice(0, 30);
 }
 
+/** Ventanas de texto con precio (los PDFs a veces vienen en un solo párrafo). */
+function extractPriceWindows(content: string, max = 8): string[] {
+  const windows: string[] = [];
+  const re = /.{0,55}\$\s*[\d,.]+.{0,55}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content || "")) && windows.length < max) {
+    const w = m[0]!.replace(/\s+/g, " ").trim();
+    if (w.length > 12) windows.push(w);
+  }
+  if (windows.length) return windows;
+  // Fallback por líneas
+  return (content || "")
+    .split(/\n+/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 8 && /\$\s*\d/.test(l))
+    .slice(0, max);
+}
+
 /** Líneas con precio del PDF más relevante a la pregunta. */
 export function buildLucyInfoPriceSnippet(query: string, maxChars = 520): string | null {
+  const docs = cacheState().docs;
   if (!docs.length || !query?.trim()) return null;
   const tokens = tokenize(query);
   if (!tokens.length) return null;
   const ranked = [...docs]
     .map((d) => ({ d, s: scoreDoc(d, tokens) }))
-    .filter((x) => x.s >= 12)
+    .filter((x) => x.s >= 8)
     .sort((a, b) => b.s - a.s);
   if (!ranked.length) return null;
 
   const top = ranked[0]!.d;
-  const lines = top.content
-    .split(/\n+/)
-    .map((l) => l.trim())
-    .filter((l) => l.length > 8 && /\$\s*\d/.test(l));
+  const windows = extractPriceWindows(top.content, 10);
 
-  // Prefer lines that mention query tokens.
-  const scoredLines = lines
+  const scored = windows
     .map((l) => {
       const f = fold(l);
       let s = 0;
@@ -145,17 +173,12 @@ export function buildLucyInfoPriceSnippet(query: string, maxChars = 520): string
       if (/\$\s*\d/.test(l)) s += 1;
       return { l, s };
     })
-    .filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s);
 
-  const picked = (scoredLines.length ? scoredLines.map((x) => x.l) : lines).slice(0, 6);
-  if (!picked.length) {
-    // Fallback: primeras líneas con $ del doc
-    const any = lines.slice(0, 5);
-    if (!any.length) return null;
-    const body = any.join(" · ").slice(0, maxChars);
-    return `*${top.title}*: ${body}`;
-  }
+  const picked = (scored.some((x) => x.s > 1) ? scored.filter((x) => x.s > 1) : scored)
+    .map((x) => x.l)
+    .slice(0, 5);
+  if (!picked.length) return null;
   const body = picked.join(" · ").slice(0, maxChars);
   return `*${top.title}*: ${body}`;
 }

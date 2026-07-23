@@ -23,7 +23,7 @@ import {
   buildRedactionBriefing,
   completeLucyRedaction,
 } from "./services/lucyRedaction.js";
-import { buildLucyInfoPromptBlock } from "./services/lucyInfoStore.js";
+import { buildLucyInfoPromptBlock, warmLucyInfoPriceCache } from "./services/lucyInfoStore.js";
 import {
   getCatalogPromptBlock,
   injectCatalogPriceIfAsked,
@@ -132,6 +132,8 @@ export async function buildLucySystemPrompt(opts: {
   const leadScore = calculateLeadScore(scoreContext);
   const stage = detectStage(scoreContext);
   const lucyInfoQuery = [opts.messageText, opts.conversationText].filter(Boolean).join("\n");
+  // Caché de precios PDF ANTES del prompt/guards (pista, salas, periqueras).
+  await warmLucyInfoPriceCache().catch(() => 0);
   const [catalogBlock, lucyInfoBlock] = await Promise.all([
     getCatalogPromptBlock(),
     buildLucyInfoPromptBlock({ queryText: lucyInfoQuery }).catch(() => ""),

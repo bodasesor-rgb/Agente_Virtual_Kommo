@@ -2163,8 +2163,13 @@ function buildCompanyEmailConfirmReply() {
 }
 
 // src/services/lucyInfoPriceCache.ts
-var docs = [];
-var corpusFold = "";
+function cacheState() {
+  const g = globalThis;
+  if (!g.__lucyInfoPriceCache) {
+    g.__lucyInfoPriceCache = { docs: [], corpusFold: "" };
+  }
+  return g.__lucyInfoPriceCache;
+}
 function fold(text) {
   return (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n");
 }
@@ -2181,6 +2186,7 @@ function extractPriceAmounts(text) {
   return out;
 }
 function lucyInfoSupportsPriceClaim(mensaje) {
+  const { corpusFold } = cacheState();
   if (!corpusFold || !mensaje?.trim()) return false;
   const amounts = extractPriceAmounts(mensaje);
   if (!amounts.length) return false;
@@ -2240,28 +2246,35 @@ function tokenize(text) {
   }
   return out.slice(0, 30);
 }
+function extractPriceWindows(content, max = 8) {
+  const windows = [];
+  const re = /.{0,55}\$\s*[\d,.]+.{0,55}/g;
+  let m;
+  while ((m = re.exec(content || "")) && windows.length < max) {
+    const w = m[0].replace(/\s+/g, " ").trim();
+    if (w.length > 12) windows.push(w);
+  }
+  if (windows.length) return windows;
+  return (content || "").split(/\n+/).map((l) => l.trim()).filter((l) => l.length > 8 && /\$\s*\d/.test(l)).slice(0, max);
+}
 function buildLucyInfoPriceSnippet(query, maxChars = 520) {
+  const docs = cacheState().docs;
   if (!docs.length || !query?.trim()) return null;
   const tokens = tokenize(query);
   if (!tokens.length) return null;
-  const ranked = [...docs].map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x) => x.s >= 12).sort((a, b) => b.s - a.s);
+  const ranked = [...docs].map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x) => x.s >= 8).sort((a, b) => b.s - a.s);
   if (!ranked.length) return null;
   const top = ranked[0].d;
-  const lines = top.content.split(/\n+/).map((l) => l.trim()).filter((l) => l.length > 8 && /\$\s*\d/.test(l));
-  const scoredLines = lines.map((l) => {
+  const windows = extractPriceWindows(top.content, 10);
+  const scored = windows.map((l) => {
     const f = fold(l);
     let s = 0;
     for (const tok of tokens) if (f.includes(tok)) s += 3;
     if (/\$\s*\d/.test(l)) s += 1;
     return { l, s };
-  }).filter((x) => x.s > 0).sort((a, b) => b.s - a.s);
-  const picked = (scoredLines.length ? scoredLines.map((x) => x.l) : lines).slice(0, 6);
-  if (!picked.length) {
-    const any = lines.slice(0, 5);
-    if (!any.length) return null;
-    const body2 = any.join(" \xB7 ").slice(0, maxChars);
-    return `*${top.title}*: ${body2}`;
-  }
+  }).sort((a, b) => b.s - a.s);
+  const picked = (scored.some((x) => x.s > 1) ? scored.filter((x) => x.s > 1) : scored).map((x) => x.l).slice(0, 5);
+  if (!picked.length) return null;
   const body = picked.join(" \xB7 ").slice(0, maxChars);
   return `*${top.title}*: ${body}`;
 }
@@ -2366,7 +2379,9 @@ function buildConsultativeNoPriceReply(message) {
   if (!message?.trim()) return null;
   const t = message.toLowerCase();
   const team = advisorLabelForClient();
-  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\s*lounge|luxor/.test(t)) {
+  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila/.test(
+    t
+  )) {
     const fromPdf = buildLucyInfoLearnedPriceReply(message);
     if (fromPdf) return fromPdf;
   }

@@ -154,7 +154,11 @@ export function buildConsultativeNoPriceReply(message?: string): string | null {
   const team = advisorLabelForClient();
 
   // Si el panel ya cargó el PDF de ese servicio, citar precios aprendidos (no “sin tarifa”).
-  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\s*lounge|luxor/.test(t)) {
+  if (
+    /pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila/.test(
+      t,
+    )
+  ) {
     const fromPdf = buildLucyInfoLearnedPriceReply(message);
     if (fromPdf) return fromPdf;
   }

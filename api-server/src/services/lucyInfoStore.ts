@@ -249,6 +249,12 @@ function formatDocBody(doc: LucyInfoDocumentRecord): string {
   return `${header}\n${doc.content}`.trim();
 }
 
+/** Carga PDFs a la caché de precios (para guards de pista/mobiliario). */
+export async function warmLucyInfoPriceCache(): Promise<number> {
+  const docs = await listLucyInfoDocuments(undefined, 100);
+  return docs.filter((d) => d.kind !== "tips").length;
+}
+
 /**
  * Texto plano para el system prompt de Lucy (recortado). Prioridad alta: va primero.
  * Con queryText: rankea PDFs por relevancia (no solo los más recientes).
