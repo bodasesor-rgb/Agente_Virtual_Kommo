@@ -5164,7 +5164,8 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     query
   );
   const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
-  const fromPdfEarly = buildPdfInclusionReply(pdfQ) || buildPdfInclusionReply(query);
+  const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(query);
+  const fromPdfEarly = buildPdfInclusionReply(query) || (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null) || (!specificNivelAsk && serviceHint ? buildPdfInclusionReply(serviceHint) : null);
   if (fromPdfEarly && !wantsAllLevels) {
     return fromPdfEarly;
   }
@@ -17992,7 +17993,10 @@ ${nextQ}` : ack;
     } else {
       const userBlobEarly = collectUserTexts(presHistory, currentMessage).join(" ");
       const serviceHintEarly = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(userBlobEarly) || findMentionedService(userBlobEarly);
-      const pdfOnly = buildPdfInclusionReply(currentMessage ?? "") || (serviceHintEarly ? buildPdfInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`) : null) || (serviceHintEarly ? buildPdfInclusionReply(serviceHintEarly) : null);
+      const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
+        currentMessage ?? ""
+      );
+      const pdfOnly = buildPdfInclusionReply(currentMessage ?? "") || (!specificNivelAsk && serviceHintEarly ? buildPdfInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`) || buildPdfInclusionReply(serviceHintEarly) : null);
       if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
         log?.info({ entityId }, "GUARD: inclusiones \u2014 PDF aprendido (return temprano)");
         return normalizeAdvisorReferences(
@@ -18617,7 +18621,12 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     } else {
       serviceHint = (isValidRequerimientosValue(req) ? req : null) || parsePrimaryService(userBlob) || findMentionedService(userBlob);
     }
-    const pdfOnly = buildPdfInclusionReply(currentMessage ?? "") || (serviceHint ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) : null) || (serviceHint ? buildPdfInclusionReply(serviceHint) : null);
+    const pdfOnly = (() => {
+      const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
+        currentMessage ?? ""
+      );
+      return buildPdfInclusionReply(currentMessage ?? "") || (!specificNivelAsk && serviceHint ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) || buildPdfInclusionReply(serviceHint) : null);
+    })();
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
       mensaje = pdfOnly;
       appliedSalesReply = true;

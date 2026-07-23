@@ -1296,7 +1296,9 @@ export function resolveCatalogInclusionReply(
 
   const attempts = [
     serviceHint ? `${serviceHint} ${query}` : null,
-    serviceHint || null,
+    // Si el mensaje pide un nivel concreto (CB4), no intentar solo el hint genérico
+    // ("Coffee Break") — devolvería CB1 del PDF.
+    !specificNivelAsk && serviceHint ? serviceHint : null,
     // Solo usar el mensaje crudo si menciona un servicio; si no, evita match basura (Betún).
     /\b(banquete|taquiza|barra|coffee|brunch|pizza|sushi|crepas?|mesa\s+de|dj|carpa|pista)\b/i.test(
       query
@@ -1314,13 +1316,25 @@ export function resolveCatalogInclusionReply(
     if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
     if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
+    // PDF solo con el query (o q) si no es un hint genérico tras un nivel concreto.
+    if (specificNivelAsk && serviceHint && q === serviceHint) continue;
     const fromPdf = buildPdfInclusionReply(q);
     if (fromPdf) return fromPdf;
   }
 
   // PDF del panel Aprendizaje (antes del fallback solo-link).
-  const fromPdfLate = buildPdfInclusionReply(pdfQ) || buildPdfInclusionReply(query);
+  const fromPdfLate =
+    buildPdfInclusionReply(query) ||
+    (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null);
   if (fromPdfLate) return fromPdfLate;
+
+  // Nivel concreto sin PDF: precios Sheet.
+  if (specificNivelAsk) {
+    const priced =
+      buildCatalogPriceAnswer(query) ||
+      (serviceHint ? buildCatalogPriceAnswer(`${serviceHint} ${query}`) : null);
+    if (priced) return withLink(priced);
+  }
 
   // Último recurso: link del catálogo web aunque resolve falle.
   const webQ = serviceHint || query;

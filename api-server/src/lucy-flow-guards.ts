@@ -3019,13 +3019,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : null) ||
       parsePrimaryService(userBlobEarly) ||
       findMentionedService(userBlobEarly);
-    // PDF del panel primero (texto completo del nivel/servicio). Probar variantes.
+    // Nivel concreto (CB4, Tradicional…): solo el query del mensaje — no fallback
+    // a "Coffee Break" genérico (devolvía CB1 cuando el PDF no tiene CB4).
+    const specificNivelAsk =
+      /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
+        currentMessage ?? ""
+      );
     const pdfOnly =
       buildPdfInclusionReply(currentMessage ?? "") ||
-      (serviceHintEarly
-        ? buildPdfInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`)
-        : null) ||
-      (serviceHintEarly ? buildPdfInclusionReply(serviceHintEarly) : null);
+      (!specificNivelAsk && serviceHintEarly
+        ? buildPdfInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`) ||
+          buildPdfInclusionReply(serviceHintEarly)
+        : null);
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
       log?.info({ entityId }, "GUARD: inclusiones — PDF aprendido (return temprano)");
       return normalizeAdvisorReferences(
@@ -3953,12 +3958,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         parsePrimaryService(userBlob) ||
         findMentionedService(userBlob);
     }
-    const pdfOnly =
-      buildPdfInclusionReply(currentMessage ?? "") ||
-      (serviceHint
-        ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`)
-        : null) ||
-      (serviceHint ? buildPdfInclusionReply(serviceHint) : null);
+    const pdfOnly = (() => {
+      const specificNivelAsk =
+        /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
+          currentMessage ?? ""
+        );
+      return (
+        buildPdfInclusionReply(currentMessage ?? "") ||
+        (!specificNivelAsk && serviceHint
+          ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) ||
+            buildPdfInclusionReply(serviceHint)
+          : null)
+      );
+    })();
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
       mensaje = pdfOnly;
       appliedSalesReply = true;
