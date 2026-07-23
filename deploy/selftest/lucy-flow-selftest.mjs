@@ -5137,8 +5137,11 @@ function buildInclusionTeamConfirmationAnswer(query) {
   if (resolved.kind === "service_nivel" && resolved.rows[0] && getInclusionFromRow(resolved.rows[0])) {
     return null;
   }
-  const fromPdf = buildPdfInclusionReply([label, nivel, query].filter(Boolean).join(" ")) || buildPdfInclusionReply(query);
+  const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(query);
+  const fromPdf = specificNivelAsk ? buildPdfInclusionReply(query) : buildPdfInclusionReply([label, nivel, query].filter(Boolean).join(" ")) || buildPdfInclusionReply(query);
   if (fromPdf) return fromPdf;
+  const priced = buildCatalogPriceAnswer(query) || buildCatalogPriceAnswer(label) || (resolved.serviceName ? buildCatalogPriceAnswer(resolved.serviceName) : null);
+  if (priced && /\$\s*\d/.test(priced)) return priced;
   if (resolvedHasInclusionData(resolved)) return null;
   const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
   const webUrl = getCatalogWebUrlForQuery(label) ?? getCatalogWebUrlForQuery(resolved.serviceName ?? "") ?? getCatalogWebUrlForQuery(query) ?? resolveCatalogWebLink(label).url ?? resolveCatalogWebLink(resolved.serviceName ?? query).url ?? resolveCatalogWebLink(query).url;

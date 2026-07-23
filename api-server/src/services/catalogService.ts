@@ -1205,10 +1205,21 @@ export function buildInclusionTeamConfirmationAnswer(query: string): string | nu
   }
 
   // Prioridad: detalle del PDF aprendido en el panel (Aprendizaje), no solo el link web.
-  const fromPdf =
-    buildPdfInclusionReply([label, nivel, query].filter(Boolean).join(" ")) ||
-    buildPdfInclusionReply(query);
+  // Si el query pide un nivel concreto (CB4), no mezclar con label genérico.
+  const specificNivelAsk =
+    /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(query);
+  const fromPdf = specificNivelAsk
+    ? buildPdfInclusionReply(query)
+    : buildPdfInclusionReply([label, nivel, query].filter(Boolean).join(" ")) ||
+      buildPdfInclusionReply(query);
   if (fromPdf) return fromPdf;
+
+  // Sin PDF: precio de lista Sheet (mejor que solo el link vacío).
+  const priced =
+    buildCatalogPriceAnswer(query) ||
+    buildCatalogPriceAnswer(label) ||
+    (resolved.serviceName ? buildCatalogPriceAnswer(resolved.serviceName) : null);
+  if (priced && /\$\s*\d/.test(priced)) return priced;
 
   // Sin PDF y con algún Incluye en otros niveles → no inventar aquí.
   if (resolvedHasInclusionData(resolved)) return null;
