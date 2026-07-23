@@ -402,13 +402,17 @@ function renderInfoDocCard(doc) {
   card.className = "gap-card learned-card info-doc-card";
   card.dataset.id = doc.id;
   const kindLabel = doc.kind === "tips" ? "Tendencias / consejos" : "Catálogo / servicio";
+  const fullText = doc.content || "";
+  const previewLimit = 500;
+  const truncated = fullText.length > previewLimit;
+  const preview = truncated ? `${fullText.slice(0, previewLimit)}…` : fullText;
   card.innerHTML = `
     <div class="gap-top">
       <div>
         <div class="gap-topic">${escapeHtml(doc.title)}</div>
         <div class="info-meta">${escapeHtml(kindLabel)}${
           doc.sourceFilename ? ` · ${escapeHtml(doc.sourceFilename)}` : ""
-        } · ${doc.charCount ?? doc.content?.length ?? 0} caracteres</div>
+        } · ${doc.charCount ?? fullText.length} caracteres</div>
       </div>
       <div class="gap-badges">
         <span class="gap-badge learned">${doc.kind === "tips" ? "Consejos" : "Catálogo"}</span>
@@ -416,9 +420,12 @@ function renderInfoDocCard(doc) {
     </div>
     <div class="info-block answer">
       <div class="label">Texto que Lucy puede leer</div>
-      <pre class="info-preview">${escapeHtml((doc.content || "").slice(0, 900))}${
-        (doc.content || "").length > 900 ? "…" : ""
-      }</pre>
+      <pre class="info-preview">${escapeHtml(preview)}</pre>
+      ${
+        truncated
+          ? `<button type="button" class="btn-ghost info-ver-mas-btn">Ver más — texto completo</button>`
+          : ""
+      }
     </div>
     <details class="info-edit">
       <summary>Editar texto</summary>
@@ -426,7 +433,7 @@ function renderInfoDocCard(doc) {
         <input type="text" class="info-title-input" value="${escapeHtml(doc.title)}" />
       </label>
       <label>Contenido (texto plano)
-        <textarea class="answer-box info-content-input">${escapeHtml(doc.content || "")}</textarea>
+        <textarea class="answer-box info-content-input">${escapeHtml(fullText)}</textarea>
       </label>
       <div class="gap-actions">
         <button type="button" class="btn-save info-save-btn">Guardar cambios</button>
@@ -437,9 +444,86 @@ function renderInfoDocCard(doc) {
       <span>Actualizado ${formatDate(doc.updatedAt)}</span>
     </div>
   `;
+  card.querySelector(".info-ver-mas-btn")?.addEventListener("click", () => {
+    openCatalogTextModal({
+      title: doc.title,
+      filename: doc.sourceFilename,
+      content: fullText,
+      kind: doc.kind,
+      updatedAt: doc.updatedAt,
+    });
+  });
   card.querySelector(".info-save-btn")?.addEventListener("click", () => saveInfoDoc(doc.id, card));
   card.querySelector(".info-delete-btn")?.addEventListener("click", () => deleteInfoDoc(doc.id));
   return card;
+}
+
+/** Modal de solo lectura: texto completo de un catálogo/PDF aprendido. */
+function ensureCatalogTextModal() {
+  let overlay = document.getElementById("catalog-text-modal");
+  if (overlay) return overlay;
+  overlay = document.createElement("div");
+  overlay.id = "catalog-text-modal";
+  overlay.className = "catalog-text-modal hidden";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-labelledby", "catalog-text-modal-title");
+  overlay.innerHTML = `
+    <div class="catalog-text-modal-backdrop" data-close="1"></div>
+    <div class="catalog-text-modal-panel">
+      <header class="catalog-text-modal-head">
+        <div>
+          <p class="eyebrow" id="catalog-text-modal-kind">Catálogo</p>
+          <h2 id="catalog-text-modal-title">Texto completo</h2>
+          <p class="catalog-text-modal-meta" id="catalog-text-modal-meta"></p>
+        </div>
+        <button type="button" class="btn-ghost catalog-text-modal-close" data-close="1" aria-label="Cerrar">Cerrar</button>
+      </header>
+      <pre class="catalog-text-modal-body" id="catalog-text-modal-body"></pre>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.addEventListener("click", (ev) => {
+    const t = ev.target;
+    if (t instanceof HTMLElement && t.dataset.close === "1") closeCatalogTextModal();
+  });
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape" && !overlay.classList.contains("hidden")) closeCatalogTextModal();
+  });
+  return overlay;
+}
+
+function openCatalogTextModal(opts) {
+  const overlay = ensureCatalogTextModal();
+  const title = opts.title || "Catálogo";
+  const kindLabel = opts.kind === "tips" ? "Tendencias / consejos" : "Catálogo / PDF";
+  const chars = (opts.content || "").length;
+  const metaParts = [
+    kindLabel,
+    opts.filename ? opts.filename : null,
+    `${chars.toLocaleString("es-MX")} caracteres`,
+    opts.updatedAt ? `Actualizado ${formatDate(opts.updatedAt)}` : null,
+  ].filter(Boolean);
+
+  const titleEl = document.getElementById("catalog-text-modal-title");
+  const kindEl = document.getElementById("catalog-text-modal-kind");
+  const metaEl = document.getElementById("catalog-text-modal-meta");
+  const bodyEl = document.getElementById("catalog-text-modal-body");
+  if (titleEl) titleEl.textContent = title;
+  if (kindEl) kindEl.textContent = kindLabel;
+  if (metaEl) metaEl.textContent = metaParts.join(" · ");
+  if (bodyEl) bodyEl.textContent = opts.content || "(sin texto)";
+
+  overlay.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  overlay.querySelector(".catalog-text-modal-close")?.focus?.();
+}
+
+function closeCatalogTextModal() {
+  const overlay = document.getElementById("catalog-text-modal");
+  if (!overlay) return;
+  overlay.classList.add("hidden");
+  document.body.classList.remove("modal-open");
 }
 
 async function saveInfoDoc(id, card) {
@@ -793,10 +877,28 @@ function renderLearnedPdfsZone(documents) {
           <span class="learned-pdf-icon" aria-hidden="true">PDF</span>
           <span class="learned-pdf-name">${escapeHtml(label)}</span>
           <span class="learned-pdf-meta">${chars} car. · ${escapeHtml(when)}</span>
-          <button type="button" class="btn-ghost learned-pdf-delete" data-id="${escapeHtml(d.id)}">Quitar</button>
+          <div class="learned-pdf-actions">
+            <button type="button" class="btn-ghost learned-pdf-ver-mas" data-id="${escapeHtml(d.id)}">Ver más</button>
+            <button type="button" class="btn-ghost learned-pdf-delete" data-id="${escapeHtml(d.id)}">Quitar</button>
+          </div>
         </li>`;
     })
     .join("");
+
+  listEl.querySelectorAll(".learned-pdf-ver-mas").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      const doc = learnedCatalogDocs.find((d) => d.id === id);
+      if (!doc) return;
+      openCatalogTextModal({
+        title: doc.title || doc.sourceFilename || "Catálogo",
+        filename: doc.sourceFilename,
+        content: doc.content || "",
+        kind: doc.kind,
+        updatedAt: doc.updatedAt,
+      });
+    });
+  });
 
   listEl.querySelectorAll(".learned-pdf-delete").forEach((btn) => {
     btn.addEventListener("click", async () => {
