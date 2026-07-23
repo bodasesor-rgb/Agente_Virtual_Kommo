@@ -121,6 +121,25 @@ function tokenize(text: string): string[] {
     "personas",
     "quiero",
     "necesito",
+    "incluye",
+    "incluir",
+    "incluiria",
+    "detalle",
+    "descripcion",
+    "descripciones",
+    "cada",
+    "nivel",
+    "niveles",
+    "paquete",
+    "paquetes",
+    "dime",
+    "cual",
+    "cuales",
+    "trae",
+    "lleva",
+    "menu",
+    "opcion",
+    "opciones",
   ]);
   const out: string[] = [];
   const seen = new Set<string>();
@@ -129,7 +148,148 @@ function tokenize(text: string): string[] {
     seen.add(t);
     out.push(t);
   }
-  return out.slice(0, 30);
+  // Números de nivel tipo "5", "3" (coffee break 5 / 3 tiempos) — útiles como ancla.
+  for (const t of raw.split(/\s+/)) {
+    if (/^\d{1,2}$/.test(t) && !seen.has(t)) {
+      seen.add(t);
+      out.push(t);
+    }
+  }
+  return out.slice(0, 40);
+}
+
+/** Anclas típicas de paquetes/niveles dentro de un PDF de catálogo. */
+function findInclusionSection(content: string, query: string, maxChars = 1100): string | null {
+  if (!content?.trim()) return null;
+  const q = fold(query);
+  const c = content;
+  const f = fold(c);
+
+  const anchors: string[] = [];
+  // Coffee Break N
+  const cb = q.match(/coffee\s*break\s*(\d)/);
+  if (cb) {
+    anchors.push(`coffee break ${cb[1]}`, `cb${cb[1]}`);
+  }
+  if (/gourmet con sandwich|sandwich/.test(q) && /coffee|break/.test(q)) {
+    anchors.push("coffee break 5", "gourmet con sandwich");
+  }
+  // Banquete N tiempos + nivel
+  const tiempos = q.match(/(\d)\s*tiempos?/);
+  const nivel = /\bpremium\b/.test(q)
+    ? "premium"
+    : /\bbasic|\bb[aá]sic/.test(q)
+      ? "basico"
+      : /\btradicional\b/.test(q)
+        ? "tradicional"
+        : "";
+  if (tiempos && /banquete|formal|mexicano/.test(q)) {
+    anchors.push(`menu ${tiempos[1]} tiempos ${nivel}`.trim());
+    anchors.push(`${tiempos[1]} tiempos ${nivel}`.trim());
+    if (nivel === "tradicional" && tiempos[1] === "3") {
+      anchors.push("tradicional $830", "servicio completo 3 tiempos");
+    }
+    if (nivel === "tradicional" && tiempos[1] === "4") {
+      anchors.push("tradicional $880", "servicio completo 4 tiempos");
+    }
+  }
+  if (/banquete/.test(q) && nivel) {
+    anchors.push(`tradicional $830`, `basico $780`, `premium $880`);
+  }
+
+  // Tokens fuertes del query como ancla
+  for (const tok of tokenize(query)) {
+    if (tok.length >= 4) anchors.push(tok);
+  }
+
+  let bestIdx = -1;
+  let bestScore = -1;
+  for (const a of anchors) {
+    const fa = fold(a);
+    if (fa.length < 2) continue;
+    let from = 0;
+    while (from < f.length) {
+      const i = f.indexOf(fa, from);
+      if (i < 0) break;
+      let score = fa.length;
+      // Preferir coincidencias cerca de "incluye", bebidas, alimentos, meseros.
+      const window = f.slice(Math.max(0, i - 40), i + 200);
+      if (/incluye|bebidas|alimentos|meseros|vajilla|persona/.test(window)) score += 40;
+      if (/coffee break \d|menu \d tiempos|tradicional \$\d|basico \$\d|premium \$\d/.test(window)) {
+        score += 30;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+      from = i + fa.length;
+    }
+  }
+
+  if (bestIdx < 0) {
+    // Fallback: primer bloque con $ cerca del inicio del doc si el título ya matcheó.
+    const dollar = c.search(/\$\s*\d/);
+    if (dollar < 0) return null;
+    bestIdx = dollar;
+  }
+
+  // Retroceder un poco para capturar el nombre del paquete.
+  let start = Math.max(0, bestIdx - 60);
+  // Avanzar al siguiente límite razonable
+  let end = Math.min(c.length, start + maxChars);
+  // Preferir cortar en un límite de paquete siguiente (Coffee Break N+1, Premium $, etc.)
+  const tail = c.slice(bestIdx + 20, end);
+  const nextPkg = tail.search(
+    /\n|Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i,
+  );
+  // Don't cut too early — only if we find another package heading after enough content
+  if (nextPkg > 280) {
+    end = bestIdx + 20 + nextPkg;
+  }
+
+  let slice = c.slice(start, end).replace(/\s+/g, " ").trim();
+  // Quitar basura previa al título del paquete si quedó cortado.
+  slice = slice.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9🥐☕🍽*•]+/, "");
+  if (slice.length < 80) return null;
+  return slice.slice(0, maxChars);
+}
+
+/**
+ * Respuesta de inclusiones/detalle desde PDFs del panel Aprendizaje.
+ * Se usa cuando el Sheet no trae "Que Incluye" pero el PDF sí describe el paquete.
+ */
+export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): string | null {
+  const docs = cacheState().docs;
+  if (!docs.length || !query?.trim()) return null;
+  const tokens = tokenize(query);
+  if (!tokens.length) return null;
+
+  const ranked = [...docs]
+    .map((d) => ({ d, s: scoreDoc(d, tokens) }))
+    .filter((x) => x.s >= 10)
+    .sort((a, b) => b.s - a.s);
+  if (!ranked.length) return null;
+
+  // Preferir docs cuyo título matchee el servicio (coffee, banquete, taquiza…).
+  const serviceHints = ["coffee", "banquete", "taquiza", "sushi", "paella", "pozole", "pista", "sala", "barra"];
+  const qf = fold(query);
+  const preferred = ranked.filter((x) => {
+    const title = fold(x.d.title);
+    return serviceHints.some((h) => qf.includes(h) && title.includes(h));
+  });
+  const pool = preferred.length ? preferred : ranked;
+
+  for (const { d } of pool.slice(0, 4)) {
+    const section = findInclusionSection(d.content, query, maxChars);
+    if (!section) continue;
+    const label = d.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").trim();
+    return (
+      `Según el catálogo que ya tenemos de *${label}*:\n\n` +
+      `${section}\n\n` +
+      `¿Te late este nivel o quieres que te detalle otro?`
+    );
+  }
+  return null;
 }
 
 /** Ventanas de texto con precio (los PDFs a veces vienen en un solo párrafo). */

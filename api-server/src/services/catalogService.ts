@@ -26,6 +26,7 @@ import {
   buildCatalogWebDetailHint,
   getCatalogWebUrlForQuery,
 } from "./catalogWebKnowledge.js";
+import { buildLucyInfoInclusionReply } from "./lucyInfoPriceCache.js";
 import {
   clientMentionsCatering,
   clientAsksServiceInfo,
@@ -1097,6 +1098,13 @@ export function buildInclusionTeamConfirmationAnswer(query: string): string | nu
       ? extractNivelLabel(resolved.rows[0])
       : parseCatalogQueryFilters(query).nivel;
 
+  // Prioridad: detalle del PDF aprendido en el panel (Aprendizaje), no solo el link web.
+  const fromPdf =
+    buildLucyInfoInclusionReply(
+      [label, nivel, query].filter(Boolean).join(" "),
+    ) || buildLucyInfoInclusionReply(query);
+  if (fromPdf) return fromPdf;
+
   const webHint =
     buildCatalogWebDetailHint(label) ??
     buildCatalogWebDetailHint(resolved.serviceName ?? query) ??
@@ -1176,7 +1184,14 @@ export function resolveCatalogInclusionReply(
     if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
     if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
+    const fromPdf = buildLucyInfoInclusionReply(q);
+    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
   }
+
+  // PDF del panel Aprendizaje (antes del fallback solo-link).
+  const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
+  const fromPdf = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+  if (fromPdf) return fromPdf;
 
   // Último recurso: link del catálogo web aunque resolve falle.
   const webQ = serviceHint || query;

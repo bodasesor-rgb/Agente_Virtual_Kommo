@@ -2235,7 +2235,26 @@ function tokenize(text) {
     "persona",
     "personas",
     "quiero",
-    "necesito"
+    "necesito",
+    "incluye",
+    "incluir",
+    "incluiria",
+    "detalle",
+    "descripcion",
+    "descripciones",
+    "cada",
+    "nivel",
+    "niveles",
+    "paquete",
+    "paquetes",
+    "dime",
+    "cual",
+    "cuales",
+    "trae",
+    "lleva",
+    "menu",
+    "opcion",
+    "opciones"
   ]);
   const out = [];
   const seen = /* @__PURE__ */ new Set();
@@ -2244,7 +2263,111 @@ function tokenize(text) {
     seen.add(t);
     out.push(t);
   }
-  return out.slice(0, 30);
+  for (const t of raw.split(/\s+/)) {
+    if (/^\d{1,2}$/.test(t) && !seen.has(t)) {
+      seen.add(t);
+      out.push(t);
+    }
+  }
+  return out.slice(0, 40);
+}
+function findInclusionSection(content, query, maxChars = 1100) {
+  if (!content?.trim()) return null;
+  const q = fold(query);
+  const c = content;
+  const f = fold(c);
+  const anchors = [];
+  const cb = q.match(/coffee\s*break\s*(\d)/);
+  if (cb) {
+    anchors.push(`coffee break ${cb[1]}`, `cb${cb[1]}`);
+  }
+  if (/gourmet con sandwich|sandwich/.test(q) && /coffee|break/.test(q)) {
+    anchors.push("coffee break 5", "gourmet con sandwich");
+  }
+  const tiempos = q.match(/(\d)\s*tiempos?/);
+  const nivel = /\bpremium\b/.test(q) ? "premium" : /\bbasic|\bb[aá]sic/.test(q) ? "basico" : /\btradicional\b/.test(q) ? "tradicional" : "";
+  if (tiempos && /banquete|formal|mexicano/.test(q)) {
+    anchors.push(`menu ${tiempos[1]} tiempos ${nivel}`.trim());
+    anchors.push(`${tiempos[1]} tiempos ${nivel}`.trim());
+    if (nivel === "tradicional" && tiempos[1] === "3") {
+      anchors.push("tradicional $830", "servicio completo 3 tiempos");
+    }
+    if (nivel === "tradicional" && tiempos[1] === "4") {
+      anchors.push("tradicional $880", "servicio completo 4 tiempos");
+    }
+  }
+  if (/banquete/.test(q) && nivel) {
+    anchors.push(`tradicional $830`, `basico $780`, `premium $880`);
+  }
+  for (const tok of tokenize(query)) {
+    if (tok.length >= 4) anchors.push(tok);
+  }
+  let bestIdx = -1;
+  let bestScore = -1;
+  for (const a of anchors) {
+    const fa = fold(a);
+    if (fa.length < 2) continue;
+    let from = 0;
+    while (from < f.length) {
+      const i = f.indexOf(fa, from);
+      if (i < 0) break;
+      let score = fa.length;
+      const window2 = f.slice(Math.max(0, i - 40), i + 200);
+      if (/incluye|bebidas|alimentos|meseros|vajilla|persona/.test(window2)) score += 40;
+      if (/coffee break \d|menu \d tiempos|tradicional \$\d|basico \$\d|premium \$\d/.test(window2)) {
+        score += 30;
+      }
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = i;
+      }
+      from = i + fa.length;
+    }
+  }
+  if (bestIdx < 0) {
+    const dollar = c.search(/\$\s*\d/);
+    if (dollar < 0) return null;
+    bestIdx = dollar;
+  }
+  let start = Math.max(0, bestIdx - 60);
+  let end = Math.min(c.length, start + maxChars);
+  const tail = c.slice(bestIdx + 20, end);
+  const nextPkg = tail.search(
+    /\n|Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i
+  );
+  if (nextPkg > 280) {
+    end = bestIdx + 20 + nextPkg;
+  }
+  let slice = c.slice(start, end).replace(/\s+/g, " ").trim();
+  slice = slice.replace(/^[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9🥐☕🍽*•]+/, "");
+  if (slice.length < 80) return null;
+  return slice.slice(0, maxChars);
+}
+function buildLucyInfoInclusionReply(query, maxChars = 1100) {
+  const docs = cacheState().docs;
+  if (!docs.length || !query?.trim()) return null;
+  const tokens = tokenize(query);
+  if (!tokens.length) return null;
+  const ranked = [...docs].map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x) => x.s >= 10).sort((a, b) => b.s - a.s);
+  if (!ranked.length) return null;
+  const serviceHints = ["coffee", "banquete", "taquiza", "sushi", "paella", "pozole", "pista", "sala", "barra"];
+  const qf = fold(query);
+  const preferred = ranked.filter((x) => {
+    const title = fold(x.d.title);
+    return serviceHints.some((h) => qf.includes(h) && title.includes(h));
+  });
+  const pool = preferred.length ? preferred : ranked;
+  for (const { d } of pool.slice(0, 4)) {
+    const section = findInclusionSection(d.content, query, maxChars);
+    if (!section) continue;
+    const label = d.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").trim();
+    return `Seg\xFAn el cat\xE1logo que ya tenemos de *${label}*:
+
+${section}
+
+\xBFTe late este nivel o quieres que te detalle otro?`;
+  }
+  return null;
 }
 function extractPriceWindows(content, max = 8) {
   const windows = [];
@@ -4845,6 +4968,10 @@ function buildInclusionTeamConfirmationAnswer(query) {
   if (resolvedHasInclusionData(resolved)) return null;
   const label = inclusionLabelForResolved(resolved);
   const nivel = resolved.kind === "service_nivel" && resolved.rows[0] ? extractNivelLabel(resolved.rows[0]) : parseCatalogQueryFilters(query).nivel;
+  const fromPdf = buildLucyInfoInclusionReply(
+    [label, nivel, query].filter(Boolean).join(" ")
+  ) || buildLucyInfoInclusionReply(query);
+  if (fromPdf) return fromPdf;
   const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
   const webUrl = getCatalogWebUrlForQuery(label) ?? getCatalogWebUrlForQuery(resolved.serviceName ?? "") ?? getCatalogWebUrlForQuery(query) ?? resolveCatalogWebLink(label).url ?? resolveCatalogWebLink(resolved.serviceName ?? query).url ?? resolveCatalogWebLink(query).url;
   if (webHint || webUrl) {
@@ -4895,7 +5022,12 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
     if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
+    const fromPdf2 = buildLucyInfoInclusionReply(q);
+    if (fromPdf2 && !/bet[uú]n|cupcakes?/i.test(fromPdf2)) return fromPdf2;
   }
+  const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
+  const fromPdf = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+  if (fromPdf) return fromPdf;
   const webQ = serviceHint || query;
   if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
     const banqueteQ = /\b4\s*tiempos|mexicano/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Mexicano 4 tiempos" : /\b3\s*tiempos|formal/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Formal 3 tiempos" : "banquete";
@@ -19508,8 +19640,9 @@ graduaci\xF3n, boda, XV y cumplea\xF1os llevan el abanico completo).
 - "postres/dulce" \u2192 mesa de dulces, postres, cupcakes, paletas...
 Ya que elige el servicio espec\xEDfico, das su detalle/niveles del Sheet.
 Cuando ofrezcas niveles (B\xE1sica / Tradicional / Premium u otros): NO digas solo los
-nombres. Explica qu\xE9 incluye cada uno con el texto del Sheet (o cat\xE1logo web) y luego
-pregunta cu\xE1l prefiere. Nunca inventes inclusiones ni precios.
+nombres. Explica qu\xE9 incluye cada uno con el texto del Sheet o de los PDFs del panel
+Aprendizaje (prioridad alta) y luego pregunta cu\xE1l prefiere. Si no hay detalle ah\xED,
+puedes complementar con el cat\xE1logo web. Nunca inventes inclusiones ni precios.
 
 ### Atajo
 Si el cliente YA nombr\xF3 un servicio en su primer mensaje ("quiero tarima", "quiero
@@ -19525,8 +19658,8 @@ banquete"), NO des el men\xFA de categor\xEDas: ve directo a ese servicio.
 - Cuando el nombre del EVENTO es un servicio (pozolada, taquiza, paella), ofrece ESE.
 - Servicio fuera de cat\xE1logo \u2192 ac\xE9ptalo, an\xF3talo y avanza. Nunca "no lo tenemos".
 - Libre para interpretar; ESTRICTA con los datos: solo servicios que existen; precios
-  e inclusiones SOLO del Sheet. Si no hay dato \u2192 "el equipo te lo confirma". NUNCA
-  inventes qu\xE9 incluye ni precios.
+  e inclusiones del Sheet o de los PDFs cargados en Aprendizaje. Si no hay dato \u2192
+  cat\xE1logo web o "el equipo te lo confirma". NUNCA inventes qu\xE9 incluye ni precios.
 - Brief con VARIOS servicios (ej. coffee break, desayuno, snack, comida, cena, staff):
   reconoce la lista COMPLETA en el mismo turno. No te quedes solo con el primero.
   Si son muchos, confirma el paquete, ENV\xCDA el link del cat\xE1logo general y ofrece
