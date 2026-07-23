@@ -1,8 +1,12 @@
 /**
  * Caché en memoria del material PDF del panel Aprendizaje.
  * Sirve para: (1) permitir precios reales de PDFs en el price-guard,
- * (2) armar respuestas cortas cuando el Sheet no tiene tarifa (pista/mobiliario).
+ * (2) armar respuestas cortas cuando el Sheet no tiene tarifa (pista/mobiliario),
+ * (3) inclusiones/detalle de paquetes cuando el Sheet no trae "Que Incluye".
  */
+
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 export type LucyInfoCacheDoc = {
   title: string;
@@ -270,6 +274,7 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
  * Se usa cuando el Sheet no trae "Que Incluye" pero el PDF sí describe el paquete.
  */
 export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): string | null {
+  ensureCacheFromSeedSync();
   const docs = cacheState().docs;
   if (!docs.length || !query?.trim()) return null;
   const tokens = tokenize(query);
@@ -301,6 +306,32 @@ export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): str
     );
   }
   return null;
+}
+
+/** Si la caché está vacía (carrera al arranque), carga el seed JSON de forma síncrona. */
+function ensureCacheFromSeedSync(): void {
+  if (cacheState().docs.length > 0) return;
+  try {
+    const candidates = [
+      process.env["LUCY_INFO_SEED_PATH"]?.trim(),
+      join(process.cwd(), "config", "lucy-info-seed.json"),
+      join(process.cwd(), "lucy-info-seed.json"),
+      join(process.cwd(), "data", "lucy-info-seed.json"),
+    ].filter(Boolean) as string[];
+    for (const p of candidates) {
+      if (!existsSync(p)) continue;
+      const raw = JSON.parse(readFileSync(p, "utf8")) as {
+        documents?: LucyInfoCacheDoc[];
+      };
+      const docs = (raw.documents || []).filter((d) => d?.content?.trim());
+      if (docs.length) {
+        refreshLucyInfoPriceCache(docs);
+        return;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 /** Ventanas de texto con precio (los PDFs a veces vienen en un solo párrafo). */

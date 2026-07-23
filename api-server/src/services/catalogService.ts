@@ -731,6 +731,9 @@ export function attachAvailableSheetDetail(
   ].filter((a): a is string => !!a);
 
   for (const a of attempts) {
+    const fromPdf = buildLucyInfoInclusionReply(a);
+    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+
     const candidates = [
       buildCatalogServiceDetailAnswer(a),
       buildCatalogPriceAnswer(a),
@@ -843,21 +846,25 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
 
   let body = `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
 
-  // Si el Sheet no trae (o trae poco) Incluye, complementar con catálogo web bodasesor.com.
-  // (Sin repetir "¿quieres que te mande el catálogo?" — el link ya va abajo.)
+  // Si el Sheet no trae Incluye, complementar con PDF aprendido y/o catálogo web.
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
-    const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
-    const webUrl =
-      getCatalogWebUrlForQuery(svc) ??
-      getCatalogWebUrlForQuery(result.serviceName ?? "") ??
-      resolveCatalogWebLink(svc).url ??
-      resolveCatalogWebLink(result.serviceName ?? svc).url;
-    if (webHint) {
-      body += `\n\n${webHint}`;
-    } else if (webUrl) {
-      body += `\n\nEl detalle completo de menús e inclusiones está en el catálogo:\n${toDeliverableCatalogUrl(webUrl)}`;
+    const fromPdf = buildLucyInfoInclusionReply(svc) || buildLucyInfoInclusionReply(result.serviceName ?? svc);
+    if (fromPdf) {
+      body += `\n\n${fromPdf}`;
     } else {
-      body += `\n\nCatálogo general:\n${getCatalogWebHubDeliveryUrl()}`;
+      const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
+      const webUrl =
+        getCatalogWebUrlForQuery(svc) ??
+        getCatalogWebUrlForQuery(result.serviceName ?? "") ??
+        resolveCatalogWebLink(svc).url ??
+        resolveCatalogWebLink(result.serviceName ?? svc).url;
+      if (webHint) {
+        body += `\n\n${webHint}`;
+      } else if (webUrl) {
+        body += `\n\nEl detalle completo de menús e inclusiones está en el catálogo:\n${toDeliverableCatalogUrl(webUrl)}`;
+      } else {
+        body += `\n\nCatálogo general:\n${getCatalogWebHubDeliveryUrl()}`;
+      }
     }
   }
 
@@ -904,6 +911,8 @@ export function enrichBareNivelOffer(
 ): string | null {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
   const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
+  const fromPdf = buildLucyInfoInclusionReply(hint);
+  if (fromPdf) return fromPdf;
   const detail = buildCatalogServiceDetailAnswer(hint);
   if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
   if (!/incluye|nivel/i.test(detail)) return null;
@@ -1155,16 +1164,12 @@ export function resolveCatalogInclusionReply(
       query
     );
 
-  // Nivel concreto (Coffee Break 5, Tradicional, 3 tiempos…): PDF del panel primero.
-  const specificLevel =
-    /coffee\s*break\s*\d|\bcb\s*\d\b|\btradicional\b|\bpremium\b|\bb[aá]sic[ao]?\b|\d\s*tiempos?/i.test(
-      query,
-    );
-  if (specificLevel && !wantsAllLevels) {
-    const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
-    const fromPdf =
-      buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
-    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+  // PDF del panel primero (nivel concreto o servicio con detalle en Aprendizaje).
+  const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
+  const fromPdfEarly =
+    buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+  if (fromPdfEarly && !wantsAllLevels && !/bet[uú]n|cupcakes?/i.test(fromPdfEarly)) {
+    return fromPdfEarly;
   }
 
   // "qué incluye cada nivel Básica/Tradicional/Premium" → detalle multi-nivel del servicio,
