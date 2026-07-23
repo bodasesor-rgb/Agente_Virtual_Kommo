@@ -31,9 +31,9 @@ app.use(
   }),
 );
 app.use(cors());
-// PDFs en base64 desde /aprendizaje (Información para Lucy) pueden superar 100kb.
-app.use(express.json({ limit: "15mb" }));
-app.use(express.urlencoded({ extended: true, limit: "15mb" }));
+// PDFs en base64 desde /aprendizaje (hasta 20 MB → ~27 MB en base64).
+app.use(express.json({ limit: "30mb" }));
+app.use(express.urlencoded({ extended: true, limit: "30mb" }));
 
 function mountSimulador(basePath: string) {
   app.get([basePath, `${basePath}/`], (_req, res) => {

@@ -27,7 +27,7 @@ export async function extractPlainTextFromPdf(input: {
   }
 
   if (bytes.length < 32) throw new Error("pdf_too_small");
-  if (bytes.length > 12 * 1024 * 1024) throw new Error("pdf_too_large");
+  if (bytes.length > 20 * 1024 * 1024) throw new Error("pdf_too_large");
 
   const head = Buffer.from(bytes.slice(0, 5)).toString("ascii");
   if (!head.startsWith("%PDF")) throw new Error("not_a_pdf");

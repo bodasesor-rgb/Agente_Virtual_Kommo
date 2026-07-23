@@ -34,7 +34,7 @@ let pendingPdf = {
 
 /** Cola de PDFs: procesa uno a uno (extraer → guardar para Lucy). */
 const PDF_QUEUE_MAX = 25;
-const PDF_MAX_MB = 12;
+const PDF_MAX_MB = 20;
 /** @type {Array<{ id: string, file: File, name: string, status: string, detail: string, startedAt: number|null, ms: number|null }>} */
 let pdfQueue = [];
 let pdfQueueRunning = false;
