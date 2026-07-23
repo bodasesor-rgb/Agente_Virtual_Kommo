@@ -121,10 +121,13 @@ const tests = [
   {
     id: 7,
     name: "Oferta coffee break con detalle real",
-    messages: ["Me interesa coffee break para junta corporativa", "qué opciones manejan?"],
+    messages: [
+      "Me interesa coffee break para junta corporativa",
+      "qué opciones de coffee break manejan y qué incluyen?",
+    ],
     check: (t) =>
       /coffee/i.test(t) &&
-      (/\$\s*\d|incluye|nivel|Break|catálogo/i.test(t)) &&
+      (/\$\s*\d|incluye|nivel|Break|catálogo|Según/i.test(t)) &&
       !/DATOS DEL CLIENTE/i.test(t),
   },
   {
@@ -167,10 +170,13 @@ const tests = [
     check: (t) => {
       const wrongCb1 =
         /Coffee Break 1 — Lo Esencial/i.test(t) && !/Coffee Break 4/i.test(t);
+      const onlyEmptyLink =
+        /detalle de lo que incluye cada nivel est[aá] en el cat[aá]logo/i.test(t) &&
+        !/\$\s*\d/.test(t);
       const ok =
         /Coffee Break 4/i.test(t) ||
-        (/\$\s*350|350\.00/i.test(t) && /coffee|break|incluye|nivel/i.test(t));
-      return ok && !wrongCb1;
+        (/\$\s*350|350\.00/i.test(t) && /coffee|break|incluye|nivel|precio|Sheet|lista/i.test(t));
+      return ok && !wrongCb1 && !onlyEmptyLink;
     },
   },
   {

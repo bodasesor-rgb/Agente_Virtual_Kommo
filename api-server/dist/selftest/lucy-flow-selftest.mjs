@@ -5193,7 +5193,9 @@ ${fromPdfEarly}`
   }
   const attempts = [
     serviceHint ? `${serviceHint} ${query}` : null,
-    serviceHint || null,
+    // Si el mensaje pide un nivel concreto (CB4), no intentar solo el hint genérico
+    // ("Coffee Break") — devolvería CB1 del PDF.
+    !specificNivelAsk && serviceHint ? serviceHint : null,
     // Solo usar el mensaje crudo si menciona un servicio; si no, evita match basura (Betún).
     /\b(banquete|taquiza|barra|coffee|brunch|pizza|sushi|crepas?|mesa\s+de|dj|carpa|pista)\b/i.test(
       query
@@ -5208,11 +5210,24 @@ ${fromPdfEarly}`
     if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
     if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
+    if (specificNivelAsk && serviceHint && q === serviceHint) continue;
     const fromPdf = buildPdfInclusionReply(q);
     if (fromPdf) return fromPdf;
   }
-  const fromPdfLate = buildPdfInclusionReply(pdfQ) || buildPdfInclusionReply(query);
+  const fromPdfLate = buildPdfInclusionReply(query) || (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null);
   if (fromPdfLate) return fromPdfLate;
+  if (specificNivelAsk) {
+    const priced = buildCatalogPriceAnswer(query) || (serviceHint ? buildCatalogPriceAnswer(serviceHint) : null) || buildCatalogServiceDetailAnswer(
+      query.replace(/\bqu[eé]\s+incluye\b/gi, "precio").replace(/\bdetalle\b/gi, "precio")
+    );
+    if (priced && /\$\s*\d/.test(priced)) {
+      return withLink(
+        `Ese nivel no tiene bloque de inclusiones en el cat\xE1logo PDF todav\xEDa. Te dejo el precio de lista (Sheet):
+
+${priced}`
+      );
+    }
+  }
   const webQ = serviceHint || query;
   if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
     const banqueteQ = /\b4\s*tiempos|mexicano/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Mexicano 4 tiempos" : /\b3\s*tiempos|formal/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Formal 3 tiempos" : "banquete";

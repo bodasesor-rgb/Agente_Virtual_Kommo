@@ -1328,12 +1328,19 @@ export function resolveCatalogInclusionReply(
     (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null);
   if (fromPdfLate) return fromPdfLate;
 
-  // Nivel concreto sin PDF: precios Sheet.
+  // Nivel concreto sin PDF: precios Sheet (nunca solo link vacío).
   if (specificNivelAsk) {
     const priced =
       buildCatalogPriceAnswer(query) ||
-      (serviceHint ? buildCatalogPriceAnswer(`${serviceHint} ${query}`) : null);
-    if (priced) return withLink(priced);
+      (serviceHint ? buildCatalogPriceAnswer(serviceHint) : null) ||
+      buildCatalogServiceDetailAnswer(
+        query.replace(/\bqu[eé]\s+incluye\b/gi, "precio").replace(/\bdetalle\b/gi, "precio")
+      );
+    if (priced && /\$\s*\d/.test(priced)) {
+      return withLink(
+        `Ese nivel no tiene bloque de inclusiones en el catálogo PDF todavía. Te dejo el precio de lista (Sheet):\n\n${priced}`
+      );
+    }
   }
 
   // Último recurso: link del catálogo web aunque resolve falle.
