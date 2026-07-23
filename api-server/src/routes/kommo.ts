@@ -76,6 +76,7 @@ import {
   isVagueVenueOnly,
   isNonLocationBusinessPhrase,
   isServiceLabelNotTipoEvento,
+  isUnusableTipoEventoReply,
   parseCorreoFromText,
   parsePresupuestoFromText,
   parseTipoEventoFromText,
@@ -617,6 +618,33 @@ function buildCrmContext(
     const tipoHist = parseTipoEventoFromText(collectUserTexts(historyFull, currentMessage).join(" "));
     const restored = tipoCrm && !isServiceLabelNotTipoEvento(tipoCrm) ? tipoCrm : tipoHist;
     extracted.tipo_evento = restored ?? null;
+  }
+
+  // A14964: "Lo acabo de mencionar" no es tipo de evento.
+  if (isUnusableTipoEventoReply(extracted.tipo_evento)) {
+    const tipoIdx = mergedLines.findIndex((l) => /^-?\s*Tipo de evento:/i.test(l));
+    if (tipoIdx >= 0) {
+      const raw = mergedLines[tipoIdx]!.replace(/^-?\s*Tipo de evento:\s*/i, "").trim();
+      if (isUnusableTipoEventoReply(raw)) {
+        mergedLines.splice(tipoIdx, 1);
+        filledSet.delete("Tipo de evento");
+      }
+    }
+    const histBlob = collectUserTexts(historyFull, currentMessage).join(" ");
+    const restored =
+      parseTipoEventoFromText(histBlob) ||
+      (/\bbanquete\b/i.test(histBlob)
+        ? "evento con banquete"
+        : /\bcatering\b/i.test(histBlob)
+          ? "evento con catering"
+          : null);
+    extracted.tipo_evento = restored;
+    if (restored) {
+      const idx = mergedLines.findIndex((l) => /^-?\s*Tipo de evento:/i.test(l));
+      if (idx >= 0) mergedLines[idx] = `- Tipo de evento: ${restored}`;
+      else mergedLines.push(`- Tipo de evento: ${restored}`);
+      filledSet.add("Tipo de evento");
+    }
   }
 
   purgeInvalidNombre(mergedLines, filledSet, extracted);

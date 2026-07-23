@@ -117,6 +117,17 @@ function tokenize(text: string): string[] {
     "por",
     "con",
     "que",
+    // "san" en "San Francisco" / "usan" / "descansan" ensuciaba el score PDF (A14964).
+    "san",
+    "soy",
+    "llamo",
+    "nombre",
+    "hola",
+    "buenos",
+    "buenas",
+    "dias",
+    "tardes",
+    "noches",
     "precio",
     "precios",
     "cuanto",
@@ -276,10 +287,20 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
  * Respuesta de inclusiones/detalle desde PDFs del panel Aprendizaje.
  * Se usa cuando el Sheet no trae "Que Incluye" pero el PDF sí describe el paquete.
  */
+/** Solo buscar PDF si el query habla de un servicio/paquete — nunca por un nombre propio (A14964). */
+function queryHasServicePdfAnchor(query: string): boolean {
+  const q = fold(query);
+  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canap|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillo|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
+    q
+  );
+}
+
 export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): string | null {
   ensureCacheFromSeedSync();
   const docs = cacheState().docs;
   if (!docs.length || !query?.trim()) return null;
+  // A14964 Victor: "Victor Ramos de Destiladora San Francisco" no debe volcar Barra de Café/Canapés.
+  if (!queryHasServicePdfAnchor(query)) return null;
   const tokens = tokenize(query);
   if (!tokens.length) return null;
 

@@ -516,6 +516,8 @@ function hasSpecificFoodService(text: string): boolean {
 export function isVagueFoodTerm(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
+  // A14964: "¿es solo café o tienes catering de comida?" → ofrecer ambas, no forzar banquete.
+  if (clientAsksCafeOrCateringChoice(t)) return true;
   // A14929: frases explícitamente vagas (no "banquete premium 4 tiempos").
   if (
     /\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
@@ -1209,7 +1211,10 @@ export function parseServicesFromText(text: string): string[] {
     );
     // No expandir "comida"→banquete/taquiza si ya hay tiempos de comida u otros servicios.
     const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
-    if (!already && !(isVagueFoodAlias && found.length > 0)) {
+    // A14964: pregunta café vs catering — no anotar banquete/taquiza solo por "comida".
+    if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text)) {
+      /* skip */
+    } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
       found.push(normalized);
     }
   }
@@ -1384,6 +1389,79 @@ export function parseTipoEventoFromText(text: string): string | null {
     if (pattern.test(text)) return label;
   }
   return null;
+}
+
+/**
+ * Respuestas meta a "¿qué tipo de evento?" que NO son un tipo usable (A14964 Victor).
+ * Ej: "Lo acabo de mencionar", "ya te dije", "eso mismo".
+ */
+export function isUnusableTipoEventoReply(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return true;
+  const n = t
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[¿?¡!.,;:]+/g, "")
+    .trim();
+  if (
+    /^(lo\s+)?(acabo|acabe)\s+de\s+(mencionar|decir|comentar|explicar)(lo)?$/.test(n) ||
+    /^(ya\s+)?(lo\s+)?(dije|mencione|comente|te\s+dije|te\s+lo\s+dije)$/.test(n) ||
+    /^(como\s+)?(te\s+)?(dije|mencione|arriba|antes|hace\s+rato)$/.test(n) ||
+    /^(igual|lo\s+mismo|idem|ya\s+te\s+dije|eso|eso\s+mismo|lo\s+de\s+arriba)$/.test(n) ||
+    /^ya\s+(te\s+)?(lo\s+)?(dije|mencione|comente)$/.test(n)
+  ) {
+    return true;
+  }
+  if (parseCorreoFromText(t)) return true;
+  return false;
+}
+
+/** Cliente pregunta si solo hay café o también catering de comida (A14964). */
+export function clientAsksCafeOrCateringChoice(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (
+    /\b(caf[eé]|barista|barra\s+de\s+caf[eé]).{0,50}\b(o|u)\b.{0,50}\b(catering|comida|banquete|alimentos?)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(catering|comida|banquete|alimentos?).{0,50}\b(o|u)\b.{0,50}\b(caf[eé]|barista)\b/i.test(t)
+  ) {
+    return true;
+  }
+  return (
+    /\bes\s+solo\s+caf[eé]\b/i.test(t) ||
+    /\btienes\s+(tambi[eé]n\s+)?catering(\s+de\s+comida)?\b/i.test(t) ||
+    /\bsolo\s+caf[eé]\s+o\b/i.test(t)
+  );
+}
+
+/** Mensaje que responde al nombre (con o sin empresa): no volcar catálogo PDF (A14964). */
+export function looksLikeNameAnswerMessage(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t || t.length > 90 || /\?/.test(t) || /@/.test(t) || /\d{3,}/.test(t)) return false;
+  if (clientAsksCafeOrCateringChoice(t)) return false;
+  if (isServiceRelatedMessage(t) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\b/i.test(t)) {
+    // "Victor Ramos de Destiladora…" no es servicio; "quiero banquete" sí.
+    if (/\b(quiero|necesito|busco|cotiz|banquete|taquiza|barra|dj|pista)\b/i.test(t)) {
+      return false;
+    }
+  }
+  const candidato = stripNombrePresentationPrefix(t)
+    .replace(/\s+de\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúñ.\s-]{2,50}$/u, "")
+    .trim();
+  const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+  if (!nombre) return false;
+  if (isLikelyNotPersonNameMessage(candidato) && !/^(soy|me\s+llamo)/i.test(t)) {
+    // Intentar con el texto completo (nombre + de empresa).
+    const full = sanitizeCrmNombre(stripNombrePresentationPrefix(t).split(/\s+de\s+/i)[0] ?? "");
+    return !!full;
+  }
+  return true;
 }
 
 export function parseInvitadosFromText(text: string): string | null {
@@ -1694,6 +1772,8 @@ export function parseCorreoFromText(text: string | null | undefined): string | n
 export function isServiceLabelNotTipoEvento(label: string | null | undefined): boolean {
   if (!label?.trim()) return false;
   const t = label.trim();
+  // "evento con banquete/catering" es tipo usable cuando el cliente respondió así (A14964).
+  if (/^evento\s+con\s+/i.test(t) || /^celebraci[oó]n\b/i.test(t)) return false;
   if (SERVICE_LABELS_NOT_TIPO.test(t)) return true;
   if (parseTipoEventoFromText(t)) return false;
   return !!parsePrimaryService(t);
@@ -1845,6 +1925,13 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t)) return true;
   if (/^\.{2,}$/.test(t)) return true;
+  // A14964: "Para eso te contacto" = quieren propuesta / cotización, no un monto ahora.
+  if (
+    /\bpara\s+eso\s+(te\s+)?(contacto|contact[eé]|escribo|hablo|llamo)\b/i.test(t) ||
+    /\b(por|para)\s+eso\s+(te\s+)?(estoy\s+)?(contactando|escribiendo|llamando)\b/i.test(t)
+  ) {
+    return true;
+  }
 
   const explicitNoBudget =
     /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) ||
@@ -2198,26 +2285,55 @@ export function captureContextualAnswer(
   }
 
   if (!filledSet.has("Tipo de evento") && asked === "tipo_evento") {
-    const tipo = parseTipoEventoFromText(msg) ?? (isServiceRelatedMessage(msg) ? null : msg);
-    if (tipo && tipo.length >= 2 && !/@/.test(tipo)) {
-      captures.push({ label: "Tipo de evento", value: tipo });
-    } else if (isServiceRelatedMessage(msg)) {
-      const service = parsePrimaryService(msg);
-      const inv = parseInvitadosFromText(msg);
-      if (service) {
-        captures.push({ label: "Requerimientos o servicios", value: service });
-      }
-      if (inv) {
-        captures.push({ label: "Número de invitados", value: inv });
-      }
-      const tipoHist = parseTipoEventoFromText(
-        history
-          .filter((m) => m.role === "user" && typeof m.content === "string")
-          .map((m) => m.content as string)
-          .join(" ")
-      );
+    // A14964: "Lo acabo de mencionar" NO es tipo; recuperar del historial / brief.
+    if (isUnusableTipoEventoReply(msg)) {
+      const histBlob = history
+        .filter((m) => m.role === "user" && typeof m.content === "string")
+        .map((m) => m.content as string)
+        .join(" ");
+      const tipoHist =
+        parseTipoEventoFromText(histBlob) ||
+        (/\bbanquete\b/i.test(histBlob)
+          ? "evento con banquete"
+          : /\bcatering\b/i.test(histBlob)
+            ? "evento con catering"
+            : null);
       if (tipoHist) {
         captures.push({ label: "Tipo de evento", value: tipoHist });
+      }
+    } else {
+      const tipo = parseTipoEventoFromText(msg);
+      if (tipo) {
+        captures.push({ label: "Tipo de evento", value: tipo });
+      } else if (isServiceRelatedMessage(msg) || /\b(banquete|catering)\b/i.test(msg)) {
+        const services = parseServicesFromText(msg);
+        const service =
+          services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
+        const inv = parseInvitadosFromText(msg);
+        if (service) {
+          captures.push({ label: "Requerimientos o servicios", value: service });
+        }
+        if (inv) {
+          captures.push({ label: "Número de invitados", value: inv });
+        }
+        // Cliente respondió al tipo con banquete/catering + detalle → cerrar el campo.
+        if (/\bbanquete\b/i.test(msg)) {
+          captures.push({ label: "Tipo de evento", value: "evento con banquete" });
+        } else if (/\bcatering\b/i.test(msg)) {
+          captures.push({ label: "Tipo de evento", value: "evento con catering" });
+        } else {
+          const tipoHist = parseTipoEventoFromText(
+            history
+              .filter((m) => m.role === "user" && typeof m.content === "string")
+              .map((m) => m.content as string)
+              .join(" ")
+          );
+          if (tipoHist) {
+            captures.push({ label: "Tipo de evento", value: tipoHist });
+          }
+        }
+      } else if (tipo == null && msg.length >= 2 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg)) {
+        captures.push({ label: "Tipo de evento", value: msg });
       }
     }
   }
@@ -2225,6 +2341,7 @@ export function captureContextualAnswer(
   if (
     !filledSet.has("Requerimientos o servicios") &&
     !clientAsksForRecommendations(msg) &&
+    !clientAsksCafeOrCateringChoice(msg) &&
     (asked === "requerimientos" || isServiceRelatedMessage(msg))
   ) {
     const services = parseServicesFromText(msg);
@@ -2318,6 +2435,7 @@ export function scanConversationForCaptures(
     if (
       !pending.has("Requerimientos o servicios") &&
       !clientAsksForRecommendations(msg) &&
+      !clientAsksCafeOrCateringChoice(msg) &&
       isServiceRelatedMessage(msg)
     ) {
       const services = parseServicesFromText(msg);

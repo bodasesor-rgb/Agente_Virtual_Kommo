@@ -134,6 +134,8 @@ import {
   clientAsksDistributorPricing,
   clientRequestsCallback,
   isGenericQuoteIntentRequerimiento,
+  clientAsksCafeOrCateringChoice,
+  looksLikeNameAnswerMessage,
   FECHA_MAX_ASKS,
   FECHA_AUTO_WAIVER,
 } from "./conversation-understanding.js";
@@ -1030,6 +1032,11 @@ export function buildVagueFoodOptionsReply(
   } else if (/corporativo/.test(tipo) || /corporativ/.test(texts)) {
     options = "Para eventos corporativos manejamos coffee break, banquete o barra de alimentos.";
     linkHint = "coffee break";
+  } else if (clientAsksCafeOrCateringChoice(msg)) {
+    // A14964 Victor: no volcar solo banquete ni anotar taquiza por "comida".
+    options =
+      "Manejamos ambas: *Barra de Café* (baristas y bebidas artesanales) y *catering de comida* (banquete, barras de alimentos, meseros). ¿Qué te late más para tu evento?";
+    linkHint = "banquete";
   } else {
     options = "Según el evento podemos ofrecerte banquete, taquiza o brunch — ¿cuál te interesa?";
     return ensureCatalogWebLink(`${pickTransition(history)} ${options}`, "banquete");
@@ -3539,6 +3546,25 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = nameMismatchReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre distinto al del contacto — confirmar");
+  } else if (
+    !cierreYaEnviado &&
+    lastAskedField === "nombre" &&
+    looksLikeNameAnswerMessage(currentMessage) &&
+    isFieldSatisfied("nombre", filledSet, extracted) &&
+    // Solo sin servicio previo (form/lead). Si ya hay sushi/etc., deferredKnownServiceOffer.
+    !isValidRequerimientosValue(extracted.requerimientos_evento)
+  ) {
+    // A14964: respuesta de nombre — solo ack + siguiente dato (nunca dump PDF/catálogo).
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    mensaje = nextQ
+      ? `${display ? `Perfecto, ${display}.` : "Perfecto."} ${nextQ}`.trim()
+      : display
+        ? `Perfecto, ${display}. ¿En qué te puedo ayudar para tu evento?`
+        : "Perfecto. ¿En qué te puedo ayudar para tu evento?";
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: nombre capturado — embudo sin catálogo/PDF");
   } else if (deferredKnownServiceOffer) {
     mensaje = deferredKnownServiceOffer;
     appliedSalesReply = true;
@@ -3738,6 +3764,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         collectUserTexts(presHistory, currentMessage),
         presHistory
       );
+    }
+    // A14964: no re-pedir correo si ya está en el historial (p. ej. waiver de presupuesto).
+    if (!isEmailSatisfied(filledSet, extracted)) {
+      const correoHist = collectUserTexts(presHistory, currentMessage)
+        .map((t) => filterClientEmail(parseCorreoFromText(t)))
+        .find(Boolean);
+      if (correoHist) {
+        extracted.correo = correoHist;
+        filledSet.add("Correo electrónico");
+      }
     }
     const pending = getNextPendingField(extracted, filledSet);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {

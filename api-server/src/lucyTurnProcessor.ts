@@ -13,6 +13,7 @@ import {
   recoverClienteNombreFromHistory,
   sanitizeExtractedAmbiguousNumbers,
   inferLucyAskedField,
+  isUnusableTipoEventoReply,
 } from "./conversation-understanding.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
 import { sanitizeCrmNombre } from "./contact-name.js";
@@ -104,6 +105,10 @@ export async function prepareLucyExtraction(
   extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
   if (extracted.correo) {
     extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
+  }
+  // A14964: GPT/CRM a veces guarda "Lo acabo de mencionar" como tipo.
+  if (isUnusableTipoEventoReply(extracted.tipo_evento)) {
+    extracted.tipo_evento = null;
   }
 
   return { extracted, conversationText };

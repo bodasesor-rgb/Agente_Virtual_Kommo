@@ -754,6 +754,7 @@ function hasSpecificFoodService(text) {
 function isVagueFoodTerm(text) {
   const t = text?.trim() ?? "";
   if (!t) return false;
+  if (clientAsksCafeOrCateringChoice(t)) return true;
   if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
     t
   ) || /^(me\s+interesa\s+(cotizar\s+)?)?(un\s+)?(servicio\s+de\s+)?(banquetes?|catering)(\s+para\s+mi\s+evento)?[.!?¿?]*$/i.test(
@@ -1145,7 +1146,8 @@ function parseServicesFromText(text) {
       (s) => s.toLowerCase().includes(normLower) || normLower.includes(s.toLowerCase())
     );
     const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
-    if (!already && !(isVagueFoodAlias && found.length > 0)) {
+    if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text)) {
+    } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
       found.push(normalized);
     }
   }
@@ -1258,6 +1260,47 @@ function parseTipoEventoFromText(text) {
     if (pattern.test(text)) return label;
   }
   return null;
+}
+function isUnusableTipoEventoReply(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return true;
+  const n = t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (/^(lo\s+)?(acabo|acabe)\s+de\s+(mencionar|decir|comentar|explicar)(lo)?$/.test(n) || /^(ya\s+)?(lo\s+)?(dije|mencione|comente|te\s+dije|te\s+lo\s+dije)$/.test(n) || /^(como\s+)?(te\s+)?(dije|mencione|arriba|antes|hace\s+rato)$/.test(n) || /^(igual|lo\s+mismo|idem|ya\s+te\s+dije|eso|eso\s+mismo|lo\s+de\s+arriba)$/.test(n) || /^ya\s+(te\s+)?(lo\s+)?(dije|mencione|comente)$/.test(n)) {
+    return true;
+  }
+  if (parseCorreoFromText(t)) return true;
+  return false;
+}
+function clientAsksCafeOrCateringChoice(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (/\b(caf[eé]|barista|barra\s+de\s+caf[eé]).{0,50}\b(o|u)\b.{0,50}\b(catering|comida|banquete|alimentos?)\b/i.test(
+    t
+  )) {
+    return true;
+  }
+  if (/\b(catering|comida|banquete|alimentos?).{0,50}\b(o|u)\b.{0,50}\b(caf[eé]|barista)\b/i.test(t)) {
+    return true;
+  }
+  return /\bes\s+solo\s+caf[eé]\b/i.test(t) || /\btienes\s+(tambi[eé]n\s+)?catering(\s+de\s+comida)?\b/i.test(t) || /\bsolo\s+caf[eé]\s+o\b/i.test(t);
+}
+function looksLikeNameAnswerMessage(text) {
+  const t = text?.trim() ?? "";
+  if (!t || t.length > 90 || /\?/.test(t) || /@/.test(t) || /\d{3,}/.test(t)) return false;
+  if (clientAsksCafeOrCateringChoice(t)) return false;
+  if (isServiceRelatedMessage(t) && !/^(soy|me\s+llamo|mi\s+nombre\s+es)\b/i.test(t)) {
+    if (/\b(quiero|necesito|busco|cotiz|banquete|taquiza|barra|dj|pista)\b/i.test(t)) {
+      return false;
+    }
+  }
+  const candidato = stripNombrePresentationPrefix(t).replace(/\s+de\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚáéíóúñ.\s-]{2,50}$/u, "").trim();
+  const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+  if (!nombre) return false;
+  if (isLikelyNotPersonNameMessage(candidato) && !/^(soy|me\s+llamo)/i.test(t)) {
+    const full = sanitizeCrmNombre(stripNombrePresentationPrefix(t).split(/\s+de\s+/i)[0] ?? "");
+    return !!full;
+  }
+  return true;
 }
 function parseInvitadosFromText(text) {
   const trimmed = text.trim();
@@ -1483,6 +1526,7 @@ function parseCorreoFromText(text) {
 function isServiceLabelNotTipoEvento(label) {
   if (!label?.trim()) return false;
   const t = label.trim();
+  if (/^evento\s+con\s+/i.test(t) || /^celebraci[oó]n\b/i.test(t)) return false;
   if (SERVICE_LABELS_NOT_TIPO.test(t)) return true;
   if (parseTipoEventoFromText(t)) return false;
   return !!parsePrimaryService(t);
@@ -1573,6 +1617,9 @@ function detectPresupuestoRefusal(text) {
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t)) return true;
   if (/^\.{2,}$/.test(t)) return true;
+  if (/\bpara\s+eso\s+(te\s+)?(contacto|contact[eé]|escribo|hablo|llamo)\b/i.test(t) || /\b(por|para)\s+eso\s+(te\s+)?(estoy\s+)?(contactando|escribiendo|llamando)\b/i.test(t)) {
+    return true;
+  }
   const explicitNoBudget = /\bno\s+(tengo|tenemos|cuento|sabemos)\s+(un\s+)?presupuesto\b/i.test(t) || /\bno\s+me\s+brindaron\b/i.test(t) || /\bno\s+nos\s+(dieron|brindaron)\b/i.test(t) || /\bsin\s+presupuesto\b/i.test(t) || /\b(sin\s+rango|no\s+tengo\s+rango)\b/i.test(t);
   if (explicitNoBudget) return true;
   const budgetCareLanguage = /\b(dentro\s+del\s+presupuesto|sin\s+perder.{0,40}presupuesto|al\s+presupuesto|bajo\s+presupuesto|mantener.{0,25}presupuesto|seg[uú]n\s+(el\s+)?presupuesto|cuidando.{0,25}presupuesto)\b/i.test(
@@ -1766,27 +1813,44 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
     }
   }
   if (!filledSet.has("Tipo de evento") && asked === "tipo_evento") {
-    const tipo = parseTipoEventoFromText(msg) ?? (isServiceRelatedMessage(msg) ? null : msg);
-    if (tipo && tipo.length >= 2 && !/@/.test(tipo)) {
-      captures.push({ label: "Tipo de evento", value: tipo });
-    } else if (isServiceRelatedMessage(msg)) {
-      const service = parsePrimaryService(msg);
-      const inv = parseInvitadosFromText(msg);
-      if (service) {
-        captures.push({ label: "Requerimientos o servicios", value: service });
-      }
-      if (inv) {
-        captures.push({ label: "N\xFAmero de invitados", value: inv });
-      }
-      const tipoHist = parseTipoEventoFromText(
-        history.filter((m) => m.role === "user" && typeof m.content === "string").map((m) => m.content).join(" ")
-      );
+    if (isUnusableTipoEventoReply(msg)) {
+      const histBlob = history.filter((m) => m.role === "user" && typeof m.content === "string").map((m) => m.content).join(" ");
+      const tipoHist = parseTipoEventoFromText(histBlob) || (/\bbanquete\b/i.test(histBlob) ? "evento con banquete" : /\bcatering\b/i.test(histBlob) ? "evento con catering" : null);
       if (tipoHist) {
         captures.push({ label: "Tipo de evento", value: tipoHist });
       }
+    } else {
+      const tipo = parseTipoEventoFromText(msg);
+      if (tipo) {
+        captures.push({ label: "Tipo de evento", value: tipo });
+      } else if (isServiceRelatedMessage(msg) || /\b(banquete|catering)\b/i.test(msg)) {
+        const services = parseServicesFromText(msg);
+        const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
+        const inv = parseInvitadosFromText(msg);
+        if (service) {
+          captures.push({ label: "Requerimientos o servicios", value: service });
+        }
+        if (inv) {
+          captures.push({ label: "N\xFAmero de invitados", value: inv });
+        }
+        if (/\bbanquete\b/i.test(msg)) {
+          captures.push({ label: "Tipo de evento", value: "evento con banquete" });
+        } else if (/\bcatering\b/i.test(msg)) {
+          captures.push({ label: "Tipo de evento", value: "evento con catering" });
+        } else {
+          const tipoHist = parseTipoEventoFromText(
+            history.filter((m) => m.role === "user" && typeof m.content === "string").map((m) => m.content).join(" ")
+          );
+          if (tipoHist) {
+            captures.push({ label: "Tipo de evento", value: tipoHist });
+          }
+        }
+      } else if (tipo == null && msg.length >= 2 && !/@/.test(msg) && !isUnusableTipoEventoReply(msg)) {
+        captures.push({ label: "Tipo de evento", value: msg });
+      }
     }
   }
-  if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
+  if (!filledSet.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && (asked === "requerimientos" || isServiceRelatedMessage(msg))) {
     const services = parseServicesFromText(msg);
     const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
     const dims = parseSpaceDimensions(msg);
@@ -1850,7 +1914,7 @@ function scanConversationForCaptures(history, currentMessage, filledSet) {
         pending.add("Tipo de evento");
       }
     }
-    if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && isServiceRelatedMessage(msg)) {
+    if (!pending.has("Requerimientos o servicios") && !clientAsksForRecommendations(msg) && !clientAsksCafeOrCateringChoice(msg) && isServiceRelatedMessage(msg)) {
       const services = parseServicesFromText(msg);
       const service = services.length > 0 ? services.slice(0, 6).join(", ") : parsePrimaryService(msg);
       const dims2 = parseSpaceDimensions(msg);
@@ -2249,6 +2313,17 @@ function tokenize(text) {
     "por",
     "con",
     "que",
+    // "san" en "San Francisco" / "usan" / "descansan" ensuciaba el score PDF (A14964).
+    "san",
+    "soy",
+    "llamo",
+    "nombre",
+    "hola",
+    "buenos",
+    "buenas",
+    "dias",
+    "tardes",
+    "noches",
     "precio",
     "precios",
     "cuanto",
@@ -2376,10 +2451,17 @@ function findInclusionSection(content, query, maxChars = 1100) {
   if (slice.length < 80) return null;
   return slice.slice(0, maxChars);
 }
+function queryHasServicePdfAnchor(query) {
+  const q = fold(query);
+  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canap|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillo|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
+    q
+  );
+}
 function buildLucyInfoInclusionReply(query, maxChars = 1100) {
   ensureCacheFromSeedSync();
   const docs = cacheState().docs;
   if (!docs.length || !query?.trim()) return null;
+  if (!queryHasServicePdfAnchor(query)) return null;
   const tokens = tokenize(query);
   if (!tokens.length) return null;
   const ranked = [...docs].map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x) => x.s >= 6).sort((a, b) => b.s - a.s);
@@ -16834,6 +16916,9 @@ ${link}`;
   } else if (/corporativo/.test(tipo) || /corporativ/.test(texts)) {
     options = "Para eventos corporativos manejamos coffee break, banquete o barra de alimentos.";
     linkHint = "coffee break";
+  } else if (clientAsksCafeOrCateringChoice(msg)) {
+    options = "Manejamos ambas: *Barra de Caf\xE9* (baristas y bebidas artesanales) y *catering de comida* (banquete, barras de alimentos, meseros). \xBFQu\xE9 te late m\xE1s para tu evento?";
+    linkHint = "banquete";
   } else {
     options = "Seg\xFAn el evento podemos ofrecerte banquete, taquiza o brunch \u2014 \xBFcu\xE1l te interesa?";
     return ensureCatalogWebLink(`${pickTransition(history)} ${options}`, "banquete");
@@ -18350,6 +18435,14 @@ ${ensureCatalogWebLink(levelDetail, hint)}`;
     mensaje = nameMismatchReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre distinto al del contacto \u2014 confirmar");
+  } else if (!cierreYaEnviado && lastAskedField === "nombre" && looksLikeNameAnswerMessage(currentMessage) && isFieldSatisfied("nombre", filledSet, extracted) && // Solo sin servicio previo (form/lead). Si ya hay sushi/etc., deferredKnownServiceOffer.
+  !isValidRequerimientosValue(extracted.requerimientos_evento)) {
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    mensaje = nextQ ? `${display ? `Perfecto, ${display}.` : "Perfecto."} ${nextQ}`.trim() : display ? `Perfecto, ${display}. \xBFEn qu\xE9 te puedo ayudar para tu evento?` : "Perfecto. \xBFEn qu\xE9 te puedo ayudar para tu evento?";
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: nombre capturado \u2014 embudo sin cat\xE1logo/PDF");
   } else if (deferredKnownServiceOffer) {
     mensaje = deferredKnownServiceOffer;
     appliedSalesReply = true;
@@ -18483,6 +18576,13 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
         collectUserTexts(presHistory, currentMessage),
         presHistory
       );
+    }
+    if (!isEmailSatisfied(filledSet, extracted)) {
+      const correoHist = collectUserTexts(presHistory, currentMessage).map((t) => filterClientEmail(parseCorreoFromText(t))).find(Boolean);
+      if (correoHist) {
+        extracted.correo = correoHist;
+        filledSet.add("Correo electr\xF3nico");
+      }
     }
     const pending = getNextPendingField(extracted, filledSet);
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
@@ -25255,6 +25355,97 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const infoIdx = prompt.search(/PRIORIDAD 1|INFORMACIÓN MANUAL PARA LUCY/i);
     const catalogIdx = prompt.indexOf("CATALOGO_TEST");
     assert.ok(infoIdx >= 0 && catalogIdx >= 0 && infoIdx < catalogIdx, "info manual debe ir antes del Sheet");
+  });
+  await test("96. A14964 Victor \u2014 nombre, tipo, caf\xE9/catering, presupuesto sin re-pedir correo", () => {
+    assert.ok(looksLikeNameAnswerMessage("Victor Ramos de Destiladora San Francisco"));
+    assert.ok(!looksLikeNameAnswerMessage("Es solo caf\xE9 o tienes catering de comida"));
+    assert.ok(clientAsksCafeOrCateringChoice("Es solo caf\xE9 o tienes catering de comida"));
+    assert.ok(isVagueFoodTerm("Es solo caf\xE9 o tienes catering de comida"));
+    assert.ok(!parseServicesFromText("Es solo caf\xE9 o tienes catering de comida").some(
+      (s) => /banquete\s*\/\s*taquiza/i.test(s)
+    ));
+    assert.ok(isUnusableTipoEventoReply("Lo acabo de mencionar"));
+    assert.ok(isUnusableTipoEventoReply("ya te dije"));
+    assert.ok(!isUnusableTipoEventoReply("evento corporativo"));
+    assert.ok(!isServiceLabelNotTipoEvento("evento con banquete"));
+    const banqueteCaps = captureContextualAnswer(
+      [{ role: "assistant", content: "\xBFQu\xE9 tipo de evento est\xE1s organizando?" }],
+      "Banquete para 100 personas, requiero servicio de catering completo, comida, loza y meseros",
+      /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"])
+    );
+    assert.ok(
+      banqueteCaps.some((c) => c.label === "Tipo de evento" && /banquete|catering/i.test(c.value)),
+      JSON.stringify(banqueteCaps)
+    );
+    assert.ok(
+      banqueteCaps.some((c) => c.label === "N\xFAmero de invitados" && c.value === "100"),
+      JSON.stringify(banqueteCaps)
+    );
+    const metaCaps = captureContextualAnswer(
+      [
+        { role: "user", content: "Banquete para 100 personas, catering completo" },
+        { role: "assistant", content: "\xBFQu\xE9 tipo de evento es?" }
+      ],
+      "Lo acabo de mencionar",
+      /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"])
+    );
+    assert.ok(
+      !metaCaps.some((c) => c.label === "Tipo de evento" && /acabo de mencionar/i.test(c.value)),
+      JSON.stringify(metaCaps)
+    );
+    assert.ok(
+      metaCaps.some((c) => c.label === "Tipo de evento" && /banquete|catering/i.test(c.value)),
+      JSON.stringify(metaCaps)
+    );
+    assert.ok(detectPresupuestoRefusal("Para eso te contacto"));
+    const cafeReply = buildVagueFoodOptionsReply(
+      emptyExtracted({ nombre: "Victor" }),
+      [],
+      "Es solo caf\xE9 o tienes catering de comida"
+    );
+    assert.ok(/barra de caf|catering/i.test(cafeReply), cafeReply.slice(0, 300));
+    assert.ok(!/banquete formal 3 tiempos/i.test(cafeReply), cafeReply.slice(0, 300));
+    const afterName = runGuards({
+      aiResponse: "Seg\xFAn el cat\xE1logo que ya tenemos de *Barra de Cafe bodasesor*: dump\u2026",
+      extracted: emptyExtracted({ nombre: "Victor Ramos" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Victor Ramos de Destiladora San Francisco",
+      history: [{ role: "assistant", content: "\xBFC\xF3mo te llamas?" }]
+    });
+    assert.ok(!/Según el catálogo que ya tenemos/i.test(afterName), afterName.slice(0, 400));
+    assert.ok(!/Barra de Caf/i.test(afterName), afterName.slice(0, 400));
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/direcci\xF3n del evento",
+      "Fecha y horario",
+      "N\xFAmero de invitados",
+      "Correo electr\xF3nico"
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Victor Ramos",
+      correo: "sanfrancisco.destiladora@gmail.com",
+      tipo_evento: "evento con banquete",
+      requerimientos_evento: "Banquete Formal, Meseros",
+      direccion_evento: "nuestras instalaciones",
+      fecha_horario: "Febrero",
+      num_invitados: 100
+    });
+    const afterBudget = runGuards({
+      aiResponse: "Mucho gusto, Victor. \xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Para eso te contacto",
+      history: [
+        { role: "user", content: "sanfrancisco.destiladora@gmail.com" },
+        { role: "assistant", content: "\xBFManejan alg\xFAn presupuesto estimado para el evento?" }
+      ]
+    });
+    assert.ok(!/correo|e-?mail/i.test(afterBudget), afterBudget.slice(0, 400));
+    assert.ok(/sin problema|por definir|equipo|propon/i.test(afterBudget), afterBudget.slice(0, 400));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

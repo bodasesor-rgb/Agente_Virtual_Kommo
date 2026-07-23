@@ -48,6 +48,9 @@ import {
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
   isCatalogLevelSelection,
+  isUnusableTipoEventoReply,
+  clientAsksCafeOrCateringChoice,
+  looksLikeNameAnswerMessage,
   extractCatalogNivelFromText,
   clientNeedsEmergencyContact,
   isRichQuoteBrief,
@@ -5607,6 +5610,106 @@ async function runAll(): Promise<void> {
     const infoIdx = prompt.search(/PRIORIDAD 1|INFORMACIÓN MANUAL PARA LUCY/i);
     const catalogIdx = prompt.indexOf("CATALOGO_TEST");
     assert.ok(infoIdx >= 0 && catalogIdx >= 0 && infoIdx < catalogIdx, "info manual debe ir antes del Sheet");
+  });
+
+  // ─── 96. A14964 Victor Ramos — nombre≠PDF, tipo meta, café/catering, presupuesto ───
+  await test("96. A14964 Victor — nombre, tipo, café/catering, presupuesto sin re-pedir correo", () => {
+    assert.ok(looksLikeNameAnswerMessage("Victor Ramos de Destiladora San Francisco"));
+    assert.ok(!looksLikeNameAnswerMessage("Es solo café o tienes catering de comida"));
+    assert.ok(clientAsksCafeOrCateringChoice("Es solo café o tienes catering de comida"));
+    assert.ok(isVagueFoodTerm("Es solo café o tienes catering de comida"));
+    assert.ok(!parseServicesFromText("Es solo café o tienes catering de comida").some((s) =>
+      /banquete\s*\/\s*taquiza/i.test(s)
+    ));
+
+    assert.ok(isUnusableTipoEventoReply("Lo acabo de mencionar"));
+    assert.ok(isUnusableTipoEventoReply("ya te dije"));
+    assert.ok(!isUnusableTipoEventoReply("evento corporativo"));
+    assert.ok(!isServiceLabelNotTipoEvento("evento con banquete"));
+
+    const banqueteCaps = captureContextualAnswer(
+      [{ role: "assistant", content: "¿Qué tipo de evento estás organizando?" }],
+      "Banquete para 100 personas, requiero servicio de catering completo, comida, loza y meseros",
+      new Set(["Nombre del cliente", "Correo electrónico"])
+    );
+    assert.ok(
+      banqueteCaps.some((c) => c.label === "Tipo de evento" && /banquete|catering/i.test(c.value)),
+      JSON.stringify(banqueteCaps)
+    );
+    assert.ok(
+      banqueteCaps.some((c) => c.label === "Número de invitados" && c.value === "100"),
+      JSON.stringify(banqueteCaps)
+    );
+
+    const metaCaps = captureContextualAnswer(
+      [
+        { role: "user", content: "Banquete para 100 personas, catering completo" },
+        { role: "assistant", content: "¿Qué tipo de evento es?" },
+      ],
+      "Lo acabo de mencionar",
+      new Set(["Nombre del cliente", "Correo electrónico"])
+    );
+    assert.ok(
+      !metaCaps.some((c) => c.label === "Tipo de evento" && /acabo de mencionar/i.test(c.value)),
+      JSON.stringify(metaCaps)
+    );
+    assert.ok(
+      metaCaps.some((c) => c.label === "Tipo de evento" && /banquete|catering/i.test(c.value)),
+      JSON.stringify(metaCaps)
+    );
+
+    assert.ok(detectPresupuestoRefusal("Para eso te contacto"));
+
+    const cafeReply = buildVagueFoodOptionsReply(
+      emptyExtracted({ nombre: "Victor" }),
+      [],
+      "Es solo café o tienes catering de comida"
+    );
+    assert.ok(/barra de caf|catering/i.test(cafeReply), cafeReply.slice(0, 300));
+    assert.ok(!/banquete formal 3 tiempos/i.test(cafeReply), cafeReply.slice(0, 300));
+
+    const afterName = runGuards({
+      aiResponse: "Según el catálogo que ya tenemos de *Barra de Cafe bodasesor*: dump…",
+      extracted: emptyExtracted({ nombre: "Victor Ramos" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Victor Ramos de Destiladora San Francisco",
+      history: [{ role: "assistant", content: "¿Cómo te llamas?" }],
+    });
+    assert.ok(!/Según el catálogo que ya tenemos/i.test(afterName), afterName.slice(0, 400));
+    assert.ok(!/Barra de Caf/i.test(afterName), afterName.slice(0, 400));
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+      "Correo electrónico",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Victor Ramos",
+      correo: "sanfrancisco.destiladora@gmail.com",
+      tipo_evento: "evento con banquete",
+      requerimientos_evento: "Banquete Formal, Meseros",
+      direccion_evento: "nuestras instalaciones",
+      fecha_horario: "Febrero",
+      num_invitados: 100,
+    });
+    const afterBudget = runGuards({
+      aiResponse: "Mucho gusto, Victor. ¿A qué correo te mando la información?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Para eso te contacto",
+      history: [
+        { role: "user", content: "sanfrancisco.destiladora@gmail.com" },
+        { role: "assistant", content: "¿Manejan algún presupuesto estimado para el evento?" },
+      ],
+    });
+    assert.ok(!/correo|e-?mail/i.test(afterBudget), afterBudget.slice(0, 400));
+    assert.ok(/sin problema|por definir|equipo|propon/i.test(afterBudget), afterBudget.slice(0, 400));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
