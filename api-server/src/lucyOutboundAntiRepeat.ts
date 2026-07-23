@@ -347,6 +347,11 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     /\binformaci[oó]n|\binfo\b|\bdame\s+(info|detalle|datos)|\bme\s+(pueden|pueden)\s+dar|\bcu[eé]ntenme|\bexpl[ií]ca/i.test(
       input.currentMessage ?? ""
     );
+  // A14962: clarificación de servicio (robots LED / batucada) no es "dato pendiente".
+  const clientClarifyingService =
+    /\brobots?\s*leds?\b|\bbatucada\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
+      input.currentMessage ?? ""
+    );
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
   const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
   // Catálogo "de detalle" (inclusiones/niveles/show) — proteger salvo reenvío idéntico.
@@ -440,7 +445,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   // 5) Misma pregunta de embudo (campo semántico) aunque el wording cambie.
   // Ej: "¿qué tipo de evento estás planeando?" → "…organizando?"
   // A14943: si el cliente insiste en precios/paquetes, NUNCA decir "Sigo aquí".
-  if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe") && !clientAskedPrice && !clientAskedInclusion) {
+  if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe") && !clientAskedPrice && !clientAskedInclusion && !clientClarifyingService) {
     const nowFields = detectAskedFields(mensaje);
     const prevField =
       (inferLucyAskedField(lastPrev) as PendingField | null) ||
@@ -481,7 +486,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   // 6) Casi idéntico a una respuesta reciente del asistente.
   const nearDupThreshold =
     questionLines(mensaje).length > 0 && mensaje.length < 220 ? 0.55 : 0.62;
-  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && previous.length > 0) {
+  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientClarifyingService && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p) => lucyTextOverlapRatio(mensaje, p)));
     if (maxOverlap >= nearDupThreshold) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);

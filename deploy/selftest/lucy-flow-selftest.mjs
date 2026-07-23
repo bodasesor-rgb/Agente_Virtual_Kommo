@@ -448,6 +448,9 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
+  // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
+  ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i],
+  ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
   ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
   ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
   ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
@@ -848,12 +851,18 @@ function clientMentionsItalianTheme(message) {
 function clientMentionsEntertainment(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /\bshow\b/i.test(t) || /\bgrupo\s+vers[aá]til\b/i.test(t) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(show|maestro|animaci)/i.test(t);
+  return /\bshow\b/i.test(t) || /\bgrupo\s+vers[aá]til\b/i.test(t) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(show|maestro|animaci)/i.test(t) || // A14962 Vane: batucada / robots LED / ambientación de show
+  /\bbatucada\b/i.test(t) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|show|robots?|leds?)\b/i.test(t);
+}
+function clientMentionsLedRobotsOrBatucada(message) {
+  if (!message?.trim()) return false;
+  return /\bbatucada\b/i.test(message) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(message) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\bbatucada\b/i.test(message);
 }
 function clientDeclinesMoreServices(message) {
   if (!message?.trim()) return false;
   const t = message.trim().toLowerCase();
-  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolo\s+ese\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n[a]?\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bno[.\s,¡!]+gracias\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bes\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t) || /\bno\s+me\s+interesa\b/i.test(t) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) || /\bpor\s+ahora\s+no\b/i.test(t);
+  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolo\s+ese\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n[a]?\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bno[.\s,¡!]+gracias\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bes\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t) || /\bno\s+me\s+interesa\b/i.test(t) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) || /\bpor\s+ahora\s+no\b/i.test(t) || // A14962: "Robots leds solo quiero"
+  /\bsolo\s+quiero\b/i.test(t) || /\bquiero\s+solo\b/i.test(t);
 }
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
@@ -16673,21 +16682,42 @@ ${nextQ}`.trim();
 }
 function buildEntertainmentSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
-  const eventLabel = /corporativo|empresa/.test(tipo) || /empresa|corporativo/i.test(currentMessage ?? "") ? "tu evento corporativo" : tipo ? `tu ${tipo}` : "tu evento";
+  const msg = currentMessage ?? "";
+  const eventLabel = /corporativo|empresa|convenci[oó]n|convencion/.test(tipo) || /empresa|corporativo|convenci[oó]n/i.test(msg) ? "tu evento corporativo" : tipo ? `tu ${tipo}` : "tu evento";
   const wantsMc = /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(
-    currentMessage ?? ""
+    msg
   );
-  const services = parseServicesFromText(currentMessage ?? "");
-  const label = (services.length ? services.join(", ") : null) || (wantsMc ? "Maestro de ceremonias y show" : "Animaci\xF3n / Hora loca y shows");
+  const wantsRobots = /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(msg);
+  const wantsBatucada = /\bbatucada\b/i.test(msg);
+  const services = parseServicesFromText(msg);
+  const label = (services.length ? services.join(", ") : null) || (wantsRobots ? "Robots LED" : null) || (wantsBatucada ? "Batucada" : null) || (wantsMc ? "Maestro de ceremonias y show" : "Animaci\xF3n / Hora loca y shows");
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
     if (merged) extracted.requerimientos_evento = merged;
   }
-  const intro = wantsMc ? `S\xED, para ${eventLabel} tambi\xE9n manejamos *maestro de ceremonias*, shows en vivo, animaci\xF3n y hora loca.` : `Para ${eventLabel}, manejamos shows en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser y m\xE1s opciones de entretenimiento.`;
-  const ideas = "Lo m\xE1s pedido es un show de grupo vers\xE1til o animaci\xF3n tipo hora loca, seg\xFAn el estilo que busquen.";
+  let intro;
+  let ideas;
+  if (wantsRobots && wantsBatucada) {
+    intro = `Perfecto \u2014 anoto *robots LED* para ambientar la *batucada* en ${eventLabel}.`;
+    ideas = "Eso va por entretenimiento / activaci\xF3n (no es banquete ni catering). Nuestro equipo arma la propuesta seg\xFAn duraci\xF3n, cantidad de robots y el espacio.";
+  } else if (wantsRobots) {
+    intro = `Perfecto \u2014 anoto *robots LED* para ${eventLabel}.`;
+    ideas = "Es un servicio de entretenimiento/activaci\xF3n: el equipo confirma disponibilidad, duraci\xF3n y montaje. No tiene tarifa fija en lista como el catering.";
+  } else if (wantsBatucada) {
+    intro = `Claro \u2014 podemos ayudarte a *ambientar una batucada* en ${eventLabel}.`;
+    ideas = "Para eso solemos sumar activaciones (robots LED, show, iluminaci\xF3n o animaci\xF3n) seg\xFAn el vibe que busquen. No confundir con banquete/catering.";
+  } else if (wantsMc) {
+    intro = `S\xED, para ${eventLabel} tambi\xE9n manejamos *maestro de ceremonias*, shows en vivo, animaci\xF3n y hora loca.`;
+    ideas = "Lo m\xE1s pedido es un show de grupo vers\xE1til o animaci\xF3n tipo hora loca, seg\xFAn el estilo que busquen.";
+  } else {
+    intro = `Para ${eventLabel}, manejamos shows en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser y m\xE1s opciones de entretenimiento.`;
+    ideas = "Lo m\xE1s pedido es un show de grupo vers\xE1til o animaci\xF3n tipo hora loca, seg\xFAn el estilo que busquen.";
+  }
   const catalog = buildPackageCatalogOfferBlock();
-  let body = `${intro} ${ideas}
+  let body = wantsRobots || wantsBatucada ? `${intro} ${ideas}
+
+${catalog}` : `${intro} ${ideas}
 
 ${catalog}`;
   if (filledSet && ctx) {
@@ -16815,6 +16845,10 @@ ${link}`;
   );
 }
 function buildFoodSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
+  const blob = `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`;
+  if (clientMentionsLedRobotsOrBatucada(currentMessage) || clientMentionsLedRobotsOrBatucada(extracted.requerimientos_evento ?? "") || clientMentionsEntertainment(currentMessage) && !/\b(banquete|taquiza|coffee|brunch|catering|barra\s+de\s+alimentos)\b/i.test(blob)) {
+    return null;
+  }
   if (isVagueFoodTerm(currentMessage)) {
     return buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
   }
@@ -18597,7 +18631,10 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
       );
     }
     log?.info({ entityId }, "GUARD: cliente no quiere m\xE1s servicios \u2014 avanzar o cierre");
-  } else if (allowSalesReplyOverride && (clientMentionsEntertainment(currentMessage) || justAnsweredReq && clientMentionsEntertainment(currentMessage))) {
+  } else if (allowSalesReplyOverride && (clientMentionsEntertainment(currentMessage) || clientMentionsLedRobotsOrBatucada(currentMessage) || justAnsweredReq && (clientMentionsEntertainment(currentMessage) || clientMentionsLedRobotsOrBatucada(currentMessage)) || // Hilo ya habló de batucada/robots y el cliente insiste (A14962).
+  clientMentionsLedRobotsOrBatucada(
+    collectUserTexts(presHistory, currentMessage).join(" ")
+  ) && /\b(robots?|leds?|batucada|solo\s+quiero|quiero)\b/i.test(currentMessage ?? ""))) {
     mensaje = buildEntertainmentSalesReply(
       extracted,
       history,
@@ -19492,6 +19529,20 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
       log?.info({ entityId, lista }, "GUARD: enumer\xF3 servicios vagos");
     }
   }
+  {
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    if (clientMentionsLedRobotsOrBatucada(userBlob) && /banquete\s+formal|solo\s+alimentos.*\$\s*450|tradicional.*\$\s*830/i.test(mensaje) && !/\bbanquete\b/i.test(userBlob)) {
+      mensaje = buildEntertainmentSalesReply(
+        extracted,
+        history,
+        entityId,
+        currentMessage || userBlob,
+        filledSet,
+        ctx
+      );
+      log?.info({ entityId }, "GUARD: A14962 \u2014 reemplaz\xF3 banquete por entretenimiento robots/batucada");
+    }
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripGammaLinks(text) {
@@ -19717,6 +19768,9 @@ function applyLucyGlobalAntiRepetition(input) {
   const clientAskedServiceInfo = /\binformaci[oó]n|\binfo\b|\bdame\s+(info|detalle|datos)|\bme\s+(pueden|pueden)\s+dar|\bcu[eé]ntenme|\bexpl[ií]ca/i.test(
     input.currentMessage ?? ""
   );
+  const clientClarifyingService = /\brobots?\s*leds?\b|\bbatucada\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
+    input.currentMessage ?? ""
+  );
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
   const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
   const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
@@ -19771,7 +19825,7 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("catalog-resend-dedupe");
     }
   }
-  if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe") && !clientAskedPrice && !clientAskedInclusion) {
+  if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe") && !clientAskedPrice && !clientAskedInclusion && !clientClarifyingService) {
     const nowFields = detectAskedFields(mensaje);
     const prevField = inferLucyAskedField(lastPrev) || detectAskedFields(lastPrev)[0] || null;
     const repeatedField = prevField && nowFields.includes(prevField) && !isFieldSatisfied(prevField, filled, extracted) ? prevField : null;
@@ -19798,7 +19852,7 @@ function applyLucyGlobalAntiRepetition(input) {
     }
   }
   const nearDupThreshold = questionLines(mensaje).length > 0 && mensaje.length < 220 ? 0.55 : 0.62;
-  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && previous.length > 0) {
+  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientClarifyingService && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p) => lucyTextOverlapRatio(mensaje, p)));
     if (maxOverlap >= nearDupThreshold) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);
@@ -19916,6 +19970,8 @@ banquete"), NO des el men\xFA de categor\xEDas: ve directo a ese servicio.
   asumas "Comida Corrida".
 - Cuando el nombre del EVENTO es un servicio (pozolada, taquiza, paella), ofrece ESE.
 - Servicio fuera de cat\xE1logo \u2192 ac\xE9ptalo, an\xF3talo y avanza. Nunca "no lo tenemos".
+- Robots LED, batucada, ambientaci\xF3n de show = ENTRETENIMIENTO/activaci\xF3n.
+  NUNCA respondas con precios de banquete/catering si el cliente pidi\xF3 eso.
 - Libre para interpretar; ESTRICTA con los datos: solo servicios que existen.
   Inclusiones/detalle = PDFs del panel Aprendizaje (prioridad). Precios = Sheet
   (si PDF y Sheet chocan en $, gana el Sheet). Si no hay dato \u2192 cat\xE1logo web o

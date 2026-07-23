@@ -73,6 +73,9 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Menú staff", /\bmen[uú]\s+(para\s+)?staff\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
+  // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
+  ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i],
+  ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
   ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
   ["Iluminación", /\biluminaci[oó]n\b/i],
   ["Decoración", /\bdecoraci[oó]n\b/i],
@@ -678,7 +681,21 @@ export function clientMentionsEntertainment(message?: string): boolean {
     /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) ||
     /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) ||
     /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t) ||
-    /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(show|maestro|animaci)/i.test(t)
+    /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(show|maestro|animaci)/i.test(t) ||
+    // A14962 Vane: batucada / robots LED / ambientación de show
+    /\bbatucada\b/i.test(t) ||
+    /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t) ||
+    /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|show|robots?|leds?)\b/i.test(t)
+  );
+}
+
+/** Robots LED / batucada u otro show puntual (sin catering). */
+export function clientMentionsLedRobotsOrBatucada(message?: string): boolean {
+  if (!message?.trim()) return false;
+  return (
+    /\bbatucada\b/i.test(message) ||
+    /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(message) ||
+    /\bambienta(?:r|ci[oó]n)\b.{0,50}\bbatucada\b/i.test(message)
   );
 }
 
@@ -706,7 +723,10 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
     /\bno\s+me\s+interesa\b/i.test(t) ||
     /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) ||
     /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) ||
-    /\bpor\s+ahora\s+no\b/i.test(t)
+    /\bpor\s+ahora\s+no\b/i.test(t) ||
+    // A14962: "Robots leds solo quiero"
+    /\bsolo\s+quiero\b/i.test(t) ||
+    /\bquiero\s+solo\b/i.test(t)
   );
 }
 

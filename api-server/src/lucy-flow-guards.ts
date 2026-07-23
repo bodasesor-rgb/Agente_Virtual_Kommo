@@ -90,6 +90,7 @@ import {
   sanitizeExtractedAmbiguousNumbers,
   clientDeclinesMoreServices,
   clientMentionsEntertainment,
+  clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
   clientMentionsCarpas,
   clientAsksServiceInfo,
@@ -798,19 +799,25 @@ function buildEntertainmentSalesReply(
   ctx?: NaturalQuestionContext
 ): string {
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  const msg = currentMessage ?? "";
   const eventLabel =
-    /corporativo|empresa/.test(tipo) || /empresa|corporativo/i.test(currentMessage ?? "")
+    /corporativo|empresa|convenci[oó]n|convencion/.test(tipo) ||
+    /empresa|corporativo|convenci[oó]n/i.test(msg)
       ? "tu evento corporativo"
       : tipo
         ? `tu ${tipo}`
         : "tu evento";
 
   const wantsMc = /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(
-    currentMessage ?? ""
+    msg
   );
-  const services = parseServicesFromText(currentMessage ?? "");
+  const wantsRobots = /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(msg);
+  const wantsBatucada = /\bbatucada\b/i.test(msg);
+  const services = parseServicesFromText(msg);
   const label =
     (services.length ? services.join(", ") : null) ||
+    (wantsRobots ? "Robots LED" : null) ||
+    (wantsBatucada ? "Batucada" : null) ||
     (wantsMc ? "Maestro de ceremonias y show" : "Animación / Hora loca y shows");
 
   if (filledSet) {
@@ -819,18 +826,40 @@ function buildEntertainmentSalesReply(
     if (merged) extracted.requerimientos_evento = merged;
   }
 
-  const intro = wantsMc
-    ? `Sí, para ${eventLabel} también manejamos *maestro de ceremonias*, shows en vivo, animación y hora loca.`
-    : `Para ${eventLabel}, manejamos shows en vivo, animación, hora loca, happening, espejos, láser y más opciones de entretenimiento.`;
-  const ideas =
-    "Lo más pedido es un show de grupo versátil o animación tipo hora loca, según el estilo que busquen.";
+  let intro: string;
+  let ideas: string;
+  if (wantsRobots && wantsBatucada) {
+    intro = `Perfecto — anoto *robots LED* para ambientar la *batucada* en ${eventLabel}.`;
+    ideas =
+      "Eso va por entretenimiento / activación (no es banquete ni catering). Nuestro equipo arma la propuesta según duración, cantidad de robots y el espacio.";
+  } else if (wantsRobots) {
+    intro = `Perfecto — anoto *robots LED* para ${eventLabel}.`;
+    ideas =
+      "Es un servicio de entretenimiento/activación: el equipo confirma disponibilidad, duración y montaje. No tiene tarifa fija en lista como el catering.";
+  } else if (wantsBatucada) {
+    intro = `Claro — podemos ayudarte a *ambientar una batucada* en ${eventLabel}.`;
+    ideas =
+      "Para eso solemos sumar activaciones (robots LED, show, iluminación o animación) según el vibe que busquen. No confundir con banquete/catering.";
+  } else if (wantsMc) {
+    intro = `Sí, para ${eventLabel} también manejamos *maestro de ceremonias*, shows en vivo, animación y hora loca.`;
+    ideas =
+      "Lo más pedido es un show de grupo versátil o animación tipo hora loca, según el estilo que busquen.";
+  } else {
+    intro = `Para ${eventLabel}, manejamos shows en vivo, animación, hora loca, happening, espejos, láser y más opciones de entretenimiento.`;
+    ideas =
+      "Lo más pedido es un show de grupo versátil o animación tipo hora loca, según el estilo que busquen.";
+  }
 
   // Entretenimiento no tiene precios en Sheet: mandar catálogo general (A14920).
   const catalog = buildPackageCatalogOfferBlock();
-  let body = `${intro} ${ideas}\n\n${catalog}`;
+  let body =
+    wantsRobots || wantsBatucada
+      ? `${intro} ${ideas}\n\n${catalog}`
+      : `${intro} ${ideas}\n\n${catalog}`;
 
   if (filledSet && ctx) {
     const pending = getNextPendingField(extracted, filledSet);
+    // Si ya dieron correo/nombre/etc., pedir el siguiente dato útil (no repreguntar servicios).
     if (pending && pending !== "requerimientos") {
       const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
       if (nextQ && !body.includes(nextQ)) body = `${body}\n\n${nextQ}`;
@@ -1021,6 +1050,17 @@ function buildFoodSalesReply(
   filledSet?: Set<string>,
   ctx?: NaturalQuestionContext
 ): string | null {
+  // A14962: batucada / robots LED ≠ catering. No volcar banquete.
+  const blob = `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`;
+  if (
+    clientMentionsLedRobotsOrBatucada(currentMessage) ||
+    clientMentionsLedRobotsOrBatucada(extracted.requerimientos_evento ?? "") ||
+    (clientMentionsEntertainment(currentMessage) &&
+      !/\b(banquete|taquiza|coffee|brunch|catering|barra\s+de\s+alimentos)\b/i.test(blob))
+  ) {
+    return null;
+  }
+
   if (isVagueFoodTerm(currentMessage)) {
     return buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
   }
@@ -3910,7 +3950,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     allowSalesReplyOverride &&
     (clientMentionsEntertainment(currentMessage) ||
-      (justAnsweredReq && clientMentionsEntertainment(currentMessage)))
+      clientMentionsLedRobotsOrBatucada(currentMessage) ||
+      (justAnsweredReq &&
+        (clientMentionsEntertainment(currentMessage) ||
+          clientMentionsLedRobotsOrBatucada(currentMessage))) ||
+      // Hilo ya habló de batucada/robots y el cliente insiste (A14962).
+      (clientMentionsLedRobotsOrBatucada(
+        collectUserTexts(presHistory, currentMessage).join(" ")
+      ) &&
+        /\b(robots?|leds?|batucada|solo\s+quiero|quiero)\b/i.test(currentMessage ?? "")))
   ) {
     mensaje = buildEntertainmentSalesReply(
       extracted,
@@ -5175,6 +5223,26 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         `$1 servicios (${lista})`
       );
       log?.info({ entityId, lista }, "GUARD: enumeró servicios vagos");
+    }
+  }
+
+  // A14962: si el hilo es robots LED / batucada, NUNCA dejar precios de banquete.
+  {
+    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    if (
+      clientMentionsLedRobotsOrBatucada(userBlob) &&
+      /banquete\s+formal|solo\s+alimentos.*\$\s*450|tradicional.*\$\s*830/i.test(mensaje) &&
+      !/\bbanquete\b/i.test(userBlob)
+    ) {
+      mensaje = buildEntertainmentSalesReply(
+        extracted,
+        history,
+        entityId,
+        currentMessage || userBlob,
+        filledSet,
+        ctx
+      );
+      log?.info({ entityId }, "GUARD: A14962 — reemplazó banquete por entretenimiento robots/batucada");
     }
   }
 
