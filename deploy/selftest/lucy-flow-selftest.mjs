@@ -2392,6 +2392,23 @@ ${section}
   }
   return null;
 }
+function collapseDuplicatedInclusionReply(text) {
+  if (!text?.trim()) return text;
+  const close = "\xBFTe late este nivel o quieres que te detalle otro?";
+  const firstClose = text.indexOf(close);
+  if (firstClose >= 0) {
+    const head = text.slice(0, firstClose + close.length).trim();
+    const rest = text.slice(firstClose + close.length).trim();
+    if (rest && (/Según el catálogo que ya tenemos/i.test(rest) || /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d/i.test(rest))) {
+      return head;
+    }
+  }
+  const parts = text.split(/(?=Según el catálogo que ya tenemos de \*)/i).filter((p) => p.trim());
+  if (parts.length > 1 && /Según el catálogo que ya tenemos/i.test(parts[0])) {
+    return parts[0].trim();
+  }
+  return text.trim();
+}
 function ensureCacheFromSeedSync() {
   if (cacheState().docs.length > 0) return;
   try {
@@ -5637,9 +5654,11 @@ function buildEventOfferCatalogHint(tipoEvento) {
 function injectCatalogInclusionIfAsked(clientMessage, aiResponse, serviceHint) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
   const fromPdf = buildLucyInfoInclusionReply(clientMessage);
-  if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+  if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) {
+    return collapseDuplicatedInclusionReply(fromPdf);
+  }
   const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
-  if (fromCatalog) return fromCatalog;
+  if (fromCatalog) return collapseDuplicatedInclusionReply(fromCatalog);
   return aiResponse;
 }
 function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
@@ -17882,7 +17901,7 @@ ${nextQ}` : ack;
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
       log?.info({ entityId }, "GUARD: inclusiones \u2014 PDF aprendido (return temprano)");
       return normalizeAdvisorReferences(
-        pdfOnly,
+        collapseDuplicatedInclusionReply(pdfOnly),
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }

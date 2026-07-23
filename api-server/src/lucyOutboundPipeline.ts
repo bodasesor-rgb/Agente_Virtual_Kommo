@@ -19,6 +19,8 @@ import {
   isServiceRelatedMessage,
 } from "./conversation-understanding.js";
 import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
+import { collapseDuplicatedInclusionReply } from "./services/lucyInfoPriceCache.js";
+import { clientAsksInclusion } from "./services/catalogService.js";
 
 export interface FinalizeLucyOutboundInput {
   mensaje: string;
@@ -35,6 +37,10 @@ export interface FinalizeLucyOutboundInput {
 
 export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInput): Promise<string> {
   let mensaje = input.mensaje;
+
+  if (clientAsksInclusion(input.currentMessage) || /Según el catálogo que ya tenemos/i.test(mensaje)) {
+    mensaje = collapseDuplicatedInclusionReply(mensaje);
+  }
 
   mensaje = await maybeRefinarMensajeCierre(input.openai, mensaje, {
     readyForClosing: input.readyForClosing,

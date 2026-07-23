@@ -47,6 +47,7 @@ import {
 import {
   buildLucyInfoInclusionReply,
   buildLucyInfoLearnedPriceReply,
+  collapseDuplicatedInclusionReply,
 } from "./services/lucyInfoPriceCache.js";
 import {
   buildCatalogPriceAnswer,
@@ -3024,7 +3025,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
       log?.info({ entityId }, "GUARD: inclusiones — PDF aprendido (return temprano)");
       return normalizeAdvisorReferences(
-        pdfOnly,
+        collapseDuplicatedInclusionReply(pdfOnly),
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }

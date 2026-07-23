@@ -26,7 +26,7 @@ import {
   buildCatalogWebDetailHint,
   getCatalogWebUrlForQuery,
 } from "./catalogWebKnowledge.js";
-import { buildLucyInfoInclusionReply } from "./lucyInfoPriceCache.js";
+import { buildLucyInfoInclusionReply, collapseDuplicatedInclusionReply } from "./lucyInfoPriceCache.js";
 import {
   clientMentionsCatering,
   clientAsksServiceInfo,
@@ -1886,9 +1886,11 @@ export function injectCatalogInclusionIfAsked(
 ): string {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
   const fromPdf = buildLucyInfoInclusionReply(clientMessage);
-  if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+  if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) {
+    return collapseDuplicatedInclusionReply(fromPdf);
+  }
   const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
-  if (fromCatalog) return fromCatalog;
+  if (fromCatalog) return collapseDuplicatedInclusionReply(fromCatalog);
   return aiResponse;
 }
 

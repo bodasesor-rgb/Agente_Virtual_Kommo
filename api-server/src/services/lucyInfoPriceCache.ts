@@ -309,6 +309,30 @@ export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): str
   return null;
 }
 
+/** Evita pegar dos veces el mismo bloque de inclusiones PDF (inject + guard / GPT). */
+export function collapseDuplicatedInclusionReply(text: string): string {
+  if (!text?.trim()) return text;
+  const close = "¿Te late este nivel o quieres que te detalle otro?";
+  const firstClose = text.indexOf(close);
+  if (firstClose >= 0) {
+    const head = text.slice(0, firstClose + close.length).trim();
+    const rest = text.slice(firstClose + close.length).trim();
+    if (
+      rest &&
+      (/Según el catálogo que ya tenemos/i.test(rest) ||
+        /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d/i.test(rest))
+    ) {
+      return head;
+    }
+  }
+  // Dos bloques con el mismo encabezado.
+  const parts = text.split(/(?=Según el catálogo que ya tenemos de \*)/i).filter((p) => p.trim());
+  if (parts.length > 1 && /Según el catálogo que ya tenemos/i.test(parts[0]!)) {
+    return parts[0]!.trim();
+  }
+  return text.trim();
+}
+
 /** Si la caché está vacía (carrera al arranque), carga el seed JSON de forma síncrona. */
 function ensureCacheFromSeedSync(): void {
   if (cacheState().docs.length > 0) return;
