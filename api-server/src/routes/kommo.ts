@@ -2042,10 +2042,10 @@ router.get("/kommo/status", async (_req, res) => {
     return;
   }
 
+  const headers = { Authorization: `Bearer ${accessToken}` };
+
   try {
-    const r = await fetch(`https://${subdomain}.kommo.com/api/v4/account`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
+    const r = await fetch(`https://${subdomain}.kommo.com/api/v4/account`, { headers });
     const text = await r.text();
     let account: { name?: string; subdomain?: string } | null = null;
     try {
@@ -2066,12 +2066,72 @@ router.get("/kommo/status", async (_req, res) => {
       return;
     }
 
+    // Fuentes de chat (Facebook/Instagram/WhatsApp…) + origins recientes en talks.
+    type SourceRow = {
+      id?: number;
+      name?: string;
+      origin_code?: string | null;
+      external_id?: string | null;
+      default?: boolean | null;
+    };
+    type TalkRow = { origin?: string; talk_id?: number; id?: number; chat_id?: string };
+
+    const [sourcesRes, talksRes] = await Promise.all([
+      fetch(`https://${subdomain}.kommo.com/api/v4/sources`, { headers }),
+      fetch(`https://${subdomain}.kommo.com/api/v4/talks?limit=50`, { headers }),
+    ]);
+
+    let sources: SourceRow[] = [];
+    let sourcesError: string | null = null;
+    if (sourcesRes.ok) {
+      const sj = (await sourcesRes.json()) as { _embedded?: { sources?: SourceRow[] } };
+      sources = sj._embedded?.sources ?? [];
+    } else {
+      sourcesError = `HTTP ${sourcesRes.status}`;
+    }
+
+    const originCounts: Record<string, number> = {};
+    let talksError: string | null = null;
+    if (talksRes.ok) {
+      const tj = (await talksRes.json()) as { _embedded?: { talks?: TalkRow[] } };
+      for (const t of tj._embedded?.talks ?? []) {
+        const origin = (t.origin || "unknown").toLowerCase();
+        originCounts[origin] = (originCounts[origin] ?? 0) + 1;
+      }
+    } else {
+      talksError = `HTTP ${talksRes.status}`;
+    }
+
+    const sourceSummaries = sources.map((s) => ({
+      id: s.id ?? null,
+      name: s.name ?? null,
+      origin_code: s.origin_code ?? null,
+      external_id: s.external_id ?? null,
+      default: s.default ?? null,
+    }));
+
+    const blob = JSON.stringify(sourceSummaries).toLowerCase();
+    const originsBlob = Object.keys(originCounts).join(" ");
+    const hasFacebook =
+      /facebook|messenger|\bfb\b/.test(blob) || /facebook|messenger/.test(originsBlob);
+    const hasInstagram = /instagram|\big\b/.test(blob) || /instagram/.test(originsBlob);
+    const hasWhatsapp = /whats?app|waba/.test(blob) || /whats?app|waba/.test(originsBlob);
+
     res.json({
       ok: true,
       kommo_configured: true,
       kommo_subdomain: subdomain,
       kommo_api: "connected",
       account_name: account?.name ?? null,
+      channels: {
+        facebook: hasFacebook,
+        instagram: hasInstagram,
+        whatsapp: hasWhatsapp,
+      },
+      sources: sourceSummaries,
+      sources_error: sourcesError,
+      recent_talk_origins: originCounts,
+      talks_error: talksError,
     });
   } catch (err) {
     res.status(502).json({
