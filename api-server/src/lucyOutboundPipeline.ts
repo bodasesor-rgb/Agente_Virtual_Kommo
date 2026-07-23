@@ -38,10 +38,6 @@ export interface FinalizeLucyOutboundInput {
 export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInput): Promise<string> {
   let mensaje = input.mensaje;
 
-  if (clientAsksInclusion(input.currentMessage) || /Según el catálogo que ya tenemos/i.test(mensaje)) {
-    mensaje = collapseDuplicatedInclusionReply(mensaje);
-  }
-
   mensaje = await maybeRefinarMensajeCierre(input.openai, mensaje, {
     readyForClosing: input.readyForClosing,
     cierreYaEnviado: input.cierreYaEnviado,
@@ -113,6 +109,15 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       { entityId: input.entityId },
       "GUARD: pregunta de servicio — ack forzado post anti-repeat"
     );
+  }
+
+  // Dedupe inclusiones PDF al final (inject+guard a veces pegan el bloque 2 veces).
+  if (
+    clientAsksInclusion(input.currentMessage) ||
+    /Según el catálogo que ya tenemos/i.test(mensaje) ||
+    /¿Te late este nivel o quieres que te detalle otro\?/i.test(mensaje)
+  ) {
+    mensaje = collapseDuplicatedInclusionReply(mensaje);
   }
 
   if (!mensaje.trim()) {

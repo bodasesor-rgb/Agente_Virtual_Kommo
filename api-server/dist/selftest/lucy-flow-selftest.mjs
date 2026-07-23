@@ -2394,13 +2394,15 @@ ${section}
 }
 function collapseDuplicatedInclusionReply(text) {
   if (!text?.trim()) return text;
-  const close = "\xBFTe late este nivel o quieres que te detalle otro?";
-  const firstClose = text.indexOf(close);
-  if (firstClose >= 0) {
-    const head = text.slice(0, firstClose + close.length).trim();
-    const rest = text.slice(firstClose + close.length).trim();
-    if (rest && (/Según el catálogo que ya tenemos/i.test(rest) || /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d/i.test(rest))) {
-      return head;
+  const closeRe = /¿Te late este nivel o quieres que te detalle otro\?/i;
+  const m = closeRe.exec(text);
+  if (m && m.index != null) {
+    const head = text.slice(0, m.index + m[0].length).trim();
+    const rest = text.slice(m.index + m[0].length).trim();
+    if (!rest || /Según el catálogo que ya tenemos/i.test(rest) || /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d|¿Te late este nivel/i.test(
+      rest
+    )) {
+      if (rest) return head;
     }
   }
   const parts = text.split(/(?=Según el catálogo que ya tenemos de \*)/i).filter((p) => p.trim());

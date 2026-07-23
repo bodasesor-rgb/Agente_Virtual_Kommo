@@ -312,17 +312,20 @@ export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): str
 /** Evita pegar dos veces el mismo bloque de inclusiones PDF (inject + guard / GPT). */
 export function collapseDuplicatedInclusionReply(text: string): string {
   if (!text?.trim()) return text;
-  const close = "¿Te late este nivel o quieres que te detalle otro?";
-  const firstClose = text.indexOf(close);
-  if (firstClose >= 0) {
-    const head = text.slice(0, firstClose + close.length).trim();
-    const rest = text.slice(firstClose + close.length).trim();
+  const closeRe = /¿Te late este nivel o quieres que te detalle otro\?/i;
+  const m = closeRe.exec(text);
+  if (m && m.index != null) {
+    const head = text.slice(0, m.index + m[0].length).trim();
+    const rest = text.slice(m.index + m[0].length).trim();
     if (
-      rest &&
-      (/Según el catálogo que ya tenemos/i.test(rest) ||
-        /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d/i.test(rest))
+      !rest ||
+      /Según el catálogo que ya tenemos/i.test(rest) ||
+      /Bebidas incluidas|Alimentos:|Meseros:|Vajilla|Coffee Break \d|Tradicional \$\s*\d|¿Te late este nivel/i.test(
+        rest
+      )
     ) {
-      return head;
+      // Si hay cola de inclusiones duplicada, nos quedamos con el primer cierre.
+      if (rest) return head;
     }
   }
   // Dos bloques con el mismo encabezado.
