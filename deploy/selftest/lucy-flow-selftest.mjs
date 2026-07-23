@@ -2163,6 +2163,8 @@ function buildCompanyEmailConfirmReply() {
 }
 
 // src/services/lucyInfoPriceCache.ts
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 function cacheState() {
   const g = globalThis;
   if (!g.__lucyInfoPriceCache) {
@@ -2172,6 +2174,16 @@ function cacheState() {
 }
 function fold(text) {
   return (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n");
+}
+function refreshLucyInfoPriceCache(input) {
+  const state = cacheState();
+  state.docs = (input || []).filter((d) => d?.content?.trim()).map((d) => ({
+    title: (d.title || "").trim() || "Cat\xE1logo",
+    content: d.content.trim(),
+    kind: d.kind
+  }));
+  state.corpusFold = fold(state.docs.map((d) => `${d.title}
+${d.content}`).join("\n\n"));
 }
 function extractPriceAmounts(text) {
   const out = [];
@@ -2353,6 +2365,7 @@ function findInclusionSection(content, query, maxChars = 1100) {
   return slice.slice(0, maxChars);
 }
 function buildLucyInfoInclusionReply(query, maxChars = 1100) {
+  ensureCacheFromSeedSync();
   const docs = cacheState().docs;
   if (!docs.length || !query?.trim()) return null;
   const tokens = tokenize(query);
@@ -2377,6 +2390,27 @@ ${section}
 \xBFTe late este nivel o quieres que te detalle otro?`;
   }
   return null;
+}
+function ensureCacheFromSeedSync() {
+  if (cacheState().docs.length > 0) return;
+  try {
+    const candidates = [
+      process.env["LUCY_INFO_SEED_PATH"]?.trim(),
+      join(process.cwd(), "config", "lucy-info-seed.json"),
+      join(process.cwd(), "lucy-info-seed.json"),
+      join(process.cwd(), "data", "lucy-info-seed.json")
+    ].filter(Boolean);
+    for (const p of candidates) {
+      if (!existsSync(p)) continue;
+      const raw = JSON.parse(readFileSync(p, "utf8"));
+      const docs = (raw.documents || []).filter((d) => d?.content?.trim());
+      if (docs.length) {
+        refreshLucyInfoPriceCache(docs);
+        return;
+      }
+    }
+  } catch {
+  }
 }
 function extractPriceWindows(content, max = 8) {
   const windows = [];
@@ -3189,7 +3223,7 @@ function parseRowNotes(notas) {
 }
 
 // src/services/catalogWebKnowledge.ts
-import { readFileSync } from "node:fs";
+import { readFileSync as readFileSync2 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 var CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
@@ -3205,7 +3239,7 @@ function embedsJsonPath() {
   ];
   for (const p of candidates) {
     try {
-      readFileSync(p, "utf8");
+      readFileSync2(p, "utf8");
       return p;
     } catch {
     }
@@ -3219,7 +3253,7 @@ function extractGammaIdFromEmbed(embedSrc) {
 function loadCatalogEmbeds() {
   if (embedsCache) return embedsCache;
   try {
-    const raw = readFileSync(embedsJsonPath(), "utf8");
+    const raw = readFileSync2(embedsJsonPath(), "utf8");
     const parsed = JSON.parse(raw);
     embedsCache = Object.entries(parsed).map(([slug, v]) => {
       const embedSrc = (v.embedSrc ?? "").trim();
@@ -4341,7 +4375,7 @@ function loadSinonimosJson(raw) {
 }
 
 // src/services/catalogService.ts
-import { readFileSync as readFileSync2, existsSync } from "node:fs";
+import { readFileSync as readFileSync3, existsSync as existsSync2 } from "node:fs";
 import path2 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 var GENERIC_CATERING_MENU_MARKERS = /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
@@ -4395,9 +4429,9 @@ function tryLoadSinonimosJsonFile() {
     path2.resolve(path2.dirname(fileURLToPath2(import.meta.url)), "../data/sinonimos.json")
   ];
   for (const p of candidates) {
-    if (!existsSync(p)) continue;
+    if (!existsSync2(p)) continue;
     try {
-      const raw = JSON.parse(readFileSync2(p, "utf8"));
+      const raw = JSON.parse(readFileSync3(p, "utf8"));
       const n = loadSinonimosJson(raw);
       if (n > 0) return;
     } catch {
@@ -4701,6 +4735,8 @@ function attachAvailableSheetDetail(query, serviceHint) {
     [serviceHint, query].filter(Boolean).join(" ").trim() || null
   ].filter((a) => !!a);
   for (const a of attempts) {
+    const fromPdf = buildLucyInfoInclusionReply(a);
+    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
     const candidates = [
       buildCatalogServiceDetailAnswer(a),
       buildCatalogPriceAnswer(a),
@@ -4790,22 +4826,29 @@ ${lines.join("\n")}
 
 ${footer}`;
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
-    const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
-    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "") ?? resolveCatalogWebLink(svc).url ?? resolveCatalogWebLink(result.serviceName ?? svc).url;
-    if (webHint) {
+    const fromPdf = buildLucyInfoInclusionReply(svc) || buildLucyInfoInclusionReply(result.serviceName ?? svc);
+    if (fromPdf) {
       body += `
 
+${fromPdf}`;
+    } else {
+      const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
+      const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "") ?? resolveCatalogWebLink(svc).url ?? resolveCatalogWebLink(result.serviceName ?? svc).url;
+      if (webHint) {
+        body += `
+
 ${webHint}`;
-    } else if (webUrl) {
-      body += `
+      } else if (webUrl) {
+        body += `
 
 El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo:
 ${toDeliverableCatalogUrl(webUrl)}`;
-    } else {
-      body += `
+      } else {
+        body += `
 
 Cat\xE1logo general:
 ${getCatalogWebHubDeliveryUrl()}`;
+      }
     }
   }
   return withCatalogOfferQuestion(body, svc);
@@ -4827,6 +4870,8 @@ function messageOffersLevelsWithoutInclusions(text) {
 function enrichBareNivelOffer(mensaje, serviceHint) {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
   const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
+  const fromPdf = buildLucyInfoInclusionReply(hint);
+  if (fromPdf) return fromPdf;
   const detail = buildCatalogServiceDetailAnswer(hint);
   if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
   if (!/incluye|nivel/i.test(detail)) return null;
@@ -5007,13 +5052,10 @@ function resolveCatalogInclusionReply(query, serviceHint) {
   const wantsAllLevels = /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
     query
   );
-  const specificLevel = /coffee\s*break\s*\d|\bcb\s*\d\b|\btradicional\b|\bpremium\b|\bb[aá]sic[ao]?\b|\d\s*tiempos?/i.test(
-    query
-  );
-  if (specificLevel && !wantsAllLevels) {
-    const pdfQ2 = [serviceHint, query].filter(Boolean).join(" ");
-    const fromPdf2 = buildLucyInfoInclusionReply(pdfQ2) || buildLucyInfoInclusionReply(query);
-    if (fromPdf2 && !/bet[uú]n|cupcakes?/i.test(fromPdf2)) return fromPdf2;
+  const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
+  const fromPdfEarly = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+  if (fromPdfEarly && !wantsAllLevels && !/bet[uú]n|cupcakes?/i.test(fromPdfEarly)) {
+    return fromPdfEarly;
   }
   const linkQ = serviceHint?.trim() || query;
   const withLink = (text) => text ? ensureCatalogWebLink(text, linkQ) : null;
@@ -5042,12 +5084,11 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
     if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
-    const fromPdf2 = buildLucyInfoInclusionReply(q);
-    if (fromPdf2 && !/bet[uú]n|cupcakes?/i.test(fromPdf2)) return fromPdf2;
+    const fromPdf = buildLucyInfoInclusionReply(q);
+    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
   }
-  const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
-  const fromPdf = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
-  if (fromPdf) return fromPdf;
+  const fromPdfLate = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+  if (fromPdfLate) return fromPdfLate;
   const webQ = serviceHint || query;
   if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
     const banqueteQ = /\b4\s*tiempos|mexicano/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Mexicano 4 tiempos" : /\b3\s*tiempos|formal/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Formal 3 tiempos" : "banquete";
@@ -20072,7 +20113,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
 }
 
 // src/selftest/lucy-flow-selftest.ts
-import { readFileSync as readFileSync3 } from "node:fs";
+import { readFileSync as readFileSync4 } from "node:fs";
 import path4 from "node:path";
 import { fileURLToPath as fileURLToPath3 } from "node:url";
 
@@ -20467,8 +20508,8 @@ async function runAll() {
   });
   await test("10. Integraciones \u2014 m\xF3dulos conectados y features activas", () => {
     const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");
-    const mirrorSrc = readFileSync3(path4.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
-    const healthSrc = readFileSync3(path4.join(apiRoot, "src/routes/health.ts"), "utf8");
+    const mirrorSrc = readFileSync4(path4.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    const healthSrc = readFileSync4(path4.join(apiRoot, "src/routes/health.ts"), "utf8");
     assert.ok(mirrorSrc.includes("deliverLucyOutbound"));
     assert.ok(mirrorSrc.includes("sendWhatsAppDirect"));
     assert.ok(healthSrc.includes('mode: "meta_plus_note"'));
@@ -20647,7 +20688,7 @@ async function runAll() {
     assert.ok(clientSaysThanks("Muchas gracias"));
     assert.ok(buildPostCierreThanksReply("Fer").includes("Fer"));
     const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");
-    const mirrorSrc = readFileSync3(path4.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    const mirrorSrc = readFileSync4(path4.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     assert.ok(mirrorSrc.includes("texto vac\xEDo"));
   });
   await test("17. Fer A14751 \u2014 brunch baby shower, correo, fecha y presupuesto sin bucles", () => {
@@ -22728,8 +22769,8 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/solo por l[ií]nea telef[oó]nica/i.test(emergency));
     assert.ok(/WhatsApp y por l[ií]nea telef[oó]nica/i.test(emergency));
     const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");
-    const kommoSrc = readFileSync3(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
-    const embudoSrc = readFileSync3(path4.join(apiRoot, "src/services/embudo.ts"), "utf8");
+    const kommoSrc = readFileSync4(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const embudoSrc = readFileSync4(path4.join(apiRoot, "src/services/embudo.ts"), "utf8");
     assert.ok(/handleLucyInactiveInbound/.test(kommoSrc));
     assert.ok(/buildSilentWatchPatchPayload/.test(kommoSrc));
     assert.ok(/clientNeedsEmergencyContact/.test(kommoSrc));
@@ -22739,18 +22780,18 @@ ${CATALOG_OFFER_QUESTION}`
   await test("67. Aprendizaje continuo \u2014 cron + extract en Humano Trabaja", () => {
     const apiRoot = path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../..");
     const repoRoot = path4.resolve(apiRoot, "..");
-    const syncSrc = readFileSync3(path4.join(apiRoot, "src/services/learningSync.ts"), "utf8");
-    const extractorSrc = readFileSync3(path4.join(apiRoot, "src/services/learningExtractor.ts"), "utf8");
-    const ingestSrc = readFileSync3(path4.join(apiRoot, "src/services/chatIngest.ts"), "utf8");
-    const kommoSrc = readFileSync3(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
-    const embudoSrc = readFileSync3(path4.join(apiRoot, "src/services/embudo.ts"), "utf8");
-    const learningRoutes = readFileSync3(path4.join(apiRoot, "src/routes/learning.ts"), "utf8");
-    const talksSrc = readFileSync3(path4.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
-    const keepAlive = readFileSync3(
+    const syncSrc = readFileSync4(path4.join(apiRoot, "src/services/learningSync.ts"), "utf8");
+    const extractorSrc = readFileSync4(path4.join(apiRoot, "src/services/learningExtractor.ts"), "utf8");
+    const ingestSrc = readFileSync4(path4.join(apiRoot, "src/services/chatIngest.ts"), "utf8");
+    const kommoSrc = readFileSync4(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const embudoSrc = readFileSync4(path4.join(apiRoot, "src/services/embudo.ts"), "utf8");
+    const learningRoutes = readFileSync4(path4.join(apiRoot, "src/routes/learning.ts"), "utf8");
+    const talksSrc = readFileSync4(path4.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
+    const keepAlive = readFileSync4(
       path4.join(repoRoot, ".github/workflows/keep-alive-hostinger.yml"),
       "utf8"
     );
-    const panelApp = readFileSync3(path4.join(apiRoot, "public/aprendizaje/app.js"), "utf8");
+    const panelApp = readFileSync4(path4.join(apiRoot, "public/aprendizaje/app.js"), "utf8");
     assert.ok(/HUMANO_TRABAJA/.test(syncSrc));
     assert.ok(/listKommoLeadsInLearningStages/.test(syncSrc), "cron lista leads vivos en Kommo");
     assert.ok(/resolveKommoTalkId/.test(syncSrc), "sync resuelve talkId");
@@ -22769,7 +22810,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/aprendizaje\/from-chats/.test(learningRoutes));
     assert.ok(/aprendizaje\/from-chats/.test(panelApp));
     assert.ok(/Sincronizar chats|kommo\/cron\/learning/.test(panelApp));
-    const routesIndex = readFileSync3(path4.join(apiRoot, "src/routes/index.ts"), "utf8");
+    const routesIndex = readFileSync4(path4.join(apiRoot, "src/routes/index.ts"), "utf8");
     const learningMount = routesIndex.indexOf("router.use(learningRouter)");
     const examplesMount = routesIndex.indexOf("router.use(examplesRouter)");
     assert.ok(

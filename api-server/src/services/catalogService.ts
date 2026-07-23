@@ -1213,9 +1213,9 @@ export function resolveCatalogInclusionReply(
   }
 
   // PDF del panel Aprendizaje (antes del fallback solo-link).
-  const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
-  const fromPdf = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
-  if (fromPdf) return fromPdf;
+  const fromPdfLate =
+    buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+  if (fromPdfLate) return fromPdfLate;
 
   // Último recurso: link del catálogo web aunque resolve falle.
   const webQ = serviceHint || query;
