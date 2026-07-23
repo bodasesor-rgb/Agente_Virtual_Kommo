@@ -1090,7 +1090,6 @@ function inclusionLabelForResolved(resolved: CatalogMatchResult): string {
 export function buildInclusionTeamConfirmationAnswer(query: string): string | null {
   const resolved = resolveCatalogQuery(query);
   if (!resolved || resolved.kind === "category") return null;
-  if (resolvedHasInclusionData(resolved)) return null;
 
   const label = inclusionLabelForResolved(resolved);
   const nivel =
@@ -1098,12 +1097,20 @@ export function buildInclusionTeamConfirmationAnswer(query: string): string | nu
       ? extractNivelLabel(resolved.rows[0])
       : parseCatalogQueryFilters(query).nivel;
 
+  // Si ESTE nivel ya trae Incluye en Sheet, no usar este fallback (lo arma buildCatalogInclusionAnswer).
+  if (resolved.kind === "service_nivel" && resolved.rows[0] && getInclusionFromRow(resolved.rows[0])) {
+    return null;
+  }
+
   // Prioridad: detalle del PDF aprendido en el panel (Aprendizaje), no solo el link web.
   const fromPdf =
     buildLucyInfoInclusionReply(
       [label, nivel, query].filter(Boolean).join(" "),
     ) || buildLucyInfoInclusionReply(query);
   if (fromPdf) return fromPdf;
+
+  // Sin PDF y con algún Incluye en otros niveles → no inventar aquí.
+  if (resolvedHasInclusionData(resolved)) return null;
 
   const webHint =
     buildCatalogWebDetailHint(label) ??
@@ -1147,6 +1154,18 @@ export function resolveCatalogInclusionReply(
     /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
       query
     );
+
+  // Nivel concreto (Coffee Break 5, Tradicional, 3 tiempos…): PDF del panel primero.
+  const specificLevel =
+    /coffee\s*break\s*\d|\bcb\s*\d\b|\btradicional\b|\bpremium\b|\bb[aá]sic[ao]?\b|\d\s*tiempos?/i.test(
+      query,
+    );
+  if (specificLevel && !wantsAllLevels) {
+    const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
+    const fromPdf =
+      buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+  }
 
   // "qué incluye cada nivel Básica/Tradicional/Premium" → detalle multi-nivel del servicio,
   // no un solo nivel porque la frase menciona "Premium".

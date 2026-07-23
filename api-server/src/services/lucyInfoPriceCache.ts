@@ -187,10 +187,17 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
     anchors.push(`menu ${tiempos[1]} tiempos ${nivel}`.trim());
     anchors.push(`${tiempos[1]} tiempos ${nivel}`.trim());
     if (nivel === "tradicional" && tiempos[1] === "3") {
-      anchors.push("tradicional $830", "servicio completo 3 tiempos");
+      // Ancla al bloque Tradicional (no al Básico que aparece antes en el mismo apartado).
+      anchors.unshift("tradicional $830 por persona", "tradicional $830");
     }
     if (nivel === "tradicional" && tiempos[1] === "4") {
-      anchors.push("tradicional $880", "servicio completo 4 tiempos");
+      anchors.unshift("tradicional $880 por persona", "tradicional $880");
+    }
+    if (nivel === "basico" && tiempos[1] === "3") {
+      anchors.unshift("basico $780 por persona", "basico $780");
+    }
+    if (nivel === "premium" && tiempos[1] === "3") {
+      anchors.unshift("premium $880 por persona", "premium $880");
     }
   }
   if (/banquete/.test(q) && nivel) {
@@ -233,18 +240,22 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
     bestIdx = dollar;
   }
 
-  // Retroceder un poco para capturar el nombre del paquete.
-  let start = Math.max(0, bestIdx - 60);
+  // Retroceder poco solo si no empezamos en el nombre del paquete/nivel.
+  const atHeading =
+    /coffee break \d|tradicional \$\d|basico \$\d|premium \$\d|menu \d tiempos/i.test(
+      f.slice(bestIdx, bestIdx + 48),
+    );
+  let start = atHeading ? bestIdx : Math.max(0, bestIdx - 40);
   // Avanzar al siguiente límite razonable
   let end = Math.min(c.length, start + maxChars);
   // Preferir cortar en un límite de paquete siguiente (Coffee Break N+1, Premium $, etc.)
-  const tail = c.slice(bestIdx + 20, end);
+  const tail = c.slice(Math.max(start, bestIdx) + 40, end);
   const nextPkg = tail.search(
-    /\n|Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i,
+    /Coffee Break \d|Men[uú] \d tiempos|B[aá]sico \$\s*\d|Tradicional \$\s*\d|Premium \$\s*\d|Ideal para:|Condiciones del Servicio/i,
   );
   // Don't cut too early — only if we find another package heading after enough content
-  if (nextPkg > 280) {
-    end = bestIdx + 20 + nextPkg;
+  if (nextPkg > 200) {
+    end = Math.max(start, bestIdx) + 40 + nextPkg;
   }
 
   let slice = c.slice(start, end).replace(/\s+/g, " ").trim();
