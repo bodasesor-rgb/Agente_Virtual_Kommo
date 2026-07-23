@@ -45,7 +45,6 @@ import {
   stripStalePriceTalk,
 } from "./price-guard.js";
 import {
-  buildLucyInfoInclusionReply,
   buildLucyInfoLearnedPriceReply,
   collapseDuplicatedInclusionReply,
 } from "./services/lucyInfoPriceCache.js";
@@ -61,6 +60,7 @@ import {
   stripUnsolicitedCatalogWebLinks,
   CATALOG_OFFER_QUESTION,
   messageOffersCatalogLink,
+  buildPdfInclusionReply,
   ensureCatalogWebLink,
   attachAvailableSheetDetail,
   messageHasSheetServiceDetail,
@@ -3008,6 +3008,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
   // por redirect a zona ni anti-repeat de embudo.
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+    // Precio SKU concreto → dejar que la rama de precio use Sheet.
+    if (clientAsksPrice(currentMessage)) {
+      /* fall through */
+    } else {
     const userBlobEarly = collectUserTexts(presHistory, currentMessage).join(" ");
     const serviceHintEarly =
       (isValidRequerimientosValue(extracted.requerimientos_evento)
@@ -3017,11 +3021,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       findMentionedService(userBlobEarly);
     // PDF del panel primero (texto completo del nivel/servicio). Probar variantes.
     const pdfOnly =
-      buildLucyInfoInclusionReply(currentMessage ?? "") ||
+      buildPdfInclusionReply(currentMessage ?? "") ||
       (serviceHintEarly
-        ? buildLucyInfoInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`)
+        ? buildPdfInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`)
         : null) ||
-      (serviceHintEarly ? buildLucyInfoInclusionReply(serviceHintEarly) : null);
+      (serviceHintEarly ? buildPdfInclusionReply(serviceHintEarly) : null);
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
       log?.info({ entityId }, "GUARD: inclusiones — PDF aprendido (return temprano)");
       return normalizeAdvisorReferences(
@@ -3046,6 +3050,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         withNext,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
+    }
     }
   }
 
@@ -3949,11 +3954,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         findMentionedService(userBlob);
     }
     const pdfOnly =
-      buildLucyInfoInclusionReply(currentMessage ?? "") ||
+      buildPdfInclusionReply(currentMessage ?? "") ||
       (serviceHint
-        ? buildLucyInfoInclusionReply(`${serviceHint} ${currentMessage ?? ""}`)
+        ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`)
         : null) ||
-      (serviceHint ? buildLucyInfoInclusionReply(serviceHint) : null);
+      (serviceHint ? buildPdfInclusionReply(serviceHint) : null);
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
       mensaje = pdfOnly;
       appliedSalesReply = true;

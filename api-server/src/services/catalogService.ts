@@ -729,8 +729,8 @@ export function attachAvailableSheetDetail(
   ].filter((a): a is string => !!a);
 
   for (const a of attempts) {
-    const fromPdf = buildLucyInfoInclusionReply(a);
-    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+    const fromPdf = buildPdfInclusionReply(a);
+    if (fromPdf) return fromPdf;
 
     const candidates = [
       buildCatalogInclusionAnswer(a),
@@ -847,8 +847,8 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
   // Si el Sheet no trae Incluye: preferir SOLO el PDF (no concatenar lista + PDF → mashup confuso).
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
     const fromPdf =
-      buildLucyInfoInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) ||
-      buildLucyInfoInclusionReply(svc);
+      buildPdfInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) ||
+      buildPdfInclusionReply(svc);
     if (fromPdf) {
       return fromPdf;
     }
@@ -910,7 +910,7 @@ export function enrichBareNivelOffer(
 ): string | null {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
   const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
-  const fromPdf = buildLucyInfoInclusionReply(hint);
+  const fromPdf = buildPdfInclusionReply(hint);
   if (fromPdf) return fromPdf;
   const detail = buildCatalogServiceDetailAnswer(hint);
   if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
@@ -1083,6 +1083,104 @@ function getInclusionFromRow(row: SheetCatalogRow): string | null {
   return text || null;
 }
 
+/**
+ * Precio del Sheet para un servicio/nivel concreto.
+ * Política: si PDF y Sheet difieren en $, gana el Sheet.
+ */
+function findSheetPriceForQuery(query: string): {
+  price: string;
+  unit: string;
+  label: string;
+  minimo: string | null;
+} | null {
+  if (!snapshot?.rows.length || !query?.trim()) return null;
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+
+  let row: SheetCatalogRow | undefined;
+  if (resolved.kind === "service_nivel" && resolved.rows[0]?.tienePrecio) {
+    row = resolved.rows[0];
+  } else if (resolved.kind === "service") {
+    const cb = normalizeForMatch(query).match(/coffee\s*break\s*(\d)/);
+    if (cb) {
+      row = resolved.rows.find((r) => {
+        const label = normalizeForMatch(`${extractNivelLabel(r)} ${r.servicio}`);
+        return label.includes(`coffee break ${cb[1]}`) || label.includes(`coffeebreak ${cb[1]}`);
+      });
+    }
+    if (!row) {
+      const filters = parseCatalogQueryFilters(query);
+      if (filters.nivel) {
+        const want = normalizeForMatch(filters.nivel);
+        row = resolved.rows.find(
+          (r) => normalizeForMatch(extractNivelLabel(r)) === want
+        );
+      }
+    }
+    if (!row) {
+      row = resolved.rows.find((r) => r.tienePrecio && r.precio);
+    }
+  }
+  if (!row?.tienePrecio || !row.precio) return null;
+  const parsed = parseRowNotes(row.notas);
+  return {
+    price: row.precio,
+    unit: row.unidad || "/pp",
+    label: formatCatalogRowLabel(row),
+    minimo: parsed.minimo || null,
+  };
+}
+
+/**
+ * Inclusiones siempre del PDF; si el $ del PDF ≠ Sheet, sustituye por el del Sheet.
+ */
+export function reconcilePdfInclusionWithSheetPrice(pdfReply: string, query: string): string {
+  if (!pdfReply?.trim()) return pdfReply;
+  const sheet = findSheetPriceForQuery(query);
+  if (!sheet) return pdfReply;
+
+  const sheetNum = Math.round(Number(String(sheet.price).replace(/[^0-9.]/g, "")));
+  if (!Number.isFinite(sheetNum) || sheetNum < 10) return pdfReply;
+
+  const pdfMatch = pdfReply.match(/\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/);
+  if (!pdfMatch) {
+    return pdfReply.replace(
+      /(Según el catálogo[^\n]*:\s*\n\n)/i,
+      `$1*Precio de lista:* ${sheet.price}${sheet.unit ? ` ${sheet.unit}` : ""}${
+        sheet.minimo ? ` (mín. ${sheet.minimo})` : ""
+      }\n`
+    );
+  }
+  const pdfNum = Math.round(Number(pdfMatch[1]!.replace(/,/g, "")));
+  if (!Number.isFinite(pdfNum) || pdfNum === sheetNum) return pdfReply;
+
+  // Sheet gana: reemplazar el primer monto del PDF por el del Sheet.
+  let out = pdfReply.replace(
+    /\$\s*[\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|\$\s*[\d]+(?:\.\d+)?/,
+    sheet.price.startsWith("$") ? sheet.price : `$${sheet.price}`
+  );
+  if (sheet.minimo) {
+    out = out.replace(
+      /Costo m[ií]nimo:\s*\$?\s*[\d,.]+(?:\.\d+)?\s*MXN[^.\n]*/i,
+      `Mínimo: ${sheet.minimo}`
+    );
+    out = out.replace(
+      /M[ií]nimo:\s*\$?\s*[\d,.]+(?:\.\d+)?\s*MXN/i,
+      `Mínimo: ${sheet.minimo}`
+    );
+  }
+  return out;
+}
+
+/** PDF de inclusiones + precio reconciliado con Sheet. */
+export function buildPdfInclusionReply(query: string, maxChars = 1100): string | null {
+  const raw = buildLucyInfoInclusionReply(query, maxChars);
+  if (!raw || /bet[uú]n|cupcakes?/i.test(raw)) return null;
+  return collapseDuplicatedInclusionReply(
+    reconcilePdfInclusionWithSheetPrice(raw, query)
+  );
+}
+
 function resolvedHasInclusionData(resolved: CatalogMatchResult): boolean {
   return resolved.rows.some((r) => !!getInclusionFromRow(r));
 }
@@ -1112,9 +1210,8 @@ export function buildInclusionTeamConfirmationAnswer(query: string): string | nu
 
   // Prioridad: detalle del PDF aprendido en el panel (Aprendizaje), no solo el link web.
   const fromPdf =
-    buildLucyInfoInclusionReply(
-      [label, nivel, query].filter(Boolean).join(" "),
-    ) || buildLucyInfoInclusionReply(query);
+    buildPdfInclusionReply([label, nivel, query].filter(Boolean).join(" ")) ||
+    buildPdfInclusionReply(query);
   if (fromPdf) return fromPdf;
 
   // Sin PDF y con algún Incluye en otros niveles → no inventar aquí.
@@ -1165,9 +1262,8 @@ export function resolveCatalogInclusionReply(
 
   // PDF del panel primero (nivel concreto o servicio con detalle en Aprendizaje).
   const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
-  const fromPdfEarly =
-    buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
-  if (fromPdfEarly && !wantsAllLevels && !/bet[uú]n|cupcakes?/i.test(fromPdfEarly)) {
+  const fromPdfEarly = buildPdfInclusionReply(pdfQ) || buildPdfInclusionReply(query);
+  if (fromPdfEarly && !wantsAllLevels) {
     return fromPdfEarly;
   }
 
@@ -1207,13 +1303,12 @@ export function resolveCatalogInclusionReply(
     if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
     if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
-    const fromPdf = buildLucyInfoInclusionReply(q);
-    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+    const fromPdf = buildPdfInclusionReply(q);
+    if (fromPdf) return fromPdf;
   }
 
   // PDF del panel Aprendizaje (antes del fallback solo-link).
-  const fromPdfLate =
-    buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+  const fromPdfLate = buildPdfInclusionReply(pdfQ) || buildPdfInclusionReply(query);
   if (fromPdfLate) return fromPdfLate;
 
   // Último recurso: link del catálogo web aunque resolve falle.
@@ -1485,10 +1580,18 @@ export function buildCatalogNotFoundAnswer(serviceLabel: string, query?: string)
 export function buildCatalogServiceDetailAnswer(query: string): string | null {
   if (!snapshot?.rows.length) return null;
 
-  // Inclusión de un nivel concreto (CB5, Tradicional, etc.): PDF primero, sin listar todos los niveles.
-  if (clientAsksInclusion(query) || /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic)/i.test(query)) {
-    const fromPdf = buildLucyInfoInclusionReply(query);
-    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+  // Pregunta de PRECIO → Sheet, nunca PDF (el PDF puede tener $ distinto).
+  if (clientAsksPrice(query)) {
+    return buildCatalogPriceAnswer(query);
+  }
+
+  // Inclusión / detalle de nivel concreto: PDF primero (qué incluye), con $ del Sheet si difiere.
+  if (
+    clientAsksInclusion(query) ||
+    /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic)/i.test(query)
+  ) {
+    const fromPdf = buildPdfInclusionReply(query);
+    if (fromPdf) return fromPdf;
   }
 
   const resolved = resolveCatalogQuery(query);
@@ -1502,17 +1605,16 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
     const incl = getInclusionFromRow(row);
     if (!incl) {
       const fromPdf =
-        buildLucyInfoInclusionReply(query) ||
-        buildLucyInfoInclusionReply(formatCatalogRowLabel(row));
-      if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+        buildPdfInclusionReply(query) ||
+        buildPdfInclusionReply(formatCatalogRowLabel(row));
+      if (fromPdf) return fromPdf;
     }
     return buildExactRowDetailAnswer(row);
   }
   if (resolved?.kind === "service") {
-    // "qué incluye Coffee Break 5" a veces resuelve como service (no service_nivel).
     if (/\bcoffee\s*break\s*\d|\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
-      const fromPdf = buildLucyInfoInclusionReply(query);
-      if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+      const fromPdf = buildPdfInclusionReply(query);
+      if (fromPdf) return fromPdf;
     }
     return buildServiceNivelChoiceAnswer(resolved);
   }
@@ -1885,10 +1987,10 @@ export function injectCatalogInclusionIfAsked(
   serviceHint?: string | null
 ): string {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
-  const fromPdf = buildLucyInfoInclusionReply(clientMessage);
-  if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) {
-    return collapseDuplicatedInclusionReply(fromPdf);
-  }
+  // Precio concreto → Sheet, no inclusiones PDF.
+  if (clientAsksPrice(clientMessage) && !clientAsksInclusion(clientMessage)) return aiResponse;
+  const fromPdf = buildPdfInclusionReply(clientMessage);
+  if (fromPdf) return fromPdf;
   const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
   if (fromCatalog) return collapseDuplicatedInclusionReply(fromCatalog);
   return aiResponse;
@@ -1900,8 +2002,8 @@ export function injectCatalogCateringIfAsked(
   aiResponse: string
 ): string {
   if (!clientMessage?.trim()) return aiResponse;
-  // No pisar una respuesta de inclusiones (PDF/Sheet) con el listado de niveles.
-  if (clientAsksInclusion(clientMessage)) return aiResponse;
+  // No pisar inclusiones PDF ni respuestas de precio del Sheet.
+  if (clientAsksInclusion(clientMessage) || clientAsksPrice(clientMessage)) return aiResponse;
 
   const asksService = clientAsksServiceInfo(clientMessage) || clientAsksPrice(clientMessage);
   const genericCatering =

@@ -4777,8 +4777,8 @@ function attachAvailableSheetDetail(query, serviceHint) {
     query.trim() || null
   ].filter((a) => !!a);
   for (const a of attempts) {
-    const fromPdf = buildLucyInfoInclusionReply(a);
-    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+    const fromPdf = buildPdfInclusionReply(a);
+    if (fromPdf) return fromPdf;
     const candidates = [
       buildCatalogInclusionAnswer(a),
       buildInclusionTeamConfirmationAnswer(a),
@@ -4868,7 +4868,7 @@ ${lines.join("\n")}
 
 ${footer}`;
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
-    const fromPdf = buildLucyInfoInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) || buildLucyInfoInclusionReply(svc);
+    const fromPdf = buildPdfInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) || buildPdfInclusionReply(svc);
     if (fromPdf) {
       return fromPdf;
     }
@@ -4909,7 +4909,7 @@ function messageOffersLevelsWithoutInclusions(text) {
 function enrichBareNivelOffer(mensaje, serviceHint) {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
   const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
-  const fromPdf = buildLucyInfoInclusionReply(hint);
+  const fromPdf = buildPdfInclusionReply(hint);
   if (fromPdf) return fromPdf;
   const detail = buildCatalogServiceDetailAnswer(hint);
   if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
@@ -5046,6 +5046,82 @@ function getInclusionFromRow(row) {
   const text = parseRowNotes(row.notas).inclusion?.trim();
   return text || null;
 }
+function findSheetPriceForQuery(query) {
+  if (!snapshot?.rows.length || !query?.trim()) return null;
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  let row;
+  if (resolved.kind === "service_nivel" && resolved.rows[0]?.tienePrecio) {
+    row = resolved.rows[0];
+  } else if (resolved.kind === "service") {
+    const cb = normalizeForMatch(query).match(/coffee\s*break\s*(\d)/);
+    if (cb) {
+      row = resolved.rows.find((r) => {
+        const label = normalizeForMatch(`${extractNivelLabel(r)} ${r.servicio}`);
+        return label.includes(`coffee break ${cb[1]}`) || label.includes(`coffeebreak ${cb[1]}`);
+      });
+    }
+    if (!row) {
+      const filters = parseCatalogQueryFilters(query);
+      if (filters.nivel) {
+        const want = normalizeForMatch(filters.nivel);
+        row = resolved.rows.find(
+          (r) => normalizeForMatch(extractNivelLabel(r)) === want
+        );
+      }
+    }
+    if (!row) {
+      row = resolved.rows.find((r) => r.tienePrecio && r.precio);
+    }
+  }
+  if (!row?.tienePrecio || !row.precio) return null;
+  const parsed = parseRowNotes(row.notas);
+  return {
+    price: row.precio,
+    unit: row.unidad || "/pp",
+    label: formatCatalogRowLabel(row),
+    minimo: parsed.minimo || null
+  };
+}
+function reconcilePdfInclusionWithSheetPrice(pdfReply, query) {
+  if (!pdfReply?.trim()) return pdfReply;
+  const sheet = findSheetPriceForQuery(query);
+  if (!sheet) return pdfReply;
+  const sheetNum = Math.round(Number(String(sheet.price).replace(/[^0-9.]/g, "")));
+  if (!Number.isFinite(sheetNum) || sheetNum < 10) return pdfReply;
+  const pdfMatch = pdfReply.match(/\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/);
+  if (!pdfMatch) {
+    return pdfReply.replace(
+      /(Según el catálogo[^\n]*:\s*\n\n)/i,
+      `$1*Precio de lista:* ${sheet.price}${sheet.unit ? ` ${sheet.unit}` : ""}${sheet.minimo ? ` (m\xEDn. ${sheet.minimo})` : ""}
+`
+    );
+  }
+  const pdfNum = Math.round(Number(pdfMatch[1].replace(/,/g, "")));
+  if (!Number.isFinite(pdfNum) || pdfNum === sheetNum) return pdfReply;
+  let out = pdfReply.replace(
+    /\$\s*[\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|\$\s*[\d]+(?:\.\d+)?/,
+    sheet.price.startsWith("$") ? sheet.price : `$${sheet.price}`
+  );
+  if (sheet.minimo) {
+    out = out.replace(
+      /Costo m[ií]nimo:\s*\$?\s*[\d,.]+(?:\.\d+)?\s*MXN[^.\n]*/i,
+      `M\xEDnimo: ${sheet.minimo}`
+    );
+    out = out.replace(
+      /M[ií]nimo:\s*\$?\s*[\d,.]+(?:\.\d+)?\s*MXN/i,
+      `M\xEDnimo: ${sheet.minimo}`
+    );
+  }
+  return out;
+}
+function buildPdfInclusionReply(query, maxChars = 1100) {
+  const raw = buildLucyInfoInclusionReply(query, maxChars);
+  if (!raw || /bet[uú]n|cupcakes?/i.test(raw)) return null;
+  return collapseDuplicatedInclusionReply(
+    reconcilePdfInclusionWithSheetPrice(raw, query)
+  );
+}
 function resolvedHasInclusionData(resolved) {
   return resolved.rows.some((r) => !!getInclusionFromRow(r));
 }
@@ -5063,9 +5139,7 @@ function buildInclusionTeamConfirmationAnswer(query) {
   if (resolved.kind === "service_nivel" && resolved.rows[0] && getInclusionFromRow(resolved.rows[0])) {
     return null;
   }
-  const fromPdf = buildLucyInfoInclusionReply(
-    [label, nivel, query].filter(Boolean).join(" ")
-  ) || buildLucyInfoInclusionReply(query);
+  const fromPdf = buildPdfInclusionReply([label, nivel, query].filter(Boolean).join(" ")) || buildPdfInclusionReply(query);
   if (fromPdf) return fromPdf;
   if (resolvedHasInclusionData(resolved)) return null;
   const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
@@ -5092,8 +5166,8 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     query
   );
   const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
-  const fromPdfEarly = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
-  if (fromPdfEarly && !wantsAllLevels && !/bet[uú]n|cupcakes?/i.test(fromPdfEarly)) {
+  const fromPdfEarly = buildPdfInclusionReply(pdfQ) || buildPdfInclusionReply(query);
+  if (fromPdfEarly && !wantsAllLevels) {
     return fromPdfEarly;
   }
   const linkQ = serviceHint?.trim() || query;
@@ -5123,10 +5197,10 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
     if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
-    const fromPdf = buildLucyInfoInclusionReply(q);
-    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+    const fromPdf = buildPdfInclusionReply(q);
+    if (fromPdf) return fromPdf;
   }
-  const fromPdfLate = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+  const fromPdfLate = buildPdfInclusionReply(pdfQ) || buildPdfInclusionReply(query);
   if (fromPdfLate) return fromPdfLate;
   const webQ = serviceHint || query;
   if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
@@ -5333,9 +5407,12 @@ function buildCatalogNotFoundAnswer(serviceLabel, query) {
 }
 function buildCatalogServiceDetailAnswer(query) {
   if (!snapshot?.rows.length) return null;
+  if (clientAsksPrice(query)) {
+    return buildCatalogPriceAnswer(query);
+  }
   if (clientAsksInclusion(query) || /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic)/i.test(query)) {
-    const fromPdf = buildLucyInfoInclusionReply(query);
-    if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+    const fromPdf = buildPdfInclusionReply(query);
+    if (fromPdf) return fromPdf;
   }
   const resolved = resolveCatalogQuery(query);
   if (!resolved) return null;
@@ -5347,15 +5424,15 @@ function buildCatalogServiceDetailAnswer(query) {
     const row2 = resolved.rows[0];
     const incl = getInclusionFromRow(row2);
     if (!incl) {
-      const fromPdf = buildLucyInfoInclusionReply(query) || buildLucyInfoInclusionReply(formatCatalogRowLabel(row2));
-      if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+      const fromPdf = buildPdfInclusionReply(query) || buildPdfInclusionReply(formatCatalogRowLabel(row2));
+      if (fromPdf) return fromPdf;
     }
     return buildExactRowDetailAnswer(row2);
   }
   if (resolved?.kind === "service") {
     if (/\bcoffee\s*break\s*\d|\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
-      const fromPdf = buildLucyInfoInclusionReply(query);
-      if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
+      const fromPdf = buildPdfInclusionReply(query);
+      if (fromPdf) return fromPdf;
     }
     return buildServiceNivelChoiceAnswer(resolved);
   }
@@ -5655,17 +5732,16 @@ function buildEventOfferCatalogHint(tipoEvento) {
 }
 function injectCatalogInclusionIfAsked(clientMessage, aiResponse, serviceHint) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
-  const fromPdf = buildLucyInfoInclusionReply(clientMessage);
-  if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) {
-    return collapseDuplicatedInclusionReply(fromPdf);
-  }
+  if (clientAsksPrice(clientMessage) && !clientAsksInclusion(clientMessage)) return aiResponse;
+  const fromPdf = buildPdfInclusionReply(clientMessage);
+  if (fromPdf) return fromPdf;
   const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
   if (fromCatalog) return collapseDuplicatedInclusionReply(fromCatalog);
   return aiResponse;
 }
 function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
   if (!clientMessage?.trim()) return aiResponse;
-  if (clientAsksInclusion(clientMessage)) return aiResponse;
+  if (clientAsksInclusion(clientMessage) || clientAsksPrice(clientMessage)) return aiResponse;
   const asksService = clientAsksServiceInfo(clientMessage) || clientAsksPrice(clientMessage);
   const genericCatering = clientMentionsCatering(clientMessage) && !parsePrimaryService(clientMessage);
   const mentionsService = isServiceRelatedMessage(clientMessage) && !!parsePrimaryService(clientMessage);
@@ -17897,32 +17973,35 @@ ${nextQ}` : ack;
     }
   }
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
-    const userBlobEarly = collectUserTexts(presHistory, currentMessage).join(" ");
-    const serviceHintEarly = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(userBlobEarly) || findMentionedService(userBlobEarly);
-    const pdfOnly = buildLucyInfoInclusionReply(currentMessage ?? "") || (serviceHintEarly ? buildLucyInfoInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`) : null) || (serviceHintEarly ? buildLucyInfoInclusionReply(serviceHintEarly) : null);
-    if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
-      log?.info({ entityId }, "GUARD: inclusiones \u2014 PDF aprendido (return temprano)");
-      return normalizeAdvisorReferences(
-        collapseDuplicatedInclusionReply(pdfOnly),
-        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    if (clientAsksPrice(currentMessage)) {
+    } else {
+      const userBlobEarly = collectUserTexts(presHistory, currentMessage).join(" ");
+      const serviceHintEarly = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(userBlobEarly) || findMentionedService(userBlobEarly);
+      const pdfOnly = buildPdfInclusionReply(currentMessage ?? "") || (serviceHintEarly ? buildPdfInclusionReply(`${serviceHintEarly} ${currentMessage ?? ""}`) : null) || (serviceHintEarly ? buildPdfInclusionReply(serviceHintEarly) : null);
+      if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
+        log?.info({ entityId }, "GUARD: inclusiones \u2014 PDF aprendido (return temprano)");
+        return normalizeAdvisorReferences(
+          collapseDuplicatedInclusionReply(pdfOnly),
+          extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+        );
+      }
+      const serviceHint = serviceHintEarly;
+      const inclusionAnswer = resolveCatalogInclusionReply(
+        currentMessage ?? "",
+        serviceHint
       );
-    }
-    const serviceHint = serviceHintEarly;
-    const inclusionAnswer = resolveCatalogInclusionReply(
-      currentMessage ?? "",
-      serviceHint
-    );
-    if (inclusionAnswer) {
-      const pending = getNextPendingField(extracted, filledSet);
-      const emailOkEarly = isEmailSatisfied(filledSet, extracted);
-      const withNext = pending && emailOkEarly && pending !== "requerimientos" ? `${inclusionAnswer}
+      if (inclusionAnswer) {
+        const pending = getNextPendingField(extracted, filledSet);
+        const emailOkEarly = isEmailSatisfied(filledSet, extracted);
+        const withNext = pending && emailOkEarly && pending !== "requerimientos" ? `${inclusionAnswer}
 
 ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
-      log?.info({ entityId, serviceHint }, "GUARD: inclusiones \u2014 return temprano");
-      return normalizeAdvisorReferences(
-        withNext,
-        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
-      );
+        log?.info({ entityId, serviceHint }, "GUARD: inclusiones \u2014 return temprano");
+        return normalizeAdvisorReferences(
+          withNext,
+          extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+        );
+      }
     }
   }
   applyPresupuestoWaiver(
@@ -18523,7 +18602,7 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
     } else {
       serviceHint = (isValidRequerimientosValue(req) ? req : null) || parsePrimaryService(userBlob) || findMentionedService(userBlob);
     }
-    const pdfOnly = buildLucyInfoInclusionReply(currentMessage ?? "") || (serviceHint ? buildLucyInfoInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) : null) || (serviceHint ? buildLucyInfoInclusionReply(serviceHint) : null);
+    const pdfOnly = buildPdfInclusionReply(currentMessage ?? "") || (serviceHint ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) : null) || (serviceHint ? buildPdfInclusionReply(serviceHint) : null);
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
       mensaje = pdfOnly;
       appliedSalesReply = true;
@@ -19775,11 +19854,12 @@ graduaci\xF3n, boda, XV y cumplea\xF1os llevan el abanico completo).
 - "mobiliario" \u2192 mesas y sillas, salas, periqueras, vajillas...
 - "bebidas" \u2192 barra de bebidas, cocteler\xEDa, m\xF3cteles, barra de caf\xE9...
 - "postres/dulce" \u2192 mesa de dulces, postres, cupcakes, paletas...
-Ya que elige el servicio espec\xEDfico, das su detalle/niveles del Sheet.
+Ya que elige el servicio espec\xEDfico, das su detalle/niveles.
 Cuando ofrezcas niveles (B\xE1sica / Tradicional / Premium u otros): NO digas solo los
-nombres. Explica qu\xE9 incluye cada uno con el texto del Sheet o de los PDFs del panel
-Aprendizaje (prioridad alta) y luego pregunta cu\xE1l prefiere. Si no hay detalle ah\xED,
-puedes complementar con el cat\xE1logo web. Nunca inventes inclusiones ni precios.
+nombres. Explica qu\xE9 incluye cada uno con el texto de los PDFs del panel Aprendizaje
+(fuente principal de inclusiones) y el precio del Sheet. Si PDF y Sheet difieren en
+precio, SIEMPRE gana el Sheet. Si no hay detalle de inclusiones en el PDF, puedes
+usar el Sheet o complementar con el cat\xE1logo web. Nunca inventes inclusiones ni precios.
 
 ### Atajo
 Si el cliente YA nombr\xF3 un servicio en su primer mensaje ("quiero tarima", "quiero
@@ -19794,9 +19874,10 @@ banquete"), NO des el men\xFA de categor\xEDas: ve directo a ese servicio.
   asumas "Comida Corrida".
 - Cuando el nombre del EVENTO es un servicio (pozolada, taquiza, paella), ofrece ESE.
 - Servicio fuera de cat\xE1logo \u2192 ac\xE9ptalo, an\xF3talo y avanza. Nunca "no lo tenemos".
-- Libre para interpretar; ESTRICTA con los datos: solo servicios que existen; precios
-  e inclusiones del Sheet o de los PDFs cargados en Aprendizaje. Si no hay dato \u2192
-  cat\xE1logo web o "el equipo te lo confirma". NUNCA inventes qu\xE9 incluye ni precios.
+- Libre para interpretar; ESTRICTA con los datos: solo servicios que existen.
+  Inclusiones/detalle = PDFs del panel Aprendizaje (prioridad). Precios = Sheet
+  (si PDF y Sheet chocan en $, gana el Sheet). Si no hay dato \u2192 cat\xE1logo web o
+  "el equipo te lo confirma". NUNCA inventes qu\xE9 incluye ni precios.
 - Brief con VARIOS servicios (ej. coffee break, desayuno, snack, comida, cena, staff):
   reconoce la lista COMPLETA en el mismo turno. No te quedes solo con el primero.
   Si son muchos, confirma el paquete, ENV\xCDA el link del cat\xE1logo general y ofrece
@@ -19855,9 +19936,9 @@ lugar de tu evento, coordinamos el servicio."
 ===================================================================
 ## 7. DETALLE DE SERVICIO + CAT\xC1LOGO
 ===================================================================
-- Cuando el cliente nombre un servicio o pida info/precio/inclusiones, usa SIEMPRE
-  los datos del Sheet: niveles, precios y "Qu\xE9 incluye" de cada nivel. No digas
-  solo "s\xED lo manejamos" sin explicar.
+- Cuando el cliente nombre un servicio o pida info/inclusiones, usa SIEMPRE los PDFs
+  de Aprendizaje para decir qu\xE9 incluye. Para precios usa el Sheet (si choca con el
+  PDF, gana el Sheet). No digas solo "s\xED lo manejamos" sin explicar.
 - Incluye tambi\xE9n el link del cat\xE1logo (columna "Link cat\xE1logo",
   bodasesor.com/catalogos/...). Un link a la vez.
 - Si pide "todo" / multi-servicio \u2192 hub general ${CATALOG_URL}
@@ -19920,8 +20001,9 @@ Nada m\xE1s en esa etapa.
 - Responde la pregunta del cliente en el mismo turno.
 - No cierres sin fecha/hora, ubicaci\xF3n, invitados y presupuesto.
 - Tono formal y c\xE1lido, sin efusividad; el nombre m\xE1x. una vez por mensaje.
-- Cat\xE1logo inyectado = fuente de PRECIOS e inclusiones. El Sheet no define existencia:
-  servicio de eventos sin precio \u2192 acepta, anota y avanza.
+- PDFs de Aprendizaje = fuente de inclusiones/detalle. Sheet = fuente de PRECIOS
+  (si chocan en $, gana el Sheet). El Sheet no define existencia: servicio de eventos
+  sin precio \u2192 acepta, anota y avanza.
 `;
 
 // src/services/promptBuilder.ts
