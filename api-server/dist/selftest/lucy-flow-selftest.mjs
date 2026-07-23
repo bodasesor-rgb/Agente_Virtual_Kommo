@@ -2162,6 +2162,124 @@ function buildCompanyEmailConfirmReply() {
   return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
 }
 
+// src/services/lucyInfoPriceCache.ts
+var docs = [];
+var corpusFold = "";
+function fold(text) {
+  return (text || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/ñ/g, "n");
+}
+function extractPriceAmounts(text) {
+  const out = [];
+  const re = /\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/g;
+  let m;
+  while (m = re.exec(text || "")) {
+    const raw = m[1].replace(/,/g, "");
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 10) continue;
+    out.push(String(Math.round(n)));
+  }
+  return out;
+}
+function lucyInfoSupportsPriceClaim(mensaje) {
+  if (!corpusFold || !mensaje?.trim()) return false;
+  const amounts = extractPriceAmounts(mensaje);
+  if (!amounts.length) return false;
+  let hits = 0;
+  for (const a of amounts) {
+    if (corpusFold.includes(a)) hits += 1;
+    else if (a.length >= 4 && corpusFold.includes(a.replace(/(\d)(?=(\d{3})+$)/g, "$1,"))) hits += 1;
+  }
+  return hits >= 1 && hits >= Math.ceil(amounts.length * 0.4);
+}
+function scoreDoc(doc, tokens) {
+  if (!tokens.length) return 0;
+  const title = fold(doc.title);
+  const body = fold(doc.content);
+  let s = 0;
+  for (const tok of tokens) {
+    if (title.includes(tok)) s += 14;
+    if (body.slice(0, 900).includes(tok)) s += 5;
+    else if (body.includes(tok)) s += 1;
+  }
+  return s;
+}
+function tokenize(text) {
+  const raw = fold(text).replace(/[^a-z0-9\s]/g, " ");
+  const stop = /* @__PURE__ */ new Set([
+    "de",
+    "del",
+    "la",
+    "el",
+    "los",
+    "las",
+    "un",
+    "una",
+    "y",
+    "o",
+    "en",
+    "para",
+    "por",
+    "con",
+    "que",
+    "precio",
+    "precios",
+    "cuanto",
+    "cuesta",
+    "costo",
+    "persona",
+    "personas",
+    "quiero",
+    "necesito"
+  ]);
+  const out = [];
+  const seen = /* @__PURE__ */ new Set();
+  for (const t of raw.split(/\s+/)) {
+    if (t.length < 3 || stop.has(t) || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out.slice(0, 30);
+}
+function buildLucyInfoPriceSnippet(query, maxChars = 520) {
+  if (!docs.length || !query?.trim()) return null;
+  const tokens = tokenize(query);
+  if (!tokens.length) return null;
+  const ranked = [...docs].map((d) => ({ d, s: scoreDoc(d, tokens) })).filter((x) => x.s >= 12).sort((a, b) => b.s - a.s);
+  if (!ranked.length) return null;
+  const top = ranked[0].d;
+  const lines = top.content.split(/\n+/).map((l) => l.trim()).filter((l) => l.length > 8 && /\$\s*\d/.test(l));
+  const scoredLines = lines.map((l) => {
+    const f = fold(l);
+    let s = 0;
+    for (const tok of tokens) if (f.includes(tok)) s += 3;
+    if (/\$\s*\d/.test(l)) s += 1;
+    return { l, s };
+  }).filter((x) => x.s > 0).sort((a, b) => b.s - a.s);
+  const picked = (scoredLines.length ? scoredLines.map((x) => x.l) : lines).slice(0, 6);
+  if (!picked.length) {
+    const any = lines.slice(0, 5);
+    if (!any.length) return null;
+    const body2 = any.join(" \xB7 ").slice(0, maxChars);
+    return `*${top.title}*: ${body2}`;
+  }
+  const body = picked.join(" \xB7 ").slice(0, maxChars);
+  return `*${top.title}*: ${body}`;
+}
+function buildLucyInfoLearnedPriceReply(message) {
+  const snip = buildLucyInfoPriceSnippet(message);
+  if (!snip) return null;
+  const t = fold(message);
+  let ask = "\xBFLo agregamos a tu cotizaci\xF3n?";
+  if (/pista|tarima|baile/.test(t)) {
+    ask = "\xBFQu\xE9 medidas aproximadas tiene el espacio?";
+  } else if (/periquera|mesa|silla|sala|mobiliario|lounge|luxor/.test(t)) {
+    ask = "\xBFCu\xE1ntas piezas necesitas y para cu\xE1ndo?";
+  }
+  return `Seg\xFAn el cat\xE1logo que ya cargamos en Aprendizaje:
+${snip}
+${ask}`;
+}
+
 // src/price-guard.ts
 var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|mesas?|sillas?|periqueras?|salas?\s*(lounge)?|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
 var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
@@ -2207,6 +2325,7 @@ function messageClaimsPrice(mensaje) {
 }
 function responseHasInventedPrice(mensaje, currentMessage, recentContext) {
   if (!messageClaimsPrice(mensaje)) return false;
+  if (lucyInfoSupportsPriceClaim(mensaje)) return false;
   const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`.toLowerCase();
   if (mentionsNoListedPriceService(ctx)) return true;
   if (!mentionsListedPriceService(ctx) && messageClaimsPrice(mensaje)) {
@@ -2247,6 +2366,10 @@ function buildConsultativeNoPriceReply(message) {
   if (!message?.trim()) return null;
   const t = message.toLowerCase();
   const team = advisorLabelForClient();
+  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\s*lounge|luxor/.test(t)) {
+    const fromPdf = buildLucyInfoLearnedPriceReply(message);
+    if (fromPdf) return fromPdf;
+  }
   if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t)) {
     const transparent = /transparent/i.test(t);
     const head = transparent ? "S\xED, contamos con *carpas transparentes* (y tambi\xE9n Cathedral, Pir\xE1mide y Planas)." : "S\xED, manejamos carpas para jard\xEDn o terraza: Cathedral (techos altos), Pir\xE1mide, Planas y transparentes.";
@@ -3085,11 +3208,15 @@ function buildGuardServiceAck(query) {
     return `${head} Se cotizan seg\xFAn medidas, montaje y sede. ${team} arma el precio. \xBFQuieres que las agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas necesitas?`;
   }
   if (clientMentionsPistaTarima(query)) {
+    const fromPdf = buildLucyInfoLearnedPriceReply(query);
+    if (fromPdf) return fromPdf;
     const team = advisorLabelForClient();
     return `S\xED, manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} cotiza seg\xFAn las medidas. \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
   }
   const sala = parseSalaProductFromText(query);
   if (sala) {
+    const fromPdf = buildLucyInfoLearnedPriceReply(query);
+    if (fromPdf) return fromPdf;
     return `Con gusto. Anoto *${sala}* para tu cotizaci\xF3n (salas lounge / mobiliario). \xBFQuieres que lo dejemos en la propuesta?`;
   }
   const mobiliario = buildMobiliarioRentDetailReply(query);

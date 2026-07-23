@@ -1,7 +1,13 @@
 /**
  * Evita que Lucy invente precios para servicios sin tarifa en catálogo.
  * Solo servicios listados en catalogo.ts (alimentos, barras con $/pp, etc.) pueden citarse.
+ * Excepción: montos que aparecen en PDFs del panel Aprendizaje (lucyInfoPriceCache).
  */
+
+import {
+  buildLucyInfoLearnedPriceReply,
+  lucyInfoSupportsPriceClaim,
+} from "./services/lucyInfoPriceCache.js";
 
 /** Servicios sin precio publicado — Alejandro cotiza (fallback estático). */
 const NO_LISTED_PRICE_PATTERN =
@@ -84,6 +90,9 @@ export function responseHasInventedPrice(
 ): boolean {
   if (!messageClaimsPrice(mensaje)) return false;
 
+  // Precios que ya están en PDFs del panel Aprendizaje = conocimiento real, no invento.
+  if (lucyInfoSupportsPriceClaim(mensaje)) return false;
+
   const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`.toLowerCase();
 
   if (mentionsNoListedPriceService(ctx)) return true;
@@ -143,6 +152,12 @@ export function buildConsultativeNoPriceReply(message?: string): string | null {
   if (!message?.trim()) return null;
   const t = message.toLowerCase();
   const team = advisorLabelForClient();
+
+  // Si el panel ya cargó el PDF de ese servicio, citar precios aprendidos (no “sin tarifa”).
+  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\s*lounge|luxor/.test(t)) {
+    const fromPdf = buildLucyInfoLearnedPriceReply(message);
+    if (fromPdf) return fromPdf;
+  }
 
   if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t)) {
     const transparent = /transparent/i.test(t);

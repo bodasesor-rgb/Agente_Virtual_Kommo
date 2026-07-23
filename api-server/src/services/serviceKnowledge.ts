@@ -23,6 +23,7 @@ import {
   lookupCatalogServices,
 } from "./catalogService.js";
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
+import { buildLucyInfoLearnedPriceReply } from "./lucyInfoPriceCache.js";
 
 export type ServiceKnowledgeLevel = 1 | 2 | 3;
 
@@ -129,6 +130,8 @@ export function buildGuardServiceAck(query: string): string {
     return `${head} Se cotizan según medidas, montaje y sede. ${team} arma el precio. ¿Quieres que las agregue a tu cotización? ¿Qué medidas aproximadas necesitas?`;
   }
   if (clientMentionsPistaTarima(query)) {
+    const fromPdf = buildLucyInfoLearnedPriceReply(query);
+    if (fromPdf) return fromPdf;
     const team = advisorLabelForClient();
     return (
       `Sí, manejamos pistas de baile y tarimas en varios tamaños, con opción iluminada. ` +
@@ -138,6 +141,8 @@ export function buildGuardServiceAck(query: string): string {
 
   const sala = parseSalaProductFromText(query);
   if (sala) {
+    const fromPdf = buildLucyInfoLearnedPriceReply(query);
+    if (fromPdf) return fromPdf;
     return (
       `Con gusto. Anoto *${sala}* para tu cotización (salas lounge / mobiliario). ` +
       `¿Quieres que lo dejemos en la propuesta?`

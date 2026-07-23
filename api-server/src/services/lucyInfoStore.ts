@@ -1,6 +1,7 @@
 import { db, lucyInfoDocuments, type LucyInfoDocumentRecord } from "@workspace/db";
 import { desc, eq, sql } from "drizzle-orm";
 import { ensureLucyInfoSchema } from "./lucyInfoSchema.js";
+import { refreshLucyInfoPriceCache } from "./lucyInfoPriceCache.js";
 
 export type LucyInfoKind = "catalog" | "tips";
 
@@ -30,19 +31,27 @@ export async function listLucyInfoDocuments(
 ): Promise<LucyInfoDocumentRecord[]> {
   await ensureLucyInfoSchema();
   const capped = Math.min(Math.max(limit, 1), 100);
-  if (kind) {
-    return db
-      .select()
-      .from(lucyInfoDocuments)
-      .where(eq(lucyInfoDocuments.kind, kind))
-      .orderBy(desc(lucyInfoDocuments.updatedAt))
-      .limit(capped);
+  const rows = kind
+    ? await db
+        .select()
+        .from(lucyInfoDocuments)
+        .where(eq(lucyInfoDocuments.kind, kind))
+        .orderBy(desc(lucyInfoDocuments.updatedAt))
+        .limit(capped)
+    : await db
+        .select()
+        .from(lucyInfoDocuments)
+        .orderBy(desc(lucyInfoDocuments.updatedAt))
+        .limit(capped);
+  // Mantener caché de precios PDF para el price-guard (no inventados si están del panel).
+  if (!kind || kind === "catalog") {
+    refreshLucyInfoPriceCache(
+      rows
+        .filter((r) => r.kind !== "tips")
+        .map((r) => ({ title: r.title, content: r.content, kind: r.kind })),
+    );
   }
-  return db
-    .select()
-    .from(lucyInfoDocuments)
-    .orderBy(desc(lucyInfoDocuments.updatedAt))
-    .limit(capped);
+  return rows;
 }
 
 export async function getLucyInfoStats(): Promise<{
@@ -96,6 +105,8 @@ export async function createLucyInfoDocument(input: {
     })
     .returning();
   if (!row) throw new Error("insert_failed");
+  // Refresco best-effort del índice de precios aprendidos.
+  void listLucyInfoDocuments(undefined, 100).catch(() => undefined);
   return row;
 }
 
@@ -132,6 +143,9 @@ export async function deleteLucyInfoDocument(id: string): Promise<boolean> {
     .delete(lucyInfoDocuments)
     .where(eq(lucyInfoDocuments.id, id))
     .returning({ id: lucyInfoDocuments.id });
+  if (deleted.length > 0) {
+    void listLucyInfoDocuments(undefined, 100).catch(() => undefined);
+  }
   return deleted.length > 0;
 }
 
