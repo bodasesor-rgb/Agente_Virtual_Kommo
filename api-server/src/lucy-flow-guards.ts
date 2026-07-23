@@ -3004,6 +3004,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
   // por redirect a zona ni anti-repeat de embudo.
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+    // PDF del panel primero (texto completo del nivel/servicio).
+    const pdfOnly = buildLucyInfoInclusionReply(currentMessage ?? "");
+    if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const emailOkEarly = isEmailSatisfied(filledSet, extracted);
+      const withNext =
+        pending && emailOkEarly && pending !== "requerimientos"
+          ? `${pdfOnly}\n\n${buildNaturalQuestion(pending, ctx)}`
+          : pdfOnly;
+      log?.info({ entityId }, "GUARD: inclusiones — PDF aprendido (return temprano)");
+      return normalizeAdvisorReferences(
+        withNext,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
     const serviceHint =
       (isValidRequerimientosValue(extracted.requerimientos_evento)
         ? extracted.requerimientos_evento

@@ -2364,7 +2364,7 @@ function findInclusionSection(content, query, maxChars = 1100) {
   if (slice.length < 80) return null;
   return slice.slice(0, maxChars);
 }
-function buildLucyInfoInclusionReply(query, maxChars = 1100) {
+function buildLucyInfoInclusionReply2(query, maxChars = 1100) {
   ensureCacheFromSeedSync();
   const docs = cacheState().docs;
   if (!docs.length || !query?.trim()) return null;
@@ -4739,7 +4739,7 @@ function attachAvailableSheetDetail(query, serviceHint) {
     query.trim() || null
   ].filter((a) => !!a);
   for (const a of attempts) {
-    const fromPdf = buildLucyInfoInclusionReply(a);
+    const fromPdf = buildLucyInfoInclusionReply2(a);
     if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
     const candidates = [
       buildCatalogInclusionAnswer(a),
@@ -4830,7 +4830,7 @@ ${lines.join("\n")}
 
 ${footer}`;
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
-    const fromPdf = buildLucyInfoInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) || buildLucyInfoInclusionReply(svc);
+    const fromPdf = buildLucyInfoInclusionReply2(`${svc} ${result.serviceName ?? ""}`.trim()) || buildLucyInfoInclusionReply2(svc);
     if (fromPdf) {
       body += `
 
@@ -4874,7 +4874,7 @@ function messageOffersLevelsWithoutInclusions(text) {
 function enrichBareNivelOffer(mensaje, serviceHint) {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
   const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
-  const fromPdf = buildLucyInfoInclusionReply(hint);
+  const fromPdf = buildLucyInfoInclusionReply2(hint);
   if (fromPdf) return fromPdf;
   const detail = buildCatalogServiceDetailAnswer(hint);
   if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
@@ -5028,9 +5028,9 @@ function buildInclusionTeamConfirmationAnswer(query) {
   if (resolved.kind === "service_nivel" && resolved.rows[0] && getInclusionFromRow(resolved.rows[0])) {
     return null;
   }
-  const fromPdf = buildLucyInfoInclusionReply(
+  const fromPdf = buildLucyInfoInclusionReply2(
     [label, nivel, query].filter(Boolean).join(" ")
-  ) || buildLucyInfoInclusionReply(query);
+  ) || buildLucyInfoInclusionReply2(query);
   if (fromPdf) return fromPdf;
   if (resolvedHasInclusionData(resolved)) return null;
   const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
@@ -5057,7 +5057,7 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     query
   );
   const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
-  const fromPdfEarly = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+  const fromPdfEarly = buildLucyInfoInclusionReply2(pdfQ) || buildLucyInfoInclusionReply2(query);
   if (fromPdfEarly && !wantsAllLevels && !/bet[uú]n|cupcakes?/i.test(fromPdfEarly)) {
     return fromPdfEarly;
   }
@@ -5088,10 +5088,10 @@ function resolveCatalogInclusionReply(query, serviceHint) {
     if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
     const detail = buildCatalogServiceDetailAnswer(q);
     if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
-    const fromPdf = buildLucyInfoInclusionReply(q);
+    const fromPdf = buildLucyInfoInclusionReply2(q);
     if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
   }
-  const fromPdfLate = buildLucyInfoInclusionReply(pdfQ) || buildLucyInfoInclusionReply(query);
+  const fromPdfLate = buildLucyInfoInclusionReply2(pdfQ) || buildLucyInfoInclusionReply2(query);
   if (fromPdfLate) return fromPdfLate;
   const webQ = serviceHint || query;
   if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
@@ -5606,6 +5606,8 @@ function buildEventOfferCatalogHint(tipoEvento) {
 }
 function injectCatalogInclusionIfAsked(clientMessage, aiResponse, serviceHint) {
   if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
+  const fromPdf = buildLucyInfoInclusionReply2(clientMessage);
+  if (fromPdf && !/bet[uú]n|cupcakes?/i.test(fromPdf)) return fromPdf;
   const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
   if (fromCatalog) return fromCatalog;
   return aiResponse;
@@ -17843,6 +17845,19 @@ ${nextQ}` : ack;
     }
   }
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+    const pdfOnly = buildLucyInfoInclusionReply(currentMessage ?? "");
+    if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const emailOkEarly = isEmailSatisfied(filledSet, extracted);
+      const withNext = pending && emailOkEarly && pending !== "requerimientos" ? `${pdfOnly}
+
+${buildNaturalQuestion(pending, ctx)}` : pdfOnly;
+      log?.info({ entityId }, "GUARD: inclusiones \u2014 PDF aprendido (return temprano)");
+      return normalizeAdvisorReferences(
+        withNext,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
     const serviceHint = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
     const inclusionAnswer = resolveCatalogInclusionReply(
       currentMessage ?? "",
