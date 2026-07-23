@@ -131,9 +131,10 @@ export async function buildLucySystemPrompt(opts: {
   };
   const leadScore = calculateLeadScore(scoreContext);
   const stage = detectStage(scoreContext);
+  const lucyInfoQuery = [opts.messageText, opts.conversationText].filter(Boolean).join("\n");
   const [catalogBlock, lucyInfoBlock] = await Promise.all([
     getCatalogPromptBlock(),
-    buildLucyInfoPromptBlock().catch(() => ""),
+    buildLucyInfoPromptBlock({ queryText: lucyInfoQuery }).catch(() => ""),
   ]);
   return buildDynamicPrompt({
     stage,

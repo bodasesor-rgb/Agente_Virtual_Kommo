@@ -135,53 +135,186 @@ export async function deleteLucyInfoDocument(id: string): Promise<boolean> {
   return deleted.length > 0;
 }
 
-/** Texto plano para el system prompt de Lucy (recortado). Prioridad alta: va primero. */
+function foldLucyInfoText(text: string): string {
+  return (text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ñ/g, "n");
+}
+
+/** Tokens útiles para rankear PDFs según la pregunta del cliente. */
+export function tokenizeLucyInfoQuery(text: string): string[] {
+  const raw = foldLucyInfoText(text).replace(/[^a-z0-9\s]/g, " ");
+  const stop = new Set([
+    "de",
+    "del",
+    "la",
+    "el",
+    "los",
+    "las",
+    "un",
+    "una",
+    "y",
+    "o",
+    "en",
+    "para",
+    "por",
+    "con",
+    "que",
+    "me",
+    "mi",
+    "tu",
+    "su",
+    "al",
+    "es",
+    "son",
+    "hay",
+    "tiene",
+    "tienen",
+    "quiero",
+    "queria",
+    "necesito",
+    "busco",
+    "hola",
+    "buenas",
+    "buen",
+    "dia",
+    "dias",
+    "tarde",
+    "noches",
+    "info",
+    "informacion",
+    "precio",
+    "precios",
+    "costo",
+    "cuanto",
+    "como",
+    "persona",
+    "personas",
+    "invitados",
+    "evento",
+    "eventos",
+    "servicio",
+    "servicios",
+    "bodasesor",
+    "lucy",
+    "pdf",
+    "catalogo",
+  ]);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const t of raw.split(/\s+/)) {
+    if (t.length < 3 || stop.has(t) || seen.has(t)) continue;
+    seen.add(t);
+    out.push(t);
+  }
+  return out.slice(0, 40);
+}
+
+function scoreLucyInfoDoc(
+  doc: Pick<LucyInfoDocumentRecord, "title" | "content" | "sourceFilename" | "kind">,
+  tokens: string[],
+): number {
+  if (!tokens.length) return 0;
+  const title = foldLucyInfoText(`${doc.title} ${doc.sourceFilename || ""}`);
+  const body = foldLucyInfoText(doc.content);
+  let score = 0;
+  for (const tok of tokens) {
+    if (title.includes(tok)) score += 12;
+    // Coincidencia fuerte en primeras líneas del PDF (título/resumen).
+    if (body.slice(0, 800).includes(tok)) score += 4;
+    else if (body.includes(tok)) score += 1;
+  }
+  if (doc.kind === "tips") score += 0.5;
+  return score;
+}
+
+function formatDocBody(doc: LucyInfoDocumentRecord): string {
+  const header = `### ${doc.title}${doc.sourceFilename ? ` (${doc.sourceFilename})` : ""}`;
+  return `${header}\n${doc.content}`.trim();
+}
+
+/**
+ * Texto plano para el system prompt de Lucy (recortado). Prioridad alta: va primero.
+ * Con queryText: rankea PDFs por relevancia (no solo los más recientes).
+ * Siempre incluye un índice de TODOS los títulos aprendidos (no se pierden al editar Lucy).
+ */
 export async function buildLucyInfoPromptBlock(opts?: {
   maxCatalogChars?: number;
   maxTipsChars?: number;
+  queryText?: string;
 }): Promise<string> {
   await ensureLucyInfoSchema();
-  // Presupuesto amplio: varios PDFs de catálogo + tips (el system prompt ya va primero).
-  const maxCatalog = opts?.maxCatalogChars ?? 14_000;
+  // Presupuesto: varios PDFs relevantes + tips (el system prompt ya va primero).
+  const maxCatalog = opts?.maxCatalogChars ?? 22_000;
   const maxTips = opts?.maxTipsChars ?? 6_000;
 
-  const docs = await listLucyInfoDocuments(undefined, 80);
+  const docs = await listLucyInfoDocuments(undefined, 100);
   if (!docs.length) return "";
+
+  const tokens = tokenizeLucyInfoQuery(opts?.queryText || "");
+  const catalogs = docs.filter((d) => d.kind !== "tips");
+  const tips = docs.filter((d) => d.kind === "tips");
+
+  const rankedCatalogs = [...catalogs].sort((a, b) => {
+    const sb = scoreLucyInfoDoc(b, tokens);
+    const sa = scoreLucyInfoDoc(a, tokens);
+    if (sb !== sa) return sb - sa;
+    // Empate: más reciente primero (updatedAt ya viene en orden desc de list).
+    return 0;
+  });
+
+  const rankedTips = [...tips].sort((a, b) => scoreLucyInfoDoc(b, tokens) - scoreLucyInfoDoc(a, tokens));
 
   const catalogParts: string[] = [];
   const tipParts: string[] = [];
   let catalogUsed = 0;
   let tipsUsed = 0;
 
-  for (const doc of docs) {
-    const header = `### ${doc.title}${doc.sourceFilename ? ` (${doc.sourceFilename})` : ""}`;
-    const body = `${header}\n${doc.content}`.trim();
-    if (doc.kind === "tips") {
-      if (tipsUsed >= maxTips) continue;
-      const slice = body.slice(0, Math.max(0, maxTips - tipsUsed));
-      tipParts.push(slice);
-      tipsUsed += slice.length + 2;
-    } else {
-      if (catalogUsed >= maxCatalog) continue;
-      const slice = body.slice(0, Math.max(0, maxCatalog - catalogUsed));
-      catalogParts.push(slice);
-      catalogUsed += slice.length + 2;
-    }
+  for (const doc of rankedCatalogs) {
+    if (catalogUsed >= maxCatalog) break;
+    const body = formatDocBody(doc);
+    const slice = body.slice(0, Math.max(0, maxCatalog - catalogUsed));
+    if (!slice) continue;
+    catalogParts.push(slice);
+    catalogUsed += slice.length + 2;
   }
 
-  if (!catalogParts.length && !tipParts.length) return "";
+  for (const doc of rankedTips) {
+    if (tipsUsed >= maxTips) break;
+    const body = formatDocBody(doc);
+    const slice = body.slice(0, Math.max(0, maxTips - tipsUsed));
+    if (!slice) continue;
+    tipParts.push(slice);
+    tipsUsed += slice.length + 2;
+  }
+
+  if (!catalogParts.length && !tipParts.length && !catalogs.length) return "";
+
+  const indexLines = catalogs.map((d, i) => `${i + 1}. ${d.title}`).slice(0, 80);
 
   const sections: string[] = [
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     "PRIORIDAD 1 — INFORMACIÓN MANUAL PARA LUCY (PDFs y tips del panel Aprendizaje)",
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
     "LEE ESTO PRIMERO. Es el material que el equipo cargó para que ofrezcas servicios con conocimiento real (catálogos, inclusiones, tendencias).",
+    "Estos PDFs viven en base de datos: editar el prompt de Lucy o redesplegar NO los borra. Solo se eliminan si alguien los borra a mano en Aprendizaje.",
     "Úsalo activamente al recomendar y explicar. Resume con naturalidad; no copies bloques enteros.",
     "Si este texto y el Sheet chocan en PRECIO, gana el Sheet. En descripción/inclusiones/estilo, prioriza este material.",
   ];
 
+  if (indexLines.length) {
+    sections.push(
+      "",
+      `—— Índice de catálogos ya aprendidos (${indexLines.length}) ——`,
+      ...indexLines,
+      "Si el cliente pregunta por uno del índice, ofrécelo con lo que tengas abajo (detalle completo de los más relevantes a esta conversación).",
+    );
+  }
+
   if (catalogParts.length) {
-    sections.push("", "—— Catálogos y detalle de servicios (PDFs) ——", ...catalogParts);
+    sections.push("", "—— Detalle de catálogos relevantes a esta conversación ——", ...catalogParts);
   }
   if (tipParts.length) {
     sections.push("", "—— Tendencias, modas y consejos ——", ...tipParts);
