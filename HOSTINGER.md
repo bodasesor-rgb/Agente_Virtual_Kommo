@@ -50,7 +50,19 @@ O desde tu máquina (con el token):
 HOSTINGER_API_TOKEN=xxx npm run deploy:hostinger
 ```
 
-Tras el deploy, `/api/health` debe mostrar `"version":"3.3"` y `"lucy_prompt":"V7"`.
+Tras el deploy, `/api/health` debe mostrar `"version":"3.3"` y el `lucy_prompt` actual (p. ej. `V8.69`).
+
+### Recuperar HTTP 503 (proceso Node caído)
+
+El upload por API desde GitHub Actions suele fallar por **Cloudflare**. El workflow hace entonces:
+
+```bash
+HOSTINGER_API_TOKEN=xxx npm run deploy:hostinger:restart
+```
+
+Eso llama `POST …/nodejs/server/restart` (sin re-subir zip). También puedes pulsar **Restart** en hPanel → Node.js.
+
+Si tras el restart sigue 503: revisa Registros (falta `OPEN_AI`, crash al arrancar) o Redesplegar desde Git en hPanel.
 
 ---
 

@@ -9,6 +9,7 @@
   "scripts": {
     "build": "node -e \"require('fs').accessSync('deploy/index.mjs');console.log('[build] deploy/ precompilado OK')\"",
     "deploy:hostinger": "node scripts/deploy-hostinger.mjs",
+    "deploy:hostinger:restart": "node scripts/deploy-hostinger.mjs --restart",
     "start": "node start.mjs",
     "postinstall": "echo \"Lucy: sin dependencias npm — bundle en deploy/\""
   },

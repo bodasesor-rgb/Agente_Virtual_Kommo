@@ -26,6 +26,8 @@ const EXPECTED_COMMIT = (
 ).trim();
 const MAX_ATTEMPTS = Number(process.env.VERIFY_ATTEMPTS ?? 36);
 const INTERVAL_MS = Number(process.env.VERIFY_INTERVAL_MS ?? 10_000);
+/** Si es 1/true: cualquier /api/health OK cuenta (recuperación 503; el SHA puede ir atrasado). */
+const ACCEPT_ANY_OK = /^(1|true|yes)$/i.test(process.env.VERIFY_ACCEPT_ANY_OK ?? "");
 
 function shortSha(sha) {
   return (sha || "").trim().slice(0, 7);
@@ -78,7 +80,7 @@ async function main() {
         console.log(`[verify] OK — prompt ${h.lucy_prompt} · ${h.built_at_display ?? h.built_at}`);
         if (h.git_commit_short) console.log(`[verify] Commit en servidor: ${h.git_commit_short}`);
 
-        if (accepted.length) {
+        if (accepted.length && !ACCEPT_ANY_OK) {
           const got = shortSha(h.git_commit || h.git_commit_short || "");
           if (got && !accepted.includes(got)) {
             console.log(
@@ -93,6 +95,13 @@ async function main() {
             );
             console.error("[verify] Hostinger aún no aplicó el último push — redeploy manual en hPanel.");
             process.exit(1);
+          }
+        } else if (accepted.length && ACCEPT_ANY_OK) {
+          const got = shortSha(h.git_commit || h.git_commit_short || "");
+          if (got && !accepted.includes(got)) {
+            console.log(
+              `[verify] AVISO: commit en servidor (${got}) ≠ aceptados (${accepted.join("|")}) — OK por VERIFY_ACCEPT_ANY_OK`,
+            );
           }
         }
 

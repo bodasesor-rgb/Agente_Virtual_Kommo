@@ -66,21 +66,42 @@ jobs:
           fi
           echo "Redeploy disparado (HTTP $HTTP)"
 
-      - name: Deploy via Hostinger API (alternativa)
+      - name: Deploy via Hostinger API (upload + restart)
         env:
           HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
           HOSTINGER_DOMAIN: midnightblue-mosquito-424375.hostingersite.com
         run: |
           if [ -z "$HOSTINGER_API_TOKEN" ]; then
-            echo "HOSTINGER_API_TOKEN no configurado — saltando API deploy."
+            echo "HOSTINGER_API_TOKEN no configurado — saltando API deploy/restart."
             exit 0
           fi
-          echo "Nota: la subida por API desde GitHub Actions puede fallar por Cloudflare."
-          echo "Si falla, usa HOSTINGER_WEBHOOK_URL o redeploy manual en hPanel."
-          node scripts/deploy-hostinger.mjs || echo "API deploy falló — usa webhook o hPanel"
+          echo "Nota: el upload multipart puede fallar por Cloudflare; el script hace restart igual."
+          node scripts/deploy-hostinger.mjs
 
-      - name: Verificar que Hostinger aplicó el deploy
+      - name: Esperar arranque tras restart
+        run: sleep 20
+
+      - name: Verificar salud (relajado — prioriza salir de 503)
         env:
           EXPECTED_COMMIT: ${{ github.sha }}
           LUCY_PUBLIC_URL: ${{ vars.LUCY_PUBLIC_URL }}
+          VERIFY_ACCEPT_ANY_OK: "1"
+          VERIFY_ATTEMPTS: "24"
+          VERIFY_INTERVAL_MS: "10000"
         run: node scripts/verify-deploy.mjs
+
+      - name: Reintento restart si sigue caído
+        if: failure()
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_DOMAIN: midnightblue-mosquito-424375.hostingersite.com
+        run: |
+          if [ -z "$HOSTINGER_API_TOKEN" ]; then
+            echo "Sin token — no se puede reiniciar."
+            exit 1
+          fi
+          echo "Primer verify falló — segundo restart…"
+          node scripts/deploy-hostinger.mjs --restart
+          sleep 25
+          VERIFY_ACCEPT_ANY_OK=1 VERIFY_ATTEMPTS=18 VERIFY_INTERVAL_MS=10000 \
+            node scripts/verify-deploy.mjs

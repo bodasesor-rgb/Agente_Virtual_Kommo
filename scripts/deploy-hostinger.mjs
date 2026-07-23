@@ -1,14 +1,22 @@
 #!/usr/bin/env node
 /**
- * Despliega Lucy en Hostinger vía API (Node.js build from archive).
+ * Despliega / recupera Lucy en Hostinger vía API (Node.js).
  *
  * Requiere:
  *   HOSTINGER_API_TOKEN  — hPanel → Perfil → API
  *   HOSTINGER_DOMAIN     — opcional, default: midnightblue-mosquito-424375.hostingersite.com
+ *
+ * Modos:
+ *   node scripts/deploy-hostinger.mjs              — zip + upload + poll build (+ restart al final)
+ *   node scripts/deploy-hostinger.mjs --restart     — solo reinicia el proceso Node (recupera 503)
+ *   node scripts/deploy-hostinger.mjs --restart-only — alias de --restart
+ *
+ * Nota: el upload multipart desde GitHub Actions suele chocar con Cloudflare (HTTP 403).
+ * En ese caso se hace restart automático para levantar el proceso (p. ej. tras git auto-deploy).
  */
 import { execSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -16,6 +24,8 @@ const API_BASE = "https://developers.hostinger.com";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DOMAIN = process.env.HOSTINGER_DOMAIN?.trim() || "midnightblue-mosquito-424375.hostingersite.com";
 const TOKEN = process.env.HOSTINGER_API_TOKEN?.trim() || process.env.API_TOKEN?.trim();
+const ARGS = new Set(process.argv.slice(2));
+const RESTART_ONLY = ARGS.has("--restart") || ARGS.has("--restart-only");
 
 if (!TOKEN) {
   console.error("[deploy] Falta HOSTINGER_API_TOKEN (hPanel → Perfil → API)");
@@ -37,7 +47,7 @@ async function api(pathname, { method = "GET", body, headers = {} } = {}) {
   try {
     json = text ? JSON.parse(text) : null;
   } catch {
-    json = { raw: text };
+    json = { raw: text?.slice(0, 500) };
   }
   if (!res.ok) {
     throw new Error(`API ${method} ${pathname} → ${res.status}: ${JSON.stringify(json)}`);
@@ -52,6 +62,25 @@ async function resolveUsername() {
     throw new Error(`No se encontró sitio para dominio ${DOMAIN}`);
   }
   return site.username;
+}
+
+async function restartNode(username) {
+  const pathname =
+    `/api/hosting/v1/accounts/${encodeURIComponent(username)}` +
+    `/websites/${encodeURIComponent(DOMAIN)}/nodejs/server/restart`;
+  console.log("[deploy] Reiniciando Node.js en Hostinger…");
+  const result = await api(pathname, { method: "POST" });
+  console.log("[deploy] Restart OK:", JSON.stringify(result).slice(0, 400));
+  return result;
+}
+
+function isCloudflareBlock(errMsg) {
+  const s = String(errMsg || "");
+  return (
+    s.includes("Just a moment") ||
+    s.includes("challenges.cloudflare.com") ||
+    /Upload failed HTTP 403/.test(s)
+  );
 }
 
 async function createArchive() {
@@ -157,13 +186,41 @@ async function main() {
   const username = await resolveUsername();
   console.log(`[deploy] Cuenta: ${username}`);
 
-  const archive = await createArchive();
-  const result = await uploadBuild(username, archive);
-  const buildUuid = result?.data?.uuid ?? result?.uuid;
-  console.log("[deploy] Build iniciado:", buildUuid ?? result);
+  if (RESTART_ONLY) {
+    await restartNode(username);
+    console.log("[deploy] Restart listo. Verifica: https://" + DOMAIN + "/api/health");
+    return;
+  }
 
-  if (buildUuid) {
-    await pollBuild(username, buildUuid);
+  let uploaded = false;
+  try {
+    const archive = await createArchive();
+    const result = await uploadBuild(username, archive);
+    const buildUuid = result?.data?.uuid ?? result?.uuid;
+    console.log("[deploy] Build iniciado:", buildUuid ?? result);
+    if (buildUuid) {
+      await pollBuild(username, buildUuid);
+    }
+    uploaded = true;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (isCloudflareBlock(msg)) {
+      console.warn("[deploy] Upload bloqueado por Cloudflare (esperado desde GitHub Actions).");
+      console.warn("[deploy] Continuando con restart — Hostinger debe tener el código vía Git auto-deploy.");
+    } else {
+      console.warn("[deploy] Upload/build falló:", msg.slice(0, 500));
+      console.warn("[deploy] Intentando restart de recuperación…");
+    }
+  }
+
+  // Siempre reiniciar: recupera 503 y aplica código ya presente tras git pull.
+  try {
+    await restartNode(username);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[deploy] Restart falló:", msg);
+    if (!uploaded) process.exit(1);
+    throw err;
   }
 
   console.log("[deploy] Listo. Verifica: https://" + DOMAIN + "/api/health");
