@@ -73,6 +73,16 @@ import {
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
 import { buildGuardServiceAck, buildMobiliarioRentDetailReply } from "./services/serviceKnowledge.js";
 import {
+  shouldOfferOptionsBeforeDetail,
+  resolveProgressiveDetailQuery,
+  clientWantsServiceDetail,
+  historyOfferedServiceOptionsMenu,
+  isProgressiveOptionsMenuReply,
+  isBareProgressiveAffirmation,
+  detectProgressiveFamily,
+  progressiveFamilyDetailQueries,
+} from "./services/serviceProgressiveOffer.js";
+import {
   extractImageClientReply,
   extractImageIntent,
   looksLikeImageInternalSummary,
@@ -1190,19 +1200,16 @@ export function buildVagueFoodOptionsReply(
     /\bbanquetes?\b|\bcatering\b/i.test(msg) &&
     !/\b(taquiza|coffee\s*break|sushi|parrillada)\b/i.test(msg);
 
-  // A14947: "banquetes o catering… ¿información?" → detalle Sheet + link, no dump Betún/Cupcakes.
+  // V8.68: banquetes/catering + info → menú de tipos primero (detalle solo tras elegir).
   if (isBanqueteVague && wantsInfo) {
-    const detail =
-      buildCatalogPriceAnswer("banquete") ||
-      buildCatalogServiceDetailAnswer("banquete formal 3 tiempos") ||
-      buildCatalogServiceDetailAnswer("banquete");
-    const link = buildCatalogWebLinkReply({ query: "banquete" });
-    const intro =
-      "Claro. Para banquetes manejamos *Formal 3 tiempos* y *Mexicano 4 tiempos*, cada uno en varios niveles (Solo Alimentos, Básico, Tradicional, Premium).";
-    const body = detail
-      ? `${intro}\n\n${detail}\n\n${link}`
-      : `${intro}\n\n${link}`;
-    return `${pickTransition(history)} ${body}`.trim();
+    const progressive = shouldOfferOptionsBeforeDetail({
+      currentMessage: msg,
+      history,
+      serviceHint: "banquete",
+    });
+    if (progressive) {
+      return `${pickTransition(history)} ${progressive.menu}`.trim();
+    }
   }
 
   let options: string;
@@ -1230,14 +1237,92 @@ export function buildVagueFoodOptionsReply(
     linkHint = "banquete";
   } else {
     options = "Según el evento podemos ofrecerte banquete, taquiza o brunch — ¿cuál te interesa?";
-    return ensureCatalogWebLink(`${pickTransition(history)} ${options}`, "banquete");
+    // V8.68: menú corto sin link; el catálogo va con el detalle tras elegir.
+    return `${pickTransition(history)} ${options}`.trim();
   }
 
   const follow = pickVariant("requerimientos", history, entityId);
-  return ensureCatalogWebLink(
-    `${pickTransition(history)} ${options} ${follow}`.trim(),
-    linkHint
-  );
+  return `${pickTransition(history)} ${options} ${follow}`.trim();
+}
+
+/** Tras menú de opciones: detalle + link de catálogo (o re-pregunta cuál). */
+function buildProgressiveDetailAfterMenu(opts: {
+  extracted: ExtractedData;
+  history: OpenAI.Chat.ChatCompletionMessageParam[];
+  currentMessage?: string;
+  filledSet?: Set<string>;
+  serviceHint?: string | null;
+}): string | null {
+  const { extracted, history, currentMessage, filledSet, serviceHint } = opts;
+  if (!historyOfferedServiceOptionsMenu(history)) return null;
+  if (!clientWantsServiceDetail(currentMessage, history)) return null;
+
+  const hint = serviceHint || extracted.requerimientos_evento;
+  const detailQuery = resolveProgressiveDetailQuery({
+    currentMessage,
+    serviceHint: hint,
+    history,
+  });
+
+  // "Sí" / "dale" / "todos" sin elegir → toda la info de la familia + link aparte.
+  if (!detailQuery && isBareProgressiveAffirmation(currentMessage)) {
+    const family =
+      detectProgressiveFamily(hint) ||
+      detectProgressiveFamily(
+        collectUserTexts(history, currentMessage).join(" ")
+      );
+    if (family) {
+      const queries = progressiveFamilyDetailQueries(family);
+      const chunks: string[] = [];
+      for (const q of queries) {
+        const d =
+          buildCatalogServiceDetailAnswer(q) ||
+          buildCatalogPriceAnswer(q) ||
+          attachAvailableSheetDetail(q, q);
+        if (d) chunks.push(d);
+      }
+      const linkQ = queries[0] || family;
+      const link = buildCatalogWebLinkReply({ query: linkQ, serviceHint: hint || linkQ });
+      if (filledSet) {
+        filledSet.add("Requerimientos o servicios");
+        const merged = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          queries[0] || family,
+          6
+        );
+        if (merged) extracted.requerimientos_evento = merged;
+      }
+      if (chunks.length) {
+        return `${pickTransition(history)} Claro, te paso el detalle de las opciones:\n\n${chunks.join("\n\n")}\n\n${link}`.trim();
+      }
+      return `${pickTransition(history)} ${link}`.trim();
+    }
+  }
+
+  if (!detailQuery) {
+    return `${pickTransition(history)} ¿De cuál te paso la info más detallada?`.trim();
+  }
+  if (filledSet) {
+    filledSet.add("Requerimientos o servicios");
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      detailQuery,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
+  }
+  const detail =
+    buildCatalogServiceDetailAnswer(detailQuery) ||
+    buildCatalogPriceAnswer(detailQuery) ||
+    attachAvailableSheetDetail(detailQuery, detailQuery);
+  const link = buildCatalogWebLinkReply({
+    query: detailQuery,
+    serviceHint: detailQuery,
+  });
+  if (detail) {
+    return `${pickTransition(history)} Perfecto. Te detallo *${detailQuery}*:\n\n${detail}\n\n${link}`.trim();
+  }
+  return `${pickTransition(history)} Perfecto, anoto *${detailQuery}*.\n\n${link}`.trim();
 }
 
 function buildFoodSalesReply(
@@ -1303,50 +1388,97 @@ function buildFoodSalesReply(
   }
 
   if (mentionedService || (currentMessage && isServiceRelatedMessage(currentMessage))) {
-    let detail = query ? buildCatalogServiceDetailAnswer(query) : null;
-    if (detail && mentionedService && !catalogAnswerMatchesRequestedService(currentMessage ?? "", detail)) {
-      detail = null;
-    }
     const serviceLabel =
       (allServices.length > 0 ? allServices.join(", ") : null) ||
       mentionedService ||
       parsePrimaryService(currentMessage ?? "") ||
       (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
 
+    // V8.68: menú de opciones ANTES del dump de precios/inclusiones.
+    const optionsFirst = shouldOfferOptionsBeforeDetail({
+      currentMessage,
+      history,
+      serviceHint: mentionedService || serviceLabel,
+    });
+    if (optionsFirst) {
+      if (filledSet && serviceLabel) {
+        filledSet.add("Requerimientos o servicios");
+        const merged = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          serviceLabel,
+          6
+        );
+        if (merged) extracted.requerimientos_evento = merged;
+      }
+      return `${pickTransition(history)} ${optionsFirst.menu}`.trim();
+    }
+
+    // Tras elegir / pedir detalle → query concreto + detalle + link aparte.
+    const detailQuery = resolveProgressiveDetailQuery({
+      currentMessage,
+      serviceHint: mentionedService || serviceLabel,
+      history,
+    });
+    if (
+      !detailQuery &&
+      historyOfferedServiceOptionsMenu(history) &&
+      clientWantsServiceDetail(currentMessage, history)
+    ) {
+      return `${pickTransition(history)} ¿De cuál te paso la info más detallada?`.trim();
+    }
+    const queryForDetail = detailQuery || query;
+
+    let detail = queryForDetail ? buildCatalogServiceDetailAnswer(queryForDetail) : null;
+    if (
+      detail &&
+      mentionedService &&
+      !catalogAnswerMatchesRequestedService(currentMessage ?? "", detail)
+    ) {
+      detail = null;
+    }
+
     if (detail) {
-      const intro = mentionedService
-        ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
-        : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
-      // V8.34/V8.35: detalle Sheet + link del catálogo.
-      return ensureCatalogWebLink(
-        `${intro}\n\n${detail}`.trim(),
-        mentionedService || query || serviceLabel
-      );
+      const introLabel = detailQuery || mentionedService || serviceLabel;
+      const intro = introLabel
+        ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.`
+        : `${pickTransition(history)} Perfecto, te detallo la opción.`;
+      const link = buildCatalogWebLinkReply({
+        query: queryForDetail || mentionedService || serviceLabel || "banquete",
+        serviceHint: queryForDetail || mentionedService || serviceLabel,
+      });
+      return `${intro}\n\n${detail}\n\n${link}`.trim();
     }
 
     // Fallback: precio/inclusiones si el detail principal falló el match filter.
     const forced =
       attachAvailableSheetDetail(
-        mentionedService || query || serviceLabel || currentMessage || "",
+        queryForDetail || mentionedService || query || serviceLabel || currentMessage || "",
         mentionedService || serviceLabel
       ) || null;
     if (forced) {
-      const intro = mentionedService
-        ? `${pickTransition(history)} Sí manejamos ${mentionedService} para ${eventLabel}.`
-        : `${pickTransition(history)} Con gusto te ayudo con ${eventLabel}.`;
-      return `${intro}\n\n${forced}`.trim();
+      const introLabel = detailQuery || mentionedService || serviceLabel;
+      const intro = introLabel
+        ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.`
+        : `${pickTransition(history)} Perfecto, te detallo la opción.`;
+      const link = buildCatalogWebLinkReply({
+        query: queryForDetail || mentionedService || serviceLabel || query,
+        serviceHint: mentionedService || serviceLabel,
+      });
+      return `${intro}\n\n${forced}\n\n${link}`.trim();
     }
 
     if (serviceLabel && currentMessage) {
       const ack = buildGuardServiceAck(currentMessage);
-      // Si el ack ya trae Sheet detail, no diluirlo.
+      // Si el ack ya trae Sheet detail, acompañar con link (post-elección).
       if (messageHasSheetServiceDetail(ack)) {
-        return ensureCatalogWebLink(ack, serviceLabel);
+        const link = buildCatalogWebLinkReply({
+          query: serviceLabel,
+          serviceHint: serviceLabel,
+        });
+        return `${ack}\n\n${link}`.trim();
       }
-      return ensureCatalogWebLink(
-        appendNext(`${pickTransition(history)} ${ack}`, serviceLabel),
-        serviceLabel
-      );
+      // Ack corto sin dump: no forzar link aún.
+      return appendNext(`${pickTransition(history)} ${ack}`, serviceLabel);
     }
 
     return null;
@@ -1798,7 +1930,8 @@ export function buildFirstInteractionMessage(
     return `${intro}${buildItalianFoodPitch(ctx.currentMessage)} ${nameQ}`.trim();
   }
 
-  // V8.35: servicio concreto → detalle Sheet (niveles/incluye/precio) en el primer turno.
+  // V8.68: familia sin variante → menú de opciones (detalle + link tras elegir / "sí").
+  // Multi-servicio / brief rico sigue con bloque de catálogo.
   const svcHint =
     (isValidRequerimientosValue(ctx.extracted.requerimientos_evento)
       ? ctx.extracted.requerimientos_evento
@@ -1806,15 +1939,25 @@ export function buildFirstInteractionMessage(
     parsePrimaryService(userText) ||
     parsePrimaryService(ctx.currentMessage ?? "") ||
     (multiServices.length === 1 ? multiServices[0]! : null);
-  const sheetDetail =
+  const progressiveFirst =
     !includeCatalog && svcHint
+      ? shouldOfferOptionsBeforeDetail({
+          currentMessage: ctx.currentMessage ?? svcHint,
+          history,
+          serviceHint: svcHint,
+        })
+      : null;
+  const sheetDetail =
+    !includeCatalog && !progressiveFirst && svcHint
       ? attachAvailableSheetDetail(svcHint, svcHint)
       : null;
   const catalogBlock = includeCatalog
     ? `\n\n${buildPackageCatalogOfferBlock()}`
-    : sheetDetail
-      ? `\n\n${sheetDetail}`
-      : "";
+    : progressiveFirst
+      ? `\n\n${progressiveFirst.menu}`
+      : sheetDetail
+        ? `\n\n${sheetDetail}`
+        : "";
 
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
@@ -2264,6 +2407,11 @@ function mergeWithPendingQuestion(
     if (!mensajeAsksForField(base, pending)) return base;
   }
 
+  // Menú progresivo: deja elegir variante antes de pedir correo/tipo.
+  if (isProgressiveOptionsMenuReply(base)) {
+    return base;
+  }
+
   // Ofrecimiento temprano ya redactado — no anexar «¿qué servicios quieres?».
   if (
     pending === "requerimientos" &&
@@ -2349,6 +2497,7 @@ function redirectIfAskingFilledField(
   // Respuestas de catálogo (Incluye / niveles / link) a veces matchean
   // "requerimientos" por la palabra menú — no reemplazar por la siguiente pregunta.
   if (
+    isProgressiveOptionsMenuReply(mensaje) ||
     /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|cu[aá]l nivel prefieres|detalle completo de men[uú]s/i.test(
       mensaje
     )
@@ -2388,6 +2537,17 @@ export function sanitizeOutboundMessage(
   ctx: NaturalQuestionContext,
   log?: { warn: (obj: unknown, msg?: string) => void }
 ): string {
+  // Menú progresivo (opciones antes de detalle): no pisar con correo/embudo.
+  // Contiene "banquete"/"servicios" y FIELD_ASK_PATTERNS.requerimientos lo confunde.
+  // Sí pedimos nombre si aún falta (primer contacto).
+  if (isProgressiveOptionsMenuReply(mensaje)) {
+    const body = mensaje.trim();
+    if (!isFieldSatisfied("nombre", filledSet, extracted) && !mensajeAsksForField(body, "nombre")) {
+      return `${body}\n\n${pickVariant("nombre", ctx.history ?? [], ctx.entityId)}`.trim();
+    }
+    return body;
+  }
+
   const pending = getNextPendingField(extracted, filledSet);
 
   const isSalesishBody =
@@ -2759,14 +2919,36 @@ export function buildDeferredKnownServiceOffer(opts: {
   if (!isFieldSatisfied("nombre", filledSet, extracted)) return null;
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) return null;
   if (historyAlreadyOfferedServiceDetail(history)) return null;
+  if (historyOfferedServiceOptionsMenu(history)) return null;
 
   const svc = extracted.requerimientos_evento!.trim();
+  const nombre = getDisplayName(extracted, whatsappName);
+  const intro = nombre ? `Perfecto, ${nombre}.` : "Perfecto.";
+
+  // V8.68: menú de opciones primero; detalle + link cuando elijan.
+  const optionsFirst = shouldOfferOptionsBeforeDetail({
+    currentMessage: svc,
+    history,
+    serviceHint: svc,
+  });
+  if (optionsFirst) {
+    let body = `${intro} ${optionsFirst.menu}`.trim();
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "requerimientos" && pending !== "nombre") {
+      const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
+      // No apilar correo encima del menú — deja elegir servicio primero.
+      if (nextQ && pending !== "correo" && !body.includes(nextQ)) {
+        body = `${body}\n\n${nextQ}`;
+      }
+    }
+    return body;
+  }
+
   const detail = buildCatalogServiceDetailAnswer(svc);
   if (!detail || !/nivel|precio|manejamos|\$/i.test(detail)) return null;
 
-  const nombre = getDisplayName(extracted, whatsappName);
-  const intro = nombre ? `Perfecto, ${nombre}.` : "Perfecto.";
-  let body = ensureCatalogWebLink(`${intro} ${detail}`.trim(), svc);
+  const link = buildCatalogWebLinkReply({ query: svc, serviceHint: svc });
+  let body = `${intro}\n\n${detail}\n\n${link}`.trim();
 
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && pending !== "requerimientos" && pending !== "nombre") {
@@ -3250,6 +3432,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (clientAsksPrice(currentMessage)) {
       /* fall through */
     } else {
+    // V8.68: sin variante → menú de opciones (no dump PDF completo).
+    const earlyOptions = shouldOfferOptionsBeforeDetail({
+      currentMessage,
+      history: presHistory,
+      serviceHint: extracted.requerimientos_evento,
+    });
+    if (earlyOptions) {
+      log?.info({ entityId }, "GUARD: inclusiones — menú opciones (return temprano)");
+      return normalizeAdvisorReferences(
+        `${pickTransition(presHistory)} ${earlyOptions.menu}`.trim(),
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
     const userBlobEarly = collectUserTexts(presHistory, currentMessage).join(" ");
     const serviceHintEarly =
       (isValidRequerimientosValue(extracted.requerimientos_evento)
@@ -3270,9 +3465,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           buildPdfInclusionReply(serviceHintEarly)
         : null);
     if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
+      const withLink = ensureCatalogWebLink(
+        collapseDuplicatedInclusionReply(pdfOnly),
+        serviceHintEarly || currentMessage || ""
+      );
       log?.info({ entityId }, "GUARD: inclusiones — PDF aprendido (return temprano)");
       return normalizeAdvisorReferences(
-        collapseDuplicatedInclusionReply(pdfOnly),
+        withLink,
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
@@ -3645,6 +3844,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       lastAssistantMsg && typeof lastAssistantMsg.content === "string"
         ? (lastAssistantMsg.content as string)
         : null
+    ) &&
+    // V8.68: si acabamos de ofrecer menú de opciones, el nivel va a detalle+link.
+    !(
+      historyOfferedServiceOptionsMenu(presHistory) &&
+      clientWantsServiceDetail(currentMessage, presHistory)
     )
   ) {
     // A14934/A14949: nivel Básica/Premium o paquete numerado "Coffee Break 5".
@@ -4222,7 +4426,42 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima — menú o detalle según elección");
+  } else if (
+    allowSalesReplyOverride &&
+    !cierreYaEnviado &&
+    historyOfferedServiceOptionsMenu(presHistory) &&
+    clientWantsServiceDetail(currentMessage, presHistory)
+  ) {
+    // V8.68: "formal" / "3 tiempos" / "sí" tras menú de opciones → detalle + link.
+    const progressiveDetail = buildProgressiveDetailAfterMenu({
+      extracted,
+      history: presHistory,
+      currentMessage,
+      filledSet,
+      serviceHint: extracted.requerimientos_evento,
+    });
+    if (progressiveDetail) {
+      mensaje = progressiveDetail;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: detalle tras menú de opciones + link catálogo");
+    } else {
+      mensaje = `${pickTransition(presHistory)} ¿De cuál te paso la info más detallada?`;
+      appliedDirectReply = true;
+    }
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+    // V8.68: "qué incluye banquete/coffee…" sin variante → menú, no dump PDF.
+    const inclusionOptions = shouldOfferOptionsBeforeDetail({
+      currentMessage,
+      history: presHistory,
+      serviceHint: extracted.requerimientos_evento,
+    });
+    if (inclusionOptions) {
+      mensaje = `${pickTransition(presHistory)} ${inclusionOptions.menu}`.trim();
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: inclusiones — menú de opciones antes del detalle");
+    } else {
     // Prioridad absoluta: describir paquetes (no depende de allowSalesReplyOverride).
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
     const req = extracted.requerimientos_evento?.trim() ?? "";
@@ -4295,6 +4534,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: paquetes genéricos — overview / aclarar servicio");
     }
     }
+    } // fin else: inclusiones con variante concreta
   } else if (
     allowSalesReplyOverride &&
     clientAsksServiceInfo(currentMessage) &&
@@ -4313,19 +4553,34 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       filledSet,
       ctx
     );
-    if (cateringAnswer && /nivel|precio|manejamos|cat[aá]logo|\$/i.test(cateringAnswer)) {
+    if (
+      cateringAnswer &&
+      /nivel|precio|manejamos|tenemos|info m[aá]s detallada|opciones|cat[aá]logo|\$/i.test(
+        cateringAnswer
+      )
+    ) {
       const pending = getNextPendingField(extracted, filledSet);
       const asksMeasures = /medidas?/i.test(cateringAnswer);
-      if (!asksMeasures && pending && pending !== "requerimientos" && ctx) {
+      // Menú progresivo: no apilar correo encima de "¿de cuál te detallo?".
+      if (
+        isProgressiveOptionsMenuReply(cateringAnswer) ||
+        asksMeasures ||
+        !pending ||
+        pending === "requerimientos" ||
+        pending === "correo" ||
+        !ctx
+      ) {
+        mensaje = cateringAnswer;
+      } else {
         const nextQ = buildNaturalQuestion(pending, ctx);
         mensaje = cateringAnswer.includes(nextQ)
           ? cateringAnswer
           : `${cateringAnswer}\n\n${nextQ}`;
-      } else {
-        mensaje = cateringAnswer;
       }
       appliedSalesReply = true;
-      appliedDirectReply = true;
+      if (!isProgressiveOptionsMenuReply(mensaje)) {
+        appliedDirectReply = true;
+      }
       log?.info({ entityId }, "GUARD: pregunta de servicio — detalle Sheet + oferta catálogo");
     } else {
     // Pregunta de disponibilidad/detalle: NUNCA ignorar con solo "lo anoto".
@@ -4395,7 +4650,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
       }
     }
-    if (bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
+    if (
+      !isProgressiveOptionsMenuReply(mensaje) &&
+      bodyEqualsLastAssistant(mensaje, history, extracted.nombre)
+    ) {
       const nextQ = nextFieldQuestion(
         extracted,
         filledSet,

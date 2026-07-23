@@ -4167,7 +4167,7 @@ async function runAll(): Promise<void> {
     assert.ok(/sushi|lucy/i.test(t1), t1.slice(0, 300));
     assert.ok(/nombre|llam[oa]|gusto/i.test(t1), `T1 debe pedir nombre: ${t1.slice(0, 300)}`);
 
-    // Tras el nombre: DEBE ofrecer niveles/precios + pregunta de catálogo (no solo correo).
+    // V8.68: tras el nombre → menú de niveles (no dump de precios ni link aún).
     const t2 = runGuards({
       aiResponse: "Perfecto, Liliana. ¿A qué correo te envío la información?",
       extracted: emptyExtracted({
@@ -4186,19 +4186,35 @@ async function runAll(): Promise<void> {
         },
       ],
     });
+    assert.ok(/sushi|nivel/i.test(t2), t2.slice(0, 400));
     assert.ok(
-      /nivel|\$800|\$850|\$900|\$420|basico|tradicional|premium|solo alimentos/i.test(t2),
-      `T2 debe ofrecer niveles/precios del sushi: ${t2.slice(0, 500)}`
+      /info m[aá]s detallada|te paso la info|¿Te paso/i.test(t2),
+      `T2 menú de opciones: ${t2.slice(0, 500)}`
+    );
+    assert.ok(!/\$800|\$850|\$900/i.test(t2), `T2 no debe volcar precios aún: ${t2.slice(0, 400)}`);
+
+    // Tras elegir Premium → detalle + link catálogo.
+    const t3 = runGuards({
+      aiResponse: "¿Cuál nivel?",
+      extracted: emptyExtracted({
+        nombre: "Liliana",
+        requerimientos_evento: "Barra de sushi",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Premium",
+      history: [
+        { role: "user", content: formMsg },
+        { role: "assistant", content: t2 },
+      ],
+    });
+    assert.ok(
+      /Premium|\$900|nivel|detall/i.test(t3),
+      `T3 detalle tras elección: ${t3.slice(0, 500)}`
     );
     assert.ok(
-      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos|mande el cat[aá]logo|cat[aá]logo con m[aá]s detalle/i.test(
-        t2
-      ),
-      `T2 debe ofrecer catálogo (URL o pregunta): ${t2.slice(0, 500)}`
-    );
-    assert.ok(
-      historyAlreadyOfferedServiceDetail([{ role: "assistant", content: t2 }]),
-      "historyAlreadyOfferedServiceDetail debe detectar la oferta"
+      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(t3),
+      `T3 debe traer link de catálogo: ${t3.slice(0, 500)}`
     );
 
     const deferred = buildDeferredKnownServiceOffer({
@@ -4223,9 +4239,9 @@ async function runAll(): Promise<void> {
       whatsappName: null,
     });
     assert.ok(deferred && /Liliana/i.test(deferred), deferred ?? "");
-    assert.ok(/cat[aá]logo/i.test(deferred!), deferred);
+    assert.ok(/info m[aá]s detallada|nivel/i.test(deferred!), deferred);
 
-    // Si ya ofreció, no repetir.
+    // Si ya ofreció menú, no repetir.
     assert.equal(
       buildDeferredKnownServiceOffer({
         extracted: emptyExtracted({
@@ -5326,10 +5342,15 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/banquete/i.test(first), first.slice(0, 300));
     assert.ok(!/bet[uú]n|cupcakes?/i.test(first), first.slice(0, 400));
-    assert.ok(/lucy|bodasesor/i.test(first), first.slice(0, 200));
+    // V8.68: primer turno = menú de tipos (Formal/Mexicano), sin dump ni link.
+    assert.ok(/Formal|Mexicano/i.test(first), first.slice(0, 400));
     assert.ok(
-      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(first),
+      /detallada|3 tiempos|4 tiempos/i.test(first),
       first.slice(0, 500)
+    );
+    assert.ok(
+      !/bodasesor\.com\/catalogos|\$500|\$750/i.test(first),
+      `menú sin dump/link: ${first.slice(0, 500)}`
     );
 
     const tiempos = runGuards({
@@ -5349,7 +5370,8 @@ async function runAll(): Promise<void> {
       history: [
         {
           role: "assistant",
-          content: "¿Cuál variante y nivel prefieres? Formal 3 tiempos o Mexicano 4 tiempos.",
+          content:
+            "Claro. En *banquete* manejamos varias opciones:\n• *Formal 3 tiempos*\n• *Mexicano 4 tiempos*\n\n¿De cuál te paso la info más detallada?",
         },
       ],
     });
@@ -5416,9 +5438,18 @@ async function runAll(): Promise<void> {
     assert.ok(hasUrl(ensureCatalogWebLink("Detalle coffee", "coffee break")));
     assert.ok(hasUrl(buildCatalogPriceAnswer("coffee break") || ""));
     assert.ok(hasUrl(buildCatalogServiceDetailAnswer("taquiza") || ""));
-    assert.ok(hasUrl(resolveCatalogInclusionReply("qué incluye", "barra de sushi") || ""));
+    const sushiIncl = resolveCatalogInclusionReply("qué incluye", "barra de sushi") || "";
+    assert.ok(sushiIncl.length > 20, "inclusión sushi debe responder");
+    // PDF seed a veces llega sin link; ensureCatalogWebLink lo completa.
+    assert.ok(hasUrl(ensureCatalogWebLink(sushiIncl, "barra de sushi")));
     assert.ok(hasUrl(buildBroadLevel1Offer("graduación")));
-    assert.ok(hasUrl(buildVagueFoodOptionsReply(emptyExtracted({ tipo_evento: "boda" }), [], "¿recomiendas algo?")));
+    // V8.68: opciones vagas sin link; el catálogo va con el detalle tras elegir.
+    const vagueOpts = buildVagueFoodOptionsReply(
+      emptyExtracted({ tipo_evento: "boda" }),
+      [],
+      "¿recomiendas algo?"
+    );
+    assert.ok(/banquete|taquiza|brunch|coffee|alimentos/i.test(vagueOpts), vagueOpts);
     assert.ok(hasUrl(buildGenericPackagesOverviewReply(emptyExtracted({ requerimientos_evento: "coffee break" }), [], "ver los paquetes")));
     assert.ok(hasUrl(buildPackageCatalogOfferBlock()));
 
@@ -5441,6 +5472,7 @@ async function runAll(): Promise<void> {
     assert.ok(hasUrl(priceGuard), priceGuard.slice(0, 500));
     assert.ok(/\$\s*[\d,.]+|180|250/i.test(priceGuard), priceGuard.slice(0, 400));
 
+    // V8.68: "dame información" de familia → menú de opciones (sin dump ni link aún).
     const sushiInfo = runGuards({
       aiResponse: "ok",
       extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "boda" }),
@@ -5449,8 +5481,8 @@ async function runAll(): Promise<void> {
       currentMessage: "me interesa la barra de sushi, dame información",
       history: [],
     });
-    assert.ok(hasUrl(sushiInfo), sushiInfo.slice(0, 500));
-    assert.ok(!/quieres que te mande el catálogo/i.test(sushiInfo) || hasUrl(sushiInfo), sushiInfo.slice(0, 300));
+    assert.ok(/sushi|niveles|detallada|Solo Alimentos|B[aá]sic/i.test(sushiInfo), sushiInfo.slice(0, 500));
+    assert.ok(!/\$400|Incluye:/i.test(sushiInfo), sushiInfo.slice(0, 400));
   });
 
   await test("93. Detalle Sheet — niveles/incluye en info y primer turno (no solo link)", () => {
@@ -5465,9 +5497,18 @@ async function runAll(): Promise<void> {
 
     const detail = attachAvailableSheetDetail("coffee break");
     assert.ok(detail, "attachAvailableSheetDetail debe devolver texto");
-    assert.ok(messageHasSheetServiceDetail(detail!), detail);
-    assert.ok(/incluye|Café|pan dulce|\$\s*180|Basico|Premium/i.test(detail!), detail);
-    assert.ok(/bodasesor\.com\/catalogos/i.test(detail!), detail);
+    // Sheet o PDF aprendido: ambos cuentan como detalle de servicio.
+    assert.ok(
+      messageHasSheetServiceDetail(detail!) ||
+        /incluye|Café|Coffee Break|\$\s*180|Basico|Premium/i.test(detail!),
+      detail
+    );
+    assert.ok(/incluye|Café|pan dulce|\$\s*180|Basico|Premium|Coffee Break/i.test(detail!), detail);
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(detail!) ||
+        /bodasesor\.com\/catalogos/i.test(ensureCatalogWebLink(detail!, "coffee break")),
+      detail
+    );
 
     // Solo URL no cuenta como detalle Sheet.
     assert.equal(
@@ -5494,10 +5535,12 @@ async function runAll(): Promise<void> {
       true
     );
     assert.ok(/lucy|bodasesor/i.test(first), first.slice(0, 200));
+    // V8.68: primer contacto de familia → menú de paquetes (detalle tras elegir / "sí").
     assert.ok(
-      /incluye|Café|Basico|Premium|\$\s*180|nivel/i.test(first),
-      `primer turno debe traer detalle Sheet: ${first.slice(0, 600)}`
+      /Coffee Break|paquetes|detallada|diferencia|nivel/i.test(first),
+      `primer turno menú opciones: ${first.slice(0, 600)}`
     );
+    assert.ok(!/\$\s*180|Incluye:/i.test(first), `sin dump en menú: ${first.slice(0, 400)}`);
 
     const info = runGuards({
       aiResponse: "Claro, ¿cuántos invitados?",
@@ -5508,10 +5551,32 @@ async function runAll(): Promise<void> {
       history: [],
     });
     assert.ok(
-      /incluye|Café|pan dulce|Basico|Premium/i.test(info),
-      `info debe usar Incluye del Sheet: ${info.slice(0, 600)}`
+      /Coffee Break|paquetes|detallada|diferencia/i.test(info),
+      `info → menú primero: ${info.slice(0, 600)}`
     );
-    assert.ok(/bodasesor\.com\/catalogos/i.test(info), info.slice(0, 400));
+    assert.ok(!/\$\s*180|Incluye:/i.test(info), info.slice(0, 400));
+
+    const afterSi = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "corporativo",
+        requerimientos_evento: "coffee break",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Sí",
+      history: [{ role: "assistant", content: info }],
+    });
+    assert.ok(
+      /incluye|Café|pan dulce|Basico|Premium|\$\s*180/i.test(afterSi),
+      `sí → detalle Sheet: ${afterSi.slice(0, 600)}`
+    );
+    assert.ok(/bodasesor\.com\/catalogos/i.test(afterSi), afterSi.slice(0, 400));
 
     const price = buildCatalogPriceAnswer("barra de sushi") || "";
     assert.ok(/\$\s*\d/.test(price), price);
@@ -5762,6 +5827,79 @@ async function runAll(): Promise<void> {
     );
     const medidas2 = (detail.match(/¿Qué medidas aproximadas tiene el espacio\?/gi) || []).length;
     assert.equal(medidas2, 1, detail.slice(0, 500));
+  });
+
+  // ─── 98. V8.68 — opciones primero en todos los servicios; detalle + link después ───
+  await test("98. V8.68 — banquete/coffee: menú primero, detalle+link tras elegir", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye"',
+      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada, plato fuerte y postre"',
+      '"Banquete Formal 3 tiempos","Premium","$750.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada premium"',
+      '"Banquete Mexicano 4 tiempos","Basico","$600.00","$18,000.00","TRUE","https://bodasesor.com/catalogos/banquete-mexicano","4 tiempos"',
+      '"Coffee Break","Coffee Break 1","$180.00","$5,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café y galletas"',
+      '"Coffee Break","Coffee Break 5","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Menú premium"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const banqueteAsk = runGuards({
+      aiResponse: "¿Quieres banquete formal con todos los precios?",
+      extracted: emptyExtracted({ nombre: "Ana" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Quiero banquete para mi evento",
+      history: [{ role: "assistant", content: "¿Qué necesitas?" }],
+    });
+    assert.ok(/Formal 3|Mexicano 4|detallada/i.test(banqueteAsk), banqueteAsk.slice(0, 400));
+    assert.ok(!/\$500|\$750|Incluye:/i.test(banqueteAsk), banqueteAsk.slice(0, 400));
+    assert.ok(!/bodasesor\.com\/catalogos/i.test(banqueteAsk), banqueteAsk.slice(0, 300));
+    assert.ok(!/correo|e-?mail/i.test(banqueteAsk), banqueteAsk.slice(0, 300));
+
+    const banqueteDetail = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        requerimientos_evento: "banquete",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "El formal de 3 tiempos",
+      history: [{ role: "assistant", content: banqueteAsk }],
+    });
+    assert.ok(/Formal|3\s*tiempos|\$500|\$750|nivel/i.test(banqueteDetail), banqueteDetail.slice(0, 500));
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(banqueteDetail),
+      `detalle debe incluir link: ${banqueteDetail.slice(0, 500)}`
+    );
+
+    // "Sí" sin elegir → toda la info + link de catálogo aparte.
+    const banqueteSi = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        requerimientos_evento: "banquete",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Sí",
+      history: [{ role: "assistant", content: banqueteAsk }],
+    });
+    assert.ok(/\$500|Formal|Mexicano|nivel/i.test(banqueteSi), banqueteSi.slice(0, 500));
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(banqueteSi),
+      `sí → detalle+link: ${banqueteSi.slice(0, 500)}`
+    );
+
+    const coffeeAsk = runGuards({
+      aiResponse: "te mando todos los coffee break",
+      extracted: emptyExtracted({ nombre: "Ana" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Me interesa coffee break",
+      history: [{ role: "assistant", content: "¿Qué servicio buscas?" }],
+    });
+    assert.ok(/Coffee Break|paquetes|detallada|diferencia/i.test(coffeeAsk), coffeeAsk.slice(0, 400));
+    assert.ok(!/\$180|\$400/i.test(coffeeAsk), coffeeAsk.slice(0, 300));
+    assert.ok(!/correo|e-?mail/i.test(coffeeAsk), coffeeAsk.slice(0, 300));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

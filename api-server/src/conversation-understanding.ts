@@ -738,12 +738,14 @@ export function clientMentionsCatering(message?: string): boolean {
   const t = message.toLowerCase();
   return (
     /\bcatering\b/i.test(t) ||
+    /\bbanquetes?\b/i.test(t) ||
+    /\btaquiza\b|\btacos?\b/i.test(t) ||
     /\b(brunch|desayuno)\b/i.test(t) ||
     /\bbrunch\s*\/\s*desayuno/i.test(t) ||
     /\bcoffee\s*break\b/i.test(t) ||
     /\bbarra\s+de\s+caf[eé](?!\w)/i.test(t) ||
     // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
-    /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?)\b/i.test(t) ||
+    /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?|crepas?|pastas?|mariscos?)\b/i.test(t) ||
     /\b(sushi|poke(\s*bowl)?)\b/i.test(t) ||
     /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t) ||
     /\bcomida\s+para\b/i.test(t) ||
