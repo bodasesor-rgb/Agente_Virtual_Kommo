@@ -4870,10 +4870,6 @@ ${lines.join("\n")}
 
 ${footer}`;
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
-    const fromPdf = buildPdfInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) || buildPdfInclusionReply(svc);
-    if (fromPdf) {
-      return fromPdf;
-    }
     const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
     const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "") ?? resolveCatalogWebLink(svc).url ?? resolveCatalogWebLink(result.serviceName ?? svc).url;
     if (webHint) {

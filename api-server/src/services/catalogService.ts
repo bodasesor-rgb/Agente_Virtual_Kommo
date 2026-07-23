@@ -844,14 +844,10 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
 
   let body = `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
 
-  // Si el Sheet no trae Incluye: preferir SOLO el PDF (no concatenar lista + PDF → mashup confuso).
+  // Sin Incluye en Sheet: NO adjuntar PDF genérico del servicio (evita CB1 cuando
+  // pidieron CB4 y ese nivel no existe en el PDF). El detalle PDF va por
+  // buildPdfInclusionReply(query completo) en resolve/inject.
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
-    const fromPdf =
-      buildPdfInclusionReply(`${svc} ${result.serviceName ?? ""}`.trim()) ||
-      buildPdfInclusionReply(svc);
-    if (fromPdf) {
-      return fromPdf;
-    }
     const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
     const webUrl =
       getCatalogWebUrlForQuery(svc) ??
@@ -1623,7 +1619,13 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
     return buildExactRowDetailAnswer(row);
   }
   if (resolved?.kind === "service") {
-    if (/\bcoffee\s*break\s*\d|\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
+    // Nivel concreto ausente en PDF → precios Sheet, nunca PDF de otro nivel.
+    if (/\bcoffee\s*break\s*\d/.test(query)) {
+      const fromPdf = buildPdfInclusionReply(query);
+      if (fromPdf) return fromPdf;
+      const priced = buildCatalogPriceAnswer(query);
+      if (priced) return priced;
+    } else if (/\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
       if (fromPdf) return fromPdf;
     }
