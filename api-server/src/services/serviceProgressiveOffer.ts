@@ -564,12 +564,22 @@ export function shouldOfferOptionsBeforeDetail(opts: {
     return null;
   }
 
-  // Si el historial ya ofreció menú y el cliente no eligió, re-preguntar cuál.
+  // Si el historial ya ofreció menú de ESTA familia y el cliente no eligió, re-preguntar.
+  // A14982: menú de otra familia (barra) + pide taquiza → no re-preguntar la anterior.
   if (historyOfferedServiceOptionsMenu(opts.history) && msg.length < 80) {
-    return {
-      family,
-      menu: "¿De cuál te paso la info más detallada?",
-    };
+    const msgFamily = detectProgressiveFamily(msg);
+    const hintFamily = detectProgressiveFamily(opts.serviceHint);
+    const menuWasOtherFamily =
+      !!msgFamily && !!hintFamily && msgFamily !== hintFamily;
+    if (menuWasOtherFamily) {
+      return { family: msgFamily, menu: buildProgressiveOptionsMenu(msgFamily) };
+    }
+    if (!msgFamily || msgFamily === family) {
+      return {
+        family,
+        menu: "¿De cuál te paso la info más detallada?",
+      };
+    }
   }
 
   if (historyOfferedServiceOptionsMenu(opts.history)) return null;

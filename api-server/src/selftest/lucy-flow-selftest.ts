@@ -182,6 +182,7 @@ import {
   stripUnsolicitedCatalogWebLinks,
   CATALOG_WEB_HUB_URL,
   CATALOG_OFFER_QUESTION,
+  SERVICE_NIVEL_DETAIL_CTA,
   ensureCatalogWebLink,
   attachAvailableSheetDetail,
   messageHasSheetServiceDetail,
@@ -3021,7 +3022,10 @@ async function runAll(): Promise<void> {
     assert.ok(/Incluye:.*Refrescos y aguas/i.test(detail!), detail);
     assert.ok(/Incluye:.*2 licores/i.test(detail!), detail);
     assert.ok(/Incluye:.*3 licores premium/i.test(detail!), detail);
-    assert.ok(/Cuál nivel prefieres/i.test(detail!), detail);
+    assert.ok(
+      /quieres que te d[eé] detalles de alguno|Cuál nivel prefieres/i.test(detail!),
+      detail
+    );
     assert.ok(!messageOffersLevelsWithoutInclusions(detail), detail);
 
     const promptBlock = formatServiceDataForPrompt("barra de bebidas");
@@ -6347,6 +6351,83 @@ async function runAll(): Promise<void> {
       /barra de pastas/i.test(foodOnly.requerimientos_evento ?? "") &&
         !/taquiza/i.test(foodOnly.requerimientos_evento ?? ""),
       `solo comida → ${foodOnly.requerimientos_evento}`
+    );
+  });
+
+  await test("104. A14982 — niveles + CTA detalle (no forzar elección) y sin 'para un taquiza'", () => {
+    assert.ok(/detalles de alguno/i.test(SERVICE_NIVEL_DETAIL_CTA));
+
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye"',
+      '"Barra Yucateca","Solo Alimentos","$330.00","$9,900.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","guisos"',
+      '"Barra Yucateca","Basico","$750.00","$22,500.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","basico"',
+      '"Barra Yucateca","Tradicional","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","tradicional"',
+      '"Barra Yucateca","Premium","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","premium"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","tacos"',
+      '"Taquiza","Basico","$750.00","$22,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","basico"',
+      '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","tradicional"',
+      '"Taquiza","Premium","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","premium"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const yuca = buildCatalogServiceDetailAnswer("Barra Yucateca");
+    assert.ok(yuca && /Solo Alimentos|Basico|Tradicional|Premium/i.test(yuca), yuca?.slice(0, 400));
+    assert.ok(
+      /quieres que te d[eé] detalles de alguno/i.test(yuca!),
+      `CTA detalle: ${yuca!.slice(-200)}`
+    );
+    assert.ok(!/cu[aá]l nivel prefieres/i.test(yuca!), yuca!.slice(-200));
+    assert.ok(
+      /bodasesor\.com\/catalogos\/barra-yucateca/i.test(yuca!),
+      yuca!.slice(0, 500)
+    );
+
+    // Tipo CRM contaminado con "taquiza" no debe decir "para un taquiza".
+    const reply = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Francisco Nogueras",
+        tipo_evento: "taquiza",
+        requerimientos_evento: "Barra Yucateca",
+        num_invitados: 230,
+        direccion_evento: "Querétaro",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Si me puede cotizar la taquiza de guisados también lo apreciaría",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto. Te detallo *Barra Yucateca*.\n\nPara *Barra Yucateca* manejamos estos niveles:\n1. *Solo Alimentos* — $330\n\n¿Quieres que te dé detalles de alguno?\n\nCatálogo: https://bodasesor.com/catalogos/barra-yucateca",
+        },
+      ],
+    });
+    assert.ok(/Taquiza|taquiza/i.test(reply), reply.slice(0, 400));
+    assert.ok(!/para un taquiza/i.test(reply), reply.slice(0, 400));
+    assert.ok(!/Perfecto\.\s*Perfecto\./i.test(reply), reply.slice(0, 200));
+    assert.ok(!/De acuerdo\.\s*Perfecto\./i.test(reply), reply.slice(0, 200));
+    // Menú de taquiza o detalle — no re-preguntar menú de Barra Yucateca.
+    assert.ok(!/Barra Yucateca/i.test(reply), `no reabrir barra: ${reply.slice(0, 400)}`);
+    assert.ok(
+      /quieres que te d[eé] detalles|info detallada|Te detallo \*Taquiza|manejamos varios niveles/i.test(
+        reply
+      ),
+      reply.slice(0, 500)
+    );
+
+    // Tras CTA, elegir "Tradicional" sigue contando como selección de nivel.
+    assert.ok(
+      isCatalogLevelSelection(
+        "Tradicional",
+        "Para *Taquiza* manejamos estos niveles:\n1. *Basico*\n\n¿Quieres que te dé detalles de alguno?"
+      )
     );
   });
 

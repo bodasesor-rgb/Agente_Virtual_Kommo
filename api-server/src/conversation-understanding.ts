@@ -395,7 +395,7 @@ export function isCatalogLevelSelection(
   if (!t) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
   const askedNivel =
-    /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic/i.test(
+    /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles/i.test(
       last
     );
   if (!askedNivel) {

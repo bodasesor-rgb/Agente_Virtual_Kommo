@@ -61,6 +61,7 @@ import {
   withServiceAndGeneralCatalogLinks,
   stripUnsolicitedCatalogWebLinks,
   CATALOG_OFFER_QUESTION,
+  SERVICE_NIVEL_DETAIL_CTA,
   messageOffersCatalogLink,
   buildPdfInclusionReply,
   ensureCatalogWebLink,
@@ -1341,9 +1342,9 @@ function buildProgressiveDetailAfterMenu(opts: {
     detailQuery
   );
   if (detail) {
-    return `${pickTransition(history)} Perfecto. Te detallo *${detailQuery}*:\n\n${body}`.trim();
+    return `${pickTransition(history)} Te detallo *${detailQuery}*:\n\n${body}`.trim();
   }
-  return `${pickTransition(history)} Perfecto, ${body}`.trim();
+  return `${pickTransition(history)} ${body}`.trim();
 }
 
 function buildFoodSalesReply(
@@ -1370,16 +1371,22 @@ function buildFoodSalesReply(
   }
 
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
+  // A14982: no usar servicio (taquiza/parrillada) como "tipo" → "para un taquiza".
+  const tipoIsServiceSku =
+    /^(taquiza|parrillada|pozolada|paellada|banquete|barra|coffee\s*break)$/i.test(tipo) ||
+    (/taquiza|parrillada|banquete|barra de/i.test(tipo) &&
+      !/boda|cumplea|bautizo|xv|corporativ|gradu|baby/i.test(tipo));
   const eventLabel =
-    tipo === "cumpleaños"
-      ? "un cumpleaños"
-      : tipo === "boda"
-        ? "una boda"
-        : tipo === "xv años"
-          ? "XV años"
-          : tipo
-            ? `un ${tipo}`
-            : "tu evento";
+    !tipo || tipoIsServiceSku
+      ? "tu evento"
+      : tipo === "cumpleaños"
+        ? "un cumpleaños"
+        : tipo === "boda"
+          ? "una boda"
+          : tipo === "xv años"
+            ? "XV años"
+            : `un ${tipo}`;
+  const eventPhrase = eventLabel === "tu evento" ? "" : ` para ${eventLabel}`;
 
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
 
@@ -1502,9 +1509,10 @@ function buildFoodSalesReply(
 
     if (detail) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
+      // A14982: pickTransition ya trae "Perfecto./De acuerdo." — no duplicar.
       const intro = introLabel
-        ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.`
-        : `${pickTransition(history)} Perfecto, te detallo la opción.`;
+        ? `${pickTransition(history)} Te detallo *${introLabel}*${eventPhrase}.`
+        : `${pickTransition(history)} Te detallo la opción.`;
       const body = withServiceAndGeneralCatalogLinks(detail, queryForDetail, queryForDetail);
       return `${intro}\n\n${body}`.trim();
     }
@@ -1515,8 +1523,8 @@ function buildFoodSalesReply(
     if (forced) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
       const intro = introLabel
-        ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.`
-        : `${pickTransition(history)} Perfecto, te detallo la opción.`;
+        ? `${pickTransition(history)} Te detallo *${introLabel}*${eventPhrase}.`
+        : `${pickTransition(history)} Te detallo la opción.`;
       const body = withServiceAndGeneralCatalogLinks(forced, queryForDetail, queryForDetail);
       return `${intro}\n\n${body}`.trim();
     }
@@ -3941,8 +3949,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const display = getDisplayName(extracted, whatsappDisplayName);
     const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
     mensaje = detail
-      ? `${ack} Anoto *${label}*.\n\n${detail}\n\n${link}\n\n¿Cuál nivel prefieres (Solo Alimentos, Básico, Tradicional o Premium)?`
-      : `${ack} Anoto *${label}*.\n\n${link}\n\n¿Cuál nivel prefieres?`;
+      ? `${ack} Anoto *${label}*.\n\n${detail}\n\n${link}\n\n${SERVICE_NIVEL_DETAIL_CTA}`
+      : `${ack} Anoto *${label}*.\n\n${link}\n\n${SERVICE_NIVEL_DETAIL_CTA}`;
     appliedDirectReply = true;
     appliedSalesReply = true;
     log?.info({ entityId, label }, "GUARD: variante banquete por tiempos + detalle/link");

@@ -661,6 +661,9 @@ function buildCategoryServicesAnswer(result: CatalogMatchResult): string {
 /** Pregunta legacy (aún válida si el cliente afirma); el link ya se manda con el detalle. */
 export const CATALOG_OFFER_QUESTION = "¿Quieres que te mande el catálogo con más detalle?";
 
+/** Tras listar niveles + precios + links: invitar a pedir detalle, no forzar elección (A14982). */
+export const SERVICE_NIVEL_DETAIL_CTA = "¿Quieres que te dé detalles de alguno?";
+
 /**
  * Asegura URL de catálogo en el mensaje (servicio del Sheet o hub).
  * Política V8.34: al explicar servicio/precio/inclusiones, SIEMPRE va el link.
@@ -802,7 +805,7 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
           return `${i + 1}. *${n}*${price}${inclTxt}`;
         });
         return withCatalogOfferQuestion(
-          `Para *${svc}* manejamos estos niveles:\n${lines.join("\n")}\n\n¿Cuál nivel prefieres?`,
+          `Para *${svc}* manejamos estos niveles:\n${lines.join("\n")}\n\n${SERVICE_NIVEL_DETAIL_CTA}`,
           svc
         );
       }
@@ -816,7 +819,7 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
           .map((n) => `*${n}*`)
           .join(", ")}.\n\n`;
     return withCatalogOfferQuestion(
-      `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}¿Cuál variante y nivel prefieres?`,
+      `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}${SERVICE_NIVEL_DETAIL_CTA}`,
       svc
     );
   }
@@ -839,9 +842,7 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
   });
 
   const hasAnyIncl = rowsForChoice.some((r) => !!getInclusionFromRow(r));
-  const footer = hasAnyIncl
-    ? "¿Cuál nivel prefieres para tu evento?"
-    : "¿Cuál nivel prefieres?";
+  const footer = SERVICE_NIVEL_DETAIL_CTA;
 
   let body = `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
 
@@ -1243,7 +1244,7 @@ export function buildInclusionTeamConfirmationAnswer(query: string): string | nu
       ? `Para *${label}* el detalle de lo que incluye cada nivel (incl. *${nivel}*) está en el catálogo web.`
       : `Para *${label}* el detalle de lo que incluye cada nivel está en el catálogo web.`;
     const linkBlock = webHint ?? `Catálogo: ${toDeliverableCatalogUrl(webUrl!)}`;
-    return `${head}\n\n${linkBlock}\n\n¿Cuál nivel prefieres?`;
+    return `${head}\n\n${linkBlock}\n\n${SERVICE_NIVEL_DETAIL_CTA}`;
   }
 
   // Último recurso: hub general — nunca dejar a la clienta sin link (A14932).
@@ -1251,7 +1252,7 @@ export function buildInclusionTeamConfirmationAnswer(query: string): string | nu
   const head = nivel
     ? `Para *${label}* (*${nivel}*) el detalle de inclusiones está en el catálogo.`
     : `Para *${label}* el detalle de inclusiones está en el catálogo.`;
-  return `${head}\n\n${hub}\n\n¿Cuál nivel prefieres?`;
+  return `${head}\n\n${hub}\n\n${SERVICE_NIVEL_DETAIL_CTA}`;
 }
 
 /**
@@ -1367,7 +1368,7 @@ export function resolveCatalogInclusionReply(
   const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
   if (webHint || webUrl) {
     return ensureCatalogWebLink(
-      `El detalle de lo que incluye cada nivel está en el catálogo web.\n\n${webHint ?? `Catálogo: ${webUrl}`}\n\n¿Cuál nivel prefieres?`,
+      `El detalle de lo que incluye cada nivel está en el catálogo web.\n\n${webHint ?? `Catálogo: ${webUrl}`}\n\n${SERVICE_NIVEL_DETAIL_CTA}`,
       webQ
     );
   }
