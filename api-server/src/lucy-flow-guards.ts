@@ -1068,8 +1068,22 @@ function buildEntertainmentSalesReply(
       "Lo más pedido es un show de grupo versátil o animación tipo hora loca, según el estilo que busquen.";
   }
 
-  // Entretenimiento no tiene precios en Sheet: mandar catálogo general (A14920).
-  const catalog = buildPackageCatalogOfferBlock();
+  // Entretenimiento: catálogos mapeados si hay SKUs; si no, hub (A14920 / V8.79).
+  const entServices = collectServicesForCatalogOffer({
+    services: [
+      ...services,
+      ...(wantsRobots ? ["Robots LED"] : []),
+      ...(wantsBatucada ? ["Batucada"] : []),
+      ...(wantsMc ? ["Maestro de ceremonias"] : []),
+    ],
+    extracted,
+    history,
+    currentMessage,
+  });
+  const catalog = buildPackageCatalogOfferBlock(
+    entServices,
+    `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+  );
   let body =
     wantsRobots || wantsBatucada
       ? `${intro} ${ideas}\n\n${catalog}`
@@ -2014,7 +2028,7 @@ export function buildFirstInteractionMessage(
       ? attachAvailableSheetDetail(svcHint, svcHint)
       : null;
   const catalogBlock = includeCatalog
-    ? `\n\n${buildPackageCatalogOfferBlock()}`
+    ? `\n\n${buildPackageCatalogOfferBlock(multiServices, userText)}`
     : progressiveFirst
       ? `\n\n${progressiveFirst.menu}`
       : sheetDetail
@@ -2949,8 +2963,8 @@ function lastAssistantWasPhoneAnswer(
   return /55\s*4008\s*0373|56\s*4671\s*0585|l[ií]nea telef[oó]nica/i.test(last.content);
 }
 
-/** Bloque de catálogo para paquetes multi-servicio / RFQ (sí se envía el link). */
-export function buildPackageCatalogOfferBlock(): string {
+/** Hub genérico (solo cuando no hay SKUs mapeables). */
+export function buildGenericCatalogHubBlock(): string {
   return [
     "Te dejo el catálogo general para que veas montajes, menús y opciones:",
     getCatalogWebHubDeliveryUrl(),
@@ -2960,8 +2974,60 @@ export function buildPackageCatalogOfferBlock(): string {
 }
 
 /**
- * A14985: con servicios concretos del brief, ofrecer links del catálogo que aplican
+ * Une servicios de mensaje / CRM / historial para ofrecer catálogos concretos
+ * en CUALQUIER rama (no solo RFQ multi-servicio).
+ */
+export function collectServicesForCatalogOffer(opts: {
+  services?: string[] | null;
+  extracted?: { requerimientos_evento?: string | null } | null;
+  history?: OpenAI.Chat.ChatCompletionMessageParam[];
+  currentMessage?: string | null;
+  sourceText?: string | null;
+}): string[] {
+  const fromArg = (opts.services ?? []).map((s) => s.trim()).filter(Boolean);
+  const fromCrm = opts.extracted?.requerimientos_evento
+    ? parseServicesFromText(opts.extracted.requerimientos_evento)
+    : [];
+  const blob =
+    opts.sourceText ||
+    [
+      opts.currentMessage ?? "",
+      ...(opts.history
+        ? collectUserTexts(opts.history, opts.currentMessage ?? undefined)
+        : []),
+    ]
+      .filter(Boolean)
+      .join(" ");
+  const fromBlob = blob ? parseServicesFromText(blob) : [];
+  return dedupeServiceHierarchy([...fromArg, ...fromCrm, ...fromBlob], blob);
+}
+
+/**
+ * Bloque de catálogo para paquetes / RFQ / cierre / primer turno / entretenimiento.
+ * V8.79: si hay SKUs concretos → links mapeados; si no → hub genérico.
+ */
+export function buildPackageCatalogOfferBlock(
+  services?: string[] | null,
+  sourceText?: string
+): string {
+  const list = collectServicesForCatalogOffer({
+    services,
+    sourceText,
+    currentMessage: sourceText,
+  });
+  if (list.length >= 1) {
+    const mapped = buildMappedCatalogOfferBlock(list, sourceText);
+    if (mapped && !/^Te dejo el catálogo general/i.test(mapped)) {
+      return mapped;
+    }
+  }
+  return buildGenericCatalogHubBlock();
+}
+
+/**
+ * A14985 / V8.79: con servicios concretos, ofrecer links del catálogo que aplican
  * (Barra de bebidas, Puestos de comida, Periqueras…), no solo el hub genérico.
+ * Se usa desde TODAS las ramas vía buildPackageCatalogOfferBlock.
  */
 export function buildMappedCatalogOfferBlock(
   services: string[],
@@ -2972,7 +3038,7 @@ export function buildMappedCatalogOfferBlock(
     services.map((s) => s.trim()).filter(Boolean),
     text
   ).slice(0, 6);
-  if (!list.length) return buildPackageCatalogOfferBlock();
+  if (!list.length) return buildGenericCatalogHubBlock();
 
   const lines: string[] = [
     "Con lo que pediste, estas opciones del catálogo te pueden servir:",
@@ -2993,6 +3059,10 @@ export function buildMappedCatalogOfferBlock(
     } else if (/barra\s+de\s+bebidas/i.test(svc)) {
       query = "barra de bebidas";
       label = "Barra de bebidas";
+    } else if (/^meseros?$/i.test(svc)) {
+      // Sin página propia → no forzar link roto.
+      lines.push(`• *${label}*`);
+      continue;
     }
     // Preferir slug web (embeds) — no depende del Sheet cargado (A14985).
     const sheetMatch = resolveCatalogWebLink(query);
@@ -3006,7 +3076,7 @@ export function buildMappedCatalogOfferBlock(
       lines.push(`• *${label}*`);
     }
   }
-  if (linked === 0) return buildPackageCatalogOfferBlock();
+  if (linked === 0) return buildGenericCatalogHubBlock();
 
   lines.push("", "Catálogo general:", getCatalogWebHubDeliveryUrl(), "");
   lines.push(SERVICE_NIVEL_DETAIL_CTA);
@@ -3128,7 +3198,8 @@ export function buildStandardClosingMessage(
 
   const parts = [`Perfecto, ya tengo todo. ${handoff}`, "", complements];
   if (multiPackage) {
-    parts.push("", buildPackageCatalogOfferBlock());
+    // V8.79: cierre con links de los SKUs pedidos, no solo hub.
+    parts.push("", buildPackageCatalogOfferBlock(serviceParts, servicioRaw));
   }
   parts.push("", "Si necesitas algo más, con gusto te apoyo.");
   return parts.join("\n");
@@ -3192,12 +3263,11 @@ export function buildMultiServicePackageReply(
     sourceText && isRichQuoteBrief(sourceText)
       ? buildRichBriefAcknowledgment(sourceText)
       : buildMultiServiceAck(cleaned.length ? cleaned : services);
-  // A14985: RFQ con SKUs concretos → links de esos catálogos (no solo hub).
-  const mapped = buildMappedCatalogOfferBlock(
+  // V8.79: misma lógica de catálogos mapeados que el resto de ramas.
+  return `${ack}\n\n${buildPackageCatalogOfferBlock(
     cleaned.length ? cleaned : services,
     sourceText
-  );
-  return `${ack}\n\n${mapped}`;
+  )}`;
 }
 
 /** Extrae servicios mencionados en una oferta reciente de Lucy (bullets). */
@@ -4308,7 +4378,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
               : parseServicesFromText(extracted.requerimientos_evento ?? "")
           );
     mensaje = mergeWithPendingQuestion(
-      `Claro, lo reviso con calma.\n\n${ack}\n\n${buildPackageCatalogOfferBlock()}`,
+      `Claro, lo reviso con calma.\n\n${ack}\n\n${buildPackageCatalogOfferBlock(
+        services,
+        blob || (currentMessage ?? "")
+      )}`,
       filledSet,
       extracted,
       ctx

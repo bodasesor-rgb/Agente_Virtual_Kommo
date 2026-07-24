@@ -116,6 +116,8 @@ import {
   buildMultiServiceSheetLevelsReply,
   buildMappedCatalogOfferBlock,
   buildPackageCatalogOfferBlock,
+  buildGenericCatalogHubBlock,
+  collectServicesForCatalogOffer,
   clientSaysThanks,
   detectCierreEnviado,
   CLOSING_SIGNATURE,
@@ -6752,6 +6754,102 @@ async function runAll(): Promise<void> {
     assert.ok(
       !/Anoto Snack y Mobiliario/i.test(reply),
       `no solo Snack+Mobiliario: ${reply.slice(0, 400)}`
+    );
+  });
+
+  await test("108. V8.79 — catálogos mapeados en TODAS las ramas (no solo RFQ)", () => {
+    const golfServices = [
+      "Barra de bebidas",
+      "Puestos de Comida",
+      "Mobiliario",
+    ];
+    const golfText =
+      "Cerveza Whisky Snack Banderillas Periqueras torneo de golf 80 personas";
+
+    // Hub sin SKUs sigue existiendo.
+    assert.ok(
+      buildGenericCatalogHubBlock().includes(CATALOG_OFFER_QUESTION),
+      "hub genérico intacto"
+    );
+
+    // buildPackageCatalogOfferBlock CON servicios → mapeados (misma API en todas las ramas).
+    const viaPackage = buildPackageCatalogOfferBlock(golfServices, golfText);
+    assert.ok(/barra-de-bebidas/i.test(viaPackage), viaPackage);
+    assert.ok(/puestos-de-comida/i.test(viaPackage), viaPackage);
+    assert.ok(/salas-y-periqueras/i.test(viaPackage), viaPackage);
+    assert.ok(!/^Te dejo el catálogo general/i.test(viaPackage), viaPackage);
+
+    // Cierre multi-paquete.
+    const closing = buildStandardClosingMessage(
+      "Barra de bebidas, Puestos de Comida, Mobiliario",
+      "Lilian"
+    );
+    assert.ok(
+      /barra-de-bebidas|puestos-de-comida|salas-y-periqueras/i.test(closing),
+      `cierre mapeado: ${closing.slice(0, 600)}`
+    );
+
+    // Primer turno con brief multi-servicio.
+    const first = buildFirstInteractionMessage(
+      {
+        extracted: emptyExtracted({
+          tipo_evento: "evento corporativo",
+          num_invitados: 80,
+          requerimientos_evento: golfServices.join(", "),
+        }),
+        filledSet: new Set([
+          "Tipo de evento",
+          "Número de invitados",
+          "Requerimientos o servicios",
+        ]),
+        history: [],
+        currentMessage: `Evento: Torneo de Golf\n${golfText}`,
+        entityId: "t108",
+      },
+      true
+    );
+    assert.ok(
+      /barra-de-bebidas|puestos-de-comida|salas-y-periqueras/i.test(first),
+      `primer turno mapeado: ${first.slice(0, 700)}`
+    );
+
+    // Releer brief.
+    assert.ok(clientAsksToRereadBrief("Favor de leer muy bien las especificaciones"));
+    const reread = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Lilian",
+        correo: "lilian@nodum.com.mx",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: golfServices.join(", "),
+        num_invitados: 80,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Favor de leer muy bien las especificaciones",
+      history: [
+        { role: "user", content: `Torneo de Golf. ${golfText}` },
+        {
+          role: "assistant",
+          content: "Perfecto, ya anoté tus datos. ¿Cuál es tu presupuesto?",
+        },
+      ],
+    });
+    const collected = collectServicesForCatalogOffer({
+      extracted: { requerimientos_evento: golfServices.join(", ") },
+      currentMessage: golfText,
+    });
+    assert.ok(collected.some((s) => /barra\s+de\s+bebidas/i.test(s)), collected.join(", "));
+    assert.ok(/reviso|anoto|solicitud/i.test(reread), reread.slice(0, 400));
+    assert.ok(
+      /barra-de-bebidas|puestos-de-comida|salas-y-periqueras/i.test(reread),
+      `releer mapeado: ${reread.slice(0, 700)}`
     );
   });
 

@@ -22041,7 +22041,21 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
     intro = `Para ${eventLabel}, manejamos shows en vivo, animaci\xF3n, hora loca, happening, espejos, l\xE1ser y m\xE1s opciones de entretenimiento.`;
     ideas = "Lo m\xE1s pedido es un show de grupo vers\xE1til o animaci\xF3n tipo hora loca, seg\xFAn el estilo que busquen.";
   }
-  const catalog = buildPackageCatalogOfferBlock();
+  const entServices = collectServicesForCatalogOffer({
+    services: [
+      ...services,
+      ...wantsRobots ? ["Robots LED"] : [],
+      ...wantsBatucada ? ["Batucada"] : [],
+      ...wantsMc ? ["Maestro de ceremonias"] : []
+    ],
+    extracted,
+    history,
+    currentMessage
+  });
+  const catalog = buildPackageCatalogOfferBlock(
+    entServices,
+    `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+  );
   let body = wantsRobots || wantsBatucada ? `${intro} ${ideas}
 
 ${catalog}` : `${intro} ${ideas}
@@ -22657,7 +22671,7 @@ function buildFirstInteractionMessage(ctx, withIntro = true) {
   const sheetDetail = !includeCatalog && !progressiveFirst && svcHint ? attachAvailableSheetDetail(svcHint, svcHint) : null;
   const catalogBlock = includeCatalog ? `
 
-${buildPackageCatalogOfferBlock()}` : progressiveFirst ? `
+${buildPackageCatalogOfferBlock(multiServices, userText)}` : progressiveFirst ? `
 
 ${progressiveFirst.menu}` : sheetDetail ? `
 
@@ -23223,7 +23237,7 @@ function lastAssistantWasPhoneAnswer(history) {
   if (!last || typeof last.content !== "string") return false;
   return /55\s*4008\s*0373|56\s*4671\s*0585|l[ií]nea telef[oó]nica/i.test(last.content);
 }
-function buildPackageCatalogOfferBlock() {
+function buildGenericCatalogHubBlock() {
   return [
     "Te dejo el cat\xE1logo general para que veas montajes, men\xFAs y opciones:",
     getCatalogWebHubDeliveryUrl(),
@@ -23231,13 +23245,37 @@ function buildPackageCatalogOfferBlock() {
     CATALOG_OFFER_QUESTION
   ].join("\n");
 }
+function collectServicesForCatalogOffer(opts) {
+  const fromArg = (opts.services ?? []).map((s) => s.trim()).filter(Boolean);
+  const fromCrm = opts.extracted?.requerimientos_evento ? parseServicesFromText(opts.extracted.requerimientos_evento) : [];
+  const blob = opts.sourceText || [
+    opts.currentMessage ?? "",
+    ...opts.history ? collectUserTexts(opts.history, opts.currentMessage ?? void 0) : []
+  ].filter(Boolean).join(" ");
+  const fromBlob = blob ? parseServicesFromText(blob) : [];
+  return dedupeServiceHierarchy([...fromArg, ...fromCrm, ...fromBlob], blob);
+}
+function buildPackageCatalogOfferBlock(services, sourceText) {
+  const list = collectServicesForCatalogOffer({
+    services,
+    sourceText,
+    currentMessage: sourceText
+  });
+  if (list.length >= 1) {
+    const mapped = buildMappedCatalogOfferBlock(list, sourceText);
+    if (mapped && !/^Te dejo el catálogo general/i.test(mapped)) {
+      return mapped;
+    }
+  }
+  return buildGenericCatalogHubBlock();
+}
 function buildMappedCatalogOfferBlock(services, sourceText) {
   const text = sourceText ?? "";
   const list = dedupeServiceHierarchy(
     services.map((s) => s.trim()).filter(Boolean),
     text
   ).slice(0, 6);
-  if (!list.length) return buildPackageCatalogOfferBlock();
+  if (!list.length) return buildGenericCatalogHubBlock();
   const lines = [
     "Con lo que pediste, estas opciones del cat\xE1logo te pueden servir:",
     ""
@@ -23255,6 +23293,9 @@ function buildMappedCatalogOfferBlock(services, sourceText) {
     } else if (/barra\s+de\s+bebidas/i.test(svc)) {
       query = "barra de bebidas";
       label = "Barra de bebidas";
+    } else if (/^meseros?$/i.test(svc)) {
+      lines.push(`\u2022 *${label}*`);
+      continue;
     }
     const sheetMatch = resolveCatalogWebLink(query);
     const webUrl = getCatalogWebUrlForQuery(query) || (sheetMatch.kind === "service" ? sheetMatch.url : null);
@@ -23265,7 +23306,7 @@ function buildMappedCatalogOfferBlock(services, sourceText) {
       lines.push(`\u2022 *${label}*`);
     }
   }
-  if (linked === 0) return buildPackageCatalogOfferBlock();
+  if (linked === 0) return buildGenericCatalogHubBlock();
   lines.push("", "Cat\xE1logo general:", getCatalogWebHubDeliveryUrl(), "");
   lines.push(SERVICE_NIVEL_DETAIL_CTA);
   return lines.join("\n");
@@ -23338,7 +23379,7 @@ function buildStandardClosingMessage(serviciosPedidos, clientName) {
   ) ? `Si quieres sumar algo adem\xE1s de ${servicio} (mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar algo adem\xE1s de ${servicio} (alimentos, mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar alimentos, mobiliario, DJ o iluminaci\xF3n, d\xEDmelo.`;
   const parts = [`Perfecto, ya tengo todo. ${handoff}`, "", complements];
   if (multiPackage) {
-    parts.push("", buildPackageCatalogOfferBlock());
+    parts.push("", buildPackageCatalogOfferBlock(serviceParts, servicioRaw));
   }
   parts.push("", "Si necesitas algo m\xE1s, con gusto te apoyo.");
   return parts.join("\n");
@@ -23380,13 +23421,12 @@ function buildMultiServicePackageReply(services, sourceText) {
     sourceText
   );
   const ack = sourceText && isRichQuoteBrief(sourceText) ? buildRichBriefAcknowledgment(sourceText) : buildMultiServiceAck(cleaned.length ? cleaned : services);
-  const mapped = buildMappedCatalogOfferBlock(
-    cleaned.length ? cleaned : services,
-    sourceText
-  );
   return `${ack}
 
-${mapped}`;
+${buildPackageCatalogOfferBlock(
+    cleaned.length ? cleaned : services,
+    sourceText
+  )}`;
 }
 function extractOfferedServicesFromHistory(history) {
   const lastAsst = [...history].reverse().find((m) => m.role === "assistant" && typeof m.content === "string");
@@ -24057,7 +24097,10 @@ ${nextQ}` : ""}`.trim();
 
 ${ack}
 
-${buildPackageCatalogOfferBlock()}`,
+${buildPackageCatalogOfferBlock(
+        services,
+        blob || (currentMessage ?? "")
+      )}`,
       filledSet,
       extracted,
       ctx
@@ -25721,12 +25764,14 @@ bombardees precios/PDF.
   "el equipo te lo confirma". NUNCA inventes qu\xE9 incluye ni precios.
 - Brief con VARIOS servicios (ej. coffee break, desayuno, snack, comida, cena, staff):
   reconoce la lista COMPLETA en el mismo turno. No te quedes solo con el primero.
-  Si son muchos, confirma el paquete, ENV\xCDA el link del cat\xE1logo general y ofrece
-  pasar a ${ADVISOR}; no vuelques niveles de cada servicio uno por uno.
+  Si son muchos, confirma el paquete y ENV\xCDA los links de cat\xE1logo de esos servicios
+  (no solo el hub gen\xE9rico); ofrece pasar a ${ADVISOR}. No vuelques niveles de cada
+  servicio uno por uno salvo que pidan detalle de uno.
 - Primer mensaje largo / RFQ con datos (evento, fecha, ubicaci\xF3n, invitados, 2+ men\xFAs
   u opciones, meseros, mobiliario, precio distribuidor): capt\xFAralos TODOS, reconoce
-  el brief con calma, manda el cat\xE1logo y pide el siguiente dato faltante (nombre o
-  correo). NUNCA respondas "lo dejamos por definir" ni un precio de un solo SKU.
+  el brief con calma, manda los cat\xE1logos de lo que pidi\xF3 (bebidas\u2192barra de bebidas,
+  antojitos/banderillas\u2192puestos de comida, periqueras\u2192salas y periqueras, etc.) y
+  pide el siguiente dato faltante. NUNCA "lo dejamos por definir" ni un solo SKU retail.
 - Precio distribuidor / agencia / mayoreo \u2192 el equipo cotiza; no des precio de lista.
 
 ===================================================================
@@ -25782,7 +25827,8 @@ lugar de tu evento, coordinamos el servicio."
   PDF, gana el Sheet). No digas solo "s\xED lo manejamos" sin explicar.
 - Incluye tambi\xE9n el link del cat\xE1logo (columna "Link cat\xE1logo",
   bodasesor.com/catalogos/...). Un link a la vez.
-- Si pide "todo" / multi-servicio \u2192 hub general ${CATALOG_URL}
+- Si pide "todo" / multi-servicio \u2192 links de los servicios concretos pedidos + hub
+  ${CATALOG_URL}. Solo hub solo si a\xFAn no hay SKUs claros.
 - No inventes inclusiones ni precios fuera del Sheet. NUNCA links gamma.app.
 
 ===================================================================
@@ -32021,6 +32067,91 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.ok(
       !/Anoto Snack y Mobiliario/i.test(reply),
       `no solo Snack+Mobiliario: ${reply.slice(0, 400)}`
+    );
+  });
+  await test("108. V8.79 \u2014 cat\xE1logos mapeados en TODAS las ramas (no solo RFQ)", () => {
+    const golfServices = [
+      "Barra de bebidas",
+      "Puestos de Comida",
+      "Mobiliario"
+    ];
+    const golfText = "Cerveza Whisky Snack Banderillas Periqueras torneo de golf 80 personas";
+    assert.ok(
+      buildGenericCatalogHubBlock().includes(CATALOG_OFFER_QUESTION),
+      "hub gen\xE9rico intacto"
+    );
+    const viaPackage = buildPackageCatalogOfferBlock(golfServices, golfText);
+    assert.ok(/barra-de-bebidas/i.test(viaPackage), viaPackage);
+    assert.ok(/puestos-de-comida/i.test(viaPackage), viaPackage);
+    assert.ok(/salas-y-periqueras/i.test(viaPackage), viaPackage);
+    assert.ok(!/^Te dejo el catálogo general/i.test(viaPackage), viaPackage);
+    const closing = buildStandardClosingMessage(
+      "Barra de bebidas, Puestos de Comida, Mobiliario",
+      "Lilian"
+    );
+    assert.ok(
+      /barra-de-bebidas|puestos-de-comida|salas-y-periqueras/i.test(closing),
+      `cierre mapeado: ${closing.slice(0, 600)}`
+    );
+    const first = buildFirstInteractionMessage(
+      {
+        extracted: emptyExtracted({
+          tipo_evento: "evento corporativo",
+          num_invitados: 80,
+          requerimientos_evento: golfServices.join(", ")
+        }),
+        filledSet: /* @__PURE__ */ new Set([
+          "Tipo de evento",
+          "N\xFAmero de invitados",
+          "Requerimientos o servicios"
+        ]),
+        history: [],
+        currentMessage: `Evento: Torneo de Golf
+${golfText}`,
+        entityId: "t108"
+      },
+      true
+    );
+    assert.ok(
+      /barra-de-bebidas|puestos-de-comida|salas-y-periqueras/i.test(first),
+      `primer turno mapeado: ${first.slice(0, 700)}`
+    );
+    assert.ok(clientAsksToRereadBrief("Favor de leer muy bien las especificaciones"));
+    const reread = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Lilian",
+        correo: "lilian@nodum.com.mx",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: golfServices.join(", "),
+        num_invitados: 80
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Favor de leer muy bien las especificaciones",
+      history: [
+        { role: "user", content: `Torneo de Golf. ${golfText}` },
+        {
+          role: "assistant",
+          content: "Perfecto, ya anot\xE9 tus datos. \xBFCu\xE1l es tu presupuesto?"
+        }
+      ]
+    });
+    const collected = collectServicesForCatalogOffer({
+      extracted: { requerimientos_evento: golfServices.join(", ") },
+      currentMessage: golfText
+    });
+    assert.ok(collected.some((s) => /barra\s+de\s+bebidas/i.test(s)), collected.join(", "));
+    assert.ok(/reviso|anoto|solicitud/i.test(reread), reread.slice(0, 400));
+    assert.ok(
+      /barra-de-bebidas|puestos-de-comida|salas-y-periqueras/i.test(reread),
+      `releer mapeado: ${reread.slice(0, 700)}`
     );
   });
   console.log(`
