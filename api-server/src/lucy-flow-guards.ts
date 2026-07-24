@@ -57,6 +57,8 @@ import {
   responseLooksLikeGenericCateringMenu,
   clientAsksInclusion,
   buildCatalogWebLinkReply,
+  buildServicePlusGeneralCatalogReply,
+  withServiceAndGeneralCatalogLinks,
   stripUnsolicitedCatalogWebLinks,
   CATALOG_OFFER_QUESTION,
   messageOffersCatalogLink,
@@ -81,6 +83,8 @@ import {
   isBareProgressiveAffirmation,
   detectProgressiveFamily,
   progressiveFamilyDetailQueries,
+  catalogNivelLabelFromText,
+  withCatalogNivelQuery,
 } from "./services/serviceProgressiveOffer.js";
 import {
   extractImageClientReply,
@@ -1282,7 +1286,10 @@ function buildProgressiveDetailAfterMenu(opts: {
         if (d) chunks.push(d);
       }
       const linkQ = queries[0] || family;
-      const link = buildCatalogWebLinkReply({ query: linkQ, serviceHint: hint || linkQ });
+      const link = buildServicePlusGeneralCatalogReply({
+        query: linkQ,
+        serviceHint: hint || linkQ,
+      });
       if (filledSet) {
         filledSet.add("Requerimientos o servicios");
         const merged = mergeServiceRequirements(
@@ -1293,7 +1300,12 @@ function buildProgressiveDetailAfterMenu(opts: {
         if (merged) extracted.requerimientos_evento = merged;
       }
       if (chunks.length) {
-        return `${pickTransition(history)} Claro, te paso el detalle de las opciones:\n\n${chunks.join("\n\n")}\n\n${link}`.trim();
+        const body = withServiceAndGeneralCatalogLinks(
+          chunks.join("\n\n"),
+          linkQ,
+          hint || linkQ
+        );
+        return `${pickTransition(history)} Claro, te paso el detalle de las opciones:\n\n${body}`.trim();
       }
       return `${pickTransition(history)} ${link}`.trim();
     }
@@ -1315,14 +1327,16 @@ function buildProgressiveDetailAfterMenu(opts: {
     buildCatalogServiceDetailAnswer(detailQuery) ||
     buildCatalogPriceAnswer(detailQuery) ||
     attachAvailableSheetDetail(detailQuery, detailQuery);
-  const link = buildCatalogWebLinkReply({
-    query: detailQuery,
-    serviceHint: detailQuery,
-  });
+  // A14975: no re-listar niveles ni duplicar el mismo URL; servicio + general.
+  const body = withServiceAndGeneralCatalogLinks(
+    detail || `Anoto *${detailQuery}*.`,
+    detailQuery,
+    detailQuery
+  );
   if (detail) {
-    return `${pickTransition(history)} Perfecto. Te detallo *${detailQuery}*:\n\n${detail}\n\n${link}`.trim();
+    return `${pickTransition(history)} Perfecto. Te detallo *${detailQuery}*:\n\n${body}`.trim();
   }
-  return `${pickTransition(history)} Perfecto, anoto *${detailQuery}*.\n\n${link}`.trim();
+  return `${pickTransition(history)} Perfecto, ${body}`.trim();
 }
 
 function buildFoodSalesReply(
@@ -1442,11 +1456,9 @@ function buildFoodSalesReply(
       const intro = introLabel
         ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.`
         : `${pickTransition(history)} Perfecto, te detallo la opción.`;
-      const link = buildCatalogWebLinkReply({
-        query: queryForDetail || mentionedService || serviceLabel || "banquete",
-        serviceHint: queryForDetail || mentionedService || serviceLabel,
-      });
-      return `${intro}\n\n${detail}\n\n${link}`.trim();
+      const linkQ = queryForDetail || mentionedService || serviceLabel || "banquete";
+      const body = withServiceAndGeneralCatalogLinks(detail, linkQ, linkQ);
+      return `${intro}\n\n${body}`.trim();
     }
 
     // Fallback: precio/inclusiones si el detail principal falló el match filter.
@@ -1460,22 +1472,17 @@ function buildFoodSalesReply(
       const intro = introLabel
         ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.`
         : `${pickTransition(history)} Perfecto, te detallo la opción.`;
-      const link = buildCatalogWebLinkReply({
-        query: queryForDetail || mentionedService || serviceLabel || query,
-        serviceHint: mentionedService || serviceLabel,
-      });
-      return `${intro}\n\n${forced}\n\n${link}`.trim();
+      const linkQ = queryForDetail || mentionedService || serviceLabel || query || "";
+      const body = withServiceAndGeneralCatalogLinks(forced, linkQ, linkQ);
+      return `${intro}\n\n${body}`.trim();
     }
 
     if (serviceLabel && currentMessage) {
       const ack = buildGuardServiceAck(currentMessage);
       // Si el ack ya trae Sheet detail, acompañar con link (post-elección).
       if (messageHasSheetServiceDetail(ack)) {
-        const link = buildCatalogWebLinkReply({
-          query: serviceLabel,
-          serviceHint: serviceLabel,
-        });
-        return `${ack}\n\n${link}`.trim();
+        const body = withServiceAndGeneralCatalogLinks(ack, serviceLabel, serviceLabel);
+        return body;
       }
       // Ack corto sin dump: no forzar link aún.
       return appendNext(`${pickTransition(history)} ${ack}`, serviceLabel);
@@ -3902,15 +3909,28 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""
       }.`,
     ];
-    // Preferir ack del nivel + siguiente dato (no re-dump de todos los niveles).
+    // Preferir detalle del nivel elegido (A14975) + links servicio/general; no re-listar.
     const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
-    const levelDetail =
-      /coffee\s*break\s*[1-9]/i.test(String(nivel))
-        ? buildCatalogServiceDetailAnswer(String(nivel)) ||
-          buildCatalogPriceAnswer(String(nivel))
+    const nivelLabel =
+      catalogNivelLabelFromText(currentMessage) ||
+      catalogNivelLabelFromText(String(nivel)) ||
+      String(nivel);
+    const detailQuery = /coffee\s*break\s*[1-9]/i.test(String(nivel))
+      ? String(nivel)
+      : svcNow
+        ? withCatalogNivelQuery(String(svcNow).replace(/\s*\(nivel[^)]*\)/gi, "").trim(), nivelLabel)
         : null;
-    if (levelDetail && /\$\s*\d|incluye/i.test(levelDetail) && !nextQ) {
-      mensaje = `${ackParts.join(" ")}\n\n${ensureCatalogWebLink(levelDetail, hint)}`;
+    const levelDetail = detailQuery
+      ? buildCatalogServiceDetailAnswer(detailQuery) ||
+        buildCatalogPriceAnswer(detailQuery)
+      : null;
+    if (levelDetail && /\$\s*\d|incluye/i.test(levelDetail)) {
+      const body = withServiceAndGeneralCatalogLinks(
+        levelDetail,
+        detailQuery || hint,
+        hint
+      );
+      mensaje = `${ackParts.join(" ")}\n\n${body}${nextQ ? `\n\n${nextQ}` : ""}`.trim();
     } else {
       mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
     }

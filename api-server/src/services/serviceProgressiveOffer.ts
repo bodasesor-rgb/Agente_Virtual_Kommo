@@ -79,7 +79,8 @@ const FAMILIES: FamilyDef[] = [
     familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
     variantPattern:
       /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: () => "Barra de sushi",
+    // A14975: incluir el nivel elegido ("Nivel tradicional" → "Barra de sushi Tradicional").
+    detailQueryFromText: (text) => withCatalogNivelQuery("Barra de sushi", text),
     buildMenu: () =>
       [
         "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, Básico, Tradicional, Premium).",
@@ -91,7 +92,7 @@ const FAMILIES: FamilyDef[] = [
     family: "barra_cafe",
     familyPattern: /\bbarra\s+de\s+caf[eé]\b|\bcafeter[ií]a\b|\bbarista\b/i,
     variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: () => "Barra de Café",
+    detailQueryFromText: (text) => withCatalogNivelQuery("Barra de Café", text),
     buildMenu: () =>
       [
         "Claro. En *Barra de Café* manejamos niveles con baristas y bebidas artesanales.",
@@ -104,9 +105,9 @@ const FAMILIES: FamilyDef[] = [
     familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog/i,
     variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca)\b/i,
     detailQueryFromText: (text) => {
-      if (/yucateca/i.test(text)) return "Barra Yucateca";
-      if (/americana/i.test(text)) return "Barra Americana";
-      return "Barra de bebidas";
+      if (/yucateca/i.test(text)) return withCatalogNivelQuery("Barra Yucateca", text);
+      if (/americana/i.test(text)) return withCatalogNivelQuery("Barra Americana", text);
+      return withCatalogNivelQuery("Barra de bebidas", text);
     },
     buildMenu: () =>
       [
@@ -122,14 +123,14 @@ const FAMILIES: FamilyDef[] = [
     variantPattern:
       /\b(pizzas?|pastas?|crepas?|mariscos?|paninis?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text) => {
-      if (/pizza/i.test(text)) return "Barra de pizzas";
-      if (/pasta/i.test(text)) return "Barra de pastas";
-      if (/crepa/i.test(text)) return "Barra de Crepas";
-      if (/marisco/i.test(text)) return "Barra de mariscos";
-      if (/panini/i.test(text)) return "Barra de paninis";
-      if (/yucateca/i.test(text)) return "Barra Yucateca";
-      if (/americana/i.test(text)) return "Barra Americana";
-      return "Barra de alimentos";
+      if (/pizza/i.test(text)) return withCatalogNivelQuery("Barra de pizzas", text);
+      if (/pasta/i.test(text)) return withCatalogNivelQuery("Barra de pastas", text);
+      if (/crepa/i.test(text)) return withCatalogNivelQuery("Barra de Crepas", text);
+      if (/marisco/i.test(text)) return withCatalogNivelQuery("Barra de mariscos", text);
+      if (/panini/i.test(text)) return withCatalogNivelQuery("Barra de paninis", text);
+      if (/yucateca/i.test(text)) return withCatalogNivelQuery("Barra Yucateca", text);
+      if (/americana/i.test(text)) return withCatalogNivelQuery("Barra Americana", text);
+      return withCatalogNivelQuery("Barra de alimentos", text);
     },
     buildMenu: () =>
       [
@@ -144,7 +145,7 @@ const FAMILIES: FamilyDef[] = [
     family: "taquiza",
     familyPattern: /\btaquiza\b|\btacos?\b/i,
     variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: () => "taquiza",
+    detailQueryFromText: (text) => withCatalogNivelQuery("taquiza", text),
     buildMenu: () =>
       [
         "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, Básico, Tradicional, Premium).",
@@ -157,7 +158,10 @@ const FAMILIES: FamilyDef[] = [
     familyPattern: /\bparrillada\b/i,
     variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text) =>
-      /argentina/i.test(text) ? "Parrillada Argentina" : "parrillada",
+      withCatalogNivelQuery(
+        /argentina/i.test(text) ? "Parrillada Argentina" : "parrillada",
+        text
+      ),
     buildMenu: () =>
       [
         "Claro. En *parrillada* tenemos opciones (incluida argentina según disponibilidad).",
@@ -208,6 +212,32 @@ function fold(s: string): string {
     .replace(/\p{M}/gu, "")
     .toLowerCase()
     .trim();
+}
+
+/**
+ * Extrae etiqueta de nivel para queries Sheet (A14975).
+ * "Nivel tradicional" → "Tradicional"; "básico" → "Basico".
+ */
+export function catalogNivelLabelFromText(text: string | null | undefined): string | null {
+  const t = fold(text ?? "");
+  if (!t) return null;
+  if (/\bsolo\s+alimentos?\b/.test(t)) return "Solo Alimentos";
+  if (/\btradicional\b/.test(t)) return "Tradicional";
+  if (/\bpremium\b/.test(t)) return "Premium";
+  if (/\bbasic[ao]\b/.test(t)) return "Basico";
+  return null;
+}
+
+/** "Barra de sushi" + "Nivel tradicional" → "Barra de sushi Tradicional". */
+export function withCatalogNivelQuery(
+  baseService: string,
+  text: string | null | undefined
+): string {
+  const base = baseService.trim();
+  const nivel = catalogNivelLabelFromText(text);
+  if (!nivel) return base;
+  if (new RegExp(`\\b${nivel.replace(/\s+/g, "\\s+")}\\b`, "i").test(base)) return base;
+  return `${base} ${nivel}`;
 }
 
 /** Fingerprint del menú progresivo (opciones antes de detalle). */

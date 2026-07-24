@@ -2302,6 +2302,62 @@ export function buildCatalogWebLinkReply(opts: {
   ].join("\n");
 }
 
+/**
+ * A14975: al dar detalle de un servicio, enviar link del servicio + catálogo general
+ * (dos URLs distintas; sin duplicar el mismo link).
+ */
+export function buildServicePlusGeneralCatalogReply(opts: {
+  query: string;
+  serviceHint?: string | null;
+}): string {
+  const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
+  const match = resolveCatalogWebLink(query);
+  const hub = getCatalogWebHubDeliveryUrl();
+
+  if (match.kind === "service" && match.url) {
+    const serviceUrl = toDeliverableCatalogUrl(match.url);
+    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
+    const lines = [`Catálogo${label}:`, serviceUrl];
+    if (serviceUrl.replace(/\/+$/, "") !== hub.replace(/\/+$/, "")) {
+      lines.push("", "Catálogo general:", hub);
+    }
+    return lines.join("\n");
+  }
+
+  return ["Catálogo general:", hub].join("\n");
+}
+
+/** Quita URLs/bloques de catálogo para poder re-adjuntar servicio + general sin duplicar. */
+export function stripCatalogWebUrlBlocks(text: string): string {
+  if (!text?.trim()) return text ?? "";
+  return stripUnsolicitedCatalogWebLinks(text, false)
+    .replace(
+      /El detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo:\s*/gi,
+      ""
+    )
+    .replace(/Claro,\s+aqu[ií]\s+tienes\s+el\s+cat[aá]logo[^\n]*:\s*/gi, "")
+    .replace(/Si quieres el de otro servicio[^\n.]*(?:\.|$)/gi, "")
+    .replace(/Cat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*$/gim, "")
+    .replace(/Cat[aá]logo general:\s*$/gim, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/** Detalle sin links previos + bloque servicio + general. */
+export function withServiceAndGeneralCatalogLinks(
+  body: string,
+  query: string,
+  serviceHint?: string | null
+): string {
+  const clean = stripCatalogWebUrlBlocks(body);
+  const links = buildServicePlusGeneralCatalogReply({
+    query,
+    serviceHint: serviceHint ?? query,
+  });
+  if (!clean) return links;
+  return `${clean}\n\n${links}`.trim();
+}
+
 /** Quita links de catálogo web si el cliente NO los pidió (evita spam). */
 export function stripUnsolicitedCatalogWebLinks(text: string, clientAsked: boolean): string {
   if (!text || clientAsked) return text;

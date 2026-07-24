@@ -122517,7 +122517,7 @@ function isCatalogLevelSelection(text2, lastAssistantText) {
   const t = text2?.trim().toLowerCase() ?? "";
   if (!t) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
-  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(
+  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic/i.test(
     last
   );
   if (!askedNivel) {
@@ -126677,6 +126677,39 @@ function buildCatalogWebLinkReply(opts) {
     getCatalogWebHubDeliveryUrl()
   ].join("\n");
 }
+function buildServicePlusGeneralCatalogReply(opts) {
+  const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
+  const match = resolveCatalogWebLink(query);
+  const hub = getCatalogWebHubDeliveryUrl();
+  if (match.kind === "service" && match.url) {
+    const serviceUrl = toDeliverableCatalogUrl(match.url);
+    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
+    const lines = [`Cat\xE1logo${label}:`, serviceUrl];
+    if (serviceUrl.replace(/\/+$/, "") !== hub.replace(/\/+$/, "")) {
+      lines.push("", "Cat\xE1logo general:", hub);
+    }
+    return lines.join("\n");
+  }
+  return ["Cat\xE1logo general:", hub].join("\n");
+}
+function stripCatalogWebUrlBlocks(text2) {
+  if (!text2?.trim()) return text2 ?? "";
+  return stripUnsolicitedCatalogWebLinks(text2, false).replace(
+    /El detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo:\s*/gi,
+    ""
+  ).replace(/Claro,\s+aqu[ií]\s+tienes\s+el\s+cat[aá]logo[^\n]*:\s*/gi, "").replace(/Si quieres el de otro servicio[^\n.]*(?:\.|$)/gi, "").replace(/Cat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*$/gim, "").replace(/Cat[aá]logo general:\s*$/gim, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+function withServiceAndGeneralCatalogLinks(body2, query, serviceHint) {
+  const clean = stripCatalogWebUrlBlocks(body2);
+  const links = buildServicePlusGeneralCatalogReply({
+    query,
+    serviceHint: serviceHint ?? query
+  });
+  if (!clean) return links;
+  return `${clean}
+
+${links}`.trim();
+}
 function stripUnsolicitedCatalogWebLinks(text2, clientAsked) {
   if (!text2 || clientAsked) return text2;
   if (!/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text2)) return text2;
@@ -127961,7 +127994,8 @@ var FAMILIES = [
     family: "barra_sushi",
     familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
     variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: () => "Barra de sushi",
+    // A14975: incluir el nivel elegido ("Nivel tradicional" → "Barra de sushi Tradicional").
+    detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de sushi", text2),
     buildMenu: () => [
       "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
       "",
@@ -127972,7 +128006,7 @@ var FAMILIES = [
     family: "barra_cafe",
     familyPattern: /\bbarra\s+de\s+caf[eé]\b|\bcafeter[ií]a\b|\bbarista\b/i,
     variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: () => "Barra de Caf\xE9",
+    detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de Caf\xE9", text2),
     buildMenu: () => [
       "Claro. En *Barra de Caf\xE9* manejamos niveles con baristas y bebidas artesanales.",
       "",
@@ -127984,9 +128018,9 @@ var FAMILIES = [
     familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog/i,
     variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca)\b/i,
     detailQueryFromText: (text2) => {
-      if (/yucateca/i.test(text2)) return "Barra Yucateca";
-      if (/americana/i.test(text2)) return "Barra Americana";
-      return "Barra de bebidas";
+      if (/yucateca/i.test(text2)) return withCatalogNivelQuery("Barra Yucateca", text2);
+      if (/americana/i.test(text2)) return withCatalogNivelQuery("Barra Americana", text2);
+      return withCatalogNivelQuery("Barra de bebidas", text2);
     },
     buildMenu: () => [
       "Claro. En bebidas manejamos *Barra de bebidas*, *Barra Americana*, *Barra Yucateca* y opciones de mixolog\xEDa.",
@@ -127999,14 +128033,14 @@ var FAMILIES = [
     familyPattern: /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarras?\s+tem[aá]ticas?\b/i,
     variantPattern: /\b(pizzas?|pastas?|crepas?|mariscos?|paninis?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => {
-      if (/pizza/i.test(text2)) return "Barra de pizzas";
-      if (/pasta/i.test(text2)) return "Barra de pastas";
-      if (/crepa/i.test(text2)) return "Barra de Crepas";
-      if (/marisco/i.test(text2)) return "Barra de mariscos";
-      if (/panini/i.test(text2)) return "Barra de paninis";
-      if (/yucateca/i.test(text2)) return "Barra Yucateca";
-      if (/americana/i.test(text2)) return "Barra Americana";
-      return "Barra de alimentos";
+      if (/pizza/i.test(text2)) return withCatalogNivelQuery("Barra de pizzas", text2);
+      if (/pasta/i.test(text2)) return withCatalogNivelQuery("Barra de pastas", text2);
+      if (/crepa/i.test(text2)) return withCatalogNivelQuery("Barra de Crepas", text2);
+      if (/marisco/i.test(text2)) return withCatalogNivelQuery("Barra de mariscos", text2);
+      if (/panini/i.test(text2)) return withCatalogNivelQuery("Barra de paninis", text2);
+      if (/yucateca/i.test(text2)) return withCatalogNivelQuery("Barra Yucateca", text2);
+      if (/americana/i.test(text2)) return withCatalogNivelQuery("Barra Americana", text2);
+      return withCatalogNivelQuery("Barra de alimentos", text2);
     },
     buildMenu: () => [
       "Claro. En barras de alimentos manejamos varias:",
@@ -128020,7 +128054,7 @@ var FAMILIES = [
     family: "taquiza",
     familyPattern: /\btaquiza\b|\btacos?\b/i,
     variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: () => "taquiza",
+    detailQueryFromText: (text2) => withCatalogNivelQuery("taquiza", text2),
     buildMenu: () => [
       "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
       "",
@@ -128031,7 +128065,10 @@ var FAMILIES = [
     family: "parrillada",
     familyPattern: /\bparrillada\b/i,
     variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
-    detailQueryFromText: (text2) => /argentina/i.test(text2) ? "Parrillada Argentina" : "parrillada",
+    detailQueryFromText: (text2) => withCatalogNivelQuery(
+      /argentina/i.test(text2) ? "Parrillada Argentina" : "parrillada",
+      text2
+    ),
     buildMenu: () => [
       "Claro. En *parrillada* tenemos opciones (incluida argentina seg\xFAn disponibilidad).",
       "",
@@ -128073,6 +128110,22 @@ var FAMILIES = [
 ];
 function fold2(s10) {
   return s10.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+}
+function catalogNivelLabelFromText(text2) {
+  const t = fold2(text2 ?? "");
+  if (!t) return null;
+  if (/\bsolo\s+alimentos?\b/.test(t)) return "Solo Alimentos";
+  if (/\btradicional\b/.test(t)) return "Tradicional";
+  if (/\bpremium\b/.test(t)) return "Premium";
+  if (/\bbasic[ao]\b/.test(t)) return "Basico";
+  return null;
+}
+function withCatalogNivelQuery(baseService, text2) {
+  const base = baseService.trim();
+  const nivel = catalogNivelLabelFromText(text2);
+  if (!nivel) return base;
+  if (new RegExp(`\\b${nivel.replace(/\s+/g, "\\s+")}\\b`, "i").test(base)) return base;
+  return `${base} ${nivel}`;
 }
 function isProgressiveOptionsMenuReply(text2) {
   if (!text2?.trim()) return false;
@@ -129211,7 +129264,10 @@ function buildProgressiveDetailAfterMenu(opts) {
         if (d10) chunks.push(d10);
       }
       const linkQ = queries[0] || family;
-      const link2 = buildCatalogWebLinkReply({ query: linkQ, serviceHint: hint || linkQ });
+      const link = buildServicePlusGeneralCatalogReply({
+        query: linkQ,
+        serviceHint: hint || linkQ
+      });
       if (filledSet) {
         filledSet.add("Requerimientos o servicios");
         const merged = mergeServiceRequirements(
@@ -129222,13 +129278,16 @@ function buildProgressiveDetailAfterMenu(opts) {
         if (merged) extracted.requerimientos_evento = merged;
       }
       if (chunks.length) {
+        const body3 = withServiceAndGeneralCatalogLinks(
+          chunks.join("\n\n"),
+          linkQ,
+          hint || linkQ
+        );
         return `${pickTransition(history)} Claro, te paso el detalle de las opciones:
 
-${chunks.join("\n\n")}
-
-${link2}`.trim();
+${body3}`.trim();
       }
-      return `${pickTransition(history)} ${link2}`.trim();
+      return `${pickTransition(history)} ${link}`.trim();
     }
   }
   if (!detailQuery) {
@@ -129244,20 +129303,17 @@ ${link2}`.trim();
     if (merged) extracted.requerimientos_evento = merged;
   }
   const detail = buildCatalogServiceDetailAnswer(detailQuery) || buildCatalogPriceAnswer(detailQuery) || attachAvailableSheetDetail(detailQuery, detailQuery);
-  const link = buildCatalogWebLinkReply({
-    query: detailQuery,
-    serviceHint: detailQuery
-  });
+  const body2 = withServiceAndGeneralCatalogLinks(
+    detail || `Anoto *${detailQuery}*.`,
+    detailQuery,
+    detailQuery
+  );
   if (detail) {
     return `${pickTransition(history)} Perfecto. Te detallo *${detailQuery}*:
 
-${detail}
-
-${link}`.trim();
+${body2}`.trim();
   }
-  return `${pickTransition(history)} Perfecto, anoto *${detailQuery}*.
-
-${link}`.trim();
+  return `${pickTransition(history)} Perfecto, ${body2}`.trim();
 }
 function buildFoodSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
   const blob = `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`;
@@ -129330,15 +129386,11 @@ ${nextQ}`;
     if (detail) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
       const intro = introLabel ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.` : `${pickTransition(history)} Perfecto, te detallo la opci\xF3n.`;
-      const link = buildCatalogWebLinkReply({
-        query: queryForDetail || mentionedService || serviceLabel || "banquete",
-        serviceHint: queryForDetail || mentionedService || serviceLabel
-      });
+      const linkQ = queryForDetail || mentionedService || serviceLabel || "banquete";
+      const body2 = withServiceAndGeneralCatalogLinks(detail, linkQ, linkQ);
       return `${intro}
 
-${detail}
-
-${link}`.trim();
+${body2}`.trim();
     }
     const forced = attachAvailableSheetDetail(
       queryForDetail || mentionedService || query || serviceLabel || currentMessage || "",
@@ -129347,26 +129399,17 @@ ${link}`.trim();
     if (forced) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
       const intro = introLabel ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.` : `${pickTransition(history)} Perfecto, te detallo la opci\xF3n.`;
-      const link = buildCatalogWebLinkReply({
-        query: queryForDetail || mentionedService || serviceLabel || query,
-        serviceHint: mentionedService || serviceLabel
-      });
+      const linkQ = queryForDetail || mentionedService || serviceLabel || query || "";
+      const body2 = withServiceAndGeneralCatalogLinks(forced, linkQ, linkQ);
       return `${intro}
 
-${forced}
-
-${link}`.trim();
+${body2}`.trim();
     }
     if (serviceLabel && currentMessage) {
       const ack = buildGuardServiceAck(currentMessage);
       if (messageHasSheetServiceDetail(ack)) {
-        const link = buildCatalogWebLinkReply({
-          query: serviceLabel,
-          serviceHint: serviceLabel
-        });
-        return `${ack}
-
-${link}`.trim();
+        const body2 = withServiceAndGeneralCatalogLinks(ack, serviceLabel, serviceLabel);
+        return body2;
       }
       return appendNext(`${pickTransition(history)} ${ack}`, serviceLabel);
     }
@@ -130850,11 +130893,20 @@ ${link}
       `Anoto *${nivel}*${svcNow && !/coffee\s*break\s*[1-9]/i.test(String(nivel)) ? ` para ${svcNow}` : ""}${emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""}.`
     ];
     const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
-    const levelDetail = /coffee\s*break\s*[1-9]/i.test(String(nivel)) ? buildCatalogServiceDetailAnswer(String(nivel)) || buildCatalogPriceAnswer(String(nivel)) : null;
-    if (levelDetail && /\$\s*\d|incluye/i.test(levelDetail) && !nextQ) {
+    const nivelLabel = catalogNivelLabelFromText(currentMessage) || catalogNivelLabelFromText(String(nivel)) || String(nivel);
+    const detailQuery = /coffee\s*break\s*[1-9]/i.test(String(nivel)) ? String(nivel) : svcNow ? withCatalogNivelQuery(String(svcNow).replace(/\s*\(nivel[^)]*\)/gi, "").trim(), nivelLabel) : null;
+    const levelDetail = detailQuery ? buildCatalogServiceDetailAnswer(detailQuery) || buildCatalogPriceAnswer(detailQuery) : null;
+    if (levelDetail && /\$\s*\d|incluye/i.test(levelDetail)) {
+      const body2 = withServiceAndGeneralCatalogLinks(
+        levelDetail,
+        detailQuery || hint,
+        hint
+      );
       mensaje = `${ackParts.join(" ")}
 
-${ensureCatalogWebLink(levelDetail, hint)}`;
+${body2}${nextQ ? `
+
+${nextQ}` : ""}`.trim();
     } else {
       mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
     }

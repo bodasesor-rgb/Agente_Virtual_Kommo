@@ -191,6 +191,10 @@ import {
   usesKommoExternalSend,
 } from "../services/kommoTalks.js";
 import {
+  withCatalogNivelQuery,
+  catalogNivelLabelFromText,
+} from "../services/serviceProgressiveOffer.js";
+import {
   parseSheetCatalogCsv,
   deriveCatalogCategory,
   formatCatalogRowLabel,
@@ -4201,7 +4205,7 @@ async function runAll(): Promise<void> {
     );
     assert.ok(!/\$800|\$850|\$900/i.test(t2), `T2 no debe volcar precios aún: ${t2.slice(0, 400)}`);
 
-    // Tras elegir Premium → detalle + link catálogo.
+    // Tras elegir Premium → detalle del nivel (no re-listar) + link servicio + general.
     const t3 = runGuards({
       aiResponse: "¿Cuál nivel?",
       extracted: emptyExtracted({
@@ -4217,12 +4221,23 @@ async function runAll(): Promise<void> {
       ],
     });
     assert.ok(
-      /Premium|\$900|nivel|detall/i.test(t3),
+      /Premium|\$900/i.test(t3),
       `T3 detalle tras elección: ${t3.slice(0, 500)}`
     );
     assert.ok(
-      /bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(t3),
-      `T3 debe traer link de catálogo: ${t3.slice(0, 500)}`
+      !/¿Cu[aá]l nivel prefieres/i.test(t3),
+      `T3 no debe re-preguntar nivel: ${t3.slice(0, 500)}`
+    );
+    const sushiUrls = t3.match(/bodasesor\.com\/catalogos\/barra-de-sushi/gi) || [];
+    assert.equal(
+      sushiUrls.length,
+      1,
+      `T3 un solo link de servicio (no duplicado): ${t3.slice(0, 600)}`
+    );
+    assert.ok(
+      /bodasesor\.com\/catalogos\/?\s*$/m.test(t3) ||
+        /Cat[aá]logo general:[\s\S]*bodasesor\.com\/catalogos(?!\/barra)/i.test(t3),
+      `T3 debe incluir catálogo general: ${t3.slice(0, 600)}`
     );
 
     const deferred = buildDeferredKnownServiceOffer({
@@ -5926,6 +5941,69 @@ async function runAll(): Promise<void> {
     const mirrorSrc = readFileSync(path.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     assert.ok(/sendKommoTalkMessage|send_message/.test(talksSrc));
     assert.ok(/sin teléfono — intentando envío por Kommo/i.test(mirrorSrc));
+  });
+
+  // ─── 100. A14975 Mariana — Nivel tradicional: detalle + servicio + general ───
+  await test("100. A14975 — sushi 'Nivel tradicional' da detalle (no re-lista) + 2 catálogos", () => {
+    const csvSushi = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye","Link catalogo"',
+      '"Barra de sushi","Solo Alimentos","$420.00","$8,400.00","TRUE","Rollos y soya","https://bodasesor.com/catalogos/barra-de-sushi"',
+      '"Barra de sushi","Basico","$800.00","$16,000.00","TRUE","8 piezas","https://bodasesor.com/catalogos/barra-de-sushi"',
+      '"Barra de sushi","Tradicional","$850.00","$17,000.00","TRUE","12 piezas y chef","https://bodasesor.com/catalogos/barra-de-sushi"',
+      '"Barra de sushi","Premium","$900.00","$18,000.00","TRUE","15 piezas premium","https://bodasesor.com/catalogos/barra-de-sushi"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvSushi));
+
+    assert.equal(
+      withCatalogNivelQuery("Barra de sushi", "Nivel tradicional"),
+      "Barra de sushi Tradicional"
+    );
+    assert.equal(catalogNivelLabelFromText("Nivel tradicional"), "Tradicional");
+
+    const menu =
+      "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, Básico, Tradicional, Premium).\n\n¿Te paso la info detallada de algún nivel, o quieres ver todos con precios e inclusiones?\n\n¿Cómo te llamas?";
+
+    const reply = runGuards({
+      aiResponse: "¿Cuál nivel?",
+      extracted: emptyExtracted({
+        nombre: "Mariana García",
+        requerimientos_evento: "Barra de sushi",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Nivel tradicional",
+      history: [
+        {
+          role: "user",
+          content: "Hola, me interesa cotizar: Barra de Sushi para un evento",
+        },
+        { role: "assistant", content: menu },
+      ],
+    });
+
+    assert.ok(
+      /Tradicional|\$850|12 piezas/i.test(reply),
+      `debe detallar Tradicional: ${reply.slice(0, 600)}`
+    );
+    assert.ok(
+      !/¿Cu[aá]l nivel prefieres/i.test(reply),
+      `no re-preguntar nivel: ${reply.slice(0, 500)}`
+    );
+    // No volver a listar los 4 niveles como menú de elección.
+    assert.ok(
+      !(/Solo Alimentos[\s\S]*Basico[\s\S]*Tradicional[\s\S]*Premium/i.test(reply) &&
+        /¿Cu[aá]l nivel/i.test(reply)),
+      `no re-listar niveles: ${reply.slice(0, 600)}`
+    );
+    const sushiUrls = reply.match(/bodasesor\.com\/catalogos\/barra-de-sushi/gi) || [];
+    assert.equal(sushiUrls.length, 1, `un link de servicio: ${reply.slice(0, 700)}`);
+    assert.ok(
+      /Cat[aá]logo general:[\s\S]*bodasesor\.com\/catalogos(?!\/[a-z])/i.test(reply) ||
+        /Cat[aá]logo general:\s*\nhttps?:\/\/(?:www\.)?bodasesor\.com\/catalogos\/?\s*$/m.test(
+          reply
+        ),
+      `debe incluir catálogo general: ${reply.slice(0, 700)}`
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
