@@ -5027,7 +5027,7 @@ function isCatalogLevelSelection(text, lastAssistantText) {
   const t = text?.trim().toLowerCase() ?? "";
   if (!t) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
-  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic/i.test(
+  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles/i.test(
     last
   );
   if (!askedNivel) {
@@ -8388,10 +8388,18 @@ function shouldOfferOptionsBeforeDetail(opts) {
     return null;
   }
   if (historyOfferedServiceOptionsMenu(opts.history) && msg.length < 80) {
-    return {
-      family,
-      menu: "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
-    };
+    const msgFamily = detectProgressiveFamily(msg);
+    const hintFamily = detectProgressiveFamily(opts.serviceHint);
+    const menuWasOtherFamily = !!msgFamily && !!hintFamily && msgFamily !== hintFamily;
+    if (menuWasOtherFamily) {
+      return { family: msgFamily, menu: buildProgressiveOptionsMenu(msgFamily) };
+    }
+    if (!msgFamily || msgFamily === family) {
+      return {
+        family,
+        menu: "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      };
+    }
   }
   if (historyOfferedServiceOptionsMenu(opts.history)) return null;
   return { family, menu: buildProgressiveOptionsMenu(family, opts.serviceHint) };
@@ -9795,6 +9803,7 @@ function buildCategoryServicesAnswer(result) {
   return `Para *${label.toLowerCase()}* tenemos: ${list}. \xBFCu\xE1l te interesa?`;
 }
 var CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
+var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
 function ensureCatalogWebLink(text, query) {
   const body = text.trim();
   if (!body) return body;
@@ -9892,7 +9901,7 @@ function buildServiceNivelChoiceAnswer(result) {
           `Para *${svc}* manejamos estos niveles:
 ${lines2.join("\n")}
 
-\xBFCu\xE1l nivel prefieres?`,
+${SERVICE_NIVEL_DETAIL_CTA}`,
           svc
         );
       }
@@ -9905,7 +9914,7 @@ ${lines2.join("\n")}
 
 `;
     return withCatalogOfferQuestion(
-      `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}\xBFCu\xE1l variante y nivel prefieres?`,
+      `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}${SERVICE_NIVEL_DETAIL_CTA}`,
       svc
     );
   }
@@ -9923,7 +9932,7 @@ ${lines2.join("\n")}
     return `${i + 1}. *${n}*${price}`;
   });
   const hasAnyIncl = rowsForChoice.some((r) => !!getInclusionFromRow(r));
-  const footer = hasAnyIncl ? "\xBFCu\xE1l nivel prefieres para tu evento?" : "\xBFCu\xE1l nivel prefieres?";
+  const footer = SERVICE_NIVEL_DETAIL_CTA;
   let body = `Para *${svc}* manejamos estos niveles:
 
 ${lines.join("\n")}
@@ -10212,7 +10221,7 @@ function buildInclusionTeamConfirmationAnswer(query) {
 
 ${linkBlock}
 
-\xBFCu\xE1l nivel prefieres?`;
+${SERVICE_NIVEL_DETAIL_CTA}`;
   }
   const hub = getCatalogWebHubDeliveryUrl();
   const head = nivel ? `Para *${label}* (*${nivel}*) el detalle de inclusiones est\xE1 en el cat\xE1logo.` : `Para *${label}* el detalle de inclusiones est\xE1 en el cat\xE1logo.`;
@@ -10220,7 +10229,7 @@ ${linkBlock}
 
 ${hub}
 
-\xBFCu\xE1l nivel prefieres?`;
+${SERVICE_NIVEL_DETAIL_CTA}`;
 }
 function resolveCatalogInclusionReply(query, serviceHint) {
   const wantsAllLevels = /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
@@ -10305,7 +10314,7 @@ ${priced}`
 
 ${webHint ?? `Cat\xE1logo: ${webUrl}`}
 
-\xBFCu\xE1l nivel prefieres?`,
+${SERVICE_NIVEL_DETAIL_CTA}`,
       webQ
     );
   }
@@ -22147,11 +22156,11 @@ ${body2}`.trim();
     detailQuery
   );
   if (detail) {
-    return `${pickTransition(history)} Perfecto. Te detallo *${detailQuery}*:
+    return `${pickTransition(history)} Te detallo *${detailQuery}*:
 
 ${body}`.trim();
   }
-  return `${pickTransition(history)} Perfecto, ${body}`.trim();
+  return `${pickTransition(history)} ${body}`.trim();
 }
 function buildFoodSalesReply(extracted, history, entityId, currentMessage, filledSet, ctx) {
   const blob = `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`;
@@ -22162,7 +22171,9 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
     return buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
   }
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
-  const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
+  const tipoIsServiceSku = /^(taquiza|parrillada|pozolada|paellada|banquete|barra|coffee\s*break)$/i.test(tipo) || /taquiza|parrillada|banquete|barra de/i.test(tipo) && !/boda|cumplea|bautizo|xv|corporativ|gradu|baby/i.test(tipo);
+  const eventLabel = !tipo || tipoIsServiceSku ? "tu evento" : tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : `un ${tipo}`;
+  const eventPhrase = eventLabel === "tu evento" ? "" : ` para ${eventLabel}`;
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
   const appendNext = (body, acceptedService) => {
     if (!filledSet || !ctx) return body;
@@ -22247,7 +22258,7 @@ ${nextQ}`;
     }
     if (detail) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
-      const intro = introLabel ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.` : `${pickTransition(history)} Perfecto, te detallo la opci\xF3n.`;
+      const intro = introLabel ? `${pickTransition(history)} Te detallo *${introLabel}*${eventPhrase}.` : `${pickTransition(history)} Te detallo la opci\xF3n.`;
       const body = withServiceAndGeneralCatalogLinks(detail, queryForDetail, queryForDetail);
       return `${intro}
 
@@ -22256,7 +22267,7 @@ ${body}`.trim();
     const forced = attachAvailableSheetDetail(queryForDetail, mentionedService || serviceLabel) || null;
     if (forced) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
-      const intro = introLabel ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.` : `${pickTransition(history)} Perfecto, te detallo la opci\xF3n.`;
+      const intro = introLabel ? `${pickTransition(history)} Te detallo *${introLabel}*${eventPhrase}.` : `${pickTransition(history)} Te detallo la opci\xF3n.`;
       const body = withServiceAndGeneralCatalogLinks(forced, queryForDetail, queryForDetail);
       return `${intro}
 
@@ -23726,11 +23737,11 @@ ${detail}
 
 ${link}
 
-\xBFCu\xE1l nivel prefieres (Solo Alimentos, B\xE1sico, Tradicional o Premium)?` : `${ack} Anoto *${label}*.
+${SERVICE_NIVEL_DETAIL_CTA}` : `${ack} Anoto *${label}*.
 
 ${link}
 
-\xBFCu\xE1l nivel prefieres?`;
+${SERVICE_NIVEL_DETAIL_CTA}`;
     appliedDirectReply = true;
     appliedSalesReply = true;
     log?.info({ entityId, label }, "GUARD: variante banquete por tiempos + detalle/link");
@@ -28497,7 +28508,10 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/Incluye:.*Refrescos y aguas/i.test(detail), detail);
     assert.ok(/Incluye:.*2 licores/i.test(detail), detail);
     assert.ok(/Incluye:.*3 licores premium/i.test(detail), detail);
-    assert.ok(/Cuál nivel prefieres/i.test(detail), detail);
+    assert.ok(
+      /quieres que te d[eé] detalles de alguno|Cuál nivel prefieres/i.test(detail),
+      detail
+    );
     assert.ok(!messageOffersLevelsWithoutInclusions(detail), detail);
     const promptBlock = formatServiceDataForPrompt("barra de bebidas");
     assert.ok(promptBlock && /Incluye:/i.test(promptBlock), promptBlock ?? "");
@@ -31422,6 +31436,74 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.ok(
       /barra de pastas/i.test(foodOnly.requerimientos_evento ?? "") && !/taquiza/i.test(foodOnly.requerimientos_evento ?? ""),
       `solo comida \u2192 ${foodOnly.requerimientos_evento}`
+    );
+  });
+  await test("104. A14982 \u2014 niveles + CTA detalle (no forzar elecci\xF3n) y sin 'para un taquiza'", () => {
+    assert.ok(/detalles de alguno/i.test(SERVICE_NIVEL_DETAIL_CTA));
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Barra Yucateca","Solo Alimentos","$330.00","$9,900.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","guisos"',
+      '"Barra Yucateca","Basico","$750.00","$22,500.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","basico"',
+      '"Barra Yucateca","Tradicional","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","tradicional"',
+      '"Barra Yucateca","Premium","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","premium"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","tacos"',
+      '"Taquiza","Basico","$750.00","$22,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","basico"',
+      '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","tradicional"',
+      '"Taquiza","Premium","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","premium"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const yuca = buildCatalogServiceDetailAnswer("Barra Yucateca");
+    assert.ok(yuca && /Solo Alimentos|Basico|Tradicional|Premium/i.test(yuca), yuca?.slice(0, 400));
+    assert.ok(
+      /quieres que te d[eé] detalles de alguno/i.test(yuca),
+      `CTA detalle: ${yuca.slice(-200)}`
+    );
+    assert.ok(!/cu[aá]l nivel prefieres/i.test(yuca), yuca.slice(-200));
+    assert.ok(
+      /bodasesor\.com\/catalogos\/barra-yucateca/i.test(yuca),
+      yuca.slice(0, 500)
+    );
+    const reply = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Francisco Nogueras",
+        tipo_evento: "taquiza",
+        requerimientos_evento: "Barra Yucateca",
+        num_invitados: 230,
+        direccion_evento: "Quer\xE9taro"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "N\xFAmero de invitados",
+        "Lugar/direcci\xF3n del evento"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Si me puede cotizar la taquiza de guisados tambi\xE9n lo apreciar\xEDa",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto. Te detallo *Barra Yucateca*.\n\nPara *Barra Yucateca* manejamos estos niveles:\n1. *Solo Alimentos* \u2014 $330\n\n\xBFQuieres que te d\xE9 detalles de alguno?\n\nCat\xE1logo: https://bodasesor.com/catalogos/barra-yucateca"
+        }
+      ]
+    });
+    assert.ok(/Taquiza|taquiza/i.test(reply), reply.slice(0, 400));
+    assert.ok(!/para un taquiza/i.test(reply), reply.slice(0, 400));
+    assert.ok(!/Perfecto\.\s*Perfecto\./i.test(reply), reply.slice(0, 200));
+    assert.ok(!/De acuerdo\.\s*Perfecto\./i.test(reply), reply.slice(0, 200));
+    assert.ok(!/Barra Yucateca/i.test(reply), `no reabrir barra: ${reply.slice(0, 400)}`);
+    assert.ok(
+      /quieres que te d[eé] detalles|info detallada|Te detallo \*Taquiza|manejamos varios niveles/i.test(
+        reply
+      ),
+      reply.slice(0, 500)
+    );
+    assert.ok(
+      isCatalogLevelSelection(
+        "Tradicional",
+        "Para *Taquiza* manejamos estos niveles:\n1. *Basico*\n\n\xBFQuieres que te d\xE9 detalles de alguno?"
+      )
     );
   });
   console.log(`
