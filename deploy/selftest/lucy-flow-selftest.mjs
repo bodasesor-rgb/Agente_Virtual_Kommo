@@ -9654,6 +9654,10 @@ function catalogKeywordsFromQuery(query) {
   const keys = [];
   if (/\bparrillada\b/.test(q)) keys.push("parrillada");
   if (/\bargentina\b/.test(q) && keys.includes("parrillada")) keys.push("argentina");
+  if (/\bmexicano\b/.test(q)) return ["banquete", "mexicano"];
+  if (/\bkosher\b/.test(q)) return ["kosher"];
+  if (/\bnavide/.test(q)) return ["navide"];
+  if (/\bformal\b/.test(q) && /\bbanquete\b/.test(q)) return ["banquete", "formal"];
   if (/\bbanquete\b/.test(q)) return ["banquete"];
   if (/\btaquiza\b/.test(q)) return ["taquiza"];
   if (/\byucateca\b/.test(q)) return ["yucateca"];
@@ -9804,8 +9808,23 @@ function resolveCatalogQuery(query) {
     return { kind: "service", serviceName: svc, rows: svcRows };
   }
   const q = normalizeForMatch(query);
-  if (/\bbanquete\b/.test(q)) {
-    return { kind: "service", serviceName: "Banquete", rows: matchedRows };
+  if (/\bbanquete\b/.test(q) || /\bmexicano\b/.test(q) || /\bkosher\b/.test(q) || /\bnavide/.test(q)) {
+    let serviceName = "Banquete";
+    if (matchedRows.length && matchedRows.every((r) => /\bmexicano\b/i.test(r.servicio))) {
+      serviceName = "Banquete Mexicano";
+    } else if (matchedRows.length && matchedRows.every((r) => /\bkosher\b/i.test(r.servicio))) {
+      serviceName = "Banquete Kosher";
+    } else if (matchedRows.length && matchedRows.every((r) => /\bnavide/i.test(r.servicio))) {
+      serviceName = "Banquete Navide\xF1o";
+    } else if (matchedRows.length && matchedRows.every((r) => /\bformal\b/i.test(r.servicio))) {
+      serviceName = "Banquete Formal";
+    } else if (/\bmexicano\b/.test(q)) {
+      const onlyMx = matchedRows.filter((r) => /\bmexicano\b/i.test(r.servicio));
+      if (onlyMx.length) {
+        return { kind: "service", serviceName: "Banquete Mexicano", rows: onlyMx };
+      }
+    }
+    return { kind: "service", serviceName, rows: matchedRows };
   }
   if (/\bbarra\b/.test(q) && !/\bbarra de bebida/.test(q) && !/\b(yucateca|americana|crepas?|mariscos?|paninis?|pastas?|sushi|poke|caf[eé](?!\p{L}))\b/iu.test(q)) {
     return { kind: "service", serviceName: "Barra", rows: matchedRows };
@@ -10091,6 +10110,22 @@ function scoreCatalogRow(row, tokens, filters, query) {
   if (!/\bmexicano\b/.test(q) && /\bmexicano\b/.test(hay)) score -= 6;
   if (!/\bkosher\b/.test(q) && /\bkosher\b/.test(hay)) score -= 6;
   if (!/\bnavide/.test(q) && /\bnavide/.test(hay)) score -= 6;
+  if (/\bmexicano\b/.test(q)) {
+    if (/\bmexicano\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
+  if (/\bformal\b/.test(q) && /\bbanquete\b/.test(q)) {
+    if (/\bformal\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay) && /\b(mexicano|kosher|navide)/.test(hay)) score -= 16;
+  }
+  if (/\bkosher\b/.test(q)) {
+    if (/\bkosher\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
+  if (/\bnavide/.test(q)) {
+    if (/\bnavide/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
   return score;
 }
 function rankCatalogMatches(query, rows, requirePrice = false) {
@@ -31765,6 +31800,67 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.ok(
       /correo|e-?mail|fecha/i.test(pkgs),
       `tras paquetes, embudo: ${pkgs.slice(-350)}`
+    );
+  });
+  await test("106. A14982 \u2014 banquete mexicano \u2260 Formal (subtipo Sheet correcto)", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada formal"',
+      '"Banquete Formal 4 tiempos","Basico","$550.00","$16,500.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","4 tiempos formal"',
+      '"Banquete Mexicano 3 tiempos","Basico","$580.00","$17,400.00","TRUE","https://bodasesor.com/catalogos/banquete-mexicano","3 tiempos mx"',
+      '"Banquete Mexicano 4 tiempos","Basico","$600.00","$18,000.00","TRUE","https://bodasesor.com/catalogos/banquete-mexicano","4 tiempos mexicanos"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const resolved = resolveCatalogQuery("banquete mexicano");
+    assert.ok(resolved, "debe resolver banquete mexicano");
+    assert.ok(
+      resolved.rows.every((r) => /mexicano/i.test(r.servicio)),
+      `solo filas mexicanas: ${resolved.rows.map((r) => r.servicio).join(", ")}`
+    );
+    assert.ok(
+      !resolved.rows.some((r) => /formal/i.test(r.servicio)),
+      "sin Formal mezclado"
+    );
+    assert.ok(
+      /mexicano/i.test(resolved.serviceName ?? ""),
+      `serviceName mexicano: ${resolved.serviceName}`
+    );
+    const detail = buildCatalogServiceDetailAnswer("banquete mexicano");
+    assert.ok(detail, "debe haber detalle");
+    assert.ok(/Mexicano/i.test(detail), detail.slice(0, 400));
+    assert.ok(!/Formal/i.test(detail), `no Formal: ${detail.slice(0, 500)}`);
+    assert.ok(
+      /banquete-mexicano|Mexicano/i.test(detail),
+      detail.slice(0, 400)
+    );
+    const reply = runGuards({
+      aiResponse: "Claro, te paso el Banquete Formal 3 tiempos que es muy pedido\u2026",
+      extracted: emptyExtracted({
+        nombre: "Francisco",
+        tipo_evento: "evento",
+        requerimientos_evento: "banquete",
+        num_invitados: 230
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Me interesa el banquete mexicano",
+      history: [
+        {
+          role: "assistant",
+          content: "Claro. En *banquete* manejamos varias opciones:\n\u2022 *Formal* (3 o 4 tiempos)\n\u2022 *Mexicano* (3 o 4 tiempos)\n\n\xBFQuieres que te d\xE9 detalles de alguno?"
+        }
+      ]
+    });
+    assert.ok(/Mexicano/i.test(reply), reply.slice(0, 500));
+    assert.ok(!/Formal/i.test(reply), `guards sin Formal: ${reply.slice(0, 600)}`);
+    assert.ok(
+      /banquete-mexicano|\$580|\$600|3 tiempos|4 tiempos/i.test(reply),
+      reply.slice(0, 600)
     );
   });
   console.log(`

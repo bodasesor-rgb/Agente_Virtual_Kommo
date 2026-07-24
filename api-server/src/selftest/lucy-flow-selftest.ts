@@ -6597,6 +6597,73 @@ async function runAll(): Promise<void> {
     );
   });
 
+  await test("106. A14982 — banquete mexicano ≠ Formal (subtipo Sheet correcto)", () => {
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye"',
+      '"Banquete Formal 3 tiempos","Basico","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","Entrada formal"',
+      '"Banquete Formal 4 tiempos","Basico","$550.00","$16,500.00","TRUE","https://bodasesor.com/catalogos/banquete-formal","4 tiempos formal"',
+      '"Banquete Mexicano 3 tiempos","Basico","$580.00","$17,400.00","TRUE","https://bodasesor.com/catalogos/banquete-mexicano","3 tiempos mx"',
+      '"Banquete Mexicano 4 tiempos","Basico","$600.00","$18,000.00","TRUE","https://bodasesor.com/catalogos/banquete-mexicano","4 tiempos mexicanos"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const resolved = resolveCatalogQuery("banquete mexicano");
+    assert.ok(resolved, "debe resolver banquete mexicano");
+    assert.ok(
+      resolved!.rows.every((r) => /mexicano/i.test(r.servicio)),
+      `solo filas mexicanas: ${resolved!.rows.map((r) => r.servicio).join(", ")}`
+    );
+    assert.ok(
+      !resolved!.rows.some((r) => /formal/i.test(r.servicio)),
+      "sin Formal mezclado"
+    );
+    assert.ok(
+      /mexicano/i.test(resolved!.serviceName ?? ""),
+      `serviceName mexicano: ${resolved!.serviceName}`
+    );
+
+    const detail = buildCatalogServiceDetailAnswer("banquete mexicano");
+    assert.ok(detail, "debe haber detalle");
+    assert.ok(/Mexicano/i.test(detail!), detail!.slice(0, 400));
+    assert.ok(!/Formal/i.test(detail!), `no Formal: ${detail!.slice(0, 500)}`);
+    assert.ok(
+      /banquete-mexicano|Mexicano/i.test(detail!),
+      detail!.slice(0, 400)
+    );
+
+    const reply = runGuards({
+      aiResponse:
+        "Claro, te paso el Banquete Formal 3 tiempos que es muy pedido…",
+      extracted: emptyExtracted({
+        nombre: "Francisco",
+        tipo_evento: "evento",
+        requerimientos_evento: "banquete",
+        num_invitados: 230,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Me interesa el banquete mexicano",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Claro. En *banquete* manejamos varias opciones:\n• *Formal* (3 o 4 tiempos)\n• *Mexicano* (3 o 4 tiempos)\n\n¿Quieres que te dé detalles de alguno?",
+        },
+      ],
+    });
+    assert.ok(/Mexicano/i.test(reply), reply.slice(0, 500));
+    assert.ok(!/Formal/i.test(reply), `guards sin Formal: ${reply.slice(0, 600)}`);
+    assert.ok(
+      /banquete-mexicano|\$580|\$600|3 tiempos|4 tiempos/i.test(reply),
+      reply.slice(0, 600)
+    );
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }

@@ -452,6 +452,12 @@ function catalogKeywordsFromQuery(query: string): string[] {
 
   if (/\bparrillada\b/.test(q)) keys.push("parrillada");
   if (/\bargentina\b/.test(q) && keys.includes("parrillada")) keys.push("argentina");
+  // Banquete por SUBTIPO primero (A14982): "banquete mexicano" ≠ Formal.
+  // keywords.every → la fila debe traer banquete + mexicano (no Formal/Kosher).
+  if (/\bmexicano\b/.test(q)) return ["banquete", "mexicano"];
+  if (/\bkosher\b/.test(q)) return ["kosher"];
+  if (/\bnavide/.test(q)) return ["navide"];
+  if (/\bformal\b/.test(q) && /\bbanquete\b/.test(q)) return ["banquete", "formal"];
   if (/\bbanquete\b/.test(q)) return ["banquete"];
   if (/\btaquiza\b/.test(q)) return ["taquiza"];
   // Barra específica: no devolver solo "barra" (A14934 Yucateca vs dump de todas).
@@ -639,8 +645,25 @@ export function resolveCatalogQuery(query: string): CatalogMatchResult | null {
   }
 
   const q = normalizeForMatch(query);
-  if (/\bbanquete\b/.test(q)) {
-    return { kind: "service", serviceName: "Banquete", rows: matchedRows };
+  if (/\bbanquete\b/.test(q) || /\bmexicano\b/.test(q) || /\bkosher\b/.test(q) || /\bnavide/.test(q)) {
+    // No colapsar a "Banquete" genérico si todas las filas son un subtipo (A14982).
+    let serviceName = "Banquete";
+    if (matchedRows.length && matchedRows.every((r) => /\bmexicano\b/i.test(r.servicio))) {
+      serviceName = "Banquete Mexicano";
+    } else if (matchedRows.length && matchedRows.every((r) => /\bkosher\b/i.test(r.servicio))) {
+      serviceName = "Banquete Kosher";
+    } else if (matchedRows.length && matchedRows.every((r) => /\bnavide/i.test(r.servicio))) {
+      serviceName = "Banquete Navideño";
+    } else if (matchedRows.length && matchedRows.every((r) => /\bformal\b/i.test(r.servicio))) {
+      serviceName = "Banquete Formal";
+    } else if (/\bmexicano\b/.test(q)) {
+      // Pedido mexicano pero filas mezcladas (no debería) → filtrar.
+      const onlyMx = matchedRows.filter((r) => /\bmexicano\b/i.test(r.servicio));
+      if (onlyMx.length) {
+        return { kind: "service", serviceName: "Banquete Mexicano", rows: onlyMx };
+      }
+    }
+    return { kind: "service", serviceName, rows: matchedRows };
   }
   // Solo colapsar a "Barra" multi-variante si NO hay subtipo concreto (A14934).
   if (
@@ -1025,6 +1048,24 @@ function scoreCatalogRow(
   if (!/\bmexicano\b/.test(q) && /\bmexicano\b/.test(hay)) score -= 6;
   if (!/\bkosher\b/.test(q) && /\bkosher\b/.test(hay)) score -= 6;
   if (!/\bnavide/.test(q) && /\bnavide/.test(hay)) score -= 6;
+
+  // A14982: subtipo pedido debe ganar; no mezclar Formal cuando pidieron Mexicano.
+  if (/\bmexicano\b/.test(q)) {
+    if (/\bmexicano\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
+  if (/\bformal\b/.test(q) && /\bbanquete\b/.test(q)) {
+    if (/\bformal\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay) && /\b(mexicano|kosher|navide)/.test(hay)) score -= 16;
+  }
+  if (/\bkosher\b/.test(q)) {
+    if (/\bkosher\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
+  if (/\bnavide/.test(q)) {
+    if (/\bnavide/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
 
   return score;
 }

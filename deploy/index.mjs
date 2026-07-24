@@ -125962,6 +125962,10 @@ function catalogKeywordsFromQuery(query) {
   const keys = [];
   if (/\bparrillada\b/.test(q10)) keys.push("parrillada");
   if (/\bargentina\b/.test(q10) && keys.includes("parrillada")) keys.push("argentina");
+  if (/\bmexicano\b/.test(q10)) return ["banquete", "mexicano"];
+  if (/\bkosher\b/.test(q10)) return ["kosher"];
+  if (/\bnavide/.test(q10)) return ["navide"];
+  if (/\bformal\b/.test(q10) && /\bbanquete\b/.test(q10)) return ["banquete", "formal"];
   if (/\bbanquete\b/.test(q10)) return ["banquete"];
   if (/\btaquiza\b/.test(q10)) return ["taquiza"];
   if (/\byucateca\b/.test(q10)) return ["yucateca"];
@@ -126112,8 +126116,23 @@ function resolveCatalogQuery(query) {
     return { kind: "service", serviceName: svc, rows: svcRows };
   }
   const q10 = normalizeForMatch(query);
-  if (/\bbanquete\b/.test(q10)) {
-    return { kind: "service", serviceName: "Banquete", rows: matchedRows };
+  if (/\bbanquete\b/.test(q10) || /\bmexicano\b/.test(q10) || /\bkosher\b/.test(q10) || /\bnavide/.test(q10)) {
+    let serviceName = "Banquete";
+    if (matchedRows.length && matchedRows.every((r10) => /\bmexicano\b/i.test(r10.servicio))) {
+      serviceName = "Banquete Mexicano";
+    } else if (matchedRows.length && matchedRows.every((r10) => /\bkosher\b/i.test(r10.servicio))) {
+      serviceName = "Banquete Kosher";
+    } else if (matchedRows.length && matchedRows.every((r10) => /\bnavide/i.test(r10.servicio))) {
+      serviceName = "Banquete Navide\xF1o";
+    } else if (matchedRows.length && matchedRows.every((r10) => /\bformal\b/i.test(r10.servicio))) {
+      serviceName = "Banquete Formal";
+    } else if (/\bmexicano\b/.test(q10)) {
+      const onlyMx = matchedRows.filter((r10) => /\bmexicano\b/i.test(r10.servicio));
+      if (onlyMx.length) {
+        return { kind: "service", serviceName: "Banquete Mexicano", rows: onlyMx };
+      }
+    }
+    return { kind: "service", serviceName, rows: matchedRows };
   }
   if (/\bbarra\b/.test(q10) && !/\bbarra de bebida/.test(q10) && !/\b(yucateca|americana|crepas?|mariscos?|paninis?|pastas?|sushi|poke|caf[eé](?!\p{L}))\b/iu.test(q10)) {
     return { kind: "service", serviceName: "Barra", rows: matchedRows };
@@ -126380,6 +126399,22 @@ function scoreCatalogRow(row, tokens, filters, query) {
   if (!/\bmexicano\b/.test(q10) && /\bmexicano\b/.test(hay)) score -= 6;
   if (!/\bkosher\b/.test(q10) && /\bkosher\b/.test(hay)) score -= 6;
   if (!/\bnavide/.test(q10) && /\bnavide/.test(hay)) score -= 6;
+  if (/\bmexicano\b/.test(q10)) {
+    if (/\bmexicano\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
+  if (/\bformal\b/.test(q10) && /\bbanquete\b/.test(q10)) {
+    if (/\bformal\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay) && /\b(mexicano|kosher|navide)/.test(hay)) score -= 16;
+  }
+  if (/\bkosher\b/.test(q10)) {
+    if (/\bkosher\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
+  if (/\bnavide/.test(q10)) {
+    if (/\bnavide/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
   return score;
 }
 function rankCatalogMatches(query, rows, requirePrice = false) {
