@@ -4768,6 +4768,9 @@ var LUCY_FIELD_ASK_PATTERNS = {
 };
 var BODASESOR_SERVICE_PATTERNS = [
   ["Parrillada Argentina", /parrillada\s+argentina/i],
+  // Antes de Taquiza: "parrillada tacos" ≠ taquiza.
+  ["Parrillada Tacos", /\bparrillada\s+(de\s+)?tacos?\b/i],
+  ["Banquete Kosher Buffet", /\bkosher\s+buffet\b|\bbuffet\s+kosher\b/i],
   ["Banquete Kosher", /\bkosher\b/i],
   ["Banquete Navide\xF1o", /\bnavide[nñ]o\b/i],
   ["Banquete Mexicano", /\b(banquete\s+mexicano|mexicano)\b/i],
@@ -4779,22 +4782,38 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b/i],
   ["Barra de paninis", /\bbarra\s+de\s+paninis?\b/i],
   ["Barra de Crepas", /\bbarra\s+de\s+crepas?\b/i],
+  ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
+  ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
+  ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
   ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?)\b/i],
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
-  ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
-  ["Mesa de postres", /\b(mesa\s+de\s+postres|postres?|dulces)\b/i],
-  ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
+  ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
   ["Barra de Caf\xE9", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
   ["Coffee break", /\b(coffee\s*break|coffeebreak)\b/i],
-  // Entradas / canapés (A14938 Ilana — post-cierre "Entradas y postre").
-  ["Entradas", /\b(entradas?|canap[eé]s?(?!\p{L})|bocadillos?)\b/iu],
+  ["Comida Corrida", /\bcomida\s+corrida\b/i],
+  ["Paella", /\bpaellas?\b|\bpaellada\b/i],
+  ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
+  ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b/i],
+  ["Cupcakes y Bet\xFAn", /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu],
+  ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
+  ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
+  ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
+  // No robar "dulces" suelto (eso es Mesa de dulces).
+  ["Mesa de postres", /\bmesa\s+de\s+postres\b|\bpostres?\b/i],
+  ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
+  ["Canap\xE9s", /\bcanap[eé]s?(?!\p{L})/iu],
+  ["Bocadillos", /\bbocadillos?\b/i],
+  ["Entradas", /\bentradas?\b/i],
   // Tiempos de comida corporativos (briefs con varios servicios).
   ["Desayuno", /\bdesayunos?\b/i],
+  ["Brunch", /\bbrunch\b/i],
   ["Snack", /\bsnacks?\b/i],
   ["Comida", /\bcomidas?\b/i],
   ["Cena", /\bcenas?\b/i],
-  ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/i],
+  ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
+  ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
+  ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
   // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
@@ -4802,6 +4821,11 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
   ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
   ["Iluminaci\xF3n", /\biluminaci[oó]n\b/i],
+  // Antes de Decoración / Pantallas: "decoración aérea" y LED wall no deben robarse.
+  ["Colgantes Premium", /\bcolgantes?(?:\s+premium)?\b|\bwisteria\b|\bdecoraci[oó]n\s+a[eé]rea\b/i],
+  ["Entelados para Techo", /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i],
+  ["Vajillas", /\bvajillas?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b/i],
+  ["Video", /\bvideo\b|\bled\s*wall\b/i],
   ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
   ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
   // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
@@ -4810,7 +4834,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
-  ["Estructuras", /\b(estructura|colgante|wisteria)\b/i],
+  ["Estructuras", /\bestructuras?\b/i],
   ["Inflables", /\binflable/i],
   ["Softplay", /\bsoft\s*play\b/i],
   ["Meseros", /\b(meseros?|staff|personal\s+de\s+servicio)\b/i],
@@ -4818,29 +4842,19 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Mixolog\xEDa", /\bmixolog[ií]a\b/i],
   ["Cocteler\xEDa", /\bcocteler[ií]a\b/i],
   ["M\xF3cteles", /\bm[oó]cteles?\b/i],
-  ["Canap\xE9s", /\b(canap[eé]s?(?!\p{L})|bocadillos?)\b/iu],
-  // Compuesto "barra de pastas y pizzas" → ambos servicios (antes solo capturaba Pizzas).
-  ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
-  ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
   ["Pastas", /\bpastas?\b/i],
-  ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
   ["Pizzas", /\bpizza/i],
-  // Sheet: "Barra de sushi" (niveles Solo Alimentos / Básico / Tradicional / Premium).
-  ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
-  ["Taquiza", /\b(taquiza|tacos?)\b/i],
+  ["Taquiza", /\btaquiza\b|\btacos?\b/i],
   ["Parrillada", /\bparrillada\b/i],
-  ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/i],
   ["Crepas", /\bcrep[aá]s?\b/i],
-  ["Helado", /\bhelados?\b/i],
   ["Frutas en vasito", /\bfrutas?\s+en\s+vasitos?\b|\bvasitos?\s+de\s+fruta/i],
-  ["Brunch", /\bbrunch\b/i],
   ["Poptails", /\bpoptails?\b/i],
   ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
   ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
   ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
   ["Mesa imperial", /\bmesa\s+imperial\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
@@ -4869,6 +4883,22 @@ var SHORT_SERVICE_ALIASES = {
   caf\u00E9: "Barra de Caf\xE9",
   sushi: "Barra de sushi",
   kosher: "banquete kosher",
+  paella: "Paella",
+  pozole: "Pozole y Tostadas",
+  pozolada: "Pozole y Tostadas",
+  cupcakes: "Cupcakes y Bet\xFAn",
+  cupcake: "Cupcakes y Bet\xFAn",
+  betun: "Cupcakes y Bet\xFAn",
+  bet\u00FAn: "Cupcakes y Bet\xFAn",
+  entelado: "Entelados para Techo",
+  entelados: "Entelados para Techo",
+  colgantes: "Colgantes Premium",
+  colgante: "Colgantes Premium",
+  vajilla: "Vajillas",
+  vajillas: "Vajillas",
+  mocteles: "M\xF3cteles",
+  m\u00F3cteles: "M\xF3cteles",
+  video: "Video",
   meseros: "meseros",
   mesero: "meseros",
   decoracion: "decoraci\xF3n",
@@ -4876,6 +4906,23 @@ var SHORT_SERVICE_ALIASES = {
   pantalla: "pantallas",
   inflable: "inflables",
   mobiliario: "mobiliario",
+  helado: "Paletas de Hielo y Helados",
+  helados: "Paletas de Hielo y Helados",
+  paletas: "Paletas de Hielo y Helados",
+  brunch: "Brunch",
+  softplay: "Softplay",
+  "soft play": "Softplay",
+  "comida corrida": "Comida Corrida",
+  antojitos: "Puestos de Comida",
+  "fiesta infantil": "Fiesta Infantil",
+  "carrito de snacks": "Carrito de Snacks",
+  "carrito de snaks": "Carrito de Snacks",
+  "parrillada tacos": "Parrillada Tacos",
+  "tarima y pista": "Pista de baile",
+  "tarimas y pistas": "Pista de baile",
+  "audio e iluminacion": "Audio y sonido",
+  "audio e iluminaci\xF3n": "Audio y sonido",
+  "desayuno o brunch": "Desayuno",
   comida: "banquete / taquiza",
   alimentos: "banquete / taquiza",
   alimento: "banquete / taquiza",
@@ -5475,10 +5522,41 @@ function parseServicesFromText(text) {
   if (found.includes("Barra de pastas y ensaladas")) {
     const shortIdx = found.indexOf("Barra de pastas");
     if (shortIdx >= 0) found.splice(shortIdx, 1);
+    const pastasIdx = found.indexOf("Pastas");
+    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
   }
   if (found.includes("Barra de pizzas")) {
     const pizzasIdx = found.indexOf("Pizzas");
     if (pizzasIdx >= 0) found.splice(pizzasIdx, 1);
+  }
+  if (found.includes("Barra de Crepas")) {
+    const crepasIdx = found.indexOf("Crepas");
+    if (crepasIdx >= 0) found.splice(crepasIdx, 1);
+  }
+  const specificBanquete = found.find(
+    (s) => /Banquete\s+(Mexicano|Kosher|Navide)/i.test(s)
+  );
+  if (specificBanquete) {
+    const formalIdx = found.indexOf("Banquete Formal");
+    if (formalIdx >= 0) found.splice(formalIdx, 1);
+  }
+  if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
+    const genIdx = found.indexOf("Parrillada");
+    if (genIdx >= 0) found.splice(genIdx, 1);
+  }
+  if (found.includes("Parrillada Tacos")) {
+    const taqIdx = found.indexOf("Taquiza");
+    if (taqIdx >= 0) found.splice(taqIdx, 1);
+  }
+  if (found.includes("Colgantes Premium") || found.includes("Entelados para Techo")) {
+    const decoIdx = found.indexOf("Decoraci\xF3n");
+    if (decoIdx >= 0 && /decoraci[oó]n\s+a[eé]rea|colgante|entelado|wisteria/i.test(text)) {
+      found.splice(decoIdx, 1);
+    }
+  }
+  if (found.includes("Video")) {
+    const pantIdx = found.indexOf("Pantallas");
+    if (pantIdx >= 0 && /\bled\s*wall\b/i.test(text)) found.splice(pantIdx, 1);
   }
   if (/\b(pastas?\s+y\s+pizzas?|pizzas?\s+y\s+pastas?)\b/i.test(text) || /\bbarra\s+de\s+pastas?\s+y\s+pizzas?\b/i.test(text)) {
     if (!found.some((s) => /pasta/i.test(s))) found.push("Barra de pastas");
@@ -7848,6 +7926,457 @@ function buildCatalogWebDetailHint(query) {
   return parts.join("\n");
 }
 
+// src/services/serviceProgressiveOffer.ts
+function banqueteDetailQuery(text) {
+  const tiempos4 = /\b(4\s*tiempos?|cuatro\s*tiempos?)\b/i.test(text);
+  const tiempos3 = /\b(3\s*tiempos?|tres\s*tiempos?)\b/i.test(text);
+  if (/\bkosher\b/i.test(text)) {
+    if (/\bbuffet\b/i.test(text)) return "Banquete Kosher Buffet";
+    if (tiempos4) return "Banquete Kosher 4 tiempos";
+    if (tiempos3) return "Banquete Kosher 3 tiempos";
+    return "Banquete Kosher";
+  }
+  if (/\bnavide/i.test(text)) {
+    if (tiempos4) return "Banquete Navide\xF1o 4 tiempos";
+    if (tiempos3) return "Banquete Navide\xF1o 3 tiempos";
+    return "Banquete Navide\xF1o";
+  }
+  if (/\bmexicano\b/i.test(text)) {
+    if (tiempos4) return "Banquete Mexicano 4 tiempos";
+    if (tiempos3) return "Banquete Mexicano 3 tiempos";
+    return "Banquete Mexicano";
+  }
+  if (/\bformal\b/i.test(text)) {
+    if (tiempos4) return "Banquete Formal 4 tiempos";
+    if (tiempos3) return "Banquete Formal 3 tiempos";
+    return "Banquete Formal";
+  }
+  if (tiempos4) return "Banquete Formal 4 tiempos";
+  if (tiempos3) return "Banquete Formal 3 tiempos";
+  return "banquete";
+}
+var FAMILIES = [
+  {
+    family: "banquete",
+    familyPattern: /\bbanquetes?\b|\bcatering\b/i,
+    variantPattern: /\b(formal|mexicano|kosher|navide[nñ]o|buffet|\d\s*tiempos?|tres\s*tiempos?|cuatro\s*tiempos?|3\s*tiempos?|4\s*tiempos?)\b/i,
+    detailQueryFromText: banqueteDetailQuery,
+    buildMenu: () => [
+      "Claro. En *banquete* manejamos varias opciones:",
+      "\u2022 *Formal* (3 o 4 tiempos)",
+      "\u2022 *Mexicano* (3 o 4 tiempos)",
+      "\u2022 *Kosher* (3/4 tiempos o buffet)",
+      "\u2022 *Navide\xF1o* (3 o 4 tiempos)",
+      "",
+      "\xBFDe cu\xE1l te paso la info m\xE1s detallada (precios e inclusiones)?"
+    ].join("\n")
+  },
+  {
+    family: "coffee_break",
+    familyPattern: /\bcoffee\s*break\b|\bcoffeebreak\b/i,
+    variantPattern: /\bcoffee\s*break\s*[1-9]\b|\bcoffe{1,2}e?\s*break\s*[1-9]\b|\bnivel\s*[1-9]\b/i,
+    detailQueryFromText: (text) => {
+      const m = text.match(/\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*([1-9])\b/i);
+      if (m) return `Coffee Break ${m[1]}`;
+      const n = text.match(/\bnivel\s*([1-9])\b/i);
+      if (n) return `Coffee Break ${n[1]}`;
+      return "Coffee Break";
+    },
+    buildMenu: () => [
+      "Claro. En *Coffee Break* tenemos varios paquetes (1 a 5), del m\xE1s esencial al m\xE1s completo.",
+      "",
+      "\xBFDe cu\xE1l te paso la info detallada (qu\xE9 incluye y precio), o prefieres que te diga la diferencia entre ellos?"
+    ].join("\n")
+  },
+  {
+    family: "barra_sushi",
+    familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
+    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    detailQueryFromText: (text) => withCatalogNivelQuery("Barra de sushi", text),
+    buildMenu: () => [
+      "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
+      "",
+      "\xBFTe paso la info detallada de alg\xFAn nivel, o quieres ver todos con precios e inclusiones?"
+    ].join("\n")
+  },
+  {
+    family: "barra_cafe",
+    familyPattern: /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu,
+    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    detailQueryFromText: (text) => withCatalogNivelQuery("Barra de Caf\xE9", text),
+    buildMenu: () => [
+      "Claro. En *Barra de Caf\xE9* manejamos niveles con baristas y bebidas artesanales.",
+      "",
+      "\xBFTe paso la info detallada (precios e inclusiones) de alg\xFAn nivel?"
+    ].join("\n")
+  },
+  {
+    family: "barra_bebidas",
+    familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog|\bcocteler|\bm[oó]cteles?\b/i,
+    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca|mixolog|cocteler|m[oó]cteles?|con\s+alcohol|sin\s+alcohol)\b/i,
+    detailQueryFromText: (text) => {
+      if (/yucateca/i.test(text)) return withCatalogNivelQuery("Barra Yucateca", text);
+      if (/americana/i.test(text)) return withCatalogNivelQuery("Barra Americana", text);
+      if (/m[oó]cteles?/i.test(text)) return "M\xF3cteles";
+      if (/mixolog|cocteler/i.test(text)) return "Cocteler\xEDa y Mixolog\xEDa";
+      if (/con\s+alcohol/i.test(text)) return "Barra de bebidas con Alcohol";
+      return withCatalogNivelQuery("Barra de bebidas", text);
+    },
+    buildMenu: () => [
+      "Claro. En bebidas manejamos:",
+      "\u2022 *Barra de bebidas* (con o sin alcohol)",
+      "\u2022 *Barra Americana* / *Barra Yucateca*",
+      "\u2022 *Cocteler\xEDa / Mixolog\xEDa* y *M\xF3cteles*",
+      "",
+      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+    ].join("\n")
+  },
+  {
+    family: "barra_alimentos",
+    familyPattern: /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarras?\s+tem[aá]ticas?\b/i,
+    variantPattern: /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+    detailQueryFromText: (text) => {
+      if (/pizza/i.test(text)) return withCatalogNivelQuery("Barra de pizzas", text);
+      if (/pasta|ensalada/i.test(text)) {
+        return withCatalogNivelQuery("Barra de pastas y ensaladas", text);
+      }
+      if (/crepa/i.test(text)) return withCatalogNivelQuery("Barra de Crepas", text);
+      if (/marisco/i.test(text)) return withCatalogNivelQuery("Barra de mariscos", text);
+      if (/panini/i.test(text)) return withCatalogNivelQuery("Barra de paninis", text);
+      if (/yucateca/i.test(text)) return withCatalogNivelQuery("Barra Yucateca", text);
+      if (/americana/i.test(text)) return withCatalogNivelQuery("Barra Americana", text);
+      return withCatalogNivelQuery("Barra de alimentos", text);
+    },
+    buildMenu: () => [
+      "Claro. En barras de alimentos manejamos varias:",
+      "\u2022 Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
+      "\u2022 Americana, Yucateca y m\xE1s",
+      "",
+      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+    ].join("\n")
+  },
+  {
+    family: "taquiza",
+    familyPattern: /\btaquiza\b/i,
+    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    detailQueryFromText: (text) => withCatalogNivelQuery("taquiza", text),
+    buildMenu: () => [
+      "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
+      "",
+      "\xBFTe paso la info detallada de alg\xFAn nivel (precios e inclusiones)?"
+    ].join("\n")
+  },
+  {
+    family: "parrillada",
+    familyPattern: /\bparrillada\b/i,
+    variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+    detailQueryFromText: (text) => {
+      if (/argentina/i.test(text)) {
+        return withCatalogNivelQuery("Parrillada Argentina", text);
+      }
+      if (/\btacos?\b/i.test(text)) {
+        return withCatalogNivelQuery("Parrillada Tacos", text);
+      }
+      return withCatalogNivelQuery("parrillada", text);
+    },
+    buildMenu: () => [
+      "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
+      "",
+      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+    ].join("\n")
+  },
+  {
+    family: "cupcakes_betun",
+    familyPattern: /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu,
+    variantPattern: /\b(cl[aá]sico|decorado|cupcakes?|bet[uú]n)\b/i,
+    detailQueryFromText: (text) => {
+      if (/decorado/i.test(text)) return "Bet\xFAn Decorado";
+      if (/cl[aá]sico|bet[uú]n/i.test(text) && !/cupcake/i.test(text)) return "Bet\xFAn Cl\xE1sico";
+      if (/cupcake/i.test(text)) return "Cupcakes";
+      return "Cupcakes y Bet\xFAn";
+    },
+    buildMenu: () => [
+      "Claro. En *Cupcakes y Bet\xFAn* manejamos *Cupcakes*, *Bet\xFAn Cl\xE1sico* y *Bet\xFAn Decorado*.",
+      "",
+      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+    ].join("\n")
+  },
+  {
+    family: "mesa_dulces",
+    familyPattern: /\bmesa\s+de\s+(dulces|postres|quesos)\b|\bcarrito\s+de\s+snacks?\b/i,
+    variantPattern: /\bmesa\s+de\s+(quesos|postres|dulces)\b|\bcarrito\s+de\s+snacks?\b/i,
+    detailQueryFromText: (text) => {
+      if (/carrito/i.test(text)) return "Carrito de Snacks";
+      if (/queso/i.test(text)) return "Mesa de quesos";
+      if (/postre/i.test(text)) return "Mesa de postres";
+      return "Mesa de dulces";
+    },
+    buildMenu: () => [
+      "Claro. En dulce manejamos *mesa de dulces*, *mesa de postres*, *mesa de quesos* y *carrito de snacks*.",
+      "",
+      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+    ].join("\n")
+  },
+  {
+    family: "gastronomia",
+    familyPattern: /\bpaellas?\b|\bpozole|\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bcanap[eé]s?(?!\p{L})|\bbocadillos?\b|\bpaletas?|\bhelados?\b|\bcomida\s+corrida\b/iu,
+    variantPattern: /\b(paella|pozole|puestos?|antojitos?|canap|bocadillo|paleta|helado|comida\s+corrida)\b/i,
+    detailQueryFromText: (text) => {
+      if (/paella/i.test(text)) return "Paella";
+      if (/pozole/i.test(text)) return "Pozole y Tostadas";
+      if (/puesto|antojito/i.test(text)) return "Puestos de Comida";
+      if (/canap/i.test(text)) return "Canap\xE9s";
+      if (/bocadillo/i.test(text)) return "Bocadillos";
+      if (/paleta|helado/i.test(text)) return "Paletas de Hielo y Helados";
+      if (/comida\s+corrida/i.test(text)) return "Comida Corrida";
+      return "gastronom\xEDa";
+    },
+    buildMenu: () => [
+      "Claro. En gastronom\xEDa manejamos varias opciones:",
+      "\u2022 Paella, pozole y tostadas, puestos de comida",
+      "\u2022 Canap\xE9s, bocadillos, paletas/helados",
+      "\u2022 Comida corrida (corporativo)",
+      "",
+      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+    ].join("\n")
+  },
+  {
+    family: "mobiliario",
+    familyPattern: /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bmesas?\s+y\s+sillas?\b|\brenta\s+de\s+mesas|\bentelados?\b|\bcolgantes?\b|\bvajillas?\b/i,
+    variantPattern: /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|manteler[ií]a|vajilla|mesas?\s+y\s+sillas?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
+    detailQueryFromText: (text) => {
+      if (/entelado|tela\s+(en\s+|de\s+|para\s+)?techo/i.test(text)) {
+        return "Entelados para Techo";
+      }
+      if (/colgante|wisteria|a[eé]rea/i.test(text)) return "Colgantes Premium";
+      if (/vajilla|cuberter|cristaler/i.test(text)) return "Vajillas";
+      if (/periquera/i.test(text)) return "periqueras";
+      if (/lounge|luxor/i.test(text)) return "salas lounge";
+      if (/mesas?|sillas?/i.test(text)) return "mesas y sillas";
+      return "mobiliario";
+    },
+    buildMenu: () => [
+      "Claro. En *mobiliario* manejamos:",
+      "\u2022 Mesas y sillas, salas lounge, periqueras",
+      "\u2022 Entelados para techo, colgantes premium, vajillas",
+      "",
+      "\xBFDe qu\xE9 te paso la info m\xE1s detallada?"
+    ].join("\n")
+  }
+];
+function fold2(s) {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
+}
+function catalogNivelLabelFromText(text) {
+  const t = fold2(text ?? "");
+  if (!t) return null;
+  if (/\bsolo\s+alimentos?\b/.test(t)) return "Solo Alimentos";
+  if (/\btradicional\b/.test(t)) return "Tradicional";
+  if (/\bpremium\b/.test(t)) return "Premium";
+  if (/\bbasic[ao]\b/.test(t)) return "Basico";
+  return null;
+}
+function withCatalogNivelQuery(baseService, text) {
+  const base = baseService.trim();
+  const nivel = catalogNivelLabelFromText(text);
+  if (!nivel) return base;
+  if (new RegExp(`\\b${nivel.replace(/\s+/g, "\\s+")}\\b`, "i").test(base)) return base;
+  return `${base} ${nivel}`;
+}
+function isProgressiveOptionsMenuReply(text) {
+  if (!text?.trim()) return false;
+  return /info m[aá]s detallada|te paso la info|¿De cu[aá]l te paso|¿Te paso la info|opciones principales|¿Cu[aá]l estilo te late|diferencia entre ellos/i.test(
+    text
+  );
+}
+function historyOfferedServiceOptionsMenu(history) {
+  return history.filter((m) => m.role === "assistant" && typeof m.content === "string").some((m) => isProgressiveOptionsMenuReply(m.content));
+}
+var FAMILY_ALL_DETAIL_QUERIES = {
+  banquete: [
+    "Banquete Formal 3 tiempos",
+    "Banquete Formal 4 tiempos",
+    "Banquete Mexicano 3 tiempos",
+    "Banquete Mexicano 4 tiempos",
+    "Banquete Kosher 3 tiempos",
+    "Banquete Kosher 4 tiempos",
+    "Banquete Kosher Buffet",
+    "Banquete Navide\xF1o 3 tiempos",
+    "Banquete Navide\xF1o 4 tiempos"
+  ],
+  coffee_break: ["Coffee Break"],
+  barra_bebidas: [
+    "Barra de bebidas",
+    "Barra Americana",
+    "Barra Yucateca",
+    "M\xF3cteles",
+    "Cocteler\xEDa y Mixolog\xEDa"
+  ],
+  barra_alimentos: [
+    "Barra de pizzas",
+    "Barra de pastas y ensaladas",
+    "Barra de Crepas",
+    "Barra de mariscos",
+    "Barra de paninis"
+  ],
+  barra_cafe: ["Barra de Caf\xE9"],
+  barra_sushi: ["Barra de sushi"],
+  taquiza: ["taquiza"],
+  parrillada: ["Parrillada Argentina", "Parrillada Tacos"],
+  mesa_dulces: ["Mesa de dulces", "Mesa de postres", "Mesa de quesos", "Carrito de Snacks"],
+  cupcakes_betun: ["Cupcakes", "Bet\xFAn Cl\xE1sico", "Bet\xFAn Decorado"],
+  gastronomia: [
+    "Paella",
+    "Pozole y Tostadas",
+    "Puestos de Comida",
+    "Canap\xE9s",
+    "Bocadillos",
+    "Paletas de Hielo y Helados",
+    "Comida Corrida"
+  ],
+  mobiliario: [
+    "mesas y sillas",
+    "salas lounge",
+    "periqueras",
+    "Entelados para Techo",
+    "Colgantes Premium",
+    "Vajillas"
+  ]
+};
+function progressiveFamilyDetailQueries(family) {
+  return FAMILY_ALL_DETAIL_QUERIES[family] ?? [family];
+}
+function isBareProgressiveAffirmation(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return /^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
+    t
+  );
+}
+function clientWantsServiceDetail(text, history) {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  const n = fold2(t);
+  if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
+    t
+  )) {
+    return !!(history && historyOfferedServiceOptionsMenu(history));
+  }
+  if (/\b(dame|pasa|manda|quiero|necesito|me\s+interes[ao])\b.{0,40}\b(detalle|info|informaci[oó]n|precios?|incluye|inclusiones)\b/i.test(
+    t
+  )) {
+    return true;
+  }
+  for (const fam of FAMILIES) {
+    if (fam.variantPattern.test(t) && fam.familyPattern.test(t + " " + (history ? "" : ""))) {
+      return true;
+    }
+    if (history && historyOfferedServiceOptionsMenu(history) && fam.variantPattern.test(t)) {
+      return true;
+    }
+  }
+  if (history && historyOfferedServiceOptionsMenu(history)) {
+    if (/\b(formal|mexicano|kosher|navide|3\s*tiempos|4\s*tiempos|tres|cuatro|led|iluminada|pintada|vinil|logo|charol|madera|premium|b[aá]sic|tradicional|solo\s+alimentos)\b/i.test(
+      t
+    )) {
+      return true;
+    }
+  }
+  return false;
+}
+function detectProgressiveFamily(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return null;
+  for (const fam of FAMILIES) {
+    if (fam.familyPattern.test(t)) return fam.family;
+  }
+  return null;
+}
+function defFor(family) {
+  return FAMILIES.find((f) => f.family === family);
+}
+function hasConcreteServiceVariant(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  for (const fam of FAMILIES) {
+    if (fam.familyPattern.test(t) && fam.variantPattern.test(t)) return true;
+  }
+  return false;
+}
+function buildProgressiveOptionsMenu(family, hint) {
+  return defFor(family).buildMenu(hint);
+}
+function resolveDetailQueryForFamily(family, text) {
+  return defFor(family).detailQueryFromText(text);
+}
+function shouldOfferOptionsBeforeDetail(opts) {
+  const msg = opts.currentMessage?.trim() ?? "";
+  const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
+  if (!blob) return null;
+  const lastAsst = [...opts.history].reverse().find((m) => m.role === "assistant" && typeof m.content === "string");
+  const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : "";
+  if (/cu[aá]l\s+nivel|qu[eé]\s+nivel|nivel\s+(prefieres|te\s+interes)|niveles disponibles|qu[eé]\s+incluye\s+cada/i.test(
+    lastAsstText
+  )) {
+    return null;
+  }
+  const family = detectProgressiveFamily(msg) || detectProgressiveFamily(opts.serviceHint) || detectProgressiveFamily(blob);
+  if (!family) return null;
+  const famDef = defFor(family);
+  const hasVariantNow = hasConcreteServiceVariant(msg) || famDef.variantPattern.test(msg) || /\b(b[aá]sic[oa]|tradicional|premium|solo\s+alimentos)\b/i.test(msg);
+  if (hasVariantNow) {
+    return null;
+  }
+  if (historyOfferedServiceOptionsMenu(opts.history) && clientWantsServiceDetail(msg, opts.history)) {
+    return null;
+  }
+  if (/^(si|sí)(?:\s|$|[.!,])/i.test(msg) && famDef.familyPattern.test(msg) && !/\b(detalle|info|informaci[oó]n|precio|incluye|opciones|cotiz)/i.test(msg) && (detectProgressiveFamily(opts.serviceHint) === family || opts.serviceHint && famDef.familyPattern.test(opts.serviceHint))) {
+    return null;
+  }
+  if (historyOfferedServiceOptionsMenu(opts.history) && msg.length < 80) {
+    return {
+      family,
+      menu: "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+    };
+  }
+  if (historyOfferedServiceOptionsMenu(opts.history)) return null;
+  return { family, menu: buildProgressiveOptionsMenu(family, opts.serviceHint) };
+}
+function resolveProgressiveDetailQuery(opts) {
+  const msg = opts.currentMessage?.trim() ?? "";
+  const hint = opts.serviceHint?.trim() ?? "";
+  const userBlob = [
+    ...opts.history.filter((m) => m.role === "user" && typeof m.content === "string").map((m) => m.content).slice(-6),
+    msg,
+    hint
+  ].filter(Boolean).join(" ");
+  const family = detectProgressiveFamily(msg) || detectProgressiveFamily(hint) || detectProgressiveFamily(userBlob);
+  if (!family) return null;
+  if (hasConcreteServiceVariant(msg)) {
+    return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
+  }
+  if (clientWantsServiceDetail(msg, opts.history)) {
+    const def = defFor(family);
+    if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas)[\s.!]*$/i.test(
+      msg
+    ) && !def.variantPattern.test(msg)) {
+      return null;
+    }
+    if (def.variantPattern.test(msg) || def.familyPattern.test(msg)) {
+      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
+    }
+    if (historyOfferedServiceOptionsMenu(opts.history) && def.variantPattern.test(msg)) {
+      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
+    }
+    if (historyOfferedServiceOptionsMenu(opts.history) && /\b(formal|mexicano|kosher|navide|\d\s*tiempos|tres|cuatro|coffee\s*break\s*[1-9]|b[aá]sic|tradicional|premium|solo\s+alimentos)\b/i.test(
+      msg
+    )) {
+      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
+    }
+  }
+  return null;
+}
+
 // src/services/serviceKnowledge.ts
 var SERVICE_KNOWLEDGE_GOLDEN_RULE = "Que un servicio no est\xE9 en el cat\xE1logo significa que no tengo el precio a la mano, NO que no sepa qu\xE9 es. Acepta cualquier servicio de eventos, an\xF3talo y avanza. Nunca te quedes pidiendo 'otros servicios' ni repitas la misma pregunta por no tener el dato.";
 var NON_EVENT_REQUEST_PATTERN = /\b(seguro\s+de|abogad|plomer|electricista|internet\s+en\s+casa|plan\s+de\s+celular|lavad|reparaci[oó]n\s+de\s+(auto|celular)|vpn|software\s+de\s+contab|consulta\s+m[eé]dic|veterinar|notari|traducci[oó]n\s+oficial|impresi[oó]n\s+de\s+actas)\b/i;
@@ -9710,7 +10239,7 @@ ${priced}`
   }
   const webQ = serviceHint || query;
   if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
-    const banqueteQ = /\b4\s*tiempos|mexicano/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Mexicano 4 tiempos" : /\b3\s*tiempos|formal/i.test(`${webQ} ${serviceHint ?? ""}`) ? "Banquete Formal 3 tiempos" : "banquete";
+    const banqueteQ = banqueteDetailQuery(`${webQ} ${serviceHint ?? ""}`);
     const detail = buildCatalogServiceDetailAnswer(banqueteQ) ?? buildCatalogPriceAnswer(banqueteQ);
     return ensureCatalogWebLink(detail || "Claro, te dejo el cat\xE1logo de banquetes.", banqueteQ);
   }
@@ -10457,341 +10986,6 @@ function messageOffersCatalogLink(text) {
   return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(
     text
   );
-}
-
-// src/services/serviceProgressiveOffer.ts
-var FAMILIES = [
-  {
-    family: "banquete",
-    familyPattern: /\bbanquetes?\b|\bcatering\b/i,
-    variantPattern: /\b(formal|mexicano|kosher|navide[nñ]o|\d\s*tiempos?|tres\s*tiempos?|cuatro\s*tiempos?|3\s*tiempos?|4\s*tiempos?)\b/i,
-    detailQueryFromText: (text) => {
-      if (/\b(4\s*tiempos?|cuatro\s*tiempos?|mexicano)\b/i.test(text)) {
-        return "Banquete Mexicano 4 tiempos";
-      }
-      if (/\bkosher\b/i.test(text)) return "Banquete Kosher";
-      if (/\bnavide/i.test(text)) return "Banquete Navide\xF1o";
-      if (/\b(3\s*tiempos?|tres\s*tiempos?|formal)\b/i.test(text)) {
-        return "Banquete Formal 3 tiempos";
-      }
-      return "banquete";
-    },
-    buildMenu: () => [
-      "Claro. En *banquete* manejamos varias opciones:",
-      "\u2022 *Formal 3 tiempos*",
-      "\u2022 *Mexicano 4 tiempos*",
-      "\u2022 Kosher o navide\xF1o seg\xFAn la ocasi\xF3n",
-      "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada (precios e inclusiones)?"
-    ].join("\n")
-  },
-  {
-    family: "coffee_break",
-    familyPattern: /\bcoffee\s*break\b|\bcoffeebreak\b/i,
-    variantPattern: /\bcoffee\s*break\s*[1-9]\b|\bcoffe{1,2}e?\s*break\s*[1-9]\b|\bnivel\s*[1-9]\b/i,
-    detailQueryFromText: (text) => {
-      const m = text.match(/\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*([1-9])\b/i);
-      if (m) return `Coffee Break ${m[1]}`;
-      const n = text.match(/\bnivel\s*([1-9])\b/i);
-      if (n) return `Coffee Break ${n[1]}`;
-      return "Coffee Break";
-    },
-    buildMenu: () => [
-      "Claro. En *Coffee Break* tenemos varios paquetes (1 a 5), del m\xE1s esencial al m\xE1s completo.",
-      "",
-      "\xBFDe cu\xE1l te paso la info detallada (qu\xE9 incluye y precio), o prefieres que te diga la diferencia entre ellos?"
-    ].join("\n")
-  },
-  {
-    family: "barra_sushi",
-    familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    // A14975: incluir el nivel elegido ("Nivel tradicional" → "Barra de sushi Tradicional").
-    detailQueryFromText: (text) => withCatalogNivelQuery("Barra de sushi", text),
-    buildMenu: () => [
-      "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
-      "",
-      "\xBFTe paso la info detallada de alg\xFAn nivel, o quieres ver todos con precios e inclusiones?"
-    ].join("\n")
-  },
-  {
-    family: "barra_cafe",
-    familyPattern: /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: (text) => withCatalogNivelQuery("Barra de Caf\xE9", text),
-    buildMenu: () => [
-      "Claro. En *Barra de Caf\xE9* manejamos niveles con baristas y bebidas artesanales.",
-      "",
-      "\xBFTe paso la info detallada (precios e inclusiones) de alg\xFAn nivel?"
-    ].join("\n")
-  },
-  {
-    family: "barra_bebidas",
-    familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca)\b/i,
-    detailQueryFromText: (text) => {
-      if (/yucateca/i.test(text)) return withCatalogNivelQuery("Barra Yucateca", text);
-      if (/americana/i.test(text)) return withCatalogNivelQuery("Barra Americana", text);
-      return withCatalogNivelQuery("Barra de bebidas", text);
-    },
-    buildMenu: () => [
-      "Claro. En bebidas manejamos *Barra de bebidas*, *Barra Americana*, *Barra Yucateca* y opciones de mixolog\xEDa.",
-      "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
-    ].join("\n")
-  },
-  {
-    family: "barra_alimentos",
-    familyPattern: /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarras?\s+tem[aá]ticas?\b/i,
-    variantPattern: /\b(pizzas?|pastas?|crepas?|mariscos?|paninis?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
-    detailQueryFromText: (text) => {
-      if (/pizza/i.test(text)) return withCatalogNivelQuery("Barra de pizzas", text);
-      if (/pasta/i.test(text)) return withCatalogNivelQuery("Barra de pastas", text);
-      if (/crepa/i.test(text)) return withCatalogNivelQuery("Barra de Crepas", text);
-      if (/marisco/i.test(text)) return withCatalogNivelQuery("Barra de mariscos", text);
-      if (/panini/i.test(text)) return withCatalogNivelQuery("Barra de paninis", text);
-      if (/yucateca/i.test(text)) return withCatalogNivelQuery("Barra Yucateca", text);
-      if (/americana/i.test(text)) return withCatalogNivelQuery("Barra Americana", text);
-      return withCatalogNivelQuery("Barra de alimentos", text);
-    },
-    buildMenu: () => [
-      "Claro. En barras de alimentos manejamos varias:",
-      "\u2022 Pizzas, pastas, crepas, mariscos, paninis",
-      "\u2022 Americana, Yucateca y m\xE1s",
-      "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
-    ].join("\n")
-  },
-  {
-    family: "taquiza",
-    familyPattern: /\btaquiza\b|\btacos?\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    detailQueryFromText: (text) => withCatalogNivelQuery("taquiza", text),
-    buildMenu: () => [
-      "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
-      "",
-      "\xBFTe paso la info detallada de alg\xFAn nivel (precios e inclusiones)?"
-    ].join("\n")
-  },
-  {
-    family: "parrillada",
-    familyPattern: /\bparrillada\b/i,
-    variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
-    detailQueryFromText: (text) => withCatalogNivelQuery(
-      /argentina/i.test(text) ? "Parrillada Argentina" : "parrillada",
-      text
-    ),
-    buildMenu: () => [
-      "Claro. En *parrillada* tenemos opciones (incluida argentina seg\xFAn disponibilidad).",
-      "",
-      "\xBFTe paso la info m\xE1s detallada de alguna?"
-    ].join("\n")
-  },
-  {
-    family: "mesa_dulces",
-    familyPattern: /\bmesa\s+de\s+(dulces|postres|quesos)\b/i,
-    variantPattern: /\bmesa\s+de\s+(quesos|postres|dulces)\b|\bcupcakes?\b|\bbet[uú]n\b/i,
-    detailQueryFromText: (text) => {
-      if (/queso/i.test(text)) return "Mesa de quesos";
-      if (/postre/i.test(text)) return "Mesa de postres";
-      return "Mesa de dulces";
-    },
-    buildMenu: () => [
-      "Claro. En dulce manejamos *mesa de dulces*, *mesa de postres* y *mesa de quesos*.",
-      "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
-    ].join("\n")
-  },
-  {
-    family: "mobiliario",
-    familyPattern: /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bmesas?\s+y\s+sillas?\b|\brenta\s+de\s+mesas/i,
-    // "mesas y sillas" / periqueras ya son pedido concreto → detalle, no menú genérico.
-    variantPattern: /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|manteler[ií]a|vajilla|mesas?\s+y\s+sillas?|renta\s+de\s+mesas)\b/i,
-    detailQueryFromText: (text) => {
-      if (/periquera/i.test(text)) return "periqueras";
-      if (/lounge|luxor/i.test(text)) return "salas lounge";
-      if (/mesas?|sillas?/i.test(text)) return "mesas y sillas";
-      return "mobiliario";
-    },
-    buildMenu: () => [
-      "Claro. En *mobiliario* manejamos mesas y sillas, salas lounge, periqueras y m\xE1s opciones de renta.",
-      "",
-      "\xBFDe qu\xE9 te paso la info m\xE1s detallada?"
-    ].join("\n")
-  }
-];
-function fold2(s) {
-  return s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().trim();
-}
-function catalogNivelLabelFromText(text) {
-  const t = fold2(text ?? "");
-  if (!t) return null;
-  if (/\bsolo\s+alimentos?\b/.test(t)) return "Solo Alimentos";
-  if (/\btradicional\b/.test(t)) return "Tradicional";
-  if (/\bpremium\b/.test(t)) return "Premium";
-  if (/\bbasic[ao]\b/.test(t)) return "Basico";
-  return null;
-}
-function withCatalogNivelQuery(baseService, text) {
-  const base = baseService.trim();
-  const nivel = catalogNivelLabelFromText(text);
-  if (!nivel) return base;
-  if (new RegExp(`\\b${nivel.replace(/\s+/g, "\\s+")}\\b`, "i").test(base)) return base;
-  return `${base} ${nivel}`;
-}
-function isProgressiveOptionsMenuReply(text) {
-  if (!text?.trim()) return false;
-  return /info m[aá]s detallada|te paso la info|¿De cu[aá]l te paso|¿Te paso la info|opciones principales|¿Cu[aá]l estilo te late|diferencia entre ellos/i.test(
-    text
-  );
-}
-function historyOfferedServiceOptionsMenu(history) {
-  return history.filter((m) => m.role === "assistant" && typeof m.content === "string").some((m) => isProgressiveOptionsMenuReply(m.content));
-}
-var FAMILY_ALL_DETAIL_QUERIES = {
-  banquete: ["Banquete Formal 3 tiempos", "Banquete Mexicano 4 tiempos"],
-  coffee_break: ["Coffee Break"],
-  barra_bebidas: ["Barra de bebidas", "Barra Americana", "Barra Yucateca"],
-  barra_alimentos: ["Barra de pizzas", "Barra de pastas", "Barra de Crepas"],
-  barra_cafe: ["Barra de Caf\xE9"],
-  barra_sushi: ["Barra de sushi"],
-  taquiza: ["taquiza"],
-  parrillada: ["parrillada"],
-  mesa_dulces: ["Mesa de dulces", "Mesa de postres", "Mesa de quesos"],
-  mobiliario: ["mobiliario"]
-};
-function progressiveFamilyDetailQueries(family) {
-  return FAMILY_ALL_DETAIL_QUERIES[family] ?? [family];
-}
-function isBareProgressiveAffirmation(text) {
-  const t = text?.trim() ?? "";
-  if (!t) return false;
-  return /^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
-    t
-  );
-}
-function clientWantsServiceDetail(text, history) {
-  const t = text?.trim() ?? "";
-  if (!t) return false;
-  const n = fold2(t);
-  if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas|el\s+detalle|detallame|detállame|m[aá]ndame\s+(la\s+)?info|dame\s+(la\s+)?info|quiero\s+(ver\s+)?(el\s+)?detalle)[\s.!]*$/i.test(
-    t
-  )) {
-    return !!(history && historyOfferedServiceOptionsMenu(history));
-  }
-  if (/\b(dame|pasa|manda|quiero|necesito|me\s+interes[ao])\b.{0,40}\b(detalle|info|informaci[oó]n|precios?|incluye|inclusiones)\b/i.test(
-    t
-  )) {
-    return true;
-  }
-  for (const fam of FAMILIES) {
-    if (fam.variantPattern.test(t) && fam.familyPattern.test(t + " " + (history ? "" : ""))) {
-      return true;
-    }
-    if (history && historyOfferedServiceOptionsMenu(history) && fam.variantPattern.test(t)) {
-      return true;
-    }
-  }
-  if (history && historyOfferedServiceOptionsMenu(history)) {
-    if (/\b(formal|mexicano|kosher|navide|3\s*tiempos|4\s*tiempos|tres|cuatro|led|iluminada|pintada|vinil|logo|charol|madera|premium|b[aá]sic|tradicional|solo\s+alimentos)\b/i.test(
-      t
-    )) {
-      return true;
-    }
-  }
-  return false;
-}
-function detectProgressiveFamily(text) {
-  const t = text?.trim() ?? "";
-  if (!t) return null;
-  for (const fam of FAMILIES) {
-    if (fam.familyPattern.test(t)) return fam.family;
-  }
-  return null;
-}
-function defFor(family) {
-  return FAMILIES.find((f) => f.family === family);
-}
-function hasConcreteServiceVariant(text) {
-  const t = text?.trim() ?? "";
-  if (!t) return false;
-  for (const fam of FAMILIES) {
-    if (fam.familyPattern.test(t) && fam.variantPattern.test(t)) return true;
-  }
-  return false;
-}
-function buildProgressiveOptionsMenu(family, hint) {
-  return defFor(family).buildMenu(hint);
-}
-function resolveDetailQueryForFamily(family, text) {
-  return defFor(family).detailQueryFromText(text);
-}
-function shouldOfferOptionsBeforeDetail(opts) {
-  const msg = opts.currentMessage?.trim() ?? "";
-  const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
-  if (!blob) return null;
-  const lastAsst = [...opts.history].reverse().find((m) => m.role === "assistant" && typeof m.content === "string");
-  const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : "";
-  if (/cu[aá]l\s+nivel|qu[eé]\s+nivel|nivel\s+(prefieres|te\s+interes)|niveles disponibles|qu[eé]\s+incluye\s+cada/i.test(
-    lastAsstText
-  )) {
-    return null;
-  }
-  const family = detectProgressiveFamily(msg) || detectProgressiveFamily(opts.serviceHint) || detectProgressiveFamily(blob);
-  if (!family) return null;
-  const famDef = defFor(family);
-  const hasVariantNow = hasConcreteServiceVariant(msg) || famDef.variantPattern.test(msg) || /\b(b[aá]sic[oa]|tradicional|premium|solo\s+alimentos)\b/i.test(msg);
-  if (hasVariantNow) {
-    return null;
-  }
-  if (historyOfferedServiceOptionsMenu(opts.history) && clientWantsServiceDetail(msg, opts.history)) {
-    return null;
-  }
-  if (/^(si|sí)(?:\s|$|[.!,])/i.test(msg) && famDef.familyPattern.test(msg) && !/\b(detalle|info|informaci[oó]n|precio|incluye|opciones|cotiz)/i.test(msg) && (detectProgressiveFamily(opts.serviceHint) === family || opts.serviceHint && famDef.familyPattern.test(opts.serviceHint))) {
-    return null;
-  }
-  if (historyOfferedServiceOptionsMenu(opts.history) && msg.length < 80) {
-    return {
-      family,
-      menu: "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
-    };
-  }
-  if (historyOfferedServiceOptionsMenu(opts.history)) return null;
-  return { family, menu: buildProgressiveOptionsMenu(family, opts.serviceHint) };
-}
-function resolveProgressiveDetailQuery(opts) {
-  const msg = opts.currentMessage?.trim() ?? "";
-  const hint = opts.serviceHint?.trim() ?? "";
-  const userBlob = [
-    ...opts.history.filter((m) => m.role === "user" && typeof m.content === "string").map((m) => m.content).slice(-6),
-    msg,
-    hint
-  ].filter(Boolean).join(" ");
-  const family = detectProgressiveFamily(msg) || detectProgressiveFamily(hint) || detectProgressiveFamily(userBlob);
-  if (!family) return null;
-  if (hasConcreteServiceVariant(msg)) {
-    return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
-  }
-  if (clientWantsServiceDetail(msg, opts.history)) {
-    const def = defFor(family);
-    if (/^(si|sí|dale|ok|okay|claro|por\s+favor|porfa|va|jalo|me\s+late|todos|todas)[\s.!]*$/i.test(
-      msg
-    ) && !def.variantPattern.test(msg)) {
-      return null;
-    }
-    if (def.variantPattern.test(msg) || def.familyPattern.test(msg)) {
-      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
-    }
-    if (historyOfferedServiceOptionsMenu(opts.history) && def.variantPattern.test(msg)) {
-      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
-    }
-    if (historyOfferedServiceOptionsMenu(opts.history) && /\b(formal|mexicano|kosher|navide|\d\s*tiempos|tres|cuatro|coffee\s*break\s*[1-9]|b[aá]sic|tradicional|premium|solo\s+alimentos)\b/i.test(
-      msg
-    )) {
-      return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
-    }
-  }
-  return null;
 }
 
 // node_modules/openai/internal/tslib.mjs
@@ -23442,8 +23636,10 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   )) {
-    const tres = /\b(tres|3)\s*tiempos\b/i.test(currentMessage);
-    const label = tres ? "Banquete Formal 3 tiempos" : "Banquete Mexicano 4 tiempos";
+    const label = resolveDetailQueryForFamily(
+      "banquete",
+      currentMessage ?? ""
+    );
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
     if (merged) extracted.requerimientos_evento = merged;
@@ -23898,13 +24094,10 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
       const req = extracted.requerimientos_evento?.trim() ?? "";
       let serviceHint = null;
       if (/\bbanquete|\bcatering\b/i.test(`${req} ${userBlob}`)) {
-        if (/\b(3\s*tiempos|tres\s*tiempos|formal)\b/i.test(`${req} ${userBlob}`)) {
-          serviceHint = "Banquete Formal 3 tiempos";
-        } else if (/\b(4\s*tiempos|cuatro\s*tiempos|mexicano)\b/i.test(`${req} ${userBlob}`)) {
-          serviceHint = "Banquete Mexicano 4 tiempos";
-        } else {
-          serviceHint = "banquete";
-        }
+        serviceHint = resolveDetailQueryForFamily(
+          "banquete",
+          `${req} ${userBlob} ${currentMessage ?? ""}`
+        );
       } else {
         serviceHint = (isValidRequerimientosValue(req) ? req : null) || parsePrimaryService(userBlob) || findMentionedService(userBlob);
       }
@@ -30956,6 +31149,96 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       !/Banquete Formal|Te detallo \*Buenas noches/i.test(mid),
       `sin Banquete a mitad de flujo: ${mid.slice(0, 500)}`
     );
+  });
+  await test("102. Cat\xE1logo web \u2014 detecci\xF3n y variantes de todas las l\xEDneas", () => {
+    assert.equal(banqueteDetailQuery("De tres tiempos"), "Banquete Formal 3 tiempos");
+    assert.equal(banqueteDetailQuery("4 tiempos"), "Banquete Formal 4 tiempos");
+    assert.equal(banqueteDetailQuery("formal 4 tiempos"), "Banquete Formal 4 tiempos");
+    assert.equal(banqueteDetailQuery("mexicano 3 tiempos"), "Banquete Mexicano 3 tiempos");
+    assert.equal(banqueteDetailQuery("mexicano 4 tiempos"), "Banquete Mexicano 4 tiempos");
+    assert.equal(banqueteDetailQuery("kosher buffet"), "Banquete Kosher Buffet");
+    assert.equal(banqueteDetailQuery("kosher 3 tiempos"), "Banquete Kosher 3 tiempos");
+    assert.equal(banqueteDetailQuery("banquete navide\xF1o 4 tiempos"), "Banquete Navide\xF1o 4 tiempos");
+    assert.equal(
+      resolveDetailQueryForFamily("banquete", "El formal de 3 tiempos"),
+      "Banquete Formal 3 tiempos"
+    );
+    const expectHas = (msg, label) => {
+      const found = parseServicesFromText(msg);
+      assert.ok(
+        found.some((s) => s.toLowerCase().includes(label.toLowerCase()) || label.toLowerCase().includes(s.toLowerCase())),
+        `"${msg}" \u2192 esperaba ${label}, got ${JSON.stringify(found)}`
+      );
+    };
+    const expectPrimary = (msg, label) => {
+      const found = parseServicesFromText(msg);
+      assert.ok(
+        found.includes(label) || found[0] === label,
+        `"${msg}" \u2192 esperaba incluir ${label}, got ${JSON.stringify(found)}`
+      );
+    };
+    expectPrimary("banquete mexicano", "Banquete Mexicano");
+    assert.ok(!parseServicesFromText("banquete mexicano").includes("Banquete Formal"));
+    expectPrimary("banquete kosher", "Banquete Kosher");
+    expectPrimary("banquete navide\xF1o", "Banquete Navide\xF1o");
+    expectPrimary("barra americana", "Barra Americana");
+    expectPrimary("barra yucateca", "Barra Yucateca");
+    expectPrimary("barra de bebidas con alcohol", "Barra de bebidas");
+    expectPrimary("barra de caf\xE9", "Barra de Caf\xE9");
+    expectPrimary("barra de crepas", "Barra de Crepas");
+    expectPrimary("barra de mariscos", "Barra de mariscos");
+    expectPrimary("barra de paninis", "Barra de paninis");
+    expectPrimary("barra de pastas y ensaladas", "Barra de pastas y ensaladas");
+    expectPrimary("barra de pizzas", "Barra de pizzas");
+    expectPrimary("barra de sushi", "Barra de sushi");
+    expectHas("cocteler\xEDa y mixolog\xEDa", "Cocteler\xEDa");
+    expectPrimary("m\xF3cteles", "M\xF3cteles");
+    expectPrimary("paella", "Paella");
+    expectPrimary("pozole y tostadas", "Pozole y Tostadas");
+    expectPrimary("puestos de comida", "Puestos de Comida");
+    expectPrimary("canap\xE9s", "Canap\xE9s");
+    expectPrimary("bocadillos", "Bocadillos");
+    expectPrimary("cupcakes", "Cupcakes y Bet\xFAn");
+    expectPrimary("bet\xFAn decorado", "Cupcakes y Bet\xFAn");
+    expectPrimary("paletas de hielo", "Paletas de Hielo y Helados");
+    expectPrimary("parrillada argentina", "Parrillada Argentina");
+    expectPrimary("parrillada de tacos", "Parrillada Tacos");
+    assert.ok(!parseServicesFromText("parrillada de tacos").includes("Taquiza"));
+    expectPrimary("taquiza", "Taquiza");
+    expectPrimary("carrito de snaks", "Carrito de Snacks");
+    expectPrimary("mesa de dulces", "Mesa de dulces");
+    expectPrimary("mesa de postres", "Mesa de postres");
+    expectPrimary("mesa de quesos", "Mesa de quesos");
+    expectPrimary("entelados", "Entelados para Techo");
+    expectPrimary("colgantes premium", "Colgantes Premium");
+    expectPrimary("decoraci\xF3n a\xE9rea", "Colgantes Premium");
+    expectPrimary("vajillas", "Vajillas");
+    expectHas("mesas y sillas", "Mobiliario");
+    expectHas("tarima", "Pista de baile");
+    expectPrimary("fiesta infantil", "Fiesta Infantil");
+    expectHas("audio e iluminaci\xF3n", "Audio");
+    expectPrimary("video", "Video");
+    expectPrimary("coffee break", "Coffee break");
+    expectPrimary("comida corrida", "Comida Corrida");
+    expectPrimary("desayuno", "Desayuno");
+    expectPrimary("brunch", "Brunch");
+    assert.equal(detectProgressiveFamily("quiero banquete"), "banquete");
+    assert.equal(detectProgressiveFamily("barra de caf\xE9"), "barra_cafe");
+    assert.equal(detectProgressiveFamily("paella para 80"), "gastronomia");
+    assert.equal(detectProgressiveFamily("cupcakes"), "cupcakes_betun");
+    assert.equal(detectProgressiveFamily("entelados para techo"), "mobiliario");
+    assert.equal(detectProgressiveFamily("parrillada tacos"), "parrillada");
+    assert.equal(
+      resolveDetailQueryForFamily("parrillada", "parrillada de tacos"),
+      "Parrillada Tacos"
+    );
+    assert.equal(resolveDetailQueryForFamily("cupcakes_betun", "bet\xFAn cl\xE1sico"), "Bet\xFAn Cl\xE1sico");
+    assert.equal(resolveDetailQueryForFamily("gastronomia", "pozole"), "Pozole y Tostadas");
+    assert.equal(
+      resolveDetailQueryForFamily("barra_alimentos", "barra de pastas"),
+      "Barra de pastas y ensaladas"
+    );
+    assert.equal(resolveDetailQueryForFamily("mesa_dulces", "carrito de snacks"), "Carrito de Snacks");
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
