@@ -122327,7 +122327,8 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
   ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
   ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
-  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?)\b/i],
+  // A14985: cerveza/whisky/licores → Barra de bebidas (no solo "barra de bebidas" literal).
+  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre)\b/i],
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
   ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
@@ -122336,7 +122337,8 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Comida Corrida", /\bcomida\s+corrida\b/i],
   ["Paella", /\bpaellas?\b|\bpaellada\b/i],
   ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
-  ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b/i],
+  // A14985: banderillas / antojitos de stand → Puestos de Comida (no "Snack" corporativo).
+  ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bbanderillas?\b|\besquites?\b|\belotes?\b|\bgarnachas?\b|\bquesadillas?\b/i],
   ["Cupcakes y Bet\xFAn", /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu],
   ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
   ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
@@ -122476,6 +122478,8 @@ var SHORT_SERVICE_ALIASES = {
 };
 var TIPO_EVENTO_PATTERNS = [
   [/\b(expo(sición)?|feria|stand\s+de|congreso)\b/i, "evento corporativo"],
+  // A14985 Lilian: torneo de golf / stand en campo.
+  [/\b(torneo(\s+de\s+golf)?|torneo\s+de\s+golf|golf|stand\s+en\s+campo)\b/i, "evento corporativo"],
   [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
   [/\b(baby\s*shower)\b/i, "baby shower"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV a\xF1os"],
@@ -123050,9 +123054,17 @@ function parseServicesFromText(text2) {
   const found = [];
   const lower = text2.toLowerCase();
   const hasMealListContext = /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || (text2.match(/,/g) ?? []).length >= 1 || /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text2);
+  const snackIsAntojito = /\bsnacks?\b/i.test(text2) && /\b(banderillas?|antojitos?|esquites?|elotes?|garnachas?|quesadillas?)\b/i.test(text2);
+  const hasCorporateMealList = /\b(desayuno|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text2) || /\bsnack\b/i.test(text2) && /\b(desayuno|comida|cena|coffee)\b/i.test(text2) && !snackIsAntojito;
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (label === "Comida" && !hasMealListContext) continue;
+    if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
     if (pattern.test(text2) || pattern.test(lower)) found.push(label);
+  }
+  if (!found.some((s10) => /barra\s+de\s+bebidas/i.test(s10)) && /\bbebidas?\b/i.test(text2) && /\b(cerveza|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|alcohol|open\s*bar)\b/i.test(
+    text2
+  ) && !/\bbarra\s+de\s+caf[eé]/i.test(text2)) {
+    found.push("Barra de bebidas");
   }
   const deduped = dedupeServiceHierarchy(found, text2);
   found.length = 0;
@@ -123119,6 +123131,11 @@ function dedupeServiceHierarchy(services, sourceText) {
   if (specificBanquete) {
     const formalIdx = found.indexOf("Banquete Formal");
     if (formalIdx >= 0) found.splice(formalIdx, 1);
+  }
+  if (found.some((s10) => /puestos?\s+de\s+comida/i.test(s10))) {
+    for (let i10 = found.length - 1; i10 >= 0; i10--) {
+      if (/^Snack$/i.test(found[i10])) found.splice(i10, 1);
+    }
   }
   if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
     const genIdx = found.indexOf("Parrillada");
@@ -124923,7 +124940,15 @@ var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
       "bebidas con alcohol",
       "barra de tragos",
       "servicio de bar",
-      "barra de bebidas"
+      "barra de bebidas",
+      // A14985 stand/golf: cerveza / whisky sin decir "barra".
+      "cerveza",
+      "cervezas",
+      "whisky",
+      "whiskey",
+      "tequila",
+      "vodka",
+      "licores"
     ],
     excludeIf: ["sin alcohol", "mocteles", "mocktail", "cafe", "caf\xE9"]
   },
@@ -125480,7 +125505,11 @@ var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
       "garnachas",
       "feria de antojitos",
       "puestos de comida",
-      "street food"
+      "street food",
+      // A14985: snack de stand.
+      "banderillas",
+      "banderilla",
+      "snack banderillas"
     ]
   }
 ];
@@ -130666,6 +130695,45 @@ function buildPackageCatalogOfferBlock() {
     CATALOG_OFFER_QUESTION
   ].join("\n");
 }
+function buildMappedCatalogOfferBlock(services, sourceText) {
+  const text2 = sourceText ?? "";
+  const list = dedupeServiceHierarchy(
+    services.map((s10) => s10.trim()).filter(Boolean),
+    text2
+  ).slice(0, 6);
+  if (!list.length) return buildPackageCatalogOfferBlock();
+  const lines = [
+    "Con lo que pediste, estas opciones del cat\xE1logo te pueden servir:",
+    ""
+  ];
+  let linked = 0;
+  for (const svc of list) {
+    let query = svc;
+    let label = svc;
+    if (/mobiliario/i.test(svc) && /\bperiqueras?\b/i.test(text2)) {
+      query = "periqueras";
+      label = "Periqueras (mobiliario)";
+    } else if (/puestos?\s+de\s+comida/i.test(svc)) {
+      query = "puestos de comida";
+      label = /\bbanderillas?\b/i.test(text2) ? "Puestos de comida / antojitos (banderillas)" : "Puestos de comida / antojitos";
+    } else if (/barra\s+de\s+bebidas/i.test(svc)) {
+      query = "barra de bebidas";
+      label = "Barra de bebidas";
+    }
+    const sheetMatch = resolveCatalogWebLink(query);
+    const webUrl = getCatalogWebUrlForQuery(query) || (sheetMatch.kind === "service" ? sheetMatch.url : null);
+    if (webUrl) {
+      lines.push(`\u2022 *${label}*: ${toDeliverableCatalogUrl(webUrl)}`);
+      linked++;
+    } else {
+      lines.push(`\u2022 *${label}*`);
+    }
+  }
+  if (linked === 0) return buildPackageCatalogOfferBlock();
+  lines.push("", "Cat\xE1logo general:", getCatalogWebHubDeliveryUrl(), "");
+  lines.push(SERVICE_NIVEL_DETAIL_CTA);
+  return lines.join("\n");
+}
 function historyAlreadyOfferedServiceDetail(history) {
   return history.some((m10) => {
     if (m10.role !== "assistant" || typeof m10.content !== "string") return false;
@@ -130771,10 +130839,18 @@ ${cleanedDetail}`);
 function buildMultiServicePackageReply(services, sourceText) {
   const levels = buildMultiServiceSheetLevelsReply(services, sourceText);
   if (levels) return levels;
-  const ack = sourceText && isRichQuoteBrief(sourceText) ? buildRichBriefAcknowledgment(sourceText) : buildMultiServiceAck(services);
+  const cleaned = dedupeServiceHierarchy(
+    services.map((s10) => s10.trim()).filter(Boolean),
+    sourceText
+  );
+  const ack = sourceText && isRichQuoteBrief(sourceText) ? buildRichBriefAcknowledgment(sourceText) : buildMultiServiceAck(cleaned.length ? cleaned : services);
+  const mapped = buildMappedCatalogOfferBlock(
+    cleaned.length ? cleaned : services,
+    sourceText
+  );
   return `${ack}
 
-${buildPackageCatalogOfferBlock()}`;
+${mapped}`;
 }
 function extractOfferedServicesFromHistory(history) {
   const lastAsst = [...history].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string");

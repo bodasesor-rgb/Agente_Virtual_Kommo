@@ -72,7 +72,10 @@ import {
   getCatalogWebHubDeliveryUrl,
   buildBroadLevel1Offer,
   isNarrowSocialEventOffer,
+  resolveCatalogWebLink,
+  toDeliverableCatalogUrl,
 } from "./services/catalogService.js";
+import { getCatalogWebUrlForQuery } from "./services/catalogWebKnowledge.js";
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
 import { buildGuardServiceAck, buildMobiliarioRentDetailReply } from "./services/serviceKnowledge.js";
 import {
@@ -2956,6 +2959,60 @@ export function buildPackageCatalogOfferBlock(): string {
   ].join("\n");
 }
 
+/**
+ * A14985: con servicios concretos del brief, ofrecer links del catálogo que aplican
+ * (Barra de bebidas, Puestos de comida, Periqueras…), no solo el hub genérico.
+ */
+export function buildMappedCatalogOfferBlock(
+  services: string[],
+  sourceText?: string
+): string {
+  const text = sourceText ?? "";
+  const list = dedupeServiceHierarchy(
+    services.map((s) => s.trim()).filter(Boolean),
+    text
+  ).slice(0, 6);
+  if (!list.length) return buildPackageCatalogOfferBlock();
+
+  const lines: string[] = [
+    "Con lo que pediste, estas opciones del catálogo te pueden servir:",
+    "",
+  ];
+  let linked = 0;
+  for (const svc of list) {
+    let query = svc;
+    let label = svc;
+    if (/mobiliario/i.test(svc) && /\bperiqueras?\b/i.test(text)) {
+      query = "periqueras";
+      label = "Periqueras (mobiliario)";
+    } else if (/puestos?\s+de\s+comida/i.test(svc)) {
+      query = "puestos de comida";
+      label = /\bbanderillas?\b/i.test(text)
+        ? "Puestos de comida / antojitos (banderillas)"
+        : "Puestos de comida / antojitos";
+    } else if (/barra\s+de\s+bebidas/i.test(svc)) {
+      query = "barra de bebidas";
+      label = "Barra de bebidas";
+    }
+    // Preferir slug web (embeds) — no depende del Sheet cargado (A14985).
+    const sheetMatch = resolveCatalogWebLink(query);
+    const webUrl =
+      getCatalogWebUrlForQuery(query) ||
+      (sheetMatch.kind === "service" ? sheetMatch.url : null);
+    if (webUrl) {
+      lines.push(`• *${label}*: ${toDeliverableCatalogUrl(webUrl)}`);
+      linked++;
+    } else {
+      lines.push(`• *${label}*`);
+    }
+  }
+  if (linked === 0) return buildPackageCatalogOfferBlock();
+
+  lines.push("", "Catálogo general:", getCatalogWebHubDeliveryUrl(), "");
+  lines.push(SERVICE_NIVEL_DETAIL_CTA);
+  return lines.join("\n");
+}
+
 /** ¿Lucy ya ofreció niveles / Incluye / precios del Sheet (no solo un link)? */
 export function historyAlreadyOfferedServiceDetail(
   history: OpenAI.Chat.ChatCompletionMessageParam[]
@@ -3120,18 +3177,27 @@ export function buildMultiServiceSheetLevelsReply(
   return withServiceAndGeneralCatalogLinks(body, list[0]!, list.join(" "));
 }
 
-/** Ack de paquete + niveles Sheet (2 food SKUs) o catálogo general (RFQ). */
+/** Ack de paquete + niveles Sheet (2 food SKUs) o catálogos mapeados (RFQ). */
 export function buildMultiServicePackageReply(
   services: string[],
   sourceText?: string
 ): string {
   const levels = buildMultiServiceSheetLevelsReply(services, sourceText);
   if (levels) return levels;
+  const cleaned = dedupeServiceHierarchy(
+    services.map((s) => s.trim()).filter(Boolean),
+    sourceText
+  );
   const ack =
     sourceText && isRichQuoteBrief(sourceText)
       ? buildRichBriefAcknowledgment(sourceText)
-      : buildMultiServiceAck(services);
-  return `${ack}\n\n${buildPackageCatalogOfferBlock()}`;
+      : buildMultiServiceAck(cleaned.length ? cleaned : services);
+  // A14985: RFQ con SKUs concretos → links de esos catálogos (no solo hub).
+  const mapped = buildMappedCatalogOfferBlock(
+    cleaned.length ? cleaned : services,
+    sourceText
+  );
+  return `${ack}\n\n${mapped}`;
 }
 
 /** Extrae servicios mencionados en una oferta reciente de Lucy (bullets). */

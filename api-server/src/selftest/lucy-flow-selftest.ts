@@ -114,6 +114,7 @@ import {
   buildStandardClosingMessage,
   buildMultiServicePackageReply,
   buildMultiServiceSheetLevelsReply,
+  buildMappedCatalogOfferBlock,
   buildPackageCatalogOfferBlock,
   clientSaysThanks,
   detectCierreEnviado,
@@ -6661,6 +6662,96 @@ async function runAll(): Promise<void> {
     assert.ok(
       /banquete-mexicano|\$580|\$600|3 tiempos|4 tiempos/i.test(reply),
       reply.slice(0, 600)
+    );
+  });
+
+  await test("107. A14985 Lilian — golf stand: bebidas+banderillas+periqueras → catálogos concretos", () => {
+    const brief = [
+      "Evento: Torneo de Golf (Stand en campo)",
+      "Lugar: Club de Golf Los Encinos",
+      "Fecha: 20 de agosto",
+      "Horario: 07:00 a 15:00 hrs",
+      "Asistentes: 80 personas aproximadamente",
+      "Bebidas y Alimentos",
+      "Cerveza",
+      "Whisky",
+      "Tercera opción de bebida",
+      "Snack: Banderillas (u otra opción similar)",
+      "Mobiliario y Montaje",
+      "Mobiliario: Periqueras (mesas altas con bancos)",
+    ].join("\n");
+
+    assert.equal(parseTipoEventoFromText(brief), "evento corporativo");
+    assert.equal(parseTipoEventoFromText("Es un torneo de Golf"), "evento corporativo");
+
+    const services = parseServicesFromText(brief);
+    assert.ok(
+      services.some((s) => /barra\s+de\s+bebidas/i.test(s)),
+      `debe anotar barra de bebidas: ${services.join(", ")}`
+    );
+    assert.ok(
+      services.some((s) => /puestos?\s+de\s+comida/i.test(s)),
+      `debe anotar puestos/antojitos: ${services.join(", ")}`
+    );
+    assert.ok(
+      services.some((s) => /mobiliario/i.test(s)),
+      `debe anotar mobiliario: ${services.join(", ")}`
+    );
+    assert.ok(
+      !services.some((s) => /^Snack$/i.test(s)),
+      `Snack corporativo no debe reemplazar antojitos: ${services.join(", ")}`
+    );
+
+    const mapped = buildMappedCatalogOfferBlock(services, brief);
+    assert.ok(/barra-de-bebidas/i.test(mapped), mapped);
+    assert.ok(/puestos-de-comida/i.test(mapped), mapped);
+    assert.ok(/salas-y-periqueras/i.test(mapped), mapped);
+    assert.ok(!/mande el catálogo con más detalle/i.test(mapped), mapped);
+
+    const pkg = buildMultiServicePackageReply(services, brief);
+    assert.ok(/Barra de bebidas|Puestos/i.test(pkg), pkg.slice(0, 400));
+    assert.ok(/barra-de-bebidas/i.test(pkg) && /puestos-de-comida/i.test(pkg), pkg);
+    assert.ok(/salas-y-periqueras/i.test(pkg), pkg);
+    assert.ok(/detalles de alguno/i.test(pkg), pkg.slice(-200));
+
+    const reply = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Lilian",
+        correo: "lilian@nodum.com.mx",
+        tipo_evento: "evento corporativo",
+        num_invitados: 80,
+        direccion_evento: "Club de Golf Los Encinos",
+        fecha_horario: "20 de agosto, 07:00 a 15:00 hrs",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Número de invitados",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+      ]),
+      readyForClosing: false,
+      currentMessage: brief,
+      history: [
+        {
+          role: "assistant",
+          content: "Gracias por tu correo, Lilian. ¿Qué tipo de evento estás planeando?",
+        },
+      ],
+    });
+    assert.ok(
+      /barra-de-bebidas|puestos-de-comida|salas-y-periqueras/i.test(reply),
+      `guards con catálogos concretos: ${reply.slice(0, 700)}`
+    );
+    assert.ok(
+      /Barra de bebidas|Puestos|Periqueras|Mobiliario/i.test(reply),
+      reply.slice(0, 500)
+    );
+    assert.ok(
+      !/Anoto Snack y Mobiliario/i.test(reply),
+      `no solo Snack+Mobiliario: ${reply.slice(0, 400)}`
     );
   });
 

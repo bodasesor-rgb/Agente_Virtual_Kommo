@@ -64,7 +64,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
   ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
   ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
-  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?)\b/i],
+  // A14985: cerveza/whisky/licores → Barra de bebidas (no solo "barra de bebidas" literal).
+  ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?|cervezas?|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|open\s*bar|barra\s+libre)\b/i],
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
   ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
@@ -73,7 +74,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Comida Corrida", /\bcomida\s+corrida\b/i],
   ["Paella", /\bpaellas?\b|\bpaellada\b/i],
   ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
-  ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b/i],
+  // A14985: banderillas / antojitos de stand → Puestos de Comida (no "Snack" corporativo).
+  ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bbanderillas?\b|\besquites?\b|\belotes?\b|\bgarnachas?\b|\bquesadillas?\b/i],
   ["Cupcakes y Betún", /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu],
   ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
   ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
@@ -217,6 +219,8 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
 
 const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(expo(sición)?|feria|stand\s+de|congreso)\b/i, "evento corporativo"],
+  // A14985 Lilian: torneo de golf / stand en campo.
+  [/\b(torneo(\s+de\s+golf)?|torneo\s+de\s+golf|golf|stand\s+en\s+campo)\b/i, "evento corporativo"],
   [/\b(boda|bodas|matrimonio|casamiento|nupcial)\b/i, "boda"],
   [/\b(baby\s*shower)\b/i, "baby shower"],
   [/\b(xv\s*a[nñ]os?|quincea[nñ]era|quince|xv)\b/i, "XV años"],
@@ -1215,10 +1219,33 @@ export function parseServicesFromText(text: string): string[] {
     /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text) ||
     (text.match(/,/g) ?? []).length >= 1 ||
     /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text);
+  // A14985: "Snack: Banderillas" en stand ≠ Snack corporativo (desayuno/comida/cena).
+  const snackIsAntojito =
+    /\bsnacks?\b/i.test(text) &&
+    /\b(banderillas?|antojitos?|esquites?|elotes?|garnachas?|quesadillas?)\b/i.test(text);
+  const hasCorporateMealList =
+    /\b(desayuno|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text) ||
+    (/\bsnack\b/i.test(text) &&
+      /\b(desayuno|comida|cena|coffee)\b/i.test(text) &&
+      !snackIsAntojito);
 
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (label === "Comida" && !hasMealListContext) continue;
+    // Snack corporativo solo en menú multi-tiempo; con antojitos → Puestos de Comida.
+    if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
     if (pattern.test(text) || pattern.test(lower)) found.push(label);
+  }
+
+  // A14985: sección "Bebidas" + alcohol sin la palabra "barra" → Barra de bebidas.
+  if (
+    !found.some((s) => /barra\s+de\s+bebidas/i.test(s)) &&
+    /\bbebidas?\b/i.test(text) &&
+    /\b(cerveza|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|alcohol|open\s*bar)\b/i.test(
+      text
+    ) &&
+    !/\bbarra\s+de\s+caf[eé]/i.test(text)
+  ) {
+    found.push("Barra de bebidas");
   }
 
   const deduped = dedupeServiceHierarchy(found, text);
@@ -1311,6 +1338,13 @@ export function dedupeServiceHierarchy(
   if (specificBanquete) {
     const formalIdx = found.indexOf("Banquete Formal");
     if (formalIdx >= 0) found.splice(formalIdx, 1);
+  }
+
+  // A14985: Puestos/antojitos gana sobre "Snack" corporativo genérico.
+  if (found.some((s) => /puestos?\s+de\s+comida/i.test(s))) {
+    for (let i = found.length - 1; i >= 0; i--) {
+      if (/^Snack$/i.test(found[i]!)) found.splice(i, 1);
+    }
   }
 
   if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {

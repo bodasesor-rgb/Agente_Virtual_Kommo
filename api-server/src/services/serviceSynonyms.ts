@@ -170,6 +170,14 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
       "barra de tragos",
       "servicio de bar",
       "barra de bebidas",
+      // A14985 stand/golf: cerveza / whisky sin decir "barra".
+      "cerveza",
+      "cervezas",
+      "whisky",
+      "whiskey",
+      "tequila",
+      "vodka",
+      "licores",
     ],
     excludeIf: ["sin alcohol", "mocteles", "mocktail", "cafe", "café"],
   },
@@ -727,6 +735,10 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
       "feria de antojitos",
       "puestos de comida",
       "street food",
+      // A14985: snack de stand.
+      "banderillas",
+      "banderilla",
+      "snack banderillas",
     ],
   },
 ];
