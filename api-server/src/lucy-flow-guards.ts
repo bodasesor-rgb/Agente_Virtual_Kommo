@@ -858,7 +858,7 @@ function buildPistaTarimaOptionsMenu(currentMessage?: string, dims?: string | nu
     `• *Pista LED* o *iluminada*\n` +
     `• *Pista vinil con logo* o *pintada a mano*\n` +
     `• Escenarios / estrados\n\n` +
-    `¿Cuál estilo te late?` +
+    `${SERVICE_NIVEL_DETAIL_CTA}` +
     (dims ? "" : " Si ya tienes medidas del espacio, mándamelas y afinamos.")
   );
 }
@@ -1320,7 +1320,7 @@ function buildProgressiveDetailAfterMenu(opts: {
   }
 
   if (!detailQuery) {
-    return `${pickTransition(history)} ¿De cuál te paso la info más detallada?`.trim();
+    return `${pickTransition(history)} ${SERVICE_NIVEL_DETAIL_CTA}`.trim();
   }
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
@@ -1486,9 +1486,9 @@ function buildFoodSalesReply(
       historyOfferedServiceOptionsMenu(history) &&
       clientWantsServiceDetail(currentMessage, history)
     ) {
-      return `${pickTransition(history)} ¿De cuál te paso la info más detallada?`.trim();
-    }
-    // A14970: jamás usar el mensaje completo como query de catálogo.
+    return `${pickTransition(history)} ${SERVICE_NIVEL_DETAIL_CTA}`.trim();
+  }
+  // A14970: jamás usar el mensaje completo como query de catálogo.
     const queryForDetail =
       detailQuery || mentionedService || serviceLabel || crmService || null;
     if (!queryForDetail) {
@@ -4582,7 +4582,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: detalle tras menú de opciones + link catálogo");
     } else {
-      mensaje = `${pickTransition(presHistory)} ¿De cuál te paso la info más detallada?`;
+      mensaje = `${pickTransition(presHistory)} ${SERVICE_NIVEL_DETAIL_CTA}`;
       appliedDirectReply = true;
     }
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {

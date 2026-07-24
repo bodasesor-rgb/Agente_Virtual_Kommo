@@ -33,7 +33,10 @@ import {
   parsePrimaryService,
   isServiceRelatedMessage,
 } from "../conversation-understanding.js";
-import { banqueteDetailQuery } from "./serviceProgressiveOffer.js";
+import {
+  banqueteDetailQuery,
+  SERVICE_NIVEL_DETAIL_CTA,
+} from "./serviceProgressiveOffer.js";
 import {
   buildLevel2Ack,
   buildLevel3Ack,
@@ -661,8 +664,8 @@ function buildCategoryServicesAnswer(result: CatalogMatchResult): string {
 /** Pregunta legacy (aún válida si el cliente afirma); el link ya se manda con el detalle. */
 export const CATALOG_OFFER_QUESTION = "¿Quieres que te mande el catálogo con más detalle?";
 
-/** Tras listar niveles + precios + links: invitar a pedir detalle, no forzar elección (A14982). */
-export const SERVICE_NIVEL_DETAIL_CTA = "¿Quieres que te dé detalles de alguno?";
+/** Re-export: CTA único de niveles (todas las ramas). */
+export { SERVICE_NIVEL_DETAIL_CTA } from "./serviceProgressiveOffer.js";
 
 /**
  * Asegura URL de catálogo en el mensaje (servicio del Sheet o hub).

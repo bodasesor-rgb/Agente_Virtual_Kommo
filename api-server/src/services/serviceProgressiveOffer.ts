@@ -1,10 +1,13 @@
 /**
  * Divulgación progresiva de servicios (V8.68 / A14967 generalizado):
- * 1) Menú corto de opciones + ¿cuál te detallo?
+ * 1) Menú corto de opciones + ¿quieres detalles de alguno?
  * 2) Tras elegir / pedir detalle → precios, inclusiones y link de catálogo.
  */
 
 import type { OpenAI } from "openai";
+
+/** CTA único para TODAS las ramas (niveles Sheet + menús progresivos). A14982. */
+export const SERVICE_NIVEL_DETAIL_CTA = "¿Quieres que te dé detalles de alguno?";
 
 export type ProgressiveFamily =
   | "banquete"
@@ -78,7 +81,7 @@ const FAMILIES: FamilyDef[] = [
         "• *Kosher* (3/4 tiempos o buffet)",
         "• *Navideño* (3 o 4 tiempos)",
         "",
-        "¿De cuál te paso la info más detallada (precios e inclusiones)?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -96,7 +99,7 @@ const FAMILIES: FamilyDef[] = [
       [
         "Claro. En *Coffee Break* tenemos varios paquetes (1 a 5), del más esencial al más completo.",
         "",
-        "¿De cuál te paso la info detallada (qué incluye y precio), o prefieres que te diga la diferencia entre ellos?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -109,7 +112,7 @@ const FAMILIES: FamilyDef[] = [
       [
         "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, Básico, Tradicional, Premium).",
         "",
-        "¿Te paso la info detallada de algún nivel, o quieres ver todos con precios e inclusiones?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -121,7 +124,7 @@ const FAMILIES: FamilyDef[] = [
       [
         "Claro. En *Barra de Café* manejamos niveles con baristas y bebidas artesanales.",
         "",
-        "¿Te paso la info detallada (precios e inclusiones) de algún nivel?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -145,7 +148,7 @@ const FAMILIES: FamilyDef[] = [
         "• *Barra Americana* / *Barra Yucateca*",
         "• *Coctelería / Mixología* y *Mócteles*",
         "",
-        "¿De cuál te paso la info más detallada?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -172,7 +175,7 @@ const FAMILIES: FamilyDef[] = [
         "• Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
         "• Americana, Yucateca y más",
         "",
-        "¿De cuál te paso la info más detallada?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -184,7 +187,7 @@ const FAMILIES: FamilyDef[] = [
       [
         "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, Básico, Tradicional, Premium).",
         "",
-        "¿Te paso la info detallada de algún nivel (precios e inclusiones)?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -204,7 +207,7 @@ const FAMILIES: FamilyDef[] = [
       [
         "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
         "",
-        "¿De cuál te paso la info más detallada?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -221,7 +224,7 @@ const FAMILIES: FamilyDef[] = [
       [
         "Claro. En *Cupcakes y Betún* manejamos *Cupcakes*, *Betún Clásico* y *Betún Decorado*.",
         "",
-        "¿De cuál te paso la info más detallada?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -238,7 +241,7 @@ const FAMILIES: FamilyDef[] = [
       [
         "Claro. En dulce manejamos *mesa de dulces*, *mesa de postres*, *mesa de quesos* y *carrito de snacks*.",
         "",
-        "¿De cuál te paso la info más detallada?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -264,7 +267,7 @@ const FAMILIES: FamilyDef[] = [
         "• Canapés, bocadillos, paletas/helados",
         "• Comida corrida (corporativo)",
         "",
-        "¿De cuál te paso la info más detallada?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
   {
@@ -290,7 +293,7 @@ const FAMILIES: FamilyDef[] = [
         "• Mesas y sillas, salas lounge, periqueras",
         "• Entelados para techo, colgantes premium, vajillas",
         "",
-        "¿De qué te paso la info más detallada?",
+        SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
   },
 ];
@@ -329,12 +332,23 @@ export function withCatalogNivelQuery(
   return `${base} ${nivel}`;
 }
 
-/** Fingerprint del menú progresivo (opciones antes de detalle). */
+/**
+ * Fingerprint del menú progresivo (opciones ANTES del dump de precios).
+ * No confundir con dump Sheet "Para *X* manejamos estos niveles… ¿detalles de alguno?" (A14982).
+ */
 export function isProgressiveOptionsMenuReply(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
-  return /info m[aá]s detallada|te paso la info|¿De cu[aá]l te paso|¿Te paso la info|opciones principales|¿Cu[aá]l estilo te late|diferencia entre ellos/i.test(
-    text
-  );
+  const t = text;
+  // Menú corto de familia: "Claro. En *banquete/taquiza/…*"
+  if (
+    /claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t) ||
+    /opciones principales|¿Cu[aá]l estilo te late/i.test(t)
+  ) {
+    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos/i.test(
+      t
+    );
+  }
+  return false;
 }
 
 /** Menú de opciones ya ofrecido por Lucy (anti-repetición). */
@@ -577,7 +591,7 @@ export function shouldOfferOptionsBeforeDetail(opts: {
     if (!msgFamily || msgFamily === family) {
       return {
         family,
-        menu: "¿De cuál te paso la info más detallada?",
+        menu: SERVICE_NIVEL_DETAIL_CTA,
       };
     }
   }

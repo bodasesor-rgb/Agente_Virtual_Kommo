@@ -202,6 +202,7 @@ import {
   resolveDetailQueryForFamily,
   detectProgressiveFamily,
   catalogNivelLabelFromText,
+  buildProgressiveOptionsMenu,
 } from "../services/serviceProgressiveOffer.js";
 import {
   parseSheetCatalogCsv,
@@ -4212,7 +4213,7 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/sushi|nivel/i.test(t2), t2.slice(0, 400));
     assert.ok(
-      /info m[aá]s detallada|te paso la info|¿Te paso/i.test(t2),
+      /quieres que te d[eé] detalles de alguno|info m[aá]s detallada|te paso la info/i.test(t2),
       `T2 menú de opciones: ${t2.slice(0, 500)}`
     );
     assert.ok(!/\$800|\$850|\$900/i.test(t2), `T2 no debe volcar precios aún: ${t2.slice(0, 400)}`);
@@ -5380,7 +5381,7 @@ async function runAll(): Promise<void> {
     // V8.68: primer turno = menú de tipos (Formal/Mexicano), sin dump ni link.
     assert.ok(/Formal|Mexicano/i.test(first), first.slice(0, 400));
     assert.ok(
-      /detallada|3 tiempos|4 tiempos/i.test(first),
+      /detalles de alguno|detallada|3 tiempos|4 tiempos/i.test(first),
       first.slice(0, 500)
     );
     assert.ok(
@@ -5406,7 +5407,7 @@ async function runAll(): Promise<void> {
         {
           role: "assistant",
           content:
-            "Claro. En *banquete* manejamos varias opciones:\n• *Formal 3 tiempos*\n• *Mexicano 4 tiempos*\n\n¿De cuál te paso la info más detallada?",
+            "Claro. En *banquete* manejamos varias opciones:\n• *Formal 3 tiempos*\n• *Mexicano 4 tiempos*\n\n¿Quieres que te dé detalles de alguno?",
         },
       ],
     });
@@ -5572,7 +5573,7 @@ async function runAll(): Promise<void> {
     assert.ok(/lucy|bodasesor/i.test(first), first.slice(0, 200));
     // V8.68: primer contacto de familia → menú de paquetes (detalle tras elegir / "sí").
     assert.ok(
-      /Coffee Break|paquetes|detallada|diferencia|nivel/i.test(first),
+      /Coffee Break|paquetes|detalles de alguno|detallada|diferencia|nivel/i.test(first),
       `primer turno menú opciones: ${first.slice(0, 600)}`
     );
     assert.ok(!/\$\s*180|Incluye:/i.test(first), `sin dump en menú: ${first.slice(0, 400)}`);
@@ -5586,7 +5587,7 @@ async function runAll(): Promise<void> {
       history: [],
     });
     assert.ok(
-      /Coffee Break|paquetes|detallada|diferencia/i.test(info),
+      /Coffee Break|paquetes|detalles de alguno|detallada|diferencia/i.test(info),
       `info → menú primero: ${info.slice(0, 600)}`
     );
     assert.ok(!/\$\s*180|Incluye:/i.test(info), info.slice(0, 400));
@@ -5842,7 +5843,7 @@ async function runAll(): Promise<void> {
     assert.ok(medidasAsks <= 1, first.slice(0, 400));
 
     const detail = runGuards({
-      aiResponse: "¿Cuál estilo te late?",
+      aiResponse: "¿Quieres que te dé detalles de alguno?",
       extracted: emptyExtracted({
         nombre: "Angélica",
         requerimientos_evento: "pista de baile / tarima",
@@ -5884,7 +5885,10 @@ async function runAll(): Promise<void> {
       currentMessage: "Quiero banquete para mi evento",
       history: [{ role: "assistant", content: "¿Qué necesitas?" }],
     });
-    assert.ok(/Formal 3|Mexicano 4|detallada/i.test(banqueteAsk), banqueteAsk.slice(0, 400));
+    assert.ok(
+      /Formal|Mexicano|detalles de alguno|detallada/i.test(banqueteAsk),
+      banqueteAsk.slice(0, 400)
+    );
     assert.ok(!/\$500|\$750|Incluye:/i.test(banqueteAsk), banqueteAsk.slice(0, 400));
     assert.ok(!/bodasesor\.com\/catalogos/i.test(banqueteAsk), banqueteAsk.slice(0, 300));
     assert.ok(!/correo|e-?mail/i.test(banqueteAsk), banqueteAsk.slice(0, 300));
@@ -5973,7 +5977,7 @@ async function runAll(): Promise<void> {
     assert.equal(catalogNivelLabelFromText("Nivel tradicional"), "Tradicional");
 
     const menu =
-      "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, Básico, Tradicional, Premium).\n\n¿Te paso la info detallada de algún nivel, o quieres ver todos con precios e inclusiones?\n\n¿Cómo te llamas?";
+      "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, Básico, Tradicional, Premium).\n\n¿Quieres que te dé detalles de alguno?\n\n¿Cómo te llamas?";
 
     const reply = runGuards({
       aiResponse: "¿Cuál nivel?",
@@ -6354,7 +6358,7 @@ async function runAll(): Promise<void> {
     );
   });
 
-  await test("104. A14982 — niveles + CTA detalle (no forzar elección) y sin 'para un taquiza'", () => {
+  await test("104. A14982 — CTA detalle en TODAS las ramas (no solo Yucateca)", () => {
     assert.ok(/detalles de alguno/i.test(SERVICE_NIVEL_DETAIL_CTA));
 
     const csv = [
@@ -6367,16 +6371,63 @@ async function runAll(): Promise<void> {
       '"Taquiza","Basico","$750.00","$22,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","basico"',
       '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","tradicional"',
       '"Taquiza","Premium","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","premium"',
+      '"Barra de sushi","Solo Alimentos","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","sushi"',
+      '"Barra de sushi","Basico","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","basico"',
+      '"Barra de sushi","Tradicional","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","tradicional"',
+      '"Barra de sushi","Premium","$900.00","$27,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","premium"',
+      '"Barra de Café","Basico","$350.00","$10,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe"',
+      '"Barra de Café","Tradicional","$450.00","$13,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe t"',
+      '"Barra de Café","Premium","$550.00","$16,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe p"',
+      '"Barra Americana","Basico","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-americana","am"',
+      '"Barra Americana","Tradicional","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/barra-americana","am t"',
+      '"Barra Americana","Premium","$600.00","$18,000.00","TRUE","https://bodasesor.com/catalogos/barra-americana","am p"',
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
 
+    // Dump Sheet: misma CTA en todas las líneas con niveles.
+    for (const svc of [
+      "Barra Yucateca",
+      "Taquiza",
+      "Barra de sushi",
+      "Barra de Café",
+      "Barra Americana",
+    ]) {
+      const detail = buildCatalogServiceDetailAnswer(svc);
+      assert.ok(detail, `detail ${svc}`);
+      assert.ok(
+        /quieres que te d[eé] detalles de alguno/i.test(detail!),
+        `CTA global en ${svc}: ${detail!.slice(-180)}`
+      );
+      assert.ok(
+        !/cu[aá]l nivel prefieres/i.test(detail!),
+        `sin forzar elección en ${svc}`
+      );
+    }
+
+    // Menús progresivos: misma CTA en todas las familias.
+    for (const fam of [
+      "banquete",
+      "coffee_break",
+      "barra_sushi",
+      "barra_cafe",
+      "barra_bebidas",
+      "barra_alimentos",
+      "taquiza",
+      "parrillada",
+      "cupcakes_betun",
+      "mesa_dulces",
+      "gastronomia",
+      "mobiliario",
+    ] as const) {
+      const menu = buildProgressiveOptionsMenu(fam);
+      assert.ok(
+        menu.includes(SERVICE_NIVEL_DETAIL_CTA),
+        `menú ${fam} debe usar CTA global: ${menu.slice(-120)}`
+      );
+    }
+
     const yuca = buildCatalogServiceDetailAnswer("Barra Yucateca");
     assert.ok(yuca && /Solo Alimentos|Basico|Tradicional|Premium/i.test(yuca), yuca?.slice(0, 400));
-    assert.ok(
-      /quieres que te d[eé] detalles de alguno/i.test(yuca!),
-      `CTA detalle: ${yuca!.slice(-200)}`
-    );
-    assert.ok(!/cu[aá]l nivel prefieres/i.test(yuca!), yuca!.slice(-200));
     assert.ok(
       /bodasesor\.com\/catalogos\/barra-yucateca/i.test(yuca!),
       yuca!.slice(0, 500)
