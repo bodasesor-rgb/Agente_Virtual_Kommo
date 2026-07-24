@@ -33,6 +33,7 @@ import {
   parsePrimaryService,
   isServiceRelatedMessage,
 } from "../conversation-understanding.js";
+import { banqueteDetailQuery } from "./serviceProgressiveOffer.js";
 import {
   buildLevel2Ack,
   buildLevel3Ack,
@@ -1358,11 +1359,7 @@ export function resolveCatalogInclusionReply(
   const webQ = serviceHint || query;
   // A14947: no mandar Betún/Cupcakes si el hint es banquete.
   if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
-    const banqueteQ = /\b4\s*tiempos|mexicano/i.test(`${webQ} ${serviceHint ?? ""}`)
-      ? "Banquete Mexicano 4 tiempos"
-      : /\b3\s*tiempos|formal/i.test(`${webQ} ${serviceHint ?? ""}`)
-        ? "Banquete Formal 3 tiempos"
-        : "banquete";
+    const banqueteQ = banqueteDetailQuery(`${webQ} ${serviceHint ?? ""}`);
     const detail = buildCatalogServiceDetailAnswer(banqueteQ) ?? buildCatalogPriceAnswer(banqueteQ);
     return ensureCatalogWebLink(detail || "Claro, te dejo el catálogo de banquetes.", banqueteQ);
   }

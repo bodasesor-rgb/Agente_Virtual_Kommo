@@ -85,6 +85,7 @@ import {
   progressiveFamilyDetailQueries,
   catalogNivelLabelFromText,
   withCatalogNivelQuery,
+  resolveDetailQueryForFamily,
 } from "./services/serviceProgressiveOffer.js";
 import {
   extractImageClientReply,
@@ -3889,8 +3890,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     )
   ) {
     // A14947: "De tres tiempos" = variante de banquete, no nivel Básica/Premium.
-    const tres = /\b(tres|3)\s*tiempos\b/i.test(currentMessage);
-    const label = tres ? "Banquete Formal 3 tiempos" : "Banquete Mexicano 4 tiempos";
+    const label = resolveDetailQueryForFamily(
+      "banquete",
+      currentMessage ?? ""
+    );
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
     if (merged) extracted.requerimientos_evento = merged;
@@ -4550,13 +4553,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     // A14947: si el hilo es banquete/catering, NUNCA resolver a Betún/Cupcakes.
     let serviceHint: string | null = null;
     if (/\bbanquete|\bcatering\b/i.test(`${req} ${userBlob}`)) {
-      if (/\b(3\s*tiempos|tres\s*tiempos|formal)\b/i.test(`${req} ${userBlob}`)) {
-        serviceHint = "Banquete Formal 3 tiempos";
-      } else if (/\b(4\s*tiempos|cuatro\s*tiempos|mexicano)\b/i.test(`${req} ${userBlob}`)) {
-        serviceHint = "Banquete Mexicano 4 tiempos";
-      } else {
-        serviceHint = "banquete";
-      }
+      serviceHint = resolveDetailQueryForFamily(
+        "banquete",
+        `${req} ${userBlob} ${currentMessage ?? ""}`
+      );
     } else {
       serviceHint =
         (isValidRequerimientosValue(req) ? req : null) ||

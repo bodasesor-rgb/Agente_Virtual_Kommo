@@ -194,6 +194,9 @@ import {
 } from "../services/kommoTalks.js";
 import {
   withCatalogNivelQuery,
+  banqueteDetailQuery,
+  resolveDetailQueryForFamily,
+  detectProgressiveFamily,
   catalogNivelLabelFromText,
 } from "../services/serviceProgressiveOffer.js";
 import {
@@ -6109,6 +6112,113 @@ async function runAll(): Promise<void> {
       !/Banquete Formal|Te detallo \*Buenas noches/i.test(mid),
       `sin Banquete a mitad de flujo: ${mid.slice(0, 500)}`
     );
+  });
+
+  await test("102. Catálogo web — detección y variantes de todas las líneas", () => {
+    // Banquetes: Formal/Mexicano/Kosher/Navideño × tiempos (sin el bug 4→Mexicano).
+    assert.equal(banqueteDetailQuery("De tres tiempos"), "Banquete Formal 3 tiempos");
+    assert.equal(banqueteDetailQuery("4 tiempos"), "Banquete Formal 4 tiempos");
+    assert.equal(banqueteDetailQuery("formal 4 tiempos"), "Banquete Formal 4 tiempos");
+    assert.equal(banqueteDetailQuery("mexicano 3 tiempos"), "Banquete Mexicano 3 tiempos");
+    assert.equal(banqueteDetailQuery("mexicano 4 tiempos"), "Banquete Mexicano 4 tiempos");
+    assert.equal(banqueteDetailQuery("kosher buffet"), "Banquete Kosher Buffet");
+    assert.equal(banqueteDetailQuery("kosher 3 tiempos"), "Banquete Kosher 3 tiempos");
+    assert.equal(banqueteDetailQuery("banquete navideño 4 tiempos"), "Banquete Navideño 4 tiempos");
+    assert.equal(
+      resolveDetailQueryForFamily("banquete", "El formal de 3 tiempos"),
+      "Banquete Formal 3 tiempos"
+    );
+
+    const expectHas = (msg: string, label: string) => {
+      const found = parseServicesFromText(msg);
+      assert.ok(
+        found.some((s) => s.toLowerCase().includes(label.toLowerCase()) || label.toLowerCase().includes(s.toLowerCase())),
+        `"${msg}" → esperaba ${label}, got ${JSON.stringify(found)}`
+      );
+    };
+    const expectPrimary = (msg: string, label: string) => {
+      const found = parseServicesFromText(msg);
+      assert.ok(
+        found.includes(label) || found[0] === label,
+        `"${msg}" → esperaba incluir ${label}, got ${JSON.stringify(found)}`
+      );
+    };
+
+    // Banquetes
+    expectPrimary("banquete mexicano", "Banquete Mexicano");
+    assert.ok(!parseServicesFromText("banquete mexicano").includes("Banquete Formal"));
+    expectPrimary("banquete kosher", "Banquete Kosher");
+    expectPrimary("banquete navideño", "Banquete Navideño");
+
+    // Barras y bebidas
+    expectPrimary("barra americana", "Barra Americana");
+    expectPrimary("barra yucateca", "Barra Yucateca");
+    expectPrimary("barra de bebidas con alcohol", "Barra de bebidas");
+    expectPrimary("barra de café", "Barra de Café");
+    expectPrimary("barra de crepas", "Barra de Crepas");
+    expectPrimary("barra de mariscos", "Barra de mariscos");
+    expectPrimary("barra de paninis", "Barra de paninis");
+    expectPrimary("barra de pastas y ensaladas", "Barra de pastas y ensaladas");
+    expectPrimary("barra de pizzas", "Barra de pizzas");
+    expectPrimary("barra de sushi", "Barra de sushi");
+    expectHas("coctelería y mixología", "Coctelería");
+    expectPrimary("mócteles", "Mócteles");
+
+    // Gastronomía
+    expectPrimary("paella", "Paella");
+    expectPrimary("pozole y tostadas", "Pozole y Tostadas");
+    expectPrimary("puestos de comida", "Puestos de Comida");
+    expectPrimary("canapés", "Canapés");
+    expectPrimary("bocadillos", "Bocadillos");
+    expectPrimary("cupcakes", "Cupcakes y Betún");
+    expectPrimary("betún decorado", "Cupcakes y Betún");
+    expectPrimary("paletas de hielo", "Paletas de Hielo y Helados");
+    expectPrimary("parrillada argentina", "Parrillada Argentina");
+    expectPrimary("parrillada de tacos", "Parrillada Tacos");
+    assert.ok(!parseServicesFromText("parrillada de tacos").includes("Taquiza"));
+    expectPrimary("taquiza", "Taquiza");
+
+    // Mesas dulces
+    expectPrimary("carrito de snaks", "Carrito de Snacks");
+    expectPrimary("mesa de dulces", "Mesa de dulces");
+    expectPrimary("mesa de postres", "Mesa de postres");
+    expectPrimary("mesa de quesos", "Mesa de quesos");
+
+    // Mobiliario
+    expectPrimary("entelados", "Entelados para Techo");
+    expectPrimary("colgantes premium", "Colgantes Premium");
+    expectPrimary("decoración aérea", "Colgantes Premium");
+    expectPrimary("vajillas", "Vajillas");
+    expectHas("mesas y sillas", "Mobiliario");
+    expectHas("tarima", "Pista de baile");
+
+    // Fiestas / audio / empresas
+    expectPrimary("fiesta infantil", "Fiesta Infantil");
+    expectHas("audio e iluminación", "Audio");
+    expectPrimary("video", "Video");
+    expectPrimary("coffee break", "Coffee break");
+    expectPrimary("comida corrida", "Comida Corrida");
+    expectPrimary("desayuno", "Desayuno");
+    expectPrimary("brunch", "Brunch");
+
+    // Familias progresivas
+    assert.equal(detectProgressiveFamily("quiero banquete"), "banquete");
+    assert.equal(detectProgressiveFamily("barra de café"), "barra_cafe");
+    assert.equal(detectProgressiveFamily("paella para 80"), "gastronomia");
+    assert.equal(detectProgressiveFamily("cupcakes"), "cupcakes_betun");
+    assert.equal(detectProgressiveFamily("entelados para techo"), "mobiliario");
+    assert.equal(detectProgressiveFamily("parrillada tacos"), "parrillada");
+    assert.equal(
+      resolveDetailQueryForFamily("parrillada", "parrillada de tacos"),
+      "Parrillada Tacos"
+    );
+    assert.equal(resolveDetailQueryForFamily("cupcakes_betun", "betún clásico"), "Betún Clásico");
+    assert.equal(resolveDetailQueryForFamily("gastronomia", "pozole"), "Pozole y Tostadas");
+    assert.equal(
+      resolveDetailQueryForFamily("barra_alimentos", "barra de pastas"),
+      "Barra de pastas y ensaladas"
+    );
+    assert.equal(resolveDetailQueryForFamily("mesa_dulces", "carrito de snacks"), "Carrito de Snacks");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

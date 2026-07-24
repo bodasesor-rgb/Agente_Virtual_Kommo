@@ -16,6 +16,8 @@ export type ProgressiveFamily =
   | "taquiza"
   | "parrillada"
   | "mesa_dulces"
+  | "cupcakes_betun"
+  | "gastronomia"
   | "mobiliario";
 
 type FamilyDef = {
@@ -29,29 +31,52 @@ type FamilyDef = {
   buildMenu: (hint?: string | null) => string;
 };
 
+/** Resuelve variante concreta de banquete (Formal/Mexicano/Kosher/Navideño × tiempos). */
+export function banqueteDetailQuery(text: string): string {
+  const tiempos4 = /\b(4\s*tiempos?|cuatro\s*tiempos?)\b/i.test(text);
+  const tiempos3 = /\b(3\s*tiempos?|tres\s*tiempos?)\b/i.test(text);
+  if (/\bkosher\b/i.test(text)) {
+    if (/\bbuffet\b/i.test(text)) return "Banquete Kosher Buffet";
+    if (tiempos4) return "Banquete Kosher 4 tiempos";
+    if (tiempos3) return "Banquete Kosher 3 tiempos";
+    return "Banquete Kosher";
+  }
+  if (/\bnavide/i.test(text)) {
+    if (tiempos4) return "Banquete Navideño 4 tiempos";
+    if (tiempos3) return "Banquete Navideño 3 tiempos";
+    return "Banquete Navideño";
+  }
+  if (/\bmexicano\b/i.test(text)) {
+    if (tiempos4) return "Banquete Mexicano 4 tiempos";
+    if (tiempos3) return "Banquete Mexicano 3 tiempos";
+    // Sin tiempos: familia mexicana (Sheet tiene 3 y 4).
+    return "Banquete Mexicano";
+  }
+  if (/\bformal\b/i.test(text)) {
+    if (tiempos4) return "Banquete Formal 4 tiempos";
+    if (tiempos3) return "Banquete Formal 3 tiempos";
+    return "Banquete Formal";
+  }
+  // "De tres/cuatro tiempos" sin estilo → Formal (A14947).
+  if (tiempos4) return "Banquete Formal 4 tiempos";
+  if (tiempos3) return "Banquete Formal 3 tiempos";
+  return "banquete";
+}
+
 const FAMILIES: FamilyDef[] = [
   {
     family: "banquete",
     familyPattern: /\bbanquetes?\b|\bcatering\b/i,
     variantPattern:
-      /\b(formal|mexicano|kosher|navide[nñ]o|\d\s*tiempos?|tres\s*tiempos?|cuatro\s*tiempos?|3\s*tiempos?|4\s*tiempos?)\b/i,
-    detailQueryFromText: (text) => {
-      if (/\b(4\s*tiempos?|cuatro\s*tiempos?|mexicano)\b/i.test(text)) {
-        return "Banquete Mexicano 4 tiempos";
-      }
-      if (/\bkosher\b/i.test(text)) return "Banquete Kosher";
-      if (/\bnavide/i.test(text)) return "Banquete Navideño";
-      if (/\b(3\s*tiempos?|tres\s*tiempos?|formal)\b/i.test(text)) {
-        return "Banquete Formal 3 tiempos";
-      }
-      return "banquete";
-    },
+      /\b(formal|mexicano|kosher|navide[nñ]o|buffet|\d\s*tiempos?|tres\s*tiempos?|cuatro\s*tiempos?|3\s*tiempos?|4\s*tiempos?)\b/i,
+    detailQueryFromText: banqueteDetailQuery,
     buildMenu: () =>
       [
         "Claro. En *banquete* manejamos varias opciones:",
-        "• *Formal 3 tiempos*",
-        "• *Mexicano 4 tiempos*",
-        "• Kosher o navideño según la ocasión",
+        "• *Formal* (3 o 4 tiempos)",
+        "• *Mexicano* (3 o 4 tiempos)",
+        "• *Kosher* (3/4 tiempos o buffet)",
+        "• *Navideño* (3 o 4 tiempos)",
         "",
         "¿De cuál te paso la info más detallada (precios e inclusiones)?",
       ].join("\n"),
@@ -79,7 +104,6 @@ const FAMILIES: FamilyDef[] = [
     familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
     variantPattern:
       /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
-    // A14975: incluir el nivel elegido ("Nivel tradicional" → "Barra de sushi Tradicional").
     detailQueryFromText: (text) => withCatalogNivelQuery("Barra de sushi", text),
     buildMenu: () =>
       [
@@ -102,16 +126,24 @@ const FAMILIES: FamilyDef[] = [
   },
   {
     family: "barra_bebidas",
-    familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca)\b/i,
+    familyPattern:
+      /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog|\bcocteler|\bm[oó]cteles?\b/i,
+    variantPattern:
+      /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca|mixolog|cocteler|m[oó]cteles?|con\s+alcohol|sin\s+alcohol)\b/i,
     detailQueryFromText: (text) => {
       if (/yucateca/i.test(text)) return withCatalogNivelQuery("Barra Yucateca", text);
       if (/americana/i.test(text)) return withCatalogNivelQuery("Barra Americana", text);
+      if (/m[oó]cteles?/i.test(text)) return "Mócteles";
+      if (/mixolog|cocteler/i.test(text)) return "Coctelería y Mixología";
+      if (/con\s+alcohol/i.test(text)) return "Barra de bebidas con Alcohol";
       return withCatalogNivelQuery("Barra de bebidas", text);
     },
     buildMenu: () =>
       [
-        "Claro. En bebidas manejamos *Barra de bebidas*, *Barra Americana*, *Barra Yucateca* y opciones de mixología.",
+        "Claro. En bebidas manejamos:",
+        "• *Barra de bebidas* (con o sin alcohol)",
+        "• *Barra Americana* / *Barra Yucateca*",
+        "• *Coctelería / Mixología* y *Mócteles*",
         "",
         "¿De cuál te paso la info más detallada?",
       ].join("\n"),
@@ -121,10 +153,12 @@ const FAMILIES: FamilyDef[] = [
     familyPattern:
       /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarras?\s+tem[aá]ticas?\b/i,
     variantPattern:
-      /\b(pizzas?|pastas?|crepas?|mariscos?|paninis?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+      /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text) => {
       if (/pizza/i.test(text)) return withCatalogNivelQuery("Barra de pizzas", text);
-      if (/pasta/i.test(text)) return withCatalogNivelQuery("Barra de pastas", text);
+      if (/pasta|ensalada/i.test(text)) {
+        return withCatalogNivelQuery("Barra de pastas y ensaladas", text);
+      }
       if (/crepa/i.test(text)) return withCatalogNivelQuery("Barra de Crepas", text);
       if (/marisco/i.test(text)) return withCatalogNivelQuery("Barra de mariscos", text);
       if (/panini/i.test(text)) return withCatalogNivelQuery("Barra de paninis", text);
@@ -135,7 +169,7 @@ const FAMILIES: FamilyDef[] = [
     buildMenu: () =>
       [
         "Claro. En barras de alimentos manejamos varias:",
-        "• Pizzas, pastas, crepas, mariscos, paninis",
+        "• Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
         "• Americana, Yucateca y más",
         "",
         "¿De cuál te paso la info más detallada?",
@@ -143,7 +177,7 @@ const FAMILIES: FamilyDef[] = [
   },
   {
     family: "taquiza",
-    familyPattern: /\btaquiza\b|\btacos?\b/i,
+    familyPattern: /\btaquiza\b/i,
     variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text) => withCatalogNivelQuery("taquiza", text),
     buildMenu: () =>
@@ -157,41 +191,94 @@ const FAMILIES: FamilyDef[] = [
     family: "parrillada",
     familyPattern: /\bparrillada\b/i,
     variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
-    detailQueryFromText: (text) =>
-      withCatalogNivelQuery(
-        /argentina/i.test(text) ? "Parrillada Argentina" : "parrillada",
-        text
-      ),
+    detailQueryFromText: (text) => {
+      if (/argentina/i.test(text)) {
+        return withCatalogNivelQuery("Parrillada Argentina", text);
+      }
+      if (/\btacos?\b/i.test(text)) {
+        return withCatalogNivelQuery("Parrillada Tacos", text);
+      }
+      return withCatalogNivelQuery("parrillada", text);
+    },
     buildMenu: () =>
       [
-        "Claro. En *parrillada* tenemos opciones (incluida argentina según disponibilidad).",
+        "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
         "",
-        "¿Te paso la info más detallada de alguna?",
+        "¿De cuál te paso la info más detallada?",
+      ].join("\n"),
+  },
+  {
+    family: "cupcakes_betun",
+    familyPattern: /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu,
+    variantPattern: /\b(cl[aá]sico|decorado|cupcakes?|bet[uú]n)\b/i,
+    detailQueryFromText: (text) => {
+      if (/decorado/i.test(text)) return "Betún Decorado";
+      if (/cl[aá]sico|bet[uú]n/i.test(text) && !/cupcake/i.test(text)) return "Betún Clásico";
+      if (/cupcake/i.test(text)) return "Cupcakes";
+      return "Cupcakes y Betún";
+    },
+    buildMenu: () =>
+      [
+        "Claro. En *Cupcakes y Betún* manejamos *Cupcakes*, *Betún Clásico* y *Betún Decorado*.",
+        "",
+        "¿De cuál te paso la info más detallada?",
       ].join("\n"),
   },
   {
     family: "mesa_dulces",
-    familyPattern: /\bmesa\s+de\s+(dulces|postres|quesos)\b/i,
-    variantPattern: /\bmesa\s+de\s+(quesos|postres|dulces)\b|\bcupcakes?\b|\bbet[uú]n\b/i,
+    familyPattern: /\bmesa\s+de\s+(dulces|postres|quesos)\b|\bcarrito\s+de\s+snacks?\b/i,
+    variantPattern: /\bmesa\s+de\s+(quesos|postres|dulces)\b|\bcarrito\s+de\s+snacks?\b/i,
     detailQueryFromText: (text) => {
+      if (/carrito/i.test(text)) return "Carrito de Snacks";
       if (/queso/i.test(text)) return "Mesa de quesos";
       if (/postre/i.test(text)) return "Mesa de postres";
       return "Mesa de dulces";
     },
     buildMenu: () =>
       [
-        "Claro. En dulce manejamos *mesa de dulces*, *mesa de postres* y *mesa de quesos*.",
+        "Claro. En dulce manejamos *mesa de dulces*, *mesa de postres*, *mesa de quesos* y *carrito de snacks*.",
+        "",
+        "¿De cuál te paso la info más detallada?",
+      ].join("\n"),
+  },
+  {
+    family: "gastronomia",
+    familyPattern:
+      /\bpaellas?\b|\bpozole|\bpuestos?\s+de\s+comida\b|\bantojitos?\b|\bcanap[eé]s?(?!\p{L})|\bbocadillos?\b|\bpaletas?|\bhelados?\b|\bcomida\s+corrida\b/iu,
+    variantPattern:
+      /\b(paella|pozole|puestos?|antojitos?|canap|bocadillo|paleta|helado|comida\s+corrida)\b/i,
+    detailQueryFromText: (text) => {
+      if (/paella/i.test(text)) return "Paella";
+      if (/pozole/i.test(text)) return "Pozole y Tostadas";
+      if (/puesto|antojito/i.test(text)) return "Puestos de Comida";
+      if (/canap/i.test(text)) return "Canapés";
+      if (/bocadillo/i.test(text)) return "Bocadillos";
+      if (/paleta|helado/i.test(text)) return "Paletas de Hielo y Helados";
+      if (/comida\s+corrida/i.test(text)) return "Comida Corrida";
+      return "gastronomía";
+    },
+    buildMenu: () =>
+      [
+        "Claro. En gastronomía manejamos varias opciones:",
+        "• Paella, pozole y tostadas, puestos de comida",
+        "• Canapés, bocadillos, paletas/helados",
+        "• Comida corrida (corporativo)",
         "",
         "¿De cuál te paso la info más detallada?",
       ].join("\n"),
   },
   {
     family: "mobiliario",
-    familyPattern: /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bmesas?\s+y\s+sillas?\b|\brenta\s+de\s+mesas/i,
-    // "mesas y sillas" / periqueras ya son pedido concreto → detalle, no menú genérico.
+    familyPattern:
+      /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bmesas?\s+y\s+sillas?\b|\brenta\s+de\s+mesas|\bentelados?\b|\bcolgantes?\b|\bvajillas?\b/i,
     variantPattern:
-      /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|manteler[ií]a|vajilla|mesas?\s+y\s+sillas?|renta\s+de\s+mesas)\b/i,
+      /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|manteler[ií]a|vajilla|mesas?\s+y\s+sillas?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
     detailQueryFromText: (text) => {
+      if (/entelado|tela\s+(en\s+|de\s+|para\s+)?techo/i.test(text)) {
+        return "Entelados para Techo";
+      }
+      if (/colgante|wisteria|a[eé]rea/i.test(text)) return "Colgantes Premium";
+      if (/vajilla|cuberter|cristaler/i.test(text)) return "Vajillas";
       if (/periquera/i.test(text)) return "periqueras";
       if (/lounge|luxor/i.test(text)) return "salas lounge";
       if (/mesas?|sillas?/i.test(text)) return "mesas y sillas";
@@ -199,7 +286,9 @@ const FAMILIES: FamilyDef[] = [
     },
     buildMenu: () =>
       [
-        "Claro. En *mobiliario* manejamos mesas y sillas, salas lounge, periqueras y más opciones de renta.",
+        "Claro. En *mobiliario* manejamos:",
+        "• Mesas y sillas, salas lounge, periqueras",
+        "• Entelados para techo, colgantes premium, vajillas",
         "",
         "¿De qué te paso la info más detallada?",
       ].join("\n"),
@@ -259,16 +348,55 @@ export function historyOfferedServiceOptionsMenu(
 
 /** SKUs a detallar cuando el cliente dice "sí" sin elegir variante. */
 const FAMILY_ALL_DETAIL_QUERIES: Record<ProgressiveFamily, string[]> = {
-  banquete: ["Banquete Formal 3 tiempos", "Banquete Mexicano 4 tiempos"],
+  banquete: [
+    "Banquete Formal 3 tiempos",
+    "Banquete Formal 4 tiempos",
+    "Banquete Mexicano 3 tiempos",
+    "Banquete Mexicano 4 tiempos",
+    "Banquete Kosher 3 tiempos",
+    "Banquete Kosher 4 tiempos",
+    "Banquete Kosher Buffet",
+    "Banquete Navideño 3 tiempos",
+    "Banquete Navideño 4 tiempos",
+  ],
   coffee_break: ["Coffee Break"],
-  barra_bebidas: ["Barra de bebidas", "Barra Americana", "Barra Yucateca"],
-  barra_alimentos: ["Barra de pizzas", "Barra de pastas", "Barra de Crepas"],
+  barra_bebidas: [
+    "Barra de bebidas",
+    "Barra Americana",
+    "Barra Yucateca",
+    "Mócteles",
+    "Coctelería y Mixología",
+  ],
+  barra_alimentos: [
+    "Barra de pizzas",
+    "Barra de pastas y ensaladas",
+    "Barra de Crepas",
+    "Barra de mariscos",
+    "Barra de paninis",
+  ],
   barra_cafe: ["Barra de Café"],
   barra_sushi: ["Barra de sushi"],
   taquiza: ["taquiza"],
-  parrillada: ["parrillada"],
-  mesa_dulces: ["Mesa de dulces", "Mesa de postres", "Mesa de quesos"],
-  mobiliario: ["mobiliario"],
+  parrillada: ["Parrillada Argentina", "Parrillada Tacos"],
+  mesa_dulces: ["Mesa de dulces", "Mesa de postres", "Mesa de quesos", "Carrito de Snacks"],
+  cupcakes_betun: ["Cupcakes", "Betún Clásico", "Betún Decorado"],
+  gastronomia: [
+    "Paella",
+    "Pozole y Tostadas",
+    "Puestos de Comida",
+    "Canapés",
+    "Bocadillos",
+    "Paletas de Hielo y Helados",
+    "Comida Corrida",
+  ],
+  mobiliario: [
+    "mesas y sillas",
+    "salas lounge",
+    "periqueras",
+    "Entelados para Techo",
+    "Colgantes Premium",
+    "Vajillas",
+  ],
 };
 
 export function progressiveFamilyDetailQueries(family: ProgressiveFamily): string[] {

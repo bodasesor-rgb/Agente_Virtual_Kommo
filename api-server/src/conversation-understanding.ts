@@ -47,6 +47,9 @@ export const LUCY_FIELD_ASK_PATTERNS: Record<UnderstandingField, RegExp> = {
 /** Catálogo unificado Bodasesor — orden: más específico primero. */
 export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]> = [
   ["Parrillada Argentina", /parrillada\s+argentina/i],
+  // Antes de Taquiza: "parrillada tacos" ≠ taquiza.
+  ["Parrillada Tacos", /\bparrillada\s+(de\s+)?tacos?\b/i],
+  ["Banquete Kosher Buffet", /\bkosher\s+buffet\b|\bbuffet\s+kosher\b/i],
   ["Banquete Kosher", /\bkosher\b/i],
   ["Banquete Navideño", /\bnavide[nñ]o\b/i],
   ["Banquete Mexicano", /\b(banquete\s+mexicano|mexicano)\b/i],
@@ -58,22 +61,38 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b/i],
   ["Barra de paninis", /\bbarra\s+de\s+paninis?\b/i],
   ["Barra de Crepas", /\bbarra\s+de\s+crepas?\b/i],
+  ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
+  ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
+  ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
   ["Barra de bebidas", /\b(barra\s*(de\s*)?bebidas?|bebidas?\s+alcoh[oó]licas?)\b/i],
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
-  ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
-  ["Mesa de postres", /\b(mesa\s+de\s+postres|postres?|dulces)\b/i],
-  ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
+  ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
   ["Barra de Café", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
   ["Coffee break", /\b(coffee\s*break|coffeebreak)\b/i],
-  // Entradas / canapés (A14938 Ilana — post-cierre "Entradas y postre").
-  ["Entradas", /\b(entradas?|canap[eé]s?(?!\p{L})|bocadillos?)\b/iu],
+  ["Comida Corrida", /\bcomida\s+corrida\b/i],
+  ["Paella", /\bpaellas?\b|\bpaellada\b/i],
+  ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
+  ["Puestos de Comida", /\bpuestos?\s+de\s+comida\b|\bantojitos?\b/i],
+  ["Cupcakes y Betún", /\bcupcakes?\b|\bbet[uú]n(es)?(?!\p{L})/iu],
+  ["Carrito de Snacks", /\bcarrito\s+de\s+snacks?\b|\bcarrito\s+de\s+snaks?\b/i],
+  ["Paletas de Hielo y Helados", /\bpaletas?(\s+de\s+hielo)?\b|\bhelados?\b/i],
+  ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
+  // No robar "dulces" suelto (eso es Mesa de dulces).
+  ["Mesa de postres", /\bmesa\s+de\s+postres\b|\bpostres?\b/i],
+  ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
+  ["Canapés", /\bcanap[eé]s?(?!\p{L})/iu],
+  ["Bocadillos", /\bbocadillos?\b/i],
+  ["Entradas", /\bentradas?\b/i],
   // Tiempos de comida corporativos (briefs con varios servicios).
   ["Desayuno", /\bdesayunos?\b/i],
+  ["Brunch", /\bbrunch\b/i],
   ["Snack", /\bsnacks?\b/i],
   ["Comida", /\bcomidas?\b/i],
   ["Cena", /\bcenas?\b/i],
-  ["Menú staff", /\bmen[uú]\s+(para\s+)?staff\b/i],
+  ["Menú staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
+  ["Menú Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
+  ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
   // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
@@ -81,6 +100,11 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
   ["Maestro de ceremonias", /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador(\s+de\s+eventos?)?)\b/i],
   ["Iluminación", /\biluminaci[oó]n\b/i],
+  // Antes de Decoración / Pantallas: "decoración aérea" y LED wall no deben robarse.
+  ["Colgantes Premium", /\bcolgantes?(?:\s+premium)?\b|\bwisteria\b|\bdecoraci[oó]n\s+a[eé]rea\b/i],
+  ["Entelados para Techo", /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i],
+  ["Vajillas", /\bvajillas?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b/i],
+  ["Video", /\bvideo\b|\bled\s*wall\b/i],
   ["Decoración", /\bdecoraci[oó]n\b/i],
   ["Floristería", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
   // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
@@ -89,7 +113,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
-  ["Estructuras", /\b(estructura|colgante|wisteria)\b/i],
+  ["Estructuras", /\bestructuras?\b/i],
   ["Inflables", /\binflable/i],
   ["Softplay", /\bsoft\s*play\b/i],
   ["Meseros", /\b(meseros?|staff|personal\s+de\s+servicio)\b/i],
@@ -97,22 +121,12 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Mixología", /\bmixolog[ií]a\b/i],
   ["Coctelería", /\bcocteler[ií]a\b/i],
   ["Mócteles", /\bm[oó]cteles?\b/i],
-  ["Canapés", /\b(canap[eé]s?(?!\p{L})|bocadillos?)\b/iu],
-  // Compuesto "barra de pastas y pizzas" → ambos servicios (antes solo capturaba Pizzas).
-  ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
-  ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
   ["Pastas", /\bpastas?\b/i],
-  ["Barra de pizzas", /\b(barra\s+de\s+pizzas?|barra\s+pizza|pizzas?\s+en\s+barra)\b/i],
   ["Pizzas", /\bpizza/i],
-  // Sheet: "Barra de sushi" (niveles Solo Alimentos / Básico / Tradicional / Premium).
-  ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
-  ["Taquiza", /\b(taquiza|tacos?)\b/i],
+  ["Taquiza", /\btaquiza\b|\btacos?\b/i],
   ["Parrillada", /\bparrillada\b/i],
-  ["Menú Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/i],
   ["Crepas", /\bcrep[aá]s?\b/i],
-  ["Helado", /\bhelados?\b/i],
   ["Frutas en vasito", /\bfrutas?\s+en\s+vasitos?\b|\bvasitos?\s+de\s+fruta/i],
-  ["Brunch", /\bbrunch\b/i],
   ["Poptails", /\bpoptails?\b/i],
   ["Renta de letras", /\b(renta\s+de\s+letras?|letras?\s+(xv|gigantes?)|letra\s+xv)\b/i],
   ["Valet parking", /\b(valet|estacionamiento\s+valet)\b/i],
@@ -121,7 +135,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -151,6 +165,22 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   café: "Barra de Café",
   sushi: "Barra de sushi",
   kosher: "banquete kosher",
+  paella: "Paella",
+  pozole: "Pozole y Tostadas",
+  pozolada: "Pozole y Tostadas",
+  cupcakes: "Cupcakes y Betún",
+  cupcake: "Cupcakes y Betún",
+  betun: "Cupcakes y Betún",
+  betún: "Cupcakes y Betún",
+  entelado: "Entelados para Techo",
+  entelados: "Entelados para Techo",
+  colgantes: "Colgantes Premium",
+  colgante: "Colgantes Premium",
+  vajilla: "Vajillas",
+  vajillas: "Vajillas",
+  mocteles: "Mócteles",
+  mócteles: "Mócteles",
+  video: "Video",
   meseros: "meseros",
   mesero: "meseros",
   decoracion: "decoración",
@@ -158,6 +188,23 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pantalla: "pantallas",
   inflable: "inflables",
   mobiliario: "mobiliario",
+  helado: "Paletas de Hielo y Helados",
+  helados: "Paletas de Hielo y Helados",
+  paletas: "Paletas de Hielo y Helados",
+  brunch: "Brunch",
+  softplay: "Softplay",
+  "soft play": "Softplay",
+  "comida corrida": "Comida Corrida",
+  antojitos: "Puestos de Comida",
+  "fiesta infantil": "Fiesta Infantil",
+  "carrito de snacks": "Carrito de Snacks",
+  "carrito de snaks": "Carrito de Snacks",
+  "parrillada tacos": "Parrillada Tacos",
+  "tarima y pista": "Pista de baile",
+  "tarimas y pistas": "Pista de baile",
+  "audio e iluminacion": "Audio y sonido",
+  "audio e iluminación": "Audio y sonido",
+  "desayuno o brunch": "Desayuno",
   comida: "banquete / taquiza",
   alimentos: "banquete / taquiza",
   alimento: "banquete / taquiza",
@@ -1187,10 +1234,44 @@ export function parseServicesFromText(text: string): string[] {
   if (found.includes("Barra de pastas y ensaladas")) {
     const shortIdx = found.indexOf("Barra de pastas");
     if (shortIdx >= 0) found.splice(shortIdx, 1);
+    const pastasIdx = found.indexOf("Pastas");
+    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
   }
   if (found.includes("Barra de pizzas")) {
     const pizzasIdx = found.indexOf("Pizzas");
     if (pizzasIdx >= 0) found.splice(pizzasIdx, 1);
+  }
+  if (found.includes("Barra de Crepas")) {
+    const crepasIdx = found.indexOf("Crepas");
+    if (crepasIdx >= 0) found.splice(crepasIdx, 1);
+  }
+  // Banquete Formal captura "banquete" genérico; preferir variante específica.
+  const specificBanquete = found.find((s) =>
+    /Banquete\s+(Mexicano|Kosher|Navide)/i.test(s)
+  );
+  if (specificBanquete) {
+    const formalIdx = found.indexOf("Banquete Formal");
+    if (formalIdx >= 0) found.splice(formalIdx, 1);
+  }
+  // Parrillada Argentina/Tacos antes que Parrillada/Taquiza genéricos.
+  if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
+    const genIdx = found.indexOf("Parrillada");
+    if (genIdx >= 0) found.splice(genIdx, 1);
+  }
+  if (found.includes("Parrillada Tacos")) {
+    const taqIdx = found.indexOf("Taquiza");
+    if (taqIdx >= 0) found.splice(taqIdx, 1);
+  }
+  // Colgantes / entelados no deben quedar también como Decoración genérica.
+  if (found.includes("Colgantes Premium") || found.includes("Entelados para Techo")) {
+    const decoIdx = found.indexOf("Decoración");
+    if (decoIdx >= 0 && /decoraci[oó]n\s+a[eé]rea|colgante|entelado|wisteria/i.test(text)) {
+      found.splice(decoIdx, 1);
+    }
+  }
+  if (found.includes("Video")) {
+    const pantIdx = found.indexOf("Pantallas");
+    if (pantIdx >= 0 && /\bled\s*wall\b/i.test(text)) found.splice(pantIdx, 1);
   }
 
   // "barra de pastas y pizzas" / "solo pastas y pizzas" → asegurar ambos.
