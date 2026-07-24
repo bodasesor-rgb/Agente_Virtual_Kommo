@@ -7981,6 +7981,7 @@ function buildCatalogWebDetailHint(query) {
 }
 
 // src/services/serviceProgressiveOffer.ts
+var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
 function banqueteDetailQuery(text) {
   const tiempos4 = /\b(4\s*tiempos?|cuatro\s*tiempos?)\b/i.test(text);
   const tiempos3 = /\b(3\s*tiempos?|tres\s*tiempos?)\b/i.test(text);
@@ -8022,7 +8023,7 @@ var FAMILIES = [
       "\u2022 *Kosher* (3/4 tiempos o buffet)",
       "\u2022 *Navide\xF1o* (3 o 4 tiempos)",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada (precios e inclusiones)?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8039,7 +8040,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *Coffee Break* tenemos varios paquetes (1 a 5), del m\xE1s esencial al m\xE1s completo.",
       "",
-      "\xBFDe cu\xE1l te paso la info detallada (qu\xE9 incluye y precio), o prefieres que te diga la diferencia entre ellos?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8050,7 +8051,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
       "",
-      "\xBFTe paso la info detallada de alg\xFAn nivel, o quieres ver todos con precios e inclusiones?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8061,7 +8062,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *Barra de Caf\xE9* manejamos niveles con baristas y bebidas artesanales.",
       "",
-      "\xBFTe paso la info detallada (precios e inclusiones) de alg\xFAn nivel?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8082,7 +8083,7 @@ var FAMILIES = [
       "\u2022 *Barra Americana* / *Barra Yucateca*",
       "\u2022 *Cocteler\xEDa / Mixolog\xEDa* y *M\xF3cteles*",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8106,7 +8107,7 @@ var FAMILIES = [
       "\u2022 Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
       "\u2022 Americana, Yucateca y m\xE1s",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8117,7 +8118,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
       "",
-      "\xBFTe paso la info detallada de alg\xFAn nivel (precios e inclusiones)?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8136,7 +8137,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8152,7 +8153,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *Cupcakes y Bet\xFAn* manejamos *Cupcakes*, *Bet\xFAn Cl\xE1sico* y *Bet\xFAn Decorado*.",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8168,7 +8169,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En dulce manejamos *mesa de dulces*, *mesa de postres*, *mesa de quesos* y *carrito de snacks*.",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8191,7 +8192,7 @@ var FAMILIES = [
       "\u2022 Canap\xE9s, bocadillos, paletas/helados",
       "\u2022 Comida corrida (corporativo)",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -8214,7 +8215,7 @@ var FAMILIES = [
       "\u2022 Mesas y sillas, salas lounge, periqueras",
       "\u2022 Entelados para techo, colgantes premium, vajillas",
       "",
-      "\xBFDe qu\xE9 te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   }
 ];
@@ -8239,9 +8240,13 @@ function withCatalogNivelQuery(baseService, text) {
 }
 function isProgressiveOptionsMenuReply(text) {
   if (!text?.trim()) return false;
-  return /info m[aá]s detallada|te paso la info|¿De cu[aá]l te paso|¿Te paso la info|opciones principales|¿Cu[aá]l estilo te late|diferencia entre ellos/i.test(
-    text
-  );
+  const t = text;
+  if (/claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t) || /opciones principales|¿Cu[aá]l estilo te late/i.test(t)) {
+    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos/i.test(
+      t
+    );
+  }
+  return false;
 }
 function historyOfferedServiceOptionsMenu(history) {
   return history.filter((m) => m.role === "assistant" && typeof m.content === "string").some((m) => isProgressiveOptionsMenuReply(m.content));
@@ -8397,7 +8402,7 @@ function shouldOfferOptionsBeforeDetail(opts) {
     if (!msgFamily || msgFamily === family) {
       return {
         family,
-        menu: "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+        menu: SERVICE_NIVEL_DETAIL_CTA
       };
     }
   }
@@ -9803,7 +9808,6 @@ function buildCategoryServicesAnswer(result) {
   return `Para *${label.toLowerCase()}* tenemos: ${list}. \xBFCu\xE1l te interesa?`;
 }
 var CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
-var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
 function ensureCatalogWebLink(text, query) {
   const body = text.trim();
   if (!body) return body;
@@ -21832,7 +21836,7 @@ Opciones principales:
 \u2022 *Pista vinil con logo* o *pintada a mano*
 \u2022 Escenarios / estrados
 
-\xBFCu\xE1l estilo te late?` + (dims ? "" : " Si ya tienes medidas del espacio, m\xE1ndamelas y afinamos.");
+${SERVICE_NIVEL_DETAIL_CTA}` + (dims ? "" : " Si ya tienes medidas del espacio, m\xE1ndamelas y afinamos.");
 }
 function collapseDuplicateMedidasAsk(text) {
   if (!text?.trim()) return text;
@@ -22138,7 +22142,7 @@ ${body2}`.trim();
     }
   }
   if (!detailQuery) {
-    return `${pickTransition(history)} \xBFDe cu\xE1l te paso la info m\xE1s detallada?`.trim();
+    return `${pickTransition(history)} ${SERVICE_NIVEL_DETAIL_CTA}`.trim();
   }
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
@@ -22243,7 +22247,7 @@ ${nextQ}`;
       history
     });
     if (!detailQuery && historyOfferedServiceOptionsMenu(history) && clientWantsServiceDetail(currentMessage, history)) {
-      return `${pickTransition(history)} \xBFDe cu\xE1l te paso la info m\xE1s detallada?`.trim();
+      return `${pickTransition(history)} ${SERVICE_NIVEL_DETAIL_CTA}`.trim();
     }
     const queryForDetail = detailQuery || mentionedService || serviceLabel || crmService || null;
     if (!queryForDetail) {
@@ -24160,7 +24164,7 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: detalle tras men\xFA de opciones + link cat\xE1logo");
     } else {
-      mensaje = `${pickTransition(presHistory)} \xBFDe cu\xE1l te paso la info m\xE1s detallada?`;
+      mensaje = `${pickTransition(presHistory)} ${SERVICE_NIVEL_DETAIL_CTA}`;
       appliedDirectReply = true;
     }
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
@@ -29549,7 +29553,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     });
     assert.ok(/sushi|nivel/i.test(t2), t2.slice(0, 400));
     assert.ok(
-      /info m[aá]s detallada|te paso la info|¿Te paso/i.test(t2),
+      /quieres que te d[eé] detalles de alguno|info m[aá]s detallada|te paso la info/i.test(t2),
       `T2 men\xFA de opciones: ${t2.slice(0, 500)}`
     );
     assert.ok(!/\$800|\$850|\$900/i.test(t2), `T2 no debe volcar precios a\xFAn: ${t2.slice(0, 400)}`);
@@ -30583,7 +30587,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.ok(!/bet[uú]n|cupcakes?/i.test(first), first.slice(0, 400));
     assert.ok(/Formal|Mexicano/i.test(first), first.slice(0, 400));
     assert.ok(
-      /detallada|3 tiempos|4 tiempos/i.test(first),
+      /detalles de alguno|detallada|3 tiempos|4 tiempos/i.test(first),
       first.slice(0, 500)
     );
     assert.ok(
@@ -30607,7 +30611,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: [
         {
           role: "assistant",
-          content: "Claro. En *banquete* manejamos varias opciones:\n\u2022 *Formal 3 tiempos*\n\u2022 *Mexicano 4 tiempos*\n\n\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+          content: "Claro. En *banquete* manejamos varias opciones:\n\u2022 *Formal 3 tiempos*\n\u2022 *Mexicano 4 tiempos*\n\n\xBFQuieres que te d\xE9 detalles de alguno?"
         }
       ]
     });
@@ -30749,7 +30753,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     assert.ok(/lucy|bodasesor/i.test(first), first.slice(0, 200));
     assert.ok(
-      /Coffee Break|paquetes|detallada|diferencia|nivel/i.test(first),
+      /Coffee Break|paquetes|detalles de alguno|detallada|diferencia|nivel/i.test(first),
       `primer turno men\xFA opciones: ${first.slice(0, 600)}`
     );
     assert.ok(!/\$\s*180|Incluye:/i.test(first), `sin dump en men\xFA: ${first.slice(0, 400)}`);
@@ -30762,7 +30766,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       history: []
     });
     assert.ok(
-      /Coffee Break|paquetes|detallada|diferencia/i.test(info),
+      /Coffee Break|paquetes|detalles de alguno|detallada|diferencia/i.test(info),
       `info \u2192 men\xFA primero: ${info.slice(0, 600)}`
     );
     assert.ok(!/\$\s*180|Incluye:/i.test(info), info.slice(0, 400));
@@ -30992,7 +30996,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     const medidasAsks = (first.match(/¿Qué medidas aproximadas tiene el espacio\?/gi) || []).length;
     assert.ok(medidasAsks <= 1, first.slice(0, 400));
     const detail = runGuards({
-      aiResponse: "\xBFCu\xE1l estilo te late?",
+      aiResponse: "\xBFQuieres que te d\xE9 detalles de alguno?",
       extracted: emptyExtracted({
         nombre: "Ang\xE9lica",
         requerimientos_evento: "pista de baile / tarima"
@@ -31030,7 +31034,10 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       currentMessage: "Quiero banquete para mi evento",
       history: [{ role: "assistant", content: "\xBFQu\xE9 necesitas?" }]
     });
-    assert.ok(/Formal 3|Mexicano 4|detallada/i.test(banqueteAsk), banqueteAsk.slice(0, 400));
+    assert.ok(
+      /Formal|Mexicano|detalles de alguno|detallada/i.test(banqueteAsk),
+      banqueteAsk.slice(0, 400)
+    );
     assert.ok(!/\$500|\$750|Incluye:/i.test(banqueteAsk), banqueteAsk.slice(0, 400));
     assert.ok(!/bodasesor\.com\/catalogos/i.test(banqueteAsk), banqueteAsk.slice(0, 300));
     assert.ok(!/correo|e-?mail/i.test(banqueteAsk), banqueteAsk.slice(0, 300));
@@ -31107,7 +31114,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       "Barra de sushi Tradicional"
     );
     assert.equal(catalogNivelLabelFromText("Nivel tradicional"), "Tradicional");
-    const menu = "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).\n\n\xBFTe paso la info detallada de alg\xFAn nivel, o quieres ver todos con precios e inclusiones?\n\n\xBFC\xF3mo te llamas?";
+    const menu = "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).\n\n\xBFQuieres que te d\xE9 detalles de alguno?\n\n\xBFC\xF3mo te llamas?";
     const reply = runGuards({
       aiResponse: "\xBFCu\xE1l nivel?",
       extracted: emptyExtracted({
@@ -31438,7 +31445,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       `solo comida \u2192 ${foodOnly.requerimientos_evento}`
     );
   });
-  await test("104. A14982 \u2014 niveles + CTA detalle (no forzar elecci\xF3n) y sin 'para un taquiza'", () => {
+  await test("104. A14982 \u2014 CTA detalle en TODAS las ramas (no solo Yucateca)", () => {
     assert.ok(/detalles de alguno/i.test(SERVICE_NIVEL_DETAIL_CTA));
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
@@ -31449,16 +31456,59 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","tacos"',
       '"Taquiza","Basico","$750.00","$22,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","basico"',
       '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","tradicional"',
-      '"Taquiza","Premium","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","premium"'
+      '"Taquiza","Premium","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","premium"',
+      '"Barra de sushi","Solo Alimentos","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","sushi"',
+      '"Barra de sushi","Basico","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","basico"',
+      '"Barra de sushi","Tradicional","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","tradicional"',
+      '"Barra de sushi","Premium","$900.00","$27,000.00","TRUE","https://bodasesor.com/catalogos/barra-de-sushi","premium"',
+      '"Barra de Caf\xE9","Basico","$350.00","$10,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe"',
+      '"Barra de Caf\xE9","Tradicional","$450.00","$13,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe t"',
+      '"Barra de Caf\xE9","Premium","$550.00","$16,500.00","TRUE","https://bodasesor.com/catalogos/barra-de-cafe","cafe p"',
+      '"Barra Americana","Basico","$400.00","$12,000.00","TRUE","https://bodasesor.com/catalogos/barra-americana","am"',
+      '"Barra Americana","Tradicional","$500.00","$15,000.00","TRUE","https://bodasesor.com/catalogos/barra-americana","am t"',
+      '"Barra Americana","Premium","$600.00","$18,000.00","TRUE","https://bodasesor.com/catalogos/barra-americana","am p"'
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    for (const svc of [
+      "Barra Yucateca",
+      "Taquiza",
+      "Barra de sushi",
+      "Barra de Caf\xE9",
+      "Barra Americana"
+    ]) {
+      const detail = buildCatalogServiceDetailAnswer(svc);
+      assert.ok(detail, `detail ${svc}`);
+      assert.ok(
+        /quieres que te d[eé] detalles de alguno/i.test(detail),
+        `CTA global en ${svc}: ${detail.slice(-180)}`
+      );
+      assert.ok(
+        !/cu[aá]l nivel prefieres/i.test(detail),
+        `sin forzar elecci\xF3n en ${svc}`
+      );
+    }
+    for (const fam of [
+      "banquete",
+      "coffee_break",
+      "barra_sushi",
+      "barra_cafe",
+      "barra_bebidas",
+      "barra_alimentos",
+      "taquiza",
+      "parrillada",
+      "cupcakes_betun",
+      "mesa_dulces",
+      "gastronomia",
+      "mobiliario"
+    ]) {
+      const menu = buildProgressiveOptionsMenu(fam);
+      assert.ok(
+        menu.includes(SERVICE_NIVEL_DETAIL_CTA),
+        `men\xFA ${fam} debe usar CTA global: ${menu.slice(-120)}`
+      );
+    }
     const yuca = buildCatalogServiceDetailAnswer("Barra Yucateca");
     assert.ok(yuca && /Solo Alimentos|Basico|Tradicional|Premium/i.test(yuca), yuca?.slice(0, 400));
-    assert.ok(
-      /quieres que te d[eé] detalles de alguno/i.test(yuca),
-      `CTA detalle: ${yuca.slice(-200)}`
-    );
-    assert.ok(!/cu[aá]l nivel prefieres/i.test(yuca), yuca.slice(-200));
     assert.ok(
       /bodasesor\.com\/catalogos\/barra-yucateca/i.test(yuca),
       yuca.slice(0, 500)

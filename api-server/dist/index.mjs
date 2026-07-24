@@ -124168,6 +124168,7 @@ function enrichExtractedFromConversation(extracted, conversationText) {
 }
 
 // src/services/serviceProgressiveOffer.ts
+var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
 function banqueteDetailQuery(text2) {
   const tiempos4 = /\b(4\s*tiempos?|cuatro\s*tiempos?)\b/i.test(text2);
   const tiempos3 = /\b(3\s*tiempos?|tres\s*tiempos?)\b/i.test(text2);
@@ -124209,7 +124210,7 @@ var FAMILIES = [
       "\u2022 *Kosher* (3/4 tiempos o buffet)",
       "\u2022 *Navide\xF1o* (3 o 4 tiempos)",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada (precios e inclusiones)?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124226,7 +124227,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *Coffee Break* tenemos varios paquetes (1 a 5), del m\xE1s esencial al m\xE1s completo.",
       "",
-      "\xBFDe cu\xE1l te paso la info detallada (qu\xE9 incluye y precio), o prefieres que te diga la diferencia entre ellos?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124237,7 +124238,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
       "",
-      "\xBFTe paso la info detallada de alg\xFAn nivel, o quieres ver todos con precios e inclusiones?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124248,7 +124249,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *Barra de Caf\xE9* manejamos niveles con baristas y bebidas artesanales.",
       "",
-      "\xBFTe paso la info detallada (precios e inclusiones) de alg\xFAn nivel?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124269,7 +124270,7 @@ var FAMILIES = [
       "\u2022 *Barra Americana* / *Barra Yucateca*",
       "\u2022 *Cocteler\xEDa / Mixolog\xEDa* y *M\xF3cteles*",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124293,7 +124294,7 @@ var FAMILIES = [
       "\u2022 Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
       "\u2022 Americana, Yucateca y m\xE1s",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124304,7 +124305,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
       "",
-      "\xBFTe paso la info detallada de alg\xFAn nivel (precios e inclusiones)?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124323,7 +124324,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124339,7 +124340,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En *Cupcakes y Bet\xFAn* manejamos *Cupcakes*, *Bet\xFAn Cl\xE1sico* y *Bet\xFAn Decorado*.",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124355,7 +124356,7 @@ var FAMILIES = [
     buildMenu: () => [
       "Claro. En dulce manejamos *mesa de dulces*, *mesa de postres*, *mesa de quesos* y *carrito de snacks*.",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124378,7 +124379,7 @@ var FAMILIES = [
       "\u2022 Canap\xE9s, bocadillos, paletas/helados",
       "\u2022 Comida corrida (corporativo)",
       "",
-      "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   },
   {
@@ -124401,7 +124402,7 @@ var FAMILIES = [
       "\u2022 Mesas y sillas, salas lounge, periqueras",
       "\u2022 Entelados para techo, colgantes premium, vajillas",
       "",
-      "\xBFDe qu\xE9 te paso la info m\xE1s detallada?"
+      SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
   }
 ];
@@ -124426,9 +124427,13 @@ function withCatalogNivelQuery(baseService, text2) {
 }
 function isProgressiveOptionsMenuReply(text2) {
   if (!text2?.trim()) return false;
-  return /info m[aá]s detallada|te paso la info|¿De cu[aá]l te paso|¿Te paso la info|opciones principales|¿Cu[aá]l estilo te late|diferencia entre ellos/i.test(
-    text2
-  );
+  const t = text2;
+  if (/claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t) || /opciones principales|¿Cu[aá]l estilo te late/i.test(t)) {
+    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos/i.test(
+      t
+    );
+  }
+  return false;
 }
 function historyOfferedServiceOptionsMenu(history) {
   return history.filter((m10) => m10.role === "assistant" && typeof m10.content === "string").some((m10) => isProgressiveOptionsMenuReply(m10.content));
@@ -124584,7 +124589,7 @@ function shouldOfferOptionsBeforeDetail(opts) {
     if (!msgFamily || msgFamily === family) {
       return {
         family,
-        menu: "\xBFDe cu\xE1l te paso la info m\xE1s detallada?"
+        menu: SERVICE_NIVEL_DETAIL_CTA
       };
     }
   }
@@ -126111,7 +126116,6 @@ function buildCategoryServicesAnswer(result) {
   return `Para *${label.toLowerCase()}* tenemos: ${list}. \xBFCu\xE1l te interesa?`;
 }
 var CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
-var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
 function ensureCatalogWebLink(text2, query) {
   const body2 = text2.trim();
   if (!body2) return body2;
@@ -129284,7 +129288,7 @@ Opciones principales:
 \u2022 *Pista vinil con logo* o *pintada a mano*
 \u2022 Escenarios / estrados
 
-\xBFCu\xE1l estilo te late?` + (dims ? "" : " Si ya tienes medidas del espacio, m\xE1ndamelas y afinamos.");
+${SERVICE_NIVEL_DETAIL_CTA}` + (dims ? "" : " Si ya tienes medidas del espacio, m\xE1ndamelas y afinamos.");
 }
 function collapseDuplicateMedidasAsk(text2) {
   if (!text2?.trim()) return text2;
@@ -129590,7 +129594,7 @@ ${body3}`.trim();
     }
   }
   if (!detailQuery) {
-    return `${pickTransition(history)} \xBFDe cu\xE1l te paso la info m\xE1s detallada?`.trim();
+    return `${pickTransition(history)} ${SERVICE_NIVEL_DETAIL_CTA}`.trim();
   }
   if (filledSet) {
     filledSet.add("Requerimientos o servicios");
@@ -129695,7 +129699,7 @@ ${nextQ}`;
       history
     });
     if (!detailQuery && historyOfferedServiceOptionsMenu(history) && clientWantsServiceDetail(currentMessage, history)) {
-      return `${pickTransition(history)} \xBFDe cu\xE1l te paso la info m\xE1s detallada?`.trim();
+      return `${pickTransition(history)} ${SERVICE_NIVEL_DETAIL_CTA}`.trim();
     }
     const queryForDetail = detailQuery || mentionedService || serviceLabel || crmService || null;
     if (!queryForDetail) {
@@ -131624,7 +131628,7 @@ ${buildNaturalQuestion(pending, ctx)}` : `${phoneAnswer}${callbackNote}`;
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: detalle tras men\xFA de opciones + link cat\xE1logo");
     } else {
-      mensaje = `${pickTransition(presHistory)} \xBFDe cu\xE1l te paso la info m\xE1s detallada?`;
+      mensaje = `${pickTransition(presHistory)} ${SERVICE_NIVEL_DETAIL_CTA}`;
       appliedDirectReply = true;
     }
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
