@@ -5260,8 +5260,9 @@ function clientMentionsLedRobotsOrBatucada(message) {
 function clientDeclinesMoreServices(message) {
   if (!message?.trim()) return false;
   const t = message.trim().toLowerCase();
-  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolo\s+ese\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n[a]?\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bno[.\s,¡!]+gracias\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bes\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t) || /\bno\s+me\s+interesa\b/i.test(t) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) || /\bpor\s+ahora\s+no\b/i.test(t) || // A14962: "Robots leds solo quiero"
-  /\bsolo\s+quiero\b/i.test(t) || /\bquiero\s+solo\b/i.test(t);
+  if (clientWantsFoodOnlyQuote(message)) return false;
+  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolo\s+ese\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n[a]?\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bno[.\s,¡!]+gracias\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bes\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t) || /\bno\s+me\s+interesa\b/i.test(t) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) || /\bpor\s+ahora\s+no\b/i.test(t) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
+  /\bsolo\s+quiero\b/i.test(t) && !/\bcomida\b|\bcotiz/i.test(t) || /\bquiero\s+solo\b/i.test(t) && !/\bcomida\b|\bcotiz/i.test(t);
 }
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
@@ -5511,6 +5512,43 @@ function parseServicesFromText(text) {
     if (label === "Comida" && !hasMealListContext) continue;
     if (pattern.test(text) || pattern.test(lower)) found.push(label);
   }
+  const deduped = dedupeServiceHierarchy(found, text);
+  found.length = 0;
+  found.push(...deduped);
+  if (/\b(pastas?\s+y\s+pizzas?|pizzas?\s+y\s+pastas?)\b/i.test(text) || /\bbarra\s+de\s+pastas?\s+y\s+pizzas?\b/i.test(text)) {
+    if (!found.some((s) => /pasta/i.test(s))) found.push("Barra de pastas");
+    if (!found.some((s) => /pizza/i.test(s))) found.push("Barra de pizzas");
+  }
+  const salaProduct = parseSalaProductFromText(text);
+  if (salaProduct) {
+    const idx = found.findIndex((s) => /salas?\s*lounge/i.test(s));
+    if (idx >= 0) found[idx] = salaProduct;
+    else if (!found.some((s) => /sala|luxor/i.test(s))) found.push(salaProduct);
+  }
+  const normalized = normalizeShortServicePhrase(text);
+  if (normalized) {
+    const normLower = normalized.toLowerCase();
+    const already = found.some(
+      (s) => s.toLowerCase().includes(normLower) || normLower.includes(s.toLowerCase())
+    );
+    const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
+    if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text)) {
+    } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
+      found.push(normalized);
+    }
+  }
+  return dedupeServiceHierarchy([...new Set(found)], text);
+}
+function formatServicesList(services) {
+  const clean = services.map((s) => s.trim()).filter(Boolean);
+  if (clean.length === 0) return "";
+  if (clean.length === 1) return clean[0];
+  if (clean.length === 2) return `${clean[0]} y ${clean[1]}`;
+  return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
+}
+function dedupeServiceHierarchy(services, sourceText) {
+  const found = [...services].map((s) => s.trim()).filter(Boolean);
+  const text = sourceText ?? found.join(" ");
   if (found.includes("Men\xFA staff")) {
     const meserosIdx = found.indexOf("Meseros");
     if (meserosIdx >= 0) found.splice(meserosIdx, 1);
@@ -5548,6 +5586,20 @@ function parseServicesFromText(text) {
     const taqIdx = found.indexOf("Taquiza");
     if (taqIdx >= 0) found.splice(taqIdx, 1);
   }
+  const hasPastaBar = found.some((s) => /barra\s+de\s+pastas/i.test(s));
+  if (hasPastaBar) {
+    for (let i = found.length - 1; i >= 0; i--) {
+      if (/^(Taquiza|Pastas|Comida)$/i.test(found[i])) found.splice(i, 1);
+    }
+  }
+  const hasMealTimes = found.some((s) => /^(Desayuno|Snack|Cena|Coffee break)$/i.test(s)) || /\b(desayuno|snack|cena|coffee\s*break)\b/i.test(text);
+  if (!hasMealTimes && found.some(
+    (s) => /barra\s+de|banquete|taquiza|parrillada|paella|cupcake|mesa\s+de/i.test(s)
+  )) {
+    for (let i = found.length - 1; i >= 0; i--) {
+      if (/^Comida$/i.test(found[i])) found.splice(i, 1);
+    }
+  }
   if (found.includes("Colgantes Premium") || found.includes("Entelados para Techo")) {
     const decoIdx = found.indexOf("Decoraci\xF3n");
     if (decoIdx >= 0 && /decoraci[oó]n\s+a[eé]rea|colgante|entelado|wisteria/i.test(text)) {
@@ -5558,41 +5610,30 @@ function parseServicesFromText(text) {
     const pantIdx = found.indexOf("Pantallas");
     if (pantIdx >= 0 && /\bled\s*wall\b/i.test(text)) found.splice(pantIdx, 1);
   }
-  if (/\b(pastas?\s+y\s+pizzas?|pizzas?\s+y\s+pastas?)\b/i.test(text) || /\bbarra\s+de\s+pastas?\s+y\s+pizzas?\b/i.test(text)) {
-    if (!found.some((s) => /pasta/i.test(s))) found.push("Barra de pastas");
-    if (!found.some((s) => /pizza/i.test(s))) found.push("Barra de pizzas");
-  }
-  const salaProduct = parseSalaProductFromText(text);
-  if (salaProduct) {
-    const idx = found.findIndex((s) => /salas?\s*lounge/i.test(s));
-    if (idx >= 0) found[idx] = salaProduct;
-    else if (!found.some((s) => /sala|luxor/i.test(s))) found.push(salaProduct);
-  }
-  const normalized = normalizeShortServicePhrase(text);
-  if (normalized) {
-    const normLower = normalized.toLowerCase();
-    const already = found.some(
-      (s) => s.toLowerCase().includes(normLower) || normLower.includes(s.toLowerCase())
-    );
-    const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
-    if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text)) {
-    } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
-      found.push(normalized);
-    }
-  }
   return [...new Set(found)];
 }
-function formatServicesList(services) {
-  const clean = services.map((s) => s.trim()).filter(Boolean);
-  if (clean.length === 0) return "";
-  if (clean.length === 1) return clean[0];
-  if (clean.length === 2) return `${clean[0]} y ${clean[1]}`;
-  return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
+function looksLikeConflictingFoodAlternatives(services) {
+  const foods = services.filter((s) => !/^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i.test(s.trim()));
+  if (foods.length < 2) return false;
+  const hasPasta = foods.some((s) => /pasta/i.test(s));
+  const hasTaquiza = foods.some((s) => /^taquiza$/i.test(s));
+  const hasBanquete = foods.some((s) => /banquete/i.test(s));
+  if (hasPasta && hasTaquiza) return true;
+  if (hasBanquete && hasTaquiza && foods.length <= 3) return true;
+  return false;
+}
+function clientWantsFoodOnlyQuote(text) {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return /\bsolo\s+(quiero\s+)?(que\s+me\s+)?cotice?n?\s+la\s+comida\b/i.test(t) || /\bsolo\s+(la\s+)?comida\b/i.test(t) || /\bnada\s+m[aá]s\s+(que\s+)?(la\s+)?comida\b/i.test(t) || /\bsolo\s+(quiero|necesito)\s+(la\s+)?comida\b/i.test(t) || /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t);
 }
 function mergeServiceRequirements(existing, text, max = 6) {
   const fromExisting = existing?.trim() ? parseServicesFromText(existing) : [];
   const fromText = text?.trim() ? parseServicesFromText(text) : [];
-  const merged = [.../* @__PURE__ */ new Set([...fromExisting, ...fromText])].slice(0, max);
+  const merged = dedupeServiceHierarchy(
+    [...fromExisting, ...fromText],
+    `${existing ?? ""} ${text ?? ""}`
+  ).slice(0, max);
   if (merged.length === 0) {
     const fallback = existing?.trim() || text?.trim() || "";
     if (!fallback) return null;
@@ -5667,8 +5708,21 @@ function appendPostCierreRequirements(existing, message) {
 var STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
 function preferPrimaryCatalogService(services) {
   if (!services.length) return null;
-  const primary = services.find((s) => !STAFF_OR_ADDON_SERVICE.test(s.trim()));
-  return (primary || services[0]).trim();
+  const cleaned = dedupeServiceHierarchy(services);
+  const pool = cleaned.filter((s) => !STAFF_OR_ADDON_SERVICE.test(s.trim()));
+  const candidates = pool.length ? pool : cleaned;
+  const scored = [...candidates].sort((a, b) => {
+    const score = (s) => {
+      let n = s.length;
+      if (/^Barra de /i.test(s)) n += 40;
+      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s)) n += 30;
+      if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s)) n += 20;
+      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada)$/i.test(s)) n -= 25;
+      return n;
+    };
+    return score(b) - score(a);
+  });
+  return (scored[0] || candidates[0]).trim();
 }
 function isServicePreferenceRefinement(message, serviceHint) {
   const t = message?.trim() ?? "";
@@ -21322,6 +21376,13 @@ function extractImageClientReply(text) {
   const m = text.match(/\[Imagen respuesta cliente\]:\s*([^\n\[]+)/i);
   return m?.[1]?.trim() || null;
 }
+function stripImageMarkersFromText(text) {
+  if (!text?.trim()) return "";
+  return text.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\[Imagen nota interna\]:\s*[^\n]*/gi, "").replace(/\[Imagen intent\]:\s*[^\n]*/gi, "").replace(/\[Imagen adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+function clientCaptionForServiceParse(text) {
+  return stripImageMarkersFromText(text);
+}
 function extractImageIntent(text) {
   if (!text) return null;
   const m = text.match(/\[Imagen intent\]:\s*([a-z_]+)/i);
@@ -22118,10 +22179,10 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
 
 ${nextQ}`;
   };
-  const allServices = currentMessage ? parseServicesFromText(currentMessage) : [];
+  const allServices = currentMessage ? dedupeServiceHierarchy(parseServicesFromText(clientCaptionForServiceParse(currentMessage))) : [];
   const crmService = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
-  const resolvedServiceLabel = preferPrimaryCatalogService(allServices) || mentionedService || parsePrimaryService(currentMessage ?? "") || (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
-  if (allServices.length >= 2 || currentMessage && isRichQuoteBrief(currentMessage)) {
+  const resolvedServiceLabel = preferPrimaryCatalogService(allServices) || mentionedService || parsePrimaryService(clientCaptionForServiceParse(currentMessage) || currentMessage || "") || (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
+  if ((allServices.length >= 2 || currentMessage && isRichQuoteBrief(currentMessage)) && !looksLikeConflictingFoodAlternatives(allServices)) {
     const listLabel = preferPrimaryCatalogService(allServices) || allServices.join(", ");
     const packageReply = buildMultiServicePackageReply(
       allServices,
@@ -23136,11 +23197,15 @@ function buildStandardClosingMessage(serviciosPedidos, clientName) {
   const handoff = asesor === "nuestro equipo" ? "Le paso estos datos a nuestro equipo para que te arme una cotizaci\xF3n personalizada." : `Le paso estos datos a ${asesor} para que te arme una cotizaci\xF3n personalizada.`;
   const servicioRaw = serviciosPedidos?.trim() || "";
   const isSlashFoodAlias = /banquete\s*\/\s*taquiza/i.test(servicioRaw);
-  const parsed = parseServicesFromText(servicioRaw);
-  const servicio = isSlashFoodAlias ? "banquete / taquiza" : parsed.length > 0 ? parsed.slice(0, 4).join(", ") : isValidRequerimientosValue(servicioRaw) && !/banquetes?\s+o\s+catering|servicio\s+de\s+banquetes?/i.test(servicioRaw) ? servicioRaw : "";
+  const parsed = dedupeServiceHierarchy(parseServicesFromText(servicioRaw), servicioRaw);
+  const primaryFood = preferPrimaryCatalogService(parsed);
+  const closingServices = looksLikeConflictingFoodAlternatives(parsed) ? primaryFood ? [primaryFood] : parsed.slice(0, 1) : parsed;
+  const servicio = isSlashFoodAlias ? "banquete / taquiza" : closingServices.length > 0 ? closingServices.slice(0, 4).join(", ") : isValidRequerimientosValue(servicioRaw) && !/banquetes?\s+o\s+catering|servicio\s+de\s+banquetes?/i.test(servicioRaw) ? servicioRaw : "";
   const serviceParts = servicio ? servicio.split(/,\s*/).map((s) => s.trim()).filter(Boolean) : [];
   const multiPackage = !isSlashFoodAlias && serviceParts.length >= 2;
-  const complements = servicio ? `Si quieres sumar algo adem\xE1s de ${servicio} (alimentos, mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar alimentos, mobiliario, DJ o iluminaci\xF3n, d\xEDmelo.`;
+  const complements = servicio ? /barra\s+de|banquete|taquiza|parrillada|paella|comida|coffee|mesa\s+de|cupcake/i.test(
+    servicio
+  ) ? `Si quieres sumar algo adem\xE1s de ${servicio} (mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar algo adem\xE1s de ${servicio} (alimentos, mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar alimentos, mobiliario, DJ o iluminaci\xF3n, d\xEDmelo.`;
   const parts = [`Perfecto, ya tengo todo. ${handoff}`, "", complements];
   if (multiPackage) {
     parts.push("", buildPackageCatalogOfferBlock());
@@ -23461,13 +23526,14 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
     }
   }
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
-  const userBlobForServices = collectUserTexts(presHistory, currentMessage).join(" ");
-  const servicesFromCurrentMessage = parseServicesFromText(currentMessage ?? "");
+  const captionForServices = clientCaptionForServiceParse(currentMessage);
+  const userBlobForServices = collectUserTexts(presHistory, currentMessage).map((t) => clientCaptionForServiceParse(t)).join(" ");
+  const servicesFromCurrentMessage = parseServicesFromText(captionForServices);
   const servicesFromTurn = parseServicesFromText(
-    `${currentMessage ?? ""} ${userBlobForServices}`
+    `${captionForServices} ${userBlobForServices}`
   );
-  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(currentMessage)) {
-    const mergeMax = isRichQuoteBrief(currentMessage) || servicesFromTurn.length >= 4 ? 8 : 6;
+  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(captionForServices || currentMessage)) {
+    const mergeMax = isRichQuoteBrief(captionForServices || currentMessage) || servicesFromTurn.length >= 4 ? 8 : 6;
     const mergedReq = mergeServiceRequirements(
       extracted.requerimientos_evento,
       servicesFromTurn.join(", "),
@@ -23475,6 +23541,13 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
     );
     if (mergedReq) {
       extracted.requerimientos_evento = mergedReq;
+      filledSet.add("Requerimientos o servicios");
+    }
+  }
+  if (clientWantsFoodOnlyQuote(currentMessage) && extracted.requerimientos_evento) {
+    const primary = preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento)) || preferPrimaryCatalogService(servicesFromTurn);
+    if (primary) {
+      extracted.requerimientos_evento = primary;
       filledSet.add("Requerimientos o servicios");
     }
   }
@@ -23737,7 +23810,8 @@ ${nextQ}` : ""}`.trim();
     const display = getDisplayName(extracted, whatsappDisplayName);
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    mensaje = nextQ ? `${display ? `Perfecto, ${display}.` : "Perfecto."} ${nextQ}`.trim() : display ? `Perfecto, ${display}. \xBFEn qu\xE9 te puedo ayudar para tu evento?` : "Perfecto. \xBFEn qu\xE9 te puedo ayudar para tu evento?";
+    const nameAck = pending === "correo" ? "Perfecto." : display ? `Perfecto, ${display}.` : "Perfecto.";
+    mensaje = nextQ ? `${nameAck} ${nextQ}`.trim() : display ? `Perfecto, ${display}. \xBFEn qu\xE9 te puedo ayudar para tu evento?` : "Perfecto. \xBFEn qu\xE9 te puedo ayudar para tu evento?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre capturado \u2014 embudo sin cat\xE1logo/PDF");
   } else if (deferredKnownServiceOffer) {
@@ -31239,6 +31313,116 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       "Barra de pastas y ensaladas"
     );
     assert.equal(resolveDetailQueryForFamily("mesa_dulces", "carrito de snacks"), "Carrito de Snacks");
+  });
+  await test("103. Regina A14981 \u2014 pastas sin Taquiza, nombre sin doble, solo comida", () => {
+    const visionTurn = formatImageTurnText(
+      {
+        intent: "comida_producto",
+        internalDescription: "Pasta fresca en plato",
+        clientReply: "\xA1Me encanta la idea de la pasta fresca! Podemos ofrecer un servicio de taquiza o un men\xFA de pasta para tu evento."
+      },
+      "Tengo en mente una barra de pastas."
+    );
+    const captionOnly = clientCaptionForServiceParse(visionTurn);
+    assert.ok(/barra de pastas/i.test(captionOnly), captionOnly);
+    assert.ok(!/taquiza/i.test(captionOnly), captionOnly);
+    const fromCaption = parseServicesFromText(captionOnly);
+    assert.ok(fromCaption.includes("Barra de pastas"), JSON.stringify(fromCaption));
+    assert.ok(!fromCaption.includes("Taquiza"), JSON.stringify(fromCaption));
+    const merged = mergeServiceRequirements("Barra de pastas", "Pastas, Taquiza", 6);
+    assert.ok(merged && /barra de pastas/i.test(merged) && !/taquiza/i.test(merged), merged);
+    assert.ok(!/(^|,\s*)Pastas(,|$)/i.test(merged), merged);
+    assert.ok(looksLikeConflictingFoodAlternatives(["Barra de pastas", "Taquiza"]));
+    assert.equal(
+      preferPrimaryCatalogService(["Taquiza", "Barra de pastas", "Pastas"]),
+      "Barra de pastas"
+    );
+    assert.ok(clientWantsFoodOnlyQuote("Solo quiero que me coticen la comida"));
+    assert.ok(!clientDeclinesMoreServices("Solo quiero que me coticen la comida"));
+    assert.ok(clientDeclinesMoreServices("Robots leds solo quiero"));
+    const closing = buildStandardClosingMessage("Barra de pastas, Pastas, Taquiza", "Regina");
+    assert.ok(/barra de pastas/i.test(closing), closing.slice(0, 400));
+    assert.ok(!/taquiza/i.test(closing), closing.slice(0, 400));
+    assert.ok(!/además de la comida,\s*como/i.test(closing), closing.slice(0, 400));
+    const nameTurn = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({ nombre: "Regina Couttolenc" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Regina Couttolenc",
+      history: [
+        {
+          role: "assistant",
+          content: "Hola, soy Lucy, agente virtual de Bodasesor. \xBFC\xF3mo te llamas?"
+        }
+      ]
+    });
+    assert.ok(/Mucho gusto,\s*Regina/i.test(nameTurn), nameTurn.slice(0, 300));
+    assert.ok(
+      !/Perfecto,\s*Regina\.\s*Mucho gusto,\s*Regina/i.test(nameTurn),
+      `sin doble nombre: ${nameTurn.slice(0, 300)}`
+    );
+    const pastaCsv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Link catalogo","Que Incluye"',
+      '"Barra de pastas y ensaladas","Basico","$340.00","$10,200.00","TRUE","https://bodasesor.com/catalogos/barra-de-pastas","Pastas"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(pastaCsv));
+    const extracted = emptyExtracted({
+      nombre: "Regina",
+      correo: "regi.cu89@gmail.com",
+      tipo_evento: "bautizo",
+      requerimientos_evento: "Barra de pastas"
+    });
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo",
+      "Tipo de evento",
+      "Requerimientos o servicios"
+    ]);
+    const imgReply = runGuards({
+      aiResponse: "ok",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: visionTurn,
+      history: [
+        { role: "user", content: "Bautizo." },
+        { role: "assistant", content: "\xBFQu\xE9 servicios tienes en mente?" }
+      ]
+    });
+    assert.ok(
+      !/Sí, manejamos Taquiza|Solo Alimentos.*\$300/i.test(imgReply),
+      `sin dump taquiza: ${imgReply.slice(0, 500)}`
+    );
+    assert.ok(
+      !/Taquiza/i.test(extracted.requerimientos_evento ?? ""),
+      `CRM limpio: ${extracted.requerimientos_evento}`
+    );
+    const foodOnly = emptyExtracted({
+      nombre: "Regina",
+      correo: "regi@x.com",
+      tipo_evento: "bautizo",
+      requerimientos_evento: "Barra de pastas, Taquiza, Comida"
+    });
+    const foodFilled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo",
+      "Tipo de evento",
+      "Requerimientos o servicios"
+    ]);
+    runGuards({
+      aiResponse: "ok",
+      extracted: foodOnly,
+      filledSet: foodFilled,
+      readyForClosing: false,
+      currentMessage: "Solo quiero que me coticen la comida",
+      history: [{ role: "assistant", content: "\xBFTe gustar\xEDa sumar otro servicio?" }]
+    });
+    assert.ok(
+      /barra de pastas/i.test(foodOnly.requerimientos_evento ?? "") && !/taquiza/i.test(foodOnly.requerimientos_evento ?? ""),
+      `solo comida \u2192 ${foodOnly.requerimientos_evento}`
+    );
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

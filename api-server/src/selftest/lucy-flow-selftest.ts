@@ -68,6 +68,9 @@ import {
   appendPostCierreRequirements,
   preferPrimaryCatalogService,
   isServicePreferenceRefinement,
+  clientWantsFoodOnlyQuote,
+  dedupeServiceHierarchy,
+  looksLikeConflictingFoodAlternatives,
 } from "../conversation-understanding.js";
 import {
   applyCrmWriteInvariants,
@@ -214,7 +217,7 @@ import {
 } from "../services/serviceKnowledge.js";
 import { formatForWhatsApp } from "../lib/formatForWhatsApp.js";
 import { isVoiceNote, getVoiceNoteUrl } from "../services/voiceProcessor.js";
-import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests, parseVisionImageJson, formatImageTurnText, formatImageTeamNote, extractImageClientReply, looksLikeImageInternalSummary } from "../services/imageProcessor.js";
+import { isImageMessage, getImageUrl, getImageCaption, cacheImageDescription, getCachedImageDescription, resetImageAnalysisCacheForTests, parseVisionImageJson, formatImageTurnText, formatImageTeamNote, extractImageClientReply, looksLikeImageInternalSummary, clientCaptionForServiceParse } from "../services/imageProcessor.js";
 import {
   resolveCatalogWebSlug,
   getCatalogWebUrlForQuery,
@@ -6219,6 +6222,132 @@ async function runAll(): Promise<void> {
       "Barra de pastas y ensaladas"
     );
     assert.equal(resolveDetailQueryForFamily("mesa_dulces", "carrito de snacks"), "Carrito de Snacks");
+  });
+
+  await test("103. Regina A14981 — pastas sin Taquiza, nombre sin doble, solo comida", () => {
+    // Visión inventa taquiza → no parsear como pedido.
+    const visionTurn = formatImageTurnText(
+      {
+        intent: "comida_producto",
+        internalDescription: "Pasta fresca en plato",
+        clientReply:
+          "¡Me encanta la idea de la pasta fresca! Podemos ofrecer un servicio de taquiza o un menú de pasta para tu evento.",
+      },
+      "Tengo en mente una barra de pastas."
+    );
+    const captionOnly = clientCaptionForServiceParse(visionTurn);
+    assert.ok(/barra de pastas/i.test(captionOnly), captionOnly);
+    assert.ok(!/taquiza/i.test(captionOnly), captionOnly);
+    const fromCaption = parseServicesFromText(captionOnly);
+    assert.ok(fromCaption.includes("Barra de pastas"), JSON.stringify(fromCaption));
+    assert.ok(!fromCaption.includes("Taquiza"), JSON.stringify(fromCaption));
+
+    // Merge contaminado se limpia.
+    const merged = mergeServiceRequirements("Barra de pastas", "Pastas, Taquiza", 6);
+    assert.ok(merged && /barra de pastas/i.test(merged) && !/taquiza/i.test(merged), merged);
+    assert.ok(!/(^|,\s*)Pastas(,|$)/i.test(merged!), merged);
+
+    assert.ok(looksLikeConflictingFoodAlternatives(["Barra de pastas", "Taquiza"]));
+    assert.equal(
+      preferPrimaryCatalogService(["Taquiza", "Barra de pastas", "Pastas"]),
+      "Barra de pastas"
+    );
+
+    assert.ok(clientWantsFoodOnlyQuote("Solo quiero que me coticen la comida"));
+    assert.ok(!clientDeclinesMoreServices("Solo quiero que me coticen la comida"));
+    assert.ok(clientDeclinesMoreServices("Robots leds solo quiero"));
+
+    const closing = buildStandardClosingMessage("Barra de pastas, Pastas, Taquiza", "Regina");
+    assert.ok(/barra de pastas/i.test(closing), closing.slice(0, 400));
+    assert.ok(!/taquiza/i.test(closing), closing.slice(0, 400));
+    assert.ok(!/además de la comida,\s*como/i.test(closing), closing.slice(0, 400));
+
+    // Nombre: Perfecto. + Mucho gusto, Regina (sin doble Regina en Perfecto).
+    const nameTurn = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({ nombre: "Regina Couttolenc" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Regina Couttolenc",
+      history: [
+        {
+          role: "assistant",
+          content: "Hola, soy Lucy, agente virtual de Bodasesor. ¿Cómo te llamas?",
+        },
+      ],
+    });
+    assert.ok(/Mucho gusto,\s*Regina/i.test(nameTurn), nameTurn.slice(0, 300));
+    assert.ok(
+      !/Perfecto,\s*Regina\.\s*Mucho gusto,\s*Regina/i.test(nameTurn),
+      `sin doble nombre: ${nameTurn.slice(0, 300)}`
+    );
+
+    // Turno imagen+caption: CRM no lleva Taquiza; respuesta no dump de taquiza.
+    const pastaCsv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye"',
+      '"Barra de pastas y ensaladas","Basico","$340.00","$10,200.00","TRUE","https://bodasesor.com/catalogos/barra-de-pastas","Pastas"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","Tacos"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(pastaCsv));
+
+    const extracted = emptyExtracted({
+      nombre: "Regina",
+      correo: "regi.cu89@gmail.com",
+      tipo_evento: "bautizo",
+      requerimientos_evento: "Barra de pastas",
+    });
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    const imgReply = runGuards({
+      aiResponse: "ok",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: visionTurn,
+      history: [
+        { role: "user", content: "Bautizo." },
+        { role: "assistant", content: "¿Qué servicios tienes en mente?" },
+      ],
+    });
+    assert.ok(
+      !/Sí, manejamos Taquiza|Solo Alimentos.*\$300/i.test(imgReply),
+      `sin dump taquiza: ${imgReply.slice(0, 500)}`
+    );
+    assert.ok(
+      !/Taquiza/i.test(extracted.requerimientos_evento ?? ""),
+      `CRM limpio: ${extracted.requerimientos_evento}`
+    );
+
+    // Solo comida acota CRM.
+    const foodOnly = emptyExtracted({
+      nombre: "Regina",
+      correo: "regi@x.com",
+      tipo_evento: "bautizo",
+      requerimientos_evento: "Barra de pastas, Taquiza, Comida",
+    });
+    const foodFilled = new Set([
+      "Nombre del cliente",
+      "Correo",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    runGuards({
+      aiResponse: "ok",
+      extracted: foodOnly,
+      filledSet: foodFilled,
+      readyForClosing: false,
+      currentMessage: "Solo quiero que me coticen la comida",
+      history: [{ role: "assistant", content: "¿Te gustaría sumar otro servicio?" }],
+    });
+    assert.ok(
+      /barra de pastas/i.test(foodOnly.requerimientos_evento ?? "") &&
+        !/taquiza/i.test(foodOnly.requerimientos_evento ?? ""),
+      `solo comida → ${foodOnly.requerimientos_evento}`
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

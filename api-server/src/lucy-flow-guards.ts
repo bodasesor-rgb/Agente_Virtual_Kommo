@@ -91,6 +91,7 @@ import {
   extractImageClientReply,
   extractImageIntent,
   looksLikeImageInternalSummary,
+  clientCaptionForServiceParse,
 } from "./services/imageProcessor.js";
 import {
   BODASESOR_SERVICE_PATTERNS,
@@ -104,6 +105,10 @@ import {
   extractCatalogNivelFromText,
   sanitizeExtractedAmbiguousNumbers,
   clientDeclinesMoreServices,
+  clientWantsFoodOnlyQuote,
+  dedupeServiceHierarchy,
+  looksLikeConflictingFoodAlternatives,
+  preferPrimaryCatalogService,
   clientMentionsEntertainment,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
@@ -119,7 +124,6 @@ import {
   parsePresupuestoFromText,
   isPresupuestoResuelto,
   clientAddsToQuote,
-  preferPrimaryCatalogService,
   isServicePreferenceRefinement,
   clientAsksBanqueteVsTaquiza,
   parseCorreoFromText,
@@ -1393,7 +1397,9 @@ function buildFoodSalesReply(
     return `${body}\n\n${nextQ}`;
   };
 
-  const allServices = currentMessage ? parseServicesFromText(currentMessage) : [];
+  const allServices = currentMessage
+    ? dedupeServiceHierarchy(parseServicesFromText(clientCaptionForServiceParse(currentMessage)))
+    : [];
   const crmService = isValidRequerimientosValue(extracted.requerimientos_evento)
     ? extracted.requerimientos_evento!.trim()
     : null;
@@ -1401,10 +1407,13 @@ function buildFoodSalesReply(
   const resolvedServiceLabel =
     preferPrimaryCatalogService(allServices) ||
     mentionedService ||
-    parsePrimaryService(currentMessage ?? "") ||
+    parsePrimaryService(clientCaptionForServiceParse(currentMessage) || currentMessage || "") ||
     (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
 
-  if (allServices.length >= 2 || (currentMessage && isRichQuoteBrief(currentMessage))) {
+  if (
+    (allServices.length >= 2 || (currentMessage && isRichQuoteBrief(currentMessage))) &&
+    !looksLikeConflictingFoodAlternatives(allServices)
+  ) {
     const listLabel =
       preferPrimaryCatalogService(allServices) ||
       allServices.join(", ");
@@ -3019,11 +3028,18 @@ export function buildStandardClosingMessage(
   // Solo listar servicios concretos parseables — evita "además de la taquiza" inventada (A14929).
   // "banquete / taquiza" es alternativa (1 pedido), no paquete multi-servicio con catálogo.
   const isSlashFoodAlias = /banquete\s*\/\s*taquiza/i.test(servicioRaw);
-  const parsed = parseServicesFromText(servicioRaw);
+  const parsed = dedupeServiceHierarchy(parseServicesFromText(servicioRaw), servicioRaw);
+  // A14981: alternativas de comida contaminadas → cerrar solo con el primario.
+  const primaryFood = preferPrimaryCatalogService(parsed);
+  const closingServices = looksLikeConflictingFoodAlternatives(parsed)
+    ? primaryFood
+      ? [primaryFood]
+      : parsed.slice(0, 1)
+    : parsed;
   const servicio = isSlashFoodAlias
     ? "banquete / taquiza"
-    : parsed.length > 0
-      ? parsed.slice(0, 4).join(", ")
+    : closingServices.length > 0
+      ? closingServices.slice(0, 4).join(", ")
       : isValidRequerimientosValue(servicioRaw) &&
           !/banquetes?\s+o\s+catering|servicio\s+de\s+banquetes?/i.test(servicioRaw)
         ? servicioRaw
@@ -3033,7 +3049,11 @@ export function buildStandardClosingMessage(
     : [];
   const multiPackage = !isSlashFoodAlias && serviceParts.length >= 2;
   const complements = servicio
-    ? `Si quieres sumar algo además de ${servicio} (alimentos, mobiliario, DJ o iluminación), dímelo.`
+    ? /barra\s+de|banquete|taquiza|parrillada|paella|comida|coffee|mesa\s+de|cupcake/i.test(
+        servicio
+      )
+      ? `Si quieres sumar algo además de ${servicio} (mobiliario, DJ o iluminación), dímelo.`
+      : `Si quieres sumar algo además de ${servicio} (alimentos, mobiliario, DJ o iluminación), dímelo.`
     : `Si quieres sumar alimentos, mobiliario, DJ o iluminación, dímelo.`;
 
   const parts = [`Perfecto, ya tengo todo. ${handoff}`, "", complements];
@@ -3584,15 +3604,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // Captura canónica: servicios del mensaje + historial (CRM).
   // La RESPUESTA multi-servicio solo mira el mensaje actual (A14924: "cumpleaños"
   // no debe reenviar el paquete pizza/pasta del turno anterior).
+  // A14981: no parsear la respuesta inventada por Vision como pedido del cliente.
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
-  const userBlobForServices = collectUserTexts(presHistory, currentMessage).join(" ");
-  const servicesFromCurrentMessage = parseServicesFromText(currentMessage ?? "");
+  const captionForServices = clientCaptionForServiceParse(currentMessage);
+  const userBlobForServices = collectUserTexts(presHistory, currentMessage)
+    .map((t) => clientCaptionForServiceParse(t))
+    .join(" ");
+  const servicesFromCurrentMessage = parseServicesFromText(captionForServices);
   const servicesFromTurn = parseServicesFromText(
-    `${currentMessage ?? ""} ${userBlobForServices}`
+    `${captionForServices} ${userBlobForServices}`
   );
-  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(currentMessage)) {
+  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(captionForServices || currentMessage)) {
     const mergeMax =
-      isRichQuoteBrief(currentMessage) || servicesFromTurn.length >= 4 ? 8 : 6;
+      isRichQuoteBrief(captionForServices || currentMessage) || servicesFromTurn.length >= 4
+        ? 8
+        : 6;
     const mergedReq = mergeServiceRequirements(
       extracted.requerimientos_evento,
       servicesFromTurn.join(", "),
@@ -3600,6 +3626,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     if (mergedReq) {
       extracted.requerimientos_evento = mergedReq;
+      filledSet.add("Requerimientos o servicios");
+    }
+  }
+  // A14981: "solo la comida" → acotar a servicio gastronómico ya capturado (barra de pastas).
+  if (clientWantsFoodOnlyQuote(currentMessage) && extracted.requerimientos_evento) {
+    const primary =
+      preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento)) ||
+      preferPrimaryCatalogService(servicesFromTurn);
+    if (primary) {
+      extracted.requerimientos_evento = primary;
       filledSet.add("Requerimientos o servicios");
     }
   }
@@ -4035,11 +4071,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !isValidRequerimientosValue(extracted.requerimientos_evento)
   ) {
     // A14964: respuesta de nombre — solo ack + siguiente dato (nunca dump PDF/catálogo).
+    // A14981: no "Perfecto, Regina. Mucho gusto, Regina." — el correo ya saluda por nombre.
     const display = getDisplayName(extracted, whatsappDisplayName);
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    const nameAck =
+      pending === "correo"
+        ? "Perfecto."
+        : display
+          ? `Perfecto, ${display}.`
+          : "Perfecto.";
     mensaje = nextQ
-      ? `${display ? `Perfecto, ${display}.` : "Perfecto."} ${nextQ}`.trim()
+      ? `${nameAck} ${nextQ}`.trim()
       : display
         ? `Perfecto, ${display}. ¿En qué te puedo ayudar para tu evento?`
         : "Perfecto. ¿En qué te puedo ayudar para tu evento?";

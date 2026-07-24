@@ -201,7 +201,7 @@ const VISION_PROMPT =
   "- Nombra algo concreto que salga en la foto (color, tipo de mesa, plato, jardín, etc.).\n" +
   "- montaje_referencia: confirma que pueden armar ese estilo/mobiliario y anótalo.\n" +
   "- comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles).\n" +
-  "- comida_producto: diga qué parece ser y ligalo a un servicio (taquiza, banquete, barra…).\n" +
+  "- comida_producto: nombra el platillo/estilo de la foto. Si el caption ya dice un servicio (ej. barra de pastas), confirma ESE servicio. NO inventes alternativas (taquiza, banquete) si la foto o el caption ya son claros.\n" +
   "- lugar_evento: reconoce el espacio y confirma si ahí sería el evento.\n" +
   "- documento: confirma recepción sin leer datos sensibles.\n" +
   "- no_claro / otro: pregunta qué le gustaría de esa foto para su evento.\n" +
@@ -397,6 +397,28 @@ export function extractImageClientReply(text: string | null | undefined): string
   if (!text) return null;
   const m = text.match(/\[Imagen respuesta cliente\]:\s*([^\n\[]+)/i);
   return m?.[1]?.trim() || null;
+}
+
+/**
+ * A14981: quita marcadores de visión del texto del turno.
+ * La respuesta inventada por Vision NO debe parsearse como pedido del cliente
+ * (evita que "taquiza o menú de pasta" contamine CRM).
+ */
+export function stripImageMarkersFromText(text: string | null | undefined): string {
+  if (!text?.trim()) return "";
+  return text
+    .replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "")
+    .replace(/\[Imagen nota interna\]:\s*[^\n]*/gi, "")
+    .replace(/\[Imagen intent\]:\s*[^\n]*/gi, "")
+    .replace(/\[Imagen adjunta:[^\]]*\]/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+/** Caption / texto del cliente sin bloques de visión (para parsear servicios). */
+export function clientCaptionForServiceParse(text: string | null | undefined): string {
+  return stripImageMarkersFromText(text);
 }
 
 export function extractImageIntent(text: string | null | undefined): ImageIntent | null {

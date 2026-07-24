@@ -122802,8 +122802,9 @@ function clientMentionsLedRobotsOrBatucada(message) {
 function clientDeclinesMoreServices(message) {
   if (!message?.trim()) return false;
   const t = message.trim().toLowerCase();
-  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolo\s+ese\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n[a]?\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bno[.\s,¡!]+gracias\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bes\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t) || /\bno\s+me\s+interesa\b/i.test(t) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) || /\bpor\s+ahora\s+no\b/i.test(t) || // A14962: "Robots leds solo quiero"
-  /\bsolo\s+quiero\b/i.test(t) || /\bquiero\s+solo\b/i.test(t);
+  if (clientWantsFoodOnlyQuote(message)) return false;
+  return /^(no|nop)[\s.,!]*$/i.test(t) || /\bsolo\s+(con\s+)?eso\b/i.test(t) || /\bsolo\s+ese\b/i.test(t) || /\bsolamente\s+eso\b/i.test(t) || /\bnada\s+m[aá]s\b/i.test(t) || /\bning[uú]n[a]?\b/i.test(t) || /\bning[uú]n\s+otro\b/i.test(t) || /\bno[.\s,¡!]+gracias\b/i.test(t) || /\bno\s+gracias\b/i.test(t) || /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) || /\beso\s+es\s+todo\b/i.test(t) || /\bes\s+todo\b/i.test(t) || /\bya\s+no\b/i.test(t) || /\bno\s+m[aá]s\b/i.test(t) || /\blisto\s+as[ií]\b/i.test(t) || /\bcon\s+eso(\s+est[aá]\s+bien)?\b/i.test(t) || /\bno\s+me\s+interesa\b/i.test(t) || /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) || /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) || /\bpor\s+ahora\s+no\b/i.test(t) || // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
+  /\bsolo\s+quiero\b/i.test(t) && !/\bcomida\b|\bcotiz/i.test(t) || /\bquiero\s+solo\b/i.test(t) && !/\bcomida\b|\bcotiz/i.test(t);
 }
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
@@ -123053,6 +123054,43 @@ function parseServicesFromText(text2) {
     if (label === "Comida" && !hasMealListContext) continue;
     if (pattern.test(text2) || pattern.test(lower)) found.push(label);
   }
+  const deduped = dedupeServiceHierarchy(found, text2);
+  found.length = 0;
+  found.push(...deduped);
+  if (/\b(pastas?\s+y\s+pizzas?|pizzas?\s+y\s+pastas?)\b/i.test(text2) || /\bbarra\s+de\s+pastas?\s+y\s+pizzas?\b/i.test(text2)) {
+    if (!found.some((s10) => /pasta/i.test(s10))) found.push("Barra de pastas");
+    if (!found.some((s10) => /pizza/i.test(s10))) found.push("Barra de pizzas");
+  }
+  const salaProduct = parseSalaProductFromText(text2);
+  if (salaProduct) {
+    const idx = found.findIndex((s10) => /salas?\s*lounge/i.test(s10));
+    if (idx >= 0) found[idx] = salaProduct;
+    else if (!found.some((s10) => /sala|luxor/i.test(s10))) found.push(salaProduct);
+  }
+  const normalized = normalizeShortServicePhrase(text2);
+  if (normalized) {
+    const normLower = normalized.toLowerCase();
+    const already = found.some(
+      (s10) => s10.toLowerCase().includes(normLower) || normLower.includes(s10.toLowerCase())
+    );
+    const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
+    if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text2)) {
+    } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
+      found.push(normalized);
+    }
+  }
+  return dedupeServiceHierarchy([...new Set(found)], text2);
+}
+function formatServicesList(services) {
+  const clean = services.map((s10) => s10.trim()).filter(Boolean);
+  if (clean.length === 0) return "";
+  if (clean.length === 1) return clean[0];
+  if (clean.length === 2) return `${clean[0]} y ${clean[1]}`;
+  return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
+}
+function dedupeServiceHierarchy(services, sourceText) {
+  const found = [...services].map((s10) => s10.trim()).filter(Boolean);
+  const text2 = sourceText ?? found.join(" ");
   if (found.includes("Men\xFA staff")) {
     const meserosIdx = found.indexOf("Meseros");
     if (meserosIdx >= 0) found.splice(meserosIdx, 1);
@@ -123090,6 +123128,20 @@ function parseServicesFromText(text2) {
     const taqIdx = found.indexOf("Taquiza");
     if (taqIdx >= 0) found.splice(taqIdx, 1);
   }
+  const hasPastaBar = found.some((s10) => /barra\s+de\s+pastas/i.test(s10));
+  if (hasPastaBar) {
+    for (let i10 = found.length - 1; i10 >= 0; i10--) {
+      if (/^(Taquiza|Pastas|Comida)$/i.test(found[i10])) found.splice(i10, 1);
+    }
+  }
+  const hasMealTimes = found.some((s10) => /^(Desayuno|Snack|Cena|Coffee break)$/i.test(s10)) || /\b(desayuno|snack|cena|coffee\s*break)\b/i.test(text2);
+  if (!hasMealTimes && found.some(
+    (s10) => /barra\s+de|banquete|taquiza|parrillada|paella|cupcake|mesa\s+de/i.test(s10)
+  )) {
+    for (let i10 = found.length - 1; i10 >= 0; i10--) {
+      if (/^Comida$/i.test(found[i10])) found.splice(i10, 1);
+    }
+  }
   if (found.includes("Colgantes Premium") || found.includes("Entelados para Techo")) {
     const decoIdx = found.indexOf("Decoraci\xF3n");
     if (decoIdx >= 0 && /decoraci[oó]n\s+a[eé]rea|colgante|entelado|wisteria/i.test(text2)) {
@@ -123100,41 +123152,30 @@ function parseServicesFromText(text2) {
     const pantIdx = found.indexOf("Pantallas");
     if (pantIdx >= 0 && /\bled\s*wall\b/i.test(text2)) found.splice(pantIdx, 1);
   }
-  if (/\b(pastas?\s+y\s+pizzas?|pizzas?\s+y\s+pastas?)\b/i.test(text2) || /\bbarra\s+de\s+pastas?\s+y\s+pizzas?\b/i.test(text2)) {
-    if (!found.some((s10) => /pasta/i.test(s10))) found.push("Barra de pastas");
-    if (!found.some((s10) => /pizza/i.test(s10))) found.push("Barra de pizzas");
-  }
-  const salaProduct = parseSalaProductFromText(text2);
-  if (salaProduct) {
-    const idx = found.findIndex((s10) => /salas?\s*lounge/i.test(s10));
-    if (idx >= 0) found[idx] = salaProduct;
-    else if (!found.some((s10) => /sala|luxor/i.test(s10))) found.push(salaProduct);
-  }
-  const normalized = normalizeShortServicePhrase(text2);
-  if (normalized) {
-    const normLower = normalized.toLowerCase();
-    const already = found.some(
-      (s10) => s10.toLowerCase().includes(normLower) || normLower.includes(s10.toLowerCase())
-    );
-    const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
-    if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text2)) {
-    } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
-      found.push(normalized);
-    }
-  }
   return [...new Set(found)];
 }
-function formatServicesList(services) {
-  const clean = services.map((s10) => s10.trim()).filter(Boolean);
-  if (clean.length === 0) return "";
-  if (clean.length === 1) return clean[0];
-  if (clean.length === 2) return `${clean[0]} y ${clean[1]}`;
-  return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
+function looksLikeConflictingFoodAlternatives(services) {
+  const foods = services.filter((s10) => !/^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i.test(s10.trim()));
+  if (foods.length < 2) return false;
+  const hasPasta = foods.some((s10) => /pasta/i.test(s10));
+  const hasTaquiza = foods.some((s10) => /^taquiza$/i.test(s10));
+  const hasBanquete = foods.some((s10) => /banquete/i.test(s10));
+  if (hasPasta && hasTaquiza) return true;
+  if (hasBanquete && hasTaquiza && foods.length <= 3) return true;
+  return false;
+}
+function clientWantsFoodOnlyQuote(text2) {
+  const t = text2?.trim() ?? "";
+  if (!t) return false;
+  return /\bsolo\s+(quiero\s+)?(que\s+me\s+)?cotice?n?\s+la\s+comida\b/i.test(t) || /\bsolo\s+(la\s+)?comida\b/i.test(t) || /\bnada\s+m[aá]s\s+(que\s+)?(la\s+)?comida\b/i.test(t) || /\bsolo\s+(quiero|necesito)\s+(la\s+)?comida\b/i.test(t) || /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t);
 }
 function mergeServiceRequirements(existing, text2, max = 6) {
   const fromExisting = existing?.trim() ? parseServicesFromText(existing) : [];
   const fromText = text2?.trim() ? parseServicesFromText(text2) : [];
-  const merged = [.../* @__PURE__ */ new Set([...fromExisting, ...fromText])].slice(0, max);
+  const merged = dedupeServiceHierarchy(
+    [...fromExisting, ...fromText],
+    `${existing ?? ""} ${text2 ?? ""}`
+  ).slice(0, max);
   if (merged.length === 0) {
     const fallback = existing?.trim() || text2?.trim() || "";
     if (!fallback) return null;
@@ -123209,8 +123250,21 @@ function appendPostCierreRequirements(existing, message) {
 var STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
 function preferPrimaryCatalogService(services) {
   if (!services.length) return null;
-  const primary = services.find((s10) => !STAFF_OR_ADDON_SERVICE.test(s10.trim()));
-  return (primary || services[0]).trim();
+  const cleaned = dedupeServiceHierarchy(services);
+  const pool2 = cleaned.filter((s10) => !STAFF_OR_ADDON_SERVICE.test(s10.trim()));
+  const candidates = pool2.length ? pool2 : cleaned;
+  const scored = [...candidates].sort((a10, b10) => {
+    const score = (s10) => {
+      let n10 = s10.length;
+      if (/^Barra de /i.test(s10)) n10 += 40;
+      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s10)) n10 += 30;
+      if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s10)) n10 += 20;
+      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada)$/i.test(s10)) n10 -= 25;
+      return n10;
+    };
+    return score(b10) - score(a10);
+  });
+  return (scored[0] || candidates[0]).trim();
 }
 function isServicePreferenceRefinement(message, serviceHint) {
   const t = message?.trim() ?? "";
@@ -128643,7 +128697,7 @@ Reglas para client_reply (ES LO IMPORTANTE):
 - Nombra algo concreto que salga en la foto (color, tipo de mesa, plato, jard\xEDn, etc.).
 - montaje_referencia: confirma que pueden armar ese estilo/mobiliario y an\xF3talo.
 - comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles).
-- comida_producto: diga qu\xE9 parece ser y ligalo a un servicio (taquiza, banquete, barra\u2026).
+- comida_producto: nombra el platillo/estilo de la foto. Si el caption ya dice un servicio (ej. barra de pastas), confirma ESE servicio. NO inventes alternativas (taquiza, banquete) si la foto o el caption ya son claros.
 - lugar_evento: reconoce el espacio y confirma si ah\xED ser\xEDa el evento.
 - documento: confirma recepci\xF3n sin leer datos sensibles.
 - no_claro / otro: pregunta qu\xE9 le gustar\xEDa de esa foto para su evento.
@@ -128773,6 +128827,13 @@ function extractImageClientReply(text2) {
   if (!text2) return null;
   const m10 = text2.match(/\[Imagen respuesta cliente\]:\s*([^\n\[]+)/i);
   return m10?.[1]?.trim() || null;
+}
+function stripImageMarkersFromText(text2) {
+  if (!text2?.trim()) return "";
+  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\[Imagen nota interna\]:\s*[^\n]*/gi, "").replace(/\[Imagen intent\]:\s*[^\n]*/gi, "").replace(/\[Imagen adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+function clientCaptionForServiceParse(text2) {
+  return stripImageMarkersFromText(text2);
 }
 function extractImageIntent(text2) {
   if (!text2) return null;
@@ -129570,10 +129631,10 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
 
 ${nextQ}`;
   };
-  const allServices = currentMessage ? parseServicesFromText(currentMessage) : [];
+  const allServices = currentMessage ? dedupeServiceHierarchy(parseServicesFromText(clientCaptionForServiceParse(currentMessage))) : [];
   const crmService = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
-  const resolvedServiceLabel = preferPrimaryCatalogService(allServices) || mentionedService || parsePrimaryService(currentMessage ?? "") || (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
-  if (allServices.length >= 2 || currentMessage && isRichQuoteBrief(currentMessage)) {
+  const resolvedServiceLabel = preferPrimaryCatalogService(allServices) || mentionedService || parsePrimaryService(clientCaptionForServiceParse(currentMessage) || currentMessage || "") || (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
+  if ((allServices.length >= 2 || currentMessage && isRichQuoteBrief(currentMessage)) && !looksLikeConflictingFoodAlternatives(allServices)) {
     const listLabel = preferPrimaryCatalogService(allServices) || allServices.join(", ");
     const packageReply = buildMultiServicePackageReply(
       allServices,
@@ -130600,11 +130661,15 @@ function buildStandardClosingMessage(serviciosPedidos, clientName) {
   const handoff = asesor === "nuestro equipo" ? "Le paso estos datos a nuestro equipo para que te arme una cotizaci\xF3n personalizada." : `Le paso estos datos a ${asesor} para que te arme una cotizaci\xF3n personalizada.`;
   const servicioRaw = serviciosPedidos?.trim() || "";
   const isSlashFoodAlias = /banquete\s*\/\s*taquiza/i.test(servicioRaw);
-  const parsed = parseServicesFromText(servicioRaw);
-  const servicio = isSlashFoodAlias ? "banquete / taquiza" : parsed.length > 0 ? parsed.slice(0, 4).join(", ") : isValidRequerimientosValue(servicioRaw) && !/banquetes?\s+o\s+catering|servicio\s+de\s+banquetes?/i.test(servicioRaw) ? servicioRaw : "";
+  const parsed = dedupeServiceHierarchy(parseServicesFromText(servicioRaw), servicioRaw);
+  const primaryFood = preferPrimaryCatalogService(parsed);
+  const closingServices = looksLikeConflictingFoodAlternatives(parsed) ? primaryFood ? [primaryFood] : parsed.slice(0, 1) : parsed;
+  const servicio = isSlashFoodAlias ? "banquete / taquiza" : closingServices.length > 0 ? closingServices.slice(0, 4).join(", ") : isValidRequerimientosValue(servicioRaw) && !/banquetes?\s+o\s+catering|servicio\s+de\s+banquetes?/i.test(servicioRaw) ? servicioRaw : "";
   const serviceParts = servicio ? servicio.split(/,\s*/).map((s10) => s10.trim()).filter(Boolean) : [];
   const multiPackage = !isSlashFoodAlias && serviceParts.length >= 2;
-  const complements = servicio ? `Si quieres sumar algo adem\xE1s de ${servicio} (alimentos, mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar alimentos, mobiliario, DJ o iluminaci\xF3n, d\xEDmelo.`;
+  const complements = servicio ? /barra\s+de|banquete|taquiza|parrillada|paella|comida|coffee|mesa\s+de|cupcake/i.test(
+    servicio
+  ) ? `Si quieres sumar algo adem\xE1s de ${servicio} (mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar algo adem\xE1s de ${servicio} (alimentos, mobiliario, DJ o iluminaci\xF3n), d\xEDmelo.` : `Si quieres sumar alimentos, mobiliario, DJ o iluminaci\xF3n, d\xEDmelo.`;
   const parts2 = [`Perfecto, ya tengo todo. ${handoff}`, "", complements];
   if (multiPackage) {
     parts2.push("", buildPackageCatalogOfferBlock());
@@ -130925,13 +130990,14 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
     }
   }
   const reqBeforeServiceMerge = extracted.requerimientos_evento?.trim() ?? "";
-  const userBlobForServices = collectUserTexts(presHistory, currentMessage).join(" ");
-  const servicesFromCurrentMessage = parseServicesFromText(currentMessage ?? "");
+  const captionForServices = clientCaptionForServiceParse(currentMessage);
+  const userBlobForServices = collectUserTexts(presHistory, currentMessage).map((t) => clientCaptionForServiceParse(t)).join(" ");
+  const servicesFromCurrentMessage = parseServicesFromText(captionForServices);
   const servicesFromTurn = parseServicesFromText(
-    `${currentMessage ?? ""} ${userBlobForServices}`
+    `${captionForServices} ${userBlobForServices}`
   );
-  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(currentMessage)) {
-    const mergeMax = isRichQuoteBrief(currentMessage) || servicesFromTurn.length >= 4 ? 8 : 6;
+  if (servicesFromTurn.length > 0 && !isVagueFoodTerm(captionForServices || currentMessage)) {
+    const mergeMax = isRichQuoteBrief(captionForServices || currentMessage) || servicesFromTurn.length >= 4 ? 8 : 6;
     const mergedReq = mergeServiceRequirements(
       extracted.requerimientos_evento,
       servicesFromTurn.join(", "),
@@ -130939,6 +131005,13 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
     );
     if (mergedReq) {
       extracted.requerimientos_evento = mergedReq;
+      filledSet.add("Requerimientos o servicios");
+    }
+  }
+  if (clientWantsFoodOnlyQuote(currentMessage) && extracted.requerimientos_evento) {
+    const primary = preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento)) || preferPrimaryCatalogService(servicesFromTurn);
+    if (primary) {
+      extracted.requerimientos_evento = primary;
       filledSet.add("Requerimientos o servicios");
     }
   }
@@ -131201,7 +131274,8 @@ ${nextQ}` : ""}`.trim();
     const display = getDisplayName(extracted, whatsappDisplayName);
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    mensaje = nextQ ? `${display ? `Perfecto, ${display}.` : "Perfecto."} ${nextQ}`.trim() : display ? `Perfecto, ${display}. \xBFEn qu\xE9 te puedo ayudar para tu evento?` : "Perfecto. \xBFEn qu\xE9 te puedo ayudar para tu evento?";
+    const nameAck = pending === "correo" ? "Perfecto." : display ? `Perfecto, ${display}.` : "Perfecto.";
+    mensaje = nextQ ? `${nameAck} ${nextQ}`.trim() : display ? `Perfecto, ${display}. \xBFEn qu\xE9 te puedo ayudar para tu evento?` : "Perfecto. \xBFEn qu\xE9 te puedo ayudar para tu evento?";
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre capturado \u2014 embudo sin cat\xE1logo/PDF");
   } else if (deferredKnownServiceOffer) {

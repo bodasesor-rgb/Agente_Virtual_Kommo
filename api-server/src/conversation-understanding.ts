@@ -757,6 +757,8 @@ export function clientMentionsLedRobotsOrBatucada(message?: string): boolean {
 export function clientDeclinesMoreServices(message?: string | null): boolean {
   if (!message?.trim()) return false;
   const t = message.trim().toLowerCase();
+  // A14981: "solo quiero que me coticen la comida" ≠ decline de extras genérico.
+  if (clientWantsFoodOnlyQuote(message)) return false;
   return (
     /^(no|nop)[\s.,!]*$/i.test(t) ||
     /\bsolo\s+(con\s+)?eso\b/i.test(t) ||
@@ -778,9 +780,9 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
     /\bno\s+necesito\s+(nada\s+)?m[aá]s\b/i.test(t) ||
     /\bpor\s+(el\s+)?momento\s+no\b/i.test(t) ||
     /\bpor\s+ahora\s+no\b/i.test(t) ||
-    // A14962: "Robots leds solo quiero"
-    /\bsolo\s+quiero\b/i.test(t) ||
-    /\bquiero\s+solo\b/i.test(t)
+    // A14962: "Robots leds solo quiero" — no aplicar a "solo quiero que me coticen la comida".
+    (/\bsolo\s+quiero\b/i.test(t) && !/\bcomida\b|\bcotiz/i.test(t)) ||
+    (/\bquiero\s+solo\b/i.test(t) && !/\bcomida\b|\bcotiz/i.test(t))
   );
 }
 
@@ -1219,60 +1221,9 @@ export function parseServicesFromText(text: string): string[] {
     if (pattern.test(text) || pattern.test(lower)) found.push(label);
   }
 
-  // Evita duplicar "Menú staff" + "Meseros" cuando el cliente dijo "menú staff".
-  if (found.includes("Menú staff")) {
-    const meserosIdx = found.indexOf("Meseros");
-    if (meserosIdx >= 0) found.splice(meserosIdx, 1);
-  }
-
-  // "barra de pastas" ya implica Pastas; no dejar ambos.
-  if (found.includes("Barra de pastas")) {
-    const pastasIdx = found.indexOf("Pastas");
-    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
-  }
-  // Preferir el nombre completo del Sheet (A14932).
-  if (found.includes("Barra de pastas y ensaladas")) {
-    const shortIdx = found.indexOf("Barra de pastas");
-    if (shortIdx >= 0) found.splice(shortIdx, 1);
-    const pastasIdx = found.indexOf("Pastas");
-    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
-  }
-  if (found.includes("Barra de pizzas")) {
-    const pizzasIdx = found.indexOf("Pizzas");
-    if (pizzasIdx >= 0) found.splice(pizzasIdx, 1);
-  }
-  if (found.includes("Barra de Crepas")) {
-    const crepasIdx = found.indexOf("Crepas");
-    if (crepasIdx >= 0) found.splice(crepasIdx, 1);
-  }
-  // Banquete Formal captura "banquete" genérico; preferir variante específica.
-  const specificBanquete = found.find((s) =>
-    /Banquete\s+(Mexicano|Kosher|Navide)/i.test(s)
-  );
-  if (specificBanquete) {
-    const formalIdx = found.indexOf("Banquete Formal");
-    if (formalIdx >= 0) found.splice(formalIdx, 1);
-  }
-  // Parrillada Argentina/Tacos antes que Parrillada/Taquiza genéricos.
-  if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
-    const genIdx = found.indexOf("Parrillada");
-    if (genIdx >= 0) found.splice(genIdx, 1);
-  }
-  if (found.includes("Parrillada Tacos")) {
-    const taqIdx = found.indexOf("Taquiza");
-    if (taqIdx >= 0) found.splice(taqIdx, 1);
-  }
-  // Colgantes / entelados no deben quedar también como Decoración genérica.
-  if (found.includes("Colgantes Premium") || found.includes("Entelados para Techo")) {
-    const decoIdx = found.indexOf("Decoración");
-    if (decoIdx >= 0 && /decoraci[oó]n\s+a[eé]rea|colgante|entelado|wisteria/i.test(text)) {
-      found.splice(decoIdx, 1);
-    }
-  }
-  if (found.includes("Video")) {
-    const pantIdx = found.indexOf("Pantallas");
-    if (pantIdx >= 0 && /\bled\s*wall\b/i.test(text)) found.splice(pantIdx, 1);
-  }
+  const deduped = dedupeServiceHierarchy(found, text);
+  found.length = 0;
+  found.push(...deduped);
 
   // "barra de pastas y pizzas" / "solo pastas y pizzas" → asegurar ambos.
   if (
@@ -1307,7 +1258,7 @@ export function parseServicesFromText(text: string): string[] {
     }
   }
 
-  return [...new Set(found)];
+  return dedupeServiceHierarchy([...new Set(found)], text);
 }
 
 /** Lista natural en español: "A, B y C". */
@@ -1319,6 +1270,123 @@ export function formatServicesList(services: string[]): string {
   return `${clean.slice(0, -1).join(", ")} y ${clean[clean.length - 1]}`;
 }
 
+/**
+ * Jerarquía / anti-contaminación de SKUs (A14981).
+ * Une listas de distintos turnos sin dejar Pastas+Barra, Taquiza inventada, etc.
+ */
+export function dedupeServiceHierarchy(
+  services: string[],
+  sourceText?: string | null
+): string[] {
+  const found = [...services].map((s) => s.trim()).filter(Boolean);
+  const text = sourceText ?? found.join(" ");
+
+  if (found.includes("Menú staff")) {
+    const meserosIdx = found.indexOf("Meseros");
+    if (meserosIdx >= 0) found.splice(meserosIdx, 1);
+  }
+
+  if (found.includes("Barra de pastas")) {
+    const pastasIdx = found.indexOf("Pastas");
+    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
+  }
+  if (found.includes("Barra de pastas y ensaladas")) {
+    const shortIdx = found.indexOf("Barra de pastas");
+    if (shortIdx >= 0) found.splice(shortIdx, 1);
+    const pastasIdx = found.indexOf("Pastas");
+    if (pastasIdx >= 0) found.splice(pastasIdx, 1);
+  }
+  if (found.includes("Barra de pizzas")) {
+    const pizzasIdx = found.indexOf("Pizzas");
+    if (pizzasIdx >= 0) found.splice(pizzasIdx, 1);
+  }
+  if (found.includes("Barra de Crepas")) {
+    const crepasIdx = found.indexOf("Crepas");
+    if (crepasIdx >= 0) found.splice(crepasIdx, 1);
+  }
+
+  const specificBanquete = found.find((s) =>
+    /Banquete\s+(Mexicano|Kosher|Navide)/i.test(s)
+  );
+  if (specificBanquete) {
+    const formalIdx = found.indexOf("Banquete Formal");
+    if (formalIdx >= 0) found.splice(formalIdx, 1);
+  }
+
+  if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
+    const genIdx = found.indexOf("Parrillada");
+    if (genIdx >= 0) found.splice(genIdx, 1);
+  }
+  if (found.includes("Parrillada Tacos")) {
+    const taqIdx = found.indexOf("Taquiza");
+    if (taqIdx >= 0) found.splice(taqIdx, 1);
+  }
+
+  // A14981: barra de pastas + taquiza = contaminación (visión / merge), no paquete.
+  const hasPastaBar = found.some((s) => /barra\s+de\s+pastas/i.test(s));
+  if (hasPastaBar) {
+    for (let i = found.length - 1; i >= 0; i--) {
+      if (/^(Taquiza|Pastas|Comida)$/i.test(found[i]!)) found.splice(i, 1);
+    }
+  }
+
+  // Servicio concreto de comida → no dejar "Comida" genérica.
+  // No aplicar en briefs corporativos (desayuno/snack/comida/cena + coffee).
+  const hasMealTimes =
+    found.some((s) => /^(Desayuno|Snack|Cena|Coffee break)$/i.test(s)) ||
+    /\b(desayuno|snack|cena|coffee\s*break)\b/i.test(text);
+  if (
+    !hasMealTimes &&
+    found.some((s) =>
+      /barra\s+de|banquete|taquiza|parrillada|paella|cupcake|mesa\s+de/i.test(s)
+    )
+  ) {
+    for (let i = found.length - 1; i >= 0; i--) {
+      if (/^Comida$/i.test(found[i]!)) found.splice(i, 1);
+    }
+  }
+
+  if (found.includes("Colgantes Premium") || found.includes("Entelados para Techo")) {
+    const decoIdx = found.indexOf("Decoración");
+    if (decoIdx >= 0 && /decoraci[oó]n\s+a[eé]rea|colgante|entelado|wisteria/i.test(text)) {
+      found.splice(decoIdx, 1);
+    }
+  }
+  if (found.includes("Video")) {
+    const pantIdx = found.indexOf("Pantallas");
+    if (pantIdx >= 0 && /\bled\s*wall\b/i.test(text)) found.splice(pantIdx, 1);
+  }
+
+  return [...new Set(found)];
+}
+
+/**
+ * Alternativas de comida (pasta + taquiza) no son un paquete multi-servicio intencional.
+ */
+export function looksLikeConflictingFoodAlternatives(services: string[]): boolean {
+  const foods = services.filter((s) => !/^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i.test(s.trim()));
+  if (foods.length < 2) return false;
+  const hasPasta = foods.some((s) => /pasta/i.test(s));
+  const hasTaquiza = foods.some((s) => /^taquiza$/i.test(s));
+  const hasBanquete = foods.some((s) => /banquete/i.test(s));
+  if (hasPasta && hasTaquiza) return true;
+  if (hasBanquete && hasTaquiza && foods.length <= 3) return true;
+  return false;
+}
+
+/** Cliente pide cotizar solo la comida (acotar a servicio gastronómico ya capturado). */
+export function clientWantsFoodOnlyQuote(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return (
+    /\bsolo\s+(quiero\s+)?(que\s+me\s+)?cotice?n?\s+la\s+comida\b/i.test(t) ||
+    /\bsolo\s+(la\s+)?comida\b/i.test(t) ||
+    /\bnada\s+m[aá]s\s+(que\s+)?(la\s+)?comida\b/i.test(t) ||
+    /\bsolo\s+(quiero|necesito)\s+(la\s+)?comida\b/i.test(t) ||
+    /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t)
+  );
+}
+
 /** Une servicios de un texto con los ya capturados (hasta max). */
 export function mergeServiceRequirements(
   existing: string | null | undefined,
@@ -1327,7 +1395,10 @@ export function mergeServiceRequirements(
 ): string | null {
   const fromExisting = existing?.trim() ? parseServicesFromText(existing) : [];
   const fromText = text?.trim() ? parseServicesFromText(text) : [];
-  const merged = [...new Set([...fromExisting, ...fromText])].slice(0, max);
+  const merged = dedupeServiceHierarchy(
+    [...fromExisting, ...fromText],
+    `${existing ?? ""} ${text ?? ""}`
+  ).slice(0, max);
   if (merged.length === 0) {
     // Nunca degradar a intención de cotización / saludo (A14924: "Quiero hacer una cotizacion").
     const fallback = existing?.trim() || text?.trim() || "";
@@ -1448,11 +1519,25 @@ const STAFF_OR_ADDON_SERVICE =
 
 /**
  * Prefiere el servicio de catálogo “de producto” sobre meseros/mobiliario.
+ * A14981: barra concreta gana sobre Taquiza/Pastas/Comida genéricos.
  */
 export function preferPrimaryCatalogService(services: string[]): string | null {
   if (!services.length) return null;
-  const primary = services.find((s) => !STAFF_OR_ADDON_SERVICE.test(s.trim()));
-  return (primary || services[0]!).trim();
+  const cleaned = dedupeServiceHierarchy(services);
+  const pool = cleaned.filter((s) => !STAFF_OR_ADDON_SERVICE.test(s.trim()));
+  const candidates = pool.length ? pool : cleaned;
+  const scored = [...candidates].sort((a, b) => {
+    const score = (s: string) => {
+      let n = s.length;
+      if (/^Barra de /i.test(s)) n += 40;
+      if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s)) n += 30;
+      if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s)) n += 20;
+      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada)$/i.test(s)) n -= 25;
+      return n;
+    };
+    return score(b) - score(a);
+  });
+  return (scored[0] || candidates[0]!).trim();
 }
 
 /**
