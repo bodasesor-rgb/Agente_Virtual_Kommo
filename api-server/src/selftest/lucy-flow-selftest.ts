@@ -66,6 +66,8 @@ import {
   clientAsksServiceInfo,
   clientAddsToQuote,
   appendPostCierreRequirements,
+  preferPrimaryCatalogService,
+  isServicePreferenceRefinement,
 } from "../conversation-understanding.js";
 import {
   applyCrmWriteInvariants,
@@ -6003,6 +6005,109 @@ async function runAll(): Promise<void> {
           reply
         ),
       `debe incluir catálogo general: ${reply.slice(0, 700)}`
+    );
+  });
+
+  // ─── 101. A14970 Erika — café con acento + preferencia post-cierre ≠ Banquete ───
+  await test("101. A14970 — barra de café (acento) y preferencia bebidas sin Banquete", () => {
+    const cafeMsg = "Hola, me interesa cotizar: Barra de Café Premium para Eventos";
+    assert.ok(clientMentionsCatering(cafeMsg), "debe detectar catering con café acentuado");
+    const services = parseServicesFromText(cafeMsg);
+    assert.ok(
+      services.some((s) => /barra de caf/i.test(s)),
+      `debe capturar Barra de Café: ${services.join(", ")}`
+    );
+    assert.ok(!services.some((s) => /^Coffee break$/i.test(s)), services.join(", "));
+
+    const withMeseros =
+      "Me interesa una barra de café para 50 personas, es evento corporativo y 2 meseros.";
+    const mixed = parseServicesFromText(withMeseros);
+    assert.equal(
+      preferPrimaryCatalogService(mixed),
+      "Barra de Café",
+      `primario café no meseros: ${mixed.join(", ")}`
+    );
+
+    const pref =
+      "Buenas noches.\nRespecto a la barra de café, solo requieren, americano, capuchino y té";
+    assert.ok(
+      isServicePreferenceRefinement(pref, "Barra de Café Premium"),
+      "debe ser refinamiento de preferencia"
+    );
+    assert.ok(!/banquete/i.test(parsePrimaryService(pref) || ""), parsePrimaryService(pref));
+
+    const csvCafe = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye","Link catalogo"',
+      '"Barra de Café","Premium","$180.00","$9,000.00","TRUE","Baristas y bebidas artesanales","https://bodasesor.com/catalogos/barra-de-cafe"',
+      '"Banquete Formal 3 tiempos","Solo Alimentos","$450.00","$13,500.00","TRUE","Entrada plato fuerte","https://bodasesor.com/catalogos/banquete-formal"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvCafe));
+
+    const postCierre = runGuards({
+      aiResponse: "¿Algo más?",
+      extracted: emptyExtracted({
+        nombre: "Erika Castañeda",
+        correo: "malinali2707@hotmail.com",
+        tipo_evento: "corporativo",
+        num_invitados: 50,
+        requerimientos_evento: "Barra de Café Premium, Meseros",
+        zona: "Pachuca de Soto, Hidalgo",
+        fecha_horario: "3 de agosto",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Número de invitados",
+        "Requerimientos o servicios",
+        "Zona o ubicación del evento",
+        "Fecha y horario",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: pref,
+      history: [
+        { role: "user", content: cafeMsg },
+        {
+          role: "assistant",
+          content:
+            "Perfecto, ya tengo todo. Voy a compartir esta información con nuestro equipo para que te prepare una cotización personalizada.",
+        },
+      ],
+    });
+    assert.ok(
+      /preferencia|anoto|americano|capuchin|equipo/i.test(postCierre),
+      `ack preferencia: ${postCierre.slice(0, 500)}`
+    );
+    assert.ok(
+      !/Banquete Formal|Solo Alimentos|\$450|Te detallo \*Buenas noches/i.test(postCierre),
+      `no Banquete ni mensaje crudo: ${postCierre.slice(0, 600)}`
+    );
+    assert.ok(
+      !/a qu[eé] correo/i.test(postCierre),
+      `no re-pedir correo: ${postCierre.slice(0, 400)}`
+    );
+
+    // Misma preferencia sin cierre detectado: tampoco Banquete.
+    const mid = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Erika",
+        requerimientos_evento: "Barra de Café Premium",
+        tipo_evento: "corporativo",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: pref,
+      history: [
+        { role: "user", content: cafeMsg },
+        { role: "assistant", content: "Perfecto, Erika. ¿A qué correo te envío la información?" },
+      ],
+    });
+    assert.ok(
+      !/Banquete Formal|Te detallo \*Buenas noches/i.test(mid),
+      `sin Banquete a mitad de flujo: ${mid.slice(0, 500)}`
     );
   });
 

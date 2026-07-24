@@ -53,6 +53,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
   // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
   ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
+  // "americano" (bebida) ≠ Barra Americana (A14970).
   ["Barra Americana", /\bbarra\s+americana\b/i],
   ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b/i],
   ["Barra de paninis", /\bbarra\s+de\s+paninis?\b/i],
@@ -62,9 +63,11 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
   ["Mesa de postres", /\b(mesa\s+de\s+postres|postres?|dulces)\b/i],
   ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
-  ["Coffee break", /\b(barra\s+de\s+caf[eé]|coffee\s*break|coffeebreak)\b/i],
+  // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
+  ["Barra de Café", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
+  ["Coffee break", /\b(coffee\s*break|coffeebreak)\b/i],
   // Entradas / canapés (A14938 Ilana — post-cierre "Entradas y postre").
-  ["Entradas", /\b(entradas?|canap[eé]s?|bocadillos?)\b/i],
+  ["Entradas", /\b(entradas?|canap[eé]s?(?!\p{L})|bocadillos?)\b/iu],
   // Tiempos de comida corporativos (briefs con varios servicios).
   ["Desayuno", /\bdesayunos?\b/i],
   ["Snack", /\bsnacks?\b/i],
@@ -94,7 +97,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Mixología", /\bmixolog[ií]a\b/i],
   ["Coctelería", /\bcocteler[ií]a\b/i],
   ["Mócteles", /\bm[oó]cteles?\b/i],
-  ["Canapés", /\b(canap[eé]s?|bocadillos?)\b/i],
+  ["Canapés", /\b(canap[eé]s?(?!\p{L})|bocadillos?)\b/iu],
   // Compuesto "barra de pastas y pizzas" → ambos servicios (antes solo capturaba Pizzas).
   ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
   ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
@@ -144,7 +147,9 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pizzas: "pizzas",
   pasta: "pastas",
   pastas: "pastas",
-  sushi: "sushi",
+  cafe: "Barra de Café",
+  café: "Barra de Café",
+  sushi: "Barra de sushi",
   kosher: "banquete kosher",
   meseros: "meseros",
   mesero: "meseros",
@@ -507,7 +512,7 @@ function hasSpecificFoodService(text: string): boolean {
   ) {
     return false;
   }
-  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
+  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental))\b/iu.test(
     text
   );
 }
@@ -743,7 +748,7 @@ export function clientMentionsCatering(message?: string): boolean {
     /\b(brunch|desayuno)\b/i.test(t) ||
     /\bbrunch\s*\/\s*desayuno/i.test(t) ||
     /\bcoffee\s*break\b/i.test(t) ||
-    /\bbarra\s+de\s+caf[eé](?!\w)/i.test(t) ||
+    /\bbarra\s+de\s+caf[eé](?!\p{L})/iu.test(t) ||
     // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
     /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?|crepas?|pastas?|mariscos?)\b/i.test(t) ||
     /\b(sushi|poke(\s*bowl)?)\b/i.test(t) ||
@@ -1164,7 +1169,7 @@ export function parseServicesFromText(text: string): string[] {
 
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (label === "Comida" && !hasMealListContext) continue;
-    if (pattern.test(lower)) found.push(label);
+    if (pattern.test(text) || pattern.test(lower)) found.push(label);
   }
 
   // Evita duplicar "Menú staff" + "Meseros" cuando el cliente dijo "menú staff".
@@ -1335,11 +1340,17 @@ export function appendPostCierreRequirements(
     services.length > 0 ||
     clientAddsToQuote(t) ||
     isServiceRelatedMessage(t) ||
+    isServicePreferenceRefinement(t, existing) ||
     /\b(pantalla|audio|microfon|led|dj|entradas?|postres?|canap)\b/i.test(t);
 
   if (!hasServiceIntent) return existing?.trim() || null;
 
   const base = existing?.trim() || "";
+  if (isServicePreferenceRefinement(t, base)) {
+    const snippet = t.replace(/\s+/g, " ").slice(0, 250);
+    if (base && base.toLowerCase().includes(snippet.toLowerCase().slice(0, 40))) return base;
+    return base ? `${base}; preferencia: ${snippet}` : snippet;
+  }
   if (services.length > 0) {
     const merged = mergeServiceRequirements(base || null, services.join(", "), 8);
     return merged || base || null;
@@ -1350,9 +1361,51 @@ export function appendPostCierreRequirements(
   return base ? `${base}; ${snippet}` : snippet;
 }
 
+/** Staff / add-ons no deben robar el servicio principal (A14970 meseros vs barra de café). */
+const STAFF_OR_ADDON_SERVICE =
+  /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
+
+/**
+ * Prefiere el servicio de catálogo “de producto” sobre meseros/mobiliario.
+ */
+export function preferPrimaryCatalogService(services: string[]): string | null {
+  if (!services.length) return null;
+  const primary = services.find((s) => !STAFF_OR_ADDON_SERVICE.test(s.trim()));
+  return (primary || services[0]!).trim();
+}
+
+/**
+ * A14970: refinamiento de preferencias sobre un servicio ya capturado
+ * (“solo requieren americano, capuchino y té”) — no es un pedido nuevo de banquete.
+ */
+export function isServicePreferenceRefinement(
+  message: string | null | undefined,
+  serviceHint?: string | null
+): boolean {
+  const t = message?.trim() ?? "";
+  if (!t || t.length > 320) return false;
+  if (/\b(cotizar|cu[aá]nto\s+cuesta|precio\s+de|otra\s+barra|nuevo\s+servicio)\b/i.test(t)) {
+    return false;
+  }
+  const cafeCtx =
+    /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu.test(t) ||
+    /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcaf[eé](?!\p{L})|barista|coffee\s*break/iu.test(
+      serviceHint ?? ""
+    );
+  const beveragePick =
+    /\b(americano|capuchin?o|cappuccino|espresso|latte|moc?cha|t[eé]s?\b|chocolates?|bebidas?\s+artesanal)/i.test(
+      t
+    );
+  const refineCue =
+    /\b(solo\s+requieren|solo\s+quieren|solo\s+necesitan|respecto\s+a|nada\s+m[aá]s|nomas|nom[aá]s|unicamente|únicamente)\b/i.test(
+      t
+    );
+  return cafeCtx && (beveragePick || refineCue);
+}
+
 export function parsePrimaryService(text: string): string | null {
   const services = parseServicesFromText(text);
-  if (services.length > 0) return services[0]!;
+  if (services.length > 0) return preferPrimaryCatalogService(services);
 
   const normalized = normalizeShortServicePhrase(text);
   return normalized;
@@ -1424,21 +1477,23 @@ export function clientAsksCafeOrCateringChoice(text: string | null | undefined):
   const t = text?.trim() ?? "";
   if (!t) return false;
   if (
-    /\b(caf[eé]|barista|barra\s+de\s+caf[eé]).{0,50}\b(o|u)\b.{0,50}\b(catering|comida|banquete|alimentos?)\b/i.test(
+    /\b(caf[eé](?!\p{L})|barista|barra\s+de\s+caf[eé](?!\p{L})).{0,50}\b(o|u)\b.{0,50}\b(catering|comida|banquete|alimentos?)\b/iu.test(
       t
     )
   ) {
     return true;
   }
   if (
-    /\b(catering|comida|banquete|alimentos?).{0,50}\b(o|u)\b.{0,50}\b(caf[eé]|barista)\b/i.test(t)
+    /\b(catering|comida|banquete|alimentos?).{0,50}\b(o|u)\b.{0,50}\b(caf[eé](?!\p{L})|barista)\b/iu.test(
+      t
+    )
   ) {
     return true;
   }
   return (
-    /\bes\s+solo\s+caf[eé]\b/i.test(t) ||
+    /\bes\s+solo\s+caf[eé](?!\p{L})/iu.test(t) ||
     /\btienes\s+(tambi[eé]n\s+)?catering(\s+de\s+comida)?\b/i.test(t) ||
-    /\bsolo\s+caf[eé]\s+o\b/i.test(t)
+    /\bsolo\s+caf[eé](?!\p{L})\s+o\b/iu.test(t)
   );
 }
 

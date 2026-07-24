@@ -118,6 +118,8 @@ import {
   parsePresupuestoFromText,
   isPresupuestoResuelto,
   clientAddsToQuote,
+  preferPrimaryCatalogService,
+  isServicePreferenceRefinement,
   clientAsksBanqueteVsTaquiza,
   parseCorreoFromText,
   clientMentionsCatering,
@@ -1375,7 +1377,6 @@ function buildFoodSalesReply(
             : "tu evento";
 
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
-  const query = currentMessage?.trim() || mentionedService || "";
 
   const appendNext = (body: string, acceptedService?: string | null): string => {
     if (!filledSet || !ctx) return body;
@@ -1392,8 +1393,20 @@ function buildFoodSalesReply(
   };
 
   const allServices = currentMessage ? parseServicesFromText(currentMessage) : [];
+  const crmService = isValidRequerimientosValue(extracted.requerimientos_evento)
+    ? extracted.requerimientos_evento!.trim()
+    : null;
+  // A14970: nunca usar el mensaje crudo (slice 80) como nombre de servicio.
+  const resolvedServiceLabel =
+    preferPrimaryCatalogService(allServices) ||
+    mentionedService ||
+    parsePrimaryService(currentMessage ?? "") ||
+    (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
+
   if (allServices.length >= 2 || (currentMessage && isRichQuoteBrief(currentMessage))) {
-    const listLabel = allServices.join(", ");
+    const listLabel =
+      preferPrimaryCatalogService(allServices) ||
+      allServices.join(", ");
     const packageReply = buildMultiServicePackageReply(
       allServices,
       currentMessage
@@ -1401,18 +1414,36 @@ function buildFoodSalesReply(
     return appendNext(`${pickTransition(history)} ${packageReply}`, listLabel || null);
   }
 
-  if (mentionedService || (currentMessage && isServiceRelatedMessage(currentMessage))) {
-    const serviceLabel =
-      (allServices.length > 0 ? allServices.join(", ") : null) ||
-      mentionedService ||
-      parsePrimaryService(currentMessage ?? "") ||
-      (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
+  // Preferencias sobre servicio ya capturado (bebidas de la barra de café) — ack, no dump.
+  if (
+    currentMessage &&
+    isServicePreferenceRefinement(currentMessage, crmService || resolvedServiceLabel)
+  ) {
+    const label = resolvedServiceLabel || crmService || "tu cotización";
+    if (filledSet) {
+      filledSet.add("Requerimientos o servicios");
+      const snippet = currentMessage.trim().replace(/\s+/g, " ").slice(0, 180);
+      const merged = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        `preferencia: ${snippet}`,
+        6
+      );
+      if (merged) extracted.requerimientos_evento = merged;
+    }
+    return appendNext(
+      `${pickTransition(history)} Perfecto, anoto esa preferencia para *${label}* y se la paso al equipo.`,
+      resolvedServiceLabel
+    );
+  }
+
+  if (mentionedService || resolvedServiceLabel || (currentMessage && isServiceRelatedMessage(currentMessage))) {
+    const serviceLabel = resolvedServiceLabel;
 
     // V8.68: menú de opciones ANTES del dump de precios/inclusiones.
     const optionsFirst = shouldOfferOptionsBeforeDetail({
       currentMessage,
       history,
-      serviceHint: mentionedService || serviceLabel,
+      serviceHint: mentionedService || serviceLabel || crmService,
     });
     if (optionsFirst) {
       if (filledSet && serviceLabel) {
@@ -1430,7 +1461,7 @@ function buildFoodSalesReply(
     // Tras elegir / pedir detalle → query concreto + detalle + link aparte.
     const detailQuery = resolveProgressiveDetailQuery({
       currentMessage,
-      serviceHint: mentionedService || serviceLabel,
+      serviceHint: mentionedService || serviceLabel || crmService,
       history,
     });
     if (
@@ -1440,9 +1471,17 @@ function buildFoodSalesReply(
     ) {
       return `${pickTransition(history)} ¿De cuál te paso la info más detallada?`.trim();
     }
-    const queryForDetail = detailQuery || query;
+    // A14970: jamás usar el mensaje completo como query de catálogo.
+    const queryForDetail =
+      detailQuery || mentionedService || serviceLabel || crmService || null;
+    if (!queryForDetail) {
+      return appendNext(
+        `${pickTransition(history)} Claro. ¿De qué servicio te paso el detalle?`,
+        null
+      );
+    }
 
-    let detail = queryForDetail ? buildCatalogServiceDetailAnswer(queryForDetail) : null;
+    let detail = buildCatalogServiceDetailAnswer(queryForDetail);
     if (
       detail &&
       mentionedService &&
@@ -1456,24 +1495,19 @@ function buildFoodSalesReply(
       const intro = introLabel
         ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.`
         : `${pickTransition(history)} Perfecto, te detallo la opción.`;
-      const linkQ = queryForDetail || mentionedService || serviceLabel || "banquete";
-      const body = withServiceAndGeneralCatalogLinks(detail, linkQ, linkQ);
+      const body = withServiceAndGeneralCatalogLinks(detail, queryForDetail, queryForDetail);
       return `${intro}\n\n${body}`.trim();
     }
 
     // Fallback: precio/inclusiones si el detail principal falló el match filter.
     const forced =
-      attachAvailableSheetDetail(
-        queryForDetail || mentionedService || query || serviceLabel || currentMessage || "",
-        mentionedService || serviceLabel
-      ) || null;
+      attachAvailableSheetDetail(queryForDetail, mentionedService || serviceLabel) || null;
     if (forced) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
       const intro = introLabel
         ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.`
         : `${pickTransition(history)} Perfecto, te detallo la opción.`;
-      const linkQ = queryForDetail || mentionedService || serviceLabel || query || "";
-      const body = withServiceAndGeneralCatalogLinks(forced, linkQ, linkQ);
+      const body = withServiceAndGeneralCatalogLinks(forced, queryForDetail, queryForDetail);
       return `${intro}\n\n${body}`.trim();
     }
 
@@ -3689,6 +3723,34 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = `${buildPhoneAnswer()}\n\nUn asesor te puede atender por ahí; tu caso ya quedó con el equipo.`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — cliente pidió llamada/teléfonos");
+  } else if (
+    cierreYaEnviado &&
+    !clientDeclinesMoreServices(currentMessage) &&
+    !clientSaysThanks(currentMessage) &&
+    isServicePreferenceRefinement(
+      currentMessage,
+      extracted.requerimientos_evento
+    )
+  ) {
+    // A14970: "solo requieren americano, capuchino y té" — anotar preferencia, no Banquete.
+    const label =
+      preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) ||
+      preferPrimaryCatalogService(parseServicesFromText(currentMessage ?? "")) ||
+      "tu cotización";
+    const snippet = (currentMessage ?? "").trim().replace(/\s+/g, " ").slice(0, 180);
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      `preferencia: ${snippet}`,
+      8
+    );
+    if (merged) extracted.requerimientos_evento = merged;
+    filledSet.add("Requerimientos o servicios");
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre
+      ? `Perfecto, ${nombre}. Anoto esa preferencia para *${label}* y se la paso al equipo. ¿Algo más que quieras agregar?`
+      : `Perfecto. Anoto esa preferencia para *${label}* y se la paso al equipo. ¿Algo más que quieras agregar?`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: post-cierre — preferencia de servicio (ack corto)");
   } else if (
     cierreYaEnviado &&
     clientSaysThanks(currentMessage) &&

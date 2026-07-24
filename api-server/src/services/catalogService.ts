@@ -642,7 +642,7 @@ export function resolveCatalogQuery(query: string): CatalogMatchResult | null {
   if (
     /\bbarra\b/.test(q) &&
     !/\bbarra de bebida/.test(q) &&
-    !/\b(yucateca|americana|crepas?|mariscos?|paninis?|pastas?|sushi|poke|caf[eé])\b/.test(q)
+    !/\b(yucateca|americana|crepas?|mariscos?|paninis?|pastas?|sushi|poke|caf[eé](?!\p{L}))\b/iu.test(q)
   ) {
     return { kind: "service", serviceName: "Barra", rows: matchedRows };
   }

@@ -90,7 +90,7 @@ const FAMILIES: FamilyDef[] = [
   },
   {
     family: "barra_cafe",
-    familyPattern: /\bbarra\s+de\s+caf[eé]\b|\bcafeter[ií]a\b|\bbarista\b/i,
+    familyPattern: /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu,
     variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text) => withCatalogNivelQuery("Barra de Café", text),
     buildMenu: () =>

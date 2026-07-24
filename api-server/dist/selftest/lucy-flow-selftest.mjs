@@ -4774,6 +4774,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
   // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
   ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
+  // "americano" (bebida) ≠ Barra Americana (A14970).
   ["Barra Americana", /\bbarra\s+americana\b/i],
   ["Barra de mariscos", /\bbarra\s+de\s+mariscos?\b/i],
   ["Barra de paninis", /\bbarra\s+de\s+paninis?\b/i],
@@ -4783,9 +4784,11 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Mesa de dulces", /\b(mesa\s+de\s+dulces|mesas?\s+de\s+dulces)\b/i],
   ["Mesa de postres", /\b(mesa\s+de\s+postres|postres?|dulces)\b/i],
   ["Mesa de quesos", /\b(mesa\s+de\s+quesos|quesos|grazing)\b/i],
-  ["Coffee break", /\b(barra\s+de\s+caf[eé]|coffee\s*break|coffeebreak)\b/i],
+  // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
+  ["Barra de Caf\xE9", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
+  ["Coffee break", /\b(coffee\s*break|coffeebreak)\b/i],
   // Entradas / canapés (A14938 Ilana — post-cierre "Entradas y postre").
-  ["Entradas", /\b(entradas?|canap[eé]s?|bocadillos?)\b/i],
+  ["Entradas", /\b(entradas?|canap[eé]s?(?!\p{L})|bocadillos?)\b/iu],
   // Tiempos de comida corporativos (briefs con varios servicios).
   ["Desayuno", /\bdesayunos?\b/i],
   ["Snack", /\bsnacks?\b/i],
@@ -4815,7 +4818,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Mixolog\xEDa", /\bmixolog[ií]a\b/i],
   ["Cocteler\xEDa", /\bcocteler[ií]a\b/i],
   ["M\xF3cteles", /\bm[oó]cteles?\b/i],
-  ["Canap\xE9s", /\b(canap[eé]s?|bocadillos?)\b/i],
+  ["Canap\xE9s", /\b(canap[eé]s?(?!\p{L})|bocadillos?)\b/iu],
   // Compuesto "barra de pastas y pizzas" → ambos servicios (antes solo capturaba Pizzas).
   ["Barra de pastas y ensaladas", /\bbarra\s+de\s+pastas?\s+y\s+ensaladas?\b/i],
   ["Barra de pastas", /\bbarra\s+de\s+pastas?\b/i],
@@ -4862,7 +4865,9 @@ var SHORT_SERVICE_ALIASES = {
   pizzas: "pizzas",
   pasta: "pastas",
   pastas: "pastas",
-  sushi: "sushi",
+  cafe: "Barra de Caf\xE9",
+  caf\u00E9: "Barra de Caf\xE9",
+  sushi: "Barra de sushi",
   kosher: "banquete kosher",
   meseros: "meseros",
   mesero: "meseros",
@@ -5093,7 +5098,7 @@ function hasSpecificFoodService(text) {
   )) {
     return false;
   }
-  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé]|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?|bocadillos?|parrillada|brunch\s+buf[eé]|desayuno\s+(?:buffet|ejecutivo|continental))\b/i.test(
+  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental))\b/iu.test(
     text
   );
 }
@@ -5214,7 +5219,7 @@ function clientDeclinesMoreServices(message) {
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /\bcatering\b/i.test(t) || /\bbanquetes?\b/i.test(t) || /\btaquiza\b|\btacos?\b/i.test(t) || /\b(brunch|desayuno)\b/i.test(t) || /\bbrunch\s*\/\s*desayuno/i.test(t) || /\bcoffee\s*break\b/i.test(t) || /\bbarra\s+de\s+caf[eé](?!\w)/i.test(t) || // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
+  return /\bcatering\b/i.test(t) || /\bbanquetes?\b/i.test(t) || /\btaquiza\b|\btacos?\b/i.test(t) || /\b(brunch|desayuno)\b/i.test(t) || /\bbrunch\s*\/\s*desayuno/i.test(t) || /\bcoffee\s*break\b/i.test(t) || /\bbarra\s+de\s+caf[eé](?!\p{L})/iu.test(t) || // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
   /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?|crepas?|pastas?|mariscos?)\b/i.test(t) || /\b(sushi|poke(\s*bowl)?)\b/i.test(t) || /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t) || /\bcomida\s+para\b/i.test(t) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t);
 }
 function clientAsksServiceInfo(message) {
@@ -5457,7 +5462,7 @@ function parseServicesFromText(text) {
   const hasMealListContext = /\b(desayuno|snack|cena|coffee\s*break|coffeebreak|men[uú]\s+staff)\b/i.test(text) || (text.match(/,/g) ?? []).length >= 1 || /\b(desayuno|snack|comida|cena)\b.+\b(desayuno|snack|comida|cena)\b/i.test(text);
   for (const [label, pattern] of BODASESOR_SERVICE_PATTERNS) {
     if (label === "Comida" && !hasMealListContext) continue;
-    if (pattern.test(lower)) found.push(label);
+    if (pattern.test(text) || pattern.test(lower)) found.push(label);
   }
   if (found.includes("Men\xFA staff")) {
     const meserosIdx = found.indexOf("Meseros");
@@ -5565,9 +5570,14 @@ function appendPostCierreRequirements(existing, message) {
   const t = message.trim();
   if (!t) return existing?.trim() || null;
   const services = parseServicesFromText(t);
-  const hasServiceIntent = services.length > 0 || clientAddsToQuote(t) || isServiceRelatedMessage(t) || /\b(pantalla|audio|microfon|led|dj|entradas?|postres?|canap)\b/i.test(t);
+  const hasServiceIntent = services.length > 0 || clientAddsToQuote(t) || isServiceRelatedMessage(t) || isServicePreferenceRefinement(t, existing) || /\b(pantalla|audio|microfon|led|dj|entradas?|postres?|canap)\b/i.test(t);
   if (!hasServiceIntent) return existing?.trim() || null;
   const base = existing?.trim() || "";
+  if (isServicePreferenceRefinement(t, base)) {
+    const snippet2 = t.replace(/\s+/g, " ").slice(0, 250);
+    if (base && base.toLowerCase().includes(snippet2.toLowerCase().slice(0, 40))) return base;
+    return base ? `${base}; preferencia: ${snippet2}` : snippet2;
+  }
   if (services.length > 0) {
     const merged = mergeServiceRequirements(base || null, services.join(", "), 8);
     return merged || base || null;
@@ -5576,9 +5586,32 @@ function appendPostCierreRequirements(existing, message) {
   if (base && base.toLowerCase().includes(snippet.toLowerCase().slice(0, 40))) return base;
   return base ? `${base}; ${snippet}` : snippet;
 }
+var STAFF_OR_ADDON_SERVICE = /^(Meseros|Mobiliario|Audio y sonido|Pantallas|Iluminación|Decoración|Floristería|Valet parking)$/i;
+function preferPrimaryCatalogService(services) {
+  if (!services.length) return null;
+  const primary = services.find((s) => !STAFF_OR_ADDON_SERVICE.test(s.trim()));
+  return (primary || services[0]).trim();
+}
+function isServicePreferenceRefinement(message, serviceHint) {
+  const t = message?.trim() ?? "";
+  if (!t || t.length > 320) return false;
+  if (/\b(cotizar|cu[aá]nto\s+cuesta|precio\s+de|otra\s+barra|nuevo\s+servicio)\b/i.test(t)) {
+    return false;
+  }
+  const cafeCtx = /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu.test(t) || /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcaf[eé](?!\p{L})|barista|coffee\s*break/iu.test(
+    serviceHint ?? ""
+  );
+  const beveragePick = /\b(americano|capuchin?o|cappuccino|espresso|latte|moc?cha|t[eé]s?\b|chocolates?|bebidas?\s+artesanal)/i.test(
+    t
+  );
+  const refineCue = /\b(solo\s+requieren|solo\s+quieren|solo\s+necesitan|respecto\s+a|nada\s+m[aá]s|nomas|nom[aá]s|unicamente|únicamente)\b/i.test(
+    t
+  );
+  return cafeCtx && (beveragePick || refineCue);
+}
 function parsePrimaryService(text) {
   const services = parseServicesFromText(text);
-  if (services.length > 0) return services[0];
+  if (services.length > 0) return preferPrimaryCatalogService(services);
   const normalized = normalizeShortServicePhrase(text);
   return normalized;
 }
@@ -5620,15 +5653,17 @@ function isUnusableTipoEventoReply(text) {
 function clientAsksCafeOrCateringChoice(text) {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  if (/\b(caf[eé]|barista|barra\s+de\s+caf[eé]).{0,50}\b(o|u)\b.{0,50}\b(catering|comida|banquete|alimentos?)\b/i.test(
+  if (/\b(caf[eé](?!\p{L})|barista|barra\s+de\s+caf[eé](?!\p{L})).{0,50}\b(o|u)\b.{0,50}\b(catering|comida|banquete|alimentos?)\b/iu.test(
     t
   )) {
     return true;
   }
-  if (/\b(catering|comida|banquete|alimentos?).{0,50}\b(o|u)\b.{0,50}\b(caf[eé]|barista)\b/i.test(t)) {
+  if (/\b(catering|comida|banquete|alimentos?).{0,50}\b(o|u)\b.{0,50}\b(caf[eé](?!\p{L})|barista)\b/iu.test(
+    t
+  )) {
     return true;
   }
-  return /\bes\s+solo\s+caf[eé]\b/i.test(t) || /\btienes\s+(tambi[eé]n\s+)?catering(\s+de\s+comida)?\b/i.test(t) || /\bsolo\s+caf[eé]\s+o\b/i.test(t);
+  return /\bes\s+solo\s+caf[eé](?!\p{L})/iu.test(t) || /\btienes\s+(tambi[eé]n\s+)?catering(\s+de\s+comida)?\b/i.test(t) || /\bsolo\s+caf[eé](?!\p{L})\s+o\b/iu.test(t);
 }
 function looksLikeNameAnswerMessage(text) {
   const t = text?.trim() ?? "";
@@ -9165,7 +9200,7 @@ function resolveCatalogQuery(query) {
   if (/\bbanquete\b/.test(q)) {
     return { kind: "service", serviceName: "Banquete", rows: matchedRows };
   }
-  if (/\bbarra\b/.test(q) && !/\bbarra de bebida/.test(q) && !/\b(yucateca|americana|crepas?|mariscos?|paninis?|pastas?|sushi|poke|caf[eé])\b/.test(q)) {
+  if (/\bbarra\b/.test(q) && !/\bbarra de bebida/.test(q) && !/\b(yucateca|americana|crepas?|mariscos?|paninis?|pastas?|sushi|poke|caf[eé](?!\p{L}))\b/iu.test(q)) {
     return { kind: "service", serviceName: "Barra", rows: matchedRows };
   }
   return { kind: "service", serviceName: servicios[0], rows: matchedRows };
@@ -10481,7 +10516,7 @@ var FAMILIES = [
   },
   {
     family: "barra_cafe",
-    familyPattern: /\bbarra\s+de\s+caf[eé]\b|\bcafeter[ií]a\b|\bbarista\b/i,
+    familyPattern: /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu,
     variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text) => withCatalogNivelQuery("Barra de Caf\xE9", text),
     buildMenu: () => [
@@ -21874,7 +21909,6 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
   const tipo = (extracted.tipo_evento ?? "").trim().toLowerCase();
   const eventLabel = tipo === "cumplea\xF1os" ? "un cumplea\xF1os" : tipo === "boda" ? "una boda" : tipo === "xv a\xF1os" ? "XV a\xF1os" : tipo ? `un ${tipo}` : "tu evento";
   const mentionedService = currentMessage ? findMentionedService(currentMessage) : null;
-  const query = currentMessage?.trim() || mentionedService || "";
   const appendNext = (body, acceptedService) => {
     if (!filledSet || !ctx) return body;
     if (acceptedService) {
@@ -21891,20 +21925,39 @@ function buildFoodSalesReply(extracted, history, entityId, currentMessage, fille
 ${nextQ}`;
   };
   const allServices = currentMessage ? parseServicesFromText(currentMessage) : [];
+  const crmService = isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
+  const resolvedServiceLabel = preferPrimaryCatalogService(allServices) || mentionedService || parsePrimaryService(currentMessage ?? "") || (crmService ? preferPrimaryCatalogService(parseServicesFromText(crmService)) || crmService : null);
   if (allServices.length >= 2 || currentMessage && isRichQuoteBrief(currentMessage)) {
-    const listLabel = allServices.join(", ");
+    const listLabel = preferPrimaryCatalogService(allServices) || allServices.join(", ");
     const packageReply = buildMultiServicePackageReply(
       allServices,
       currentMessage
     );
     return appendNext(`${pickTransition(history)} ${packageReply}`, listLabel || null);
   }
-  if (mentionedService || currentMessage && isServiceRelatedMessage(currentMessage)) {
-    const serviceLabel = (allServices.length > 0 ? allServices.join(", ") : null) || mentionedService || parsePrimaryService(currentMessage ?? "") || (currentMessage?.trim() ? currentMessage.trim().slice(0, 80) : null);
+  if (currentMessage && isServicePreferenceRefinement(currentMessage, crmService || resolvedServiceLabel)) {
+    const label = resolvedServiceLabel || crmService || "tu cotizaci\xF3n";
+    if (filledSet) {
+      filledSet.add("Requerimientos o servicios");
+      const snippet = currentMessage.trim().replace(/\s+/g, " ").slice(0, 180);
+      const merged = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        `preferencia: ${snippet}`,
+        6
+      );
+      if (merged) extracted.requerimientos_evento = merged;
+    }
+    return appendNext(
+      `${pickTransition(history)} Perfecto, anoto esa preferencia para *${label}* y se la paso al equipo.`,
+      resolvedServiceLabel
+    );
+  }
+  if (mentionedService || resolvedServiceLabel || currentMessage && isServiceRelatedMessage(currentMessage)) {
+    const serviceLabel = resolvedServiceLabel;
     const optionsFirst = shouldOfferOptionsBeforeDetail({
       currentMessage,
       history,
-      serviceHint: mentionedService || serviceLabel
+      serviceHint: mentionedService || serviceLabel || crmService
     });
     if (optionsFirst) {
       if (filledSet && serviceLabel) {
@@ -21920,35 +21973,36 @@ ${nextQ}`;
     }
     const detailQuery = resolveProgressiveDetailQuery({
       currentMessage,
-      serviceHint: mentionedService || serviceLabel,
+      serviceHint: mentionedService || serviceLabel || crmService,
       history
     });
     if (!detailQuery && historyOfferedServiceOptionsMenu(history) && clientWantsServiceDetail(currentMessage, history)) {
       return `${pickTransition(history)} \xBFDe cu\xE1l te paso la info m\xE1s detallada?`.trim();
     }
-    const queryForDetail = detailQuery || query;
-    let detail = queryForDetail ? buildCatalogServiceDetailAnswer(queryForDetail) : null;
+    const queryForDetail = detailQuery || mentionedService || serviceLabel || crmService || null;
+    if (!queryForDetail) {
+      return appendNext(
+        `${pickTransition(history)} Claro. \xBFDe qu\xE9 servicio te paso el detalle?`,
+        null
+      );
+    }
+    let detail = buildCatalogServiceDetailAnswer(queryForDetail);
     if (detail && mentionedService && !catalogAnswerMatchesRequestedService(currentMessage ?? "", detail)) {
       detail = null;
     }
     if (detail) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
       const intro = introLabel ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.` : `${pickTransition(history)} Perfecto, te detallo la opci\xF3n.`;
-      const linkQ = queryForDetail || mentionedService || serviceLabel || "banquete";
-      const body = withServiceAndGeneralCatalogLinks(detail, linkQ, linkQ);
+      const body = withServiceAndGeneralCatalogLinks(detail, queryForDetail, queryForDetail);
       return `${intro}
 
 ${body}`.trim();
     }
-    const forced = attachAvailableSheetDetail(
-      queryForDetail || mentionedService || query || serviceLabel || currentMessage || "",
-      mentionedService || serviceLabel
-    ) || null;
+    const forced = attachAvailableSheetDetail(queryForDetail, mentionedService || serviceLabel) || null;
     if (forced) {
       const introLabel = detailQuery || mentionedService || serviceLabel;
       const intro = introLabel ? `${pickTransition(history)} Perfecto. Te detallo *${introLabel}* para ${eventLabel}.` : `${pickTransition(history)} Perfecto, te detallo la opci\xF3n.`;
-      const linkQ = queryForDetail || mentionedService || serviceLabel || query || "";
-      const body = withServiceAndGeneralCatalogLinks(forced, linkQ, linkQ);
+      const body = withServiceAndGeneralCatalogLinks(forced, queryForDetail, queryForDetail);
       return `${intro}
 
 ${body}`.trim();
@@ -23298,6 +23352,23 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
 Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 cliente pidi\xF3 llamada/tel\xE9fonos");
+  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServicePreferenceRefinement(
+    currentMessage,
+    extracted.requerimientos_evento
+  )) {
+    const label = preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) || preferPrimaryCatalogService(parseServicesFromText(currentMessage ?? "")) || "tu cotizaci\xF3n";
+    const snippet = (currentMessage ?? "").trim().replace(/\s+/g, " ").slice(0, 180);
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      `preferencia: ${snippet}`,
+      8
+    );
+    if (merged) extracted.requerimientos_evento = merged;
+    filledSet.add("Requerimientos o servicios");
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    mensaje = nombre ? `Perfecto, ${nombre}. Anoto esa preferencia para *${label}* y se la paso al equipo. \xBFAlgo m\xE1s que quieras agregar?` : `Perfecto. Anoto esa preferencia para *${label}* y se la paso al equipo. \xBFAlgo m\xE1s que quieras agregar?`;
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: post-cierre \u2014 preferencia de servicio (ack corto)");
   } else if (cierreYaEnviado && clientSaysThanks(currentMessage) && lastAssistantWasPhoneAnswer(presHistory)) {
     mensaje = buildPostCierreCallbackAck(extracted.nombre);
     appliedDirectReply = true;
@@ -30792,6 +30863,98 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         reply
       ),
       `debe incluir cat\xE1logo general: ${reply.slice(0, 700)}`
+    );
+  });
+  await test("101. A14970 \u2014 barra de caf\xE9 (acento) y preferencia bebidas sin Banquete", () => {
+    const cafeMsg = "Hola, me interesa cotizar: Barra de Caf\xE9 Premium para Eventos";
+    assert.ok(clientMentionsCatering(cafeMsg), "debe detectar catering con caf\xE9 acentuado");
+    const services = parseServicesFromText(cafeMsg);
+    assert.ok(
+      services.some((s) => /barra de caf/i.test(s)),
+      `debe capturar Barra de Caf\xE9: ${services.join(", ")}`
+    );
+    assert.ok(!services.some((s) => /^Coffee break$/i.test(s)), services.join(", "));
+    const withMeseros = "Me interesa una barra de caf\xE9 para 50 personas, es evento corporativo y 2 meseros.";
+    const mixed = parseServicesFromText(withMeseros);
+    assert.equal(
+      preferPrimaryCatalogService(mixed),
+      "Barra de Caf\xE9",
+      `primario caf\xE9 no meseros: ${mixed.join(", ")}`
+    );
+    const pref = "Buenas noches.\nRespecto a la barra de caf\xE9, solo requieren, americano, capuchino y t\xE9";
+    assert.ok(
+      isServicePreferenceRefinement(pref, "Barra de Caf\xE9 Premium"),
+      "debe ser refinamiento de preferencia"
+    );
+    assert.ok(!/banquete/i.test(parsePrimaryService(pref) || ""), parsePrimaryService(pref));
+    const csvCafe = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
+      '"Barra de Caf\xE9","Premium","$180.00","$9,000.00","TRUE","Baristas y bebidas artesanales","https://bodasesor.com/catalogos/barra-de-cafe"',
+      '"Banquete Formal 3 tiempos","Solo Alimentos","$450.00","$13,500.00","TRUE","Entrada plato fuerte","https://bodasesor.com/catalogos/banquete-formal"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csvCafe));
+    const postCierre = runGuards({
+      aiResponse: "\xBFAlgo m\xE1s?",
+      extracted: emptyExtracted({
+        nombre: "Erika Casta\xF1eda",
+        correo: "malinali2707@hotmail.com",
+        tipo_evento: "corporativo",
+        num_invitados: 50,
+        requerimientos_evento: "Barra de Caf\xE9 Premium, Meseros",
+        zona: "Pachuca de Soto, Hidalgo",
+        fecha_horario: "3 de agosto"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "N\xFAmero de invitados",
+        "Requerimientos o servicios",
+        "Zona o ubicaci\xF3n del evento",
+        "Fecha y horario",
+        "Presupuesto (MXN)"
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: pref,
+      history: [
+        { role: "user", content: cafeMsg },
+        {
+          role: "assistant",
+          content: "Perfecto, ya tengo todo. Voy a compartir esta informaci\xF3n con nuestro equipo para que te prepare una cotizaci\xF3n personalizada."
+        }
+      ]
+    });
+    assert.ok(
+      /preferencia|anoto|americano|capuchin|equipo/i.test(postCierre),
+      `ack preferencia: ${postCierre.slice(0, 500)}`
+    );
+    assert.ok(
+      !/Banquete Formal|Solo Alimentos|\$450|Te detallo \*Buenas noches/i.test(postCierre),
+      `no Banquete ni mensaje crudo: ${postCierre.slice(0, 600)}`
+    );
+    assert.ok(
+      !/a qu[eé] correo/i.test(postCierre),
+      `no re-pedir correo: ${postCierre.slice(0, 400)}`
+    );
+    const mid = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Erika",
+        requerimientos_evento: "Barra de Caf\xE9 Premium",
+        tipo_evento: "corporativo"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: pref,
+      history: [
+        { role: "user", content: cafeMsg },
+        { role: "assistant", content: "Perfecto, Erika. \xBFA qu\xE9 correo te env\xEDo la informaci\xF3n?" }
+      ]
+    });
+    assert.ok(
+      !/Banquete Formal|Te detallo \*Buenas noches/i.test(mid),
+      `sin Banquete a mitad de flujo: ${mid.slice(0, 500)}`
     );
   });
   console.log(`
