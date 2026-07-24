@@ -113,6 +113,7 @@ import {
   buildPostCierreCallbackAck,
   buildStandardClosingMessage,
   buildMultiServicePackageReply,
+  buildMultiServiceSheetLevelsReply,
   buildPackageCatalogOfferBlock,
   clientSaysThanks,
   detectCierreEnviado,
@@ -6479,6 +6480,120 @@ async function runAll(): Promise<void> {
         "Tradicional",
         "Para *Taquiza* manejamos estos niveles:\n1. *Basico*\n\n¿Quieres que te dé detalles de alguno?"
       )
+    );
+  });
+
+  await test("105. A14982 — Yucateca+Taquiza: niveles Sheet (no hub genérico) + embudo", () => {
+    assert.ok(
+      clientAsksInclusion(
+        "Por que no me ofreces lo paquetes que tienes y me puedo dar una idea mas clara"
+      )
+    );
+
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye"',
+      '"Barra Yucateca","Solo Alimentos","$330.00","$9,900.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","guisos"',
+      '"Barra Yucateca","Basico","$750.00","$22,500.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","basico"',
+      '"Barra Yucateca","Tradicional","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","tradicional"',
+      '"Barra Yucateca","Premium","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/barra-yucateca","premium"',
+      '"Taquiza","Solo Alimentos","$300.00","$9,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","tacos"',
+      '"Taquiza","Basico","$750.00","$22,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","basico"',
+      '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","https://bodasesor.com/catalogos/taquiza","tradicional"',
+      '"Taquiza","Premium","$850.00","$25,500.00","TRUE","https://bodasesor.com/catalogos/taquiza","premium"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const levels = buildMultiServiceSheetLevelsReply(
+      ["Barra Yucateca", "Taquiza"],
+      "Si ví una barra yucateca y una taquiza de guisados"
+    );
+    assert.ok(levels, "debe haber dump de niveles");
+    assert.ok(/Barra Yucateca/i.test(levels!), levels!.slice(0, 300));
+    assert.ok(/Taquiza/i.test(levels!), levels!.slice(0, 300));
+    assert.ok(/\$330|\$300|\$750/i.test(levels!), levels!.slice(0, 500));
+    assert.ok(/quieres que te d[eé] detalles de alguno/i.test(levels!), levels!.slice(-200));
+    assert.ok(
+      !/quieres que te mande el cat[aá]logo con m[aá]s detalle/i.test(levels!),
+      "sin loop de catálogo genérico"
+    );
+
+    const pkgReply = buildMultiServicePackageReply(
+      ["Barra Yucateca", "Taquiza"],
+      "Si ví una barra yucateca y una taquiza"
+    );
+    assert.ok(/\$330|\$300/i.test(pkgReply), pkgReply.slice(0, 400));
+    assert.ok(!/Te dejo el catálogo general/i.test(pkgReply), pkgReply.slice(0, 300));
+
+    // Turno: nombra ambos → niveles + pide correo (dato faltante).
+    const reply = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Francisco Nogueras",
+        tipo_evento: "evento",
+        requerimientos_evento: "Barra Yucateca",
+        num_invitados: 230,
+        direccion_evento: "Querétaro",
+        fecha_horario: "finales de septiembre",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Si ví una barra yucateca y una taquiza de guisados",
+      history: [
+        {
+          role: "assistant",
+          content: "hola, ¿te llamó la atención algún paquete?",
+        },
+      ],
+    });
+    assert.ok(/Yucateca/i.test(reply) && /Taquiza/i.test(reply), reply.slice(0, 500));
+    assert.ok(/\$\s*\d/i.test(reply), reply.slice(0, 500));
+    assert.ok(
+      !/quieres que te mande el cat[aá]logo con m[aá]s detalle/i.test(reply),
+      reply.slice(0, 400)
+    );
+    assert.ok(/correo|e-?mail/i.test(reply), `debe pedir correo: ${reply.slice(-300)}`);
+
+    // "ofreces los paquetes" con ambos en CRM → mismo dump + embudo.
+    const pkgs = runGuards({
+      aiResponse:
+        "Claro, aquí tienes un resumen de algunos paquetes: - Taquiza: Desde $300…",
+      extracted: emptyExtracted({
+        nombre: "Francisco",
+        tipo_evento: "evento",
+        requerimientos_evento: "Barra Yucateca, Taquiza",
+        num_invitados: 230,
+        direccion_evento: "Querétaro",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage:
+        "Por que no me ofreces lo paquetes que tienes y me puedo dar una idea mas clara",
+      history: [
+        {
+          role: "assistant",
+          content: "¿Quieres que te mande el catálogo con más detalle?",
+        },
+      ],
+    });
+    assert.ok(/Yucateca/i.test(pkgs) && /Taquiza/i.test(pkgs), pkgs.slice(0, 500));
+    assert.ok(/\$330|\$750|Solo Alimentos|Basico/i.test(pkgs), pkgs.slice(0, 600));
+    assert.ok(!/resumen de algunos paquetes/i.test(pkgs), pkgs.slice(0, 300));
+    assert.ok(
+      /correo|e-?mail|fecha/i.test(pkgs),
+      `tras paquetes, embudo: ${pkgs.slice(-350)}`
     );
   });
 

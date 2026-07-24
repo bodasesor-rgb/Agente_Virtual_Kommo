@@ -546,6 +546,23 @@ export function shouldOfferOptionsBeforeDetail(opts: {
     detectProgressiveFamily(blob);
   if (!family) return null;
 
+  // A14982: CRM con 2+ familias (Yucateca + Taquiza) y el mensaje no elige una →
+  // no devolver menú de una sola familia (rompe dump de paquetes / embudo).
+  const hintHasMultipleFamilies = (() => {
+    const hint = opts.serviceHint?.trim() ?? "";
+    if (!hint || !/,| y /.test(hint)) return false;
+    const families = new Set(
+      hint
+        .split(/,|\by\b/i)
+        .map((p) => detectProgressiveFamily(p.trim()))
+        .filter(Boolean)
+    );
+    return families.size >= 2;
+  })();
+  if (hintHasMultipleFamilies && !detectProgressiveFamily(msg)) {
+    return null;
+  }
+
   // Variante/nivel en el MENSAJE del cliente (no en el hint CRM expandido "Banquete Formal").
   // Pedir "info/detalle" de la familia SIN variante → igual menú primero.
   const famDef = defFor(family);

@@ -2488,8 +2488,13 @@ function mergeWithPendingQuestion(
   ) {
     return base;
   }
+  // A14982: "¿Quieres que te dé detalles de alguno?" NO bloquea pedir correo/tipo/fecha.
+  const onlyServiceDetailCta =
+    /quieres que te d[eé] detalles de alguno/i.test(base) &&
+    !mensajeAsksForField(base, pending);
   if (
     base.includes("?") &&
+    !onlyServiceDetailCta &&
     !mensajeAsksWrongField(mensaje, filledSet, extracted) &&
     !mensajeAsksForFilledField(mensaje, filledSet, extracted)
   ) {
@@ -3072,11 +3077,56 @@ export function buildStandardClosingMessage(
   return parts.join("\n");
 }
 
-/** Ack de paquete + catálogo (multi-servicio o RFQ). */
+/**
+ * A14982: 2 servicios de comida con Sheet → dump de niveles/precios (no solo hub genérico).
+ * RFQs largos / 3+ / sin precio en Sheet → null (cae a catálogo general).
+ */
+export function buildMultiServiceSheetLevelsReply(
+  services: string[],
+  sourceText?: string
+): string | null {
+  if (sourceText && isRichQuoteBrief(sourceText)) return null;
+  const cleaned = dedupeServiceHierarchy(
+    services.map((s) => s.trim()).filter(Boolean),
+    sourceText
+  );
+  const foodish = cleaned.filter((s) =>
+    /barra|taquiza|banquete|coffee|parrillada|paella|mesa\s+de|cupcake|sushi|crepa|pizza|pasta|pozole|canap|bocadillo/i.test(
+      s
+    )
+  );
+  const list = (foodish.length >= 2 ? foodish : cleaned).slice(0, 2);
+  if (list.length < 2) return null;
+
+  const blocks: string[] = [];
+  for (const svc of list) {
+    const detail =
+      buildCatalogServiceDetailAnswer(svc) || buildCatalogPriceAnswer(svc);
+    if (!detail || !/\$|nivel|Solo Alimentos|Basico|Tradicional|Premium|Coffee Break/i.test(detail)) {
+      return null;
+    }
+    const cleanedDetail = detail
+      .replace(/¿Quieres que te d[eé] detalles de alguno\??/gi, "")
+      .replace(/¿Cu[aá]l nivel prefieres[^\n]*/gi, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    blocks.push(`*${svc}*\n${cleanedDetail}`);
+  }
+
+  const ack = buildMultiServiceAck(list);
+  const body = [ack, "", blocks.join("\n\n———\n\n"), "", SERVICE_NIVEL_DETAIL_CTA].join(
+    "\n"
+  );
+  return withServiceAndGeneralCatalogLinks(body, list[0]!, list.join(" "));
+}
+
+/** Ack de paquete + niveles Sheet (2 food SKUs) o catálogo general (RFQ). */
 export function buildMultiServicePackageReply(
   services: string[],
   sourceText?: string
 ): string {
+  const levels = buildMultiServiceSheetLevelsReply(services, sourceText);
+  if (levels) return levels;
   const ack =
     sourceText && isRichQuoteBrief(sourceText)
       ? buildRichBriefAcknowledgment(sourceText)
@@ -3135,12 +3185,24 @@ export function buildGenericPackagesOverviewReply(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   currentMessage?: string
 ): string {
+  const fromCrm = isValidRequerimientosValue(extracted.requerimientos_evento)
+    ? parseServicesFromText(extracted.requerimientos_evento!)
+    : [];
+  const fromMsg = currentMessage ? parseServicesFromText(currentMessage) : [];
+  const fromHist = extractOfferedServicesFromHistory(history);
+  const multi = dedupeServiceHierarchy([...fromMsg, ...fromCrm, ...fromHist]);
+  // A14982: si ya hay 2+ servicios (Yucateca + Taquiza), volcar niveles de ambos.
+  const multiLevels = buildMultiServiceSheetLevelsReply(multi, currentMessage);
+  if (multiLevels) {
+    return `Claro, te dejo los paquetes/niveles con precios:\n\n${multiLevels}`;
+  }
   const hint =
+    preferPrimaryCatalogService(multi) ||
     (isValidRequerimientosValue(extracted.requerimientos_evento)
       ? extracted.requerimientos_evento
       : null) ||
     parsePrimaryService(collectUserTexts(history, currentMessage).join(" ")) ||
-    extractOfferedServicesFromHistory(history)[0] ||
+    fromHist[0] ||
     null;
   if (hint) {
     const detail =
@@ -3502,11 +3564,49 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (clientAsksPrice(currentMessage)) {
       /* fall through */
     } else {
+    // A14982: "ofreces los paquetes" con 2+ SKUs en CRM → niveles Sheet de ambos.
+    // Debe ir ANTES del menú progresivo: si el hint es "Yucateca, Taquiza",
+    // shouldOfferOptionsBeforeDetail caía en menú solo de taquiza y nunca pedía correo.
+    const multiForPackagesEarly = dedupeServiceHierarchy([
+      ...parseServicesFromText(extracted.requerimientos_evento ?? ""),
+      ...parseServicesFromText(currentMessage ?? ""),
+    ]);
+    const asksPackagesListEarly =
+      /\bpaquetes?\b|\bniveles?\b|\bofreces?\b|idea\s+m[aá]s\s+clara/i.test(
+        currentMessage ?? ""
+      );
+    const multiPackageDumpEarly =
+      asksPackagesListEarly && multiForPackagesEarly.length >= 2
+        ? buildMultiServiceSheetLevelsReply(
+            multiForPackagesEarly,
+            currentMessage
+          )
+        : null;
+    if (multiPackageDumpEarly) {
+      log?.info(
+        { entityId, n: multiForPackagesEarly.length },
+        "GUARD: paquetes multi-servicio — niveles Sheet (return temprano) + embudo"
+      );
+      return normalizeAdvisorReferences(
+        mergeWithPendingQuestion(
+          `${pickTransition(presHistory)} Claro, te dejo los paquetes/niveles con precios:\n\n${multiPackageDumpEarly}`,
+          filledSet,
+          extracted,
+          ctx
+        ),
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
     // V8.68: sin variante → menú de opciones (no dump PDF completo).
+    // No usar hint multi-SKU: evita menú de una sola familia con 2 servicios en CRM.
+    const earlyOptionsHint =
+      multiForPackagesEarly.length >= 2
+        ? null
+        : extracted.requerimientos_evento;
     const earlyOptions = shouldOfferOptionsBeforeDetail({
       currentMessage,
       history: presHistory,
-      serviceHint: extracted.requerimientos_evento,
+      serviceHint: earlyOptionsHint,
     });
     if (earlyOptions) {
       log?.info({ entityId }, "GUARD: inclusiones — menú opciones (return temprano)");
@@ -4586,6 +4686,33 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       appliedDirectReply = true;
     }
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+    // A14982: "ofreces los paquetes" con 2+ servicios en CRM → niveles Sheet de ambos + embudo.
+    const multiForPackages = dedupeServiceHierarchy([
+      ...parseServicesFromText(extracted.requerimientos_evento ?? ""),
+      ...parseServicesFromText(currentMessage ?? ""),
+    ]);
+    const asksPackagesList =
+      /\bpaquetes?\b|\bniveles?\b|\bofreces?\b|idea\s+m[aá]s\s+clara/i.test(
+        currentMessage ?? ""
+      );
+    const multiPackageDump =
+      asksPackagesList && multiForPackages.length >= 2
+        ? buildMultiServiceSheetLevelsReply(multiForPackages, currentMessage)
+        : null;
+    if (multiPackageDump) {
+      mensaje = mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} Claro, te dejo los paquetes/niveles con precios:\n\n${multiPackageDump}`,
+        filledSet,
+        extracted,
+        ctx
+      );
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info(
+        { entityId, n: multiForPackages.length },
+        "GUARD: paquetes multi-servicio — niveles Sheet + siguiente dato"
+      );
+    } else {
     // V8.68: "qué incluye banquete/coffee…" sin variante → menú, no dump PDF.
     const inclusionOptions = shouldOfferOptionsBeforeDetail({
       currentMessage,
@@ -4668,6 +4795,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     }
     } // fin else: inclusiones con variante concreta
+    } // fin else: no multi-paquete Sheet dump
   } else if (
     allowSalesReplyOverride &&
     clientAsksServiceInfo(currentMessage) &&
