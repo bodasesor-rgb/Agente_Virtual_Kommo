@@ -194,7 +194,11 @@ import {
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
 } from "../services/catalogService.js";
-import { buildMobiliarioRentDetailReply } from "../services/serviceKnowledge.js";
+import {
+  buildMobiliarioRentDetailReply,
+  parseMobiliarioRentItems,
+} from "../services/serviceKnowledge.js";
+import { isMobiliarioRentalPedido } from "../modoServicio.js";
 import { resolveServiceFocusFromText, expandQueryWithServiceSynonyms } from "../services/serviceSynonyms.js";
 import {
   classifyKommoOrigin,
@@ -6851,6 +6855,103 @@ async function runAll(): Promise<void> {
       /barra-de-bebidas|puestos-de-comida|salas-y-periqueras/i.test(reread),
       `releer mapeado: ${reread.slice(0, 700)}`
     );
+  });
+
+  await test("109. A14987 Natalia — picnic/periqueras/bancos (no 50 sillas ni color=zona)", () => {
+    assert.equal(
+      parseZonaFromText("50 mesas tipo picnic en color blanco"),
+      null,
+      "color blanco ≠ ubicación"
+    );
+    assert.equal(parseZonaFromText("¿Tienen en color blanco?"), null);
+
+    const items = parseMobiliarioRentItems(
+      "50 mesas tipo picnic y 50 periqueras con 200 bancos, todo en color blanco"
+    );
+    assert.deepEqual(
+      items.map((i) => `${i.qty} ${i.label}`),
+      ["50 mesas tipo picnic", "50 periqueras", "200 bancos"]
+    );
+
+    const detail = buildMobiliarioRentDetailReply(
+      "Sí por favor, me gustaría cotizar 50 mesas tipo picnic ¿Tienen en color blanco?\n\nDe igual forma me gustaría cotizar 50 periqueras y 200 bancos de color blanco"
+    );
+    assert.ok(detail, "debe haber detalle mobiliario");
+    assert.ok(/picnic/i.test(detail!), detail!);
+    assert.ok(/periqueras/i.test(detail!), detail!);
+    assert.ok(/200 bancos/i.test(detail!), detail!);
+    assert.ok(/blanco/i.test(detail!), detail!);
+    assert.ok(!/50 sillas/i.test(detail!), detail!);
+
+    const brief = [
+      "Sería sin montaje, solo para entrega el día 10 de diciembre (2026) y recogerlo el día 12 de diciembre después de las 5 pm.",
+      "Serían 50 mesas tipo picnic y 50 periqueras con 200 bancos, todo en color blanco.",
+      "La ubicación sería en: Planta Volkswagen Puebla, Avenida San Lorenzo Almecatla 16, 72710 Cuautlancingo, Puebla",
+      "El correo sería mcadena@luzebi.com",
+    ].join("\n\n");
+    assert.ok(isRichQuoteBrief(brief));
+    assert.ok(isMobiliarioRentalPedido(brief));
+
+    const reply = runGuards({
+      aiResponse: "Perfecto, Natalia. Ya lo tengo anotado.",
+      extracted: emptyExtracted({
+        nombre: "Natalia",
+        correo: "mcadena@luzebi.com",
+        requerimientos_evento: "Mobiliario",
+        direccion_evento: "color blanco",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: brief,
+      history: [
+        {
+          role: "assistant",
+          content: "Para mandarte la info, ¿a qué correo te lo envío?",
+        },
+      ],
+    });
+    assert.ok(!/Ya lo tengo anotado/i.test(reply), reply.slice(0, 300));
+    assert.ok(/picnic/i.test(reply) && /periqueras/i.test(reply), reply.slice(0, 500));
+    assert.ok(/bancos/i.test(reply), reply.slice(0, 500));
+    assert.ok(!/50 sillas/i.test(reply), reply.slice(0, 500));
+    assert.ok(
+      /salas-y-periqueras|catalogos/i.test(reply),
+      `catálogo: ${reply.slice(0, 600)}`
+    );
+    assert.ok(
+      /tipo de evento|festejan|evento|fecha|presupuesto|invitados/i.test(reply),
+      `embudo: ${reply.slice(-350)}`
+    );
+
+    const mid = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Natalia",
+        requerimientos_evento: "Mobiliario",
+        direccion_evento: "color blanco",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage:
+        "Sí por favor, me gustaría cotizar 50 mesas tipo picnic ¿Tienen en color blanco?\n\nDe igual forma me gustaría cotizar 50 periqueras y 200 bancos de color blanco, si tienes, por favor",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Claro. En *mobiliario* manejamos varias opciones.\n\n¿Quieres que te dé detalles de alguno?",
+        },
+      ],
+    });
+    assert.ok(/picnic/i.test(mid) && !/50 sillas/i.test(mid), mid.slice(0, 500));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

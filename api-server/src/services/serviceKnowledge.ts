@@ -76,18 +76,103 @@ export function buildLevel2Ack(serviceLabel: string): string {
   return `¡Claro! *${label}* la anoto para tu cotización. Nuestro equipo te confirma descripción, precio e inclusiones.`;
 }
 
-/** Detalle técnico renta de mesas/sillas (NIVEL 2 mobiliario). */
-export function buildMobiliarioRentDetailReply(query: string): string | null {
-  if (!/\b(mesas?|sillas?|mobiliario|periquera|lounge)\b/i.test(query)) return null;
-  const qtyMatch = query.match(/(\d+)\s*(?:sillas?|mesas?|personas?|pax)?/i);
-  const qty = qtyMatch ? parseInt(qtyMatch[1]!, 10) : null;
-  let body =
-    "Manejamos renta de *mesas y sillas* para eventos: sillas Tiffany y versátiles, mesas redondas y rectangulares, periqueras, salas lounge y más.";
-  if (qty && qty >= 10) {
-    body += ` Para *${qty} sillas* cotizamos montaje, logística y tipo de silla según el evento y el sitio.`;
+/** Ítems de renta mobiliario con cantidad (A14987 picnic / periqueras / bancos). */
+export function parseMobiliarioRentItems(
+  query: string
+): Array<{ qty: number | null; label: string }> {
+  const items: Array<{ qty: number | null; label: string }> = [];
+  if (/\bpicnic\b|\bmesas?\s+tipo\s+picnic\b/i.test(query)) {
+    const q =
+      query.match(/(\d+)\s*mesas?\s+tipo\s+picnic/i) || query.match(/(\d+)\s*picnic/i);
+    items.push({
+      qty: q?.[1] ? parseInt(q[1], 10) : null,
+      label: "mesas tipo picnic",
+    });
   }
-  body += " Podemos incluir mantelería y montaje en sitio.";
-  return body;
+  const peri = query.match(/(\d+)\s*periqueras?\b/i);
+  if (/\bperiqueras?\b/i.test(query)) {
+    items.push({
+      qty: peri?.[1] ? parseInt(peri[1], 10) : null,
+      label: "periqueras",
+    });
+  }
+  const bancos = query.match(/(\d+)\s*bancos?\b/i);
+  if (/\bbancos?\b/i.test(query)) {
+    items.push({
+      qty: bancos?.[1] ? parseInt(bancos[1], 10) : null,
+      label: "bancos",
+    });
+  }
+  const sillas = query.match(/(\d+)\s*sillas?\b/i);
+  if (/\bsillas?\b/i.test(query) && !/\bpicnic\b/i.test(query)) {
+    items.push({
+      qty: sillas?.[1] ? parseInt(sillas[1], 10) : null,
+      label: "sillas",
+    });
+  }
+  // Mesas genéricas solo si no hay picnic ya listado.
+  if (
+    !items.some((i) => /picnic/i.test(i.label)) &&
+    /\bmesas?\b/i.test(query) &&
+    !/\bmesas?\s+periqueras?\b/i.test(query)
+  ) {
+    const mesas = query.match(/(\d+)\s*mesas?\b/i);
+    if (mesas || /\bmesas?\b/i.test(query)) {
+      items.push({
+        qty: mesas?.[1] ? parseInt(mesas[1], 10) : null,
+        label: "mesas",
+      });
+    }
+  }
+  return items;
+}
+
+function formatMobiliarioItem(item: { qty: number | null; label: string }): string {
+  return item.qty && item.qty > 0 ? `${item.qty} ${item.label}` : item.label;
+}
+
+/** Detalle técnico renta de mesas/sillas/picnic/periqueras (NIVEL 2 mobiliario). */
+export function buildMobiliarioRentDetailReply(query: string): string | null {
+  if (
+    !/\b(mesas?|sillas?|mobiliario|periquera|lounge|picnic|bancos?)\b/i.test(query)
+  ) {
+    return null;
+  }
+  const items = parseMobiliarioRentItems(query);
+  const color = query.match(
+    /\bcolor\s+(blanco|negro|dorado|plateado|natural|madera)\b/i
+  )?.[1];
+  const colorNote = color ? ` en color *${color.toLowerCase()}*` : "";
+
+  if (items.length >= 1) {
+    const list = items.map(formatMobiliarioItem).join(", ");
+    const hasPicnic = items.some((i) => /picnic/i.test(i.label));
+    const hasPeri = items.some((i) => /periquera/i.test(i.label));
+    const hasBancos = items.some((i) => /banco/i.test(i.label));
+    const bits = [`Anoto *${list}*${colorNote}.`];
+    if (hasPicnic || hasPeri || hasBancos) {
+      bits.push(
+        "Manejamos renta de mesas tipo picnic, periqueras y bancos (y también sillas Tiffany/versátiles, mesas redondas/rectangulares y salas lounge)."
+      );
+    } else {
+      bits.push(
+        "Manejamos renta de *mesas y sillas* para eventos: sillas Tiffany y versátiles, mesas redondas y rectangulares, periqueras, salas lounge y más."
+      );
+    }
+    if (/\bsin\s+montaje|solo\s+(para\s+)?entrega|entrega|recoger/i.test(query)) {
+      bits.push(
+        "Lo tomo como *entrega/recolección* (sin montaje en sitio); el equipo confirma logística y disponibilidad."
+      );
+    } else {
+      bits.push("Podemos cotizar con o sin montaje en sitio, según lo que necesites.");
+    }
+    return bits.join(" ");
+  }
+
+  return (
+    "Anoto *mobiliario*. Manejamos renta de *mesas y sillas* para eventos: sillas Tiffany y versátiles, mesas redondas y rectangulares, periqueras, mesas tipo picnic, salas lounge y más. " +
+    "Podemos incluir mantelería y montaje en sitio, o solo entrega/recolección."
+  );
 }
 
 /** Acuse NIVEL 3 — solicitud especial; el equipo confirma disponibilidad. */

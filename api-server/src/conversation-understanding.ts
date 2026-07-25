@@ -945,6 +945,17 @@ export function isRichQuoteBrief(text: string | null | undefined): boolean {
   if (/\b(distribuidor|precio\s+para\s+distribuidor|margen\s+comercial)\b/i.test(t)) score += 1;
   if (/\b(meseros?|mobiliario|manteler|cristal|sillas?\s+con\s+fundas?)\b/i.test(t)) score += 1;
   if (/\b(fotograf[ií]as?|fotos?)\b.{0,40}\b(mobiliario|mesas?|sillas?)/i.test(t)) score += 1;
+  // A14987: renta mobiliario (picnic/periqueras/bancos) + entrega/recolección + dirección.
+  if (
+    /\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?)\b/i.test(t) &&
+    /\b(entrega|recoger|sin\s+montaje|periqueras?|bancos?)\b/i.test(t)
+  ) {
+    score += 2;
+  }
+  if (/\b(avenida|calle|planta|cuautlancingo|puebla|cp\s*\d{4,5}|\d{5}\s+\w+)/i.test(t)) {
+    score += 1;
+  }
+  if (/@[a-z0-9.-]+\.[a-z]{2,}/i.test(t)) score += 1;
   return score >= 3;
 }
 
@@ -1123,9 +1134,12 @@ export function isNonLocationBusinessPhrase(text: string | null | undefined): bo
     .replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "")
     .trim();
   if (!cleaned) return true;
+  // A14987: "en color blanco" ≠ ubicación del evento.
+  if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
+  if (/^(blanco|negro|dorado|plateado|natural|madera)$/i.test(cleaned)) return true;
   // Exacto / casi exacto — no usar ^salón\b sobre "Salón Hacienda Los Olivos".
   if (
-    /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?)$/i.test(
+    /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color)$/i.test(
       cleaned
     )
   ) {
@@ -1494,9 +1508,19 @@ export function buildRichBriefAcknowledgment(text: string): string {
       ? `De acuerdo, revisé tu solicitud para ${bits.join(", ")}.`
       : "De acuerdo, revisé con detalle tu solicitud de cotización.";
 
+  // A14987: picnic/periqueras/bancos con cantidades — no solo "Mobiliario".
+  const mobItems = text.match(
+    /(\d+\s+mesas?\s+tipo\s+picnic|\d+\s+picnic|\d+\s+periqueras?|\d+\s+bancos?)/gi
+  );
+  const mobSummary = mobItems?.length
+    ? [...new Set(mobItems.map((m) => m.trim().toLowerCase()))].join(", ")
+    : null;
+
   if (hasThreeMenus) {
     ack +=
       " Anoto las tres propuestas de menú (parrillada, opción costo-beneficio y menú casual) junto con meseros y mobiliario.";
+  } else if (mobSummary) {
+    ack += ` Anoto ${mobSummary}.`;
   } else if (services.length >= 2) {
     ack += ` Anoto ${formatServicesList(services)}.`;
   } else if (services.length === 1) {
@@ -1910,7 +1934,10 @@ export function parseZonaFromText(text: string): string | null {
       !NON_LOCATION_WORDS.test(candidato) &&
       !isVagueVenueOnly(candidato) &&
       !isNonLocationBusinessPhrase(candidato) &&
-      !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje)\b/i.test(candidato) &&
+      !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color)\b/i.test(
+        candidato
+      ) &&
+      !/^color\b/i.test(candidato) &&
       isUsableDireccionEvento(candidato)
     ) {
       return candidato;

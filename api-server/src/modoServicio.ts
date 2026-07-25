@@ -34,12 +34,31 @@ export function buildModoServicioClarificationQuestion(): string {
   return "¿Lo quieres montado en tu evento con barra y servicio, o solo la entrega del producto?";
 }
 
+/** Renta de mobiliario (picnic/periqueras/bancos) con entrega — no es sushi/pizza. */
+export function isMobiliarioRentalPedido(message?: string | null): boolean {
+  const t = message?.trim() ?? "";
+  if (!t) return false;
+  return /\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?|mobiliario|mesas?\s+y\s+sillas?)\b/i.test(
+    t
+  );
+}
+
 /**
  * Respuesta para pedido/entrega a domicilio (NO barra por persona / chefs en sitio).
  * Cotiza por cantidad; el equipo cierra cifra exacta.
+ * A14987: mobiliario (picnic/periqueras) ≠ plantilla de sushi.
  */
 export function buildPedidoEntregaReply(message?: string | null): string {
   const t = message?.trim() ?? "";
+
+  if (isMobiliarioRentalPedido(t)) {
+    // Detalle concreto lo arma el guard con buildMobiliarioRentDetailReply + embudo.
+    return (
+      `Perfecto — lo tomo como *entrega/recolección de mobiliario* (sin montaje en sitio). ` +
+      `Nuestro equipo te arma la cotización según cantidades, color y zona de entrega.`
+    );
+  }
+
   const qtyMatch = t.match(/(\d+)\s*(rollos?|piezas?|platos?)/i);
   const qtyLabel = qtyMatch ? `${qtyMatch[1]} ${qtyMatch[2]}` : null;
   const product = /\bsushi\b/i.test(t)

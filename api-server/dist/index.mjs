@@ -122893,6 +122893,13 @@ function isRichQuoteBrief(text2) {
   if (/\b(distribuidor|precio\s+para\s+distribuidor|margen\s+comercial)\b/i.test(t)) score += 1;
   if (/\b(meseros?|mobiliario|manteler|cristal|sillas?\s+con\s+fundas?)\b/i.test(t)) score += 1;
   if (/\b(fotograf[ií]as?|fotos?)\b.{0,40}\b(mobiliario|mesas?|sillas?)/i.test(t)) score += 1;
+  if (/\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?)\b/i.test(t) && /\b(entrega|recoger|sin\s+montaje|periqueras?|bancos?)\b/i.test(t)) {
+    score += 2;
+  }
+  if (/\b(avenida|calle|planta|cuautlancingo|puebla|cp\s*\d{4,5}|\d{5}\s+\w+)/i.test(t)) {
+    score += 1;
+  }
+  if (/@[a-z0-9.-]+\.[a-z]{2,}/i.test(t)) score += 1;
   return score >= 3;
 }
 function clientAsksToRereadBrief(message) {
@@ -122997,7 +123004,9 @@ function isNonLocationBusinessPhrase(text2) {
   if (!t) return true;
   const cleaned = t.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
   if (!cleaned) return true;
-  if (/^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?)$/i.test(
+  if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
+  if (/^(blanco|negro|dorado|plateado|natural|madera)$/i.test(cleaned)) return true;
+  if (/^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color)$/i.test(
     cleaned
   )) {
     return true;
@@ -123230,8 +123239,14 @@ function buildRichBriefAcknowledgment(text2) {
   if (zona) bits.push(zona.trim());
   if (inv) bits.push(`${inv[1]} personas`);
   let ack = bits.length > 0 ? `De acuerdo, revis\xE9 tu solicitud para ${bits.join(", ")}.` : "De acuerdo, revis\xE9 con detalle tu solicitud de cotizaci\xF3n.";
+  const mobItems = text2.match(
+    /(\d+\s+mesas?\s+tipo\s+picnic|\d+\s+picnic|\d+\s+periqueras?|\d+\s+bancos?)/gi
+  );
+  const mobSummary = mobItems?.length ? [...new Set(mobItems.map((m10) => m10.trim().toLowerCase()))].join(", ") : null;
   if (hasThreeMenus) {
     ack += " Anoto las tres propuestas de men\xFA (parrillada, opci\xF3n costo-beneficio y men\xFA casual) junto con meseros y mobiliario.";
+  } else if (mobSummary) {
+    ack += ` Anoto ${mobSummary}.`;
   } else if (services.length >= 2) {
     ack += ` Anoto ${formatServicesList(services)}.`;
   } else if (services.length === 1) {
@@ -123502,7 +123517,9 @@ function parseZonaFromText(text2) {
     const lugar = enMatch[1].trim().replace(/[.,;:]+$/g, "").trim();
     const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
     const candidato = sinArticulo || lugar;
-    if (!MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje)\b/i.test(candidato) && isUsableDireccionEvento(candidato)) {
+    if (!MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color)\b/i.test(
+      candidato
+    ) && !/^color\b/i.test(candidato) && isUsableDireccionEvento(candidato)) {
       return candidato;
     }
   }
@@ -124688,16 +124705,84 @@ function buildLevel2Ack(serviceLabel) {
   const label = serviceLabel.trim() || "ese servicio";
   return `\xA1Claro! *${label}* la anoto para tu cotizaci\xF3n. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones.`;
 }
-function buildMobiliarioRentDetailReply(query) {
-  if (!/\b(mesas?|sillas?|mobiliario|periquera|lounge)\b/i.test(query)) return null;
-  const qtyMatch = query.match(/(\d+)\s*(?:sillas?|mesas?|personas?|pax)?/i);
-  const qty = qtyMatch ? parseInt(qtyMatch[1], 10) : null;
-  let body2 = "Manejamos renta de *mesas y sillas* para eventos: sillas Tiffany y vers\xE1tiles, mesas redondas y rectangulares, periqueras, salas lounge y m\xE1s.";
-  if (qty && qty >= 10) {
-    body2 += ` Para *${qty} sillas* cotizamos montaje, log\xEDstica y tipo de silla seg\xFAn el evento y el sitio.`;
+function parseMobiliarioRentItems(query) {
+  const items = [];
+  if (/\bpicnic\b|\bmesas?\s+tipo\s+picnic\b/i.test(query)) {
+    const q10 = query.match(/(\d+)\s*mesas?\s+tipo\s+picnic/i) || query.match(/(\d+)\s*picnic/i);
+    items.push({
+      qty: q10?.[1] ? parseInt(q10[1], 10) : null,
+      label: "mesas tipo picnic"
+    });
   }
-  body2 += " Podemos incluir manteler\xEDa y montaje en sitio.";
-  return body2;
+  const peri = query.match(/(\d+)\s*periqueras?\b/i);
+  if (/\bperiqueras?\b/i.test(query)) {
+    items.push({
+      qty: peri?.[1] ? parseInt(peri[1], 10) : null,
+      label: "periqueras"
+    });
+  }
+  const bancos = query.match(/(\d+)\s*bancos?\b/i);
+  if (/\bbancos?\b/i.test(query)) {
+    items.push({
+      qty: bancos?.[1] ? parseInt(bancos[1], 10) : null,
+      label: "bancos"
+    });
+  }
+  const sillas = query.match(/(\d+)\s*sillas?\b/i);
+  if (/\bsillas?\b/i.test(query) && !/\bpicnic\b/i.test(query)) {
+    items.push({
+      qty: sillas?.[1] ? parseInt(sillas[1], 10) : null,
+      label: "sillas"
+    });
+  }
+  if (!items.some((i10) => /picnic/i.test(i10.label)) && /\bmesas?\b/i.test(query) && !/\bmesas?\s+periqueras?\b/i.test(query)) {
+    const mesas = query.match(/(\d+)\s*mesas?\b/i);
+    if (mesas || /\bmesas?\b/i.test(query)) {
+      items.push({
+        qty: mesas?.[1] ? parseInt(mesas[1], 10) : null,
+        label: "mesas"
+      });
+    }
+  }
+  return items;
+}
+function formatMobiliarioItem(item) {
+  return item.qty && item.qty > 0 ? `${item.qty} ${item.label}` : item.label;
+}
+function buildMobiliarioRentDetailReply(query) {
+  if (!/\b(mesas?|sillas?|mobiliario|periquera|lounge|picnic|bancos?)\b/i.test(query)) {
+    return null;
+  }
+  const items = parseMobiliarioRentItems(query);
+  const color = query.match(
+    /\bcolor\s+(blanco|negro|dorado|plateado|natural|madera)\b/i
+  )?.[1];
+  const colorNote = color ? ` en color *${color.toLowerCase()}*` : "";
+  if (items.length >= 1) {
+    const list = items.map(formatMobiliarioItem).join(", ");
+    const hasPicnic = items.some((i10) => /picnic/i.test(i10.label));
+    const hasPeri = items.some((i10) => /periquera/i.test(i10.label));
+    const hasBancos = items.some((i10) => /banco/i.test(i10.label));
+    const bits = [`Anoto *${list}*${colorNote}.`];
+    if (hasPicnic || hasPeri || hasBancos) {
+      bits.push(
+        "Manejamos renta de mesas tipo picnic, periqueras y bancos (y tambi\xE9n sillas Tiffany/vers\xE1tiles, mesas redondas/rectangulares y salas lounge)."
+      );
+    } else {
+      bits.push(
+        "Manejamos renta de *mesas y sillas* para eventos: sillas Tiffany y vers\xE1tiles, mesas redondas y rectangulares, periqueras, salas lounge y m\xE1s."
+      );
+    }
+    if (/\bsin\s+montaje|solo\s+(para\s+)?entrega|entrega|recoger/i.test(query)) {
+      bits.push(
+        "Lo tomo como *entrega/recolecci\xF3n* (sin montaje en sitio); el equipo confirma log\xEDstica y disponibilidad."
+      );
+    } else {
+      bits.push("Podemos cotizar con o sin montaje en sitio, seg\xFAn lo que necesites.");
+    }
+    return bits.join(" ");
+  }
+  return "Anoto *mobiliario*. Manejamos renta de *mesas y sillas* para eventos: sillas Tiffany y vers\xE1tiles, mesas redondas y rectangulares, periqueras, mesas tipo picnic, salas lounge y m\xE1s. Podemos incluir manteler\xEDa y montaje en sitio, o solo entrega/recolecci\xF3n.";
 }
 function buildLevel3Ack(serviceLabel) {
   const label = serviceLabel.trim() || "tu solicitud";
@@ -128615,8 +128700,18 @@ function needsModoServicioClarification(text2, current) {
 function buildModoServicioClarificationQuestion() {
   return "\xBFLo quieres montado en tu evento con barra y servicio, o solo la entrega del producto?";
 }
+function isMobiliarioRentalPedido(message) {
+  const t = message?.trim() ?? "";
+  if (!t) return false;
+  return /\b(mesas?\s+tipo\s+picnic|picnic|periqueras?|bancos?|mobiliario|mesas?\s+y\s+sillas?)\b/i.test(
+    t
+  );
+}
 function buildPedidoEntregaReply(message) {
   const t = message?.trim() ?? "";
+  if (isMobiliarioRentalPedido(t)) {
+    return `Perfecto \u2014 lo tomo como *entrega/recolecci\xF3n de mobiliario* (sin montaje en sitio). Nuestro equipo te arma la cotizaci\xF3n seg\xFAn cantidades, color y zona de entrega.`;
+  }
   const qtyMatch = t.match(/(\d+)\s*(rollos?|piezas?|platos?)/i);
   const qtyLabel = qtyMatch ? `${qtyMatch[1]} ${qtyMatch[2]}` : null;
   const product = /\bsushi\b/i.test(t) ? "sushi" : /\bpizzas?\b/i.test(t) ? "pizza" : /\bpoke\b/i.test(t) ? "poke" : "producto";
@@ -130745,12 +130840,19 @@ function buildMappedCatalogOfferBlock(services, sourceText) {
     ""
   ];
   let linked = 0;
+  const seenUrls = /* @__PURE__ */ new Set();
   for (const svc of list) {
     let query = svc;
     let label = svc;
     if (/mobiliario/i.test(svc) && /\bperiqueras?\b/i.test(text2)) {
       query = "periqueras";
       label = "Periqueras (mobiliario)";
+    } else if (/^periqueras?$/i.test(svc)) {
+      if (list.some((s10) => /mobiliario/i.test(s10)) && /\bperiqueras?\b/i.test(text2)) {
+        continue;
+      }
+      query = "periqueras";
+      label = "Periqueras";
     } else if (/puestos?\s+de\s+comida/i.test(svc)) {
       query = "puestos de comida";
       label = /\bbanderillas?\b/i.test(text2) ? "Puestos de comida / antojitos (banderillas)" : "Puestos de comida / antojitos";
@@ -130764,7 +130866,10 @@ function buildMappedCatalogOfferBlock(services, sourceText) {
     const sheetMatch = resolveCatalogWebLink(query);
     const webUrl = getCatalogWebUrlForQuery(query) || (sheetMatch.kind === "service" ? sheetMatch.url : null);
     if (webUrl) {
-      lines.push(`\u2022 *${label}*: ${toDeliverableCatalogUrl(webUrl)}`);
+      const deliverable = toDeliverableCatalogUrl(webUrl);
+      if (seenUrls.has(deliverable)) continue;
+      seenUrls.add(deliverable);
+      lines.push(`\u2022 *${label}*: ${deliverable}`);
       linked++;
     } else {
       lines.push(`\u2022 *${label}*`);
@@ -131576,40 +131681,72 @@ ${buildPackageCatalogOfferBlock(
   !clientAsksServiceInfo(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
   !clientMentionsEntertainment(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
-    const packageServices = servicesFromCurrentMessage.length >= 2 ? servicesFromCurrentMessage : servicesFromTurn;
-    const packageReply = buildMultiServicePackageReply(
-      packageServices,
-      currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
-    );
-    const aiIsUselessAck = /ya\s+lo\s+tengo\s+anotado|perfecto,?\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+\.?$/i.test(
-      aiResponse.trim()
-    ) || aiResponse.trim().length < 40;
-    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && !aiIsUselessAck) {
-      const aiAlreadyLists = packageServices.filter(
-        (s10) => aiResponse.toLowerCase().includes(s10.toLowerCase().split(/\s+/)[0])
-      ).length >= Math.min(2, packageServices.length);
-      const aiHasCatalog = /bodasesor\.com\/catalogos|cat[aá]logo/i.test(aiResponse);
-      mensaje = aiAlreadyLists && aiHasCatalog ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx) : mergeWithPendingQuestion(
-        `${packageReply}
+    if (isMobiliarioRentalPedido(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1) {
+      if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
+        extracted.direccion_evento = null;
+        filledSet.delete("Lugar/direcci\xF3n del evento");
+      }
+      const items = parseMobiliarioRentItems(currentMessage ?? "");
+      const itemLabel = items.map((i10) => i10.qty ? `${i10.qty} ${i10.label}` : i10.label).join(", ");
+      filledSet.add("Requerimientos o servicios");
+      extracted.requerimientos_evento = `Mobiliario: ${itemLabel}`;
+      if (detectModoServicio(currentMessage) === "pedido_entrega") {
+        extracted.modo_servicio = "pedido_entrega";
+      }
+      const detail = buildMobiliarioRentDetailReply(currentMessage ?? "") || buildRichBriefAcknowledgment(currentMessage ?? "");
+      const catalog = buildPackageCatalogOfferBlock(
+        ["Mobiliario"],
+        currentMessage ?? ""
+      );
+      mensaje = mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} ${detail}
 
-${aiAlreadyLists ? "" : aiResponse}`.trim(),
+${catalog}`,
         filledSet,
         extracted,
         ctx
+      );
+      appliedDirectReply = true;
+      log?.info(
+        { entityId, items: items.length },
+        "GUARD: RFQ mobiliario \u2014 picnic/periqueras/bancos + cat\xE1logo + embudo"
       );
     } else {
-      mensaje = mergeWithPendingQuestion(
-        `${pickTransition(presHistory)} ${packageReply}`,
-        filledSet,
-        extracted,
-        ctx
+      const packageServices = servicesFromCurrentMessage.length >= 2 ? servicesFromCurrentMessage : servicesFromTurn;
+      const packageReply = buildMultiServicePackageReply(
+        packageServices,
+        currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
+      );
+      const aiIsUselessAck = /ya\s+lo\s+tengo\s+anotado|perfecto,?\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+\.?$/i.test(
+        aiResponse.trim()
+      ) || aiResponse.trim().length < 40;
+      if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && !aiIsUselessAck) {
+        const aiAlreadyLists = packageServices.filter(
+          (s10) => aiResponse.toLowerCase().includes(s10.toLowerCase().split(/\s+/)[0])
+        ).length >= Math.min(2, packageServices.length);
+        const aiHasCatalog = /bodasesor\.com\/catalogos|cat[aá]logo/i.test(aiResponse);
+        mensaje = aiAlreadyLists && aiHasCatalog ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx) : mergeWithPendingQuestion(
+          `${packageReply}
+
+${aiAlreadyLists ? "" : aiResponse}`.trim(),
+          filledSet,
+          extracted,
+          ctx
+        );
+      } else {
+        mensaje = mergeWithPendingQuestion(
+          `${pickTransition(presHistory)} ${packageReply}`,
+          filledSet,
+          extracted,
+          ctx
+        );
+      }
+      appliedDirectReply = true;
+      log?.info(
+        { entityId, services: packageServices.length },
+        "GUARD: brief multi-servicio \u2014 lista completa + cat\xE1logo"
       );
     }
-    appliedDirectReply = true;
-    log?.info(
-      { entityId, services: packageServices.length },
-      "GUARD: brief multi-servicio \u2014 lista completa + cat\xE1logo"
-    );
   } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage)) {
     mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
@@ -131634,18 +131771,44 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
     log?.info({ entityId, tipo: extracted.tipo_evento }, "GUARD: ofrecimiento temprano \u2014 redacci\xF3n OpenAI");
   } else if (!cierreYaEnviado && (extracted.modo_servicio === "pedido_entrega" || detectModoServicio(currentMessage) === "pedido_entrega")) {
     extracted.modo_servicio = "pedido_entrega";
-    if (/\bsushi|pizza|poke|rollos?\b/i.test(currentMessage ?? "")) {
-      filledSet.add("Requerimientos o servicios");
-      const label = /\bsushi\b/i.test(currentMessage ?? "") ? "pedido sushi (entrega)" : /\bpizzas?\b/i.test(currentMessage ?? "") ? "pedido pizza (entrega)" : "pedido/entrega";
-      const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
-      if (merged) extracted.requerimientos_evento = merged;
+    if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
     }
-    const pedidoBody = buildPedidoEntregaReply(currentMessage);
-    const isOpening = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory);
-    const pedidoReply = isOpening && !/hola,?\s*soy\s+lucy/i.test(pedidoBody) ? `${LUCY_INTRO} ${pedidoBody}` : pedidoBody;
-    mensaje = pedidoReply;
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: modo pedido/entrega \u2014 sin barra pp");
+    if (isMobiliarioRentalPedido(currentMessage)) {
+      const items = parseMobiliarioRentItems(currentMessage ?? "");
+      const itemLabel = items.length ? items.map((i10) => i10.qty ? `${i10.qty} ${i10.label}` : i10.label).join(", ") : "mobiliario";
+      filledSet.add("Requerimientos o servicios");
+      extracted.requerimientos_evento = `Mobiliario: ${itemLabel} (entrega/recolecci\xF3n)`;
+      const detail = buildMobiliarioRentDetailReply(currentMessage ?? "") || buildPedidoEntregaReply(currentMessage);
+      const catalog = buildPackageCatalogOfferBlock(
+        ["Mobiliario"],
+        currentMessage ?? ""
+      );
+      mensaje = mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} ${detail}
+
+${catalog}`,
+        filledSet,
+        extracted,
+        ctx
+      );
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: mobiliario entrega/recolecci\xF3n \u2014 ack + cat\xE1logo + embudo");
+    } else {
+      if (/\bsushi|pizza|poke|rollos?\b/i.test(currentMessage ?? "")) {
+        filledSet.add("Requerimientos o servicios");
+        const label = /\bsushi\b/i.test(currentMessage ?? "") ? "pedido sushi (entrega)" : /\bpizzas?\b/i.test(currentMessage ?? "") ? "pedido pizza (entrega)" : "pedido/entrega";
+        const merged = mergeServiceRequirements(extracted.requerimientos_evento, label, 6);
+        if (merged) extracted.requerimientos_evento = merged;
+      }
+      const pedidoBody = buildPedidoEntregaReply(currentMessage);
+      const isOpening = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory);
+      const pedidoReply = isOpening && !/hola,?\s*soy\s+lucy/i.test(pedidoBody) ? `${LUCY_INTRO} ${pedidoBody}` : pedidoBody;
+      mensaje = isFieldSatisfied("nombre", filledSet, extracted) ? mergeWithPendingQuestion(pedidoReply, filledSet, extracted, ctx) : pedidoReply;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: modo pedido/entrega \u2014 sin barra pp");
+    }
   } else if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && clientMentionsItalianTheme(currentMessage) && !isFieldSatisfied("nombre", filledSet, extracted)) {
     mensaje = buildFirstInteractionMessage(ctx, true);
     appliedDirectReply = true;
@@ -131726,19 +131889,47 @@ ${nextQ}` : priceReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: ubicaci\xF3n + pedir nombre");
   } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+    if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    }
     mensaje = `${buildMobiliarioRentDetailReply(currentMessage ?? "")}
 
 ${buildModoServicioClarificationQuestion()}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: mobiliario \u2014 detalle t\xE9cnico + aclarar montado/entrega");
-  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && isFieldSatisfied("nombre", filledSet, extracted) && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+    if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    }
     const detail = buildMobiliarioRentDetailReply(currentMessage ?? "");
-    const pending = getNextPendingField(extracted, filledSet);
-    mensaje = pending && pending !== "requerimientos" ? `${detail}
+    const items = parseMobiliarioRentItems(currentMessage ?? "");
+    filledSet.add("Requerimientos o servicios");
+    if (items.length) {
+      const itemLabel = items.map((i10) => i10.qty ? `${i10.qty} ${i10.label}` : i10.label).join(", ");
+      extracted.requerimientos_evento = `Mobiliario: ${itemLabel}`;
+    } else if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+      extracted.requerimientos_evento = "Mobiliario";
+    }
+    const catalog = items.length ? buildPackageCatalogOfferBlock(["Mobiliario"], currentMessage ?? "") : [
+      "Cat\xE1logo de *salas y periqueras*:",
+      toDeliverableCatalogUrl(
+        getCatalogWebUrlForQuery("periqueras") || "https://bodasesor.com/catalogos/salas-y-periqueras"
+      ),
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n");
+    mensaje = mergeWithPendingQuestion(
+      `${pickTransition(presHistory)} ${detail}
 
-${buildNaturalQuestion(pending, ctx)}` : detail;
+${catalog}`,
+      filledSet,
+      extracted,
+      ctx
+    );
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: mobiliario \u2014 detalle t\xE9cnico y avanzar");
+    log?.info({ entityId }, "GUARD: mobiliario \u2014 detalle t\xE9cnico + cat\xE1logo + embudo");
   } else if (needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
     mensaje = buildModoServicioClarificationQuestion();
     appliedDirectReply = true;
