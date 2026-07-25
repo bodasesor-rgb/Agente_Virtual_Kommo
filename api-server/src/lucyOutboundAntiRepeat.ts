@@ -347,9 +347,9 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     /\binformaci[oó]n|\binfo\b|\bdame\s+(info|detalle|datos)|\bme\s+(pueden|pueden)\s+dar|\bcu[eé]ntenme|\bexpl[ií]ca/i.test(
       input.currentMessage ?? ""
     );
-  // A14962: clarificación de servicio (robots LED / batucada) no es "dato pendiente".
+  // A14962 / A14988: clarificación de servicio (robots LED / batucada / bailarinas) no es "dato pendiente".
   const clientClarifyingService =
-    /\brobots?\s*leds?\b|\bbatucada\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
+    /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
       input.currentMessage ?? ""
     );
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);

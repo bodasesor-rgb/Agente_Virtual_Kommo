@@ -119,6 +119,7 @@ import {
   looksLikeConflictingFoodAlternatives,
   preferPrimaryCatalogService,
   clientMentionsEntertainment,
+  clientConfirmsOfferReview,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
   clientMentionsCarpas,
@@ -1037,9 +1038,12 @@ function buildEntertainmentSalesReply(
   );
   const wantsRobots = /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(msg);
   const wantsBatucada = /\bbatucada\b/i.test(msg);
+  // A14988: bailarinas / dancers para concierto u otro evento.
+  const wantsBailarinas = /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(msg);
   const services = parseServicesFromText(msg);
   const label =
     (services.length ? services.join(", ") : null) ||
+    (wantsBailarinas ? "Bailarinas" : null) ||
     (wantsRobots ? "Robots LED" : null) ||
     (wantsBatucada ? "Batucada" : null) ||
     (wantsMc ? "Maestro de ceremonias y show" : "Animación / Hora loca y shows");
@@ -1052,7 +1056,11 @@ function buildEntertainmentSalesReply(
 
   let intro: string;
   let ideas: string;
-  if (wantsRobots && wantsBatucada) {
+  if (wantsBailarinas) {
+    intro = `Perfecto — anoto *bailarinas* para ${eventLabel}.`;
+    ideas =
+      "Es entretenimiento / show en vivo: el equipo arma la propuesta según duración, estilo y el espacio. No confundir con banquete ni catering.";
+  } else if (wantsRobots && wantsBatucada) {
     intro = `Perfecto — anoto *robots LED* para ambientar la *batucada* en ${eventLabel}.`;
     ideas =
       "Eso va por entretenimiento / activación (no es banquete ni catering). Nuestro equipo arma la propuesta según duración, cantidad de robots y el espacio.";
@@ -1078,6 +1086,7 @@ function buildEntertainmentSalesReply(
   const entServices = collectServicesForCatalogOffer({
     services: [
       ...services,
+      ...(wantsBailarinas ? ["Bailarinas", "Animación / Hora loca"] : []),
       ...(wantsRobots ? ["Robots LED"] : []),
       ...(wantsBatucada ? ["Batucada"] : []),
       ...(wantsMc ? ["Maestro de ceremonias"] : []),
@@ -1090,10 +1099,7 @@ function buildEntertainmentSalesReply(
     entServices,
     `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
   );
-  let body =
-    wantsRobots || wantsBatucada
-      ? `${intro} ${ideas}\n\n${catalog}`
-      : `${intro} ${ideas}\n\n${catalog}`;
+  let body = `${intro} ${ideas}\n\n${catalog}`;
 
   if (filledSet && ctx) {
     const pending = getNextPendingField(extracted, filledSet);
@@ -2373,6 +2379,19 @@ export function preferEventOfferReply(opts: {
   if (
     /bet[uú]n|cupcakes?|paletas?\s+de\s+hielo|helados?/i.test(aiResponse) &&
     /\bbanquetes?\b|\bcatering\b/i.test(`${msg} ${userBlob} ${extracted.requerimientos_evento ?? ""}`)
+  ) {
+    return null;
+  }
+
+  // A14988: entretenimiento / "Revisar" tras CTA → no re-ofrecer Nivel 1.
+  if (clientMentionsEntertainment(msg) || clientMentionsLedRobotsOrBatucada(msg)) {
+    return null;
+  }
+  const lastAsstOffer = lastAssistantOutboundFromHistory(history);
+  if (
+    clientConfirmsOfferReview(msg) &&
+    lastAsstOffer &&
+    /revisar\s+primero|armar\s+un\s+paquete/i.test(lastAsstOffer)
   ) {
     return null;
   }
@@ -4901,19 +4920,61 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       (clientMentionsLedRobotsOrBatucada(
         collectUserTexts(presHistory, currentMessage).join(" ")
       ) &&
-        /\b(robots?|leds?|batucada|solo\s+quiero|quiero)\b/i.test(currentMessage ?? "")))
+        /\b(robots?|leds?|batucada|solo\s+quiero|quiero)\b/i.test(currentMessage ?? "")) ||
+      // A14988: "Revisar" tras CTA Nivel 1 + servicio de entretenimiento ya nombrado.
+      (clientConfirmsOfferReview(currentMessage) &&
+        lastAssistantMsg &&
+        typeof lastAssistantMsg.content === "string" &&
+        /revisar\s+primero|armar\s+un\s+paquete/i.test(lastAssistantMsg.content) &&
+        (clientMentionsEntertainment(
+          collectUserTexts(presHistory, currentMessage).join(" ")
+        ) ||
+          clientMentionsLedRobotsOrBatucada(
+            collectUserTexts(presHistory, currentMessage).join(" ")
+          ) ||
+          /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(
+            `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory, currentMessage).join(" ")}`
+          ))))
   ) {
+    const userEntBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    const entFocusMsg =
+      clientMentionsEntertainment(currentMessage) ||
+      clientMentionsLedRobotsOrBatucada(currentMessage)
+        ? currentMessage
+        : /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(userEntBlob)
+          ? "Bailarinas"
+          : clientMentionsLedRobotsOrBatucada(userEntBlob)
+            ? userEntBlob
+            : currentMessage;
     mensaje = buildEntertainmentSalesReply(
       extracted,
       history,
       entityId,
-      currentMessage,
+      entFocusMsg,
       filledSet,
       ctx
     );
     appliedSalesReply = true;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: show/entretenimiento — orientación + catálogo");
+  } else if (
+    allowSalesReplyOverride &&
+    clientConfirmsOfferReview(currentMessage) &&
+    lastAssistantMsg &&
+    typeof lastAssistantMsg.content === "string" &&
+    /revisar\s+primero|armar\s+un\s+paquete/i.test(lastAssistantMsg.content) &&
+    hasMeaningfulRequerimientos(extracted, filledSet)
+  ) {
+    // A14988: "Revisar" con servicio ya capturado → embudo, no re-preguntar el CTA.
+    const pending = getNextPendingField(extracted, filledSet);
+    mensaje = pending
+      ? `${pickTransition(presHistory)} Listo, seguimos con lo que elegiste.\n\n${buildNaturalQuestion(pending, ctx)}`
+      : buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A14988 — Revisar tras oferta → embudo (sin re-CTA)");
   } else if (allowSalesReplyOverride && clientMentionsCarpas(currentMessage)) {
     mensaje = buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx);
     appliedSalesReply = true;
@@ -6257,23 +6318,65 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  // A14962: si el hilo es robots LED / batucada, NUNCA dejar precios de banquete.
+  // A14962 / A14988: si el hilo es robots LED / batucada / bailarinas, NUNCA dejar precios de banquete.
   {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    const entThread =
+      clientMentionsLedRobotsOrBatucada(userBlob) ||
+      /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(userBlob) ||
+      clientMentionsEntertainment(userBlob);
     if (
-      clientMentionsLedRobotsOrBatucada(userBlob) &&
+      entThread &&
       /banquete\s+formal|solo\s+alimentos.*\$\s*450|tradicional.*\$\s*830/i.test(mensaje) &&
       !/\bbanquete\b/i.test(userBlob)
     ) {
+      const focus =
+        currentMessage &&
+        (clientMentionsEntertainment(currentMessage) ||
+          clientMentionsLedRobotsOrBatucada(currentMessage) ||
+          /\bbailarinas?\b/i.test(currentMessage))
+          ? currentMessage
+          : /\bbailarinas?\b/i.test(userBlob)
+            ? "Bailarinas"
+            : currentMessage || userBlob;
       mensaje = buildEntertainmentSalesReply(
         extracted,
         history,
         entityId,
-        currentMessage || userBlob,
+        focus,
         filledSet,
         ctx
       );
-      log?.info({ entityId }, "GUARD: A14962 — reemplazó banquete por entretenimiento robots/batucada");
+      log?.info({ entityId }, "GUARD: A14962/A14988 — reemplazó banquete por entretenimiento");
+    }
+  }
+
+  // A14988: no re-preguntar "qué revisar primero" si ya hay requerimientos o el cliente dijo Revisar.
+  if (
+    /qu[eé]\s+te\s+gustar[ií]a\s+revisar\s+primero|armar\s+un\s+paquete\s+completo/i.test(mensaje) &&
+    (hasMeaningfulRequerimientos(extracted, filledSet) ||
+      clientConfirmsOfferReview(currentMessage) ||
+      clientMentionsEntertainment(currentMessage))
+  ) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending && pending !== "requerimientos") {
+      const nextQ = buildNaturalQuestion(pending, ctx);
+      if (nextQ) {
+        mensaje = clientMentionsEntertainment(currentMessage)
+          ? mensaje
+          : `${pickTransition(presHistory)} Seguimos con lo que elegiste.\n\n${nextQ}`;
+        log?.info({ entityId }, "GUARD: A14988 — cortó re-CTA revisar primero");
+      }
+    } else if (
+      hasMeaningfulRequerimientos(extracted, filledSet) &&
+      !clientMentionsEntertainment(currentMessage)
+    ) {
+      // Ya hay servicio: no dejar el CTA genérico solo.
+      const pending2 = getNextPendingField(extracted, filledSet);
+      if (pending2) {
+        mensaje = buildNaturalQuestion(pending2, ctx);
+        log?.info({ entityId }, "GUARD: A14988 — re-CTA → siguiente campo embudo");
+      }
     }
   }
 

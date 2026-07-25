@@ -97,6 +97,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
+  // A14988 Ernesto: bailarinas / dancers = entretenimiento (no oferta genérica Nivel 1).
+  ["Bailarinas", /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i],
   // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
   ["Robots LED", /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i],
   ["Batucada", /\bbatucada\b|\bambienta(?:r|ci[oó]n)\b.{0,40}\bbatucada\b|\bbatucada\b.{0,40}\bambient/i],
@@ -137,7 +139,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshow\b|batucada|robots?\s*leds?/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -204,6 +206,12 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   "parrillada tacos": "Parrillada Tacos",
   "tarima y pista": "Pista de baile",
   "tarimas y pistas": "Pista de baile",
+  bailarina: "Bailarinas",
+  bailarinas: "Bailarinas",
+  dancers: "Bailarinas",
+  dancer: "Bailarinas",
+  vedette: "Bailarinas",
+  vedettes: "Bailarinas",
   "audio e iluminacion": "Audio y sonido",
   "audio e iluminación": "Audio y sonido",
   "desayuno o brunch": "Desayuno",
@@ -239,6 +247,8 @@ const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\bcarne\s+asada\b/i, "carne asada"],
   [/\bposada\b/i, "posada"],
   [/\bcena\s+navide[nñ]a\b/i, "cena navideña"],
+  // A14988 Ernesto: concierto es tipo de evento (no servicio).
+  [/\bconciertos?\b/i, "concierto"],
 ];
 
 /** Normaliza para comparar presentaciones ("Alejandro?", "¿Alejandro"). */
@@ -743,7 +753,18 @@ export function clientMentionsEntertainment(message?: string): boolean {
     // A14962 Vane: batucada / robots LED / ambientación de show
     /\bbatucada\b/i.test(t) ||
     /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t) ||
-    /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|show|robots?|leds?)\b/i.test(t)
+    /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|show|robots?|leds?)\b/i.test(t) ||
+    // A14988 Ernesto: bailarinas para concierto
+    /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t)
+  );
+}
+
+/** Cliente confirma "revisar" tras el CTA de oferta Nivel 1. */
+export function clientConfirmsOfferReview(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  return /^(revisar|revisemos|revisarlo|revisarla|revisar\s+primero|el\s+detalle|detallame|det[aá]llame)[\s.!]*$/i.test(
+    t
   );
 }
 

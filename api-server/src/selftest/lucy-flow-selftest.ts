@@ -9,6 +9,7 @@ import {
   parseInvitadosFromText,
   clientMentionsCatering,
   clientMentionsEntertainment,
+  clientConfirmsOfferReview,
   clientMentionsPistaTarima,
   isDimensionText,
   parseSpaceDimensions,
@@ -6952,6 +6953,81 @@ async function runAll(): Promise<void> {
       ],
     });
     assert.ok(/picnic/i.test(mid) && !/50 sillas/i.test(mid), mid.slice(0, 500));
+  });
+
+  await test("110. A14988 Ernesto — Bailarinas en concierto (no re-CTA revisar primero)", () => {
+    assert.equal(parseTipoEventoFromText("Concierto"), "concierto");
+    assert.ok(clientMentionsEntertainment("Bailarinas"));
+    assert.ok(isServiceRelatedMessage("Bailarinas"));
+    assert.ok(parseServicesFromText("Bailarinas").some((s) => /bailarinas/i.test(s)));
+    assert.ok(clientConfirmsOfferReview("Revisar"));
+
+    const offerCta =
+      "Perfecto, Ernesto. Para tu concierto, manejamos una variedad de servicios que pueden ser muy útiles:\n\n• Alimentos\n• Barras de bebidas\n• DJ e iluminación\n\n¿Qué te gustaría revisar primero o armar un paquete?";
+
+    const bailarinas = runGuards({
+      aiResponse:
+        "Perfecto, Ernesto. ¿Qué te gustaría revisar primero o prefieres armar un paquete completo?",
+      extracted: emptyExtracted({
+        nombre: "Ernesto Juarez",
+        correo: "ernesto@elkomander.com.mx",
+        tipo_evento: "concierto",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Bailarinas",
+      history: [
+        { role: "assistant", content: offerCta },
+        { role: "user", content: "Concierto" },
+      ],
+    });
+    assert.ok(/bailarinas/i.test(bailarinas), bailarinas.slice(0, 400));
+    assert.ok(
+      /entretenimiento|show|animaci/i.test(bailarinas),
+      `debe orientar entretenimiento: ${bailarinas.slice(0, 400)}`
+    );
+    assert.ok(
+      !/qu[eé]\s+te\s+gustar[ií]a\s+revisar\s+primero/i.test(bailarinas),
+      `no re-CTA: ${bailarinas.slice(0, 400)}`
+    );
+    assert.ok(
+      /ubicaci[oó]n|ciudad|fecha|invitados|presupuesto|donde|cu[aá]ndo/i.test(bailarinas),
+      `embudo: ${bailarinas.slice(-350)}`
+    );
+
+    const revisar = runGuards({
+      aiResponse: "¿Qué te gustaría revisar primero o prefieres armar un paquete completo?",
+      extracted: emptyExtracted({
+        nombre: "Ernesto Juarez",
+        correo: "ernesto@elkomander.com.mx",
+        tipo_evento: "concierto",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Revisar",
+      history: [
+        { role: "assistant", content: offerCta },
+        { role: "user", content: "Bailarinas" },
+        {
+          role: "assistant",
+          content:
+            "Perfecto, Ernesto. ¿Qué te gustaría revisar primero o prefieres armar un paquete completo?",
+        },
+      ],
+    });
+    assert.ok(/bailarinas/i.test(revisar), revisar.slice(0, 400));
+    assert.ok(
+      !/qu[eé]\s+te\s+gustar[ií]a\s+revisar\s+primero/i.test(revisar),
+      `Revisar no re-CTA: ${revisar.slice(0, 400)}`
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
