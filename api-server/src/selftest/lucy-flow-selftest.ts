@@ -75,6 +75,8 @@ import {
   clientWantsFoodOnlyQuote,
   dedupeServiceHierarchy,
   looksLikeConflictingFoodAlternatives,
+  shouldReplaceCrmDireccion,
+  looksLikeDiscourseNotPlace,
 } from "../conversation-understanding.js";
 import {
   applyCrmWriteInvariants,
@@ -82,6 +84,8 @@ import {
   userJustifiesPresupuesto,
   purgeUnjustifiedPresupuestoLines,
 } from "../lucyCrmInvariants.js";
+import { isUsefulLearningPair } from "../services/learningPairFilter.js";
+import { buildSilentWatchPatchPayload } from "../silentWatchCrm.js";
 import {
   applyLucyGlobalAntiRepetition,
   cleanupBrokenOutboundFragments,
@@ -7293,6 +7297,94 @@ async function runAll(): Promise<void> {
     const unique = new Set(urls.map((u) => u.replace(/\/+$/, "").toLowerCase()));
     assert.equal(urls.length, unique.size, `URLs duplicadas: ${urls.join(" | ")}`);
     assert.ok(/bodasesor\.com\/catalogos/i.test(reply), reply.slice(0, 500));
+  });
+
+  await test("114. V8.85 — ubicación basura + silencio Humano Trabaja no pisa CRM", () => {
+    // Discurso / servicio ≠ lugar
+    assert.equal(parseZonaFromText("Es muy importante"), null);
+    assert.equal(parseZonaFromText("Show en vivo"), null);
+    assert.equal(parseZonaFromText("la fiesta es en la noche"), null);
+    assert.equal(parseZonaFromText("en realidad no sé"), null);
+    assert.equal(parseZonaFromText("50 mesas en color blanco"), null);
+    assert.ok(!isUsableDireccionEvento("es muy importante"));
+    assert.ok(!isUsableDireccionEvento("vivo"));
+    assert.ok(!isUsableDireccionEvento("noche"));
+    assert.ok(!isUsableDireccionEvento("importante"));
+    assert.ok(looksLikeDiscourseNotPlace("es muy importante"));
+    assert.ok(isUsableDireccionEvento("Jiutepec"));
+    assert.ok(isUsableDireccionEvento("Polanco, CDMX"));
+    assert.equal(parseZonaFromText("El evento es en Jiutepec"), "Jiutepec");
+    assert.equal(parseZonaFromText("Va a ser en Polanco con DJ"), "Polanco");
+
+    // No pisar Jiutepec con basura / fragmento débil
+    assert.equal(shouldReplaceCrmDireccion("Jiutepec", "donde estan"), false);
+    assert.equal(shouldReplaceCrmDireccion("Jiutepec", "es muy importante"), false);
+    assert.equal(shouldReplaceCrmDireccion("Jiutepec", "vivo"), false);
+    assert.equal(shouldReplaceCrmDireccion(null, "Jiutepec"), true);
+    assert.equal(shouldReplaceCrmDireccion("cotización", "Polanco CDMX"), true);
+    assert.equal(
+      shouldReplaceCrmDireccion("Jiutepec", "Calle Reforma 100, Jiutepec"),
+      true
+    );
+
+    // Silencio: GPT basura + "en …" no escribe ubicación; CRM bueno se conserva
+    const junkExtracted = emptyExtracted({
+      nombre: "Hortensia",
+      direccion_evento: "es muy importante",
+    });
+    const noWrite = buildSilentWatchPatchPayload(
+      "Es muy importante. En donde estan ubicados?",
+      junkExtracted,
+      "Hortensia",
+      ["- Lugar/dirección del evento: Jiutepec"]
+    );
+    assert.equal(noWrite, null, "no debe PATCH con basura de ubicación");
+
+    const okZona = buildSilentWatchPatchPayload(
+      "El evento será en Tlalnepantla",
+      emptyExtracted({ nombre: "Ana" }),
+      "Ana",
+      []
+    );
+    assert.ok(okZona, "sí escribe zona clara del mensaje");
+    const fields = (okZona!["custom_fields_values"] as Array<{ field_id: number; values: Array<{ value: unknown }> }>) ?? [];
+    assert.ok(
+      fields.some((f) => String(f.values?.[0]?.value ?? "").toLowerCase().includes("tlalnepantla")),
+      JSON.stringify(fields)
+    );
+
+    // No sobrescribe CRM bueno con token más corto
+    const keep = buildSilentWatchPatchPayload(
+      "ok gracias",
+      emptyExtracted({ direccion_evento: "Polanco" }),
+      "Ana",
+      ["- Lugar/dirección del evento: Polanco, CDMX"]
+    );
+    assert.equal(keep, null);
+
+    // Requerimientos: no meter mensaje crudo; learning filter
+    assert.equal(isUsefulLearningPair({ user_message: "ok", suggested_response: "va" }), false);
+    assert.equal(
+      isUsefulLearningPair({
+        user_message: "En donde estan?",
+        suggested_response: "Anoto la ubicación: donde estan para tu evento",
+      }),
+      false
+    );
+    assert.ok(
+      isUsefulLearningPair({
+        user_message: "¿Cuánto sale el banquete para 100?",
+        suggested_response:
+          "Claro, para 100 personas te armo opciones de banquete según el menú que elijas.",
+      })
+    );
+
+    const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const silentSrc = readFileSync(path.join(apiRoot, "src/silentWatchCrm.ts"), "utf8");
+    assert.ok(/shouldReplaceCrmDireccion/.test(silentSrc));
+    assert.ok(/services\.join\(/.test(silentSrc));
+    assert.ok(!/sanitizeCrmNombre\(text\)/.test(silentSrc));
+    assert.ok(/parseZonaFromText/.test(silentSrc));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

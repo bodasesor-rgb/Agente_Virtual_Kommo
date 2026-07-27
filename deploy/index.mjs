@@ -73721,6 +73721,26 @@ var init_learningStore = __esm({
   }
 });
 
+// src/services/learningPairFilter.ts
+function isUsefulLearningPair(pair) {
+  const user = pair.user_message?.trim() ?? "";
+  const resp = pair.suggested_response?.trim() ?? "";
+  if (!user || !resp) return false;
+  if (user.length < 4 || resp.length < 12) return false;
+  if (/^(ok|okay|va|dale|gracias|hola|s[ií]|no|perfecto)[\s!.]*$/i.test(user)) return false;
+  if (/^(ok|okay|va|dale|gracias|hola|s[ií]|perfecto)[\s!.]*$/i.test(resp)) return false;
+  if (/\b(anoto|guardo|ubicaci[oó]n|direcci[oó]n|lugar)\b/i.test(resp) && /\b(es\s+muy\s+importante|en\s+la\s+noche|show\s+en\s+vivo|en\s+vivo|color\s+blanco|en\s+realidad|donde\s+estan)\b/i.test(
+    resp
+  )) {
+    return false;
+  }
+  return true;
+}
+var init_learningPairFilter = __esm({
+  "src/services/learningPairFilter.ts"() {
+  }
+});
+
 // src/services/learningExtractor.ts
 var learningExtractor_exports = {};
 __export(learningExtractor_exports, {
@@ -73764,6 +73784,8 @@ Extrae pares \xFAtiles para few-shot learning a partir de conversaciones donde A
 Reglas:
 - Solo pares donde la respuesta de ALEJANDRO sea \xFAtil para futuros clientes (precios, servicios, cobertura, tiempos, objeciones, tono).
 - NO incluyas saludos vac\xEDos, "ok", "gracias" solos, ni datos personales sensibles.
+- NO inventes ubicaci\xF3n del evento del cliente. Si el cliente pregunta "d\xF3nde est\xE1n ubicados" (sede Bodasesor), la respuesta debe hablar de cobertura/oficinas Bodasesor \u2014 NUNCA guardar eso como direcci\xF3n del evento.
+- NO uses como ejemplo respuestas que anoten en CRM frases sin sentido (ej. "es muy importante", "en la noche", "show en vivo", "color blanco") como lugar del evento.
 - La suggested_response debe sonar natural en espa\xF1ol mexicano, como Lucy (profesional, c\xE1lida, sin emojis excesivos).
 - M\xE1ximo 5 pares.
 - Responde SOLO JSON: { "pairs": [ { "user_message", "suggested_response", "label", "confidence" (0-1), "context_snippet" } ] }`;
@@ -73781,9 +73803,7 @@ ${transcript}` }
     });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw);
-    const pairs = (parsed.pairs ?? []).filter(
-      (p10) => p10.user_message?.trim() && p10.suggested_response?.trim()
-    );
+    const pairs = (parsed.pairs ?? []).filter((p10) => isUsefulLearningPair(p10));
     let created = 0;
     let autoApproved = 0;
     for (const pair of pairs.slice(0, 5)) {
@@ -73802,7 +73822,8 @@ ${transcript}` }
           dedupeKey: key
         }).returning({ id: learningCandidates.id });
         created++;
-        if (inserted?.id && confidence != null && confidence >= AUTO_APPROVE_CONFIDENCE) {
+        const isLocationSensitive = /\bd[oó]nde\s+est|\bubicad|\bdirecci[oó]n|\bzona\b/i.test(pair.user_message) || /\bd[oó]nde\s+est|\bubicad|\bdirecci[oó]n del evento/i.test(pair.suggested_response);
+        if (inserted?.id && confidence != null && confidence >= AUTO_APPROVE_CONFIDENCE && !isLocationSensitive) {
           const approved = await approveLearningCandidate(inserted.id, "auto-learning@lucy");
           if (approved) autoApproved++;
         }
@@ -73830,6 +73851,7 @@ var init_learningExtractor = __esm({
     init_logger3();
     await init_learningSchema();
     await init_learningStore();
+    init_learningPairFilter();
     openai3 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
     AUTO_APPROVE_CONFIDENCE = 0.85;
     MIN_EXTRACT_GAP_MS = 15 * 60 * 1e3;
@@ -122857,7 +122879,9 @@ function isLikelyProductNameNotLocation(value) {
   if (/^sala\s*:/i.test(t)) return true;
   if (/\bsala\s*:/i.test(t)) return true;
   if (/^luxor(\s+rosa)?$/i.test(t)) return true;
-  if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?)$/i.test(t)) {
+  if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
+    t
+  )) {
     return true;
   }
   if (/\b(luxor|tiffany|vers[aá]til)\b/i.test(t) && !/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida|quer[eé]taro|polanco|santa\s+fe)\b/i.test(
@@ -123054,15 +123078,57 @@ var WRITTEN_NUMBERS = {
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
-var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?)\b/i;
+var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale)\b/i;
+function hasGeoLocationSignal(text2) {
+  const t = text2.trim();
+  if (!t) return false;
+  if (KNOWN_ZONES.test(t)) return true;
+  if (/\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|ciudad|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara)\b/i.test(
+    t
+  )) {
+    return true;
+  }
+  if (/\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(
+    t
+  )) {
+    return true;
+  }
+  if (/\b(calle|av\.?|avenida|blvd)\b.+\d/i.test(t)) return true;
+  if (/\b\d{4,5}\b/.test(t) && /\b(colonia|delegaci|cdmx|estado|municipio)\b/i.test(t)) return true;
+  return false;
+}
+var JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+function looksLikeDiscourseNotPlace(text2) {
+  const t = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t) return true;
+  if (JUNK_DIRECCION_PATTERN.test(t)) return true;
+  if (hasGeoLocationSignal(t) || KNOWN_ZONES.test(t)) return false;
+  const lower = t.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+  if (/\b(es|son|esta|estan|esta|estan|quiero|necesito|busco|tengo|hay|muy|mas|mas|importante|necesario|urgente|parece|creo|pienso)\b/.test(
+    lower
+  )) {
+    return true;
+  }
+  if (/^(en\s+)?(la\s+)?(noche|tarde|manana|mañana|vivo|directo|realidad|verdad|serio|cambio|caso|color(\s+\w+)?)$/i.test(
+    t
+  )) {
+    return true;
+  }
+  return false;
+}
 function isNonLocationBusinessPhrase(text2) {
   const t = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t) return true;
+  if (JUNK_DIRECCION_PATTERN.test(t)) return true;
+  if (looksLikeDiscourseNotPlace(t)) return true;
   const cleaned = t.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
   if (!cleaned) return true;
+  if (JUNK_DIRECCION_PATTERN.test(cleaned)) return true;
   if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
-  if (/^(blanco|negro|dorado|plateado|natural|madera)$/i.test(cleaned)) return true;
-  if (/^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n)$/i.test(
+  if (/^(blanco|negro|dorado|plateado|natural|madera|rojo|azul|verde|rosa)$/i.test(cleaned)) {
+    return true;
+  }
+  if (/^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante)$/i.test(
     cleaned
   )) {
     return true;
@@ -123543,12 +123609,36 @@ function isUsableDireccionEvento(value) {
   if (isDimensionText(t)) return false;
   if (isVagueVenueOnly(t)) return false;
   if (isLikelyProductNameNotLocation(t)) return false;
+  if (JUNK_DIRECCION_PATTERN.test(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
+  if (looksLikeDiscourseNotPlace(t)) return false;
   if (looksLikeCompanyLocationQuestionFragment(t)) return false;
   if (/\bd[oó]nde\b|\bubicad/i.test(t) && !KNOWN_ZONES.test(t) && t.split(/\s+/).length <= 5) {
     return false;
   }
+  if (!hasGeoLocationSignal(t) && !KNOWN_ZONES.test(t)) {
+    const words = t.split(/\s+/).filter(Boolean);
+    if (words.length > 4 || t.length > 60) return false;
+    if (/\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete)\b/i.test(
+      t
+    )) {
+      return false;
+    }
+  }
   return true;
+}
+function shouldReplaceCrmDireccion(existing, incoming) {
+  const next = incoming?.trim() ?? "";
+  if (!next || !isUsableDireccionEvento(next)) return false;
+  const prev = existing?.trim() ?? "";
+  if (!prev || !isUsableDireccionEvento(prev)) return true;
+  if (prev.toLowerCase() === next.toLowerCase()) return false;
+  if (prev.toLowerCase().includes(next.toLowerCase()) && next.length < prev.length) return false;
+  if (next.toLowerCase().includes(prev.toLowerCase()) && next.length > prev.length + 2) return true;
+  if (hasGeoLocationSignal(next) && !hasGeoLocationSignal(prev) && next.length >= prev.length) {
+    return true;
+  }
+  return false;
 }
 function parseSpaceDimensions(text2) {
   const m10 = text2.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
@@ -123592,10 +123682,11 @@ function parseZonaFromText(text2) {
     /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
   );
   if (enMatch) {
-    const lugar = enMatch[1].trim().replace(/[.,;:]+$/g, "").trim();
+    let lugar = enMatch[1].trim().replace(/[.,;:]+$/g, "").trim();
+    lugar = lugar.split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también)\b/i)[0].trim().replace(/[.,;:]+$/g, "").trim();
     const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
     const candidato = sinArticulo || lugar;
-    if (!MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color)\b/i.test(
+    if (candidato && !MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !looksLikeDiscourseNotPlace(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante)\b/i.test(
       candidato
     ) && !/^color\b/i.test(candidato) && isUsableDireccionEvento(candidato)) {
       return candidato;
@@ -140891,6 +140982,102 @@ async function recordKnowledgeGapIfNeeded(opts) {
   }
 }
 
+// src/silentWatchCrm.ts
+var SILENT_WATCH_FIELD = {
+  direccion_evento: 1048774,
+  requerimientos_evento: 1048776,
+  fecha_horario: 1048778,
+  num_invitados: 1048780,
+  tipo_evento: 1048782
+};
+function cap255(s10) {
+  return s10.length <= 255 ? s10 : s10.slice(0, 255);
+}
+function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLines = []) {
+  const customFields = [];
+  const msg = text2.trim();
+  const zonaFromMsg = parseZonaFromText(msg);
+  const crmDireccion = crmStoredValue(crmLines, "Lugar/direcci\xF3n del evento");
+  if (zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && shouldReplaceCrmDireccion(crmDireccion, zonaFromMsg)) {
+    customFields.push({
+      field_id: SILENT_WATCH_FIELD.direccion_evento,
+      values: [{ value: cap255(zonaFromMsg) }]
+    });
+  }
+  const fechaFromMsg = parseFechaFromText(msg);
+  if (fechaFromMsg) {
+    customFields.push({
+      field_id: SILENT_WATCH_FIELD.fecha_horario,
+      values: [{ value: cap255(fechaFromMsg) }]
+    });
+  }
+  const invRaw = parseInvitadosFromText(msg);
+  const invitados = invRaw ? parseInt(invRaw, 10) : null;
+  if (invitados && invitados > 0) {
+    customFields.push({
+      field_id: SILENT_WATCH_FIELD.num_invitados,
+      values: [{ value: String(invitados) }]
+    });
+  }
+  const tipoFromMsg = parseTipoEventoFromText(msg);
+  if (tipoFromMsg && !isServiceLabelNotTipoEvento(tipoFromMsg) && !isUnusableTipoEventoReply(tipoFromMsg)) {
+    customFields.push({
+      field_id: SILENT_WATCH_FIELD.tipo_evento,
+      values: [{ value: cap255(tipoFromMsg) }]
+    });
+  }
+  const services = parseServicesFromText(msg);
+  if (services.length > 0) {
+    const crmReq = crmStoredValue(crmLines, "Requerimientos o servicios");
+    const merged = mergeServiceRequirements(
+      crmReq || extracted.requerimientos_evento,
+      services.join(", "),
+      6
+    );
+    const prevCount = parseServicesFromText(crmReq || extracted.requerimientos_evento || "").length;
+    const nextCount = merged ? parseServicesFromText(merged).length : 0;
+    if (merged && nextCount > prevCount) {
+      customFields.push({
+        field_id: SILENT_WATCH_FIELD.requerimientos_evento,
+        values: [{ value: cap255(merged) }]
+      });
+    }
+  }
+  const nombreCandidate = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
+  let nombrePatch = null;
+  if (nombreCandidate) {
+    const invNombre = applyCrmWriteInvariants(
+      { ...extracted, nombre: nombreCandidate, direccion_evento: null },
+      [msg]
+    );
+    if (invNombre.extracted.nombre) {
+      nombrePatch = resolveKommoLeadNamePatch(currentLeadName, invNombre.extracted.nombre);
+    }
+  }
+  if (customFields.length === 0 && !nombrePatch) return null;
+  if (zonaFromMsg) {
+    const invZona = applyCrmWriteInvariants(
+      {
+        ...extracted,
+        direccion_evento: zonaFromMsg,
+        nombre: null
+      },
+      [msg]
+    );
+    if (!invZona.extracted.direccion_evento) {
+      const idx = customFields.findIndex(
+        (f10) => f10.field_id === SILENT_WATCH_FIELD.direccion_evento
+      );
+      if (idx >= 0) customFields.splice(idx, 1);
+    }
+  }
+  if (customFields.length === 0 && !nombrePatch) return null;
+  const payload = {};
+  if (customFields.length > 0) payload["custom_fields_values"] = customFields;
+  if (nombrePatch) payload["name"] = cap255(nombrePatch);
+  return payload;
+}
+
 // src/routes/kommo.ts
 var router3 = (0, import_express3.Router)();
 var openai4 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
@@ -141504,7 +141691,7 @@ async function updateKommoContact(subdomain, accessToken, contactId, extracted, 
   }
 }
 var KOMMO_SHORT_TEXT_LIMIT = 255;
-var cap255 = (s10) => s10.length <= KOMMO_SHORT_TEXT_LIMIT ? s10 : s10.slice(0, KOMMO_SHORT_TEXT_LIMIT - 1) + "\u2026";
+var cap2552 = (s10) => s10.length <= KOMMO_SHORT_TEXT_LIMIT ? s10 : s10.slice(0, KOMMO_SHORT_TEXT_LIMIT - 1) + "\u2026";
 var PLACEHOLDER_PATTERNS2 = [
   /nombre completo/i,
   /del cliente/i,
@@ -141533,18 +141720,18 @@ function buildPatchPayload(extracted, mergedLines, conversationText, currentLead
   });
   const direccionForCrm = crmStoredValue(mergedLines, "Lugar/direcci\xF3n del evento") ?? extracted.direccion_evento;
   if (isValidExtractedString(direccionForCrm))
-    customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(direccionForCrm) }] });
+    customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap2552(direccionForCrm) }] });
   const reqStored = crmStoredValue(mergedLines, "Requerimientos o servicios");
   const reqForCrm = reqStored ?? (conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento);
   if (isValidExtractedString(reqForCrm) && reqForCrm !== "Info pendiente")
-    customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap255(reqForCrm) }] });
+    customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap2552(reqForCrm) }] });
   if (isValidExtractedString(extracted.fecha_horario))
-    customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap255(extracted.fecha_horario) }] });
+    customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap2552(extracted.fecha_horario) }] });
   if (extracted.num_invitados !== null && extracted.num_invitados > 0)
     customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(extracted.num_invitados) }] });
   const tipoEventoForCrm = crmStoredValue(mergedLines, "Tipo de evento") ?? extracted.tipo_evento;
   if (isValidExtractedString(tipoEventoForCrm))
-    customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(tipoEventoForCrm) }] });
+    customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap2552(tipoEventoForCrm) }] });
   const presLine = mergedLines.find((l10) => /^-?\s*Presupuesto \(MXN\):/i.test(l10));
   if (presLine) {
     const presText = presLine.replace(/^-?\s*Presupuesto \(MXN\):\s*/i, "").trim();
@@ -141552,7 +141739,7 @@ function buildPatchPayload(extracted, mergedLines, conversationText, currentLead
     if (!isNaN(presNum) && presNum >= 1e3 && /^\$?[\d,.\s]+(k|mxn)?$/i.test(presText.replace(/\s/g, ""))) {
       customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(presNum) }] });
     } else if (presText) {
-      customFields.push({ field_id: FIELD.presupuesto, values: [{ value: cap255(presText) }] });
+      customFields.push({ field_id: FIELD.presupuesto, values: [{ value: cap2552(presText) }] });
     }
   } else if (extracted.presupuesto !== null && extracted.presupuesto >= 1e3) {
     customFields.push({ field_id: FIELD.presupuesto, values: [{ value: String(extracted.presupuesto) }] });
@@ -141562,47 +141749,9 @@ function buildPatchPayload(extracted, mergedLines, conversationText, currentLead
     const candidate = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? parseNombreFromCrmLines(mergedLines);
     const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, candidate);
     if (nombrePatch) {
-      payload["name"] = cap255(nombrePatch);
+      payload["name"] = cap2552(nombrePatch);
     }
   }
-  return payload;
-}
-function buildSilentWatchPatchPayload(text2, extracted, currentLeadName) {
-  const customFields = [];
-  const zona = parseZonaFromText(text2);
-  const direccion = (zona && isUsableDireccionEvento(zona) ? zona : null) || (extracted.direccion_evento && isUsableDireccionEvento(extracted.direccion_evento) ? extracted.direccion_evento : null);
-  if (direccion && (zona || /\b(direcci[oó]n|ubicaci[oó]n|colonia|en\s+)/i.test(text2))) {
-    customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(direccion) }] });
-  }
-  const fecha = parseFechaFromText(text2) || extracted.fecha_horario;
-  if (fecha && (parseFechaFromText(text2) || /\b(fecha|horario|hora|el\s+\d)/i.test(text2))) {
-    customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap255(fecha) }] });
-  }
-  const invRaw = parseInvitadosFromText(text2);
-  const invitados = invRaw ? parseInt(invRaw, 10) : extracted.num_invitados;
-  if (invitados && invitados > 0 && (invRaw || /\b(invitados?|personas?|pax)\b/i.test(text2))) {
-    customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(invitados) }] });
-  }
-  const tipo = parseTipoEventoFromText(text2) || extracted.tipo_evento;
-  if (tipo && (parseTipoEventoFromText(text2) || /\b(boda|xv|cumple|corporativo|evento)\b/i.test(text2))) {
-    customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(tipo) }] });
-  }
-  const services = parseServicesFromText(text2);
-  if (services.length > 0) {
-    const merged = mergeServiceRequirements(extracted.requerimientos_evento, text2, 6);
-    if (merged) {
-      customFields.push({
-        field_id: FIELD.requerimientos_evento,
-        values: [{ value: cap255(merged) }]
-      });
-    }
-  }
-  const nombreCandidate = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? sanitizeCrmNombre(text2) ?? sanitizeDisplayName(text2);
-  const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, nombreCandidate);
-  if (customFields.length === 0 && !nombrePatch) return null;
-  const payload = {};
-  if (customFields.length > 0) payload["custom_fields_values"] = customFields;
-  if (nombrePatch) payload["name"] = cap255(nombrePatch);
   return payload;
 }
 async function handleLucyInactiveInbound(opts) {
@@ -141630,7 +141779,12 @@ async function handleLucyInactiveInbound(opts) {
       crmLines,
       extractFn: extractData
     });
-    const silentPayload = buildSilentWatchPatchPayload(text2, extracted, silentLeadName);
+    const silentPayload = buildSilentWatchPatchPayload(
+      text2,
+      extracted,
+      silentLeadName,
+      crmLines
+    );
     if (silentPayload) {
       const patchController = new AbortController();
       const patchTimer = setTimeout(() => patchController.abort(), 12e3);

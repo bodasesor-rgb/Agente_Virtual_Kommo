@@ -880,7 +880,11 @@ export function isLikelyProductNameNotLocation(value: string | null | undefined)
   if (/^sala\s*:/i.test(t)) return true;
   if (/\bsala\s*:/i.test(t)) return true;
   if (/^luxor(\s+rosa)?$/i.test(t)) return true;
-  if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?)$/i.test(t)) {
+  if (
+    /^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
+      t
+    )
+  ) {
     return true;
   }
   // "Luxor Rosa", "Sala Luxor Rosa" sin tokens de ciudad/colonia.
@@ -1201,7 +1205,69 @@ const KNOWN_ZONES =
 
 /** Fragmentos (sin artículo) que NO son ubicación, aunque vengan tras "en …". */
 const NON_LOCATION_WORDS =
-  /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?)\b/i;
+  /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale)\b/i;
+
+/** Señales positivas de que el texto sí es un lugar del evento. */
+export function hasGeoLocationSignal(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (KNOWN_ZONES.test(t)) return true;
+  if (
+    /\b(colonia|delegaci[oó]n|alcald[ií]a|fraccionamiento|municipio|calle|av\.?|avenida|blvd|boulevard|cp\.?|c\.p\.?|cdmx|ciudad|estado\s+de|edo\.?\s*m[eé]x|quer[eé]taro|puebla|monterrey|guadalajara)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  // Venue con nombre propio: "Salón X", "Hotel Marriott", "Club de Golf X", "Expo Santa Fe"
+  if (
+    /\b(sal[oó]n|hotel|hacienda|jard[ií]n|rancho|quinta|club(\s+de\s+golf)?|expo|centro\s+de\s+convenciones)\s+[A-ZÁÉÍÓÚÑa-záéíóúñ]/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  // Calle + número
+  if (/\b(calle|av\.?|avenida|blvd)\b.+\d/i.test(t)) return true;
+  if (/\b\d{4,5}\b/.test(t) && /\b(colonia|delegaci|cdmx|estado|municipio)\b/i.test(t)) return true;
+  return false;
+}
+
+/** Basura típica que GPT/parser meten como "ubicación". */
+const JUNK_DIRECCION_PATTERN =
+  /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+
+/**
+ * Discurso / servicio / adjetivo sin señal geográfica — no es dirección del evento.
+ * Acepta "Jiutepec" / "Polanco" (lugar corto) pero rechaza "es muy importante", "en la noche".
+ */
+export function looksLikeDiscourseNotPlace(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
+  if (!t) return true;
+  if (JUNK_DIRECCION_PATTERN.test(t)) return true;
+  if (hasGeoLocationSignal(t) || KNOWN_ZONES.test(t)) return false;
+  const lower = t
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+  // Verbos / intensificadores de discurso sin lugar
+  if (
+    /\b(es|son|esta|estan|esta|estan|quiero|necesito|busco|tengo|hay|muy|mas|mas|importante|necesario|urgente|parece|creo|pienso)\b/.test(
+      lower
+    )
+  ) {
+    return true;
+  }
+  // "en la noche/tarde/vivo/realidad/color X"
+  if (
+    /^(en\s+)?(la\s+)?(noche|tarde|manana|mañana|vivo|directo|realidad|verdad|serio|cambio|caso|color(\s+\w+)?)$/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
 
 /**
  * Frases de negocio / cotización que GPT o el parser "en …" confunden con dirección
@@ -1211,16 +1277,21 @@ const NON_LOCATION_WORDS =
 export function isNonLocationBusinessPhrase(text: string | null | undefined): boolean {
   const t = (text ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t) return true;
+  if (JUNK_DIRECCION_PATTERN.test(t)) return true;
+  if (looksLikeDiscourseNotPlace(t)) return true;
   const cleaned = t
     .replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "")
     .trim();
   if (!cleaned) return true;
+  if (JUNK_DIRECCION_PATTERN.test(cleaned)) return true;
   // A14987: "en color blanco" ≠ ubicación del evento.
   if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
-  if (/^(blanco|negro|dorado|plateado|natural|madera)$/i.test(cleaned)) return true;
+  if (/^(blanco|negro|dorado|plateado|natural|madera|rojo|azul|verde|rosa)$/i.test(cleaned)) {
+    return true;
+  }
   // Exacto / casi exacto — no usar ^salón\b sobre "Salón Hacienda Los Olivos".
   if (
-    /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n)$/i.test(
+    /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n|noche|tarde|vivo|realidad|serio|importante)$/i.test(
       cleaned
     )
   ) {
@@ -1968,13 +2039,50 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
   if (isDimensionText(t)) return false;
   if (isVagueVenueOnly(t)) return false;
   if (isLikelyProductNameNotLocation(t)) return false;
+  if (JUNK_DIRECCION_PATTERN.test(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
+  if (looksLikeDiscourseNotPlace(t)) return false;
   // A14995 Hortensia: "donde estan" / pregunta de sede ≠ ubicación del evento.
   if (looksLikeCompanyLocationQuestionFragment(t)) return false;
   if (/\bd[oó]nde\b|\bubicad/i.test(t) && !KNOWN_ZONES.test(t) && t.split(/\s+/).length <= 5) {
     return false;
   }
+  // Sin geo ni zona conocida: solo aceptar topónimos cortos (1–4 palabras), sin verbos/servicios.
+  if (!hasGeoLocationSignal(t) && !KNOWN_ZONES.test(t)) {
+    const words = t.split(/\s+/).filter(Boolean);
+    if (words.length > 4 || t.length > 60) return false;
+    if (
+      /\b(dj|sonido|iluminaci[oó]n|pantallas?|carpas?|mobiliario|vajilla|banquetes?|catering|show|m[uú]sica|animaci[oó]n|catalogo|cat[aá]logo|presupuesto|cotizaci[oó]n|paquete)\b/i.test(
+        t
+      )
+    ) {
+      return false;
+    }
+  }
   return true;
+}
+
+/**
+ * ¿Conviene reemplazar la dirección CRM existente por un fragmento nuevo?
+ * Conservador: no pisar un lugar bueno con basura o un token más débil (Humano Trabaja).
+ */
+export function shouldReplaceCrmDireccion(
+  existing: string | null | undefined,
+  incoming: string | null | undefined
+): boolean {
+  const next = incoming?.trim() ?? "";
+  if (!next || !isUsableDireccionEvento(next)) return false;
+  const prev = existing?.trim() ?? "";
+  if (!prev || !isUsableDireccionEvento(prev)) return true;
+  if (prev.toLowerCase() === next.toLowerCase()) return false;
+  if (prev.toLowerCase().includes(next.toLowerCase()) && next.length < prev.length) return false;
+  // Incoming claramente más específico (incluye el previo o trae geo fuerte).
+  if (next.toLowerCase().includes(prev.toLowerCase()) && next.length > prev.length + 2) return true;
+  if (hasGeoLocationSignal(next) && !hasGeoLocationSignal(prev) && next.length >= prev.length) {
+    return true;
+  }
+  // Silencio / humano: no mezclar ni pisar con otro lugar distinto sin señal más fuerte.
+  return false;
 }
 
 /** Medidas del espacio para tarima/pista/carpa (ej. 6 metros por 12, 6x12). */
@@ -2030,19 +2138,27 @@ export function parseZonaFromText(text: string): string | null {
     /\ben\s+([A-Za-zÁÉÍÓÚáéíóúñ][A-Za-zÁÉÍÓÚáéíóúñ\s.-]{2,28})(?:\s|,|\.|$)/i
   );
   if (enMatch) {
-    const lugar = enMatch[1]!.trim().replace(/[.,;:]+$/g, "").trim();
+    let lugar = enMatch[1]!.trim().replace(/[.,;:]+$/g, "").trim();
+    // Corta cláusulas: "en Jiutepec para 100" / "en Polanco con DJ" / "en Roma por la tarde"
+    lugar = lugar
+      .split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también)\b/i)[0]!
+      .trim()
+      .replace(/[.,;:]+$/g, "")
+      .trim();
     // Quita el artículo antes de validar (pero lo conserva del resultado si aplica),
     // así "en el Estado de México" o "en la colonia Roma" ya no se descartan.
     const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
     const candidato = sinArticulo || lugar;
     if (
+      candidato &&
       !MONTH_PATTERN.test(candidato) &&
       !/^\d/.test(candidato) &&
       !isGreetingOnlyMessage(candidato) &&
       !NON_LOCATION_WORDS.test(candidato) &&
       !isVagueVenueOnly(candidato) &&
       !isNonLocationBusinessPhrase(candidato) &&
-      !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color)\b/i.test(
+      !looksLikeDiscourseNotPlace(candidato) &&
+      !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante)\b/i.test(
         candidato
       ) &&
       !/^color\b/i.test(candidato) &&

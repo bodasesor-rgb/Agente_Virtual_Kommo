@@ -6,6 +6,7 @@ import { getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.j
 import { logger } from "../lib/logger.js";
 import { ensureLearningSchema } from "./learningSchema.js";
 import { approveLearningCandidate } from "./learningStore.js";
+import { isUsefulLearningPair } from "./learningPairFilter.js";
 
 const openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 
@@ -87,6 +88,8 @@ Extrae pares útiles para few-shot learning a partir de conversaciones donde ALE
 Reglas:
 - Solo pares donde la respuesta de ALEJANDRO sea útil para futuros clientes (precios, servicios, cobertura, tiempos, objeciones, tono).
 - NO incluyas saludos vacíos, "ok", "gracias" solos, ni datos personales sensibles.
+- NO inventes ubicación del evento del cliente. Si el cliente pregunta "dónde están ubicados" (sede Bodasesor), la respuesta debe hablar de cobertura/oficinas Bodasesor — NUNCA guardar eso como dirección del evento.
+- NO uses como ejemplo respuestas que anoten en CRM frases sin sentido (ej. "es muy importante", "en la noche", "show en vivo", "color blanco") como lugar del evento.
 - La suggested_response debe sonar natural en español mexicano, como Lucy (profesional, cálida, sin emojis excesivos).
 - Máximo 5 pares.
 - Responde SOLO JSON: { "pairs": [ { "user_message", "suggested_response", "label", "confidence" (0-1), "context_snippet" } ] }`;
@@ -105,9 +108,7 @@ Reglas:
 
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const parsed = JSON.parse(raw) as { pairs?: ExtractedPair[] };
-    const pairs = (parsed.pairs ?? []).filter(
-      (p) => p.user_message?.trim() && p.suggested_response?.trim()
-    );
+    const pairs = (parsed.pairs ?? []).filter((p) => isUsefulLearningPair(p));
 
     let created = 0;
     let autoApproved = 0;
@@ -132,7 +133,16 @@ Reglas:
         created++;
 
         // Alta confianza → pasa a training_examples sin esperar revisión manual.
-        if (inserted?.id && confidence != null && confidence >= AUTO_APPROVE_CONFIDENCE) {
+        // No auto-aprobar pares de ubicación/sede (riesgo de contaminar few-shot).
+        const isLocationSensitive =
+          /\bd[oó]nde\s+est|\bubicad|\bdirecci[oó]n|\bzona\b/i.test(pair.user_message) ||
+          /\bd[oó]nde\s+est|\bubicad|\bdirecci[oó]n del evento/i.test(pair.suggested_response);
+        if (
+          inserted?.id &&
+          confidence != null &&
+          confidence >= AUTO_APPROVE_CONFIDENCE &&
+          !isLocationSensitive
+        ) {
           const approved = await approveLearningCandidate(inserted.id, "auto-learning@lucy");
           if (approved) autoApproved++;
         }

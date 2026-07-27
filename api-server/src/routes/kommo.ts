@@ -119,6 +119,7 @@ import { captureInboundWhileLucyInactive, setLearningPhase } from "../services/c
 import { syncHumanPhaseLead } from "../services/learningSync.js";
 import { recordKnowledgeGapIfNeeded } from "../services/knowledgeGapDetector.js";
 import { getKommoAccessToken, getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
+import { buildSilentWatchPatchPayload } from "../silentWatchCrm.js";
 import { advisorLabelForClient, isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 
 const router: IRouter = Router();
@@ -1201,69 +1202,6 @@ function buildPatchPayload(
 }
 
 /**
- * PATCH solo con campos que el cliente acaba de cambiar en este mensaje.
- * Preferimos el valor nuevo (no el CRM viejo) para dirección/fecha/etc.
- * También sincroniza lead.name si el cliente da su nombre en Humano Trabaja.
- */
-function buildSilentWatchPatchPayload(
-  text: string,
-  extracted: ExtractedData,
-  currentLeadName?: string | null
-): Record<string, unknown> | null {
-  const customFields: Array<{ field_id: number; values: Array<{ value: unknown }> }> = [];
-
-  const zona = parseZonaFromText(text);
-  const direccion =
-    (zona && isUsableDireccionEvento(zona) ? zona : null) ||
-    (extracted.direccion_evento && isUsableDireccionEvento(extracted.direccion_evento)
-      ? extracted.direccion_evento
-      : null);
-  if (direccion && (zona || /\b(direcci[oó]n|ubicaci[oó]n|colonia|en\s+)/i.test(text))) {
-    customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(direccion) }] });
-  }
-
-  const fecha = parseFechaFromText(text) || extracted.fecha_horario;
-  if (fecha && (parseFechaFromText(text) || /\b(fecha|horario|hora|el\s+\d)/i.test(text))) {
-    customFields.push({ field_id: FIELD.fecha_horario, values: [{ value: cap255(fecha) }] });
-  }
-
-  const invRaw = parseInvitadosFromText(text);
-  const invitados = invRaw ? parseInt(invRaw, 10) : extracted.num_invitados;
-  if (invitados && invitados > 0 && (invRaw || /\b(invitados?|personas?|pax)\b/i.test(text))) {
-    customFields.push({ field_id: FIELD.num_invitados, values: [{ value: String(invitados) }] });
-  }
-
-  const tipo = parseTipoEventoFromText(text) || extracted.tipo_evento;
-  if (tipo && (parseTipoEventoFromText(text) || /\b(boda|xv|cumple|corporativo|evento)\b/i.test(text))) {
-    customFields.push({ field_id: FIELD.tipo_evento, values: [{ value: cap255(tipo) }] });
-  }
-
-  const services = parseServicesFromText(text);
-  if (services.length > 0) {
-    const merged = mergeServiceRequirements(extracted.requerimientos_evento, text, 6);
-    if (merged) {
-      customFields.push({
-        field_id: FIELD.requerimientos_evento,
-        values: [{ value: cap255(merged) }],
-      });
-    }
-  }
-
-  const nombreCandidate =
-    sanitizeCrmNombre(extracted.nombre) ??
-    sanitizeDisplayName(extracted.nombre) ??
-    sanitizeCrmNombre(text) ??
-    sanitizeDisplayName(text);
-  const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, nombreCandidate);
-
-  if (customFields.length === 0 && !nombrePatch) return null;
-  const payload: Record<string, unknown> = {};
-  if (customFields.length > 0) payload["custom_fields_values"] = customFields;
-  if (nombrePatch) payload["name"] = cap255(nombrePatch);
-  return payload;
-}
-
-/**
  * Lucy en silencio (Humano Trabaja / Cotización / seguimientos):
  * 1) Siempre lee el chat y actualiza CRM si hay cambios de datos.
  * 2) Solo escribe si el cliente pide contacto/ayuda de emergencia → teléfonos.
@@ -1306,7 +1244,12 @@ async function handleLucyInactiveInbound(opts: {
       crmLines,
       extractFn: extractData,
     });
-    const silentPayload = buildSilentWatchPatchPayload(text, extracted, silentLeadName);
+    const silentPayload = buildSilentWatchPatchPayload(
+      text,
+      extracted,
+      silentLeadName,
+      crmLines
+    );
     if (silentPayload) {
       const patchController = new AbortController();
       const patchTimer = setTimeout(() => patchController.abort(), 12_000);
