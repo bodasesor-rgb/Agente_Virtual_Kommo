@@ -20,6 +20,10 @@ import {
   clientAsksForHumanAdvisor,
   parseServicesFromText,
   SERVICE_HINT,
+  isReferentialPriorAnswer,
+  clientComplainsAboutRepeat,
+  recoverCorreoFromUserTexts,
+  parseCorreoFromText,
 } from "./conversation-understanding.js";
 import {
   isFieldSatisfied,
@@ -375,7 +379,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     /\binformaci[oó]n|\binfo\b|\bdame\s+(info|detalle|datos)|\bme\s+(pueden|pueden)\s+dar|\bcu[eé]ntenme|\bexpl[ií]ca/i.test(
       input.currentMessage ?? ""
     );
-  // A14962 / A14988 / A15003: clarificación de servicio no es "dato pendiente".
+  // A14962 / A14988 / A15003 / A15007: clarificación o referencia no es "dato pendiente".
   const clientClarifyingService =
     /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bphoto\s*booth|\bphotobooth|\bcabina\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
       input.currentMessage ?? ""
@@ -383,7 +387,31 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     clientMentionsEntertainment(input.currentMessage) ||
     parseServicesFromText(input.currentMessage ?? "").length > 0 ||
     clientDeclinesMoreServices(input.currentMessage) ||
-    clientAsksForHumanAdvisor(input.currentMessage);
+    clientAsksForHumanAdvisor(input.currentMessage) ||
+    isReferentialPriorAnswer(input.currentMessage) ||
+    clientComplainsAboutRepeat(input.currentMessage);
+
+  // A15007: "A este" tras ask de correo → marcar filled con historial.
+  if (
+    (isReferentialPriorAnswer(input.currentMessage) ||
+      clientComplainsAboutRepeat(input.currentMessage)) &&
+    lastAsked === "correo" &&
+    !filled.has("Correo electrónico")
+  ) {
+    const recovered =
+      filterClientEmail(extracted.correo) ||
+      recoverCorreoFromUserTexts(
+        (input.history ?? [])
+          .filter((m) => m.role === "user" && typeof m.content === "string")
+          .map((m) => m.content as string),
+        undefined
+      );
+    if (recovered && looksLikeValidClientEmail(recovered)) {
+      filled.add("Correo electrónico");
+      extracted.correo = recovered;
+      if (input.extracted) input.extracted.correo = recovered;
+    }
+  }
   // A14994 / todas las ramas: "Sí" tras oferta de catálogo — no colapsar el envío.
   const clientAffirmingCatalog =
     clientAffirmsCatalogOffer(input.currentMessage, lastPrev) ||

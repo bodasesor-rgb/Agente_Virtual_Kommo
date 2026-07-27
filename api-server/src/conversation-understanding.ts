@@ -1951,6 +1951,60 @@ export function parseTipoEventoFromText(text: string): string | null {
 }
 
 /**
+ * Cliente apunta al dato ya dado: "a este", "ese", "el mismo", "el de antes".
+ * A15007 Osiris — no tratar como vacío / "Sigo aquí".
+ */
+export function isReferentialPriorAnswer(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const n = message
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[¿?¡!.,;:]+/g, "")
+    .trim();
+  if (!n || n.length > 80) return false;
+  return (
+    /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n) ||
+    /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n) ||
+    /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n) ||
+    /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n) ||
+    /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n) ||
+    /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase)(\s+(ese|el|antes))?$/.test(n) ||
+    /^(ese|este)\s+mismo$/.test(n) ||
+    /^al\s+(mismo|que\s+ya\s+(te\s+)?di)$/.test(n)
+  );
+}
+
+/**
+ * Cliente se queja de que Lucy repite una pregunta ya hecha.
+ * A15007: "Ya me habias preguntado eso".
+ */
+export function clientComplainsAboutRepeat(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  return (
+    /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t) ||
+    /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t) ||
+    /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií])\b/i.test(t) ||
+    /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t) ||
+    /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t) ||
+    /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t) ||
+    /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t) ||
+    /\bya\s+respond[ií]\b/i.test(t)
+  );
+}
+
+/** Recupera correo del historial / mensaje (campo no durable en Kommo). */
+export function recoverCorreoFromUserTexts(
+  texts: string[],
+  currentMessage?: string | null
+): string | null {
+  const blob = [...texts, currentMessage ?? ""].filter(Boolean).join("\n");
+  return parseCorreoFromText(blob);
+}
+
+/**
  * Respuestas meta a "¿qué tipo de evento?" que NO son un tipo usable (A14964 Victor).
  * Ej: "Lo acabo de mencionar", "ya te dije", "eso mismo".
  */
@@ -1972,6 +2026,7 @@ export function isUnusableTipoEventoReply(text: string | null | undefined): bool
   ) {
     return true;
   }
+  if (clientComplainsAboutRepeat(t) || isReferentialPriorAnswer(t)) return true;
   if (parseCorreoFromText(t)) return true;
   return false;
 }

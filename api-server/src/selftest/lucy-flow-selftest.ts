@@ -58,6 +58,9 @@ import {
   extractCatalogNivelFromText,
   clientNeedsEmergencyContact,
   clientAsksForHumanAdvisor,
+  isReferentialPriorAnswer,
+  clientComplainsAboutRepeat,
+  recoverCorreoFromUserTexts,
   isRichQuoteBrief,
   clientAsksToRereadBrief,
   clientAsksDistributorPricing,
@@ -7807,6 +7810,122 @@ async function runAll(): Promise<void> {
 
     const handoffPay = buildPostCierrePaymentHandoffReply("Israel");
     assert.ok(/anticipo|50\s*%|equipo/i.test(handoffPay));
+  });
+
+  // ─── 118. A15007 Osiris — "A este", ya preguntaste, no re-pitch carpa ───
+  await test("118. A15007 Osiris — referencia, queja repetición, carpas sin re-pitch", async () => {
+    assert.ok(isReferentialPriorAnswer("A este"));
+    assert.ok(isReferentialPriorAnswer("ese mismo"));
+    assert.ok(isReferentialPriorAnswer("el mismo"));
+    assert.ok(clientComplainsAboutRepeat("Ya me habias preguntado eso"));
+    assert.ok(clientComplainsAboutRepeat("Ya me habías preguntado eso"));
+    assert.equal(
+      recoverCorreoFromUserTexts(["hola", "administracion@celamex.page"], "A este"),
+      "administracion@celamex.page"
+    );
+
+    const closingPitch =
+      "Sí, manejamos carpas para jardín o terraza: Cathedral, Pirámide, Planas y transparentes. ¿Qué medidas aproximadas necesitas?";
+
+    // Re-mencionar carpas con CRM ya lleno → no re-dump Cathedral
+    const rePitch = runGuards({
+      aiResponse: closingPitch,
+      extracted: emptyExtracted({
+        nombre: "Osiris",
+        correo: "administracion@celamex.page",
+        requerimientos_evento: "Carpas",
+        direccion_evento: "colonia torre blanca cdmx",
+        num_invitados: 100,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Busco una carpa sencilla para 100 personas",
+      history: [
+        { role: "user", content: "Hola, me interesa cotizar una carpa" },
+        { role: "assistant", content: closingPitch },
+        { role: "user", content: "administracion@celamex.page" },
+      ],
+    });
+    assert.ok(!/Cathedral,\s*Pir[aá]mide,\s*Planas/i.test(rePitch), rePitch.slice(0, 500));
+    assert.ok(/carpa/i.test(rePitch), rePitch.slice(0, 400));
+
+    // "Ya me preguntaste" → no volver a pedir correo
+    const complained = runGuards({
+      aiResponse: "¿A qué correo te lo envío?",
+      extracted: emptyExtracted({
+        nombre: "Osiris",
+        correo: "administracion@celamex.page",
+        requerimientos_evento: "Carpas",
+        direccion_evento: "colonia torre blanca cdmx",
+        num_invitados: 100,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Ya me habias preguntado eso",
+      history: [
+        { role: "user", content: "administracion@celamex.page" },
+        { role: "assistant", content: closingPitch },
+      ],
+    });
+    assert.ok(/anotado|Perfecto/i.test(complained), complained.slice(0, 400));
+    assert.ok(!/a qu[eé] correo|correo te lo env[ií]o/i.test(complained), complained.slice(0, 400));
+    assert.ok(!/Sigo aquí/i.test(complained));
+
+    // "A este" con correo en historial (sin extracted.correo) → no Sigo aquí
+    const aEste = runGuards({
+      aiResponse: "Mucho gusto, Osiris. ¿A qué correo te mando la información?",
+      extracted: emptyExtracted({
+        nombre: "Osiris",
+        requerimientos_evento: "Carpas (espacio 10m x 10m)",
+        direccion_evento: "colonia torre blanca cdmx",
+        num_invitados: 100,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "A este",
+      history: [
+        { role: "user", content: "administracion@celamex.page" },
+        {
+          role: "assistant",
+          content: "Perfecto, Osiris. ¿A qué correo te envío la información?",
+        },
+      ],
+    });
+    assert.ok(!/Sigo aquí/i.test(aEste), aEste.slice(0, 400));
+    assert.ok(!/a qu[eé] correo/i.test(aEste), aEste.slice(0, 400));
+
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje: "¿A qué correo te mando la información?",
+      history: [
+        {
+          role: "assistant",
+          content: "Mucho gusto, Osiris. ¿A qué correo te mando la información?",
+        },
+      ],
+      currentMessage: "A este",
+      extracted: { nombre: "Osiris", correo: "administracion@celamex.page" },
+      filledSet: new Set(["Nombre del cliente", "Correo electrónico"]),
+      clientName: "Osiris",
+    });
+    assert.ok(!/Sigo aquí/i.test(anti.mensaje), anti.mensaje);
+    assert.ok(anti.applied.every((a) => a !== "same-field-reask-ack"), String(anti.applied));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -140,6 +140,9 @@ import {
   isServicePreferenceRefinement,
   clientAsksBanqueteVsTaquiza,
   parseCorreoFromText,
+  recoverCorreoFromUserTexts,
+  isReferentialPriorAnswer,
+  clientComplainsAboutRepeat,
   clientMentionsCatering,
   inferLucyAskedField,
   isServiceRelatedMessage,
@@ -1001,7 +1004,7 @@ function buildPistaTarimaSalesReply(
   return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${intro}`.trim());
 }
 
-/** Carpas: sí/no real + agregar a cotización + medidas (María A14906 / A15016). */
+/** Carpas: sí/no real + agregar a cotización + medidas (María A14906 / A15016 / A15007). */
 function buildCarpasSalesReply(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -1012,9 +1015,20 @@ function buildCarpasSalesReply(
   const msg = currentMessage ?? "";
   const dims =
     parseSpaceDimensions(msg) ||
-    (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+    (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null) ||
+    collectUserTexts(history, msg)
+      .map((t) => parseSpaceDimensions(t))
+      .find(Boolean) ||
+    null;
   const variant = parseCarpaVariantFromText(msg);
   const transparent = /transparent/i.test(msg) || /transparent/i.test(variant ?? "");
+  const alreadyHasCarpas = /\bcarpas?\b/i.test(extracted.requerimientos_evento ?? "");
+  const alreadyPitched = history.some(
+    (m) =>
+      m.role === "assistant" &&
+      typeof m.content === "string" &&
+      /cathedral|pir[aá]mide|planas|transparentes/i.test(m.content)
+  );
   // A14994: "Carpas o mobiliario" — anotar ambos + catálogo (no saltar solo a zona).
   const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
 
@@ -1031,6 +1045,36 @@ function buildCarpasSalesReply(
       6
     );
     if (merged) extracted.requerimientos_evento = merged;
+  }
+
+  // A15007: ya pitchó variantes y carpas en CRM — no re-dump Cathedral/Pirámide.
+  if (alreadyHasCarpas && alreadyPitched && !variant && !alsoMobiliario) {
+    const filledAfter = new Set(filledSet ?? []);
+    filledAfter.add("Requerimientos o servicios");
+    const pending = getNextPendingField(extracted, filledAfter);
+    let ack: string;
+    if (dims) {
+      ack = `Perfecto — anoto la carpa de *${dims.replace(/m/gi, " m")}*.`;
+    } else if (/sencill|solo\s+la\s+carpa|nada\s+m[aá]s|tenemos\s+mesas/i.test(msg)) {
+      ack =
+        "Perfecto — nos quedamos solo con la *carpa* (sin mobiliario extra). El equipo cotiza según medidas y sede.";
+    } else {
+      ack = "Claro — seguimos con tu cotización de *carpas*.";
+    }
+    if (!dims) {
+      // Solo pedir medidas si aún no las tenemos.
+      const histHasDims = !!collectUserTexts(history, msg)
+        .map((t) => parseSpaceDimensions(t))
+        .find(Boolean);
+      if (!histHasDims && !/\d+\s*x\s*\d+/i.test(extracted.requerimientos_evento ?? "")) {
+        return `${pickTransition(history)} ${ack} ¿Qué medidas aproximadas necesitas?`.trim();
+      }
+    }
+    if (pending && pending !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+      return `${pickTransition(history)} ${ack}\n\n${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${ack}`.trim();
   }
 
   if (alsoMobiliario) {
@@ -3802,6 +3846,69 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   syncFilledFromExtracted(filledSet, extracted);
 
+  // A15007: correo no es CF durable — recuperar del historial ANTES del embudo.
+  if (!isEmailSatisfied(filledSet, extracted)) {
+    const recovered = recoverCorreoFromUserTexts(
+      collectUserTexts(presHistory, currentMessage),
+      currentMessage
+    );
+    if (recovered && looksLikeValidClientEmail(recovered)) {
+      extracted.correo = recovered;
+      filledSet.add("Correo electrónico");
+      log?.info({ entityId, recovered }, "GUARD: A15007 — correo recuperado del historial");
+    }
+  }
+
+  // A15007: "A este" / "ya me preguntaste" → resolver al campo pedido, no reiniciar.
+  {
+    const lastAsstEarly = [...presHistory]
+      .reverse()
+      .find((m) => m.role === "assistant" && typeof m.content === "string");
+    const askedEarly = lastAsstEarly
+      ? inferLucyAskedField(lastAsstEarly.content as string)
+      : null;
+    const msgEarly = currentMessage?.trim() ?? "";
+    const referential = isReferentialPriorAnswer(msgEarly);
+    const complains = clientComplainsAboutRepeat(msgEarly);
+    if (msgEarly && (referential || complains)) {
+      if (
+        (askedEarly === "correo" ||
+          (lastAsstEarly &&
+            /correo|e-?mail|mandarte la info|te lo env[ií]o/i.test(
+              lastAsstEarly.content as string
+            ))) &&
+        !isEmailSatisfied(filledSet, extracted)
+      ) {
+        const recovered = recoverCorreoFromUserTexts(
+          collectUserTexts(presHistory, undefined),
+          undefined
+        );
+        if (recovered && looksLikeValidClientEmail(recovered)) {
+          extracted.correo = recovered;
+          filledSet.add("Correo electrónico");
+        }
+      }
+      // Medidas ya dadas en historial (carpas/pista).
+      if (
+        askedEarly === "requerimientos" ||
+        (lastAsstEarly && /medidas/i.test(lastAsstEarly.content as string))
+      ) {
+        const histDims = collectUserTexts(presHistory, undefined)
+          .map((t) => parseSpaceDimensions(t))
+          .find(Boolean);
+        if (histDims && /carpa/i.test(extracted.requerimientos_evento ?? "")) {
+          const merged = mergeServiceRequirements(
+            extracted.requerimientos_evento,
+            `Carpas (espacio ${histDims})`,
+            6
+          );
+          if (merged) extracted.requerimientos_evento = merged;
+          filledSet.add("Requerimientos o servicios");
+        }
+      }
+    }
+  }
+
   // A14934: "40" tras pregunta de invitados — sincronizar antes de que GPT re-pregunte.
   {
     const lastAsst = [...presHistory]
@@ -3828,6 +3935,35 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         }
       }
     }
+  }
+
+  // A15007: "A este" / "ya me preguntaste" — no reiniciar embudo ni "Sigo aquí".
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    (isReferentialPriorAnswer(currentMessage) || clientComplainsAboutRepeat(currentMessage))
+  ) {
+    const pending = getNextPendingField(extracted, filledSet);
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    const ack = nombre
+      ? `Perfecto, ${nombre}. Ya lo tengo anotado.`
+      : "Perfecto. Ya lo tengo anotado.";
+    let body: string;
+    if (pending) {
+      body = `${ack}\n\n${buildNaturalQuestion(pending, ctx)}`;
+    } else if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      body = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+    } else {
+      body = ack;
+    }
+    log?.info({ entityId, pending }, "GUARD: A15007 — referencia/queja de repetición → avanzar");
+    return normalizeAdvisorReferences(
+      body,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
   }
 
   // A14938: "¿Hacen las pizzas en el evento?" — responder operativo antes del embudo.

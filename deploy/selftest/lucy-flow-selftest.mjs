@@ -5993,6 +5993,21 @@ function parseTipoEventoFromText(text) {
   }
   return null;
 }
+function isReferentialPriorAnswer(message) {
+  if (!message?.trim()) return false;
+  const n = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (!n || n.length > 80) return false;
+  return /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n) || /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n) || /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n) || /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n) || /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n) || /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase)(\s+(ese|el|antes))?$/.test(n) || /^(ese|este)\s+mismo$/.test(n) || /^al\s+(mismo|que\s+ya\s+(te\s+)?di)$/.test(n);
+}
+function clientComplainsAboutRepeat(message) {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  return /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t) || /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií])\b/i.test(t) || /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t) || /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t) || /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t) || /\bya\s+respond[ií]\b/i.test(t);
+}
+function recoverCorreoFromUserTexts(texts, currentMessage) {
+  const blob = [...texts, currentMessage ?? ""].filter(Boolean).join("\n");
+  return parseCorreoFromText(blob);
+}
 function isUnusableTipoEventoReply(text) {
   const t = text?.trim() ?? "";
   if (!t) return true;
@@ -6000,6 +6015,7 @@ function isUnusableTipoEventoReply(text) {
   if (/^(lo\s+)?(acabo|acabe)\s+de\s+(mencionar|decir|comentar|explicar)(lo)?$/.test(n) || /^(ya\s+)?(lo\s+)?(dije|mencione|comente|te\s+dije|te\s+lo\s+dije)$/.test(n) || /^(como\s+)?(te\s+)?(dije|mencione|arriba|antes|hace\s+rato)$/.test(n) || /^(igual|lo\s+mismo|idem|ya\s+te\s+dije|eso|eso\s+mismo|lo\s+de\s+arriba)$/.test(n) || /^ya\s+(te\s+)?(lo\s+)?(dije|mencione|comente)$/.test(n)) {
     return true;
   }
+  if (clientComplainsAboutRepeat(t) || isReferentialPriorAnswer(t)) return true;
   if (parseCorreoFromText(t)) return true;
   return false;
 }
@@ -22409,9 +22425,13 @@ ${nextQ}`.trim()
 }
 function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx) {
   const msg = currentMessage ?? "";
-  const dims = parseSpaceDimensions(msg) || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+  const dims = parseSpaceDimensions(msg) || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null) || collectUserTexts(history, msg).map((t) => parseSpaceDimensions(t)).find(Boolean) || null;
   const variant = parseCarpaVariantFromText(msg);
   const transparent = /transparent/i.test(msg) || /transparent/i.test(variant ?? "");
+  const alreadyHasCarpas = /\bcarpas?\b/i.test(extracted.requerimientos_evento ?? "");
+  const alreadyPitched = history.some(
+    (m) => m.role === "assistant" && typeof m.content === "string" && /cathedral|pir[aá]mide|planas|transparentes/i.test(m.content)
+  );
   const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
   if (filledSet) filledSet.add("Requerimientos o servicios");
   const baseLabel = variant || (transparent ? "Carpas transparentes" : "Carpas");
@@ -22425,6 +22445,32 @@ function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ct
       6
     );
     if (merged) extracted.requerimientos_evento = merged;
+  }
+  if (alreadyHasCarpas && alreadyPitched && !variant && !alsoMobiliario) {
+    const filledAfter2 = new Set(filledSet ?? []);
+    filledAfter2.add("Requerimientos o servicios");
+    const pending2 = getNextPendingField(extracted, filledAfter2);
+    let ack2;
+    if (dims) {
+      ack2 = `Perfecto \u2014 anoto la carpa de *${dims.replace(/m/gi, " m")}*.`;
+    } else if (/sencill|solo\s+la\s+carpa|nada\s+m[aá]s|tenemos\s+mesas/i.test(msg)) {
+      ack2 = "Perfecto \u2014 nos quedamos solo con la *carpa* (sin mobiliario extra). El equipo cotiza seg\xFAn medidas y sede.";
+    } else {
+      ack2 = "Claro \u2014 seguimos con tu cotizaci\xF3n de *carpas*.";
+    }
+    if (!dims) {
+      const histHasDims = !!collectUserTexts(history, msg).map((t) => parseSpaceDimensions(t)).find(Boolean);
+      if (!histHasDims && !/\d+\s*x\s*\d+/i.test(extracted.requerimientos_evento ?? "")) {
+        return `${pickTransition(history)} ${ack2} \xBFQu\xE9 medidas aproximadas necesitas?`.trim();
+      }
+    }
+    if (pending2 && pending2 !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
+      return `${pickTransition(history)} ${ack2}
+
+${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${ack2}`.trim();
   }
   if (alsoMobiliario) {
     const ack2 = `Perfecto \u2014 anoto *carpas* y *mobiliario* para tu evento.${transparent ? " Incluyo la opci\xF3n de carpas transparentes." : ""}`;
@@ -24169,6 +24215,50 @@ function applyLucyMessageGuards(input) {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  if (!isEmailSatisfied(filledSet, extracted)) {
+    const recovered = recoverCorreoFromUserTexts(
+      collectUserTexts(presHistory, currentMessage),
+      currentMessage
+    );
+    if (recovered && looksLikeValidClientEmail(recovered)) {
+      extracted.correo = recovered;
+      filledSet.add("Correo electr\xF3nico");
+      log?.info({ entityId, recovered }, "GUARD: A15007 \u2014 correo recuperado del historial");
+    }
+  }
+  {
+    const lastAsstEarly = [...presHistory].reverse().find((m) => m.role === "assistant" && typeof m.content === "string");
+    const askedEarly = lastAsstEarly ? inferLucyAskedField(lastAsstEarly.content) : null;
+    const msgEarly = currentMessage?.trim() ?? "";
+    const referential = isReferentialPriorAnswer(msgEarly);
+    const complains = clientComplainsAboutRepeat(msgEarly);
+    if (msgEarly && (referential || complains)) {
+      if ((askedEarly === "correo" || lastAsstEarly && /correo|e-?mail|mandarte la info|te lo env[ií]o/i.test(
+        lastAsstEarly.content
+      )) && !isEmailSatisfied(filledSet, extracted)) {
+        const recovered = recoverCorreoFromUserTexts(
+          collectUserTexts(presHistory, void 0),
+          void 0
+        );
+        if (recovered && looksLikeValidClientEmail(recovered)) {
+          extracted.correo = recovered;
+          filledSet.add("Correo electr\xF3nico");
+        }
+      }
+      if (askedEarly === "requerimientos" || lastAsstEarly && /medidas/i.test(lastAsstEarly.content)) {
+        const histDims = collectUserTexts(presHistory, void 0).map((t) => parseSpaceDimensions(t)).find(Boolean);
+        if (histDims && /carpa/i.test(extracted.requerimientos_evento ?? "")) {
+          const merged = mergeServiceRequirements(
+            extracted.requerimientos_evento,
+            `Carpas (espacio ${histDims})`,
+            6
+          );
+          if (merged) extracted.requerimientos_evento = merged;
+          filledSet.add("Requerimientos o servicios");
+        }
+      }
+    }
+  }
   {
     const lastAsst = [...presHistory].reverse().find((m) => m.role === "assistant" && typeof m.content === "string");
     const askedNow = lastAsst ? inferLucyAskedField(lastAsst.content) : null;
@@ -24183,6 +24273,29 @@ function applyLucyMessageGuards(input) {
         }
       }
     }
+  }
+  if (!cierreYaEnviado && currentMessage && (isReferentialPriorAnswer(currentMessage) || clientComplainsAboutRepeat(currentMessage))) {
+    const pending = getNextPendingField(extracted, filledSet);
+    const nombre = getDisplayName(extracted, whatsappDisplayName);
+    const ack = nombre ? `Perfecto, ${nombre}. Ya lo tengo anotado.` : "Perfecto. Ya lo tengo anotado.";
+    let body;
+    if (pending) {
+      body = `${ack}
+
+${buildNaturalQuestion(pending, ctx)}`;
+    } else if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      body = buildClosing(
+        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+        extracted.nombre
+      );
+    } else {
+      body = ack;
+    }
+    log?.info({ entityId, pending }, "GUARD: A15007 \u2014 referencia/queja de repetici\xF3n \u2192 avanzar");
+    return normalizeAdvisorReferences(
+      body,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
   }
   if (!cierreYaEnviado && currentMessage && clientAsksServiceInfo(currentMessage) && /\b(hacen|preparan|cocinan|montan|sirven|elaboran)\b/i.test(currentMessage) && /\b(pizza|barra|estaci[oó]n|evento)\b/i.test(currentMessage)) {
     const ack = buildGuardServiceAck(currentMessage);
@@ -26509,7 +26622,18 @@ function applyLucyGlobalAntiRepetition(input) {
   );
   const clientClarifyingService = /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bphoto\s*booth|\bphotobooth|\bcabina\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
     input.currentMessage ?? ""
-  ) || clientMentionsEntertainment(input.currentMessage) || parseServicesFromText(input.currentMessage ?? "").length > 0 || clientDeclinesMoreServices(input.currentMessage) || clientAsksForHumanAdvisor(input.currentMessage);
+  ) || clientMentionsEntertainment(input.currentMessage) || parseServicesFromText(input.currentMessage ?? "").length > 0 || clientDeclinesMoreServices(input.currentMessage) || clientAsksForHumanAdvisor(input.currentMessage) || isReferentialPriorAnswer(input.currentMessage) || clientComplainsAboutRepeat(input.currentMessage);
+  if ((isReferentialPriorAnswer(input.currentMessage) || clientComplainsAboutRepeat(input.currentMessage)) && lastAsked === "correo" && !filled.has("Correo electr\xF3nico")) {
+    const recovered = filterClientEmail(extracted.correo) || recoverCorreoFromUserTexts(
+      (input.history ?? []).filter((m) => m.role === "user" && typeof m.content === "string").map((m) => m.content),
+      void 0
+    );
+    if (recovered && looksLikeValidClientEmail(recovered)) {
+      filled.add("Correo electr\xF3nico");
+      extracted.correo = recovered;
+      if (input.extracted) input.extracted.correo = recovered;
+    }
+  }
   const clientAffirmingCatalog = clientAffirmsCatalogOffer(input.currentMessage, lastPrev) || previous.some((p) => clientAffirmsCatalogOffer(input.currentMessage, p));
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
   const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
@@ -33960,6 +34084,111 @@ ${golfText}`,
     assert.ok(/Perfecto, Israel/i.test(deduped));
     const handoffPay = buildPostCierrePaymentHandoffReply("Israel");
     assert.ok(/anticipo|50\s*%|equipo/i.test(handoffPay));
+  });
+  await test("118. A15007 Osiris \u2014 referencia, queja repetici\xF3n, carpas sin re-pitch", async () => {
+    assert.ok(isReferentialPriorAnswer("A este"));
+    assert.ok(isReferentialPriorAnswer("ese mismo"));
+    assert.ok(isReferentialPriorAnswer("el mismo"));
+    assert.ok(clientComplainsAboutRepeat("Ya me habias preguntado eso"));
+    assert.ok(clientComplainsAboutRepeat("Ya me hab\xEDas preguntado eso"));
+    assert.equal(
+      recoverCorreoFromUserTexts(["hola", "administracion@celamex.page"], "A este"),
+      "administracion@celamex.page"
+    );
+    const closingPitch = "S\xED, manejamos carpas para jard\xEDn o terraza: Cathedral, Pir\xE1mide, Planas y transparentes. \xBFQu\xE9 medidas aproximadas necesitas?";
+    const rePitch = runGuards({
+      aiResponse: closingPitch,
+      extracted: emptyExtracted({
+        nombre: "Osiris",
+        correo: "administracion@celamex.page",
+        requerimientos_evento: "Carpas",
+        direccion_evento: "colonia torre blanca cdmx",
+        num_invitados: 100
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Busco una carpa sencilla para 100 personas",
+      history: [
+        { role: "user", content: "Hola, me interesa cotizar una carpa" },
+        { role: "assistant", content: closingPitch },
+        { role: "user", content: "administracion@celamex.page" }
+      ]
+    });
+    assert.ok(!/Cathedral,\s*Pir[aá]mide,\s*Planas/i.test(rePitch), rePitch.slice(0, 500));
+    assert.ok(/carpa/i.test(rePitch), rePitch.slice(0, 400));
+    const complained = runGuards({
+      aiResponse: "\xBFA qu\xE9 correo te lo env\xEDo?",
+      extracted: emptyExtracted({
+        nombre: "Osiris",
+        correo: "administracion@celamex.page",
+        requerimientos_evento: "Carpas",
+        direccion_evento: "colonia torre blanca cdmx",
+        num_invitados: 100
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Ya me habias preguntado eso",
+      history: [
+        { role: "user", content: "administracion@celamex.page" },
+        { role: "assistant", content: closingPitch }
+      ]
+    });
+    assert.ok(/anotado|Perfecto/i.test(complained), complained.slice(0, 400));
+    assert.ok(!/a qu[eé] correo|correo te lo env[ií]o/i.test(complained), complained.slice(0, 400));
+    assert.ok(!/Sigo aquí/i.test(complained));
+    const aEste = runGuards({
+      aiResponse: "Mucho gusto, Osiris. \xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      extracted: emptyExtracted({
+        nombre: "Osiris",
+        requerimientos_evento: "Carpas (espacio 10m x 10m)",
+        direccion_evento: "colonia torre blanca cdmx",
+        num_invitados: 100
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "A este",
+      history: [
+        { role: "user", content: "administracion@celamex.page" },
+        {
+          role: "assistant",
+          content: "Perfecto, Osiris. \xBFA qu\xE9 correo te env\xEDo la informaci\xF3n?"
+        }
+      ]
+    });
+    assert.ok(!/Sigo aquí/i.test(aEste), aEste.slice(0, 400));
+    assert.ok(!/a qu[eé] correo/i.test(aEste), aEste.slice(0, 400));
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje: "\xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      history: [
+        {
+          role: "assistant",
+          content: "Mucho gusto, Osiris. \xBFA qu\xE9 correo te mando la informaci\xF3n?"
+        }
+      ],
+      currentMessage: "A este",
+      extracted: { nombre: "Osiris", correo: "administracion@celamex.page" },
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"]),
+      clientName: "Osiris"
+    });
+    assert.ok(!/Sigo aquí/i.test(anti.mensaje), anti.mensaje);
+    assert.ok(anti.applied.every((a) => a !== "same-field-reask-ack"), String(anti.applied));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
