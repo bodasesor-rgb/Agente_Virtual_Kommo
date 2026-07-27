@@ -116420,7 +116420,7 @@ var import_express12 = __toESM(require_express2(), 1);
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
 
-// ../node_modules/zod/v3/helpers/util.js
+// ../lib/api-zod/node_modules/zod/v3/helpers/util.js
 var util;
 (function(util5) {
   util5.assertEqual = (_10) => {
@@ -116554,7 +116554,7 @@ var getParsedType = (data) => {
   }
 };
 
-// ../node_modules/zod/v3/ZodError.js
+// ../lib/api-zod/node_modules/zod/v3/ZodError.js
 var ZodIssueCode = util.arrayToEnum([
   "invalid_type",
   "invalid_literal",
@@ -116668,7 +116668,7 @@ ZodError.create = (issues) => {
   return error;
 };
 
-// ../node_modules/zod/v3/locales/en.js
+// ../lib/api-zod/node_modules/zod/v3/locales/en.js
 var errorMap = (issue, _ctx) => {
   let message;
   switch (issue.code) {
@@ -116771,13 +116771,13 @@ var errorMap = (issue, _ctx) => {
 };
 var en_default = errorMap;
 
-// ../node_modules/zod/v3/errors.js
+// ../lib/api-zod/node_modules/zod/v3/errors.js
 var overrideErrorMap = en_default;
 function getErrorMap() {
   return overrideErrorMap;
 }
 
-// ../node_modules/zod/v3/helpers/parseUtil.js
+// ../lib/api-zod/node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
   const { data, path: path6, errorMaps, issueData } = params;
   const fullPath = [...path6, ...issueData.path || []];
@@ -116886,14 +116886,14 @@ var isDirty = (x10) => x10.status === "dirty";
 var isValid = (x10) => x10.status === "valid";
 var isAsync = (x10) => typeof Promise !== "undefined" && x10 instanceof Promise;
 
-// ../node_modules/zod/v3/helpers/errorUtil.js
+// ../lib/api-zod/node_modules/zod/v3/helpers/errorUtil.js
 var errorUtil;
 (function(errorUtil2) {
   errorUtil2.errToObj = (message) => typeof message === "string" ? { message } : message || {};
   errorUtil2.toString = (message) => typeof message === "string" ? message : message?.message;
 })(errorUtil || (errorUtil = {}));
 
-// ../node_modules/zod/v3/types.js
+// ../lib/api-zod/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
   constructor(parent, value, path6, key) {
     this._cachedPath = [];
@@ -122969,14 +122969,19 @@ function clientWantsFullCatalog(message) {
 }
 function clientAffirmsCatalogOffer(message, lastAssistantText) {
   if (!message?.trim() || !lastAssistantText?.trim()) return false;
-  if (!/cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando)\s+el\s+cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir)\s+el\s+cat[aá]logo|link\s+(del\s+)?cat[aá]logo/i.test(
+  if (!/cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo/i.test(
     lastAssistantText
   )) {
     return false;
   }
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
-  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
+  if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
+    t
+  )) {
+    return true;
+  }
+  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
     t
   );
 }
@@ -123451,6 +123456,21 @@ function parseInvitadosFromText(text2) {
     const b10 = parseInt(rangoMatch[2], 10);
     return String(Math.max(a10, b10));
   }
+  {
+    const guestRange = trimmed.match(
+      /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
+    );
+    if (guestRange && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed) && !parseFechaFromText(trimmed)) {
+      const a10 = parseInt(guestRange[1], 10);
+      const b10 = parseInt(guestRange[2], 10);
+      const lo2 = Math.min(a10, b10);
+      const hi2 = Math.max(a10, b10);
+      const looksLikeHours = lo2 <= 12 && hi2 <= 24 && hi2 - lo2 <= 16;
+      if (!looksLikeHours && a10 >= 10 && b10 >= 10 && a10 <= 2e3 && b10 <= 2e3 && Math.abs(a10 - b10) <= 500) {
+        return String(Math.round((a10 + b10) / 2));
+      }
+    }
+  }
   const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
   if (numMatch) return numMatch[1];
   const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
@@ -123834,7 +123854,16 @@ function parsePresupuestoFromText(text2, opts) {
   }
   const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
   if (rangeMatch) {
-    return `${rangeMatch[1].replace(/,/g, "")} - ${rangeMatch[2].replace(/,/g, "")} MXN`;
+    const aRaw = rangeMatch[1].replace(/,/g, "");
+    const bRaw = rangeMatch[2].replace(/,/g, "");
+    const a10 = parseInt(aRaw, 10);
+    const b10 = parseInt(bRaw, 10);
+    const hasMoneyToken = !!(rangeMatch[3] || /\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed));
+    if (!hasMoneyToken && Number.isFinite(a10) && Number.isFinite(b10) && a10 < 1e3 && b10 < 1e3) {
+      if (opts?.askedField !== "presupuesto") return null;
+      if (a10 < 500 && b10 < 500) return null;
+    }
+    return `${aRaw} - ${bRaw} MXN`;
   }
   const perPersonMatch = trimmed.match(
     /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
@@ -129548,16 +129577,50 @@ ${nextQ}`.trim()
   return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${intro}`.trim());
 }
 function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx) {
-  const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const transparent = /transparent/i.test(currentMessage ?? "");
-  const ack = buildGuardServiceAck(currentMessage ?? "carpas transparentes");
+  const msg = currentMessage ?? "";
+  const dims = parseSpaceDimensions(msg) || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+  const transparent = /transparent/i.test(msg);
+  const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
   if (filledSet) filledSet.add("Requerimientos o servicios");
   const baseLabel = transparent ? "Carpas transparentes" : "Carpas";
+  const label = alsoMobiliario ? `${baseLabel}, Mobiliario` : baseLabel;
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = dims ? `${baseLabel} (${dims})` : baseLabel;
-  } else if (!/carpa/i.test(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = dims ? `${extracted.requerimientos_evento}; ${baseLabel} (${dims})` : `${extracted.requerimientos_evento}; ${baseLabel}`;
+    extracted.requerimientos_evento = dims ? `${label} (${dims})` : label;
+  } else {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      dims ? `${label} (${dims})` : label,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
   }
+  if (alsoMobiliario) {
+    const ack2 = `Perfecto \u2014 anoto *carpas* y *mobiliario* para tu evento.${transparent ? " Incluyo la opci\xF3n de carpas transparentes." : ""}`;
+    const catalog = buildPackageCatalogOfferBlock(
+      ["Carpas", "Mobiliario"],
+      `${msg} ${extracted.requerimientos_evento ?? ""}`
+    );
+    let body2 = `${ack2}
+
+${catalog}`;
+    if (!dims) {
+      body2 = `${body2}
+
+Para cotizar bien las carpas, \xBFme compartes medidas aproximadas del \xE1rea a cubrir (o del espacio)?`;
+      return `${pickTransition(history)} ${body2}`.trim();
+    }
+    const filledAfter2 = new Set(filledSet ?? []);
+    filledAfter2.add("Requerimientos o servicios");
+    const pending2 = getNextPendingField(extracted, filledAfter2);
+    if (pending2 && pending2 !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
+      return `${pickTransition(history)} ${body2}
+
+${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${body2}`.trim();
+  }
+  const ack = buildGuardServiceAck(msg || "carpas transparentes");
   if (!dims) {
     return `${pickTransition(history)} ${ack}`.trim();
   }
@@ -131418,7 +131481,12 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   }
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
-  if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet)) {
+  const lastAssistantForCatalogGate = [...presHistory].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string");
+  const clientWantsCatalogNow = clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
+    currentMessage,
+    lastAssistantForCatalogGate && typeof lastAssistantForCatalogGate.content === "string" ? lastAssistantForCatalogGate.content : null
+  );
+  if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet) && !clientWantsCatalogNow) {
     return normalizeAdvisorReferences(
       buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -131916,7 +131984,7 @@ ${nextQ}` : priceReply;
     mensaje = `${buildLocationAnswer()} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: ubicaci\xF3n + pedir nombre");
-  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && !clientMentionsCarpas(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
     if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -131926,7 +131994,7 @@ ${nextQ}` : priceReply;
 ${buildModoServicioClarificationQuestion()}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: mobiliario \u2014 detalle t\xE9cnico + aclarar montado/entrega");
-  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && !clientMentionsCarpas(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
     if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -132968,6 +133036,16 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
       serviceHint: extracted.requerimientos_evento ?? null
     });
     log?.info({ entityId }, "GUARD: forz\xF3 URL de cat\xE1logo (mensaje sin link)");
+  }
+  if (clientWantedCatalog && /te\s+gustar[ií]a\s+que\s+te\s+env[ií]e|mande\s+el\s+cat[aá]logo|cat[aá]logo\s+m[aá]s\s+detall/i.test(
+    mensaje
+  ) && !/bodasesor\.com\/catalogos/i.test(mensaje)) {
+    mensaje = buildCatalogWebLinkReply({
+      query: extracted.requerimientos_evento || "cat\xE1logo general",
+      wantFull: clientWantsFullCatalog(currentMessage),
+      serviceHint: extracted.requerimientos_evento ?? null
+    });
+    log?.info({ entityId }, "GUARD: A14994 \u2014 afirm\xF3 cat\xE1logo, forz\xF3 env\xEDo con URL");
   }
   const waRaw = (whatsappDisplayName ?? "").trim();
   const waIsCatalogLevel = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip)$/i.test(waRaw);

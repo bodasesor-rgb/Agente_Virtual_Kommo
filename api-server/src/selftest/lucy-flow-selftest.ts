@@ -7030,6 +7030,104 @@ async function runAll(): Promise<void> {
     );
   });
 
+  await test("111. A14994 Sandra — catálogo Sí/Sí por favor + 80 a 100 ≠ presupuesto", () => {
+    assert.equal(parsePresupuestoFromText("80 a 100"), null, "rango invitados ≠ presupuesto");
+    assert.equal(parseInvitadosFromText("80 a 100"), "90");
+    assert.equal(parseInvitadosFromText("de 80 a 100"), "90");
+
+    const offerDetalles = "¿Te gustaría que te envíe el catálogo con más detalles?";
+    const offerDetallado = "¿Te gustaría que te envíe un catálogo más detallado?";
+    assert.ok(clientAffirmsCatalogOffer("Si", offerDetalles));
+    assert.ok(clientAffirmsCatalogOffer("Si por favor", offerDetallado));
+    assert.ok(clientAffirmsCatalogOffer("sí, por favor", offerDetalles));
+
+    const filled = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Sandra",
+      correo: "sanduka@hotmail.com",
+      tipo_evento: "boda",
+      requerimientos_evento: "Mobiliario, Carpas",
+      direccion_evento: "Jiutepec",
+      fecha_horario: "5 Diciembre",
+      num_invitados: 90,
+    });
+
+    const si = runGuards({
+      aiResponse: "¿Te gustaría que te envíe un catálogo más detallado?",
+      extracted: { ...extracted },
+      filledSet: new Set(filled),
+      readyForClosing: true,
+      currentMessage: "Si",
+      history: [{ role: "assistant", content: offerDetalles }],
+    });
+    assert.ok(/bodasesor\.com\/catalogos/i.test(si), `Sí debe enviar URL: ${si.slice(0, 400)}`);
+    assert.ok(
+      !/te\s+gustar[ií]a\s+que\s+te\s+env[ií]e.*cat[aá]logo/i.test(si),
+      `Sí no re-pregunta: ${si.slice(0, 400)}`
+    );
+
+    const porfa = runGuards({
+      aiResponse: "¿Te gustaría que te envíe un catálogo más detallado?",
+      extracted: { ...extracted },
+      filledSet: new Set(filled),
+      readyForClosing: true,
+      currentMessage: "Si por favor",
+      history: [
+        { role: "assistant", content: offerDetalles },
+        { role: "user", content: "Si" },
+        { role: "assistant", content: offerDetallado },
+      ],
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(porfa),
+      `Sí por favor debe enviar URL: ${porfa.slice(0, 400)}`
+    );
+    assert.ok(
+      !/te\s+gustar[ií]a\s+que\s+te\s+env[ií]e.*cat[aá]logo/i.test(porfa),
+      `Sí por favor no re-pregunta: ${porfa.slice(0, 400)}`
+    );
+
+    const carpas = runGuards({
+      aiResponse: "¿En qué ciudad y colonia sería tu evento?",
+      extracted: emptyExtracted({
+        nombre: "Sandra",
+        correo: "sanduka@hotmail.com",
+        tipo_evento: "boda",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Carpas o mobiliario",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto, Sandra. Te propongo:\n• Banquete Formal (3 o 4 tiempos)...\n¿Qué te gustaría revisar primero?",
+        },
+      ],
+    });
+    assert.ok(/carpas/i.test(carpas) && /mobiliario/i.test(carpas), carpas.slice(0, 500));
+    assert.ok(
+      /bodasesor\.com\/catalogos|medidas|área|espacio/i.test(carpas),
+      `carpas+mobiliario ack/catálogo: ${carpas.slice(0, 500)}`
+    );
+    assert.ok(
+      !/^¿En qué ciudad/i.test(carpas.trim()),
+      `no saltar solo a zona: ${carpas.slice(0, 300)}`
+    );
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }

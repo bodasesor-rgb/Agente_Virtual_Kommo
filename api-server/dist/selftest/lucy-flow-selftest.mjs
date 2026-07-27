@@ -5427,14 +5427,19 @@ function clientWantsFullCatalog(message) {
 }
 function clientAffirmsCatalogOffer(message, lastAssistantText) {
   if (!message?.trim() || !lastAssistantText?.trim()) return false;
-  if (!/cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando)\s+el\s+cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir)\s+el\s+cat[aá]logo|link\s+(del\s+)?cat[aá]logo/i.test(
+  if (!/cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo/i.test(
     lastAssistantText
   )) {
     return false;
   }
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
-  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
+  if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
+    t
+  )) {
+    return true;
+  }
+  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
     t
   );
 }
@@ -5909,6 +5914,21 @@ function parseInvitadosFromText(text) {
     const b = parseInt(rangoMatch[2], 10);
     return String(Math.max(a, b));
   }
+  {
+    const guestRange = trimmed.match(
+      /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
+    );
+    if (guestRange && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed) && !parseFechaFromText(trimmed)) {
+      const a = parseInt(guestRange[1], 10);
+      const b = parseInt(guestRange[2], 10);
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      const looksLikeHours = lo <= 12 && hi <= 24 && hi - lo <= 16;
+      if (!looksLikeHours && a >= 10 && b >= 10 && a <= 2e3 && b <= 2e3 && Math.abs(a - b) <= 500) {
+        return String(Math.round((a + b) / 2));
+      }
+    }
+  }
   const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
   if (numMatch) return numMatch[1];
   const paraMatch = trimmed.match(/\b(?:para|somos|ser[ií]an?|como|unos?|unas?)\s+(\d+)\b/i);
@@ -6292,7 +6312,16 @@ function parsePresupuestoFromText(text, opts) {
   }
   const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
   if (rangeMatch) {
-    return `${rangeMatch[1].replace(/,/g, "")} - ${rangeMatch[2].replace(/,/g, "")} MXN`;
+    const aRaw = rangeMatch[1].replace(/,/g, "");
+    const bRaw = rangeMatch[2].replace(/,/g, "");
+    const a = parseInt(aRaw, 10);
+    const b = parseInt(bRaw, 10);
+    const hasMoneyToken = !!(rangeMatch[3] || /\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed));
+    if (!hasMoneyToken && Number.isFinite(a) && Number.isFinite(b) && a < 1e3 && b < 1e3) {
+      if (opts?.askedField !== "presupuesto") return null;
+      if (a < 500 && b < 500) return null;
+    }
+    return `${aRaw} - ${bRaw} MXN`;
   }
   const perPersonMatch = trimmed.match(
     /\$?\s*([\d][\d,.]*)\s*(?:mxn|mnx|pesos)?\s*(?:por\s+(?:persona|cabeza)|x\s+persona|pp\b|c\/u\b)/i
@@ -22096,16 +22125,50 @@ ${nextQ}`.trim()
   return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${intro}`.trim());
 }
 function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx) {
-  const dims = parseSpaceDimensions(currentMessage ?? "") || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const transparent = /transparent/i.test(currentMessage ?? "");
-  const ack = buildGuardServiceAck(currentMessage ?? "carpas transparentes");
+  const msg = currentMessage ?? "";
+  const dims = parseSpaceDimensions(msg) || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
+  const transparent = /transparent/i.test(msg);
+  const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
   if (filledSet) filledSet.add("Requerimientos o servicios");
   const baseLabel = transparent ? "Carpas transparentes" : "Carpas";
+  const label = alsoMobiliario ? `${baseLabel}, Mobiliario` : baseLabel;
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = dims ? `${baseLabel} (${dims})` : baseLabel;
-  } else if (!/carpa/i.test(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = dims ? `${extracted.requerimientos_evento}; ${baseLabel} (${dims})` : `${extracted.requerimientos_evento}; ${baseLabel}`;
+    extracted.requerimientos_evento = dims ? `${label} (${dims})` : label;
+  } else {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      dims ? `${label} (${dims})` : label,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
   }
+  if (alsoMobiliario) {
+    const ack2 = `Perfecto \u2014 anoto *carpas* y *mobiliario* para tu evento.${transparent ? " Incluyo la opci\xF3n de carpas transparentes." : ""}`;
+    const catalog = buildPackageCatalogOfferBlock(
+      ["Carpas", "Mobiliario"],
+      `${msg} ${extracted.requerimientos_evento ?? ""}`
+    );
+    let body = `${ack2}
+
+${catalog}`;
+    if (!dims) {
+      body = `${body}
+
+Para cotizar bien las carpas, \xBFme compartes medidas aproximadas del \xE1rea a cubrir (o del espacio)?`;
+      return `${pickTransition(history)} ${body}`.trim();
+    }
+    const filledAfter2 = new Set(filledSet ?? []);
+    filledAfter2.add("Requerimientos o servicios");
+    const pending2 = getNextPendingField(extracted, filledAfter2);
+    if (pending2 && pending2 !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
+      return `${pickTransition(history)} ${body}
+
+${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${body}`.trim();
+  }
+  const ack = buildGuardServiceAck(msg || "carpas transparentes");
   if (!dims) {
     return `${pickTransition(history)} ${ack}`.trim();
   }
@@ -23954,7 +24017,12 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   }
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
-  if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet)) {
+  const lastAssistantForCatalogGate = [...presHistory].reverse().find((m) => m.role === "assistant" && typeof m.content === "string");
+  const clientWantsCatalogNow = clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
+    currentMessage,
+    lastAssistantForCatalogGate && typeof lastAssistantForCatalogGate.content === "string" ? lastAssistantForCatalogGate.content : null
+  );
+  if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet) && !clientWantsCatalogNow) {
     return normalizeAdvisorReferences(
       buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
@@ -24452,7 +24520,7 @@ ${nextQ}` : priceReply;
     mensaje = `${buildLocationAnswer()} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: ubicaci\xF3n + pedir nombre");
-  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && !clientMentionsCarpas(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
     if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -24462,7 +24530,7 @@ ${nextQ}` : priceReply;
 ${buildModoServicioClarificationQuestion()}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: mobiliario \u2014 detalle t\xE9cnico + aclarar montado/entrega");
-  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && !clientMentionsCarpas(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
     if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -25504,6 +25572,16 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
       serviceHint: extracted.requerimientos_evento ?? null
     });
     log?.info({ entityId }, "GUARD: forz\xF3 URL de cat\xE1logo (mensaje sin link)");
+  }
+  if (clientWantedCatalog && /te\s+gustar[ií]a\s+que\s+te\s+env[ií]e|mande\s+el\s+cat[aá]logo|cat[aá]logo\s+m[aá]s\s+detall/i.test(
+    mensaje
+  ) && !/bodasesor\.com\/catalogos/i.test(mensaje)) {
+    mensaje = buildCatalogWebLinkReply({
+      query: extracted.requerimientos_evento || "cat\xE1logo general",
+      wantFull: clientWantsFullCatalog(currentMessage),
+      serviceHint: extracted.requerimientos_evento ?? null
+    });
+    log?.info({ entityId }, "GUARD: A14994 \u2014 afirm\xF3 cat\xE1logo, forz\xF3 env\xEDo con URL");
   }
   const waRaw = (whatsappDisplayName ?? "").trim();
   const waIsCatalogLevel = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip)$/i.test(waRaw);
@@ -32567,6 +32645,97 @@ ${golfText}`,
     assert.ok(
       !/qu[eé]\s+te\s+gustar[ií]a\s+revisar\s+primero/i.test(revisar),
       `Revisar no re-CTA: ${revisar.slice(0, 400)}`
+    );
+  });
+  await test("111. A14994 Sandra \u2014 cat\xE1logo S\xED/S\xED por favor + 80 a 100 \u2260 presupuesto", () => {
+    assert.equal(parsePresupuestoFromText("80 a 100"), null, "rango invitados \u2260 presupuesto");
+    assert.equal(parseInvitadosFromText("80 a 100"), "90");
+    assert.equal(parseInvitadosFromText("de 80 a 100"), "90");
+    const offerDetalles = "\xBFTe gustar\xEDa que te env\xEDe el cat\xE1logo con m\xE1s detalles?";
+    const offerDetallado = "\xBFTe gustar\xEDa que te env\xEDe un cat\xE1logo m\xE1s detallado?";
+    assert.ok(clientAffirmsCatalogOffer("Si", offerDetalles));
+    assert.ok(clientAffirmsCatalogOffer("Si por favor", offerDetallado));
+    assert.ok(clientAffirmsCatalogOffer("s\xED, por favor", offerDetalles));
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/direcci\xF3n del evento",
+      "Fecha y horario",
+      "N\xFAmero de invitados"
+    ]);
+    const extracted = emptyExtracted({
+      nombre: "Sandra",
+      correo: "sanduka@hotmail.com",
+      tipo_evento: "boda",
+      requerimientos_evento: "Mobiliario, Carpas",
+      direccion_evento: "Jiutepec",
+      fecha_horario: "5 Diciembre",
+      num_invitados: 90
+    });
+    const si = runGuards({
+      aiResponse: "\xBFTe gustar\xEDa que te env\xEDe un cat\xE1logo m\xE1s detallado?",
+      extracted: { ...extracted },
+      filledSet: new Set(filled),
+      readyForClosing: true,
+      currentMessage: "Si",
+      history: [{ role: "assistant", content: offerDetalles }]
+    });
+    assert.ok(/bodasesor\.com\/catalogos/i.test(si), `S\xED debe enviar URL: ${si.slice(0, 400)}`);
+    assert.ok(
+      !/te\s+gustar[ií]a\s+que\s+te\s+env[ií]e.*cat[aá]logo/i.test(si),
+      `S\xED no re-pregunta: ${si.slice(0, 400)}`
+    );
+    const porfa = runGuards({
+      aiResponse: "\xBFTe gustar\xEDa que te env\xEDe un cat\xE1logo m\xE1s detallado?",
+      extracted: { ...extracted },
+      filledSet: new Set(filled),
+      readyForClosing: true,
+      currentMessage: "Si por favor",
+      history: [
+        { role: "assistant", content: offerDetalles },
+        { role: "user", content: "Si" },
+        { role: "assistant", content: offerDetallado }
+      ]
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(porfa),
+      `S\xED por favor debe enviar URL: ${porfa.slice(0, 400)}`
+    );
+    assert.ok(
+      !/te\s+gustar[ií]a\s+que\s+te\s+env[ií]e.*cat[aá]logo/i.test(porfa),
+      `S\xED por favor no re-pregunta: ${porfa.slice(0, 400)}`
+    );
+    const carpas = runGuards({
+      aiResponse: "\xBFEn qu\xE9 ciudad y colonia ser\xEDa tu evento?",
+      extracted: emptyExtracted({
+        nombre: "Sandra",
+        correo: "sanduka@hotmail.com",
+        tipo_evento: "boda"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Carpas o mobiliario",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, Sandra. Te propongo:\n\u2022 Banquete Formal (3 o 4 tiempos)...\n\xBFQu\xE9 te gustar\xEDa revisar primero?"
+        }
+      ]
+    });
+    assert.ok(/carpas/i.test(carpas) && /mobiliario/i.test(carpas), carpas.slice(0, 500));
+    assert.ok(
+      /bodasesor\.com\/catalogos|medidas|área|espacio/i.test(carpas),
+      `carpas+mobiliario ack/cat\xE1logo: ${carpas.slice(0, 500)}`
+    );
+    assert.ok(
+      !/^¿En qué ciudad/i.test(carpas.trim()),
+      `no saltar solo a zona: ${carpas.slice(0, 300)}`
     );
   });
   console.log(`

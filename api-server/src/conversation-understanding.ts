@@ -1082,8 +1082,9 @@ export function clientAffirmsCatalogOffer(
   lastAssistantText: string | null | undefined
 ): boolean {
   if (!message?.trim() || !lastAssistantText?.trim()) return false;
+  // A14994: cubrir variantes GPT ("te envíe…", "más detallado", "más detalles").
   if (
-    !/cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando)\s+el\s+cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir)\s+el\s+cat[aá]logo|link\s+(del\s+)?cat[aá]logo/i.test(
+    !/cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo/i.test(
       lastAssistantText
     )
   ) {
@@ -1091,7 +1092,15 @@ export function clientAffirmsCatalogOffer(
   }
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
-  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
+  // "Sí", "Si por favor", "claro que sí", "mande por favor", etc.
+  if (
+    /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
     t
   );
 }
@@ -1833,6 +1842,35 @@ export function parseInvitadosFromText(text: string): string | null {
     return String(Math.max(a, b));
   }
 
+  // A14994 Sandra: "80 a 100" / "80-100" / "de 80 a 100" = rango de invitados (no presupuesto).
+  {
+    const guestRange = trimmed.match(
+      /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
+    );
+    if (
+      guestRange &&
+      !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed) &&
+      !parseFechaFromText(trimmed)
+    ) {
+      const a = parseInt(guestRange[1]!, 10);
+      const b = parseInt(guestRange[2]!, 10);
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
+      // Horario típico "3 a 12" / "de 5 a 11" — no invitados.
+      const looksLikeHours = lo <= 12 && hi <= 24 && hi - lo <= 16;
+      if (
+        !looksLikeHours &&
+        a >= 10 &&
+        b >= 10 &&
+        a <= 2000 &&
+        b <= 2000 &&
+        Math.abs(a - b) <= 500
+      ) {
+        return String(Math.round((a + b) / 2));
+      }
+    }
+  }
+
   const numMatch = trimmed.match(/\b(\d+)\s*(personas?|invitados?|pax|guests?|gentes?|cabezas?)\b/i);
   if (numMatch) return numMatch[1]!;
 
@@ -2432,7 +2470,21 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
 
   const rangeMatch = trimmed.match(/\b(\d[\d,.]*)\s*[-–a]\s*(\d[\d,.]*)\s*(mxn|mnx|pesos)?\b/i);
   if (rangeMatch) {
-    return `${rangeMatch[1]!.replace(/,/g, "")} - ${rangeMatch[2]!.replace(/,/g, "")} MXN`;
+    const aRaw = rangeMatch[1]!.replace(/,/g, "");
+    const bRaw = rangeMatch[2]!.replace(/,/g, "");
+    const a = parseInt(aRaw, 10);
+    const b = parseInt(bRaw, 10);
+    const hasMoneyToken = !!(
+      rangeMatch[3] ||
+      /\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)
+    );
+    // A14994: "80 a 100" sin señal de dinero = invitados, NUNCA presupuesto.
+    if (!hasMoneyToken && Number.isFinite(a) && Number.isFinite(b) && a < 1000 && b < 1000) {
+      if (opts?.askedField !== "presupuesto") return null;
+      // Aunque pregunten presupuesto, rangos chicos sin $ / mil / k no son presupuesto.
+      if (a < 500 && b < 500) return null;
+    }
+    return `${aRaw} - ${bRaw} MXN`;
   }
 
   // "$500 por persona" del cliente sí; "manejamos … desde $300 por persona" de Lucy no (A14938).

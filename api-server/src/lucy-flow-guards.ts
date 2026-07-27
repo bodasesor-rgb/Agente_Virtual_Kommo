@@ -984,24 +984,54 @@ function buildCarpasSalesReply(
   filledSet?: Set<string>,
   ctx?: NaturalQuestionContext
 ): string {
+  const msg = currentMessage ?? "";
   const dims =
-    parseSpaceDimensions(currentMessage ?? "") ||
+    parseSpaceDimensions(msg) ||
     (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const transparent = /transparent/i.test(currentMessage ?? "");
-  const ack = buildGuardServiceAck(currentMessage ?? "carpas transparentes");
+  const transparent = /transparent/i.test(msg);
+  // A14994: "Carpas o mobiliario" — anotar ambos + catálogo (no saltar solo a zona).
+  const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
 
   if (filledSet) filledSet.add("Requerimientos o servicios");
   const baseLabel = transparent ? "Carpas transparentes" : "Carpas";
+  const label = alsoMobiliario ? `${baseLabel}, Mobiliario` : baseLabel;
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = dims ? `${baseLabel} (${dims})` : baseLabel;
-  } else if (!/carpa/i.test(extracted.requerimientos_evento)) {
-    extracted.requerimientos_evento = dims
-      ? `${extracted.requerimientos_evento}; ${baseLabel} (${dims})`
-      : `${extracted.requerimientos_evento}; ${baseLabel}`;
+    extracted.requerimientos_evento = dims ? `${label} (${dims})` : label;
+  } else {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      dims ? `${label} (${dims})` : label,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
   }
 
+  if (alsoMobiliario) {
+    const ack = `Perfecto — anoto *carpas* y *mobiliario* para tu evento.${
+      transparent ? " Incluyo la opción de carpas transparentes." : ""
+    }`;
+    const catalog = buildPackageCatalogOfferBlock(
+      ["Carpas", "Mobiliario"],
+      `${msg} ${extracted.requerimientos_evento ?? ""}`
+    );
+    let body = `${ack}\n\n${catalog}`;
+    if (!dims) {
+      body = `${body}\n\nPara cotizar bien las carpas, ¿me compartes medidas aproximadas del área a cubrir (o del espacio)?`;
+      return `${pickTransition(history)} ${body}`.trim();
+    }
+    const filledAfter = new Set(filledSet ?? []);
+    filledAfter.add("Requerimientos o servicios");
+    const pending = getNextPendingField(extracted, filledAfter);
+    if (pending && pending !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+      return `${pickTransition(history)} ${body}\n\n${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${body}`.trim();
+  }
+
+  // Carpas solas (A14906): ack consultivo + medidas; sin volcar catálogo genérico.
+  const ack = buildGuardServiceAck(msg || "carpas transparentes");
   if (!dims) {
-    // Ya incluye pregunta de medidas en buildGuardServiceAck / consultive.
     return `${pickTransition(history)} ${ack}`.trim();
   }
 
@@ -3956,10 +3986,24 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
 
+  const lastAssistantForCatalogGate = [...presHistory]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  // A14994: aceptar catálogo gana al cierre temprano (si no, se ignora el "Sí" y se re-pregunta).
+  const clientWantsCatalogNow =
+    clientAsksForCatalog(currentMessage) ||
+    clientAffirmsCatalogOffer(
+      currentMessage,
+      lastAssistantForCatalogGate && typeof lastAssistantForCatalogGate.content === "string"
+        ? (lastAssistantForCatalogGate.content as string)
+        : null
+    );
+
   if (
     trulyReadyForClosing &&
     !cierreYaEnviado &&
-    !requerimientosNeedsFollowUp(extracted, filledSet)
+    !requerimientosNeedsFollowUp(extracted, filledSet) &&
+    !clientWantsCatalogNow
   ) {
     return normalizeAdvisorReferences(
       buildClosing(
@@ -4754,6 +4798,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     !cierreYaEnviado &&
     !clientAsksPrice(currentMessage) &&
+    !clientMentionsCarpas(currentMessage) &&
     buildMobiliarioRentDetailReply(currentMessage ?? "") &&
     needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)
   ) {
@@ -4772,6 +4817,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     !cierreYaEnviado &&
     !clientAsksPrice(currentMessage) &&
+    !clientMentionsCarpas(currentMessage) &&
     buildMobiliarioRentDetailReply(currentMessage ?? "") &&
     !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)
   ) {
@@ -6247,6 +6293,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       serviceHint: extracted.requerimientos_evento ?? null,
     });
     log?.info({ entityId }, "GUARD: forzó URL de catálogo (mensaje sin link)");
+  }
+
+  // A14994: "Sí" / "Sí por favor" tras oferta de catálogo → NUNCA re-preguntar sin URL.
+  if (
+    clientWantedCatalog &&
+    /te\s+gustar[ií]a\s+que\s+te\s+env[ií]e|mande\s+el\s+cat[aá]logo|cat[aá]logo\s+m[aá]s\s+detall/i.test(
+      mensaje
+    ) &&
+    !/bodasesor\.com\/catalogos/i.test(mensaje)
+  ) {
+    mensaje = buildCatalogWebLinkReply({
+      query: extracted.requerimientos_evento || "catálogo general",
+      wantFull: clientWantsFullCatalog(currentMessage),
+      serviceHint: extracted.requerimientos_evento ?? null,
+    });
+    log?.info({ entityId }, "GUARD: A14994 — afirmó catálogo, forzó envío con URL");
   }
 
   // A14929: no inventar "banquete Premium" cuando Premium es el nombre de WhatsApp, no un nivel elegido.
