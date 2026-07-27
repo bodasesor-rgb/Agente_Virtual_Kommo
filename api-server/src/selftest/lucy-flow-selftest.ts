@@ -57,6 +57,7 @@ import {
   looksLikeNameAnswerMessage,
   extractCatalogNivelFromText,
   clientNeedsEmergencyContact,
+  clientAsksForHumanAdvisor,
   isRichQuoteBrief,
   clientAsksToRereadBrief,
   clientAsksDistributorPricing,
@@ -105,6 +106,7 @@ import {
   buildLocationAnswer,
   buildVagueFoodOptionsReply,
   buildEmergencyContactAnswer,
+  buildHumanAdvisorHandoffAnswer,
   buildDeferredKnownServiceOffer,
   historyAlreadyOfferedServiceDetail,
   parsePistaTarimaVariant,
@@ -7385,6 +7387,96 @@ async function runAll(): Promise<void> {
     assert.ok(/services\.join\(/.test(silentSrc));
     assert.ok(!/sanitizeCrmNombre\(text\)/.test(silentSrc));
     assert.ok(/parseZonaFromText/.test(silentSrc));
+  });
+
+  await test("115. A15000 Itzel — nombre completo, reunión familiar, multi-servicio, asesor", () => {
+    // Nombre: nunca degradar apellido
+    assert.equal(shouldUpdateName("Itzel Lombera", "Itzel"), false);
+    assert.equal(resolveKommoLeadNamePatch("Itzel Lombera", "Itzel"), null);
+    assert.equal(pickBetterNombre("Itzel", "Itzel Lombera"), "Itzel Lombera");
+
+    // Tipo: Reunión familiar / celebraciones familiares
+    assert.equal(parseTipoEventoFromText("Reunión familiar"), "fiesta");
+    assert.equal(parseTipoEventoFromText("celebraciones familiares"), "fiesta");
+
+    // Alimentos + meseros + mobiliario (no solo mobiliario)
+    const brief =
+      "Quiero ver qué opciones tienen para alimentos , y si tienen meseros , y mobiliario , también saber el costo por persona aprox 40 adultos y 10 niños";
+    const services = parseServicesFromText(brief);
+    assert.ok(services.some((s) => /alimento|banquete|comida/i.test(s)), services.join(","));
+    assert.ok(services.some((s) => /mesero/i.test(s)), services.join(","));
+    assert.ok(services.some((s) => /mobiliario/i.test(s)), services.join(","));
+    assert.ok(services.length >= 3, services.join(","));
+
+    const multi = runGuards({
+      aiResponse: "Anoto mobiliario. ¿En qué ciudad sería tu evento?",
+      extracted: emptyExtracted({
+        nombre: "Itzel",
+        correo: "Itzel.Lombera@live.com",
+        tipo_evento: "cumpleaños",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: brief,
+      history: [
+        {
+          role: "assistant",
+          content: "¿Qué te gustaría revisar primero o prefieres armar un paquete completo?",
+        },
+      ],
+    });
+    assert.ok(
+      /alimento|banquete|comida|mesero|paquete|opcion/i.test(multi),
+      `multi no solo mobiliario: ${multi.slice(0, 500)}`
+    );
+    assert.ok(
+      !/^Anoto \*mobiliario\*/i.test(multi.trim()),
+      `no monopolio mobiliario: ${multi.slice(0, 300)}`
+    );
+
+    // Pedido de asesor → handoff, no embudo
+    assert.ok(clientAsksForHumanAdvisor("Prefiero hablar con un asesor"));
+    assert.ok(clientAsksForHumanAdvisor("Y prefiero que algún asesor se comunique conmigo"));
+    const handoff = buildHumanAdvisorHandoffAnswer("Itzel");
+    assert.ok(/asesor/i.test(handoff));
+    assert.ok(/55 4008 0373/.test(handoff));
+
+    const advisorReply = runGuards({
+      aiResponse: "Itzel, ¿tienen día u horario ya definido?",
+      extracted: emptyExtracted({
+        nombre: "Itzel",
+        correo: "Itzel.Lombera@live.com",
+        tipo_evento: "cumpleaños",
+        direccion_evento: "Del Valle sur",
+        num_invitados: 50,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Lugar/dirección del evento",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Prefiero hablar con un asesor",
+      history: [
+        { role: "assistant", content: "Con gusto. Itzel, ¿tienen día u horario ya definido?" },
+      ],
+    });
+    assert.ok(/asesor|canalizo|equipo/i.test(advisorReply), advisorReply.slice(0, 400));
+    assert.ok(!/d[ií]a u horario|fecha/i.test(advisorReply), advisorReply.slice(0, 400));
+    assert.ok(!/cat[aá]logo/i.test(advisorReply), advisorReply.slice(0, 400));
+
+    // Requerimientos: generateSummary NO debe usarse como valor CRM
+    const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const kommoSrc = readFileSync(path.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    assert.ok(!/generateSummary\(conversationText\)/.test(kommoSrc));
+    assert.ok(/clientAsksForHumanAdvisor/.test(kommoSrc));
+    assert.ok(/pide_asesor/.test(kommoSrc));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

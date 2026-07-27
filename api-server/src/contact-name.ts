@@ -382,6 +382,8 @@ export function shouldUpdateName(current?: string, incoming?: string): boolean {
   // No reemplazar "Jeny" por otro nombre distinto (p. ej. intento con Premium ya filtrado arriba).
   if (!namesAreLikelySamePerson(c, iClean)) return false;
   const cClean = sanitizeCrmNombre(c) ?? sanitizeDisplayName(c) ?? c;
+  // A15000: nunca degradar "Itzel Lombera" → "Itzel" (menos palabras).
+  if (nombreWordCount(iClean) < nombreWordCount(cClean)) return false;
   // Nombre sucio en lead.name ("Alexandra Es Boda") → escribir la forma limpia para Alejandro/SalesBot.
   const cRawNorm = c.toLowerCase().replace(/\s+/g, " ").trim();
   if (cClean.toLowerCase() !== cRawNorm && iClean.toLowerCase() === cClean.toLowerCase()) {

@@ -73049,544 +73049,6 @@ var require_follow_redirects = __commonJS({
   }
 });
 
-// src/services/embudo.ts
-function kommoHeaders(accessToken) {
-  return { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
-}
-async function fetchLead(subdomain, accessToken, leadId) {
-  try {
-    const res = await fetch(
-      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags,chats`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const cfv = data.custom_fields_values ?? [];
-    const getField = (id2) => {
-      const f10 = cfv.find((x10) => x10.field_id === id2);
-      const v10 = f10?.values[0]?.value;
-      return v10 && typeof v10 === "string" && v10.trim() ? v10.trim() : null;
-    };
-    return {
-      id: data.id,
-      pipeline_id: data.pipeline_id,
-      status_id: data.status_id,
-      name: data.name ?? "",
-      chatId: data._embedded?.chats?.[0]?.id ?? null,
-      nombre: getField(1048782) ?? null,
-      // se rellena desde extractedData — usamos nombre del lead
-      correo: null,
-      // no hay campo correo en lead — viene del contacto
-      telefono: null,
-      direccion: getField(1048774),
-      fecha_evento: getField(1048778),
-      num_invitados: getField(1048780),
-      tipo_evento: getField(1048782),
-      presupuesto: getField(1048784),
-      tags: (data._embedded?.tags ?? []).map((t) => t.name)
-    };
-  } catch {
-    return null;
-  }
-}
-async function moverEtapa(subdomain, accessToken, leadId, statusId) {
-  const res = await fetch(
-    `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
-    {
-      method: "PATCH",
-      headers: kommoHeaders(accessToken),
-      body: JSON.stringify({ pipeline_id: PIPELINE_ID, status_id: statusId })
-    }
-  );
-  if (!res.ok) {
-    const errText = await res.text().catch(() => "");
-    logger.warn({ leadId, statusId, httpStatus: res.status, errText }, "moverEtapa: PATCH fallido");
-  }
-  return res.ok;
-}
-async function agregarNota(subdomain, accessToken, leadId, texto) {
-  try {
-    const res = await fetch(
-      `https://${subdomain}.kommo.com/api/v4/leads/notes`,
-      {
-        method: "POST",
-        headers: kommoHeaders(accessToken),
-        body: JSON.stringify([{
-          entity_id: Number(leadId),
-          note_type: "common",
-          params: { text: texto }
-        }])
-      }
-    );
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "(no body)");
-      logger.warn({ leadId, status: res.status, errBody }, "agregarNota: Kommo rechaz\xF3 la nota");
-      return false;
-    }
-    return true;
-  } catch (err2) {
-    logger.warn({ leadId, err: err2 }, "agregarNota: excepci\xF3n (timeout o red)");
-    return false;
-  }
-}
-async function agregarTag(subdomain, accessToken, leadId, tags, existingTags = []) {
-  const merged = [.../* @__PURE__ */ new Set([...existingTags, ...tags])].map((n10) => ({ name: n10 }));
-  await fetch(
-    `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
-    {
-      method: "PATCH",
-      headers: kommoHeaders(accessToken),
-      body: JSON.stringify({ _embedded: { tags: merged } })
-    }
-  );
-}
-async function limpiarCampoRespuesta(subdomain, accessToken, leadId) {
-  try {
-    await fetch(
-      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
-      {
-        method: "PATCH",
-        headers: kommoHeaders(accessToken),
-        body: JSON.stringify({
-          custom_fields_values: [
-            { field_id: 1048786, values: [{ value: "-" }] }
-          ]
-        })
-      }
-    );
-    logger.info({ leadId }, "Embudo: campo 1048786 limpiado (SalesBot no reenviar\xE1)");
-  } catch (err2) {
-    logger.warn({ leadId, err: err2 }, "Embudo: no se pudo limpiar campo 1048786");
-  }
-}
-async function removerTag(subdomain, accessToken, leadId, tagToRemove, existingTags) {
-  const filtered = existingTags.filter((t) => t !== tagToRemove).map((n10) => ({ name: n10 }));
-  await fetch(
-    `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
-    {
-      method: "PATCH",
-      headers: kommoHeaders(accessToken),
-      body: JSON.stringify({ _embedded: { tags: filtered } })
-    }
-  );
-}
-async function enviarMensaje(subdomain, accessToken, talkId, texto) {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1e4);
-    const res = await fetch(
-      `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages`,
-      {
-        method: "POST",
-        headers: kommoHeaders(accessToken),
-        signal: controller.signal,
-        body: JSON.stringify({ text: texto })
-      }
-    );
-    clearTimeout(timer);
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "(no body)");
-      logger.warn(
-        { status: res.status, errBody, talkId, preview: texto.slice(0, 80) },
-        "enviarMensaje: Kommo Talks rechaz\xF3 la solicitud"
-      );
-    } else {
-      logger.info({ talkId, preview: texto.slice(0, 80) }, "enviarMensaje: Kommo Talks acept\xF3 el mensaje");
-    }
-    return res.ok;
-  } catch (err2) {
-    logger.warn({ err: err2, talkId }, "enviarMensaje: excepci\xF3n (timeout o red)");
-    return false;
-  }
-}
-function lucyDebeResponder(statusId, tags) {
-  if (!ETAPAS_LUCY_ACTIVA.has(statusId)) return false;
-  if (tags.includes("lucy_desactivada")) return false;
-  return true;
-}
-function tieneInformacionCompleta(datos) {
-  if (datos.tipo_contacto === "proveedor") {
-    const correoOk2 = !!datos.correo?.trim();
-    const empresaOk = !!datos.empresa?.trim();
-    const descOk = !!datos.requerimientos_evento && datos.requerimientos_evento.trim().length > 20;
-    return correoOk2 && empresaOk && descOk;
-  }
-  const correoOk = !!datos.correo?.trim();
-  const fechaOk = !!datos.fecha_evento?.trim();
-  const invitadosOk = !!datos.num_invitados && String(datos.num_invitados).trim() !== "";
-  const tipoOk = !!datos.tipo_evento?.trim();
-  const dirOk = !!datos.direccion?.trim();
-  return correoOk && fechaOk && invitadosOk && tipoOk && dirOk;
-}
-async function moverANoContesta(subdomain, accessToken, leadId, chatId) {
-  logger.info({ leadId }, "Embudo: moviendo lead a No Contesta por inactividad");
-  await moverEtapa(subdomain, accessToken, leadId, ETAPA.NO_CONTESTA);
-  const mensaje = `Hola! Vi que no terminamos de platicar sobre tu evento.
-
-\xBFSigues interesado en la cotizaci\xF3n? Me encantar\xEDa ayudarte.
-
-Si ya no necesitas el servicio no hay problema, solo av\xEDsame.`;
-  const enviado = await enviarMensaje(subdomain, accessToken, chatId, mensaje);
-  await agregarNota(
-    subdomain,
-    accessToken,
-    leadId,
-    `\u23F0 Lucy: Cliente inactivo >5h. Movido a No Contesta. Mensaje de recuperaci\xF3n ${enviado ? "enviado" : "NO enviado"}.`
-  );
-  logger.info({ leadId, mensajeEnviado: enviado }, "Embudo: lead movido a No Contesta");
-}
-async function recuperarDeNoContesta(subdomain, accessToken, leadId, datos, tags) {
-  logger.info({ leadId }, "Embudo: recuperando lead de No Contesta");
-  await moverEtapa(subdomain, accessToken, leadId, ETAPA.DATOS_E_INTERESES);
-  await agregarNota(
-    subdomain,
-    accessToken,
-    leadId,
-    "Lucy: Lead recuperado de No Contesta. Regres\xF3 a Datos e Intereses."
-  );
-}
-async function programarSeguimiento(leadId, chatId, nombre, tipoEvento, fechaEvento) {
-  const scheduledFor = new Date(Date.now() + MS_SEGUIMIENTO);
-  const mensaje = `Hola ${nombre ?? ""}! Soy Lucy, agente virtual de Bodasesor.
-
-Vi que Alejandro te envi\xF3 la cotizaci\xF3n para tu ${tipoEvento ?? "evento"} del ${fechaEvento ?? ""}.
-
-\xBFTuviste oportunidad de revisarla? \xBFTienes alguna duda o te gustar\xEDa ajustar algo?
-
-Estoy aqu\xED para ayudarte.`;
-  try {
-    await db.insert(followUpEvents).values({
-      kommoLeadId: String(leadId),
-      type: "cotizacion_followup",
-      scheduledFor,
-      message: JSON.stringify({ chatId, texto: mensaje }),
-      priority: 1
-    });
-    logger.info({ leadId, scheduledFor }, "Embudo: seguimiento programado 22h");
-  } catch (err2) {
-    logger.warn({ err: err2, leadId }, "Embudo: no se pudo programar seguimiento");
-  }
-}
-async function procesarSeguimientosPendientes(subdomain, accessToken) {
-  let pendientes;
-  try {
-    pendientes = await db.query.followUpEvents.findMany({
-      where: and2(
-        lte2(followUpEvents.scheduledFor, /* @__PURE__ */ new Date()),
-        eq2(followUpEvents.executed, false)
-      )
-    });
-  } catch (err2) {
-    logger.warn({ err: err2 }, "Embudo: error leyendo seguimientos pendientes");
-    return;
-  }
-  logger.info({ count: pendientes.length }, "Embudo: procesando seguimientos pendientes");
-  for (const seg of pendientes) {
-    try {
-      let chatId = null;
-      let texto = "";
-      if (seg.message) {
-        const parsed = JSON.parse(seg.message);
-        chatId = parsed.chatId ?? null;
-        texto = parsed.texto ?? "";
-      }
-      if (chatId && texto) {
-        const ok2 = await enviarMensaje(subdomain, accessToken, chatId, texto);
-        if (ok2) {
-          const lead = await fetchLead(subdomain, accessToken, seg.kommoLeadId);
-          if (lead) {
-            await removerTag(subdomain, accessToken, seg.kommoLeadId, "lucy_desactivada", lead.tags);
-          }
-          await agregarNota(subdomain, accessToken, seg.kommoLeadId, "\u{1F504} Lucy: Seguimiento autom\xE1tico 22h enviado. Lucy reactivada.");
-          logger.info({ leadId: seg.kommoLeadId }, "Embudo: seguimiento 22h enviado OK");
-        }
-      }
-      await db.update(followUpEvents).set({ executed: true, executedAt: /* @__PURE__ */ new Date() }).where(eq2(followUpEvents.id, seg.id));
-    } catch (err2) {
-      logger.warn({ err: err2, seguimientoId: seg.id }, "Embudo: error procesando seguimiento");
-    }
-  }
-}
-async function reactivarLucy(subdomain, accessToken, leadId) {
-  const lead = await fetchLead(subdomain, accessToken, leadId);
-  if (!lead) return { ok: false };
-  await removerTag(subdomain, accessToken, leadId, "lucy_desactivada", lead.tags);
-  if (lead.status_id === ETAPA.HUMANO_TRABAJA) {
-    await moverEtapa(subdomain, accessToken, leadId, ETAPA.DATOS_E_INTERESES);
-    logger.info({ leadId }, "Embudo: lead regresado a Datos e Intereses al reactivar Lucy");
-  }
-  const nombre = lead.nombre ? ` ${lead.nombre}` : "";
-  const tieneContexto = !!(lead.tipo_evento || lead.fecha_evento);
-  const mensaje = tieneContexto ? `Hola${nombre}! Soy Lucy, agente virtual de Bodasesor.
-
-Vi que est\xE1bamos platicando sobre tu ${lead.tipo_evento ?? "evento"}${lead.fecha_evento ? " del " + lead.fecha_evento : ""}.
-
-\xBFTuviste oportunidad de pensar en lo que platicamos? \xBFTe gustar\xEDa retomar la cotizaci\xF3n?
-
-Estoy aqu\xED para ayudarte.` : `Hola${nombre}! Soy Lucy, agente virtual de Bodasesor.
-
-\xBFSigues interesado en nuestros servicios de banquetes y eventos? Me encantar\xEDa ayudarte a planear algo especial.
-
-\xBFEn qu\xE9 puedo apoyarte?`;
-  let enviado = false;
-  if (lead.chatId) {
-    enviado = await enviarMensaje(subdomain, accessToken, lead.chatId, mensaje);
-  }
-  await agregarNota(
-    subdomain,
-    accessToken,
-    leadId,
-    `\u{1F504} Lucy: Reactivada manualmente. Mensaje de reactivaci\xF3n ${enviado ? "enviado" : "NO enviado (sin chatId)"}.`
-  );
-  logger.info({ leadId, enviado }, "Embudo: Lucy reactivada manualmente");
-  return { ok: true, mensaje };
-}
-async function verificarVentanas24h(subdomain, accessToken) {
-  const ahora = /* @__PURE__ */ new Date();
-  const hace22h = new Date(ahora.getTime() - MS_VENTANA_MAX);
-  const hace23h = new Date(ahora.getTime() - MS_VENTANA_MIN);
-  let convs;
-  try {
-    convs = await db.query.conversations.findMany({
-      where: and2(
-        gte2(conversations.updatedAt, hace22h),
-        lte2(conversations.updatedAt, hace23h)
-      )
-    });
-  } catch (err2) {
-    logger.warn({ err: err2 }, "Embudo: error leyendo conversaciones para ventana 24h");
-    return;
-  }
-  logger.info({ count: convs.length }, "Embudo: verificando ventana 24h de WhatsApp");
-  for (const conv of convs) {
-    try {
-      if (!conv.kommoChatId) continue;
-      const lead = await fetchLead(subdomain, accessToken, conv.kommoLeadId);
-      if (!lead) continue;
-      const activa = ETAPAS_LUCY_ACTIVA.has(lead.status_id) && !lead.tags.includes("lucy_desactivada");
-      if (!activa) continue;
-      const nombre = conv.clientName ?? lead.nombre ? ` ${conv.clientName ?? lead.nombre}` : "";
-      const tipoEvento = conv.eventType ?? lead.tipo_evento;
-      const fechaEvento = lead.fecha_evento;
-      const mensaje = tipoEvento ? `Hola${nombre}! Solo quer\xEDa recordarte que seguimos aqu\xED para ayudarte con tu ${tipoEvento}${fechaEvento ? " del " + fechaEvento : ""}.
-
-\xBFTienes alguna duda o te gustar\xEDa avanzar con la cotizaci\xF3n? Estoy disponible.` : `Hola${nombre}! Soy Lucy, agente virtual de Bodasesor.
-
-\xBFSigues interesado en cotizar tu evento? Estamos aqu\xED para ayudarte cuando gustes.`;
-      const enviado = await enviarMensaje(subdomain, accessToken, conv.kommoChatId, mensaje);
-      if (enviado) {
-        await agregarNota(
-          subdomain,
-          accessToken,
-          conv.kommoLeadId,
-          "\u23F0 Lucy: Mensaje autom\xE1tico enviado para renovar ventana de 24h de WhatsApp."
-        );
-        await db.update(conversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, conv.kommoLeadId));
-        logger.info({ leadId: conv.kommoLeadId }, "Embudo: mensaje de ventana 24h enviado");
-      }
-    } catch (err2) {
-      logger.warn({ err: err2, leadId: conv.kommoLeadId }, "Embudo: error procesando ventana 24h");
-    }
-  }
-}
-async function verificarLeadsInactivos(subdomain, accessToken) {
-  const umbral = new Date(Date.now() - MS_INACTIVIDAD);
-  let convInactivas;
-  try {
-    convInactivas = await db.query.conversations.findMany({
-      where: and2(
-        eq2(conversations.stage, "discovery"),
-        lte2(conversations.updatedAt, umbral)
-      )
-    });
-  } catch (err2) {
-    logger.warn({ err: err2 }, "Embudo: error leyendo conversaciones inactivas");
-    return;
-  }
-  logger.info({ count: convInactivas.length }, "Embudo: revisando leads inactivos");
-  for (const conv of convInactivas) {
-    try {
-      const lead = await fetchLead(subdomain, accessToken, conv.kommoLeadId);
-      if (!lead) continue;
-      if (lead.status_id !== ETAPA.DATOS_E_INTERESES) continue;
-      if (lead.tags.includes("lucy_desactivada")) continue;
-      if (!conv.kommoChatId) continue;
-      await moverANoContesta(subdomain, accessToken, conv.kommoLeadId, conv.kommoChatId);
-      await db.update(conversations).set({ stage: "no_contesta", updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, conv.kommoLeadId));
-    } catch (err2) {
-      logger.warn({ err: err2, leadId: conv.kommoLeadId }, "Embudo: error procesando inactividad");
-    }
-  }
-}
-var ETAPA, PIPELINE_ID, ETAPAS_LUCY_ACTIVA, MS_INACTIVIDAD, MS_SEGUIMIENTO, MS_VENTANA_MIN, MS_VENTANA_MAX;
-var init_embudo = __esm({
-  async "src/services/embudo.ts"() {
-    await init_src();
-    init_drizzle_orm();
-    init_logger3();
-    ETAPA = {
-      LEADS_ENTRANTES: 72336719,
-      DATOS_E_INTERESES: 80344783,
-      HUMANO_TRABAJA: 105583875,
-      COTIZACION_REALIZADA: 72336827,
-      NO_CONTESTA: 105583415,
-      CLIENTE_PERDIDO: 143
-    };
-    PIPELINE_ID = 9335963;
-    ETAPAS_LUCY_ACTIVA = /* @__PURE__ */ new Set([
-      ETAPA.LEADS_ENTRANTES,
-      ETAPA.DATOS_E_INTERESES,
-      ETAPA.NO_CONTESTA
-    ]);
-    MS_INACTIVIDAD = 5 * 60 * 60 * 1e3;
-    MS_SEGUIMIENTO = 22 * 60 * 60 * 1e3;
-    MS_VENTANA_MIN = 22 * 60 * 60 * 1e3;
-    MS_VENTANA_MAX = 23 * 60 * 60 * 1e3;
-  }
-});
-
-// src/services/kommoTalks.ts
-function classifyKommoOrigin(origin2) {
-  const o10 = (origin2 ?? "").trim().toLowerCase();
-  if (!o10) return "unknown";
-  if (/whats?app|waba|wa_/.test(o10)) return "whatsapp";
-  if (/instagram|ig_/.test(o10)) return "instagram";
-  if (/facebook|messenger|fb_/.test(o10)) return "facebook";
-  if (/telegram|tg_/.test(o10)) return "telegram";
-  return "other";
-}
-function usesKommoExternalSend(channel) {
-  return channel === "facebook" || channel === "instagram" || channel === "telegram" || channel === "other";
-}
-async function fetchTalkOrigin(subdomain, accessToken, talkId) {
-  try {
-    const res = await fetch(`https://${subdomain}.kommo.com/api/v4/talks/${talkId}`, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!res.ok) {
-      logger.warn(
-        { talkId, status: res.status },
-        "kommoTalks: no se pudo leer origin del talk"
-      );
-      return null;
-    }
-    const data = await res.json();
-    const origin2 = typeof data.origin === "string" ? data.origin.trim() : "";
-    return origin2 || null;
-  } catch (err2) {
-    logger.warn({ err: err2, talkId }, "kommoTalks: excepci\xF3n leyendo origin");
-    return null;
-  }
-}
-async function sendKommoTalkMessage(opts) {
-  const { subdomain, accessToken, talkId, texto, entityId } = opts;
-  const url2 = `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/send_message`;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 12e3);
-    const res = await fetch(url2, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      signal: controller.signal,
-      body: JSON.stringify({ text: texto })
-    });
-    clearTimeout(timer);
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => "(no body)");
-      logger.warn(
-        { entityId, talkId, status: res.status, errBody: errBody.slice(0, 400) },
-        "sendKommoTalkMessage: Kommo rechaz\xF3 el env\xEDo"
-      );
-      let hint = errBody.slice(0, 200);
-      if (res.status === 403) {
-        hint = "403 Forbidden \u2014 el token necesita el scope \xABSending to external chats\xBB en la integraci\xF3n Kommo.";
-      } else if (res.status === 402) {
-        hint = "402 \u2014 l\xEDmite de Chats API o plan insuficiente para enviar a chats externos.";
-      } else if (res.status === 422) {
-        hint = "422 \u2014 el talk est\xE1 cerrado; reabre la conversaci\xF3n en Kommo.";
-      }
-      return { ok: false, error: hint, status: res.status };
-    }
-    const data = await res.json().catch(() => ({}));
-    logger.info(
-      { entityId, talkId, messageId: data.id },
-      "sendKommoTalkMessage: mensaje aceptado por Kommo \u2705"
-    );
-    return { ok: true, messageId: data.id };
-  } catch (err2) {
-    logger.warn({ err: err2, talkId, entityId }, "sendKommoTalkMessage: excepci\xF3n de red");
-    return { ok: false, error: err2 instanceof Error ? err2.message : "error de red" };
-  }
-}
-async function fetchTalkIdFromLeadChats(subdomain, accessToken, leadId) {
-  try {
-    const res = await fetch(
-      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags,chats`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    const chats = data._embedded?.chats ?? [];
-    for (const chat of chats) {
-      const id2 = chat.id ?? chat.chat_id;
-      if (id2 != null && String(id2).trim()) return String(id2);
-    }
-    return null;
-  } catch (err2) {
-    logger.warn({ err: err2, leadId }, "kommoTalks: error leyendo chats del lead");
-    return null;
-  }
-}
-async function fetchTalkIdFromTalksFilter(subdomain, accessToken, leadId) {
-  const entityId = String(leadId);
-  const urls = [
-    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=leads&limit=10`,
-    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=lead&limit=10`,
-    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&limit=10`
-  ];
-  for (const url2 of urls) {
-    try {
-      const res = await fetch(url2, { headers: { Authorization: `Bearer ${accessToken}` } });
-      if (!res.ok) continue;
-      const data = await res.json();
-      const talks = data._embedded?.talks ?? [];
-      for (const talk of talks) {
-        const id2 = talk.id ?? talk.talk_id;
-        if (id2 != null && String(id2).trim()) return String(id2);
-      }
-    } catch {
-    }
-  }
-  return null;
-}
-async function resolveKommoTalkId(opts) {
-  if (opts.knownTalkId?.trim()) return opts.knownTalkId.trim();
-  if (opts.knownChatId?.trim()) {
-  }
-  const fromChats = await fetchTalkIdFromLeadChats(
-    opts.subdomain,
-    opts.accessToken,
-    opts.leadId
-  );
-  if (fromChats) return fromChats;
-  const fromTalks = await fetchTalkIdFromTalksFilter(
-    opts.subdomain,
-    opts.accessToken,
-    opts.leadId
-  );
-  if (fromTalks) return fromTalks;
-  if (opts.knownChatId?.trim()) return opts.knownChatId.trim();
-  return null;
-}
-var init_kommoTalks = __esm({
-  "src/services/kommoTalks.ts"() {
-    init_logger3();
-  }
-});
-
 // src/services/learningSchema.ts
 async function ensureLearningSchema() {
   if (ensured2) return;
@@ -74012,7 +73474,155 @@ var init_chatIngest = __esm({
   }
 });
 
+// src/services/kommoTalks.ts
+function classifyKommoOrigin(origin2) {
+  const o10 = (origin2 ?? "").trim().toLowerCase();
+  if (!o10) return "unknown";
+  if (/whats?app|waba|wa_/.test(o10)) return "whatsapp";
+  if (/instagram|ig_/.test(o10)) return "instagram";
+  if (/facebook|messenger|fb_/.test(o10)) return "facebook";
+  if (/telegram|tg_/.test(o10)) return "telegram";
+  return "other";
+}
+function usesKommoExternalSend(channel) {
+  return channel === "facebook" || channel === "instagram" || channel === "telegram" || channel === "other";
+}
+async function fetchTalkOrigin(subdomain, accessToken, talkId) {
+  try {
+    const res = await fetch(`https://${subdomain}.kommo.com/api/v4/talks/${talkId}`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!res.ok) {
+      logger.warn(
+        { talkId, status: res.status },
+        "kommoTalks: no se pudo leer origin del talk"
+      );
+      return null;
+    }
+    const data = await res.json();
+    const origin2 = typeof data.origin === "string" ? data.origin.trim() : "";
+    return origin2 || null;
+  } catch (err2) {
+    logger.warn({ err: err2, talkId }, "kommoTalks: excepci\xF3n leyendo origin");
+    return null;
+  }
+}
+async function sendKommoTalkMessage(opts) {
+  const { subdomain, accessToken, talkId, texto, entityId } = opts;
+  const url2 = `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/send_message`;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 12e3);
+    const res = await fetch(url2, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      signal: controller.signal,
+      body: JSON.stringify({ text: texto })
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      logger.warn(
+        { entityId, talkId, status: res.status, errBody: errBody.slice(0, 400) },
+        "sendKommoTalkMessage: Kommo rechaz\xF3 el env\xEDo"
+      );
+      let hint = errBody.slice(0, 200);
+      if (res.status === 403) {
+        hint = "403 Forbidden \u2014 el token necesita el scope \xABSending to external chats\xBB en la integraci\xF3n Kommo.";
+      } else if (res.status === 402) {
+        hint = "402 \u2014 l\xEDmite de Chats API o plan insuficiente para enviar a chats externos.";
+      } else if (res.status === 422) {
+        hint = "422 \u2014 el talk est\xE1 cerrado; reabre la conversaci\xF3n en Kommo.";
+      }
+      return { ok: false, error: hint, status: res.status };
+    }
+    const data = await res.json().catch(() => ({}));
+    logger.info(
+      { entityId, talkId, messageId: data.id },
+      "sendKommoTalkMessage: mensaje aceptado por Kommo \u2705"
+    );
+    return { ok: true, messageId: data.id };
+  } catch (err2) {
+    logger.warn({ err: err2, talkId, entityId }, "sendKommoTalkMessage: excepci\xF3n de red");
+    return { ok: false, error: err2 instanceof Error ? err2.message : "error de red" };
+  }
+}
+async function fetchTalkIdFromLeadChats(subdomain, accessToken, leadId) {
+  try {
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags,chats`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const chats = data._embedded?.chats ?? [];
+    for (const chat of chats) {
+      const id2 = chat.id ?? chat.chat_id;
+      if (id2 != null && String(id2).trim()) return String(id2);
+    }
+    return null;
+  } catch (err2) {
+    logger.warn({ err: err2, leadId }, "kommoTalks: error leyendo chats del lead");
+    return null;
+  }
+}
+async function fetchTalkIdFromTalksFilter(subdomain, accessToken, leadId) {
+  const entityId = String(leadId);
+  const urls = [
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=leads&limit=10`,
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&filter[entity_type]=lead&limit=10`,
+    `https://${subdomain}.kommo.com/api/v4/talks?filter[entity_id]=${entityId}&limit=10`
+  ];
+  for (const url2 of urls) {
+    try {
+      const res = await fetch(url2, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!res.ok) continue;
+      const data = await res.json();
+      const talks = data._embedded?.talks ?? [];
+      for (const talk of talks) {
+        const id2 = talk.id ?? talk.talk_id;
+        if (id2 != null && String(id2).trim()) return String(id2);
+      }
+    } catch {
+    }
+  }
+  return null;
+}
+async function resolveKommoTalkId(opts) {
+  if (opts.knownTalkId?.trim()) return opts.knownTalkId.trim();
+  if (opts.knownChatId?.trim()) {
+  }
+  const fromChats = await fetchTalkIdFromLeadChats(
+    opts.subdomain,
+    opts.accessToken,
+    opts.leadId
+  );
+  if (fromChats) return fromChats;
+  const fromTalks = await fetchTalkIdFromTalksFilter(
+    opts.subdomain,
+    opts.accessToken,
+    opts.leadId
+  );
+  if (fromTalks) return fromTalks;
+  if (opts.knownChatId?.trim()) return opts.knownChatId.trim();
+  return null;
+}
+var init_kommoTalks = __esm({
+  "src/services/kommoTalks.ts"() {
+    init_logger3();
+  }
+});
+
 // src/services/learningSync.ts
+var learningSync_exports = {};
+__export(learningSync_exports, {
+  listKommoLeadsInLearningStages: () => listKommoLeadsInLearningStages,
+  runLearningSyncCron: () => runLearningSyncCron,
+  syncHumanPhaseLead: () => syncHumanPhaseLead
+});
 async function syncHumanPhaseLead(subdomain, accessToken, kommoLeadId, options = {}) {
   await ensureLearningSchema();
   const leadId = String(kommoLeadId);
@@ -74207,6 +73817,459 @@ var init_learningSync = __esm({
       ETAPA.HUMANO_TRABAJA,
       ETAPA.COTIZACION_REALIZADA
     ]);
+  }
+});
+
+// src/services/embudo.ts
+function kommoHeaders(accessToken) {
+  return { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
+}
+async function fetchLead(subdomain, accessToken, leadId) {
+  try {
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}?with=contacts,tags,chats`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const cfv = data.custom_fields_values ?? [];
+    const getField = (id2) => {
+      const f10 = cfv.find((x10) => x10.field_id === id2);
+      const v10 = f10?.values[0]?.value;
+      return v10 && typeof v10 === "string" && v10.trim() ? v10.trim() : null;
+    };
+    return {
+      id: data.id,
+      pipeline_id: data.pipeline_id,
+      status_id: data.status_id,
+      name: data.name ?? "",
+      chatId: data._embedded?.chats?.[0]?.id ?? null,
+      nombre: getField(1048782) ?? null,
+      // se rellena desde extractedData — usamos nombre del lead
+      correo: null,
+      // no hay campo correo en lead — viene del contacto
+      telefono: null,
+      direccion: getField(1048774),
+      fecha_evento: getField(1048778),
+      num_invitados: getField(1048780),
+      tipo_evento: getField(1048782),
+      presupuesto: getField(1048784),
+      tags: (data._embedded?.tags ?? []).map((t) => t.name)
+    };
+  } catch {
+    return null;
+  }
+}
+async function moverEtapa(subdomain, accessToken, leadId, statusId) {
+  const res = await fetch(
+    `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
+    {
+      method: "PATCH",
+      headers: kommoHeaders(accessToken),
+      body: JSON.stringify({ pipeline_id: PIPELINE_ID, status_id: statusId })
+    }
+  );
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    logger.warn({ leadId, statusId, httpStatus: res.status, errText }, "moverEtapa: PATCH fallido");
+  }
+  return res.ok;
+}
+async function agregarNota(subdomain, accessToken, leadId, texto) {
+  try {
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/notes`,
+      {
+        method: "POST",
+        headers: kommoHeaders(accessToken),
+        body: JSON.stringify([{
+          entity_id: Number(leadId),
+          note_type: "common",
+          params: { text: texto }
+        }])
+      }
+    );
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      logger.warn({ leadId, status: res.status, errBody }, "agregarNota: Kommo rechaz\xF3 la nota");
+      return false;
+    }
+    return true;
+  } catch (err2) {
+    logger.warn({ leadId, err: err2 }, "agregarNota: excepci\xF3n (timeout o red)");
+    return false;
+  }
+}
+async function agregarTag(subdomain, accessToken, leadId, tags, existingTags = []) {
+  const merged = [.../* @__PURE__ */ new Set([...existingTags, ...tags])].map((n10) => ({ name: n10 }));
+  await fetch(
+    `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
+    {
+      method: "PATCH",
+      headers: kommoHeaders(accessToken),
+      body: JSON.stringify({ _embedded: { tags: merged } })
+    }
+  );
+}
+async function limpiarCampoRespuesta(subdomain, accessToken, leadId) {
+  try {
+    await fetch(
+      `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
+      {
+        method: "PATCH",
+        headers: kommoHeaders(accessToken),
+        body: JSON.stringify({
+          custom_fields_values: [
+            { field_id: 1048786, values: [{ value: "-" }] }
+          ]
+        })
+      }
+    );
+    logger.info({ leadId }, "Embudo: campo 1048786 limpiado (SalesBot no reenviar\xE1)");
+  } catch (err2) {
+    logger.warn({ leadId, err: err2 }, "Embudo: no se pudo limpiar campo 1048786");
+  }
+}
+async function removerTag(subdomain, accessToken, leadId, tagToRemove, existingTags) {
+  const filtered = existingTags.filter((t) => t !== tagToRemove).map((n10) => ({ name: n10 }));
+  await fetch(
+    `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
+    {
+      method: "PATCH",
+      headers: kommoHeaders(accessToken),
+      body: JSON.stringify({ _embedded: { tags: filtered } })
+    }
+  );
+}
+async function enviarMensaje(subdomain, accessToken, talkId, texto) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1e4);
+    const res = await fetch(
+      `https://${subdomain}.kommo.com/api/v4/talks/${talkId}/messages`,
+      {
+        method: "POST",
+        headers: kommoHeaders(accessToken),
+        signal: controller.signal,
+        body: JSON.stringify({ text: texto })
+      }
+    );
+    clearTimeout(timer);
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "(no body)");
+      logger.warn(
+        { status: res.status, errBody, talkId, preview: texto.slice(0, 80) },
+        "enviarMensaje: Kommo Talks rechaz\xF3 la solicitud"
+      );
+    } else {
+      logger.info({ talkId, preview: texto.slice(0, 80) }, "enviarMensaje: Kommo Talks acept\xF3 el mensaje");
+    }
+    return res.ok;
+  } catch (err2) {
+    logger.warn({ err: err2, talkId }, "enviarMensaje: excepci\xF3n (timeout o red)");
+    return false;
+  }
+}
+function lucyDebeResponder(statusId, tags) {
+  if (!ETAPAS_LUCY_ACTIVA.has(statusId)) return false;
+  if (tags.includes("lucy_desactivada")) return false;
+  return true;
+}
+function tieneInformacionCompleta(datos) {
+  if (datos.tipo_contacto === "proveedor") {
+    const correoOk2 = !!datos.correo?.trim();
+    const empresaOk = !!datos.empresa?.trim();
+    const descOk = !!datos.requerimientos_evento && datos.requerimientos_evento.trim().length > 20;
+    return correoOk2 && empresaOk && descOk;
+  }
+  const correoOk = !!datos.correo?.trim();
+  const fechaOk = !!datos.fecha_evento?.trim();
+  const invitadosOk = !!datos.num_invitados && String(datos.num_invitados).trim() !== "";
+  const tipoOk = !!datos.tipo_evento?.trim();
+  const dirOk = !!datos.direccion?.trim();
+  return correoOk && fechaOk && invitadosOk && tipoOk && dirOk;
+}
+async function moverAHumanoTrabaja(subdomain, accessToken, leadId, datos, tags) {
+  logger.info({ leadId }, "Embudo: moviendo lead a Humano Trabaja");
+  const [etapaOk] = await Promise.all([
+    moverEtapa(subdomain, accessToken, leadId, ETAPA.HUMANO_TRABAJA),
+    agregarTag(subdomain, accessToken, leadId, ["lucy_desactivada"], tags),
+    limpiarCampoRespuesta(subdomain, accessToken, leadId)
+  ]);
+  if (!etapaOk) {
+    logger.warn({ leadId }, "Embudo: no se pudo mover etapa a Humano Trabaja");
+  }
+  const nota = `\u{1F916} Lucy: Informaci\xF3n completa \u2014 listo para cotizar.
+
+\u{1F4CB} DATOS DEL CLIENTE:
+\u2022 Nombre: ${datos.nombre ?? "\u2014"}
+\u2022 Correo: ${datos.correo ?? "\u2014"}
+\u2022 Tipo de evento: ${datos.tipo_evento ?? "\u2014"}
+\u2022 Fecha: ${datos.fecha_evento ?? "\u2014"}
+\u2022 Invitados: ${datos.num_invitados ?? "\u2014"}
+\u2022 Direcci\xF3n: ${datos.direccion ?? "\u2014"}
+\u2022 Presupuesto: ${datos.presupuesto ?? "\u2014"}
+
+\u2705 Lead calificado \u2014 Listo para cotizar`;
+  await agregarNota(subdomain, accessToken, leadId, nota);
+  try {
+    const leadKey = String(leadId);
+    const existing = await db.query.conversations.findFirst({
+      where: eq2(conversations.kommoLeadId, leadKey)
+    });
+    if (existing) {
+      await db.update(conversations).set({
+        stage: "humano_trabaja",
+        status: "qualified",
+        learningPhase: "human_active",
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq2(conversations.kommoLeadId, leadKey));
+    } else {
+      await db.insert(conversations).values({
+        kommoLeadId: leadKey,
+        kommoChatId: leadKey,
+        stage: "humano_trabaja",
+        status: "qualified",
+        learningPhase: "human_active",
+        messageCount: 0
+      });
+    }
+  } catch (err2) {
+    logger.warn({ err: err2, leadId }, "Embudo: no se pudo marcar learningPhase human_active");
+  }
+  void init_learningSync().then(() => learningSync_exports).then(
+    ({ syncHumanPhaseLead: syncHumanPhaseLead2 }) => syncHumanPhaseLead2(subdomain, accessToken, String(leadId), { extract: true })
+  ).then(
+    (r10) => logger.info({ leadId, ...r10 }, "Embudo: sync aprendizaje tras Humano Trabaja")
+  ).catch(
+    (err2) => logger.warn({ err: err2, leadId }, "Embudo: sync aprendizaje post-cierre fall\xF3")
+  );
+  logger.info({ leadId }, "Embudo: lead movido a Humano Trabaja");
+}
+async function moverANoContesta(subdomain, accessToken, leadId, chatId) {
+  logger.info({ leadId }, "Embudo: moviendo lead a No Contesta por inactividad");
+  await moverEtapa(subdomain, accessToken, leadId, ETAPA.NO_CONTESTA);
+  const mensaje = `Hola! Vi que no terminamos de platicar sobre tu evento.
+
+\xBFSigues interesado en la cotizaci\xF3n? Me encantar\xEDa ayudarte.
+
+Si ya no necesitas el servicio no hay problema, solo av\xEDsame.`;
+  const enviado = await enviarMensaje(subdomain, accessToken, chatId, mensaje);
+  await agregarNota(
+    subdomain,
+    accessToken,
+    leadId,
+    `\u23F0 Lucy: Cliente inactivo >5h. Movido a No Contesta. Mensaje de recuperaci\xF3n ${enviado ? "enviado" : "NO enviado"}.`
+  );
+  logger.info({ leadId, mensajeEnviado: enviado }, "Embudo: lead movido a No Contesta");
+}
+async function recuperarDeNoContesta(subdomain, accessToken, leadId, datos, tags) {
+  logger.info({ leadId }, "Embudo: recuperando lead de No Contesta");
+  await moverEtapa(subdomain, accessToken, leadId, ETAPA.DATOS_E_INTERESES);
+  await agregarNota(
+    subdomain,
+    accessToken,
+    leadId,
+    "Lucy: Lead recuperado de No Contesta. Regres\xF3 a Datos e Intereses."
+  );
+}
+async function programarSeguimiento(leadId, chatId, nombre, tipoEvento, fechaEvento) {
+  const scheduledFor = new Date(Date.now() + MS_SEGUIMIENTO);
+  const mensaje = `Hola ${nombre ?? ""}! Soy Lucy, agente virtual de Bodasesor.
+
+Vi que Alejandro te envi\xF3 la cotizaci\xF3n para tu ${tipoEvento ?? "evento"} del ${fechaEvento ?? ""}.
+
+\xBFTuviste oportunidad de revisarla? \xBFTienes alguna duda o te gustar\xEDa ajustar algo?
+
+Estoy aqu\xED para ayudarte.`;
+  try {
+    await db.insert(followUpEvents).values({
+      kommoLeadId: String(leadId),
+      type: "cotizacion_followup",
+      scheduledFor,
+      message: JSON.stringify({ chatId, texto: mensaje }),
+      priority: 1
+    });
+    logger.info({ leadId, scheduledFor }, "Embudo: seguimiento programado 22h");
+  } catch (err2) {
+    logger.warn({ err: err2, leadId }, "Embudo: no se pudo programar seguimiento");
+  }
+}
+async function procesarSeguimientosPendientes(subdomain, accessToken) {
+  let pendientes;
+  try {
+    pendientes = await db.query.followUpEvents.findMany({
+      where: and2(
+        lte2(followUpEvents.scheduledFor, /* @__PURE__ */ new Date()),
+        eq2(followUpEvents.executed, false)
+      )
+    });
+  } catch (err2) {
+    logger.warn({ err: err2 }, "Embudo: error leyendo seguimientos pendientes");
+    return;
+  }
+  logger.info({ count: pendientes.length }, "Embudo: procesando seguimientos pendientes");
+  for (const seg of pendientes) {
+    try {
+      let chatId = null;
+      let texto = "";
+      if (seg.message) {
+        const parsed = JSON.parse(seg.message);
+        chatId = parsed.chatId ?? null;
+        texto = parsed.texto ?? "";
+      }
+      if (chatId && texto) {
+        const ok2 = await enviarMensaje(subdomain, accessToken, chatId, texto);
+        if (ok2) {
+          const lead = await fetchLead(subdomain, accessToken, seg.kommoLeadId);
+          if (lead) {
+            await removerTag(subdomain, accessToken, seg.kommoLeadId, "lucy_desactivada", lead.tags);
+          }
+          await agregarNota(subdomain, accessToken, seg.kommoLeadId, "\u{1F504} Lucy: Seguimiento autom\xE1tico 22h enviado. Lucy reactivada.");
+          logger.info({ leadId: seg.kommoLeadId }, "Embudo: seguimiento 22h enviado OK");
+        }
+      }
+      await db.update(followUpEvents).set({ executed: true, executedAt: /* @__PURE__ */ new Date() }).where(eq2(followUpEvents.id, seg.id));
+    } catch (err2) {
+      logger.warn({ err: err2, seguimientoId: seg.id }, "Embudo: error procesando seguimiento");
+    }
+  }
+}
+async function reactivarLucy(subdomain, accessToken, leadId) {
+  const lead = await fetchLead(subdomain, accessToken, leadId);
+  if (!lead) return { ok: false };
+  await removerTag(subdomain, accessToken, leadId, "lucy_desactivada", lead.tags);
+  if (lead.status_id === ETAPA.HUMANO_TRABAJA) {
+    await moverEtapa(subdomain, accessToken, leadId, ETAPA.DATOS_E_INTERESES);
+    logger.info({ leadId }, "Embudo: lead regresado a Datos e Intereses al reactivar Lucy");
+  }
+  const nombre = lead.nombre ? ` ${lead.nombre}` : "";
+  const tieneContexto = !!(lead.tipo_evento || lead.fecha_evento);
+  const mensaje = tieneContexto ? `Hola${nombre}! Soy Lucy, agente virtual de Bodasesor.
+
+Vi que est\xE1bamos platicando sobre tu ${lead.tipo_evento ?? "evento"}${lead.fecha_evento ? " del " + lead.fecha_evento : ""}.
+
+\xBFTuviste oportunidad de pensar en lo que platicamos? \xBFTe gustar\xEDa retomar la cotizaci\xF3n?
+
+Estoy aqu\xED para ayudarte.` : `Hola${nombre}! Soy Lucy, agente virtual de Bodasesor.
+
+\xBFSigues interesado en nuestros servicios de banquetes y eventos? Me encantar\xEDa ayudarte a planear algo especial.
+
+\xBFEn qu\xE9 puedo apoyarte?`;
+  let enviado = false;
+  if (lead.chatId) {
+    enviado = await enviarMensaje(subdomain, accessToken, lead.chatId, mensaje);
+  }
+  await agregarNota(
+    subdomain,
+    accessToken,
+    leadId,
+    `\u{1F504} Lucy: Reactivada manualmente. Mensaje de reactivaci\xF3n ${enviado ? "enviado" : "NO enviado (sin chatId)"}.`
+  );
+  logger.info({ leadId, enviado }, "Embudo: Lucy reactivada manualmente");
+  return { ok: true, mensaje };
+}
+async function verificarVentanas24h(subdomain, accessToken) {
+  const ahora = /* @__PURE__ */ new Date();
+  const hace22h = new Date(ahora.getTime() - MS_VENTANA_MAX);
+  const hace23h = new Date(ahora.getTime() - MS_VENTANA_MIN);
+  let convs;
+  try {
+    convs = await db.query.conversations.findMany({
+      where: and2(
+        gte2(conversations.updatedAt, hace22h),
+        lte2(conversations.updatedAt, hace23h)
+      )
+    });
+  } catch (err2) {
+    logger.warn({ err: err2 }, "Embudo: error leyendo conversaciones para ventana 24h");
+    return;
+  }
+  logger.info({ count: convs.length }, "Embudo: verificando ventana 24h de WhatsApp");
+  for (const conv of convs) {
+    try {
+      if (!conv.kommoChatId) continue;
+      const lead = await fetchLead(subdomain, accessToken, conv.kommoLeadId);
+      if (!lead) continue;
+      const activa = ETAPAS_LUCY_ACTIVA.has(lead.status_id) && !lead.tags.includes("lucy_desactivada");
+      if (!activa) continue;
+      const nombre = conv.clientName ?? lead.nombre ? ` ${conv.clientName ?? lead.nombre}` : "";
+      const tipoEvento = conv.eventType ?? lead.tipo_evento;
+      const fechaEvento = lead.fecha_evento;
+      const mensaje = tipoEvento ? `Hola${nombre}! Solo quer\xEDa recordarte que seguimos aqu\xED para ayudarte con tu ${tipoEvento}${fechaEvento ? " del " + fechaEvento : ""}.
+
+\xBFTienes alguna duda o te gustar\xEDa avanzar con la cotizaci\xF3n? Estoy disponible.` : `Hola${nombre}! Soy Lucy, agente virtual de Bodasesor.
+
+\xBFSigues interesado en cotizar tu evento? Estamos aqu\xED para ayudarte cuando gustes.`;
+      const enviado = await enviarMensaje(subdomain, accessToken, conv.kommoChatId, mensaje);
+      if (enviado) {
+        await agregarNota(
+          subdomain,
+          accessToken,
+          conv.kommoLeadId,
+          "\u23F0 Lucy: Mensaje autom\xE1tico enviado para renovar ventana de 24h de WhatsApp."
+        );
+        await db.update(conversations).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, conv.kommoLeadId));
+        logger.info({ leadId: conv.kommoLeadId }, "Embudo: mensaje de ventana 24h enviado");
+      }
+    } catch (err2) {
+      logger.warn({ err: err2, leadId: conv.kommoLeadId }, "Embudo: error procesando ventana 24h");
+    }
+  }
+}
+async function verificarLeadsInactivos(subdomain, accessToken) {
+  const umbral = new Date(Date.now() - MS_INACTIVIDAD);
+  let convInactivas;
+  try {
+    convInactivas = await db.query.conversations.findMany({
+      where: and2(
+        eq2(conversations.stage, "discovery"),
+        lte2(conversations.updatedAt, umbral)
+      )
+    });
+  } catch (err2) {
+    logger.warn({ err: err2 }, "Embudo: error leyendo conversaciones inactivas");
+    return;
+  }
+  logger.info({ count: convInactivas.length }, "Embudo: revisando leads inactivos");
+  for (const conv of convInactivas) {
+    try {
+      const lead = await fetchLead(subdomain, accessToken, conv.kommoLeadId);
+      if (!lead) continue;
+      if (lead.status_id !== ETAPA.DATOS_E_INTERESES) continue;
+      if (lead.tags.includes("lucy_desactivada")) continue;
+      if (!conv.kommoChatId) continue;
+      await moverANoContesta(subdomain, accessToken, conv.kommoLeadId, conv.kommoChatId);
+      await db.update(conversations).set({ stage: "no_contesta", updatedAt: /* @__PURE__ */ new Date() }).where(eq2(conversations.kommoLeadId, conv.kommoLeadId));
+    } catch (err2) {
+      logger.warn({ err: err2, leadId: conv.kommoLeadId }, "Embudo: error procesando inactividad");
+    }
+  }
+}
+var ETAPA, PIPELINE_ID, ETAPAS_LUCY_ACTIVA, MS_INACTIVIDAD, MS_SEGUIMIENTO, MS_VENTANA_MIN, MS_VENTANA_MAX;
+var init_embudo = __esm({
+  async "src/services/embudo.ts"() {
+    await init_src();
+    init_drizzle_orm();
+    init_logger3();
+    ETAPA = {
+      LEADS_ENTRANTES: 72336719,
+      DATOS_E_INTERESES: 80344783,
+      HUMANO_TRABAJA: 105583875,
+      COTIZACION_REALIZADA: 72336827,
+      NO_CONTESTA: 105583415,
+      CLIENTE_PERDIDO: 143
+    };
+    PIPELINE_ID = 9335963;
+    ETAPAS_LUCY_ACTIVA = /* @__PURE__ */ new Set([
+      ETAPA.LEADS_ENTRANTES,
+      ETAPA.DATOS_E_INTERESES,
+      ETAPA.NO_CONTESTA
+    ]);
+    MS_INACTIVIDAD = 5 * 60 * 60 * 1e3;
+    MS_SEGUIMIENTO = 22 * 60 * 60 * 1e3;
+    MS_VENTANA_MIN = 22 * 60 * 60 * 1e3;
+    MS_VENTANA_MAX = 23 * 60 * 60 * 1e3;
   }
 });
 
@@ -122220,6 +122283,7 @@ function shouldUpdateName(current, incoming) {
   }
   if (!namesAreLikelySamePerson(c10, iClean)) return false;
   const cClean = sanitizeCrmNombre(c10) ?? sanitizeDisplayName(c10) ?? c10;
+  if (nombreWordCount(iClean) < nombreWordCount(cClean)) return false;
   const cRawNorm = c10.toLowerCase().replace(/\s+/g, " ").trim();
   if (cClean.toLowerCase() !== cRawNorm && iClean.toLowerCase() === cClean.toLowerCase()) {
     return true;
@@ -122519,8 +122583,9 @@ var TIPO_EVENTO_PATTERNS = [
   [/\b(bautizos?)\b/i, "bautizo"],
   [/\b(graduaci[oó]n(es)?)\b/i, "graduaci\xF3n"],
   [/\b(comuni[oó]n)\b/i, "celebraci\xF3n"],
-  // Fiesta / celebración social genérica (p. ej. "fiesta toscana").
-  [/\b(fiesta|celebraci[oó]n|reun[ií]on\s+social)\b/i, "fiesta"],
+  // Fiesta / celebración / reunión familiar (A15000 Itzel: "Reunión familiar").
+  [/\b(fiesta|celebraci[oó]n(es)?(\s+familiares?)?|reun[ií][oó]n(es)?\s+(social|familiar(es)?))\b/i, "fiesta"],
+  [/\b(reun[ií][oó]n\s+familiar|celebraci[oó]n\s+familiar)\b/i, "fiesta"],
   [/\bpozolada\b/i, "pozolada"],
   [/\bpaellada\b/i, "paellada"],
   [/\btaquiza\b/i, "taquiza"],
@@ -122961,9 +123026,35 @@ function clientAsksDistributorPricing(message) {
   if (!message?.trim()) return false;
   return /\bprecio\s+(para\s+)?distribuidor\b/i.test(message) || /\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message) || /\b(somos|como)\s+distribuidores?\b/i.test(message) || /\bmargen\s+comercial\b/i.test(message) || /\bprecio\s+de\s+mayoreo\b/i.test(message);
 }
+function clientAsksForHumanAdvisor(message) {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  if (/\bqui[eé]n\s+es\b/i.test(t) && !/\b(prefiero|quiero|necesito|puedo|pueden)\b/i.test(t)) {
+    return false;
+  }
+  if (/\b(prefiero|quiero|necesito|mejor)\b.{0,40}\b(hablar|comunicar|platicar|atenci[oó]n|contacto)\b.{0,40}\b(asesor|humano|persona|equipo)\b/i.test(
+    t
+  )) {
+    return true;
+  }
+  if (/\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+)?(asesor|humano|persona)\b/i.test(t)) {
+    return true;
+  }
+  if (/\b(asesor|humano|alguien\s+del\s+equipo)\b.{0,30}\b(se\s+)?(comunique|contacte|llame|hable)\b/i.test(
+    t
+  )) {
+    return true;
+  }
+  if (/\bhablar\s+con\s+(un\s+)?(asesor|humano|persona)\b/i.test(t)) return true;
+  if (/\bpuede(n)?\s+(un\s+)?asesor\s+(contactarme|comunicarse|llamarme)\b/i.test(t)) {
+    return true;
+  }
+  return false;
+}
 function clientNeedsEmergencyContact(message) {
   if (!message?.trim()) return false;
   if (clientAsksPhone(message)) return true;
+  if (clientAsksForHumanAdvisor(message)) return true;
   const t = message.trim();
   if (/\b(ayuda|ayudar|ayudame|ayúdame)\b/i.test(t) && isServiceRelatedMessage(t) && !/\b(emergencia|urgente|me\s+urge|auxilio|nadie\s+(me\s+)?(contesta|atiende))\b/i.test(t)) {
     return false;
@@ -123221,9 +123312,19 @@ function parseServicesFromText(text2) {
     );
     const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
     if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text2)) {
+    } else if (
+      // A15000: "alimentos + meseros + mobiliario" — conservar Alimentos aunque haya otros.
+      isVagueFoodAlias && found.length > 0 && /\b(alimentos?|comida|banquete|catering|taquiza)\b/i.test(text2)
+    ) {
+      if (!found.some((s10) => /alimento|banquete|taquiza|catering|comida/i.test(s10))) {
+        found.push("Alimentos");
+      }
     } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
       found.push(normalized);
     }
+  }
+  if (/\b(alimentos?|comida)\b/i.test(text2) && !clientAsksCafeOrCateringChoice(text2) && !found.some((s10) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s10))) {
+    found.push("Alimentos");
   }
   return dedupeServiceHierarchy([...new Set(found)], text2);
 }
@@ -129522,6 +129623,19 @@ function buildEmergencyContactAnswer() {
     "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
   ].join("\n");
 }
+function buildHumanAdvisorHandoffAnswer(clientName) {
+  const name2 = sanitizeDisplayName(clientName);
+  const hi2 = name2 ? `${name2}, ` : "";
+  return [
+    `Claro que s\xED, ${hi2}con gusto te canalizo con un asesor de Bodasesor para que te atiendan de forma personalizada.`,
+    "",
+    "Mientras te contactan, tambi\xE9n puedes marcar:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 WhatsApp o l\xEDnea telef\xF3nica.",
+    "",
+    "Ya dej\xE9 tu caso listo para el equipo."
+  ].join("\n");
+}
 function buildLocationAnswer() {
   return "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el lugar de tu evento, coordinamos el servicio.";
 }
@@ -131679,6 +131793,10 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
 Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 cliente pidi\xF3 llamada/tel\xE9fonos");
+  } else if (clientAsksForHumanAdvisor(currentMessage)) {
+    mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15000 \u2014 cliente pidi\xF3 asesor humano (handoff)");
   } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServicePreferenceRefinement(
     currentMessage,
     extracted.requerimientos_evento
@@ -131956,11 +132074,12 @@ ${buildPackageCatalogOfferBlock(
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 releer especificaciones \u2014 ack completo + cat\xE1logo");
   } else if (allowSalesReplyOverride && // Solo servicios del MENSAJE ACTUAL (no historial) — A14924: "cumpleaños" no re-dump.
-  (servicesFromCurrentMessage.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
-  !clientAsksServiceInfo(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
+  (servicesFromCurrentMessage.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // A15000: RFQ multi-servicio ("opciones de alimentos + meseros + mobiliario")
+  // NO se trata como pregunta puntual aunque diga "opciones"/"costo".
+  !(clientAsksServiceInfo(currentMessage) && servicesFromCurrentMessage.length < 2) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
   !clientMentionsEntertainment(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
-    if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1) {
+    if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1 && servicesFromCurrentMessage.filter((s10) => !/mobiliario/i.test(s10)).length === 0) {
       if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
         extracted.direccion_evento = null;
         filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -132177,7 +132296,8 @@ ${nextQ}` : priceReply;
 ${buildModoServicioClarificationQuestion()}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: mobiliario \u2014 detalle t\xE9cnico + aclarar montado/entrega");
-  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && !clientMentionsCarpas(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && !clientMentionsCarpas(currentMessage) && // A15000: no detalle solo-mobiliario si el mensaje pide alimentos/meseros u otros.
+  servicesFromCurrentMessage.filter((s10) => !/mobiliario/i.test(s10)).length === 0 && parseServicesFromText(currentMessage ?? "").filter((s10) => !/mobiliario/i.test(s10)).length === 0 && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
     if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -134220,74 +134340,8 @@ function isUsableResumenUbicacion(value) {
   if (isNonLocationBusinessPhrase(t)) return false;
   return isUsableDireccionEvento(t);
 }
-function extraerEstilo(texto) {
-  const estilos = [
-    ["elegante", /\b(elegante|formal|sofisticado|lujoso|lujo)\b/i],
-    ["moderno", /\b(moderno|contemporáneo|vanguardia|innovador)\b/i],
-    ["r\xFAstico", /\b(rústico|campestre|campo)\b/i],
-    ["vintage", /\bvintage\b/i],
-    ["juvenil", /\b(juvenil|dinámico|divertido)\b/i],
-    ["casual", /\b(casual|sencillo|informal)\b/i]
-  ];
-  for (const [nombre, patron] of estilos) {
-    if (patron.test(texto)) return nombre;
-  }
-  return null;
-}
-function extraerPresupuesto(texto) {
-  const patrones = [
-    /presupuesto\s*(?:de|es)?\s*\$?\s*([\d,]+)\s*k?/i,
-    /tengo\s+\$?\s*([\d,]+)\s*k?/i,
-    /\$\s*([\d,]+)\s*k\b/i
-  ];
-  for (const p10 of patrones) {
-    const m10 = texto.match(p10);
-    if (m10) {
-      const num = parseInt(m10[1].replace(/,/g, ""), 10);
-      if (isNaN(num) || num <= 0) continue;
-      if (num >= 1e6) return `$${(num / 1e6).toFixed(1)}M`;
-      if (num >= 1e3) return `$${Math.round(num / 1e3)}k`;
-      return `$${num}`;
-    }
-  }
-  return null;
-}
 function enrichExtractedFromText(extracted, conversationText) {
   enrichExtractedFromConversation(extracted, conversationText);
-}
-function extraerTipoEvento(texto) {
-  return parseTipoEventoFromText(texto);
-}
-function extraerFecha(texto) {
-  return parseFechaFromText(texto);
-}
-function extraerInvitados(texto) {
-  const inv = parseInvitadosFromText(texto);
-  return inv ? parseInt(inv, 10) : null;
-}
-function extraerServicios(texto) {
-  return parseServicesFromText(texto);
-}
-function generateSummary(conversationText) {
-  const texto = conversationText.toLowerCase();
-  const tipoEvento = extraerTipoEvento(texto);
-  const fecha = extraerFecha(texto);
-  const invitados = extraerInvitados(texto);
-  const servicios = extraerServicios(texto);
-  const estilo = extraerEstilo(texto);
-  const presupuesto = extraerPresupuesto(texto);
-  const partes = [];
-  const encabezado = [tipoEvento, fecha].filter(Boolean).join(" ");
-  if (encabezado) partes.push(encabezado);
-  if (invitados !== null) partes.push(`${invitados} pax`);
-  if (servicios.length > 0) {
-    partes.push(`Quiere: ${servicios.slice(0, 3).join(", ")}`);
-  }
-  if (estilo) partes.push(`Estilo ${estilo}`);
-  if (presupuesto) partes.push(`Presup: ${presupuesto}`);
-  const resumen = partes.join(". ");
-  if (!resumen.trim()) return "Info pendiente";
-  return resumen.length <= 240 ? resumen : `${resumen.slice(0, 237)}...`;
 }
 function pickFromMergedLines(mergedLines, labelPattern) {
   const line2 = mergedLines.find((l10) => labelPattern.test(l10));
@@ -141708,8 +141762,10 @@ function isValidExtractedString(val) {
 }
 function withCrmNombre(extracted, mergedLines) {
   const nombreCrm = parseNombreFromCrmLines(mergedLines);
-  if (!nombreCrm || isValidExtractedString(extracted.nombre)) return extracted;
-  return { ...extracted, nombre: nombreCrm };
+  const best = pickBetterNombre(extracted.nombre, nombreCrm);
+  if (!best) return extracted;
+  if (best === extracted.nombre) return extracted;
+  return { ...extracted, nombre: best };
 }
 function buildPatchPayload(extracted, mergedLines, conversationText, currentLeadName) {
   const customFields = [];
@@ -141722,7 +141778,7 @@ function buildPatchPayload(extracted, mergedLines, conversationText, currentLead
   if (isValidExtractedString(direccionForCrm))
     customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap2552(direccionForCrm) }] });
   const reqStored = crmStoredValue(mergedLines, "Requerimientos o servicios");
-  const reqForCrm = reqStored ?? (conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento);
+  const reqForCrm = reqStored ?? (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null);
   if (isValidExtractedString(reqForCrm) && reqForCrm !== "Info pendiente")
     customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap2552(reqForCrm) }] });
   if (isValidExtractedString(extracted.fecha_horario))
@@ -141746,7 +141802,12 @@ function buildPatchPayload(extracted, mergedLines, conversationText, currentLead
   }
   const payload = { custom_fields_values: customFields };
   {
-    const candidate = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre) ?? parseNombreFromCrmLines(mergedLines);
+    const fromExtract = sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
+    const fromLines = parseNombreFromCrmLines(mergedLines);
+    const candidate = pickBetterNombre(
+      fromExtract,
+      pickBetterNombre(fromLines, currentLeadName)
+    );
     const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, candidate);
     if (nombrePatch) {
       payload["name"] = cap2552(nombrePatch);
@@ -142231,7 +142292,36 @@ Ofrece: ${extracted.requerimientos_evento ?? "-"}`
         log.info({ entityId }, "Embudo: proveedor con datos completos \u2014 nota agregada para Alejandro");
       }
     } else {
-      log.info({ entityId }, "Embudo: cliente \u2014 sin movimiento autom\xE1tico de etapa (solo manual)");
+      if (clientAsksForHumanAdvisor(combinedUserText)) {
+        try {
+          await moverAHumanoTrabaja(
+            subdomain,
+            accessToken,
+            entityId,
+            {
+              nombre: extracted.nombre,
+              correo: extracted.correo || conversation.clientEmail,
+              tipo_evento: extracted.tipo_evento,
+              fecha_evento: extracted.fecha_horario,
+              num_invitados: extracted.num_invitados,
+              direccion: extracted.direccion_evento,
+              presupuesto: extracted.presupuesto
+            },
+            ["cliente", "pide_asesor"]
+          );
+          await agregarNota(
+            subdomain,
+            accessToken,
+            entityId,
+            "\u{1F64B} Cliente pidi\xF3 hablar con un asesor. Lucy canaliz\xF3 a Humano Trabaja y dej\xF3 de cotizar."
+          );
+          log.info({ entityId }, "Embudo: A15000 \u2014 handoff a Humano Trabaja por petici\xF3n de asesor");
+        } catch (err2) {
+          log.warn({ err: err2, entityId }, "Embudo: handoff a Humano Trabaja fall\xF3");
+        }
+      } else {
+        log.info({ entityId }, "Embudo: cliente \u2014 sin movimiento autom\xE1tico de etapa (solo manual)");
+      }
     }
   } catch (err2) {
     log.error({ err: err2 }, "Error processing batch");

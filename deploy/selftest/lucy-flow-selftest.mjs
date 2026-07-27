@@ -4577,6 +4577,7 @@ function shouldUpdateName(current, incoming) {
   }
   if (!namesAreLikelySamePerson(c, iClean)) return false;
   const cClean = sanitizeCrmNombre(c) ?? sanitizeDisplayName(c) ?? c;
+  if (nombreWordCount(iClean) < nombreWordCount(cClean)) return false;
   const cRawNorm = c.toLowerCase().replace(/\s+/g, " ").trim();
   if (cClean.toLowerCase() !== cRawNorm && iClean.toLowerCase() === cClean.toLowerCase()) {
     return true;
@@ -4955,8 +4956,9 @@ var TIPO_EVENTO_PATTERNS = [
   [/\b(bautizos?)\b/i, "bautizo"],
   [/\b(graduaci[oó]n(es)?)\b/i, "graduaci\xF3n"],
   [/\b(comuni[oó]n)\b/i, "celebraci\xF3n"],
-  // Fiesta / celebración social genérica (p. ej. "fiesta toscana").
-  [/\b(fiesta|celebraci[oó]n|reun[ií]on\s+social)\b/i, "fiesta"],
+  // Fiesta / celebración / reunión familiar (A15000 Itzel: "Reunión familiar").
+  [/\b(fiesta|celebraci[oó]n(es)?(\s+familiares?)?|reun[ií][oó]n(es)?\s+(social|familiar(es)?))\b/i, "fiesta"],
+  [/\b(reun[ií][oó]n\s+familiar|celebraci[oó]n\s+familiar)\b/i, "fiesta"],
   [/\bpozolada\b/i, "pozolada"],
   [/\bpaellada\b/i, "paellada"],
   [/\btaquiza\b/i, "taquiza"],
@@ -5397,9 +5399,35 @@ function clientAsksDistributorPricing(message) {
   if (!message?.trim()) return false;
   return /\bprecio\s+(para\s+)?distribuidor\b/i.test(message) || /\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message) || /\b(somos|como)\s+distribuidores?\b/i.test(message) || /\bmargen\s+comercial\b/i.test(message) || /\bprecio\s+de\s+mayoreo\b/i.test(message);
 }
+function clientAsksForHumanAdvisor(message) {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  if (/\bqui[eé]n\s+es\b/i.test(t) && !/\b(prefiero|quiero|necesito|puedo|pueden)\b/i.test(t)) {
+    return false;
+  }
+  if (/\b(prefiero|quiero|necesito|mejor)\b.{0,40}\b(hablar|comunicar|platicar|atenci[oó]n|contacto)\b.{0,40}\b(asesor|humano|persona|equipo)\b/i.test(
+    t
+  )) {
+    return true;
+  }
+  if (/\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+)?(asesor|humano|persona)\b/i.test(t)) {
+    return true;
+  }
+  if (/\b(asesor|humano|alguien\s+del\s+equipo)\b.{0,30}\b(se\s+)?(comunique|contacte|llame|hable)\b/i.test(
+    t
+  )) {
+    return true;
+  }
+  if (/\bhablar\s+con\s+(un\s+)?(asesor|humano|persona)\b/i.test(t)) return true;
+  if (/\bpuede(n)?\s+(un\s+)?asesor\s+(contactarme|comunicarse|llamarme)\b/i.test(t)) {
+    return true;
+  }
+  return false;
+}
 function clientNeedsEmergencyContact(message) {
   if (!message?.trim()) return false;
   if (clientAsksPhone(message)) return true;
+  if (clientAsksForHumanAdvisor(message)) return true;
   const t = message.trim();
   if (/\b(ayuda|ayudar|ayudame|ayúdame)\b/i.test(t) && isServiceRelatedMessage(t) && !/\b(emergencia|urgente|me\s+urge|auxilio|nadie\s+(me\s+)?(contesta|atiende))\b/i.test(t)) {
     return false;
@@ -5657,9 +5685,19 @@ function parseServicesFromText(text) {
     );
     const isVagueFoodAlias = /banquete\s*\/\s*taquiza/i.test(normalized);
     if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text)) {
+    } else if (
+      // A15000: "alimentos + meseros + mobiliario" — conservar Alimentos aunque haya otros.
+      isVagueFoodAlias && found.length > 0 && /\b(alimentos?|comida|banquete|catering|taquiza)\b/i.test(text)
+    ) {
+      if (!found.some((s) => /alimento|banquete|taquiza|catering|comida/i.test(s))) {
+        found.push("Alimentos");
+      }
     } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
       found.push(normalized);
     }
+  }
+  if (/\b(alimentos?|comida)\b/i.test(text) && !clientAsksCafeOrCateringChoice(text) && !found.some((s) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s))) {
+    found.push("Alimentos");
   }
   return dedupeServiceHierarchy([...new Set(found)], text);
 }
@@ -22070,6 +22108,19 @@ function buildEmergencyContactAnswer() {
     "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
   ].join("\n");
 }
+function buildHumanAdvisorHandoffAnswer(clientName) {
+  const name = sanitizeDisplayName(clientName);
+  const hi = name ? `${name}, ` : "";
+  return [
+    `Claro que s\xED, ${hi}con gusto te canalizo con un asesor de Bodasesor para que te atiendan de forma personalizada.`,
+    "",
+    "Mientras te contactan, tambi\xE9n puedes marcar:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 WhatsApp o l\xEDnea telef\xF3nica.",
+    "",
+    "Ya dej\xE9 tu caso listo para el equipo."
+  ].join("\n");
+}
 function buildLocationAnswer() {
   return "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el lugar de tu evento, coordinamos el servicio.";
 }
@@ -24215,6 +24266,10 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
 Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 cliente pidi\xF3 llamada/tel\xE9fonos");
+  } else if (clientAsksForHumanAdvisor(currentMessage)) {
+    mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15000 \u2014 cliente pidi\xF3 asesor humano (handoff)");
   } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServicePreferenceRefinement(
     currentMessage,
     extracted.requerimientos_evento
@@ -24492,11 +24547,12 @@ ${buildPackageCatalogOfferBlock(
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente pidi\xF3 releer especificaciones \u2014 ack completo + cat\xE1logo");
   } else if (allowSalesReplyOverride && // Solo servicios del MENSAJE ACTUAL (no historial) — A14924: "cumpleaños" no re-dump.
-  (servicesFromCurrentMessage.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
-  !clientAsksServiceInfo(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
+  (servicesFromCurrentMessage.length >= 2 || isRichQuoteBrief(currentMessage)) && !cierreYaEnviado && // A15000: RFQ multi-servicio ("opciones de alimentos + meseros + mobiliario")
+  // NO se trata como pregunta puntual aunque diga "opciones"/"costo".
+  !(clientAsksServiceInfo(currentMessage) && servicesFromCurrentMessage.length < 2) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
   !clientMentionsEntertainment(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
-    if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1) {
+    if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1 && servicesFromCurrentMessage.filter((s) => !/mobiliario/i.test(s)).length === 0) {
       if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
         extracted.direccion_evento = null;
         filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -24713,7 +24769,8 @@ ${nextQ}` : priceReply;
 ${buildModoServicioClarificationQuestion()}`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: mobiliario \u2014 detalle t\xE9cnico + aclarar montado/entrega");
-  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && !clientMentionsCarpas(currentMessage) && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
+  } else if (!cierreYaEnviado && !clientAsksPrice(currentMessage) && !clientMentionsCarpas(currentMessage) && // A15000: no detalle solo-mobiliario si el mensaje pide alimentos/meseros u otros.
+  servicesFromCurrentMessage.filter((s) => !/mobiliario/i.test(s)).length === 0 && parseServicesFromText(currentMessage ?? "").filter((s) => !/mobiliario/i.test(s)).length === 0 && buildMobiliarioRentDetailReply(currentMessage ?? "") && !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)) {
     if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -33266,6 +33323,83 @@ ${golfText}`,
     assert.ok(/services\.join\(/.test(silentSrc));
     assert.ok(!/sanitizeCrmNombre\(text\)/.test(silentSrc));
     assert.ok(/parseZonaFromText/.test(silentSrc));
+  });
+  await test("115. A15000 Itzel \u2014 nombre completo, reuni\xF3n familiar, multi-servicio, asesor", () => {
+    assert.equal(shouldUpdateName("Itzel Lombera", "Itzel"), false);
+    assert.equal(resolveKommoLeadNamePatch("Itzel Lombera", "Itzel"), null);
+    assert.equal(pickBetterNombre("Itzel", "Itzel Lombera"), "Itzel Lombera");
+    assert.equal(parseTipoEventoFromText("Reuni\xF3n familiar"), "fiesta");
+    assert.equal(parseTipoEventoFromText("celebraciones familiares"), "fiesta");
+    const brief = "Quiero ver qu\xE9 opciones tienen para alimentos , y si tienen meseros , y mobiliario , tambi\xE9n saber el costo por persona aprox 40 adultos y 10 ni\xF1os";
+    const services = parseServicesFromText(brief);
+    assert.ok(services.some((s) => /alimento|banquete|comida/i.test(s)), services.join(","));
+    assert.ok(services.some((s) => /mesero/i.test(s)), services.join(","));
+    assert.ok(services.some((s) => /mobiliario/i.test(s)), services.join(","));
+    assert.ok(services.length >= 3, services.join(","));
+    const multi = runGuards({
+      aiResponse: "Anoto mobiliario. \xBFEn qu\xE9 ciudad ser\xEDa tu evento?",
+      extracted: emptyExtracted({
+        nombre: "Itzel",
+        correo: "Itzel.Lombera@live.com",
+        tipo_evento: "cumplea\xF1os"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento"
+      ]),
+      readyForClosing: false,
+      currentMessage: brief,
+      history: [
+        {
+          role: "assistant",
+          content: "\xBFQu\xE9 te gustar\xEDa revisar primero o prefieres armar un paquete completo?"
+        }
+      ]
+    });
+    assert.ok(
+      /alimento|banquete|comida|mesero|paquete|opcion/i.test(multi),
+      `multi no solo mobiliario: ${multi.slice(0, 500)}`
+    );
+    assert.ok(
+      !/^Anoto \*mobiliario\*/i.test(multi.trim()),
+      `no monopolio mobiliario: ${multi.slice(0, 300)}`
+    );
+    assert.ok(clientAsksForHumanAdvisor("Prefiero hablar con un asesor"));
+    assert.ok(clientAsksForHumanAdvisor("Y prefiero que alg\xFAn asesor se comunique conmigo"));
+    const handoff = buildHumanAdvisorHandoffAnswer("Itzel");
+    assert.ok(/asesor/i.test(handoff));
+    assert.ok(/55 4008 0373/.test(handoff));
+    const advisorReply = runGuards({
+      aiResponse: "Itzel, \xBFtienen d\xEDa u horario ya definido?",
+      extracted: emptyExtracted({
+        nombre: "Itzel",
+        correo: "Itzel.Lombera@live.com",
+        tipo_evento: "cumplea\xF1os",
+        direccion_evento: "Del Valle sur",
+        num_invitados: 50
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Lugar/direcci\xF3n del evento",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Prefiero hablar con un asesor",
+      history: [
+        { role: "assistant", content: "Con gusto. Itzel, \xBFtienen d\xEDa u horario ya definido?" }
+      ]
+    });
+    assert.ok(/asesor|canalizo|equipo/i.test(advisorReply), advisorReply.slice(0, 400));
+    assert.ok(!/d[ií]a u horario|fecha/i.test(advisorReply), advisorReply.slice(0, 400));
+    assert.ok(!/cat[aá]logo/i.test(advisorReply), advisorReply.slice(0, 400));
+    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
+    const kommoSrc = readFileSync4(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    assert.ok(!/generateSummary\(conversationText\)/.test(kommoSrc));
+    assert.ok(/clientAsksForHumanAdvisor/.test(kommoSrc));
+    assert.ok(/pide_asesor/.test(kommoSrc));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -48,7 +48,7 @@ import {
   purgeInvalidNombreInvariantLines,
   purgeUnjustifiedPresupuestoLines,
 } from "../lucyCrmInvariants.js";
-import { generateSummary, buildResumenClienteLargo } from "../services/summaryService.js";
+import { buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   isPlaceholderLeadName,
   isQuoteIntentMessage,
@@ -69,6 +69,7 @@ import {
   captureContextualAnswer,
   clientAsksForRecommendations,
   clientAsksAboutTeam,
+  clientAsksForHumanAdvisor,
   clientAddsToQuote,
   appendPostCierreRequirements,
   appendSpaceDimensionsToRequerimientos,
@@ -1123,8 +1124,11 @@ function isValidExtractedString(val: string | null | undefined): val is string {
 
 function withCrmNombre(extracted: ExtractedData, mergedLines: string[]): ExtractedData {
   const nombreCrm = parseNombreFromCrmLines(mergedLines);
-  if (!nombreCrm || isValidExtractedString(extracted.nombre)) return extracted;
-  return { ...extracted, nombre: nombreCrm };
+  // A15000: nunca dejar "Itzel" si CRM ya tiene "Itzel Lombera".
+  const best = pickBetterNombre(extracted.nombre, nombreCrm);
+  if (!best) return extracted;
+  if (best === extracted.nombre) return extracted;
+  return { ...extracted, nombre: best };
 }
 
 function buildPatchPayload(
@@ -1153,8 +1157,12 @@ function buildPatchPayload(
     customFields.push({ field_id: FIELD.direccion_evento, values: [{ value: cap255(direccionForCrm) }] });
 
   const reqStored = crmStoredValue(mergedLines, "Requerimientos o servicios");
+  // A15000: NUNCA usar generateSummary (mete "cumpleaños. 50 pax. Quiere: …") en requerimientos.
   const reqForCrm =
-    reqStored ?? (conversationText ? generateSummary(conversationText) : extracted.requerimientos_evento);
+    reqStored ??
+    (isValidRequerimientosValue(extracted.requerimientos_evento)
+      ? extracted.requerimientos_evento
+      : null);
   if (isValidExtractedString(reqForCrm) && reqForCrm !== "Info pendiente")
     customFields.push({ field_id: FIELD.requerimientos_evento, values: [{ value: cap255(reqForCrm) }] });
   if (isValidExtractedString(extracted.fecha_horario))
@@ -1188,10 +1196,14 @@ function buildPatchPayload(
   {
     // SalesBot/Alejandro saluda con lead.name. Hay que sincronizarlo aunque
     // mergedLines ya tenga "Nombre del cliente" (mismo turno = no-op falso).
-    const candidate =
-      sanitizeCrmNombre(extracted.nombre) ??
-      sanitizeDisplayName(extracted.nombre) ??
-      parseNombreFromCrmLines(mergedLines);
+    // A15000: nunca degradar "Itzel Lombera" → "Itzel".
+    const fromExtract =
+      sanitizeCrmNombre(extracted.nombre) ?? sanitizeDisplayName(extracted.nombre);
+    const fromLines = parseNombreFromCrmLines(mergedLines);
+    const candidate = pickBetterNombre(
+      fromExtract,
+      pickBetterNombre(fromLines, currentLeadName)
+    );
     const nombrePatch = resolveKommoLeadNamePatch(currentLeadName, candidate);
     if (nombrePatch) {
       payload["name"] = cap255(nombrePatch);
@@ -1960,9 +1972,38 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
         log.info({ entityId }, "Embudo: proveedor con datos completos — nota agregada para Alejandro");
       }
     } else {
-      // CLIENTE: movimiento a "Humano Trabaja" es SOLO manual (por Alejandro).
-      // Lucy permanece activa y sigue respondiendo al cliente aunque tenga los 8 datos.
-      log.info({ entityId }, "Embudo: cliente — sin movimiento automático de etapa (solo manual)");
+      // CLIENTE: movimiento a "Humano Trabaja" es SOLO manual (por Alejandro),
+      // EXCEPTO si el cliente pide explícitamente un asesor (A15000).
+      if (clientAsksForHumanAdvisor(combinedUserText)) {
+        try {
+          await moverAHumanoTrabaja(
+            subdomain,
+            accessToken,
+            entityId,
+            {
+              nombre: extracted.nombre,
+              correo: extracted.correo || conversation.clientEmail,
+              tipo_evento: extracted.tipo_evento,
+              fecha_evento: extracted.fecha_horario,
+              num_invitados: extracted.num_invitados,
+              direccion: extracted.direccion_evento,
+              presupuesto: extracted.presupuesto,
+            },
+            ["cliente", "pide_asesor"]
+          );
+          await agregarNota(
+            subdomain,
+            accessToken,
+            entityId,
+            "🙋 Cliente pidió hablar con un asesor. Lucy canalizó a Humano Trabaja y dejó de cotizar."
+          );
+          log.info({ entityId }, "Embudo: A15000 — handoff a Humano Trabaja por petición de asesor");
+        } catch (err) {
+          log.warn({ err, entityId }, "Embudo: handoff a Humano Trabaja falló");
+        }
+      } else {
+        log.info({ entityId }, "Embudo: cliente — sin movimiento automático de etapa (solo manual)");
+      }
     }
 
   } catch (err) {

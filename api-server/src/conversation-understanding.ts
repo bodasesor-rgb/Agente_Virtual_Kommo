@@ -238,8 +238,9 @@ const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
   [/\b(bautizos?)\b/i, "bautizo"],
   [/\b(graduaci[oó]n(es)?)\b/i, "graduación"],
   [/\b(comuni[oó]n)\b/i, "celebración"],
-  // Fiesta / celebración social genérica (p. ej. "fiesta toscana").
-  [/\b(fiesta|celebraci[oó]n|reun[ií]on\s+social)\b/i, "fiesta"],
+  // Fiesta / celebración / reunión familiar (A15000 Itzel: "Reunión familiar").
+  [/\b(fiesta|celebraci[oó]n(es)?(\s+familiares?)?|reun[ií][oó]n(es)?\s+(social|familiar(es)?))\b/i, "fiesta"],
+  [/\b(reun[ií][oó]n\s+familiar|celebraci[oó]n\s+familiar)\b/i, "fiesta"],
   [/\bpozolada\b/i, "pozolada"],
   [/\bpaellada\b/i, "paellada"],
   [/\btaquiza\b/i, "taquiza"],
@@ -1028,6 +1029,43 @@ export function clientAsksDistributorPricing(message?: string): boolean {
   );
 }
 
+/** Cliente pide hablar con un asesor/humano (A15000 Itzel) — no seguir el embudo. */
+export function clientAsksForHumanAdvisor(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.trim();
+  // "quién es el asesor" / identidad del equipo → otra rama (clientAsksAboutTeam).
+  if (
+    /\bqui[eé]n\s+es\b/i.test(t) &&
+    !/\b(prefiero|quiero|necesito|puedo|pueden)\b/i.test(t)
+  ) {
+    return false;
+  }
+  if (
+    /\b(prefiero|quiero|necesito|mejor)\b.{0,40}\b(hablar|comunicar|platicar|atenci[oó]n|contacto)\b.{0,40}\b(asesor|humano|persona|equipo)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+)?(asesor|humano|persona)\b/i.test(t)
+  ) {
+    return true;
+  }
+  if (
+    /\b(asesor|humano|alguien\s+del\s+equipo)\b.{0,30}\b(se\s+)?(comunique|contacte|llame|hable)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  if (/\bhablar\s+con\s+(un\s+)?(asesor|humano|persona)\b/i.test(t)) return true;
+  if (/\bpuede(n)?\s+(un\s+)?asesor\s+(contactarme|comunicarse|llamarme)\b/i.test(t)) {
+    return true;
+  }
+  return false;
+}
+
 /**
  * En etapas donde Lucy NO escribe (Humano Trabaja, Cotización, etc.),
  * la ÚNICA excepción es pedir contacto/ayuda de emergencia → pasar teléfonos.
@@ -1036,6 +1074,7 @@ export function clientAsksDistributorPricing(message?: string): boolean {
 export function clientNeedsEmergencyContact(message?: string): boolean {
   if (!message?.trim()) return false;
   if (clientAsksPhone(message)) return true;
+  if (clientAsksForHumanAdvisor(message)) return true;
   const t = message.trim();
   // Pedido de servicio con "ayuda" no es emergencia.
   if (
@@ -1450,9 +1489,27 @@ export function parseServicesFromText(text: string): string[] {
     // A14964: pregunta café vs catering — no anotar banquete/taquiza solo por "comida".
     if (isVagueFoodAlias && clientAsksCafeOrCateringChoice(text)) {
       /* skip */
+    } else if (
+      // A15000: "alimentos + meseros + mobiliario" — conservar Alimentos aunque haya otros.
+      isVagueFoodAlias &&
+      found.length > 0 &&
+      /\b(alimentos?|comida|banquete|catering|taquiza)\b/i.test(text)
+    ) {
+      if (!found.some((s) => /alimento|banquete|taquiza|catering|comida/i.test(s))) {
+        found.push("Alimentos");
+      }
     } else if (!already && !(isVagueFoodAlias && found.length > 0)) {
       found.push(normalized);
     }
+  }
+
+  // A15000: mención explícita de alimentos/comida con otros servicios.
+  if (
+    /\b(alimentos?|comida)\b/i.test(text) &&
+    !clientAsksCafeOrCateringChoice(text) &&
+    !found.some((s) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s))
+  ) {
+    found.push("Alimentos");
   }
 
   return dedupeServiceHierarchy([...new Set(found)], text);

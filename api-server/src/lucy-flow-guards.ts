@@ -106,6 +106,7 @@ import {
   BODASESOR_SERVICE_PATTERNS,
   clientAsksForRecommendations,
   clientAsksAboutTeam,
+  clientAsksForHumanAdvisor,
   clientAsksPhone,
   clientAsksLocation,
   clientMentionsItalianTheme,
@@ -723,6 +724,21 @@ export function buildEmergencyContactAnswer(): string {
     "Ventas: 55 4008 0373 — solo por línea telefónica (no WhatsApp).",
     "Gerencia / corporativo: 56 4671 0585 — sí aceptamos llamadas por WhatsApp y por línea telefónica.",
     "Un asesor te puede atender por ahí. Tu caso sigue en seguimiento con el equipo.",
+  ].join("\n");
+}
+
+/** Cliente pide asesor humano (A15000): confirma handoff + teléfonos; no sigue embudo. */
+export function buildHumanAdvisorHandoffAnswer(clientName?: string | null): string {
+  const name = sanitizeDisplayName(clientName);
+  const hi = name ? `${name}, ` : "";
+  return [
+    `Claro que sí, ${hi}con gusto te canalizo con un asesor de Bodasesor para que te atiendan de forma personalizada.`,
+    "",
+    "Mientras te contactan, también puedes marcar:",
+    "Ventas: 55 4008 0373 — solo por línea telefónica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 — WhatsApp o línea telefónica.",
+    "",
+    "Ya dejé tu caso listo para el equipo.",
   ].join("\n");
 }
 
@@ -4119,6 +4135,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = `${buildPhoneAnswer()}\n\nUn asesor te puede atender por ahí; tu caso ya quedó con el equipo.`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — cliente pidió llamada/teléfonos");
+  } else if (clientAsksForHumanAdvisor(currentMessage)) {
+    // A15000 Itzel: "prefiero hablar con un asesor" — handoff, no seguir embudo.
+    mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15000 — cliente pidió asesor humano (handoff)");
   } else if (
     cierreYaEnviado &&
     !clientDeclinesMoreServices(currentMessage) &&
@@ -4553,8 +4574,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     // Solo servicios del MENSAJE ACTUAL (no historial) — A14924: "cumpleaños" no re-dump.
     (servicesFromCurrentMessage.length >= 2 || isRichQuoteBrief(currentMessage)) &&
     !cierreYaEnviado &&
-    // Pregunta puntual (carpas/pista/"¿cuentan con…?") NO es un RFQ multi-servicio.
-    !clientAsksServiceInfo(currentMessage) &&
+    // A15000: RFQ multi-servicio ("opciones de alimentos + meseros + mobiliario")
+    // NO se trata como pregunta puntual aunque diga "opciones"/"costo".
+    !(clientAsksServiceInfo(currentMessage) && servicesFromCurrentMessage.length < 2) &&
     !clientMentionsCarpas(currentMessage) &&
     !clientMentionsPistaTarima(currentMessage) &&
     // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
@@ -4567,11 +4589,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     )
   ) {
     // A14987: RFQ de renta mobiliario (picnic/periqueras/bancos) → detalle concreto,
-    // no solo "Anoto Mobiliario" + hub.
+    // no solo "Anoto Mobiliario" + hub. Si hay alimentos/meseros u otros, NO monopolizar.
     if (
       isMobiliarioRentalPedido(currentMessage) &&
       !clientMentionsCarpas(currentMessage) &&
-      parseMobiliarioRentItems(currentMessage ?? "").length >= 1
+      parseMobiliarioRentItems(currentMessage ?? "").length >= 1 &&
+      servicesFromCurrentMessage.filter((s) => !/mobiliario/i.test(s)).length === 0
     ) {
       if (
         extracted.direccion_evento &&
@@ -4901,6 +4924,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado &&
     !clientAsksPrice(currentMessage) &&
     !clientMentionsCarpas(currentMessage) &&
+    // A15000: no detalle solo-mobiliario si el mensaje pide alimentos/meseros u otros.
+    servicesFromCurrentMessage.filter((s) => !/mobiliario/i.test(s)).length === 0 &&
+    parseServicesFromText(currentMessage ?? "").filter((s) => !/mobiliario/i.test(s)).length ===
+      0 &&
     buildMobiliarioRentDetailReply(currentMessage ?? "") &&
     !needsModoServicioClarification(currentMessage, extracted.modo_servicio ?? null)
   ) {
