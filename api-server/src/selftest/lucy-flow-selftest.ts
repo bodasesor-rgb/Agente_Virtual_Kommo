@@ -7479,6 +7479,141 @@ async function runAll(): Promise<void> {
     assert.ok(/pide_asesor/.test(kommoSrc));
   });
 
+  // ─── 116. A15003 Juan: agente, Photo Booth, nombre limpio, no "Sigo aquí" ───
+  await test("116. A15003 Juan — agente/Photo Booth/nombre/anti-Sigo aquí", async () => {
+    // Handoff: "agente" y frase corta WhatsApp
+    assert.ok(clientAsksForHumanAdvisor("Hablar con un agente"));
+    assert.ok(clientAsksForHumanAdvisor("Hablar con un asesor"));
+    assert.ok(clientAsksForHumanAdvisor("Juan\nHablar con un agente"));
+    assert.ok(clientAsksForHumanAdvisor("quiero un agente"));
+    assert.ok(clientNeedsEmergencyContact("Hablar con un agente"));
+
+    const handoffAgente = runGuards({
+      aiResponse: "Perfecto. ¿Me compartes un correo?",
+      extracted: emptyExtracted({ nombre: "Juan", direccion_evento: "cdmx" }),
+      filledSet: new Set(["Nombre del cliente", "Lugar/dirección del evento"]),
+      readyForClosing: false,
+      currentMessage: "Hablar con un agente",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto. Mucho gusto, Juan. ¿Me compartes un correo para enviarte los detalles?",
+        },
+      ],
+    });
+    assert.ok(/asesor|canalizo|equipo/i.test(handoffAgente), handoffAgente.slice(0, 400));
+    assert.ok(!/correo/i.test(handoffAgente), handoffAgente.slice(0, 400));
+    assert.ok(!/banquete/i.test(handoffAgente), handoffAgente.slice(0, 400));
+
+    // Nombre: no contaminar con handoff
+    assert.equal(sanitizeCrmNombre("Juan Hablar Agente"), "Juan");
+    assert.equal(sanitizeCrmNombre("Juan\nHablar con un agente"), "Juan");
+    assert.ok(isLikelyNotPersonNameMessage("Hablar con un agente"));
+    assert.ok(isLikelyNotPersonNameMessage("Photo Booth"));
+
+    // Photo Booth = entretenimiento, no decline vacío
+    assert.ok(clientMentionsEntertainment("Photo Booth"));
+    assert.ok(clientMentionsEntertainment("ando buscando un photo booth"));
+    assert.ok(parseServicesFromText("Photo Booth").includes("Photo Booth"));
+    assert.equal(clientDeclinesMoreServices("Solo el servicio de Photo Booth"), false);
+    assert.ok(clientDeclinesMoreServices("Ninguno de esos"));
+    assert.ok(clientDeclinesMoreServices("No quiero nada más"));
+
+    const photoReply = runGuards({
+      aiResponse: "Manejamos Banquete Formal, Barra de bebidas… ¿Qué te gustaría revisar primero?",
+      extracted: emptyExtracted({
+        nombre: "Juan",
+        correo: "juan.andrade@dharma.agency",
+        tipo_evento: "evento corporativo",
+        direccion_evento: "cdmx",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Photo Booth",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Para tu evento corporativo: • Banquete Formal • Barra de bebidas. ¿Qué te gustaría revisar primero o prefieres armar un paquete completo?",
+        },
+      ],
+    });
+    assert.ok(/photo\s*booth/i.test(photoReply), photoReply.slice(0, 500));
+    assert.ok(!/banquete\s+formal/i.test(photoReply), photoReply.slice(0, 500));
+    assert.ok(!/Sigo aquí/i.test(photoReply), photoReply.slice(0, 500));
+
+    const soloPhoto = runGuards({
+      aiResponse: "Además podemos ofrecerte Banquete Formal…",
+      extracted: emptyExtracted({
+        nombre: "Juan",
+        correo: "juan.andrade@dharma.agency",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Photo Booth",
+        direccion_evento: "cdmx",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Ninguno de esos",
+      history: [
+        { role: "user", content: "Photo Booth" },
+        {
+          role: "assistant",
+          content:
+            "Aceptamos Photo Booth. Además: • Banquete Formal • Barra de bebidas. ¿Algo más?",
+        },
+      ],
+    });
+    assert.ok(/photo\s*booth/i.test(soloPhoto), soloPhoto.slice(0, 500));
+    assert.ok(!/banquete\s+formal/i.test(soloPhoto), soloPhoto.slice(0, 500));
+    assert.ok(!/Sigo aquí/i.test(soloPhoto), soloPhoto.slice(0, 500));
+
+    // Anti-repeat: no "Sigo aquí" cuando el cliente nombra Photo Booth
+    const antiPhoto = applyLucyGlobalAntiRepetition({
+      mensaje: "¿Qué tipo de servicios te interesan para tu evento?",
+      history: [
+        {
+          role: "assistant",
+          content: "¿Qué servicios necesitas para tu evento corporativo?",
+        },
+      ],
+      currentMessage: "Photo Booth",
+      extracted: { nombre: "Juan", tipo_evento: "evento corporativo" },
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+      clientName: "Juan",
+    });
+    assert.ok(!/Sigo aquí/i.test(antiPhoto.mensaje), antiPhoto.mensaje);
+    assert.ok(
+      antiPhoto.applied.every((a) => a !== "same-field-reask-ack"),
+      String(antiPhoto.applied)
+    );
+
+    const antiHandoff = applyLucyGlobalAntiRepetition({
+      mensaje: "¿Me compartes un correo para enviarte los detalles?",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto. ¿Me compartes un correo para la cotización?",
+        },
+      ],
+      currentMessage: "Hablar con un agente",
+      extracted: { nombre: "Juan" },
+      filledSet: new Set(["Nombre del cliente"]),
+      clientName: "Juan",
+    });
+    assert.ok(!/Sigo aquí/i.test(antiHandoff.mensaje), antiHandoff.mensaje);
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }

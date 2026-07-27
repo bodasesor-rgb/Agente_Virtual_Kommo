@@ -48,7 +48,11 @@ function stripPresentationPrefixLocal(raw: string): string {
 
 /** Verbos de frase/pregunta — el mensaje no es un nombre propio. */
 const SENTENCE_VERB_PATTERN =
-  /\b(comunico|comunica|hablo|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale)\b/i;
+  /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale)\b/i;
+
+/** Tokens de handoff / meta que nunca son apellido (A15003: "Juan Hablar Agente"). */
+const HANDOFF_OR_META_NAME_TOKEN =
+  /^(hablar|asesor|agente|humano|persona|ejecutivo|equipo|conmigo|contigo|por|favor)$/i;
 
 /** Palabras de pregunta de precio/servicio que nunca son tokens de nombre (A14933). */
 const PRICE_OR_SERVICE_NAME_TOKEN =
@@ -154,9 +158,12 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
   if (isLikelyUbicacionNotNombre(t)) return true;
   if (COMPANY_OR_CHANNEL_PATTERN.test(t)) return true;
+  // A15003: "Hablar con un agente/asesor" nunca es nombre.
+  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(t)) return true;
+  if (/\b(asesor|agente|humano)\b/i.test(t) && t.split(/\s+/).length <= 5) return true;
   // Servicio del catálogo sin verbo ("crepas para eventos", "barra de sushi", mesas/periqueras).
   if (
-    /\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge)\b/i.test(
+    /\b(crepas?|sushi|poke|banquete|taquiza|coffee\s*break|barra\s+de|dj|carpas?|pista|tarima|helado|frutas?|mesas?|sillas?|periqueras?|mobiliario|salas?\s+lounge|photo\s*booth|photobooth|cabina)\b/i.test(
       t
     ) &&
     !/^(soy|me\s+llamo)/i.test(t)
@@ -267,6 +274,17 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   if (isGreetingOnlyMessage(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
 
+  // A15003: "Juan Hablar Agente" / handoff pegado al nombre.
+  const strippedHandoff = raw
+    .replace(/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/gi, " ")
+    .replace(/\b(hablar|asesor|agente|humano)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (strippedHandoff && strippedHandoff !== raw && strippedHandoff.length >= 2) {
+    return sanitizeCrmNombre(strippedHandoff);
+  }
+  if (!strippedHandoff) return null;
+
   const isPresentation = /^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(raw);
   // Frases de servicio/saludo (no presentación, no mashup reparable).
   if (!isPresentation && isLikelyNotPersonNameMessage(raw)) {
@@ -290,6 +308,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
         return (
           letters.length >= 2 &&
           !BOT_OR_META_NAME_TOKEN.test(letters) &&
+          !HANDOFF_OR_META_NAME_TOKEN.test(letters) &&
           !CATALOG_LEVEL_OR_BRAND_NAME.test(letters) &&
           !GREETING_NAME_PATTERN.test(letters) &&
           !PRICE_OR_SERVICE_NAME_TOKEN.test(letters) &&
@@ -338,6 +357,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
     const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
+    if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
     if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;

@@ -1995,7 +1995,7 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
             subdomain,
             accessToken,
             entityId,
-            "🙋 Cliente pidió hablar con un asesor. Lucy canalizó a Humano Trabaja y dejó de cotizar."
+            "🙋 Cliente pidió hablar con un asesor/agente. Lucy canalizó a Humano Trabaja y dejó de cotizar."
           );
           log.info({ entityId }, "Embudo: A15000 — handoff a Humano Trabaja por petición de asesor");
         } catch (err) {

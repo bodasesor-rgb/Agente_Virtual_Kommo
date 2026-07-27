@@ -97,6 +97,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
   ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
+  // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
+  ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
   // A14988 Ernesto: bailarinas / dancers = entretenimiento (no oferta genérica Nivel 1).
   ["Bailarinas", /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i],
   // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
@@ -139,7 +141,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshow\b|batucada|robots?\s*leds?/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshow\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -675,7 +677,19 @@ export function recoverClienteNombreFromHistory(
 
     const raw = msg.content.trim();
     if (!raw || isAffirmativeOnlyMessage(raw) || isAmbiguousShortNumber(raw)) continue;
-    if (isLikelyNotPersonNameMessage(raw) || isServiceRelatedMessage(raw) || isQuoteIntentMessage(raw)) {
+    // A15003: "Juan\nHablar con un agente" — sanitize salva el nombre.
+    const nombreSalvage = sanitizeCrmNombre(raw);
+    if (
+      isLikelyNotPersonNameMessage(raw) ||
+      isServiceRelatedMessage(raw) ||
+      isQuoteIntentMessage(raw)
+    ) {
+      if (
+        nombreSalvage &&
+        (clientAsksForHumanAdvisor(raw) || /\b(hablar|asesor|agente|humano)\b/i.test(raw))
+      ) {
+        return nombreSalvage;
+      }
       continue;
     }
     const candidato = stripNombrePresentationPrefix(raw);
@@ -775,7 +789,11 @@ export function clientMentionsEntertainment(message?: string): boolean {
     /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t) ||
     /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|show|robots?|leds?)\b/i.test(t) ||
     // A14988 Ernesto: bailarinas para concierto
-    /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t)
+    /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t) ||
+    // A15003 Juan: photo booth / cabina
+    /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
+      t
+    )
   );
 }
 
@@ -804,14 +822,24 @@ export function clientDeclinesMoreServices(message?: string | null): boolean {
   const t = message.trim().toLowerCase();
   // A14981: "solo quiero que me coticen la comida" ≠ decline de extras genérico.
   if (clientWantsFoodOnlyQuote(message)) return false;
+  // A15003: "Solo el servicio de Photo Booth" es selección, no decline vacío.
+  if (
+    /\bsolo\s+(el\s+)?(servicio|photo|photobooth|cabina|banquete|barra|dj|mobiliario)/i.test(t) &&
+    !/\bno\s+quiero\b/i.test(t)
+  ) {
+    return false;
+  }
   return (
     /^(no|nop)[\s.,!]*$/i.test(t) ||
     /\bsolo\s+(con\s+)?eso\b/i.test(t) ||
     /\bsolo\s+ese\b/i.test(t) ||
     /\bsolamente\s+eso\b/i.test(t) ||
     /\bnada\s+m[aá]s\b/i.test(t) ||
+    /\bno\s+quiero\s+nada\s+m[aá]s\b/i.test(t) ||
+    /\bno\s+quiero\s+(nada\s+)?m[aá]s\b/i.test(t) ||
     /\bning[uú]n[a]?\b/i.test(t) ||
     /\bning[uú]n\s+otro\b/i.test(t) ||
+    /\bninguno\s+de\s+(esos|ellos|estos)\b/i.test(t) ||
     /\bno[.\s,¡!]+gracias\b/i.test(t) ||
     /\bno\s+gracias\b/i.test(t) ||
     /\bas[ií]\s+est[aá]\s+bien\b/i.test(t) ||
@@ -1029,40 +1057,53 @@ export function clientAsksDistributorPricing(message?: string): boolean {
   );
 }
 
-/** Cliente pide hablar con un asesor/humano (A15000 Itzel) — no seguir el embudo. */
+/** Cliente pide hablar con un asesor/humano/agente (A15000/A15003) — no seguir el embudo. */
 export function clientAsksForHumanAdvisor(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.trim();
   // "quién es el asesor" / identidad del equipo → otra rama (clientAsksAboutTeam).
   if (
     /\bqui[eé]n\s+es\b/i.test(t) &&
-    !/\b(prefiero|quiero|necesito|puedo|pueden)\b/i.test(t)
+    !/\b(prefiero|quiero|necesito|puedo|pueden|hablar)\b/i.test(t)
   ) {
     return false;
   }
+  // Frase corta típica de WhatsApp: "Hablar con un agente" / "Hablar con un asesor".
   if (
-    /\b(prefiero|quiero|necesito|mejor)\b.{0,40}\b(hablar|comunicar|platicar|atenci[oó]n|contacto)\b.{0,40}\b(asesor|humano|persona|equipo)\b/i.test(
+    /\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(t)
+  ) {
+    return true;
+  }
+  if (
+    /^(asesor|agente|humano)(\s+por\s+favor)?[\s!.]*$/i.test(t) ||
+    /^(quiero|necesito|prefiero)\s+(un\s+|una\s+)?(asesor|agente|humano)\b/i.test(t)
+  ) {
+    return true;
+  }
+  if (
+    /\b(prefiero|quiero|necesito|mejor)\b.{0,40}\b(hablar|comunicar|platicar|atenci[oó]n|contacto)\b.{0,40}\b(asesor|agente|humano|persona|equipo)\b/i.test(
       t
     )
   ) {
     return true;
   }
   if (
-    /\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+)?(asesor|humano|persona)\b/i.test(t)
+    /\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(t)
   ) {
     return true;
   }
   if (
-    /\b(asesor|humano|alguien\s+del\s+equipo)\b.{0,30}\b(se\s+)?(comunique|contacte|llame|hable)\b/i.test(
+    /\b(asesor|agente|humano|alguien\s+del\s+equipo)\b.{0,30}\b(se\s+)?(comunique|contacte|llame|hable)\b/i.test(
       t
     )
   ) {
     return true;
   }
-  if (/\bhablar\s+con\s+(un\s+)?(asesor|humano|persona)\b/i.test(t)) return true;
-  if (/\bpuede(n)?\s+(un\s+)?asesor\s+(contactarme|comunicarse|llamarme)\b/i.test(t)) {
+  if (/\bpuede(n)?\s+(un\s+)?(asesor|agente)\s+(contactarme|comunicarse|llamarme)\b/i.test(t)) {
     return true;
   }
+  // En lote debounce: "Juan\nHablar con un agente"
+  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano)\b/im.test(t)) return true;
   return false;
 }
 
@@ -1093,7 +1134,7 @@ export function clientNeedsEmergencyContact(message?: string): boolean {
     /\b(nadie\s+(me\s+)?(contesta|atiende)|no\s+me\s+(contesta|atiende|responde))\b/i.test(t) ||
     /\b(ayuda|auxilio).{0,25}(urgente|emergencia|humano|asesor|persona)\b/i.test(t) ||
     /\b(pasame|pásame|dame|necesito)\s+(un\s+)?(contacto|tel[eé]fono|n[uú]mero)\b/i.test(t) ||
-    /\bhablar\s+con\s+(un\s+)?(asesor|humano|persona)\b/i.test(t)
+    /\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(t)
   );
 }
 
@@ -2840,7 +2881,6 @@ export function captureContextualAnswer(
     (asked === "nombre" || (!history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg))) &&
     !isAffirmativeOnlyMessage(msg) &&
     !isQuoteIntentMessage(msg) &&
-    !isLikelyNotPersonNameMessage(msg) &&
     !isServiceRelatedMessage(msg) &&
     !isAmbiguousShortNumber(msg) &&
     !isLikelyUbicacionNotNombre(msg) &&
@@ -2849,13 +2889,17 @@ export function captureContextualAnswer(
     !/@/.test(msg) &&
     !/\d{4,}/.test(msg)
   ) {
+    // A15003: permitir "Juan\nHablar con un agente" / "Juan Hablar Agente" vía sanitize.
     const candidato = stripNombrePresentationPrefix(msg);
     const nombre = sanitizeCrmNombre(candidato) ?? sanitizeDisplayName(candidato);
+    const handoffNoise =
+      clientAsksForHumanAdvisor(msg) ||
+      /\b(hablar|asesor|agente|humano)\b/i.test(candidato);
     if (
       nombre &&
       candidato.length < 60 &&
       !/\?/.test(candidato) &&
-      !isLikelyNotPersonNameMessage(candidato) &&
+      (!isLikelyNotPersonNameMessage(candidato) || handoffNoise) &&
       !isServiceRelatedMessage(candidato) &&
       !isLikelyUbicacionNotNombre(candidato)
     ) {

@@ -1088,9 +1088,15 @@ function buildEntertainmentSalesReply(
   const wantsBatucada = /\bbatucada\b/i.test(msg);
   // A14988: bailarinas / dancers para concierto u otro evento.
   const wantsBailarinas = /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(msg);
+  // A15003: photo booth / cabina de fotos.
+  const wantsPhotoBooth =
+    /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
+      msg
+    );
   const services = parseServicesFromText(msg);
   const label =
     (services.length ? services.join(", ") : null) ||
+    (wantsPhotoBooth ? "Photo Booth" : null) ||
     (wantsBailarinas ? "Bailarinas" : null) ||
     (wantsRobots ? "Robots LED" : null) ||
     (wantsBatucada ? "Batucada" : null) ||
@@ -1104,7 +1110,11 @@ function buildEntertainmentSalesReply(
 
   let intro: string;
   let ideas: string;
-  if (wantsBailarinas) {
+  if (wantsPhotoBooth) {
+    intro = `Perfecto — anoto *Photo Booth* (cabina de fotos) para ${eventLabel}.`;
+    ideas =
+      "El equipo te confirma modelos, props, fondo y tiempo de renta. No es banquete ni catering: es entretenimiento / activación.";
+  } else if (wantsBailarinas) {
     intro = `Perfecto — anoto *bailarinas* para ${eventLabel}.`;
     ideas =
       "Es entretenimiento / show en vivo: el equipo arma la propuesta según duración, estilo y el espacio. No confundir con banquete ni catering.";
@@ -1134,6 +1144,7 @@ function buildEntertainmentSalesReply(
   const entServices = collectServicesForCatalogOffer({
     services: [
       ...services,
+      ...(wantsPhotoBooth ? ["Photo Booth"] : []),
       ...(wantsBailarinas ? ["Bailarinas", "Animación / Hora loca"] : []),
       ...(wantsRobots ? ["Robots LED"] : []),
       ...(wantsBatucada ? ["Batucada"] : []),
@@ -1143,11 +1154,14 @@ function buildEntertainmentSalesReply(
     history,
     currentMessage,
   });
-  const catalog = buildPackageCatalogOfferBlock(
-    entServices,
-    `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
-  );
-  let body = `${intro} ${ideas}\n\n${catalog}`;
+  // Photo Booth: no dump de banquete/hub genérico — solo ack + siguiente dato.
+  const catalog = wantsPhotoBooth
+    ? ""
+    : buildPackageCatalogOfferBlock(
+        entServices,
+        `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+      );
+  let body = catalog ? `${intro} ${ideas}\n\n${catalog}` : `${intro} ${ideas}`;
 
   if (filledSet && ctx) {
     const pending = getNextPendingField(extracted, filledSet);
@@ -5044,6 +5058,43 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : `${phoneAnswer}${callbackNote}`;
     log?.info({ entityId }, "GUARD: cliente preguntó teléfonos / pidió llamada");
   } else if (
+    // A15003: decline de extras con Photo Booth / entretenimiento ya en el hilo.
+    clientDeclinesMoreServices(currentMessage) &&
+    (/\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?)\b/i.test(
+      `${collectUserTexts(presHistory, currentMessage).join(" ")} ${extracted.requerimientos_evento ?? ""}`
+    ) ||
+      clientMentionsEntertainment(
+        `${collectUserTexts(presHistory, currentMessage).join(" ")} ${extracted.requerimientos_evento ?? ""}`
+      ))
+  ) {
+    const blob = `${collectUserTexts(presHistory, currentMessage).join(" ")} ${extracted.requerimientos_evento ?? ""}`;
+    const photoBoothInThread =
+      /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
+        blob
+      );
+    filledSet.add("Requerimientos o servicios");
+    if (photoBoothInThread) {
+      const merged = mergeServiceRequirements(extracted.requerimientos_evento, "Photo Booth", 6);
+      if (merged) extracted.requerimientos_evento = merged;
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ =
+      pending && pending !== "requerimientos"
+        ? buildNaturalQuestion(pending, ctx)
+        : null;
+    const label = photoBoothInThread
+      ? "Photo Booth"
+      : preferPrimaryCatalogService(parseServicesFromText(blob)) || "lo que ya elegiste";
+    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      mensaje = buildClosing(extracted.requerimientos_evento ?? label, extracted.nombre);
+    } else {
+      mensaje = nextQ
+        ? `Entendido — nos quedamos solo con *${label}*.\n\n${nextQ}`
+        : `Entendido — nos quedamos solo con *${label}*. El equipo arma la cotización con eso.`;
+    }
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15003 — decline extras, solo entretenimiento elegido");
+  } else if (
     clientDeclinesMoreServices(currentMessage) &&
     hasMeaningfulRequerimientos(extracted, filledSet) &&
     (requerimientosFollowUpAlreadyAsked ||
@@ -5093,15 +5144,23 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           ))))
   ) {
     const userEntBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+    const photoBoothInThread =
+      /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
+        `${userEntBlob} ${extracted.requerimientos_evento ?? ""}`
+      );
     const entFocusMsg =
       clientMentionsEntertainment(currentMessage) ||
       clientMentionsLedRobotsOrBatucada(currentMessage)
         ? currentMessage
-        : /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(userEntBlob)
-          ? "Bailarinas"
-          : clientMentionsLedRobotsOrBatucada(userEntBlob)
-            ? userEntBlob
-            : currentMessage;
+        : photoBoothInThread
+          ? "Photo Booth"
+          : /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(userEntBlob)
+            ? "Bailarinas"
+            : clientMentionsLedRobotsOrBatucada(userEntBlob)
+              ? userEntBlob
+              : clientMentionsEntertainment(userEntBlob)
+                ? userEntBlob
+                : currentMessage;
     mensaje = buildEntertainmentSalesReply(
       extracted,
       history,
@@ -6490,7 +6549,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  // A14962 / A14988: si el hilo es robots LED / batucada / bailarinas, NUNCA dejar precios de banquete.
+  // A14962 / A14988 / A15003: si el hilo es robots LED / batucada / bailarinas / photo booth, NUNCA dejar precios de banquete.
   {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
     const entThread =
@@ -6499,7 +6558,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       clientMentionsEntertainment(userBlob);
     if (
       entThread &&
-      /banquete\s+formal|solo\s+alimentos.*\$\s*450|tradicional.*\$\s*830/i.test(mensaje) &&
+      /banquete\s+formal|solo\s+alimentos.*\$\s*450|tradicional.*\$\s*830|barra\s+de\s+bebidas/i.test(
+        mensaje
+      ) &&
       !/\bbanquete\b/i.test(userBlob)
     ) {
       const focus =
@@ -6508,9 +6569,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           clientMentionsLedRobotsOrBatucada(currentMessage) ||
           /\bbailarinas?\b/i.test(currentMessage))
           ? currentMessage
-          : /\bbailarinas?\b/i.test(userBlob)
-            ? "Bailarinas"
-            : currentMessage || userBlob;
+          : /\b(photo\s*booth|photobooth|cabina)/i.test(userBlob)
+            ? "Photo Booth"
+            : /\bbailarinas?\b/i.test(userBlob)
+              ? "Bailarinas"
+              : currentMessage || userBlob;
       mensaje = buildEntertainmentSalesReply(
         extracted,
         history,
@@ -6519,7 +6582,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         filledSet,
         ctx
       );
-      log?.info({ entityId }, "GUARD: A14962/A14988 — reemplazó banquete por entretenimiento");
+      log?.info({ entityId }, "GUARD: A14962/A14988/A15003 — reemplazó banquete por entretenimiento");
     }
   }
 

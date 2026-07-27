@@ -15,6 +15,11 @@ import {
   parseZonaFromText,
   isUsableDireccionEvento,
   clientAffirmsCatalogOffer,
+  clientMentionsEntertainment,
+  clientDeclinesMoreServices,
+  clientAsksForHumanAdvisor,
+  parseServicesFromText,
+  SERVICE_HINT,
 } from "./conversation-understanding.js";
 import {
   isFieldSatisfied,
@@ -199,6 +204,28 @@ function syncFilledFromCurrentAnswer(
       if (inputExtracted) inputExtracted.direccion_evento = zona;
       return;
     }
+    case "requerimientos": {
+      // A15003: "Photo Booth" / servicio nombrado = respuesta válida al embudo.
+      const services = parseServicesFromText(t);
+      if (
+        services.length === 0 &&
+        !SERVICE_HINT.test(t) &&
+        !clientMentionsEntertainment(t)
+      ) {
+        return;
+      }
+      filled.add("Requerimientos o servicios");
+      if (services.length) {
+        const label = services.join(", ");
+        extracted.requerimientos_evento = extracted.requerimientos_evento
+          ? `${extracted.requerimientos_evento}; ${label}`
+          : label;
+        if (inputExtracted) {
+          inputExtracted.requerimientos_evento = extracted.requerimientos_evento;
+        }
+      }
+      return;
+    }
     default:
       return;
   }
@@ -348,11 +375,15 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     /\binformaci[oó]n|\binfo\b|\bdame\s+(info|detalle|datos)|\bme\s+(pueden|pueden)\s+dar|\bcu[eé]ntenme|\bexpl[ií]ca/i.test(
       input.currentMessage ?? ""
     );
-  // A14962 / A14988: clarificación de servicio (robots LED / batucada / bailarinas) no es "dato pendiente".
+  // A14962 / A14988 / A15003: clarificación de servicio no es "dato pendiente".
   const clientClarifyingService =
-    /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
+    /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bphoto\s*booth|\bphotobooth|\bcabina\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
       input.currentMessage ?? ""
-    );
+    ) ||
+    clientMentionsEntertainment(input.currentMessage) ||
+    parseServicesFromText(input.currentMessage ?? "").length > 0 ||
+    clientDeclinesMoreServices(input.currentMessage) ||
+    clientAsksForHumanAdvisor(input.currentMessage);
   // A14994 / todas las ramas: "Sí" tras oferta de catálogo — no colapsar el envío.
   const clientAffirmingCatalog =
     clientAffirmsCatalogOffer(input.currentMessage, lastPrev) ||
