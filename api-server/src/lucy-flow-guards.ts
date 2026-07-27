@@ -120,6 +120,8 @@ import {
   looksLikeConflictingFoodAlternatives,
   preferPrimaryCatalogService,
   clientMentionsEntertainment,
+  clientMentionsSpecialLiveAct,
+  parseSpecialLiveActLabel,
   clientConfirmsOfferReview,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
@@ -1193,10 +1195,14 @@ function buildEntertainmentSalesReply(
     /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
       msg
     );
+  // A15009: circo / Blue Man / actos especiales.
+  const specialActLabel = parseSpecialLiveActLabel(msg);
+  const wantsSpecialAct = !!specialActLabel || clientMentionsSpecialLiveAct(msg);
   const services = parseServicesFromText(msg);
   const label =
     (services.length ? services.join(", ") : null) ||
     (wantsPhotoBooth ? "Photo Booth" : null) ||
+    specialActLabel ||
     (wantsBailarinas ? "Bailarinas" : null) ||
     (wantsRobots ? "Robots LED" : null) ||
     (wantsBatucada ? "Batucada" : null) ||
@@ -1214,6 +1220,11 @@ function buildEntertainmentSalesReply(
     intro = `Perfecto — anoto *Photo Booth* (cabina de fotos) para ${eventLabel}.`;
     ideas =
       "El equipo te confirma modelos, props, fondo y tiempo de renta. No es banquete ni catering: es entretenimiento / activación.";
+  } else if (wantsSpecialAct) {
+    const act = specialActLabel || "ese show / acto";
+    intro = `Perfecto — anoto *${act}* para ${eventLabel}.`;
+    ideas =
+      "Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta. No confundir con banquete ni catering.";
   } else if (wantsBailarinas) {
     intro = `Perfecto — anoto *bailarinas* para ${eventLabel}.`;
     ideas =
@@ -1245,6 +1256,7 @@ function buildEntertainmentSalesReply(
     services: [
       ...services,
       ...(wantsPhotoBooth ? ["Photo Booth"] : []),
+      ...(wantsSpecialAct && specialActLabel ? [specialActLabel] : []),
       ...(wantsBailarinas ? ["Bailarinas", "Animación / Hora loca"] : []),
       ...(wantsRobots ? ["Robots LED"] : []),
       ...(wantsBatucada ? ["Batucada"] : []),
@@ -1254,13 +1266,14 @@ function buildEntertainmentSalesReply(
     history,
     currentMessage,
   });
-  // Photo Booth: no dump de banquete/hub genérico — solo ack + siguiente dato.
-  const catalog = wantsPhotoBooth
-    ? ""
-    : buildPackageCatalogOfferBlock(
-        entServices,
-        `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
-      );
+  // Photo Booth / actos especiales: no dump de banquete/hub genérico — solo ack + siguiente dato.
+  const catalog =
+    wantsPhotoBooth || wantsSpecialAct
+      ? ""
+      : buildPackageCatalogOfferBlock(
+          entServices,
+          `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+        );
   let body = catalog ? `${intro} ${ideas}\n\n${catalog}` : `${intro} ${ideas}`;
 
   if (filledSet && ctx) {
@@ -6857,9 +6870,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           ? currentMessage
           : /\b(photo\s*booth|photobooth|cabina)/i.test(userBlob)
             ? "Photo Booth"
-            : /\bbailarinas?\b/i.test(userBlob)
-              ? "Bailarinas"
-              : currentMessage || userBlob;
+            : /\bcirco\b/i.test(userBlob)
+              ? "Circo para eventos"
+              : /\bblue\s*man|blueman/i.test(userBlob)
+                ? "Show Blue Man"
+                : /\bbailarinas?\b/i.test(userBlob)
+                  ? "Bailarinas"
+                  : currentMessage || userBlob;
       mensaje = buildEntertainmentSalesReply(
         extracted,
         history,
@@ -6868,37 +6885,90 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         filledSet,
         ctx
       );
-      log?.info({ entityId }, "GUARD: A14962/A14988/A15003 — reemplazó banquete por entretenimiento");
+      log?.info({ entityId }, "GUARD: A14962/A14988/A15003/A15009 — reemplazó banquete por entretenimiento");
     }
   }
 
-  // A14988: no re-preguntar "qué revisar primero" si ya hay requerimientos o el cliente dijo Revisar.
+  // A14988 / A15009: no re-preguntar "qué revisar primero" si ya hay requerimientos o acto especial.
   if (
     /qu[eé]\s+te\s+gustar[ií]a\s+revisar\s+primero|armar\s+un\s+paquete\s+completo/i.test(mensaje) &&
     (hasMeaningfulRequerimientos(extracted, filledSet) ||
       clientConfirmsOfferReview(currentMessage) ||
-      clientMentionsEntertainment(currentMessage))
+      clientMentionsEntertainment(currentMessage) ||
+      clientMentionsSpecialLiveAct(currentMessage))
   ) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending && pending !== "requerimientos") {
-      const nextQ = buildNaturalQuestion(pending, ctx);
-      if (nextQ) {
-        mensaje = clientMentionsEntertainment(currentMessage)
-          ? mensaje
-          : `${pickTransition(presHistory)} Seguimos con lo que elegiste.\n\n${nextQ}`;
-        log?.info({ entityId }, "GUARD: A14988 — cortó re-CTA revisar primero");
-      }
-    } else if (
-      hasMeaningfulRequerimientos(extracted, filledSet) &&
-      !clientMentionsEntertainment(currentMessage)
+    if (
+      clientMentionsEntertainment(currentMessage) ||
+      clientMentionsSpecialLiveAct(currentMessage)
     ) {
-      // Ya hay servicio: no dejar el CTA genérico solo.
-      const pending2 = getNextPendingField(extracted, filledSet);
-      if (pending2) {
-        mensaje = buildNaturalQuestion(pending2, ctx);
-        log?.info({ entityId }, "GUARD: A14988 — re-CTA → siguiente campo embudo");
+      mensaje = buildEntertainmentSalesReply(
+        extracted,
+        history,
+        entityId,
+        currentMessage,
+        filledSet,
+        ctx
+      );
+      log?.info({ entityId }, "GUARD: A15009 — CTA revisar → ack entretenimiento/acto");
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      if (pending && pending !== "requerimientos") {
+        const nextQ = buildNaturalQuestion(pending, ctx);
+        if (nextQ) {
+          mensaje = `${pickTransition(presHistory)} Seguimos con lo que elegiste.\n\n${nextQ}`;
+          log?.info({ entityId }, "GUARD: A14988 — cortó re-CTA revisar primero");
+        }
+      } else if (hasMeaningfulRequerimientos(extracted, filledSet)) {
+        const pending2 = getNextPendingField(extracted, filledSet);
+        if (pending2) {
+          mensaje = buildNaturalQuestion(pending2, ctx);
+        }
       }
     }
+  }
+
+  // A15009: handoff humano — nunca dejar "mientras tanto… banquete".
+  if (
+    clientAsksForHumanAdvisor(currentMessage) &&
+    !/55\s*4008\s*0373|canalizo/i.test(mensaje)
+  ) {
+    mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
+    log?.info({ entityId }, "GUARD: A15009 — forzó handoff humano (anti mientras-tanto)");
+  }
+
+  // A15009: si el cliente insiste con el mismo acto/servicio, no "Sigo aquí" residual.
+  if (
+    /Sigo aqu[ií]/i.test(mensaje) &&
+    (clientMentionsEntertainment(currentMessage) ||
+      clientMentionsSpecialLiveAct(currentMessage) ||
+      parseServicesFromText(currentMessage ?? "").length > 0 ||
+      clientAsksForHumanAdvisor(currentMessage) ||
+      isReferentialPriorAnswer(currentMessage) ||
+      clientComplainsAboutRepeat(currentMessage))
+  ) {
+    if (clientAsksForHumanAdvisor(currentMessage)) {
+      mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
+    } else if (
+      clientMentionsEntertainment(currentMessage) ||
+      clientMentionsSpecialLiveAct(currentMessage)
+    ) {
+      mensaje = buildEntertainmentSalesReply(
+        extracted,
+        history,
+        entityId,
+        currentMessage,
+        filledSet,
+        ctx
+      );
+    } else {
+      const pending = getNextPendingField(extracted, filledSet);
+      const nombre = getDisplayName(extracted, whatsappDisplayName);
+      const ack = nombre ? `Perfecto, ${nombre}. Ya lo anoto.` : "Perfecto. Ya lo anoto.";
+      mensaje = pending
+        ? `${ack}\n\n${buildNaturalQuestion(pending, ctx)}`
+        : ack;
+    }
+    log?.info({ entityId }, "GUARD: A15009 — reemplazó Sigo aquí residual");
   }
 
   mensaje = dedupeCatalogUrlsInMessage(mensaje);

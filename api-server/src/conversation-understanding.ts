@@ -99,6 +99,9 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
   // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
   ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
+  // A15009 Erick: circo / Blue Man.
+  ["Circo para eventos", /\bcirco(\s+para\s+eventos?)?\b/i],
+  ["Show Blue Man", /\bblue\s*mans?\b|\bblueman\b/i],
   // A14988 Ernesto: bailarinas / dancers = entretenimiento (no oferta genérica Nivel 1).
   ["Bailarinas", /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i],
   // A14962: robots LED / batucada = entretenimiento, NUNCA banquete.
@@ -141,7 +144,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshow\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshow\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -793,8 +796,60 @@ export function clientMentionsEntertainment(message?: string): boolean {
     // A15003 Juan: photo booth / cabina
     /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
       t
-    )
+    ) ||
+    // A15009 Erick: circo / Blue Man / actos en vivo especiales
+    clientMentionsSpecialLiveAct(message)
   );
+}
+
+/**
+ * Acto / show especial (circo, Blue Man, magia…) — entretenimiento fuera de menú banquete.
+ * A15009: "Circo para eventos" / "show blueman" no debe caer en "Sigo aquí" ni dump de banquete.
+ */
+export function clientMentionsSpecialLiveAct(message?: string | null): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  // No confundir con show genérico / grupo versátil (A14920 / test 13).
+  if (
+    /\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca|entretenimiento)\b/i.test(t) ||
+    /\bgrupo\s+vers[aá]til\b/i.test(t)
+  ) {
+    return false;
+  }
+  return (
+    /\bcirco\b/i.test(t) ||
+    /\bblue\s*mans?\b|\bblueman\b/i.test(t) ||
+    /\b(mago|magia|ilusionista)\b/i.test(t) ||
+    /\b(payasos?|malabares?|acr[oó]batas?|trapecio|contorsion)\b/i.test(t) ||
+    // "show blueman" / "show X" con nombre propio (no "show de…").
+    /\bshow\s+[a-záéíóúüñ][\wáéíóúüñ.-]{2,}(?!\s+de\b)/i.test(t) &&
+      !/\bshow\s+(de|en|para|con|un|una|el|la|los|las)\b/i.test(t) ||
+    /\b(quiero|busco|necesito|interes[aá]|cotiz)\b.{0,40}\bcirco\b/i.test(t)
+  );
+}
+
+/** Etiqueta corta para anotar el acto especial en CRM. */
+export function parseSpecialLiveActLabel(message?: string | null): string | null {
+  if (!message?.trim()) return null;
+  const t = message.trim();
+  if (/\bcirco\b/i.test(t)) return "Circo para eventos";
+  if (/\bblue\s*mans?\b|\bblueman\b/i.test(t)) return "Show Blue Man";
+  if (/\b(mago|magia|ilusionista)\b/i.test(t)) return "Show de magia";
+  if (/\b(payasos?|malabares?|acr[oó]batas?)\b/i.test(t)) return "Actos de circo / animación";
+  if (
+    /\bshow\s+(de\s+)?(grupo|animaci|en\s+vivo|vers[aá]til|hora\s+loca)\b/i.test(t) ||
+    /\bgrupo\s+vers[aá]til\b/i.test(t)
+  ) {
+    return null;
+  }
+  const named = t.match(/\bshow\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ][\wÁÉÍÓÚáéíóúüñÑ.-]{1,40})/i);
+  if (named?.[1] && !/^(de|en|para|con|un|una|el|la)$/i.test(named[1])) {
+    return `Show ${named[1].trim()}`;
+  }
+  if (clientMentionsSpecialLiveAct(t)) {
+    return t.replace(/\s+/g, " ").slice(0, 60);
+  }
+  return null;
 }
 
 /** Cliente confirma "revisar" tras el CTA de oferta Nivel 1. */
@@ -1094,10 +1149,14 @@ export function clientAsksForHumanAdvisor(message?: string): boolean {
   ) {
     return false;
   }
-  // Frase corta típica de WhatsApp: "Hablar con un agente" / "Hablar con un asesor".
+  // Frase corta típica de WhatsApp: "Hablar con un agente" / "Hablar con un humano".
   if (
     /\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(t)
   ) {
+    return true;
+  }
+  // A15009: "Hablar con un humano" / "quiero un humano" sin artículo raro.
+  if (/^hablar\s+con\s+(un\s+)?humano\b/i.test(t) || /^humano(\s+por\s+favor)?[\s!.]*$/i.test(t)) {
     return true;
   }
   if (

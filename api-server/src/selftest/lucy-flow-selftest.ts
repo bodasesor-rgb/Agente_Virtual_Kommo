@@ -9,6 +9,8 @@ import {
   parseInvitadosFromText,
   clientMentionsCatering,
   clientMentionsEntertainment,
+  clientMentionsSpecialLiveAct,
+  parseSpecialLiveActLabel,
   clientConfirmsOfferReview,
   clientMentionsPistaTarima,
   isDimensionText,
@@ -7926,6 +7928,129 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/Sigo aquí/i.test(anti.mensaje), anti.mensaje);
     assert.ok(anti.applied.every((a) => a !== "same-field-reask-ack"), String(anti.applied));
+  });
+
+  // ─── 119. A15009 Erick — Circo / Blue Man / humano / no Sigo aquí ───
+  await test("119. A15009 Erick — circo, blueman, handoff humano, anti-Sigo aquí", async () => {
+    assert.ok(clientMentionsSpecialLiveAct("Circo para eventos"));
+    assert.ok(clientMentionsEntertainment("Circo para eventos"));
+    assert.ok(clientMentionsSpecialLiveAct("show blueman"));
+    assert.equal(parseSpecialLiveActLabel("Circo para eventos"), "Circo para eventos");
+    assert.equal(parseSpecialLiveActLabel("show blueman"), "Show Blue Man");
+    assert.ok(clientAsksForHumanAdvisor("Hablar con un humano"));
+    assert.ok(parseServicesFromText("Circo para eventos").includes("Circo para eventos"));
+
+    const banquetAsk =
+      "Podemos ofrecerte: • Banquete Formal • Barra de bebidas. ¿Qué te gustaría revisar primero?";
+
+    const circo = runGuards({
+      aiResponse: banquetAsk,
+      extracted: emptyExtracted({
+        nombre: "Erick Llamas",
+        correo: "e.llamas@bunker-inc.com.mx",
+        tipo_evento: "evento corporativo",
+        num_invitados: 650,
+        direccion_evento: "constituyentes, cdmx",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Número de invitados",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Circo para eventos",
+      history: [{ role: "assistant", content: banquetAsk }],
+    });
+    assert.ok(/circo/i.test(circo), circo.slice(0, 500));
+    assert.ok(!/Sigo aquí/i.test(circo), circo.slice(0, 400));
+    assert.ok(!/banquete\s+formal/i.test(circo), circo.slice(0, 400));
+    assert.ok(!/revisar\s+primero/i.test(circo), circo.slice(0, 400));
+
+    const insist = runGuards({
+      aiResponse: "¿Qué te gustaría revisar primero o prefieres armar un paquete?",
+      extracted: emptyExtracted({
+        nombre: "Erick Llamas",
+        correo: "e.llamas@bunker-inc.com.mx",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Circo para eventos",
+        num_invitados: 650,
+        direccion_evento: "constituyentes, cdmx",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Yo quiero circo para eventos",
+      history: [
+        { role: "user", content: "Circo para eventos" },
+        { role: "assistant", content: "¿Qué te gustaría revisar primero?" },
+      ],
+    });
+    assert.ok(/circo/i.test(insist), insist.slice(0, 500));
+    assert.ok(!/Sigo aquí/i.test(insist));
+    assert.ok(!/revisar\s+primero/i.test(insist));
+
+    const humano = runGuards({
+      aiResponse:
+        "Entiendo que deseas hablar con un humano. Mientras tanto, puedo ayudarte… Banquete Formal…",
+      extracted: emptyExtracted({
+        nombre: "Erick Llamas",
+        correo: "e.llamas@bunker-inc.com.mx",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Circo para eventos",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Hablar con un humano",
+      history: [{ role: "assistant", content: banquetAsk }],
+    });
+    assert.ok(/asesor|canalizo|equipo/i.test(humano), humano.slice(0, 400));
+    assert.ok(/55 4008 0373/.test(humano));
+    assert.ok(!/banquete|mientras tanto/i.test(humano), humano.slice(0, 400));
+
+    const blueman = runGuards({
+      aiResponse: "Para tu evento, manejamos shows… Te dejo el catálogo general…",
+      extracted: emptyExtracted({
+        nombre: "Erick Llamas",
+        correo: "e.llamas@bunker-inc.com.mx",
+        tipo_evento: "evento corporativo",
+        num_invitados: 650,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "show blueman",
+      history: [{ role: "assistant", content: banquetAsk }],
+    });
+    assert.ok(/blue\s*man/i.test(blueman), blueman.slice(0, 500));
+    assert.ok(!/banquete\s+formal/i.test(blueman), blueman.slice(0, 400));
+    assert.ok(!/Sigo aquí/i.test(blueman));
+
+    const anti = applyLucyGlobalAntiRepetition({
+      mensaje: "¿Qué te gustaría revisar primero?",
+      history: [{ role: "assistant", content: "¿Qué te gustaría revisar primero?" }],
+      currentMessage: "Circo para eventos",
+      extracted: { nombre: "Erick", tipo_evento: "corporativo" },
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+      clientName: "Erick",
+    });
+    assert.ok(!/Sigo aquí/i.test(anti.mensaje), anti.mensaje);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

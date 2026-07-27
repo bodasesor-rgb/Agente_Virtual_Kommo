@@ -16,6 +16,7 @@ import {
   isUsableDireccionEvento,
   clientAffirmsCatalogOffer,
   clientMentionsEntertainment,
+  clientMentionsSpecialLiveAct,
   clientDeclinesMoreServices,
   clientAsksForHumanAdvisor,
   parseServicesFromText,
@@ -385,6 +386,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
       input.currentMessage ?? ""
     ) ||
     clientMentionsEntertainment(input.currentMessage) ||
+    clientMentionsSpecialLiveAct(input.currentMessage) ||
     parseServicesFromText(input.currentMessage ?? "").length > 0 ||
     clientDeclinesMoreServices(input.currentMessage) ||
     clientAsksForHumanAdvisor(input.currentMessage) ||
