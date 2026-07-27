@@ -16,6 +16,7 @@ import {
   parseZonaFromText,
   looksLikeGuestCountRange,
   looksLikeCompanyLocationQuestionFragment,
+  isLikelyProductNameNotLocation,
 } from "./conversation-understanding.js";
 
 export interface CrmInvariantResult {
@@ -101,6 +102,31 @@ export function applyCrmWriteInvariants(
   // 2) Presupuesto solo si el CLIENTE lo justificó (nunca eco de Lucy "$300 pp").
   if (out.presupuesto !== null && out.presupuesto !== undefined) {
     const presStr = String(out.presupuesto).trim();
+    const digits = presStr.replace(/[^\d]/g, "");
+    // A15016: dígitos del correo (israel241268@…) ≠ presupuesto.
+    const fromEmailLocal = userTexts.some((t) => {
+      const emails = t.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? [];
+      return emails.some((e) => {
+        const local = e.split("@")[0] ?? "";
+        return digits.length >= 4 && local.includes(digits);
+      });
+    });
+    if (fromEmailLocal) {
+      out.presupuesto = null;
+      applied.push("presupuesto-from-email-cleared");
+      for (const t of userTexts) {
+        const p = parsePresupuestoFromText(t.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " "), {
+          askedField: "presupuesto",
+        });
+        if (!p) continue;
+        const n = parseInt(p.replace(/[^\d]/g, ""), 10);
+        if (!isNaN(n) && n >= 1000 && String(n) !== digits) {
+          out.presupuesto = n;
+          applied.push("presupuesto-recovered-after-email");
+          break;
+        }
+      }
+    }
     // A14994 / todas las ramas: "80 - 100 MXN" / "80100" desde rango de invitados.
     const guestRangePolluted =
       looksLikeGuestCountRange(presStr) ||
@@ -112,10 +138,10 @@ export function applyCrmWriteInvariants(
           (out.presupuesto >= 1000 &&
             out.presupuesto < 100000 &&
             userTexts.some((t) => looksLikeGuestCountRange(t)))));
-    if (guestRangePolluted && !userTexts.some((t) => /\b(presupuesto|mil|pesos|\$|k\b|inversi[oó]n)\b/i.test(t))) {
+    if (out.presupuesto != null && guestRangePolluted && !userTexts.some((t) => /\b(presupuesto|mil|pesos|\$|k\b|inversi[oó]n)\b/i.test(t))) {
       out.presupuesto = null;
       applied.push("presupuesto-guest-range-cleared");
-    } else if (!userJustifiesPresupuesto(userTexts)) {
+    } else if (out.presupuesto != null && !userJustifiesPresupuesto(userTexts)) {
       out.presupuesto = null;
       applied.push("presupuesto-no-user-source");
     } else if (typeof out.presupuesto === "number" && out.presupuesto > 0 && out.presupuesto < 1000) {
@@ -137,11 +163,12 @@ export function applyCrmWriteInvariants(
     }
   }
 
-  // 3) Dirección basura (producto / cotización / "dónde están") — todas las ramas.
+  // 3) Dirección basura (producto / cotización / "dónde están" / Catedral carpa) — todas las ramas.
   if (
     out.direccion_evento &&
     (!isUsableDireccionEvento(out.direccion_evento) ||
-      looksLikeCompanyLocationQuestionFragment(out.direccion_evento))
+      looksLikeCompanyLocationQuestionFragment(out.direccion_evento) ||
+      isLikelyProductNameNotLocation(out.direccion_evento))
   ) {
     out.direccion_evento = null;
     applied.push("zona-unusable-cleared");

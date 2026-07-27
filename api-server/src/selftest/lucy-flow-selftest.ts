@@ -67,6 +67,7 @@ import {
   FECHA_MAX_ASKS,
   parseSalaProductFromText,
   isLikelyProductNameNotLocation,
+  parseCarpaVariantFromText,
   clientMentionsCarpas,
   clientAsksServiceInfo,
   clientAddsToQuote,
@@ -121,6 +122,9 @@ import {
   buildRecommendationsReply,
   buildPostCierreThanksReply,
   buildPostCierreCallbackAck,
+  buildPostCierrePaymentHandoffReply,
+  clientAsksPaymentOrQuoteDelivery,
+  dedupeTransitionsInMessage,
   buildStandardClosingMessage,
   buildMultiServicePackageReply,
   buildMultiServiceSheetLevelsReply,
@@ -7612,6 +7616,197 @@ async function runAll(): Promise<void> {
       clientName: "Juan",
     });
     assert.ok(!/Sigo aquí/i.test(antiHandoff.mensaje), antiHandoff.mensaje);
+  });
+
+  // ─── 117. A15016 Israel — Catedral≠zona, email≠presupuesto, post-cierre ───
+  await test("117. A15016 Israel — Catedral, De 6x20, email≠presupuesto, post-cierre", async () => {
+    assert.equal(parseCarpaVariantFromText("Catedral"), "Carpa Cathedral");
+    assert.equal(parseCarpaVariantFromText("Cathedral"), "Carpa Cathedral");
+    assert.ok(isLikelyProductNameNotLocation("Catedral"));
+    assert.ok(!isUsableDireccionEvento("Catedral"));
+    assert.equal(parseZonaFromText("Catedral"), null);
+    assert.ok(isDimensionText("De 6 x20"));
+    assert.equal(parseSpaceDimensions("De 6 x20"), "6m x 20m");
+
+    assert.equal(
+      parsePresupuestoFromText("israel241268@hotmail.com", { askedField: "presupuesto" }),
+      null
+    );
+    assert.equal(
+      parsePresupuestoFromText("17 mil aproximadamente", { askedField: "presupuesto" }),
+      "$17000"
+    );
+
+    const inv = applyCrmWriteInvariants(
+      {
+        nombre: "Israel Albiter",
+        correo: "israel241268@hotmail.com",
+        presupuesto: 241268,
+        direccion_evento: "Catedral",
+        requerimientos_evento: "Carpas (espacio 6m x 20m)",
+        tipo_evento: "cumpleaños",
+        num_invitados: 200,
+      },
+      [
+        "Carpa transparente",
+        "De 6 x20",
+        "Catedral",
+        "Cumpleaños",
+        "17 mil aproximadamente",
+        "israel241268@hotmail.com",
+      ]
+    );
+    assert.equal(inv.extracted.direccion_evento, null);
+    assert.ok(
+      inv.extracted.presupuesto === null || inv.extracted.presupuesto === 17000,
+      String(inv.extracted.presupuesto)
+    );
+    assert.ok(inv.applied.includes("zona-unusable-cleared") || inv.extracted.direccion_evento == null);
+
+    const carpaFirst = runGuards({
+      aiResponse: "¿Qué tipo de evento estás organizando?",
+      extracted: emptyExtracted({
+        nombre: "Israel Albiter",
+        correo: "isra_piter@hotmail.com",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Correo electrónico"]),
+      readyForClosing: false,
+      currentMessage: "Carpa transparente",
+      history: [
+        {
+          role: "assistant",
+          content: "Gracias por tu correo, Israel. ¿Qué tipo de evento estás organizando?",
+        },
+      ],
+    });
+    assert.ok(/carpa/i.test(carpaFirst), carpaFirst.slice(0, 400));
+    assert.ok(!/Sigo aquí/i.test(carpaFirst));
+
+    const dimsReply = runGuards({
+      aiResponse: "¿Qué tipo de evento estás organizando?",
+      extracted: emptyExtracted({
+        nombre: "Israel Albiter",
+        correo: "isra_piter@hotmail.com",
+        requerimientos_evento: "Carpas transparentes",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "De 6 x20",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Sí, contamos con *carpas transparentes* (y también Cathedral, Pirámide y Planas). ¿Qué medidas aproximadas necesitas?",
+        },
+      ],
+    });
+    assert.ok(/6\s*m?\s*x\s*20/i.test(dimsReply), dimsReply.slice(0, 500));
+    assert.ok(!/medidas aproximadas necesitas/i.test(dimsReply), dimsReply.slice(0, 500));
+
+    const catedralReply = runGuards({
+      aiResponse: "¿Qué tipo de evento estás organizando?",
+      extracted: emptyExtracted({
+        nombre: "Israel Albiter",
+        correo: "isra_piter@hotmail.com",
+        requerimientos_evento: "Carpas transparentes (6m x 20m)",
+        direccion_evento: "Catedral",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Catedral",
+      history: [
+        { role: "user", content: "Carpa transparente" },
+        {
+          role: "assistant",
+          content: "Sí, carpas transparentes, Cathedral, Pirámide y Planas. ¿Medidas?",
+        },
+      ],
+    });
+    assert.ok(/cathedral|catedral|carpa/i.test(catedralReply), catedralReply.slice(0, 500));
+    assert.ok(!/ubicaci[oó]n|lugar del evento|d[oó]nde ser[aá]/i.test(catedralReply), catedralReply.slice(0, 400));
+
+    const closing = `${CLOSING_SIGNATURE} Voy a compartir esta información con nuestro equipo para que te prepare una cotización personalizada.`;
+    assert.ok(detectCierreEnviado([{ role: "assistant", content: closing }]));
+
+    const thanks = runGuards({
+      aiResponse: "¿Me puedes compartir tu correo electrónico?",
+      extracted: emptyExtracted({
+        nombre: "Israel Albiter",
+        correo: "isra_piter@hotmail.com",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "Carpas (espacio 6m x 20m)",
+        fecha_horario: "1 de agosto 2026",
+        num_invitados: 200,
+        presupuesto: 17000,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Fecha y horario",
+        "Número de invitados",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Muchas gracias amigo",
+      history: [{ role: "assistant", content: closing }],
+      lastStoredResponse: closing,
+    });
+    assert.ok(/con gusto|equipo/i.test(thanks), thanks.slice(0, 400));
+    assert.ok(!/correo/i.test(thanks), thanks.slice(0, 400));
+
+    assert.ok(
+      clientAsksPaymentOrQuoteDelivery(
+        "Si me manda el presupuesto y donde mandar el 50 % de anticipo"
+      )
+    );
+    const pay = runGuards({
+      aiResponse: "Mucho gusto, Israel. ¿A qué correo te lo envío?",
+      extracted: emptyExtracted({
+        nombre: "Israel Albiter",
+        correo: "isra_piter@hotmail.com",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "Carpas (espacio 6m x 20m)",
+        presupuesto: 17000,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Si me manda el presupuesto y donde mandar el 50 % de anticipo",
+      history: [
+        { role: "user", content: "isra_piter@hotmail.com" },
+        { role: "assistant", content: closing },
+      ],
+      lastStoredResponse: closing,
+    });
+    assert.ok(/anticipo|equipo|cotizaci[oó]n/i.test(pay), pay.slice(0, 500));
+    assert.ok(!/a qu[eé] correo|Mucho gusto,\s*Israel\.\s*Mucho gusto/i.test(pay), pay.slice(0, 500));
+
+    const deduped = dedupeTransitionsInMessage(
+      "Perfecto, Israel. Mucho gusto, Israel. Para mandarte la info, ¿a qué correo te lo envío?"
+    );
+    assert.equal((deduped.match(/Mucho gusto,\s*Israel/gi) || []).length, 0);
+    assert.ok(/Perfecto, Israel/i.test(deduped));
+
+    const handoffPay = buildPostCierrePaymentHandoffReply("Israel");
+    assert.ok(/anticipo|50\s*%|equipo/i.test(handoffPay));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

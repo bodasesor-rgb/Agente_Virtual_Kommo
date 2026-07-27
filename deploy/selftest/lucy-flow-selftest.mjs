@@ -5338,6 +5338,7 @@ function isLikelyProductNameNotLocation(value) {
   if (/^sala\s*:/i.test(t)) return true;
   if (/\bsala\s*:/i.test(t)) return true;
   if (/^luxor(\s+rosa)?$/i.test(t)) return true;
+  if (parseCarpaVariantFromText(t)) return true;
   if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
     t
   )) {
@@ -5349,6 +5350,26 @@ function isLikelyProductNameNotLocation(value) {
     return true;
   }
   return false;
+}
+function parseCarpaVariantFromText(text) {
+  const t = (text ?? "").trim();
+  if (!t || t.length > 60) return null;
+  if (/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida)\b/i.test(t)) {
+    return null;
+  }
+  if (/^(cathedral|catedral)(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+catedral\b/i.test(t)) {
+    return "Carpa Cathedral";
+  }
+  if (/^pir[aá]mide(s)?(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+pir[aá]mide\b/i.test(t)) {
+    return "Carpa Pir\xE1mide";
+  }
+  if (/^planas?(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+plana\b/i.test(t)) {
+    return "Carpa Plana";
+  }
+  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t)) {
+    return "Carpas transparentes";
+  }
+  return null;
 }
 function parseSalaProductFromText(text) {
   const named = text.match(/\bsala\s*:\s*([A-Za-zÁÉÍÓÚáéíóúñ0-9][\w\s.-]{1,40})/i);
@@ -5364,7 +5385,7 @@ function parseSalaProductFromText(text) {
 }
 function clientMentionsCarpas(message) {
   if (!message?.trim()) return false;
-  return /\bcarpas?\b|\btoldos?\b|\blonas?\b/i.test(message);
+  return /\bcarpas?\b|\btoldos?\b|\blonas?\b/i.test(message) || !!parseCarpaVariantFromText(message);
 }
 function clientRequestsCallback(message) {
   if (!message?.trim()) return false;
@@ -6102,7 +6123,8 @@ function parseInvitadosFromText(text) {
 function isDimensionText(text) {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  return /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) || /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t) || /^\d+m\s*x\s*\d+m$/i.test(t);
+  const dePrefixed = t.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
+  return /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) || /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(dePrefixed) || /^\d+m\s*x\s*\d+m$/i.test(t) || /^\d+m\s*x\s*\d+m$/i.test(dePrefixed);
 }
 function isUsableDireccionEvento(value) {
   const t = value?.trim() ?? "";
@@ -6423,7 +6445,10 @@ function findPresupuestoInTexts(texts, history) {
   return null;
 }
 function parsePresupuestoFromText(text, opts) {
-  const trimmed = text.trim();
+  const withoutEmails = text.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ").replace(/\s+/g, " ").trim();
+  const trimmed = withoutEmails || text.trim();
+  if (!trimmed) return null;
+  if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(text.trim())) return null;
   if (/\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) || /\bt[uú]\s+m[aá]ndame\b/i.test(trimmed)) {
     return "Sin definir (cliente pidi\xF3 que propongamos)";
   }
@@ -6535,7 +6560,7 @@ function parsePresupuestoFromText(text, opts) {
   const hasMoneyWord = /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) || opts?.askedField === "presupuesto";
   const hasAproxBudget = hasMoneyWord && /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed);
   if (hasMoneyWord || hasAproxBudget || /\$/.test(trimmed) && hasMoneyWord) {
-    const amountMatch = trimmed.match(/\$?\s*([\d][\d,.]*)/);
+    const amountMatch = trimmed.match(/(?<![A-Za-z0-9])\$?\s*([\d][\d,.]*)/);
     if (amountMatch) return trimmed.slice(0, 80);
   }
   if (/\$\s*[\d][\d,.]{3,}/.test(trimmed) && !/\bdesde\s+\$/i.test(trimmed)) {
@@ -6569,10 +6594,30 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
   const lastLucy = getLastLucyMessage(history);
   const asked = inferLucyAskedField(lastLucy);
   const captures = [];
+  const carpaVariant = parseCarpaVariantFromText(msg);
+  if (carpaVariant && !filledSet.has("Requerimientos o servicios")) {
+    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
+  } else if (carpaVariant) {
+    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
+  }
   const zonaFromMsg = parseZonaFromText(msg);
-  const msgIsLocation = !!zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && (isLikelyUbicacionNotNombre(msg) || asked === "zona" || /^en\s+/i.test(msg.trim()) || msg.trim().split(/\s+/).length <= 4 && !!zonaFromMsg);
+  const msgIsLocation = !carpaVariant && !!zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && (isLikelyUbicacionNotNombre(msg) || asked === "zona" || /^en\s+/i.test(msg.trim()) || msg.trim().split(/\s+/).length <= 4 && !!zonaFromMsg);
   if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/direcci\xF3n del evento")) {
     captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaFromMsg });
+  }
+  const dimsNow = parseSpaceDimensions(msg);
+  if (dimsNow && (isDimensionText(msg) || /medidas?/i.test(lastLucy) || /carpa|pista|tarima/i.test(lastLucy))) {
+    const existingReq = captures.find((c) => c.label === "Requerimientos o servicios");
+    if (existingReq) {
+      if (!existingReq.value.includes(dimsNow)) {
+        existingReq.value = `${existingReq.value.replace(/\s*\(espacio [^)]+\)/, "").trim()} (espacio ${dimsNow})`;
+      }
+    } else {
+      captures.push({
+        label: "Requerimientos o servicios",
+        value: `Carpas (espacio ${dimsNow})`
+      });
+    }
   }
   if (!msgIsLocation && !filledSet.has("Nombre del cliente") && asked !== "zona" && (asked === "nombre" || !history.some((m) => m.role === "assistant") && !isGreetingOnlyMessage(msg)) && !isAffirmativeOnlyMessage(msg) && !isQuoteIntentMessage(msg) && !isServiceRelatedMessage(msg) && !isAmbiguousShortNumber(msg) && !isLikelyUbicacionNotNombre(msg) && !parseZonaFromText(msg) && /[a-záéíóúüñ]/i.test(msg) && !/@/.test(msg) && !/\d{4,}/.test(msg)) {
     const candidato = stripNombrePresentationPrefix(msg);
@@ -6833,7 +6878,8 @@ function enrichExtractedFromConversation(extracted, conversationText) {
     if (merged) extracted.requerimientos_evento = merged;
   }
   if (extracted.presupuesto === null || extracted.presupuesto === void 0) {
-    const presChunks = conversationText.split(/\n|\.|;/).map((s) => s.trim()).filter((s) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s));
+    const scrubbedConv = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
+    const presChunks = scrubbedConv.split(/\n|\.|;/).map((s) => s.trim()).filter((s) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s));
     for (const chunk of presChunks) {
       const pres = parsePresupuestoFromText(chunk);
       if (!pres) continue;
@@ -6844,7 +6890,8 @@ function enrichExtractedFromConversation(extracted, conversationText) {
       }
     }
   } else {
-    const amounts = [...conversationText.matchAll(/\$?\s*([\d][\d,]{2,})\b/g)].map((m) => parseInt(m[1].replace(/,/g, ""), 10)).filter((n) => !isNaN(n) && n >= 1e3 && n <= 5e7);
+    const scrubbed = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
+    const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)].map((m) => parseInt(m[1].replace(/,/g, ""), 10)).filter((n) => !isNaN(n) && n >= 1e3 && n <= 5e7);
     const maxAmt = amounts.length ? Math.max(...amounts) : 0;
     if (maxAmt > extracted.presupuesto) {
       extracted.presupuesto = maxAmt;
@@ -6920,12 +6967,36 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
   }
   if (out.presupuesto !== null && out.presupuesto !== void 0) {
     const presStr = String(out.presupuesto).trim();
+    const digits = presStr.replace(/[^\d]/g, "");
+    const fromEmailLocal = userTexts.some((t) => {
+      const emails = t.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? [];
+      return emails.some((e) => {
+        const local = e.split("@")[0] ?? "";
+        return digits.length >= 4 && local.includes(digits);
+      });
+    });
+    if (fromEmailLocal) {
+      out.presupuesto = null;
+      applied.push("presupuesto-from-email-cleared");
+      for (const t of userTexts) {
+        const p = parsePresupuestoFromText(t.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " "), {
+          askedField: "presupuesto"
+        });
+        if (!p) continue;
+        const n = parseInt(p.replace(/[^\d]/g, ""), 10);
+        if (!isNaN(n) && n >= 1e3 && String(n) !== digits) {
+          out.presupuesto = n;
+          applied.push("presupuesto-recovered-after-email");
+          break;
+        }
+      }
+    }
     const guestRangePolluted = looksLikeGuestCountRange(presStr) || looksLikeGuestCountRange(presStr.replace(/\s*MXN$/i, "")) || typeof out.presupuesto === "number" && out.num_invitados != null && (out.presupuesto === out.num_invitados || // "80"+"100" concatenado ≈ 80100 con invitados ~90
     out.presupuesto >= 1e3 && out.presupuesto < 1e5 && userTexts.some((t) => looksLikeGuestCountRange(t)));
-    if (guestRangePolluted && !userTexts.some((t) => /\b(presupuesto|mil|pesos|\$|k\b|inversi[oó]n)\b/i.test(t))) {
+    if (out.presupuesto != null && guestRangePolluted && !userTexts.some((t) => /\b(presupuesto|mil|pesos|\$|k\b|inversi[oó]n)\b/i.test(t))) {
       out.presupuesto = null;
       applied.push("presupuesto-guest-range-cleared");
-    } else if (!userJustifiesPresupuesto(userTexts)) {
+    } else if (out.presupuesto != null && !userJustifiesPresupuesto(userTexts)) {
       out.presupuesto = null;
       applied.push("presupuesto-no-user-source");
     } else if (typeof out.presupuesto === "number" && out.presupuesto > 0 && out.presupuesto < 1e3) {
@@ -6943,7 +7014,7 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
       }
     }
   }
-  if (out.direccion_evento && (!isUsableDireccionEvento(out.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out.direccion_evento))) {
+  if (out.direccion_evento && (!isUsableDireccionEvento(out.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out.direccion_evento) || isLikelyProductNameNotLocation(out.direccion_evento))) {
     out.direccion_evento = null;
     applied.push("zona-unusable-cleared");
   }
@@ -21972,9 +22043,10 @@ function isValidRequerimientosValue(value) {
 }
 var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 function detectCierreEnviado(history, lastStoredResponse) {
-  if (lastStoredResponse?.includes(CLOSING_SIGNATURE)) return true;
+  const looksLikeCierre = (t) => t.includes(CLOSING_SIGNATURE) || /\bya tengo todo\b/i.test(t) || /\bcompartir esta informaci[oó]n con nuestro equipo\b/i.test(t) || /\bcotizaci[oó]n personalizada\b/i.test(t);
+  if (lastStoredResponse && looksLikeCierre(lastStoredResponse)) return true;
   return history.some(
-    (m) => m.role === "assistant" && typeof m.content === "string" && m.content.includes(CLOSING_SIGNATURE)
+    (m) => m.role === "assistant" && typeof m.content === "string" && looksLikeCierre(m.content)
   );
 }
 function collectUserTexts(history, currentMessage) {
@@ -22338,10 +22410,11 @@ ${nextQ}`.trim()
 function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx) {
   const msg = currentMessage ?? "";
   const dims = parseSpaceDimensions(msg) || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const transparent = /transparent/i.test(msg);
+  const variant = parseCarpaVariantFromText(msg);
+  const transparent = /transparent/i.test(msg) || /transparent/i.test(variant ?? "");
   const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
   if (filledSet) filledSet.add("Requerimientos o servicios");
-  const baseLabel = transparent ? "Carpas transparentes" : "Carpas";
+  const baseLabel = variant || (transparent ? "Carpas transparentes" : "Carpas");
   const label = alsoMobiliario ? `${baseLabel}, Mobiliario` : baseLabel;
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
     extracted.requerimientos_evento = dims ? `${label} (${dims})` : label;
@@ -22379,7 +22452,50 @@ ${nextQ}`.trim();
     }
     return `${pickTransition(history)} ${body}`.trim();
   }
+  if (dims && isDimensionText(msg)) {
+    const filledAfter2 = new Set(filledSet ?? []);
+    filledAfter2.add("Requerimientos o servicios");
+    const pending2 = getNextPendingField(extracted, filledAfter2);
+    const ack2 = `Perfecto \u2014 anoto medidas *${dims.replace(/m/gi, " m")}* para la carpa.`;
+    if (pending2 && pending2 !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
+      return `${pickTransition(history)} ${ack2}
+
+${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${ack2}`.trim();
+  }
+  if (variant && !/carpas?/i.test(msg)) {
+    const filledAfter2 = new Set(filledSet ?? []);
+    filledAfter2.add("Requerimientos o servicios");
+    const pending2 = getNextPendingField(extracted, filledAfter2);
+    const ack2 = dims ? `Perfecto \u2014 anoto *${variant}* (${dims.replace(/m/gi, " m")}) para tu cotizaci\xF3n.` : `Perfecto \u2014 anoto *${variant}* para tu cotizaci\xF3n.`;
+    if (!dims) {
+      return `${pickTransition(history)} ${ack2} \xBFQu\xE9 medidas aproximadas necesitas?`.trim();
+    }
+    if (pending2 && pending2 !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
+      return `${pickTransition(history)} ${ack2}
+
+${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${ack2}`.trim();
+  }
   const ack = buildGuardServiceAck(msg || "carpas transparentes");
+  if (dims && /medidas/i.test(ack)) {
+    const withoutMedidasAsk = ack.replace(/\s*¿Qué medidas aproximadas necesitas\?/gi, "").replace(/\s*¿Qué medidas aproximadas tiene el espacio\?/gi, "").trim();
+    const filledAfter2 = new Set(filledSet ?? []);
+    filledAfter2.add("Requerimientos o servicios");
+    const pending2 = getNextPendingField(extracted, filledAfter2);
+    const body = `${withoutMedidasAsk} Anoto medidas *${dims.replace(/m/gi, " m")}*.`;
+    if (pending2 && pending2 !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
+      return `${pickTransition(history)} ${body}
+
+${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${body}`.trim();
+  }
   if (!dims) {
     return `${pickTransition(history)} ${ack}`.trim();
   }
@@ -22856,12 +22972,21 @@ function dedupeTransitionsInMessage(mensaje) {
   if (!mensaje?.trim()) return mensaje;
   const pattern = /\b(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./gi;
   let seen = null;
-  return mensaje.replace(pattern, (match) => {
+  let out = mensaje.replace(pattern, (match) => {
     const key = match.toLowerCase();
     if (seen === key) return "";
     if (!seen) seen = key;
     return match;
   }).replace(/\s{2,}/g, " ").replace(/\s+\n/g, "\n").trim();
+  out = out.replace(
+    /\b(Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.)(?:\s+\1)+/gi,
+    "$1"
+  );
+  out = out.replace(
+    /\b(Perfecto|Excelente|Genial|Claro),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+Mucho gusto,\s+\2\./gi,
+    "$1, $2."
+  );
+  return out.replace(/\s{2,}/g, " ").trim();
 }
 function stripRobotAcknowledgments(mensaje) {
   let out = mensaje;
@@ -23628,9 +23753,22 @@ function clientSaysThanks(message) {
   if (!message?.trim()) return false;
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
 }
+function clientAsksPaymentOrQuoteDelivery(message) {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return /\b(anticipo|50\s*%|porcentaje|dep[oó]sito|se[nñ]a)\b/i.test(t) || /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t) || /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t) || /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t) || /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t);
+}
 function buildPostCierreThanksReply(clientName) {
   const nombre = sanitizeDisplayName(clientName);
   return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
+}
+function buildPostCierrePaymentHandoffReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `${nombre}, ` : "";
+  return [
+    `Claro que s\xED, ${hi}nuestro equipo te env\xEDa la cotizaci\xF3n y los datos para el anticipo (50%) por el correo que ya tenemos.`,
+    "En breve te atienden para confirmar montos y forma de pago."
+  ].join(" ");
 }
 function buildPostCierreCallbackAck(clientName) {
   const nombre = sanitizeDisplayName(clientName);
@@ -24180,15 +24318,17 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       extracted.num_invitados = null;
       filledSet.delete("N\xFAmero de invitados");
     }
-    if (extracted.direccion_evento && (isLikelyProductNameNotLocation(extracted.direccion_evento) || looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento) || /\bsala\s*:/i.test(blob) && new RegExp(
+    if (extracted.direccion_evento && (isLikelyProductNameNotLocation(extracted.direccion_evento) || looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento) || parseCarpaVariantFromText(extracted.direccion_evento) || /\bsala\s*:/i.test(blob) && new RegExp(
       extracted.direccion_evento.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
       "i"
     ).test(blob))) {
       const sala = parseSalaProductFromText(blob);
-      if (sala) {
+      const carpaVar = parseCarpaVariantFromText(extracted.direccion_evento) || parseCarpaVariantFromText(currentMessage ?? "") || parseCarpaVariantFromText(blob);
+      const product = sala || carpaVar;
+      if (product) {
         extracted.requerimientos_evento = mergeServiceRequirements(
           extracted.requerimientos_evento,
-          sala,
+          product,
           6
         );
         if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
@@ -24301,6 +24441,21 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
 Un asesor te puede atender por ah\xED; tu caso ya qued\xF3 con el equipo.`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 cliente pidi\xF3 llamada/tel\xE9fonos");
+  } else if (cierreYaEnviado && clientAsksPaymentOrQuoteDelivery(currentMessage)) {
+    if (!extracted.correo?.trim()) {
+      const recovered = parseCorreoFromText(
+        collectUserTexts(presHistory, currentMessage).join("\n")
+      );
+      if (recovered) {
+        extracted.correo = recovered;
+        filledSet.add("Correo electr\xF3nico");
+      }
+    } else {
+      filledSet.add("Correo electr\xF3nico");
+    }
+    mensaje = buildPostCierrePaymentHandoffReply(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15016 \u2014 post-cierre pago/anticipo \u2192 equipo");
   } else if (clientAsksForHumanAdvisor(currentMessage)) {
     mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
     appliedDirectReply = true;
@@ -24981,7 +25136,12 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
     );
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A14988 \u2014 Revisar tras oferta \u2192 embudo (sin re-CTA)");
-  } else if (allowSalesReplyOverride && clientMentionsCarpas(currentMessage)) {
+  } else if (allowSalesReplyOverride && (clientMentionsCarpas(currentMessage) || // A15016: "De 6 x20" tras ask de medidas de carpa.
+  !!parseSpaceDimensions(currentMessage ?? "") && /carpa/i.test(
+    `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory, currentMessage).join(" ")}`
+  ) && /medidas/i.test(
+    typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
+  ))) {
     mensaje = buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: carpas \u2014 responder, agregar y pedir medidas");
@@ -25860,6 +26020,24 @@ ${buildNaturalQuestion(pending, { ...ctx, filledSet })}` : ack;
     log?.info({ entityId }, "GUARD: quit\xF3 bloque gen\xE9rico fijo del cierre");
   }
   mensaje = dedupeTransitionsInMessage(mensaje);
+  if (cierreYaEnviado && /correo electr[oó]nico|a qu[eé] correo|me compartes.*correo/i.test(mensaje)) {
+    if (!extracted.correo?.trim()) {
+      const recovered = parseCorreoFromText(
+        collectUserTexts(presHistory, currentMessage).join("\n")
+      );
+      if (recovered) {
+        extracted.correo = recovered;
+        filledSet.add("Correo electr\xF3nico");
+      }
+    }
+    if (extracted.correo?.trim() || filledSet.has("Correo electr\xF3nico") || filledSet.has(EMAIL_WAIVED_LABEL)) {
+      mensaje = mensaje.replace(/[^.?!\n]*\b(correo electr[oó]nico|a qu[eé] correo|me compartes.{0,40}correo)[^.?!\n]*[.?!]?\s*/gi, "").replace(/\bAdem[aá]s,\s*/gi, "").replace(/\n{3,}/g, "\n\n").trim();
+      if (!mensaje || mensaje.length < 12) {
+        mensaje = clientSaysThanks(currentMessage) ? buildPostCierreThanksReply(extracted.nombre) : buildPostCierrePaymentHandoffReply(extracted.nombre);
+      }
+      log?.info({ entityId }, "GUARD: A15016 \u2014 post-cierre sin re-pedir correo");
+    }
+  }
   const clientWantedCatalog = clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
@@ -33604,6 +33782,184 @@ ${golfText}`,
       clientName: "Juan"
     });
     assert.ok(!/Sigo aquí/i.test(antiHandoff.mensaje), antiHandoff.mensaje);
+  });
+  await test("117. A15016 Israel \u2014 Catedral, De 6x20, email\u2260presupuesto, post-cierre", async () => {
+    assert.equal(parseCarpaVariantFromText("Catedral"), "Carpa Cathedral");
+    assert.equal(parseCarpaVariantFromText("Cathedral"), "Carpa Cathedral");
+    assert.ok(isLikelyProductNameNotLocation("Catedral"));
+    assert.ok(!isUsableDireccionEvento("Catedral"));
+    assert.equal(parseZonaFromText("Catedral"), null);
+    assert.ok(isDimensionText("De 6 x20"));
+    assert.equal(parseSpaceDimensions("De 6 x20"), "6m x 20m");
+    assert.equal(
+      parsePresupuestoFromText("israel241268@hotmail.com", { askedField: "presupuesto" }),
+      null
+    );
+    assert.equal(
+      parsePresupuestoFromText("17 mil aproximadamente", { askedField: "presupuesto" }),
+      "$17000"
+    );
+    const inv = applyCrmWriteInvariants(
+      {
+        nombre: "Israel Albiter",
+        correo: "israel241268@hotmail.com",
+        presupuesto: 241268,
+        direccion_evento: "Catedral",
+        requerimientos_evento: "Carpas (espacio 6m x 20m)",
+        tipo_evento: "cumplea\xF1os",
+        num_invitados: 200
+      },
+      [
+        "Carpa transparente",
+        "De 6 x20",
+        "Catedral",
+        "Cumplea\xF1os",
+        "17 mil aproximadamente",
+        "israel241268@hotmail.com"
+      ]
+    );
+    assert.equal(inv.extracted.direccion_evento, null);
+    assert.ok(
+      inv.extracted.presupuesto === null || inv.extracted.presupuesto === 17e3,
+      String(inv.extracted.presupuesto)
+    );
+    assert.ok(inv.applied.includes("zona-unusable-cleared") || inv.extracted.direccion_evento == null);
+    const carpaFirst = runGuards({
+      aiResponse: "\xBFQu\xE9 tipo de evento est\xE1s organizando?",
+      extracted: emptyExtracted({
+        nombre: "Israel Albiter",
+        correo: "isra_piter@hotmail.com"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Correo electr\xF3nico"]),
+      readyForClosing: false,
+      currentMessage: "Carpa transparente",
+      history: [
+        {
+          role: "assistant",
+          content: "Gracias por tu correo, Israel. \xBFQu\xE9 tipo de evento est\xE1s organizando?"
+        }
+      ]
+    });
+    assert.ok(/carpa/i.test(carpaFirst), carpaFirst.slice(0, 400));
+    assert.ok(!/Sigo aquí/i.test(carpaFirst));
+    const dimsReply = runGuards({
+      aiResponse: "\xBFQu\xE9 tipo de evento est\xE1s organizando?",
+      extracted: emptyExtracted({
+        nombre: "Israel Albiter",
+        correo: "isra_piter@hotmail.com",
+        requerimientos_evento: "Carpas transparentes"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "De 6 x20",
+      history: [
+        {
+          role: "assistant",
+          content: "S\xED, contamos con *carpas transparentes* (y tambi\xE9n Cathedral, Pir\xE1mide y Planas). \xBFQu\xE9 medidas aproximadas necesitas?"
+        }
+      ]
+    });
+    assert.ok(/6\s*m?\s*x\s*20/i.test(dimsReply), dimsReply.slice(0, 500));
+    assert.ok(!/medidas aproximadas necesitas/i.test(dimsReply), dimsReply.slice(0, 500));
+    const catedralReply = runGuards({
+      aiResponse: "\xBFQu\xE9 tipo de evento est\xE1s organizando?",
+      extracted: emptyExtracted({
+        nombre: "Israel Albiter",
+        correo: "isra_piter@hotmail.com",
+        requerimientos_evento: "Carpas transparentes (6m x 20m)",
+        direccion_evento: "Catedral"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Catedral",
+      history: [
+        { role: "user", content: "Carpa transparente" },
+        {
+          role: "assistant",
+          content: "S\xED, carpas transparentes, Cathedral, Pir\xE1mide y Planas. \xBFMedidas?"
+        }
+      ]
+    });
+    assert.ok(/cathedral|catedral|carpa/i.test(catedralReply), catedralReply.slice(0, 500));
+    assert.ok(!/ubicaci[oó]n|lugar del evento|d[oó]nde ser[aá]/i.test(catedralReply), catedralReply.slice(0, 400));
+    const closing = `${CLOSING_SIGNATURE} Voy a compartir esta informaci\xF3n con nuestro equipo para que te prepare una cotizaci\xF3n personalizada.`;
+    assert.ok(detectCierreEnviado([{ role: "assistant", content: closing }]));
+    const thanks = runGuards({
+      aiResponse: "\xBFMe puedes compartir tu correo electr\xF3nico?",
+      extracted: emptyExtracted({
+        nombre: "Israel Albiter",
+        correo: "isra_piter@hotmail.com",
+        tipo_evento: "cumplea\xF1os",
+        requerimientos_evento: "Carpas (espacio 6m x 20m)",
+        fecha_horario: "1 de agosto 2026",
+        num_invitados: 200,
+        presupuesto: 17e3
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Fecha y horario",
+        "N\xFAmero de invitados",
+        "Presupuesto (MXN)"
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Muchas gracias amigo",
+      history: [{ role: "assistant", content: closing }],
+      lastStoredResponse: closing
+    });
+    assert.ok(/con gusto|equipo/i.test(thanks), thanks.slice(0, 400));
+    assert.ok(!/correo/i.test(thanks), thanks.slice(0, 400));
+    assert.ok(
+      clientAsksPaymentOrQuoteDelivery(
+        "Si me manda el presupuesto y donde mandar el 50 % de anticipo"
+      )
+    );
+    const pay = runGuards({
+      aiResponse: "Mucho gusto, Israel. \xBFA qu\xE9 correo te lo env\xEDo?",
+      extracted: emptyExtracted({
+        nombre: "Israel Albiter",
+        correo: "isra_piter@hotmail.com",
+        tipo_evento: "cumplea\xF1os",
+        requerimientos_evento: "Carpas (espacio 6m x 20m)",
+        presupuesto: 17e3
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Presupuesto (MXN)"
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Si me manda el presupuesto y donde mandar el 50 % de anticipo",
+      history: [
+        { role: "user", content: "isra_piter@hotmail.com" },
+        { role: "assistant", content: closing }
+      ],
+      lastStoredResponse: closing
+    });
+    assert.ok(/anticipo|equipo|cotizaci[oó]n/i.test(pay), pay.slice(0, 500));
+    assert.ok(!/a qu[eé] correo|Mucho gusto,\s*Israel\.\s*Mucho gusto/i.test(pay), pay.slice(0, 500));
+    const deduped = dedupeTransitionsInMessage(
+      "Perfecto, Israel. Mucho gusto, Israel. Para mandarte la info, \xBFa qu\xE9 correo te lo env\xEDo?"
+    );
+    assert.equal((deduped.match(/Mucho gusto,\s*Israel/gi) || []).length, 0);
+    assert.ok(/Perfecto, Israel/i.test(deduped));
+    const handoffPay = buildPostCierrePaymentHandoffReply("Israel");
+    assert.ok(/anticipo|50\s*%|equipo/i.test(handoffPay));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

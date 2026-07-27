@@ -126,6 +126,7 @@ import {
   clientMentionsCarpas,
   clientAsksServiceInfo,
   parseSalaProductFromText,
+  parseCarpaVariantFromText,
   isLikelyProductNameNotLocation,
   isNonLocationBusinessPhrase,
   detectPresupuestoRefusal,
@@ -144,6 +145,7 @@ import {
   isServiceRelatedMessage,
   parsePrimaryService,
   parseSpaceDimensions,
+  isDimensionText,
   parseFechaFromText,
   parseTipoEventoFromText,
   parseInvitadosFromText,
@@ -431,12 +433,17 @@ export function detectCierreEnviado(
   history: OpenAI.Chat.ChatCompletionMessageParam[],
   lastStoredResponse?: string | null
 ): boolean {
-  if (lastStoredResponse?.includes(CLOSING_SIGNATURE)) return true;
+  const looksLikeCierre = (t: string) =>
+    t.includes(CLOSING_SIGNATURE) ||
+    /\bya tengo todo\b/i.test(t) ||
+    /\bcompartir esta informaci[oó]n con nuestro equipo\b/i.test(t) ||
+    /\bcotizaci[oó]n personalizada\b/i.test(t);
+  if (lastStoredResponse && looksLikeCierre(lastStoredResponse)) return true;
   return history.some(
     (m) =>
       m.role === "assistant" &&
       typeof m.content === "string" &&
-      (m.content as string).includes(CLOSING_SIGNATURE)
+      looksLikeCierre(m.content as string)
   );
 }
 
@@ -994,7 +1001,7 @@ function buildPistaTarimaSalesReply(
   return collapseDuplicateMedidasAsk(`${pickTransition(history)} ${intro}`.trim());
 }
 
-/** Carpas: sí/no real + agregar a cotización + medidas (María A14906). */
+/** Carpas: sí/no real + agregar a cotización + medidas (María A14906 / A15016). */
 function buildCarpasSalesReply(
   extracted: ExtractedData,
   history: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -1006,12 +1013,14 @@ function buildCarpasSalesReply(
   const dims =
     parseSpaceDimensions(msg) ||
     (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null);
-  const transparent = /transparent/i.test(msg);
+  const variant = parseCarpaVariantFromText(msg);
+  const transparent = /transparent/i.test(msg) || /transparent/i.test(variant ?? "");
   // A14994: "Carpas o mobiliario" — anotar ambos + catálogo (no saltar solo a zona).
   const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
 
   if (filledSet) filledSet.add("Requerimientos o servicios");
-  const baseLabel = transparent ? "Carpas transparentes" : "Carpas";
+  const baseLabel =
+    variant || (transparent ? "Carpas transparentes" : "Carpas");
   const label = alsoMobiliario ? `${baseLabel}, Mobiliario` : baseLabel;
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
     extracted.requerimientos_evento = dims ? `${label} (${dims})` : label;
@@ -1047,8 +1056,55 @@ function buildCarpasSalesReply(
     return `${pickTransition(history)} ${body}`.trim();
   }
 
+  // Solo medidas tras ask de carpas (A15016: "De 6 x20").
+  if (dims && isDimensionText(msg)) {
+    const filledAfter = new Set(filledSet ?? []);
+    filledAfter.add("Requerimientos o servicios");
+    const pending = getNextPendingField(extracted, filledAfter);
+    const ack = `Perfecto — anoto medidas *${dims.replace(/m/gi, " m")}* para la carpa.`;
+    if (pending && pending !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+      return `${pickTransition(history)} ${ack}\n\n${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${ack}`.trim();
+  }
+
+  // Variante Cathedral/etc. tras listado (A15016).
+  if (variant && !/carpas?/i.test(msg)) {
+    const filledAfter = new Set(filledSet ?? []);
+    filledAfter.add("Requerimientos o servicios");
+    const pending = getNextPendingField(extracted, filledAfter);
+    const ack = dims
+      ? `Perfecto — anoto *${variant}* (${dims.replace(/m/gi, " m")}) para tu cotización.`
+      : `Perfecto — anoto *${variant}* para tu cotización.`;
+    if (!dims) {
+      return `${pickTransition(history)} ${ack} ¿Qué medidas aproximadas necesitas?`.trim();
+    }
+    if (pending && pending !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+      return `${pickTransition(history)} ${ack}\n\n${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${ack}`.trim();
+  }
+
   // Carpas solas (A14906): ack consultivo + medidas; sin volcar catálogo genérico.
   const ack = buildGuardServiceAck(msg || "carpas transparentes");
+  // Si ya trajeron medidas en el mismo turno, no re-preguntar medidas.
+  if (dims && /medidas/i.test(ack)) {
+    const withoutMedidasAsk = ack
+      .replace(/\s*¿Qué medidas aproximadas necesitas\?/gi, "")
+      .replace(/\s*¿Qué medidas aproximadas tiene el espacio\?/gi, "")
+      .trim();
+    const filledAfter = new Set(filledSet ?? []);
+    filledAfter.add("Requerimientos o servicios");
+    const pending = getNextPendingField(extracted, filledAfter);
+    const body = `${withoutMedidasAsk} Anoto medidas *${dims.replace(/m/gi, " m")}*.`;
+    if (pending && pending !== "requerimientos" && ctx) {
+      const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+      return `${pickTransition(history)} ${body}\n\n${nextQ}`.trim();
+    }
+    return `${pickTransition(history)} ${body}`.trim();
+  }
   if (!dims) {
     return `${pickTransition(history)} ${ack}`.trim();
   }
@@ -1756,7 +1812,7 @@ export function dedupeTransitionsInMessage(mensaje: string): string {
   const pattern =
     /\b(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./gi;
   let seen: string | null = null;
-  return mensaje
+  let out = mensaje
     .replace(pattern, (match) => {
       const key = match.toLowerCase();
       if (seen === key) return "";
@@ -1766,6 +1822,16 @@ export function dedupeTransitionsInMessage(mensaje: string): string {
     .replace(/\s{2,}/g, " ")
     .replace(/\s+\n/g, "\n")
     .trim();
+  // A15016: "Perfecto, Israel. Mucho gusto, Israel." / doble Mucho gusto.
+  out = out.replace(
+    /\b(Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.)(?:\s+\1)+/gi,
+    "$1"
+  );
+  out = out.replace(
+    /\b(Perfecto|Excelente|Genial|Claro),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+Mucho gusto,\s+\2\./gi,
+    "$1, $2."
+  );
+  return out.replace(/\s{2,}/g, " ").trim();
 }
 
 /** Quita "Ya tengo tu correo/zona..." antes de la siguiente pregunta (anti-robot Replit). */
@@ -3025,11 +3091,33 @@ export function clientSaysThanks(message?: string): boolean {
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
 }
 
+/** Cliente pide cotización / anticipo / datos de pago (post-cierre → equipo). */
+export function clientAsksPaymentOrQuoteDelivery(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  return (
+    /\b(anticipo|50\s*%|porcentaje|dep[oó]sito|se[nñ]a)\b/i.test(t) ||
+    /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t) ||
+    /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t) ||
+    /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t) ||
+    /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t)
+  );
+}
+
 export function buildPostCierreThanksReply(clientName?: string | null): string {
   const nombre = sanitizeDisplayName(clientName);
   return nombre
     ? `¡Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.`
     : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.";
+}
+
+export function buildPostCierrePaymentHandoffReply(clientName?: string | null): string {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `${nombre}, ` : "";
+  return [
+    `Claro que sí, ${hi}nuestro equipo te envía la cotización y los datos para el anticipo (50%) por el correo que ya tenemos.`,
+    "En breve te atienden para confirmar montos y forma de pago.",
+  ].join(" ");
 }
 
 /** Tras pasar teléfonos / pedir llamada: no cerrar otra vez con plantilla genérica. */
@@ -3938,6 +4026,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       (isLikelyProductNameNotLocation(extracted.direccion_evento) ||
         looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento) ||
         !isUsableDireccionEvento(extracted.direccion_evento) ||
+        parseCarpaVariantFromText(extracted.direccion_evento) ||
         (/\bsala\s*:/i.test(blob) &&
           new RegExp(
             extracted.direccion_evento.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
@@ -3945,10 +4034,15 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           ).test(blob)))
     ) {
       const sala = parseSalaProductFromText(blob);
-      if (sala) {
+      const carpaVar =
+        parseCarpaVariantFromText(extracted.direccion_evento) ||
+        parseCarpaVariantFromText(currentMessage ?? "") ||
+        parseCarpaVariantFromText(blob);
+      const product = sala || carpaVar;
+      if (product) {
         extracted.requerimientos_evento = mergeServiceRequirements(
           extracted.requerimientos_evento,
-          sala,
+          product,
           6
         );
         if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
@@ -4149,6 +4243,25 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     mensaje = `${buildPhoneAnswer()}\n\nUn asesor te puede atender por ahí; tu caso ya quedó con el equipo.`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — cliente pidió llamada/teléfonos");
+  } else if (
+    cierreYaEnviado &&
+    clientAsksPaymentOrQuoteDelivery(currentMessage)
+  ) {
+    // A15016: "manda el presupuesto y dónde el 50% de anticipo" — no reabrir correo.
+    if (!extracted.correo?.trim()) {
+      const recovered = parseCorreoFromText(
+        collectUserTexts(presHistory, currentMessage).join("\n")
+      );
+      if (recovered) {
+        extracted.correo = recovered;
+        filledSet.add("Correo electrónico");
+      }
+    } else {
+      filledSet.add("Correo electrónico");
+    }
+    mensaje = buildPostCierrePaymentHandoffReply(extracted.nombre);
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: A15016 — post-cierre pago/anticipo → equipo");
   } else if (clientAsksForHumanAdvisor(currentMessage)) {
     // A15000 Itzel: "prefiero hablar con un asesor" — handoff, no seguir embudo.
     mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
@@ -5190,7 +5303,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         );
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: A14988 — Revisar tras oferta → embudo (sin re-CTA)");
-  } else if (allowSalesReplyOverride && clientMentionsCarpas(currentMessage)) {
+  } else if (
+    allowSalesReplyOverride &&
+    (clientMentionsCarpas(currentMessage) ||
+      // A15016: "De 6 x20" tras ask de medidas de carpa.
+      (!!parseSpaceDimensions(currentMessage ?? "") &&
+        /carpa/i.test(
+          `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory, currentMessage).join(" ")}`
+        ) &&
+        /medidas/i.test(
+          typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
+        )))
+  ) {
     mensaje = buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: carpas — responder, agregar y pedir medidas");
@@ -6417,6 +6541,32 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = dedupeTransitionsInMessage(mensaje);
+
+  // A15016: post-cierre NUNCA re-pide correo si ya está en historial/extracted.
+  if (cierreYaEnviado && /correo electr[oó]nico|a qu[eé] correo|me compartes.*correo/i.test(mensaje)) {
+    if (!extracted.correo?.trim()) {
+      const recovered = parseCorreoFromText(
+        collectUserTexts(presHistory, currentMessage).join("\n")
+      );
+      if (recovered) {
+        extracted.correo = recovered;
+        filledSet.add("Correo electrónico");
+      }
+    }
+    if (extracted.correo?.trim() || filledSet.has("Correo electrónico") || filledSet.has(EMAIL_WAIVED_LABEL)) {
+      mensaje = mensaje
+        .replace(/[^.?!\n]*\b(correo electr[oó]nico|a qu[eé] correo|me compartes.{0,40}correo)[^.?!\n]*[.?!]?\s*/gi, "")
+        .replace(/\bAdem[aá]s,\s*/gi, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      if (!mensaje || mensaje.length < 12) {
+        mensaje = clientSaysThanks(currentMessage)
+          ? buildPostCierreThanksReply(extracted.nombre)
+          : buildPostCierrePaymentHandoffReply(extracted.nombre);
+      }
+      log?.info({ entityId }, "GUARD: A15016 — post-cierre sin re-pedir correo");
+    }
+  }
 
   const clientWantedCatalog =
     clientAsksForCatalog(currentMessage) ||

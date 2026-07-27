@@ -909,6 +909,8 @@ export function isLikelyProductNameNotLocation(value: string | null | undefined)
   if (/^sala\s*:/i.test(t)) return true;
   if (/\bsala\s*:/i.test(t)) return true;
   if (/^luxor(\s+rosa)?$/i.test(t)) return true;
+  // A15016 Israel: Cathedral / Catedral / Pirámide / Planas = tipo de carpa, no sede.
+  if (parseCarpaVariantFromText(t)) return true;
   if (
     /^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
       t
@@ -928,6 +930,28 @@ export function isLikelyProductNameNotLocation(value: string | null | undefined)
   return false;
 }
 
+/** Variante de carpa (Cathedral / Pirámide / Planas / transparente). */
+export function parseCarpaVariantFromText(text: string | null | undefined): string | null {
+  const t = (text ?? "").trim();
+  if (!t || t.length > 60) return null;
+  if (/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida)\b/i.test(t)) {
+    return null;
+  }
+  if (/^(cathedral|catedral)(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+catedral\b/i.test(t)) {
+    return "Carpa Cathedral";
+  }
+  if (/^pir[aá]mide(s)?(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+pir[aá]mide\b/i.test(t)) {
+    return "Carpa Pirámide";
+  }
+  if (/^planas?(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+plana\b/i.test(t)) {
+    return "Carpa Plana";
+  }
+  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t)) {
+    return "Carpas transparentes";
+  }
+  return null;
+}
+
 /** Extrae producto "sala: Luxor Rosa" / "4 salas" para requerimientos. */
 export function parseSalaProductFromText(text: string): string | null {
   const named = text.match(/\bsala\s*:\s*([A-Za-zÁÉÍÓÚáéíóúñ0-9][\w\s.-]{1,40})/i);
@@ -942,10 +966,12 @@ export function parseSalaProductFromText(text: string): string | null {
   return null;
 }
 
-/** Cliente menciona carpas (incl. transparentes). */
+/** Cliente menciona carpas (incl. transparentes) o elige variante Cathedral/etc. */
 export function clientMentionsCarpas(message?: string): boolean {
   if (!message?.trim()) return false;
-  return /\bcarpas?\b|\btoldos?\b|\blonas?\b/i.test(message);
+  return (
+    /\bcarpas?\b|\btoldos?\b|\blonas?\b/i.test(message) || !!parseCarpaVariantFromText(message)
+  );
 }
 
 /** Carpas / pista / tarima: hay que pedir medidas. */
@@ -2121,12 +2147,16 @@ export function parseInvitadosFromText(text: string): string | null {
 export function isDimensionText(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
+  // A15016: "De 6 x20" / "son 6x20" / "miden 6 x 20"
+  const dePrefixed = t.replace(/^(de|son|miden|mide|aproximadamente|aprox\.?)\s+/i, "").trim();
   return (
     /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t) ||
     /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t) ||
     /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t) ||
     /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t) ||
-    /^\d+m\s*x\s*\d+m$/i.test(t)
+    /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(dePrefixed) ||
+    /^\d+m\s*x\s*\d+m$/i.test(t) ||
+    /^\d+m\s*x\s*\d+m$/i.test(dePrefixed)
   );
 }
 
@@ -2638,7 +2668,15 @@ export function findPresupuestoInTexts(
 }
 
 export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOptions): string | null {
-  const trimmed = text.trim();
+  // A15016: dígitos del correo (israel241268@…) NUNCA son presupuesto.
+  const withoutEmails = text
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const trimmed = withoutEmails || text.trim();
+  if (!trimmed) return null;
+  // Mensaje que es solo un correo.
+  if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(text.trim())) return null;
 
   if (
     /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) ||
@@ -2802,7 +2840,8 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     hasMoneyWord &&
     /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed);
   if (hasMoneyWord || hasAproxBudget || (/\$/.test(trimmed) && hasMoneyWord)) {
-    const amountMatch = trimmed.match(/\$?\s*([\d][\d,.]*)/);
+    // No capturar dígitos pegados a letras (resto de email / códigos).
+    const amountMatch = trimmed.match(/(?<![A-Za-z0-9])\$?\s*([\d][\d,.]*)/);
     if (amountMatch) return trimmed.slice(0, 80);
   }
   // "$80,000" / "presupuesto 50 mil" con $ y monto alto sin palabra clave aún puede ser presupuesto.
@@ -2861,8 +2900,16 @@ export function captureContextualAnswer(
   const captures: CrmCapture[] = [];
 
   // A14938: "en Tlalnepantla" es ubicación — NUNCA nombre (aunque Lucy haya pedido nombre).
+  const carpaVariant = parseCarpaVariantFromText(msg);
+  if (carpaVariant && !filledSet.has("Requerimientos o servicios")) {
+    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
+  } else if (carpaVariant) {
+    captures.push({ label: "Requerimientos o servicios", value: carpaVariant });
+  }
+
   const zonaFromMsg = parseZonaFromText(msg);
   const msgIsLocation =
+    !carpaVariant &&
     !!zonaFromMsg &&
     isUsableDireccionEvento(zonaFromMsg) &&
     (isLikelyUbicacionNotNombre(msg) ||
@@ -2872,6 +2919,25 @@ export function captureContextualAnswer(
 
   if (msgIsLocation && zonaFromMsg && !filledSet.has("Lugar/dirección del evento")) {
     captures.push({ label: "Lugar/dirección del evento", value: zonaFromMsg });
+  }
+
+  // A15016: medidas sueltas tras ask de carpas/pista.
+  const dimsNow = parseSpaceDimensions(msg);
+  if (
+    dimsNow &&
+    (isDimensionText(msg) || /medidas?/i.test(lastLucy) || /carpa|pista|tarima/i.test(lastLucy))
+  ) {
+    const existingReq = captures.find((c) => c.label === "Requerimientos o servicios");
+    if (existingReq) {
+      if (!existingReq.value.includes(dimsNow)) {
+        existingReq.value = `${existingReq.value.replace(/\s*\(espacio [^)]+\)/, "").trim()} (espacio ${dimsNow})`;
+      }
+    } else {
+      captures.push({
+        label: "Requerimientos o servicios",
+        value: `Carpas (espacio ${dimsNow})`,
+      });
+    }
   }
 
   if (
@@ -3284,7 +3350,8 @@ export function enrichExtractedFromConversation(
   }
 
   if (extracted.presupuesto === null || extracted.presupuesto === undefined) {
-    const presChunks = conversationText
+    const scrubbedConv = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
+    const presChunks = scrubbedConv
       .split(/\n|\.|;/)
       .map((s) => s.trim())
       .filter((s) => /\b(presupuesto|mil\b|pesos|\$|k\b|inversi[oó]n|rango)\b/i.test(s));
@@ -3299,7 +3366,9 @@ export function enrichExtractedFromConversation(
     }
   } else {
     // A14929: si el cliente sube el presupuesto en un mensaje posterior, tomar el mayor.
-    const amounts = [...conversationText.matchAll(/\$?\s*([\d][\d,]{2,})\b/g)]
+    // A15016: ignorar dígitos dentro de correos.
+    const scrubbed = conversationText.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ");
+    const amounts = [...scrubbed.matchAll(/(?<![A-Za-z0-9])\$?\s*([\d][\d,]{2,})\b/g)]
       .map((m) => parseInt(m[1]!.replace(/,/g, ""), 10))
       .filter((n) => !isNaN(n) && n >= 1000 && n <= 50_000_000);
     const maxAmt = amounts.length ? Math.max(...amounts) : 0;
