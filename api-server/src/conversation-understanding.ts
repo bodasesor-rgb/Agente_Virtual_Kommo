@@ -719,10 +719,29 @@ export function clientAsksLocation(message?: string): boolean {
   const t = message.toLowerCase();
   return (
     /d[oó]nde\s+(se\s+)?ubican/i.test(t) ||
-    /d[oó]nde\s+est[aá]n\s+ubicados/i.test(t) ||
+    /d[oó]nde\s+est[aá]n(\s+ubicados?)?/i.test(t) ||
+    /en\s+d[oó]nde\s+est[aá]n/i.test(t) ||
     /cu[aá]l\s+es\s+su\s+ubicaci[oó]n/i.test(t) ||
     /zona\s+de\s+cobertura/i.test(t) ||
-    /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t)
+    /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t) ||
+    /\b(est[aá]n|quedan)\s+ubicados?\b/i.test(t) ||
+    /\bd[oó]nde\s+tienen\s+(oficina|sucursal|local)\b/i.test(t)
+  );
+}
+
+/** Fragmentos que parecen pregunta de sede Bodasesor, NUNCA dirección del evento (A14995). */
+export function looksLikeCompanyLocationQuestionFragment(
+  text: string | null | undefined
+): boolean {
+  const t = (text ?? "").trim().toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (!t) return false;
+  if (clientAsksLocation(t)) return true;
+  return (
+    /^(d[oó]nde\s+est[aá]n|en\s+d[oó]nde(\s+est[aá]n)?|donde\s+estan|ubicados?|su\s+ubicaci[oó]n|ubicaci[oó]n)$/i.test(
+      t
+    ) ||
+    /^d[oó]nde\s+est[aá]n(\s+ubicados?)?$/i.test(t) ||
+    /^en\s+d[oó]nde(\s+est[aá]n)?(\s+ubicados?)?$/i.test(t)
   );
 }
 
@@ -1201,10 +1220,14 @@ export function isNonLocationBusinessPhrase(text: string | null | undefined): bo
   if (/^(blanco|negro|dorado|plateado|natural|madera)$/i.test(cleaned)) return true;
   // Exacto / casi exacto — no usar ^salón\b sobre "Salón Hacienda Los Olivos".
   if (
-    /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color)$/i.test(
+    /^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n)$/i.test(
       cleaned
     )
   ) {
+    return true;
+  }
+  // A14995: fragmentos de "¿dónde están?" capturados por el parser "en …".
+  if (looksLikeCompanyLocationQuestionFragment(cleaned) || looksLikeCompanyLocationQuestionFragment(t)) {
     return true;
   }
   if (/^cotizaci[oó]n\b/i.test(cleaned) && cleaned.split(/\s+/).length <= 2) return true;
@@ -1946,6 +1969,11 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
   if (isVagueVenueOnly(t)) return false;
   if (isLikelyProductNameNotLocation(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
+  // A14995 Hortensia: "donde estan" / pregunta de sede ≠ ubicación del evento.
+  if (looksLikeCompanyLocationQuestionFragment(t)) return false;
+  if (/\bd[oó]nde\b|\bubicad/i.test(t) && !KNOWN_ZONES.test(t) && t.split(/\s+/).length <= 5) {
+    return false;
+  }
   return true;
 }
 
@@ -1975,6 +2003,10 @@ export function parseZonaFromText(text: string): string | null {
   // "sala: Luxor Rosa" / producto de mobiliario ≠ zona del evento.
   if (isLikelyProductNameNotLocation(trimmed)) return null;
   if (/\bsala\s*:/i.test(trimmed)) return null;
+  // A14995: "En donde están ubicados?" NUNCA es dirección del evento.
+  if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
+    return null;
+  }
 
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
   if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {

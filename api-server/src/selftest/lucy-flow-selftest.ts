@@ -50,6 +50,7 @@ import {
   clientAffirmsCatalogOffer,
   looksLikeGuestCountRange,
   assistantOfferedCatalogDetail,
+  looksLikeCompanyLocationQuestionFragment,
   isCatalogLevelSelection,
   isUnusableTipoEventoReply,
   clientAsksCafeOrCateringChoice,
@@ -7221,6 +7222,77 @@ async function runAll(): Promise<void> {
       /bodasesor\.com\/catalogos/i.test(afterAnti.mensaje),
       `anti-repeat conserva URL: ${afterAnti.mensaje.slice(0, 400)}`
     );
+  });
+
+  await test("113. A14995 Hortensia — dónde están ≠ zona + paquete multi-servicio completo", () => {
+    assert.ok(clientAsksLocation("En donde estan ubicados?"));
+    assert.ok(clientAsksLocation("Es muy importante. En donde estan?"));
+    assert.equal(parseZonaFromText("En donde estan ubicados?"), null);
+    assert.equal(parseZonaFromText("donde estan"), null);
+    assert.ok(looksLikeCompanyLocationQuestionFragment("donde estan"));
+
+    const clean = sanitizeExtractedFromExternal(
+      emptyExtracted({
+        nombre: "Hortensia",
+        direccion_evento: "donde estan",
+      })
+    );
+    assert.equal(clean.direccion_evento, null);
+
+    const inv = applyCrmWriteInvariants(
+      emptyExtracted({
+        nombre: "Hortensia",
+        direccion_evento: "donde estan",
+      }),
+      ["En donde estan ubicados?"]
+    );
+    assert.equal(inv.extracted.direccion_evento, null);
+
+    const pkgMsg = [
+      "Banquete mexicano 3 y 4 tiempos",
+      "Barra de bebidas",
+      "Mesa de dulces y botanas",
+      "Mobiliario mesas vestidas y sillas",
+    ].join("\n");
+    const services = parseServicesFromText(pkgMsg);
+    assert.ok(services.length >= 3, `services=${services.join(",")}`);
+
+    const reply = runGuards({
+      aiResponse: "Perfecto, Hortensia. Anoto Banquete Mexicano 4 tiempos.",
+      extracted: emptyExtracted({
+        nombre: "Hortensia",
+        correo: "hortehgz@hotmail.com",
+        tipo_evento: "graduación",
+        direccion_evento: "donde estan",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: pkgMsg,
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Para tu graduación, manejamos varias opciones:\n• Banquete Formal\n• Barra de bebidas\n¿Qué te gustaría revisar primero?",
+        },
+      ],
+    });
+    assert.ok(/banquete/i.test(reply), reply.slice(0, 400));
+    assert.ok(/barra|bebidas/i.test(reply), reply.slice(0, 500));
+    assert.ok(/dulces|mobiliario/i.test(reply), reply.slice(0, 500));
+    assert.ok(
+      !/Anoto \*Banquete Mexicano 4 tiempos\*/i.test(reply),
+      `no solo dump tiempos: ${reply.slice(0, 400)}`
+    );
+    // Misma URL no debe aparecer dos veces.
+    const urls = reply.match(/https?:\/\/[^\s]*bodasesor\.com\/catalogos[^\s]*/gi) ?? [];
+    const unique = new Set(urls.map((u) => u.replace(/\/+$/, "").toLowerCase()));
+    assert.equal(urls.length, unique.size, `URLs duplicadas: ${urls.join(" | ")}`);
+    assert.ok(/bodasesor\.com\/catalogos/i.test(reply), reply.slice(0, 500));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

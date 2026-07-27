@@ -5249,7 +5249,15 @@ function recoverClienteNombreFromHistory(history, currentMessage) {
 function clientAsksLocation(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /d[oó]nde\s+(se\s+)?ubican/i.test(t) || /d[oó]nde\s+est[aá]n\s+ubicados/i.test(t) || /cu[aá]l\s+es\s+su\s+ubicaci[oó]n/i.test(t) || /zona\s+de\s+cobertura/i.test(t) || /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t);
+  return /d[oó]nde\s+(se\s+)?ubican/i.test(t) || /d[oó]nde\s+est[aá]n(\s+ubicados?)?/i.test(t) || /en\s+d[oó]nde\s+est[aá]n/i.test(t) || /cu[aá]l\s+es\s+su\s+ubicaci[oó]n/i.test(t) || /zona\s+de\s+cobertura/i.test(t) || /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t) || /\b(est[aá]n|quedan)\s+ubicados?\b/i.test(t) || /\bd[oó]nde\s+tienen\s+(oficina|sucursal|local)\b/i.test(t);
+}
+function looksLikeCompanyLocationQuestionFragment(text) {
+  const t = (text ?? "").trim().toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (!t) return false;
+  if (clientAsksLocation(t)) return true;
+  return /^(d[oó]nde\s+est[aá]n|en\s+d[oó]nde(\s+est[aá]n)?|donde\s+estan|ubicados?|su\s+ubicaci[oó]n|ubicaci[oó]n)$/i.test(
+    t
+  ) || /^d[oó]nde\s+est[aá]n(\s+ubicados?)?$/i.test(t) || /^en\s+d[oó]nde(\s+est[aá]n)?(\s+ubicados?)?$/i.test(t);
 }
 function clientMentionsItalianTheme(message) {
   if (!message?.trim()) return false;
@@ -5512,9 +5520,12 @@ function isNonLocationBusinessPhrase(text) {
   if (!cleaned) return true;
   if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
   if (/^(blanco|negro|dorado|plateado|natural|madera)$/i.test(cleaned)) return true;
-  if (/^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color)$/i.test(
+  if (/^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n)$/i.test(
     cleaned
   )) {
+    return true;
+  }
+  if (looksLikeCompanyLocationQuestionFragment(cleaned) || looksLikeCompanyLocationQuestionFragment(t)) {
     return true;
   }
   if (/^cotizaci[oó]n\b/i.test(cleaned) && cleaned.split(/\s+/).length <= 2) return true;
@@ -5991,6 +6002,10 @@ function isUsableDireccionEvento(value) {
   if (isVagueVenueOnly(t)) return false;
   if (isLikelyProductNameNotLocation(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
+  if (looksLikeCompanyLocationQuestionFragment(t)) return false;
+  if (/\bd[oó]nde\b|\bubicad/i.test(t) && !KNOWN_ZONES.test(t) && t.split(/\s+/).length <= 5) {
+    return false;
+  }
   return true;
 }
 function parseSpaceDimensions(text) {
@@ -6014,6 +6029,9 @@ function parseZonaFromText(text) {
   if (isDimensionText(trimmed)) return null;
   if (isLikelyProductNameNotLocation(trimmed)) return null;
   if (/\bsala\s*:/i.test(trimmed)) return null;
+  if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
+    return null;
+  }
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
   if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
     return expoMatch[0].trim();
@@ -6790,7 +6808,7 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
       }
     }
   }
-  if (out.direccion_evento && !isUsableDireccionEvento(out.direccion_evento)) {
+  if (out.direccion_evento && (!isUsableDireccionEvento(out.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out.direccion_evento))) {
     out.direccion_evento = null;
     applied.push("zona-unusable-cleared");
   }
@@ -23615,6 +23633,16 @@ function buildMultiServiceSheetLevelsReply(services, sourceText) {
     services.map((s) => s.trim()).filter(Boolean),
     sourceText
   );
+  if (cleaned.length >= 3) return null;
+  const hasFood = cleaned.some(
+    (s) => /barra|taquiza|banquete|coffee|parrillada|paella|mesa\s+de|cupcake|sushi|crepa|pizza|pasta|pozole/i.test(
+      s
+    )
+  );
+  const hasNonFood = cleaned.some(
+    (s) => /mobiliario|carpas?|pista|tarima|\bdj\b|iluminaci|pantallas?/i.test(s)
+  );
+  if (hasFood && hasNonFood) return null;
   const foodish = cleaned.filter(
     (s) => /barra|taquiza|banquete|coffee|parrillada|paella|mesa\s+de|cupcake|sushi|crepa|pizza|pasta|pozole|canap|bocadillo/i.test(
       s
@@ -23981,7 +24009,7 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       extracted.num_invitados = null;
       filledSet.delete("N\xFAmero de invitados");
     }
-    if (extracted.direccion_evento && (isLikelyProductNameNotLocation(extracted.direccion_evento) || /\bsala\s*:/i.test(blob) && new RegExp(
+    if (extracted.direccion_evento && (isLikelyProductNameNotLocation(extracted.direccion_evento) || looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento) || /\bsala\s*:/i.test(blob) && new RegExp(
       extracted.direccion_evento.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
       "i"
     ).test(blob))) {
@@ -23994,6 +24022,10 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
         );
         if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
       }
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    }
+    if ((clientAsksLocation(currentMessage) || looksLikeCompanyLocationQuestionFragment(currentMessage)) && extracted.direccion_evento && looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento)) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
     }
@@ -24214,7 +24246,8 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     }
     appliedDirectReply = true;
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
-  } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && !isCatalogLevelSelection(
+  } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
+  servicesFromCurrentMessage.length < 2 && parseServicesFromText(currentMessage).length < 2 && !isCatalogLevelSelection(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   )) {
@@ -24229,7 +24262,12 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     const link = buildCatalogWebLinkReply({ query: label, serviceHint: label });
     const display = getDisplayName(extracted, whatsappDisplayName);
     const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
-    mensaje = detail ? `${ack} Anoto *${label}*.
+    const detailHasLink = /bodasesor\.com\/catalogos/i.test(detail ?? "");
+    mensaje = detail ? detailHasLink ? `${ack} Anoto *${label}*.
+
+${detail}
+
+${SERVICE_NIVEL_DETAIL_CTA}` : `${ack} Anoto *${label}*.
 
 ${detail}
 
@@ -25719,7 +25757,32 @@ ${nextQ}`;
       }
     }
   }
+  mensaje = dedupeCatalogUrlsInMessage(mensaje);
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
+}
+function dedupeCatalogUrlsInMessage(text) {
+  if (!text?.trim() || !/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text)) {
+    return text;
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const lines = text.split("\n");
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const urlMatch = line.match(/https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*/i);
+    if (urlMatch) {
+      const key = urlMatch[0].replace(/\/+$/, "").toLowerCase();
+      if (seen.has(key)) {
+        if (out.length && /cat[aá]logo|claro,?\s+aqu[ií]\s+tienes/i.test(out[out.length - 1]) && !/https?:\/\//i.test(out[out.length - 1])) {
+          out.pop();
+        }
+        continue;
+      }
+      seen.add(key);
+    }
+    out.push(line);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 function stripGammaLinks(text) {
   if (!text || !/gamma\.app/i.test(text)) return text;
@@ -26540,7 +26603,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
   out.correo = correo;
   const nombre = sanitizeCrmNombre(out.nombre);
   out.nombre = nombre && !isQuoteIntentMessage(nombre) ? nombre : null;
-  if (out.direccion_evento && (isDimensionText(out.direccion_evento) || isVagueVenueOnly(out.direccion_evento) || isLikelyProductNameNotLocation(out.direccion_evento) || isNonLocationBusinessPhrase(out.direccion_evento))) {
+  if (out.direccion_evento && (isDimensionText(out.direccion_evento) || isVagueVenueOnly(out.direccion_evento) || isLikelyProductNameNotLocation(out.direccion_evento) || isNonLocationBusinessPhrase(out.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out.direccion_evento) || !isUsableDireccionEvento(out.direccion_evento))) {
     out.direccion_evento = null;
   }
   if (out.requerimientos_evento?.trim() && out.tipo_evento?.trim() && out.requerimientos_evento.trim().toLowerCase() === out.tipo_evento.trim().toLowerCase()) {
@@ -32883,6 +32946,70 @@ ${golfText}`,
       /bodasesor\.com\/catalogos/i.test(afterAnti.mensaje),
       `anti-repeat conserva URL: ${afterAnti.mensaje.slice(0, 400)}`
     );
+  });
+  await test("113. A14995 Hortensia \u2014 d\xF3nde est\xE1n \u2260 zona + paquete multi-servicio completo", () => {
+    assert.ok(clientAsksLocation("En donde estan ubicados?"));
+    assert.ok(clientAsksLocation("Es muy importante. En donde estan?"));
+    assert.equal(parseZonaFromText("En donde estan ubicados?"), null);
+    assert.equal(parseZonaFromText("donde estan"), null);
+    assert.ok(looksLikeCompanyLocationQuestionFragment("donde estan"));
+    const clean = sanitizeExtractedFromExternal(
+      emptyExtracted({
+        nombre: "Hortensia",
+        direccion_evento: "donde estan"
+      })
+    );
+    assert.equal(clean.direccion_evento, null);
+    const inv = applyCrmWriteInvariants(
+      emptyExtracted({
+        nombre: "Hortensia",
+        direccion_evento: "donde estan"
+      }),
+      ["En donde estan ubicados?"]
+    );
+    assert.equal(inv.extracted.direccion_evento, null);
+    const pkgMsg = [
+      "Banquete mexicano 3 y 4 tiempos",
+      "Barra de bebidas",
+      "Mesa de dulces y botanas",
+      "Mobiliario mesas vestidas y sillas"
+    ].join("\n");
+    const services = parseServicesFromText(pkgMsg);
+    assert.ok(services.length >= 3, `services=${services.join(",")}`);
+    const reply = runGuards({
+      aiResponse: "Perfecto, Hortensia. Anoto Banquete Mexicano 4 tiempos.",
+      extracted: emptyExtracted({
+        nombre: "Hortensia",
+        correo: "hortehgz@hotmail.com",
+        tipo_evento: "graduaci\xF3n",
+        direccion_evento: "donde estan"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Lugar/direcci\xF3n del evento"
+      ]),
+      readyForClosing: false,
+      currentMessage: pkgMsg,
+      history: [
+        {
+          role: "assistant",
+          content: "Para tu graduaci\xF3n, manejamos varias opciones:\n\u2022 Banquete Formal\n\u2022 Barra de bebidas\n\xBFQu\xE9 te gustar\xEDa revisar primero?"
+        }
+      ]
+    });
+    assert.ok(/banquete/i.test(reply), reply.slice(0, 400));
+    assert.ok(/barra|bebidas/i.test(reply), reply.slice(0, 500));
+    assert.ok(/dulces|mobiliario/i.test(reply), reply.slice(0, 500));
+    assert.ok(
+      !/Anoto \*Banquete Mexicano 4 tiempos\*/i.test(reply),
+      `no solo dump tiempos: ${reply.slice(0, 400)}`
+    );
+    const urls = reply.match(/https?:\/\/[^\s]*bodasesor\.com\/catalogos[^\s]*/gi) ?? [];
+    const unique = new Set(urls.map((u) => u.replace(/\/+$/, "").toLowerCase()));
+    assert.equal(urls.length, unique.size, `URLs duplicadas: ${urls.join(" | ")}`);
+    assert.ok(/bodasesor\.com\/catalogos/i.test(reply), reply.slice(0, 500));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

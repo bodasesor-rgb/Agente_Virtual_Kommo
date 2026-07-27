@@ -122791,7 +122791,15 @@ function recoverClienteNombreFromHistory(history, currentMessage) {
 function clientAsksLocation(message) {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  return /d[oó]nde\s+(se\s+)?ubican/i.test(t) || /d[oó]nde\s+est[aá]n\s+ubicados/i.test(t) || /cu[aá]l\s+es\s+su\s+ubicaci[oó]n/i.test(t) || /zona\s+de\s+cobertura/i.test(t) || /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t);
+  return /d[oó]nde\s+(se\s+)?ubican/i.test(t) || /d[oó]nde\s+est[aá]n(\s+ubicados?)?/i.test(t) || /en\s+d[oó]nde\s+est[aá]n/i.test(t) || /cu[aá]l\s+es\s+su\s+ubicaci[oó]n/i.test(t) || /zona\s+de\s+cobertura/i.test(t) || /en\s+qu[eé]\s+ciudad\s+est[aá]n/i.test(t) || /\b(est[aá]n|quedan)\s+ubicados?\b/i.test(t) || /\bd[oó]nde\s+tienen\s+(oficina|sucursal|local)\b/i.test(t);
+}
+function looksLikeCompanyLocationQuestionFragment(text2) {
+  const t = (text2 ?? "").trim().toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
+  if (!t) return false;
+  if (clientAsksLocation(t)) return true;
+  return /^(d[oó]nde\s+est[aá]n|en\s+d[oó]nde(\s+est[aá]n)?|donde\s+estan|ubicados?|su\s+ubicaci[oó]n|ubicaci[oó]n)$/i.test(
+    t
+  ) || /^d[oó]nde\s+est[aá]n(\s+ubicados?)?$/i.test(t) || /^en\s+d[oó]nde(\s+est[aá]n)?(\s+ubicados?)?$/i.test(t);
 }
 function clientMentionsItalianTheme(message) {
   if (!message?.trim()) return false;
@@ -123054,9 +123062,12 @@ function isNonLocationBusinessPhrase(text2) {
   if (!cleaned) return true;
   if (/^color(\s+\w+)?$/i.test(cleaned)) return true;
   if (/^(blanco|negro|dorado|plateado|natural|madera)$/i.test(cleaned)) return true;
-  if (/^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color)$/i.test(
+  if (/^(total|este|esta|ese|esa|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|color|d[oó]nde|donde|ubicados?|ubicaci[oó]n)$/i.test(
     cleaned
   )) {
+    return true;
+  }
+  if (looksLikeCompanyLocationQuestionFragment(cleaned) || looksLikeCompanyLocationQuestionFragment(t)) {
     return true;
   }
   if (/^cotizaci[oó]n\b/i.test(cleaned) && cleaned.split(/\s+/).length <= 2) return true;
@@ -123533,6 +123544,10 @@ function isUsableDireccionEvento(value) {
   if (isVagueVenueOnly(t)) return false;
   if (isLikelyProductNameNotLocation(t)) return false;
   if (isNonLocationBusinessPhrase(t)) return false;
+  if (looksLikeCompanyLocationQuestionFragment(t)) return false;
+  if (/\bd[oó]nde\b|\bubicad/i.test(t) && !KNOWN_ZONES.test(t) && t.split(/\s+/).length <= 5) {
+    return false;
+  }
   return true;
 }
 function parseSpaceDimensions(text2) {
@@ -123556,6 +123571,9 @@ function parseZonaFromText(text2) {
   if (isDimensionText(trimmed)) return null;
   if (isLikelyProductNameNotLocation(trimmed)) return null;
   if (/\bsala\s*:/i.test(trimmed)) return null;
+  if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
+    return null;
+  }
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
   if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
     return expoMatch[0].trim();
@@ -131073,6 +131091,16 @@ function buildMultiServiceSheetLevelsReply(services, sourceText) {
     services.map((s10) => s10.trim()).filter(Boolean),
     sourceText
   );
+  if (cleaned.length >= 3) return null;
+  const hasFood = cleaned.some(
+    (s10) => /barra|taquiza|banquete|coffee|parrillada|paella|mesa\s+de|cupcake|sushi|crepa|pizza|pasta|pozole/i.test(
+      s10
+    )
+  );
+  const hasNonFood = cleaned.some(
+    (s10) => /mobiliario|carpas?|pista|tarima|\bdj\b|iluminaci|pantallas?/i.test(s10)
+  );
+  if (hasFood && hasNonFood) return null;
   const foodish = cleaned.filter(
     (s10) => /barra|taquiza|banquete|coffee|parrillada|paella|mesa\s+de|cupcake|sushi|crepa|pizza|pasta|pozole|canap|bocadillo/i.test(
       s10
@@ -131439,7 +131467,7 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       extracted.num_invitados = null;
       filledSet.delete("N\xFAmero de invitados");
     }
-    if (extracted.direccion_evento && (isLikelyProductNameNotLocation(extracted.direccion_evento) || /\bsala\s*:/i.test(blob) && new RegExp(
+    if (extracted.direccion_evento && (isLikelyProductNameNotLocation(extracted.direccion_evento) || looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento) || /\bsala\s*:/i.test(blob) && new RegExp(
       extracted.direccion_evento.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
       "i"
     ).test(blob))) {
@@ -131452,6 +131480,10 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
         );
         if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
       }
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/direcci\xF3n del evento");
+    }
+    if ((clientAsksLocation(currentMessage) || looksLikeCompanyLocationQuestionFragment(currentMessage)) && extracted.direccion_evento && looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento)) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
     }
@@ -131672,7 +131704,8 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     }
     appliedDirectReply = true;
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
-  } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && !isCatalogLevelSelection(
+  } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
+  servicesFromCurrentMessage.length < 2 && parseServicesFromText(currentMessage).length < 2 && !isCatalogLevelSelection(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   )) {
@@ -131687,7 +131720,12 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     const link = buildCatalogWebLinkReply({ query: label, serviceHint: label });
     const display = getDisplayName(extracted, whatsappDisplayName);
     const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
-    mensaje = detail ? `${ack} Anoto *${label}*.
+    const detailHasLink = /bodasesor\.com\/catalogos/i.test(detail ?? "");
+    mensaje = detail ? detailHasLink ? `${ack} Anoto *${label}*.
+
+${detail}
+
+${SERVICE_NIVEL_DETAIL_CTA}` : `${ack} Anoto *${label}*.
 
 ${detail}
 
@@ -133177,7 +133215,32 @@ ${nextQ}`;
       }
     }
   }
+  mensaje = dedupeCatalogUrlsInMessage(mensaje);
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
+}
+function dedupeCatalogUrlsInMessage(text2) {
+  if (!text2?.trim() || !/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text2)) {
+    return text2;
+  }
+  const seen = /* @__PURE__ */ new Set();
+  const lines = text2.split("\n");
+  const out2 = [];
+  for (let i10 = 0; i10 < lines.length; i10++) {
+    const line2 = lines[i10];
+    const urlMatch = line2.match(/https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*/i);
+    if (urlMatch) {
+      const key = urlMatch[0].replace(/\/+$/, "").toLowerCase();
+      if (seen.has(key)) {
+        if (out2.length && /cat[aá]logo|claro,?\s+aqu[ií]\s+tienes/i.test(out2[out2.length - 1]) && !/https?:\/\//i.test(out2[out2.length - 1])) {
+          out2.pop();
+        }
+        continue;
+      }
+      seen.add(key);
+    }
+    out2.push(line2);
+  }
+  return out2.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 function stripGammaLinks(text2) {
   if (!text2 || !/gamma\.app/i.test(text2)) return text2;
@@ -133934,7 +133997,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
   out2.correo = correo;
   const nombre = sanitizeCrmNombre(out2.nombre);
   out2.nombre = nombre && !isQuoteIntentMessage(nombre) ? nombre : null;
-  if (out2.direccion_evento && (isDimensionText(out2.direccion_evento) || isVagueVenueOnly(out2.direccion_evento) || isLikelyProductNameNotLocation(out2.direccion_evento) || isNonLocationBusinessPhrase(out2.direccion_evento))) {
+  if (out2.direccion_evento && (isDimensionText(out2.direccion_evento) || isVagueVenueOnly(out2.direccion_evento) || isLikelyProductNameNotLocation(out2.direccion_evento) || isNonLocationBusinessPhrase(out2.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out2.direccion_evento) || !isUsableDireccionEvento(out2.direccion_evento))) {
     out2.direccion_evento = null;
   }
   if (out2.requerimientos_evento?.trim() && out2.tipo_evento?.trim() && out2.requerimientos_evento.trim().toLowerCase() === out2.tipo_evento.trim().toLowerCase()) {
@@ -134029,7 +134092,7 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
       }
     }
   }
-  if (out2.direccion_evento && !isUsableDireccionEvento(out2.direccion_evento)) {
+  if (out2.direccion_evento && (!isUsableDireccionEvento(out2.direccion_evento) || looksLikeCompanyLocationQuestionFragment(out2.direccion_evento))) {
     out2.direccion_evento = null;
     applied.push("zona-unusable-cleared");
   }

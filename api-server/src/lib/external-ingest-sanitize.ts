@@ -15,6 +15,8 @@ import {
   isLikelyProductNameNotLocation,
   isNonLocationBusinessPhrase,
   isVagueVenueOnly,
+  isUsableDireccionEvento,
+  looksLikeCompanyLocationQuestionFragment,
 } from "../conversation-understanding.js";
 
 function lineLabel(line: string): string {
@@ -102,7 +104,9 @@ export function sanitizeExtractedFromExternal(
     (isDimensionText(out.direccion_evento) ||
       isVagueVenueOnly(out.direccion_evento) ||
       isLikelyProductNameNotLocation(out.direccion_evento) ||
-      isNonLocationBusinessPhrase(out.direccion_evento))
+      isNonLocationBusinessPhrase(out.direccion_evento) ||
+      looksLikeCompanyLocationQuestionFragment(out.direccion_evento) ||
+      !isUsableDireccionEvento(out.direccion_evento))
   ) {
     out.direccion_evento = null;
   }

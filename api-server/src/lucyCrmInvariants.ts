@@ -15,6 +15,7 @@ import {
   parsePresupuestoFromText,
   parseZonaFromText,
   looksLikeGuestCountRange,
+  looksLikeCompanyLocationQuestionFragment,
 } from "./conversation-understanding.js";
 
 export interface CrmInvariantResult {
@@ -136,9 +137,12 @@ export function applyCrmWriteInvariants(
     }
   }
 
-  // 3) Dirección basura (producto / cotización) ya se limpia en external-ingest;
-  //    aquí: si nombre era zona y ya la movimos, ok.
-  if (out.direccion_evento && !isUsableDireccionEvento(out.direccion_evento)) {
+  // 3) Dirección basura (producto / cotización / "dónde están") — todas las ramas.
+  if (
+    out.direccion_evento &&
+    (!isUsableDireccionEvento(out.direccion_evento) ||
+      looksLikeCompanyLocationQuestionFragment(out.direccion_evento))
+  ) {
     out.direccion_evento = null;
     applied.push("zona-unusable-cleared");
   }

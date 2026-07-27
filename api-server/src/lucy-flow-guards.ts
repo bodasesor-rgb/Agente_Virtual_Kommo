@@ -120,7 +120,6 @@ import {
   preferPrimaryCatalogService,
   clientMentionsEntertainment,
   clientConfirmsOfferReview,
-  assistantOfferedCatalogDetail,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
   clientMentionsCarpas,
@@ -162,6 +161,8 @@ import {
   clientAsksForCatalog,
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
+  assistantOfferedCatalogDetail,
+  looksLikeCompanyLocationQuestionFragment,
   isRichQuoteBrief,
   clientAsksToRereadBrief,
   clientAsksDistributorPricing,
@@ -3285,6 +3286,19 @@ export function buildMultiServiceSheetLevelsReply(
     services.map((s) => s.trim()).filter(Boolean),
     sourceText
   );
+  // A14995 Hortensia: paquete amplio (banquete+barra+dulces+mobiliario) → ack todos +
+  // catálogos mapeados, NO dump solo de Banquete Mexicano 4 tiempos.
+  if (cleaned.length >= 3) return null;
+  const hasFood = cleaned.some((s) =>
+    /barra|taquiza|banquete|coffee|parrillada|paella|mesa\s+de|cupcake|sushi|crepa|pizza|pasta|pozole/i.test(
+      s
+    )
+  );
+  const hasNonFood = cleaned.some((s) =>
+    /mobiliario|carpas?|pista|tarima|\bdj\b|iluminaci|pantallas?/i.test(s)
+  );
+  if (hasFood && hasNonFood) return null;
+
   const foodish = cleaned.filter((s) =>
     /barra|taquiza|banquete|coffee|parrillada|paella|mesa\s+de|cupcake|sushi|crepa|pizza|pasta|pozole|canap|bocadillo/i.test(
       s
@@ -3892,6 +3906,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (
       extracted.direccion_evento &&
       (isLikelyProductNameNotLocation(extracted.direccion_evento) ||
+        looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento) ||
+        !isUsableDireccionEvento(extracted.direccion_evento) ||
         (/\bsala\s*:/i.test(blob) &&
           new RegExp(
             extracted.direccion_evento.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
@@ -3907,6 +3923,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         );
         if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
       }
+      extracted.direccion_evento = null;
+      filledSet.delete("Lugar/dirección del evento");
+    }
+    // A14995: pregunta de sede este turno no debe quedar como zona.
+    if (
+      (clientAsksLocation(currentMessage) ||
+        looksLikeCompanyLocationQuestionFragment(currentMessage)) &&
+      extracted.direccion_evento &&
+      looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento)
+    ) {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/dirección del evento");
     }
@@ -4289,6 +4315,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado &&
     currentMessage &&
     /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) &&
+    // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
+    servicesFromCurrentMessage.length < 2 &&
+    parseServicesFromText(currentMessage).length < 2 &&
     !isCatalogLevelSelection(
       currentMessage,
       lastAssistantMsg && typeof lastAssistantMsg.content === "string"
@@ -4311,8 +4340,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const link = buildCatalogWebLinkReply({ query: label, serviceHint: label });
     const display = getDisplayName(extracted, whatsappDisplayName);
     const ack = display ? `Perfecto, ${display}.` : "Perfecto.";
+    // Evitar URL duplicada si el detalle Sheet ya trae el mismo catálogo.
+    const detailHasLink = /bodasesor\.com\/catalogos/i.test(detail ?? "");
     mensaje = detail
-      ? `${ack} Anoto *${label}*.\n\n${detail}\n\n${link}\n\n${SERVICE_NIVEL_DETAIL_CTA}`
+      ? detailHasLink
+        ? `${ack} Anoto *${label}*.\n\n${detail}\n\n${SERVICE_NIVEL_DETAIL_CTA}`
+        : `${ack} Anoto *${label}*.\n\n${detail}\n\n${link}\n\n${SERVICE_NIVEL_DETAIL_CTA}`
       : `${ack} Anoto *${label}*.\n\n${link}\n\n${SERVICE_NIVEL_DETAIL_CTA}`;
     appliedDirectReply = true;
     appliedSalesReply = true;
@@ -6492,7 +6525,40 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  mensaje = dedupeCatalogUrlsInMessage(mensaje);
+
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
+}
+
+/** A14995 / todas las ramas: no repetir la misma URL de catálogo dos veces. */
+export function dedupeCatalogUrlsInMessage(text: string): string {
+  if (!text?.trim() || !/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text)) {
+    return text;
+  }
+  const seen = new Set<string>();
+  const lines = text.split("\n");
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    const urlMatch = line.match(/https?:\/\/[^\s]*?(?:bodasesor|hostingersite)\.com\/catalogos[^\s]*/i);
+    if (urlMatch) {
+      const key = urlMatch[0]!.replace(/\/+$/, "").toLowerCase();
+      if (seen.has(key)) {
+        // Quita también la línea de encabezado "Catálogo de…" / "Claro, aquí tienes…" previa si quedó huérfana.
+        if (
+          out.length &&
+          /cat[aá]logo|claro,?\s+aqu[ií]\s+tienes/i.test(out[out.length - 1]!) &&
+          !/https?:\/\//i.test(out[out.length - 1]!)
+        ) {
+          out.pop();
+        }
+        continue;
+      }
+      seen.add(key);
+    }
+    out.push(line);
+  }
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /** Los links Gamma son solo conocimiento interno — nunca deben llegar al cliente. */
