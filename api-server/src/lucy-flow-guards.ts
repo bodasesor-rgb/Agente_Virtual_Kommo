@@ -120,6 +120,7 @@ import {
   preferPrimaryCatalogService,
   clientMentionsEntertainment,
   clientConfirmsOfferReview,
+  assistantOfferedCatalogDetail,
   clientMentionsLedRobotsOrBatucada,
   clientMentionsPistaTarima,
   clientMentionsCarpas,
@@ -3989,7 +3990,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const lastAssistantForCatalogGate = [...presHistory]
     .reverse()
     .find((m) => m.role === "assistant" && typeof m.content === "string");
-  // A14994: aceptar catálogo gana al cierre temprano (si no, se ignora el "Sí" y se re-pregunta).
+  const recentCatalogOffer =
+    [...presHistory]
+      .reverse()
+      .filter((m) => m.role === "assistant" && typeof m.content === "string")
+      .slice(0, 4)
+      .map((m) => m.content as string)
+      .find((t) => assistantOfferedCatalogDetail(t)) ?? null;
+  // A14994 / todas las ramas: aceptar catálogo gana al cierre temprano.
   const clientWantsCatalogNow =
     clientAsksForCatalog(currentMessage) ||
     clientAffirmsCatalogOffer(
@@ -3997,7 +4005,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       lastAssistantForCatalogGate && typeof lastAssistantForCatalogGate.content === "string"
         ? (lastAssistantForCatalogGate.content as string)
         : null
-    );
+    ) ||
+    clientAffirmsCatalogOffer(currentMessage, recentCatalogOffer);
 
   if (
     trulyReadyForClosing &&
@@ -4209,7 +4218,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       lastAssistantMsg && typeof lastAssistantMsg.content === "string"
         ? (lastAssistantMsg.content as string)
         : null
-    )
+    ) ||
+    // A14994 / todas las ramas: si el CTA de catálogo está en hilo reciente (no solo el último msg).
+    (clientAffirmsCatalogOffer(
+      currentMessage,
+      [...presHistory]
+        .reverse()
+        .filter((m) => m.role === "assistant" && typeof m.content === "string")
+        .slice(0, 3)
+        .map((m) => m.content as string)
+        .find((t) => assistantOfferedCatalogDetail(t)) ?? null
+    ))
   ) {
     const wantFull = clientWantsFullCatalog(currentMessage);
     const hintParts: string[] = [];
@@ -4231,13 +4250,41 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     ]
       .join(" ")
       .trim();
-    mensaje = buildCatalogWebLinkReply({
-      query: wantFull ? "catálogo general" : historyHint || (currentMessage ?? ""),
-      wantFull,
-      serviceHint: hintParts.join(" ") || null,
+    const serviceHint = hintParts.join(" ") || null;
+    // V8.83: en TODAS las ramas, al afirmar catálogo mandar links mapeados de lo capturado
+    // (no solo hub + otra pregunta "¿te mando el catálogo?").
+    const mappedServices = collectServicesForCatalogOffer({
+      services: parseServicesFromText(
+        `${extracted.requerimientos_evento ?? ""} ${historyHint}`
+      ),
+      extracted,
+      history: presHistory,
+      currentMessage,
     });
+    if (!wantFull && mappedServices.length > 0) {
+      const mapped = buildPackageCatalogOfferBlock(
+        mappedServices,
+        `${serviceHint ?? ""} ${historyHint}`
+      ).replace(
+        /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
+        "\n"
+      );
+      mensaje = /bodasesor\.com\/catalogos/i.test(mapped)
+        ? `Claro.\n\n${mapped}`.trim()
+        : buildCatalogWebLinkReply({
+            query: historyHint || (currentMessage ?? ""),
+            wantFull: false,
+            serviceHint,
+          });
+    } else {
+      mensaje = buildCatalogWebLinkReply({
+        query: wantFull ? "catálogo general" : historyHint || (currentMessage ?? ""),
+        wantFull,
+        serviceHint,
+      });
+    }
     appliedDirectReply = true;
-    log?.info({ entityId, wantFull }, "GUARD: cliente pidió catálogo web — link del Sheet");
+    log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidió/afirmó catálogo — link(s)");
   } else if (
     !cierreYaEnviado &&
     currentMessage &&
@@ -4490,6 +4537,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     // no solo "Anoto Mobiliario" + hub.
     if (
       isMobiliarioRentalPedido(currentMessage) &&
+      !clientMentionsCarpas(currentMessage) &&
       parseMobiliarioRentItems(currentMessage ?? "").length >= 1
     ) {
       if (
@@ -4614,8 +4662,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/dirección del evento");
     }
-    if (isMobiliarioRentalPedido(currentMessage)) {
+    if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage)) {
       // Renta picnic/periqueras/bancos: ack concreto + catálogo + embudo (no plantilla sushi).
+      // A14994: si también hay carpas, cae a buildCarpasSalesReply (ambas).
       const items = parseMobiliarioRentItems(currentMessage ?? "");
       const itemLabel = items.length
         ? items
@@ -4781,6 +4830,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     !cierreYaEnviado &&
     isFieldSatisfied("nombre", filledSet, extracted) &&
     !clientMentionsEntertainment(currentMessage) &&
+    !clientMentionsCarpas(currentMessage) &&
     !clientAsksPrice(currentMessage) &&
     buildSoftComplementOffer(extracted, presHistory, currentMessage)
   ) {

@@ -5425,13 +5425,14 @@ function clientWantsFullCatalog(message) {
   if (/\bindeciso|todas\s+las\s+opciones/i.test(t) && /\bcat[aá]logo/i.test(t)) return true;
   return false;
 }
-function clientAffirmsCatalogOffer(message, lastAssistantText) {
-  if (!message?.trim() || !lastAssistantText?.trim()) return false;
-  if (!/cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo/i.test(
+function assistantOfferedCatalogDetail(lastAssistantText) {
+  if (!lastAssistantText?.trim()) return false;
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle/i.test(
     lastAssistantText
-  )) {
-    return false;
-  }
+  );
+}
+function clientAffirmsCatalogOffer(message, lastAssistantText) {
+  if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
   if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
@@ -5442,6 +5443,30 @@ function clientAffirmsCatalogOffer(message, lastAssistantText) {
   return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
     t
   );
+}
+function looksLikeGuestCountRange(text) {
+  const trimmed = text?.trim() ?? "";
+  if (!trimmed) return false;
+  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)) {
+    return false;
+  }
+  const m = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
+  if (!m) {
+    const crm = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*MXN)?$/i);
+    if (!crm) return false;
+    const a2 = parseInt(crm[1], 10);
+    const b2 = parseInt(crm[2], 10);
+    const lo2 = Math.min(a2, b2);
+    const hi2 = Math.max(a2, b2);
+    if (lo2 <= 12 && hi2 <= 24 && hi2 - lo2 <= 16) return false;
+    return a2 >= 10 && b2 >= 10 && a2 <= 2e3 && b2 <= 2e3 && Math.abs(a2 - b2) <= 500;
+  }
+  const a = parseInt(m[1], 10);
+  const b = parseInt(m[2], 10);
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  if (lo <= 12 && hi <= 24 && hi - lo <= 16) return false;
+  return a >= 10 && b >= 10 && a <= 2e3 && b <= 2e3 && Math.abs(a - b) <= 500;
 }
 function clientAsksBanqueteVsTaquiza(message) {
   if (!message?.trim()) return false;
@@ -5915,16 +5940,13 @@ function parseInvitadosFromText(text) {
     return String(Math.max(a, b));
   }
   {
-    const guestRange = trimmed.match(
-      /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
-    );
-    if (guestRange && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed) && !parseFechaFromText(trimmed)) {
-      const a = parseInt(guestRange[1], 10);
-      const b = parseInt(guestRange[2], 10);
-      const lo = Math.min(a, b);
-      const hi = Math.max(a, b);
-      const looksLikeHours = lo <= 12 && hi <= 24 && hi - lo <= 16;
-      if (!looksLikeHours && a >= 10 && b >= 10 && a <= 2e3 && b <= 2e3 && Math.abs(a - b) <= 500) {
+    if (looksLikeGuestCountRange(trimmed) && !parseFechaFromText(trimmed)) {
+      const guestRange = trimmed.match(
+        /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
+      );
+      if (guestRange) {
+        const a = parseInt(guestRange[1], 10);
+        const b = parseInt(guestRange[2], 10);
         return String(Math.round((a + b) / 2));
       }
     }
@@ -6317,6 +6339,7 @@ function parsePresupuestoFromText(text, opts) {
     const a = parseInt(aRaw, 10);
     const b = parseInt(bRaw, 10);
     const hasMoneyToken = !!(rangeMatch[3] || /\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed));
+    if (!hasMoneyToken && looksLikeGuestCountRange(trimmed)) return null;
     if (!hasMoneyToken && Number.isFinite(a) && Number.isFinite(b) && a < 1e3 && b < 1e3) {
       if (opts?.askedField !== "presupuesto") return null;
       if (a < 500 && b < 500) return null;
@@ -6743,7 +6766,13 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
     }
   }
   if (out.presupuesto !== null && out.presupuesto !== void 0) {
-    if (!userJustifiesPresupuesto(userTexts)) {
+    const presStr = String(out.presupuesto).trim();
+    const guestRangePolluted = looksLikeGuestCountRange(presStr) || looksLikeGuestCountRange(presStr.replace(/\s*MXN$/i, "")) || typeof out.presupuesto === "number" && out.num_invitados != null && (out.presupuesto === out.num_invitados || // "80"+"100" concatenado ≈ 80100 con invitados ~90
+    out.presupuesto >= 1e3 && out.presupuesto < 1e5 && userTexts.some((t) => looksLikeGuestCountRange(t)));
+    if (guestRangePolluted && !userTexts.some((t) => /\b(presupuesto|mil|pesos|\$|k\b|inversi[oó]n)\b/i.test(t))) {
+      out.presupuesto = null;
+      applied.push("presupuesto-guest-range-cleared");
+    } else if (!userJustifiesPresupuesto(userTexts)) {
       out.presupuesto = null;
       applied.push("presupuesto-no-user-source");
     } else if (typeof out.presupuesto === "number" && out.presupuesto > 0 && out.presupuesto < 1e3) {
@@ -24018,10 +24047,11 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
   const lastAssistantForCatalogGate = [...presHistory].reverse().find((m) => m.role === "assistant" && typeof m.content === "string");
+  const recentCatalogOffer = [...presHistory].reverse().filter((m) => m.role === "assistant" && typeof m.content === "string").slice(0, 4).map((m) => m.content).find((t) => assistantOfferedCatalogDetail(t)) ?? null;
   const clientWantsCatalogNow = clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantForCatalogGate && typeof lastAssistantForCatalogGate.content === "string" ? lastAssistantForCatalogGate.content : null
-  );
+  ) || clientAffirmsCatalogOffer(currentMessage, recentCatalogOffer);
   if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet) && !clientWantsCatalogNow) {
     return normalizeAdvisorReferences(
       buildClosing(
@@ -24135,6 +24165,10 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
   } else if (clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
+  ) || // A14994 / todas las ramas: si el CTA de catálogo está en hilo reciente (no solo el último msg).
+  clientAffirmsCatalogOffer(
+    currentMessage,
+    [...presHistory].reverse().filter((m) => m.role === "assistant" && typeof m.content === "string").slice(0, 3).map((m) => m.content).find((t) => assistantOfferedCatalogDetail(t)) ?? null
   )) {
     const wantFull = clientWantsFullCatalog(currentMessage);
     const hintParts = [];
@@ -24147,13 +24181,39 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
       ...presHistory.filter((m) => m.role === "user" && typeof m.content === "string").slice(-4).map((m) => m.content),
       currentMessage ?? ""
     ].join(" ").trim();
-    mensaje = buildCatalogWebLinkReply({
-      query: wantFull ? "cat\xE1logo general" : historyHint || (currentMessage ?? ""),
-      wantFull,
-      serviceHint: hintParts.join(" ") || null
+    const serviceHint = hintParts.join(" ") || null;
+    const mappedServices = collectServicesForCatalogOffer({
+      services: parseServicesFromText(
+        `${extracted.requerimientos_evento ?? ""} ${historyHint}`
+      ),
+      extracted,
+      history: presHistory,
+      currentMessage
     });
+    if (!wantFull && mappedServices.length > 0) {
+      const mapped = buildPackageCatalogOfferBlock(
+        mappedServices,
+        `${serviceHint ?? ""} ${historyHint}`
+      ).replace(
+        /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
+        "\n"
+      );
+      mensaje = /bodasesor\.com\/catalogos/i.test(mapped) ? `Claro.
+
+${mapped}`.trim() : buildCatalogWebLinkReply({
+        query: historyHint || (currentMessage ?? ""),
+        wantFull: false,
+        serviceHint
+      });
+    } else {
+      mensaje = buildCatalogWebLinkReply({
+        query: wantFull ? "cat\xE1logo general" : historyHint || (currentMessage ?? ""),
+        wantFull,
+        serviceHint
+      });
+    }
     appliedDirectReply = true;
-    log?.info({ entityId, wantFull }, "GUARD: cliente pidi\xF3 cat\xE1logo web \u2014 link del Sheet");
+    log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
   } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && !isCatalogLevelSelection(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
@@ -24313,7 +24373,7 @@ ${buildPackageCatalogOfferBlock(
   !clientAsksServiceInfo(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
   !clientMentionsEntertainment(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
-    if (isMobiliarioRentalPedido(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1) {
+    if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1) {
       if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
         extracted.direccion_evento = null;
         filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -24407,7 +24467,7 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
     }
-    if (isMobiliarioRentalPedido(currentMessage)) {
+    if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage)) {
       const items = parseMobiliarioRentItems(currentMessage ?? "");
       const itemLabel = items.length ? items.map((i) => i.qty ? `${i.qty} ${i.label}` : i.label).join(", ") : "mobiliario";
       filledSet.add("Requerimientos o servicios");
@@ -24509,7 +24569,7 @@ ${pickVariant("nombre", presHistory, entityId)}` : `${LUCY_INTRO} ${buildGuardSe
 ${nextQ}` : priceReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: pregunta de precio mobiliario/periqueras \u2014 respuesta consultiva");
-  } else if ((justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) && !cierreYaEnviado && isFieldSatisfied("nombre", filledSet, extracted) && !clientMentionsEntertainment(currentMessage) && !clientAsksPrice(currentMessage) && buildSoftComplementOffer(extracted, presHistory, currentMessage)) {
+  } else if ((justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) && !cierreYaEnviado && isFieldSatisfied("nombre", filledSet, extracted) && !clientMentionsEntertainment(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientAsksPrice(currentMessage) && buildSoftComplementOffer(extracted, presHistory, currentMessage)) {
     const soft = buildSoftComplementOffer(extracted, presHistory, currentMessage);
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
@@ -25887,11 +25947,12 @@ function applyLucyGlobalAntiRepetition(input) {
   const clientClarifyingService = /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
     input.currentMessage ?? ""
   );
+  const clientAffirmingCatalog = clientAffirmsCatalogOffer(input.currentMessage, lastPrev) || previous.some((p) => clientAffirmsCatalogOffer(input.currentMessage, p));
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
   const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
   const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
     mensaje
-  ) || isEntertainmentCatalog;
+  ) || isEntertainmentCatalog || clientAffirmingCatalog;
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p) => THANKS_ACK_PATTERN.test(p))) {
     const lastThanks = [...previous].reverse().find((p) => THANKS_ACK_PATTERN.test(p));
     if (lastThanks && lucyTextOverlapRatio(mensaje, lastThanks) >= 0.55) {
@@ -25925,7 +25986,7 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("filled-field-ack");
     }
   }
-  if (!cierre && hasCatalogNow && !isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientAskedServiceInfo && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p) => CATALOG_SEND_PATTERN.test(p))) {
+  if (!cierre && hasCatalogNow && !isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientAskedServiceInfo && !clientAffirmingCatalog && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p) => CATALOG_SEND_PATTERN.test(p))) {
     const without = stripCatalogOfferBlock(mensaje);
     const qs = questionLines(without).filter(
       (q) => !/cat[aá]logo/i.test(q) && previous.every((p) => lucyTextOverlapRatio(q, p) < 0.68)
@@ -32736,6 +32797,91 @@ ${golfText}`,
     assert.ok(
       !/^¿En qué ciudad/i.test(carpas.trim()),
       `no saltar solo a zona: ${carpas.slice(0, 300)}`
+    );
+  });
+  await test("112. A14994 \u2014 correcciones en TODAS las ramas (CRM, affirm mapeado, anti-repeat)", () => {
+    assert.ok(looksLikeGuestCountRange("80 a 100"));
+    assert.ok(looksLikeGuestCountRange("80 - 100"));
+    assert.equal(looksLikeGuestCountRange("de 3 a 12"), false);
+    assert.ok(assistantOfferedCatalogDetail(CATALOG_OFFER_QUESTION));
+    assert.ok(
+      assistantOfferedCatalogDetail("\xBFTe gustar\xEDa que te env\xEDe un cat\xE1logo m\xE1s detallado?")
+    );
+    const cleared = applyCrmWriteInvariants(
+      emptyExtracted({
+        nombre: "Sandra",
+        num_invitados: 90,
+        presupuesto: "80 - 100 MXN"
+      }),
+      ["80 a 100", "Jiutepec"]
+    );
+    assert.equal(cleared.extracted.presupuesto, null);
+    assert.ok(cleared.applied.includes("presupuesto-guest-range-cleared"));
+    const clearedNum = applyCrmWriteInvariants(
+      emptyExtracted({
+        nombre: "Sandra",
+        num_invitados: 90,
+        presupuesto: 80100
+      }),
+      ["80 a 100"]
+    );
+    assert.equal(clearedNum.extracted.presupuesto, null);
+    const mappedAffirm = runGuards({
+      aiResponse: "\xBFTe gustar\xEDa que te env\xEDe un cat\xE1logo m\xE1s detallado?",
+      extracted: emptyExtracted({
+        nombre: "Sandra",
+        correo: "sanduka@hotmail.com",
+        tipo_evento: "boda",
+        requerimientos_evento: "Mobiliario, Carpas",
+        direccion_evento: "Jiutepec",
+        fecha_horario: "5 Diciembre",
+        num_invitados: 90
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "Fecha y horario",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: true,
+      currentMessage: "Si por favor",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, ya tengo todo.\n\n\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?"
+        }
+      ]
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(mappedAffirm),
+      `affirm debe mandar URL: ${mappedAffirm.slice(0, 500)}`
+    );
+    assert.ok(
+      !/te\s+gustar[ií]a\s+que\s+te\s+env[ií]e.*cat[aá]logo/i.test(mappedAffirm),
+      `no re-pregunta: ${mappedAffirm.slice(0, 400)}`
+    );
+    const afterAnti = applyLucyGlobalAntiRepetition({
+      mensaje: mappedAffirm,
+      history: [
+        {
+          role: "assistant",
+          content: "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?"
+        }
+      ],
+      extracted: emptyExtracted({
+        nombre: "Sandra",
+        requerimientos_evento: "Mobiliario, Carpas"
+      }),
+      filledSet: /* @__PURE__ */ new Set(["Requerimientos o servicios"]),
+      currentMessage: "Si por favor",
+      clientName: "Sandra"
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(afterAnti.mensaje),
+      `anti-repeat conserva URL: ${afterAnti.mensaje.slice(0, 400)}`
     );
   });
   console.log(`

@@ -14,6 +14,7 @@ import {
   isUsableDireccionEvento,
   parsePresupuestoFromText,
   parseZonaFromText,
+  looksLikeGuestCountRange,
 } from "./conversation-understanding.js";
 
 export interface CrmInvariantResult {
@@ -98,7 +99,22 @@ export function applyCrmWriteInvariants(
 
   // 2) Presupuesto solo si el CLIENTE lo justificó (nunca eco de Lucy "$300 pp").
   if (out.presupuesto !== null && out.presupuesto !== undefined) {
-    if (!userJustifiesPresupuesto(userTexts)) {
+    const presStr = String(out.presupuesto).trim();
+    // A14994 / todas las ramas: "80 - 100 MXN" / "80100" desde rango de invitados.
+    const guestRangePolluted =
+      looksLikeGuestCountRange(presStr) ||
+      looksLikeGuestCountRange(presStr.replace(/\s*MXN$/i, "")) ||
+      (typeof out.presupuesto === "number" &&
+        out.num_invitados != null &&
+        (out.presupuesto === out.num_invitados ||
+          // "80"+"100" concatenado ≈ 80100 con invitados ~90
+          (out.presupuesto >= 1000 &&
+            out.presupuesto < 100000 &&
+            userTexts.some((t) => looksLikeGuestCountRange(t)))));
+    if (guestRangePolluted && !userTexts.some((t) => /\b(presupuesto|mil|pesos|\$|k\b|inversi[oó]n)\b/i.test(t))) {
+      out.presupuesto = null;
+      applied.push("presupuesto-guest-range-cleared");
+    } else if (!userJustifiesPresupuesto(userTexts)) {
       out.presupuesto = null;
       applied.push("presupuesto-no-user-source");
     } else if (typeof out.presupuesto === "number" && out.presupuesto > 0 && out.presupuesto < 1000) {

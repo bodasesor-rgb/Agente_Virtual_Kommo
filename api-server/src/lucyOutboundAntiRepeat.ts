@@ -14,6 +14,7 @@ import {
   parsePresupuestoFromText,
   parseZonaFromText,
   isUsableDireccionEvento,
+  clientAffirmsCatalogOffer,
 } from "./conversation-understanding.js";
 import {
   isFieldSatisfied,
@@ -352,13 +353,17 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
       input.currentMessage ?? ""
     );
+  // A14994 / todas las ramas: "Sí" tras oferta de catálogo — no colapsar el envío.
+  const clientAffirmingCatalog =
+    clientAffirmsCatalogOffer(input.currentMessage, lastPrev) ||
+    previous.some((p) => clientAffirmsCatalogOffer(input.currentMessage, p));
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
   const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
   // Catálogo "de detalle" (inclusiones/niveles/show) — proteger salvo reenvío idéntico.
   const isCatalogDetailReply =
     /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
       mensaje
-    ) || isEntertainmentCatalog;
+    ) || isEntertainmentCatalog || clientAffirmingCatalog;
 
   // 1) Post-cierre: no repetir el mismo agradecimiento.
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p) => THANKS_ACK_PATTERN.test(p))) {
@@ -421,6 +426,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     !clientAskedInclusion &&
     !clientAskedPrice &&
     !clientAskedServiceInfo &&
+    !clientAffirmingCatalog &&
     !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") &&
     previous.some((p) => CATALOG_SEND_PATTERN.test(p))
   ) {

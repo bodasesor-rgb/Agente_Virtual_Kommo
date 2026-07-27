@@ -1076,20 +1076,22 @@ export function clientWantsFullCatalog(message?: string): boolean {
   return false;
 }
 
+/** Lucy ofreció mandar / enviar el catálogo (cualquier wording GPT o plantilla). */
+export function assistantOfferedCatalogDetail(
+  lastAssistantText: string | null | undefined
+): boolean {
+  if (!lastAssistantText?.trim()) return false;
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle/i.test(
+    lastAssistantText
+  );
+}
+
 /** Lucy ofreció mandar el catálogo y el cliente acepta con un sí corto. */
 export function clientAffirmsCatalogOffer(
   message: string | undefined,
   lastAssistantText: string | null | undefined
 ): boolean {
-  if (!message?.trim() || !lastAssistantText?.trim()) return false;
-  // A14994: cubrir variantes GPT ("te envíe…", "más detallado", "más detalles").
-  if (
-    !/cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo/i.test(
-      lastAssistantText
-    )
-  ) {
-    return false;
-  }
+  if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
   // "Sí", "Si por favor", "claro que sí", "mande por favor", etc.
@@ -1103,6 +1105,36 @@ export function clientAffirmsCatalogOffer(
   return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
     t
   );
+}
+
+/**
+ * Rango típico de invitados ("80 a 100", "80-100") sin señal de dinero.
+ * Usado en parse invitados/presupuesto y en invariantes CRM (todas las ramas).
+ */
+export function looksLikeGuestCountRange(text: string | null | undefined): boolean {
+  const trimmed = text?.trim() ?? "";
+  if (!trimmed) return false;
+  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)) {
+    return false;
+  }
+  const m = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
+  if (!m) {
+    // Ya normalizado en CRM: "80 - 100 MXN" sin que el cliente haya dicho MXN.
+    const crm = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*MXN)?$/i);
+    if (!crm) return false;
+    const a = parseInt(crm[1]!, 10);
+    const b = parseInt(crm[2]!, 10);
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    if (lo <= 12 && hi <= 24 && hi - lo <= 16) return false;
+    return a >= 10 && b >= 10 && a <= 2000 && b <= 2000 && Math.abs(a - b) <= 500;
+  }
+  const a = parseInt(m[1]!, 10);
+  const b = parseInt(m[2]!, 10);
+  const lo = Math.min(a, b);
+  const hi = Math.max(a, b);
+  if (lo <= 12 && hi <= 24 && hi - lo <= 16) return false;
+  return a >= 10 && b >= 10 && a <= 2000 && b <= 2000 && Math.abs(a - b) <= 500;
 }
 
 /** Comparación directa banquete vs taquiza. */
@@ -1844,28 +1876,13 @@ export function parseInvitadosFromText(text: string): string | null {
 
   // A14994 Sandra: "80 a 100" / "80-100" / "de 80 a 100" = rango de invitados (no presupuesto).
   {
-    const guestRange = trimmed.match(
-      /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
-    );
-    if (
-      guestRange &&
-      !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed) &&
-      !parseFechaFromText(trimmed)
-    ) {
-      const a = parseInt(guestRange[1]!, 10);
-      const b = parseInt(guestRange[2]!, 10);
-      const lo = Math.min(a, b);
-      const hi = Math.max(a, b);
-      // Horario típico "3 a 12" / "de 5 a 11" — no invitados.
-      const looksLikeHours = lo <= 12 && hi <= 24 && hi - lo <= 16;
-      if (
-        !looksLikeHours &&
-        a >= 10 &&
-        b >= 10 &&
-        a <= 2000 &&
-        b <= 2000 &&
-        Math.abs(a - b) <= 500
-      ) {
+    if (looksLikeGuestCountRange(trimmed) && !parseFechaFromText(trimmed)) {
+      const guestRange = trimmed.match(
+        /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
+      );
+      if (guestRange) {
+        const a = parseInt(guestRange[1]!, 10);
+        const b = parseInt(guestRange[2]!, 10);
         return String(Math.round((a + b) / 2));
       }
     }
@@ -2478,10 +2495,10 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
       rangeMatch[3] ||
       /\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)
     );
-    // A14994: "80 a 100" sin señal de dinero = invitados, NUNCA presupuesto.
+    // A14994 / todas las ramas: rango de invitados nunca es presupuesto.
+    if (!hasMoneyToken && looksLikeGuestCountRange(trimmed)) return null;
     if (!hasMoneyToken && Number.isFinite(a) && Number.isFinite(b) && a < 1000 && b < 1000) {
       if (opts?.askedField !== "presupuesto") return null;
-      // Aunque pregunten presupuesto, rangos chicos sin $ / mil / k no son presupuesto.
       if (a < 500 && b < 500) return null;
     }
     return `${aRaw} - ${bRaw} MXN`;

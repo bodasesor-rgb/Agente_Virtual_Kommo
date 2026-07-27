@@ -48,6 +48,8 @@ import {
   clientAsksForCatalog,
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
+  looksLikeGuestCountRange,
+  assistantOfferedCatalogDetail,
   isCatalogLevelSelection,
   isUnusableTipoEventoReply,
   clientAsksCafeOrCateringChoice,
@@ -7125,6 +7127,99 @@ async function runAll(): Promise<void> {
     assert.ok(
       !/^¿En qué ciudad/i.test(carpas.trim()),
       `no saltar solo a zona: ${carpas.slice(0, 300)}`
+    );
+  });
+
+  await test("112. A14994 — correcciones en TODAS las ramas (CRM, affirm mapeado, anti-repeat)", () => {
+    assert.ok(looksLikeGuestCountRange("80 a 100"));
+    assert.ok(looksLikeGuestCountRange("80 - 100"));
+    assert.equal(looksLikeGuestCountRange("de 3 a 12"), false);
+    assert.ok(assistantOfferedCatalogDetail(CATALOG_OFFER_QUESTION));
+    assert.ok(
+      assistantOfferedCatalogDetail("¿Te gustaría que te envíe un catálogo más detallado?")
+    );
+
+    const cleared = applyCrmWriteInvariants(
+      emptyExtracted({
+        nombre: "Sandra",
+        num_invitados: 90,
+        presupuesto: "80 - 100 MXN" as unknown as number,
+      }),
+      ["80 a 100", "Jiutepec"]
+    );
+    assert.equal(cleared.extracted.presupuesto, null);
+    assert.ok(cleared.applied.includes("presupuesto-guest-range-cleared"));
+
+    const clearedNum = applyCrmWriteInvariants(
+      emptyExtracted({
+        nombre: "Sandra",
+        num_invitados: 90,
+        presupuesto: 80100,
+      }),
+      ["80 a 100"]
+    );
+    assert.equal(clearedNum.extracted.presupuesto, null);
+
+    // Affirm con servicios capturados → links mapeados (no solo re-pregunta).
+    const mappedAffirm = runGuards({
+      aiResponse: "¿Te gustaría que te envíe un catálogo más detallado?",
+      extracted: emptyExtracted({
+        nombre: "Sandra",
+        correo: "sanduka@hotmail.com",
+        tipo_evento: "boda",
+        requerimientos_evento: "Mobiliario, Carpas",
+        direccion_evento: "Jiutepec",
+        fecha_horario: "5 Diciembre",
+        num_invitados: 90,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Número de invitados",
+      ]),
+      readyForClosing: true,
+      currentMessage: "Si por favor",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto, ya tengo todo.\n\n¿Quieres que te mande el catálogo con más detalle?",
+        },
+      ],
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(mappedAffirm),
+      `affirm debe mandar URL: ${mappedAffirm.slice(0, 500)}`
+    );
+    assert.ok(
+      !/te\s+gustar[ií]a\s+que\s+te\s+env[ií]e.*cat[aá]logo/i.test(mappedAffirm),
+      `no re-pregunta: ${mappedAffirm.slice(0, 400)}`
+    );
+
+    // Anti-repeat no colapsa el envío tras "Sí".
+    const afterAnti = applyLucyGlobalAntiRepetition({
+      mensaje: mappedAffirm,
+      history: [
+        {
+          role: "assistant",
+          content: "¿Quieres que te mande el catálogo con más detalle?",
+        },
+      ],
+      extracted: emptyExtracted({
+        nombre: "Sandra",
+        requerimientos_evento: "Mobiliario, Carpas",
+      }),
+      filledSet: new Set(["Requerimientos o servicios"]),
+      currentMessage: "Si por favor",
+      clientName: "Sandra",
+    });
+    assert.ok(
+      /bodasesor\.com\/catalogos/i.test(afterAnti.mensaje),
+      `anti-repeat conserva URL: ${afterAnti.mensaje.slice(0, 400)}`
     );
   });
 

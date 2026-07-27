@@ -122967,13 +122967,14 @@ function clientWantsFullCatalog(message) {
   if (/\bindeciso|todas\s+las\s+opciones/i.test(t) && /\bcat[aá]logo/i.test(t)) return true;
   return false;
 }
-function clientAffirmsCatalogOffer(message, lastAssistantText) {
-  if (!message?.trim() || !lastAssistantText?.trim()) return false;
-  if (!/cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo/i.test(
+function assistantOfferedCatalogDetail(lastAssistantText) {
+  if (!lastAssistantText?.trim()) return false;
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle/i.test(
     lastAssistantText
-  )) {
-    return false;
-  }
+  );
+}
+function clientAffirmsCatalogOffer(message, lastAssistantText) {
+  if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
   if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
@@ -122984,6 +122985,30 @@ function clientAffirmsCatalogOffer(message, lastAssistantText) {
   return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
     t
   );
+}
+function looksLikeGuestCountRange(text2) {
+  const trimmed = text2?.trim() ?? "";
+  if (!trimmed) return false;
+  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed)) {
+    return false;
+  }
+  const m10 = trimmed.match(/\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i);
+  if (!m10) {
+    const crm = trimmed.match(/^(\d{1,4})\s*[-–]\s*(\d{1,4})(?:\s*MXN)?$/i);
+    if (!crm) return false;
+    const a11 = parseInt(crm[1], 10);
+    const b11 = parseInt(crm[2], 10);
+    const lo3 = Math.min(a11, b11);
+    const hi3 = Math.max(a11, b11);
+    if (lo3 <= 12 && hi3 <= 24 && hi3 - lo3 <= 16) return false;
+    return a11 >= 10 && b11 >= 10 && a11 <= 2e3 && b11 <= 2e3 && Math.abs(a11 - b11) <= 500;
+  }
+  const a10 = parseInt(m10[1], 10);
+  const b10 = parseInt(m10[2], 10);
+  const lo2 = Math.min(a10, b10);
+  const hi2 = Math.max(a10, b10);
+  if (lo2 <= 12 && hi2 <= 24 && hi2 - lo2 <= 16) return false;
+  return a10 >= 10 && b10 >= 10 && a10 <= 2e3 && b10 <= 2e3 && Math.abs(a10 - b10) <= 500;
 }
 function clientAsksBanqueteVsTaquiza(message) {
   if (!message?.trim()) return false;
@@ -123457,16 +123482,13 @@ function parseInvitadosFromText(text2) {
     return String(Math.max(a10, b10));
   }
   {
-    const guestRange = trimmed.match(
-      /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
-    );
-    if (guestRange && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed) && !parseFechaFromText(trimmed)) {
-      const a10 = parseInt(guestRange[1], 10);
-      const b10 = parseInt(guestRange[2], 10);
-      const lo2 = Math.min(a10, b10);
-      const hi2 = Math.max(a10, b10);
-      const looksLikeHours = lo2 <= 12 && hi2 <= 24 && hi2 - lo2 <= 16;
-      if (!looksLikeHours && a10 >= 10 && b10 >= 10 && a10 <= 2e3 && b10 <= 2e3 && Math.abs(a10 - b10) <= 500) {
+    if (looksLikeGuestCountRange(trimmed) && !parseFechaFromText(trimmed)) {
+      const guestRange = trimmed.match(
+        /\b(?:de\s+)?(\d{1,4})\s*(?:a|[-–]|hasta)\s*(\d{1,4})\b/i
+      );
+      if (guestRange) {
+        const a10 = parseInt(guestRange[1], 10);
+        const b10 = parseInt(guestRange[2], 10);
         return String(Math.round((a10 + b10) / 2));
       }
     }
@@ -123859,6 +123881,7 @@ function parsePresupuestoFromText(text2, opts) {
     const a10 = parseInt(aRaw, 10);
     const b10 = parseInt(bRaw, 10);
     const hasMoneyToken = !!(rangeMatch[3] || /\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget)\b/i.test(trimmed));
+    if (!hasMoneyToken && looksLikeGuestCountRange(trimmed)) return null;
     if (!hasMoneyToken && Number.isFinite(a10) && Number.isFinite(b10) && a10 < 1e3 && b10 < 1e3) {
       if (opts?.askedField !== "presupuesto") return null;
       if (a10 < 500 && b10 < 500) return null;
@@ -131482,10 +131505,11 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   const pendingBeforeClose = getNextPendingField(extracted, filledSet);
   const trulyReadyForClosing = readyForClosing && !pendingBeforeClose;
   const lastAssistantForCatalogGate = [...presHistory].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string");
+  const recentCatalogOffer = [...presHistory].reverse().filter((m10) => m10.role === "assistant" && typeof m10.content === "string").slice(0, 4).map((m10) => m10.content).find((t) => assistantOfferedCatalogDetail(t)) ?? null;
   const clientWantsCatalogNow = clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantForCatalogGate && typeof lastAssistantForCatalogGate.content === "string" ? lastAssistantForCatalogGate.content : null
-  );
+  ) || clientAffirmsCatalogOffer(currentMessage, recentCatalogOffer);
   if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosNeedsFollowUp(extracted, filledSet) && !clientWantsCatalogNow) {
     return normalizeAdvisorReferences(
       buildClosing(
@@ -131599,6 +131623,10 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
   } else if (clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
+  ) || // A14994 / todas las ramas: si el CTA de catálogo está en hilo reciente (no solo el último msg).
+  clientAffirmsCatalogOffer(
+    currentMessage,
+    [...presHistory].reverse().filter((m10) => m10.role === "assistant" && typeof m10.content === "string").slice(0, 3).map((m10) => m10.content).find((t) => assistantOfferedCatalogDetail(t)) ?? null
   )) {
     const wantFull = clientWantsFullCatalog(currentMessage);
     const hintParts = [];
@@ -131611,13 +131639,39 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
       ...presHistory.filter((m10) => m10.role === "user" && typeof m10.content === "string").slice(-4).map((m10) => m10.content),
       currentMessage ?? ""
     ].join(" ").trim();
-    mensaje = buildCatalogWebLinkReply({
-      query: wantFull ? "cat\xE1logo general" : historyHint || (currentMessage ?? ""),
-      wantFull,
-      serviceHint: hintParts.join(" ") || null
+    const serviceHint = hintParts.join(" ") || null;
+    const mappedServices = collectServicesForCatalogOffer({
+      services: parseServicesFromText(
+        `${extracted.requerimientos_evento ?? ""} ${historyHint}`
+      ),
+      extracted,
+      history: presHistory,
+      currentMessage
     });
+    if (!wantFull && mappedServices.length > 0) {
+      const mapped = buildPackageCatalogOfferBlock(
+        mappedServices,
+        `${serviceHint ?? ""} ${historyHint}`
+      ).replace(
+        /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
+        "\n"
+      );
+      mensaje = /bodasesor\.com\/catalogos/i.test(mapped) ? `Claro.
+
+${mapped}`.trim() : buildCatalogWebLinkReply({
+        query: historyHint || (currentMessage ?? ""),
+        wantFull: false,
+        serviceHint
+      });
+    } else {
+      mensaje = buildCatalogWebLinkReply({
+        query: wantFull ? "cat\xE1logo general" : historyHint || (currentMessage ?? ""),
+        wantFull,
+        serviceHint
+      });
+    }
     appliedDirectReply = true;
-    log?.info({ entityId, wantFull }, "GUARD: cliente pidi\xF3 cat\xE1logo web \u2014 link del Sheet");
+    log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
   } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && !isCatalogLevelSelection(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
@@ -131777,7 +131831,7 @@ ${buildPackageCatalogOfferBlock(
   !clientAsksServiceInfo(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientMentionsPistaTarima(currentMessage) && // Show / MC / hora loca → rama de entretenimiento (manda catálogo propio).
   !clientMentionsEntertainment(currentMessage) && // Primer turno sin nombre: buildFirstInteractionMessage ya reconoce la lista + intro + catálogo.
   !((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted))) {
-    if (isMobiliarioRentalPedido(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1) {
+    if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage) && parseMobiliarioRentItems(currentMessage ?? "").length >= 1) {
       if (extracted.direccion_evento && (/^color\b/i.test(extracted.direccion_evento.trim()) || isNonLocationBusinessPhrase(extracted.direccion_evento))) {
         extracted.direccion_evento = null;
         filledSet.delete("Lugar/direcci\xF3n del evento");
@@ -131871,7 +131925,7 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
       extracted.direccion_evento = null;
       filledSet.delete("Lugar/direcci\xF3n del evento");
     }
-    if (isMobiliarioRentalPedido(currentMessage)) {
+    if (isMobiliarioRentalPedido(currentMessage) && !clientMentionsCarpas(currentMessage)) {
       const items = parseMobiliarioRentItems(currentMessage ?? "");
       const itemLabel = items.length ? items.map((i10) => i10.qty ? `${i10.qty} ${i10.label}` : i10.label).join(", ") : "mobiliario";
       filledSet.add("Requerimientos o servicios");
@@ -131973,7 +132027,7 @@ ${pickVariant("nombre", presHistory, entityId)}` : `${LUCY_INTRO} ${buildGuardSe
 ${nextQ}` : priceReply;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: pregunta de precio mobiliario/periqueras \u2014 respuesta consultiva");
-  } else if ((justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) && !cierreYaEnviado && isFieldSatisfied("nombre", filledSet, extracted) && !clientMentionsEntertainment(currentMessage) && !clientAsksPrice(currentMessage) && buildSoftComplementOffer(extracted, presHistory, currentMessage)) {
+  } else if ((justAnsweredReq || looksLikeMinimalServiceAsk(currentMessage)) && !cierreYaEnviado && isFieldSatisfied("nombre", filledSet, extracted) && !clientMentionsEntertainment(currentMessage) && !clientMentionsCarpas(currentMessage) && !clientAsksPrice(currentMessage) && buildSoftComplementOffer(extracted, presHistory, currentMessage)) {
     const soft = buildSoftComplementOffer(extracted, presHistory, currentMessage);
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ = pending && pending !== "requerimientos" ? buildNaturalQuestion(pending, ctx) : null;
@@ -133951,7 +134005,13 @@ function applyCrmWriteInvariants(extracted, userTexts = []) {
     }
   }
   if (out2.presupuesto !== null && out2.presupuesto !== void 0) {
-    if (!userJustifiesPresupuesto(userTexts)) {
+    const presStr = String(out2.presupuesto).trim();
+    const guestRangePolluted = looksLikeGuestCountRange(presStr) || looksLikeGuestCountRange(presStr.replace(/\s*MXN$/i, "")) || typeof out2.presupuesto === "number" && out2.num_invitados != null && (out2.presupuesto === out2.num_invitados || // "80"+"100" concatenado ≈ 80100 con invitados ~90
+    out2.presupuesto >= 1e3 && out2.presupuesto < 1e5 && userTexts.some((t) => looksLikeGuestCountRange(t)));
+    if (guestRangePolluted && !userTexts.some((t) => /\b(presupuesto|mil|pesos|\$|k\b|inversi[oó]n)\b/i.test(t))) {
+      out2.presupuesto = null;
+      applied.push("presupuesto-guest-range-cleared");
+    } else if (!userJustifiesPresupuesto(userTexts)) {
       out2.presupuesto = null;
       applied.push("presupuesto-no-user-source");
     } else if (typeof out2.presupuesto === "number" && out2.presupuesto > 0 && out2.presupuesto < 1e3) {
@@ -134835,11 +134895,12 @@ function applyLucyGlobalAntiRepetition(input) {
   const clientClarifyingService = /\brobots?\s*leds?\b|\bbatucada\b|\bbailarinas?\b|\bdancers?\b|\bvedettes?\b|\bsolo\s+quiero\b|\bquiero\s+solo\b|\bambienta(?:r|ci[oó]n)\b/i.test(
     input.currentMessage ?? ""
   );
+  const clientAffirmingCatalog = clientAffirmsCatalogOffer(input.currentMessage, lastPrev) || previous.some((p10) => clientAffirmsCatalogOffer(input.currentMessage, p10));
   const hasCatalogNow = CATALOG_SEND_PATTERN.test(mensaje);
   const isEntertainmentCatalog = isEntertainmentCatalogReply(mensaje);
   const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
     mensaje
-  ) || isEntertainmentCatalog;
+  ) || isEntertainmentCatalog || clientAffirmingCatalog;
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p10) => THANKS_ACK_PATTERN.test(p10))) {
     const lastThanks = [...previous].reverse().find((p10) => THANKS_ACK_PATTERN.test(p10));
     if (lastThanks && lucyTextOverlapRatio(mensaje, lastThanks) >= 0.55) {
@@ -134873,7 +134934,7 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("filled-field-ack");
     }
   }
-  if (!cierre && hasCatalogNow && !isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientAskedServiceInfo && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p10) => CATALOG_SEND_PATTERN.test(p10))) {
+  if (!cierre && hasCatalogNow && !isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientAskedServiceInfo && !clientAffirmingCatalog && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p10) => CATALOG_SEND_PATTERN.test(p10))) {
     const without = stripCatalogOfferBlock(mensaje);
     const qs2 = questionLines(without).filter(
       (q10) => !/cat[aá]logo/i.test(q10) && previous.every((p10) => lucyTextOverlapRatio(q10, p10) < 0.68)
