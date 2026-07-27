@@ -335,8 +335,6 @@ export type PendingField =
   | "fecha"
   | "presupuesto";
 
-import { advisorLabelForClient } from "./lib/bodasesorAdvisor.js";
-
 function getQuestionVariants(): Record<PendingField, string[]> {
   const team = advisorLabelForClient();
   return {
@@ -949,13 +947,13 @@ function buildPistaTarimaSalesReply(
       : "pista de baile / tarima";
   if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
     extracted.requerimientos_evento = reqLabel;
-  } else if (variant && !new RegExp(variant.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(
+  } else if (variant && extracted.requerimientos_evento && !new RegExp(variant.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(
     extracted.requerimientos_evento
   )) {
     extracted.requerimientos_evento = dims
       ? `${extracted.requerimientos_evento}; ${variant.label} (${dims.replace(/m/gi, " m")})`
       : `${extracted.requerimientos_evento}; ${variant.label}`;
-  } else if (dims && !extracted.requerimientos_evento.includes(dims)) {
+  } else if (dims && extracted.requerimientos_evento && !extracted.requerimientos_evento.includes(dims)) {
     extracted.requerimientos_evento = `${extracted.requerimientos_evento}; pista/tarima ${dims}`;
   }
 
@@ -4272,10 +4270,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       (isValidRequerimientosValue(extracted.requerimientos_evento)
         ? extracted.requerimientos_evento
         : null) ||
-      (clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage)
-        ? (currentMessage ?? "").trim().slice(0, 80)
+      (currentMessage && (clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage))
+        ? currentMessage.trim().slice(0, 80)
         : null);
-    if (mentioned || isServiceRelatedMessage(currentMessage) || isValidRequerimientosValue(extracted.requerimientos_evento)) {
+    if (mentioned || (currentMessage && isServiceRelatedMessage(currentMessage)) || isValidRequerimientosValue(extracted.requerimientos_evento)) {
       filledSet.add("Requerimientos o servicios");
       if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
         extracted.requerimientos_evento = mentioned || "servicios solicitados";
@@ -5122,7 +5120,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : null);
     mensaje = sheet
       ? `${LUCY_INTRO}\n\n${sheet}\n\n${pickVariant("nombre", presHistory, entityId)}`
-      : `${LUCY_INTRO} ${buildGuardServiceAck(currentMessage)} ${pickVariant("nombre", presHistory, entityId)}`;
+      : `${LUCY_INTRO} ${buildGuardServiceAck(currentMessage ?? "")} ${pickVariant("nombre", presHistory, entityId)}`;
     appliedDirectReply = true;
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: servicio consultivo en primer turno + detalle Sheet");
@@ -5138,14 +5136,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     // A14933: precio ANTES de upsell mantelería / detalle mobiliario genérico.
     !cierreYaEnviado &&
-    clientAsksPrice(currentMessage) &&
-    mentionsNoListedPriceService(currentMessage)
+    currentMessage && clientAsksPrice(currentMessage) &&
+    mentionsNoListedPriceService(currentMessage ?? "")
   ) {
     const priceReply =
-      buildConsultativeNoPriceReply(currentMessage) ||
+      buildConsultativeNoPriceReply(currentMessage ?? "") ||
       buildAlejandroPriceReply(
-        findMentionedService(currentMessage) || "mobiliario",
-        currentMessage
+        findMentionedService(currentMessage ?? "") || "mobiliario",
+        currentMessage ?? ""
       );
     const pending = getNextPendingField(extracted, filledSet);
     const nextQ =
@@ -5825,29 +5823,29 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
       const needsAlejandroQuote =
         !genericPriceAsk &&
-        (mentionsNoListedPriceService(currentMessage) ||
-          (responseHasInventedPrice(aiResponse, currentMessage, ctxText) &&
-            !mentionsListedPriceService(currentMessage)));
+        (mentionsNoListedPriceService(currentMessage ?? "") ||
+          (responseHasInventedPrice(aiResponse, currentMessage ?? "", ctxText) &&
+            !mentionsListedPriceService(currentMessage ?? "")));
 
       if (genericPriceAsk) {
-        const clarify = buildGenericPriceClarifyReply(extracted, presHistory, currentMessage);
+        const clarify = buildGenericPriceClarifyReply(extracted, presHistory, currentMessage ?? "");
         mensaje = needsNextStep
           ? mergeWithPendingQuestion(clarify, filledSet, extracted, ctx)
           : clarify;
         appliedDirectReply = true;
         log?.info({ entityId }, "GUARD: precios genéricos — aclarar servicio");
       } else if (needsAlejandroQuote) {
-        const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage), currentMessage);
+        const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage ?? ""), currentMessage ?? "");
         mensaje =
           needsNextStep && pending && pending !== "correo"
             ? `${priceReply}\n\n${buildNaturalQuestion(pending, ctx)}`
             : priceReply;
         log?.info({ entityId, pending }, "GUARD: precio sin catálogo — Alejandro cotiza");
       } else {
-        const safe = sanitizeInventedPrices(aiResponse, currentMessage, ctxText);
+        const safe = sanitizeInventedPrices(aiResponse, currentMessage ?? "", ctxText);
         let priceContent = safe;
-        const fromCatalog = buildCatalogPriceAnswer(currentMessage);
-        if (fromCatalog && mentionsListedPriceService(currentMessage)) {
+        const fromCatalog = buildCatalogPriceAnswer(currentMessage ?? "");
+        if (fromCatalog && mentionsListedPriceService(currentMessage ?? "")) {
           priceContent = fromCatalog;
         } else if (!messageClaimsPrice(safe) && fromCatalog) {
           priceContent = fromCatalog;
@@ -5886,7 +5884,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: GPT repitió dato ya capturado — siguiente paso");
     } else {
       const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      if (clientAsksPrice(currentMessage)) {
+      if (currentMessage && clientAsksPrice(currentMessage)) {
         const fromCatalog = buildCatalogPriceAnswer(currentMessage);
         if (fromCatalog && nextQ) {
           mensaje = `${fromCatalog}\n\n${nextQ}`;
@@ -6283,8 +6281,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (
       (responseLooksLikeGenericCateringMenu(mensaje) || looksLikeServicesMenuDump(mensaje)) &&
       (historyHadGenericMenu ||
-        clientMentionsPistaTarima(currentMessage) ||
-        mentionsNoListedPriceService(currentMessage)) &&
+        (currentMessage && clientMentionsPistaTarima(currentMessage)) ||
+        mentionsNoListedPriceService(currentMessage ?? "")) &&
       currentMessage?.trim()
     ) {
       if (
@@ -6301,8 +6299,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       }
     }
     // Precio a media captura: el early-return de ventas no debe saltarse el Sheet.
-    if (clientAsksPrice(currentMessage) && !messageClaimsPrice(mensaje)) {
-      const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+    if (currentMessage && clientAsksPrice(currentMessage) && !messageClaimsPrice(mensaje)) {
+      const fromCatalog = buildCatalogPriceAnswer(currentMessage ?? "");
       if (fromCatalog) {
         const pendingFinal = getNextPendingField(extracted, filledSet);
         mensaje =
@@ -6391,10 +6389,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   );
 
   if (
-    clientAsksPrice(currentMessage) &&
-    mentionsListedPriceService(currentMessage)
+    currentMessage && clientAsksPrice(currentMessage) &&
+    mentionsListedPriceService(currentMessage ?? "")
   ) {
-    const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+    const fromCatalog = buildCatalogPriceAnswer(currentMessage ?? "");
     if (fromCatalog) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -6405,11 +6403,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: precio del Sheet aplicado al cierre");
     }
   } else if (
-    clientAsksPrice(currentMessage) &&
+    currentMessage && clientAsksPrice(currentMessage) &&
     !messageClaimsPrice(mensaje) &&
-    !mentionsNoListedPriceService(currentMessage)
+    !mentionsNoListedPriceService(currentMessage ?? "")
   ) {
-    const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+    const fromCatalog = buildCatalogPriceAnswer(currentMessage ?? "");
     if (fromCatalog) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -6426,7 +6424,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : null) ||
       parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) ||
       findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
-    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage, serviceHint);
+    const inclusionAnswer = resolveCatalogInclusionReply(currentMessage ?? "", serviceHint);
     if (inclusionAnswer) {
       const pendingFinal = getNextPendingField(extracted, filledSet);
       if (pendingFinal && needsNextStep && !trulyReadyForClosing) {
@@ -6582,13 +6580,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   );
   if (
     (responseLooksLikeGenericCateringMenu(mensaje) || looksLikeServicesMenuDump(mensaje)) &&
-    (historyHadGenericMenu || clientMentionsPistaTarima(currentMessage) || mentionsNoListedPriceService(currentMessage)) &&
+    (historyHadGenericMenu || (currentMessage && clientMentionsPistaTarima(currentMessage)) || mentionsNoListedPriceService(currentMessage ?? "")) &&
     currentMessage?.trim()
   ) {
     // Servicio concreto sin precio en Sheet (pista, DJ, etc.) → aceptar-anotar-avanzar, no otro menú.
     if (
-      clientMentionsPistaTarima(currentMessage) ||
-      mentionsNoListedPriceService(currentMessage)
+      (currentMessage && clientMentionsPistaTarima(currentMessage)) ||
+      mentionsNoListedPriceService(currentMessage ?? "")
     ) {
       const ack = buildGuardServiceAck(currentMessage);
       filledSet.add("Requerimientos o servicios");

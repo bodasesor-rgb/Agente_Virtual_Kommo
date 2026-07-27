@@ -223,7 +223,7 @@ export interface GenerateLucyOutboundInput {
   conversationAgeHours?: number;
   prependToAiResponse?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  log?: { warn: (obj: object, msg?: string) => void; info?: (obj: object, msg?: string) => void };
+  log?: { info: (obj: unknown, msg?: string) => void; warn: (obj: unknown, msg?: string) => void };
 }
 
 export interface GenerateLucyOutboundResult {

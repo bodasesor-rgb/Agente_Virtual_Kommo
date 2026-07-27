@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { db, conversations, leadScores, messages } from "@workspace/db";
-import { eq, gte, desc, sql, and, type SQL } from "drizzle-orm";
+import { eq, gte, desc, sql, and } from "drizzle-orm";
 import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = Router();
@@ -12,26 +12,26 @@ router.use(requireAuth);
 router.get("/analytics/overview", async (_req: Request, res: Response) => {
   try {
     const [totalResult] = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql`count(*)`.as("count") })
       .from(conversations);
     const totalConversations = Number(totalResult?.count ?? 0);
 
     const [activeResult] = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql`count(*)`.as("count") })
       .from(conversations)
       .where(eq(conversations.status, "active"));
     const activeConversations = Number(activeResult?.count ?? 0);
 
     const [hotResult] = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql`count(*)`.as("count") })
       .from(leadScores)
       .where(eq(leadScores.priority, "hot"));
     const [warmResult] = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql`count(*)`.as("count") })
       .from(leadScores)
       .where(eq(leadScores.priority, "warm"));
     const [coldResult] = await db
-      .select({ count: sql<number>`count(*)` })
+      .select({ count: sql`count(*)`.as("count") })
       .from(leadScores)
       .where(eq(leadScores.priority, "cold"));
 
@@ -40,14 +40,14 @@ router.get("/analytics/overview", async (_req: Request, res: Response) => {
     const coldLeads = Number(coldResult?.count ?? 0);
 
     const avgScoreResult = await db
-      .select({ avg: sql<number>`AVG(${leadScores.totalScore})` })
+      .select({ avg: sql`AVG(${leadScores.totalScore})`.as("avg") })
       .from(leadScores);
     const averageScore = Math.round(Number(avgScoreResult[0]?.avg ?? 0));
 
     const stageDistribution = await db
       .select({
         stage: conversations.stage,
-        count: sql<number>`count(*)`,
+        count: sql`count(*)`.as("count"),
       })
       .from(conversations)
       .where(eq(conversations.status, "active"))

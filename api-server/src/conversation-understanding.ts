@@ -230,7 +230,7 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   "letra xv": "renta de letras",
 };
 
-const TIPO_EVENTO_PATTERNS: Array<[string, RegExp]> = [
+const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
   [/\b(expo(sición)?|feria|stand\s+de|congreso)\b/i, "evento corporativo"],
   // A14985 Lilian: torneo de golf / stand en campo.
   [/\b(torneo(\s+de\s+golf)?|torneo\s+de\s+golf|golf|stand\s+en\s+campo)\b/i, "evento corporativo"],
