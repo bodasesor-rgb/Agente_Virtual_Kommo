@@ -6282,7 +6282,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       (responseLooksLikeGenericCateringMenu(mensaje) || looksLikeServicesMenuDump(mensaje)) &&
       (historyHadGenericMenu ||
         (currentMessage && clientMentionsPistaTarima(currentMessage)) ||
-        mentionsNoListedPriceService(currentMessage ?? "")) &&
+        (mentionsNoListedPriceService(currentMessage ?? ""))) &&
       currentMessage?.trim()
     ) {
       if (
