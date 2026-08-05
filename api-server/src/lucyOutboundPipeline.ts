@@ -17,6 +17,7 @@ import { maybeRefinarMensajeCierre } from "./services/lucyRedaction.js";
 import {
   clientAsksServiceInfo,
   isServiceRelatedMessage,
+  clientMentionsEntertainment,
 } from "./conversation-understanding.js";
 import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
 import { collapseDuplicatedInclusionReply } from "./services/lucyInfoPriceCache.js";
@@ -48,8 +49,19 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
   mensaje = normalizeAdvisorReferences(mensaje, input.extracted.nombre ?? null);
 
   if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
-    input.log?.warn({ entityId: input.entityId }, "P3 GUARD: catálogo repetido post-cierre — stripping");
-    mensaje = stripCatalogBlockShared(mensaje);
+    // A15165: post-cierre SÍ puede mandar catálogo si el cliente pidió info/shows/mobiliario.
+    const allowPostCierreCatalog =
+      clientAsksServiceInfo(input.currentMessage) ||
+      clientMentionsEntertainment(input.currentMessage) ||
+      isServiceRelatedMessage(input.currentMessage) ||
+      clientAsksInclusion(input.currentMessage) ||
+      /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|cat[aá]logo|info)\b/i.test(
+        input.currentMessage ?? ""
+      );
+    if (!allowPostCierreCatalog) {
+      input.log?.warn({ entityId: input.entityId }, "P3 GUARD: catálogo repetido post-cierre — stripping");
+      mensaje = stripCatalogBlockShared(mensaje);
+    }
   }
 
   // Contrato: no cierre prematuro si el embudo aún no está listo.

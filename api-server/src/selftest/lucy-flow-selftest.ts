@@ -8445,9 +8445,10 @@ async function runAll(): Promise<void> {
     assert.ok(/hola,?\s*soy\s+lucy/i.test(kept), kept);
     assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(kept), kept);
 
-    // Post-cierre: info de shows → catálogo / orientación, no "Queda anotado".
+    // Post-cierre: info de shows → catálogo / orientación, no Level-2 ni "Queda anotado".
     const postShow = runGuards({
-      aiResponse: "Queda anotado. Nuestro equipo sigue con tu cotización.",
+      aiResponse:
+        "¡Claro! *Animación / Hora loca* la anoto para tu cotización. Nuestro equipo te confirma descripción, precio e inclusiones.",
       extracted: emptyExtracted({
         nombre: "Alejandro",
         tipo_evento: "evento corporativo",
@@ -8478,6 +8479,10 @@ async function runAll(): Promise<void> {
     assert.ok(/show|animaci|entretenimiento|hora\s+loca|performance/i.test(postShow), postShow.slice(0, 400));
     assert.ok(/bodasesor\.com\/catalogos|cat[aá]logo/i.test(postShow), postShow.slice(0, 500));
     assert.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postShow), postShow);
+    assert.ok(
+      !/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(postShow),
+      `no Level-2: ${postShow.slice(0, 400)}`
+    );
 
     // Post-cierre: otros servicios.
     const postOtros = runGuards({
