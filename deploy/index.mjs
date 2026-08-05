@@ -206340,7 +206340,7 @@ function isLikelyUbicacionNotNombre(text2) {
   if (/^en\s+[A-Za-zÁÉÍÓÚáéíóúñÑ][\wÁÉÍÓÚáéíóúñÑ.'\s-]{2,40}$/i.test(t10) && t10.split(/\s+/).length <= 6) {
     return true;
   }
-  if (/\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex)\b/i.test(
+  if (/\b(cdmx|cd\.?\s*m\.?x\.?|ciudad de m[eé]xico|polanco|narvarte|santa\s*fe|cuernavaca|morelos|coyoac[aá]n|tlalpan|tlalnepantla|naucalpan|ecatepec|atizap[aá]n|sat[eé]lite|interlomas|expo\s+santa|estado\s+de\s+m[eé]xico|edo\.?\s*mex|canc[uú]n|cancun|guadalajara|monterrey|puebla|quer[eé]taro|m[eé]rida|tulum|playa\s+del\s+carmen|toluca|acapulco|veracruz|tijuana)\b/i.test(
     t10
   ) && t10.split(/\s+/).length <= 5) {
     return true;
@@ -206595,7 +206595,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
   ["Barra de Caf\xE9", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
-  ["Coffee break", /\b(coffee\s*break|coffeebreak)\b/i],
+  ["Coffee break", /\b(coffee\s*break|coffeebreak|coffe\s*break)\b/i],
   ["Comida Corrida", /\bcomida\s+corrida\b/i],
   ["Paella", /\bpaellas?\b|\bpaellada\b/i],
   ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
@@ -206825,7 +206825,8 @@ function clientAsksForRecommendations(message) {
 }
 function lastAssistantOfferedNumberedPackages(lastAssistantText) {
   const last = lastAssistantText ?? "";
-  return /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) || /\d\.\s*\*?coffee\s*break/i.test(last) || /cu[aá]l\s+nivel\s+prefieres/i.test(last) && /coffee\s*break|coffe{1,2}\s*break/i.test(last) && /\$\s*\d/.test(last);
+  return /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) || /\d\.\s*\*?coffee\s*break/i.test(last) || // A15168: menú corto "paquetes (1 a 5)" / listado CB 1–5.
+  /coffee\s*break|coffe\s*break/i.test(last) && (/paquetes?\s*\(?\s*1\s*a\s*5\s*\)?/i.test(last) || /coffee\s*break\s*1/i.test(last) && /coffee\s*break\s*5/i.test(last)) || /cu[aá]l\s+nivel\s+prefieres/i.test(last) && /coffee\s*break|coffe{1,2}\s*break/i.test(last) && /\$\s*\d/.test(last);
 }
 function extractCatalogNivelFromText(text2, lastAssistantText) {
   const t10 = text2?.trim().toLowerCase() ?? "";
@@ -206833,10 +206834,10 @@ function extractCatalogNivelFromText(text2, lastAssistantText) {
   const coffeeNamed = t10.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
   if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
   if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
-    const bare = t10.match(/^(?:el\s+)?([1-9])$/i) || t10.match(/\bel\s+([1-9])\b/i);
+    const bare = t10.match(/^(?:el\s+|la\s+)?([1-9])$/i) || t10.match(/\bel\s+([1-9])\b/i);
     if (bare) return `Coffee Break ${bare[1]}`;
-    const nivelN = t10.match(/\bnivel\s*([1-9])\b/i);
-    if (nivelN) return `Coffee Break ${nivelN[1]}`;
+    const opcionN = t10.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i);
+    if (opcionN) return `Coffee Break ${opcionN[1]}`;
   }
   const m10 = t10.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t10.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t10.match(/^(1|2|3|4)$/);
   if (!m10) return null;
@@ -206851,14 +206852,17 @@ function isCatalogLevelSelection(text2, lastAssistantText) {
   const t10 = text2?.trim().toLowerCase() ?? "";
   if (!t10) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
-  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles/i.test(
+  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes/i.test(
     last
   );
   if (!askedNivel) {
     return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t10);
   }
   if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t10)) return true;
-  if (/^(?:el\s+)?[1-9]$/i.test(t10) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+  if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t10) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    return true;
+  }
+  if (/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*[1-9]\b/i.test(t10) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
     return true;
   }
   return !!extractCatalogNivelFromText(t10, lastAssistantText);
@@ -207146,7 +207150,7 @@ function clientDeclinesMoreServices(message) {
 function clientMentionsCatering(message) {
   if (!message?.trim()) return false;
   const t10 = message.toLowerCase();
-  return /\bcatering\b/i.test(t10) || /\bbanquetes?\b/i.test(t10) || /\btaquiza\b|\btacos?\b/i.test(t10) || /\b(brunch|desayuno)\b/i.test(t10) || /\bbrunch\s*\/\s*desayuno/i.test(t10) || /\bcoffee\s*break\b/i.test(t10) || /\bbarra\s+de\s+caf[eé](?!\p{L})/iu.test(t10) || // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
+  return /\bcatering\b/i.test(t10) || /\bbanquetes?\b/i.test(t10) || /\btaquiza\b|\btacos?\b/i.test(t10) || /\b(brunch|desayuno)\b/i.test(t10) || /\bbrunch\s*\/\s*desayuno/i.test(t10) || /\bcoffee\s*break\b|\bcoffe\s*break\b|\bcoffeebreak\b/i.test(t10) || /\bbarra\s+de\s+caf[eé](?!\p{L})/iu.test(t10) || // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
   /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?|crepas?|pastas?|mariscos?)\b/i.test(t10) || /\b(sushi|poke(\s*bowl)?)\b/i.test(t10) || /\b(busco|necesito|quiero|cotizar|interesa)\s+(cotizar\s+)?(comida|alimentos?|men[uú])\b/i.test(t10) || /\bcomida\s+para\b/i.test(t10) || /\b(solo|nada\s+m[aá]s)\s+(comida|alimentos?)\b/i.test(t10) || /\b(comida|alimentos?|men[uú])\s+(para|del)\b/i.test(t10);
 }
 function clientAsksServiceInfo(message) {
@@ -208822,17 +208826,26 @@ var FAMILIES = [
   },
   {
     family: "coffee_break",
-    familyPattern: /\bcoffee\s*break\b|\bcoffeebreak\b/i,
-    variantPattern: /\bcoffee\s*break\s*[1-9]\b|\bcoffe{1,2}e?\s*break\s*[1-9]\b|\bnivel\s*[1-9]\b/i,
+    familyPattern: /\bcoffee\s*break\b|\bcoffeebreak\b|\bcoffe\s*break\b/i,
+    variantPattern: /\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*[1-9]\b|\bnivel\s*[1-9]\b|\bopci[oó]n(?:es)?\s*[1-9]\b|\bpaquete\s*[1-9]\b|^(?:el\s+|la\s+)?[1-9]$/i,
     detailQueryFromText: (text2) => {
-      const m10 = text2.match(/\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*([1-9])\b/i);
+      const m10 = text2.match(/\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*([1-9])\b/i) || text2.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i) || text2.match(/^(?:el\s+|la\s+)?([1-9])$/i);
       if (m10) return `Coffee Break ${m10[1]}`;
-      const n10 = text2.match(/\bnivel\s*([1-9])\b/i);
-      if (n10) return `Coffee Break ${n10[1]}`;
+      if (/\b(ver|muestr|muéstr|dame|quiero)\b.{0,24}\bopciones?\b/i.test(text2)) {
+        return "Coffee Break";
+      }
       return "Coffee Break";
     },
     buildMenu: () => [
-      "Claro. En *Coffee Break* tenemos varios paquetes (1 a 5), del m\xE1s esencial al m\xE1s completo.",
+      "Claro. En *Coffee Break* manejamos estos paquetes (del m\xE1s esencial al m\xE1s completo):",
+      "1. *Coffee Break 1*",
+      "2. *Coffee Break 2*",
+      "3. *Coffee Break 3*",
+      "4. *Coffee Break 4*",
+      "5. *Coffee Break 5*",
+      "",
+      "El detalle de men\xFAs e inclusiones est\xE1 en el cat\xE1logo:",
+      "https://bodasesor.com/catalogos/coffee-break",
       "",
       SERVICE_NIVEL_DETAIL_CTA
     ].join("\n")
@@ -209159,8 +209172,8 @@ function isProgressiveOptionsMenuReply(text2) {
   if (isAlimentosModoMenuReply(t10) || isMobiliarioPieceMenuReply(t10) || isSillasModelMenuReply(t10)) {
     return true;
   }
-  if (/claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t10) || /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t10)) {
-    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos/i.test(
+  if (/claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t10) || /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t10) || /manejamos estos paquetes|coffee\s*break\s*1[\s\S]{0,120}coffee\s*break\s*5/i.test(t10)) {
+    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos|catalogos\/coffee-break|cat[aá]logo/i.test(
       t10
     );
   }
@@ -209239,6 +209252,11 @@ function clientWantsServiceDetail(text2, history) {
   )) {
     return !!(history && historyOfferedServiceOptionsMenu(history));
   }
+  if (/\b(quiero|necesito|me\s+gustar[ií]a|puedes?|me\s+puedes?)\b.{0,30}\b(ver|verlas|conocer)\b.{0,20}\b(las\s+)?opciones?\b/i.test(
+    t10
+  ) || /^(ver|muestra|muéstra|muestrame|muéstrame|dame|pasa|manda)\s+(las\s+)?opciones?\b/i.test(t10) || /^las\s+opciones?\b/i.test(t10)) {
+    return !!(history && historyOfferedServiceOptionsMenu(history));
+  }
   if (/\b(dame|pasa|manda|quiero|necesito|me\s+interes[ao])\b.{0,40}\b(detalle|info|informaci[oó]n|precios?|incluye|inclusiones)\b/i.test(
     t10
   )) {
@@ -209253,9 +209271,9 @@ function clientWantsServiceDetail(text2, history) {
     }
   }
   if (history && historyOfferedServiceOptionsMenu(history)) {
-    if (/\b(formal|mexicano|kosher|navide|3\s*tiempos|4\s*tiempos|tres|cuatro|led|iluminada|pintada|vinil|logo|charol|madera|premium|b[aá]sic|tradicional|solo\s+alimentos)\b/i.test(
+    if (/\b(formal|mexicano|kosher|navide|3\s*tiempos|4\s*tiempos|tres|cuatro|led|iluminada|pintada|vinil|logo|charol|madera|premium|b[aá]sic|tradicional|solo\s+alimentos|opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|nivel\s*[1-9]|(?:el\s+|la\s+)?[1-9])\b/i.test(
       t10
-    )) {
+    ) || /^(?:el\s+|la\s+)?[1-9]$/i.test(t10)) {
       return true;
     }
   }
@@ -209790,10 +209808,11 @@ var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
   },
   {
     key: "coffee_break",
-    serviceHints: ["coffee break", "coffeebreak"],
+    serviceHints: ["coffee break", "coffeebreak", "coffe break"],
     aliases: [
       "coffee break",
       "coffeebreak",
+      "coffe break",
       "receso de cafe",
       "receso de caf\xE9",
       "cafe para junta",
@@ -212252,7 +212271,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.01";
+var LUCY_PROMPT_VERSION = "V9.02";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -214802,7 +214821,19 @@ ${nextQ}`;
         );
         if (merged) extracted.requerimientos_evento = merged;
       }
-      return `${pickTransition(history)} ${optionsFirst.menu}`.trim();
+      let menu = optionsFirst.menu;
+      if (optionsFirst.family === "coffee_break") {
+        const sheetMenu = buildCatalogServiceDetailAnswer("Coffee Break") || buildCatalogPriceAnswer("Coffee Break");
+        if (sheetMenu && /coffee\s*break\s*[1-5]|manejamos estos niveles|\$\s*\d/i.test(sheetMenu)) {
+          menu = withServiceAndGeneralCatalogLinks(sheetMenu, "Coffee Break", "Coffee Break");
+        } else if (!/bodasesor\.com\/catalogos\/coffee-break/i.test(menu)) {
+          menu = `${menu}
+
+Cat\xE1logo:
+https://bodasesor.com/catalogos/coffee-break`;
+        }
+      }
+      return `${pickTransition(history)} ${menu}`.trim();
     }
     const detailQuery = resolveProgressiveDetailQuery({
       currentMessage,
@@ -220181,7 +220212,10 @@ function applyLucyGlobalAntiRepetition(input) {
   const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
     mensaje
   ) || isEntertainmentCatalog || clientAffirmingCatalog;
-  const clientAskingInfo = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || clientAsksForRecommendations(input.currentMessage) || clientAsksForCatalog(input.currentMessage) || clientAsksInclusion(input.currentMessage) || clientAsksPrice(input.currentMessage) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info)\b/i.test(
+  const clientAskingInfo = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || clientAsksForRecommendations(input.currentMessage) || clientAsksForCatalog(input.currentMessage) || clientAsksInclusion(input.currentMessage) || clientAsksPrice(input.currentMessage) || // A15168: "opción 1" / "ver las opciones" no debe colapsar a "Seguimos…".
+  /\b(opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|ver\s+(las\s+)?opciones|muestr\w*\s+(las\s+)?opciones)\b/i.test(
+    input.currentMessage ?? ""
+  ) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break)\b/i.test(
     input.currentMessage ?? ""
   );
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p10) => THANKS_ACK_PATTERN.test(p10))) {

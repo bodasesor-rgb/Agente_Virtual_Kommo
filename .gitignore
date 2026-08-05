@@ -21,3 +21,5 @@ lib/db/node_modules/
 whatsapp-sender/node_modules/
 **/node_modules/
 Pagina-Web-Bodasesor/
+api-server/dist/selftest/postgres.*
+deploy/selftest/postgres.*
