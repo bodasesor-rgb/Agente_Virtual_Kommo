@@ -107805,7 +107805,7 @@ function stripPresentationPrefixLocal(raw) {
   const m5 = raw.trim().match(/^\s*(?:soy|me\s+llamo|mi\s+nombre\s+es|c[oó]mo)\s+(.+)$/i);
   return (m5?.[1] ?? raw).trim();
 }
-var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale)\b/i;
+var SENTENCE_VERB_PATTERN = /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
 var HANDOFF_OR_META_NAME_TOKEN = /^(hablar|asesor|agente|humano|persona|ejecutivo|equipo|conmigo|contigo|por|favor)$/i;
 var PRICE_OR_SERVICE_NAME_TOKEN = /^(cu[aá]nto|cu[aacute]nto|cuesta|cuestan|costo|precio|renta|rentar|cobran|vale|valen|mesas?|sillas?|periqueras?|salas?|mobiliario|personas?|invitados?)$/i;
 function isQuoteIntentMessage(text2) {
@@ -107865,6 +107865,11 @@ function isLikelyNotPersonNameMessage(text2) {
     return true;
   }
   if (isGreetingOnlyMessage(t3) || isQuoteIntentMessage(t3) || isAffirmativeOnlyMessage(t3)) return true;
+  if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|$)/i.test(
+    t3
+  )) {
+    return true;
+  }
   if (isLikelyUbicacionNotNombre(t3)) return true;
   if (COMPANY_OR_CHANNEL_PATTERN.test(t3)) return true;
   if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(t3)) return true;
@@ -107933,6 +107938,10 @@ function sanitizeDisplayName(name2) {
   if (CATALOG_LEVEL_OR_BRAND_NAME.test(firstName2)) return null;
   if (isQuoteIntentMessage(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw) || isLikelyUbicacionNotNombre(cleaned)) return null;
+  if (isLikelyNotPersonNameMessage(raw) || isLikelyNotPersonNameMessage(cleaned)) return null;
+  if (/^(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)$/i.test(firstName2)) {
+    return null;
+  }
   return firstName2.charAt(0).toUpperCase() + firstName2.slice(1).toLowerCase();
 }
 function sanitizeCrmNombre(name2) {
@@ -108961,9 +108970,30 @@ function clientAsksForCatalog(message) {
   }
   if (/\bel\s+cat[aá]logo\s+(de|con|completo|general|web)/i.test(t3)) return true;
   if (/\bcat[aá]logo\s+(de|web|completo|general)\b/i.test(t3)) return true;
+  if (/\b(cuentan|tienen|hay|manejan)\s+.{0,20}\bcat[aá]logo/i.test(t3)) return true;
+  if (/\bcat[aá]logo\s+de\s+men[uú]/i.test(t3)) return true;
   if (/\blink\s+(del\s+)?cat[aá]logo/i.test(t3)) return true;
   if (/bodasesor\.com\/catalogos/i.test(t3)) return true;
   if (/\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|dame)\s+el\s+(de|del)\b/i.test(t3) || /\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same)\s+el\s+link\b/i.test(t3)) {
+    return true;
+  }
+  if (/^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|\s|$)/i.test(
+    t3.trim()
+  )) {
+    return true;
+  }
+  return false;
+}
+function clientAsksGenericMenuCatalog(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  if (parseServicesFromText(message).length > 0) return false;
+  if (/\bcat[aá]logo\s+de\s+men[uú]\b/i.test(t3) || /\b(cuentan|tienen|hay|manejan)\s+.{0,24}\bcat[aá]logo/i.test(t3) || /\bcat[aá]logo\s+(general|completo|de\s+servicios?|de\s+opciones)\b/i.test(t3) || /\b(conocer|ver|explorar)\s+m[aá]s\s+de\s+(sus\s+)?servicios\b/i.test(t3) && /\bcat[aá]logo|men[uú]/i.test(t3) || /\b(conocer|ver)\s+(sus\s+)?servicios\b/i.test(t3) && /\bcat[aá]logo|men[uú]/i.test(t3)) {
+    return true;
+  }
+  if (clientAsksForCatalog(message) && !/\b(barra|banquete|taquiza|coffee|pizza|sushi|dj|carpa|pista|mobiliario|sillas?|mesas?)\b/i.test(
+    t3
+  )) {
     return true;
   }
   return false;
@@ -108971,6 +109001,7 @@ function clientAsksForCatalog(message) {
 function clientWantsFullCatalog(message) {
   if (!message?.trim()) return false;
   const t3 = message.toLowerCase();
+  if (clientAsksGenericMenuCatalog(message)) return true;
   if (/\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+todo\b/i.test(t3)) return true;
   if (/\bcat[aá]logo\s+(completo|general|todo|todos)\b/i.test(t3)) return true;
   if (/\b(todo|todos)\s+(el\s+)?cat[aá]logo/i.test(t3)) return true;
@@ -108980,7 +109011,10 @@ function clientWantsFullCatalog(message) {
 }
 function assistantOfferedCatalogDetail(lastAssistantText) {
   if (!lastAssistantText?.trim()) return false;
-  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle/i.test(
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText)) {
+    return true;
+  }
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle|aqu[ií]\s+tienes\s+el\s+cat[aá]logo|te\s+dejo\s+el\s+cat[aá]logo|cat[aá]logo\s+general/i.test(
     lastAssistantText
   );
 }
@@ -108988,12 +109022,12 @@ function clientAffirmsCatalogOffer(message, lastAssistantText) {
   if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
   const t3 = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
-  if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
+  if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
     t3
   )) {
     return true;
   }
-  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
+  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|m[aá]nda(me)?lo|env[ií]a(me)?lo|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
     t3
   );
 }
@@ -131266,7 +131300,7 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     currentMessage,
     [...presHistory].reverse().filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(0, 3).map((m5) => m5.content).find((t3) => assistantOfferedCatalogDetail(t3)) ?? null
   )) {
-    const wantFull = clientWantsFullCatalog(currentMessage);
+    const wantFull = clientWantsFullCatalog(currentMessage) || clientAsksGenericMenuCatalog(currentMessage);
     const hintParts = [];
     if (extracted.requerimientos_evento?.trim()) hintParts.push(extracted.requerimientos_evento);
     if (mentionedServiceNow) hintParts.push(mentionedServiceNow);
@@ -131278,11 +131312,12 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
       currentMessage ?? ""
     ].join(" ").trim();
     const serviceHint = hintParts.join(" ") || null;
-    const mappedServices = collectServicesForCatalogOffer({
-      services: parseServicesFromText(
-        `${extracted.requerimientos_evento ?? ""} ${historyHint}`
-      ),
-      extracted,
+    const userNamedServices = parseServicesFromText(historyHint);
+    const mappedServices = wantFull ? [] : collectServicesForCatalogOffer({
+      services: userNamedServices,
+      // No usar extracted.requerimientos si el usuario no nombró servicio:
+      // el extractor a veces alucina un SKU (A15169 → pizzas).
+      extracted: userNamedServices.length > 0 ? extracted : { requerimientos_evento: null },
       history: presHistory,
       currentMessage
     });
@@ -131303,9 +131338,9 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
       });
     } else {
       mensaje = buildCatalogWebLinkReply({
-        query: wantFull ? "cat\xE1logo general" : historyHint || (currentMessage ?? ""),
-        wantFull,
-        serviceHint
+        query: "cat\xE1logo general",
+        wantFull: true,
+        serviceHint: null
       });
     }
     appliedDirectReply = true;
@@ -134305,7 +134340,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.02";
+var LUCY_PROMPT_VERSION = "V9.03";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -141351,7 +141386,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.02");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.03");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -141815,6 +141850,45 @@ ${golfText}`,
       pick.slice(0, 500)
     );
     assert2.ok(/bodasesor\.com\/catalogos\/coffee-break/i.test(pick), pick.slice(0, 400));
+  });
+  await test("129. A15169 \u2014 cat\xE1logo gen\xE9rico hub; S\xED m\xE1ndamelo no es nombre", () => {
+    const msg = "\xA1Hola, me gustar\xEDa conocer m\xE1s de sus servicios!\nCuentan con catalogo de men\xFA?";
+    assert2.ok(clientAsksForCatalog(msg));
+    assert2.ok(clientAsksGenericMenuCatalog(msg));
+    assert2.ok(clientWantsFullCatalog(msg));
+    assert2.equal(parseServicesFromText(msg).length, 0);
+    const first = runGuards({
+      aiResponse: "Claro, aqu\xED tienes el cat\xE1logo de *Barra de pizzas*:\nhttps://bodasesor.com/catalogos/barra-de-pizzas",
+      extracted: emptyExtracted({
+        requerimientos_evento: "Barra de pizzas"
+      }),
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: msg,
+      forceFirstPresentation: true
+    });
+    assert2.ok(/cat[aá]logo general|todos los servicios/i.test(first), first.slice(0, 400));
+    assert2.ok(/bodasesor\.com\/catalogos(?!\/barra)/i.test(first), first.slice(0, 400));
+    assert2.ok(!/barra-de-pizzas|Barra de pizzas/i.test(first), first.slice(0, 400));
+    assert2.ok(isLikelyNotPersonNameMessage("Si m\xE1ndamelo"));
+    assert2.ok(isLikelyNotPersonNameMessage("m\xE1ndamelo"));
+    assert2.equal(sanitizeCrmNombre("Si m\xE1ndamelo"), null);
+    assert2.equal(sanitizeDisplayName("M\xE1ndamelo"), null);
+    const pizzaOffer = "Claro, aqu\xED tienes el cat\xE1logo de *Barra de pizzas*:\nhttps://bodasesor.com/catalogos/barra-de-pizzas\n\nSi quieres el de otro servicio, d\xEDmelo y te mando ese.";
+    assert2.ok(assistantOfferedCatalogDetail(pizzaOffer));
+    assert2.ok(clientAffirmsCatalogOffer("Si m\xE1ndamelo", pizzaOffer));
+    const affirm = runGuards({
+      aiResponse: "Para anotarte bien: \xBFeres M\xE1ndamelo o sigo contigo como Stephany?",
+      extracted: emptyExtracted({ nombre: "Stephany" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Si m\xE1ndamelo",
+      history: [{ role: "assistant", content: pizzaOffer }],
+      presentationHistory: [{ role: "assistant", content: pizzaOffer }],
+      whatsappDisplayName: "Stephany"
+    });
+    assert2.ok(!/eres M[aá]ndamelo|sigo contigo/i.test(affirm), affirm.slice(0, 300));
+    assert2.ok(/bodasesor\.com\/catalogos/i.test(affirm), affirm.slice(0, 400));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

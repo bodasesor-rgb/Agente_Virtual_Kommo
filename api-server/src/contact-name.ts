@@ -62,7 +62,7 @@ function stripPresentationPrefixLocal(raw: string): string {
 
 /** Verbos de frase/pregunta — el mensaje no es un nombre propio. */
 const SENTENCE_VERB_PATTERN =
-  /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale)\b/i;
+  /\b(comunico|comunica|hablo|hablar|llamo|escribo|quiero|necesito|busco|me\s+interesa|cotizar|organizar|contratar|tienen|tiene|tienes|ofrecen|ofrece|manejan|maneja|pueden|puede|puedo|gustar[ií]a|hay|cuenta|cuentan|cuesta|cuestan|costar|cobran|cobra|renta|rentan|sale|valen|vale|manda|m[aá]nda|mandame|m[aá]ndame|mandamelo|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|pasa|p[aá]same|conocer)\b/i;
 
 /** Tokens de handoff / meta que nunca son apellido (A15003: "Juan Hablar Agente"). */
 const HANDOFF_OR_META_NAME_TOKEN =
@@ -171,6 +171,14 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
     return true;
   }
   if (isGreetingOnlyMessage(t) || isQuoteIntentMessage(t) || isAffirmativeOnlyMessage(t)) return true;
+  // A15169: "Sí mándamelo" / "mándamelo" / "envíamelo" — pedido de envío, no nombre.
+  if (
+    /^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|$)/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
   if (isLikelyUbicacionNotNombre(t)) return true;
   if (COMPANY_OR_CHANNEL_PATTERN.test(t)) return true;
   // A15003: "Hablar con un agente/asesor" nunca es nombre.
@@ -277,6 +285,13 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   if (CATALOG_LEVEL_OR_BRAND_NAME.test(firstName)) return null;
   if (isQuoteIntentMessage(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw) || isLikelyUbicacionNotNombre(cleaned)) return null;
+  if (isLikelyNotPersonNameMessage(raw) || isLikelyNotPersonNameMessage(cleaned)) return null;
+  // A15169: imperativos de envío nunca son nombre.
+  if (
+    /^(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)$/i.test(firstName)
+  ) {
+    return null;
+  }
 
   return firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
 }
