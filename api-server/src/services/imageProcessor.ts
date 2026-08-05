@@ -1,15 +1,12 @@
-import OpenAI from "openai";
-import { getOpenAiApiKeyForClient } from "../lib/openaiEnv.js";
 import type pino from "pino";
-
-const openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+import { completeChat } from "../lib/llmChat.js";
+import { getChatModel } from "../lib/llmEnv.js";
 
 type Log = pino.Logger;
 type Msg = Record<string, unknown>;
 type Att = Record<string, unknown>;
 
 const IMAGE_TYPES = new Set(["picture", "image", "photo"]);
-const VISION_MODEL = "gpt-4o-mini";
 const IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1000;
 const IMAGE_CACHE_MAX = 500;
 
@@ -314,22 +311,28 @@ export async function analyzeImageFull(
     const base64 = Buffer.from(buffer).toString("base64");
     const dataUrl = `data:${contentType};base64,${base64}`;
 
-    const completion = await openai.chat.completions.create({
-      model: VISION_MODEL,
-      max_tokens: 320,
+    const completion = await completeChat({
+      model: getChatModel(),
+      maxTokens: 320,
       temperature: 0.3,
+      json: true,
       messages: [
         {
           role: "user",
           content: [
             { type: "text", text: VISION_PROMPT },
-            { type: "image_url", image_url: { url: dataUrl } },
+            {
+              type: "image_url",
+              image_url: { url: dataUrl },
+              mimeType: contentType,
+              base64,
+            },
           ],
         },
       ],
     });
 
-    const raw = completion.choices[0]?.message?.content?.trim() ?? "";
+    const raw = completion.text.trim();
     const parsed = raw ? parseVisionImageJson(raw) : null;
     const analysis =
       parsed ??

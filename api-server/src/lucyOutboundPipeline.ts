@@ -30,7 +30,7 @@ export interface FinalizeLucyOutboundInput {
   currentMessage?: string;
   history?: OpenAI.Chat.ChatCompletionMessageParam[];
   filledSet?: Set<string>;
-  openai: OpenAI;
+  openai?: OpenAI | null;
   entityId?: string | number;
   log?: { warn: (obj: object, msg?: string) => void; info?: (obj: object, msg?: string) => void };
 }

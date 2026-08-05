@@ -13,6 +13,7 @@
     "sim-10": "node ./scripts/lucy-simulator-10-clients.mjs"
   },
   "dependencies": {
+    "@google/genai": "^2.15.0",
     "@workspace/api-zod": "*",
     "@workspace/db": "*",
     "axios": "^1.16.1",

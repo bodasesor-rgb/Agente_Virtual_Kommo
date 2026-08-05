@@ -38,9 +38,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/pino-std-serializers/lib/err-helpers.js
+// node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/err-helpers.js
 var require_err_helpers = __commonJS({
-  "node_modules/pino-std-serializers/lib/err-helpers.js"(exports, module) {
+  "node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/err-helpers.js"(exports, module) {
     "use strict";
     var isErrorLike = (err) => {
       return err && typeof err.message === "string";
@@ -95,9 +95,9 @@ var require_err_helpers = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err-proto.js
+// node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/err-proto.js
 var require_err_proto = __commonJS({
-  "node_modules/pino-std-serializers/lib/err-proto.js"(exports, module) {
+  "node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/err-proto.js"(exports, module) {
     "use strict";
     var seen = /* @__PURE__ */ Symbol("circular-ref-tag");
     var rawSymbol = /* @__PURE__ */ Symbol("pino-raw-err-ref");
@@ -146,9 +146,9 @@ var require_err_proto = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err.js
+// node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/err.js
 var require_err = __commonJS({
-  "node_modules/pino-std-serializers/lib/err.js"(exports, module) {
+  "node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/err.js"(exports, module) {
     "use strict";
     module.exports = errSerializer;
     var { messageWithCauses, stackWithCauses, isErrorLike } = require_err_helpers();
@@ -186,9 +186,9 @@ var require_err = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/err-with-cause.js
+// node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/err-with-cause.js
 var require_err_with_cause = __commonJS({
-  "node_modules/pino-std-serializers/lib/err-with-cause.js"(exports, module) {
+  "node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/err-with-cause.js"(exports, module) {
     "use strict";
     module.exports = errWithCauseSerializer;
     var { isErrorLike } = require_err_helpers();
@@ -229,9 +229,9 @@ var require_err_with_cause = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/req.js
+// node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/req.js
 var require_req = __commonJS({
-  "node_modules/pino-std-serializers/lib/req.js"(exports, module) {
+  "node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/req.js"(exports, module) {
     "use strict";
     module.exports = {
       mapHttpRequest,
@@ -324,9 +324,9 @@ var require_req = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/lib/res.js
+// node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/res.js
 var require_res = __commonJS({
-  "node_modules/pino-std-serializers/lib/res.js"(exports, module) {
+  "node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/lib/res.js"(exports, module) {
     "use strict";
     module.exports = {
       mapHttpResponse,
@@ -373,9 +373,9 @@ var require_res = __commonJS({
   }
 });
 
-// node_modules/pino-std-serializers/index.js
+// node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/index.js
 var require_pino_std_serializers = __commonJS({
-  "node_modules/pino-std-serializers/index.js"(exports, module) {
+  "node_modules/.pnpm/pino-std-serializers@7.1.0/node_modules/pino-std-serializers/index.js"(exports, module) {
     "use strict";
     var errSerializer = require_err();
     var errWithCauseSerializer = require_err_with_cause();
@@ -410,9 +410,9 @@ var require_pino_std_serializers = __commonJS({
   }
 });
 
-// node_modules/pino/lib/caller.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/caller.js
 var require_caller = __commonJS({
-  "node_modules/pino/lib/caller.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/caller.js"(exports, module) {
     "use strict";
     function noOpPrepareStackTrace(_, stack) {
       return stack;
@@ -438,9 +438,9 @@ var require_caller = __commonJS({
   }
 });
 
-// node_modules/@pinojs/redact/index.js
+// node_modules/.pnpm/@pinojs+redact@0.4.0/node_modules/@pinojs/redact/index.js
 var require_redact = __commonJS({
-  "node_modules/@pinojs/redact/index.js"(exports, module) {
+  "node_modules/.pnpm/@pinojs+redact@0.4.0/node_modules/@pinojs/redact/index.js"(exports, module) {
     "use strict";
     function deepClone(obj) {
       if (obj === null || typeof obj !== "object") {
@@ -871,9 +871,9 @@ var require_redact = __commonJS({
   }
 });
 
-// node_modules/pino/lib/symbols.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/symbols.js
 var require_symbols = __commonJS({
-  "node_modules/pino/lib/symbols.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/symbols.js"(exports, module) {
     "use strict";
     var setLevelSym = /* @__PURE__ */ Symbol("pino.setLevel");
     var getLevelSym = /* @__PURE__ */ Symbol("pino.getLevel");
@@ -942,9 +942,9 @@ var require_symbols = __commonJS({
   }
 });
 
-// node_modules/pino/lib/redaction.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/redaction.js
 var require_redaction = __commonJS({
-  "node_modules/pino/lib/redaction.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/redaction.js"(exports, module) {
     "use strict";
     var Redact = require_redact();
     var { redactFmtSym, wildcardFirstSym } = require_symbols();
@@ -1024,9 +1024,9 @@ var require_redaction = __commonJS({
   }
 });
 
-// node_modules/pino/lib/time.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/time.js
 var require_time = __commonJS({
-  "node_modules/pino/lib/time.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/time.js"(exports, module) {
     "use strict";
     var nullTime = () => "";
     var epochTime = () => `,"time":${Date.now()}`;
@@ -1055,9 +1055,9 @@ var require_time = __commonJS({
   }
 });
 
-// node_modules/quick-format-unescaped/index.js
+// node_modules/.pnpm/quick-format-unescaped@4.0.4/node_modules/quick-format-unescaped/index.js
 var require_quick_format_unescaped = __commonJS({
-  "node_modules/quick-format-unescaped/index.js"(exports, module) {
+  "node_modules/.pnpm/quick-format-unescaped@4.0.4/node_modules/quick-format-unescaped/index.js"(exports, module) {
     "use strict";
     function tryStringify(o) {
       try {
@@ -1174,9 +1174,9 @@ var require_quick_format_unescaped = __commonJS({
   }
 });
 
-// node_modules/atomic-sleep/index.js
+// node_modules/.pnpm/atomic-sleep@1.0.0/node_modules/atomic-sleep/index.js
 var require_atomic_sleep = __commonJS({
-  "node_modules/atomic-sleep/index.js"(exports, module) {
+  "node_modules/.pnpm/atomic-sleep@1.0.0/node_modules/atomic-sleep/index.js"(exports, module) {
     "use strict";
     if (typeof SharedArrayBuffer !== "undefined" && typeof Atomics !== "undefined") {
       let sleep2 = function(ms) {
@@ -1209,9 +1209,9 @@ var require_atomic_sleep = __commonJS({
   }
 });
 
-// node_modules/sonic-boom/index.js
+// node_modules/.pnpm/sonic-boom@4.2.1/node_modules/sonic-boom/index.js
 var require_sonic_boom = __commonJS({
-  "node_modules/sonic-boom/index.js"(exports, module) {
+  "node_modules/.pnpm/sonic-boom@4.2.1/node_modules/sonic-boom/index.js"(exports, module) {
     "use strict";
     var fs = __require("fs");
     var EventEmitter = __require("events");
@@ -1796,9 +1796,9 @@ var require_sonic_boom = __commonJS({
   }
 });
 
-// node_modules/on-exit-leak-free/index.js
+// node_modules/.pnpm/on-exit-leak-free@2.1.2/node_modules/on-exit-leak-free/index.js
 var require_on_exit_leak_free = __commonJS({
-  "node_modules/on-exit-leak-free/index.js"(exports, module) {
+  "node_modules/.pnpm/on-exit-leak-free@2.1.2/node_modules/on-exit-leak-free/index.js"(exports, module) {
     "use strict";
     var refs = {
       exit: [],
@@ -1890,9 +1890,9 @@ var require_on_exit_leak_free = __commonJS({
   }
 });
 
-// node_modules/thread-stream/package.json
+// node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/package.json
 var require_package = __commonJS({
-  "node_modules/thread-stream/package.json"(exports, module) {
+  "node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/package.json"(exports, module) {
     module.exports = {
       name: "thread-stream",
       version: "3.1.0",
@@ -1953,9 +1953,9 @@ var require_package = __commonJS({
   }
 });
 
-// node_modules/thread-stream/lib/wait.js
+// node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/lib/wait.js
 var require_wait = __commonJS({
-  "node_modules/thread-stream/lib/wait.js"(exports, module) {
+  "node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/lib/wait.js"(exports, module) {
     "use strict";
     var MAX_TIMEOUT = 1e3;
     function wait(state, index, expected, timeout, done) {
@@ -2011,9 +2011,9 @@ var require_wait = __commonJS({
   }
 });
 
-// node_modules/thread-stream/lib/indexes.js
+// node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/lib/indexes.js
 var require_indexes = __commonJS({
-  "node_modules/thread-stream/lib/indexes.js"(exports, module) {
+  "node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/lib/indexes.js"(exports, module) {
     "use strict";
     var WRITE_INDEX = 4;
     var READ_INDEX = 8;
@@ -2024,9 +2024,9 @@ var require_indexes = __commonJS({
   }
 });
 
-// node_modules/thread-stream/index.js
+// node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/index.js
 var require_thread_stream = __commonJS({
-  "node_modules/thread-stream/index.js"(exports, module) {
+  "node_modules/.pnpm/thread-stream@3.1.0/node_modules/thread-stream/index.js"(exports, module) {
     "use strict";
     var { version } = require_package();
     var { EventEmitter } = __require("events");
@@ -2447,9 +2447,9 @@ var require_thread_stream = __commonJS({
   }
 });
 
-// node_modules/pino/lib/transport.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/transport.js
 var require_transport = __commonJS({
-  "node_modules/pino/lib/transport.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/transport.js"(exports, module) {
     "use strict";
     var { createRequire } = __require("module");
     var getCallers = require_caller();
@@ -2578,9 +2578,9 @@ var require_transport = __commonJS({
   }
 });
 
-// node_modules/pino/lib/tools.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/tools.js
 var require_tools = __commonJS({
-  "node_modules/pino/lib/tools.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/tools.js"(exports, module) {
     "use strict";
     var diagChan = __require("node:diagnostics_channel");
     var format = require_quick_format_unescaped();
@@ -2915,9 +2915,9 @@ var require_tools = __commonJS({
   }
 });
 
-// node_modules/pino/lib/constants.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/constants.js
 var require_constants = __commonJS({
-  "node_modules/pino/lib/constants.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/constants.js"(exports, module) {
     var DEFAULT_LEVELS = {
       trace: 10,
       debug: 20,
@@ -2937,9 +2937,9 @@ var require_constants = __commonJS({
   }
 });
 
-// node_modules/pino/lib/levels.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/levels.js
 var require_levels = __commonJS({
-  "node_modules/pino/lib/levels.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/levels.js"(exports, module) {
     "use strict";
     var {
       lsCacheSym,
@@ -3130,17 +3130,17 @@ var require_levels = __commonJS({
   }
 });
 
-// node_modules/pino/lib/meta.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/meta.js
 var require_meta = __commonJS({
-  "node_modules/pino/lib/meta.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/meta.js"(exports, module) {
     "use strict";
     module.exports = { version: "9.14.0" };
   }
 });
 
-// node_modules/pino/lib/proto.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/proto.js
 var require_proto = __commonJS({
-  "node_modules/pino/lib/proto.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/proto.js"(exports, module) {
     "use strict";
     var { EventEmitter } = __require("node:events");
     var {
@@ -3369,9 +3369,9 @@ var require_proto = __commonJS({
   }
 });
 
-// node_modules/safe-stable-stringify/index.js
+// node_modules/.pnpm/safe-stable-stringify@2.5.0/node_modules/safe-stable-stringify/index.js
 var require_safe_stable_stringify = __commonJS({
-  "node_modules/safe-stable-stringify/index.js"(exports, module) {
+  "node_modules/.pnpm/safe-stable-stringify@2.5.0/node_modules/safe-stable-stringify/index.js"(exports, module) {
     "use strict";
     var { hasOwnProperty } = Object.prototype;
     var stringify2 = configure();
@@ -3965,9 +3965,9 @@ ${originalIndentation}`;
   }
 });
 
-// node_modules/pino/lib/multistream.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/multistream.js
 var require_multistream = __commonJS({
-  "node_modules/pino/lib/multistream.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/lib/multistream.js"(exports, module) {
     "use strict";
     var metadata = /* @__PURE__ */ Symbol.for("pino.metadata");
     var { DEFAULT_LEVELS } = require_constants();
@@ -4133,9 +4133,9 @@ var require_multistream = __commonJS({
   }
 });
 
-// node_modules/pino/pino.js
+// node_modules/.pnpm/pino@9.14.0/node_modules/pino/pino.js
 var require_pino = __commonJS({
-  "node_modules/pino/pino.js"(exports, module) {
+  "node_modules/.pnpm/pino@9.14.0/node_modules/pino/pino.js"(exports, module) {
     function pinoBundlerAbsolutePath(p) {
       try {
         const path5 = __require("path");
@@ -11740,7 +11740,7 @@ function messageOffersCatalogLink(text) {
   );
 }
 
-// node_modules/openai/internal/tslib.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/tslib.mjs
 function __classPrivateFieldSet(receiver, state, value, kind, f) {
   if (kind === "m")
     throw new TypeError("Private method is not writable");
@@ -11758,7 +11758,7 @@ function __classPrivateFieldGet(receiver, state, kind, f) {
   return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 }
 
-// node_modules/openai/internal/utils/uuid.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/utils/uuid.mjs
 var uuid4 = function() {
   const { crypto: crypto2 } = globalThis;
   if (crypto2?.randomUUID) {
@@ -11770,7 +11770,7 @@ var uuid4 = function() {
   return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, (c) => (+c ^ randomByte() & 15 >> +c / 4).toString(16));
 };
 
-// node_modules/openai/internal/errors.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/errors.mjs
 function isAbortError(err) {
   return typeof err === "object" && err !== null && // Spec-compliant fetch implementations
   ("name" in err && err.name === "AbortError" || // Expo fetch
@@ -11801,7 +11801,7 @@ var castToError = (err) => {
   return new Error(err);
 };
 
-// node_modules/openai/core/error.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/core/error.mjs
 var OpenAIError = class extends Error {
 };
 var APIError = class _APIError extends OpenAIError {
@@ -11935,7 +11935,7 @@ var SubjectTokenProviderError = class extends OpenAIError {
   }
 };
 
-// node_modules/openai/internal/utils/values.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/utils/values.mjs
 var startsWithSchemeRegexp = /^[a-z][a-z0-9+.-]*:/i;
 var isAbsoluteURL = (url) => {
   return startsWithSchemeRegexp.test(url);
@@ -11978,13 +11978,13 @@ var safeJSON = (text) => {
   }
 };
 
-// node_modules/openai/internal/utils/sleep.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/utils/sleep.mjs
 var sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// node_modules/openai/version.mjs
-var VERSION = "6.45.0";
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/version.mjs
+var VERSION = "6.49.0";
 
-// node_modules/openai/internal/detect-platform.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/detect-platform.mjs
 var isRunningInBrowser = () => {
   return (
     // @ts-ignore
@@ -12118,7 +12118,7 @@ var getPlatformHeaders = () => {
   return _platformHeaders ?? (_platformHeaders = getPlatformProperties());
 };
 
-// node_modules/openai/internal/shims.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/shims.mjs
 function getDefaultFetch() {
   if (typeof fetch !== "undefined") {
     return fetch;
@@ -12190,7 +12190,7 @@ async function CancelReadableStream(stream) {
   await cancelPromise;
 }
 
-// node_modules/openai/internal/request-options.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/request-options.mjs
 var FallbackEncoder = ({ headers, body }) => {
   return {
     bodyHeaders: {
@@ -12200,7 +12200,7 @@ var FallbackEncoder = ({ headers, body }) => {
   };
 };
 
-// node_modules/openai/internal/qs/formats.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/qs/formats.mjs
 var default_format = "RFC3986";
 var default_formatter = (v) => String(v);
 var formatters = {
@@ -12209,7 +12209,7 @@ var formatters = {
 };
 var RFC1738 = "RFC1738";
 
-// node_modules/openai/internal/qs/utils.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/qs/utils.mjs
 var has = (obj, key) => (has = Object.hasOwn ?? Function.prototype.call.bind(Object.prototype.hasOwnProperty), has(obj, key));
 var hex_table = /* @__PURE__ */ (() => {
   const array = [];
@@ -12288,7 +12288,7 @@ function maybe_map(val, fn) {
   return fn(val);
 }
 
-// node_modules/openai/internal/qs/stringify.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/qs/stringify.mjs
 var array_prefix_generators = {
   brackets(prefix) {
     return String(prefix) + "[]";
@@ -12566,12 +12566,12 @@ function stringify(object, opts = {}) {
   return joined.length > 0 ? prefix + joined : "";
 }
 
-// node_modules/openai/internal/utils/query.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/utils/query.mjs
 function stringifyQuery(query) {
   return stringify(query, { arrayFormat: "brackets" });
 }
 
-// node_modules/openai/internal/utils/bytes.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/utils/bytes.mjs
 function concatBytes(buffers) {
   let length = 0;
   for (const buffer of buffers) {
@@ -12596,7 +12596,7 @@ function decodeUTF8(bytes) {
   return (decodeUTF8_ ?? (decoder = new globalThis.TextDecoder(), decodeUTF8_ = decoder.decode.bind(decoder)))(bytes);
 }
 
-// node_modules/openai/internal/decoders/line.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/decoders/line.mjs
 var _LineDecoder_buffer;
 var _LineDecoder_carriageReturnIndex;
 var LineDecoder = class {
@@ -12673,7 +12673,7 @@ function findDoubleNewlineIndex(buffer) {
   return -1;
 }
 
-// node_modules/openai/internal/utils/log.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/utils/log.mjs
 var levelNumbers = {
   off: 0,
   error: 200,
@@ -12746,7 +12746,7 @@ var formatRequestDetails = (details) => {
   return details;
 };
 
-// node_modules/openai/core/streaming.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/core/streaming.mjs
 var _Stream_client;
 var Stream = class _Stream {
   constructor(iterator, controller, client) {
@@ -12820,14 +12820,46 @@ var Stream = class _Stream {
     let consumed = false;
     async function* iterLines() {
       const lineDecoder = new LineDecoder();
-      const iter = ReadableStreamToAsyncIterable(readableStream);
-      for await (const chunk of iter) {
-        for (const line of lineDecoder.decode(chunk)) {
+      const reader = readableStream.getReader();
+      let closed = false;
+      let cancelPromise;
+      const cancel = () => {
+        cancelPromise ?? (cancelPromise = reader.cancel());
+        cancelPromise.catch(() => {
+        });
+      };
+      controller.signal.addEventListener("abort", cancel, { once: true });
+      try {
+        if (controller.signal.aborted) {
+          cancel();
+          return;
+        }
+        while (true) {
+          const { value: chunk, done } = await reader.read();
+          if (done) {
+            closed = true;
+            break;
+          }
+          if (controller.signal.aborted)
+            return;
+          for (const line of lineDecoder.decode(chunk)) {
+            if (controller.signal.aborted)
+              return;
+            yield line;
+          }
+        }
+        if (controller.signal.aborted)
+          return;
+        for (const line of lineDecoder.flush()) {
+          if (controller.signal.aborted)
+            return;
           yield line;
         }
-      }
-      for (const line of lineDecoder.flush()) {
-        yield line;
+      } finally {
+        controller.signal.removeEventListener("abort", cancel);
+        if (!closed)
+          cancel();
+        reader.releaseLock();
       }
     }
     async function* iterator() {
@@ -12845,7 +12877,7 @@ var Stream = class _Stream {
         }
         done = true;
       } catch (e) {
-        if (isAbortError(e))
+        if (controller.signal.aborted || isAbortError(e))
           return;
         throw e;
       } finally {
@@ -13004,7 +13036,7 @@ function partition(str2, delimiter) {
   return [str2, "", ""];
 }
 
-// node_modules/openai/internal/parse.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/parse.mjs
 async function defaultParseResponse(client, props) {
   const { response, requestLogID, retryOfRequestLogID, startTime } = props;
   const body = await (async () => {
@@ -13054,7 +13086,7 @@ function addRequestID(value, response) {
   });
 }
 
-// node_modules/openai/core/api-promise.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/core/api-promise.mjs
 var _APIPromise_client;
 var APIPromise = class _APIPromise extends Promise {
   constructor(client, responsePromise, parseResponse2 = defaultParseResponse) {
@@ -13117,7 +13149,7 @@ var APIPromise = class _APIPromise extends Promise {
 };
 _APIPromise_client = /* @__PURE__ */ new WeakMap();
 
-// node_modules/openai/core/pagination.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/core/pagination.mjs
 var _AbstractPage_client;
 var AbstractPage = class {
   constructor(client, response, body, options) {
@@ -13278,7 +13310,7 @@ var NextCursorPage = class extends AbstractPage {
   }
 };
 
-// node_modules/openai/auth/workload-identity-auth.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/auth/workload-identity-auth.mjs
 var SUBJECT_TOKEN_TYPES = {
   jwt: "urn:ietf:params:oauth:token-type:jwt",
   id: "urn:ietf:params:oauth:token-type:id_token"
@@ -13370,7 +13402,86 @@ var WorkloadIdentityAuth = class {
   }
 };
 
-// node_modules/openai/internal/uploads.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/headers.mjs
+var brand_privateNullableHeaders = /* @__PURE__ */ Symbol("brand.privateNullableHeaders");
+var httpTokenHeaderName = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+function* iterateHeaders(headers) {
+  if (!headers)
+    return;
+  if (brand_privateNullableHeaders in headers) {
+    const { values, nulls } = headers;
+    yield* values.entries();
+    for (const name of nulls) {
+      yield [name, null];
+    }
+    return;
+  }
+  let shouldClear = false;
+  let iter;
+  if (headers instanceof Headers) {
+    iter = headers.entries();
+  } else if (isReadonlyArray(headers)) {
+    iter = headers;
+  } else {
+    shouldClear = true;
+    iter = Object.entries(headers ?? {});
+  }
+  for (let row of iter) {
+    const name = row[0];
+    if (typeof name !== "string")
+      throw new TypeError("expected header name to be a string");
+    const values = isReadonlyArray(row[1]) ? row[1] : [row[1]];
+    let didClear = false;
+    for (const value of values) {
+      if (value === void 0)
+        continue;
+      if (shouldClear && !didClear) {
+        didClear = true;
+        yield [name, null];
+      }
+      yield [name, value];
+    }
+  }
+}
+var buildHeaders = (newHeaders) => {
+  const targetHeaders = new Headers();
+  const nullHeaders = /* @__PURE__ */ new Set();
+  for (const headers of newHeaders) {
+    const seenHeaders = /* @__PURE__ */ new Set();
+    for (const [name, value] of iterateHeaders(headers)) {
+      if (!httpTokenHeaderName.test(name)) {
+        throw new TypeError(`Header name must be a valid HTTP token ["${name}"]`);
+      }
+      const lowerName = name.toLowerCase();
+      if (!seenHeaders.has(lowerName)) {
+        targetHeaders.delete(lowerName);
+        seenHeaders.add(lowerName);
+      }
+      if (value === null) {
+        targetHeaders.delete(lowerName);
+        nullHeaders.add(lowerName);
+      } else {
+        targetHeaders.append(lowerName, value);
+        nullHeaders.delete(lowerName);
+      }
+    }
+  }
+  return { [brand_privateNullableHeaders]: true, values: targetHeaders, nulls: nullHeaders };
+};
+
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/uploads.mjs
+var brand_privateStreamingFile = /* @__PURE__ */ Symbol("brand.privateStreamingFile");
+function toStreamingFile(data, name, options) {
+  if (!name) {
+    throw new TypeError("toStreamingFile requires a non-empty file name");
+  }
+  return {
+    [brand_privateStreamingFile]: true,
+    data,
+    name,
+    ...options?.type ? { type: options.type } : {}
+  };
+}
 var checkFileSupport = () => {
   if (typeof File === "undefined") {
     const { process: process2 } = globalThis;
@@ -13389,9 +13500,15 @@ var isAsyncIterable = (value) => value != null && typeof value === "object" && t
 var maybeMultipartFormRequestOptions = async (opts, fetch2) => {
   if (!hasUploadableValue(opts.body))
     return opts;
+  if (hasStreamingUploadableValue(opts.body)) {
+    return createStreamingFormRequestOptions(opts);
+  }
   return { ...opts, body: await createForm(opts.body, fetch2) };
 };
 var multipartFormRequestOptions = async (opts, fetch2) => {
+  if (hasStreamingUploadableValue(opts.body)) {
+    return createStreamingFormRequestOptions(opts);
+  }
   return { ...opts, body: await createForm(opts.body, fetch2) };
 };
 var supportsFormDataMap = /* @__PURE__ */ new WeakMap();
@@ -13424,7 +13541,22 @@ var createForm = async (body, fetch2) => {
   return form;
 };
 var isNamedBlob = (value) => value instanceof Blob && "name" in value;
-var isUploadable = (value) => typeof value === "object" && value !== null && (value instanceof Response || isAsyncIterable(value) || isNamedBlob(value));
+var isReadableStream = (value) => typeof value === "object" && value !== null && "getReader" in value && typeof value.getReader === "function";
+var isStreamingFile = (value) => typeof value === "object" && value !== null && brand_privateStreamingFile in value;
+var isUploadable = (value) => typeof value === "object" && value !== null && (value instanceof Response || isAsyncIterable(value) || isReadableStream(value) || isStreamingFile(value) || isNamedBlob(value));
+var hasStreamingUploadableValue = (value) => {
+  if (isStreamingFile(value) || isAsyncIterable(value) || isReadableStream(value))
+    return true;
+  if (Array.isArray(value))
+    return value.some(hasStreamingUploadableValue);
+  if (value && typeof value === "object" && !isNamedBlob(value) && !(value instanceof Response)) {
+    for (const k in value) {
+      if (hasStreamingUploadableValue(value[k]))
+        return true;
+    }
+  }
+  return false;
+};
 var hasUploadableValue = (value) => {
   if (isUploadable(value))
     return true;
@@ -13438,6 +13570,115 @@ var hasUploadableValue = (value) => {
   }
   return false;
 };
+var createStreamingFormRequestOptions = (opts) => {
+  const boundary = `openai-${Math.random().toString(36).slice(2)}`;
+  const body = ReadableStreamFrom(iterateMultipartBody(opts.body, boundary));
+  return {
+    ...opts,
+    body,
+    headers: buildHeaders([{ "content-type": `multipart/form-data; boundary=${boundary}` }, opts.headers])
+  };
+};
+async function* iterateMultipartBody(body, boundary) {
+  for await (const { key, value } of iterateFormEntries(body)) {
+    yield encodeUTF8(`--${boundary}\r
+`);
+    if (isUploadable(value)) {
+      const filename = getStreamingFileName(value);
+      const type = getStreamingFileType(value);
+      yield encodeUTF8(`Content-Disposition: form-data; name="${escapeHeaderValue(key)}"; filename="${escapeHeaderValue(filename)}"\r
+Content-Type: ${type}\r
+\r
+`);
+      yield* iterateBytes(getStreamingFileData(value));
+    } else {
+      yield encodeUTF8(`Content-Disposition: form-data; name="${escapeHeaderValue(key)}"\r
+\r
+${String(value)}`);
+    }
+    yield encodeUTF8("\r\n");
+  }
+  yield encodeUTF8(`--${boundary}--\r
+`);
+}
+async function* iterateFormEntries(body) {
+  if (!body || typeof body !== "object")
+    return;
+  for (const [key, value] of Object.entries(body)) {
+    yield* iterateFormValue(key, value);
+  }
+}
+async function* iterateFormValue(key, value) {
+  if (value === void 0)
+    return;
+  if (value == null) {
+    throw new TypeError(`Received null for "${key}"; to pass null in FormData, you must use the string 'null'`);
+  }
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean" || isUploadable(value)) {
+    yield { key, value };
+  } else if (Array.isArray(value)) {
+    for (const entry of value) {
+      yield* iterateFormValue(key + "[]", entry);
+    }
+  } else if (typeof value === "object") {
+    for (const [name, prop] of Object.entries(value)) {
+      yield* iterateFormValue(`${key}[${name}]`, prop);
+    }
+  } else {
+    throw new TypeError(`Invalid value given to form, expected a string, number, boolean, object, Array, File or Blob but got ${value} instead`);
+  }
+}
+function getStreamingFileName(value) {
+  return isStreamingFile(value) ? value.name : getName(value) ?? "unknown_file";
+}
+function getStreamingFileType(value) {
+  if (isStreamingFile(value))
+    return value.type || "application/octet-stream";
+  if (isNamedBlob(value) && value.type)
+    return value.type;
+  if (value instanceof Response)
+    return value.headers.get("content-type") || "application/octet-stream";
+  return "application/octet-stream";
+}
+function getStreamingFileData(value) {
+  if (isStreamingFile(value))
+    return value.data;
+  return value;
+}
+async function* iterateBytes(value) {
+  if (typeof value === "string") {
+    yield encodeUTF8(value);
+  } else if (ArrayBuffer.isView(value)) {
+    yield new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  } else if (value instanceof ArrayBuffer) {
+    yield new Uint8Array(value);
+  } else if (value instanceof Response) {
+    if (value.body) {
+      yield* iterateBytes(value.body);
+    } else {
+      yield* iterateBytes(await value.blob());
+    }
+  } else if (value instanceof Blob) {
+    if (typeof value.stream === "function") {
+      yield* iterateBytes(value.stream());
+    } else {
+      yield new Uint8Array(await value.arrayBuffer());
+    }
+  } else if (isReadableStream(value)) {
+    for await (const chunk of ReadableStreamToAsyncIterable(value)) {
+      yield* iterateBytes(chunk);
+    }
+  } else if (isAsyncIterable(value)) {
+    for await (const chunk of value) {
+      yield* iterateBytes(chunk);
+    }
+  } else {
+    throw new TypeError(`Invalid streaming file chunk: ${String(value)}`);
+  }
+}
+function escapeHeaderValue(value) {
+  return value.replace(/["\\\r\n]/g, (character) => encodeURIComponent(character));
+}
 var addFormValue = async (form, key, value) => {
   if (value === void 0)
     return;
@@ -13461,7 +13702,7 @@ var addFormValue = async (form, key, value) => {
   }
 };
 
-// node_modules/openai/internal/to-file.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/to-file.mjs
 var isBlobLike = (value) => value != null && typeof value === "object" && typeof value.size === "number" && typeof value.type === "string" && typeof value.text === "function" && typeof value.slice === "function" && typeof value.arrayBuffer === "function";
 var isFileLike = (value) => value != null && typeof value === "object" && typeof value.name === "string" && typeof value.lastModified === "number" && isBlobLike(value);
 var isResponseLike = (value) => value != null && typeof value === "object" && typeof value.url === "string" && typeof value.blob === "function";
@@ -13513,14 +13754,14 @@ function propsForError(value) {
   return `; props: [${props.map((p) => `"${p}"`).join(", ")}]`;
 }
 
-// node_modules/openai/core/resource.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/core/resource.mjs
 var APIResource = class {
   constructor(client) {
     this._client = client;
   }
 };
 
-// node_modules/openai/internal/utils/path.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/utils/path.mjs
 function encodeURIPath(str2) {
   return str2.replace(/[^A-Za-z0-9\-._~!$&'()*+,;=:@]+/g, encodeURIComponent);
 }
@@ -13575,7 +13816,7 @@ ${underline}`);
 };
 var path3 = /* @__PURE__ */ createPathTagFunction(encodeURIPath);
 
-// node_modules/openai/resources/chat/completions/messages.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/chat/completions/messages.mjs
 var Messages = class extends APIResource {
   /**
    * Get the messages in a stored chat completion. Only Chat Completions that have
@@ -13596,7 +13837,7 @@ var Messages = class extends APIResource {
   }
 };
 
-// node_modules/openai/lib/parser.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/parser.mjs
 function isChatCompletionFunctionTool(tool) {
   return tool !== void 0 && "function" in tool && tool.function !== void 0;
 }
@@ -13703,7 +13944,7 @@ function validateInputTools(tools) {
   }
 }
 
-// node_modules/openai/lib/chatCompletionUtils.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/chatCompletionUtils.mjs
 var isAssistantMessage = (message) => {
   return message?.role === "assistant";
 };
@@ -13711,7 +13952,7 @@ var isToolMessage = (message) => {
   return message?.role === "tool";
 };
 
-// node_modules/openai/lib/EventStream.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/EventStream.mjs
 var _EventStream_instances;
 var _EventStream_connectedPromise;
 var _EventStream_resolveConnectedPromise;
@@ -13762,8 +14003,13 @@ var EventStream = class {
   }
   _run(executor) {
     setTimeout(() => {
-      executor().then(() => {
-        this._emitFinal();
+      Promise.resolve().then(executor).then(() => {
+        try {
+          this._emitFinal();
+        } catch (error) {
+          __classPrivateFieldGet(this, _EventStream_instances, "m", _EventStream_handleError).call(this, error);
+          return;
+        }
         this._emit("end");
       }, __classPrivateFieldGet(this, _EventStream_instances, "m", _EventStream_handleError).bind(this));
     }, 0);
@@ -13854,6 +14100,102 @@ var EventStream = class {
       this.once(event, resolve);
     });
   }
+  /**
+   * Returns an async iterator that yields every time the event is triggered.
+   * The iterator ends when the stream ends and rejects if the stream errors
+   * or is aborted. If you request the 'error' or 'abort' event, the iterator
+   * yields that event instead of rejecting.
+   *
+   * Example:
+   *
+   *   for await (const [message] of stream.events('message')) {
+   *     await processMessage(message);
+   *   }
+   */
+  events(event) {
+    const pushQueue = [];
+    const readQueue = [];
+    let ended = this.ended;
+    let failure;
+    let failureDelivered = false;
+    const doneResult = () => ({ value: void 0, done: true });
+    const finishReaders = () => {
+      while (readQueue.length) {
+        readQueue.shift().resolve(doneResult());
+      }
+    };
+    const rejectReader = () => {
+      if (!failure || failureDelivered || !readQueue.length)
+        return;
+      failureDelivered = true;
+      readQueue.shift().reject(failure);
+    };
+    const cleanup = () => {
+      this.off(event, onEvent);
+      this.off("end", onEnd);
+      if (event !== "error")
+        this.off("error", onFailure);
+      if (event !== "abort")
+        this.off("abort", onFailure);
+    };
+    const onEvent = (...args) => {
+      if (ended)
+        return;
+      const reader = readQueue.shift();
+      if (reader) {
+        reader.resolve({ value: args, done: false });
+      } else {
+        pushQueue.push(args);
+      }
+    };
+    const onFailure = (error) => {
+      failure = error;
+      if (!pushQueue.length)
+        rejectReader();
+    };
+    const onEnd = () => {
+      ended = true;
+      cleanup();
+      if (!pushQueue.length) {
+        rejectReader();
+        finishReaders();
+      }
+    };
+    if (!ended) {
+      this.on(event, onEvent);
+      this.on("end", onEnd);
+      if (event !== "error")
+        this.on("error", onFailure);
+      if (event !== "abort")
+        this.on("abort", onFailure);
+    }
+    return {
+      next: () => {
+        const value = pushQueue.shift();
+        if (value)
+          return Promise.resolve({ value, done: false });
+        if (failure && !failureDelivered) {
+          failureDelivered = true;
+          return Promise.reject(failure);
+        }
+        if (ended)
+          return Promise.resolve(doneResult());
+        return new Promise((resolve, reject) => {
+          readQueue.push({ resolve, reject });
+        });
+      },
+      return: () => {
+        ended = true;
+        pushQueue.length = 0;
+        cleanup();
+        finishReaders();
+        return Promise.resolve(doneResult());
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      }
+    };
+  }
   async done() {
     __classPrivateFieldSet(this, _EventStream_catchingPromiseCreated, true, "f");
     await __classPrivateFieldGet(this, _EventStream_endPromise, "f");
@@ -13919,12 +14261,12 @@ _EventStream_connectedPromise = /* @__PURE__ */ new WeakMap(), _EventStream_reso
   return this._emit("error", new OpenAIError(String(error)));
 };
 
-// node_modules/openai/lib/RunnableFunction.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/RunnableFunction.mjs
 function isRunnableFunctionWithParse(fn) {
   return typeof fn.parse === "function";
 }
 
-// node_modules/openai/lib/AbstractChatCompletionRunner.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/AbstractChatCompletionRunner.mjs
 var _AbstractChatCompletionRunner_instances;
 var _AbstractChatCompletionRunner_getFinalContent;
 var _AbstractChatCompletionRunner_getFinalMessage;
@@ -13934,6 +14276,53 @@ var _AbstractChatCompletionRunner_calculateTotalUsage;
 var _AbstractChatCompletionRunner_validateParams;
 var _AbstractChatCompletionRunner_stringifyFunctionCallResult;
 var DEFAULT_MAX_CHAT_COMPLETIONS = 10;
+function normalizeToolCallIds(chatCompletion) {
+  for (const choice of chatCompletion.choices) {
+    for (const toolCall of choice.message.tool_calls ?? []) {
+      if (!toolCall.id) {
+        toolCall.id = `call_${uuid4()}`;
+      }
+    }
+  }
+}
+function toRequestMessage(message) {
+  if (!isAssistantMessage(message))
+    return message;
+  const requestMessage = { role: "assistant" };
+  if (message.audio != null)
+    requestMessage.audio = { id: message.audio.id };
+  if (message.content !== void 0)
+    requestMessage.content = message.content;
+  if (message.function_call != null)
+    requestMessage.function_call = message.function_call;
+  if (message.name !== void 0)
+    requestMessage.name = message.name;
+  if (message.refusal != null)
+    requestMessage.refusal = message.refusal;
+  if (message.tool_calls !== void 0) {
+    requestMessage.tool_calls = message.tool_calls.map((toolCall) => {
+      if (toolCall.type === "custom") {
+        return {
+          id: toolCall.id,
+          type: toolCall.type,
+          custom: {
+            input: toolCall.custom.input,
+            name: toolCall.custom.name
+          }
+        };
+      }
+      return {
+        id: toolCall.id,
+        type: toolCall.type,
+        function: {
+          arguments: toolCall.function.arguments,
+          name: toolCall.function.name
+        }
+      };
+    });
+  }
+  return requestMessage;
+}
 var AbstractChatCompletionRunner = class extends EventStream {
   constructor() {
     super(...arguments);
@@ -13942,6 +14331,7 @@ var AbstractChatCompletionRunner = class extends EventStream {
     this.messages = [];
   }
   _addChatCompletion(chatCompletion) {
+    normalizeToolCallIds(chatCompletion);
     this._chatCompletions.push(chatCompletion);
     this._emit("chatCompletion", chatCompletion);
     const message = chatCompletion.choices[0]?.message;
@@ -14047,7 +14437,8 @@ var AbstractChatCompletionRunner = class extends EventStream {
   }
   async _runTools(client, params, runner, options) {
     const role = "tool";
-    const { tool_choice = "auto", stream, ...restParams } = params;
+    const { tool_choice = "auto", stream, toolContext: inputToolContext, ...restParams } = params;
+    const toolContext = inputToolContext;
     const singleFunctionToCall = typeof tool_choice !== "string" && tool_choice.type === "function" && tool_choice?.function?.name;
     const { maxChatCompletions = DEFAULT_MAX_CHAT_COMPLETIONS, afterCompletion } = options || {};
     const inputTools = params.tools.map((tool) => {
@@ -14110,9 +14501,9 @@ var AbstractChatCompletionRunner = class extends EventStream {
           const content2 = error instanceof Error ? error.message : String(error);
           return { message: { role, tool_call_id, content: content2 }, functionCalled: false };
         }
-        rawContent = await fn.function(parsed, runner);
+        rawContent = await fn.function(parsed, runner, toolContext);
       } else {
-        rawContent = await fn.function(args, runner);
+        rawContent = await fn.function(args, runner, toolContext);
       }
       const content = __classPrivateFieldGet(this, _AbstractChatCompletionRunner_instances, "m", _AbstractChatCompletionRunner_stringifyFunctionCallResult).call(this, rawContent);
       return { message: { role, tool_call_id, content }, functionCalled: true };
@@ -14122,7 +14513,7 @@ var AbstractChatCompletionRunner = class extends EventStream {
         ...restParams,
         tool_choice,
         tools,
-        messages: [...this.messages]
+        messages: this.messages.map(toRequestMessage)
       }, options);
       const message = chatCompletion.choices[0]?.message;
       if (!message) {
@@ -14218,7 +14609,7 @@ _AbstractChatCompletionRunner_instances = /* @__PURE__ */ new WeakSet(), _Abstra
   return typeof rawContent === "string" ? rawContent : rawContent === void 0 ? "undefined" : JSON.stringify(rawContent);
 };
 
-// node_modules/openai/lib/ChatCompletionRunner.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/ChatCompletionRunner.mjs
 var ChatCompletionRunner = class _ChatCompletionRunner extends AbstractChatCompletionRunner {
   static runTools(client, params, options) {
     const runner = new _ChatCompletionRunner();
@@ -14237,7 +14628,7 @@ var ChatCompletionRunner = class _ChatCompletionRunner extends AbstractChatCompl
   }
 };
 
-// node_modules/openai/_vendor/partial-json-parser/parser.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/_vendor/partial-json-parser/parser.mjs
 var STR = 1;
 var NUM = 2;
 var ARR = 4;
@@ -14449,9 +14840,10 @@ var _parseJSON = (jsonString, allow) => {
 };
 var partialParse = (input) => parseJSON(input, Allow.ALL ^ Allow.NUM);
 
-// node_modules/openai/lib/ChatCompletionStream.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/ChatCompletionStream.mjs
 var _ChatCompletionStream_instances;
 var _ChatCompletionStream_params;
+var _ChatCompletionStream_audioDoneChoiceIndexes;
 var _ChatCompletionStream_choiceEventStates;
 var _ChatCompletionStream_currentChatCompletionSnapshot;
 var _ChatCompletionStream_beginRequest;
@@ -14462,14 +14854,40 @@ var _ChatCompletionStream_emitContentDoneEvents;
 var _ChatCompletionStream_endRequest;
 var _ChatCompletionStream_getAutoParseableResponseFormat;
 var _ChatCompletionStream_accumulateChatCompletion;
+var CHAT_COMPLETION_READABLE_STREAM_MESSAGE_PREFIX = "chat.completion.chunk.message:";
+function makeChatCompletionReadableStreamMessageChunk(chunk, message, toolCallIds) {
+  const payload = {
+    type: "message",
+    message,
+    ...toolCallIds ? { tool_call_ids: toolCallIds } : {}
+  };
+  return {
+    id: chunk.id,
+    choices: [],
+    created: chunk.created,
+    model: chunk.model,
+    object: `${CHAT_COMPLETION_READABLE_STREAM_MESSAGE_PREFIX}${JSON.stringify(payload)}`
+  };
+}
+function isChatCompletionReadableStreamMessage(item) {
+  return "type" in item && item.type === "message" && "message" in item || "object" in item && typeof item.object === "string" && item.object.startsWith(CHAT_COMPLETION_READABLE_STREAM_MESSAGE_PREFIX);
+}
+function getChatCompletionReadableStreamMessage(item) {
+  if ("type" in item) {
+    return item;
+  }
+  return JSON.parse(item.object.slice(CHAT_COMPLETION_READABLE_STREAM_MESSAGE_PREFIX.length));
+}
 var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompletionRunner {
   constructor(params) {
     super();
     _ChatCompletionStream_instances.add(this);
     _ChatCompletionStream_params.set(this, void 0);
+    _ChatCompletionStream_audioDoneChoiceIndexes.set(this, void 0);
     _ChatCompletionStream_choiceEventStates.set(this, void 0);
     _ChatCompletionStream_currentChatCompletionSnapshot.set(this, void 0);
     __classPrivateFieldSet(this, _ChatCompletionStream_params, params, "f");
+    __classPrivateFieldSet(this, _ChatCompletionStream_audioDoneChoiceIndexes, /* @__PURE__ */ new Set(), "f");
     __classPrivateFieldSet(this, _ChatCompletionStream_choiceEventStates, [], "f");
   }
   get currentChatCompletionSnapshot() {
@@ -14512,21 +14930,47 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
     this._connected();
     const stream = Stream.fromReadableStream(readableStream, this.controller);
     let chatId;
-    for await (const chunk of stream) {
-      if (chatId && chatId !== chunk.id) {
+    for await (const item of stream) {
+      if (isChatCompletionReadableStreamMessage(item)) {
+        const message = getChatCompletionReadableStreamMessage(item);
+        if (__classPrivateFieldGet(this, _ChatCompletionStream_currentChatCompletionSnapshot, "f")) {
+          const toolCalls = __classPrivateFieldGet(this, _ChatCompletionStream_currentChatCompletionSnapshot, "f").choices[0]?.message.tool_calls;
+          for (const [index, id] of message.tool_call_ids?.entries() ?? []) {
+            const toolCall = toolCalls?.[index];
+            if (toolCall && id) {
+              toolCall.id = id;
+            }
+          }
+          this._addChatCompletion(__classPrivateFieldGet(this, _ChatCompletionStream_instances, "m", _ChatCompletionStream_endRequest).call(this));
+          chatId = void 0;
+        }
+        this._addMessage(message.message);
+        continue;
+      }
+      const chunk = item;
+      if (chatId && chunk.id && chatId !== chunk.id) {
         this._addChatCompletion(__classPrivateFieldGet(this, _ChatCompletionStream_instances, "m", _ChatCompletionStream_endRequest).call(this));
       }
       __classPrivateFieldGet(this, _ChatCompletionStream_instances, "m", _ChatCompletionStream_addChunk).call(this, chunk);
-      chatId = chunk.id;
+      if (chunk.id)
+        chatId = chunk.id;
     }
     if (stream.controller.signal?.aborted) {
       throw new APIUserAbortError();
     }
-    return this._addChatCompletion(__classPrivateFieldGet(this, _ChatCompletionStream_instances, "m", _ChatCompletionStream_endRequest).call(this));
+    if (__classPrivateFieldGet(this, _ChatCompletionStream_currentChatCompletionSnapshot, "f")) {
+      return this._addChatCompletion(__classPrivateFieldGet(this, _ChatCompletionStream_instances, "m", _ChatCompletionStream_endRequest).call(this));
+    }
+    const lastChatCompletion = this._chatCompletions[this._chatCompletions.length - 1];
+    if (lastChatCompletion) {
+      return lastChatCompletion;
+    }
+    throw new OpenAIError(`request ended without sending any chunks`);
   }
-  [(_ChatCompletionStream_params = /* @__PURE__ */ new WeakMap(), _ChatCompletionStream_choiceEventStates = /* @__PURE__ */ new WeakMap(), _ChatCompletionStream_currentChatCompletionSnapshot = /* @__PURE__ */ new WeakMap(), _ChatCompletionStream_instances = /* @__PURE__ */ new WeakSet(), _ChatCompletionStream_beginRequest = function _ChatCompletionStream_beginRequest2() {
+  [(_ChatCompletionStream_params = /* @__PURE__ */ new WeakMap(), _ChatCompletionStream_audioDoneChoiceIndexes = /* @__PURE__ */ new WeakMap(), _ChatCompletionStream_choiceEventStates = /* @__PURE__ */ new WeakMap(), _ChatCompletionStream_currentChatCompletionSnapshot = /* @__PURE__ */ new WeakMap(), _ChatCompletionStream_instances = /* @__PURE__ */ new WeakSet(), _ChatCompletionStream_beginRequest = function _ChatCompletionStream_beginRequest2() {
     if (this.ended)
       return;
+    __classPrivateFieldSet(this, _ChatCompletionStream_audioDoneChoiceIndexes, /* @__PURE__ */ new Set(), "f");
     __classPrivateFieldSet(this, _ChatCompletionStream_currentChatCompletionSnapshot, void 0, "f");
   }, _ChatCompletionStream_getChoiceEventState = function _ChatCompletionStream_getChoiceEventState2(choice) {
     let state = __classPrivateFieldGet(this, _ChatCompletionStream_choiceEventStates, "f")[choice.index];
@@ -14550,17 +14994,18 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
     this._emit("chunk", chunk, completion);
     for (const choice of chunk.choices) {
       const choiceSnapshot = completion.choices[choice.index];
-      if (choice.delta.content != null && choiceSnapshot.message?.role === "assistant" && choiceSnapshot.message?.content) {
-        this._emit("content", choice.delta.content, choiceSnapshot.message.content);
+      const { delta } = choice;
+      if (delta?.content != null && choiceSnapshot.message?.role === "assistant" && choiceSnapshot.message?.content) {
+        this._emit("content", delta.content, choiceSnapshot.message.content);
         this._emit("content.delta", {
-          delta: choice.delta.content,
+          delta: delta.content,
           snapshot: choiceSnapshot.message.content,
           parsed: choiceSnapshot.message.parsed
         });
       }
-      if (choice.delta.refusal != null && choiceSnapshot.message?.role === "assistant" && choiceSnapshot.message?.refusal) {
+      if (delta?.refusal != null && choiceSnapshot.message?.role === "assistant" && choiceSnapshot.message?.refusal) {
         this._emit("refusal.delta", {
-          delta: choice.delta.refusal,
+          delta: delta.refusal,
           snapshot: choiceSnapshot.message.refusal
         });
       }
@@ -14583,7 +15028,7 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
           __classPrivateFieldGet(this, _ChatCompletionStream_instances, "m", _ChatCompletionStream_emitToolCallDoneEvent).call(this, choiceSnapshot, state.current_tool_call_index);
         }
       }
-      for (const toolCall of choice.delta.tool_calls ?? []) {
+      for (const toolCall of delta?.tool_calls ?? []) {
         if (state.current_tool_call_index !== toolCall.index) {
           __classPrivateFieldGet(this, _ChatCompletionStream_instances, "m", _ChatCompletionStream_emitContentDoneEvents).call(this, choiceSnapshot);
           if (state.current_tool_call_index != null) {
@@ -14592,7 +15037,7 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
         }
         state.current_tool_call_index = toolCall.index;
       }
-      for (const toolCallDelta of choice.delta.tool_calls ?? []) {
+      for (const toolCallDelta of delta?.tool_calls ?? []) {
         const toolCallSnapshot = choiceSnapshot.message.tool_calls?.[toolCallDelta.index];
         if (!toolCallSnapshot?.type) {
           continue;
@@ -14663,9 +15108,11 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
     if (!snapshot2) {
       throw new OpenAIError(`request ended without sending any chunks`);
     }
+    const audioDoneChoiceIndexes = __classPrivateFieldGet(this, _ChatCompletionStream_audioDoneChoiceIndexes, "f");
+    __classPrivateFieldSet(this, _ChatCompletionStream_audioDoneChoiceIndexes, /* @__PURE__ */ new Set(), "f");
     __classPrivateFieldSet(this, _ChatCompletionStream_currentChatCompletionSnapshot, void 0, "f");
     __classPrivateFieldSet(this, _ChatCompletionStream_choiceEventStates, [], "f");
-    return finalizeChatCompletion(snapshot2, __classPrivateFieldGet(this, _ChatCompletionStream_params, "f"));
+    return finalizeChatCompletion(snapshot2, __classPrivateFieldGet(this, _ChatCompletionStream_params, "f"), audioDoneChoiceIndexes);
   }, _ChatCompletionStream_getAutoParseableResponseFormat = function _ChatCompletionStream_getAutoParseableResponseFormat2() {
     const responseFormat = __classPrivateFieldGet(this, _ChatCompletionStream_params, "f")?.response_format;
     if (isAutoParsableResponseFormat(responseFormat)) {
@@ -14673,7 +15120,7 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
     }
     return null;
   }, _ChatCompletionStream_accumulateChatCompletion = function _ChatCompletionStream_accumulateChatCompletion2(chunk) {
-    var _a3, _b, _c, _d;
+    var _a3, _b, _c, _d, _e;
     let snapshot2 = __classPrivateFieldGet(this, _ChatCompletionStream_currentChatCompletionSnapshot, "f");
     const { choices, ...rest } = chunk;
     if (!snapshot2) {
@@ -14681,7 +15128,7 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
         ...rest,
         choices: []
       }, "f");
-    } else {
+    } else if (chunk.id) {
       Object.assign(snapshot2, rest);
     }
     for (const { delta, finish_reason, index, logprobs = null, ...other } of chunk.choices) {
@@ -14720,14 +15167,30 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
       Object.assign(choice, other);
       if (!delta)
         continue;
-      const { content, refusal, function_call, role, tool_calls, ...rest2 } = delta;
+      __classPrivateFieldGet(this, _ChatCompletionStream_audioDoneChoiceIndexes, "f").delete(index);
+      const { audio, content, refusal, function_call, role, tool_calls, ...rest2 } = delta;
       assertIsEmpty(rest2);
       Object.assign(choice.message, rest2);
+      if (audio?.expires_at != null && audio.id == null && audio.data == null && audio.transcript == null && content == null && refusal == null && function_call == null && role == null && tool_calls == null && Object.keys(rest2).length === 0) {
+        __classPrivateFieldGet(this, _ChatCompletionStream_audioDoneChoiceIndexes, "f").add(index);
+      }
       if (refusal) {
         choice.message.refusal = (choice.message.refusal || "") + refusal;
       }
       if (role)
         choice.message.role = role;
+      if (audio) {
+        const audioSnapshot = (_c = choice.message).audio ?? (_c.audio = {});
+        if (audio.id != null)
+          audioSnapshot.id = audio.id;
+        if (audio.data != null)
+          audioSnapshot.data = (audioSnapshot.data ?? "") + audio.data;
+        if (audio.transcript != null) {
+          audioSnapshot.transcript = (audioSnapshot.transcript ?? "") + audio.transcript;
+        }
+        if (audio.expires_at != null)
+          audioSnapshot.expires_at = audio.expires_at;
+      }
       if (function_call) {
         if (!choice.message.function_call) {
           choice.message.function_call = function_call;
@@ -14735,7 +15198,7 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
           if (function_call.name)
             choice.message.function_call.name = function_call.name;
           if (function_call.arguments) {
-            (_c = choice.message.function_call).arguments ?? (_c.arguments = "");
+            (_d = choice.message.function_call).arguments ?? (_d.arguments = "");
             choice.message.function_call.arguments += function_call.arguments;
           }
         }
@@ -14750,7 +15213,7 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
         if (!choice.message.tool_calls)
           choice.message.tool_calls = [];
         for (const { index: index2, id, type, function: fn, ...rest3 } of tool_calls) {
-          const tool_call = (_d = choice.message.tool_calls)[index2] ?? (_d[index2] = {});
+          const tool_call = (_e = choice.message.tool_calls)[index2] ?? (_e[index2] = {});
           Object.assign(tool_call, rest3);
           if (id)
             tool_call.id = id;
@@ -14825,16 +15288,18 @@ var ChatCompletionStream = class _ChatCompletionStream extends AbstractChatCompl
     return stream.toReadableStream();
   }
 };
-function finalizeChatCompletion(snapshot2, params) {
+function finalizeChatCompletion(snapshot2, params, audioDoneChoiceIndexes) {
   const { id, choices, created, model, system_fingerprint, ...rest } = snapshot2;
   const completion = {
     ...rest,
     id,
     choices: choices.map(({ message, finish_reason, index, logprobs, ...choiceRest }) => {
-      if (!finish_reason) {
+      const { content = null, function_call, tool_calls, audio, ...messageRest } = message;
+      const finishReason = finish_reason ?? (audioDoneChoiceIndexes.has(index) && isCompleteAudio(audio) ? "stop" : null);
+      if (!finishReason) {
         throw new OpenAIError(`missing finish_reason for choice ${index}`);
       }
-      const { content = null, function_call, tool_calls, ...messageRest } = message;
+      const audioResponse = audio ? { audio } : {};
       const role = message.role;
       if (!role) {
         throw new OpenAIError(`missing role for choice ${index}`);
@@ -14850,12 +15315,13 @@ function finalizeChatCompletion(snapshot2, params) {
         return {
           ...choiceRest,
           message: {
+            ...audioResponse,
             content,
             function_call: { arguments: args, name },
             role,
             refusal: message.refusal ?? null
           },
-          finish_reason,
+          finish_reason: finishReason,
           index,
           logprobs
         };
@@ -14864,20 +15330,17 @@ function finalizeChatCompletion(snapshot2, params) {
         return {
           ...choiceRest,
           index,
-          finish_reason,
+          finish_reason: finishReason,
           logprobs,
           message: {
             ...messageRest,
+            ...audioResponse,
             role,
             content,
             refusal: message.refusal ?? null,
             tool_calls: tool_calls.map((tool_call, i) => {
               const { function: fn, type, id: id2, ...toolRest } = tool_call;
               const { arguments: args, name, ...fnRest } = fn || {};
-              if (id2 == null) {
-                throw new OpenAIError(`missing choices[${index}].tool_calls[${i}].id
-${str(snapshot2)}`);
-              }
               if (type == null) {
                 throw new OpenAIError(`missing choices[${index}].tool_calls[${i}].type
 ${str(snapshot2)}`);
@@ -14890,15 +15353,20 @@ ${str(snapshot2)}`);
                 throw new OpenAIError(`missing choices[${index}].tool_calls[${i}].function.arguments
 ${str(snapshot2)}`);
               }
-              return { ...toolRest, id: id2, type, function: { ...fnRest, name, arguments: args } };
+              return {
+                ...toolRest,
+                id: id2 || `call_${uuid4()}`,
+                type,
+                function: { ...fnRest, name, arguments: args }
+              };
             })
           }
         };
       }
       return {
         ...choiceRest,
-        message: { ...messageRest, content, role, refusal: message.refusal ?? null },
-        finish_reason,
+        message: { ...messageRest, ...audioResponse, content, role, refusal: message.refusal ?? null },
+        finish_reason: finishReason,
         index,
         logprobs
       };
@@ -14910,6 +15378,9 @@ ${str(snapshot2)}`);
   };
   return maybeParseChatCompletion(completion, params);
 }
+function isCompleteAudio(audio) {
+  return audio?.id != null && audio.data != null && audio.transcript != null && audio.expires_at != null;
+}
 function str(x) {
   return JSON.stringify(x);
 }
@@ -14919,12 +15390,85 @@ function assertIsEmpty(obj) {
 function assertNever(_x) {
 }
 
-// node_modules/openai/lib/ChatCompletionStreamingRunner.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/ChatCompletionStreamingRunner.mjs
 var ChatCompletionStreamingRunner = class _ChatCompletionStreamingRunner extends ChatCompletionStream {
   static fromReadableStream(stream) {
     const runner = new _ChatCompletionStreamingRunner(null);
     runner._run(() => runner._fromReadableStream(stream));
     return runner;
+  }
+  toReadableStream() {
+    const pushQueue = [];
+    const readQueue = [];
+    let done = false;
+    let lastChunk;
+    let toolCallIds;
+    const pushEvent = (event) => {
+      const reader = readQueue.shift();
+      if (reader) {
+        reader.resolve(event);
+      } else {
+        pushQueue.push(event);
+      }
+    };
+    this.on("chunk", (chunk) => {
+      lastChunk = chunk;
+      pushEvent(chunk);
+    });
+    this.on("message", (message) => {
+      if (isAssistantMessage(message)) {
+        toolCallIds = message.tool_calls?.map((toolCall) => toolCall.id);
+        return;
+      }
+      if (isToolMessage(message)) {
+        if (!lastChunk) {
+          throw new OpenAIError("cannot serialize a tool message before receiving any chunks");
+        }
+        pushEvent(makeChatCompletionReadableStreamMessageChunk(lastChunk, message, toolCallIds));
+      }
+    });
+    this.on("end", () => {
+      done = true;
+      for (const reader of readQueue) {
+        reader.resolve(void 0);
+      }
+      readQueue.length = 0;
+    });
+    this.on("abort", (err) => {
+      done = true;
+      for (const reader of readQueue) {
+        reader.reject(err);
+      }
+      readQueue.length = 0;
+    });
+    this.on("error", (err) => {
+      done = true;
+      for (const reader of readQueue) {
+        reader.reject(err);
+      }
+      readQueue.length = 0;
+    });
+    const iterator = () => ({
+      next: async () => {
+        if (!pushQueue.length) {
+          if (done) {
+            return { value: void 0, done: true };
+          }
+          return new Promise((resolve, reject) => readQueue.push({ resolve, reject })).then((event2) => event2 ? { value: event2, done: false } : { value: void 0, done: true });
+        }
+        const event = pushQueue.shift();
+        if (!event) {
+          return { value: void 0, done: true };
+        }
+        return { value: event, done: false };
+      },
+      return: async () => {
+        this.abort();
+        return { value: void 0, done: true };
+      }
+    });
+    const stream = new Stream(iterator, this.controller);
+    return stream.toReadableStream();
   }
   static runTools(client, params, options) {
     const runner = new _ChatCompletionStreamingRunner(
@@ -14940,7 +15484,7 @@ var ChatCompletionStreamingRunner = class _ChatCompletionStreamingRunner extends
   }
 };
 
-// node_modules/openai/resources/chat/completions/completions.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/chat/completions/completions.mjs
 var Completions = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -15050,7 +15594,7 @@ var Completions = class extends APIResource {
 };
 Completions.Messages = Messages;
 
-// node_modules/openai/resources/chat/chat.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/chat/chat.mjs
 var Chat = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -15059,7 +15603,7 @@ var Chat = class extends APIResource {
 };
 Chat.Completions = Completions;
 
-// node_modules/openai/resources/admin/organization/admin-api-keys.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/admin-api-keys.mjs
 var AdminAPIKeys = class extends APIResource {
   /**
    * Create an organization admin API key
@@ -15133,7 +15677,7 @@ var AdminAPIKeys = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/audit-logs.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/audit-logs.mjs
 var AuditLogs = class extends APIResource {
   /**
    * List user actions and configuration changes within this organization.
@@ -15155,7 +15699,7 @@ var AuditLogs = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/certificates.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/certificates.mjs
 var Certificates = class extends APIResource {
   /**
    * Upload a certificate to the organization. This does **not** automatically
@@ -15292,7 +15836,7 @@ var Certificates = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/data-retention.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/data-retention.mjs
 var DataRetention = class extends APIResource {
   /**
    * Retrieves organization data retention controls.
@@ -15329,7 +15873,7 @@ var DataRetention = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/invites.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/invites.mjs
 var Invites = class extends APIResource {
   /**
    * Create an invite for a user to the organization. The invite must be accepted by
@@ -15405,7 +15949,7 @@ var Invites = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/roles.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/roles.mjs
 var Roles = class extends APIResource {
   /**
    * Creates a custom role for the organization.
@@ -15494,7 +16038,7 @@ var Roles = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/spend-alerts.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/spend-alerts.mjs
 var SpendAlerts = class extends APIResource {
   /**
    * Creates an organization spend alert.
@@ -15597,7 +16141,61 @@ var SpendAlerts = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/usage.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/spend-limit.mjs
+var SpendLimit = class extends APIResource {
+  /**
+   * Get the organization's hard spend limit.
+   *
+   * @example
+   * ```ts
+   * const organizationSpendLimit =
+   *   await client.admin.organization.spendLimit.retrieve();
+   * ```
+   */
+  retrieve(options) {
+    return this._client.get("/organization/spend_limit", {
+      ...options,
+      __security: { adminAPIKeyAuth: true }
+    });
+  }
+  /**
+   * Create or replace the organization's hard spend limit.
+   *
+   * @example
+   * ```ts
+   * const organizationSpendLimit =
+   *   await client.admin.organization.spendLimit.update({
+   *     currency: 'USD',
+   *     interval: 'month',
+   *     threshold_amount: 1,
+   *   });
+   * ```
+   */
+  update(body, options) {
+    return this._client.post("/organization/spend_limit", {
+      body,
+      ...options,
+      __security: { adminAPIKeyAuth: true }
+    });
+  }
+  /**
+   * Delete the organization's hard spend limit.
+   *
+   * @example
+   * ```ts
+   * const organizationSpendLimitDeleted =
+   *   await client.admin.organization.spendLimit.delete();
+   * ```
+   */
+  delete(options) {
+    return this._client.delete("/organization/spend_limit", {
+      ...options,
+      __security: { adminAPIKeyAuth: true }
+    });
+  }
+};
+
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/usage.mjs
 var Usage = class extends APIResource {
   /**
    * Get audio speeches usage details for the organization.
@@ -15799,7 +16397,7 @@ var Usage = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/groups/roles.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/groups/roles.mjs
 var Roles2 = class extends APIResource {
   /**
    * Assigns an organization role to a group within the organization.
@@ -15876,7 +16474,7 @@ var Roles2 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/groups/users.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/groups/users.mjs
 var Users = class extends APIResource {
   /**
    * Adds a user to a group.
@@ -15953,7 +16551,7 @@ var Users = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/groups/groups.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/groups/groups.mjs
 var Groups = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -16050,7 +16648,7 @@ var Groups = class extends APIResource {
 Groups.Users = Users;
 Groups.Roles = Roles2;
 
-// node_modules/openai/resources/admin/organization/projects/api-keys.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/api-keys.mjs
 var APIKeys = class extends APIResource {
   /**
    * Retrieves an API key in the project.
@@ -16111,7 +16709,7 @@ var APIKeys = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/projects/certificates.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/certificates.mjs
 var Certificates2 = class extends APIResource {
   /**
    * List certificates for this project.
@@ -16168,7 +16766,7 @@ var Certificates2 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/projects/data-retention.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/data-retention.mjs
 var DataRetention2 = class extends APIResource {
   /**
    * Retrieves project data retention controls.
@@ -16208,7 +16806,7 @@ var DataRetention2 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/hosted-tool-permissions.mjs
 var HostedToolPermissions = class extends APIResource {
   /**
    * Returns hosted tool permissions for a project.
@@ -16247,7 +16845,7 @@ var HostedToolPermissions = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/projects/model-permissions.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/model-permissions.mjs
 var ModelPermissions = class extends APIResource {
   /**
    * Returns model permissions for a project.
@@ -16304,7 +16902,7 @@ var ModelPermissions = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/projects/rate-limits.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/rate-limits.mjs
 var RateLimits = class extends APIResource {
   /**
    * Returns the rate limits per model for a project.
@@ -16344,7 +16942,7 @@ var RateLimits = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/projects/roles.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/roles.mjs
 var Roles3 = class extends APIResource {
   /**
    * Creates a custom role for a project.
@@ -16445,101 +17043,7 @@ var Roles3 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/projects/service-accounts.mjs
-var ServiceAccounts = class extends APIResource {
-  /**
-   * Creates a new service account in the project. This also returns an unredacted
-   * API key for the service account.
-   *
-   * @example
-   * ```ts
-   * const serviceAccount =
-   *   await client.admin.organization.projects.serviceAccounts.create(
-   *     'project_id',
-   *     { name: 'name' },
-   *   );
-   * ```
-   */
-  create(projectID, body, options) {
-    return this._client.post(path3`/organization/projects/${projectID}/service_accounts`, {
-      body,
-      ...options,
-      __security: { adminAPIKeyAuth: true }
-    });
-  }
-  /**
-   * Retrieves a service account in the project.
-   *
-   * @example
-   * ```ts
-   * const projectServiceAccount =
-   *   await client.admin.organization.projects.serviceAccounts.retrieve(
-   *     'service_account_id',
-   *     { project_id: 'project_id' },
-   *   );
-   * ```
-   */
-  retrieve(serviceAccountID, params, options) {
-    const { project_id } = params;
-    return this._client.get(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, {
-      ...options,
-      __security: { adminAPIKeyAuth: true }
-    });
-  }
-  /**
-   * Updates a service account in the project.
-   *
-   * @example
-   * ```ts
-   * const projectServiceAccount =
-   *   await client.admin.organization.projects.serviceAccounts.update(
-   *     'service_account_id',
-   *     { project_id: 'project_id' },
-   *   );
-   * ```
-   */
-  update(serviceAccountID, params, options) {
-    const { project_id, ...body } = params;
-    return this._client.post(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { body, ...options, __security: { adminAPIKeyAuth: true } });
-  }
-  /**
-   * Returns a list of service accounts in the project.
-   *
-   * @example
-   * ```ts
-   * // Automatically fetches more pages as needed.
-   * for await (const projectServiceAccount of client.admin.organization.projects.serviceAccounts.list(
-   *   'project_id',
-   * )) {
-   *   // ...
-   * }
-   * ```
-   */
-  list(projectID, query = {}, options) {
-    return this._client.getAPIList(path3`/organization/projects/${projectID}/service_accounts`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
-  }
-  /**
-   * Deletes a service account from the project.
-   *
-   * Returns confirmation of service account deletion, or an error if the project is
-   * archived (archived projects have no service accounts).
-   *
-   * @example
-   * ```ts
-   * const serviceAccount =
-   *   await client.admin.organization.projects.serviceAccounts.delete(
-   *     'service_account_id',
-   *     { project_id: 'project_id' },
-   *   );
-   * ```
-   */
-  delete(serviceAccountID, params, options) {
-    const { project_id } = params;
-    return this._client.delete(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { ...options, __security: { adminAPIKeyAuth: true } });
-  }
-};
-
-// node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/spend-alerts.mjs
 var SpendAlerts2 = class extends APIResource {
   /**
    * Creates a project spend alert.
@@ -16653,7 +17157,68 @@ var SpendAlerts2 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/projects/groups/roles.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/spend-limit.mjs
+var SpendLimit2 = class extends APIResource {
+  /**
+   * Get a project's hard spend limit.
+   *
+   * @example
+   * ```ts
+   * const projectSpendLimit =
+   *   await client.admin.organization.projects.spendLimit.retrieve(
+   *     'proj_123',
+   *   );
+   * ```
+   */
+  retrieve(projectID, options) {
+    return this._client.get(path3`/organization/projects/${projectID}/spend_limit`, {
+      ...options,
+      __security: { adminAPIKeyAuth: true }
+    });
+  }
+  /**
+   * Create or replace a project's hard spend limit.
+   *
+   * @example
+   * ```ts
+   * const projectSpendLimit =
+   *   await client.admin.organization.projects.spendLimit.update(
+   *     'proj_123',
+   *     {
+   *       currency: 'USD',
+   *       interval: 'month',
+   *       threshold_amount: 1,
+   *     },
+   *   );
+   * ```
+   */
+  update(projectID, body, options) {
+    return this._client.post(path3`/organization/projects/${projectID}/spend_limit`, {
+      body,
+      ...options,
+      __security: { adminAPIKeyAuth: true }
+    });
+  }
+  /**
+   * Delete a project's hard spend limit.
+   *
+   * @example
+   * ```ts
+   * const projectSpendLimitDeleted =
+   *   await client.admin.organization.projects.spendLimit.delete(
+   *     'proj_123',
+   *   );
+   * ```
+   */
+  delete(projectID, options) {
+    return this._client.delete(path3`/organization/projects/${projectID}/spend_limit`, {
+      ...options,
+      __security: { adminAPIKeyAuth: true }
+    });
+  }
+};
+
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/groups/roles.mjs
 var Roles4 = class extends APIResource {
   /**
    * Assigns a project role to a group within a project.
@@ -16733,7 +17298,7 @@ var Roles4 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/projects/groups/groups.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/groups/groups.mjs
 var Groups2 = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -16816,7 +17381,126 @@ var Groups2 = class extends APIResource {
 };
 Groups2.Roles = Roles4;
 
-// node_modules/openai/resources/admin/organization/projects/users/roles.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/service-accounts/api-keys.mjs
+var APIKeys2 = class extends APIResource {
+  /**
+   * Creates an API key for a service account in the project.
+   *
+   * @example
+   * ```ts
+   * const apiKey =
+   *   await client.admin.organization.projects.serviceAccounts.apiKeys.create(
+   *     'service_account_id',
+   *     { project_id: 'project_id' },
+   *   );
+   * ```
+   */
+  create(serviceAccountID, params, options) {
+    const { project_id, ...body } = params;
+    return this._client.post(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}/api_keys`, { body, ...options, __security: { adminAPIKeyAuth: true } });
+  }
+};
+
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/service-accounts/service-accounts.mjs
+var ServiceAccounts = class extends APIResource {
+  constructor() {
+    super(...arguments);
+    this.apiKeys = new APIKeys2(this._client);
+  }
+  /**
+   * Creates a new service account in the project. By default, this also returns an
+   * unredacted API key for the service account.
+   *
+   * @example
+   * ```ts
+   * const serviceAccount =
+   *   await client.admin.organization.projects.serviceAccounts.create(
+   *     'project_id',
+   *     { name: 'name' },
+   *   );
+   * ```
+   */
+  create(projectID, body, options) {
+    return this._client.post(path3`/organization/projects/${projectID}/service_accounts`, {
+      body,
+      ...options,
+      __security: { adminAPIKeyAuth: true }
+    });
+  }
+  /**
+   * Retrieves a service account in the project.
+   *
+   * @example
+   * ```ts
+   * const projectServiceAccount =
+   *   await client.admin.organization.projects.serviceAccounts.retrieve(
+   *     'service_account_id',
+   *     { project_id: 'project_id' },
+   *   );
+   * ```
+   */
+  retrieve(serviceAccountID, params, options) {
+    const { project_id } = params;
+    return this._client.get(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, {
+      ...options,
+      __security: { adminAPIKeyAuth: true }
+    });
+  }
+  /**
+   * Updates a service account in the project.
+   *
+   * @example
+   * ```ts
+   * const projectServiceAccount =
+   *   await client.admin.organization.projects.serviceAccounts.update(
+   *     'service_account_id',
+   *     { project_id: 'project_id' },
+   *   );
+   * ```
+   */
+  update(serviceAccountID, params, options) {
+    const { project_id, ...body } = params;
+    return this._client.post(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { body, ...options, __security: { adminAPIKeyAuth: true } });
+  }
+  /**
+   * Returns a list of service accounts in the project.
+   *
+   * @example
+   * ```ts
+   * // Automatically fetches more pages as needed.
+   * for await (const projectServiceAccount of client.admin.organization.projects.serviceAccounts.list(
+   *   'project_id',
+   * )) {
+   *   // ...
+   * }
+   * ```
+   */
+  list(projectID, query = {}, options) {
+    return this._client.getAPIList(path3`/organization/projects/${projectID}/service_accounts`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+  }
+  /**
+   * Deletes a service account from the project.
+   *
+   * Returns confirmation of service account deletion, or an error if the project is
+   * archived (archived projects have no service accounts).
+   *
+   * @example
+   * ```ts
+   * const serviceAccount =
+   *   await client.admin.organization.projects.serviceAccounts.delete(
+   *     'service_account_id',
+   *     { project_id: 'project_id' },
+   *   );
+   * ```
+   */
+  delete(serviceAccountID, params, options) {
+    const { project_id } = params;
+    return this._client.delete(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { ...options, __security: { adminAPIKeyAuth: true } });
+  }
+};
+ServiceAccounts.APIKeys = APIKeys2;
+
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/users/roles.mjs
 var Roles5 = class extends APIResource {
   /**
    * Assigns a project role to a user within a project.
@@ -16896,7 +17580,7 @@ var Roles5 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/projects/users/users.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/users/users.mjs
 var Users2 = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -17002,7 +17686,7 @@ var Users2 = class extends APIResource {
 };
 Users2.Roles = Roles5;
 
-// node_modules/openai/resources/admin/organization/projects/projects.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/projects/projects.mjs
 var Projects = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -17015,6 +17699,7 @@ var Projects = class extends APIResource {
     this.groups = new Groups2(this._client);
     this.roles = new Roles3(this._client);
     this.dataRetention = new DataRetention2(this._client);
+    this.spendLimit = new SpendLimit2(this._client);
     this.spendAlerts = new SpendAlerts2(this._client);
     this.certificates = new Certificates2(this._client);
   }
@@ -17118,10 +17803,11 @@ Projects.HostedToolPermissions = HostedToolPermissions;
 Projects.Groups = Groups2;
 Projects.Roles = Roles3;
 Projects.DataRetention = DataRetention2;
+Projects.SpendLimit = SpendLimit2;
 Projects.SpendAlerts = SpendAlerts2;
 Projects.Certificates = Certificates2;
 
-// node_modules/openai/resources/admin/organization/users/roles.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/users/roles.mjs
 var Roles6 = class extends APIResource {
   /**
    * Assigns an organization role to a user within the organization.
@@ -17198,7 +17884,7 @@ var Roles6 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/admin/organization/users/users.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/users/users.mjs
 var Users3 = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -17272,7 +17958,7 @@ var Users3 = class extends APIResource {
 };
 Users3.Roles = Roles6;
 
-// node_modules/openai/resources/admin/organization/organization.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/organization/organization.mjs
 var Organization = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -17284,6 +17970,7 @@ var Organization = class extends APIResource {
     this.groups = new Groups(this._client);
     this.roles = new Roles(this._client);
     this.dataRetention = new DataRetention(this._client);
+    this.spendLimit = new SpendLimit(this._client);
     this.spendAlerts = new SpendAlerts(this._client);
     this.certificates = new Certificates(this._client);
     this.projects = new Projects(this._client);
@@ -17297,11 +17984,12 @@ Organization.Users = Users3;
 Organization.Groups = Groups;
 Organization.Roles = Roles;
 Organization.DataRetention = DataRetention;
+Organization.SpendLimit = SpendLimit;
 Organization.SpendAlerts = SpendAlerts;
 Organization.Certificates = Certificates;
 Organization.Projects = Projects;
 
-// node_modules/openai/resources/admin/admin.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/admin/admin.mjs
 var Admin = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -17310,70 +17998,7 @@ var Admin = class extends APIResource {
 };
 Admin.Organization = Organization;
 
-// node_modules/openai/internal/headers.mjs
-var brand_privateNullableHeaders = /* @__PURE__ */ Symbol("brand.privateNullableHeaders");
-function* iterateHeaders(headers) {
-  if (!headers)
-    return;
-  if (brand_privateNullableHeaders in headers) {
-    const { values, nulls } = headers;
-    yield* values.entries();
-    for (const name of nulls) {
-      yield [name, null];
-    }
-    return;
-  }
-  let shouldClear = false;
-  let iter;
-  if (headers instanceof Headers) {
-    iter = headers.entries();
-  } else if (isReadonlyArray(headers)) {
-    iter = headers;
-  } else {
-    shouldClear = true;
-    iter = Object.entries(headers ?? {});
-  }
-  for (let row of iter) {
-    const name = row[0];
-    if (typeof name !== "string")
-      throw new TypeError("expected header name to be a string");
-    const values = isReadonlyArray(row[1]) ? row[1] : [row[1]];
-    let didClear = false;
-    for (const value of values) {
-      if (value === void 0)
-        continue;
-      if (shouldClear && !didClear) {
-        didClear = true;
-        yield [name, null];
-      }
-      yield [name, value];
-    }
-  }
-}
-var buildHeaders = (newHeaders) => {
-  const targetHeaders = new Headers();
-  const nullHeaders = /* @__PURE__ */ new Set();
-  for (const headers of newHeaders) {
-    const seenHeaders = /* @__PURE__ */ new Set();
-    for (const [name, value] of iterateHeaders(headers)) {
-      const lowerName = name.toLowerCase();
-      if (!seenHeaders.has(lowerName)) {
-        targetHeaders.delete(name);
-        seenHeaders.add(lowerName);
-      }
-      if (value === null) {
-        targetHeaders.delete(name);
-        nullHeaders.add(lowerName);
-      } else {
-        targetHeaders.append(name, value);
-        nullHeaders.delete(lowerName);
-      }
-    }
-  }
-  return { [brand_privateNullableHeaders]: true, values: targetHeaders, nulls: nullHeaders };
-};
-
-// node_modules/openai/resources/audio/speech.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/audio/speech.mjs
 var Speech = class extends APIResource {
   /**
    * Generates audio from the input text.
@@ -17403,7 +18028,7 @@ var Speech = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/audio/transcriptions.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/audio/transcriptions.mjs
 var Transcriptions = class extends APIResource {
   create(body, options) {
     return this._client.post("/audio/transcriptions", multipartFormRequestOptions({
@@ -17416,14 +18041,14 @@ var Transcriptions = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/audio/translations.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/audio/translations.mjs
 var Translations = class extends APIResource {
   create(body, options) {
     return this._client.post("/audio/translations", multipartFormRequestOptions({ body, ...options, __metadata: { model: body.model }, __security: { bearerAuth: true } }, this._client));
   }
 };
 
-// node_modules/openai/resources/audio/audio.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/audio/audio.mjs
 var Audio = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -17436,7 +18061,7 @@ Audio.Transcriptions = Transcriptions;
 Audio.Translations = Translations;
 Audio.Speech = Speech;
 
-// node_modules/openai/resources/batches.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/batches.mjs
 var Batches = class extends APIResource {
   /**
    * Creates and executes a batch from an uploaded file of requests
@@ -17473,7 +18098,7 @@ var Batches = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/beta/assistants.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/assistants.mjs
 var Assistants = class extends APIResource {
   /**
    * Create an assistant with a model and instructions.
@@ -17540,7 +18165,7 @@ var Assistants = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/beta/realtime/sessions.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/realtime/sessions.mjs
 var Sessions = class extends APIResource {
   /**
    * Create an ephemeral API token for use in client-side applications with the
@@ -17567,7 +18192,7 @@ var Sessions = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/beta/realtime/transcription-sessions.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/realtime/transcription-sessions.mjs
 var TranscriptionSessions = class extends APIResource {
   /**
    * Create an ephemeral API token for use in client-side applications with the
@@ -17594,7 +18219,7 @@ var TranscriptionSessions = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/beta/realtime/realtime.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/realtime/realtime.mjs
 var Realtime = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -17605,7 +18230,7 @@ var Realtime = class extends APIResource {
 Realtime.Sessions = Sessions;
 Realtime.TranscriptionSessions = TranscriptionSessions;
 
-// node_modules/openai/resources/beta/chatkit/sessions.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/chatkit/sessions.mjs
 var Sessions2 = class extends APIResource {
   /**
    * Create a ChatKit session.
@@ -17647,7 +18272,7 @@ var Sessions2 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/beta/chatkit/threads.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/chatkit/threads.mjs
 var Threads = class extends APIResource {
   /**
    * Retrieve a ChatKit thread by its identifier.
@@ -17724,7 +18349,7 @@ var Threads = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/beta/chatkit/chatkit.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/chatkit/chatkit.mjs
 var ChatKit = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -17735,7 +18360,173 @@ var ChatKit = class extends APIResource {
 ChatKit.Sessions = Sessions2;
 ChatKit.Threads = Threads;
 
-// node_modules/openai/resources/beta/threads/messages.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/responses/input-items.mjs
+var InputItems = class extends APIResource {
+  /**
+   * Returns a list of input items for a given response.
+   *
+   * @example
+   * ```ts
+   * // Automatically fetches more pages as needed.
+   * for await (const betaResponseItem of client.beta.responses.inputItems.list(
+   *   'response_id',
+   * )) {
+   *   // ...
+   * }
+   * ```
+   */
+  list(responseID, params = {}, options) {
+    const { betas, ...query } = params ?? {};
+    return this._client.getAPIList(path3`/responses/${responseID}/input_items?beta=true`, CursorPage, {
+      query,
+      ...options,
+      headers: buildHeaders([
+        { ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
+        options?.headers
+      ]),
+      __security: { bearerAuth: true }
+    });
+  }
+};
+
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/responses/input-tokens.mjs
+var InputTokens = class extends APIResource {
+  /**
+   * Returns input token counts of the request.
+   *
+   * Returns an object with `object` set to `response.input_tokens` and an
+   * `input_tokens` count.
+   *
+   * @example
+   * ```ts
+   * const response =
+   *   await client.beta.responses.inputTokens.count();
+   * ```
+   */
+  count(params = {}, options) {
+    const { betas, ...body } = params ?? {};
+    return this._client.post("/responses/input_tokens?beta=true", {
+      body,
+      ...options,
+      headers: buildHeaders([
+        { ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
+        options?.headers
+      ]),
+      __security: { bearerAuth: true }
+    });
+  }
+};
+
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/responses/responses.mjs
+var Responses = class extends APIResource {
+  constructor() {
+    super(...arguments);
+    this.inputItems = new InputItems(this._client);
+    this.inputTokens = new InputTokens(this._client);
+  }
+  create(params, options) {
+    const { betas, ...body } = params;
+    return this._client.post("/responses?beta=true", {
+      body,
+      ...options,
+      headers: buildHeaders([
+        { ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
+        options?.headers
+      ]),
+      stream: params.stream ?? false,
+      __security: { bearerAuth: true }
+    });
+  }
+  retrieve(responseID, params = {}, options) {
+    const { betas, ...query } = params ?? {};
+    return this._client.get(path3`/responses/${responseID}?beta=true`, {
+      query,
+      ...options,
+      headers: buildHeaders([
+        { ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
+        options?.headers
+      ]),
+      stream: params?.stream ?? false,
+      __security: { bearerAuth: true }
+    });
+  }
+  /**
+   * Deletes a model response with the given ID.
+   *
+   * @example
+   * ```ts
+   * await client.beta.responses.delete(
+   *   'resp_677efb5139a88190b512bc3fef8e535d',
+   * );
+   * ```
+   */
+  delete(responseID, params = {}, options) {
+    const { betas } = params ?? {};
+    return this._client.delete(path3`/responses/${responseID}?beta=true`, {
+      ...options,
+      headers: buildHeaders([
+        { Accept: "*/*", ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
+        options?.headers
+      ]),
+      __security: { bearerAuth: true }
+    });
+  }
+  /**
+   * Cancels a model response with the given ID. Only responses created with the
+   * `background` parameter set to `true` can be cancelled.
+   * [Learn more](https://platform.openai.com/docs/guides/background).
+   *
+   * @example
+   * ```ts
+   * const betaResponse = await client.beta.responses.cancel(
+   *   'resp_677efb5139a88190b512bc3fef8e535d',
+   * );
+   * ```
+   */
+  cancel(responseID, params = {}, options) {
+    const { betas } = params ?? {};
+    return this._client.post(path3`/responses/${responseID}/cancel?beta=true`, {
+      ...options,
+      headers: buildHeaders([
+        { ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
+        options?.headers
+      ]),
+      __security: { bearerAuth: true }
+    });
+  }
+  /**
+   * Compact a conversation. Returns a compacted response object.
+   *
+   * Learn when and how to compact long-running conversations in the
+   * [conversation state guide](https://platform.openai.com/docs/guides/conversation-state#managing-the-context-window).
+   * For ZDR-compatible compaction details, see
+   * [Compaction (advanced)](https://platform.openai.com/docs/guides/conversation-state#compaction-advanced).
+   *
+   * @example
+   * ```ts
+   * const betaCompactedResponse =
+   *   await client.beta.responses.compact({
+   *     model: 'gpt-5.6-sol',
+   *   });
+   * ```
+   */
+  compact(params, options) {
+    const { betas, ...body } = params;
+    return this._client.post("/responses/compact?beta=true", {
+      body,
+      ...options,
+      headers: buildHeaders([
+        { ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
+        options?.headers
+      ]),
+      __security: { bearerAuth: true }
+    });
+  }
+};
+Responses.InputItems = InputItems;
+Responses.InputTokens = InputTokens;
+
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/threads/messages.mjs
 var Messages2 = class extends APIResource {
   /**
    * Create a message.
@@ -17805,7 +18596,7 @@ var Messages2 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/beta/threads/runs/steps.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/threads/runs/steps.mjs
 var Steps = class extends APIResource {
   /**
    * Retrieves a run step.
@@ -17837,7 +18628,7 @@ var Steps = class extends APIResource {
   }
 };
 
-// node_modules/openai/internal/utils/base64.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/utils/base64.mjs
 var toFloat32Array = (base64Str) => {
   if (typeof Buffer !== "undefined") {
     const buf = Buffer.from(base64Str, "base64");
@@ -17853,7 +18644,7 @@ var toFloat32Array = (base64Str) => {
   }
 };
 
-// node_modules/openai/internal/utils/env.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/utils/env.mjs
 var readEnv = (env) => {
   if (typeof globalThis.process !== "undefined") {
     return globalThis.process.env?.[env]?.trim() || void 0;
@@ -17864,7 +18655,7 @@ var readEnv = (env) => {
   return void 0;
 };
 
-// node_modules/openai/lib/AssistantStream.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/AssistantStream.mjs
 var _AssistantStream_instances;
 var _a;
 var _AssistantStream_events;
@@ -17910,11 +18701,12 @@ var AssistantStream = class extends EventStream {
     const readQueue = [];
     let done = false;
     this.on("event", (event) => {
+      const eventCopy = structuredClone(event);
       const reader = readQueue.shift();
       if (reader) {
-        reader.resolve(event);
+        reader.resolve(eventCopy);
       } else {
-        pushQueue.push(event);
+        pushQueue.push(eventCopy);
       }
     });
     this.on("end", () => {
@@ -18108,7 +18900,7 @@ var AssistantStream = class extends EventStream {
           }
           const accEntry = accValue[index];
           if (accEntry == null) {
-            accValue.push(deltaEntry);
+            accValue[index] = deltaEntry;
           } else {
             accValue[index] = this.accumulateDelta(accEntry, deltaEntry);
           }
@@ -18383,7 +19175,7 @@ _a = AssistantStream, _AssistantStream_addEvent = function _AssistantStream_addE
 function assertNever2(_x) {
 }
 
-// node_modules/openai/resources/beta/threads/runs/runs.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/threads/runs/runs.mjs
 var Runs = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -18556,7 +19348,7 @@ var Runs = class extends APIResource {
 };
 Runs.Steps = Steps;
 
-// node_modules/openai/resources/beta/threads/threads.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/threads/threads.mjs
 var Threads2 = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -18642,22 +19434,24 @@ var Threads2 = class extends APIResource {
 Threads2.Runs = Runs;
 Threads2.Messages = Messages2;
 
-// node_modules/openai/resources/beta/beta.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/beta/beta.mjs
 var Beta = class extends APIResource {
   constructor() {
     super(...arguments);
     this.realtime = new Realtime(this._client);
+    this.responses = new Responses(this._client);
     this.chatkit = new ChatKit(this._client);
     this.assistants = new Assistants(this._client);
     this.threads = new Threads2(this._client);
   }
 };
 Beta.Realtime = Realtime;
+Beta.Responses = Responses;
 Beta.ChatKit = ChatKit;
 Beta.Assistants = Assistants;
 Beta.Threads = Threads2;
 
-// node_modules/openai/resources/completions.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/completions.mjs
 var Completions2 = class extends APIResource {
   create(body, options) {
     return this._client.post("/completions", {
@@ -18669,7 +19463,7 @@ var Completions2 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/containers/files/content.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/containers/files/content.mjs
 var Content = class extends APIResource {
   /**
    * Retrieve Container File Content
@@ -18685,7 +19479,7 @@ var Content = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/containers/files/files.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/containers/files/files.mjs
 var Files = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -18734,7 +19528,7 @@ var Files = class extends APIResource {
 };
 Files.Content = Content;
 
-// node_modules/openai/resources/containers/containers.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/containers/containers.mjs
 var Containers = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -18778,7 +19572,7 @@ var Containers = class extends APIResource {
 };
 Containers.Files = Files;
 
-// node_modules/openai/resources/conversations/items.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/conversations/items.mjs
 var Items = class extends APIResource {
   /**
    * Create items in a conversation with the given ID.
@@ -18821,7 +19615,7 @@ var Items = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/conversations/conversations.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/conversations/conversations.mjs
 var Conversations = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -18864,7 +19658,7 @@ var Conversations = class extends APIResource {
 };
 Conversations.Items = Items;
 
-// node_modules/openai/resources/embeddings.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/embeddings.mjs
 var Embeddings = class extends APIResource {
   /**
    * Creates an embedding vector representing the input text.
@@ -18908,7 +19702,7 @@ var Embeddings = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/evals/runs/output-items.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/evals/runs/output-items.mjs
 var OutputItems = class extends APIResource {
   /**
    * Get an evaluation run output item by ID.
@@ -18929,7 +19723,7 @@ var OutputItems = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/evals/runs/runs.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/evals/runs/runs.mjs
 var Runs2 = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -18990,7 +19784,7 @@ var Runs2 = class extends APIResource {
 };
 Runs2.OutputItems = OutputItems;
 
-// node_modules/openai/resources/evals/evals.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/evals/evals.mjs
 var Evals = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -19038,7 +19832,7 @@ var Evals = class extends APIResource {
 };
 Evals.Runs = Runs2;
 
-// node_modules/openai/resources/files.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/files.mjs
 var Files2 = class extends APIResource {
   /**
    * Upload a file that can be used across various endpoints. Individual files can be
@@ -19125,11 +19919,11 @@ var Files2 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/fine-tuning/methods.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/fine-tuning/methods.mjs
 var Methods = class extends APIResource {
 };
 
-// node_modules/openai/resources/fine-tuning/alpha/graders.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/fine-tuning/alpha/graders.mjs
 var Graders = class extends APIResource {
   /**
    * Run a grader.
@@ -19181,7 +19975,7 @@ var Graders = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/fine-tuning/alpha/alpha.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/fine-tuning/alpha/alpha.mjs
 var Alpha = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -19190,7 +19984,7 @@ var Alpha = class extends APIResource {
 };
 Alpha.Graders = Graders;
 
-// node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/fine-tuning/checkpoints/permissions.mjs
 var Permissions = class extends APIResource {
   /**
    * **NOTE:** Calling this endpoint requires an [admin API key](../admin-api-keys).
@@ -19270,7 +20064,7 @@ var Permissions = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/fine-tuning/checkpoints/checkpoints.mjs
 var Checkpoints = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -19279,7 +20073,7 @@ var Checkpoints = class extends APIResource {
 };
 Checkpoints.Permissions = Permissions;
 
-// node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/fine-tuning/jobs/checkpoints.mjs
 var Checkpoints2 = class extends APIResource {
   /**
    * List checkpoints for a fine-tuning job.
@@ -19299,7 +20093,7 @@ var Checkpoints2 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/fine-tuning/jobs/jobs.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/fine-tuning/jobs/jobs.mjs
 var Jobs = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -19428,7 +20222,7 @@ var Jobs = class extends APIResource {
 };
 Jobs.Checkpoints = Checkpoints2;
 
-// node_modules/openai/resources/fine-tuning/fine-tuning.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/fine-tuning/fine-tuning.mjs
 var FineTuning = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -19443,11 +20237,11 @@ FineTuning.Jobs = Jobs;
 FineTuning.Checkpoints = Checkpoints;
 FineTuning.Alpha = Alpha;
 
-// node_modules/openai/resources/graders/grader-models.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/graders/grader-models.mjs
 var GraderModels = class extends APIResource {
 };
 
-// node_modules/openai/resources/graders/graders.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/graders/graders.mjs
 var Graders2 = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -19456,7 +20250,7 @@ var Graders2 = class extends APIResource {
 };
 Graders2.GraderModels = GraderModels;
 
-// node_modules/openai/resources/images.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/images.mjs
 var Images = class extends APIResource {
   /**
    * Creates a variation of a given image. This endpoint only supports `dall-e-2`.
@@ -19484,7 +20278,7 @@ var Images = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/models.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/models.mjs
 var Models = class extends APIResource {
   /**
    * Retrieves a model instance, providing basic information about the model such as
@@ -19509,7 +20303,7 @@ var Models = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/moderations.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/moderations.mjs
 var Moderations = class extends APIResource {
   /**
    * Classifies if text and/or image inputs are potentially harmful. Learn more in
@@ -19520,7 +20314,7 @@ var Moderations = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/realtime/calls.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/realtime/calls.mjs
 var Calls = class extends APIResource {
   /**
    * Accept an incoming SIP call and configure the realtime session that will handle
@@ -19592,7 +20386,7 @@ var Calls = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/realtime/client-secrets.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/realtime/client-secrets.mjs
 var ClientSecrets = class extends APIResource {
   /**
    * Create a Realtime client secret with an associated session configuration.
@@ -19626,7 +20420,7 @@ var ClientSecrets = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/realtime/realtime.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/realtime/realtime.mjs
 var Realtime2 = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -19637,7 +20431,7 @@ var Realtime2 = class extends APIResource {
 Realtime2.ClientSecrets = ClientSecrets;
 Realtime2.Calls = Calls;
 
-// node_modules/openai/lib/ResponsesParser.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/ResponsesParser.mjs
 function maybeParseResponse(response, params) {
   if (!params || !hasAutoParseableInput2(params)) {
     const parsed = {
@@ -19674,10 +20468,7 @@ function parseResponse(response, params) {
   const shouldParse = !response.status || response.status === "completed";
   const output = response.output.map((item) => {
     if (item.type === "function_call") {
-      return {
-        ...item,
-        parsed_arguments: shouldParse ? parseToolCall2(params, item) : null
-      };
+      return shouldParse ? parseToolCall2(params, item) : { ...item, parsed_arguments: null };
     }
     if (item.type === "message") {
       const content = item.content.map((content2) => {
@@ -19732,7 +20523,7 @@ function hasAutoParseableInput2(params) {
   if (isAutoParsableResponseFormat(params.text?.format)) {
     return true;
   }
-  return false;
+  return Array.isArray(params.tools) && params.tools.some((tool) => isAutoParsableTool2(tool) || tool.type === "function" && tool.strict === true);
 }
 function isAutoParsableTool2(tool) {
   return tool?.["$brand"] === "auto-parseable-tool";
@@ -19766,7 +20557,7 @@ function addOutputText(rsp) {
   rsp.output_text = texts.join("");
 }
 
-// node_modules/openai/lib/responses/ResponseAccumulator.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/responses/ResponseAccumulator.mjs
 function accumulateResponse(event, snapshot2) {
   if (!snapshot2) {
     if (event.type !== "response.created") {
@@ -20120,6 +20911,7 @@ function accumulateResponse(event, snapshot2) {
     case "response.mcp_list_tools.in_progress":
     case "response.mcp_list_tools.completed":
     case "response.mcp_list_tools.failed":
+    case "keepalive":
     case "error": {
       break;
     }
@@ -20154,7 +20946,7 @@ function assertNever3(value) {
   throw new OpenAIError(`Unhandled response stream event: ${JSON.stringify(value)}`);
 }
 
-// node_modules/openai/lib/responses/ResponseStream.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/responses/ResponseStream.mjs
 var _ResponseStream_instances;
 var _ResponseStream_params;
 var _ResponseStream_currentResponseSnapshot;
@@ -20179,6 +20971,11 @@ var ResponseStream = class _ResponseStream extends EventStream {
     }));
     return runner;
   }
+  static fromReadableStream(stream) {
+    const runner = new _ResponseStream(null);
+    runner._run(() => runner._fromReadableStream(stream));
+    return runner;
+  }
   async _createOrRetrieveResponse(client, params, options) {
     this._listenForAbort(options?.signal);
     __classPrivateFieldGet(this, _ResponseStream_instances, "m", _ResponseStream_beginRequest).call(this);
@@ -20193,6 +20990,19 @@ var ResponseStream = class _ResponseStream extends EventStream {
     this._connected();
     for await (const event of stream) {
       __classPrivateFieldGet(this, _ResponseStream_instances, "m", _ResponseStream_addEvent).call(this, event, starting_after);
+    }
+    if (stream.controller.signal?.aborted) {
+      throw new APIUserAbortError();
+    }
+    return __classPrivateFieldGet(this, _ResponseStream_instances, "m", _ResponseStream_endRequest).call(this);
+  }
+  async _fromReadableStream(readableStream, options) {
+    this._listenForAbort(options?.signal);
+    __classPrivateFieldGet(this, _ResponseStream_instances, "m", _ResponseStream_beginRequest).call(this);
+    this._connected();
+    const stream = Stream.fromReadableStream(readableStream, this.controller);
+    for await (const event of stream) {
+      __classPrivateFieldGet(this, _ResponseStream_instances, "m", _ResponseStream_addEvent).call(this, event, null);
     }
     if (stream.controller.signal?.aborted) {
       throw new APIUserAbortError();
@@ -20330,8 +21140,8 @@ function finalizeResponse(snapshot2, params) {
   return maybeParseResponse(snapshot2, params);
 }
 
-// node_modules/openai/resources/responses/input-items.mjs
-var InputItems = class extends APIResource {
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/responses/input-items.mjs
+var InputItems2 = class extends APIResource {
   /**
    * Returns a list of input items for a given response.
    *
@@ -20350,8 +21160,8 @@ var InputItems = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/responses/input-tokens.mjs
-var InputTokens = class extends APIResource {
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/responses/input-tokens.mjs
+var InputTokens2 = class extends APIResource {
   /**
    * Returns input token counts of the request.
    *
@@ -20372,12 +21182,12 @@ var InputTokens = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/responses/responses.mjs
-var Responses = class extends APIResource {
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/responses/responses.mjs
+var Responses2 = class extends APIResource {
   constructor() {
     super(...arguments);
-    this.inputItems = new InputItems(this._client);
-    this.inputTokens = new InputTokens(this._client);
+    this.inputItems = new InputItems2(this._client);
+    this.inputTokens = new InputTokens2(this._client);
   }
   create(body, options) {
     return this._client.post("/responses", {
@@ -20460,7 +21270,7 @@ var Responses = class extends APIResource {
    * @example
    * ```ts
    * const compactedResponse = await client.responses.compact({
-   *   model: 'gpt-5.4',
+   *   model: 'gpt-5.6-sol',
    * });
    * ```
    */
@@ -20468,10 +21278,10 @@ var Responses = class extends APIResource {
     return this._client.post("/responses/compact", { body, ...options, __security: { bearerAuth: true } });
   }
 };
-Responses.InputItems = InputItems;
-Responses.InputTokens = InputTokens;
+Responses2.InputItems = InputItems2;
+Responses2.InputTokens = InputTokens2;
 
-// node_modules/openai/resources/skills/content.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/skills/content.mjs
 var Content2 = class extends APIResource {
   /**
    * Download a skill zip bundle by its ID.
@@ -20486,7 +21296,7 @@ var Content2 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/skills/versions/content.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/skills/versions/content.mjs
 var Content3 = class extends APIResource {
   /**
    * Download a skill version zip bundle.
@@ -20502,7 +21312,7 @@ var Content3 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/skills/versions/versions.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/skills/versions/versions.mjs
 var Versions = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -20547,7 +21357,7 @@ var Versions = class extends APIResource {
 };
 Versions.Content = Content3;
 
-// node_modules/openai/resources/skills/skills.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/skills/skills.mjs
 var Skills = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -20596,7 +21406,7 @@ var Skills = class extends APIResource {
 Skills.Content = Content2;
 Skills.Versions = Versions;
 
-// node_modules/openai/resources/uploads/parts.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/uploads/parts.mjs
 var Parts = class extends APIResource {
   /**
    * Adds a
@@ -20616,7 +21426,7 @@ var Parts = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/uploads/uploads.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/uploads/uploads.mjs
 var Uploads = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -20686,7 +21496,7 @@ var Uploads = class extends APIResource {
 };
 Uploads.Parts = Parts;
 
-// node_modules/openai/lib/Util.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/lib/Util.mjs
 var allSettledWithThrow = async (promises) => {
   const results = await Promise.allSettled(promises);
   const rejected = results.filter((result) => result.status === "rejected");
@@ -20705,7 +21515,7 @@ var allSettledWithThrow = async (promises) => {
   return values;
 };
 
-// node_modules/openai/resources/vector-stores/file-batches.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/vector-stores/file-batches.mjs
 var FileBatches = class extends APIResource {
   /**
    * Create a vector store file batch.
@@ -20830,7 +21640,7 @@ var FileBatches = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/vector-stores/files.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/vector-stores/files.mjs
 var Files3 = class extends APIResource {
   /**
    * Create a vector store file by attaching a
@@ -20971,7 +21781,7 @@ var Files3 = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/vector-stores/vector-stores.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/vector-stores/vector-stores.mjs
 var VectorStores = class extends APIResource {
   constructor() {
     super(...arguments);
@@ -21048,7 +21858,7 @@ var VectorStores = class extends APIResource {
 VectorStores.Files = Files3;
 VectorStores.FileBatches = FileBatches;
 
-// node_modules/openai/resources/videos.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/videos.mjs
 var Videos = class extends APIResource {
   /**
    * Create a new video generation job from a prompt and optional reference assets.
@@ -21128,7 +21938,7 @@ var Videos = class extends APIResource {
   }
 };
 
-// node_modules/openai/resources/webhooks/webhooks.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/resources/webhooks/webhooks.mjs
 var _Webhooks_instances;
 var _Webhooks_validateSecret;
 var _Webhooks_getRequiredHeader;
@@ -21207,7 +22017,7 @@ _Webhooks_instances = /* @__PURE__ */ new WeakSet(), _Webhooks_validateSecret = 
   return value;
 };
 
-// node_modules/openai/internal/provider.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/provider.mjs
 var providerDefinitionsKey = /* @__PURE__ */ Symbol.for("openai.node.providerDefinitions.v1");
 var providerGlobal = globalThis;
 var existingProviderDefinitions = providerGlobal[providerDefinitionsKey];
@@ -21223,7 +22033,7 @@ function configureProvider(provider) {
   return definition.configure();
 }
 
-// node_modules/openai/client.mjs
+// node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/client.mjs
 var _OpenAI_instances;
 var _a2;
 var _OpenAI_encoder;
@@ -21267,7 +22077,7 @@ var OpenAI = class {
     this.batches = new Batches(this);
     this.uploads = new Uploads(this);
     this.admin = new Admin(this);
-    this.responses = new Responses(this);
+    this.responses = new Responses2(this);
     this.realtime = new Realtime2(this);
     this.conversations = new Conversations(this);
     this.evals = new Evals(this);
@@ -21518,6 +22328,7 @@ var OpenAI = class {
     const { req, url, timeout } = await this.buildRequest(options, {
       retryCount: maxRetries - retriesRemaining
     });
+    const hasStreamingBody = options.__metadata?.["hasStreamingBody"] === true;
     await this.prepareRequest(req, { url, options });
     await this._provider?.prepareRequest?.(req, { url, options });
     const requestLogID = "log_" + (Math.random() * (1 << 24) | 0).toString(16).padStart(6, "0");
@@ -21543,7 +22354,7 @@ var OpenAI = class {
         throw new APIUserAbortError();
       }
       const isTimeout = isAbortError(response) || /timed? ?out/i.test(String(response) + ("cause" in response ? String(response.cause) : ""));
-      if (retriesRemaining) {
+      if (retriesRemaining && !hasStreamingBody) {
         loggerFor(this).info(`[${requestLogID}] connection ${isTimeout ? "timed out" : "failed"} - ${retryMessage}`);
         loggerFor(this).debug(`[${requestLogID}] connection ${isTimeout ? "timed out" : "failed"} (${retryMessage})`, formatRequestDetails({
           retryOfRequestLogID,
@@ -21553,8 +22364,9 @@ var OpenAI = class {
         }));
         return this.retryRequest(options, retriesRemaining, retryOfRequestLogID ?? requestLogID);
       }
-      loggerFor(this).info(`[${requestLogID}] connection ${isTimeout ? "timed out" : "failed"} - error; no more retries left`);
-      loggerFor(this).debug(`[${requestLogID}] connection ${isTimeout ? "timed out" : "failed"} (error; no more retries left)`, formatRequestDetails({
+      const terminalMessage = hasStreamingBody ? "error; streaming body cannot be retried" : "error; no more retries left";
+      loggerFor(this).info(`[${requestLogID}] connection ${isTimeout ? "timed out" : "failed"} - ${terminalMessage}`);
+      loggerFor(this).debug(`[${requestLogID}] connection ${isTimeout ? "timed out" : "failed"} (${terminalMessage})`, formatRequestDetails({
         retryOfRequestLogID,
         url,
         durationMs: headersTime - startTime,
@@ -21586,7 +22398,7 @@ var OpenAI = class {
         }, retriesRemaining, retryOfRequestLogID ?? requestLogID);
       }
       const shouldRetry = await this.shouldRetry(response);
-      if (retriesRemaining && shouldRetry) {
+      if (retriesRemaining && shouldRetry && !hasStreamingBody) {
         const retryMessage2 = `retrying, ${retriesRemaining} attempts remaining`;
         await CancelReadableStream(response.body);
         loggerFor(this).info(`${responseInfo} - ${retryMessage2}`);
@@ -21599,7 +22411,7 @@ var OpenAI = class {
         }));
         return this.retryRequest(options, retriesRemaining, retryOfRequestLogID ?? requestLogID, response.headers);
       }
-      const retryMessage = shouldRetry ? `error; no more retries left` : `error; not retryable`;
+      const retryMessage = shouldRetry ? hasStreamingBody ? `error; streaming body cannot be retried` : `error; no more retries left` : `error; not retryable`;
       loggerFor(this).info(`${responseInfo} - ${retryMessage}`);
       const errText = await response.text().catch((err2) => castToError(err2).message);
       const errJSON = safeJSON(errText);
@@ -21784,8 +22596,8 @@ var OpenAI = class {
       return { bodyHeaders: void 0, body: void 0, isStreamingBody: false };
     }
     const headers = buildHeaders([rawHeaders]);
-    const isReadableStream = typeof globalThis.ReadableStream !== "undefined" && body instanceof globalThis.ReadableStream;
-    const isRetryableBody = !isReadableStream && (typeof body === "string" || body instanceof ArrayBuffer || ArrayBuffer.isView(body) || typeof globalThis.Blob !== "undefined" && body instanceof globalThis.Blob || body instanceof URLSearchParams || body instanceof FormData);
+    const isReadableStream2 = typeof globalThis.ReadableStream !== "undefined" && body instanceof globalThis.ReadableStream;
+    const isRetryableBody = !isReadableStream2 && (typeof body === "string" || body instanceof ArrayBuffer || ArrayBuffer.isView(body) || typeof globalThis.Blob !== "undefined" && body instanceof globalThis.Blob || body instanceof URLSearchParams || body instanceof FormData);
     if (
       // Pass raw type verbatim
       ArrayBuffer.isView(body) || body instanceof ArrayBuffer || body instanceof DataView || typeof body === "string" && // Preserve legacy string encoding behavior for now
@@ -21793,7 +22605,7 @@ var OpenAI = class {
       globalThis.Blob && body instanceof globalThis.Blob || // `FormData` -> `multipart/form-data`
       body instanceof FormData || // `URLSearchParams` -> `application/x-www-form-urlencoded`
       body instanceof URLSearchParams || // Send chunked stream (each chunk has own `length`)
-      isReadableStream
+      isReadableStream2
     ) {
       return { bodyHeaders: void 0, body, isStreamingBody: !isRetryableBody };
     } else if (typeof body === "object" && (Symbol.asyncIterator in body || Symbol.iterator in body && "next" in body && typeof body.next === "function")) {
@@ -21833,6 +22645,7 @@ OpenAI.PermissionDeniedError = PermissionDeniedError;
 OpenAI.UnprocessableEntityError = UnprocessableEntityError;
 OpenAI.InvalidWebhookSignatureError = InvalidWebhookSignatureError;
 OpenAI.toFile = toFile;
+OpenAI.toStreamingFile = toStreamingFile;
 OpenAI.Completions = Completions2;
 OpenAI.Chat = Chat;
 OpenAI.Embeddings = Embeddings;
@@ -21849,7 +22662,7 @@ OpenAI.Beta = Beta;
 OpenAI.Batches = Batches;
 OpenAI.Uploads = Uploads;
 OpenAI.Admin = Admin;
-OpenAI.Responses = Responses;
+OpenAI.Responses = Responses2;
 OpenAI.Realtime = Realtime2;
 OpenAI.Conversations = Conversations;
 OpenAI.Evals = Evals;
@@ -21874,6 +22687,9 @@ function isUndiciDispatcherVersionMismatchError(error) {
   return false;
 }
 
+// src/lib/llmChat.ts
+import { GoogleGenAI } from "@google/genai";
+
 // src/lib/openaiEnv.ts
 var PLACEHOLDER_KEY = "lucy-not-configured";
 function getOpenAiApiKey() {
@@ -21882,9 +22698,70 @@ function getOpenAiApiKey() {
 function getOpenAiApiKeyForClient() {
   return getOpenAiApiKey() || PLACEHOLDER_KEY;
 }
+function isOpenAiConfigured() {
+  return getOpenAiApiKey().length > 0;
+}
+
+// src/lib/llmEnv.ts
+var DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
+var DEFAULT_OPENAI_CHAT_MODEL = "gpt-4o-mini";
+function getGeminiApiKey() {
+  return process.env["GEMINI_API_KEY"]?.trim() || process.env["GOOGLE_API_KEY"]?.trim() || process.env["GEMINI_KEY"]?.trim() || "";
+}
+function isGeminiConfigured() {
+  return getGeminiApiKey().length > 0;
+}
+function getLlmProvider() {
+  const forced = (process.env["LLM_PROVIDER"] ?? process.env["LUCY_LLM_PROVIDER"] ?? "").trim().toLowerCase();
+  if (forced === "gemini" || forced === "google") return "gemini";
+  if (forced === "openai" || forced === "gpt") return "openai";
+  if (isGeminiConfigured()) return "gemini";
+  return "openai";
+}
+function getChatModel() {
+  const provider = getLlmProvider();
+  if (provider === "gemini") {
+    return process.env["GEMINI_MODEL"]?.trim() || process.env["LLM_MODEL"]?.trim() || DEFAULT_GEMINI_MODEL;
+  }
+  return process.env["OPENAI_MODEL"]?.trim() || process.env["LLM_MODEL"]?.trim() || DEFAULT_OPENAI_CHAT_MODEL;
+}
+function isLlmConfigured() {
+  const provider = getLlmProvider();
+  if (provider === "gemini") return isGeminiConfigured();
+  return isOpenAiConfigured();
+}
+
+// src/lib/llmChat.ts
+function fromOpenAiMessages(messages) {
+  const out = [];
+  for (const m of messages) {
+    if (m.role !== "system" && m.role !== "user" && m.role !== "assistant") continue;
+    const role = m.role;
+    const c = m.content;
+    if (typeof c === "string") {
+      out.push({ role, content: c });
+      continue;
+    }
+    if (Array.isArray(c)) {
+      const parts = [];
+      for (const p of c) {
+        if (!p || typeof p !== "object") continue;
+        if ("type" in p && p.type === "text" && "text" in p && typeof p.text === "string") {
+          parts.push({ type: "text", text: p.text });
+        } else if ("type" in p && p.type === "image_url" && "image_url" in p && p.image_url && typeof p.image_url === "object" && "url" in p.image_url && typeof p.image_url.url === "string") {
+          parts.push({
+            type: "image_url",
+            image_url: { url: p.image_url.url }
+          });
+        }
+      }
+      out.push({ role, content: parts.length ? parts : "" });
+    }
+  }
+  return out;
+}
 
 // src/services/imageProcessor.ts
-var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
 var IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
 var IMAGE_CACHE_MAX = 500;
@@ -27604,7 +28481,7 @@ function formatForWhatsApp(text) {
 }
 
 // src/services/voiceProcessor.ts
-var openai2 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var AUDIO_TYPES = /* @__PURE__ */ new Set(["audio", "voice"]);
 function isVoiceNote(message) {
   const att = message["attachment"];
@@ -27730,7 +28607,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V8.93";
+var LUCY_PROMPT_VERSION = "V8.94";
 
 // src/selftest/lucy-flow-selftest.ts
 var CATALOG_URL2 = "https://bodasesor.com/catalogos";
@@ -34724,7 +35601,7 @@ ${golfText}`,
     assert.ok(qty && /900|sillas/i.test(qty), qty ?? "");
   });
   await test("121. V8.93 \u2014 voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.93");
+    assert.ok(/^V8\.9[34]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
     const humanEnt = "Claro, Bakar. Anoto un show de grupo vers\xE1til para tu evento del 18 de diciembre. Es entretenimiento (no catering). \xBFMe confirmas si es corporativo y en qu\xE9 sede ser\xEDa?";
@@ -34763,6 +35640,45 @@ ${golfText}`,
     });
     assert.ok(/formal|casual/i.test(progressive), progressive.slice(0, 400));
     assert.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
+  });
+  await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V8.94");
+    assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
+    const prevProvider = process.env.LLM_PROVIDER;
+    const prevGemini = process.env.GEMINI_API_KEY;
+    const prevGoogle = process.env.GOOGLE_API_KEY;
+    const prevOpen = process.env.OPEN_AI;
+    const prevOpenAi = process.env.OPENAI_API_KEY;
+    try {
+      process.env.LLM_PROVIDER = "gemini";
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+      delete process.env.GOOGLE_API_KEY;
+      assert.equal(getLlmProvider(), "gemini");
+      assert.equal(getChatModel(), "gemini-3.1-flash-lite");
+      assert.equal(isLlmConfigured(), true);
+      process.env.LLM_PROVIDER = "openai";
+      process.env.OPEN_AI = "sk-test";
+      assert.equal(getLlmProvider(), "openai");
+      const mapped = fromOpenAiMessages([
+        { role: "system", content: "Eres Lucy" },
+        { role: "user", content: "Hola" },
+        { role: "assistant", content: "Con gusto" }
+      ]);
+      assert.equal(mapped.length, 3);
+      assert.equal(mapped[0]?.role, "system");
+      assert.equal(mapped[2]?.role, "assistant");
+    } finally {
+      if (prevProvider === void 0) delete process.env.LLM_PROVIDER;
+      else process.env.LLM_PROVIDER = prevProvider;
+      if (prevGemini === void 0) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = prevGemini;
+      if (prevGoogle === void 0) delete process.env.GOOGLE_API_KEY;
+      else process.env.GOOGLE_API_KEY = prevGoogle;
+      if (prevOpen === void 0) delete process.env.OPEN_AI;
+      else process.env.OPEN_AI = prevOpen;
+      if (prevOpenAi === void 0) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevOpenAi;
+    }
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

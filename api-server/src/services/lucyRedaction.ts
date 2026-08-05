@@ -12,8 +12,16 @@ import type { IntentResult, SentimentResult } from "./intentDetection.js";
 import { CLOSING_CORE_FIELDS } from "../lucy-flow-guards.js";
 import { SERVICE_KNOWLEDGE_GOLDEN_RULE } from "./serviceKnowledge.js";
 import { buildEventOfferCatalogHint } from "./catalogService.js";
+import { completeChat, fromOpenAiMessages } from "../lib/llmChat.js";
+import { getChatModel } from "../lib/llmEnv.js";
 
-export const LUCY_REDACTION_MODEL = "gpt-4o-mini";
+/** Modelo activo (Gemini Flash-Lite por default si hay key). */
+export function getLucyRedactionModel(): string {
+  return getChatModel();
+}
+
+/** @deprecated usar getLucyRedactionModel() — se mantiene por tests/imports. */
+export const LUCY_REDACTION_MODEL = "gemini-3.1-flash-lite";
 
 const PENDING_FIELD_LABELS: Record<PendingField, string> = {
   nombre: "Nombre del cliente",
@@ -27,7 +35,6 @@ const PENDING_FIELD_LABELS: Record<PendingField, string> = {
 };
 
 export const LUCY_REDACTION_PARAMS = {
-  model: LUCY_REDACTION_MODEL,
   max_tokens: 1200,
   temperature: 0.6,
   frequency_penalty: 0.4,
@@ -159,26 +166,30 @@ export function appendRedactionBriefing(
 }
 
 export async function completeLucyRedaction(
-  openai: OpenAI,
+  _openai: OpenAI | null | undefined,
   baseMessages: OpenAI.Chat.ChatCompletionMessageParam[],
   briefing: string
 ): Promise<string> {
-  const completion = await openai.chat.completions.create({
-    ...LUCY_REDACTION_PARAMS,
-    messages: appendRedactionBriefing(baseMessages, briefing),
+  const messages = fromOpenAiMessages(appendRedactionBriefing(baseMessages, briefing));
+  const result = await completeChat({
+    messages,
+    temperature: LUCY_REDACTION_PARAMS.temperature,
+    maxTokens: LUCY_REDACTION_PARAMS.max_tokens,
+    frequencyPenalty: LUCY_REDACTION_PARAMS.frequency_penalty,
+    presencePenalty: LUCY_REDACTION_PARAMS.presence_penalty,
+    topP: LUCY_REDACTION_PARAMS.top_p,
   });
-  return completion.choices[0]?.message?.content ?? "";
+  return result.text;
 }
 
 /** Auto-revisión de estilo — solo para mensaje de cierre. */
 export async function refinarRespuestaCierre(
-  openai: OpenAI,
+  _openai: OpenAI | null | undefined,
   borrador: string
 ): Promise<string> {
-  const resp = await openai.chat.completions.create({
-    model: LUCY_REDACTION_MODEL,
+  const result = await completeChat({
     temperature: 0.3,
-    max_tokens: 1200,
+    maxTokens: 1200,
     messages: [
       {
         role: "system",
@@ -191,11 +202,11 @@ export async function refinarRespuestaCierre(
       { role: "user", content: borrador },
     ],
   });
-  return (resp.choices[0]?.message?.content ?? borrador).trim();
+  return (result.text || borrador).trim();
 }
 
 export async function maybeRefinarMensajeCierre(
-  openai: OpenAI,
+  openai: OpenAI | null | undefined,
   mensaje: string,
   opts: { readyForClosing: boolean; cierreYaEnviado: boolean; closingSignature: string; catalogUrl?: string }
 ): Promise<string> {

@@ -24,17 +24,39 @@ if (!process.env.OPENAI_API_KEY?.trim() && process.env.OPEN_AI?.trim()) {
   process.env.OPENAI_API_KEY = process.env.OPEN_AI.trim();
 }
 
-if (!process.env.OPENAI_API_KEY && !process.env.OPEN_AI) {
-  console.warn("[start] AVISO: OPEN_AI / OPENAI_API_KEY no configurada — Lucy no podrá usar GPT");
+// Alias Gemini → GEMINI_API_KEY canónica
+if (!process.env.GEMINI_API_KEY?.trim()) {
+  const alt =
+    process.env.GOOGLE_API_KEY?.trim() || process.env.GEMINI_KEY?.trim() || "";
+  if (alt) process.env.GEMINI_API_KEY = alt;
+}
+
+const hasGemini = !!(
+  process.env.GEMINI_API_KEY?.trim() ||
+  process.env.GOOGLE_API_KEY?.trim() ||
+  process.env.GEMINI_KEY?.trim()
+);
+const hasOpenAi = !!(process.env.OPENAI_API_KEY?.trim() || process.env.OPEN_AI?.trim());
+
+if (!hasGemini && !hasOpenAi) {
+  console.warn(
+    "[start] AVISO: falta GEMINI_API_KEY (o OPEN_AI de fallback) — Lucy no podrá responder"
+  );
+} else if (hasGemini) {
+  console.log(
+    `[start] LLM: Gemini (${process.env.GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite"})`
+  );
+} else {
+  console.log("[start] LLM: OpenAI (fallback — sin GEMINI_API_KEY)");
 }
 
 console.log("[start] Archivos OK, arrancando Lucy desde deploy/...");
 
 try {
-  const { readFileSync, existsSync } = await import("node:fs");
-  const { join } = await import("node:path");
-  const metaPath = join(deployDir, "build-meta.json");
-  if (existsSync(metaPath)) {
+  const { readFileSync, existsSync: exists } = await import("node:fs");
+  const { join: j } = await import("node:path");
+  const metaPath = j(deployDir, "build-meta.json");
+  if (exists(metaPath)) {
     const meta = JSON.parse(readFileSync(metaPath, "utf8"));
     console.log(
       `[start] Build: prompt ${meta.lucy_prompt} · ${meta.built_at_display ?? meta.built_at}` +
