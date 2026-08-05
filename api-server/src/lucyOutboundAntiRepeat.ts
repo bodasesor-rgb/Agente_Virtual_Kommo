@@ -5,6 +5,8 @@
  */
 import type OpenAI from "openai";
 import type { ExtractedData } from "./types.js";
+import { clientAsksInclusion } from "./services/catalogService.js";
+import { clientAsksPrice } from "./price-guard.js";
 import {
   inferLucyAskedField,
   parseInvitadosFromText,
@@ -19,6 +21,9 @@ import {
   clientMentionsSpecialLiveAct,
   clientDeclinesMoreServices,
   clientAsksForHumanAdvisor,
+  clientAsksServiceInfo,
+  clientAsksForRecommendations,
+  clientAsksForCatalog,
   parseServicesFromText,
   SERVICE_HINT,
   isReferentialPriorAnswer,
@@ -425,6 +430,18 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
       mensaje
     ) || isEntertainmentCatalog || clientAffirmingCatalog;
 
+  // A15165: si el cliente pide info/catálogo/modelos/shows, no colapsar a "Queda anotado".
+  const clientAskingInfo =
+    clientAsksServiceInfo(input.currentMessage) ||
+    clientMentionsEntertainment(input.currentMessage) ||
+    clientAsksForRecommendations(input.currentMessage) ||
+    clientAsksForCatalog(input.currentMessage) ||
+    clientAsksInclusion(input.currentMessage) ||
+    clientAsksPrice(input.currentMessage) ||
+    /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info)\b/i.test(
+      input.currentMessage ?? ""
+    );
+
   // 1) Post-cierre: no repetir el mismo agradecimiento.
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p) => THANKS_ACK_PATTERN.test(p))) {
     const lastThanks = [...previous].reverse().find((p) => THANKS_ACK_PATTERN.test(p));
@@ -435,7 +452,11 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   }
 
   // 2) Post-cierre: no insistir otra vez con "¿algo más?".
-  if (cierre && ALGO_MAS_PATTERN.test(mensaje)) {
+  if (
+    cierre &&
+    !clientAskingInfo &&
+    ALGO_MAS_PATTERN.test(mensaje)
+  ) {
     const prevAlgoMas = previous.filter((p) => ALGO_MAS_PATTERN.test(p));
     if (prevAlgoMas.length >= 1 && prevAlgoMas.some((p) => lucyTextOverlapRatio(mensaje, p) >= 0.5)) {
       mensaje = shortPostCierreAck(nombre, false);
@@ -552,7 +573,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
   // 6) Casi idéntico a una respuesta reciente del asistente.
   const nearDupThreshold =
     questionLines(mensaje).length > 0 && mensaje.length < 220 ? 0.55 : 0.62;
-  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientClarifyingService && previous.length > 0) {
+  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientClarifyingService && !clientAskingInfo && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p) => lucyTextOverlapRatio(mensaje, p)));
     if (maxOverlap >= nearDupThreshold) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);

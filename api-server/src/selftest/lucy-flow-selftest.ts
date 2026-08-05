@@ -98,7 +98,9 @@ import {
   cleanupBrokenOutboundFragments,
   lucyTextOverlapRatio,
 } from "../lucyOutboundAntiRepeat.js";
+import { finalizeLucyOutboundMessage } from "../lucyOutboundPipeline.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
+import { buildSillasModelMenu } from "../services/serviceProgressiveOffer.js";
 import { buildDynamicPrompt } from "../services/promptBuilder.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName, resolveKommoLeadNamePatch } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
@@ -8194,7 +8196,7 @@ async function runAll(): Promise<void> {
 
   // ─── 121. V8.93 — voz humana: preferir OpenAI sobre dump de plantilla ───
   await test("121. V8.93 — voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.ok(/^V8\.9[345678]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V8\.9[3456789]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
 
@@ -8247,7 +8249,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.98");
+    assert.equal(LUCY_PROMPT_VERSION, "V8.99");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8403,6 +8405,129 @@ async function runAll(): Promise<void> {
     );
     assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm), norm);
     assert.ok(/nuestro equipo/i.test(norm), norm);
+  });
+
+  // ─── 125. A15165 — show: intro Lucy, catálogos, post-cierre no muere ───
+  await test("125. A15165 — show intro + info shows/mobiliario/sillas post-cierre", async () => {
+    assert.ok(clientMentionsEntertainment("Hola quiero cotizar un show"));
+    assert.ok(clientMentionsEntertainment("Tiene info de los shows?"));
+    assert.ok(clientAsksForRecommendations("Qué otros servicios manejan"));
+    assert.ok(isServiceRelatedMessage("Mobilairio que manejan"));
+    assert.ok(clientAsksServiceInfo("Tienes los modelos de sillas?"));
+
+    // Primer turno: intro + nombre (no Level-2 solo).
+    const first = buildFirstInteractionMessage(
+      {
+        extracted: emptyExtracted(),
+        filledSet: new Set(),
+        history: [],
+        currentMessage: "Hola quiero cotizar un show",
+        entityId: 15165,
+      },
+      true
+    );
+    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first);
+    assert.ok(/c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(first), first);
+    assert.ok(/show|animaci|performance/i.test(first), first);
+    assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n/i.test(first), first);
+
+    // Pipeline no debe pisar intro por force-ack de servicio.
+    const kept = await finalizeLucyOutboundMessage({
+      mensaje: first,
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      history: [],
+      currentMessage: "Hola quiero cotizar un show",
+      readyForClosing: false,
+      cierreYaEnviado: false,
+      entityId: 15165,
+    });
+    assert.ok(/hola,?\s*soy\s+lucy/i.test(kept), kept);
+    assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(kept), kept);
+
+    // Post-cierre: info de shows → catálogo / orientación, no "Queda anotado".
+    const postShow = runGuards({
+      aiResponse: "Queda anotado. Nuestro equipo sigue con tu cotización.",
+      extracted: emptyExtracted({
+        nombre: "Alejandro",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Animación / Hora loca",
+        direccion_evento: "CDMX",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Número de invitados",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Tiene info de los shows?",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto, ya tengo todo. He anotado la animación… Si necesitas algo más, con gusto te apoyo.",
+        },
+      ],
+    });
+    assert.ok(/show|animaci|entretenimiento|hora\s+loca|performance/i.test(postShow), postShow.slice(0, 400));
+    assert.ok(/bodasesor\.com\/catalogos|cat[aá]logo/i.test(postShow), postShow.slice(0, 500));
+    assert.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postShow), postShow);
+
+    // Post-cierre: otros servicios.
+    const postOtros = runGuards({
+      aiResponse: "Queda anotado.",
+      extracted: emptyExtracted({ nombre: "Alejandro", tipo_evento: "evento corporativo" }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Número de invitados",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Qué otros servicios manejan",
+      history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }],
+    });
+    assert.ok(/banquete|mobiliario|barra|dj|servicio/i.test(postOtros), postOtros.slice(0, 400));
+    assert.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postOtros), postOtros);
+
+    // Post-cierre: modelos de sillas + catálogo.
+    const postSillas = runGuards({
+      aiResponse: "Queda anotado. Nuestro equipo sigue con tu cotización.",
+      extracted: emptyExtracted({ nombre: "Alejandro", requerimientos_evento: "Mobiliario" }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Número de invitados",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "No sabes qué modelos manejas de sillas?",
+      history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }],
+    });
+    assert.ok(/tiffany|crossback|ghost|sillas/i.test(postSillas), postSillas.slice(0, 500));
+    assert.ok(/mesas-y-sillas|cat[aá]logo/i.test(postSillas), postSillas.slice(0, 500));
+    assert.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postSillas), postSillas);
+
+    assert.ok(/tiffany/i.test(buildSillasModelMenu()));
+    const showAck = buildGuardServiceAck("quiero cotizar un show");
+    assert.ok(/show|animaci|cat[aá]logo|bodasesor\.com\/catalogos/i.test(showAck), showAck);
+    assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(showAck), showAck);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

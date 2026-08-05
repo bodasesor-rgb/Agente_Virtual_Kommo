@@ -1252,13 +1252,13 @@ function buildEntertainmentSalesReply(
     intro = `Sí, para ${eventLabel} también manejamos *maestro de ceremonias* y shows en vivo.`;
     ideas = "¿Buscas más bien presentador, show de grupo, o animación tipo hora loca?";
   } else {
-    // V8.93: descubrir estilo antes de listar todo el catálogo de shows.
-    intro = `Claro — para entretenimiento en ${eventLabel} te apoyamos con shows, animación y activaciones.`;
+    // V8.93 / A15165: descubrir estilo antes de listar todo; siempre hub de catálogos.
+    intro = `Claro — para entretenimiento en ${eventLabel} te apoyamos con shows, animación y performance.`;
     ideas =
       "¿Buscas algo más tipo show en vivo, hora loca, o ya tienes un formato en mente?";
   }
 
-  // Entretenimiento: catálogos mapeados si hay SKUs; si no, hub (A14920 / V8.79).
+  // Entretenimiento: catálogos mapeados si hay SKUs; si no, hub (A14920 / V8.79 / A15165).
   const entServices = collectServicesForCatalogOffer({
     services: [
       ...services,
@@ -1268,19 +1268,28 @@ function buildEntertainmentSalesReply(
       ...(wantsRobots ? ["Robots LED"] : []),
       ...(wantsBatucada ? ["Batucada"] : []),
       ...(wantsMc ? ["Maestro de ceremonias"] : []),
+      ...(!wantsPhotoBooth && !wantsSpecialAct && !wantsBailarinas && !wantsRobots && !wantsBatucada && !wantsMc
+        ? ["Animación / Hora loca", "show"]
+        : []),
     ],
     extracted,
     history,
     currentMessage,
   });
-  // Photo Booth / actos especiales: no dump de banquete/hub genérico — solo ack + siguiente dato.
-  const catalog =
+  // Photo Booth / actos especiales: no dump de banquete — hub sí para shows genéricos.
+  let catalog =
     wantsPhotoBooth || wantsSpecialAct
       ? ""
       : buildPackageCatalogOfferBlock(
           entServices,
           `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
         );
+  if (!catalog && !wantsPhotoBooth) {
+    catalog = [
+      "Te dejo el catálogo general (shows, animación y más servicios):",
+      getCatalogWebHubDeliveryUrl(),
+    ].join("\n");
+  }
   let body = catalog ? `${intro} ${ideas}\n\n${catalog}` : `${intro} ${ideas}`;
 
   if (filledSet && ctx) {
@@ -2166,6 +2175,9 @@ export function buildOpeningAcknowledgment(
       : "Con gusto te ayudo con información de banquetes.";
   }
   if (/kosher/.test(t)) return "Sí tenemos opciones kosher.";
+  if (/\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(t)) {
+    return "Claro — manejamos shows, animación y performance para eventos.";
+  }
   if (/\bpista(\s+de\s+baile)?\b|\btarima/i.test(t)) {
     return "Claro, te ayudo con pista de baile o tarima para tu evento.";
   }
@@ -4605,11 +4617,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre — RFQ/paquete completo (no SKU suelto)");
   } else if (
+    // A15165: post-cierre con PREGUNTA de info/catálogo/modelos/shows → NO ack corto.
+    // Dejar caer a ramas de entretenimiento / mobiliario / recomendaciones / servicio.
     cierreYaEnviado &&
     !clientDeclinesMoreServices(currentMessage) &&
     !clientSaysThanks(currentMessage) &&
     isServiceRelatedMessage(currentMessage) &&
-    currentMessage?.trim()
+    currentMessage?.trim() &&
+    !clientAsksServiceInfo(currentMessage) &&
+    !clientMentionsEntertainment(currentMessage) &&
+    !clientAsksForCatalog(currentMessage) &&
+    !clientAsksForRecommendations(currentMessage) &&
+    !clientAsksInclusion(currentMessage) &&
+    !clientAsksPrice(currentMessage) &&
+    !/\b(modelos?|cat[aá]logo|sillas?|mesas?|mobiliario|mobilairio|banquetes?)\b/i.test(
+      currentMessage ?? ""
+    )
   ) {
     // Post-cierre: anotar sin re-dump de niveles/precios (A14918 helado+crepas+frutas).
     const services = parseServicesFromText(currentMessage);
@@ -5661,30 +5684,49 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       log?.info({ entityId }, "GUARD: eligió catering casual → menú estaciones");
     }
   } else if (
-    // V8.92: tras menú de piezas mobiliario → modelos (sillas/mesas/…).
+    // V8.92 / A15165: menú de piezas mobiliario → modelos (también post-cierre).
     allowSalesReplyOverride &&
-    !cierreYaEnviado &&
-    historyOfferedMobiliarioPieceMenu(presHistory) &&
+    (historyOfferedMobiliarioPieceMenu(presHistory) ||
+      /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio\b/i.test(currentMessage ?? "")) &&
     currentMessage?.trim() &&
-    parseMobiliarioPieceChoice(currentMessage)
+    (parseMobiliarioPieceChoice(currentMessage) ||
+      /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") ||
+      /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
-    const piece = parseMobiliarioPieceChoice(currentMessage)!;
+    const piece =
+      parseMobiliarioPieceChoice(currentMessage) ||
+      (/\bsillas?\b/i.test(currentMessage ?? "")
+        ? "sillas"
+        : /\bmesas?\b/i.test(currentMessage ?? "")
+          ? "mesas"
+          : "mobiliario");
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
-      `Mobiliario: ${piece}`,
+      piece === "mobiliario" ? "Mobiliario" : `Mobiliario: ${piece}`,
       6
     );
     if (merged) extracted.requerimientos_evento = merged;
+    const body =
+      piece === "mobiliario"
+        ? buildProgressiveOptionsMenu("mobiliario")
+        : buildMobiliarioPieceFollowUp(piece);
+    const catalogUrl =
+      getCatalogWebUrlForQuery("mesas y sillas") ||
+      getCatalogWebHubDeliveryUrl();
+    const withLink =
+      catalogUrl && !/bodasesor\.com\/catalogos/i.test(body)
+        ? `${body}\n\nCatálogo de mesas y sillas:\n${catalogUrl}`
+        : body;
     mensaje = mergeWithPendingQuestion(
-      `${pickTransition(presHistory)} ${buildMobiliarioPieceFollowUp(piece)}`,
+      `${pickTransition(presHistory)} ${withLink}`,
       filledSet,
       extracted,
       ctx
     );
     appliedSalesReply = true;
     appliedDirectReply = true;
-    log?.info({ entityId, piece }, "GUARD: pieza mobiliario → menú de modelos");
+    log?.info({ entityId, piece }, "GUARD: mobiliario/sillas → menú de modelos + catálogo");
   } else if (
     allowSalesReplyOverride &&
     !cierreYaEnviado &&
