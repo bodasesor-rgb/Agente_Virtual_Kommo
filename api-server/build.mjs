@@ -98,7 +98,7 @@ async function buildAll() {
       "@azure/*",
       "@opentelemetry/*",
       "@google-cloud/*",
-      "@google/*",
+      // NO externalizar @google/genai — debe ir en el bundle de Hostinger (deploy/).
       "googleapis",
       "firebase-admin",
       "@parcel/watcher",
