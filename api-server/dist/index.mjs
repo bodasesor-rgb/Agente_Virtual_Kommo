@@ -29058,7 +29058,7 @@ var require_logger = __commonJS({
 
 // src/lib/llmEnv.ts
 function getGeminiApiKey() {
-  return process.env["GEMINI_API_KEY"]?.trim() || process.env["GOOGLE_API_KEY"]?.trim() || process.env["GEMINI_KEY"]?.trim() || "";
+  return process.env["gemini_ia"]?.trim() || process.env["GEMINI_IA"]?.trim() || process.env["GEMINI_API_KEY"]?.trim() || process.env["GOOGLE_API_KEY"]?.trim() || process.env["GEMINI_KEY"]?.trim() || "";
 }
 function isGeminiConfigured() {
   return getGeminiApiKey().length > 0;
@@ -29095,7 +29095,7 @@ function llmConfigSummary() {
 function missingLlmConfigMessage() {
   const provider = getLlmProvider();
   if (provider === "gemini") {
-    return "Lucy no tiene GEMINI_API_KEY (o GOOGLE_API_KEY) configurada. A\xF1\xE1dela en Hostinger y reinicia.";
+    return "Lucy no tiene gemini_ia (o GEMINI_API_KEY) configurada. A\xF1\xE1dela en Hostinger y reinicia.";
   }
   return "Lucy no tiene OPEN_AI (o OPENAI_API_KEY) configurada. A\xF1\xE1dela en Hostinger y reinicia.";
 }
@@ -170907,7 +170907,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.94";
+var LUCY_PROMPT_VERSION = "V8.95";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -187625,7 +187625,7 @@ async function buildOpsStatus() {
     id: "llm",
     label: llm.provider === "gemini" ? "Gemini (Flash-Lite)" : "OpenAI",
     status: isLlmConfigured() ? "ok" : "error",
-    detail: isLlmConfigured() ? `${llm.provider} \xB7 ${llm.model} (${llmKeyPrefix() ?? "key"})` : llm.provider === "gemini" ? "Falta GEMINI_API_KEY en Hostinger \u2014 Lucy no puede usar Gemini" : "Falta OPEN_AI en Hostinger \u2014 Lucy no puede usar GPT"
+    detail: isLlmConfigured() ? `${llm.provider} \xB7 ${llm.model} (${llmKeyPrefix() ?? "key"})` : llm.provider === "gemini" ? "Falta gemini_ia en Hostinger \u2014 Lucy no puede usar Gemini" : "Falta OPEN_AI en Hostinger \u2014 Lucy no puede usar GPT"
   });
   if (isOpenAiConfigured()) {
     checks.push({

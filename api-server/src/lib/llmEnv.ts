@@ -10,8 +10,11 @@ export type LlmProvider = "gemini" | "openai";
 export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 export const DEFAULT_OPENAI_CHAT_MODEL = "gpt-4o-mini";
 
+/** Keys aceptadas (Hostinger / otros proyectos): gemini_ia, GEMINI_API_KEY, etc. */
 export function getGeminiApiKey(): string {
   return (
+    process.env["gemini_ia"]?.trim() ||
+    process.env["GEMINI_IA"]?.trim() ||
     process.env["GEMINI_API_KEY"]?.trim() ||
     process.env["GOOGLE_API_KEY"]?.trim() ||
     process.env["GEMINI_KEY"]?.trim() ||
@@ -82,7 +85,7 @@ export function llmConfigSummary(): {
 export function missingLlmConfigMessage(): string {
   const provider = getLlmProvider();
   if (provider === "gemini") {
-    return "Lucy no tiene GEMINI_API_KEY (o GOOGLE_API_KEY) configurada. Añádela en Hostinger y reinicia.";
+    return "Lucy no tiene gemini_ia (o GEMINI_API_KEY) configurada. Añádela en Hostinger y reinicia.";
   }
   return "Lucy no tiene OPEN_AI (o OPENAI_API_KEY) configurada. Añádela en Hostinger y reinicia.";
 }

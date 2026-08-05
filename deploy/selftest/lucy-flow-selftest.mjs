@@ -52246,7 +52246,7 @@ function isOpenAiConfigured() {
 var DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 var DEFAULT_OPENAI_CHAT_MODEL = "gpt-4o-mini";
 function getGeminiApiKey() {
-  return process.env["GEMINI_API_KEY"]?.trim() || process.env["GOOGLE_API_KEY"]?.trim() || process.env["GEMINI_KEY"]?.trim() || "";
+  return process.env["gemini_ia"]?.trim() || process.env["GEMINI_IA"]?.trim() || process.env["GEMINI_API_KEY"]?.trim() || process.env["GOOGLE_API_KEY"]?.trim() || process.env["GEMINI_KEY"]?.trim() || "";
 }
 function isGeminiConfigured() {
   return getGeminiApiKey().length > 0;
@@ -58147,7 +58147,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V8.94";
+var LUCY_PROMPT_VERSION = "V8.95";
 
 // src/selftest/lucy-flow-selftest.ts
 var CATALOG_URL2 = "https://bodasesor.com/catalogos";
@@ -65141,7 +65141,7 @@ ${golfText}`,
     assert.ok(qty && /900|sillas/i.test(qty), qty ?? "");
   });
   await test("121. V8.93 \u2014 voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.ok(/^V8\.9[34]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V8\.9[345]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
     const humanEnt = "Claro, Bakar. Anoto un show de grupo vers\xE1til para tu evento del 18 de diciembre. Es entretenimiento (no catering). \xBFMe confirmas si es corporativo y en qu\xE9 sede ser\xEDa?";
@@ -65182,17 +65182,19 @@ ${golfText}`,
     assert.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.94");
+    assert.equal(LUCY_PROMPT_VERSION, "V8.95");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
+    const prevGeminiIa = process.env.gemini_ia;
     const prevGoogle = process.env.GOOGLE_API_KEY;
     const prevOpen = process.env.OPEN_AI;
     const prevOpenAi = process.env.OPENAI_API_KEY;
     try {
       process.env.LLM_PROVIDER = "gemini";
-      process.env.GEMINI_API_KEY = "test-gemini-key";
+      delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_API_KEY;
+      process.env.gemini_ia = "test-gemini-ia-key";
       assert.equal(getLlmProvider(), "gemini");
       assert.equal(getChatModel(), "gemini-3.1-flash-lite");
       assert.equal(isLlmConfigured(), true);
@@ -65212,6 +65214,8 @@ ${golfText}`,
       else process.env.LLM_PROVIDER = prevProvider;
       if (prevGemini === void 0) delete process.env.GEMINI_API_KEY;
       else process.env.GEMINI_API_KEY = prevGemini;
+      if (prevGeminiIa === void 0) delete process.env.gemini_ia;
+      else process.env.gemini_ia = prevGeminiIa;
       if (prevGoogle === void 0) delete process.env.GOOGLE_API_KEY;
       else process.env.GOOGLE_API_KEY = prevGoogle;
       if (prevOpen === void 0) delete process.env.OPEN_AI;

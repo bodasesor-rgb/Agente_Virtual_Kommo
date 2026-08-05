@@ -57,7 +57,7 @@ async function buildOpsStatus(): Promise<{
     detail: isLlmConfigured()
       ? `${llm.provider} · ${llm.model} (${llmKeyPrefix() ?? "key"})`
       : llm.provider === "gemini"
-        ? "Falta GEMINI_API_KEY en Hostinger — Lucy no puede usar Gemini"
+        ? "Falta gemini_ia en Hostinger — Lucy no puede usar Gemini"
         : "Falta OPEN_AI en Hostinger — Lucy no puede usar GPT",
   });
   if (isOpenAiConfigured()) {
