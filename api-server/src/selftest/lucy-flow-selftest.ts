@@ -106,9 +106,17 @@ import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreM
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
   resolveTipoContacto,
+  looksLikeProveedorOutreach,
   clientAsksIfCompanyEmailCorrect,
   buildCompanyEmailConfirmReply,
 } from "../tipoContacto.js";
+import {
+  buildProveedorHandoffReply,
+  extractEmpresaFromText,
+  scrubClientFieldsForProveedor,
+} from "../lib/proveedorHandoff.js";
+import { resolveProveedorEtapa, ETAPA } from "../services/embudo.js";
+import { prepareLucyExtraction } from "../lucyTurnProcessor.js";
 import {
   buildFirstInteractionMessage,
   buildLocationAnswer,
@@ -8262,7 +8270,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.00");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.01");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8550,7 +8558,7 @@ async function runAll(): Promise<void> {
 
   // ─── 126. V9.00 — optimizaciones de costo Gemini ───
   await test("126. V9.00 — context cache + media-once + image compress", async () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.00");
+    assert.ok(/^V9\.0\d$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
     // Context cache: hash estable + create/reuse vía mock ai.caches
     resetGeminiContextCacheForTests();
@@ -8618,6 +8626,88 @@ async function runAll(): Promise<void> {
     const gstats = getGeminiCallStats();
     assert.ok("context_cache" in gstats);
     assert.ok("mediaStripped" in gstats);
+  });
+
+  // ─── 127. A14936 — proveedor/alianza venue no es embudo cliente ───
+  await test("127. A14936 — Lety Hacienda aliados → proveedor, no formulario evento", async () => {
+    const letyText =
+      "Hola Lucy. Te escribe Lety, soy ejecutiva de ventas en Hacienda Los Arcángeles, " +
+      "te invito a registrarte en nuestra base de datos para conocer los beneficios y tarifas " +
+      "disponibles de nuestro venue, y ser parte de nuestra red de aliados comerciales. Bonito Martes!";
+
+    assert.ok(looksLikeProveedorOutreach(letyText));
+    assert.equal(resolveTipoContacto("cliente", letyText), "proveedor");
+    assert.equal(resolveTipoContacto(null, letyText), "proveedor");
+    assert.equal(resolveTipoContacto("proveedor", letyText), "proveedor");
+
+    // Seguimiento de alianza también cuenta
+    const follow =
+      "Hola Lucy; La intención de mi mensaje es invitarte a registrarte para ser parte de nuestra red de aliados";
+    assert.equal(resolveTipoContacto("cliente", follow), "proveedor");
+
+    // Saint-Gobain sigue siendo CLIENTE
+    const cafe =
+      "Solicitud para cotización de café gourmet para evento corporativo Saint-Gobain";
+    assert.equal(resolveTipoContacto("proveedor", cafe), "cliente");
+    assert.ok(!looksLikeProveedorOutreach(cafe));
+
+    // Cliente en hacienda ≠ proveedor
+    const bodaHacienda =
+      "Quiero cotizar banquete para mi boda en Hacienda Los Arcángeles el 20 de diciembre";
+    assert.equal(resolveTipoContacto(null, bodaHacienda), "cliente");
+
+    assert.equal(extractEmpresaFromText(letyText), "Hacienda Los Arcángeles");
+
+    const reply = buildProveedorHandoffReply({
+      nombre: "Lety",
+      empresa: "Hacienda Los Arcángeles",
+      conversationText: letyText,
+    });
+    assert.ok(/proveedores|alianzas/i.test(reply), reply);
+    assert.ok(/Hacienda Los Arcángeles/i.test(reply), reply);
+    assert.ok(!/tipo de evento|invitados|presupuesto|correo te mando/i.test(reply), reply);
+
+    const scrubbed = scrubClientFieldsForProveedor({
+      ...emptyExtracted(),
+      tipo_contacto: "proveedor",
+      nombre: "Lety",
+      empresa: "Hacienda Los Arcángeles",
+      direccion_evento: "Hacienda Los Arcángeles",
+      tipo_evento: "boda",
+      num_invitados: 100,
+      requerimientos_evento: "Invitación a red de aliados",
+    });
+    assert.equal(scrubbed.tipo_contacto, "proveedor");
+    assert.equal(scrubbed.direccion_evento, null);
+    assert.equal(scrubbed.tipo_evento, null);
+    assert.equal(scrubbed.num_invitados, null);
+
+    const zona = resolveProveedorEtapa();
+    assert.equal(zona.statusId, ETAPA.HUMANO_TRABAJA);
+    assert.ok(zona.pipelineId > 0);
+
+    // prepareLucyExtraction: resolve + scrub en pipeline
+    const { extracted } = await prepareLucyExtraction({
+      fullHistory: [],
+      messageText: letyText,
+      crmLines: [],
+      extractFn: async () => ({
+        ...emptyExtracted(),
+        tipo_contacto: "cliente",
+        nombre: "Lety",
+        empresa: "Hacienda Los Arcángeles",
+        requerimientos_evento: "red de aliados",
+      }),
+    });
+    assert.equal(extracted.tipo_contacto, "proveedor");
+    assert.equal(extracted.tipo_evento, null);
+    assert.ok(/PROVEEDOR:/i.test(extracted.requerimientos_evento ?? ""), extracted.requerimientos_evento);
+
+    const healthSrc = readFileSync(
+      path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../.."), "src/routes/health.ts"),
+      "utf8"
+    );
+    assert.ok(healthSrc.includes("proveedor-alianza-handoff"));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

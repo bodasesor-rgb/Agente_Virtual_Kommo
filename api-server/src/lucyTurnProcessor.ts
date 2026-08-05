@@ -6,6 +6,11 @@ import type OpenAI from "openai";
 import type { ExtractedData } from "./types.js";
 import { filterClientEmail } from "./client-email.js";
 import { resolveTipoContacto } from "./tipoContacto.js";
+import {
+  buildProveedorHandoffReply,
+  extractEmpresaFromText,
+  scrubClientFieldsForProveedor,
+} from "./lib/proveedorHandoff.js";
 import { detectModoServicio } from "./modoServicio.js";
 import {
   applyWebLeadBrief,
@@ -85,15 +90,23 @@ export async function prepareLucyExtraction(
     messageText,
   ].join(" ");
 
+  // Resolver tipo ANTES de enriquecer (A14936: alianza ≠ embudo cliente).
+  extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
+
   if (extracted.tipo_contacto === "proveedor") {
-    const empresa = extracted.empresa ?? "";
-    const desc = extracted.requerimientos_evento ?? "";
-    if (empresa || desc) {
-      extracted.requerimientos_evento = `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${desc}`.slice(
-        0,
-        240
-      );
+    Object.assign(extracted, scrubClientFieldsForProveedor(extracted));
+    if (!extracted.empresa?.trim()) {
+      extracted.empresa = extractEmpresaFromText(conversationText);
     }
+    const empresa = extracted.empresa ?? "";
+    const desc = (extracted.requerimientos_evento ?? "").replace(/^PROVEEDOR:\s*/i, "").trim();
+    const offerHint =
+      desc ||
+      (/\baliados?\b|\bvenue\b|\bhacienda\b/i.test(conversationText)
+        ? "Invitación a red de aliados / venue"
+        : "Oferta de proveedor");
+    extracted.requerimientos_evento =
+      `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${offerHint}`.slice(0, 240);
   } else {
     enrichExtractedFromText(extracted, conversationText);
     sanitizeExtractedAmbiguousNumbers(extracted, messageText, { lastAskedField: lastAskedAmbig });
@@ -102,7 +115,6 @@ export async function prepareLucyExtraction(
     }
   }
 
-  extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
   if (extracted.correo) {
     extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
   }
@@ -256,6 +268,20 @@ export async function generateLucyOutbound(
     prependToAiResponse,
     log,
   } = input;
+
+  // A14936: proveedor / alianza → handoff fijo (sin formulario de evento).
+  if (extracted.tipo_contacto === "proveedor") {
+    const reply = buildProveedorHandoffReply({
+      nombre: extracted.nombre ?? whatsappDisplayName,
+      empresa: extracted.empresa,
+      conversationText,
+    });
+    log?.info?.(
+      { entityId, empresa: extracted.empresa },
+      "Proveedor/alianza detectado — handoff (sin embudo cliente)"
+    );
+    return { mensajeParaCliente: reply, aiResponse: reply };
+  }
 
   const systemContent = await buildLucySystemPrompt({
     messageText,
