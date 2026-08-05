@@ -1,6 +1,7 @@
 import type pino from "pino";
 import { completeChat } from "../lib/llmChat.js";
 import { getChatModel } from "../lib/llmEnv.js";
+import { tryCompressImageForVision } from "../lib/imageCompress.js";
 
 type Log = pino.Logger;
 type Msg = Record<string, unknown>;
@@ -308,10 +309,27 @@ export async function analyzeImageFull(
 
     const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
     const buffer = await imgResponse.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString("base64");
-    const dataUrl = `data:${contentType};base64,${base64}`;
+    // V9.00: ≤1024px JPEG ~80% antes de Vision (menos tokens / egress).
+    const compressed = await tryCompressImageForVision(buffer);
+    const mimeType =
+      compressed?.mimeType ?? (contentType.split(";")[0]?.trim() || "image/jpeg");
+    const base64 = compressed?.base64 ?? Buffer.from(buffer).toString("base64");
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+    if (compressed) {
+      log.info(
+        {
+          bytesIn: compressed.bytesIn,
+          bytesOut: compressed.bytesOut,
+          width: compressed.width,
+          height: compressed.height,
+          resized: compressed.resized,
+        },
+        "Imagen comprimida para Vision"
+      );
+    }
 
     // Visión = LEER foto del cliente con flash-lite. NO genera imágenes (Nano Banana/Imagen).
+    // Una sola vez: el historial guarda formatImageTurnText (texto), no el binario.
     const completion = await completeChat({
       model: getChatModel(),
       purpose: "vision",
@@ -326,7 +344,7 @@ export async function analyzeImageFull(
             {
               type: "image_url",
               image_url: { url: dataUrl },
-              mimeType: contentType,
+              mimeType,
               base64,
             },
           ],

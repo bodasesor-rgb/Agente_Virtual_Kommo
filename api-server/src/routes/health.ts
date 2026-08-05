@@ -3,6 +3,8 @@ import { HealthCheckResponse } from "@workspace/api-zod";
 import { getOpenAiApiKey, isOpenAiConfigured } from "../lib/openaiEnv.js";
 import { llmConfigSummary, llmKeyPrefix } from "../lib/llmEnv.js";
 import { getGeminiCallStats } from "../lib/llmChat.js";
+import { getImageCompressStats } from "../lib/imageCompress.js";
+import { getGeminiContextCacheStats } from "../lib/geminiContextCache.js";
 import { getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
 import { isAuthConfigured } from "../lib/authJwt.js";
 import { getCatalogStatus } from "../services/catalogService.js";
@@ -54,6 +56,9 @@ router.get("/health", async (_req, res) => {
       "gemini-vision-read-only",
       "gemini-voice-transcribe",
       "gemini-no-image-generation",
+      "gemini-context-cache",
+      "gemini-media-once",
+      "gemini-image-compress-1024",
     ],
     learning: {
       note: "Panel /aprendizaje: chats, huecos Sheet e Información para Lucy (PDF→texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba ≥0.85",
@@ -89,8 +94,10 @@ router.get("/health", async (_req, res) => {
     gemini_allowed_model: llm.gemini_allowed_model,
     gemini_blocked_image_models: llm.gemini_blocked_image_models,
     gemini_call_stats: getGeminiCallStats(),
+    gemini_context_cache: getGeminiContextCacheStats(),
+    gemini_image_compress: getImageCompressStats(),
     gemini_policy:
-      "Solo gemini-3.1-flash-lite (texto/visión/voz). Sin Nano Banana, Imagen ni generateImages.",
+      "Solo gemini-3.1-flash-lite (texto/visión/voz). Context cache del system. Media una sola vez. Imágenes ≤1024 JPEG. Sin Nano Banana/Imagen.",
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
     lucy_outbound: {
