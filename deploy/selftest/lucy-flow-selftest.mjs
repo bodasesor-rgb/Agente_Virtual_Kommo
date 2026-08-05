@@ -69365,6 +69365,9 @@ function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage
   }
   if (isDryRequerimientosAsk(trimmed)) return false;
   if (messageOffersLevelsWithoutInclusions(trimmed)) return false;
+  if (/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(trimmed) && /Nuestro equipo te confirma/i.test(trimmed)) {
+    return false;
+  }
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return true;
   if (pending === "requerimientos" && hasTipoEvento(filledSet, extracted) && aiLooksLikeEventServiceOffer(trimmed)) {
@@ -69388,6 +69391,9 @@ function aiLooksLikeEntertainmentReply(text, clientMessage) {
   if (!text?.trim() || text.trim().length < 40) return false;
   if (looksLikeServicesMenuDump(text) || responseLooksLikeGenericCateringMenu(text)) return false;
   if (responseHasInventedPrice(text)) return false;
+  if (/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(text) || /Nuestro equipo te confirma descripci[oó]n, precio e inclusiones/i.test(text)) {
+    return false;
+  }
   if (/manejamos shows|Te dejo el cat[aá]logo general|happening,? espejos|l[aá]ser y m[aá]s opciones/i.test(
     text
   )) {
@@ -71258,7 +71264,10 @@ ${nextQ}` : `Entendido \u2014 nos quedamos solo con *${label}*. El equipo arma l
       filledSet,
       ctx
     );
-    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiLooksLikeEntertainmentReply(aiResponse, entFocusMsg)) {
+    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiLooksLikeEntertainmentReply(aiResponse, entFocusMsg) && // A15165: si pide info/catálogo, exigir link o contexto útil en la IA.
+    !(clientAsksServiceInfo(currentMessage) && !/bodasesor\.com\/catalogos|cat[aá]logo|show en vivo|hora loca|performance/i.test(
+      aiResponse
+    ))) {
       mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 preferir redacci\xF3n OpenAI");
@@ -73128,8 +73137,13 @@ async function finalizeLucyOutboundMessage(input) {
   });
   mensaje = normalizeAdvisorReferences(mensaje, input.extracted.nombre ?? null);
   if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
-    input.log?.warn({ entityId: input.entityId }, "P3 GUARD: cat\xE1logo repetido post-cierre \u2014 stripping");
-    mensaje = stripCatalogBlockShared(mensaje);
+    const allowPostCierreCatalog = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || isServiceRelatedMessage(input.currentMessage) || clientAsksInclusion(input.currentMessage) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|cat[aá]logo|info)\b/i.test(
+      input.currentMessage ?? ""
+    );
+    if (!allowPostCierreCatalog) {
+      input.log?.warn({ entityId: input.entityId }, "P3 GUARD: cat\xE1logo repetido post-cierre \u2014 stripping");
+      mensaje = stripCatalogBlockShared(mensaje);
+    }
   }
   if (!input.readyForClosing && !input.cierreYaEnviado && mensaje.includes(CLOSING_SIGNATURE)) {
     const without = mensaje.split(CLOSING_SIGNATURE).join(" ").replace(/\s{2,}/g, " ").trim();
@@ -80827,7 +80841,7 @@ ${golfText}`,
     assert.ok(/hola,?\s*soy\s+lucy/i.test(kept), kept);
     assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(kept), kept);
     const postShow = runGuards({
-      aiResponse: "Queda anotado. Nuestro equipo sigue con tu cotizaci\xF3n.",
+      aiResponse: "\xA1Claro! *Animaci\xF3n / Hora loca* la anoto para tu cotizaci\xF3n. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones.",
       extracted: emptyExtracted({
         nombre: "Alejandro",
         tipo_evento: "evento corporativo",
@@ -80857,6 +80871,10 @@ ${golfText}`,
     assert.ok(/show|animaci|entretenimiento|hora\s+loca|performance/i.test(postShow), postShow.slice(0, 400));
     assert.ok(/bodasesor\.com\/catalogos|cat[aá]logo/i.test(postShow), postShow.slice(0, 500));
     assert.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postShow), postShow);
+    assert.ok(
+      !/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(postShow),
+      `no Level-2: ${postShow.slice(0, 400)}`
+    );
     const postOtros = runGuards({
       aiResponse: "Queda anotado.",
       extracted: emptyExtracted({ nombre: "Alejandro", tipo_evento: "evento corporativo" }),

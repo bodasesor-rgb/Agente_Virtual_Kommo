@@ -2523,6 +2523,13 @@ function shouldPreferAiResponse(
   if (isDryRequerimientosAsk(trimmed)) return false;
   // Niveles sin inclusiones: no preferir — el enrich del Sheet debe completar.
   if (messageOffersLevelsWithoutInclusions(trimmed)) return false;
+  // A15165: never prefer Level-2 stub over catalog/template knowledge.
+  if (
+    /\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(trimmed) &&
+    /Nuestro equipo te confirma/i.test(trimmed)
+  ) {
+    return false;
+  }
 
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return true;
@@ -2567,6 +2574,13 @@ function aiLooksLikeEntertainmentReply(
   if (!text?.trim() || text.trim().length < 40) return false;
   if (looksLikeServicesMenuDump(text) || responseLooksLikeGenericCateringMenu(text)) return false;
   if (responseHasInventedPrice(text)) return false;
+  // A15165: Level-2 vacío ("la anoto… equipo confirma") no sustituye plantilla + catálogo.
+  if (
+    /\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(text) ||
+    /Nuestro equipo te confirma descripci[oó]n, precio e inclusiones/i.test(text)
+  ) {
+    return false;
+  }
   // Stubs / dumps genéricos — no sustituyen plantilla de acto concreto.
   if (
     /manejamos shows|Te dejo el cat[aá]logo general|happening,? espejos|l[aá]ser y m[aá]s opciones/i.test(
@@ -5565,7 +5579,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     if (
       shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) &&
-      aiLooksLikeEntertainmentReply(aiResponse, entFocusMsg)
+      aiLooksLikeEntertainmentReply(aiResponse, entFocusMsg) &&
+      // A15165: si pide info/catálogo, exigir link o contexto útil en la IA.
+      !(
+        clientAsksServiceInfo(currentMessage) &&
+        !/bodasesor\.com\/catalogos|cat[aá]logo|show en vivo|hora loca|performance/i.test(
+          aiResponse
+        )
+      )
     ) {
       mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
       appliedDirectReply = true;

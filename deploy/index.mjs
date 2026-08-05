@@ -174055,6 +174055,9 @@ function shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage
   }
   if (isDryRequerimientosAsk(trimmed)) return false;
   if (messageOffersLevelsWithoutInclusions(trimmed)) return false;
+  if (/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(trimmed) && /Nuestro equipo te confirma/i.test(trimmed)) {
+    return false;
+  }
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return true;
   if (pending === "requerimientos" && hasTipoEvento(filledSet, extracted) && aiLooksLikeEventServiceOffer(trimmed)) {
@@ -174078,6 +174081,9 @@ function aiLooksLikeEntertainmentReply(text2, clientMessage) {
   if (!text2?.trim() || text2.trim().length < 40) return false;
   if (looksLikeServicesMenuDump(text2) || responseLooksLikeGenericCateringMenu(text2)) return false;
   if (responseHasInventedPrice(text2)) return false;
+  if (/\bla\s+anoto\s+para\s+tu\s+cotizaci[oó]n\b/i.test(text2) || /Nuestro equipo te confirma descripci[oó]n, precio e inclusiones/i.test(text2)) {
+    return false;
+  }
   if (/manejamos shows|Te dejo el cat[aá]logo general|happening,? espejos|l[aá]ser y m[aá]s opciones/i.test(
     text2
   )) {
@@ -175948,7 +175954,10 @@ ${nextQ}` : `Entendido \u2014 nos quedamos solo con *${label}*. El equipo arma l
       filledSet,
       ctx
     );
-    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiLooksLikeEntertainmentReply(aiResponse, entFocusMsg)) {
+    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiLooksLikeEntertainmentReply(aiResponse, entFocusMsg) && // A15165: si pide info/catálogo, exigir link o contexto útil en la IA.
+    !(clientAsksServiceInfo(currentMessage) && !/bodasesor\.com\/catalogos|cat[aá]logo|show en vivo|hora loca|performance/i.test(
+      aiResponse
+    ))) {
       mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 preferir redacci\xF3n OpenAI");
@@ -178968,8 +178977,13 @@ async function finalizeLucyOutboundMessage(input) {
   });
   mensaje = normalizeAdvisorReferences(mensaje, input.extracted.nombre ?? null);
   if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
-    input.log?.warn({ entityId: input.entityId }, "P3 GUARD: cat\xE1logo repetido post-cierre \u2014 stripping");
-    mensaje = stripCatalogBlockShared(mensaje);
+    const allowPostCierreCatalog = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || isServiceRelatedMessage(input.currentMessage) || clientAsksInclusion(input.currentMessage) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|cat[aá]logo|info)\b/i.test(
+      input.currentMessage ?? ""
+    );
+    if (!allowPostCierreCatalog) {
+      input.log?.warn({ entityId: input.entityId }, "P3 GUARD: cat\xE1logo repetido post-cierre \u2014 stripping");
+      mensaje = stripCatalogBlockShared(mensaje);
+    }
   }
   if (!input.readyForClosing && !input.cierreYaEnviado && mensaje.includes(CLOSING_SIGNATURE)) {
     const without = mensaje.split(CLOSING_SIGNATURE).join(" ").replace(/\s{2,}/g, " ").trim();
