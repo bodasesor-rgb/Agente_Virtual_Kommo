@@ -176,6 +176,7 @@ import {
   isGettingReadyContext,
   parseWebLeadBrief,
   clientAsksForCatalog,
+  clientAsksGenericMenuCatalog,
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
   assistantOfferedCatalogDetail,
@@ -4711,7 +4712,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         .find((t) => assistantOfferedCatalogDetail(t)) ?? null
     ))
   ) {
-    const wantFull = clientWantsFullCatalog(currentMessage);
+    const wantFull =
+      clientWantsFullCatalog(currentMessage) ||
+      clientAsksGenericMenuCatalog(currentMessage);
     const hintParts: string[] = [];
     if (extracted.requerimientos_evento?.trim()) hintParts.push(extracted.requerimientos_evento);
     if (mentionedServiceNow) hintParts.push(mentionedServiceNow);
@@ -4732,16 +4735,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       .join(" ")
       .trim();
     const serviceHint = hintParts.join(" ") || null;
-    // V8.83: en TODAS las ramas, al afirmar catálogo mandar links mapeados de lo capturado
-    // (no solo hub + otra pregunta "¿te mando el catálogo?").
-    const mappedServices = collectServicesForCatalogOffer({
-      services: parseServicesFromText(
-        `${extracted.requerimientos_evento ?? ""} ${historyHint}`
-      ),
-      extracted,
-      history: presHistory,
-      currentMessage,
-    });
+    // A15169: servicios SOLO del texto del cliente (no CRM/LLM inventado).
+    // "catálogo de menú" sin SKU → hub general, nunca Barra de pizzas.
+    const userNamedServices = parseServicesFromText(historyHint);
+    const mappedServices = wantFull
+      ? []
+      : collectServicesForCatalogOffer({
+          services: userNamedServices,
+          // No usar extracted.requerimientos si el usuario no nombró servicio:
+          // el extractor a veces alucina un SKU (A15169 → pizzas).
+          extracted:
+            userNamedServices.length > 0
+              ? extracted
+              : { requerimientos_evento: null },
+          history: presHistory,
+          currentMessage,
+        });
     if (!wantFull && mappedServices.length > 0) {
       const mapped = buildPackageCatalogOfferBlock(
         mappedServices,
@@ -4759,9 +4768,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           });
     } else {
       mensaje = buildCatalogWebLinkReply({
-        query: wantFull ? "catálogo general" : historyHint || (currentMessage ?? ""),
-        wantFull,
-        serviceHint,
+        query: "catálogo general",
+        wantFull: true,
+        serviceHint: null,
       });
     }
     appliedDirectReply = true;

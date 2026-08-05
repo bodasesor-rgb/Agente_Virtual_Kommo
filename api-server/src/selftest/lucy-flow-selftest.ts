@@ -48,6 +48,7 @@ import {
   isUsableDireccionEvento,
   sanitizeExtractedAmbiguousNumbers,
   clientAsksForCatalog,
+  clientAsksGenericMenuCatalog,
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
   looksLikeGuestCountRange,
@@ -8280,7 +8281,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.02");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.03");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8827,6 +8828,54 @@ async function runAll(): Promise<void> {
       pick.slice(0, 500)
     );
     assert.ok(/bodasesor\.com\/catalogos\/coffee-break/i.test(pick), pick.slice(0, 400));
+  });
+
+  // ─── 129. A15169 — catálogo de menú genérico ≠ pizzas; mándamelo ≠ nombre ───
+  await test("129. A15169 — catálogo genérico hub; Sí mándamelo no es nombre", () => {
+    const msg =
+      "¡Hola, me gustaría conocer más de sus servicios!\nCuentan con catalogo de menú?";
+    assert.ok(clientAsksForCatalog(msg));
+    assert.ok(clientAsksGenericMenuCatalog(msg));
+    assert.ok(clientWantsFullCatalog(msg));
+    assert.equal(parseServicesFromText(msg).length, 0);
+
+    // Con requerimientos alucinados "Barra de pizzas", igual manda hub general.
+    const first = runGuards({
+      aiResponse: "Claro, aquí tienes el catálogo de *Barra de pizzas*:\nhttps://bodasesor.com/catalogos/barra-de-pizzas",
+      extracted: emptyExtracted({
+        requerimientos_evento: "Barra de pizzas",
+      }),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: msg,
+      forceFirstPresentation: true,
+    });
+    assert.ok(/cat[aá]logo general|todos los servicios/i.test(first), first.slice(0, 400));
+    assert.ok(/bodasesor\.com\/catalogos(?!\/barra)/i.test(first), first.slice(0, 400));
+    assert.ok(!/barra-de-pizzas|Barra de pizzas/i.test(first), first.slice(0, 400));
+
+    assert.ok(isLikelyNotPersonNameMessage("Si mándamelo"));
+    assert.ok(isLikelyNotPersonNameMessage("mándamelo"));
+    assert.equal(sanitizeCrmNombre("Si mándamelo"), null);
+    assert.equal(sanitizeDisplayName("Mándamelo"), null);
+
+    const pizzaOffer =
+      "Claro, aquí tienes el catálogo de *Barra de pizzas*:\nhttps://bodasesor.com/catalogos/barra-de-pizzas\n\nSi quieres el de otro servicio, dímelo y te mando ese.";
+    assert.ok(assistantOfferedCatalogDetail(pizzaOffer));
+    assert.ok(clientAffirmsCatalogOffer("Si mándamelo", pizzaOffer));
+
+    const affirm = runGuards({
+      aiResponse: "Para anotarte bien: ¿eres Mándamelo o sigo contigo como Stephany?",
+      extracted: emptyExtracted({ nombre: "Stephany" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Si mándamelo",
+      history: [{ role: "assistant", content: pizzaOffer }],
+      presentationHistory: [{ role: "assistant", content: pizzaOffer }],
+      whatsappDisplayName: "Stephany",
+    });
+    assert.ok(!/eres M[aá]ndamelo|sigo contigo/i.test(affirm), affirm.slice(0, 300));
+    assert.ok(/bodasesor\.com\/catalogos/i.test(affirm), affirm.slice(0, 400));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

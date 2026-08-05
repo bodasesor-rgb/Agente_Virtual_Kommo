@@ -1252,12 +1252,53 @@ export function clientAsksForCatalog(message?: string): boolean {
   }
   if (/\bel\s+cat[aá]logo\s+(de|con|completo|general|web)/i.test(t)) return true;
   if (/\bcat[aá]logo\s+(de|web|completo|general)\b/i.test(t)) return true;
+  // A15169: "¿Cuentan con catálogo de menú?" / "tienen catálogo?"
+  if (/\b(cuentan|tienen|hay|manejan)\s+.{0,20}\bcat[aá]logo/i.test(t)) return true;
+  if (/\bcat[aá]logo\s+de\s+men[uú]/i.test(t)) return true;
   if (/\blink\s+(del\s+)?cat[aá]logo/i.test(t)) return true;
   if (/bodasesor\.com\/catalogos/i.test(t)) return true;
   // "mándame el de la barra de pizzas" / "pásame el de colgantes"
   if (
     /\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|dame)\s+el\s+(de|del)\b/i.test(t) ||
     /\b(m[aá]nda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same)\s+el\s+link\b/i.test(t)
+  ) {
+    return true;
+  }
+  // A15169: "Sí mándamelo" / "mándamelo" / "envíamelo" (afirmación de envío).
+  if (
+    /^(s[ií][,.]?\s*)?(m[aá]nda(me)?lo|env[ií]a(me)?lo|p[aá]sa(me)?lo|m[aá]ndame|env[ií]ame)([.!?]|\s|$)/i.test(
+      t.trim()
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Pedido genérico de catálogo/menú SIN nombrar un servicio concreto (A15169).
+ * → hub general; NUNCA adivinar "Barra de pizzas" u otro SKU.
+ */
+export function clientAsksGenericMenuCatalog(message?: string): boolean {
+  if (!message?.trim()) return false;
+  const t = message.toLowerCase();
+  if (parseServicesFromText(message).length > 0) return false;
+  if (
+    /\bcat[aá]logo\s+de\s+men[uú]\b/i.test(t) ||
+    /\b(cuentan|tienen|hay|manejan)\s+.{0,24}\bcat[aá]logo/i.test(t) ||
+    /\bcat[aá]logo\s+(general|completo|de\s+servicios?|de\s+opciones)\b/i.test(t) ||
+    (/\b(conocer|ver|explorar)\s+m[aá]s\s+de\s+(sus\s+)?servicios\b/i.test(t) &&
+      /\bcat[aá]logo|men[uú]/i.test(t)) ||
+    (/\b(conocer|ver)\s+(sus\s+)?servicios\b/i.test(t) && /\bcat[aá]logo|men[uú]/i.test(t))
+  ) {
+    return true;
+  }
+  // Solo "catálogo?" / "tienen catálogo" sin SKU.
+  if (
+    clientAsksForCatalog(message) &&
+    !/\b(barra|banquete|taquiza|coffee|pizza|sushi|dj|carpa|pista|mobiliario|sillas?|mesas?)\b/i.test(
+      t
+    )
   ) {
     return true;
   }
@@ -1268,6 +1309,7 @@ export function clientAsksForCatalog(message?: string): boolean {
 export function clientWantsFullCatalog(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
+  if (clientAsksGenericMenuCatalog(message)) return true;
   if (/\b(m[aá]ndame|env[ií]ame|pasa(me)?|pásame)\s+todo\b/i.test(t)) return true;
   if (/\bcat[aá]logo\s+(completo|general|todo|todos)\b/i.test(t)) return true;
   if (/\b(todo|todos)\s+(el\s+)?cat[aá]logo/i.test(t)) return true;
@@ -1281,7 +1323,10 @@ export function assistantOfferedCatalogDetail(
   lastAssistantText: string | null | undefined
 ): boolean {
   if (!lastAssistantText?.trim()) return false;
-  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle/i.test(
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(lastAssistantText)) {
+    return true;
+  }
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalles?|cat[aá]logo\s+m[aá]s\s+detallado|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|te\s+(env[ií]o|mando|env[ií]e|mande)\s+(el\s+|un\s+)?cat[aá]logo|te\s+gustar[ií]a\s+(ver|recibir|que\s+te\s+env[ií]e)\s+(el\s+|un\s+)?cat[aá]logo|link\s+(del\s+)?cat[aá]logo|env[ií]e\s+(el\s+|un\s+)?cat[aá]logo|mande\s+el\s+cat[aá]logo\s+con\s+m[aá]s\s+detalle|aqu[ií]\s+tienes\s+el\s+cat[aá]logo|te\s+dejo\s+el\s+cat[aá]logo|cat[aá]logo\s+general/i.test(
     lastAssistantText
   );
 }
@@ -1294,15 +1339,15 @@ export function clientAffirmsCatalogOffer(
   if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
-  // "Sí", "Si por favor", "claro que sí", "mande por favor", etc.
+  // "Sí", "Si por favor", "claro que sí", "mande por favor", "sí mándamelo", etc.
   if (
-    /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|env[ií]a|env[ií]ame)([.!?]|\s|$)/i.test(
+    /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
       t
     )
   ) {
     return true;
   }
-  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
+  return /^(s[ií]|claro|ok|okay|dale|va)([\s,]+(por\s+favor|pls|please|mande|m[aá]nda(me)?lo|env[ií]a(me)?lo|env[ií]a|env[ií]ame))?[\s.!]*$/i.test(
     t
   );
 }
