@@ -24,14 +24,20 @@ if (!process.env.OPENAI_API_KEY?.trim() && process.env.OPEN_AI?.trim()) {
   process.env.OPENAI_API_KEY = process.env.OPEN_AI.trim();
 }
 
-// Alias Gemini → GEMINI_API_KEY canónica
+// Alias Gemini → GEMINI_API_KEY canónica (Hostinger usa gemini_ia en otros proyectos)
 if (!process.env.GEMINI_API_KEY?.trim()) {
   const alt =
-    process.env.GOOGLE_API_KEY?.trim() || process.env.GEMINI_KEY?.trim() || "";
+    process.env.gemini_ia?.trim() ||
+    process.env.GEMINI_IA?.trim() ||
+    process.env.GOOGLE_API_KEY?.trim() ||
+    process.env.GEMINI_KEY?.trim() ||
+    "";
   if (alt) process.env.GEMINI_API_KEY = alt;
 }
 
 const hasGemini = !!(
+  process.env.gemini_ia?.trim() ||
+  process.env.GEMINI_IA?.trim() ||
   process.env.GEMINI_API_KEY?.trim() ||
   process.env.GOOGLE_API_KEY?.trim() ||
   process.env.GEMINI_KEY?.trim()
@@ -40,14 +46,14 @@ const hasOpenAi = !!(process.env.OPENAI_API_KEY?.trim() || process.env.OPEN_AI?.
 
 if (!hasGemini && !hasOpenAi) {
   console.warn(
-    "[start] AVISO: falta GEMINI_API_KEY (o OPEN_AI de fallback) — Lucy no podrá responder"
+    "[start] AVISO: falta gemini_ia / GEMINI_API_KEY (o OPEN_AI de fallback) — Lucy no podrá responder"
   );
 } else if (hasGemini) {
   console.log(
     `[start] LLM: Gemini (${process.env.GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite"})`
   );
 } else {
-  console.log("[start] LLM: OpenAI (fallback — sin GEMINI_API_KEY)");
+  console.log("[start] LLM: OpenAI (fallback — sin gemini_ia)");
 }
 
 console.log("[start] Archivos OK, arrancando Lucy desde deploy/...");

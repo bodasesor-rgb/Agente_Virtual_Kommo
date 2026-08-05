@@ -74,7 +74,7 @@ En hPanel → Node.js → **Variables de entorno**:
 
 | Nombre | Valor |
 |--------|-------|
-| **`GEMINI_API_KEY`** | key de Google AI Studio (Gemini 3.1 Flash-Lite) |
+| **`gemini_ia`** | key Gemini (mismo nombre que en tus otros proyectos) |
 | **`GEMINI_MODEL`** | `gemini-3.1-flash-lite` (opcional; es el default) |
 | **`OPEN_AI`** | opcional: fallback + Whisper para notas de voz |
 
@@ -124,11 +124,11 @@ Variable de entorno obligatoria en Hostinger:
 
 | Nombre | Valor |
 |--------|-------|
-| **`GEMINI_API_KEY`** | key Gemini (chat/extract/visión) |
+| **`gemini_ia`** | key Gemini (chat/extract/visión) — mismo nombre que usas en otros proyectos |
 | **`GEMINI_MODEL`** | `gemini-3.1-flash-lite` (default) |
 | **`OPEN_AI`** | opcional: fallback + Whisper voz |
 
-También acepta `GOOGLE_API_KEY` / `GEMINI_KEY`, y `OPENAI_API_KEY` para OpenAI.
+También acepta `GEMINI_IA` / `GEMINI_API_KEY` / `GOOGLE_API_KEY`, y `OPENAI_API_KEY` para OpenAI.
 
 ---
 

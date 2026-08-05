@@ -8187,7 +8187,7 @@ async function runAll(): Promise<void> {
 
   // ─── 121. V8.93 — voz humana: preferir OpenAI sobre dump de plantilla ───
   await test("121. V8.93 — voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.ok(/^V8\.9[34]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V8\.9[345]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
 
@@ -8240,18 +8240,20 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.94");
+    assert.equal(LUCY_PROMPT_VERSION, "V8.95");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
+    const prevGeminiIa = process.env.gemini_ia;
     const prevGoogle = process.env.GOOGLE_API_KEY;
     const prevOpen = process.env.OPEN_AI;
     const prevOpenAi = process.env.OPENAI_API_KEY;
     try {
       process.env.LLM_PROVIDER = "gemini";
-      process.env.GEMINI_API_KEY = "test-gemini-key";
+      delete process.env.GEMINI_API_KEY;
       delete process.env.GOOGLE_API_KEY;
+      process.env.gemini_ia = "test-gemini-ia-key";
       assert.equal(getLlmProvider(), "gemini");
       assert.equal(getChatModel(), "gemini-3.1-flash-lite");
       assert.equal(isLlmConfigured(), true);
@@ -8273,6 +8275,8 @@ async function runAll(): Promise<void> {
       else process.env.LLM_PROVIDER = prevProvider;
       if (prevGemini === undefined) delete process.env.GEMINI_API_KEY;
       else process.env.GEMINI_API_KEY = prevGemini;
+      if (prevGeminiIa === undefined) delete process.env.gemini_ia;
+      else process.env.gemini_ia = prevGeminiIa;
       if (prevGoogle === undefined) delete process.env.GOOGLE_API_KEY;
       else process.env.GOOGLE_API_KEY = prevGoogle;
       if (prevOpen === undefined) delete process.env.OPEN_AI;
