@@ -19,6 +19,20 @@ export const ETAPA = {
 
 export const PIPELINE_ID = 9335963;
 
+/**
+ * Etapa destino para proveedores / alianzas ("zona de proveedores").
+ * Por defecto = Humano Trabaja (equipo revisa; Lucy se silencia).
+ * Override: KOMMO_PROVEEDOR_STATUS_ID (+ opcional KOMMO_PROVEEDOR_PIPELINE_ID).
+ */
+export function resolveProveedorEtapa(): { pipelineId: number; statusId: number } {
+  const statusRaw = process.env["KOMMO_PROVEEDOR_STATUS_ID"]?.trim();
+  const pipelineRaw = process.env["KOMMO_PROVEEDOR_PIPELINE_ID"]?.trim();
+  const statusId = statusRaw && /^\d+$/.test(statusRaw) ? Number(statusRaw) : ETAPA.HUMANO_TRABAJA;
+  const pipelineId =
+    pipelineRaw && /^\d+$/.test(pipelineRaw) ? Number(pipelineRaw) : PIPELINE_ID;
+  return { pipelineId, statusId };
+}
+
 // Etapas donde Lucy está ACTIVA
 const ETAPAS_LUCY_ACTIVA = new Set<number>([
   ETAPA.LEADS_ENTRANTES,
@@ -102,21 +116,82 @@ export async function moverEtapa(
   subdomain: string,
   accessToken: string,
   leadId: string | number,
-  statusId: number
+  statusId: number,
+  pipelineId: number = PIPELINE_ID
 ): Promise<boolean> {
   const res = await fetch(
     `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
     {
       method: "PATCH",
       headers: kommoHeaders(accessToken),
-      body: JSON.stringify({ pipeline_id: PIPELINE_ID, status_id: statusId }),
+      body: JSON.stringify({ pipeline_id: pipelineId, status_id: statusId }),
     }
   );
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    logger.warn({ leadId, statusId, httpStatus: res.status, errText }, "moverEtapa: PATCH fallido");
+    logger.warn({ leadId, statusId, pipelineId, httpStatus: res.status, errText }, "moverEtapa: PATCH fallido");
   }
   return res.ok;
+}
+
+/**
+ * Mueve lead a zona de proveedores / alianzas, desactiva Lucy.
+ * Default: Humano Trabaja + tags proveedor + lucy_desactivada.
+ */
+export async function moverAZonaProveedores(
+  subdomain: string,
+  accessToken: string,
+  leadId: string | number,
+  datos: {
+    nombre?: string | null;
+    correo?: string | null;
+    empresa?: string | null;
+    oferta?: string | null;
+  },
+  existingTags: string[] = []
+): Promise<void> {
+  const { pipelineId, statusId } = resolveProveedorEtapa();
+  logger.info({ leadId, statusId, pipelineId }, "Embudo: moviendo lead a zona proveedores");
+
+  const [etapaOk] = await Promise.all([
+    moverEtapa(subdomain, accessToken, leadId, statusId, pipelineId),
+    agregarTag(subdomain, accessToken, leadId, ["proveedor", "lucy_desactivada"], existingTags),
+    limpiarCampoRespuesta(subdomain, accessToken, leadId),
+  ]);
+
+  if (!etapaOk) {
+    logger.warn({ leadId }, "Embudo: no se pudo mover etapa a zona proveedores");
+  }
+
+  const nota =
+    `📦 PROVEEDOR / ALIANZA — no es cliente de eventos.\n` +
+    `Lucy lo canalizó a zona de proveedores (equipo revisa).\n\n` +
+    `• Nombre: ${datos.nombre ?? "—"}\n` +
+    `• Empresa / venue: ${datos.empresa ?? "—"}\n` +
+    `• Correo: ${datos.correo ?? "—"}\n` +
+    `• Ofrece / invitación: ${datos.oferta ?? "—"}`;
+
+  await agregarNota(subdomain, accessToken, leadId, nota);
+
+  try {
+    const leadKey = String(leadId);
+    const existing = await db.query.conversations.findFirst({
+      where: eq(conversations.kommoLeadId, leadKey),
+    });
+    if (existing) {
+      await db
+        .update(conversations)
+        .set({
+          stage: "proveedor",
+          status: "proveedor_handoff",
+          learningPhase: "human_active",
+          updatedAt: new Date(),
+        })
+        .where(eq(conversations.kommoLeadId, leadKey));
+    }
+  } catch (err) {
+    logger.warn({ err, leadId }, "Embudo: no se pudo marcar conversación proveedor");
+  }
 }
 
 export async function agregarNota(

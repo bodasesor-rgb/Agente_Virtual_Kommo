@@ -110,6 +110,7 @@ import {
   lucyDebeResponder,
   tieneInformacionCompleta,
   moverAHumanoTrabaja,
+  moverAZonaProveedores,
   recuperarDeNoContesta,
   programarSeguimiento,
   procesarSeguimientosPendientes,
@@ -277,22 +278,24 @@ async function extractData(
     const extractionPrompt = `Eres un extractor de datos estructurados. Analiza la conversación y devuelve ÚNICAMENTE un objeto JSON. Para cada campo, escribe el valor mencionado explícitamente, o escribe null si no se mencionó. NUNCA escribas texto descriptivo como valor — solo datos reales o null.
 
 Campos a extraer:
-- tipo_contacto: "cliente" si PIDE/COMPRA un servicio para su evento; "proveedor" SOLO si claramente OFRECE vender algo A Bodasesor; ante la duda → "cliente" (string)
+- tipo_contacto: "cliente" si PIDE/COMPRA un servicio para su evento; "proveedor" si OFRECE vender algo A Bodasesor O invita a Bodasesor a una red de aliados / venue / alianza comercial; ante la duda → "cliente" (string)
 - nombre: nombre propio del contacto — si dio nombre Y apellido, guarda AMBOS (ej. "Ana Pérez"); nunca recortes el apellido (string o null)
-- empresa: nombre de la empresa si es proveedor (string o null)
+- empresa: nombre de la empresa/venue si es proveedor (string o null). Ej. "Hacienda Los Arcángeles"
 - telefono: número de teléfono (string o null)
 - correo: correo electrónico (string o null)
 - presupuesto: cantidad en MXN si es cliente (número entero o null, NO string)
-- direccion_evento: lugar o dirección del evento si es cliente (string o null)
-- requerimientos_evento: para CLIENTE: servicios o requerimientos; para PROVEEDOR: descripción detallada de productos/servicios que ofrece (string o null)
+- direccion_evento: lugar o dirección del evento si es CLIENTE (string o null). Si es PROVEEDOR, el venue propio NO va aquí → null
+- requerimientos_evento: para CLIENTE: servicios o requerimientos; para PROVEEDOR: qué ofrece / invitación a alianza (string o null)
 - fecha_horario: fecha y/u horario del evento si es cliente (string o null)
 - num_invitados: número de invitados si es cliente (número entero o null, NO string). Un número suelto ambiguo ("el 5", "5") sin contexto de personas/pax → null
 - modo_servicio: "pedido_entrega" si pide producto/entrega/para llevar; "servicio_montado" si pide barra/meseros en el evento; null si no aplica o no queda claro
-- tipo_evento: tipo de evento si es cliente: "boda", "XV años", "cumpleaños", "corporativo", etc. (string o null)
+- tipo_evento: tipo de evento si es cliente: "boda", "XV años", "cumpleaños", "corporativo", etc. (string o null). PROVEEDOR → null
 
-Señales de PROVEEDOR (solo si OFRECE a Bodasesor): "les ofrezco", "soy proveedor de", "quiero venderles", "manejo X y busco clientes", "mi empresa ofrece", "distribuidor".
-Señales de CLIENTE (pedir/comprar): "solicito cotización", "solicitud para cotización", "quiero cotizar", "necesito", "requiero servicio", "me das precio de", "cotización de café/banquete/evento".
-REGLA CRÍTICA: mencionar una empresa (Saint-Gobain, etc.) o un producto (café gourmet) al PEDIR cotización = CLIENTE, no proveedor. Ante la duda → cliente.
+Señales de PROVEEDOR (ofrece a Bodasesor O invita a alianza): "les ofrezco", "soy proveedor", "quiero venderles", "red de aliados", "aliados comerciales", "invitarte a registrarte", "ser parte de nuestra red", "ejecutiva de ventas en Hacienda/salón/venue", "beneficios y tarifas de nuestro venue", "distribuidor".
+Señales de CLIENTE (pedir/comprar): "solicito cotización", "solicitud para cotización", "quiero cotizar", "necesito", "requiero servicio", "me das precio de", "cotización de café/banquete/evento", "para mi boda".
+REGLA CRÍTICA: mencionar una empresa (Saint-Gobain, etc.) o un producto (café gourmet) al PEDIR cotización = CLIENTE, no proveedor.
+REGLA A14936: un venue/hacienda que INVITA a Bodasesor a su red de aliados = PROVEEDOR, no cliente. No pidas tipo de evento ni invitados.
+Ante la duda → cliente.
 NO uses correos de Bodasesor (capybaraeventos@gmail.com, bodasesor@gmail.com) como correo del cliente — esos son nuestros.
 
 Ejemplo CLIENTE — "Me llamo Ana Pérez, quiero una boda para 100 personas":
@@ -300,6 +303,9 @@ Ejemplo CLIENTE — "Me llamo Ana Pérez, quiero una boda para 100 personas":
 
 Ejemplo PROVEEDOR — "Hola, soy María López de Flores del Valle, ofrecemos arreglos florales para eventos":
 {"tipo_contacto":"proveedor","nombre":"María López","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
+
+Ejemplo ALIANZA/VENUE — "Te escribe Lety, ejecutiva de ventas en Hacienda Los Arcángeles, te invito a registrarte en nuestra red de aliados comerciales":
+{"tipo_contacto":"proveedor","nombre":"Lety","empresa":"Hacienda Los Arcángeles","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"Invitación a red de aliados comerciales / venue","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Reglas estrictas:
 - SOLO extrae lo que el contacto dijo, nunca lo que Lucy preguntó.
@@ -1962,21 +1968,41 @@ async function processBatch(batch: PendingBatch, accessToken: string, log: any):
     }
 
     if (esProveedor) {
-      // PROVEEDOR: verificar datos completos (correo + empresa + descripción)
-      const datosProveedor = {
-        tipo_contacto: "proveedor" as const,
-        correo: extracted.correo || conversation.clientEmail,
-        empresa: extracted.empresa,
-        requerimientos_evento: extracted.requerimientos_evento,
-      };
-      if (tieneInformacionCompleta(datosProveedor)) {
-        await agregarNota(
-          subdomain, accessToken, entityId,
-          `📦 PROVEEDOR calificado — ${extracted.empresa ?? "Sin empresa"}\n` +
-          `Contacto: ${extracted.nombre ?? "-"} | Correo: ${extracted.correo ?? "-"}\n` +
-          `Ofrece: ${extracted.requerimientos_evento ?? "-"}`
+      // PROVEEDOR / ALIANZA: tag + nota + mover a zona proveedores (Humano Trabaja
+      // por defecto, o KOMMO_PROVEEDOR_STATUS_ID). Lucy ya envió handoff y se silencia.
+      try {
+        const leadParaProv = await fetchLead(subdomain, accessToken, entityId);
+        await moverAZonaProveedores(
+          subdomain,
+          accessToken,
+          entityId,
+          {
+            nombre: extracted.nombre,
+            correo: extracted.correo || conversation.clientEmail,
+            empresa: extracted.empresa,
+            oferta: extracted.requerimientos_evento,
+          },
+          leadParaProv?.tags ?? []
         );
-        log.info({ entityId }, "Embudo: proveedor con datos completos — nota agregada para Alejandro");
+        log.info({ entityId }, "Embudo: proveedor/alianza → zona proveedores (Lucy off)");
+      } catch (err) {
+        log.warn({ err, entityId }, "Embudo: mover a zona proveedores falló — nota de respaldo");
+        const datosProveedor = {
+          tipo_contacto: "proveedor" as const,
+          correo: extracted.correo || conversation.clientEmail,
+          empresa: extracted.empresa,
+          requerimientos_evento: extracted.requerimientos_evento,
+        };
+        await agregarNota(
+          subdomain,
+          accessToken,
+          entityId,
+          `📦 PROVEEDOR / ALIANZA detectado — ${extracted.empresa ?? "Sin empresa"}\n` +
+            `Contacto: ${extracted.nombre ?? "-"} | Correo: ${extracted.correo ?? "-"}\n` +
+            `Ofrece: ${extracted.requerimientos_evento ?? "-"}\n` +
+            (tieneInformacionCompleta(datosProveedor) ? "✅ Datos suficientes\n" : "") +
+            "⚠️ Revisar manualmente — no es cliente de eventos."
+        );
       }
     } else {
       // CLIENTE: movimiento a "Humano Trabaja" es SOLO manual (por Alejandro),

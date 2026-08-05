@@ -144917,6 +144917,13 @@ var init_learningSync = __esm({
 });
 
 // src/services/embudo.ts
+function resolveProveedorEtapa() {
+  const statusRaw = process.env["KOMMO_PROVEEDOR_STATUS_ID"]?.trim();
+  const pipelineRaw = process.env["KOMMO_PROVEEDOR_PIPELINE_ID"]?.trim();
+  const statusId = statusRaw && /^\d+$/.test(statusRaw) ? Number(statusRaw) : ETAPA.HUMANO_TRABAJA;
+  const pipelineId = pipelineRaw && /^\d+$/.test(pipelineRaw) ? Number(pipelineRaw) : PIPELINE_ID;
+  return { pipelineId, statusId };
+}
 function kommoHeaders(accessToken) {
   return { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" };
 }
@@ -144956,20 +144963,56 @@ async function fetchLead(subdomain, accessToken, leadId) {
     return null;
   }
 }
-async function moverEtapa(subdomain, accessToken, leadId, statusId) {
+async function moverEtapa(subdomain, accessToken, leadId, statusId, pipelineId = PIPELINE_ID) {
   const res = await fetch(
     `https://${subdomain}.kommo.com/api/v4/leads/${leadId}`,
     {
       method: "PATCH",
       headers: kommoHeaders(accessToken),
-      body: JSON.stringify({ pipeline_id: PIPELINE_ID, status_id: statusId })
+      body: JSON.stringify({ pipeline_id: pipelineId, status_id: statusId })
     }
   );
   if (!res.ok) {
     const errText = await res.text().catch(() => "");
-    logger.warn({ leadId, statusId, httpStatus: res.status, errText }, "moverEtapa: PATCH fallido");
+    logger.warn({ leadId, statusId, pipelineId, httpStatus: res.status, errText }, "moverEtapa: PATCH fallido");
   }
   return res.ok;
+}
+async function moverAZonaProveedores(subdomain, accessToken, leadId, datos, existingTags = []) {
+  const { pipelineId, statusId } = resolveProveedorEtapa();
+  logger.info({ leadId, statusId, pipelineId }, "Embudo: moviendo lead a zona proveedores");
+  const [etapaOk] = await Promise.all([
+    moverEtapa(subdomain, accessToken, leadId, statusId, pipelineId),
+    agregarTag(subdomain, accessToken, leadId, ["proveedor", "lucy_desactivada"], existingTags),
+    limpiarCampoRespuesta(subdomain, accessToken, leadId)
+  ]);
+  if (!etapaOk) {
+    logger.warn({ leadId }, "Embudo: no se pudo mover etapa a zona proveedores");
+  }
+  const nota = `\u{1F4E6} PROVEEDOR / ALIANZA \u2014 no es cliente de eventos.
+Lucy lo canaliz\xF3 a zona de proveedores (equipo revisa).
+
+\u2022 Nombre: ${datos.nombre ?? "\u2014"}
+\u2022 Empresa / venue: ${datos.empresa ?? "\u2014"}
+\u2022 Correo: ${datos.correo ?? "\u2014"}
+\u2022 Ofrece / invitaci\xF3n: ${datos.oferta ?? "\u2014"}`;
+  await agregarNota(subdomain, accessToken, leadId, nota);
+  try {
+    const leadKey = String(leadId);
+    const existing = await db.query.conversations.findFirst({
+      where: eq2(conversations.kommoLeadId, leadKey)
+    });
+    if (existing) {
+      await db.update(conversations).set({
+        stage: "proveedor",
+        status: "proveedor_handoff",
+        learningPhase: "human_active",
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq2(conversations.kommoLeadId, leadKey));
+    }
+  } catch (err2) {
+    logger.warn({ err: err2, leadId }, "Embudo: no se pudo marcar conversaci\xF3n proveedor");
+  }
 }
 async function agregarNota(subdomain, accessToken, leadId, texto) {
   try {
@@ -212209,7 +212252,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.00";
+var LUCY_PROMPT_VERSION = "V9.01";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -212645,7 +212688,8 @@ router.get("/health", async (_req, res) => {
       "gemini-no-image-generation",
       "gemini-context-cache",
       "gemini-media-once",
-      "gemini-image-compress-1024"
+      "gemini-image-compress-1024",
+      "proveedor-alianza-handoff"
     ],
     learning: {
       note: "Panel /aprendizaje: chats, huecos Sheet e Informaci\xF3n para Lucy (PDF\u2192texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba \u22650.85",
@@ -213430,8 +213474,13 @@ function buildPedidoEntregaReply(message) {
 }
 
 // src/tipoContacto.ts
-var PROVEEDOR_OFFER = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
-var CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de)\b/i;
+var PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
+var PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
+var PROVEEDOR_OFFER = new RegExp(
+  `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})`,
+  "i"
+);
+var CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento)\b/i;
 function resolveTipoContacto(extracted, conversationText) {
   const text2 = conversationText.trim();
   if (!text2) return extracted === "incierto" ? "cliente" : extracted;
@@ -219425,6 +219474,48 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   return lineas.join("\n").slice(0, 8e3);
 }
 
+// src/lib/proveedorHandoff.ts
+function extractEmpresaFromText(text2) {
+  if (!text2?.trim()) return null;
+  const patterns = [
+    /\b(?:en|de|desde)\s+(Hacienda\s+[^,.\n]{3,60})/i,
+    /\b((?:Hacienda|Sal[oó]n|Venue|Hotel|Jard[ií]n)\s+[^,.\n]{2,50})/i,
+    /\bsoy\s+ejecutiv[oa]\s+de\s+ventas\s+en\s+([^,.\n]{3,60})/i,
+    /\b(?:empresa|compa[nñ][ií]a)\s+([A-ZÁÉÍÓÚÑ][^,.\n]{2,50})/
+  ];
+  for (const re4 of patterns) {
+    const m10 = text2.match(re4);
+    const raw = m10?.[1]?.trim();
+    if (raw && raw.length >= 3 && raw.length <= 80) {
+      return raw.replace(/\s+/g, " ").replace(/[.,;:]+$/, "").trim();
+    }
+  }
+  return null;
+}
+function buildProveedorHandoffReply(opts) {
+  const name2 = opts.nombre?.trim().split(/\s+/)[0] || null;
+  const empresa = opts.empresa?.trim() || extractEmpresaFromText(opts.conversationText ?? "") || null;
+  const greet = name2 ? `Gracias, ${name2}.` : "Gracias por escribirnos.";
+  const who = empresa ? `Recibimos la invitaci\xF3n / propuesta de *${empresa}*.` : "Recibimos tu mensaje de alianza / proveedor.";
+  return `${greet} ${who} No cotizamos eventos por este canal cuando nos escriben como proveedor o venue aliado: paso tu contacto a nuestro equipo de *proveedores / alianzas* para que lo revisen. Si les interesa, ellos te responden. \xA1Que tengas buen d\xEDa!`;
+}
+function scrubClientFieldsForProveedor(extracted) {
+  const out2 = { ...extracted };
+  out2.tipo_contacto = "proveedor";
+  out2.direccion_evento = null;
+  out2.tipo_evento = null;
+  out2.num_invitados = null;
+  out2.presupuesto = null;
+  out2.fecha_horario = null;
+  if (!out2.empresa?.trim()) {
+    const fromReq = out2.requerimientos_evento?.match(
+      /PROVEEDOR:\s*([^-]+)\s*-/i
+    )?.[1]?.trim();
+    out2.empresa = fromReq || null;
+  }
+  return out2;
+}
+
 // src/lucy-prompt.ts
 var ADVISOR = getAdvisorName();
 var CATALOG_URL = "https://bodasesor.com/catalogos";
@@ -220299,15 +220390,16 @@ async function prepareLucyExtraction(input) {
     ...fullHistory.filter((m10) => m10.role === "user" && typeof m10.content === "string").map((m10) => m10.content),
     messageText
   ].join(" ");
+  extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
   if (extracted.tipo_contacto === "proveedor") {
-    const empresa = extracted.empresa ?? "";
-    const desc3 = extracted.requerimientos_evento ?? "";
-    if (empresa || desc3) {
-      extracted.requerimientos_evento = `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${desc3}`.slice(
-        0,
-        240
-      );
+    Object.assign(extracted, scrubClientFieldsForProveedor(extracted));
+    if (!extracted.empresa?.trim()) {
+      extracted.empresa = extractEmpresaFromText(conversationText);
     }
+    const empresa = extracted.empresa ?? "";
+    const desc3 = (extracted.requerimientos_evento ?? "").replace(/^PROVEEDOR:\s*/i, "").trim();
+    const offerHint = desc3 || (/\baliados?\b|\bvenue\b|\bhacienda\b/i.test(conversationText) ? "Invitaci\xF3n a red de aliados / venue" : "Oferta de proveedor");
+    extracted.requerimientos_evento = `PROVEEDOR: ${empresa ? empresa + " - " : ""}Ofrece: ${offerHint}`.slice(0, 240);
   } else {
     enrichExtractedFromText(extracted, conversationText);
     sanitizeExtractedAmbiguousNumbers(extracted, messageText, { lastAskedField: lastAskedAmbig });
@@ -220315,7 +220407,6 @@ async function prepareLucyExtraction(input) {
       extracted.modo_servicio = detectModoServicio(conversationText);
     }
   }
-  extracted.tipo_contacto = resolveTipoContacto(extracted.tipo_contacto, conversationText);
   if (extracted.correo) {
     extracted.correo = filterClientEmail(parseCorreoFromText(extracted.correo) ?? extracted.correo);
   }
@@ -220410,6 +220501,18 @@ async function generateLucyOutbound(input) {
     prependToAiResponse,
     log
   } = input;
+  if (extracted.tipo_contacto === "proveedor") {
+    const reply = buildProveedorHandoffReply({
+      nombre: extracted.nombre ?? whatsappDisplayName,
+      empresa: extracted.empresa,
+      conversationText
+    });
+    log?.info?.(
+      { entityId, empresa: extracted.empresa },
+      "Proveedor/alianza detectado \u2014 handoff (sin embudo cliente)"
+    );
+    return { mensajeParaCliente: reply, aiResponse: reply };
+  }
   const systemContent = await buildLucySystemPrompt({
     messageText,
     conversationText,
@@ -226202,22 +226305,24 @@ IMPORTANTE: Si el cliente responde con un n\xFAmero suelto (ej: "200"), determin
     const extractionPrompt = `Eres un extractor de datos estructurados. Analiza la conversaci\xF3n y devuelve \xDANICAMENTE un objeto JSON. Para cada campo, escribe el valor mencionado expl\xEDcitamente, o escribe null si no se mencion\xF3. NUNCA escribas texto descriptivo como valor \u2014 solo datos reales o null.
 
 Campos a extraer:
-- tipo_contacto: "cliente" si PIDE/COMPRA un servicio para su evento; "proveedor" SOLO si claramente OFRECE vender algo A Bodasesor; ante la duda \u2192 "cliente" (string)
+- tipo_contacto: "cliente" si PIDE/COMPRA un servicio para su evento; "proveedor" si OFRECE vender algo A Bodasesor O invita a Bodasesor a una red de aliados / venue / alianza comercial; ante la duda \u2192 "cliente" (string)
 - nombre: nombre propio del contacto \u2014 si dio nombre Y apellido, guarda AMBOS (ej. "Ana P\xE9rez"); nunca recortes el apellido (string o null)
-- empresa: nombre de la empresa si es proveedor (string o null)
+- empresa: nombre de la empresa/venue si es proveedor (string o null). Ej. "Hacienda Los Arc\xE1ngeles"
 - telefono: n\xFAmero de tel\xE9fono (string o null)
 - correo: correo electr\xF3nico (string o null)
 - presupuesto: cantidad en MXN si es cliente (n\xFAmero entero o null, NO string)
-- direccion_evento: lugar o direcci\xF3n del evento si es cliente (string o null)
-- requerimientos_evento: para CLIENTE: servicios o requerimientos; para PROVEEDOR: descripci\xF3n detallada de productos/servicios que ofrece (string o null)
+- direccion_evento: lugar o direcci\xF3n del evento si es CLIENTE (string o null). Si es PROVEEDOR, el venue propio NO va aqu\xED \u2192 null
+- requerimientos_evento: para CLIENTE: servicios o requerimientos; para PROVEEDOR: qu\xE9 ofrece / invitaci\xF3n a alianza (string o null)
 - fecha_horario: fecha y/u horario del evento si es cliente (string o null)
 - num_invitados: n\xFAmero de invitados si es cliente (n\xFAmero entero o null, NO string). Un n\xFAmero suelto ambiguo ("el 5", "5") sin contexto de personas/pax \u2192 null
 - modo_servicio: "pedido_entrega" si pide producto/entrega/para llevar; "servicio_montado" si pide barra/meseros en el evento; null si no aplica o no queda claro
-- tipo_evento: tipo de evento si es cliente: "boda", "XV a\xF1os", "cumplea\xF1os", "corporativo", etc. (string o null)
+- tipo_evento: tipo de evento si es cliente: "boda", "XV a\xF1os", "cumplea\xF1os", "corporativo", etc. (string o null). PROVEEDOR \u2192 null
 
-Se\xF1ales de PROVEEDOR (solo si OFRECE a Bodasesor): "les ofrezco", "soy proveedor de", "quiero venderles", "manejo X y busco clientes", "mi empresa ofrece", "distribuidor".
-Se\xF1ales de CLIENTE (pedir/comprar): "solicito cotizaci\xF3n", "solicitud para cotizaci\xF3n", "quiero cotizar", "necesito", "requiero servicio", "me das precio de", "cotizaci\xF3n de caf\xE9/banquete/evento".
-REGLA CR\xCDTICA: mencionar una empresa (Saint-Gobain, etc.) o un producto (caf\xE9 gourmet) al PEDIR cotizaci\xF3n = CLIENTE, no proveedor. Ante la duda \u2192 cliente.
+Se\xF1ales de PROVEEDOR (ofrece a Bodasesor O invita a alianza): "les ofrezco", "soy proveedor", "quiero venderles", "red de aliados", "aliados comerciales", "invitarte a registrarte", "ser parte de nuestra red", "ejecutiva de ventas en Hacienda/sal\xF3n/venue", "beneficios y tarifas de nuestro venue", "distribuidor".
+Se\xF1ales de CLIENTE (pedir/comprar): "solicito cotizaci\xF3n", "solicitud para cotizaci\xF3n", "quiero cotizar", "necesito", "requiero servicio", "me das precio de", "cotizaci\xF3n de caf\xE9/banquete/evento", "para mi boda".
+REGLA CR\xCDTICA: mencionar una empresa (Saint-Gobain, etc.) o un producto (caf\xE9 gourmet) al PEDIR cotizaci\xF3n = CLIENTE, no proveedor.
+REGLA A14936: un venue/hacienda que INVITA a Bodasesor a su red de aliados = PROVEEDOR, no cliente. No pidas tipo de evento ni invitados.
+Ante la duda \u2192 cliente.
 NO uses correos de Bodasesor (capybaraeventos@gmail.com, bodasesor@gmail.com) como correo del cliente \u2014 esos son nuestros.
 
 Ejemplo CLIENTE \u2014 "Me llamo Ana P\xE9rez, quiero una boda para 100 personas":
@@ -226225,6 +226330,9 @@ Ejemplo CLIENTE \u2014 "Me llamo Ana P\xE9rez, quiero una boda para 100 personas
 
 Ejemplo PROVEEDOR \u2014 "Hola, soy Mar\xEDa L\xF3pez de Flores del Valle, ofrecemos arreglos florales para eventos":
 {"tipo_contacto":"proveedor","nombre":"Mar\xEDa L\xF3pez","empresa":"Flores del Valle","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"arreglos florales para eventos","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
+
+Ejemplo ALIANZA/VENUE \u2014 "Te escribe Lety, ejecutiva de ventas en Hacienda Los Arc\xE1ngeles, te invito a registrarte en nuestra red de aliados comerciales":
+{"tipo_contacto":"proveedor","nombre":"Lety","empresa":"Hacienda Los Arc\xE1ngeles","telefono":null,"correo":null,"presupuesto":null,"direccion_evento":null,"requerimientos_evento":"Invitaci\xF3n a red de aliados comerciales / venue","fecha_horario":null,"num_invitados":null,"tipo_evento":null,"modo_servicio":null}
 
 Reglas estrictas:
 - SOLO extrae lo que el contacto dijo, nunca lo que Lucy pregunt\xF3.
@@ -227269,22 +227377,38 @@ async function processBatch(batch, accessToken, log) {
       }
     }
     if (esProveedor) {
-      const datosProveedor = {
-        tipo_contacto: "proveedor",
-        correo: extracted.correo || conversation.clientEmail,
-        empresa: extracted.empresa,
-        requerimientos_evento: extracted.requerimientos_evento
-      };
-      if (tieneInformacionCompleta(datosProveedor)) {
+      try {
+        const leadParaProv = await fetchLead(subdomain, accessToken, entityId);
+        await moverAZonaProveedores(
+          subdomain,
+          accessToken,
+          entityId,
+          {
+            nombre: extracted.nombre,
+            correo: extracted.correo || conversation.clientEmail,
+            empresa: extracted.empresa,
+            oferta: extracted.requerimientos_evento
+          },
+          leadParaProv?.tags ?? []
+        );
+        log.info({ entityId }, "Embudo: proveedor/alianza \u2192 zona proveedores (Lucy off)");
+      } catch (err2) {
+        log.warn({ err: err2, entityId }, "Embudo: mover a zona proveedores fall\xF3 \u2014 nota de respaldo");
+        const datosProveedor = {
+          tipo_contacto: "proveedor",
+          correo: extracted.correo || conversation.clientEmail,
+          empresa: extracted.empresa,
+          requerimientos_evento: extracted.requerimientos_evento
+        };
         await agregarNota(
           subdomain,
           accessToken,
           entityId,
-          `\u{1F4E6} PROVEEDOR calificado \u2014 ${extracted.empresa ?? "Sin empresa"}
+          `\u{1F4E6} PROVEEDOR / ALIANZA detectado \u2014 ${extracted.empresa ?? "Sin empresa"}
 Contacto: ${extracted.nombre ?? "-"} | Correo: ${extracted.correo ?? "-"}
-Ofrece: ${extracted.requerimientos_evento ?? "-"}`
+Ofrece: ${extracted.requerimientos_evento ?? "-"}
+` + (tieneInformacionCompleta(datosProveedor) ? "\u2705 Datos suficientes\n" : "") + "\u26A0\uFE0F Revisar manualmente \u2014 no es cliente de eventos."
         );
-        log.info({ entityId }, "Embudo: proveedor con datos completos \u2014 nota agregada para Alejandro");
       }
     } else {
       if (clientAsksForHumanAdvisor(combinedUserText)) {

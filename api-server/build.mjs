@@ -25,7 +25,7 @@ async function writeBuildMeta(targetDir) {
   const gitCommit = resolveGitCommit();
   const meta = {
     version: "3.3",
-    lucy_prompt: "V9.00",
+    lucy_prompt: "V9.01",
 
     built_at: builtAt.toISOString(),
     built_at_display: builtAt.toLocaleString("es-MX", {
@@ -220,6 +220,8 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
   for (const asset of ["postgres.data", "postgres.wasm"]) {
     try {
       await copyFile(path.join(pgliteDist, asset), path.join(distDir, asset));
+      await mkdir(path.join(distDir, "selftest"), { recursive: true });
+      await copyFile(path.join(pgliteDist, asset), path.join(distDir, "selftest", asset));
     } catch (err) {
       console.warn(`[build] No se copió ${asset}:`, err.message);
     }
