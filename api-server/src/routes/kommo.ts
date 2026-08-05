@@ -6,7 +6,13 @@ import {
   runAutoClient,
 } from "../../scripts/simulator-auto-client-lib.mjs";
 import { resolveLucyPublicBase } from "../lib/publicUrl.js";
-import { getOpenAiApiKey, getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
+import { getOpenAiApiKeyForClient } from "../lib/openaiEnv.js";
+import {
+  isLlmConfigured,
+  missingLlmConfigMessage,
+  llmConfigSummary,
+} from "../lib/llmEnv.js";
+import { completeChat, fromOpenAiMessages } from "../lib/llmChat.js";
 import OpenAI from "openai";
 import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
@@ -310,14 +316,14 @@ Reglas estrictas:
       { role: "user", content: latestUserText },
     ];
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages,
-      response_format: { type: "json_object" },
+    const completion = await completeChat({
+      messages: fromOpenAiMessages(messages),
       temperature: 0,
+      maxTokens: 800,
+      json: true,
     });
 
-    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const raw = completion.text || "{}";
     const parsed = JSON.parse(raw) as Partial<ExtractedData>;
 
     const tipoContacto = (["cliente", "proveedor", "incierto"].includes(parsed.tipo_contacto as string)
@@ -2859,12 +2865,12 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     return;
   }
 
-  if (!isOpenAiConfigured()) {
+  if (!isLlmConfigured()) {
     res.status(200).json({
       status: "error",
-      reply:
-        "Lucy no tiene OPEN_AI (o OPENAI_API_KEY) configurada. Añádela en Hostinger y reinicia.",
-      error: "missing_openai_key",
+      reply: missingLlmConfigMessage(),
+      error: "missing_llm_key",
+      llm: llmConfigSummary(),
     });
     return;
   }
@@ -3001,9 +3007,9 @@ router.post("/kommo/simulator", async (req: Request, res: Response) => {
     res.status(200).json({
       status: "error",
       reply: isAuth
-        ? "OPEN_AI / OPENAI_API_KEY inválida en Lucy. Revisa la key en Hostinger y reinicia."
+        ? "Key de IA inválida en Lucy (GEMINI_API_KEY u OPEN_AI). Revisa Hostinger y reinicia."
         : "Lucy tuvo un error procesando el mensaje. Revisa los logs del servidor.",
-      error: isAuth ? "openai_auth" : "processing_failed",
+      error: isAuth ? "llm_auth" : "processing_failed",
     });
   }
 });
@@ -3043,11 +3049,12 @@ router.post("/kommo/simulator/auto-client", async (req: Request, res: Response) 
   const clientId = body.client_id ?? body.id;
   const useJudge = body.use_judge !== false;
 
-  if (!isOpenAiConfigured()) {
+  if (!isLlmConfigured()) {
     res.status(200).json({
       status: "error",
-      error: "missing_openai_key",
-      reply: "Lucy y el cliente auto requieren OPEN_AI en el servidor.",
+      error: "missing_llm_key",
+      reply: missingLlmConfigMessage(),
+      llm: llmConfigSummary(),
     });
     return;
   }
@@ -3088,11 +3095,12 @@ router.post("/kommo/simulator/auto-clients/run", async (req: Request, res: Respo
     ? (body.client_ids as unknown[]).map((x) => Number(x))
     : null;
 
-  if (!isOpenAiConfigured()) {
+  if (!isLlmConfigured()) {
     res.status(200).json({
       status: "error",
-      error: "missing_openai_key",
-      reply: "Lucy y los clientes auto requieren OPEN_AI en el servidor.",
+      error: "missing_llm_key",
+      reply: missingLlmConfigMessage(),
+      llm: llmConfigSummary(),
     });
     return;
   }

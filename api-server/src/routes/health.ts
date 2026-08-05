@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { getOpenAiApiKey, isOpenAiConfigured } from "../lib/openaiEnv.js";
+import { llmConfigSummary, llmKeyPrefix } from "../lib/llmEnv.js";
 import { getKommoSubdomain, isKommoConfigured } from "../lib/kommoEnv.js";
 import { isAuthConfigured } from "../lib/authJwt.js";
 import { getCatalogStatus } from "../services/catalogService.js";
@@ -17,7 +18,7 @@ router.get("/healthz", (_req, res) => {
 
 // Endpoint detallado para keep-alive y diagnóstico externo
 router.get("/health", async (_req, res) => {
-  const key = getOpenAiApiKey();
+  const llm = llmConfigSummary();
   const build = getBuildMeta();
   let lucy_info = { catalog: 0, tips: 0, total: 0 };
   try {
@@ -48,6 +49,7 @@ router.get("/health", async (_req, res) => {
       "knowledge-gaps-aprendizaje",
       "aprendizaje-panel-from-chats",
       "lucy-info-pdf-text",
+      "llm-gemini-flash-lite",
     ],
     learning: {
       note: "Panel /aprendizaje: chats, huecos Sheet e Información para Lucy (PDF→texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba ≥0.85",
@@ -66,8 +68,17 @@ router.get("/health", async (_req, res) => {
     auth_configured: isAuthConfigured(),
     git_commit: build.git_commit,
     git_commit_short: build.git_commit_short,
+    llm_provider: llm.provider,
+    llm_model: llm.model,
+    llm_configured: llm.configured,
+    llm_key_prefix: llmKeyPrefix(),
+    gemini_configured: llm.gemini_configured,
     openai_configured: isOpenAiConfigured(),
-    openai_key_prefix: key.startsWith("sk-") ? key.slice(0, 8) + "…" : null,
+    openai_key_prefix: (() => {
+      const key = getOpenAiApiKey();
+      return key.startsWith("sk-") ? `${key.slice(0, 8)}…` : null;
+    })(),
+    voice_whisper_available: llm.voice_whisper_available,
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
     lucy_outbound: {

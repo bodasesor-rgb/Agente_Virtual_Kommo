@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { getOpenAiApiKey, isOpenAiConfigured } from "../lib/openaiEnv.js";
+import { isOpenAiConfigured } from "../lib/openaiEnv.js";
+import { isLlmConfigured, llmConfigSummary, llmKeyPrefix } from "../lib/llmEnv.js";
 import { getCatalogStatus, refreshCatalog } from "../services/catalogService.js";
 import { getKnowledgeGapStats } from "../services/knowledgeGapStore.js";
 import { logger } from "../lib/logger.js";
@@ -48,14 +49,25 @@ async function buildOpsStatus(): Promise<{
     checks[checks.length - 1]!.status = "warn";
   }
 
+  const llm = llmConfigSummary();
   checks.push({
-    id: "openai",
-    label: "OpenAI",
-    status: isOpenAiConfigured() ? "ok" : "error",
-    detail: isOpenAiConfigured()
-      ? `Key configurada (${getOpenAiApiKey().slice(0, 8)}…)`
-      : "Falta OPEN_AI en Hostinger — Lucy no puede usar GPT",
+    id: "llm",
+    label: llm.provider === "gemini" ? "Gemini (Flash-Lite)" : "OpenAI",
+    status: isLlmConfigured() ? "ok" : "error",
+    detail: isLlmConfigured()
+      ? `${llm.provider} · ${llm.model} (${llmKeyPrefix() ?? "key"})`
+      : llm.provider === "gemini"
+        ? "Falta GEMINI_API_KEY en Hostinger — Lucy no puede usar Gemini"
+        : "Falta OPEN_AI en Hostinger — Lucy no puede usar GPT",
   });
+  if (isOpenAiConfigured()) {
+    checks.push({
+      id: "openai_whisper",
+      label: "OpenAI Whisper (voz)",
+      status: "ok",
+      detail: "Disponible para notas de voz",
+    });
+  }
 
   const catalogOk = catalog.loaded && !catalog.lastError;
   checks.push({

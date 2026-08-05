@@ -273,6 +273,13 @@ import {
 import type { ExtractedData } from "../types.js";
 import { SYSTEM_PROMPT } from "../lucy-prompt.js";
 import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
+import {
+  DEFAULT_GEMINI_MODEL,
+  getChatModel,
+  getLlmProvider,
+  isLlmConfigured,
+} from "../lib/llmEnv.js";
+import { fromOpenAiMessages } from "../lib/llmChat.js";
 
 const CATALOG_URL = "https://bodasesor.com/catalogos";
 
@@ -8180,11 +8187,11 @@ async function runAll(): Promise<void> {
 
   // ─── 121. V8.93 — voz humana: preferir OpenAI sobre dump de plantilla ───
   await test("121. V8.93 — voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.93");
+    assert.ok(/^V8\.9[34]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
 
-    // Entretenimiento: si OpenAI ya orientó bien, no sustituir por dump de plantilla.
+    // Entretenimiento: si el modelo ya orientó bien, no sustituir por dump de plantilla.
     const humanEnt =
       "Claro, Bakar. Anoto un show de grupo versátil para tu evento del 18 de diciembre. " +
       "Es entretenimiento (no catering). ¿Me confirmas si es corporativo y en qué sede sería?";
@@ -8229,6 +8236,50 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/formal|casual/i.test(progressive), progressive.slice(0, 400));
     assert.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
+  });
+
+  // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
+  await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V8.94");
+    assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
+
+    const prevProvider = process.env.LLM_PROVIDER;
+    const prevGemini = process.env.GEMINI_API_KEY;
+    const prevGoogle = process.env.GOOGLE_API_KEY;
+    const prevOpen = process.env.OPEN_AI;
+    const prevOpenAi = process.env.OPENAI_API_KEY;
+    try {
+      process.env.LLM_PROVIDER = "gemini";
+      process.env.GEMINI_API_KEY = "test-gemini-key";
+      delete process.env.GOOGLE_API_KEY;
+      assert.equal(getLlmProvider(), "gemini");
+      assert.equal(getChatModel(), "gemini-3.1-flash-lite");
+      assert.equal(isLlmConfigured(), true);
+
+      process.env.LLM_PROVIDER = "openai";
+      process.env.OPEN_AI = "sk-test";
+      assert.equal(getLlmProvider(), "openai");
+
+      const mapped = fromOpenAiMessages([
+        { role: "system", content: "Eres Lucy" },
+        { role: "user", content: "Hola" },
+        { role: "assistant", content: "Con gusto" },
+      ]);
+      assert.equal(mapped.length, 3);
+      assert.equal(mapped[0]?.role, "system");
+      assert.equal(mapped[2]?.role, "assistant");
+    } finally {
+      if (prevProvider === undefined) delete process.env.LLM_PROVIDER;
+      else process.env.LLM_PROVIDER = prevProvider;
+      if (prevGemini === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = prevGemini;
+      if (prevGoogle === undefined) delete process.env.GOOGLE_API_KEY;
+      else process.env.GOOGLE_API_KEY = prevGoogle;
+      if (prevOpen === undefined) delete process.env.OPEN_AI;
+      else process.env.OPEN_AI = prevOpen;
+      if (prevOpenAi === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = prevOpenAi;
+    }
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

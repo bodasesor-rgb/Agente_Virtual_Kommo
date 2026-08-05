@@ -1,18 +1,16 @@
 import { createHash } from "crypto";
-import OpenAI from "openai";
 import { db, conversations, messages, learningCandidates } from "@workspace/db";
 import { asc, eq } from "drizzle-orm";
-import { getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
+import { isLlmConfigured } from "../lib/llmEnv.js";
+import { completeChat } from "../lib/llmChat.js";
 import { logger } from "../lib/logger.js";
 import { ensureLearningSchema } from "./learningSchema.js";
 import { approveLearningCandidate } from "./learningStore.js";
 import { isUsefulLearningPair } from "./learningPairFilter.js";
 
-const openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
-
 /** Confianza mínima para promover automáticamente a training_examples (Lucy lo usa al responder). */
 const AUTO_APPROVE_CONFIDENCE = 0.85;
-/** Mínimo entre extracciones aunque haya mensajes nuevos (evita spam OpenAI). */
+/** Mínimo entre extracciones aunque haya mensajes nuevos (evita spam LLM). */
 const MIN_EXTRACT_GAP_MS = 15 * 60 * 1000;
 /** Si no hay mensajes humanos nuevos, no re-extraer antes de este idle. */
 const IDLE_EXTRACT_GAP_MS = 45 * 60 * 1000;
@@ -40,8 +38,8 @@ export async function extractLearningCandidatesForLead(
   options: { force?: boolean } = {}
 ): Promise<number> {
   await ensureLearningSchema();
-  if (!isOpenAiConfigured()) {
-    logger.warn("learningExtractor: OpenAI no configurado");
+  if (!isLlmConfigured()) {
+    logger.warn("learningExtractor: LLM no configurado (GEMINI_API_KEY u OPEN_AI)");
     return 0;
   }
 
@@ -95,18 +93,17 @@ Reglas:
 - Responde SOLO JSON: { "pairs": [ { "user_message", "suggested_response", "label", "confidence" (0-1), "context_snippet" } ] }`;
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: process.env["OPENAI_MODEL"] ?? "gpt-4o-mini",
+    const completion = await completeChat({
       temperature: 0.2,
-      response_format: { type: "json_object" },
+      json: true,
+      maxTokens: 2000,
       messages: [
         { role: "system", content: system },
         { role: "user", content: `Transcript:\n${transcript}` },
       ],
-      max_tokens: 2000,
     });
 
-    const raw = completion.choices[0]?.message?.content ?? "{}";
+    const raw = completion.text || "{}";
     const parsed = JSON.parse(raw) as { pairs?: ExtractedPair[] };
     const pairs = (parsed.pairs ?? []).filter((p) => isUsefulLearningPair(p));
 
