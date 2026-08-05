@@ -15,8 +15,8 @@
  * En ese caso se hace restart automático para levantar el proceso (p. ej. tras git auto-deploy).
  */
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { existsSync, readFileSync } from "node:fs";
+import { mkdir, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -97,21 +97,20 @@ async function createArchive() {
     console.log("[deploy] Usando bundle precompilado en deploy/ (sin rebuild en CI).");
   }
 
-  console.log("[deploy] Creando archivo zip...");
+  // Zip mínimo: Hostinger arranca con start.mjs + deploy/ (bundle).
+  // Evita zip del repo entero (ENOBUFS / Cloudflare en CI).
+  console.log("[deploy] Creando archivo zip (start.mjs + package.json + deploy/)...");
   execSync(
-    `zip -r "${archive}" . ` +
-      `-x "node_modules/*" ` +
-      `-x ".git/*" ` +
-      `-x "api-server/dist/*" ` +
-      `-x "api-server/data/*" ` +
-      `-x ".deploy-tmp/*" ` +
-      `-x "app/*" ` +
-      `-x "whatsapp-sender/*" ` +
-      `-x "lib/*" ` +
-      `-x "data/*" ` +
-      `-x "*.map"`,
-    { cwd: ROOT, stdio: "inherit" }
+    `zip -qr "${archive}" start.mjs package.json deploy ` +
+      `-x "deploy/*.map" ` +
+      `-x "deploy/**/*.map" ` +
+      `-x "deploy/selftest/*" ` +
+      `-x "deploy/selftest/**/*"`,
+    { cwd: ROOT, stdio: "inherit", maxBuffer: 32 * 1024 * 1024 }
   );
+
+  const { size } = await stat(archive);
+  console.log(`[deploy] Zip listo: ${(size / (1024 * 1024)).toFixed(1)} MB`);
 
   return archive;
 }
@@ -121,26 +120,39 @@ async function uploadBuild(username, archivePath) {
     `${API_BASE}/api/hosting/v1/accounts/${encodeURIComponent(username)}` +
     `/websites/${encodeURIComponent(DOMAIN)}/nodejs/builds/from-archive`;
 
-  const cmd = [
-    "curl -sS",
-    `-w "\\nHTTP:%{http_code}"`,
-    `-X POST "${url}"`,
-    `-H "Authorization: Bearer ${TOKEN}"`,
-    `-H "Accept: application/json"`,
-    `-F "archive=@${archivePath};type=application/zip"`,
-    `-F "build_script=echo ok"`,
-    `-F "entry_file=start.mjs"`,
-    `-F "output_directory=."`,
-    `-F "package_manager=npm"`,
-    `-F "node_version=22"`,
-    `-F "app_type=express"`,
-  ].join(" ");
+  const outDir = path.dirname(archivePath);
+  const bodyFile = path.join(outDir, "upload-response.json");
+  const codeFile = path.join(outDir, "upload-http-code.txt");
 
   console.log("[deploy] Subiendo a Hostinger (multipart)...");
-  const raw = execSync(cmd, { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
-  const httpMatch = raw.match(/HTTP:(\d+)\s*$/);
-  const httpCode = httpMatch ? Number(httpMatch[1]) : 0;
-  const body = raw.replace(/\nHTTP:\d+\s*$/, "").trim();
+  // Cuerpo → archivo, código HTTP → archivo: evita ENOBUFS en spawnSync.
+  execSync(
+    [
+      "curl -sS",
+      `-o "${bodyFile}"`,
+      `-w "%{http_code}"`,
+      `-X POST "${url}"`,
+      `-H "Authorization: Bearer ${TOKEN}"`,
+      `-H "Accept: application/json"`,
+      `-F "archive=@${archivePath};type=application/zip"`,
+      `-F "build_script=echo ok"`,
+      `-F "entry_file=start.mjs"`,
+      `-F "output_directory=."`,
+      `-F "package_manager=npm"`,
+      `-F "node_version=22"`,
+      `-F "app_type=express"`,
+      `> "${codeFile}"`,
+    ].join(" "),
+    {
+      encoding: "utf8",
+      maxBuffer: 4 * 1024 * 1024,
+      shell: "/bin/bash",
+      stdio: ["ignore", "pipe", "pipe"],
+    }
+  );
+
+  const httpCode = Number(readFileSync(codeFile, "utf8").trim());
+  const body = readFileSync(bodyFile, "utf8");
 
   if (httpCode < 200 || httpCode >= 300) {
     throw new Error(`Upload failed HTTP ${httpCode}: ${body.slice(0, 1500)}`);

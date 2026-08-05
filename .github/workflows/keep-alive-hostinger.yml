@@ -4,7 +4,8 @@ name: Keep Alive Hostinger
 # El ping interno (localhost) en index.ts no cuenta para el panel de Hostinger.
 # Este workflow hace un GET cada 5 min desde GitHub → despierta Lucy antes de webhooks Kommo.
 # También dispara el cron de aprendizaje (sync chats humanos + extracción) para que
-# Lucy lea de verdad los chats de Alejandro y genere/aprueba ejemplos.
+# Lucy lea de verdad los chats de Alejandro y genere/apruebe ejemplos.
+# Si health = 503, reinicia Node vía API Hostinger (recuperación automática).
 
 on:
   schedule:
@@ -14,30 +15,67 @@ on:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - name: Ping /api/health
+        id: health
         env:
           LUCY_PUBLIC_URL: ${{ vars.LUCY_PUBLIC_URL }}
         run: |
           BASE="${LUCY_PUBLIC_URL:-https://midnightblue-mosquito-424375.hostingersite.com}"
           URL="${BASE%/}/api/health"
           echo "Keep-alive → $URL"
-          HTTP=$(curl -sS -o /tmp/lucy-health.json -w "%{http_code}" --max-time 45 "$URL")
+          HTTP=$(curl -sS -o /tmp/lucy-health.json -w "%{http_code}" --max-time 45 "$URL" || echo "000")
           cat /tmp/lucy-health.json || true
           echo ""
-          if [ "$HTTP" != "200" ]; then
-            echo "ERROR: health respondió HTTP $HTTP"
-            if [ -f /tmp/lucy-health.json ]; then
-              BUILT=$(node -e "try{const j=JSON.parse(require('fs').readFileSync('/tmp/lucy-health.json','utf8'));console.log(j.built_at_display||j.built_at||'desconocido')}catch{console.log('sin JSON')}" 2>/dev/null || echo "sin JSON")
-              echo "Última build conocida en respuesta: $BUILT"
-            fi
+          echo "http_code=$HTTP" >> "$GITHUB_OUTPUT"
+          if [ "$HTTP" = "200" ]; then
+            PROMPT=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/lucy-health.json','utf8'));console.log((j.lucy_prompt||'?')+' · '+(j.built_at_display||j.built_at||'?'))" 2>/dev/null || echo "?")
+            echo "OK — Lucy despierta (HTTP $HTTP) — $PROMPT"
+            exit 0
+          fi
+          echo "ERROR: health respondió HTTP $HTTP"
+          if [ -f /tmp/lucy-health.json ]; then
+            BUILT=$(node -e "try{const j=JSON.parse(require('fs').readFileSync('/tmp/lucy-health.json','utf8'));console.log(j.built_at_display||j.built_at||'desconocido')}catch{console.log('sin JSON')}" 2>/dev/null || echo "sin JSON")
+            echo "Última build conocida en respuesta: $BUILT"
+          fi
+          exit 1
+
+      - name: Restart Hostinger si 503
+        if: failure() && steps.health.outputs.http_code == '503'
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+          HOSTINGER_DOMAIN: midnightblue-mosquito-424375.hostingersite.com
+          LUCY_PUBLIC_URL: ${{ vars.LUCY_PUBLIC_URL }}
+        run: |
+          if [ -z "$HOSTINGER_API_TOKEN" ]; then
+            echo "Sin HOSTINGER_API_TOKEN — no se puede reiniciar."
             exit 1
           fi
-          PROMPT=$(node -e "const j=JSON.parse(require('fs').readFileSync('/tmp/lucy-health.json','utf8'));console.log((j.lucy_prompt||'?')+' · '+(j.built_at_display||j.built_at||'?'))" 2>/dev/null || echo "?")
-          echo "OK — Lucy despierta (HTTP $HTTP) — $PROMPT"
+          echo "503 detectado — resolviendo cuenta y reiniciando Node.js…"
+          SITE_JSON=$(curl -sS -H "Authorization: Bearer $HOSTINGER_API_TOKEN" -H "Accept: application/json" \
+            "https://developers.hostinger.com/api/hosting/v1/websites?domain=${HOSTINGER_DOMAIN}")
+          USERNAME=$(node -e "const j=JSON.parse(process.argv[1]); const u=j?.data?.[0]?.username; if(!u) process.exit(2); console.log(u)" "$SITE_JSON")
+          echo "Cuenta: $USERNAME"
+          curl -sS -X POST \
+            -H "Authorization: Bearer $HOSTINGER_API_TOKEN" \
+            -H "Accept: application/json" \
+            "https://developers.hostinger.com/api/hosting/v1/accounts/${USERNAME}/websites/${HOSTINGER_DOMAIN}/nodejs/server/restart"
+          echo ""
+          sleep 35
+          BASE="${LUCY_PUBLIC_URL:-https://midnightblue-mosquito-424375.hostingersite.com}"
+          URL="${BASE%/}/api/health"
+          HTTP=$(curl -sS -o /tmp/lucy-health-retry.json -w "%{http_code}" --max-time 45 "$URL" || echo "000")
+          cat /tmp/lucy-health-retry.json || true
+          echo ""
+          if [ "$HTTP" != "200" ]; then
+            echo "Sigue caído tras restart (HTTP $HTTP)"
+            exit 1
+          fi
+          echo "OK — Lucy recuperada tras restart"
 
       - name: Ping cron aprendizaje (sync + extract chats humanos)
+        if: success()
         env:
           LUCY_PUBLIC_URL: ${{ vars.LUCY_PUBLIC_URL }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
