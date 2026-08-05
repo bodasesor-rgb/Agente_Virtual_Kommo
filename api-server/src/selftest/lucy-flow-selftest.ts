@@ -285,7 +285,20 @@ import {
   resolveGeminiModel,
   llmConfigSummary,
 } from "../lib/llmEnv.js";
-import { fromOpenAiMessages } from "../lib/llmChat.js";
+import { fromOpenAiMessages, getGeminiCallStats } from "../lib/llmChat.js";
+import {
+  hashSystemInstruction,
+  resetGeminiContextCacheForTests,
+  getGeminiContextCacheStats,
+  getOrCreateSystemCache,
+} from "../lib/geminiContextCache.js";
+import {
+  compressImageForVision,
+  VISION_MAX_EDGE,
+  resetImageCompressStatsForTests,
+  getImageCompressStats,
+} from "../lib/imageCompress.js";
+import { Jimp } from "jimp";
 
 const CATALOG_URL = "https://bodasesor.com/catalogos";
 
@@ -8196,7 +8209,7 @@ async function runAll(): Promise<void> {
 
   // ─── 121. V8.93 — voz humana: preferir OpenAI sobre dump de plantilla ───
   await test("121. V8.93 — voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.ok(/^V8\.9[3456789]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V(8\.9[3456789]|9\.0\d)$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
 
@@ -8249,7 +8262,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.99");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.00");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8533,6 +8546,78 @@ async function runAll(): Promise<void> {
     const showAck = buildGuardServiceAck("quiero cotizar un show");
     assert.ok(/show|animaci|cat[aá]logo|bodasesor\.com\/catalogos/i.test(showAck), showAck);
     assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(showAck), showAck);
+  });
+
+  // ─── 126. V9.00 — optimizaciones de costo Gemini ───
+  await test("126. V9.00 — context cache + media-once + image compress", async () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.00");
+
+    // Context cache: hash estable + create/reuse vía mock ai.caches
+    resetGeminiContextCacheForTests();
+    const longSystem = ("Lucy Bodasesor system. " + "x".repeat(4000)).slice(0, 4200);
+    const h1 = hashSystemInstruction(longSystem);
+    const h2 = hashSystemInstruction(longSystem);
+    assert.equal(h1, h2);
+    assert.notEqual(hashSystemInstruction(longSystem + "!"), h1);
+
+    let createCalls = 0;
+    const fakeAi = {
+      caches: {
+        create: async () => {
+          createCalls += 1;
+          return {
+            name: `cachedContents/test-${createCalls}`,
+            usageMetadata: { totalTokenCount: 1200 },
+          };
+        },
+      },
+    };
+    const name1 = await getOrCreateSystemCache(fakeAi as never, longSystem);
+    const name2 = await getOrCreateSystemCache(fakeAi as never, longSystem);
+    assert.equal(name1, "cachedContents/test-1");
+    assert.equal(name2, name1);
+    assert.equal(createCalls, 1);
+    const cstats = getGeminiContextCacheStats();
+    assert.equal(cstats.creates, 1);
+    assert.equal(cstats.hits, 1);
+    // Prompt corto no cachea
+    assert.equal(await getOrCreateSystemCache(fakeAi as never, "hola"), null);
+
+    // Media-once: historial de chat no retiene image_url en texto de turno
+    // (processMessage → formatImageTurnText); fromOpenAiMessages puede mapear
+    // image_url pero completeWithGemini las strippea salvo vision/voice.
+    const turn = formatImageTurnText({
+      intent: "montaje_referencia",
+      internalDescription: "mesas redondas blancas",
+      clientReply: "Vi tus mesas redondas; anoto ese estilo.",
+    });
+    assert.ok(!/data:image|base64,/i.test(turn));
+    assert.ok(/Imagen respuesta cliente/i.test(turn));
+
+    // Image compress ≤1024 JPEG
+    resetImageCompressStatsForTests();
+    const big = new Jimp({ width: 2000, height: 1500, color: 0x336699ff });
+    const raw = await big.getBuffer("image/jpeg");
+    const compressed = await compressImageForVision(raw);
+    assert.ok(compressed.width <= VISION_MAX_EDGE);
+    assert.ok(compressed.height <= VISION_MAX_EDGE);
+    assert.equal(compressed.mimeType, "image/jpeg");
+    assert.ok(compressed.bytesOut < compressed.bytesIn || compressed.resized);
+    assert.ok(compressed.base64.length > 100);
+    const istats = getImageCompressStats();
+    assert.ok(istats.total >= 1);
+
+    // Health features documentadas
+    const apiRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+    const healthSrc = readFileSync(path.join(apiRoot, "src/routes/health.ts"), "utf8");
+    assert.ok(healthSrc.includes("gemini-context-cache"));
+    assert.ok(healthSrc.includes("gemini-media-once"));
+    assert.ok(healthSrc.includes("gemini-image-compress-1024"));
+
+    // Stats shape incluye context_cache
+    const gstats = getGeminiCallStats();
+    assert.ok("context_cache" in gstats);
+    assert.ok("mediaStripped" in gstats);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

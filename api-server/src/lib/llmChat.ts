@@ -1,6 +1,10 @@
 /**
  * Capa unificada de chat: Gemini 3.1 Flash-Lite (default) u OpenAI.
  * Misma API de mensajes estilo OpenAI para no reescribir todo el pipeline.
+ *
+ * V9.00 costo:
+ * - Explicit Context Caching del system prompt (cachedContent).
+ * - Multimedia (imagen/audio) solo en purpose vision/voice; historial = texto.
  */
 import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
@@ -15,6 +19,10 @@ import {
   resolveGeminiModel,
   type LlmProvider,
 } from "./llmEnv.js";
+import {
+  getGeminiContextCacheStats,
+  getOrCreateSystemCache,
+} from "./geminiContextCache.js";
 
 /** Contadores en memoria para /api/health (diagnóstico de gasto). */
 const geminiCallStats = {
@@ -23,10 +31,22 @@ const geminiCallStats = {
   lastModel: null as string | null,
   lastAt: null as string | null,
   blockedOverrides: 0,
+  /** Turnos donde se omitió reenviar imagen/audio del historial. */
+  mediaStripped: 0,
+  /** Llamadas que usaron cachedContent. */
+  contextCacheUsed: 0,
+  /** Llamadas con systemInstruction inline (sin cache). */
+  contextCacheSkipped: 0,
 };
 
-export function getGeminiCallStats(): typeof geminiCallStats {
-  return { ...geminiCallStats, byPurpose: { ...geminiCallStats.byPurpose } };
+export function getGeminiCallStats(): typeof geminiCallStats & {
+  context_cache: ReturnType<typeof getGeminiContextCacheStats>;
+} {
+  return {
+    ...geminiCallStats,
+    byPurpose: { ...geminiCallStats.byPurpose },
+    context_cache: getGeminiContextCacheStats(),
+  };
 }
 
 export type GeminiCallPurpose =
@@ -130,6 +150,11 @@ function getOpenAiClient(): OpenAI {
   return openaiClient;
 }
 
+/** Solo vision/voice reenvían binarios; el resto del pipeline guarda texto. */
+function purposeAllowsMedia(purpose: GeminiCallPurpose): boolean {
+  return purpose === "vision" || purpose === "voice";
+}
+
 async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteChatResult> {
   // V8.98: pin estricto — nunca Nano Banana / Imagen / Pro caros.
   const requested = opts.model ?? getChatModel();
@@ -138,6 +163,7 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
     geminiCallStats.blockedOverrides += 1;
   }
   const purpose = opts.purpose ?? "other";
+  const allowMedia = purposeAllowsMedia(purpose);
   geminiCallStats.total += 1;
   geminiCallStats.byPurpose[purpose] = (geminiCallStats.byPurpose[purpose] ?? 0) + 1;
   geminiCallStats.lastModel = model;
@@ -155,6 +181,13 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
       if (p.type === "text") {
         parts.push({ text: p.text });
       } else if (p.type === "image_url") {
+        if (!allowMedia) {
+          geminiCallStats.mediaStripped += 1;
+          parts.push({
+            text: "[imagen ya analizada — ver texto del turno; no reenviar binario]",
+          });
+          continue;
+        }
         // Visión = LEER foto del cliente con flash-lite (NO generateImages).
         const fromUrl = parseDataUrl(p.image_url.url);
         const mimeType = p.mimeType || fromUrl?.mimeType || "image/jpeg";
@@ -163,6 +196,13 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
           parts.push({ inlineData: { mimeType, data } });
         }
       } else if (p.type === "input_audio") {
+        if (!allowMedia) {
+          geminiCallStats.mediaStripped += 1;
+          parts.push({
+            text: "[audio ya transcrito — ver texto del turno; no reenviar binario]",
+          });
+          continue;
+        }
         parts.push({
           inlineData: { mimeType: p.mimeType || "audio/ogg", data: p.base64 },
         });
@@ -185,11 +225,27 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
   if (model !== DEFAULT_GEMINI_MODEL) {
     throw new Error(`Modelo Gemini no permitido: ${model} (solo ${DEFAULT_GEMINI_MODEL})`);
   }
+
+  // V9.00: cachedContent si el system es largo; si no, systemInstruction inline.
+  let cachedContent: string | null = null;
+  if (system) {
+    cachedContent = await getOrCreateSystemCache(ai, system, DEFAULT_GEMINI_MODEL);
+  }
+  if (cachedContent) {
+    geminiCallStats.contextCacheUsed += 1;
+  } else if (system) {
+    geminiCallStats.contextCacheSkipped += 1;
+  }
+
   const response = await ai.models.generateContent({
     model: DEFAULT_GEMINI_MODEL,
     contents,
     config: {
-      ...(system ? { systemInstruction: system } : {}),
+      ...(cachedContent
+        ? { cachedContent }
+        : system
+          ? { systemInstruction: system }
+          : {}),
       temperature: opts.temperature ?? 0.6,
       maxOutputTokens: opts.maxTokens ?? 1200,
       ...(opts.topP != null ? { topP: opts.topP } : {}),
