@@ -2497,6 +2497,8 @@ function shouldPreferAiResponse(
     return false;
   }
   if (isDryRequerimientosAsk(trimmed)) return false;
+  // Niveles sin inclusiones: no preferir — el enrich del Sheet debe completar.
+  if (messageOffersLevelsWithoutInclusions(trimmed)) return false;
 
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return true;
@@ -2534,13 +2536,42 @@ function shouldPreferAiResponse(
 }
 
 /** OpenAI ya orientó entretenimiento/show sin inventar precios ni dump genérico. */
-function aiLooksLikeEntertainmentReply(text: string | null | undefined): boolean {
+function aiLooksLikeEntertainmentReply(
+  text: string | null | undefined,
+  clientMessage?: string
+): boolean {
   if (!text?.trim() || text.trim().length < 40) return false;
   if (looksLikeServicesMenuDump(text) || responseLooksLikeGenericCateringMenu(text)) return false;
   if (responseHasInventedPrice(text)) return false;
-  return /show|animaci|entretenimiento|hora\s+loca|robots?\s*leds?|batucada|bailarinas?|photo\s*booth|cabina|maestro\s+de\s+ceremonias|happening|vers[aá]til/i.test(
-    text
-  );
+  // Stubs / dumps genéricos — no sustituyen plantilla de acto concreto.
+  if (
+    /manejamos shows|Te dejo el cat[aá]logo general|happening,? espejos|l[aá]ser y m[aá]s opciones/i.test(
+      text
+    )
+  ) {
+    return false;
+  }
+  if (
+    !/show|animaci|entretenimiento|hora\s+loca|robots?\s*leds?|batucada|bailarinas?|photo\s*booth|cabina|maestro\s+de\s+ceremonias|happening|vers[aá]til|circo|blue\s*man|blueman/i.test(
+      text
+    )
+  ) {
+    return false;
+  }
+  const msg = clientMessage?.trim() ?? "";
+  if (!msg) return true;
+  const special = parseSpecialLiveActLabel(msg);
+  if (special) {
+    const token = special.split(/\s+/).find((w) => w.length >= 4) || special.slice(0, 8);
+    return new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(text);
+  }
+  if (/\b(blue\s*man|blueman)\b/i.test(msg)) return /blue\s*man|blueman/i.test(text);
+  if (/\bcirco\b/i.test(msg)) return /\bcirco\b/i.test(text);
+  if (/\brobots?\s*leds?\b|\bled\s*robots?\b/i.test(msg)) return /robots?|leds?/i.test(text);
+  if (/\bbatucada\b/i.test(msg)) return /\bbatucada\b/i.test(text);
+  if (/\bbailarinas?\b|\bdancers?\b/i.test(msg)) return /bailarinas?|dancers?|show/i.test(text);
+  if (/\b(photo\s*booth|cabina)/i.test(msg)) return /photo\s*booth|cabina/i.test(text);
+  return true;
 }
 
 /** OpenAI ya respondió carpas/medidas de forma útil (sin dump repetido). */
@@ -3477,8 +3508,12 @@ export function buildStandardClosingMessage(
     ? servicio.split(/,\s*/).map((s) => s.trim()).filter(Boolean)
     : [];
   const multiPackage = !isSlashFoodAlias && serviceParts.length >= 2;
-  // V8.93: cierre humano — sin empujar extras; el cliente pregunta si quiere más.
-  const parts = [`Perfecto, ya tengo todo. ${handoff}`];
+  // V8.93: cierre humano — reconoce el servicio, sin empujar extras.
+  // Mantener firma "Perfecto, ya tengo todo." (CLOSING_SIGNATURE / detectCierreEnviado).
+  const head = servicio
+    ? `Perfecto, ya tengo todo. Quedó anotado *${servicio}*. ${handoff}`
+    : `Perfecto, ya tengo todo. ${handoff}`;
+  const parts = [head];
   if (multiPackage) {
     // V8.79: cierre con links de los SKUs pedidos, no solo hub.
     parts.push("", buildPackageCatalogOfferBlock(serviceParts, servicioRaw));
@@ -5473,7 +5508,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     if (
       shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) &&
-      aiLooksLikeEntertainmentReply(aiResponse)
+      aiLooksLikeEntertainmentReply(aiResponse, entFocusMsg)
     ) {
       mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
       appliedDirectReply = true;
@@ -5859,22 +5894,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ctx
     );
     if (cateringAnswer) {
-      // Menús progresivos (formal/casual, pieza, modelos): plantilla gana — son la pregunta corta.
-      if (
-        isProgressiveOptionsMenuReply(cateringAnswer) ||
-        /info m[aá]s detallada|de cu[aá]l te|qu[eé]\s+pieza/i.test(cateringAnswer)
-      ) {
-        mensaje = cateringAnswer;
-      } else if (
-        shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) &&
-        aiResponse.trim().length >= 50 &&
-        !responseHasInventedPrice(aiResponse, currentMessage)
-      ) {
-        // V8.93: dump de niveles → preferir voz humana de OpenAI si ya orientó bien.
-        mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
-      } else {
-        mensaje = cateringAnswer;
-      }
+      // Menús progresivos y detalle Sheet: plantilla gana (conocimiento validado).
+      mensaje = cateringAnswer;
     } else {
       const ack = buildFoodServiceAckIntro(extracted, history, currentMessage);
       const aiMentionsService =

@@ -416,7 +416,8 @@ async function runAll(): Promise<void> {
     // Servicio único: cierre sobrio sin hub. Paquete multi-servicio sí lleva catálogo (test 69).
     assert.ok(!reply.includes(CATALOG_URL), reply);
     assert.ok(/con gusto te apoyo/i.test(reply), reply);
-    assert.ok(/alimentos|mobiliario|DJ|iluminaci/i.test(reply), reply);
+    // V8.93: cierre sin upsell forzado de alimentos/DJ/mobiliario.
+    assert.ok(!/Si quieres sumar/i.test(reply), reply);
   });
 
   await test("3. 60 invitados no marca presupuesto ni cierra el embudo", () => {
@@ -2744,12 +2745,12 @@ async function runAll(): Promise<void> {
     assert.ok(!/Según el catálogo que ya cargamos/i.test(reply), reply.slice(0, 300));
   });
 
-  await test("57. Cierre menciona complementos (alimentos, DJ, mobiliario)", () => {
+  await test("57. Cierre sobrio sin upsell forzado (V8.93)", () => {
     const close = mockClosing("renta de tarima/pista 4x4", "Ana");
-    assert.ok(/banquetes|alimentos/i.test(close), close);
-    assert.ok(/\bDJ\b/i.test(close), close);
-    assert.ok(/mobiliario/i.test(close), close);
+    assert.ok(/Perfecto, ya tengo todo/i.test(close), close);
     assert.ok(/tarima|pista/i.test(close), close);
+    assert.ok(/con gusto te apoyo/i.test(close), close);
+    assert.ok(!/Si quieres sumar/i.test(close), close);
     assert.ok(!/Si más adelante quieres sumar algo además/i.test(close), close);
   });
 
