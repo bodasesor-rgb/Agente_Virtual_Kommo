@@ -93,18 +93,32 @@ const FAMILIES: FamilyDef[] = [
   },
   {
     family: "coffee_break",
-    familyPattern: /\bcoffee\s*break\b|\bcoffeebreak\b/i,
-    variantPattern: /\bcoffee\s*break\s*[1-9]\b|\bcoffe{1,2}e?\s*break\s*[1-9]\b|\bnivel\s*[1-9]\b/i,
+    familyPattern: /\bcoffee\s*break\b|\bcoffeebreak\b|\bcoffe\s*break\b/i,
+    variantPattern:
+      /\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*[1-9]\b|\bnivel\s*[1-9]\b|\bopci[oó]n(?:es)?\s*[1-9]\b|\bpaquete\s*[1-9]\b|^(?:el\s+|la\s+)?[1-9]$/i,
     detailQueryFromText: (text) => {
-      const m = text.match(/\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*([1-9])\b/i);
+      const m =
+        text.match(/\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*([1-9])\b/i) ||
+        text.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i) ||
+        text.match(/^(?:el\s+|la\s+)?([1-9])$/i);
       if (m) return `Coffee Break ${m[1]}`;
-      const n = text.match(/\bnivel\s*([1-9])\b/i);
-      if (n) return `Coffee Break ${n[1]}`;
+      // "quiero ver las opciones" → listar CB 1–5 (no un SKU vacío).
+      if (/\b(ver|muestr|muéstr|dame|quiero)\b.{0,24}\bopciones?\b/i.test(text)) {
+        return "Coffee Break";
+      }
       return "Coffee Break";
     },
     buildMenu: () =>
       [
-        "Claro. En *Coffee Break* tenemos varios paquetes (1 a 5), del más esencial al más completo.",
+        "Claro. En *Coffee Break* manejamos estos paquetes (del más esencial al más completo):",
+        "1. *Coffee Break 1*",
+        "2. *Coffee Break 2*",
+        "3. *Coffee Break 3*",
+        "4. *Coffee Break 4*",
+        "5. *Coffee Break 5*",
+        "",
+        "El detalle de menús e inclusiones está en el catálogo:",
+        "https://bodasesor.com/catalogos/coffee-break",
         "",
         SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n"),
@@ -522,9 +536,10 @@ export function isProgressiveOptionsMenuReply(text: string | null | undefined): 
   // Menú corto de familia: "Claro. En *banquete/taquiza/…*"
   if (
     /claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t) ||
-    /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t)
+    /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t) ||
+    /manejamos estos paquetes|coffee\s*break\s*1[\s\S]{0,120}coffee\s*break\s*5/i.test(t)
   ) {
-    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos/i.test(
+    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos|catalogos\/coffee-break|cat[aá]logo/i.test(
       t
     );
   }
@@ -621,6 +636,16 @@ export function clientWantsServiceDetail(
   ) {
     return !!(history && historyOfferedServiceOptionsMenu(history));
   }
+  // A15168: "quiero ver las opciones" / "muéstrame las opciones" tras menú Coffee/banquete.
+  if (
+    /\b(quiero|necesito|me\s+gustar[ií]a|puedes?|me\s+puedes?)\b.{0,30}\b(ver|verlas|conocer)\b.{0,20}\b(las\s+)?opciones?\b/i.test(
+      t
+    ) ||
+    /^(ver|muestra|muéstra|muestrame|muéstrame|dame|pasa|manda)\s+(las\s+)?opciones?\b/i.test(t) ||
+    /^las\s+opciones?\b/i.test(t)
+  ) {
+    return !!(history && historyOfferedServiceOptionsMenu(history));
+  }
   if (
     /\b(dame|pasa|manda|quiero|necesito|me\s+interes[ao])\b.{0,40}\b(detalle|info|informaci[oó]n|precios?|incluye|inclusiones)\b/i.test(
       t
@@ -638,11 +663,13 @@ export function clientWantsServiceDetail(
     }
   }
   // Tras menú de banquete: "el formal", "3 tiempos", "el mexicano"
+  // A15168: "opción 1" / "paquete 2" / "el 3" tras Coffee Break 1–5.
   if (history && historyOfferedServiceOptionsMenu(history)) {
     if (
-      /\b(formal|mexicano|kosher|navide|3\s*tiempos|4\s*tiempos|tres|cuatro|led|iluminada|pintada|vinil|logo|charol|madera|premium|b[aá]sic|tradicional|solo\s+alimentos)\b/i.test(
+      /\b(formal|mexicano|kosher|navide|3\s*tiempos|4\s*tiempos|tres|cuatro|led|iluminada|pintada|vinil|logo|charol|madera|premium|b[aá]sic|tradicional|solo\s+alimentos|opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|nivel\s*[1-9]|(?:el\s+|la\s+)?[1-9])\b/i.test(
         t
-      )
+      ) ||
+      /^(?:el\s+|la\s+)?[1-9]$/i.test(t)
     ) {
       return true;
     }

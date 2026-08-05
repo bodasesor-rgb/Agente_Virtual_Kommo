@@ -208,10 +208,11 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
   },
   {
     key: "coffee_break",
-    serviceHints: ["coffee break", "coffeebreak"],
+    serviceHints: ["coffee break", "coffeebreak", "coffe break"],
     aliases: [
       "coffee break",
       "coffeebreak",
+      "coffe break",
       "receso de cafe",
       "receso de café",
       "cafe para junta",

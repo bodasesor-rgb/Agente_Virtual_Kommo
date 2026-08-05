@@ -58,6 +58,7 @@ import {
   clientAsksCafeOrCateringChoice,
   looksLikeNameAnswerMessage,
   extractCatalogNivelFromText,
+  lastAssistantOfferedNumberedPackages,
   clientNeedsEmergencyContact,
   clientAsksForHumanAdvisor,
   isReferentialPriorAnswer,
@@ -240,6 +241,8 @@ import {
   detectProgressiveFamily,
   catalogNivelLabelFromText,
   buildProgressiveOptionsMenu,
+  clientWantsServiceDetail,
+  resolveProgressiveDetailQuery,
   buildAlimentosModoMenu,
   buildCateringCasualMenu,
   clientChoseBanqueteFormal,
@@ -6029,8 +6032,15 @@ async function runAll(): Promise<void> {
       currentMessage: "Me interesa coffee break",
       history: [{ role: "assistant", content: "¿Qué servicio buscas?" }],
     });
-    assert.ok(/Coffee Break|paquetes|detallada|diferencia/i.test(coffeeAsk), coffeeAsk.slice(0, 400));
-    assert.ok(!/\$180|\$400/i.test(coffeeAsk), coffeeAsk.slice(0, 300));
+    // A15168: Coffee Break lista paquetes 1–5 con significado + catálogo (no menú opaco).
+    assert.ok(
+      /Coffee Break|paquetes|detalles de alguno|Coffee Break 1/i.test(coffeeAsk),
+      coffeeAsk.slice(0, 400)
+    );
+    assert.ok(
+      /bodasesor\.com\/catalogos\/coffee-break|Coffee Break 1/i.test(coffeeAsk),
+      coffeeAsk.slice(0, 400)
+    );
     assert.ok(!/correo|e-?mail/i.test(coffeeAsk), coffeeAsk.slice(0, 300));
   });
 
@@ -8270,7 +8280,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.01");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.02");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8708,6 +8718,115 @@ async function runAll(): Promise<void> {
       "utf8"
     );
     assert.ok(healthSrc.includes("proveedor-alianza-handoff"));
+  });
+
+  // ─── 128. A15168 — Coffee Break: menú 1–5 + catálogo + opción N ───
+  await test("128. A15168 — Coffee Break detalle, catálogo y opción 1 (no vacío)", () => {
+    // Cancún / Cancun no es nombre
+    assert.ok(isLikelyUbicacionNotNombre("Cancun"));
+    assert.ok(isLikelyUbicacionNotNombre("Cancún"));
+    assert.equal(sanitizeCrmNombre("Cancun"), null);
+    assert.equal(sanitizeDisplayName("Cancun"), null);
+
+    const menu = buildProgressiveOptionsMenu("coffee_break");
+    assert.ok(/Coffee Break 1/i.test(menu) && /Coffee Break 5/i.test(menu), menu);
+    assert.ok(/bodasesor\.com\/catalogos\/coffee-break/i.test(menu), menu);
+    assert.ok(lastAssistantOfferedNumberedPackages(menu));
+
+    const hist: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: menu },
+    ];
+    assert.ok(clientWantsServiceDetail("quiero ver las opciones", hist));
+    assert.ok(clientWantsServiceDetail("opcion 1", hist));
+    assert.ok(clientWantsServiceDetail("opción 1", hist));
+    assert.ok(clientWantsServiceDetail("paquete 2", hist));
+    assert.ok(isCatalogLevelSelection("opcion 1", menu));
+    assert.equal(extractCatalogNivelFromText("opcion 1", menu), "Coffee Break 1");
+    assert.equal(extractCatalogNivelFromText("1", menu), "Coffee Break 1");
+
+    const detailQ = resolveProgressiveDetailQuery({
+      currentMessage: "opcion 1",
+      serviceHint: "Coffee Break",
+      history: hist,
+    });
+    assert.equal(detailQ, "Coffee Break 1");
+
+    const verOpcionesQ = resolveProgressiveDetailQuery({
+      currentMessage: "quiero ver las opciones",
+      serviceHint: "Coffee Break",
+      history: hist,
+    });
+    assert.equal(verOpcionesQ, "Coffee Break");
+
+    // Coffe typo en brief multi-servicio
+    const services = parseServicesFromText(
+      "Servicio de Coffe Break igual si me pueden cotizar otro con desayuno."
+    );
+    assert.ok(services.some((s) => /coffee/i.test(s)), services.join(", "));
+    assert.ok(services.some((s) => /desayuno/i.test(s)), services.join(", "));
+
+    // Primera oferta coffee: menú/catálogo, no solo "paquetes 1 a 5" opaco
+    const first = runGuards({
+      aiResponse: "¿Cómo te llamas?",
+      extracted: emptyExtracted({
+        tipo_evento: "corporativo",
+        requerimientos_evento: "Coffee Break",
+      }),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: "Hola, me interesa cotizar: Coffee Break para Eventos Corporativos",
+      forceFirstPresentation: true,
+    });
+    assert.ok(
+      /Coffee Break 1|manejamos estos (paquetes|niveles)|catalogos\/coffee-break/i.test(first),
+      first.slice(0, 500)
+    );
+    assert.ok(/bodasesor\.com\/catalogos\/coffee-break/i.test(first), first.slice(0, 400));
+
+    // Tras menú: opción 1 → detalle (no "Seguimos con lo que ya platicamos")
+    setCatalogSnapshotForTests(
+      parseSheetCatalogCsv(
+        [
+          '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Link catalogo","Que Incluye","Sinonimos"',
+          '"Coffee Break","Coffee Break 1","$120.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café, galletas y agua"',
+          '"Coffee Break","Coffee Break 2","$200.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café, pan dulce y fruta"',
+          '"Coffee Break","Coffee Break 3","$280.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Café premium y snacks"',
+          '"Coffee Break","Coffee Break 4","$350.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estación completa CB4"',
+          '"Coffee Break","Coffee Break 5","$400.00","$7,500.00","TRUE","https://bodasesor.com/catalogos/coffee-break","Estación completa CB5"',
+        ].join("\n")
+      )
+    );
+    const pick = runGuards({
+      aiResponse: "Entendido. Seguimos con lo que ya platicamos.",
+      extracted: emptyExtracted({
+        nombre: "Yolanda Huerta Frey",
+        correo: "Lgc.cancun1@gmail.com",
+        tipo_evento: "corporativo",
+        requerimientos_evento: "Coffee Break",
+        direccion_evento: "Cancun",
+        fecha_horario: "25/08 9:00 am",
+        num_invitados: 100,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "opcion 1",
+      history: hist,
+      presentationHistory: hist,
+    });
+    assert.ok(!/Seguimos con lo que ya platicamos/i.test(pick), pick.slice(0, 300));
+    assert.ok(
+      /Coffee Break 1|Café|galletas|\$\s*120|incluye/i.test(pick),
+      pick.slice(0, 500)
+    );
+    assert.ok(/bodasesor\.com\/catalogos\/coffee-break/i.test(pick), pick.slice(0, 400));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

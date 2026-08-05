@@ -70,7 +70,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
   ["Barra de Café", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
-  ["Coffee break", /\b(coffee\s*break|coffeebreak)\b/i],
+  ["Coffee break", /\b(coffee\s*break|coffeebreak|coffe\s*break)\b/i],
   ["Comida Corrida", /\bcomida\s+corrida\b/i],
   ["Paella", /\bpaellas?\b|\bpaellada\b/i],
   ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
@@ -368,6 +368,10 @@ export function lastAssistantOfferedNumberedPackages(
   return (
     /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) ||
     /\d\.\s*\*?coffee\s*break/i.test(last) ||
+    // A15168: menú corto "paquetes (1 a 5)" / listado CB 1–5.
+    (/coffee\s*break|coffe\s*break/i.test(last) &&
+      (/paquetes?\s*\(?\s*1\s*a\s*5\s*\)?/i.test(last) ||
+        (/coffee\s*break\s*1/i.test(last) && /coffee\s*break\s*5/i.test(last)))) ||
     (/cu[aá]l\s+nivel\s+prefieres/i.test(last) &&
       /coffee\s*break|coffe{1,2}\s*break/i.test(last) &&
       /\$\s*\d/.test(last))
@@ -385,14 +389,14 @@ export function extractCatalogNivelFromText(
   const t = text?.trim().toLowerCase() ?? "";
   if (!t) return null;
 
-  // A14949: "Me interesaría el coffe break 5" / "coffee break 5" / "el 5" tras listar CB 1–5.
+  // A14949 / A15168: "Me interesaría el coffe break 5" / "opción 1" / "el 5" tras listar CB 1–5.
   const coffeeNamed = t.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
   if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
   if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
-    const bare = t.match(/^(?:el\s+)?([1-9])$/i) || t.match(/\bel\s+([1-9])\b/i);
+    const bare = t.match(/^(?:el\s+|la\s+)?([1-9])$/i) || t.match(/\bel\s+([1-9])\b/i);
     if (bare) return `Coffee Break ${bare[1]}`;
-    const nivelN = t.match(/\bnivel\s*([1-9])\b/i);
-    if (nivelN) return `Coffee Break ${nivelN[1]}`;
+    const opcionN = t.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i);
+    if (opcionN) return `Coffee Break ${opcionN[1]}`;
   }
 
   const m =
@@ -416,7 +420,7 @@ export function isCatalogLevelSelection(
   if (!t) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
   const askedNivel =
-    /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles/i.test(
+    /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes/i.test(
       last
     );
   if (!askedNivel) {
@@ -425,7 +429,13 @@ export function isCatalogLevelSelection(
   }
   // Mensaje solo nivel, o compuesto con correo/servicio (A14934 / A14949).
   if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t)) return true;
-  if (/^(?:el\s+)?[1-9]$/i.test(t) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+  if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
+    return true;
+  }
+  if (
+    /\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*[1-9]\b/i.test(t) &&
+    lastAssistantOfferedNumberedPackages(lastAssistantText)
+  ) {
     return true;
   }
   return !!extractCatalogNivelFromText(t, lastAssistantText);
@@ -925,7 +935,7 @@ export function clientMentionsCatering(message?: string): boolean {
     /\btaquiza\b|\btacos?\b/i.test(t) ||
     /\b(brunch|desayuno)\b/i.test(t) ||
     /\bbrunch\s*\/\s*desayuno/i.test(t) ||
-    /\bcoffee\s*break\b/i.test(t) ||
+    /\bcoffee\s*break\b|\bcoffe\s*break\b|\bcoffeebreak\b/i.test(t) ||
     /\bbarra\s+de\s+caf[eé](?!\p{L})/iu.test(t) ||
     // Barras de comida / sushi (form leads y WhatsApp) — misma pista que coffee break.
     /\bbarra\s+de\s+(sushi|pizzas?|alimentos|bebidas?|crepas?|pastas?|mariscos?)\b/i.test(t) ||

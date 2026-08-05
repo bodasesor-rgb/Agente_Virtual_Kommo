@@ -438,7 +438,11 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     clientAsksForCatalog(input.currentMessage) ||
     clientAsksInclusion(input.currentMessage) ||
     clientAsksPrice(input.currentMessage) ||
-    /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info)\b/i.test(
+    // A15168: "opción 1" / "ver las opciones" no debe colapsar a "Seguimos…".
+    /\b(opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|ver\s+(las\s+)?opciones|muestr\w*\s+(las\s+)?opciones)\b/i.test(
+      input.currentMessage ?? ""
+    ) ||
+    /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break)\b/i.test(
       input.currentMessage ?? ""
     );
 

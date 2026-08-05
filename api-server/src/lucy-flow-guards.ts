@@ -1697,7 +1697,20 @@ function buildFoodSalesReply(
         );
         if (merged) extracted.requerimientos_evento = merged;
       }
-      return `${pickTransition(history)} ${optionsFirst.menu}`.trim();
+      // A15168: Coffee Break — menú Sheet con precios/inclusiones + catálogo
+      // (no solo "paquetes 1 a 5" sin significado).
+      let menu = optionsFirst.menu;
+      if (optionsFirst.family === "coffee_break") {
+        const sheetMenu =
+          buildCatalogServiceDetailAnswer("Coffee Break") ||
+          buildCatalogPriceAnswer("Coffee Break");
+        if (sheetMenu && /coffee\s*break\s*[1-5]|manejamos estos niveles|\$\s*\d/i.test(sheetMenu)) {
+          menu = withServiceAndGeneralCatalogLinks(sheetMenu, "Coffee Break", "Coffee Break");
+        } else if (!/bodasesor\.com\/catalogos\/coffee-break/i.test(menu)) {
+          menu = `${menu}\n\nCatálogo:\nhttps://bodasesor.com/catalogos/coffee-break`;
+        }
+      }
+      return `${pickTransition(history)} ${menu}`.trim();
     }
 
     // Tras elegir / pedir detalle → query concreto + detalle + link aparte.
