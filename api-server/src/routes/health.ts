@@ -50,6 +50,8 @@ router.get("/health", async (_req, res) => {
       "aprendizaje-panel-from-chats",
       "lucy-info-pdf-text",
       "llm-gemini-flash-lite",
+      "gemini-vision",
+      "gemini-voice-transcribe",
     ],
     learning: {
       note: "Panel /aprendizaje: chats, huecos Sheet e Información para Lucy (PDF→texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba ≥0.85",
@@ -78,6 +80,8 @@ router.get("/health", async (_req, res) => {
       const key = getOpenAiApiKey();
       return key.startsWith("sk-") ? `${key.slice(0, 8)}…` : null;
     })(),
+    voice_transcriber: llm.voice_transcriber,
+    voice_whisper_fallback: llm.voice_whisper_fallback,
     voice_whisper_available: llm.voice_whisper_available,
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,

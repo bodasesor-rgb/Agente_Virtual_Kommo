@@ -29083,13 +29083,17 @@ function isLlmConfigured() {
   return isOpenAiConfigured();
 }
 function llmConfigSummary() {
+  const gemini = isGeminiConfigured();
+  const openai2 = isOpenAiConfigured();
   return {
     provider: getLlmProvider(),
     model: getChatModel(),
     configured: isLlmConfigured(),
-    gemini_configured: isGeminiConfigured(),
-    openai_configured: isOpenAiConfigured(),
-    voice_whisper_available: isOpenAiConfigured()
+    gemini_configured: gemini,
+    openai_configured: openai2,
+    voice_transcriber: gemini ? "gemini" : openai2 ? "whisper" : "none",
+    voice_whisper_fallback: openai2,
+    voice_whisper_available: openai2
   };
 }
 function missingLlmConfigMessage() {
@@ -107203,6 +107207,10 @@ async function completeWithGemini(opts) {
         if (data) {
           parts2.push({ inlineData: { mimeType, data } });
         }
+      } else if (p4.type === "input_audio") {
+        parts2.push({
+          inlineData: { mimeType: p4.mimeType || "audio/ogg", data: p4.base64 }
+        });
       }
     }
     if (!parts2.length) parts2.push({ text: "" });
@@ -107231,21 +107239,27 @@ async function completeWithGemini(opts) {
 }
 async function completeWithOpenAi(opts) {
   const model = opts.model ?? getChatModel();
-  const openai3 = getOpenAiClient();
+  const openai2 = getOpenAiClient();
   const messages2 = opts.messages.map((m6) => {
     if (typeof m6.content === "string") {
       return { role: m6.role, content: m6.content };
     }
-    const parts2 = m6.content.map((p4) => {
-      if (p4.type === "text") return { type: "text", text: p4.text };
-      return {
-        type: "image_url",
-        image_url: { url: p4.image_url.url }
-      };
-    });
+    const parts2 = [];
+    for (const p4 of m6.content) {
+      if (p4.type === "text") {
+        parts2.push({ type: "text", text: p4.text });
+      } else if (p4.type === "image_url") {
+        parts2.push({ type: "image_url", image_url: { url: p4.image_url.url } });
+      } else if (p4.type === "input_audio") {
+        parts2.push({
+          type: "text",
+          text: "[audio adjunto \u2014 usar Whisper para transcribir]"
+        });
+      }
+    }
     return { role: m6.role, content: parts2 };
   });
-  const completion = await openai3.chat.completions.create({
+  const completion = await openai2.chat.completions.create({
     model,
     messages: messages2,
     temperature: opts.temperature ?? 0.6,
@@ -170907,7 +170921,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.95";
+var LUCY_PROMPT_VERSION = "V8.96";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -171337,7 +171351,9 @@ router.get("/health", async (_req, res) => {
       "knowledge-gaps-aprendizaje",
       "aprendizaje-panel-from-chats",
       "lucy-info-pdf-text",
-      "llm-gemini-flash-lite"
+      "llm-gemini-flash-lite",
+      "gemini-vision",
+      "gemini-voice-transcribe"
     ],
     learning: {
       note: "Panel /aprendizaje: chats, huecos Sheet e Informaci\xF3n para Lucy (PDF\u2192texto + tendencias). Sync Kommo; cron 5 min; auto-aprueba \u22650.85",
@@ -171366,6 +171382,8 @@ router.get("/health", async (_req, res) => {
       const key = getOpenAiApiKey();
       return key.startsWith("sk-") ? `${key.slice(0, 8)}\u2026` : null;
     })(),
+    voice_transcriber: llm.voice_transcriber,
+    voice_whisper_fallback: llm.voice_whisper_fallback,
     voice_whisper_available: llm.voice_whisper_available,
     kommo_configured: isKommoConfigured(),
     kommo_subdomain: getKommoSubdomain() || null,
@@ -177455,8 +177473,62 @@ function detectObjection(text2) {
 // src/services/voiceProcessor.ts
 init_openai();
 init_openaiEnv();
-var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+init_llmChat();
+init_llmEnv();
 var AUDIO_TYPES = /* @__PURE__ */ new Set(["audio", "voice"]);
+var VOICE_TRANSCRIBE_PROMPT = "Transcribe esta nota de voz en espa\xF1ol mexicano. Devuelve SOLO el texto hablado, sin comillas, sin prefijos ni comentarios. Si no se entiende, responde exactamente: [inaudible]";
+function detectAudioMime(contentType, audioUrl) {
+  const ct3 = (contentType || "").split(";")[0]?.trim().toLowerCase() || "";
+  if (ct3.startsWith("audio/")) {
+    if (ct3 === "audio/mpeg") return "audio/mp3";
+    return ct3;
+  }
+  if (/\.mp3(\?|$)/i.test(audioUrl)) return "audio/mp3";
+  if (/\.wav(\?|$)/i.test(audioUrl)) return "audio/wav";
+  if (/\.m4a(\?|$)/i.test(audioUrl)) return "audio/mp4";
+  if (/\.webm(\?|$)/i.test(audioUrl)) return "audio/webm";
+  return "audio/ogg";
+}
+async function transcribeWithGemini(base64, mimeType, log) {
+  const result = await completeChat({
+    model: getChatModel(),
+    temperature: 0,
+    maxTokens: 800,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: VOICE_TRANSCRIBE_PROMPT },
+          { type: "input_audio", mimeType, base64 }
+        ]
+      }
+    ]
+  });
+  const text2 = result.text.trim().replace(/^["«]|["»]$/g, "");
+  if (!text2 || /^\[inaudible\]$/i.test(text2)) {
+    log.warn({ chars: text2.length }, "Gemini no pudo transcribir la nota de voz");
+    return null;
+  }
+  log.info({ chars: text2.length, provider: result.provider }, "Nota de voz transcrita (Gemini)");
+  return text2;
+}
+async function transcribeWithWhisper(audioBuffer, mimeType, log) {
+  if (!isOpenAiConfigured()) return null;
+  const openai2 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+  const ext = mimeType.includes("mpeg") || mimeType.includes("mp3") ? "mp3" : "ogg";
+  const audioBlob = new Blob([audioBuffer], { type: mimeType || "audio/ogg" });
+  const audioFile = new File([audioBlob], `voice.${ext}`, {
+    type: mimeType || "audio/ogg"
+  });
+  const transcription = await openai2.audio.transcriptions.create({
+    file: audioFile,
+    model: "whisper-1",
+    language: "es",
+    response_format: "text"
+  });
+  log.info({ chars: transcription.length }, "Nota de voz transcrita (Whisper fallback)");
+  return transcription;
+}
 async function transcribeVoiceNote(audioUrl, accessToken, log) {
   try {
     const audioResponse = await fetch(audioUrl, {
@@ -177469,17 +177541,19 @@ async function transcribeVoiceNote(audioUrl, accessToken, log) {
       );
       return null;
     }
+    const contentType = audioResponse.headers.get("content-type");
+    const mimeType = detectAudioMime(contentType, audioUrl);
     const audioBuffer = await audioResponse.arrayBuffer();
-    const audioBlob = new Blob([audioBuffer], { type: "audio/ogg" });
-    const audioFile = new File([audioBlob], "voice.ogg", { type: "audio/ogg" });
-    const transcription = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-      language: "es",
-      response_format: "text"
-    });
-    log.info({ chars: transcription.length }, "Nota de voz transcrita exitosamente");
-    return transcription;
+    const base64 = Buffer.from(audioBuffer).toString("base64");
+    if (isGeminiConfigured() || getLlmProvider() === "gemini") {
+      try {
+        const geminiText = await transcribeWithGemini(base64, mimeType, log);
+        if (geminiText) return geminiText;
+      } catch (err2) {
+        log.warn({ err: err2 }, "Gemini fall\xF3 transcribiendo voz \u2014 intento Whisper");
+      }
+    }
+    return await transcribeWithWhisper(audioBuffer, mimeType, log);
   } catch (err2) {
     log.error({ err: err2 }, "Error transcribiendo nota de voz");
     return null;
@@ -177573,13 +177647,11 @@ async function processMessage(message, accessToken, log) {
     if (imageUrl) {
       const analysis = await analyzeImageFull(imageUrl, accessToken, log);
       if (analysis) {
-        const text2 = formatImageTurnText(analysis, caption);
-        const mediaNote = formatImageTeamNote(analysis);
         return {
-          text: text2,
+          text: formatImageTurnText(analysis, caption),
           isVoice: false,
           isImage: true,
-          mediaNote,
+          mediaNote: formatImageTeamNote(analysis, caption),
           imageClientReply: analysis.clientReply,
           imageIntent: analysis.intent
         };
@@ -177587,40 +177659,21 @@ async function processMessage(message, accessToken, log) {
     } else {
       log.warn({ messageKeys: Object.keys(message) }, "Imagen sin URL \u2014 revisar estructura");
     }
+    const fallback = caption?.trim() || "[El cliente envi\xF3 una imagen. Preg\xFAntale qu\xE9 quiere mostrar o cotizar con esa foto.]";
     return {
-      text: caption ? caption : "[El cliente envi\xF3 una imagen pero no se pudo analizar]",
+      text: fallback,
       isVoice: false,
       isImage: true,
-      mediaNote: null,
+      mediaNote: caption?.trim() || null,
       imageClientReply: null,
       imageIntent: null
     };
   }
-  const rawText = message["text"];
-  if (typeof rawText === "string" && rawText.trim()) {
-    return { text: rawText, isVoice: false, isImage: false, mediaNote: null };
-  }
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a3 = att;
-    const attType = String(a3["type"] ?? "");
-    if (attType === "link" || attType === "picture" || attType === "document") {
-      const caption = (typeof a3["text"] === "string" ? a3["text"] : "") || (typeof a3["caption"] === "string" ? a3["caption"] : "") || (typeof a3["title"] === "string" ? a3["title"] : "");
-      if (caption.trim()) return { text: caption.trim(), isVoice: false, isImage: false, mediaNote: null };
-      const url2 = (typeof a3["link"] === "string" ? a3["link"] : "") || (typeof a3["url"] === "string" ? a3["url"] : "");
-      if (url2.trim()) return { text: url2.trim(), isVoice: false, isImage: false, mediaNote: null };
-    }
-  }
-  return { text: "", isVoice: false, isImage: false, mediaNote: null };
+  const text2 = typeof message["text"] === "string" && message["text"] || typeof message["message"] === "string" && message["message"] || "";
+  return { text: text2, isVoice: false, isImage: false, mediaNote: null };
 }
-function getVoiceAcknowledgment(clientName) {
-  const suffix = clientName ? `, ${clientName}` : "";
-  const options = [
-    `Escuch\xE9 tu nota de voz${suffix}. `,
-    `Perfecto, recib\xED tu audio${suffix}. `,
-    `Listo${suffix}, escuch\xE9 tu mensaje. `
-  ];
-  return options[Math.floor(Math.random() * options.length)];
+function getVoiceAcknowledgment() {
+  return "Dame un segundo, estoy escuchando tu nota de voz\u2026";
 }
 
 // src/lib/webhookDedup.ts
@@ -178395,12 +178448,12 @@ async function refinarRespuestaCierre(_openai, borrador) {
   });
   return (result.text || borrador).trim();
 }
-async function maybeRefinarMensajeCierre(openai3, mensaje, opts) {
+async function maybeRefinarMensajeCierre(openai2, mensaje, opts) {
   const { readyForClosing, cierreYaEnviado, closingSignature, catalogUrl } = opts;
   if (!readyForClosing || cierreYaEnviado || !mensaje.includes(closingSignature)) {
     return mensaje;
   }
-  const refined = await refinarRespuestaCierre(openai3, mensaje);
+  const refined = await refinarRespuestaCierre(openai2, mensaje);
   if (!refined.includes(closingSignature)) return mensaje;
   if (catalogUrl && mensaje.includes(catalogUrl) && !refined.includes(catalogUrl)) return mensaje;
   return refined;
@@ -178960,7 +179013,7 @@ async function generateLucyOutbound(input) {
     cierreYaEnviado,
     whatsappDisplayName,
     conversationText,
-    openai: openai3,
+    openai: openai2,
     buildClosing,
     entityId,
     messageCount,
@@ -179001,7 +179054,7 @@ async function generateLucyOutbound(input) {
     messageCount,
     conversationAgeHours
   });
-  let aiResponse = await completeLucyRedaction(openai3, lucyMessages, redactionBriefing);
+  let aiResponse = await completeLucyRedaction(openai2, lucyMessages, redactionBriefing);
   aiResponse = injectCatalogInclusionIfAsked(
     messageText,
     aiResponse,
@@ -179037,7 +179090,7 @@ async function generateLucyOutbound(input) {
     currentMessage: messageText,
     history: fullHistory,
     filledSet: filledLabels,
-    openai: openai3,
+    openai: openai2,
     entityId,
     log
   });
@@ -184963,7 +185016,7 @@ function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLine
 
 // src/routes/kommo.ts
 var router3 = (0, import_express3.Router)();
-var openai2 = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+var openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
 var FIELD = {
   // respuesta_ia (1048772) eliminado de Kommo — no usar o el PATCH falla
   respuesta_ia_largo: 1048786,
@@ -185918,7 +185971,7 @@ async function processBatch(batch, accessToken, log) {
       cierreYaEnviado: cierreYaEnviadoForGuards,
       whatsappDisplayName,
       conversationText,
-      openai: openai2,
+      openai,
       buildClosing: buildClosingMessage,
       entityId,
       messageCount,
@@ -186494,7 +186547,7 @@ router3.post("/kommo/salesbot", async (req, res) => {
       cierreYaEnviado: sbCierreYaEnviado,
       whatsappDisplayName,
       conversationText,
-      openai: openai2,
+      openai,
       buildClosing: buildClosingMessage,
       entityId,
       log
@@ -186852,7 +186905,7 @@ router3.post("/kommo/simulator", async (req, res) => {
       cierreYaEnviado: simCierreYaEnviado,
       whatsappDisplayName,
       conversationText,
-      openai: openai2,
+      openai,
       buildClosing: buildClosingMessage,
       entityId: leadId,
       log

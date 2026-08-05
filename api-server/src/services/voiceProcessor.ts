@@ -1,5 +1,7 @@
 import OpenAI from "openai";
-import { getOpenAiApiKeyForClient } from "../lib/openaiEnv.js";
+import { getOpenAiApiKeyForClient, isOpenAiConfigured } from "../lib/openaiEnv.js";
+import { completeChat } from "../lib/llmChat.js";
+import { getChatModel, getLlmProvider, isGeminiConfigured } from "../lib/llmEnv.js";
 import {
   isImageMessage,
   getImageUrl,
@@ -11,13 +13,79 @@ import {
 } from "./imageProcessor.js";
 import type pino from "pino";
 
-const openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
-
 type Log = pino.Logger;
 type Msg = Record<string, unknown>;
 type Att = Record<string, unknown>;
 
 const AUDIO_TYPES = new Set(["audio", "voice"]);
+
+const VOICE_TRANSCRIBE_PROMPT =
+  "Transcribe esta nota de voz en español mexicano. Devuelve SOLO el texto hablado, " +
+  "sin comillas, sin prefijos ni comentarios. Si no se entiende, responde exactamente: [inaudible]";
+
+function detectAudioMime(contentType: string | null, audioUrl: string): string {
+  const ct = (contentType || "").split(";")[0]?.trim().toLowerCase() || "";
+  if (ct.startsWith("audio/")) {
+    if (ct === "audio/mpeg") return "audio/mp3";
+    return ct;
+  }
+  if (/\.mp3(\?|$)/i.test(audioUrl)) return "audio/mp3";
+  if (/\.wav(\?|$)/i.test(audioUrl)) return "audio/wav";
+  if (/\.m4a(\?|$)/i.test(audioUrl)) return "audio/mp4";
+  if (/\.webm(\?|$)/i.test(audioUrl)) return "audio/webm";
+  // WhatsApp / Kommo suelen mandar ogg/opus
+  return "audio/ogg";
+}
+
+async function transcribeWithGemini(
+  base64: string,
+  mimeType: string,
+  log: Log
+): Promise<string | null> {
+  const result = await completeChat({
+    model: getChatModel(),
+    temperature: 0,
+    maxTokens: 800,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: VOICE_TRANSCRIBE_PROMPT },
+          { type: "input_audio", mimeType, base64 },
+        ],
+      },
+    ],
+  });
+  const text = result.text.trim().replace(/^["«]|["»]$/g, "");
+  if (!text || /^\[inaudible\]$/i.test(text)) {
+    log.warn({ chars: text.length }, "Gemini no pudo transcribir la nota de voz");
+    return null;
+  }
+  log.info({ chars: text.length, provider: result.provider }, "Nota de voz transcrita (Gemini)");
+  return text;
+}
+
+async function transcribeWithWhisper(
+  audioBuffer: ArrayBuffer,
+  mimeType: string,
+  log: Log
+): Promise<string | null> {
+  if (!isOpenAiConfigured()) return null;
+  const openai = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+  const ext = mimeType.includes("mpeg") || mimeType.includes("mp3") ? "mp3" : "ogg";
+  const audioBlob = new Blob([audioBuffer], { type: mimeType || "audio/ogg" });
+  const audioFile = new File([audioBlob], `voice.${ext}`, {
+    type: mimeType || "audio/ogg",
+  });
+  const transcription = (await openai.audio.transcriptions.create({
+    file: audioFile,
+    model: "whisper-1",
+    language: "es",
+    response_format: "text",
+  })) as unknown as string;
+  log.info({ chars: transcription.length }, "Nota de voz transcrita (Whisper fallback)");
+  return transcription;
+}
 
 // ─── Core functions ───────────────────────────────────────────────────────────
 
@@ -39,19 +107,22 @@ export async function transcribeVoiceNote(
       return null;
     }
 
+    const contentType = audioResponse.headers.get("content-type");
+    const mimeType = detectAudioMime(contentType, audioUrl);
     const audioBuffer = await audioResponse.arrayBuffer();
-    const audioBlob = new Blob([audioBuffer], { type: "audio/ogg" });
-    const audioFile = new File([audioBlob], "voice.ogg", { type: "audio/ogg" });
+    const base64 = Buffer.from(audioBuffer).toString("base64");
 
-    const transcription = (await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-      language: "es",
-      response_format: "text",
-    })) as unknown as string;
+    // Preferir Gemini (mismo proveedor que chat/visión). Whisper solo si Gemini falla.
+    if (isGeminiConfigured() || getLlmProvider() === "gemini") {
+      try {
+        const geminiText = await transcribeWithGemini(base64, mimeType, log);
+        if (geminiText) return geminiText;
+      } catch (err) {
+        log.warn({ err }, "Gemini falló transcribiendo voz — intento Whisper");
+      }
+    }
 
-    log.info({ chars: transcription.length }, "Nota de voz transcrita exitosamente");
-    return transcription;
+    return await transcribeWithWhisper(audioBuffer, mimeType, log);
   } catch (err) {
     log.error({ err }, "Error transcribiendo nota de voz");
     return null;
@@ -180,13 +251,11 @@ export async function processMessage(
     if (imageUrl) {
       const analysis = await analyzeImageFull(imageUrl, accessToken, log);
       if (analysis) {
-        const text = formatImageTurnText(analysis, caption);
-        const mediaNote = formatImageTeamNote(analysis);
         return {
-          text,
+          text: formatImageTurnText(analysis, caption),
           isVoice: false,
           isImage: true,
-          mediaNote,
+          mediaNote: formatImageTeamNote(analysis, caption),
           imageClientReply: analysis.clientReply,
           imageIntent: analysis.intent,
         };
@@ -194,56 +263,27 @@ export async function processMessage(
     } else {
       log.warn({ messageKeys: Object.keys(message) }, "Imagen sin URL — revisar estructura");
     }
+    const fallback =
+      caption?.trim() ||
+      "[El cliente envió una imagen. Pregúntale qué quiere mostrar o cotizar con esa foto.]";
     return {
-      text: caption
-        ? caption
-        : "[El cliente envió una imagen pero no se pudo analizar]",
+      text: fallback,
       isVoice: false,
       isImage: true,
-      mediaNote: null,
+      mediaNote: caption?.trim() || null,
       imageClientReply: null,
       imageIntent: null,
     };
   }
 
-  // Primary: plain text field
-  const rawText = message["text"];
-  if (typeof rawText === "string" && rawText.trim()) {
-    return { text: rawText, isVoice: false, isImage: false, mediaNote: null };
-  }
-
-  // Fallback: Kommo sometimes sends URL-rich messages as a "link" type attachment
-  // with the user's caption in attachment.text or attachment.title
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a = att as Att;
-    const attType = String(a["type"] ?? "");
-    if (attType === "link" || attType === "picture" || attType === "document") {
-      const caption =
-        (typeof a["text"] === "string" ? a["text"] : "") ||
-        (typeof a["caption"] === "string" ? a["caption"] : "") ||
-        (typeof a["title"] === "string" ? a["title"] : "");
-      if (caption.trim()) return { text: caption.trim(), isVoice: false, isImage: false, mediaNote: null };
-
-      // If there is a URL but no caption, return the URL so Lucy sees something
-      const url =
-        (typeof a["link"] === "string" ? a["link"] : "") ||
-        (typeof a["url"] === "string" ? a["url"] : "");
-      if (url.trim()) return { text: url.trim(), isVoice: false, isImage: false, mediaNote: null };
-    }
-  }
-
-  return { text: "", isVoice: false, isImage: false, mediaNote: null };
+  const text =
+    (typeof message["text"] === "string" && message["text"]) ||
+    (typeof message["message"] === "string" && message["message"]) ||
+    "";
+  return { text, isVoice: false, isImage: false, mediaNote: null };
 }
 
-export { getImageAcknowledgment } from "./imageProcessor.js";
-
-export function getVoiceAcknowledgment(clientName?: string): string {
-  const suffix = clientName ? `, ${clientName}` : "";
-  const options = [
-    `Escuché tu nota de voz${suffix}. `,
-    `Perfecto, recibí tu audio${suffix}. `,
-    `Listo${suffix}, escuché tu mensaje. `,
-  ];
-  return options[Math.floor(Math.random() * options.length)]!;
+/** Frase corta mientras se procesa audio (si el webhook responde en dos tiempos). */
+export function getVoiceAcknowledgment(): string {
+  return "Dame un segundo, estoy escuchando tu nota de voz…";
 }

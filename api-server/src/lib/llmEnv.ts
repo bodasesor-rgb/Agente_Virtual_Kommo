@@ -1,6 +1,6 @@
 /**
  * Proveedor LLM de Lucy: Gemini (default) u OpenAI (fallback).
- * Voz (Whisper) sigue en OpenAI si hay OPEN_AI.
+ * Chat, visión e imágenes = Gemini. Notas de voz = Gemini primero; Whisper solo fallback.
  */
 
 import { getOpenAiApiKey, isOpenAiConfigured } from "./openaiEnv.js";
@@ -70,15 +70,23 @@ export function llmConfigSummary(): {
   configured: boolean;
   gemini_configured: boolean;
   openai_configured: boolean;
+  /** Transcripción: Gemini primero; Whisper solo fallback si hay OPEN_AI. */
+  voice_transcriber: "gemini" | "whisper" | "none";
+  voice_whisper_fallback: boolean;
+  /** @deprecated usar voice_transcriber / voice_whisper_fallback */
   voice_whisper_available: boolean;
 } {
+  const gemini = isGeminiConfigured();
+  const openai = isOpenAiConfigured();
   return {
     provider: getLlmProvider(),
     model: getChatModel(),
     configured: isLlmConfigured(),
-    gemini_configured: isGeminiConfigured(),
-    openai_configured: isOpenAiConfigured(),
-    voice_whisper_available: isOpenAiConfigured(),
+    gemini_configured: gemini,
+    openai_configured: openai,
+    voice_transcriber: gemini ? "gemini" : openai ? "whisper" : "none",
+    voice_whisper_fallback: openai,
+    voice_whisper_available: openai,
   };
 }
 

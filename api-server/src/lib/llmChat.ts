@@ -24,8 +24,14 @@ export type ChatImagePart = {
   /** base64 sin data: prefix */
   base64?: string;
 };
+export type ChatAudioPart = {
+  type: "input_audio";
+  mimeType: string;
+  /** base64 sin data: prefix */
+  base64: string;
+};
 
-export type ChatContent = string | Array<ChatTextPart | ChatImagePart>;
+export type ChatContent = string | Array<ChatTextPart | ChatImagePart | ChatAudioPart>;
 
 export interface ChatMessage {
   role: ChatRole;
@@ -117,6 +123,10 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
         if (data) {
           parts.push({ inlineData: { mimeType, data } });
         }
+      } else if (p.type === "input_audio") {
+        parts.push({
+          inlineData: { mimeType: p.mimeType || "audio/ogg", data: p.base64 },
+        });
       }
     }
     if (!parts.length) parts.push({ text: "" });
@@ -156,13 +166,20 @@ async function completeWithOpenAi(opts: CompleteChatOptions): Promise<CompleteCh
     if (typeof m.content === "string") {
       return { role: m.role, content: m.content };
     }
-    const parts: OpenAI.Chat.ChatCompletionContentPart[] = m.content.map((p) => {
-      if (p.type === "text") return { type: "text" as const, text: p.text };
-      return {
-        type: "image_url" as const,
-        image_url: { url: p.image_url.url },
-      };
-    });
+    const parts: OpenAI.Chat.ChatCompletionContentPart[] = [];
+    for (const p of m.content) {
+      if (p.type === "text") {
+        parts.push({ type: "text", text: p.text });
+      } else if (p.type === "image_url") {
+        parts.push({ type: "image_url", image_url: { url: p.image_url.url } });
+      } else if (p.type === "input_audio") {
+        // OpenAI chat no acepta audio inline aquí — Whisper es el fallback de voz.
+        parts.push({
+          type: "text",
+          text: "[audio adjunto — usar Whisper para transcribir]",
+        });
+      }
+    }
     return { role: m.role, content: parts } as OpenAI.Chat.ChatCompletionMessageParam;
   });
 
