@@ -1601,13 +1601,16 @@ async function runAll(): Promise<void> {
     assert.ok(!isValidRequerimientosValue("bautizo"));
     assert.ok(isValidRequerimientosValue("servicio completo"));
 
+    // A15164: Rodrigo/Alejandro son nombres de cliente válidos — no purgar del CRM.
     const dirty = sanitizeKommoCrmLines([
       "- Nombre del cliente: Rodrigo",
       "- Tipo de evento: bautizo",
       "- Requerimientos o servicios: bautizo",
     ]);
-    assert.equal(dirty.length, 1);
-    assert.ok(/bautizo/i.test(dirty[0] ?? ""));
+    assert.equal(dirty.length, 2);
+    assert.ok(dirty.some((l) => /Nombre del cliente:\s*Rodrigo/i.test(l)));
+    assert.ok(dirty.some((l) => /Tipo de evento:\s*bautizo/i.test(l)));
+    assert.ok(!dirty.some((l) => /Requerimientos/i.test(l)));
 
     const leaked =
       "Perfecto. Información completa obtenida.\n\nDATOS DEL CLIENTE:\n- Nombre: Alejandro";
@@ -8187,7 +8190,7 @@ async function runAll(): Promise<void> {
 
   // ─── 121. V8.93 — voz humana: preferir OpenAI sobre dump de plantilla ───
   await test("121. V8.93 — voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.ok(/^V8\.9[3456]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V8\.9[34567]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
 
@@ -8240,7 +8243,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.96");
+    assert.equal(LUCY_PROMPT_VERSION, "V8.97");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8284,6 +8287,76 @@ async function runAll(): Promise<void> {
       if (prevOpenAi === undefined) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = prevOpenAi;
     }
+  });
+
+  // ─── 123. A15164 — cliente Alejandro: capturar nombre y no re-preguntar ───
+  await test("123. A15164 — Alejandro/Hola Alejandro se capturan; queja no re-pide nombre", () => {
+    assert.equal(sanitizeCrmNombre("Alejandro"), "Alejandro");
+    assert.equal(sanitizeCrmNombre("Hola, Alejandro"), "Alejandro");
+    assert.equal(sanitizeCrmNombre("Soy Alejandro"), "Alejandro");
+    assert.equal(sanitizeDisplayName("Alejandro"), "Alejandro");
+    assert.equal(sanitizeCrmNombre("Ya te lo dije 3 veces"), null);
+
+    const hist: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "assistant", content: "¿Cómo te llamas?" },
+      { role: "user", content: "Hola, Alejandro" },
+    ];
+    assert.equal(recoverClienteNombreFromHistory(hist, "Alejandro"), "Alejandro");
+    assert.equal(recoverClienteNombreFromHistory(hist, undefined), "Alejandro");
+
+    // Tras decir el nombre, Lucy debe avanzar (correo), no volver a pedir nombre.
+    const filled = new Set<string>();
+    const extracted = emptyExtracted();
+    const afterName = runGuards({
+      aiResponse: "¿Me regalas tu nombre para iniciar?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Alejandro",
+      history: [{ role: "assistant", content: "¿Cómo te llamas?" }],
+    });
+    assert.equal(extracted.nombre, "Alejandro");
+    assert.ok(filled.has("Nombre del cliente"));
+    assert.ok(!/c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(afterName), afterName);
+    assert.ok(/correo|e-?mail|gusto/i.test(afterName), afterName);
+
+    // Queja de repetición con historial: ack con nombre y siguiente campo, no nombre otra vez.
+    const filled2 = new Set<string>();
+    const extracted2 = emptyExtracted();
+    const afterComplaint = runGuards({
+      aiResponse: "¿Cómo te llamas?",
+      extracted: extracted2,
+      filledSet: filled2,
+      readyForClosing: false,
+      currentMessage: "Ya te lo dije 3 veces",
+      history: [
+        { role: "assistant", content: "¿Cómo te llamas?" },
+        { role: "user", content: "Alejandro" },
+        { role: "assistant", content: "¿Con quién tengo el gusto?" },
+        { role: "user", content: "Alejandro" },
+        { role: "assistant", content: "¿Me regalas tu nombre para iniciar?" },
+      ],
+    });
+    assert.equal(extracted2.nombre, "Alejandro");
+    assert.ok(/Perfecto/i.test(afterComplaint), afterComplaint);
+    assert.ok(
+      !/regalas\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo/i.test(afterComplaint),
+      afterComplaint
+    );
+
+    // CRM: Alejandro/Rodrigo no se purgan; Lucy sí.
+    const crmOk = sanitizeKommoCrmLines(["- Nombre del cliente: Alejandro"]);
+    assert.equal(crmOk.length, 1);
+    const crmLucy = sanitizeKommoCrmLines(["- Nombre del cliente: Lucy"]);
+    assert.equal(crmLucy.length, 0);
+
+    // Outbound: seguir saludando al cliente Alejandro; handoff = nuestro equipo.
+    const norm = normalizeAdvisorReferences(
+      "Mucho gusto, Alejandro. Le paso estos datos a Alejandro para la cotización.",
+      "Alejandro"
+    );
+    assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm), norm);
+    assert.ok(/nuestro equipo/i.test(norm), norm);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

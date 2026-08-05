@@ -8,7 +8,6 @@ import {
   sanitizeCrmNombre,
 } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail } from "../client-email.js";
-import { isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { resolveTipoContacto } from "../tipoContacto.js";
 import {
   isDimensionText,
@@ -51,12 +50,15 @@ export function purgeDimensionUbicacionLines(lines: string[]): string[] {
   });
 }
 
-/** Nombres basura del CRM ("Quiero cotización", saludos, placeholders, nombres del equipo). */
+/**
+ * Nombres basura del CRM ("Quiero cotización", saludos, placeholders, Lucy/bot).
+ * A15164: NO purgar Alejandro/Rodrigo — son nombres de cliente válidos.
+ * El bootstrap frío de lead.name sigue usando isStaffAdvisorName en kommo.ts.
+ */
 export function purgeInvalidNombreLines(lines: string[]): string[] {
   return lines.filter((line) => {
     if (!/^-?\s*Nombre del cliente:/i.test(line)) return true;
     const raw = lineValue(line, "Nombre del cliente");
-    if (isStaffAdvisorName(raw)) return false;
     return !!sanitizeCrmNombre(raw) && !isQuoteIntentMessage(raw);
   });
 }

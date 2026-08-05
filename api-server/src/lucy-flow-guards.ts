@@ -2348,6 +2348,18 @@ export function enforceNombreFirst(
     if (recovered) {
       filledSet.add("Nombre del cliente");
       extracted.nombre = recovered;
+      // A15164: si el modelo sigue pidiendo nombre, avanzar al siguiente dato.
+      if (
+        mensajeAsksForField(_mensaje, "nombre") ||
+        /\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo)\b/i.test(
+          _mensaje
+        )
+      ) {
+        const pending = getNextPendingField(extracted, filledSet);
+        if (pending && pending !== "nombre") {
+          return buildNaturalQuestion(pending, ctx);
+        }
+      }
       return stripRepeatLucyIntro(_mensaje, presHistory, true);
     }
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
@@ -3933,6 +3945,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   syncFilledFromExtracted(filledSet, extracted);
 
+  // A15164: recuperar nombre del historial/mensaje actual antes del embudo.
+  if (!isFieldSatisfied("nombre", filledSet, extracted)) {
+    const recoveredNombre = recoverClienteNombreFromHistory(presHistory, currentMessage);
+    if (recoveredNombre) {
+      extracted.nombre = recoveredNombre;
+      filledSet.add("Nombre del cliente");
+      log?.info({ entityId, recoveredNombre }, "GUARD: A15164 — nombre recuperado al inicio");
+    }
+  }
+
   // A15007: correo no es CF durable — recuperar del historial ANTES del embudo.
   if (!isEmailSatisfied(filledSet, extracted)) {
     const recovered = recoverCorreoFromUserTexts(
@@ -3958,6 +3980,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const referential = isReferentialPriorAnswer(msgEarly);
     const complains = clientComplainsAboutRepeat(msgEarly);
     if (msgEarly && (referential || complains)) {
+      // A15164: recuperar nombre del historial antes del ack (nunca re-preguntar nombre).
+      if (!isFieldSatisfied("nombre", filledSet, extracted)) {
+        const recoveredNombre = recoverClienteNombreFromHistory(presHistory, undefined);
+        if (recoveredNombre) {
+          extracted.nombre = recoveredNombre;
+          filledSet.add("Nombre del cliente");
+          log?.info(
+            { entityId, recoveredNombre },
+            "GUARD: A15164 — nombre recuperado tras queja/referencia"
+          );
+        }
+      }
       if (
         (askedEarly === "correo" ||
           (lastAsstEarly &&
@@ -6734,8 +6768,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (
-    mensajeAsksForField(mensaje, "nombre") &&
-    isFieldSatisfied("nombre", filledSet, extracted)
+    isFieldSatisfied("nombre", filledSet, extracted) &&
+    (mensajeAsksForField(mensaje, "nombre") ||
+      /\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo)\b/i.test(
+        mensaje
+      ))
   ) {
     const pendingNombre = getNextPendingField(extracted, filledSet);
     if (pendingNombre && pendingNombre !== "nombre") {

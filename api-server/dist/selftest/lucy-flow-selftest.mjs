@@ -26724,7 +26724,10 @@ var PLACEHOLDER_PATTERNS = [
 ];
 var GREETING_NAME_PATTERN = /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
 var COMPANY_OR_CHANNEL_PATTERN = /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
-var BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|alejandro|rodrigo|salesbot)$/i;
+var BOT_OR_META_NAME_TOKEN = /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
+function isRepeatComplaintAsName(text) {
+  return /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé])\b/i.test(text) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(text) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(text) || /\bya\s+respond[ií]\b/i.test(text);
+}
 var CATALOG_LEVEL_OR_BRAND_NAME = /^(premium|b[aá]sic[ao]|tradicional|solo\s*alimentos?|deluxe|vip|gold|silver|platinum|business|premium\s*events?)$/i;
 function isGreetingToLucy(text) {
   return /^(hola|hello|hi|hey)[,!]?\s+lucy\b/i.test(text.trim());
@@ -26784,6 +26787,7 @@ function isLikelyNotPersonNameMessage(text) {
   const t2 = text?.trim() ?? "";
   if (!t2) return true;
   if (isGreetingToLucy(t2)) return true;
+  if (isRepeatComplaintAsName(t2)) return true;
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t2)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t2) && t2.split(/\s+/).length <= 5) return false;
   if (/\?/.test(t2)) return true;
@@ -26867,6 +26871,7 @@ function sanitizeCrmNombre(name) {
   if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
+  if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
   const strippedHandoff = raw.replace(/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/gi, " ").replace(/\b(hablar|asesor|agente|humano)\b/gi, " ").replace(/\s+/g, " ").trim();
   if (strippedHandoff && strippedHandoff !== raw && strippedHandoff.length >= 2) {
@@ -53922,6 +53927,14 @@ function enforceNombreFirst(_mensaje, filledSet, extracted, ctx, forceFirstPrese
     if (recovered) {
       filledSet.add("Nombre del cliente");
       extracted.nombre = recovered;
+      if (mensajeAsksForField(_mensaje, "nombre") || /\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo)\b/i.test(
+        _mensaje
+      )) {
+        const pending2 = getNextPendingField(extracted, filledSet);
+        if (pending2 && pending2 !== "nombre") {
+          return buildNaturalQuestion(pending2, ctx);
+        }
+      }
       return stripRepeatLucyIntro(_mensaje, presHistory, true);
     }
     if (isAffirmativeOnlyMessage(ctx.currentMessage)) {
@@ -54865,6 +54878,14 @@ function applyLucyMessageGuards(input) {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  if (!isFieldSatisfied("nombre", filledSet, extracted)) {
+    const recoveredNombre = recoverClienteNombreFromHistory(presHistory, currentMessage);
+    if (recoveredNombre) {
+      extracted.nombre = recoveredNombre;
+      filledSet.add("Nombre del cliente");
+      log?.info({ entityId, recoveredNombre }, "GUARD: A15164 \u2014 nombre recuperado al inicio");
+    }
+  }
   if (!isEmailSatisfied(filledSet, extracted)) {
     const recovered = recoverCorreoFromUserTexts(
       collectUserTexts(presHistory, currentMessage),
@@ -54883,6 +54904,17 @@ function applyLucyMessageGuards(input) {
     const referential = isReferentialPriorAnswer(msgEarly);
     const complains = clientComplainsAboutRepeat(msgEarly);
     if (msgEarly && (referential || complains)) {
+      if (!isFieldSatisfied("nombre", filledSet, extracted)) {
+        const recoveredNombre = recoverClienteNombreFromHistory(presHistory, void 0);
+        if (recoveredNombre) {
+          extracted.nombre = recoveredNombre;
+          filledSet.add("Nombre del cliente");
+          log?.info(
+            { entityId, recoveredNombre },
+            "GUARD: A15164 \u2014 nombre recuperado tras queja/referencia"
+          );
+        }
+      }
       if ((askedEarly === "correo" || lastAsstEarly && /correo|e-?mail|mandarte la info|te lo env[ií]o/i.test(
         lastAsstEarly.content
       )) && !isEmailSatisfied(filledSet, extracted)) {
@@ -56776,7 +56808,9 @@ ${buildNaturalQuestion(pendingFinal, ctx)}`;
       log?.info({ entityId }, "GUARD: segunda pregunta de fecha \u2014 variante corta");
     }
   }
-  if (mensajeAsksForField(mensaje, "nombre") && isFieldSatisfied("nombre", filledSet, extracted)) {
+  if (isFieldSatisfied("nombre", filledSet, extracted) && (mensajeAsksForField(mensaje, "nombre") || /\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo)\b/i.test(
+    mensaje
+  ))) {
     const pendingNombre = getNextPendingField(extracted, filledSet);
     if (pendingNombre && pendingNombre !== "nombre") {
       mensaje = buildNaturalQuestion(pendingNombre, ctx);
@@ -57930,7 +57964,6 @@ function purgeInvalidNombreLines(lines) {
   return lines.filter((line) => {
     if (!/^-?\s*Nombre del cliente:/i.test(line)) return true;
     const raw = lineValue(line, "Nombre del cliente");
-    if (isStaffAdvisorName(raw)) return false;
     return !!sanitizeCrmNombre(raw) && !isQuoteIntentMessage(raw);
   });
 }
@@ -58142,7 +58175,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V8.96";
+var LUCY_PROMPT_VERSION = "V8.97";
 
 // src/selftest/lucy-flow-selftest.ts
 var CATALOG_URL2 = "https://bodasesor.com/catalogos";
@@ -59279,8 +59312,10 @@ async function runAll() {
       "- Tipo de evento: bautizo",
       "- Requerimientos o servicios: bautizo"
     ]);
-    assert.equal(dirty.length, 1);
-    assert.ok(/bautizo/i.test(dirty[0] ?? ""));
+    assert.equal(dirty.length, 2);
+    assert.ok(dirty.some((l) => /Nombre del cliente:\s*Rodrigo/i.test(l)));
+    assert.ok(dirty.some((l) => /Tipo de evento:\s*bautizo/i.test(l)));
+    assert.ok(!dirty.some((l) => /Requerimientos/i.test(l)));
     const leaked = "Perfecto. Informaci\xF3n completa obtenida.\n\nDATOS DEL CLIENTE:\n- Nombre: Alejandro";
     const clean = stripInternalCrmBlock(leaked);
     assert.ok(!/DATOS DEL CLIENTE/i.test(clean));
@@ -65136,7 +65171,7 @@ ${golfText}`,
     assert.ok(qty && /900|sillas/i.test(qty), qty ?? "");
   });
   await test("121. V8.93 \u2014 voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.ok(/^V8\.9[3456]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V8\.9[34567]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
     const humanEnt = "Claro, Bakar. Anoto un show de grupo vers\xE1til para tu evento del 18 de diciembre. Es entretenimiento (no catering). \xBFMe confirmas si es corporativo y en qu\xE9 sede ser\xEDa?";
@@ -65177,7 +65212,7 @@ ${golfText}`,
     assert.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.96");
+    assert.equal(LUCY_PROMPT_VERSION, "V8.97");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -65218,6 +65253,65 @@ ${golfText}`,
       if (prevOpenAi === void 0) delete process.env.OPENAI_API_KEY;
       else process.env.OPENAI_API_KEY = prevOpenAi;
     }
+  });
+  await test("123. A15164 \u2014 Alejandro/Hola Alejandro se capturan; queja no re-pide nombre", () => {
+    assert.equal(sanitizeCrmNombre("Alejandro"), "Alejandro");
+    assert.equal(sanitizeCrmNombre("Hola, Alejandro"), "Alejandro");
+    assert.equal(sanitizeCrmNombre("Soy Alejandro"), "Alejandro");
+    assert.equal(sanitizeDisplayName("Alejandro"), "Alejandro");
+    assert.equal(sanitizeCrmNombre("Ya te lo dije 3 veces"), null);
+    const hist = [
+      { role: "assistant", content: "\xBFC\xF3mo te llamas?" },
+      { role: "user", content: "Hola, Alejandro" }
+    ];
+    assert.equal(recoverClienteNombreFromHistory(hist, "Alejandro"), "Alejandro");
+    assert.equal(recoverClienteNombreFromHistory(hist, void 0), "Alejandro");
+    const filled = /* @__PURE__ */ new Set();
+    const extracted = emptyExtracted();
+    const afterName = runGuards({
+      aiResponse: "\xBFMe regalas tu nombre para iniciar?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Alejandro",
+      history: [{ role: "assistant", content: "\xBFC\xF3mo te llamas?" }]
+    });
+    assert.equal(extracted.nombre, "Alejandro");
+    assert.ok(filled.has("Nombre del cliente"));
+    assert.ok(!/c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(afterName), afterName);
+    assert.ok(/correo|e-?mail|gusto/i.test(afterName), afterName);
+    const filled2 = /* @__PURE__ */ new Set();
+    const extracted2 = emptyExtracted();
+    const afterComplaint = runGuards({
+      aiResponse: "\xBFC\xF3mo te llamas?",
+      extracted: extracted2,
+      filledSet: filled2,
+      readyForClosing: false,
+      currentMessage: "Ya te lo dije 3 veces",
+      history: [
+        { role: "assistant", content: "\xBFC\xF3mo te llamas?" },
+        { role: "user", content: "Alejandro" },
+        { role: "assistant", content: "\xBFCon qui\xE9n tengo el gusto?" },
+        { role: "user", content: "Alejandro" },
+        { role: "assistant", content: "\xBFMe regalas tu nombre para iniciar?" }
+      ]
+    });
+    assert.equal(extracted2.nombre, "Alejandro");
+    assert.ok(/Perfecto/i.test(afterComplaint), afterComplaint);
+    assert.ok(
+      !/regalas\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo/i.test(afterComplaint),
+      afterComplaint
+    );
+    const crmOk = sanitizeKommoCrmLines(["- Nombre del cliente: Alejandro"]);
+    assert.equal(crmOk.length, 1);
+    const crmLucy = sanitizeKommoCrmLines(["- Nombre del cliente: Lucy"]);
+    assert.equal(crmLucy.length, 0);
+    const norm2 = normalizeAdvisorReferences(
+      "Mucho gusto, Alejandro. Le paso estos datos a Alejandro para la cotizaci\xF3n.",
+      "Alejandro"
+    );
+    assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm2), norm2);
+    assert.ok(/nuestro equipo/i.test(norm2), norm2);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
