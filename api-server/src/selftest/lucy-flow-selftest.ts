@@ -271,6 +271,8 @@ import {
   resetWebhookDedupForTests,
 } from "../lib/webhookDedup.js";
 import type { ExtractedData } from "../types.js";
+import { SYSTEM_PROMPT } from "../lucy-prompt.js";
+import { LUCY_PROMPT_VERSION } from "../lib/lucyRelease.js";
 
 const CATALOG_URL = "https://bodasesor.com/catalogos";
 
@@ -8175,10 +8177,62 @@ async function runAll(): Promise<void> {
     assert.ok(qty && /900|sillas/i.test(qty), qty ?? "");
   });
 
+  // ─── 121. V8.93 — voz humana: preferir OpenAI sobre dump de plantilla ───
+  await test("121. V8.93 — voz humana preferida + cierre sin upsell + prompt", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V8.93");
+    assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
+    assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
+
+    // Entretenimiento: si OpenAI ya orientó bien, no sustituir por dump de plantilla.
+    const humanEnt =
+      "Claro, Bakar. Anoto un show de grupo versátil para tu evento del 18 de diciembre. " +
+      "Es entretenimiento (no catering). ¿Me confirmas si es corporativo y en qué sede sería?";
+    const entReply = runGuards({
+      aiResponse: humanEnt,
+      extracted: emptyExtracted({
+        nombre: "Bakar",
+        correo: "compras1@scabakar.com",
+        tipo_evento: "evento corporativo",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+      ]),
+      readyForClosing: false,
+      currentMessage:
+        "requerimos un show de grupo versatil para el dia 18 de diciembre a las 20:00 horas para un grupo de 30 personas",
+      history: [{ role: "assistant", content: "¿Qué servicios te gustaría cotizar?" }],
+    });
+    assert.ok(/show de grupo vers[aá]til/i.test(entReply), entReply.slice(0, 400));
+    assert.ok(
+      !/happening, espejos, l[aá]ser y m[aá]s opciones/i.test(entReply),
+      `no dump show: ${entReply.slice(0, 400)}`
+    );
+
+    // Cierre: sin empujar mobiliario/DJ al cerrar.
+    const closing = buildStandardClosingMessage("banquete", "Ana");
+    assert.ok(/Perfecto, ya tengo todo/i.test(closing), closing);
+    assert.ok(!/Si quieres sumar/i.test(closing), closing);
+    assert.ok(!/DJ o iluminaci/i.test(closing), closing);
+
+    // Menú progresivo formal/casual sigue ganando sobre dump de AI.
+    const progressive = runGuards({
+      aiResponse: "Te paso Banquete Formal 3 tiempos a $500 e incluye…",
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage:
+        "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. ¿Me pueden dar información?",
+      forceFirstPresentation: true,
+    });
+    assert.ok(/formal|casual/i.test(progressive), progressive.slice(0, 400));
+    assert.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }
-
 function ALGO_MAS_OR_EMPTY(msg: string): boolean {
   return /\b(algo\s+m[aá]s|alg[uú]n\s+otro\s+servicio)\b/i.test(msg);
 }

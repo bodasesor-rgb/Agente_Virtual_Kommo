@@ -232,14 +232,14 @@ export function buildGuardServiceAck(query: string): string {
     );
   }
 
-  // Carpas / pista / tarima: responder de verdad + pedir agregar + medidas (María A14906).
+  // Carpas: sí + tipos como referencia + medidas (sin volcar brochure).
   if (clientMentionsCarpas(query)) {
     const team = advisorLabelForClient();
     const transparent = /transparent/i.test(query);
     const head = transparent
-      ? "Sí, contamos con *carpas transparentes* (y también Cathedral, Pirámide y Planas)."
-      : "Sí, manejamos carpas para jardín o terraza: Cathedral, Pirámide, Planas y transparentes.";
-    return `${head} Se cotizan según medidas, montaje y sede. ${team} arma el precio. ¿Quieres que las agregue a tu cotización? ¿Qué medidas aproximadas necesitas?`;
+      ? "Sí, contamos con *carpas transparentes* (también Cathedral, Pirámide y Planas)."
+      : "Sí, manejamos carpas (Cathedral, Pirámide, Planas y transparentes).";
+    return `${head} Se cotizan según medidas y sede. ${team} arma el precio. ¿Cuál te late y qué medidas aproximadas necesitas?`;
   }
   if (clientMentionsPistaTarima(query)) {
     const fromPdf = buildLucyInfoLearnedPriceReply(query);
