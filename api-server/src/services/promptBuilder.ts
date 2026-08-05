@@ -8,8 +8,8 @@ import type { ExtractedData } from "../types.js";
 
 /**
  * Construye el prompt final para Lucy.
- * Base: SYSTEM_PROMPT V8 (consolidado sobrio) + catálogo inyectado en runtime.
- * Agrega módulos de objeción + contexto de primera interacción o conversación en curso.
+ * Base: SYSTEM_PROMPT V8.93 (voz humana) + catálogo inyectado en runtime.
+ * El catálogo/PDF son conocimiento de producto; la redacción la hace el modelo.
  */
 export function buildDynamicPrompt(context: {
   stage: string;
@@ -29,6 +29,15 @@ export function buildDynamicPrompt(context: {
   // Información manual (PDFs/tips del panel) PRIMERO: es lo que el equipo
   // sube para que Lucy ofrezca con conocimiento real; el Sheet complementa precios.
   let prompt = SYSTEM_PROMPT;
+  prompt += `
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VOZ HUMANA (prioridad de redacción)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Responde como asesora de WhatsApp, no como menú automático.
+El bloque de catálogo abajo es REFERENCIA: úsalo para no inventar; NO lo pegues.
+Máximo una pregunta útil por mensaje. Responde primero lo que el cliente dijo.`;
+
   if (context.lucyInfoBlock?.trim()) {
     prompt += "\n\n" + context.lucyInfoBlock.trim();
   }

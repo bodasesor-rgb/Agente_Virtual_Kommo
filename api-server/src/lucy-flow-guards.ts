@@ -1249,13 +1249,13 @@ function buildEntertainmentSalesReply(
     ideas =
       "Para eso solemos sumar activaciones (robots LED, show, iluminación o animación) según el vibe que busquen. No confundir con banquete/catering.";
   } else if (wantsMc) {
-    intro = `Sí, para ${eventLabel} también manejamos *maestro de ceremonias*, shows en vivo, animación y hora loca.`;
-    ideas =
-      "Lo más pedido es un show de grupo versátil o animación tipo hora loca, según el estilo que busquen.";
+    intro = `Sí, para ${eventLabel} también manejamos *maestro de ceremonias* y shows en vivo.`;
+    ideas = "¿Buscas más bien presentador, show de grupo, o animación tipo hora loca?";
   } else {
-    intro = `Para ${eventLabel}, manejamos shows en vivo, animación, hora loca, happening, espejos, láser y más opciones de entretenimiento.`;
+    // V8.93: descubrir estilo antes de listar todo el catálogo de shows.
+    intro = `Claro — para entretenimiento en ${eventLabel} te apoyamos con shows, animación y activaciones.`;
     ideas =
-      "Lo más pedido es un show de grupo versátil o animación tipo hora loca, según el estilo que busquen.";
+      "¿Buscas algo más tipo show en vivo, hora loca, o ya tienes un formato en mente?";
   }
 
   // Entretenimiento: catálogos mapeados si hay SKUs; si no, hub (A14920 / V8.79).
@@ -2487,10 +2487,18 @@ function shouldPreferAiResponse(
 ): boolean {
   const trimmed = aiResponse.trim();
   if (!trimmed) return false;
+  if (trimmed.length < 20) return false;
   if (responseLooksLikePrematureClose(trimmed)) return false;
   if (responseHasInventedPrice(trimmed, currentMessage)) return false;
   if (mensajeAsksForFilledField(trimmed, filledSet, extracted)) return false;
   if (mensajeAsksWrongField(trimmed, filledSet, extracted)) return false;
+  // Dump de menú genérico: no preferir (tampoco si vino del modelo).
+  if (looksLikeServicesMenuDump(trimmed) || responseLooksLikeGenericCateringMenu(trimmed)) {
+    return false;
+  }
+  if (isDryRequerimientosAsk(trimmed)) return false;
+  // Niveles sin inclusiones: no preferir — el enrich del Sheet debe completar.
+  if (messageOffersLevelsWithoutInclusions(trimmed)) return false;
 
   const pending = getNextPendingField(extracted, filledSet);
   if (!pending) return true;
@@ -2506,14 +2514,71 @@ function shouldPreferAiResponse(
 
   if (mensajeLooksOnTrack(trimmed, filledSet, extracted)) return true;
 
-  // Cliente hizo una pregunta o dio contexto útil — priorizar GPT sobre plantilla rígida
-  if (currentMessage && currentMessage.trim().length > 12 && trimmed.length > 25) {
+  // V8.93: voz humana — priorizar GPT sobre plantilla si respondió de forma útil.
+  if (currentMessage && currentMessage.trim().length > 8 && trimmed.length >= 40) {
     if (clientAskedFreeformQuestion(currentMessage)) return true;
     if (clientMentionsCatering(currentMessage) && !mensajeAsksForField(trimmed, pending)) return true;
     if (justAnsweredReqContext(currentMessage, trimmed)) return true;
+    if (
+      isServiceRelatedMessage(currentMessage) &&
+      !mensajeAsksForFilledField(trimmed, filledSet, extracted)
+    ) {
+      return true;
+    }
+  }
+
+  // Redacción sustantiva con pregunta útil (asesora humana), aunque no matchee el campo exacto.
+  if (trimmed.length >= 55 && /\?/.test(trimmed) && !isDryRequerimientosAsk(trimmed)) {
+    return true;
   }
 
   return false;
+}
+
+/** OpenAI ya orientó entretenimiento/show sin inventar precios ni dump genérico. */
+function aiLooksLikeEntertainmentReply(
+  text: string | null | undefined,
+  clientMessage?: string
+): boolean {
+  if (!text?.trim() || text.trim().length < 40) return false;
+  if (looksLikeServicesMenuDump(text) || responseLooksLikeGenericCateringMenu(text)) return false;
+  if (responseHasInventedPrice(text)) return false;
+  // Stubs / dumps genéricos — no sustituyen plantilla de acto concreto.
+  if (
+    /manejamos shows|Te dejo el cat[aá]logo general|happening,? espejos|l[aá]ser y m[aá]s opciones/i.test(
+      text
+    )
+  ) {
+    return false;
+  }
+  if (
+    !/show|animaci|entretenimiento|hora\s+loca|robots?\s*leds?|batucada|bailarinas?|photo\s*booth|cabina|maestro\s+de\s+ceremonias|happening|vers[aá]til|circo|blue\s*man|blueman/i.test(
+      text
+    )
+  ) {
+    return false;
+  }
+  const msg = clientMessage?.trim() ?? "";
+  if (!msg) return true;
+  const special = parseSpecialLiveActLabel(msg);
+  if (special) {
+    const token = special.split(/\s+/).find((w) => w.length >= 4) || special.slice(0, 8);
+    return new RegExp(token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(text);
+  }
+  if (/\b(blue\s*man|blueman)\b/i.test(msg)) return /blue\s*man|blueman/i.test(text);
+  if (/\bcirco\b/i.test(msg)) return /\bcirco\b/i.test(text);
+  if (/\brobots?\s*leds?\b|\bled\s*robots?\b/i.test(msg)) return /robots?|leds?/i.test(text);
+  if (/\bbatucada\b/i.test(msg)) return /\bbatucada\b/i.test(text);
+  if (/\bbailarinas?\b|\bdancers?\b/i.test(msg)) return /bailarinas?|dancers?|show/i.test(text);
+  if (/\b(photo\s*booth|cabina)/i.test(msg)) return /photo\s*booth|cabina/i.test(text);
+  return true;
+}
+
+/** OpenAI ya respondió carpas/medidas de forma útil (sin dump repetido). */
+function aiLooksLikeCarpasReply(text: string | null | undefined): boolean {
+  if (!text?.trim() || text.trim().length < 35) return false;
+  if (responseHasInventedPrice(text)) return false;
+  return /\bcarpas?\b/i.test(text) && (/medidas?|metros?|transparent|cubrir|jard[ií]n|terraza|\d+\s*x\s*\d+/i.test(text) || /\?/.test(text));
 }
 
 /** Pregunta seca de formulario — NO sirve como ofrecimiento. */
@@ -3443,15 +3508,12 @@ export function buildStandardClosingMessage(
     ? servicio.split(/,\s*/).map((s) => s.trim()).filter(Boolean)
     : [];
   const multiPackage = !isSlashFoodAlias && serviceParts.length >= 2;
-  const complements = servicio
-    ? /barra\s+de|banquete|taquiza|parrillada|paella|comida|coffee|mesa\s+de|cupcake/i.test(
-        servicio
-      )
-      ? `Si quieres sumar algo además de ${servicio} (mobiliario, DJ o iluminación), dímelo.`
-      : `Si quieres sumar algo además de ${servicio} (alimentos, mobiliario, DJ o iluminación), dímelo.`
-    : `Si quieres sumar alimentos, mobiliario, DJ o iluminación, dímelo.`;
-
-  const parts = [`Perfecto, ya tengo todo. ${handoff}`, "", complements];
+  // V8.93: cierre humano — reconoce el servicio, sin empujar extras.
+  // Mantener firma "Perfecto, ya tengo todo." (CLOSING_SIGNATURE / detectCierreEnviado).
+  const head = servicio
+    ? `Perfecto, ya tengo todo. Quedó anotado *${servicio}*. ${handoff}`
+    : `Perfecto, ya tengo todo. ${handoff}`;
+  const parts = [head];
   if (multiPackage) {
     // V8.79: cierre con links de los SKUs pedidos, no solo hub.
     parts.push("", buildPackageCatalogOfferBlock(serviceParts, servicioRaw));
@@ -5435,7 +5497,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
               : clientMentionsEntertainment(userEntBlob)
                 ? userEntBlob
                 : currentMessage;
-    mensaje = buildEntertainmentSalesReply(
+    // Siempre actualiza CRM vía plantilla; la redacción puede ser la de OpenAI (voz humana).
+    const entTemplate = buildEntertainmentSalesReply(
       extracted,
       history,
       entityId,
@@ -5443,9 +5506,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       filledSet,
       ctx
     );
-    appliedSalesReply = true;
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: show/entretenimiento — orientación + catálogo");
+    if (
+      shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) &&
+      aiLooksLikeEntertainmentReply(aiResponse, entFocusMsg)
+    ) {
+      mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: show/entretenimiento — preferir redacción OpenAI");
+    } else {
+      mensaje = entTemplate;
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: show/entretenimiento — orientación + catálogo");
+    }
   } else if (
     allowSalesReplyOverride &&
     clientConfirmsOfferReview(currentMessage) &&
@@ -5476,9 +5549,26 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
         )))
   ) {
-    mensaje = buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx);
-    appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: carpas — responder, agregar y pedir medidas");
+    const carpasTemplate = buildCarpasSalesReply(
+      extracted,
+      history,
+      currentMessage,
+      filledSet,
+      ctx
+    );
+    if (
+      shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) &&
+      aiLooksLikeCarpasReply(aiResponse) &&
+      !/Cathedral,\s*Pir[aá]mide,\s*Planas/i.test(aiResponse)
+    ) {
+      mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: carpas — preferir redacción OpenAI");
+    } else {
+      mensaje = carpasTemplate;
+      appliedSalesReply = true;
+      log?.info({ entityId }, "GUARD: carpas — responder, agregar y pedir medidas");
+    }
   } else if (
     allowSalesReplyOverride &&
     (clientMentionsPistaTarima(currentMessage) ||
@@ -5721,9 +5811,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     ) {
       const pending = getNextPendingField(extracted, filledSet);
       const asksMeasures = /medidas?/i.test(cateringAnswer);
-      // Menú progresivo: no apilar correo encima de "¿de cuál te detallo?".
-      if (
+      const isProgressive =
         isProgressiveOptionsMenuReply(cateringAnswer) ||
+        /info m[aá]s detallada|de cu[aá]l te|qu[eé]\s+pieza/i.test(cateringAnswer);
+      // V8.93: si no es menú progresivo y OpenAI ya respondió bien, preferir voz humana.
+      if (
+        !isProgressive &&
+        !asksMeasures &&
+        shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) &&
+        aiResponse.trim().length >= 50
+      ) {
+        mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+      } else if (
+        isProgressive ||
         asksMeasures ||
         !pending ||
         pending === "requerimientos" ||
@@ -5794,6 +5894,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       ctx
     );
     if (cateringAnswer) {
+      // Menús progresivos y detalle Sheet: plantilla gana (conocimiento validado).
       mensaje = cateringAnswer;
     } else {
       const ack = buildFoodServiceAckIntro(extracted, history, currentMessage);

@@ -166,11 +166,11 @@ export function buildConsultativeNoPriceReply(message?: string): string | null {
   if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t)) {
     const transparent = /transparent/i.test(t);
     const head = transparent
-      ? "Sí, contamos con *carpas transparentes* (y también Cathedral, Pirámide y Planas)."
+      ? "Sí, contamos con *carpas transparentes* (también Cathedral, Pirámide y Planas)."
       : "Sí, manejamos carpas para jardín o terraza: Cathedral (techos altos), Pirámide, Planas y transparentes.";
     return (
-      `${head} Se cotizan según medidas, montaje y sede. ` +
-      `${team} arma el precio. ¿Quieres que las agregue a tu cotización? ¿Qué medidas aproximadas necesitas?`
+      `${head} Se cotizan según medidas y sede. ` +
+      `${team} arma el precio. ¿Cuál tipo te late y qué medidas aproximadas necesitas?`
     );
   }
   if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t)) {
