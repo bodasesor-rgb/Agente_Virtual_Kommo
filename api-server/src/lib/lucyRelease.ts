@@ -1,5 +1,5 @@
 /** Versión del servidor API (panel, health). */
 export const LUCY_SERVER_VERSION = "3.3";
 
-/** Versión del prompt maestro de Lucy (catálogo genérico A15169 + Coffee Break). */
-export const LUCY_PROMPT_VERSION = "V9.03";
+/** Versión del prompt maestro de Lucy (limpieza guards + hub catálogo único). */
+export const LUCY_PROMPT_VERSION = "V9.04";

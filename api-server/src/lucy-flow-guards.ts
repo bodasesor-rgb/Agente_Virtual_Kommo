@@ -192,39 +192,56 @@ import {
   FECHA_AUTO_WAIVER,
 } from "./conversation-understanding.js";
 
-export const EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
-export const BODASESOR_EMAIL = "hola@bodasesor.com";
-/** Sufijo CRM cuando el nombre viene de WhatsApp porque el cliente no lo escribió. */
-export const WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp — el cliente no lo escribió)";
+/** Re-exports del split V9.04 — imports existentes siguen en lucy-flow-guards. */
+export {
+  EMAIL_WAIVED_LABEL,
+  BODASESOR_EMAIL,
+  WHATSAPP_NOMBRE_NOTE,
+  CLOSING_CORE_FIELDS,
+  LUCY_INTRO,
+  TIPO_EVENTO_HINT,
+  SERVICIOS_CATALOGO_HINT,
+  SERVICIOS_CATALOGO_HINT_ADICIONAL,
+  OTRO_SERVICIO_ASK_PATTERN,
+  CORREO_MAX_ASKS,
+  CLOSING_SIGNATURE,
+  FLOW_QUESTIONS,
+  type PendingField,
+  stripCatalogBlockShared,
+  buildPhoneAnswer,
+  buildEmergencyContactAnswer,
+  buildHumanAdvisorHandoffAnswer,
+  buildLocationAnswer,
+  clientAsksPaymentOrQuoteDelivery,
+  buildPostCierreThanksReply,
+  buildPostCierrePaymentHandoffReply,
+  buildPostCierreCallbackAck,
+  LUCY_GUARD_DOMAINS,
+} from "./guards/index.js";
+
+import {
+  EMAIL_WAIVED_LABEL,
+  WHATSAPP_NOMBRE_NOTE,
+  CLOSING_CORE_FIELDS,
+  LUCY_INTRO,
+  TIPO_EVENTO_HINT,
+  SERVICIOS_CATALOGO_HINT,
+  SERVICIOS_CATALOGO_HINT_ADICIONAL,
+  OTRO_SERVICIO_ASK_PATTERN,
+  CORREO_MAX_ASKS,
+  CLOSING_SIGNATURE,
+  type PendingField,
+  buildPhoneAnswer,
+  buildHumanAdvisorHandoffAnswer,
+  buildLocationAnswer,
+  clientAsksPaymentOrQuoteDelivery,
+  buildPostCierreThanksReply,
+  buildPostCierrePaymentHandoffReply,
+  buildPostCierreCallbackAck,
+} from "./guards/index.js";
 
 const EMAIL_REFUSAL_PATTERN =
   /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
-
-/** 8 pasos obligatorios para cierre (correo es opcional pero se intenta en paso 2). */
-export const CLOSING_CORE_FIELDS = [
-  "Nombre del cliente",
-  "Tipo de evento",
-  "Requerimientos o servicios",
-  "Lugar/dirección del evento",
-  "Fecha y horario",
-  "Número de invitados",
-  "Presupuesto (MXN)",
-] as const;
-
-/** Presentación obligatoria en el primer mensaje de Lucy. */
-export const LUCY_INTRO = "Hola, soy Lucy, agente virtual de Bodasesor.";
-
-/** Opciones de evento para orientar al cliente. */
-export const TIPO_EVENTO_HINT =
-  "Manejamos bodas, XV años, baby showers, cumpleaños, eventos corporativos, bautizos y celebraciones familiares.";
-
-/** Texto para que el cliente sepa qué ofrece Bodasesor al preguntar por servicios. */
-export const SERVICIOS_CATALOGO_HINT =
-  "Manejamos alimentos y barras (banquetes, taquizas, barras temáticas), mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces y más.";
-
-/** Variante corta cuando el cliente ya mencionó un servicio. */
-export const SERVICIOS_CATALOGO_HINT_ADICIONAL =
-  "También manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.";
 
 /** True si el mensaje ya menciona opciones del catálogo (evita repetir el bloque). */
 export function mensajeMencionaCatalogoServicios(mensaje: string): boolean {
@@ -232,10 +249,6 @@ export function mensajeMencionaCatalogoServicios(mensaje: string): boolean {
     mensaje
   );
 }
-
-/** Follow-up de "¿otro servicio?" en cualquier variante (para anti-bucle). */
-export const OTRO_SERVICIO_ASK_PATTERN =
-  /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro/i;
 
 /** Lista genérica de servicios / "¿otro servicio?" — para cortar el bucle anti-menú. */
 export function looksLikeServicesMenuDump(text: string): boolean {
@@ -293,9 +306,6 @@ function hasPresupuestoValue(extracted: ExtractedData): boolean {
  * Sincroniza filledSet desde extracted cuando la captura GPT/CRM vino desfasada.
  * Evita re-preguntar correo/zona/fecha/servicios ya presentes en extracted.
  */
-/** Máx. intentos de correo con redacción distinta — no spamear el mismo ask. */
-export const CORREO_MAX_ASKS = 2;
-
 export function syncFilledFromExtracted(filledSet: Set<string>, extracted: ExtractedData): void {
   if (sanitizeCrmNombre(extracted.nombre)) filledSet.add("Nombre del cliente");
   const email = filterClientEmail(extracted.correo);
@@ -321,29 +331,6 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
   if (extracted.num_invitados) filledSet.add("Número de invitados");
   if (hasPresupuestoValue(extracted)) filledSet.add("Presupuesto (MXN)");
 }
-
-/** Plantillas legacy — preferir variantes naturales vía buildNaturalQuestion(). */
-export const FLOW_QUESTIONS = {
-  nombre: "¿Me regalas tu nombre para iniciar?",
-  tipoEvento: "¿Qué festejan o qué tipo de evento sería?",
-  tipoEventoTrasCorreo: "¿Qué tipo de celebración están planeando?",
-  requerimientos: "Platícame, ¿qué tienes pensado para tu evento?",
-  invitados: "¿Más o menos para cuántas personas sería?",
-  zona: "¿En qué ciudad y colonia (o salón) sería tu evento? Si tienes la dirección exacta, mejor.",
-  fecha: "¿Ya tienen fecha o todavía la van definiendo?",
-  presupuesto: "¿Tienen algún rango de presupuesto en mente?",
-  serviciosExtra: SERVICIOS_CATALOGO_HINT_ADICIONAL,
-} as const;
-
-export type PendingField =
-  | "nombre"
-  | "correo"
-  | "tipo_evento"
-  | "requerimientos"
-  | "invitados"
-  | "zona"
-  | "fecha"
-  | "presupuesto";
 
 function getQuestionVariants(): Record<PendingField, string[]> {
   const team = advisorLabelForClient();
@@ -438,8 +425,6 @@ export function isValidRequerimientosValue(value: string | null | undefined): bo
   if (trimmed.length >= 4) return true;
   return false;
 }
-
-export const CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 
 /** Detecta cierre en historial completo o última respuesta persistida (no solo slice reciente). */
 export function detectCierreEnviado(
@@ -596,36 +581,6 @@ export function isReadyForClosing(filledSet: Set<string>): boolean {
  * malinterpretando un mensaje corto como "Fiesta dinámica" o "Show en vivo")
  * sobrescriba un dato de un campo core que ya estaba guardado correctamente.
  */
-/**
- * Quita SOLO la URL/frase del catálogo de una respuesta (no la línea completa).
- * GPT a menudo mezcla el link con contenido real en un solo párrafo/línea
- * ("No hay problema, ya anoté X. Aquí tienes el catálogo: <url>") — borrar
- * la línea entera dejaba la respuesta completamente vacía.
- */
-export function stripCatalogBlockShared(text: string): string {
-  let result = text.replace(
-    /\s*(mientras\s+tanto,?\s*)?(aqu[ií]\s+(est[aá]|tienes)\s+nuestro\s+cat[aá]logo\s+completo:?\s*)?https?:\/\/\S*cdn\.shopify\.com\S*/gi,
-    ""
-  );
-  result = result.replace(/\bcomparto\s+el\s+link\s+del\s+cat[aá]logo\b[.:]?/gi, "");
-
-  // Encabezados del listado completo del catálogo — sí se quitan como línea
-  // entera porque solo aparecen cuando GPT reprodujo el bloque de precios.
-  const lines = result.split("\n");
-  const filtered = lines.filter(
-    (l) =>
-      !l.toLowerCase().includes("banquetes:") &&
-      !l.toLowerCase().includes("barras temáticas:") &&
-      !l.toLowerCase().includes("bebidas:") &&
-      !l.toLowerCase().includes("mesas especiales:") &&
-      !l.toLowerCase().includes("mobiliario:") &&
-      !l.toLowerCase().includes("entretenimiento:") &&
-      !l.toLowerCase().includes("estructuras:") &&
-      !l.toLowerCase().includes("cdn.shopify.com")
-  );
-  return filtered.join("\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
-}
-
 export function crmStoredValue(mergedLines: string[], label: string): string | null {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`^-?\\s*${escaped}:`, "i");
@@ -722,49 +677,6 @@ function pickVariant(
     if (snippet && !lastAssistant.includes(snippet)) return candidate;
   }
   return variants[start % variants.length]!;
-}
-
-/** Respuesta cuando preguntan por teléfonos de Bodasesor. */
-export function buildPhoneAnswer(): string {
-  return [
-    "Claro, te paso los números:",
-    "Ventas: 55 4008 0373 — solo por línea telefónica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 — sí aceptamos llamadas por WhatsApp y por línea telefónica.",
-    "Por aquí por chat también te podemos ayudar con lo que necesites.",
-  ].join("\n");
-}
-
-/**
- * Única respuesta permitida cuando Lucy está en silencio (Humano Trabaja, etc.)
- * y el cliente pide ayuda/contacto/emergencia.
- */
-export function buildEmergencyContactAnswer(): string {
-  return [
-    "Claro, te paso los contactos de emergencia del equipo:",
-    "Ventas: 55 4008 0373 — solo por línea telefónica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 — sí aceptamos llamadas por WhatsApp y por línea telefónica.",
-    "Un asesor te puede atender por ahí. Tu caso sigue en seguimiento con el equipo.",
-  ].join("\n");
-}
-
-/** Cliente pide asesor humano (A15000): confirma handoff + teléfonos; no sigue embudo. */
-export function buildHumanAdvisorHandoffAnswer(clientName?: string | null): string {
-  const name = sanitizeDisplayName(clientName);
-  const hi = name ? `${name}, ` : "";
-  return [
-    `Claro que sí, ${hi}con gusto te canalizo con un asesor de Bodasesor para que te atiendan de forma personalizada.`,
-    "",
-    "Mientras te contactan, también puedes marcar:",
-    "Ventas: 55 4008 0373 — solo por línea telefónica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 — WhatsApp o línea telefónica.",
-    "",
-    "Ya dejé tu caso listo para el equipo.",
-  ].join("\n");
-}
-
-/** Respuesta estándar de ubicación y cobertura (prompt sección 7). */
-export function buildLocationAnswer(): string {
-  return "Estamos en Ciudad de México y trabajamos en toda la república. Según la fecha y el lugar de tu evento, coordinamos el servicio.";
 }
 
 /** Pitch de comida italiana para temáticas o recomendaciones contextuales. */
@@ -3275,43 +3187,6 @@ export function clientJustAnsweredRequerimientosQuestion(
 export function clientSaysThanks(message?: string): boolean {
   if (!message?.trim()) return false;
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
-}
-
-/** Cliente pide cotización / anticipo / datos de pago (post-cierre → equipo). */
-export function clientAsksPaymentOrQuoteDelivery(message?: string): boolean {
-  if (!message?.trim()) return false;
-  const t = message.toLowerCase();
-  return (
-    /\b(anticipo|50\s*%|porcentaje|dep[oó]sito|se[nñ]a)\b/i.test(t) ||
-    /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t) ||
-    /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t) ||
-    /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t) ||
-    /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t)
-  );
-}
-
-export function buildPostCierreThanksReply(clientName?: string | null): string {
-  const nombre = sanitizeDisplayName(clientName);
-  return nombre
-    ? `¡Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.`
-    : "¡Con gusto! Nuestro equipo ya tiene tus datos para la cotización. Si necesitas algo más, aquí estamos.";
-}
-
-export function buildPostCierrePaymentHandoffReply(clientName?: string | null): string {
-  const nombre = sanitizeDisplayName(clientName);
-  const hi = nombre ? `${nombre}, ` : "";
-  return [
-    `Claro que sí, ${hi}nuestro equipo te envía la cotización y los datos para el anticipo (50%) por el correo que ya tenemos.`,
-    "En breve te atienden para confirmar montos y forma de pago.",
-  ].join(" ");
-}
-
-/** Tras pasar teléfonos / pedir llamada: no cerrar otra vez con plantilla genérica. */
-export function buildPostCierreCallbackAck(clientName?: string | null): string {
-  const nombre = sanitizeDisplayName(clientName);
-  return nombre
-    ? `Con gusto, ${nombre}. Un asesor te puede atender por esos números; tu caso ya quedó con el equipo.`
-    : "Con gusto. Un asesor te puede atender por esos números; tu caso ya quedó con el equipo.";
 }
 
 function lastAssistantWasPhoneAnswer(

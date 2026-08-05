@@ -2,6 +2,7 @@
  * Catálogo unificado para Lucy — Google Sheets + Gamma + fallback estático.
  */
 import { CATALOGO_BODASESOR } from "../catalogo.js";
+import { CATALOG_WEB_HUB_URL as CATALOG_HUB_CANONICAL } from "../catalogUrls.js";
 import {
   clientAsksPrice,
   mentionsListedPriceService,
@@ -2175,7 +2176,7 @@ export function injectCatalogPriceIfAsked(
 }
 
 /** Hub general de catálogos web (no PDF Shopify). */
-export const CATALOG_WEB_HUB_URL = "https://bodasesor.com/catalogos";
+export const CATALOG_WEB_HUB_URL = CATALOG_HUB_CANONICAL;
 
 const BODASESOR_CATALOG_WEB_URL =
   /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]+)?\/?(?:[?#].*)?$/i;

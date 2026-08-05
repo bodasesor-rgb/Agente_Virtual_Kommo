@@ -111453,6 +111453,11 @@ DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
 \u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
 `;
 
+// src/catalogUrls.ts
+var CATALOG_WEB_HUB_URL = "https://bodasesor.com/catalogos";
+var CATALOG_URL = CATALOG_WEB_HUB_URL;
+var CATALOG_WEB_HUB = CATALOG_WEB_HUB_URL;
+
 // src/services/googleSheetsCatalog.ts
 var HEADER_ALIASES = {
   servicio: "servicio",
@@ -111753,7 +111758,7 @@ function parseRowNotes(notas) {
 import { readFileSync as readFileSync2 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
-var CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
+var CATALOG_WEB_HUB2 = CATALOG_WEB_HUB;
 var embedsCache = null;
 var knowledgeCache = [];
 function embedsJsonPath() {
@@ -111789,7 +111794,7 @@ function loadCatalogEmbeds() {
         title: (v3.title ?? slug).trim(),
         embedSrc,
         gammaId: extractGammaIdFromEmbed(embedSrc),
-        webUrl: `${CATALOG_WEB_HUB}/${slug}`
+        webUrl: `${CATALOG_WEB_HUB2}/${slug}`
       };
     });
   } catch {
@@ -111831,7 +111836,7 @@ function resolveCatalogWebSlug(query) {
 }
 function getCatalogWebUrlForQuery(query) {
   const slug = resolveCatalogWebSlug(query);
-  return slug ? `${CATALOG_WEB_HUB}/${slug}` : null;
+  return slug ? `${CATALOG_WEB_HUB2}/${slug}` : null;
 }
 function getCatalogEmbed(slug) {
   return loadCatalogEmbeds().find((e3) => e3.slug === slug) ?? null;
@@ -115061,7 +115066,7 @@ function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
   }
   return aiResponse;
 }
-var CATALOG_WEB_HUB_URL = "https://bodasesor.com/catalogos";
+var CATALOG_WEB_HUB_URL2 = CATALOG_WEB_HUB_URL;
 var BODASESOR_CATALOG_WEB_URL = /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]+)?\/?(?:[?#].*)?$/i;
 function isBodasesorCatalogWebUrl(url) {
   return !!url?.trim() && BODASESOR_CATALOG_WEB_URL.test(url.trim());
@@ -115076,7 +115081,7 @@ function toDeliverableCatalogUrl(sheetUrl) {
   return m5[1] ? `${base}/catalogos/${m5[1]}` : `${base}/catalogos`;
 }
 function getCatalogWebHubDeliveryUrl() {
-  return toDeliverableCatalogUrl(CATALOG_WEB_HUB_URL);
+  return toDeliverableCatalogUrl(CATALOG_WEB_HUB_URL2);
 }
 function getRowCatalogWebLink(row) {
   const direct = row.linkCatalogo?.trim();
@@ -115104,7 +115109,7 @@ function scoreServiceForWebLink(query, row) {
 }
 function resolveCatalogWebLink(query, opts) {
   if (opts?.preferHub) {
-    return { url: CATALOG_WEB_HUB_URL, serviceName: null, kind: "hub" };
+    return { url: CATALOG_WEB_HUB_URL2, serviceName: null, kind: "hub" };
   }
   const trimmed = query?.trim() ?? "";
   if (!trimmed || !snapshot?.rows.length) {
@@ -128445,10 +128450,9 @@ function extractImageIntent(text2) {
   return normalizeIntent(m5[1]);
 }
 
-// src/lucy-flow-guards.ts
+// src/guards/embudoConstants.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
-var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Tipo de evento",
@@ -128462,12 +128466,148 @@ var LUCY_INTRO = "Hola, soy Lucy, agente virtual de Bodasesor.";
 var TIPO_EVENTO_HINT = "Manejamos bodas, XV a\xF1os, baby showers, cumplea\xF1os, eventos corporativos, bautizos y celebraciones familiares.";
 var SERVICIOS_CATALOGO_HINT = "Manejamos alimentos y barras (banquetes, taquizas, barras tem\xE1ticas), mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces y m\xE1s.";
 var SERVICIOS_CATALOGO_HINT_ADICIONAL = "Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.";
+var OTRO_SERVICIO_ASK_PATTERN = /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro/i;
+var CORREO_MAX_ASKS = 2;
+var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
+
+// src/guards/catalogSanitize.ts
+function stripCatalogBlockShared(text2) {
+  let result = text2.replace(
+    /\s*(mientras\s+tanto,?\s*)?(aqu[ií]\s+(est[aá]|tienes)\s+nuestro\s+cat[aá]logo\s+completo:?\s*)?https?:\/\/\S*cdn\.shopify\.com\S*/gi,
+    ""
+  );
+  result = result.replace(/\bcomparto\s+el\s+link\s+del\s+cat[aá]logo\b[.:]?/gi, "");
+  result = result.replace(
+    /\n*Te dejo el cat[aá]logo general[^\n]*\n?https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi,
+    "\n"
+  ).replace(/\n*https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi, "\n").replace(/\n*¿Quieres que te mande el cat[aá]logo[^\n?]*\?\n*/gi, "\n");
+  const lines = result.split("\n");
+  const filtered = lines.filter(
+    (l5) => !l5.toLowerCase().includes("banquetes:") && !l5.toLowerCase().includes("barras tem\xE1ticas:") && !l5.toLowerCase().includes("bebidas:") && !l5.toLowerCase().includes("mesas especiales:") && !l5.toLowerCase().includes("mobiliario:") && !l5.toLowerCase().includes("entretenimiento:") && !l5.toLowerCase().includes("estructuras:") && !l5.toLowerCase().includes("cdn.shopify.com")
+  );
+  return filtered.join("\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+
+// src/guards/contactAnswers.ts
+function buildPhoneAnswer() {
+  return [
+    "Claro, te paso los n\xFAmeros:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
+    "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
+  ].join("\n");
+}
+function buildEmergencyContactAnswer() {
+  return [
+    "Claro, te paso los contactos de emergencia del equipo:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
+    "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
+  ].join("\n");
+}
+function buildHumanAdvisorHandoffAnswer(clientName) {
+  const name2 = sanitizeDisplayName(clientName);
+  const hi = name2 ? `${name2}, ` : "";
+  return [
+    `Claro que s\xED, ${hi}con gusto te canalizo con un asesor de Bodasesor para que te atiendan de forma personalizada.`,
+    "",
+    "Mientras te contactan, tambi\xE9n puedes marcar:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 WhatsApp o l\xEDnea telef\xF3nica.",
+    "",
+    "Ya dej\xE9 tu caso listo para el equipo."
+  ].join("\n");
+}
+function buildLocationAnswer() {
+  return "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el lugar de tu evento, coordinamos el servicio.";
+}
+
+// src/guards/postCierreReplies.ts
+function clientAsksPaymentOrQuoteDelivery(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /\b(anticipo|50\s*%|porcentaje|dep[oó]sito|se[nñ]a)\b/i.test(t3) || /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t3) || /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t3) || /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t3) || /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t3);
+}
+function buildPostCierreThanksReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
+}
+function buildPostCierrePaymentHandoffReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi = nombre ? `${nombre}, ` : "";
+  return [
+    `Claro que s\xED, ${hi}nuestro equipo te env\xEDa la cotizaci\xF3n y los datos para el anticipo (50%) por el correo que ya tenemos.`,
+    "En breve te atienden para confirmar montos y forma de pago."
+  ].join(" ");
+}
+function buildPostCierreCallbackAck(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.";
+}
+
+// src/guards/domains.ts
+var LUCY_GUARD_DOMAINS = {
+  nombre: {
+    module: "contact-name.ts + lucyCrmInvariants.ts",
+    keep: [
+      "sanitizeCrmNombre / sanitizeDisplayName",
+      "enforceNombreFirst",
+      "nunca tratar cotizaci\xF3n/ubicaci\xF3n/Premium/S\xED/m\xE1ndamelo como nombre"
+    ]
+  },
+  embudo: {
+    module: "guards/embudoConstants.ts + lucy-flow-guards (orquestador)",
+    keep: [
+      "CLOSING_CORE_FIELDS / isReadyForClosing",
+      "CLOSING_SIGNATURE",
+      "waivers correo/presupuesto/fecha"
+    ]
+  },
+  catalogo: {
+    module: "catalogUrls.ts + catalogService + guards/catalogSanitize.ts",
+    keep: [
+      "hub \xFAnico CATALOG_WEB_HUB_URL",
+      "cat\xE1logo gen\xE9rico \u2260 inventar SKU (A15169)",
+      "Sheet gana sobre PDF; sin gamma.app al cliente"
+    ]
+  },
+  postCierre: {
+    module: "guards/postCierreReplies.ts + rama cierreYaEnviado en guards",
+    keep: [
+      "no re-pedir correo/embudo",
+      "ack corto al sumar servicios",
+      "info/cat\xE1logo/modelos s\xED se atienden (A15165)"
+    ]
+  },
+  contacto: {
+    module: "guards/contactAnswers.ts",
+    keep: ["tel\xE9fonos", "handoff asesor humano", "emergencia en silencio CRM"]
+  },
+  precios: {
+    module: "price-guard.ts + lucyCrmInvariants.ts",
+    keep: [
+      "no inventar precios",
+      "presupuesto solo si el cliente lo justifica",
+      "d\xEDgitos de email \u2260 presupuesto"
+    ]
+  },
+  antiRepeat: {
+    module: "lucyOutboundAntiRepeat.ts + lucyOutboundPipeline.ts",
+    keep: ["no re-preguntar campo ya capturado", "no 'Sigo aqu\xED' residual"]
+  },
+  entretenimiento: {
+    module: "lucy-flow-guards (sales replies) + serviceProgressiveOffer",
+    keep: ["entretenimiento \u2260 banquete", "shows/DJ/bailarinas con plantilla+cat\xE1logo"]
+  }
+};
+
+// src/lucy-flow-guards.ts
+var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 function mensajeMencionaCatalogoServicios(mensaje) {
   return /alimentos?|mobiliario|carpas?|pistas?(\s+de\s+baile)?|bebidas?|banquete|taquiza|iluminaci[oó]n|pantallas?|mesas?\s+de\s+dulces|dj\b|barras?\s+(de\s+)?alimentos|estaciones?\s+de\s+comida/i.test(
     mensaje
   );
 }
-var OTRO_SERVICIO_ASK_PATTERN = /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro/i;
 function looksLikeServicesMenuDump(text2) {
   if (!text2?.trim()) return false;
   const t3 = text2.toLowerCase();
@@ -128501,7 +128641,6 @@ function hasPresupuestoValue(extracted) {
   if (typeof p4 === "number") return Number.isFinite(p4);
   return String(p4).trim().length > 0;
 }
-var CORREO_MAX_ASKS = 2;
 function syncFilledFromExtracted(filledSet, extracted) {
   if (sanitizeCrmNombre(extracted.nombre)) filledSet.add("Nombre del cliente");
   const email = filterClientEmail(extracted.correo);
@@ -128597,7 +128736,6 @@ function isValidRequerimientosValue(value) {
   if (trimmed.length >= 4) return true;
   return false;
 }
-var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 function detectCierreEnviado(history, lastStoredResponse) {
   const looksLikeCierre = (t3) => t3.includes(CLOSING_SIGNATURE) || /\bya tengo todo\b/i.test(t3) || /\bcompartir esta informaci[oó]n con nuestro equipo\b/i.test(t3) || /\bcotizaci[oó]n personalizada\b/i.test(t3);
   if (lastStoredResponse && looksLikeCierre(lastStoredResponse)) return true;
@@ -128681,18 +128819,6 @@ function isEmailSatisfied(filledSet, extracted) {
 function isReadyForClosing(filledSet) {
   return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
 }
-function stripCatalogBlockShared(text2) {
-  let result = text2.replace(
-    /\s*(mientras\s+tanto,?\s*)?(aqu[ií]\s+(est[aá]|tienes)\s+nuestro\s+cat[aá]logo\s+completo:?\s*)?https?:\/\/\S*cdn\.shopify\.com\S*/gi,
-    ""
-  );
-  result = result.replace(/\bcomparto\s+el\s+link\s+del\s+cat[aá]logo\b[.:]?/gi, "");
-  const lines = result.split("\n");
-  const filtered = lines.filter(
-    (l5) => !l5.toLowerCase().includes("banquetes:") && !l5.toLowerCase().includes("barras tem\xE1ticas:") && !l5.toLowerCase().includes("bebidas:") && !l5.toLowerCase().includes("mesas especiales:") && !l5.toLowerCase().includes("mobiliario:") && !l5.toLowerCase().includes("entretenimiento:") && !l5.toLowerCase().includes("estructuras:") && !l5.toLowerCase().includes("cdn.shopify.com")
-  );
-  return filtered.join("\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
-}
 function crmStoredValue(mergedLines, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`^-?\\s*${escaped}:`, "i");
@@ -128747,38 +128873,6 @@ function pickVariant(field, history, entityId) {
     if (snippet && !lastAssistant.includes(snippet)) return candidate;
   }
   return variants[start2 % variants.length];
-}
-function buildPhoneAnswer() {
-  return [
-    "Claro, te paso los n\xFAmeros:",
-    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
-    "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
-  ].join("\n");
-}
-function buildEmergencyContactAnswer() {
-  return [
-    "Claro, te paso los contactos de emergencia del equipo:",
-    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
-    "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
-  ].join("\n");
-}
-function buildHumanAdvisorHandoffAnswer(clientName) {
-  const name2 = sanitizeDisplayName(clientName);
-  const hi = name2 ? `${name2}, ` : "";
-  return [
-    `Claro que s\xED, ${hi}con gusto te canalizo con un asesor de Bodasesor para que te atiendan de forma personalizada.`,
-    "",
-    "Mientras te contactan, tambi\xE9n puedes marcar:",
-    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 \u2014 WhatsApp o l\xEDnea telef\xF3nica.",
-    "",
-    "Ya dej\xE9 tu caso listo para el equipo."
-  ].join("\n");
-}
-function buildLocationAnswer() {
-  return "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el lugar de tu evento, coordinamos el servicio.";
 }
 function buildItalianFoodPitch(message) {
   const inv = message?.match(/(\d+)\s*(?:personas?|invitados?)/i);
@@ -130430,27 +130524,6 @@ function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
 function clientSaysThanks(message) {
   if (!message?.trim()) return false;
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
-}
-function clientAsksPaymentOrQuoteDelivery(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  return /\b(anticipo|50\s*%|porcentaje|dep[oó]sito|se[nñ]a)\b/i.test(t3) || /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t3) || /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t3) || /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t3) || /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t3);
-}
-function buildPostCierreThanksReply(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
-}
-function buildPostCierrePaymentHandoffReply(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  const hi = nombre ? `${nombre}, ` : "";
-  return [
-    `Claro que s\xED, ${hi}nuestro equipo te env\xEDa la cotizaci\xF3n y los datos para el anticipo (50%) por el correo que ya tenemos.`,
-    "En breve te atienden para confirmar montos y forma de pago."
-  ].join(" ");
-}
-function buildPostCierreCallbackAck(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.";
 }
 function lastAssistantWasPhoneAnswer(history) {
   const last = [...history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
@@ -133354,13 +133427,6 @@ function cleanupBrokenOutboundFragments(text2) {
   );
   return t3.replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
-function stripCatalogOfferBlock(text2) {
-  let t3 = text2.replace(
-    /\n*Te dejo el cat[aá]logo general[^\n]*\n?https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi,
-    "\n"
-  ).replace(/\n*https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi, "\n").replace(/\n*¿Quieres que te mande el cat[aá]logo[^\n?]*\?\n*/gi, "\n");
-  return t3.replace(/\n{3,}/g, "\n\n").trim();
-}
 function isEntertainmentCatalogReply(mensaje) {
   return CATALOG_SEND_PATTERN.test(mensaje) && ENTERTAINMENT_PITCH_PATTERN.test(mensaje);
 }
@@ -133461,7 +133527,7 @@ function applyLucyGlobalAntiRepetition(input) {
     }
   }
   if (!cierre && hasCatalogNow && !isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientAskedServiceInfo && !clientAffirmingCatalog && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p4) => CATALOG_SEND_PATTERN.test(p4))) {
-    const without = stripCatalogOfferBlock(mensaje);
+    const without = stripCatalogBlockShared(mensaje);
     const qs = questionLines(without).filter(
       (q2) => !/cat[aá]logo/i.test(q2) && previous.every((p4) => lucyTextOverlapRatio(q2, p4) < 0.68)
     );
@@ -133554,7 +133620,7 @@ function formatForWhatsApp(text2) {
 
 // src/lucy-prompt.ts
 var ADVISOR = getAdvisorName();
-var CATALOG_URL = "https://bodasesor.com/catalogos";
+var CATALOG_URL2 = CATALOG_URL;
 var SYSTEM_PROMPT = `Eres **Lucy**, asesora de Bodasesor por WhatsApp. Hablas como una persona real
 que conoce el cat\xE1logo: clara, directa, c\xE1lida sin teatralidad. NO eres un salesbot
 de men\xFAs pegados ni un formulario con disfraz. Si el cliente te escribe como te
@@ -133677,7 +133743,7 @@ lugar de tu evento, coordinamos el servicio."
 ===================================================================
 - Inclusiones: PDFs de Aprendizaje. Precios: Sheet (gana el Sheet si chocan).
 - Link de cat\xE1logo del servicio (bodasesor.com/catalogos/...), uno a la vez.
-- Multi-servicio \u2192 links de los pedidos + hub ${CATALOG_URL} solo si hace falta.
+- Multi-servicio \u2192 links de los pedidos + hub ${CATALOG_URL2} solo si hace falta.
 - NUNCA links gamma.app. NUNCA inventes precios ni inclusiones.
 
 ===================================================================
@@ -133766,10 +133832,10 @@ async function finalizeLucyOutboundMessage(input) {
     readyForClosing: input.readyForClosing,
     cierreYaEnviado: input.cierreYaEnviado,
     closingSignature: CLOSING_SIGNATURE,
-    catalogUrl: CATALOG_URL
+    catalogUrl: CATALOG_URL2
   });
   mensaje = normalizeAdvisorReferences(mensaje, input.extracted.nombre ?? null);
-  if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
+  if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL2)) {
     const allowPostCierreCatalog = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || isServiceRelatedMessage(input.currentMessage) || clientAsksInclusion(input.currentMessage) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|cat[aá]logo|info)\b/i.test(
       input.currentMessage ?? ""
     );
@@ -134340,13 +134406,13 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.03";
+var LUCY_PROMPT_VERSION = "V9.04";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
 init_llmChat();
 init_geminiContextCache();
-var CATALOG_URL2 = "https://bodasesor.com/catalogos";
+var CATALOG_URL3 = CATALOG_URL;
 var passed = 0;
 var failed = 0;
 async function test(name2, fn2) {
@@ -134462,7 +134528,7 @@ async function runAll() {
     assert2.ok(reply.includes("Perfecto, ya tengo todo"));
     assert2.ok(reply.includes("nuestro equipo"));
     assert2.ok(!/pasar.*a Alejandro/i.test(reply));
-    assert2.ok(!reply.includes(CATALOG_URL2), reply);
+    assert2.ok(!reply.includes(CATALOG_URL3), reply);
     assert2.ok(/con gusto te apoyo/i.test(reply), reply);
     assert2.ok(!/Si quieres sumar/i.test(reply), reply);
   });
@@ -135086,7 +135152,7 @@ async function runAll() {
       debugLogs
     });
     assert2.ok(
-      replyNo.includes("Perfecto, ya tengo todo") || replyNo.includes(CATALOG_URL2),
+      replyNo.includes("Perfecto, ya tengo todo") || replyNo.includes(CATALOG_URL3),
       `debe cerrar en vez de repetir: "${replyNo.slice(0, 200)}" | logs: ${debugLogs.join(" > ")}`
     );
     assert2.ok(!/alg[uú]n\s+otro\s+servicio/i.test(replyNo), replyNo.slice(0, 200));
@@ -135680,7 +135746,7 @@ async function runAll() {
       history: historyAfterFollowUp
     });
     assert2.ok(
-      replyClose.includes("Perfecto, ya tengo todo") || replyClose.includes(CATALOG_URL2),
+      replyClose.includes("Perfecto, ya tengo todo") || replyClose.includes(CATALOG_URL3),
       `debe cerrar: "${replyClose.slice(0, 200)}"`
     );
     assert2.ok(!/alg[uú]n\s+otro\s+servicio/i.test(replyClose), replyClose);
@@ -137099,7 +137165,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(/15 de agosto|santa fe|200/i.test(first), first.slice(0, 500));
     assert2.ok(/parrillada|men[uú]\s+casual|tres propuestas/i.test(first), first.slice(0, 600));
     assert2.ok(/distribuidor|mayoreo/i.test(first), first.slice(0, 600));
-    assert2.ok(first.includes(CATALOG_URL2) || /cat[aá]logo/i.test(first), first.slice(0, 700));
+    assert2.ok(first.includes(CATALOG_URL3) || /cat[aá]logo/i.test(first), first.slice(0, 700));
     assert2.ok(/nombre|c[oó]mo te llamas|regalas/i.test(first), first.slice(0, 700));
     const reread = runGuards({
       aiResponse: "ok",
@@ -137135,7 +137201,7 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert2.ok(clientAsksToRereadBrief("Favor de leer muy bien las especificaciones"));
     assert2.ok(/reviso|revis[eé]|anoto|solicitud|propuestas/i.test(reread), reread.slice(0, 500));
-    assert2.ok(reread.includes(CATALOG_URL2) || /cat[aá]logo/i.test(reread), reread.slice(0, 600));
+    assert2.ok(reread.includes(CATALOG_URL3) || /cat[aá]logo/i.test(reread), reread.slice(0, 600));
     const close = runGuards({
       aiResponse: "Informaci\xF3n completa",
       extracted: emptyExtracted({
@@ -137163,7 +137229,7 @@ ${CATALOG_OFFER_QUESTION}`
     });
     assert2.ok(/perfecto, ya tengo todo/i.test(close), close.slice(0, 400));
     assert2.ok(/alimentos|mobiliario|DJ|iluminaci/i.test(close), close);
-    assert2.ok(close.includes(CATALOG_URL2), close);
+    assert2.ok(close.includes(CATALOG_URL3), close);
     assert2.ok(
       clientRequestsCallback("Me gustar\xEDa una atenci\xF3n personalizada. Si me pueden marcar por favor")
     );
@@ -137246,21 +137312,21 @@ ${CATALOG_OFFER_QUESTION}`
     assert2.ok(!/\$\s*930/i.test(postRfq), postRfq.slice(0, 500));
     assert2.ok(!/Premium.*\/pp|mín\./i.test(postRfq), postRfq.slice(0, 500));
     assert2.ok(/parrillada|men[uú]|meseros|mobiliario|dj|iluminaci/i.test(postRfq), postRfq.slice(0, 700));
-    assert2.ok(postRfq.includes(CATALOG_URL2) || /cat[aá]logo/i.test(postRfq), postRfq.slice(0, 700));
+    assert2.ok(postRfq.includes(CATALOG_URL3) || /cat[aá]logo/i.test(postRfq), postRfq.slice(0, 700));
     assert2.ok(/mayoreo|distribuidor|equipo/i.test(postRfq), postRfq.slice(0, 700));
     const pkg = buildMultiServicePackageReply(
       ["Parrillada", "Meseros", "Mobiliario"],
       alejandraBrief
     );
-    assert2.ok(pkg.includes(CATALOG_URL2), pkg);
+    assert2.ok(pkg.includes(CATALOG_URL3), pkg);
     assert2.ok(buildPackageCatalogOfferBlock().includes(CATALOG_OFFER_QUESTION));
     assert2.ok(
       buildStandardClosingMessage("Mobiliario, Meseros, Parrillada", "Alejandra").includes(
-        CATALOG_URL2
+        CATALOG_URL3
       )
     );
     assert2.ok(
-      !buildStandardClosingMessage("banquete", "Ana").includes(CATALOG_URL2)
+      !buildStandardClosingMessage("banquete", "Ana").includes(CATALOG_URL3)
     );
     assert2.ok(/Alejandra/.test(buildPostCierreCallbackAck("Alejandra")));
     assert2.ok(/corporativo|15 de agosto|200/i.test(buildRichBriefAcknowledgment(alejandraBrief)));
@@ -141386,7 +141452,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.03");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.04");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -141889,6 +141955,18 @@ ${golfText}`,
     });
     assert2.ok(!/eres M[aá]ndamelo|sigo contigo/i.test(affirm), affirm.slice(0, 300));
     assert2.ok(/bodasesor\.com\/catalogos/i.test(affirm), affirm.slice(0, 400));
+  });
+  await test("130. V9.04 \u2014 cleanup: hub cat\xE1logo \xFAnico y strip compartido", () => {
+    assert2.equal(CATALOG_URL3, CATALOG_WEB_HUB_URL2);
+    assert2.equal(CATALOG_URL3, "https://bodasesor.com/catalogos");
+    assert2.ok(LUCY_GUARD_DOMAINS.catalogo);
+    assert2.ok(LUCY_GUARD_DOMAINS.postCierre);
+    assert2.ok(LUCY_GUARD_DOMAINS.nombre);
+    const mixed = "Anoto banquete.\nTe dejo el cat\xE1logo general:\nhttps://bodasesor.com/catalogos\n\xBFQuieres que te mande el cat\xE1logo?\nY seguimos.";
+    const cleaned = stripCatalogBlockShared(mixed);
+    assert2.ok(!/bodasesor\.com\/catalogos/i.test(cleaned), cleaned);
+    assert2.ok(/Anoto banquete/i.test(cleaned), cleaned);
+    assert2.equal(stripCatalogBlockShared(mixed), cleaned);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

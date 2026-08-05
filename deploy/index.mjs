@@ -204925,6 +204925,11 @@ DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
 \u2192 Responder: "Para [servicio], Alejandro te da los detalles y precio en tu cotizaci\xF3n."
 `;
 
+// src/catalogUrls.ts
+var CATALOG_WEB_HUB_URL = "https://bodasesor.com/catalogos";
+var CATALOG_URL = CATALOG_WEB_HUB_URL;
+var CATALOG_WEB_HUB = CATALOG_WEB_HUB_URL;
+
 // src/services/lucyInfoPriceCache.ts
 import { existsSync as existsSync2, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -206044,7 +206049,7 @@ async function loadGammaCatalog() {
 import { readFileSync as readFileSync2 } from "node:fs";
 import path3 from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
-var CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
+var CATALOG_WEB_HUB2 = CATALOG_WEB_HUB;
 var embedsCache = null;
 var knowledgeCache = [];
 var knowledgeBlockCache = "";
@@ -206081,7 +206086,7 @@ function loadCatalogEmbeds() {
         title: (v10.title ?? slug).trim(),
         embedSrc,
         gammaId: extractGammaIdFromEmbed(embedSrc),
-        webUrl: `${CATALOG_WEB_HUB}/${slug}`
+        webUrl: `${CATALOG_WEB_HUB2}/${slug}`
       };
     });
   } catch {
@@ -206123,7 +206128,7 @@ function resolveCatalogWebSlug(query) {
 }
 function getCatalogWebUrlForQuery(query) {
   const slug = resolveCatalogWebSlug(query);
-  return slug ? `${CATALOG_WEB_HUB}/${slug}` : null;
+  return slug ? `${CATALOG_WEB_HUB2}/${slug}` : null;
 }
 function getCatalogEmbed(slug) {
   return loadCatalogEmbeds().find((e10) => e10.slug === slug) ?? null;
@@ -212128,7 +212133,7 @@ function injectCatalogPriceIfAsked(clientMessage, aiResponse) {
   }
   return aiResponse;
 }
-var CATALOG_WEB_HUB_URL = "https://bodasesor.com/catalogos";
+var CATALOG_WEB_HUB_URL2 = CATALOG_WEB_HUB_URL;
 var BODASESOR_CATALOG_WEB_URL = /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]+)?\/?(?:[?#].*)?$/i;
 function isBodasesorCatalogWebUrl(url2) {
   return !!url2?.trim() && BODASESOR_CATALOG_WEB_URL.test(url2.trim());
@@ -212143,7 +212148,7 @@ function toDeliverableCatalogUrl(sheetUrl) {
   return m10[1] ? `${base}/catalogos/${m10[1]}` : `${base}/catalogos`;
 }
 function getCatalogWebHubDeliveryUrl() {
-  return toDeliverableCatalogUrl(CATALOG_WEB_HUB_URL);
+  return toDeliverableCatalogUrl(CATALOG_WEB_HUB_URL2);
 }
 function getRowCatalogWebLink(row) {
   const direct = row.linkCatalogo?.trim();
@@ -212171,7 +212176,7 @@ function scoreServiceForWebLink(query, row) {
 }
 function resolveCatalogWebLink(query, opts) {
   if (opts?.preferHub) {
-    return { url: CATALOG_WEB_HUB_URL, serviceName: null, kind: "hub" };
+    return { url: CATALOG_WEB_HUB_URL2, serviceName: null, kind: "hub" };
   }
   const trimmed = query?.trim() ?? "";
   if (!trimmed || !snapshot?.rows.length) {
@@ -212305,7 +212310,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.03";
+var LUCY_PROMPT_VERSION = "V9.04";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -213856,10 +213861,9 @@ function extractImageIntent(text2) {
   return normalizeIntent(m10[1]);
 }
 
-// src/lucy-flow-guards.ts
+// src/guards/embudoConstants.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
-var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Tipo de evento",
@@ -213873,12 +213877,92 @@ var LUCY_INTRO = "Hola, soy Lucy, agente virtual de Bodasesor.";
 var TIPO_EVENTO_HINT = "Manejamos bodas, XV a\xF1os, baby showers, cumplea\xF1os, eventos corporativos, bautizos y celebraciones familiares.";
 var SERVICIOS_CATALOGO_HINT = "Manejamos alimentos y barras (banquetes, taquizas, barras tem\xE1ticas), mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces y m\xE1s.";
 var SERVICIOS_CATALOGO_HINT_ADICIONAL = "Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.";
+var OTRO_SERVICIO_ASK_PATTERN = /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro/i;
+var CORREO_MAX_ASKS = 2;
+var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
+
+// src/guards/catalogSanitize.ts
+function stripCatalogBlockShared(text2) {
+  let result = text2.replace(
+    /\s*(mientras\s+tanto,?\s*)?(aqu[ií]\s+(est[aá]|tienes)\s+nuestro\s+cat[aá]logo\s+completo:?\s*)?https?:\/\/\S*cdn\.shopify\.com\S*/gi,
+    ""
+  );
+  result = result.replace(/\bcomparto\s+el\s+link\s+del\s+cat[aá]logo\b[.:]?/gi, "");
+  result = result.replace(
+    /\n*Te dejo el cat[aá]logo general[^\n]*\n?https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi,
+    "\n"
+  ).replace(/\n*https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi, "\n").replace(/\n*¿Quieres que te mande el cat[aá]logo[^\n?]*\?\n*/gi, "\n");
+  const lines = result.split("\n");
+  const filtered = lines.filter(
+    (l10) => !l10.toLowerCase().includes("banquetes:") && !l10.toLowerCase().includes("barras tem\xE1ticas:") && !l10.toLowerCase().includes("bebidas:") && !l10.toLowerCase().includes("mesas especiales:") && !l10.toLowerCase().includes("mobiliario:") && !l10.toLowerCase().includes("entretenimiento:") && !l10.toLowerCase().includes("estructuras:") && !l10.toLowerCase().includes("cdn.shopify.com")
+  );
+  return filtered.join("\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+
+// src/guards/contactAnswers.ts
+function buildPhoneAnswer() {
+  return [
+    "Claro, te paso los n\xFAmeros:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
+    "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
+  ].join("\n");
+}
+function buildEmergencyContactAnswer() {
+  return [
+    "Claro, te paso los contactos de emergencia del equipo:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
+    "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
+  ].join("\n");
+}
+function buildHumanAdvisorHandoffAnswer(clientName) {
+  const name2 = sanitizeDisplayName(clientName);
+  const hi2 = name2 ? `${name2}, ` : "";
+  return [
+    `Claro que s\xED, ${hi2}con gusto te canalizo con un asesor de Bodasesor para que te atiendan de forma personalizada.`,
+    "",
+    "Mientras te contactan, tambi\xE9n puedes marcar:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 WhatsApp o l\xEDnea telef\xF3nica.",
+    "",
+    "Ya dej\xE9 tu caso listo para el equipo."
+  ].join("\n");
+}
+function buildLocationAnswer() {
+  return "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el lugar de tu evento, coordinamos el servicio.";
+}
+
+// src/guards/postCierreReplies.ts
+function clientAsksPaymentOrQuoteDelivery(message) {
+  if (!message?.trim()) return false;
+  const t10 = message.toLowerCase();
+  return /\b(anticipo|50\s*%|porcentaje|dep[oó]sito|se[nñ]a)\b/i.test(t10) || /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t10) || /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t10) || /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t10) || /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t10);
+}
+function buildPostCierreThanksReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
+}
+function buildPostCierrePaymentHandoffReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi2 = nombre ? `${nombre}, ` : "";
+  return [
+    `Claro que s\xED, ${hi2}nuestro equipo te env\xEDa la cotizaci\xF3n y los datos para el anticipo (50%) por el correo que ya tenemos.`,
+    "En breve te atienden para confirmar montos y forma de pago."
+  ].join(" ");
+}
+function buildPostCierreCallbackAck(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.";
+}
+
+// src/lucy-flow-guards.ts
+var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 function mensajeMencionaCatalogoServicios(mensaje) {
   return /alimentos?|mobiliario|carpas?|pistas?(\s+de\s+baile)?|bebidas?|banquete|taquiza|iluminaci[oó]n|pantallas?|mesas?\s+de\s+dulces|dj\b|barras?\s+(de\s+)?alimentos|estaciones?\s+de\s+comida/i.test(
     mensaje
   );
 }
-var OTRO_SERVICIO_ASK_PATTERN = /alg[uú]n\s+otro\s+servicio|otro\s+servicio\b|qu[eé]\s+otros\s+servicios|algo\s+m[aá]s\s+para\s+(el\s+)?evento|solo\s+el\s+.+\s+o\s+tambi[eé]n|necesitan?\s+alg[uú]n\s+otro|cotizar\s+alg[uú]n\s+otro/i;
 function looksLikeServicesMenuDump(text2) {
   if (!text2?.trim()) return false;
   const t10 = text2.toLowerCase();
@@ -213912,7 +213996,6 @@ function hasPresupuestoValue(extracted) {
   if (typeof p10 === "number") return Number.isFinite(p10);
   return String(p10).trim().length > 0;
 }
-var CORREO_MAX_ASKS = 2;
 function syncFilledFromExtracted(filledSet, extracted) {
   if (sanitizeCrmNombre(extracted.nombre)) filledSet.add("Nombre del cliente");
   const email = filterClientEmail(extracted.correo);
@@ -214008,7 +214091,6 @@ function isValidRequerimientosValue(value) {
   if (trimmed.length >= 4) return true;
   return false;
 }
-var CLOSING_SIGNATURE = "Perfecto, ya tengo todo.";
 function detectCierreEnviado(history, lastStoredResponse) {
   const looksLikeCierre = (t10) => t10.includes(CLOSING_SIGNATURE) || /\bya tengo todo\b/i.test(t10) || /\bcompartir esta informaci[oó]n con nuestro equipo\b/i.test(t10) || /\bcotizaci[oó]n personalizada\b/i.test(t10);
   if (lastStoredResponse && looksLikeCierre(lastStoredResponse)) return true;
@@ -214092,18 +214174,6 @@ function isEmailSatisfied(filledSet, extracted) {
 function isReadyForClosing(filledSet) {
   return CLOSING_CORE_FIELDS.every((label) => filledSet.has(label)) && isEmailSatisfied(filledSet);
 }
-function stripCatalogBlockShared(text2) {
-  let result = text2.replace(
-    /\s*(mientras\s+tanto,?\s*)?(aqu[ií]\s+(est[aá]|tienes)\s+nuestro\s+cat[aá]logo\s+completo:?\s*)?https?:\/\/\S*cdn\.shopify\.com\S*/gi,
-    ""
-  );
-  result = result.replace(/\bcomparto\s+el\s+link\s+del\s+cat[aá]logo\b[.:]?/gi, "");
-  const lines = result.split("\n");
-  const filtered = lines.filter(
-    (l10) => !l10.toLowerCase().includes("banquetes:") && !l10.toLowerCase().includes("barras tem\xE1ticas:") && !l10.toLowerCase().includes("bebidas:") && !l10.toLowerCase().includes("mesas especiales:") && !l10.toLowerCase().includes("mobiliario:") && !l10.toLowerCase().includes("entretenimiento:") && !l10.toLowerCase().includes("estructuras:") && !l10.toLowerCase().includes("cdn.shopify.com")
-  );
-  return filtered.join("\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
-}
 function crmStoredValue(mergedLines, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`^-?\\s*${escaped}:`, "i");
@@ -214158,38 +214228,6 @@ function pickVariant(field, history, entityId) {
     if (snippet && !lastAssistant.includes(snippet)) return candidate;
   }
   return variants[start2 % variants.length];
-}
-function buildPhoneAnswer() {
-  return [
-    "Claro, te paso los n\xFAmeros:",
-    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
-    "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
-  ].join("\n");
-}
-function buildEmergencyContactAnswer() {
-  return [
-    "Claro, te paso los contactos de emergencia del equipo:",
-    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
-    "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
-  ].join("\n");
-}
-function buildHumanAdvisorHandoffAnswer(clientName) {
-  const name2 = sanitizeDisplayName(clientName);
-  const hi2 = name2 ? `${name2}, ` : "";
-  return [
-    `Claro que s\xED, ${hi2}con gusto te canalizo con un asesor de Bodasesor para que te atiendan de forma personalizada.`,
-    "",
-    "Mientras te contactan, tambi\xE9n puedes marcar:",
-    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 \u2014 WhatsApp o l\xEDnea telef\xF3nica.",
-    "",
-    "Ya dej\xE9 tu caso listo para el equipo."
-  ].join("\n");
-}
-function buildLocationAnswer() {
-  return "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el lugar de tu evento, coordinamos el servicio.";
 }
 function buildItalianFoodPitch(message) {
   const inv = message?.match(/(\d+)\s*(?:personas?|invitados?)/i);
@@ -215853,27 +215891,6 @@ function clientJustAnsweredRequerimientosQuestion(history, currentMessage) {
 function clientSaysThanks(message) {
   if (!message?.trim()) return false;
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
-}
-function clientAsksPaymentOrQuoteDelivery(message) {
-  if (!message?.trim()) return false;
-  const t10 = message.toLowerCase();
-  return /\b(anticipo|50\s*%|porcentaje|dep[oó]sito|se[nñ]a)\b/i.test(t10) || /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t10) || /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t10) || /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t10) || /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t10);
-}
-function buildPostCierreThanksReply(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
-}
-function buildPostCierrePaymentHandoffReply(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  const hi2 = nombre ? `${nombre}, ` : "";
-  return [
-    `Claro que s\xED, ${hi2}nuestro equipo te env\xEDa la cotizaci\xF3n y los datos para el anticipo (50%) por el correo que ya tenemos.`,
-    "En breve te atienden para confirmar montos y forma de pago."
-  ].join(" ");
-}
-function buildPostCierreCallbackAck(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.";
 }
 function lastAssistantWasPhoneAnswer(history) {
   const last = [...history].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string");
@@ -219584,7 +219601,7 @@ function scrubClientFieldsForProveedor(extracted) {
 
 // src/lucy-prompt.ts
 var ADVISOR = getAdvisorName();
-var CATALOG_URL = "https://bodasesor.com/catalogos";
+var CATALOG_URL2 = CATALOG_URL;
 var SYSTEM_PROMPT = `Eres **Lucy**, asesora de Bodasesor por WhatsApp. Hablas como una persona real
 que conoce el cat\xE1logo: clara, directa, c\xE1lida sin teatralidad. NO eres un salesbot
 de men\xFAs pegados ni un formulario con disfraz. Si el cliente te escribe como te
@@ -219707,7 +219724,7 @@ lugar de tu evento, coordinamos el servicio."
 ===================================================================
 - Inclusiones: PDFs de Aprendizaje. Precios: Sheet (gana el Sheet si chocan).
 - Link de cat\xE1logo del servicio (bodasesor.com/catalogos/...), uno a la vez.
-- Multi-servicio \u2192 links de los pedidos + hub ${CATALOG_URL} solo si hace falta.
+- Multi-servicio \u2192 links de los pedidos + hub ${CATALOG_URL2} solo si hace falta.
 - NUNCA links gamma.app. NUNCA inventes precios ni inclusiones.
 
 ===================================================================
@@ -220180,13 +220197,6 @@ function cleanupBrokenOutboundFragments(text2) {
   );
   return t10.replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
-function stripCatalogOfferBlock(text2) {
-  let t10 = text2.replace(
-    /\n*Te dejo el cat[aá]logo general[^\n]*\n?https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi,
-    "\n"
-  ).replace(/\n*https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi, "\n").replace(/\n*¿Quieres que te mande el cat[aá]logo[^\n?]*\?\n*/gi, "\n");
-  return t10.replace(/\n{3,}/g, "\n\n").trim();
-}
 function isEntertainmentCatalogReply(mensaje) {
   return CATALOG_SEND_PATTERN.test(mensaje) && ENTERTAINMENT_PITCH_PATTERN.test(mensaje);
 }
@@ -220287,7 +220297,7 @@ function applyLucyGlobalAntiRepetition(input) {
     }
   }
   if (!cierre && hasCatalogNow && !isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientAskedServiceInfo && !clientAffirmingCatalog && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p10) => CATALOG_SEND_PATTERN.test(p10))) {
-    const without = stripCatalogOfferBlock(mensaje);
+    const without = stripCatalogBlockShared(mensaje);
     const qs2 = questionLines(without).filter(
       (q10) => !/cat[aá]logo/i.test(q10) && previous.every((p10) => lucyTextOverlapRatio(q10, p10) < 0.68)
     );
@@ -220379,10 +220389,10 @@ async function finalizeLucyOutboundMessage(input) {
     readyForClosing: input.readyForClosing,
     cierreYaEnviado: input.cierreYaEnviado,
     closingSignature: CLOSING_SIGNATURE,
-    catalogUrl: CATALOG_URL
+    catalogUrl: CATALOG_URL2
   });
   mensaje = normalizeAdvisorReferences(mensaje, input.extracted.nombre ?? null);
-  if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
+  if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL2)) {
     const allowPostCierreCatalog = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || isServiceRelatedMessage(input.currentMessage) || clientAsksInclusion(input.currentMessage) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|cat[aá]logo|info)\b/i.test(
       input.currentMessage ?? ""
     );
