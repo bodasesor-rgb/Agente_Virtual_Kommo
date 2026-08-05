@@ -96,7 +96,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Menú Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
   ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
-  ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
+  ["Animación / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
   // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
   ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
   // A15009 Erick: circo / Blue Man.
@@ -118,7 +118,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Floristería", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
   // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
   ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
-  ["Mobiliario", /\b(mobiliario|m[aá]rmol|sillas?|mesas?|periqueras?)\b/i],
+  ["Mobiliario", /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|mesas?|periqueras?)\b/i],
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
@@ -144,7 +144,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshow\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -347,6 +347,7 @@ export function clientAsksForRecommendations(message?: string): boolean {
     /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t) ||
     /qu[eé]\s+opciones/i.test(t) ||
     /qu[eé]\s+servicios\s+me\s+conviene/i.test(t) ||
+    /qu[eé]\s+(otros\s+)?servicios(\s+\w+){0,3}\s+(manejan|ofrecen|tienen|hay)/i.test(t) ||
     /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t) ||
     /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t) ||
     /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t) ||
@@ -781,16 +782,16 @@ export function clientMentionsEntertainment(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
   return (
-    /\bshow\b/i.test(t) ||
+    /\bshows?\b/i.test(t) ||
     /\bgrupo\s+vers[aá]til\b/i.test(t) ||
     /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t) ||
     /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t) ||
     /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t) ||
-    /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(show|maestro|animaci)/i.test(t) ||
+    /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t) ||
     // A14962 Vane: batucada / robots LED / ambientación de show
     /\bbatucada\b/i.test(t) ||
     /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t) ||
-    /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|show|robots?|leds?)\b/i.test(t) ||
+    /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t) ||
     // A14988 Ernesto: bailarinas para concierto
     /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t) ||
     // A15003 Juan: photo booth / cabina
@@ -942,12 +943,13 @@ export function clientAsksServiceInfo(message?: string): boolean {
   const t = message.toLowerCase();
   if (!isServiceRelatedMessage(message)) return false;
   return (
-    /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?)\b/i.test(t) ||
+    /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t) ||
     /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t) ||
     /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t) ||
-    // "¿Cuentan con carpas transparentes?" / "¿tienen pista?"
-    /\b(cuentan|tienen|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t) ||
-    /\b(cuentan|tienen|manejan|ofrecen)\s+con\b/i.test(t) ||
+    /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t) ||
+    // "¿Cuentan con carpas transparentes?" / "¿tienen pista?" / "¿tienes modelos?"
+    /\b(cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t) ||
+    /\b(cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t) ||
     // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
     /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t)
   );

@@ -21,6 +21,7 @@ import {
   buildCatalogServiceDetailAnswer,
   formatServiceDataForPrompt,
   lookupCatalogServices,
+  getCatalogWebHubDeliveryUrl,
 } from "./catalogService.js";
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
 import { buildLucyInfoLearnedPriceReply } from "./lucyInfoPriceCache.js";
@@ -270,12 +271,27 @@ export function buildGuardServiceAck(query: string): string {
   }
 
   // V8.92: solo "mobiliario" / pieza sin qty → menú progresivo (no dump).
-  if (/\bmobiliario\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
+  if (
+    /\b(mobiliario|mobilairio)\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) &&
+    !parseMobiliarioRentItems(query).length
+  ) {
     return buildProgressiveOptionsMenu("mobiliario");
   }
   if (/\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
-    const p = parseMobiliarioPieceChoice(query);
+    const p = parseMobiliarioPieceChoice(query) || (/\bsillas?\b/i.test(query) ? "sillas" : null);
     if (p) return buildMobiliarioPieceFollowUp(p);
+  }
+
+  // A15165: show / animación — no Level-2 vacío; orientar + hub.
+  if (
+    /\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(query)
+  ) {
+    return (
+      "Claro — manejamos *shows*, animación y performance (hora loca, shows en vivo y activaciones). " +
+      "Cada propuesta se arma al concepto del evento. " +
+      `Te dejo el catálogo general:\n${getCatalogWebHubDeliveryUrl()}\n` +
+      "¿Buscas algo en especial (show en vivo, hora loca, otro formato)?"
+    );
   }
 
   return buildLevel2Ack(label);

@@ -164824,6 +164824,15 @@ function resolveCatalogWebSlug(query) {
   const t3 = query.trim().toLowerCase();
   const urlMatch = t3.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
   if (urlMatch?.[1]) return urlMatch[1];
+  const aliases = [
+    [/\b(mesas?\s*y\s*sillas?|sillas?|mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
+    [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
+    [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
+    [/\bbanquetes?\b/i, "banquete-formal"]
+  ];
+  for (const [re4, slug] of aliases) {
+    if (re4.test(t3) && loadCatalogEmbeds().some((e3) => e3.slug === slug)) return slug;
+  }
   const embeds = loadCatalogEmbeds();
   const exact = embeds.find((e3) => e3.slug === t3.replace(/\s+/g, "-"));
   if (exact) return exact.slug;
@@ -165342,7 +165351,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
   ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
-  ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
+  ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
   // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
   ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
   // A15009 Erick: circo / Blue Man.
@@ -165364,7 +165373,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
   // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
   ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
-  ["Mobiliario", /\b(mobiliario|m[aá]rmol|sillas?|mesas?|periqueras?)\b/i],
+  ["Mobiliario", /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|mesas?|periqueras?)\b/i],
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
@@ -165388,7 +165397,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
   ["Mesa imperial", /\bmesa\s+imperial\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshow\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
@@ -165542,7 +165551,7 @@ function clientAddsToQuote(message) {
 function clientAsksForRecommendations(message) {
   if (!message?.trim()) return false;
   const t3 = message.toLowerCase();
-  return /recomendaciones?|recomiendas?/i.test(t3) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t3) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t3) || /qu[eé]\s+opciones/i.test(t3) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t3) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t3) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t3) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t3) || /algo\s+m[aá]s\s*\?/i.test(t3);
+  return /recomendaciones?|recomiendas?/i.test(t3) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t3) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t3) || /qu[eé]\s+opciones/i.test(t3) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t3) || /qu[eé]\s+(otros\s+)?servicios(\s+\w+){0,3}\s+(manejan|ofrecen|tienen|hay)/i.test(t3) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t3) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t3) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t3) || /algo\s+m[aá]s\s*\?/i.test(t3);
 }
 function lastAssistantOfferedNumberedPackages(lastAssistantText) {
   const last = lastAssistantText ?? "";
@@ -165807,8 +165816,8 @@ function clientMentionsItalianTheme(message) {
 function clientMentionsEntertainment(message) {
   if (!message?.trim()) return false;
   const t3 = message.toLowerCase();
-  return /\bshow\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t3) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t3) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t3) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(show|maestro|animaci)/i.test(t3) || // A14962 Vane: batucada / robots LED / ambientación de show
-  /\bbatucada\b/i.test(t3) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t3) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|show|robots?|leds?)\b/i.test(t3) || // A14988 Ernesto: bailarinas para concierto
+  return /\bshows?\b/i.test(t3) || /\bgrupo\s+vers[aá]til\b/i.test(t3) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t3) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t3) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t3) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t3) || // A14962 Vane: batucada / robots LED / ambientación de show
+  /\bbatucada\b/i.test(t3) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t3) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t3) || // A14988 Ernesto: bailarinas para concierto
   /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t3) || // A15003 Juan: photo booth / cabina
   /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
     t3
@@ -165874,8 +165883,8 @@ function clientAsksServiceInfo(message) {
   if (!message?.trim()) return false;
   const t3 = message.toLowerCase();
   if (!isServiceRelatedMessage(message)) return false;
-  return /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?)\b/i.test(t3) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t3) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t3) || // "¿Cuentan con carpas transparentes?" / "¿tienen pista?"
-  /\b(cuentan|tienen|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t3) || /\b(cuentan|tienen|manejan|ofrecen)\s+con\b/i.test(t3) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
+  return /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t3) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t3) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t3) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t3) || // "¿Cuentan con carpas transparentes?" / "¿tienen pista?" / "¿tienes modelos?"
+  /\b(cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t3) || /\b(cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t3) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
   /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t3);
 }
 var NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
@@ -168257,12 +168266,17 @@ function buildGuardServiceAck(query) {
     const dims = parseSpaceDimensions(query);
     return dims ? `${mobiliario} Con espacio ${dims}, el equipo afina la propuesta.` : `${mobiliario} \xBFLo agregamos a tu cotizaci\xF3n?`;
   }
-  if (/\bmobiliario\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
+  if (/\b(mobiliario|mobilairio)\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
     return buildProgressiveOptionsMenu("mobiliario");
   }
   if (/\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
-    const p4 = parseMobiliarioPieceChoice(query);
+    const p4 = parseMobiliarioPieceChoice(query) || (/\bsillas?\b/i.test(query) ? "sillas" : null);
     if (p4) return buildMobiliarioPieceFollowUp(p4);
+  }
+  if (/\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(query)) {
+    return `Claro \u2014 manejamos *shows*, animaci\xF3n y performance (hora loca, shows en vivo y activaciones). Cada propuesta se arma al concepto del evento. Te dejo el cat\xE1logo general:
+${getCatalogWebHubDeliveryUrl()}
+\xBFBuscas algo en especial (show en vivo, hora loca, otro formato)?`;
   }
   return buildLevel2Ack(label);
 }
@@ -170968,7 +170982,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V8.98";
+var LUCY_PROMPT_VERSION = "V8.99";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -173192,7 +173206,7 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
     intro = `S\xED, para ${eventLabel} tambi\xE9n manejamos *maestro de ceremonias* y shows en vivo.`;
     ideas = "\xBFBuscas m\xE1s bien presentador, show de grupo, o animaci\xF3n tipo hora loca?";
   } else {
-    intro = `Claro \u2014 para entretenimiento en ${eventLabel} te apoyamos con shows, animaci\xF3n y activaciones.`;
+    intro = `Claro \u2014 para entretenimiento en ${eventLabel} te apoyamos con shows, animaci\xF3n y performance.`;
     ideas = "\xBFBuscas algo m\xE1s tipo show en vivo, hora loca, o ya tienes un formato en mente?";
   }
   const entServices = collectServicesForCatalogOffer({
@@ -173203,16 +173217,23 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
       ...wantsBailarinas ? ["Bailarinas", "Animaci\xF3n / Hora loca"] : [],
       ...wantsRobots ? ["Robots LED"] : [],
       ...wantsBatucada ? ["Batucada"] : [],
-      ...wantsMc ? ["Maestro de ceremonias"] : []
+      ...wantsMc ? ["Maestro de ceremonias"] : [],
+      ...!wantsPhotoBooth && !wantsSpecialAct && !wantsBailarinas && !wantsRobots && !wantsBatucada && !wantsMc ? ["Animaci\xF3n / Hora loca", "show"] : []
     ],
     extracted,
     history,
     currentMessage
   });
-  const catalog = wantsPhotoBooth || wantsSpecialAct ? "" : buildPackageCatalogOfferBlock(
+  let catalog = wantsPhotoBooth || wantsSpecialAct ? "" : buildPackageCatalogOfferBlock(
     entServices,
     `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
   );
+  if (!catalog && !wantsPhotoBooth) {
+    catalog = [
+      "Te dejo el cat\xE1logo general (shows, animaci\xF3n y m\xE1s servicios):",
+      getCatalogWebHubDeliveryUrl()
+    ].join("\n");
+  }
   let body2 = catalog ? `${intro} ${ideas}
 
 ${catalog}` : `${intro} ${ideas}`;
@@ -173807,6 +173828,9 @@ function buildOpeningAcknowledgment(history, currentMessage) {
     return inv ? `Te ayudo con el banquete para ${inv[1]} personas.` : "Con gusto te ayudo con informaci\xF3n de banquetes.";
   }
   if (/kosher/.test(t3)) return "S\xED tenemos opciones kosher.";
+  if (/\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(t3)) {
+    return "Claro \u2014 manejamos shows, animaci\xF3n y performance para eventos.";
+  }
   if (/\bpista(\s+de\s+baile)?\b|\btarima/i.test(t3)) {
     return "Claro, te ayudo con pista de baile o tarima para tu evento.";
   }
@@ -175299,7 +175323,13 @@ Perfecto, ${nombre}. Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que qu
 Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 RFQ/paquete completo (no SKU suelto)");
-  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim()) {
+  } else if (
+    // A15165: post-cierre con PREGUNTA de info/catálogo/modelos/shows → NO ack corto.
+    // Dejar caer a ramas de entretenimiento / mobiliario / recomendaciones / servicio.
+    cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim() && !clientAsksServiceInfo(currentMessage) && !clientMentionsEntertainment(currentMessage) && !clientAsksForCatalog(currentMessage) && !clientAsksForRecommendations(currentMessage) && !clientAsksInclusion(currentMessage) && !clientAsksPrice(currentMessage) && !/\b(modelos?|cat[aá]logo|sillas?|mesas?|mobiliario|mobilairio|banquetes?)\b/i.test(
+      currentMessage ?? ""
+    )
+  ) {
     const services = parseServicesFromText(currentMessage);
     const list = services.length > 0 ? formatServicesList(services) : currentMessage.trim().replace(/\s+/g, " ").slice(0, 80);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
@@ -176008,26 +176038,32 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
       log?.info({ entityId }, "GUARD: eligi\xF3 catering casual \u2192 men\xFA estaciones");
     }
   } else if (
-    // V8.92: tras menú de piezas mobiliario → modelos (sillas/mesas/…).
-    allowSalesReplyOverride && !cierreYaEnviado && historyOfferedMobiliarioPieceMenu(presHistory) && currentMessage?.trim() && parseMobiliarioPieceChoice(currentMessage)
+    // V8.92 / A15165: menú de piezas mobiliario → modelos (también post-cierre).
+    allowSalesReplyOverride && (historyOfferedMobiliarioPieceMenu(presHistory) || /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio\b/i.test(currentMessage ?? "")) && currentMessage?.trim() && (parseMobiliarioPieceChoice(currentMessage) || /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") || /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
-    const piece = parseMobiliarioPieceChoice(currentMessage);
+    const piece = parseMobiliarioPieceChoice(currentMessage) || (/\bsillas?\b/i.test(currentMessage ?? "") ? "sillas" : /\bmesas?\b/i.test(currentMessage ?? "") ? "mesas" : "mobiliario");
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
-      `Mobiliario: ${piece}`,
+      piece === "mobiliario" ? "Mobiliario" : `Mobiliario: ${piece}`,
       6
     );
     if (merged) extracted.requerimientos_evento = merged;
+    const body2 = piece === "mobiliario" ? buildProgressiveOptionsMenu("mobiliario") : buildMobiliarioPieceFollowUp(piece);
+    const catalogUrl = getCatalogWebUrlForQuery("mesas y sillas") || getCatalogWebHubDeliveryUrl();
+    const withLink = catalogUrl && !/bodasesor\.com\/catalogos/i.test(body2) ? `${body2}
+
+Cat\xE1logo de mesas y sillas:
+${catalogUrl}` : body2;
     mensaje = mergeWithPendingQuestion(
-      `${pickTransition(presHistory)} ${buildMobiliarioPieceFollowUp(piece)}`,
+      `${pickTransition(presHistory)} ${withLink}`,
       filledSet,
       extracted,
       ctx
     );
     appliedSalesReply = true;
     appliedDirectReply = true;
-    log?.info({ entityId, piece }, "GUARD: pieza mobiliario \u2192 men\xFA de modelos");
+    log?.info({ entityId, piece }, "GUARD: mobiliario/sillas \u2192 men\xFA de modelos + cat\xE1logo");
   } else if (allowSalesReplyOverride && !cierreYaEnviado && historyOfferedServiceOptionsMenu(presHistory) && clientWantsServiceDetail(currentMessage, presHistory)) {
     const progressiveDetail = buildProgressiveDetailAfterMenu({
       extracted,
@@ -178799,6 +178835,9 @@ function applyLucyGlobalAntiRepetition(input) {
   const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
     mensaje
   ) || isEntertainmentCatalog || clientAffirmingCatalog;
+  const clientAskingInfo = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || clientAsksForRecommendations(input.currentMessage) || clientAsksForCatalog(input.currentMessage) || clientAsksInclusion(input.currentMessage) || clientAsksPrice(input.currentMessage) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info)\b/i.test(
+    input.currentMessage ?? ""
+  );
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p4) => THANKS_ACK_PATTERN.test(p4))) {
     const lastThanks = [...previous].reverse().find((p4) => THANKS_ACK_PATTERN.test(p4));
     if (lastThanks && lucyTextOverlapRatio(mensaje, lastThanks) >= 0.55) {
@@ -178806,7 +178845,7 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("postcierre-thanks-dedupe");
     }
   }
-  if (cierre && ALGO_MAS_PATTERN.test(mensaje)) {
+  if (cierre && !clientAskingInfo && ALGO_MAS_PATTERN.test(mensaje)) {
     const prevAlgoMas = previous.filter((p4) => ALGO_MAS_PATTERN.test(p4));
     if (prevAlgoMas.length >= 1 && prevAlgoMas.some((p4) => lucyTextOverlapRatio(mensaje, p4) >= 0.5)) {
       mensaje = shortPostCierreAck(nombre, false);
@@ -178875,7 +178914,7 @@ function applyLucyGlobalAntiRepetition(input) {
     }
   }
   const nearDupThreshold = questionLines(mensaje).length > 0 && mensaje.length < 220 ? 0.55 : 0.62;
-  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientClarifyingService && previous.length > 0) {
+  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientClarifyingService && !clientAskingInfo && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p4) => lucyTextOverlapRatio(mensaje, p4)));
     if (maxOverlap >= nearDupThreshold) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);
@@ -178956,9 +178995,14 @@ async function finalizeLucyOutboundMessage(input) {
     );
     mensaje = anti.mensaje;
   }
-  if (!input.cierreYaEnviado && input.currentMessage && clientAsksServiceInfo(input.currentMessage) && isServiceRelatedMessage(input.currentMessage) && !/\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn)\b/i.test(
+  const hasLucyIntro = /hola,?\s*soy\s+lucy/i.test(mensaje);
+  const openingNombreOnly = hasLucyIntro || /\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo)\b/i.test(
     mensaje
-  )) {
+  ) && !/\b(precio|incluye|nivel|cat[aá]logo)\b/i.test(mensaje);
+  const alreadyOperational = /\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn|ayudo|anoto|entretenimiento|shows?|hora\s+loca|animaci[oó]n|cat[aá]logo|bodasesor\.com|mesas?\s+y\s+sillas|tiffany|crossback)\b/i.test(
+    mensaje
+  );
+  if (!input.cierreYaEnviado && !openingNombreOnly && !hasLucyIntro && input.currentMessage && clientAsksServiceInfo(input.currentMessage) && isServiceRelatedMessage(input.currentMessage) && !alreadyOperational) {
     const ack = buildGuardServiceAck(input.currentMessage);
     const keepQ = (mensaje.match(/[^.!?]*\?/g) ?? []).join(" ").trim();
     mensaje = keepQ ? `${ack}

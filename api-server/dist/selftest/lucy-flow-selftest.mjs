@@ -277,7 +277,7 @@ var require_retry2 = __commonJS({
 var require_p_retry = __commonJS({
   "node_modules/.pnpm/p-retry@4.6.2/node_modules/p-retry/index.js"(exports, module) {
     "use strict";
-    var retry = require_retry2();
+    var retry2 = require_retry2();
     var networkErrorMsgs = [
       "Failed to fetch",
       // Chrome
@@ -316,7 +316,7 @@ var require_p_retry = __commonJS({
         retries: 10,
         ...options
       };
-      const operation = retry.operation(options);
+      const operation = retry2.operation(options);
       operation.attempt(async (attemptNumber) => {
         try {
           resolve(await input(attemptNumber));
@@ -356,7 +356,7 @@ var require_p_retry = __commonJS({
 var require_extend = __commonJS({
   "node_modules/.pnpm/extend@3.0.2/node_modules/extend/index.js"(exports, module) {
     "use strict";
-    var hasOwn2 = Object.prototype.hasOwnProperty;
+    var hasOwn3 = Object.prototype.hasOwnProperty;
     var toStr = Object.prototype.toString;
     var defineProperty = Object.defineProperty;
     var gOPD = Object.getOwnPropertyDescriptor;
@@ -366,19 +366,19 @@ var require_extend = __commonJS({
       }
       return toStr.call(arr) === "[object Array]";
     };
-    var isPlainObject = function isPlainObject2(obj) {
+    var isPlainObject2 = function isPlainObject3(obj) {
       if (!obj || toStr.call(obj) !== "[object Object]") {
         return false;
       }
-      var hasOwnConstructor = hasOwn2.call(obj, "constructor");
-      var hasIsPrototypeOf = obj.constructor && obj.constructor.prototype && hasOwn2.call(obj.constructor.prototype, "isPrototypeOf");
+      var hasOwnConstructor = hasOwn3.call(obj, "constructor");
+      var hasIsPrototypeOf = obj.constructor && obj.constructor.prototype && hasOwn3.call(obj.constructor.prototype, "isPrototypeOf");
       if (obj.constructor && !hasOwnConstructor && !hasIsPrototypeOf) {
         return false;
       }
       var key;
       for (key in obj) {
       }
-      return typeof key === "undefined" || hasOwn2.call(obj, key);
+      return typeof key === "undefined" || hasOwn3.call(obj, key);
     };
     var setProperty = function setProperty2(target, options) {
       if (defineProperty && options.name === "__proto__") {
@@ -394,7 +394,7 @@ var require_extend = __commonJS({
     };
     var getProperty = function getProperty2(obj, name) {
       if (name === "__proto__") {
-        if (!hasOwn2.call(obj, name)) {
+        if (!hasOwn3.call(obj, name)) {
           return void 0;
         } else if (gOPD) {
           return gOPD(obj, name).value;
@@ -423,12 +423,12 @@ var require_extend = __commonJS({
             src = getProperty(target, name);
             copy = getProperty(options, name);
             if (target !== copy) {
-              if (deep && copy && (isPlainObject(copy) || (copyIsArray = isArray2(copy)))) {
+              if (deep && copy && (isPlainObject2(copy) || (copyIsArray = isArray2(copy)))) {
                 if (copyIsArray) {
                   copyIsArray = false;
                   clone2 = src && isArray2(src) ? src : [];
                 } else {
-                  clone2 = src && isPlainObject(src) ? src : {};
+                  clone2 = src && isPlainObject2(src) ? src : {};
                 }
                 setProperty(target, { name, newValue: extend(deep, clone2, copy) });
               } else if (typeof copy !== "undefined") {
@@ -851,10 +851,10 @@ var require_retry3 = __commonJS({
       if (!await shouldRetryFn(err)) {
         return { shouldRetry: false, config: err.config };
       }
-      const delay = getNextRetryDelay(config);
+      const delay2 = getNextRetryDelay(config);
       err.config.retryConfig.currentRetryAttempt += 1;
-      const backoff = config.retryBackoff ? config.retryBackoff(err, delay) : new Promise((resolve) => {
-        setTimeout(resolve, delay);
+      const backoff = config.retryBackoff ? config.retryBackoff(err, delay2) : new Promise((resolve) => {
+        setTimeout(resolve, delay2);
       });
       if (config.onRetryAttempt) {
         await config.onRetryAttempt(err);
@@ -948,14 +948,14 @@ var require_ms = __commonJS({
       if (str2.length > 100) {
         return;
       }
-      var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
+      var match2 = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
         str2
       );
-      if (!match) {
+      if (!match2) {
         return;
       }
-      var n = parseFloat(match[1]);
-      var type = (match[2] || "ms").toLowerCase();
+      var n = parseFloat(match2[1]);
+      var type = (match2[2] || "ms").toLowerCase();
       switch (type) {
         case "years":
         case "year":
@@ -1041,7 +1041,7 @@ var require_ms = __commonJS({
 // node_modules/.pnpm/debug@4.4.3/node_modules/debug/src/common.js
 var require_common2 = __commonJS({
   "node_modules/.pnpm/debug@4.4.3/node_modules/debug/src/common.js"(exports, module) {
-    function setup(env) {
+    function setup(env2) {
       createDebug.debug = createDebug;
       createDebug.default = createDebug;
       createDebug.coerce = coerce;
@@ -1050,8 +1050,8 @@ var require_common2 = __commonJS({
       createDebug.enabled = enabled;
       createDebug.humanize = require_ms();
       createDebug.destroy = destroy;
-      Object.keys(env).forEach((key) => {
-        createDebug[key] = env[key];
+      Object.keys(env2).forEach((key) => {
+        createDebug[key] = env2[key];
       });
       createDebug.names = [];
       createDebug.skips = [];
@@ -1086,19 +1086,19 @@ var require_common2 = __commonJS({
             args.unshift("%O");
           }
           let index = 0;
-          args[0] = args[0].replace(/%([a-zA-Z%])/g, (match, format) => {
-            if (match === "%%") {
+          args[0] = args[0].replace(/%([a-zA-Z%])/g, (match2, format) => {
+            if (match2 === "%%") {
               return "%";
             }
             index++;
             const formatter = createDebug.formatters[format];
             if (typeof formatter === "function") {
               const val = args[index];
-              match = formatter.call(self2, val);
+              match2 = formatter.call(self2, val);
               args.splice(index, 1);
               index--;
             }
-            return match;
+            return match2;
           });
           createDebug.formatArgs.call(self2, args);
           const logFn = self2.log || createDebug.log;
@@ -1333,12 +1333,12 @@ var require_browser = __commonJS({
       args.splice(1, 0, c, "color: inherit");
       let index = 0;
       let lastC = 0;
-      args[0].replace(/%[a-zA-Z%]/g, (match) => {
-        if (match === "%%") {
+      args[0].replace(/%[a-zA-Z%]/g, (match2) => {
+        if (match2 === "%%") {
           return;
         }
         index++;
-        if (match === "%c") {
+        if (match2 === "%c") {
           lastC = index;
         }
       });
@@ -1615,7 +1615,7 @@ var require_helpers = __commonJS({
       return Buffer.concat(chunks, length);
     }
     exports.toBuffer = toBuffer;
-    async function json(stream) {
+    async function json2(stream) {
       const buf = await toBuffer(stream);
       const str2 = buf.toString("utf8");
       try {
@@ -1626,7 +1626,7 @@ var require_helpers = __commonJS({
         throw err;
       }
     }
-    exports.json = json;
+    exports.json = json2;
     function req(url, opts = {}) {
       const href = typeof url === "string" ? url : url.href;
       const req2 = (href.startsWith("https:") ? https2 : http3).request(url, opts);
@@ -6846,22 +6846,22 @@ var init_from = __esm({
     init_file();
     init_fetch_blob();
     ({ stat } = fs);
-    blobFromSync = (path5, type) => fromBlob(statSync(path5), path5, type);
-    blobFrom = (path5, type) => stat(path5).then((stat2) => fromBlob(stat2, path5, type));
-    fileFrom = (path5, type) => stat(path5).then((stat2) => fromFile(stat2, path5, type));
-    fileFromSync = (path5, type) => fromFile(statSync(path5), path5, type);
-    fromBlob = (stat2, path5, type = "") => new fetch_blob_default([new BlobDataItem({
-      path: path5,
-      size: stat2.size,
-      lastModified: stat2.mtimeMs,
+    blobFromSync = (path6, type) => fromBlob(statSync(path6), path6, type);
+    blobFrom = (path6, type) => stat(path6).then((stat3) => fromBlob(stat3, path6, type));
+    fileFrom = (path6, type) => stat(path6).then((stat3) => fromFile(stat3, path6, type));
+    fileFromSync = (path6, type) => fromFile(statSync(path6), path6, type);
+    fromBlob = (stat3, path6, type = "") => new fetch_blob_default([new BlobDataItem({
+      path: path6,
+      size: stat3.size,
+      lastModified: stat3.mtimeMs,
       start: 0
     })], { type });
-    fromFile = (stat2, path5, type = "") => new file_default([new BlobDataItem({
-      path: path5,
-      size: stat2.size,
-      lastModified: stat2.mtimeMs,
+    fromFile = (stat3, path6, type = "") => new file_default([new BlobDataItem({
+      path: path6,
+      size: stat3.size,
+      lastModified: stat3.mtimeMs,
       start: 0
-    })], basename(path5), { type, lastModified: stat2.mtimeMs });
+    })], basename(path6), { type, lastModified: stat3.mtimeMs });
     BlobDataItem = class _BlobDataItem {
       #path;
       #start;
@@ -6910,8 +6910,8 @@ function _fileName(headerValue) {
   if (!m2) {
     return;
   }
-  const match = m2[2] || m2[3] || "";
-  let filename = match.slice(match.lastIndexOf("\\") + 1);
+  const match2 = m2[2] || m2[3] || "";
+  let filename = match2.slice(match2.lastIndexOf("\\") + 1);
   filename = filename.replace(/%22/g, '"');
   filename = filename.replace(/&#(\d{4});/g, (m3, code) => {
     return String.fromCharCode(code);
@@ -11131,11 +11131,11 @@ var require_logging_utils = __commonJS({
         return (fields, ...args) => {
           var _a5;
           const severity = (_a5 = fields.severity) !== null && _a5 !== void 0 ? _a5 : LogSeverity.INFO;
-          const json = Object.assign({
+          const json2 = Object.assign({
             severity,
             message: util.format(...args)
           }, fields);
-          const jsonString = JSON.stringify(json);
+          const jsonString = JSON.stringify(json2);
           if (debugLogger) {
             debugLogger(fields, jsonString);
           } else {
@@ -11304,7 +11304,7 @@ var require_src4 = __commonJS({
       "bios-only": "treat the result of a BIOS probe as canonical (don't fall back to pinging)",
       "ping-only": "skip the BIOS probe, and go straight to pinging"
     });
-    function getBaseUrl(baseUrl) {
+    function getBaseUrl2(baseUrl) {
       if (!baseUrl) {
         baseUrl = process.env.GCE_METADATA_IP || process.env.GCE_METADATA_HOST || exports.HOST_ADDRESS;
       }
@@ -11353,7 +11353,7 @@ var require_src4 = __commonJS({
       }
       const requestMethod = fastFail ? fastFailMetadataRequest : gaxios_1.request;
       const req = {
-        url: `${getBaseUrl()}/${metadataKey}`,
+        url: `${getBaseUrl2()}/${metadataKey}`,
         headers,
         retryConfig: { noResponseRetries },
         params,
@@ -11378,7 +11378,7 @@ var require_src4 = __commonJS({
     async function fastFailMetadataRequest(options) {
       const secondaryOptions = {
         ...options,
-        url: options.url?.toString().replace(getBaseUrl(), getBaseUrl(exports.SECONDARY_HOST_ADDRESS))
+        url: options.url?.toString().replace(getBaseUrl2(), getBaseUrl2(exports.SECONDARY_HOST_ADDRESS))
       };
       const r1 = (0, gaxios_1.request)(options);
       const r2 = (0, gaxios_1.request)(secondaryOptions);
@@ -12040,13 +12040,13 @@ var require_util2 = __commonJS({
     exports.removeUndefinedValuesInObject = removeUndefinedValuesInObject;
     exports.isValidFile = isValidFile;
     exports.getWellKnownCertificateConfigFileLocation = getWellKnownCertificateConfigFileLocation;
-    var fs2 = __require("fs");
+    var fs3 = __require("fs");
     var os = __require("os");
-    var path5 = __require("path");
+    var path6 = __require("path");
     var WELL_KNOWN_CERTIFICATE_CONFIG_FILE = "certificate_config.json";
     var CLOUDSDK_CONFIG_DIRECTORY = "gcloud";
     function snakeToCamel(str2) {
-      return str2.replace(/([_][^_])/g, (match) => match.slice(1).toUpperCase());
+      return str2.replace(/([_][^_])/g, (match2) => match2.slice(1).toUpperCase());
     }
     function originalOrCamelOptions(obj) {
       function get(key) {
@@ -12128,15 +12128,15 @@ var require_util2 = __commonJS({
     }
     async function isValidFile(filePath) {
       try {
-        const stats = await fs2.promises.lstat(filePath);
+        const stats = await fs3.promises.lstat(filePath);
         return stats.isFile();
       } catch (e2) {
         return false;
       }
     }
     function getWellKnownCertificateConfigFileLocation() {
-      const configDir = process.env.CLOUDSDK_CONFIG || (_isWindows() ? path5.join(process.env.APPDATA || "", CLOUDSDK_CONFIG_DIRECTORY) : path5.join(process.env.HOME || "", ".config", CLOUDSDK_CONFIG_DIRECTORY));
-      return path5.join(configDir, WELL_KNOWN_CERTIFICATE_CONFIG_FILE);
+      const configDir = process.env.CLOUDSDK_CONFIG || (_isWindows() ? path6.join(process.env.APPDATA || "", CLOUDSDK_CONFIG_DIRECTORY) : path6.join(process.env.HOME || "", ".config", CLOUDSDK_CONFIG_DIRECTORY));
+      return path6.join(configDir, WELL_KNOWN_CERTIFICATE_CONFIG_FILE);
     }
     function _isWindows() {
       return os.platform().startsWith("win");
@@ -12506,8 +12506,8 @@ var require_loginticket = __commonJS({
        * @param {TokenPayload} pay Payload of the jwt
        * @constructor
        */
-      constructor(env, pay) {
-        this.envelope = env;
+      constructor(env2, pay) {
+        this.envelope = env2;
         this.payload = pay;
       }
       getEnvelope() {
@@ -13368,7 +13368,7 @@ var require_envDetect = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.GCPEnv = void 0;
     exports.clear = clear;
-    exports.getEnv = getEnv;
+    exports.getEnv = getEnv2;
     var gcpMetadata = require_src4();
     var GCPEnv;
     (function(GCPEnv2) {
@@ -13384,7 +13384,7 @@ var require_envDetect = __commonJS({
     function clear() {
       envPromise = void 0;
     }
-    async function getEnv() {
+    async function getEnv2() {
       if (envPromise) {
         return envPromise;
       }
@@ -13392,25 +13392,25 @@ var require_envDetect = __commonJS({
       return envPromise;
     }
     async function getEnvMemoized() {
-      let env = GCPEnv.NONE;
+      let env2 = GCPEnv.NONE;
       if (isAppEngine()) {
-        env = GCPEnv.APP_ENGINE;
+        env2 = GCPEnv.APP_ENGINE;
       } else if (isCloudFunction()) {
-        env = GCPEnv.CLOUD_FUNCTIONS;
+        env2 = GCPEnv.CLOUD_FUNCTIONS;
       } else if (await isComputeEngine()) {
         if (await isKubernetesEngine()) {
-          env = GCPEnv.KUBERNETES_ENGINE;
+          env2 = GCPEnv.KUBERNETES_ENGINE;
         } else if (isCloudRun()) {
-          env = GCPEnv.CLOUD_RUN;
+          env2 = GCPEnv.CLOUD_RUN;
         } else if (isCloudRunJob()) {
-          env = GCPEnv.CLOUD_RUN_JOBS;
+          env2 = GCPEnv.CLOUD_RUN_JOBS;
         } else {
-          env = GCPEnv.COMPUTE_ENGINE;
+          env2 = GCPEnv.COMPUTE_ENGINE;
         }
       } else {
-        env = GCPEnv.NONE;
+        env2 = GCPEnv.NONE;
       }
-      return env;
+      return env2;
     }
     function isAppEngine() {
       return !!(process.env.GAE_SERVICE || process.env.GAE_MODULE_NAME);
@@ -13442,7 +13442,7 @@ var require_envDetect = __commonJS({
 var require_data_stream = __commonJS({
   "node_modules/.pnpm/jws@4.0.1/node_modules/jws/lib/data-stream.js"(exports, module) {
     var Buffer4 = require_safe_buffer().Buffer;
-    var Stream4 = __require("stream");
+    var Stream5 = __require("stream");
     var util = __require("util");
     function DataStream(data) {
       this.buffer = null;
@@ -13469,7 +13469,7 @@ var require_data_stream = __commonJS({
       }
       throw new TypeError("Unexpected data type (" + typeof data + ")");
     }
-    util.inherits(DataStream, Stream4);
+    util.inherits(DataStream, Stream5);
     DataStream.prototype.write = function write(data) {
       this.buffer = Buffer4.concat([this.buffer, Buffer4.from(data)]);
       this.emit("data", data);
@@ -13731,11 +13731,11 @@ var require_jwa = __commonJS({
         es: createECDSAVerifer,
         none: createNoneVerifier
       };
-      var match = algorithm.match(/^(RS|PS|ES|HS)(256|384|512)$|^(none)$/);
-      if (!match)
+      var match2 = algorithm.match(/^(RS|PS|ES|HS)(256|384|512)$|^(none)$/);
+      if (!match2)
         throw typeError(MSG_INVALID_ALGORITHM, algorithm);
-      var algo = (match[1] || match[3]).toLowerCase();
-      var bits = match[2];
+      var algo = (match2[1] || match2[3]).toLowerCase();
+      var bits = match2[2];
       return {
         sign: signerFactories[algo](bits),
         verify: verifierFactories[algo](bits)
@@ -13764,7 +13764,7 @@ var require_sign_stream = __commonJS({
     var Buffer4 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
-    var Stream4 = __require("stream");
+    var Stream5 = __require("stream");
     var toString = require_tostring();
     var util = __require("util");
     function base64url(string, encoding) {
@@ -13808,7 +13808,7 @@ var require_sign_stream = __commonJS({
           this.sign();
       }.bind(this));
     }
-    util.inherits(SignStream, Stream4);
+    util.inherits(SignStream, Stream5);
     SignStream.prototype.sign = function sign() {
       try {
         var signature = jwsSign({
@@ -13839,7 +13839,7 @@ var require_verify_stream = __commonJS({
     var Buffer4 = require_safe_buffer().Buffer;
     var DataStream = require_data_stream();
     var jwa = require_jwa();
-    var Stream4 = __require("stream");
+    var Stream5 = __require("stream");
     var toString = require_tostring();
     var util = __require("util");
     var JWS_REGEX = /^[a-zA-Z0-9\-_]+?\.[a-zA-Z0-9\-_]+?\.([a-zA-Z0-9\-_]+)?$/;
@@ -13925,7 +13925,7 @@ var require_verify_stream = __commonJS({
           this.verify();
       }.bind(this));
     }
-    util.inherits(VerifyStream, Stream4);
+    util.inherits(VerifyStream, Stream5);
     VerifyStream.prototype.verify = function verify() {
       try {
         var valid = jwsVerify(this.signature.buffer, this.algorithm, this.key.buffer);
@@ -14082,11 +14082,11 @@ var require_getCredentials = __commonJS({
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getCredentials = getCredentials;
-    var path5 = __require("path");
-    var fs2 = __require("fs");
+    var path6 = __require("path");
+    var fs3 = __require("fs");
     var util_1 = __require("util");
     var errorWithCode_1 = require_errorWithCode();
-    var readFile = fs2.readFile ? (0, util_1.promisify)(fs2.readFile) : async () => {
+    var readFile = fs3.readFile ? (0, util_1.promisify)(fs3.readFile) : async () => {
       throw new errorWithCode_1.ErrorWithCode("use key rather than keyFile.", "MISSING_CREDENTIALS");
     };
     var ExtensionFiles;
@@ -14154,7 +14154,7 @@ var require_getCredentials = __commonJS({
        * @returns An instance of a class that implements ICredentialsProvider.
        */
       static create(keyFilePath) {
-        const keyFileExtension = path5.extname(keyFilePath);
+        const keyFileExtension = path6.extname(keyFilePath);
         switch (keyFileExtension) {
           case ExtensionFiles.JSON:
             return new JsonCredentialsProvider(keyFilePath);
@@ -14518,20 +14518,20 @@ var require_jwtaccess = __commonJS({
        * Create a JWTAccess credentials instance using the given input options.
        * @param json The input object.
        */
-      fromJSON(json) {
-        if (!json) {
+      fromJSON(json2) {
+        if (!json2) {
           throw new Error("Must pass in a JSON object containing the service account auth settings.");
         }
-        if (!json.client_email) {
+        if (!json2.client_email) {
           throw new Error("The incoming JSON object does not contain a client_email field");
         }
-        if (!json.private_key) {
+        if (!json2.private_key) {
           throw new Error("The incoming JSON object does not contain a private_key field");
         }
-        this.email = json.client_email;
-        this.key = json.private_key;
-        this.keyId = json.private_key_id;
-        this.projectId = json.project_id;
+        this.email = json2.client_email;
+        this.key = json2.private_key;
+        this.keyId = json2.private_key_id;
+        this.projectId = json2.project_id;
       }
       fromStream(inputStream, callback) {
         if (callback) {
@@ -14764,22 +14764,22 @@ var require_jwtclient = __commonJS({
        *
        * **Important**: If you accept a credential configuration (credential JSON/File/Stream) from an external source for authentication to Google Cloud, you must validate it before providing it to any Google API or library. Providing an unvalidated credential configuration to Google APIs can compromise the security of your systems and data. For more information, refer to {@link https://cloud.google.com/docs/authentication/external/externally-sourced-credentials Validate credential configurations from external sources}.
        */
-      fromJSON(json) {
-        if (!json) {
+      fromJSON(json2) {
+        if (!json2) {
           throw new Error("Must pass in a JSON object containing the service account auth settings.");
         }
-        if (!json.client_email) {
+        if (!json2.client_email) {
           throw new Error("The incoming JSON object does not contain a client_email field");
         }
-        if (!json.private_key) {
+        if (!json2.private_key) {
           throw new Error("The incoming JSON object does not contain a private_key field");
         }
-        this.email = json.client_email;
-        this.key = json.private_key;
-        this.keyId = json.private_key_id;
-        this.projectId = json.project_id;
-        this.quotaProjectId = json.quota_project_id;
-        this.universeDomain = json.universe_domain || this.universeDomain;
+        this.email = json2.client_email;
+        this.key = json2.private_key;
+        this.keyId = json2.private_key_id;
+        this.projectId = json2.project_id;
+        this.quotaProjectId = json2.quota_project_id;
+        this.universeDomain = json2.universe_domain || this.universeDomain;
       }
       fromStream(inputStream, callback) {
         if (callback) {
@@ -14900,28 +14900,28 @@ var require_refreshclient = __commonJS({
        * options.
        * @param json The input object.
        */
-      fromJSON(json) {
-        if (!json) {
+      fromJSON(json2) {
+        if (!json2) {
           throw new Error("Must pass in a JSON object containing the user refresh token");
         }
-        if (json.type !== "authorized_user") {
+        if (json2.type !== "authorized_user") {
           throw new Error('The incoming JSON object does not have the "authorized_user" type');
         }
-        if (!json.client_id) {
+        if (!json2.client_id) {
           throw new Error("The incoming JSON object does not contain a client_id field");
         }
-        if (!json.client_secret) {
+        if (!json2.client_secret) {
           throw new Error("The incoming JSON object does not contain a client_secret field");
         }
-        if (!json.refresh_token) {
+        if (!json2.refresh_token) {
           throw new Error("The incoming JSON object does not contain a refresh_token field");
         }
-        this._clientId = json.client_id;
-        this._clientSecret = json.client_secret;
-        this._refreshToken = json.refresh_token;
-        this.credentials.refresh_token = json.refresh_token;
-        this.quotaProjectId = json.quota_project_id;
-        this.universeDomain = json.universe_domain || this.universeDomain;
+        this._clientId = json2.client_id;
+        this._clientSecret = json2.client_secret;
+        this._refreshToken = json2.refresh_token;
+        this.credentials.refresh_token = json2.refresh_token;
+        this.quotaProjectId = json2.quota_project_id;
+        this.universeDomain = json2.universe_domain || this.universeDomain;
       }
       fromStream(inputStream, callback) {
         if (callback) {
@@ -14952,9 +14952,9 @@ var require_refreshclient = __commonJS({
        * options.
        * @param json The input object.
        */
-      static fromJSON(json) {
+      static fromJSON(json2) {
         const client = new _UserRefreshClient();
-        client.fromJSON(json);
+        client.fromJSON(json2);
         return client;
       }
     };
@@ -15683,11 +15683,11 @@ var require_baseexternalclient = __commonJS({
        *   returned.
        */
       getProjectNumber(audience) {
-        const match = audience.match(/\/projects\/([^/]+)/);
-        if (!match) {
+        const match2 = audience.match(/\/projects\/([^/]+)/);
+        if (!match2) {
           return null;
         }
-        return match[1];
+        return match2[1];
       }
       /**
        * Exchanges an external account GCP access token for a service
@@ -15763,12 +15763,12 @@ var require_filesubjecttokensupplier = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.FileSubjectTokenSupplier = void 0;
     var util_1 = __require("util");
-    var fs2 = __require("fs");
-    var readFile = (0, util_1.promisify)(fs2.readFile ?? (() => {
+    var fs3 = __require("fs");
+    var readFile = (0, util_1.promisify)(fs3.readFile ?? (() => {
     }));
-    var realpath = (0, util_1.promisify)(fs2.realpath ?? (() => {
+    var realpath = (0, util_1.promisify)(fs3.realpath ?? (() => {
     }));
-    var lstat = (0, util_1.promisify)(fs2.lstat ?? (() => {
+    var lstat = (0, util_1.promisify)(fs3.lstat ?? (() => {
     }));
     var FileSubjectTokenSupplier = class {
       filePath;
@@ -15808,8 +15808,8 @@ var require_filesubjecttokensupplier = __commonJS({
         if (this.formatType === "text") {
           subjectToken = rawText;
         } else if (this.formatType === "json" && this.subjectTokenFieldName) {
-          const json = JSON.parse(rawText);
-          subjectToken = json[this.subjectTokenFieldName];
+          const json2 = JSON.parse(rawText);
+          subjectToken = json2[this.subjectTokenFieldName];
         }
         if (!subjectToken) {
           throw new Error("Unable to parse the subject_token from the credential_source file");
@@ -15886,7 +15886,7 @@ var require_certificatesubjecttokensupplier = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.CertificateSubjectTokenSupplier = exports.InvalidConfigurationError = exports.CertificateSourceUnavailableError = exports.CERTIFICATE_CONFIGURATION_ENV_VARIABLE = void 0;
     var util_1 = require_util2();
-    var fs2 = __require("fs");
+    var fs3 = __require("fs");
     var crypto_1 = __require("crypto");
     var https2 = __require("https");
     exports.CERTIFICATE_CONFIGURATION_ENV_VARIABLE = "GOOGLE_API_CERTIFICATE_CONFIG";
@@ -15980,7 +15980,7 @@ var require_certificatesubjecttokensupplier = __commonJS({
         const configPath = this.certificateConfigPath;
         let fileContents;
         try {
-          fileContents = await fs2.promises.readFile(configPath, "utf8");
+          fileContents = await fs3.promises.readFile(configPath, "utf8");
         } catch (err) {
           throw new CertificateSourceUnavailableError(`Failed to read certificate config file at: ${configPath}`);
         }
@@ -16005,14 +16005,14 @@ var require_certificatesubjecttokensupplier = __commonJS({
       async #getKeyAndCert(certPath, keyPath) {
         let cert, key;
         try {
-          cert = await fs2.promises.readFile(certPath);
+          cert = await fs3.promises.readFile(certPath);
           new crypto_1.X509Certificate(cert);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw new CertificateSourceUnavailableError(`Failed to read certificate file at ${certPath}: ${message}`);
         }
         try {
-          key = await fs2.promises.readFile(keyPath);
+          key = await fs3.promises.readFile(keyPath);
           (0, crypto_1.createPrivateKey)(key);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
@@ -16031,7 +16031,7 @@ var require_certificatesubjecttokensupplier = __commonJS({
           return JSON.stringify([leafCert.raw.toString("base64")]);
         }
         try {
-          const chainPems = await fs2.promises.readFile(this.trustChainPath, "utf8");
+          const chainPems = await fs3.promises.readFile(this.trustChainPath, "utf8");
           const pemBlocks = chainPems.match(/-----BEGIN CERTIFICATE-----[^-]+-----END CERTIFICATE-----/g) ?? [];
           const chainCerts = pemBlocks.map((pem, index) => {
             try {
@@ -16547,11 +16547,11 @@ var require_awsclient = __commonJS({
         this.region = "";
       }
       validateEnvironmentId() {
-        const match = this.environmentId?.match(/^(aws)(\d+)$/);
-        if (!match || !this.regionalCredVerificationUrl) {
+        const match2 = this.environmentId?.match(/^(aws)(\d+)$/);
+        if (!match2 || !this.regionalCredVerificationUrl) {
           throw new Error('No valid AWS "credential_source" provided');
-        } else if (parseInt(match[2], 10) !== 1) {
-          throw new Error(`aws version "${match[2]}" is not supported in the current build.`);
+        } else if (parseInt(match2[2], 10) !== 1) {
+          throw new Error(`aws version "${match2[2]}" is not supported in the current build.`);
         }
       }
       /**
@@ -16733,7 +16733,7 @@ var require_pluggable_auth_handler = __commonJS({
     exports.PluggableAuthHandler = exports.ExecutableError = void 0;
     var executable_response_1 = require_executable_response();
     var childProcess = __require("child_process");
-    var fs2 = __require("fs");
+    var fs3 = __require("fs");
     var ExecutableError = class extends Error {
       /**
        * The exit code returned by the executable.
@@ -16818,14 +16818,14 @@ var require_pluggable_auth_handler = __commonJS({
         }
         let filePath;
         try {
-          filePath = await fs2.promises.realpath(this.outputFile);
+          filePath = await fs3.promises.realpath(this.outputFile);
         } catch {
           return void 0;
         }
-        if (!(await fs2.promises.lstat(filePath)).isFile()) {
+        if (!(await fs3.promises.lstat(filePath)).isFile()) {
           return void 0;
         }
-        const responseString = await fs2.promises.readFile(filePath, {
+        const responseString = await fs3.promises.readFile(filePath, {
           encoding: "utf8"
         });
         if (responseString === "") {
@@ -17236,7 +17236,7 @@ var require_gdchclient = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.GdchClient = exports.GDCH_SERVICE_ACCOUNT_TYPE = void 0;
     var crypto2 = __require("crypto");
-    var fs2 = __require("fs");
+    var fs3 = __require("fs");
     var https2 = __require("https");
     var oauth2client_1 = require_oauth2client();
     var DEFAULT_LIFETIME_IN_SECONDS = 3600;
@@ -17284,45 +17284,45 @@ var require_gdchclient = __commonJS({
           apiAudience
         });
       }
-      fromJSON(json) {
-        if (!json) {
+      fromJSON(json2) {
+        if (!json2) {
           throw new Error("Must pass in a JSON object containing the GDCH credentials settings.");
         }
-        if (json.type !== exports.GDCH_SERVICE_ACCOUNT_TYPE) {
+        if (json2.type !== exports.GDCH_SERVICE_ACCOUNT_TYPE) {
           throw new Error(`The incoming JSON object does not have the "${exports.GDCH_SERVICE_ACCOUNT_TYPE}" type`);
         }
-        if (json.format_version !== "1") {
+        if (json2.format_version !== "1") {
           throw new Error("Only format version 1 is supported.");
         }
-        if (!json.project) {
+        if (!json2.project) {
           throw new Error("The incoming JSON object does not contain a project field");
         }
-        if (!json.private_key_id) {
+        if (!json2.private_key_id) {
           throw new Error("The incoming JSON object does not contain a private_key_id field");
         }
-        if (!json.private_key) {
+        if (!json2.private_key) {
           throw new Error("The incoming JSON object does not contain a private_key field");
         }
-        if (!json.name) {
+        if (!json2.name) {
           throw new Error("The incoming JSON object does not contain a name field");
         }
-        if (!json.token_uri) {
+        if (!json2.token_uri) {
           throw new Error("The incoming JSON object does not contain a token_uri field");
         }
-        this.projectId = json.project;
-        this.privateKeyId = json.private_key_id;
-        this.privateKey = json.private_key;
-        this.serviceIdentityName = json.name;
-        this.tokenServerUri = json.token_uri;
-        this.caCertPath = json.ca_cert_path;
+        this.projectId = json2.project;
+        this.privateKeyId = json2.private_key_id;
+        this.privateKey = json2.private_key;
+        this.serviceIdentityName = json2.name;
+        this.tokenServerUri = json2.token_uri;
+        this.caCertPath = json2.ca_cert_path;
         this.gdchOptions = {
           ...this.gdchOptions,
-          projectId: json.project,
-          privateKeyId: json.private_key_id,
-          privateKey: json.private_key,
-          serviceIdentityName: json.name,
-          tokenServerUri: json.token_uri,
-          caCertPath: json.ca_cert_path
+          projectId: json2.project,
+          privateKeyId: json2.private_key_id,
+          privateKey: json2.private_key,
+          serviceIdentityName: json2.name,
+          tokenServerUri: json2.token_uri,
+          caCertPath: json2.ca_cert_path
         };
       }
       async refreshTokenNoCache() {
@@ -17433,14 +17433,14 @@ var require_gdchclient = __commonJS({
         const encodedSignature = this.base64UrlEncode(signature);
         return `${signingInput}.${encodedSignature}`;
       }
-      async requestAsync(opts, retry = false) {
+      async requestAsync(opts, retry2 = false) {
         if (this.caCertPath && !opts.agent) {
           const url = (opts.url || "").toString();
           if (!url.includes("googleapis.com") && !url.includes("google.com")) {
             opts.agent = await this.getCaAgent();
           }
         }
-        return super.requestAsync(opts, retry);
+        return super.requestAsync(opts, retry2);
       }
       getCaAgent() {
         if (!this.caCertPath) {
@@ -17459,7 +17459,7 @@ var require_gdchclient = __commonJS({
         const currentPath = this.caCertPath;
         this.caAgentPromise = (async () => {
           try {
-            const ca = await fs2.promises.readFile(currentPath);
+            const ca = await fs3.promises.readFile(currentPath);
             return new https2.Agent({ ca });
           } catch (err) {
             if (this.cachedCaCertPath === currentPath) {
@@ -17519,11 +17519,11 @@ var require_googleauth = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.GoogleAuth = exports.GoogleAuthExceptionMessages = void 0;
     var child_process_1 = __require("child_process");
-    var fs2 = __require("fs");
+    var fs3 = __require("fs");
     var gaxios_1 = require_src2();
     var gcpMetadata = require_src4();
     var os = __require("os");
-    var path5 = __require("path");
+    var path6 = __require("path");
     var crypto_1 = require_crypto3();
     var computeclient_1 = require_computeclient();
     var idtokenclient_1 = require_idtokenclient();
@@ -17808,20 +17808,20 @@ var require_googleauth = __commonJS({
         if (!configDir) {
           if (this._isWindows()) {
             if (process.env["APPDATA"]) {
-              configDir = path5.join(process.env["APPDATA"], "gcloud");
+              configDir = path6.join(process.env["APPDATA"], "gcloud");
             }
           } else {
             const home = process.env["HOME"];
             if (home) {
-              configDir = path5.join(home, ".config", "gcloud");
+              configDir = path6.join(home, ".config", "gcloud");
             }
           }
         }
         if (!configDir) {
           return null;
         }
-        const location = path5.join(configDir, "application_default_credentials.json");
-        if (!fs2.existsSync(location)) {
+        const location = path6.join(configDir, "application_default_credentials.json");
+        if (!fs3.existsSync(location)) {
           return null;
         }
         const client = await this._getApplicationCredentialsFromFilePath(location, options);
@@ -17838,8 +17838,8 @@ var require_googleauth = __commonJS({
           throw new Error("The file path is invalid.");
         }
         try {
-          filePath = fs2.realpathSync(filePath);
-          if (!fs2.lstatSync(filePath).isFile()) {
+          filePath = fs3.realpathSync(filePath);
+          if (!fs3.lstatSync(filePath).isFile()) {
             throw new Error();
           }
         } catch (err) {
@@ -17848,7 +17848,7 @@ var require_googleauth = __commonJS({
           }
           throw err;
         }
-        const readStream = fs2.createReadStream(filePath);
+        const readStream = fs3.createReadStream(filePath);
         return this.fromStream(readStream, options);
       }
       /**
@@ -17856,30 +17856,30 @@ var require_googleauth = __commonJS({
        * @param json The impersonated input object.
        * @returns JWT or UserRefresh Client with data
        */
-      fromImpersonatedJSON(json) {
-        if (!json) {
+      fromImpersonatedJSON(json2) {
+        if (!json2) {
           throw new Error("Must pass in a JSON object containing an  impersonated refresh token");
         }
-        if (json.type !== impersonated_1.IMPERSONATED_ACCOUNT_TYPE) {
+        if (json2.type !== impersonated_1.IMPERSONATED_ACCOUNT_TYPE) {
           throw new Error(`The incoming JSON object does not have the "${impersonated_1.IMPERSONATED_ACCOUNT_TYPE}" type`);
         }
-        if (!json.source_credentials) {
+        if (!json2.source_credentials) {
           throw new Error("The incoming JSON object does not contain a source_credentials field");
         }
-        if (!json.service_account_impersonation_url) {
+        if (!json2.service_account_impersonation_url) {
           throw new Error("The incoming JSON object does not contain a service_account_impersonation_url field");
         }
-        const sourceClient = this.fromJSON(json.source_credentials);
-        if (json.service_account_impersonation_url?.length > 256) {
-          throw new RangeError(`Target principal is too long: ${json.service_account_impersonation_url}`);
+        const sourceClient = this.fromJSON(json2.source_credentials);
+        if (json2.service_account_impersonation_url?.length > 256) {
+          throw new RangeError(`Target principal is too long: ${json2.service_account_impersonation_url}`);
         }
-        const targetPrincipal = /(?<target>[^/]+):(generateAccessToken|generateIdToken)$/.exec(json.service_account_impersonation_url)?.groups?.target;
+        const targetPrincipal = /(?<target>[^/]+):(generateAccessToken|generateIdToken)$/.exec(json2.service_account_impersonation_url)?.groups?.target;
         if (!targetPrincipal) {
-          throw new RangeError(`Cannot extract target principal from ${json.service_account_impersonation_url}`);
+          throw new RangeError(`Cannot extract target principal from ${json2.service_account_impersonation_url}`);
         }
-        const targetScopes = (this.scopes || json.scopes || this.defaultScopes) ?? [];
+        const targetScopes = (this.scopes || json2.scopes || this.defaultScopes) ?? [];
         return new impersonated_1.Impersonated({
-          ...json,
+          ...json2,
           sourceClient,
           targetPrincipal,
           targetScopes: Array.isArray(targetScopes) ? targetScopes : [targetScopes]
@@ -17927,33 +17927,33 @@ var require_googleauth = __commonJS({
        * @param options The JWT or UserRefresh options for the client
        * @returns JWT or UserRefresh Client with data
        */
-      fromJSON(json, options = {}) {
+      fromJSON(json2, options = {}) {
         let client;
         const preferredUniverseDomain = (0, util_1.originalOrCamelOptions)(options).get("universe_domain");
-        if (json.type === refreshclient_1.USER_REFRESH_ACCOUNT_TYPE) {
+        if (json2.type === refreshclient_1.USER_REFRESH_ACCOUNT_TYPE) {
           client = new refreshclient_1.UserRefreshClient(options);
-          client.fromJSON(json);
-        } else if (json.type === impersonated_1.IMPERSONATED_ACCOUNT_TYPE) {
-          client = this.fromImpersonatedJSON(json);
-        } else if (json.type === baseexternalclient_1.EXTERNAL_ACCOUNT_TYPE) {
+          client.fromJSON(json2);
+        } else if (json2.type === impersonated_1.IMPERSONATED_ACCOUNT_TYPE) {
+          client = this.fromImpersonatedJSON(json2);
+        } else if (json2.type === baseexternalclient_1.EXTERNAL_ACCOUNT_TYPE) {
           client = externalclient_1.ExternalAccountClient.fromJSON({
-            ...json,
+            ...json2,
             ...options
           });
           client.scopes = this.getAnyScopes();
-        } else if (json.type === externalAccountAuthorizedUserClient_1.EXTERNAL_ACCOUNT_AUTHORIZED_USER_TYPE) {
+        } else if (json2.type === externalAccountAuthorizedUserClient_1.EXTERNAL_ACCOUNT_AUTHORIZED_USER_TYPE) {
           client = new externalAccountAuthorizedUserClient_1.ExternalAccountAuthorizedUserClient({
-            ...json,
+            ...json2,
             ...options
           });
-        } else if (json.type === gdchclient_1.GDCH_SERVICE_ACCOUNT_TYPE) {
+        } else if (json2.type === gdchclient_1.GDCH_SERVICE_ACCOUNT_TYPE) {
           client = new gdchclient_1.GdchClient(options);
-          client.fromJSON(json);
+          client.fromJSON(json2);
         } else {
           options.scopes = this.scopes;
           client = new jwtclient_1.JWT(options);
           this.setGapicJWTValues(client);
-          client.fromJSON(json);
+          client.fromJSON(json2);
         }
         if (preferredUniverseDomain) {
           client.universeDomain = preferredUniverseDomain;
@@ -17967,9 +17967,9 @@ var require_googleauth = __commonJS({
        * @param options The JWT or UserRefresh options for the client
        * @returns JWT or UserRefresh Client with data
        */
-      _cacheClientFromJSON(json, options) {
-        const client = this.fromJSON(json, options);
-        this.jsonContent = json;
+      _cacheClientFromJSON(json2, options) {
+        const client = this.fromJSON(json2, options);
+        this.jsonContent = json2;
         this.cachedCredential = client;
         return client;
       }
@@ -18175,8 +18175,8 @@ var require_googleauth = __commonJS({
         if (this.jsonContent) {
           return this._cacheClientFromJSON(this.jsonContent, this.clientOptions);
         } else if (this.keyFilename) {
-          const filePath = path5.resolve(this.keyFilename);
-          const stream = fs2.createReadStream(filePath);
+          const filePath = path6.resolve(this.keyFilename);
+          const stream = fs3.createReadStream(filePath);
           return await this.fromStreamAsync(stream, this.clientOptions);
         } else if (this.apiKey) {
           const client = await this.fromAPIKey(this.apiKey, this.clientOptions);
@@ -20962,7 +20962,7 @@ var require_websocket = __commonJS({
     var net = __require("net");
     var tls = __require("tls");
     var { randomBytes, createHash } = __require("crypto");
-    var { Duplex, Readable } = __require("stream");
+    var { Duplex, Readable: Readable2 } = __require("stream");
     var { URL: URL2 } = __require("url");
     var PerMessageDeflate2 = require_permessage_deflate();
     var Receiver2 = require_receiver();
@@ -21910,7 +21910,7 @@ var require_stream = __commonJS({
       };
       duplex._final = function(callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open() {
+          ws.once("open", function open2() {
             duplex._final(callback);
           });
           return;
@@ -21931,7 +21931,7 @@ var require_stream = __commonJS({
       };
       duplex._write = function(chunk, encoding, callback) {
         if (ws.readyState === ws.CONNECTING) {
-          ws.once("open", function open() {
+          ws.once("open", function open2() {
             duplex._write(chunk, encoding, callback);
           });
           return;
@@ -22655,8 +22655,8 @@ var require_req = __commonJS({
       if (req.originalUrl) {
         _req.url = req.originalUrl;
       } else {
-        const path5 = req.path;
-        _req.url = typeof path5 === "string" ? path5 : req.url ? req.url.path || req.url : void 0;
+        const path6 = req.path;
+        _req.url = typeof path6 === "string" ? path6 : req.url ? req.url.path || req.url : void 0;
       }
       if (req.query) {
         _req.query = req.query;
@@ -22821,14 +22821,14 @@ var require_redact = __commonJS({
       }
       return obj;
     }
-    function parsePath(path5) {
+    function parsePath(path6) {
       const parts = [];
       let current = "";
       let inBrackets = false;
       let inQuotes = false;
       let quoteChar = "";
-      for (let i2 = 0; i2 < path5.length; i2++) {
-        const char = path5[i2];
+      for (let i2 = 0; i2 < path6.length; i2++) {
+        const char = path6[i2];
         if (!inBrackets && char === ".") {
           if (current) {
             parts.push(current);
@@ -22959,10 +22959,10 @@ var require_redact = __commonJS({
       return current;
     }
     function redactPaths(obj, paths, censor, remove = false) {
-      for (const path5 of paths) {
-        const parts = parsePath(path5);
+      for (const path6 of paths) {
+        const parts = parsePath(path6);
         if (parts.includes("*")) {
-          redactWildcardPath(obj, parts, censor, path5, remove);
+          redactWildcardPath(obj, parts, censor, path6, remove);
         } else {
           if (remove) {
             removeKey(obj, parts);
@@ -23047,8 +23047,8 @@ var require_redact = __commonJS({
           }
         } else {
           if (afterWildcard.includes("*")) {
-            const wrappedCensor = typeof censor === "function" ? (value, path5) => {
-              const fullPath = [...pathArray.slice(0, pathLength), ...path5];
+            const wrappedCensor = typeof censor === "function" ? (value, path6) => {
+              const fullPath = [...pathArray.slice(0, pathLength), ...path6];
               return censor(value, fullPath);
             } : censor;
             redactWildcardPath(current, afterWildcard, wrappedCensor, originalPath, remove);
@@ -23083,8 +23083,8 @@ var require_redact = __commonJS({
         return null;
       }
       const pathStructure = /* @__PURE__ */ new Map();
-      for (const path5 of pathsToClone) {
-        const parts = parsePath(path5);
+      for (const path6 of pathsToClone) {
+        const parts = parsePath(path6);
         let current = pathStructure;
         for (let i2 = 0; i2 < parts.length; i2++) {
           const part = parts[i2];
@@ -23136,24 +23136,24 @@ var require_redact = __commonJS({
       }
       return cloneSelectively(obj, pathStructure);
     }
-    function validatePath(path5) {
-      if (typeof path5 !== "string") {
+    function validatePath(path6) {
+      if (typeof path6 !== "string") {
         throw new Error("Paths must be (non-empty) strings");
       }
-      if (path5 === "") {
+      if (path6 === "") {
         throw new Error("Invalid redaction path ()");
       }
-      if (path5.includes("..")) {
-        throw new Error(`Invalid redaction path (${path5})`);
+      if (path6.includes("..")) {
+        throw new Error(`Invalid redaction path (${path6})`);
       }
-      if (path5.includes(",")) {
-        throw new Error(`Invalid redaction path (${path5})`);
+      if (path6.includes(",")) {
+        throw new Error(`Invalid redaction path (${path6})`);
       }
       let bracketCount = 0;
       let inQuotes = false;
       let quoteChar = "";
-      for (let i2 = 0; i2 < path5.length; i2++) {
-        const char = path5[i2];
+      for (let i2 = 0; i2 < path6.length; i2++) {
+        const char = path6[i2];
         if ((char === '"' || char === "'") && bracketCount > 0) {
           if (!inQuotes) {
             inQuotes = true;
@@ -23167,20 +23167,20 @@ var require_redact = __commonJS({
         } else if (char === "]" && !inQuotes) {
           bracketCount--;
           if (bracketCount < 0) {
-            throw new Error(`Invalid redaction path (${path5})`);
+            throw new Error(`Invalid redaction path (${path6})`);
           }
         }
       }
       if (bracketCount !== 0) {
-        throw new Error(`Invalid redaction path (${path5})`);
+        throw new Error(`Invalid redaction path (${path6})`);
       }
     }
     function validatePaths(paths) {
       if (!Array.isArray(paths)) {
         throw new TypeError("paths must be an array");
       }
-      for (const path5 of paths) {
-        validatePath(path5);
+      for (const path6 of paths) {
+        validatePath(path6);
       }
     }
     function slowRedact(options = {}) {
@@ -23348,8 +23348,8 @@ var require_redaction = __commonJS({
         if (shape[k] === null) {
           o[k] = (value) => topCensor(value, [k]);
         } else {
-          const wrappedCensor = typeof censor === "function" ? (value, path5) => {
-            return censor(value, [k, ...path5]);
+          const wrappedCensor = typeof censor === "function" ? (value, path6) => {
+            return censor(value, [k, ...path6]);
           } : censor;
           o[k] = Redact({
             paths: shape[k],
@@ -23533,7 +23533,7 @@ var require_atomic_sleep = __commonJS({
   "node_modules/.pnpm/atomic-sleep@1.0.0/node_modules/atomic-sleep/index.js"(exports, module) {
     "use strict";
     if (typeof SharedArrayBuffer !== "undefined" && typeof Atomics !== "undefined") {
-      let sleep2 = function(ms) {
+      let sleep3 = function(ms) {
         const valid = ms > 0 && ms < Infinity;
         if (valid === false) {
           if (typeof ms !== "number" && typeof ms !== "bigint") {
@@ -23541,12 +23541,12 @@ var require_atomic_sleep = __commonJS({
           }
           throw RangeError("sleep: ms must be a number that is greater than 0 but less than Infinity");
         }
-        Atomics.wait(nil, 0, 0, Number(ms));
+        Atomics.wait(nil2, 0, 0, Number(ms));
       };
-      const nil = new Int32Array(new SharedArrayBuffer(4));
-      module.exports = sleep2;
+      const nil2 = new Int32Array(new SharedArrayBuffer(4));
+      module.exports = sleep3;
     } else {
-      let sleep2 = function(ms) {
+      let sleep3 = function(ms) {
         const valid = ms > 0 && ms < Infinity;
         if (valid === false) {
           if (typeof ms !== "number" && typeof ms !== "bigint") {
@@ -23558,7 +23558,7 @@ var require_atomic_sleep = __commonJS({
         while (target > Date.now()) {
         }
       };
-      module.exports = sleep2;
+      module.exports = sleep3;
     }
   }
 });
@@ -23567,11 +23567,11 @@ var require_atomic_sleep = __commonJS({
 var require_sonic_boom = __commonJS({
   "node_modules/.pnpm/sonic-boom@4.2.1/node_modules/sonic-boom/index.js"(exports, module) {
     "use strict";
-    var fs2 = __require("fs");
+    var fs3 = __require("fs");
     var EventEmitter = __require("events");
     var inherits = __require("util").inherits;
-    var path5 = __require("path");
-    var sleep2 = require_atomic_sleep();
+    var path6 = __require("path");
+    var sleep3 = require_atomic_sleep();
     var assert2 = __require("assert");
     var BUSY_WRITE_TIMEOUT = 100;
     var kEmptyBuffer = Buffer.allocUnsafe(0);
@@ -23624,20 +23624,20 @@ var require_sonic_boom = __commonJS({
       const mode = sonic.mode;
       if (sonic.sync) {
         try {
-          if (sonic.mkdir) fs2.mkdirSync(path5.dirname(file), { recursive: true });
-          const fd = fs2.openSync(file, flags, mode);
+          if (sonic.mkdir) fs3.mkdirSync(path6.dirname(file), { recursive: true });
+          const fd = fs3.openSync(file, flags, mode);
           fileOpened(null, fd);
         } catch (err) {
           fileOpened(err);
           throw err;
         }
       } else if (sonic.mkdir) {
-        fs2.mkdir(path5.dirname(file), { recursive: true }, (err) => {
+        fs3.mkdir(path6.dirname(file), { recursive: true }, (err) => {
           if (err) return fileOpened(err);
-          fs2.open(file, flags, mode, fileOpened);
+          fs3.open(file, flags, mode, fileOpened);
         });
       } else {
-        fs2.open(file, flags, mode, fileOpened);
+        fs3.open(file, flags, mode, fileOpened);
       }
     }
     function SonicBoom(opts) {
@@ -23678,8 +23678,8 @@ var require_sonic_boom = __commonJS({
         this.flush = flushBuffer;
         this.flushSync = flushBufferSync;
         this._actualWrite = actualWriteBuffer;
-        fsWriteSync = () => fs2.writeSync(this.fd, this._writingBuf);
-        fsWrite = () => fs2.write(this.fd, this._writingBuf, this.release);
+        fsWriteSync = () => fs3.writeSync(this.fd, this._writingBuf);
+        fsWrite = () => fs3.write(this.fd, this._writingBuf, this.release);
       } else if (contentMode === void 0 || contentMode === kContentModeUtf8) {
         this._writingBuf = "";
         this.write = write;
@@ -23688,15 +23688,15 @@ var require_sonic_boom = __commonJS({
         this._actualWrite = actualWrite;
         fsWriteSync = () => {
           if (Buffer.isBuffer(this._writingBuf)) {
-            return fs2.writeSync(this.fd, this._writingBuf);
+            return fs3.writeSync(this.fd, this._writingBuf);
           }
-          return fs2.writeSync(this.fd, this._writingBuf, "utf8");
+          return fs3.writeSync(this.fd, this._writingBuf, "utf8");
         };
         fsWrite = () => {
           if (Buffer.isBuffer(this._writingBuf)) {
-            return fs2.write(this.fd, this._writingBuf, this.release);
+            return fs3.write(this.fd, this._writingBuf, this.release);
           }
-          return fs2.write(this.fd, this._writingBuf, "utf8", this.release);
+          return fs3.write(this.fd, this._writingBuf, "utf8", this.release);
         };
       } else {
         throw new Error(`SonicBoom supports "${kContentModeUtf8}" and "${kContentModeBuffer}", but passed ${contentMode}`);
@@ -23717,7 +23717,7 @@ var require_sonic_boom = __commonJS({
           if ((err.code === "EAGAIN" || err.code === "EBUSY") && this.retryEAGAIN(err, this._writingBuf.length, this._len - this._writingBuf.length)) {
             if (this.sync) {
               try {
-                sleep2(BUSY_WRITE_TIMEOUT);
+                sleep3(BUSY_WRITE_TIMEOUT);
                 this.release(void 0, 0);
               } catch (err2) {
                 this.release(err2);
@@ -23753,7 +23753,7 @@ var require_sonic_boom = __commonJS({
           }
         }
         if (this._fsync) {
-          fs2.fsyncSync(this.fd);
+          fs3.fsyncSync(this.fd);
         }
         const len = this._len;
         if (this._reopening) {
@@ -23867,7 +23867,7 @@ var require_sonic_boom = __commonJS({
       const onDrain = () => {
         if (!this._fsync) {
           try {
-            fs2.fsync(this.fd, (err) => {
+            fs3.fsync(this.fd, (err) => {
               this._flushPending = false;
               cb(err);
             });
@@ -23969,7 +23969,7 @@ var require_sonic_boom = __commonJS({
       const fd = this.fd;
       this.once("ready", () => {
         if (fd !== this.fd) {
-          fs2.close(fd, (err) => {
+          fs3.close(fd, (err) => {
             if (err) {
               return this.emit("error", err);
             }
@@ -24018,7 +24018,7 @@ var require_sonic_boom = __commonJS({
           buf = this._bufs[0];
         }
         try {
-          const n = Buffer.isBuffer(buf) ? fs2.writeSync(this.fd, buf) : fs2.writeSync(this.fd, buf, "utf8");
+          const n = Buffer.isBuffer(buf) ? fs3.writeSync(this.fd, buf) : fs3.writeSync(this.fd, buf, "utf8");
           const releasedBufObj = releaseWritingBuf(buf, this._len, n);
           buf = releasedBufObj.writingBuf;
           this._len = releasedBufObj.len;
@@ -24030,11 +24030,11 @@ var require_sonic_boom = __commonJS({
           if (shouldRetry && !this.retryEAGAIN(err, buf.length, this._len - buf.length)) {
             throw err;
           }
-          sleep2(BUSY_WRITE_TIMEOUT);
+          sleep3(BUSY_WRITE_TIMEOUT);
         }
       }
       try {
-        fs2.fsyncSync(this.fd);
+        fs3.fsyncSync(this.fd);
       } catch {
       }
     }
@@ -24055,7 +24055,7 @@ var require_sonic_boom = __commonJS({
           buf = mergeBuf(this._bufs[0], this._lens[0]);
         }
         try {
-          const n = fs2.writeSync(this.fd, buf);
+          const n = fs3.writeSync(this.fd, buf);
           buf = buf.subarray(n);
           this._len = Math.max(this._len - n, 0);
           if (buf.length <= 0) {
@@ -24067,7 +24067,7 @@ var require_sonic_boom = __commonJS({
           if (shouldRetry && !this.retryEAGAIN(err, buf.length, this._len - buf.length)) {
             throw err;
           }
-          sleep2(BUSY_WRITE_TIMEOUT);
+          sleep3(BUSY_WRITE_TIMEOUT);
         }
       }
     }
@@ -24083,13 +24083,13 @@ var require_sonic_boom = __commonJS({
       this._writingBuf = this._writingBuf.length ? this._writingBuf : this._bufs.shift() || "";
       if (this.sync) {
         try {
-          const written = Buffer.isBuffer(this._writingBuf) ? fs2.writeSync(this.fd, this._writingBuf) : fs2.writeSync(this.fd, this._writingBuf, "utf8");
+          const written = Buffer.isBuffer(this._writingBuf) ? fs3.writeSync(this.fd, this._writingBuf) : fs3.writeSync(this.fd, this._writingBuf, "utf8");
           release(null, written);
         } catch (err) {
           release(err);
         }
       } else {
-        fs2.write(this.fd, this._writingBuf, release);
+        fs3.write(this.fd, this._writingBuf, release);
       }
     }
     function actualWriteBuffer() {
@@ -24098,7 +24098,7 @@ var require_sonic_boom = __commonJS({
       this._writingBuf = this._writingBuf.length ? this._writingBuf : mergeBuf(this._bufs.shift(), this._lens.shift());
       if (this.sync) {
         try {
-          const written = fs2.writeSync(this.fd, this._writingBuf);
+          const written = fs3.writeSync(this.fd, this._writingBuf);
           release(null, written);
         } catch (err) {
           release(err);
@@ -24107,7 +24107,7 @@ var require_sonic_boom = __commonJS({
         if (kCopyBuffer) {
           this._writingBuf = Buffer.from(this._writingBuf);
         }
-        fs2.write(this.fd, this._writingBuf, release);
+        fs3.write(this.fd, this._writingBuf, release);
       }
     }
     function actualClose(sonic) {
@@ -24123,12 +24123,12 @@ var require_sonic_boom = __commonJS({
       sonic._lens = [];
       assert2(typeof sonic.fd === "number", `sonic.fd must be a number, got ${typeof sonic.fd}`);
       try {
-        fs2.fsync(sonic.fd, closeWrapped);
+        fs3.fsync(sonic.fd, closeWrapped);
       } catch {
       }
       function closeWrapped() {
         if (sonic.fd !== 1 && sonic.fd !== 2) {
-          fs2.close(sonic.fd, done);
+          fs3.close(sonic.fd, done);
         } else {
           done();
         }
@@ -24808,7 +24808,7 @@ var require_transport = __commonJS({
     var { createRequire } = __require("module");
     var getCallers = require_caller();
     var { join: join2, isAbsolute, sep } = __require("node:path");
-    var sleep2 = require_atomic_sleep();
+    var sleep3 = require_atomic_sleep();
     var onExit = require_on_exit_leak_free();
     var ThreadStream = require_thread_stream();
     function setupOnExit(stream) {
@@ -24842,7 +24842,7 @@ var require_transport = __commonJS({
           return;
         }
         stream.flushSync();
-        sleep2(100);
+        sleep3(100);
         stream.end();
       }
       return stream;
@@ -25867,8 +25867,8 @@ var require_safe_stable_stringify = __commonJS({
     }
     function configure(options) {
       options = { ...options };
-      const fail = getStrictOption(options);
-      if (fail) {
+      const fail2 = getStrictOption(options);
+      if (fail2) {
         if (options.bigint === void 0) {
           options.bigint = false;
         }
@@ -25979,7 +25979,7 @@ ${originalIndentation}`;
             return `{${res}}`;
           }
           case "number":
-            return isFinite(value) ? String(value) : fail ? fail(value) : "null";
+            return isFinite(value) ? String(value) : fail2 ? fail2(value) : "null";
           case "boolean":
             return value === true ? "true" : "false";
           case "undefined":
@@ -25990,7 +25990,7 @@ ${originalIndentation}`;
             }
           // fallthrough
           default:
-            return fail ? fail(value) : void 0;
+            return fail2 ? fail2(value) : void 0;
         }
       }
       function stringifyArrayReplacer(key, value, stack, replacer, spacer, indentation) {
@@ -26070,7 +26070,7 @@ ${originalIndentation}`;
             return `{${res}}`;
           }
           case "number":
-            return isFinite(value) ? String(value) : fail ? fail(value) : "null";
+            return isFinite(value) ? String(value) : fail2 ? fail2(value) : "null";
           case "boolean":
             return value === true ? "true" : "false";
           case "undefined":
@@ -26081,7 +26081,7 @@ ${originalIndentation}`;
             }
           // fallthrough
           default:
-            return fail ? fail(value) : void 0;
+            return fail2 ? fail2(value) : void 0;
         }
       }
       function stringifyIndent(key, value, stack, spacer, indentation) {
@@ -26182,7 +26182,7 @@ ${originalIndentation}`;
             return `{${res}}`;
           }
           case "number":
-            return isFinite(value) ? String(value) : fail ? fail(value) : "null";
+            return isFinite(value) ? String(value) : fail2 ? fail2(value) : "null";
           case "boolean":
             return value === true ? "true" : "false";
           case "undefined":
@@ -26193,7 +26193,7 @@ ${originalIndentation}`;
             }
           // fallthrough
           default:
-            return fail ? fail(value) : void 0;
+            return fail2 ? fail2(value) : void 0;
         }
       }
       function stringifySimple(key, value, stack) {
@@ -26278,7 +26278,7 @@ ${originalIndentation}`;
             return `{${res}}`;
           }
           case "number":
-            return isFinite(value) ? String(value) : fail ? fail(value) : "null";
+            return isFinite(value) ? String(value) : fail2 ? fail2(value) : "null";
           case "boolean":
             return value === true ? "true" : "false";
           case "undefined":
@@ -26289,7 +26289,7 @@ ${originalIndentation}`;
             }
           // fallthrough
           default:
-            return fail ? fail(value) : void 0;
+            return fail2 ? fail2(value) : void 0;
         }
       }
       function stringify3(value, replacer, space) {
@@ -26492,9 +26492,9 @@ var require_pino = __commonJS({
   "node_modules/.pnpm/pino@9.14.0/node_modules/pino/pino.js"(exports, module) {
     function pinoBundlerAbsolutePath(p) {
       try {
-        const path5 = __require("path");
+        const path6 = __require("path");
         const outputDir = "/workspace/api-server/dist";
-        return path5.resolve(outputDir, p.replace(/^\.\//, ""));
+        return path6.resolve(outputDir, p.replace(/^\.\//, ""));
       } catch (e2) {
         const f3 = new Function("p", "return new URL(p, import.meta.url).pathname");
         return f3(p);
@@ -27186,7 +27186,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Men\xFA Casual", /\bmen[uú]\s+casual\b|\bhamburguesas?\b|\bhot\s*dogs?\b/iu],
   ["Fiesta Infantil", /\bfiesta\s+infantil\b|\bkids?\s+party\b/i],
   ["Pista de baile", /\b(pista(\s+de\s+baile)?|tarima)\b/i],
-  ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|show|pixel|espejos|l[aá]ser|laser)\b/i],
+  ["Animaci\xF3n / Hora loca", /\b(hora\s+loca|happening|animaci[oó]n|animador|shows?|pixel|espejos|l[aá]ser|laser)\b/i],
   // A15003 Juan: photo booth / cabina de fotos (entretenimiento).
   ["Photo Booth", /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i],
   // A15009 Erick: circo / Blue Man.
@@ -27208,7 +27208,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
   // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
   ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
-  ["Mobiliario", /\b(mobiliario|m[aá]rmol|sillas?|mesas?|periqueras?)\b/i],
+  ["Mobiliario", /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|mesas?|periqueras?)\b/i],
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
@@ -27232,7 +27232,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
   ["Mesa imperial", /\bmesa\s+imperial\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshow\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
@@ -27386,7 +27386,7 @@ function clientAddsToQuote(message) {
 function clientAsksForRecommendations(message) {
   if (!message?.trim()) return false;
   const t2 = message.toLowerCase();
-  return /recomendaciones?|recomiendas?/i.test(t2) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t2) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t2) || /qu[eé]\s+opciones/i.test(t2) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t2) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t2) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t2) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t2) || /algo\s+m[aá]s\s*\?/i.test(t2);
+  return /recomendaciones?|recomiendas?/i.test(t2) || /qu[eé]\s+me\s+(recomiendas?|recomendaciones?|sugieres|conviene|puedes\s+dar)/i.test(t2) || /qu[eé]\s+(puedo|podemos)\s+(meter|incluir|poner|agregar)/i.test(t2) || /qu[eé]\s+opciones/i.test(t2) || /qu[eé]\s+servicios\s+me\s+conviene/i.test(t2) || /qu[eé]\s+(otros\s+)?servicios(\s+\w+){0,3}\s+(manejan|ofrecen|tienen|hay)/i.test(t2) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+hacen/i.test(t2) || /cu[aá]les\s+son\s+(sus\s+)?servicios|informaci[oó]n\s+de\s+(sus\s+)?servicios/i.test(t2) || /banquete\s+o\s+taquiza|taquiza\s+o\s+banquete/i.test(t2) || /algo\s+m[aá]s\s*\?/i.test(t2);
 }
 function lastAssistantOfferedNumberedPackages(lastAssistantText) {
   const last = lastAssistantText ?? "";
@@ -27651,8 +27651,8 @@ function clientMentionsItalianTheme(message) {
 function clientMentionsEntertainment(message) {
   if (!message?.trim()) return false;
   const t2 = message.toLowerCase();
-  return /\bshow\b/i.test(t2) || /\bgrupo\s+vers[aá]til\b/i.test(t2) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t2) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t2) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t2) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(show|maestro|animaci)/i.test(t2) || // A14962 Vane: batucada / robots LED / ambientación de show
-  /\bbatucada\b/i.test(t2) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t2) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|show|robots?|leds?)\b/i.test(t2) || // A14988 Ernesto: bailarinas para concierto
+  return /\bshows?\b/i.test(t2) || /\bgrupo\s+vers[aá]til\b/i.test(t2) || /\b(banda|m[uú]sica\s+en\s+vivo|artista|cantante|dj\s+en\s+vivo)\b/i.test(t2) || /\b(animaci[oó]n|hora\s+loca|happening|entretenimiento)\b/i.test(t2) || /\b(maestro\s+de\s+ceremonias?|master\s+of\s+ceremonies|\bmc\b|presentador)\b/i.test(t2) || /\b(requerimos|necesitamos|buscamos|buscando)\s+(un\s+)?(shows?|maestro|animaci)/i.test(t2) || // A14962 Vane: batucada / robots LED / ambientación de show
+  /\bbatucada\b/i.test(t2) || /\brobots?\s*leds?\b|\bled\s*robots?\b|\brobots?\s+less\b/i.test(t2) || /\bambienta(?:r|ci[oó]n)\b.{0,50}\b(batucada|shows?|robots?|leds?)\b/i.test(t2) || // A14988 Ernesto: bailarinas para concierto
   /\bbailarinas?\b|\bdancers?\b|\bvedettes?\b/i.test(t2) || // A15003 Juan: photo booth / cabina
   /\b(photo\s*booths?|photobooths?|cabina(s)?\s+de\s+fotos?|cabina(s)?\s+fotogr[aá]ficas?|espejo\s+m[aá]gico|mirror\s+booth)\b/i.test(
     t2
@@ -27718,8 +27718,8 @@ function clientAsksServiceInfo(message) {
   if (!message?.trim()) return false;
   const t2 = message.toLowerCase();
   if (!isServiceRelatedMessage(message)) return false;
-  return /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?)\b/i.test(t2) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t2) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t2) || // "¿Cuentan con carpas transparentes?" / "¿tienen pista?"
-  /\b(cuentan|tienen|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t2) || /\b(cuentan|tienen|manejan|ofrecen)\s+con\b/i.test(t2) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
+  return /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t2) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t2) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t2) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t2) || // "¿Cuentan con carpas transparentes?" / "¿tienen pista?" / "¿tienes modelos?"
+  /\b(cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t2) || /\b(cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t2) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
   /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t2);
 }
 var NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
@@ -30698,6 +30698,15 @@ function resolveCatalogWebSlug(query) {
   const t2 = query.trim().toLowerCase();
   const urlMatch = t2.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
   if (urlMatch?.[1]) return urlMatch[1];
+  const aliases = [
+    [/\b(mesas?\s*y\s*sillas?|sillas?|mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
+    [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
+    [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
+    [/\bbanquetes?\b/i, "banquete-formal"]
+  ];
+  for (const [re, slug] of aliases) {
+    if (re.test(t2) && loadCatalogEmbeds().some((e2) => e2.slug === slug)) return slug;
+  }
   const embeds = loadCatalogEmbeds();
   const exact = embeds.find((e2) => e2.slug === t2.replace(/\s+/g, "-"));
   if (exact) return exact.slug;
@@ -31512,12 +31521,17 @@ function buildGuardServiceAck(query) {
     const dims = parseSpaceDimensions(query);
     return dims ? `${mobiliario} Con espacio ${dims}, el equipo afina la propuesta.` : `${mobiliario} \xBFLo agregamos a tu cotizaci\xF3n?`;
   }
-  if (/\bmobiliario\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
+  if (/\b(mobiliario|mobilairio)\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
     return buildProgressiveOptionsMenu("mobiliario");
   }
   if (/\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
-    const p = parseMobiliarioPieceChoice(query);
+    const p = parseMobiliarioPieceChoice(query) || (/\bsillas?\b/i.test(query) ? "sillas" : null);
     if (p) return buildMobiliarioPieceFollowUp(p);
+  }
+  if (/\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(query)) {
+    return `Claro \u2014 manejamos *shows*, animaci\xF3n y performance (hora loca, shows en vivo y activaciones). Cada propuesta se arma al concepto del evento. Te dejo el cat\xE1logo general:
+${getCatalogWebHubDeliveryUrl()}
+\xBFBuscas algo en especial (show en vivo, hora loca, otro formato)?`;
   }
   return buildLevel2Ack(label);
 }
@@ -32602,8 +32616,8 @@ function rowHaystack(row) {
 }
 function extractNivelLabel(row) {
   if (typeof row === "string") {
-    const match = row.match(/\(([^)]+)\)\s*$/);
-    return match?.[1]?.trim() || row;
+    const match2 = row.match(/\(([^)]+)\)\s*$/);
+    return match2?.[1]?.trim() || row;
   }
   return row.nivel?.trim() || row.servicio.match(/\(([^)]+)\)\s*$/)?.[1]?.trim() || row.servicio;
 }
@@ -32843,11 +32857,11 @@ function ensureCatalogWebLink(text, query) {
     return body;
   }
   const q = (query ?? "").trim();
-  const match = q ? resolveCatalogWebLink(q) : { url: null, serviceName: null, kind: "missing" };
+  const match2 = q ? resolveCatalogWebLink(q) : { url: null, serviceName: null, kind: "missing" };
   const embedUrl = q ? getCatalogWebUrlForQuery(q) : null;
-  const url = match.url || embedUrl || null;
+  const url = match2.url || embedUrl || null;
   if (url) {
-    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
+    const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
     return `${body}
 
 Cat\xE1logo${label}:
@@ -34025,19 +34039,19 @@ function buildCatalogWebLinkReply(opts) {
     ].join("\n");
   }
   const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
-  const match = resolveCatalogWebLink(query);
-  if (match.kind === "service" && match.url) {
-    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
+  const match2 = resolveCatalogWebLink(query);
+  if (match2.kind === "service" && match2.url) {
+    const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
     return [
       `Claro, aqu\xED tienes el cat\xE1logo${label}:`,
-      toDeliverableCatalogUrl(match.url),
+      toDeliverableCatalogUrl(match2.url),
       "",
       "Si quieres el de otro servicio, d\xEDmelo y te mando ese."
     ].join("\n");
   }
-  if (match.serviceName) {
+  if (match2.serviceName) {
     return [
-      `Para *${match.serviceName}* a\xFAn no tengo el link web en el cat\xE1logo vivo.`,
+      `Para *${match2.serviceName}* a\xFAn no tengo el link web en el cat\xE1logo vivo.`,
       `Te dejo el \xEDndice general mientras el equipo te comparte el detalle:`,
       getCatalogWebHubDeliveryUrl()
     ].join("\n");
@@ -34049,11 +34063,11 @@ function buildCatalogWebLinkReply(opts) {
 }
 function buildServicePlusGeneralCatalogReply(opts) {
   const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
-  const match = resolveCatalogWebLink(query);
+  const match2 = resolveCatalogWebLink(query);
   const hub = getCatalogWebHubDeliveryUrl();
-  if (match.kind === "service" && match.url) {
-    const serviceUrl = toDeliverableCatalogUrl(match.url);
-    const label = match.serviceName ? ` de *${match.serviceName}*` : "";
+  if (match2.kind === "service" && match2.url) {
+    const serviceUrl = toDeliverableCatalogUrl(match2.url);
+    const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
     const lines = [`Cat\xE1logo${label}:`, serviceUrl];
     if (serviceUrl.replace(/\/+$/, "") !== hub.replace(/\/+$/, "")) {
       lines.push("", "Cat\xE1logo general:", hub);
@@ -34429,11 +34443,11 @@ function getBrowserInfo() {
     { key: "safari", pattern: /(?:Version\W+(\d+)\.(\d+)(?:\.(\d+))?)?(?:\W+Mobile\S*)?\W+Safari/ }
   ];
   for (const { key, pattern } of browserPatterns) {
-    const match = pattern.exec(navigator.userAgent);
-    if (match) {
-      const major = match[1] || 0;
-      const minor = match[2] || 0;
-      const patch = match[3] || 0;
+    const match2 = pattern.exec(navigator.userAgent);
+    if (match2) {
+      const major = match2[1] || 0;
+      const minor = match2[2] || 0;
+      const patch = match2[3] || 0;
       return { browser: key, version: `${major}.${minor}.${patch}` };
     }
   }
@@ -35124,39 +35138,39 @@ var Stream = class _Stream {
       consumed = true;
       let done = false;
       try {
-        for await (const sse of _iterSSEMessages(response, controller)) {
+        for await (const sse2 of _iterSSEMessages(response, controller)) {
           if (done)
             continue;
-          if (sse.data.startsWith("[DONE]")) {
+          if (sse2.data.startsWith("[DONE]")) {
             done = true;
             continue;
           }
-          if (sse.event === null || !sse.event.startsWith("thread.")) {
+          if (sse2.event === null || !sse2.event.startsWith("thread.")) {
             let data;
             try {
-              data = JSON.parse(sse.data);
+              data = JSON.parse(sse2.data);
             } catch (e2) {
-              logger2.error(`Could not parse message into JSON:`, sse.data);
-              logger2.error(`From chunk:`, sse.raw);
+              logger2.error(`Could not parse message into JSON:`, sse2.data);
+              logger2.error(`From chunk:`, sse2.raw);
               throw e2;
             }
             if (data && data.error) {
               throw new APIError(void 0, data.error, void 0, response.headers);
             }
-            yield synthesizeEventData ? { event: sse.event, data } : data;
+            yield synthesizeEventData ? { event: sse2.event, data } : data;
           } else {
             let data;
             try {
-              data = JSON.parse(sse.data);
+              data = JSON.parse(sse2.data);
             } catch (e2) {
-              console.error(`Could not parse message into JSON:`, sse.data);
-              console.error(`From chunk:`, sse.raw);
+              console.error(`Could not parse message into JSON:`, sse2.data);
+              console.error(`From chunk:`, sse2.raw);
               throw e2;
             }
-            if (sse.event == "error") {
+            if (sse2.event == "error") {
               throw new APIError(void 0, data.error, data.message, void 0);
             }
-            yield { event: sse.event, data };
+            yield { event: sse2.event, data };
           }
         }
         done = true;
@@ -35316,15 +35330,15 @@ async function* _iterSSEMessages(response, controller) {
   const iter = ReadableStreamToAsyncIterable(response.body);
   for await (const sseChunk of iterSSEChunks(iter)) {
     for (const line of lineDecoder.decode(sseChunk)) {
-      const sse = sseDecoder.decode(line);
-      if (sse)
-        yield sse;
+      const sse2 = sseDecoder.decode(line);
+      if (sse2)
+        yield sse2;
     }
   }
   for (const line of lineDecoder.flush()) {
-    const sse = sseDecoder.decode(line);
-    if (sse)
-      yield sse;
+    const sse2 = sseDecoder.decode(line);
+    if (sse2)
+      yield sse2;
   }
 }
 async function* iterSSEChunks(iterator) {
@@ -35361,7 +35375,7 @@ var SSEDecoder = class {
     if (!line) {
       if (!this.event && !this.data.length)
         return null;
-      const sse = {
+      const sse2 = {
         event: this.event,
         data: this.data.join("\n"),
         raw: this.chunks
@@ -35369,7 +35383,7 @@ var SSEDecoder = class {
       this.event = null;
       this.data = [];
       this.chunks = [];
-      return sse;
+      return sse2;
     }
     this.chunks.push(line);
     if (line.startsWith(":")) {
@@ -35420,8 +35434,8 @@ async function defaultParseResponse(client, props) {
       if (contentLength === "0") {
         return void 0;
       }
-      const json = await response.json();
-      return addRequestID(json, response);
+      const json2 = await response.json();
+      return addRequestID(json2, response);
     }
     const text = await response.text();
     return text;
@@ -36125,12 +36139,12 @@ function encodeURIPath(str2) {
   return str2.replace(/[^A-Za-z0-9\-._~!$&'()*+,;=:@]+/g, encodeURIComponent);
 }
 var EMPTY = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.create(null));
-var createPathTagFunction = (pathEncoder = encodeURIPath) => function path5(statics, ...params) {
+var createPathTagFunction = (pathEncoder = encodeURIPath) => function path6(statics, ...params) {
   if (statics.length === 1)
     return statics[0];
   let postPath = false;
   const invalidSegments = [];
-  const path6 = statics.reduce((previousValue, currentValue, index) => {
+  const path7 = statics.reduce((previousValue, currentValue, index) => {
     if (/[?#]/.test(currentValue)) {
       postPath = true;
     }
@@ -36147,14 +36161,14 @@ var createPathTagFunction = (pathEncoder = encodeURIPath) => function path5(stat
     }
     return previousValue + currentValue + (index === params.length ? "" : encoded);
   }, "");
-  const pathOnly = path6.split(/[?#]/, 1)[0];
+  const pathOnly = path7.split(/[?#]/, 1)[0];
   const invalidSegmentPattern = /(?<=^|\/)(?:\.|%2e){1,2}(?=\/|$)/gi;
-  let match;
-  while ((match = invalidSegmentPattern.exec(pathOnly)) !== null) {
+  let match2;
+  while ((match2 = invalidSegmentPattern.exec(pathOnly)) !== null) {
     invalidSegments.push({
-      start: match.index,
-      length: match[0].length,
-      error: `Value "${match[0]}" can't be safely passed as a path parameter`
+      start: match2.index,
+      length: match2[0].length,
+      error: `Value "${match2[0]}" can't be safely passed as a path parameter`
     });
   }
   invalidSegments.sort((a, b) => a.start - b.start);
@@ -36168,10 +36182,10 @@ var createPathTagFunction = (pathEncoder = encodeURIPath) => function path5(stat
     }, "");
     throw new OpenAIError(`Path parameters result in path with invalid segments:
 ${invalidSegments.map((e2) => e2.error).join("\n")}
-${path6}
+${path7}
 ${underline}`);
   }
-  return path6;
+  return path7;
 };
 var path3 = /* @__PURE__ */ createPathTagFunction(encodeURIPath);
 
@@ -41004,12 +41018,12 @@ var toFloat32Array = (base64Str) => {
 };
 
 // node_modules/.pnpm/openai@6.49.0_ws@8.21.2/node_modules/openai/internal/utils/env.mjs
-var readEnv = (env) => {
+var readEnv = (env2) => {
   if (typeof globalThis.process !== "undefined") {
-    return globalThis.process.env?.[env]?.trim() || void 0;
+    return globalThis.process.env?.[env2]?.trim() || void 0;
   }
   if (typeof globalThis.Deno !== "undefined") {
-    return globalThis.Deno.env?.get?.(env)?.trim() || void 0;
+    return globalThis.Deno.env?.get?.(env2)?.trim() || void 0;
   }
   return void 0;
 };
@@ -44622,9 +44636,9 @@ var OpenAI = class {
     this.apiKey = token;
     return true;
   }
-  buildURL(path5, query, defaultBaseURL) {
+  buildURL(path6, query, defaultBaseURL) {
     const baseURL = !__classPrivateFieldGet(this, _OpenAI_instances, "m", _OpenAI_baseURLOverridden).call(this) && defaultBaseURL || this.baseURL;
-    const url = isAbsoluteURL(path5) ? new URL(path5) : new URL(baseURL + (baseURL.endsWith("/") && path5.startsWith("/") ? path5.slice(1) : path5));
+    const url = isAbsoluteURL(path6) ? new URL(path6) : new URL(baseURL + (baseURL.endsWith("/") && path6.startsWith("/") ? path6.slice(1) : path6));
     const defaultQuery = this.defaultQuery();
     const pathQuery = Object.fromEntries(url.searchParams);
     if (!isEmptyObj(defaultQuery) || !isEmptyObj(pathQuery)) {
@@ -44654,24 +44668,24 @@ var OpenAI = class {
    */
   async prepareRequest(request, { url, options }) {
   }
-  get(path5, opts) {
-    return this.methodRequest("get", path5, opts);
+  get(path6, opts) {
+    return this.methodRequest("get", path6, opts);
   }
-  post(path5, opts) {
-    return this.methodRequest("post", path5, opts);
+  post(path6, opts) {
+    return this.methodRequest("post", path6, opts);
   }
-  patch(path5, opts) {
-    return this.methodRequest("patch", path5, opts);
+  patch(path6, opts) {
+    return this.methodRequest("patch", path6, opts);
   }
-  put(path5, opts) {
-    return this.methodRequest("put", path5, opts);
+  put(path6, opts) {
+    return this.methodRequest("put", path6, opts);
   }
-  delete(path5, opts) {
-    return this.methodRequest("delete", path5, opts);
+  delete(path6, opts) {
+    return this.methodRequest("delete", path6, opts);
   }
-  methodRequest(method, path5, opts) {
+  methodRequest(method, path6, opts) {
     return this.request(Promise.resolve(opts).then((opts2) => {
-      return { method, path: path5, ...opts2 };
+      return { method, path: path6, ...opts2 };
     }));
   }
   request(options, remainingRetries = null) {
@@ -44796,8 +44810,8 @@ var OpenAI = class {
     }));
     return { response, options, controller, requestLogID, retryOfRequestLogID, startTime };
   }
-  getAPIList(path5, Page2, opts) {
-    return this.requestAPIList(Page2, opts && "then" in opts ? opts.then((opts2) => ({ method: "get", path: path5, ...opts2 })) : { method: "get", path: path5, ...opts });
+  getAPIList(path6, Page2, opts) {
+    return this.requestAPIList(Page2, opts && "then" in opts ? opts.then((opts2) => ({ method: "get", path: path6, ...opts2 })) : { method: "get", path: path6, ...opts });
   }
   requestAPIList(Page2, options) {
     const request = this.makeRequest(options, null, void 0);
@@ -44891,8 +44905,8 @@ var OpenAI = class {
   }
   async buildRequest(inputOptions, { retryCount = 0 } = {}) {
     const options = { ...inputOptions };
-    const { method, path: path5, query, defaultBaseURL } = options;
-    const url = this.buildURL(path5, query, defaultBaseURL);
+    const { method, path: path6, query, defaultBaseURL } = options;
+    const url = this.buildURL(path6, query, defaultBaseURL);
     if ("timeout" in options)
       validatePositiveInteger("timeout", options.timeout);
     options.timeout = options.timeout ?? this.timeout;
@@ -45049,6 +45063,11 @@ function isUndiciDispatcherVersionMismatchError(error) {
 // node_modules/.pnpm/@google+genai@2.15.0/node_modules/@google/genai/dist/node/index.mjs
 var import_p_retry = __toESM(require_p_retry(), 1);
 var import_google_auth_library = __toESM(require_src5(), 1);
+import { createWriteStream } from "fs";
+import * as fs2 from "fs/promises";
+import { writeFile } from "fs/promises";
+import { Readable } from "node:stream";
+import { finished } from "node:stream/promises";
 
 // node_modules/.pnpm/ws@8.21.2/node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
@@ -45061,11 +45080,32 @@ var import_websocket = __toESM(require_websocket(), 1);
 var import_websocket_server = __toESM(require_websocket_server(), 1);
 
 // node_modules/.pnpm/@google+genai@2.15.0/node_modules/@google/genai/dist/node/index.mjs
+import * as path4 from "path";
+var _defaultBaseGeminiUrl = void 0;
+var _defaultBaseVertexUrl = void 0;
+function getDefaultBaseUrls() {
+  return {
+    geminiUrl: _defaultBaseGeminiUrl,
+    vertexUrl: _defaultBaseVertexUrl
+  };
+}
+function getBaseUrl(httpOptions, vertexai, vertexBaseUrlFromEnv, geminiBaseUrlFromEnv) {
+  var _a4, _b;
+  if (!(httpOptions === null || httpOptions === void 0 ? void 0 : httpOptions.baseUrl)) {
+    const defaultBaseUrls = getDefaultBaseUrls();
+    if (vertexai) {
+      return (_a4 = defaultBaseUrls.vertexUrl) !== null && _a4 !== void 0 ? _a4 : vertexBaseUrlFromEnv;
+    } else {
+      return (_b = defaultBaseUrls.geminiUrl) !== null && _b !== void 0 ? _b : geminiBaseUrlFromEnv;
+    }
+  }
+  return httpOptions.baseUrl;
+}
 var BaseModule = class {
 };
 function formatMap(templateString, valueMap) {
   const regex = /\{([^}]+)\}/g;
-  return templateString.replace(regex, (match, key) => {
+  return templateString.replace(regex, (match2, key) => {
     if (Object.prototype.hasOwnProperty.call(valueMap, key)) {
       const value = valueMap[key];
       return value !== void 0 && value !== null ? String(value) : "";
@@ -45170,11 +45210,94 @@ function getValueByPath(data, keys, defaultValue = void 0) {
     throw error;
   }
 }
+function moveValueByPath(data, paths) {
+  for (const [sourcePath, destPath] of Object.entries(paths)) {
+    const sourceKeys = sourcePath.split(".");
+    const destKeys = destPath.split(".");
+    const excludeKeys = /* @__PURE__ */ new Set();
+    let wildcardIdx = -1;
+    for (let i2 = 0; i2 < sourceKeys.length; i2++) {
+      if (sourceKeys[i2] === "*") {
+        wildcardIdx = i2;
+        break;
+      }
+    }
+    if (wildcardIdx !== -1 && destKeys.length > wildcardIdx) {
+      for (let i2 = wildcardIdx; i2 < destKeys.length; i2++) {
+        const key = destKeys[i2];
+        if (key !== "*" && !key.endsWith("[]") && !key.endsWith("[0]")) {
+          excludeKeys.add(key);
+        }
+      }
+    }
+    _moveValueRecursive(data, sourceKeys, destKeys, 0, excludeKeys);
+  }
+}
+function _moveValueRecursive(data, sourceKeys, destKeys, keyIdx, excludeKeys) {
+  if (keyIdx >= sourceKeys.length) {
+    return;
+  }
+  if (typeof data !== "object" || data === null) {
+    return;
+  }
+  const key = sourceKeys[keyIdx];
+  if (key.endsWith("[]")) {
+    const keyName = key.slice(0, -2);
+    const dataRecord = data;
+    if (keyName in dataRecord && Array.isArray(dataRecord[keyName])) {
+      for (const item of dataRecord[keyName]) {
+        _moveValueRecursive(item, sourceKeys, destKeys, keyIdx + 1, excludeKeys);
+      }
+    }
+  } else if (key === "*") {
+    if (typeof data === "object" && data !== null && !Array.isArray(data)) {
+      const dataRecord = data;
+      const keysToMove = Object.keys(dataRecord).filter((k) => !k.startsWith("_") && !excludeKeys.has(k));
+      const valuesToMove = {};
+      for (const k of keysToMove) {
+        valuesToMove[k] = dataRecord[k];
+      }
+      for (const [k, v] of Object.entries(valuesToMove)) {
+        const newDestKeys = [];
+        for (const dk of destKeys.slice(keyIdx)) {
+          if (dk === "*") {
+            newDestKeys.push(k);
+          } else {
+            newDestKeys.push(dk);
+          }
+        }
+        setValueByPath(dataRecord, newDestKeys, v);
+      }
+      for (const k of keysToMove) {
+        delete dataRecord[k];
+      }
+    }
+  } else {
+    const dataRecord = data;
+    if (key in dataRecord) {
+      _moveValueRecursive(dataRecord[key], sourceKeys, destKeys, keyIdx + 1, excludeKeys);
+    }
+  }
+}
 function tBytes$1(fromBytes) {
   if (typeof fromBytes !== "string") {
     throw new Error("fromImageBytes must be a string");
   }
   return fromBytes;
+}
+function fetchPredictOperationParametersToVertex(fromObject) {
+  const toObject = {};
+  const fromOperationName = getValueByPath(fromObject, [
+    "operationName"
+  ]);
+  if (fromOperationName != null) {
+    setValueByPath(toObject, ["operationName"], fromOperationName);
+  }
+  const fromResourceName = getValueByPath(fromObject, ["resourceName"]);
+  if (fromResourceName != null) {
+    setValueByPath(toObject, ["_url", "resourceName"], fromResourceName);
+  }
+  return toObject;
 }
 function generateVideosOperationFromMldev$1(fromObject) {
   const toObject = {};
@@ -45294,6 +45417,110 @@ function generatedVideoFromVertex$1(fromObject) {
   const fromVideo = getValueByPath(fromObject, ["_self"]);
   if (fromVideo != null) {
     setValueByPath(toObject, ["video"], videoFromVertex$1(fromVideo));
+  }
+  return toObject;
+}
+function getOperationParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromOperationName = getValueByPath(fromObject, [
+    "operationName"
+  ]);
+  if (fromOperationName != null) {
+    setValueByPath(toObject, ["_url", "operationName"], fromOperationName);
+  }
+  return toObject;
+}
+function getOperationParametersToVertex(fromObject) {
+  const toObject = {};
+  const fromOperationName = getValueByPath(fromObject, [
+    "operationName"
+  ]);
+  if (fromOperationName != null) {
+    setValueByPath(toObject, ["_url", "operationName"], fromOperationName);
+  }
+  return toObject;
+}
+function importFileOperationFromMldev$1(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  const fromMetadata = getValueByPath(fromObject, ["metadata"]);
+  if (fromMetadata != null) {
+    setValueByPath(toObject, ["metadata"], fromMetadata);
+  }
+  const fromDone = getValueByPath(fromObject, ["done"]);
+  if (fromDone != null) {
+    setValueByPath(toObject, ["done"], fromDone);
+  }
+  const fromError = getValueByPath(fromObject, ["error"]);
+  if (fromError != null) {
+    setValueByPath(toObject, ["error"], fromError);
+  }
+  const fromResponse = getValueByPath(fromObject, ["response"]);
+  if (fromResponse != null) {
+    setValueByPath(toObject, ["response"], importFileResponseFromMldev$1(fromResponse));
+  }
+  return toObject;
+}
+function importFileResponseFromMldev$1(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromParent = getValueByPath(fromObject, ["parent"]);
+  if (fromParent != null) {
+    setValueByPath(toObject, ["parent"], fromParent);
+  }
+  const fromDocumentName = getValueByPath(fromObject, ["documentName"]);
+  if (fromDocumentName != null) {
+    setValueByPath(toObject, ["documentName"], fromDocumentName);
+  }
+  return toObject;
+}
+function uploadToFileSearchStoreOperationFromMldev(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  const fromMetadata = getValueByPath(fromObject, ["metadata"]);
+  if (fromMetadata != null) {
+    setValueByPath(toObject, ["metadata"], fromMetadata);
+  }
+  const fromDone = getValueByPath(fromObject, ["done"]);
+  if (fromDone != null) {
+    setValueByPath(toObject, ["done"], fromDone);
+  }
+  const fromError = getValueByPath(fromObject, ["error"]);
+  if (fromError != null) {
+    setValueByPath(toObject, ["error"], fromError);
+  }
+  const fromResponse = getValueByPath(fromObject, ["response"]);
+  if (fromResponse != null) {
+    setValueByPath(toObject, ["response"], uploadToFileSearchStoreResponseFromMldev(fromResponse));
+  }
+  return toObject;
+}
+function uploadToFileSearchStoreResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromParent = getValueByPath(fromObject, ["parent"]);
+  if (fromParent != null) {
+    setValueByPath(toObject, ["parent"], fromParent);
+  }
+  const fromDocumentName = getValueByPath(fromObject, ["documentName"]);
+  if (fromDocumentName != null) {
+    setValueByPath(toObject, ["documentName"], fromDocumentName);
   }
   return toObject;
 }
@@ -45959,6 +46186,19 @@ var LiveMusicPlaybackControl;
   LiveMusicPlaybackControl2["STOP"] = "STOP";
   LiveMusicPlaybackControl2["RESET_CONTEXT"] = "RESET_CONTEXT";
 })(LiveMusicPlaybackControl || (LiveMusicPlaybackControl = {}));
+var HttpResponse = class {
+  constructor(response) {
+    const headers = {};
+    for (const pair of response.headers.entries()) {
+      headers[pair[0]] = pair[1];
+    }
+    this.headers = headers;
+    this.responseInternal = response;
+  }
+  json() {
+    return this.responseInternal.json();
+  }
+};
 var GenerateContentResponse = class {
   /**
    * Returns the concatenation of all text parts from the first candidate in the response.
@@ -46217,6 +46457,130 @@ var GenerateVideosOperation = class _GenerateVideosOperation {
     return operation;
   }
 };
+var ListTuningJobsResponse = class {
+};
+var CancelTuningJobResponse = class {
+};
+var ValidateRewardResponse = class {
+};
+var DeleteCachedContentResponse = class {
+};
+var ListCachedContentsResponse = class {
+};
+var ListDocumentsResponse = class {
+};
+var ListFileSearchStoresResponse = class {
+};
+var UploadToFileSearchStoreResumableResponse = class {
+};
+var ImportFileOperation = class _ImportFileOperation {
+  /**
+   * Instantiates an Operation of the same type as the one being called with the fields set from the API response.
+   */
+  _fromAPIResponse({ apiResponse, _isVertexAI }) {
+    const operation = new _ImportFileOperation();
+    const op = apiResponse;
+    const response = importFileOperationFromMldev$1(op);
+    Object.assign(operation, response);
+    return operation;
+  }
+};
+var ListFilesResponse = class {
+};
+var CreateFileResponse = class {
+};
+var DeleteFileResponse = class {
+};
+var RegisterFilesResponse = class {
+};
+var ListBatchJobsResponse = class {
+};
+var LiveServerMessage = class {
+  /**
+   * Returns the concatenation of all text parts from the server content if present.
+   *
+   * @remarks
+   * If there are non-text parts in the response, the concatenation of all text
+   * parts will be returned, and a warning will be logged.
+   */
+  get text() {
+    var _a4, _b, _c;
+    let text = "";
+    let anyTextPartFound = false;
+    const nonTextParts = [];
+    for (const part of (_c = (_b = (_a4 = this.serverContent) === null || _a4 === void 0 ? void 0 : _a4.modelTurn) === null || _b === void 0 ? void 0 : _b.parts) !== null && _c !== void 0 ? _c : []) {
+      for (const [fieldName, fieldValue] of Object.entries(part)) {
+        if (fieldName !== "text" && fieldName !== "thought" && fieldValue !== null) {
+          nonTextParts.push(fieldName);
+        }
+      }
+      if (typeof part.text === "string") {
+        if (typeof part.thought === "boolean" && part.thought) {
+          continue;
+        }
+        anyTextPartFound = true;
+        text += part.text;
+      }
+    }
+    if (nonTextParts.length > 0) {
+      console.warn(`there are non-text parts ${nonTextParts} in the response, returning concatenation of all text parts. Please refer to the non text parts for a full response from model.`);
+    }
+    return anyTextPartFound ? text : void 0;
+  }
+  /**
+   * Returns the concatenation of all inline data parts from the server content if present.
+   *
+   * @remarks
+   * If there are non-inline data parts in the
+   * response, the concatenation of all inline data parts will be returned, and
+   * a warning will be logged.
+   */
+  get data() {
+    var _a4, _b, _c;
+    let data = "";
+    const nonDataParts = [];
+    for (const part of (_c = (_b = (_a4 = this.serverContent) === null || _a4 === void 0 ? void 0 : _a4.modelTurn) === null || _b === void 0 ? void 0 : _b.parts) !== null && _c !== void 0 ? _c : []) {
+      for (const [fieldName, fieldValue] of Object.entries(part)) {
+        if (fieldName !== "inlineData" && fieldValue !== null) {
+          nonDataParts.push(fieldName);
+        }
+      }
+      if (part.inlineData && typeof part.inlineData.data === "string") {
+        data += atob(part.inlineData.data);
+      }
+    }
+    if (nonDataParts.length > 0) {
+      console.warn(`there are non-data parts ${nonDataParts} in the response, returning concatenation of all data parts. Please refer to the non data parts for a full response from model.`);
+    }
+    return data.length > 0 ? btoa(data) : void 0;
+  }
+};
+var LiveMusicServerMessage = class {
+  /**
+   * Returns the first audio chunk from the server content, if present.
+   *
+   * @remarks
+   * If there are no audio chunks in the response, undefined will be returned.
+   */
+  get audioChunk() {
+    if (this.serverContent && this.serverContent.audioChunks && this.serverContent.audioChunks.length > 0) {
+      return this.serverContent.audioChunks[0];
+    }
+    return void 0;
+  }
+};
+var UploadToFileSearchStoreOperation = class _UploadToFileSearchStoreOperation {
+  /**
+   * Instantiates an Operation of the same type as the one being called with the fields set from the API response.
+   */
+  _fromAPIResponse({ apiResponse, _isVertexAI }) {
+    const operation = new _UploadToFileSearchStoreOperation();
+    const op = apiResponse;
+    const response = uploadToFileSearchStoreOperationFromMldev(op);
+    Object.assign(operation, response);
+    return operation;
+  }
+};
 function tModel(apiClient, model) {
   if (!model || typeof model !== "string") {
     throw new Error("model is required and must be a string");
@@ -46240,6 +46604,46 @@ function tModel(apiClient, model) {
       return `models/${model}`;
     }
   }
+}
+function tCachesModel(apiClient, model) {
+  const transformedModel = tModel(apiClient, model);
+  if (!transformedModel) {
+    return "";
+  }
+  if (transformedModel.startsWith("publishers/") && apiClient.isVertexAI()) {
+    return `projects/${apiClient.getProject()}/locations/${apiClient.getLocation()}/${transformedModel}`;
+  } else if (transformedModel.startsWith("models/") && apiClient.isVertexAI()) {
+    return `projects/${apiClient.getProject()}/locations/${apiClient.getLocation()}/publishers/google/${transformedModel}`;
+  } else {
+    return transformedModel;
+  }
+}
+function tBlobs(blobs) {
+  if (Array.isArray(blobs)) {
+    return blobs.map((blob) => tBlob(blob));
+  } else {
+    return [tBlob(blobs)];
+  }
+}
+function tBlob(blob) {
+  if (typeof blob === "object" && blob !== null) {
+    return blob;
+  }
+  throw new Error(`Could not parse input as Blob. Unsupported blob type: ${typeof blob}`);
+}
+function tImageBlob(blob) {
+  const transformedBlob = tBlob(blob);
+  if (transformedBlob.mimeType && transformedBlob.mimeType.startsWith("image/")) {
+    return transformedBlob;
+  }
+  throw new Error(`Unsupported mime type: ${transformedBlob.mimeType}`);
+}
+function tAudioBlob(blob) {
+  const transformedBlob = tBlob(blob);
+  if (transformedBlob.mimeType && transformedBlob.mimeType.startsWith("audio/")) {
+    return transformedBlob;
+  }
+  throw new Error(`Unsupported mime type: ${transformedBlob.mimeType}`);
 }
 function tPart(origin) {
   if (origin === null || origin === void 0) {
@@ -46432,6 +46836,12 @@ function tSpeechConfig(speechConfig) {
     throw new Error(`Unsupported speechConfig type: ${typeof speechConfig}`);
   }
 }
+function tLiveSpeechConfig(speechConfig) {
+  if ("multiSpeakerVoiceConfig" in speechConfig) {
+    throw new Error("multiSpeakerVoiceConfig is not supported in the live API.");
+  }
+  return speechConfig;
+}
 function tTool(tool) {
   if (tool.functionDeclarations) {
     for (const functionDeclaration of tool.functionDeclarations) {
@@ -46498,8 +46908,67 @@ function tCachedContentName(apiClient, name) {
   }
   return resourceName(apiClient, name, "cachedContents");
 }
+function tTuningJobStatus(status) {
+  switch (status) {
+    case "STATE_UNSPECIFIED":
+      return "JOB_STATE_UNSPECIFIED";
+    case "CREATING":
+      return "JOB_STATE_RUNNING";
+    case "ACTIVE":
+      return "JOB_STATE_SUCCEEDED";
+    case "FAILED":
+      return "JOB_STATE_FAILED";
+    default:
+      return status;
+  }
+}
 function tBytes(fromImageBytes) {
   return tBytes$1(fromImageBytes);
+}
+function _isFile(origin) {
+  return origin !== null && origin !== void 0 && typeof origin === "object" && "name" in origin;
+}
+function isGeneratedVideo(origin) {
+  return origin !== null && origin !== void 0 && typeof origin === "object" && "video" in origin;
+}
+function isVideo(origin) {
+  return origin !== null && origin !== void 0 && typeof origin === "object" && "uri" in origin;
+}
+function tFileName(fromName) {
+  var _a4;
+  let name;
+  if (_isFile(fromName)) {
+    name = fromName.name;
+  }
+  if (isVideo(fromName)) {
+    name = fromName.uri;
+    if (name === void 0) {
+      return void 0;
+    }
+  }
+  if (isGeneratedVideo(fromName)) {
+    name = (_a4 = fromName.video) === null || _a4 === void 0 ? void 0 : _a4.uri;
+    if (name === void 0) {
+      return void 0;
+    }
+  }
+  if (typeof fromName === "string") {
+    name = fromName;
+  }
+  if (name === void 0) {
+    throw new Error("Could not extract file name from the provided input.");
+  }
+  if (name.startsWith("https://")) {
+    const suffix = name.split("files/")[1];
+    const match2 = suffix.match(/[a-z0-9]+/);
+    if (match2 === null) {
+      throw new Error(`Could not extract file name from URI ${name}`);
+    }
+    name = match2[0];
+  } else if (name.startsWith("files/")) {
+    name = name.split("files/")[1];
+  }
+  return name;
 }
 function tModelsUrl(apiClient, baseModels) {
   let res;
@@ -46557,8 +47026,1499 @@ function mcpToolsToGeminiTool(mcpTools, config = {}) {
   }
   return { functionDeclarations };
 }
+function tBatchJobSource(client, src) {
+  let sourceObj;
+  if (typeof src === "string") {
+    if (client.isVertexAI()) {
+      if (src.startsWith("gs://")) {
+        sourceObj = { format: "jsonl", gcsUri: [src] };
+      } else if (src.startsWith("bq://")) {
+        sourceObj = { format: "bigquery", bigqueryUri: src };
+      } else if (/^projects\/[^/]+\/locations\/[^/]+\/datasets\/[^/]+$/.test(src)) {
+        sourceObj = { format: "vertex-dataset", vertexDatasetName: src };
+      } else {
+        throw new Error(`Unsupported string source for Vertex AI: ${src}`);
+      }
+    } else {
+      if (src.startsWith("files/")) {
+        sourceObj = { fileName: src };
+      } else {
+        throw new Error(`Unsupported string source for Gemini API: ${src}`);
+      }
+    }
+  } else if (Array.isArray(src)) {
+    if (client.isVertexAI()) {
+      throw new Error("InlinedRequest[] is not supported in Vertex AI.");
+    }
+    sourceObj = { inlinedRequests: src };
+  } else {
+    sourceObj = src;
+  }
+  const vertexSourcesCount = [
+    sourceObj.gcsUri,
+    sourceObj.bigqueryUri,
+    sourceObj.vertexDatasetName
+  ].filter(Boolean).length;
+  const mldevSourcesCount = [
+    sourceObj.inlinedRequests,
+    sourceObj.fileName
+  ].filter(Boolean).length;
+  if (client.isVertexAI()) {
+    if (mldevSourcesCount > 0 || vertexSourcesCount !== 1) {
+      throw new Error("Exactly one of `gcsUri`, `bigqueryUri`, or `vertexDatasetName` must be set for Vertex AI.");
+    }
+  } else {
+    if (vertexSourcesCount > 0 || mldevSourcesCount !== 1) {
+      throw new Error("Exactly one of `inlinedRequests`, `fileName`, must be set for Gemini API.");
+    }
+  }
+  return sourceObj;
+}
+function tBatchJobDestination(dest) {
+  if (typeof dest !== "string") {
+    return dest;
+  }
+  const destString = dest;
+  if (destString.startsWith("gs://")) {
+    return {
+      format: "jsonl",
+      gcsUri: destString
+    };
+  } else if (destString.startsWith("bq://")) {
+    return {
+      format: "bigquery",
+      bigqueryUri: destString
+    };
+  } else {
+    throw new Error(`Unsupported destination: ${destString}`);
+  }
+}
+function tRecvBatchJobDestination(dest) {
+  if (typeof dest !== "object" || dest === null) {
+    return {};
+  }
+  const obj = dest;
+  const inlineResponsesVal = obj["inlinedResponses"];
+  if (typeof inlineResponsesVal !== "object" || inlineResponsesVal === null) {
+    return dest;
+  }
+  const inlineResponsesObj = inlineResponsesVal;
+  const responsesArray = inlineResponsesObj["inlinedResponses"];
+  if (!Array.isArray(responsesArray) || responsesArray.length === 0) {
+    return dest;
+  }
+  let hasEmbedding = false;
+  for (const responseItem of responsesArray) {
+    if (typeof responseItem !== "object" || responseItem === null) {
+      continue;
+    }
+    const responseItemObj = responseItem;
+    const responseVal = responseItemObj["response"];
+    if (typeof responseVal !== "object" || responseVal === null) {
+      continue;
+    }
+    const responseObj = responseVal;
+    if (responseObj["embedding"] !== void 0) {
+      hasEmbedding = true;
+      break;
+    }
+  }
+  if (hasEmbedding) {
+    obj["inlinedEmbedContentResponses"] = obj["inlinedResponses"];
+    delete obj["inlinedResponses"];
+  }
+  return dest;
+}
+function tBatchJobName(apiClient, name) {
+  const nameString = name;
+  if (!apiClient.isVertexAI()) {
+    const mldevPattern = /batches\/[^/]+$/;
+    if (mldevPattern.test(nameString)) {
+      return nameString.split("/").pop();
+    } else {
+      throw new Error(`Invalid batch job name: ${nameString}.`);
+    }
+  }
+  const vertexPattern = /^projects\/[^/]+\/locations\/[^/]+\/batchPredictionJobs\/[^/]+$/;
+  if (vertexPattern.test(nameString)) {
+    return nameString.split("/").pop();
+  } else if (/^\d+$/.test(nameString)) {
+    return nameString;
+  } else {
+    throw new Error(`Invalid batch job name: ${nameString}.`);
+  }
+}
+function tJobState(state) {
+  const stateString = state;
+  if (stateString === "BATCH_STATE_UNSPECIFIED") {
+    return "JOB_STATE_UNSPECIFIED";
+  } else if (stateString === "BATCH_STATE_PENDING") {
+    return "JOB_STATE_PENDING";
+  } else if (stateString === "BATCH_STATE_RUNNING") {
+    return "JOB_STATE_RUNNING";
+  } else if (stateString === "BATCH_STATE_SUCCEEDED") {
+    return "JOB_STATE_SUCCEEDED";
+  } else if (stateString === "BATCH_STATE_FAILED") {
+    return "JOB_STATE_FAILED";
+  } else if (stateString === "BATCH_STATE_CANCELLED") {
+    return "JOB_STATE_CANCELLED";
+  } else if (stateString === "BATCH_STATE_EXPIRED") {
+    return "JOB_STATE_EXPIRED";
+  } else {
+    return stateString;
+  }
+}
 function tIsVertexEmbedContentModel(model) {
   return model.includes("gemini") && model !== "gemini-embedding-001" || model.includes("maas");
+}
+function authConfigToMldev$4(fromObject) {
+  const toObject = {};
+  const fromApiKey = getValueByPath(fromObject, ["apiKey"]);
+  if (fromApiKey != null) {
+    setValueByPath(toObject, ["apiKey"], fromApiKey);
+  }
+  if (getValueByPath(fromObject, ["apiKeyConfig"]) !== void 0) {
+    throw new Error("apiKeyConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["authType"]) !== void 0) {
+    throw new Error("authType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["googleServiceAccountConfig"]) !== void 0) {
+    throw new Error("googleServiceAccountConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["httpBasicAuthConfig"]) !== void 0) {
+    throw new Error("httpBasicAuthConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["oauthConfig"]) !== void 0) {
+    throw new Error("oauthConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["oidcConfig"]) !== void 0) {
+    throw new Error("oidcConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function batchJobDestinationFromMldev(fromObject) {
+  const toObject = {};
+  const fromFileName = getValueByPath(fromObject, ["responsesFile"]);
+  if (fromFileName != null) {
+    setValueByPath(toObject, ["fileName"], fromFileName);
+  }
+  const fromInlinedResponses = getValueByPath(fromObject, [
+    "inlinedResponses",
+    "inlinedResponses"
+  ]);
+  if (fromInlinedResponses != null) {
+    let transformedList = fromInlinedResponses;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return inlinedResponseFromMldev(item);
+      });
+    }
+    setValueByPath(toObject, ["inlinedResponses"], transformedList);
+  }
+  const fromInlinedEmbedContentResponses = getValueByPath(fromObject, [
+    "inlinedEmbedContentResponses",
+    "inlinedResponses"
+  ]);
+  if (fromInlinedEmbedContentResponses != null) {
+    let transformedList = fromInlinedEmbedContentResponses;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["inlinedEmbedContentResponses"], transformedList);
+  }
+  return toObject;
+}
+function batchJobDestinationFromVertex(fromObject) {
+  const toObject = {};
+  const fromFormat = getValueByPath(fromObject, ["predictionsFormat"]);
+  if (fromFormat != null) {
+    setValueByPath(toObject, ["format"], fromFormat);
+  }
+  const fromGcsUri = getValueByPath(fromObject, [
+    "gcsDestination",
+    "outputUriPrefix"
+  ]);
+  if (fromGcsUri != null) {
+    setValueByPath(toObject, ["gcsUri"], fromGcsUri);
+  }
+  const fromBigqueryUri = getValueByPath(fromObject, [
+    "bigqueryDestination",
+    "outputUri"
+  ]);
+  if (fromBigqueryUri != null) {
+    setValueByPath(toObject, ["bigqueryUri"], fromBigqueryUri);
+  }
+  const fromVertexDataset = getValueByPath(fromObject, [
+    "vertexMultimodalDatasetDestination"
+  ]);
+  if (fromVertexDataset != null) {
+    setValueByPath(toObject, ["vertexDataset"], vertexMultimodalDatasetDestinationFromVertex(fromVertexDataset));
+  }
+  return toObject;
+}
+function batchJobDestinationToVertex(fromObject) {
+  const toObject = {};
+  const fromFormat = getValueByPath(fromObject, ["format"]);
+  if (fromFormat != null) {
+    setValueByPath(toObject, ["predictionsFormat"], fromFormat);
+  }
+  const fromGcsUri = getValueByPath(fromObject, ["gcsUri"]);
+  if (fromGcsUri != null) {
+    setValueByPath(toObject, ["gcsDestination", "outputUriPrefix"], fromGcsUri);
+  }
+  const fromBigqueryUri = getValueByPath(fromObject, ["bigqueryUri"]);
+  if (fromBigqueryUri != null) {
+    setValueByPath(toObject, ["bigqueryDestination", "outputUri"], fromBigqueryUri);
+  }
+  const fromVertexDataset = getValueByPath(fromObject, [
+    "vertexDataset"
+  ]);
+  if (fromVertexDataset != null) {
+    setValueByPath(toObject, ["vertexMultimodalDatasetDestination"], vertexMultimodalDatasetDestinationToVertex(fromVertexDataset));
+  }
+  if (getValueByPath(fromObject, ["fileName"]) !== void 0) {
+    throw new Error("fileName parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  if (getValueByPath(fromObject, ["inlinedResponses"]) !== void 0) {
+    throw new Error("inlinedResponses parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  if (getValueByPath(fromObject, ["inlinedEmbedContentResponses"]) !== void 0) {
+    throw new Error("inlinedEmbedContentResponses parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function batchJobFromMldev(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  const fromDisplayName = getValueByPath(fromObject, [
+    "metadata",
+    "displayName"
+  ]);
+  if (fromDisplayName != null) {
+    setValueByPath(toObject, ["displayName"], fromDisplayName);
+  }
+  const fromState = getValueByPath(fromObject, ["metadata", "state"]);
+  if (fromState != null) {
+    setValueByPath(toObject, ["state"], tJobState(fromState));
+  }
+  const fromCreateTime = getValueByPath(fromObject, [
+    "metadata",
+    "createTime"
+  ]);
+  if (fromCreateTime != null) {
+    setValueByPath(toObject, ["createTime"], fromCreateTime);
+  }
+  const fromEndTime = getValueByPath(fromObject, [
+    "metadata",
+    "endTime"
+  ]);
+  if (fromEndTime != null) {
+    setValueByPath(toObject, ["endTime"], fromEndTime);
+  }
+  const fromUpdateTime = getValueByPath(fromObject, [
+    "metadata",
+    "updateTime"
+  ]);
+  if (fromUpdateTime != null) {
+    setValueByPath(toObject, ["updateTime"], fromUpdateTime);
+  }
+  const fromModel = getValueByPath(fromObject, ["metadata", "model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["model"], fromModel);
+  }
+  const fromDest = getValueByPath(fromObject, ["metadata", "output"]);
+  if (fromDest != null) {
+    setValueByPath(toObject, ["dest"], batchJobDestinationFromMldev(tRecvBatchJobDestination(fromDest)));
+  }
+  return toObject;
+}
+function batchJobFromVertex(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  const fromDisplayName = getValueByPath(fromObject, ["displayName"]);
+  if (fromDisplayName != null) {
+    setValueByPath(toObject, ["displayName"], fromDisplayName);
+  }
+  const fromState = getValueByPath(fromObject, ["state"]);
+  if (fromState != null) {
+    setValueByPath(toObject, ["state"], tJobState(fromState));
+  }
+  const fromError = getValueByPath(fromObject, ["error"]);
+  if (fromError != null) {
+    setValueByPath(toObject, ["error"], fromError);
+  }
+  const fromCreateTime = getValueByPath(fromObject, ["createTime"]);
+  if (fromCreateTime != null) {
+    setValueByPath(toObject, ["createTime"], fromCreateTime);
+  }
+  const fromStartTime = getValueByPath(fromObject, ["startTime"]);
+  if (fromStartTime != null) {
+    setValueByPath(toObject, ["startTime"], fromStartTime);
+  }
+  const fromEndTime = getValueByPath(fromObject, ["endTime"]);
+  if (fromEndTime != null) {
+    setValueByPath(toObject, ["endTime"], fromEndTime);
+  }
+  const fromUpdateTime = getValueByPath(fromObject, ["updateTime"]);
+  if (fromUpdateTime != null) {
+    setValueByPath(toObject, ["updateTime"], fromUpdateTime);
+  }
+  const fromModel = getValueByPath(fromObject, ["model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["model"], fromModel);
+  }
+  const fromSrc = getValueByPath(fromObject, ["inputConfig"]);
+  if (fromSrc != null) {
+    setValueByPath(toObject, ["src"], batchJobSourceFromVertex(fromSrc));
+  }
+  const fromDest = getValueByPath(fromObject, ["outputConfig"]);
+  if (fromDest != null) {
+    setValueByPath(toObject, ["dest"], batchJobDestinationFromVertex(tRecvBatchJobDestination(fromDest)));
+  }
+  const fromOutputInfo = getValueByPath(fromObject, ["outputInfo"]);
+  if (fromOutputInfo != null) {
+    setValueByPath(toObject, ["outputInfo"], fromOutputInfo);
+  }
+  const fromCompletionStats = getValueByPath(fromObject, [
+    "completionStats"
+  ]);
+  if (fromCompletionStats != null) {
+    setValueByPath(toObject, ["completionStats"], fromCompletionStats);
+  }
+  return toObject;
+}
+function batchJobSourceFromVertex(fromObject) {
+  const toObject = {};
+  const fromFormat = getValueByPath(fromObject, ["instancesFormat"]);
+  if (fromFormat != null) {
+    setValueByPath(toObject, ["format"], fromFormat);
+  }
+  const fromGcsUri = getValueByPath(fromObject, ["gcsSource", "uris"]);
+  if (fromGcsUri != null) {
+    setValueByPath(toObject, ["gcsUri"], fromGcsUri);
+  }
+  const fromBigqueryUri = getValueByPath(fromObject, [
+    "bigquerySource",
+    "inputUri"
+  ]);
+  if (fromBigqueryUri != null) {
+    setValueByPath(toObject, ["bigqueryUri"], fromBigqueryUri);
+  }
+  const fromVertexDatasetName = getValueByPath(fromObject, [
+    "vertexMultimodalDatasetSource",
+    "datasetName"
+  ]);
+  if (fromVertexDatasetName != null) {
+    setValueByPath(toObject, ["vertexDatasetName"], fromVertexDatasetName);
+  }
+  return toObject;
+}
+function batchJobSourceToMldev(apiClient, fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["format"]) !== void 0) {
+    throw new Error("format parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["gcsUri"]) !== void 0) {
+    throw new Error("gcsUri parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["bigqueryUri"]) !== void 0) {
+    throw new Error("bigqueryUri parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["vertexDatasetName"]) !== void 0) {
+    throw new Error("vertexDatasetName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFileName = getValueByPath(fromObject, ["fileName"]);
+  if (fromFileName != null) {
+    setValueByPath(toObject, ["fileName"], fromFileName);
+  }
+  const fromInlinedRequests = getValueByPath(fromObject, [
+    "inlinedRequests"
+  ]);
+  if (fromInlinedRequests != null) {
+    let transformedList = fromInlinedRequests;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return inlinedRequestToMldev(apiClient, item);
+      });
+    }
+    setValueByPath(toObject, ["requests", "requests"], transformedList);
+  }
+  return toObject;
+}
+function batchJobSourceToVertex(fromObject) {
+  const toObject = {};
+  const fromFormat = getValueByPath(fromObject, ["format"]);
+  if (fromFormat != null) {
+    setValueByPath(toObject, ["instancesFormat"], fromFormat);
+  }
+  const fromGcsUri = getValueByPath(fromObject, ["gcsUri"]);
+  if (fromGcsUri != null) {
+    setValueByPath(toObject, ["gcsSource", "uris"], fromGcsUri);
+  }
+  const fromBigqueryUri = getValueByPath(fromObject, ["bigqueryUri"]);
+  if (fromBigqueryUri != null) {
+    setValueByPath(toObject, ["bigquerySource", "inputUri"], fromBigqueryUri);
+  }
+  const fromVertexDatasetName = getValueByPath(fromObject, [
+    "vertexDatasetName"
+  ]);
+  if (fromVertexDatasetName != null) {
+    setValueByPath(toObject, ["vertexMultimodalDatasetSource", "datasetName"], fromVertexDatasetName);
+  }
+  if (getValueByPath(fromObject, ["fileName"]) !== void 0) {
+    throw new Error("fileName parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  if (getValueByPath(fromObject, ["inlinedRequests"]) !== void 0) {
+    throw new Error("inlinedRequests parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function blobToMldev$4(fromObject) {
+  const toObject = {};
+  const fromData = getValueByPath(fromObject, ["data"]);
+  if (fromData != null) {
+    setValueByPath(toObject, ["data"], fromData);
+  }
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
+function cancelBatchJobParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tBatchJobName(apiClient, fromName));
+  }
+  return toObject;
+}
+function cancelBatchJobParametersToVertex(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tBatchJobName(apiClient, fromName));
+  }
+  return toObject;
+}
+function candidateFromMldev$1(fromObject) {
+  const toObject = {};
+  const fromContent = getValueByPath(fromObject, ["content"]);
+  if (fromContent != null) {
+    setValueByPath(toObject, ["content"], fromContent);
+  }
+  const fromCitationMetadata = getValueByPath(fromObject, [
+    "citationMetadata"
+  ]);
+  if (fromCitationMetadata != null) {
+    setValueByPath(toObject, ["citationMetadata"], citationMetadataFromMldev$1(fromCitationMetadata));
+  }
+  const fromTokenCount = getValueByPath(fromObject, ["tokenCount"]);
+  if (fromTokenCount != null) {
+    setValueByPath(toObject, ["tokenCount"], fromTokenCount);
+  }
+  const fromFinishReason = getValueByPath(fromObject, ["finishReason"]);
+  if (fromFinishReason != null) {
+    setValueByPath(toObject, ["finishReason"], fromFinishReason);
+  }
+  const fromGroundingMetadata = getValueByPath(fromObject, [
+    "groundingMetadata"
+  ]);
+  if (fromGroundingMetadata != null) {
+    setValueByPath(toObject, ["groundingMetadata"], fromGroundingMetadata);
+  }
+  const fromAvgLogprobs = getValueByPath(fromObject, ["avgLogprobs"]);
+  if (fromAvgLogprobs != null) {
+    setValueByPath(toObject, ["avgLogprobs"], fromAvgLogprobs);
+  }
+  const fromIndex = getValueByPath(fromObject, ["index"]);
+  if (fromIndex != null) {
+    setValueByPath(toObject, ["index"], fromIndex);
+  }
+  const fromLogprobsResult = getValueByPath(fromObject, [
+    "logprobsResult"
+  ]);
+  if (fromLogprobsResult != null) {
+    setValueByPath(toObject, ["logprobsResult"], fromLogprobsResult);
+  }
+  const fromSafetyRatings = getValueByPath(fromObject, [
+    "safetyRatings"
+  ]);
+  if (fromSafetyRatings != null) {
+    let transformedList = fromSafetyRatings;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["safetyRatings"], transformedList);
+  }
+  const fromUrlContextMetadata = getValueByPath(fromObject, [
+    "urlContextMetadata"
+  ]);
+  if (fromUrlContextMetadata != null) {
+    setValueByPath(toObject, ["urlContextMetadata"], fromUrlContextMetadata);
+  }
+  return toObject;
+}
+function citationMetadataFromMldev$1(fromObject) {
+  const toObject = {};
+  const fromCitations = getValueByPath(fromObject, ["citationSources"]);
+  if (fromCitations != null) {
+    let transformedList = fromCitations;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["citations"], transformedList);
+  }
+  return toObject;
+}
+function contentToMldev$4(fromObject) {
+  const toObject = {};
+  const fromParts = getValueByPath(fromObject, ["parts"]);
+  if (fromParts != null) {
+    let transformedList = fromParts;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return partToMldev$4(item);
+      });
+    }
+    setValueByPath(toObject, ["parts"], transformedList);
+  }
+  const fromRole = getValueByPath(fromObject, ["role"]);
+  if (fromRole != null) {
+    setValueByPath(toObject, ["role"], fromRole);
+  }
+  return toObject;
+}
+function createBatchJobConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromDisplayName = getValueByPath(fromObject, ["displayName"]);
+  if (parentObject !== void 0 && fromDisplayName != null) {
+    setValueByPath(parentObject, ["batch", "displayName"], fromDisplayName);
+  }
+  if (getValueByPath(fromObject, ["dest"]) !== void 0) {
+    throw new Error("dest parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromWebhookConfig = getValueByPath(fromObject, [
+    "webhookConfig"
+  ]);
+  if (parentObject !== void 0 && fromWebhookConfig != null) {
+    setValueByPath(parentObject, ["batch", "webhookConfig"], fromWebhookConfig);
+  }
+  return toObject;
+}
+function createBatchJobConfigToVertex(fromObject, parentObject) {
+  const toObject = {};
+  const fromDisplayName = getValueByPath(fromObject, ["displayName"]);
+  if (parentObject !== void 0 && fromDisplayName != null) {
+    setValueByPath(parentObject, ["displayName"], fromDisplayName);
+  }
+  const fromDest = getValueByPath(fromObject, ["dest"]);
+  if (parentObject !== void 0 && fromDest != null) {
+    setValueByPath(parentObject, ["outputConfig"], batchJobDestinationToVertex(tBatchJobDestination(fromDest)));
+  }
+  if (getValueByPath(fromObject, ["webhookConfig"]) !== void 0) {
+    throw new Error("webhookConfig parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function createBatchJobParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromModel = getValueByPath(fromObject, ["model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["_url", "model"], tModel(apiClient, fromModel));
+  }
+  const fromSrc = getValueByPath(fromObject, ["src"]);
+  if (fromSrc != null) {
+    setValueByPath(toObject, ["batch", "inputConfig"], batchJobSourceToMldev(apiClient, tBatchJobSource(apiClient, fromSrc)));
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    createBatchJobConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function createBatchJobParametersToVertex(apiClient, fromObject) {
+  const toObject = {};
+  const fromModel = getValueByPath(fromObject, ["model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["model"], tModel(apiClient, fromModel));
+  }
+  const fromSrc = getValueByPath(fromObject, ["src"]);
+  if (fromSrc != null) {
+    setValueByPath(toObject, ["inputConfig"], batchJobSourceToVertex(tBatchJobSource(apiClient, fromSrc)));
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    createBatchJobConfigToVertex(fromConfig, toObject);
+  }
+  return toObject;
+}
+function createEmbeddingsBatchJobConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromDisplayName = getValueByPath(fromObject, ["displayName"]);
+  if (parentObject !== void 0 && fromDisplayName != null) {
+    setValueByPath(parentObject, ["batch", "displayName"], fromDisplayName);
+  }
+  return toObject;
+}
+function createEmbeddingsBatchJobParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromModel = getValueByPath(fromObject, ["model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["_url", "model"], tModel(apiClient, fromModel));
+  }
+  const fromSrc = getValueByPath(fromObject, ["src"]);
+  if (fromSrc != null) {
+    setValueByPath(toObject, ["batch", "inputConfig"], embeddingsBatchJobSourceToMldev(apiClient, fromSrc));
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    createEmbeddingsBatchJobConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function deleteBatchJobParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tBatchJobName(apiClient, fromName));
+  }
+  return toObject;
+}
+function deleteBatchJobParametersToVertex(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tBatchJobName(apiClient, fromName));
+  }
+  return toObject;
+}
+function deleteResourceJobFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  const fromDone = getValueByPath(fromObject, ["done"]);
+  if (fromDone != null) {
+    setValueByPath(toObject, ["done"], fromDone);
+  }
+  const fromError = getValueByPath(fromObject, ["error"]);
+  if (fromError != null) {
+    setValueByPath(toObject, ["error"], fromError);
+  }
+  return toObject;
+}
+function deleteResourceJobFromVertex(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  const fromDone = getValueByPath(fromObject, ["done"]);
+  if (fromDone != null) {
+    setValueByPath(toObject, ["done"], fromDone);
+  }
+  const fromError = getValueByPath(fromObject, ["error"]);
+  if (fromError != null) {
+    setValueByPath(toObject, ["error"], fromError);
+  }
+  return toObject;
+}
+function embedContentBatchToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromContents = getValueByPath(fromObject, ["contents"]);
+  if (fromContents != null) {
+    let transformedList = tContentsForEmbed(apiClient, fromContents);
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["requests[]", "request", "content"], transformedList);
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    setValueByPath(toObject, ["_self"], embedContentConfigToMldev$1(fromConfig, toObject));
+    moveValueByPath(toObject, { "requests[].*": "requests[].request.*" });
+  }
+  return toObject;
+}
+function embedContentConfigToMldev$1(fromObject, parentObject) {
+  const toObject = {};
+  const fromTaskType = getValueByPath(fromObject, ["taskType"]);
+  if (parentObject !== void 0 && fromTaskType != null) {
+    setValueByPath(parentObject, ["requests[]", "taskType"], fromTaskType);
+  }
+  const fromTitle = getValueByPath(fromObject, ["title"]);
+  if (parentObject !== void 0 && fromTitle != null) {
+    setValueByPath(parentObject, ["requests[]", "title"], fromTitle);
+  }
+  const fromOutputDimensionality = getValueByPath(fromObject, [
+    "outputDimensionality"
+  ]);
+  if (parentObject !== void 0 && fromOutputDimensionality != null) {
+    setValueByPath(parentObject, ["requests[]", "outputDimensionality"], fromOutputDimensionality);
+  }
+  if (getValueByPath(fromObject, ["mimeType"]) !== void 0) {
+    throw new Error("mimeType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["autoTruncate"]) !== void 0) {
+    throw new Error("autoTruncate parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["documentOcr"]) !== void 0) {
+    throw new Error("documentOcr parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["audioTrackExtraction"]) !== void 0) {
+    throw new Error("audioTrackExtraction parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function embeddingsBatchJobSourceToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromFileName = getValueByPath(fromObject, ["fileName"]);
+  if (fromFileName != null) {
+    setValueByPath(toObject, ["file_name"], fromFileName);
+  }
+  const fromInlinedRequests = getValueByPath(fromObject, [
+    "inlinedRequests"
+  ]);
+  if (fromInlinedRequests != null) {
+    setValueByPath(toObject, ["requests"], embedContentBatchToMldev(apiClient, fromInlinedRequests));
+  }
+  return toObject;
+}
+function fileDataToMldev$4(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFileUri = getValueByPath(fromObject, ["fileUri"]);
+  if (fromFileUri != null) {
+    setValueByPath(toObject, ["fileUri"], fromFileUri);
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
+function functionCallToMldev$4(fromObject) {
+  const toObject = {};
+  const fromArgs = getValueByPath(fromObject, ["args"]);
+  if (fromArgs != null) {
+    setValueByPath(toObject, ["args"], fromArgs);
+  }
+  const fromId = getValueByPath(fromObject, ["id"]);
+  if (fromId != null) {
+    setValueByPath(toObject, ["id"], fromId);
+  }
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  if (getValueByPath(fromObject, ["partialArgs"]) !== void 0) {
+    throw new Error("partialArgs parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["willContinue"]) !== void 0) {
+    throw new Error("willContinue parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function functionCallingConfigToMldev$2(fromObject) {
+  const toObject = {};
+  const fromAllowedFunctionNames = getValueByPath(fromObject, [
+    "allowedFunctionNames"
+  ]);
+  if (fromAllowedFunctionNames != null) {
+    setValueByPath(toObject, ["allowedFunctionNames"], fromAllowedFunctionNames);
+  }
+  const fromMode = getValueByPath(fromObject, ["mode"]);
+  if (fromMode != null) {
+    setValueByPath(toObject, ["mode"], fromMode);
+  }
+  if (getValueByPath(fromObject, ["streamFunctionCallArguments"]) !== void 0) {
+    throw new Error("streamFunctionCallArguments parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function generateContentConfigToMldev$1(apiClient, fromObject, parentObject) {
+  const toObject = {};
+  const fromServiceTier = getValueByPath(fromObject, ["serviceTier"]);
+  if (parentObject !== void 0 && fromServiceTier != null) {
+    setValueByPath(parentObject, ["serviceTier"], fromServiceTier);
+  }
+  const fromSystemInstruction = getValueByPath(fromObject, [
+    "systemInstruction"
+  ]);
+  if (parentObject !== void 0 && fromSystemInstruction != null) {
+    setValueByPath(parentObject, ["systemInstruction"], contentToMldev$4(tContent(fromSystemInstruction)));
+  }
+  const fromTemperature = getValueByPath(fromObject, ["temperature"]);
+  if (fromTemperature != null) {
+    setValueByPath(toObject, ["temperature"], fromTemperature);
+  }
+  const fromTopP = getValueByPath(fromObject, ["topP"]);
+  if (fromTopP != null) {
+    setValueByPath(toObject, ["topP"], fromTopP);
+  }
+  const fromTopK = getValueByPath(fromObject, ["topK"]);
+  if (fromTopK != null) {
+    setValueByPath(toObject, ["topK"], fromTopK);
+  }
+  const fromCandidateCount = getValueByPath(fromObject, [
+    "candidateCount"
+  ]);
+  if (fromCandidateCount != null) {
+    setValueByPath(toObject, ["candidateCount"], fromCandidateCount);
+  }
+  const fromMaxOutputTokens = getValueByPath(fromObject, [
+    "maxOutputTokens"
+  ]);
+  if (fromMaxOutputTokens != null) {
+    setValueByPath(toObject, ["maxOutputTokens"], fromMaxOutputTokens);
+  }
+  const fromStopSequences = getValueByPath(fromObject, [
+    "stopSequences"
+  ]);
+  if (fromStopSequences != null) {
+    setValueByPath(toObject, ["stopSequences"], fromStopSequences);
+  }
+  const fromResponseLogprobs = getValueByPath(fromObject, [
+    "responseLogprobs"
+  ]);
+  if (fromResponseLogprobs != null) {
+    setValueByPath(toObject, ["responseLogprobs"], fromResponseLogprobs);
+  }
+  const fromLogprobs = getValueByPath(fromObject, ["logprobs"]);
+  if (fromLogprobs != null) {
+    setValueByPath(toObject, ["logprobs"], fromLogprobs);
+  }
+  const fromPresencePenalty = getValueByPath(fromObject, [
+    "presencePenalty"
+  ]);
+  if (fromPresencePenalty != null) {
+    setValueByPath(toObject, ["presencePenalty"], fromPresencePenalty);
+  }
+  const fromFrequencyPenalty = getValueByPath(fromObject, [
+    "frequencyPenalty"
+  ]);
+  if (fromFrequencyPenalty != null) {
+    setValueByPath(toObject, ["frequencyPenalty"], fromFrequencyPenalty);
+  }
+  const fromSeed = getValueByPath(fromObject, ["seed"]);
+  if (fromSeed != null) {
+    setValueByPath(toObject, ["seed"], fromSeed);
+  }
+  const fromResponseMimeType = getValueByPath(fromObject, [
+    "responseMimeType"
+  ]);
+  if (fromResponseMimeType != null) {
+    setValueByPath(toObject, ["responseMimeType"], fromResponseMimeType);
+  }
+  const fromResponseSchema = getValueByPath(fromObject, [
+    "responseSchema"
+  ]);
+  if (fromResponseSchema != null) {
+    setValueByPath(toObject, ["responseSchema"], tSchema(fromResponseSchema));
+  }
+  const fromResponseJsonSchema = getValueByPath(fromObject, [
+    "responseJsonSchema"
+  ]);
+  if (fromResponseJsonSchema != null) {
+    setValueByPath(toObject, ["responseJsonSchema"], fromResponseJsonSchema);
+  }
+  if (getValueByPath(fromObject, ["routingConfig"]) !== void 0) {
+    throw new Error("routingConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["modelSelectionConfig"]) !== void 0) {
+    throw new Error("modelSelectionConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromSafetySettings = getValueByPath(fromObject, [
+    "safetySettings"
+  ]);
+  if (parentObject !== void 0 && fromSafetySettings != null) {
+    let transformedList = fromSafetySettings;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return safetySettingToMldev$3(item);
+      });
+    }
+    setValueByPath(parentObject, ["safetySettings"], transformedList);
+  }
+  const fromTools = getValueByPath(fromObject, ["tools"]);
+  if (parentObject !== void 0 && fromTools != null) {
+    let transformedList = tTools(fromTools);
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return toolToMldev$4(tTool(item));
+      });
+    }
+    setValueByPath(parentObject, ["tools"], transformedList);
+  }
+  const fromToolConfig = getValueByPath(fromObject, ["toolConfig"]);
+  if (parentObject !== void 0 && fromToolConfig != null) {
+    setValueByPath(parentObject, ["toolConfig"], toolConfigToMldev$2(fromToolConfig));
+  }
+  if (getValueByPath(fromObject, ["labels"]) !== void 0) {
+    throw new Error("labels parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromCachedContent = getValueByPath(fromObject, [
+    "cachedContent"
+  ]);
+  if (parentObject !== void 0 && fromCachedContent != null) {
+    setValueByPath(parentObject, ["cachedContent"], tCachedContentName(apiClient, fromCachedContent));
+  }
+  const fromResponseModalities = getValueByPath(fromObject, [
+    "responseModalities"
+  ]);
+  if (fromResponseModalities != null) {
+    setValueByPath(toObject, ["responseModalities"], fromResponseModalities);
+  }
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (fromMediaResolution != null) {
+    setValueByPath(toObject, ["mediaResolution"], fromMediaResolution);
+  }
+  const fromSpeechConfig = getValueByPath(fromObject, ["speechConfig"]);
+  if (fromSpeechConfig != null) {
+    setValueByPath(toObject, ["speechConfig"], tSpeechConfig(fromSpeechConfig));
+  }
+  if (getValueByPath(fromObject, ["audioTimestamp"]) !== void 0) {
+    throw new Error("audioTimestamp parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromThinkingConfig = getValueByPath(fromObject, [
+    "thinkingConfig"
+  ]);
+  if (fromThinkingConfig != null) {
+    setValueByPath(toObject, ["thinkingConfig"], fromThinkingConfig);
+  }
+  const fromAudioTranscriptionConfig = getValueByPath(fromObject, [
+    "audioTranscriptionConfig"
+  ]);
+  if (fromAudioTranscriptionConfig != null) {
+    setValueByPath(toObject, ["audioTranscriptionConfig"], fromAudioTranscriptionConfig);
+  }
+  const fromImageConfig = getValueByPath(fromObject, ["imageConfig"]);
+  if (fromImageConfig != null) {
+    setValueByPath(toObject, ["imageConfig"], imageConfigToMldev$1(fromImageConfig));
+  }
+  const fromEnableEnhancedCivicAnswers = getValueByPath(fromObject, [
+    "enableEnhancedCivicAnswers"
+  ]);
+  if (fromEnableEnhancedCivicAnswers != null) {
+    setValueByPath(toObject, ["enableEnhancedCivicAnswers"], fromEnableEnhancedCivicAnswers);
+  }
+  if (getValueByPath(fromObject, ["modelArmorConfig"]) !== void 0) {
+    throw new Error("modelArmorConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function generateContentResponseFromMldev$1(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromCandidates = getValueByPath(fromObject, ["candidates"]);
+  if (fromCandidates != null) {
+    let transformedList = fromCandidates;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return candidateFromMldev$1(item);
+      });
+    }
+    setValueByPath(toObject, ["candidates"], transformedList);
+  }
+  const fromModelVersion = getValueByPath(fromObject, ["modelVersion"]);
+  if (fromModelVersion != null) {
+    setValueByPath(toObject, ["modelVersion"], fromModelVersion);
+  }
+  const fromPromptFeedback = getValueByPath(fromObject, [
+    "promptFeedback"
+  ]);
+  if (fromPromptFeedback != null) {
+    setValueByPath(toObject, ["promptFeedback"], fromPromptFeedback);
+  }
+  const fromResponseId = getValueByPath(fromObject, ["responseId"]);
+  if (fromResponseId != null) {
+    setValueByPath(toObject, ["responseId"], fromResponseId);
+  }
+  const fromUsageMetadata = getValueByPath(fromObject, [
+    "usageMetadata"
+  ]);
+  if (fromUsageMetadata != null) {
+    setValueByPath(toObject, ["usageMetadata"], fromUsageMetadata);
+  }
+  const fromModelStatus = getValueByPath(fromObject, ["modelStatus"]);
+  if (fromModelStatus != null) {
+    setValueByPath(toObject, ["modelStatus"], fromModelStatus);
+  }
+  return toObject;
+}
+function getBatchJobParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tBatchJobName(apiClient, fromName));
+  }
+  return toObject;
+}
+function getBatchJobParametersToVertex(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tBatchJobName(apiClient, fromName));
+  }
+  return toObject;
+}
+function googleMapsToMldev$4(fromObject) {
+  const toObject = {};
+  const fromAuthConfig = getValueByPath(fromObject, ["authConfig"]);
+  if (fromAuthConfig != null) {
+    setValueByPath(toObject, ["authConfig"], authConfigToMldev$4(fromAuthConfig));
+  }
+  const fromEnableWidget = getValueByPath(fromObject, ["enableWidget"]);
+  if (fromEnableWidget != null) {
+    setValueByPath(toObject, ["enableWidget"], fromEnableWidget);
+  }
+  if (getValueByPath(fromObject, ["groundingTypes"]) !== void 0) {
+    throw new Error("groundingTypes parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function googleSearchToMldev$4(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["blockingConfidence"]) !== void 0) {
+    throw new Error("blockingConfidence parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["excludeDomains"]) !== void 0) {
+    throw new Error("excludeDomains parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromSearchTypes = getValueByPath(fromObject, ["searchTypes"]);
+  if (fromSearchTypes != null) {
+    setValueByPath(toObject, ["searchTypes"], fromSearchTypes);
+  }
+  const fromTimeRangeFilter = getValueByPath(fromObject, [
+    "timeRangeFilter"
+  ]);
+  if (fromTimeRangeFilter != null) {
+    setValueByPath(toObject, ["timeRangeFilter"], fromTimeRangeFilter);
+  }
+  return toObject;
+}
+function imageConfigToMldev$1(fromObject) {
+  const toObject = {};
+  const fromAspectRatio = getValueByPath(fromObject, ["aspectRatio"]);
+  if (fromAspectRatio != null) {
+    setValueByPath(toObject, ["aspectRatio"], fromAspectRatio);
+  }
+  const fromImageSize = getValueByPath(fromObject, ["imageSize"]);
+  if (fromImageSize != null) {
+    setValueByPath(toObject, ["imageSize"], fromImageSize);
+  }
+  if (getValueByPath(fromObject, ["personGeneration"]) !== void 0) {
+    throw new Error("personGeneration parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["outputMimeType"]) !== void 0) {
+    throw new Error("outputMimeType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["outputCompressionQuality"]) !== void 0) {
+    throw new Error("outputCompressionQuality parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["imageOutputOptions"]) !== void 0) {
+    throw new Error("imageOutputOptions parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["prominentPeople"]) !== void 0) {
+    throw new Error("prominentPeople parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function inlinedRequestToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromModel = getValueByPath(fromObject, ["model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["request", "model"], tModel(apiClient, fromModel));
+  }
+  const fromContents = getValueByPath(fromObject, ["contents"]);
+  if (fromContents != null) {
+    let transformedList = tContents(fromContents);
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return contentToMldev$4(item);
+      });
+    }
+    setValueByPath(toObject, ["request", "contents"], transformedList);
+  }
+  const fromMetadata = getValueByPath(fromObject, ["metadata"]);
+  if (fromMetadata != null) {
+    setValueByPath(toObject, ["metadata"], fromMetadata);
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    setValueByPath(toObject, ["request", "generationConfig"], generateContentConfigToMldev$1(apiClient, fromConfig, getValueByPath(toObject, ["request"], {})));
+  }
+  return toObject;
+}
+function inlinedResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromResponse = getValueByPath(fromObject, ["response"]);
+  if (fromResponse != null) {
+    setValueByPath(toObject, ["response"], generateContentResponseFromMldev$1(fromResponse));
+  }
+  const fromMetadata = getValueByPath(fromObject, ["metadata"]);
+  if (fromMetadata != null) {
+    setValueByPath(toObject, ["metadata"], fromMetadata);
+  }
+  const fromError = getValueByPath(fromObject, ["error"]);
+  if (fromError != null) {
+    setValueByPath(toObject, ["error"], fromError);
+  }
+  return toObject;
+}
+function listBatchJobsConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromPageSize = getValueByPath(fromObject, ["pageSize"]);
+  if (parentObject !== void 0 && fromPageSize != null) {
+    setValueByPath(parentObject, ["_query", "pageSize"], fromPageSize);
+  }
+  const fromPageToken = getValueByPath(fromObject, ["pageToken"]);
+  if (parentObject !== void 0 && fromPageToken != null) {
+    setValueByPath(parentObject, ["_query", "pageToken"], fromPageToken);
+  }
+  if (getValueByPath(fromObject, ["filter"]) !== void 0) {
+    throw new Error("filter parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function listBatchJobsConfigToVertex(fromObject, parentObject) {
+  const toObject = {};
+  const fromPageSize = getValueByPath(fromObject, ["pageSize"]);
+  if (parentObject !== void 0 && fromPageSize != null) {
+    setValueByPath(parentObject, ["_query", "pageSize"], fromPageSize);
+  }
+  const fromPageToken = getValueByPath(fromObject, ["pageToken"]);
+  if (parentObject !== void 0 && fromPageToken != null) {
+    setValueByPath(parentObject, ["_query", "pageToken"], fromPageToken);
+  }
+  const fromFilter = getValueByPath(fromObject, ["filter"]);
+  if (parentObject !== void 0 && fromFilter != null) {
+    setValueByPath(parentObject, ["_query", "filter"], fromFilter);
+  }
+  return toObject;
+}
+function listBatchJobsParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    listBatchJobsConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function listBatchJobsParametersToVertex(fromObject) {
+  const toObject = {};
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    listBatchJobsConfigToVertex(fromConfig, toObject);
+  }
+  return toObject;
+}
+function listBatchJobsResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromNextPageToken = getValueByPath(fromObject, [
+    "nextPageToken"
+  ]);
+  if (fromNextPageToken != null) {
+    setValueByPath(toObject, ["nextPageToken"], fromNextPageToken);
+  }
+  const fromBatchJobs = getValueByPath(fromObject, ["operations"]);
+  if (fromBatchJobs != null) {
+    let transformedList = fromBatchJobs;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return batchJobFromMldev(item);
+      });
+    }
+    setValueByPath(toObject, ["batchJobs"], transformedList);
+  }
+  return toObject;
+}
+function listBatchJobsResponseFromVertex(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromNextPageToken = getValueByPath(fromObject, [
+    "nextPageToken"
+  ]);
+  if (fromNextPageToken != null) {
+    setValueByPath(toObject, ["nextPageToken"], fromNextPageToken);
+  }
+  const fromBatchJobs = getValueByPath(fromObject, [
+    "batchPredictionJobs"
+  ]);
+  if (fromBatchJobs != null) {
+    let transformedList = fromBatchJobs;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return batchJobFromVertex(item);
+      });
+    }
+    setValueByPath(toObject, ["batchJobs"], transformedList);
+  }
+  return toObject;
+}
+function partToMldev$4(fromObject) {
+  const toObject = {};
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (fromMediaResolution != null) {
+    setValueByPath(toObject, ["mediaResolution"], fromMediaResolution);
+  }
+  const fromToolCall = getValueByPath(fromObject, ["toolCall"]);
+  if (fromToolCall != null) {
+    setValueByPath(toObject, ["toolCall"], fromToolCall);
+  }
+  const fromToolResponse = getValueByPath(fromObject, ["toolResponse"]);
+  if (fromToolResponse != null) {
+    setValueByPath(toObject, ["toolResponse"], fromToolResponse);
+  }
+  const fromAudioTranscription = getValueByPath(fromObject, [
+    "audioTranscription"
+  ]);
+  if (fromAudioTranscription != null) {
+    setValueByPath(toObject, ["audioTranscription"], fromAudioTranscription);
+  }
+  const fromCodeExecutionResult = getValueByPath(fromObject, [
+    "codeExecutionResult"
+  ]);
+  if (fromCodeExecutionResult != null) {
+    setValueByPath(toObject, ["codeExecutionResult"], fromCodeExecutionResult);
+  }
+  const fromExecutableCode = getValueByPath(fromObject, [
+    "executableCode"
+  ]);
+  if (fromExecutableCode != null) {
+    setValueByPath(toObject, ["executableCode"], fromExecutableCode);
+  }
+  const fromFileData = getValueByPath(fromObject, ["fileData"]);
+  if (fromFileData != null) {
+    setValueByPath(toObject, ["fileData"], fileDataToMldev$4(fromFileData));
+  }
+  const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
+  if (fromFunctionCall != null) {
+    setValueByPath(toObject, ["functionCall"], functionCallToMldev$4(fromFunctionCall));
+  }
+  const fromFunctionResponse = getValueByPath(fromObject, [
+    "functionResponse"
+  ]);
+  if (fromFunctionResponse != null) {
+    setValueByPath(toObject, ["functionResponse"], fromFunctionResponse);
+  }
+  const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
+  if (fromInlineData != null) {
+    setValueByPath(toObject, ["inlineData"], blobToMldev$4(fromInlineData));
+  }
+  const fromText = getValueByPath(fromObject, ["text"]);
+  if (fromText != null) {
+    setValueByPath(toObject, ["text"], fromText);
+  }
+  const fromThought = getValueByPath(fromObject, ["thought"]);
+  if (fromThought != null) {
+    setValueByPath(toObject, ["thought"], fromThought);
+  }
+  const fromThoughtSignature = getValueByPath(fromObject, [
+    "thoughtSignature"
+  ]);
+  if (fromThoughtSignature != null) {
+    setValueByPath(toObject, ["thoughtSignature"], fromThoughtSignature);
+  }
+  const fromVideoMetadata = getValueByPath(fromObject, [
+    "videoMetadata"
+  ]);
+  if (fromVideoMetadata != null) {
+    setValueByPath(toObject, ["videoMetadata"], fromVideoMetadata);
+  }
+  const fromPartMetadata = getValueByPath(fromObject, ["partMetadata"]);
+  if (fromPartMetadata != null) {
+    setValueByPath(toObject, ["partMetadata"], fromPartMetadata);
+  }
+  return toObject;
+}
+function safetySettingToMldev$3(fromObject) {
+  const toObject = {};
+  const fromCategory = getValueByPath(fromObject, ["category"]);
+  if (fromCategory != null) {
+    setValueByPath(toObject, ["category"], fromCategory);
+  }
+  if (getValueByPath(fromObject, ["method"]) !== void 0) {
+    throw new Error("method parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromThreshold = getValueByPath(fromObject, ["threshold"]);
+  if (fromThreshold != null) {
+    setValueByPath(toObject, ["threshold"], fromThreshold);
+  }
+  return toObject;
+}
+function toolConfigToMldev$2(fromObject) {
+  const toObject = {};
+  const fromFunctionCallingConfig = getValueByPath(fromObject, [
+    "functionCallingConfig"
+  ]);
+  if (fromFunctionCallingConfig != null) {
+    setValueByPath(toObject, ["functionCallingConfig"], functionCallingConfigToMldev$2(fromFunctionCallingConfig));
+  }
+  const fromRetrievalConfig = getValueByPath(fromObject, [
+    "retrievalConfig"
+  ]);
+  if (fromRetrievalConfig != null) {
+    setValueByPath(toObject, ["retrievalConfig"], fromRetrievalConfig);
+  }
+  const fromIncludeServerSideToolInvocations = getValueByPath(fromObject, ["includeServerSideToolInvocations"]);
+  if (fromIncludeServerSideToolInvocations != null) {
+    setValueByPath(toObject, ["includeServerSideToolInvocations"], fromIncludeServerSideToolInvocations);
+  }
+  return toObject;
+}
+function toolToMldev$4(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["retrieval"]) !== void 0) {
+    throw new Error("retrieval parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromGoogleMaps = getValueByPath(fromObject, ["googleMaps"]);
+  if (fromGoogleMaps != null) {
+    setValueByPath(toObject, ["googleMaps"], googleMapsToMldev$4(fromGoogleMaps));
+  }
+  const fromMcpServers = getValueByPath(fromObject, ["mcpServers"]);
+  if (fromMcpServers != null) {
+    let transformedList = fromMcpServers;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["mcpServers"], transformedList);
+  }
+  const fromCodeExecution = getValueByPath(fromObject, [
+    "codeExecution"
+  ]);
+  if (fromCodeExecution != null) {
+    setValueByPath(toObject, ["codeExecution"], fromCodeExecution);
+  }
+  const fromComputerUse = getValueByPath(fromObject, ["computerUse"]);
+  if (fromComputerUse != null) {
+    setValueByPath(toObject, ["computerUse"], fromComputerUse);
+  }
+  if (getValueByPath(fromObject, ["enterpriseWebSearch"]) !== void 0) {
+    throw new Error("enterpriseWebSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["exaAiSearch"]) !== void 0) {
+    throw new Error("exaAiSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFunctionDeclarations = getValueByPath(fromObject, [
+    "functionDeclarations"
+  ]);
+  if (fromFunctionDeclarations != null) {
+    let transformedList = fromFunctionDeclarations;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["functionDeclarations"], transformedList);
+  }
+  const fromGoogleSearch = getValueByPath(fromObject, ["googleSearch"]);
+  if (fromGoogleSearch != null) {
+    setValueByPath(toObject, ["googleSearch"], googleSearchToMldev$4(fromGoogleSearch));
+  }
+  const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+    "googleSearchRetrieval"
+  ]);
+  if (fromGoogleSearchRetrieval != null) {
+    setValueByPath(toObject, ["googleSearchRetrieval"], fromGoogleSearchRetrieval);
+  }
+  if (getValueByPath(fromObject, ["parallelAiSearch"]) !== void 0) {
+    throw new Error("parallelAiSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromUrlContext = getValueByPath(fromObject, ["urlContext"]);
+  if (fromUrlContext != null) {
+    setValueByPath(toObject, ["urlContext"], fromUrlContext);
+  }
+  const fromFileSearch = getValueByPath(fromObject, ["fileSearch"]);
+  if (fromFileSearch != null) {
+    setValueByPath(toObject, ["fileSearch"], fromFileSearch);
+  }
+  return toObject;
+}
+function vertexMultimodalDatasetDestinationFromVertex(fromObject) {
+  const toObject = {};
+  const fromBigqueryDestination = getValueByPath(fromObject, [
+    "bigqueryDestination",
+    "outputUri"
+  ]);
+  if (fromBigqueryDestination != null) {
+    setValueByPath(toObject, ["bigqueryDestination"], fromBigqueryDestination);
+  }
+  const fromDisplayName = getValueByPath(fromObject, ["displayName"]);
+  if (fromDisplayName != null) {
+    setValueByPath(toObject, ["displayName"], fromDisplayName);
+  }
+  return toObject;
+}
+function vertexMultimodalDatasetDestinationToVertex(fromObject) {
+  const toObject = {};
+  const fromBigqueryDestination = getValueByPath(fromObject, [
+    "bigqueryDestination"
+  ]);
+  if (fromBigqueryDestination != null) {
+    setValueByPath(toObject, ["bigqueryDestination", "outputUri"], fromBigqueryDestination);
+  }
+  const fromDisplayName = getValueByPath(fromObject, ["displayName"]);
+  if (fromDisplayName != null) {
+    setValueByPath(toObject, ["displayName"], fromDisplayName);
+  }
+  return toObject;
 }
 var PagedItem;
 (function(PagedItem2) {
@@ -46731,6 +48691,1659 @@ var Pager = class {
     return false;
   }
 };
+var Batches2 = class extends BaseModule {
+  constructor(apiClient) {
+    super();
+    this.apiClient = apiClient;
+    this.list = async (params = {}) => {
+      return new Pager(PagedItem.PAGED_ITEM_BATCH_JOBS, (x2) => this.listInternal(x2), await this.listInternal(params), params);
+    };
+    this.create = async (params) => {
+      if (this.apiClient.isVertexAI()) {
+        params.config = this.formatDestination(params.src, params.config);
+      }
+      return this.createInternal(params);
+    };
+    this.createEmbeddings = async (params) => {
+      console.warn("batches.createEmbeddings() is experimental and may change without notice.");
+      if (this.apiClient.isVertexAI()) {
+        throw new Error("Gemini Enterprise Agent Platform (previously known as Vertex AI) does not support batches.createEmbeddings.");
+      }
+      return this.createEmbeddingsInternal(params);
+    };
+  }
+  // Helper function to handle inlined generate content requests
+  createInlinedGenerateContentRequest(params) {
+    const body = createBatchJobParametersToMldev(
+      this.apiClient,
+      // Use instance apiClient
+      params
+    );
+    const urlParams = body["_url"];
+    const path6 = formatMap("{model}:batchGenerateContent", urlParams);
+    const batch = body["batch"];
+    const inputConfig = batch["inputConfig"];
+    const requestsWrapper = inputConfig["requests"];
+    const requests = requestsWrapper["requests"];
+    const newRequests = [];
+    for (const request of requests) {
+      const requestDict = Object.assign({}, request);
+      if (requestDict["systemInstruction"]) {
+        const systemInstructionValue = requestDict["systemInstruction"];
+        delete requestDict["systemInstruction"];
+        const requestContent = requestDict["request"];
+        requestContent["systemInstruction"] = systemInstructionValue;
+        requestDict["request"] = requestContent;
+      }
+      newRequests.push(requestDict);
+    }
+    requestsWrapper["requests"] = newRequests;
+    delete body["config"];
+    delete body["_url"];
+    delete body["_query"];
+    return { path: path6, body };
+  }
+  // Helper function to get the first GCS URI
+  getGcsUri(src) {
+    if (typeof src === "string") {
+      return src.startsWith("gs://") ? src : void 0;
+    }
+    if (!Array.isArray(src) && src.gcsUri && src.gcsUri.length > 0) {
+      return src.gcsUri[0];
+    }
+    return void 0;
+  }
+  // Helper function to get the BigQuery URI
+  getBigqueryUri(src) {
+    if (typeof src === "string") {
+      return src.startsWith("bq://") ? src : void 0;
+    }
+    if (!Array.isArray(src)) {
+      return src.bigqueryUri;
+    }
+    return void 0;
+  }
+  // Function to format the destination configuration for Vertex AI
+  formatDestination(src, config) {
+    const newConfig = config ? Object.assign({}, config) : {};
+    const timestampStr = Date.now().toString();
+    if (!newConfig.displayName) {
+      newConfig.displayName = `genaiBatchJob_${timestampStr}`;
+    }
+    if (newConfig.dest === void 0) {
+      const gcsUri = this.getGcsUri(src);
+      const bigqueryUri = this.getBigqueryUri(src);
+      if (gcsUri) {
+        if (gcsUri.endsWith(".jsonl")) {
+          newConfig.dest = `${gcsUri.slice(0, -6)}/dest`;
+        } else {
+          newConfig.dest = `${gcsUri}_dest_${timestampStr}`;
+        }
+      } else if (bigqueryUri) {
+        newConfig.dest = `${bigqueryUri}_dest_${timestampStr}`;
+      } else {
+        throw new Error("Unsupported source for Gemini Enterprise Agent Platform (previously known as Vertex AI): No GCS or BigQuery URI found.");
+      }
+    }
+    return newConfig;
+  }
+  /**
+   * Internal method to create batch job.
+   *
+   * @param params - The parameters for create batch job request.
+   * @return The created batch job.
+   *
+   */
+  async createInternal(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = createBatchJobParametersToVertex(this.apiClient, params);
+      path6 = formatMap("batchPredictionJobs", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = batchJobFromVertex(apiResponse);
+        return resp;
+      });
+    } else {
+      const body = createBatchJobParametersToMldev(this.apiClient, params);
+      path6 = formatMap("{model}:batchGenerateContent", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = batchJobFromMldev(apiResponse);
+        return resp;
+      });
+    }
+  }
+  /**
+   * Internal method to create batch job.
+   *
+   * @param params - The parameters for create batch job request.
+   * @return The created batch job.
+   *
+   */
+  async createEmbeddingsInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = createEmbeddingsBatchJobParametersToMldev(this.apiClient, params);
+      path6 = formatMap("{model}:asyncBatchEmbedContent", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = batchJobFromMldev(apiResponse);
+        return resp;
+      });
+    }
+  }
+  /**
+   * Gets batch job configurations.
+   *
+   * @param params - The parameters for the get request.
+   * @return The batch job.
+   *
+   * @example
+   * ```ts
+   * await ai.batches.get({name: '...'}); // The server-generated resource name.
+   * ```
+   */
+  async get(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = getBatchJobParametersToVertex(this.apiClient, params);
+      path6 = formatMap("batchPredictionJobs/{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = batchJobFromVertex(apiResponse);
+        return resp;
+      });
+    } else {
+      const body = getBatchJobParametersToMldev(this.apiClient, params);
+      path6 = formatMap("batches/{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = batchJobFromMldev(apiResponse);
+        return resp;
+      });
+    }
+  }
+  /**
+   * Cancels a batch job.
+   *
+   * @param params - The parameters for the cancel request.
+   * @return The empty response returned by the API.
+   *
+   * @example
+   * ```ts
+   * await ai.batches.cancel({name: '...'}); // The server-generated resource name.
+   * ```
+   */
+  async cancel(params) {
+    var _a4, _b, _c, _d;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = cancelBatchJobParametersToVertex(this.apiClient, params);
+      path6 = formatMap("batchPredictionJobs/{name}:cancel", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      await this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      });
+    } else {
+      const body = cancelBatchJobParametersToMldev(this.apiClient, params);
+      path6 = formatMap("batches/{name}:cancel", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      await this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      });
+    }
+  }
+  async listInternal(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = listBatchJobsParametersToVertex(params);
+      path6 = formatMap("batchPredictionJobs", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = listBatchJobsResponseFromVertex(apiResponse);
+        const typedResp = new ListBatchJobsResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    } else {
+      const body = listBatchJobsParametersToMldev(params);
+      path6 = formatMap("batches", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = listBatchJobsResponseFromMldev(apiResponse);
+        const typedResp = new ListBatchJobsResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+  /**
+   * Deletes a batch job.
+   *
+   * @param params - The parameters for the delete request.
+   * @return The empty response returned by the API.
+   *
+   * @example
+   * ```ts
+   * await ai.batches.delete({name: '...'}); // The server-generated resource name.
+   * ```
+   */
+  async delete(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = deleteBatchJobParametersToVertex(this.apiClient, params);
+      path6 = formatMap("batchPredictionJobs/{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "DELETE",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = deleteResourceJobFromVertex(apiResponse);
+        return resp;
+      });
+    } else {
+      const body = deleteBatchJobParametersToMldev(this.apiClient, params);
+      path6 = formatMap("batches/{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "DELETE",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = deleteResourceJobFromMldev(apiResponse);
+        return resp;
+      });
+    }
+  }
+};
+function authConfigToMldev$3(fromObject) {
+  const toObject = {};
+  const fromApiKey = getValueByPath(fromObject, ["apiKey"]);
+  if (fromApiKey != null) {
+    setValueByPath(toObject, ["apiKey"], fromApiKey);
+  }
+  if (getValueByPath(fromObject, ["apiKeyConfig"]) !== void 0) {
+    throw new Error("apiKeyConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["authType"]) !== void 0) {
+    throw new Error("authType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["googleServiceAccountConfig"]) !== void 0) {
+    throw new Error("googleServiceAccountConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["httpBasicAuthConfig"]) !== void 0) {
+    throw new Error("httpBasicAuthConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["oauthConfig"]) !== void 0) {
+    throw new Error("oauthConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["oidcConfig"]) !== void 0) {
+    throw new Error("oidcConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function blobToMldev$3(fromObject) {
+  const toObject = {};
+  const fromData = getValueByPath(fromObject, ["data"]);
+  if (fromData != null) {
+    setValueByPath(toObject, ["data"], fromData);
+  }
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
+function codeExecutionResultToVertex$3(fromObject) {
+  const toObject = {};
+  const fromOutcome = getValueByPath(fromObject, ["outcome"]);
+  if (fromOutcome != null) {
+    setValueByPath(toObject, ["outcome"], fromOutcome);
+  }
+  const fromOutput = getValueByPath(fromObject, ["output"]);
+  if (fromOutput != null) {
+    setValueByPath(toObject, ["output"], fromOutput);
+  }
+  if (getValueByPath(fromObject, ["id"]) !== void 0) {
+    throw new Error("id parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function computerUseToVertex$2(fromObject) {
+  const toObject = {};
+  const fromEnablePromptInjectionDetection = getValueByPath(fromObject, [
+    "enablePromptInjectionDetection"
+  ]);
+  if (fromEnablePromptInjectionDetection != null) {
+    setValueByPath(toObject, ["enablePromptInjectionDetection"], fromEnablePromptInjectionDetection);
+  }
+  const fromEnvironment = getValueByPath(fromObject, ["environment"]);
+  if (fromEnvironment != null) {
+    setValueByPath(toObject, ["environment"], fromEnvironment);
+  }
+  const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
+    "excludedPredefinedFunctions"
+  ]);
+  if (fromExcludedPredefinedFunctions != null) {
+    setValueByPath(toObject, ["excludedPredefinedFunctions"], fromExcludedPredefinedFunctions);
+  }
+  if (getValueByPath(fromObject, ["disabledSafetyPolicies"]) !== void 0) {
+    throw new Error("disabledSafetyPolicies parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function contentToMldev$3(fromObject) {
+  const toObject = {};
+  const fromParts = getValueByPath(fromObject, ["parts"]);
+  if (fromParts != null) {
+    let transformedList = fromParts;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return partToMldev$3(item);
+      });
+    }
+    setValueByPath(toObject, ["parts"], transformedList);
+  }
+  const fromRole = getValueByPath(fromObject, ["role"]);
+  if (fromRole != null) {
+    setValueByPath(toObject, ["role"], fromRole);
+  }
+  return toObject;
+}
+function contentToVertex$3(fromObject) {
+  const toObject = {};
+  const fromParts = getValueByPath(fromObject, ["parts"]);
+  if (fromParts != null) {
+    let transformedList = fromParts;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return partToVertex$3(item);
+      });
+    }
+    setValueByPath(toObject, ["parts"], transformedList);
+  }
+  const fromRole = getValueByPath(fromObject, ["role"]);
+  if (fromRole != null) {
+    setValueByPath(toObject, ["role"], fromRole);
+  }
+  return toObject;
+}
+function createCachedContentConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromTtl = getValueByPath(fromObject, ["ttl"]);
+  if (parentObject !== void 0 && fromTtl != null) {
+    setValueByPath(parentObject, ["ttl"], fromTtl);
+  }
+  const fromExpireTime = getValueByPath(fromObject, ["expireTime"]);
+  if (parentObject !== void 0 && fromExpireTime != null) {
+    setValueByPath(parentObject, ["expireTime"], fromExpireTime);
+  }
+  const fromDisplayName = getValueByPath(fromObject, ["displayName"]);
+  if (parentObject !== void 0 && fromDisplayName != null) {
+    setValueByPath(parentObject, ["displayName"], fromDisplayName);
+  }
+  const fromContents = getValueByPath(fromObject, ["contents"]);
+  if (parentObject !== void 0 && fromContents != null) {
+    let transformedList = tContents(fromContents);
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return contentToMldev$3(item);
+      });
+    }
+    setValueByPath(parentObject, ["contents"], transformedList);
+  }
+  const fromSystemInstruction = getValueByPath(fromObject, [
+    "systemInstruction"
+  ]);
+  if (parentObject !== void 0 && fromSystemInstruction != null) {
+    setValueByPath(parentObject, ["systemInstruction"], contentToMldev$3(tContent(fromSystemInstruction)));
+  }
+  const fromTools = getValueByPath(fromObject, ["tools"]);
+  if (parentObject !== void 0 && fromTools != null) {
+    let transformedList = fromTools;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return toolToMldev$3(item);
+      });
+    }
+    setValueByPath(parentObject, ["tools"], transformedList);
+  }
+  const fromToolConfig = getValueByPath(fromObject, ["toolConfig"]);
+  if (parentObject !== void 0 && fromToolConfig != null) {
+    setValueByPath(parentObject, ["toolConfig"], toolConfigToMldev$1(fromToolConfig));
+  }
+  if (getValueByPath(fromObject, ["kmsKeyName"]) !== void 0) {
+    throw new Error("kmsKeyName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function createCachedContentConfigToVertex(fromObject, parentObject) {
+  const toObject = {};
+  const fromTtl = getValueByPath(fromObject, ["ttl"]);
+  if (parentObject !== void 0 && fromTtl != null) {
+    setValueByPath(parentObject, ["ttl"], fromTtl);
+  }
+  const fromExpireTime = getValueByPath(fromObject, ["expireTime"]);
+  if (parentObject !== void 0 && fromExpireTime != null) {
+    setValueByPath(parentObject, ["expireTime"], fromExpireTime);
+  }
+  const fromDisplayName = getValueByPath(fromObject, ["displayName"]);
+  if (parentObject !== void 0 && fromDisplayName != null) {
+    setValueByPath(parentObject, ["displayName"], fromDisplayName);
+  }
+  const fromContents = getValueByPath(fromObject, ["contents"]);
+  if (parentObject !== void 0 && fromContents != null) {
+    let transformedList = tContents(fromContents);
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return contentToVertex$3(item);
+      });
+    }
+    setValueByPath(parentObject, ["contents"], transformedList);
+  }
+  const fromSystemInstruction = getValueByPath(fromObject, [
+    "systemInstruction"
+  ]);
+  if (parentObject !== void 0 && fromSystemInstruction != null) {
+    setValueByPath(parentObject, ["systemInstruction"], contentToVertex$3(tContent(fromSystemInstruction)));
+  }
+  const fromTools = getValueByPath(fromObject, ["tools"]);
+  if (parentObject !== void 0 && fromTools != null) {
+    let transformedList = fromTools;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return toolToVertex$2(item);
+      });
+    }
+    setValueByPath(parentObject, ["tools"], transformedList);
+  }
+  const fromToolConfig = getValueByPath(fromObject, ["toolConfig"]);
+  if (parentObject !== void 0 && fromToolConfig != null) {
+    setValueByPath(parentObject, ["toolConfig"], toolConfigToVertex$1(fromToolConfig));
+  }
+  const fromKmsKeyName = getValueByPath(fromObject, ["kmsKeyName"]);
+  if (parentObject !== void 0 && fromKmsKeyName != null) {
+    setValueByPath(parentObject, ["encryption_spec", "kmsKeyName"], fromKmsKeyName);
+  }
+  return toObject;
+}
+function createCachedContentParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromModel = getValueByPath(fromObject, ["model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["model"], tCachesModel(apiClient, fromModel));
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    createCachedContentConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function createCachedContentParametersToVertex(apiClient, fromObject) {
+  const toObject = {};
+  const fromModel = getValueByPath(fromObject, ["model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["model"], tCachesModel(apiClient, fromModel));
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    createCachedContentConfigToVertex(fromConfig, toObject);
+  }
+  return toObject;
+}
+function deleteCachedContentParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tCachedContentName(apiClient, fromName));
+  }
+  return toObject;
+}
+function deleteCachedContentParametersToVertex(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tCachedContentName(apiClient, fromName));
+  }
+  return toObject;
+}
+function deleteCachedContentResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  return toObject;
+}
+function deleteCachedContentResponseFromVertex(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  return toObject;
+}
+function executableCodeToVertex$3(fromObject) {
+  const toObject = {};
+  const fromCode = getValueByPath(fromObject, ["code"]);
+  if (fromCode != null) {
+    setValueByPath(toObject, ["code"], fromCode);
+  }
+  const fromLanguage = getValueByPath(fromObject, ["language"]);
+  if (fromLanguage != null) {
+    setValueByPath(toObject, ["language"], fromLanguage);
+  }
+  if (getValueByPath(fromObject, ["id"]) !== void 0) {
+    throw new Error("id parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function fileDataToMldev$3(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFileUri = getValueByPath(fromObject, ["fileUri"]);
+  if (fromFileUri != null) {
+    setValueByPath(toObject, ["fileUri"], fromFileUri);
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
+function functionCallToMldev$3(fromObject) {
+  const toObject = {};
+  const fromArgs = getValueByPath(fromObject, ["args"]);
+  if (fromArgs != null) {
+    setValueByPath(toObject, ["args"], fromArgs);
+  }
+  const fromId = getValueByPath(fromObject, ["id"]);
+  if (fromId != null) {
+    setValueByPath(toObject, ["id"], fromId);
+  }
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  if (getValueByPath(fromObject, ["partialArgs"]) !== void 0) {
+    throw new Error("partialArgs parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["willContinue"]) !== void 0) {
+    throw new Error("willContinue parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function functionCallingConfigToMldev$1(fromObject) {
+  const toObject = {};
+  const fromAllowedFunctionNames = getValueByPath(fromObject, [
+    "allowedFunctionNames"
+  ]);
+  if (fromAllowedFunctionNames != null) {
+    setValueByPath(toObject, ["allowedFunctionNames"], fromAllowedFunctionNames);
+  }
+  const fromMode = getValueByPath(fromObject, ["mode"]);
+  if (fromMode != null) {
+    setValueByPath(toObject, ["mode"], fromMode);
+  }
+  if (getValueByPath(fromObject, ["streamFunctionCallArguments"]) !== void 0) {
+    throw new Error("streamFunctionCallArguments parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function getCachedContentParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tCachedContentName(apiClient, fromName));
+  }
+  return toObject;
+}
+function getCachedContentParametersToVertex(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tCachedContentName(apiClient, fromName));
+  }
+  return toObject;
+}
+function googleMapsToMldev$3(fromObject) {
+  const toObject = {};
+  const fromAuthConfig = getValueByPath(fromObject, ["authConfig"]);
+  if (fromAuthConfig != null) {
+    setValueByPath(toObject, ["authConfig"], authConfigToMldev$3(fromAuthConfig));
+  }
+  const fromEnableWidget = getValueByPath(fromObject, ["enableWidget"]);
+  if (fromEnableWidget != null) {
+    setValueByPath(toObject, ["enableWidget"], fromEnableWidget);
+  }
+  if (getValueByPath(fromObject, ["groundingTypes"]) !== void 0) {
+    throw new Error("groundingTypes parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function googleSearchToMldev$3(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["blockingConfidence"]) !== void 0) {
+    throw new Error("blockingConfidence parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["excludeDomains"]) !== void 0) {
+    throw new Error("excludeDomains parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromSearchTypes = getValueByPath(fromObject, ["searchTypes"]);
+  if (fromSearchTypes != null) {
+    setValueByPath(toObject, ["searchTypes"], fromSearchTypes);
+  }
+  const fromTimeRangeFilter = getValueByPath(fromObject, [
+    "timeRangeFilter"
+  ]);
+  if (fromTimeRangeFilter != null) {
+    setValueByPath(toObject, ["timeRangeFilter"], fromTimeRangeFilter);
+  }
+  return toObject;
+}
+function listCachedContentsConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromPageSize = getValueByPath(fromObject, ["pageSize"]);
+  if (parentObject !== void 0 && fromPageSize != null) {
+    setValueByPath(parentObject, ["_query", "pageSize"], fromPageSize);
+  }
+  const fromPageToken = getValueByPath(fromObject, ["pageToken"]);
+  if (parentObject !== void 0 && fromPageToken != null) {
+    setValueByPath(parentObject, ["_query", "pageToken"], fromPageToken);
+  }
+  return toObject;
+}
+function listCachedContentsConfigToVertex(fromObject, parentObject) {
+  const toObject = {};
+  const fromPageSize = getValueByPath(fromObject, ["pageSize"]);
+  if (parentObject !== void 0 && fromPageSize != null) {
+    setValueByPath(parentObject, ["_query", "pageSize"], fromPageSize);
+  }
+  const fromPageToken = getValueByPath(fromObject, ["pageToken"]);
+  if (parentObject !== void 0 && fromPageToken != null) {
+    setValueByPath(parentObject, ["_query", "pageToken"], fromPageToken);
+  }
+  return toObject;
+}
+function listCachedContentsParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    listCachedContentsConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function listCachedContentsParametersToVertex(fromObject) {
+  const toObject = {};
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    listCachedContentsConfigToVertex(fromConfig, toObject);
+  }
+  return toObject;
+}
+function listCachedContentsResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromNextPageToken = getValueByPath(fromObject, [
+    "nextPageToken"
+  ]);
+  if (fromNextPageToken != null) {
+    setValueByPath(toObject, ["nextPageToken"], fromNextPageToken);
+  }
+  const fromCachedContents = getValueByPath(fromObject, [
+    "cachedContents"
+  ]);
+  if (fromCachedContents != null) {
+    let transformedList = fromCachedContents;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["cachedContents"], transformedList);
+  }
+  return toObject;
+}
+function listCachedContentsResponseFromVertex(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromNextPageToken = getValueByPath(fromObject, [
+    "nextPageToken"
+  ]);
+  if (fromNextPageToken != null) {
+    setValueByPath(toObject, ["nextPageToken"], fromNextPageToken);
+  }
+  const fromCachedContents = getValueByPath(fromObject, [
+    "cachedContents"
+  ]);
+  if (fromCachedContents != null) {
+    let transformedList = fromCachedContents;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["cachedContents"], transformedList);
+  }
+  return toObject;
+}
+function mcpServerToVertex$2(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["name"]) !== void 0) {
+    throw new Error("name parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  if (getValueByPath(fromObject, ["streamableHttpTransport"]) !== void 0) {
+    throw new Error("streamableHttpTransport parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function partToMldev$3(fromObject) {
+  const toObject = {};
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (fromMediaResolution != null) {
+    setValueByPath(toObject, ["mediaResolution"], fromMediaResolution);
+  }
+  const fromToolCall = getValueByPath(fromObject, ["toolCall"]);
+  if (fromToolCall != null) {
+    setValueByPath(toObject, ["toolCall"], fromToolCall);
+  }
+  const fromToolResponse = getValueByPath(fromObject, ["toolResponse"]);
+  if (fromToolResponse != null) {
+    setValueByPath(toObject, ["toolResponse"], fromToolResponse);
+  }
+  const fromAudioTranscription = getValueByPath(fromObject, [
+    "audioTranscription"
+  ]);
+  if (fromAudioTranscription != null) {
+    setValueByPath(toObject, ["audioTranscription"], fromAudioTranscription);
+  }
+  const fromCodeExecutionResult = getValueByPath(fromObject, [
+    "codeExecutionResult"
+  ]);
+  if (fromCodeExecutionResult != null) {
+    setValueByPath(toObject, ["codeExecutionResult"], fromCodeExecutionResult);
+  }
+  const fromExecutableCode = getValueByPath(fromObject, [
+    "executableCode"
+  ]);
+  if (fromExecutableCode != null) {
+    setValueByPath(toObject, ["executableCode"], fromExecutableCode);
+  }
+  const fromFileData = getValueByPath(fromObject, ["fileData"]);
+  if (fromFileData != null) {
+    setValueByPath(toObject, ["fileData"], fileDataToMldev$3(fromFileData));
+  }
+  const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
+  if (fromFunctionCall != null) {
+    setValueByPath(toObject, ["functionCall"], functionCallToMldev$3(fromFunctionCall));
+  }
+  const fromFunctionResponse = getValueByPath(fromObject, [
+    "functionResponse"
+  ]);
+  if (fromFunctionResponse != null) {
+    setValueByPath(toObject, ["functionResponse"], fromFunctionResponse);
+  }
+  const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
+  if (fromInlineData != null) {
+    setValueByPath(toObject, ["inlineData"], blobToMldev$3(fromInlineData));
+  }
+  const fromText = getValueByPath(fromObject, ["text"]);
+  if (fromText != null) {
+    setValueByPath(toObject, ["text"], fromText);
+  }
+  const fromThought = getValueByPath(fromObject, ["thought"]);
+  if (fromThought != null) {
+    setValueByPath(toObject, ["thought"], fromThought);
+  }
+  const fromThoughtSignature = getValueByPath(fromObject, [
+    "thoughtSignature"
+  ]);
+  if (fromThoughtSignature != null) {
+    setValueByPath(toObject, ["thoughtSignature"], fromThoughtSignature);
+  }
+  const fromVideoMetadata = getValueByPath(fromObject, [
+    "videoMetadata"
+  ]);
+  if (fromVideoMetadata != null) {
+    setValueByPath(toObject, ["videoMetadata"], fromVideoMetadata);
+  }
+  const fromPartMetadata = getValueByPath(fromObject, ["partMetadata"]);
+  if (fromPartMetadata != null) {
+    setValueByPath(toObject, ["partMetadata"], fromPartMetadata);
+  }
+  return toObject;
+}
+function partToVertex$3(fromObject) {
+  const toObject = {};
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (fromMediaResolution != null) {
+    setValueByPath(toObject, ["mediaResolution"], fromMediaResolution);
+  }
+  if (getValueByPath(fromObject, ["toolCall"]) !== void 0) {
+    throw new Error("toolCall parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  if (getValueByPath(fromObject, ["toolResponse"]) !== void 0) {
+    throw new Error("toolResponse parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  const fromAudioTranscription = getValueByPath(fromObject, [
+    "audioTranscription"
+  ]);
+  if (fromAudioTranscription != null) {
+    setValueByPath(toObject, ["audioTranscription"], fromAudioTranscription);
+  }
+  const fromCodeExecutionResult = getValueByPath(fromObject, [
+    "codeExecutionResult"
+  ]);
+  if (fromCodeExecutionResult != null) {
+    setValueByPath(toObject, ["codeExecutionResult"], codeExecutionResultToVertex$3(fromCodeExecutionResult));
+  }
+  const fromExecutableCode = getValueByPath(fromObject, [
+    "executableCode"
+  ]);
+  if (fromExecutableCode != null) {
+    setValueByPath(toObject, ["executableCode"], executableCodeToVertex$3(fromExecutableCode));
+  }
+  const fromFileData = getValueByPath(fromObject, ["fileData"]);
+  if (fromFileData != null) {
+    setValueByPath(toObject, ["fileData"], fromFileData);
+  }
+  const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
+  if (fromFunctionCall != null) {
+    setValueByPath(toObject, ["functionCall"], fromFunctionCall);
+  }
+  const fromFunctionResponse = getValueByPath(fromObject, [
+    "functionResponse"
+  ]);
+  if (fromFunctionResponse != null) {
+    setValueByPath(toObject, ["functionResponse"], fromFunctionResponse);
+  }
+  const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
+  if (fromInlineData != null) {
+    setValueByPath(toObject, ["inlineData"], fromInlineData);
+  }
+  const fromText = getValueByPath(fromObject, ["text"]);
+  if (fromText != null) {
+    setValueByPath(toObject, ["text"], fromText);
+  }
+  const fromThought = getValueByPath(fromObject, ["thought"]);
+  if (fromThought != null) {
+    setValueByPath(toObject, ["thought"], fromThought);
+  }
+  const fromThoughtSignature = getValueByPath(fromObject, [
+    "thoughtSignature"
+  ]);
+  if (fromThoughtSignature != null) {
+    setValueByPath(toObject, ["thoughtSignature"], fromThoughtSignature);
+  }
+  const fromVideoMetadata = getValueByPath(fromObject, [
+    "videoMetadata"
+  ]);
+  if (fromVideoMetadata != null) {
+    setValueByPath(toObject, ["videoMetadata"], fromVideoMetadata);
+  }
+  if (getValueByPath(fromObject, ["partMetadata"]) !== void 0) {
+    throw new Error("partMetadata parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function toolConfigToMldev$1(fromObject) {
+  const toObject = {};
+  const fromFunctionCallingConfig = getValueByPath(fromObject, [
+    "functionCallingConfig"
+  ]);
+  if (fromFunctionCallingConfig != null) {
+    setValueByPath(toObject, ["functionCallingConfig"], functionCallingConfigToMldev$1(fromFunctionCallingConfig));
+  }
+  const fromRetrievalConfig = getValueByPath(fromObject, [
+    "retrievalConfig"
+  ]);
+  if (fromRetrievalConfig != null) {
+    setValueByPath(toObject, ["retrievalConfig"], fromRetrievalConfig);
+  }
+  const fromIncludeServerSideToolInvocations = getValueByPath(fromObject, ["includeServerSideToolInvocations"]);
+  if (fromIncludeServerSideToolInvocations != null) {
+    setValueByPath(toObject, ["includeServerSideToolInvocations"], fromIncludeServerSideToolInvocations);
+  }
+  return toObject;
+}
+function toolConfigToVertex$1(fromObject) {
+  const toObject = {};
+  const fromFunctionCallingConfig = getValueByPath(fromObject, [
+    "functionCallingConfig"
+  ]);
+  if (fromFunctionCallingConfig != null) {
+    setValueByPath(toObject, ["functionCallingConfig"], fromFunctionCallingConfig);
+  }
+  const fromRetrievalConfig = getValueByPath(fromObject, [
+    "retrievalConfig"
+  ]);
+  if (fromRetrievalConfig != null) {
+    setValueByPath(toObject, ["retrievalConfig"], fromRetrievalConfig);
+  }
+  if (getValueByPath(fromObject, ["includeServerSideToolInvocations"]) !== void 0) {
+    throw new Error("includeServerSideToolInvocations parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function toolToMldev$3(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["retrieval"]) !== void 0) {
+    throw new Error("retrieval parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromGoogleMaps = getValueByPath(fromObject, ["googleMaps"]);
+  if (fromGoogleMaps != null) {
+    setValueByPath(toObject, ["googleMaps"], googleMapsToMldev$3(fromGoogleMaps));
+  }
+  const fromMcpServers = getValueByPath(fromObject, ["mcpServers"]);
+  if (fromMcpServers != null) {
+    let transformedList = fromMcpServers;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["mcpServers"], transformedList);
+  }
+  const fromCodeExecution = getValueByPath(fromObject, [
+    "codeExecution"
+  ]);
+  if (fromCodeExecution != null) {
+    setValueByPath(toObject, ["codeExecution"], fromCodeExecution);
+  }
+  const fromComputerUse = getValueByPath(fromObject, ["computerUse"]);
+  if (fromComputerUse != null) {
+    setValueByPath(toObject, ["computerUse"], fromComputerUse);
+  }
+  if (getValueByPath(fromObject, ["enterpriseWebSearch"]) !== void 0) {
+    throw new Error("enterpriseWebSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["exaAiSearch"]) !== void 0) {
+    throw new Error("exaAiSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFunctionDeclarations = getValueByPath(fromObject, [
+    "functionDeclarations"
+  ]);
+  if (fromFunctionDeclarations != null) {
+    let transformedList = fromFunctionDeclarations;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["functionDeclarations"], transformedList);
+  }
+  const fromGoogleSearch = getValueByPath(fromObject, ["googleSearch"]);
+  if (fromGoogleSearch != null) {
+    setValueByPath(toObject, ["googleSearch"], googleSearchToMldev$3(fromGoogleSearch));
+  }
+  const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+    "googleSearchRetrieval"
+  ]);
+  if (fromGoogleSearchRetrieval != null) {
+    setValueByPath(toObject, ["googleSearchRetrieval"], fromGoogleSearchRetrieval);
+  }
+  if (getValueByPath(fromObject, ["parallelAiSearch"]) !== void 0) {
+    throw new Error("parallelAiSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromUrlContext = getValueByPath(fromObject, ["urlContext"]);
+  if (fromUrlContext != null) {
+    setValueByPath(toObject, ["urlContext"], fromUrlContext);
+  }
+  const fromFileSearch = getValueByPath(fromObject, ["fileSearch"]);
+  if (fromFileSearch != null) {
+    setValueByPath(toObject, ["fileSearch"], fromFileSearch);
+  }
+  return toObject;
+}
+function toolToVertex$2(fromObject) {
+  const toObject = {};
+  const fromRetrieval = getValueByPath(fromObject, ["retrieval"]);
+  if (fromRetrieval != null) {
+    setValueByPath(toObject, ["retrieval"], fromRetrieval);
+  }
+  const fromGoogleMaps = getValueByPath(fromObject, ["googleMaps"]);
+  if (fromGoogleMaps != null) {
+    setValueByPath(toObject, ["googleMaps"], fromGoogleMaps);
+  }
+  const fromMcpServers = getValueByPath(fromObject, ["mcpServers"]);
+  if (fromMcpServers != null) {
+    let transformedList = fromMcpServers;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return mcpServerToVertex$2(item);
+      });
+    }
+    setValueByPath(toObject, ["mcpServers"], transformedList);
+  }
+  const fromCodeExecution = getValueByPath(fromObject, [
+    "codeExecution"
+  ]);
+  if (fromCodeExecution != null) {
+    setValueByPath(toObject, ["codeExecution"], fromCodeExecution);
+  }
+  const fromComputerUse = getValueByPath(fromObject, ["computerUse"]);
+  if (fromComputerUse != null) {
+    setValueByPath(toObject, ["computerUse"], computerUseToVertex$2(fromComputerUse));
+  }
+  const fromEnterpriseWebSearch = getValueByPath(fromObject, [
+    "enterpriseWebSearch"
+  ]);
+  if (fromEnterpriseWebSearch != null) {
+    setValueByPath(toObject, ["enterpriseWebSearch"], fromEnterpriseWebSearch);
+  }
+  const fromExaAiSearch = getValueByPath(fromObject, ["exaAiSearch"]);
+  if (fromExaAiSearch != null) {
+    setValueByPath(toObject, ["exaAiSearch"], fromExaAiSearch);
+  }
+  const fromFunctionDeclarations = getValueByPath(fromObject, [
+    "functionDeclarations"
+  ]);
+  if (fromFunctionDeclarations != null) {
+    let transformedList = fromFunctionDeclarations;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["functionDeclarations"], transformedList);
+  }
+  const fromGoogleSearch = getValueByPath(fromObject, ["googleSearch"]);
+  if (fromGoogleSearch != null) {
+    setValueByPath(toObject, ["googleSearch"], fromGoogleSearch);
+  }
+  const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+    "googleSearchRetrieval"
+  ]);
+  if (fromGoogleSearchRetrieval != null) {
+    setValueByPath(toObject, ["googleSearchRetrieval"], fromGoogleSearchRetrieval);
+  }
+  const fromParallelAiSearch = getValueByPath(fromObject, [
+    "parallelAiSearch"
+  ]);
+  if (fromParallelAiSearch != null) {
+    setValueByPath(toObject, ["parallelAiSearch"], fromParallelAiSearch);
+  }
+  const fromUrlContext = getValueByPath(fromObject, ["urlContext"]);
+  if (fromUrlContext != null) {
+    setValueByPath(toObject, ["urlContext"], fromUrlContext);
+  }
+  if (getValueByPath(fromObject, ["fileSearch"]) !== void 0) {
+    throw new Error("fileSearch parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function updateCachedContentConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromTtl = getValueByPath(fromObject, ["ttl"]);
+  if (parentObject !== void 0 && fromTtl != null) {
+    setValueByPath(parentObject, ["ttl"], fromTtl);
+  }
+  const fromExpireTime = getValueByPath(fromObject, ["expireTime"]);
+  if (parentObject !== void 0 && fromExpireTime != null) {
+    setValueByPath(parentObject, ["expireTime"], fromExpireTime);
+  }
+  return toObject;
+}
+function updateCachedContentConfigToVertex(fromObject, parentObject) {
+  const toObject = {};
+  const fromTtl = getValueByPath(fromObject, ["ttl"]);
+  if (parentObject !== void 0 && fromTtl != null) {
+    setValueByPath(parentObject, ["ttl"], fromTtl);
+  }
+  const fromExpireTime = getValueByPath(fromObject, ["expireTime"]);
+  if (parentObject !== void 0 && fromExpireTime != null) {
+    setValueByPath(parentObject, ["expireTime"], fromExpireTime);
+  }
+  return toObject;
+}
+function updateCachedContentParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tCachedContentName(apiClient, fromName));
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    updateCachedContentConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function updateCachedContentParametersToVertex(apiClient, fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], tCachedContentName(apiClient, fromName));
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    updateCachedContentConfigToVertex(fromConfig, toObject);
+  }
+  return toObject;
+}
+var Caches = class extends BaseModule {
+  constructor(apiClient) {
+    super();
+    this.apiClient = apiClient;
+    this.list = async (params = {}) => {
+      return new Pager(PagedItem.PAGED_ITEM_CACHED_CONTENTS, (x2) => this.listInternal(x2), await this.listInternal(params), params);
+    };
+  }
+  /**
+   * Creates a cached contents resource.
+   *
+   * @remarks
+   * Context caching is only supported for specific models. See [Gemini
+   * Developer API reference](https://ai.google.dev/gemini-api/docs/caching?lang=node/context-cac)
+   * and [Gemini Enterprise Agent Platform reference](https://cloud.google.com/vertex-ai/generative-ai/docs/context-cache/context-cache-overview#supported_models)
+   * for more information.
+   *
+   * @param params - The parameters for the create request.
+   * @return The created cached content.
+   *
+   * @example
+   * ```ts
+   * const contents = ...; // Initialize the content to cache.
+   * const response = await ai.caches.create({
+   *   model: 'gemini-2.0-flash-001',
+   *   config: {
+   *    'contents': contents,
+   *    'displayName': 'test cache',
+   *    'systemInstruction': 'What is the sum of the two pdfs?',
+   *    'ttl': '86400s',
+   *  }
+   * });
+   * ```
+   */
+  async create(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = createCachedContentParametersToVertex(this.apiClient, params);
+      path6 = formatMap("cachedContents", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    } else {
+      const body = createCachedContentParametersToMldev(this.apiClient, params);
+      path6 = formatMap("cachedContents", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    }
+  }
+  /**
+   * Gets cached content configurations.
+   *
+   * @param params - The parameters for the get request.
+   * @return The cached content.
+   *
+   * @example
+   * ```ts
+   * await ai.caches.get({name: '...'}); // The server-generated resource name.
+   * ```
+   */
+  async get(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = getCachedContentParametersToVertex(this.apiClient, params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    } else {
+      const body = getCachedContentParametersToMldev(this.apiClient, params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    }
+  }
+  /**
+   * Deletes cached content.
+   *
+   * @param params - The parameters for the delete request.
+   * @return The empty response returned by the API.
+   *
+   * @example
+   * ```ts
+   * await ai.caches.delete({name: '...'}); // The server-generated resource name.
+   * ```
+   */
+  async delete(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = deleteCachedContentParametersToVertex(this.apiClient, params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "DELETE",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = deleteCachedContentResponseFromVertex(apiResponse);
+        const typedResp = new DeleteCachedContentResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    } else {
+      const body = deleteCachedContentParametersToMldev(this.apiClient, params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "DELETE",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = deleteCachedContentResponseFromMldev(apiResponse);
+        const typedResp = new DeleteCachedContentResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+  /**
+   * Updates cached content configurations.
+   *
+   * @param params - The parameters for the update request.
+   * @return The updated cached content.
+   *
+   * @example
+   * ```ts
+   * const response = await ai.caches.update({
+   *   name: '...',  // The server-generated resource name.
+   *   config: {'ttl': '7600s'}
+   * });
+   * ```
+   */
+  async update(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = updateCachedContentParametersToVertex(this.apiClient, params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "PATCH",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    } else {
+      const body = updateCachedContentParametersToMldev(this.apiClient, params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "PATCH",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    }
+  }
+  async listInternal(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = listCachedContentsParametersToVertex(params);
+      path6 = formatMap("cachedContents", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = listCachedContentsResponseFromVertex(apiResponse);
+        const typedResp = new ListCachedContentsResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    } else {
+      const body = listCachedContentsParametersToMldev(params);
+      path6 = formatMap("cachedContents", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = listCachedContentsResponseFromMldev(apiResponse);
+        const typedResp = new ListCachedContentsResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+};
+function __rest(s2, e2) {
+  var t2 = {};
+  for (var p in s2) if (Object.prototype.hasOwnProperty.call(s2, p) && e2.indexOf(p) < 0)
+    t2[p] = s2[p];
+  if (s2 != null && typeof Object.getOwnPropertySymbols === "function")
+    for (var i2 = 0, p = Object.getOwnPropertySymbols(s2); i2 < p.length; i2++) {
+      if (e2.indexOf(p[i2]) < 0 && Object.prototype.propertyIsEnumerable.call(s2, p[i2]))
+        t2[p[i2]] = s2[p[i2]];
+    }
+  return t2;
+}
 function __values(o) {
   var s2 = typeof Symbol === "function" && Symbol.iterator, m2 = s2 && o[s2], i2 = 0;
   if (m2) return m2.call(o);
@@ -46804,6 +50417,2013 @@ function __asyncValues(o) {
       resolve({ value: v2, done: d });
     }, reject);
   }
+}
+function isValidResponse(response) {
+  var _a4;
+  if (response.candidates == void 0 || response.candidates.length === 0) {
+    return false;
+  }
+  const content = (_a4 = response.candidates[0]) === null || _a4 === void 0 ? void 0 : _a4.content;
+  if (content === void 0) {
+    return false;
+  }
+  return isValidContent(content);
+}
+function isValidContent(content) {
+  if (content.parts === void 0 || content.parts.length === 0) {
+    return false;
+  }
+  for (const part of content.parts) {
+    if (part === void 0 || Object.keys(part).length === 0) {
+      return false;
+    }
+  }
+  return true;
+}
+function validateHistory(history) {
+  if (history.length === 0) {
+    return;
+  }
+  for (const content of history) {
+    if (content.role !== "user" && content.role !== "model") {
+      throw new Error(`Role must be user or model, but got ${content.role}.`);
+    }
+  }
+}
+function extractCuratedHistory(comprehensiveHistory) {
+  if (comprehensiveHistory === void 0 || comprehensiveHistory.length === 0) {
+    return [];
+  }
+  const curatedHistory = [];
+  const length = comprehensiveHistory.length;
+  let i2 = 0;
+  while (i2 < length) {
+    if (comprehensiveHistory[i2].role === "user") {
+      curatedHistory.push(comprehensiveHistory[i2]);
+      i2++;
+    } else {
+      const modelOutput = [];
+      let isValid = true;
+      while (i2 < length && comprehensiveHistory[i2].role === "model") {
+        modelOutput.push(comprehensiveHistory[i2]);
+        if (isValid && !isValidContent(comprehensiveHistory[i2])) {
+          isValid = false;
+        }
+        i2++;
+      }
+      if (isValid) {
+        curatedHistory.push(...modelOutput);
+      } else {
+        curatedHistory.pop();
+      }
+    }
+  }
+  return curatedHistory;
+}
+var Chats = class {
+  constructor(modelsModule, apiClient) {
+    this.modelsModule = modelsModule;
+    this.apiClient = apiClient;
+  }
+  /**
+   * Creates a new chat session.
+   *
+   * @remarks
+   * The config in the params will be used for all requests within the chat
+   * session unless overridden by a per-request `config` in
+   * @see {@link types.SendMessageParameters#config}.
+   *
+   * @param params - Parameters for creating a chat session.
+   * @returns A new chat session.
+   *
+   * @example
+   * ```ts
+   * const chat = ai.chats.create({
+   *   model: 'gemini-2.0-flash'
+   *   config: {
+   *     temperature: 0.5,
+   *     maxOutputTokens: 1024,
+   *   }
+   * });
+   * ```
+   */
+  create(params) {
+    return new Chat2(
+      this.apiClient,
+      this.modelsModule,
+      params.model,
+      params.config,
+      // Deep copy the history to avoid mutating the history outside of the
+      // chat session.
+      structuredClone(params.history)
+    );
+  }
+};
+var Chat2 = class {
+  constructor(apiClient, modelsModule, model, config = {}, history = []) {
+    this.apiClient = apiClient;
+    this.modelsModule = modelsModule;
+    this.model = model;
+    this.config = config;
+    this.history = history;
+    this.sendPromise = Promise.resolve();
+    validateHistory(history);
+  }
+  /**
+   * Sends a message to the model and returns the response.
+   *
+   * @remarks
+   * This method will wait for the previous message to be processed before
+   * sending the next message.
+   *
+   * @see {@link Chat#sendMessageStream} for streaming method.
+   * @param params - parameters for sending messages within a chat session.
+   * @returns The model's response.
+   *
+   * @example
+   * ```ts
+   * const chat = ai.chats.create({model: 'gemini-2.0-flash'});
+   * const response = await chat.sendMessage({
+   *   message: 'Why is the sky blue?'
+   * });
+   * console.log(response.text);
+   * ```
+   */
+  async sendMessage(params) {
+    var _a4;
+    await this.sendPromise;
+    const inputContent = tContent(params.message);
+    const responsePromise = this.modelsModule.generateContent({
+      model: this.model,
+      contents: this.getHistory(true).concat(inputContent),
+      config: (_a4 = params.config) !== null && _a4 !== void 0 ? _a4 : this.config
+    });
+    this.sendPromise = (async () => {
+      var _a5, _b, _c;
+      const response = await responsePromise;
+      const outputContent = (_b = (_a5 = response.candidates) === null || _a5 === void 0 ? void 0 : _a5[0]) === null || _b === void 0 ? void 0 : _b.content;
+      const fullAutomaticFunctionCallingHistory = response.automaticFunctionCallingHistory;
+      const index = this.getHistory(true).length;
+      let automaticFunctionCallingHistory = [];
+      if (fullAutomaticFunctionCallingHistory != null) {
+        automaticFunctionCallingHistory = (_c = fullAutomaticFunctionCallingHistory.slice(index)) !== null && _c !== void 0 ? _c : [];
+      }
+      const modelOutput = outputContent ? [outputContent] : [];
+      this.recordHistory(inputContent, modelOutput, automaticFunctionCallingHistory);
+      return;
+    })();
+    await this.sendPromise.catch(() => {
+      this.sendPromise = Promise.resolve();
+    });
+    return responsePromise;
+  }
+  /**
+   * Sends a message to the model and returns the response in chunks.
+   *
+   * @remarks
+   * This method will wait for the previous message to be processed before
+   * sending the next message.
+   *
+   * @see {@link Chat#sendMessage} for non-streaming method.
+   * @param params - parameters for sending the message.
+   * @return The model's response.
+   *
+   * @example
+   * ```ts
+   * const chat = ai.chats.create({model: 'gemini-2.0-flash'});
+   * const response = await chat.sendMessageStream({
+   *   message: 'Why is the sky blue?'
+   * });
+   * for await (const chunk of response) {
+   *   console.log(chunk.text);
+   * }
+   * ```
+   */
+  async sendMessageStream(params) {
+    var _a4;
+    await this.sendPromise;
+    const inputContent = tContent(params.message);
+    const streamResponse = this.modelsModule.generateContentStream({
+      model: this.model,
+      contents: this.getHistory(true).concat(inputContent),
+      config: (_a4 = params.config) !== null && _a4 !== void 0 ? _a4 : this.config
+    });
+    this.sendPromise = streamResponse.then(() => void 0).catch(() => void 0);
+    const response = await streamResponse;
+    const result = this.processStreamResponse(response, inputContent);
+    return result;
+  }
+  /**
+   * Returns the chat history.
+   *
+   * @remarks
+   * The history is a list of contents alternating between user and model.
+   *
+   * There are two types of history:
+   * - The `curated history` contains only the valid turns between user and
+   * model, which will be included in the subsequent requests sent to the model.
+   * - The `comprehensive history` contains all turns, including invalid or
+   *   empty model outputs, providing a complete record of the history.
+   *
+   * The history is updated after receiving the response from the model,
+   * for streaming response, it means receiving the last chunk of the response.
+   *
+   * The `comprehensive history` is returned by default. To get the `curated
+   * history`, set the `curated` parameter to `true`.
+   *
+   * @param curated - whether to return the curated history or the comprehensive
+   *     history.
+   * @return History contents alternating between user and model for the entire
+   *     chat session.
+   */
+  getHistory(curated = false) {
+    const history = curated ? extractCuratedHistory(this.history) : this.history;
+    return structuredClone(history);
+  }
+  processStreamResponse(streamResponse, inputContent) {
+    return __asyncGenerator(this, arguments, function* processStreamResponse_1() {
+      var _a4, e_1, _b, _c;
+      var _d, _e;
+      const outputContent = [];
+      try {
+        for (var _f = true, streamResponse_1 = __asyncValues(streamResponse), streamResponse_1_1; streamResponse_1_1 = yield __await(streamResponse_1.next()), _a4 = streamResponse_1_1.done, !_a4; _f = true) {
+          _c = streamResponse_1_1.value;
+          _f = false;
+          const chunk = _c;
+          if (isValidResponse(chunk)) {
+            const content = (_e = (_d = chunk.candidates) === null || _d === void 0 ? void 0 : _d[0]) === null || _e === void 0 ? void 0 : _e.content;
+            if (content !== void 0) {
+              outputContent.push(content);
+            }
+          }
+          yield yield __await(chunk);
+        }
+      } catch (e_1_1) {
+        e_1 = { error: e_1_1 };
+      } finally {
+        try {
+          if (!_f && !_a4 && (_b = streamResponse_1.return)) yield __await(_b.call(streamResponse_1));
+        } finally {
+          if (e_1) throw e_1.error;
+        }
+      }
+      this.recordHistory(inputContent, outputContent);
+    });
+  }
+  recordHistory(userInput, modelOutput, automaticFunctionCallingHistory) {
+    let outputContents = [];
+    if (modelOutput.length > 0 && modelOutput.every((content) => content.role !== void 0)) {
+      outputContents = modelOutput;
+    } else {
+      outputContents.push({
+        role: "model",
+        parts: []
+      });
+    }
+    if (automaticFunctionCallingHistory && automaticFunctionCallingHistory.length > 0) {
+      this.history.push(...extractCuratedHistory(automaticFunctionCallingHistory));
+    } else {
+      this.history.push(userInput);
+    }
+    this.history.push(...outputContents);
+  }
+};
+var ApiError = class _ApiError extends Error {
+  constructor(options) {
+    super(options.message);
+    this.name = "ApiError";
+    this.status = options.status;
+    Object.setPrototypeOf(this, _ApiError.prototype);
+  }
+};
+function createFileParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromFile2 = getValueByPath(fromObject, ["file"]);
+  if (fromFile2 != null) {
+    setValueByPath(toObject, ["file"], fromFile2);
+  }
+  return toObject;
+}
+function createFileResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  return toObject;
+}
+function deleteFileParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "file"], tFileName(fromName));
+  }
+  return toObject;
+}
+function deleteFileResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  return toObject;
+}
+function getFileParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "file"], tFileName(fromName));
+  }
+  return toObject;
+}
+function internalRegisterFilesParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromUris = getValueByPath(fromObject, ["uris"]);
+  if (fromUris != null) {
+    setValueByPath(toObject, ["uris"], fromUris);
+  }
+  return toObject;
+}
+function listFilesConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromPageSize = getValueByPath(fromObject, ["pageSize"]);
+  if (parentObject !== void 0 && fromPageSize != null) {
+    setValueByPath(parentObject, ["_query", "pageSize"], fromPageSize);
+  }
+  const fromPageToken = getValueByPath(fromObject, ["pageToken"]);
+  if (parentObject !== void 0 && fromPageToken != null) {
+    setValueByPath(parentObject, ["_query", "pageToken"], fromPageToken);
+  }
+  return toObject;
+}
+function listFilesParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    listFilesConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function listFilesResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromNextPageToken = getValueByPath(fromObject, [
+    "nextPageToken"
+  ]);
+  if (fromNextPageToken != null) {
+    setValueByPath(toObject, ["nextPageToken"], fromNextPageToken);
+  }
+  const fromFiles = getValueByPath(fromObject, ["files"]);
+  if (fromFiles != null) {
+    let transformedList = fromFiles;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["files"], transformedList);
+  }
+  return toObject;
+}
+function registerFilesResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromFiles = getValueByPath(fromObject, ["files"]);
+  if (fromFiles != null) {
+    let transformedList = fromFiles;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["files"], transformedList);
+  }
+  return toObject;
+}
+var Files4 = class extends BaseModule {
+  constructor(apiClient) {
+    super();
+    this.apiClient = apiClient;
+    this.list = async (params = {}) => {
+      return new Pager(PagedItem.PAGED_ITEM_FILES, (x2) => this.listInternal(x2), await this.listInternal(params), params);
+    };
+  }
+  /**
+   * Uploads a file asynchronously to the Gemini API.
+   * This method is not available in Gemini Enterprise Agent Platform (previously known as Vertex AI).
+   * Supported upload sources:
+   * - Node.js: File path (string) or Blob object.
+   * - Browser: Blob object (e.g., File).
+   *
+   * @remarks
+   * The `mimeType` can be specified in the `config` parameter. If omitted:
+   *  - For file path (string) inputs, the `mimeType` will be inferred from the
+   *     file extension.
+   *  - For Blob object inputs, the `mimeType` will be set to the Blob's `type`
+   *     property.
+   * Some examples for file extension to mimeType mapping:
+   * .txt -> text/plain
+   * .json -> application/json
+   * .jpg  -> image/jpeg
+   * .png -> image/png
+   * .mp3 -> audio/mpeg
+   * .mp4 -> video/mp4
+   *
+   * This section can contain multiple paragraphs and code examples.
+   *
+   * @param params - Optional parameters specified in the
+   *        `types.UploadFileParameters` interface.
+   *         @see {@link types.UploadFileParameters#config} for the optional
+   *         config in the parameters.
+   * @return A promise that resolves to a `types.File` object.
+   * @throws An error if called on a Gemini Enterprise Agent Platform (previously known as Vertex AI) client.
+   * @throws An error if the `mimeType` is not provided and can not be inferred,
+   * the `mimeType` can be provided in the `params.config` parameter.
+   * @throws An error occurs if a suitable upload location cannot be established.
+   *
+   * @example
+   * The following code uploads a file to Gemini API.
+   *
+   * ```ts
+   * const file = await ai.files.upload({file: 'file.txt', config: {
+   *   mimeType: 'text/plain',
+   * }});
+   * console.log(file.name);
+   * ```
+   */
+  async upload(params) {
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("Gemini Enterprise Agent Platform (previously known as Vertex AI) does not support uploading files. You can share files through a GCS bucket.");
+    }
+    return this.apiClient.uploadFile(params.file, params.config).then((resp) => {
+      return resp;
+    });
+  }
+  /**
+   * Downloads a remotely stored file asynchronously to a location specified in
+   * the `params` object. This method only works on Node environment, to
+   * download files in the browser, use a browser compliant method like an <a>
+   * tag.
+   *
+   * @param params - The parameters for the download request.
+   *
+   * @example
+   * The following code downloads an example file named "files/mehozpxf877d" as
+   * "file.txt".
+   *
+   * ```ts
+   * await ai.files.download({file: file.name, downloadPath: 'file.txt'});
+   * ```
+   */
+  async download(params) {
+    await this.apiClient.downloadFile(params);
+  }
+  /**
+   * Registers Google Cloud Storage files for use with the API.
+   * This method is only available in Node.js environments.
+   */
+  async registerFiles(params) {
+    throw new Error("registerFiles is only supported in Node.js environments.");
+  }
+  async _registerFiles(params) {
+    return this.registerFilesInternal(params);
+  }
+  async listInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = listFilesParametersToMldev(params);
+      path6 = formatMap("files", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = listFilesResponseFromMldev(apiResponse);
+        const typedResp = new ListFilesResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+  async createInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = createFileParametersToMldev(params);
+      path6 = formatMap("upload/v1beta/files", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = createFileResponseFromMldev(apiResponse);
+        const typedResp = new CreateFileResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+  /**
+   * Retrieves the file information from the service.
+   *
+   * @param params - The parameters for the get request
+   * @return The Promise that resolves to the types.File object requested.
+   *
+   * @example
+   * ```ts
+   * const config: GetFileParameters = {
+   *   name: fileName,
+   * };
+   * file = await ai.files.get(config);
+   * console.log(file.name);
+   * ```
+   */
+  async get(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = getFileParametersToMldev(params);
+      path6 = formatMap("files/{file}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    }
+  }
+  /**
+   * Deletes a remotely stored file.
+   *
+   * @param params - The parameters for the delete request.
+   * @return The DeleteFileResponse, the response for the delete method.
+   *
+   * @example
+   * The following code deletes an example file named "files/mehozpxf877d".
+   *
+   * ```ts
+   * await ai.files.delete({name: file.name});
+   * ```
+   */
+  async delete(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = deleteFileParametersToMldev(params);
+      path6 = formatMap("files/{file}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "DELETE",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = deleteFileResponseFromMldev(apiResponse);
+        const typedResp = new DeleteFileResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+  async registerFilesInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = internalRegisterFilesParametersToMldev(params);
+      path6 = formatMap("files:register", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = registerFilesResponseFromMldev(apiResponse);
+        const typedResp = new RegisterFilesResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+};
+function authConfigToMldev$2(fromObject) {
+  const toObject = {};
+  const fromApiKey = getValueByPath(fromObject, ["apiKey"]);
+  if (fromApiKey != null) {
+    setValueByPath(toObject, ["apiKey"], fromApiKey);
+  }
+  if (getValueByPath(fromObject, ["apiKeyConfig"]) !== void 0) {
+    throw new Error("apiKeyConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["authType"]) !== void 0) {
+    throw new Error("authType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["googleServiceAccountConfig"]) !== void 0) {
+    throw new Error("googleServiceAccountConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["httpBasicAuthConfig"]) !== void 0) {
+    throw new Error("httpBasicAuthConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["oauthConfig"]) !== void 0) {
+    throw new Error("oauthConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["oidcConfig"]) !== void 0) {
+    throw new Error("oidcConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function blobToMldev$2(fromObject) {
+  const toObject = {};
+  const fromData = getValueByPath(fromObject, ["data"]);
+  if (fromData != null) {
+    setValueByPath(toObject, ["data"], fromData);
+  }
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
+function codeExecutionResultToVertex$2(fromObject) {
+  const toObject = {};
+  const fromOutcome = getValueByPath(fromObject, ["outcome"]);
+  if (fromOutcome != null) {
+    setValueByPath(toObject, ["outcome"], fromOutcome);
+  }
+  const fromOutput = getValueByPath(fromObject, ["output"]);
+  if (fromOutput != null) {
+    setValueByPath(toObject, ["output"], fromOutput);
+  }
+  if (getValueByPath(fromObject, ["id"]) !== void 0) {
+    throw new Error("id parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function computerUseToVertex$1(fromObject) {
+  const toObject = {};
+  const fromEnablePromptInjectionDetection = getValueByPath(fromObject, [
+    "enablePromptInjectionDetection"
+  ]);
+  if (fromEnablePromptInjectionDetection != null) {
+    setValueByPath(toObject, ["enablePromptInjectionDetection"], fromEnablePromptInjectionDetection);
+  }
+  const fromEnvironment = getValueByPath(fromObject, ["environment"]);
+  if (fromEnvironment != null) {
+    setValueByPath(toObject, ["environment"], fromEnvironment);
+  }
+  const fromExcludedPredefinedFunctions = getValueByPath(fromObject, [
+    "excludedPredefinedFunctions"
+  ]);
+  if (fromExcludedPredefinedFunctions != null) {
+    setValueByPath(toObject, ["excludedPredefinedFunctions"], fromExcludedPredefinedFunctions);
+  }
+  if (getValueByPath(fromObject, ["disabledSafetyPolicies"]) !== void 0) {
+    throw new Error("disabledSafetyPolicies parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function contentToMldev$2(fromObject) {
+  const toObject = {};
+  const fromParts = getValueByPath(fromObject, ["parts"]);
+  if (fromParts != null) {
+    let transformedList = fromParts;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return partToMldev$2(item);
+      });
+    }
+    setValueByPath(toObject, ["parts"], transformedList);
+  }
+  const fromRole = getValueByPath(fromObject, ["role"]);
+  if (fromRole != null) {
+    setValueByPath(toObject, ["role"], fromRole);
+  }
+  return toObject;
+}
+function contentToVertex$2(fromObject) {
+  const toObject = {};
+  const fromParts = getValueByPath(fromObject, ["parts"]);
+  if (fromParts != null) {
+    let transformedList = fromParts;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return partToVertex$2(item);
+      });
+    }
+    setValueByPath(toObject, ["parts"], transformedList);
+  }
+  const fromRole = getValueByPath(fromObject, ["role"]);
+  if (fromRole != null) {
+    setValueByPath(toObject, ["role"], fromRole);
+  }
+  return toObject;
+}
+function executableCodeToVertex$2(fromObject) {
+  const toObject = {};
+  const fromCode = getValueByPath(fromObject, ["code"]);
+  if (fromCode != null) {
+    setValueByPath(toObject, ["code"], fromCode);
+  }
+  const fromLanguage = getValueByPath(fromObject, ["language"]);
+  if (fromLanguage != null) {
+    setValueByPath(toObject, ["language"], fromLanguage);
+  }
+  if (getValueByPath(fromObject, ["id"]) !== void 0) {
+    throw new Error("id parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function fileDataToMldev$2(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFileUri = getValueByPath(fromObject, ["fileUri"]);
+  if (fromFileUri != null) {
+    setValueByPath(toObject, ["fileUri"], fromFileUri);
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
+function functionCallToMldev$2(fromObject) {
+  const toObject = {};
+  const fromArgs = getValueByPath(fromObject, ["args"]);
+  if (fromArgs != null) {
+    setValueByPath(toObject, ["args"], fromArgs);
+  }
+  const fromId = getValueByPath(fromObject, ["id"]);
+  if (fromId != null) {
+    setValueByPath(toObject, ["id"], fromId);
+  }
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  if (getValueByPath(fromObject, ["partialArgs"]) !== void 0) {
+    throw new Error("partialArgs parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["willContinue"]) !== void 0) {
+    throw new Error("willContinue parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function generationConfigToVertex$1(fromObject) {
+  const toObject = {};
+  const fromModelSelectionConfig = getValueByPath(fromObject, [
+    "modelSelectionConfig"
+  ]);
+  if (fromModelSelectionConfig != null) {
+    setValueByPath(toObject, ["modelConfig"], fromModelSelectionConfig);
+  }
+  const fromResponseJsonSchema = getValueByPath(fromObject, [
+    "responseJsonSchema"
+  ]);
+  if (fromResponseJsonSchema != null) {
+    setValueByPath(toObject, ["responseJsonSchema"], fromResponseJsonSchema);
+  }
+  const fromAudioTranscriptionConfig = getValueByPath(fromObject, [
+    "audioTranscriptionConfig"
+  ]);
+  if (fromAudioTranscriptionConfig != null) {
+    setValueByPath(toObject, ["audioTranscriptionConfig"], fromAudioTranscriptionConfig);
+  }
+  const fromAudioTimestamp = getValueByPath(fromObject, [
+    "audioTimestamp"
+  ]);
+  if (fromAudioTimestamp != null) {
+    setValueByPath(toObject, ["audioTimestamp"], fromAudioTimestamp);
+  }
+  const fromCandidateCount = getValueByPath(fromObject, [
+    "candidateCount"
+  ]);
+  if (fromCandidateCount != null) {
+    setValueByPath(toObject, ["candidateCount"], fromCandidateCount);
+  }
+  const fromEnableAffectiveDialog = getValueByPath(fromObject, [
+    "enableAffectiveDialog"
+  ]);
+  if (fromEnableAffectiveDialog != null) {
+    setValueByPath(toObject, ["enableAffectiveDialog"], fromEnableAffectiveDialog);
+  }
+  const fromFrequencyPenalty = getValueByPath(fromObject, [
+    "frequencyPenalty"
+  ]);
+  if (fromFrequencyPenalty != null) {
+    setValueByPath(toObject, ["frequencyPenalty"], fromFrequencyPenalty);
+  }
+  const fromLogprobs = getValueByPath(fromObject, ["logprobs"]);
+  if (fromLogprobs != null) {
+    setValueByPath(toObject, ["logprobs"], fromLogprobs);
+  }
+  const fromMaxOutputTokens = getValueByPath(fromObject, [
+    "maxOutputTokens"
+  ]);
+  if (fromMaxOutputTokens != null) {
+    setValueByPath(toObject, ["maxOutputTokens"], fromMaxOutputTokens);
+  }
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (fromMediaResolution != null) {
+    setValueByPath(toObject, ["mediaResolution"], fromMediaResolution);
+  }
+  const fromPresencePenalty = getValueByPath(fromObject, [
+    "presencePenalty"
+  ]);
+  if (fromPresencePenalty != null) {
+    setValueByPath(toObject, ["presencePenalty"], fromPresencePenalty);
+  }
+  const fromResponseFormat = getValueByPath(fromObject, [
+    "responseFormat"
+  ]);
+  if (fromResponseFormat != null) {
+    let transformedList = fromResponseFormat;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["responseFormat"], transformedList);
+  }
+  const fromResponseLogprobs = getValueByPath(fromObject, [
+    "responseLogprobs"
+  ]);
+  if (fromResponseLogprobs != null) {
+    setValueByPath(toObject, ["responseLogprobs"], fromResponseLogprobs);
+  }
+  const fromResponseMimeType = getValueByPath(fromObject, [
+    "responseMimeType"
+  ]);
+  if (fromResponseMimeType != null) {
+    setValueByPath(toObject, ["responseMimeType"], fromResponseMimeType);
+  }
+  const fromResponseModalities = getValueByPath(fromObject, [
+    "responseModalities"
+  ]);
+  if (fromResponseModalities != null) {
+    setValueByPath(toObject, ["responseModalities"], fromResponseModalities);
+  }
+  const fromResponseSchema = getValueByPath(fromObject, [
+    "responseSchema"
+  ]);
+  if (fromResponseSchema != null) {
+    setValueByPath(toObject, ["responseSchema"], fromResponseSchema);
+  }
+  const fromRoutingConfig = getValueByPath(fromObject, [
+    "routingConfig"
+  ]);
+  if (fromRoutingConfig != null) {
+    setValueByPath(toObject, ["routingConfig"], fromRoutingConfig);
+  }
+  const fromSeed = getValueByPath(fromObject, ["seed"]);
+  if (fromSeed != null) {
+    setValueByPath(toObject, ["seed"], fromSeed);
+  }
+  const fromSpeechConfig = getValueByPath(fromObject, ["speechConfig"]);
+  if (fromSpeechConfig != null) {
+    setValueByPath(toObject, ["speechConfig"], speechConfigToVertex$1(fromSpeechConfig));
+  }
+  const fromStopSequences = getValueByPath(fromObject, [
+    "stopSequences"
+  ]);
+  if (fromStopSequences != null) {
+    setValueByPath(toObject, ["stopSequences"], fromStopSequences);
+  }
+  const fromTemperature = getValueByPath(fromObject, ["temperature"]);
+  if (fromTemperature != null) {
+    setValueByPath(toObject, ["temperature"], fromTemperature);
+  }
+  const fromThinkingConfig = getValueByPath(fromObject, [
+    "thinkingConfig"
+  ]);
+  if (fromThinkingConfig != null) {
+    setValueByPath(toObject, ["thinkingConfig"], fromThinkingConfig);
+  }
+  const fromTopK = getValueByPath(fromObject, ["topK"]);
+  if (fromTopK != null) {
+    setValueByPath(toObject, ["topK"], fromTopK);
+  }
+  const fromTopP = getValueByPath(fromObject, ["topP"]);
+  if (fromTopP != null) {
+    setValueByPath(toObject, ["topP"], fromTopP);
+  }
+  if (getValueByPath(fromObject, ["enableEnhancedCivicAnswers"]) !== void 0) {
+    throw new Error("enableEnhancedCivicAnswers parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  if (getValueByPath(fromObject, ["translationConfig"]) !== void 0) {
+    throw new Error("translationConfig parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function googleMapsToMldev$2(fromObject) {
+  const toObject = {};
+  const fromAuthConfig = getValueByPath(fromObject, ["authConfig"]);
+  if (fromAuthConfig != null) {
+    setValueByPath(toObject, ["authConfig"], authConfigToMldev$2(fromAuthConfig));
+  }
+  const fromEnableWidget = getValueByPath(fromObject, ["enableWidget"]);
+  if (fromEnableWidget != null) {
+    setValueByPath(toObject, ["enableWidget"], fromEnableWidget);
+  }
+  if (getValueByPath(fromObject, ["groundingTypes"]) !== void 0) {
+    throw new Error("groundingTypes parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function googleSearchToMldev$2(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["blockingConfidence"]) !== void 0) {
+    throw new Error("blockingConfidence parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["excludeDomains"]) !== void 0) {
+    throw new Error("excludeDomains parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromSearchTypes = getValueByPath(fromObject, ["searchTypes"]);
+  if (fromSearchTypes != null) {
+    setValueByPath(toObject, ["searchTypes"], fromSearchTypes);
+  }
+  const fromTimeRangeFilter = getValueByPath(fromObject, [
+    "timeRangeFilter"
+  ]);
+  if (fromTimeRangeFilter != null) {
+    setValueByPath(toObject, ["timeRangeFilter"], fromTimeRangeFilter);
+  }
+  return toObject;
+}
+function liveConnectConfigToMldev$1(fromObject, parentObject) {
+  const toObject = {};
+  const fromGenerationConfig = getValueByPath(fromObject, [
+    "generationConfig"
+  ]);
+  if (parentObject !== void 0 && fromGenerationConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig"], fromGenerationConfig);
+  }
+  const fromResponseModalities = getValueByPath(fromObject, [
+    "responseModalities"
+  ]);
+  if (parentObject !== void 0 && fromResponseModalities != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "responseModalities"], fromResponseModalities);
+  }
+  const fromTemperature = getValueByPath(fromObject, ["temperature"]);
+  if (parentObject !== void 0 && fromTemperature != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "temperature"], fromTemperature);
+  }
+  const fromTopP = getValueByPath(fromObject, ["topP"]);
+  if (parentObject !== void 0 && fromTopP != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "topP"], fromTopP);
+  }
+  const fromTopK = getValueByPath(fromObject, ["topK"]);
+  if (parentObject !== void 0 && fromTopK != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "topK"], fromTopK);
+  }
+  const fromMaxOutputTokens = getValueByPath(fromObject, [
+    "maxOutputTokens"
+  ]);
+  if (parentObject !== void 0 && fromMaxOutputTokens != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "maxOutputTokens"], fromMaxOutputTokens);
+  }
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (parentObject !== void 0 && fromMediaResolution != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "mediaResolution"], fromMediaResolution);
+  }
+  const fromSeed = getValueByPath(fromObject, ["seed"]);
+  if (parentObject !== void 0 && fromSeed != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "seed"], fromSeed);
+  }
+  const fromSpeechConfig = getValueByPath(fromObject, ["speechConfig"]);
+  if (parentObject !== void 0 && fromSpeechConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "speechConfig"], tLiveSpeechConfig(fromSpeechConfig));
+  }
+  const fromThinkingConfig = getValueByPath(fromObject, [
+    "thinkingConfig"
+  ]);
+  if (parentObject !== void 0 && fromThinkingConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "thinkingConfig"], fromThinkingConfig);
+  }
+  const fromEnableAffectiveDialog = getValueByPath(fromObject, [
+    "enableAffectiveDialog"
+  ]);
+  if (parentObject !== void 0 && fromEnableAffectiveDialog != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "enableAffectiveDialog"], fromEnableAffectiveDialog);
+  }
+  const fromSystemInstruction = getValueByPath(fromObject, [
+    "systemInstruction"
+  ]);
+  if (parentObject !== void 0 && fromSystemInstruction != null) {
+    setValueByPath(parentObject, ["setup", "systemInstruction"], contentToMldev$2(tContent(fromSystemInstruction)));
+  }
+  const fromTools = getValueByPath(fromObject, ["tools"]);
+  if (parentObject !== void 0 && fromTools != null) {
+    let transformedList = tTools(fromTools);
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return toolToMldev$2(tTool(item));
+      });
+    }
+    setValueByPath(parentObject, ["setup", "tools"], transformedList);
+  }
+  const fromSessionResumption = getValueByPath(fromObject, [
+    "sessionResumption"
+  ]);
+  if (parentObject !== void 0 && fromSessionResumption != null) {
+    setValueByPath(parentObject, ["setup", "sessionResumption"], sessionResumptionConfigToMldev$1(fromSessionResumption));
+  }
+  const fromInputAudioTranscription = getValueByPath(fromObject, [
+    "inputAudioTranscription"
+  ]);
+  if (parentObject !== void 0 && fromInputAudioTranscription != null) {
+    setValueByPath(parentObject, ["setup", "inputAudioTranscription"], fromInputAudioTranscription);
+  }
+  const fromOutputAudioTranscription = getValueByPath(fromObject, [
+    "outputAudioTranscription"
+  ]);
+  if (parentObject !== void 0 && fromOutputAudioTranscription != null) {
+    setValueByPath(parentObject, ["setup", "outputAudioTranscription"], fromOutputAudioTranscription);
+  }
+  const fromRealtimeInputConfig = getValueByPath(fromObject, [
+    "realtimeInputConfig"
+  ]);
+  if (parentObject !== void 0 && fromRealtimeInputConfig != null) {
+    setValueByPath(parentObject, ["setup", "realtimeInputConfig"], fromRealtimeInputConfig);
+  }
+  const fromContextWindowCompression = getValueByPath(fromObject, [
+    "contextWindowCompression"
+  ]);
+  if (parentObject !== void 0 && fromContextWindowCompression != null) {
+    setValueByPath(parentObject, ["setup", "contextWindowCompression"], fromContextWindowCompression);
+  }
+  const fromProactivity = getValueByPath(fromObject, ["proactivity"]);
+  if (parentObject !== void 0 && fromProactivity != null) {
+    setValueByPath(parentObject, ["setup", "proactivity"], fromProactivity);
+  }
+  if (getValueByPath(fromObject, ["explicitVadSignal"]) !== void 0) {
+    throw new Error("explicitVadSignal parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromAvatarConfig = getValueByPath(fromObject, ["avatarConfig"]);
+  if (parentObject !== void 0 && fromAvatarConfig != null) {
+    setValueByPath(parentObject, ["setup", "avatarConfig"], fromAvatarConfig);
+  }
+  const fromSafetySettings = getValueByPath(fromObject, [
+    "safetySettings"
+  ]);
+  if (parentObject !== void 0 && fromSafetySettings != null) {
+    let transformedList = fromSafetySettings;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return safetySettingToMldev$2(item);
+      });
+    }
+    setValueByPath(parentObject, ["setup", "safetySettings"], transformedList);
+  }
+  const fromTranslationConfig = getValueByPath(fromObject, [
+    "translationConfig"
+  ]);
+  if (parentObject !== void 0 && fromTranslationConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "translationConfig"], fromTranslationConfig);
+  }
+  return toObject;
+}
+function liveConnectConfigToVertex(fromObject, parentObject) {
+  const toObject = {};
+  const fromGenerationConfig = getValueByPath(fromObject, [
+    "generationConfig"
+  ]);
+  if (parentObject !== void 0 && fromGenerationConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig"], generationConfigToVertex$1(fromGenerationConfig));
+  }
+  const fromResponseModalities = getValueByPath(fromObject, [
+    "responseModalities"
+  ]);
+  if (parentObject !== void 0 && fromResponseModalities != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "responseModalities"], fromResponseModalities);
+  }
+  const fromTemperature = getValueByPath(fromObject, ["temperature"]);
+  if (parentObject !== void 0 && fromTemperature != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "temperature"], fromTemperature);
+  }
+  const fromTopP = getValueByPath(fromObject, ["topP"]);
+  if (parentObject !== void 0 && fromTopP != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "topP"], fromTopP);
+  }
+  const fromTopK = getValueByPath(fromObject, ["topK"]);
+  if (parentObject !== void 0 && fromTopK != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "topK"], fromTopK);
+  }
+  const fromMaxOutputTokens = getValueByPath(fromObject, [
+    "maxOutputTokens"
+  ]);
+  if (parentObject !== void 0 && fromMaxOutputTokens != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "maxOutputTokens"], fromMaxOutputTokens);
+  }
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (parentObject !== void 0 && fromMediaResolution != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "mediaResolution"], fromMediaResolution);
+  }
+  const fromSeed = getValueByPath(fromObject, ["seed"]);
+  if (parentObject !== void 0 && fromSeed != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "seed"], fromSeed);
+  }
+  const fromSpeechConfig = getValueByPath(fromObject, ["speechConfig"]);
+  if (parentObject !== void 0 && fromSpeechConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "speechConfig"], speechConfigToVertex$1(tLiveSpeechConfig(fromSpeechConfig)));
+  }
+  const fromThinkingConfig = getValueByPath(fromObject, [
+    "thinkingConfig"
+  ]);
+  if (parentObject !== void 0 && fromThinkingConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "thinkingConfig"], fromThinkingConfig);
+  }
+  const fromEnableAffectiveDialog = getValueByPath(fromObject, [
+    "enableAffectiveDialog"
+  ]);
+  if (parentObject !== void 0 && fromEnableAffectiveDialog != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "enableAffectiveDialog"], fromEnableAffectiveDialog);
+  }
+  const fromSystemInstruction = getValueByPath(fromObject, [
+    "systemInstruction"
+  ]);
+  if (parentObject !== void 0 && fromSystemInstruction != null) {
+    setValueByPath(parentObject, ["setup", "systemInstruction"], contentToVertex$2(tContent(fromSystemInstruction)));
+  }
+  const fromTools = getValueByPath(fromObject, ["tools"]);
+  if (parentObject !== void 0 && fromTools != null) {
+    let transformedList = tTools(fromTools);
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return toolToVertex$1(tTool(item));
+      });
+    }
+    setValueByPath(parentObject, ["setup", "tools"], transformedList);
+  }
+  const fromSessionResumption = getValueByPath(fromObject, [
+    "sessionResumption"
+  ]);
+  if (parentObject !== void 0 && fromSessionResumption != null) {
+    setValueByPath(parentObject, ["setup", "sessionResumption"], fromSessionResumption);
+  }
+  const fromInputAudioTranscription = getValueByPath(fromObject, [
+    "inputAudioTranscription"
+  ]);
+  if (parentObject !== void 0 && fromInputAudioTranscription != null) {
+    setValueByPath(parentObject, ["setup", "inputAudioTranscription"], fromInputAudioTranscription);
+  }
+  const fromOutputAudioTranscription = getValueByPath(fromObject, [
+    "outputAudioTranscription"
+  ]);
+  if (parentObject !== void 0 && fromOutputAudioTranscription != null) {
+    setValueByPath(parentObject, ["setup", "outputAudioTranscription"], fromOutputAudioTranscription);
+  }
+  const fromRealtimeInputConfig = getValueByPath(fromObject, [
+    "realtimeInputConfig"
+  ]);
+  if (parentObject !== void 0 && fromRealtimeInputConfig != null) {
+    setValueByPath(parentObject, ["setup", "realtimeInputConfig"], fromRealtimeInputConfig);
+  }
+  const fromContextWindowCompression = getValueByPath(fromObject, [
+    "contextWindowCompression"
+  ]);
+  if (parentObject !== void 0 && fromContextWindowCompression != null) {
+    setValueByPath(parentObject, ["setup", "contextWindowCompression"], fromContextWindowCompression);
+  }
+  const fromProactivity = getValueByPath(fromObject, ["proactivity"]);
+  if (parentObject !== void 0 && fromProactivity != null) {
+    setValueByPath(parentObject, ["setup", "proactivity"], fromProactivity);
+  }
+  const fromExplicitVadSignal = getValueByPath(fromObject, [
+    "explicitVadSignal"
+  ]);
+  if (parentObject !== void 0 && fromExplicitVadSignal != null) {
+    setValueByPath(parentObject, ["setup", "explicitVadSignal"], fromExplicitVadSignal);
+  }
+  const fromAvatarConfig = getValueByPath(fromObject, ["avatarConfig"]);
+  if (parentObject !== void 0 && fromAvatarConfig != null) {
+    setValueByPath(parentObject, ["setup", "avatarConfig"], fromAvatarConfig);
+  }
+  const fromSafetySettings = getValueByPath(fromObject, [
+    "safetySettings"
+  ]);
+  if (parentObject !== void 0 && fromSafetySettings != null) {
+    let transformedList = fromSafetySettings;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(parentObject, ["setup", "safetySettings"], transformedList);
+  }
+  if (getValueByPath(fromObject, ["translationConfig"]) !== void 0) {
+    throw new Error("translationConfig parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function liveConnectParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromModel = getValueByPath(fromObject, ["model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["setup", "model"], tModel(apiClient, fromModel));
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    setValueByPath(toObject, ["config"], liveConnectConfigToMldev$1(fromConfig, toObject));
+  }
+  return toObject;
+}
+function liveConnectParametersToVertex(apiClient, fromObject) {
+  const toObject = {};
+  const fromModel = getValueByPath(fromObject, ["model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["setup", "model"], tModel(apiClient, fromModel));
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    setValueByPath(toObject, ["config"], liveConnectConfigToVertex(fromConfig, toObject));
+  }
+  return toObject;
+}
+function liveMusicSetConfigParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromMusicGenerationConfig = getValueByPath(fromObject, [
+    "musicGenerationConfig"
+  ]);
+  if (fromMusicGenerationConfig != null) {
+    setValueByPath(toObject, ["musicGenerationConfig"], fromMusicGenerationConfig);
+  }
+  return toObject;
+}
+function liveMusicSetWeightedPromptsParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromWeightedPrompts = getValueByPath(fromObject, [
+    "weightedPrompts"
+  ]);
+  if (fromWeightedPrompts != null) {
+    let transformedList = fromWeightedPrompts;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["weightedPrompts"], transformedList);
+  }
+  return toObject;
+}
+function liveSendRealtimeInputParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromMedia = getValueByPath(fromObject, ["media"]);
+  if (fromMedia != null) {
+    let transformedList = tBlobs(fromMedia);
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return blobToMldev$2(item);
+      });
+    }
+    setValueByPath(toObject, ["mediaChunks"], transformedList);
+  }
+  const fromAudio = getValueByPath(fromObject, ["audio"]);
+  if (fromAudio != null) {
+    setValueByPath(toObject, ["audio"], blobToMldev$2(tAudioBlob(fromAudio)));
+  }
+  const fromAudioStreamEnd = getValueByPath(fromObject, [
+    "audioStreamEnd"
+  ]);
+  if (fromAudioStreamEnd != null) {
+    setValueByPath(toObject, ["audioStreamEnd"], fromAudioStreamEnd);
+  }
+  const fromVideo = getValueByPath(fromObject, ["video"]);
+  if (fromVideo != null) {
+    setValueByPath(toObject, ["video"], blobToMldev$2(tImageBlob(fromVideo)));
+  }
+  const fromText = getValueByPath(fromObject, ["text"]);
+  if (fromText != null) {
+    setValueByPath(toObject, ["text"], fromText);
+  }
+  const fromActivityStart = getValueByPath(fromObject, [
+    "activityStart"
+  ]);
+  if (fromActivityStart != null) {
+    setValueByPath(toObject, ["activityStart"], fromActivityStart);
+  }
+  const fromActivityEnd = getValueByPath(fromObject, ["activityEnd"]);
+  if (fromActivityEnd != null) {
+    setValueByPath(toObject, ["activityEnd"], fromActivityEnd);
+  }
+  return toObject;
+}
+function liveSendRealtimeInputParametersToVertex(fromObject) {
+  const toObject = {};
+  const fromMedia = getValueByPath(fromObject, ["media"]);
+  if (fromMedia != null) {
+    let transformedList = tBlobs(fromMedia);
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["mediaChunks"], transformedList);
+  }
+  const fromAudio = getValueByPath(fromObject, ["audio"]);
+  if (fromAudio != null) {
+    setValueByPath(toObject, ["audio"], tAudioBlob(fromAudio));
+  }
+  const fromAudioStreamEnd = getValueByPath(fromObject, [
+    "audioStreamEnd"
+  ]);
+  if (fromAudioStreamEnd != null) {
+    setValueByPath(toObject, ["audioStreamEnd"], fromAudioStreamEnd);
+  }
+  const fromVideo = getValueByPath(fromObject, ["video"]);
+  if (fromVideo != null) {
+    setValueByPath(toObject, ["video"], tImageBlob(fromVideo));
+  }
+  const fromText = getValueByPath(fromObject, ["text"]);
+  if (fromText != null) {
+    setValueByPath(toObject, ["text"], fromText);
+  }
+  const fromActivityStart = getValueByPath(fromObject, [
+    "activityStart"
+  ]);
+  if (fromActivityStart != null) {
+    setValueByPath(toObject, ["activityStart"], fromActivityStart);
+  }
+  const fromActivityEnd = getValueByPath(fromObject, ["activityEnd"]);
+  if (fromActivityEnd != null) {
+    setValueByPath(toObject, ["activityEnd"], fromActivityEnd);
+  }
+  return toObject;
+}
+function liveServerMessageFromVertex(fromObject) {
+  const toObject = {};
+  const fromSetupComplete = getValueByPath(fromObject, [
+    "setupComplete"
+  ]);
+  if (fromSetupComplete != null) {
+    setValueByPath(toObject, ["setupComplete"], fromSetupComplete);
+  }
+  const fromServerContent = getValueByPath(fromObject, [
+    "serverContent"
+  ]);
+  if (fromServerContent != null) {
+    setValueByPath(toObject, ["serverContent"], fromServerContent);
+  }
+  const fromToolCall = getValueByPath(fromObject, ["toolCall"]);
+  if (fromToolCall != null) {
+    setValueByPath(toObject, ["toolCall"], fromToolCall);
+  }
+  const fromToolCallCancellation = getValueByPath(fromObject, [
+    "toolCallCancellation"
+  ]);
+  if (fromToolCallCancellation != null) {
+    setValueByPath(toObject, ["toolCallCancellation"], fromToolCallCancellation);
+  }
+  const fromUsageMetadata = getValueByPath(fromObject, [
+    "usageMetadata"
+  ]);
+  if (fromUsageMetadata != null) {
+    setValueByPath(toObject, ["usageMetadata"], usageMetadataFromVertex(fromUsageMetadata));
+  }
+  const fromGoAway = getValueByPath(fromObject, ["goAway"]);
+  if (fromGoAway != null) {
+    setValueByPath(toObject, ["goAway"], fromGoAway);
+  }
+  const fromSessionResumptionUpdate = getValueByPath(fromObject, [
+    "sessionResumptionUpdate"
+  ]);
+  if (fromSessionResumptionUpdate != null) {
+    setValueByPath(toObject, ["sessionResumptionUpdate"], fromSessionResumptionUpdate);
+  }
+  const fromVoiceActivityDetectionSignal = getValueByPath(fromObject, [
+    "voiceActivityDetectionSignal"
+  ]);
+  if (fromVoiceActivityDetectionSignal != null) {
+    setValueByPath(toObject, ["voiceActivityDetectionSignal"], fromVoiceActivityDetectionSignal);
+  }
+  const fromVoiceActivity = getValueByPath(fromObject, [
+    "voiceActivity"
+  ]);
+  if (fromVoiceActivity != null) {
+    setValueByPath(toObject, ["voiceActivity"], voiceActivityFromVertex(fromVoiceActivity));
+  }
+  return toObject;
+}
+function mcpServerToVertex$1(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["name"]) !== void 0) {
+    throw new Error("name parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  if (getValueByPath(fromObject, ["streamableHttpTransport"]) !== void 0) {
+    throw new Error("streamableHttpTransport parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function multiSpeakerVoiceConfigToVertex$1(fromObject) {
+  const toObject = {};
+  const fromSpeakerVoiceConfigs = getValueByPath(fromObject, [
+    "speakerVoiceConfigs"
+  ]);
+  if (fromSpeakerVoiceConfigs != null) {
+    let transformedList = fromSpeakerVoiceConfigs;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return speakerVoiceConfigToVertex$1(item);
+      });
+    }
+    setValueByPath(toObject, ["speakerVoiceConfigs"], transformedList);
+  }
+  return toObject;
+}
+function partToMldev$2(fromObject) {
+  const toObject = {};
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (fromMediaResolution != null) {
+    setValueByPath(toObject, ["mediaResolution"], fromMediaResolution);
+  }
+  const fromToolCall = getValueByPath(fromObject, ["toolCall"]);
+  if (fromToolCall != null) {
+    setValueByPath(toObject, ["toolCall"], fromToolCall);
+  }
+  const fromToolResponse = getValueByPath(fromObject, ["toolResponse"]);
+  if (fromToolResponse != null) {
+    setValueByPath(toObject, ["toolResponse"], fromToolResponse);
+  }
+  const fromAudioTranscription = getValueByPath(fromObject, [
+    "audioTranscription"
+  ]);
+  if (fromAudioTranscription != null) {
+    setValueByPath(toObject, ["audioTranscription"], fromAudioTranscription);
+  }
+  const fromCodeExecutionResult = getValueByPath(fromObject, [
+    "codeExecutionResult"
+  ]);
+  if (fromCodeExecutionResult != null) {
+    setValueByPath(toObject, ["codeExecutionResult"], fromCodeExecutionResult);
+  }
+  const fromExecutableCode = getValueByPath(fromObject, [
+    "executableCode"
+  ]);
+  if (fromExecutableCode != null) {
+    setValueByPath(toObject, ["executableCode"], fromExecutableCode);
+  }
+  const fromFileData = getValueByPath(fromObject, ["fileData"]);
+  if (fromFileData != null) {
+    setValueByPath(toObject, ["fileData"], fileDataToMldev$2(fromFileData));
+  }
+  const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
+  if (fromFunctionCall != null) {
+    setValueByPath(toObject, ["functionCall"], functionCallToMldev$2(fromFunctionCall));
+  }
+  const fromFunctionResponse = getValueByPath(fromObject, [
+    "functionResponse"
+  ]);
+  if (fromFunctionResponse != null) {
+    setValueByPath(toObject, ["functionResponse"], fromFunctionResponse);
+  }
+  const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
+  if (fromInlineData != null) {
+    setValueByPath(toObject, ["inlineData"], blobToMldev$2(fromInlineData));
+  }
+  const fromText = getValueByPath(fromObject, ["text"]);
+  if (fromText != null) {
+    setValueByPath(toObject, ["text"], fromText);
+  }
+  const fromThought = getValueByPath(fromObject, ["thought"]);
+  if (fromThought != null) {
+    setValueByPath(toObject, ["thought"], fromThought);
+  }
+  const fromThoughtSignature = getValueByPath(fromObject, [
+    "thoughtSignature"
+  ]);
+  if (fromThoughtSignature != null) {
+    setValueByPath(toObject, ["thoughtSignature"], fromThoughtSignature);
+  }
+  const fromVideoMetadata = getValueByPath(fromObject, [
+    "videoMetadata"
+  ]);
+  if (fromVideoMetadata != null) {
+    setValueByPath(toObject, ["videoMetadata"], fromVideoMetadata);
+  }
+  const fromPartMetadata = getValueByPath(fromObject, ["partMetadata"]);
+  if (fromPartMetadata != null) {
+    setValueByPath(toObject, ["partMetadata"], fromPartMetadata);
+  }
+  return toObject;
+}
+function partToVertex$2(fromObject) {
+  const toObject = {};
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (fromMediaResolution != null) {
+    setValueByPath(toObject, ["mediaResolution"], fromMediaResolution);
+  }
+  if (getValueByPath(fromObject, ["toolCall"]) !== void 0) {
+    throw new Error("toolCall parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  if (getValueByPath(fromObject, ["toolResponse"]) !== void 0) {
+    throw new Error("toolResponse parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  const fromAudioTranscription = getValueByPath(fromObject, [
+    "audioTranscription"
+  ]);
+  if (fromAudioTranscription != null) {
+    setValueByPath(toObject, ["audioTranscription"], fromAudioTranscription);
+  }
+  const fromCodeExecutionResult = getValueByPath(fromObject, [
+    "codeExecutionResult"
+  ]);
+  if (fromCodeExecutionResult != null) {
+    setValueByPath(toObject, ["codeExecutionResult"], codeExecutionResultToVertex$2(fromCodeExecutionResult));
+  }
+  const fromExecutableCode = getValueByPath(fromObject, [
+    "executableCode"
+  ]);
+  if (fromExecutableCode != null) {
+    setValueByPath(toObject, ["executableCode"], executableCodeToVertex$2(fromExecutableCode));
+  }
+  const fromFileData = getValueByPath(fromObject, ["fileData"]);
+  if (fromFileData != null) {
+    setValueByPath(toObject, ["fileData"], fromFileData);
+  }
+  const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
+  if (fromFunctionCall != null) {
+    setValueByPath(toObject, ["functionCall"], fromFunctionCall);
+  }
+  const fromFunctionResponse = getValueByPath(fromObject, [
+    "functionResponse"
+  ]);
+  if (fromFunctionResponse != null) {
+    setValueByPath(toObject, ["functionResponse"], fromFunctionResponse);
+  }
+  const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
+  if (fromInlineData != null) {
+    setValueByPath(toObject, ["inlineData"], fromInlineData);
+  }
+  const fromText = getValueByPath(fromObject, ["text"]);
+  if (fromText != null) {
+    setValueByPath(toObject, ["text"], fromText);
+  }
+  const fromThought = getValueByPath(fromObject, ["thought"]);
+  if (fromThought != null) {
+    setValueByPath(toObject, ["thought"], fromThought);
+  }
+  const fromThoughtSignature = getValueByPath(fromObject, [
+    "thoughtSignature"
+  ]);
+  if (fromThoughtSignature != null) {
+    setValueByPath(toObject, ["thoughtSignature"], fromThoughtSignature);
+  }
+  const fromVideoMetadata = getValueByPath(fromObject, [
+    "videoMetadata"
+  ]);
+  if (fromVideoMetadata != null) {
+    setValueByPath(toObject, ["videoMetadata"], fromVideoMetadata);
+  }
+  if (getValueByPath(fromObject, ["partMetadata"]) !== void 0) {
+    throw new Error("partMetadata parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function replicatedVoiceConfigToVertex$1(fromObject) {
+  const toObject = {};
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  const fromVoiceSampleAudio = getValueByPath(fromObject, [
+    "voiceSampleAudio"
+  ]);
+  if (fromVoiceSampleAudio != null) {
+    setValueByPath(toObject, ["voiceSampleAudio"], fromVoiceSampleAudio);
+  }
+  if (getValueByPath(fromObject, ["consentAudio"]) !== void 0) {
+    throw new Error("consentAudio parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  if (getValueByPath(fromObject, ["voiceConsentSignature"]) !== void 0) {
+    throw new Error("voiceConsentSignature parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function safetySettingToMldev$2(fromObject) {
+  const toObject = {};
+  const fromCategory = getValueByPath(fromObject, ["category"]);
+  if (fromCategory != null) {
+    setValueByPath(toObject, ["category"], fromCategory);
+  }
+  if (getValueByPath(fromObject, ["method"]) !== void 0) {
+    throw new Error("method parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromThreshold = getValueByPath(fromObject, ["threshold"]);
+  if (fromThreshold != null) {
+    setValueByPath(toObject, ["threshold"], fromThreshold);
+  }
+  return toObject;
+}
+function sessionResumptionConfigToMldev$1(fromObject) {
+  const toObject = {};
+  const fromHandle = getValueByPath(fromObject, ["handle"]);
+  if (fromHandle != null) {
+    setValueByPath(toObject, ["handle"], fromHandle);
+  }
+  if (getValueByPath(fromObject, ["transparent"]) !== void 0) {
+    throw new Error("transparent parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function speakerVoiceConfigToVertex$1(fromObject) {
+  const toObject = {};
+  const fromSpeaker = getValueByPath(fromObject, ["speaker"]);
+  if (fromSpeaker != null) {
+    setValueByPath(toObject, ["speaker"], fromSpeaker);
+  }
+  const fromVoiceConfig = getValueByPath(fromObject, ["voiceConfig"]);
+  if (fromVoiceConfig != null) {
+    setValueByPath(toObject, ["voiceConfig"], voiceConfigToVertex$1(fromVoiceConfig));
+  }
+  return toObject;
+}
+function speechConfigToVertex$1(fromObject) {
+  const toObject = {};
+  const fromVoiceConfig = getValueByPath(fromObject, ["voiceConfig"]);
+  if (fromVoiceConfig != null) {
+    setValueByPath(toObject, ["voiceConfig"], voiceConfigToVertex$1(fromVoiceConfig));
+  }
+  const fromLanguageCode = getValueByPath(fromObject, ["languageCode"]);
+  if (fromLanguageCode != null) {
+    setValueByPath(toObject, ["languageCode"], fromLanguageCode);
+  }
+  const fromMultiSpeakerVoiceConfig = getValueByPath(fromObject, [
+    "multiSpeakerVoiceConfig"
+  ]);
+  if (fromMultiSpeakerVoiceConfig != null) {
+    setValueByPath(toObject, ["multiSpeakerVoiceConfig"], multiSpeakerVoiceConfigToVertex$1(fromMultiSpeakerVoiceConfig));
+  }
+  return toObject;
+}
+function toolToMldev$2(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["retrieval"]) !== void 0) {
+    throw new Error("retrieval parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromGoogleMaps = getValueByPath(fromObject, ["googleMaps"]);
+  if (fromGoogleMaps != null) {
+    setValueByPath(toObject, ["googleMaps"], googleMapsToMldev$2(fromGoogleMaps));
+  }
+  const fromMcpServers = getValueByPath(fromObject, ["mcpServers"]);
+  if (fromMcpServers != null) {
+    let transformedList = fromMcpServers;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["mcpServers"], transformedList);
+  }
+  const fromCodeExecution = getValueByPath(fromObject, [
+    "codeExecution"
+  ]);
+  if (fromCodeExecution != null) {
+    setValueByPath(toObject, ["codeExecution"], fromCodeExecution);
+  }
+  const fromComputerUse = getValueByPath(fromObject, ["computerUse"]);
+  if (fromComputerUse != null) {
+    setValueByPath(toObject, ["computerUse"], fromComputerUse);
+  }
+  if (getValueByPath(fromObject, ["enterpriseWebSearch"]) !== void 0) {
+    throw new Error("enterpriseWebSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["exaAiSearch"]) !== void 0) {
+    throw new Error("exaAiSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFunctionDeclarations = getValueByPath(fromObject, [
+    "functionDeclarations"
+  ]);
+  if (fromFunctionDeclarations != null) {
+    let transformedList = fromFunctionDeclarations;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["functionDeclarations"], transformedList);
+  }
+  const fromGoogleSearch = getValueByPath(fromObject, ["googleSearch"]);
+  if (fromGoogleSearch != null) {
+    setValueByPath(toObject, ["googleSearch"], googleSearchToMldev$2(fromGoogleSearch));
+  }
+  const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+    "googleSearchRetrieval"
+  ]);
+  if (fromGoogleSearchRetrieval != null) {
+    setValueByPath(toObject, ["googleSearchRetrieval"], fromGoogleSearchRetrieval);
+  }
+  if (getValueByPath(fromObject, ["parallelAiSearch"]) !== void 0) {
+    throw new Error("parallelAiSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromUrlContext = getValueByPath(fromObject, ["urlContext"]);
+  if (fromUrlContext != null) {
+    setValueByPath(toObject, ["urlContext"], fromUrlContext);
+  }
+  const fromFileSearch = getValueByPath(fromObject, ["fileSearch"]);
+  if (fromFileSearch != null) {
+    setValueByPath(toObject, ["fileSearch"], fromFileSearch);
+  }
+  return toObject;
+}
+function toolToVertex$1(fromObject) {
+  const toObject = {};
+  const fromRetrieval = getValueByPath(fromObject, ["retrieval"]);
+  if (fromRetrieval != null) {
+    setValueByPath(toObject, ["retrieval"], fromRetrieval);
+  }
+  const fromGoogleMaps = getValueByPath(fromObject, ["googleMaps"]);
+  if (fromGoogleMaps != null) {
+    setValueByPath(toObject, ["googleMaps"], fromGoogleMaps);
+  }
+  const fromMcpServers = getValueByPath(fromObject, ["mcpServers"]);
+  if (fromMcpServers != null) {
+    let transformedList = fromMcpServers;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return mcpServerToVertex$1(item);
+      });
+    }
+    setValueByPath(toObject, ["mcpServers"], transformedList);
+  }
+  const fromCodeExecution = getValueByPath(fromObject, [
+    "codeExecution"
+  ]);
+  if (fromCodeExecution != null) {
+    setValueByPath(toObject, ["codeExecution"], fromCodeExecution);
+  }
+  const fromComputerUse = getValueByPath(fromObject, ["computerUse"]);
+  if (fromComputerUse != null) {
+    setValueByPath(toObject, ["computerUse"], computerUseToVertex$1(fromComputerUse));
+  }
+  const fromEnterpriseWebSearch = getValueByPath(fromObject, [
+    "enterpriseWebSearch"
+  ]);
+  if (fromEnterpriseWebSearch != null) {
+    setValueByPath(toObject, ["enterpriseWebSearch"], fromEnterpriseWebSearch);
+  }
+  const fromExaAiSearch = getValueByPath(fromObject, ["exaAiSearch"]);
+  if (fromExaAiSearch != null) {
+    setValueByPath(toObject, ["exaAiSearch"], fromExaAiSearch);
+  }
+  const fromFunctionDeclarations = getValueByPath(fromObject, [
+    "functionDeclarations"
+  ]);
+  if (fromFunctionDeclarations != null) {
+    let transformedList = fromFunctionDeclarations;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["functionDeclarations"], transformedList);
+  }
+  const fromGoogleSearch = getValueByPath(fromObject, ["googleSearch"]);
+  if (fromGoogleSearch != null) {
+    setValueByPath(toObject, ["googleSearch"], fromGoogleSearch);
+  }
+  const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+    "googleSearchRetrieval"
+  ]);
+  if (fromGoogleSearchRetrieval != null) {
+    setValueByPath(toObject, ["googleSearchRetrieval"], fromGoogleSearchRetrieval);
+  }
+  const fromParallelAiSearch = getValueByPath(fromObject, [
+    "parallelAiSearch"
+  ]);
+  if (fromParallelAiSearch != null) {
+    setValueByPath(toObject, ["parallelAiSearch"], fromParallelAiSearch);
+  }
+  const fromUrlContext = getValueByPath(fromObject, ["urlContext"]);
+  if (fromUrlContext != null) {
+    setValueByPath(toObject, ["urlContext"], fromUrlContext);
+  }
+  if (getValueByPath(fromObject, ["fileSearch"]) !== void 0) {
+    throw new Error("fileSearch parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function usageMetadataFromVertex(fromObject) {
+  const toObject = {};
+  const fromResponseTokenCount = getValueByPath(fromObject, [
+    "candidatesTokenCount"
+  ]);
+  if (fromResponseTokenCount != null) {
+    setValueByPath(toObject, ["responseTokenCount"], fromResponseTokenCount);
+  }
+  const fromResponseTokensDetails = getValueByPath(fromObject, [
+    "candidatesTokensDetails"
+  ]);
+  if (fromResponseTokensDetails != null) {
+    let transformedList = fromResponseTokensDetails;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["responseTokensDetails"], transformedList);
+  }
+  const fromCacheTokensDetails = getValueByPath(fromObject, [
+    "cacheTokensDetails"
+  ]);
+  if (fromCacheTokensDetails != null) {
+    let transformedList = fromCacheTokensDetails;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["cacheTokensDetails"], transformedList);
+  }
+  const fromCachedContentTokenCount = getValueByPath(fromObject, [
+    "cachedContentTokenCount"
+  ]);
+  if (fromCachedContentTokenCount != null) {
+    setValueByPath(toObject, ["cachedContentTokenCount"], fromCachedContentTokenCount);
+  }
+  const fromPromptTokenCount = getValueByPath(fromObject, [
+    "promptTokenCount"
+  ]);
+  if (fromPromptTokenCount != null) {
+    setValueByPath(toObject, ["promptTokenCount"], fromPromptTokenCount);
+  }
+  const fromPromptTokensDetails = getValueByPath(fromObject, [
+    "promptTokensDetails"
+  ]);
+  if (fromPromptTokensDetails != null) {
+    let transformedList = fromPromptTokensDetails;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["promptTokensDetails"], transformedList);
+  }
+  const fromThoughtsTokenCount = getValueByPath(fromObject, [
+    "thoughtsTokenCount"
+  ]);
+  if (fromThoughtsTokenCount != null) {
+    setValueByPath(toObject, ["thoughtsTokenCount"], fromThoughtsTokenCount);
+  }
+  const fromToolUsePromptTokenCount = getValueByPath(fromObject, [
+    "toolUsePromptTokenCount"
+  ]);
+  if (fromToolUsePromptTokenCount != null) {
+    setValueByPath(toObject, ["toolUsePromptTokenCount"], fromToolUsePromptTokenCount);
+  }
+  const fromToolUsePromptTokensDetails = getValueByPath(fromObject, [
+    "toolUsePromptTokensDetails"
+  ]);
+  if (fromToolUsePromptTokensDetails != null) {
+    let transformedList = fromToolUsePromptTokensDetails;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["toolUsePromptTokensDetails"], transformedList);
+  }
+  const fromTotalTokenCount = getValueByPath(fromObject, [
+    "totalTokenCount"
+  ]);
+  if (fromTotalTokenCount != null) {
+    setValueByPath(toObject, ["totalTokenCount"], fromTotalTokenCount);
+  }
+  const fromTrafficType = getValueByPath(fromObject, ["trafficType"]);
+  if (fromTrafficType != null) {
+    setValueByPath(toObject, ["trafficType"], fromTrafficType);
+  }
+  return toObject;
+}
+function voiceActivityFromVertex(fromObject) {
+  const toObject = {};
+  const fromVoiceActivityType = getValueByPath(fromObject, ["type"]);
+  if (fromVoiceActivityType != null) {
+    setValueByPath(toObject, ["voiceActivityType"], fromVoiceActivityType);
+  }
+  const fromAudioOffset = getValueByPath(fromObject, ["audioOffset"]);
+  if (fromAudioOffset != null) {
+    setValueByPath(toObject, ["audioOffset"], fromAudioOffset);
+  }
+  return toObject;
+}
+function voiceConfigToVertex$1(fromObject) {
+  const toObject = {};
+  const fromReplicatedVoiceConfig = getValueByPath(fromObject, [
+    "replicatedVoiceConfig"
+  ]);
+  if (fromReplicatedVoiceConfig != null) {
+    setValueByPath(toObject, ["replicatedVoiceConfig"], replicatedVoiceConfigToVertex$1(fromReplicatedVoiceConfig));
+  }
+  const fromPrebuiltVoiceConfig = getValueByPath(fromObject, [
+    "prebuiltVoiceConfig"
+  ]);
+  if (fromPrebuiltVoiceConfig != null) {
+    setValueByPath(toObject, ["prebuiltVoiceConfig"], fromPrebuiltVoiceConfig);
+  }
+  return toObject;
 }
 function authConfigToMldev$1(fromObject, _rootObject) {
   const toObject = {};
@@ -50589,9 +56209,833 @@ function voiceConfigToVertex(fromObject, rootObject) {
   }
   return toObject;
 }
+function createFileSearchStoreConfigToMldev(apiClient, fromObject, parentObject) {
+  const toObject = {};
+  const fromDisplayName = getValueByPath(fromObject, ["displayName"]);
+  if (parentObject !== void 0 && fromDisplayName != null) {
+    setValueByPath(parentObject, ["displayName"], fromDisplayName);
+  }
+  const fromEmbeddingModel = getValueByPath(fromObject, [
+    "embeddingModel"
+  ]);
+  if (parentObject !== void 0 && fromEmbeddingModel != null) {
+    setValueByPath(parentObject, ["embeddingModel"], tModel(apiClient, fromEmbeddingModel));
+  }
+  return toObject;
+}
+function createFileSearchStoreParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    createFileSearchStoreConfigToMldev(apiClient, fromConfig, toObject);
+  }
+  return toObject;
+}
+function deleteFileSearchStoreConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromForce = getValueByPath(fromObject, ["force"]);
+  if (parentObject !== void 0 && fromForce != null) {
+    setValueByPath(parentObject, ["_query", "force"], fromForce);
+  }
+  return toObject;
+}
+function deleteFileSearchStoreParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], fromName);
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    deleteFileSearchStoreConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function getFileSearchStoreParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], fromName);
+  }
+  return toObject;
+}
+function importFileConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromCustomMetadata = getValueByPath(fromObject, [
+    "customMetadata"
+  ]);
+  if (parentObject !== void 0 && fromCustomMetadata != null) {
+    let transformedList = fromCustomMetadata;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(parentObject, ["customMetadata"], transformedList);
+  }
+  const fromChunkingConfig = getValueByPath(fromObject, [
+    "chunkingConfig"
+  ]);
+  if (parentObject !== void 0 && fromChunkingConfig != null) {
+    setValueByPath(parentObject, ["chunkingConfig"], fromChunkingConfig);
+  }
+  return toObject;
+}
+function importFileOperationFromMldev(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  const fromMetadata = getValueByPath(fromObject, ["metadata"]);
+  if (fromMetadata != null) {
+    setValueByPath(toObject, ["metadata"], fromMetadata);
+  }
+  const fromDone = getValueByPath(fromObject, ["done"]);
+  if (fromDone != null) {
+    setValueByPath(toObject, ["done"], fromDone);
+  }
+  const fromError = getValueByPath(fromObject, ["error"]);
+  if (fromError != null) {
+    setValueByPath(toObject, ["error"], fromError);
+  }
+  const fromResponse = getValueByPath(fromObject, ["response"]);
+  if (fromResponse != null) {
+    setValueByPath(toObject, ["response"], importFileResponseFromMldev(fromResponse));
+  }
+  return toObject;
+}
+function importFileParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromFileSearchStoreName = getValueByPath(fromObject, [
+    "fileSearchStoreName"
+  ]);
+  if (fromFileSearchStoreName != null) {
+    setValueByPath(toObject, ["_url", "file_search_store_name"], fromFileSearchStoreName);
+  }
+  const fromFileName = getValueByPath(fromObject, ["fileName"]);
+  if (fromFileName != null) {
+    setValueByPath(toObject, ["fileName"], fromFileName);
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    importFileConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function importFileResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromParent = getValueByPath(fromObject, ["parent"]);
+  if (fromParent != null) {
+    setValueByPath(toObject, ["parent"], fromParent);
+  }
+  const fromDocumentName = getValueByPath(fromObject, ["documentName"]);
+  if (fromDocumentName != null) {
+    setValueByPath(toObject, ["documentName"], fromDocumentName);
+  }
+  return toObject;
+}
+function listFileSearchStoresConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromPageSize = getValueByPath(fromObject, ["pageSize"]);
+  if (parentObject !== void 0 && fromPageSize != null) {
+    setValueByPath(parentObject, ["_query", "pageSize"], fromPageSize);
+  }
+  const fromPageToken = getValueByPath(fromObject, ["pageToken"]);
+  if (parentObject !== void 0 && fromPageToken != null) {
+    setValueByPath(parentObject, ["_query", "pageToken"], fromPageToken);
+  }
+  return toObject;
+}
+function listFileSearchStoresParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    listFileSearchStoresConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function listFileSearchStoresResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromNextPageToken = getValueByPath(fromObject, [
+    "nextPageToken"
+  ]);
+  if (fromNextPageToken != null) {
+    setValueByPath(toObject, ["nextPageToken"], fromNextPageToken);
+  }
+  const fromFileSearchStores = getValueByPath(fromObject, [
+    "fileSearchStores"
+  ]);
+  if (fromFileSearchStores != null) {
+    let transformedList = fromFileSearchStores;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["fileSearchStores"], transformedList);
+  }
+  return toObject;
+}
+function uploadToFileSearchStoreConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (parentObject !== void 0 && fromMimeType != null) {
+    setValueByPath(parentObject, ["mimeType"], fromMimeType);
+  }
+  const fromDisplayName = getValueByPath(fromObject, ["displayName"]);
+  if (parentObject !== void 0 && fromDisplayName != null) {
+    setValueByPath(parentObject, ["displayName"], fromDisplayName);
+  }
+  const fromCustomMetadata = getValueByPath(fromObject, [
+    "customMetadata"
+  ]);
+  if (parentObject !== void 0 && fromCustomMetadata != null) {
+    let transformedList = fromCustomMetadata;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(parentObject, ["customMetadata"], transformedList);
+  }
+  const fromChunkingConfig = getValueByPath(fromObject, [
+    "chunkingConfig"
+  ]);
+  if (parentObject !== void 0 && fromChunkingConfig != null) {
+    setValueByPath(parentObject, ["chunkingConfig"], fromChunkingConfig);
+  }
+  return toObject;
+}
+function uploadToFileSearchStoreParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromFileSearchStoreName = getValueByPath(fromObject, [
+    "fileSearchStoreName"
+  ]);
+  if (fromFileSearchStoreName != null) {
+    setValueByPath(toObject, ["_url", "file_search_store_name"], fromFileSearchStoreName);
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    uploadToFileSearchStoreConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function uploadToFileSearchStoreResumableResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  return toObject;
+}
+var CONTENT_TYPE_HEADER = "Content-Type";
+var SERVER_TIMEOUT_HEADER = "X-Server-Timeout";
+var USER_AGENT_HEADER = "User-Agent";
 var GOOGLE_API_CLIENT_HEADER = "x-goog-api-client";
 var SDK_VERSION = "2.15.0";
 var LIBRARY_LABEL = `google-genai-sdk/${SDK_VERSION}`;
+var VERTEX_AI_API_DEFAULT_VERSION = "v1beta1";
+var GOOGLE_AI_API_DEFAULT_VERSION = "v1beta";
+var MULTI_REGIONAL_LOCATIONS = /* @__PURE__ */ new Set(["us", "eu"]);
+var DEFAULT_RETRY_ATTEMPTS = 5;
+var DEFAULT_RETRY_INITIAL_DELAY = 1;
+var DEFAULT_RETRY_MAX_DELAY = 60;
+var DEFAULT_RETRY_EXP_BASE = 2;
+var DEFAULT_RETRY_JITTER = 1;
+var DEFAULT_RETRY_HTTP_STATUS_CODES = [
+  408,
+  // Request timeout
+  429,
+  // Too many requests
+  500,
+  // Internal server error
+  502,
+  // Bad gateway
+  503,
+  // Service unavailable
+  504
+  // Gateway timeout
+];
+var ApiClient = class {
+  constructor(opts) {
+    var _a4, _b, _c;
+    this.clientOptions = Object.assign({}, opts);
+    this.customBaseUrl = (_a4 = opts.httpOptions) === null || _a4 === void 0 ? void 0 : _a4.baseUrl;
+    const initHttpOptions = {};
+    if (this.clientOptions.vertexai) {
+      if (!this.clientOptions.location && !this.clientOptions.apiKey && !this.customBaseUrl) {
+        this.clientOptions.location = "global";
+      }
+      const hasSufficientAuth = this.clientOptions.project && this.clientOptions.location || this.clientOptions.apiKey;
+      if (!hasSufficientAuth && !this.customBaseUrl) {
+        throw new Error("Authentication is not set up. Please provide either a project and location, or an API key, or a custom base URL.");
+      }
+      const hasConstructorAuth = opts.project && opts.location || !!opts.apiKey;
+      if (this.customBaseUrl && !hasConstructorAuth) {
+        initHttpOptions.baseUrl = this.customBaseUrl;
+        this.clientOptions.project = void 0;
+        this.clientOptions.location = void 0;
+      } else if (this.clientOptions.apiKey && !this.clientOptions.project || this.clientOptions.location === "global") {
+        initHttpOptions.baseUrl = "https://aiplatform.googleapis.com/";
+      } else if (this.clientOptions.project && this.clientOptions.location && MULTI_REGIONAL_LOCATIONS.has(this.clientOptions.location)) {
+        initHttpOptions.baseUrl = `https://aiplatform.${this.clientOptions.location}.rep.googleapis.com/`;
+      } else if (this.clientOptions.project && this.clientOptions.location) {
+        initHttpOptions.baseUrl = `https://${this.clientOptions.location}-aiplatform.googleapis.com/`;
+      }
+      initHttpOptions.apiVersion = (_b = this.clientOptions.apiVersion) !== null && _b !== void 0 ? _b : VERTEX_AI_API_DEFAULT_VERSION;
+    } else {
+      if (!this.clientOptions.apiKey) {
+        console.warn("API key should be set when using the Gemini API.");
+      }
+      initHttpOptions.apiVersion = (_c = this.clientOptions.apiVersion) !== null && _c !== void 0 ? _c : GOOGLE_AI_API_DEFAULT_VERSION;
+      initHttpOptions.baseUrl = `https://generativelanguage.googleapis.com/`;
+    }
+    initHttpOptions.headers = this.getDefaultHeaders();
+    this.clientOptions.httpOptions = initHttpOptions;
+    if (opts.httpOptions) {
+      this.clientOptions.httpOptions = this.patchHttpOptions(initHttpOptions, opts.httpOptions);
+    }
+  }
+  isVertexAI() {
+    var _a4;
+    return (_a4 = this.clientOptions.vertexai) !== null && _a4 !== void 0 ? _a4 : false;
+  }
+  getProject() {
+    return this.clientOptions.project;
+  }
+  getLocation() {
+    return this.clientOptions.location;
+  }
+  getCustomBaseUrl() {
+    return this.customBaseUrl;
+  }
+  async getAuthHeaders() {
+    const headers = new Headers();
+    await this.clientOptions.auth.addAuthHeaders(headers);
+    return headers;
+  }
+  getApiVersion() {
+    if (this.clientOptions.httpOptions && this.clientOptions.httpOptions.apiVersion !== void 0) {
+      return this.clientOptions.httpOptions.apiVersion;
+    }
+    throw new Error("API version is not set.");
+  }
+  getBaseUrl() {
+    if (this.clientOptions.httpOptions && this.clientOptions.httpOptions.baseUrl !== void 0) {
+      return this.clientOptions.httpOptions.baseUrl;
+    }
+    throw new Error("Base URL is not set.");
+  }
+  getRequestUrl() {
+    return this.getRequestUrlInternal(this.clientOptions.httpOptions);
+  }
+  getHeaders() {
+    if (this.clientOptions.httpOptions && this.clientOptions.httpOptions.headers !== void 0) {
+      return this.clientOptions.httpOptions.headers;
+    } else {
+      throw new Error("Headers are not set.");
+    }
+  }
+  getRequestUrlInternal(httpOptions) {
+    if (!httpOptions || httpOptions.baseUrl === void 0 || httpOptions.apiVersion === void 0) {
+      throw new Error("HTTP options are not correctly set.");
+    }
+    const baseUrl = httpOptions.baseUrl.endsWith("/") ? httpOptions.baseUrl.slice(0, -1) : httpOptions.baseUrl;
+    const urlElement = [baseUrl];
+    if (httpOptions.apiVersion && httpOptions.apiVersion !== "") {
+      urlElement.push(httpOptions.apiVersion);
+    }
+    return urlElement.join("/");
+  }
+  getBaseResourcePath() {
+    return `projects/${this.clientOptions.project}/locations/${this.clientOptions.location}`;
+  }
+  getApiKey() {
+    return this.clientOptions.apiKey;
+  }
+  getWebsocketBaseUrl() {
+    const baseUrl = this.getBaseUrl();
+    const urlParts = new URL(baseUrl);
+    urlParts.protocol = urlParts.protocol == "http:" ? "ws" : "wss";
+    return urlParts.toString();
+  }
+  setBaseUrl(url) {
+    if (this.clientOptions.httpOptions) {
+      this.clientOptions.httpOptions.baseUrl = url;
+    } else {
+      throw new Error("HTTP options are not correctly set.");
+    }
+  }
+  constructUrl(path6, httpOptions, prependProjectLocation) {
+    const urlElement = [this.getRequestUrlInternal(httpOptions)];
+    if (prependProjectLocation) {
+      urlElement.push(this.getBaseResourcePath());
+    }
+    if (path6 !== "") {
+      urlElement.push(path6);
+    }
+    const url = new URL(`${urlElement.join("/")}`);
+    return url;
+  }
+  shouldPrependVertexProjectPath(request, httpOptions) {
+    if (httpOptions.baseUrl && httpOptions.baseUrlResourceScope === ResourceScope.COLLECTION) {
+      return false;
+    }
+    if (!this.clientOptions.vertexai) {
+      return false;
+    }
+    if (!this.clientOptions.project || !this.clientOptions.location) {
+      return false;
+    }
+    if (request.path.startsWith("projects/")) {
+      return false;
+    }
+    if (request.httpMethod === "GET" && request.path.startsWith("publishers/google/models")) {
+      return false;
+    }
+    return true;
+  }
+  async request(request) {
+    let patchedHttpOptions = this.clientOptions.httpOptions;
+    if (request.httpOptions) {
+      patchedHttpOptions = this.patchHttpOptions(this.clientOptions.httpOptions, request.httpOptions);
+    }
+    const prependProjectLocation = this.shouldPrependVertexProjectPath(request, patchedHttpOptions);
+    const url = this.constructUrl(request.path, patchedHttpOptions, prependProjectLocation);
+    if (request.queryParams) {
+      for (const [key, value] of Object.entries(request.queryParams)) {
+        url.searchParams.append(key, String(value));
+      }
+    }
+    let requestInit = {};
+    if (request.httpMethod === "GET") {
+      if (request.body && request.body !== "{}") {
+        throw new Error("Request body should be empty for GET request, but got non empty request body");
+      }
+    } else {
+      requestInit.body = request.body;
+    }
+    requestInit = await this.includeExtraHttpOptionsToRequestInit(requestInit, patchedHttpOptions, url.toString(), request.abortSignal);
+    return this.unaryApiCall(url, requestInit, request.httpMethod, patchedHttpOptions.retryOptions);
+  }
+  patchHttpOptions(baseHttpOptions, requestHttpOptions) {
+    const patchedHttpOptions = JSON.parse(JSON.stringify(baseHttpOptions));
+    for (const [key, value] of Object.entries(requestHttpOptions)) {
+      if (typeof value === "object") {
+        patchedHttpOptions[key] = Object.assign(Object.assign({}, patchedHttpOptions[key]), value);
+      } else if (value !== void 0) {
+        patchedHttpOptions[key] = value;
+      }
+    }
+    return patchedHttpOptions;
+  }
+  async requestStream(request) {
+    let patchedHttpOptions = this.clientOptions.httpOptions;
+    if (request.httpOptions) {
+      patchedHttpOptions = this.patchHttpOptions(this.clientOptions.httpOptions, request.httpOptions);
+    }
+    const prependProjectLocation = this.shouldPrependVertexProjectPath(request, patchedHttpOptions);
+    const url = this.constructUrl(request.path, patchedHttpOptions, prependProjectLocation);
+    if (!url.searchParams.has("alt") || url.searchParams.get("alt") !== "sse") {
+      url.searchParams.set("alt", "sse");
+    }
+    let requestInit = {};
+    requestInit.body = request.body;
+    requestInit = await this.includeExtraHttpOptionsToRequestInit(requestInit, patchedHttpOptions, url.toString(), request.abortSignal);
+    return this.streamApiCall(url, requestInit, request.httpMethod, patchedHttpOptions.retryOptions);
+  }
+  async includeExtraHttpOptionsToRequestInit(requestInit, httpOptions, url, abortSignal) {
+    if (httpOptions && httpOptions.timeout || abortSignal) {
+      const abortController = new AbortController();
+      const signal = abortController.signal;
+      if (httpOptions.timeout && (httpOptions === null || httpOptions === void 0 ? void 0 : httpOptions.timeout) > 0) {
+        const dispatcherSymbol = /* @__PURE__ */ Symbol.for("undici.globalDispatcher.1");
+        const globalDispatcher = globalThis[dispatcherSymbol];
+        if (globalDispatcher) {
+          const symbols = Object.getOwnPropertySymbols(globalDispatcher);
+          for (const sym of symbols) {
+            const desc = sym.description;
+            if ((desc === null || desc === void 0 ? void 0 : desc.includes("headers timeout")) || (desc === null || desc === void 0 ? void 0 : desc.includes("body timeout"))) {
+              const currentTimeout = globalDispatcher[sym];
+              if (typeof currentTimeout === "number") {
+                globalDispatcher[sym] = Math.max(currentTimeout, httpOptions.timeout);
+              }
+            }
+          }
+        }
+        const timeoutHandle = setTimeout(() => abortController.abort(), httpOptions.timeout);
+        if (timeoutHandle && typeof timeoutHandle.unref === "function") {
+          timeoutHandle.unref();
+        }
+      }
+      if (abortSignal) {
+        abortSignal.addEventListener("abort", () => {
+          abortController.abort();
+        });
+      }
+      requestInit.signal = signal;
+    }
+    if (httpOptions && httpOptions.extraBody !== null) {
+      includeExtraBodyToRequestInit(requestInit, httpOptions.extraBody);
+    }
+    requestInit.headers = await this.getHeadersInternal(httpOptions, url);
+    return requestInit;
+  }
+  async unaryApiCall(url, requestInit, httpMethod, retryOptions) {
+    return this.apiCall(url.toString(), Object.assign(Object.assign({}, requestInit), { method: httpMethod }), retryOptions).then(async (response) => {
+      await throwErrorIfNotOK(response);
+      return new HttpResponse(response);
+    }).catch((e2) => {
+      if (e2 instanceof Error) {
+        throw e2;
+      } else {
+        throw new Error(`exception ${e2} sending request`, { cause: e2 });
+      }
+    });
+  }
+  async streamApiCall(url, requestInit, httpMethod, retryOptions) {
+    return this.apiCall(url.toString(), Object.assign(Object.assign({}, requestInit), { method: httpMethod }), retryOptions).then(async (response) => {
+      await throwErrorIfNotOK(response);
+      return this.processStreamResponse(response);
+    }).catch((e2) => {
+      if (e2 instanceof Error) {
+        throw e2;
+      } else {
+        throw new Error(`exception ${e2} sending request`, { cause: e2 });
+      }
+    });
+  }
+  processStreamResponse(response) {
+    return __asyncGenerator(this, arguments, function* processStreamResponse_1() {
+      var _a4;
+      const reader = (_a4 = response === null || response === void 0 ? void 0 : response.body) === null || _a4 === void 0 ? void 0 : _a4.getReader();
+      const decoder = new TextDecoder("utf-8");
+      if (!reader) {
+        throw new Error("Response body is empty");
+      }
+      try {
+        let buffer = "";
+        const dataPrefix = "data:";
+        const delimiters = ["\n\n", "\r\r", "\r\n\r\n"];
+        while (true) {
+          const { done, value } = yield __await(reader.read());
+          if (done) {
+            if (buffer.trim().length > 0) {
+              throw new Error("Incomplete JSON segment at the end");
+            }
+            break;
+          }
+          const chunkString = decoder.decode(value, { stream: true });
+          try {
+            const chunkJson = JSON.parse(chunkString);
+            if ("error" in chunkJson) {
+              const errorJson = JSON.parse(JSON.stringify(chunkJson["error"]));
+              const status = errorJson["status"];
+              const code = errorJson["code"];
+              const errorMessage = `got status: ${status}. ${JSON.stringify(chunkJson)}`;
+              if (code >= 400 && code < 600) {
+                const apiError = new ApiError({
+                  message: errorMessage,
+                  status: code
+                });
+                throw apiError;
+              }
+            }
+          } catch (e2) {
+            const error = e2;
+            if (error.name === "ApiError") {
+              throw e2;
+            }
+          }
+          buffer += chunkString;
+          let delimiterIndex = -1;
+          let delimiterLength = 0;
+          while (true) {
+            delimiterIndex = -1;
+            delimiterLength = 0;
+            for (const delimiter of delimiters) {
+              const index = buffer.indexOf(delimiter);
+              if (index !== -1 && (delimiterIndex === -1 || index < delimiterIndex)) {
+                delimiterIndex = index;
+                delimiterLength = delimiter.length;
+              }
+            }
+            if (delimiterIndex === -1) {
+              break;
+            }
+            const eventString = buffer.substring(0, delimiterIndex);
+            buffer = buffer.substring(delimiterIndex + delimiterLength);
+            const trimmedEvent = eventString.trim();
+            if (trimmedEvent.startsWith(dataPrefix)) {
+              const processedChunkString = trimmedEvent.substring(dataPrefix.length).trim();
+              try {
+                const partialResponse = new Response(processedChunkString, {
+                  headers: response === null || response === void 0 ? void 0 : response.headers,
+                  status: response === null || response === void 0 ? void 0 : response.status,
+                  statusText: response === null || response === void 0 ? void 0 : response.statusText
+                });
+                yield yield __await(new HttpResponse(partialResponse));
+              } catch (e2) {
+                throw new Error(`exception parsing stream chunk ${processedChunkString}. ${e2}`);
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+    });
+  }
+  async apiCall(url, requestInit, retryOptions) {
+    var _a4, _b, _c, _d, _e, _f;
+    if (!retryOptions) {
+      return fetch(url, requestInit);
+    }
+    const retryableStatusCodes = (_a4 = retryOptions.httpStatusCodes) !== null && _a4 !== void 0 ? _a4 : DEFAULT_RETRY_HTTP_STATUS_CODES;
+    const runFetch = async () => {
+      const response = await fetch(url, requestInit);
+      if (response.ok || !retryableStatusCodes.includes(response.status)) {
+        return response;
+      }
+      await throwErrorIfNotOK(response);
+      return response;
+    };
+    const attempts = Math.max(1, (_b = retryOptions.attempts) !== null && _b !== void 0 ? _b : DEFAULT_RETRY_ATTEMPTS);
+    const minTimeout = Math.round(((_c = retryOptions.initialDelay) !== null && _c !== void 0 ? _c : DEFAULT_RETRY_INITIAL_DELAY) * 1e3);
+    const maxTimeout = Math.max(minTimeout, Math.round(((_d = retryOptions.maxDelay) !== null && _d !== void 0 ? _d : DEFAULT_RETRY_MAX_DELAY) * 1e3));
+    return (0, import_p_retry.default)(runFetch, {
+      retries: attempts - 1,
+      factor: (_e = retryOptions.expBase) !== null && _e !== void 0 ? _e : DEFAULT_RETRY_EXP_BASE,
+      minTimeout,
+      maxTimeout,
+      randomize: ((_f = retryOptions.jitter) !== null && _f !== void 0 ? _f : DEFAULT_RETRY_JITTER) > 0
+    });
+  }
+  getDefaultHeaders() {
+    const headers = {};
+    const versionHeaderValue = LIBRARY_LABEL + " " + this.clientOptions.userAgentExtra;
+    headers[USER_AGENT_HEADER] = versionHeaderValue;
+    headers[GOOGLE_API_CLIENT_HEADER] = versionHeaderValue;
+    headers[CONTENT_TYPE_HEADER] = "application/json";
+    return headers;
+  }
+  async getHeadersInternal(httpOptions, url) {
+    const headers = new Headers();
+    if (httpOptions && httpOptions.headers) {
+      for (const [key, value] of Object.entries(httpOptions.headers)) {
+        headers.append(key, value);
+      }
+    }
+    if ((httpOptions === null || httpOptions === void 0 ? void 0 : httpOptions.timeout) && httpOptions.timeout > 0) {
+      headers.append(SERVER_TIMEOUT_HEADER, String(Math.ceil(httpOptions.timeout / 1e3)));
+    }
+    await this.clientOptions.auth.addAuthHeaders(headers, url);
+    return headers;
+  }
+  getFileName(file) {
+    var _a4;
+    let fileName = "";
+    if (typeof file === "string") {
+      fileName = file.replace(/[/\\]+$/, "");
+      fileName = (_a4 = fileName.split(/[/\\]/).pop()) !== null && _a4 !== void 0 ? _a4 : "";
+    }
+    return fileName;
+  }
+  /**
+   * Uploads a file asynchronously using Gemini API only, this is not supported
+   * in Vertex AI.
+   *
+   * @param file The string path to the file to be uploaded or a Blob object.
+   * @param config Optional parameters specified in the `UploadFileConfig`
+   *     interface. @see {@link types.UploadFileConfig}
+   * @return A promise that resolves to a `File` object.
+   * @throws An error if called on a Vertex AI client.
+   * @throws An error if the `mimeType` is not provided and can not be inferred,
+   */
+  async uploadFile(file, config) {
+    var _a4;
+    const fileToUpload = {};
+    if (config != null) {
+      fileToUpload.mimeType = config.mimeType;
+      fileToUpload.name = config.name;
+      fileToUpload.displayName = config.displayName;
+    }
+    if (fileToUpload.name && !fileToUpload.name.startsWith("files/")) {
+      fileToUpload.name = `files/${fileToUpload.name}`;
+    }
+    const uploader = this.clientOptions.uploader;
+    const fileStat = await uploader.stat(file);
+    fileToUpload.sizeBytes = String(fileStat.size);
+    const mimeType = (_a4 = config === null || config === void 0 ? void 0 : config.mimeType) !== null && _a4 !== void 0 ? _a4 : fileStat.type;
+    if (mimeType === void 0 || mimeType === "") {
+      throw new Error("Can not determine mimeType. Please provide mimeType in the config.");
+    }
+    fileToUpload.mimeType = mimeType;
+    const body = {
+      file: fileToUpload
+    };
+    const fileName = this.getFileName(file);
+    const path6 = formatMap("upload/v1beta/files", body["_url"]);
+    const uploadUrl = await this.fetchUploadUrl(path6, fileToUpload.sizeBytes, fileToUpload.mimeType, fileName, body, config === null || config === void 0 ? void 0 : config.httpOptions);
+    return uploader.upload(file, uploadUrl, this);
+  }
+  /**
+   * Uploads a file to a given file search store asynchronously using Gemini API only, this is not supported
+   * in Vertex AI.
+   *
+   * @param fileSearchStoreName The name of the file search store to upload the file to.
+   * @param file The string path to the file to be uploaded or a Blob object.
+   * @param config Optional parameters specified in the `UploadFileConfig`
+   *     interface. @see {@link UploadFileConfig}
+   * @return A promise that resolves to a `File` object.
+   * @throws An error if called on a Vertex AI client.
+   * @throws An error if the `mimeType` is not provided and can not be inferred,
+   */
+  async uploadFileToFileSearchStore(fileSearchStoreName, file, config) {
+    var _a4;
+    const uploader = this.clientOptions.uploader;
+    const fileStat = await uploader.stat(file);
+    const sizeBytes = String(fileStat.size);
+    const mimeType = (_a4 = config === null || config === void 0 ? void 0 : config.mimeType) !== null && _a4 !== void 0 ? _a4 : fileStat.type;
+    if (mimeType === void 0 || mimeType === "") {
+      throw new Error("Can not determine mimeType. Please provide mimeType in the config.");
+    }
+    const path6 = `upload/v1beta/${fileSearchStoreName}:uploadToFileSearchStore`;
+    const fileName = this.getFileName(file);
+    const body = {};
+    if (config != null) {
+      uploadToFileSearchStoreConfigToMldev(config, body);
+    }
+    const uploadUrl = await this.fetchUploadUrl(path6, sizeBytes, mimeType, fileName, body, config === null || config === void 0 ? void 0 : config.httpOptions);
+    return uploader.uploadToFileSearchStore(file, uploadUrl, this);
+  }
+  /**
+   * Downloads a file asynchronously to the specified path.
+   *
+   * @params params - The parameters for the download request, see {@link
+   * types.DownloadFileParameters}
+   */
+  async downloadFile(params) {
+    const downloader = this.clientOptions.downloader;
+    await downloader.download(params, this);
+  }
+  async fetchUploadUrl(path6, sizeBytes, mimeType, fileName, body, configHttpOptions) {
+    var _a4;
+    let httpOptions = {};
+    if (configHttpOptions) {
+      httpOptions = configHttpOptions;
+    } else {
+      httpOptions = {
+        apiVersion: "",
+        // api-version is set in the path.
+        headers: Object.assign({ "Content-Type": "application/json", "X-Goog-Upload-Protocol": "resumable", "X-Goog-Upload-Command": "start", "X-Goog-Upload-Header-Content-Length": `${sizeBytes}`, "X-Goog-Upload-Header-Content-Type": `${mimeType}` }, fileName ? { "X-Goog-Upload-File-Name": fileName } : {})
+      };
+    }
+    const httpResponse = await this.request({
+      path: path6,
+      body: JSON.stringify(body),
+      httpMethod: "POST",
+      httpOptions
+    });
+    if (!httpResponse || !(httpResponse === null || httpResponse === void 0 ? void 0 : httpResponse.headers)) {
+      throw new Error("Server did not return an HttpResponse or the returned HttpResponse did not have headers.");
+    }
+    const uploadUrl = (_a4 = httpResponse === null || httpResponse === void 0 ? void 0 : httpResponse.headers) === null || _a4 === void 0 ? void 0 : _a4["x-goog-upload-url"];
+    if (uploadUrl === void 0) {
+      throw new Error("Failed to get upload url. Server did not return the x-google-upload-url in the headers");
+    }
+    return uploadUrl;
+  }
+};
+async function throwErrorIfNotOK(response) {
+  var _a4;
+  if (response === void 0) {
+    throw new Error("response is undefined");
+  }
+  if (!response.ok) {
+    const status = response.status;
+    let errorBody;
+    if ((_a4 = response.headers.get("content-type")) === null || _a4 === void 0 ? void 0 : _a4.includes("application/json")) {
+      errorBody = await response.json();
+    } else {
+      errorBody = {
+        error: {
+          message: await response.text(),
+          code: response.status,
+          status: response.statusText
+        }
+      };
+    }
+    const errorMessage = JSON.stringify(errorBody);
+    if (status >= 400 && status < 600) {
+      const apiError = new ApiError({
+        message: errorMessage,
+        status
+      });
+      throw apiError;
+    }
+    throw new Error(errorMessage);
+  }
+}
+function includeExtraBodyToRequestInit(requestInit, extraBody) {
+  if (!extraBody || Object.keys(extraBody).length === 0) {
+    return;
+  }
+  if (requestInit.body instanceof Blob) {
+    console.warn("includeExtraBodyToRequestInit: extraBody provided but current request body is a Blob. extraBody will be ignored as merging is not supported for Blob bodies.");
+    return;
+  }
+  let currentBodyObject = {};
+  if (typeof requestInit.body === "string" && requestInit.body.length > 0) {
+    try {
+      const parsedBody = JSON.parse(requestInit.body);
+      if (typeof parsedBody === "object" && parsedBody !== null && !Array.isArray(parsedBody)) {
+        currentBodyObject = parsedBody;
+      } else {
+        console.warn("includeExtraBodyToRequestInit: Original request body is valid JSON but not a non-array object. Skip applying extraBody to the request body.");
+        return;
+      }
+    } catch (e2) {
+      console.warn("includeExtraBodyToRequestInit: Original request body is not valid JSON. Skip applying extraBody to the request body.");
+      return;
+    }
+  }
+  function deepMerge(target, source) {
+    const output = Object.assign({}, target);
+    for (const key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        const sourceValue = source[key];
+        const targetValue = output[key];
+        if (sourceValue && typeof sourceValue === "object" && !Array.isArray(sourceValue) && targetValue && typeof targetValue === "object" && !Array.isArray(targetValue)) {
+          output[key] = deepMerge(targetValue, sourceValue);
+        } else {
+          if (targetValue && sourceValue && typeof targetValue !== typeof sourceValue) {
+            console.warn(`includeExtraBodyToRequestInit:deepMerge: Type mismatch for key "${key}". Original type: ${typeof targetValue}, New type: ${typeof sourceValue}. Overwriting.`);
+          }
+          output[key] = sourceValue;
+        }
+      }
+    }
+    return output;
+  }
+  const mergedBody = deepMerge(currentBodyObject, extraBody);
+  requestInit.body = JSON.stringify(mergedBody);
+}
 var MCP_LABEL = "mcp_used/unknown";
 var hasMcpToolUsageFromMcpToTool = false;
 function hasMcpToolUsage(tools) {
@@ -50720,6 +57164,608 @@ var McpCallableTool = class _McpCallableTool {
     return functionCallResponseParts;
   }
 };
+async function handleWebSocketMessage$1(apiClient, onmessage, event) {
+  const serverMessage = new LiveMusicServerMessage();
+  let data;
+  if (event.data instanceof Blob) {
+    data = JSON.parse(await event.data.text());
+  } else {
+    data = JSON.parse(event.data);
+  }
+  Object.assign(serverMessage, data);
+  onmessage(serverMessage);
+}
+var LiveMusic = class {
+  constructor(apiClient, auth, webSocketFactory) {
+    this.apiClient = apiClient;
+    this.auth = auth;
+    this.webSocketFactory = webSocketFactory;
+  }
+  /**
+       Establishes a connection to the specified model and returns a
+       LiveMusicSession object representing that connection.
+  
+       @experimental
+  
+       @remarks
+  
+       @param params - The parameters for establishing a connection to the model.
+       @return A live session.
+  
+       @example
+       ```ts
+       let model = 'models/lyria-realtime-exp';
+       const session = await ai.live.music.connect({
+         model: model,
+         callbacks: {
+           onmessage: (e: MessageEvent) => {
+             console.log('Received message from the server: %s\n', debug(e.data));
+           },
+           onerror: (e: ErrorEvent) => {
+             console.log('Error occurred: %s\n', debug(e.error));
+           },
+           onclose: (e: CloseEvent) => {
+             console.log('Connection closed.');
+           },
+         },
+       });
+       ```
+      */
+  async connect(params) {
+    var _a4, _b;
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("Live music is not supported for Vertex AI.");
+    }
+    console.warn("Live music generation is experimental and may change in future versions.");
+    const websocketBaseUrl = this.apiClient.getWebsocketBaseUrl();
+    const apiVersion = this.apiClient.getApiVersion();
+    const headers = mapToHeaders$1(this.apiClient.getDefaultHeaders());
+    const apiKey = this.apiClient.getApiKey();
+    const url = `${websocketBaseUrl}/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.BidiGenerateMusic?key=${apiKey}`;
+    let onopenResolve = () => {
+    };
+    const onopenPromise = new Promise((resolve) => {
+      onopenResolve = resolve;
+    });
+    const callbacks = params.callbacks;
+    const onopenAwaitedCallback = function() {
+      onopenResolve({});
+    };
+    const apiClient = this.apiClient;
+    const websocketCallbacks = {
+      onopen: onopenAwaitedCallback,
+      onmessage: (event) => {
+        void handleWebSocketMessage$1(apiClient, callbacks.onmessage, event);
+      },
+      onerror: (_a4 = callbacks === null || callbacks === void 0 ? void 0 : callbacks.onerror) !== null && _a4 !== void 0 ? _a4 : function(e2) {
+      },
+      onclose: (_b = callbacks === null || callbacks === void 0 ? void 0 : callbacks.onclose) !== null && _b !== void 0 ? _b : function(e2) {
+      }
+    };
+    const conn = this.webSocketFactory.create(url, headersToMap$1(headers), websocketCallbacks);
+    conn.connect();
+    await onopenPromise;
+    const model = tModel(this.apiClient, params.model);
+    const setup = { model };
+    const clientMessage = { setup };
+    conn.send(JSON.stringify(clientMessage));
+    return new LiveMusicSession(conn, this.apiClient);
+  }
+};
+var LiveMusicSession = class {
+  constructor(conn, apiClient) {
+    this.conn = conn;
+    this.apiClient = apiClient;
+  }
+  /**
+      Sets inputs to steer music generation. Updates the session's current
+      weighted prompts.
+  
+      @param params - Contains one property, `weightedPrompts`.
+  
+        - `weightedPrompts` to send to the model; weights are normalized to
+          sum to 1.0.
+  
+      @experimental
+     */
+  async setWeightedPrompts(params) {
+    if (!params.weightedPrompts || Object.keys(params.weightedPrompts).length === 0) {
+      throw new Error("Weighted prompts must be set and contain at least one entry.");
+    }
+    const clientContent = liveMusicSetWeightedPromptsParametersToMldev(params);
+    this.conn.send(JSON.stringify({ clientContent }));
+  }
+  /**
+      Sets a configuration to the model. Updates the session's current
+      music generation config.
+  
+      @param params - Contains one property, `musicGenerationConfig`.
+  
+        - `musicGenerationConfig` to set in the model. Passing an empty or
+      undefined config to the model will reset the config to defaults.
+  
+      @experimental
+     */
+  async setMusicGenerationConfig(params) {
+    if (!params.musicGenerationConfig) {
+      params.musicGenerationConfig = {};
+    }
+    const setConfigParameters = liveMusicSetConfigParametersToMldev(params);
+    this.conn.send(JSON.stringify(setConfigParameters));
+  }
+  sendPlaybackControl(playbackControl) {
+    const clientMessage = { playbackControl };
+    this.conn.send(JSON.stringify(clientMessage));
+  }
+  /**
+   * Start the music stream.
+   *
+   * @experimental
+   */
+  play() {
+    this.sendPlaybackControl(LiveMusicPlaybackControl.PLAY);
+  }
+  /**
+   * Temporarily halt the music stream. Use `play` to resume from the current
+   * position.
+   *
+   * @experimental
+   */
+  pause() {
+    this.sendPlaybackControl(LiveMusicPlaybackControl.PAUSE);
+  }
+  /**
+   * Stop the music stream and reset the state. Retains the current prompts
+   * and config.
+   *
+   * @experimental
+   */
+  stop() {
+    this.sendPlaybackControl(LiveMusicPlaybackControl.STOP);
+  }
+  /**
+   * Resets the context of the music generation without stopping it.
+   * Retains the current prompts and config.
+   *
+   * @experimental
+   */
+  resetContext() {
+    this.sendPlaybackControl(LiveMusicPlaybackControl.RESET_CONTEXT);
+  }
+  /**
+       Terminates the WebSocket connection.
+  
+       @experimental
+     */
+  close() {
+    this.conn.close();
+  }
+};
+function headersToMap$1(headers) {
+  const headerMap = {};
+  headers.forEach((value, key) => {
+    headerMap[key] = value;
+  });
+  return headerMap;
+}
+function mapToHeaders$1(map) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(map)) {
+    headers.append(key, value);
+  }
+  return headers;
+}
+var FUNCTION_RESPONSE_REQUIRES_ID = "FunctionResponse request must have an `id` field from the response of a ToolCall.FunctionalCalls in Google AI.";
+async function handleWebSocketMessage(apiClient, onmessage, event) {
+  const serverMessage = new LiveServerMessage();
+  let jsonData;
+  if (event.data instanceof Blob) {
+    jsonData = await event.data.text();
+  } else if (event.data instanceof ArrayBuffer) {
+    jsonData = new TextDecoder().decode(event.data);
+  } else {
+    jsonData = event.data;
+  }
+  const data = JSON.parse(jsonData);
+  if (apiClient.isVertexAI()) {
+    const resp = liveServerMessageFromVertex(data);
+    Object.assign(serverMessage, resp);
+  } else {
+    const resp = data;
+    Object.assign(serverMessage, resp);
+  }
+  onmessage(serverMessage);
+}
+var Live = class {
+  constructor(apiClient, auth, webSocketFactory) {
+    this.apiClient = apiClient;
+    this.auth = auth;
+    this.webSocketFactory = webSocketFactory;
+    this.music = new LiveMusic(this.apiClient, this.auth, this.webSocketFactory);
+  }
+  /**
+       Establishes a connection to the specified model with the given
+       configuration and returns a Session object representing that connection.
+  
+       @experimental Built-in MCP support is an experimental feature, may change in
+       future versions.
+  
+       @remarks
+  
+       @param params - The parameters for establishing a connection to the model.
+       @return A live session.
+  
+       @example
+       ```ts
+       let model: string;
+       if (GOOGLE_GENAI_USE_VERTEXAI) {
+         model = 'gemini-2.0-flash-live-preview-04-09';
+       } else {
+         model = 'gemini-live-2.5-flash-preview';
+       }
+       const session = await ai.live.connect({
+         model: model,
+         config: {
+           responseModalities: [Modality.AUDIO],
+         },
+         callbacks: {
+           onopen: () => {
+             console.log('Connected to the socket.');
+           },
+           onmessage: (e: MessageEvent) => {
+             console.log('Received message from the server: %s\n', debug(e.data));
+           },
+           onerror: (e: ErrorEvent) => {
+             console.log('Error occurred: %s\n', debug(e.error));
+           },
+           onclose: (e: CloseEvent) => {
+             console.log('Connection closed.');
+           },
+         },
+       });
+       ```
+      */
+  async connect(params) {
+    var _a4, _b, _c, _d, _e, _f;
+    if (params.config && params.config.httpOptions) {
+      throw new Error("The Live module does not support httpOptions at request-level in LiveConnectConfig yet. Please use the client-level httpOptions configuration instead.");
+    }
+    const websocketBaseUrl = this.apiClient.getWebsocketBaseUrl();
+    const apiVersion = this.apiClient.getApiVersion();
+    let url;
+    const clientHeaders = this.apiClient.getHeaders();
+    if (params.config && params.config.tools && hasMcpToolUsage(params.config.tools)) {
+      setMcpUsageHeader(clientHeaders);
+    }
+    const headers = mapToHeaders(clientHeaders);
+    if (this.apiClient.isVertexAI()) {
+      const project = this.apiClient.getProject();
+      const location = this.apiClient.getLocation();
+      const apiKey = this.apiClient.getApiKey();
+      const hasStandardAuth = !!project && !!location || !!apiKey;
+      if (this.apiClient.getCustomBaseUrl() && !hasStandardAuth) {
+        url = websocketBaseUrl;
+      } else {
+        url = `${websocketBaseUrl}/ws/google.cloud.aiplatform.${apiVersion}.LlmBidiService/BidiGenerateContent`;
+        await this.auth.addAuthHeaders(headers, url);
+      }
+    } else {
+      const apiKey = this.apiClient.getApiKey();
+      let method = "BidiGenerateContent";
+      let keyName = "key";
+      if (apiKey === null || apiKey === void 0 ? void 0 : apiKey.startsWith("auth_tokens/")) {
+        console.warn("Warning: Ephemeral token support is experimental and may change in future versions.");
+        if (apiVersion !== "v1alpha") {
+          console.warn("Warning: The SDK's ephemeral token support is in v1alpha only. Please use const ai = new GoogleGenAI({apiKey: token.name, httpOptions: { apiVersion: 'v1alpha' }}); before session connection.");
+        }
+        method = "BidiGenerateContentConstrained";
+        keyName = "access_token";
+      }
+      url = `${websocketBaseUrl}/ws/google.ai.generativelanguage.${apiVersion}.GenerativeService.${method}?${keyName}=${apiKey}`;
+    }
+    let onopenResolve = () => {
+    };
+    const onopenPromise = new Promise((resolve) => {
+      onopenResolve = resolve;
+    });
+    const callbacks = params.callbacks;
+    const onopenAwaitedCallback = function() {
+      var _a5;
+      (_a5 = callbacks === null || callbacks === void 0 ? void 0 : callbacks.onopen) === null || _a5 === void 0 ? void 0 : _a5.call(callbacks);
+      onopenResolve({});
+    };
+    const apiClient = this.apiClient;
+    let sessionResolved = false;
+    const messageQueue = [];
+    let setupCompleteResolve = () => {
+    };
+    const setupCompletePromise = new Promise((resolve) => {
+      setupCompleteResolve = resolve;
+    });
+    const websocketCallbacks = {
+      onopen: onopenAwaitedCallback,
+      onmessage: (event) => {
+        void handleWebSocketMessage(apiClient, (msg) => {
+          if (msg.setupComplete && !session.setupComplete) {
+            session.setupComplete = msg.setupComplete;
+            setupCompleteResolve({});
+          }
+          if (sessionResolved) {
+            callbacks.onmessage(msg);
+          } else {
+            messageQueue.push(msg);
+          }
+        }, event);
+      },
+      onerror: (_a4 = callbacks === null || callbacks === void 0 ? void 0 : callbacks.onerror) !== null && _a4 !== void 0 ? _a4 : function(e2) {
+      },
+      onclose: (_b = callbacks === null || callbacks === void 0 ? void 0 : callbacks.onclose) !== null && _b !== void 0 ? _b : function(e2) {
+      }
+    };
+    const conn = this.webSocketFactory.create(url, headersToMap(headers), websocketCallbacks);
+    conn.connect();
+    await onopenPromise;
+    let transformedModel = tModel(this.apiClient, params.model);
+    if (this.apiClient.isVertexAI() && transformedModel.startsWith("publishers/")) {
+      const project = this.apiClient.getProject();
+      const location = this.apiClient.getLocation();
+      if (project && location) {
+        transformedModel = `projects/${project}/locations/${location}/` + transformedModel;
+      }
+    }
+    let clientMessage = {};
+    if (this.apiClient.isVertexAI() && ((_c = params.config) === null || _c === void 0 ? void 0 : _c.responseModalities) === void 0) {
+      if (params.config === void 0) {
+        params.config = { responseModalities: [Modality.AUDIO] };
+      } else {
+        params.config.responseModalities = [Modality.AUDIO];
+      }
+    }
+    if ((_d = params.config) === null || _d === void 0 ? void 0 : _d.generationConfig) {
+      console.warn("Setting `LiveConnectConfig.generation_config` is deprecated, please set the fields on `LiveConnectConfig` directly. It will be removed in the next major version (not before 7/31/2026).");
+    }
+    const inputTools = (_f = (_e = params.config) === null || _e === void 0 ? void 0 : _e.tools) !== null && _f !== void 0 ? _f : [];
+    const convertedTools = [];
+    for (const tool of inputTools) {
+      if (this.isCallableTool(tool)) {
+        const callableTool = tool;
+        convertedTools.push(await callableTool.tool());
+      } else {
+        convertedTools.push(tool);
+      }
+    }
+    if (convertedTools.length > 0) {
+      params.config.tools = convertedTools;
+    }
+    const liveConnectParameters = {
+      model: transformedModel,
+      config: params.config,
+      callbacks: params.callbacks
+    };
+    if (this.apiClient.isVertexAI()) {
+      clientMessage = liveConnectParametersToVertex(this.apiClient, liveConnectParameters);
+    } else {
+      clientMessage = liveConnectParametersToMldev(this.apiClient, liveConnectParameters);
+    }
+    delete clientMessage["config"];
+    const session = new Session(conn, this.apiClient);
+    conn.send(JSON.stringify(clientMessage));
+    await setupCompletePromise;
+    sessionResolved = true;
+    for (const msg of messageQueue) {
+      callbacks.onmessage(msg);
+    }
+    return session;
+  }
+  // TODO: b/416041229 - Abstract this method to a common place.
+  isCallableTool(tool) {
+    return "callTool" in tool && typeof tool.callTool === "function";
+  }
+};
+var defaultLiveSendClientContentParamerters = {
+  turnComplete: true
+};
+var Session = class {
+  constructor(conn, apiClient) {
+    this.conn = conn;
+    this.apiClient = apiClient;
+  }
+  tLiveClientContent(apiClient, params) {
+    if (params.turns !== null && params.turns !== void 0) {
+      let contents = [];
+      try {
+        contents = tContents(params.turns);
+        if (!apiClient.isVertexAI()) {
+          contents = contents.map((item) => contentToMldev$1(item));
+        }
+      } catch (_a4) {
+        throw new Error(`Failed to parse client content "turns", type: '${typeof params.turns}'`);
+      }
+      return {
+        clientContent: { turns: contents, turnComplete: params.turnComplete }
+      };
+    }
+    return {
+      clientContent: { turnComplete: params.turnComplete }
+    };
+  }
+  tLiveClienttToolResponse(apiClient, params) {
+    let functionResponses = [];
+    if (params.functionResponses == null) {
+      throw new Error("functionResponses is required.");
+    }
+    if (!Array.isArray(params.functionResponses)) {
+      functionResponses = [params.functionResponses];
+    } else {
+      functionResponses = params.functionResponses;
+    }
+    if (functionResponses.length === 0) {
+      throw new Error("functionResponses is required.");
+    }
+    for (const functionResponse of functionResponses) {
+      if (typeof functionResponse !== "object" || functionResponse === null || !("name" in functionResponse) || !("response" in functionResponse)) {
+        throw new Error(`Could not parse function response, type '${typeof functionResponse}'.`);
+      }
+      if (!apiClient.isVertexAI() && !("id" in functionResponse)) {
+        throw new Error(FUNCTION_RESPONSE_REQUIRES_ID);
+      }
+    }
+    const clientMessage = {
+      toolResponse: { "functionResponses": functionResponses }
+    };
+    return clientMessage;
+  }
+  /**
+      Send a message over the established connection.
+  
+      @param params - Contains two **optional** properties, `turns` and
+          `turnComplete`.
+  
+        - `turns` will be converted to a `Content[]`
+        - `turnComplete: true` [default] indicates that you are done sending
+          content and expect a response. If `turnComplete: false`, the server
+          will wait for additional messages before starting generation.
+  
+      @experimental
+  
+      @remarks
+      There are two ways to send messages to the live API:
+      `sendClientContent` and `sendRealtimeInput`.
+  
+      `sendClientContent` messages are added to the model context **in order**.
+      Having a conversation using `sendClientContent` messages is roughly
+      equivalent to using the `Chat.sendMessageStream`, except that the state of
+      the `chat` history is stored on the API server instead of locally.
+  
+      Because of `sendClientContent`'s order guarantee, the model cannot respons
+      as quickly to `sendClientContent` messages as to `sendRealtimeInput`
+      messages. This makes the biggest difference when sending objects that have
+      significant preprocessing time (typically images).
+  
+      The `sendClientContent` message sends a `Content[]`
+      which has more options than the `Blob` sent by `sendRealtimeInput`.
+  
+      So the main use-cases for `sendClientContent` over `sendRealtimeInput` are:
+  
+      - Sending anything that can't be represented as a `Blob` (text,
+      `sendClientContent({turns="Hello?"}`)).
+      - Managing turns when not using audio input and voice activity detection.
+        (`sendClientContent({turnComplete:true})` or the short form
+      `sendClientContent()`)
+      - Prefilling a conversation context
+        ```
+        sendClientContent({
+            turns: [
+              Content({role:user, parts:...}),
+              Content({role:user, parts:...}),
+              ...
+            ]
+        })
+        ```
+      @experimental
+     */
+  sendClientContent(params) {
+    params = Object.assign(Object.assign({}, defaultLiveSendClientContentParamerters), params);
+    const clientMessage = this.tLiveClientContent(this.apiClient, params);
+    this.conn.send(JSON.stringify(clientMessage));
+  }
+  /**
+      Send a realtime message over the established connection.
+  
+      @param params - Contains one property, `media`.
+  
+        - `media` will be converted to a `Blob`
+  
+      @experimental
+  
+      @remarks
+      Use `sendRealtimeInput` for realtime audio chunks and video frames (images).
+  
+      With `sendRealtimeInput` the api will respond to audio automatically
+      based on voice activity detection (VAD).
+  
+      `sendRealtimeInput` is optimized for responsivness at the expense of
+      deterministic ordering guarantees. Audio and video tokens are to the
+      context when they become available.
+  
+      Note: The Call signature expects a `Blob` object, but only a subset
+      of audio and image mimetypes are allowed.
+     */
+  sendRealtimeInput(params) {
+    let clientMessage = {};
+    if (this.apiClient.isVertexAI()) {
+      clientMessage = {
+        "realtimeInput": liveSendRealtimeInputParametersToVertex(params)
+      };
+    } else {
+      clientMessage = {
+        "realtimeInput": liveSendRealtimeInputParametersToMldev(params)
+      };
+    }
+    this.conn.send(JSON.stringify(clientMessage));
+  }
+  /**
+      Send a function response message over the established connection.
+  
+      @param params - Contains property `functionResponses`.
+  
+        - `functionResponses` will be converted to a `functionResponses[]`
+  
+      @remarks
+      Use `sendFunctionResponse` to reply to `LiveServerToolCall` from the server.
+  
+      Use {@link types.LiveConnectConfig#tools} to configure the callable functions.
+  
+      @experimental
+     */
+  sendToolResponse(params) {
+    if (params.functionResponses == null) {
+      throw new Error("Tool response parameters are required.");
+    }
+    const clientMessage = this.tLiveClienttToolResponse(this.apiClient, params);
+    this.conn.send(JSON.stringify(clientMessage));
+  }
+  /**
+       Terminates the WebSocket connection.
+  
+       @experimental
+  
+       @example
+       ```ts
+       let model: string;
+       if (GOOGLE_GENAI_USE_VERTEXAI) {
+         model = 'gemini-2.0-flash-live-preview-04-09';
+       } else {
+         model = 'gemini-live-2.5-flash-preview';
+       }
+       const session = await ai.live.connect({
+         model: model,
+         config: {
+           responseModalities: [Modality.AUDIO],
+         }
+       });
+  
+       session.close();
+       ```
+     */
+  close() {
+    this.conn.close();
+  }
+};
+function headersToMap(headers) {
+  const headerMap = {};
+  headers.forEach((value, key) => {
+    headerMap[key] = value;
+  });
+  return headerMap;
+}
+function mapToHeaders(map) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(map)) {
+    headers.append(key, value);
+  }
+  return headers;
+}
 var DEFAULT_MAX_REMOTE_CALLS = 10;
 function shouldDisableAfc(config) {
   var _a4, _b, _c;
@@ -51134,16 +58180,16 @@ var Models2 = class _Models extends BaseModule {
   async generateContentInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateContentParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{model}:generateContent", body["_url"]);
+      path6 = formatMap("{model}:generateContent", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51166,12 +58212,12 @@ var Models2 = class _Models extends BaseModule {
       });
     } else {
       const body = generateContentParametersToMldev(this.apiClient, params);
-      path5 = formatMap("{model}:generateContent", body["_url"]);
+      path6 = formatMap("{model}:generateContent", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51197,17 +58243,17 @@ var Models2 = class _Models extends BaseModule {
   async generateContentStreamInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateContentParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{model}:streamGenerateContent?alt=sse", body["_url"]);
+      path6 = formatMap("{model}:streamGenerateContent?alt=sse", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       const apiClient = this.apiClient;
       response = apiClient.requestStream({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51243,13 +58289,13 @@ var Models2 = class _Models extends BaseModule {
       });
     } else {
       const body = generateContentParametersToMldev(this.apiClient, params);
-      path5 = formatMap("{model}:streamGenerateContent?alt=sse", body["_url"]);
+      path6 = formatMap("{model}:streamGenerateContent?alt=sse", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       const apiClient = this.apiClient;
       response = apiClient.requestStream({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51309,17 +58355,17 @@ var Models2 = class _Models extends BaseModule {
   async embedContentInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = embedContentParametersPrivateToVertex(this.apiClient, params, params);
       const endpointUrl = tIsVertexEmbedContentModel(params.model) ? "{model}:embedContent" : "{model}:predict";
-      path5 = formatMap(endpointUrl, body["_url"]);
+      path6 = formatMap(endpointUrl, body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51342,12 +58388,12 @@ var Models2 = class _Models extends BaseModule {
       });
     } else {
       const body = embedContentParametersPrivateToMldev(this.apiClient, params);
-      path5 = formatMap("{model}:batchEmbedContents", body["_url"]);
+      path6 = formatMap("{model}:batchEmbedContents", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51376,16 +58422,16 @@ var Models2 = class _Models extends BaseModule {
   async generateImagesInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateImagesParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{model}:predict", body["_url"]);
+      path6 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51408,12 +58454,12 @@ var Models2 = class _Models extends BaseModule {
       });
     } else {
       const body = generateImagesParametersToMldev(this.apiClient, params);
-      path5 = formatMap("{model}:predict", body["_url"]);
+      path6 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51442,16 +58488,16 @@ var Models2 = class _Models extends BaseModule {
   async editImageInternal(params) {
     var _a4, _b;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = editImageParametersInternalToVertex(this.apiClient, params);
-      path5 = formatMap("{model}:predict", body["_url"]);
+      path6 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51482,16 +58528,16 @@ var Models2 = class _Models extends BaseModule {
   async upscaleImageInternal(params) {
     var _a4, _b;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = upscaleImageAPIParametersInternalToVertex(this.apiClient, params);
-      path5 = formatMap("{model}:predict", body["_url"]);
+      path6 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51543,16 +58589,16 @@ var Models2 = class _Models extends BaseModule {
   async recontextImage(params) {
     var _a4, _b;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = recontextImageParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{model}:predict", body["_url"]);
+      path6 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51594,16 +58640,16 @@ var Models2 = class _Models extends BaseModule {
   async segmentImage(params) {
     var _a4, _b;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = segmentImageParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{model}:predict", body["_url"]);
+      path6 = formatMap("{model}:predict", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51633,16 +58679,16 @@ var Models2 = class _Models extends BaseModule {
   async get(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = getModelParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{name}", body["_url"]);
+      path6 = formatMap("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -51657,12 +58703,12 @@ var Models2 = class _Models extends BaseModule {
       });
     } else {
       const body = getModelParametersToMldev(this.apiClient, params);
-      path5 = formatMap("{name}", body["_url"]);
+      path6 = formatMap("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -51680,16 +58726,16 @@ var Models2 = class _Models extends BaseModule {
   async listInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = listModelsParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{models_url}", body["_url"]);
+      path6 = formatMap("{models_url}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -51712,12 +58758,12 @@ var Models2 = class _Models extends BaseModule {
       });
     } else {
       const body = listModelsParametersToMldev(this.apiClient, params);
-      path5 = formatMap("{models_url}", body["_url"]);
+      path6 = formatMap("{models_url}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "GET",
@@ -51760,16 +58806,16 @@ var Models2 = class _Models extends BaseModule {
   async update(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = updateModelParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{model}", body["_url"]);
+      path6 = formatMap("{model}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "PATCH",
@@ -51784,12 +58830,12 @@ var Models2 = class _Models extends BaseModule {
       });
     } else {
       const body = updateModelParametersToMldev(this.apiClient, params);
-      path5 = formatMap("{name}", body["_url"]);
+      path6 = formatMap("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "PATCH",
@@ -51818,16 +58864,16 @@ var Models2 = class _Models extends BaseModule {
   async delete(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = deleteModelParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{name}", body["_url"]);
+      path6 = formatMap("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -51850,12 +58896,12 @@ var Models2 = class _Models extends BaseModule {
       });
     } else {
       const body = deleteModelParametersToMldev(this.apiClient, params);
-      path5 = formatMap("{name}", body["_url"]);
+      path6 = formatMap("{name}", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "DELETE",
@@ -51897,16 +58943,16 @@ var Models2 = class _Models extends BaseModule {
   async countTokens(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = countTokensParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{model}:countTokens", body["_url"]);
+      path6 = formatMap("{model}:countTokens", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51929,12 +58975,12 @@ var Models2 = class _Models extends BaseModule {
       });
     } else {
       const body = countTokensParametersToMldev(this.apiClient, params);
-      path5 = formatMap("{model}:countTokens", body["_url"]);
+      path6 = formatMap("{model}:countTokens", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -51978,16 +59024,16 @@ var Models2 = class _Models extends BaseModule {
   async computeTokens(params) {
     var _a4, _b;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = computeTokensParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{model}:computeTokens", body["_url"]);
+      path6 = formatMap("{model}:computeTokens", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -52018,16 +59064,16 @@ var Models2 = class _Models extends BaseModule {
   async generateVideosInternal(params) {
     var _a4, _b, _c, _d;
     let response;
-    let path5 = "";
+    let path6 = "";
     let queryParams = {};
     if (this.apiClient.isVertexAI()) {
       const body = generateVideosParametersToVertex(this.apiClient, params);
-      path5 = formatMap("{model}:predictLongRunning", body["_url"]);
+      path6 = formatMap("{model}:predictLongRunning", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -52044,12 +59090,12 @@ var Models2 = class _Models extends BaseModule {
       });
     } else {
       const body = generateVideosParametersToMldev(this.apiClient, params);
-      path5 = formatMap("{model}:predictLongRunning", body["_url"]);
+      path6 = formatMap("{model}:predictLongRunning", body["_url"]);
       queryParams = body["_query"];
       delete body["_url"];
       delete body["_query"];
       response = this.apiClient.request({
-        path: path5,
+        path: path6,
         queryParams,
         body: JSON.stringify(body),
         httpMethod: "POST",
@@ -52070,8 +59116,1886 @@ var Models2 = class _Models extends BaseModule {
 Models2.loggedGenerateImagesWarning = false;
 Models2.loggedEditImageWarning = false;
 Models2.loggedGenerateVideosWarning = false;
+var Operations = class extends BaseModule {
+  constructor(apiClient) {
+    super();
+    this.apiClient = apiClient;
+  }
+  /**
+   * Gets the status of a long-running operation.
+   *
+   * @param parameters The parameters for the get operation request.
+   * @return The updated Operation object, with the latest status or result.
+   */
+  async getVideosOperation(parameters) {
+    const operation = parameters.operation;
+    const config = parameters.config;
+    if (operation.name === void 0 || operation.name === "") {
+      throw new Error("Operation name is required.");
+    }
+    if (this.apiClient.isVertexAI()) {
+      const resourceName2 = operation.name.split("/operations/")[0];
+      let httpOptions = void 0;
+      if (config && "httpOptions" in config) {
+        httpOptions = config.httpOptions;
+      }
+      const rawOperation = await this.fetchPredictVideosOperationInternal({
+        operationName: operation.name,
+        resourceName: resourceName2,
+        config: { httpOptions }
+      });
+      return operation._fromAPIResponse({
+        apiResponse: rawOperation,
+        _isVertexAI: true
+      });
+    } else {
+      const rawOperation = await this.getVideosOperationInternal({
+        operationName: operation.name,
+        config
+      });
+      return operation._fromAPIResponse({
+        apiResponse: rawOperation,
+        _isVertexAI: false
+      });
+    }
+  }
+  /**
+   * Gets the status of a long-running operation.
+   *
+   * @param parameters The parameters for the get operation request.
+   * @return The updated Operation object, with the latest status or result.
+   */
+  async get(parameters) {
+    const operation = parameters.operation;
+    const config = parameters.config;
+    if (operation.name === void 0 || operation.name === "") {
+      throw new Error("Operation name is required.");
+    }
+    if (this.apiClient.isVertexAI()) {
+      const resourceName2 = operation.name.split("/operations/")[0];
+      let httpOptions = void 0;
+      if (config && "httpOptions" in config) {
+        httpOptions = config.httpOptions;
+      }
+      const rawOperation = await this.fetchPredictVideosOperationInternal({
+        operationName: operation.name,
+        resourceName: resourceName2,
+        config: { httpOptions }
+      });
+      return operation._fromAPIResponse({
+        apiResponse: rawOperation,
+        _isVertexAI: true
+      });
+    } else {
+      const rawOperation = await this.getVideosOperationInternal({
+        operationName: operation.name,
+        config
+      });
+      return operation._fromAPIResponse({
+        apiResponse: rawOperation,
+        _isVertexAI: false
+      });
+    }
+  }
+  async getVideosOperationInternal(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = getOperationParametersToVertex(params);
+      path6 = formatMap("{operationName}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response;
+    } else {
+      const body = getOperationParametersToMldev(params);
+      path6 = formatMap("{operationName}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response;
+    }
+  }
+  async fetchPredictVideosOperationInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = fetchPredictOperationParametersToVertex(params);
+      path6 = formatMap("{resourceName}:fetchPredictOperation", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response;
+    } else {
+      throw new Error("This method is only supported by the Gemini Enterprise Agent Platform (previously known as Vertex AI).");
+    }
+  }
+};
+function authConfigToMldev(fromObject) {
+  const toObject = {};
+  const fromApiKey = getValueByPath(fromObject, ["apiKey"]);
+  if (fromApiKey != null) {
+    setValueByPath(toObject, ["apiKey"], fromApiKey);
+  }
+  if (getValueByPath(fromObject, ["apiKeyConfig"]) !== void 0) {
+    throw new Error("apiKeyConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["authType"]) !== void 0) {
+    throw new Error("authType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["googleServiceAccountConfig"]) !== void 0) {
+    throw new Error("googleServiceAccountConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["httpBasicAuthConfig"]) !== void 0) {
+    throw new Error("httpBasicAuthConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["oauthConfig"]) !== void 0) {
+    throw new Error("oauthConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["oidcConfig"]) !== void 0) {
+    throw new Error("oidcConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function blobToMldev(fromObject) {
+  const toObject = {};
+  const fromData = getValueByPath(fromObject, ["data"]);
+  if (fromData != null) {
+    setValueByPath(toObject, ["data"], fromData);
+  }
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
+function contentToMldev(fromObject) {
+  const toObject = {};
+  const fromParts = getValueByPath(fromObject, ["parts"]);
+  if (fromParts != null) {
+    let transformedList = fromParts;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return partToMldev(item);
+      });
+    }
+    setValueByPath(toObject, ["parts"], transformedList);
+  }
+  const fromRole = getValueByPath(fromObject, ["role"]);
+  if (fromRole != null) {
+    setValueByPath(toObject, ["role"], fromRole);
+  }
+  return toObject;
+}
+function createAuthTokenConfigToMldev(apiClient, fromObject, parentObject) {
+  const toObject = {};
+  const fromExpireTime = getValueByPath(fromObject, ["expireTime"]);
+  if (parentObject !== void 0 && fromExpireTime != null) {
+    setValueByPath(parentObject, ["expireTime"], fromExpireTime);
+  }
+  const fromNewSessionExpireTime = getValueByPath(fromObject, [
+    "newSessionExpireTime"
+  ]);
+  if (parentObject !== void 0 && fromNewSessionExpireTime != null) {
+    setValueByPath(parentObject, ["newSessionExpireTime"], fromNewSessionExpireTime);
+  }
+  const fromUses = getValueByPath(fromObject, ["uses"]);
+  if (parentObject !== void 0 && fromUses != null) {
+    setValueByPath(parentObject, ["uses"], fromUses);
+  }
+  const fromLiveConnectConstraints = getValueByPath(fromObject, [
+    "liveConnectConstraints"
+  ]);
+  if (parentObject !== void 0 && fromLiveConnectConstraints != null) {
+    setValueByPath(parentObject, ["bidiGenerateContentSetup"], liveConnectConstraintsToMldev(apiClient, fromLiveConnectConstraints));
+  }
+  const fromLockAdditionalFields = getValueByPath(fromObject, [
+    "lockAdditionalFields"
+  ]);
+  if (parentObject !== void 0 && fromLockAdditionalFields != null) {
+    setValueByPath(parentObject, ["fieldMask"], fromLockAdditionalFields);
+  }
+  return toObject;
+}
+function createAuthTokenParametersToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    setValueByPath(toObject, ["config"], createAuthTokenConfigToMldev(apiClient, fromConfig, toObject));
+  }
+  return toObject;
+}
+function fileDataToMldev(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["displayName"]) !== void 0) {
+    throw new Error("displayName parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFileUri = getValueByPath(fromObject, ["fileUri"]);
+  if (fromFileUri != null) {
+    setValueByPath(toObject, ["fileUri"], fromFileUri);
+  }
+  const fromMimeType = getValueByPath(fromObject, ["mimeType"]);
+  if (fromMimeType != null) {
+    setValueByPath(toObject, ["mimeType"], fromMimeType);
+  }
+  return toObject;
+}
+function functionCallToMldev(fromObject) {
+  const toObject = {};
+  const fromArgs = getValueByPath(fromObject, ["args"]);
+  if (fromArgs != null) {
+    setValueByPath(toObject, ["args"], fromArgs);
+  }
+  const fromId = getValueByPath(fromObject, ["id"]);
+  if (fromId != null) {
+    setValueByPath(toObject, ["id"], fromId);
+  }
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  if (getValueByPath(fromObject, ["partialArgs"]) !== void 0) {
+    throw new Error("partialArgs parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["willContinue"]) !== void 0) {
+    throw new Error("willContinue parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function googleMapsToMldev(fromObject) {
+  const toObject = {};
+  const fromAuthConfig = getValueByPath(fromObject, ["authConfig"]);
+  if (fromAuthConfig != null) {
+    setValueByPath(toObject, ["authConfig"], authConfigToMldev(fromAuthConfig));
+  }
+  const fromEnableWidget = getValueByPath(fromObject, ["enableWidget"]);
+  if (fromEnableWidget != null) {
+    setValueByPath(toObject, ["enableWidget"], fromEnableWidget);
+  }
+  if (getValueByPath(fromObject, ["groundingTypes"]) !== void 0) {
+    throw new Error("groundingTypes parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function googleSearchToMldev(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["blockingConfidence"]) !== void 0) {
+    throw new Error("blockingConfidence parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["excludeDomains"]) !== void 0) {
+    throw new Error("excludeDomains parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromSearchTypes = getValueByPath(fromObject, ["searchTypes"]);
+  if (fromSearchTypes != null) {
+    setValueByPath(toObject, ["searchTypes"], fromSearchTypes);
+  }
+  const fromTimeRangeFilter = getValueByPath(fromObject, [
+    "timeRangeFilter"
+  ]);
+  if (fromTimeRangeFilter != null) {
+    setValueByPath(toObject, ["timeRangeFilter"], fromTimeRangeFilter);
+  }
+  return toObject;
+}
+function liveConnectConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromGenerationConfig = getValueByPath(fromObject, [
+    "generationConfig"
+  ]);
+  if (parentObject !== void 0 && fromGenerationConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig"], fromGenerationConfig);
+  }
+  const fromResponseModalities = getValueByPath(fromObject, [
+    "responseModalities"
+  ]);
+  if (parentObject !== void 0 && fromResponseModalities != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "responseModalities"], fromResponseModalities);
+  }
+  const fromTemperature = getValueByPath(fromObject, ["temperature"]);
+  if (parentObject !== void 0 && fromTemperature != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "temperature"], fromTemperature);
+  }
+  const fromTopP = getValueByPath(fromObject, ["topP"]);
+  if (parentObject !== void 0 && fromTopP != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "topP"], fromTopP);
+  }
+  const fromTopK = getValueByPath(fromObject, ["topK"]);
+  if (parentObject !== void 0 && fromTopK != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "topK"], fromTopK);
+  }
+  const fromMaxOutputTokens = getValueByPath(fromObject, [
+    "maxOutputTokens"
+  ]);
+  if (parentObject !== void 0 && fromMaxOutputTokens != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "maxOutputTokens"], fromMaxOutputTokens);
+  }
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (parentObject !== void 0 && fromMediaResolution != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "mediaResolution"], fromMediaResolution);
+  }
+  const fromSeed = getValueByPath(fromObject, ["seed"]);
+  if (parentObject !== void 0 && fromSeed != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "seed"], fromSeed);
+  }
+  const fromSpeechConfig = getValueByPath(fromObject, ["speechConfig"]);
+  if (parentObject !== void 0 && fromSpeechConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "speechConfig"], tLiveSpeechConfig(fromSpeechConfig));
+  }
+  const fromThinkingConfig = getValueByPath(fromObject, [
+    "thinkingConfig"
+  ]);
+  if (parentObject !== void 0 && fromThinkingConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "thinkingConfig"], fromThinkingConfig);
+  }
+  const fromEnableAffectiveDialog = getValueByPath(fromObject, [
+    "enableAffectiveDialog"
+  ]);
+  if (parentObject !== void 0 && fromEnableAffectiveDialog != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "enableAffectiveDialog"], fromEnableAffectiveDialog);
+  }
+  const fromSystemInstruction = getValueByPath(fromObject, [
+    "systemInstruction"
+  ]);
+  if (parentObject !== void 0 && fromSystemInstruction != null) {
+    setValueByPath(parentObject, ["setup", "systemInstruction"], contentToMldev(tContent(fromSystemInstruction)));
+  }
+  const fromTools = getValueByPath(fromObject, ["tools"]);
+  if (parentObject !== void 0 && fromTools != null) {
+    let transformedList = tTools(fromTools);
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return toolToMldev(tTool(item));
+      });
+    }
+    setValueByPath(parentObject, ["setup", "tools"], transformedList);
+  }
+  const fromSessionResumption = getValueByPath(fromObject, [
+    "sessionResumption"
+  ]);
+  if (parentObject !== void 0 && fromSessionResumption != null) {
+    setValueByPath(parentObject, ["setup", "sessionResumption"], sessionResumptionConfigToMldev(fromSessionResumption));
+  }
+  const fromInputAudioTranscription = getValueByPath(fromObject, [
+    "inputAudioTranscription"
+  ]);
+  if (parentObject !== void 0 && fromInputAudioTranscription != null) {
+    setValueByPath(parentObject, ["setup", "inputAudioTranscription"], fromInputAudioTranscription);
+  }
+  const fromOutputAudioTranscription = getValueByPath(fromObject, [
+    "outputAudioTranscription"
+  ]);
+  if (parentObject !== void 0 && fromOutputAudioTranscription != null) {
+    setValueByPath(parentObject, ["setup", "outputAudioTranscription"], fromOutputAudioTranscription);
+  }
+  const fromRealtimeInputConfig = getValueByPath(fromObject, [
+    "realtimeInputConfig"
+  ]);
+  if (parentObject !== void 0 && fromRealtimeInputConfig != null) {
+    setValueByPath(parentObject, ["setup", "realtimeInputConfig"], fromRealtimeInputConfig);
+  }
+  const fromContextWindowCompression = getValueByPath(fromObject, [
+    "contextWindowCompression"
+  ]);
+  if (parentObject !== void 0 && fromContextWindowCompression != null) {
+    setValueByPath(parentObject, ["setup", "contextWindowCompression"], fromContextWindowCompression);
+  }
+  const fromProactivity = getValueByPath(fromObject, ["proactivity"]);
+  if (parentObject !== void 0 && fromProactivity != null) {
+    setValueByPath(parentObject, ["setup", "proactivity"], fromProactivity);
+  }
+  if (getValueByPath(fromObject, ["explicitVadSignal"]) !== void 0) {
+    throw new Error("explicitVadSignal parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromAvatarConfig = getValueByPath(fromObject, ["avatarConfig"]);
+  if (parentObject !== void 0 && fromAvatarConfig != null) {
+    setValueByPath(parentObject, ["setup", "avatarConfig"], fromAvatarConfig);
+  }
+  const fromSafetySettings = getValueByPath(fromObject, [
+    "safetySettings"
+  ]);
+  if (parentObject !== void 0 && fromSafetySettings != null) {
+    let transformedList = fromSafetySettings;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return safetySettingToMldev(item);
+      });
+    }
+    setValueByPath(parentObject, ["setup", "safetySettings"], transformedList);
+  }
+  const fromTranslationConfig = getValueByPath(fromObject, [
+    "translationConfig"
+  ]);
+  if (parentObject !== void 0 && fromTranslationConfig != null) {
+    setValueByPath(parentObject, ["setup", "generationConfig", "translationConfig"], fromTranslationConfig);
+  }
+  return toObject;
+}
+function liveConnectConstraintsToMldev(apiClient, fromObject) {
+  const toObject = {};
+  const fromModel = getValueByPath(fromObject, ["model"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["setup", "model"], tModel(apiClient, fromModel));
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    setValueByPath(toObject, ["config"], liveConnectConfigToMldev(fromConfig, toObject));
+  }
+  return toObject;
+}
+function partToMldev(fromObject) {
+  const toObject = {};
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (fromMediaResolution != null) {
+    setValueByPath(toObject, ["mediaResolution"], fromMediaResolution);
+  }
+  const fromToolCall = getValueByPath(fromObject, ["toolCall"]);
+  if (fromToolCall != null) {
+    setValueByPath(toObject, ["toolCall"], fromToolCall);
+  }
+  const fromToolResponse = getValueByPath(fromObject, ["toolResponse"]);
+  if (fromToolResponse != null) {
+    setValueByPath(toObject, ["toolResponse"], fromToolResponse);
+  }
+  const fromAudioTranscription = getValueByPath(fromObject, [
+    "audioTranscription"
+  ]);
+  if (fromAudioTranscription != null) {
+    setValueByPath(toObject, ["audioTranscription"], fromAudioTranscription);
+  }
+  const fromCodeExecutionResult = getValueByPath(fromObject, [
+    "codeExecutionResult"
+  ]);
+  if (fromCodeExecutionResult != null) {
+    setValueByPath(toObject, ["codeExecutionResult"], fromCodeExecutionResult);
+  }
+  const fromExecutableCode = getValueByPath(fromObject, [
+    "executableCode"
+  ]);
+  if (fromExecutableCode != null) {
+    setValueByPath(toObject, ["executableCode"], fromExecutableCode);
+  }
+  const fromFileData = getValueByPath(fromObject, ["fileData"]);
+  if (fromFileData != null) {
+    setValueByPath(toObject, ["fileData"], fileDataToMldev(fromFileData));
+  }
+  const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
+  if (fromFunctionCall != null) {
+    setValueByPath(toObject, ["functionCall"], functionCallToMldev(fromFunctionCall));
+  }
+  const fromFunctionResponse = getValueByPath(fromObject, [
+    "functionResponse"
+  ]);
+  if (fromFunctionResponse != null) {
+    setValueByPath(toObject, ["functionResponse"], fromFunctionResponse);
+  }
+  const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
+  if (fromInlineData != null) {
+    setValueByPath(toObject, ["inlineData"], blobToMldev(fromInlineData));
+  }
+  const fromText = getValueByPath(fromObject, ["text"]);
+  if (fromText != null) {
+    setValueByPath(toObject, ["text"], fromText);
+  }
+  const fromThought = getValueByPath(fromObject, ["thought"]);
+  if (fromThought != null) {
+    setValueByPath(toObject, ["thought"], fromThought);
+  }
+  const fromThoughtSignature = getValueByPath(fromObject, [
+    "thoughtSignature"
+  ]);
+  if (fromThoughtSignature != null) {
+    setValueByPath(toObject, ["thoughtSignature"], fromThoughtSignature);
+  }
+  const fromVideoMetadata = getValueByPath(fromObject, [
+    "videoMetadata"
+  ]);
+  if (fromVideoMetadata != null) {
+    setValueByPath(toObject, ["videoMetadata"], fromVideoMetadata);
+  }
+  const fromPartMetadata = getValueByPath(fromObject, ["partMetadata"]);
+  if (fromPartMetadata != null) {
+    setValueByPath(toObject, ["partMetadata"], fromPartMetadata);
+  }
+  return toObject;
+}
+function safetySettingToMldev(fromObject) {
+  const toObject = {};
+  const fromCategory = getValueByPath(fromObject, ["category"]);
+  if (fromCategory != null) {
+    setValueByPath(toObject, ["category"], fromCategory);
+  }
+  if (getValueByPath(fromObject, ["method"]) !== void 0) {
+    throw new Error("method parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromThreshold = getValueByPath(fromObject, ["threshold"]);
+  if (fromThreshold != null) {
+    setValueByPath(toObject, ["threshold"], fromThreshold);
+  }
+  return toObject;
+}
+function sessionResumptionConfigToMldev(fromObject) {
+  const toObject = {};
+  const fromHandle = getValueByPath(fromObject, ["handle"]);
+  if (fromHandle != null) {
+    setValueByPath(toObject, ["handle"], fromHandle);
+  }
+  if (getValueByPath(fromObject, ["transparent"]) !== void 0) {
+    throw new Error("transparent parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function toolToMldev(fromObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["retrieval"]) !== void 0) {
+    throw new Error("retrieval parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromGoogleMaps = getValueByPath(fromObject, ["googleMaps"]);
+  if (fromGoogleMaps != null) {
+    setValueByPath(toObject, ["googleMaps"], googleMapsToMldev(fromGoogleMaps));
+  }
+  const fromMcpServers = getValueByPath(fromObject, ["mcpServers"]);
+  if (fromMcpServers != null) {
+    let transformedList = fromMcpServers;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["mcpServers"], transformedList);
+  }
+  const fromCodeExecution = getValueByPath(fromObject, [
+    "codeExecution"
+  ]);
+  if (fromCodeExecution != null) {
+    setValueByPath(toObject, ["codeExecution"], fromCodeExecution);
+  }
+  const fromComputerUse = getValueByPath(fromObject, ["computerUse"]);
+  if (fromComputerUse != null) {
+    setValueByPath(toObject, ["computerUse"], fromComputerUse);
+  }
+  if (getValueByPath(fromObject, ["enterpriseWebSearch"]) !== void 0) {
+    throw new Error("enterpriseWebSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["exaAiSearch"]) !== void 0) {
+    throw new Error("exaAiSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromFunctionDeclarations = getValueByPath(fromObject, [
+    "functionDeclarations"
+  ]);
+  if (fromFunctionDeclarations != null) {
+    let transformedList = fromFunctionDeclarations;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["functionDeclarations"], transformedList);
+  }
+  const fromGoogleSearch = getValueByPath(fromObject, ["googleSearch"]);
+  if (fromGoogleSearch != null) {
+    setValueByPath(toObject, ["googleSearch"], googleSearchToMldev(fromGoogleSearch));
+  }
+  const fromGoogleSearchRetrieval = getValueByPath(fromObject, [
+    "googleSearchRetrieval"
+  ]);
+  if (fromGoogleSearchRetrieval != null) {
+    setValueByPath(toObject, ["googleSearchRetrieval"], fromGoogleSearchRetrieval);
+  }
+  if (getValueByPath(fromObject, ["parallelAiSearch"]) !== void 0) {
+    throw new Error("parallelAiSearch parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromUrlContext = getValueByPath(fromObject, ["urlContext"]);
+  if (fromUrlContext != null) {
+    setValueByPath(toObject, ["urlContext"], fromUrlContext);
+  }
+  const fromFileSearch = getValueByPath(fromObject, ["fileSearch"]);
+  if (fromFileSearch != null) {
+    setValueByPath(toObject, ["fileSearch"], fromFileSearch);
+  }
+  return toObject;
+}
+function getFieldMasks(setup) {
+  const fields = [];
+  for (const key in setup) {
+    if (Object.prototype.hasOwnProperty.call(setup, key)) {
+      const value = setup[key];
+      if (typeof value === "object" && value != null && Object.keys(value).length > 0) {
+        const field = Object.keys(value).map((kk) => `${key}.${kk}`);
+        fields.push(...field);
+      } else {
+        fields.push(key);
+      }
+    }
+  }
+  return fields.join(",");
+}
+function convertBidiSetupToTokenSetup(requestDict, config) {
+  let setupForMaskGeneration = null;
+  const bidiGenerateContentSetupValue = requestDict["bidiGenerateContentSetup"];
+  if (typeof bidiGenerateContentSetupValue === "object" && bidiGenerateContentSetupValue !== null && "setup" in bidiGenerateContentSetupValue) {
+    const innerSetup = bidiGenerateContentSetupValue.setup;
+    if (typeof innerSetup === "object" && innerSetup !== null) {
+      requestDict["bidiGenerateContentSetup"] = innerSetup;
+      setupForMaskGeneration = innerSetup;
+    } else {
+      delete requestDict["bidiGenerateContentSetup"];
+    }
+  } else if (bidiGenerateContentSetupValue !== void 0) {
+    delete requestDict["bidiGenerateContentSetup"];
+  }
+  const preExistingFieldMask = requestDict["fieldMask"];
+  if (setupForMaskGeneration) {
+    const generatedMaskFromBidi = getFieldMasks(setupForMaskGeneration);
+    if (Array.isArray(config === null || config === void 0 ? void 0 : config.lockAdditionalFields) && (config === null || config === void 0 ? void 0 : config.lockAdditionalFields.length) === 0) {
+      if (generatedMaskFromBidi) {
+        requestDict["fieldMask"] = generatedMaskFromBidi;
+      } else {
+        delete requestDict["fieldMask"];
+      }
+    } else if ((config === null || config === void 0 ? void 0 : config.lockAdditionalFields) && config.lockAdditionalFields.length > 0 && preExistingFieldMask !== null && Array.isArray(preExistingFieldMask) && preExistingFieldMask.length > 0) {
+      const generationConfigFields = [
+        "temperature",
+        "topK",
+        "topP",
+        "maxOutputTokens",
+        "responseModalities",
+        "seed",
+        "speechConfig"
+      ];
+      let mappedFieldsFromPreExisting = [];
+      if (preExistingFieldMask.length > 0) {
+        mappedFieldsFromPreExisting = preExistingFieldMask.map((field) => {
+          if (generationConfigFields.includes(field)) {
+            return `generationConfig.${field}`;
+          }
+          return field;
+        });
+      }
+      const finalMaskParts = [];
+      if (generatedMaskFromBidi) {
+        finalMaskParts.push(generatedMaskFromBidi);
+      }
+      if (mappedFieldsFromPreExisting.length > 0) {
+        finalMaskParts.push(...mappedFieldsFromPreExisting);
+      }
+      if (finalMaskParts.length > 0) {
+        requestDict["fieldMask"] = finalMaskParts.join(",");
+      } else {
+        delete requestDict["fieldMask"];
+      }
+    } else {
+      delete requestDict["fieldMask"];
+    }
+  } else {
+    if (preExistingFieldMask !== null && Array.isArray(preExistingFieldMask) && preExistingFieldMask.length > 0) {
+      requestDict["fieldMask"] = preExistingFieldMask.join(",");
+    } else {
+      delete requestDict["fieldMask"];
+    }
+  }
+  return requestDict;
+}
+var Tokens = class extends BaseModule {
+  constructor(apiClient) {
+    super();
+    this.apiClient = apiClient;
+  }
+  /**
+   * Creates an ephemeral auth token resource.
+   *
+   * @experimental
+   *
+   * @remarks
+   * Ephemeral auth tokens is only supported in the Gemini Developer API.
+   * It can be used for the session connection to the Live constrained API.
+   * Support in v1alpha only.
+   *
+   * @param params - The parameters for the create request.
+   * @return The created auth token.
+   *
+   * @example
+   * ```ts
+   * const ai = new GoogleGenAI({
+   *     apiKey: token.name,
+   *     httpOptions: { apiVersion: 'v1alpha' }  // Support in v1alpha only.
+   * });
+   *
+   * // Case 1: If LiveEphemeralParameters is unset, unlock LiveConnectConfig
+   * // when using the token in Live API sessions. Each session connection can
+   * // use a different configuration.
+   * const config: CreateAuthTokenConfig = {
+   *     uses: 3,
+   *     expireTime: '2025-05-01T00:00:00Z',
+   * }
+   * const token = await ai.tokens.create(config);
+   *
+   * // Case 2: If LiveEphemeralParameters is set, lock all fields in
+   * // LiveConnectConfig when using the token in Live API sessions. For
+   * // example, changing `outputAudioTranscription` in the Live API
+   * // connection will be ignored by the API.
+   * const config: CreateAuthTokenConfig =
+   *     uses: 3,
+   *     expireTime: '2025-05-01T00:00:00Z',
+   *     LiveEphemeralParameters: {
+   *        model: 'gemini-2.0-flash-001',
+   *        config: {
+   *           'responseModalities': ['AUDIO'],
+   *           'systemInstruction': 'Always answer in English.',
+   *        }
+   *     }
+   * }
+   * const token = await ai.tokens.create(config);
+   *
+   * // Case 3: If LiveEphemeralParameters is set and lockAdditionalFields is
+   * // set, lock LiveConnectConfig with set and additional fields (e.g.
+   * // responseModalities, systemInstruction, temperature in this example) when
+   * // using the token in Live API sessions.
+   * const config: CreateAuthTokenConfig =
+   *     uses: 3,
+   *     expireTime: '2025-05-01T00:00:00Z',
+   *     LiveEphemeralParameters: {
+   *        model: 'gemini-2.0-flash-001',
+   *        config: {
+   *           'responseModalities': ['AUDIO'],
+   *           'systemInstruction': 'Always answer in English.',
+   *        }
+   *     },
+   *     lockAdditionalFields: ['temperature'],
+   * }
+   * const token = await ai.tokens.create(config);
+   *
+   * // Case 4: If LiveEphemeralParameters is set and lockAdditionalFields is
+   * // empty array, lock LiveConnectConfig with set fields (e.g.
+   * // responseModalities, systemInstruction in this example) when using the
+   * // token in Live API sessions.
+   * const config: CreateAuthTokenConfig =
+   *     uses: 3,
+   *     expireTime: '2025-05-01T00:00:00Z',
+   *     LiveEphemeralParameters: {
+   *        model: 'gemini-2.0-flash-001',
+   *        config: {
+   *           'responseModalities': ['AUDIO'],
+   *           'systemInstruction': 'Always answer in English.',
+   *        }
+   *     },
+   *     lockAdditionalFields: [],
+   * }
+   * const token = await ai.tokens.create(config);
+   * ```
+   */
+  async create(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("The client.tokens.create method is only supported by the Gemini Developer API.");
+    } else {
+      const body = createAuthTokenParametersToMldev(this.apiClient, params);
+      path6 = formatMap("auth_tokens", body["_url"]);
+      queryParams = body["_query"];
+      delete body["config"];
+      delete body["_url"];
+      delete body["_query"];
+      const transformedBody = convertBidiSetupToTokenSetup(body, params.config);
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(transformedBody),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    }
+  }
+};
+function deleteDocumentConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromForce = getValueByPath(fromObject, ["force"]);
+  if (parentObject !== void 0 && fromForce != null) {
+    setValueByPath(parentObject, ["_query", "force"], fromForce);
+  }
+  return toObject;
+}
+function deleteDocumentParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], fromName);
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    deleteDocumentConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function getDocumentParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], fromName);
+  }
+  return toObject;
+}
+function listDocumentsConfigToMldev(fromObject, parentObject) {
+  const toObject = {};
+  const fromPageSize = getValueByPath(fromObject, ["pageSize"]);
+  if (parentObject !== void 0 && fromPageSize != null) {
+    setValueByPath(parentObject, ["_query", "pageSize"], fromPageSize);
+  }
+  const fromPageToken = getValueByPath(fromObject, ["pageToken"]);
+  if (parentObject !== void 0 && fromPageToken != null) {
+    setValueByPath(parentObject, ["_query", "pageToken"], fromPageToken);
+  }
+  return toObject;
+}
+function listDocumentsParametersToMldev(fromObject) {
+  const toObject = {};
+  const fromParent = getValueByPath(fromObject, ["parent"]);
+  if (fromParent != null) {
+    setValueByPath(toObject, ["_url", "parent"], fromParent);
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    listDocumentsConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function listDocumentsResponseFromMldev(fromObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromNextPageToken = getValueByPath(fromObject, [
+    "nextPageToken"
+  ]);
+  if (fromNextPageToken != null) {
+    setValueByPath(toObject, ["nextPageToken"], fromNextPageToken);
+  }
+  const fromDocuments = getValueByPath(fromObject, ["documents"]);
+  if (fromDocuments != null) {
+    let transformedList = fromDocuments;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["documents"], transformedList);
+  }
+  return toObject;
+}
+var Documents = class extends BaseModule {
+  constructor(apiClient) {
+    super();
+    this.apiClient = apiClient;
+    this.list = async (params) => {
+      return new Pager(PagedItem.PAGED_ITEM_DOCUMENTS, (x2) => this.listInternal({ parent: params.parent, config: x2.config }), await this.listInternal(params), params);
+    };
+  }
+  /**
+   * Gets a Document.
+   *
+   * @param params - The parameters for getting a document.
+   * @return Document.
+   */
+  async get(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = getDocumentParametersToMldev(params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    }
+  }
+  /**
+   * Deletes a Document.
+   *
+   * @param params - The parameters for deleting a document.
+   */
+  async delete(params) {
+    var _a4, _b;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = deleteDocumentParametersToMldev(params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      await this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "DELETE",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      });
+    }
+  }
+  async listInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = listDocumentsParametersToMldev(params);
+      path6 = formatMap("{parent}/documents", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = listDocumentsResponseFromMldev(apiResponse);
+        const typedResp = new ListDocumentsResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+};
+var FileSearchStores = class extends BaseModule {
+  constructor(apiClient, documents = new Documents(apiClient)) {
+    super();
+    this.apiClient = apiClient;
+    this.documents = documents;
+    this.list = async (params = {}) => {
+      return new Pager(PagedItem.PAGED_ITEM_FILE_SEARCH_STORES, (x2) => this.listInternal(x2), await this.listInternal(params), params);
+    };
+  }
+  /**
+   * Uploads a file asynchronously to a given File Search Store.
+   * This method is not available in Gemini Enterprise Agent Platform (previously known as Vertex AI).
+   * Supported upload sources:
+   * - Node.js: File path (string) or Blob object.
+   * - Browser: Blob object (e.g., File).
+   *
+   * @remarks
+   * The `mimeType` can be specified in the `config` parameter. If omitted:
+   *  - For file path (string) inputs, the `mimeType` will be inferred from the
+   *     file extension.
+   *  - For Blob object inputs, the `mimeType` will be set to the Blob's `type`
+   *     property.
+   *
+   * This section can contain multiple paragraphs and code examples.
+   *
+   * @param params - Optional parameters specified in the
+   *        `types.UploadToFileSearchStoreParameters` interface.
+   *         @see {@link types.UploadToFileSearchStoreParameters#config} for the optional
+   *         config in the parameters.
+   * @return A promise that resolves to a long running operation.
+   * @throws An error if called on a Gemini Enterprise Agent Platform (previously known as Vertex AI) client.
+   * @throws An error if the `mimeType` is not provided and can not be inferred,
+   * the `mimeType` can be provided in the `params.config` parameter.
+   * @throws An error occurs if a suitable upload location cannot be established.
+   *
+   * @example
+   * The following code uploads a file to a given file search store.
+   *
+   * ```ts
+   * const operation = await ai.fileSearchStores.upload({fileSearchStoreName: 'fileSearchStores/foo-bar', file: 'file.txt', config: {
+   *   mimeType: 'text/plain',
+   * }});
+   * console.log(operation.name);
+   * ```
+   */
+  async uploadToFileSearchStore(params) {
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("Gemini Enterprise Agent Platform (previously known as Vertex AI) does not support uploading files to a file search store.");
+    }
+    return this.apiClient.uploadFileToFileSearchStore(params.fileSearchStoreName, params.file, params.config);
+  }
+  /**
+   * Downloads media using a Media ID or URI.
+   * This method is only supported in the Gemini Developer client.
+   *
+   * @param uri - The URI or Media ID of the blob.
+   * @param config - Optional configuration for the download.
+   * @returns A promise that resolves to the blob data as a Uint8Array.
+   */
+  async downloadMedia(uri, config) {
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported in the Gemini Developer client.");
+    }
+    const parsedUri = new URL(uri, "http://dummy.com");
+    let pathname = parsedUri.pathname;
+    if (pathname.startsWith("/")) {
+      pathname = pathname.slice(1);
+    }
+    if (!pathname.includes("/media/")) {
+      throw new Error(`Invalid uri format: ${uri}. Expected to contain /media/`);
+    }
+    const queryParams = {};
+    parsedUri.searchParams.forEach((value, key) => {
+      queryParams[key] = value;
+    });
+    queryParams["alt"] = "media";
+    const httpOptions = Object.assign({}, config === null || config === void 0 ? void 0 : config.httpOptions);
+    const response = await this.apiClient.request({
+      path: pathname,
+      httpMethod: "GET",
+      queryParams,
+      httpOptions
+    });
+    if (response instanceof HttpResponse) {
+      const arrayBuffer = await response.responseInternal.arrayBuffer();
+      return new Uint8Array(arrayBuffer);
+    } else {
+      throw new Error("Unexpected response type from downloadMedia");
+    }
+  }
+  /**
+   * Creates a File Search Store.
+   *
+   * @param params - The parameters for creating a File Search Store.
+   * @return FileSearchStore.
+   */
+  async create(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = createFileSearchStoreParametersToMldev(this.apiClient, params);
+      path6 = formatMap("fileSearchStores", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    }
+  }
+  /**
+   * Gets a File Search Store.
+   *
+   * @param params - The parameters for getting a File Search Store.
+   * @return FileSearchStore.
+   */
+  async get(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = getFileSearchStoreParametersToMldev(params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((resp) => {
+        return resp;
+      });
+    }
+  }
+  /**
+   * Deletes a File Search Store.
+   *
+   * @param params - The parameters for deleting a File Search Store.
+   */
+  async delete(params) {
+    var _a4, _b;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = deleteFileSearchStoreParametersToMldev(params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      await this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "DELETE",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      });
+    }
+  }
+  async listInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = listFileSearchStoresParametersToMldev(params);
+      path6 = formatMap("fileSearchStores", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = listFileSearchStoresResponseFromMldev(apiResponse);
+        const typedResp = new ListFileSearchStoresResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+  async uploadToFileSearchStoreInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = uploadToFileSearchStoreParametersToMldev(params);
+      path6 = formatMap("upload/v1beta/{file_search_store_name}:uploadToFileSearchStore", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = uploadToFileSearchStoreResumableResponseFromMldev(apiResponse);
+        const typedResp = new UploadToFileSearchStoreResumableResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+  /**
+   * Imports a File from File Service to a FileSearchStore.
+   *
+   * This is a long-running operation, see aip.dev/151
+   *
+   * @param params - The parameters for importing a file to a file search store.
+   * @return ImportFileOperation.
+   */
+  async importFile(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = importFileParametersToMldev(params);
+      path6 = formatMap("{file_search_store_name}:importFile", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json();
+      });
+      return response.then((apiResponse) => {
+        const resp = importFileOperationFromMldev(apiResponse);
+        const typedResp = new ImportFileOperation();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+};
+function isDeno() {
+  if ("Deno" in globalThis) {
+    return true;
+  }
+  return false;
+}
+var envMemo = void 0;
+function env() {
+  var _a4, _b, _c, _d, _e, _f;
+  if (envMemo) {
+    return envMemo;
+  }
+  const globals = globalThis;
+  let envObject = {};
+  if (isDeno()) {
+    envObject = (_d = (_c = (_b = (_a4 = globals.Deno) === null || _a4 === void 0 ? void 0 : _a4.env) === null || _b === void 0 ? void 0 : _b.toObject) === null || _c === void 0 ? void 0 : _c.call(_b)) !== null && _d !== void 0 ? _d : {};
+  } else {
+    envObject = (_f = (_e = globals.process) === null || _e === void 0 ? void 0 : _e.env) !== null && _f !== void 0 ? _f : {};
+  }
+  envMemo = envObject;
+  return envMemo;
+}
+function fillGlobals(options) {
+  var _a4, _b;
+  const clone2 = Object.assign({}, options);
+  const envVars = env();
+  if (typeof envVars.GOOGLE_GENAI_API_VERSION !== "undefined") {
+    (_a4 = clone2.api_version) !== null && _a4 !== void 0 ? _a4 : clone2.api_version = envVars.GOOGLE_GENAI_API_VERSION;
+  }
+  if (typeof envVars.GOOGLE_GENAI_USER_PROJECT !== "undefined") {
+    (_b = clone2.user_project) !== null && _b !== void 0 ? _b : clone2.user_project = envVars.GOOGLE_GENAI_USER_PROJECT;
+  }
+  return clone2;
+}
+var GoogleGenAISecurityProvider = class {
+  constructor(options) {
+    this.options = options;
+  }
+  getDefaultHeaders() {
+    return this.options.defaultHeaders;
+  }
+  async resolveGoogleGenAISecurity(url) {
+    return securityFromHeaders(await this.options.getAuthHeaders(url));
+  }
+};
+var GoogleGenAIAuthHook = class {
+  beforeCreateRequest(_hookCtx, input) {
+    return Object.assign(Object.assign({}, input), { url: decodeSDKLevelAPIVersionPath(input.url) });
+  }
+  async beforeRequest(hookCtx, request) {
+    applyDefaultHeaders(request.headers, getStaticDefaultHeaders(hookCtx.security_source));
+    applyUserProject(hookCtx, request.headers);
+    if (hasAuthHeaders(request.headers)) {
+      return request;
+    }
+    const security = await resolveSecurity$1(hookCtx.security_source, request.url);
+    applyDefaultHeaders(request.headers, security === null || security === void 0 ? void 0 : security.default_headers);
+    applyAuth(request.headers, security);
+    return request;
+  }
+};
+function decodeSDKLevelAPIVersionPath(url) {
+  const [, apiVersion, ...rest] = url.pathname.split("/");
+  if (!apiVersion) {
+    return url;
+  }
+  const decodedAPIVersion = decodeURIComponent(apiVersion);
+  if (!decodedAPIVersion.includes("/")) {
+    return url;
+  }
+  const nextURL = new URL(url);
+  nextURL.pathname = `/${decodedAPIVersion}/${rest.join("/")}`;
+  return nextURL;
+}
+async function resolveSecurity$1(securitySource, requestURL) {
+  if (isSecurityResolver(securitySource)) {
+    return securitySource.resolveGoogleGenAISecurity(requestURL);
+  }
+  const security = typeof securitySource === "function" ? await securitySource() : securitySource;
+  if (isSecurity(security)) {
+    return withEnvSecurity(security);
+  }
+  return withEnvSecurity(void 0);
+}
+function getStaticDefaultHeaders(securitySource) {
+  var _a4, _b;
+  if (isSecurityResolver(securitySource)) {
+    return (_b = (_a4 = securitySource.getDefaultHeaders) === null || _a4 === void 0 ? void 0 : _a4.call(securitySource)) !== null && _b !== void 0 ? _b : securitySource.defaultHeaders;
+  }
+  if (isSecurity(securitySource)) {
+    return securitySource.default_headers;
+  }
+  return void 0;
+}
+function withEnvSecurity(security) {
+  var _a4, _b;
+  const envVars = env();
+  const nextSecurity = Object.assign(Object.assign({}, security), { api_key: (_a4 = security === null || security === void 0 ? void 0 : security.api_key) !== null && _a4 !== void 0 ? _a4 : envVars.GOOGLE_GENAI_API_KEY, access_token: (_b = security === null || security === void 0 ? void 0 : security.access_token) !== null && _b !== void 0 ? _b : envVars.GOOGLE_GENAI_ACCESS_TOKEN });
+  return hasSecurityValue(nextSecurity) ? nextSecurity : void 0;
+}
+function securityFromHeaders(headers) {
+  var _a4, _b;
+  const defaultHeaders = {};
+  for (const [key, value] of headers) {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey !== "authorization" && lowerKey !== "x-goog-api-key") {
+      defaultHeaders[key] = value;
+    }
+  }
+  const security = {
+    access_token: (_a4 = headers.get("authorization")) !== null && _a4 !== void 0 ? _a4 : void 0,
+    api_key: (_b = headers.get("x-goog-api-key")) !== null && _b !== void 0 ? _b : void 0,
+    default_headers: Object.keys(defaultHeaders).length ? defaultHeaders : void 0
+  };
+  return hasSecurityValue(security) ? security : void 0;
+}
+function applyDefaultHeaders(target, source) {
+  if (!source) {
+    return;
+  }
+  for (const [key, value] of new Headers(source)) {
+    if (target.get(key) === null) {
+      target.set(key, value);
+    }
+  }
+}
+function applyUserProject(hookCtx, headers) {
+  if (hookCtx.options.user_project !== void 0 && headers.get("x-goog-user-project") === null) {
+    headers.set("x-goog-user-project", hookCtx.options.user_project);
+  }
+}
+function applyAuth(headers, security) {
+  if (!security) {
+    return;
+  }
+  if (security.api_key) {
+    headers.set("x-goog-api-key", security.api_key);
+    return;
+  }
+  if (security.access_token) {
+    headers.set("Authorization", bearer(security.access_token));
+  }
+}
+function hasAuthHeaders(headers) {
+  return headers.get("authorization") !== null || headers.get("x-goog-api-key") !== null;
+}
+function bearer(token) {
+  return token.slice(0, 7).toLowerCase() === "bearer " ? token : `Bearer ${token}`;
+}
+function isSecurity(value) {
+  return typeof value === "object" && value !== null;
+}
+function isSecurityResolver(value) {
+  return typeof value === "object" && value !== null && "resolveGoogleGenAISecurity" in value && typeof value.resolveGoogleGenAISecurity === "function";
+}
+function hasSecurityValue(security) {
+  return security.api_key !== void 0 || security.access_token !== void 0 || security.default_headers !== void 0;
+}
+var HTTPClientError = class extends Error {
+  constructor(message, opts) {
+    let msg = message;
+    if (opts === null || opts === void 0 ? void 0 : opts.cause) {
+      msg += `: ${opts.cause}`;
+    }
+    super(msg, opts);
+    this.name = "HTTPClientError";
+    if (typeof this.cause === "undefined") {
+      this.cause = opts === null || opts === void 0 ? void 0 : opts.cause;
+    }
+  }
+};
+var UnexpectedClientError = class extends HTTPClientError {
+  constructor() {
+    super(...arguments);
+    this.name = "UnexpectedClientError";
+  }
+};
+var InvalidRequestError = class extends HTTPClientError {
+  constructor() {
+    super(...arguments);
+    this.name = "InvalidRequestError";
+  }
+};
+var RequestAbortedError = class extends HTTPClientError {
+  constructor() {
+    super(...arguments);
+    this.name = "RequestAbortedError";
+  }
+};
+var RequestTimeoutError = class extends HTTPClientError {
+  constructor() {
+    super(...arguments);
+    this.name = "RequestTimeoutError";
+  }
+};
+var ConnectionError = class extends HTTPClientError {
+  constructor() {
+    super(...arguments);
+    this.name = "ConnectionError";
+  }
+};
+var GoogleGenAiError = class extends Error {
+  constructor(message, httpMeta) {
+    var _a4, _b, _c, _d;
+    super(message);
+    this.statusCode = (_a4 = httpMeta === null || httpMeta === void 0 ? void 0 : httpMeta.response) === null || _a4 === void 0 ? void 0 : _a4.status;
+    this.body = (_b = httpMeta === null || httpMeta === void 0 ? void 0 : httpMeta.body) !== null && _b !== void 0 ? _b : "";
+    this.headers = (_c = httpMeta === null || httpMeta === void 0 ? void 0 : httpMeta.response) === null || _c === void 0 ? void 0 : _c.headers;
+    this.contentType = ((_d = httpMeta === null || httpMeta === void 0 ? void 0 : httpMeta.response) === null || _d === void 0 ? void 0 : _d.headers.get("content-type")) || "";
+    this.rawResponse = httpMeta === null || httpMeta === void 0 ? void 0 : httpMeta.response;
+    this.name = "GoogleGenAiError";
+  }
+};
+var GeminiNextGenAPIClientError = class extends Error {
+};
+var APIError2 = class _APIError extends GeminiNextGenAPIClientError {
+  constructor(status, error, message, headers) {
+    super(_APIError.makeMessage(status, error, message));
+    this.status = status;
+    this.headers = headers;
+    this.error = error;
+    this.statusCode = status;
+    this.body = stringifyErrorBody(error);
+    this.contentType = (headers === null || headers === void 0 ? void 0 : headers.get("content-type")) || "";
+    this.rawResponse = void 0;
+    this.cause = void 0;
+    this.name = this.constructor.name;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+  static makeMessage(status, error, message) {
+    var _a4;
+    const errorMessage = error && isPlainObject$2(error) && typeof error["message"] === "string" ? error["message"] : void 0;
+    const errorBody = stringifyErrorBody(error);
+    const msg = (_a4 = errorMessage !== null && errorMessage !== void 0 ? errorMessage : message) !== null && _a4 !== void 0 ? _a4 : errorBody || "An error occurred";
+    const statusText = status ? `${status} ` : "";
+    return `${statusText}${msg}`;
+  }
+  static generate(status, errorResponse, message, headers) {
+    if (!status || !headers) {
+      return new APIConnectionError2({
+        message,
+        cause: errorResponse instanceof Error ? errorResponse : void 0
+      });
+    }
+    if (status === 400) {
+      return new BadRequestError2(status, errorResponse, message, headers);
+    }
+    if (status === 401) {
+      return new AuthenticationError2(status, errorResponse, message, headers);
+    }
+    if (status === 403) {
+      return new PermissionDeniedError2(status, errorResponse, message, headers);
+    }
+    if (status === 404) {
+      return new NotFoundError2(status, errorResponse, message, headers);
+    }
+    if (status === 409) {
+      return new ConflictError2(status, errorResponse, message, headers);
+    }
+    if (status === 422) {
+      return new UnprocessableEntityError2(status, errorResponse, message, headers);
+    }
+    if (status === 429) {
+      return new RateLimitError2(status, errorResponse, message, headers);
+    }
+    if (status >= 500) {
+      return new InternalServerError2(status, errorResponse, message, headers);
+    }
+    return new _APIError(status, errorResponse, message, headers);
+  }
+};
+var APIUserAbortError2 = class extends APIError2 {
+  constructor({ message } = {}) {
+    super(void 0, void 0, message || "Request was aborted.", void 0);
+  }
+};
+var APIConnectionError2 = class extends APIError2 {
+  constructor({ message, cause }) {
+    super(void 0, void 0, message || "Connection error.", void 0);
+    this.cause = cause;
+  }
+};
+var APIConnectionTimeoutError2 = class extends APIConnectionError2 {
+  constructor({ message } = {}) {
+    super({
+      message: message || "Request timed out. This is a client-side timeout. You can increase the timeout by setting the `timeout` argument in your request or client http options."
+    });
+  }
+};
+var BadRequestError2 = class extends APIError2 {
+};
+var AuthenticationError2 = class extends APIError2 {
+};
+var PermissionDeniedError2 = class extends APIError2 {
+};
+var NotFoundError2 = class extends APIError2 {
+};
+var ConflictError2 = class extends APIError2 {
+};
+var UnprocessableEntityError2 = class extends APIError2 {
+};
+var RateLimitError2 = class extends APIError2 {
+};
+var InternalServerError2 = class extends APIError2 {
+};
+function wrapSDKError(error) {
+  if (isCompatAPIErrorInstance(error)) {
+    return error;
+  }
+  if (error instanceof GoogleGenAiError) {
+    return wrapAPIError(error);
+  }
+  if (error instanceof HTTPClientError) {
+    return wrapHTTPClientError(error);
+  }
+  return error;
+}
+function wrapAPIError(error) {
+  const errorPayload = getErrorPayload(error);
+  const wrapped = APIError2.generate(error.statusCode, errorPayload, error.message, error.headers);
+  defineReadonly(wrapped, "body", error.body);
+  defineReadonly(wrapped, "contentType", error.contentType);
+  defineReadonly(wrapped, "rawResponse", error.rawResponse);
+  defineReadonly(wrapped, "statusCode", error.statusCode);
+  defineReadonly(wrapped, "cause", error);
+  return wrapped;
+}
+function wrapHTTPClientError(error) {
+  if (error instanceof RequestTimeoutError) {
+    return new APIConnectionTimeoutError2({ message: error.message });
+  }
+  if (error instanceof RequestAbortedError) {
+    return new APIUserAbortError2({ message: error.message });
+  }
+  if (error instanceof ConnectionError) {
+    return new APIConnectionError2({ message: error.message, cause: error });
+  }
+  return new APIConnectionError2({ message: error.message, cause: error });
+}
+function getErrorPayload(error) {
+  const data = getObjectProperty(error, "data$");
+  if (data && typeof data === "object") {
+    return data;
+  }
+  try {
+    const parsed = JSON.parse(error.body);
+    if (parsed && typeof parsed === "object") {
+      return parsed;
+    }
+  } catch (_a4) {
+  }
+  const dataError = getObjectProperty(error, "error");
+  return dataError && typeof dataError === "object" ? dataError : void 0;
+}
+function getObjectProperty(value, key) {
+  return value && typeof value === "object" ? value[key] : void 0;
+}
+function stringifyErrorBody(error) {
+  if (!error)
+    return "";
+  try {
+    return JSON.stringify(error);
+  } catch (_a4) {
+    return String(error);
+  }
+}
+function isPlainObject$2(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function isCompatAPIErrorInstance(value) {
+  return typeof value === "object" && value !== null ? APIError2.prototype.isPrototypeOf(value) : false;
+}
+function defineReadonly(target, key, value) {
+  Object.defineProperty(target, key, {
+    configurable: true,
+    enumerable: true,
+    value,
+    writable: false
+  });
+}
+function initHooks(hooks) {
+  const googleGenAIAuthHook = new GoogleGenAIAuthHook();
+  hooks.registerBeforeCreateRequestHook(googleGenAIAuthHook);
+  hooks.registerBeforeRequestHook(googleGenAIAuthHook);
+}
+var SDKHooks = class {
+  constructor() {
+    this.sdkInitHooks = [];
+    this.beforeCreateRequestHooks = [];
+    this.beforeRequestHooks = [];
+    this.afterSuccessHooks = [];
+    this.afterErrorHooks = [];
+    const presetHooks = [];
+    for (const hook of presetHooks) {
+      if ("sdkInit" in hook) {
+        this.registerSDKInitHook(hook);
+      }
+      if ("beforeCreateRequest" in hook) {
+        this.registerBeforeCreateRequestHook(hook);
+      }
+      if ("beforeRequest" in hook) {
+        this.registerBeforeRequestHook(hook);
+      }
+      if ("afterSuccess" in hook) {
+        this.registerAfterSuccessHook(hook);
+      }
+      if ("afterError" in hook) {
+        this.registerAfterErrorHook(hook);
+      }
+    }
+    initHooks(this);
+  }
+  registerSDKInitHook(hook) {
+    this.sdkInitHooks.push(hook);
+  }
+  registerBeforeCreateRequestHook(hook) {
+    this.beforeCreateRequestHooks.push(hook);
+  }
+  registerBeforeRequestHook(hook) {
+    this.beforeRequestHooks.push(hook);
+  }
+  registerAfterSuccessHook(hook) {
+    this.afterSuccessHooks.push(hook);
+  }
+  registerAfterErrorHook(hook) {
+    this.afterErrorHooks.push(hook);
+  }
+  sdkInit(opts) {
+    return this.sdkInitHooks.reduce((opts2, hook) => hook.sdkInit(opts2), opts);
+  }
+  beforeCreateRequest(hookCtx, input) {
+    let inp = input;
+    for (const hook of this.beforeCreateRequestHooks) {
+      inp = hook.beforeCreateRequest(hookCtx, inp);
+    }
+    return inp;
+  }
+  async beforeRequest(hookCtx, request) {
+    let req = request;
+    for (const hook of this.beforeRequestHooks) {
+      req = await hook.beforeRequest(hookCtx, req);
+    }
+    return req;
+  }
+  async afterSuccess(hookCtx, response) {
+    let res = response;
+    for (const hook of this.afterSuccessHooks) {
+      res = await hook.afterSuccess(hookCtx, res);
+    }
+    return res;
+  }
+  async afterError(hookCtx, response, error) {
+    let res = response;
+    let err = error;
+    for (const hook of this.afterErrorHooks) {
+      const result = await hook.afterError(hookCtx, res, err);
+      res = result.response;
+      err = result.error;
+    }
+    return { response: res, error: err };
+  }
+};
+function OK(value) {
+  return { ok: true, value };
+}
+function ERR(error) {
+  return { ok: false, error };
+}
 function bytesToBase64(u8arr) {
   return btoa(String.fromCodePoint(...u8arr));
+}
+function stringToBytes(str2) {
+  return new TextEncoder().encode(str2);
+}
+function stringToBase64(str2) {
+  return bytesToBase64(stringToBytes(str2));
+}
+var hasOwn2 = Object.prototype.hasOwnProperty;
+function pathToFunc(pathPattern, options) {
+  const paramRE = /\{([a-zA-Z0-9_][a-zA-Z0-9_-]*?)\}/g;
+  return function buildURLPath(params = {}) {
+    return pathPattern.replace(paramRE, function(_, placeholder) {
+      if (!hasOwn2.call(params, placeholder)) {
+        throw new Error(`Parameter '${placeholder}' is required`);
+      }
+      const value = params[placeholder];
+      if (typeof value !== "string" && typeof value !== "number") {
+        throw new Error(`Parameter '${placeholder}' must be a string or number`);
+      }
+      return `${value}`;
+    }).replace(/^\/+/, "");
+  };
+}
+var ServerList = [
+  /**
+   * Global Endpoint
+   */
+  "https://generativelanguage.googleapis.com"
+];
+function serverURLFromOptions(options) {
+  var _a4;
+  let serverURL = options.server_url;
+  const params = {};
+  if (!serverURL) {
+    const serverIdx = (_a4 = options.server_idx) !== null && _a4 !== void 0 ? _a4 : 0;
+    if (serverIdx < 0 || serverIdx >= ServerList.length) {
+      throw new Error(`Invalid server index ${serverIdx}`);
+    }
+    serverURL = ServerList[serverIdx] || "";
+  }
+  const u = pathToFunc(serverURL)(params);
+  return new URL(u);
+}
+var SDK_METADATA = {
+  userAgent: "speakeasy-sdk/typescript 2.4.1-preview.4 2.924.0 v1beta @google/genai"
+};
+function combineSignals(...signals) {
+  const filtered = [];
+  for (const signal of signals) {
+    if (signal) {
+      filtered.push(signal);
+    }
+  }
+  switch (filtered.length) {
+    case 0:
+    case 1:
+      return filtered[0] || null;
+    default:
+      if ("any" in AbortSignal && typeof AbortSignal.any === "function") {
+        return AbortSignal.any(filtered);
+      }
+      return abortSignalAny(filtered);
+  }
+}
+function abortSignalAny(signals) {
+  const controller = new AbortController();
+  const result = controller.signal;
+  if (!signals.length) {
+    return controller.signal;
+  }
+  if (signals.length === 1) {
+    return signals[0] || controller.signal;
+  }
+  for (const signal of signals) {
+    if (signal.aborted) {
+      return signal;
+    }
+  }
+  function abort() {
+    controller.abort(this.reason);
+    clean();
+  }
+  const signalRefs = [];
+  function clean() {
+    for (const signalRef of signalRefs) {
+      const signal = signalRef.deref();
+      if (signal) {
+        signal.removeEventListener("abort", abort);
+      }
+    }
+  }
+  for (const signal of signals) {
+    signalRefs.push(new WeakRef(signal));
+    signal.addEventListener("abort", abort);
+  }
+  return result;
+}
+function compactMap(values) {
+  const out = {};
+  for (const [k, v] of Object.entries(values)) {
+    if (typeof v !== "undefined") {
+      out[k] = v;
+    }
+  }
+  return out;
 }
 function isPlainObject$1(value) {
   if (value === null || typeof value !== "object")
@@ -52127,6 +61051,46 @@ function formEncoder(sep) {
   };
 }
 var encodeForm = formEncoder(",");
+function encodeJSON(key, value, options) {
+  if (typeof value === "undefined") {
+    return;
+  }
+  const encodeString = (v) => {
+    return (options === null || options === void 0 ? void 0 : options.charEncoding) === "percent" ? encodeURIComponent(v) : v;
+  };
+  const encVal = encodeString(JSON.stringify(value, jsonReplacer));
+  return (options === null || options === void 0 ? void 0 : options.explode) ? encVal : `${encodeString(key)}=${encVal}`;
+}
+var encodeSimple = (key, value, options) => {
+  let out = "";
+  const pairs = (options === null || options === void 0 ? void 0 : options.explode) ? explode(key, value) : [[key, value]];
+  if (pairs.every(([_, v]) => v == null)) {
+    return;
+  }
+  const encodeString = (v) => {
+    return (options === null || options === void 0 ? void 0 : options.charEncoding) === "percent" ? encodeURIComponent(v) : v;
+  };
+  const encodeValue = (v) => encodeString(serializeValue(v));
+  pairs.forEach(([pk, pv]) => {
+    var _a4;
+    let tmp = "";
+    if (pv == null) {
+      return;
+    } else if (Array.isArray(pv)) {
+      tmp = (_a4 = mapDefined(pv, (v) => `${encodeValue(v)}`)) === null || _a4 === void 0 ? void 0 : _a4.join(",");
+    } else if (isPlainObject$1(pv)) {
+      const mapped = mapDefinedEntries(Object.entries(pv), ([k, v]) => {
+        return `,${encodeString(k)},${encodeValue(v)}`;
+      });
+      tmp = mapped === null || mapped === void 0 ? void 0 : mapped.join("").slice(1);
+    } else {
+      const k = (options === null || options === void 0 ? void 0 : options.explode) && isPlainObject$1(value) ? `${pk}=` : "";
+      tmp = `${k}${encodeValue(pv)}`;
+    }
+    out += tmp ? `,${tmp}` : "";
+  });
+  return out.slice(1);
+};
 function explode(key, value) {
   if (Array.isArray(value)) {
     return value.map((v) => [key, v]);
@@ -52205,11 +61169,757 @@ function queryEncoder(f3) {
   return bulkEncode;
 }
 var encodeFormQuery = queryEncoder(encodeForm);
+var DEFAULT_FETCHER = (input, init) => {
+  if (init == null) {
+    return fetch(input);
+  } else {
+    return fetch(input, init);
+  }
+};
+var HTTPClient = class _HTTPClient {
+  constructor(options = {}) {
+    this.requestHooks = [];
+    this.requestErrorHooks = [];
+    this.responseHooks = [];
+    this.options = options;
+    this.fetcher = options.fetcher || DEFAULT_FETCHER;
+  }
+  async request(request) {
+    let req = request;
+    for (const hook of this.requestHooks) {
+      const nextRequest = await hook(req);
+      if (nextRequest) {
+        req = nextRequest;
+      }
+    }
+    try {
+      const res = await this.fetcher(req);
+      for (const hook of this.responseHooks) {
+        await hook(res, req);
+      }
+      return res;
+    } catch (err) {
+      for (const hook of this.requestErrorHooks) {
+        await hook(err, req);
+      }
+      throw err;
+    }
+  }
+  addHook(...args) {
+    if (args[0] === "beforeRequest") {
+      this.requestHooks.push(args[1]);
+    } else if (args[0] === "requestError") {
+      this.requestErrorHooks.push(args[1]);
+    } else if (args[0] === "response") {
+      this.responseHooks.push(args[1]);
+    } else {
+      throw new Error(`Invalid hook type: ${args[0]}`);
+    }
+    return this;
+  }
+  removeHook(...args) {
+    let target;
+    if (args[0] === "beforeRequest") {
+      target = this.requestHooks;
+    } else if (args[0] === "requestError") {
+      target = this.requestErrorHooks;
+    } else if (args[0] === "response") {
+      target = this.responseHooks;
+    } else {
+      throw new Error(`Invalid hook type: ${args[0]}`);
+    }
+    const index = target.findIndex((v) => v === args[1]);
+    if (index >= 0) {
+      target.splice(index, 1);
+    }
+    return this;
+  }
+  clone() {
+    const child = new _HTTPClient(this.options);
+    child.requestHooks = this.requestHooks.slice();
+    child.requestErrorHooks = this.requestErrorHooks.slice();
+    child.responseHooks = this.responseHooks.slice();
+    return child;
+  }
+};
+var mediaParamSeparator = /\s*;\s*/g;
+function matchContentType(response, pattern) {
+  var _a4;
+  if (pattern === "*") {
+    return true;
+  }
+  let contentType = ((_a4 = response.headers.get("content-type")) === null || _a4 === void 0 ? void 0 : _a4.trim()) || "application/octet-stream";
+  contentType = contentType.toLowerCase();
+  const wantParts = pattern.toLowerCase().trim().split(mediaParamSeparator);
+  const [wantType = "", ...wantParams] = wantParts;
+  if (wantType.split("/").length !== 2) {
+    return false;
+  }
+  const gotParts = contentType.split(mediaParamSeparator);
+  const [gotType = "", ...gotParams] = gotParts;
+  const [type = "", subtype = ""] = gotType.split("/");
+  if (!type || !subtype) {
+    return false;
+  }
+  if (wantType !== "*/*" && gotType !== wantType && `${type}/*` !== wantType && `*/${subtype}` !== wantType) {
+    return false;
+  }
+  if (gotParams.length < wantParams.length) {
+    return false;
+  }
+  const params = new Set(gotParams);
+  for (const wantParam of wantParams) {
+    if (!params.has(wantParam)) {
+      return false;
+    }
+  }
+  return true;
+}
 var codeRangeRE$1 = new RegExp("^[0-9]xx$", "i");
+function matchStatusCode(response, codes) {
+  const actual = `${response.status}`;
+  const expectedCodes = Array.isArray(codes) ? codes : [codes];
+  if (!expectedCodes.length) {
+    return false;
+  }
+  return expectedCodes.some((ec) => {
+    const code = `${ec}`;
+    if (code === "default") {
+      return true;
+    }
+    if (!codeRangeRE$1.test(`${code}`)) {
+      return code === actual;
+    }
+    const expectFamily = code.charAt(0);
+    if (!expectFamily) {
+      throw new Error("Invalid status code range");
+    }
+    const actualFamily = actual.charAt(0);
+    if (!actualFamily) {
+      throw new Error(`Invalid response status code: ${actual}`);
+    }
+    return actualFamily === expectFamily;
+  });
+}
+function matchResponse(response, code, contentTypePattern) {
+  return matchStatusCode(response, code) && matchContentType(response, contentTypePattern);
+}
+function isConnectionError(err) {
+  if (typeof err !== "object" || err == null) {
+    return false;
+  }
+  const isBrowserErr = err instanceof TypeError && err.message.toLowerCase().startsWith("failed to fetch");
+  const isNodeErr = err instanceof TypeError && err.message.toLowerCase().startsWith("fetch failed");
+  const isBunErr = "name" in err && err.name === "ConnectionError";
+  const isGenericErr = "code" in err && typeof err.code === "string" && err.code.toLowerCase() === "econnreset";
+  return isBrowserErr || isNodeErr || isGenericErr || isBunErr;
+}
+function isTimeoutError(err) {
+  if (typeof err !== "object" || err == null) {
+    return false;
+  }
+  const isNative = "name" in err && err.name === "TimeoutError";
+  const isLegacyNative = "code" in err && err.code === 23;
+  const isGenericErr = "code" in err && typeof err.code === "string" && err.code.toLowerCase() === "econnaborted";
+  return isNative || isLegacyNative || isGenericErr;
+}
+function isAbortError2(err) {
+  if (typeof err !== "object" || err == null) {
+    return false;
+  }
+  const isNative = "name" in err && err.name === "AbortError";
+  const isLegacyNative = "code" in err && err.code === 20;
+  const isGenericErr = "code" in err && typeof err.code === "string" && err.code.toLowerCase() === "econnaborted";
+  return isNative || isLegacyNative || isGenericErr;
+}
+var defaultBackoff = {
+  initialInterval: 500,
+  maxInterval: 6e4,
+  exponent: 1.5,
+  maxElapsedTime: 36e5
+};
+var PermanentError = class _PermanentError extends Error {
+  constructor(message, options) {
+    let msg = message;
+    if (options === null || options === void 0 ? void 0 : options.cause) {
+      msg += `: ${options.cause}`;
+    }
+    super(msg, options);
+    this.name = "PermanentError";
+    if (typeof this.cause === "undefined") {
+      this.cause = options === null || options === void 0 ? void 0 : options.cause;
+    }
+    Object.setPrototypeOf(this, _PermanentError.prototype);
+  }
+};
+var TemporaryError = class _TemporaryError extends Error {
+  constructor(message, response) {
+    super(message);
+    this.response = response;
+    this.name = "TemporaryError";
+    Object.setPrototypeOf(this, _TemporaryError.prototype);
+  }
+};
+async function retry(fetchFn, options) {
+  var _a4;
+  switch (options.config.strategy) {
+    case "backoff":
+      return retryBackoff(wrapFetcher(fetchFn, {
+        statusCodes: options.statusCodes,
+        retryConnectionErrors: !!options.config.retryConnectionErrors
+      }), (_a4 = options.config.backoff) !== null && _a4 !== void 0 ? _a4 : defaultBackoff);
+    case "attempt-count-backoff":
+      return retryAttemptCountBackoff(wrapFetcher(fetchFn, {
+        statusCodes: options.statusCodes,
+        retryConnectionErrors: !!options.config.retryConnectionErrors
+      }), Object.assign(Object.assign({}, defaultBackoff), options.config.backoff), options.config);
+    default:
+      return await fetchFn(0);
+  }
+}
+function wrapFetcher(fn, options) {
+  return async (attempt) => {
+    try {
+      const res = await fn(attempt);
+      if (isRetryableResponse(res, options.statusCodes)) {
+        throw new TemporaryError("Response failed with retryable status code", res);
+      }
+      return res;
+    } catch (err) {
+      if (err instanceof TemporaryError) {
+        throw err;
+      }
+      if (options.retryConnectionErrors && (isTimeoutError(err) || isConnectionError(err))) {
+        throw err;
+      }
+      throw new PermanentError("Permanent error", { cause: err });
+    }
+  };
+}
 var codeRangeRE = new RegExp("^[0-9]xx$", "i");
+function isRetryableResponse(res, statusCodes) {
+  const actual = `${res.status}`;
+  return statusCodes.some((code) => {
+    if (!codeRangeRE.test(code)) {
+      return code === actual;
+    }
+    const expectFamily = code.charAt(0);
+    if (!expectFamily) {
+      throw new Error("Invalid status code range");
+    }
+    const actualFamily = actual.charAt(0);
+    if (!actualFamily) {
+      throw new Error(`Invalid response status code: ${actual}`);
+    }
+    return actualFamily === expectFamily;
+  });
+}
+async function retryBackoff(fn, strategy) {
+  const { maxElapsedTime, initialInterval, exponent, maxInterval } = strategy;
+  const start = Date.now();
+  let x2 = 0;
+  while (true) {
+    try {
+      const res = await fn(x2);
+      return res;
+    } catch (err) {
+      if (err instanceof PermanentError) {
+        throw err.cause;
+      }
+      const elapsed = Date.now() - start;
+      if (elapsed > maxElapsedTime) {
+        if (err instanceof TemporaryError) {
+          return err.response;
+        }
+        throw err;
+      }
+      let retryInterval = 0;
+      if (err instanceof TemporaryError) {
+        retryInterval = retryIntervalFromResponse(err.response);
+      }
+      if (retryInterval <= 0) {
+        retryInterval = initialInterval * Math.pow(x2, exponent) + Math.random() * 1e3;
+      }
+      const d = Math.min(retryInterval, maxInterval);
+      await delay(d);
+      x2++;
+    }
+  }
+}
+async function retryAttemptCountBackoff(fn, strategy, config) {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn(attempt);
+    } catch (err) {
+      if (err instanceof PermanentError) {
+        throw err.cause;
+      }
+      if (attempt >= config.maxRetries) {
+        if (err instanceof TemporaryError) {
+          return err.response;
+        }
+        throw err;
+      }
+      let retryInterval = 0;
+      if (err instanceof TemporaryError) {
+        retryInterval = retryIntervalFromResponse(err.response);
+      }
+      if (retryInterval <= 0) {
+        retryInterval = strategy.initialInterval * Math.pow(strategy.exponent, attempt) * (1 - Math.random() * 0.25);
+      }
+      const d = Math.min(retryInterval, strategy.maxInterval);
+      await delay(d);
+      attempt++;
+    }
+  }
+}
+function retryIntervalFromResponse(res) {
+  const retryAfterMsVal = res.headers.get("retry-after-ms");
+  if (retryAfterMsVal) {
+    const parsedMs = Number(retryAfterMsVal);
+    if (Number.isFinite(parsedMs) && parsedMs >= 0) {
+      return parsedMs;
+    }
+  }
+  const retryVal = res.headers.get("retry-after") || "";
+  if (!retryVal) {
+    return 0;
+  }
+  const parsedNumber = Number(retryVal);
+  if (Number.isInteger(parsedNumber)) {
+    return parsedNumber * 1e3;
+  }
+  const parsedDate = Date.parse(retryVal);
+  if (Number.isInteger(parsedDate)) {
+    const deltaMS = parsedDate - Date.now();
+    return deltaMS > 0 ? Math.ceil(deltaMS) : 0;
+  }
+  return 0;
+}
+async function delay(delay2) {
+  return new Promise((resolve) => setTimeout(resolve, delay2));
+}
 var gt = typeof globalThis === "undefined" ? null : globalThis;
 var webWorkerLike = typeof gt === "object" && gt != null && "importScripts" in gt && typeof gt["importScripts"] === "function";
 var isBrowserLike = webWorkerLike || typeof navigator !== "undefined" && "serviceWorker" in navigator || typeof window === "object" && typeof window.document !== "undefined";
+var ClientSDK = class {
+  constructor(options = {}) {
+    const opt = options;
+    if (typeof opt === "object" && opt != null && "hooks" in opt && opt.hooks instanceof SDKHooks) {
+      this._hooks = opt.hooks;
+    } else {
+      this._hooks = new SDKHooks();
+    }
+    const defaultHttpClient = new HTTPClient();
+    options.http_client = options.http_client || defaultHttpClient;
+    options = this._hooks.sdkInit(options);
+    const url = serverURLFromOptions(options);
+    if (url) {
+      url.pathname = url.pathname.replace(/\/+$/, "") + "/";
+    }
+    this._baseURL = url;
+    this._httpClient = options.http_client || defaultHttpClient;
+    this._options = Object.assign(Object.assign({}, fillGlobals(options)), { hooks: this._hooks });
+    this._logger = this._options.debug_logger;
+    if (!this._logger && env().GOOGLE_GENAI_DEBUG) {
+      this._logger = console;
+    }
+  }
+  _createRequest(context, conf, options) {
+    var _a4, _b, _c, _d, _e;
+    const { method, path: path6, query, headers: opHeaders, security } = conf;
+    const base = (_a4 = conf.baseURL) !== null && _a4 !== void 0 ? _a4 : this._baseURL;
+    if (!base) {
+      return ERR(new InvalidRequestError("No base URL provided for operation"));
+    }
+    const baseURL = new URL(base);
+    let reqURL;
+    if (path6) {
+      baseURL.pathname = baseURL.pathname.replace(/\/+$/, "") + "/";
+      reqURL = new URL(path6, baseURL);
+      if (!reqURL.search && baseURL.search) {
+        reqURL.search = baseURL.search;
+      }
+    } else {
+      reqURL = baseURL;
+    }
+    reqURL.hash = "";
+    const mergeQuery = (current, additions) => {
+      if (!additions) {
+        return current;
+      }
+      const additionKeys = new Set(additions.split("&").filter((pair) => pair !== "").map((pair) => {
+        var _a5;
+        return (_a5 = pair.split("=")[0]) !== null && _a5 !== void 0 ? _a5 : "";
+      }));
+      const kept = current.split("&").filter((pair) => {
+        var _a5;
+        return pair !== "" && !additionKeys.has((_a5 = pair.split("=")[0]) !== null && _a5 !== void 0 ? _a5 : "");
+      });
+      return [...kept, additions].join("&");
+    };
+    const encodeQueryRecord = (record) => {
+      return Object.entries(record).map(([k, v]) => {
+        if (v == null) {
+          return void 0;
+        }
+        const value = isPlainObject$1(v) ? JSON.stringify(v) : v;
+        return encodeForm(k, value, {
+          explode: Array.isArray(value),
+          charEncoding: "percent"
+        });
+      }).filter((pair) => typeof pair !== "undefined").join("&");
+    };
+    const finalQuery = [
+      query || "",
+      encodeQueryRecord((options === null || options === void 0 ? void 0 : options.extra_query) || {}),
+      encodeQueryRecord((security === null || security === void 0 ? void 0 : security.queryParams) || {})
+    ].reduce(mergeQuery, reqURL.search.slice(1));
+    if (finalQuery) {
+      reqURL.search = `?${finalQuery}`;
+    }
+    const headers = new Headers(opHeaders);
+    const username = security === null || security === void 0 ? void 0 : security.basic.username;
+    const password = security === null || security === void 0 ? void 0 : security.basic.password;
+    if (username != null || password != null) {
+      const encoded = stringToBase64([username || "", password || ""].join(":"));
+      headers.set("Authorization", `Basic ${encoded}`);
+    }
+    const securityHeaders = new Headers((security === null || security === void 0 ? void 0 : security.headers) || {});
+    for (const [k, v] of securityHeaders) {
+      headers.set(k, v);
+    }
+    let cookie = headers.get("cookie") || "";
+    for (const [k, v] of Object.entries((security === null || security === void 0 ? void 0 : security.cookies) || {})) {
+      cookie += `; ${k}=${v}`;
+    }
+    cookie = cookie.startsWith("; ") ? cookie.slice(2) : cookie;
+    headers.set("cookie", cookie);
+    const userHeaders = new Headers((_b = options === null || options === void 0 ? void 0 : options.headers) !== null && _b !== void 0 ? _b : (_c = options === null || options === void 0 ? void 0 : options.fetch_options) === null || _c === void 0 ? void 0 : _c.headers);
+    for (const [k, v] of userHeaders) {
+      headers.set(k, v);
+    }
+    if (!isBrowserLike) {
+      headers.set((_d = conf.uaHeader) !== null && _d !== void 0 ? _d : "user-agent", (_e = conf.userAgent) !== null && _e !== void 0 ? _e : SDK_METADATA.userAgent);
+    }
+    let reqBody = conf.body;
+    const extraBody = Object.fromEntries(Object.entries((options === null || options === void 0 ? void 0 : options.extra_body) || {}).filter(([, v]) => typeof v !== "undefined"));
+    if (Object.keys(extraBody).length > 0) {
+      const contentType = new Headers(opHeaders).get("content-type") || "";
+      const isJSON = /^(application|text)\/([^+]+\+)*json/.test(contentType);
+      if (!isJSON || typeof reqBody !== "string" && reqBody != null) {
+        return ERR(new InvalidRequestError("extra_body can only be merged into JSON object request bodies"));
+      }
+      let parsedBody;
+      try {
+        parsedBody = reqBody ? JSON.parse(reqBody) : {};
+      } catch (err) {
+        return ERR(new InvalidRequestError("extra_body can only be merged into JSON object request bodies", { cause: err }));
+      }
+      if (!isPlainObject$1(parsedBody)) {
+        return ERR(new InvalidRequestError("extra_body can only be merged into JSON object request bodies"));
+      }
+      reqBody = JSON.stringify(Object.assign(Object.assign({}, parsedBody), extraBody));
+      headers.delete("content-length");
+    }
+    const fetchOptions = Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.fetch_options), options);
+    if (!(fetchOptions === null || fetchOptions === void 0 ? void 0 : fetchOptions.signal) && conf.timeout_ms != null && conf.timeout_ms > 0) {
+      context.timeout_ms = conf.timeout_ms;
+    }
+    if (conf.body instanceof ReadableStream) {
+      Object.assign(fetchOptions, { duplex: "half" });
+    }
+    let input;
+    try {
+      input = this._hooks.beforeCreateRequest(context, {
+        url: reqURL,
+        options: Object.assign(Object.assign({}, fetchOptions), {
+          body: reqBody !== null && reqBody !== void 0 ? reqBody : null,
+          headers,
+          method
+        })
+      });
+    } catch (err) {
+      return ERR(new UnexpectedClientError("Create request hook failed to execute", {
+        cause: err
+      }));
+    }
+    return OK(new Request(input.url, input.options));
+  }
+  async _do(request, options) {
+    const { context, isErrorStatusCode } = options;
+    const timeout_ms = context.timeout_ms;
+    return retry(async () => {
+      var _a4;
+      const cloned = request.clone();
+      let attempt = cloned;
+      if (timeout_ms != null && timeout_ms > 0) {
+        const timeoutSignal = AbortSignal.timeout(timeout_ms);
+        const combined = (_a4 = combineSignals(cloned.signal, timeoutSignal)) !== null && _a4 !== void 0 ? _a4 : timeoutSignal;
+        attempt = new Request(cloned, { signal: combined });
+      }
+      const req = await this._hooks.beforeRequest(context, attempt);
+      await logRequest(this._logger, req).catch((e2) => {
+        var _a5;
+        return (_a5 = this._logger) === null || _a5 === void 0 ? void 0 : _a5.log("Failed to log request:", e2);
+      });
+      let response = await this._httpClient.request(req);
+      try {
+        if (isErrorStatusCode(response.status)) {
+          const result = await this._hooks.afterError(context, response, null);
+          if (result.error) {
+            throw result.error;
+          }
+          response = result.response || response;
+        } else {
+          response = await this._hooks.afterSuccess(context, response);
+        }
+      } finally {
+        await logResponse(this._logger, response, req).catch((e2) => {
+          var _a5;
+          return (_a5 = this._logger) === null || _a5 === void 0 ? void 0 : _a5.log("Failed to log response:", e2);
+        });
+      }
+      return response;
+    }, { config: options.retryConfig, statusCodes: options.retryCodes }).then((r2) => OK(r2), (err) => {
+      switch (true) {
+        case isAbortError2(err):
+          return ERR(new RequestAbortedError("Request aborted by client", {
+            cause: err
+          }));
+        case isTimeoutError(err):
+          return ERR(new RequestTimeoutError("Request timed out", { cause: err }));
+        case isConnectionError(err):
+          return ERR(new ConnectionError("Unable to make request", { cause: err }));
+        default:
+          return ERR(new UnexpectedClientError("Unexpected HTTP client error", {
+            cause: err
+          }));
+      }
+    });
+  }
+};
+var jsonLikeContentTypeRE = /^(application|text)\/([^+]+\+)*json.*/;
+var jsonlLikeContentTypeRE = /^(application|text)\/([^+]+\+)*(jsonl|x-ndjson)\b.*/;
+async function logRequest(logger2, req) {
+  if (!logger2) {
+    return;
+  }
+  const contentType = req.headers.get("content-type");
+  const ct = (contentType === null || contentType === void 0 ? void 0 : contentType.split(";")[0]) || "";
+  logger2.group(`> Request: ${req.method} ${req.url}`);
+  logger2.group("Headers:");
+  for (const [k, v] of req.headers.entries()) {
+    logger2.log(`${k}: ${v}`);
+  }
+  logger2.groupEnd();
+  logger2.group("Body:");
+  switch (true) {
+    case jsonLikeContentTypeRE.test(ct):
+      logger2.log(await req.clone().json());
+      break;
+    case ct.startsWith("text/"):
+      logger2.log(await req.clone().text());
+      break;
+    case ct === "multipart/form-data": {
+      const body = await req.clone().formData();
+      for (const [k, v] of body) {
+        const vlabel = v instanceof Blob ? "<Blob>" : v;
+        logger2.log(`${k}: ${vlabel}`);
+      }
+      break;
+    }
+    default:
+      logger2.log(`<${contentType}>`);
+      break;
+  }
+  logger2.groupEnd();
+  logger2.groupEnd();
+}
+async function logResponse(logger2, res, req) {
+  if (!logger2) {
+    return;
+  }
+  const contentType = res.headers.get("content-type");
+  const ct = (contentType === null || contentType === void 0 ? void 0 : contentType.split(";")[0]) || "";
+  logger2.group(`< Response: ${req.method} ${req.url}`);
+  logger2.log("Status Code:", res.status, res.statusText);
+  logger2.group("Headers:");
+  for (const [k, v] of res.headers.entries()) {
+    logger2.log(`${k}: ${v}`);
+  }
+  logger2.groupEnd();
+  logger2.group("Body:");
+  switch (true) {
+    case (matchContentType(res, "application/json") || jsonLikeContentTypeRE.test(ct) && !jsonlLikeContentTypeRE.test(ct)):
+      logger2.log(await res.clone().json());
+      break;
+    case (matchContentType(res, "application/jsonl") || jsonlLikeContentTypeRE.test(ct)):
+    case matchContentType(res, "text/event-stream"):
+      logger2.log(`<${contentType}>`);
+      break;
+    case matchContentType(res, "text/*"):
+      logger2.log(await res.clone().text());
+      break;
+    case matchContentType(res, "multipart/form-data"): {
+      const body = await res.clone().formData();
+      for (const [k, v] of body) {
+        const vlabel = v instanceof Blob ? "<Blob>" : v;
+        logger2.log(`${k}: ${vlabel}`);
+      }
+      break;
+    }
+    default:
+      logger2.log(`<${contentType}>`);
+      break;
+  }
+  logger2.groupEnd();
+  logger2.groupEnd();
+}
+var GoogleGenAiDefaultError = class extends GoogleGenAiError {
+  constructor(message, httpMeta) {
+    if (message) {
+      message += `: `;
+    }
+    message += `Status ${httpMeta.response.status}`;
+    const contentType = httpMeta.response.headers.get("content-type") || `""`;
+    if (contentType !== "application/json") {
+      message += ` Content-Type ${contentType.includes(" ") ? `"${contentType}"` : contentType}`;
+    }
+    const body = httpMeta.body || `""`;
+    message += body.length > 100 ? "\n" : ". ";
+    let bodyDisplay = body;
+    if (body.length > 1e4) {
+      const truncated = body.substring(0, 1e4);
+      const remaining = body.length - 1e4;
+      bodyDisplay = `${truncated}...and ${remaining} more chars`;
+    }
+    message += `Body: ${bodyDisplay}`;
+    message = message.trim();
+    super(message, httpMeta);
+    this.name = "GoogleGenAiDefaultError";
+  }
+};
+function tryParseJson(s2) {
+  try {
+    return JSON.parse(s2);
+  } catch (_a4) {
+    return s2;
+  }
+}
+function wrapEventStreamResponse(body, opts = {}) {
+  var _a4, _b;
+  const flattened = opts.flattened === true;
+  const sentinel2 = (_a4 = opts.sentinel) !== null && _a4 !== void 0 ? _a4 : "";
+  return new Stream4(body, (rawEvent) => {
+    if (sentinel2 !== "" && rawEvent.data === sentinel2) {
+      return { done: true, value: void 0 };
+    }
+    if (flattened) {
+      const data = rawEvent.data == null ? void 0 : tryParseJson(rawEvent.data);
+      return { done: false, value: data };
+    }
+    return {
+      done: false,
+      value: Object.assign(Object.assign({}, rawEvent), { data: rawEvent.data == null ? rawEvent.data : tryParseJson(rawEvent.data) })
+    };
+  }, { dataRequired: (_b = opts.dataRequired) !== null && _b !== void 0 ? _b : true });
+}
+var Stream4 = class extends ReadableStream {
+  constructor(responseBody, parse, opts) {
+    var _a4;
+    const upstream = responseBody.getReader();
+    let buffer = new Uint8Array(4096);
+    let bufferLen = 0;
+    let searchStart = 0;
+    const state = { eventId: void 0 };
+    const dataRequired = (_a4 = opts === null || opts === void 0 ? void 0 : opts.dataRequired) !== null && _a4 !== void 0 ? _a4 : true;
+    super({
+      async pull(downstream) {
+        try {
+          while (true) {
+            const match2 = findBoundary(buffer, bufferLen, searchStart);
+            if (!match2) {
+              searchStart = Math.max(0, bufferLen - MAX_BOUNDARY_LEN + 1);
+              const chunk = await upstream.read();
+              if (chunk.done)
+                return downstream.close();
+              if (bufferLen + chunk.value.length > buffer.length) {
+                const grown = new Uint8Array(Math.max(buffer.length * 2, bufferLen + chunk.value.length));
+                grown.set(buffer.subarray(0, bufferLen));
+                buffer = grown;
+              }
+              buffer.set(chunk.value, bufferLen);
+              bufferLen += chunk.value.length;
+              continue;
+            }
+            const message = buffer.slice(0, match2.index);
+            buffer.copyWithin(0, match2.index + match2.length, bufferLen);
+            bufferLen -= match2.index + match2.length;
+            if (buffer.length > 4096 && bufferLen <= buffer.length >> 2) {
+              const shrunk = new Uint8Array(Math.max(4096, bufferLen * 2));
+              shrunk.set(buffer.subarray(0, bufferLen));
+              buffer = shrunk;
+            }
+            searchStart = 0;
+            const item = parseMessage(message, parse, state, dataRequired);
+            if (item && !item.done)
+              return downstream.enqueue(item.value);
+            if (item === null || item === void 0 ? void 0 : item.done) {
+              await upstream.cancel("done");
+              return downstream.close();
+            }
+          }
+        } catch (e2) {
+          downstream.error(e2);
+          await upstream.cancel(e2);
+        }
+      },
+      cancel: (reason) => upstream.cancel(reason)
+    });
+  }
+  [Symbol.asyncIterator](options) {
+    const fn = ReadableStream.prototype[Symbol.asyncIterator];
+    if (typeof fn === "function")
+      return fn.call(this, options);
+    const reader = this.getReader();
+    const iterator = {
+      next: async () => {
+        const r2 = await reader.read();
+        if (r2.done) {
+          reader.releaseLock();
+          return { done: true, value: void 0 };
+        }
+        return { done: false, value: r2.value };
+      },
+      throw: async (e2) => {
+        await reader.cancel(e2);
+        reader.releaseLock();
+        return { done: true, value: void 0 };
+      },
+      return: async () => {
+        await reader.cancel("done");
+        reader.releaseLock();
+        return { done: true, value: void 0 };
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      }
+    };
+    const asyncDispose = Symbol.asyncDispose;
+    if (asyncDispose) {
+      iterator[asyncDispose] = async () => {
+        var _a4;
+        await ((_a4 = iterator.return) === null || _a4 === void 0 ? void 0 : _a4.call(iterator));
+      };
+    }
+    return iterator;
+  }
+  values(options) {
+    return this[Symbol.asyncIterator](options);
+  }
+};
 var CR2 = 13;
 var LF2 = 10;
 var BOUNDARIES = [
@@ -52231,13 +61941,5431 @@ var BOUNDARIES = [
   // \n\n
 ];
 var MAX_BOUNDARY_LEN = BOUNDARIES.reduce((m2, b) => Math.max(m2, b.length), 0);
+function findBoundary(buf, len, from) {
+  for (let i2 = from; i2 < len; i2++) {
+    if (buf[i2] !== CR2 && buf[i2] !== LF2)
+      continue;
+    for (const boundary of BOUNDARIES) {
+      if (i2 + boundary.length > len)
+        continue;
+      let match2 = true;
+      for (let j = 0; j < boundary.length; j++) {
+        if (buf[i2 + j] !== boundary[j]) {
+          match2 = false;
+          break;
+        }
+      }
+      if (match2)
+        return { index: i2, length: boundary.length };
+    }
+  }
+  return null;
+}
+function parseMessage(chunk, parse, state, dataRequired) {
+  const text = new TextDecoder().decode(chunk);
+  const lines = text.split(/\r\n|\r|\n/);
+  const dataLines = [];
+  const ret = {};
+  let ignore = true;
+  for (const line of lines) {
+    if (!line || line.startsWith(":"))
+      continue;
+    ignore = false;
+    const i2 = line.indexOf(":");
+    let field = line;
+    let value = "";
+    if (i2 > 0) {
+      field = line.slice(0, i2);
+      value = line[i2 + 1] === " " ? line.slice(i2 + 2) : line.slice(i2 + 1);
+    }
+    if (field === "data")
+      dataLines.push(value);
+    else if (field === "event")
+      ret.event = value;
+    else if (field === "id" && !value.includes("\0"))
+      state.eventId = value;
+    else if (field === "retry" && /^\d+$/.test(value)) {
+      ret.retry = Number(value);
+    }
+  }
+  if (ignore)
+    return;
+  ret.id = state.eventId;
+  if (dataLines.length)
+    ret.data = dataLines.join("\n");
+  else if (dataRequired)
+    return;
+  return parse(ret);
+}
+var DEFAULT_CONTENT_TYPES = {
+  jsonl: "application/jsonl",
+  json: "application/json",
+  text: "text/plain",
+  bytes: "application/octet-stream",
+  stream: "application/octet-stream",
+  sse: "text/event-stream",
+  nil: "*",
+  fail: "*"
+};
+function jsonErr(codes, errorClass, options) {
+  return Object.assign(Object.assign({}, options), { err: true, enc: "json", codes, errorClass });
+}
+function json(codes, options) {
+  return Object.assign(Object.assign({}, options), { enc: "json", codes });
+}
+function sse(codes, sse2, options) {
+  return Object.assign(Object.assign(Object.assign({}, options), { enc: "sse", codes }), sse2 ? { sse: sse2 } : {});
+}
+function nil(codes, options) {
+  return Object.assign(Object.assign({}, options), { enc: "nil", codes });
+}
+function fail(codes) {
+  return { enc: "fail", codes };
+}
+function match(...matchers) {
+  return async function matchFunc(response, request, options) {
+    let raw;
+    let matcher;
+    for (const match2 of matchers) {
+      const { codes } = match2;
+      const ctpattern = "ctype" in match2 ? match2.ctype : DEFAULT_CONTENT_TYPES[match2.enc];
+      if (ctpattern && matchResponse(response, codes, ctpattern)) {
+        matcher = match2;
+        break;
+      } else if (!ctpattern && matchStatusCode(response, codes)) {
+        matcher = match2;
+        break;
+      }
+    }
+    if (!matcher) {
+      return [{
+        ok: false,
+        error: new GoogleGenAiDefaultError("Unexpected Status or Content-Type", {
+          response,
+          request,
+          body: await response.text().catch(() => "")
+        })
+      }, raw];
+    }
+    const encoding = matcher.enc;
+    let body = "";
+    switch (encoding) {
+      case "json":
+        body = await response.text();
+        try {
+          raw = JSON.parse(body);
+        } catch (err) {
+          if (!("err" in matcher)) {
+            throw err;
+          }
+          raw = body;
+        }
+        break;
+      case "jsonl":
+        raw = response.body;
+        break;
+      case "bytes":
+        raw = new Uint8Array(await response.arrayBuffer());
+        break;
+      case "stream":
+        raw = response.body;
+        break;
+      case "text":
+        body = await response.text();
+        raw = body;
+        break;
+      case "sse":
+        if (response.body) {
+          const sseOpts = "sse" in matcher && matcher.sse || {};
+          raw = wrapEventStreamResponse(response.body, sseOpts);
+        } else {
+          raw = null;
+        }
+        break;
+      case "nil":
+        body = await response.text();
+        raw = void 0;
+        break;
+      case "fail":
+        body = await response.text();
+        raw = body;
+        break;
+      default:
+        throw new Error(`Unsupported response type: ${encoding}`);
+    }
+    if (matcher.enc === "fail") {
+      return [{
+        ok: false,
+        error: new GoogleGenAiDefaultError("API error occurred", {
+          request,
+          response,
+          body
+        })
+      }, raw];
+    }
+    const resultKey = matcher.key || (options === null || options === void 0 ? void 0 : options.resultKey);
+    let data;
+    const headersField = matcher.hdrs ? { headers: unpackHeaders(response.headers) } : null;
+    if ("err" in matcher) {
+      data = Object.assign(Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.extraFields), headersField), isPlainObject$1(raw) ? raw : null);
+    } else if (resultKey) {
+      data = Object.assign(Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.extraFields), headersField), { [resultKey]: raw });
+    } else if (matcher.hdrs) {
+      data = Object.assign(Object.assign(Object.assign({}, options === null || options === void 0 ? void 0 : options.extraFields), headersField), isPlainObject$1(raw) ? raw : null);
+    } else {
+      data = raw;
+    }
+    if ("err" in matcher) {
+      const errValue = matcher.errorClass ? new matcher.errorClass(data, { request, response, body }) : data;
+      return [{ ok: false, error: errValue }, raw];
+    }
+    return [{ ok: true, value: data }, raw];
+  };
+}
+var headerValRE = /, */;
+function unpackHeaders(headers) {
+  const out = {};
+  for (const [k, v] of headers.entries()) {
+    out[k] = v.split(headerValRE);
+  }
+  return out;
+}
+var SecurityErrorCode = {
+  Incomplete: "incomplete",
+  UnrecognisedSecurityType: "unrecognized_security_type"
+};
+var SecurityError = class _SecurityError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+    this.name = "SecurityError";
+  }
+  static incomplete() {
+    return new _SecurityError(SecurityErrorCode.Incomplete, "Security requirements not met in order to perform the operation");
+  }
+  static unrecognizedType(type) {
+    return new _SecurityError(SecurityErrorCode.UnrecognisedSecurityType, `Unrecognised security type: ${type}`);
+  }
+};
+function resolveSecurity(...options) {
+  const state = {
+    basic: {},
+    headers: {},
+    queryParams: {},
+    cookies: {},
+    oauth2: { type: "none" }
+  };
+  const option = options.find((opts) => {
+    return opts.every((o) => {
+      if (o.value == null) {
+        return false;
+      } else if (o.type === "http:basic") {
+        return o.value.username != null || o.value.password != null;
+      } else if (o.type === "http:custom") {
+        return null;
+      } else if (o.type === "oauth2:password") {
+        return typeof o.value === "string" && !!o.value;
+      } else if (o.type === "oauth2:client_credentials") {
+        if (typeof o.value == "string") {
+          return !!o.value;
+        }
+        return o.value.client_id != null || o.value.client_secret != null;
+      } else if (typeof o.value === "string") {
+        return !!o.value;
+      } else {
+        throw new Error(`Unrecognized security type: ${o.type} (value type: ${typeof o.value})`);
+      }
+    });
+  });
+  if (option == null) {
+    return null;
+  }
+  option.forEach((spec) => {
+    if (spec.value == null) {
+      return;
+    }
+    const { type } = spec;
+    switch (type) {
+      case "apiKey:header":
+        state.headers[spec.fieldName] = spec.value;
+        break;
+      case "apiKey:query":
+        state.queryParams[spec.fieldName] = spec.value;
+        break;
+      case "apiKey:cookie":
+        state.cookies[spec.fieldName] = spec.value;
+        break;
+      case "http:basic":
+        applyBasic(state, spec);
+        break;
+      case "http:custom":
+        break;
+      case "http:bearer":
+        applyBearer(state, spec);
+        break;
+      case "oauth2":
+        applyBearer(state, spec);
+        break;
+      case "oauth2:password":
+        applyBearer(state, spec);
+        break;
+      case "oauth2:client_credentials":
+        break;
+      case "openIdConnect":
+        applyBearer(state, spec);
+        break;
+      default:
+        throw SecurityError.unrecognizedType(type);
+    }
+  });
+  return state;
+}
+function applyBasic(state, spec) {
+  if (spec.value == null) {
+    return;
+  }
+  state.basic = spec.value;
+}
+function applyBearer(state, spec) {
+  if (typeof spec.value !== "string" || !spec.value) {
+    return;
+  }
+  let value = spec.value;
+  if (value.slice(0, 7).toLowerCase() !== "bearer ") {
+    value = `Bearer ${value}`;
+  }
+  if (spec.fieldName !== void 0) {
+    state.headers[spec.fieldName] = value;
+  }
+}
+function resolveGlobalSecurity(security, allowedFields) {
+  var _a4, _b;
+  let inputs = [
+    [
+      {
+        fieldName: "apiKey",
+        type: "http:custom",
+        value: (_a4 = security === null || security === void 0 ? void 0 : security.api_key) !== null && _a4 !== void 0 ? _a4 : env().GOOGLE_GENAI_API_KEY
+      },
+      {
+        fieldName: "accessToken",
+        type: "http:custom",
+        value: (_b = security === null || security === void 0 ? void 0 : security.access_token) !== null && _b !== void 0 ? _b : env().GOOGLE_GENAI_ACCESS_TOKEN
+      },
+      {
+        fieldName: "defaultHeaders",
+        type: "http:custom",
+        value: security === null || security === void 0 ? void 0 : security.default_headers
+      }
+    ]
+  ];
+  return resolveSecurity(...inputs);
+}
+async function extractSecurity(sec) {
+  if (sec == null) {
+    return;
+  }
+  return typeof sec === "function" ? sec() : sec;
+}
 var _a3;
+var APIPromise2 = class _APIPromise {
+  constructor(p, callSource) {
+    this[_a3] = "APIPromise";
+    this._promise = p instanceof Promise ? p : Promise.resolve(p);
+    this._unwrapped = p instanceof Promise ? null : Promise.resolve(p[0]);
+    this._callSource = callSource !== null && callSource !== void 0 ? callSource : null;
+  }
+  _getUnwrapped() {
+    var _b;
+    return (_b = this._unwrapped) !== null && _b !== void 0 ? _b : this._unwrapped = this._promise.then(([value]) => value);
+  }
+  then(onfulfilled, onrejected) {
+    return this._promise.then(onfulfilled ? ([value]) => onfulfilled(value) : void 0, onrejected);
+  }
+  catch(onrejected) {
+    return this._getUnwrapped().catch(onrejected);
+  }
+  finally(onfinally) {
+    return this._getUnwrapped().finally(onfinally);
+  }
+  $inspect() {
+    return this._promise;
+  }
+  asResponse() {
+    var _b;
+    const src = (_b = this._callSource) !== null && _b !== void 0 ? _b : this._callSource = this._promise.then(([, call]) => call);
+    return src.then((call) => {
+      if (!call.response) {
+        throw new Error("APIPromise.asResponse: response unavailable");
+      }
+      return call.response;
+    });
+  }
+  async withResponse() {
+    const [[data], response] = await Promise.all([
+      this._promise,
+      this.asResponse()
+    ]);
+    return { data, response };
+  }
+  _thenUnwrap(transform) {
+    var _b;
+    const data = this._promise.then(([value, call]) => [transform(value), call]);
+    data.catch(() => {
+    });
+    return new _APIPromise(data, (_b = this._callSource) !== null && _b !== void 0 ? _b : void 0);
+  }
+};
 _a3 = Symbol.toStringTag;
+function unwrapAsAPIPromise(p) {
+  const inner = p.$inspect();
+  const data = inner.then(([r2, call]) => {
+    if (!r2.ok) {
+      throw r2.error;
+    }
+    return [r2.value, call];
+  });
+  const callSource = inner.then(([r2, call]) => {
+    var _b;
+    if (!r2.ok && !((_b = call.response) === null || _b === void 0 ? void 0 : _b.ok)) {
+      throw r2.error;
+    }
+    return call;
+  });
+  data.catch(() => {
+  });
+  callSource.catch(() => {
+  });
+  return new APIPromise2(data, callSource);
+}
+function agentsCreate(client, body, api_version, options) {
+  return new APIPromise2($do$p(client, body, api_version, options));
+}
+async function $do$p(client, body, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    body,
+    api_version
+  };
+  const payload = input;
+  const body$ = encodeJSON("body", payload.body, { explode: true });
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
+  };
+  const path6 = pathToFunc("/{api_version}/agents")(pathParams);
+  const headers = new Headers(compactMap({
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "CreateAgent",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "POST",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body: body$,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function agentsDelete(client, id, api_version, options) {
+  return new APIPromise2($do$o(client, id, api_version, options));
+}
+async function $do$o(client, id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/agents/{id}")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "DeleteAgent",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "DELETE",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function agentsGet(client, id, api_version, options) {
+  return new APIPromise2($do$n(client, id, api_version, options));
+}
+async function $do$n(client, id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/agents/{id}")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "GetAgent",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "GET",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function agentsList(client, api_version, page_size, page_token, parent, options) {
+  return new APIPromise2($do$m(client, api_version, page_size, page_token, parent, options));
+}
+async function $do$m(client, api_version, page_size, page_token, parent, options) {
+  var _a4, _b, _c;
+  const input = {
+    api_version,
+    page_size,
+    page_token,
+    parent
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
+  };
+  const path6 = pathToFunc("/{api_version}/agents")(pathParams);
+  const query = encodeFormQuery({
+    "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
+    "page_token": payload === null || payload === void 0 ? void 0 : payload.page_token,
+    "parent": payload === null || payload === void 0 ? void 0 : payload.parent
+  });
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "ListAgents",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "GET",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    query,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+var Agents = class extends ClientSDK {
+  /**
+   * Creates a new Agent (Typed version for SDK).
+   */
+  create(params, options) {
+    const { api_version } = params, body = __rest(params, ["api_version"]);
+    return unwrapAsAPIPromise(agentsCreate(this, body, api_version, options));
+  }
+  /**
+   * Lists all Agents.
+   */
+  list(params, options) {
+    return unwrapAsAPIPromise(agentsList(this, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, params === null || params === void 0 ? void 0 : params.parent, options));
+  }
+  /**
+   * Gets a specific Agent.
+   */
+  get(id, params, options) {
+    return unwrapAsAPIPromise(agentsGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+  /**
+   * Deletes an Agent.
+   */
+  delete(id, params, options) {
+    return unwrapAsAPIPromise(agentsDelete(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+};
+function environmentsCreateEnvironment(client, body, api_version, options) {
+  return new APIPromise2($do$l(client, body, api_version, options));
+}
+async function $do$l(client, body, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    body,
+    api_version
+  };
+  const payload = input;
+  const body$ = encodeJSON("body", payload.body, { explode: true });
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
+  };
+  const path6 = pathToFunc("/{api_version}/environments")(pathParams);
+  const headers = new Headers(compactMap({
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "CreateEnvironment",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "POST",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body: body$,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function environmentsDeleteEnvironment(client, id, api_version, options) {
+  return new APIPromise2($do$k(client, id, api_version, options));
+}
+async function $do$k(client, id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/environments/{id}")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "DeleteEnvironment",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "DELETE",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function environmentsGetEnvironment(client, id, api_version, options) {
+  return new APIPromise2($do$j(client, id, api_version, options));
+}
+async function $do$j(client, id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/environments/{id}")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "GetEnvironment",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "GET",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function environmentsListEnvironments(client, api_version, page_size, page_token, options) {
+  return new APIPromise2($do$i(client, api_version, page_size, page_token, options));
+}
+async function $do$i(client, api_version, page_size, page_token, options) {
+  var _a4, _b, _c;
+  const input = {
+    api_version,
+    page_size,
+    page_token
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
+  };
+  const path6 = pathToFunc("/{api_version}/environments")(pathParams);
+  const query = encodeFormQuery({
+    "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
+    "page_token": payload === null || payload === void 0 ? void 0 : payload.page_token
+  });
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "ListEnvironments",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "GET",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    query,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+var Environments = class extends ClientSDK {
+  /**
+   * Creates an environment.
+   */
+  createEnvironment(body, api_version, options) {
+    return unwrapAsAPIPromise(environmentsCreateEnvironment(this, body, api_version, options));
+  }
+  /**
+   * Lists environments.
+   */
+  listEnvironments(params, options) {
+    return unwrapAsAPIPromise(environmentsListEnvironments(this, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, options));
+  }
+  /**
+   * Gets an environment.
+   */
+  getEnvironment(id, params, options) {
+    return unwrapAsAPIPromise(environmentsGetEnvironment(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+  /**
+   * Deletes an environment.
+   */
+  deleteEnvironment(id, params, options) {
+    return unwrapAsAPIPromise(environmentsDeleteEnvironment(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+};
+var CancelInteractionByIdServerError = class extends GoogleGenAiError {
+  constructor(err, httpMeta) {
+    var _a4;
+    const message = ((_a4 = err.error) === null || _a4 === void 0 ? void 0 : _a4.message) || `API error occurred: ${JSON.stringify(err)}`;
+    super(message, httpMeta);
+    this.data$ = err;
+    this.error = err.error;
+    this.name = "CancelInteractionByIdServerError";
+  }
+};
+var CancelInteractionByIdClientError = class extends GoogleGenAiError {
+  constructor(err, httpMeta) {
+    var _a4;
+    const message = ((_a4 = err.error) === null || _a4 === void 0 ? void 0 : _a4.message) || `API error occurred: ${JSON.stringify(err)}`;
+    super(message, httpMeta);
+    this.data$ = err;
+    this.error = err.error;
+    this.name = "CancelInteractionByIdClientError";
+  }
+};
+var CreateInteractionServerError = class extends GoogleGenAiError {
+  constructor(err, httpMeta) {
+    var _a4;
+    const message = ((_a4 = err.error) === null || _a4 === void 0 ? void 0 : _a4.message) || `API error occurred: ${JSON.stringify(err)}`;
+    super(message, httpMeta);
+    this.data$ = err;
+    this.error = err.error;
+    this.name = "CreateInteractionServerError";
+  }
+};
+var CreateInteractionClientError = class extends GoogleGenAiError {
+  constructor(err, httpMeta) {
+    var _a4;
+    const message = ((_a4 = err.error) === null || _a4 === void 0 ? void 0 : _a4.message) || `API error occurred: ${JSON.stringify(err)}`;
+    super(message, httpMeta);
+    this.data$ = err;
+    this.error = err.error;
+    this.name = "CreateInteractionClientError";
+  }
+};
+var DeleteInteractionServerError = class extends GoogleGenAiError {
+  constructor(err, httpMeta) {
+    var _a4;
+    const message = ((_a4 = err.error) === null || _a4 === void 0 ? void 0 : _a4.message) || `API error occurred: ${JSON.stringify(err)}`;
+    super(message, httpMeta);
+    this.data$ = err;
+    this.error = err.error;
+    this.name = "DeleteInteractionServerError";
+  }
+};
+var DeleteInteractionClientError = class extends GoogleGenAiError {
+  constructor(err, httpMeta) {
+    var _a4;
+    const message = ((_a4 = err.error) === null || _a4 === void 0 ? void 0 : _a4.message) || `API error occurred: ${JSON.stringify(err)}`;
+    super(message, httpMeta);
+    this.data$ = err;
+    this.error = err.error;
+    this.name = "DeleteInteractionClientError";
+  }
+};
+var GetInteractionByIdServerError = class extends GoogleGenAiError {
+  constructor(err, httpMeta) {
+    var _a4;
+    const message = ((_a4 = err.error) === null || _a4 === void 0 ? void 0 : _a4.message) || `API error occurred: ${JSON.stringify(err)}`;
+    super(message, httpMeta);
+    this.data$ = err;
+    this.error = err.error;
+    this.name = "GetInteractionByIdServerError";
+  }
+};
+var GetInteractionByIdClientError = class extends GoogleGenAiError {
+  constructor(err, httpMeta) {
+    var _a4;
+    const message = ((_a4 = err.error) === null || _a4 === void 0 ? void 0 : _a4.message) || `API error occurred: ${JSON.stringify(err)}`;
+    super(message, httpMeta);
+    this.data$ = err;
+    this.error = err.error;
+    this.name = "GetInteractionByIdClientError";
+  }
+};
+function interactionsCancel(client, id, api_version, options) {
+  return new APIPromise2($do$h(client, id, api_version, options));
+}
+async function $do$h(client, id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/interactions/{id}/cancel")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "cancelInteractionById",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "POST",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const responseFields = {
+    httpMeta: { response, request: req }
+  };
+  const [result] = await match(json(200), jsonErr("4XX", CancelInteractionByIdClientError), jsonErr("5XX", CancelInteractionByIdServerError))(response, req, { extraFields: responseFields });
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function interactionsCreate(client, body, api_version, options) {
+  return new APIPromise2($do$g(client, body, api_version, options));
+}
+async function $do$g(client, body, api_version, options) {
+  var _a4, _b, _c, _d;
+  const input = {
+    body,
+    api_version
+  };
+  const payload = input;
+  const body$ = encodeJSON("body", payload.body, { explode: true });
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
+  };
+  const path6 = pathToFunc("/{api_version}/interactions")(pathParams);
+  const headers = new Headers(compactMap({
+    "Content-Type": "application/json",
+    Accept: ((_b = input === null || input === void 0 ? void 0 : input.body) === null || _b === void 0 ? void 0 : _b.stream) ? "text/event-stream" : "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_d = (_c = options === null || options === void 0 ? void 0 : options.server_url) !== null && _c !== void 0 ? _c : client._baseURL) !== null && _d !== void 0 ? _d : "",
+    operation_id: "CreateInteraction",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "POST",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body: body$,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const responseFields = {
+    httpMeta: { response, request: req }
+  };
+  const [result] = await match(json(200), sse(200, {
+    sentinel: "[DONE]",
+    flattened: true
+  }), jsonErr("4XX", CreateInteractionClientError), jsonErr("5XX", CreateInteractionServerError))(response, req, { extraFields: responseFields });
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function interactionsDelete(client, id, api_version, options) {
+  return new APIPromise2($do$f(client, id, api_version, options));
+}
+async function $do$f(client, id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/interactions/{id}")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "deleteInteraction",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "DELETE",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const responseFields = {
+    httpMeta: { response, request: req }
+  };
+  const [result] = await match(nil(200), jsonErr("4XX", DeleteInteractionClientError), jsonErr("5XX", DeleteInteractionServerError))(response, req, { extraFields: responseFields });
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function interactionsGet(client, id, stream, last_event_id, include_input, api_version, options) {
+  return new APIPromise2($do$e(client, id, stream, last_event_id, include_input, api_version, options));
+}
+async function $do$e(client, id, stream, last_event_id, include_input, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    stream,
+    last_event_id,
+    include_input,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/interactions/{id}")(pathParams);
+  const query = encodeFormQuery({
+    "include_input": payload.include_input,
+    "last_event_id": payload.last_event_id,
+    "stream": payload.stream
+  });
+  const headers = new Headers(compactMap({
+    Accept: (input === null || input === void 0 ? void 0 : input.stream) ? "text/event-stream" : "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "getInteractionById",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "GET",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    query,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const responseFields = {
+    httpMeta: { response, request: req }
+  };
+  const [result] = await match(json(200), sse(200, {
+    sentinel: "[DONE]",
+    flattened: true
+  }), jsonErr("4XX", GetInteractionByIdClientError), jsonErr("5XX", GetInteractionByIdServerError))(response, req, { extraFields: responseFields });
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+var Interactions = class extends ClientSDK {
+  create(params, options) {
+    const { api_version } = params, body = __rest(params, ["api_version"]);
+    return unwrapAsAPIPromise(interactionsCreate(this, body, api_version, options));
+  }
+  get(id, params, options) {
+    return unwrapAsAPIPromise(interactionsGet(this, id, params === null || params === void 0 ? void 0 : params.stream, params === null || params === void 0 ? void 0 : params.last_event_id, params === null || params === void 0 ? void 0 : params.include_input, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+  /**
+   * Deleting an interaction
+   *
+   * @remarks
+   * Deletes the interaction by id.
+   */
+  delete(id, params, options) {
+    return unwrapAsAPIPromise(interactionsDelete(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+  /**
+   * Canceling an interaction
+   *
+   * @remarks
+   * Cancels an interaction by id. This only applies to background interactions that are still running.
+   */
+  cancel(id, params, options) {
+    return unwrapAsAPIPromise(interactionsCancel(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+};
+function triggersCreate(client, body, api_version, options) {
+  return new APIPromise2($do$d(client, body, api_version, options));
+}
+async function $do$d(client, body, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    body,
+    api_version
+  };
+  const payload = input;
+  const body$ = encodeJSON("body", payload.body, { explode: true });
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
+  };
+  const path6 = pathToFunc("/{api_version}/triggers")(pathParams);
+  const headers = new Headers(compactMap({
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "CreateTrigger",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "POST",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body: body$,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function triggersDelete(client, id, api_version, options) {
+  return new APIPromise2($do$c(client, id, api_version, options));
+}
+async function $do$c(client, id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/triggers/{id}")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "DeleteTrigger",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "DELETE",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function triggersGet(client, id, api_version, options) {
+  return new APIPromise2($do$b(client, id, api_version, options));
+}
+async function $do$b(client, id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/triggers/{id}")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "GetTrigger",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "GET",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function triggersListExecutions(client, trigger_id, api_version, page_size, page_token, options) {
+  return new APIPromise2($do$a(client, trigger_id, api_version, page_size, page_token, options));
+}
+async function $do$a(client, trigger_id, api_version, page_size, page_token, options) {
+  var _a4, _b, _c;
+  const input = {
+    trigger_id,
+    api_version,
+    page_size,
+    page_token
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    trigger_id: encodeSimple("trigger_id", payload.trigger_id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/triggers/{trigger_id}/executions")(pathParams);
+  const query = encodeFormQuery({
+    "page_size": payload.page_size,
+    "page_token": payload.page_token
+  });
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "ListTriggerExecutions",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "GET",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    query,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function triggersList(client, api_version, filter, page_size, page_token, options) {
+  return new APIPromise2($do$9(client, api_version, filter, page_size, page_token, options));
+}
+async function $do$9(client, api_version, filter, page_size, page_token, options) {
+  var _a4, _b, _c;
+  const input = {
+    api_version,
+    filter,
+    page_size,
+    page_token
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
+  };
+  const path6 = pathToFunc("/{api_version}/triggers")(pathParams);
+  const query = encodeFormQuery({
+    "filter": payload === null || payload === void 0 ? void 0 : payload.filter,
+    "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
+    "page_token": payload === null || payload === void 0 ? void 0 : payload.page_token
+  });
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "ListTriggers",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "GET",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    query,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function triggersRun(client, trigger_id, api_version, options) {
+  return new APIPromise2($do$8(client, trigger_id, api_version, options));
+}
+async function $do$8(client, trigger_id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    trigger_id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    trigger_id: encodeSimple("trigger_id", payload.trigger_id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/triggers/{trigger_id}/executions")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "RunTrigger",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "POST",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function triggersUpdate(client, id, body, api_version, options) {
+  return new APIPromise2($do$7(client, id, body, api_version, options));
+}
+async function $do$7(client, id, body, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    body,
+    api_version
+  };
+  const payload = input;
+  const body$ = encodeJSON("body", payload.body, { explode: true });
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/triggers/{id}")(pathParams);
+  const headers = new Headers(compactMap({
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "UpdateTrigger",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "PATCH",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body: body$,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(json(200), fail("4XX"), fail("5XX"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+var Triggers = class extends ClientSDK {
+  /**
+   * Creates a new trigger that will invoke the specified agent on the given cron schedule.
+   */
+  create(params, options) {
+    const { api_version } = params, body = __rest(params, ["api_version"]);
+    return unwrapAsAPIPromise(triggersCreate(this, body, api_version, options));
+  }
+  /**
+   * Lists triggers for a project.
+   */
+  list(params, options) {
+    return unwrapAsAPIPromise(triggersList(this, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.filter, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, options));
+  }
+  /**
+   * Gets details of a single trigger.
+   */
+  get(id, params, options) {
+    return unwrapAsAPIPromise(triggersGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+  /**
+   * Updates a trigger.
+   */
+  update(id, params, options) {
+    const { api_version } = params, body = __rest(params, ["api_version"]);
+    return unwrapAsAPIPromise(triggersUpdate(this, id, body, api_version, options));
+  }
+  /**
+   * Deletes a trigger.
+   */
+  delete(id, params, options) {
+    return unwrapAsAPIPromise(triggersDelete(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+  /**
+   * Runs a trigger immediately.
+   */
+  run(trigger_id, params, options) {
+    return unwrapAsAPIPromise(triggersRun(this, trigger_id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+  /**
+   * Lists executions for a trigger.
+   */
+  listExecutions(trigger_id, params, options) {
+    return unwrapAsAPIPromise(triggersListExecutions(this, trigger_id, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, options));
+  }
+};
+function webhooksCreate(client, body, api_version, options) {
+  return new APIPromise2($do$6(client, body, api_version, options));
+}
+async function $do$6(client, body, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    body,
+    api_version
+  };
+  const payload = input;
+  const body$ = encodeJSON("body", payload.body, { explode: true });
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
+  };
+  const path6 = pathToFunc("/{api_version}/webhooks")(pathParams);
+  const headers = new Headers(compactMap({
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "CreateWebhook",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "POST",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body: body$,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function webhooksDelete(client, id, api_version, options) {
+  return new APIPromise2($do$5(client, id, api_version, options));
+}
+async function $do$5(client, id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/webhooks/{id}")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "DeleteWebhook",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "DELETE",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function webhooksGet(client, id, api_version, options) {
+  return new APIPromise2($do$4(client, id, api_version, options));
+}
+async function $do$4(client, id, api_version, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/webhooks/{id}")(pathParams);
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "GetWebhook",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "GET",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function webhooksList(client, api_version, page_size, page_token, options) {
+  return new APIPromise2($do$3(client, api_version, page_size, page_token, options));
+}
+async function $do$3(client, api_version, page_size, page_token, options) {
+  var _a4, _b, _c;
+  const input = {
+    api_version,
+    page_size,
+    page_token
+  };
+  const payload = input;
+  const body = null;
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload === null || payload === void 0 ? void 0 : payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" })
+  };
+  const path6 = pathToFunc("/{api_version}/webhooks")(pathParams);
+  const query = encodeFormQuery({
+    "page_size": payload === null || payload === void 0 ? void 0 : payload.page_size,
+    "page_token": payload === null || payload === void 0 ? void 0 : payload.page_token
+  });
+  const headers = new Headers(compactMap({
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "ListWebhooks",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "GET",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    query,
+    body,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function webhooksPing(client, id, api_version, body, options) {
+  return new APIPromise2($do$2(client, id, api_version, body, options));
+}
+async function $do$2(client, id, api_version, body, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version,
+    body
+  };
+  const payload = input;
+  const body$ = encodeJSON("body", payload.body, { explode: true });
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/webhooks/{id}:ping")(pathParams);
+  const headers = new Headers(compactMap({
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "PingWebhook",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "POST",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body: body$,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function webhooksRotateSigningSecret(client, id, api_version, body, options) {
+  return new APIPromise2($do$1(client, id, api_version, body, options));
+}
+async function $do$1(client, id, api_version, body, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version,
+    body
+  };
+  const payload = input;
+  const body$ = encodeJSON("body", payload.body, { explode: true });
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/webhooks/{id}:rotateSigningSecret")(pathParams);
+  const headers = new Headers(compactMap({
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "RotateSigningSecret",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "POST",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    body: body$,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+function webhooksUpdate(client, id, api_version, update_mask, body, options) {
+  return new APIPromise2($do(client, id, api_version, update_mask, body, options));
+}
+async function $do(client, id, api_version, update_mask, body, options) {
+  var _a4, _b, _c;
+  const input = {
+    id,
+    api_version,
+    update_mask,
+    body
+  };
+  const payload = input;
+  const body$ = encodeJSON("body", payload.body, { explode: true });
+  const pathParams = {
+    api_version: encodeSimple("api_version", (_a4 = payload.api_version) !== null && _a4 !== void 0 ? _a4 : client._options.api_version, { explode: false, charEncoding: "percent" }),
+    id: encodeSimple("id", payload.id, {
+      explode: false,
+      charEncoding: "percent"
+    })
+  };
+  const path6 = pathToFunc("/{api_version}/webhooks/{id}")(pathParams);
+  const query = encodeFormQuery({
+    "update_mask": payload.update_mask
+  });
+  const headers = new Headers(compactMap({
+    "Content-Type": "application/json",
+    Accept: "application/json"
+  }));
+  const securityInput = await extractSecurity(client._options.security);
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+  const context = {
+    options: client._options,
+    base_url: (_c = (_b = options === null || options === void 0 ? void 0 : options.server_url) !== null && _b !== void 0 ? _b : client._baseURL) !== null && _c !== void 0 ? _c : "",
+    operation_id: "UpdateWebhook",
+    o_auth2_scopes: null,
+    resolved_security: requestSecurity,
+    security_source: client._options.security,
+    retry_config: (options === null || options === void 0 ? void 0 : options.retries) || client._options.retry_config || {
+      strategy: "attempt-count-backoff",
+      backoff: {
+        initialInterval: 500,
+        maxInterval: 8e3,
+        exponent: 2,
+        maxElapsedTime: 3e4
+      },
+      retryConnectionErrors: true,
+      maxRetries: 4
+    },
+    retry_codes: (options === null || options === void 0 ? void 0 : options.retry_codes) || ["408", "409", "429", "5XX"]
+  };
+  const requestRes = client._createRequest(context, {
+    security: requestSecurity,
+    method: "PATCH",
+    baseURL: options === null || options === void 0 ? void 0 : options.server_url,
+    path: path6,
+    headers,
+    query,
+    body: body$,
+    userAgent: client._options.user_agent,
+    timeout_ms: (options === null || options === void 0 ? void 0 : options.timeout_ms) || client._options.timeout_ms || -1
+  }, options);
+  if (!requestRes.ok) {
+    return [requestRes, { status: "invalid" }];
+  }
+  const req = requestRes.value;
+  const doResult = await client._do(req, {
+    context,
+    isErrorStatusCode: (statusCode) => matchStatusCode({ status: statusCode }, ["4XX", "5XX"]),
+    retryConfig: context.retry_config,
+    retryCodes: context.retry_codes
+  });
+  if (!doResult.ok) {
+    return [doResult, { status: "request-error", request: req }];
+  }
+  const response = doResult.value;
+  const [result] = await match(fail("4XX"), fail("5XX"), json("default"))(response, req);
+  if (!result.ok) {
+    return [result, { status: "complete", request: req, response }];
+  }
+  return [result, { status: "complete", request: req, response }];
+}
+var Webhooks2 = class extends ClientSDK {
+  /**
+   * Creates a new Webhook.
+   */
+  create(params, options) {
+    const { api_version } = params, body = __rest(params, ["api_version"]);
+    return unwrapAsAPIPromise(webhooksCreate(this, body, api_version, options));
+  }
+  /**
+   * Lists all Webhooks.
+   */
+  list(params, options) {
+    return unwrapAsAPIPromise(webhooksList(this, params === null || params === void 0 ? void 0 : params.api_version, params === null || params === void 0 ? void 0 : params.page_size, params === null || params === void 0 ? void 0 : params.page_token, options));
+  }
+  /**
+   * Gets a specific Webhook.
+   */
+  get(id, params, options) {
+    return unwrapAsAPIPromise(webhooksGet(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+  /**
+   * Updates an existing Webhook.
+   */
+  update(id, params, options) {
+    const _a4 = params !== null && params !== void 0 ? params : {}, { api_version, update_mask } = _a4, body$body = __rest(_a4, ["api_version", "update_mask"]);
+    const body = params === void 0 || Object.keys(body$body).length === 0 ? void 0 : body$body;
+    return unwrapAsAPIPromise(webhooksUpdate(this, id, api_version, update_mask, body, options));
+  }
+  /**
+   * Deletes a Webhook.
+   */
+  delete(id, params, options) {
+    return unwrapAsAPIPromise(webhooksDelete(this, id, params === null || params === void 0 ? void 0 : params.api_version, options));
+  }
+  /**
+   * Generates a new signing secret for a Webhook.
+   */
+  rotateSigningSecret(id, api_version, body, options) {
+    return unwrapAsAPIPromise(webhooksRotateSigningSecret(this, id, api_version, body, options));
+  }
+  /**
+   * Sends a ping event to a Webhook.
+   */
+  ping(id, api_version, body, options) {
+    return unwrapAsAPIPromise(webhooksPing(this, id, api_version, body, options));
+  }
+};
+var GoogleGenAI$1 = class GoogleGenAI extends ClientSDK {
+  get interactions() {
+    var _a4;
+    return (_a4 = this._interactions) !== null && _a4 !== void 0 ? _a4 : this._interactions = new Interactions(this._options);
+  }
+  get webhooks() {
+    var _a4;
+    return (_a4 = this._webhooks) !== null && _a4 !== void 0 ? _a4 : this._webhooks = new Webhooks2(this._options);
+  }
+  get agents() {
+    var _a4;
+    return (_a4 = this._agents) !== null && _a4 !== void 0 ? _a4 : this._agents = new Agents(this._options);
+  }
+  get triggers() {
+    var _a4;
+    return (_a4 = this._triggers) !== null && _a4 !== void 0 ? _a4 : this._triggers = new Triggers(this._options);
+  }
+  get environments() {
+    var _a4;
+    return (_a4 = this._environments) !== null && _a4 !== void 0 ? _a4 : this._environments = new Environments(this._options);
+  }
+};
+var LEGACY_LYRIA_MODELS = /* @__PURE__ */ new Set([
+  "lyria-3-pro-preview",
+  "lyria-3-clip-preview"
+]);
+function getGoogleGenAIServerURL(parentClient) {
+  const serverURL = parentClient.getBaseUrl();
+  if (!serverURL) {
+    throw new Error("Base URL must be set.");
+  }
+  return serverURL.replace(/\/+$/, "");
+}
+function getGoogleGenAIAPIVersion(parentClient) {
+  const apiVersion = trimSlashes(parentClient.getApiVersion());
+  const project = parentClient.getProject();
+  const location = parentClient.getLocation();
+  if (parentClient.isVertexAI() && apiVersion && project && location) {
+    return `${apiVersion}/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}`;
+  }
+  return apiVersion;
+}
+function buildGoogleGenAIClient(parentClient, options = {}) {
+  var _a4, _b, _c, _d, _e;
+  const sdk = new GoogleGenAI$1(Object.assign(Object.assign({}, options), { api_version: (_a4 = options.api_version) !== null && _a4 !== void 0 ? _a4 : getGoogleGenAIAPIVersion(parentClient), security: (_b = options.security) !== null && _b !== void 0 ? _b : new GoogleGenAISecurityProvider({
+    defaultHeaders: Object.assign(Object.assign({}, (_c = parentClient.getDefaultHeaders) === null || _c === void 0 ? void 0 : _c.call(parentClient)), (_d = parentClient.getHeaders) === null || _d === void 0 ? void 0 : _d.call(parentClient)),
+    getAuthHeaders: (url) => parentClient.getAuthHeaders(url)
+  }), server_url: (_e = options.server_url) !== null && _e !== void 0 ? _e : getGoogleGenAIServerURL(parentClient) }));
+  return sdk;
+}
+var GeminiNextGenInteractions = class {
+  constructor(parentClient) {
+    this.parentClient = parentClient;
+  }
+  async create(params, options) {
+    const { api_version } = params, request = __rest(params, ["api_version"]);
+    if (request.stream === true) {
+      const response2 = await wrapSDKCall(() => this.getClient(api_version).interactions.create(Object.assign(Object.assign({}, request), { stream: true, api_version }), toGoogleGenAIRequestOptions(options, true)));
+      return wrapStreamErrors(response2);
+    }
+    const response = await unwrapWithSdkHttpResponse(interactionsCreate(this.getClient(api_version), request, api_version, toGoogleGenAIRequestOptions(options)));
+    return addOutputPropertiesIfInteraction(response);
+  }
+  async get(id, params = {}, options) {
+    const { api_version, stream = false, last_event_id, include_input } = params !== null && params !== void 0 ? params : {};
+    if (stream === true) {
+      const response2 = await wrapSDKCall(() => this.getClient(api_version).interactions.get(id, { stream, last_event_id, include_input, api_version }, toGoogleGenAIRequestOptions(options, true)));
+      return wrapStreamErrors(response2);
+    }
+    const response = await unwrapWithSdkHttpResponse(interactionsGet(this.getClient(api_version), id, stream, last_event_id, include_input, api_version, toGoogleGenAIRequestOptions(options)));
+    return addOutputPropertiesIfInteraction(response);
+  }
+  async delete(id, params = {}, options) {
+    return wrapSDKCall(() => this.getClient(params === null || params === void 0 ? void 0 : params.api_version).interactions.delete(id, { api_version: params === null || params === void 0 ? void 0 : params.api_version }, toGoogleGenAIRequestOptions(options)));
+  }
+  async cancel(id, params = {}, options) {
+    return addOutputPropertiesIfInteraction(await unwrapWithSdkHttpResponse(interactionsCancel(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options))));
+  }
+  getClient(apiVersion) {
+    var _a4;
+    if (apiVersion) {
+      return buildGoogleGenAIClient(this.parentClient, {
+        api_version: apiVersion
+      });
+    }
+    (_a4 = this.sdk) !== null && _a4 !== void 0 ? _a4 : this.sdk = buildGoogleGenAIClient(this.parentClient);
+    return this.sdk;
+  }
+};
+var GeminiNextGenAgents = class {
+  constructor(parentClient) {
+    this.parentClient = parentClient;
+  }
+  async create(params = {}, options) {
+    const _a4 = params !== null && params !== void 0 ? params : {}, { api_version } = _a4, body = __rest(_a4, ["api_version"]);
+    return unwrapWithSdkHttpResponse(agentsCreate(this.getClient(api_version), body, api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async list(params = {}, options) {
+    const { api_version, pageSize, pageToken, parent } = params !== null && params !== void 0 ? params : {};
+    return unwrapWithSdkHttpResponse(agentsList(this.getClient(api_version), api_version, pageSize, pageToken, parent, toGoogleGenAIRequestOptions(options)));
+  }
+  async get(id, params = {}, options) {
+    return unwrapWithSdkHttpResponse(agentsGet(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async delete(id, params = {}, options) {
+    return unwrapWithSdkHttpResponse(agentsDelete(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  getClient(apiVersion) {
+    var _a4;
+    if (apiVersion) {
+      return buildGoogleGenAIClient(this.parentClient, {
+        api_version: apiVersion
+      });
+    }
+    (_a4 = this.sdk) !== null && _a4 !== void 0 ? _a4 : this.sdk = buildGoogleGenAIClient(this.parentClient);
+    return this.sdk;
+  }
+};
+var GeminiNextGenWebhooks = class {
+  constructor(parentClient) {
+    this.parentClient = parentClient;
+  }
+  async create(params, options) {
+    const { api_version } = params, body = __rest(params, ["api_version"]);
+    return unwrapWithSdkHttpResponse(webhooksCreate(this.getClient(), body, api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async list(params = {}, options) {
+    const { api_version, page_size, page_token } = params !== null && params !== void 0 ? params : {};
+    return unwrapWithSdkHttpResponse(webhooksList(this.getClient(), api_version, page_size, page_token, toGoogleGenAIRequestOptions(options)));
+  }
+  async get(id, params = {}, options) {
+    return unwrapWithSdkHttpResponse(webhooksGet(this.getClient(), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async update(id, params = {}, options) {
+    const _a4 = params !== null && params !== void 0 ? params : {}, { api_version, update_mask } = _a4, body = __rest(_a4, ["api_version", "update_mask"]);
+    return unwrapWithSdkHttpResponse(webhooksUpdate(this.getClient(), id, api_version, update_mask, body, toGoogleGenAIRequestOptions(options)));
+  }
+  async delete(id, params = {}, options) {
+    return unwrapWithSdkHttpResponse(webhooksDelete(this.getClient(), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async rotateSigningSecret(id, params = {}, options) {
+    const _a4 = params !== null && params !== void 0 ? params : {}, { api_version } = _a4, body = __rest(_a4, ["api_version"]);
+    return unwrapWithSdkHttpResponse(webhooksRotateSigningSecret(this.getClient(), id, api_version, body, toGoogleGenAIRequestOptions(options)));
+  }
+  async ping(id, params = void 0, options) {
+    const { api_version, body } = params !== null && params !== void 0 ? params : {};
+    return unwrapWithSdkHttpResponse(webhooksPing(this.getClient(), id, api_version, body, toGoogleGenAIRequestOptions(options)));
+  }
+  getClient() {
+    var _a4;
+    (_a4 = this.sdk) !== null && _a4 !== void 0 ? _a4 : this.sdk = buildGoogleGenAIClient(this.parentClient);
+    return this.sdk;
+  }
+};
+var GeminiNextGenTriggers = class {
+  constructor(parentClient) {
+    this.parentClient = parentClient;
+  }
+  async create(params, options) {
+    const { api_version } = params, body = __rest(params, ["api_version"]);
+    return unwrapWithSdkHttpResponse(triggersCreate(this.getClient(api_version), body, api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async list(params = {}, options) {
+    const { api_version, filter, pageSize, pageToken } = params !== null && params !== void 0 ? params : {};
+    return unwrapWithSdkHttpResponse(triggersList(this.getClient(api_version), api_version, filter, pageSize, pageToken, toGoogleGenAIRequestOptions(options)));
+  }
+  async get(id, params = {}, options) {
+    return unwrapWithSdkHttpResponse(triggersGet(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async update(id, params, options) {
+    const { api_version } = params, body = __rest(params, ["api_version"]);
+    return unwrapWithSdkHttpResponse(triggersUpdate(this.getClient(api_version), id, body, api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async delete(id, params = {}, options) {
+    return unwrapWithSdkHttpResponse(triggersDelete(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async run(trigger_id, params = {}, options) {
+    return unwrapWithSdkHttpResponse(triggersRun(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), trigger_id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async listExecutions(trigger_id, params = {}, options) {
+    const { api_version, pageSize, pageToken } = params !== null && params !== void 0 ? params : {};
+    return unwrapWithSdkHttpResponse(triggersListExecutions(this.getClient(api_version), trigger_id, api_version, pageSize, pageToken, toGoogleGenAIRequestOptions(options)));
+  }
+  getClient(apiVersion) {
+    var _a4;
+    if (apiVersion) {
+      return buildGoogleGenAIClient(this.parentClient, {
+        api_version: apiVersion
+      });
+    }
+    (_a4 = this.sdk) !== null && _a4 !== void 0 ? _a4 : this.sdk = buildGoogleGenAIClient(this.parentClient);
+    return this.sdk;
+  }
+};
+function trimSlashes(value) {
+  return value.replace(/^\/+|\/+$/g, "");
+}
+function toGoogleGenAIRequestOptions(options, streaming = false) {
+  var _a4, _b, _c, _d;
+  if (!options && !streaming) {
+    return void 0;
+  }
+  const _e = options !== null && options !== void 0 ? options : {}, { timeout, maxRetries, defaultBaseURL, query, body, fetchOptions } = _e, rest = __rest(_e, ["timeout", "maxRetries", "defaultBaseURL", "query", "body", "fetchOptions"]);
+  const nextOptions = Object.assign({}, rest);
+  if (isPlainObject(query)) {
+    nextOptions.extra_query = query;
+  } else {
+    warnIgnoredOption("query", query);
+  }
+  if (isPlainObject(body)) {
+    nextOptions.extra_body = body;
+  } else {
+    warnIgnoredOption("body", body);
+  }
+  const fetch_options = (_a4 = rest.fetch_options) !== null && _a4 !== void 0 ? _a4 : fetchOptions;
+  if (fetch_options) {
+    nextOptions.fetch_options = fetch_options;
+  }
+  const server_url = (_b = rest.server_url) !== null && _b !== void 0 ? _b : defaultBaseURL;
+  if (server_url) {
+    nextOptions.server_url = server_url;
+  }
+  const timeout_ms = (_c = rest.timeout_ms) !== null && _c !== void 0 ? _c : timeout;
+  if (timeout_ms !== void 0) {
+    nextOptions.timeout_ms = timeout_ms;
+  }
+  if (maxRetries !== void 0) {
+    nextOptions.retries = {
+      strategy: "attempt-count-backoff",
+      retryConnectionErrors: true,
+      maxRetries
+    };
+  }
+  if (streaming) {
+    const headers = new Headers((_d = nextOptions.headers) !== null && _d !== void 0 ? _d : fetch_options === null || fetch_options === void 0 ? void 0 : fetch_options.headers);
+    headers.set("Accept", "text/event-stream");
+    nextOptions.headers = headers;
+  }
+  return nextOptions;
+}
+function warnIgnoredOption(name, value) {
+  if (value !== void 0 && value !== null) {
+    console.warn(`GoogleGenAI.interactions: request option ${name} is not supported by the Google GenAI interactions bridge and will be ignored.`);
+  }
+}
+async function unwrapWithSdkHttpResponse(promise) {
+  const [result, call] = await promise.$inspect();
+  if (!result.ok) {
+    throw wrapSDKError(result.error);
+  }
+  return attachSdkHttpResponse(result.value, call);
+}
+async function wrapSDKCall(operation) {
+  try {
+    return await operation();
+  } catch (error) {
+    throw wrapSDKError(error);
+  }
+}
+function wrapStreamErrors(stream) {
+  const asyncIterable = stream;
+  return new Proxy(stream, {
+    get(target, property) {
+      if (property !== Symbol.asyncIterator) {
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+      return function wrappedAsyncIterator() {
+        const iterator = asyncIterable[Symbol.asyncIterator]();
+        return {
+          async next(...args) {
+            try {
+              return await iterator.next(...args);
+            } catch (error) {
+              throw wrapSDKError(error);
+            }
+          },
+          async return(value) {
+            if (!iterator.return) {
+              return { done: true, value };
+            }
+            try {
+              return await iterator.return(value);
+            } catch (error) {
+              throw wrapSDKError(error);
+            }
+          },
+          async throw(error) {
+            if (!iterator.throw) {
+              throw wrapSDKError(error);
+            }
+            try {
+              return await iterator.throw(error);
+            } catch (caught) {
+              throw wrapSDKError(caught);
+            }
+          },
+          [Symbol.asyncIterator]() {
+            return this;
+          }
+        };
+      };
+    }
+  });
+}
+function attachSdkHttpResponse(value, call) {
+  if (!isPlainObject(value) || call.status !== "complete") {
+    return value;
+  }
+  return Object.assign(Object.assign({}, value), { sdkHttpResponse: createSdkHttpResponse(call.response, value) });
+}
+function createSdkHttpResponse(response, parsedBody) {
+  const headers = {};
+  for (const [key, value] of response.headers.entries()) {
+    headers[key] = value;
+  }
+  return {
+    headers,
+    responseInternal: response,
+    json: async () => parsedBody
+  };
+}
+function addOutputPropertiesIfInteraction(value) {
+  const interaction = normalizeInteractionShape(value);
+  if (!interaction) {
+    return value;
+  }
+  return addOutputProperties(interaction);
+}
+function normalizeInteractionShape(value) {
+  if (!isPlainObject(value)) {
+    return void 0;
+  }
+  if (Array.isArray(value["steps"])) {
+    return value;
+  }
+  if (isLegacyLyriaInteraction(value)) {
+    const outputs = value["outputs"];
+    if (Array.isArray(outputs)) {
+      const { outputs: _outputs } = value, rest = __rest(value, ["outputs"]);
+      return Object.assign(Object.assign({}, rest), { steps: [{ type: "model_output", content: outputs }] });
+    }
+  }
+  return Object.assign(Object.assign({}, value), { steps: [] });
+}
+function isLegacyLyriaInteraction(value) {
+  const model = value["model"];
+  return typeof model === "string" && LEGACY_LYRIA_MODELS.has(model);
+}
+function isPlainObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function addOutputProperties(interaction) {
+  var _a4, _b;
+  const normalized = normalizeInteractionDates(interaction);
+  const steps = (_a4 = normalized["steps"]) !== null && _a4 !== void 0 ? _a4 : [];
+  const textParts = [];
+  let collecting = false;
+  outer: for (let i2 = steps.length - 1; i2 >= 0; i2--) {
+    const step = steps[i2];
+    if (step.type === "user_input") {
+      break;
+    }
+    if (step.type !== "model_output" || !step.content) {
+      if (collecting) {
+        break;
+      }
+      continue;
+    }
+    const content = step.content;
+    for (let j = content.length - 1; j >= 0; j--) {
+      const item = content[j];
+      if (item.type === "text") {
+        collecting = true;
+        textParts.push((_b = item.text) !== null && _b !== void 0 ? _b : "");
+      } else if (collecting) {
+        break outer;
+      }
+    }
+  }
+  let output_image;
+  let output_audio;
+  let output_video;
+  for (let i2 = steps.length - 1; i2 >= 0; i2--) {
+    const step = steps[i2];
+    if (step.type === "user_input") {
+      break;
+    }
+    if (step.type === "model_output" && step.content) {
+      for (let j = step.content.length - 1; j >= 0; j--) {
+        const content = step.content[j];
+        if (content.type === "image" && !output_image) {
+          output_image = content;
+        }
+        if (content.type === "audio" && !output_audio) {
+          output_audio = content;
+        }
+        if (content.type === "video" && !output_video) {
+          output_video = content;
+        }
+      }
+    }
+  }
+  const output_text = textParts.reverse().join("");
+  return Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, normalized), output_text && { output_text }), output_image ? { output_image } : {}), output_audio ? { output_audio } : {}), output_video ? { output_video } : {});
+}
+function normalizeInteractionDates(interaction) {
+  return Object.assign(Object.assign({}, interaction), { created: normalizeDateLike(interaction["created"]), updated: normalizeDateLike(interaction["updated"]) });
+}
+function normalizeDateLike(value) {
+  return value instanceof Date ? value.toISOString() : value;
+}
+var GeminiNextGenEnvironments = class {
+  constructor(parentClient) {
+    this.parentClient = parentClient;
+  }
+  async create(params, options) {
+    const { api_version } = params, body = __rest(params, ["api_version"]);
+    return unwrapWithSdkHttpResponse(environmentsCreateEnvironment(this.getClient(api_version), body, api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async list(params = {}, options) {
+    const { api_version, page_size, page_token } = params !== null && params !== void 0 ? params : {};
+    return unwrapWithSdkHttpResponse(environmentsListEnvironments(this.getClient(api_version), api_version, page_size, page_token, toGoogleGenAIRequestOptions(options)));
+  }
+  async get(id, params = {}, options) {
+    return unwrapWithSdkHttpResponse(environmentsGetEnvironment(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  async delete(id, params = {}, options) {
+    return unwrapWithSdkHttpResponse(environmentsDeleteEnvironment(this.getClient(params === null || params === void 0 ? void 0 : params.api_version), id, params === null || params === void 0 ? void 0 : params.api_version, toGoogleGenAIRequestOptions(options)));
+  }
+  getClient(apiVersion) {
+    var _a4;
+    if (apiVersion) {
+      return buildGoogleGenAIClient(this.parentClient, {
+        api_version: apiVersion
+      });
+    }
+    (_a4 = this.sdk) !== null && _a4 !== void 0 ? _a4 : this.sdk = buildGoogleGenAIClient(this.parentClient);
+    return this.sdk;
+  }
+};
+var GOOGLE_API_KEY_HEADER = "x-goog-api-key";
+var REQUIRED_VERTEX_AI_SCOPE = "https://www.googleapis.com/auth/cloud-platform";
+var NodeAuth = class {
+  constructor(opts) {
+    if (opts.apiKey !== void 0) {
+      this.apiKey = opts.apiKey;
+      return;
+    }
+    const vertexAuthOptions = buildGoogleAuthOptions(opts.googleAuthOptions);
+    this.googleAuth = new import_google_auth_library.GoogleAuth(vertexAuthOptions);
+  }
+  async addAuthHeaders(headers, url) {
+    if (this.apiKey !== void 0) {
+      if (this.apiKey.startsWith("auth_tokens/")) {
+        throw new Error("Ephemeral tokens are only supported by the live API.");
+      }
+      this.addKeyHeader(headers);
+      return;
+    }
+    return this.addGoogleAuthHeaders(headers, url);
+  }
+  addKeyHeader(headers) {
+    if (headers.get(GOOGLE_API_KEY_HEADER) !== null) {
+      return;
+    }
+    if (this.apiKey === void 0) {
+      throw new Error("Trying to set API key header but apiKey is not set");
+    }
+    headers.append(GOOGLE_API_KEY_HEADER, this.apiKey);
+  }
+  async addGoogleAuthHeaders(headers, url) {
+    if (this.googleAuth === void 0) {
+      throw new Error("Trying to set google-auth headers but googleAuth is unset");
+    }
+    const authHeaders = await this.googleAuth.getRequestHeaders(url);
+    for (const [key, value] of authHeaders) {
+      if (headers.get(key) !== null) {
+        continue;
+      }
+      headers.append(key, value);
+    }
+  }
+};
+function buildGoogleAuthOptions(googleAuthOptions) {
+  let authOptions;
+  if (!googleAuthOptions) {
+    authOptions = {
+      scopes: [REQUIRED_VERTEX_AI_SCOPE]
+    };
+    return authOptions;
+  } else {
+    authOptions = googleAuthOptions;
+    if (!authOptions.scopes) {
+      authOptions.scopes = [REQUIRED_VERTEX_AI_SCOPE];
+      return authOptions;
+    } else if (typeof authOptions.scopes === "string" && authOptions.scopes !== REQUIRED_VERTEX_AI_SCOPE || Array.isArray(authOptions.scopes) && authOptions.scopes.indexOf(REQUIRED_VERTEX_AI_SCOPE) < 0) {
+      throw new Error(`Invalid auth scopes. Scopes must include: ${REQUIRED_VERTEX_AI_SCOPE}`);
+    }
+    return authOptions;
+  }
+}
+var NodeDownloader = class {
+  async download(params, apiClient) {
+    if (params.downloadPath) {
+      const response = await downloadFile(params, apiClient);
+      if (response instanceof HttpResponse) {
+        const writer = createWriteStream(params.downloadPath);
+        const body = Readable.fromWeb(response.responseInternal.body);
+        body.pipe(writer);
+        await finished(writer);
+      } else {
+        try {
+          await writeFile(params.downloadPath, response, {
+            encoding: "base64"
+          });
+        } catch (error) {
+          throw new Error(`Failed to write file to ${params.downloadPath}: ${error}`);
+        }
+      }
+    }
+  }
+};
+async function downloadFile(params, apiClient) {
+  var _a4, _b, _c;
+  const name = tFileName(params.file);
+  if (name !== void 0) {
+    return await apiClient.request({
+      path: `files/${name}:download`,
+      httpMethod: "GET",
+      queryParams: {
+        "alt": "media"
+      },
+      httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+      abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+    });
+  } else if (isGeneratedVideo(params.file)) {
+    const videoBytes = (_c = params.file.video) === null || _c === void 0 ? void 0 : _c.videoBytes;
+    if (typeof videoBytes === "string") {
+      return videoBytes;
+    } else {
+      throw new Error("Failed to download generated video, Uri or videoBytes not found.");
+    }
+  } else if (isVideo(params.file)) {
+    const videoBytes = params.file.videoBytes;
+    if (typeof videoBytes === "string") {
+      return videoBytes;
+    } else {
+      throw new Error("Failed to download video, Uri or videoBytes not found.");
+    }
+  } else {
+    throw new Error("Unsupported file type");
+  }
+}
+var NodeWebSocketFactory = class {
+  create(url, headers, callbacks) {
+    return new NodeWebSocket(url, headers, callbacks);
+  }
+};
+var NodeWebSocket = class {
+  constructor(url, headers, callbacks) {
+    this.url = url;
+    this.headers = headers;
+    this.callbacks = callbacks;
+  }
+  connect() {
+    this.ws = new import_websocket.default(this.url, { headers: this.headers });
+    this.ws.onopen = this.callbacks.onopen;
+    this.ws.onerror = this.callbacks.onerror;
+    this.ws.onclose = this.callbacks.onclose;
+    this.ws.onmessage = this.callbacks.onmessage;
+  }
+  send(message) {
+    if (this.ws === void 0) {
+      throw new Error("WebSocket is not connected");
+    }
+    this.ws.send(message);
+  }
+  close() {
+    if (this.ws === void 0) {
+      throw new Error("WebSocket is not connected");
+    }
+    this.ws.close();
+  }
+};
+function cancelTuningJobParametersToMldev(fromObject, _rootObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], fromName);
+  }
+  return toObject;
+}
+function cancelTuningJobParametersToVertex(fromObject, _rootObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], fromName);
+  }
+  return toObject;
+}
+function cancelTuningJobResponseFromMldev(fromObject, _rootObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  return toObject;
+}
+function cancelTuningJobResponseFromVertex(fromObject, _rootObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  return toObject;
+}
+function codeExecutionResultToVertex(fromObject, _rootObject) {
+  const toObject = {};
+  const fromOutcome = getValueByPath(fromObject, ["outcome"]);
+  if (fromOutcome != null) {
+    setValueByPath(toObject, ["outcome"], fromOutcome);
+  }
+  const fromOutput = getValueByPath(fromObject, ["output"]);
+  if (fromOutput != null) {
+    setValueByPath(toObject, ["output"], fromOutput);
+  }
+  if (getValueByPath(fromObject, ["id"]) !== void 0) {
+    throw new Error("id parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function contentToVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromParts = getValueByPath(fromObject, ["parts"]);
+  if (fromParts != null) {
+    let transformedList = fromParts;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return partToVertex(item);
+      });
+    }
+    setValueByPath(toObject, ["parts"], transformedList);
+  }
+  const fromRole = getValueByPath(fromObject, ["role"]);
+  if (fromRole != null) {
+    setValueByPath(toObject, ["role"], fromRole);
+  }
+  return toObject;
+}
+function createTuningJobConfigToMldev(fromObject, parentObject, _rootObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["validationDataset"]) !== void 0) {
+    throw new Error("validationDataset parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromTunedModelDisplayName = getValueByPath(fromObject, [
+    "tunedModelDisplayName"
+  ]);
+  if (parentObject !== void 0 && fromTunedModelDisplayName != null) {
+    setValueByPath(parentObject, ["displayName"], fromTunedModelDisplayName);
+  }
+  if (getValueByPath(fromObject, ["description"]) !== void 0) {
+    throw new Error("description parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromEpochCount = getValueByPath(fromObject, ["epochCount"]);
+  if (parentObject !== void 0 && fromEpochCount != null) {
+    setValueByPath(parentObject, ["tuningTask", "hyperparameters", "epochCount"], fromEpochCount);
+  }
+  const fromLearningRateMultiplier = getValueByPath(fromObject, [
+    "learningRateMultiplier"
+  ]);
+  if (fromLearningRateMultiplier != null) {
+    setValueByPath(toObject, ["tuningTask", "hyperparameters", "learningRateMultiplier"], fromLearningRateMultiplier);
+  }
+  if (getValueByPath(fromObject, ["exportLastCheckpointOnly"]) !== void 0) {
+    throw new Error("exportLastCheckpointOnly parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["preTunedModelCheckpointId"]) !== void 0) {
+    throw new Error("preTunedModelCheckpointId parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["adapterSize"]) !== void 0) {
+    throw new Error("adapterSize parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["tuningMode"]) !== void 0) {
+    throw new Error("tuningMode parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["customBaseModel"]) !== void 0) {
+    throw new Error("customBaseModel parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromBatchSize = getValueByPath(fromObject, ["batchSize"]);
+  if (parentObject !== void 0 && fromBatchSize != null) {
+    setValueByPath(parentObject, ["tuningTask", "hyperparameters", "batchSize"], fromBatchSize);
+  }
+  const fromLearningRate = getValueByPath(fromObject, ["learningRate"]);
+  if (parentObject !== void 0 && fromLearningRate != null) {
+    setValueByPath(parentObject, ["tuningTask", "hyperparameters", "learningRate"], fromLearningRate);
+  }
+  if (getValueByPath(fromObject, ["labels"]) !== void 0) {
+    throw new Error("labels parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["beta"]) !== void 0) {
+    throw new Error("beta parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["baseTeacherModel"]) !== void 0) {
+    throw new Error("baseTeacherModel parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["tunedTeacherModelSource"]) !== void 0) {
+    throw new Error("tunedTeacherModelSource parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["sftLossWeightMultiplier"]) !== void 0) {
+    throw new Error("sftLossWeightMultiplier parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["outputUri"]) !== void 0) {
+    throw new Error("outputUri parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["rewardConfig"]) !== void 0) {
+    throw new Error("rewardConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["compositeRewardConfig"]) !== void 0) {
+    throw new Error("compositeRewardConfig parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["samplesPerPrompt"]) !== void 0) {
+    throw new Error("samplesPerPrompt parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["evaluateInterval"]) !== void 0) {
+    throw new Error("evaluateInterval parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["checkpointInterval"]) !== void 0) {
+    throw new Error("checkpointInterval parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["maxOutputTokens"]) !== void 0) {
+    throw new Error("maxOutputTokens parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["thinkingLevel"]) !== void 0) {
+    throw new Error("thinkingLevel parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["validationDatasetUri"]) !== void 0) {
+    throw new Error("validationDatasetUri parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["encryptionSpec"]) !== void 0) {
+    throw new Error("encryptionSpec parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  return toObject;
+}
+function createTuningJobConfigToVertex(fromObject, parentObject, rootObject) {
+  const toObject = {};
+  let discriminatorValidationDataset = getValueByPath(rootObject, [
+    "config",
+    "method"
+  ]);
+  if (discriminatorValidationDataset === void 0) {
+    discriminatorValidationDataset = "SUPERVISED_FINE_TUNING";
+  }
+  if (discriminatorValidationDataset === "SUPERVISED_FINE_TUNING") {
+    const fromValidationDataset = getValueByPath(fromObject, [
+      "validationDataset"
+    ]);
+    if (parentObject !== void 0 && fromValidationDataset != null) {
+      setValueByPath(parentObject, ["supervisedTuningSpec"], tuningValidationDatasetToVertex(fromValidationDataset));
+    }
+  } else if (discriminatorValidationDataset === "PREFERENCE_TUNING") {
+    const fromValidationDataset = getValueByPath(fromObject, [
+      "validationDataset"
+    ]);
+    if (parentObject !== void 0 && fromValidationDataset != null) {
+      setValueByPath(parentObject, ["preferenceOptimizationSpec"], tuningValidationDatasetToVertex(fromValidationDataset));
+    }
+  } else if (discriminatorValidationDataset === "DISTILLATION") {
+    const fromValidationDataset = getValueByPath(fromObject, [
+      "validationDataset"
+    ]);
+    if (parentObject !== void 0 && fromValidationDataset != null) {
+      setValueByPath(parentObject, ["distillationSpec"], tuningValidationDatasetToVertex(fromValidationDataset));
+    }
+  } else if (discriminatorValidationDataset === "REINFORCEMENT_TUNING") {
+    const fromValidationDataset = getValueByPath(fromObject, [
+      "validationDataset"
+    ]);
+    if (parentObject !== void 0 && fromValidationDataset != null) {
+      setValueByPath(parentObject, ["reinforcementTuningSpec"], tuningValidationDatasetToVertex(fromValidationDataset));
+    }
+  }
+  const fromTunedModelDisplayName = getValueByPath(fromObject, [
+    "tunedModelDisplayName"
+  ]);
+  if (parentObject !== void 0 && fromTunedModelDisplayName != null) {
+    setValueByPath(parentObject, ["tunedModelDisplayName"], fromTunedModelDisplayName);
+  }
+  const fromDescription = getValueByPath(fromObject, ["description"]);
+  if (parentObject !== void 0 && fromDescription != null) {
+    setValueByPath(parentObject, ["description"], fromDescription);
+  }
+  let discriminatorEpochCount = getValueByPath(rootObject, [
+    "config",
+    "method"
+  ]);
+  if (discriminatorEpochCount === void 0) {
+    discriminatorEpochCount = "SUPERVISED_FINE_TUNING";
+  }
+  if (discriminatorEpochCount === "SUPERVISED_FINE_TUNING") {
+    const fromEpochCount = getValueByPath(fromObject, ["epochCount"]);
+    if (parentObject !== void 0 && fromEpochCount != null) {
+      setValueByPath(parentObject, ["supervisedTuningSpec", "hyperParameters", "epochCount"], fromEpochCount);
+    }
+  } else if (discriminatorEpochCount === "PREFERENCE_TUNING") {
+    const fromEpochCount = getValueByPath(fromObject, ["epochCount"]);
+    if (parentObject !== void 0 && fromEpochCount != null) {
+      setValueByPath(parentObject, ["preferenceOptimizationSpec", "hyperParameters", "epochCount"], fromEpochCount);
+    }
+  } else if (discriminatorEpochCount === "DISTILLATION") {
+    const fromEpochCount = getValueByPath(fromObject, ["epochCount"]);
+    if (parentObject !== void 0 && fromEpochCount != null) {
+      setValueByPath(parentObject, ["distillationSpec", "hyperParameters", "epochCount"], fromEpochCount);
+    }
+  } else if (discriminatorEpochCount === "REINFORCEMENT_TUNING") {
+    const fromEpochCount = getValueByPath(fromObject, ["epochCount"]);
+    if (parentObject !== void 0 && fromEpochCount != null) {
+      setValueByPath(parentObject, ["reinforcementTuningSpec", "hyperParameters", "epochCount"], fromEpochCount);
+    }
+  }
+  let discriminatorLearningRateMultiplier = getValueByPath(rootObject, [
+    "config",
+    "method"
+  ]);
+  if (discriminatorLearningRateMultiplier === void 0) {
+    discriminatorLearningRateMultiplier = "SUPERVISED_FINE_TUNING";
+  }
+  if (discriminatorLearningRateMultiplier === "SUPERVISED_FINE_TUNING") {
+    const fromLearningRateMultiplier = getValueByPath(fromObject, [
+      "learningRateMultiplier"
+    ]);
+    if (parentObject !== void 0 && fromLearningRateMultiplier != null) {
+      setValueByPath(parentObject, ["supervisedTuningSpec", "hyperParameters", "learningRateMultiplier"], fromLearningRateMultiplier);
+    }
+  } else if (discriminatorLearningRateMultiplier === "PREFERENCE_TUNING") {
+    const fromLearningRateMultiplier = getValueByPath(fromObject, [
+      "learningRateMultiplier"
+    ]);
+    if (parentObject !== void 0 && fromLearningRateMultiplier != null) {
+      setValueByPath(parentObject, [
+        "preferenceOptimizationSpec",
+        "hyperParameters",
+        "learningRateMultiplier"
+      ], fromLearningRateMultiplier);
+    }
+  } else if (discriminatorLearningRateMultiplier === "DISTILLATION") {
+    const fromLearningRateMultiplier = getValueByPath(fromObject, [
+      "learningRateMultiplier"
+    ]);
+    if (parentObject !== void 0 && fromLearningRateMultiplier != null) {
+      setValueByPath(parentObject, ["distillationSpec", "hyperParameters", "learningRateMultiplier"], fromLearningRateMultiplier);
+    }
+  } else if (discriminatorLearningRateMultiplier === "REINFORCEMENT_TUNING") {
+    const fromLearningRateMultiplier = getValueByPath(fromObject, [
+      "learningRateMultiplier"
+    ]);
+    if (parentObject !== void 0 && fromLearningRateMultiplier != null) {
+      setValueByPath(parentObject, [
+        "reinforcementTuningSpec",
+        "hyperParameters",
+        "learningRateMultiplier"
+      ], fromLearningRateMultiplier);
+    }
+  }
+  let discriminatorExportLastCheckpointOnly = getValueByPath(rootObject, ["config", "method"]);
+  if (discriminatorExportLastCheckpointOnly === void 0) {
+    discriminatorExportLastCheckpointOnly = "SUPERVISED_FINE_TUNING";
+  }
+  if (discriminatorExportLastCheckpointOnly === "SUPERVISED_FINE_TUNING") {
+    const fromExportLastCheckpointOnly = getValueByPath(fromObject, [
+      "exportLastCheckpointOnly"
+    ]);
+    if (parentObject !== void 0 && fromExportLastCheckpointOnly != null) {
+      setValueByPath(parentObject, ["supervisedTuningSpec", "exportLastCheckpointOnly"], fromExportLastCheckpointOnly);
+    }
+  } else if (discriminatorExportLastCheckpointOnly === "PREFERENCE_TUNING") {
+    const fromExportLastCheckpointOnly = getValueByPath(fromObject, [
+      "exportLastCheckpointOnly"
+    ]);
+    if (parentObject !== void 0 && fromExportLastCheckpointOnly != null) {
+      setValueByPath(parentObject, ["preferenceOptimizationSpec", "exportLastCheckpointOnly"], fromExportLastCheckpointOnly);
+    }
+  } else if (discriminatorExportLastCheckpointOnly === "DISTILLATION") {
+    const fromExportLastCheckpointOnly = getValueByPath(fromObject, [
+      "exportLastCheckpointOnly"
+    ]);
+    if (parentObject !== void 0 && fromExportLastCheckpointOnly != null) {
+      setValueByPath(parentObject, ["distillationSpec", "exportLastCheckpointOnly"], fromExportLastCheckpointOnly);
+    }
+  }
+  let discriminatorAdapterSize = getValueByPath(rootObject, [
+    "config",
+    "method"
+  ]);
+  if (discriminatorAdapterSize === void 0) {
+    discriminatorAdapterSize = "SUPERVISED_FINE_TUNING";
+  }
+  if (discriminatorAdapterSize === "SUPERVISED_FINE_TUNING") {
+    const fromAdapterSize = getValueByPath(fromObject, ["adapterSize"]);
+    if (parentObject !== void 0 && fromAdapterSize != null) {
+      setValueByPath(parentObject, ["supervisedTuningSpec", "hyperParameters", "adapterSize"], fromAdapterSize);
+    }
+  } else if (discriminatorAdapterSize === "PREFERENCE_TUNING") {
+    const fromAdapterSize = getValueByPath(fromObject, ["adapterSize"]);
+    if (parentObject !== void 0 && fromAdapterSize != null) {
+      setValueByPath(parentObject, ["preferenceOptimizationSpec", "hyperParameters", "adapterSize"], fromAdapterSize);
+    }
+  } else if (discriminatorAdapterSize === "DISTILLATION") {
+    const fromAdapterSize = getValueByPath(fromObject, ["adapterSize"]);
+    if (parentObject !== void 0 && fromAdapterSize != null) {
+      setValueByPath(parentObject, ["distillationSpec", "hyperParameters", "adapterSize"], fromAdapterSize);
+    }
+  } else if (discriminatorAdapterSize === "REINFORCEMENT_TUNING") {
+    const fromAdapterSize = getValueByPath(fromObject, ["adapterSize"]);
+    if (parentObject !== void 0 && fromAdapterSize != null) {
+      setValueByPath(parentObject, ["reinforcementTuningSpec", "hyperParameters", "adapterSize"], fromAdapterSize);
+    }
+  }
+  let discriminatorTuningMode = getValueByPath(rootObject, [
+    "config",
+    "method"
+  ]);
+  if (discriminatorTuningMode === void 0) {
+    discriminatorTuningMode = "SUPERVISED_FINE_TUNING";
+  }
+  if (discriminatorTuningMode === "SUPERVISED_FINE_TUNING") {
+    const fromTuningMode = getValueByPath(fromObject, ["tuningMode"]);
+    if (parentObject !== void 0 && fromTuningMode != null) {
+      setValueByPath(parentObject, ["supervisedTuningSpec", "tuningMode"], fromTuningMode);
+    }
+  } else if (discriminatorTuningMode === "DISTILLATION") {
+    const fromTuningMode = getValueByPath(fromObject, ["tuningMode"]);
+    if (parentObject !== void 0 && fromTuningMode != null) {
+      setValueByPath(parentObject, ["distillationSpec", "tuningMode"], fromTuningMode);
+    }
+  }
+  const fromCustomBaseModel = getValueByPath(fromObject, [
+    "customBaseModel"
+  ]);
+  if (parentObject !== void 0 && fromCustomBaseModel != null) {
+    setValueByPath(parentObject, ["customBaseModel"], fromCustomBaseModel);
+  }
+  let discriminatorBatchSize = getValueByPath(rootObject, [
+    "config",
+    "method"
+  ]);
+  if (discriminatorBatchSize === void 0) {
+    discriminatorBatchSize = "SUPERVISED_FINE_TUNING";
+  }
+  if (discriminatorBatchSize === "SUPERVISED_FINE_TUNING") {
+    const fromBatchSize = getValueByPath(fromObject, ["batchSize"]);
+    if (parentObject !== void 0 && fromBatchSize != null) {
+      setValueByPath(parentObject, ["supervisedTuningSpec", "hyperParameters", "batchSize"], fromBatchSize);
+    }
+  } else if (discriminatorBatchSize === "DISTILLATION") {
+    const fromBatchSize = getValueByPath(fromObject, ["batchSize"]);
+    if (parentObject !== void 0 && fromBatchSize != null) {
+      setValueByPath(parentObject, ["distillationSpec", "hyperParameters", "batchSize"], fromBatchSize);
+    }
+  } else if (discriminatorBatchSize === "REINFORCEMENT_TUNING") {
+    const fromBatchSize = getValueByPath(fromObject, ["batchSize"]);
+    if (parentObject !== void 0 && fromBatchSize != null) {
+      setValueByPath(parentObject, ["reinforcementTuningSpec", "hyperParameters", "batchSize"], fromBatchSize);
+    }
+  }
+  let discriminatorLearningRate = getValueByPath(rootObject, [
+    "config",
+    "method"
+  ]);
+  if (discriminatorLearningRate === void 0) {
+    discriminatorLearningRate = "SUPERVISED_FINE_TUNING";
+  }
+  if (discriminatorLearningRate === "SUPERVISED_FINE_TUNING") {
+    const fromLearningRate = getValueByPath(fromObject, [
+      "learningRate"
+    ]);
+    if (parentObject !== void 0 && fromLearningRate != null) {
+      setValueByPath(parentObject, ["supervisedTuningSpec", "hyperParameters", "learningRate"], fromLearningRate);
+    }
+  } else if (discriminatorLearningRate === "DISTILLATION") {
+    const fromLearningRate = getValueByPath(fromObject, [
+      "learningRate"
+    ]);
+    if (parentObject !== void 0 && fromLearningRate != null) {
+      setValueByPath(parentObject, ["distillationSpec", "hyperParameters", "learningRate"], fromLearningRate);
+    }
+  }
+  const fromLabels = getValueByPath(fromObject, ["labels"]);
+  if (parentObject !== void 0 && fromLabels != null) {
+    setValueByPath(parentObject, ["labels"], fromLabels);
+  }
+  const fromBeta = getValueByPath(fromObject, ["beta"]);
+  if (parentObject !== void 0 && fromBeta != null) {
+    setValueByPath(parentObject, ["preferenceOptimizationSpec", "hyperParameters", "beta"], fromBeta);
+  }
+  const fromBaseTeacherModel = getValueByPath(fromObject, [
+    "baseTeacherModel"
+  ]);
+  if (parentObject !== void 0 && fromBaseTeacherModel != null) {
+    setValueByPath(parentObject, ["distillationSpec", "baseTeacherModel"], fromBaseTeacherModel);
+  }
+  const fromTunedTeacherModelSource = getValueByPath(fromObject, [
+    "tunedTeacherModelSource"
+  ]);
+  if (parentObject !== void 0 && fromTunedTeacherModelSource != null) {
+    setValueByPath(parentObject, ["distillationSpec", "tunedTeacherModelSource"], fromTunedTeacherModelSource);
+  }
+  const fromSftLossWeightMultiplier = getValueByPath(fromObject, [
+    "sftLossWeightMultiplier"
+  ]);
+  if (parentObject !== void 0 && fromSftLossWeightMultiplier != null) {
+    setValueByPath(parentObject, ["distillationSpec", "hyperParameters", "sftLossWeightMultiplier"], fromSftLossWeightMultiplier);
+  }
+  const fromOutputUri = getValueByPath(fromObject, ["outputUri"]);
+  if (parentObject !== void 0 && fromOutputUri != null) {
+    setValueByPath(parentObject, ["outputUri"], fromOutputUri);
+  }
+  const fromRewardConfig = getValueByPath(fromObject, ["rewardConfig"]);
+  if (parentObject !== void 0 && fromRewardConfig != null) {
+    setValueByPath(parentObject, ["reinforcementTuningSpec", "singleRewardConfig"], fromRewardConfig);
+  }
+  const fromCompositeRewardConfig = getValueByPath(fromObject, [
+    "compositeRewardConfig"
+  ]);
+  if (parentObject !== void 0 && fromCompositeRewardConfig != null) {
+    setValueByPath(parentObject, ["reinforcementTuningSpec", "compositeRewardConfig"], fromCompositeRewardConfig);
+  }
+  const fromSamplesPerPrompt = getValueByPath(fromObject, [
+    "samplesPerPrompt"
+  ]);
+  if (parentObject !== void 0 && fromSamplesPerPrompt != null) {
+    setValueByPath(parentObject, ["reinforcementTuningSpec", "hyperParameters", "samplesPerPrompt"], fromSamplesPerPrompt);
+  }
+  const fromEvaluateInterval = getValueByPath(fromObject, [
+    "evaluateInterval"
+  ]);
+  if (parentObject !== void 0 && fromEvaluateInterval != null) {
+    setValueByPath(parentObject, ["reinforcementTuningSpec", "hyperParameters", "evaluateInterval"], fromEvaluateInterval);
+  }
+  const fromCheckpointInterval = getValueByPath(fromObject, [
+    "checkpointInterval"
+  ]);
+  if (parentObject !== void 0 && fromCheckpointInterval != null) {
+    setValueByPath(parentObject, ["reinforcementTuningSpec", "hyperParameters", "checkpointInterval"], fromCheckpointInterval);
+  }
+  const fromMaxOutputTokens = getValueByPath(fromObject, [
+    "maxOutputTokens"
+  ]);
+  if (parentObject !== void 0 && fromMaxOutputTokens != null) {
+    setValueByPath(parentObject, ["reinforcementTuningSpec", "hyperParameters", "maxOutputTokens"], fromMaxOutputTokens);
+  }
+  const fromThinkingLevel = getValueByPath(fromObject, [
+    "thinkingLevel"
+  ]);
+  if (parentObject !== void 0 && fromThinkingLevel != null) {
+    setValueByPath(parentObject, ["reinforcementTuningSpec", "hyperParameters", "thinkingLevel"], fromThinkingLevel);
+  }
+  const fromValidationDatasetUri = getValueByPath(fromObject, [
+    "validationDatasetUri"
+  ]);
+  if (parentObject !== void 0 && fromValidationDatasetUri != null) {
+    setValueByPath(parentObject, ["reinforcementTuningSpec", "validationDatasetUri"], fromValidationDatasetUri);
+  }
+  const fromEncryptionSpec = getValueByPath(fromObject, [
+    "encryptionSpec"
+  ]);
+  if (parentObject !== void 0 && fromEncryptionSpec != null) {
+    setValueByPath(parentObject, ["encryptionSpec"], fromEncryptionSpec);
+  }
+  return toObject;
+}
+function createTuningJobParametersPrivateToMldev(fromObject, rootObject) {
+  const toObject = {};
+  const fromBaseModel = getValueByPath(fromObject, ["baseModel"]);
+  if (fromBaseModel != null) {
+    setValueByPath(toObject, ["baseModel"], fromBaseModel);
+  }
+  const fromPreTunedModel = getValueByPath(fromObject, [
+    "preTunedModel"
+  ]);
+  if (fromPreTunedModel != null) {
+    setValueByPath(toObject, ["preTunedModel"], fromPreTunedModel);
+  }
+  const fromTrainingDataset = getValueByPath(fromObject, [
+    "trainingDataset"
+  ]);
+  if (fromTrainingDataset != null) {
+    tuningDatasetToMldev(fromTrainingDataset);
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    createTuningJobConfigToMldev(fromConfig, toObject);
+  }
+  return toObject;
+}
+function createTuningJobParametersPrivateToVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromBaseModel = getValueByPath(fromObject, ["baseModel"]);
+  if (fromBaseModel != null) {
+    setValueByPath(toObject, ["baseModel"], fromBaseModel);
+  }
+  const fromPreTunedModel = getValueByPath(fromObject, [
+    "preTunedModel"
+  ]);
+  if (fromPreTunedModel != null) {
+    setValueByPath(toObject, ["preTunedModel"], fromPreTunedModel);
+  }
+  const fromTrainingDataset = getValueByPath(fromObject, [
+    "trainingDataset"
+  ]);
+  if (fromTrainingDataset != null) {
+    tuningDatasetToVertex(fromTrainingDataset, toObject, rootObject);
+  }
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    createTuningJobConfigToVertex(fromConfig, toObject, rootObject);
+  }
+  return toObject;
+}
+function distillationHyperParametersFromVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromEpochCount = getValueByPath(fromObject, ["epochCount"]);
+  if (fromEpochCount != null) {
+    setValueByPath(toObject, ["epochCount"], fromEpochCount);
+  }
+  const fromLearningRateMultiplier = getValueByPath(fromObject, [
+    "learningRateMultiplier"
+  ]);
+  if (fromLearningRateMultiplier != null) {
+    setValueByPath(toObject, ["learningRateMultiplier"], fromLearningRateMultiplier);
+  }
+  const fromAdapterSize = getValueByPath(fromObject, ["adapterSize"]);
+  if (fromAdapterSize != null) {
+    setValueByPath(toObject, ["adapterSize"], fromAdapterSize);
+  }
+  const fromBatchSize = getValueByPath(fromObject, ["batchSize"]);
+  if (fromBatchSize != null) {
+    setValueByPath(toObject, ["batchSize"], fromBatchSize);
+  }
+  const fromLearningRate = getValueByPath(fromObject, ["learningRate"]);
+  if (fromLearningRate != null) {
+    setValueByPath(toObject, ["learningRate"], fromLearningRate);
+  }
+  const fromGenerationConfig = getValueByPath(fromObject, [
+    "generationConfig"
+  ]);
+  if (fromGenerationConfig != null) {
+    setValueByPath(toObject, ["generationConfig"], generationConfigFromVertex(fromGenerationConfig));
+  }
+  return toObject;
+}
+function distillationSamplingSpecFromVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromPromptDatasetUri = getValueByPath(fromObject, [
+    "promptDatasetUri"
+  ]);
+  if (fromPromptDatasetUri != null) {
+    setValueByPath(toObject, ["promptDatasetUri"], fromPromptDatasetUri);
+  }
+  const fromValidationDatasetUri = getValueByPath(fromObject, [
+    "validationDatasetUri"
+  ]);
+  if (fromValidationDatasetUri != null) {
+    setValueByPath(toObject, ["validationDatasetUri"], fromValidationDatasetUri);
+  }
+  const fromBaseTeacherModel = getValueByPath(fromObject, [
+    "baseTeacherModel"
+  ]);
+  if (fromBaseTeacherModel != null) {
+    setValueByPath(toObject, ["baseTeacherModel"], fromBaseTeacherModel);
+  }
+  const fromTunedTeacherModelSource = getValueByPath(fromObject, [
+    "tunedTeacherModelSource"
+  ]);
+  if (fromTunedTeacherModelSource != null) {
+    setValueByPath(toObject, ["tunedTeacherModelSource"], fromTunedTeacherModelSource);
+  }
+  const fromHyperparameters = getValueByPath(fromObject, [
+    "hyperparameters"
+  ]);
+  if (fromHyperparameters != null) {
+    setValueByPath(toObject, ["hyperparameters"], distillationHyperParametersFromVertex(fromHyperparameters));
+  }
+  return toObject;
+}
+function distillationSpecFromVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromBaseTeacherModel = getValueByPath(fromObject, [
+    "baseTeacherModel"
+  ]);
+  if (fromBaseTeacherModel != null) {
+    setValueByPath(toObject, ["baseTeacherModel"], fromBaseTeacherModel);
+  }
+  const fromHyperParameters = getValueByPath(fromObject, [
+    "hyperParameters"
+  ]);
+  if (fromHyperParameters != null) {
+    setValueByPath(toObject, ["hyperParameters"], distillationHyperParametersFromVertex(fromHyperParameters));
+  }
+  const fromPipelineRootDirectory = getValueByPath(fromObject, [
+    "pipelineRootDirectory"
+  ]);
+  if (fromPipelineRootDirectory != null) {
+    setValueByPath(toObject, ["pipelineRootDirectory"], fromPipelineRootDirectory);
+  }
+  const fromPromptDatasetUri = getValueByPath(fromObject, [
+    "promptDatasetUri"
+  ]);
+  if (fromPromptDatasetUri != null) {
+    setValueByPath(toObject, ["promptDatasetUri"], fromPromptDatasetUri);
+  }
+  const fromStudentModel = getValueByPath(fromObject, ["studentModel"]);
+  if (fromStudentModel != null) {
+    setValueByPath(toObject, ["studentModel"], fromStudentModel);
+  }
+  const fromTrainingDatasetUri = getValueByPath(fromObject, [
+    "trainingDatasetUri"
+  ]);
+  if (fromTrainingDatasetUri != null) {
+    setValueByPath(toObject, ["trainingDatasetUri"], fromTrainingDatasetUri);
+  }
+  const fromTunedTeacherModelSource = getValueByPath(fromObject, [
+    "tunedTeacherModelSource"
+  ]);
+  if (fromTunedTeacherModelSource != null) {
+    setValueByPath(toObject, ["tunedTeacherModelSource"], fromTunedTeacherModelSource);
+  }
+  const fromTuningMode = getValueByPath(fromObject, ["tuningMode"]);
+  if (fromTuningMode != null) {
+    setValueByPath(toObject, ["tuningMode"], fromTuningMode);
+  }
+  const fromValidationDatasetUri = getValueByPath(fromObject, [
+    "validationDatasetUri"
+  ]);
+  if (fromValidationDatasetUri != null) {
+    setValueByPath(toObject, ["validationDatasetUri"], fromValidationDatasetUri);
+  }
+  return toObject;
+}
+function executableCodeToVertex(fromObject, _rootObject) {
+  const toObject = {};
+  const fromCode = getValueByPath(fromObject, ["code"]);
+  if (fromCode != null) {
+    setValueByPath(toObject, ["code"], fromCode);
+  }
+  const fromLanguage = getValueByPath(fromObject, ["language"]);
+  if (fromLanguage != null) {
+    setValueByPath(toObject, ["language"], fromLanguage);
+  }
+  if (getValueByPath(fromObject, ["id"]) !== void 0) {
+    throw new Error("id parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function generationConfigFromVertex(fromObject, _rootObject) {
+  const toObject = {};
+  const fromModelSelectionConfig = getValueByPath(fromObject, [
+    "modelConfig"
+  ]);
+  if (fromModelSelectionConfig != null) {
+    setValueByPath(toObject, ["modelSelectionConfig"], fromModelSelectionConfig);
+  }
+  const fromResponseJsonSchema = getValueByPath(fromObject, [
+    "responseJsonSchema"
+  ]);
+  if (fromResponseJsonSchema != null) {
+    setValueByPath(toObject, ["responseJsonSchema"], fromResponseJsonSchema);
+  }
+  const fromAudioTranscriptionConfig = getValueByPath(fromObject, [
+    "audioTranscriptionConfig"
+  ]);
+  if (fromAudioTranscriptionConfig != null) {
+    setValueByPath(toObject, ["audioTranscriptionConfig"], fromAudioTranscriptionConfig);
+  }
+  const fromAudioTimestamp = getValueByPath(fromObject, [
+    "audioTimestamp"
+  ]);
+  if (fromAudioTimestamp != null) {
+    setValueByPath(toObject, ["audioTimestamp"], fromAudioTimestamp);
+  }
+  const fromCandidateCount = getValueByPath(fromObject, [
+    "candidateCount"
+  ]);
+  if (fromCandidateCount != null) {
+    setValueByPath(toObject, ["candidateCount"], fromCandidateCount);
+  }
+  const fromEnableAffectiveDialog = getValueByPath(fromObject, [
+    "enableAffectiveDialog"
+  ]);
+  if (fromEnableAffectiveDialog != null) {
+    setValueByPath(toObject, ["enableAffectiveDialog"], fromEnableAffectiveDialog);
+  }
+  const fromFrequencyPenalty = getValueByPath(fromObject, [
+    "frequencyPenalty"
+  ]);
+  if (fromFrequencyPenalty != null) {
+    setValueByPath(toObject, ["frequencyPenalty"], fromFrequencyPenalty);
+  }
+  const fromLogprobs = getValueByPath(fromObject, ["logprobs"]);
+  if (fromLogprobs != null) {
+    setValueByPath(toObject, ["logprobs"], fromLogprobs);
+  }
+  const fromMaxOutputTokens = getValueByPath(fromObject, [
+    "maxOutputTokens"
+  ]);
+  if (fromMaxOutputTokens != null) {
+    setValueByPath(toObject, ["maxOutputTokens"], fromMaxOutputTokens);
+  }
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (fromMediaResolution != null) {
+    setValueByPath(toObject, ["mediaResolution"], fromMediaResolution);
+  }
+  const fromPresencePenalty = getValueByPath(fromObject, [
+    "presencePenalty"
+  ]);
+  if (fromPresencePenalty != null) {
+    setValueByPath(toObject, ["presencePenalty"], fromPresencePenalty);
+  }
+  const fromResponseFormat = getValueByPath(fromObject, [
+    "responseFormat"
+  ]);
+  if (fromResponseFormat != null) {
+    let transformedList = fromResponseFormat;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["responseFormat"], transformedList);
+  }
+  const fromResponseLogprobs = getValueByPath(fromObject, [
+    "responseLogprobs"
+  ]);
+  if (fromResponseLogprobs != null) {
+    setValueByPath(toObject, ["responseLogprobs"], fromResponseLogprobs);
+  }
+  const fromResponseMimeType = getValueByPath(fromObject, [
+    "responseMimeType"
+  ]);
+  if (fromResponseMimeType != null) {
+    setValueByPath(toObject, ["responseMimeType"], fromResponseMimeType);
+  }
+  const fromResponseModalities = getValueByPath(fromObject, [
+    "responseModalities"
+  ]);
+  if (fromResponseModalities != null) {
+    setValueByPath(toObject, ["responseModalities"], fromResponseModalities);
+  }
+  const fromResponseSchema = getValueByPath(fromObject, [
+    "responseSchema"
+  ]);
+  if (fromResponseSchema != null) {
+    setValueByPath(toObject, ["responseSchema"], fromResponseSchema);
+  }
+  const fromRoutingConfig = getValueByPath(fromObject, [
+    "routingConfig"
+  ]);
+  if (fromRoutingConfig != null) {
+    setValueByPath(toObject, ["routingConfig"], fromRoutingConfig);
+  }
+  const fromSeed = getValueByPath(fromObject, ["seed"]);
+  if (fromSeed != null) {
+    setValueByPath(toObject, ["seed"], fromSeed);
+  }
+  const fromSpeechConfig = getValueByPath(fromObject, ["speechConfig"]);
+  if (fromSpeechConfig != null) {
+    setValueByPath(toObject, ["speechConfig"], fromSpeechConfig);
+  }
+  const fromStopSequences = getValueByPath(fromObject, [
+    "stopSequences"
+  ]);
+  if (fromStopSequences != null) {
+    setValueByPath(toObject, ["stopSequences"], fromStopSequences);
+  }
+  const fromTemperature = getValueByPath(fromObject, ["temperature"]);
+  if (fromTemperature != null) {
+    setValueByPath(toObject, ["temperature"], fromTemperature);
+  }
+  const fromThinkingConfig = getValueByPath(fromObject, [
+    "thinkingConfig"
+  ]);
+  if (fromThinkingConfig != null) {
+    setValueByPath(toObject, ["thinkingConfig"], fromThinkingConfig);
+  }
+  const fromTopK = getValueByPath(fromObject, ["topK"]);
+  if (fromTopK != null) {
+    setValueByPath(toObject, ["topK"], fromTopK);
+  }
+  const fromTopP = getValueByPath(fromObject, ["topP"]);
+  if (fromTopP != null) {
+    setValueByPath(toObject, ["topP"], fromTopP);
+  }
+  return toObject;
+}
+function getTuningJobParametersToMldev(fromObject, _rootObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], fromName);
+  }
+  return toObject;
+}
+function getTuningJobParametersToVertex(fromObject, _rootObject) {
+  const toObject = {};
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["_url", "name"], fromName);
+  }
+  return toObject;
+}
+function listTuningJobsConfigToVertex(fromObject, parentObject, _rootObject) {
+  const toObject = {};
+  const fromPageSize = getValueByPath(fromObject, ["pageSize"]);
+  if (parentObject !== void 0 && fromPageSize != null) {
+    setValueByPath(parentObject, ["_query", "pageSize"], fromPageSize);
+  }
+  const fromPageToken = getValueByPath(fromObject, ["pageToken"]);
+  if (parentObject !== void 0 && fromPageToken != null) {
+    setValueByPath(parentObject, ["_query", "pageToken"], fromPageToken);
+  }
+  const fromFilter = getValueByPath(fromObject, ["filter"]);
+  if (parentObject !== void 0 && fromFilter != null) {
+    setValueByPath(parentObject, ["_query", "filter"], fromFilter);
+  }
+  return toObject;
+}
+function listTuningJobsParametersToVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromConfig = getValueByPath(fromObject, ["config"]);
+  if (fromConfig != null) {
+    listTuningJobsConfigToVertex(fromConfig, toObject);
+  }
+  return toObject;
+}
+function listTuningJobsResponseFromVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromNextPageToken = getValueByPath(fromObject, [
+    "nextPageToken"
+  ]);
+  if (fromNextPageToken != null) {
+    setValueByPath(toObject, ["nextPageToken"], fromNextPageToken);
+  }
+  const fromTuningJobs = getValueByPath(fromObject, ["tuningJobs"]);
+  if (fromTuningJobs != null) {
+    let transformedList = fromTuningJobs;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return tuningJobFromVertex(item);
+      });
+    }
+    setValueByPath(toObject, ["tuningJobs"], transformedList);
+  }
+  return toObject;
+}
+function partToVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromMediaResolution = getValueByPath(fromObject, [
+    "mediaResolution"
+  ]);
+  if (fromMediaResolution != null) {
+    setValueByPath(toObject, ["mediaResolution"], fromMediaResolution);
+  }
+  if (getValueByPath(fromObject, ["toolCall"]) !== void 0) {
+    throw new Error("toolCall parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  if (getValueByPath(fromObject, ["toolResponse"]) !== void 0) {
+    throw new Error("toolResponse parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  const fromAudioTranscription = getValueByPath(fromObject, [
+    "audioTranscription"
+  ]);
+  if (fromAudioTranscription != null) {
+    setValueByPath(toObject, ["audioTranscription"], fromAudioTranscription);
+  }
+  const fromCodeExecutionResult = getValueByPath(fromObject, [
+    "codeExecutionResult"
+  ]);
+  if (fromCodeExecutionResult != null) {
+    setValueByPath(toObject, ["codeExecutionResult"], codeExecutionResultToVertex(fromCodeExecutionResult));
+  }
+  const fromExecutableCode = getValueByPath(fromObject, [
+    "executableCode"
+  ]);
+  if (fromExecutableCode != null) {
+    setValueByPath(toObject, ["executableCode"], executableCodeToVertex(fromExecutableCode));
+  }
+  const fromFileData = getValueByPath(fromObject, ["fileData"]);
+  if (fromFileData != null) {
+    setValueByPath(toObject, ["fileData"], fromFileData);
+  }
+  const fromFunctionCall = getValueByPath(fromObject, ["functionCall"]);
+  if (fromFunctionCall != null) {
+    setValueByPath(toObject, ["functionCall"], fromFunctionCall);
+  }
+  const fromFunctionResponse = getValueByPath(fromObject, [
+    "functionResponse"
+  ]);
+  if (fromFunctionResponse != null) {
+    setValueByPath(toObject, ["functionResponse"], fromFunctionResponse);
+  }
+  const fromInlineData = getValueByPath(fromObject, ["inlineData"]);
+  if (fromInlineData != null) {
+    setValueByPath(toObject, ["inlineData"], fromInlineData);
+  }
+  const fromText = getValueByPath(fromObject, ["text"]);
+  if (fromText != null) {
+    setValueByPath(toObject, ["text"], fromText);
+  }
+  const fromThought = getValueByPath(fromObject, ["thought"]);
+  if (fromThought != null) {
+    setValueByPath(toObject, ["thought"], fromThought);
+  }
+  const fromThoughtSignature = getValueByPath(fromObject, [
+    "thoughtSignature"
+  ]);
+  if (fromThoughtSignature != null) {
+    setValueByPath(toObject, ["thoughtSignature"], fromThoughtSignature);
+  }
+  const fromVideoMetadata = getValueByPath(fromObject, [
+    "videoMetadata"
+  ]);
+  if (fromVideoMetadata != null) {
+    setValueByPath(toObject, ["videoMetadata"], fromVideoMetadata);
+  }
+  if (getValueByPath(fromObject, ["partMetadata"]) !== void 0) {
+    throw new Error("partMetadata parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function reinforcementTuningExampleToVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromReferences = getValueByPath(fromObject, ["references"]);
+  if (fromReferences != null) {
+    setValueByPath(toObject, ["references"], fromReferences);
+  }
+  const fromContents = getValueByPath(fromObject, ["contents"]);
+  if (fromContents != null) {
+    let transformedList = fromContents;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return contentToVertex(item);
+      });
+    }
+    setValueByPath(toObject, ["contents"], transformedList);
+  }
+  const fromSystemInstruction = getValueByPath(fromObject, [
+    "systemInstruction"
+  ]);
+  if (fromSystemInstruction != null) {
+    setValueByPath(toObject, ["systemInstruction"], contentToVertex(fromSystemInstruction));
+  }
+  return toObject;
+}
+function tunedModelFromMldev(fromObject, _rootObject) {
+  const toObject = {};
+  const fromModel = getValueByPath(fromObject, ["name"]);
+  if (fromModel != null) {
+    setValueByPath(toObject, ["model"], fromModel);
+  }
+  const fromEndpoint = getValueByPath(fromObject, ["name"]);
+  if (fromEndpoint != null) {
+    setValueByPath(toObject, ["endpoint"], fromEndpoint);
+  }
+  return toObject;
+}
+function tuningDatasetToMldev(fromObject, _rootObject) {
+  const toObject = {};
+  if (getValueByPath(fromObject, ["gcsUri"]) !== void 0) {
+    throw new Error("gcsUri parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  if (getValueByPath(fromObject, ["vertexDatasetResource"]) !== void 0) {
+    throw new Error("vertexDatasetResource parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode.");
+  }
+  const fromExamples = getValueByPath(fromObject, ["examples"]);
+  if (fromExamples != null) {
+    let transformedList = fromExamples;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["examples", "examples"], transformedList);
+  }
+  return toObject;
+}
+function tuningDatasetToVertex(fromObject, parentObject, rootObject) {
+  const toObject = {};
+  let discriminatorGcsUri = getValueByPath(rootObject, [
+    "config",
+    "method"
+  ]);
+  if (discriminatorGcsUri === void 0) {
+    discriminatorGcsUri = "SUPERVISED_FINE_TUNING";
+  }
+  if (discriminatorGcsUri === "SUPERVISED_FINE_TUNING") {
+    const fromGcsUri = getValueByPath(fromObject, ["gcsUri"]);
+    if (parentObject !== void 0 && fromGcsUri != null) {
+      setValueByPath(parentObject, ["supervisedTuningSpec", "trainingDatasetUri"], fromGcsUri);
+    }
+  } else if (discriminatorGcsUri === "PREFERENCE_TUNING") {
+    const fromGcsUri = getValueByPath(fromObject, ["gcsUri"]);
+    if (parentObject !== void 0 && fromGcsUri != null) {
+      setValueByPath(parentObject, ["preferenceOptimizationSpec", "trainingDatasetUri"], fromGcsUri);
+    }
+  } else if (discriminatorGcsUri === "DISTILLATION") {
+    const fromGcsUri = getValueByPath(fromObject, ["gcsUri"]);
+    if (parentObject !== void 0 && fromGcsUri != null) {
+      setValueByPath(parentObject, ["distillationSpec", "promptDatasetUri"], fromGcsUri);
+    }
+  } else if (discriminatorGcsUri === "REINFORCEMENT_TUNING") {
+    const fromGcsUri = getValueByPath(fromObject, ["gcsUri"]);
+    if (parentObject !== void 0 && fromGcsUri != null) {
+      setValueByPath(parentObject, ["reinforcementTuningSpec", "trainingDatasetUri"], fromGcsUri);
+    }
+  }
+  let discriminatorVertexDatasetResource = getValueByPath(rootObject, [
+    "config",
+    "method"
+  ]);
+  if (discriminatorVertexDatasetResource === void 0) {
+    discriminatorVertexDatasetResource = "SUPERVISED_FINE_TUNING";
+  }
+  if (discriminatorVertexDatasetResource === "SUPERVISED_FINE_TUNING") {
+    const fromVertexDatasetResource = getValueByPath(fromObject, [
+      "vertexDatasetResource"
+    ]);
+    if (parentObject !== void 0 && fromVertexDatasetResource != null) {
+      setValueByPath(parentObject, ["supervisedTuningSpec", "trainingDatasetUri"], fromVertexDatasetResource);
+    }
+  } else if (discriminatorVertexDatasetResource === "PREFERENCE_TUNING") {
+    const fromVertexDatasetResource = getValueByPath(fromObject, [
+      "vertexDatasetResource"
+    ]);
+    if (parentObject !== void 0 && fromVertexDatasetResource != null) {
+      setValueByPath(parentObject, ["preferenceOptimizationSpec", "trainingDatasetUri"], fromVertexDatasetResource);
+    }
+  } else if (discriminatorVertexDatasetResource === "DISTILLATION") {
+    const fromVertexDatasetResource = getValueByPath(fromObject, [
+      "vertexDatasetResource"
+    ]);
+    if (parentObject !== void 0 && fromVertexDatasetResource != null) {
+      setValueByPath(parentObject, ["distillationSpec", "promptDatasetUri"], fromVertexDatasetResource);
+    }
+  } else if (discriminatorVertexDatasetResource === "REINFORCEMENT_TUNING") {
+    const fromVertexDatasetResource = getValueByPath(fromObject, [
+      "vertexDatasetResource"
+    ]);
+    if (parentObject !== void 0 && fromVertexDatasetResource != null) {
+      setValueByPath(parentObject, ["reinforcementTuningSpec", "trainingDatasetUri"], fromVertexDatasetResource);
+    }
+  }
+  if (getValueByPath(fromObject, ["examples"]) !== void 0) {
+    throw new Error("examples parameter is only supported in Gemini Developer API mode, not in Gemini Enterprise Agent Platform mode.");
+  }
+  return toObject;
+}
+function tuningJobFromMldev(fromObject, rootObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  const fromState = getValueByPath(fromObject, ["state"]);
+  if (fromState != null) {
+    setValueByPath(toObject, ["state"], tTuningJobStatus(fromState));
+  }
+  const fromCreateTime = getValueByPath(fromObject, ["createTime"]);
+  if (fromCreateTime != null) {
+    setValueByPath(toObject, ["createTime"], fromCreateTime);
+  }
+  const fromStartTime = getValueByPath(fromObject, [
+    "tuningTask",
+    "startTime"
+  ]);
+  if (fromStartTime != null) {
+    setValueByPath(toObject, ["startTime"], fromStartTime);
+  }
+  const fromEndTime = getValueByPath(fromObject, [
+    "tuningTask",
+    "completeTime"
+  ]);
+  if (fromEndTime != null) {
+    setValueByPath(toObject, ["endTime"], fromEndTime);
+  }
+  const fromUpdateTime = getValueByPath(fromObject, ["updateTime"]);
+  if (fromUpdateTime != null) {
+    setValueByPath(toObject, ["updateTime"], fromUpdateTime);
+  }
+  const fromDescription = getValueByPath(fromObject, ["description"]);
+  if (fromDescription != null) {
+    setValueByPath(toObject, ["description"], fromDescription);
+  }
+  const fromBaseModel = getValueByPath(fromObject, ["baseModel"]);
+  if (fromBaseModel != null) {
+    setValueByPath(toObject, ["baseModel"], fromBaseModel);
+  }
+  const fromTunedModel = getValueByPath(fromObject, ["_self"]);
+  if (fromTunedModel != null) {
+    setValueByPath(toObject, ["tunedModel"], tunedModelFromMldev(fromTunedModel));
+  }
+  return toObject;
+}
+function tuningJobFromVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  const fromState = getValueByPath(fromObject, ["state"]);
+  if (fromState != null) {
+    setValueByPath(toObject, ["state"], tTuningJobStatus(fromState));
+  }
+  const fromCreateTime = getValueByPath(fromObject, ["createTime"]);
+  if (fromCreateTime != null) {
+    setValueByPath(toObject, ["createTime"], fromCreateTime);
+  }
+  const fromStartTime = getValueByPath(fromObject, ["startTime"]);
+  if (fromStartTime != null) {
+    setValueByPath(toObject, ["startTime"], fromStartTime);
+  }
+  const fromEndTime = getValueByPath(fromObject, ["endTime"]);
+  if (fromEndTime != null) {
+    setValueByPath(toObject, ["endTime"], fromEndTime);
+  }
+  const fromUpdateTime = getValueByPath(fromObject, ["updateTime"]);
+  if (fromUpdateTime != null) {
+    setValueByPath(toObject, ["updateTime"], fromUpdateTime);
+  }
+  const fromError = getValueByPath(fromObject, ["error"]);
+  if (fromError != null) {
+    setValueByPath(toObject, ["error"], fromError);
+  }
+  const fromDescription = getValueByPath(fromObject, ["description"]);
+  if (fromDescription != null) {
+    setValueByPath(toObject, ["description"], fromDescription);
+  }
+  const fromBaseModel = getValueByPath(fromObject, ["baseModel"]);
+  if (fromBaseModel != null) {
+    setValueByPath(toObject, ["baseModel"], fromBaseModel);
+  }
+  const fromTunedModel = getValueByPath(fromObject, ["tunedModel"]);
+  if (fromTunedModel != null) {
+    setValueByPath(toObject, ["tunedModel"], fromTunedModel);
+  }
+  const fromPreTunedModel = getValueByPath(fromObject, [
+    "preTunedModel"
+  ]);
+  if (fromPreTunedModel != null) {
+    setValueByPath(toObject, ["preTunedModel"], fromPreTunedModel);
+  }
+  const fromSupervisedTuningSpec = getValueByPath(fromObject, [
+    "supervisedTuningSpec"
+  ]);
+  if (fromSupervisedTuningSpec != null) {
+    setValueByPath(toObject, ["supervisedTuningSpec"], fromSupervisedTuningSpec);
+  }
+  const fromPreferenceOptimizationSpec = getValueByPath(fromObject, [
+    "preferenceOptimizationSpec"
+  ]);
+  if (fromPreferenceOptimizationSpec != null) {
+    setValueByPath(toObject, ["preferenceOptimizationSpec"], fromPreferenceOptimizationSpec);
+  }
+  const fromDistillationSamplingSpec = getValueByPath(fromObject, [
+    "distillationSamplingSpec"
+  ]);
+  if (fromDistillationSamplingSpec != null) {
+    setValueByPath(toObject, ["distillationSamplingSpec"], distillationSamplingSpecFromVertex(fromDistillationSamplingSpec));
+  }
+  const fromDistillationSpec = getValueByPath(fromObject, [
+    "distillationSpec"
+  ]);
+  if (fromDistillationSpec != null) {
+    setValueByPath(toObject, ["distillationSpec"], distillationSpecFromVertex(fromDistillationSpec));
+  }
+  const fromReinforcementTuningSpec = getValueByPath(fromObject, [
+    "reinforcementTuningSpec"
+  ]);
+  if (fromReinforcementTuningSpec != null) {
+    setValueByPath(toObject, ["reinforcementTuningSpec"], fromReinforcementTuningSpec);
+  }
+  const fromTuningDataStats = getValueByPath(fromObject, [
+    "tuningDataStats"
+  ]);
+  if (fromTuningDataStats != null) {
+    setValueByPath(toObject, ["tuningDataStats"], fromTuningDataStats);
+  }
+  const fromEncryptionSpec = getValueByPath(fromObject, [
+    "encryptionSpec"
+  ]);
+  if (fromEncryptionSpec != null) {
+    setValueByPath(toObject, ["encryptionSpec"], fromEncryptionSpec);
+  }
+  const fromPartnerModelTuningSpec = getValueByPath(fromObject, [
+    "partnerModelTuningSpec"
+  ]);
+  if (fromPartnerModelTuningSpec != null) {
+    setValueByPath(toObject, ["partnerModelTuningSpec"], fromPartnerModelTuningSpec);
+  }
+  const fromCustomBaseModel = getValueByPath(fromObject, [
+    "customBaseModel"
+  ]);
+  if (fromCustomBaseModel != null) {
+    setValueByPath(toObject, ["customBaseModel"], fromCustomBaseModel);
+  }
+  const fromEvaluateDatasetRuns = getValueByPath(fromObject, [
+    "evaluateDatasetRuns"
+  ]);
+  if (fromEvaluateDatasetRuns != null) {
+    let transformedList = fromEvaluateDatasetRuns;
+    if (Array.isArray(transformedList)) {
+      transformedList = transformedList.map((item) => {
+        return item;
+      });
+    }
+    setValueByPath(toObject, ["evaluateDatasetRuns"], transformedList);
+  }
+  const fromExperiment = getValueByPath(fromObject, ["experiment"]);
+  if (fromExperiment != null) {
+    setValueByPath(toObject, ["experiment"], fromExperiment);
+  }
+  const fromFullFineTuningSpec = getValueByPath(fromObject, [
+    "fullFineTuningSpec"
+  ]);
+  if (fromFullFineTuningSpec != null) {
+    setValueByPath(toObject, ["fullFineTuningSpec"], fromFullFineTuningSpec);
+  }
+  const fromLabels = getValueByPath(fromObject, ["labels"]);
+  if (fromLabels != null) {
+    setValueByPath(toObject, ["labels"], fromLabels);
+  }
+  const fromOutputUri = getValueByPath(fromObject, ["outputUri"]);
+  if (fromOutputUri != null) {
+    setValueByPath(toObject, ["outputUri"], fromOutputUri);
+  }
+  const fromPipelineJob = getValueByPath(fromObject, ["pipelineJob"]);
+  if (fromPipelineJob != null) {
+    setValueByPath(toObject, ["pipelineJob"], fromPipelineJob);
+  }
+  const fromServiceAccount = getValueByPath(fromObject, [
+    "serviceAccount"
+  ]);
+  if (fromServiceAccount != null) {
+    setValueByPath(toObject, ["serviceAccount"], fromServiceAccount);
+  }
+  const fromTunedModelDisplayName = getValueByPath(fromObject, [
+    "tunedModelDisplayName"
+  ]);
+  if (fromTunedModelDisplayName != null) {
+    setValueByPath(toObject, ["tunedModelDisplayName"], fromTunedModelDisplayName);
+  }
+  const fromTuningJobMetadata = getValueByPath(fromObject, [
+    "tuningJobMetadata"
+  ]);
+  if (fromTuningJobMetadata != null) {
+    setValueByPath(toObject, ["tuningJobMetadata"], fromTuningJobMetadata);
+  }
+  const fromTuningJobState = getValueByPath(fromObject, [
+    "tuningJobState"
+  ]);
+  if (fromTuningJobState != null) {
+    setValueByPath(toObject, ["tuningJobState"], fromTuningJobState);
+  }
+  const fromVeoLoraTuningSpec = getValueByPath(fromObject, [
+    "veoLoraTuningSpec"
+  ]);
+  if (fromVeoLoraTuningSpec != null) {
+    setValueByPath(toObject, ["veoLoraTuningSpec"], fromVeoLoraTuningSpec);
+  }
+  const fromVeoTuningSpec = getValueByPath(fromObject, [
+    "veoTuningSpec"
+  ]);
+  if (fromVeoTuningSpec != null) {
+    setValueByPath(toObject, ["veoTuningSpec"], fromVeoTuningSpec);
+  }
+  return toObject;
+}
+function tuningOperationFromMldev(fromObject, _rootObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromName = getValueByPath(fromObject, ["name"]);
+  if (fromName != null) {
+    setValueByPath(toObject, ["name"], fromName);
+  }
+  const fromMetadata = getValueByPath(fromObject, ["metadata"]);
+  if (fromMetadata != null) {
+    setValueByPath(toObject, ["metadata"], fromMetadata);
+  }
+  const fromDone = getValueByPath(fromObject, ["done"]);
+  if (fromDone != null) {
+    setValueByPath(toObject, ["done"], fromDone);
+  }
+  const fromError = getValueByPath(fromObject, ["error"]);
+  if (fromError != null) {
+    setValueByPath(toObject, ["error"], fromError);
+  }
+  return toObject;
+}
+function tuningValidationDatasetToVertex(fromObject, _rootObject) {
+  const toObject = {};
+  const fromGcsUri = getValueByPath(fromObject, ["gcsUri"]);
+  if (fromGcsUri != null) {
+    setValueByPath(toObject, ["validationDatasetUri"], fromGcsUri);
+  }
+  const fromVertexDatasetResource = getValueByPath(fromObject, [
+    "vertexDatasetResource"
+  ]);
+  if (fromVertexDatasetResource != null) {
+    setValueByPath(toObject, ["validationDatasetUri"], fromVertexDatasetResource);
+  }
+  return toObject;
+}
+function validateRewardParametersToVertex(fromObject, rootObject) {
+  const toObject = {};
+  const fromParent = getValueByPath(fromObject, ["parent"]);
+  if (fromParent != null) {
+    setValueByPath(toObject, ["_url", "parent"], fromParent);
+  }
+  const fromSampleResponse = getValueByPath(fromObject, [
+    "sampleResponse"
+  ]);
+  if (fromSampleResponse != null) {
+    setValueByPath(toObject, ["sampleResponse"], contentToVertex(fromSampleResponse));
+  }
+  const fromExample = getValueByPath(fromObject, ["example"]);
+  if (fromExample != null) {
+    setValueByPath(toObject, ["example"], reinforcementTuningExampleToVertex(fromExample));
+  }
+  const fromSingleRewardConfig = getValueByPath(fromObject, [
+    "singleRewardConfig"
+  ]);
+  if (fromSingleRewardConfig != null) {
+    setValueByPath(toObject, ["singleRewardConfig"], fromSingleRewardConfig);
+  }
+  const fromCompositeRewardConfig = getValueByPath(fromObject, [
+    "compositeRewardConfig"
+  ]);
+  if (fromCompositeRewardConfig != null) {
+    setValueByPath(toObject, ["compositeRewardConfig"], fromCompositeRewardConfig);
+  }
+  return toObject;
+}
+function validateRewardResponseFromVertex(fromObject, _rootObject) {
+  const toObject = {};
+  const fromSdkHttpResponse = getValueByPath(fromObject, [
+    "sdkHttpResponse"
+  ]);
+  if (fromSdkHttpResponse != null) {
+    setValueByPath(toObject, ["sdkHttpResponse"], fromSdkHttpResponse);
+  }
+  const fromOverallReward = getValueByPath(fromObject, [
+    "overallReward"
+  ]);
+  if (fromOverallReward != null) {
+    setValueByPath(toObject, ["overallReward"], fromOverallReward);
+  }
+  const fromError = getValueByPath(fromObject, ["error"]);
+  if (fromError != null) {
+    setValueByPath(toObject, ["error"], fromError);
+  }
+  const fromRewardInfoDetails = getValueByPath(fromObject, [
+    "rewardInfoDetails"
+  ]);
+  if (fromRewardInfoDetails != null) {
+    setValueByPath(toObject, ["rewardInfoDetails"], fromRewardInfoDetails);
+  }
+  return toObject;
+}
+var Tunings = class extends BaseModule {
+  constructor(apiClient) {
+    super();
+    this.apiClient = apiClient;
+    this.list = async (params = {}) => {
+      return new Pager(PagedItem.PAGED_ITEM_TUNING_JOBS, (x2) => this.listInternal(x2), await this.listInternal(params), params);
+    };
+    this.get = async (params) => {
+      return await this.getInternal(params);
+    };
+    this.tune = async (params) => {
+      var _a4;
+      if (this.apiClient.isVertexAI()) {
+        if (params.baseModel.startsWith("projects/")) {
+          const preTunedModel = {
+            tunedModelName: params.baseModel
+          };
+          if ((_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.preTunedModelCheckpointId) {
+            preTunedModel.checkpointId = params.config.preTunedModelCheckpointId;
+          }
+          const paramsPrivate = Object.assign(Object.assign({}, params), { preTunedModel });
+          paramsPrivate.baseModel = void 0;
+          return await this.tuneInternal(paramsPrivate);
+        } else {
+          const paramsPrivate = Object.assign({}, params);
+          return await this.tuneInternal(paramsPrivate);
+        }
+      } else {
+        const paramsPrivate = Object.assign({}, params);
+        const operation = await this.tuneMldevInternal(paramsPrivate);
+        let tunedModelName = "";
+        if (operation["metadata"] !== void 0 && operation["metadata"]["tunedModel"] !== void 0) {
+          tunedModelName = operation["metadata"]["tunedModel"];
+        } else if (operation["name"] !== void 0 && operation["name"].includes("/operations/")) {
+          tunedModelName = operation["name"].split("/operations/")[0];
+        }
+        const tuningJob = {
+          name: tunedModelName,
+          state: JobState.JOB_STATE_QUEUED
+        };
+        return tuningJob;
+      }
+    };
+  }
+  async getInternal(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = getTuningJobParametersToVertex(params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = tuningJobFromVertex(apiResponse);
+        return resp;
+      });
+    } else {
+      const body = getTuningJobParametersToMldev(params);
+      path6 = formatMap("{name}", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = tuningJobFromMldev(apiResponse);
+        return resp;
+      });
+    }
+  }
+  async listInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = listTuningJobsParametersToVertex(params);
+      path6 = formatMap("tuningJobs", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "GET",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = listTuningJobsResponseFromVertex(apiResponse);
+        const typedResp = new ListTuningJobsResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    } else {
+      throw new Error("This method is only supported by the Gemini Enterprise Agent Platform (previously known as Vertex AI).");
+    }
+  }
+  /**
+   * Cancels a tuning job.
+   *
+   * @param params - The parameters for the cancel request.
+   * @return The empty response returned by the API.
+   *
+   * @example
+   * ```ts
+   * await ai.tunings.cancel({name: '...'}); // The server-generated resource name.
+   * ```
+   */
+  async cancel(params) {
+    var _a4, _b, _c, _d;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = cancelTuningJobParametersToVertex(params);
+      path6 = formatMap("{name}:cancel", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = cancelTuningJobResponseFromVertex(apiResponse);
+        const typedResp = new CancelTuningJobResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    } else {
+      const body = cancelTuningJobParametersToMldev(params);
+      path6 = formatMap("{name}:cancel", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_c = params.config) === null || _c === void 0 ? void 0 : _c.httpOptions,
+        abortSignal: (_d = params.config) === null || _d === void 0 ? void 0 : _d.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = cancelTuningJobResponseFromMldev(apiResponse);
+        const typedResp = new CancelTuningJobResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    }
+  }
+  async tuneInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = createTuningJobParametersPrivateToVertex(params, params);
+      path6 = formatMap("tuningJobs", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = tuningJobFromVertex(apiResponse);
+        return resp;
+      });
+    } else {
+      throw new Error("This method is only supported by the Gemini Enterprise Agent Platform (previously known as Vertex AI).");
+    }
+  }
+  async tuneMldevInternal(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      throw new Error("This method is only supported by the Gemini Developer API.");
+    } else {
+      const body = createTuningJobParametersPrivateToMldev(params);
+      path6 = formatMap("tunedModels", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = tuningOperationFromMldev(apiResponse);
+        return resp;
+      });
+    }
+  }
+  async validateReward(params) {
+    var _a4, _b;
+    let response;
+    let path6 = "";
+    let queryParams = {};
+    if (this.apiClient.isVertexAI()) {
+      const body = validateRewardParametersToVertex(params);
+      path6 = formatMap("{parent}/tuningJobs:validateReinforcementTuningReward", body["_url"]);
+      queryParams = body["_query"];
+      delete body["_url"];
+      delete body["_query"];
+      response = this.apiClient.request({
+        path: path6,
+        queryParams,
+        body: JSON.stringify(body),
+        httpMethod: "POST",
+        httpOptions: (_a4 = params.config) === null || _a4 === void 0 ? void 0 : _a4.httpOptions,
+        abortSignal: (_b = params.config) === null || _b === void 0 ? void 0 : _b.abortSignal
+      }).then((httpResponse) => {
+        return httpResponse.json().then((jsonResponse) => {
+          const response2 = jsonResponse;
+          response2.sdkHttpResponse = {
+            headers: httpResponse.headers
+          };
+          return response2;
+        });
+      });
+      return response.then((apiResponse) => {
+        const resp = validateRewardResponseFromVertex(apiResponse);
+        const typedResp = new ValidateRewardResponse();
+        Object.assign(typedResp, resp);
+        return typedResp;
+      });
+    } else {
+      throw new Error("This method is only supported by the Gemini Enterprise Agent Platform (previously known as Vertex AI).");
+    }
+  }
+};
 var MAX_CHUNK_SIZE = 1024 * 1024 * 8;
+var MAX_RETRY_COUNT = 3;
+var INITIAL_RETRY_DELAY_MS = 1e3;
+var DELAY_MULTIPLIER = 2;
+var X_GOOG_UPLOAD_STATUS_HEADER_FIELD = "x-goog-upload-status";
+async function uploadBlob(file, uploadUrl, apiClient, httpOptions) {
+  var _a4;
+  const response = await uploadBlobInternal(file, uploadUrl, apiClient, httpOptions);
+  const responseJson = await (response === null || response === void 0 ? void 0 : response.json());
+  if (((_a4 = response === null || response === void 0 ? void 0 : response.headers) === null || _a4 === void 0 ? void 0 : _a4[X_GOOG_UPLOAD_STATUS_HEADER_FIELD]) !== "final") {
+    throw new Error("Failed to upload file: Upload status is not finalized.");
+  }
+  return responseJson["file"];
+}
+async function uploadBlobToFileSearchStore(file, uploadUrl, apiClient, httpOptions) {
+  var _a4;
+  const response = await uploadBlobInternal(file, uploadUrl, apiClient, httpOptions);
+  const responseJson = await (response === null || response === void 0 ? void 0 : response.json());
+  if (((_a4 = response === null || response === void 0 ? void 0 : response.headers) === null || _a4 === void 0 ? void 0 : _a4[X_GOOG_UPLOAD_STATUS_HEADER_FIELD]) !== "final") {
+    throw new Error("Failed to upload file: Upload status is not finalized.");
+  }
+  const resp = uploadToFileSearchStoreOperationFromMldev(responseJson);
+  const typedResp = new UploadToFileSearchStoreOperation();
+  Object.assign(typedResp, resp);
+  return typedResp;
+}
+async function uploadBlobInternal(file, uploadUrl, apiClient, httpOptions) {
+  var _a4, _b, _c;
+  let finalUrl = uploadUrl;
+  const effectiveBaseUrl = (httpOptions === null || httpOptions === void 0 ? void 0 : httpOptions.baseUrl) || ((_a4 = apiClient.clientOptions.httpOptions) === null || _a4 === void 0 ? void 0 : _a4.baseUrl);
+  if (effectiveBaseUrl) {
+    const baseUri = new URL(effectiveBaseUrl);
+    const uploadUri = new URL(uploadUrl);
+    uploadUri.protocol = baseUri.protocol;
+    uploadUri.host = baseUri.host;
+    uploadUri.port = baseUri.port;
+    finalUrl = uploadUri.toString();
+  }
+  let fileSize = 0;
+  let offset = 0;
+  let response = new HttpResponse(new Response());
+  let uploadCommand = "upload";
+  fileSize = file.size;
+  while (offset < fileSize) {
+    const chunkSize = Math.min(MAX_CHUNK_SIZE, fileSize - offset);
+    const chunk = file.slice(offset, offset + chunkSize);
+    if (offset + chunkSize >= fileSize) {
+      uploadCommand += ", finalize";
+    }
+    let retryCount = 0;
+    let currentDelayMs = INITIAL_RETRY_DELAY_MS;
+    while (retryCount < MAX_RETRY_COUNT) {
+      const mergedHeaders = Object.assign(Object.assign({}, (httpOptions === null || httpOptions === void 0 ? void 0 : httpOptions.headers) || {}), { "X-Goog-Upload-Command": uploadCommand, "X-Goog-Upload-Offset": String(offset), "Content-Length": String(chunkSize) });
+      response = await apiClient.request({
+        path: "",
+        body: chunk,
+        httpMethod: "POST",
+        httpOptions: Object.assign(Object.assign({}, httpOptions), { apiVersion: "", baseUrl: finalUrl, headers: mergedHeaders })
+      });
+      if ((_b = response === null || response === void 0 ? void 0 : response.headers) === null || _b === void 0 ? void 0 : _b[X_GOOG_UPLOAD_STATUS_HEADER_FIELD]) {
+        break;
+      }
+      retryCount++;
+      await sleep2(currentDelayMs);
+      currentDelayMs = currentDelayMs * DELAY_MULTIPLIER;
+    }
+    offset += chunkSize;
+    if (((_c = response === null || response === void 0 ? void 0 : response.headers) === null || _c === void 0 ? void 0 : _c[X_GOOG_UPLOAD_STATUS_HEADER_FIELD]) !== "active") {
+      break;
+    }
+    if (fileSize <= offset) {
+      throw new Error("All content has been uploaded, but the upload status is not finalized.");
+    }
+  }
+  return response;
+}
+async function getBlobStat(file) {
+  const fileStat = { size: file.size, type: file.type };
+  return fileStat;
+}
+function sleep2(ms) {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, ms));
+}
+var NodeUploader = class {
+  async stat(file) {
+    const fileStat = { size: 0, type: void 0 };
+    if (typeof file === "string") {
+      const originalStat = await fs2.stat(file);
+      fileStat.size = originalStat.size;
+      fileStat.type = this.inferMimeType(file);
+      return fileStat;
+    } else {
+      return await getBlobStat(file);
+    }
+  }
+  async upload(file, uploadUrl, apiClient, httpOptions) {
+    if (typeof file === "string") {
+      return await this.uploadFileFromPath(file, uploadUrl, apiClient, httpOptions);
+    } else {
+      return uploadBlob(file, uploadUrl, apiClient, httpOptions);
+    }
+  }
+  async uploadToFileSearchStore(file, uploadUrl, apiClient, httpOptions) {
+    if (typeof file === "string") {
+      return await this.uploadFileToFileSearchStoreFromPath(file, uploadUrl, apiClient, httpOptions);
+    } else {
+      return uploadBlobToFileSearchStore(file, uploadUrl, apiClient, httpOptions);
+    }
+  }
+  /**
+   * Infers the MIME type of a file based on its extension.
+   *
+   * @param filePath The path to the file.
+   * @returns The MIME type of the file, or undefined if it cannot be inferred.
+   */
+  inferMimeType(filePath) {
+    const fileExtension = filePath.slice(filePath.lastIndexOf(".") + 1);
+    const mimeTypes = {
+      "aac": "audio/aac",
+      "abw": "application/x-abiword",
+      "arc": "application/x-freearc",
+      "avi": "video/x-msvideo",
+      "azw": "application/vnd.amazon.ebook",
+      "bin": "application/octet-stream",
+      "bmp": "image/bmp",
+      "bz": "application/x-bzip",
+      "bz2": "application/x-bzip2",
+      "csh": "application/x-csh",
+      "css": "text/css",
+      "csv": "text/csv",
+      "doc": "application/msword",
+      "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "eot": "application/vnd.ms-fontobject",
+      "epub": "application/epub+zip",
+      "gz": "application/gzip",
+      "gif": "image/gif",
+      "htm": "text/html",
+      "html": "text/html",
+      "ico": "image/vnd.microsoft.icon",
+      "ics": "text/calendar",
+      "jar": "application/java-archive",
+      "jpeg": "image/jpeg",
+      "jpg": "image/jpeg",
+      "js": "text/javascript",
+      "json": "application/json",
+      "jsonld": "application/ld+json",
+      "kml": "application/vnd.google-earth.kml+xml",
+      "kmz": "application/vnd.google-earth.kmz+xml",
+      "mjs": "text/javascript",
+      "mp3": "audio/mpeg",
+      "mp4": "video/mp4",
+      "mpeg": "video/mpeg",
+      "mpkg": "application/vnd.apple.installer+xml",
+      "odt": "application/vnd.oasis.opendocument.text",
+      "oga": "audio/ogg",
+      "ogv": "video/ogg",
+      "ogx": "application/ogg",
+      "opus": "audio/opus",
+      "otf": "font/otf",
+      "png": "image/png",
+      "pdf": "application/pdf",
+      "php": "application/x-httpd-php",
+      "ppt": "application/vnd.ms-powerpoint",
+      "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "rar": "application/vnd.rar",
+      "rtf": "application/rtf",
+      "sh": "application/x-sh",
+      "svg": "image/svg+xml",
+      "swf": "application/x-shockwave-flash",
+      "tar": "application/x-tar",
+      "tif": "image/tiff",
+      "tiff": "image/tiff",
+      "ts": "video/mp2t",
+      "ttf": "font/ttf",
+      "txt": "text/plain",
+      "vsd": "application/vnd.visio",
+      "wav": "audio/wav",
+      "weba": "audio/webm",
+      "webm": "video/webm",
+      "webp": "image/webp",
+      "woff": "font/woff",
+      "woff2": "font/woff2",
+      "xhtml": "application/xhtml+xml",
+      "xls": "application/vnd.ms-excel",
+      "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "xml": "application/xml",
+      "xul": "application/vnd.mozilla.xul+xml",
+      "zip": "application/zip",
+      "3gp": "video/3gpp",
+      "3g2": "video/3gpp2",
+      "7z": "application/x-7z-compressed"
+    };
+    const mimeType = mimeTypes[fileExtension.toLowerCase()];
+    return mimeType;
+  }
+  async uploadFileFromPath(file, uploadUrl, apiClient, httpOptions) {
+    var _a4;
+    const response = await this.uploadFileFromPathInternal(file, uploadUrl, apiClient, httpOptions);
+    const responseJson = await (response === null || response === void 0 ? void 0 : response.json());
+    if (((_a4 = response === null || response === void 0 ? void 0 : response.headers) === null || _a4 === void 0 ? void 0 : _a4[X_GOOG_UPLOAD_STATUS_HEADER_FIELD]) !== "final") {
+      throw new Error("Failed to upload file: Upload status is not finalized.");
+    }
+    return responseJson["file"];
+  }
+  async uploadFileToFileSearchStoreFromPath(file, uploadUrl, apiClient, httpOptions) {
+    var _a4;
+    const response = await this.uploadFileFromPathInternal(file, uploadUrl, apiClient, httpOptions);
+    const responseJson = await (response === null || response === void 0 ? void 0 : response.json());
+    if (((_a4 = response === null || response === void 0 ? void 0 : response.headers) === null || _a4 === void 0 ? void 0 : _a4[X_GOOG_UPLOAD_STATUS_HEADER_FIELD]) !== "final") {
+      throw new Error("Failed to upload file: Upload status is not finalized.");
+    }
+    const resp = uploadToFileSearchStoreOperationFromMldev(responseJson);
+    const typedResp = new UploadToFileSearchStoreOperation();
+    Object.assign(typedResp, resp);
+    return typedResp;
+  }
+  async uploadFileFromPathInternal(file, uploadUrl, apiClient, httpOptions) {
+    var _a4, _b, _c;
+    let finalUrl = uploadUrl;
+    const effectiveBaseUrl = (httpOptions === null || httpOptions === void 0 ? void 0 : httpOptions.baseUrl) || ((_a4 = apiClient.clientOptions.httpOptions) === null || _a4 === void 0 ? void 0 : _a4.baseUrl);
+    if (effectiveBaseUrl) {
+      const baseUri = new URL(effectiveBaseUrl);
+      const uploadUri = new URL(uploadUrl);
+      uploadUri.protocol = baseUri.protocol;
+      uploadUri.host = baseUri.host;
+      uploadUri.port = baseUri.port;
+      finalUrl = uploadUri.toString();
+    }
+    let fileSize = 0;
+    let offset = 0;
+    let response = new HttpResponse(new Response());
+    let uploadCommand = "upload";
+    let fileHandle;
+    const fileName = path4.basename(file);
+    try {
+      fileHandle = await fs2.open(file, "r");
+      if (!fileHandle) {
+        throw new Error(`Failed to open file`);
+      }
+      fileSize = (await fileHandle.stat()).size;
+      while (offset < fileSize) {
+        const chunkSize = Math.min(MAX_CHUNK_SIZE, fileSize - offset);
+        if (offset + chunkSize >= fileSize) {
+          uploadCommand += ", finalize";
+        }
+        const buffer = new Uint8Array(chunkSize);
+        const { bytesRead } = await fileHandle.read(buffer, 0, chunkSize, offset);
+        if (bytesRead !== chunkSize) {
+          throw new Error(`Failed to read ${chunkSize} bytes from file at offset ${offset}. bytes actually read: ${bytesRead}`);
+        }
+        const chunk = new Blob([buffer]);
+        let retryCount = 0;
+        let currentDelayMs = INITIAL_RETRY_DELAY_MS;
+        while (retryCount < MAX_RETRY_COUNT) {
+          const mergedHeaders = Object.assign(Object.assign({}, (httpOptions === null || httpOptions === void 0 ? void 0 : httpOptions.headers) || {}), { "X-Goog-Upload-Command": uploadCommand, "X-Goog-Upload-Offset": String(offset), "Content-Length": String(bytesRead), "X-Goog-Upload-File-Name": fileName });
+          response = await apiClient.request({
+            path: "",
+            body: chunk,
+            httpMethod: "POST",
+            httpOptions: Object.assign(Object.assign({}, httpOptions), { apiVersion: "", baseUrl: finalUrl, headers: mergedHeaders })
+          });
+          if ((_b = response === null || response === void 0 ? void 0 : response.headers) === null || _b === void 0 ? void 0 : _b[X_GOOG_UPLOAD_STATUS_HEADER_FIELD]) {
+            break;
+          }
+          retryCount++;
+          await sleep2(currentDelayMs);
+          currentDelayMs = currentDelayMs * DELAY_MULTIPLIER;
+        }
+        offset += bytesRead;
+        if (((_c = response === null || response === void 0 ? void 0 : response.headers) === null || _c === void 0 ? void 0 : _c[X_GOOG_UPLOAD_STATUS_HEADER_FIELD]) !== "active") {
+          break;
+        }
+        if (fileSize <= offset) {
+          throw new Error("All content has been uploaded, but the upload status is not finalized.");
+        }
+      }
+      return response;
+    } finally {
+      if (fileHandle) {
+        await fileHandle.close();
+      }
+    }
+  }
+};
+var NodeFiles = class extends Files4 {
+  /**
+   * Registers Google Cloud Storage files for use with the API.
+   * This method is only available in Node.js environments.
+   */
+  async registerFiles(params) {
+    if (typeof process === "undefined" || !process.versions || !process.versions.node) {
+      throw new Error("registerFiles is only supported in Node.js environments.");
+    }
+    const googleAuth = params.auth;
+    const authHeaders = await googleAuth.getRequestHeaders();
+    const config = params.config || {};
+    const httpOptions = config.httpOptions || {};
+    const headers = Object.assign({}, httpOptions.headers || {});
+    if (authHeaders) {
+      if (typeof authHeaders[Symbol.iterator] === "function") {
+        for (const [key, value] of authHeaders) {
+          headers[key] = value;
+        }
+      } else {
+        for (const [key, value] of Object.entries(authHeaders)) {
+          headers[key] = value;
+        }
+      }
+    }
+    return this._registerFiles({
+      uris: params.uris,
+      config: Object.assign(Object.assign({}, config), { httpOptions: Object.assign(Object.assign({}, httpOptions), { headers }) })
+    });
+  }
+};
+var LANGUAGE_LABEL_PREFIX = "gl-node/";
+function resolveCloudFlag(options) {
+  var _a4;
+  if (options.enterprise !== void 0 || options.vertexai !== void 0) {
+    if (options.enterprise !== void 0 && options.vertexai !== void 0 && options.enterprise !== options.vertexai) {
+      throw new Error("enterprise and vertexAI flags have conflicting values, please set enterprise value only.");
+    }
+    return (_a4 = options.enterprise) !== null && _a4 !== void 0 ? _a4 : options.vertexai;
+  }
+  const envEnterpriseStr = getEnv("GOOGLE_GENAI_USE_ENTERPRISE");
+  const envVertexaiStr = getEnv("GOOGLE_GENAI_USE_VERTEXAI");
+  const useEnterpriseEnv = stringToBoolean(envEnterpriseStr);
+  const useVertexaiEnv = stringToBoolean(envVertexaiStr);
+  if (envEnterpriseStr !== void 0 && envVertexaiStr !== void 0 && useEnterpriseEnv !== useVertexaiEnv) {
+    console.warn("Warning: Both GOOGLE_GENAI_USE_ENTERPRISE and GOOGLE_GENAI_USE_VERTEXAI are set with conflicting values. The value of GOOGLE_GENAI_USE_ENTERPRISE will be used.");
+  }
+  if (envEnterpriseStr !== void 0) {
+    return useEnterpriseEnv;
+  }
+  if (envVertexaiStr !== void 0) {
+    return useVertexaiEnv;
+  }
+  return false;
+}
+var GoogleGenAI2 = class {
+  getNextGenClient() {
+    const httpOpts = this.httpOptions;
+    if (this._nextGenClient === void 0) {
+      this._nextGenClient = buildGoogleGenAIClient(this.apiClient, {
+        timeout_ms: httpOpts === null || httpOpts === void 0 ? void 0 : httpOpts.timeout
+      });
+    }
+    if (httpOpts === null || httpOpts === void 0 ? void 0 : httpOpts.extraBody) {
+      console.warn("GoogleGenAI: Client level httpOptions.extraBody is not supported by the Gemini NextGen client and will be ignored.");
+    }
+    return this._nextGenClient;
+  }
+  get interactions() {
+    if (this._interactions !== void 0) {
+      return this._interactions;
+    }
+    this._interactions = new GeminiNextGenInteractions(this.apiClient);
+    return this._interactions;
+  }
+  get webhooks() {
+    if (this._webhooks !== void 0) {
+      return this._webhooks;
+    }
+    this._webhooks = new GeminiNextGenWebhooks(this.apiClient);
+    return this._webhooks;
+  }
+  get agents() {
+    if (this._agents !== void 0) {
+      return this._agents;
+    }
+    console.warn("GoogleGenAI.agents: Agents usage is experimental and may change in future versions.");
+    this._agents = new GeminiNextGenAgents(this.apiClient);
+    return this._agents;
+  }
+  get triggers() {
+    if (this._triggers !== void 0) {
+      return this._triggers;
+    }
+    console.warn("GoogleGenAI.triggers: Triggers usage is experimental and may change in future versions.");
+    this._triggers = new GeminiNextGenTriggers(this.apiClient);
+    return this._triggers;
+  }
+  get environments() {
+    if (this._environments !== void 0) {
+      return this._environments;
+    }
+    console.warn("GoogleGenAI.environments: Environments usage is experimental and may change in future versions.");
+    this._environments = new GeminiNextGenEnvironments(this.apiClient);
+    return this._environments;
+  }
+  constructor(options) {
+    var _a4, _b, _c, _d;
+    this.vertexai = resolveCloudFlag(options);
+    if ((options.project || options.location) && !this.vertexai) {
+      throw new Error("Project and location are not supported for Gemini API backend.");
+    }
+    const envApiKey = getApiKeyFromEnv();
+    const envProject = getEnv("GOOGLE_CLOUD_PROJECT");
+    const envLocation = getEnv("GOOGLE_CLOUD_LOCATION");
+    this.apiKey = (_a4 = options.apiKey) !== null && _a4 !== void 0 ? _a4 : envApiKey;
+    this.project = (_b = options.project) !== null && _b !== void 0 ? _b : envProject;
+    this.location = (_c = options.location) !== null && _c !== void 0 ? _c : envLocation;
+    if (!this.vertexai && !this.apiKey) {
+      console.warn("API key should be set when using the Gemini API.");
+    }
+    if (this.vertexai) {
+      if ((_d = options.googleAuthOptions) === null || _d === void 0 ? void 0 : _d.credentials) {
+        console.debug("The user provided Google Cloud credentials will take precedence over the API key from the environment variable.");
+        this.apiKey = void 0;
+      }
+      if (!options.project && !options.location && (envProject || envLocation) && options.apiKey) {
+        console.debug("The user provided Vertex AI API key will take precedence over the project/location from the environment variables.");
+        this.project = void 0;
+        this.location = void 0;
+      } else if ((options.project || options.location) && !options.apiKey && envApiKey) {
+        console.debug("The user provided project/location will take precedence over the API key from the environment variables.");
+        this.apiKey = void 0;
+      } else if (!options.project && !options.location && !options.apiKey && (envProject || envLocation) && envApiKey) {
+        console.debug("The project/location from the environment variables will take precedence over the API key from the environment variables.");
+        this.apiKey = void 0;
+      }
+      if (!this.location && !this.apiKey) {
+        this.location = "global";
+      }
+    }
+    const baseUrl = getBaseUrl(options.httpOptions, this.vertexai, getEnv("GOOGLE_VERTEX_BASE_URL"), getEnv("GOOGLE_GEMINI_BASE_URL"));
+    if (baseUrl) {
+      if (options.httpOptions) {
+        options.httpOptions.baseUrl = baseUrl;
+      } else {
+        options.httpOptions = { baseUrl };
+      }
+    }
+    this.apiVersion = options.apiVersion;
+    this.httpOptions = options.httpOptions;
+    const auth = new NodeAuth({
+      apiKey: this.apiKey,
+      googleAuthOptions: options.googleAuthOptions
+    });
+    this.apiClient = new ApiClient({
+      auth,
+      project: this.project,
+      location: this.location,
+      apiVersion: this.apiVersion,
+      apiKey: this.apiKey,
+      vertexai: this.vertexai,
+      httpOptions: this.httpOptions,
+      userAgentExtra: LANGUAGE_LABEL_PREFIX + process.version,
+      uploader: new NodeUploader(),
+      downloader: new NodeDownloader()
+    });
+    this.models = new Models2(this.apiClient);
+    this.live = new Live(this.apiClient, auth, new NodeWebSocketFactory());
+    this.batches = new Batches2(this.apiClient);
+    this.chats = new Chats(this.models, this.apiClient);
+    this.caches = new Caches(this.apiClient);
+    this.files = new NodeFiles(this.apiClient);
+    this.operations = new Operations(this.apiClient);
+    this.authTokens = new Tokens(this.apiClient);
+    this.tunings = new Tunings(this.apiClient);
+    this.fileSearchStores = new FileSearchStores(this.apiClient);
+  }
+};
+function getEnv(env2) {
+  var _a4, _b, _c;
+  return (_c = (_b = (_a4 = process === null || process === void 0 ? void 0 : process.env) === null || _a4 === void 0 ? void 0 : _a4[env2]) === null || _b === void 0 ? void 0 : _b.trim()) !== null && _c !== void 0 ? _c : void 0;
+}
+function stringToBoolean(str2) {
+  if (str2 === void 0) {
+    return false;
+  }
+  return str2.toLowerCase() === "true";
+}
+function getApiKeyFromEnv() {
+  const envGoogleApiKey = getEnv("GOOGLE_API_KEY");
+  const envGeminiApiKey = getEnv("GEMINI_API_KEY");
+  if (envGoogleApiKey && envGeminiApiKey) {
+    console.warn("Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.");
+  }
+  return envGoogleApiKey || envGeminiApiKey || void 0;
+}
 
 // src/lib/openaiEnv.ts
+var PLACEHOLDER_KEY = "lucy-not-configured";
 function getOpenAiApiKey() {
   return process.env["OPEN_AI"]?.trim() || process.env["OPENAI_API_KEY"]?.trim() || "";
+}
+function getOpenAiApiKeyForClient() {
+  return getOpenAiApiKey() || PLACEHOLDER_KEY;
 }
 function isOpenAiConfigured() {
   return getOpenAiApiKey().length > 0;
@@ -52305,6 +67433,170 @@ function llmConfigSummary() {
 }
 
 // src/lib/llmChat.ts
+var geminiCallStats = {
+  total: 0,
+  byPurpose: {},
+  lastModel: null,
+  lastAt: null,
+  blockedOverrides: 0
+};
+function asText(content) {
+  if (typeof content === "string") return content;
+  return content.filter((p) => p.type === "text").map((p) => p.text).join("\n");
+}
+function splitSystem(messages) {
+  const systemParts = [];
+  const rest = [];
+  for (const m2 of messages) {
+    if (m2.role === "system") {
+      const t2 = asText(m2.content).trim();
+      if (t2) systemParts.push(t2);
+    } else {
+      rest.push(m2);
+    }
+  }
+  return { system: systemParts.join("\n\n"), rest };
+}
+function parseDataUrl(url) {
+  const m2 = /^data:([^;]+);base64,(.+)$/s.exec(url);
+  if (!m2) return null;
+  return { mimeType: m2[1], base64: m2[2] };
+}
+var geminiClient = null;
+function getGeminiClient() {
+  if (!geminiClient) {
+    geminiClient = new GoogleGenAI2({ apiKey: getGeminiApiKey() });
+  }
+  return geminiClient;
+}
+var openaiClient = null;
+function getOpenAiClient() {
+  if (!openaiClient) {
+    openaiClient = new OpenAI({ apiKey: getOpenAiApiKeyForClient() });
+  }
+  return openaiClient;
+}
+async function completeWithGemini(opts) {
+  const requested = opts.model ?? getChatModel();
+  const model = resolveGeminiModel(requested);
+  if (isBlockedGeminiModel(requested) || requested !== model) {
+    geminiCallStats.blockedOverrides += 1;
+  }
+  const purpose = opts.purpose ?? "other";
+  geminiCallStats.total += 1;
+  geminiCallStats.byPurpose[purpose] = (geminiCallStats.byPurpose[purpose] ?? 0) + 1;
+  geminiCallStats.lastModel = model;
+  geminiCallStats.lastAt = (/* @__PURE__ */ new Date()).toISOString();
+  const { system, rest } = splitSystem(opts.messages);
+  const contents = rest.map((m2) => {
+    const role = m2.role === "assistant" ? "model" : "user";
+    if (typeof m2.content === "string") {
+      return { role, parts: [{ text: m2.content }] };
+    }
+    const parts = [];
+    for (const p of m2.content) {
+      if (p.type === "text") {
+        parts.push({ text: p.text });
+      } else if (p.type === "image_url") {
+        const fromUrl = parseDataUrl(p.image_url.url);
+        const mimeType = p.mimeType || fromUrl?.mimeType || "image/jpeg";
+        const data = p.base64 || fromUrl?.base64;
+        if (data) {
+          parts.push({ inlineData: { mimeType, data } });
+        }
+      } else if (p.type === "input_audio") {
+        parts.push({
+          inlineData: { mimeType: p.mimeType || "audio/ogg", data: p.base64 }
+        });
+      }
+    }
+    if (!parts.length) parts.push({ text: "" });
+    return { role, parts };
+  });
+  if (contents.length && contents[0].role === "model") {
+    contents.unshift({ role: "user", parts: [{ text: "(contin\xFAa la conversaci\xF3n)" }] });
+  }
+  if (!contents.length) {
+    contents.push({ role: "user", parts: [{ text: "Hola" }] });
+  }
+  const ai = getGeminiClient();
+  if (model !== DEFAULT_GEMINI_MODEL) {
+    throw new Error(`Modelo Gemini no permitido: ${model} (solo ${DEFAULT_GEMINI_MODEL})`);
+  }
+  const response = await ai.models.generateContent({
+    model: DEFAULT_GEMINI_MODEL,
+    contents,
+    config: {
+      ...system ? { systemInstruction: system } : {},
+      temperature: opts.temperature ?? 0.6,
+      maxOutputTokens: opts.maxTokens ?? 1200,
+      ...opts.topP != null ? { topP: opts.topP } : {},
+      ...opts.json ? { responseMimeType: "application/json" } : {}
+    }
+  });
+  const text = (response.text ?? "").trim();
+  return { text, provider: "gemini", model: DEFAULT_GEMINI_MODEL };
+}
+async function completeWithOpenAi(opts) {
+  const model = opts.model ?? getChatModel();
+  const openai = getOpenAiClient();
+  const messages = opts.messages.map((m2) => {
+    if (typeof m2.content === "string") {
+      return { role: m2.role, content: m2.content };
+    }
+    const parts = [];
+    for (const p of m2.content) {
+      if (p.type === "text") {
+        parts.push({ type: "text", text: p.text });
+      } else if (p.type === "image_url") {
+        parts.push({ type: "image_url", image_url: { url: p.image_url.url } });
+      } else if (p.type === "input_audio") {
+        parts.push({
+          type: "text",
+          text: "[audio adjunto \u2014 usar Whisper para transcribir]"
+        });
+      }
+    }
+    return { role: m2.role, content: parts };
+  });
+  const completion = await openai.chat.completions.create({
+    model,
+    messages,
+    temperature: opts.temperature ?? 0.6,
+    max_tokens: opts.maxTokens ?? 1200,
+    ...opts.frequencyPenalty != null ? { frequency_penalty: opts.frequencyPenalty } : {},
+    ...opts.presencePenalty != null ? { presence_penalty: opts.presencePenalty } : {},
+    ...opts.topP != null ? { top_p: opts.topP } : {},
+    ...opts.json ? { response_format: { type: "json_object" } } : {}
+  });
+  const text = (completion.choices[0]?.message?.content ?? "").trim();
+  return { text, provider: "openai", model };
+}
+async function completeChat(opts) {
+  if (!isLlmConfigured()) {
+    throw new Error("LLM no configurado (GEMINI_API_KEY u OPEN_AI)");
+  }
+  const provider = getLlmProvider();
+  const noFallback = (process.env["LLM_NO_FALLBACK"] ?? "").trim() === "1";
+  try {
+    if (provider === "gemini") {
+      return await completeWithGemini(opts);
+    }
+    return await completeWithOpenAi(opts);
+  } catch (err) {
+    if (provider === "gemini" && !noFallback && getOpenAiApiKeyForClient() !== "lucy-not-configured") {
+      try {
+        return await completeWithOpenAi({
+          ...opts,
+          model: process.env["OPENAI_MODEL"]?.trim() || "gpt-4o-mini"
+        });
+      } catch {
+        throw err;
+      }
+    }
+    throw err;
+  }
+}
 function fromOpenAiMessages(messages) {
   const out = [];
   for (const m2 of messages) {
@@ -53236,7 +68528,7 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
     intro = `S\xED, para ${eventLabel} tambi\xE9n manejamos *maestro de ceremonias* y shows en vivo.`;
     ideas = "\xBFBuscas m\xE1s bien presentador, show de grupo, o animaci\xF3n tipo hora loca?";
   } else {
-    intro = `Claro \u2014 para entretenimiento en ${eventLabel} te apoyamos con shows, animaci\xF3n y activaciones.`;
+    intro = `Claro \u2014 para entretenimiento en ${eventLabel} te apoyamos con shows, animaci\xF3n y performance.`;
     ideas = "\xBFBuscas algo m\xE1s tipo show en vivo, hora loca, o ya tienes un formato en mente?";
   }
   const entServices = collectServicesForCatalogOffer({
@@ -53247,16 +68539,23 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
       ...wantsBailarinas ? ["Bailarinas", "Animaci\xF3n / Hora loca"] : [],
       ...wantsRobots ? ["Robots LED"] : [],
       ...wantsBatucada ? ["Batucada"] : [],
-      ...wantsMc ? ["Maestro de ceremonias"] : []
+      ...wantsMc ? ["Maestro de ceremonias"] : [],
+      ...!wantsPhotoBooth && !wantsSpecialAct && !wantsBailarinas && !wantsRobots && !wantsBatucada && !wantsMc ? ["Animaci\xF3n / Hora loca", "show"] : []
     ],
     extracted,
     history,
     currentMessage
   });
-  const catalog = wantsPhotoBooth || wantsSpecialAct ? "" : buildPackageCatalogOfferBlock(
+  let catalog = wantsPhotoBooth || wantsSpecialAct ? "" : buildPackageCatalogOfferBlock(
     entServices,
     `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
   );
+  if (!catalog && !wantsPhotoBooth) {
+    catalog = [
+      "Te dejo el cat\xE1logo general (shows, animaci\xF3n y m\xE1s servicios):",
+      getCatalogWebHubDeliveryUrl()
+    ].join("\n");
+  }
   let body = catalog ? `${intro} ${ideas}
 
 ${catalog}` : `${intro} ${ideas}`;
@@ -53661,11 +68960,11 @@ function dedupeTransitionsInMessage(mensaje) {
   if (!mensaje?.trim()) return mensaje;
   const pattern = /\b(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./gi;
   let seen = null;
-  let out = mensaje.replace(pattern, (match) => {
-    const key = match.toLowerCase();
+  let out = mensaje.replace(pattern, (match2) => {
+    const key = match2.toLowerCase();
     if (seen === key) return "";
     if (!seen) seen = key;
-    return match;
+    return match2;
   }).replace(/\s{2,}/g, " ").replace(/\s+\n/g, "\n").trim();
   out = out.replace(
     /\b(Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.)(?:\s+\1)+/gi,
@@ -53839,6 +69138,9 @@ function buildOpeningAcknowledgment(history, currentMessage) {
     return inv ? `Te ayudo con el banquete para ${inv[1]} personas.` : "Con gusto te ayudo con informaci\xF3n de banquetes.";
   }
   if (/kosher/.test(t2)) return "S\xED tenemos opciones kosher.";
+  if (/\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(t2)) {
+    return "Claro \u2014 manejamos shows, animaci\xF3n y performance para eventos.";
+  }
   if (/\bpista(\s+de\s+baile)?\b|\btarima/i.test(t2)) {
     return "Claro, te ayudo con pista de baile o tarima para tu evento.";
   }
@@ -55331,7 +70633,13 @@ Perfecto, ${nombre}. Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que qu
 Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: post-cierre \u2014 RFQ/paquete completo (no SKU suelto)");
-  } else if (cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim()) {
+  } else if (
+    // A15165: post-cierre con PREGUNTA de info/catálogo/modelos/shows → NO ack corto.
+    // Dejar caer a ramas de entretenimiento / mobiliario / recomendaciones / servicio.
+    cierreYaEnviado && !clientDeclinesMoreServices(currentMessage) && !clientSaysThanks(currentMessage) && isServiceRelatedMessage(currentMessage) && currentMessage?.trim() && !clientAsksServiceInfo(currentMessage) && !clientMentionsEntertainment(currentMessage) && !clientAsksForCatalog(currentMessage) && !clientAsksForRecommendations(currentMessage) && !clientAsksInclusion(currentMessage) && !clientAsksPrice(currentMessage) && !/\b(modelos?|cat[aá]logo|sillas?|mesas?|mobiliario|mobilairio|banquetes?)\b/i.test(
+      currentMessage ?? ""
+    )
+  ) {
     const services = parseServicesFromText(currentMessage);
     const list = services.length > 0 ? formatServicesList(services) : currentMessage.trim().replace(/\s+/g, " ").slice(0, 80);
     const nombre = getDisplayName(extracted, whatsappDisplayName);
@@ -56040,26 +71348,32 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
       log?.info({ entityId }, "GUARD: eligi\xF3 catering casual \u2192 men\xFA estaciones");
     }
   } else if (
-    // V8.92: tras menú de piezas mobiliario → modelos (sillas/mesas/…).
-    allowSalesReplyOverride && !cierreYaEnviado && historyOfferedMobiliarioPieceMenu(presHistory) && currentMessage?.trim() && parseMobiliarioPieceChoice(currentMessage)
+    // V8.92 / A15165: menú de piezas mobiliario → modelos (también post-cierre).
+    allowSalesReplyOverride && (historyOfferedMobiliarioPieceMenu(presHistory) || /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio\b/i.test(currentMessage ?? "")) && currentMessage?.trim() && (parseMobiliarioPieceChoice(currentMessage) || /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") || /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
-    const piece = parseMobiliarioPieceChoice(currentMessage);
+    const piece = parseMobiliarioPieceChoice(currentMessage) || (/\bsillas?\b/i.test(currentMessage ?? "") ? "sillas" : /\bmesas?\b/i.test(currentMessage ?? "") ? "mesas" : "mobiliario");
     filledSet.add("Requerimientos o servicios");
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
-      `Mobiliario: ${piece}`,
+      piece === "mobiliario" ? "Mobiliario" : `Mobiliario: ${piece}`,
       6
     );
     if (merged) extracted.requerimientos_evento = merged;
+    const body = piece === "mobiliario" ? buildProgressiveOptionsMenu("mobiliario") : buildMobiliarioPieceFollowUp(piece);
+    const catalogUrl = getCatalogWebUrlForQuery("mesas y sillas") || getCatalogWebHubDeliveryUrl();
+    const withLink = catalogUrl && !/bodasesor\.com\/catalogos/i.test(body) ? `${body}
+
+Cat\xE1logo de mesas y sillas:
+${catalogUrl}` : body;
     mensaje = mergeWithPendingQuestion(
-      `${pickTransition(presHistory)} ${buildMobiliarioPieceFollowUp(piece)}`,
+      `${pickTransition(presHistory)} ${withLink}`,
       filledSet,
       extracted,
       ctx
     );
     appliedSalesReply = true;
     appliedDirectReply = true;
-    log?.info({ entityId, piece }, "GUARD: pieza mobiliario \u2192 men\xFA de modelos");
+    log?.info({ entityId, piece }, "GUARD: mobiliario/sillas \u2192 men\xFA de modelos + cat\xE1logo");
   } else if (allowSalesReplyOverride && !cierreYaEnviado && historyOfferedServiceOptionsMenu(presHistory) && clientWantsServiceDetail(currentMessage, presHistory)) {
     const progressiveDetail = buildProgressiveDetailAfterMenu({
       extracted,
@@ -57470,6 +72784,9 @@ function applyLucyGlobalAntiRepetition(input) {
   const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
     mensaje
   ) || isEntertainmentCatalog || clientAffirmingCatalog;
+  const clientAskingInfo = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || clientAsksForRecommendations(input.currentMessage) || clientAsksForCatalog(input.currentMessage) || clientAsksInclusion(input.currentMessage) || clientAsksPrice(input.currentMessage) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info)\b/i.test(
+    input.currentMessage ?? ""
+  );
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p) => THANKS_ACK_PATTERN.test(p))) {
     const lastThanks = [...previous].reverse().find((p) => THANKS_ACK_PATTERN.test(p));
     if (lastThanks && lucyTextOverlapRatio(mensaje, lastThanks) >= 0.55) {
@@ -57477,7 +72794,7 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("postcierre-thanks-dedupe");
     }
   }
-  if (cierre && ALGO_MAS_PATTERN.test(mensaje)) {
+  if (cierre && !clientAskingInfo && ALGO_MAS_PATTERN.test(mensaje)) {
     const prevAlgoMas = previous.filter((p) => ALGO_MAS_PATTERN.test(p));
     if (prevAlgoMas.length >= 1 && prevAlgoMas.some((p) => lucyTextOverlapRatio(mensaje, p) >= 0.5)) {
       mensaje = shortPostCierreAck(nombre, false);
@@ -57546,7 +72863,7 @@ function applyLucyGlobalAntiRepetition(input) {
     }
   }
   const nearDupThreshold = questionLines(mensaje).length > 0 && mensaje.length < 220 ? 0.55 : 0.62;
-  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientClarifyingService && previous.length > 0) {
+  if (!isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientClarifyingService && !clientAskingInfo && previous.length > 0) {
     const maxOverlap = Math.max(...previous.map((p) => lucyTextOverlapRatio(mensaje, p)));
     if (maxOverlap >= nearDupThreshold) {
       const trimmed = stripRepeatedQuestionLines(mensaje, previous);
@@ -57587,6 +72904,12 @@ function applyLucyGlobalAntiRepetition(input) {
     applied.push("empty-fallback");
   }
   return { mensaje: mensaje.trim(), applied };
+}
+
+// src/lib/formatForWhatsApp.ts
+function formatForWhatsApp(text) {
+  if (!text?.trim()) return text;
+  return text.replace(/\*\*(.+?)\*\*/g, "*$1*").replace(/^#{1,6}\s*/gm, "").replace(/^\s*[-*]\s+/gm, "\u2022 ").replace(/`{1,3}/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 // src/lucy-prompt.ts
@@ -57766,6 +73089,99 @@ humano \u2192 pasa tel\xE9fonos de ventas/gerencia.
 - No cierres sin fecha/hora, ubicaci\xF3n, invitados y presupuesto.
 - PDFs = inclusiones. Sheet = precios. Sin dato \u2192 el equipo confirma.
 `;
+
+// src/services/lucyRedaction.ts
+async function refinarRespuestaCierre(_openai, borrador) {
+  const result = await completeChat({
+    purpose: "redaction",
+    temperature: 0.3,
+    maxTokens: 1200,
+    messages: [
+      {
+        role: "system",
+        content: "Eres editora de estilo de Lucy (asesora de eventos Bodasesor). Reescribe el mensaje para que suene m\xE1s c\xE1lido, natural y profesional en WhatsApp, sin emojis y sin lenguaje corporativo rob\xF3tico. Conserva TODA la informaci\xF3n factual, el texto 'Perfecto, ya tengo todo.', la URL del cat\xE1logo si aparece, las preguntas y el cierre. Devuelve SOLO el mensaje corregido, sin explicaciones."
+      },
+      { role: "user", content: borrador }
+    ]
+  });
+  return (result.text || borrador).trim();
+}
+async function maybeRefinarMensajeCierre(openai, mensaje, opts) {
+  const { readyForClosing, cierreYaEnviado, closingSignature, catalogUrl } = opts;
+  if (!readyForClosing || cierreYaEnviado || !mensaje.includes(closingSignature)) {
+    return mensaje;
+  }
+  const refined = await refinarRespuestaCierre(openai, mensaje);
+  if (!refined.includes(closingSignature)) return mensaje;
+  if (catalogUrl && mensaje.includes(catalogUrl) && !refined.includes(catalogUrl)) return mensaje;
+  return refined;
+}
+
+// src/lucyOutboundPipeline.ts
+async function finalizeLucyOutboundMessage(input) {
+  let mensaje = input.mensaje;
+  mensaje = await maybeRefinarMensajeCierre(input.openai, mensaje, {
+    readyForClosing: input.readyForClosing,
+    cierreYaEnviado: input.cierreYaEnviado,
+    closingSignature: CLOSING_SIGNATURE,
+    catalogUrl: CATALOG_URL
+  });
+  mensaje = normalizeAdvisorReferences(mensaje, input.extracted.nombre ?? null);
+  if (input.cierreYaEnviado && mensaje.includes(CATALOG_URL)) {
+    input.log?.warn({ entityId: input.entityId }, "P3 GUARD: cat\xE1logo repetido post-cierre \u2014 stripping");
+    mensaje = stripCatalogBlockShared(mensaje);
+  }
+  if (!input.readyForClosing && !input.cierreYaEnviado && mensaje.includes(CLOSING_SIGNATURE)) {
+    const without = mensaje.split(CLOSING_SIGNATURE).join(" ").replace(/\s{2,}/g, " ").trim();
+    mensaje = without && without.length > 20 ? without : "Perfecto, lo anoto. \xBFSeguimos con el siguiente dato del evento?";
+    input.log?.warn?.(
+      { entityId: input.entityId },
+      "GUARD: cierre prematuro bloqueado (invariante)"
+    );
+  }
+  const anti = applyLucyGlobalAntiRepetition({
+    mensaje,
+    history: input.history,
+    filledSet: input.filledSet,
+    extracted: input.extracted,
+    currentMessage: input.currentMessage,
+    cierreYaEnviado: input.cierreYaEnviado,
+    clientName: input.extracted.nombre
+  });
+  if (anti.applied.length) {
+    input.log?.info?.(
+      { entityId: input.entityId, applied: anti.applied },
+      "GUARD: anti-repetici\xF3n global"
+    );
+    mensaje = anti.mensaje;
+  }
+  const hasLucyIntro = /hola,?\s*soy\s+lucy/i.test(mensaje);
+  const openingNombreOnly = hasLucyIntro || /\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo)\b/i.test(
+    mensaje
+  ) && !/\b(precio|incluye|nivel|cat[aá]logo)\b/i.test(mensaje);
+  const alreadyOperational = /\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn|ayudo|anoto|entretenimiento|shows?|hora\s+loca|animaci[oó]n|cat[aá]logo|bodasesor\.com|mesas?\s+y\s+sillas|tiffany|crossback)\b/i.test(
+    mensaje
+  );
+  if (!input.cierreYaEnviado && !openingNombreOnly && !hasLucyIntro && input.currentMessage && clientAsksServiceInfo(input.currentMessage) && isServiceRelatedMessage(input.currentMessage) && !alreadyOperational) {
+    const ack = buildGuardServiceAck(input.currentMessage);
+    const keepQ = (mensaje.match(/[^.!?]*\?/g) ?? []).join(" ").trim();
+    mensaje = keepQ ? `${ack}
+
+${keepQ}` : ack;
+    input.log?.info?.(
+      { entityId: input.entityId },
+      "GUARD: pregunta de servicio \u2014 ack forzado post anti-repeat"
+    );
+  }
+  if (clientAsksInclusion(input.currentMessage) || /Según el catálogo que ya tenemos/i.test(mensaje) || /¿Te late este nivel o quieres que te detalle otro\?/i.test(mensaje)) {
+    mensaje = collapseDuplicatedInclusionReply(mensaje);
+  }
+  if (!mensaje.trim()) {
+    mensaje = input.cierreYaEnviado && clientSaysThanks(input.currentMessage) ? buildPostCierreThanksReply(input.extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
+    input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vac\xEDo \u2014 respuesta de respaldo");
+  }
+  return formatForWhatsApp(mensaje);
+}
 
 // src/services/promptBuilder.ts
 function buildDynamicPrompt(context) {
@@ -58040,7 +73456,7 @@ function sanitizeExtractedFromExternal(extracted, conversationText) {
 
 // src/selftest/lucy-flow-selftest.ts
 import { readFileSync as readFileSync4 } from "node:fs";
-import path4 from "node:path";
+import path5 from "node:path";
 import { fileURLToPath as fileURLToPath4 } from "node:url";
 
 // src/lib/logger.ts
@@ -58073,12 +73489,6 @@ function classifyKommoOrigin(origin) {
 }
 function usesKommoExternalSend(channel) {
   return channel === "facebook" || channel === "instagram" || channel === "telegram" || channel === "other";
-}
-
-// src/lib/formatForWhatsApp.ts
-function formatForWhatsApp(text) {
-  if (!text?.trim()) return text;
-  return text.replace(/\*\*(.+?)\*\*/g, "*$1*").replace(/^#{1,6}\s*/gm, "").replace(/^\s*[-*]\s+/gm, "\u2022 ").replace(/`{1,3}/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 // src/services/voiceProcessor.ts
@@ -58207,7 +73617,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V8.98";
+var LUCY_PROMPT_VERSION = "V8.99";
 
 // src/selftest/lucy-flow-selftest.ts
 var CATALOG_URL2 = "https://bodasesor.com/catalogos";
@@ -58467,9 +73877,9 @@ async function runAll() {
     assert.ok(text.includes("Qu\xE9 busca el cliente"));
   });
   await test("10. Integraciones \u2014 m\xF3dulos conectados y features activas", () => {
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
-    const mirrorSrc = readFileSync4(path4.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
-    const healthSrc = readFileSync4(path4.join(apiRoot, "src/routes/health.ts"), "utf8");
+    const apiRoot = path5.resolve(path5.dirname(fileURLToPath4(import.meta.url)), "../..");
+    const mirrorSrc = readFileSync4(path5.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    const healthSrc = readFileSync4(path5.join(apiRoot, "src/routes/health.ts"), "utf8");
     assert.ok(mirrorSrc.includes("deliverLucyOutbound"));
     assert.ok(mirrorSrc.includes("sendWhatsAppDirect"));
     assert.ok(mirrorSrc.includes("sendKommoTalkMessage") || mirrorSrc.includes("sendViaKommoTalk"));
@@ -58653,8 +74063,8 @@ async function runAll() {
     assert.ok(thanksReply.trim().length > 0, "respuesta vac\xEDa");
     assert.ok(clientSaysThanks("Muchas gracias"));
     assert.ok(buildPostCierreThanksReply("Fer").includes("Fer"));
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
-    const mirrorSrc = readFileSync4(path4.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    const apiRoot = path5.resolve(path5.dirname(fileURLToPath4(import.meta.url)), "../..");
+    const mirrorSrc = readFileSync4(path5.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     assert.ok(mirrorSrc.includes("texto vac\xEDo"));
   });
   await test("17. Fer A14751 \u2014 brunch baby shower, correo, fecha y presupuesto sin bucles", () => {
@@ -60737,9 +76147,9 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/emergencia/i.test(emergency));
     assert.ok(/solo por l[ií]nea telef[oó]nica/i.test(emergency));
     assert.ok(/WhatsApp y por l[ií]nea telef[oó]nica/i.test(emergency));
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
-    const kommoSrc = readFileSync4(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
-    const embudoSrc = readFileSync4(path4.join(apiRoot, "src/services/embudo.ts"), "utf8");
+    const apiRoot = path5.resolve(path5.dirname(fileURLToPath4(import.meta.url)), "../..");
+    const kommoSrc = readFileSync4(path5.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const embudoSrc = readFileSync4(path5.join(apiRoot, "src/services/embudo.ts"), "utf8");
     assert.ok(/handleLucyInactiveInbound/.test(kommoSrc));
     assert.ok(/buildSilentWatchPatchPayload/.test(kommoSrc));
     assert.ok(/clientNeedsEmergencyContact/.test(kommoSrc));
@@ -60747,20 +76157,20 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/Humano Trabaja/.test(embudoSrc) || /HUMANO_TRABAJA/.test(embudoSrc));
   });
   await test("67. Aprendizaje continuo \u2014 cron + extract en Humano Trabaja", () => {
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
-    const repoRoot = path4.resolve(apiRoot, "..");
-    const syncSrc = readFileSync4(path4.join(apiRoot, "src/services/learningSync.ts"), "utf8");
-    const extractorSrc = readFileSync4(path4.join(apiRoot, "src/services/learningExtractor.ts"), "utf8");
-    const ingestSrc = readFileSync4(path4.join(apiRoot, "src/services/chatIngest.ts"), "utf8");
-    const kommoSrc = readFileSync4(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
-    const embudoSrc = readFileSync4(path4.join(apiRoot, "src/services/embudo.ts"), "utf8");
-    const learningRoutes = readFileSync4(path4.join(apiRoot, "src/routes/learning.ts"), "utf8");
-    const talksSrc = readFileSync4(path4.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
+    const apiRoot = path5.resolve(path5.dirname(fileURLToPath4(import.meta.url)), "../..");
+    const repoRoot = path5.resolve(apiRoot, "..");
+    const syncSrc = readFileSync4(path5.join(apiRoot, "src/services/learningSync.ts"), "utf8");
+    const extractorSrc = readFileSync4(path5.join(apiRoot, "src/services/learningExtractor.ts"), "utf8");
+    const ingestSrc = readFileSync4(path5.join(apiRoot, "src/services/chatIngest.ts"), "utf8");
+    const kommoSrc = readFileSync4(path5.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const embudoSrc = readFileSync4(path5.join(apiRoot, "src/services/embudo.ts"), "utf8");
+    const learningRoutes = readFileSync4(path5.join(apiRoot, "src/routes/learning.ts"), "utf8");
+    const talksSrc = readFileSync4(path5.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
     const keepAlive = readFileSync4(
-      path4.join(repoRoot, ".github/workflows/keep-alive-hostinger.yml"),
+      path5.join(repoRoot, ".github/workflows/keep-alive-hostinger.yml"),
       "utf8"
     );
-    const panelApp = readFileSync4(path4.join(apiRoot, "public/aprendizaje/app.js"), "utf8");
+    const panelApp = readFileSync4(path5.join(apiRoot, "public/aprendizaje/app.js"), "utf8");
     assert.ok(/HUMANO_TRABAJA/.test(syncSrc));
     assert.ok(/listKommoLeadsInLearningStages/.test(syncSrc), "cron lista leads vivos en Kommo");
     assert.ok(/resolveKommoTalkId/.test(syncSrc), "sync resuelve talkId");
@@ -60779,7 +76189,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert.ok(/aprendizaje\/from-chats/.test(learningRoutes));
     assert.ok(/aprendizaje\/from-chats/.test(panelApp));
     assert.ok(/Sincronizar chats|kommo\/cron\/learning/.test(panelApp));
-    const routesIndex = readFileSync4(path4.join(apiRoot, "src/routes/index.ts"), "utf8");
+    const routesIndex = readFileSync4(path5.join(apiRoot, "src/routes/index.ts"), "utf8");
     const learningMount = routesIndex.indexOf("router.use(learningRouter)");
     const examplesMount = routesIndex.indexOf("router.use(examplesRouter)");
     assert.ok(
@@ -63259,9 +78669,9 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert.ok(usesKommoExternalSend("facebook"));
     assert.ok(usesKommoExternalSend("instagram"));
     assert.ok(!usesKommoExternalSend("whatsapp"));
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
-    const talksSrc = readFileSync4(path4.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
-    const mirrorSrc = readFileSync4(path4.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
+    const apiRoot = path5.resolve(path5.dirname(fileURLToPath4(import.meta.url)), "../..");
+    const talksSrc = readFileSync4(path5.join(apiRoot, "src/services/kommoTalks.ts"), "utf8");
+    const mirrorSrc = readFileSync4(path5.join(apiRoot, "src/services/kommoMirror.ts"), "utf8");
     assert.ok(/sendKommoTalkMessage|send_message/.test(talksSrc));
     assert.ok(/sin teléfono — intentando envío por Kommo/i.test(mirrorSrc));
   });
@@ -64527,8 +79937,8 @@ ${golfText}`,
         suggested_response: "Claro, para 100 personas te armo opciones de banquete seg\xFAn el men\xFA que elijas."
       })
     );
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
-    const silentSrc = readFileSync4(path4.join(apiRoot, "src/silentWatchCrm.ts"), "utf8");
+    const apiRoot = path5.resolve(path5.dirname(fileURLToPath4(import.meta.url)), "../..");
+    const silentSrc = readFileSync4(path5.join(apiRoot, "src/silentWatchCrm.ts"), "utf8");
     assert.ok(/shouldReplaceCrmDireccion/.test(silentSrc));
     assert.ok(/services\.join\(/.test(silentSrc));
     assert.ok(!/sanitizeCrmNombre\(text\)/.test(silentSrc));
@@ -64605,8 +80015,8 @@ ${golfText}`,
     assert.ok(/asesor|canalizo|equipo/i.test(advisorReply), advisorReply.slice(0, 400));
     assert.ok(!/d[ií]a u horario|fecha/i.test(advisorReply), advisorReply.slice(0, 400));
     assert.ok(!/cat[aá]logo/i.test(advisorReply), advisorReply.slice(0, 400));
-    const apiRoot = path4.resolve(path4.dirname(fileURLToPath4(import.meta.url)), "../..");
-    const kommoSrc = readFileSync4(path4.join(apiRoot, "src/routes/kommo.ts"), "utf8");
+    const apiRoot = path5.resolve(path5.dirname(fileURLToPath4(import.meta.url)), "../..");
+    const kommoSrc = readFileSync4(path5.join(apiRoot, "src/routes/kommo.ts"), "utf8");
     assert.ok(!/generateSummary\(conversationText\)/.test(kommoSrc));
     assert.ok(/clientAsksForHumanAdvisor/.test(kommoSrc));
     assert.ok(/pide_asesor/.test(kommoSrc));
@@ -65203,7 +80613,7 @@ ${golfText}`,
     assert.ok(qty && /900|sillas/i.test(qty), qty ?? "");
   });
   await test("121. V8.93 \u2014 voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.ok(/^V8\.9[345678]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V8\.9[3456789]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
     const humanEnt = "Claro, Bakar. Anoto un show de grupo vers\xE1til para tu evento del 18 de diciembre. Es entretenimiento (no catering). \xBFMe confirmas si es corporativo y en qu\xE9 sede ser\xEDa?";
@@ -65244,7 +80654,7 @@ ${golfText}`,
     assert.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.98");
+    assert.equal(LUCY_PROMPT_VERSION, "V8.99");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -65384,6 +80794,115 @@ ${golfText}`,
     assert.ok(/Mucho gusto,\s+Alejandro/i.test(norm2), norm2);
     assert.ok(/nuestro equipo/i.test(norm2), norm2);
   });
+  await test("125. A15165 \u2014 show intro + info shows/mobiliario/sillas post-cierre", async () => {
+    assert.ok(clientMentionsEntertainment("Hola quiero cotizar un show"));
+    assert.ok(clientMentionsEntertainment("Tiene info de los shows?"));
+    assert.ok(clientAsksForRecommendations("Qu\xE9 otros servicios manejan"));
+    assert.ok(isServiceRelatedMessage("Mobilairio que manejan"));
+    assert.ok(clientAsksServiceInfo("Tienes los modelos de sillas?"));
+    const first = buildFirstInteractionMessage(
+      {
+        extracted: emptyExtracted(),
+        filledSet: /* @__PURE__ */ new Set(),
+        history: [],
+        currentMessage: "Hola quiero cotizar un show",
+        entityId: 15165
+      },
+      true
+    );
+    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first);
+    assert.ok(/c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(first), first);
+    assert.ok(/show|animaci|performance/i.test(first), first);
+    assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n/i.test(first), first);
+    const kept = await finalizeLucyOutboundMessage({
+      mensaje: first,
+      extracted: emptyExtracted(),
+      filledSet: /* @__PURE__ */ new Set(),
+      history: [],
+      currentMessage: "Hola quiero cotizar un show",
+      readyForClosing: false,
+      cierreYaEnviado: false,
+      entityId: 15165
+    });
+    assert.ok(/hola,?\s*soy\s+lucy/i.test(kept), kept);
+    assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(kept), kept);
+    const postShow = runGuards({
+      aiResponse: "Queda anotado. Nuestro equipo sigue con tu cotizaci\xF3n.",
+      extracted: emptyExtracted({
+        nombre: "Alejandro",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Animaci\xF3n / Hora loca",
+        direccion_evento: "CDMX"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "Fecha y horario",
+        "N\xFAmero de invitados",
+        "Presupuesto (MXN)"
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Tiene info de los shows?",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, ya tengo todo. He anotado la animaci\xF3n\u2026 Si necesitas algo m\xE1s, con gusto te apoyo."
+        }
+      ]
+    });
+    assert.ok(/show|animaci|entretenimiento|hora\s+loca|performance/i.test(postShow), postShow.slice(0, 400));
+    assert.ok(/bodasesor\.com\/catalogos|cat[aá]logo/i.test(postShow), postShow.slice(0, 500));
+    assert.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postShow), postShow);
+    const postOtros = runGuards({
+      aiResponse: "Queda anotado.",
+      extracted: emptyExtracted({ nombre: "Alejandro", tipo_evento: "evento corporativo" }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "Fecha y horario",
+        "N\xFAmero de invitados",
+        "Presupuesto (MXN)"
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Qu\xE9 otros servicios manejan",
+      history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }]
+    });
+    assert.ok(/banquete|mobiliario|barra|dj|servicio/i.test(postOtros), postOtros.slice(0, 400));
+    assert.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postOtros), postOtros);
+    const postSillas = runGuards({
+      aiResponse: "Queda anotado. Nuestro equipo sigue con tu cotizaci\xF3n.",
+      extracted: emptyExtracted({ nombre: "Alejandro", requerimientos_evento: "Mobiliario" }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/direcci\xF3n del evento",
+        "Fecha y horario",
+        "N\xFAmero de invitados",
+        "Presupuesto (MXN)"
+      ]),
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "No sabes qu\xE9 modelos manejas de sillas?",
+      history: [{ role: "assistant", content: "Perfecto, ya tengo todo." }]
+    });
+    assert.ok(/tiffany|crossback|ghost|sillas/i.test(postSillas), postSillas.slice(0, 500));
+    assert.ok(/mesas-y-sillas|cat[aá]logo/i.test(postSillas), postSillas.slice(0, 500));
+    assert.ok(!/Queda anotado\.?\s*Nuestro equipo sigue/i.test(postSillas), postSillas);
+    assert.ok(/tiffany/i.test(buildSillasModelMenu()));
+    const showAck = buildGuardServiceAck("quiero cotizar un show");
+    assert.ok(/show|animaci|cat[aá]logo|bodasesor\.com\/catalogos/i.test(showAck), showAck);
+    assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(showAck), showAck);
+  });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
@@ -65422,35 +80941,6 @@ safe-buffer/index.js:
 @google/genai/dist/node/index.mjs:
 @google/genai/dist/node/index.mjs:
 @google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
   (**
    * @license
    * Copyright 2025 Google LLC
@@ -65458,63 +80948,11 @@ safe-buffer/index.js:
    *)
 
 @google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
-@google/genai/dist/node/index.mjs:
+  (**
+   * @license
+   * Copyright 2025 Google LLC
+   * SPDX-License-Identifier: Apache-2.0
+   *)
   (**
    * @license
    * Copyright 2026 Google LLC

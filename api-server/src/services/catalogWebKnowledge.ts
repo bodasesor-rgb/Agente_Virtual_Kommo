@@ -81,6 +81,17 @@ export function resolveCatalogWebSlug(query: string | null | undefined): string 
   const urlMatch = t.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
   if (urlMatch?.[1]) return urlMatch[1];
 
+  // A15165: aliases explícitos (shows no tienen página propia → audio/iluminación o hub vía null).
+  const aliases: Array<[RegExp, string]> = [
+    [/\b(mesas?\s*y\s*sillas?|sillas?|mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
+    [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
+    [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
+    [/\bbanquetes?\b/i, "banquete-formal"],
+  ];
+  for (const [re, slug] of aliases) {
+    if (re.test(t) && loadCatalogEmbeds().some((e) => e.slug === slug)) return slug;
+  }
+
   const embeds = loadCatalogEmbeds();
   const exact = embeds.find((e) => e.slug === t.replace(/\s+/g, "-"));
   if (exact) return exact.slug;

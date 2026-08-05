@@ -93,14 +93,26 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
 
   // Contrato DESPUÉS del anti-repeat: si el cliente preguntó por un servicio,
   // la respuesta operativa no puede quedar solo en embudo/correo (A14938 pizzas).
+  // A15165: NO pisar presentación Lucy / primer turno (intro + nombre).
+  const hasLucyIntro = /hola,?\s*soy\s+lucy/i.test(mensaje);
+  const openingNombreOnly =
+    hasLucyIntro ||
+    (/\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo)\b/i.test(
+      mensaje
+    ) &&
+      !/\b(precio|incluye|nivel|cat[aá]logo)\b/i.test(mensaje));
+  const alreadyOperational =
+    /\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn|ayudo|anoto|entretenimiento|shows?|hora\s+loca|animaci[oó]n|cat[aá]logo|bodasesor\.com|mesas?\s+y\s+sillas|tiffany|crossback)\b/i.test(
+      mensaje
+    );
   if (
     !input.cierreYaEnviado &&
+    !openingNombreOnly &&
+    !hasLucyIntro &&
     input.currentMessage &&
     clientAsksServiceInfo(input.currentMessage) &&
     isServiceRelatedMessage(input.currentMessage) &&
-    !/\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn)\b/i.test(
-      mensaje
-    )
+    !alreadyOperational
   ) {
     const ack = buildGuardServiceAck(input.currentMessage);
     const keepQ = (mensaje.match(/[^.!?]*\?/g) ?? []).join(" ").trim();
