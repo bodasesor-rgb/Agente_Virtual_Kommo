@@ -173,6 +173,7 @@ export async function completeLucyRedaction(
   const messages = fromOpenAiMessages(appendRedactionBriefing(baseMessages, briefing));
   const result = await completeChat({
     messages,
+    purpose: "redaction",
     temperature: LUCY_REDACTION_PARAMS.temperature,
     maxTokens: LUCY_REDACTION_PARAMS.max_tokens,
     frequencyPenalty: LUCY_REDACTION_PARAMS.frequency_penalty,
@@ -188,6 +189,7 @@ export async function refinarRespuestaCierre(
   borrador: string
 ): Promise<string> {
   const result = await completeChat({
+    purpose: "redaction",
     temperature: 0.3,
     maxTokens: 1200,
     messages: [

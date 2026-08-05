@@ -6,12 +6,37 @@ import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
 import { getOpenAiApiKeyForClient } from "./openaiEnv.js";
 import {
+  DEFAULT_GEMINI_MODEL,
   getChatModel,
   getGeminiApiKey,
   getLlmProvider,
+  isBlockedGeminiModel,
   isLlmConfigured,
+  resolveGeminiModel,
   type LlmProvider,
 } from "./llmEnv.js";
+
+/** Contadores en memoria para /api/health (diagnóstico de gasto). */
+const geminiCallStats = {
+  total: 0,
+  byPurpose: {} as Record<string, number>,
+  lastModel: null as string | null,
+  lastAt: null as string | null,
+  blockedOverrides: 0,
+};
+
+export function getGeminiCallStats(): typeof geminiCallStats {
+  return { ...geminiCallStats, byPurpose: { ...geminiCallStats.byPurpose } };
+}
+
+export type GeminiCallPurpose =
+  | "chat"
+  | "extract"
+  | "vision"
+  | "voice"
+  | "learning"
+  | "redaction"
+  | "other";
 
 export type ChatRole = "system" | "user" | "assistant";
 
@@ -48,6 +73,8 @@ export interface CompleteChatOptions {
   frequencyPenalty?: number;
   presencePenalty?: number;
   topP?: number;
+  /** Etiqueta para métricas/logs (no cambia el modelo). */
+  purpose?: GeminiCallPurpose;
 }
 
 export interface CompleteChatResult {
@@ -104,7 +131,18 @@ function getOpenAiClient(): OpenAI {
 }
 
 async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteChatResult> {
-  const model = opts.model ?? getChatModel();
+  // V8.98: pin estricto — nunca Nano Banana / Imagen / Pro caros.
+  const requested = opts.model ?? getChatModel();
+  const model = resolveGeminiModel(requested);
+  if (isBlockedGeminiModel(requested) || requested !== model) {
+    geminiCallStats.blockedOverrides += 1;
+  }
+  const purpose = opts.purpose ?? "other";
+  geminiCallStats.total += 1;
+  geminiCallStats.byPurpose[purpose] = (geminiCallStats.byPurpose[purpose] ?? 0) + 1;
+  geminiCallStats.lastModel = model;
+  geminiCallStats.lastAt = new Date().toISOString();
+
   const { system, rest } = splitSystem(opts.messages);
 
   const contents = rest.map((m) => {
@@ -117,6 +155,7 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
       if (p.type === "text") {
         parts.push({ text: p.text });
       } else if (p.type === "image_url") {
+        // Visión = LEER foto del cliente con flash-lite (NO generateImages).
         const fromUrl = parseDataUrl(p.image_url.url);
         const mimeType = p.mimeType || fromUrl?.mimeType || "image/jpeg";
         const data = p.base64 || fromUrl?.base64;
@@ -142,8 +181,12 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
   }
 
   const ai = getGeminiClient();
+  // Solo generateContent con flash-lite. Nunca generateImages / editImage.
+  if (model !== DEFAULT_GEMINI_MODEL) {
+    throw new Error(`Modelo Gemini no permitido: ${model} (solo ${DEFAULT_GEMINI_MODEL})`);
+  }
   const response = await ai.models.generateContent({
-    model,
+    model: DEFAULT_GEMINI_MODEL,
     contents,
     config: {
       ...(system ? { systemInstruction: system } : {}),
@@ -155,7 +198,7 @@ async function completeWithGemini(opts: CompleteChatOptions): Promise<CompleteCh
   });
 
   const text = (response.text ?? "").trim();
-  return { text, provider: "gemini", model };
+  return { text, provider: "gemini", model: DEFAULT_GEMINI_MODEL };
 }
 
 async function completeWithOpenAi(opts: CompleteChatOptions): Promise<CompleteChatResult> {

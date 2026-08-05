@@ -49,9 +49,8 @@ if (!hasGemini && !hasOpenAi) {
     "[start] AVISO: falta gemini_ia / GEMINI_API_KEY (o OPEN_AI de fallback) — Lucy no podrá responder"
   );
 } else if (hasGemini) {
-  console.log(
-    `[start] LLM: Gemini (${process.env.GEMINI_MODEL?.trim() || "gemini-3.1-flash-lite"})`
-  );
+  // Pin fijo: Lucy ignora GEMINI_MODEL si apunta a Nano Banana / Imagen / Pro.
+  console.log("[start] LLM: Gemini pin gemini-3.1-flash-lite (sin generateImages / Nano Banana)");
 } else {
   console.log("[start] LLM: OpenAI (fallback — sin gemini_ia)");
 }
