@@ -1,14 +1,30 @@
 /**
  * Proveedor LLM de Lucy: Gemini (default) u OpenAI (fallback).
- * Chat, visión e imágenes = Gemini. Notas de voz = Gemini primero; Whisper solo fallback.
+ *
+ * Política de gasto (V8.98):
+ * - ÚNICO modelo Gemini permitido: gemini-3.1-flash-lite (texto, visión lectura, voz).
+ * - NO se usan modelos de generación de imagen (Nano Banana / Imagen / *-image / imagen-*).
+ * - Lucy nunca llama generateImages ni edita renders; solo LEE fotos del cliente con flash-lite.
  */
 
 import { getOpenAiApiKey, isOpenAiConfigured } from "./openaiEnv.js";
 
 export type LlmProvider = "gemini" | "openai";
 
+/** Único modelo Gemini permitido para chat / visión / voz. */
 export const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 export const DEFAULT_OPENAI_CHAT_MODEL = "gpt-4o-mini";
+
+/**
+ * Model IDs / aliases de generación de imagen (Nano Banana, Imagen, etc.).
+ * Si GEMINI_MODEL apunta a alguno, se ignora y se fuerza flash-lite.
+ */
+const BLOCKED_IMAGE_GEN_MODEL =
+  /(?:^|\/)(imagen[\w.-]*|nano[-\s]?banana[\w.-]*|gemini-[\w.-]*-image(?:-preview)?|gemini-2\.5-flash-image|gemini-3\.1-flash(?:-lite)?-image)(?:$|\/)/i;
+
+/** Modelos de texto caros / no autorizados que no deben usarse por accidente. */
+const BLOCKED_TEXT_MODEL =
+  /(?:^|\/)(gemini-3\.6|gemini-2\.5-pro|gemini-3(?:\.1)?-pro|gemini-ultra|gemini-exp)(?:$|\/|-)/i;
 
 /** Keys aceptadas (Hostinger / otros proyectos): gemini_ia, GEMINI_API_KEY, etc. */
 export function getGeminiApiKey(): string {
@@ -26,6 +42,20 @@ export function isGeminiConfigured(): boolean {
   return getGeminiApiKey().length > 0;
 }
 
+/** True si el model ID es generador de imagen (Nano Banana / Imagen). */
+export function isImageGenerationModel(model: string | null | undefined): boolean {
+  const m = model?.trim() ?? "";
+  if (!m) return false;
+  return BLOCKED_IMAGE_GEN_MODEL.test(m);
+}
+
+/** True si el model ID está bloqueado por política de costo. */
+export function isBlockedGeminiModel(model: string | null | undefined): boolean {
+  const m = model?.trim() ?? "";
+  if (!m) return false;
+  return isImageGenerationModel(m) || BLOCKED_TEXT_MODEL.test(m);
+}
+
 /**
  * Proveedor activo:
  * - LLM_PROVIDER=gemini|openai fuerza la elección
@@ -41,20 +71,25 @@ export function getLlmProvider(): LlmProvider {
   return "openai";
 }
 
+/**
+ * Modelo de chat activo.
+ * Gemini: siempre pin a gemini-3.1-flash-lite (ignora overrides a Nano Banana / Imagen / Pro).
+ */
 export function getChatModel(): string {
   const provider = getLlmProvider();
   if (provider === "gemini") {
-    return (
-      process.env["GEMINI_MODEL"]?.trim() ||
-      process.env["LLM_MODEL"]?.trim() ||
-      DEFAULT_GEMINI_MODEL
-    );
+    return DEFAULT_GEMINI_MODEL;
   }
   return (
     process.env["OPENAI_MODEL"]?.trim() ||
     process.env["LLM_MODEL"]?.trim() ||
     DEFAULT_OPENAI_CHAT_MODEL
   );
+}
+
+/** Resuelve el model ID final para una llamada Gemini (forzado a allowlist). */
+export function resolveGeminiModel(_requested?: string | null): string {
+  return DEFAULT_GEMINI_MODEL;
 }
 
 /** Lucy puede redactar/extraer si Gemini u OpenAI está configurado para el provider activo. */
@@ -75,6 +110,10 @@ export function llmConfigSummary(): {
   voice_whisper_fallback: boolean;
   /** @deprecated usar voice_transcriber / voice_whisper_fallback */
   voice_whisper_available: boolean;
+  /** Lucy NO genera imágenes; solo lee fotos del cliente con flash-lite. */
+  gemini_image_generation: false;
+  gemini_allowed_model: string;
+  gemini_blocked_image_models: true;
 } {
   const gemini = isGeminiConfigured();
   const openai = isOpenAiConfigured();
@@ -87,6 +126,9 @@ export function llmConfigSummary(): {
     voice_transcriber: gemini ? "gemini" : openai ? "whisper" : "none",
     voice_whisper_fallback: openai,
     voice_whisper_available: openai,
+    gemini_image_generation: false,
+    gemini_allowed_model: DEFAULT_GEMINI_MODEL,
+    gemini_blocked_image_models: true,
   };
 }
 

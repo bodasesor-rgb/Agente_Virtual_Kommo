@@ -318,6 +318,7 @@ Reglas estrictas:
 
     const completion = await completeChat({
       messages: fromOpenAiMessages(messages),
+      purpose: "extract",
       temperature: 0,
       maxTokens: 800,
       json: true,

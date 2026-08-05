@@ -278,6 +278,10 @@ import {
   getChatModel,
   getLlmProvider,
   isLlmConfigured,
+  isBlockedGeminiModel,
+  isImageGenerationModel,
+  resolveGeminiModel,
+  llmConfigSummary,
 } from "../lib/llmEnv.js";
 import { fromOpenAiMessages } from "../lib/llmChat.js";
 
@@ -8190,7 +8194,7 @@ async function runAll(): Promise<void> {
 
   // ─── 121. V8.93 — voz humana: preferir OpenAI sobre dump de plantilla ───
   await test("121. V8.93 — voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.ok(/^V8\.9[34567]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V8\.9[345678]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
 
@@ -8243,7 +8247,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.97");
+    assert.equal(LUCY_PROMPT_VERSION, "V8.98");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8289,8 +8293,50 @@ async function runAll(): Promise<void> {
     }
   });
 
-  // ─── 123. A15164 — cliente Alejandro: capturar nombre y no re-preguntar ───
-  await test("123. A15164 — Alejandro/Hola Alejandro se capturan; queja no re-pide nombre", () => {
+  // ─── 123. V8.98 — pin Gemini: solo flash-lite, sin Nano Banana / Imagen ───
+  await test("123. V8.98 — pin gemini-3.1-flash-lite; bloquea Nano Banana/Imagen", () => {
+    assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
+    assert.equal(resolveGeminiModel("gemini-3.1-flash-lite-image"), "gemini-3.1-flash-lite");
+    assert.equal(resolveGeminiModel("imagen-4.0-fast-generate-001"), "gemini-3.1-flash-lite");
+    assert.equal(resolveGeminiModel("gemini-2.5-flash-image"), "gemini-3.1-flash-lite");
+    assert.equal(resolveGeminiModel("gemini-3.6-flash"), "gemini-3.1-flash-lite");
+    assert.ok(isImageGenerationModel("gemini-3.1-flash-image"));
+    assert.ok(isImageGenerationModel("gemini-3.1-flash-lite-image"));
+    assert.ok(isImageGenerationModel("imagen-4.0-generate-001"));
+    assert.ok(isBlockedGeminiModel("gemini-3.6-flash"));
+    assert.ok(!isImageGenerationModel("gemini-3.1-flash-lite"));
+
+    const prevModel = process.env.GEMINI_MODEL;
+    const prevLlm = process.env.LLM_MODEL;
+    const prevProvider = process.env.LLM_PROVIDER;
+    const prevGemini = process.env.GEMINI_API_KEY;
+    const prevGeminiIa = process.env.gemini_ia;
+    try {
+      process.env.LLM_PROVIDER = "gemini";
+      process.env.gemini_ia = "test-key";
+      process.env.GEMINI_MODEL = "gemini-3.1-flash-lite-image";
+      process.env.LLM_MODEL = "imagen-4.0-fast-generate-001";
+      assert.equal(getChatModel(), "gemini-3.1-flash-lite");
+      const summary = llmConfigSummary();
+      assert.equal(summary.model, "gemini-3.1-flash-lite");
+      assert.equal(summary.gemini_image_generation, false);
+      assert.equal(summary.gemini_allowed_model, "gemini-3.1-flash-lite");
+    } finally {
+      if (prevModel === undefined) delete process.env.GEMINI_MODEL;
+      else process.env.GEMINI_MODEL = prevModel;
+      if (prevLlm === undefined) delete process.env.LLM_MODEL;
+      else process.env.LLM_MODEL = prevLlm;
+      if (prevProvider === undefined) delete process.env.LLM_PROVIDER;
+      else process.env.LLM_PROVIDER = prevProvider;
+      if (prevGemini === undefined) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = prevGemini;
+      if (prevGeminiIa === undefined) delete process.env.gemini_ia;
+      else process.env.gemini_ia = prevGeminiIa;
+    }
+  });
+
+  // ─── 124. A15164 — cliente Alejandro: capturar nombre y no re-preguntar ───
+  await test("124. A15164 — Alejandro/Hola Alejandro se capturan; queja no re-pide nombre", () => {
     assert.equal(sanitizeCrmNombre("Alejandro"), "Alejandro");
     assert.equal(sanitizeCrmNombre("Hola, Alejandro"), "Alejandro");
     assert.equal(sanitizeCrmNombre("Soy Alejandro"), "Alejandro");

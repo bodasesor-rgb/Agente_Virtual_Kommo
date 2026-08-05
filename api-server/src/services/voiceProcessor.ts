@@ -44,6 +44,7 @@ async function transcribeWithGemini(
 ): Promise<string | null> {
   const result = await completeChat({
     model: getChatModel(),
+    purpose: "voice",
     temperature: 0,
     maxTokens: 800,
     messages: [

@@ -94,6 +94,7 @@ Reglas:
 
   try {
     const completion = await completeChat({
+      purpose: "learning",
       temperature: 0.2,
       json: true,
       maxTokens: 2000,

@@ -311,8 +311,10 @@ export async function analyzeImageFull(
     const base64 = Buffer.from(buffer).toString("base64");
     const dataUrl = `data:${contentType};base64,${base64}`;
 
+    // Visión = LEER foto del cliente con flash-lite. NO genera imágenes (Nano Banana/Imagen).
     const completion = await completeChat({
       model: getChatModel(),
+      purpose: "vision",
       maxTokens: 320,
       temperature: 0.3,
       json: true,

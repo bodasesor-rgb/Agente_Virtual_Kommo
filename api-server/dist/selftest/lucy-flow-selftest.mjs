@@ -52246,11 +52246,23 @@ function isOpenAiConfigured() {
 // src/lib/llmEnv.ts
 var DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 var DEFAULT_OPENAI_CHAT_MODEL = "gpt-4o-mini";
+var BLOCKED_IMAGE_GEN_MODEL = /(?:^|\/)(imagen[\w.-]*|nano[-\s]?banana[\w.-]*|gemini-[\w.-]*-image(?:-preview)?|gemini-2\.5-flash-image|gemini-3\.1-flash(?:-lite)?-image)(?:$|\/)/i;
+var BLOCKED_TEXT_MODEL = /(?:^|\/)(gemini-3\.6|gemini-2\.5-pro|gemini-3(?:\.1)?-pro|gemini-ultra|gemini-exp)(?:$|\/|-)/i;
 function getGeminiApiKey() {
   return process.env["gemini_ia"]?.trim() || process.env["GEMINI_IA"]?.trim() || process.env["GEMINI_API_KEY"]?.trim() || process.env["GOOGLE_API_KEY"]?.trim() || process.env["GEMINI_KEY"]?.trim() || "";
 }
 function isGeminiConfigured() {
   return getGeminiApiKey().length > 0;
+}
+function isImageGenerationModel(model) {
+  const m2 = model?.trim() ?? "";
+  if (!m2) return false;
+  return BLOCKED_IMAGE_GEN_MODEL.test(m2);
+}
+function isBlockedGeminiModel(model) {
+  const m2 = model?.trim() ?? "";
+  if (!m2) return false;
+  return isImageGenerationModel(m2) || BLOCKED_TEXT_MODEL.test(m2);
 }
 function getLlmProvider() {
   const forced = (process.env["LLM_PROVIDER"] ?? process.env["LUCY_LLM_PROVIDER"] ?? "").trim().toLowerCase();
@@ -52262,14 +52274,34 @@ function getLlmProvider() {
 function getChatModel() {
   const provider = getLlmProvider();
   if (provider === "gemini") {
-    return process.env["GEMINI_MODEL"]?.trim() || process.env["LLM_MODEL"]?.trim() || DEFAULT_GEMINI_MODEL;
+    return DEFAULT_GEMINI_MODEL;
   }
   return process.env["OPENAI_MODEL"]?.trim() || process.env["LLM_MODEL"]?.trim() || DEFAULT_OPENAI_CHAT_MODEL;
+}
+function resolveGeminiModel(_requested) {
+  return DEFAULT_GEMINI_MODEL;
 }
 function isLlmConfigured() {
   const provider = getLlmProvider();
   if (provider === "gemini") return isGeminiConfigured();
   return isOpenAiConfigured();
+}
+function llmConfigSummary() {
+  const gemini = isGeminiConfigured();
+  const openai = isOpenAiConfigured();
+  return {
+    provider: getLlmProvider(),
+    model: getChatModel(),
+    configured: isLlmConfigured(),
+    gemini_configured: gemini,
+    openai_configured: openai,
+    voice_transcriber: gemini ? "gemini" : openai ? "whisper" : "none",
+    voice_whisper_fallback: openai,
+    voice_whisper_available: openai,
+    gemini_image_generation: false,
+    gemini_allowed_model: DEFAULT_GEMINI_MODEL,
+    gemini_blocked_image_models: true
+  };
 }
 
 // src/lib/llmChat.ts
@@ -58175,7 +58207,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V8.97";
+var LUCY_PROMPT_VERSION = "V8.98";
 
 // src/selftest/lucy-flow-selftest.ts
 var CATALOG_URL2 = "https://bodasesor.com/catalogos";
@@ -65171,7 +65203,7 @@ ${golfText}`,
     assert.ok(qty && /900|sillas/i.test(qty), qty ?? "");
   });
   await test("121. V8.93 \u2014 voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.ok(/^V8\.9[34567]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V8\.9[345678]$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
     const humanEnt = "Claro, Bakar. Anoto un show de grupo vers\xE1til para tu evento del 18 de diciembre. Es entretenimiento (no catering). \xBFMe confirmas si es corporativo y en qu\xE9 sede ser\xEDa?";
@@ -65212,7 +65244,7 @@ ${golfText}`,
     assert.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V8.97");
+    assert.equal(LUCY_PROMPT_VERSION, "V8.98");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -65254,7 +65286,46 @@ ${golfText}`,
       else process.env.OPENAI_API_KEY = prevOpenAi;
     }
   });
-  await test("123. A15164 \u2014 Alejandro/Hola Alejandro se capturan; queja no re-pide nombre", () => {
+  await test("123. V8.98 \u2014 pin gemini-3.1-flash-lite; bloquea Nano Banana/Imagen", () => {
+    assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
+    assert.equal(resolveGeminiModel("gemini-3.1-flash-lite-image"), "gemini-3.1-flash-lite");
+    assert.equal(resolveGeminiModel("imagen-4.0-fast-generate-001"), "gemini-3.1-flash-lite");
+    assert.equal(resolveGeminiModel("gemini-2.5-flash-image"), "gemini-3.1-flash-lite");
+    assert.equal(resolveGeminiModel("gemini-3.6-flash"), "gemini-3.1-flash-lite");
+    assert.ok(isImageGenerationModel("gemini-3.1-flash-image"));
+    assert.ok(isImageGenerationModel("gemini-3.1-flash-lite-image"));
+    assert.ok(isImageGenerationModel("imagen-4.0-generate-001"));
+    assert.ok(isBlockedGeminiModel("gemini-3.6-flash"));
+    assert.ok(!isImageGenerationModel("gemini-3.1-flash-lite"));
+    const prevModel = process.env.GEMINI_MODEL;
+    const prevLlm = process.env.LLM_MODEL;
+    const prevProvider = process.env.LLM_PROVIDER;
+    const prevGemini = process.env.GEMINI_API_KEY;
+    const prevGeminiIa = process.env.gemini_ia;
+    try {
+      process.env.LLM_PROVIDER = "gemini";
+      process.env.gemini_ia = "test-key";
+      process.env.GEMINI_MODEL = "gemini-3.1-flash-lite-image";
+      process.env.LLM_MODEL = "imagen-4.0-fast-generate-001";
+      assert.equal(getChatModel(), "gemini-3.1-flash-lite");
+      const summary = llmConfigSummary();
+      assert.equal(summary.model, "gemini-3.1-flash-lite");
+      assert.equal(summary.gemini_image_generation, false);
+      assert.equal(summary.gemini_allowed_model, "gemini-3.1-flash-lite");
+    } finally {
+      if (prevModel === void 0) delete process.env.GEMINI_MODEL;
+      else process.env.GEMINI_MODEL = prevModel;
+      if (prevLlm === void 0) delete process.env.LLM_MODEL;
+      else process.env.LLM_MODEL = prevLlm;
+      if (prevProvider === void 0) delete process.env.LLM_PROVIDER;
+      else process.env.LLM_PROVIDER = prevProvider;
+      if (prevGemini === void 0) delete process.env.GEMINI_API_KEY;
+      else process.env.GEMINI_API_KEY = prevGemini;
+      if (prevGeminiIa === void 0) delete process.env.gemini_ia;
+      else process.env.gemini_ia = prevGeminiIa;
+    }
+  });
+  await test("124. A15164 \u2014 Alejandro/Hola Alejandro se capturan; queja no re-pide nombre", () => {
     assert.equal(sanitizeCrmNombre("Alejandro"), "Alejandro");
     assert.equal(sanitizeCrmNombre("Hola, Alejandro"), "Alejandro");
     assert.equal(sanitizeCrmNombre("Soy Alejandro"), "Alejandro");
