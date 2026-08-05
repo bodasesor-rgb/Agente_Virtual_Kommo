@@ -25,9 +25,23 @@ const GREETING_NAME_PATTERN =
 const COMPANY_OR_CHANNEL_PATTERN =
   /cap\s*[&y]?\s*bara|capbata|capybara|bodasesor|cap\s*and\s*bara|con\s+lucy\b|agente\s+virtual/i;
 
-/** Tokens del bot / meta que nunca son nombre del cliente (A14924: "Lucy Llamo Nicole"). */
+/**
+ * Tokens del bot / meta que nunca son nombre del cliente (A14924: "Lucy Llamo Nicole").
+ * A15164: NO incluir nombres de persona reales (Alejandro, Rodrigo) — son clientes válidos.
+ * El asesor se desambigua con advisorLabelForClient / normalizeAdvisorReferences.
+ */
 const BOT_OR_META_NAME_TOKEN =
-  /^(lucy|llamo|llam[oó]|bodasesor|capybara|alejandro|rodrigo|salesbot)$/i;
+  /^(lucy|llamo|llam[oó]|bodasesor|capybara|salesbot)$/i;
+
+/** Quejas de repetición — nunca son nombre (A15164: "Ya te lo dije 3 veces"). */
+function isRepeatComplaintAsName(text: string): boolean {
+  return (
+    /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé])\b/i.test(text) ||
+    /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(text) ||
+    /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(text) ||
+    /\bya\s+respond[ií]\b/i.test(text)
+  );
+}
 
 /** Niveles de catálogo / marcas WA que NO son nombre de persona (A14929: "Premium"). */
 const CATALOG_LEVEL_OR_BRAND_NAME =
@@ -139,6 +153,7 @@ export function isLikelyNotPersonNameMessage(text: string | null | undefined): b
   const t = text?.trim() ?? "";
   if (!t) return true;
   if (isGreetingToLucy(t)) return true;
+  if (isRepeatComplaintAsName(t)) return true;
   // Presentación explícita sí puede ser nombre.
   if (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(t)) return false;
   if (/^c[oó]mo\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]{2,}/i.test(t) && t.split(/\s+/).length <= 5) return false;
@@ -272,6 +287,7 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
   if (!raw || isPlaceholderLeadName(raw) || isQuoteIntentMessage(raw)) return null;
   if (isGreetingToLucy(raw)) return null;
   if (isGreetingOnlyMessage(raw)) return null;
+  if (isRepeatComplaintAsName(raw)) return null;
   if (isLikelyUbicacionNotNombre(raw)) return null;
 
   // A15003: "Juan Hablar Agente" / handoff pegado al nombre.

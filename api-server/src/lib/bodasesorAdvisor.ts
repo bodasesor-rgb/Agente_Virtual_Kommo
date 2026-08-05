@@ -24,7 +24,11 @@ function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Nombres del equipo/asesor que Kommo a veces pone como nombre del lead — no son el cliente. */
+/**
+ * Nombres que Kommo a veces pone como lead.name por defecto (asesor/bot) — no seed frío.
+ * Solo para bootstrap de lead.name en kommo.ts. NO usar para purgar CRM ni bloquear
+ * captura: un cliente puede llamarse Alejandro o Rodrigo (A15164).
+ */
 export function isStaffAdvisorName(name: string | null | undefined): boolean {
   const raw = name?.trim() ?? "";
   if (!raw) return false;
