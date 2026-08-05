@@ -2,12 +2,19 @@
  * Divulgación progresiva de servicios (V8.68 / A14967 generalizado):
  * 1) Menú corto de opciones + ¿quieres detalles de alguno?
  * 2) Tras elegir / pedir detalle → precios, inclusiones y link de catálogo.
+ *
+ * V8.92: banquete/catering pregunta formal vs casual ANTES del menú Formal/Mexicano.
+ *         mobiliario pregunta pieza (mesas/sillas/…) ANTES de modelos.
  */
 
 import type { OpenAI } from "openai";
 
 /** CTA único para TODAS las ramas (niveles Sheet + menús progresivos). A14982. */
 export const SERVICE_NIVEL_DETAIL_CTA = "¿Quieres que te dé detalles de alguno?";
+
+/** Menú formal vs casual (A15160 Cecilia). */
+export const ALIMENTOS_MODO_CTA =
+  "¿Qué te gustaría: un *banquete* más formal, o algo más *casual* tipo catering?";
 
 export type ProgressiveFamily =
   | "banquete"
@@ -273,9 +280,10 @@ const FAMILIES: FamilyDef[] = [
   {
     family: "mobiliario",
     familyPattern:
-      /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bmesas?\s+y\s+sillas?\b|\brenta\s+de\s+mesas|\bentelados?\b|\bcolgantes?\b|\bvajillas?\b/i,
+      /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bmesas?\s+y\s+sillas?\b|\brenta\s+de\s+(mesas?|sillas?|mobiliario)|\bentelados?\b|\bcolgantes?\b|\bvajillas?\b|\bbarras?\s+de\s+mobiliario\b/i,
+    // Pieza concreta (mesas/sillas/…) o modelo (Tiffany/Crossback…).
     variantPattern:
-      /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|manteler[ií]a|vajilla|mesas?\s+y\s+sillas?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
+      /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|mesas?|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
     detailQueryFromText: (text) => {
       if (/entelado|tela\s+(en\s+|de\s+|para\s+)?techo/i.test(text)) {
         return "Entelados para Techo";
@@ -284,16 +292,20 @@ const FAMILIES: FamilyDef[] = [
       if (/vajilla|cuberter|cristaler/i.test(text)) return "Vajillas";
       if (/periquera/i.test(text)) return "periqueras";
       if (/lounge|luxor/i.test(text)) return "salas lounge";
-      if (/mesas?|sillas?/i.test(text)) return "mesas y sillas";
+      if (/\bsillas?\b/i.test(text)) return "sillas";
+      if (/\bmesas?\b|picnic/i.test(text)) return "mesas";
       return "mobiliario";
     },
     buildMenu: () =>
       [
-        "Claro. En *mobiliario* manejamos:",
-        "• Mesas y sillas, salas lounge, periqueras",
-        "• Entelados para techo, colgantes premium, vajillas",
+        "Sí, contamos con *mobiliario*. ¿Qué es lo que buscas?",
+        "• Mesas",
+        "• Sillas",
+        "• Periqueras",
+        "• Salas lounge",
+        "También manejamos vajillas, mantelería, entelados y colgantes.",
         "",
-        SERVICE_NIVEL_DETAIL_CTA,
+        "Dime qué pieza te interesa y te paso modelos.",
       ].join("\n"),
   },
 ];
@@ -304,6 +316,170 @@ function fold(s: string): string {
     .replace(/\p{M}/gu, "")
     .toLowerCase()
     .trim();
+}
+
+// ─── V8.92: formal vs casual (alimentos) + pieza mobiliario ─────────────────
+
+/** Primer paso cuando el cliente dice "banquetes o catering" sin estilo. */
+export function buildAlimentosModoMenu(): string {
+  return [
+    "Claro. ¿Qué te gustaría?",
+    "• Un *banquete* para eventos formales (servicio a la mesa, varios tiempos)",
+    "• Algo más *casual* tipo catering — por ejemplo: barra de pastas y ensaladas, barra de pizzas, taquiza…",
+    "",
+    "También manejamos más opciones de alimentos. Dime qué estilo te late y te paso el detalle (o el catálogo general si buscas algo especial).",
+  ].join("\n");
+}
+
+export function isAlimentosModoMenuReply(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  return (
+    /banquete.*formal|formal.*banquete|algo m[aá]s \*?casual\*?\s+tipo\s+catering/i.test(text) &&
+    /barra de pastas|barra de pizzas|taquiza/i.test(text)
+  );
+}
+
+export function historyOfferedAlimentosModoMenu(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  return history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .some((m) => isAlimentosModoMenuReply(m.content as string));
+}
+
+/** Cliente eligió banquete / formal tras el menú modo. */
+export function clientChoseBanqueteFormal(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (/\b(casual|barra\s+de|taquiza|pizza|pasta|sushi|pozole|panini|catering\s+casual)\b/i.test(t) &&
+      !/\bbanquete\b|\bformal\b/i.test(t)) {
+    return false;
+  }
+  return (
+    /\b(quiero|busco|prefiero|mejor|me\s+late|el|un|una)?\s*(banquete|formal)\b/i.test(t) ||
+    /^(banquete|formal|el\s+banquete|m[aá]s\s+formal)[\s.!]*$/i.test(t) ||
+    /\bbanquete\s+(formal|mexicano|kosher|navide)/i.test(t)
+  );
+}
+
+/** Cliente eligió catering casual tras el menú modo. */
+export function clientChoseCateringCasual(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  if (/\bbanquete\b|\bformal\b/i.test(t) && !/\bcasual\b|\bcatering\b|\bbarra\b|\btaquiza\b/i.test(t)) {
+    return false;
+  }
+  return (
+    /\b(casual|catering|barra\s+de|taquiza|pizza|pastas?|sushi|pozole|paninis?|algo\s+m[aá]s\s+(ligero|informal|relajado))\b/i.test(
+      t
+    ) || /^(casual|catering|m[aá]s\s+casual|algo\s+casual)[\s.!]*$/i.test(t)
+  );
+}
+
+/** Menú de catering casual tras elegir "casual". */
+export function buildCateringCasualMenu(): string {
+  return [
+    "Perfecto. En *catering* más casual manejamos varias estaciones, por ejemplo:",
+    "• Barra de sushi",
+    "• Pozole y tostadas",
+    "• Barra de paninis",
+    "• Barra de pizzas / pastas y ensaladas",
+    "• Taquiza, parrillada y más",
+    "",
+    "Si buscas algo especial, te paso el *catálogo general* para que veas todas las opciones.",
+    SERVICE_NIVEL_DETAIL_CTA,
+  ].join("\n");
+}
+
+export function isMobiliarioPieceMenuReply(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  return (
+    /contamos con \*mobiliario\*|en \*mobiliario\* manejamos/i.test(text) &&
+    /\bmesas\b/i.test(text) &&
+    /\bsillas\b/i.test(text) &&
+    /qu[eé] es lo que buscas|qu[eé] pieza|dime qu[eé]/i.test(text)
+  );
+}
+
+export function historyOfferedMobiliarioPieceMenu(
+  history: OpenAI.Chat.ChatCompletionMessageParam[]
+): boolean {
+  return history
+    .filter((m) => m.role === "assistant" && typeof m.content === "string")
+    .some((m) => isMobiliarioPieceMenuReply(m.content as string));
+}
+
+/** Cliente eligió pieza de mobiliario (sillas, mesas, periqueras…). */
+export function parseMobiliarioPieceChoice(text: string | null | undefined): string | null {
+  const t = text?.trim() ?? "";
+  if (!t) return null;
+  if (/\b(periqueras?)\b/i.test(t)) return "periqueras";
+  if (/\b(salas?\s+lounge|lounge)\b/i.test(t)) return "salas lounge";
+  if (/\b(vajillas?|manteler[ií]a)\b/i.test(t)) return "vajillas";
+  if (/\b(entelados?)\b/i.test(t)) return "entelados";
+  if (/\b(colgantes?)\b/i.test(t)) return "colgantes";
+  if (/\bsillas?\b/i.test(t)) return "sillas";
+  if (/\bmesas?\b|\bpicnic\b/i.test(t)) return "mesas";
+  return null;
+}
+
+/** Menú de modelos de sillas (tras elegir "sillas"). */
+export function buildSillasModelMenu(): string {
+  return [
+    "Claro. En *sillas* manejamos varios modelos; por ejemplo:",
+    "• *Tiffany* (clásica / versátil)",
+    "• *Crossback* (rústico / vintage)",
+    "• *Ghost* (minimalista)",
+    "• *Camila*, *Tolix*, *Wishbone*, *Louis XV* y más",
+    "",
+    "¿De cuál te paso detalle, o te mando el *catálogo de mesas y sillas*?",
+  ].join("\n");
+}
+
+export function isSillasModelMenuReply(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  return (
+    /en \*sillas\* manejamos|modelos.*sillas|sillas.*modelos/i.test(text) &&
+    /tiffany/i.test(text) &&
+    /crossback|ghost/i.test(text)
+  );
+}
+
+export function buildMesasModelMenu(): string {
+  return [
+    "Claro. En *mesas* manejamos varias líneas; por ejemplo:",
+    "• Mesas *Vintage* (blanco luminoso)",
+    "• Mesas *Caoba Natural*",
+    "• Mesas *Mármol*",
+    "• Mesas *picnic* / tablones y más",
+    "",
+    "¿De cuál te paso detalle, o te mando el *catálogo de mesas y sillas*?",
+  ].join("\n");
+}
+
+export function buildMobiliarioPieceFollowUp(piece: string): string {
+  const p = piece.toLowerCase();
+  if (p === "sillas") return buildSillasModelMenu();
+  if (p === "mesas") return buildMesasModelMenu();
+  if (p === "periqueras") {
+    return [
+      "Claro. En *periqueras* manejamos varios estilos y colores para barra o zona de pie.",
+      "",
+      "¿Quieres que te dé detalles o te paso el catálogo de salas y periqueras?",
+    ].join("\n");
+  }
+  if (p === "salas lounge") {
+    return [
+      "Claro. En *salas lounge* manejamos varios sets (Vintage Capitoneada, Black Trendy, Luxor y más).",
+      "",
+      "¿Quieres que te dé detalles de alguno o te paso el catálogo?",
+    ].join("\n");
+  }
+  return [
+    `Claro. Anoto *${piece}*.`,
+    "",
+    SERVICE_NIVEL_DETAIL_CTA,
+  ].join("\n");
 }
 
 /**
@@ -339,12 +515,16 @@ export function withCatalogNivelQuery(
 export function isProgressiveOptionsMenuReply(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
   const t = text;
+  // V8.92: formal vs casual / pieza de mobiliario / modelos de sillas.
+  if (isAlimentosModoMenuReply(t) || isMobiliarioPieceMenuReply(t) || isSillasModelMenuReply(t)) {
+    return true;
+  }
   // Menú corto de familia: "Claro. En *banquete/taquiza/…*"
   if (
     /claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t) ||
-    /opciones principales|¿Cu[aá]l estilo te late/i.test(t)
+    /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t)
   ) {
-    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos/i.test(
+    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos/i.test(
       t
     );
   }
@@ -572,6 +752,18 @@ export function shouldOfferOptionsBeforeDetail(opts: {
     /\b(b[aá]sic[oa]|tradicional|premium|solo\s+alimentos)\b/i.test(msg);
 
   if (hasVariantNow) {
+    return null;
+  }
+
+  // V8.92: "banquetes o catering" / servicio de banquetes → formal vs casual
+  // (buildVagueFoodOptionsReply / buildAlimentosModoMenu), no Formal/Mexicano aún.
+  if (
+    family === "banquete" &&
+    /\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
+      msg
+    ) &&
+    !/\b(formal|mexicano|kosher|navide|\d\s*tiempos)\b/i.test(msg)
+  ) {
     return null;
   }
 

@@ -230,6 +230,15 @@ import {
   detectProgressiveFamily,
   catalogNivelLabelFromText,
   buildProgressiveOptionsMenu,
+  buildAlimentosModoMenu,
+  buildCateringCasualMenu,
+  clientChoseBanqueteFormal,
+  clientChoseCateringCasual,
+  parseMobiliarioPieceChoice,
+  buildMobiliarioPieceFollowUp,
+  buildSillasModelMenu,
+  isAlimentosModoMenuReply,
+  isMobiliarioPieceMenuReply,
 } from "../services/serviceProgressiveOffer.js";
 import {
   parseSheetCatalogCsv,
@@ -5405,15 +5414,32 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/banquete/i.test(first), first.slice(0, 300));
     assert.ok(!/bet[uú]n|cupcakes?/i.test(first), first.slice(0, 400));
-    // V8.68: primer turno = menú de tipos (Formal/Mexicano), sin dump ni link.
-    assert.ok(/Formal|Mexicano/i.test(first), first.slice(0, 400));
+    // V8.92: primer turno = formal vs casual (no Formal/Mexicano aún).
     assert.ok(
-      /detalles de alguno|detallada|3 tiempos|4 tiempos/i.test(first),
+      /formal|casual|catering/i.test(first),
+      first.slice(0, 400)
+    );
+    assert.ok(
+      /barra de pastas|barra de pizzas|taquiza/i.test(first),
       first.slice(0, 500)
     );
     assert.ok(
       !/bodasesor\.com\/catalogos|\$500|\$750/i.test(first),
       `menú sin dump/link: ${first.slice(0, 500)}`
+    );
+    // Tras elegir banquete → Formal/Mexicano.
+    const afterBanquete = runGuards({
+      aiResponse: "¿Cuál estilo?",
+      extracted: emptyExtracted({ nombre: "Cecilia", requerimientos_evento: "banquete" }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "quiero banquete",
+      history: [{ role: "assistant", content: first }],
+    });
+    assert.ok(/Formal|Mexicano/i.test(afterBanquete), afterBanquete.slice(0, 400));
+    assert.ok(
+      /detalles de alguno|3 tiempos|4 tiempos/i.test(afterBanquete),
+      afterBanquete.slice(0, 500)
     );
 
     const tiempos = runGuards({
@@ -6431,7 +6457,7 @@ async function runAll(): Promise<void> {
       );
     }
 
-    // Menús progresivos: misma CTA en todas las familias.
+    // Menús progresivos: misma CTA en todas las familias (mobiliario V8.92 pregunta pieza primero).
     for (const fam of [
       "banquete",
       "coffee_break",
@@ -6447,10 +6473,17 @@ async function runAll(): Promise<void> {
       "mobiliario",
     ] as const) {
       const menu = buildProgressiveOptionsMenu(fam);
-      assert.ok(
-        menu.includes(SERVICE_NIVEL_DETAIL_CTA),
-        `menú ${fam} debe usar CTA global: ${menu.slice(-120)}`
-      );
+      if (fam === "mobiliario") {
+        assert.ok(
+          /qu[eé] es lo que buscas|dime qu[eé] pieza|Mesas|Sillas/i.test(menu),
+          `menú mobiliario pregunta pieza: ${menu.slice(-160)}`
+        );
+      } else {
+        assert.ok(
+          menu.includes(SERVICE_NIVEL_DETAIL_CTA),
+          `menú ${fam} debe usar CTA global: ${menu.slice(-120)}`
+        );
+      }
     }
 
     const yuca = buildCatalogServiceDetailAnswer("Barra Yucateca");
@@ -8051,6 +8084,95 @@ async function runAll(): Promise<void> {
       clientName: "Erick",
     });
     assert.ok(!/Sigo aquí/i.test(anti.mensaje), anti.mensaje);
+  });
+
+  // ─── 120. V8.92 — oferta progresiva: formal vs casual + mobiliario por pieza ───
+  await test("120. V8.92 — banquete/catering formal-casual + mobiliario pieza→modelos", () => {
+    assert.ok(isAlimentosModoMenuReply(buildAlimentosModoMenu()));
+    assert.ok(clientChoseBanqueteFormal("quiero banquete"));
+    assert.ok(clientChoseBanqueteFormal("más formal"));
+    assert.ok(clientChoseCateringCasual("algo más casual"));
+    assert.ok(clientChoseCateringCasual("barra de pizzas"));
+    assert.ok(!clientChoseBanqueteFormal("quiero taquiza casual"));
+
+    const modo = buildAlimentosModoMenu();
+    assert.ok(/formal|casual/i.test(modo), modo);
+    assert.ok(/barra de pastas|barra de pizzas|taquiza/i.test(modo), modo);
+
+    const vague =
+      "Hola, me interesa cotizar un servicio de banquetes o catering para mi evento. ¿Me pueden dar información?";
+    const first = runGuards({
+      aiResponse: "Manejamos Banquete Formal 3 tiempos…",
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: vague,
+      forceFirstPresentation: true,
+    });
+    assert.ok(/Lucy|Bodasesor/i.test(first), first.slice(0, 200));
+    assert.ok(/formal|casual/i.test(first), first.slice(0, 400));
+    assert.ok(/barra de pastas|barra de pizzas|taquiza/i.test(first), first.slice(0, 500));
+    assert.ok(!/\$500|Incluye:/i.test(first), first.slice(0, 400));
+
+    const banquete = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({ nombre: "Cecilia" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "quiero banquete",
+      history: [{ role: "assistant", content: buildAlimentosModoMenu() }],
+    });
+    assert.ok(/Formal|Mexicano|Kosher/i.test(banquete), banquete.slice(0, 400));
+    assert.ok(/detalles de alguno/i.test(banquete), banquete.slice(0, 300));
+
+    const casual = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({ nombre: "Cecilia" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "algo más casual",
+      history: [{ role: "assistant", content: buildAlimentosModoMenu() }],
+    });
+    assert.ok(/sushi|pozole|panini|pizza|taquiza/i.test(casual), casual.slice(0, 500));
+    assert.ok(/cat[aá]logo general/i.test(casual), casual.slice(0, 400));
+
+    // Mobiliario: no dump; preguntar pieza.
+    assert.equal(buildMobiliarioRentDetailReply("barra de mobiliario"), null);
+    assert.equal(buildMobiliarioRentDetailReply("me interesa cotizar mobiliario"), null);
+    assert.ok(isMobiliarioPieceMenuReply(buildProgressiveOptionsMenu("mobiliario")));
+    assert.equal(parseMobiliarioPieceChoice("sillas"), "sillas");
+    assert.ok(/Tiffany|Crossback|Ghost/i.test(buildSillasModelMenu()));
+
+    const mobFirst = runGuards({
+      aiResponse: "Anoto mobiliario Tiffany periqueras lounge…",
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage:
+        "Hola, me interesa cotizar una barra de mobiliario para mi evento. ¿Me pueden dar información?",
+      forceFirstPresentation: true,
+    });
+    assert.ok(/Lucy|Bodasesor/i.test(mobFirst), mobFirst.slice(0, 200));
+    assert.ok(/qu[eé] es lo que buscas|Mesas|Sillas|Periqueras/i.test(mobFirst), mobFirst.slice(0, 500));
+    assert.ok(
+      !/Tiffany y versátiles|mesas tipo picnic, salas lounge y m[aá]s/i.test(mobFirst),
+      `no dump: ${mobFirst.slice(0, 500)}`
+    );
+
+    const sillas = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({ nombre: "Alan", requerimientos_evento: "Mobiliario" }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "sillas",
+      history: [{ role: "assistant", content: buildProgressiveOptionsMenu("mobiliario") }],
+    });
+    assert.ok(/Tiffany|Crossback|Ghost/i.test(sillas), sillas.slice(0, 500));
+    assert.ok(/cat[aá]logo/i.test(sillas), sillas.slice(0, 400));
+
+    // Con cantidad sí hay detalle técnico.
+    const qty = buildMobiliarioRentDetailReply("Necesito 900 sillas para un concierto");
+    assert.ok(qty && /900|sillas/i.test(qty), qty ?? "");
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

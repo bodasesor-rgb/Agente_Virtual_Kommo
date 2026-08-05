@@ -95,6 +95,15 @@ import {
   catalogNivelLabelFromText,
   withCatalogNivelQuery,
   resolveDetailQueryForFamily,
+  buildAlimentosModoMenu,
+  buildCateringCasualMenu,
+  buildProgressiveOptionsMenu,
+  historyOfferedAlimentosModoMenu,
+  clientChoseBanqueteFormal,
+  clientChoseCateringCasual,
+  historyOfferedMobiliarioPieceMenu,
+  parseMobiliarioPieceChoice,
+  buildMobiliarioPieceFollowUp,
 } from "./services/serviceProgressiveOffer.js";
 import {
   extractImageClientReply,
@@ -1414,15 +1423,20 @@ export function buildVagueFoodOptionsReply(
     /\bbanquetes?\b|\bcatering\b/i.test(msg) &&
     !/\b(taquiza|coffee\s*break|sushi|parrillada)\b/i.test(msg);
 
-  // V8.68: banquetes/catering + info → menú de tipos primero (detalle solo tras elegir).
+  // V8.92: banquetes/catering + info → formal vs casual PRIMERO (no Formal/Mexicano aún).
   if (isBanqueteVague && wantsInfo) {
-    const progressive = shouldOfferOptionsBeforeDetail({
-      currentMessage: msg,
-      history,
-      serviceHint: "banquete",
-    });
-    if (progressive) {
-      return `${pickTransition(history)} ${progressive.menu}`.trim();
+    // Si ya preguntamos formal/casual y eligió → menú correspondiente.
+    if (historyOfferedAlimentosModoMenu(history)) {
+      if (clientChoseBanqueteFormal(msg)) {
+        return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
+      }
+      if (clientChoseCateringCasual(msg)) {
+        return `${pickTransition(history)} ${buildCateringCasualMenu()}`.trim();
+      }
+    }
+    // Primera vez: preguntar formal vs casual con ejemplos.
+    if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
+      return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
     }
   }
 
@@ -5485,6 +5499,68 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: pista/tarima — menú o detalle según elección");
+  } else if (
+    // V8.92: tras menú formal vs casual → banquete Formal/Mexicano o catering casual.
+    allowSalesReplyOverride &&
+    !cierreYaEnviado &&
+    historyOfferedAlimentosModoMenu(presHistory) &&
+    currentMessage?.trim() &&
+    (clientChoseBanqueteFormal(currentMessage) || clientChoseCateringCasual(currentMessage))
+  ) {
+    if (clientChoseBanqueteFormal(currentMessage)) {
+      filledSet.add("Requerimientos o servicios");
+      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+        extracted.requerimientos_evento = "banquete";
+      }
+      mensaje = mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} ${buildProgressiveOptionsMenu("banquete")}`,
+        filledSet,
+        extracted,
+        ctx
+      );
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: eligió banquete formal → menú Formal/Mexicano");
+    } else {
+      filledSet.add("Requerimientos o servicios");
+      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+        extracted.requerimientos_evento = "catering";
+      }
+      mensaje = mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} ${buildCateringCasualMenu()}`,
+        filledSet,
+        extracted,
+        ctx
+      );
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: eligió catering casual → menú estaciones");
+    }
+  } else if (
+    // V8.92: tras menú de piezas mobiliario → modelos (sillas/mesas/…).
+    allowSalesReplyOverride &&
+    !cierreYaEnviado &&
+    historyOfferedMobiliarioPieceMenu(presHistory) &&
+    currentMessage?.trim() &&
+    parseMobiliarioPieceChoice(currentMessage)
+  ) {
+    const piece = parseMobiliarioPieceChoice(currentMessage)!;
+    filledSet.add("Requerimientos o servicios");
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      `Mobiliario: ${piece}`,
+      6
+    );
+    if (merged) extracted.requerimientos_evento = merged;
+    mensaje = mergeWithPendingQuestion(
+      `${pickTransition(presHistory)} ${buildMobiliarioPieceFollowUp(piece)}`,
+      filledSet,
+      extracted,
+      ctx
+    );
+    appliedSalesReply = true;
+    appliedDirectReply = true;
+    log?.info({ entityId, piece }, "GUARD: pieza mobiliario → menú de modelos");
   } else if (
     allowSalesReplyOverride &&
     !cierreYaEnviado &&

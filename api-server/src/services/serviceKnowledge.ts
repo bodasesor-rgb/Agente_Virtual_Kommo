@@ -24,6 +24,11 @@ import {
 } from "./catalogService.js";
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
 import { buildLucyInfoLearnedPriceReply } from "./lucyInfoPriceCache.js";
+import {
+  buildProgressiveOptionsMenu,
+  parseMobiliarioPieceChoice,
+  buildMobiliarioPieceFollowUp,
+} from "./serviceProgressiveOffer.js";
 
 export type ServiceKnowledgeLevel = 1 | 2 | 3;
 
@@ -131,7 +136,9 @@ function formatMobiliarioItem(item: { qty: number | null; label: string }): stri
   return item.qty && item.qty > 0 ? `${item.qty} ${item.label}` : item.label;
 }
 
-/** Detalle técnico renta de mesas/sillas/picnic/periqueras (NIVEL 2 mobiliario). */
+/** Detalle técnico renta de mesas/sillas/picnic/periqueras (NIVEL 2 mobiliario).
+ * V8.92: solo "mobiliario" → null (el menú progresivo pregunta la pieza primero).
+ */
 export function buildMobiliarioRentDetailReply(query: string): string | null {
   if (
     !/\b(mesas?|sillas?|mobiliario|periquera|lounge|picnic|bancos?)\b/i.test(query)
@@ -143,6 +150,24 @@ export function buildMobiliarioRentDetailReply(query: string): string | null {
     /\bcolor\s+(blanco|negro|dorado|plateado|natural|madera)\b/i
   )?.[1];
   const colorNote = color ? ` en color *${color.toLowerCase()}*` : "";
+
+  // Solo familia "mobiliario" sin pieza ni qty → menú progresivo, no dump.
+  const bareMobiliario =
+    items.length === 0 &&
+    /\bmobiliario\b/i.test(query) &&
+    !/\b(mesas?|sillas?|periquera|lounge|picnic|bancos?|tiffany|crossback|ghost)\b/i.test(query);
+  if (bareMobiliario) return null;
+
+  // Pieza nombrada sin cantidad ni modelo concreto → menú de modelos (no dump).
+  const hasQty = items.some((i) => i.qty != null && i.qty > 0);
+  const hasModel =
+    /\b(tiffany|crossback|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|louis|mariantonieta|avant|luxor|imperial|picnic)\b/i.test(
+      query
+    );
+  if (items.length >= 1 && !hasQty && !hasModel) {
+    // "sillas" / "mesas" / "periqueras" sueltas → progressive follow-up.
+    return null;
+  }
 
   if (items.length >= 1) {
     const list = items.map(formatMobiliarioItem).join(", ");
@@ -169,10 +194,12 @@ export function buildMobiliarioRentDetailReply(query: string): string | null {
     return bits.join(" ");
   }
 
-  return (
-    "Anoto *mobiliario*. Manejamos renta de *mesas y sillas* para eventos: sillas Tiffany y versátiles, mesas redondas y rectangulares, periqueras, mesas tipo picnic, salas lounge y más. " +
-    "Podemos incluir mantelería y montaje en sitio, o solo entrega/recolección."
-  );
+  // Pieza nombrada sin qty (ej. "sillas", "mesas") → null; menú de modelos lo arma progressive.
+  if (/\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && items.length === 0) {
+    return null;
+  }
+
+  return null;
 }
 
 /** Acuse NIVEL 3 — solicitud especial; el equipo confirma disponibilidad. */
@@ -240,6 +267,15 @@ export function buildGuardServiceAck(query: string): string {
     return dims
       ? `${mobiliario} Con espacio ${dims}, el equipo afina la propuesta.`
       : `${mobiliario} ¿Lo agregamos a tu cotización?`;
+  }
+
+  // V8.92: solo "mobiliario" / pieza sin qty → menú progresivo (no dump).
+  if (/\bmobiliario\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
+    return buildProgressiveOptionsMenu("mobiliario");
+  }
+  if (/\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
+    const p = parseMobiliarioPieceChoice(query);
+    if (p) return buildMobiliarioPieceFollowUp(p);
   }
 
   return buildLevel2Ack(label);
