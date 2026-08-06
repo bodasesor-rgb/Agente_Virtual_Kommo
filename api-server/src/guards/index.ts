@@ -47,7 +47,6 @@ export {
 export {
   detectCierreEnviado,
   collectUserTexts,
-  lastAssistantWasPhoneAnswer,
 } from "./historyHelpers.js";
 
 export {
