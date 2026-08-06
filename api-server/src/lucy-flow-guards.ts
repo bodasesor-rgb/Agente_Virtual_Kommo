@@ -24,7 +24,6 @@ import {
   isLikelyNotPersonNameMessage,
   isLikelyUbicacionNotNombre,
   clientAsksCompanyIdentity,
-  buildCompanyIdentityReply,
 } from "./contact-name.js";
 import {
   buildEmailConfirmationPrompt,
@@ -39,10 +38,6 @@ import {
   needsModoServicioClarification,
 } from "./modoServicio.js";
 import { normalizeAdvisorReferences, advisorLabelForClient, stripInternalCrmBlock } from "./lib/bodasesorAdvisor.js";
-import {
-  buildCompanyEmailConfirmReply,
-  clientAsksIfCompanyEmailCorrect,
-} from "./tipoContacto.js";
 import {
   buildAlejandroPriceReply,
   buildConsultativeNoPriceReply,
@@ -184,7 +179,6 @@ import {
   isGettingReadyContext,
   parseWebLeadBrief,
   clientAsksForCatalog,
-  clientAsksGenericMenuCatalog,
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
   assistantOfferedCatalogDetail,
@@ -287,7 +281,6 @@ import {
   historyAlreadyOfferedServiceDetail,
   buildMultiServiceSheetLevelsReply,
   buildMultiServicePackageReply,
-  tryApplyPostCierreOrHandoffReply,
   mensajeMencionaCatalogoServicios,
   looksLikeServicesMenuDump,
   historyAlreadyHadServicesCatalog,
@@ -309,6 +302,13 @@ import {
   configureOpeningDeps,
   buildFirstInteractionMessage,
 } from "./guards/index.js";
+import {
+  handleCompanyContact,
+  handleExplicitCatalog,
+  handlePostCierreOrHandoff,
+  type PriorityGuardContext,
+} from "./guards/priorityHandlers.js";
+import { runGuardHandlers } from "./guards/policy.js";
 
 const EMAIL_REFUSAL_PATTERN =
   /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
@@ -2703,118 +2703,33 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     lastAskedField
   );
 
-  let mensaje: string;
-  let appliedSalesReply = false;
-  let appliedDirectReply = false;
-
-  const postCierreOrHandoff = tryApplyPostCierreOrHandoffReply({
+  const priorityGuardContext: PriorityGuardContext = {
     cierreYaEnviado,
     currentMessage,
     extracted,
     filledSet,
-    history: presHistory,
+    presHistory,
     whatsappDisplayName,
     entityId,
     log,
-  });
-  if (postCierreOrHandoff) {
-    mensaje = postCierreOrHandoff.mensaje;
-    appliedDirectReply = true;
-    log?.info({ entityId }, postCierreOrHandoff.logMsg);
-  } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {
-    mensaje = buildCompanyEmailConfirmReply();
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: cliente preguntó por correo de Bodasesor");
-  } else if (clientAsksCompanyIdentity(currentMessage)) {
-    const knownName =
-      sanitizeCrmNombre(extracted.nombre) ??
-      sanitizeCrmNombre(whatsappDisplayName) ??
-      sanitizeDisplayName(whatsappDisplayName);
-    mensaje = buildCompanyIdentityReply(knownName);
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: cliente preguntó si es Cap&Bara/Bodasesor");
-  } else if (
-    clientAsksForCatalog(currentMessage) ||
-    clientAffirmsCatalogOffer(
-      currentMessage,
-      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
-        ? (lastAssistantMsg.content as string)
-        : null
-    ) ||
-    // A14994 / todas las ramas: si el CTA de catálogo está en hilo reciente (no solo el último msg).
-    (clientAffirmsCatalogOffer(
-      currentMessage,
-      [...presHistory]
-        .reverse()
-        .filter((m) => m.role === "assistant" && typeof m.content === "string")
-        .slice(0, 3)
-        .map((m) => m.content as string)
-        .find((t) => assistantOfferedCatalogDetail(t)) ?? null
-    ))
-  ) {
-    const wantFull =
-      clientWantsFullCatalog(currentMessage) ||
-      clientAsksGenericMenuCatalog(currentMessage);
-    const hintParts: string[] = [];
-    if (extracted.requerimientos_evento?.trim()) hintParts.push(extracted.requerimientos_evento);
-    if (mentionedServiceNow) hintParts.push(mentionedServiceNow);
-    if (
-      lastAssistantMsg &&
-      typeof lastAssistantMsg.content === "string" &&
-      messageOffersCatalogLink(lastAssistantMsg.content as string)
-    ) {
-      hintParts.push(lastAssistantMsg.content as string);
-    }
-    const historyHint = [
-      ...presHistory
-        .filter((m) => m.role === "user" && typeof m.content === "string")
-        .slice(-4)
-        .map((m) => m.content as string),
-      currentMessage ?? "",
-    ]
-      .join(" ")
-      .trim();
-    const serviceHint = hintParts.join(" ") || null;
-    // A15169: servicios SOLO del texto del cliente (no CRM/LLM inventado).
-    // "catálogo de menú" sin SKU → hub general, nunca Barra de pizzas.
-    const userNamedServices = parseServicesFromText(historyHint);
-    const mappedServices = wantFull
-      ? []
-      : collectServicesForCatalogOffer({
-          services: userNamedServices,
-          // No usar extracted.requerimientos si el usuario no nombró servicio:
-          // el extractor a veces alucina un SKU (A15169 → pizzas).
-          extracted:
-            userNamedServices.length > 0
-              ? extracted
-              : { requerimientos_evento: null },
-          history: presHistory,
-          currentMessage,
-        });
-    if (!wantFull && mappedServices.length > 0) {
-      const mapped = buildPackageCatalogOfferBlock(
-        mappedServices,
-        `${serviceHint ?? ""} ${historyHint}`
-      ).replace(
-        /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
-        "\n"
-      );
-      mensaje = /bodasesor\.com\/catalogos/i.test(mapped)
-        ? `Claro.\n\n${mapped}`.trim()
-        : buildCatalogWebLinkReply({
-            query: historyHint || (currentMessage ?? ""),
-            wantFull: false,
-            serviceHint,
-          });
-    } else {
-      mensaje = buildCatalogWebLinkReply({
-        query: "catálogo general",
-        wantFull: true,
-        serviceHint: null,
-      });
-    }
-    appliedDirectReply = true;
-    log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidió/afirmó catálogo — link(s)");
+    lastAssistantMsg,
+    mentionedServiceNow,
+  };
+  const priorityDecision = runGuardHandlers(priorityGuardContext, [
+    handlePostCierreOrHandoff,
+    handleCompanyContact,
+    handleExplicitCatalog,
+  ]);
+
+  let mensaje: string;
+  let appliedSalesReply = false;
+  let appliedDirectReply = false;
+
+  if (priorityDecision.kind === "reply") {
+    mensaje = priorityDecision.mensaje;
+    appliedDirectReply = priorityDecision.effects?.appliedDirectReply ?? false;
+    appliedSalesReply = priorityDecision.effects?.appliedSalesReply ?? false;
+    log?.info({ entityId }, priorityDecision.id);
   } else if (
     !cierreYaEnviado &&
     currentMessage &&

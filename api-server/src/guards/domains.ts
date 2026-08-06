@@ -33,7 +33,7 @@ export const LUCY_GUARD_DOMAINS = {
     ],
   },
   postCierre: {
-    module: "guards/postCierreHandler.ts + postCierreReplies.ts",
+    module: "guards/policy.ts + priorityHandlers.ts + postCierreHandler.ts + postCierreReplies.ts",
     keep: [
       "no re-pedir correo/embudo",
       "ack corto al sumar servicios",

@@ -53,6 +53,7 @@ export {
   buildStandardClosingMessage,
   buildPackageCatalogOfferBlock,
 } from "${root}/src/guards/catalogOffer.ts";
+export { runGuardHandlers } from "${root}/src/guards/policy.ts";
 export { tryApplyPostCierreOrHandoffReply } from "${root}/src/guards/postCierreHandler.ts";
 export {
   buildItalianFoodPitch,
@@ -114,6 +115,26 @@ assert.ok(m.detectCierreEnviado([], `${m.CLOSING_SIGNATURE} catálogo`));
 assert.deepEqual(m.collectUserTexts([], "hola"), ["hola"]);
 assert.match(m.buildGenericCatalogHubBlock(), /bodasesor\.com\/catalogos/i);
 assert.match(m.buildStandardClosingMessage("banquete", "Ana"), /Perfecto, ya tengo todo/);
+const handlerCalls = [];
+const priorityReply = m.runGuardHandlers(
+  { value: "smoke" },
+  [
+    () => {
+      handlerCalls.push("continue");
+      return { kind: "continue" };
+    },
+    () => {
+      handlerCalls.push("reply");
+      return { kind: "reply", id: "first", mensaje: "respuesta" };
+    },
+    () => {
+      handlerCalls.push("later");
+      return { kind: "reply", id: "later", mensaje: "no debe ejecutarse" };
+    },
+  ]
+);
+assert.deepEqual(handlerCalls, ["continue", "reply"]);
+assert.deepEqual(priorityReply, { kind: "reply", id: "first", mensaje: "respuesta" });
 assert.equal(
   m.tryApplyPostCierreOrHandoffReply({
     cierreYaEnviado: true,

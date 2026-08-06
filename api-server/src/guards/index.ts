@@ -67,6 +67,20 @@ export {
 } from "./postCierreHandler.js";
 
 export {
+  runGuardHandlers,
+  type GuardDecision,
+  type GuardEffects,
+  type GuardHandler,
+} from "./policy.js";
+
+export {
+  handlePostCierreOrHandoff,
+  handleCompanyContact,
+  handleExplicitCatalog,
+  type PriorityGuardContext,
+} from "./priorityHandlers.js";
+
+export {
   mensajeMencionaCatalogoServicios,
   looksLikeServicesMenuDump,
   historyAlreadyHadServicesCatalog,
