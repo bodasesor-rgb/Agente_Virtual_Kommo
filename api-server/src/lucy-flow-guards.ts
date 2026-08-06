@@ -222,7 +222,6 @@ export {
   clientSaysThanks,
   detectCierreEnviado,
   collectUserTexts,
-  lastAssistantWasPhoneAnswer,
   buildGenericCatalogHubBlock,
   collectServicesForCatalogOffer,
   buildPackageCatalogOfferBlock,
