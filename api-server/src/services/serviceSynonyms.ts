@@ -202,6 +202,8 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
       "carrito de café",
       "cafe para invitados",
       "café para invitados",
+      "stand de cafe",
+      "stand de café",
       "coffee",
     ],
     excludeIf: ["coffee break", "coffeebreak", "receso", "junta"],
@@ -227,8 +229,6 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
       "receso corporativo",
       "cafe y galletas",
       "café y galletas",
-      "stand de cafe",
-      "stand de café",
     ],
   },
   {

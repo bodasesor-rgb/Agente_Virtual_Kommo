@@ -260,7 +260,14 @@ export function buildResumenClienteLargo(
   else lineas.push("• Servicios: (aún por definir con más detalle)");
   if (modo) lineas.push(`• Modalidad: ${modo}`);
   if (evento) lineas.push(`• Evento: ${evento}`);
-  if (invitados) lineas.push(`• Escala: ${invitados} personas / piezas`);
+  if (invitados) {
+    const escalaAbierta = /sin definir|afluencia|no dispone|no (?:lo )?sabe/i.test(invitados);
+    lineas.push(
+      escalaAbierta
+        ? `• Escala: ${invitados}`
+        : `• Escala: ${invitados} personas / piezas`
+    );
+  }
   lineas.push("");
 
   lineas.push("Datos capturados:");

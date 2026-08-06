@@ -134,6 +134,7 @@ import { buildResumenClienteLargo } from "../services/summaryService.js";
 import {
   applyLucyMessageGuards,
   applyEmailWaiver,
+  applyInvitadosWaiver,
   applyPresupuestoWaiver,
   buildPhoneAnswer,
   buildRecommendationsReply,
@@ -181,6 +182,10 @@ import {
   buildGenericPriceClarifyReply,
   buildGenericPackagesOverviewReply,
 } from "../lucy-flow-guards.js";
+import {
+  buildLucyInfoInclusionReply,
+  refreshLucyInfoPriceCache,
+} from "../services/lucyInfoPriceCache.js";
 import {
   sanitizeKommoCrmLines,
   sanitizeExtractedFromExternal,
@@ -8281,7 +8286,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.03");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.05");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8876,6 +8881,117 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/eres M[aá]ndamelo|sigo contigo/i.test(affirm), affirm.slice(0, 300));
     assert.ok(/bodasesor\.com\/catalogos/i.test(affirm), affirm.slice(0, 400));
+  });
+
+  await test("130. A15191 — Barra de Café no usa Barra Americana y respeta afluencia desconocida", () => {
+    const baristaFamilies = expandQueryWithServiceSynonyms(
+      "Busco un barista para un stand de café"
+    ).familyKeys;
+    assert.ok(baristaFamilies.includes("barra_cafe"), baristaFamilies.join(", "));
+    assert.ok(!baristaFamilies.includes("coffee_break"), baristaFamilies.join(", "));
+    const breakFamilies = expandQueryWithServiceSynonyms(
+      "Necesito coffee break con bocadillos"
+    ).familyKeys;
+    assert.ok(breakFamilies.includes("coffee_break"), breakFamilies.join(", "));
+    assert.ok(!breakFamilies.includes("barra_cafe"), breakFamilies.join(", "));
+
+    refreshLucyInfoPriceCache([
+      {
+        title: "Barra Americana bodasesor",
+        content:
+          "Barra Americana. Centro de mesa con flores. Barra con vitroleros, agua y café. Tradicional $180 por persona. Meseros, vajilla y silla Tiffany.",
+      },
+      {
+        title: "Barra de Cafe bodasesor",
+        content:
+          "Barra de Café Premium. Barista, café americano, capuchino y té. Premium $550 por persona. Incluye equipo e insumos.",
+      },
+    ]);
+    const cafeDetail = buildLucyInfoInclusionReply(
+      "Barra de Café Premium para Eventos"
+    );
+    assert.ok(/Barra de Cafe bodasesor/i.test(cafeDetail ?? ""), cafeDetail ?? "sin detalle");
+    assert.ok(/barista|capuchino/i.test(cafeDetail ?? ""), cafeDetail ?? "sin detalle");
+    assert.ok(
+      !/Barra Americana|Silla Tiffany|centro de mesa/i.test(cafeDetail ?? ""),
+      cafeDetail ?? "sin detalle"
+    );
+
+    const first = runGuards({
+      aiResponse:
+        "Según el catálogo que ya tenemos de *Barra Americana bodasesor*: Centro de mesa, vitroleros, meseros, vajilla y silla Tiffany.",
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: "Hola, me interesa cotizar: Barra de Café Premium para Eventos",
+      forceFirstPresentation: true,
+      history: [],
+    });
+    assert.ok(/Barra de Café/i.test(first), first.slice(0, 500));
+    assert.ok(/c[oó]mo te llamas|nombre|con qui[eé]n/i.test(first), first.slice(0, 500));
+    assert.ok(!/Barra Americana|Silla Tiffany|vitroleros/i.test(first), first.slice(0, 500));
+    assert.ok(!/Según el catálogo/i.test(first), first.slice(0, 500));
+
+    const unknownGuests =
+      "No sabemos cuántos invitados son; nosotros no organizamos el evento, vamos como patrocinadores.";
+    const guestFilled = new Set<string>();
+    const guestLines: string[] = [];
+    applyInvitadosWaiver(
+      guestFilled,
+      guestLines,
+      [unknownGuests],
+      [{ role: "assistant", content: "¿Cuántos invitados tienen contemplados?" }]
+    );
+    assert.ok(guestFilled.has("Número de invitados"));
+    assert.ok(/afluencia abierta|no dispone del dato/i.test(guestLines.join(" ")));
+    const guestSummary = buildResumenClienteLargo(
+      emptyExtracted({
+        nombre: "Patricio",
+        requerimientos_evento: "Barra de Café Premium",
+      }),
+      guestLines
+    );
+    assert.ok(/Escala: Sin definir \(afluencia abierta/i.test(guestSummary), guestSummary);
+    assert.ok(!/afluencia abierta[^•\n]*personas\s*\/\s*piezas/i.test(guestSummary), guestSummary);
+
+    assert.equal(
+      parseInvitadosFromText("No sabemos cuántos invitados son"),
+      "Sin definir (cliente indicó aproximación pendiente)"
+    );
+    assert.equal(
+      parseInvitadosFromText("No te lo puedo confirmar, no tenemos ese dato"),
+      "Sin definir (cliente indicó aproximación pendiente)"
+    );
+    assert.equal(parseZonaFromText("el stand"), null);
+    assert.equal(parseZonaFromText("en el stand con nosotros"), null);
+    assert.ok(!isUsableDireccionEvento("el, stand"));
+    assert.ok(isUsableDireccionEvento("Expo Santa Fe"));
+
+    const closing = runGuards({
+      aiResponse: "De acuerdo. ¿Más o menos para cuántas personas sería?",
+      extracted: emptyExtracted({
+        nombre: "Patricio",
+        correo: "pacosiom@finasist.com",
+        tipo_evento: "evento corporativo",
+        requerimientos_evento: "Barra de Café Premium — barista en stand por dos días",
+        direccion_evento: "Expo Santa Fe",
+        fecha_horario: "dos días",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Lugar/dirección del evento",
+        "Fecha y horario",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: false,
+      currentMessage: unknownGuests,
+      history: [{ role: "assistant", content: "¿Cuántos invitados tienen contemplados?" }],
+    });
+    assert.ok(!/cu[aá]ntos|cu[aá]nta gente|para cu[aá]ntas/i.test(closing), closing);
+    assert.ok(/ya tengo todo|equipo|cotizaci/i.test(closing), closing);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

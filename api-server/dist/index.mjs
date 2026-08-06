@@ -204929,6 +204929,934 @@ DJ y audio, pantallas LED, iluminaci\xF3n, fiesta infantil, carpas y lonas.
 import { existsSync as existsSync2, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// src/services/serviceSynonyms.ts
+function norm(s10) {
+  return s10.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
+  {
+    key: "banquete_formal",
+    serviceHints: ["banquete formal", "banquete 3", "banquete 4", "banquete"],
+    aliases: [
+      "menu formal",
+      "men\xFA formal",
+      "comida servida",
+      "banquete sentado",
+      "menu de tiempos",
+      "men\xFA de tiempos",
+      "comida de plato",
+      "servicio a la mesa",
+      "comida formal",
+      "menu emplatado",
+      "men\xFA emplatado",
+      "cena formal",
+      "banquete de boda",
+      "banquete formal",
+      "banquete",
+      "4 tiempos",
+      "3 tiempos",
+      "plated",
+      "emplatado"
+    ],
+    excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos"]
+  },
+  {
+    key: "banquete_kosher",
+    serviceHints: ["kosher"],
+    aliases: [
+      "kosher",
+      "kasher",
+      "comida kosher",
+      "comida judia",
+      "comida jud\xEDa",
+      "menu kosher",
+      "men\xFA kosher",
+      "certificado rabinico",
+      "certificado rab\xEDnico",
+      "supervision rabinica",
+      "supervisi\xF3n rab\xEDnica",
+      "banquete judio",
+      "banquete jud\xEDo",
+      "comida para evento judio",
+      "comida para evento jud\xEDo",
+      "cocina kosher"
+    ]
+  },
+  {
+    key: "banquete_mexicano",
+    serviceHints: ["banquete mexicano", "mexicano"],
+    aliases: [
+      "comida mexicana",
+      "menu mexicano",
+      "men\xFA mexicano",
+      "banquete tipico",
+      "banquete t\xEDpico",
+      "cena mexicana",
+      "comida tradicional",
+      "platillos mexicanos",
+      "buffet mexicano",
+      "banquete mexicano",
+      "fiesta mexicana",
+      "comida tipica",
+      "comida t\xEDpica"
+    ],
+    excludeIf: ["taquiza", "tacos", "antojitos", "yucateca"]
+  },
+  {
+    key: "banquete_navideno",
+    serviceHints: ["navideno", "navide\xF1o", "navidad"],
+    aliases: [
+      "cena navide\xF1a",
+      "cena navadena",
+      "posada",
+      "cena de fin de a\xF1o",
+      "cena de fin de ano",
+      "evento decembrino",
+      "pavo navide\xF1o",
+      "pavo navideno",
+      "cena de temporada",
+      "banquete de navidad",
+      "fiesta navide\xF1a",
+      "fiesta navadena",
+      "cena de diciembre",
+      "brindis navide\xF1o",
+      "brindis navideno",
+      "navidad"
+    ]
+  },
+  {
+    key: "barra_americana",
+    serviceHints: ["barra americana", "americana"],
+    aliases: [
+      "hamburguesas",
+      "hot dogs",
+      "hotdogs",
+      "alitas",
+      "comida americana",
+      "boneless",
+      "sliders",
+      "papas y hamburguesas",
+      "comida rapida gourmet",
+      "comida r\xE1pida gourmet",
+      "barra americana"
+    ]
+  },
+  {
+    key: "barra_bebidas_sin_alcohol",
+    serviceHints: ["barra de bebidas", "sin alcohol"],
+    aliases: [
+      "refrescos",
+      "aguas frescas",
+      "barra de refrescos",
+      "bebidas sin alcohol",
+      "vitroleros",
+      "solo bebidas",
+      "barra de aguas",
+      "sodas",
+      "bebidas para el evento",
+      "barra sin alcohol"
+    ],
+    excludeIf: ["open bar", "barra libre", "tragos", "licores", "alcohol"]
+  },
+  {
+    key: "barra_bebidas_alcohol",
+    serviceHints: ["barra de bebidas", "con alcohol", "bebidas con alcohol"],
+    aliases: [
+      "barra libre",
+      "open bar",
+      "bar",
+      "cocteleria con alcohol",
+      "cocteler\xEDa con alcohol",
+      "tragos",
+      "barra de licores",
+      "barra con alcohol",
+      "bebidas con alcohol",
+      "barra de tragos",
+      "servicio de bar",
+      "barra de bebidas",
+      // A14985 stand/golf: cerveza / whisky sin decir "barra".
+      "cerveza",
+      "cervezas",
+      "whisky",
+      "whiskey",
+      "tequila",
+      "vodka",
+      "licores"
+    ],
+    excludeIf: ["sin alcohol", "mocteles", "mocktail", "cafe", "caf\xE9"]
+  },
+  {
+    key: "barra_cafe",
+    serviceHints: ["barra de cafe", "barra de caf\xE9", "cafe"],
+    aliases: [
+      "cafeteria",
+      "cafeter\xEDa",
+      "barista",
+      "cafe gourmet",
+      "caf\xE9 gourmet",
+      "estacion de cafe",
+      "estaci\xF3n de caf\xE9",
+      "cafe de especialidad",
+      "caf\xE9 de especialidad",
+      "barra de cafe",
+      "barra de caf\xE9",
+      "cafe artesanal",
+      "caf\xE9 artesanal",
+      "carrito de cafe",
+      "carrito de caf\xE9",
+      "cafe para invitados",
+      "caf\xE9 para invitados",
+      "stand de cafe",
+      "stand de caf\xE9",
+      "coffee"
+    ],
+    excludeIf: ["coffee break", "coffeebreak", "receso", "junta"]
+  },
+  {
+    key: "coffee_break",
+    serviceHints: ["coffee break", "coffeebreak", "coffe break"],
+    aliases: [
+      "coffee break",
+      "coffeebreak",
+      "coffe break",
+      "receso de cafe",
+      "receso de caf\xE9",
+      "cafe para junta",
+      "caf\xE9 para junta",
+      "break corporativo",
+      "estacion de cafe y snacks",
+      "estaci\xF3n de caf\xE9 y snacks",
+      "pausa de cafe",
+      "pausa de caf\xE9",
+      "break de cafe",
+      "break de caf\xE9",
+      "receso corporativo",
+      "cafe y galletas",
+      "caf\xE9 y galletas"
+    ]
+  },
+  {
+    key: "barra_crepas",
+    serviceHints: ["crepas", "crepa"],
+    aliases: [
+      "crepas",
+      "creperia",
+      "creper\xEDa",
+      "crepes",
+      "waffles",
+      "postres calientes",
+      "estacion de crepas",
+      "estaci\xF3n de crepas",
+      "crepas dulces",
+      "crepas saladas",
+      "barra de crepas",
+      "crepas gourmet"
+    ]
+  },
+  {
+    key: "barra_mariscos",
+    serviceHints: ["mariscos"],
+    aliases: [
+      "mariscos",
+      "ceviches",
+      "aguachile",
+      "coctel de camaron",
+      "coctel de camar\xF3n",
+      "pescados y mariscos",
+      "barra de mar",
+      "ostiones",
+      "tostadas de mariscos",
+      "comida del mar",
+      "barra de mariscos"
+    ]
+  },
+  {
+    key: "barra_paninis",
+    serviceHints: ["paninis", "panini"],
+    aliases: [
+      "paninis",
+      "sandwiches",
+      "s\xE1ndwiches",
+      "sandwiches gourmet",
+      "s\xE1ndwiches gourmet",
+      "baguettes",
+      "molletes gourmet",
+      "sandwicheria",
+      "sandwicher\xEDa",
+      "tortas gourmet",
+      "paninos",
+      "barra de sandwiches",
+      "barra de s\xE1ndwiches",
+      "panini"
+    ]
+  },
+  {
+    key: "barra_pastas",
+    serviceHints: ["pastas", "ensaladas"],
+    aliases: [
+      "pastas",
+      "espagueti",
+      "estacion de pastas",
+      "estaci\xF3n de pastas",
+      "pasta italiana",
+      "ensaladas",
+      "barra de pastas",
+      "fettuccine",
+      "lasana",
+      "lasa\xF1a",
+      "pasta al momento",
+      "comida italiana",
+      "italiana"
+    ]
+  },
+  {
+    key: "barra_pizzas",
+    serviceHints: ["pizza", "pizzas"],
+    aliases: [
+      "pizzas",
+      "pizza artesanal",
+      "estacion de pizza",
+      "estaci\xF3n de pizza",
+      "horno de pizza",
+      "pizzas gourmet",
+      "barra de pizzas",
+      "pizza al momento",
+      "pizza italiana",
+      "pizzeria",
+      "pizzer\xEDa",
+      "pizza"
+    ]
+  },
+  {
+    key: "barra_sushi",
+    serviceHints: ["sushi", "poke"],
+    aliases: [
+      "sushi",
+      "rollos",
+      "poke",
+      "poke bowls",
+      "comida japonesa",
+      "makis",
+      "barra de sushi",
+      "sushi al momento",
+      "rollos japoneses",
+      "comida oriental",
+      "japones",
+      "japon\xE9s",
+      "nigiri",
+      "sashimi"
+    ]
+  },
+  {
+    key: "barra_yucateca",
+    serviceHints: ["yucateca", "yucatan"],
+    aliases: [
+      "comida yucateca",
+      "cochinita",
+      "cochinita pibil",
+      "panuchos",
+      "salbutes",
+      "comida del sureste",
+      "comida de yucatan",
+      "comida de yucat\xE1n",
+      "papadzules",
+      "barra yucateca",
+      "comida maya"
+    ]
+  },
+  {
+    key: "bocadillos",
+    serviceHints: ["bocadillos", "bocadillo"],
+    aliases: [
+      "botana",
+      "botanas",
+      "snacks",
+      "aperitivos",
+      "finger food",
+      "bocadillos",
+      "entradas",
+      "pasabocas",
+      "tentempies",
+      "tentempi\xE9s",
+      "comida para picar"
+    ],
+    excludeIf: ["canapes", "canap\xE9s", "carrito"]
+  },
+  {
+    key: "canapes",
+    serviceHints: ["canapes", "canap\xE9s"],
+    aliases: [
+      "canapes",
+      "canap\xE9s",
+      "bocaditos",
+      "entremeses",
+      "bocadillos finos",
+      "pasapalos",
+      "bocados gourmet",
+      "canape",
+      "canap\xE9",
+      "entradas frias",
+      "entradas fr\xEDas"
+    ]
+  },
+  {
+    key: "carrito_snacks",
+    serviceHints: ["carrito de snacks", "snacks"],
+    aliases: [
+      "carrito de botana",
+      "snacks",
+      "dulces y frituras",
+      "carrito de golosinas",
+      "botanas para llevar",
+      "estacion de snacks",
+      "estaci\xF3n de snacks",
+      "carrito de dulces",
+      "chucherias",
+      "chucher\xEDas",
+      "papitas y dulces",
+      "carrito de snacks"
+    ]
+  },
+  {
+    key: "cocteles_mixologia",
+    serviceHints: ["cocteles", "mixologia", "mixolog\xEDa", "cocteleria"],
+    aliases: [
+      "cocteles",
+      "c\xF3cteles",
+      "cocteleria",
+      "cocteler\xEDa",
+      "mixologia",
+      "mixolog\xEDa",
+      "bartender",
+      "cantinero",
+      "tragos de autor",
+      "cocktails",
+      "barra de cocteles",
+      "barra de c\xF3cteles",
+      "mixologo",
+      "mix\xF3logo",
+      "cocteles de autor",
+      "c\xF3cteles de autor"
+    ],
+    excludeIf: ["sin alcohol", "mocteles", "mocktail"]
+  },
+  {
+    key: "comida_corrida",
+    serviceHints: ["comida corrida", "corrida"],
+    aliases: [
+      "comida corrida",
+      "menu del dia",
+      "men\xFA del d\xEDa",
+      "comida economica",
+      "comida econ\xF3mica",
+      // NO: "comida corporativa" / "menu corporativo" — A14943 confundía evento de trabajo.
+      "comida sencilla",
+      "comida de oficina",
+      "menu ejecutivo",
+      "men\xFA ejecutivo"
+    ]
+  },
+  {
+    key: "desayuno_brunch",
+    serviceHints: ["desayuno", "brunch"],
+    aliases: [
+      "desayuno",
+      "brunch",
+      "almuerzo",
+      "desayuno buffet",
+      "getting ready",
+      "desayuno para evento",
+      "desayuno social",
+      "chilaquiles",
+      "huevos",
+      "brunch de boda"
+    ]
+  },
+  {
+    key: "cupcakes",
+    serviceHints: ["cupcakes", "cupcake", "bet\xFAn", "betun", "cupcakes y bet\xFAn"],
+    aliases: [
+      "cupcakes",
+      "panquecitos",
+      "pastelitos",
+      "muffins",
+      "cup cakes decorados",
+      "postrecitos",
+      "cupcakes personalizados",
+      "mini pasteles",
+      "ponquesitos",
+      "cupcakes tematicos",
+      "cupcakes tem\xE1ticos",
+      "betun",
+      "bet\xFAn",
+      "betunes",
+      "fondant",
+      "cupcakes y betun",
+      "cupcakes y bet\xFAn"
+    ]
+  },
+  {
+    key: "mesa_dulces",
+    serviceHints: ["mesa de dulces", "dulces"],
+    aliases: [
+      "mesa de dulces",
+      "candy bar",
+      "mesa de golosinas",
+      "dulcero",
+      "mesa de dulces mexicanos",
+      "barra de dulces",
+      "dulces para evento",
+      "mesa de caramelos",
+      "estacion de dulces",
+      "estaci\xF3n de dulces",
+      "candy"
+    ],
+    excludeIf: ["postres", "cupcakes", "helados"]
+  },
+  {
+    key: "mesa_postres",
+    serviceHints: ["mesa de postres", "postres"],
+    aliases: [
+      "mesa de postres",
+      "postres",
+      "reposteria",
+      "reposter\xEDa",
+      "mesa de pasteles",
+      "estacion de postres",
+      "estaci\xF3n de postres",
+      "dulces finos",
+      "postres para evento",
+      "pasteleria",
+      "pasteler\xEDa",
+      "mesa de dulces finos",
+      "barra de postres"
+    ]
+  },
+  {
+    key: "mesa_quesos",
+    serviceHints: ["mesa de quesos", "quesos"],
+    aliases: [
+      "tabla de quesos",
+      "mesa de quesos",
+      "quesos y carnes frias",
+      "quesos y carnes fr\xEDas",
+      "charcuteria",
+      "charcuter\xEDa",
+      "tabla de embutidos",
+      "quesos gourmet",
+      "tabla de fiambres",
+      "mesa de quesos y vinos",
+      "degustacion de quesos",
+      "degustaci\xF3n de quesos",
+      "tabla gourmet",
+      "grazing"
+    ]
+  },
+  {
+    key: "mocteles",
+    serviceHints: ["mocteles", "m\xF3cteles"],
+    aliases: [
+      "mocteles",
+      "m\xF3cteles",
+      "cocteles sin alcohol",
+      "c\xF3cteles sin alcohol",
+      "bebidas sin alcohol",
+      "cocteleria sin alcohol",
+      "cocteler\xEDa sin alcohol",
+      "tragos sin alcohol",
+      "barra de mocteles",
+      "barra de m\xF3cteles",
+      "bebidas de autor sin alcohol",
+      "cocteles virgenes",
+      "c\xF3cteles v\xEDrgenes",
+      "mixologia sin alcohol",
+      "mixolog\xEDa sin alcohol",
+      "mocktails",
+      "mocktail"
+    ]
+  },
+  {
+    key: "paella",
+    serviceHints: ["paella"],
+    aliases: [
+      "paella",
+      "arroz espanol",
+      "arroz espa\xF1ol",
+      "paella valenciana",
+      "paella de mariscos",
+      "arroz a la valenciana",
+      "comida espanola",
+      "comida espa\xF1ola",
+      "paella en vivo",
+      "paellera",
+      "arroz espanol al momento",
+      "arroz espa\xF1ol al momento",
+      "paellas"
+    ]
+  },
+  {
+    key: "paletas_helados",
+    serviceHints: ["paletas", "helados"],
+    aliases: [
+      "paletas",
+      "paletas de hielo",
+      "helados",
+      "nieves",
+      "sorbetes",
+      "carrito de helados",
+      "paletas artesanales",
+      "neveria",
+      "never\xEDa",
+      "paletas heladas",
+      "helado para evento"
+    ]
+  },
+  {
+    key: "parrillada_argentina",
+    serviceHints: ["parrillada argentina", "parillada argentina", "argentina"],
+    aliases: [
+      "asado argentino",
+      "cortes argentinos",
+      "parrilla argentina",
+      "carnes asadas",
+      "asador",
+      "parrillada argentina",
+      "parillada argentina",
+      "cortes finos",
+      "asador en vivo",
+      "carne al carbon",
+      "carne al carb\xF3n",
+      "parrilla de cortes",
+      "asado",
+      "carne asada",
+      "argentino"
+    ]
+  },
+  {
+    key: "taquiza",
+    serviceHints: ["taquiza"],
+    aliases: [
+      "taquiza",
+      "tacos",
+      "tacos de guisado",
+      "tacos de guisados",
+      "taquiza para evento",
+      "puesto de tacos",
+      "tacos al pastor",
+      "tacos de canasta",
+      "taquiza a domicilio",
+      "tacos de carne asada",
+      "taqueria",
+      "taquer\xEDa",
+      "estacion de tacos",
+      "estaci\xF3n de tacos",
+      "barra de tacos",
+      "guisados"
+    ],
+    excludeIf: [
+      "parrillada tacos",
+      "parrillada de tacos",
+      "parrillada argentina",
+      "asado argentino"
+    ]
+  },
+  {
+    key: "parrillada_tacos",
+    serviceHints: ["parrillada tacos"],
+    aliases: [
+      "parrillada tacos",
+      "parrillada de tacos",
+      "tacos a la parrilla",
+      "tacos parrillada",
+      "estacion de tacos a la parrilla",
+      "estaci\xF3n de tacos a la parrilla"
+    ],
+    excludeIf: ["parrillada argentina", "asado argentino", "argentina"]
+  },
+  {
+    key: "entelados_techo",
+    serviceHints: ["entelados para techo", "entelado", "entelados"],
+    aliases: [
+      "entelados",
+      "entelado",
+      "entelado para techo",
+      "entelados para techo",
+      "tela en techo",
+      "tela de techo",
+      "telas para techo",
+      "tela para techo",
+      "techo entelado",
+      "entelado de techo"
+    ],
+    excludeIf: ["colgante", "colgantes"]
+  },
+  {
+    key: "colgantes_premium",
+    serviceHints: ["colgantes premium", "colgantes"],
+    aliases: [
+      "colgantes",
+      "colgante",
+      "colgantes premium",
+      "decoracion colgante",
+      "decoraci\xF3n colgante",
+      "estructuras colgantes",
+      "flores colgantes",
+      "wisteria"
+    ],
+    excludeIf: ["entelado", "entelados", "tela en techo", "tela de techo"]
+  },
+  {
+    key: "pozole_tostadas",
+    serviceHints: ["pozole", "tostadas"],
+    aliases: [
+      "pozole",
+      "tostadas",
+      "pozole rojo",
+      "pozole verde",
+      "pozole blanco",
+      "pozole y tostadas",
+      "pozolada",
+      "antojito mexicano",
+      "pozole para evento",
+      "tostadas de tinga",
+      "pozoleria",
+      "pozoler\xEDa"
+    ]
+  },
+  {
+    key: "antojitos",
+    serviceHints: ["antojitos", "puestos de comida"],
+    aliases: [
+      "antojitos",
+      "puesto de antojitos",
+      "esquites",
+      "elotes",
+      "quesadillas",
+      "kermes",
+      "kerm\xE9s",
+      "sopes",
+      "gorditas",
+      "garnachas",
+      "feria de antojitos",
+      "puestos de comida",
+      "street food",
+      // A14985: snack de stand.
+      "banderillas",
+      "banderilla",
+      "snack banderillas"
+    ]
+  }
+];
+var sheetSynonymIndex = /* @__PURE__ */ new Map();
+function registerSheetSynonyms(rows) {
+  const next = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const svc = norm(row.servicio || "");
+    if (!svc) continue;
+    const raw = (row.sinonimos ?? "").trim();
+    if (!raw) continue;
+    const parts2 = raw.split(/[,;|/]/).map((p10) => p10.trim()).filter((p10) => p10.length >= 2);
+    if (!parts2.length) continue;
+    const prev = next.get(svc) ?? [];
+    next.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts2])]);
+  }
+  sheetSynonymIndex = next;
+}
+function parseSynonymList(raw) {
+  if (!raw?.trim()) return [];
+  return raw.split(/[,;|/]/).map((p10) => p10.trim()).filter((p10) => p10.length >= 2);
+}
+function synonymsForServiceName(servicio) {
+  const n10 = norm(servicio);
+  const out2 = /* @__PURE__ */ new Set();
+  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
+    if (fam.serviceHints.some((h10) => n10.includes(norm(h10)) || norm(h10).includes(n10))) {
+      for (const a10 of fam.aliases) out2.add(a10);
+    }
+  }
+  for (const [svc, aliases] of sheetSynonymIndex) {
+    if (n10.includes(svc) || svc.includes(n10)) {
+      for (const a10 of aliases) out2.add(a10);
+    }
+  }
+  return [...out2];
+}
+function synonymHaystackForService(servicio, sheetSinonimos) {
+  const parts2 = [
+    servicio,
+    sheetSinonimos ?? "",
+    ...synonymsForServiceName(servicio)
+  ];
+  return norm(parts2.join(" "));
+}
+function expandQueryWithServiceSynonyms(query) {
+  const q10 = norm(query);
+  const baseTokens = q10.split(" ").filter((w10) => w10.length >= 3);
+  const familyKeys = [];
+  const boostedHints = [];
+  const matchedServiceHints = [];
+  const extraTokens = new Set(baseTokens);
+  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
+    if (fam.excludeIf?.some((ex2) => q10.includes(norm(ex2)))) {
+      const specificHit = fam.aliases.some((a10) => {
+        const na2 = norm(a10);
+        return na2.includes(" ") && q10.includes(na2);
+      });
+      if (!specificHit) continue;
+    }
+    const hit = fam.aliases.some((a10) => {
+      const na2 = norm(a10);
+      if (na2.includes(" ")) return q10.includes(na2);
+      return new RegExp(`\\b${na2}\\b`).test(q10);
+    });
+    if (!hit) continue;
+    familyKeys.push(fam.key);
+    for (const h10 of fam.serviceHints) {
+      const nh2 = norm(h10);
+      boostedHints.push(nh2);
+      matchedServiceHints.push(h10);
+      for (const t10 of nh2.split(" ")) if (t10.length >= 3) extraTokens.add(t10);
+    }
+    for (const a10 of fam.aliases) {
+      for (const t10 of norm(a10).split(" ")) if (t10.length >= 3) extraTokens.add(t10);
+    }
+  }
+  for (const [svc, aliases] of sheetSynonymIndex) {
+    for (const a10 of aliases) {
+      const na2 = norm(a10);
+      const matched = na2.includes(" ") ? q10.includes(na2) : new RegExp(`\\b${na2}\\b`).test(q10);
+      if (!matched) continue;
+      matchedServiceHints.push(svc);
+      boostedHints.push(svc);
+      for (const t10 of svc.split(" ")) if (t10.length >= 3) extraTokens.add(t10);
+      for (const t10 of na2.split(" ")) if (t10.length >= 3) extraTokens.add(t10);
+    }
+  }
+  return {
+    tokens: [...extraTokens],
+    familyKeys: [...new Set(familyKeys)],
+    boostedHints: [...new Set(boostedHints)],
+    matchedServiceHints: [...new Set(matchedServiceHints)]
+  };
+}
+function synonymScoreForService(query, serviceLabel, sheetSinonimos) {
+  const expanded = expandQueryWithServiceSynonyms(query);
+  if (!expanded.familyKeys.length && !expanded.boostedHints.length) return 0;
+  const hay = synonymHaystackForService(serviceLabel, sheetSinonimos);
+  let score = 0;
+  for (const hint of expanded.boostedHints) {
+    if (hay.includes(hint)) score += hint.includes(" ") ? 22 : 14;
+  }
+  for (const hint of expanded.matchedServiceHints) {
+    if (hay.includes(norm(hint))) score += 10;
+  }
+  if (expanded.familyKeys.includes("taquiza") && /banquete/.test(hay) && !/taquiza/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_formal") && /taquiza/.test(hay)) score -= 25;
+  if (expanded.familyKeys.includes("barra_sushi") && /banquete|taquiza/.test(hay) && !/sushi|poke/.test(hay)) {
+    score -= 25;
+  }
+  if (expanded.familyKeys.includes("banquete_mexicano") && /banquete/.test(hay) && !/mexicano/.test(hay)) {
+    score -= 20;
+  }
+  if (expanded.familyKeys.includes("coffee_break") && /barra de cafe|barra de café/.test(hay) && !/coffee/.test(hay)) {
+    score -= 5;
+  }
+  return score;
+}
+var FAMILY_DISPLAY = {
+  pozole_tostadas: {
+    label: "Pozole y Tostadas",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  taquiza: {
+    label: "Taquiza",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  parrillada_tacos: {
+    label: "Parrillada Tacos",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  paella: {
+    label: "Paella",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  parrillada_argentina: {
+    label: "Parrillada Argentina",
+    complements: ["Barras de bebidas", "Mobiliario"]
+  },
+  banquete_navideno: {
+    label: "Banquete Navide\xF1o",
+    complements: ["Barras de bebidas", "Mobiliario", "Mesa de dulces"]
+  },
+  entelados_techo: {
+    label: "Entelados para Techo",
+    complements: ["Colgantes Premium", "Iluminaci\xF3n"]
+  },
+  colgantes_premium: {
+    label: "Colgantes Premium",
+    complements: ["Entelados para Techo", "Iluminaci\xF3n"]
+  }
+};
+function resolveServiceFocusFromText(text2) {
+  if (!text2?.trim()) return null;
+  const expanded = expandQueryWithServiceSynonyms(text2);
+  if (!expanded.familyKeys.length) return null;
+  const preferredOrder = [
+    "pozole_tostadas",
+    "parrillada_tacos",
+    "taquiza",
+    "paella",
+    "parrillada_argentina",
+    "banquete_navideno",
+    "barra_americana",
+    "barra_sushi",
+    "entelados_techo",
+    "colgantes_premium"
+  ];
+  const familyKey = preferredOrder.find((k10) => expanded.familyKeys.includes(k10)) ?? expanded.familyKeys[0];
+  const fam = DEFAULT_SERVICE_SYNONYM_FAMILIES.find((f10) => f10.key === familyKey);
+  if (!fam) return null;
+  const display = FAMILY_DISPLAY[familyKey] ?? {
+    label: fam.serviceHints[0] ?? familyKey,
+    complements: ["Barras de bebidas", "Mobiliario"]
+  };
+  return {
+    familyKey,
+    label: display.label,
+    serviceHints: fam.serviceHints,
+    complements: display.complements
+  };
+}
+function loadSinonimosJson(raw) {
+  if (!raw || typeof raw !== "object") return 0;
+  const obj = raw;
+  const map = obj.sinonimos ?? obj.synonyms ?? obj;
+  if (!map || typeof map !== "object") return 0;
+  const rows = [];
+  for (const [servicio, aliases] of Object.entries(map)) {
+    if (servicio === "version" || servicio === "note") continue;
+    if (Array.isArray(aliases)) {
+      rows.push({ servicio, sinonimos: aliases.map(String).join(", ") });
+    } else if (typeof aliases === "string") {
+      rows.push({ servicio, sinonimos: aliases });
+    }
+  }
+  if (!rows.length) return 0;
+  const merged = new Map(sheetSynonymIndex);
+  for (const row of rows) {
+    const svc = norm(row.servicio);
+    const parts2 = parseSynonymList(row.sinonimos);
+    const prev = merged.get(svc) ?? [];
+    merged.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts2])]);
+  }
+  sheetSynonymIndex = merged;
+  return rows.length;
+}
+
+// src/services/lucyInfoPriceCache.ts
 function cacheState() {
   const g10 = globalThis;
   if (!g10.__lucyInfoPriceCache) {
@@ -204987,6 +205915,15 @@ function scoreDoc(doc, tokens) {
     else if (body2.includes(tok)) s10 += 1;
   }
   return s10;
+}
+var STRICT_PDF_SERVICE_FAMILIES = /* @__PURE__ */ new Set([
+  "barra_cafe",
+  "coffee_break",
+  "barra_americana"
+]);
+function strictPdfServiceFamily(text2) {
+  const families = expandQueryWithServiceSynonyms(text2).familyKeys;
+  return families.find((family) => STRICT_PDF_SERVICE_FAMILIES.has(family)) ?? null;
 }
 function tokenize(text2) {
   const raw = fold(text2).replace(/[^a-z0-9\s]/g, " ");
@@ -205157,9 +206094,10 @@ function buildLucyInfoInclusionReply(query, maxChars = 1100) {
   if (!queryHasServicePdfAnchor(query)) return null;
   const tokens = tokenize(query);
   if (!tokens.length) return null;
-  const ranked = [...docs].map((d10) => ({ d: d10, s: scoreDoc(d10, tokens) })).filter((x10) => x10.s >= 6).sort((a10, b10) => b10.s - a10.s);
+  const strictFamily = strictPdfServiceFamily(query);
+  const ranked = [...docs].filter((doc) => !strictFamily || strictPdfServiceFamily(doc.title) === strictFamily).map((d10) => ({ d: d10, s: scoreDoc(d10, tokens) })).filter((x10) => x10.s >= 6).sort((a10, b10) => b10.s - a10.s);
   if (!ranked.length) return null;
-  const serviceHints = ["coffee", "banquete", "taquiza", "sushi", "paella", "pozole", "pista", "sala", "barra"];
+  const serviceHints = ["coffee", "cafe", "banquete", "taquiza", "sushi", "paella", "pozole", "pista", "sala", "barra"];
   const qf2 = fold(query);
   const preferred = ranked.filter((x10) => {
     const title = fold(x10.d.title);
@@ -207457,7 +208395,7 @@ var WRITTEN_NUMBERS = {
 };
 var MONTH_PATTERN = /enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre/i;
 var KNOWN_ZONES = /\b(cdmx|ciudad\s+de\s+m[eé]xico|df|polanco|reforma|santa\s+fe|interlomas|monterrey|guadalajara|puebla|quer[eé]taro|el\s+marqu[eé]s|canc[uú]n|tijuana|le[oó]n|m[eé]rida|toluca|cuernavaca|acapulco|veracruz|tulum|playa\s+del\s+carmen|nezahualc[oó]yotl|corregidor|centro\s+hist[oó]rico|estado\s+de\s+m[eé]xico|edo\.?\s*m[eé]x|naucalpan|tlalnepantla|ecatepec|atizap[aá]n|coyoac[aá]n|xochimilco)\b/i;
-var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale)\b/i;
+var NON_LOCATION_WORDS = /^(total|este|esta|ese|esa|eso|medio|mente|general|particular|comida|pista|baile|solo|m[ií]o|tu|su|sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá]|cotizaci[oó]n|propuesta|montaje|presentaci[oó]n|servicio|men[uú]|bebidas?|quesos?|carnes?|barra|mesa|evento|equipo|correo|informaci[oó]n|detalle|opciones?|vivo|realidad|serio|cuanto|cu[aá]nto|noche|ma[nñ]ana|tarde|verdad|cambio|base|principio|fin|frente|caso|tema|plan|paquete|nivel|formal|premium|b[aá]sico|tradicional|instalaciones|oficinas?|sucursal|cerca|lejos|centro|hotel|restaurante|importante|pendiente|definir|whatsapp|telefono|tel[eé]fono|hola|gracias|perfecto|ok|okay|claro|si|s[ií]|no|nop|va|dale)\b/i;
 function hasGeoLocationSignal(text2) {
   const t10 = text2.trim();
   if (!t10) return false;
@@ -207476,7 +208414,7 @@ function hasGeoLocationSignal(text2) {
   if (/\b\d{4,5}\b/.test(t10) && /\b(colonia|delegaci|cdmx|estado|municipio)\b/i.test(t10)) return true;
   return false;
 }
-var JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
+var JUNK_DIRECCION_PATTERN = /^(es\s+muy\s+importante|muy\s+importante|importante|por\s+definir|sin\s+definir|pendiente|no\s+s[eé]|te\s+aviso|despu[eé]s\s+te\s+digo|ok|okay|s[ií]|sip|hola|gracias|perfecto|claro|va|dale|elegante|moderno|din[aá]mic[ao]|formal|premium|corporativo|boda|graduaci[oó]n|cumplea[nñ]os|show(\s+en\s+vivo)?|en\s+vivo|vivo|stand|el\s+stand|picnic|banquete(\s+\w+)?|meseros?|barra\s+de\s+\w+|carpas?\s+\w*|ambiente\s+\w+|nuestras?\s+instalaciones|instalaciones|oficinas?|sucursal|cerca|lejos|centro|un\s+hotel|mi\s+casa|la\s+noche|la\s+tarde|en\s+la\s+noche|en\s+la\s+tarde|en\s+realidad|realidad|serio|whatsapp|correo|telefono|tel[eé]fono|xx+|asdf|\.\.\.|—|–|-)$/i;
 function looksLikeDiscourseNotPlace(text2) {
   const t10 = (text2 ?? "").trim().replace(/[.,;:¡!¿?]+$/g, "").trim();
   if (!t10) return true;
@@ -207533,7 +208471,7 @@ function isVagueVenueOnly(text2) {
   if (!t10) return true;
   const cleaned = t10.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
   if (!cleaned) return true;
-  if (/^(sal[oó]n|edificio|venue|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])$/i.test(
+  if (/^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])$/i.test(
     cleaned
   )) {
     return true;
@@ -207952,7 +208890,7 @@ function parseInvitadosFromText(text2) {
   }
   if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
   if (isServiceRelatedMessage(trimmed)) return null;
-  if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
+  if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+(?:lo\s+)?sabemos|no\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)|van\s+viendo)\b/i.test(
     trimmed
   )) {
     return "Sin definir (cliente indic\xF3 aproximaci\xF3n pendiente)";
@@ -208010,7 +208948,7 @@ function isDimensionText(text2) {
   return /\b\d+\s*metros?\s*(por|x)\s*\d+\s*metros?\b/i.test(t10) || /\b\d+\s*m\s*(por|x)\s*\d+\s*m\b/i.test(t10) || /\bespacio\s+(es\s+de|de|mide)\s+\d+/i.test(t10) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(t10) || /^\d+\s*x\s*\d+\s*(m|metros?)?$/i.test(dePrefixed) || /^\d+m\s*x\s*\d+m$/i.test(t10) || /^\d+m\s*x\s*\d+m$/i.test(dePrefixed);
 }
 function isUsableDireccionEvento(value) {
-  const t10 = value?.trim() ?? "";
+  const t10 = (value?.trim() ?? "").replace(/^(el|la|un|una)\s*,\s*/i, "$1 ");
   if (!t10) return false;
   if (isDimensionText(t10)) return false;
   if (isVagueVenueOnly(t10)) return false;
@@ -209657,932 +210595,6 @@ function getServiceKnowledge(query) {
 }
 function formatServiceKnowledgeForPrompt(query) {
   return getServiceKnowledge(query)?.promptBlock ?? null;
-}
-
-// src/services/serviceSynonyms.ts
-function norm(s10) {
-  return s10.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
-}
-var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
-  {
-    key: "banquete_formal",
-    serviceHints: ["banquete formal", "banquete 3", "banquete 4", "banquete"],
-    aliases: [
-      "menu formal",
-      "men\xFA formal",
-      "comida servida",
-      "banquete sentado",
-      "menu de tiempos",
-      "men\xFA de tiempos",
-      "comida de plato",
-      "servicio a la mesa",
-      "comida formal",
-      "menu emplatado",
-      "men\xFA emplatado",
-      "cena formal",
-      "banquete de boda",
-      "banquete formal",
-      "banquete",
-      "4 tiempos",
-      "3 tiempos",
-      "plated",
-      "emplatado"
-    ],
-    excludeIf: ["mexicano", "navideno", "navide\xF1o", "kosher", "taquiza", "tacos"]
-  },
-  {
-    key: "banquete_kosher",
-    serviceHints: ["kosher"],
-    aliases: [
-      "kosher",
-      "kasher",
-      "comida kosher",
-      "comida judia",
-      "comida jud\xEDa",
-      "menu kosher",
-      "men\xFA kosher",
-      "certificado rabinico",
-      "certificado rab\xEDnico",
-      "supervision rabinica",
-      "supervisi\xF3n rab\xEDnica",
-      "banquete judio",
-      "banquete jud\xEDo",
-      "comida para evento judio",
-      "comida para evento jud\xEDo",
-      "cocina kosher"
-    ]
-  },
-  {
-    key: "banquete_mexicano",
-    serviceHints: ["banquete mexicano", "mexicano"],
-    aliases: [
-      "comida mexicana",
-      "menu mexicano",
-      "men\xFA mexicano",
-      "banquete tipico",
-      "banquete t\xEDpico",
-      "cena mexicana",
-      "comida tradicional",
-      "platillos mexicanos",
-      "buffet mexicano",
-      "banquete mexicano",
-      "fiesta mexicana",
-      "comida tipica",
-      "comida t\xEDpica"
-    ],
-    excludeIf: ["taquiza", "tacos", "antojitos", "yucateca"]
-  },
-  {
-    key: "banquete_navideno",
-    serviceHints: ["navideno", "navide\xF1o", "navidad"],
-    aliases: [
-      "cena navide\xF1a",
-      "cena navadena",
-      "posada",
-      "cena de fin de a\xF1o",
-      "cena de fin de ano",
-      "evento decembrino",
-      "pavo navide\xF1o",
-      "pavo navideno",
-      "cena de temporada",
-      "banquete de navidad",
-      "fiesta navide\xF1a",
-      "fiesta navadena",
-      "cena de diciembre",
-      "brindis navide\xF1o",
-      "brindis navideno",
-      "navidad"
-    ]
-  },
-  {
-    key: "barra_americana",
-    serviceHints: ["barra americana", "americana"],
-    aliases: [
-      "hamburguesas",
-      "hot dogs",
-      "hotdogs",
-      "alitas",
-      "comida americana",
-      "boneless",
-      "sliders",
-      "papas y hamburguesas",
-      "comida rapida gourmet",
-      "comida r\xE1pida gourmet",
-      "barra americana"
-    ]
-  },
-  {
-    key: "barra_bebidas_sin_alcohol",
-    serviceHints: ["barra de bebidas", "sin alcohol"],
-    aliases: [
-      "refrescos",
-      "aguas frescas",
-      "barra de refrescos",
-      "bebidas sin alcohol",
-      "vitroleros",
-      "solo bebidas",
-      "barra de aguas",
-      "sodas",
-      "bebidas para el evento",
-      "barra sin alcohol"
-    ],
-    excludeIf: ["open bar", "barra libre", "tragos", "licores", "alcohol"]
-  },
-  {
-    key: "barra_bebidas_alcohol",
-    serviceHints: ["barra de bebidas", "con alcohol", "bebidas con alcohol"],
-    aliases: [
-      "barra libre",
-      "open bar",
-      "bar",
-      "cocteleria con alcohol",
-      "cocteler\xEDa con alcohol",
-      "tragos",
-      "barra de licores",
-      "barra con alcohol",
-      "bebidas con alcohol",
-      "barra de tragos",
-      "servicio de bar",
-      "barra de bebidas",
-      // A14985 stand/golf: cerveza / whisky sin decir "barra".
-      "cerveza",
-      "cervezas",
-      "whisky",
-      "whiskey",
-      "tequila",
-      "vodka",
-      "licores"
-    ],
-    excludeIf: ["sin alcohol", "mocteles", "mocktail", "cafe", "caf\xE9"]
-  },
-  {
-    key: "barra_cafe",
-    serviceHints: ["barra de cafe", "barra de caf\xE9", "cafe"],
-    aliases: [
-      "cafeteria",
-      "cafeter\xEDa",
-      "barista",
-      "cafe gourmet",
-      "caf\xE9 gourmet",
-      "estacion de cafe",
-      "estaci\xF3n de caf\xE9",
-      "cafe de especialidad",
-      "caf\xE9 de especialidad",
-      "barra de cafe",
-      "barra de caf\xE9",
-      "cafe artesanal",
-      "caf\xE9 artesanal",
-      "carrito de cafe",
-      "carrito de caf\xE9",
-      "cafe para invitados",
-      "caf\xE9 para invitados",
-      "coffee"
-    ],
-    excludeIf: ["coffee break", "coffeebreak", "receso", "junta"]
-  },
-  {
-    key: "coffee_break",
-    serviceHints: ["coffee break", "coffeebreak", "coffe break"],
-    aliases: [
-      "coffee break",
-      "coffeebreak",
-      "coffe break",
-      "receso de cafe",
-      "receso de caf\xE9",
-      "cafe para junta",
-      "caf\xE9 para junta",
-      "break corporativo",
-      "estacion de cafe y snacks",
-      "estaci\xF3n de caf\xE9 y snacks",
-      "pausa de cafe",
-      "pausa de caf\xE9",
-      "break de cafe",
-      "break de caf\xE9",
-      "receso corporativo",
-      "cafe y galletas",
-      "caf\xE9 y galletas",
-      "stand de cafe",
-      "stand de caf\xE9"
-    ]
-  },
-  {
-    key: "barra_crepas",
-    serviceHints: ["crepas", "crepa"],
-    aliases: [
-      "crepas",
-      "creperia",
-      "creper\xEDa",
-      "crepes",
-      "waffles",
-      "postres calientes",
-      "estacion de crepas",
-      "estaci\xF3n de crepas",
-      "crepas dulces",
-      "crepas saladas",
-      "barra de crepas",
-      "crepas gourmet"
-    ]
-  },
-  {
-    key: "barra_mariscos",
-    serviceHints: ["mariscos"],
-    aliases: [
-      "mariscos",
-      "ceviches",
-      "aguachile",
-      "coctel de camaron",
-      "coctel de camar\xF3n",
-      "pescados y mariscos",
-      "barra de mar",
-      "ostiones",
-      "tostadas de mariscos",
-      "comida del mar",
-      "barra de mariscos"
-    ]
-  },
-  {
-    key: "barra_paninis",
-    serviceHints: ["paninis", "panini"],
-    aliases: [
-      "paninis",
-      "sandwiches",
-      "s\xE1ndwiches",
-      "sandwiches gourmet",
-      "s\xE1ndwiches gourmet",
-      "baguettes",
-      "molletes gourmet",
-      "sandwicheria",
-      "sandwicher\xEDa",
-      "tortas gourmet",
-      "paninos",
-      "barra de sandwiches",
-      "barra de s\xE1ndwiches",
-      "panini"
-    ]
-  },
-  {
-    key: "barra_pastas",
-    serviceHints: ["pastas", "ensaladas"],
-    aliases: [
-      "pastas",
-      "espagueti",
-      "estacion de pastas",
-      "estaci\xF3n de pastas",
-      "pasta italiana",
-      "ensaladas",
-      "barra de pastas",
-      "fettuccine",
-      "lasana",
-      "lasa\xF1a",
-      "pasta al momento",
-      "comida italiana",
-      "italiana"
-    ]
-  },
-  {
-    key: "barra_pizzas",
-    serviceHints: ["pizza", "pizzas"],
-    aliases: [
-      "pizzas",
-      "pizza artesanal",
-      "estacion de pizza",
-      "estaci\xF3n de pizza",
-      "horno de pizza",
-      "pizzas gourmet",
-      "barra de pizzas",
-      "pizza al momento",
-      "pizza italiana",
-      "pizzeria",
-      "pizzer\xEDa",
-      "pizza"
-    ]
-  },
-  {
-    key: "barra_sushi",
-    serviceHints: ["sushi", "poke"],
-    aliases: [
-      "sushi",
-      "rollos",
-      "poke",
-      "poke bowls",
-      "comida japonesa",
-      "makis",
-      "barra de sushi",
-      "sushi al momento",
-      "rollos japoneses",
-      "comida oriental",
-      "japones",
-      "japon\xE9s",
-      "nigiri",
-      "sashimi"
-    ]
-  },
-  {
-    key: "barra_yucateca",
-    serviceHints: ["yucateca", "yucatan"],
-    aliases: [
-      "comida yucateca",
-      "cochinita",
-      "cochinita pibil",
-      "panuchos",
-      "salbutes",
-      "comida del sureste",
-      "comida de yucatan",
-      "comida de yucat\xE1n",
-      "papadzules",
-      "barra yucateca",
-      "comida maya"
-    ]
-  },
-  {
-    key: "bocadillos",
-    serviceHints: ["bocadillos", "bocadillo"],
-    aliases: [
-      "botana",
-      "botanas",
-      "snacks",
-      "aperitivos",
-      "finger food",
-      "bocadillos",
-      "entradas",
-      "pasabocas",
-      "tentempies",
-      "tentempi\xE9s",
-      "comida para picar"
-    ],
-    excludeIf: ["canapes", "canap\xE9s", "carrito"]
-  },
-  {
-    key: "canapes",
-    serviceHints: ["canapes", "canap\xE9s"],
-    aliases: [
-      "canapes",
-      "canap\xE9s",
-      "bocaditos",
-      "entremeses",
-      "bocadillos finos",
-      "pasapalos",
-      "bocados gourmet",
-      "canape",
-      "canap\xE9",
-      "entradas frias",
-      "entradas fr\xEDas"
-    ]
-  },
-  {
-    key: "carrito_snacks",
-    serviceHints: ["carrito de snacks", "snacks"],
-    aliases: [
-      "carrito de botana",
-      "snacks",
-      "dulces y frituras",
-      "carrito de golosinas",
-      "botanas para llevar",
-      "estacion de snacks",
-      "estaci\xF3n de snacks",
-      "carrito de dulces",
-      "chucherias",
-      "chucher\xEDas",
-      "papitas y dulces",
-      "carrito de snacks"
-    ]
-  },
-  {
-    key: "cocteles_mixologia",
-    serviceHints: ["cocteles", "mixologia", "mixolog\xEDa", "cocteleria"],
-    aliases: [
-      "cocteles",
-      "c\xF3cteles",
-      "cocteleria",
-      "cocteler\xEDa",
-      "mixologia",
-      "mixolog\xEDa",
-      "bartender",
-      "cantinero",
-      "tragos de autor",
-      "cocktails",
-      "barra de cocteles",
-      "barra de c\xF3cteles",
-      "mixologo",
-      "mix\xF3logo",
-      "cocteles de autor",
-      "c\xF3cteles de autor"
-    ],
-    excludeIf: ["sin alcohol", "mocteles", "mocktail"]
-  },
-  {
-    key: "comida_corrida",
-    serviceHints: ["comida corrida", "corrida"],
-    aliases: [
-      "comida corrida",
-      "menu del dia",
-      "men\xFA del d\xEDa",
-      "comida economica",
-      "comida econ\xF3mica",
-      // NO: "comida corporativa" / "menu corporativo" — A14943 confundía evento de trabajo.
-      "comida sencilla",
-      "comida de oficina",
-      "menu ejecutivo",
-      "men\xFA ejecutivo"
-    ]
-  },
-  {
-    key: "desayuno_brunch",
-    serviceHints: ["desayuno", "brunch"],
-    aliases: [
-      "desayuno",
-      "brunch",
-      "almuerzo",
-      "desayuno buffet",
-      "getting ready",
-      "desayuno para evento",
-      "desayuno social",
-      "chilaquiles",
-      "huevos",
-      "brunch de boda"
-    ]
-  },
-  {
-    key: "cupcakes",
-    serviceHints: ["cupcakes", "cupcake", "bet\xFAn", "betun", "cupcakes y bet\xFAn"],
-    aliases: [
-      "cupcakes",
-      "panquecitos",
-      "pastelitos",
-      "muffins",
-      "cup cakes decorados",
-      "postrecitos",
-      "cupcakes personalizados",
-      "mini pasteles",
-      "ponquesitos",
-      "cupcakes tematicos",
-      "cupcakes tem\xE1ticos",
-      "betun",
-      "bet\xFAn",
-      "betunes",
-      "fondant",
-      "cupcakes y betun",
-      "cupcakes y bet\xFAn"
-    ]
-  },
-  {
-    key: "mesa_dulces",
-    serviceHints: ["mesa de dulces", "dulces"],
-    aliases: [
-      "mesa de dulces",
-      "candy bar",
-      "mesa de golosinas",
-      "dulcero",
-      "mesa de dulces mexicanos",
-      "barra de dulces",
-      "dulces para evento",
-      "mesa de caramelos",
-      "estacion de dulces",
-      "estaci\xF3n de dulces",
-      "candy"
-    ],
-    excludeIf: ["postres", "cupcakes", "helados"]
-  },
-  {
-    key: "mesa_postres",
-    serviceHints: ["mesa de postres", "postres"],
-    aliases: [
-      "mesa de postres",
-      "postres",
-      "reposteria",
-      "reposter\xEDa",
-      "mesa de pasteles",
-      "estacion de postres",
-      "estaci\xF3n de postres",
-      "dulces finos",
-      "postres para evento",
-      "pasteleria",
-      "pasteler\xEDa",
-      "mesa de dulces finos",
-      "barra de postres"
-    ]
-  },
-  {
-    key: "mesa_quesos",
-    serviceHints: ["mesa de quesos", "quesos"],
-    aliases: [
-      "tabla de quesos",
-      "mesa de quesos",
-      "quesos y carnes frias",
-      "quesos y carnes fr\xEDas",
-      "charcuteria",
-      "charcuter\xEDa",
-      "tabla de embutidos",
-      "quesos gourmet",
-      "tabla de fiambres",
-      "mesa de quesos y vinos",
-      "degustacion de quesos",
-      "degustaci\xF3n de quesos",
-      "tabla gourmet",
-      "grazing"
-    ]
-  },
-  {
-    key: "mocteles",
-    serviceHints: ["mocteles", "m\xF3cteles"],
-    aliases: [
-      "mocteles",
-      "m\xF3cteles",
-      "cocteles sin alcohol",
-      "c\xF3cteles sin alcohol",
-      "bebidas sin alcohol",
-      "cocteleria sin alcohol",
-      "cocteler\xEDa sin alcohol",
-      "tragos sin alcohol",
-      "barra de mocteles",
-      "barra de m\xF3cteles",
-      "bebidas de autor sin alcohol",
-      "cocteles virgenes",
-      "c\xF3cteles v\xEDrgenes",
-      "mixologia sin alcohol",
-      "mixolog\xEDa sin alcohol",
-      "mocktails",
-      "mocktail"
-    ]
-  },
-  {
-    key: "paella",
-    serviceHints: ["paella"],
-    aliases: [
-      "paella",
-      "arroz espanol",
-      "arroz espa\xF1ol",
-      "paella valenciana",
-      "paella de mariscos",
-      "arroz a la valenciana",
-      "comida espanola",
-      "comida espa\xF1ola",
-      "paella en vivo",
-      "paellera",
-      "arroz espanol al momento",
-      "arroz espa\xF1ol al momento",
-      "paellas"
-    ]
-  },
-  {
-    key: "paletas_helados",
-    serviceHints: ["paletas", "helados"],
-    aliases: [
-      "paletas",
-      "paletas de hielo",
-      "helados",
-      "nieves",
-      "sorbetes",
-      "carrito de helados",
-      "paletas artesanales",
-      "neveria",
-      "never\xEDa",
-      "paletas heladas",
-      "helado para evento"
-    ]
-  },
-  {
-    key: "parrillada_argentina",
-    serviceHints: ["parrillada argentina", "parillada argentina", "argentina"],
-    aliases: [
-      "asado argentino",
-      "cortes argentinos",
-      "parrilla argentina",
-      "carnes asadas",
-      "asador",
-      "parrillada argentina",
-      "parillada argentina",
-      "cortes finos",
-      "asador en vivo",
-      "carne al carbon",
-      "carne al carb\xF3n",
-      "parrilla de cortes",
-      "asado",
-      "carne asada",
-      "argentino"
-    ]
-  },
-  {
-    key: "taquiza",
-    serviceHints: ["taquiza"],
-    aliases: [
-      "taquiza",
-      "tacos",
-      "tacos de guisado",
-      "tacos de guisados",
-      "taquiza para evento",
-      "puesto de tacos",
-      "tacos al pastor",
-      "tacos de canasta",
-      "taquiza a domicilio",
-      "tacos de carne asada",
-      "taqueria",
-      "taquer\xEDa",
-      "estacion de tacos",
-      "estaci\xF3n de tacos",
-      "barra de tacos",
-      "guisados"
-    ],
-    excludeIf: [
-      "parrillada tacos",
-      "parrillada de tacos",
-      "parrillada argentina",
-      "asado argentino"
-    ]
-  },
-  {
-    key: "parrillada_tacos",
-    serviceHints: ["parrillada tacos"],
-    aliases: [
-      "parrillada tacos",
-      "parrillada de tacos",
-      "tacos a la parrilla",
-      "tacos parrillada",
-      "estacion de tacos a la parrilla",
-      "estaci\xF3n de tacos a la parrilla"
-    ],
-    excludeIf: ["parrillada argentina", "asado argentino", "argentina"]
-  },
-  {
-    key: "entelados_techo",
-    serviceHints: ["entelados para techo", "entelado", "entelados"],
-    aliases: [
-      "entelados",
-      "entelado",
-      "entelado para techo",
-      "entelados para techo",
-      "tela en techo",
-      "tela de techo",
-      "telas para techo",
-      "tela para techo",
-      "techo entelado",
-      "entelado de techo"
-    ],
-    excludeIf: ["colgante", "colgantes"]
-  },
-  {
-    key: "colgantes_premium",
-    serviceHints: ["colgantes premium", "colgantes"],
-    aliases: [
-      "colgantes",
-      "colgante",
-      "colgantes premium",
-      "decoracion colgante",
-      "decoraci\xF3n colgante",
-      "estructuras colgantes",
-      "flores colgantes",
-      "wisteria"
-    ],
-    excludeIf: ["entelado", "entelados", "tela en techo", "tela de techo"]
-  },
-  {
-    key: "pozole_tostadas",
-    serviceHints: ["pozole", "tostadas"],
-    aliases: [
-      "pozole",
-      "tostadas",
-      "pozole rojo",
-      "pozole verde",
-      "pozole blanco",
-      "pozole y tostadas",
-      "pozolada",
-      "antojito mexicano",
-      "pozole para evento",
-      "tostadas de tinga",
-      "pozoleria",
-      "pozoler\xEDa"
-    ]
-  },
-  {
-    key: "antojitos",
-    serviceHints: ["antojitos", "puestos de comida"],
-    aliases: [
-      "antojitos",
-      "puesto de antojitos",
-      "esquites",
-      "elotes",
-      "quesadillas",
-      "kermes",
-      "kerm\xE9s",
-      "sopes",
-      "gorditas",
-      "garnachas",
-      "feria de antojitos",
-      "puestos de comida",
-      "street food",
-      // A14985: snack de stand.
-      "banderillas",
-      "banderilla",
-      "snack banderillas"
-    ]
-  }
-];
-var sheetSynonymIndex = /* @__PURE__ */ new Map();
-function registerSheetSynonyms(rows) {
-  const next = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    const svc = norm(row.servicio || "");
-    if (!svc) continue;
-    const raw = (row.sinonimos ?? "").trim();
-    if (!raw) continue;
-    const parts2 = raw.split(/[,;|/]/).map((p10) => p10.trim()).filter((p10) => p10.length >= 2);
-    if (!parts2.length) continue;
-    const prev = next.get(svc) ?? [];
-    next.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts2])]);
-  }
-  sheetSynonymIndex = next;
-}
-function parseSynonymList(raw) {
-  if (!raw?.trim()) return [];
-  return raw.split(/[,;|/]/).map((p10) => p10.trim()).filter((p10) => p10.length >= 2);
-}
-function synonymsForServiceName(servicio) {
-  const n10 = norm(servicio);
-  const out2 = /* @__PURE__ */ new Set();
-  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
-    if (fam.serviceHints.some((h10) => n10.includes(norm(h10)) || norm(h10).includes(n10))) {
-      for (const a10 of fam.aliases) out2.add(a10);
-    }
-  }
-  for (const [svc, aliases] of sheetSynonymIndex) {
-    if (n10.includes(svc) || svc.includes(n10)) {
-      for (const a10 of aliases) out2.add(a10);
-    }
-  }
-  return [...out2];
-}
-function synonymHaystackForService(servicio, sheetSinonimos) {
-  const parts2 = [
-    servicio,
-    sheetSinonimos ?? "",
-    ...synonymsForServiceName(servicio)
-  ];
-  return norm(parts2.join(" "));
-}
-function expandQueryWithServiceSynonyms(query) {
-  const q10 = norm(query);
-  const baseTokens = q10.split(" ").filter((w10) => w10.length >= 3);
-  const familyKeys = [];
-  const boostedHints = [];
-  const matchedServiceHints = [];
-  const extraTokens = new Set(baseTokens);
-  for (const fam of DEFAULT_SERVICE_SYNONYM_FAMILIES) {
-    if (fam.excludeIf?.some((ex2) => q10.includes(norm(ex2)))) {
-      const specificHit = fam.aliases.some((a10) => {
-        const na2 = norm(a10);
-        return na2.includes(" ") && q10.includes(na2);
-      });
-      if (!specificHit) continue;
-    }
-    const hit = fam.aliases.some((a10) => {
-      const na2 = norm(a10);
-      if (na2.includes(" ")) return q10.includes(na2);
-      return new RegExp(`\\b${na2}\\b`).test(q10);
-    });
-    if (!hit) continue;
-    familyKeys.push(fam.key);
-    for (const h10 of fam.serviceHints) {
-      const nh2 = norm(h10);
-      boostedHints.push(nh2);
-      matchedServiceHints.push(h10);
-      for (const t10 of nh2.split(" ")) if (t10.length >= 3) extraTokens.add(t10);
-    }
-    for (const a10 of fam.aliases) {
-      for (const t10 of norm(a10).split(" ")) if (t10.length >= 3) extraTokens.add(t10);
-    }
-  }
-  for (const [svc, aliases] of sheetSynonymIndex) {
-    for (const a10 of aliases) {
-      const na2 = norm(a10);
-      const matched = na2.includes(" ") ? q10.includes(na2) : new RegExp(`\\b${na2}\\b`).test(q10);
-      if (!matched) continue;
-      matchedServiceHints.push(svc);
-      boostedHints.push(svc);
-      for (const t10 of svc.split(" ")) if (t10.length >= 3) extraTokens.add(t10);
-      for (const t10 of na2.split(" ")) if (t10.length >= 3) extraTokens.add(t10);
-    }
-  }
-  return {
-    tokens: [...extraTokens],
-    familyKeys: [...new Set(familyKeys)],
-    boostedHints: [...new Set(boostedHints)],
-    matchedServiceHints: [...new Set(matchedServiceHints)]
-  };
-}
-function synonymScoreForService(query, serviceLabel, sheetSinonimos) {
-  const expanded = expandQueryWithServiceSynonyms(query);
-  if (!expanded.familyKeys.length && !expanded.boostedHints.length) return 0;
-  const hay = synonymHaystackForService(serviceLabel, sheetSinonimos);
-  let score = 0;
-  for (const hint of expanded.boostedHints) {
-    if (hay.includes(hint)) score += hint.includes(" ") ? 22 : 14;
-  }
-  for (const hint of expanded.matchedServiceHints) {
-    if (hay.includes(norm(hint))) score += 10;
-  }
-  if (expanded.familyKeys.includes("taquiza") && /banquete/.test(hay) && !/taquiza/.test(hay)) {
-    score -= 25;
-  }
-  if (expanded.familyKeys.includes("banquete_formal") && /taquiza/.test(hay)) score -= 25;
-  if (expanded.familyKeys.includes("barra_sushi") && /banquete|taquiza/.test(hay) && !/sushi|poke/.test(hay)) {
-    score -= 25;
-  }
-  if (expanded.familyKeys.includes("banquete_mexicano") && /banquete/.test(hay) && !/mexicano/.test(hay)) {
-    score -= 20;
-  }
-  if (expanded.familyKeys.includes("coffee_break") && /barra de cafe|barra de café/.test(hay) && !/coffee/.test(hay)) {
-    score -= 5;
-  }
-  return score;
-}
-var FAMILY_DISPLAY = {
-  pozole_tostadas: {
-    label: "Pozole y Tostadas",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  taquiza: {
-    label: "Taquiza",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  parrillada_tacos: {
-    label: "Parrillada Tacos",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  paella: {
-    label: "Paella",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  parrillada_argentina: {
-    label: "Parrillada Argentina",
-    complements: ["Barras de bebidas", "Mobiliario"]
-  },
-  banquete_navideno: {
-    label: "Banquete Navide\xF1o",
-    complements: ["Barras de bebidas", "Mobiliario", "Mesa de dulces"]
-  },
-  entelados_techo: {
-    label: "Entelados para Techo",
-    complements: ["Colgantes Premium", "Iluminaci\xF3n"]
-  },
-  colgantes_premium: {
-    label: "Colgantes Premium",
-    complements: ["Entelados para Techo", "Iluminaci\xF3n"]
-  }
-};
-function resolveServiceFocusFromText(text2) {
-  if (!text2?.trim()) return null;
-  const expanded = expandQueryWithServiceSynonyms(text2);
-  if (!expanded.familyKeys.length) return null;
-  const preferredOrder = [
-    "pozole_tostadas",
-    "parrillada_tacos",
-    "taquiza",
-    "paella",
-    "parrillada_argentina",
-    "banquete_navideno",
-    "barra_americana",
-    "barra_sushi",
-    "entelados_techo",
-    "colgantes_premium"
-  ];
-  const familyKey = preferredOrder.find((k10) => expanded.familyKeys.includes(k10)) ?? expanded.familyKeys[0];
-  const fam = DEFAULT_SERVICE_SYNONYM_FAMILIES.find((f10) => f10.key === familyKey);
-  if (!fam) return null;
-  const display = FAMILY_DISPLAY[familyKey] ?? {
-    label: fam.serviceHints[0] ?? familyKey,
-    complements: ["Barras de bebidas", "Mobiliario"]
-  };
-  return {
-    familyKey,
-    label: display.label,
-    serviceHints: fam.serviceHints,
-    complements: display.complements
-  };
-}
-function loadSinonimosJson(raw) {
-  if (!raw || typeof raw !== "object") return 0;
-  const obj = raw;
-  const map = obj.sinonimos ?? obj.synonyms ?? obj;
-  if (!map || typeof map !== "object") return 0;
-  const rows = [];
-  for (const [servicio, aliases] of Object.entries(map)) {
-    if (servicio === "version" || servicio === "note") continue;
-    if (Array.isArray(aliases)) {
-      rows.push({ servicio, sinonimos: aliases.map(String).join(", ") });
-    } else if (typeof aliases === "string") {
-      rows.push({ servicio, sinonimos: aliases });
-    }
-  }
-  if (!rows.length) return 0;
-  const merged = new Map(sheetSynonymIndex);
-  for (const row of rows) {
-    const svc = norm(row.servicio);
-    const parts2 = parseSynonymList(row.sinonimos);
-    const prev = merged.get(svc) ?? [];
-    merged.set(svc, [.../* @__PURE__ */ new Set([...prev, ...parts2])]);
-  }
-  sheetSynonymIndex = merged;
-  return rows.length;
 }
 
 // src/services/catalogService.ts
@@ -212305,7 +212317,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.03";
+var LUCY_PROMPT_VERSION = "V9.05";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -214029,6 +214041,57 @@ function applyEmailWaiver(filledSet, mergedLines, texts) {
   mergedLines.push(`- ${EMAIL_WAIVED_LABEL}: continuar por WhatsApp/chat`);
   filledSet.add(EMAIL_WAIVED_LABEL);
 }
+var INVITADOS_UNAVAILABLE_VALUE = "Sin definir (afluencia abierta / cliente no dispone del dato)";
+function detectInvitadosUnavailable(texts, history = []) {
+  const last = texts[texts.length - 1]?.trim() ?? "";
+  const lastAssistant = [...history].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string");
+  const askedInvitados = !!lastAssistant && (inferLucyAskedField(lastAssistant.content) === "invitados" || /cu[aá]nt(?:os|a)\s+(?:invitados|personas)|cu[aá]nta\s+gente|asistir[aá]n/i.test(
+    lastAssistant.content
+  ));
+  const explicitUnknown = /\bno\s+(?:lo\s+)?sabemos\b|\bno\s+tenemos\s+(?:ese\s+)?dato\b|\bno\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)\b|\bafluencia\s+(?:abierta|desconocida|por\s+definir)\b/i;
+  const guestContext = /\b(invitados?|personas?|gente|asistentes?|afluencia|cu[aá]nt[oa]s?)\b/i;
+  const sponsorContext = /\bno\s+organizamos\b[\s\S]{0,80}\bevento\b|\b(?:vamos|asistimos)\s+(?:como|de)\s+patrocinadores?\b|\b(?:stand|expo)\b[\s\S]{0,100}\blleguen\b/i;
+  if (texts.some((text2) => explicitUnknown.test(text2) && guestContext.test(text2))) return true;
+  if (texts.some((text2) => sponsorContext.test(text2) && explicitUnknown.test(text2))) return true;
+  return askedInvitados && (explicitUnknown.test(last) || sponsorContext.test(last));
+}
+function applyInvitadosWaiver(filledSet, mergedLines, texts, history = []) {
+  if (filledSet.has("N\xFAmero de invitados")) return;
+  if (!detectInvitadosUnavailable(texts, history)) return;
+  if (!mergedLines.some((line2) => /^-?\s*Número de invitados:/i.test(line2))) {
+    mergedLines.push(`- N\xFAmero de invitados: ${INVITADOS_UNAVAILABLE_VALUE}`);
+  }
+  filledSet.add("N\xFAmero de invitados");
+}
+function blockResolvedInvitadosAsk(mensaje, filledSet, extracted, history, currentMessage, buildClosing, cierreYaEnviado, whatsappDisplayName, entityId, log) {
+  if (!mensajeAsksForField(mensaje, "invitados")) return mensaje;
+  applyInvitadosWaiver(
+    filledSet,
+    [],
+    collectUserTexts(history, currentMessage),
+    history
+  );
+  if (!filledSet.has("N\xFAmero de invitados")) return mensaje;
+  const pending = getNextPendingField(extracted, filledSet);
+  log?.info({ entityId, pending }, "GUARD: afluencia desconocida \u2014 no repetir invitados");
+  if (pending) {
+    return buildNaturalQuestion(pending, {
+      extracted,
+      filledSet,
+      whatsappName: whatsappDisplayName,
+      history,
+      currentMessage,
+      entityId
+    });
+  }
+  if (!cierreYaEnviado && isReadyForClosing(filledSet)) {
+    return buildClosing(
+      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+      extracted.nombre
+    );
+  }
+  return "Entendido. Anoto que la afluencia es abierta y que no disponen de ese dato.";
+}
 function applyPresupuestoWaiver(filledSet, mergedLines, texts, history) {
   if (filledSet.has("Presupuesto (MXN)")) return;
   const pres = findPresupuestoInTexts(texts, history);
@@ -215231,7 +215294,8 @@ function buildFirstInteractionMessage(ctx, withIntro = true) {
     history,
     serviceHint: svcHint
   }) : null;
-  const sheetDetail = !includeCatalog && !progressiveFirst && svcHint ? attachAvailableSheetDetail(svcHint, svcHint) : null;
+  const requestedCatalogDetail = clientAsksInclusion(ctx.currentMessage) || clientAsksPrice(ctx.currentMessage) || clientAsksForCatalog(ctx.currentMessage);
+  const sheetDetail = !includeCatalog && !progressiveFirst && requestedCatalogDetail && svcHint ? attachAvailableSheetDetail(svcHint, svcHint) : null;
   const catalogBlock = includeCatalog ? `
 
 ${buildPackageCatalogOfferBlock(multiServices, userText)}` : progressiveFirst ? `
@@ -216268,6 +216332,12 @@ function applyLucyMessageGuards(input) {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  applyInvitadosWaiver(
+    filledSet,
+    [],
+    collectUserTexts(presHistory, currentMessage),
+    presHistory
+  );
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
     const recoveredNombre = recoverClienteNombreFromHistory(presHistory, currentMessage);
     if (recoveredNombre) {
@@ -217794,6 +217864,20 @@ ${nextQ}`;
     return normalizeAdvisorReferences(
       mensaje,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+  if (filledSet.has("N\xFAmero de invitados") && mensajeAsksForField(mensaje, "invitados")) {
+    mensaje = blockResolvedInvitadosAsk(
+      mensaje,
+      filledSet,
+      extracted,
+      presHistory,
+      currentMessage,
+      buildClosing,
+      cierreYaEnviado,
+      whatsappDisplayName,
+      entityId,
+      log
     );
   }
   if (filledSet.has("Presupuesto (MXN)") && mensajeAsksForField(mensaje, "presupuesto")) {
@@ -219519,7 +219603,12 @@ function buildResumenClienteLargo(extracted, mergedLines, conversationText) {
   else lineas.push("\u2022 Servicios: (a\xFAn por definir con m\xE1s detalle)");
   if (modo) lineas.push(`\u2022 Modalidad: ${modo}`);
   if (evento) lineas.push(`\u2022 Evento: ${evento}`);
-  if (invitados) lineas.push(`\u2022 Escala: ${invitados} personas / piezas`);
+  if (invitados) {
+    const escalaAbierta = /sin definir|afluencia|no dispone|no (?:lo )?sabe/i.test(invitados);
+    lineas.push(
+      escalaAbierta ? `\u2022 Escala: ${invitados}` : `\u2022 Escala: ${invitados} personas / piezas`
+    );
+  }
   lineas.push("");
   lineas.push("Datos capturados:");
   if (nombre) lineas.push(`\u2022 Nombre: ${nombre}`);
@@ -226776,6 +226865,12 @@ function buildCrmContext(crmLines, extracted, history, clientEmailFromDB, curren
     filledSet,
     mergedLines,
     collectUserTexts(historyFull, currentMessage)
+  );
+  applyInvitadosWaiver(
+    filledSet,
+    mergedLines,
+    collectUserTexts(historyFull, currentMessage),
+    historyFull
   );
   applyPresupuestoWaiver(
     filledSet,
