@@ -4031,6 +4031,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
   }
+  }
 
   if (appliedDirectReply) {
     return normalizeAdvisorReferences(
