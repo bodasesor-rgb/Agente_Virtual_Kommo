@@ -212310,7 +212310,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.04";
+var LUCY_PROMPT_VERSION = "V9.05";
 
 // src/lib/buildMeta.ts
 var cached = null;

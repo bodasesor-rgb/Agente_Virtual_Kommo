@@ -1,3 +1,13 @@
+/**
+ * Orquestador de guards de Lucy (respuesta saliente).
+ *
+ * Lógica de dominio vive en `./guards/` — no agregar ifs sueltos aquí:
+ *   opening / salesReplies / catalogOffer / postCierreHandler / embudoQuestions /
+ *   transitions / historyHelpers / catalogSanitize / contactAnswers
+ *
+ * Mapa: guards/domains.ts (LUCY_GUARD_DOMAINS).
+ * Este archivo: wiring + applyLucyMessageGuards + embudo pendiente de extraer.
+ */
 import type { OpenAI } from "openai";
 import type { ExtractedData } from "./types.js";
 import {

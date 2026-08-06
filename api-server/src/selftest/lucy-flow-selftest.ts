@@ -312,9 +312,9 @@ import {
 } from "../lib/imageCompress.js";
 import { Jimp } from "jimp";
 
+import { registerCatalogCleanupTests } from "./domains/index.js";
+
 import { CATALOG_URL as CATALOG_HUB_CANONICAL } from "../catalogUrls.js";
-import { LUCY_GUARD_DOMAINS } from "../guards/domains.js";
-import { stripCatalogBlockShared as stripCatalogFromGuardsModule } from "../guards/catalogSanitize.js";
 
 /** Hub canónico — misma URL que catalogService.CATALOG_WEB_HUB_URL. */
 const CATALOG_URL = CATALOG_HUB_CANONICAL;
@@ -8286,7 +8286,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.04");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.05");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8883,21 +8883,8 @@ async function runAll(): Promise<void> {
     assert.ok(/bodasesor\.com\/catalogos/i.test(affirm), affirm.slice(0, 400));
   });
 
-  // ─── 130. V9.04 — limpieza: hub único + strip compartido + mapa de dominios ───
-  await test("130. V9.04 — cleanup: hub catálogo único y strip compartido", () => {
-    assert.equal(CATALOG_URL, CATALOG_WEB_HUB_URL);
-    assert.equal(CATALOG_URL, "https://bodasesor.com/catalogos");
-    assert.ok(LUCY_GUARD_DOMAINS.catalogo);
-    assert.ok(LUCY_GUARD_DOMAINS.postCierre);
-    assert.ok(LUCY_GUARD_DOMAINS.nombre);
-
-    const mixed =
-      "Anoto banquete.\nTe dejo el catálogo general:\nhttps://bodasesor.com/catalogos\n¿Quieres que te mande el catálogo?\nY seguimos.";
-    const cleaned = stripCatalogFromGuardsModule(mixed);
-    assert.ok(!/bodasesor\.com\/catalogos/i.test(cleaned), cleaned);
-    assert.ok(/Anoto banquete/i.test(cleaned), cleaned);
-    assert.equal(stripCatalogBlockShared(mixed), cleaned);
-  });
+  // Dominio catálogo (suite partida — ver selftest/domains/).
+  await registerCatalogCleanupTests(test);
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);

@@ -33,11 +33,12 @@ export const LUCY_GUARD_DOMAINS = {
     ],
   },
   postCierre: {
-    module: "guards/postCierreReplies.ts + rama cierreYaEnviado en guards",
+    module: "guards/postCierreHandler.ts + postCierreReplies.ts",
     keep: [
       "no re-pedir correo/embudo",
       "ack corto al sumar servicios",
       "info/catálogo/modelos sí se atienden (A15165)",
+      "tryApplyPostCierreOrHandoffReply",
     ],
   },
   contacto: {
