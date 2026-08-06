@@ -213531,40 +213531,6 @@ function buildPedidoEntregaReply(message) {
   return `Perfecto \u2014 lo tomo como *pedido/entrega a domicilio* (sin barra ni chefs en el evento). Para ${what}, nuestro equipo te arma la cotizaci\xF3n exacta seg\xFAn cantidad y zona de entrega. \xBFMe regalas tu nombre para pas\xE1rselo?`;
 }
 
-// src/tipoContacto.ts
-var PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
-var PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
-var PROVEEDOR_OFFER = new RegExp(
-  `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})`,
-  "i"
-);
-var CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento)\b/i;
-function resolveTipoContacto(extracted, conversationText) {
-  const text2 = conversationText.trim();
-  if (!text2) return extracted === "incierto" ? "cliente" : extracted;
-  if (CLIENTE_BUY.test(text2)) return "cliente";
-  if (PROVEEDOR_OFFER.test(text2)) return "proveedor";
-  if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text2)) {
-    return "cliente";
-  }
-  if (extracted === "incierto" || !extracted) return "cliente";
-  return extracted;
-}
-function clientMentionsOwnCompanyEmail(text2) {
-  if (!text2?.trim()) return false;
-  return /\b(capybaraeventos@gmail\.com|bodasesor@gmail\.com|hola@bodasesor\.com)\b/i.test(text2);
-}
-function clientAsksIfCompanyEmailCorrect(text2) {
-  if (!text2?.trim()) return false;
-  const t10 = text2.toLowerCase();
-  return clientMentionsOwnCompanyEmail(text2) || /es\s+el\s+correo\s+correcto|ese\s+correo\s+es\s+correcto|correo\s+correcto|es\s+ese\s+el\s+correo/i.test(
-    t10
-  );
-}
-function buildCompanyEmailConfirmReply() {
-  return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
-}
-
 // src/services/imageProcessor.ts
 init_llmChat();
 init_llmEnv();
@@ -214334,6 +214300,303 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`,
   void entityId;
   return null;
 }
+
+// src/guards/policy.ts
+function runGuardHandlers(ctx, handlers) {
+  for (const handler of handlers) {
+    const decision = handler(ctx);
+    if (decision.kind === "reply") return decision;
+  }
+  return { kind: "continue" };
+}
+
+// src/tipoContacto.ts
+var PROVEEDOR_SELL = /\b(les\s+ofrezco|ofrecemos\s+a\s+ustedes|soy\s+proveedor|quiero\s+venderles|busco\s+clientes|manejo\s+.+\s+y\s+busco\s+clientes|distribuidor\s+de|mi\s+empresa\s+ofrece|vendo\s+.+\s+a\s+eventos)\b/i;
+var PROVEEDOR_ALLIANCE = /\b(red\s+de\s+aliados|aliados?\s+comerciales?|alianza\s+comercial|aliado\s+comercial|registrarte\s+en\s+nuestra\s+base|invitarte\s+a\s+registrarte|te\s+invito\s+a\s+registrarte|ser\s+parte\s+de\s+nuestra\s+red|sumarte\s+a\s+(nuestra\s+)?red|formar\s+parte\s+de\s+nuestra\s+red|proveedores?\s+aliados?|cat[aá]logo\s+de\s+proveedores|beneficios\s+y\s+tarifas.{0,80}(?:venue|hacienda|sal[oó]n)|ejecutiv[oa]\s+de\s+ventas\s+en\s+(?:hacienda|sal[oó]n|venue|hotel)|nuestro\s+venue|red\s+de\s+proveedores|quiero\s+ser\s+proveedor|ofrecerles\s+(nuestro|mis|nuestros)|los\s+invito\s+a\s+(conocer|registr|formar)|invitarlos\s+a\s+(nuestra|formar|registr))\b/i;
+var PROVEEDOR_OFFER = new RegExp(
+  `(?:${PROVEEDOR_SELL.source})|(?:${PROVEEDOR_ALLIANCE.source})`,
+  "i"
+);
+var CLIENTE_BUY = /\b(solicit[oa]\s+(una\s+)?cotizaci[oó]n|quiero\s+cotizar|necesito\s+(servicio|cotiz|un\s+|una\s+)|requiero\s+(servicio|cotiz)|me\s+das\s+precio|me\s+interesa\s+contratar|busco\s+(servicio|cotiz|proveedor\s+de\s+catering|banquete|taquiza|caf[eé])|cotizaci[oó]n\s+de|precio\s+de|para\s+mi\s+(boda|evento|xv|fiesta)|mi\s+boda|nuestro\s+evento)\b/i;
+function resolveTipoContacto(extracted, conversationText) {
+  const text2 = conversationText.trim();
+  if (!text2) return extracted === "incierto" ? "cliente" : extracted;
+  if (CLIENTE_BUY.test(text2)) return "cliente";
+  if (PROVEEDOR_OFFER.test(text2)) return "proveedor";
+  if (extracted === "proveedor" && !PROVEEDOR_OFFER.test(text2)) {
+    return "cliente";
+  }
+  if (extracted === "incierto" || !extracted) return "cliente";
+  return extracted;
+}
+function clientMentionsOwnCompanyEmail(text2) {
+  if (!text2?.trim()) return false;
+  return /\b(capybaraeventos@gmail\.com|bodasesor@gmail\.com|hola@bodasesor\.com)\b/i.test(text2);
+}
+function clientAsksIfCompanyEmailCorrect(text2) {
+  if (!text2?.trim()) return false;
+  const t10 = text2.toLowerCase();
+  return clientMentionsOwnCompanyEmail(text2) || /es\s+el\s+correo\s+correcto|ese\s+correo\s+es\s+correcto|correo\s+correcto|es\s+ese\s+el\s+correo/i.test(
+    t10
+  );
+}
+function buildCompanyEmailConfirmReply() {
+  return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
+}
+
+// src/guards/priorityHandlers.ts
+var handlePostCierreOrHandoff = (ctx) => {
+  const result = tryApplyPostCierreOrHandoffReply({
+    cierreYaEnviado: ctx.cierreYaEnviado,
+    currentMessage: ctx.currentMessage,
+    extracted: ctx.extracted,
+    filledSet: ctx.filledSet,
+    history: ctx.presHistory,
+    whatsappDisplayName: ctx.whatsappDisplayName,
+    entityId: ctx.entityId,
+    log: ctx.log
+  });
+  return result ? {
+    kind: "reply",
+    id: result.logMsg,
+    mensaje: result.mensaje,
+    effects: { appliedDirectReply: true }
+  } : { kind: "continue" };
+};
+var handleCompanyContact = (ctx) => {
+  if (clientAsksIfCompanyEmailCorrect(ctx.currentMessage)) {
+    return {
+      kind: "reply",
+      id: "GUARD: cliente pregunt\xF3 por correo de Bodasesor",
+      mensaje: buildCompanyEmailConfirmReply(),
+      effects: { appliedDirectReply: true }
+    };
+  }
+  if (clientAsksCompanyIdentity(ctx.currentMessage)) {
+    const knownName = sanitizeCrmNombre(ctx.extracted.nombre) ?? sanitizeCrmNombre(ctx.whatsappDisplayName) ?? sanitizeDisplayName(ctx.whatsappDisplayName);
+    return {
+      kind: "reply",
+      id: "GUARD: cliente pregunt\xF3 si es Cap&Bara/Bodasesor",
+      mensaje: buildCompanyIdentityReply(knownName),
+      effects: { appliedDirectReply: true }
+    };
+  }
+  return { kind: "continue" };
+};
+var handleExplicitCatalog = (ctx) => {
+  const { currentMessage, extracted, lastAssistantMsg, mentionedServiceNow, presHistory } = ctx;
+  if (!(clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
+    currentMessage,
+    lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
+  ) || // A14994 / todas las ramas: si el CTA de catálogo está en hilo reciente (no solo el último msg).
+  clientAffirmsCatalogOffer(
+    currentMessage,
+    [...presHistory].reverse().filter((m10) => m10.role === "assistant" && typeof m10.content === "string").slice(0, 3).map((m10) => m10.content).find((t10) => assistantOfferedCatalogDetail(t10)) ?? null
+  ))) {
+    return { kind: "continue" };
+  }
+  const wantFull = clientWantsFullCatalog(currentMessage) || clientAsksGenericMenuCatalog(currentMessage);
+  const hintParts = [];
+  if (extracted.requerimientos_evento?.trim()) hintParts.push(extracted.requerimientos_evento);
+  if (mentionedServiceNow) hintParts.push(mentionedServiceNow);
+  if (lastAssistantMsg && typeof lastAssistantMsg.content === "string" && messageOffersCatalogLink(lastAssistantMsg.content)) {
+    hintParts.push(lastAssistantMsg.content);
+  }
+  const historyHint = [
+    ...presHistory.filter((m10) => m10.role === "user" && typeof m10.content === "string").slice(-4).map((m10) => m10.content),
+    currentMessage ?? ""
+  ].join(" ").trim();
+  const serviceHint = hintParts.join(" ") || null;
+  const userNamedServices = parseServicesFromText(historyHint);
+  const mappedServices = wantFull ? [] : collectServicesForCatalogOffer({
+    services: userNamedServices,
+    // No usar extracted.requerimientos si el usuario no nombró servicio:
+    // el extractor a veces alucina un SKU (A15169 → pizzas).
+    extracted: userNamedServices.length > 0 ? extracted : { requerimientos_evento: null },
+    history: presHistory,
+    currentMessage
+  });
+  const mensaje = !wantFull && mappedServices.length > 0 ? (() => {
+    const mapped = buildPackageCatalogOfferBlock(
+      mappedServices,
+      `${serviceHint ?? ""} ${historyHint}`
+    ).replace(/\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi, "\n");
+    return /bodasesor\.com\/catalogos/i.test(mapped) ? `Claro.
+
+${mapped}`.trim() : buildCatalogWebLinkReply({
+      query: historyHint || (currentMessage ?? ""),
+      wantFull: false,
+      serviceHint
+    });
+  })() : buildCatalogWebLinkReply({
+    query: "cat\xE1logo general",
+    wantFull: true,
+    serviceHint: null
+  });
+  return {
+    kind: "reply",
+    id: "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)",
+    mensaje,
+    effects: { appliedDirectReply: true }
+  };
+};
+var handleInclusionAndPackage = (ctx) => {
+  const { currentMessage, extracted, filledSet, presHistory } = ctx;
+  if (!clientAsksInclusion(currentMessage) || ctx.cierreYaEnviado) {
+    return { kind: "continue" };
+  }
+  const multiForPackages = dedupeServiceHierarchy([
+    ...parseServicesFromText(extracted.requerimientos_evento ?? ""),
+    ...parseServicesFromText(currentMessage ?? "")
+  ]);
+  const asksPackagesList = /\bpaquetes?\b|\bniveles?\b|\bofreces?\b|idea\s+m[aá]s\s+clara/i.test(currentMessage ?? "");
+  const multiPackageDump = asksPackagesList && multiForPackages.length >= 2 ? buildMultiServiceSheetLevelsReply(multiForPackages, currentMessage) : null;
+  if (multiPackageDump) {
+    return {
+      kind: "reply",
+      id: "GUARD: paquetes multi-servicio \u2014 niveles Sheet + siguiente dato",
+      mensaje: ctx.mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} Claro, te dejo los paquetes/niveles con precios:
+
+${multiPackageDump}`
+      ),
+      effects: { appliedSalesReply: true, appliedDirectReply: true }
+    };
+  }
+  const inclusionOptions = shouldOfferOptionsBeforeDetail({
+    currentMessage,
+    history: presHistory,
+    serviceHint: extracted.requerimientos_evento
+  });
+  if (inclusionOptions) {
+    return {
+      kind: "reply",
+      id: "GUARD: inclusiones \u2014 men\xFA de opciones antes del detalle",
+      mensaje: `${pickTransition(presHistory)} ${inclusionOptions.menu}`.trim(),
+      effects: { appliedSalesReply: true, appliedDirectReply: true }
+    };
+  }
+  const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  let serviceHint = null;
+  if (/\bbanquete|\bcatering\b/i.test(`${req} ${userBlob}`)) {
+    serviceHint = resolveDetailQueryForFamily(
+      "banquete",
+      `${req} ${userBlob} ${currentMessage ?? ""}`
+    );
+  } else {
+    serviceHint = (ctx.isValidRequerimientosValue(req) ? req : null) || parsePrimaryService(userBlob) || ctx.findMentionedService(userBlob);
+  }
+  const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
+    currentMessage ?? ""
+  );
+  const pdfOnly = buildPdfInclusionReply(currentMessage ?? "") || (!specificNivelAsk && serviceHint ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) || buildPdfInclusionReply(serviceHint) : null);
+  if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
+    return {
+      kind: "reply",
+      id: "GUARD: inclusiones \u2014 PDF aprendido",
+      mensaje: pdfOnly,
+      effects: { appliedSalesReply: true, appliedDirectReply: true }
+    };
+  }
+  const inclusionAnswer = resolveCatalogInclusionReply(currentMessage ?? "", serviceHint);
+  if (inclusionAnswer && !/bet[uú]n|cupcakes?/i.test(inclusionAnswer)) {
+    const pending = ctx.getNextPendingField();
+    return {
+      kind: "reply",
+      id: "GUARD: inclusiones/descripciones de paquete (temprano)",
+      mensaje: pending && ctx.needsNextStep && !ctx.trulyReadyForClosing ? `${inclusionAnswer}
+
+${ctx.buildNaturalQuestion(pending)}` : inclusionAnswer,
+      effects: { appliedSalesReply: true, appliedDirectReply: true }
+    };
+  }
+  if (serviceHint && /\bbanquete/i.test(serviceHint)) {
+    const detail = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
+    const link = buildCatalogWebLinkReply({ query: serviceHint, serviceHint });
+    return {
+      kind: "reply",
+      id: "GUARD: inclusiones banquete \u2014 Sheet + link forzado",
+      mensaje: detail ? `${detail}
+
+${link}
+
+\xBFCu\xE1l nivel te late?` : `${link}
+
+\xBFCu\xE1l nivel te late?`,
+      effects: { appliedSalesReply: true, appliedDirectReply: true }
+    };
+  }
+  return {
+    kind: "reply",
+    id: "GUARD: paquetes gen\xE9ricos \u2014 overview / aclarar servicio",
+    mensaje: ctx.buildGenericPackagesOverviewReply(),
+    effects: { appliedSalesReply: true, appliedDirectReply: true }
+  };
+};
+var handlePrice = (ctx) => {
+  const { currentMessage, extracted, filledSet, presHistory, aiResponse } = ctx;
+  if (!clientAsksPrice(currentMessage) && !clientAsksDistributorPricing(currentMessage)) {
+    return { kind: "continue" };
+  }
+  const ctxText = collectUserTexts(presHistory, currentMessage).join(" ");
+  const pending = ctx.getNextPendingField();
+  if (isRichQuoteBrief(currentMessage) || clientAsksDistributorPricing(currentMessage) || clientAsksDistributorPricing(ctxText) && parseServicesFromText(ctxText).length >= 2) {
+    const services = parseServicesFromText(
+      `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
+    );
+    const packageReply = buildMultiServicePackageReply(services, currentMessage ?? ctxText);
+    const teamNote = "El precio de mayoreo / la propuesta a la medida la arma nuestro equipo; no te paso un precio de lista suelto.";
+    return {
+      kind: "reply",
+      id: "GUARD: precio distribuidor / RFQ \u2014 sin SKU retail",
+      mensaje: ctx.needsNextStep ? ctx.mergeWithPendingQuestion(`${packageReply}
+
+${teamNote}`) : `${packageReply}
+
+${teamNote}`
+    };
+  }
+  const genericPriceAsk = clientAsksPrice(currentMessage) && !mentionsListedPriceService(currentMessage ?? "") && !mentionsNoListedPriceService(currentMessage ?? "") && !ctx.findMentionedService(currentMessage ?? "") && !parsePrimaryService(currentMessage ?? "");
+  const needsAlejandroQuote = !genericPriceAsk && (mentionsNoListedPriceService(currentMessage ?? "") || responseHasInventedPrice(aiResponse, currentMessage ?? "", ctxText) && !mentionsListedPriceService(currentMessage ?? ""));
+  if (genericPriceAsk) {
+    const clarify = ctx.buildGenericPriceClarifyReply();
+    return {
+      kind: "reply",
+      id: "GUARD: precios gen\xE9ricos \u2014 aclarar servicio",
+      mensaje: ctx.needsNextStep ? ctx.mergeWithPendingQuestion(clarify) : clarify,
+      effects: { appliedDirectReply: true }
+    };
+  }
+  if (needsAlejandroQuote) {
+    const priceReply = buildAlejandroPriceReply(
+      getPriceServiceLabel(currentMessage ?? ""),
+      currentMessage ?? ""
+    );
+    return {
+      kind: "reply",
+      id: "GUARD: precio sin cat\xE1logo \u2014 Alejandro cotiza",
+      mensaje: ctx.needsNextStep && pending && pending !== "correo" ? `${priceReply}
+
+${ctx.buildNaturalQuestion(pending)}` : priceReply
+    };
+  }
+  const safe = sanitizeInventedPrices(aiResponse, currentMessage ?? "", ctxText);
+  let priceContent = safe;
+  const fromCatalog = buildCatalogPriceAnswer(currentMessage ?? "");
+  if (fromCatalog && mentionsListedPriceService(currentMessage ?? "")) {
+    priceContent = fromCatalog;
+  } else if (!messageClaimsPrice(safe) && fromCatalog) {
+    priceContent = fromCatalog;
+  } else if (!fromCatalog || !messageClaimsPrice(priceContent)) {
+    priceContent = ctx.buildGenericPriceClarifyReply();
+  }
+  return {
+    kind: "reply",
+    id: "GUARD: respuesta a precio con cat\xE1logo",
+    mensaje: ctx.needsNextStep ? ctx.mergeWithPendingQuestion(priceContent) : priceContent.trim() || aiResponse
+  };
+};
 
 // src/guards/embudoQuestions.ts
 function mensajeMencionaCatalogoServicios(mensaje) {
@@ -216864,85 +217127,41 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
     whatsappDisplayName,
     lastAskedField
   );
-  let mensaje;
-  let appliedSalesReply = false;
-  let appliedDirectReply = false;
-  const postCierreOrHandoff = tryApplyPostCierreOrHandoffReply({
+  const priorityGuardContext = {
     cierreYaEnviado,
     currentMessage,
     extracted,
     filledSet,
-    history: presHistory,
+    presHistory,
     whatsappDisplayName,
     entityId,
-    log
-  });
-  if (postCierreOrHandoff) {
-    mensaje = postCierreOrHandoff.mensaje;
-    appliedDirectReply = true;
-    log?.info({ entityId }, postCierreOrHandoff.logMsg);
-  } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {
-    mensaje = buildCompanyEmailConfirmReply();
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: cliente pregunt\xF3 por correo de Bodasesor");
-  } else if (clientAsksCompanyIdentity(currentMessage)) {
-    const knownName = sanitizeCrmNombre(extracted.nombre) ?? sanitizeCrmNombre(whatsappDisplayName) ?? sanitizeDisplayName(whatsappDisplayName);
-    mensaje = buildCompanyIdentityReply(knownName);
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: cliente pregunt\xF3 si es Cap&Bara/Bodasesor");
-  } else if (clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
-    currentMessage,
-    lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
-  ) || // A14994 / todas las ramas: si el CTA de catálogo está en hilo reciente (no solo el último msg).
-  clientAffirmsCatalogOffer(
-    currentMessage,
-    [...presHistory].reverse().filter((m10) => m10.role === "assistant" && typeof m10.content === "string").slice(0, 3).map((m10) => m10.content).find((t10) => assistantOfferedCatalogDetail(t10)) ?? null
-  )) {
-    const wantFull = clientWantsFullCatalog(currentMessage) || clientAsksGenericMenuCatalog(currentMessage);
-    const hintParts = [];
-    if (extracted.requerimientos_evento?.trim()) hintParts.push(extracted.requerimientos_evento);
-    if (mentionedServiceNow) hintParts.push(mentionedServiceNow);
-    if (lastAssistantMsg && typeof lastAssistantMsg.content === "string" && messageOffersCatalogLink(lastAssistantMsg.content)) {
-      hintParts.push(lastAssistantMsg.content);
-    }
-    const historyHint = [
-      ...presHistory.filter((m10) => m10.role === "user" && typeof m10.content === "string").slice(-4).map((m10) => m10.content),
-      currentMessage ?? ""
-    ].join(" ").trim();
-    const serviceHint = hintParts.join(" ") || null;
-    const userNamedServices = parseServicesFromText(historyHint);
-    const mappedServices = wantFull ? [] : collectServicesForCatalogOffer({
-      services: userNamedServices,
-      // No usar extracted.requerimientos si el usuario no nombró servicio:
-      // el extractor a veces alucina un SKU (A15169 → pizzas).
-      extracted: userNamedServices.length > 0 ? extracted : { requerimientos_evento: null },
-      history: presHistory,
-      currentMessage
-    });
-    if (!wantFull && mappedServices.length > 0) {
-      const mapped = buildPackageCatalogOfferBlock(
-        mappedServices,
-        `${serviceHint ?? ""} ${historyHint}`
-      ).replace(
-        /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
-        "\n"
-      );
-      mensaje = /bodasesor\.com\/catalogos/i.test(mapped) ? `Claro.
-
-${mapped}`.trim() : buildCatalogWebLinkReply({
-        query: historyHint || (currentMessage ?? ""),
-        wantFull: false,
-        serviceHint
-      });
-    } else {
-      mensaje = buildCatalogWebLinkReply({
-        query: "cat\xE1logo general",
-        wantFull: true,
-        serviceHint: null
-      });
-    }
-    appliedDirectReply = true;
-    log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
+    log,
+    lastAssistantMsg,
+    mentionedServiceNow,
+    aiResponse,
+    needsNextStep,
+    trulyReadyForClosing,
+    mergeWithPendingQuestion: (reply) => mergeWithPendingQuestion(reply, filledSet, extracted, ctx),
+    buildNaturalQuestion: (field) => buildNaturalQuestion(field, ctx),
+    getNextPendingField: () => getNextPendingField(extracted, filledSet),
+    buildGenericPriceClarifyReply: () => buildGenericPriceClarifyReply(extracted, presHistory, currentMessage),
+    buildGenericPackagesOverviewReply: () => buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage),
+    findMentionedService: findMentionedService2,
+    isValidRequerimientosValue: isValidRequerimientosValue4
+  };
+  const priorityDecision = runGuardHandlers(priorityGuardContext, [
+    handlePostCierreOrHandoff,
+    handleCompanyContact,
+    handleExplicitCatalog
+  ]);
+  let mensaje;
+  let appliedSalesReply = false;
+  let appliedDirectReply = false;
+  if (priorityDecision.kind === "reply") {
+    mensaje = priorityDecision.mensaje;
+    appliedDirectReply = priorityDecision.effects?.appliedDirectReply ?? false;
+    appliedSalesReply = priorityDecision.effects?.appliedSalesReply ?? false;
+    log?.info({ entityId }, priorityDecision.id);
   } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
   servicesFromCurrentMessage.length < 2 && parseServicesFromText(currentMessage).length < 2 && !isCatalogLevelSelection(
     currentMessage,
@@ -217626,343 +217845,212 @@ ${catalogUrl}` : body2;
       mensaje = `${pickTransition(presHistory)} ${SERVICE_NIVEL_DETAIL_CTA}`;
       appliedDirectReply = true;
     }
-  } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
-    const multiForPackages = dedupeServiceHierarchy([
-      ...parseServicesFromText(extracted.requerimientos_evento ?? ""),
-      ...parseServicesFromText(currentMessage ?? "")
-    ]);
-    const asksPackagesList = /\bpaquetes?\b|\bniveles?\b|\bofreces?\b|idea\s+m[aá]s\s+clara/i.test(
-      currentMessage ?? ""
-    );
-    const multiPackageDump = asksPackagesList && multiForPackages.length >= 2 ? buildMultiServiceSheetLevelsReply(multiForPackages, currentMessage) : null;
-    if (multiPackageDump) {
-      mensaje = mergeWithPendingQuestion(
-        `${pickTransition(presHistory)} Claro, te dejo los paquetes/niveles con precios:
-
-${multiPackageDump}`,
-        filledSet,
+  } else {
+    const inclusionDecision = runGuardHandlers(priorityGuardContext, [handleInclusionAndPackage]);
+    if (inclusionDecision.kind === "reply") {
+      mensaje = inclusionDecision.mensaje;
+      appliedDirectReply = inclusionDecision.effects?.appliedDirectReply ?? false;
+      appliedSalesReply = inclusionDecision.effects?.appliedSalesReply ?? false;
+      log?.info({ entityId }, inclusionDecision.id);
+    } else if (allowSalesReplyOverride && clientAsksServiceInfo(currentMessage) && isServiceRelatedMessage(currentMessage) && !clientAsksPrice(currentMessage) && !cierreYaEnviado) {
+      const cateringAnswer = buildFoodSalesReply(
         extracted,
+        history,
+        entityId,
+        currentMessage,
+        filledSet,
         ctx
       );
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info(
-        { entityId, n: multiForPackages.length },
-        "GUARD: paquetes multi-servicio \u2014 niveles Sheet + siguiente dato"
-      );
-    } else {
-      const inclusionOptions = shouldOfferOptionsBeforeDetail({
-        currentMessage,
-        history: presHistory,
-        serviceHint: extracted.requerimientos_evento
-      });
-      if (inclusionOptions) {
-        mensaje = `${pickTransition(presHistory)} ${inclusionOptions.menu}`.trim();
-        appliedSalesReply = true;
-        appliedDirectReply = true;
-        log?.info({ entityId }, "GUARD: inclusiones \u2014 men\xFA de opciones antes del detalle");
-      } else {
-        const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
-        const req = extracted.requerimientos_evento?.trim() ?? "";
-        let serviceHint = null;
-        if (/\bbanquete|\bcatering\b/i.test(`${req} ${userBlob}`)) {
-          serviceHint = resolveDetailQueryForFamily(
-            "banquete",
-            `${req} ${userBlob} ${currentMessage ?? ""}`
-          );
+      if (cateringAnswer && /nivel|precio|manejamos|tenemos|info m[aá]s detallada|opciones|cat[aá]logo|\$/i.test(
+        cateringAnswer
+      )) {
+        const pending = getNextPendingField(extracted, filledSet);
+        const asksMeasures = /medidas?/i.test(cateringAnswer);
+        const isProgressive = isProgressiveOptionsMenuReply(cateringAnswer) || /info m[aá]s detallada|de cu[aá]l te|qu[eé]\s+pieza/i.test(cateringAnswer);
+        if (!isProgressive && !asksMeasures && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiResponse.trim().length >= 50) {
+          mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+        } else if (isProgressive || asksMeasures || !pending || pending === "requerimientos" || pending === "correo" || !ctx) {
+          mensaje = cateringAnswer;
         } else {
-          serviceHint = (isValidRequerimientosValue4(req) ? req : null) || parsePrimaryService(userBlob) || findMentionedService2(userBlob);
-        }
-        const pdfOnly = (() => {
-          const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
-            currentMessage ?? ""
-          );
-          return buildPdfInclusionReply(currentMessage ?? "") || (!specificNivelAsk && serviceHint ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) || buildPdfInclusionReply(serviceHint) : null);
-        })();
-        if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
-          mensaje = pdfOnly;
-          appliedSalesReply = true;
-          appliedDirectReply = true;
-          log?.info({ entityId, serviceHint }, "GUARD: inclusiones \u2014 PDF aprendido");
-        } else {
-          const inclusionAnswer = resolveCatalogInclusionReply(
-            currentMessage ?? "",
-            serviceHint
-          );
-          if (inclusionAnswer && !/bet[uú]n|cupcakes?/i.test(inclusionAnswer)) {
-            const pending = getNextPendingField(extracted, filledSet);
-            mensaje = pending && needsNextStep && !trulyReadyForClosing ? `${inclusionAnswer}
-
-${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
-            appliedSalesReply = true;
-            appliedDirectReply = true;
-            log?.info({ entityId, serviceHint }, "GUARD: inclusiones/descripciones de paquete (temprano)");
-          } else if (serviceHint && /\bbanquete/i.test(serviceHint)) {
-            const detail = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
-            const link = buildCatalogWebLinkReply({ query: serviceHint, serviceHint });
-            mensaje = detail ? `${detail}
-
-${link}
-
-\xBFCu\xE1l nivel te late?` : `${link}
-
-\xBFCu\xE1l nivel te late?`;
-            appliedSalesReply = true;
-            appliedDirectReply = true;
-            log?.info({ entityId, serviceHint }, "GUARD: inclusiones banquete \u2014 Sheet + link forzado");
-          } else {
-            const packageOverview = buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage);
-            mensaje = packageOverview;
-            appliedSalesReply = true;
-            appliedDirectReply = true;
-            log?.info({ entityId }, "GUARD: paquetes gen\xE9ricos \u2014 overview / aclarar servicio");
-          }
-        }
-      }
-    }
-  } else if (allowSalesReplyOverride && clientAsksServiceInfo(currentMessage) && isServiceRelatedMessage(currentMessage) && !clientAsksPrice(currentMessage) && !cierreYaEnviado) {
-    const cateringAnswer = buildFoodSalesReply(
-      extracted,
-      history,
-      entityId,
-      currentMessage,
-      filledSet,
-      ctx
-    );
-    if (cateringAnswer && /nivel|precio|manejamos|tenemos|info m[aá]s detallada|opciones|cat[aá]logo|\$/i.test(
-      cateringAnswer
-    )) {
-      const pending = getNextPendingField(extracted, filledSet);
-      const asksMeasures = /medidas?/i.test(cateringAnswer);
-      const isProgressive = isProgressiveOptionsMenuReply(cateringAnswer) || /info m[aá]s detallada|de cu[aá]l te|qu[eé]\s+pieza/i.test(cateringAnswer);
-      if (!isProgressive && !asksMeasures && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiResponse.trim().length >= 50) {
-        mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
-      } else if (isProgressive || asksMeasures || !pending || pending === "requerimientos" || pending === "correo" || !ctx) {
-        mensaje = cateringAnswer;
-      } else {
-        const nextQ = buildNaturalQuestion(pending, ctx);
-        mensaje = cateringAnswer.includes(nextQ) ? cateringAnswer : `${cateringAnswer}
+          const nextQ = buildNaturalQuestion(pending, ctx);
+          mensaje = cateringAnswer.includes(nextQ) ? cateringAnswer : `${cateringAnswer}
 
 ${nextQ}`;
-      }
-      appliedSalesReply = true;
-      if (!isProgressiveOptionsMenuReply(mensaje)) {
-        appliedDirectReply = true;
-      }
-      log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 detalle Sheet + oferta cat\xE1logo");
-    } else {
-      const ack = buildGuardServiceAck(currentMessage ?? "");
-      const sala = parseSalaProductFromText(currentMessage ?? "");
-      if (sala && !isValidRequerimientosValue4(extracted.requerimientos_evento)) {
-        extracted.requerimientos_evento = sala;
-        filledSet.add("Requerimientos o servicios");
-      }
-      const pending = getNextPendingField(extracted, filledSet);
-      const asksMeasures = /medidas?/i.test(ack);
-      if (!asksMeasures && pending && ctx) {
-        const nextQ = buildNaturalQuestion(pending, ctx);
-        const lastAsk = inferLucyAskedField(
-          [...presHistory].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string")?.content
-        );
-        if (lastAsk && pending === lastAsk && countLucyFieldAsks(presHistory, pending) >= 1) {
-          mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
-        } else {
-          mensaje = `${pickTransition(presHistory)} ${ack}
+        }
+        appliedSalesReply = true;
+        if (!isProgressiveOptionsMenuReply(mensaje)) {
+          appliedDirectReply = true;
+        }
+        log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 detalle Sheet + oferta cat\xE1logo");
+      } else {
+        const ack = buildGuardServiceAck(currentMessage ?? "");
+        const sala = parseSalaProductFromText(currentMessage ?? "");
+        if (sala && !isValidRequerimientosValue4(extracted.requerimientos_evento)) {
+          extracted.requerimientos_evento = sala;
+          filledSet.add("Requerimientos o servicios");
+        }
+        const pending = getNextPendingField(extracted, filledSet);
+        const asksMeasures = /medidas?/i.test(ack);
+        if (!asksMeasures && pending && ctx) {
+          const nextQ = buildNaturalQuestion(pending, ctx);
+          const lastAsk = inferLucyAskedField(
+            [...presHistory].reverse().find((m10) => m10.role === "assistant" && typeof m10.content === "string")?.content
+          );
+          if (lastAsk && pending === lastAsk && countLucyFieldAsks(presHistory, pending) >= 1) {
+            mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
+          } else {
+            mensaje = `${pickTransition(presHistory)} ${ack}
 
 ${nextQ}`.trim();
+          }
+        } else {
+          mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
         }
+        appliedSalesReply = true;
+        log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 responder con detalle");
+      }
+    } else if (allowSalesReplyOverride && // V8.35: si pide info/detalle, reexplicar aunque el servicio ya esté capturado.
+    (!serviceAlreadyCaptured || clientAsksServiceInfo(currentMessage) || clientAsksInclusion(currentMessage)) && !clientAsksPrice(currentMessage) && (clientMentionsCatering(currentMessage) || clientAsksServiceInfo(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
+      const cateringAnswer = buildFoodSalesReply(
+        extracted,
+        history,
+        entityId,
+        currentMessage,
+        filledSet,
+        ctx
+      );
+      if (cateringAnswer) {
+        mensaje = cateringAnswer;
       } else {
-        mensaje = `${pickTransition(presHistory)} ${ack}`.trim();
+        const ack = buildFoodServiceAckIntro(extracted, history, currentMessage);
+        const aiMentionsService = !!ack && /coffee\s*break|manejamos|banquete|taquiza|catering|sí\s+tenemos/i.test(aiResponse);
+        if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+          const base = ack && !aiMentionsService ? `${ack} ${aiResponse}`.trim() : aiResponse;
+          mensaje = mergeWithPendingQuestion(base, filledSet, extracted, ctx);
+        } else if (ack) {
+          mensaje = mergeWithPendingQuestion(ack, filledSet, extracted, ctx);
+        } else {
+          mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
+        }
+      }
+      if (!isProgressiveOptionsMenuReply(mensaje) && bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
+        const nextQ = nextFieldQuestion(
+          extracted,
+          filledSet,
+          whatsappDisplayName,
+          history,
+          currentMessage,
+          entityId
+        );
+        if (nextQ) mensaje = nextQ;
       }
       appliedSalesReply = true;
-      log?.info({ entityId }, "GUARD: pregunta de servicio \u2014 responder con detalle");
-    }
-  } else if (allowSalesReplyOverride && // V8.35: si pide info/detalle, reexplicar aunque el servicio ya esté capturado.
-  (!serviceAlreadyCaptured || clientAsksServiceInfo(currentMessage) || clientAsksInclusion(currentMessage)) && !clientAsksPrice(currentMessage) && (clientMentionsCatering(currentMessage) || clientAsksServiceInfo(currentMessage) || justAnsweredReq && isServiceRelatedMessage(currentMessage) || !!parsePrimaryService(currentMessage ?? "") && isServiceRelatedMessage(currentMessage))) {
-    const cateringAnswer = buildFoodSalesReply(
-      extracted,
-      history,
-      entityId,
-      currentMessage,
-      filledSet,
-      ctx
-    );
-    if (cateringAnswer) {
-      mensaje = cateringAnswer;
-    } else {
-      const ack = buildFoodServiceAckIntro(extracted, history, currentMessage);
-      const aiMentionsService = !!ack && /coffee\s*break|manejamos|banquete|taquiza|catering|sí\s+tenemos/i.test(aiResponse);
-      if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
-        const base = ack && !aiMentionsService ? `${ack} ${aiResponse}`.trim() : aiResponse;
-        mensaje = mergeWithPendingQuestion(base, filledSet, extracted, ctx);
-      } else if (ack) {
-        mensaje = mergeWithPendingQuestion(ack, filledSet, extracted, ctx);
+      log?.info(
+        { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
+        "GUARD: comida/servicio \u2014 orientaci\xF3n de venta"
+      );
+    } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
+      const offer = preferEventOfferReply({
+        aiResponse,
+        extracted,
+        filledSet,
+        history: presHistory,
+        currentMessage,
+        entityId
+      });
+      if (offer && aiLooksLikeEventServiceOffer(offer)) {
+        mensaje = offer;
+      } else if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+        mensaje = aiResponse;
       } else {
         mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
       }
-    }
-    if (!isProgressiveOptionsMenuReply(mensaje) && bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
-      const nextQ = nextFieldQuestion(
-        extracted,
-        filledSet,
-        whatsappDisplayName,
-        history,
-        currentMessage,
-        entityId
-      );
-      if (nextQ) mensaje = nextQ;
-    }
-    appliedSalesReply = true;
-    log?.info(
-      { entityId, justAnsweredReq, food: clientMentionsCatering(currentMessage) },
-      "GUARD: comida/servicio \u2014 orientaci\xF3n de venta"
-    );
-  } else if (allowSalesReplyOverride && clientAsksForRecommendations(currentMessage)) {
-    const offer = preferEventOfferReply({
-      aiResponse,
-      extracted,
-      filledSet,
-      history: presHistory,
-      currentMessage,
-      entityId
-    });
-    if (offer && aiLooksLikeEventServiceOffer(offer)) {
-      mensaje = offer;
-    } else if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
-      mensaje = aiResponse;
-    } else {
-      mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
-    }
-    if (bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
-      const nextQ = nextFieldQuestion(
-        extracted,
-        filledSet,
-        whatsappDisplayName,
-        history,
-        currentMessage,
-        entityId
-      );
-      if (nextQ) mensaje = nextQ;
-    }
-    appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 preferir OpenAI");
-  } else if (clientAsksPrice(currentMessage) || clientAsksDistributorPricing(currentMessage)) {
-    const ctxText2 = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
-    const pending = getNextPendingField(extracted, filledSet);
-    if (isRichQuoteBrief(currentMessage) || clientAsksDistributorPricing(currentMessage) || clientAsksDistributorPricing(ctxText2) && parseServicesFromText(ctxText2).length >= 2) {
-      const services = parseServicesFromText(
-        `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
-      );
-      const packageReply = buildMultiServicePackageReply(
-        services,
-        currentMessage ?? ctxText2
-      );
-      const teamNote = "El precio de mayoreo / la propuesta a la medida la arma nuestro equipo; no te paso un precio de lista suelto.";
-      mensaje = needsNextStep ? mergeWithPendingQuestion(
-        `${packageReply}
-
-${teamNote}`,
-        filledSet,
-        extracted,
-        ctx
-      ) : `${packageReply}
-
-${teamNote}`;
-      log?.info({ entityId }, "GUARD: precio distribuidor / RFQ \u2014 sin SKU retail");
-    } else {
-      const genericPriceAsk = clientAsksPrice(currentMessage) && !mentionsListedPriceService(currentMessage ?? "") && !mentionsNoListedPriceService(currentMessage ?? "") && !findMentionedService2(currentMessage ?? "") && !parsePrimaryService(currentMessage ?? "");
-      const needsAlejandroQuote = !genericPriceAsk && (mentionsNoListedPriceService(currentMessage ?? "") || responseHasInventedPrice(aiResponse, currentMessage ?? "", ctxText2) && !mentionsListedPriceService(currentMessage ?? ""));
-      if (genericPriceAsk) {
-        const clarify = buildGenericPriceClarifyReply(extracted, presHistory, currentMessage ?? "");
-        mensaje = needsNextStep ? mergeWithPendingQuestion(clarify, filledSet, extracted, ctx) : clarify;
-        appliedDirectReply = true;
-        log?.info({ entityId }, "GUARD: precios gen\xE9ricos \u2014 aclarar servicio");
-      } else if (needsAlejandroQuote) {
-        const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage ?? ""), currentMessage ?? "");
-        mensaje = needsNextStep && pending && pending !== "correo" ? `${priceReply}
-
-${buildNaturalQuestion(pending, ctx)}` : priceReply;
-        log?.info({ entityId, pending }, "GUARD: precio sin cat\xE1logo \u2014 Alejandro cotiza");
-      } else {
-        const safe = sanitizeInventedPrices(aiResponse, currentMessage ?? "", ctxText2);
-        let priceContent = safe;
-        const fromCatalog = buildCatalogPriceAnswer(currentMessage ?? "");
-        if (fromCatalog && mentionsListedPriceService(currentMessage ?? "")) {
-          priceContent = fromCatalog;
-        } else if (!messageClaimsPrice(safe) && fromCatalog) {
-          priceContent = fromCatalog;
-        } else if (!fromCatalog || !messageClaimsPrice(priceContent)) {
-          const clarify = buildGenericPriceClarifyReply(extracted, presHistory, currentMessage);
-          priceContent = clarify;
-        }
-        mensaje = needsNextStep ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx) : priceContent.trim() || aiResponse;
-        log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con cat\xE1logo");
+      if (bodyEqualsLastAssistant(mensaje, history, extracted.nombre)) {
+        const nextQ = nextFieldQuestion(
+          extracted,
+          filledSet,
+          whatsappDisplayName,
+          history,
+          currentMessage,
+          entityId
+        );
+        if (nextQ) mensaje = nextQ;
       }
-    }
-  } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
-    mensaje = aiResponse;
-    log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
-  } else if (needsNextStep) {
-    const earlyOffer = preferEventOfferReply({
-      aiResponse,
-      extracted,
-      filledSet,
-      history: presHistory,
-      currentMessage,
-      entityId
-    });
-    if (earlyOffer) {
-      mensaje = earlyOffer;
-      log?.info({ entityId }, "GUARD: ofrecimiento temprano en needsNextStep");
-    } else if (aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
-      mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
-      log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
-    } else if (aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      mensaje = nextQ ?? aiResponse;
-      log?.info({ entityId }, "GUARD: GPT repiti\xF3 dato ya capturado \u2014 siguiente paso");
+      appliedSalesReply = true;
+      log?.info({ entityId }, "GUARD: cliente pidi\xF3 recomendaciones \u2014 preferir OpenAI");
     } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      if (currentMessage && clientAsksPrice(currentMessage)) {
-        const fromCatalog = buildCatalogPriceAnswer(currentMessage);
-        if (fromCatalog && nextQ) {
-          mensaje = `${fromCatalog}
+      const priceDecision = runGuardHandlers(priorityGuardContext, [handlePrice]);
+      if (priceDecision.kind === "reply") {
+        mensaje = priceDecision.mensaje;
+        appliedDirectReply = priceDecision.effects?.appliedDirectReply ?? false;
+        appliedSalesReply = priceDecision.effects?.appliedSalesReply ?? false;
+        log?.info({ entityId }, priceDecision.id);
+      } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+        mensaje = aiResponse;
+        log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
+      } else if (needsNextStep) {
+        const earlyOffer = preferEventOfferReply({
+          aiResponse,
+          extracted,
+          filledSet,
+          history: presHistory,
+          currentMessage,
+          entityId
+        });
+        if (earlyOffer) {
+          mensaje = earlyOffer;
+          log?.info({ entityId }, "GUARD: ofrecimiento temprano en needsNextStep");
+        } else if (aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
+          mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+          log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
+        } else if (aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
+          const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+          mensaje = nextQ ?? aiResponse;
+          log?.info({ entityId }, "GUARD: GPT repiti\xF3 dato ya capturado \u2014 siguiente paso");
+        } else {
+          const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+          if (currentMessage && clientAsksPrice(currentMessage)) {
+            const fromCatalog = buildCatalogPriceAnswer(currentMessage);
+            if (fromCatalog && nextQ) {
+              mensaje = `${fromCatalog}
 
 ${nextQ}`;
-        } else if (fromCatalog) {
-          mensaje = fromCatalog;
-        } else {
-          mensaje = nextQ ?? aiResponse;
+            } else if (fromCatalog) {
+              mensaje = fromCatalog;
+            } else {
+              mensaje = nextQ ?? aiResponse;
+            }
+          } else {
+            mensaje = nextQ ?? aiResponse;
+          }
+          if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
         }
+      } else if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosFollowUpAlreadyAsked && (requerimientosNeedsFollowUp(extracted, filledSet) || justAnsweredReq)) {
+        mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
+        log?.info({ entityId }, "GUARD: profundizar antes del cierre");
+      } else if (trulyReadyForClosing && !cierreYaEnviado && requerimientosFollowUpAlreadyAsked && requerimientosNeedsFollowUp(extracted, filledSet)) {
+        const pending = getNextPendingField(extracted, filledSet);
+        mensaje = pending ? buildNaturalQuestion(pending, ctx) : buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+        log?.info({ entityId }, "GUARD: follow-up de servicios ya hecho \u2014 avanzar");
+      } else if (trulyReadyForClosing && !cierreYaEnviado) {
+        mensaje = buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        );
+        log?.info({ entityId }, "Datos completos \u2014 mensaje de cierre desde plantilla");
       } else {
-        mensaje = nextQ ?? aiResponse;
+        mensaje = aiResponse;
+        if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Informaci\xF3n completa obtenida")) {
+          mensaje = buildClosing(
+            extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+            extracted.nombre
+          );
+          log?.warn({ entityId }, "GPT gener\xF3 nota interna \u2014 usando cierre desde plantilla");
+        }
       }
-      if (nextQ) log?.info({ entityId }, "GUARD: forzando siguiente paso del embudo (sem\xE1ntico)");
-    }
-  } else if (trulyReadyForClosing && !cierreYaEnviado && !requerimientosFollowUpAlreadyAsked && (requerimientosNeedsFollowUp(extracted, filledSet) || justAnsweredReq)) {
-    mensaje = buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId);
-    log?.info({ entityId }, "GUARD: profundizar antes del cierre");
-  } else if (trulyReadyForClosing && !cierreYaEnviado && requerimientosFollowUpAlreadyAsked && requerimientosNeedsFollowUp(extracted, filledSet)) {
-    const pending = getNextPendingField(extracted, filledSet);
-    mensaje = pending ? buildNaturalQuestion(pending, ctx) : buildClosing(
-      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-      extracted.nombre
-    );
-    log?.info({ entityId }, "GUARD: follow-up de servicios ya hecho \u2014 avanzar");
-  } else if (trulyReadyForClosing && !cierreYaEnviado) {
-    mensaje = buildClosing(
-      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-      extracted.nombre
-    );
-    log?.info({ entityId }, "Datos completos \u2014 mensaje de cierre desde plantilla");
-  } else {
-    mensaje = aiResponse;
-    if (aiResponse.includes("DATOS DEL CLIENTE:") || aiResponse.includes("Informaci\xF3n completa obtenida")) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
-      log?.warn({ entityId }, "GPT gener\xF3 nota interna \u2014 usando cierre desde plantilla");
     }
   }
   if (appliedDirectReply) {
