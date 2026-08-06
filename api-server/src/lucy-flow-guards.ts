@@ -305,7 +305,9 @@ import {
 import {
   handleCompanyContact,
   handleExplicitCatalog,
+  handleInclusionAndPackage,
   handlePostCierreOrHandoff,
+  handlePrice,
   type PriorityGuardContext,
 } from "./guards/priorityHandlers.js";
 import { runGuardHandlers } from "./guards/policy.js";
@@ -2714,6 +2716,18 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log,
     lastAssistantMsg,
     mentionedServiceNow,
+    aiResponse,
+    needsNextStep,
+    trulyReadyForClosing,
+    mergeWithPendingQuestion: (reply) => mergeWithPendingQuestion(reply, filledSet, extracted, ctx),
+    buildNaturalQuestion: (field) => buildNaturalQuestion(field as PendingField, ctx),
+    getNextPendingField: () => getNextPendingField(extracted, filledSet),
+    buildGenericPriceClarifyReply: () =>
+      buildGenericPriceClarifyReply(extracted, presHistory, currentMessage),
+    buildGenericPackagesOverviewReply: () =>
+      buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage),
+    findMentionedService,
+    isValidRequerimientosValue,
   };
   const priorityDecision = runGuardHandlers(priorityGuardContext, [
     handlePostCierreOrHandoff,
@@ -3748,118 +3762,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       mensaje = `${pickTransition(presHistory)} ${SERVICE_NIVEL_DETAIL_CTA}`;
       appliedDirectReply = true;
     }
-  } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
-    // A14982: "ofreces los paquetes" con 2+ servicios en CRM → niveles Sheet de ambos + embudo.
-    const multiForPackages = dedupeServiceHierarchy([
-      ...parseServicesFromText(extracted.requerimientos_evento ?? ""),
-      ...parseServicesFromText(currentMessage ?? ""),
-    ]);
-    const asksPackagesList =
-      /\bpaquetes?\b|\bniveles?\b|\bofreces?\b|idea\s+m[aá]s\s+clara/i.test(
-        currentMessage ?? ""
-      );
-    const multiPackageDump =
-      asksPackagesList && multiForPackages.length >= 2
-        ? buildMultiServiceSheetLevelsReply(multiForPackages, currentMessage)
-        : null;
-    if (multiPackageDump) {
-      mensaje = mergeWithPendingQuestion(
-        `${pickTransition(presHistory)} Claro, te dejo los paquetes/niveles con precios:\n\n${multiPackageDump}`,
-        filledSet,
-        extracted,
-        ctx
-      );
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info(
-        { entityId, n: multiForPackages.length },
-        "GUARD: paquetes multi-servicio — niveles Sheet + siguiente dato"
-      );
-    } else {
-    // V8.68: "qué incluye banquete/coffee…" sin variante → menú, no dump PDF.
-    const inclusionOptions = shouldOfferOptionsBeforeDetail({
-      currentMessage,
-      history: presHistory,
-      serviceHint: extracted.requerimientos_evento,
-    });
-    if (inclusionOptions) {
-      mensaje = `${pickTransition(presHistory)} ${inclusionOptions.menu}`.trim();
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId }, "GUARD: inclusiones — menú de opciones antes del detalle");
-    } else {
-    // Prioridad absoluta: describir paquetes (no depende de allowSalesReplyOverride).
-    const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
-    const req = extracted.requerimientos_evento?.trim() ?? "";
-    // A14947: si el hilo es banquete/catering, NUNCA resolver a Betún/Cupcakes.
-    let serviceHint: string | null = null;
-    if (/\bbanquete|\bcatering\b/i.test(`${req} ${userBlob}`)) {
-      serviceHint = resolveDetailQueryForFamily(
-        "banquete",
-        `${req} ${userBlob} ${currentMessage ?? ""}`
-      );
-    } else {
-      serviceHint =
-        (isValidRequerimientosValue(req) ? req : null) ||
-        parsePrimaryService(userBlob) ||
-        findMentionedService(userBlob);
-    }
-    const pdfOnly = (() => {
-      const specificNivelAsk =
-        /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
-          currentMessage ?? ""
-        );
-      return (
-        buildPdfInclusionReply(currentMessage ?? "") ||
-        (!specificNivelAsk && serviceHint
-          ? buildPdfInclusionReply(`${serviceHint} ${currentMessage ?? ""}`) ||
-            buildPdfInclusionReply(serviceHint)
-          : null)
-      );
-    })();
-    if (pdfOnly && !/bet[uú]n|cupcakes?/i.test(pdfOnly)) {
-      mensaje = pdfOnly;
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId, serviceHint }, "GUARD: inclusiones — PDF aprendido");
-    } else {
-    const inclusionAnswer = resolveCatalogInclusionReply(
-      currentMessage ?? "",
-      serviceHint
-    );
-    if (inclusionAnswer && !/bet[uú]n|cupcakes?/i.test(inclusionAnswer)) {
-      const pending = getNextPendingField(extracted, filledSet);
-      // Tras describir paquetes, puede seguir el embudo (zona), pero NUNCA borrar el detalle.
-      mensaje =
-        pending && needsNextStep && !trulyReadyForClosing
-          ? `${inclusionAnswer}\n\n${buildNaturalQuestion(pending, ctx)}`
-          : inclusionAnswer;
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId, serviceHint }, "GUARD: inclusiones/descripciones de paquete (temprano)");
-    } else if (serviceHint && /\bbanquete/i.test(serviceHint)) {
-      const detail =
-        buildCatalogPriceAnswer(serviceHint) ||
-        buildCatalogServiceDetailAnswer(serviceHint);
-      const link = buildCatalogWebLinkReply({ query: serviceHint, serviceHint });
-      mensaje = detail
-        ? `${detail}\n\n${link}\n\n¿Cuál nivel te late?`
-        : `${link}\n\n¿Cuál nivel te late?`;
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId, serviceHint }, "GUARD: inclusiones banquete — Sheet + link forzado");
-    } else {
-      // A14943: "Quiero ver los paquetes" sin SKU — mostrar overview, no saltar a zona.
-      const packageOverview = buildGenericPackagesOverviewReply(extracted, presHistory, currentMessage);
-      mensaje = packageOverview;
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId }, "GUARD: paquetes genéricos — overview / aclarar servicio");
-    }
-    }
-    } // fin else: inclusiones con variante concreta
-    } // fin else: no multi-paquete Sheet dump
-  } else if (
+  } else {
+    // This policy run remains at the former inclusion branch so earlier sales/funnel
+    // branches keep their precedence over package and inclusion responses.
+    const inclusionDecision = runGuardHandlers(priorityGuardContext, [handleInclusionAndPackage]);
+    if (inclusionDecision.kind === "reply") {
+      mensaje = inclusionDecision.mensaje;
+      appliedDirectReply = inclusionDecision.effects?.appliedDirectReply ?? false;
+      appliedSalesReply = inclusionDecision.effects?.appliedSalesReply ?? false;
+      log?.info({ entityId }, inclusionDecision.id);
+    } else if (
     allowSalesReplyOverride &&
     clientAsksServiceInfo(currentMessage) &&
     isServiceRelatedMessage(currentMessage) &&
@@ -4033,85 +3945,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: cliente pidió recomendaciones — preferir OpenAI");
-  } else if (
-    clientAsksPrice(currentMessage) ||
-    clientAsksDistributorPricing(currentMessage)
-  ) {
-    const ctxText = collectUserTexts(input.presentationHistory ?? history, currentMessage).join(" ");
-    const pending = getNextPendingField(extracted, filledSet);
-
-    // RFQ / precio distribuidor: el equipo cotiza; no tirar un SKU retail.
-    if (
-      isRichQuoteBrief(currentMessage) ||
-      clientAsksDistributorPricing(currentMessage) ||
-      (clientAsksDistributorPricing(ctxText) && parseServicesFromText(ctxText).length >= 2)
-    ) {
-      const services = parseServicesFromText(
-        `${currentMessage ?? ""} ${extracted.requerimientos_evento ?? ""}`
-      );
-      const packageReply = buildMultiServicePackageReply(
-        services,
-        currentMessage ?? ctxText
-      );
-      const teamNote =
-        "El precio de mayoreo / la propuesta a la medida la arma nuestro equipo; no te paso un precio de lista suelto.";
-      mensaje = needsNextStep
-        ? mergeWithPendingQuestion(
-            `${packageReply}\n\n${teamNote}`,
-            filledSet,
-            extracted,
-            ctx
-          )
-        : `${packageReply}\n\n${teamNote}`;
-      log?.info({ entityId }, "GUARD: precio distribuidor / RFQ — sin SKU retail");
-    } else {
-      const genericPriceAsk =
-        clientAsksPrice(currentMessage) &&
-        !mentionsListedPriceService(currentMessage ?? "") &&
-        !mentionsNoListedPriceService(currentMessage ?? "") &&
-        !findMentionedService(currentMessage ?? "") &&
-        !parsePrimaryService(currentMessage ?? "");
-
-      const needsAlejandroQuote =
-        !genericPriceAsk &&
-        (mentionsNoListedPriceService(currentMessage ?? "") ||
-          (responseHasInventedPrice(aiResponse, currentMessage ?? "", ctxText) &&
-            !mentionsListedPriceService(currentMessage ?? "")));
-
-      if (genericPriceAsk) {
-        const clarify = buildGenericPriceClarifyReply(extracted, presHistory, currentMessage ?? "");
-        mensaje = needsNextStep
-          ? mergeWithPendingQuestion(clarify, filledSet, extracted, ctx)
-          : clarify;
-        appliedDirectReply = true;
-        log?.info({ entityId }, "GUARD: precios genéricos — aclarar servicio");
-      } else if (needsAlejandroQuote) {
-        const priceReply = buildAlejandroPriceReply(getPriceServiceLabel(currentMessage ?? ""), currentMessage ?? "");
-        mensaje =
-          needsNextStep && pending && pending !== "correo"
-            ? `${priceReply}\n\n${buildNaturalQuestion(pending, ctx)}`
-            : priceReply;
-        log?.info({ entityId, pending }, "GUARD: precio sin catálogo — Alejandro cotiza");
-      } else {
-        const safe = sanitizeInventedPrices(aiResponse, currentMessage ?? "", ctxText);
-        let priceContent = safe;
-        const fromCatalog = buildCatalogPriceAnswer(currentMessage ?? "");
-        if (fromCatalog && mentionsListedPriceService(currentMessage ?? "")) {
-          priceContent = fromCatalog;
-        } else if (!messageClaimsPrice(safe) && fromCatalog) {
-          priceContent = fromCatalog;
-        } else if (!fromCatalog || !messageClaimsPrice(priceContent)) {
-          // A14943: "ver los precios" / "Precios!!" sin SKU → aclarar, no upsell ni Sigo aquí.
-          const clarify = buildGenericPriceClarifyReply(extracted, presHistory, currentMessage);
-          priceContent = clarify;
-        }
-        mensaje = needsNextStep
-          ? mergeWithPendingQuestion(priceContent, filledSet, extracted, ctx)
-          : priceContent.trim() || aiResponse;
-        log?.info({ entityId, fromCatalog: priceContent !== safe }, "GUARD: respuesta a precio con catálogo");
-      }
-    }
-  } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
+  } else {
+    // This policy run remains at the former price branch so all preceding product
+    // and funnel branches continue to win before a price response is selected.
+    const priceDecision = runGuardHandlers(priorityGuardContext, [handlePrice]);
+    if (priceDecision.kind === "reply") {
+      mensaje = priceDecision.mensaje;
+      appliedDirectReply = priceDecision.effects?.appliedDirectReply ?? false;
+      appliedSalesReply = priceDecision.effects?.appliedSalesReply ?? false;
+      log?.info({ entityId }, priceDecision.id);
+    } else if (needsNextStep && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
     mensaje = aiResponse;
     log?.info({ entityId }, "GUARD: respuesta GPT natural aceptada");
   } else if (needsNextStep) {
@@ -4186,6 +4029,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       );
       log?.warn({ entityId }, "GPT generó nota interna — usando cierre desde plantilla");
     }
+  }
   }
 
   if (appliedDirectReply) {
