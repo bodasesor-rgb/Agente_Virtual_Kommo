@@ -91,3 +91,14 @@ export {
   type SalesReplyDeps,
   type SalesQuestionContext,
 } from "./salesReplies.js";
+
+export {
+  lucyAskedForNombre,
+  applyWhatsappNombreFallback,
+  parseNombreFromCrmLines,
+  buildOpeningAcknowledgment,
+  buildFirstInteractionMessage,
+  configureOpeningDeps,
+  type OpeningDeps,
+  type OpeningQuestionContext,
+} from "./opening.js";

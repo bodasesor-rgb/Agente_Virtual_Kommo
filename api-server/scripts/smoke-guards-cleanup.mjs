@@ -61,6 +61,13 @@ export {
   buildVagueFoodOptionsReply,
 } from "${root}/src/guards/salesReplies.ts";
 export { pickVariant } from "${root}/src/guards/embudoQuestions.ts";
+export {
+  lucyAskedForNombre,
+  applyWhatsappNombreFallback,
+  parseNombreFromCrmLines,
+  buildOpeningAcknowledgment,
+  configureOpeningDeps,
+} from "${root}/src/guards/opening.ts";
 `
 );
 
@@ -92,6 +99,7 @@ assert.ok(m.LUCY_GUARD_DOMAINS.catalogo);
 assert.ok(m.LUCY_GUARD_DOMAINS.postCierre);
 assert.ok(m.LUCY_GUARD_DOMAINS.food?.module.includes("salesReplies"));
 assert.ok(m.LUCY_GUARD_DOMAINS.entretenimiento?.module.includes("salesReplies"));
+assert.ok(m.LUCY_GUARD_DOMAINS.nombre?.module.includes("opening"));
 assert.ok(m.CLOSING_CORE_FIELDS.includes("Nombre del cliente"));
 assert.equal(m.CLOSING_SIGNATURE, "Perfecto, ya tengo todo.");
 assert.match(m.buildPhoneAnswer(), /55 4008 0373/);
@@ -137,6 +145,28 @@ const vague = m.buildVagueFoodOptionsReply(
   "smoke-2"
 );
 assert.match(vague, /coffee|banquete|barra/i);
+
+assert.equal(typeof m.configureOpeningDeps, "function");
+assert.ok(!m.lucyAskedForNombre([]));
+assert.ok(
+  m.lucyAskedForNombre([
+    { role: "assistant", content: "¿Me regalas tu nombre, por favor?" },
+  ])
+);
+assert.equal(m.parseNombreFromCrmLines(["- Nombre del cliente: Patricia Campos"]), "Patricia Campos");
+const filled = new Set();
+const lines = [];
+assert.equal(
+  m.applyWhatsappNombreFallback(
+    filled,
+    lines,
+    "Ana López",
+    [{ role: "assistant", content: "¿Cómo te llamas?" }]
+  ),
+  true
+);
+assert.ok(filled.has("Nombre del cliente"));
+assert.match(m.buildOpeningAcknowledgment([], "hola"), /ayudarte|gusto/i);
 
 const meta = JSON.parse(readFileSync(path.join(root, "dist/build-meta.json"), "utf8"));
 assert.equal(meta.lucy_prompt, "V9.04");

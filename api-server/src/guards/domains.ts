@@ -7,9 +7,11 @@
  */
 export const LUCY_GUARD_DOMAINS = {
   nombre: {
-    module: "contact-name.ts + lucyCrmInvariants.ts",
+    module: "guards/opening.ts + contact-name.ts + lucyCrmInvariants.ts",
     keep: [
       "sanitizeCrmNombre / sanitizeDisplayName",
+      "lucyAskedForNombre / applyWhatsappNombreFallback / parseNombreFromCrmLines",
+      "buildOpeningAcknowledgment / buildFirstInteractionMessage",
       "enforceNombreFirst",
       "nunca tratar cotización/ubicación/Premium/Sí/mándamelo como nombre",
     ],
