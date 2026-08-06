@@ -334,12 +334,19 @@ import {
 } from "./guards/priorityHandlers.js";
 import { runGuardHandlers } from "./guards/policy.js";
 import { tryApplyFunnelReply } from "./guards/funnelHandler.js";
-
-function lucyHasPresented(history: OpenAI.Chat.ChatCompletionMessageParam[]): boolean {
-  return history
-    .filter((m) => m.role === "assistant" && typeof m.content === "string")
-    .some((m) => /hola,?\s*soy\s+lucy/i.test(m.content as string));
-}
+import {
+  applyEmailCaptureTone,
+  avoidRepeatPreviousReply,
+  bodyEqualsLastAssistant,
+  collapseDuplicateFieldQuestions,
+  contextualPrefix,
+  emailThanksPrefix,
+  stripRepeatLucyIntro,
+  textOverlapRatio,
+  sanitizeOutboundMessage as sanitizeOutboundMessageImpl,
+  type OutboundNormalizeDeps,
+} from "./guards/outboundNormalize.js";
+export { sanitizeOutboundMessage } from "./guards/outboundNormalize.js";
 
 /** True si la conversación ya avanzó más allá del saludo inicial. */
 function conversationAlreadyStarted(
@@ -359,76 +366,6 @@ function presentationHistoryFrom(ctx: NaturalQuestionContext): OpenAI.Chat.ChatC
   return ctx.presentationHistory ?? ctx.history ?? [];
 }
 
-function stripRepeatLucyIntro(
-  mensaje: string,
-  history: OpenAI.Chat.ChatCompletionMessageParam[],
-  alreadyStarted: boolean
-): string {
-  if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
-  return mensaje
-    .replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "")
-    .replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "")
-    .replace(/Con gusto te ayudo\.?\s*/gi, "")
-    .replace(/^\s+/, "")
-    .trim();
-}
-
-function stripAccents(text: string): string {
-  return text.normalize("NFD").replace(/\p{M}/gu, "");
-}
-
-function stripLeadingTransition(text: string): string {
-  return text
-    .replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\.\s*/i, "")
-    .trim();
-}
-
-/** Normaliza una pregunta de follow-up de servicios para comparar plantilla, no texto literal. */
-function requerimientosFollowUpTemplate(text: string, clientName?: string | null): string | null {
-  let s = stripLeadingTransition(text);
-  s = stripAccents(s.toLowerCase());
-  if (clientName?.trim()) {
-    const name = stripAccents(clientName.trim().toLowerCase());
-    s = s.replace(new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), " ");
-  }
-  s = s
-    .replace(/\b(adem[aá]s del|con el|solo el|la renta de la?|las?)\s+[^,?]+/gi, "__svc__")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  if (
-    /__svc__.*(alg[uú]n\s+otro\s+servicio|otro\s+servicio|algo\s+m[aá]s|te\s+gustar[ií]a\s+cotizar)/i.test(
-      s
-    ) ||
-    /qu[eé]\s+otros\s+servicios/i.test(s) ||
-    /necesitan\s+alg[uú]n\s+otro\s+servicio/i.test(s)
-  ) {
-    return "followup_otro_servicio";
-  }
-  return null;
-}
-
-function bodyEqualsLastAssistant(
-  msg: string,
-  history: OpenAI.Chat.ChatCompletionMessageParam[],
-  clientName?: string | null
-): boolean {
-  const last = [...history].reverse().find((m) => m.role === "assistant");
-  if (!last || typeof last.content !== "string") return false;
-
-  const norm = (s: string) => stripLeadingTransition(s).trim();
-  const a = norm(msg);
-  const b = norm(last.content as string);
-  if (a === b) return true;
-
-  const templateA = requerimientosFollowUpTemplate(a, clientName);
-  const templateB = requerimientosFollowUpTemplate(b, clientName);
-  if (templateA && templateB && templateA === templateB) return true;
-
-  const normText = (s: string) =>
-    stripAccents(stripLeadingTransition(s).toLowerCase()).replace(/\s+/g, " ").trim();
-  return normText(a) === normText(b);
-}
 
 function hasMeaningfulRequerimientos(extracted: ExtractedData, filledSet: Set<string>): boolean {
   if (filledSet.has("Requerimientos o servicios")) return true;
@@ -481,64 +418,6 @@ function buildFoodServiceAckIntro(
   return `${pickTransition(history)} Con gusto te ayudo con catering para ${eventLabel}.`;
 }
 
-
-function contextualPrefix(
-  field: PendingField,
-  extracted: ExtractedData,
-  currentMessage?: string,
-  history: OpenAI.Chat.ChatCompletionMessageParam[] = []
-): string {
-  const msg = currentMessage?.trim() ?? "";
-  if (!msg) return "";
-
-  if (field === "requerimientos" && clientMentionsCatering(currentMessage)) {
-    return `${pickTransition(history)} `;
-  }
-  if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) {
-    return `${pickTransition(history)} `;
-  }
-  if (field === "zona" && /\d+/.test(msg)) {
-    return "Entendido. ";
-  }
-  if (field === "fecha" && /ciudad|zona|polanco|cdmx|puebla|monterrey|reforma/i.test(msg)) {
-    return "Muy bien. ";
-  }
-  if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) {
-    return `${pickTransition(history)} `;
-  }
-  return "";
-}
-
-function emailThanksPrefix(ctx: NaturalQuestionContext): string {
-  if (!ctx.afterEmail) return "";
-  const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-  return nombre ? `Gracias por tu correo, ${nombre}. ` : "Gracias por tu correo. ";
-}
-
-/** Quita un nombre suelto al inicio para no duplicar "Núria. Núria.". */
-function stripLeadingDisplayName(mensaje: string, displayName: string | null | undefined): string {
-  const nombre = displayName?.trim();
-  if (!nombre) return mensaje;
-  const escaped = nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return mensaje
-    .replace(new RegExp(`^${escaped}\\s*[.!,:—\\-]*\\s*`, "i"), "")
-    .replace(new RegExp(`^${escaped}\\s+`, "i"), "")
-    .trim();
-}
-
-/** Tras capturar correo: agradecer y quitar aperturas casuales (Genial, Perfecto…). */
-function applyEmailCaptureTone(mensaje: string, ctx: NaturalQuestionContext): string {
-  const thanks = emailThanksPrefix(ctx);
-  if (!thanks) return mensaje;
-  let out = mensaje.trim();
-  if (/gracias por tu correo/i.test(out)) return out;
-  const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-  out = out
-    .replace(/^(genial|perfecto|excelente|muy bien),?\s+/i, "")
-    .replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
-  out = stripLeadingDisplayName(out, nombre);
-  return `${thanks}${out}`.trim();
-}
 
 export interface NaturalQuestionContext {
   extracted: ExtractedData;
@@ -1054,26 +933,6 @@ function justAnsweredReqContext(currentMessage: string, aiResponse: string): boo
   return aiResponse.length > 40 && !/^\s*¿/.test(aiResponse);
 }
 
-/** Si hay texto útil sin pregunta, añade la pregunta pendiente en lugar de reemplazar todo. */
-/** Si el mensaje pregunta el mismo campo dos veces, deja solo la primera. */
-function collapseDuplicateFieldQuestions(mensaje: string, field: PendingField): string {
-  const blocks = mensaje
-    .split(/\n{2,}/)
-    .map((b) => b.trim())
-    .filter(Boolean);
-  if (blocks.length <= 1) return mensaje.trim();
-  let seen = false;
-  const kept: string[] = [];
-  for (const block of blocks) {
-    if (block.includes("?") && FIELD_ASK_PATTERNS[field].test(block)) {
-      if (seen) continue;
-      seen = true;
-    }
-    kept.push(block);
-  }
-  return kept.join("\n\n").trim();
-}
-
 function mergeWithPendingQuestion(
   mensaje: string,
   filledSet: Set<string>,
@@ -1137,54 +996,6 @@ function mergeWithPendingQuestion(
   return collapseDuplicateFieldQuestions(`${base}\n\n${nextQ}`, pending);
 }
 
-function textOverlapRatio(a: string, b: string): number {
-  const na = a.toLowerCase().replace(/\s+/g, " ").trim();
-  const nb = b.toLowerCase().replace(/\s+/g, " ").trim();
-  if (!na || !nb) return 0;
-  if (na === nb) return 1;
-  const wordsA = new Set(na.split(" ").filter((w) => w.length > 3));
-  const wordsB = new Set(nb.split(" ").filter((w) => w.length > 3));
-  if (!wordsA.size || !wordsB.size) return 0;
-  let shared = 0;
-  for (const w of wordsA) if (wordsB.has(w)) shared++;
-  return shared / Math.max(wordsA.size, wordsB.size);
-}
-
-/** Evita enviar al cliente el mismo bloque casi idéntico que un turno anterior. */
-function avoidRepeatPreviousReply(
-  mensaje: string,
-  presHistory: OpenAI.Chat.ChatCompletionMessageParam[]
-): string {
-  const prev = presHistory
-    .filter((m) => m.role === "assistant" && typeof m.content === "string")
-    .map((m) => (m.content as string).trim())
-    .filter(Boolean);
-  if (prev.length === 0) return mensaje;
-
-  const maxOverlap = Math.max(...prev.map((p) => textOverlapRatio(mensaje, p)));
-  const last = prev[prev.length - 1]!;
-  if (maxOverlap < 0.68) return mensaje;
-
-  let out = mensaje
-    .replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "")
-    .replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
-  const outOverlap = Math.max(...prev.map((p) => textOverlapRatio(out, p)));
-  if (outOverlap < 0.65) return out.trim();
-
-  const questionLine =
-    mensaje.split("\n").find((l) => l.includes("?")) ?? mensaje.split("\n").pop();
-  const q = questionLine?.trim() || mensaje;
-  const qOverlap = Math.max(...prev.map((p) => textOverlapRatio(q, p)));
-  if (qOverlap >= 0.72) {
-    const pendingLine = mensaje
-      .split("\n")
-      .filter((l) => l.includes("?"))
-      .pop();
-    if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
-  }
-  return q;
-}
-
 /** Si ya capturamos un dato, no volver a preguntarlo — pide el siguiente pendiente. */
 function redirectIfAskingFilledField(
   mensaje: string,
@@ -1227,122 +1038,12 @@ function redirectIfAskingFilledField(
   return mensaje;
 }
 
-/** Evita re-preguntar lo ya capturado; si hace falta, pide solo el siguiente dato pendiente. */
-export function sanitizeOutboundMessage(
-  mensaje: string,
-  filledSet: Set<string>,
-  extracted: ExtractedData,
-  ctx: NaturalQuestionContext,
-  log?: { warn: (obj: unknown, msg?: string) => void }
-): string {
-  // Menú progresivo (opciones antes de detalle): no pisar con correo/embudo.
-  // Contiene "banquete"/"servicios" y FIELD_ASK_PATTERNS.requerimientos lo confunde.
-  // Sí pedimos nombre si aún falta (primer contacto).
-  if (isProgressiveOptionsMenuReply(mensaje)) {
-    const body = mensaje.trim();
-    if (!isFieldSatisfied("nombre", filledSet, extracted) && !mensajeAsksForField(body, "nombre")) {
-      return `${body}\n\n${pickVariant("nombre", ctx.history ?? [], ctx.entityId)}`.trim();
-    }
-    return body;
-  }
-
-  const pending = getNextPendingField(extracted, filledSet);
-
-  const isSalesishBody =
-    !!ctx.currentMessage &&
-    (clientMentionsCatering(ctx.currentMessage) ||
-      clientMentionsEntertainment(ctx.currentMessage) ||
-      clientMentionsPistaTarima(ctx.currentMessage) ||
-      isServiceRelatedMessage(ctx.currentMessage)) &&
-    /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada|anoto/i.test(
-      mensaje
-    );
-
-  const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
-  const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
-
-  // Siempre cortar re-pregunta de dato ya capturado (correo, presupuesto, etc.),
-  // incluso dentro de una respuesta de venta.
-  if (repeatsFilled || asksWrong) {
-    log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetición — dato ya capturado");
-    if (isSalesishBody) {
-      const body = mensaje
-        .split(/\n+/)
-        .filter(
-          (line) =>
-            !mensajeAsksForFilledField(line, filledSet, extracted) &&
-            !(line.includes("?") && mensajeAsksWrongField(line, filledSet, extracted))
-        )
-        .join("\n")
-        .trim();
-      // A14929: oferta banquete/taquiza/"¿cuál te interesa?" matchea requerimientos y
-      // vaciaba todo el pitch → solo quedaba "¿nombre?". Conservar el cuerpo de venta.
-      let kept = body;
-      if (!kept && /banquete|taquiza|brunch|coffee\s*break|alimentos/i.test(mensaje)) {
-        kept = mensaje
-          .replace(/\s*¿\s*cu[aá]l\s+(te\s+interesa|prefieres|variante)[^?]*\?/gi, "")
-          .replace(/\?\s*$/g, ".")
-          .trim();
-      }
-      return mergeWithPendingQuestion(kept || mensaje, filledSet, extracted, ctx);
-    }
-    if (!isInformativeClientAnswer(ctx.currentMessage)) {
-      if (!pending) {
-        const texts = collectUserTexts(ctx.history ?? [], ctx.currentMessage);
-        const pres = findPresupuestoInTexts(texts, ctx.history);
-        if (pres && /econ[oó]mic/i.test(pres)) {
-          return "Entendido, buscamos opciones económicas. Nuestro equipo te propone alternativas según lo que platicamos.";
-        }
-        // Ya no falta nada: si GPT re-preguntó un dato lleno, avanzamos a ack corto.
-        return (
-          mensaje
-            .split(/\n+/)
-            .filter((line) => !mensajeAsksForFilledField(line, filledSet, extracted))
-            .join("\n")
-            .trim() ||
-          "Entendido, sin problema. Nuestro equipo te propone opciones según lo que platicamos."
-        );
-      }
-      return mergeWithPendingQuestion("", filledSet, extracted, ctx);
-    }
-  }
-
-  // Respuesta de venta limpia — no forzar plantilla ni re-inyectar menú.
-  if (isSalesishBody) {
-    return mensaje.trim();
-  }
-
-  if (
-    pending === "requerimientos" &&
-    mensaje.includes("?") &&
-    !mensajeMencionaCatalogoServicios(mensaje) &&
-    !historyAlreadyHadServicesCatalog(ctx.presentationHistory ?? ctx.history)
-  ) {
-    mensaje = appendServiciosCatalogoHint(
-      mensaje,
-      false,
-      ctx.presentationHistory ?? ctx.history
-    );
-  }
-
-  if (
-    pending &&
-    !mensaje.includes("?") &&
-    !clientAskedFreeformQuestion(ctx.currentMessage) &&
-    !isInformativeClientAnswer(ctx.currentMessage)
-  ) {
-    return mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
-  }
-
-  return mensaje;
-}
-
 export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionContext): string {
   const history = ctx.history ?? [];
   const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history);
+  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history, clientMentionsCatering);
   const variant = pickVariant(field, history, ctx.entityId);
-  const thanks = emailThanksPrefix(ctx);
+  const thanks = emailThanksPrefix(ctx, getDisplayName);
 
   if (field === "correo") {
     const correoCore = pickVariant("correo", history, ctx.entityId);
@@ -1391,7 +1092,13 @@ export function buildRequerimientosQuestion(
       ? extracted.requerimientos_evento!.trim()
       : null;
   const service = fromExtracted ?? findMentionedService(userText);
-  const prefix = contextualPrefix("requerimientos", extracted, currentMessage, history);
+  const prefix = contextualPrefix(
+    "requerimientos",
+    extracted,
+    currentMessage,
+    history,
+    clientMentionsCatering
+  );
   const alreadyFollowedUp = history.some(
     (m) =>
       m.role === "assistant" &&
@@ -3197,7 +2904,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
       mensaje = applyEmailCaptureTone(
         mergeWithPendingQuestion(aiResponse, filledSet, extracted, emailCtx),
-        emailCtx
+        emailCtx,
+        getDisplayName
       );
     } else {
       mensaje = buildNaturalQuestion("tipo_evento", emailCtx);
@@ -3216,7 +2924,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (eventOffer) {
       mensaje = eventOffer;
     } else if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
-      mensaje = applyEmailCaptureTone(aiResponse, emailCtx);
+      mensaje = applyEmailCaptureTone(aiResponse, emailCtx, getDisplayName);
     } else {
       const nextQ = nextFieldQuestion(
         extracted,
@@ -3230,7 +2938,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       if (nextQ && pending) {
         mensaje = buildNaturalQuestion(pending, emailCtx);
       } else {
-        mensaje = applyEmailCaptureTone(nextQ ?? aiResponse, emailCtx);
+        mensaje = applyEmailCaptureTone(nextQ ?? aiResponse, emailCtx, getDisplayName);
       }
     }
     log?.info({ entityId }, "GUARD: correo capturado — siguiente dato tras agradecer");
@@ -3961,7 +3669,31 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (!cierreYaEnviado && !appliedDirectReply) {
-    mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+    const outboundNormalizeDeps: OutboundNormalizeDeps = {
+      getNextPendingField,
+      isFieldSatisfied,
+      mensajeAsksForField,
+      mensajeAsksForFilledField,
+      mensajeAsksWrongField,
+      buildNaturalQuestion,
+      isProgressiveOptionsMenuReply,
+      pickVariant,
+      clientMentionsCatering,
+      clientMentionsEntertainment,
+      clientMentionsPistaTarima,
+      isServiceRelatedMessage,
+      isInformativeClientAnswer,
+      clientAskedFreeformQuestion,
+      hasTipoEvento,
+      aiLooksLikeEventServiceOffer,
+      isDryRequerimientosAsk,
+      collectUserTexts,
+      findPresupuestoInTexts,
+      mensajeMencionaCatalogoServicios,
+      historyAlreadyHadServicesCatalog,
+      appendServiciosCatalogoHint,
+    };
+    mensaje = sanitizeOutboundMessageImpl(mensaje, filledSet, extracted, ctx, outboundNormalizeDeps, log);
   }
 
   // Ventas: sanitizar + cortar re-preguntas, pero no pasar por enforceNombreFirst

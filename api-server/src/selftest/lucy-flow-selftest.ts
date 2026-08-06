@@ -101,6 +101,11 @@ import {
   lucyTextOverlapRatio,
 } from "../lucyOutboundAntiRepeat.js";
 import { finalizeLucyOutboundMessage } from "../lucyOutboundPipeline.js";
+import {
+  applyEmailCaptureTone,
+  collapseDuplicateFieldQuestions,
+  stripRepeatLucyIntro,
+} from "../guards/outboundNormalize.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
 import { buildSillasModelMenu } from "../services/serviceProgressiveOffer.js";
 import { buildDynamicPrompt } from "../services/promptBuilder.js";
@@ -399,6 +404,34 @@ function runGuards(opts: {
 
 async function runAll(): Promise<void> {
   console.log("Lucy — 28 escenarios de prueba\n");
+
+  await test("0. Outbound normalization smoke — transiciones, intro y tono", () => {
+    assert.equal(
+      dedupeTransitionsInMessage("Perfecto. Perfecto. ¿Qué tipo de evento será?"),
+      "Perfecto. ¿Qué tipo de evento será?"
+    );
+    const deduped = collapseDuplicateFieldQuestions(
+      "Perfecto. ¿Qué tipo de evento será?\n\nGenial. ¿Qué tipo de evento tienes planeado?",
+      "tipo_evento"
+    );
+    assert.equal((deduped.match(/tipo de evento/gi) ?? []).length, 1);
+    assert.equal(
+      stripRepeatLucyIntro(
+        "Hola, soy Lucy de Bodasesor. Estoy aquí para ayudarte con lo que necesites para tu evento. ¿Para cuándo es?",
+        [{ role: "assistant", content: "Hola, soy Lucy de Bodasesor." }],
+        true
+      ),
+      "¿Para cuándo es?"
+    );
+    assert.equal(
+      applyEmailCaptureTone(
+        "Perfecto, Ana. ¿Qué tipo de evento será?",
+        { extracted: emptyExtracted({ nombre: "Ana" }), afterEmail: true },
+        (extracted) => extracted.nombre
+      ),
+      "Gracias por tu correo, Ana. ¿Qué tipo de evento será?"
+    );
+  });
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);

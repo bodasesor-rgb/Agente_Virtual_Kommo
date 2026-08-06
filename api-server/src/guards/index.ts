@@ -21,6 +21,24 @@ export {
 export { stripCatalogBlockShared } from "./catalogSanitize.js";
 
 export {
+  stripRepeatLucyIntro,
+  stripAccents,
+  stripLeadingTransition,
+  requerimientosFollowUpTemplate,
+  bodyEqualsLastAssistant,
+  contextualPrefix,
+  emailThanksPrefix,
+  stripLeadingDisplayName,
+  applyEmailCaptureTone,
+  collapseDuplicateFieldQuestions,
+  textOverlapRatio,
+  avoidRepeatPreviousReply,
+  sanitizeOutboundMessage,
+  type OutboundNormalizationContext,
+  type OutboundNormalizeDeps,
+} from "./outboundNormalize.js";
+
+export {
   buildPhoneAnswer,
   buildEmergencyContactAnswer,
   buildHumanAdvisorHandoffAnswer,

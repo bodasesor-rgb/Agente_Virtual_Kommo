@@ -67,6 +67,14 @@ export const LUCY_GUARD_DOMAINS = {
     module: "lucyOutboundAntiRepeat.ts + lucyOutboundPipeline.ts",
     keep: ["no re-preguntar campo ya capturado", "no 'Sigo aquí' residual"],
   },
+  outbound: {
+    module: "guards/outboundNormalize.ts",
+    keep: [
+      "normalizar introducciones, transiciones y tono tras capturar correo",
+      "evitar preguntas de campo duplicadas y respuestas casi idénticas",
+      "sanitizeOutboundMessage con dependencias inyectadas por el orquestador",
+    ],
+  },
   entretenimiento: {
     module: "guards/salesReplies.ts + serviceProgressiveOffer",
     keep: ["entretenimiento ≠ banquete", "shows/DJ/bailarinas con plantilla+catálogo"],

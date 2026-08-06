@@ -213865,61 +213865,121 @@ function stripCatalogBlockShared(text2) {
   return filtered.join("\n").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 
-// src/guards/contactAnswers.ts
-function buildPhoneAnswer() {
-  return [
-    "Claro, te paso los n\xFAmeros:",
-    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
-    "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
-  ].join("\n");
+// src/guards/embudoQuestions.ts
+function mensajeMencionaCatalogoServicios(mensaje) {
+  return /alimentos?|mobiliario|carpas?|pistas?(\s+de\s+baile)?|bebidas?|banquete|taquiza|iluminaci[oó]n|pantallas?|mesas?\s+de\s+dulces|dj\b|barras?\s+(de\s+)?alimentos|estaciones?\s+de\s+comida/i.test(
+    mensaje
+  );
 }
-function buildEmergencyContactAnswer() {
-  return [
-    "Claro, te paso los contactos de emergencia del equipo:",
-    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
-    "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
-  ].join("\n");
+function looksLikeServicesMenuDump(text2) {
+  if (!text2?.trim()) return false;
+  const t10 = text2.toLowerCase();
+  if (OTRO_SERVICIO_ASK_PATTERN.test(t10)) return true;
+  if (/tambi[eé]n\s+manejamos\s+(bebidas|alimentos|mobiliario|dj)/i.test(t10)) return true;
+  if (/manejamos\s+(alimentos|bebidas|mobiliario|pistas?|banquetes?).{0,80}(dj|iluminaci|carpas?|pantallas?)/i.test(
+    t10
+  )) {
+    return true;
+  }
+  if (/alimentos\s+y\s+barras/.test(t10) && /mobiliario/.test(t10) && /\bdj\b|iluminaci/.test(t10)) {
+    return true;
+  }
+  return false;
 }
-function buildHumanAdvisorHandoffAnswer(clientName) {
-  const name2 = sanitizeDisplayName(clientName);
-  const hi2 = name2 ? `${name2}, ` : "";
-  return [
-    `Claro que s\xED, ${hi2}con gusto te canalizo con un asesor de Bodasesor para que te atiendan de forma personalizada.`,
-    "",
-    "Mientras te contactan, tambi\xE9n puedes marcar:",
-    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
-    "Gerencia / corporativo: 56 4671 0585 \u2014 WhatsApp o l\xEDnea telef\xF3nica.",
-    "",
-    "Ya dej\xE9 tu caso listo para el equipo."
-  ].join("\n");
+function historyAlreadyHadServicesCatalog(history) {
+  if (!history?.length) return false;
+  return history.some(
+    (m10) => m10.role === "assistant" && typeof m10.content === "string" && looksLikeServicesMenuDump(m10.content)
+  );
 }
-function buildLocationAnswer() {
-  return "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el lugar de tu evento, coordinamos el servicio.";
+function appendServiciosCatalogoHint(pregunta, adicional = false, history) {
+  if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
+  if (historyAlreadyHadServicesCatalog(history)) return pregunta.trim();
+  const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
+  return `${pregunta.trim()} ${hint}`.trim();
 }
-
-// src/guards/postCierreReplies.ts
-function clientAsksPaymentOrQuoteDelivery(message) {
-  if (!message?.trim()) return false;
-  const t10 = message.toLowerCase();
-  return /\b(anticipo|50\s*%|porcentaje|dep[oó]sito|se[nñ]a)\b/i.test(t10) || /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t10) || /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t10) || /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t10) || /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t10);
+function getQuestionVariants() {
+  const team = advisorLabelForClient();
+  return {
+    nombre: [
+      "\xBFMe regalas tu nombre para iniciar?",
+      "\xBFCon qui\xE9n tengo el gusto?",
+      "\xBFC\xF3mo te llamas?"
+    ],
+    correo: [
+      `Para mandarte la info y que ${team} te arme la propuesta, \xBFa qu\xE9 correo te lo env\xEDo?`,
+      "\xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?",
+      "\xBFA qu\xE9 correo te mando la informaci\xF3n?"
+    ],
+    tipo_evento: [
+      "\xBFQu\xE9 tipo de celebraci\xF3n es?",
+      "\xBFQu\xE9 festejan o qu\xE9 evento est\xE1n planeando?",
+      "Cu\xE9ntame, \xBFde qu\xE9 se trata el evento?"
+    ],
+    requerimientos: [
+      "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?",
+      "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
+      "\xBFQu\xE9 necesitas para el evento?"
+    ],
+    invitados: [
+      "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?",
+      "\xBFCu\xE1ntos invitados tienen contemplados?",
+      "\xBFTienen un estimado de invitados? Si a\xFAn no lo saben, sin problema \u2014 pueden darme un rango aproximado."
+    ],
+    zona: [
+      "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, mejor.",
+      "\xBFMe compartes ciudad y colonia o el nombre del sal\xF3n donde ser\xEDa?",
+      "\xBFCu\xE1l ser\xEDa la ubicaci\xF3n del evento? Necesito ciudad y colonia o sal\xF3n para cotizar bien."
+    ],
+    fecha: [
+      "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
+      "\xBFPara cu\xE1ndo lo tienen pensado?",
+      "\xBFYa hay d\xEDa definido o siguen viendo opciones?"
+    ],
+    presupuesto: [
+      "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      "\xBFManejan alg\xFAn presupuesto estimado para el evento?",
+      `\xBFTienen idea del presupuesto o prefieren que ${team} les proponga opciones?`
+    ]
+  };
 }
-function buildPostCierreThanksReply(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
+var FIELD_ASK_PATTERNS = {
+  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
+  correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
+  tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
+  requerimientos: (
+    // No usar "menú" suelto: el bloque de catálogo dice "montajes, menús y opciones" (A14924).
+    /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|qu[eé]\s+men[uú]|men[uú]\s+(prefieres|te\s+gustar|quieres)|plat[ií]came/i
+  ),
+  invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
+  zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
+  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
+  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
+};
+function variantIndex(field, history, entityId) {
+  const variants = getQuestionVariants()[field];
+  const assistantTurns = history.filter((m10) => m10.role === "assistant").length;
+  const seed = entityId != null ? String(entityId).length : 0;
+  return (assistantTurns + seed) % variants.length;
 }
-function buildPostCierrePaymentHandoffReply(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  const hi2 = nombre ? `${nombre}, ` : "";
-  return [
-    `Claro que s\xED, ${hi2}nuestro equipo te env\xEDa la cotizaci\xF3n y los datos para el anticipo (50%) por el correo que ya tenemos.`,
-    "En breve te atienden para confirmar montos y forma de pago."
-  ].join(" ");
+function pickVariant(field, history, entityId) {
+  const variants = getQuestionVariants()[field];
+  const lastAssistant = history.filter((m10) => m10.role === "assistant" && typeof m10.content === "string").slice(-1)[0]?.content;
+  const start2 = variantIndex(field, history, entityId);
+  for (let i10 = 0; i10 < variants.length; i10++) {
+    const candidate = variants[(start2 + i10) % variants.length];
+    if (!lastAssistant || !mensajeAsksForField(lastAssistant, field)) return candidate;
+    if (!mensajeAsksForField(candidate, field)) return candidate;
+    const snippet = candidate.slice(0, 24);
+    if (snippet && !lastAssistant.includes(snippet)) return candidate;
+  }
+  return variants[start2 % variants.length];
 }
-function buildPostCierreCallbackAck(clientName) {
-  const nombre = sanitizeDisplayName(clientName);
-  return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.";
+function mensajeAsksForField(mensaje, field) {
+  const questionParts = mensaje.split(/[.!]\s+/).map((p10) => p10.trim()).filter((p10) => p10.includes("?"));
+  const toCheck = questionParts.length ? questionParts.join(" ") : mensaje;
+  if (!toCheck.includes("?")) return false;
+  return FIELD_ASK_PATTERNS[field].test(toCheck);
 }
 
 // src/guards/transitions.ts
@@ -213977,6 +214037,241 @@ function stripRobotAcknowledgments(mensaje) {
 function clientSaysThanks(message) {
   if (!message?.trim()) return false;
   return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
+}
+
+// src/guards/outboundNormalize.ts
+function lucyHasPresented(history) {
+  return history.filter((m10) => m10.role === "assistant" && typeof m10.content === "string").some((m10) => /hola,?\s*soy\s+lucy/i.test(m10.content));
+}
+function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
+  if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
+  return mensaje.replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo\.?\s*/gi, "").replace(/^\s+/, "").trim();
+}
+function stripAccents(text2) {
+  return text2.normalize("NFD").replace(/\p{M}/gu, "");
+}
+function stripLeadingTransition(text2) {
+  return text2.replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\.\s*/i, "").trim();
+}
+function requerimientosFollowUpTemplate(text2, clientName) {
+  let s10 = stripLeadingTransition(text2);
+  s10 = stripAccents(s10.toLowerCase());
+  if (clientName?.trim()) {
+    const name2 = stripAccents(clientName.trim().toLowerCase());
+    s10 = s10.replace(new RegExp(`\\b${name2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), " ");
+  }
+  s10 = s10.replace(/\b(adem[aá]s del|con el|solo el|la renta de la?|las?)\s+[^,?]+/gi, "__svc__").replace(/\s+/g, " ").trim();
+  if (/__svc__.*(alg[uú]n\s+otro\s+servicio|otro\s+servicio|algo\s+m[aá]s|te\s+gustar[ií]a\s+cotizar)/i.test(s10) || /qu[eé]\s+otros\s+servicios/i.test(s10) || /necesitan\s+alg[uú]n\s+otro\s+servicio/i.test(s10)) return "followup_otro_servicio";
+  return null;
+}
+function bodyEqualsLastAssistant(msg, history, clientName) {
+  const last = [...history].reverse().find((m10) => m10.role === "assistant");
+  if (!last || typeof last.content !== "string") return false;
+  const norm2 = (s10) => stripLeadingTransition(s10).trim();
+  const a10 = norm2(msg);
+  const b10 = norm2(last.content);
+  if (a10 === b10) return true;
+  const templateA = requerimientosFollowUpTemplate(a10, clientName);
+  const templateB = requerimientosFollowUpTemplate(b10, clientName);
+  if (templateA && templateB && templateA === templateB) return true;
+  const normText = (s10) => stripAccents(stripLeadingTransition(s10).toLowerCase()).replace(/\s+/g, " ").trim();
+  return normText(a10) === normText(b10);
+}
+function contextualPrefix(field, extracted, currentMessage, history, clientMentionsCatering2) {
+  const msg = currentMessage?.trim() ?? "";
+  if (!msg) return "";
+  if (field === "requerimientos" && clientMentionsCatering2(currentMessage)) return `${pickTransition(history)} `;
+  if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) return `${pickTransition(history)} `;
+  if (field === "zona" && /\d+/.test(msg)) return "Entendido. ";
+  if (field === "fecha" && /ciudad|zona|polanco|cdmx|puebla|monterrey|reforma/i.test(msg)) return "Muy bien. ";
+  if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) return `${pickTransition(history)} `;
+  return "";
+}
+function emailThanksPrefix(ctx, getDisplayName3) {
+  if (!ctx.afterEmail) return "";
+  const nombre = getDisplayName3(ctx.extracted, ctx.whatsappName);
+  return nombre ? `Gracias por tu correo, ${nombre}. ` : "Gracias por tu correo. ";
+}
+function stripLeadingDisplayName(mensaje, displayName) {
+  const nombre = displayName?.trim();
+  if (!nombre) return mensaje;
+  const escaped = nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return mensaje.replace(new RegExp(`^${escaped}\\s*[.!,:\u2014\\-]*\\s*`, "i"), "").replace(new RegExp(`^${escaped}\\s+`, "i"), "").trim();
+}
+function applyEmailCaptureTone(mensaje, ctx, getDisplayName3) {
+  const thanks = emailThanksPrefix(ctx, getDisplayName3);
+  if (!thanks) return mensaje;
+  let out2 = mensaje.trim();
+  if (/gracias por tu correo/i.test(out2)) return out2;
+  out2 = out2.replace(/^(genial|perfecto|excelente|muy bien),?\s+/i, "").replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
+  out2 = stripLeadingDisplayName(out2, getDisplayName3(ctx.extracted, ctx.whatsappName));
+  return `${thanks}${out2}`.trim();
+}
+function collapseDuplicateFieldQuestions(mensaje, field) {
+  const blocks = mensaje.split(/\n{2,}/).map((b10) => b10.trim()).filter(Boolean);
+  if (blocks.length <= 1) return mensaje.trim();
+  let seen = false;
+  const kept = [];
+  for (const block of blocks) {
+    if (block.includes("?") && FIELD_ASK_PATTERNS[field].test(block)) {
+      if (seen) continue;
+      seen = true;
+    }
+    kept.push(block);
+  }
+  return kept.join("\n\n").trim();
+}
+function textOverlapRatio(a10, b10) {
+  const na2 = a10.toLowerCase().replace(/\s+/g, " ").trim();
+  const nb2 = b10.toLowerCase().replace(/\s+/g, " ").trim();
+  if (!na2 || !nb2) return 0;
+  if (na2 === nb2) return 1;
+  const wordsA = new Set(na2.split(" ").filter((w10) => w10.length > 3));
+  const wordsB = new Set(nb2.split(" ").filter((w10) => w10.length > 3));
+  if (!wordsA.size || !wordsB.size) return 0;
+  let shared = 0;
+  for (const word of wordsA) if (wordsB.has(word)) shared++;
+  return shared / Math.max(wordsA.size, wordsB.size);
+}
+function avoidRepeatPreviousReply(mensaje, presHistory) {
+  const prev = presHistory.filter((m10) => m10.role === "assistant" && typeof m10.content === "string").map((m10) => m10.content.trim()).filter(Boolean);
+  if (prev.length === 0) return mensaje;
+  const maxOverlap = Math.max(...prev.map((p10) => textOverlapRatio(mensaje, p10)));
+  const last = prev[prev.length - 1];
+  if (maxOverlap < 0.68) return mensaje;
+  const out2 = mensaje.replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "").replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
+  if (Math.max(...prev.map((p10) => textOverlapRatio(out2, p10))) < 0.65) return out2.trim();
+  const questionLine = mensaje.split("\n").find((line2) => line2.includes("?")) ?? mensaje.split("\n").pop();
+  const question = questionLine?.trim() || mensaje;
+  if (Math.max(...prev.map((p10) => textOverlapRatio(question, p10))) >= 0.72) {
+    const pendingLine = mensaje.split("\n").filter((line2) => line2.includes("?")).pop();
+    if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
+  }
+  return question;
+}
+function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx, deps) {
+  const pending = deps.getNextPendingField(extracted, filledSet);
+  const base = mensaje.trim();
+  if (!pending) return base || "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.";
+  if (!base) return deps.buildNaturalQuestion(pending, ctx);
+  if (deps.mensajeAsksForField(base, pending)) return collapseDuplicateFieldQuestions(base, pending);
+  if (deps.clientAskedFreeformQuestion(ctx.currentMessage) && base.length > 50) {
+    if (base.includes("?") && !deps.mensajeAsksWrongField(mensaje, filledSet, extracted)) return base;
+    if (!deps.mensajeAsksForField(base, pending)) return base;
+  }
+  if (deps.isProgressiveOptionsMenuReply(base)) return base;
+  if (pending === "requerimientos" && deps.hasTipoEvento(filledSet, extracted) && deps.aiLooksLikeEventServiceOffer(base)) return base;
+  const nextQ = deps.buildNaturalQuestion(pending, ctx);
+  if (pending === "requerimientos" && deps.hasTipoEvento(filledSet, extracted) && deps.isDryRequerimientosAsk(nextQ)) return base;
+  const onlyServiceDetailCta = /quieres que te d[eé] detalles de alguno/i.test(base) && !deps.mensajeAsksForField(base, pending);
+  if (base.includes("?") && !deps.mensajeAsksWrongField(mensaje, filledSet, extracted) && !onlyServiceDetailCta && !deps.mensajeAsksForFilledField(mensaje, filledSet, extracted)) {
+    return collapseDuplicateFieldQuestions(mensaje, pending);
+  }
+  return collapseDuplicateFieldQuestions(`${base}
+
+${nextQ}`, pending);
+}
+function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, deps, log) {
+  if (deps.isProgressiveOptionsMenuReply(mensaje)) {
+    const body2 = mensaje.trim();
+    if (!deps.isFieldSatisfied("nombre", filledSet, extracted) && !deps.mensajeAsksForField(body2, "nombre")) {
+      return `${body2}
+
+${deps.pickVariant("nombre", ctx.history ?? [], ctx.entityId)}`.trim();
+    }
+    return body2;
+  }
+  const pending = deps.getNextPendingField(extracted, filledSet);
+  const isSalesishBody = !!ctx.currentMessage && (deps.clientMentionsCatering(ctx.currentMessage) || deps.clientMentionsEntertainment(ctx.currentMessage) || deps.clientMentionsPistaTarima(ctx.currentMessage) || deps.isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada|anoto/i.test(mensaje);
+  const repeatsFilled = deps.mensajeAsksForFilledField(mensaje, filledSet, extracted);
+  const asksWrong = deps.mensajeAsksWrongField(mensaje, filledSet, extracted);
+  if (repeatsFilled || asksWrong) {
+    log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetici\xF3n \u2014 dato ya capturado");
+    if (isSalesishBody) {
+      const body2 = mensaje.split(/\n+/).filter((line2) => !deps.mensajeAsksForFilledField(line2, filledSet, extracted) && !(line2.includes("?") && deps.mensajeAsksWrongField(line2, filledSet, extracted))).join("\n").trim();
+      let kept = body2;
+      if (!kept && /banquete|taquiza|brunch|coffee\s*break|alimentos/i.test(mensaje)) {
+        kept = mensaje.replace(/\s*¿\s*cu[aá]l\s+(te\s+interesa|prefieres|variante)[^?]*\?/gi, "").replace(/\?\s*$/g, ".").trim();
+      }
+      return mergeWithPendingQuestion(kept || mensaje, filledSet, extracted, ctx, deps);
+    }
+    if (!deps.isInformativeClientAnswer(ctx.currentMessage)) {
+      if (!pending) {
+        const texts = deps.collectUserTexts(ctx.history ?? [], ctx.currentMessage);
+        const presupuesto = deps.findPresupuestoInTexts(texts, ctx.history);
+        if (presupuesto && /econ[oó]mic/i.test(presupuesto)) {
+          return "Entendido, buscamos opciones econ\xF3micas. Nuestro equipo te propone alternativas seg\xFAn lo que platicamos.";
+        }
+        return mensaje.split(/\n+/).filter((line2) => !deps.mensajeAsksForFilledField(line2, filledSet, extracted)).join("\n").trim() || "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.";
+      }
+      return mergeWithPendingQuestion("", filledSet, extracted, ctx, deps);
+    }
+  }
+  if (isSalesishBody) return mensaje.trim();
+  if (pending && mensaje.includes("?") && !deps.mensajeMencionaCatalogoServicios(mensaje) && !deps.historyAlreadyHadServicesCatalog(ctx.presentationHistory ?? ctx.history)) {
+    mensaje = deps.appendServiciosCatalogoHint(mensaje, false, ctx.presentationHistory ?? ctx.history);
+  }
+  if (pending && !mensaje.includes("?") && !deps.clientAskedFreeformQuestion(ctx.currentMessage) && !deps.isInformativeClientAnswer(ctx.currentMessage)) {
+    return mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx, deps);
+  }
+  return mensaje;
+}
+
+// src/guards/contactAnswers.ts
+function buildPhoneAnswer() {
+  return [
+    "Claro, te paso los n\xFAmeros:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
+    "Por aqu\xED por chat tambi\xE9n te podemos ayudar con lo que necesites."
+  ].join("\n");
+}
+function buildEmergencyContactAnswer() {
+  return [
+    "Claro, te paso los contactos de emergencia del equipo:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 s\xED aceptamos llamadas por WhatsApp y por l\xEDnea telef\xF3nica.",
+    "Un asesor te puede atender por ah\xED. Tu caso sigue en seguimiento con el equipo."
+  ].join("\n");
+}
+function buildHumanAdvisorHandoffAnswer(clientName) {
+  const name2 = sanitizeDisplayName(clientName);
+  const hi2 = name2 ? `${name2}, ` : "";
+  return [
+    `Claro que s\xED, ${hi2}con gusto te canalizo con un asesor de Bodasesor para que te atiendan de forma personalizada.`,
+    "",
+    "Mientras te contactan, tambi\xE9n puedes marcar:",
+    "Ventas: 55 4008 0373 \u2014 solo por l\xEDnea telef\xF3nica (no WhatsApp).",
+    "Gerencia / corporativo: 56 4671 0585 \u2014 WhatsApp o l\xEDnea telef\xF3nica.",
+    "",
+    "Ya dej\xE9 tu caso listo para el equipo."
+  ].join("\n");
+}
+function buildLocationAnswer() {
+  return "Estamos en Ciudad de M\xE9xico y trabajamos en toda la rep\xFAblica. Seg\xFAn la fecha y el lugar de tu evento, coordinamos el servicio.";
+}
+
+// src/guards/postCierreReplies.ts
+function clientAsksPaymentOrQuoteDelivery(message) {
+  if (!message?.trim()) return false;
+  const t10 = message.toLowerCase();
+  return /\b(anticipo|50\s*%|porcentaje|dep[oó]sito|se[nñ]a)\b/i.test(t10) || /\b(donde|dónde|a\s+d[oó]nde)\s+(mando|deposit|transfer|pag)/i.test(t10) || /\b(manda|env[ií]a|pasa).{0,30}\b(presupuesto|cotizaci[oó]n|datos\s+de\s+pago)\b/i.test(t10) || /\b(presupuesto|cotizaci[oó]n).{0,40}\b(anticipo|pago|transfer)/i.test(t10) || /\bdatos\s+(para\s+el\s+)?pago\b/i.test(t10);
+}
+function buildPostCierreThanksReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre ? `\xA1Con gusto, ${nombre}! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.` : "\xA1Con gusto! Nuestro equipo ya tiene tus datos para la cotizaci\xF3n. Si necesitas algo m\xE1s, aqu\xED estamos.";
+}
+function buildPostCierrePaymentHandoffReply(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  const hi2 = nombre ? `${nombre}, ` : "";
+  return [
+    `Claro que s\xED, ${hi2}nuestro equipo te env\xEDa la cotizaci\xF3n y los datos para el anticipo (50%) por el correo que ya tenemos.`,
+    "En breve te atienden para confirmar montos y forma de pago."
+  ].join(" ");
+}
+function buildPostCierreCallbackAck(clientName) {
+  const nombre = sanitizeDisplayName(clientName);
+  return nombre ? `Con gusto, ${nombre}. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.` : "Con gusto. Un asesor te puede atender por esos n\xFAmeros; tu caso ya qued\xF3 con el equipo.";
 }
 
 // src/guards/historyHelpers.ts
@@ -214735,123 +215030,6 @@ ${ctx.buildNaturalQuestion(pending)}` : priceReply
     mensaje: ctx.needsNextStep ? ctx.mergeWithPendingQuestion(priceContent) : priceContent.trim() || aiResponse
   };
 };
-
-// src/guards/embudoQuestions.ts
-function mensajeMencionaCatalogoServicios(mensaje) {
-  return /alimentos?|mobiliario|carpas?|pistas?(\s+de\s+baile)?|bebidas?|banquete|taquiza|iluminaci[oó]n|pantallas?|mesas?\s+de\s+dulces|dj\b|barras?\s+(de\s+)?alimentos|estaciones?\s+de\s+comida/i.test(
-    mensaje
-  );
-}
-function looksLikeServicesMenuDump(text2) {
-  if (!text2?.trim()) return false;
-  const t10 = text2.toLowerCase();
-  if (OTRO_SERVICIO_ASK_PATTERN.test(t10)) return true;
-  if (/tambi[eé]n\s+manejamos\s+(bebidas|alimentos|mobiliario|dj)/i.test(t10)) return true;
-  if (/manejamos\s+(alimentos|bebidas|mobiliario|pistas?|banquetes?).{0,80}(dj|iluminaci|carpas?|pantallas?)/i.test(
-    t10
-  )) {
-    return true;
-  }
-  if (/alimentos\s+y\s+barras/.test(t10) && /mobiliario/.test(t10) && /\bdj\b|iluminaci/.test(t10)) {
-    return true;
-  }
-  return false;
-}
-function historyAlreadyHadServicesCatalog(history) {
-  if (!history?.length) return false;
-  return history.some(
-    (m10) => m10.role === "assistant" && typeof m10.content === "string" && looksLikeServicesMenuDump(m10.content)
-  );
-}
-function appendServiciosCatalogoHint(pregunta, adicional = false, history) {
-  if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
-  if (historyAlreadyHadServicesCatalog(history)) return pregunta.trim();
-  const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
-  return `${pregunta.trim()} ${hint}`.trim();
-}
-function getQuestionVariants() {
-  const team = advisorLabelForClient();
-  return {
-    nombre: [
-      "\xBFMe regalas tu nombre para iniciar?",
-      "\xBFCon qui\xE9n tengo el gusto?",
-      "\xBFC\xF3mo te llamas?"
-    ],
-    correo: [
-      `Para mandarte la info y que ${team} te arme la propuesta, \xBFa qu\xE9 correo te lo env\xEDo?`,
-      "\xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?",
-      "\xBFA qu\xE9 correo te mando la informaci\xF3n?"
-    ],
-    tipo_evento: [
-      "\xBFQu\xE9 tipo de celebraci\xF3n es?",
-      "\xBFQu\xE9 festejan o qu\xE9 evento est\xE1n planeando?",
-      "Cu\xE9ntame, \xBFde qu\xE9 se trata el evento?"
-    ],
-    requerimientos: [
-      "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?",
-      "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
-      "\xBFQu\xE9 necesitas para el evento?"
-    ],
-    invitados: [
-      "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?",
-      "\xBFCu\xE1ntos invitados tienen contemplados?",
-      "\xBFTienen un estimado de invitados? Si a\xFAn no lo saben, sin problema \u2014 pueden darme un rango aproximado."
-    ],
-    zona: [
-      "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, mejor.",
-      "\xBFMe compartes ciudad y colonia o el nombre del sal\xF3n donde ser\xEDa?",
-      "\xBFCu\xE1l ser\xEDa la ubicaci\xF3n del evento? Necesito ciudad y colonia o sal\xF3n para cotizar bien."
-    ],
-    fecha: [
-      "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
-      "\xBFPara cu\xE1ndo lo tienen pensado?",
-      "\xBFYa hay d\xEDa definido o siguen viendo opciones?"
-    ],
-    presupuesto: [
-      "\xBFTienen alg\xFAn rango de presupuesto en mente?",
-      "\xBFManejan alg\xFAn presupuesto estimado para el evento?",
-      `\xBFTienen idea del presupuesto o prefieren que ${team} les proponga opciones?`
-    ]
-  };
-}
-var FIELD_ASK_PATTERNS = {
-  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
-  correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
-  tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
-  requerimientos: (
-    // No usar "menú" suelto: el bloque de catálogo dice "montajes, menús y opciones" (A14924).
-    /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|qu[eé]\s+men[uú]|men[uú]\s+(prefieres|te\s+gustar|quieres)|plat[ií]came/i
-  ),
-  invitados: /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
-  zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
-  fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
-  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i
-};
-function variantIndex(field, history, entityId) {
-  const variants = getQuestionVariants()[field];
-  const assistantTurns = history.filter((m10) => m10.role === "assistant").length;
-  const seed = entityId != null ? String(entityId).length : 0;
-  return (assistantTurns + seed) % variants.length;
-}
-function pickVariant(field, history, entityId) {
-  const variants = getQuestionVariants()[field];
-  const lastAssistant = history.filter((m10) => m10.role === "assistant" && typeof m10.content === "string").slice(-1)[0]?.content;
-  const start2 = variantIndex(field, history, entityId);
-  for (let i10 = 0; i10 < variants.length; i10++) {
-    const candidate = variants[(start2 + i10) % variants.length];
-    if (!lastAssistant || !mensajeAsksForField(lastAssistant, field)) return candidate;
-    if (!mensajeAsksForField(candidate, field)) return candidate;
-    const snippet = candidate.slice(0, 24);
-    if (snippet && !lastAssistant.includes(snippet)) return candidate;
-  }
-  return variants[start2 % variants.length];
-}
-function mensajeAsksForField(mensaje, field) {
-  const questionParts = mensaje.split(/[.!]\s+/).map((p10) => p10.trim()).filter((p10) => p10.includes("?"));
-  const toCheck = questionParts.length ? questionParts.join(" ") : mensaje;
-  if (!toCheck.includes("?")) return false;
-  return FIELD_ASK_PATTERNS[field].test(toCheck);
-}
 
 // src/guards/salesReplies.ts
 var _salesDeps = null;
@@ -215976,9 +216154,6 @@ ${nameQ}`.trim();
 }
 
 // src/lucy-flow-guards.ts
-function lucyHasPresented(history) {
-  return history.filter((m10) => m10.role === "assistant" && typeof m10.content === "string").some((m10) => /hola,?\s*soy\s+lucy/i.test(m10.content));
-}
 function conversationAlreadyStarted(filledSet, history) {
   if (history.some((m10) => m10.role === "assistant")) return true;
   if (filledSet.has("Nombre del cliente")) return true;
@@ -215987,44 +216162,6 @@ function conversationAlreadyStarted(filledSet, history) {
 }
 function presentationHistoryFrom(ctx) {
   return ctx.presentationHistory ?? ctx.history ?? [];
-}
-function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
-  if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
-  return mensaje.replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo\.?\s*/gi, "").replace(/^\s+/, "").trim();
-}
-function stripAccents(text2) {
-  return text2.normalize("NFD").replace(/\p{M}/gu, "");
-}
-function stripLeadingTransition(text2) {
-  return text2.replace(/^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\.\s*/i, "").trim();
-}
-function requerimientosFollowUpTemplate(text2, clientName) {
-  let s10 = stripLeadingTransition(text2);
-  s10 = stripAccents(s10.toLowerCase());
-  if (clientName?.trim()) {
-    const name2 = stripAccents(clientName.trim().toLowerCase());
-    s10 = s10.replace(new RegExp(`\\b${name2.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), " ");
-  }
-  s10 = s10.replace(/\b(adem[aá]s del|con el|solo el|la renta de la?|las?)\s+[^,?]+/gi, "__svc__").replace(/\s+/g, " ").trim();
-  if (/__svc__.*(alg[uú]n\s+otro\s+servicio|otro\s+servicio|algo\s+m[aá]s|te\s+gustar[ií]a\s+cotizar)/i.test(
-    s10
-  ) || /qu[eé]\s+otros\s+servicios/i.test(s10) || /necesitan\s+alg[uú]n\s+otro\s+servicio/i.test(s10)) {
-    return "followup_otro_servicio";
-  }
-  return null;
-}
-function bodyEqualsLastAssistant(msg, history, clientName) {
-  const last = [...history].reverse().find((m10) => m10.role === "assistant");
-  if (!last || typeof last.content !== "string") return false;
-  const norm2 = (s10) => stripLeadingTransition(s10).trim();
-  const a10 = norm2(msg);
-  const b10 = norm2(last.content);
-  if (a10 === b10) return true;
-  const templateA = requerimientosFollowUpTemplate(a10, clientName);
-  const templateB = requerimientosFollowUpTemplate(b10, clientName);
-  if (templateA && templateB && templateA === templateB) return true;
-  const normText = (s10) => stripAccents(stripLeadingTransition(s10).toLowerCase()).replace(/\s+/g, " ").trim();
-  return normText(a10) === normText(b10);
 }
 function hasMeaningfulRequerimientos(extracted, filledSet) {
   if (filledSet.has("Requerimientos o servicios")) return true;
@@ -216051,47 +216188,6 @@ function buildFoodServiceAckIntro(extracted, history, currentMessage) {
     return `${pickTransition(history)} S\xED manejamos Coffee Break para eventos corporativos y particulares.`;
   }
   return `${pickTransition(history)} Con gusto te ayudo con catering para ${eventLabel}.`;
-}
-function contextualPrefix(field, extracted, currentMessage, history = []) {
-  const msg = currentMessage?.trim() ?? "";
-  if (!msg) return "";
-  if (field === "requerimientos" && clientMentionsCatering(currentMessage)) {
-    return `${pickTransition(history)} `;
-  }
-  if (field === "invitados" && (extracted.tipo_evento || /boda|xv|cumple|corporativo|baby/i.test(msg))) {
-    return `${pickTransition(history)} `;
-  }
-  if (field === "zona" && /\d+/.test(msg)) {
-    return "Entendido. ";
-  }
-  if (field === "fecha" && /ciudad|zona|polanco|cdmx|puebla|monterrey|reforma/i.test(msg)) {
-    return "Muy bien. ";
-  }
-  if (field === "presupuesto" && /fecha|junio|julio|agosto|s[aá]bado|domingo|\d{1,2}\s+de/i.test(msg)) {
-    return `${pickTransition(history)} `;
-  }
-  return "";
-}
-function emailThanksPrefix(ctx) {
-  if (!ctx.afterEmail) return "";
-  const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-  return nombre ? `Gracias por tu correo, ${nombre}. ` : "Gracias por tu correo. ";
-}
-function stripLeadingDisplayName(mensaje, displayName) {
-  const nombre = displayName?.trim();
-  if (!nombre) return mensaje;
-  const escaped = nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return mensaje.replace(new RegExp(`^${escaped}\\s*[.!,:\u2014\\-]*\\s*`, "i"), "").replace(new RegExp(`^${escaped}\\s+`, "i"), "").trim();
-}
-function applyEmailCaptureTone(mensaje, ctx) {
-  const thanks = emailThanksPrefix(ctx);
-  if (!thanks) return mensaje;
-  let out2 = mensaje.trim();
-  if (/gracias por tu correo/i.test(out2)) return out2;
-  const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-  out2 = out2.replace(/^(genial|perfecto|excelente|muy bien),?\s+/i, "").replace(/^mucho gusto,?\s+[^.!?]+[.!?]\s*/i, "");
-  out2 = stripLeadingDisplayName(out2, nombre);
-  return `${thanks}${out2}`.trim();
 }
 function getNextPendingField(extracted, filledSet) {
   const filled = filledSet ?? /* @__PURE__ */ new Set();
@@ -216394,21 +216490,7 @@ function justAnsweredReqContext(currentMessage, aiResponse) {
   if (!clientMentionsCatering(currentMessage) && !isServiceRelatedMessage(currentMessage)) return false;
   return aiResponse.length > 40 && !/^\s*¿/.test(aiResponse);
 }
-function collapseDuplicateFieldQuestions(mensaje, field) {
-  const blocks = mensaje.split(/\n{2,}/).map((b10) => b10.trim()).filter(Boolean);
-  if (blocks.length <= 1) return mensaje.trim();
-  let seen = false;
-  const kept = [];
-  for (const block of blocks) {
-    if (block.includes("?") && FIELD_ASK_PATTERNS[field].test(block)) {
-      if (seen) continue;
-      seen = true;
-    }
-    kept.push(block);
-  }
-  return kept.join("\n\n").trim();
-}
-function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
+function mergeWithPendingQuestion2(mensaje, filledSet, extracted, ctx) {
   const pending = getNextPendingField(extracted, filledSet);
   const base = mensaje.trim();
   if (!pending) {
@@ -216440,36 +216522,6 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
 
 ${nextQ}`, pending);
 }
-function textOverlapRatio(a10, b10) {
-  const na2 = a10.toLowerCase().replace(/\s+/g, " ").trim();
-  const nb2 = b10.toLowerCase().replace(/\s+/g, " ").trim();
-  if (!na2 || !nb2) return 0;
-  if (na2 === nb2) return 1;
-  const wordsA = new Set(na2.split(" ").filter((w10) => w10.length > 3));
-  const wordsB = new Set(nb2.split(" ").filter((w10) => w10.length > 3));
-  if (!wordsA.size || !wordsB.size) return 0;
-  let shared = 0;
-  for (const w10 of wordsA) if (wordsB.has(w10)) shared++;
-  return shared / Math.max(wordsA.size, wordsB.size);
-}
-function avoidRepeatPreviousReply(mensaje, presHistory) {
-  const prev = presHistory.filter((m10) => m10.role === "assistant" && typeof m10.content === "string").map((m10) => m10.content.trim()).filter(Boolean);
-  if (prev.length === 0) return mensaje;
-  const maxOverlap = Math.max(...prev.map((p10) => textOverlapRatio(mensaje, p10)));
-  const last = prev[prev.length - 1];
-  if (maxOverlap < 0.68) return mensaje;
-  let out2 = mensaje.replace(/^Hola,?\s*soy\s+Lucy[^.]*\.\s*/i, "").replace(TRANSITION_START_PATTERN, pickTransition(presHistory));
-  const outOverlap = Math.max(...prev.map((p10) => textOverlapRatio(out2, p10)));
-  if (outOverlap < 0.65) return out2.trim();
-  const questionLine = mensaje.split("\n").find((l10) => l10.includes("?")) ?? mensaje.split("\n").pop();
-  const q10 = questionLine?.trim() || mensaje;
-  const qOverlap = Math.max(...prev.map((p10) => textOverlapRatio(q10, p10)));
-  if (qOverlap >= 0.72) {
-    const pendingLine = mensaje.split("\n").filter((l10) => l10.includes("?")).pop();
-    if (pendingLine && textOverlapRatio(pendingLine, last) < 0.65) return pendingLine.trim();
-  }
-  return q10;
-}
 function redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx) {
   if (isProgressiveOptionsMenuReply(mensaje) || /\bincluye\s*:|bodasesor\.com\/catalogos|qu[eé]\s+incluye\s+cada|cu[aá]l nivel prefieres|detalle completo de men[uú]s/i.test(
     mensaje
@@ -216496,67 +216548,12 @@ function redirectIfAskingFilledField(mensaje, filledSet, extracted, ctx) {
   }
   return mensaje;
 }
-function sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log) {
-  if (isProgressiveOptionsMenuReply(mensaje)) {
-    const body2 = mensaje.trim();
-    if (!isFieldSatisfied("nombre", filledSet, extracted) && !mensajeAsksForField(body2, "nombre")) {
-      return `${body2}
-
-${pickVariant("nombre", ctx.history ?? [], ctx.entityId)}`.trim();
-    }
-    return body2;
-  }
-  const pending = getNextPendingField(extracted, filledSet);
-  const isSalesishBody = !!ctx.currentMessage && (clientMentionsCatering(ctx.currentMessage) || clientMentionsEntertainment(ctx.currentMessage) || clientMentionsPistaTarima(ctx.currentMessage) || isServiceRelatedMessage(ctx.currentMessage)) && /banquete|taquiza|catering|alimentos|show|animaci|hora\s+loca|entretenimiento|vers[aá]til|pista|tarima|iluminada|anoto/i.test(
-    mensaje
-  );
-  const repeatsFilled = mensajeAsksForFilledField(mensaje, filledSet, extracted);
-  const asksWrong = mensajeAsksWrongField(mensaje, filledSet, extracted);
-  if (repeatsFilled || asksWrong) {
-    log?.warn({ pending, repeatsFilled, asksWrong }, "GUARD: bloqueando repetici\xF3n \u2014 dato ya capturado");
-    if (isSalesishBody) {
-      const body2 = mensaje.split(/\n+/).filter(
-        (line2) => !mensajeAsksForFilledField(line2, filledSet, extracted) && !(line2.includes("?") && mensajeAsksWrongField(line2, filledSet, extracted))
-      ).join("\n").trim();
-      let kept = body2;
-      if (!kept && /banquete|taquiza|brunch|coffee\s*break|alimentos/i.test(mensaje)) {
-        kept = mensaje.replace(/\s*¿\s*cu[aá]l\s+(te\s+interesa|prefieres|variante)[^?]*\?/gi, "").replace(/\?\s*$/g, ".").trim();
-      }
-      return mergeWithPendingQuestion(kept || mensaje, filledSet, extracted, ctx);
-    }
-    if (!isInformativeClientAnswer(ctx.currentMessage)) {
-      if (!pending) {
-        const texts = collectUserTexts(ctx.history ?? [], ctx.currentMessage);
-        const pres = findPresupuestoInTexts(texts, ctx.history);
-        if (pres && /econ[oó]mic/i.test(pres)) {
-          return "Entendido, buscamos opciones econ\xF3micas. Nuestro equipo te propone alternativas seg\xFAn lo que platicamos.";
-        }
-        return mensaje.split(/\n+/).filter((line2) => !mensajeAsksForFilledField(line2, filledSet, extracted)).join("\n").trim() || "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.";
-      }
-      return mergeWithPendingQuestion("", filledSet, extracted, ctx);
-    }
-  }
-  if (isSalesishBody) {
-    return mensaje.trim();
-  }
-  if (pending === "requerimientos" && mensaje.includes("?") && !mensajeMencionaCatalogoServicios(mensaje) && !historyAlreadyHadServicesCatalog(ctx.presentationHistory ?? ctx.history)) {
-    mensaje = appendServiciosCatalogoHint(
-      mensaje,
-      false,
-      ctx.presentationHistory ?? ctx.history
-    );
-  }
-  if (pending && !mensaje.includes("?") && !clientAskedFreeformQuestion(ctx.currentMessage) && !isInformativeClientAnswer(ctx.currentMessage)) {
-    return mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
-  }
-  return mensaje;
-}
 function buildNaturalQuestion(field, ctx) {
   const history = ctx.history ?? [];
   const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
-  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history);
+  const prefix = contextualPrefix(field, ctx.extracted, ctx.currentMessage, history, clientMentionsCatering);
   const variant = pickVariant(field, history, ctx.entityId);
-  const thanks = emailThanksPrefix(ctx);
+  const thanks = emailThanksPrefix(ctx, getDisplayName);
   if (field === "correo") {
     const correoCore = pickVariant("correo", history, ctx.entityId);
     return nombre ? `Mucho gusto, ${nombre}. ${correoCore}` : correoCore;
@@ -216589,7 +216586,13 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
   const userText = collectUserTexts(history, currentMessage).join(" ");
   const fromExtracted = isValidRequerimientosValue3(extracted.requerimientos_evento) ? extracted.requerimientos_evento.trim() : null;
   const service = fromExtracted ?? parseServiceFromUserText(userText);
-  const prefix = contextualPrefix("requerimientos", extracted, currentMessage, history);
+  const prefix = contextualPrefix(
+    "requerimientos",
+    extracted,
+    currentMessage,
+    history,
+    clientMentionsCatering
+  );
   const alreadyFollowedUp = history.some(
     (m10) => m10.role === "assistant" && typeof m10.content === "string" && OTRO_SERVICIO_ASK_PATTERN.test(m10.content)
   );
@@ -217077,7 +217080,7 @@ ${nextQ}` : ack;
           "GUARD: paquetes multi-servicio \u2014 niveles Sheet (return temprano) + embudo"
         );
         return normalizeAdvisorReferences(
-          mergeWithPendingQuestion(
+          mergeWithPendingQuestion2(
             `${pickTransition(presHistory)} Claro, te dejo los paquetes/niveles con precios:
 
 ${multiPackageDumpEarly}`,
@@ -217280,7 +217283,7 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
     aiResponse,
     needsNextStep,
     trulyReadyForClosing,
-    mergeWithPendingQuestion: (reply) => mergeWithPendingQuestion(reply, filledSet, extracted, ctx),
+    mergeWithPendingQuestion: (reply) => mergeWithPendingQuestion2(reply, filledSet, extracted, ctx),
     buildNaturalQuestion: (field) => buildNaturalQuestion(field, ctx),
     getNextPendingField: () => getNextPendingField(extracted, filledSet),
     buildGenericPriceClarifyReply: () => buildGenericPriceClarifyReply(extracted, presHistory, currentMessage),
@@ -217446,7 +217449,7 @@ ${nextQ}` : ""}`.trim();
     const ack = isRichQuoteBrief(blob) || isRichQuoteBrief(currentMessage) ? buildRichBriefAcknowledgment(blob || (currentMessage ?? "")) : buildMultiServiceAck(
       services.length ? services : parseServicesFromText(extracted.requerimientos_evento ?? "")
     );
-    mensaje = mergeWithPendingQuestion(
+    mensaje = mergeWithPendingQuestion2(
       `Claro, lo reviso con calma.
 
 ${ack}
@@ -217484,7 +217487,7 @@ ${buildPackageCatalogOfferBlock(
         ["Mobiliario"],
         currentMessage ?? ""
       );
-      mensaje = mergeWithPendingQuestion(
+      mensaje = mergeWithPendingQuestion2(
         `${pickTransition(presHistory)} ${detail}
 
 ${catalog}`,
@@ -217511,7 +217514,7 @@ ${catalog}`,
           (s10) => aiResponse.toLowerCase().includes(s10.toLowerCase().split(/\s+/)[0])
         ).length >= Math.min(2, packageServices.length);
         const aiHasCatalog = /bodasesor\.com\/catalogos|cat[aá]logo/i.test(aiResponse);
-        mensaje = aiAlreadyLists && aiHasCatalog ? mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx) : mergeWithPendingQuestion(
+        mensaje = aiAlreadyLists && aiHasCatalog ? mergeWithPendingQuestion2(aiResponse, filledSet, extracted, ctx) : mergeWithPendingQuestion2(
           `${packageReply}
 
 ${aiAlreadyLists ? "" : aiResponse}`.trim(),
@@ -217520,7 +217523,7 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
           ctx
         );
       } else {
-        mensaje = mergeWithPendingQuestion(
+        mensaje = mergeWithPendingQuestion2(
           `${pickTransition(presHistory)} ${packageReply}`,
           filledSet,
           extracted,
@@ -217571,7 +217574,7 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
         ["Mobiliario"],
         currentMessage ?? ""
       );
-      mensaje = mergeWithPendingQuestion(
+      mensaje = mergeWithPendingQuestion2(
         `${pickTransition(presHistory)} ${detail}
 
 ${catalog}`,
@@ -217591,7 +217594,7 @@ ${catalog}`,
       const pedidoBody = buildPedidoEntregaReply(currentMessage);
       const isOpening = (forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory);
       const pedidoReply = isOpening && !/hola,?\s*soy\s+lucy/i.test(pedidoBody) ? `${LUCY_INTRO} ${pedidoBody}` : pedidoBody;
-      mensaje = isFieldSatisfied("nombre", filledSet, extracted) ? mergeWithPendingQuestion(pedidoReply, filledSet, extracted, ctx) : pedidoReply;
+      mensaje = isFieldSatisfied("nombre", filledSet, extracted) ? mergeWithPendingQuestion2(pedidoReply, filledSet, extracted, ctx) : pedidoReply;
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: modo pedido/entrega \u2014 sin barra pp");
     }
@@ -217707,7 +217710,7 @@ ${buildModoServicioClarificationQuestion()}`;
       "",
       SERVICE_NIVEL_DETAIL_CTA
     ].join("\n");
-    mensaje = mergeWithPendingQuestion(
+    mensaje = mergeWithPendingQuestion2(
       `${pickTransition(presHistory)} ${detail}
 
 ${catalog}`,
@@ -217732,8 +217735,9 @@ ${catalog}`,
     const emailCtx = { ...ctx, afterEmail: true };
     if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
       mensaje = applyEmailCaptureTone(
-        mergeWithPendingQuestion(aiResponse, filledSet, extracted, emailCtx),
-        emailCtx
+        mergeWithPendingQuestion2(aiResponse, filledSet, extracted, emailCtx),
+        emailCtx,
+        getDisplayName
       );
     } else {
       mensaje = buildNaturalQuestion("tipo_evento", emailCtx);
@@ -217752,7 +217756,7 @@ ${catalog}`,
     if (eventOffer) {
       mensaje = eventOffer;
     } else if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
-      mensaje = applyEmailCaptureTone(aiResponse, emailCtx);
+      mensaje = applyEmailCaptureTone(aiResponse, emailCtx, getDisplayName);
     } else {
       const nextQ = nextFieldQuestion(
         extracted,
@@ -217766,7 +217770,7 @@ ${catalog}`,
       if (nextQ && pending) {
         mensaje = buildNaturalQuestion(pending, emailCtx);
       } else {
-        mensaje = applyEmailCaptureTone(nextQ ?? aiResponse, emailCtx);
+        mensaje = applyEmailCaptureTone(nextQ ?? aiResponse, emailCtx, getDisplayName);
       }
     }
     log?.info({ entityId }, "GUARD: correo capturado \u2014 siguiente dato tras agradecer");
@@ -217852,7 +217856,7 @@ ${nextQ}` : `Entendido \u2014 nos quedamos solo con *${label}*. El equipo arma l
     !(clientAsksServiceInfo(currentMessage) && !/bodasesor\.com\/catalogos|cat[aá]logo|show en vivo|hora loca|performance/i.test(
       aiResponse
     ))) {
-      mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+      mensaje = mergeWithPendingQuestion2(aiResponse, filledSet, extracted, ctx);
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: show/entretenimiento \u2014 preferir redacci\xF3n OpenAI");
     } else {
@@ -217885,7 +217889,7 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
       ctx
     );
     if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiLooksLikeCarpasReply(aiResponse) && !/Cathedral,\s*Pir[aá]mide,\s*Planas/i.test(aiResponse)) {
-      mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+      mensaje = mergeWithPendingQuestion2(aiResponse, filledSet, extracted, ctx);
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: carpas \u2014 preferir redacci\xF3n OpenAI");
     } else {
@@ -217916,7 +217920,7 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
       if (!isValidRequerimientosValue3(extracted.requerimientos_evento)) {
         extracted.requerimientos_evento = "banquete";
       }
-      mensaje = mergeWithPendingQuestion(
+      mensaje = mergeWithPendingQuestion2(
         `${pickTransition(presHistory)} ${buildProgressiveOptionsMenu("banquete")}`,
         filledSet,
         extracted,
@@ -217930,7 +217934,7 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
       if (!isValidRequerimientosValue3(extracted.requerimientos_evento)) {
         extracted.requerimientos_evento = "catering";
       }
-      mensaje = mergeWithPendingQuestion(
+      mensaje = mergeWithPendingQuestion2(
         `${pickTransition(presHistory)} ${buildCateringCasualMenu()}`,
         filledSet,
         extracted,
@@ -217958,7 +217962,7 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
 
 Cat\xE1logo de mesas y sillas:
 ${catalogUrl}` : body2;
-    mensaje = mergeWithPendingQuestion(
+    mensaje = mergeWithPendingQuestion2(
       `${pickTransition(presHistory)} ${withLink}`,
       filledSet,
       extracted,
@@ -218007,7 +218011,7 @@ ${catalogUrl}` : body2;
         const asksMeasures = /medidas?/i.test(cateringAnswer);
         const isProgressive = isProgressiveOptionsMenuReply(cateringAnswer) || /info m[aá]s detallada|de cu[aá]l te|qu[eé]\s+pieza/i.test(cateringAnswer);
         if (!isProgressive && !asksMeasures && shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiResponse.trim().length >= 50) {
-          mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+          mensaje = mergeWithPendingQuestion2(aiResponse, filledSet, extracted, ctx);
         } else if (isProgressive || asksMeasures || !pending || pending === "requerimientos" || pending === "correo" || !ctx) {
           mensaje = cateringAnswer;
         } else {
@@ -218065,9 +218069,9 @@ ${nextQ}`.trim();
         const aiMentionsService = !!ack && /coffee\s*break|manejamos|banquete|taquiza|catering|sí\s+tenemos/i.test(aiResponse);
         if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
           const base = ack && !aiMentionsService ? `${ack} ${aiResponse}`.trim() : aiResponse;
-          mensaje = mergeWithPendingQuestion(base, filledSet, extracted, ctx);
+          mensaje = mergeWithPendingQuestion2(base, filledSet, extracted, ctx);
         } else if (ack) {
-          mensaje = mergeWithPendingQuestion(ack, filledSet, extracted, ctx);
+          mensaje = mergeWithPendingQuestion2(ack, filledSet, extracted, ctx);
         } else {
           mensaje = buildRecommendationsReply(extracted, history, entityId, currentMessage);
         }
@@ -218140,7 +218144,7 @@ ${nextQ}`.trim();
           mensaje = earlyOffer;
           log?.info({ entityId }, "GUARD: ofrecimiento temprano en needsNextStep");
         } else if (aiResponse.trim() && !mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
-          mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
+          mensaje = mergeWithPendingQuestion2(aiResponse, filledSet, extracted, ctx);
           log?.info({ entityId }, "GUARD: GPT + pregunta pendiente fusionados");
         } else if (aiResponse.trim() && mensajeAsksForFilledField(aiResponse, filledSet, extracted)) {
           const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
@@ -218291,7 +218295,7 @@ ${nextQ}`;
     softAsksFilledField: (nextMensaje, field) => softAsksFilledField(nextMensaje, field),
     clientAskedFreeformQuestion: () => clientAskedFreeformQuestion(currentMessage),
     responseLooksLikePrematureClose,
-    mergeWithPendingQuestion: (nextMensaje) => mergeWithPendingQuestion(nextMensaje, filledSet, extracted, ctx),
+    mergeWithPendingQuestion: (nextMensaje) => mergeWithPendingQuestion2(nextMensaje, filledSet, extracted, ctx),
     clientAsksInclusion: () => clientAsksInclusion(currentMessage),
     isFieldSatisfied: (field) => isFieldSatisfied(field, filledSet, extracted),
     mensajeAsksWrongField: (nextMensaje) => mensajeAsksWrongField(nextMensaje, filledSet, extracted),
@@ -218303,7 +218307,31 @@ ${nextQ}`;
     appliedSalesReply = funnelDecision.effects?.appliedSalesReply ?? appliedSalesReply;
   }
   if (!cierreYaEnviado && !appliedDirectReply) {
-    mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+    const outboundNormalizeDeps = {
+      getNextPendingField,
+      isFieldSatisfied,
+      mensajeAsksForField,
+      mensajeAsksForFilledField,
+      mensajeAsksWrongField,
+      buildNaturalQuestion,
+      isProgressiveOptionsMenuReply,
+      pickVariant,
+      clientMentionsCatering,
+      clientMentionsEntertainment,
+      clientMentionsPistaTarima,
+      isServiceRelatedMessage,
+      isInformativeClientAnswer,
+      clientAskedFreeformQuestion,
+      hasTipoEvento,
+      aiLooksLikeEventServiceOffer,
+      isDryRequerimientosAsk,
+      collectUserTexts,
+      findPresupuestoInTexts,
+      mensajeMencionaCatalogoServicios,
+      historyAlreadyHadServicesCatalog,
+      appendServiciosCatalogoHint
+    };
+    mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, outboundNormalizeDeps, log);
   }
   if (appliedSalesReply) {
     if (!clientAsksInclusion(currentMessage)) {
@@ -218383,7 +218411,7 @@ ${pickVariant("nombre", history, entityId)}`.trim();
     mensaje = priceSanitized;
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && !mensaje.includes("?") && !trulyReadyForClosing && !cierreYaEnviado) {
-      mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+      mensaje = mergeWithPendingQuestion2(mensaje, filledSet, extracted, ctx);
     }
   }
   mensaje = stripStalePriceTalk(mensaje, currentMessage);
@@ -218394,7 +218422,7 @@ ${pickVariant("nombre", history, entityId)}`.trim();
       pendingAfter = getNextPendingField(extracted, filledSet);
     }
     if (pendingAfter && !(pendingAfter === "presupuesto" && filledSet.has("Presupuesto (MXN)"))) {
-      mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+      mensaje = mergeWithPendingQuestion2(mensaje, filledSet, extracted, ctx);
     }
   }
   mensaje = blockExcessivePresupuestoAsk(
