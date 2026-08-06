@@ -11,8 +11,6 @@ import {
   sanitizeCrmNombre,
   sanitizeDisplayName,
   resolveClientDisplayName,
-  isGreetingOnlyMessage,
-  isQuoteIntentMessage,
 } from "../contact-name.js";
 import {
   isRichQuoteBrief,
@@ -27,8 +25,6 @@ import {
   clientMentionsItalianTheme,
   clientAsksForRecommendations,
   parsePrimaryService,
-  isServiceRelatedMessage,
-  isGenericQuoteIntentRequerimiento,
 } from "../conversation-understanding.js";
 import { attachAvailableSheetDetail } from "../services/catalogService.js";
 import { shouldOfferOptionsBeforeDetail } from "../services/serviceProgressiveOffer.js";
@@ -39,6 +35,7 @@ import { collectUserTexts } from "./historyHelpers.js";
 import { buildLocationAnswer } from "./contactAnswers.js";
 import { buildPackageCatalogOfferBlock } from "./catalogOffer.js";
 import { buildItalianFoodPitch } from "./salesReplies.js";
+import { isValidRequerimientosValue } from "./crmAndClosing.js";
 
 /** Compatible con NaturalQuestionContext de lucy-flow-guards (evita import cíclico). */
 export type OpeningQuestionContext = {
@@ -73,38 +70,6 @@ function openingDeps(): OpeningDeps {
     );
   }
   return _openingDeps;
-}
-
-/**
- * Copia local de isValidRequerimientosValue (lucy-flow-guards) para evitar ciclo.
- * Mantener en sync si cambia la lógica canónica.
- */
-function isValidRequerimientosValue(value: string | null | undefined): boolean {
-  const trimmed = value?.trim() ?? "";
-  if (!trimmed) return false;
-  if (isGenericQuoteIntentRequerimiento(trimmed) || isQuoteIntentMessage(trimmed)) return false;
-  if (isGreetingOnlyMessage(trimmed)) return false;
-  if (
-    /^(hola|buen[oa]s?\b|me\s+llamo|soy|mi\s+nombre\s+es)\b/i.test(trimmed) &&
-    parseServicesFromText(trimmed).length === 0 &&
-    !isServiceRelatedMessage(trimmed)
-  ) {
-    return false;
-  }
-  if (
-    sanitizeCrmNombre(trimmed) &&
-    parseServicesFromText(trimmed).length === 0 &&
-    !isServiceRelatedMessage(trimmed) &&
-    trimmed.split(/\s+/).length <= 4 &&
-    !/\d/.test(trimmed)
-  ) {
-    return false;
-  }
-  if (parseServicesFromText(trimmed).length > 0 || isServiceRelatedMessage(trimmed)) return true;
-  if (parseTipoEventoFromText(trimmed)) return false;
-  if (clientMentionsItalianTheme(trimmed) && trimmed.length < 48) return false;
-  if (trimmed.length >= 4) return true;
-  return false;
 }
 
 function nombreSatisfied(filledSet: Set<string>, extracted: ExtractedData): boolean {

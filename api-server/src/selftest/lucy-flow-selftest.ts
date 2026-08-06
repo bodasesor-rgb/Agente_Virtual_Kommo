@@ -161,6 +161,8 @@ import {
   mensajeAsksForField,
   LUCY_INTRO,
   isValidRequerimientosValue,
+  syncFilledFromExtracted,
+  parseServiceFromUserText,
   crmStoredValue,
   stripImageAnnotation,
   stripCatalogBlockShared,
@@ -635,6 +637,23 @@ async function runAll(): Promise<void> {
     assert.ok(LUCY_INTRO.includes("Lucy"));
     assert.ok(isValidRequerimientosValue("banquete"));
     assert.ok(!isValidRequerimientosValue("cumpleaños"));
+    assert.ok(!isValidRequerimientosValue("Hola, soy Ana"));
+
+    const synced = new Set<string>();
+    const extractedForSync = emptyExtracted({
+      nombre: "Ana",
+      correo: "ana@example.com",
+      tipo_evento: "boda",
+      requerimientos_evento: "banquete",
+      num_invitados: 50,
+      direccion_evento: "CDMX",
+      fecha_horario: "12 de diciembre",
+      presupuesto: 30000,
+    });
+    syncFilledFromExtracted(synced, extractedForSync);
+    assert.equal(isReadyForClosing(synced), true);
+    assert.ok(synced.has("Requerimientos o servicios"));
+    assert.match(parseServiceFromUserText("Busco banquete para mi boda") ?? "", /banquete/i);
 
     assert.equal(clientAsksAboutTeam("Alejandro", "Alejandro"), false);
     assert.equal(clientAsksAboutTeam("¿Quién es Rodrigo?", "María"), true);

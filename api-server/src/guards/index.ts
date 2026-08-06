@@ -121,3 +121,15 @@ export {
   type OpeningDeps,
   type OpeningQuestionContext,
 } from "./opening.js";
+
+export {
+  syncFilledFromExtracted,
+  isValidRequerimientosValue,
+  detectEmailRefusal,
+  applyEmailWaiver,
+  applyPresupuestoWaiver,
+  isEmailSatisfied,
+  isReadyForClosing,
+  crmStoredValue,
+  parseServiceFromUserText,
+} from "./crmAndClosing.js";

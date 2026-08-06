@@ -17,12 +17,21 @@ export const LUCY_GUARD_DOMAINS = {
     ],
   },
   embudo: {
-    module: "guards/embudoConstants.ts + guards/funnelHandler.ts + lucy-flow-guards (orquestador)",
+    module: "guards/embudoConstants.ts + guards/crmAndClosing.ts + guards/funnelHandler.ts + lucy-flow-guards (orquestador)",
     keep: [
       "CLOSING_CORE_FIELDS / isReadyForClosing",
       "CLOSING_SIGNATURE",
       "waivers correo/presupuesto/fecha",
       "post-precio: correo, fecha, zona y orden de preguntas",
+    ],
+  },
+  crm: {
+    module: "guards/crmAndClosing.ts",
+    keep: [
+      "syncFilledFromExtracted / crmStoredValue",
+      "validar requerimientos antes de marcar el campo",
+      "servicio mencionado y nombre visible para CRM",
+      "waivers de correo y presupuesto",
     ],
   },
   catalogo: {
