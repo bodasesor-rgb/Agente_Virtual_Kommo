@@ -55,8 +55,16 @@ export const LUCY_GUARD_DOMAINS = {
     keep: ["no re-preguntar campo ya capturado", "no 'Sigo aquí' residual"],
   },
   entretenimiento: {
-    module: "lucy-flow-guards (sales replies) + serviceProgressiveOffer",
+    module: "guards/salesReplies.ts + serviceProgressiveOffer",
     keep: ["entretenimiento ≠ banquete", "shows/DJ/bailarinas con plantilla+catálogo"],
+  },
+  food: {
+    module: "guards/salesReplies.ts + serviceProgressiveOffer",
+    keep: [
+      "vague food options antes de dump",
+      "recomendaciones por tipo de evento",
+      "pitch italiana / progressive detail tras menú",
+    ],
   },
 } as const;
 

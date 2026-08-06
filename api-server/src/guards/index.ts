@@ -65,3 +65,29 @@ export {
   type PostCierreHandlerInput,
   type PostCierreHandlerResult,
 } from "./postCierreHandler.js";
+
+export {
+  mensajeMencionaCatalogoServicios,
+  looksLikeServicesMenuDump,
+  historyAlreadyHadServicesCatalog,
+  appendServiciosCatalogoHint,
+  pickVariant,
+  variantIndex,
+  mensajeAsksForField,
+  FIELD_ASK_PATTERNS,
+} from "./embudoQuestions.js";
+
+export {
+  buildItalianFoodPitch,
+  parsePistaTarimaVariant,
+  buildVagueFoodOptionsReply,
+  buildRecommendationsReply,
+  buildPistaTarimaSalesReply,
+  buildCarpasSalesReply,
+  buildEntertainmentSalesReply,
+  buildProgressiveDetailAfterMenu,
+  buildFoodSalesReply,
+  configureSalesReplyDeps,
+  type SalesReplyDeps,
+  type SalesQuestionContext,
+} from "./salesReplies.js";
