@@ -74,6 +74,11 @@ export {
 } from "./policy.js";
 
 export {
+  tryApplyFunnelReply,
+  type FunnelHandlerContext,
+} from "./funnelHandler.js";
+
+export {
   handlePostCierreOrHandoff,
   handleCompanyContact,
   handleExplicitCatalog,

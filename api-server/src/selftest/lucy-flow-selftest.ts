@@ -2800,7 +2800,7 @@ async function runAll(): Promise<void> {
     assert.ok(!/Si más adelante quieres sumar algo además/i.test(close), close);
   });
 
-  await test("58. Anti-repetición — correo ya en extracted no se vuelve a pedir", () => {
+  await test("58. Funnel handler smoke — correo ya en extracted no se vuelve a pedir", () => {
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",

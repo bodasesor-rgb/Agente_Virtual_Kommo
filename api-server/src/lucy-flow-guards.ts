@@ -311,6 +311,7 @@ import {
   type PriorityGuardContext,
 } from "./guards/priorityHandlers.js";
 import { runGuardHandlers } from "./guards/policy.js";
+import { tryApplyFunnelReply } from "./guards/funnelHandler.js";
 
 const EMAIL_REFUSAL_PATTERN =
   /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
@@ -4112,215 +4113,56 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     log?.info({ entityId }, "GUARD: tope de preguntas presupuesto — auto-waiver");
   }
 
-  if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
-    if (trulyReadyForClosing && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
-      log?.info({ entityId }, "GUARD: fecha capturada — cierre");
-    } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      if (nextQ && !mensajeAsksForField(nextQ, "fecha")) {
-        mensaje = nextQ;
-        log?.info({ entityId }, "GUARD: fecha ya capturada — no repetir pregunta");
-      } else if (!nextQ && isReadyForClosing(filledSet) && !cierreYaEnviado) {
-        mensaje = buildClosing(
-          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-          extracted.nombre
-        );
-        log?.info({ entityId }, "GUARD: todos los datos listos — cierre tras fecha");
-      }
-    }
-  }
-
-  const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
-  if (
-    fechaFromMsg &&
-    mensajeAsksForField(mensaje, "fecha") &&
-    !filledSet.has("Fecha y horario")
-  ) {
-    filledSet.add("Fecha y horario");
-    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
-      log?.info({ entityId }, "GUARD: fecha capturada en turno — cierre");
-    } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
-      log?.info({ entityId }, "GUARD: fecha pendiente — continuar flujo");
-    }
-  }
-
-  if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending && pending !== "tipo_evento") {
-      const nextQ = buildNaturalQuestion(pending, ctx);
-      mensaje = nextQ;
-      log?.info({ entityId, pending }, "GUARD: tipo de evento ya capturado — siguiente dato");
-    }
-  }
-
-  if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
-    const nextQ =
-      nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ??
-      emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
-    log?.warn({ entityId }, "GUARD: correo forzado tras rechazo — reemplazando respuesta");
-    mensaje = nextQ;
-  }
-
-  // Correo pendiente: si el cliente aportó salas/servicios, acusar y NO repetir el mismo ask.
-  // Tras CORREO_MAX_ASKS sin respuesta, avanza al siguiente dato (el correo se vuelve a pedir
-  // cuando toque por getNextPendingField / cierre — no se olvida del embudo).
-  if (
-    !cierreYaEnviado &&
-    !appliedDirectReply &&
-    !isEmailSatisfied(filledSet, extracted) &&
-    !detectEmailRefusal([currentMessage ?? ""]) &&
-    !parseCorreoFromText(currentMessage ?? "")
-  ) {
-    const correoAsks = countLucyFieldAsks(presHistory, "correo");
-    const lastAskedCorreo =
-      inferLucyAskedField(
-        [...presHistory]
-          .reverse()
-          .find((m) => m.role === "assistant" && typeof m.content === "string")
-          ?.content as string | undefined
-      ) === "correo";
-    const usefulNow =
-      !!parseSalaProductFromText(currentMessage ?? "") ||
-      parseServicesFromText(currentMessage ?? "").length > 0 ||
-      isServiceRelatedMessage(currentMessage) ||
-      !!parseTipoEventoFromText(currentMessage ?? "");
-
-    if (usefulNow && (mensajeAsksForField(mensaje, "correo") || lastAskedCorreo)) {
-      const ackBits: string[] = [];
-      const sala = parseSalaProductFromText(currentMessage ?? "");
-      if (sala) ackBits.push(`Perfecto, anoto *${sala}*.`);
-      else if (parseServicesFromText(currentMessage ?? "").length) {
-        ackBits.push(
-          `Perfecto, anoto ${formatServicesList(parseServicesFromText(currentMessage ?? ""))}.`
-        );
-      } else if (parseTipoEventoFromText(currentMessage ?? "")) {
-        ackBits.push(`Perfecto, anoto el tipo de evento.`);
-      }
-      const ack = ackBits.join(" ") || "Perfecto, lo anoto.";
-
-      if (correoAsks >= CORREO_MAX_ASKS) {
-        // Ya preguntamos correo bastante: sigue el embudo (tipo/servicios/zona…).
-        const skipEmail = new Set(filledSet);
-        // Marca temporal solo para elegir siguiente pregunta; NO waiver permanente.
-        skipEmail.add("Correo electrónico");
-        const pending = getNextPendingField(extracted, skipEmail);
-        const nextQ =
-          pending && pending !== "correo"
-            ? buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail })
-            : null;
-        mensaje = nextQ ? `${ack} ${nextQ}`.trim() : ack;
-        log?.info({ entityId, correoAsks }, "GUARD: correo — tope de asks, avanza embudo");
-      } else if (correoAsks >= 1 || lastAskedCorreo) {
-        const emailQ = pickVariant("correo", presHistory, entityId);
-        mensaje = `${ack} ${emailQ}`.trim();
-        log?.info({ entityId }, "GUARD: correo — acusa dato útil + variante distinta");
-      }
-    } else if (
-      correoAsks >= CORREO_MAX_ASKS &&
-      mensajeAsksForField(mensaje, "correo")
-    ) {
-      const skipEmail = new Set(filledSet);
-      skipEmail.add("Correo electrónico");
-      const pending = getNextPendingField(extracted, skipEmail);
-      if (pending && pending !== "correo") {
-        mensaje = buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail });
-        log?.info({ entityId, correoAsks }, "GUARD: correo — evita 3ª repetición");
-      }
-    }
-  }
-
-  const correoYaTenido = isEmailSatisfied(filledSet, extracted);
-  if (
-    correoYaTenido &&
-    (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo")) &&
-    !trulyReadyForClosing
-  ) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending && pending !== "correo") {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      if (nextQ) {
-        log?.warn({ entityId }, "GUARD: GPT preguntó correo ya capturado");
-        mensaje = nextQ;
-      }
-    }
-  }
-
-  if (
-    filledSet.has(EMAIL_WAIVED_LABEL) &&
-    (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo")) &&
-    !trulyReadyForClosing
-  ) {
-    const nextQ =
-      nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ??
-      emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
-    log?.warn({ entityId }, "GUARD: GPT insistió en correo tras rechazo");
-    mensaje = nextQ;
-  }
-
-  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending && !mensaje.includes("?")) {
-      if (responseLooksLikePrematureClose(mensaje)) {
-        mensaje = buildNaturalQuestion(pending, ctx);
-        log?.info({ entityId, pending }, "GUARD: bloqueando cierre — pregunta pendiente");
-      } else if (mensaje.trim()) {
-        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
-        log?.info({ entityId, pending }, "GUARD: añadiendo pregunta pendiente a respuesta");
-      }
-    }
-  }
-
-  if (
-    !trulyReadyForClosing &&
-    !appliedDirectReply &&
-    responseLooksLikePrematureClose(mensaje)
-  ) {
-    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    if (forcedNext) {
-      log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
-      mensaje = forcedNext;
-    }
-  }
-
-  // Zona/ubicación REQUERIDA antes del cierre (ciudad + colonia/salón).
-  // Usar isFieldSatisfied (no solo filledSet): si extracted ya tiene Querétaro,
-  // no volver a preguntar zona al avanzar a fecha (Núria A14894).
-  // No pisar respuestas de "qué incluye / descripción de paquetes".
-  if (
-    !cierreYaEnviado &&
-    !clientAsksInclusion(currentMessage) &&
-    !appliedDirectReply &&
-    !/\bincluye\s*:|bodasesor\.com\/catalogos/i.test(mensaje) &&
-    !isFieldSatisfied("zona", filledSet, extracted) &&
-    (responseLooksLikePrematureClose(mensaje) ||
-      trulyReadyForClosing ||
-      mensajeAsksForField(mensaje, "presupuesto") ||
-      mensajeAsksForField(mensaje, "fecha") ||
-      mensajeAsksForField(mensaje, "invitados"))
-  ) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending === "zona" || !mensajeAsksForField(mensaje, "zona")) {
-      mensaje = buildNaturalQuestion("zona", ctx);
-      log?.info({ entityId }, "GUARD: forzar ubicación antes de avance/cierre");
-    }
-  }
-
-  if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage) && !appliedSalesReply) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending) {
-      log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden — corrigiendo");
-      mensaje = buildNaturalQuestion(pending, ctx);
-    }
+  const funnelDecision = tryApplyFunnelReply({
+    mensaje,
+    extracted,
+    filledSet,
+    currentMessage,
+    history,
+    presHistory,
+    whatsappDisplayName,
+    entityId,
+    cierreYaEnviado,
+    trulyReadyForClosing,
+    appliedDirectReply,
+    appliedSalesReply,
+    log,
+    effects: { appliedDirectReply, appliedSalesReply },
+    mensajeAsksForField,
+    nextFieldQuestion: () => nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId),
+    buildNaturalQuestion: (field, nextFilledSet = filledSet) => buildNaturalQuestion(field as PendingField, { ...ctx, filledSet: nextFilledSet }),
+    buildClosing: () => buildClosing(extracted.requerimientos_evento ?? extracted.tipo_evento ?? null, extracted.nombre),
+    getNextPendingField: (nextFilledSet = filledSet) => getNextPendingField(extracted, nextFilledSet),
+    shouldReplaceForcedEmailQuestion: (nextMensaje) => shouldReplaceForcedEmailQuestion(nextMensaje, filledSet),
+    emailRefusalAckMessage: () => emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet),
+    isEmailSatisfied: () => isEmailSatisfied(filledSet, extracted),
+    detectEmailRefusal: () => detectEmailRefusal([currentMessage ?? ""]),
+    parseCorreoFromText: () => parseCorreoFromText(currentMessage ?? ""),
+    countLucyFieldAsks: (field) => countLucyFieldAsks(presHistory, field as PendingField),
+    inferLastAskedField: () => inferLucyAskedField([...presHistory].reverse().find((m) => m.role === "assistant" && typeof m.content === "string")?.content as string | undefined),
+    parseSalaProductFromText: () => parseSalaProductFromText(currentMessage ?? ""),
+    parseServicesFromText: () => parseServicesFromText(currentMessage ?? ""),
+    isServiceRelatedMessage: () => isServiceRelatedMessage(currentMessage),
+    parseTipoEventoFromText: () => parseTipoEventoFromText(currentMessage ?? ""),
+    parseFechaFromText: () => currentMessage ? parseFechaFromText(currentMessage) : null,
+    formatServicesList,
+    pickVariant: (field) => pickVariant(field as PendingField, presHistory, entityId),
+    correoMaxAsks: CORREO_MAX_ASKS,
+    emailWaivedLabel: EMAIL_WAIVED_LABEL,
+    isReadyForClosing: () => isReadyForClosing(filledSet),
+    softAsksFilledField: (nextMensaje, field) => softAsksFilledField(nextMensaje, field as PendingField),
+    clientAskedFreeformQuestion: () => clientAskedFreeformQuestion(currentMessage),
+    responseLooksLikePrematureClose,
+    mergeWithPendingQuestion: (nextMensaje) => mergeWithPendingQuestion(nextMensaje, filledSet, extracted, ctx),
+    clientAsksInclusion: () => clientAsksInclusion(currentMessage),
+    isFieldSatisfied: (field) => isFieldSatisfied(field as PendingField, filledSet, extracted),
+    mensajeAsksWrongField: (nextMensaje) => mensajeAsksWrongField(nextMensaje, filledSet, extracted),
+    isInformativeClientAnswer: () => isInformativeClientAnswer(currentMessage),
+  });
+  if (funnelDecision.kind === "reply") {
+    mensaje = funnelDecision.mensaje;
+    appliedDirectReply = funnelDecision.effects?.appliedDirectReply ?? appliedDirectReply;
+    appliedSalesReply = funnelDecision.effects?.appliedSalesReply ?? appliedSalesReply;
   }
 
   if (!cierreYaEnviado && !appliedDirectReply) {

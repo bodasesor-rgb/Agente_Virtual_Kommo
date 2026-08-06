@@ -17,11 +17,12 @@ export const LUCY_GUARD_DOMAINS = {
     ],
   },
   embudo: {
-    module: "guards/embudoConstants.ts + lucy-flow-guards (orquestador)",
+    module: "guards/embudoConstants.ts + guards/funnelHandler.ts + lucy-flow-guards (orquestador)",
     keep: [
       "CLOSING_CORE_FIELDS / isReadyForClosing",
       "CLOSING_SIGNATURE",
       "waivers correo/presupuesto/fecha",
+      "post-precio: correo, fecha, zona y orden de preguntas",
     ],
   },
   catalogo: {
