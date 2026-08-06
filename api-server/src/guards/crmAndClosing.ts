@@ -35,7 +35,8 @@ import { collectUserTexts } from "./historyHelpers.js";
 const EMAIL_REFUSAL_PATTERN =
   /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 
-function hasPresupuestoValue(extracted: ExtractedData): boolean {
+/** Internal CRM value predicate; intentionally not re-exported by guards/index. */
+export function hasPresupuestoValue(extracted: ExtractedData): boolean {
   const p = extracted.presupuesto as unknown;
   if (p == null || p === "") return false;
   if (typeof p === "number") return Number.isFinite(p);

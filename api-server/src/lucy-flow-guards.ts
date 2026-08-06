@@ -320,6 +320,7 @@ import {
 import {
   blockExcessivePresupuestoAsk,
   getDisplayName,
+  hasPresupuestoValue,
   hasTipoEvento,
   parseServiceFromUserText as findMentionedService,
 } from "./guards/crmAndClosing.js";
