@@ -12,6 +12,10 @@ import {
   clientAsksForCatalog,
   clientAsksGenericMenuCatalog,
   clientWantsFullCatalog,
+  clientAsksDistributorPricing,
+  dedupeServiceHierarchy,
+  isRichQuoteBrief,
+  parsePrimaryService,
   parseServicesFromText,
 } from "../conversation-understanding.js";
 import {
@@ -27,13 +31,6 @@ import {
   resolveDetailQueryForFamily,
   shouldOfferOptionsBeforeDetail,
 } from "../services/serviceProgressiveOffer.js";
-import {
-  clientAsksDistributorPricing,
-  dedupeServiceHierarchy,
-  isRichQuoteBrief,
-  parsePrimaryService,
-  parseServicesFromText,
-} from "../conversation-understanding.js";
 import {
   buildAlejandroPriceReply,
   clientAsksPrice,
