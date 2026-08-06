@@ -8,8 +8,9 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CATALOG_WEB_HUB as CATALOG_HUB_CANONICAL } from "../catalogUrls.js";
 
-export const CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
+export const CATALOG_WEB_HUB = CATALOG_HUB_CANONICAL;
 
 export interface CatalogEmbedEntry {
   slug: string;

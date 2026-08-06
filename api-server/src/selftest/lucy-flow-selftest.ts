@@ -101,6 +101,11 @@ import {
   lucyTextOverlapRatio,
 } from "../lucyOutboundAntiRepeat.js";
 import { finalizeLucyOutboundMessage } from "../lucyOutboundPipeline.js";
+import {
+  applyEmailCaptureTone,
+  collapseDuplicateFieldQuestions,
+  stripRepeatLucyIntro,
+} from "../guards/outboundNormalize.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
 import { buildSillasModelMenu } from "../services/serviceProgressiveOffer.js";
 import { buildDynamicPrompt } from "../services/promptBuilder.js";
@@ -161,6 +166,8 @@ import {
   mensajeAsksForField,
   LUCY_INTRO,
   isValidRequerimientosValue,
+  syncFilledFromExtracted,
+  parseServiceFromUserText,
   crmStoredValue,
   stripImageAnnotation,
   stripCatalogBlockShared,
@@ -312,7 +319,12 @@ import {
 } from "../lib/imageCompress.js";
 import { Jimp } from "jimp";
 
-const CATALOG_URL = "https://bodasesor.com/catalogos";
+import { registerCatalogCleanupTests } from "./domains/index.js";
+
+import { CATALOG_URL as CATALOG_HUB_CANONICAL } from "../catalogUrls.js";
+
+/** Hub canónico — misma URL que catalogService.CATALOG_WEB_HUB_URL. */
+const CATALOG_URL = CATALOG_HUB_CANONICAL;
 
 let passed = 0;
 let failed = 0;
@@ -392,6 +404,34 @@ function runGuards(opts: {
 
 async function runAll(): Promise<void> {
   console.log("Lucy — 28 escenarios de prueba\n");
+
+  await test("0. Outbound normalization smoke — transiciones, intro y tono", () => {
+    assert.equal(
+      dedupeTransitionsInMessage("Perfecto. Perfecto. ¿Qué tipo de evento será?"),
+      "Perfecto. ¿Qué tipo de evento será?"
+    );
+    const deduped = collapseDuplicateFieldQuestions(
+      "Perfecto. ¿Qué tipo de evento será?\n\nGenial. ¿Qué tipo de evento tienes planeado?",
+      "tipo_evento"
+    );
+    assert.equal((deduped.match(/tipo de evento/gi) ?? []).length, 1);
+    assert.equal(
+      stripRepeatLucyIntro(
+        "Hola, soy Lucy de Bodasesor. Estoy aquí para ayudarte con lo que necesites para tu evento. ¿Para cuándo es?",
+        [{ role: "assistant", content: "Hola, soy Lucy de Bodasesor." }],
+        true
+      ),
+      "¿Para cuándo es?"
+    );
+    assert.equal(
+      applyEmailCaptureTone(
+        "Perfecto, Ana. ¿Qué tipo de evento será?",
+        { extracted: emptyExtracted({ nombre: "Ana" }), afterEmail: true },
+        (extracted) => extracted.nombre
+      ),
+      "Gracias por tu correo, Ana. ¿Qué tipo de evento será?"
+    );
+  });
 
   await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
@@ -630,6 +670,23 @@ async function runAll(): Promise<void> {
     assert.ok(LUCY_INTRO.includes("Lucy"));
     assert.ok(isValidRequerimientosValue("banquete"));
     assert.ok(!isValidRequerimientosValue("cumpleaños"));
+    assert.ok(!isValidRequerimientosValue("Hola, soy Ana"));
+
+    const synced = new Set<string>();
+    const extractedForSync = emptyExtracted({
+      nombre: "Ana",
+      correo: "ana@example.com",
+      tipo_evento: "boda",
+      requerimientos_evento: "banquete",
+      num_invitados: 50,
+      direccion_evento: "CDMX",
+      fecha_horario: "12 de diciembre",
+      presupuesto: 30000,
+    });
+    syncFilledFromExtracted(synced, extractedForSync);
+    assert.equal(isReadyForClosing(synced), true);
+    assert.ok(synced.has("Requerimientos o servicios"));
+    assert.match(parseServiceFromUserText("Busco banquete para mi boda") ?? "", /banquete/i);
 
     assert.equal(clientAsksAboutTeam("Alejandro", "Alejandro"), false);
     assert.equal(clientAsksAboutTeam("¿Quién es Rodrigo?", "María"), true);
@@ -2795,7 +2852,7 @@ async function runAll(): Promise<void> {
     assert.ok(!/Si más adelante quieres sumar algo además/i.test(close), close);
   });
 
-  await test("58. Anti-repetición — correo ya en extracted no se vuelve a pedir", () => {
+  await test("58. Funnel handler smoke — correo ya en extracted no se vuelve a pedir", () => {
     const filled = new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -8281,7 +8338,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.03");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.07");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8877,6 +8934,9 @@ async function runAll(): Promise<void> {
     assert.ok(!/eres M[aá]ndamelo|sigo contigo/i.test(affirm), affirm.slice(0, 300));
     assert.ok(/bodasesor\.com\/catalogos/i.test(affirm), affirm.slice(0, 400));
   });
+
+  // Dominio catálogo (suite partida — ver selftest/domains/).
+  await registerCatalogCleanupTests(test);
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);

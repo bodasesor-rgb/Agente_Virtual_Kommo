@@ -2,11 +2,12 @@
 // El bloque de catálogo/precios lo agrega catalogService vía buildDynamicPrompt.
 
 import { getAdvisorName } from "./lib/bodasesorAdvisor.js";
+import { CATALOG_URL as CATALOG_HUB } from "./catalogUrls.js";
 
 const ADVISOR = getAdvisorName();
 
 /** Hub general de catálogos (solo a petición / “ver más opciones”). Links por servicio: bodasesor.com/catalogos/{slug}. */
-export const CATALOG_URL = "https://bodasesor.com/catalogos";
+export const CATALOG_URL = CATALOG_HUB;
 
 export const SYSTEM_PROMPT = `Eres **Lucy**, asesora de Bodasesor por WhatsApp. Hablas como una persona real
 que conoce el catálogo: clara, directa, cálida sin teatralidad. NO eres un salesbot

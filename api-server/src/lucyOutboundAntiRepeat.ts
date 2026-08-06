@@ -36,6 +36,7 @@ import {
   mensajeAsksForFilledField,
   type PendingField,
 } from "./lucy-flow-guards.js";
+import { stripCatalogBlockShared } from "./guards/catalogSanitize.js";
 import { filterClientEmail, looksLikeValidClientEmail } from "./client-email.js";
 
 const FIELD_ORDER: PendingField[] = [
@@ -309,17 +310,6 @@ export function cleanupBrokenOutboundFragments(text: string): string {
   return t.replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
 }
 
-function stripCatalogOfferBlock(text: string): string {
-  let t = text
-    .replace(
-      /\n*Te dejo el cat[aá]logo general[^\n]*\n?https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi,
-      "\n"
-    )
-    .replace(/\n*https?:\/\/\S*bodasesor\.com\/catalogos\S*\n*/gi, "\n")
-    .replace(/\n*¿Quieres que te mande el cat[aá]logo[^\n?]*\?\n*/gi, "\n");
-  return t.replace(/\n{3,}/g, "\n\n").trim();
-}
-
 function isEntertainmentCatalogReply(mensaje: string): boolean {
   return CATALOG_SEND_PATTERN.test(mensaje) && ENTERTAINMENT_PITCH_PATTERN.test(mensaje);
 }
@@ -515,7 +505,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") &&
     previous.some((p) => CATALOG_SEND_PATTERN.test(p))
   ) {
-    const without = stripCatalogOfferBlock(mensaje);
+    const without = stripCatalogBlockShared(mensaje);
     const qs = questionLines(without).filter(
       (q) => !/cat[aá]logo/i.test(q) && previous.every((p) => lucyTextOverlapRatio(q, p) < 0.68)
     );
