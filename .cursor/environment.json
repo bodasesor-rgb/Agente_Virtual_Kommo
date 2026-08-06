@@ -1,0 +1,17 @@
+{
+  "name": "Agente Virtual Kommo — Simulador",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "kommo-simulator",
+      "command": "bash .cursor/start.sh",
+      "description": "FastAPI + uvicorn dev server for the Kommo simulator, served on http://localhost:8000"
+    }
+  ],
+  "ports": [
+    {
+      "name": "web",
+      "port": 8000
+    }
+  ]
+}
