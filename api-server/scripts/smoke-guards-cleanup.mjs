@@ -1,5 +1,5 @@
 /**
- * Smoke V9.05 — módulos de limpieza sin PGlite/DB.
+ * Smoke V9.06 — módulos de limpieza sin PGlite/DB.
  * Ejecutar: node scripts/smoke-guards-cleanup.mjs (tras pnpm build con entry aparte)
  */
 import assert from "node:assert/strict";
@@ -190,6 +190,6 @@ assert.ok(filled.has("Nombre del cliente"));
 assert.match(m.buildOpeningAcknowledgment([], "hola"), /ayudarte|gusto/i);
 
 const meta = JSON.parse(readFileSync(path.join(root, "dist/build-meta.json"), "utf8"));
-assert.equal(meta.lucy_prompt, "V9.05");
+assert.equal(meta.lucy_prompt, "V9.06");
 
 console.log("smoke-guards-cleanup: OK");

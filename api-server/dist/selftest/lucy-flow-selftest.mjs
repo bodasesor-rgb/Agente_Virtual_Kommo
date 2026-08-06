@@ -128519,11 +128519,12 @@ var LUCY_GUARD_DOMAINS = {
     ]
   },
   embudo: {
-    module: "guards/embudoConstants.ts + lucy-flow-guards (orquestador)",
+    module: "guards/embudoConstants.ts + guards/funnelHandler.ts + lucy-flow-guards (orquestador)",
     keep: [
       "CLOSING_CORE_FIELDS / isReadyForClosing",
       "CLOSING_SIGNATURE",
-      "waivers correo/presupuesto/fecha"
+      "waivers correo/presupuesto/fecha",
+      "post-precio: correo, fecha, zona y orden de preguntas"
     ]
   },
   catalogo: {
@@ -128959,6 +128960,144 @@ function runGuardHandlers(ctx, handlers) {
     if (decision.kind === "reply") return decision;
   }
   return { kind: "continue" };
+}
+
+// src/guards/funnelHandler.ts
+function tryApplyFunnelReply(ctx) {
+  let mensaje = ctx.mensaje;
+  let changed = false;
+  if (ctx.filledSet.has("Fecha y horario") && ctx.mensajeAsksForField(mensaje, "fecha")) {
+    if (ctx.trulyReadyForClosing && !ctx.cierreYaEnviado) {
+      mensaje = ctx.buildClosing();
+      changed = true;
+      ctx.log?.info({ entityId: ctx.entityId }, "GUARD: fecha capturada \u2014 cierre");
+    } else {
+      const nextQ = ctx.nextFieldQuestion();
+      if (nextQ && !ctx.mensajeAsksForField(nextQ, "fecha")) {
+        mensaje = nextQ;
+        changed = true;
+        ctx.log?.info({ entityId: ctx.entityId }, "GUARD: fecha ya capturada \u2014 no repetir pregunta");
+      } else if (!nextQ && ctx.isReadyForClosing() && !ctx.cierreYaEnviado) {
+        mensaje = ctx.buildClosing();
+        changed = true;
+        ctx.log?.info({ entityId: ctx.entityId }, "GUARD: todos los datos listos \u2014 cierre tras fecha");
+      }
+    }
+  }
+  const fechaFromMsg = ctx.parseFechaFromText();
+  if (fechaFromMsg && ctx.mensajeAsksForField(mensaje, "fecha") && !ctx.filledSet.has("Fecha y horario")) {
+    ctx.filledSet.add("Fecha y horario");
+    if (ctx.trulyReadyForClosing && !ctx.cierreYaEnviado) {
+      mensaje = ctx.buildClosing();
+      changed = true;
+      ctx.log?.info({ entityId: ctx.entityId }, "GUARD: fecha capturada en turno \u2014 cierre");
+    } else {
+      mensaje = ctx.nextFieldQuestion() ?? "Entendido, sin problema con la fecha.";
+      changed = true;
+      ctx.log?.info({ entityId: ctx.entityId }, "GUARD: fecha pendiente \u2014 continuar flujo");
+    }
+  }
+  if (ctx.filledSet.has("Tipo de evento") && ctx.mensajeAsksForField(mensaje, "tipo_evento") && !ctx.trulyReadyForClosing) {
+    const pending = ctx.getNextPendingField();
+    if (pending && pending !== "tipo_evento") {
+      mensaje = ctx.buildNaturalQuestion(pending);
+      changed = true;
+      ctx.log?.info({ entityId: ctx.entityId, pending }, "GUARD: tipo de evento ya capturado \u2014 siguiente dato");
+    }
+  }
+  if (ctx.shouldReplaceForcedEmailQuestion(mensaje)) {
+    mensaje = ctx.nextFieldQuestion() ?? ctx.emailRefusalAckMessage();
+    changed = true;
+    ctx.log?.warn({ entityId: ctx.entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
+  }
+  if (!ctx.cierreYaEnviado && !ctx.appliedDirectReply && !ctx.isEmailSatisfied() && !ctx.detectEmailRefusal() && !ctx.parseCorreoFromText()) {
+    const correoAsks = ctx.countLucyFieldAsks("correo");
+    const lastAskedCorreo = ctx.inferLastAskedField() === "correo";
+    const sala = ctx.parseSalaProductFromText();
+    const services = ctx.parseServicesFromText();
+    const tipo = ctx.parseTipoEventoFromText();
+    const usefulNow = !!sala || services.length > 0 || ctx.isServiceRelatedMessage() || !!tipo;
+    if (usefulNow && (ctx.mensajeAsksForField(mensaje, "correo") || lastAskedCorreo)) {
+      const ack = sala ? `Perfecto, anoto *${sala}*.` : services.length ? `Perfecto, anoto ${ctx.formatServicesList(services)}.` : tipo ? "Perfecto, anoto el tipo de evento." : "Perfecto, lo anoto.";
+      if (correoAsks >= ctx.correoMaxAsks) {
+        const skipEmail = new Set(ctx.filledSet);
+        skipEmail.add("Correo electr\xF3nico");
+        const pending = ctx.getNextPendingField(skipEmail);
+        const nextQ = pending && pending !== "correo" ? ctx.buildNaturalQuestion(pending, skipEmail) : null;
+        mensaje = nextQ ? `${ack} ${nextQ}`.trim() : ack;
+        changed = true;
+        ctx.log?.info({ entityId: ctx.entityId, correoAsks }, "GUARD: correo \u2014 tope de asks, avanza embudo");
+      } else if (correoAsks >= 1 || lastAskedCorreo) {
+        mensaje = `${ack} ${ctx.pickVariant("correo")}`.trim();
+        changed = true;
+        ctx.log?.info({ entityId: ctx.entityId }, "GUARD: correo \u2014 acusa dato \xFAtil + variante distinta");
+      }
+    } else if (correoAsks >= ctx.correoMaxAsks && ctx.mensajeAsksForField(mensaje, "correo")) {
+      const skipEmail = new Set(ctx.filledSet);
+      skipEmail.add("Correo electr\xF3nico");
+      const pending = ctx.getNextPendingField(skipEmail);
+      if (pending && pending !== "correo") {
+        mensaje = ctx.buildNaturalQuestion(pending, skipEmail);
+        changed = true;
+        ctx.log?.info({ entityId: ctx.entityId, correoAsks }, "GUARD: correo \u2014 evita 3\xAA repetici\xF3n");
+      }
+    }
+  }
+  if (ctx.isEmailSatisfied() && (ctx.mensajeAsksForField(mensaje, "correo") || ctx.softAsksFilledField(mensaje, "correo")) && !ctx.trulyReadyForClosing) {
+    const pending = ctx.getNextPendingField();
+    if (pending && pending !== "correo") {
+      const nextQ = ctx.nextFieldQuestion();
+      if (nextQ) {
+        mensaje = nextQ;
+        changed = true;
+        ctx.log?.warn({ entityId: ctx.entityId }, "GUARD: GPT pregunt\xF3 correo ya capturado");
+      }
+    }
+  }
+  if (ctx.filledSet.has(ctx.emailWaivedLabel) && (ctx.mensajeAsksForField(mensaje, "correo") || ctx.softAsksFilledField(mensaje, "correo")) && !ctx.trulyReadyForClosing) {
+    mensaje = ctx.nextFieldQuestion() ?? ctx.emailRefusalAckMessage();
+    changed = true;
+    ctx.log?.warn({ entityId: ctx.entityId }, "GUARD: GPT insisti\xF3 en correo tras rechazo");
+  }
+  if (!ctx.trulyReadyForClosing && !ctx.cierreYaEnviado && !ctx.clientAskedFreeformQuestion()) {
+    const pending = ctx.getNextPendingField();
+    if (pending && !mensaje.includes("?")) {
+      if (ctx.responseLooksLikePrematureClose(mensaje)) {
+        mensaje = ctx.buildNaturalQuestion(pending);
+        changed = true;
+        ctx.log?.info({ entityId: ctx.entityId, pending }, "GUARD: bloqueando cierre \u2014 pregunta pendiente");
+      } else if (mensaje.trim()) {
+        mensaje = ctx.mergeWithPendingQuestion(mensaje);
+        changed = true;
+        ctx.log?.info({ entityId: ctx.entityId, pending }, "GUARD: a\xF1adiendo pregunta pendiente a respuesta");
+      }
+    }
+  }
+  if (!ctx.trulyReadyForClosing && !ctx.appliedDirectReply && ctx.responseLooksLikePrematureClose(mensaje)) {
+    const forcedNext = ctx.nextFieldQuestion();
+    if (forcedNext) {
+      mensaje = forcedNext;
+      changed = true;
+      ctx.log?.warn({ entityId: ctx.entityId }, "GUARD: bloqueando cierre prematuro");
+    }
+  }
+  if (!ctx.cierreYaEnviado && !ctx.clientAsksInclusion() && !ctx.appliedDirectReply && !/\bincluye\s*:|bodasesor\.com\/catalogos/i.test(mensaje) && !ctx.isFieldSatisfied("zona") && (ctx.responseLooksLikePrematureClose(mensaje) || ctx.trulyReadyForClosing || ctx.mensajeAsksForField(mensaje, "presupuesto") || ctx.mensajeAsksForField(mensaje, "fecha") || ctx.mensajeAsksForField(mensaje, "invitados"))) {
+    const pending = ctx.getNextPendingField();
+    if (pending === "zona" || !ctx.mensajeAsksForField(mensaje, "zona")) {
+      mensaje = ctx.buildNaturalQuestion("zona");
+      changed = true;
+      ctx.log?.info({ entityId: ctx.entityId }, "GUARD: forzar ubicaci\xF3n antes de avance/cierre");
+    }
+  }
+  if (ctx.mensajeAsksWrongField(mensaje) && !ctx.isInformativeClientAnswer() && !ctx.appliedSalesReply) {
+    const pending = ctx.getNextPendingField();
+    if (pending) {
+      mensaje = ctx.buildNaturalQuestion(pending);
+      changed = true;
+      ctx.log?.warn({ entityId: ctx.entityId, pending }, "GUARD: pregunta fuera de orden \u2014 corrigiendo");
+    }
+  }
+  return changed ? { kind: "reply", id: "GUARD: post-precio \u2014 salvaguardas de embudo", mensaje, effects: ctx.effects } : { kind: "continue" };
 }
 
 // src/tipoContacto.ts
@@ -132759,143 +132898,56 @@ ${nextQ}`;
     );
     log?.info({ entityId }, "GUARD: tope de preguntas presupuesto \u2014 auto-waiver");
   }
-  if (filledSet.has("Fecha y horario") && mensajeAsksForField(mensaje, "fecha")) {
-    if (trulyReadyForClosing && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
-      log?.info({ entityId }, "GUARD: fecha capturada \u2014 cierre");
-    } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      if (nextQ && !mensajeAsksForField(nextQ, "fecha")) {
-        mensaje = nextQ;
-        log?.info({ entityId }, "GUARD: fecha ya capturada \u2014 no repetir pregunta");
-      } else if (!nextQ && isReadyForClosing(filledSet) && !cierreYaEnviado) {
-        mensaje = buildClosing(
-          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-          extracted.nombre
-        );
-        log?.info({ entityId }, "GUARD: todos los datos listos \u2014 cierre tras fecha");
-      }
-    }
-  }
-  const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
-  if (fechaFromMsg && mensajeAsksForField(mensaje, "fecha") && !filledSet.has("Fecha y horario")) {
-    filledSet.add("Fecha y horario");
-    if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
-      mensaje = buildClosing(
-        extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
-        extracted.nombre
-      );
-      log?.info({ entityId }, "GUARD: fecha capturada en turno \u2014 cierre");
-    } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
-      log?.info({ entityId }, "GUARD: fecha pendiente \u2014 continuar flujo");
-    }
-  }
-  if (filledSet.has("Tipo de evento") && mensajeAsksForField(mensaje, "tipo_evento") && !trulyReadyForClosing) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending && pending !== "tipo_evento") {
-      const nextQ = buildNaturalQuestion(pending, ctx);
-      mensaje = nextQ;
-      log?.info({ entityId, pending }, "GUARD: tipo de evento ya capturado \u2014 siguiente dato");
-    }
-  }
-  if (shouldReplaceForcedEmailQuestion(mensaje, filledSet)) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
-    log?.warn({ entityId }, "GUARD: correo forzado tras rechazo \u2014 reemplazando respuesta");
-    mensaje = nextQ;
-  }
-  if (!cierreYaEnviado && !appliedDirectReply && !isEmailSatisfied(filledSet, extracted) && !detectEmailRefusal([currentMessage ?? ""]) && !parseCorreoFromText(currentMessage ?? "")) {
-    const correoAsks = countLucyFieldAsks(presHistory, "correo");
-    const lastAskedCorreo = inferLucyAskedField(
-      [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content
-    ) === "correo";
-    const usefulNow = !!parseSalaProductFromText(currentMessage ?? "") || parseServicesFromText(currentMessage ?? "").length > 0 || isServiceRelatedMessage(currentMessage) || !!parseTipoEventoFromText(currentMessage ?? "");
-    if (usefulNow && (mensajeAsksForField(mensaje, "correo") || lastAskedCorreo)) {
-      const ackBits = [];
-      const sala = parseSalaProductFromText(currentMessage ?? "");
-      if (sala) ackBits.push(`Perfecto, anoto *${sala}*.`);
-      else if (parseServicesFromText(currentMessage ?? "").length) {
-        ackBits.push(
-          `Perfecto, anoto ${formatServicesList(parseServicesFromText(currentMessage ?? ""))}.`
-        );
-      } else if (parseTipoEventoFromText(currentMessage ?? "")) {
-        ackBits.push(`Perfecto, anoto el tipo de evento.`);
-      }
-      const ack = ackBits.join(" ") || "Perfecto, lo anoto.";
-      if (correoAsks >= CORREO_MAX_ASKS) {
-        const skipEmail = new Set(filledSet);
-        skipEmail.add("Correo electr\xF3nico");
-        const pending = getNextPendingField(extracted, skipEmail);
-        const nextQ = pending && pending !== "correo" ? buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail }) : null;
-        mensaje = nextQ ? `${ack} ${nextQ}`.trim() : ack;
-        log?.info({ entityId, correoAsks }, "GUARD: correo \u2014 tope de asks, avanza embudo");
-      } else if (correoAsks >= 1 || lastAskedCorreo) {
-        const emailQ = pickVariant("correo", presHistory, entityId);
-        mensaje = `${ack} ${emailQ}`.trim();
-        log?.info({ entityId }, "GUARD: correo \u2014 acusa dato \xFAtil + variante distinta");
-      }
-    } else if (correoAsks >= CORREO_MAX_ASKS && mensajeAsksForField(mensaje, "correo")) {
-      const skipEmail = new Set(filledSet);
-      skipEmail.add("Correo electr\xF3nico");
-      const pending = getNextPendingField(extracted, skipEmail);
-      if (pending && pending !== "correo") {
-        mensaje = buildNaturalQuestion(pending, { ...ctx, filledSet: skipEmail });
-        log?.info({ entityId, correoAsks }, "GUARD: correo \u2014 evita 3\xAA repetici\xF3n");
-      }
-    }
-  }
-  const correoYaTenido = isEmailSatisfied(filledSet, extracted);
-  if (correoYaTenido && (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo")) && !trulyReadyForClosing) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending && pending !== "correo") {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-      if (nextQ) {
-        log?.warn({ entityId }, "GUARD: GPT pregunt\xF3 correo ya capturado");
-        mensaje = nextQ;
-      }
-    }
-  }
-  if (filledSet.has(EMAIL_WAIVED_LABEL) && (mensajeAsksForField(mensaje, "correo") || softAsksFilledField(mensaje, "correo")) && !trulyReadyForClosing) {
-    const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId) ?? emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
-    log?.warn({ entityId }, "GUARD: GPT insisti\xF3 en correo tras rechazo");
-    mensaje = nextQ;
-  }
-  if (!trulyReadyForClosing && !cierreYaEnviado && !clientAskedFreeformQuestion(currentMessage)) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending && !mensaje.includes("?")) {
-      if (responseLooksLikePrematureClose(mensaje)) {
-        mensaje = buildNaturalQuestion(pending, ctx);
-        log?.info({ entityId, pending }, "GUARD: bloqueando cierre \u2014 pregunta pendiente");
-      } else if (mensaje.trim()) {
-        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
-        log?.info({ entityId, pending }, "GUARD: a\xF1adiendo pregunta pendiente a respuesta");
-      }
-    }
-  }
-  if (!trulyReadyForClosing && !appliedDirectReply && responseLooksLikePrematureClose(mensaje)) {
-    const forcedNext = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
-    if (forcedNext) {
-      log?.warn({ entityId }, "GUARD: bloqueando cierre prematuro");
-      mensaje = forcedNext;
-    }
-  }
-  if (!cierreYaEnviado && !clientAsksInclusion(currentMessage) && !appliedDirectReply && !/\bincluye\s*:|bodasesor\.com\/catalogos/i.test(mensaje) && !isFieldSatisfied("zona", filledSet, extracted) && (responseLooksLikePrematureClose(mensaje) || trulyReadyForClosing || mensajeAsksForField(mensaje, "presupuesto") || mensajeAsksForField(mensaje, "fecha") || mensajeAsksForField(mensaje, "invitados"))) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending === "zona" || !mensajeAsksForField(mensaje, "zona")) {
-      mensaje = buildNaturalQuestion("zona", ctx);
-      log?.info({ entityId }, "GUARD: forzar ubicaci\xF3n antes de avance/cierre");
-    }
-  }
-  if (mensajeAsksWrongField(mensaje, filledSet, extracted) && !isInformativeClientAnswer(currentMessage) && !appliedSalesReply) {
-    const pending = getNextPendingField(extracted, filledSet);
-    if (pending) {
-      log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden \u2014 corrigiendo");
-      mensaje = buildNaturalQuestion(pending, ctx);
-    }
+  const funnelDecision = tryApplyFunnelReply({
+    mensaje,
+    extracted,
+    filledSet,
+    currentMessage,
+    history,
+    presHistory,
+    whatsappDisplayName,
+    entityId,
+    cierreYaEnviado,
+    trulyReadyForClosing,
+    appliedDirectReply,
+    appliedSalesReply,
+    log,
+    effects: { appliedDirectReply, appliedSalesReply },
+    mensajeAsksForField: (nextMensaje, field) => mensajeAsksForField(nextMensaje, field),
+    nextFieldQuestion: () => nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId),
+    buildNaturalQuestion: (field, nextFilledSet = filledSet) => buildNaturalQuestion(field, { ...ctx, filledSet: nextFilledSet }),
+    buildClosing: () => buildClosing(extracted.requerimientos_evento ?? extracted.tipo_evento ?? null, extracted.nombre),
+    getNextPendingField: (nextFilledSet = filledSet) => getNextPendingField(extracted, nextFilledSet),
+    shouldReplaceForcedEmailQuestion: (nextMensaje) => shouldReplaceForcedEmailQuestion(nextMensaje, filledSet),
+    emailRefusalAckMessage: () => emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet),
+    isEmailSatisfied: () => isEmailSatisfied(filledSet, extracted),
+    detectEmailRefusal: () => detectEmailRefusal([currentMessage ?? ""]),
+    parseCorreoFromText: () => parseCorreoFromText(currentMessage ?? ""),
+    countLucyFieldAsks: (field) => countLucyFieldAsks(presHistory, field),
+    inferLastAskedField: () => inferLucyAskedField([...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string")?.content),
+    parseSalaProductFromText: () => parseSalaProductFromText(currentMessage ?? ""),
+    parseServicesFromText: () => parseServicesFromText(currentMessage ?? ""),
+    isServiceRelatedMessage: () => isServiceRelatedMessage(currentMessage),
+    parseTipoEventoFromText: () => parseTipoEventoFromText(currentMessage ?? ""),
+    parseFechaFromText: () => currentMessage ? parseFechaFromText(currentMessage) : null,
+    formatServicesList,
+    pickVariant: (field) => pickVariant(field, presHistory, entityId),
+    correoMaxAsks: CORREO_MAX_ASKS,
+    emailWaivedLabel: EMAIL_WAIVED_LABEL,
+    isReadyForClosing: () => isReadyForClosing(filledSet),
+    softAsksFilledField: (nextMensaje, field) => softAsksFilledField(nextMensaje, field),
+    clientAskedFreeformQuestion: () => clientAskedFreeformQuestion(currentMessage),
+    responseLooksLikePrematureClose,
+    mergeWithPendingQuestion: (nextMensaje) => mergeWithPendingQuestion(nextMensaje, filledSet, extracted, ctx),
+    clientAsksInclusion: () => clientAsksInclusion(currentMessage),
+    isFieldSatisfied: (field) => isFieldSatisfied(field, filledSet, extracted),
+    mensajeAsksWrongField: (nextMensaje) => mensajeAsksWrongField(nextMensaje, filledSet, extracted),
+    isInformativeClientAnswer: () => isInformativeClientAnswer(currentMessage)
+  });
+  if (funnelDecision.kind === "reply") {
+    mensaje = funnelDecision.mensaje;
+    appliedDirectReply = funnelDecision.effects?.appliedDirectReply ?? appliedDirectReply;
+    appliedSalesReply = funnelDecision.effects?.appliedSalesReply ?? appliedSalesReply;
   }
   if (!cierreYaEnviado && !appliedDirectReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
@@ -134668,7 +134720,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.05";
+var LUCY_PROMPT_VERSION = "V9.06";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -136859,7 +136911,7 @@ ${CATALOG_OFFER_QUESTION}`
     assert3.ok(!/Si quieres sumar/i.test(close), close);
     assert3.ok(!/Si más adelante quieres sumar algo además/i.test(close), close);
   });
-  await test("58. Anti-repetici\xF3n \u2014 correo ya en extracted no se vuelve a pedir", () => {
+  await test("58. Funnel handler smoke \u2014 correo ya en extracted no se vuelve a pedir", () => {
     const filled = /* @__PURE__ */ new Set([
       "Nombre del cliente",
       "Tipo de evento",
@@ -141733,7 +141785,7 @@ ${golfText}`,
     assert3.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert3.equal(LUCY_PROMPT_VERSION, "V9.05");
+    assert3.equal(LUCY_PROMPT_VERSION, "V9.06");
     assert3.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
