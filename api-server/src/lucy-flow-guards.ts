@@ -4128,7 +4128,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedSalesReply,
     log,
     effects: { appliedDirectReply, appliedSalesReply },
-    mensajeAsksForField,
+    mensajeAsksForField: (nextMensaje, field) =>
+      mensajeAsksForField(nextMensaje, field as PendingField),
     nextFieldQuestion: () => nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId),
     buildNaturalQuestion: (field, nextFilledSet = filledSet) => buildNaturalQuestion(field as PendingField, { ...ctx, filledSet: nextFilledSet }),
     buildClosing: () => buildClosing(extracted.requerimientos_evento ?? extracted.tipo_evento ?? null, extracted.nombre),
