@@ -134770,7 +134770,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.06";
+var LUCY_PROMPT_VERSION = "V9.07";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -141878,7 +141878,7 @@ ${golfText}`,
     assert3.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert3.equal(LUCY_PROMPT_VERSION, "V9.06");
+    assert3.equal(LUCY_PROMPT_VERSION, "V9.07");
     assert3.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
