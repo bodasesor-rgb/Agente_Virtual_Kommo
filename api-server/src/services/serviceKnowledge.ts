@@ -221,6 +221,14 @@ export function buildGuardServiceAck(query: string): string {
   }
   if (level === 3) return buildLevel3Ack(label);
 
+  // A15190: centros de mesa = floral/decorativo (no menú de mobiliario).
+  if (/\bcentros?\s+de\s+mesas?\b/i.test(query) || /centros?\s+de\s+mesa/i.test(label)) {
+    return (
+      "¡Claro! Anoto *centros de mesa* (decoración floral) para tu cotización. " +
+      "Nuestro equipo te confirma estilos, precio e inclusiones."
+    );
+  }
+
   // A14938: "¿Hacen las pizzas en el evento?" — sí, barra/estación montada.
   if (
     /\bpizzas?\b/i.test(query) &&
