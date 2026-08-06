@@ -35,3 +35,34 @@ export {
 } from "./postCierreReplies.js";
 
 export { LUCY_GUARD_DOMAINS, type LucyGuardDomain } from "./domains.js";
+
+export {
+  TRANSITION_START_PATTERN,
+  pickTransition,
+  dedupeTransitionsInMessage,
+  stripRobotAcknowledgments,
+  clientSaysThanks,
+} from "./transitions.js";
+
+export {
+  detectCierreEnviado,
+  collectUserTexts,
+  lastAssistantWasPhoneAnswer,
+} from "./historyHelpers.js";
+
+export {
+  buildGenericCatalogHubBlock,
+  collectServicesForCatalogOffer,
+  buildPackageCatalogOfferBlock,
+  buildMappedCatalogOfferBlock,
+  historyAlreadyOfferedServiceDetail,
+  buildStandardClosingMessage,
+  buildMultiServiceSheetLevelsReply,
+  buildMultiServicePackageReply,
+} from "./catalogOffer.js";
+
+export {
+  tryApplyPostCierreOrHandoffReply,
+  type PostCierreHandlerInput,
+  type PostCierreHandlerResult,
+} from "./postCierreHandler.js";

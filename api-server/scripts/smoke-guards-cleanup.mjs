@@ -39,6 +39,21 @@ export {
   FLOW_QUESTIONS,
   LUCY_INTRO,
 } from "${root}/src/guards/embudoConstants.ts";
+export {
+  pickTransition,
+  clientSaysThanks,
+  dedupeTransitionsInMessage,
+} from "${root}/src/guards/transitions.ts";
+export {
+  detectCierreEnviado,
+  collectUserTexts,
+} from "${root}/src/guards/historyHelpers.ts";
+export {
+  buildGenericCatalogHubBlock,
+  buildStandardClosingMessage,
+  buildPackageCatalogOfferBlock,
+} from "${root}/src/guards/catalogOffer.ts";
+export { tryApplyPostCierreOrHandoffReply } from "${root}/src/guards/postCierreHandler.ts";
 `
 );
 
@@ -72,6 +87,23 @@ assert.match(m.buildHumanAdvisorHandoffAnswer("Ana"), /Ana/);
 assert.match(m.buildPostCierreThanksReply("Ana"), /Ana/);
 assert.ok(m.clientAsksPaymentOrQuoteDelivery("manda el anticipo del 50%"));
 assert.ok(!m.clientAsksPaymentOrQuoteDelivery("hola"));
+
+assert.ok(m.clientSaysThanks("Muchas gracias"));
+assert.equal(m.pickTransition([]), "Perfecto.");
+assert.ok(m.detectCierreEnviado([], `${m.CLOSING_SIGNATURE} catálogo`));
+assert.deepEqual(m.collectUserTexts([], "hola"), ["hola"]);
+assert.match(m.buildGenericCatalogHubBlock(), /bodasesor\.com\/catalogos/i);
+assert.match(m.buildStandardClosingMessage("banquete", "Ana"), /Perfecto, ya tengo todo/);
+assert.equal(
+  m.tryApplyPostCierreOrHandoffReply({
+    cierreYaEnviado: true,
+    currentMessage: "gracias",
+    extracted: { nombre: "Ana" },
+    filledSet: new Set(),
+    history: [],
+  })?.logMsg.includes("agradecimiento"),
+  true
+);
 
 const meta = JSON.parse(readFileSync(path.join(root, "dist/build-meta.json"), "utf8"));
 assert.equal(meta.lucy_prompt, "V9.04");

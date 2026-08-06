@@ -61,7 +61,6 @@ import {
   buildServicePlusGeneralCatalogReply,
   withServiceAndGeneralCatalogLinks,
   stripUnsolicitedCatalogWebLinks,
-  CATALOG_OFFER_QUESTION,
   SERVICE_NIVEL_DETAIL_CTA,
   messageOffersCatalogLink,
   buildPdfInclusionReply,
@@ -73,7 +72,6 @@ import {
   getCatalogWebHubDeliveryUrl,
   buildBroadLevel1Offer,
   isNarrowSocialEventOffer,
-  resolveCatalogWebLink,
   toDeliverableCatalogUrl,
 } from "./services/catalogService.js";
 import { getCatalogWebUrlForQuery } from "./services/catalogWebKnowledge.js";
@@ -217,6 +215,25 @@ export {
   buildPostCierrePaymentHandoffReply,
   buildPostCierreCallbackAck,
   LUCY_GUARD_DOMAINS,
+  TRANSITION_START_PATTERN,
+  pickTransition,
+  dedupeTransitionsInMessage,
+  stripRobotAcknowledgments,
+  clientSaysThanks,
+  detectCierreEnviado,
+  collectUserTexts,
+  lastAssistantWasPhoneAnswer,
+  buildGenericCatalogHubBlock,
+  collectServicesForCatalogOffer,
+  buildPackageCatalogOfferBlock,
+  buildMappedCatalogOfferBlock,
+  historyAlreadyOfferedServiceDetail,
+  buildStandardClosingMessage,
+  buildMultiServiceSheetLevelsReply,
+  buildMultiServicePackageReply,
+  tryApplyPostCierreOrHandoffReply,
+  type PostCierreHandlerInput,
+  type PostCierreHandlerResult,
 } from "./guards/index.js";
 
 import {
@@ -234,10 +251,20 @@ import {
   buildPhoneAnswer,
   buildHumanAdvisorHandoffAnswer,
   buildLocationAnswer,
-  clientAsksPaymentOrQuoteDelivery,
   buildPostCierreThanksReply,
   buildPostCierrePaymentHandoffReply,
-  buildPostCierreCallbackAck,
+  TRANSITION_START_PATTERN,
+  pickTransition,
+  dedupeTransitionsInMessage,
+  stripRobotAcknowledgments,
+  clientSaysThanks,
+  collectUserTexts,
+  collectServicesForCatalogOffer,
+  buildPackageCatalogOfferBlock,
+  historyAlreadyOfferedServiceDetail,
+  buildMultiServiceSheetLevelsReply,
+  buildMultiServicePackageReply,
+  tryApplyPostCierreOrHandoffReply,
 } from "./guards/index.js";
 
 const EMAIL_REFUSAL_PATTERN =
@@ -424,35 +451,6 @@ export function isValidRequerimientosValue(value: string | null | undefined): bo
   // Texto libre capturado (p. ej. servicio fuera de catálogo).
   if (trimmed.length >= 4) return true;
   return false;
-}
-
-/** Detecta cierre en historial completo o última respuesta persistida (no solo slice reciente). */
-export function detectCierreEnviado(
-  history: OpenAI.Chat.ChatCompletionMessageParam[],
-  lastStoredResponse?: string | null
-): boolean {
-  const looksLikeCierre = (t: string) =>
-    t.includes(CLOSING_SIGNATURE) ||
-    /\bya tengo todo\b/i.test(t) ||
-    /\bcompartir esta informaci[oó]n con nuestro equipo\b/i.test(t) ||
-    /\bcotizaci[oó]n personalizada\b/i.test(t);
-  if (lastStoredResponse && looksLikeCierre(lastStoredResponse)) return true;
-  return history.some(
-    (m) =>
-      m.role === "assistant" &&
-      typeof m.content === "string" &&
-      looksLikeCierre(m.content as string)
-  );
-}
-
-export function collectUserTexts(
-  history: OpenAI.Chat.ChatCompletionMessageParam[],
-  currentMessage?: string
-): string[] {
-  const fromHistory = history
-    .filter((m) => m.role === "user" && typeof m.content === "string")
-    .map((m) => m.content as string);
-  return currentMessage?.trim() ? [...fromHistory, currentMessage.trim()] : fromHistory;
 }
 
 export function detectEmailRefusal(texts: string[]): boolean {
@@ -1776,78 +1774,6 @@ export function buildRecommendationsReply(
         ? "coffee break"
         : null
   );
-}
-
-const LUCY_TRANSITIONS = [
-  "Perfecto.",
-  "De acuerdo.",
-  "Claro que sí.",
-  "Con gusto.",
-  "Listo.",
-  "Claro.",
-] as const;
-
-const TRANSITION_START_PATTERN =
-  /^(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./i;
-
-/** Rota transiciones — nunca la misma dos veces seguidas (regla Replit). */
-export function pickTransition(
-  history: OpenAI.Chat.ChatCompletionMessageParam[]
-): string {
-  const assistants = history
-    .filter((m) => m.role === "assistant" && typeof m.content === "string")
-    .map((m) => (m.content as string).trim());
-
-  const last = assistants[assistants.length - 1] ?? "";
-  const lastMatch = last.match(TRANSITION_START_PATTERN);
-  const lastTransition = lastMatch ? lastMatch[0] : null;
-
-  const start = assistants.length % LUCY_TRANSITIONS.length;
-  for (let i = 0; i < LUCY_TRANSITIONS.length; i++) {
-    const candidate = LUCY_TRANSITIONS[(start + i) % LUCY_TRANSITIONS.length]!;
-    if (candidate !== lastTransition) return candidate;
-  }
-  return LUCY_TRANSITIONS[0]!;
-}
-
-/** Evita "Suena muy bien. … Suena muy bien. …" en el mismo mensaje. */
-export function dedupeTransitionsInMessage(mensaje: string): string {
-  if (!mensaje?.trim()) return mensaje;
-  const pattern =
-    /\b(Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)\./gi;
-  let seen: string | null = null;
-  let out = mensaje
-    .replace(pattern, (match) => {
-      const key = match.toLowerCase();
-      if (seen === key) return "";
-      if (!seen) seen = key;
-      return match;
-    })
-    .replace(/\s{2,}/g, " ")
-    .replace(/\s+\n/g, "\n")
-    .trim();
-  // A15016: "Perfecto, Israel. Mucho gusto, Israel." / doble Mucho gusto.
-  out = out.replace(
-    /\b(Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.)(?:\s+\1)+/gi,
-    "$1"
-  );
-  out = out.replace(
-    /\b(Perfecto|Excelente|Genial|Claro),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+Mucho gusto,\s+\2\./gi,
-    "$1, $2."
-  );
-  return out.replace(/\s{2,}/g, " ").trim();
-}
-
-/** Quita "Ya tengo tu correo/zona..." antes de la siguiente pregunta (anti-robot Replit). */
-export function stripRobotAcknowledgments(mensaje: string): string {
-  let out = mensaje;
-  out = out.replace(
-    /(?:Genial|Perfecto|Excelente|Suena muy bien|Listo|Claro que sí|Claro|Qué padre|De acuerdo|Con gusto)[,.]?\s+(?:\w+[,.]?\s+)?ya\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi,
-    ""
-  );
-  out = out.replace(/\bYa\s+tengo\s+(?:tu|su|el|la)\s+[^.?!]+\.\s*/gi, "");
-  out = out.replace(/\bPerfecto,\s+\w+\.\s+Ya\s+tengo\b[^.?!]+\.\s*/gi, "");
-  return out.replace(/\s{2,}/g, " ").trim();
 }
 
 function contextualPrefix(
@@ -3184,163 +3110,6 @@ export function clientJustAnsweredRequerimientosQuestion(
   );
 }
 
-export function clientSaysThanks(message?: string): boolean {
-  if (!message?.trim()) return false;
-  return /\b(muchas\s+gracias|gracias|thank\s+you|mil\s+gracias|te\s+agradezco)\b/i.test(message);
-}
-
-function lastAssistantWasPhoneAnswer(
-  history: OpenAI.Chat.ChatCompletionMessageParam[]
-): boolean {
-  const last = [...history]
-    .reverse()
-    .find((m) => m.role === "assistant" && typeof m.content === "string");
-  if (!last || typeof last.content !== "string") return false;
-  return /55\s*4008\s*0373|56\s*4671\s*0585|l[ií]nea telef[oó]nica/i.test(last.content);
-}
-
-/** Hub genérico (solo cuando no hay SKUs mapeables). */
-export function buildGenericCatalogHubBlock(): string {
-  return [
-    "Te dejo el catálogo general para que veas montajes, menús y opciones:",
-    getCatalogWebHubDeliveryUrl(),
-    "",
-    CATALOG_OFFER_QUESTION,
-  ].join("\n");
-}
-
-/**
- * Une servicios de mensaje / CRM / historial para ofrecer catálogos concretos
- * en CUALQUIER rama (no solo RFQ multi-servicio).
- */
-export function collectServicesForCatalogOffer(opts: {
-  services?: string[] | null;
-  extracted?: { requerimientos_evento?: string | null } | null;
-  history?: OpenAI.Chat.ChatCompletionMessageParam[];
-  currentMessage?: string | null;
-  sourceText?: string | null;
-}): string[] {
-  const fromArg = (opts.services ?? []).map((s) => s.trim()).filter(Boolean);
-  const fromCrm = opts.extracted?.requerimientos_evento
-    ? parseServicesFromText(opts.extracted.requerimientos_evento)
-    : [];
-  const blob =
-    opts.sourceText ||
-    [
-      opts.currentMessage ?? "",
-      ...(opts.history
-        ? collectUserTexts(opts.history, opts.currentMessage ?? undefined)
-        : []),
-    ]
-      .filter(Boolean)
-      .join(" ");
-  const fromBlob = blob ? parseServicesFromText(blob) : [];
-  return dedupeServiceHierarchy([...fromArg, ...fromCrm, ...fromBlob], blob);
-}
-
-/**
- * Bloque de catálogo para paquetes / RFQ / cierre / primer turno / entretenimiento.
- * V8.79: si hay SKUs concretos → links mapeados; si no → hub genérico.
- */
-export function buildPackageCatalogOfferBlock(
-  services?: string[] | null,
-  sourceText?: string
-): string {
-  const list = collectServicesForCatalogOffer({
-    services,
-    sourceText,
-    currentMessage: sourceText,
-  });
-  if (list.length >= 1) {
-    const mapped = buildMappedCatalogOfferBlock(list, sourceText);
-    if (mapped && !/^Te dejo el catálogo general/i.test(mapped)) {
-      return mapped;
-    }
-  }
-  return buildGenericCatalogHubBlock();
-}
-
-/**
- * A14985 / V8.79: con servicios concretos, ofrecer links del catálogo que aplican
- * (Barra de bebidas, Puestos de comida, Periqueras…), no solo el hub genérico.
- * Se usa desde TODAS las ramas vía buildPackageCatalogOfferBlock.
- */
-export function buildMappedCatalogOfferBlock(
-  services: string[],
-  sourceText?: string
-): string {
-  const text = sourceText ?? "";
-  const list = dedupeServiceHierarchy(
-    services.map((s) => s.trim()).filter(Boolean),
-    text
-  ).slice(0, 6);
-  if (!list.length) return buildGenericCatalogHubBlock();
-
-  const lines: string[] = [
-    "Con lo que pediste, estas opciones del catálogo te pueden servir:",
-    "",
-  ];
-  let linked = 0;
-  const seenUrls = new Set<string>();
-  for (const svc of list) {
-    let query = svc;
-    let label = svc;
-    if (/mobiliario/i.test(svc) && /\bperiqueras?\b/i.test(text)) {
-      query = "periqueras";
-      label = "Periqueras (mobiliario)";
-    } else if (/^periqueras?$/i.test(svc)) {
-      // Evitar duplicar el mismo link si ya va como Mobiliario/Periqueras.
-      if (list.some((s) => /mobiliario/i.test(s)) && /\bperiqueras?\b/i.test(text)) {
-        continue;
-      }
-      query = "periqueras";
-      label = "Periqueras";
-    } else if (/puestos?\s+de\s+comida/i.test(svc)) {
-      query = "puestos de comida";
-      label = /\bbanderillas?\b/i.test(text)
-        ? "Puestos de comida / antojitos (banderillas)"
-        : "Puestos de comida / antojitos";
-    } else if (/barra\s+de\s+bebidas/i.test(svc)) {
-      query = "barra de bebidas";
-      label = "Barra de bebidas";
-    } else if (/^meseros?$/i.test(svc)) {
-      // Sin página propia → no forzar link roto.
-      lines.push(`• *${label}*`);
-      continue;
-    }
-    // Preferir slug web (embeds) — no depende del Sheet cargado (A14985).
-    const sheetMatch = resolveCatalogWebLink(query);
-    const webUrl =
-      getCatalogWebUrlForQuery(query) ||
-      (sheetMatch.kind === "service" ? sheetMatch.url : null);
-    if (webUrl) {
-      const deliverable = toDeliverableCatalogUrl(webUrl);
-      if (seenUrls.has(deliverable)) continue;
-      seenUrls.add(deliverable);
-      lines.push(`• *${label}*: ${deliverable}`);
-      linked++;
-    } else {
-      lines.push(`• *${label}*`);
-    }
-  }
-  if (linked === 0) return buildGenericCatalogHubBlock();
-
-  lines.push("", "Catálogo general:", getCatalogWebHubDeliveryUrl(), "");
-  lines.push(SERVICE_NIVEL_DETAIL_CTA);
-  return lines.join("\n");
-}
-
-/** ¿Lucy ya ofreció niveles / Incluye / precios del Sheet (no solo un link)? */
-export function historyAlreadyOfferedServiceDetail(
-  history: OpenAI.Chat.ChatCompletionMessageParam[]
-): boolean {
-  return history.some((m) => {
-    if (m.role !== "assistant" || typeof m.content !== "string") return false;
-    // V8.35: URL sola (ensureCatalogWebLink) NO cuenta como detalle Sheet.
-    return messageHasSheetServiceDetail(m.content);
-  });
-}
-
 /**
  * Tras capturar el nombre en un lead con servicio ya conocido (formulario web),
  * ofrecer niveles/precios + pregunta de catálogo ANTES de seguir el embudo (correo…).
@@ -3398,134 +3167,6 @@ export function buildDeferredKnownServiceOffer(opts: {
   return body;
 }
 
-/**
- * Cierre estándar + ofrecimiento final de complementos.
- * En paquetes multi-servicio incluye link de catálogo (el cliente ya pidió propuestas).
- */
-export function buildStandardClosingMessage(
-  serviciosPedidos: string | null | undefined,
-  clientName?: string | null
-): string {
-  const asesor = advisorLabelForClient(clientName);
-  const handoff =
-    asesor === "nuestro equipo"
-      ? "Le paso estos datos a nuestro equipo para que te arme una cotización personalizada."
-      : `Le paso estos datos a ${asesor} para que te arme una cotización personalizada.`;
-  const servicioRaw = serviciosPedidos?.trim() || "";
-  // Solo listar servicios concretos parseables — evita "además de la taquiza" inventada (A14929).
-  // "banquete / taquiza" es alternativa (1 pedido), no paquete multi-servicio con catálogo.
-  const isSlashFoodAlias = /banquete\s*\/\s*taquiza/i.test(servicioRaw);
-  const parsed = dedupeServiceHierarchy(parseServicesFromText(servicioRaw), servicioRaw);
-  // A14981: alternativas de comida contaminadas → cerrar solo con el primario.
-  const primaryFood = preferPrimaryCatalogService(parsed);
-  const closingServices = looksLikeConflictingFoodAlternatives(parsed)
-    ? primaryFood
-      ? [primaryFood]
-      : parsed.slice(0, 1)
-    : parsed;
-  const servicio = isSlashFoodAlias
-    ? "banquete / taquiza"
-    : closingServices.length > 0
-      ? closingServices.slice(0, 4).join(", ")
-      : isValidRequerimientosValue(servicioRaw) &&
-          !/banquetes?\s+o\s+catering|servicio\s+de\s+banquetes?/i.test(servicioRaw)
-        ? servicioRaw
-        : "";
-  const serviceParts = servicio
-    ? servicio.split(/,\s*/).map((s) => s.trim()).filter(Boolean)
-    : [];
-  const multiPackage = !isSlashFoodAlias && serviceParts.length >= 2;
-  // V8.93: cierre humano — reconoce el servicio, sin empujar extras.
-  // Mantener firma "Perfecto, ya tengo todo." (CLOSING_SIGNATURE / detectCierreEnviado).
-  const head = servicio
-    ? `Perfecto, ya tengo todo. Quedó anotado *${servicio}*. ${handoff}`
-    : `Perfecto, ya tengo todo. ${handoff}`;
-  const parts = [head];
-  if (multiPackage) {
-    // V8.79: cierre con links de los SKUs pedidos, no solo hub.
-    parts.push("", buildPackageCatalogOfferBlock(serviceParts, servicioRaw));
-  }
-  parts.push("", "Si necesitas algo más, con gusto te apoyo.");
-  return parts.join("\n");
-}
-
-/**
- * A14982: 2 servicios de comida con Sheet → dump de niveles/precios (no solo hub genérico).
- * RFQs largos / 3+ / sin precio en Sheet → null (cae a catálogo general).
- */
-export function buildMultiServiceSheetLevelsReply(
-  services: string[],
-  sourceText?: string
-): string | null {
-  if (sourceText && isRichQuoteBrief(sourceText)) return null;
-  const cleaned = dedupeServiceHierarchy(
-    services.map((s) => s.trim()).filter(Boolean),
-    sourceText
-  );
-  // A14995 Hortensia: paquete amplio (banquete+barra+dulces+mobiliario) → ack todos +
-  // catálogos mapeados, NO dump solo de Banquete Mexicano 4 tiempos.
-  if (cleaned.length >= 3) return null;
-  const hasFood = cleaned.some((s) =>
-    /barra|taquiza|banquete|coffee|parrillada|paella|mesa\s+de|cupcake|sushi|crepa|pizza|pasta|pozole/i.test(
-      s
-    )
-  );
-  const hasNonFood = cleaned.some((s) =>
-    /mobiliario|carpas?|pista|tarima|\bdj\b|iluminaci|pantallas?/i.test(s)
-  );
-  if (hasFood && hasNonFood) return null;
-
-  const foodish = cleaned.filter((s) =>
-    /barra|taquiza|banquete|coffee|parrillada|paella|mesa\s+de|cupcake|sushi|crepa|pizza|pasta|pozole|canap|bocadillo/i.test(
-      s
-    )
-  );
-  const list = (foodish.length >= 2 ? foodish : cleaned).slice(0, 2);
-  if (list.length < 2) return null;
-
-  const blocks: string[] = [];
-  for (const svc of list) {
-    const detail =
-      buildCatalogServiceDetailAnswer(svc) || buildCatalogPriceAnswer(svc);
-    if (!detail || !/\$|nivel|Solo Alimentos|Basico|Tradicional|Premium|Coffee Break/i.test(detail)) {
-      return null;
-    }
-    const cleanedDetail = detail
-      .replace(/¿Quieres que te d[eé] detalles de alguno\??/gi, "")
-      .replace(/¿Cu[aá]l nivel prefieres[^\n]*/gi, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-    blocks.push(`*${svc}*\n${cleanedDetail}`);
-  }
-
-  const ack = buildMultiServiceAck(list);
-  const body = [ack, "", blocks.join("\n\n———\n\n"), "", SERVICE_NIVEL_DETAIL_CTA].join(
-    "\n"
-  );
-  return withServiceAndGeneralCatalogLinks(body, list[0]!, list.join(" "));
-}
-
-/** Ack de paquete + niveles Sheet (2 food SKUs) o catálogos mapeados (RFQ). */
-export function buildMultiServicePackageReply(
-  services: string[],
-  sourceText?: string
-): string {
-  const levels = buildMultiServiceSheetLevelsReply(services, sourceText);
-  if (levels) return levels;
-  const cleaned = dedupeServiceHierarchy(
-    services.map((s) => s.trim()).filter(Boolean),
-    sourceText
-  );
-  const ack =
-    sourceText && isRichQuoteBrief(sourceText)
-      ? buildRichBriefAcknowledgment(sourceText)
-      : buildMultiServiceAck(cleaned.length ? cleaned : services);
-  // V8.79: misma lógica de catálogos mapeados que el resto de ramas.
-  return `${ack}\n\n${buildPackageCatalogOfferBlock(
-    cleaned.length ? cleaned : services,
-    sourceText
-  )}`;
-}
 
 /** Extrae servicios mencionados en una oferta reciente de Lucy (bullets). */
 function extractOfferedServicesFromHistory(
@@ -4411,151 +4052,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   let appliedSalesReply = false;
   let appliedDirectReply = false;
 
-  if (cierreYaEnviado && clientAsksPhone(currentMessage)) {
-    mensaje = `${buildPhoneAnswer()}\n\nUn asesor te puede atender por ahí; tu caso ya quedó con el equipo.`;
+  const postCierreOrHandoff = tryApplyPostCierreOrHandoffReply({
+    cierreYaEnviado,
+    currentMessage,
+    extracted,
+    filledSet,
+    history: presHistory,
+    whatsappDisplayName,
+    entityId,
+    log,
+  });
+  if (postCierreOrHandoff) {
+    mensaje = postCierreOrHandoff.mensaje;
     appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre — cliente pidió llamada/teléfonos");
-  } else if (
-    cierreYaEnviado &&
-    clientAsksPaymentOrQuoteDelivery(currentMessage)
-  ) {
-    // A15016: "manda el presupuesto y dónde el 50% de anticipo" — no reabrir correo.
-    if (!extracted.correo?.trim()) {
-      const recovered = parseCorreoFromText(
-        collectUserTexts(presHistory, currentMessage).join("\n")
-      );
-      if (recovered) {
-        extracted.correo = recovered;
-        filledSet.add("Correo electrónico");
-      }
-    } else {
-      filledSet.add("Correo electrónico");
-    }
-    mensaje = buildPostCierrePaymentHandoffReply(extracted.nombre);
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: A15016 — post-cierre pago/anticipo → equipo");
-  } else if (clientAsksForHumanAdvisor(currentMessage)) {
-    // A15000 Itzel: "prefiero hablar con un asesor" — handoff, no seguir embudo.
-    mensaje = buildHumanAdvisorHandoffAnswer(extracted.nombre);
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: A15000 — cliente pidió asesor humano (handoff)");
-  } else if (
-    cierreYaEnviado &&
-    !clientDeclinesMoreServices(currentMessage) &&
-    !clientSaysThanks(currentMessage) &&
-    isServicePreferenceRefinement(
-      currentMessage,
-      extracted.requerimientos_evento
-    )
-  ) {
-    // A14970: "solo requieren americano, capuchino y té" — anotar preferencia, no Banquete.
-    const label =
-      preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento ?? "")) ||
-      preferPrimaryCatalogService(parseServicesFromText(currentMessage ?? "")) ||
-      "tu cotización";
-    const snippet = (currentMessage ?? "").trim().replace(/\s+/g, " ").slice(0, 180);
-    const merged = mergeServiceRequirements(
-      extracted.requerimientos_evento,
-      `preferencia: ${snippet}`,
-      8
-    );
-    if (merged) extracted.requerimientos_evento = merged;
-    filledSet.add("Requerimientos o servicios");
-    const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre
-      ? `Perfecto, ${nombre}. Anoto esa preferencia para *${label}* y se la paso al equipo. ¿Algo más que quieras agregar?`
-      : `Perfecto. Anoto esa preferencia para *${label}* y se la paso al equipo. ¿Algo más que quieras agregar?`;
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre — preferencia de servicio (ack corto)");
-  } else if (
-    cierreYaEnviado &&
-    clientSaysThanks(currentMessage) &&
-    lastAssistantWasPhoneAnswer(presHistory)
-  ) {
-    mensaje = buildPostCierreCallbackAck(extracted.nombre);
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre — gracias tras pedir llamada");
-  } else if (
-    cierreYaEnviado &&
-    !clientDeclinesMoreServices(currentMessage) &&
-    !clientSaysThanks(currentMessage) &&
-    (clientAddsToQuote(currentMessage) ||
-      (parseServicesFromText(currentMessage ?? "").length >= 1 &&
-        !isRichQuoteBrief(currentMessage) &&
-        /\b(queremos|quisiera|sumamos|adem[aá]s|tambi[eé]n|helado|frutas?|crepas?)\b/i.test(
-          currentMessage ?? ""
-        )))
-  ) {
-    // Lista corta post-cierre ("helado, crepas y frutas") — anotar, NO re-mandar niveles.
-    const services = parseServicesFromText(currentMessage ?? "");
-    const list =
-      services.length > 0
-        ? formatServicesList(services)
-        : (currentMessage ?? "").trim().replace(/\s+/g, " ").slice(0, 100);
-    const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre
-      ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`
-      : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`;
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre — servicios adicionales (ack corto)");
-  } else if (
-    cierreYaEnviado &&
-    !clientDeclinesMoreServices(currentMessage) &&
-    !clientSaysThanks(currentMessage) &&
-    (isRichQuoteBrief(currentMessage) ||
-      parseServicesFromText(currentMessage ?? "").length >= 2)
-  ) {
-    // RFQ largo post-cierre (brief completo), no una lista corta de extras.
-    const pkg = buildMultiServicePackageReply(
-      parseServicesFromText(currentMessage ?? ""),
-      currentMessage
-    );
-    const nombre = getDisplayName(extracted, whatsappDisplayName);
-    const distributorNote = clientAsksDistributorPricing(currentMessage)
-      ? "\n\nEl precio de mayoreo lo confirma el equipo; no te paso un precio de lista suelto."
-      : "";
-    mensaje = nombre
-      ? `${pkg}${distributorNote}\n\nPerfecto, ${nombre}. Actualizo tu cotización con esto. ¿Algo más que quieras agregar?`
-      : `${pkg}${distributorNote}\n\nActualizo tu cotización con esto. ¿Algo más que quieras agregar?`;
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre — RFQ/paquete completo (no SKU suelto)");
-  } else if (
-    // A15165: post-cierre con PREGUNTA de info/catálogo/modelos/shows → NO ack corto.
-    // Dejar caer a ramas de entretenimiento / mobiliario / recomendaciones / servicio.
-    cierreYaEnviado &&
-    !clientDeclinesMoreServices(currentMessage) &&
-    !clientSaysThanks(currentMessage) &&
-    isServiceRelatedMessage(currentMessage) &&
-    currentMessage?.trim() &&
-    !clientAsksServiceInfo(currentMessage) &&
-    !clientMentionsEntertainment(currentMessage) &&
-    !clientAsksForCatalog(currentMessage) &&
-    !clientAsksForRecommendations(currentMessage) &&
-    !clientAsksInclusion(currentMessage) &&
-    !clientAsksPrice(currentMessage) &&
-    !/\b(modelos?|cat[aá]logo|sillas?|mesas?|mobiliario|mobilairio|banquetes?)\b/i.test(
-      currentMessage ?? ""
-    )
-  ) {
-    // Post-cierre: anotar sin re-dump de niveles/precios (A14918 helado+crepas+frutas).
-    const services = parseServicesFromText(currentMessage);
-    const list =
-      services.length > 0
-        ? formatServicesList(services)
-        : currentMessage.trim().replace(/\s+/g, " ").slice(0, 80);
-    const nombre = getDisplayName(extracted, whatsappDisplayName);
-    mensaje = nombre
-      ? `Perfecto, ${nombre}. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`
-      : `Perfecto. Anoto ${list} para que el equipo lo sume a tu cotización. ¿Algo más que quieras agregar?`;
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre — servicio adicional (ack corto, sin niveles)");
-  } else if (
-    cierreYaEnviado &&
-    (clientSaysThanks(currentMessage) || clientDeclinesMoreServices(currentMessage))
-  ) {
-    mensaje = buildPostCierreThanksReply(extracted.nombre);
-    appliedDirectReply = true;
-    log?.info({ entityId }, "GUARD: post-cierre — agradecimiento o sin más que agregar");
+    log?.info({ entityId }, postCierreOrHandoff.logMsg);
   } else if (clientAsksIfCompanyEmailCorrect(currentMessage)) {
     mensaje = buildCompanyEmailConfirmReply();
     appliedDirectReply = true;
