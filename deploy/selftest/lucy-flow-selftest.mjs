@@ -108812,6 +108812,7 @@ function isLikelyProductNameNotLocation(value) {
   if (/\bsala\s*:/i.test(t3)) return true;
   if (/^luxor(\s+rosa)?$/i.test(t3)) return true;
   if (parseCarpaVariantFromText(t3)) return true;
+  if (/^(cathedral|catedral|pir[aá]mide|planas?)(\s+(carpa|tent))?$/i.test(t3)) return true;
   if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
     t3
   )) {
@@ -108824,23 +108825,24 @@ function isLikelyProductNameNotLocation(value) {
   }
   return false;
 }
+var CARPA_OPTIONS_TEXT = "blancas, negras, transparentes y tipo domo";
 function parseCarpaVariantFromText(text2) {
   const t3 = (text2 ?? "").trim();
   if (!t3 || t3.length > 60) return null;
   if (/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida)\b/i.test(t3)) {
     return null;
   }
-  if (/^(cathedral|catedral)(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+catedral\b/i.test(t3)) {
-    return "Carpa Cathedral";
+  if (/^blancas?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+blanca\b/i.test(t3)) {
+    return "Carpa blanca";
   }
-  if (/^pir[aá]mide(s)?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+pir[aá]mide\b/i.test(t3)) {
-    return "Carpa Pir\xE1mide";
+  if (/^negras?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+negra\b/i.test(t3)) {
+    return "Carpa negra";
   }
-  if (/^planas?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+plana\b/i.test(t3)) {
-    return "Carpa Plana";
+  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+transparente\b/i.test(t3)) {
+    return "Carpa transparente";
   }
-  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t3)) {
-    return "Carpas transparentes";
+  if (/^domos?(\s+(carpa|tent))?$/i.test(t3) || /\bcarpa\s+(?:tipo\s+)?domo\b/i.test(t3)) {
+    return "Carpa tipo domo";
   }
   return null;
 }
@@ -109585,6 +109587,10 @@ function parseInvitadosFromText(text2) {
     }
   }
   if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
+  const approxSuffix = trimmed.match(
+    /^(\d{1,4})\s*(?:aprox(?:imadamente)?|aproximados?|personas?\s+aprox)\.?$/i
+  );
+  if (approxSuffix) return approxSuffix[1];
   if (isServiceRelatedMessage(trimmed)) return null;
   if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
     trimmed
@@ -111079,9 +111085,7 @@ function buildConsultativeNoPriceReply(message) {
     if (fromPdf) return fromPdf;
   }
   if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t3)) {
-    const transparent = /transparent/i.test(t3);
-    const head = transparent ? "S\xED, contamos con *carpas transparentes* (tambi\xE9n Cathedral, Pir\xE1mide y Planas)." : "S\xED, manejamos carpas para jard\xEDn o terraza: Cathedral (techos altos), Pir\xE1mide, Planas y transparentes.";
-    return `${head} Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFCu\xE1l tipo te late y qu\xE9 medidas aproximadas necesitas?`;
+    return `S\xED, manejamos carpas para jard\xEDn o terraza: ${CARPA_OPTIONS_TEXT}. Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFQu\xE9 opci\xF3n prefieres y qu\xE9 medidas aproximadas debe tener (largo \xD7 ancho)?`;
   }
   if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t3)) {
     return `El DJ incluye equipo completo, micr\xF3fono para brindis e iluminaci\xF3n b\xE1sica; puedes mandar playlist. ${team} incluir\xE1 el precio en tu cotizaci\xF3n. \xBFYa tienes estilo de m\xFAsica o prefieres que lea el ambiente?`;
@@ -112618,9 +112622,7 @@ function buildGuardServiceAck(query) {
   }
   if (clientMentionsCarpas(query)) {
     const team = advisorLabelForClient();
-    const transparent = /transparent/i.test(query);
-    const head = transparent ? "S\xED, contamos con *carpas transparentes* (tambi\xE9n Cathedral, Pir\xE1mide y Planas)." : "S\xED, manejamos carpas (Cathedral, Pir\xE1mide, Planas y transparentes).";
-    return `${head} Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFCu\xE1l te late y qu\xE9 medidas aproximadas necesitas?`;
+    return `S\xED, manejamos carpas ${CARPA_OPTIONS_TEXT}. Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFQu\xE9 opci\xF3n prefieres y qu\xE9 medidas aproximadas debe tener (largo \xD7 ancho)?`;
   }
   if (clientMentionsPistaTarima(query)) {
     const fromPdf = buildLucyInfoLearnedPriceReply(query);
@@ -128970,7 +128972,7 @@ function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ct
   const transparent = /transparent/i.test(msg) || /transparent/i.test(variant ?? "");
   const alreadyHasCarpas = /\bcarpas?\b/i.test(extracted.requerimientos_evento ?? "");
   const alreadyPitched = history.some(
-    (m5) => m5.role === "assistant" && typeof m5.content === "string" && /cathedral|pir[aá]mide|planas|transparentes/i.test(m5.content)
+    (m5) => m5.role === "assistant" && typeof m5.content === "string" && /carpas?\s+(?:blancas?|negras?|transparentes?)|tipo\s+domo/i.test(m5.content)
   );
   const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
   if (filledSet) filledSet.add("Requerimientos o servicios");
@@ -130344,9 +130346,23 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
   const core = prefix ? `${prefix}${variant}` : variant;
   return appendServiciosCatalogoHint(core, false, history);
 }
-function requerimientosNeedsFollowUp(extracted, filledSet) {
-  if (filledSet.has("Requerimientos o servicios")) return false;
+function requiredServiceDimensionsMissing(extracted) {
   const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (!req) return false;
+  const requiresDimensions = clientMentionsCarpas(req) || clientMentionsPistaTarima(req);
+  return requiresDimensions && !parseSpaceDimensions(req);
+}
+function buildRequiredServiceDimensionsQuestion(extracted) {
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (clientMentionsCarpas(req)) {
+    return "Antes de cerrar la solicitud necesito las medidas aproximadas de la carpa (largo \xD7 ancho) o del \xE1rea que quieres cubrir. \xBFCu\xE1nto mide?";
+  }
+  return "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?";
+}
+function requerimientosNeedsFollowUp(extracted, filledSet) {
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (requiredServiceDimensionsMissing(extracted)) return true;
+  if (filledSet.has("Requerimientos o servicios")) return false;
   if (!req) return true;
   return !isValidRequerimientosValue(req);
 }
@@ -130366,6 +130382,9 @@ function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessa
   const followUpAlreadyAsked = (history ?? []).some(
     (m5) => m5.role === "assistant" && typeof m5.content === "string" && OTRO_SERVICIO_ASK_PATTERN.test(m5.content)
   );
+  if (requiredServiceDimensionsMissing(extracted)) {
+    return buildRequiredServiceDimensionsQuestion(extracted);
+  }
   if (followUpAlreadyAsked) {
     const pending2 = getNextPendingField(extracted, filledSet);
     if (pending2) return buildNaturalQuestion(pending2, ctx);
@@ -130845,6 +130864,14 @@ function applyLucyMessageGuards(input) {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  const dimensionsNow = parseSpaceDimensions(currentMessage ?? "");
+  if (dimensionsNow && (clientMentionsCarpas(extracted.requerimientos_evento ?? "") || clientMentionsPistaTarima(extracted.requerimientos_evento ?? ""))) {
+    const req = extracted.requerimientos_evento?.trim() || "Servicio";
+    if (!parseSpaceDimensions(req)) {
+      extracted.requerimientos_evento = `${req} (espacio ${dimensionsNow})`;
+    }
+    filledSet.add("Requerimientos o servicios");
+  }
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
     const recoveredNombre = recoverClienteNombreFromHistory(presHistory, currentMessage);
     if (recoveredNombre) {
@@ -131928,7 +131955,7 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
       filledSet,
       ctx
     );
-    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiLooksLikeCarpasReply(aiResponse) && !/Cathedral,\s*Pir[aá]mide,\s*Planas/i.test(aiResponse)) {
+    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiLooksLikeCarpasReply(aiResponse) && !/\b(Cathedral|Catedral|Pir[aá]mide|Planas?)\b/i.test(aiResponse)) {
       mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: carpas \u2014 preferir redacci\xF3n OpenAI");
@@ -132366,6 +132393,10 @@ ${nextQ}`;
       );
       log?.warn({ entityId }, "GPT gener\xF3 nota interna \u2014 usando cierre desde plantilla");
     }
+  }
+  if (!cierreYaEnviado && requiredServiceDimensionsMissing(extracted) && isReadyForClosing(filledSet) && (responseLooksLikePrematureClose(mensaje) || !mensaje.includes("?"))) {
+    mensaje = buildRequiredServiceDimensionsQuestion(extracted);
+    log?.info({ entityId }, "GUARD: bloqueando cierre \u2014 faltan medidas obligatorias");
   }
   if (appliedDirectReply) {
     return normalizeAdvisorReferences(
@@ -133041,6 +133072,10 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     log?.info({ entityId }, "GUARD: A15009 \u2014 reemplaz\xF3 Sigo aqu\xED residual");
   }
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
+  if (!cierreYaEnviado && requiredServiceDimensionsMissing(extracted) && isReadyForClosing(filledSet) && responseLooksLikePrematureClose(mensaje)) {
+    mensaje = buildRequiredServiceDimensionsQuestion(extracted);
+    log?.info({ entityId }, "GUARD: cierre final reemplazado por medidas obligatorias");
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function dedupeCatalogUrlsInMessage(text2) {
@@ -134340,7 +134375,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.03";
+var LUCY_PROMPT_VERSION = "V9.06";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -135417,7 +135452,11 @@ async function runAll() {
     const dj = buildConsultativeNoPriceReply("\xBFCu\xE1nto cuesta el DJ?");
     assert2.ok(dj && /DJ/i.test(dj) && /nuestro equipo/i.test(dj) && dj.includes("?"), dj ?? "");
     const carpa = buildConsultativeNoPriceReply("necesito carpas para el jard\xEDn");
-    assert2.ok(carpa && /carpas?/i.test(carpa) && /Cathedral|Pirámide|Planas/i.test(carpa), carpa ?? "");
+    assert2.ok(
+      carpa && /carpas?/i.test(carpa) && /blancas?/i.test(carpa) && /negras?/i.test(carpa) && /transparentes?/i.test(carpa) && /domo/i.test(carpa),
+      carpa ?? ""
+    );
+    assert2.ok(!/Cathedral|Catedral|Pirámide|Planas/i.test(carpa ?? ""), carpa ?? "");
     const priceGuard = runGuards({
       aiResponse: "El DJ cuesta $5,000.",
       extracted: emptyExtracted({ nombre: "Ana" }),
@@ -140874,8 +140913,10 @@ ${golfText}`,
     assert2.ok(!/Sigo aquí/i.test(antiHandoff.mensaje), antiHandoff.mensaje);
   });
   await test("117. A15016 Israel \u2014 Catedral, De 6x20, email\u2260presupuesto, post-cierre", async () => {
-    assert2.equal(parseCarpaVariantFromText("Catedral"), "Carpa Cathedral");
-    assert2.equal(parseCarpaVariantFromText("Cathedral"), "Carpa Cathedral");
+    assert2.equal(parseCarpaVariantFromText("Catedral"), null);
+    assert2.equal(parseCarpaVariantFromText("Domo"), "Carpa tipo domo");
+    assert2.equal(parseCarpaVariantFromText("Carpa negra"), "Carpa negra");
+    assert2.equal(parseCarpaVariantFromText("Transparente"), "Carpa transparente");
     assert2.ok(isLikelyProductNameNotLocation("Catedral"));
     assert2.ok(!isUsableDireccionEvento("Catedral"));
     assert2.equal(parseZonaFromText("Catedral"), null);
@@ -140949,13 +140990,13 @@ ${golfText}`,
       history: [
         {
           role: "assistant",
-          content: "S\xED, contamos con *carpas transparentes* (y tambi\xE9n Cathedral, Pir\xE1mide y Planas). \xBFQu\xE9 medidas aproximadas necesitas?"
+          content: "S\xED, manejamos carpas blancas, negras, transparentes y tipo domo. \xBFQu\xE9 medidas aproximadas necesitas?"
         }
       ]
     });
     assert2.ok(/6\s*m?\s*x\s*20/i.test(dimsReply), dimsReply.slice(0, 500));
     assert2.ok(!/medidas aproximadas necesitas/i.test(dimsReply), dimsReply.slice(0, 500));
-    const catedralReply = runGuards({
+    const domoReply = runGuards({
       aiResponse: "\xBFQu\xE9 tipo de evento est\xE1s organizando?",
       extracted: emptyExtracted({
         nombre: "Israel Albiter",
@@ -140970,17 +141011,17 @@ ${golfText}`,
         "Lugar/direcci\xF3n del evento"
       ]),
       readyForClosing: false,
-      currentMessage: "Catedral",
+      currentMessage: "Domo",
       history: [
         { role: "user", content: "Carpa transparente" },
         {
           role: "assistant",
-          content: "S\xED, carpas transparentes, Cathedral, Pir\xE1mide y Planas. \xBFMedidas?"
+          content: "S\xED, carpas blancas, negras, transparentes y tipo domo. \xBFMedidas?"
         }
       ]
     });
-    assert2.ok(/cathedral|catedral|carpa/i.test(catedralReply), catedralReply.slice(0, 500));
-    assert2.ok(!/ubicaci[oó]n|lugar del evento|d[oó]nde ser[aá]/i.test(catedralReply), catedralReply.slice(0, 400));
+    assert2.ok(/domo|carpa/i.test(domoReply), domoReply.slice(0, 500));
+    assert2.ok(!/ubicaci[oó]n|lugar del evento|d[oó]nde ser[aá]/i.test(domoReply), domoReply.slice(0, 400));
     const closing = `${CLOSING_SIGNATURE} Voy a compartir esta informaci\xF3n con nuestro equipo para que te prepare una cotizaci\xF3n personalizada.`;
     assert2.ok(detectCierreEnviado([{ role: "assistant", content: closing }]));
     const thanks = runGuards({
@@ -141061,7 +141102,7 @@ ${golfText}`,
       recoverCorreoFromUserTexts(["hola", "administracion@celamex.page"], "A este"),
       "administracion@celamex.page"
     );
-    const closingPitch = "S\xED, manejamos carpas para jard\xEDn o terraza: Cathedral, Pir\xE1mide, Planas y transparentes. \xBFQu\xE9 medidas aproximadas necesitas?";
+    const closingPitch = "S\xED, manejamos carpas para jard\xEDn o terraza: blancas, negras, transparentes y tipo domo. \xBFQu\xE9 medidas aproximadas necesitas?";
     const rePitch = runGuards({
       aiResponse: closingPitch,
       extracted: emptyExtracted({
@@ -141086,7 +141127,10 @@ ${golfText}`,
         { role: "user", content: "administracion@celamex.page" }
       ]
     });
-    assert2.ok(!/Cathedral,\s*Pir[aá]mide,\s*Planas/i.test(rePitch), rePitch.slice(0, 500));
+    assert2.ok(
+      !/blancas?,\s*negras?,\s*transparentes?\s+y\s*tipo\s+domo/i.test(rePitch),
+      rePitch.slice(0, 500)
+    );
     assert2.ok(/carpa/i.test(rePitch), rePitch.slice(0, 400));
     const complained = runGuards({
       aiResponse: "\xBFA qu\xE9 correo te lo env\xEDo?",
@@ -141386,7 +141430,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.03");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.06");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -141889,6 +141933,88 @@ ${golfText}`,
     });
     assert2.ok(!/eres M[aá]ndamelo|sigo contigo/i.test(affirm), affirm.slice(0, 300));
     assert2.ok(/bodasesor\.com\/catalogos/i.test(affirm), affirm.slice(0, 400));
+  });
+  await test("130. A15197 \u2014 tipos reales de carpa y medidas obligatorias antes del cierre", () => {
+    const carpaInfo = buildGuardServiceAck(
+      "Quiero informaci\xF3n y disponibilidad de una carpa bonita para jard\xEDn"
+    );
+    for (const option of ["blanca", "negra", "transparente", "domo"]) {
+      assert2.ok(new RegExp(option, "i").test(carpaInfo), `${option}: ${carpaInfo}`);
+    }
+    assert2.ok(/medidas|largo|ancho/i.test(carpaInfo), carpaInfo);
+    assert2.ok(!/Cathedral|Catedral|Pir[aá]mide|Planas?/i.test(carpaInfo), carpaInfo);
+    const completeWithoutDims = emptyExtracted({
+      nombre: "Milka",
+      correo: "orisrs.13@gmail.com",
+      tipo_evento: "cumplea\xF1os",
+      requerimientos_evento: "Carpas \u2014 peque\xF1a y bonita para jard\xEDn",
+      direccion_evento: "Chalco",
+      fecha_horario: "este s\xE1bado",
+      num_invitados: 15,
+      presupuesto: 1
+    });
+    const allCore = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/direcci\xF3n del evento",
+      "Fecha y horario",
+      "N\xFAmero de invitados",
+      "Presupuesto (MXN)"
+    ]);
+    const blockedClose = runGuards({
+      aiResponse: "Perfecto, ya tengo todo. Le paso esta informaci\xF3n al equipo para preparar la cotizaci\xF3n.",
+      extracted: completeWithoutDims,
+      filledSet: allCore,
+      readyForClosing: true,
+      currentMessage: "Lo m\xE1s barato que se pueda",
+      history: [
+        {
+          role: "assistant",
+          content: "Manejamos carpas blancas, negras, transparentes y tipo domo. \xBFQu\xE9 medidas aproximadas necesitas?"
+        },
+        { role: "user", content: "Algo peque\xF1ito y bonito" }
+      ]
+    });
+    assert2.ok(/medidas|largo|ancho|área.*cubrir/i.test(blockedClose), blockedClose);
+    assert2.ok(!/ya tengo todo|preparar.*cotizaci[oó]n/i.test(blockedClose), blockedClose);
+    const withDims = runGuards({
+      aiResponse: "Perfecto, ya tengo todo. Le paso esta informaci\xF3n al equipo para preparar la cotizaci\xF3n.",
+      extracted: completeWithoutDims,
+      filledSet: new Set(allCore),
+      readyForClosing: true,
+      currentMessage: "De 3 x 4",
+      history: [
+        {
+          role: "assistant",
+          content: "\xBFQu\xE9 medidas aproximadas debe tener la carpa (largo \xD7 ancho)?"
+        }
+      ]
+    });
+    assert2.ok(/3\s*m?\s*x\s*4|ya tengo todo|cotizaci[oó]n/i.test(withDims), withDims);
+    assert2.ok(!/¿[^?]*medidas aproximadas/i.test(withDims), withDims);
+    const tarimaWithoutDims = runGuards({
+      aiResponse: "Perfecto, ya tengo todo. El equipo preparar\xE1 tu cotizaci\xF3n de tarima.",
+      extracted: emptyExtracted({
+        ...completeWithoutDims,
+        requerimientos_evento: "Tarima para evento"
+      }),
+      filledSet: new Set(allCore),
+      readyForClosing: true,
+      currentMessage: "Prefiero que me propongan"
+    });
+    assert2.ok(/medidas|largo|ancho/i.test(tarimaWithoutDims), tarimaWithoutDims);
+    assert2.ok(!/ya tengo todo/i.test(tarimaWithoutDims), tarimaWithoutDims);
+    assert2.equal(parseInvitadosFromText("15 aprox"), "15");
+    const noGuestRepeat = runGuards({
+      aiResponse: "\xBFCu\xE1ntos invitados esperas aproximadamente?",
+      extracted: completeWithoutDims,
+      filledSet: new Set(allCore),
+      readyForClosing: true,
+      currentMessage: "15 aprox"
+    });
+    assert2.ok(!/cu[aá]ntos invitados|cu[aá]ntas personas/i.test(noGuestRepeat), noGuestRepeat);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

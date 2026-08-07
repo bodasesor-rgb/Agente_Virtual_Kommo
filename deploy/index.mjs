@@ -205292,938 +205292,6 @@ ${body2}
 ${ask}`;
 }
 
-// src/lib/bodasesorAdvisor.ts
-var LEGACY_ADVISOR_NAMES = ["Rodrigo"];
-function getAdvisorName() {
-  return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Alejandro";
-}
-function advisorLabelForClient(_clientName) {
-  return "nuestro equipo";
-}
-function escapeRegex(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function isStaffAdvisorName(name2) {
-  const raw = name2?.trim() ?? "";
-  if (!raw) return false;
-  const first = raw.split(/\s+/)[0]?.toLowerCase() ?? "";
-  const staff = /* @__PURE__ */ new Set([
-    getAdvisorName().toLowerCase(),
-    ...LEGACY_ADVISOR_NAMES.map((n10) => n10.toLowerCase()),
-    "lucy",
-    "bodasesor",
-    "kommo"
-  ]);
-  return staff.has(raw.toLowerCase()) || staff.has(first);
-}
-function isLegacyAdvisorName(name2) {
-  const lower2 = name2.toLowerCase();
-  return LEGACY_ADVISOR_NAMES.some((legacy) => legacy.toLowerCase() === lower2);
-}
-var CLIENT_GREETING_PREFIX = /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
-function replaceAdvisorTokensPreservingClientName(text2, token, replacement, clientName) {
-  const clientFirst = clientName?.trim().split(/\s+/)[0];
-  if (!clientFirst || clientFirst.toLowerCase() !== token.toLowerCase()) {
-    return text2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
-  }
-  const placeholder = "\uE000CLIENT_NAME\uE001";
-  const clientEsc = escapeRegex(clientFirst);
-  let out2 = text2.replace(
-    new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
-    `$1${placeholder}`
-  );
-  out2 = out2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
-  return out2.replace(new RegExp(placeholder, "g"), clientFirst);
-}
-function normalizeAdvisorReferences(text2, clientName) {
-  const advisor = advisorLabelForClient(clientName);
-  if (!text2?.trim()) return text2;
-  let out2 = text2;
-  for (const legacy of LEGACY_ADVISOR_NAMES) {
-    out2 = out2.replace(new RegExp(`\\b${legacy}\\b`, "gi"), advisor);
-  }
-  out2 = out2.replace(
-    /\b(le\s+paso\s+estos\s+datos\s+a|paso\s+estos\s+datos\s+a)\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
-    `$1 ${advisor}`
-  );
-  out2 = out2.replace(
-    /\b(voy\s+a\s+)?pasar(le)?\s+esta\s+informaci[oó]n\s+a\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
-    advisor === "nuestro equipo" ? "voy a pasar esta informaci\xF3n a nuestro equipo" : `voy a pasar esta informaci\xF3n a ${advisor}`
-  );
-  out2 = out2.replace(/\b(\p{L}+)\s+\1\b/giu, "$1");
-  out2 = out2.replace(
-    /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+te\s+(arma|armar[aá]|incluir[aá]|cotiza)/g,
-    (m10, name2) => {
-      if (isLegacyAdvisorName(name2)) return m10.replace(name2, advisor);
-      if (name2.toLowerCase() === getAdvisorName().toLowerCase()) {
-        return m10.replace(name2, advisor);
-      }
-      return m10;
-    }
-  );
-  out2 = replaceAdvisorTokensPreservingClientName(out2, getAdvisorName(), advisor, clientName);
-  return out2;
-}
-function stripInternalCrmBlock(mensaje) {
-  if (!/DATOS DEL CLIENTE:|Información completa obtenida/i.test(mensaje)) return mensaje;
-  const cut = mensaje.search(/DATOS DEL CLIENTE:|Información completa obtenida/i);
-  if (cut > 0) return mensaje.slice(0, cut).trim();
-  return "";
-}
-
-// src/price-guard.ts
-var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|mesas?|sillas?|periqueras?|salas?\s*(lounge)?|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
-var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
-var dynamicListedPattern = null;
-var dynamicNoListedPattern = null;
-function escapeRegex2(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function buildServicePattern(labels) {
-  const terms = labels.map((label) => label.trim().toLowerCase()).filter((label) => label.length >= 2).map((label) => escapeRegex2(label).replace(/\s+/g, "\\s+"));
-  if (!terms.length) return null;
-  return new RegExp(`\\b(?:${terms.join("|")})\\b`, "i");
-}
-function setCatalogPriceIndex(priced, noPrice) {
-  dynamicListedPattern = buildServicePattern(priced);
-  dynamicNoListedPattern = buildServicePattern(noPrice);
-}
-var PRICE_CLAIM_PATTERN = /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
-var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecios?\b|\bcostos?\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b|\bver\s+(los\s+)?precios?\b|\bpasar?(me)?\s+(los\s+)?precios?\b/i;
-function clientAsksPrice(message) {
-  if (!message?.trim()) return false;
-  if (!PRICE_QUESTION_PATTERN.test(message)) return false;
-  if (message.trim().length > 220 && /\b(cotiz|propuestas?|opci[oó]n\s*[123]|distribuidor)\b/i.test(message)) {
-    return false;
-  }
-  if (/\bprecio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
-  if (/\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
-  if (/\brangos?\s+de\s+precio\b/i.test(message) && /\b(propuestas?|opci[oó]n|men[uú])\b/i.test(message)) {
-    return false;
-  }
-  return true;
-}
-function mentionsNoListedPriceService(text2) {
-  if (dynamicNoListedPattern?.test(text2)) return true;
-  return NO_LISTED_PRICE_PATTERN.test(text2);
-}
-function mentionsListedPriceService(text2) {
-  if (dynamicListedPattern?.test(text2)) return true;
-  return LISTED_PRICE_PATTERN.test(text2);
-}
-function messageClaimsPrice(mensaje) {
-  return PRICE_CLAIM_PATTERN.test(mensaje);
-}
-function responseHasInventedPrice(mensaje, currentMessage, recentContext) {
-  if (!messageClaimsPrice(mensaje)) return false;
-  if (lucyInfoSupportsPriceClaim(mensaje)) return false;
-  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`.toLowerCase();
-  if (mentionsNoListedPriceService(ctx)) return true;
-  if (!mentionsListedPriceService(ctx) && messageClaimsPrice(mensaje)) {
-    return true;
-  }
-  return false;
-}
-function detectServiceLabel(text2) {
-  const t10 = text2.toLowerCase();
-  if (/\bdj\b/.test(t10)) return "DJ";
-  if (/iluminaci[oó]n/.test(t10)) return "iluminaci\xF3n";
-  if (/periqueras?/.test(t10)) return "periqueras";
-  if (/mesas?/.test(t10) && /sillas?/.test(t10)) return "mesas y sillas";
-  if (/mesas?/.test(t10)) return "mesas";
-  if (/sillas?/.test(t10)) return "sillas";
-  if (/salas?\s*lounge|lounge/.test(t10)) return "salas lounge";
-  if (/mobiliario/.test(t10)) return "mobiliario";
-  if (/carpas?|lonas?/.test(t10)) return "carpas";
-  if (/pantallas?/.test(t10)) return "pantallas";
-  if (/pista(\s+de\s+baile)?|tarimas?/.test(t10)) return "pista de baile";
-  if (/flor/.test(t10)) return "florister\xEDa";
-  return "ese servicio";
-}
-function getPriceServiceLabel(text2) {
-  return detectServiceLabel(text2);
-}
-function stripPriceSentences(mensaje) {
-  const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);
-  const kept = sentences.filter((s10) => !PRICE_CLAIM_PATTERN.test(s10));
-  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
-}
-function stripStalePriceTalk(mensaje, currentMessage) {
-  if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
-  if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
-  return mensaje.split(/(?<=[.!?])\s+|\n+/).filter((s10) => !/\bdj\b/i.test(s10) || clientAsksPrice(currentMessage)).filter((s10) => !/alejandro te (incluye|da) el precio/i.test(s10)).join(" ").replace(/\s{2,}/g, " ").trim();
-}
-function buildConsultativeNoPriceReply(message) {
-  if (!message?.trim()) return null;
-  const t10 = message.toLowerCase();
-  const team = advisorLabelForClient();
-  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila/.test(
-    t10
-  )) {
-    const fromPdf = buildLucyInfoLearnedPriceReply(message);
-    if (fromPdf) return fromPdf;
-  }
-  if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t10)) {
-    const transparent = /transparent/i.test(t10);
-    const head = transparent ? "S\xED, contamos con *carpas transparentes* (tambi\xE9n Cathedral, Pir\xE1mide y Planas)." : "S\xED, manejamos carpas para jard\xEDn o terraza: Cathedral (techos altos), Pir\xE1mide, Planas y transparentes.";
-    return `${head} Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFCu\xE1l tipo te late y qu\xE9 medidas aproximadas necesitas?`;
-  }
-  if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t10)) {
-    return `El DJ incluye equipo completo, micr\xF3fono para brindis e iluminaci\xF3n b\xE1sica; puedes mandar playlist. ${team} incluir\xE1 el precio en tu cotizaci\xF3n. \xBFYa tienes estilo de m\xFAsica o prefieres que lea el ambiente?`;
-  }
-  if (/iluminaci[oó]n/.test(t10)) {
-    return `Opciones: uplighting LED en paredes, luces colgantes tipo edison o luces de pista. ${team} cotiza seg\xFAn el espacio. \xBFQu\xE9 ambiente buscas: elegante, rom\xE1ntico o fiesta?`;
-  }
-  if (/pista(\s+de\s+baile)?|tarimas?\b/.test(t10)) {
-    return `S\xED, manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} cotiza seg\xFAn las medidas. \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
-  }
-  if (/periqueras?|mesas?\s+(peque[nñ]as?|tipo\s+bar)|mesas?\s+periqueras?/.test(t10)) {
-    return `S\xED, rentamos periqueras y mesas tipo bar en distintos acabados. El precio depende de cantidad, estilo y si llevan montaje en sitio. ${team} cotiza seg\xFAn lo que necesites. \xBFCu\xE1ntas periqueras/mesas necesitas y para cu\xE1ndo?`;
-  }
-  if (/mesas?|sillas?|mobiliario|salas?\s*lounge/.test(t10)) {
-    return `Manejamos mesas, sillas, periqueras y salas lounge para eventos en distintos estilos. ${team} cotiza seg\xFAn cantidad y tipo. \xBFQu\xE9 mobiliario necesitas y para cu\xE1ntas personas?`;
-  }
-  return null;
-}
-function buildAlejandroPriceReply(serviceHint, clientMessage) {
-  const consultative = clientMessage ? buildConsultativeNoPriceReply(clientMessage) : null;
-  if (consultative) return consultative;
-  const svc = serviceHint?.trim() || "ese servicio";
-  const team = advisorLabelForClient();
-  return `S\xED, manejamos ${svc}. El precio depende del evento \u2014 ${team} te lo incluye en tu cotizaci\xF3n.`;
-}
-function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
-  if (!responseHasInventedPrice(mensaje, currentMessage, recentContext)) {
-    return mensaje;
-  }
-  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`;
-  const service = detectServiceLabel(ctx);
-  const cleaned = stripPriceSentences(mensaje);
-  const safe = buildAlejandroPriceReply(service, currentMessage);
-  if (!cleaned || cleaned.length < 15) return safe;
-  const withoutCorreoInsist = cleaned.replace(/[^.!?\n]*correo[^.!?\n]*\?[^.!?\n]*/gi, "").trim();
-  const base = withoutCorreoInsist.length > 20 ? withoutCorreoInsist : "";
-  if (base && !/alejandro/i.test(base)) {
-    return `${base} ${safe}`.trim();
-  }
-  return safe;
-}
-
-// src/services/googleSheetsCatalog.ts
-var BODASESOR_PRECIOS_SHEET_ID = "1s3DGZZXm3VXxqxyq1cKDnD3DfhGUrVw6ZkpYuN5_pBQ";
-var HEADER_ALIASES = {
-  servicio: "servicio",
-  service: "servicio",
-  nombre: "servicio",
-  producto: "servicio",
-  categoria: "categoria",
-  categor\u00EDa: "categoria",
-  category: "categoria",
-  tipo: "categoria",
-  nivel: "nivel",
-  tier: "nivel",
-  paquete: "nivel",
-  "precio unitario": "precio",
-  precio: "precio",
-  price: "precio",
-  costo: "precio",
-  tarifa: "precio",
-  unidad: "unidad",
-  unit: "unidad",
-  pp: "unidad",
-  notas: "notas",
-  nota: "notas",
-  notes: "notas",
-  descripcion: "notas",
-  descripci\u00F3n: "notas",
-  detalle: "notas",
-  "que incluye": "notas",
-  extras: "notas",
-  sinonimos: "sinonimos",
-  sin\u00F3nimos: "sinonimos",
-  aliases: "sinonimos"
-};
-function deriveCatalogCategory(servicio) {
-  const s10 = servicio.toLowerCase();
-  if (/barra de bebida|cocteler|mixolog|m[oó]ctel/.test(s10)) return "Bebidas";
-  if (/banquete|taquiza|brunch|coffee|barra|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i.test(
-    s10
-  )) {
-    return "Alimentos";
-  }
-  if (/mobiliario|silla/.test(s10)) return "Mobiliario";
-  if (/dj|animaci|iluminaci|pantalla|audio|pista/.test(s10)) return "Entretenimiento";
-  return "Servicios";
-}
-function formatCatalogRowLabel(row) {
-  const svc = row.servicio.trim();
-  const nivel = row.nivel.trim();
-  if (!nivel || nivel.toLowerCase() === svc.toLowerCase()) return svc;
-  return `${svc} \u2014 ${nivel}`;
-}
-function normalizeHeader(h10) {
-  return h10.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
-}
-function parseCsvRows(text2) {
-  const rows = [];
-  let row = [];
-  let cell = "";
-  let inQuotes = false;
-  for (let i10 = 0; i10 < text2.length; i10++) {
-    const ch2 = text2[i10];
-    const next = text2[i10 + 1];
-    if (inQuotes) {
-      if (ch2 === '"' && next === '"') {
-        cell += '"';
-        i10++;
-      } else if (ch2 === '"') {
-        inQuotes = false;
-      } else {
-        cell += ch2;
-      }
-      continue;
-    }
-    if (ch2 === '"') {
-      inQuotes = true;
-      continue;
-    }
-    if (ch2 === ",") {
-      row.push(cell);
-      cell = "";
-      continue;
-    }
-    if (ch2 === "\n" || ch2 === "\r" && next === "\n") {
-      row.push(cell);
-      cell = "";
-      if (row.some((c10) => c10.trim())) rows.push(row);
-      row = [];
-      if (ch2 === "\r") i10++;
-      continue;
-    }
-    cell += ch2;
-  }
-  if (cell.length || row.length) {
-    row.push(cell);
-    if (row.some((c10) => c10.trim())) rows.push(row);
-  }
-  return rows;
-}
-function truthyPrecioFlag(raw) {
-  if (!raw?.trim()) return null;
-  const v10 = raw.trim().toLowerCase();
-  if (/^(s[ií]|yes|true|1|x|con\s+precio)$/.test(v10)) return true;
-  if (/^(no|false|0|sin\s+precio|alejandro|cotizar)$/.test(v10)) return false;
-  return null;
-}
-function rowHasPriceValue(precio) {
-  return /\$|\/pp|\/\s*pp|mil|pesos|mxn|\d/.test(precio);
-}
-function extractSheetId(value) {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  if (/^[a-zA-Z0-9-_]{20,}$/.test(trimmed) && !trimmed.startsWith("http")) return trimmed;
-  const match2 = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-  return match2?.[1] ?? null;
-}
-function resolveSheetIdEnv() {
-  for (const key of ["GOOGLE_SHEETS_CATALOG_ID", "GOOGLE_SHEETS_PRECIOS"]) {
-    const raw = process.env[key]?.trim();
-    if (!raw) continue;
-    const id2 = extractSheetId(raw);
-    if (id2) return id2;
-  }
-  return BODASESOR_PRECIOS_SHEET_ID;
-}
-function resolveDirectCsvUrl() {
-  for (const key of ["GOOGLE_SHEETS_CATALOG_CSV_URL", "GOOGLE_SHEETS_PRECIOS_CSV_URL"]) {
-    const url2 = process.env[key]?.trim();
-    if (url2) return url2;
-  }
-  const precios = process.env["GOOGLE_SHEETS_PRECIOS"]?.trim();
-  if (precios?.includes("export?format=csv")) return precios;
-  return null;
-}
-function buildSheetsCsvUrl() {
-  const direct = resolveDirectCsvUrl();
-  if (direct) return direct;
-  const sheetId = resolveSheetIdEnv();
-  if (!sheetId) return null;
-  const sheetName = process.env["GOOGLE_SHEETS_CATALOG_SHEET_NAME"]?.trim();
-  const gvizBase = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
-  if (sheetName) {
-    return `${gvizBase}&sheet=${encodeURIComponent(sheetName)}`;
-  }
-  return gvizBase;
-}
-function buildSheetsTextCsvUrl() {
-  const direct = process.env["GOOGLE_SHEETS_CATALOG_TEXT_CSV_URL"]?.trim();
-  if (direct) return direct;
-  const sheetId = resolveSheetIdEnv();
-  const textGid = process.env["GOOGLE_SHEETS_CATALOG_TEXT_GID"]?.trim();
-  if (!sheetId || !textGid) return null;
-  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${textGid}`;
-}
-async function fetchCsvText(url2) {
-  const res = await fetch(url2, {
-    headers: { "User-Agent": "Lucy-Bodasesor-Catalog/1.0" },
-    signal: AbortSignal.timeout(25e3)
-  });
-  if (!res.ok) {
-    throw new Error(`Sheets CSV HTTP ${res.status}`);
-  }
-  return res.text();
-}
-function parseSheetCatalogCsv(csvText) {
-  const matrix = parseCsvRows(csvText);
-  if (matrix.length < 2) return [];
-  const headers = matrix[0].map(normalizeHeader);
-  const idx = {};
-  let tienePrecioCol = null;
-  let catalogoRevisadoCol = null;
-  let precioMinimoCol = null;
-  let linkCatalogoCol = null;
-  let extrasCol = null;
-  headers.forEach((h10, i10) => {
-    if (h10 === "tiene_precio" || h10 === "tiene precio" || h10 === "con_precio" || h10 === "listed_price") {
-      tienePrecioCol = i10;
-      return;
-    }
-    if (h10 === "catalogo revisado" || h10 === "catalogo_revisado") {
-      catalogoRevisadoCol = i10;
-      return;
-    }
-    if (h10 === "precio minimo de salida" || h10 === "precio minimo") {
-      precioMinimoCol = i10;
-      return;
-    }
-    if (h10 === "link catalogo" || h10 === "link_catalogo" || h10 === "link") {
-      linkCatalogoCol = i10;
-      return;
-    }
-    if (h10 === "extras") {
-      extrasCol = i10;
-      return;
-    }
-    const mapped = HEADER_ALIASES[h10];
-    if (mapped && idx[mapped] === void 0) idx[mapped] = i10;
-  });
-  if (idx.servicio === void 0) return [];
-  const rows = [];
-  for (const line2 of matrix.slice(1)) {
-    const get = (key) => {
-      const col = idx[key];
-      return col === void 0 ? "" : (line2[col] ?? "").trim();
-    };
-    const servicioBase = get("servicio");
-    if (!servicioBase || /^#|comentario|ignore/i.test(servicioBase)) continue;
-    if (catalogoRevisadoCol !== null) {
-      const revisado = (line2[catalogoRevisadoCol] ?? "").trim().toLowerCase();
-      if (revisado === "false" || revisado === "no" || revisado === "0") continue;
-    }
-    const servicio = servicioBase;
-    const nivelVal = get("nivel");
-    const categoria = get("categoria") || deriveCatalogCategory(servicioBase);
-    const precio = get("precio");
-    const flag = tienePrecioCol !== null ? truthyPrecioFlag(line2[tienePrecioCol]) : null;
-    const tienePrecio = flag === true || flag === null && rowHasPriceValue(precio);
-    const notasParts = [];
-    const notasBase = get("notas");
-    if (notasBase) notasParts.push(notasBase);
-    if (precioMinimoCol !== null) {
-      const min = (line2[precioMinimoCol] ?? "").trim();
-      if (min) notasParts.push(`M\xEDnimo de salida: ${min}`);
-    }
-    let linkCatalogo;
-    if (linkCatalogoCol !== null) {
-      const link = (line2[linkCatalogoCol] ?? "").trim();
-      if (link && /^https?:\/\//i.test(link)) {
-        linkCatalogo = link;
-      }
-    }
-    if (extrasCol !== null) {
-      const extras = (line2[extrasCol] ?? "").trim();
-      if (extras) notasParts.push(`Extras: ${extras}`);
-    }
-    let unidad = get("unidad");
-    if (!unidad && /\$/.test(precio)) unidad = "/pp";
-    rows.push({
-      servicio,
-      nivel: nivelVal,
-      categoria,
-      precio,
-      unidad,
-      notas: notasParts.join(" | "),
-      tienePrecio,
-      sinonimos: get("sinonimos") || void 0,
-      linkCatalogo
-    });
-  }
-  return rows;
-}
-function sheetRowsToMarkdown(rows) {
-  if (!rows.length) return "";
-  const byCategory = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    const cat = row.categoria || "Servicios";
-    if (!byCategory.has(cat)) byCategory.set(cat, []);
-    byCategory.get(cat).push(row);
-  }
-  const lines = [
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "CAT\xC1LOGO BODASESOR \u2014 GOOGLE SHEETS (fuente viva)",
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "",
-    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vac\xEDo \u2192 el equipo confirma en cotizaci\xF3n. NUNCA inventes bebidas, platillos ni marcas.",
-    "REGLA LINK WEB: Si una fila trae Link cat\xE1logo (bodasesor.com/catalogos/\u2026), SOLO env\xEDalo cuando el cliente lo pida. Un link a la vez. No inventes URLs.",
-    ""
-  ];
-  for (const [cat, items] of byCategory) {
-    lines.push(`## ${cat}`, "");
-    const byService = /* @__PURE__ */ new Map();
-    for (const item of items) {
-      const key = item.servicio;
-      if (!byService.has(key)) byService.set(key, []);
-      byService.get(key).push(item);
-    }
-    for (const [svc, levels] of byService) {
-      if (levels.length === 1) {
-        const item = levels[0];
-        const label = formatCatalogRowLabel(item);
-        if (item.tienePrecio && item.precio) {
-          const unit = item.unidad ? ` ${item.unidad}` : "";
-          lines.push(`\u2022 **${label}**: ${item.precio}${unit}`);
-        } else {
-          lines.push(`\u2022 **${label}**: sin precio listado \u2014 Alejandro cotiza`);
-        }
-        if (item.notas) {
-          const parsed = parseRowNotes(item.notas);
-          const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
-          if (clientNotes) lines.push(`  Incluye: ${clientNotes}`);
-        }
-        if (item.linkCatalogo) {
-          lines.push(`  Link cat\xE1logo (solo si lo piden): ${item.linkCatalogo}`);
-        }
-      } else {
-        lines.push(`\u2022 **${svc}** (${levels.length} niveles)`);
-        for (const item of levels.slice(0, 6)) {
-          const label = item.nivel || formatCatalogRowLabel(item);
-          if (item.tienePrecio && item.precio) {
-            const unit = item.unidad ? ` ${item.unidad}` : "";
-            lines.push(`  - ${label}: ${item.precio}${unit}`);
-          } else {
-            lines.push(`  - ${label}: sin precio listado \u2014 el equipo cotiza`);
-          }
-          if (item.notas) {
-            const parsed = parseRowNotes(item.notas);
-            const bits = [
-              parsed.inclusion ? formatInclusionForWhatsApp(parsed.inclusion, 280) : "",
-              parsed.minimo ? `M\xEDn. salida: ${parsed.minimo}` : ""
-            ].filter(Boolean);
-            if (bits.length) lines.push(`    Incluye: ${bits.join(" | ")}`);
-          }
-        }
-        const link = levels.find((l10) => l10.linkCatalogo)?.linkCatalogo;
-        if (link) lines.push(`  Link cat\xE1logo (solo si lo piden): ${link}`);
-      }
-    }
-    lines.push("");
-  }
-  return lines.join("\n").trim();
-}
-function formatInclusionForWhatsApp(text2, maxLen = 420) {
-  let cleaned = text2.replace(/\s+/g, " ").replace(/ incluido\s+/gi, ". ").replace(/ servicio base incluye:/gi, " Incluye:").replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚ])/g, "$1. $2").trim();
-  if (cleaned.length > maxLen) {
-    cleaned = `${cleaned.slice(0, maxLen - 1).trim()}\u2026`;
-  }
-  return cleaned;
-}
-function parseRowNotes(notas) {
-  const result = { inclusion: "", minimo: "", gammaLink: "", extras: "" };
-  if (!notas?.trim()) return result;
-  for (const part of notas.split("|").map((s10) => s10.trim())) {
-    if (!part) continue;
-    if (/^cat[aá]logo:\s*https?:/i.test(part)) {
-      result.gammaLink = part.replace(/^cat[aá]logo:\s*/i, "").trim();
-    } else if (/^m[ií]nimo de salida:/i.test(part)) {
-      result.minimo = part.replace(/^m[ií]nimo de salida:\s*/i, "").trim();
-    } else if (/^extras:/i.test(part)) {
-      result.extras = part.replace(/^extras:\s*/i, "").trim();
-    } else if (!result.inclusion) {
-      result.inclusion = formatInclusionForWhatsApp(part);
-    } else {
-      result.inclusion = formatInclusionForWhatsApp(`${result.inclusion} ${part}`);
-    }
-  }
-  if (result.extras) {
-    const extraText = formatInclusionForWhatsApp(result.extras, 180);
-    result.inclusion = result.inclusion ? `${result.inclusion} Extras: ${extraText}` : `Extras: ${extraText}`;
-  }
-  return result;
-}
-
-// src/services/gammaCatalog.ts
-var GAMMA_API_BASE = "https://public-api.gamma.app/v1.0";
-function gammaApiKey() {
-  const key = process.env["GAMMA_API_KEY"]?.trim();
-  return key || null;
-}
-function resolveGammaId() {
-  const direct = process.env["GAMMA_CATALOG_GAMMA_ID"]?.trim();
-  if (direct) return direct;
-  const url2 = process.env["GAMMA_CATALOG_URL"]?.trim();
-  if (!url2) return null;
-  const match2 = url2.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
-  return match2?.[1] ?? null;
-}
-function resolveGammaPublicUrl() {
-  return process.env["GAMMA_CATALOG_URL"]?.trim() || null;
-}
-function extractGammaIdFromUrl(url2) {
-  const match2 = url2.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
-  return match2?.[1] ?? null;
-}
-async function fetchGammaDocKnowledge(gammaId) {
-  const apiKey = gammaApiKey();
-  if (!apiKey) return { title: "", description: "" };
-  try {
-    const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}`, {
-      headers: { "X-API-KEY": apiKey, Accept: "application/json" },
-      signal: AbortSignal.timeout(2e4)
-    });
-    if (!res.ok) return { title: "", description: "" };
-    const data = await res.json();
-    return {
-      title: typeof data.title === "string" ? data.title.trim() : "",
-      description: typeof data.description === "string" ? data.description.trim() : ""
-    };
-  } catch {
-    return { title: "", description: "" };
-  }
-}
-async function loadGammaKnowledgeFromSheet(rows) {
-  const byService = /* @__PURE__ */ new Map();
-  for (const row of rows) {
-    const linkMatch = row.notas.match(/Cat[aá]logo:\s*(https?:\S+)/i);
-    const url2 = linkMatch?.[1];
-    if (!url2) continue;
-    const gammaId = extractGammaIdFromUrl(url2);
-    if (!gammaId) continue;
-    const base = row.categoria || row.servicio.split(" (")[0] || row.servicio;
-    if (!byService.has(base)) byService.set(base, gammaId);
-  }
-  if (!byService.size) return "";
-  const entries = [];
-  const fetches = [...byService.entries()].map(async ([service, gammaId]) => {
-    try {
-      const meta = await fetchGammaDocKnowledge(gammaId);
-      if (!meta.title && !meta.description) return null;
-      return { service, gammaId, title: meta.title, description: meta.description };
-    } catch {
-      return null;
-    }
-  });
-  for (const result of await Promise.all(fetches)) {
-    if (result) entries.push(result);
-  }
-  if (!entries.length) return "";
-  const lines = [
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "CONOCIMIENTO INTERNO GAMMA (solo para Lucy \u2014 NO enviar links al cliente)",
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "",
-    "Usa esta info para explicar men\xFAs, niveles y productos. NUNCA compartas enlaces gamma.app.",
-    ""
-  ];
-  for (const entry of entries) {
-    lines.push(`## ${entry.service}`);
-    if (entry.title) lines.push(`T\xEDtulo: ${entry.title}`);
-    if (entry.description) lines.push(entry.description);
-    lines.push("");
-  }
-  return lines.join("\n").trim();
-}
-async function fetchGammaMetadata(gammaId) {
-  const apiKey = gammaApiKey();
-  if (!apiKey) return {};
-  const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}`, {
-    headers: {
-      "X-API-KEY": apiKey,
-      Accept: "application/json"
-    },
-    signal: AbortSignal.timeout(2e4)
-  });
-  if (!res.ok) return {};
-  const data = await res.json();
-  const title = typeof data.title === "string" ? data.title : void 0;
-  const url2 = typeof data.gammaUrl === "string" ? data.gammaUrl : typeof data.url === "string" ? data.url : void 0;
-  return { title, url: url2 };
-}
-async function tryGammaExportUrl(gammaId) {
-  const apiKey = gammaApiKey();
-  if (!apiKey) return null;
-  try {
-    const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}/export`, {
-      method: "POST",
-      headers: {
-        "X-API-KEY": apiKey,
-        "Content-Type": "application/json",
-        Accept: "application/json"
-      },
-      body: JSON.stringify({ format: "pdf" }),
-      signal: AbortSignal.timeout(2e4)
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (!data.exportId) return null;
-    for (let i10 = 0; i10 < 12; i10++) {
-      await new Promise((r10) => setTimeout(r10, 2500));
-      const poll = await fetch(`${GAMMA_API_BASE}/exports/${data.exportId}`, {
-        headers: { "X-API-KEY": apiKey, Accept: "application/json" },
-        signal: AbortSignal.timeout(15e3)
-      });
-      if (!poll.ok) continue;
-      const status = await poll.json();
-      if (status.status === "completed" && status.exportUrl) return status.exportUrl;
-      if (status.status === "failed") break;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
-async function fetchPublishedText(url2) {
-  const res = await fetch(url2, {
-    headers: { "User-Agent": "Lucy-Bodasesor-Catalog/1.0" },
-    signal: AbortSignal.timeout(25e3)
-  });
-  if (!res.ok) throw new Error(`Gamma text URL HTTP ${res.status}`);
-  return res.text();
-}
-async function loadGammaCatalog() {
-  const gammaId = resolveGammaId();
-  const publicUrl = resolveGammaPublicUrl();
-  const textUrl = process.env["GAMMA_CATALOG_TEXT_URL"]?.trim();
-  const staticExport = process.env["GAMMA_CATALOG_EXPORT_URL"]?.trim();
-  if (!gammaId && !publicUrl && !textUrl && !staticExport) return null;
-  const meta = gammaId ? await fetchGammaMetadata(gammaId) : {};
-  const enableExport = process.env["GAMMA_ENABLE_EXPORT_API"]?.trim().toLowerCase() === "true";
-  const exportUrl = staticExport || (gammaId && enableExport ? await tryGammaExportUrl(gammaId) : null);
-  let publishedText = "";
-  if (textUrl) {
-    try {
-      publishedText = await fetchPublishedText(textUrl).then((t10) => t10.trim());
-    } catch {
-      publishedText = "";
-    }
-  }
-  const lines = [
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "CAT\xC1LOGO VISUAL GAMMA (solo conocimiento interno de Lucy)",
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "",
-    "NUNCA compartas enlaces gamma.app con el cliente. Usa el contenido para responder con tus palabras.",
-    ""
-  ];
-  if (meta.title) lines.push(`T\xEDtulo: ${meta.title}`, "");
-  if (publishedText) {
-    lines.push("Contenido publicado:", "", publishedText);
-  } else if (meta.title || (publicUrl || meta.url)) {
-    lines.push("Usa el conocimiento Gamma del Sheet y las inclusiones del cat\xE1logo de precios.");
-  }
-  return {
-    gammaId: gammaId ?? null,
-    title: meta.title ?? null,
-    gammaUrl: publicUrl || meta.url || null,
-    exportUrl,
-    textBlock: lines.join("\n").trim(),
-    fetchedAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-}
-
-// src/services/catalogWebKnowledge.ts
-import { readFileSync as readFileSync2 } from "node:fs";
-import path3 from "node:path";
-import { fileURLToPath as fileURLToPath2 } from "node:url";
-var CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
-var embedsCache = null;
-var knowledgeCache = [];
-var knowledgeBlockCache = "";
-function embedsJsonPath() {
-  const here = path3.dirname(fileURLToPath2(import.meta.url));
-  const candidates = [
-    path3.resolve(here, "../../public/catalogos-light/embeds.json"),
-    path3.resolve(here, "../catalogos-light/embeds.json"),
-    path3.resolve(process.cwd(), "public/catalogos-light/embeds.json"),
-    path3.resolve(process.cwd(), "dist/catalogos-light/embeds.json")
-  ];
-  for (const p10 of candidates) {
-    try {
-      readFileSync2(p10, "utf8");
-      return p10;
-    } catch {
-    }
-  }
-  return candidates[0];
-}
-function extractGammaIdFromEmbed(embedSrc) {
-  const m10 = embedSrc.match(/gamma\.app\/embed\/([a-z0-9]+)/i);
-  return m10?.[1] ?? null;
-}
-function loadCatalogEmbeds() {
-  if (embedsCache) return embedsCache;
-  try {
-    const raw = readFileSync2(embedsJsonPath(), "utf8");
-    const parsed = JSON.parse(raw);
-    embedsCache = Object.entries(parsed).map(([slug, v10]) => {
-      const embedSrc = (v10.embedSrc ?? "").trim();
-      return {
-        slug,
-        title: (v10.title ?? slug).trim(),
-        embedSrc,
-        gammaId: extractGammaIdFromEmbed(embedSrc),
-        webUrl: `${CATALOG_WEB_HUB}/${slug}`
-      };
-    });
-  } catch {
-    embedsCache = [];
-  }
-  return embedsCache;
-}
-function resolveCatalogWebSlug(query) {
-  if (!query?.trim()) return null;
-  const t10 = query.trim().toLowerCase();
-  const urlMatch = t10.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
-  if (urlMatch?.[1]) return urlMatch[1];
-  const aliases = [
-    [/\b(mesas?\s*y\s*sillas?|sillas?|mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
-    [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
-    [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
-    [/\bbanquetes?\b/i, "banquete-formal"]
-  ];
-  for (const [re4, slug] of aliases) {
-    if (re4.test(t10) && loadCatalogEmbeds().some((e10) => e10.slug === slug)) return slug;
-  }
-  const embeds = loadCatalogEmbeds();
-  const exact = embeds.find((e10) => e10.slug === t10.replace(/\s+/g, "-"));
-  if (exact) return exact.slug;
-  const norm2 = t10.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, " ").trim();
-  let best = null;
-  for (const e10 of embeds) {
-    const titleNorm = e10.title.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, " ").trim();
-    const slugNorm = e10.slug.replace(/-/g, " ");
-    let score = 0;
-    if (norm2.includes(titleNorm) || titleNorm.includes(norm2)) score += 5;
-    if (norm2.includes(slugNorm) || slugNorm.includes(norm2)) score += 4;
-    for (const tok of norm2.split(" ").filter((w10) => w10.length > 3)) {
-      if (titleNorm.includes(tok) || slugNorm.includes(tok)) score += 1;
-    }
-    if (!best || score > best.score) best = { slug: e10.slug, score };
-  }
-  return best && best.score >= 4 ? best.slug : null;
-}
-function getCatalogWebUrlForQuery(query) {
-  const slug = resolveCatalogWebSlug(query);
-  return slug ? `${CATALOG_WEB_HUB}/${slug}` : null;
-}
-function getCatalogEmbed(slug) {
-  return loadCatalogEmbeds().find((e10) => e10.slug === slug) ?? null;
-}
-async function fetchGammaMeta(gammaId, apiKey) {
-  try {
-    const res = await fetch(`https://public-api.gamma.app/v1.0/gammas/${encodeURIComponent(gammaId)}`, {
-      headers: { "X-API-KEY": apiKey, Accept: "application/json" },
-      signal: AbortSignal.timeout(15e3)
-    });
-    if (!res.ok) return { title: "", description: "" };
-    const data = await res.json();
-    return {
-      title: typeof data.title === "string" ? data.title.trim() : "",
-      description: typeof data.description === "string" ? data.description.trim() : ""
-    };
-  } catch {
-    return { title: "", description: "" };
-  }
-}
-async function refreshCatalogWebKnowledge(limit2 = 40) {
-  const embeds = loadCatalogEmbeds();
-  const apiKey = process.env["GAMMA_API_KEY"]?.trim() || "";
-  const withGamma = embeds.filter((e10) => e10.gammaId).slice(0, limit2);
-  const entries = [];
-  if (apiKey && withGamma.length) {
-    const chunkSize = 8;
-    for (let i10 = 0; i10 < withGamma.length; i10 += chunkSize) {
-      const chunk = withGamma.slice(i10, i10 + chunkSize);
-      const results = await Promise.all(
-        chunk.map(async (e10) => {
-          const meta = await fetchGammaMeta(e10.gammaId, apiKey);
-          return {
-            ...e10,
-            gammaTitle: meta.title,
-            gammaDescription: meta.description
-          };
-        })
-      );
-      entries.push(...results);
-    }
-  } else {
-    for (const e10 of embeds.slice(0, limit2)) {
-      entries.push({ ...e10, gammaTitle: "", gammaDescription: "" });
-    }
-  }
-  knowledgeCache = entries;
-  const lines = [
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "CAT\xC1LOGOS WEB BODASESOR (fuente completa de men\xFAs e inclusiones)",
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    "",
-    "Fuente viva: https://bodasesor.com/catalogos/{slug}",
-    "Reglas:",
-    "- Si el Sheet no trae 'Que Incluye' o el detalle es pobre, USA esta lista + el cat\xE1logo web.",
-    "- Explica niveles/men\xFAs con lo que sepas aqu\xED; si falta detalle, ofrece el link de bodasesor.com (NO gamma.app).",
-    "- Un link a la vez, solo cuando ayude o el cliente lo pida.",
-    ""
-  ];
-  for (const e10 of entries) {
-    lines.push(`## ${e10.title}`);
-    lines.push(`Slug: ${e10.slug}`);
-    lines.push(`URL cliente: ${e10.webUrl}`);
-    if (e10.gammaTitle) lines.push(`T\xEDtulo cat\xE1logo: ${e10.gammaTitle}`);
-    if (e10.gammaDescription) lines.push(e10.gammaDescription);
-    lines.push("");
-  }
-  knowledgeBlockCache = lines.join("\n").trim();
-  return knowledgeBlockCache;
-}
-function getCatalogWebKnowledgeBlock() {
-  return knowledgeBlockCache;
-}
-function getCatalogWebKnowledgeForQuery(query) {
-  const slug = resolveCatalogWebSlug(query);
-  if (!slug) return null;
-  return knowledgeCache.find((e10) => e10.slug === slug) ?? null;
-}
-function buildCatalogWebDetailHint(query) {
-  const entry = getCatalogWebKnowledgeForQuery(query) || (() => {
-    const slug = resolveCatalogWebSlug(query);
-    const embed = slug ? getCatalogEmbed(slug) : null;
-    if (!embed) return null;
-    return {
-      ...embed,
-      gammaTitle: "",
-      gammaDescription: ""
-    };
-  })();
-  if (!entry) return null;
-  const parts2 = [];
-  if (entry.gammaDescription) {
-    parts2.push(entry.gammaDescription.slice(0, 500));
-  }
-  parts2.push(
-    `El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: ${entry.webUrl}`
-  );
-  return parts2.join("\n");
-}
-
 // src/contact-name.ts
 var PHONE_LIKE = /^\+?\d[\d\s\-().]{7,}$/;
 var PLACEHOLDER_PATTERNS = [
@@ -206563,6 +205631,85 @@ function looksLikeValidClientEmail(email) {
 }
 function buildEmailConfirmationPrompt(email) {
   return `\xBFMe confirmas tu correo? Lo le\xED como ${email.trim()}, quiero anotarlo bien.`;
+}
+
+// src/lib/bodasesorAdvisor.ts
+var LEGACY_ADVISOR_NAMES = ["Rodrigo"];
+function getAdvisorName() {
+  return process.env["BODASESOR_ADVISOR_NAME"]?.trim() || process.env["KOMMO_ADVISOR_NAME"]?.trim() || "Alejandro";
+}
+function advisorLabelForClient(_clientName) {
+  return "nuestro equipo";
+}
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function isStaffAdvisorName(name2) {
+  const raw = name2?.trim() ?? "";
+  if (!raw) return false;
+  const first = raw.split(/\s+/)[0]?.toLowerCase() ?? "";
+  const staff = /* @__PURE__ */ new Set([
+    getAdvisorName().toLowerCase(),
+    ...LEGACY_ADVISOR_NAMES.map((n10) => n10.toLowerCase()),
+    "lucy",
+    "bodasesor",
+    "kommo"
+  ]);
+  return staff.has(raw.toLowerCase()) || staff.has(first);
+}
+function isLegacyAdvisorName(name2) {
+  const lower2 = name2.toLowerCase();
+  return LEGACY_ADVISOR_NAMES.some((legacy) => legacy.toLowerCase() === lower2);
+}
+var CLIENT_GREETING_PREFIX = /(Mucho gusto,?|Hola,?|Genial,?|Perfecto,?|Excelente,?|Listo,?|Claro,?|Qué padre,?)\s*/i;
+function replaceAdvisorTokensPreservingClientName(text2, token, replacement, clientName) {
+  const clientFirst = clientName?.trim().split(/\s+/)[0];
+  if (!clientFirst || clientFirst.toLowerCase() !== token.toLowerCase()) {
+    return text2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
+  }
+  const placeholder = "\uE000CLIENT_NAME\uE001";
+  const clientEsc = escapeRegex(clientFirst);
+  let out2 = text2.replace(
+    new RegExp(`(${CLIENT_GREETING_PREFIX.source})${clientEsc}\\b`, "gi"),
+    `$1${placeholder}`
+  );
+  out2 = out2.replace(new RegExp(`\\b${escapeRegex(token)}\\b`, "gi"), replacement);
+  return out2.replace(new RegExp(placeholder, "g"), clientFirst);
+}
+function normalizeAdvisorReferences(text2, clientName) {
+  const advisor = advisorLabelForClient(clientName);
+  if (!text2?.trim()) return text2;
+  let out2 = text2;
+  for (const legacy of LEGACY_ADVISOR_NAMES) {
+    out2 = out2.replace(new RegExp(`\\b${legacy}\\b`, "gi"), advisor);
+  }
+  out2 = out2.replace(
+    /\b(le\s+paso\s+estos\s+datos\s+a|paso\s+estos\s+datos\s+a)\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
+    `$1 ${advisor}`
+  );
+  out2 = out2.replace(
+    /\b(voy\s+a\s+)?pasar(le)?\s+esta\s+informaci[oó]n\s+a\s+(?!nuestro\b)[A-ZÁÉÍÓÚÑ][a-záéíóúñ]+/gi,
+    advisor === "nuestro equipo" ? "voy a pasar esta informaci\xF3n a nuestro equipo" : `voy a pasar esta informaci\xF3n a ${advisor}`
+  );
+  out2 = out2.replace(/\b(\p{L}+)\s+\1\b/giu, "$1");
+  out2 = out2.replace(
+    /\b([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+)\s+te\s+(arma|armar[aá]|incluir[aá]|cotiza)/g,
+    (m10, name2) => {
+      if (isLegacyAdvisorName(name2)) return m10.replace(name2, advisor);
+      if (name2.toLowerCase() === getAdvisorName().toLowerCase()) {
+        return m10.replace(name2, advisor);
+      }
+      return m10;
+    }
+  );
+  out2 = replaceAdvisorTokensPreservingClientName(out2, getAdvisorName(), advisor, clientName);
+  return out2;
+}
+function stripInternalCrmBlock(mensaje) {
+  if (!/DATOS DEL CLIENTE:|Información completa obtenida/i.test(mensaje)) return mensaje;
+  const cut = mensaje.search(/DATOS DEL CLIENTE:|Información completa obtenida/i);
+  if (cut > 0) return mensaje.slice(0, cut).trim();
+  return "";
 }
 
 // src/conversation-understanding.ts
@@ -207178,6 +206325,7 @@ function isLikelyProductNameNotLocation(value) {
   if (/\bsala\s*:/i.test(t10)) return true;
   if (/^luxor(\s+rosa)?$/i.test(t10)) return true;
   if (parseCarpaVariantFromText(t10)) return true;
+  if (/^(cathedral|catedral|pir[aá]mide|planas?)(\s+(carpa|tent))?$/i.test(t10)) return true;
   if (/^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
     t10
   )) {
@@ -207190,23 +206338,24 @@ function isLikelyProductNameNotLocation(value) {
   }
   return false;
 }
+var CARPA_OPTIONS_TEXT = "blancas, negras, transparentes y tipo domo";
 function parseCarpaVariantFromText(text2) {
   const t10 = (text2 ?? "").trim();
   if (!t10 || t10.length > 60) return null;
   if (/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida)\b/i.test(t10)) {
     return null;
   }
-  if (/^(cathedral|catedral)(\s+(carpa|tent))?$/i.test(t10) || /\bcarpa\s+catedral\b/i.test(t10)) {
-    return "Carpa Cathedral";
+  if (/^blancas?(\s+(carpa|tent))?$/i.test(t10) || /\bcarpa\s+blanca\b/i.test(t10)) {
+    return "Carpa blanca";
   }
-  if (/^pir[aá]mide(s)?(\s+(carpa|tent))?$/i.test(t10) || /\bcarpa\s+pir[aá]mide\b/i.test(t10)) {
-    return "Carpa Pir\xE1mide";
+  if (/^negras?(\s+(carpa|tent))?$/i.test(t10) || /\bcarpa\s+negra\b/i.test(t10)) {
+    return "Carpa negra";
   }
-  if (/^planas?(\s+(carpa|tent))?$/i.test(t10) || /\bcarpa\s+plana\b/i.test(t10)) {
-    return "Carpa Plana";
+  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t10) || /\bcarpa\s+transparente\b/i.test(t10)) {
+    return "Carpa transparente";
   }
-  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t10)) {
-    return "Carpas transparentes";
+  if (/^domos?(\s+(carpa|tent))?$/i.test(t10) || /\bcarpa\s+(?:tipo\s+)?domo\b/i.test(t10)) {
+    return "Carpa tipo domo";
   }
   return null;
 }
@@ -207951,6 +207100,10 @@ function parseInvitadosFromText(text2) {
     }
   }
   if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
+  const approxSuffix = trimmed.match(
+    /^(\d{1,4})\s*(?:aprox(?:imadamente)?|aproximados?|personas?\s+aprox)\.?$/i
+  );
+  if (approxSuffix) return approxSuffix[1];
   if (isServiceRelatedMessage(trimmed)) return null;
   if (/\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+lo\s+sabemos|van\s+viendo)\b/i.test(
     trimmed
@@ -208812,6 +207965,857 @@ function enrichExtractedFromConversation(extracted, conversationText) {
   }
 }
 
+// src/price-guard.ts
+var NO_LISTED_PRICE_PATTERN = /\bdj\b|disc\s*jockey|iluminaci[oó]n|mobiliario|mesas?|sillas?|periqueras?|salas?\s*(lounge)?|carpas?|lonas?|toldos?|pantallas?|led\s*wall|pista(\s+de\s+baile)?|tarimas?|estructuras?|inflables?|soft\s*play|florister[ií]a|flores|decoraci[oó]n\s+floral|audio|sonido|valet|niñeras?|valet\s+parking/i;
+var LISTED_PRICE_PATTERN = /banquete|taquiza|parrillada|barra\s+(de\s+)?(bebidas?|alimentos?|caf[eé]|pizzas?|sushi|crepas?|mariscos?|pastas?)|mesa\s+de\s+dulces|cocteler[ií]a|mixolog[ií]a|coffee\s*break|brunch|paella|m[oó]cteles?|canap[eé]s|pozole|americana|kosher|navide[nñ]o/i;
+var dynamicListedPattern = null;
+var dynamicNoListedPattern = null;
+function escapeRegex2(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function buildServicePattern(labels) {
+  const terms = labels.map((label) => label.trim().toLowerCase()).filter((label) => label.length >= 2).map((label) => escapeRegex2(label).replace(/\s+/g, "\\s+"));
+  if (!terms.length) return null;
+  return new RegExp(`\\b(?:${terms.join("|")})\\b`, "i");
+}
+function setCatalogPriceIndex(priced, noPrice) {
+  dynamicListedPattern = buildServicePattern(priced);
+  dynamicNoListedPattern = buildServicePattern(noPrice);
+}
+var PRICE_CLAIM_PATTERN = /\$\s*[\d,.]+(?:\s*\/\s*pp)?|\b[\d,.]+\s*(?:mil|k)\b(?:\s*pesos?)?|\bentre\s*\$?\s*[\d,.]+\s*y\s*\$?\s*[\d,.]+|\bdesde\s*\$[\d,.]+|\b[\d,.]+\s*pesos?\b/i;
+var PRICE_QUESTION_PATTERN = /\bcu[aá]nto\s+cuesta|\bprecios?\b|\bcostos?\b|\bm[aá]s\s+o\s+menos\s+cu[aá]nto|\bcu[aá]nto\s+sale|\bcu[aá]nto\s+cobran|\btarifa\b|\bver\s+(los\s+)?precios?\b|\bpasar?(me)?\s+(los\s+)?precios?\b/i;
+function clientAsksPrice(message) {
+  if (!message?.trim()) return false;
+  if (!PRICE_QUESTION_PATTERN.test(message)) return false;
+  if (message.trim().length > 220 && /\b(cotiz|propuestas?|opci[oó]n\s*[123]|distribuidor)\b/i.test(message)) {
+    return false;
+  }
+  if (/\bprecio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  if (/\bmejor\s+precio\s+(para\s+)?distribuidor\b/i.test(message)) return false;
+  if (/\brangos?\s+de\s+precio\b/i.test(message) && /\b(propuestas?|opci[oó]n|men[uú])\b/i.test(message)) {
+    return false;
+  }
+  return true;
+}
+function mentionsNoListedPriceService(text2) {
+  if (dynamicNoListedPattern?.test(text2)) return true;
+  return NO_LISTED_PRICE_PATTERN.test(text2);
+}
+function mentionsListedPriceService(text2) {
+  if (dynamicListedPattern?.test(text2)) return true;
+  return LISTED_PRICE_PATTERN.test(text2);
+}
+function messageClaimsPrice(mensaje) {
+  return PRICE_CLAIM_PATTERN.test(mensaje);
+}
+function responseHasInventedPrice(mensaje, currentMessage, recentContext) {
+  if (!messageClaimsPrice(mensaje)) return false;
+  if (lucyInfoSupportsPriceClaim(mensaje)) return false;
+  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`.toLowerCase();
+  if (mentionsNoListedPriceService(ctx)) return true;
+  if (!mentionsListedPriceService(ctx) && messageClaimsPrice(mensaje)) {
+    return true;
+  }
+  return false;
+}
+function detectServiceLabel(text2) {
+  const t10 = text2.toLowerCase();
+  if (/\bdj\b/.test(t10)) return "DJ";
+  if (/iluminaci[oó]n/.test(t10)) return "iluminaci\xF3n";
+  if (/periqueras?/.test(t10)) return "periqueras";
+  if (/mesas?/.test(t10) && /sillas?/.test(t10)) return "mesas y sillas";
+  if (/mesas?/.test(t10)) return "mesas";
+  if (/sillas?/.test(t10)) return "sillas";
+  if (/salas?\s*lounge|lounge/.test(t10)) return "salas lounge";
+  if (/mobiliario/.test(t10)) return "mobiliario";
+  if (/carpas?|lonas?/.test(t10)) return "carpas";
+  if (/pantallas?/.test(t10)) return "pantallas";
+  if (/pista(\s+de\s+baile)?|tarimas?/.test(t10)) return "pista de baile";
+  if (/flor/.test(t10)) return "florister\xEDa";
+  return "ese servicio";
+}
+function getPriceServiceLabel(text2) {
+  return detectServiceLabel(text2);
+}
+function stripPriceSentences(mensaje) {
+  const sentences = mensaje.split(/(?<=[.!?])\s+|\n+/);
+  const kept = sentences.filter((s10) => !PRICE_CLAIM_PATTERN.test(s10));
+  return kept.join(" ").replace(/\s{2,}/g, " ").trim();
+}
+function stripStalePriceTalk(mensaje, currentMessage) {
+  if (!currentMessage?.trim() || clientAsksPrice(currentMessage)) return mensaje;
+  if (/\bdj\b|precio|cu[aá]nto\s+cuesta/i.test(currentMessage)) return mensaje;
+  return mensaje.split(/(?<=[.!?])\s+|\n+/).filter((s10) => !/\bdj\b/i.test(s10) || clientAsksPrice(currentMessage)).filter((s10) => !/alejandro te (incluye|da) el precio/i.test(s10)).join(" ").replace(/\s{2,}/g, " ").trim();
+}
+function buildConsultativeNoPriceReply(message) {
+  if (!message?.trim()) return null;
+  const t10 = message.toLowerCase();
+  const team = advisorLabelForClient();
+  if (/pista(\s+de\s+baile)?|tarimas?\b|periqueras?|mesas?|sillas?|mobiliario|salas?\b|lounge|luxor|chesterfield|camila/.test(
+    t10
+  )) {
+    const fromPdf = buildLucyInfoLearnedPriceReply(message);
+    if (fromPdf) return fromPdf;
+  }
+  if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t10)) {
+    return `S\xED, manejamos carpas para jard\xEDn o terraza: ${CARPA_OPTIONS_TEXT}. Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFQu\xE9 opci\xF3n prefieres y qu\xE9 medidas aproximadas debe tener (largo \xD7 ancho)?`;
+  }
+  if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t10)) {
+    return `El DJ incluye equipo completo, micr\xF3fono para brindis e iluminaci\xF3n b\xE1sica; puedes mandar playlist. ${team} incluir\xE1 el precio en tu cotizaci\xF3n. \xBFYa tienes estilo de m\xFAsica o prefieres que lea el ambiente?`;
+  }
+  if (/iluminaci[oó]n/.test(t10)) {
+    return `Opciones: uplighting LED en paredes, luces colgantes tipo edison o luces de pista. ${team} cotiza seg\xFAn el espacio. \xBFQu\xE9 ambiente buscas: elegante, rom\xE1ntico o fiesta?`;
+  }
+  if (/pista(\s+de\s+baile)?|tarimas?\b/.test(t10)) {
+    return `S\xED, manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} cotiza seg\xFAn las medidas. \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
+  }
+  if (/periqueras?|mesas?\s+(peque[nñ]as?|tipo\s+bar)|mesas?\s+periqueras?/.test(t10)) {
+    return `S\xED, rentamos periqueras y mesas tipo bar en distintos acabados. El precio depende de cantidad, estilo y si llevan montaje en sitio. ${team} cotiza seg\xFAn lo que necesites. \xBFCu\xE1ntas periqueras/mesas necesitas y para cu\xE1ndo?`;
+  }
+  if (/mesas?|sillas?|mobiliario|salas?\s*lounge/.test(t10)) {
+    return `Manejamos mesas, sillas, periqueras y salas lounge para eventos en distintos estilos. ${team} cotiza seg\xFAn cantidad y tipo. \xBFQu\xE9 mobiliario necesitas y para cu\xE1ntas personas?`;
+  }
+  return null;
+}
+function buildAlejandroPriceReply(serviceHint, clientMessage) {
+  const consultative = clientMessage ? buildConsultativeNoPriceReply(clientMessage) : null;
+  if (consultative) return consultative;
+  const svc = serviceHint?.trim() || "ese servicio";
+  const team = advisorLabelForClient();
+  return `S\xED, manejamos ${svc}. El precio depende del evento \u2014 ${team} te lo incluye en tu cotizaci\xF3n.`;
+}
+function sanitizeInventedPrices(mensaje, currentMessage, recentContext) {
+  if (!responseHasInventedPrice(mensaje, currentMessage, recentContext)) {
+    return mensaje;
+  }
+  const ctx = `${currentMessage ?? ""} ${mensaje} ${recentContext ?? ""}`;
+  const service = detectServiceLabel(ctx);
+  const cleaned = stripPriceSentences(mensaje);
+  const safe = buildAlejandroPriceReply(service, currentMessage);
+  if (!cleaned || cleaned.length < 15) return safe;
+  const withoutCorreoInsist = cleaned.replace(/[^.!?\n]*correo[^.!?\n]*\?[^.!?\n]*/gi, "").trim();
+  const base = withoutCorreoInsist.length > 20 ? withoutCorreoInsist : "";
+  if (base && !/alejandro/i.test(base)) {
+    return `${base} ${safe}`.trim();
+  }
+  return safe;
+}
+
+// src/services/googleSheetsCatalog.ts
+var BODASESOR_PRECIOS_SHEET_ID = "1s3DGZZXm3VXxqxyq1cKDnD3DfhGUrVw6ZkpYuN5_pBQ";
+var HEADER_ALIASES = {
+  servicio: "servicio",
+  service: "servicio",
+  nombre: "servicio",
+  producto: "servicio",
+  categoria: "categoria",
+  categor\u00EDa: "categoria",
+  category: "categoria",
+  tipo: "categoria",
+  nivel: "nivel",
+  tier: "nivel",
+  paquete: "nivel",
+  "precio unitario": "precio",
+  precio: "precio",
+  price: "precio",
+  costo: "precio",
+  tarifa: "precio",
+  unidad: "unidad",
+  unit: "unidad",
+  pp: "unidad",
+  notas: "notas",
+  nota: "notas",
+  notes: "notas",
+  descripcion: "notas",
+  descripci\u00F3n: "notas",
+  detalle: "notas",
+  "que incluye": "notas",
+  extras: "notas",
+  sinonimos: "sinonimos",
+  sin\u00F3nimos: "sinonimos",
+  aliases: "sinonimos"
+};
+function deriveCatalogCategory(servicio) {
+  const s10 = servicio.toLowerCase();
+  if (/barra de bebida|cocteler|mixolog|m[oó]ctel/.test(s10)) return "Bebidas";
+  if (/banquete|taquiza|brunch|coffee|barra|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i.test(
+    s10
+  )) {
+    return "Alimentos";
+  }
+  if (/mobiliario|silla/.test(s10)) return "Mobiliario";
+  if (/dj|animaci|iluminaci|pantalla|audio|pista/.test(s10)) return "Entretenimiento";
+  return "Servicios";
+}
+function formatCatalogRowLabel(row) {
+  const svc = row.servicio.trim();
+  const nivel = row.nivel.trim();
+  if (!nivel || nivel.toLowerCase() === svc.toLowerCase()) return svc;
+  return `${svc} \u2014 ${nivel}`;
+}
+function normalizeHeader(h10) {
+  return h10.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+}
+function parseCsvRows(text2) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let inQuotes = false;
+  for (let i10 = 0; i10 < text2.length; i10++) {
+    const ch2 = text2[i10];
+    const next = text2[i10 + 1];
+    if (inQuotes) {
+      if (ch2 === '"' && next === '"') {
+        cell += '"';
+        i10++;
+      } else if (ch2 === '"') {
+        inQuotes = false;
+      } else {
+        cell += ch2;
+      }
+      continue;
+    }
+    if (ch2 === '"') {
+      inQuotes = true;
+      continue;
+    }
+    if (ch2 === ",") {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+    if (ch2 === "\n" || ch2 === "\r" && next === "\n") {
+      row.push(cell);
+      cell = "";
+      if (row.some((c10) => c10.trim())) rows.push(row);
+      row = [];
+      if (ch2 === "\r") i10++;
+      continue;
+    }
+    cell += ch2;
+  }
+  if (cell.length || row.length) {
+    row.push(cell);
+    if (row.some((c10) => c10.trim())) rows.push(row);
+  }
+  return rows;
+}
+function truthyPrecioFlag(raw) {
+  if (!raw?.trim()) return null;
+  const v10 = raw.trim().toLowerCase();
+  if (/^(s[ií]|yes|true|1|x|con\s+precio)$/.test(v10)) return true;
+  if (/^(no|false|0|sin\s+precio|alejandro|cotizar)$/.test(v10)) return false;
+  return null;
+}
+function rowHasPriceValue(precio) {
+  return /\$|\/pp|\/\s*pp|mil|pesos|mxn|\d/.test(precio);
+}
+function extractSheetId(value) {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (/^[a-zA-Z0-9-_]{20,}$/.test(trimmed) && !trimmed.startsWith("http")) return trimmed;
+  const match2 = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+  return match2?.[1] ?? null;
+}
+function resolveSheetIdEnv() {
+  for (const key of ["GOOGLE_SHEETS_CATALOG_ID", "GOOGLE_SHEETS_PRECIOS"]) {
+    const raw = process.env[key]?.trim();
+    if (!raw) continue;
+    const id2 = extractSheetId(raw);
+    if (id2) return id2;
+  }
+  return BODASESOR_PRECIOS_SHEET_ID;
+}
+function resolveDirectCsvUrl() {
+  for (const key of ["GOOGLE_SHEETS_CATALOG_CSV_URL", "GOOGLE_SHEETS_PRECIOS_CSV_URL"]) {
+    const url2 = process.env[key]?.trim();
+    if (url2) return url2;
+  }
+  const precios = process.env["GOOGLE_SHEETS_PRECIOS"]?.trim();
+  if (precios?.includes("export?format=csv")) return precios;
+  return null;
+}
+function buildSheetsCsvUrl() {
+  const direct = resolveDirectCsvUrl();
+  if (direct) return direct;
+  const sheetId = resolveSheetIdEnv();
+  if (!sheetId) return null;
+  const sheetName = process.env["GOOGLE_SHEETS_CATALOG_SHEET_NAME"]?.trim();
+  const gvizBase = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`;
+  if (sheetName) {
+    return `${gvizBase}&sheet=${encodeURIComponent(sheetName)}`;
+  }
+  return gvizBase;
+}
+function buildSheetsTextCsvUrl() {
+  const direct = process.env["GOOGLE_SHEETS_CATALOG_TEXT_CSV_URL"]?.trim();
+  if (direct) return direct;
+  const sheetId = resolveSheetIdEnv();
+  const textGid = process.env["GOOGLE_SHEETS_CATALOG_TEXT_GID"]?.trim();
+  if (!sheetId || !textGid) return null;
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${textGid}`;
+}
+async function fetchCsvText(url2) {
+  const res = await fetch(url2, {
+    headers: { "User-Agent": "Lucy-Bodasesor-Catalog/1.0" },
+    signal: AbortSignal.timeout(25e3)
+  });
+  if (!res.ok) {
+    throw new Error(`Sheets CSV HTTP ${res.status}`);
+  }
+  return res.text();
+}
+function parseSheetCatalogCsv(csvText) {
+  const matrix = parseCsvRows(csvText);
+  if (matrix.length < 2) return [];
+  const headers = matrix[0].map(normalizeHeader);
+  const idx = {};
+  let tienePrecioCol = null;
+  let catalogoRevisadoCol = null;
+  let precioMinimoCol = null;
+  let linkCatalogoCol = null;
+  let extrasCol = null;
+  headers.forEach((h10, i10) => {
+    if (h10 === "tiene_precio" || h10 === "tiene precio" || h10 === "con_precio" || h10 === "listed_price") {
+      tienePrecioCol = i10;
+      return;
+    }
+    if (h10 === "catalogo revisado" || h10 === "catalogo_revisado") {
+      catalogoRevisadoCol = i10;
+      return;
+    }
+    if (h10 === "precio minimo de salida" || h10 === "precio minimo") {
+      precioMinimoCol = i10;
+      return;
+    }
+    if (h10 === "link catalogo" || h10 === "link_catalogo" || h10 === "link") {
+      linkCatalogoCol = i10;
+      return;
+    }
+    if (h10 === "extras") {
+      extrasCol = i10;
+      return;
+    }
+    const mapped = HEADER_ALIASES[h10];
+    if (mapped && idx[mapped] === void 0) idx[mapped] = i10;
+  });
+  if (idx.servicio === void 0) return [];
+  const rows = [];
+  for (const line2 of matrix.slice(1)) {
+    const get = (key) => {
+      const col = idx[key];
+      return col === void 0 ? "" : (line2[col] ?? "").trim();
+    };
+    const servicioBase = get("servicio");
+    if (!servicioBase || /^#|comentario|ignore/i.test(servicioBase)) continue;
+    if (catalogoRevisadoCol !== null) {
+      const revisado = (line2[catalogoRevisadoCol] ?? "").trim().toLowerCase();
+      if (revisado === "false" || revisado === "no" || revisado === "0") continue;
+    }
+    const servicio = servicioBase;
+    const nivelVal = get("nivel");
+    const categoria = get("categoria") || deriveCatalogCategory(servicioBase);
+    const precio = get("precio");
+    const flag = tienePrecioCol !== null ? truthyPrecioFlag(line2[tienePrecioCol]) : null;
+    const tienePrecio = flag === true || flag === null && rowHasPriceValue(precio);
+    const notasParts = [];
+    const notasBase = get("notas");
+    if (notasBase) notasParts.push(notasBase);
+    if (precioMinimoCol !== null) {
+      const min = (line2[precioMinimoCol] ?? "").trim();
+      if (min) notasParts.push(`M\xEDnimo de salida: ${min}`);
+    }
+    let linkCatalogo;
+    if (linkCatalogoCol !== null) {
+      const link = (line2[linkCatalogoCol] ?? "").trim();
+      if (link && /^https?:\/\//i.test(link)) {
+        linkCatalogo = link;
+      }
+    }
+    if (extrasCol !== null) {
+      const extras = (line2[extrasCol] ?? "").trim();
+      if (extras) notasParts.push(`Extras: ${extras}`);
+    }
+    let unidad = get("unidad");
+    if (!unidad && /\$/.test(precio)) unidad = "/pp";
+    rows.push({
+      servicio,
+      nivel: nivelVal,
+      categoria,
+      precio,
+      unidad,
+      notas: notasParts.join(" | "),
+      tienePrecio,
+      sinonimos: get("sinonimos") || void 0,
+      linkCatalogo
+    });
+  }
+  return rows;
+}
+function sheetRowsToMarkdown(rows) {
+  if (!rows.length) return "";
+  const byCategory = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const cat = row.categoria || "Servicios";
+    if (!byCategory.has(cat)) byCategory.set(cat, []);
+    byCategory.get(cat).push(row);
+  }
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "CAT\xC1LOGO BODASESOR \u2014 GOOGLE SHEETS (fuente viva)",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "",
+    "REGLA: Solo cita precios e inclusiones que aparecen en esta tabla. Si no hay precio o Incluye vac\xEDo \u2192 el equipo confirma en cotizaci\xF3n. NUNCA inventes bebidas, platillos ni marcas.",
+    "REGLA LINK WEB: Si una fila trae Link cat\xE1logo (bodasesor.com/catalogos/\u2026), SOLO env\xEDalo cuando el cliente lo pida. Un link a la vez. No inventes URLs.",
+    ""
+  ];
+  for (const [cat, items] of byCategory) {
+    lines.push(`## ${cat}`, "");
+    const byService = /* @__PURE__ */ new Map();
+    for (const item of items) {
+      const key = item.servicio;
+      if (!byService.has(key)) byService.set(key, []);
+      byService.get(key).push(item);
+    }
+    for (const [svc, levels] of byService) {
+      if (levels.length === 1) {
+        const item = levels[0];
+        const label = formatCatalogRowLabel(item);
+        if (item.tienePrecio && item.precio) {
+          const unit = item.unidad ? ` ${item.unidad}` : "";
+          lines.push(`\u2022 **${label}**: ${item.precio}${unit}`);
+        } else {
+          lines.push(`\u2022 **${label}**: sin precio listado \u2014 Alejandro cotiza`);
+        }
+        if (item.notas) {
+          const parsed = parseRowNotes(item.notas);
+          const clientNotes = [parsed.inclusion, parsed.minimo ? `M\xEDnimo de salida: ${parsed.minimo}` : ""].filter(Boolean).join(" | ");
+          if (clientNotes) lines.push(`  Incluye: ${clientNotes}`);
+        }
+        if (item.linkCatalogo) {
+          lines.push(`  Link cat\xE1logo (solo si lo piden): ${item.linkCatalogo}`);
+        }
+      } else {
+        lines.push(`\u2022 **${svc}** (${levels.length} niveles)`);
+        for (const item of levels.slice(0, 6)) {
+          const label = item.nivel || formatCatalogRowLabel(item);
+          if (item.tienePrecio && item.precio) {
+            const unit = item.unidad ? ` ${item.unidad}` : "";
+            lines.push(`  - ${label}: ${item.precio}${unit}`);
+          } else {
+            lines.push(`  - ${label}: sin precio listado \u2014 el equipo cotiza`);
+          }
+          if (item.notas) {
+            const parsed = parseRowNotes(item.notas);
+            const bits = [
+              parsed.inclusion ? formatInclusionForWhatsApp(parsed.inclusion, 280) : "",
+              parsed.minimo ? `M\xEDn. salida: ${parsed.minimo}` : ""
+            ].filter(Boolean);
+            if (bits.length) lines.push(`    Incluye: ${bits.join(" | ")}`);
+          }
+        }
+        const link = levels.find((l10) => l10.linkCatalogo)?.linkCatalogo;
+        if (link) lines.push(`  Link cat\xE1logo (solo si lo piden): ${link}`);
+      }
+    }
+    lines.push("");
+  }
+  return lines.join("\n").trim();
+}
+function formatInclusionForWhatsApp(text2, maxLen = 420) {
+  let cleaned = text2.replace(/\s+/g, " ").replace(/ incluido\s+/gi, ". ").replace(/ servicio base incluye:/gi, " Incluye:").replace(/([a-záéíóúñ])([A-ZÁÉÍÓÚ])/g, "$1. $2").trim();
+  if (cleaned.length > maxLen) {
+    cleaned = `${cleaned.slice(0, maxLen - 1).trim()}\u2026`;
+  }
+  return cleaned;
+}
+function parseRowNotes(notas) {
+  const result = { inclusion: "", minimo: "", gammaLink: "", extras: "" };
+  if (!notas?.trim()) return result;
+  for (const part of notas.split("|").map((s10) => s10.trim())) {
+    if (!part) continue;
+    if (/^cat[aá]logo:\s*https?:/i.test(part)) {
+      result.gammaLink = part.replace(/^cat[aá]logo:\s*/i, "").trim();
+    } else if (/^m[ií]nimo de salida:/i.test(part)) {
+      result.minimo = part.replace(/^m[ií]nimo de salida:\s*/i, "").trim();
+    } else if (/^extras:/i.test(part)) {
+      result.extras = part.replace(/^extras:\s*/i, "").trim();
+    } else if (!result.inclusion) {
+      result.inclusion = formatInclusionForWhatsApp(part);
+    } else {
+      result.inclusion = formatInclusionForWhatsApp(`${result.inclusion} ${part}`);
+    }
+  }
+  if (result.extras) {
+    const extraText = formatInclusionForWhatsApp(result.extras, 180);
+    result.inclusion = result.inclusion ? `${result.inclusion} Extras: ${extraText}` : `Extras: ${extraText}`;
+  }
+  return result;
+}
+
+// src/services/gammaCatalog.ts
+var GAMMA_API_BASE = "https://public-api.gamma.app/v1.0";
+function gammaApiKey() {
+  const key = process.env["GAMMA_API_KEY"]?.trim();
+  return key || null;
+}
+function resolveGammaId() {
+  const direct = process.env["GAMMA_CATALOG_GAMMA_ID"]?.trim();
+  if (direct) return direct;
+  const url2 = process.env["GAMMA_CATALOG_URL"]?.trim();
+  if (!url2) return null;
+  const match2 = url2.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
+  return match2?.[1] ?? null;
+}
+function resolveGammaPublicUrl() {
+  return process.env["GAMMA_CATALOG_URL"]?.trim() || null;
+}
+function extractGammaIdFromUrl(url2) {
+  const match2 = url2.match(/gamma\.app\/docs\/[^/?#]+-([a-z0-9]+)/i);
+  return match2?.[1] ?? null;
+}
+async function fetchGammaDocKnowledge(gammaId) {
+  const apiKey = gammaApiKey();
+  if (!apiKey) return { title: "", description: "" };
+  try {
+    const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}`, {
+      headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+      signal: AbortSignal.timeout(2e4)
+    });
+    if (!res.ok) return { title: "", description: "" };
+    const data = await res.json();
+    return {
+      title: typeof data.title === "string" ? data.title.trim() : "",
+      description: typeof data.description === "string" ? data.description.trim() : ""
+    };
+  } catch {
+    return { title: "", description: "" };
+  }
+}
+async function loadGammaKnowledgeFromSheet(rows) {
+  const byService = /* @__PURE__ */ new Map();
+  for (const row of rows) {
+    const linkMatch = row.notas.match(/Cat[aá]logo:\s*(https?:\S+)/i);
+    const url2 = linkMatch?.[1];
+    if (!url2) continue;
+    const gammaId = extractGammaIdFromUrl(url2);
+    if (!gammaId) continue;
+    const base = row.categoria || row.servicio.split(" (")[0] || row.servicio;
+    if (!byService.has(base)) byService.set(base, gammaId);
+  }
+  if (!byService.size) return "";
+  const entries = [];
+  const fetches = [...byService.entries()].map(async ([service, gammaId]) => {
+    try {
+      const meta = await fetchGammaDocKnowledge(gammaId);
+      if (!meta.title && !meta.description) return null;
+      return { service, gammaId, title: meta.title, description: meta.description };
+    } catch {
+      return null;
+    }
+  });
+  for (const result of await Promise.all(fetches)) {
+    if (result) entries.push(result);
+  }
+  if (!entries.length) return "";
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "CONOCIMIENTO INTERNO GAMMA (solo para Lucy \u2014 NO enviar links al cliente)",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "",
+    "Usa esta info para explicar men\xFAs, niveles y productos. NUNCA compartas enlaces gamma.app.",
+    ""
+  ];
+  for (const entry of entries) {
+    lines.push(`## ${entry.service}`);
+    if (entry.title) lines.push(`T\xEDtulo: ${entry.title}`);
+    if (entry.description) lines.push(entry.description);
+    lines.push("");
+  }
+  return lines.join("\n").trim();
+}
+async function fetchGammaMetadata(gammaId) {
+  const apiKey = gammaApiKey();
+  if (!apiKey) return {};
+  const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}`, {
+    headers: {
+      "X-API-KEY": apiKey,
+      Accept: "application/json"
+    },
+    signal: AbortSignal.timeout(2e4)
+  });
+  if (!res.ok) return {};
+  const data = await res.json();
+  const title = typeof data.title === "string" ? data.title : void 0;
+  const url2 = typeof data.gammaUrl === "string" ? data.gammaUrl : typeof data.url === "string" ? data.url : void 0;
+  return { title, url: url2 };
+}
+async function tryGammaExportUrl(gammaId) {
+  const apiKey = gammaApiKey();
+  if (!apiKey) return null;
+  try {
+    const res = await fetch(`${GAMMA_API_BASE}/gammas/${encodeURIComponent(gammaId)}/export`, {
+      method: "POST",
+      headers: {
+        "X-API-KEY": apiKey,
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      },
+      body: JSON.stringify({ format: "pdf" }),
+      signal: AbortSignal.timeout(2e4)
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data.exportId) return null;
+    for (let i10 = 0; i10 < 12; i10++) {
+      await new Promise((r10) => setTimeout(r10, 2500));
+      const poll = await fetch(`${GAMMA_API_BASE}/exports/${data.exportId}`, {
+        headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+        signal: AbortSignal.timeout(15e3)
+      });
+      if (!poll.ok) continue;
+      const status = await poll.json();
+      if (status.status === "completed" && status.exportUrl) return status.exportUrl;
+      if (status.status === "failed") break;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+async function fetchPublishedText(url2) {
+  const res = await fetch(url2, {
+    headers: { "User-Agent": "Lucy-Bodasesor-Catalog/1.0" },
+    signal: AbortSignal.timeout(25e3)
+  });
+  if (!res.ok) throw new Error(`Gamma text URL HTTP ${res.status}`);
+  return res.text();
+}
+async function loadGammaCatalog() {
+  const gammaId = resolveGammaId();
+  const publicUrl = resolveGammaPublicUrl();
+  const textUrl = process.env["GAMMA_CATALOG_TEXT_URL"]?.trim();
+  const staticExport = process.env["GAMMA_CATALOG_EXPORT_URL"]?.trim();
+  if (!gammaId && !publicUrl && !textUrl && !staticExport) return null;
+  const meta = gammaId ? await fetchGammaMetadata(gammaId) : {};
+  const enableExport = process.env["GAMMA_ENABLE_EXPORT_API"]?.trim().toLowerCase() === "true";
+  const exportUrl = staticExport || (gammaId && enableExport ? await tryGammaExportUrl(gammaId) : null);
+  let publishedText = "";
+  if (textUrl) {
+    try {
+      publishedText = await fetchPublishedText(textUrl).then((t10) => t10.trim());
+    } catch {
+      publishedText = "";
+    }
+  }
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "CAT\xC1LOGO VISUAL GAMMA (solo conocimiento interno de Lucy)",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "",
+    "NUNCA compartas enlaces gamma.app con el cliente. Usa el contenido para responder con tus palabras.",
+    ""
+  ];
+  if (meta.title) lines.push(`T\xEDtulo: ${meta.title}`, "");
+  if (publishedText) {
+    lines.push("Contenido publicado:", "", publishedText);
+  } else if (meta.title || (publicUrl || meta.url)) {
+    lines.push("Usa el conocimiento Gamma del Sheet y las inclusiones del cat\xE1logo de precios.");
+  }
+  return {
+    gammaId: gammaId ?? null,
+    title: meta.title ?? null,
+    gammaUrl: publicUrl || meta.url || null,
+    exportUrl,
+    textBlock: lines.join("\n").trim(),
+    fetchedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+}
+
+// src/services/catalogWebKnowledge.ts
+import { readFileSync as readFileSync2 } from "node:fs";
+import path3 from "node:path";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
+var CATALOG_WEB_HUB = "https://bodasesor.com/catalogos";
+var embedsCache = null;
+var knowledgeCache = [];
+var knowledgeBlockCache = "";
+function embedsJsonPath() {
+  const here = path3.dirname(fileURLToPath2(import.meta.url));
+  const candidates = [
+    path3.resolve(here, "../../public/catalogos-light/embeds.json"),
+    path3.resolve(here, "../catalogos-light/embeds.json"),
+    path3.resolve(process.cwd(), "public/catalogos-light/embeds.json"),
+    path3.resolve(process.cwd(), "dist/catalogos-light/embeds.json")
+  ];
+  for (const p10 of candidates) {
+    try {
+      readFileSync2(p10, "utf8");
+      return p10;
+    } catch {
+    }
+  }
+  return candidates[0];
+}
+function extractGammaIdFromEmbed(embedSrc) {
+  const m10 = embedSrc.match(/gamma\.app\/embed\/([a-z0-9]+)/i);
+  return m10?.[1] ?? null;
+}
+function loadCatalogEmbeds() {
+  if (embedsCache) return embedsCache;
+  try {
+    const raw = readFileSync2(embedsJsonPath(), "utf8");
+    const parsed = JSON.parse(raw);
+    embedsCache = Object.entries(parsed).map(([slug, v10]) => {
+      const embedSrc = (v10.embedSrc ?? "").trim();
+      return {
+        slug,
+        title: (v10.title ?? slug).trim(),
+        embedSrc,
+        gammaId: extractGammaIdFromEmbed(embedSrc),
+        webUrl: `${CATALOG_WEB_HUB}/${slug}`
+      };
+    });
+  } catch {
+    embedsCache = [];
+  }
+  return embedsCache;
+}
+function resolveCatalogWebSlug(query) {
+  if (!query?.trim()) return null;
+  const t10 = query.trim().toLowerCase();
+  const urlMatch = t10.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
+  if (urlMatch?.[1]) return urlMatch[1];
+  const aliases = [
+    [/\b(mesas?\s*y\s*sillas?|sillas?|mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
+    [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
+    [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
+    [/\bbanquetes?\b/i, "banquete-formal"]
+  ];
+  for (const [re4, slug] of aliases) {
+    if (re4.test(t10) && loadCatalogEmbeds().some((e10) => e10.slug === slug)) return slug;
+  }
+  const embeds = loadCatalogEmbeds();
+  const exact = embeds.find((e10) => e10.slug === t10.replace(/\s+/g, "-"));
+  if (exact) return exact.slug;
+  const norm2 = t10.normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, " ").trim();
+  let best = null;
+  for (const e10 of embeds) {
+    const titleNorm = e10.title.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, " ").trim();
+    const slugNorm = e10.slug.replace(/-/g, " ");
+    let score = 0;
+    if (norm2.includes(titleNorm) || titleNorm.includes(norm2)) score += 5;
+    if (norm2.includes(slugNorm) || slugNorm.includes(norm2)) score += 4;
+    for (const tok of norm2.split(" ").filter((w10) => w10.length > 3)) {
+      if (titleNorm.includes(tok) || slugNorm.includes(tok)) score += 1;
+    }
+    if (!best || score > best.score) best = { slug: e10.slug, score };
+  }
+  return best && best.score >= 4 ? best.slug : null;
+}
+function getCatalogWebUrlForQuery(query) {
+  const slug = resolveCatalogWebSlug(query);
+  return slug ? `${CATALOG_WEB_HUB}/${slug}` : null;
+}
+function getCatalogEmbed(slug) {
+  return loadCatalogEmbeds().find((e10) => e10.slug === slug) ?? null;
+}
+async function fetchGammaMeta(gammaId, apiKey) {
+  try {
+    const res = await fetch(`https://public-api.gamma.app/v1.0/gammas/${encodeURIComponent(gammaId)}`, {
+      headers: { "X-API-KEY": apiKey, Accept: "application/json" },
+      signal: AbortSignal.timeout(15e3)
+    });
+    if (!res.ok) return { title: "", description: "" };
+    const data = await res.json();
+    return {
+      title: typeof data.title === "string" ? data.title.trim() : "",
+      description: typeof data.description === "string" ? data.description.trim() : ""
+    };
+  } catch {
+    return { title: "", description: "" };
+  }
+}
+async function refreshCatalogWebKnowledge(limit2 = 40) {
+  const embeds = loadCatalogEmbeds();
+  const apiKey = process.env["GAMMA_API_KEY"]?.trim() || "";
+  const withGamma = embeds.filter((e10) => e10.gammaId).slice(0, limit2);
+  const entries = [];
+  if (apiKey && withGamma.length) {
+    const chunkSize = 8;
+    for (let i10 = 0; i10 < withGamma.length; i10 += chunkSize) {
+      const chunk = withGamma.slice(i10, i10 + chunkSize);
+      const results = await Promise.all(
+        chunk.map(async (e10) => {
+          const meta = await fetchGammaMeta(e10.gammaId, apiKey);
+          return {
+            ...e10,
+            gammaTitle: meta.title,
+            gammaDescription: meta.description
+          };
+        })
+      );
+      entries.push(...results);
+    }
+  } else {
+    for (const e10 of embeds.slice(0, limit2)) {
+      entries.push({ ...e10, gammaTitle: "", gammaDescription: "" });
+    }
+  }
+  knowledgeCache = entries;
+  const lines = [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "CAT\xC1LOGOS WEB BODASESOR (fuente completa de men\xFAs e inclusiones)",
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    "",
+    "Fuente viva: https://bodasesor.com/catalogos/{slug}",
+    "Reglas:",
+    "- Si el Sheet no trae 'Que Incluye' o el detalle es pobre, USA esta lista + el cat\xE1logo web.",
+    "- Explica niveles/men\xFAs con lo que sepas aqu\xED; si falta detalle, ofrece el link de bodasesor.com (NO gamma.app).",
+    "- Un link a la vez, solo cuando ayude o el cliente lo pida.",
+    ""
+  ];
+  for (const e10 of entries) {
+    lines.push(`## ${e10.title}`);
+    lines.push(`Slug: ${e10.slug}`);
+    lines.push(`URL cliente: ${e10.webUrl}`);
+    if (e10.gammaTitle) lines.push(`T\xEDtulo cat\xE1logo: ${e10.gammaTitle}`);
+    if (e10.gammaDescription) lines.push(e10.gammaDescription);
+    lines.push("");
+  }
+  knowledgeBlockCache = lines.join("\n").trim();
+  return knowledgeBlockCache;
+}
+function getCatalogWebKnowledgeBlock() {
+  return knowledgeBlockCache;
+}
+function getCatalogWebKnowledgeForQuery(query) {
+  const slug = resolveCatalogWebSlug(query);
+  if (!slug) return null;
+  return knowledgeCache.find((e10) => e10.slug === slug) ?? null;
+}
+function buildCatalogWebDetailHint(query) {
+  const entry = getCatalogWebKnowledgeForQuery(query) || (() => {
+    const slug = resolveCatalogWebSlug(query);
+    const embed = slug ? getCatalogEmbed(slug) : null;
+    if (!embed) return null;
+    return {
+      ...embed,
+      gammaTitle: "",
+      gammaDescription: ""
+    };
+  })();
+  if (!entry) return null;
+  const parts2 = [];
+  if (entry.gammaDescription) {
+    parts2.push(entry.gammaDescription.slice(0, 500));
+  }
+  parts2.push(
+    `El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: ${entry.webUrl}`
+  );
+  return parts2.join("\n");
+}
+
 // src/services/serviceProgressiveOffer.ts
 var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
 function banqueteDetailQuery(text2) {
@@ -209567,9 +209571,7 @@ function buildGuardServiceAck(query) {
   }
   if (clientMentionsCarpas(query)) {
     const team = advisorLabelForClient();
-    const transparent = /transparent/i.test(query);
-    const head = transparent ? "S\xED, contamos con *carpas transparentes* (tambi\xE9n Cathedral, Pir\xE1mide y Planas)." : "S\xED, manejamos carpas (Cathedral, Pir\xE1mide, Planas y transparentes).";
-    return `${head} Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFCu\xE1l te late y qu\xE9 medidas aproximadas necesitas?`;
+    return `S\xED, manejamos carpas ${CARPA_OPTIONS_TEXT}. Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFQu\xE9 opci\xF3n prefieres y qu\xE9 medidas aproximadas debe tener (largo \xD7 ancho)?`;
   }
   if (clientMentionsPistaTarima(query)) {
     const fromPdf = buildLucyInfoLearnedPriceReply(query);
@@ -212305,7 +212307,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.03";
+var LUCY_PROMPT_VERSION = "V9.06";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -214381,7 +214383,7 @@ function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ct
   const transparent = /transparent/i.test(msg) || /transparent/i.test(variant ?? "");
   const alreadyHasCarpas = /\bcarpas?\b/i.test(extracted.requerimientos_evento ?? "");
   const alreadyPitched = history.some(
-    (m10) => m10.role === "assistant" && typeof m10.content === "string" && /cathedral|pir[aá]mide|planas|transparentes/i.test(m10.content)
+    (m10) => m10.role === "assistant" && typeof m10.content === "string" && /carpas?\s+(?:blancas?|negras?|transparentes?)|tipo\s+domo/i.test(m10.content)
   );
   const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
   if (filledSet) filledSet.add("Requerimientos o servicios");
@@ -215767,9 +215769,23 @@ function buildRequerimientosQuestion(extracted, history, currentMessage, entityI
   const core = prefix ? `${prefix}${variant}` : variant;
   return appendServiciosCatalogoHint(core, false, history);
 }
-function requerimientosNeedsFollowUp(extracted, filledSet) {
-  if (filledSet.has("Requerimientos o servicios")) return false;
+function requiredServiceDimensionsMissing(extracted) {
   const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (!req) return false;
+  const requiresDimensions = clientMentionsCarpas(req) || clientMentionsPistaTarima(req);
+  return requiresDimensions && !parseSpaceDimensions(req);
+}
+function buildRequiredServiceDimensionsQuestion(extracted) {
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (clientMentionsCarpas(req)) {
+    return "Antes de cerrar la solicitud necesito las medidas aproximadas de la carpa (largo \xD7 ancho) o del \xE1rea que quieres cubrir. \xBFCu\xE1nto mide?";
+  }
+  return "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima (largo \xD7 ancho). \xBFCu\xE1nto debe medir?";
+}
+function requerimientosNeedsFollowUp(extracted, filledSet) {
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (requiredServiceDimensionsMissing(extracted)) return true;
+  if (filledSet.has("Requerimientos o servicios")) return false;
   if (!req) return true;
   return !isValidRequerimientosValue(req);
 }
@@ -215789,6 +215805,9 @@ function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessa
   const followUpAlreadyAsked = (history ?? []).some(
     (m10) => m10.role === "assistant" && typeof m10.content === "string" && OTRO_SERVICIO_ASK_PATTERN.test(m10.content)
   );
+  if (requiredServiceDimensionsMissing(extracted)) {
+    return buildRequiredServiceDimensionsQuestion(extracted);
+  }
   if (followUpAlreadyAsked) {
     const pending2 = getNextPendingField(extracted, filledSet);
     if (pending2) return buildNaturalQuestion(pending2, ctx);
@@ -216268,6 +216287,14 @@ function applyLucyMessageGuards(input) {
   const ctx = makeQuestionCtx(input);
   const presHistory = input.presentationHistory ?? history;
   syncFilledFromExtracted(filledSet, extracted);
+  const dimensionsNow = parseSpaceDimensions(currentMessage ?? "");
+  if (dimensionsNow && (clientMentionsCarpas(extracted.requerimientos_evento ?? "") || clientMentionsPistaTarima(extracted.requerimientos_evento ?? ""))) {
+    const req = extracted.requerimientos_evento?.trim() || "Servicio";
+    if (!parseSpaceDimensions(req)) {
+      extracted.requerimientos_evento = `${req} (espacio ${dimensionsNow})`;
+    }
+    filledSet.add("Requerimientos o servicios");
+  }
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
     const recoveredNombre = recoverClienteNombreFromHistory(presHistory, currentMessage);
     if (recoveredNombre) {
@@ -217351,7 +217378,7 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
       filledSet,
       ctx
     );
-    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiLooksLikeCarpasReply(aiResponse) && !/Cathedral,\s*Pir[aá]mide,\s*Planas/i.test(aiResponse)) {
+    if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && aiLooksLikeCarpasReply(aiResponse) && !/\b(Cathedral|Catedral|Pir[aá]mide|Planas?)\b/i.test(aiResponse)) {
       mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: carpas \u2014 preferir redacci\xF3n OpenAI");
@@ -217789,6 +217816,10 @@ ${nextQ}`;
       );
       log?.warn({ entityId }, "GPT gener\xF3 nota interna \u2014 usando cierre desde plantilla");
     }
+  }
+  if (!cierreYaEnviado && requiredServiceDimensionsMissing(extracted) && isReadyForClosing(filledSet) && (responseLooksLikePrematureClose(mensaje) || !mensaje.includes("?"))) {
+    mensaje = buildRequiredServiceDimensionsQuestion(extracted);
+    log?.info({ entityId }, "GUARD: bloqueando cierre \u2014 faltan medidas obligatorias");
   }
   if (appliedDirectReply) {
     return normalizeAdvisorReferences(
@@ -218464,6 +218495,10 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     log?.info({ entityId }, "GUARD: A15009 \u2014 reemplaz\xF3 Sigo aqu\xED residual");
   }
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
+  if (!cierreYaEnviado && requiredServiceDimensionsMissing(extracted) && isReadyForClosing(filledSet) && responseLooksLikePrematureClose(mensaje)) {
+    mensaje = buildRequiredServiceDimensionsQuestion(extracted);
+    log?.info({ entityId }, "GUARD: cierre final reemplazado por medidas obligatorias");
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function dedupeCatalogUrlsInMessage(text2) {
