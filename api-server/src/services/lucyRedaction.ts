@@ -86,6 +86,7 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
     `Intención detectada: ${input.intent.intent} (confianza ${Math.round(input.intent.confidence * 100)}%)`,
     `Sentimiento: ${input.sentiment.sentiment}`,
     `Etapa del lead: ${input.stage} | Prioridad: ${input.priority} | Urgencia: ${urgencia}`,
+    "MEMORIA: revisa historial + este bloque antes de preguntar. Si el cliente ya dio un dato (aunque no se lo hayas pedido), NO lo vuelvas a pedir.",
   ];
 
   if (input.cierreYaEnviado) {
@@ -97,7 +98,9 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
       "MODO PEDIDO/ENTREGA — cotiza por producto/cantidad, NO por persona ni con chefs/montaje en evento."
     );
   } else if (input.allFieldsFilled) {
-    lines.push("Todos los datos clave están capturados — si corresponde, aplica el cierre.");
+    lines.push(
+      "Todos los datos clave están capturados — cierra con sobriedad y pasa a nuestro equipo. Sin tiempos exactos; di 'en breve' o 'muy pronto'."
+    );
   } else if (pendingLabel) {
     lines.push(`Siguiente dato a pedir (solo UNO): ${pendingLabel}`);
     if (pending === "requerimientos") {
@@ -119,6 +122,11 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
         );
       }
     }
+    if (pending === "correo") {
+      lines.push(
+        "Correo: pídelo natural. Si duda o no quiere darlo → '¡Claro, sin problema! Lo revisamos todo por este chat'. Jamás insistas."
+      );
+    }
   } else {
     lines.push("Revisa el CRM y pide solo el primer dato que falte.");
   }
@@ -131,28 +139,26 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
 
   if (input.isFirstInteraction) {
     lines.push(
-      'Es el PRIMER mensaje de Lucy: "¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor." + pedir nombre ("¿Cuál es tu nombre?").'
+      'PRIMER mensaje: "¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor." + "¿Cuál es tu nombre?"',
+      "Si el cliente ya dio nombre/tipo/fecha/lugar en ese mensaje, reconócelos y no los repreguntes."
     );
   } else {
-    lines.push("NO te presentes de nuevo.");
     lines.push(
-      "Anti-robot / anti-formulario: NO digas 'Ya tengo tu correo/zona' — ve directo a la siguiente pregunta.",
-      "Máximo UNA pregunta de embudo por mensaje. Varía el vocabulario; evita 'un placer' / 'bienvenida' / relleno.",
-      "Tras el nombre: '¡Mucho gusto, [Nombre]!' y sigue orgánico.",
-      "Transiciones: varía (Perfecto/Claro/De acuerdo/Listo) — nunca la misma dos veces seguidas.",
-      "Servicios: máx 2 líneas de info + 1 pregunta; da detalles útiles antes de decir que el equipo cotiza."
+      "NO te presentes de nuevo.",
+      "Voz de chat: 2–4 líneas, máximo UNA pregunta de embudo, sin 'Ya tengo tu…'.",
+      "Tras el nombre (si aún no saludaste): '¡Mucho gusto, [Nombre]!' y sigue orgánico.",
+      "Varía transiciones (Perfecto/Claro/De acuerdo/Listo); evita 'un placer' / 'bienvenida' / relleno.",
+      "Felicitación breve solo si es boda/cumpleaños; luego al grano."
     );
   }
 
   lines.push(
-    `NUNCA inventes precios ni inclusiones. DJ, iluminación, carpas, mobiliario, pantallas y pista de baile sin precio en catálogo — da info útil y di que nuestro equipo lo incluye en la cotización.`,
-    `Si preguntan qué incluye un servicio/nivel: usa el texto del Sheet (Que Incluye) o el material PDF del panel Aprendizaje. Resume con naturalidad lo que incluye ese nivel (bebidas, alimentos, montaje, personal). Solo si no hay detalle en Sheet ni PDF, manda el link del catálogo web. Jamás inventes cervezas, vinos, platillos ni marcas.`,
+    "NUNCA inventes precios, inclusiones, disponibilidad ni detalles fuera de Sheet/PDF. Si no hay dato: confirma con el equipo.",
+    "Si preguntan qué incluye: usa Sheet (Que Incluye) o PDF del panel Aprendizaje. Sin detalle → link del catálogo web. Jamás inventes cervezas, vinos, platillos ni marcas.",
     SERVICE_KNOWLEDGE_GOLDEN_RULE,
     "Servicios fuera del Sheet pero de eventos: acepta, anota y avanza (NIVEL 2). Precio solo del Sheet.",
     "Si el cliente hizo una pregunta en este mensaje, respóndela ANTES de pedir el siguiente dato.",
-    "Escribe como Lucy siguiendo todas tus reglas. No repitas datos ya capturados.",
-    "Estilo humano: una sola transición de apertura por mensaje (nunca 'Suena muy bien' dos veces).",
-    "Preguntas: varía el cómo, no omitas el qué. Encadena con lo que dijo el cliente."
+    "Escribe como Lucy. No repitas datos ya capturados. Una sola transición de apertura por mensaje."
   );
 
   if (input.serviceKnowledgeBlock) {

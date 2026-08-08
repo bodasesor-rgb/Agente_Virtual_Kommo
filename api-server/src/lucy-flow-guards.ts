@@ -203,7 +203,7 @@ export const WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp — el cliente no lo es
 const EMAIL_REFUSAL_PATTERN =
   /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 
-/** 8 pasos obligatorios para cierre (correo es opcional pero se intenta en paso 2). */
+/** Campos clave de cierre (correo es importante pero opcional si prefiere WhatsApp). */
 export const CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Tipo de evento",
@@ -333,7 +333,7 @@ export const FLOW_QUESTIONS = {
   nombre: "¿Me regalas tu nombre para iniciar?",
   tipoEvento: "¿Qué festejan o qué tipo de evento sería?",
   tipoEventoTrasCorreo: "¿Qué tipo de celebración están planeando?",
-  requerimientos: "Platícame, ¿qué tienes pensado para tu evento?",
+  requerimientos: "Platícame, ¿qué te gustaría armar para tu evento?",
   invitados: "¿Más o menos para cuántas personas sería?",
   zona: "¿En qué ciudad y colonia (o salón) sería tu evento? Si tienes la dirección exacta, mejor.",
   fecha: "¿Ya tienen fecha o todavía la van definiendo?",
@@ -371,7 +371,7 @@ function getQuestionVariants(): Record<PendingField, string[]> {
   ],
   requerimientos: [
     "¿Qué servicios te gustaría ir armando?",
-    "Platícame qué tienes pensado para el evento.",
+    "Platícame qué te gustaría armar para el evento.",
     "¿Qué necesitas cotizar?",
   ],
   invitados: [
@@ -386,7 +386,7 @@ function getQuestionVariants(): Record<PendingField, string[]> {
   ],
   fecha: [
     "¿Ya tienen fecha o todavía la van definiendo?",
-    "¿Para cuándo lo tienen pensado?",
+    "¿Para cuándo sería el evento?",
     "¿Ya hay día y hora, o siguen viendo opciones?",
   ],
   presupuesto: [
@@ -404,8 +404,9 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
   tipo_evento:
     /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
   requerimientos:
+    // No usar "pensado" suelto: choca con fechas ("¿para cuándo lo tienen pensado?").
     // No usar "menú" suelto: el bloque de catálogo dice "montajes, menús y opciones" (A14924).
-    /pensado|servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|qu[eé]\s+men[uú]|men[uú]\s+(prefieres|te\s+gustar|quieres)|plat[ií]came/i,
+    /qu[eé]\s+(tienes|tienen)\s+pensado|servicios?\s+te\s+gustar|qu[eé]\s+servicios?|banquete|taquiza|cotizar|adem[aá]s\s+del|qu[eé]\s+necesitas|qu[eé]\s+buscas|qu[eé]\s+men[uú]|men[uú]\s+(prefieres|te\s+gustar|quieres)|plat[ií]came\s+qu[eé]/i,
   invitados:
     /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
@@ -2111,26 +2112,35 @@ export interface NaturalQuestionContext {
   afterEmail?: boolean;
 }
 
+/**
+ * Siguiente dato del embudo en orden de conversación natural (V9.13).
+ * Correo va después de tipo/servicios/fecha/ubicación — no justo tras el nombre.
+ */
 export function getNextPendingField(
   extracted: ExtractedData,
   filledSet?: Set<string>
 ): PendingField | null {
   const filled = filledSet ?? new Set<string>();
 
-  if (!filled.has("Nombre del cliente") && !sanitizeCrmNombre(extracted.nombre)) return "nombre";
-  if (!isEmailSatisfied(filled, extracted)) return "correo";
+  if (!isFieldSatisfied("nombre", filled, extracted)) return "nombre";
+  if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
 
   const hasReq =
-    filled.has("Requerimientos o servicios") || isValidRequerimientosValue(extracted.requerimientos_evento);
-  const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
-  const hasZona =
-    filled.has("Lugar/dirección del evento") || isUsableDireccionEvento(extracted.direccion_evento);
-  const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
-
-  if (!hasTipoEvento(filled, extracted)) return "tipo_evento";
+    filled.has("Requerimientos o servicios") ||
+    isValidRequerimientosValue(extracted.requerimientos_evento);
   if (!hasReq) return "requerimientos";
-  if (!hasZona) return "zona";
+
+  const hasFecha = filled.has("Fecha y horario") || !!extracted.fecha_horario?.trim();
   if (!hasFecha) return "fecha";
+
+  const hasZona =
+    filled.has("Lugar/dirección del evento") ||
+    isUsableDireccionEvento(extracted.direccion_evento);
+  if (!hasZona) return "zona";
+
+  if (!isEmailSatisfied(filled, extracted)) return "correo";
+
+  const hasInv = filled.has("Número de invitados") || !!extracted.num_invitados;
   if (!hasInv) return "invitados";
   if (!filled.has("Presupuesto (MXN)") && !hasPresupuestoValue(extracted)) return "presupuesto";
   return null;
@@ -2388,24 +2398,22 @@ export function buildFirstInteractionMessage(
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
     const pending = getNextPendingField(ctx.extracted, filledSet);
-    // A15212: si ack ya es "Perfecto, Nombre.", no anteponer otro Mucho gusto.
+    // Si el ack ya nombra al cliente ("Perfecto, Ana."), no anteponer otro saludo.
     const ackHasName =
-      !!nombre && new RegExp(`\\b(Perfecto|Excelente|Genial),\\s*${nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(ack);
-    if (pending === "correo") {
-      const correoCore = pickVariant("correo", history, ctx.entityId);
-      const correoQ =
-        nombre && !ackHasName ? `Mucho gusto, ${nombre}. ${correoCore}` : correoCore;
-      const body = `${ack}${catalogBlock}\n\n${correoQ}`.trim();
-      return withIntro ? `${intro}${body}`.trim() : body;
-    }
+      !!nombre &&
+      new RegExp(
+        `\\b(Perfecto|Excelente|Genial),\\s*${nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+        "i"
+      ).test(ack);
+    const greet =
+      nombre && !ackHasName ? buildNameGreeting(nombre, history) : "";
     if (pending) {
-      const greet = nombre && !ackHasName ? `Mucho gusto, ${nombre}. ` : "";
       const q = buildNaturalQuestion(pending, ctx);
-      const body = `${ack}${catalogBlock}\n\n${greet}${q}`.trim();
+      const body = `${ack}${catalogBlock}\n\n${greet ? `${greet} ` : ""}${q}`.trim();
       return withIntro ? `${intro}${body}`.trim() : body;
     }
-    const body = nombre && !ackHasName
-      ? `${ack}${catalogBlock}\n\nMucho gusto, ${nombre}.`.trim()
+    const body = greet
+      ? `${ack}${catalogBlock}\n\n${greet}`.trim()
       : `${ack}${catalogBlock}`.trim();
     return withIntro ? `${intro}${body}`.trim() : body;
   }
@@ -2601,13 +2609,14 @@ function softAsksFilledField(mensaje: string, field: PendingField): boolean {
   return false;
 }
 
+/** Orden de conversación natural (alineado a getNextPendingField). */
 const FIELD_ORDER: PendingField[] = [
   "nombre",
-  "correo",
   "tipo_evento",
   "requerimientos",
-  "zona",
   "fecha",
+  "zona",
+  "correo",
   "invitados",
   "presupuesto",
 ];
@@ -3179,6 +3188,39 @@ export function sanitizeOutboundMessage(
   return mensaje;
 }
 
+/** True si Lucy ya dijo "Mucho gusto, [Nombre]" en el historial. */
+export function historyHasNameGreeting(
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  firstName?: string | null
+): boolean {
+  const first = firstName?.trim().split(/\s+/)[0];
+  if (!first) {
+    return history.some(
+      (m) =>
+        m.role === "assistant" &&
+        typeof m.content === "string" &&
+        /¡?Mucho gusto,/i.test(m.content as string)
+    );
+  }
+  const re = new RegExp(
+    `¡?Mucho gusto,\\s*${first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,
+    "i"
+  );
+  return history.some(
+    (m) => m.role === "assistant" && typeof m.content === "string" && re.test(m.content as string)
+  );
+}
+
+/** Saludo post-nombre; vacío si ya se saludó. */
+export function buildNameGreeting(
+  nombre: string | null | undefined,
+  history: OpenAI.Chat.ChatCompletionMessageParam[] = []
+): string {
+  const first = nombre?.trim().split(/\s+/)[0] ?? null;
+  if (!first || historyHasNameGreeting(history, first)) return "";
+  return `¡Mucho gusto, ${first}!`;
+}
+
 export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionContext): string {
   const history = ctx.history ?? [];
   const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
@@ -3187,9 +3229,8 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
   const thanks = emailThanksPrefix(ctx);
 
   if (field === "correo") {
-    const correoCore = pickVariant("correo", history, ctx.entityId);
-    const first = nombre?.split(/\s+/)[0] ?? null;
-    return first ? `¡Mucho gusto, ${first}! ${correoCore}` : correoCore;
+    // Mucho gusto lo antepone el turno de captura de nombre; aquí solo la pregunta.
+    return pickVariant("correo", history, ctx.entityId);
   }
 
   if (field === "requerimientos") {
@@ -3197,7 +3238,6 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
   }
 
   if (field === "tipo_evento") {
-    // V9.12: una sola pregunta corta — sin catálogo de tipos pegado (suena a formulario).
     const tipoVariant = pickVariant("tipo_evento", history, ctx.entityId);
     if (ctx.afterEmail) {
       return nombre
@@ -3298,9 +3338,8 @@ export function buildCorreoQuestion(
   entityId?: string | number
 ): string {
   const correoCore = pickVariant("correo", history, entityId);
-  const first = nombre?.split(/\s+/)[0] ?? null;
-  if (first) return `¡Mucho gusto, ${first}! ${correoCore}`;
-  return correoCore;
+  const greet = buildNameGreeting(nombre, history);
+  return greet ? `${greet} ${correoCore}` : correoCore;
 }
 
 export function buildRequerimientosFollowUp(
@@ -5703,6 +5742,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     } else {
       mensaje = buildNaturalQuestion("tipo_evento", emailCtx);
     }
+    appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: correo capturado — tipo de evento con opciones");
   } else if (justGaveEmail && hasTipoEvento(filledSet, extracted)) {
     const emailCtx = { ...ctx, afterEmail: true };
@@ -5715,28 +5755,24 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       entityId,
     });
     if (eventOffer) {
-      mensaje = eventOffer;
+      mensaje = applyEmailCaptureTone(eventOffer, emailCtx);
     } else if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage)) {
-      mensaje = applyEmailCaptureTone(aiResponse, emailCtx);
-    } else {
-      const nextQ = nextFieldQuestion(
-        extracted,
-        filledSet,
-        whatsappDisplayName,
-        history,
-        currentMessage,
-        entityId
+      mensaje = applyEmailCaptureTone(
+        mergeWithPendingQuestion(aiResponse, filledSet, extracted, emailCtx),
+        emailCtx
       );
+    } else {
       const pending = getNextPendingField(extracted, filledSet);
-      if (nextQ && pending) {
-        mensaje = buildNaturalQuestion(pending, emailCtx);
-      } else {
-        mensaje = applyEmailCaptureTone(nextQ ?? aiResponse, emailCtx);
-      }
+      const nextQ = pending
+        ? buildNaturalQuestion(pending, emailCtx)
+        : null;
+      mensaje = applyEmailCaptureTone(nextQ ?? aiResponse, emailCtx);
     }
+    appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: correo capturado — siguiente dato tras agradecer");
   } else if (emailRefusedThisTurn && !extracted.correo?.trim()) {
     mensaje = emailRefusalAckMessage(extracted, history, currentMessage, entityId, filledSet);
+    appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente no quiere dar correo — se continúa el flujo");
   } else if (clientAsksPhone(currentMessage) || clientRequestsCallback(currentMessage)) {
     const phoneAnswer = buildPhoneAnswer();
@@ -6788,24 +6824,32 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
-  // Zona/ubicación REQUERIDA antes del cierre (ciudad + colonia/salón).
+  // Ubicación requerida antes de correo/invitados/presupuesto/cierre.
+  // V9.13: fecha va ANTES que zona — no interceptar preguntas de fecha ni
+  // respuestas de servicio (carpas/medidas/incluye).
   // Usar isFieldSatisfied (no solo filledSet): si extracted ya tiene Querétaro,
-  // no volver a preguntar zona al avanzar a fecha (Núria A14894).
-  // No pisar respuestas de "qué incluye / descripción de paquetes".
+  // no volver a preguntar zona (Núria A14894).
   if (
     !cierreYaEnviado &&
     !clientAsksInclusion(currentMessage) &&
+    !clientAsksServiceInfo(currentMessage) &&
     !appliedDirectReply &&
-    !/\bincluye\s*:|bodasesor\.com\/catalogos/i.test(mensaje) &&
+    !appliedSalesReply &&
+    !/\bincluye\s*:|bodasesor\.com\/catalogos|medidas?\s+aproximad/i.test(mensaje) &&
     !isFieldSatisfied("zona", filledSet, extracted) &&
     (responseLooksLikePrematureClose(mensaje) ||
       trulyReadyForClosing ||
       mensajeAsksForField(mensaje, "presupuesto") ||
-      mensajeAsksForField(mensaje, "fecha") ||
+      mensajeAsksForField(mensaje, "correo") ||
       mensajeAsksForField(mensaje, "invitados"))
   ) {
     const pending = getNextPendingField(extracted, filledSet);
-    if (pending === "zona" || !mensajeAsksForField(mensaje, "zona")) {
+    if (pending === "fecha") {
+      if (!mensajeAsksForField(mensaje, "fecha")) {
+        mensaje = buildNaturalQuestion("fecha", ctx);
+        log?.info({ entityId }, "GUARD: forzar fecha antes de ubicación/cierre");
+      }
+    } else if (pending === "zona" || !mensajeAsksForField(mensaje, "zona")) {
       mensaje = buildNaturalQuestion("zona", ctx);
       log?.info({ entityId }, "GUARD: forzar ubicación antes de avance/cierre");
     }
@@ -6815,7 +6859,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending) {
       log?.warn({ entityId, pending }, "GUARD: pregunta fuera de orden — corrigiendo");
-      mensaje = buildNaturalQuestion(pending, ctx);
+      const fixCtx = justGaveEmail ? { ...ctx, afterEmail: true } : ctx;
+      mensaje = buildNaturalQuestion(pending, fixCtx);
     }
   }
 
