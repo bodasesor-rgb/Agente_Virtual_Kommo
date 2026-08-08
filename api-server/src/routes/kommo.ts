@@ -17,6 +17,7 @@ import OpenAI from "openai";
 import { getHistory, appendHistory, clearHistory } from "../chat-history.js";
 import {
   applyEmailWaiver,
+  applyInvitadosWaiver,
   applyPresupuestoWaiver,
   applyWhatsappNombreFallback,
   detectCierreEnviado,
@@ -925,6 +926,13 @@ function buildCrmContext(
     filledSet,
     mergedLines,
     collectUserTexts(historyFull, currentMessage)
+  );
+
+  applyInvitadosWaiver(
+    filledSet,
+    mergedLines,
+    collectUserTexts(historyFull, currentMessage),
+    historyFull
   );
 
   applyPresupuestoWaiver(

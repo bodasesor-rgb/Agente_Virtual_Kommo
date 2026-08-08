@@ -481,6 +481,92 @@ export function applyEmailWaiver(filledSet: Set<string>, mergedLines: string[], 
   filledSet.add(EMAIL_WAIVED_LABEL);
 }
 
+export const INVITADOS_UNAVAILABLE_VALUE =
+  "Sin definir (afluencia abierta / cliente no dispone del dato)";
+
+/** El cliente no organiza el evento o atiende un stand y no puede conocer la afluencia. */
+export function detectInvitadosUnavailable(
+  texts: string[],
+  history: OpenAI.Chat.ChatCompletionMessageParam[] = []
+): boolean {
+  const last = texts[texts.length - 1]?.trim() ?? "";
+  const lastAssistant = [...history]
+    .reverse()
+    .find((m) => m.role === "assistant" && typeof m.content === "string");
+  const askedInvitados =
+    !!lastAssistant &&
+    (inferLucyAskedField(lastAssistant.content as string) === "invitados" ||
+      /cu[aá]nt(?:os|a)\s+(?:invitados|personas)|cu[aá]nta\s+gente|asistir[aá]n/i.test(
+        lastAssistant.content as string
+      ));
+  const explicitUnknown =
+    /\bno\s+(?:lo\s+)?sabemos\b|\bno\s+tenemos\s+(?:ese\s+)?dato\b|\bno\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)\b|\bafluencia\s+(?:abierta|desconocida|por\s+definir)\b/i;
+  const guestContext =
+    /\b(invitados?|personas?|gente|asistentes?|afluencia|cu[aá]nt[oa]s?)\b/i;
+  const sponsorContext =
+    /\bno\s+organizamos\b[\s\S]{0,80}\bevento\b|\b(?:vamos|asistimos)\s+(?:como|de)\s+patrocinadores?\b|\b(?:stand|expo)\b[\s\S]{0,100}\blleguen\b/i;
+
+  if (texts.some((text) => explicitUnknown.test(text) && guestContext.test(text))) return true;
+  if (texts.some((text) => sponsorContext.test(text) && explicitUnknown.test(text))) return true;
+  return askedInvitados && (explicitUnknown.test(last) || sponsorContext.test(last));
+}
+
+export function applyInvitadosWaiver(
+  filledSet: Set<string>,
+  mergedLines: string[],
+  texts: string[],
+  history: OpenAI.Chat.ChatCompletionMessageParam[] = []
+): void {
+  if (filledSet.has("Número de invitados")) return;
+  if (!detectInvitadosUnavailable(texts, history)) return;
+  if (!mergedLines.some((line) => /^-?\s*Número de invitados:/i.test(line))) {
+    mergedLines.push(`- Número de invitados: ${INVITADOS_UNAVAILABLE_VALUE}`);
+  }
+  filledSet.add("Número de invitados");
+}
+
+function blockResolvedInvitadosAsk(
+  mensaje: string,
+  filledSet: Set<string>,
+  extracted: ExtractedData,
+  history: OpenAI.Chat.ChatCompletionMessageParam[],
+  currentMessage: string | undefined,
+  buildClosing: (servicios: string | null | undefined, clientName?: string | null) => string,
+  cierreYaEnviado: boolean,
+  whatsappDisplayName?: string | null,
+  entityId?: string | number,
+  log?: { info: (obj: unknown, msg?: string) => void }
+): string {
+  if (!mensajeAsksForField(mensaje, "invitados")) return mensaje;
+  applyInvitadosWaiver(
+    filledSet,
+    [],
+    collectUserTexts(history, currentMessage),
+    history
+  );
+  if (!filledSet.has("Número de invitados")) return mensaje;
+
+  const pending = getNextPendingField(extracted, filledSet);
+  log?.info({ entityId, pending }, "GUARD: afluencia desconocida — no repetir invitados");
+  if (pending) {
+    return buildNaturalQuestion(pending, {
+      extracted,
+      filledSet,
+      whatsappName: whatsappDisplayName,
+      history,
+      currentMessage,
+      entityId,
+    });
+  }
+  if (!cierreYaEnviado && isReadyForClosing(filledSet)) {
+    return buildClosing(
+      extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+      extracted.nombre
+    );
+  }
+  return "Entendido. Anoto que la afluencia es abierta y que no disponen de ese dato.";
+}
+
 /** Marca presupuesto como capturado cuando el cliente dijo que no tiene / no le dieron. */
 export function applyPresupuestoWaiver(
   filledSet: Set<string>,
@@ -2258,8 +2344,14 @@ export function buildFirstInteractionMessage(
           serviceHint: svcHint,
         })
       : null;
+  // Una solicitud de cotización en el primer contacto se reconoce y continúa con
+  // el embudo; no se vuelca un PDF completo si el cliente no pidió detalle/precio.
+  const requestedCatalogDetail =
+    clientAsksInclusion(ctx.currentMessage) ||
+    clientAsksPrice(ctx.currentMessage) ||
+    clientAsksForCatalog(ctx.currentMessage);
   const sheetDetail =
-    !includeCatalog && !progressiveFirst && svcHint
+    !includeCatalog && !progressiveFirst && requestedCatalogDetail && svcHint
       ? attachAvailableSheetDetail(svcHint, svcHint)
       : null;
   const catalogBlock = includeCatalog
@@ -3984,6 +4076,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const presHistory = input.presentationHistory ?? history;
 
   syncFilledFromExtracted(filledSet, extracted);
+  applyInvitadosWaiver(
+    filledSet,
+    [],
+    collectUserTexts(presHistory, currentMessage),
+    presHistory
+  );
 
   // A15164: recuperar nombre del historial/mensaje actual antes del embudo.
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
@@ -6237,6 +6335,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     return normalizeAdvisorReferences(
       mensaje,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+
+  if (filledSet.has("Número de invitados") && mensajeAsksForField(mensaje, "invitados")) {
+    mensaje = blockResolvedInvitadosAsk(
+      mensaje,
+      filledSet,
+      extracted,
+      presHistory,
+      currentMessage,
+      buildClosing,
+      cierreYaEnviado,
+      whatsappDisplayName,
+      entityId,
+      log
     );
   }
 

@@ -8,6 +8,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { expandQueryWithServiceSynonyms } from "./serviceSynonyms.js";
 
 export type LucyInfoCacheDoc = {
   title: string;
@@ -97,6 +98,22 @@ function scoreDoc(doc: LucyInfoCacheDoc, tokens: string[]): number {
     else if (body.includes(tok)) s += 1;
   }
   return s;
+}
+
+/**
+ * Familias cuyos catálogos comparten palabras demasiado genéricas ("barra", "café",
+ * "premium"). Si el pedido identifica una de ellas, el PDF debe identificar la misma
+ * familia en su título; el contenido de otro servicio nunca sirve como fallback.
+ */
+const STRICT_PDF_SERVICE_FAMILIES = new Set([
+  "barra_cafe",
+  "coffee_break",
+  "barra_americana",
+]);
+
+function strictPdfServiceFamily(text: string): string | null {
+  const families = expandQueryWithServiceSynonyms(text).familyKeys;
+  return families.find((family) => STRICT_PDF_SERVICE_FAMILIES.has(family)) ?? null;
 }
 
 function tokenize(text: string): string[] {
@@ -303,15 +320,18 @@ export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): str
   if (!queryHasServicePdfAnchor(query)) return null;
   const tokens = tokenize(query);
   if (!tokens.length) return null;
+  const strictFamily = strictPdfServiceFamily(query);
 
   const ranked = [...docs]
+    .filter((doc) => !strictFamily || strictPdfServiceFamily(doc.title) === strictFamily)
     .map((d) => ({ d, s: scoreDoc(d, tokens) }))
     .filter((x) => x.s >= 6)
     .sort((a, b) => b.s - a.s);
   if (!ranked.length) return null;
 
   // Preferir docs cuyo título matchee el servicio (coffee, banquete, taquiza…).
-  const serviceHints = ["coffee", "banquete", "taquiza", "sushi", "paella", "pozole", "pista", "sala", "barra"];
+  // Para familias estrictas, el filtro anterior ya exige identidad exacta.
+  const serviceHints = ["coffee", "cafe", "banquete", "taquiza", "sushi", "paella", "pozole", "pista", "sala", "barra"];
   const qf = fold(query);
   const preferred = ranked.filter((x) => {
     const title = fold(x.d.title);
