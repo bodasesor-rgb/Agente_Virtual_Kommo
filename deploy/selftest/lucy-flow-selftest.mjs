@@ -129340,23 +129340,23 @@ function buildEntertainmentSalesReply(extracted, history, entityId, currentMessa
   let ideas;
   if (wantsPhotoBooth) {
     intro = `Perfecto \u2014 anoto *Photo Booth* (cabina de fotos) para ${eventLabel}.`;
-    ideas = "El equipo te confirma modelos, props, fondo y tiempo de renta. No es banquete ni catering: es entretenimiento / activaci\xF3n.";
+    ideas = "El equipo te confirma modelos, props, fondo y tiempo de renta.";
   } else if (wantsSpecialAct) {
     const act = specialActLabel || "ese show / acto";
     intro = `Perfecto \u2014 anoto *${act}* para ${eventLabel}.`;
-    ideas = "Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta. No confundir con banquete ni catering.";
+    ideas = "Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta.";
   } else if (wantsBailarinas) {
     intro = `Perfecto \u2014 anoto *bailarinas* para ${eventLabel}.`;
-    ideas = "Es entretenimiento / show en vivo: el equipo arma la propuesta seg\xFAn duraci\xF3n, estilo y el espacio. No confundir con banquete ni catering.";
+    ideas = "Es entretenimiento / show en vivo: el equipo arma la propuesta seg\xFAn duraci\xF3n, estilo y el espacio.";
   } else if (wantsRobots && wantsBatucada) {
     intro = `Perfecto \u2014 anoto *robots LED* para ambientar la *batucada* en ${eventLabel}.`;
-    ideas = "Eso va por entretenimiento / activaci\xF3n (no es banquete ni catering). Nuestro equipo arma la propuesta seg\xFAn duraci\xF3n, cantidad de robots y el espacio.";
+    ideas = "Nuestro equipo arma la propuesta seg\xFAn duraci\xF3n, cantidad de robots y el espacio.";
   } else if (wantsRobots) {
     intro = `Perfecto \u2014 anoto *robots LED* para ${eventLabel}.`;
-    ideas = "Es un servicio de entretenimiento/activaci\xF3n: el equipo confirma disponibilidad, duraci\xF3n y montaje. No tiene tarifa fija en lista como el catering.";
+    ideas = "Es un servicio de entretenimiento/activaci\xF3n: el equipo confirma disponibilidad, duraci\xF3n y montaje.";
   } else if (wantsBatucada) {
     intro = `Claro \u2014 podemos ayudarte a *ambientar una batucada* en ${eventLabel}.`;
-    ideas = "Para eso solemos sumar activaciones (robots LED, show, iluminaci\xF3n o animaci\xF3n) seg\xFAn el vibe que busquen. No confundir con banquete/catering.";
+    ideas = "Para eso solemos sumar activaciones (robots LED, show, iluminaci\xF3n o animaci\xF3n) seg\xFAn el vibe que busquen.";
   } else if (wantsMc) {
     intro = `S\xED, para ${eventLabel} tambi\xE9n manejamos *maestro de ceremonias* y shows en vivo.`;
     ideas = "\xBFBuscas m\xE1s bien presentador, show de grupo, o animaci\xF3n tipo hora loca?";
@@ -133335,7 +133335,33 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
       log?.info({ entityId }, "GUARD: A15204 \u2014 comida \u2260 mobiliario, dump reemplazado");
     }
   }
+  mensaje = stripClientServiceConfusionNotes(mensaje);
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
+}
+function stripClientServiceConfusionNotes(text2) {
+  if (!text2?.trim()) return text2;
+  let out2 = text2;
+  out2 = out2.replace(
+    /[^.!?\n]*\b[Nn]o\s+confundir\s+con\b[^.!?\n]*[.!?]?/gi,
+    " "
+  );
+  out2 = out2.replace(
+    /[^.!?\n]*\b[Nn]o\s+es\s+banquete\s+ni\s+catering\b[^.!?\n]*[.!?]?/gi,
+    " "
+  );
+  out2 = out2.replace(
+    /\(\s*no\s+es\s+banquete\s+ni\s+catering\s*\)/gi,
+    ""
+  );
+  out2 = out2.replace(
+    /[^.!?\n]*\b[Nn]o\s+tiene\s+tarifa\s+fija\s+en\s+lista\s+como\s+el\s+catering\b[^.!?\n]*[.!?]?/gi,
+    " "
+  );
+  out2 = out2.replace(
+    /:\s*es\s+entretenimiento\s*\/\s*activaci[oó]n\b/gi,
+    "."
+  );
+  return out2.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
 function dedupeCatalogUrlsInMessage(text2) {
   if (!text2?.trim() || !/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text2)) {
@@ -134130,6 +134156,7 @@ ${keepQ}` : ack;
   if (clientAsksInclusion(input.currentMessage) || /Según el catálogo que ya tenemos/i.test(mensaje) || /¿Te late este nivel o quieres que te detalle otro\?/i.test(mensaje)) {
     mensaje = collapseDuplicatedInclusionReply(mensaje);
   }
+  mensaje = stripClientServiceConfusionNotes(mensaje);
   if (!mensaje.trim()) {
     mensaje = input.cierreYaEnviado && clientSaysThanks(input.currentMessage) ? buildPostCierreThanksReply(input.extracted.nombre) : "Gracias por tu mensaje. Nuestro equipo te atiende en breve.";
     input.log?.warn({ entityId: input.entityId }, "GUARD: mensaje vac\xEDo \u2014 respuesta de respaldo");
@@ -134652,7 +134679,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.07";
+var LUCY_PROMPT_VERSION = "V9.08";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -141520,6 +141547,8 @@ ${golfText}`,
     assert2.ok(!/Sigo aquí/i.test(circo), circo.slice(0, 400));
     assert2.ok(!/banquete\s+formal/i.test(circo), circo.slice(0, 400));
     assert2.ok(!/revisar\s+primero/i.test(circo), circo.slice(0, 400));
+    assert2.ok(!/no\s+confundir/i.test(circo), circo.slice(0, 500));
+    assert2.ok(!/no\s+es\s+banquete\s+ni\s+catering/i.test(circo), circo.slice(0, 500));
     const insist = runGuards({
       aiResponse: "\xBFQu\xE9 te gustar\xEDa revisar primero o prefieres armar un paquete?",
       extracted: emptyExtracted({
@@ -141717,7 +141746,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.07");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.08");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -142527,6 +142556,32 @@ ${golfText}`,
       !/Mesas\s*y\s*Sillas|20 combinaciones de mobiliario|Colecci[oó]n Vintage/i.test(dumped),
       dumped.slice(0, 500)
     );
+  });
+  await test("134. WhatsApp no dice 'No confundir con\u2026' al cliente", () => {
+    const stripped = stripClientServiceConfusionNotes(
+      "Perfecto \u2014 anoto *Actos de circo / animaci\xF3n* para tu cumplea\xF1os. Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta. No confundir con banquete ni catering.\n\n\xBFYa hay d\xEDa definido?"
+    );
+    assert2.ok(/circo|entretenimiento|disponibilidad/i.test(stripped), stripped);
+    assert2.ok(!/no\s+confundir/i.test(stripped), stripped);
+    assert2.ok(!/banquete ni catering/i.test(stripped), stripped);
+    for (const msg of [
+      "Actos de circo / animaci\xF3n para mi cumplea\xF1os",
+      "Photo Booth",
+      "bailarinas para XV",
+      "robots LED",
+      "batucada"
+    ]) {
+      const out2 = runGuards({
+        aiResponse: "Perfecto. No confundir con banquete ni catering. \xBFQu\xE9 fecha tienes?",
+        extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "cumplea\xF1os" }),
+        filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
+        readyForClosing: false,
+        currentMessage: msg,
+        history: []
+      });
+      assert2.ok(!/no\s+confundir/i.test(out2), `${msg} \u2192 ${out2.slice(0, 400)}`);
+      assert2.ok(!/no\s+es\s+banquete\s+ni\s+catering/i.test(out2), `${msg} \u2192 ${out2.slice(0, 400)}`);
+    }
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

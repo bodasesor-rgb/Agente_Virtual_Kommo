@@ -11,6 +11,7 @@ import {
   clientSaysThanks,
   CLOSING_SIGNATURE,
   stripCatalogBlockShared,
+  stripClientServiceConfusionNotes,
 } from "./lucy-flow-guards.js";
 import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
 import { maybeRefinarMensajeCierre } from "./services/lucyRedaction.js";
@@ -160,6 +161,8 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
   ) {
     mensaje = collapseDuplicatedInclusionReply(mensaje);
   }
+
+  mensaje = stripClientServiceConfusionNotes(mensaje);
 
   if (!mensaje.trim()) {
     mensaje =
