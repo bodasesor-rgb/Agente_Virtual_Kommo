@@ -108402,11 +108402,7 @@ var SHORT_SERVICE_ALIASES = {
   "audio e iluminacion": "Audio y sonido",
   "audio e iluminaci\xF3n": "Audio y sonido",
   "desayuno o brunch": "Desayuno",
-  comida: "banquete / taquiza",
-  alimentos: "banquete / taquiza",
-  alimento: "banquete / taquiza",
-  menu: "banquete / taquiza",
-  men\u00FA: "banquete / taquiza",
+  // A15205: comida/alimentos vagos NO se aliasan a banquete — van a formal vs casual.
   letras: "renta de letras",
   "renta de letras": "renta de letras",
   "letra xv": "renta de letras"
@@ -108435,7 +108431,9 @@ var TIPO_EVENTO_PATTERNS = [
   [/\bposada\b/i, "posada"],
   [/\bcena\s+navide[nñ]a\b/i, "cena navide\xF1a"],
   // A14988 Ernesto: concierto es tipo de evento (no servicio).
-  [/\bconciertos?\b/i, "concierto"]
+  [/\bconciertos?\b/i, "concierto"],
+  // A15205 Mariel: campamento / concentración deportiva.
+  [/\bcampamentos?\b|\bconcentraci[oó]n\b|\batletas?\b/i, "campamento"]
 ];
 function normalizePresentationText(text2) {
   return text2.toLowerCase().replace(/[¿?.,!]/g, "").trim();
@@ -108641,6 +108639,15 @@ function isVagueFoodTerm(text2) {
   const t3 = text2?.trim() ?? "";
   if (!t3) return false;
   if (clientAsksCafeOrCateringChoice(t3)) return true;
+  if (/\b(desayuno|snack|cena|coffee\s*break)\b/i.test(t3) && /\b(desayuno|comida|cena|snack|coffee)\b/i.test(t3) && (t3.match(/\b(desayuno|comida|cena|snack|coffee\s*break)\b/gi) ?? []).length >= 2) {
+    return false;
+  }
+  if (hasSpecificFoodService(t3)) return false;
+  if (/\b(comidas?|alimentos?|algo\s+de\s+comer|catering|banquetes?)\b/i.test(t3) && !/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional)|\d\s*tiempos?|taquiza|coffee\s*break|barra\s+de|sushi|parrillada|canap|pizza|pasta|pozole|paella)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
   if (/\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
     t3
   ) || /^(me\s+interesa\s+(cotizar\s+)?)?(un\s+)?(servicio\s+de\s+)?(banquetes?|catering)(\s+para\s+mi\s+evento)?[.!?¿?]*$/i.test(
@@ -108650,24 +108657,26 @@ function isVagueFoodTerm(text2) {
       return true;
     }
   }
-  if (hasSpecificFoodService(t3)) return false;
   const services = parseServicesFromText(t3);
   if (services.length >= 2) return false;
   if (services.length > 0 && !/^(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t3) && !/^(quiero|necesito|busco)\s+(comida|alimentos?|men[uú]|desayuno|brunch|catering|banquetes?)$/i.test(t3)) {
     if (services.length === 1 && /^(Desayuno|Snack|Cena|Coffee break|Brunch)$/i.test(services[0])) {
       return false;
     }
-    if (services.length === 1 && !/^(Comida)$/i.test(services[0])) {
+    if (services.length === 1 && !/^(Comida|Alimentos|banquete \/ taquiza)$/i.test(services[0])) {
       return false;
     }
   }
-  const cleaned = t3.replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "").replace(/^(una?|el|la|los|las|un\s+servicio\s+de)\s+/i, "").trim();
-  if (/^(comida|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+banquetes?(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
+  const cleaned = t3.replace(
+    /^(quer[ií]a|quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i,
+    ""
+  ).replace(/^(una?|el|la|los|las|un\s+servicio\s+de)\s+/i, "").replace(/\s+para\s+(un\s+)?evento\b.*$/i, "").trim();
+  if (/^(comidas?|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+banquetes?(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
     cleaned
   )) {
     return true;
   }
-  return /\b(quiero|necesito|busco|me\s+interesa\s+cotizar)\s+(comida|alimentos?|algo\s+de\s+comer|banquetes?|catering)\b/i.test(
+  return /\b(quer[ií]a|quiero|necesito|busco|me\s+interesa|cotizar?)\b.{0,24}\b(comidas?|alimentos?|algo\s+de\s+comer|banquetes?|catering)\b/i.test(
     t3
   );
 }
@@ -109264,7 +109273,7 @@ function parseServicesFromText(text2) {
       found.push(normalized);
     }
   }
-  if (/\b(alimentos?|comida)\b/i.test(text2) && !clientAsksCafeOrCateringChoice(text2) && !found.some((s6) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s6))) {
+  if (/\b(alimentos?|comidas?)\b/i.test(text2) && !clientAsksCafeOrCateringChoice(text2) && !found.some((s6) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s6))) {
     found.push("Alimentos");
   }
   return dedupeServiceHierarchy([...new Set(found)], text2);
@@ -113187,16 +113196,18 @@ function fold2(s6) {
 }
 function buildAlimentosModoMenu() {
   return [
-    "Claro. \xBFQu\xE9 te gustar\xEDa?",
-    "\u2022 Un *banquete* para eventos formales (servicio a la mesa, varios tiempos)",
-    "\u2022 Algo m\xE1s *casual* tipo catering \u2014 por ejemplo: barra de pastas y ensaladas, barra de pizzas, taquiza\u2026",
+    "Claro. Para *comida* del evento, \xBFqu\xE9 te gustar\xEDa?",
+    "\u2022 Un *banquete* m\xE1s formal (servicio a la mesa, varios tiempos)",
+    "\u2022 Algo m\xE1s *casual* tipo catering \u2014 por ejemplo: barra de pastas y ensaladas, barra de pizzas, taquiza, sushi\u2026",
     "",
-    "Tambi\xE9n manejamos m\xE1s opciones de alimentos. Dime qu\xE9 estilo te late y te paso el detalle (o el cat\xE1logo general si buscas algo especial)."
+    "Tambi\xE9n manejamos desayuno, brunch, canap\xE9s y otras estaciones. Dime qu\xE9 estilo te late y te paso el detalle."
   ].join("\n");
 }
 function isAlimentosModoMenuReply(text2) {
   if (!text2?.trim()) return false;
-  return /banquete.*formal|formal.*banquete|algo m[aá]s \*?casual\*?\s+tipo\s+catering/i.test(text2) && /barra de pastas|barra de pizzas|taquiza/i.test(text2);
+  return (/banquete.*formal|formal.*banquete|algo m[aá]s \*?casual\*?\s+tipo\s+catering|\*banquete\*.*formal|casual.*catering/i.test(
+    text2
+  ) || /para \*comida\* del evento/i.test(text2)) && /barra de pastas|barra de pizzas|taquiza|sushi|desayuno|brunch|canap/i.test(text2);
 }
 function historyOfferedAlimentosModoMenu(history) {
   return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => isAlimentosModoMenuReply(m5.content));
@@ -113485,6 +113496,9 @@ function shouldOfferOptionsBeforeDetail(opts) {
   }
   const family = detectProgressiveFamily(msg) || detectProgressiveFamily(opts.serviceHint) || detectProgressiveFamily(blob);
   if (!family) return null;
+  if (family === "banquete" && !/\bbanquetes?\b/i.test(msg) && !hasConcreteServiceVariant(msg) && !/\b(formal|mexicano|kosher|navide|\d\s*tiempos)\b/i.test(msg) && (/banquete\s*\/\s*taquiza/i.test(opts.serviceHint ?? "") || /\b(comidas?|alimentos?|catering)\b/i.test(msg) || /^(alimentos?|comidas?)$/i.test((opts.serviceHint ?? "").trim()))) {
+    return null;
+  }
   const hintHasMultipleFamilies = (() => {
     const hint = opts.serviceHint?.trim() ?? "";
     if (!hint || !/,| y /.test(hint)) return false;
@@ -129474,9 +129488,7 @@ function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId
   const inv = extracted.num_invitados ?? 0;
   const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
   const msg = currentMessage ?? "";
-  const wantsInfo = /\binformaci[oó]n|info|detalle|incluye|cotiz|me\s+pueden\s+dar\b/i.test(msg);
-  const isBanqueteVague = /\bbanquetes?\b|\bcatering\b/i.test(msg) && !/\b(taquiza|coffee\s*break|sushi|parrillada)\b/i.test(msg);
-  if (isBanqueteVague && wantsInfo) {
+  if (isVagueFoodTerm(msg) || /\b(comidas?|alimentos?|catering|banquetes?)\b/i.test(msg)) {
     if (historyOfferedAlimentosModoMenu(history)) {
       if (clientChoseBanqueteFormal(msg)) {
         return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
@@ -129503,15 +129515,14 @@ function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId
   } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
     options = "Para bautizo suele ir banquete o brunch, mesa de dulces o bocadillos.";
     linkHint = "banquete";
-  } else if (/corporativo/.test(tipo) || /corporativ/.test(texts)) {
-    options = "Para eventos corporativos manejamos coffee break, banquete o barra de alimentos.";
-    linkHint = "coffee break";
+  } else if (/corporativo|campamento/.test(tipo) || /corporativ|campamento|atletas/.test(texts)) {
+    options = "Para este tipo de evento manejamos desayuno, comida corrida, banquete o estaciones casuales. \xBFLo ves m\xE1s formal o m\xE1s casual?";
+    linkHint = "comida corrida";
   } else if (clientAsksCafeOrCateringChoice(msg)) {
     options = "Manejamos ambas: *Barra de Caf\xE9* (baristas y bebidas artesanales) y *catering de comida* (banquete, barras de alimentos, meseros). \xBFQu\xE9 te late m\xE1s para tu evento?";
     linkHint = "banquete";
   } else {
-    options = "Seg\xFAn el evento podemos ofrecerte banquete, taquiza o brunch \u2014 \xBFcu\xE1l te interesa?";
-    return `${pickTransition(history)} ${options}`.trim();
+    return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
   }
   const follow = pickVariant("requerimientos", history, entityId);
   return `${pickTransition(history)} ${options} ${follow}`.trim();
@@ -129644,6 +129655,9 @@ ${nextQ}`;
       `${pickTransition(history)} Perfecto, anoto esa preferencia para *${label}* y se la paso al equipo.`,
       resolvedServiceLabel
     );
+  }
+  if (currentMessage && isVagueFoodTerm(currentMessage)) {
+    return buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
   }
   if (mentionedService || resolvedServiceLabel || currentMessage && isServiceRelatedMessage(currentMessage)) {
     const serviceLabel = resolvedServiceLabel;
@@ -130021,16 +130035,19 @@ function buildFirstInteractionMessage(ctx, withIntro = true) {
     return `${intro}${buildItalianFoodPitch(ctx.currentMessage)} ${nameQ2}`.trim();
   }
   const svcHint = (isValidRequerimientosValue(ctx.extracted.requerimientos_evento) ? ctx.extracted.requerimientos_evento : null) || parsePrimaryService(userText) || parsePrimaryService(ctx.currentMessage ?? "") || (multiServices.length === 1 ? multiServices[0] : null);
-  const progressiveFirst = !includeCatalog && svcHint ? shouldOfferOptionsBeforeDetail({
+  const vagueFoodFirst = !includeCatalog && (isVagueFoodTerm(ctx.currentMessage) || isVagueFoodTerm(userText));
+  const progressiveFirst = !includeCatalog && !vagueFoodFirst && svcHint ? shouldOfferOptionsBeforeDetail({
     currentMessage: ctx.currentMessage ?? svcHint,
     history,
     serviceHint: svcHint
   }) : null;
   const requestedCatalogDetail = clientAsksInclusion(ctx.currentMessage) || clientAsksPrice(ctx.currentMessage) || clientAsksForCatalog(ctx.currentMessage);
-  const sheetDetail = !includeCatalog && !progressiveFirst && requestedCatalogDetail && svcHint ? attachAvailableSheetDetail(svcHint, svcHint) : null;
+  const sheetDetail = !includeCatalog && !progressiveFirst && !vagueFoodFirst && requestedCatalogDetail && svcHint ? attachAvailableSheetDetail(svcHint, svcHint) : null;
   const catalogBlock = includeCatalog ? `
 
-${buildPackageCatalogOfferBlock(multiServices, userText)}` : progressiveFirst ? `
+${buildPackageCatalogOfferBlock(multiServices, userText)}` : vagueFoodFirst ? `
+
+${buildAlimentosModoMenu()}` : progressiveFirst ? `
 
 ${progressiveFirst.menu}` : sheetDetail ? `
 
@@ -134679,7 +134696,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.08";
+var LUCY_PROMPT_VERSION = "V9.09";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -134745,7 +134762,7 @@ function runGuards(opts) {
 }
 async function runAll() {
   console.log("Lucy \u2014 28 escenarios de prueba\n");
-  await test('1. A14754 \u2014 "Busco comida" ofrece banquete/taquiza', () => {
+  await test('1. A14754/A15205 \u2014 "Busco comida" pregunta formal vs casual', () => {
     const filled = /* @__PURE__ */ new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumplea\xF1os" });
     const history = [
@@ -134755,6 +134772,7 @@ async function runAll() {
     assert2.equal(inferLucyAskedField(lastLucy), "requerimientos");
     assert2.ok(clientMentionsCatering("Busco comida"));
     assert2.ok(isServiceRelatedMessage("Busco comida"));
+    assert2.ok(isVagueFoodTerm("Busco comida"));
     const debugLogs = [];
     const reply = runGuards({
       aiResponse: "\xBFCu\xE1ntos invitados?",
@@ -134765,10 +134783,10 @@ async function runAll() {
       history,
       debugLogs
     });
-    if (!/banquete|taquiza|catering|alimentos/i.test(reply)) {
-      throw new Error(`respuesta inesperada: "${reply.slice(0, 200)}" | logs: ${debugLogs.join(" > ")}`);
-    }
-    assert2.equal(parsePrimaryService("Busco comida"), "banquete / taquiza");
+    assert2.ok(/banquete|casual|catering/i.test(reply), reply.slice(0, 300));
+    assert2.ok(/formal|casual/i.test(reply), reply.slice(0, 300));
+    assert2.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(reply), reply.slice(0, 400));
+    assert2.ok(!/Kosher|Navide[nñ]o/i.test(reply), reply.slice(0, 400));
   });
   await test("2. Cliente Alejandro \u2014 cierre dice nuestro equipo, no Alejandro asesor", () => {
     const filled = /* @__PURE__ */ new Set([
@@ -141746,7 +141764,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.08");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.09");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -142582,6 +142600,37 @@ ${golfText}`,
       assert2.ok(!/no\s+confundir/i.test(out2), `${msg} \u2192 ${out2.slice(0, 400)}`);
       assert2.ok(!/no\s+es\s+banquete\s+ni\s+catering/i.test(out2), `${msg} \u2192 ${out2.slice(0, 400)}`);
     }
+  });
+  await test("135. A15205 \u2014 cotizar comidas pregunta formal vs casual", () => {
+    assert2.ok(isVagueFoodTerm("Quer\xEDa cotizar comidas para un evento en CONADE"));
+    assert2.ok(isVagueFoodTerm("cotizar comidas"));
+    assert2.ok(isVagueFoodTerm("comidas"));
+    assert2.ok(isVagueFoodTerm("Busco comida"));
+    assert2.ok(!isVagueFoodTerm("banquete formal 3 tiempos"));
+    assert2.ok(!isVagueFoodTerm("Necesitamos desayuno, comida y cena"));
+    assert2.equal(parseTipoEventoFromText("campamento para atletas"), "campamento");
+    const reply = runGuards({
+      aiResponse: "Claro. En *banquete* manejamos Formal, Mexicano, Kosher\u2026",
+      extracted: emptyExtracted({ nombre: "Mariel" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Quer\xEDa cotizar comidas para un evento en CONADE",
+      history: [],
+      whatsappDisplayName: "Mariel Casillas"
+    });
+    assert2.ok(/formal|casual|catering|banquete/i.test(reply), reply.slice(0, 500));
+    assert2.ok(/casual|barra de pastas|taquiza|pizzas/i.test(reply), reply.slice(0, 500));
+    assert2.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(reply), reply.slice(0, 500));
+    assert2.ok(!/Kosher|Navide[nñ]o/i.test(reply), reply.slice(0, 500));
+    const first = buildFirstInteractionMessage({
+      extracted: emptyExtracted(),
+      filledSet: /* @__PURE__ */ new Set(),
+      history: [],
+      currentMessage: "Quer\xEDa cotizar comidas para un evento en CONADE",
+      entityId: 1
+    });
+    assert2.ok(/formal|casual/i.test(first), first.slice(0, 500));
+    assert2.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(first), first.slice(0, 500));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -351,22 +351,25 @@ function fold(s: string): string {
 
 // ─── V8.92: formal vs casual (alimentos) + pieza mobiliario ─────────────────
 
-/** Primer paso cuando el cliente dice "banquetes o catering" sin estilo. */
+/** Primer paso cuando el cliente dice comida/banquetes/catering sin estilo. */
 export function buildAlimentosModoMenu(): string {
   return [
-    "Claro. ¿Qué te gustaría?",
-    "• Un *banquete* para eventos formales (servicio a la mesa, varios tiempos)",
-    "• Algo más *casual* tipo catering — por ejemplo: barra de pastas y ensaladas, barra de pizzas, taquiza…",
+    "Claro. Para *comida* del evento, ¿qué te gustaría?",
+    "• Un *banquete* más formal (servicio a la mesa, varios tiempos)",
+    "• Algo más *casual* tipo catering — por ejemplo: barra de pastas y ensaladas, barra de pizzas, taquiza, sushi…",
     "",
-    "También manejamos más opciones de alimentos. Dime qué estilo te late y te paso el detalle (o el catálogo general si buscas algo especial).",
+    "También manejamos desayuno, brunch, canapés y otras estaciones. Dime qué estilo te late y te paso el detalle.",
   ].join("\n");
 }
 
 export function isAlimentosModoMenuReply(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
   return (
-    /banquete.*formal|formal.*banquete|algo m[aá]s \*?casual\*?\s+tipo\s+catering/i.test(text) &&
-    /barra de pastas|barra de pizzas|taquiza/i.test(text)
+    (/banquete.*formal|formal.*banquete|algo m[aá]s \*?casual\*?\s+tipo\s+catering|\*banquete\*.*formal|casual.*catering/i.test(
+      text
+    ) ||
+      /para \*comida\* del evento/i.test(text)) &&
+    /barra de pastas|barra de pizzas|taquiza|sushi|desayuno|brunch|canap/i.test(text)
   );
 }
 
@@ -795,6 +798,20 @@ export function shouldOfferOptionsBeforeDetail(opts: {
     detectProgressiveFamily(opts.serviceHint) ||
     detectProgressiveFamily(blob);
   if (!family) return null;
+
+  // A15205: "comida"/"banquete / taquiza" genérico → no abrir Formal/Mexicano.
+  // Primero va formal vs casual (buildAlimentosModoMenu en guards).
+  if (
+    family === "banquete" &&
+    !/\bbanquetes?\b/i.test(msg) &&
+    !hasConcreteServiceVariant(msg) &&
+    !/\b(formal|mexicano|kosher|navide|\d\s*tiempos)\b/i.test(msg) &&
+    (/banquete\s*\/\s*taquiza/i.test(opts.serviceHint ?? "") ||
+      /\b(comidas?|alimentos?|catering)\b/i.test(msg) ||
+      /^(alimentos?|comidas?)$/i.test((opts.serviceHint ?? "").trim()))
+  ) {
+    return null;
+  }
 
   // A14982: CRM con 2+ familias (Yucateca + Taquiza) y el mensaje no elige una →
   // no devolver menú de una sola familia (rompe dump de paquetes / embudo).

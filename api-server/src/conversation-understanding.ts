@@ -237,11 +237,7 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   "audio e iluminacion": "Audio y sonido",
   "audio e iluminación": "Audio y sonido",
   "desayuno o brunch": "Desayuno",
-  comida: "banquete / taquiza",
-  alimentos: "banquete / taquiza",
-  alimento: "banquete / taquiza",
-  menu: "banquete / taquiza",
-  menú: "banquete / taquiza",
+  // A15205: comida/alimentos vagos NO se aliasan a banquete — van a formal vs casual.
   letras: "renta de letras",
   "renta de letras": "renta de letras",
   "letra xv": "renta de letras",
@@ -272,6 +268,8 @@ const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
   [/\bcena\s+navide[nñ]a\b/i, "cena navideña"],
   // A14988 Ernesto: concierto es tipo de evento (no servicio).
   [/\bconciertos?\b/i, "concierto"],
+  // A15205 Mariel: campamento / concentración deportiva.
+  [/\bcampamentos?\b|\bconcentraci[oó]n\b|\batletas?\b/i, "campamento"],
 ];
 
 /** Normaliza para comparar presentaciones ("Alejandro?", "¿Alejandro"). */
@@ -618,6 +616,27 @@ export function isVagueFoodTerm(text: string | null | undefined): boolean {
   if (!t) return false;
   // A14964: "¿es solo café o tienes catering de comida?" → ofrecer ambas, no forzar banquete.
   if (clientAsksCafeOrCateringChoice(t)) return true;
+  // Brief multi-tiempo (desayuno + comida + cena) no es vago.
+  if (
+    /\b(desayuno|snack|cena|coffee\s*break)\b/i.test(t) &&
+    /\b(desayuno|comida|cena|snack|coffee)\b/i.test(t) &&
+    (t.match(/\b(desayuno|comida|cena|snack|coffee\s*break)\b/gi) ?? []).length >= 2
+  ) {
+    return false;
+  }
+  if (hasSpecificFoodService(t)) return false;
+
+  // A15205: "cotizar comidas", "quería comidas para un evento", "alimentos"…
+  // → formal vs casual; NUNCA menú Banquete Formal/Mexicano de entrada.
+  if (
+    /\b(comidas?|alimentos?|algo\s+de\s+comer|catering|banquetes?)\b/i.test(t) &&
+    !/\b(banquete\s+(formal|mexicano|premium|b[aá]sic|tradicional)|\d\s*tiempos?|taquiza|coffee\s*break|barra\s+de|sushi|parrillada|canap|pizza|pasta|pozole|paella)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+
   // A14929: frases explícitamente vagas (no "banquete premium 4 tiempos").
   if (
     /\bbanquetes?\s+o\s+catering\b|\bcatering\s+o\s+banquetes?\b|\bservicio\s+de\s+banquetes?\b/i.test(
@@ -631,7 +650,6 @@ export function isVagueFoodTerm(text: string | null | undefined): boolean {
       return true;
     }
   }
-  if (hasSpecificFoodService(t)) return false;
   const services = parseServicesFromText(t);
   // Brief con varios servicios (coffee break + desayuno + …) no es "comida vaga".
   if (services.length >= 2) return false;
@@ -644,22 +662,26 @@ export function isVagueFoodTerm(text: string | null | undefined): boolean {
     if (services.length === 1 && /^(Desayuno|Snack|Cena|Coffee break|Brunch)$/i.test(services[0]!)) {
       return false;
     }
-    if (services.length === 1 && !/^(Comida)$/i.test(services[0]!)) {
+    if (services.length === 1 && !/^(Comida|Alimentos|banquete \/ taquiza)$/i.test(services[0]!)) {
       return false;
     }
   }
   const cleaned = t
-    .replace(/^(quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i, "")
+    .replace(
+      /^(quer[ií]a|quiero|necesito|busco|solo|solamente|nada\s+m[aá]s|me\s+interesa|dame|cotiza(?:r)?)\s+/i,
+      ""
+    )
     .replace(/^(una?|el|la|los|las|un\s+servicio\s+de)\s+/i, "")
+    .replace(/\s+para\s+(un\s+)?evento\b.*$/i, "")
     .trim();
   if (
-    /^(comida|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+banquetes?(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
+    /^(comidas?|alimentos?|men[uú]s?|catering|banquetes?|algo\s+de\s+comer|servicio\s+de\s+banquetes?(\s+o\s+catering)?|banquetes?\s+o\s+catering)$/i.test(
       cleaned
     )
   ) {
     return true;
   }
-  return /\b(quiero|necesito|busco|me\s+interesa\s+cotizar)\s+(comida|alimentos?|algo\s+de\s+comer|banquetes?|catering)\b/i.test(
+  return /\b(quer[ií]a|quiero|necesito|busco|me\s+interesa|cotizar?)\b.{0,24}\b(comidas?|alimentos?|algo\s+de\s+comer|banquetes?|catering)\b/i.test(
     t
   );
 }
@@ -1711,9 +1733,9 @@ export function parseServicesFromText(text: string): string[] {
     }
   }
 
-  // A15000: mención explícita de alimentos/comida con otros servicios.
+  // A15000 / A15205: mención explícita de alimentos/comida(s) con otros servicios.
   if (
-    /\b(alimentos?|comida)\b/i.test(text) &&
+    /\b(alimentos?|comidas?)\b/i.test(text) &&
     !clientAsksCafeOrCateringChoice(text) &&
     !found.some((s) => /alimento|banquete|taquiza|catering|comida|barra\s+de\s+alimentos/i.test(s))
   ) {

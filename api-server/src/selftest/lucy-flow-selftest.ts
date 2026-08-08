@@ -399,7 +399,7 @@ function runGuards(opts: {
 async function runAll(): Promise<void> {
   console.log("Lucy — 28 escenarios de prueba\n");
 
-  await test('1. A14754 — "Busco comida" ofrece banquete/taquiza', () => {
+  await test('1. A14754/A15205 — "Busco comida" pregunta formal vs casual', () => {
     const filled = new Set(["Nombre del cliente", EMAIL_WAIVED_LABEL, "Tipo de evento"]);
     const extracted = emptyExtracted({ nombre: "Alejandro", tipo_evento: "cumpleaños" });
     const history: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -409,6 +409,7 @@ async function runAll(): Promise<void> {
     assert.equal(inferLucyAskedField(lastLucy), "requerimientos");
     assert.ok(clientMentionsCatering("Busco comida"));
     assert.ok(isServiceRelatedMessage("Busco comida"));
+    assert.ok(isVagueFoodTerm("Busco comida"));
 
     const debugLogs: string[] = [];
     const reply = runGuards({
@@ -420,10 +421,10 @@ async function runAll(): Promise<void> {
       history,
       debugLogs,
     });
-    if (!/banquete|taquiza|catering|alimentos/i.test(reply)) {
-      throw new Error(`respuesta inesperada: "${reply.slice(0, 200)}" | logs: ${debugLogs.join(" > ")}`);
-    }
-    assert.equal(parsePrimaryService("Busco comida"), "banquete / taquiza");
+    assert.ok(/banquete|casual|catering/i.test(reply), reply.slice(0, 300));
+    assert.ok(/formal|casual/i.test(reply), reply.slice(0, 300));
+    assert.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(reply), reply.slice(0, 400));
+    assert.ok(!/Kosher|Navide[nñ]o/i.test(reply), reply.slice(0, 400));
   });
 
   await test("2. Cliente Alejandro — cierre dice nuestro equipo, no Alejandro asesor", () => {
@@ -8314,7 +8315,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.08");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.09");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9284,6 +9285,41 @@ async function runAll(): Promise<void> {
       assert.ok(!/no\s+confundir/i.test(out), `${msg} → ${out.slice(0, 400)}`);
       assert.ok(!/no\s+es\s+banquete\s+ni\s+catering/i.test(out), `${msg} → ${out.slice(0, 400)}`);
     }
+  });
+
+  // ─── 135. A15205 Mariel — comidas ≠ banquete Formal/Mexicano de entrada ───
+  await test("135. A15205 — cotizar comidas pregunta formal vs casual", () => {
+    assert.ok(isVagueFoodTerm("Quería cotizar comidas para un evento en CONADE"));
+    assert.ok(isVagueFoodTerm("cotizar comidas"));
+    assert.ok(isVagueFoodTerm("comidas"));
+    assert.ok(isVagueFoodTerm("Busco comida"));
+    assert.ok(!isVagueFoodTerm("banquete formal 3 tiempos"));
+    assert.ok(!isVagueFoodTerm("Necesitamos desayuno, comida y cena"));
+    assert.equal(parseTipoEventoFromText("campamento para atletas"), "campamento");
+
+    const reply = runGuards({
+      aiResponse: "Claro. En *banquete* manejamos Formal, Mexicano, Kosher…",
+      extracted: emptyExtracted({ nombre: "Mariel" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Quería cotizar comidas para un evento en CONADE",
+      history: [],
+      whatsappDisplayName: "Mariel Casillas",
+    });
+    assert.ok(/formal|casual|catering|banquete/i.test(reply), reply.slice(0, 500));
+    assert.ok(/casual|barra de pastas|taquiza|pizzas/i.test(reply), reply.slice(0, 500));
+    assert.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(reply), reply.slice(0, 500));
+    assert.ok(!/Kosher|Navide[nñ]o/i.test(reply), reply.slice(0, 500));
+
+    const first = buildFirstInteractionMessage({
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      history: [],
+      currentMessage: "Quería cotizar comidas para un evento en CONADE",
+      entityId: 1,
+    });
+    assert.ok(/formal|casual/i.test(first), first.slice(0, 500));
+    assert.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(first), first.slice(0, 500));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
