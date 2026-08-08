@@ -73,6 +73,7 @@ import {
 } from "../lucyTurnProcessor.js";
 import {
   applyCapturesToCrm,
+  applyLocationCorrectionToCrm,
   captureContextualAnswer,
   clientAsksForRecommendations,
   clientAsksAboutTeam,
@@ -80,6 +81,8 @@ import {
   clientAddsToQuote,
   appendPostCierreRequirements,
   appendSpaceDimensionsToRequerimientos,
+  clientCorrectsLocation,
+  isVenueSpaceDetail,
   isDimensionText,
   isVagueVenueOnly,
   isNonLocationBusinessPhrase,
@@ -852,9 +855,13 @@ function buildCrmContext(
     const askedPres = inferLucyAskedField(
       history.filter((m) => m.role === "assistant").slice(-1)[0]?.content as string | undefined ?? ""
     );
-    const fromPres = parsePresupuestoFromText(currentMessage, {
-      askedField: askedPres === "presupuesto" ? "presupuesto" : null,
-    });
+    // A15210: no contaminar presupuesto con corrección de ubicación / año suelto.
+    const fromPres =
+      clientCorrectsLocation(currentMessage) || isVenueSpaceDetail(currentMessage)
+        ? null
+        : parsePresupuestoFromText(currentMessage, {
+            askedField: askedPres === "presupuesto" ? "presupuesto" : null,
+          });
     if (fromPres) {
       const newNum = parseInt(fromPres.replace(/[^\d]/g, ""), 10);
       const presIdx = mergedLines.findIndex((l) => /^-?\s*Presupuesto \(MXN\):/i.test(l));
@@ -891,6 +898,9 @@ function buildCrmContext(
       captureContextualAnswer(history, currentMessage, filledSet)
     );
   }
+
+  // A15210: corrección de ubicación reemplaza CRM (no concatena piso 15 + polanco).
+  applyLocationCorrectionToCrm(mergedLines, filledSet, extracted, currentMessage);
 
   // Sincroniza extracted.direccion_evento con el valor CRM (incluye afinado municipio).
   {

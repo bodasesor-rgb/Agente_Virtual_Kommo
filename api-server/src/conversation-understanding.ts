@@ -52,7 +52,9 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Banquete Kosher Buffet", /\bkosher\s+buffet\b|\bbuffet\s+kosher\b/i],
   ["Banquete Kosher", /\bkosher\b/i],
   ["Banquete Navideño", /\bnavide[nñ]o\b/i],
-  ["Banquete Mexicano", /\b(banquete\s+mexicano|mexicano)\b/i],
+  // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
+  // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
+  ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
   ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
   // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
   ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
@@ -1675,6 +1677,18 @@ export function parseServicesFromText(text: string): string[] {
     if (pattern.test(text) || pattern.test(lower)) found.push(label);
   }
 
+  // A15210: "mexicano" suelto / con banquete formal = Banquete Mexicano.
+  // No en desayuno/brunch/temático (tema, no menú banquete).
+  if (
+    !found.includes("Banquete Mexicano") &&
+    /\bmexicano\b/i.test(text) &&
+    !/\b(desayuno|brunch|tem[aá]tico)\b/i.test(text) &&
+    (/^mexicano[\s.,!]*$/i.test(text.trim()) ||
+      /\b(banquete|formal|tiempos|comida\s+mexicana|men[uú]\s+mexicano)\b/i.test(text))
+  ) {
+    found.push("Banquete Mexicano");
+  }
+
   // A14985: sección "Bebidas" + alcohol sin la palabra "barra" → Barra de bebidas.
   if (
     !found.some((s) => /barra\s+de\s+bebidas/i.test(s)) &&
@@ -1795,6 +1809,18 @@ export function dedupeServiceHierarchy(
   if (specificBanquete) {
     const formalIdx = found.indexOf("Banquete Formal");
     if (formalIdx >= 0) found.splice(formalIdx, 1);
+  }
+
+  // A15210 Hernán: "Desayuno temático mexicano" → Desayuno, no Banquete Mexicano.
+  if (
+    found.some((s) => /^Desayuno$/i.test(s) || /^Brunch$/i.test(s)) &&
+    found.some((s) => /Banquete\s+Mexicano/i.test(s)) &&
+    /\b(desayuno|brunch|tem[aá]tico)\b/i.test(text) &&
+    !/\bbanquete\b/i.test(text)
+  ) {
+    for (let i = found.length - 1; i >= 0; i--) {
+      if (/Banquete\s+Mexicano/i.test(found[i]!)) found.splice(i, 1);
+    }
   }
 
   // A14985: Puestos/antojitos gana sobre "Snack" corporativo genérico.
@@ -2432,6 +2458,122 @@ export function isUsableDireccionEvento(value: string | null | undefined): boole
 }
 
 /**
+ * Cliente corrige o niega la ubicación / detalle del lugar ya capturado (A15210).
+ * Ej.: "Me equivoqué, es un patio", "no es en el piso 15, es en otra ubicación".
+ */
+export function clientCorrectsLocation(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  return (
+    /\bme\s+equivoqu[eé]/i.test(t) ||
+    /\bno\s+es\s+en\s+(el\s+)?piso\b/i.test(t) ||
+    /\bno\s+es\s+(en\s+)?(la\s+)?(torre|piso|edificio)\b/i.test(t) ||
+    /\b(es\s+en\s+)?otra\s+ubicaci[oó]n\b/i.test(t) ||
+    /\bcambi[oó]\s+(de\s+)?(ubicaci[oó]n|lugar|direcci[oó]n)\b/i.test(t) ||
+    /\bes\s+un\s+patio\b/i.test(t) ||
+    /\bpatio\s+techado\b/i.test(t)
+  );
+}
+
+/** Detalle de espacio del venue (patio/techado/terraza) para afinar dirección existente. */
+export function isVenueSpaceDetail(text: string | null | undefined): boolean {
+  const t = (text ?? "").trim();
+  if (!t) return false;
+  return /^(el\s+|un\s+|una\s+)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)[\s.,!]*$/i.test(
+    t
+  );
+}
+
+/**
+ * Aplica corrección de ubicación sobre la dirección CRM.
+ * Devuelve la dirección corregida o null si el mensaje no es una corrección usable.
+ */
+export function applyLocationCorrectionToAddress(
+  existing: string | null | undefined,
+  message: string | null | undefined
+): string | null {
+  const msg = (message ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!msg) return null;
+
+  const corrects = clientCorrectsLocation(msg);
+  const spaceDetail = isVenueSpaceDetail(msg);
+  if (!corrects && !(spaceDetail && prev)) return null;
+
+  let zoneFromMsg = parseZonaFromText(msg);
+  // "no es en el piso 15… también es en polanco" → polanco
+  if (!zoneFromMsg) {
+    const m = msg.match(KNOWN_ZONES);
+    if (m?.[0]) zoneFromMsg = m[0]!.trim();
+  }
+  let zoneFromPrev: string | null = null;
+  if (prev) {
+    const m = prev.match(KNOWN_ZONES);
+    if (m?.[0]) zoneFromPrev = m[0]!.trim();
+  }
+  const zone = zoneFromMsg || zoneFromPrev;
+
+  let result = prev;
+
+  // Negación de piso / torre / "otra ubicación" → quitar piso y venue equivocado.
+  if (
+    /\bno\s+es\s+en\s+(el\s+)?piso\b|\botra\s+ubicaci[oó]n\b|\bme\s+equivoqu|\bno\s+es\s+(en\s+)?(la\s+)?torre\b/i.test(
+      msg
+    )
+  ) {
+    result = result
+      .replace(/,?\s*piso\s*\d+/gi, "")
+      .replace(/\btorre\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ-]*/gi, "")
+      .replace(/\s*,\s*,+/g, ",")
+      .replace(/^\s*,\s*|\s*,\s*$/g, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+    if (/\botra\s+ubicaci[oó]n\b/i.test(msg) && zone) {
+      result = zone;
+    }
+  }
+
+  if (/\bpatio\b/i.test(msg)) {
+    result = result.replace(/,?\s*piso\s*\d+/gi, "").trim();
+    if (!/\bpatio\b/i.test(result)) {
+      result = result ? `${result}, patio` : zone ? `${zone}, patio` : "patio";
+    }
+  }
+
+  if (/\btechado\b/i.test(msg)) {
+    if (/\bpatio\b/i.test(result) && !/\btechado\b/i.test(result)) {
+      result = result.replace(/\bpatio\b/i, "patio techado");
+    } else if (!/\btechado\b/i.test(result)) {
+      result = result ? `${result}, techado` : zone ? `${zone}, techado` : "";
+    }
+  }
+
+  if (/\bjard[ií]n\b/i.test(msg) && !/\bjard[ií]n\b/i.test(result)) {
+    result = result ? `${result}, jardín` : zone ? `${zone}, jardín` : "jardín";
+  }
+  if (/\b(azotea|rooftop|terraza)\b/i.test(msg)) {
+    const detail = msg.match(/\b(azotea|rooftop|terraza)\b/i)?.[1] ?? "terraza";
+    if (!new RegExp(`\\b${detail}\\b`, "i").test(result)) {
+      result = result ? `${result}, ${detail}` : zone ? `${zone}, ${detail}` : detail;
+    }
+  }
+
+  if (zone && result && !new RegExp(zone.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(result)) {
+    result = `${result}, ${zone}`;
+  }
+  if ((!result || !result.trim()) && zone) result = zone;
+
+  result = (result ?? "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").trim();
+  if (!result) return null;
+  if (!isUsableDireccionEvento(result)) {
+    // "Polanco, patio" / zona + detalle suele ser usable; si falla, caer a zona.
+    if (zone && isUsableDireccionEvento(zone)) return zone;
+    return null;
+  }
+  return result;
+}
+
+/**
  * ¿Conviene reemplazar la dirección CRM existente por un fragmento nuevo?
  * Conservador: no pisar un lugar bueno con basura o un token más débil (Humano Trabaja).
  */
@@ -2444,6 +2586,17 @@ export function shouldReplaceCrmDireccion(
   const prev = existing?.trim() ?? "";
   if (!prev || !isUsableDireccionEvento(prev)) return true;
   if (prev.toLowerCase() === next.toLowerCase()) return false;
+  // A15210: corrección explícita (otra ubicación / sin piso / patio) puede acortar.
+  if (clientCorrectsLocation(next) || isVenueSpaceDetail(next)) return true;
+  // Incoming quitó un piso/torre incorrectos pero conserva la zona.
+  if (
+    /\bpiso\s*\d+/i.test(prev) &&
+    !/\bpiso\s*\d+/i.test(next) &&
+    KNOWN_ZONES.test(prev) &&
+    KNOWN_ZONES.test(next)
+  ) {
+    return true;
+  }
   if (prev.toLowerCase().includes(next.toLowerCase()) && next.length < prev.length) return false;
   // Incoming claramente más específico (incluye el previo o trae geo fuerte).
   if (next.toLowerCase().includes(prev.toLowerCase()) && next.length > prev.length + 2) return true;
@@ -2452,6 +2605,37 @@ export function shouldReplaceCrmDireccion(
   }
   // Silencio / humano: no mezclar ni pisar con otro lugar distinto sin señal más fuerte.
   return false;
+}
+
+/**
+ * Escribe en CRM la dirección corregida por el cliente (reemplaza, no concatena).
+ */
+export function applyLocationCorrectionToCrm(
+  mergedLines: string[],
+  filledSet: Set<string>,
+  extracted: { direccion_evento?: string | null },
+  currentMessage: string | null | undefined
+): boolean {
+  const msg = currentMessage?.trim() ?? "";
+  if (!msg) return false;
+  const idx = mergedLines.findIndex((l) => /^-?\s*Lugar\/dirección del evento:/i.test(l));
+  const existing =
+    (idx >= 0
+      ? mergedLines[idx]!.replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim()
+      : null) ||
+    extracted.direccion_evento?.trim() ||
+    null;
+  if (!clientCorrectsLocation(msg) && !(isVenueSpaceDetail(msg) && existing)) return false;
+  const next = applyLocationCorrectionToAddress(existing, msg);
+  if (!next || next === existing) return false;
+  if (idx >= 0) {
+    mergedLines[idx] = `- Lugar/dirección del evento: ${next}`;
+  } else {
+    mergedLines.push(`- Lugar/dirección del evento: ${next}`);
+  }
+  filledSet.add("Lugar/dirección del evento");
+  extracted.direccion_evento = next;
+  return true;
 }
 
 /** Medidas del espacio para tarima/pista/carpa (ej. 6 metros por 12, 6x12). */
@@ -2908,6 +3092,26 @@ export function findPresupuestoInTexts(
   return null;
 }
 
+/** Año calendario (1990–2100) sin señal de dinero → no es presupuesto (A15210: "2026"). */
+function looksLikeCalendarYearAmount(num: number, text: string): boolean {
+  if (num < 1990 || num > 2100) return false;
+  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget|tope)\b/i.test(text)) {
+    return false;
+  }
+  const t = text.trim();
+  if (/^(19|20)\d{2}$/.test(t)) return true;
+  // Año aislado en fecha ("15 agosto 2026") sin token de dinero.
+  if (
+    /\b(19|20)\d{2}\b/.test(t) &&
+    /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|fecha|a[nñ]o)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOptions): string | null {
   // A15016: dígitos del correo (israel241268@…) NUNCA son presupuesto.
   const withoutEmails = text
@@ -2918,6 +3122,10 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   if (!trimmed) return null;
   // Mensaje que es solo un correo.
   if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(text.trim())) return null;
+
+  // A15210: corrección de ubicación / detalle de venue NUNCA es presupuesto
+  // (aunque Lucy haya preguntado presupuesto).
+  if (clientCorrectsLocation(trimmed) || isVenueSpaceDetail(trimmed)) return null;
 
   if (
     /\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) ||
@@ -3073,6 +3281,20 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
     if (!isNaN(num) && num > 0) return `$${num * 1000}`;
   }
 
+  // A15210: año suelto ("2026") nunca es presupuesto, ni con askedField.
+  {
+    const yearOnly = trimmed.match(/^(19|20)\d{2}$/);
+    if (yearOnly) return null;
+    const yearNum = parseInt(trimmed.replace(/[^\d]/g, ""), 10);
+    if (
+      looksLikeCalendarYearAmount(yearNum, trimmed) &&
+      !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)
+    ) {
+      // Texto que es solo el año o el año domina sin señal de dinero.
+      if (/^(19|20)\d{2}$/.test(trimmed) || trimmed.length <= 6) return null;
+    }
+  }
+
   // "$300" suelto / "desde $300" de catálogo no es presupuesto del cliente (A14938).
   const hasMoneyWord =
     /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) ||
@@ -3083,7 +3305,13 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   if (hasMoneyWord || hasAproxBudget || (/\$/.test(trimmed) && hasMoneyWord)) {
     // No capturar dígitos pegados a letras (resto de email / códigos).
     const amountMatch = trimmed.match(/(?<![A-Za-z0-9])\$?\s*([\d][\d,.]*)/);
-    if (amountMatch) return trimmed.slice(0, 80);
+    if (amountMatch) {
+      const num = parseInt(amountMatch[1]!.replace(/,/g, ""), 10);
+      if (!isNaN(num) && looksLikeCalendarYearAmount(num, trimmed) && !/\$/.test(trimmed)) {
+        return null;
+      }
+      return trimmed.slice(0, 80);
+    }
   }
   // "$80,000" / "presupuesto 50 mil" con $ y monto alto sin palabra clave aún puede ser presupuesto.
   if (/\$\s*[\d][\d,.]{3,}/.test(trimmed) && !/\bdesde\s+\$/i.test(trimmed)) {
@@ -3098,6 +3326,8 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   if (bareMatch) {
     const num = parseInt(bareMatch[1]!.replace(/,/g, ""), 10);
     if (isNaN(num) || num <= 0) return null;
+    // A15210: "2026" (año) ≠ $2,026 MXN.
+    if (looksLikeCalendarYearAmount(num, trimmed) && !bareMatch[2]) return null;
     if (opts?.askedField === "presupuesto") return trimmed.slice(0, 80);
     if (bareNumberLooksLikeInvitados(num, trimmed)) return null;
     if (num >= 1000) return `$${num.toLocaleString("es-MX")} MXN`;
@@ -3317,7 +3547,16 @@ export function captureContextualAnswer(
     if (fecha) captures.push({ label: "Fecha y horario", value: fecha });
   }
 
-  if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
+  // A15210: si corrige ubicación, anotar lugar (aunque el campo ya esté lleno) y no presupuesto.
+  if (clientCorrectsLocation(msg) || (isVenueSpaceDetail(msg) && filledSet.has("Lugar/dirección del evento"))) {
+    const zonaHint = parseZonaFromText(msg);
+    if (zonaHint && isUsableDireccionEvento(zonaHint)) {
+      captures.push({ label: "Lugar/dirección del evento", value: zonaHint });
+    }
+  } else if (
+    !filledSet.has("Presupuesto (MXN)") &&
+    (asked === "presupuesto" || detectPresupuestoRefusal(msg))
+  ) {
     const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
     if (pres) {
       captures.push({ label: "Presupuesto (MXN)", value: pres });
@@ -3486,9 +3725,14 @@ export function applyCapturesToCrm(
       const idx = mergedLines.findIndex((l) => /^-?\s*Lugar\/dirección del evento:/i.test(l));
       if (idx >= 0) {
         const existing = mergedLines[idx]!.replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim();
-        const merged = mergeZonaDetail(existing, value);
-        if (merged && merged !== existing) {
-          mergedLines[idx] = `- Lugar/dirección del evento: ${merged}`;
+        // A15210: corrección (sin piso / patio / zona más limpia) reemplaza; si no, afina.
+        if (shouldReplaceCrmDireccion(existing, value)) {
+          mergedLines[idx] = `- Lugar/dirección del evento: ${value}`;
+        } else {
+          const merged = mergeZonaDetail(existing, value);
+          if (merged && merged !== existing) {
+            mergedLines[idx] = `- Lugar/dirección del evento: ${merged}`;
+          }
         }
       }
       continue;

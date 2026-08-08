@@ -86,6 +86,10 @@ import {
   looksLikeConflictingFoodAlternatives,
   shouldReplaceCrmDireccion,
   looksLikeDiscourseNotPlace,
+  clientCorrectsLocation,
+  isVenueSpaceDetail,
+  applyLocationCorrectionToAddress,
+  applyLocationCorrectionToCrm,
 } from "../conversation-understanding.js";
 import {
   applyCrmWriteInvariants,
@@ -8262,7 +8266,7 @@ async function runAll(): Promise<void> {
 
   // ─── 121. V8.93 — voz humana: preferir OpenAI sobre dump de plantilla ───
   await test("121. V8.93 — voz humana preferida + cierre sin upsell + prompt", () => {
-    assert.ok(/^V(8\.9[3456789]|9\.0\d)$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V(8\.9[3456789]|9\.\d{2})$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
 
@@ -8315,7 +8319,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.09");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.10");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8603,7 +8607,7 @@ async function runAll(): Promise<void> {
 
   // ─── 126. V9.00 — optimizaciones de costo Gemini ───
   await test("126. V9.00 — context cache + media-once + image compress", async () => {
-    assert.ok(/^V9\.0\d$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
 
     // Context cache: hash estable + create/reuse vía mock ai.caches
     resetGeminiContextCacheForTests();
@@ -9320,6 +9324,91 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/formal|casual/i.test(first), first.slice(0, 500));
     assert.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(first), first.slice(0, 500));
+  });
+
+  // ─── 136. A15210 Hernán — desayuno temático + corrección ubicación + no año=presupuesto ───
+  await test("136. A15210 — desayuno mexicano, patio y presupuesto≠2026", () => {
+    const services = parseServicesFromText(
+      "Desayuno temático mexicano para 40 personas en Torre Latitud Polanco, piso 15"
+    );
+    assert.ok(services.some((s) => /^Desayuno$/i.test(s)), JSON.stringify(services));
+    assert.ok(
+      !services.some((s) => /Banquete\s+Mexicano/i.test(s)),
+      `no Banquete Mexicano: ${JSON.stringify(services)}`
+    );
+    assert.ok(parseServicesFromText("banquete mexicano").includes("Banquete Mexicano"));
+    assert.ok(parseServicesFromText("mexicano 4 tiempos").includes("Banquete Mexicano"));
+    assert.ok(parseServicesFromText("mexicano").includes("Banquete Mexicano"));
+
+    assert.equal(parsePresupuestoFromText("2026"), null);
+    assert.equal(parsePresupuestoFromText("2026", { askedField: "presupuesto" }), null);
+    assert.equal(
+      parsePresupuestoFromText(
+        "no es en el piso 15, es en otra ubicación, pero también es en polanco",
+        { askedField: "presupuesto" }
+      ),
+      null
+    );
+
+    assert.ok(clientCorrectsLocation("Me equivoqué, es un patio"));
+    assert.ok(clientCorrectsLocation("no es en el piso 15, es en otra ubicación"));
+    assert.ok(isVenueSpaceDetail("techado"));
+
+    const prev = "Torre Latitud Polanco, piso 15";
+    const patio = applyLocationCorrectionToAddress(prev, "Me equivoqué, es un patio");
+    assert.ok(patio && /patio/i.test(patio) && /polanco/i.test(patio), patio ?? "null");
+    assert.ok(patio && !/piso\s*15/i.test(patio), patio);
+    const techado = applyLocationCorrectionToAddress(patio, "techado");
+    assert.ok(techado && /patio\s+techado/i.test(techado), techado ?? "null");
+    const otra = applyLocationCorrectionToAddress(
+      prev,
+      "no es en el piso 15, es en otra ubicación, pero también es en polanco"
+    );
+    assert.ok(otra && /polanco/i.test(otra) && !/piso\s*15/i.test(otra), otra ?? "null");
+    assert.ok(shouldReplaceCrmDireccion(prev, otra));
+
+    const lines = [`- Lugar/dirección del evento: ${prev}`, "- Presupuesto (MXN): pendiente"];
+    const filled = new Set(["Lugar/dirección del evento"]);
+    const extracted = emptyExtracted({
+      nombre: "Hernán",
+      direccion_evento: prev,
+      requerimientos_evento: "Desayuno",
+    });
+    assert.ok(
+      applyLocationCorrectionToCrm(
+        lines,
+        filled,
+        extracted,
+        "Me equivoqué, es un patio"
+      )
+    );
+    assert.ok(/patio/i.test(crmStoredValue(lines, "Lugar/dirección del evento") ?? ""));
+    assert.ok(!/piso\s*15/i.test(crmStoredValue(lines, "Lugar/dirección del evento") ?? ""));
+
+    const reply = runGuards({
+      aiResponse: "Te detallo el Nivel 1 del desayuno…",
+      extracted: emptyExtracted({
+        nombre: "Hernán",
+        direccion_evento: prev,
+        requerimientos_evento: "Desayuno",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Lugar/dirección del evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Me equivoqué, es un patio",
+      history: [
+        {
+          role: "assistant",
+          content: "¿Tienes un presupuesto aproximado para el desayuno?",
+        },
+      ],
+      whatsappDisplayName: "Hernán Peralta",
+    });
+    assert.ok(/patio|ubicaci|direcci|lugar/i.test(reply), reply.slice(0, 500));
+    assert.ok(!/Nivel\s*1|presupuesto aproximado/i.test(reply), reply.slice(0, 500));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

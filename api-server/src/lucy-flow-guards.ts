@@ -171,6 +171,9 @@ import {
   formatServicesList,
   isUsableDireccionEvento,
   isVagueVenueOnly,
+  clientCorrectsLocation,
+  isVenueSpaceDetail,
+  applyLocationCorrectionToAddress,
   recoverClienteNombreFromHistory,
   isVagueFoodTerm,
   isGettingReadyContext,
@@ -4291,6 +4294,72 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       body,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
+  }
+
+  // A15210: corrección de ubicación (piso/torre/patio/otra) — actualizar y pedir dirección exacta.
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    isUsableDireccionEvento(extracted.direccion_evento) &&
+    (clientCorrectsLocation(currentMessage) || isVenueSpaceDetail(currentMessage))
+  ) {
+    const nextDir = applyLocationCorrectionToAddress(
+      extracted.direccion_evento,
+      currentMessage
+    );
+    if (nextDir) {
+      extracted.direccion_evento = nextDir;
+      filledSet.add("Lugar/dirección del evento");
+    }
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const needsExactAddress =
+      /\botra\s+ubicaci[oó]n\b|\bno\s+es\s+en\s+(el\s+)?piso\b|\bme\s+equivoqu/i.test(
+        currentMessage
+      ) &&
+      (!nextDir ||
+        (!/\b(patio|calle|av\.?|sal[oó]n|torre|colonia)\b/i.test(nextDir) &&
+          nextDir.split(/\s+/).length <= 3));
+    let body: string;
+    if (/\bpatio\b/i.test(currentMessage) && !/\botra\s+ubicaci[oó]n\b/i.test(currentMessage)) {
+      body = [
+        display ? `Entendido, ${display}.` : "Entendido.",
+        nextDir ? `Anoto *${nextDir}*.` : "Anoto que es en un patio.",
+        "¿Me confirmas la dirección o el nombre del lugar exacto?",
+      ].join(" ");
+    } else if (isVenueSpaceDetail(currentMessage) && nextDir) {
+      body = [
+        display ? `Perfecto, ${display}.` : "Perfecto.",
+        `Anoto *${nextDir}*.`,
+        getNextPendingField(extracted, filledSet)
+          ? buildNaturalQuestion(getNextPendingField(extracted, filledSet)!, ctx)
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ");
+    } else if (needsExactAddress) {
+      body = [
+        display ? `Gracias por la corrección, ${display}.` : "Gracias por la corrección.",
+        nextDir && !/\bpiso\s*\d+/i.test(nextDir)
+          ? `Quito el dato anterior y dejo *${nextDir}*.`
+          : "Quito el dato anterior de la ubicación.",
+        "¿Me compartes la dirección o el nombre del lugar correcto?",
+      ].join(" ");
+    } else {
+      body = [
+        display ? `Listo, ${display}.` : "Listo.",
+        nextDir ? `Actualizo la ubicación a *${nextDir}*.` : "Actualizo la ubicación.",
+        getNextPendingField(extracted, filledSet)
+          ? buildNaturalQuestion(getNextPendingField(extracted, filledSet)!, ctx)
+          : "¿Me confirmas la dirección exacta del evento?",
+      ]
+        .filter(Boolean)
+        .join(" ");
+    }
+    log?.info(
+      { entityId, nextDir, msg: currentMessage.slice(0, 80) },
+      "GUARD: A15210 — corrección de ubicación"
+    );
+    return normalizeAdvisorReferences(body, display);
   }
 
   // A14938: "en Tlalnepantla" con pizzas ya pedidas — anotar zona, no inventar taquiza.
