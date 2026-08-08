@@ -1513,14 +1513,10 @@ export function buildVagueFoodOptionsReply(
   const inv = extracted.num_invitados ?? 0;
   const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
   const msg = currentMessage ?? "";
-  const wantsInfo = /\binformaci[oó]n|info|detalle|incluye|cotiz|me\s+pueden\s+dar\b/i.test(msg);
-  const isBanqueteVague =
-    /\bbanquetes?\b|\bcatering\b/i.test(msg) &&
-    !/\b(taquiza|coffee\s*break|sushi|parrillada)\b/i.test(msg);
 
-  // V8.92: banquetes/catering + info → formal vs casual PRIMERO (no Formal/Mexicano aún).
-  if (isBanqueteVague && wantsInfo) {
-    // Si ya preguntamos formal/casual y eligió → menú correspondiente.
+  // A15205 / V8.92: comida|catering|banquete vago → formal vs casual PRIMERO
+  // (nunca saltar a Formal/Mexicano/Kosher).
+  if (isVagueFoodTerm(msg) || /\b(comidas?|alimentos?|catering|banquetes?)\b/i.test(msg)) {
     if (historyOfferedAlimentosModoMenu(history)) {
       if (clientChoseBanqueteFormal(msg)) {
         return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
@@ -1529,7 +1525,6 @@ export function buildVagueFoodOptionsReply(
         return `${pickTransition(history)} ${buildCateringCasualMenu()}`.trim();
       }
     }
-    // Primera vez: preguntar formal vs casual con ejemplos.
     if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
       return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
     }
@@ -1550,18 +1545,17 @@ export function buildVagueFoodOptionsReply(
   } else if (/bautizo/.test(tipo) || /\bbautizo\b/.test(texts)) {
     options = "Para bautizo suele ir banquete o brunch, mesa de dulces o bocadillos.";
     linkHint = "banquete";
-  } else if (/corporativo/.test(tipo) || /corporativ/.test(texts)) {
-    options = "Para eventos corporativos manejamos coffee break, banquete o barra de alimentos.";
-    linkHint = "coffee break";
+  } else if (/corporativo|campamento/.test(tipo) || /corporativ|campamento|atletas/.test(texts)) {
+    options =
+      "Para este tipo de evento manejamos desayuno, comida corrida, banquete o estaciones casuales. ¿Lo ves más formal o más casual?";
+    linkHint = "comida corrida";
   } else if (clientAsksCafeOrCateringChoice(msg)) {
     // A14964 Victor: no volcar solo banquete ni anotar taquiza por "comida".
     options =
       "Manejamos ambas: *Barra de Café* (baristas y bebidas artesanales) y *catering de comida* (banquete, barras de alimentos, meseros). ¿Qué te late más para tu evento?";
     linkHint = "banquete";
   } else {
-    options = "Según el evento podemos ofrecerte banquete, taquiza o brunch — ¿cuál te interesa?";
-    // V8.68: menú corto sin link; el catálogo va con el detalle tras elegir.
-    return `${pickTransition(history)} ${options}`.trim();
+    return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
   }
 
   const follow = pickVariant("requerimientos", history, entityId);
@@ -1762,6 +1756,11 @@ function buildFoodSalesReply(
       `${pickTransition(history)} Perfecto, anoto esa preferencia para *${label}* y se la paso al equipo.`,
       resolvedServiceLabel
     );
+  }
+
+  // A15205: "cotizar comidas" → formal vs casual, no Formal/Mexicano.
+  if (currentMessage && isVagueFoodTerm(currentMessage)) {
+    return buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
   }
 
   if (mentionedService || resolvedServiceLabel || (currentMessage && isServiceRelatedMessage(currentMessage))) {
@@ -2335,8 +2334,12 @@ export function buildFirstInteractionMessage(
     parsePrimaryService(userText) ||
     parsePrimaryService(ctx.currentMessage ?? "") ||
     (multiServices.length === 1 ? multiServices[0]! : null);
+  // A15205: comida vaga en primer contacto → formal vs casual (no banquete Formal/Mexicano).
+  const vagueFoodFirst =
+    !includeCatalog &&
+    (isVagueFoodTerm(ctx.currentMessage) || isVagueFoodTerm(userText));
   const progressiveFirst =
-    !includeCatalog && svcHint
+    !includeCatalog && !vagueFoodFirst && svcHint
       ? shouldOfferOptionsBeforeDetail({
           currentMessage: ctx.currentMessage ?? svcHint,
           history,
@@ -2350,16 +2353,18 @@ export function buildFirstInteractionMessage(
     clientAsksPrice(ctx.currentMessage) ||
     clientAsksForCatalog(ctx.currentMessage);
   const sheetDetail =
-    !includeCatalog && !progressiveFirst && requestedCatalogDetail && svcHint
+    !includeCatalog && !progressiveFirst && !vagueFoodFirst && requestedCatalogDetail && svcHint
       ? attachAvailableSheetDetail(svcHint, svcHint)
       : null;
   const catalogBlock = includeCatalog
     ? `\n\n${buildPackageCatalogOfferBlock(multiServices, userText)}`
-    : progressiveFirst
-      ? `\n\n${progressiveFirst.menu}`
-      : sheetDetail
-        ? `\n\n${sheetDetail}`
-        : "";
+    : vagueFoodFirst
+      ? `\n\n${buildAlimentosModoMenu()}`
+      : progressiveFirst
+        ? `\n\n${progressiveFirst.menu}`
+        : sheetDetail
+          ? `\n\n${sheetDetail}`
+          : "";
 
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
