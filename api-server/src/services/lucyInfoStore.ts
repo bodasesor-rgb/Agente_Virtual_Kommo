@@ -344,13 +344,27 @@ export async function buildLucyInfoPromptBlock(opts?: {
   const catalogs = docs.filter((d) => d.kind !== "tips");
   const tips = docs.filter((d) => d.kind === "tips");
 
-  const rankedCatalogs = [...catalogs].sort((a, b) => {
-    const sb = scoreLucyInfoDoc(b, tokens);
-    const sa = scoreLucyInfoDoc(a, tokens);
-    if (sb !== sa) return sb - sa;
-    // Empate: más reciente primero (updatedAt ya viene en orden desc de list).
-    return 0;
-  });
+  // A15204: si el hilo habla de comida/canapés, no inyectar PDF de mesas/sillas
+  // (el modelo copiaba "Según el catálogo… *Mesas y Sillas*" con el material equivocado).
+  const qFold = foldLucyInfoText(opts?.queryText || "");
+  const foodThread =
+    /\b(canap|bocadillo|banquete|catering|taquiza|paella|pozole|pizza|pasta|sushi|crepa|coffee\s*break|barra\s+de|parrillada|brunch|coctel|mixolog)\b/.test(
+      qFold
+    );
+  const isFurniturePdf = (title: string, filename?: string | null) =>
+    /\bmesas?\b.*\bsillas?|\bsillas?\b.*\bmesas?|\bmobiliario\b|\bperiqueras?\b/i.test(
+      `${title} ${filename || ""}`
+    );
+
+  const rankedCatalogs = [...catalogs]
+    .filter((d) => !(foodThread && isFurniturePdf(d.title, d.sourceFilename)))
+    .sort((a, b) => {
+      const sb = scoreLucyInfoDoc(b, tokens);
+      const sa = scoreLucyInfoDoc(a, tokens);
+      if (sb !== sa) return sb - sa;
+      // Empate: más reciente primero (updatedAt ya viene en orden desc de list).
+      return 0;
+    });
 
   const rankedTips = [...tips].sort((a, b) => scoreLucyInfoDoc(b, tokens) - scoreLucyInfoDoc(a, tokens));
 

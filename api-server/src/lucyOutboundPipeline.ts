@@ -135,6 +135,23 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     );
   }
 
+  // A15204: si pidió comida/canapés y la respuesta volcó mobiliario, reemplazar.
+  const foodAsk =
+    /\b(canap[eé]s?|bocadillos?|catering|banquete|taquiza|paella|coffee\s*break|barra\s+de)\b/iu.test(
+      input.currentMessage ?? ""
+    );
+  const furnitureDump =
+    /Mesas\s*y\s*Sillas|mobiliario|periqueras?|Tiffany|Crossback|Colecci[oó]n Vintage/i.test(
+      mensaje
+    ) && /Según el cat[aá]logo/i.test(mensaje);
+  if (foodAsk && furnitureDump) {
+    mensaje = buildGuardServiceAck(input.currentMessage ?? "canapés");
+    input.log?.info?.(
+      { entityId: input.entityId },
+      "GUARD: comida ≠ mobiliario — dump de mesas/sillas reemplazado"
+    );
+  }
+
   // Dedupe inclusiones PDF al final (inject+guard a veces pegan el bloque 2 veces).
   if (
     clientAsksInclusion(input.currentMessage) ||

@@ -279,16 +279,36 @@ export function buildGuardServiceAck(query: string): string {
       : `${mobiliario} ¿Lo agregamos a tu cotización?`;
   }
 
+  // A15204: comida/canapés/catering nunca cae en menú de mesas/sillas.
+  const foodSkuNow =
+    /\b(canap[eé]s?|bocadillos?|banquetes?|catering|taquiza|paella|coffee\s*break|barra\s+de)\b/iu.test(
+      query
+    );
+
   // V8.92: solo "mobiliario" / pieza sin qty → menú progresivo (no dump).
   if (
-    /\b(mobiliario|mobilairio)\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) &&
-    !parseMobiliarioRentItems(query).length
+    !foodSkuNow &&
+    (/\b(mobiliario|mobilairio)\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) &&
+      !parseMobiliarioRentItems(query).length)
   ) {
     return buildProgressiveOptionsMenu("mobiliario");
   }
-  if (/\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
+  if (
+    !foodSkuNow &&
+    /\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) &&
+    !parseMobiliarioRentItems(query).length
+  ) {
     const p = parseMobiliarioPieceChoice(query) || (/\bsillas?\b/i.test(query) ? "sillas" : null);
     if (p) return buildMobiliarioPieceFollowUp(p);
+  }
+
+  // A15204: catering + canapés → ack de Canapés (no dump de banquete/mobiliario).
+  if (/\bcanap/i.test(query)) {
+    return (
+      "¡Claro! Anoto *Canapés* para tu cotización. " +
+      "Es una estación de bocadillos finos para recepción o cocktail. " +
+      "¿Quieres que te detalle opciones e inclusiones, o seguimos con los datos del evento?"
+    );
   }
 
   // A15165: show / animación — no Level-2 vacío; orientar + hub.
