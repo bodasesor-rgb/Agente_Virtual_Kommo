@@ -130,12 +130,16 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
   }
 
   if (input.isFirstInteraction) {
-    lines.push("Es el PRIMER mensaje de Lucy: presentación + pedir nombre.");
+    lines.push(
+      'Es el PRIMER mensaje de Lucy: "¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor." + pedir nombre ("¿Cuál es tu nombre?").'
+    );
   } else {
     lines.push("NO te presentes de nuevo.");
     lines.push(
-      "Anti-robot: NO digas 'Ya tengo tu correo/zona' antes de preguntar — ve directo a la siguiente pregunta.",
-      "Transiciones: varía (Genial/Perfecto/Excelente/Listo/Claro/Qué padre) — nunca la misma dos veces seguidas.",
+      "Anti-robot / anti-formulario: NO digas 'Ya tengo tu correo/zona' — ve directo a la siguiente pregunta.",
+      "Máximo UNA pregunta de embudo por mensaje. Varía el vocabulario; evita 'un placer' / 'bienvenida' / relleno.",
+      "Tras el nombre: '¡Mucho gusto, [Nombre]!' y sigue orgánico.",
+      "Transiciones: varía (Perfecto/Claro/De acuerdo/Listo) — nunca la misma dos veces seguidas.",
       "Servicios: máx 2 líneas de info + 1 pregunta; da detalles útiles antes de decir que el equipo cotiza."
     );
   }
