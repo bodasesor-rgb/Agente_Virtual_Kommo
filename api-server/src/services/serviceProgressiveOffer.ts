@@ -534,6 +534,9 @@ export function catalogNivelLabelFromText(text: string | null | undefined): stri
   const t = fold(text ?? "");
   if (!t) return null;
   if (/\bsolo\s+alimentos?\b/.test(t)) return "Solo Alimentos";
+  // A15212: niveles Sheet de Puestos (y similares) — no confundir con Taquiza Premium.
+  if (/\bservicio\s+completo\b/.test(t)) return "Servicio completo";
+  if (/\bpor\s+pieza\b/.test(t)) return "Por pieza";
   if (/\btradicional\b/.test(t)) return "Tradicional";
   if (/\bpremium\b/.test(t)) return "Premium";
   if (/\bbasic[ao]\b/.test(t)) return "Basico";

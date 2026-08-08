@@ -2372,18 +2372,23 @@ export function buildFirstInteractionMessage(
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
     const pending = getNextPendingField(ctx.extracted, filledSet);
+    // A15212: si ack ya es "Perfecto, Nombre.", no anteponer otro Mucho gusto.
+    const ackHasName =
+      !!nombre && new RegExp(`\\b(Perfecto|Excelente|Genial),\\s*${nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(ack);
     if (pending === "correo") {
-      const correoQ = buildCorreoQuestion(nombre, history, ctx.entityId);
+      const correoCore = pickVariant("correo", history, ctx.entityId);
+      const correoQ =
+        nombre && !ackHasName ? `Mucho gusto, ${nombre}. ${correoCore}` : correoCore;
       const body = `${ack}${catalogBlock}\n\n${correoQ}`.trim();
       return withIntro ? `${intro}${body}`.trim() : body;
     }
     if (pending) {
-      const greet = nombre ? `Mucho gusto, ${nombre}. ` : "";
+      const greet = nombre && !ackHasName ? `Mucho gusto, ${nombre}. ` : "";
       const q = buildNaturalQuestion(pending, ctx);
       const body = `${ack}${catalogBlock}\n\n${greet}${q}`.trim();
       return withIntro ? `${intro}${body}`.trim() : body;
     }
-    const body = nombre
+    const body = nombre && !ackHasName
       ? `${ack}${catalogBlock}\n\nMucho gusto, ${nombre}.`.trim()
       : `${ack}${catalogBlock}`.trim();
     return withIntro ? `${intro}${body}`.trim() : body;
@@ -4179,21 +4184,19 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           );
         }
       }
-      if (
-        (askedEarly === "correo" ||
-          (lastAsstEarly &&
-            /correo|e-?mail|mandarte la info|te lo env[ií]o/i.test(
-              lastAsstEarly.content as string
-            ))) &&
-        !isEmailSatisfied(filledSet, extracted)
-      ) {
+      // A15212: "Al mismo que ya te he enviado" / queja → recuperar correo SIEMPRE si falta.
+      if (!isEmailSatisfied(filledSet, extracted)) {
         const recovered = recoverCorreoFromUserTexts(
-          collectUserTexts(presHistory, undefined),
-          undefined
+          collectUserTexts(presHistory, currentMessage),
+          currentMessage
         );
         if (recovered && looksLikeValidClientEmail(recovered)) {
           extracted.correo = recovered;
           filledSet.add("Correo electrónico");
+          log?.info(
+            { entityId, recovered, askedEarly },
+            "GUARD: A15212 — correo recuperado tras referencia/queja"
+          );
         }
       }
       // Medidas ya dadas en historial (carpas/pista).
@@ -4600,11 +4603,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       filledSet.add("Requerimientos o servicios");
     }
   }
-  // A14981: "solo la comida" → acotar a servicio gastronómico ya capturado (barra de pastas).
-  if (clientWantsFoodOnlyQuote(currentMessage) && extracted.requerimientos_evento) {
+  // A14981 / A15212: "solo la comida" / "solo antojitos" → acotar al SKU primario.
+  // No dejar que la palabra "comida" del mensaje pise un SKU concreto del CRM (pastas).
+  if (clientWantsFoodOnlyQuote(currentMessage)) {
+    const isVagueFoodLabel = (s: string | null | undefined) =>
+      !!s && /^(Comida|Alimentos)$/i.test(s.trim());
+    const fromCrm = preferPrimaryCatalogService(
+      parseServicesFromText(extracted.requerimientos_evento ?? "")
+    );
+    const fromMsg = preferPrimaryCatalogService(parseServicesFromText(currentMessage ?? ""));
     const primary =
-      preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento)) ||
-      preferPrimaryCatalogService(servicesFromTurn);
+      (fromCrm && !isVagueFoodLabel(fromCrm) ? fromCrm : null) ||
+      (fromMsg && !isVagueFoodLabel(fromMsg) ? fromMsg : null) ||
+      preferPrimaryCatalogService(servicesFromTurn) ||
+      (/\bantojitos?|puestos?\b/i.test(currentMessage ?? "") ? "Puestos de Comida" : null) ||
+      fromCrm;
     if (primary) {
       extracted.requerimientos_evento = primary;
       filledSet.add("Requerimientos o servicios");
@@ -5066,9 +5079,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       lastAskedField: lastAskedField ?? undefined,
     });
 
+    // A15212: anclar al SKU primario del CRM (Puestos), nunca a "servicio completo" suelto
+    // ni a la lista multi-servicio completa → evita dump de Taquiza $750.
+    const crmPrimary =
+      preferPrimaryCatalogService(
+        parseServicesFromText(extracted.requerimientos_evento ?? "")
+      ) || null;
+    const mentioned = findMentionedService(currentMessage ?? "");
     const svcNow =
-      findMentionedService(currentMessage ?? "") ||
-      extracted.requerimientos_evento?.trim() ||
+      crmPrimary ||
+      mentioned ||
       (/coffee|coffe/i.test(String(nivel)) ? "Coffee Break" : null);
     if (svcNow || /coffee\s*break\s*[1-9]/i.test(String(nivel))) {
       filledSet.add("Requerimientos o servicios");
@@ -5092,7 +5112,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       }.`,
     ];
     // Preferir detalle del nivel elegido (A14975) + links servicio/general; no re-listar.
-    const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
+    const hint = svcNow || extracted.requerimientos_evento || "barra";
     const nivelLabel =
       catalogNivelLabelFromText(currentMessage) ||
       catalogNivelLabelFromText(String(nivel)) ||
@@ -5332,7 +5352,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     allowSalesReplyOverride &&
     isVagueFoodTerm(currentMessage) &&
-    !clientAsksForRecommendations(currentMessage)
+    !clientAsksForRecommendations(currentMessage) &&
+    // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
+    !preferPrimaryCatalogService(
+      parseServicesFromText(extracted.requerimientos_evento ?? "")
+    )?.match(
+      /Puestos|Banquete|Taquiza|Coffee|Barra de|Bocadillo|Canap|Parrillada|Paella|Desayuno|Mesa de/i
+    )
   ) {
     mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;

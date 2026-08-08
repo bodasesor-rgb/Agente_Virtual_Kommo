@@ -206793,7 +206793,8 @@ var BODASESOR_SERVICE_PATTERNS = [
   // Tiempos de comida corporativos (briefs con varios servicios).
   ["Desayuno", /\bdesayunos?\b/i],
   ["Brunch", /\bbrunch\b/i],
-  ["Snack", /\bsnacks?\b/i],
+  // A15212: typo frecuente "snaks".
+  ["Snack", /\bsnacks?\b|\bsnaks?\b/i],
   ["Comida", /\bcomidas?\b/i],
   ["Cena", /\bcenas?\b/i],
   ["Men\xFA staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
@@ -207022,9 +207023,53 @@ function lastAssistantOfferedNumberedPackages(lastAssistantText) {
   return /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) || /\d\.\s*\*?coffee\s*break/i.test(last) || // A15168: menú corto "paquetes (1 a 5)" / listado CB 1–5.
   /coffee\s*break|coffe\s*break/i.test(last) && (/paquetes?\s*\(?\s*1\s*a\s*5\s*\)?/i.test(last) || /coffee\s*break\s*1/i.test(last) && /coffee\s*break\s*5/i.test(last)) || /cu[aá]l\s+nivel\s+prefieres/i.test(last) && /coffee\s*break|coffe{1,2}\s*break/i.test(last) && /\$\s*\d/.test(last);
 }
+function foldNivelLabel(s10) {
+  return s10.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").replace(/\s+/g, " ").trim();
+}
+function parseNumberedNivelesFromAssistant(lastAssistantText) {
+  const last = lastAssistantText ?? "";
+  if (!last.trim()) return [];
+  const out2 = [];
+  const re4 = /^\s*(\d+)\.\s*\*?([^*\n]+?)\*?(?:\s*[—\-–:].*)?$/gim;
+  let m10;
+  while ((m10 = re4.exec(last)) !== null) {
+    const index = parseInt(m10[1], 10);
+    let label = (m10[2] ?? "").replace(/\*+/g, "").trim();
+    label = label.replace(/\s+[—\-–].*$/, "").trim();
+    if (index >= 1 && index <= 9 && label.length >= 2 && label.length <= 80) {
+      out2.push({ index, label });
+    }
+  }
+  return out2;
+}
+function extractNumberedNivelFromLastAssistant(text2, lastAssistantText) {
+  const niveles = parseNumberedNivelesFromAssistant(lastAssistantText);
+  if (!niveles.length) return null;
+  const raw = text2?.trim() ?? "";
+  if (!raw) return null;
+  const bare = raw.match(/^(?:el\s+|la\s+|opci[oó]n(?:es)?\s+|paquete\s+|nivel\s+)?(\d+)\s*[.)]?$/i) || raw.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*(\d+)\b/i);
+  if (bare) {
+    const hit = niveles.find((x10) => x10.index === parseInt(bare[1], 10));
+    if (hit) return hit.label;
+  }
+  const numbered = raw.match(/^\s*(\d+)\s*[.)]?\s+(.+)$/i);
+  if (numbered) {
+    const hit = niveles.find((x10) => x10.index === parseInt(numbered[1], 10));
+    if (hit) return hit.label;
+  }
+  const tf2 = foldNivelLabel(raw);
+  for (const n10 of niveles) {
+    const lf2 = foldNivelLabel(n10.label);
+    if (!lf2) continue;
+    if (tf2 === lf2 || tf2.includes(lf2) || lf2.includes(tf2)) return n10.label;
+  }
+  return null;
+}
 function extractCatalogNivelFromText(text2, lastAssistantText) {
   const t10 = text2?.trim().toLowerCase() ?? "";
   if (!t10) return null;
+  const fromMenu = extractNumberedNivelFromLastAssistant(text2, lastAssistantText);
+  if (fromMenu) return fromMenu;
   const coffeeNamed = t10.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
   if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
   if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
@@ -207036,6 +207081,12 @@ function extractCatalogNivelFromText(text2, lastAssistantText) {
   const m10 = t10.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t10.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t10.match(/^(1|2|3|4)$/);
   if (!m10) return null;
   const raw = (m10[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  if (/^(1|2|3|4)$/.test(raw)) {
+    const last = lastAssistantText ?? "";
+    const numbered = parseNumberedNivelesFromAssistant(last);
+    const classicInMenu = /b[aá]sic|tradicional|premium|solo\s*alimentos/i.test(last);
+    if (numbered.length && !classicInMenu) return null;
+  }
   if (raw === "1" || raw.startsWith("basic")) return "basica";
   if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
   if (raw === "3" || raw.startsWith("premium")) return "premium";
@@ -207052,6 +207103,7 @@ function isCatalogLevelSelection(text2, lastAssistantText) {
   if (!askedNivel) {
     return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t10);
   }
+  if (extractNumberedNivelFromLastAssistant(text2, lastAssistantText)) return true;
   if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t10)) return true;
   if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t10) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
     return true;
@@ -207167,7 +207219,7 @@ function hasSpecificFoodService(text2) {
   )) {
     return false;
   }
-  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental))\b/iu.test(
+  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental)|puestos?\s+de\s+comida|antojitos?|quesadillas?)\b/iu.test(
     text2
   );
 }
@@ -207361,8 +207413,9 @@ function clientMentionsCatering(message) {
 function clientAsksServiceInfo(message) {
   if (!message?.trim()) return false;
   const t10 = message.toLowerCase();
-  if (!isServiceRelatedMessage(message)) return false;
-  return /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t10) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t10) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t10) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t10) || // "¿Cuentan con carpas transparentes?" / "¿tienen pista?" / "¿tienes modelos?"
+  const asksWhatTypes = /\bqu[eé]\s+(tipo\s+de\s+)?(snacks?|snaks?|bocadillos?|antojitos?|puestos?)\b/i.test(t10) || /\b(snacks?|snaks?|bocadillos?|antojitos?).{0,40}\b(tienen|tienes|manejan|ofrecen)\b/i.test(t10) || /\b(tienen|tienes|manejan|ofrecen).{0,40}\b(snacks?|snaks?|bocadillos?|antojitos?)\b/i.test(t10);
+  if (!isServiceRelatedMessage(message) && !asksWhatTypes) return false;
+  return asksWhatTypes || /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t10) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t10) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t10) || /\bnecesito\s+saber\b/i.test(t10) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t10) || // "¿Cuentan con carpas transparentes?" / "¿tienen pista?" / "¿tienes modelos?"
   /\b(cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t10) || /\b(cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t10) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
   /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t10);
 }
@@ -207925,7 +207978,10 @@ function looksLikeConflictingFoodAlternatives(services) {
 function clientWantsFoodOnlyQuote(text2) {
   const t10 = text2?.trim() ?? "";
   if (!t10) return false;
-  return /\bsolo\s+(quiero\s+)?(que\s+me\s+)?cotice?n?\s+la\s+comida\b/i.test(t10) || /\bsolo\s+(la\s+)?comida\b/i.test(t10) || /\bnada\s+m[aá]s\s+(que\s+)?(la\s+)?comida\b/i.test(t10) || /\bsolo\s+(quiero|necesito)\s+(la\s+)?comida\b/i.test(t10) || /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t10);
+  return /\bsolo\s+(quiero\s+)?(que\s+me\s+)?cotice?n?\s+la\s+comida\b/i.test(t10) || /\bsolo\s+(la\s+)?comida\b/i.test(t10) || /\bnada\s+m[aá]s\s+(que\s+)?(la\s+)?comida\b/i.test(t10) || /\bsolo\s+(quiero|necesito)\s+(la\s+)?comida\b/i.test(t10) || /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t10) || // A15212: "Solo dame cotización de los antojitos".
+  /\bsolo\s+(dame\s+)?(la\s+|una\s+)?cotizaci[oó]n\s+(de\s+)?(los\s+)?(antojitos?|puestos?)\b/i.test(
+    t10
+  ) || /\bsolo\s+(los\s+)?(antojitos?|puestos?(\s+de\s+comida)?)\b/i.test(t10);
 }
 function mergeServiceRequirements(existing, text2, max = 6) {
   const fromExisting = existing?.trim() ? parseServicesFromText(existing) : [];
@@ -208021,9 +208077,10 @@ function preferPrimaryCatalogService(services) {
     const score = (s10) => {
       let n10 = s10.length;
       if (/^Barra de /i.test(s10)) n10 += 40;
+      if (/Puestos\s+de\s+Comida/i.test(s10)) n10 += 45;
       if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s10)) n10 += 30;
       if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s10)) n10 += 20;
-      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada)$/i.test(s10)) n10 -= 25;
+      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada|Bocadillos?|Snack)$/i.test(s10)) n10 -= 25;
       return n10;
     };
     return score(b10) - score(a10);
@@ -208081,13 +208138,18 @@ function parseTipoEventoFromText(text2) {
 function isReferentialPriorAnswer(message) {
   if (!message?.trim()) return false;
   const n10 = message.trim().normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[¿?¡!.,;:]+/g, "").trim();
-  if (!n10 || n10.length > 80) return false;
-  return /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n10) || /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n10) || /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n10) || /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n10) || /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n10) || /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase)(\s+(ese|el|antes))?$/.test(n10) || /^(ese|este)\s+mismo$/.test(n10) || /^al\s+(mismo|que\s+ya\s+(te\s+)?di)$/.test(n10);
+  if (!n10 || n10.length > 120) return false;
+  return /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n10) || /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n10) || /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n10) || /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n10) || /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n10) || /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase|he\s+enviado|he\s+mandado)(\s+(ese|el|antes))?$/.test(
+    n10
+  ) || /^(ese|este)\s+mismo$/.test(n10) || // A15212: "Al mismo que ya te he enviado" / "el mismo que ya te mandé".
+  /^al\s+(mismo|que\s+ya\s+(te\s+)?(he\s+)?(di|mande|envie|enviado|mandado))$/.test(n10) || /^al\s+mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n10) || /^(el\s+)?mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n10) || /\bya\s+te\s+(lo\s+)?he\s+(enviado|mandado|dado)\b/.test(n10);
 }
 function clientComplainsAboutRepeat(message) {
   if (!message?.trim()) return false;
   const t10 = message.trim();
-  return /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t10) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t10) || /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií])\b/i.test(t10) || /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t10) || /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t10) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t10) || /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t10) || /\bya\s+respond[ií]\b/i.test(t10);
+  return /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t10) || /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t10) || /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií]|he\s+enviado|he\s+mandado|he\s+dado)\b/i.test(
+    t10
+  ) || /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t10) || /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t10) || /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t10) || /\b(otra\s+vez|de\s+nuevo)\s+(me\s+)?preguntas?\b/i.test(t10) || /\bya\s+respond[ií]\b/i.test(t10);
 }
 function recoverCorreoFromUserTexts(texts, currentMessage) {
   const blob = [...texts, currentMessage ?? ""].filter(Boolean).join("\n");
@@ -210415,6 +210477,8 @@ function catalogNivelLabelFromText(text2) {
   const t10 = fold2(text2 ?? "");
   if (!t10) return null;
   if (/\bsolo\s+alimentos?\b/.test(t10)) return "Solo Alimentos";
+  if (/\bservicio\s+completo\b/.test(t10)) return "Servicio completo";
+  if (/\bpor\s+pieza\b/.test(t10)) return "Por pieza";
   if (/\btradicional\b/.test(t10)) return "Tradicional";
   if (/\bpremium\b/.test(t10)) return "Premium";
   if (/\bbasic[ao]\b/.test(t10)) return "Basico";
@@ -211112,7 +211176,9 @@ function queryTokens(query) {
 function parseCatalogQueryFilters(query) {
   const t10 = normalizeForMatch(query);
   let nivel = null;
-  if (/\bpremium\b/.test(t10)) nivel = "Premium";
+  if (/\bservicio\s+completo\b/.test(t10)) nivel = "Servicio completo";
+  else if (/\bpor\s+pieza\b/.test(t10)) nivel = "Por pieza";
+  else if (/\bpremium\b/.test(t10)) nivel = "Premium";
   else if (/\bbasic[ao]\b/.test(t10)) nivel = "Basica";
   else if (/\btradicional\b/.test(t10)) nivel = "Tradicional";
   else if (/\bsolo\s*alimentos\b/.test(t10)) nivel = "Solo Alimentos";
@@ -211299,7 +211365,7 @@ function resolveCatalogQuery(query) {
   const top = scored[0].score;
   const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
   let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
-  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b/i.test(query));
+  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b|\bservicio\s+completo\b|\bpor\s+pieza\b/i.test(query));
   if (hasNivelFilter) {
     const nivelRows = matchedRows.filter((r10) => matchesNivelFilter(r10, filters, query));
     if (nivelRows.length) matchedRows = nivelRows;
@@ -212629,7 +212695,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.10";
+var LUCY_PROMPT_VERSION = "V9.11";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -215628,22 +215694,24 @@ ${sheetDetail}` : "";
   if (isFieldSatisfied("nombre", filledSet, ctx.extracted)) {
     const nombre = getDisplayName(ctx.extracted, ctx.whatsappName);
     const pending = getNextPendingField(ctx.extracted, filledSet);
+    const ackHasName = !!nombre && new RegExp(`\\b(Perfecto|Excelente|Genial),\\s*${nombre.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(ack);
     if (pending === "correo") {
-      const correoQ = buildCorreoQuestion(nombre, history, ctx.entityId);
+      const correoCore = pickVariant("correo", history, ctx.entityId);
+      const correoQ = nombre && !ackHasName ? `Mucho gusto, ${nombre}. ${correoCore}` : correoCore;
       const body3 = `${ack}${catalogBlock}
 
 ${correoQ}`.trim();
       return withIntro ? `${intro}${body3}`.trim() : body3;
     }
     if (pending) {
-      const greet = nombre ? `Mucho gusto, ${nombre}. ` : "";
+      const greet = nombre && !ackHasName ? `Mucho gusto, ${nombre}. ` : "";
       const q10 = buildNaturalQuestion(pending, ctx);
       const body3 = `${ack}${catalogBlock}
 
 ${greet}${q10}`.trim();
       return withIntro ? `${intro}${body3}`.trim() : body3;
     }
-    const body2 = nombre ? `${ack}${catalogBlock}
+    const body2 = nombre && !ackHasName ? `${ack}${catalogBlock}
 
 Mucho gusto, ${nombre}.`.trim() : `${ack}${catalogBlock}`.trim();
     return withIntro ? `${intro}${body2}`.trim() : body2;
@@ -216172,11 +216240,6 @@ function requerimientosNeedsFollowUp(extracted, filledSet) {
   if (filledSet.has("Requerimientos o servicios")) return false;
   if (!req) return true;
   return !isValidRequerimientosValue(req);
-}
-function buildCorreoQuestion(nombre, history = [], entityId) {
-  const correoCore = pickVariant("correo", history, entityId);
-  if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
-  return correoCore;
 }
 function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId) {
   const ctx = {
@@ -216722,16 +216785,18 @@ function applyLucyMessageGuards(input) {
           );
         }
       }
-      if ((askedEarly === "correo" || lastAsstEarly && /correo|e-?mail|mandarte la info|te lo env[ií]o/i.test(
-        lastAsstEarly.content
-      )) && !isEmailSatisfied(filledSet, extracted)) {
+      if (!isEmailSatisfied(filledSet, extracted)) {
         const recovered = recoverCorreoFromUserTexts(
-          collectUserTexts(presHistory, void 0),
-          void 0
+          collectUserTexts(presHistory, currentMessage),
+          currentMessage
         );
         if (recovered && looksLikeValidClientEmail(recovered)) {
           extracted.correo = recovered;
           filledSet.add("Correo electr\xF3nico");
+          log?.info(
+            { entityId, recovered, askedEarly },
+            "GUARD: A15212 \u2014 correo recuperado tras referencia/queja"
+          );
         }
       }
       if (askedEarly === "requerimientos" || lastAsstEarly && /medidas/i.test(lastAsstEarly.content)) {
@@ -217007,8 +217072,13 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       filledSet.add("Requerimientos o servicios");
     }
   }
-  if (clientWantsFoodOnlyQuote(currentMessage) && extracted.requerimientos_evento) {
-    const primary = preferPrimaryCatalogService(parseServicesFromText(extracted.requerimientos_evento)) || preferPrimaryCatalogService(servicesFromTurn);
+  if (clientWantsFoodOnlyQuote(currentMessage)) {
+    const isVagueFoodLabel = (s10) => !!s10 && /^(Comida|Alimentos)$/i.test(s10.trim());
+    const fromCrm = preferPrimaryCatalogService(
+      parseServicesFromText(extracted.requerimientos_evento ?? "")
+    );
+    const fromMsg = preferPrimaryCatalogService(parseServicesFromText(currentMessage ?? ""));
+    const primary = (fromCrm && !isVagueFoodLabel(fromCrm) ? fromCrm : null) || (fromMsg && !isVagueFoodLabel(fromMsg) ? fromMsg : null) || preferPrimaryCatalogService(servicesFromTurn) || (/\bantojitos?|puestos?\b/i.test(currentMessage ?? "") ? "Puestos de Comida" : null) || fromCrm;
     if (primary) {
       extracted.requerimientos_evento = primary;
       filledSet.add("Requerimientos o servicios");
@@ -217285,7 +217355,11 @@ ${SERVICE_NIVEL_DETAIL_CTA}`;
     sanitizeExtractedAmbiguousNumbers(extracted, currentMessage, {
       lastAskedField: lastAskedField ?? void 0
     });
-    const svcNow = findMentionedService(currentMessage ?? "") || extracted.requerimientos_evento?.trim() || (/coffee|coffe/i.test(String(nivel)) ? "Coffee Break" : null);
+    const crmPrimary = preferPrimaryCatalogService(
+      parseServicesFromText(extracted.requerimientos_evento ?? "")
+    ) || null;
+    const mentioned = findMentionedService(currentMessage ?? "");
+    const svcNow = crmPrimary || mentioned || (/coffee|coffe/i.test(String(nivel)) ? "Coffee Break" : null);
     if (svcNow || /coffee\s*break\s*[1-9]/i.test(String(nivel))) {
       filledSet.add("Requerimientos o servicios");
       const withNivel = /coffee\s*break\s*[1-9]/i.test(String(nivel)) ? String(nivel) : `${svcNow} (nivel ${nivel})`;
@@ -217299,7 +217373,7 @@ ${SERVICE_NIVEL_DETAIL_CTA}`;
       display ? `Perfecto, ${display}.` : "Perfecto.",
       `Anoto *${nivel}*${svcNow && !/coffee\s*break\s*[1-9]/i.test(String(nivel)) ? ` para ${svcNow}` : ""}${emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""}.`
     ];
-    const hint = extracted.requerimientos_evento ?? svcNow ?? "barra";
+    const hint = svcNow || extracted.requerimientos_evento || "barra";
     const nivelLabel = catalogNivelLabelFromText(currentMessage) || catalogNivelLabelFromText(String(nivel)) || String(nivel);
     const detailQuery = /coffee\s*break\s*[1-9]/i.test(String(nivel)) ? String(nivel) : svcNow ? withCatalogNivelQuery(String(svcNow).replace(/\s*\(nivel[^)]*\)/gi, "").trim(), nivelLabel) : null;
     const levelDetail = detailQuery ? buildCatalogServiceDetailAnswer(detailQuery) || buildCatalogPriceAnswer(detailQuery) : null;
@@ -217462,7 +217536,12 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
         "GUARD: brief multi-servicio \u2014 lista completa + cat\xE1logo"
       );
     }
-  } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage)) {
+  } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientAsksForRecommendations(currentMessage) && // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
+  !preferPrimaryCatalogService(
+    parseServicesFromText(extracted.requerimientos_evento ?? "")
+  )?.match(
+    /Puestos|Banquete|Taquiza|Coffee|Barra de|Bocadillo|Canap|Parrillada|Paella|Desayuno|Mesa de/i
+  )) {
     mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
     appliedSalesReply = true;
     log?.info({ entityId }, "GUARD: t\xE9rmino vago de comida \u2014 ofrecer opciones");

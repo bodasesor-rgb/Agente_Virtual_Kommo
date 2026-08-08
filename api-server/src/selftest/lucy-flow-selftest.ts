@@ -90,6 +90,8 @@ import {
   isVenueSpaceDetail,
   applyLocationCorrectionToAddress,
   applyLocationCorrectionToCrm,
+  extractNumberedNivelFromLastAssistant,
+  parseNumberedNivelesFromAssistant,
 } from "../conversation-understanding.js";
 import {
   applyCrmWriteInvariants,
@@ -8319,7 +8321,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.10");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.11");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9409,6 +9411,128 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/patio|ubicaci|direcci|lugar/i.test(reply), reply.slice(0, 500));
     assert.ok(!/Nivel\s*1|presupuesto aproximado/i.test(reply), reply.slice(0, 500));
+  });
+
+  // ─── 137. A15212 Sandra — Puestos nivel 2 ≠ taquiza $750 + correo referencial ───
+  await test("137. A15212 — puestos Servicio completo, no taquiza; correo al mismo", () => {
+    const puestosMenu = [
+      "Para *Puestos de comida* manejamos estos niveles:",
+      "",
+      "1. *Por pieza* — $38.00 /pp",
+      "2. *Servicio completo* — $300.00 /pp",
+      "",
+      "¿Quieres que te dé detalles de alguno?",
+    ].join("\n");
+
+    const parsed = parseNumberedNivelesFromAssistant(puestosMenu);
+    assert.equal(parsed.length, 2);
+    assert.equal(parsed[1]?.label, "Servicio completo");
+    assert.equal(extractNumberedNivelFromLastAssistant("2", puestosMenu), "Servicio completo");
+    assert.equal(
+      extractNumberedNivelFromLastAssistant("2. Servicio completo", puestosMenu),
+      "Servicio completo"
+    );
+    assert.equal(
+      extractCatalogNivelFromText("2. Servicio completo", puestosMenu),
+      "Servicio completo"
+    );
+    assert.ok(isCatalogLevelSelection("2. Servicio completo", puestosMenu));
+    assert.ok(isCatalogLevelSelection("2", puestosMenu));
+    // No mapear a "tradicional" (bug taquiza $750).
+    assert.notEqual(extractCatalogNivelFromText("2", puestosMenu), "tradicional");
+
+    assert.ok(isReferentialPriorAnswer("Al mismo que ya te he enviado"));
+    assert.ok(isReferentialPriorAnswer("al mismo"));
+    assert.ok(clientWantsFoodOnlyQuote("Solo dame cotización de los antojitos por favor"));
+    assert.equal(
+      preferPrimaryCatalogService(["Puestos de Comida", "Comida", "Bocadillos"]),
+      "Puestos de Comida"
+    );
+
+    const levelReply = runGuards({
+      aiResponse:
+        "Excelente. Para el servicio completo de taquiza, el costo es de $750 por persona…",
+      extracted: emptyExtracted({
+        nombre: "Sandra Carbajal",
+        correo: "carbajalsandra@hotmail.com",
+        tipo_evento: "cumpleaños",
+        num_invitados: 70,
+        direccion_evento: "Roma Norte",
+        requerimientos_evento: "Puestos de Comida",
+        presupuesto: "Sin definir (cliente pidió que propongamos)",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Número de invitados",
+        "Lugar/dirección del evento",
+        "Requerimientos o servicios",
+        "Presupuesto (MXN)",
+      ]),
+      readyForClosing: false,
+      currentMessage: "2. Servicio completo",
+      history: [
+        { role: "user", content: "Solo dame cotización de los antojitos por favor" },
+        { role: "assistant", content: puestosMenu },
+      ],
+      whatsappDisplayName: "Sandra Carbajal",
+    });
+    assert.ok(!/taquiza|\$\s*750/i.test(levelReply), levelReply.slice(0, 600));
+    assert.ok(
+      /Puestos|Servicio completo|\$\s*300|anoto/i.test(levelReply),
+      levelReply.slice(0, 600)
+    );
+
+    const emailReply = runGuards({
+      aiResponse: "¿Me compartes un correo para enviarte los detalles?",
+      extracted: emptyExtracted({
+        nombre: "Sandra Carbajal",
+        direccion_evento: "Roma Norte",
+        requerimientos_evento: "Puestos de Comida",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Lugar/dirección del evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Al mismo que ya te he enviado",
+      history: [
+        { role: "user", content: "carbajalsandra@hotmail.com" },
+        {
+          role: "assistant",
+          content: "Perfecto, Sandra. ¿Me compartes un correo para enviarte los detalles de la cotización?",
+        },
+      ],
+      whatsappDisplayName: "Sandra Carbajal",
+    });
+    assert.ok(!/me compartes un correo/i.test(emailReply), emailReply.slice(0, 500));
+    assert.ok(!/Mucho gusto,\s*Sandra\.\s*Mucho gusto/i.test(emailReply), emailReply.slice(0, 400));
+
+    // Con Puestos ya en CRM, "comida para la tornafiesta" no reabre banquete/taquiza.
+    const vague = runGuards({
+      aiResponse: "Según el evento podemos ofrecerte banquete, taquiza o brunch —",
+      extracted: emptyExtracted({
+        nombre: "Sandra Carbajal",
+        correo: "carbajalsandra@hotmail.com",
+        requerimientos_evento: "Puestos de Comida",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage:
+        "Es una fiesta de 50 años y busco comida para la torna fiesta, que sería a las 9 de la noche",
+      history: [
+        { role: "user", content: "Hola, me interesa cotizar: Puestos de Antojitos para Evento" },
+        { role: "assistant", content: "Vi que te interesa cotizar Puestos de Comida." },
+      ],
+      whatsappDisplayName: "Sandra Carbajal",
+    });
+    assert.ok(!/\btaquiza\b.*\bbrunch\b|\bbanquete,\s*taquiza/i.test(vague), vague.slice(0, 500));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

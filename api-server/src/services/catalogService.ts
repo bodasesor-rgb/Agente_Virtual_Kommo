@@ -358,7 +358,10 @@ interface CatalogQueryFilters {
 function parseCatalogQueryFilters(query: string): CatalogQueryFilters {
   const t = normalizeForMatch(query);
   let nivel: string | null = null;
-  if (/\bpremium\b/.test(t)) nivel = "Premium";
+  // A15212: "Servicio completo" / "Por pieza" ANTES de Premium (taquiza $750).
+  if (/\bservicio\s+completo\b/.test(t)) nivel = "Servicio completo";
+  else if (/\bpor\s+pieza\b/.test(t)) nivel = "Por pieza";
+  else if (/\bpremium\b/.test(t)) nivel = "Premium";
   else if (/\bbasic[ao]\b/.test(t)) nivel = "Basica";
   else if (/\btradicional\b/.test(t)) nivel = "Tradicional";
   else if (/\bsolo\s*alimentos\b/.test(t)) nivel = "Solo Alimentos";
@@ -607,7 +610,12 @@ export function resolveCatalogQuery(query: string): CatalogMatchResult | null {
   const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
   let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
 
-  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b/i.test(query));
+  const hasNivelFilter = !!(
+    filters.nivel ||
+    filters.cuatroTiempos ||
+    filters.tresTiempos ||
+    /\bpremium\b|\bbasic[ao]\b|\btradicional\b|\bservicio\s+completo\b|\bpor\s+pieza\b/i.test(query)
+  );
   if (hasNivelFilter) {
     const nivelRows = matchedRows.filter((r) => matchesNivelFilter(r, filters, query));
     if (nivelRows.length) matchedRows = nivelRows;
