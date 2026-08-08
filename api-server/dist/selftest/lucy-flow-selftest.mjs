@@ -128838,7 +128838,7 @@ function extractImageIntent(text2) {
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
-var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
+var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Tipo de evento",
@@ -135046,7 +135046,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.13";
+var LUCY_PROMPT_VERSION = "V9.14";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -142130,7 +142130,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.13");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.14");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -143265,16 +143265,41 @@ ${golfText}`,
     assert2.ok(/¡?Mucho gusto,\s*Ana/i.test(multi), multi.slice(0, 300));
     assert2.ok(!mensajeAsksForField(multi, "tipo_evento"), multi.slice(0, 400));
     assert2.ok(!mensajeAsksForField(multi, "fecha"), multi.slice(0, 400));
+    assert2.ok(detectEmailRefusal(["Prefiero no dar mi correo por ahora"]));
+    assert2.ok(detectEmailRefusal(["Prefiero no dar correo"]));
     const refuse = emailRefusalAckMessage(
       emptyExtracted({ nombre: "Sandra" }),
       [{ role: "assistant", content: "\xBFA qu\xE9 correo te mando la informaci\xF3n?" }],
-      "Prefiero no dar correo",
+      "Prefiero no dar mi correo por ahora",
       1,
       /* @__PURE__ */ new Set(["Nombre del cliente"])
     );
     assert2.ok(/sin problema/i.test(refuse), refuse);
     assert2.ok(/este chat|por aqu[ií]/i.test(refuse), refuse);
     assert2.ok(!/necesito tu correo|es obligatorio/i.test(refuse), refuse);
+    const refuseLive = runGuards({
+      aiResponse: "\xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      extracted: emptyExtracted({
+        nombre: "Sandra",
+        tipo_evento: "cumplea\xF1os",
+        requerimientos_evento: "Banquete",
+        fecha_horario: "15 de agosto",
+        direccion_evento: "Narvarte CDMX"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Fecha y horario",
+        "Lugar/direcci\xF3n del evento"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Prefiero no dar mi correo por ahora",
+      emailRefusedThisTurn: true,
+      history: [{ role: "assistant", content: "\xBFMe compartes un correo para enviarte los detalles?" }]
+    });
+    assert2.ok(/sin problema/i.test(refuseLive), refuseLive.slice(0, 300));
+    assert2.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

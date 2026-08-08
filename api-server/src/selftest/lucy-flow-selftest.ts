@@ -8340,7 +8340,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.13");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.14");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9640,16 +9640,43 @@ async function runAll(): Promise<void> {
     assert.ok(!mensajeAsksForField(multi, "tipo_evento"), multi.slice(0, 400));
     assert.ok(!mensajeAsksForField(multi, "fecha"), multi.slice(0, 400));
 
+    assert.ok(detectEmailRefusal(["Prefiero no dar mi correo por ahora"]));
+    assert.ok(detectEmailRefusal(["Prefiero no dar correo"]));
+
     const refuse = emailRefusalAckMessage(
       emptyExtracted({ nombre: "Sandra" }),
       [{ role: "assistant", content: "¿A qué correo te mando la información?" }],
-      "Prefiero no dar correo",
+      "Prefiero no dar mi correo por ahora",
       1,
       new Set(["Nombre del cliente"])
     );
     assert.ok(/sin problema/i.test(refuse), refuse);
     assert.ok(/este chat|por aqu[ií]/i.test(refuse), refuse);
     assert.ok(!/necesito tu correo|es obligatorio/i.test(refuse), refuse);
+
+    const refuseLive = runGuards({
+      aiResponse: "¿A qué correo te mando la información?",
+      extracted: emptyExtracted({
+        nombre: "Sandra",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "Banquete",
+        fecha_horario: "15 de agosto",
+        direccion_evento: "Narvarte CDMX",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Fecha y horario",
+        "Lugar/dirección del evento",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Prefiero no dar mi correo por ahora",
+      emailRefusedThisTurn: true,
+      history: [{ role: "assistant", content: "¿Me compartes un correo para enviarte los detalles?" }],
+    });
+    assert.ok(/sin problema/i.test(refuseLive), refuseLive.slice(0, 300));
+    assert.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
