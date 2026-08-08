@@ -128848,10 +128848,8 @@ var CLOSING_CORE_FIELDS = [
   "N\xFAmero de invitados",
   "Presupuesto (MXN)"
 ];
-var LUCY_INTRO = "Hola, soy Lucy, agente virtual de Bodasesor.";
-var TIPO_EVENTO_HINT = "Manejamos bodas, XV a\xF1os, baby showers, cumplea\xF1os, eventos corporativos, bautizos y celebraciones familiares.";
-var SERVICIOS_CATALOGO_HINT = "Manejamos alimentos y barras (banquetes, taquizas, barras tem\xE1ticas), mobiliario, carpas, pistas de baile, DJ, iluminaci\xF3n, pantallas, mesas de dulces y m\xE1s.";
-var SERVICIOS_CATALOGO_HINT_ADICIONAL = "Tambi\xE9n manejamos bebidas, DJ, iluminaci\xF3n, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.";
+var LUCY_INTRO = "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor.";
+var SERVICIOS_CATALOGO_HINT_ADICIONAL = "Tambi\xE9n podemos sumar bebidas, DJ, iluminaci\xF3n, carpas o mobiliario si te hace falta.";
 function mensajeMencionaCatalogoServicios(mensaje) {
   return /alimentos?|mobiliario|carpas?|pistas?(\s+de\s+baile)?|bebidas?|banquete|taquiza|iluminaci[oó]n|pantallas?|mesas?\s+de\s+dulces|dj\b|barras?\s+(de\s+)?alimentos|estaciones?\s+de\s+comida/i.test(
     mensaje
@@ -128882,7 +128880,8 @@ function historyAlreadyHadServicesCatalog(history) {
 function appendServiciosCatalogoHint(pregunta, adicional = false, history) {
   if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
   if (historyAlreadyHadServicesCatalog(history)) return pregunta.trim();
-  const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
+  if (!adicional) return pregunta.trim();
+  const hint = SERVICIOS_CATALOGO_HINT_ADICIONAL;
   return `${pregunta.trim()} ${hint}`.trim();
 }
 function hasPresupuestoValue(extracted) {
@@ -128916,49 +128915,49 @@ function getQuestionVariants() {
   const team = advisorLabelForClient();
   return {
     nombre: [
-      "\xBFMe regalas tu nombre para iniciar?",
-      "\xBFCon qui\xE9n tengo el gusto?",
-      "\xBFC\xF3mo te llamas?"
+      "\xBFCu\xE1l es tu nombre?",
+      "\xBFC\xF3mo te llamas?",
+      "\xBFMe regalas tu nombre?"
     ],
     correo: [
-      `Para mandarte la info y que ${team} te arme la propuesta, \xBFa qu\xE9 correo te lo env\xEDo?`,
-      "\xBFMe compartes un correo para enviarte los detalles de la cotizaci\xF3n?",
-      "\xBFA qu\xE9 correo te mando la informaci\xF3n?"
+      "\xBFA qu\xE9 correo te mando la informaci\xF3n?",
+      "\xBFMe compartes un correo para enviarte los detalles?",
+      `Si gustas, \xBFa qu\xE9 correo le paso la info a ${team}?`
     ],
     tipo_evento: [
-      "\xBFQu\xE9 tipo de celebraci\xF3n es?",
-      "\xBFQu\xE9 festejan o qu\xE9 evento est\xE1n planeando?",
+      "\xBFQu\xE9 van a celebrar?",
+      "\xBFQu\xE9 tipo de evento es?",
       "Cu\xE9ntame, \xBFde qu\xE9 se trata el evento?"
     ],
     requerimientos: [
-      "Plat\xEDcame, \xBFqu\xE9 tienes pensado para tu evento?",
-      "\xBFQu\xE9 servicios te gustar\xEDa cotizar?",
-      "\xBFQu\xE9 necesitas para el evento?"
+      "\xBFQu\xE9 servicios te gustar\xEDa ir armando?",
+      "Plat\xEDcame qu\xE9 tienes pensado para el evento.",
+      "\xBFQu\xE9 necesitas cotizar?"
     ],
     invitados: [
       "\xBFM\xE1s o menos para cu\xE1ntas personas ser\xEDa?",
       "\xBFCu\xE1ntos invitados tienen contemplados?",
-      "\xBFTienen un estimado de invitados? Si a\xFAn no lo saben, sin problema \u2014 pueden darme un rango aproximado."
+      "\xBFTienen un estimado de invitados? Si a\xFAn no, un rango sirve."
     ],
     zona: [
-      "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa tu evento? Si tienes la direcci\xF3n exacta, mejor.",
-      "\xBFMe compartes ciudad y colonia o el nombre del sal\xF3n donde ser\xEDa?",
-      "\xBFCu\xE1l ser\xEDa la ubicaci\xF3n del evento? Necesito ciudad y colonia o sal\xF3n para cotizar bien."
+      "\xBFEn qu\xE9 ciudad y colonia (o sal\xF3n) ser\xEDa?",
+      "\xBFMe compartes la ubicaci\xF3n o el nombre del sal\xF3n?",
+      "\xBFD\xF3nde ser\xEDa el evento?"
     ],
     fecha: [
       "\xBFYa tienen fecha o todav\xEDa la van definiendo?",
       "\xBFPara cu\xE1ndo lo tienen pensado?",
-      "\xBFYa hay d\xEDa definido o siguen viendo opciones?"
+      "\xBFYa hay d\xEDa y hora, o siguen viendo opciones?"
     ],
     presupuesto: [
       "\xBFTienen alg\xFAn rango de presupuesto en mente?",
-      "\xBFManejan alg\xFAn presupuesto estimado para el evento?",
-      `\xBFTienen idea del presupuesto o prefieren que ${team} les proponga opciones?`
+      `\xBFPrefieren que ${team} les proponga opciones?`,
+      "\xBFManejan alg\xFAn presupuesto estimado?"
     ]
   };
 }
 var FIELD_ASK_PATTERNS = {
-  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
+  nombre: /cu[aá]l\s+es\s+tu\s+nombre|regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
   correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
   tipo_evento: /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
   requerimientos: (
@@ -129155,7 +129154,11 @@ function getDisplayName(extracted, whatsappName) {
   return resolveClientDisplayName(extracted.nombre, null, whatsappName);
 }
 function lucyHasPresented(history) {
-  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some((m5) => /hola,?\s*soy\s+lucy/i.test(m5.content));
+  return history.filter((m5) => m5.role === "assistant" && typeof m5.content === "string").some(
+    (m5) => /hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual\s+de\s+bodasesor/i.test(
+      m5.content
+    )
+  );
 }
 function conversationAlreadyStarted(filledSet, history) {
   if (history.some((m5) => m5.role === "assistant")) return true;
@@ -129168,7 +129171,10 @@ function presentationHistoryFrom(ctx) {
 }
 function stripRepeatLucyIntro(mensaje, history, alreadyStarted) {
   if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
-  return mensaje.replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo\.?\s*/gi, "").replace(/^\s+/, "").trim();
+  return mensaje.replace(
+    /¡?Hola!?\.?\s*(?:Buen\s+d[ií]a\.?\s*)?Soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi,
+    ""
+  ).replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "").replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "").replace(/Con gusto te ayudo\.?\s*/gi, "").replace(/^\s+/, "").trim();
 }
 function variantIndex(field, history, entityId) {
   const variants = getQuestionVariants()[field];
@@ -130035,12 +130041,16 @@ function dedupeTransitionsInMessage(mensaje) {
     return match2;
   }).replace(/\s{2,}/g, " ").replace(/\s+\n/g, "\n").trim();
   out2 = out2.replace(
-    /\b(Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.)(?:\s+\1)+/gi,
+    /\b(¡?Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})[.!])(?:\s+\1)+/gi,
     "$1"
   );
   out2 = out2.replace(
-    /\b(Perfecto|Excelente|Genial|Claro),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+Mucho gusto,\s+\2\./gi,
+    /\b(Perfecto|Excelente|Genial|Claro),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+¡?Mucho gusto,\s+\2[.!]/gi,
     "$1, $2."
+  );
+  out2 = out2.replace(
+    /(¡Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})!)\s+¡?Mucho gusto,\s+\2[.!]/gi,
+    "$1"
   );
   return out2.replace(/\s{2,}/g, " ").trim();
 }
@@ -130744,18 +130754,18 @@ function buildNaturalQuestion(field, ctx) {
   const thanks = emailThanksPrefix(ctx);
   if (field === "correo") {
     const correoCore = pickVariant("correo", history, ctx.entityId);
-    return nombre ? `Mucho gusto, ${nombre}. ${correoCore}` : correoCore;
+    const first = nombre?.split(/\s+/)[0] ?? null;
+    return first ? `\xA1Mucho gusto, ${first}! ${correoCore}` : correoCore;
   }
   if (field === "requerimientos") {
     return buildRequerimientosQuestion(ctx.extracted, history, ctx.currentMessage, ctx.entityId);
   }
   if (field === "tipo_evento") {
     const tipoVariant = pickVariant("tipo_evento", history, ctx.entityId);
-    const withHint = `${tipoVariant} ${TIPO_EVENTO_HINT}`.trim();
     if (ctx.afterEmail) {
-      return nombre ? `Gracias por tu correo, ${nombre}. ${withHint}` : `Gracias por tu correo. ${withHint}`;
+      return nombre ? `Gracias por tu correo, ${nombre}. ${tipoVariant}` : `Gracias por tu correo. ${tipoVariant}`;
     }
-    return prefix ? `${prefix}${withHint}` : withHint;
+    return prefix ? `${prefix}${tipoVariant}` : tipoVariant;
   }
   if (thanks && (field === "zona" || field === "fecha" || field === "invitados" || field === "presupuesto")) {
     return `${thanks}${variant}`;
@@ -130813,7 +130823,8 @@ function requerimientosNeedsFollowUp(extracted, filledSet) {
 }
 function buildCorreoQuestion(nombre, history = [], entityId) {
   const correoCore = pickVariant("correo", history, entityId);
-  if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
+  const first = nombre?.split(/\s+/)[0] ?? null;
+  if (first) return `\xA1Mucho gusto, ${first}! ${correoCore}`;
   return correoCore;
 }
 function buildRequerimientosFollowUp(extracted, filledSet, history, currentMessage, entityId) {
@@ -130869,12 +130880,14 @@ function emailRefusalAckMessage(extracted, history, currentMessage, entityId, fi
     currentMessage,
     entityId
   };
+  const nombre = getDisplayName(extracted, void 0);
+  const warm = nombre ? `\xA1Claro, sin problema, ${nombre.split(/\s+/)[0]}! Lo revisamos todo por este chat.` : "\xA1Claro, sin problema! Lo revisamos todo por este chat.";
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && pending !== "correo") {
-    return `Sin problema, seguimos por aqu\xED. ${buildNaturalQuestion(pending, ctx)}`;
+    return `${warm} ${buildNaturalQuestion(pending, ctx)}`;
   }
   const tipoQ = buildNaturalQuestion("tipo_evento", ctx);
-  return `Sin problema, seguimos por aqu\xED. ${tipoQ}`;
+  return `${warm} ${tipoQ}`;
 }
 function clientJustGaveEmail(history, currentMessage) {
   if (!currentMessage?.trim() || !/\S+@\S+\.\S+/.test(currentMessage)) return false;
@@ -131988,10 +132001,17 @@ ${nextQ}` : ""}`.trim();
   } else if (!cierreYaEnviado && lastAskedField === "nombre" && looksLikeNameAnswerMessage(currentMessage) && isFieldSatisfied("nombre", filledSet, extracted) && // Solo sin servicio previo (form/lead). Si ya hay sushi/etc., deferredKnownServiceOffer.
   !isValidRequerimientosValue(extracted.requerimientos_evento)) {
     const display = getDisplayName(extracted, whatsappDisplayName);
+    const firstName2 = display?.split(/\s+/)[0] ?? null;
     const pending = getNextPendingField(extracted, filledSet);
-    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    const nameAck = pending === "correo" ? "Perfecto." : display ? `Perfecto, ${display}.` : "Perfecto.";
-    mensaje = nextQ ? `${nameAck} ${nextQ}`.trim() : display ? `Perfecto, ${display}. \xBFEn qu\xE9 te puedo ayudar para tu evento?` : "Perfecto. \xBFEn qu\xE9 te puedo ayudar para tu evento?";
+    const nameAck = firstName2 ? `\xA1Mucho gusto, ${firstName2}!` : "\xA1Mucho gusto!";
+    let nextQ = pending ? buildNaturalQuestion(pending, { ...ctx, filledSet }) : null;
+    if (nextQ) {
+      nextQ = nextQ.replace(/^¡?Mucho gusto,\s*[^!]{1,40}!\s*/i, "").replace(
+        /^Mucho gusto,\s*[^.!]{1,40}[.!]\s*/i,
+        ""
+      );
+    }
+    mensaje = nextQ ? `${nameAck} ${nextQ}`.trim() : `${nameAck} \xBFEn qu\xE9 te puedo ayudar para tu evento?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre capturado \u2014 embudo sin cat\xE1logo/PDF");
   } else if (deferredKnownServiceOffer) {
@@ -133178,10 +133198,12 @@ ${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
       }
     }
     if ((forceFirstPresentation || isFirstLucyReply(presHistory)) && !conversationAlreadyStarted(filledSet, presHistory) && !isFieldSatisfied("nombre", filledSet, extracted)) {
-      if (!/hola,?\s*soy\s+lucy/i.test(mensaje)) {
+      if (!/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
         mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
       }
-      if (!mensajeAsksForField(mensaje, "nombre") && !/\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(mensaje)) {
+      if (!mensajeAsksForField(mensaje, "nombre") && !/\b(cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(
+        mensaje
+      )) {
         mensaje = `${mensaje}
 
 ${pickVariant("nombre", history, entityId)}`.trim();
@@ -133192,7 +133214,7 @@ ${pickVariant("nombre", history, entityId)}`.trim();
   mensaje = enforceNombreFirst(mensaje, filledSet, extracted, ctx, forceFirstPresentation);
   const presHistoryForIntro = input.presentationHistory ?? history;
   const isOpeningTurn = (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) && !conversationAlreadyStarted(filledSet, presHistoryForIntro);
-  if (isOpeningTurn && !/hola,?\s*soy\s+lucy/i.test(mensaje)) {
+  if (isOpeningTurn && !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: presentaci\xF3n Lucy a\xF1adida al primer mensaje");
   }
@@ -134196,9 +134218,11 @@ y pegar al cliente.
 ===================================================================
 ## 1. FORMA DE HABLAR (como humana, no como bot)
 ===================================================================
-- Habla como en un chat real: frases cortas, una idea clara, una pregunta \xFAtil.
-- Cordial y profesional; c\xE1lida pero seria. Sin "\xA1Qu\xE9 emoci\xF3n!", "\xA1Genial!" ni
-  entusiasmo forzado.
+- Habla como en un chat real de ventas: amable, directa, educada. NO como formulario.
+- Una o dos ideas por mensaje; m\xE1ximo UNA pregunta de embudo por turno.
+- Var\xEDa el vocabulario. Evita repetir "un placer", "bienvenida", "excelente" o
+  relleno (clima, fechas gen\xE9ricas, "qu\xE9 emoci\xF3n").
+- Cordial y profesional; c\xE1lida pero seria. Sin entusiasmo forzado.
 - Aperturas sobrias cuando hagan falta: "Con gusto", "Claro", "Perfecto",
   "De acuerdo". No las uses en TODOS los mensajes.
 - Sin emojis (el sistema los borra).
@@ -134208,6 +134232,8 @@ y pegar al cliente.
 - Si te preguntan algo concreto, resp\xF3ndelo YA. Luego, si falta un dato del embudo,
   p\xEDdelo en la misma respuesta de forma natural (no borres la respuesta para
   solo preguntar el CRM).
+- Correo: p\xEDdelo natural. Si duda o no quiere darlo: "\xA1Claro, sin problema!
+  Lo revisamos por este chat" \u2014 jam\xE1s insistas ni bloquees.
 
 ===================================================================
 ## 2. RESPONDER LO QUE PREGUNTA (antes que nada)
@@ -134311,9 +134337,13 @@ Contacto (solo si lo piden):
 ===================================================================
 ## PRIMER MENSAJE
 ===================================================================
-1. Pres\xE9ntate UNA vez: "Hola, soy Lucy, agente virtual de Bodasesor."
+1. Pres\xE9ntate UNA vez:
+   "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor."
 2. Reconoce brevemente lo que mencion\xF3 (si aplica).
-3. Pide el nombre (no correo/fecha/invitados/presupuesto antes del nombre).
+3. Pide el nombre: "\xBFCu\xE1l es tu nombre?"
+   (no correo/fecha/invitados/presupuesto antes del nombre).
+4. Cuando d\xE9 el nombre: "\xA1Mucho gusto, [Nombre]!" y sigue con UNA pregunta
+   org\xE1nica (siguiente dato), sin cuestionario.
 Si ya dio zona, fecha, servicios o invitados, recon\xF3celos. Sin precios extensos
 en el primer mensaje.
 
@@ -134464,9 +134494,9 @@ function buildDynamicPrompt(context) {
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 VOZ HUMANA (prioridad de redacci\xF3n)
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
-Responde como asesora de WhatsApp, no como men\xFA autom\xE1tico.
+Responde como asesora de WhatsApp en un chat real, no como formulario ni men\xFA autom\xE1tico.
 El bloque de cat\xE1logo abajo es REFERENCIA: \xFAsalo para no inventar; NO lo pegues.
-M\xE1ximo una pregunta \xFAtil por mensaje. Responde primero lo que el cliente dijo.`;
+M\xE1ximo una pregunta \xFAtil por mensaje. Var\xEDa el vocabulario. Responde primero lo que el cliente dijo.`;
   if (context.lucyInfoBlock?.trim()) {
     prompt += "\n\n" + context.lucyInfoBlock.trim();
   }
@@ -134488,12 +134518,13 @@ ${offerHint}`;
 PRIMERA INTERACCION \u2014 OBLIGATORIO
 \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
 
-1. SIEMPRE empieza con: "Hola, soy Lucy, agente virtual de Bodasesor."
+1. SIEMPRE empieza con: "\xA1Hola! Buen d\xEDa. Soy Lucy, agente virtual de Bodasesor."
 2. Reconoce brevemente lo que el cliente mencion\xF3 (si aplica).
-3. SIEMPRE pide el nombre como primer dato en el primer mensaje de Lucy.
+3. SIEMPRE pide el nombre: "\xBFCu\xE1l es tu nombre?"
 4. Si el cliente escribe su nombre, usa ese. Si NUNCA lo escribe, puedes usar el de WhatsApp solo despu\xE9s de haberlo preguntado (no saltes el paso).
 5. En el primer mensaje NO pidas correo, fecha, invitados ni presupuesto antes de preguntar el nombre.
-6. Si el cliente ya dio su nombre en ese mismo primer mensaje, pres\xE9ntate y contin\xFAa con correo.`;
+6. Cuando d\xE9 el nombre: "\xA1Mucho gusto, [Nombre]!" y UNA sola pregunta siguiente.
+7. Si el cliente ya dio su nombre en ese mismo primer mensaje, pres\xE9ntate, saluda y contin\xFAa.`;
   } else {
     prompt += `
 
@@ -134969,7 +135000,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.11";
+var LUCY_PROMPT_VERSION = "V9.12";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -136288,7 +136319,7 @@ async function runAll() {
     });
     assert2.ok(!/alg[uú]n\s+otro\s+servicio|otros\s+servicios/i.test(replyNoGracias), replyNoGracias);
     assert2.ok(
-      /invitados|ciudad|fecha|presupuesto/i.test(replyNoGracias),
+      /invitados|ciudad|fecha|presupuesto|d[oó]nde|ubicaci|sal[oó]n/i.test(replyNoGracias),
       `debe pedir siguiente dato: "${replyNoGracias.slice(0, 200)}"`
     );
     const filledReady = /* @__PURE__ */ new Set([
@@ -136376,7 +136407,10 @@ async function runAll() {
     });
     assert2.ok(/anoto|renta de letras/i.test(reply), reply.slice(0, 250));
     assert2.ok(!/alg[uú]n\s+otro\s+servicio/i.test(reply), reply);
-    assert2.ok(/invitados|ciudad|fecha|presupuesto/i.test(reply), reply.slice(0, 250));
+    assert2.ok(
+      /invitados|ciudad|fecha|presupuesto|d[oó]nde|ubicaci|sal[oó]n/i.test(reply),
+      reply.slice(0, 250)
+    );
   });
   await test("37. Jerarqu\xEDa cat\xE1logo \u2014 categor\xEDa / servicio / nivel", () => {
     const csv = [
@@ -136477,7 +136511,7 @@ async function runAll() {
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
     assert2.ok(!clientAsksForRecommendations(webMsg) || !/lo m[aá]s com[uú]n es banquete o taquiza/i.test(first), first);
   });
   await test("39. Maestro \u2014 correo typo y nombre CRM", () => {
@@ -136623,7 +136657,7 @@ async function runAll() {
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
     assert2.ok(/boda|solicitud|80\s+personas/i.test(first), first);
     assert2.ok(!/opciones m[aá]s pedidas/i.test(first), first);
   });
@@ -137584,7 +137618,7 @@ ${CATALOG_OFFER_QUESTION}`
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola,?\s*soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
     assert2.ok(/coffee/i.test(waReply), waReply.slice(0, 500));
     assert2.ok(/desayuno/i.test(waReply), waReply.slice(0, 500));
     assert2.ok(/cena/i.test(waReply), waReply.slice(0, 500));
@@ -137728,7 +137762,7 @@ ${CATALOG_OFFER_QUESTION}`
       history: [],
       forceFirstPresentation: true
     });
-    assert2.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 300));
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 300));
     assert2.ok(!/lo dejamos por definir/i.test(first), first.slice(0, 400));
     assert2.ok(/15 de agosto|santa fe|200/i.test(first), first.slice(0, 500));
     assert2.ok(/parrillada|men[uú]\s+casual|tres propuestas/i.test(first), first.slice(0, 600));
@@ -142037,7 +142071,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.11");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.12");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -142142,7 +142176,7 @@ ${golfText}`,
     });
     assert2.equal(extracted.nombre, "Alejandro");
     assert2.ok(filled.has("Nombre del cliente"));
-    assert2.ok(!/c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(afterName), afterName);
+    assert2.ok(!/cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(afterName), afterName);
     assert2.ok(/correo|e-?mail|gusto/i.test(afterName), afterName);
     const filled2 = /* @__PURE__ */ new Set();
     const extracted2 = emptyExtracted();
@@ -142193,8 +142227,8 @@ ${golfText}`,
       },
       true
     );
-    assert2.ok(/hola,?\s*soy\s+lucy/i.test(first), first);
-    assert2.ok(/c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(first), first);
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first);
+    assert2.ok(/cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(first), first);
     assert2.ok(/show|animaci|performance/i.test(first), first);
     assert2.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n/i.test(first), first);
     const kept = await finalizeLucyOutboundMessage({
@@ -142207,7 +142241,7 @@ ${golfText}`,
       cierreYaEnviado: false,
       entityId: 15165
     });
-    assert2.ok(/hola,?\s*soy\s+lucy/i.test(kept), kept);
+    assert2.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(kept), kept);
     assert2.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(kept), kept);
     const postShow = runGuards({
       aiResponse: "\xA1Claro! *Animaci\xF3n / Hora loca* la anoto para tu cotizaci\xF3n. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones.",
@@ -143093,6 +143127,51 @@ ${golfText}`,
       whatsappDisplayName: "Sandra Carbajal"
     });
     assert2.ok(!/\btaquiza\b.*\bbrunch\b|\bbanquete,\s*taquiza/i.test(vague), vague.slice(0, 500));
+  });
+  await test("138. V9.12 \u2014 intro Buen d\xEDa, Mucho gusto y una pregunta", () => {
+    assert2.ok(/Buen d[ií]a/i.test(LUCY_INTRO), LUCY_INTRO);
+    assert2.ok(/Bodasesor/i.test(LUCY_INTRO), LUCY_INTRO);
+    assert2.ok(!/tu agente virtual(?!\s+de\s+Bodasesor)/i.test(LUCY_INTRO));
+    const first = buildFirstInteractionMessage({
+      extracted: emptyExtracted(),
+      filledSet: /* @__PURE__ */ new Set(),
+      history: [],
+      currentMessage: "Hola",
+      entityId: 15220
+    });
+    assert2.ok(/¡?Hola!?.*Buen d[ií]a.*Lucy.*Bodasesor/i.test(first), first.slice(0, 300));
+    assert2.ok(/cu[aá]l es tu nombre|c[oó]mo te llamas|regalas tu nombre/i.test(first), first);
+    const questions = (first.match(/\?/g) ?? []).length;
+    assert2.ok(questions <= 2, `demasiadas preguntas: ${questions} \u2014 ${first.slice(0, 400)}`);
+    const nameTurn = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({ nombre: "Sandra Carbajal" }),
+      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Sandra Carbajal",
+      history: [
+        {
+          role: "assistant",
+          content: `${LUCY_INTRO} \xBFCu\xE1l es tu nombre?`
+        }
+      ]
+    });
+    assert2.ok(/¡?Mucho gusto,\s*Sandra/i.test(nameTurn), nameTurn.slice(0, 300));
+    assert2.ok(
+      !/Perfecto,\s*Sandra\.\s*¡?Mucho gusto,\s*Sandra/i.test(nameTurn),
+      `sin doble saludo: ${nameTurn.slice(0, 300)}`
+    );
+    assert2.ok((nameTurn.match(/\?/g) ?? []).length <= 2, nameTurn.slice(0, 400));
+    const refuse = emailRefusalAckMessage(
+      emptyExtracted({ nombre: "Sandra" }),
+      [{ role: "assistant", content: "\xBFA qu\xE9 correo te mando la informaci\xF3n?" }],
+      "Prefiero no dar correo",
+      1,
+      /* @__PURE__ */ new Set(["Nombre del cliente"])
+    );
+    assert2.ok(/sin problema/i.test(refuse), refuse);
+    assert2.ok(/este chat|por aqu[ií]/i.test(refuse), refuse);
+    assert2.ok(!/necesito tu correo|es obligatorio/i.test(refuse), refuse);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

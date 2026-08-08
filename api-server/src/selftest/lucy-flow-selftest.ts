@@ -188,6 +188,7 @@ import {
   buildOpeningAcknowledgment,
   buildGenericPriceClarifyReply,
   buildGenericPackagesOverviewReply,
+  emailRefusalAckMessage,
 } from "../lucy-flow-guards.js";
 import {
   buildLucyInfoInclusionReply,
@@ -1857,7 +1858,7 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/alg[uú]n\s+otro\s+servicio|otros\s+servicios/i.test(replyNoGracias), replyNoGracias);
     assert.ok(
-      /invitados|ciudad|fecha|presupuesto/i.test(replyNoGracias),
+      /invitados|ciudad|fecha|presupuesto|d[oó]nde|ubicaci|sal[oó]n/i.test(replyNoGracias),
       `debe pedir siguiente dato: "${replyNoGracias.slice(0, 200)}"`
     );
 
@@ -1953,7 +1954,10 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/anoto|renta de letras/i.test(reply), reply.slice(0, 250));
     assert.ok(!/alg[uú]n\s+otro\s+servicio/i.test(reply), reply);
-    assert.ok(/invitados|ciudad|fecha|presupuesto/i.test(reply), reply.slice(0, 250));
+    assert.ok(
+      /invitados|ciudad|fecha|presupuesto|d[oó]nde|ubicaci|sal[oó]n/i.test(reply),
+      reply.slice(0, 250)
+    );
   });
 
   await test("37. Jerarquía catálogo — categoría / servicio / nivel", () => {
@@ -2070,7 +2074,7 @@ async function runAll(): Promise<void> {
       history: [],
       forceFirstPresentation: true,
     });
-    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
     assert.ok(!clientAsksForRecommendations(webMsg) || !/lo m[aá]s com[uú]n es banquete o taquiza/i.test(first), first);
   });
 
@@ -2240,7 +2244,7 @@ async function runAll(): Promise<void> {
       history: [],
       forceFirstPresentation: true,
     });
-    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 200));
+    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 200));
     assert.ok(/boda|solicitud|80\s+personas/i.test(first), first);
     assert.ok(!/opciones m[aá]s pedidas/i.test(first), first);
   });
@@ -3310,7 +3314,7 @@ async function runAll(): Promise<void> {
       history: [],
       forceFirstPresentation: true,
     });
-    assert.ok(/hola,?\s*soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
+    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(waReply), waReply.slice(0, 280));
     assert.ok(/coffee/i.test(waReply), waReply.slice(0, 500));
     assert.ok(/desayuno/i.test(waReply), waReply.slice(0, 500));
     assert.ok(/cena/i.test(waReply), waReply.slice(0, 500));
@@ -3482,7 +3486,7 @@ async function runAll(): Promise<void> {
       history: [],
       forceFirstPresentation: true,
     });
-    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first.slice(0, 300));
+    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 300));
     assert.ok(!/lo dejamos por definir/i.test(first), first.slice(0, 400));
     assert.ok(/15 de agosto|santa fe|200/i.test(first), first.slice(0, 500));
     assert.ok(/parrillada|men[uú]\s+casual|tres propuestas/i.test(first), first.slice(0, 600));
@@ -8321,7 +8325,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.11");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.12");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8437,7 +8441,7 @@ async function runAll(): Promise<void> {
     });
     assert.equal(extracted.nombre, "Alejandro");
     assert.ok(filled.has("Nombre del cliente"));
-    assert.ok(!/c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(afterName), afterName);
+    assert.ok(!/cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(afterName), afterName);
     assert.ok(/correo|e-?mail|gusto/i.test(afterName), afterName);
 
     // Queja de repetición con historial: ack con nombre y siguiente campo, no nombre otra vez.
@@ -8498,8 +8502,8 @@ async function runAll(): Promise<void> {
       },
       true
     );
-    assert.ok(/hola,?\s*soy\s+lucy/i.test(first), first);
-    assert.ok(/c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(first), first);
+    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first);
+    assert.ok(/cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(first), first);
     assert.ok(/show|animaci|performance/i.test(first), first);
     assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n/i.test(first), first);
 
@@ -8514,7 +8518,7 @@ async function runAll(): Promise<void> {
       cierreYaEnviado: false,
       entityId: 15165,
     });
-    assert.ok(/hola,?\s*soy\s+lucy/i.test(kept), kept);
+    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(kept), kept);
     assert.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(kept), kept);
 
     // Post-cierre: info de shows → catálogo / orientación, no Level-2 ni "Queda anotado".
@@ -9533,6 +9537,57 @@ async function runAll(): Promise<void> {
       whatsappDisplayName: "Sandra Carbajal",
     });
     assert.ok(!/\btaquiza\b.*\bbrunch\b|\bbanquete,\s*taquiza/i.test(vague), vague.slice(0, 500));
+  });
+
+  // ─── 138. V9.12 — voz natural anti-formulario ───
+  await test("138. V9.12 — intro Buen día, Mucho gusto y una pregunta", () => {
+    assert.ok(/Buen d[ií]a/i.test(LUCY_INTRO), LUCY_INTRO);
+    assert.ok(/Bodasesor/i.test(LUCY_INTRO), LUCY_INTRO);
+    assert.ok(!/tu agente virtual(?!\s+de\s+Bodasesor)/i.test(LUCY_INTRO));
+
+    const first = buildFirstInteractionMessage({
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      history: [],
+      currentMessage: "Hola",
+      entityId: 15220,
+    });
+    assert.ok(/¡?Hola!?.*Buen d[ií]a.*Lucy.*Bodasesor/i.test(first), first.slice(0, 300));
+    assert.ok(/cu[aá]l es tu nombre|c[oó]mo te llamas|regalas tu nombre/i.test(first), first);
+    // Una sola pregunta de embudo en el primer mensaje vacío.
+    const questions = (first.match(/\?/g) ?? []).length;
+    assert.ok(questions <= 2, `demasiadas preguntas: ${questions} — ${first.slice(0, 400)}`);
+
+    const nameTurn = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({ nombre: "Sandra Carbajal" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Sandra Carbajal",
+      history: [
+        {
+          role: "assistant",
+          content: `${LUCY_INTRO} ¿Cuál es tu nombre?`,
+        },
+      ],
+    });
+    assert.ok(/¡?Mucho gusto,\s*Sandra/i.test(nameTurn), nameTurn.slice(0, 300));
+    assert.ok(
+      !/Perfecto,\s*Sandra\.\s*¡?Mucho gusto,\s*Sandra/i.test(nameTurn),
+      `sin doble saludo: ${nameTurn.slice(0, 300)}`
+    );
+    assert.ok((nameTurn.match(/\?/g) ?? []).length <= 2, nameTurn.slice(0, 400));
+
+    const refuse = emailRefusalAckMessage(
+      emptyExtracted({ nombre: "Sandra" }),
+      [{ role: "assistant", content: "¿A qué correo te mando la información?" }],
+      "Prefiero no dar correo",
+      1,
+      new Set(["Nombre del cliente"])
+    );
+    assert.ok(/sin problema/i.test(refuse), refuse);
+    assert.ok(/este chat|por aqu[ií]/i.test(refuse), refuse);
+    assert.ok(!/necesito tu correo|es obligatorio/i.test(refuse), refuse);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -214,20 +214,20 @@ export const CLOSING_CORE_FIELDS = [
   "Presupuesto (MXN)",
 ] as const;
 
-/** Presentación obligatoria en el primer mensaje de Lucy. */
-export const LUCY_INTRO = "Hola, soy Lucy, agente virtual de Bodasesor.";
+/** Presentación obligatoria en el primer mensaje de Lucy (voz natural, marca Bodasesor). */
+export const LUCY_INTRO = "¡Hola! Buen día. Soy Lucy, agente virtual de Bodasesor.";
 
-/** Opciones de evento para orientar al cliente. */
+/** Opciones de evento — solo si el cliente pide ejemplos, no en cada pregunta. */
 export const TIPO_EVENTO_HINT =
-  "Manejamos bodas, XV años, baby showers, cumpleaños, eventos corporativos, bautizos y celebraciones familiares.";
+  "Por ejemplo bodas, XV, baby shower, cumpleaños o corporativo.";
 
 /** Texto para que el cliente sepa qué ofrece Bodasesor al preguntar por servicios. */
 export const SERVICIOS_CATALOGO_HINT =
-  "Manejamos alimentos y barras (banquetes, taquizas, barras temáticas), mobiliario, carpas, pistas de baile, DJ, iluminación, pantallas, mesas de dulces y más.";
+  "Manejamos alimentos y barras, mobiliario, carpas, pistas, DJ, iluminación y más.";
 
 /** Variante corta cuando el cliente ya mencionó un servicio. */
 export const SERVICIOS_CATALOGO_HINT_ADICIONAL =
-  "También manejamos bebidas, DJ, iluminación, carpas, mobiliario, pantallas, mesas de dulces y barras de alimentos.";
+  "También podemos sumar bebidas, DJ, iluminación, carpas o mobiliario si te hace falta.";
 
 /** True si el mensaje ya menciona opciones del catálogo (evita repetir el bloque). */
 export function mensajeMencionaCatalogoServicios(mensaje: string): boolean {
@@ -281,7 +281,10 @@ function appendServiciosCatalogoHint(
   if (mensajeMencionaCatalogoServicios(pregunta)) return pregunta;
   // No volver a inyectar el catálogo si ya salió en un turno anterior.
   if (historyAlreadyHadServicesCatalog(history)) return pregunta.trim();
-  const hint = adicional ? SERVICIOS_CATALOGO_HINT_ADICIONAL : SERVICIOS_CATALOGO_HINT;
+  // V9.12: no pegar el catálogo en cada pregunta (suena a formulario).
+  // Solo un tip corto la primera vez que pedimos "otro servicio".
+  if (!adicional) return pregunta.trim();
+  const hint = SERVICIOS_CATALOGO_HINT_ADICIONAL;
   return `${pregunta.trim()} ${hint}`.trim();
 }
 
@@ -352,50 +355,51 @@ function getQuestionVariants(): Record<PendingField, string[]> {
   const team = advisorLabelForClient();
   return {
   nombre: [
-    "¿Me regalas tu nombre para iniciar?",
-    "¿Con quién tengo el gusto?",
+    "¿Cuál es tu nombre?",
     "¿Cómo te llamas?",
+    "¿Me regalas tu nombre?",
   ],
   correo: [
-    `Para mandarte la info y que ${team} te arme la propuesta, ¿a qué correo te lo envío?`,
-    "¿Me compartes un correo para enviarte los detalles de la cotización?",
     "¿A qué correo te mando la información?",
+    "¿Me compartes un correo para enviarte los detalles?",
+    `Si gustas, ¿a qué correo le paso la info a ${team}?`,
   ],
   tipo_evento: [
-    "¿Qué tipo de celebración es?",
-    "¿Qué festejan o qué evento están planeando?",
+    "¿Qué van a celebrar?",
+    "¿Qué tipo de evento es?",
     "Cuéntame, ¿de qué se trata el evento?",
   ],
   requerimientos: [
-    "Platícame, ¿qué tienes pensado para tu evento?",
-    "¿Qué servicios te gustaría cotizar?",
-    "¿Qué necesitas para el evento?",
+    "¿Qué servicios te gustaría ir armando?",
+    "Platícame qué tienes pensado para el evento.",
+    "¿Qué necesitas cotizar?",
   ],
   invitados: [
     "¿Más o menos para cuántas personas sería?",
     "¿Cuántos invitados tienen contemplados?",
-    "¿Tienen un estimado de invitados? Si aún no lo saben, sin problema — pueden darme un rango aproximado.",
+    "¿Tienen un estimado de invitados? Si aún no, un rango sirve.",
   ],
   zona: [
-    "¿En qué ciudad y colonia (o salón) sería tu evento? Si tienes la dirección exacta, mejor.",
-    "¿Me compartes ciudad y colonia o el nombre del salón donde sería?",
-    "¿Cuál sería la ubicación del evento? Necesito ciudad y colonia o salón para cotizar bien.",
+    "¿En qué ciudad y colonia (o salón) sería?",
+    "¿Me compartes la ubicación o el nombre del salón?",
+    "¿Dónde sería el evento?",
   ],
   fecha: [
     "¿Ya tienen fecha o todavía la van definiendo?",
     "¿Para cuándo lo tienen pensado?",
-    "¿Ya hay día definido o siguen viendo opciones?",
+    "¿Ya hay día y hora, o siguen viendo opciones?",
   ],
   presupuesto: [
     "¿Tienen algún rango de presupuesto en mente?",
-    "¿Manejan algún presupuesto estimado para el evento?",
-    `¿Tienen idea del presupuesto o prefieren que ${team} les proponga opciones?`,
+    `¿Prefieren que ${team} les proponga opciones?`,
+    "¿Manejan algún presupuesto estimado?",
   ],
 };
 }
 
 const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
-  nombre: /regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
+  nombre:
+    /cu[aá]l\s+es\s+tu\s+nombre|regalas?\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|con\s+qui[eé]n\s+tengo|tu\s+nombre|me\s+das\s+tu\s+nombre/i,
   correo: /correo|e-?mail|env[ií]o|mandarte|mandar(te)?\s+la\s+info|compartes?\s+un\s+correo/i,
   tipo_evento:
     /festejan|tipo\s+de\s+(evento|celebraci[oó]n)|qu[eé]\s+evento|qu[eé]\s+celebr|de\s+qu[eé]\s+se\s+trata|qu[eé]\s+tipo\s+de\s+celebr/i,
@@ -747,7 +751,11 @@ function getDisplayName(extracted: ExtractedData, whatsappName?: string | null):
 function lucyHasPresented(history: OpenAI.Chat.ChatCompletionMessageParam[]): boolean {
   return history
     .filter((m) => m.role === "assistant" && typeof m.content === "string")
-    .some((m) => /hola,?\s*soy\s+lucy/i.test(m.content as string));
+    .some((m) =>
+      /hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual\s+de\s+bodasesor/i.test(
+        m.content as string
+      )
+    );
 }
 
 /** True si la conversación ya avanzó más allá del saludo inicial. */
@@ -775,6 +783,10 @@ function stripRepeatLucyIntro(
 ): string {
   if (!alreadyStarted && !lucyHasPresented(history)) return mensaje;
   return mensaje
+    .replace(
+      /¡?Hola!?\.?\s*(?:Buen\s+d[ií]a\.?\s*)?Soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi,
+      ""
+    )
     .replace(/Hola,?\s*soy\s+Lucy(?:,\s*agente\s+virtual)?\s+de\s+Bodasesor\.?\s*/gi, "")
     .replace(/Estoy aquí para ayudarte con lo que necesites para tu evento\.?\s*/gi, "")
     .replace(/Con gusto te ayudo\.?\s*/gi, "")
@@ -2001,14 +2013,18 @@ export function dedupeTransitionsInMessage(mensaje: string): string {
     .replace(/\s{2,}/g, " ")
     .replace(/\s+\n/g, "\n")
     .trim();
-  // A15016: "Perfecto, Israel. Mucho gusto, Israel." / doble Mucho gusto.
+  // A15016 / V9.12: "Perfecto, X. Mucho gusto, X." / doble Mucho gusto.
   out = out.replace(
-    /\b(Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.)(?:\s+\1)+/gi,
+    /\b(¡?Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})[.!])(?:\s+\1)+/gi,
     "$1"
   );
   out = out.replace(
-    /\b(Perfecto|Excelente|Genial|Claro),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+Mucho gusto,\s+\2\./gi,
+    /\b(Perfecto|Excelente|Genial|Claro),\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})\.\s+¡?Mucho gusto,\s+\2[.!]/gi,
     "$1, $2."
+  );
+  out = out.replace(
+    /(¡Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})!)\s+¡?Mucho gusto,\s+\2[.!]/gi,
+    "$1"
   );
   return out.replace(/\s{2,}/g, " ").trim();
 }
@@ -3172,7 +3188,8 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
 
   if (field === "correo") {
     const correoCore = pickVariant("correo", history, ctx.entityId);
-    return nombre ? `Mucho gusto, ${nombre}. ${correoCore}` : correoCore;
+    const first = nombre?.split(/\s+/)[0] ?? null;
+    return first ? `¡Mucho gusto, ${first}! ${correoCore}` : correoCore;
   }
 
   if (field === "requerimientos") {
@@ -3180,12 +3197,14 @@ export function buildNaturalQuestion(field: PendingField, ctx: NaturalQuestionCo
   }
 
   if (field === "tipo_evento") {
+    // V9.12: una sola pregunta corta — sin catálogo de tipos pegado (suena a formulario).
     const tipoVariant = pickVariant("tipo_evento", history, ctx.entityId);
-    const withHint = `${tipoVariant} ${TIPO_EVENTO_HINT}`.trim();
     if (ctx.afterEmail) {
-      return nombre ? `Gracias por tu correo, ${nombre}. ${withHint}` : `Gracias por tu correo. ${withHint}`;
+      return nombre
+        ? `Gracias por tu correo, ${nombre}. ${tipoVariant}`
+        : `Gracias por tu correo. ${tipoVariant}`;
     }
-    return prefix ? `${prefix}${withHint}` : withHint;
+    return prefix ? `${prefix}${tipoVariant}` : tipoVariant;
   }
 
   if (thanks && (field === "zona" || field === "fecha" || field === "invitados" || field === "presupuesto")) {
@@ -3279,7 +3298,8 @@ export function buildCorreoQuestion(
   entityId?: string | number
 ): string {
   const correoCore = pickVariant("correo", history, entityId);
-  if (nombre) return `Mucho gusto, ${nombre}. ${correoCore}`;
+  const first = nombre?.split(/\s+/)[0] ?? null;
+  if (first) return `¡Mucho gusto, ${first}! ${correoCore}`;
   return correoCore;
 }
 
@@ -3368,12 +3388,16 @@ export function emailRefusalAckMessage(
     currentMessage,
     entityId,
   };
+  const nombre = getDisplayName(extracted, undefined);
+  const warm = nombre
+    ? `¡Claro, sin problema, ${nombre.split(/\s+/)[0]}! Lo revisamos todo por este chat.`
+    : "¡Claro, sin problema! Lo revisamos todo por este chat.";
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && pending !== "correo") {
-    return `Sin problema, seguimos por aquí. ${buildNaturalQuestion(pending, ctx)}`;
+    return `${warm} ${buildNaturalQuestion(pending, ctx)}`;
   }
   const tipoQ = buildNaturalQuestion("tipo_evento", ctx);
-  return `Sin problema, seguimos por aquí. ${tipoQ}`;
+  return `${warm} ${tipoQ}`;
 }
 
 export function clientJustGaveEmail(
@@ -5171,22 +5195,22 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     // Solo sin servicio previo (form/lead). Si ya hay sushi/etc., deferredKnownServiceOffer.
     !isValidRequerimientosValue(extracted.requerimientos_evento)
   ) {
-    // A14964: respuesta de nombre — solo ack + siguiente dato (nunca dump PDF/catálogo).
-    // A14981: no "Perfecto, Regina. Mucho gusto, Regina." — el correo ya saluda por nombre.
+    // A14964 / V9.12: "¡Mucho gusto, Nombre!" + UNA pregunta (sin Perfecto+Mucho gusto).
     const display = getDisplayName(extracted, whatsappDisplayName);
+    const firstName = display?.split(/\s+/)[0] ?? null;
     const pending = getNextPendingField(extracted, filledSet);
-    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    const nameAck =
-      pending === "correo"
-        ? "Perfecto."
-        : display
-          ? `Perfecto, ${display}.`
-          : "Perfecto.";
+    const nameAck = firstName ? `¡Mucho gusto, ${firstName}!` : "¡Mucho gusto!";
+    let nextQ = pending ? buildNaturalQuestion(pending, { ...ctx, filledSet }) : null;
+    // Evitar "¡Mucho gusto! Mucho gusto, X. ¿correo…?"
+    if (nextQ) {
+      nextQ = nextQ.replace(/^¡?Mucho gusto,\s*[^!]{1,40}!\s*/i, "").replace(
+        /^Mucho gusto,\s*[^.!]{1,40}[.!]\s*/i,
+        ""
+      );
+    }
     mensaje = nextQ
       ? `${nameAck} ${nextQ}`.trim()
-      : display
-        ? `Perfecto, ${display}. ¿En qué te puedo ayudar para tu evento?`
-        : "Perfecto. ¿En qué te puedo ayudar para tu evento?";
+      : `${nameAck} ¿En qué te puedo ayudar para tu evento?`;
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: nombre capturado — embudo sin catálogo/PDF");
   } else if (deferredKnownServiceOffer) {
@@ -6884,12 +6908,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       !conversationAlreadyStarted(filledSet, presHistory) &&
       !isFieldSatisfied("nombre", filledSet, extracted)
     ) {
-      if (!/hola,?\s*soy\s+lucy/i.test(mensaje)) {
+      if (!/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)) {
         mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
       }
       if (
         !mensajeAsksForField(mensaje, "nombre") &&
-        !/\b(c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(mensaje)
+        !/\b(cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|me\s+regalas\s+tu\s+nombre)\b/i.test(
+          mensaje
+        )
       ) {
         mensaje = `${mensaje}\n\n${pickVariant("nombre", history, entityId)}`.trim();
       }
@@ -6903,7 +6929,10 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   const isOpeningTurn =
     (forceFirstPresentation || isFirstLucyReply(presHistoryForIntro)) &&
     !conversationAlreadyStarted(filledSet, presHistoryForIntro);
-  if (isOpeningTurn && !/hola,?\s*soy\s+lucy/i.test(mensaje)) {
+  if (
+    isOpeningTurn &&
+    !/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy|soy\s+lucy,\s*agente\s+virtual/i.test(mensaje)
+  ) {
     mensaje = `${LUCY_INTRO} ${mensaje}`.trim();
     log?.info({ entityId }, "GUARD: presentación Lucy añadida al primer mensaje");
   }
