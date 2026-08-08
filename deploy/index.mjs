@@ -212695,7 +212695,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.13";
+var LUCY_PROMPT_VERSION = "V9.14";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -214256,7 +214256,7 @@ function extractImageIntent(text2) {
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
-var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
+var EMAIL_REFUSAL_PATTERN = /(?:no\s+tengo(\s+un?)?\s+correo|no\s+quiero(\s+dar|\s+compartir)?(\s+mi)?\s+correo|sin\s+correo|no\s+uso\s+correo|no\s+dispongo\s+de\s+correo|por\s+este\s+medio|prefiero\s+(?:por\s+)?whatsapp|prefiero\s+no\s+(?:dar|compartir|pasar|enviar)(\s+mi)?\s+correo|mejor\s+no\s+(?:doy|comparto|paso)(\s+mi)?\s+correo|por\s+ahora\s+no\s+(?:doy|comparto|paso|quiero\s+dar)(\s+mi)?\s+correo|por\s+aqu[ií]|mandar.*por\s+aqu[ií]|me\s+la\s+(?:pueden\s+)?mandar\s+por\s+aqu[ií]|aqu[ií]\s+(?:est[aá]|por)|por\s+aqu[ií]\s+por\s+fa|no\s+me\s+gusta\s+dar|no\s+es\s+necesario|no\s+hace\s+falta|no\s+quiero\s+darlo)/i;
 var CLOSING_CORE_FIELDS = [
   "Nombre del cliente",
   "Tipo de evento",

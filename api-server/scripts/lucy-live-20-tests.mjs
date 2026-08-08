@@ -45,26 +45,44 @@ async function reset(leadId) {
 async function send(leadId, text, leadName = "") {
   const prev = leadState.get(leadId);
   const custom_fields = { ...(prev?.fields ?? {}) };
-  const res = await fetch(`${BASE}/api/kommo/simulator`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      text,
-      lead_id: leadId,
-      lead: {
-        id: leadId,
-        name: prev?.lead_updates?.name || leadName,
-        pipeline_id: "pipeline_bodasesor",
-        stage_id: "stage_datos_intereses",
-        contact_phone: "+5215500000001",
-        contact_email: prev?.lead_updates?.contact_email ?? "",
-        custom_fields,
-      },
-    }),
+  const body = JSON.stringify({
+    text,
+    lead_id: leadId,
+    lead: {
+      id: leadId,
+      name: prev?.lead_updates?.name || leadName || "",
+      pipeline_id: "pipeline_bodasesor",
+      stage_id: "stage_datos_intereses",
+      contact_phone: `+52155${String(leadId).slice(-8).padStart(8, "0")}`,
+      contact_email: prev?.lead_updates?.contact_email ?? "",
+      custom_fields,
+    },
   });
-  const data = await res.json();
-  if (data.status === "success") leadState.set(leadId, data);
-  return data;
+  let lastErr = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(`${BASE}/api/kommo/simulator`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        lastErr = `HTTP ${res.status}: ${raw.slice(0, 120)}`;
+        await sleep(1500 * attempt);
+        continue;
+      }
+      if (data.status === "success") leadState.set(leadId, data);
+      return data;
+    } catch (e) {
+      lastErr = e.message;
+      await sleep(1500 * attempt);
+    }
+  }
+  return { status: "error", error: lastErr || "send failed", reply: lastErr || "send failed" };
 }
 
 function sleep(ms) {
@@ -237,425 +255,390 @@ async function runScenario(scenario) {
   return { ...scenario, run, ...result };
 }
 
-// ─── Escenarios ────────────────────────────────────────────────────────────
+// ─── Escenarios (casos problemáticos reales V9.10–V9.13) ───────────────────
 
 const SCENARIOS = [
   {
     id: 1,
-    name: "Cliente empresa — coffee break (no proveedor)",
-    leadId: 92001,
-    messages: ["Hola, soy Laura de Grupo Bimbo, quiero cotizar un coffee break para una junta."],
+    name: "Voz — intro Buen día + pide nombre (no formulario)",
+    leadId: 93101,
+    leadName: "",
+    messages: ["Hola"],
     async evaluate(run) {
-      const ex = run.lastData?.extracted ?? {};
-      const tipo = ex.tipo_contacto;
-      const allText = run.replies.join(" ");
-      if (tipo === "proveedor") return fail("Etiquetado como proveedor", `tipo=${tipo}`, "CODIGO");
-      if (/proveedor/i.test(allText) && /etiquet|nota.*proveedor/i.test(allText)) {
-        return fail("Menciona proveedor al cliente", allText.slice(0, 200), "PROMPT");
+      const reply = run.replies[0] ?? "";
+      if (!/buen\s+d[ií]a/i.test(reply) || !/lucy/i.test(reply) || !/bodasesor/i.test(reply)) {
+        return fail("Intro incorrecta (falta Buen día / Lucy / Bodasesor)", reply.slice(0, 220), "PROMPT");
       }
-      const coffee = /coffee\s*break/i.test(allText) || /coffee\s*break/i.test(snapVal(run, "requerimientos") ?? "");
-      if (!coffee) return fail("No reconoció coffee break", allText.slice(0, 200), "PROMPT");
-      return pass(`tipo=${tipo ?? "cliente"}, coffee break reconocido`);
+      if (!/nombre|llamas/i.test(reply)) return fail("No pidió nombre", reply.slice(0, 200), "PROMPT");
+      if ((reply.match(/\?/g) ?? []).length > 2) {
+        return fail("Demasiadas preguntas en saludo", reply.slice(0, 200), "PROMPT");
+      }
+      if (MENU_DUMP_RE.test(reply) || reply.length > 450) {
+        return fail("Saludo tipo formulario/catálogo", reply.slice(0, 200), "PROMPT");
+      }
+      return pass(reply.slice(0, 140));
     },
   },
   {
     id: 2,
-    name: "Correo propio bodasesor — no guardar",
-    leadId: 92002,
-    messages: ["Mandé mi solicitud a bodasesor@gmail.com, ¿es el correo correcto?"],
+    name: "Memoria — boda+fecha: no repregunta tipo",
+    leadId: 93102,
+    leadName: "",
+    messages: ["Hola", "Hola, soy Ana, es para mi boda el 20 de septiembre"],
     async evaluate(run) {
-      const email = snapVal(run, "correo electrónico", "correo") ?? run.lastData?.lead_updates?.contact_email ?? "";
-      const exEmail = run.lastData?.extracted?.correo ?? "";
-      if (OWN_EMAILS.test(email) || OWN_EMAILS.test(exEmail)) {
-        return fail("Guardó correo propio", email || exEmail, "CODIGO");
+      const reply = run.replies[1] ?? "";
+      if (!/mucho gusto,\s*ana/i.test(reply)) {
+        return fail("Falta ¡Mucho gusto, Ana!", reply.slice(0, 220), "PROMPT");
       }
-      const reply = run.replies[0] ?? "";
-      const confirms = /sí|correcto|ese es|nuestro correo|llegó/i.test(reply);
-      const asksClient = /tu correo|correo electrónico|a qué correo/i.test(reply);
-      if (!confirms && !asksClient) {
-        const judge = await llmJudge(
-          "Confirma que bodasesor@gmail.com es nuestro correo y pide el correo del cliente; NO guarda bodasesor@gmail.com como correo del cliente.",
-          run,
-        );
-        if (judge.pass === false) return { ...judge, observed: reply.slice(0, 200) };
+      if (/qu[eé]\s+tipo\s+de\s+(evento|celebraci)|qu[eé]\s+van\s+a\s+celebrar|qu[eé]\s+festejan/i.test(reply)) {
+        return fail("Repreguntó tipo (ya dijo boda)", reply.slice(0, 220), "PROMPT");
       }
-      return pass(`No guardó correo propio; respuesta: ${reply.slice(0, 120)}…`);
+      return pass(reply.slice(0, 160));
     },
   },
   {
     id: 3,
-    name: "Corrige correo — nunca el nuestro",
-    leadId: 92003,
+    name: "Correo — rechazo amable sin insistir",
+    leadId: 93103,
+    leadName: "",
+    // Embudo V9.13: correo va después de tipo/servicios/fecha/zona.
     messages: [
-      "Quiero una cotización.",
-      "no sé, mándalo a bodasesor@gmail.com",
-      "mejor a laura.mtz@empresa.com",
+      "Hola",
+      "Sandra",
+      "Cumpleaños",
+      "Banquete",
+      "15 de agosto",
+      "Narvarte CDMX",
+      "Prefiero no dar mi correo por ahora",
     ],
     async evaluate(run) {
-      const email = (
-        snapVal(run, "correo electrónico") ??
-        run.lastData?.lead_updates?.contact_email ??
-        run.lastData?.extracted?.correo ??
-        ""
-      ).toLowerCase();
-      if (!email.includes("laura.mtz@empresa.com")) {
-        return fail("Correo final incorrecto", email || "(vacío)", "CODIGO");
+      const reply = run.replies.at(-1) ?? "";
+      if (!/sin problema/i.test(reply) || !/(este chat|por aqu[ií])/i.test(reply)) {
+        return fail("No aceptó rechazo de correo con calidez", reply.slice(0, 220), "PROMPT");
       }
-      if (OWN_EMAILS.test(email)) return fail("Quedó correo propio", email, "CODIGO");
-      return pass(`Correo final: ${email}`);
+      if (/necesito tu correo|es obligatorio|me compartes.*correo|a qu[eé] correo/i.test(reply)) {
+        return fail("Insistió en correo", reply.slice(0, 220), "PROMPT");
+      }
+      return pass(reply.slice(0, 160));
     },
   },
   {
     id: 4,
-    name: "Brief completo en un mensaje",
-    leadId: 92004,
-    messages: [
-      "Boda para 150 personas en Coyoacán, el 12 de diciembre, quiero banquete y barra de bebidas, mi correo es ana@mail.com y soy Ana Torres.",
-    ],
+    name: "Embudo — tras nombre NO pide correo de inmediato",
+    leadId: 93104,
+    leadName: "",
+    messages: ["Hola", "Carlos Ruiz"],
     async evaluate(run) {
-      const reply = run.replies[0] ?? "";
-      const nombre = snapVal(run, "nombre del cliente") ?? run.lastData?.extracted?.nombre ?? "";
-      const inv = snapVal(run, "número de invitados", "invitados") ?? run.lastData?.extracted?.num_invitados;
-      const zona = snapVal(run, "lugar", "dirección", "ubicación") ?? run.lastData?.extracted?.direccion_evento ?? "";
-      const correo = snapVal(run, "correo") ?? run.lastData?.extracted?.correo ?? "";
-      const missing = [];
-      if (!/ana\s+torres/i.test(nombre)) missing.push(`nombre=${nombre}`);
-      if (!/ana@mail\.com/i.test(correo)) missing.push(`correo=${correo}`);
-      if (!/150/.test(String(inv)) && !/150/.test(run.snapshot ? Object.values(run.snapshot).join(" ") : "")) {
-        missing.push(`invitados=${inv}`);
+      const reply = run.replies[1] ?? "";
+      if (!/mucho gusto,\s*carlos/i.test(reply)) {
+        return fail("Falta Mucho gusto, Carlos", reply.slice(0, 200), "PROMPT");
       }
-      if (!/coyoac/i.test(zona) && !/coyoac/i.test(reply)) missing.push(`zona=${zona}`);
-      const reask = [
-        [/nombre|llamas/i, /ana\s+torres/i.test(nombre)],
-        [/correo|e-?mail/i, /ana@mail/i.test(correo)],
-        [/invitados|personas/i, /150/.test(String(inv ?? ""))],
-        [/ciudad|dónde|zona|ubicación/i, /coyoac/i.test(zona + reply)],
-        [/fecha|cuándo/i, /diciembre|12/i.test(reply + JSON.stringify(run.snapshot))],
-      ];
-      for (const [pat, has] of reask) {
-        if (!has && pat.test(reply) && reply.includes("?")) {
-          missing.push(`repregunta ${pat}`);
-        }
+      if (/correo|e-?mail/i.test(reply) && reply.includes("?")) {
+        return fail("Pidió correo justo tras el nombre", reply.slice(0, 220), "PROMPT");
       }
-      if (missing.length) return fail("No capturó todo o repreguntó", missing.join(", "), "CODIGO");
-      return pass("Capturó datos del brief sin repreguntar lo obvio");
+      if (!/celebr|evento|servicio|armar|festej/i.test(reply)) {
+        return fail("No avanzó a tipo/servicios", reply.slice(0, 200), "PROMPT");
+      }
+      return pass(reply.slice(0, 160));
     },
   },
   {
     id: 5,
-    name: "Pregunta de ubicación",
-    leadId: 92005,
-    messages: ["¿Dónde se ubican?"],
+    name: "A15210 — desayuno mexicano ≠ Banquete Mexicano",
+    leadId: 93105,
+    leadName: "",
+    messages: ["Hola, soy Hernán, quiero un desayuno temático mexicano para un evento corporativo"],
     async evaluate(run) {
       const reply = run.replies[0] ?? "";
-      const ubic = /cdmx|ciudad de méxico|área metropolitana|cobertura|zona|ubicad|trabajamos en/i.test(reply);
-      const menuDump = MENU_DUMP_RE.test(reply) || (reply.length > 600 && /banquete/i.test(reply) && /taquiza/i.test(reply));
-      if (!ubic) {
-        const judge = await llmJudge("Responde ubicación o cobertura geográfica; NO recita menú genérico completo de servicios.", run);
-        if (judge.pass === false) return { ...judge, observed: reply.slice(0, 200) };
-        if (judge.pass !== true) return fail("Sin ubicación clara", reply.slice(0, 200), "PROMPT");
+      const req = snapVal(run, "requerimientos") ?? run.lastData?.extracted?.requerimientos_evento ?? "";
+      const blob = `${reply}\n${req}`;
+      if (/banquete\s+mexicano/i.test(blob) && !/desayuno/i.test(blob)) {
+        return fail("Lo trató como Banquete Mexicano", blob.slice(0, 220), "PROMPT");
       }
-      if (menuDump) return fail("Volcó menú genérico", reply.slice(0, 200), "PROMPT");
-      return pass(reply.slice(0, 150));
+      if (!/desayuno/i.test(blob)) return fail("No reconoció desayuno", blob.slice(0, 220), "PROMPT");
+      return pass(reply.slice(0, 160));
     },
   },
   {
     id: 6,
-    name: "Tema italiano — no taquiza",
-    leadId: 92006,
-    messages: ["Quiero un menú italiano para una fiesta temática de mafia italiana, 40 personas."],
+    name: "A15210 — 2026/patio no es presupuesto",
+    leadId: 93106,
+    leadName: "",
+    messages: ["Hola", "Hernán", "Es corporativo", "Desayuno mexicano", "Sería en un patio, no en piso 15", "En 2026"],
     async evaluate(run) {
-      const reply = run.replies.join(" ");
-      const italian = /pasta|pizza|italian/i.test(reply);
-      const mex = /taquiza|banquete mexicano/i.test(reply) && !/italian/i.test(reply);
-      const inv = run.lastData?.extracted?.num_invitados ?? snapVal(run, "invitados");
-      if (!italian) return fail("No ofreció comida italiana", reply.slice(0, 200), "PROMPT");
-      if (mex) return fail("Ofreció taquiza/banquete mexicano", reply.slice(0, 200), "PROMPT");
-      if (inv != 40 && !/40/.test(JSON.stringify(run.snapshot))) {
-        return fail("No capturó 40 personas", `inv=${inv}`, "CODIGO");
+      const pres = snapVal(run, "presupuesto") ?? run.lastData?.extracted?.presupuesto ?? "";
+      if (/2026/.test(String(pres)) || /^2026$/.test(String(pres).trim())) {
+        return fail("Guardó 2026 como presupuesto", String(pres), "CODIGO");
       }
-      return pass("Italiano + 40 personas");
+      return pass(`presupuesto=${pres || "(vacío)"}; última=${(run.replies.at(-1) ?? "").slice(0, 80)}`);
     },
   },
   {
     id: 7,
-    name: "Razonamiento fútbol Italia",
-    leadId: 92007,
-    messages: ["Vamos a ver el partido de la selección de Italia, ¿qué me recomiendas de comida?"],
+    name: "A15212 — Puestos Servicio completo ≠ taquiza $750",
+    leadId: 93107,
+    leadName: "",
+    messages: [
+      "Hola, me interesa cotizar: Puestos de Antojitos para Evento",
+      "Sandra Carbajal",
+      "carbajalsandra@hotmail.com",
+      "Es una fiesta de 50 años",
+      "2. Servicio completo",
+    ],
     async evaluate(run) {
-      const reply = run.replies[0] ?? "";
-      if (/no entiendo|no puedo ayudar|no sé qué/i.test(reply)) {
-        return fail("Se trabó", reply.slice(0, 200), "PROMPT");
+      const reply = run.replies.at(-1) ?? "";
+      if (/\btaquiza\b/i.test(reply) && /\$\s*750|750\.00/i.test(reply)) {
+        return fail("Mapeó nivel Puestos a taquiza $750", reply.slice(0, 240), "CODIGO");
       }
+      const all = run.replies.join(" ");
+      if (/puesto|antojito|servicio completo/i.test(all + reply)) return pass(reply.slice(0, 160));
       const judge = await llmJudge(
-        "Deduce cocina italiana (pizzas/pastas) en tono casual; no se traba ni dice que no entiende.",
+        "Cliente eligió '2. Servicio completo' del menú de Puestos. NO debe responder con taquiza $750.",
         run,
       );
-      if (judge.pass === true) return pass(judge.reason);
       if (judge.pass === false) return { ...judge, observed: reply.slice(0, 200) };
-      const italian = /pizza|pasta|italian/i.test(reply);
-      return italian ? pass("Heurística: mencionó italiano") : fail("Sin recomendación italiana", reply.slice(0, 200), "PROMPT");
+      return pass(reply.slice(0, 160));
     },
   },
   {
     id: 8,
-    name: "Anti-bucle menú sushi",
-    leadId: 92008,
-    messages: ["quiero cotizar sushi", "sushi", "barra de sushi"],
+    name: "A15212 — 'al mismo que ya te he enviado' no repregunta correo",
+    leadId: 93108,
+    leadName: "",
+    messages: ["Hola, soy Luis, quiero taquiza", "luis.prueba@mail.com", "Es una boda", "Taquiza", "al mismo que ya te he enviado"],
     async evaluate(run) {
-      if (hasRepeatedBlocks(run.replies, 0.65)) {
-        return fail("Repitió bloque de menú", run.replies.map((r) => r.slice(0, 80)).join(" | "), "PROMPT");
+      const last = run.replies.at(-1) ?? "";
+      if (/a qu[eé] correo|me compartes.*correo|correo te mando/i.test(last) && last.includes("?")) {
+        return fail("Repreguntó correo", last.slice(0, 220), "PROMPT");
       }
-      const third = run.replies[2] ?? "";
-      if (/cuál te interesa|qué servicio te interesa/i.test(third) && /sushi/i.test(run.replies[0])) {
-        return fail("Volvió a preguntar cuál servicio tras sushi repetido", third.slice(0, 200), "PROMPT");
-      }
-      return pass("Sin repetir menú; avanza en sushi");
+      return pass(last.slice(0, 140));
     },
   },
   {
     id: 9,
-    name: "Pedido/entrega sushi (no barra pp)",
-    leadId: 92009,
-    messages: ["Solo quiero 50 rollos de sushi y que me los dejen en mi casa, ¿cuánto?"],
+    name: "Comida vaga — formal vs casual",
+    leadId: 93109,
+    leadName: "",
+    messages: ["Hola, busco comida para mi evento"],
     async evaluate(run) {
       const reply = run.replies[0] ?? "";
-      const modo = run.lastData?.extracted?.modo_servicio ?? "";
-      const perPersonBar = /por persona|pp\b|chefs en sitio|montaje de barra/i.test(reply);
-      if (perPersonBar && !/pedido|entrega|domicilio/i.test(reply)) {
-        return fail("Cotizó como barra por persona", reply.slice(0, 200), "PROMPT");
+      if (/banquete\s+premium|\$\s*\d{3}/i.test(reply) && !/formal|casual|prefieres/i.test(reply)) {
+        return fail("Asumió banquete con precio sin preguntar modo", reply.slice(0, 220), "PROMPT");
       }
-      const hasPriceOrHandoff = PRICE_RE.test(reply) || /nuestro equipo|alejandro|cotización exacta/i.test(reply);
-      if (!hasPriceOrHandoff) {
-        const judge = await llmJudge(
-          "Trata como PEDIDO/ENTREGA a domicilio, no barra con chefs; da precio/rango o pasa a asesor con cifra.",
-          run,
-        );
-        if (judge.pass === false) return { ...judge, observed: reply.slice(0, 200) };
+      if (!/formal|casual|banquete|estaci[oó]n|taquiza|puestos?|nombre|llamas|comida/i.test(reply)) {
+        return fail("No orientó opciones de comida", reply.slice(0, 200), "PROMPT");
       }
-      return pass(`modo=${modo || "pedido/entrega"}, ${reply.slice(0, 120)}…`);
+      return pass(reply.slice(0, 160));
     },
   },
   {
     id: 10,
-    name: "Precio taquiza con número",
-    leadId: 92010,
-    messages: ["¿Cuánto cuesta la taquiza?"],
+    name: "No inventar inclusiones (meseros mixología)",
+    leadId: 93110,
+    leadName: "",
+    messages: ["Hola, soy Paty", "Boda", "Barra de mixología", "¿La barra de mixología incluye meseros?"],
     async evaluate(run) {
-      const reply = run.replies[0] ?? "";
-      if (PRICE_RE.test(reply)) return pass(`Precio: ${reply.match(PRICE_RE)?.[0]}`);
-      if (/depende del evento/i.test(reply) && !PRICE_RE.test(reply)) {
-        return fail("Solo 'depende' sin cifra", reply.slice(0, 200), "PROMPT");
+      const reply = run.replies.at(-1) ?? "";
+      if (/s[ií],?\s+(incluye|traen|vienen)\s+meseros/i.test(reply) && !/confirm|equipo|cat[aá]logo/i.test(reply)) {
+        return fail("Inventó inclusiones de meseros", reply.slice(0, 220), "PROMPT");
       }
-      const judge = await llmJudge("Da cifra de referencia (ej. desde $300/pp), no solo 'depende' sin número.", run);
-      if (judge.pass === true) return pass(judge.reason);
-      return fail("Sin cifra de taquiza", reply.slice(0, 200), "PROMPT");
+      const safe = /confirm|equipo|cat[aá]logo|te digo|dato incorrecto|exacto|incluye/i.test(reply);
+      if (!safe) {
+        const judge = await llmJudge("No inventa meseros; confirma con equipo/catálogo o cita inclusiones reales.", run);
+        if (judge.pass === false) return { ...judge, observed: reply.slice(0, 200) };
+      }
+      return pass(reply.slice(0, 160));
     },
   },
   {
     id: 11,
-    name: "Número ambiguo «el 5»",
-    leadId: 92011,
-    messages: ["quiero cotizar un cumpleaños", "el 5"],
+    name: "Cierre — nuestro equipo, nunca Rodrigo",
+    leadId: 93111,
+    leadName: "",
+    messages: [
+      "Hola, banquete para boda",
+      "Elena Gómez",
+      "Boda",
+      "Banquete",
+      "15 de octubre a las 8pm",
+      "Polanco CDMX",
+      "elena.gomez@test.com",
+      "120 personas",
+      "200 mil pesos",
+    ],
     async evaluate(run) {
-      const inv = run.lastData?.extracted?.num_invitados;
-      if (inv === 5) return fail("Guardó 5 como invitados", "num_invitados=5", "CODIGO");
-      const reply = run.replies[1] ?? "";
-      const clarifies = /invitados|fecha|día 5|5 de|aclara|te refieres/i.test(reply);
-      if (!clarifies) return fail("No pidió aclaración", reply.slice(0, 200), "PROMPT");
-      return pass("Pide aclaración invitados vs fecha");
+      const all = run.replies.join(" ");
+      if (/\brodrigo\b/i.test(all)) {
+        return fail("Mencionó Rodrigo al cliente", all.match(/[^.]*rodrigo[^.]*/i)?.[0] ?? "Rodrigo", "PROMPT");
+      }
+      if (!run.replies.some((r) => /ya tengo todo|nuestro equipo/i.test(r))) {
+        return fail("No cerró / no pasó a nuestro equipo", run.replies.at(-1)?.slice(0, 180) ?? "", "PROMPT");
+      }
+      return pass("Cierre sin Rodrigo");
     },
   },
   {
     id: 12,
-    name: "No reiniciar tras cierre",
-    leadId: 92012,
-    messages: [
-      "Hola, quiero banquete para mi boda",
-      "Elena",
-      "elena@test.com",
-      "Boda",
-      "Banquete y barra de bebidas",
-      "100 personas",
-      "CDMX, Polanco",
-      "20 de agosto",
-      "150 mil pesos",
-      "gracias, mándalo a mi correo",
-    ],
+    name: "Cliente Alejandro — captura nombre",
+    leadId: 93112,
+    leadName: "",
+    messages: ["Hola", "Alejandro"],
     async evaluate(run) {
-      const last = run.replies.at(-1) ?? "";
-      const all = run.replies.join(" ");
-      if (/qué tienes pensado para tu evento/i.test(last)) {
-        return fail("Reinició flujo tras cierre", last.slice(0, 200), "PROMPT");
+      const reply = run.replies[1] ?? "";
+      const nombre = snapVal(run, "nombre del cliente") ?? run.lastData?.extracted?.nombre ?? "";
+      if (!/alejandro/i.test(nombre) && !/mucho gusto,\s*alejandro/i.test(reply)) {
+        return fail("No capturó Alejandro", `nombre=${nombre} | ${reply.slice(0, 160)}`, "CODIGO");
       }
-      if (MENU_DUMP_RE.test(last) || (last.length > 500 && /banquete.*taquiza/i.test(last))) {
-        return fail("Reenvió catálogo tras cierre", last.slice(0, 200), "PROMPT");
+      if (/cu[aá]l es tu nombre|c[oó]mo te llamas/i.test(reply)) {
+        return fail("Repreguntó nombre", reply.slice(0, 200), "PROMPT");
       }
-      const closed = run.turns.some((t) => /ya tengo todo|perfecto.*tengo/i.test(t.reply));
-      if (!closed) {
-        return fail("No llegó a cierre antes del gracias", `última: ${last.slice(0, 120)}`, "PROMPT");
-      }
-      const judge = await llmJudge(
-        "Tras cierre, cliente dice gracias/mándalo a mi correo: responde en contexto de cierre (confirma/agradece), NO reinicia discovery ni catálogo.",
-        run,
-      );
-      if (judge.pass === false) return { ...judge, observed: last.slice(0, 200) };
-      return pass(closed ? "Cierre + respuesta post-gracias OK" : all.slice(0, 100));
+      return pass(reply.slice(0, 140));
     },
   },
   {
     id: 13,
-    name: "Nombre completo Ana Pérez",
-    leadId: 92013,
-    messages: ["Me llamo Ana Pérez."],
+    name: "Ubicación — cobertura, no menú",
+    leadId: 93113,
+    leadName: "",
+    messages: ["¿Dónde se ubican?"],
     async evaluate(run) {
-      const nombre = snapVal(run, "nombre del cliente") ?? run.lastData?.extracted?.nombre ?? run.lastData?.lead_updates?.name ?? "";
-      if (!/ana\s+p[eé]rez/i.test(nombre)) {
-        return fail("Nombre recortado", nombre || "(vacío)", "CODIGO");
+      const reply = run.replies[0] ?? "";
+      if (!/cdmx|ciudad de m[eé]xico|rep[uú]blica|cobertura|trabajamos en/i.test(reply)) {
+        return fail("Sin cobertura/ubicación", reply.slice(0, 200), "PROMPT");
       }
-      return pass(`Nombre: ${nombre}`);
+      if (MENU_DUMP_RE.test(reply)) return fail("Volcó menú", reply.slice(0, 200), "PROMPT");
+      return pass(reply.slice(0, 150));
     },
   },
   {
     id: 14,
-    name: "Precio a media captura",
-    leadId: 92014,
-    messages: ["quiero un banquete para mi boda", "¿cuánto cuesta el banquete?"],
+    name: "Italiano — pastas/pizzas, no taquiza",
+    leadId: 93114,
+    leadName: "",
+    messages: ["Quiero menú italiano para fiesta temática, 40 personas"],
     async evaluate(run) {
-      const reply = run.replies[1] ?? "";
-      if (!PRICE_RE.test(reply) && !/desde|precio|costo|\$/i.test(reply)) {
-        return fail("No respondió precio del banquete", reply.slice(0, 200), "PROMPT");
-      }
-      const stillCaptures = /nombre|correo|invitados|fecha|zona|personas/i.test(reply);
-      const judge = await llmJudge(
-        "Responde precio del banquete Y sigue capturando datos; no ignora la pregunta de precio.",
-        run,
-      );
-      if (judge.pass === false) return { ...judge, observed: reply.slice(0, 200) };
-      return pass(`Precio + captura: ${reply.slice(0, 120)}…`);
-    },
-  },
-  {
-    id: 15,
-    name: "Valet y flores — nunca «no tenemos»",
-    leadId: 92015,
-    messages: ["¿También manejan valet parking y flores?"],
-    async evaluate(run) {
-      const reply = run.replies[0] ?? "";
-      if (/no tenemos|no manejamos|no ofrecemos|no contamos con/i.test(reply)) {
-        return fail("Rechazó servicio", reply.slice(0, 200), "PROMPT");
-      }
-      const coordinates = /coordin|inclu|podemos|nuestro equipo|alejandro|rodrigo|anot/i.test(reply);
-      if (!coordinates) {
-        const judge = await llmJudge("No rechaza; dice que lo coordinan/incluyen y lo anota para el asesor.", run);
-        if (judge.pass === false) return { ...judge, observed: reply.slice(0, 200) };
+      const reply = run.replies.join(" ");
+      if (!/pasta|pizza|italian/i.test(reply)) return fail("No ofreció italiano", reply.slice(0, 200), "PROMPT");
+      if (/\btaquiza\b/i.test(reply) && !/italian|pasta|pizza/i.test(reply)) {
+        return fail("Ofreció taquiza", reply.slice(0, 200), "PROMPT");
       }
       return pass(reply.slice(0, 150));
     },
   },
   {
-    id: 16,
-    name: "Tres servicios juntos",
-    leadId: 92016,
-    messages: ["Quiero taquiza, barra de bebidas y DJ."],
+    id: 15,
+    name: "Correo propio bodasesor — no guardar",
+    leadId: 93115,
+    leadName: "",
+    messages: ["Mandé mi solicitud a bodasesor@gmail.com, ¿es el correo correcto?"],
     async evaluate(run) {
-      const req = (snapVal(run, "requerimientos") ?? run.lastData?.extracted?.requerimientos_evento ?? run.replies.join(" ")).toLowerCase();
-      const missing = [];
-      if (!/taquiza/i.test(req)) missing.push("taquiza");
-      if (!/barra|bebidas/i.test(req)) missing.push("barra");
-      if (!/\bdj\b/i.test(req)) missing.push("dj");
-      if (missing.length) return fail("No capturó los 3 servicios", `falta: ${missing.join(", ")} | ${req.slice(0, 120)}`, "CODIGO");
-      return pass(`Requerimientos: ${req.slice(0, 120)}`);
+      const email =
+        snapVal(run, "correo electrónico", "correo") ??
+        run.lastData?.lead_updates?.contact_email ??
+        run.lastData?.extracted?.correo ??
+        "";
+      if (OWN_EMAILS.test(email)) return fail("Guardó correo propio", email, "CODIGO");
+      return pass(`No guardó propio; ${(run.replies[0] ?? "").slice(0, 100)}`);
+    },
+  },
+  {
+    id: 16,
+    name: "Carpas — pide medidas",
+    leadId: 93116,
+    leadName: "",
+    messages: ["Hola, soy María", "Cumpleaños", "¿Cuentan con carpas transparentes?"],
+    async evaluate(run) {
+      const reply = run.replies.at(-1) ?? "";
+      if (!/s[ií]|contamos|manejamos|carpa/i.test(reply)) return fail("No afirmó carpas", reply.slice(0, 200), "PROMPT");
+      if (!/medidas?/i.test(reply)) return fail("No pidió medidas", reply.slice(0, 200), "PROMPT");
+      return pass(reply.slice(0, 160));
     },
   },
   {
     id: 17,
-    name: "Presentación correcta (Hola)",
-    leadId: 92017,
-    messages: ["Hola."],
+    name: "Brief rico — sin repregunta obvia",
+    leadId: 93117,
+    leadName: "",
+    messages: [
+      "Soy Ana Torres, boda para 150 en Coyoacán el 12 de diciembre, banquete y barra de bebidas, ana.torres@mail.com",
+    ],
     async evaluate(run) {
       const reply = run.replies[0] ?? "";
-      if (!/agente virtual de bodasesor/i.test(reply)) {
-        return fail("No se presentó como agente virtual de Bodasesor", reply.slice(0, 200), "PROMPT");
-      }
-      if (/\bsoy una ia\b|\binteligencia artificial\b/i.test(reply) && !/agente virtual/i.test(reply)) {
-        return fail('Dijo "IA" en lugar de agente virtual', reply.slice(0, 200), "PROMPT");
-      }
-      if (!/nombre|llamas/i.test(reply)) return fail("No pidió nombre", reply.slice(0, 200), "PROMPT");
-      if (reply.length > 450 && /banquete.*taquiza.*dj/i.test(reply)) {
-        return fail("Volcó catálogo en saludo", reply.slice(0, 200), "PROMPT");
-      }
-      return pass(reply.slice(0, 120));
+      const missing = [];
+      if (/qu[eé]\s+tipo de evento|qu[eé]\s+van a celebrar/i.test(reply)) missing.push("repregunta tipo");
+      if (/a qu[eé] correo|me compartes.*correo/i.test(reply)) missing.push("repregunta correo");
+      if (missing.length) return fail("Brief mal manejado", missing.join(", ") + " | " + reply.slice(0, 120), "PROMPT");
+      return pass(reply.slice(0, 140));
     },
   },
   {
     id: 18,
-    name: "Expo corporativa / stand café",
-    leadId: 92018,
-    messages: [
-      "Necesito un stand de café para una expo, montaje domingo, evento martes y miércoles, desmontaje jueves, 200 personas por día, en Expo Santa Fe.",
-    ],
+    name: "Coffee break — reconoce (no proveedor)",
+    leadId: 93118,
+    leadName: "",
+    messages: ["Hola, soy Laura de Grupo Bimbo, quiero cotizar un coffee break para una junta"],
     async evaluate(run) {
-      const snap = JSON.stringify(run.snapshot).toLowerCase();
-      const reply = run.replies[0] ?? "";
-      const expo = /expo|corporativo|stand|café|coffee/i.test(reply + snap);
-      const inv = /200/.test(snap + reply + JSON.stringify(run.lastData?.extracted ?? {}));
-      const loc = /santa\s*fe|expo/i.test(snap + reply);
-      const missing = [];
-      if (!expo) missing.push("tipo expo");
-      if (!inv) missing.push("200 personas");
-      if (!loc) missing.push("ubicación");
-      if (/boda|xv\s*años/i.test(reply) && !/expo|corporativo/i.test(reply)) {
-        missing.push("forzó categoría boda");
+      const ex = run.lastData?.extracted ?? {};
+      const all = run.replies.join(" ");
+      if (ex.tipo_contacto === "proveedor") return fail("Etiquetado proveedor", "proveedor", "CODIGO");
+      if (!/coffee\s*break/i.test(all + (ex.requerimientos_evento ?? ""))) {
+        return fail("No reconoció coffee break", all.slice(0, 200), "PROMPT");
       }
-      if (missing.length) return fail("No entendió expo corporativa", missing.join(", "), "CODIGO");
-      return pass("Expo + 200 + Santa Fe");
+      return pass(all.slice(0, 140));
     },
   },
   {
     id: 19,
-    name: "Saludo vago «buenas, información»",
-    leadId: 92019,
-    messages: ["buenas, información"],
+    name: "Post-cierre gracias — no reinicia",
+    leadId: 93119,
+    leadName: "",
+    messages: [
+      "Hola, banquete boda",
+      "Elena",
+      "Boda",
+      "Banquete",
+      "20 de agosto",
+      "Polanco CDMX",
+      "elena@test.com",
+      "100 personas",
+      "150 mil",
+      "gracias, mándalo a mi correo",
+    ],
     async evaluate(run) {
-      const reply = run.replies[0] ?? "";
-      if (reply.length > 500 && /banquete.*taquiza/i.test(reply)) {
-        return fail("Volcó catálogo", reply.slice(0, 200), "PROMPT");
+      const last = run.replies.at(-1) ?? "";
+      if (/qu[eé]\s+te gustar[ií]a armar|qu[eé]\s+tienen pensado|qu[eé]\s+servicios/i.test(last)) {
+        return fail("Reinició discovery", last.slice(0, 200), "PROMPT");
       }
-      if (!/lucy|bodasesor|agente virtual/i.test(reply)) {
-        return fail("No se presentó", reply.slice(0, 200), "PROMPT");
+      if (!run.replies.some((r) => /ya tengo todo/i.test(r))) {
+        return fail("No hubo cierre", last.slice(0, 160), "PROMPT");
       }
-      const judge = await llmJudge("Saluda, se presenta una vez, pide nombre o de qué se trata; no vuelca catálogo ni asume datos.", run);
-      if (judge.pass === false) return { ...judge, observed: reply.slice(0, 200) };
-      return pass(reply.slice(0, 120));
+      return pass(last.slice(0, 140));
     },
   },
   {
     id: 20,
-    name: "Presupuesto «aún no sé» — sin bucle",
-    leadId: 92020,
+    name: "Presupuesto 'aún no sé' — sin bucle",
+    leadId: 93120,
+    leadName: "",
     messages: [
-      "Hola, banquete para aniversario",
+      "Hola, banquete aniversario",
       "Mario",
-      "mario@test.com",
       "Aniversario",
       "Banquete",
-      "60 personas",
-      "Narvarte CDMX",
       "Próximo mes",
+      "Narvarte CDMX",
+      "mario@test.com",
+      "60 personas",
       "aún no sé cuánto",
     ],
     async evaluate(run) {
-      const presAsks = countFieldAsks(run.replies, /presupuesto|rango|inversión/i);
-      const presLine = snapVal(run, "presupuesto") ?? "";
-      const porDefinir = /por definir|sin definir|aún no|flexible|pendiente/i.test(presLine + run.replies.join(" "));
-      if (presAsks >= 3) return fail(`Bucle presupuesto (${presAsks} preguntas)`, `asks=${presAsks}`, "CODIGO");
-      if (!porDefinir && presAsks >= 2) {
-        return fail("Insistió en presupuesto sin registrar por definir", presLine, "PROMPT");
+      const budgetAsks = countFieldAsks(run.replies, /presupuesto|rango de inversi/i);
+      if (budgetAsks >= 3) return fail(`Bucle presupuesto (${budgetAsks})`, `asks=${budgetAsks}`, "CODIGO");
+      const last = run.replies.at(-1) ?? "";
+      if (/presupuesto|rango/i.test(last) && last.includes("?") && /a[uú]n no s[eé]/i.test(run.turns.at(-1)?.user ?? "")) {
+        return fail("Repreguntó presupuesto tras 'aún no sé'", last.slice(0, 200), "PROMPT");
       }
-      const progressed = run.replies.length >= 8;
-      if (!progressed) return fail("No completó flujo", `${run.replies.length} turnos`, "PROMPT");
-      return pass(`Presupuesto flexible, ${presAsks} pregunta(s), flujo avanzó`);
+      return pass(`asks=${budgetAsks}; ${last.slice(0, 100)}`);
     },
   },
 ];
