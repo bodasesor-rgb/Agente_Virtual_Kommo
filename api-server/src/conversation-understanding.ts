@@ -91,7 +91,8 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   // Tiempos de comida corporativos (briefs con varios servicios).
   ["Desayuno", /\bdesayunos?\b/i],
   ["Brunch", /\bbrunch\b/i],
-  ["Snack", /\bsnacks?\b/i],
+  // A15212: typo frecuente "snaks".
+  ["Snack", /\bsnacks?\b|\bsnaks?\b/i],
   ["Comida", /\bcomidas?\b/i],
   ["Cena", /\bcenas?\b/i],
   ["Menú staff", /\bmen[uú]\s+(para\s+)?staff\b/iu],
@@ -395,9 +396,81 @@ export function lastAssistantOfferedNumberedPackages(
   );
 }
 
+/** Fold ligero para comparar etiquetas de nivel. */
+function foldNivelLabel(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /**
- * Extrae nivel de catálogo. Soporta Básica/Tradicional/Premium y
- * paquetes numerados "Coffee Break 5" (A14949).
+ * Parsea menú numerado del último mensaje de Lucy
+ * ("1. *Por pieza* — $38" / "2. *Servicio completo* — $300").
+ */
+export function parseNumberedNivelesFromAssistant(
+  lastAssistantText?: string | null
+): Array<{ index: number; label: string }> {
+  const last = lastAssistantText ?? "";
+  if (!last.trim()) return [];
+  const out: Array<{ index: number; label: string }> = [];
+  const re = /^\s*(\d+)\.\s*\*?([^*\n]+?)\*?(?:\s*[—\-–:].*)?$/gim;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(last)) !== null) {
+    const index = parseInt(m[1]!, 10);
+    let label = (m[2] ?? "").replace(/\*+/g, "").trim();
+    label = label.replace(/\s+[—\-–].*$/, "").trim();
+    if (index >= 1 && index <= 9 && label.length >= 2 && label.length <= 80) {
+      out.push({ index, label });
+    }
+  }
+  return out;
+}
+
+/**
+ * A15212: mapea "2" / "2. Servicio completo" / "opción 2" / "Servicio completo"
+ * al label exacto del menú numerado que Lucy acaba de ofrecer.
+ */
+export function extractNumberedNivelFromLastAssistant(
+  text: string | null | undefined,
+  lastAssistantText?: string | null
+): string | null {
+  const niveles = parseNumberedNivelesFromAssistant(lastAssistantText);
+  if (!niveles.length) return null;
+  const raw = text?.trim() ?? "";
+  if (!raw) return null;
+
+  const bare =
+    raw.match(/^(?:el\s+|la\s+|opci[oó]n(?:es)?\s+|paquete\s+|nivel\s+)?(\d+)\s*[.)]?$/i) ||
+    raw.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*(\d+)\b/i);
+  if (bare) {
+    const hit = niveles.find((x) => x.index === parseInt(bare[1]!, 10));
+    if (hit) return hit.label;
+  }
+
+  // "2. Servicio completo" / "2) Servicio completo" / "2 Servicio completo"
+  const numbered = raw.match(/^\s*(\d+)\s*[.)]?\s+(.+)$/i);
+  if (numbered) {
+    const hit = niveles.find((x) => x.index === parseInt(numbered[1]!, 10));
+    if (hit) return hit.label;
+  }
+
+  const tf = foldNivelLabel(raw);
+  for (const n of niveles) {
+    const lf = foldNivelLabel(n.label);
+    if (!lf) continue;
+    if (tf === lf || tf.includes(lf) || lf.includes(tf)) return n.label;
+  }
+  return null;
+}
+
+/**
+ * Extrae nivel de catálogo. Soporta Básica/Tradicional/Premium,
+ * paquetes numerados "Coffee Break 5" (A14949) y menús Sheet arbitrarios
+ * ("Por pieza" / "Servicio completo") vía el último listado de Lucy (A15212).
  */
 export function extractCatalogNivelFromText(
   text: string | null | undefined,
@@ -405,6 +478,11 @@ export function extractCatalogNivelFromText(
 ): string | null {
   const t = text?.trim().toLowerCase() ?? "";
   if (!t) return null;
+
+  // A15212: PRIORIDAD — nivel del menú numerado que Lucy acaba de ofrecer.
+  // Evita que "2" / "2. Servicio completo" se mapee a "tradicional" (taquiza $750).
+  const fromMenu = extractNumberedNivelFromLastAssistant(text, lastAssistantText);
+  if (fromMenu) return fromMenu;
 
   // A14949 / A15168: "Me interesaría el coffe break 5" / "opción 1" / "el 5" tras listar CB 1–5.
   const coffeeNamed = t.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
@@ -422,6 +500,13 @@ export function extractCatalogNivelFromText(
     t.match(/^(1|2|3|4)$/);
   if (!m) return null;
   const raw = (m[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  // A15212: bare 1/2/3 → básica/tradicional/premium SOLO si Lucy listó esos nombres.
+  if (/^(1|2|3|4)$/.test(raw)) {
+    const last = lastAssistantText ?? "";
+    const numbered = parseNumberedNivelesFromAssistant(last);
+    const classicInMenu = /b[aá]sic|tradicional|premium|solo\s*alimentos/i.test(last);
+    if (numbered.length && !classicInMenu) return null;
+  }
   if (raw === "1" || raw.startsWith("basic")) return "basica";
   if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
   if (raw === "3" || raw.startsWith("premium")) return "premium";
@@ -444,6 +529,8 @@ export function isCatalogLevelSelection(
     // Aunque no haya "¿cuál nivel?", "coffee break 5" explícito cuenta (A14949).
     return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t);
   }
+  // A15212: "2. Servicio completo" / label del menú numerado.
+  if (extractNumberedNivelFromLastAssistant(text, lastAssistantText)) return true;
   // Mensaje solo nivel, o compuesto con correo/servicio (A14934 / A14949).
   if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t)) return true;
   if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
@@ -607,7 +694,7 @@ function hasSpecificFoodService(text: string): boolean {
   ) {
     return false;
   }
-  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental))\b/iu.test(
+  return /\b(banquete(?!\s+o\s+catering)|taquiza|coffee\s*break|barra\s+de\s+(caf[eé](?!\p{L})|pizzas?|alimentos|sushi|bebidas?)|sushi|poke(\s*bowl)?|mesa\s+de\s+(dulces|quesos|postres)|canap[eé]s?(?!\p{L})|bocadillos?|parrillada|brunch\s+buf[eé](?!\p{L})|desayuno\s+(?:buffet|ejecutivo|continental)|puestos?\s+de\s+comida|antojitos?|quesadillas?)\b/iu.test(
     text
   );
 }
@@ -992,11 +1079,18 @@ export function clientMentionsCatering(message?: string): boolean {
 export function clientAsksServiceInfo(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  if (!isServiceRelatedMessage(message)) return false;
+  // A15212: "qué snaks/bocadillos tienen" aunque falle el match de servicio por typo.
+  const asksWhatTypes =
+    /\bqu[eé]\s+(tipo\s+de\s+)?(snacks?|snaks?|bocadillos?|antojitos?|puestos?)\b/i.test(t) ||
+    /\b(snacks?|snaks?|bocadillos?|antojitos?).{0,40}\b(tienen|tienes|manejan|ofrecen)\b/i.test(t) ||
+    /\b(tienen|tienes|manejan|ofrecen).{0,40}\b(snacks?|snaks?|bocadillos?|antojitos?)\b/i.test(t);
+  if (!isServiceRelatedMessage(message) && !asksWhatTypes) return false;
   return (
+    asksWhatTypes ||
     /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t) ||
     /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t) ||
     /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t) ||
+    /\bnecesito\s+saber\b/i.test(t) ||
     /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t) ||
     // "¿Cuentan con carpas transparentes?" / "¿tienen pista?" / "¿tienes modelos?"
     /\b(cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t) ||
@@ -1917,7 +2011,12 @@ export function clientWantsFoodOnlyQuote(text: string | null | undefined): boole
     /\bsolo\s+(la\s+)?comida\b/i.test(t) ||
     /\bnada\s+m[aá]s\s+(que\s+)?(la\s+)?comida\b/i.test(t) ||
     /\bsolo\s+(quiero|necesito)\s+(la\s+)?comida\b/i.test(t) ||
-    /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t)
+    /\bcoticen?\s+solo\s+(la\s+)?comida\b/i.test(t) ||
+    // A15212: "Solo dame cotización de los antojitos".
+    /\bsolo\s+(dame\s+)?(la\s+|una\s+)?cotizaci[oó]n\s+(de\s+)?(los\s+)?(antojitos?|puestos?)\b/i.test(
+      t
+    ) ||
+    /\bsolo\s+(los\s+)?(antojitos?|puestos?(\s+de\s+comida)?)\b/i.test(t)
   );
 }
 
@@ -2074,9 +2173,11 @@ export function preferPrimaryCatalogService(services: string[]): string | null {
     const score = (s: string) => {
       let n = s.length;
       if (/^Barra de /i.test(s)) n += 40;
+      // A15212: Puestos/antojitos gana sobre Comida/Bocadillos genéricos.
+      if (/Puestos\s+de\s+Comida/i.test(s)) n += 45;
       if (/Banquete\s+(Formal|Mexicano|Kosher|Navide)/i.test(s)) n += 30;
       if (/Parrillada|Paella|Coffee|Cupcakes|Mesa de/i.test(s)) n += 20;
-      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada)$/i.test(s)) n -= 25;
+      if (/^(Pastas|Pizzas|Crepas|Comida|Taquiza|Parrillada|Bocadillos?|Snack)$/i.test(s)) n -= 25;
       return n;
     };
     return score(b) - score(a);
@@ -2169,16 +2270,22 @@ export function isReferentialPriorAnswer(message?: string | null): boolean {
     .toLowerCase()
     .replace(/[¿?¡!.,;:]+/g, "")
     .trim();
-  if (!n || n.length > 80) return false;
+  if (!n || n.length > 120) return false;
   return (
     /^(a\s+)?(este|ese|esta|esa)(\s+(mismo|misma|correo|mail|email|dato))?$/.test(n) ||
     /^(el|la)\s+(mismo|misma)(\s+(correo|mail|email|dato))?$/.test(n) ||
     /^(el|la)\s+de\s+(antes|arriba|hace\s+rato|hace\s+un\s+rato)$/.test(n) ||
     /^(ese|este)\s+(que\s+)?(ya\s+)?(te\s+)?(di|mande|envie|pase)$/.test(n) ||
     /^(el\s+)?(mismo\s+)?(correo|mail|email)(\s+(de\s+antes|anterior))?$/.test(n) ||
-    /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase)(\s+(ese|el|antes))?$/.test(n) ||
+    /^ya\s+(te\s+)?(lo\s+)?(di|mande|envie|pase|he\s+enviado|he\s+mandado)(\s+(ese|el|antes))?$/.test(
+      n
+    ) ||
     /^(ese|este)\s+mismo$/.test(n) ||
-    /^al\s+(mismo|que\s+ya\s+(te\s+)?di)$/.test(n)
+    // A15212: "Al mismo que ya te he enviado" / "el mismo que ya te mandé".
+    /^al\s+(mismo|que\s+ya\s+(te\s+)?(he\s+)?(di|mande|envie|enviado|mandado))$/.test(n) ||
+    /^al\s+mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n) ||
+    /^(el\s+)?mismo\s+que\s+ya\s+(te\s+)?(he\s+)?(enviado|mandado|dado|di|mande|envie)\b/.test(n) ||
+    /\bya\s+te\s+(lo\s+)?he\s+(enviado|mandado|dado)\b/.test(n)
   );
 }
 
@@ -2192,7 +2299,9 @@ export function clientComplainsAboutRepeat(message?: string | null): boolean {
   return (
     /\bya\s+me\s+(hab[ií]as|habias|hab[ií]a|habia|hab[eé]is)?\s*preguntad/i.test(t) ||
     /\bya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t) ||
-    /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií])\b/i.test(t) ||
+    /\bya\s+te\s+(lo\s+)?(di|dije|mand[eé]|envi[eé]|pase|compart[ií]|he\s+enviado|he\s+mandado|he\s+dado)\b/i.test(
+      t
+    ) ||
     /\bya\s+(te\s+)?(lo\s+)?(dije|mencion[eé]|coment[eé])\b/i.test(t) ||
     /\beso\s+ya\s+(me\s+)?(lo\s+)?preguntaste\b/i.test(t) ||
     /\b(me\s+)?est[aá]s\s+repitiendo\b/i.test(t) ||
