@@ -108220,7 +108220,9 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Banquete Kosher Buffet", /\bkosher\s+buffet\b|\bbuffet\s+kosher\b/i],
   ["Banquete Kosher", /\bkosher\b/i],
   ["Banquete Navide\xF1o", /\bnavide[nñ]o\b/i],
-  ["Banquete Mexicano", /\b(banquete\s+mexicano|mexicano)\b/i],
+  // A15210: bare "mexicano" en "desayuno temático mexicano" ≠ Banquete Mexicano.
+  // Banquete: "banquete mexicano", "mexicano N tiempos", o "mexicano" suelto (elección de menú).
+  ["Banquete Mexicano", /\bbanquete\s+mexicano\b|\bmexicano\s+\d\s*tiempos?\b|\b\d\s*tiempos?\s+mexicanos?\b/i],
   ["Banquete Formal", /\b(banquete\s+formal|banquete)\b/i],
   // Barras específicas ANTES de genéricas (A14934 Barra Yucateca).
   ["Barra Yucateca", /\bbarra\s+yucateca\b|\byucateca\b/i],
@@ -109236,6 +109238,9 @@ function parseServicesFromText(text2) {
     if (label === "Snack" && (snackIsAntojito || !hasCorporateMealList)) continue;
     if (pattern.test(text2) || pattern.test(lower2)) found.push(label);
   }
+  if (!found.includes("Banquete Mexicano") && /\bmexicano\b/i.test(text2) && !/\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && (/^mexicano[\s.,!]*$/i.test(text2.trim()) || /\b(banquete|formal|tiempos|comida\s+mexicana|men[uú]\s+mexicano)\b/i.test(text2))) {
+    found.push("Banquete Mexicano");
+  }
   if (!found.some((s6) => /barra\s+de\s+bebidas/i.test(s6)) && /\bbebidas?\b/i.test(text2) && /\b(cerveza|whisk[eyy]|tequila|vodka|\bron\b|\bgin\b|licores?|alcohol|open\s*bar)\b/i.test(
     text2
   ) && !/\bbarra\s+de\s+caf[eé]/i.test(text2)) {
@@ -109316,6 +109321,11 @@ function dedupeServiceHierarchy(services, sourceText) {
   if (specificBanquete) {
     const formalIdx = found.indexOf("Banquete Formal");
     if (formalIdx >= 0) found.splice(formalIdx, 1);
+  }
+  if (found.some((s6) => /^Desayuno$/i.test(s6) || /^Brunch$/i.test(s6)) && found.some((s6) => /Banquete\s+Mexicano/i.test(s6)) && /\b(desayuno|brunch|tem[aá]tico)\b/i.test(text2) && !/\bbanquete\b/i.test(text2)) {
+    for (let i5 = found.length - 1; i5 >= 0; i5--) {
+      if (/Banquete\s+Mexicano/i.test(found[i5])) found.splice(i5, 1);
+    }
   }
   if (found.some((s6) => /puestos?\s+de\s+comida/i.test(s6))) {
     for (let i5 = found.length - 1; i5 >= 0; i5--) {
@@ -109711,18 +109721,112 @@ function isUsableDireccionEvento(value) {
   }
   return true;
 }
+function clientCorrectsLocation(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return false;
+  return /\bme\s+equivoqu[eé]/i.test(t3) || /\bno\s+es\s+en\s+(el\s+)?piso\b/i.test(t3) || /\bno\s+es\s+(en\s+)?(la\s+)?(torre|piso|edificio)\b/i.test(t3) || /\b(es\s+en\s+)?otra\s+ubicaci[oó]n\b/i.test(t3) || /\bcambi[oó]\s+(de\s+)?(ubicaci[oó]n|lugar|direcci[oó]n)\b/i.test(t3) || /\bes\s+un\s+patio\b/i.test(t3) || /\bpatio\s+techado\b/i.test(t3);
+}
+function isVenueSpaceDetail(text2) {
+  const t3 = (text2 ?? "").trim();
+  if (!t3) return false;
+  return /^(el\s+|un\s+|una\s+)?(patio(\s+techado)?|techado|jard[ií]n|azotea|rooftop|terraza)[\s.,!]*$/i.test(
+    t3
+  );
+}
+function applyLocationCorrectionToAddress(existing, message) {
+  const msg = (message ?? "").trim();
+  const prev = (existing ?? "").trim();
+  if (!msg) return null;
+  const corrects = clientCorrectsLocation(msg);
+  const spaceDetail = isVenueSpaceDetail(msg);
+  if (!corrects && !(spaceDetail && prev)) return null;
+  let zoneFromMsg = parseZonaFromText(msg);
+  if (!zoneFromMsg) {
+    const m5 = msg.match(KNOWN_ZONES);
+    if (m5?.[0]) zoneFromMsg = m5[0].trim();
+  }
+  let zoneFromPrev = null;
+  if (prev) {
+    const m5 = prev.match(KNOWN_ZONES);
+    if (m5?.[0]) zoneFromPrev = m5[0].trim();
+  }
+  const zone = zoneFromMsg || zoneFromPrev;
+  let result = prev;
+  if (/\bno\s+es\s+en\s+(el\s+)?piso\b|\botra\s+ubicaci[oó]n\b|\bme\s+equivoqu|\bno\s+es\s+(en\s+)?(la\s+)?torre\b/i.test(
+    msg
+  )) {
+    result = result.replace(/,?\s*piso\s*\d+/gi, "").replace(/\btorre\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ-]*/gi, "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").replace(/\s{2,}/g, " ").trim();
+    if (/\botra\s+ubicaci[oó]n\b/i.test(msg) && zone) {
+      result = zone;
+    }
+  }
+  if (/\bpatio\b/i.test(msg)) {
+    result = result.replace(/,?\s*piso\s*\d+/gi, "").trim();
+    if (!/\bpatio\b/i.test(result)) {
+      result = result ? `${result}, patio` : zone ? `${zone}, patio` : "patio";
+    }
+  }
+  if (/\btechado\b/i.test(msg)) {
+    if (/\bpatio\b/i.test(result) && !/\btechado\b/i.test(result)) {
+      result = result.replace(/\bpatio\b/i, "patio techado");
+    } else if (!/\btechado\b/i.test(result)) {
+      result = result ? `${result}, techado` : zone ? `${zone}, techado` : "";
+    }
+  }
+  if (/\bjard[ií]n\b/i.test(msg) && !/\bjard[ií]n\b/i.test(result)) {
+    result = result ? `${result}, jard\xEDn` : zone ? `${zone}, jard\xEDn` : "jard\xEDn";
+  }
+  if (/\b(azotea|rooftop|terraza)\b/i.test(msg)) {
+    const detail = msg.match(/\b(azotea|rooftop|terraza)\b/i)?.[1] ?? "terraza";
+    if (!new RegExp(`\\b${detail}\\b`, "i").test(result)) {
+      result = result ? `${result}, ${detail}` : zone ? `${zone}, ${detail}` : detail;
+    }
+  }
+  if (zone && result && !new RegExp(zone.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(result)) {
+    result = `${result}, ${zone}`;
+  }
+  if ((!result || !result.trim()) && zone) result = zone;
+  result = (result ?? "").replace(/\s*,\s*,+/g, ",").replace(/^\s*,\s*|\s*,\s*$/g, "").trim();
+  if (!result) return null;
+  if (!isUsableDireccionEvento(result)) {
+    if (zone && isUsableDireccionEvento(zone)) return zone;
+    return null;
+  }
+  return result;
+}
 function shouldReplaceCrmDireccion(existing, incoming) {
   const next = incoming?.trim() ?? "";
   if (!next || !isUsableDireccionEvento(next)) return false;
   const prev = existing?.trim() ?? "";
   if (!prev || !isUsableDireccionEvento(prev)) return true;
   if (prev.toLowerCase() === next.toLowerCase()) return false;
+  if (clientCorrectsLocation(next) || isVenueSpaceDetail(next)) return true;
+  if (/\bpiso\s*\d+/i.test(prev) && !/\bpiso\s*\d+/i.test(next) && KNOWN_ZONES.test(prev) && KNOWN_ZONES.test(next)) {
+    return true;
+  }
   if (prev.toLowerCase().includes(next.toLowerCase()) && next.length < prev.length) return false;
   if (next.toLowerCase().includes(prev.toLowerCase()) && next.length > prev.length + 2) return true;
   if (hasGeoLocationSignal(next) && !hasGeoLocationSignal(prev) && next.length >= prev.length) {
     return true;
   }
   return false;
+}
+function applyLocationCorrectionToCrm(mergedLines, filledSet, extracted, currentMessage) {
+  const msg = currentMessage?.trim() ?? "";
+  if (!msg) return false;
+  const idx = mergedLines.findIndex((l5) => /^-?\s*Lugar\/dirección del evento:/i.test(l5));
+  const existing = (idx >= 0 ? mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim() : null) || extracted.direccion_evento?.trim() || null;
+  if (!clientCorrectsLocation(msg) && !(isVenueSpaceDetail(msg) && existing)) return false;
+  const next = applyLocationCorrectionToAddress(existing, msg);
+  if (!next || next === existing) return false;
+  if (idx >= 0) {
+    mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${next}`;
+  } else {
+    mergedLines.push(`- Lugar/direcci\xF3n del evento: ${next}`);
+  }
+  filledSet.add("Lugar/direcci\xF3n del evento");
+  extracted.direccion_evento = next;
+  return true;
 }
 function parseSpaceDimensions(text2) {
   const m5 = text2.match(/\b(\d+)\s*metros?\s*(por|x)\s*(\d+)\s*metros?\b/i);
@@ -110005,11 +110109,26 @@ function findPresupuestoInTexts(texts, history) {
   }
   return null;
 }
+function looksLikeCalendarYearAmount(num, text2) {
+  if (num < 1990 || num > 2100) return false;
+  if (/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n|budget|tope)\b/i.test(text2)) {
+    return false;
+  }
+  const t3 = text2.trim();
+  if (/^(19|20)\d{2}$/.test(t3)) return true;
+  if (/\b(19|20)\d{2}\b/.test(t3) && /\b(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|fecha|a[nñ]o)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  return false;
+}
 function parsePresupuestoFromText(text2, opts) {
   const withoutEmails = text2.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, " ").replace(/\s+/g, " ").trim();
   const trimmed = withoutEmails || text2.trim();
   if (!trimmed) return null;
   if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(text2.trim())) return null;
+  if (clientCorrectsLocation(trimmed) || isVenueSpaceDetail(trimmed)) return null;
   if (/\b(m[aá]ndame|m[aá]nden)\s+(el\s+)?(presupuesto|cotiz)/i.test(trimmed) || /\bt[uú]\s+m[aá]ndame\b/i.test(trimmed)) {
     return "Sin definir (cliente pidi\xF3 que propongamos)";
   }
@@ -110118,11 +110237,25 @@ function parsePresupuestoFromText(text2, opts) {
     const num = parseInt(milMatch[1].replace(/[,.]/g, ""), 10);
     if (!isNaN(num) && num > 0) return `$${num * 1e3}`;
   }
+  {
+    const yearOnly = trimmed.match(/^(19|20)\d{2}$/);
+    if (yearOnly) return null;
+    const yearNum = parseInt(trimmed.replace(/[^\d]/g, ""), 10);
+    if (looksLikeCalendarYearAmount(yearNum, trimmed) && !/\b(presupuesto|mil|pesos|mxn|mnx|\$|k\b|inversi[oó]n)\b/i.test(trimmed)) {
+      if (/^(19|20)\d{2}$/.test(trimmed) || trimmed.length <= 6) return null;
+    }
+  }
   const hasMoneyWord = /\b(presupuesto|rango|inversi[oó]n|budget|monto|pesos|mxn|mnx|tope)\b/i.test(trimmed) || opts?.askedField === "presupuesto";
   const hasAproxBudget = hasMoneyWord && /\b(como|aprox|alrededor|cerca\s+de|menos\s+de|hasta)\b/i.test(trimmed);
   if (hasMoneyWord || hasAproxBudget || /\$/.test(trimmed) && hasMoneyWord) {
     const amountMatch = trimmed.match(/(?<![A-Za-z0-9])\$?\s*([\d][\d,.]*)/);
-    if (amountMatch) return trimmed.slice(0, 80);
+    if (amountMatch) {
+      const num = parseInt(amountMatch[1].replace(/,/g, ""), 10);
+      if (!isNaN(num) && looksLikeCalendarYearAmount(num, trimmed) && !/\$/.test(trimmed)) {
+        return null;
+      }
+      return trimmed.slice(0, 80);
+    }
   }
   if (/\$\s*[\d][\d,.]{3,}/.test(trimmed) && !/\bdesde\s+\$/i.test(trimmed)) {
     const amountMatch = trimmed.match(/\$\s*([\d][\d,.]*)/);
@@ -110135,6 +110268,7 @@ function parsePresupuestoFromText(text2, opts) {
   if (bareMatch) {
     const num = parseInt(bareMatch[1].replace(/,/g, ""), 10);
     if (isNaN(num) || num <= 0) return null;
+    if (looksLikeCalendarYearAmount(num, trimmed) && !bareMatch[2]) return null;
     if (opts?.askedField === "presupuesto") return trimmed.slice(0, 80);
     if (bareNumberLooksLikeInvitados(num, trimmed)) return null;
     if (num >= 1e3) return `$${num.toLocaleString("es-MX")} MXN`;
@@ -110258,7 +110392,12 @@ function captureContextualAnswer(history, currentMessage, filledSet) {
     const fecha = parseFechaFromText(msg);
     if (fecha) captures.push({ label: "Fecha y horario", value: fecha });
   }
-  if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
+  if (clientCorrectsLocation(msg) || isVenueSpaceDetail(msg) && filledSet.has("Lugar/direcci\xF3n del evento")) {
+    const zonaHint = parseZonaFromText(msg);
+    if (zonaHint && isUsableDireccionEvento(zonaHint)) {
+      captures.push({ label: "Lugar/direcci\xF3n del evento", value: zonaHint });
+    }
+  } else if (!filledSet.has("Presupuesto (MXN)") && (asked === "presupuesto" || detectPresupuestoRefusal(msg))) {
     const pres = parsePresupuestoFromText(msg, { askedField: asked === "presupuesto" ? "presupuesto" : null });
     if (pres) {
       captures.push({ label: "Presupuesto (MXN)", value: pres });
@@ -110362,9 +110501,13 @@ function applyCapturesToCrm(mergedLines, filledSet, captures) {
       const idx = mergedLines.findIndex((l5) => /^-?\s*Lugar\/dirección del evento:/i.test(l5));
       if (idx >= 0) {
         const existing = mergedLines[idx].replace(/^-?\s*Lugar\/dirección del evento:\s*/i, "").trim();
-        const merged = mergeZonaDetail(existing, value);
-        if (merged && merged !== existing) {
-          mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${merged}`;
+        if (shouldReplaceCrmDireccion(existing, value)) {
+          mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${value}`;
+        } else {
+          const merged = mergeZonaDetail(existing, value);
+          if (merged && merged !== existing) {
+            mergedLines[idx] = `- Lugar/direcci\xF3n del evento: ${merged}`;
+          }
         }
       }
       continue;
@@ -131226,6 +131369,51 @@ ${nextQ}` : ack;
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
     );
   }
+  if (!cierreYaEnviado && currentMessage && isUsableDireccionEvento(extracted.direccion_evento) && (clientCorrectsLocation(currentMessage) || isVenueSpaceDetail(currentMessage))) {
+    const nextDir = applyLocationCorrectionToAddress(
+      extracted.direccion_evento,
+      currentMessage
+    );
+    if (nextDir) {
+      extracted.direccion_evento = nextDir;
+      filledSet.add("Lugar/direcci\xF3n del evento");
+    }
+    const display = getDisplayName(extracted, whatsappDisplayName);
+    const needsExactAddress = /\botra\s+ubicaci[oó]n\b|\bno\s+es\s+en\s+(el\s+)?piso\b|\bme\s+equivoqu/i.test(
+      currentMessage
+    ) && (!nextDir || !/\b(patio|calle|av\.?|sal[oó]n|torre|colonia)\b/i.test(nextDir) && nextDir.split(/\s+/).length <= 3);
+    let body2;
+    if (/\bpatio\b/i.test(currentMessage) && !/\botra\s+ubicaci[oó]n\b/i.test(currentMessage)) {
+      body2 = [
+        display ? `Entendido, ${display}.` : "Entendido.",
+        nextDir ? `Anoto *${nextDir}*.` : "Anoto que es en un patio.",
+        "\xBFMe confirmas la direcci\xF3n o el nombre del lugar exacto?"
+      ].join(" ");
+    } else if (isVenueSpaceDetail(currentMessage) && nextDir) {
+      body2 = [
+        display ? `Perfecto, ${display}.` : "Perfecto.",
+        `Anoto *${nextDir}*.`,
+        getNextPendingField(extracted, filledSet) ? buildNaturalQuestion(getNextPendingField(extracted, filledSet), ctx) : null
+      ].filter(Boolean).join(" ");
+    } else if (needsExactAddress) {
+      body2 = [
+        display ? `Gracias por la correcci\xF3n, ${display}.` : "Gracias por la correcci\xF3n.",
+        nextDir && !/\bpiso\s*\d+/i.test(nextDir) ? `Quito el dato anterior y dejo *${nextDir}*.` : "Quito el dato anterior de la ubicaci\xF3n.",
+        "\xBFMe compartes la direcci\xF3n o el nombre del lugar correcto?"
+      ].join(" ");
+    } else {
+      body2 = [
+        display ? `Listo, ${display}.` : "Listo.",
+        nextDir ? `Actualizo la ubicaci\xF3n a *${nextDir}*.` : "Actualizo la ubicaci\xF3n.",
+        getNextPendingField(extracted, filledSet) ? buildNaturalQuestion(getNextPendingField(extracted, filledSet), ctx) : "\xBFMe confirmas la direcci\xF3n exacta del evento?"
+      ].filter(Boolean).join(" ");
+    }
+    log?.info(
+      { entityId, nextDir, msg: currentMessage.slice(0, 80) },
+      "GUARD: A15210 \u2014 correcci\xF3n de ubicaci\xF3n"
+    );
+    return normalizeAdvisorReferences(body2, display);
+  }
   if (!cierreYaEnviado && currentMessage && (() => {
     const z3 = parseZonaFromText(currentMessage);
     return !!z3 && currentMessage.trim().split(/\s+/).length <= 6 && (/^en\s+/i.test(currentMessage.trim()) || isLikelyUbicacionNotNombre(currentMessage));
@@ -133430,9 +133618,10 @@ function cap255(s6) {
 function buildSilentWatchPatchPayload(text2, extracted, currentLeadName, crmLines = []) {
   const customFields = [];
   const msg = text2.trim();
-  const zonaFromMsg = parseZonaFromText(msg);
   const crmDireccion = crmStoredValue(crmLines, "Lugar/direcci\xF3n del evento");
-  if (zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && shouldReplaceCrmDireccion(crmDireccion, zonaFromMsg)) {
+  const correctedZona = clientCorrectsLocation(msg) || isVenueSpaceDetail(msg) ? applyLocationCorrectionToAddress(crmDireccion, msg) : null;
+  const zonaFromMsg = correctedZona ?? parseZonaFromText(msg);
+  if (zonaFromMsg && isUsableDireccionEvento(zonaFromMsg) && (correctedZona ? zonaFromMsg !== (crmDireccion ?? "").trim() : shouldReplaceCrmDireccion(crmDireccion, zonaFromMsg))) {
     customFields.push({
       field_id: SILENT_WATCH_FIELD.direccion_evento,
       values: [{ value: cap255(zonaFromMsg) }]
@@ -134696,7 +134885,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.09";
+var LUCY_PROMPT_VERSION = "V9.10";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -141723,7 +141912,7 @@ ${golfText}`,
     assert2.ok(qty && /900|sillas/i.test(qty), qty ?? "");
   });
   await test("121. V8.93 \u2014 voz humana preferida + cierre sin upsell + prompt", () => {
-    assert2.ok(/^V(8\.9[3456789]|9\.0\d)$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert2.ok(/^V(8\.9[3456789]|9\.\d{2})$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert2.ok(/PLANTILLAS|CONOCIMIENTO|asesora|voz humana|no guion/i.test(SYSTEM_PROMPT));
     assert2.ok(/no eres un salesbot|no guion|REDACTA t[uú]/i.test(SYSTEM_PROMPT));
     const humanEnt = "Claro, Bakar. Anoto un show de grupo vers\xE1til para tu evento del 18 de diciembre. Es entretenimiento (no catering). \xBFMe confirmas si es corporativo y en qu\xE9 sede ser\xEDa?";
@@ -141764,7 +141953,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.09");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.10");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -142018,7 +142207,7 @@ ${golfText}`,
     assert2.ok(!/^\s*¡?Claro!\s+\*Animaci[oó]n\s*\/\s*Hora\s+loca\*\s+la\s+anoto/i.test(showAck), showAck);
   });
   await test("126. V9.00 \u2014 context cache + media-once + image compress", async () => {
-    assert2.ok(/^V9\.0\d$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
+    assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     resetGeminiContextCacheForTests();
     const longSystem = ("Lucy Bodasesor system. " + "x".repeat(4e3)).slice(0, 4200);
     const h1 = hashSystemInstruction(longSystem);
@@ -142631,6 +142820,84 @@ ${golfText}`,
     });
     assert2.ok(/formal|casual/i.test(first), first.slice(0, 500));
     assert2.ok(!/Formal\s*\(3 o 4 tiempos\)/i.test(first), first.slice(0, 500));
+  });
+  await test("136. A15210 \u2014 desayuno mexicano, patio y presupuesto\u22602026", () => {
+    const services = parseServicesFromText(
+      "Desayuno tem\xE1tico mexicano para 40 personas en Torre Latitud Polanco, piso 15"
+    );
+    assert2.ok(services.some((s6) => /^Desayuno$/i.test(s6)), JSON.stringify(services));
+    assert2.ok(
+      !services.some((s6) => /Banquete\s+Mexicano/i.test(s6)),
+      `no Banquete Mexicano: ${JSON.stringify(services)}`
+    );
+    assert2.ok(parseServicesFromText("banquete mexicano").includes("Banquete Mexicano"));
+    assert2.ok(parseServicesFromText("mexicano 4 tiempos").includes("Banquete Mexicano"));
+    assert2.ok(parseServicesFromText("mexicano").includes("Banquete Mexicano"));
+    assert2.equal(parsePresupuestoFromText("2026"), null);
+    assert2.equal(parsePresupuestoFromText("2026", { askedField: "presupuesto" }), null);
+    assert2.equal(
+      parsePresupuestoFromText(
+        "no es en el piso 15, es en otra ubicaci\xF3n, pero tambi\xE9n es en polanco",
+        { askedField: "presupuesto" }
+      ),
+      null
+    );
+    assert2.ok(clientCorrectsLocation("Me equivoqu\xE9, es un patio"));
+    assert2.ok(clientCorrectsLocation("no es en el piso 15, es en otra ubicaci\xF3n"));
+    assert2.ok(isVenueSpaceDetail("techado"));
+    const prev = "Torre Latitud Polanco, piso 15";
+    const patio = applyLocationCorrectionToAddress(prev, "Me equivoqu\xE9, es un patio");
+    assert2.ok(patio && /patio/i.test(patio) && /polanco/i.test(patio), patio ?? "null");
+    assert2.ok(patio && !/piso\s*15/i.test(patio), patio);
+    const techado = applyLocationCorrectionToAddress(patio, "techado");
+    assert2.ok(techado && /patio\s+techado/i.test(techado), techado ?? "null");
+    const otra = applyLocationCorrectionToAddress(
+      prev,
+      "no es en el piso 15, es en otra ubicaci\xF3n, pero tambi\xE9n es en polanco"
+    );
+    assert2.ok(otra && /polanco/i.test(otra) && !/piso\s*15/i.test(otra), otra ?? "null");
+    assert2.ok(shouldReplaceCrmDireccion(prev, otra));
+    const lines = [`- Lugar/direcci\xF3n del evento: ${prev}`, "- Presupuesto (MXN): pendiente"];
+    const filled = /* @__PURE__ */ new Set(["Lugar/direcci\xF3n del evento"]);
+    const extracted = emptyExtracted({
+      nombre: "Hern\xE1n",
+      direccion_evento: prev,
+      requerimientos_evento: "Desayuno"
+    });
+    assert2.ok(
+      applyLocationCorrectionToCrm(
+        lines,
+        filled,
+        extracted,
+        "Me equivoqu\xE9, es un patio"
+      )
+    );
+    assert2.ok(/patio/i.test(crmStoredValue(lines, "Lugar/direcci\xF3n del evento") ?? ""));
+    assert2.ok(!/piso\s*15/i.test(crmStoredValue(lines, "Lugar/direcci\xF3n del evento") ?? ""));
+    const reply = runGuards({
+      aiResponse: "Te detallo el Nivel 1 del desayuno\u2026",
+      extracted: emptyExtracted({
+        nombre: "Hern\xE1n",
+        direccion_evento: prev,
+        requerimientos_evento: "Desayuno"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Lugar/direcci\xF3n del evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Me equivoqu\xE9, es un patio",
+      history: [
+        {
+          role: "assistant",
+          content: "\xBFTienes un presupuesto aproximado para el desayuno?"
+        }
+      ],
+      whatsappDisplayName: "Hern\xE1n Peralta"
+    });
+    assert2.ok(/patio|ubicaci|direcci|lugar/i.test(reply), reply.slice(0, 500));
+    assert2.ok(!/Nivel\s*1|presupuesto aproximado/i.test(reply), reply.slice(0, 500));
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

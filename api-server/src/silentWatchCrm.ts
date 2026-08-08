@@ -21,6 +21,9 @@ import {
   mergeServiceRequirements,
   isUsableDireccionEvento,
   shouldReplaceCrmDireccion,
+  applyLocationCorrectionToAddress,
+  clientCorrectsLocation,
+  isVenueSpaceDetail,
   isServiceLabelNotTipoEvento,
   isUnusableTipoEventoReply,
 } from "./conversation-understanding.js";
@@ -51,13 +54,19 @@ export function buildSilentWatchPatchPayload(
   const customFields: Array<{ field_id: number; values: Array<{ value: unknown }> }> = [];
   const msg = text.trim();
 
-  // Ubicación: SOLO desde parseZona del mensaje actual (nunca GPT suelto ni /\ben\s+/).
-  const zonaFromMsg = parseZonaFromText(msg);
+  // Ubicación: parseZona del mensaje, o corrección explícita (A15210 patio/piso/otra ubicación).
   const crmDireccion = crmStoredValue(crmLines, "Lugar/dirección del evento");
+  const correctedZona =
+    clientCorrectsLocation(msg) || isVenueSpaceDetail(msg)
+      ? applyLocationCorrectionToAddress(crmDireccion, msg)
+      : null;
+  const zonaFromMsg = correctedZona ?? parseZonaFromText(msg);
   if (
     zonaFromMsg &&
     isUsableDireccionEvento(zonaFromMsg) &&
-    shouldReplaceCrmDireccion(crmDireccion, zonaFromMsg)
+    (correctedZona
+      ? zonaFromMsg !== (crmDireccion ?? "").trim()
+      : shouldReplaceCrmDireccion(crmDireccion, zonaFromMsg))
   ) {
     customFields.push({
       field_id: SILENT_WATCH_FIELD.direccion_evento,
