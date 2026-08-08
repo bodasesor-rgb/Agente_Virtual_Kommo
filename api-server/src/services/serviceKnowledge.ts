@@ -8,6 +8,7 @@
  * FASE 2 (futuro): RAG de PDFs en Drive se insertará entre Sheet y conocimiento general.
  */
 import {
+  CARPA_OPTIONS_TEXT,
   clientMentionsCarpas,
   clientMentionsPistaTarima,
   isServiceRelatedMessage,
@@ -244,11 +245,11 @@ export function buildGuardServiceAck(query: string): string {
   // Carpas: sí + tipos como referencia + medidas (sin volcar brochure).
   if (clientMentionsCarpas(query)) {
     const team = advisorLabelForClient();
-    const transparent = /transparent/i.test(query);
-    const head = transparent
-      ? "Sí, contamos con *carpas transparentes* (también Cathedral, Pirámide y Planas)."
-      : "Sí, manejamos carpas (Cathedral, Pirámide, Planas y transparentes).";
-    return `${head} Se cotizan según medidas y sede. ${team} arma el precio. ¿Cuál te late y qué medidas aproximadas necesitas?`;
+    return (
+      `Sí, manejamos carpas ${CARPA_OPTIONS_TEXT}. ` +
+      `Se cotizan según medidas y sede. ${team} arma el precio. ` +
+      "¿Qué opción prefieres y qué medidas aproximadas debe tener (largo × ancho)?"
+    );
   }
   if (clientMentionsPistaTarima(query)) {
     const fromPdf = buildLucyInfoLearnedPriceReply(query);

@@ -1123,7 +1123,7 @@ function buildCarpasSalesReply(
     (m) =>
       m.role === "assistant" &&
       typeof m.content === "string" &&
-      /cathedral|pir[aá]mide|planas|transparentes/i.test(m.content)
+      /carpas?\s+(?:blancas?|negras?|transparentes?)|tipo\s+domo/i.test(m.content)
   );
   // A14994: "Carpas o mobiliario" — anotar ambos + catálogo (no saltar solo a zona).
   const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
@@ -1143,7 +1143,7 @@ function buildCarpasSalesReply(
     if (merged) extracted.requerimientos_evento = merged;
   }
 
-  // A15007: ya pitchó variantes y carpas en CRM — no re-dump Cathedral/Pirámide.
+  // Ya presentó las opciones reales y carpas está en CRM — no repetir el listado.
   if (alreadyHasCarpas && alreadyPitched && !variant && !alsoMobiliario) {
     const filledAfter = new Set(filledSet ?? []);
     filledAfter.add("Requerimientos o servicios");
@@ -1209,7 +1209,7 @@ function buildCarpasSalesReply(
     return `${pickTransition(history)} ${ack}`.trim();
   }
 
-  // Variante Cathedral/etc. tras listado (A15016).
+  // Variante disponible tras el listado.
   if (variant && !/carpas?/i.test(msg)) {
     const filledAfter = new Set(filledSet ?? []);
     filledAfter.add("Requerimientos o servicios");
@@ -3227,12 +3227,36 @@ export function buildRequerimientosQuestion(
   return appendServiciosCatalogoHint(core, false, history);
 }
 
+/** Carpas, pistas y tarimas no pueden pasar a cierre sin largo × ancho. */
+export function requiredServiceDimensionsMissing(extracted: ExtractedData): boolean {
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (!req) return false;
+  const requiresDimensions =
+    clientMentionsCarpas(req) || clientMentionsPistaTarima(req);
+  return requiresDimensions && !parseSpaceDimensions(req);
+}
+
+export function buildRequiredServiceDimensionsQuestion(extracted: ExtractedData): string {
+  const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (clientMentionsCarpas(req)) {
+    return (
+      "Antes de cerrar la solicitud necesito las medidas aproximadas de la carpa " +
+      "(largo × ancho) o del área que quieres cubrir. ¿Cuánto mide?"
+    );
+  }
+  return (
+    "Antes de cerrar la solicitud necesito las medidas aproximadas de la pista o tarima " +
+    "(largo × ancho). ¿Cuánto debe medir?"
+  );
+}
+
 export function requerimientosNeedsFollowUp(
   extracted: ExtractedData,
   filledSet: Set<string>
 ): boolean {
-  if (filledSet.has("Requerimientos o servicios")) return false;
   const req = extracted.requerimientos_evento?.trim() ?? "";
+  if (requiredServiceDimensionsMissing(extracted)) return true;
+  if (filledSet.has("Requerimientos o servicios")) return false;
   if (!req) return true;
   return !isValidRequerimientosValue(req);
 }
@@ -3268,6 +3292,9 @@ export function buildRequerimientosFollowUp(
       typeof m.content === "string" &&
       OTRO_SERVICIO_ASK_PATTERN.test(m.content as string)
   );
+  if (requiredServiceDimensionsMissing(extracted)) {
+    return buildRequiredServiceDimensionsQuestion(extracted);
+  }
   if (followUpAlreadyAsked) {
     const pending = getNextPendingField(extracted, filledSet);
     if (pending) return buildNaturalQuestion(pending, ctx);
@@ -4082,6 +4109,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     collectUserTexts(presHistory, currentMessage),
     presHistory
   );
+
+  // Captura estructural antes de cualquier rama: una respuesta "3 x 4" completa
+  // carpa/pista/tarima y evita que el cierre vuelva a pedir las medidas.
+  const dimensionsNow = parseSpaceDimensions(currentMessage ?? "");
+  if (
+    dimensionsNow &&
+    (clientMentionsCarpas(extracted.requerimientos_evento ?? "") ||
+      clientMentionsPistaTarima(extracted.requerimientos_evento ?? ""))
+  ) {
+    const req = extracted.requerimientos_evento?.trim() || "Servicio";
+    if (!parseSpaceDimensions(req)) {
+      extracted.requerimientos_evento = `${req} (espacio ${dimensionsNow})`;
+    }
+    filledSet.add("Requerimientos o servicios");
+  }
 
   // A15164: recuperar nombre del historial/mensaje actual antes del embudo.
   if (!isFieldSatisfied("nombre", filledSet, extracted)) {
@@ -5757,7 +5799,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     if (
       shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) &&
       aiLooksLikeCarpasReply(aiResponse) &&
-      !/Cathedral,\s*Pir[aá]mide,\s*Planas/i.test(aiResponse)
+      !/\b(Cathedral|Catedral|Pir[aá]mide|Planas?)\b/i.test(aiResponse)
     ) {
       mensaje = mergeWithPendingQuestion(aiResponse, filledSet, extracted, ctx);
       appliedDirectReply = true;
@@ -6329,6 +6371,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       );
       log?.warn({ entityId }, "GPT generó nota interna — usando cierre desde plantilla");
     }
+  }
+
+  if (
+    !cierreYaEnviado &&
+    requiredServiceDimensionsMissing(extracted) &&
+    isReadyForClosing(filledSet) &&
+    (responseLooksLikePrematureClose(mensaje) || !mensaje.includes("?"))
+  ) {
+    mensaje = buildRequiredServiceDimensionsQuestion(extracted);
+    log?.info({ entityId }, "GUARD: bloqueando cierre — faltan medidas obligatorias");
   }
 
   if (appliedDirectReply) {
@@ -7382,6 +7434,17 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = dedupeCatalogUrlsInMessage(mensaje);
+
+  // Invariante final: ninguna rama puede cerrar carpas/pistas/tarimas sin medidas.
+  if (
+    !cierreYaEnviado &&
+    requiredServiceDimensionsMissing(extracted) &&
+    isReadyForClosing(filledSet) &&
+    responseLooksLikePrematureClose(mensaje)
+  ) {
+    mensaje = buildRequiredServiceDimensionsQuestion(extracted);
+    log?.info({ entityId }, "GUARD: cierre final reemplazado por medidas obligatorias");
+  }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }

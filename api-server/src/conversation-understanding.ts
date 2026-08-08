@@ -993,8 +993,10 @@ export function isLikelyProductNameNotLocation(value: string | null | undefined)
   if (/^sala\s*:/i.test(t)) return true;
   if (/\bsala\s*:/i.test(t)) return true;
   if (/^luxor(\s+rosa)?$/i.test(t)) return true;
-  // A15016 Israel: Cathedral / Catedral / Pirámide / Planas = tipo de carpa, no sede.
+  // Los tipos de carpa son productos, no ubicaciones.
   if (parseCarpaVariantFromText(t)) return true;
+  // Nombres históricos ya no ofrecidos tampoco deben terminar como sede.
+  if (/^(cathedral|catedral|pir[aá]mide|planas?)(\s+(carpa|tent))?$/i.test(t)) return true;
   if (
     /^(salas?(\s+lounge)?|periqueras?|lounge|mobiliario|carpas?|pistas?|tarimas?|tiffany|vajilla|manteler[ií]a)$/i.test(
       t
@@ -1014,24 +1016,30 @@ export function isLikelyProductNameNotLocation(value: string | null | undefined)
   return false;
 }
 
-/** Variante de carpa (Cathedral / Pirámide / Planas / transparente). */
+/** Opciones reales de carpa disponibles en Bodasesor. */
+export const CARPA_OPTIONS_TEXT = "blancas, negras, transparentes y tipo domo";
+
+/** Variante de carpa (blanca / negra / transparente / domo). */
 export function parseCarpaVariantFromText(text: string | null | undefined): string | null {
   const t = (text ?? "").trim();
   if (!t || t.length > 60) return null;
   if (/\b(colonia|delegaci|alcald|cdmx|ciudad|municipio|calle|avenida)\b/i.test(t)) {
     return null;
   }
-  if (/^(cathedral|catedral)(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+catedral\b/i.test(t)) {
-    return "Carpa Cathedral";
+  if (/^blancas?(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+blanca\b/i.test(t)) {
+    return "Carpa blanca";
   }
-  if (/^pir[aá]mide(s)?(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+pir[aá]mide\b/i.test(t)) {
-    return "Carpa Pirámide";
+  if (/^negras?(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+negra\b/i.test(t)) {
+    return "Carpa negra";
   }
-  if (/^planas?(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+plana\b/i.test(t)) {
-    return "Carpa Plana";
+  if (
+    /^transparentes?(\s+(carpa|tent))?$/i.test(t) ||
+    /\bcarpa\s+transparente\b/i.test(t)
+  ) {
+    return "Carpa transparente";
   }
-  if (/^transparentes?(\s+(carpa|tent))?$/i.test(t)) {
-    return "Carpas transparentes";
+  if (/^domos?(\s+(carpa|tent))?$/i.test(t) || /\bcarpa\s+(?:tipo\s+)?domo\b/i.test(t)) {
+    return "Carpa tipo domo";
   }
   return null;
 }
@@ -1050,7 +1058,7 @@ export function parseSalaProductFromText(text: string): string | null {
   return null;
 }
 
-/** Cliente menciona carpas (incl. transparentes) o elige variante Cathedral/etc. */
+/** Cliente menciona carpas o elige una variante disponible. */
 export function clientMentionsCarpas(message?: string): boolean {
   if (!message?.trim()) return false;
   return (
@@ -2278,6 +2286,12 @@ export function parseInvitadosFromText(text: string): string | null {
 
   // "Serían 4 salas" / "10 mesas" / "2 carpas" ≠ invitados (María A14906).
   if (NON_GUEST_UNIT_PATTERN.test(trimmed)) return null;
+
+  // Respuesta breve tras la pregunta: "15 aprox" / "15 aproximadamente".
+  const approxSuffix = trimmed.match(
+    /^(\d{1,4})\s*(?:aprox(?:imadamente)?|aproximados?|personas?\s+aprox)\.?$/i
+  );
+  if (approxSuffix) return approxSuffix[1]!;
 
   if (isServiceRelatedMessage(trimmed)) return null;
 

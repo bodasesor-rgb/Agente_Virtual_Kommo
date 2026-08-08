@@ -1569,7 +1569,16 @@ async function runAll(): Promise<void> {
     assert.ok(dj && /DJ/i.test(dj) && /nuestro equipo/i.test(dj) && dj.includes("?"), dj ?? "");
 
     const carpa = buildConsultativeNoPriceReply("necesito carpas para el jardín");
-    assert.ok(carpa && /carpas?/i.test(carpa) && /Cathedral|Pirámide|Planas/i.test(carpa), carpa ?? "");
+    assert.ok(
+      carpa &&
+        /carpas?/i.test(carpa) &&
+        /blancas?/i.test(carpa) &&
+        /negras?/i.test(carpa) &&
+        /transparentes?/i.test(carpa) &&
+        /domo/i.test(carpa),
+      carpa ?? ""
+    );
+    assert.ok(!/Cathedral|Catedral|Pirámide|Planas/i.test(carpa ?? ""), carpa ?? "");
 
     const priceGuard = runGuards({
       aiResponse: "El DJ cuesta $5,000.",
@@ -7725,8 +7734,10 @@ async function runAll(): Promise<void> {
 
   // ─── 117. A15016 Israel — Catedral≠zona, email≠presupuesto, post-cierre ───
   await test("117. A15016 Israel — Catedral, De 6x20, email≠presupuesto, post-cierre", async () => {
-    assert.equal(parseCarpaVariantFromText("Catedral"), "Carpa Cathedral");
-    assert.equal(parseCarpaVariantFromText("Cathedral"), "Carpa Cathedral");
+    assert.equal(parseCarpaVariantFromText("Catedral"), null);
+    assert.equal(parseCarpaVariantFromText("Domo"), "Carpa tipo domo");
+    assert.equal(parseCarpaVariantFromText("Carpa negra"), "Carpa negra");
+    assert.equal(parseCarpaVariantFromText("Transparente"), "Carpa transparente");
     assert.ok(isLikelyProductNameNotLocation("Catedral"));
     assert.ok(!isUsableDireccionEvento("Catedral"));
     assert.equal(parseZonaFromText("Catedral"), null);
@@ -7805,14 +7816,14 @@ async function runAll(): Promise<void> {
         {
           role: "assistant",
           content:
-            "Sí, contamos con *carpas transparentes* (y también Cathedral, Pirámide y Planas). ¿Qué medidas aproximadas necesitas?",
+            "Sí, manejamos carpas blancas, negras, transparentes y tipo domo. ¿Qué medidas aproximadas necesitas?",
         },
       ],
     });
     assert.ok(/6\s*m?\s*x\s*20/i.test(dimsReply), dimsReply.slice(0, 500));
     assert.ok(!/medidas aproximadas necesitas/i.test(dimsReply), dimsReply.slice(0, 500));
 
-    const catedralReply = runGuards({
+    const domoReply = runGuards({
       aiResponse: "¿Qué tipo de evento estás organizando?",
       extracted: emptyExtracted({
         nombre: "Israel Albiter",
@@ -7827,17 +7838,17 @@ async function runAll(): Promise<void> {
         "Lugar/dirección del evento",
       ]),
       readyForClosing: false,
-      currentMessage: "Catedral",
+      currentMessage: "Domo",
       history: [
         { role: "user", content: "Carpa transparente" },
         {
           role: "assistant",
-          content: "Sí, carpas transparentes, Cathedral, Pirámide y Planas. ¿Medidas?",
+          content: "Sí, carpas blancas, negras, transparentes y tipo domo. ¿Medidas?",
         },
       ],
     });
-    assert.ok(/cathedral|catedral|carpa/i.test(catedralReply), catedralReply.slice(0, 500));
-    assert.ok(!/ubicaci[oó]n|lugar del evento|d[oó]nde ser[aá]/i.test(catedralReply), catedralReply.slice(0, 400));
+    assert.ok(/domo|carpa/i.test(domoReply), domoReply.slice(0, 500));
+    assert.ok(!/ubicaci[oó]n|lugar del evento|d[oó]nde ser[aá]/i.test(domoReply), domoReply.slice(0, 400));
 
     const closing = `${CLOSING_SIGNATURE} Voy a compartir esta información con nuestro equipo para que te prepare una cotización personalizada.`;
     assert.ok(detectCierreEnviado([{ role: "assistant", content: closing }]));
@@ -7927,9 +7938,9 @@ async function runAll(): Promise<void> {
     );
 
     const closingPitch =
-      "Sí, manejamos carpas para jardín o terraza: Cathedral, Pirámide, Planas y transparentes. ¿Qué medidas aproximadas necesitas?";
+      "Sí, manejamos carpas para jardín o terraza: blancas, negras, transparentes y tipo domo. ¿Qué medidas aproximadas necesitas?";
 
-    // Re-mencionar carpas con CRM ya lleno → no re-dump Cathedral
+    // Re-mencionar carpas con CRM ya lleno → no repetir todo el listado.
     const rePitch = runGuards({
       aiResponse: closingPitch,
       extracted: emptyExtracted({
@@ -7954,7 +7965,10 @@ async function runAll(): Promise<void> {
         { role: "user", content: "administracion@celamex.page" },
       ],
     });
-    assert.ok(!/Cathedral,\s*Pir[aá]mide,\s*Planas/i.test(rePitch), rePitch.slice(0, 500));
+    assert.ok(
+      !/blancas?,\s*negras?,\s*transparentes?\s+y\s*tipo\s+domo/i.test(rePitch),
+      rePitch.slice(0, 500)
+    );
     assert.ok(/carpa/i.test(rePitch), rePitch.slice(0, 400));
 
     // "Ya me preguntaste" → no volver a pedir correo
@@ -8297,7 +8311,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.05");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.06");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9060,6 +9074,98 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/cu[aá]ntos|cu[aá]nta gente|para cu[aá]ntas/i.test(closing), closing);
     assert.ok(/ya tengo todo|equipo|cotizaci/i.test(closing), closing);
+  });
+
+  // ─── 132. A15197 Milka — carpas reales + medidas obligatorias ───
+  await test("132. A15197 — tipos reales de carpa y medidas obligatorias antes del cierre", () => {
+    const carpaInfo = buildGuardServiceAck(
+      "Quiero información y disponibilidad de una carpa bonita para jardín"
+    );
+    for (const option of ["blanca", "negra", "transparente", "domo"]) {
+      assert.ok(new RegExp(option, "i").test(carpaInfo), `${option}: ${carpaInfo}`);
+    }
+    assert.ok(/medidas|largo|ancho/i.test(carpaInfo), carpaInfo);
+    assert.ok(!/Cathedral|Catedral|Pir[aá]mide|Planas?/i.test(carpaInfo), carpaInfo);
+
+    const completeWithoutDims = emptyExtracted({
+      nombre: "Milka",
+      correo: "orisrs.13@gmail.com",
+      tipo_evento: "cumpleaños",
+      requerimientos_evento: "Carpas — pequeña y bonita para jardín",
+      direccion_evento: "Chalco",
+      fecha_horario: "este sábado",
+      num_invitados: 15,
+      presupuesto: 1,
+    });
+    const allCore = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+      "Presupuesto (MXN)",
+    ]);
+    const blockedClose = runGuards({
+      aiResponse:
+        "Perfecto, ya tengo todo. Le paso esta información al equipo para preparar la cotización.",
+      extracted: completeWithoutDims,
+      filledSet: allCore,
+      readyForClosing: true,
+      currentMessage: "Lo más barato que se pueda",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Manejamos carpas blancas, negras, transparentes y tipo domo. ¿Qué medidas aproximadas necesitas?",
+        },
+        { role: "user", content: "Algo pequeñito y bonito" },
+      ],
+    });
+    assert.ok(/medidas|largo|ancho|área.*cubrir/i.test(blockedClose), blockedClose);
+    assert.ok(!/ya tengo todo|preparar.*cotizaci[oó]n/i.test(blockedClose), blockedClose);
+
+    const withDims = runGuards({
+      aiResponse:
+        "Perfecto, ya tengo todo. Le paso esta información al equipo para preparar la cotización.",
+      extracted: completeWithoutDims,
+      filledSet: new Set(allCore),
+      readyForClosing: true,
+      currentMessage: "De 3 x 4",
+      history: [
+        {
+          role: "assistant",
+          content: "¿Qué medidas aproximadas debe tener la carpa (largo × ancho)?",
+        },
+      ],
+    });
+    assert.ok(/3\s*m?\s*x\s*4|ya tengo todo|cotizaci[oó]n/i.test(withDims), withDims);
+    assert.ok(!/¿[^?]*medidas aproximadas/i.test(withDims), withDims);
+
+    const tarimaWithoutDims = runGuards({
+      aiResponse:
+        "Perfecto, ya tengo todo. El equipo preparará tu cotización de tarima.",
+      extracted: emptyExtracted({
+        ...completeWithoutDims,
+        requerimientos_evento: "Tarima para evento",
+      }),
+      filledSet: new Set(allCore),
+      readyForClosing: true,
+      currentMessage: "Prefiero que me propongan",
+    });
+    assert.ok(/medidas|largo|ancho/i.test(tarimaWithoutDims), tarimaWithoutDims);
+    assert.ok(!/ya tengo todo/i.test(tarimaWithoutDims), tarimaWithoutDims);
+
+    assert.equal(parseInvitadosFromText("15 aprox"), "15");
+    const noGuestRepeat = runGuards({
+      aiResponse: "¿Cuántos invitados esperas aproximadamente?",
+      extracted: completeWithoutDims,
+      filledSet: new Set(allCore),
+      readyForClosing: true,
+      currentMessage: "15 aprox",
+    });
+    assert.ok(!/cu[aá]ntos invitados|cu[aá]ntas personas/i.test(noGuestRepeat), noGuestRepeat);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -8,6 +8,7 @@ import {
   buildLucyInfoLearnedPriceReply,
   lucyInfoSupportsPriceClaim,
 } from "./services/lucyInfoPriceCache.js";
+import { CARPA_OPTIONS_TEXT } from "./conversation-understanding.js";
 
 /** Servicios sin precio publicado — Alejandro cotiza (fallback estático). */
 const NO_LISTED_PRICE_PATTERN =
@@ -164,13 +165,10 @@ export function buildConsultativeNoPriceReply(message?: string): string | null {
   }
 
   if (/\bcarpas?\b|lonas?\b|toldos?\b/.test(t)) {
-    const transparent = /transparent/i.test(t);
-    const head = transparent
-      ? "Sí, contamos con *carpas transparentes* (también Cathedral, Pirámide y Planas)."
-      : "Sí, manejamos carpas para jardín o terraza: Cathedral (techos altos), Pirámide, Planas y transparentes.";
     return (
-      `${head} Se cotizan según medidas y sede. ` +
-      `${team} arma el precio. ¿Cuál tipo te late y qué medidas aproximadas necesitas?`
+      `Sí, manejamos carpas para jardín o terraza: ${CARPA_OPTIONS_TEXT}. ` +
+      `Se cotizan según medidas y sede. ${team} arma el precio. ` +
+      "¿Qué opción prefieres y qué medidas aproximadas debe tener (largo × ancho)?"
     );
   }
   if (/\bdj\b|disc\s*jockey|audio\b|sonido\b/.test(t)) {
