@@ -111680,11 +111680,46 @@ function scoreDoc(doc, tokens) {
 var STRICT_PDF_SERVICE_FAMILIES = /* @__PURE__ */ new Set([
   "barra_cafe",
   "coffee_break",
-  "barra_americana"
+  "barra_americana",
+  "canapes",
+  "bocadillos",
+  "taquiza",
+  "paella",
+  "pozole_tostadas",
+  "barra_pizzas",
+  "barra_pastas",
+  "barra_sushi",
+  "barra_crepas",
+  "barra_yucateca",
+  "parrillada_tacos",
+  "parrillada_argentina",
+  "banquete_formal",
+  "banquete_mexicano",
+  "banquete_kosher",
+  "banquete_navideno"
 ]);
+function isMobiliarioPdfTitle(title) {
+  const t3 = fold(title);
+  return /\bmesas?\b.*\bsillas?\b|\bsillas?\b.*\bmesas?\b/.test(t3) || /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bluxor\b/.test(t3);
+}
+function isFoodServiceQuery(text2) {
+  const t3 = fold(text2);
+  return /\b(canap|bocadillo|banquete|catering|taquiza|paella|pozole|pizza|pasta|sushi|crepa|coffee\s*break|barra\s+de|parrillada|brunch|desayuno|coctel|mixolog|moctel|americano|marisco|panini|yucateca)\b/.test(
+    t3
+  );
+}
 function strictPdfServiceFamily(text2) {
   const families = expandQueryWithServiceSynonyms(text2).familyKeys;
   return families.find((family) => STRICT_PDF_SERVICE_FAMILIES.has(family)) ?? null;
+}
+function pdfDocMatchesStrictQuery(query, docTitle) {
+  const strictFamily = strictPdfServiceFamily(query);
+  if (strictFamily) {
+    const docFamily = strictPdfServiceFamily(docTitle);
+    if (docFamily !== strictFamily) return false;
+  }
+  if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(docTitle)) return false;
+  return true;
 }
 function tokenize(text2) {
   const raw = fold(text2).replace(/[^a-z0-9\s]/g, " ");
@@ -111844,7 +111879,7 @@ function findInclusionSection(content, query, maxChars = 1100) {
 }
 function queryHasServicePdfAnchor(query) {
   const q2 = fold(query);
-  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canap|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillo|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
+  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
     q2
   );
 }
@@ -111855,10 +111890,25 @@ function buildLucyInfoInclusionReply(query, maxChars = 1100) {
   if (!queryHasServicePdfAnchor(query)) return null;
   const tokens = tokenize(query);
   if (!tokens.length) return null;
-  const strictFamily = strictPdfServiceFamily(query);
-  const ranked = [...docs].filter((doc) => !strictFamily || strictPdfServiceFamily(doc.title) === strictFamily).map((d2) => ({ d: d2, s: scoreDoc(d2, tokens) })).filter((x7) => x7.s >= 6).sort((a3, b4) => b4.s - a3.s);
+  const ranked = [...docs].filter((doc) => pdfDocMatchesStrictQuery(query, doc.title)).map((d2) => ({ d: d2, s: scoreDoc(d2, tokens) })).filter((x7) => x7.s >= 6).sort((a3, b4) => b4.s - a3.s);
   if (!ranked.length) return null;
-  const serviceHints = ["coffee", "cafe", "banquete", "taquiza", "sushi", "paella", "pozole", "pista", "sala", "barra"];
+  const serviceHints = [
+    "canapes",
+    "canap",
+    "coffee",
+    "cafe",
+    "banquete",
+    "taquiza",
+    "sushi",
+    "paella",
+    "pozole",
+    "pista",
+    "mobiliario",
+    "mesas y sillas",
+    "barra de cafe",
+    "barra americana",
+    "bocadillo"
+  ];
   const qf = fold(query);
   const preferred = ranked.filter((x7) => {
     const title = fold(x7.d.title);
@@ -111869,6 +111919,7 @@ function buildLucyInfoInclusionReply(query, maxChars = 1100) {
     const section = findInclusionSection(d2.content, query, maxChars);
     if (!section) continue;
     const label = d2.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").trim();
+    if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
     return `Seg\xFAn el cat\xE1logo que ya tenemos de *${label}*:
 
 ${section}
@@ -112899,7 +112950,9 @@ function banqueteDetailQuery(text2) {
 var FAMILIES = [
   {
     family: "banquete",
-    familyPattern: /\bbanquetes?\b|\bcatering\b/i,
+    // "catering" solo cuenta como banquete si NO hay SKU concreto (canapés, taquiza…).
+    // A15204: "Un catering/ canapés" debe ir a gastronomía, no a Banquete Formal.
+    familyPattern: /\bbanquetes?\b|(?:(?!.*\b(?:canap[eé]s?|bocadillos?|paellas?|pozole|taquiza|parrillada|pizzas?|pastas?|sushi|crepas?|coffee\s*break)\b).*\bcatering\b)/iu,
     variantPattern: /\b(formal|mexicano|kosher|navide[nñ]o|buffet|\d\s*tiempos?|tres\s*tiempos?|cuatro\s*tiempos?|3\s*tiempos?|4\s*tiempos?)\b/i,
     detailQueryFromText: banqueteDetailQuery,
     buildMenu: () => [
@@ -113387,10 +113440,20 @@ function clientWantsServiceDetail(text2, history) {
 function detectProgressiveFamily(text2) {
   const t3 = text2?.trim() ?? "";
   if (!t3) return null;
-  for (const fam of FAMILIES) {
-    if (fam.familyPattern.test(t3)) return fam.family;
+  const matches = FAMILIES.filter((fam) => fam.familyPattern.test(t3));
+  if (!matches.length) return null;
+  if (matches.length === 1) return matches[0].family;
+  const withVariant = matches.filter((fam) => fam.variantPattern.test(t3));
+  if (withVariant.length === 1) return withVariant[0].family;
+  if (withVariant.length > 1) {
+    const nonBanquete = withVariant.filter((f6) => f6.family !== "banquete");
+    return (nonBanquete[0] ?? withVariant[0]).family;
   }
-  return null;
+  if (/\bcatering\b/i.test(t3) && !/\bbanquetes?\b/i.test(t3)) {
+    const other = matches.find((f6) => f6.family !== "banquete");
+    if (other) return other.family;
+  }
+  return matches[0].family;
 }
 function defFor(family) {
   return FAMILIES.find((f6) => f6.family === family);
@@ -113474,9 +113537,12 @@ function resolveProgressiveDetailQuery(opts) {
     msg,
     hint
   ].filter(Boolean).join(" ");
-  const family = detectProgressiveFamily(msg) || detectProgressiveFamily(hint) || detectProgressiveFamily(userBlob);
+  const concreteFam = FAMILIES.find(
+    (f6) => f6.familyPattern.test(msg) && f6.variantPattern.test(msg)
+  );
+  const family = concreteFam?.family || detectProgressiveFamily(msg) || detectProgressiveFamily(hint) || detectProgressiveFamily(userBlob);
   if (!family) return null;
-  if (hasConcreteServiceVariant(msg)) {
+  if (hasConcreteServiceVariant(msg) || concreteFam) {
     return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
   }
   if (clientWantsServiceDetail(msg, opts.history)) {
@@ -113660,12 +113726,18 @@ function buildGuardServiceAck(query) {
     const dims = parseSpaceDimensions(query);
     return dims ? `${mobiliario} Con espacio ${dims}, el equipo afina la propuesta.` : `${mobiliario} \xBFLo agregamos a tu cotizaci\xF3n?`;
   }
-  if (/\b(mobiliario|mobilairio)\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
+  const foodSkuNow = /\b(canap[eé]s?|bocadillos?|banquetes?|catering|taquiza|paella|coffee\s*break|barra\s+de)\b/iu.test(
+    query
+  );
+  if (!foodSkuNow && (/\b(mobiliario|mobilairio)\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) && !parseMobiliarioRentItems(query).length)) {
     return buildProgressiveOptionsMenu("mobiliario");
   }
-  if (/\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
+  if (!foodSkuNow && /\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
     const p4 = parseMobiliarioPieceChoice(query) || (/\bsillas?\b/i.test(query) ? "sillas" : null);
     if (p4) return buildMobiliarioPieceFollowUp(p4);
+  }
+  if (/\bcanap/i.test(query)) {
+    return "\xA1Claro! Anoto *Canap\xE9s* para tu cotizaci\xF3n. Es una estaci\xF3n de bocadillos finos para recepci\xF3n o cocktail. \xBFQuieres que te detalle opciones e inclusiones, o seguimos con los datos del evento?";
   }
   if (/\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(query)) {
     return `Claro \u2014 manejamos *shows*, animaci\xF3n y performance (hora loca, shows en vivo y activaciones). Cada propuesta se arma al concepto del evento. Te dejo el cat\xE1logo general:
@@ -132245,11 +132317,18 @@ ${multiPackageDump}`,
         const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
         const req = extracted.requerimientos_evento?.trim() ?? "";
         let serviceHint = null;
-        if (/\bbanquete|\bcatering\b/i.test(`${req} ${userBlob}`)) {
-          serviceHint = resolveDetailQueryForFamily(
-            "banquete",
-            `${req} ${userBlob} ${currentMessage ?? ""}`
+        const foodBlob = `${req} ${userBlob} ${currentMessage ?? ""}`;
+        if (/\bbanquete|\bcatering\b/i.test(foodBlob)) {
+          const concreteFamily = detectProgressiveFamily(
+            `${currentMessage ?? ""} ${userBlob}`
           );
+          if (concreteFamily && concreteFamily !== "banquete") {
+            serviceHint = resolveDetailQueryForFamily(concreteFamily, foodBlob);
+          } else if (/\bcanap/i.test(foodBlob)) {
+            serviceHint = "Canap\xE9s";
+          } else {
+            serviceHint = resolveDetailQueryForFamily("banquete", foodBlob);
+          }
         } else {
           serviceHint = (isValidRequerimientosValue(req) ? req : null) || parsePrimaryService(userBlob) || findMentionedService(userBlob);
         }
@@ -133241,6 +133320,21 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     mensaje = buildRequiredServiceDimensionsQuestion(extracted);
     log?.info({ entityId }, "GUARD: cierre final reemplazado por medidas obligatorias");
   }
+  {
+    const foodAsk = /\b(canap[eé]s?|bocadillos?|catering|banquete|taquiza|paella|coffee\s*break|barra\s+de)\b/iu.test(
+      currentMessage ?? ""
+    ) || /\b(canap[eé]s?|bocadillos?|catering|banquete|taquiza)\b/iu.test(
+      extracted.requerimientos_evento ?? ""
+    );
+    const furnitureDump = /Mesas\s*y\s*Sillas|20 combinaciones de mobiliario|Colecci[oó]n Vintage|periqueras?/i.test(
+      mensaje
+    ) && (/Según el cat[aá]logo/i.test(mensaje) || /Tiffany|Crossback|tabl[oó]n vintage/i.test(mensaje));
+    if (foodAsk && furnitureDump) {
+      const fixHint = currentMessage && /\bcanap|catering|bocadillo|banquete|taquiza/i.test(currentMessage) ? currentMessage : extracted.requerimientos_evento || currentMessage || "canap\xE9s";
+      mensaje = buildGuardServiceAck(fixHint);
+      log?.info({ entityId }, "GUARD: A15204 \u2014 comida \u2260 mobiliario, dump reemplazado");
+    }
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function dedupeCatalogUrlsInMessage(text2) {
@@ -134020,6 +134114,19 @@ ${keepQ}` : ack;
       "GUARD: pregunta de servicio \u2014 ack forzado post anti-repeat"
     );
   }
+  const foodAsk = /\b(canap[eé]s?|bocadillos?|catering|banquete|taquiza|paella|coffee\s*break|barra\s+de)\b/iu.test(
+    input.currentMessage ?? ""
+  );
+  const furnitureDump = /Mesas\s*y\s*Sillas|mobiliario|periqueras?|Tiffany|Crossback|Colecci[oó]n Vintage/i.test(
+    mensaje
+  ) && /Según el cat[aá]logo/i.test(mensaje);
+  if (foodAsk && furnitureDump) {
+    mensaje = buildGuardServiceAck(input.currentMessage ?? "canap\xE9s");
+    input.log?.info?.(
+      { entityId: input.entityId },
+      "GUARD: comida \u2260 mobiliario \u2014 dump de mesas/sillas reemplazado"
+    );
+  }
   if (clientAsksInclusion(input.currentMessage) || /Según el catálogo que ya tenemos/i.test(mensaje) || /¿Te late este nivel o quieres que te detalle otro\?/i.test(mensaje)) {
     mensaje = collapseDuplicatedInclusionReply(mensaje);
   }
@@ -134545,7 +134652,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.06";
+var LUCY_PROMPT_VERSION = "V9.07";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -141610,7 +141717,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.06");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.07");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -142347,6 +142454,79 @@ ${golfText}`,
       currentMessage: "15 aprox"
     });
     assert2.ok(!/cu[aá]ntos invitados|cu[aá]ntas personas/i.test(noGuestRepeat), noGuestRepeat);
+  });
+  await test("133. A15204 \u2014 catering/canap\xE9s no vuelca mobiliario ni banquete gen\xE9rico", () => {
+    assert2.equal(detectProgressiveFamily("Un catering/ canap\xE9s"), "gastronomia");
+    assert2.equal(detectProgressiveFamily("canap\xE9s"), "gastronomia");
+    assert2.equal(detectProgressiveFamily("quiero catering"), "banquete");
+    assert2.equal(
+      resolveProgressiveDetailQuery({
+        currentMessage: "Un catering/ canap\xE9s",
+        serviceHint: "catering",
+        history: []
+      }),
+      "Canap\xE9s"
+    );
+    const services = parseServicesFromText("Un catering/ canap\xE9s");
+    assert2.ok(services.includes("Canap\xE9s"), services.join(","));
+    refreshLucyInfoPriceCache([
+      {
+        title: "Mesas-y-Sillas-Bodasesor-2026-compressed",
+        content: "RENTA DE MOBILIARIO Mesas Sillas Barras 4 estilos para tu servicio de bar \xBFPor qu\xE9 Bodasesor? M\xE1s de 20 combinaciones de mobiliario Colecci\xF3n Vintage Tiffany $320"
+      },
+      {
+        title: "Canapes-bodasesor-2026",
+        content: "Canap\xE9s Premium. Estaci\xF3n de bocadillos finos para recepci\xF3n. Incluye chef, montaje y vajilla. Premium $450 por persona."
+      },
+      {
+        title: "Banquete-Formal-Bodasesor-2026",
+        content: "Banquete Formal 3 tiempos Tradicional $830 por persona. Meseros y vajilla."
+      }
+    ]);
+    for (const q2 of [
+      "Un catering/ canap\xE9s",
+      "canap\xE9s",
+      "Canap\xE9s",
+      "catering canap\xE9s",
+      "Hola, me interesa cotizar: Un catering/ canap\xE9s"
+    ]) {
+      const detail = buildLucyInfoInclusionReply(q2);
+      assert2.ok(detail, `debe haber detalle para: ${q2}`);
+      assert2.ok(/Canapes/i.test(detail), detail);
+      assert2.ok(/bocadillo|chef|Premium/i.test(detail), detail);
+      assert2.ok(
+        !/Mesas\s*y\s*Sillas|mobiliario|Tiffany|Colecci[oó]n Vintage/i.test(detail),
+        detail
+      );
+    }
+    const ack = buildGuardServiceAck("Un catering/ canap\xE9s");
+    assert2.ok(/[Cc]anap/i.test(ack), ack);
+    assert2.ok(!/Mesas\s*y\s*Sillas|periqueras|Tiffany|¿Qué es lo que buscas/i.test(ack), ack);
+    const dumped = runGuards({
+      aiResponse: "Seg\xFAn el cat\xE1logo que ya tenemos de *Mesas y Sillas Bodasesor*:\n\nstilos para tu servicio de bar \xBFPor qu\xE9 Bodasesor? M\xE1s de 20 combinaciones de mobiliario Mesas, sillas Tiffany.\n\n\xBFTe late este nivel o quieres que te detalle otro?",
+      extracted: emptyExtracted({
+        nombre: "Mauricio Glz",
+        correo: "mauriciogq84@gmail.com",
+        tipo_evento: "boda civil",
+        num_invitados: 80
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Correo electr\xF3nico",
+        "Tipo de evento",
+        "N\xFAmero de invitados"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Un catering/ canap\xE9s",
+      history: [
+        { role: "assistant", content: "\xBFQu\xE9 servicios te gustar\xEDa cotizar?" }
+      ]
+    });
+    assert2.ok(/[Cc]anap/i.test(dumped), dumped.slice(0, 500));
+    assert2.ok(
+      !/Mesas\s*y\s*Sillas|20 combinaciones de mobiliario|Colecci[oó]n Vintage/i.test(dumped),
+      dumped.slice(0, 500)
+    );
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

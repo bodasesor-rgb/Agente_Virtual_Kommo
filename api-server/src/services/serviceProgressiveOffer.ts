@@ -76,7 +76,10 @@ export function banqueteDetailQuery(text: string): string {
 const FAMILIES: FamilyDef[] = [
   {
     family: "banquete",
-    familyPattern: /\bbanquetes?\b|\bcatering\b/i,
+    // "catering" solo cuenta como banquete si NO hay SKU concreto (canapés, taquiza…).
+    // A15204: "Un catering/ canapés" debe ir a gastronomía, no a Banquete Formal.
+    familyPattern:
+      /\bbanquetes?\b|(?:(?!.*\b(?:canap[eé]s?|bocadillos?|paellas?|pozole|taquiza|parrillada|pizzas?|pastas?|sushi|crepas?|coffee\s*break)\b).*\bcatering\b)/iu,
     variantPattern:
       /\b(formal|mexicano|kosher|navide[nñ]o|buffet|\d\s*tiempos?|tres\s*tiempos?|cuatro\s*tiempos?|3\s*tiempos?|4\s*tiempos?)\b/i,
     detailQueryFromText: banqueteDetailQuery,
@@ -706,11 +709,27 @@ export function detectProgressiveFamily(
 ): ProgressiveFamily | null {
   const t = text?.trim() ?? "";
   if (!t) return null;
-  // Más específico primero (sushi/café antes que alimentos/bebidas).
-  for (const fam of FAMILIES) {
-    if (fam.familyPattern.test(t)) return fam.family;
+
+  const matches = FAMILIES.filter((fam) => fam.familyPattern.test(t));
+  if (!matches.length) return null;
+  if (matches.length === 1) return matches[0]!.family;
+
+  // Variante concreta (canapés, coffee break 3, formal…) gana sobre el paraguas.
+  const withVariant = matches.filter((fam) => fam.variantPattern.test(t));
+  if (withVariant.length === 1) return withVariant[0]!.family;
+  if (withVariant.length > 1) {
+    const nonBanquete = withVariant.filter((f) => f.family !== "banquete");
+    return (nonBanquete[0] ?? withVariant[0])!.family;
   }
-  return null;
+
+  // "catering" genérico + otra familia → la otra (nunca forzar banquete).
+  if (/\bcatering\b/i.test(t) && !/\bbanquetes?\b/i.test(t)) {
+    const other = matches.find((f) => f.family !== "banquete");
+    if (other) return other.family;
+  }
+
+  // Orden de FAMILIES: más específico primero (sushi/café antes que alimentos).
+  return matches[0]!.family;
 }
 
 function defFor(family: ProgressiveFamily): FamilyDef {
@@ -880,13 +899,18 @@ export function resolveProgressiveDetailQuery(opts: {
     .filter(Boolean)
     .join(" ");
 
+  // A15204: si el mensaje trae SKU concreto (canapés), usar ESA familia — no la del hint "catering".
+  const concreteFam = FAMILIES.find(
+    (f) => f.familyPattern.test(msg) && f.variantPattern.test(msg)
+  );
   const family =
+    concreteFam?.family ||
     detectProgressiveFamily(msg) ||
     detectProgressiveFamily(hint) ||
     detectProgressiveFamily(userBlob);
   if (!family) return null;
 
-  if (hasConcreteServiceVariant(msg)) {
+  if (hasConcreteServiceVariant(msg) || concreteFam) {
     return resolveDetailQueryForFamily(family, `${msg} ${userBlob}`);
   }
   if (clientWantsServiceDetail(msg, opts.history)) {

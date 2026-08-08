@@ -101,19 +101,62 @@ function scoreDoc(doc: LucyInfoCacheDoc, tokens: string[]): number {
 }
 
 /**
- * Familias cuyos catálogos comparten palabras demasiado genéricas ("barra", "café",
- * "premium"). Si el pedido identifica una de ellas, el PDF debe identificar la misma
- * familia en su título; el contenido de otro servicio nunca sirve como fallback.
+ * Familias cuyos catálogos no deben cruzarse. Si el pedido identifica una, el PDF
+ * debe identificar la misma; otro servicio nunca sirve como fallback.
+ * A15191: cafés. A15204: canapés/comida ≠ mobiliario/mesas.
  */
 const STRICT_PDF_SERVICE_FAMILIES = new Set([
   "barra_cafe",
   "coffee_break",
   "barra_americana",
+  "canapes",
+  "bocadillos",
+  "taquiza",
+  "paella",
+  "pozole_tostadas",
+  "barra_pizzas",
+  "barra_pastas",
+  "barra_sushi",
+  "barra_crepas",
+  "barra_yucateca",
+  "parrillada_tacos",
+  "parrillada_argentina",
+  "banquete_formal",
+  "banquete_mexicano",
+  "banquete_kosher",
+  "banquete_navideno",
 ]);
+
+/** PDFs de renta de mesas/sillas — incompatibles con pedidos de comida. */
+function isMobiliarioPdfTitle(title: string): boolean {
+  const t = fold(title);
+  return (
+    /\bmesas?\b.*\bsillas?\b|\bsillas?\b.*\bmesas?\b/.test(t) ||
+    /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bluxor\b/.test(t)
+  );
+}
+
+function isFoodServiceQuery(text: string): boolean {
+  const t = fold(text);
+  return /\b(canap|bocadillo|banquete|catering|taquiza|paella|pozole|pizza|pasta|sushi|crepa|coffee\s*break|barra\s+de|parrillada|brunch|desayuno|coctel|mixolog|moctel|americano|marisco|panini|yucateca)\b/.test(
+    t
+  );
+}
 
 function strictPdfServiceFamily(text: string): string | null {
   const families = expandQueryWithServiceSynonyms(text).familyKeys;
   return families.find((family) => STRICT_PDF_SERVICE_FAMILIES.has(family)) ?? null;
+}
+
+function pdfDocMatchesStrictQuery(query: string, docTitle: string): boolean {
+  const strictFamily = strictPdfServiceFamily(query);
+  if (strictFamily) {
+    const docFamily = strictPdfServiceFamily(docTitle);
+    // Título sin familia estricta (p.ej. Mesas) no puede suplantar un SKU estricto.
+    if (docFamily !== strictFamily) return false;
+  }
+  if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(docTitle)) return false;
+  return true;
 }
 
 function tokenize(text: string): string[] {
@@ -307,7 +350,8 @@ function findInclusionSection(content: string, query: string, maxChars = 1100): 
 /** Solo buscar PDF si el query habla de un servicio/paquete — nunca por un nombre propio (A14964). */
 function queryHasServicePdfAnchor(query: string): boolean {
   const q = fold(query);
-  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canap|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillo|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
+  // q ya viene fold (sin acentos): canapes/canape — no usar \bcanap\b (falla con "canapes").
+  return /\b(banquete|taquiza|coffee|break|barra|catering|pizza|pasta|sushi|dj|pista|tarima|crepas?|canapes?|queso|dulce|postre|paella|pozole|brunch|desayuno|cena|mesero|mobiliario|carpa|iluminaci|pantalla|incluye|precio|nivel|paquete|formal|tiempos|tradicional|premium|basico|bocadillos?|entradas?|vajilla|mixolog|coctel|helado|fruta|inflable|softplay|letras?|valet|pirotecnia)\b/.test(
     q
   );
 }
@@ -320,18 +364,32 @@ export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): str
   if (!queryHasServicePdfAnchor(query)) return null;
   const tokens = tokenize(query);
   if (!tokens.length) return null;
-  const strictFamily = strictPdfServiceFamily(query);
 
   const ranked = [...docs]
-    .filter((doc) => !strictFamily || strictPdfServiceFamily(doc.title) === strictFamily)
+    .filter((doc) => pdfDocMatchesStrictQuery(query, doc.title))
     .map((d) => ({ d, s: scoreDoc(d, tokens) }))
     .filter((x) => x.s >= 6)
     .sort((a, b) => b.s - a.s);
   if (!ranked.length) return null;
 
-  // Preferir docs cuyo título matchee el servicio (coffee, banquete, taquiza…).
-  // Para familias estrictas, el filtro anterior ya exige identidad exacta.
-  const serviceHints = ["coffee", "cafe", "banquete", "taquiza", "sushi", "paella", "pozole", "pista", "sala", "barra"];
+  // Preferir docs cuyo título matchee el servicio. Nunca "sala" (substring de "sillas").
+  const serviceHints = [
+    "canapes",
+    "canap",
+    "coffee",
+    "cafe",
+    "banquete",
+    "taquiza",
+    "sushi",
+    "paella",
+    "pozole",
+    "pista",
+    "mobiliario",
+    "mesas y sillas",
+    "barra de cafe",
+    "barra americana",
+    "bocadillo",
+  ];
   const qf = fold(query);
   const preferred = ranked.filter((x) => {
     const title = fold(x.d.title);
@@ -343,6 +401,8 @@ export function buildLucyInfoInclusionReply(query: string, maxChars = 1100): str
     const section = findInclusionSection(d.content, query, maxChars);
     if (!section) continue;
     const label = d.title.replace(/[-_]+/g, " ").replace(/\s+2026.*$/i, "").trim();
+    // Doble chequeo: nunca etiquetar comida con catálogo de mobiliario.
+    if (isFoodServiceQuery(query) && isMobiliarioPdfTitle(label)) continue;
     return (
       `Según el catálogo que ya tenemos de *${label}*:\n\n` +
       `${section}\n\n` +

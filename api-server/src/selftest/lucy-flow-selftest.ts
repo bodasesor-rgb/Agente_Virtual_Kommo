@@ -8311,7 +8311,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.06");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.07");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9166,6 +9166,89 @@ async function runAll(): Promise<void> {
       currentMessage: "15 aprox",
     });
     assert.ok(!/cu[aá]ntos invitados|cu[aá]ntas personas/i.test(noGuestRepeat), noGuestRepeat);
+  });
+
+  // ─── 133. A15204 Mauricio — catering/canapés ≠ Mesas y Sillas ───
+  await test("133. A15204 — catering/canapés no vuelca mobiliario ni banquete genérico", () => {
+    assert.equal(detectProgressiveFamily("Un catering/ canapés"), "gastronomia");
+    assert.equal(detectProgressiveFamily("canapés"), "gastronomia");
+    assert.equal(detectProgressiveFamily("quiero catering"), "banquete");
+    assert.equal(
+      resolveProgressiveDetailQuery({
+        currentMessage: "Un catering/ canapés",
+        serviceHint: "catering",
+        history: [],
+      }),
+      "Canapés"
+    );
+
+    const services = parseServicesFromText("Un catering/ canapés");
+    assert.ok(services.includes("Canapés"), services.join(","));
+
+    refreshLucyInfoPriceCache([
+      {
+        title: "Mesas-y-Sillas-Bodasesor-2026-compressed",
+        content:
+          "RENTA DE MOBILIARIO Mesas Sillas Barras 4 estilos para tu servicio de bar ¿Por qué Bodasesor? Más de 20 combinaciones de mobiliario Colección Vintage Tiffany $320",
+      },
+      {
+        title: "Canapes-bodasesor-2026",
+        content:
+          "Canapés Premium. Estación de bocadillos finos para recepción. Incluye chef, montaje y vajilla. Premium $450 por persona.",
+      },
+      {
+        title: "Banquete-Formal-Bodasesor-2026",
+        content: "Banquete Formal 3 tiempos Tradicional $830 por persona. Meseros y vajilla.",
+      },
+    ]);
+
+    for (const q of [
+      "Un catering/ canapés",
+      "canapés",
+      "Canapés",
+      "catering canapés",
+      "Hola, me interesa cotizar: Un catering/ canapés",
+    ]) {
+      const detail = buildLucyInfoInclusionReply(q);
+      assert.ok(detail, `debe haber detalle para: ${q}`);
+      assert.ok(/Canapes/i.test(detail!), detail!);
+      assert.ok(/bocadillo|chef|Premium/i.test(detail!), detail!);
+      assert.ok(
+        !/Mesas\s*y\s*Sillas|mobiliario|Tiffany|Colecci[oó]n Vintage/i.test(detail!),
+        detail!
+      );
+    }
+
+    const ack = buildGuardServiceAck("Un catering/ canapés");
+    assert.ok(/[Cc]anap/i.test(ack), ack);
+    assert.ok(!/Mesas\s*y\s*Sillas|periqueras|Tiffany|¿Qué es lo que buscas/i.test(ack), ack);
+
+    const dumped = runGuards({
+      aiResponse:
+        "Según el catálogo que ya tenemos de *Mesas y Sillas Bodasesor*:\n\nstilos para tu servicio de bar ¿Por qué Bodasesor? Más de 20 combinaciones de mobiliario Mesas, sillas Tiffany.\n\n¿Te late este nivel o quieres que te detalle otro?",
+      extracted: emptyExtracted({
+        nombre: "Mauricio Glz",
+        correo: "mauriciogq84@gmail.com",
+        tipo_evento: "boda civil",
+        num_invitados: 80,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Un catering/ canapés",
+      history: [
+        { role: "assistant", content: "¿Qué servicios te gustaría cotizar?" },
+      ],
+    });
+    assert.ok(/[Cc]anap/i.test(dumped), dumped.slice(0, 500));
+    assert.ok(
+      !/Mesas\s*y\s*Sillas|20 combinaciones de mobiliario|Colecci[oó]n Vintage/i.test(dumped),
+      dumped.slice(0, 500)
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

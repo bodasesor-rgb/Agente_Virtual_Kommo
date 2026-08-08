@@ -5977,12 +5977,20 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
     const req = extracted.requerimientos_evento?.trim() ?? "";
     // A14947: si el hilo es banquete/catering, NUNCA resolver a Betún/Cupcakes.
+    // A15204: "catering/canapés" → Canapés (no forzar Banquete Formal ni mobiliario).
     let serviceHint: string | null = null;
-    if (/\bbanquete|\bcatering\b/i.test(`${req} ${userBlob}`)) {
-      serviceHint = resolveDetailQueryForFamily(
-        "banquete",
-        `${req} ${userBlob} ${currentMessage ?? ""}`
+    const foodBlob = `${req} ${userBlob} ${currentMessage ?? ""}`;
+    if (/\bbanquete|\bcatering\b/i.test(foodBlob)) {
+      const concreteFamily = detectProgressiveFamily(
+        `${currentMessage ?? ""} ${userBlob}`
       );
+      if (concreteFamily && concreteFamily !== "banquete") {
+        serviceHint = resolveDetailQueryForFamily(concreteFamily, foodBlob);
+      } else if (/\bcanap/i.test(foodBlob)) {
+        serviceHint = "Canapés";
+      } else {
+        serviceHint = resolveDetailQueryForFamily("banquete", foodBlob);
+      }
     } else {
       serviceHint =
         (isValidRequerimientosValue(req) ? req : null) ||
@@ -7444,6 +7452,31 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   ) {
     mensaje = buildRequiredServiceDimensionsQuestion(extracted);
     log?.info({ entityId }, "GUARD: cierre final reemplazado por medidas obligatorias");
+  }
+
+  // A15204: comida/canapés nunca termina en dump de Mesas y Sillas / mobiliario.
+  {
+    const foodAsk =
+      /\b(canap[eé]s?|bocadillos?|catering|banquete|taquiza|paella|coffee\s*break|barra\s+de)\b/iu.test(
+        currentMessage ?? ""
+      ) ||
+      /\b(canap[eé]s?|bocadillos?|catering|banquete|taquiza)\b/iu.test(
+        extracted.requerimientos_evento ?? ""
+      );
+    const furnitureDump =
+      /Mesas\s*y\s*Sillas|20 combinaciones de mobiliario|Colecci[oó]n Vintage|periqueras?/i.test(
+        mensaje
+      ) &&
+      (/Según el cat[aá]logo/i.test(mensaje) ||
+        /Tiffany|Crossback|tabl[oó]n vintage/i.test(mensaje));
+    if (foodAsk && furnitureDump) {
+      const fixHint =
+        currentMessage && /\bcanap|catering|bocadillo|banquete|taquiza/i.test(currentMessage)
+          ? currentMessage
+          : extracted.requerimientos_evento || currentMessage || "canapés";
+      mensaje = buildGuardServiceAck(fixHint);
+      log?.info({ entityId }, "GUARD: A15204 — comida ≠ mobiliario, dump reemplazado");
+    }
   }
 
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
