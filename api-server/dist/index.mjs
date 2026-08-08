@@ -206648,11 +206648,20 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Entelados para Techo", /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i],
   ["Vajillas", /\bvajillas?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b/i],
   ["Video", /\bvideo\b|\bled\s*wall\b/i],
+  // A15190: centros de mesa = floral/decorativo, NUNCA mobiliario (antes de Decoración/Mobiliario).
+  [
+    "Centros de mesa",
+    /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b|\bflores?\s+(?:para|en|de)\s+mesas?\b/i
+  ],
   ["Decoraci\xF3n", /\bdecoraci[oó]n\b/i],
   ["Florister\xEDa", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
   // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
   ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
-  ["Mobiliario", /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|mesas?|periqueras?)\b/i],
+  // "mesas?" no debe capturar "centros/arreglos/decoración de mesa" ni "mesa de dulces/…".
+  [
+    "Mobiliario",
+    /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)/i
+  ],
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
@@ -206676,13 +206685,21 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Pirotecnia fr\xEDa", /\b(pirotecnia\s+fr[ií]a|fuegos?\s+fr[ií]os?|cold\s+spark)\b/i],
   ["Mesa imperial", /\bmesa\s+imperial\b/i]
 ];
-var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+var SERVICE_HINT = /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 var SHORT_SERVICE_ALIASES = {
   pista: "pista de baile",
   tarima: "pista de baile",
   dj: "DJ",
   mesa: "mobiliario",
   mesas: "mobiliario",
+  "centro de mesa": "Centros de mesa",
+  "centros de mesa": "Centros de mesa",
+  "centros florales": "Centros de mesa",
+  "centro floral": "Centros de mesa",
+  "arreglo de mesa": "Centros de mesa",
+  "arreglos de mesa": "Centros de mesa",
+  "decoracion de mesas": "Centros de mesa",
+  "decoraci\xF3n de mesas": "Centros de mesa",
   silla: "mobiliario",
   sillas: "mobiliario",
   sala: "salas lounge",
@@ -207658,6 +207675,18 @@ function dedupeServiceHierarchy(services, sourceText) {
   if (found.some((s10) => /puestos?\s+de\s+comida/i.test(s10))) {
     for (let i10 = found.length - 1; i10 >= 0; i10--) {
       if (/^Snack$/i.test(found[i10])) found.splice(i10, 1);
+    }
+  }
+  if (found.some((s10) => /centros?\s+de\s+mesa/i.test(s10))) {
+    for (let i10 = found.length - 1; i10 >= 0; i10--) {
+      if (/^Mobiliario$/i.test(found[i10])) found.splice(i10, 1);
+    }
+    if (/\b(centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?|decoraci[oó]n\s+de\s+mesas?|flores?\s+(?:para|en|de)\s+mesas?)\b/i.test(
+      text2
+    )) {
+      for (let i10 = found.length - 1; i10 >= 0; i10--) {
+        if (/^(Decoraci[oó]n|Florister[ií]a)$/i.test(found[i10])) found.splice(i10, 1);
+      }
     }
   }
   if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
@@ -209038,10 +209067,16 @@ var FAMILIES = [
   },
   {
     family: "mobiliario",
-    familyPattern: /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bmesas?\s+y\s+sillas?\b|\brenta\s+de\s+(mesas?|sillas?|mobiliario)|\bentelados?\b|\bcolgantes?\b|\bvajillas?\b|\bbarras?\s+de\s+mobiliario\b/i,
+    // A15190: "centros de mesa" es floral/decorativo — no entra a familia mobiliario.
+    familyPattern: /^(?!.*\bcentros?\s+de\s+mesas?\b).*\b(?:mobiliario|periqueras?|salas?\s+lounge|mesas?\s+y\s+sillas?|renta\s+de\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\s+de\s+mobiliario)\b/i,
     // Pieza concreta (mesas/sillas/…) o modelo (Tiffany/Crossback…).
-    variantPattern: /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|mesas?|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
+    variantPattern: /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|(?<!centros?\s+de\s)mesas?|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
     detailQueryFromText: (text2) => {
+      if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b/i.test(
+        text2
+      )) {
+        return "Centros de mesa";
+      }
       if (/entelado|tela\s+(en\s+|de\s+|para\s+)?techo/i.test(text2)) {
         return "Entelados para Techo";
       }
@@ -209050,7 +209085,11 @@ var FAMILIES = [
       if (/periquera/i.test(text2)) return "periqueras";
       if (/lounge|luxor/i.test(text2)) return "salas lounge";
       if (/\bsillas?\b/i.test(text2)) return "sillas";
-      if (/\bmesas?\b|picnic/i.test(text2)) return "mesas";
+      if (/(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|picnic/i.test(
+        text2
+      )) {
+        return "mesas";
+      }
       return "mobiliario";
     },
     buildMenu: () => [
@@ -209125,13 +209164,20 @@ function historyOfferedMobiliarioPieceMenu(history) {
 function parseMobiliarioPieceChoice(text2) {
   const t10 = text2?.trim() ?? "";
   if (!t10) return null;
+  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b|\bflores?\s+(?:para|en|de)\s+mesas?\b|\bmesa\s+de\s+(dulces|postres|quesos?|imperial)\b/i.test(
+    t10
+  )) {
+    return null;
+  }
   if (/\b(periqueras?)\b/i.test(t10)) return "periqueras";
   if (/\b(salas?\s+lounge|lounge)\b/i.test(t10)) return "salas lounge";
   if (/\b(vajillas?|manteler[ií]a)\b/i.test(t10)) return "vajillas";
   if (/\b(entelados?)\b/i.test(t10)) return "entelados";
   if (/\b(colgantes?)\b/i.test(t10)) return "colgantes";
   if (/\bsillas?\b/i.test(t10)) return "sillas";
-  if (/\bmesas?\b|\bpicnic\b/i.test(t10)) return "mesas";
+  if (/(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|\bpicnic\b/i.test(t10)) {
+    return "mesas";
+  }
   return null;
 }
 function buildSillasModelMenu() {
@@ -209562,6 +209608,9 @@ function buildGuardServiceAck(query) {
     if (detail) return detail;
   }
   if (level === 3) return buildLevel3Ack(label);
+  if (/\bcentros?\s+de\s+mesas?\b/i.test(query) || /centros?\s+de\s+mesa/i.test(label)) {
+    return "\xA1Claro! Anoto *centros de mesa* (decoraci\xF3n floral) para tu cotizaci\xF3n. Nuestro equipo te confirma estilos, precio e inclusiones.";
+  }
   if (/\bpizzas?\b/i.test(query) && /\b(hacen|preparan|cocinan|montan|sirven|elaboran|en\s+el\s+evento|en\s+vivo)\b/i.test(query)) {
     return "S\xED: la *barra de pizzas* se monta en tu evento y se preparan al momento (estaci\xF3n con hornos/equipo seg\xFAn el paquete). Tambi\xE9n podemos sumar pastas u otras estaciones italianas si te interesa.";
   }
@@ -210336,6 +210385,33 @@ var DEFAULT_SERVICE_SYNONYM_FAMILIES = [
     excludeIf: ["entelado", "entelados", "tela en techo", "tela de techo"]
   },
   {
+    // A15190: floral/decorativo — nunca mesas/sillas de renta.
+    key: "centros_mesa",
+    serviceHints: ["centros de mesa", "centro de mesa"],
+    aliases: [
+      "centros de mesa",
+      "centro de mesa",
+      "centros de mesas",
+      "arreglos de mesa",
+      "arreglo de mesa",
+      "centros florales",
+      "centro floral",
+      "decoracion de mesas",
+      "decoraci\xF3n de mesas",
+      "flores para mesa",
+      "flores en mesa"
+    ],
+    excludeIf: [
+      "mobiliario",
+      "mesas y sillas",
+      "renta de mesas",
+      "mesa de dulces",
+      "mesa de postres",
+      "mesa de quesos",
+      "mesa imperial"
+    ]
+  },
+  {
     key: "pozole_tostadas",
     serviceHints: ["pozole", "tostadas"],
     aliases: [
@@ -210527,6 +210603,10 @@ var FAMILY_DISPLAY = {
   colgantes_premium: {
     label: "Colgantes Premium",
     complements: ["Entelados para Techo", "Iluminaci\xF3n"]
+  },
+  centros_mesa: {
+    label: "Centros de mesa",
+    complements: ["Iluminaci\xF3n", "Colgantes Premium", "Entelados para Techo"]
   }
 };
 function resolveServiceFocusFromText(text2) {
@@ -210543,7 +210623,8 @@ function resolveServiceFocusFromText(text2) {
     "barra_americana",
     "barra_sushi",
     "entelados_techo",
-    "colgantes_premium"
+    "colgantes_premium",
+    "centros_mesa"
   ];
   const familyKey = preferredOrder.find((k10) => expanded.familyKeys.includes(k10)) ?? expanded.familyKeys[0];
   const fam = DEFAULT_SERVICE_SYNONYM_FAMILIES.find((f10) => f10.key === familyKey);
@@ -212305,7 +212386,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.03";
+var LUCY_PROMPT_VERSION = "V9.04";
 
 // src/lib/buildMeta.ts
 var cached = null;

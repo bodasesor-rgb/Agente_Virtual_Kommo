@@ -6298,6 +6298,14 @@ async function runAll(): Promise<void> {
     expectPrimary("mesa de dulces", "Mesa de dulces");
     expectPrimary("mesa de postres", "Mesa de postres");
     expectPrimary("mesa de quesos", "Mesa de quesos");
+    // A15190: centros de mesa (floral) ≠ mobiliario.
+    expectPrimary("centros de mesa", "Centros de mesa");
+    expectPrimary("De centros de mesa", "Centros de mesa");
+    expectPrimary("arreglos de mesa", "Centros de mesa");
+    expectPrimary("centros florales", "Centros de mesa");
+    assert.ok(!parseServicesFromText("centros de mesa").includes("Mobiliario"));
+    assert.ok(!parseServicesFromText("De centros de mesa").includes("Mobiliario"));
+    assert.ok(!parseServicesFromText("arreglos de mesa").includes("Mobiliario"));
 
     // Mobiliario
     expectPrimary("entelados", "Entelados para Techo");
@@ -6322,6 +6330,9 @@ async function runAll(): Promise<void> {
     assert.equal(detectProgressiveFamily("paella para 80"), "gastronomia");
     assert.equal(detectProgressiveFamily("cupcakes"), "cupcakes_betun");
     assert.equal(detectProgressiveFamily("entelados para techo"), "mobiliario");
+    assert.equal(detectProgressiveFamily("centros de mesa"), null);
+    assert.equal(detectProgressiveFamily("De centros de mesa"), null);
+    assert.equal(parseMobiliarioPieceChoice("centros de mesa"), null);
     assert.equal(detectProgressiveFamily("parrillada tacos"), "parrillada");
     assert.equal(
       resolveDetailQueryForFamily("parrillada", "parrillada de tacos"),
@@ -8281,7 +8292,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.03");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.04");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8876,6 +8887,62 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/eres M[aá]ndamelo|sigo contigo/i.test(affirm), affirm.slice(0, 300));
     assert.ok(/bodasesor\.com\/catalogos/i.test(affirm), affirm.slice(0, 400));
+  });
+
+  // ─── 130. A15190 Adriana — centros de mesa ≠ mobiliario ───
+  await test("130. A15190 — centros de mesa es floral/decorativo, no mobiliario", () => {
+    for (const msg of [
+      "centros de mesa",
+      "De centros de mesa",
+      "Centros de mesa",
+      "arreglos de mesa",
+      "centros florales",
+    ]) {
+      const services = parseServicesFromText(msg);
+      assert.ok(services.includes("Centros de mesa"), `${msg} → ${services.join(",")}`);
+      assert.ok(!services.includes("Mobiliario"), `${msg} no debe ser mobiliario: ${services.join(",")}`);
+      assert.equal(detectProgressiveFamily(msg), null, msg);
+      assert.equal(parseMobiliarioPieceChoice(msg), null, msg);
+    }
+    assert.equal(parseMobiliarioPieceChoice("mesa de dulces"), null);
+
+    const ack = buildGuardServiceAck("De centros de mesa");
+    assert.ok(/centros de mesa/i.test(ack), ack);
+    assert.ok(/floral|decoraci/i.test(ack), ack);
+    assert.ok(!/periqueras|salas lounge|Tiffany|¿Qué es lo que buscas/i.test(ack), ack);
+
+    const early = runGuards({
+      aiResponse: "Sí, contamos con *mobiliario*. ¿Qué es lo que buscas?\n• Mesas\n• Sillas",
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: "De centros de mesa",
+      forceFirstPresentation: true,
+      history: [
+        {
+          role: "assistant",
+          content: "Hola, soy Lucy, agente virtual de Bodasesor. ¿Cómo te llamas?",
+        },
+      ],
+    });
+    assert.ok(!/periqueras|salas lounge|Tiffany/i.test(early), early.slice(0, 500));
+    assert.ok(
+      /centros de mesa|floral|decoraci|anoto/i.test(early) || /c[oó]mo te llamas|nombre/i.test(early),
+      early.slice(0, 500)
+    );
+    assert.ok(!/\*Mobiliario\*/i.test(early), early.slice(0, 400));
+
+    const named = runGuards({
+      aiResponse: "¡Claro! *Mobiliario* la anoto para tu cotización.",
+      extracted: emptyExtracted({ nombre: "Adriana" }),
+      filledSet: new Set(["Nombre del cliente"]),
+      readyForClosing: false,
+      currentMessage: "Centros de mesa",
+      whatsappDisplayName: "Adriana García",
+    });
+    assert.ok(/centros de mesa/i.test(named), named.slice(0, 400));
+    assert.ok(!/\*Mobiliario\*/i.test(named), named.slice(0, 400));
+    assert.ok(!/periqueras|salas lounge/i.test(named), named.slice(0, 400));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

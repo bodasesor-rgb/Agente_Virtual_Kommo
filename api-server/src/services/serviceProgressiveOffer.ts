@@ -293,12 +293,20 @@ const FAMILIES: FamilyDef[] = [
   },
   {
     family: "mobiliario",
+    // A15190: "centros de mesa" es floral/decorativo — no entra a familia mobiliario.
     familyPattern:
-      /\bmobiliario\b|\bperiqueras?\b|\bsalas?\s+lounge\b|\bmesas?\s+y\s+sillas?\b|\brenta\s+de\s+(mesas?|sillas?|mobiliario)|\bentelados?\b|\bcolgantes?\b|\bvajillas?\b|\bbarras?\s+de\s+mobiliario\b/i,
+      /^(?!.*\bcentros?\s+de\s+mesas?\b).*\b(?:mobiliario|periqueras?|salas?\s+lounge|mesas?\s+y\s+sillas?|renta\s+de\s+(?:mesas?|sillas?|mobiliario)|entelados?|colgantes?|vajillas?|barras?\s+de\s+mobiliario)\b/i,
     // Pieza concreta (mesas/sillas/…) o modelo (Tiffany/Crossback…).
     variantPattern:
-      /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|mesas?|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
+      /\b(periqueras?|lounge|luxor|tiffany|crossback|imperial|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|mar[ií]a|avant\s*garde|louis\s*xv|mariantonieta|manteler[ií]a|vajilla|sillas?|(?<!centros?\s+de\s)mesas?|picnic|bancos?|renta\s+de\s+mesas|entelado|colgante|wisteria)\b/i,
     detailQueryFromText: (text) => {
+      if (
+        /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b/i.test(
+          text
+        )
+      ) {
+        return "Centros de mesa";
+      }
       if (/entelado|tela\s+(en\s+|de\s+|para\s+)?techo/i.test(text)) {
         return "Entelados para Techo";
       }
@@ -307,7 +315,13 @@ const FAMILIES: FamilyDef[] = [
       if (/periquera/i.test(text)) return "periqueras";
       if (/lounge|luxor/i.test(text)) return "salas lounge";
       if (/\bsillas?\b/i.test(text)) return "sillas";
-      if (/\bmesas?\b|picnic/i.test(text)) return "mesas";
+      if (
+        /(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|picnic/i.test(
+          text
+        )
+      ) {
+        return "mesas";
+      }
       return "mobiliario";
     },
     buildMenu: () =>
@@ -427,13 +441,23 @@ export function historyOfferedMobiliarioPieceMenu(
 export function parseMobiliarioPieceChoice(text: string | null | undefined): string | null {
   const t = text?.trim() ?? "";
   if (!t) return null;
+  // A15190: floral/decorativo o mesa de postres ≠ pieza de renta de mobiliario.
+  if (
+    /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b|\bflores?\s+(?:para|en|de)\s+mesas?\b|\bmesa\s+de\s+(dulces|postres|quesos?|imperial)\b/i.test(
+      t
+    )
+  ) {
+    return null;
+  }
   if (/\b(periqueras?)\b/i.test(t)) return "periqueras";
   if (/\b(salas?\s+lounge|lounge)\b/i.test(t)) return "salas lounge";
   if (/\b(vajillas?|manteler[ií]a)\b/i.test(t)) return "vajillas";
   if (/\b(entelados?)\b/i.test(t)) return "entelados";
   if (/\b(colgantes?)\b/i.test(t)) return "colgantes";
   if (/\bsillas?\b/i.test(t)) return "sillas";
-  if (/\bmesas?\b|\bpicnic\b/i.test(t)) return "mesas";
+  if (/(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)|\bpicnic\b/i.test(t)) {
+    return "mesas";
+  }
   return null;
 }
 

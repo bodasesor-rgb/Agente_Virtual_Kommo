@@ -114,11 +114,20 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Entelados para Techo", /\bentelados?\b|\btela\s+(en\s+|de\s+|para\s+)?techo\b/i],
   ["Vajillas", /\bvajillas?\b|\bcuberter[ií]a\b|\bcristaler[ií]a\b/i],
   ["Video", /\bvideo\b|\bled\s*wall\b/i],
+  // A15190: centros de mesa = floral/decorativo, NUNCA mobiliario (antes de Decoración/Mobiliario).
+  [
+    "Centros de mesa",
+    /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b|\bdecoraci[oó]n\s+de\s+mesas?\b|\bflores?\s+(?:para|en|de)\s+mesas?\b/i,
+  ],
   ["Decoración", /\bdecoraci[oó]n\b/i],
   ["Floristería", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
   // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
   ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
-  ["Mobiliario", /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|mesas?|periqueras?)\b/i],
+  // "mesas?" no debe capturar "centros/arreglos/decoración de mesa" ni "mesa de dulces/…".
+  [
+    "Mobiliario",
+    /\b(mobiliario|mobilairio|m[aá]rmol|sillas?|periqueras?)\b|(?<!(?:centros?|arreglos?|decoraci[oó]n)\s+(?:de\s+)?)\bmesas?\b(?!\s+de\s)/i,
+  ],
   ["Carpas", /\b(carpa|carpas|toldo)\b/i],
   ["Pantallas", /\b(pantalla|pantallas|led\s*wall|pantallas?\s+led)\b/i],
   ["Audio y sonido", /\b(audio|microfon[ií]a|sonido|bocinas|amplificaci[oó]n)\b/i],
@@ -144,7 +153,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
 ];
 
 export const SERVICE_HINT =
-  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
+  /banquete|taquiza|tacos|barra|bebida|dj|carpa|men[uú]|comida|alimentos?|mobiliario|mobilairio|pizza|pasta|sushi|parrillada|hamburguesa|hot\s*dog|postre|dulce|iluminaci[oó]n|pantalla|coffee|brunch|kosher|formal|mexican|coctel|mixolog|canap|crep|helado|paleta|frutas?|queso|inflable|softplay|estructura|pista|tarima|baile|bailarinas?|dancers?|vedettes?|centros?\s+de\s+mesas?|mesas?|sillas?|salas?|lounge|periquera|mesero|staff|desayuno|snack|cena|decoraci[oó]n|flor|renta\s+de|letras?|valet|pirotecnia|imperial|manteler|cristal|luxor|paella|pozole|cupcake|bet[uú]n|entelado|colgante|vajilla|video|antojito|carrito|fiesta\s+infantil|moctel|animaci[oó]n|hora\s+loca|happening|entretenimiento|\bshows?\b|batucada|robots?\s*leds?|photo\s*booth|photobooth|cabina|circo|blueman|blue\s*man|mago|payaso|malabar|acr[oó]bata/i;
 
 const SHORT_SERVICE_ALIASES: Record<string, string> = {
   pista: "pista de baile",
@@ -152,6 +161,14 @@ const SHORT_SERVICE_ALIASES: Record<string, string> = {
   dj: "DJ",
   mesa: "mobiliario",
   mesas: "mobiliario",
+  "centro de mesa": "Centros de mesa",
+  "centros de mesa": "Centros de mesa",
+  "centros florales": "Centros de mesa",
+  "centro floral": "Centros de mesa",
+  "arreglo de mesa": "Centros de mesa",
+  "arreglos de mesa": "Centros de mesa",
+  "decoracion de mesas": "Centros de mesa",
+  "decoración de mesas": "Centros de mesa",
   silla: "mobiliario",
   sillas: "mobiliario",
   sala: "salas lounge",
@@ -1754,6 +1771,23 @@ export function dedupeServiceHierarchy(
   if (found.some((s) => /puestos?\s+de\s+comida/i.test(s))) {
     for (let i = found.length - 1; i >= 0; i--) {
       if (/^Snack$/i.test(found[i]!)) found.splice(i, 1);
+    }
+  }
+
+  // A15190: centros de mesa (floral) ≠ mobiliario (mesas/sillas).
+  if (found.some((s) => /centros?\s+de\s+mesa/i.test(s))) {
+    for (let i = found.length - 1; i >= 0; i--) {
+      if (/^Mobiliario$/i.test(found[i]!)) found.splice(i, 1);
+    }
+    // Pedido concreto de centros → no acumular Decoración/Floristería genéricas.
+    if (
+      /\b(centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?|decoraci[oó]n\s+de\s+mesas?|flores?\s+(?:para|en|de)\s+mesas?)\b/i.test(
+        text
+      )
+    ) {
+      for (let i = found.length - 1; i >= 0; i--) {
+        if (/^(Decoraci[oó]n|Florister[ií]a)$/i.test(found[i]!)) found.splice(i, 1);
+      }
     }
   }
 

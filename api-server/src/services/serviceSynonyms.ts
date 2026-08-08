@@ -702,6 +702,33 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
     excludeIf: ["entelado", "entelados", "tela en techo", "tela de techo"],
   },
   {
+    // A15190: floral/decorativo — nunca mesas/sillas de renta.
+    key: "centros_mesa",
+    serviceHints: ["centros de mesa", "centro de mesa"],
+    aliases: [
+      "centros de mesa",
+      "centro de mesa",
+      "centros de mesas",
+      "arreglos de mesa",
+      "arreglo de mesa",
+      "centros florales",
+      "centro floral",
+      "decoracion de mesas",
+      "decoración de mesas",
+      "flores para mesa",
+      "flores en mesa",
+    ],
+    excludeIf: [
+      "mobiliario",
+      "mesas y sillas",
+      "renta de mesas",
+      "mesa de dulces",
+      "mesa de postres",
+      "mesa de quesos",
+      "mesa imperial",
+    ],
+  },
+  {
     key: "pozole_tostadas",
     serviceHints: ["pozole", "tostadas"],
     aliases: [
@@ -970,6 +997,10 @@ const FAMILY_DISPLAY: Record<string, { label: string; complements: string[] }> =
     label: "Colgantes Premium",
     complements: ["Entelados para Techo", "Iluminación"],
   },
+  centros_mesa: {
+    label: "Centros de mesa",
+    complements: ["Iluminación", "Colgantes Premium", "Entelados para Techo"],
+  },
 };
 
 /**
@@ -998,6 +1029,7 @@ export function resolveServiceFocusFromText(text: string | null | undefined): {
     "barra_sushi",
     "entelados_techo",
     "colgantes_premium",
+    "centros_mesa",
   ];
   const familyKey =
     preferredOrder.find((k) => expanded.familyKeys.includes(k)) ?? expanded.familyKeys[0]!;
