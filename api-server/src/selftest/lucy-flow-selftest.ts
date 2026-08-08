@@ -554,7 +554,7 @@ async function runAll(): Promise<void> {
     );
     applyCapturesToCrm(merged, filled, caps);
     assert.ok(filled.has("Número de invitados"));
-    assert.equal(getNextPendingField(emptyExtracted(), filled), "zona");
+    assert.equal(getNextPendingField(emptyExtracted(), filled), "fecha");
   });
 
   await test("7. Boda — recomendaciones mencionan banquete/taquiza y catálogo", () => {
@@ -931,7 +931,10 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/correo/i.test(reply), reply.slice(0, 200));
     assert.ok(!/Alejandro/i.test(reply), reply);
-    assert.ok(/seguimos por aquí|invitados|servicios|pensado/i.test(reply), reply.slice(0, 200));
+    assert.ok(
+      /sin problema|este chat|por aqu[ií]|invitados|servicios|armar|fecha|cu[aá]ndo/i.test(reply),
+      reply.slice(0, 200)
+    );
 
     const norm = normalizeAdvisorReferences(
       "para que Alejandro te arme la propuesta",
@@ -1523,7 +1526,7 @@ async function runAll(): Promise<void> {
     assert.equal(fallbackKey, `media:chat-2:${imgUrl}`);
   });
 
-  await test("28. Lucy V7 — pedido/entrega, número ambiguo, orden ubicación→fecha→invitados", () => {
+  await test("28. Lucy V7 — pedido/entrega, número ambiguo, orden fecha→ubicación→correo", () => {
     assert.equal(detectModoServicio("quiero 50 rollos para llevar"), "pedido_entrega");
     assert.equal(
       detectModoServicio("Solo quiero 50 rollos de sushi y que me los dejen en mi casa, ¿cuánto?"),
@@ -1541,7 +1544,7 @@ async function runAll(): Promise<void> {
       "Tipo de evento",
       "Requerimientos o servicios",
     ]);
-    assert.equal(getNextPendingField(emptyExtracted(), filled), "zona");
+    assert.equal(getNextPendingField(emptyExtracted(), filled), "fecha");
 
     const pedidoMsg =
       "Solo quiero 50 rollos de sushi y que me los dejen en mi casa, ¿cuánto?";
@@ -1858,7 +1861,9 @@ async function runAll(): Promise<void> {
     });
     assert.ok(!/alg[uú]n\s+otro\s+servicio|otros\s+servicios/i.test(replyNoGracias), replyNoGracias);
     assert.ok(
-      /invitados|ciudad|fecha|presupuesto|d[oó]nde|ubicaci|sal[oó]n/i.test(replyNoGracias),
+      /invitados|ciudad|fecha|presupuesto|d[oó]nde|ubicaci|sal[oó]n|d[ií]a|hora|cu[aá]ndo|definiendo/i.test(
+        replyNoGracias
+      ),
       `debe pedir siguiente dato: "${replyNoGracias.slice(0, 200)}"`
     );
 
@@ -1952,10 +1957,12 @@ async function runAll(): Promise<void> {
       currentMessage: "quiero renta de letras",
       history: [{ role: "assistant", content: "¿Qué tipo de celebración festejan?" }],
     });
-    assert.ok(/anoto|renta de letras/i.test(reply), reply.slice(0, 250));
+    assert.ok(/anoto|renta de letras|letras/i.test(reply), reply.slice(0, 250));
     assert.ok(!/alg[uú]n\s+otro\s+servicio/i.test(reply), reply);
     assert.ok(
-      /invitados|ciudad|fecha|presupuesto|d[oó]nde|ubicaci|sal[oó]n/i.test(reply),
+      /invitados|ciudad|fecha|presupuesto|d[oó]nde|ubicaci|sal[oó]n|d[ií]a|hora|cu[aá]ndo|definiendo|ser[ií]a el evento/i.test(
+        reply
+      ),
       reply.slice(0, 250)
     );
   });
@@ -2465,7 +2472,7 @@ async function runAll(): Promise<void> {
     assert.ok(/mantel|postres|bebidas|opcional/i.test(reply), reply);
   });
 
-  await test("48. Karime — ubicación forzada antes de presupuesto/cierre", () => {
+  await test("48. Karime — no cierra sin fecha/ubicación (embudo natural)", () => {
     const filled = new Set([
       "Nombre del cliente",
       "Correo electrónico",
@@ -2486,7 +2493,11 @@ async function runAll(): Promise<void> {
       currentMessage: "ok",
       history: [],
     });
-    assert.ok(/ciudad|colonia|sal[oó]n|ubicaci/i.test(reply), reply);
+    // Orden natural: fecha antes que zona; nunca cierre prematuro.
+    assert.ok(
+      /ciudad|colonia|sal[oó]n|ubicaci|fecha|cu[aá]ndo|d[ií]a|hora|definiendo/i.test(reply),
+      reply
+    );
     assert.ok(!/ya tengo todo/i.test(reply), reply);
   });
 
@@ -3056,7 +3067,11 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/gracias por tu correo/i.test(emailReply), emailReply);
     assert.ok(!/^genial/i.test(emailReply.trim()), emailReply);
-    assert.ok(/ciudad|ubicaci[oó]n/i.test(emailReply), emailReply);
+    // Tras correo: siguiente faltante (fecha o zona según embudo natural).
+    assert.ok(
+      /ciudad|ubicaci[oó]n|fecha|cu[aá]ndo|d[ií]a|hora|definiendo|sal[oó]n/i.test(emailReply),
+      emailReply
+    );
 
     const nivelAsk =
       "Perfecto, Edgar. Para la *Barra de Bebidas*, manejamos tres niveles: 1. *Básica* 2. *Tradicional* 3. *Premium* ¿Cuál nivel prefieres para tu evento?";
@@ -6739,7 +6754,7 @@ async function runAll(): Promise<void> {
     assert.ok(/\$330|\$750|Solo Alimentos|Basico/i.test(pkgs), pkgs.slice(0, 600));
     assert.ok(!/resumen de algunos paquetes/i.test(pkgs), pkgs.slice(0, 300));
     assert.ok(
-      /correo|e-?mail|fecha/i.test(pkgs),
+      /correo|e-?mail|fecha|cu[aá]ndo|d[ií]a|hora|definiendo|ciudad|ubicaci|sal[oó]n/i.test(pkgs),
       `tras paquetes, embudo: ${pkgs.slice(-350)}`
     );
   });
@@ -8325,7 +8340,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.12");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.13");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -8428,7 +8443,7 @@ async function runAll(): Promise<void> {
     assert.equal(recoverClienteNombreFromHistory(hist, "Alejandro"), "Alejandro");
     assert.equal(recoverClienteNombreFromHistory(hist, undefined), "Alejandro");
 
-    // Tras decir el nombre, Lucy debe avanzar (correo), no volver a pedir nombre.
+    // Tras decir el nombre, Lucy avanza al siguiente dato (tipo), no vuelve a pedir nombre.
     const filled = new Set<string>();
     const extracted = emptyExtracted();
     const afterName = runGuards({
@@ -8442,7 +8457,12 @@ async function runAll(): Promise<void> {
     assert.equal(extracted.nombre, "Alejandro");
     assert.ok(filled.has("Nombre del cliente"));
     assert.ok(!/cu[aá]l\s+es\s+tu\s+nombre|c[oó]mo\s+te\s+llamas|regalas\s+tu\s+nombre|con\s+qui[eé]n\s+tengo/i.test(afterName), afterName);
-    assert.ok(/correo|e-?mail|gusto/i.test(afterName), afterName);
+    assert.ok(/Mucho gusto,\s*Alejandro/i.test(afterName), afterName);
+    assert.ok(
+      /celebr|tipo de evento|de qu[eé] se trata|servicios|pensado/i.test(afterName),
+      afterName
+    );
+    assert.ok(!mensajeAsksForField(afterName, "correo"), afterName);
 
     // Queja de repetición con historial: ack con nombre y siguiente campo, no nombre otra vez.
     const filled2 = new Set<string>();
@@ -9539,11 +9559,36 @@ async function runAll(): Promise<void> {
     assert.ok(!/\btaquiza\b.*\bbrunch\b|\bbanquete,\s*taquiza/i.test(vague), vague.slice(0, 500));
   });
 
-  // ─── 138. V9.12 — voz natural anti-formulario ───
-  await test("138. V9.12 — intro Buen día, Mucho gusto y una pregunta", () => {
+  // ─── 138. V9.13 — prompt maestro: chat natural + embudo + memoria ───
+  await test("138. V9.13 — intro, embudo natural (correo tarde) y no repregunta", () => {
     assert.ok(/Buen d[ií]a/i.test(LUCY_INTRO), LUCY_INTRO);
     assert.ok(/Bodasesor/i.test(LUCY_INTRO), LUCY_INTRO);
     assert.ok(!/tu agente virtual(?!\s+de\s+Bodasesor)/i.test(LUCY_INTRO));
+
+    // Embudo: tras nombre → tipo (no correo).
+    assert.equal(
+      getNextPendingField(emptyExtracted({ nombre: "Ana" }), new Set(["Nombre del cliente"])),
+      "tipo_evento"
+    );
+    assert.equal(
+      getNextPendingField(
+        emptyExtracted({
+          nombre: "Ana",
+          tipo_evento: "boda",
+          requerimientos_evento: "banquete",
+          fecha_horario: "20 de septiembre",
+          direccion_evento: "Coyoacán CDMX",
+        }),
+        new Set([
+          "Nombre del cliente",
+          "Tipo de evento",
+          "Requerimientos o servicios",
+          "Fecha y horario",
+          "Lugar/dirección del evento",
+        ])
+      ),
+      "correo"
+    );
 
     const first = buildFirstInteractionMessage({
       extracted: emptyExtracted(),
@@ -9554,7 +9599,6 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/¡?Hola!?.*Buen d[ií]a.*Lucy.*Bodasesor/i.test(first), first.slice(0, 300));
     assert.ok(/cu[aá]l es tu nombre|c[oó]mo te llamas|regalas tu nombre/i.test(first), first);
-    // Una sola pregunta de embudo en el primer mensaje vacío.
     const questions = (first.match(/\?/g) ?? []).length;
     assert.ok(questions <= 2, `demasiadas preguntas: ${questions} — ${first.slice(0, 400)}`);
 
@@ -9576,7 +9620,25 @@ async function runAll(): Promise<void> {
       !/Perfecto,\s*Sandra\.\s*¡?Mucho gusto,\s*Sandra/i.test(nameTurn),
       `sin doble saludo: ${nameTurn.slice(0, 300)}`
     );
+    assert.ok(!mensajeAsksForField(nameTurn, "correo"), nameTurn.slice(0, 400));
     assert.ok((nameTurn.match(/\?/g) ?? []).length <= 2, nameTurn.slice(0, 400));
+
+    // Memoria: boda + fecha ya dadas → no repregunta tipo.
+    const multi = runGuards({
+      aiResponse: "ok",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        fecha_horario: "20 de septiembre",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento", "Fecha y horario"]),
+      readyForClosing: false,
+      currentMessage: "Hola, soy Ana, es para mi boda el 20 de septiembre",
+      history: [{ role: "assistant", content: `${LUCY_INTRO} ¿Cuál es tu nombre?` }],
+    });
+    assert.ok(/¡?Mucho gusto,\s*Ana/i.test(multi), multi.slice(0, 300));
+    assert.ok(!mensajeAsksForField(multi, "tipo_evento"), multi.slice(0, 400));
+    assert.ok(!mensajeAsksForField(multi, "fecha"), multi.slice(0, 400));
 
     const refuse = emailRefusalAckMessage(
       emptyExtracted({ nombre: "Sandra" }),
