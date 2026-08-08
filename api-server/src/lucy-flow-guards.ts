@@ -1312,29 +1312,28 @@ function buildEntertainmentSalesReply(
   let ideas: string;
   if (wantsPhotoBooth) {
     intro = `Perfecto — anoto *Photo Booth* (cabina de fotos) para ${eventLabel}.`;
-    ideas =
-      "El equipo te confirma modelos, props, fondo y tiempo de renta. No es banquete ni catering: es entretenimiento / activación.";
+    ideas = "El equipo te confirma modelos, props, fondo y tiempo de renta.";
   } else if (wantsSpecialAct) {
     const act = specialActLabel || "ese show / acto";
     intro = `Perfecto — anoto *${act}* para ${eventLabel}.`;
     ideas =
-      "Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta. No confundir con banquete ni catering.";
+      "Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta.";
   } else if (wantsBailarinas) {
     intro = `Perfecto — anoto *bailarinas* para ${eventLabel}.`;
     ideas =
-      "Es entretenimiento / show en vivo: el equipo arma la propuesta según duración, estilo y el espacio. No confundir con banquete ni catering.";
+      "Es entretenimiento / show en vivo: el equipo arma la propuesta según duración, estilo y el espacio.";
   } else if (wantsRobots && wantsBatucada) {
     intro = `Perfecto — anoto *robots LED* para ambientar la *batucada* en ${eventLabel}.`;
     ideas =
-      "Eso va por entretenimiento / activación (no es banquete ni catering). Nuestro equipo arma la propuesta según duración, cantidad de robots y el espacio.";
+      "Nuestro equipo arma la propuesta según duración, cantidad de robots y el espacio.";
   } else if (wantsRobots) {
     intro = `Perfecto — anoto *robots LED* para ${eventLabel}.`;
     ideas =
-      "Es un servicio de entretenimiento/activación: el equipo confirma disponibilidad, duración y montaje. No tiene tarifa fija en lista como el catering.";
+      "Es un servicio de entretenimiento/activación: el equipo confirma disponibilidad, duración y montaje.";
   } else if (wantsBatucada) {
     intro = `Claro — podemos ayudarte a *ambientar una batucada* en ${eventLabel}.`;
     ideas =
-      "Para eso solemos sumar activaciones (robots LED, show, iluminación o animación) según el vibe que busquen. No confundir con banquete/catering.";
+      "Para eso solemos sumar activaciones (robots LED, show, iluminación o animación) según el vibe que busquen.";
   } else if (wantsMc) {
     intro = `Sí, para ${eventLabel} también manejamos *maestro de ceremonias* y shows en vivo.`;
     ideas = "¿Buscas más bien presentador, show de grupo, o animación tipo hora loca?";
@@ -7479,7 +7478,40 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // Nunca hablarle al cliente en meta ("No confundir con…"): es nota interna.
+  mensaje = stripClientServiceConfusionNotes(mensaje);
+
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
+}
+
+/**
+ * Quita frases meta del tipo "No confundir con banquete/catering" del WhatsApp al cliente.
+ * Esas aclaraciones son para el código/CRM, no para el lead.
+ */
+export function stripClientServiceConfusionNotes(text: string): string {
+  if (!text?.trim()) return text;
+  let out = text;
+  out = out.replace(
+    /[^.!?\n]*\b[Nn]o\s+confundir\s+con\b[^.!?\n]*[.!?]?/gi,
+    " "
+  );
+  out = out.replace(
+    /[^.!?\n]*\b[Nn]o\s+es\s+banquete\s+ni\s+catering\b[^.!?\n]*[.!?]?/gi,
+    " "
+  );
+  out = out.replace(
+    /\(\s*no\s+es\s+banquete\s+ni\s+catering\s*\)/gi,
+    ""
+  );
+  out = out.replace(
+    /[^.!?\n]*\b[Nn]o\s+tiene\s+tarifa\s+fija\s+en\s+lista\s+como\s+el\s+catering\b[^.!?\n]*[.!?]?/gi,
+    " "
+  );
+  out = out.replace(
+    /:\s*es\s+entretenimiento\s*\/\s*activaci[oó]n\b/gi,
+    "."
+  );
+  return out.replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /** A14995 / todas las ramas: no repetir la misma URL de catálogo dos veces. */

@@ -128,6 +128,7 @@ import {
   buildDeferredKnownServiceOffer,
   historyAlreadyOfferedServiceDetail,
   parsePistaTarimaVariant,
+  stripClientServiceConfusionNotes,
 } from "../lucy-flow-guards.js";
 import { advisorLabelForClient, normalizeAdvisorReferences, getAdvisorName, LEGACY_ADVISOR_NAMES, stripInternalCrmBlock, isStaffAdvisorName } from "../lib/bodasesorAdvisor.js";
 import { buildResumenClienteLargo } from "../services/summaryService.js";
@@ -8081,6 +8082,8 @@ async function runAll(): Promise<void> {
     assert.ok(!/Sigo aquí/i.test(circo), circo.slice(0, 400));
     assert.ok(!/banquete\s+formal/i.test(circo), circo.slice(0, 400));
     assert.ok(!/revisar\s+primero/i.test(circo), circo.slice(0, 400));
+    assert.ok(!/no\s+confundir/i.test(circo), circo.slice(0, 500));
+    assert.ok(!/no\s+es\s+banquete\s+ni\s+catering/i.test(circo), circo.slice(0, 500));
 
     const insist = runGuards({
       aiResponse: "¿Qué te gustaría revisar primero o prefieres armar un paquete?",
@@ -8311,7 +8314,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.07");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.08");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9249,6 +9252,38 @@ async function runAll(): Promise<void> {
       !/Mesas\s*y\s*Sillas|20 combinaciones de mobiliario|Colecci[oó]n Vintage/i.test(dumped),
       dumped.slice(0, 500)
     );
+  });
+
+  // ─── 134. Sin meta "No confundir…" al cliente (todos los servicios) ───
+  await test("134. WhatsApp no dice 'No confundir con…' al cliente", () => {
+    const stripped = stripClientServiceConfusionNotes(
+      "Perfecto — anoto *Actos de circo / animación* para tu cumpleaños. " +
+        "Es entretenimiento / show en vivo: el equipo confirma disponibilidad, formato y propuesta. " +
+        "No confundir con banquete ni catering.\n\n¿Ya hay día definido?"
+    );
+    assert.ok(/circo|entretenimiento|disponibilidad/i.test(stripped), stripped);
+    assert.ok(!/no\s+confundir/i.test(stripped), stripped);
+    assert.ok(!/banquete ni catering/i.test(stripped), stripped);
+
+    for (const msg of [
+      "Actos de circo / animación para mi cumpleaños",
+      "Photo Booth",
+      "bailarinas para XV",
+      "robots LED",
+      "batucada",
+    ]) {
+      const out = runGuards({
+        aiResponse:
+          "Perfecto. No confundir con banquete ni catering. ¿Qué fecha tienes?",
+        extracted: emptyExtracted({ nombre: "Ana", tipo_evento: "cumpleaños" }),
+        filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+        readyForClosing: false,
+        currentMessage: msg,
+        history: [],
+      });
+      assert.ok(!/no\s+confundir/i.test(out), `${msg} → ${out.slice(0, 400)}`);
+      assert.ok(!/no\s+es\s+banquete\s+ni\s+catering/i.test(out), `${msg} → ${out.slice(0, 400)}`);
+    }
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
