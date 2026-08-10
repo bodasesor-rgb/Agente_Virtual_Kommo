@@ -76,6 +76,11 @@ import {
   resolveCatalogWebLink,
   toDeliverableCatalogUrl,
 } from "./services/catalogService.js";
+import {
+  resolveNumberedPackageChoice,
+  findLastNumberedPackageOffer,
+  clearGuestsConfusedWithPackageLevel,
+} from "./services/packageLevelSelection.js";
 import { getCatalogWebUrlForQuery } from "./services/catalogWebKnowledge.js";
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
 import {
@@ -371,7 +376,7 @@ function getQuestionVariants(): Record<PendingField, string[]> {
   ],
   requerimientos: [
     "¿Qué servicios te gustaría ir armando?",
-    "Platícame qué te gustaría armar para el evento.",
+    "Platícame, ¿qué te gustaría armar para el evento?",
     "¿Qué necesitas cotizar?",
   ],
   invitados: [
@@ -2941,7 +2946,12 @@ function mergeWithPendingQuestion(
   if (!base) return buildNaturalQuestion(pending, ctx);
 
   // Ya pregunta el campo pendiente — no duplicar (A14924: doble "¿qué tipo de evento?").
-  if (mensajeAsksForField(base, pending)) {
+  // También variantes sin "?"" histórico ("Platícame qué te gustaría armar…").
+  if (
+    mensajeAsksForField(base, pending) ||
+    (pending === "requerimientos" &&
+      /plat[ií]came,?\s+qu[eé]\s+te\s+gustar[ií]a\s+armar/i.test(base))
+  ) {
     return collapseDuplicateFieldQuestions(base, pending);
   }
 
@@ -2973,13 +2983,22 @@ function mergeWithPendingQuestion(
   ) {
     return base;
   }
-  // A14982: "¿Quieres que te dé detalles de alguno?" NO bloquea pedir correo/tipo/fecha.
-  const onlyServiceDetailCta =
-    /quieres que te d[eé] detalles de alguno/i.test(base) &&
-    !mensajeAsksForField(base, pending);
+  // V9.16 / A15232 / A15243: CTAs de venta/catálogo ("¿te mando el catálogo?",
+  // "¿detalles de alguno?", "¿algo más?") NO bloquean el embudo. Solo omitir el
+  // append si el mensaje ya pregunta por un campo del embudo (en orden).
+  const EMBUDO_FIELDS: PendingField[] = [
+    "nombre",
+    "tipo_evento",
+    "requerimientos",
+    "fecha",
+    "zona",
+    "correo",
+    "invitados",
+    "presupuesto",
+  ];
+  const asksEmbudoQuestion = EMBUDO_FIELDS.some((f) => mensajeAsksForField(base, f));
   if (
-    base.includes("?") &&
-    !onlyServiceDetailCta &&
+    asksEmbudoQuestion &&
     !mensajeAsksWrongField(mensaje, filledSet, extracted) &&
     !mensajeAsksForFilledField(mensaje, filledSet, extracted)
   ) {
@@ -4983,23 +5002,40 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente preguntó si es Cap&Bara/Bodasesor");
   } else if (
-    clientAsksForCatalog(currentMessage) ||
-    clientAffirmsCatalogOffer(
-      currentMessage,
-      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
-        ? (lastAssistantMsg.content as string)
-        : null
-    ) ||
-    // A14994 / todas las ramas: si el CTA de catálogo está en hilo reciente (no solo el último msg).
-    (clientAffirmsCatalogOffer(
-      currentMessage,
-      [...presHistory]
-        .reverse()
-        .filter((m) => m.role === "assistant" && typeof m.content === "string")
-        .slice(0, 3)
-        .map((m) => m.content as string)
-        .find((t) => assistantOfferedCatalogDetail(t)) ?? null
-    ))
+    // A15243: "Sí del 4" / "Coffee Breack 4" NO es afirmación de catálogo genérico.
+    !(
+      resolveNumberedPackageChoice(
+        currentMessage,
+        findLastNumberedPackageOffer(presHistory) ||
+          (lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+            ? (lastAssistantMsg.content as string)
+            : null)
+      ) ||
+      isCatalogLevelSelection(
+        currentMessage,
+        findLastNumberedPackageOffer(presHistory) ||
+          (lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+            ? (lastAssistantMsg.content as string)
+            : null)
+      )
+    ) &&
+    (clientAsksForCatalog(currentMessage) ||
+      clientAffirmsCatalogOffer(
+        currentMessage,
+        lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+          ? (lastAssistantMsg.content as string)
+          : null
+      ) ||
+      // A14994 / todas las ramas: si el CTA de catálogo está en hilo reciente (no solo el último msg).
+      clientAffirmsCatalogOffer(
+        currentMessage,
+        [...presHistory]
+          .reverse()
+          .filter((m) => m.role === "assistant" && typeof m.content === "string")
+          .slice(0, 3)
+          .map((m) => m.content as string)
+          .find((t) => assistantOfferedCatalogDetail(t)) ?? null
+      ))
   ) {
     const wantFull =
       clientWantsFullCatalog(currentMessage) ||
@@ -5056,12 +5092,36 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
             serviceHint,
           });
     } else {
-      mensaje = buildCatalogWebLinkReply({
-        query: "catálogo general",
-        wantFull: true,
-        serviceHint: null,
-      });
+      // Si el cliente solo dijo "sí" al CTA, usar CRM (mesas/coffee/banquete/…) para el link.
+      const crmServices =
+        !wantFull && extracted.requerimientos_evento?.trim()
+          ? parseServicesFromText(extracted.requerimientos_evento)
+          : [];
+      if (crmServices.length > 0) {
+        const mapped = buildPackageCatalogOfferBlock(
+          crmServices,
+          extracted.requerimientos_evento ?? ""
+        ).replace(
+          /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
+          "\n"
+        );
+        mensaje = /bodasesor\.com\/catalogos/i.test(mapped)
+          ? `Claro.\n\n${mapped}`.trim()
+          : buildCatalogWebLinkReply({
+              query: extracted.requerimientos_evento || "catálogo",
+              wantFull: false,
+              serviceHint: extracted.requerimientos_evento,
+            });
+      } else {
+        mensaje = buildCatalogWebLinkReply({
+          query: "catálogo general",
+          wantFull: true,
+          serviceHint: null,
+        });
+      }
     }
+    // Tras mandar catálogo, SIEMPRE seguir el embudo (cualquier servicio).
+    mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     appliedDirectReply = true;
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidió/afirmó catálogo — link(s)");
   } else if (
@@ -5104,37 +5164,43 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     appliedSalesReply = true;
     log?.info({ entityId, label }, "GUARD: variante banquete por tiempos + detalle/link");
   } else if (
-    isCatalogLevelSelection(
-      currentMessage,
-      lastAssistantMsg && typeof lastAssistantMsg.content === "string"
-        ? (lastAssistantMsg.content as string)
-        : null
-    ) &&
-    // V8.68: si acabamos de ofrecer menú de opciones, el nivel va a detalle+link.
-    !(
-      historyOfferedServiceOptionsMenu(presHistory) &&
-      clientWantsServiceDetail(currentMessage, presHistory)
-    )
+    (() => {
+      const lastMsg =
+        lastAssistantMsg && typeof lastAssistantMsg.content === "string"
+          ? (lastAssistantMsg.content as string)
+          : null;
+      const lastOffer = findLastNumberedPackageOffer(presHistory);
+      return (
+        isCatalogLevelSelection(currentMessage, lastOffer || lastMsg) ||
+        !!resolveNumberedPackageChoice(currentMessage, lastOffer || lastMsg) ||
+        !!resolveNumberedPackageChoice(currentMessage, lastMsg)
+      );
+    })()
   ) {
-    // A14934/A14949: nivel Básica/Premium o paquete numerado "Coffee Break 5".
-    const lastAsst =
+    // A14934/A14949/A15243: nivel Básica/Premium o paquete numerado "Coffee Break 4"
+    // (incluye typos "Breack" y "sí del 4"). Prioridad sobre CTA genérico de detalle.
+    const lastMsg =
       lastAssistantMsg && typeof lastAssistantMsg.content === "string"
         ? (lastAssistantMsg.content as string)
         : null;
+    const lastOffer = findLastNumberedPackageOffer(presHistory);
+    const lastAsst = lastOffer || lastMsg;
+    const packageChoice =
+      resolveNumberedPackageChoice(currentMessage, lastAsst) ||
+      resolveNumberedPackageChoice(currentMessage, lastMsg);
     const nivel =
-      extractCatalogNivelFromText(currentMessage, lastAsst) ??
+      packageChoice?.label ||
+      extractCatalogNivelFromText(currentMessage, lastAsst) ||
       currentMessage!.trim().toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
     const emailNow = filterClientEmail(parseCorreoFromText(currentMessage ?? ""));
     if (emailNow && looksLikeValidClientEmail(emailNow)) {
       filledSet.add("Correo electrónico");
       extracted.correo = emailNow;
     }
-    // A14949: el dígito del paquete NUNCA es invitados.
+    // A14949 / A15243: el dígito del paquete NUNCA es invitados.
+    clearGuestsConfusedWithPackageLevel(extracted, currentMessage, lastAsst);
     const nivelDigit = String(nivel).match(/(?:coffee\s*break\s*)?([1-9])$/i)?.[1];
-    if (
-      nivelDigit &&
-      extracted.num_invitados === parseInt(nivelDigit, 10)
-    ) {
+    if (nivelDigit && extracted.num_invitados === parseInt(nivelDigit, 10)) {
       extracted.num_invitados = null;
       filledSet.delete("Número de invitados");
     }
@@ -5152,7 +5218,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     const svcNow =
       crmPrimary ||
       mentioned ||
-      (/coffee|coffe/i.test(String(nivel)) ? "Coffee Break" : null);
+      (packageChoice?.isCoffeeBreak || /coffee|coffe/i.test(String(nivel))
+        ? "Coffee Break"
+        : null);
     if (svcNow || /coffee\s*break\s*[1-9]/i.test(String(nivel))) {
       filledSet.add("Requerimientos o servicios");
       // "Coffee Break 5" ya es el SKU completo; no anidar "(nivel Coffee Break 5)".
@@ -5170,9 +5238,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         : null;
     const ackParts = [
       display ? `Perfecto, ${display}.` : "Perfecto.",
-      `Anoto *${nivel}*${svcNow && !/coffee\s*break\s*[1-9]/i.test(String(nivel)) ? ` para ${svcNow}` : ""}${
-        emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""
-      }.`,
+      `Anoto *${nivel}*${
+        svcNow && !/coffee\s*break\s*[1-9]/i.test(String(nivel)) ? ` para ${svcNow}` : ""
+      }${emailNow && looksLikeValidClientEmail(emailNow) ? " y tu correo" : ""}.`,
     ];
     // Preferir detalle del nivel elegido (A14975) + links servicio/general; no re-listar.
     const hint = svcNow || extracted.requerimientos_evento || "barra";
@@ -5197,7 +5265,14 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       );
       mensaje = `${ackParts.join(" ")}\n\n${body}${nextQ ? `\n\n${nextQ}` : ""}`.trim();
     } else {
-      mensaje = `${ackParts.join(" ")}${nextQ ? ` ${nextQ}` : ""}`.trim();
+      // Sin Sheet: ack + catálogo coffee break + embudo (nunca "detalles de alguno" vacío).
+      const catalogUrl =
+        packageChoice?.isCoffeeBreak || /coffee\s*break/i.test(String(nivel))
+          ? getCatalogWebUrlForQuery("Coffee Break") ||
+            "https://bodasesor.com/catalogos/coffee-break"
+          : null;
+      const catalogLine = catalogUrl ? `\n\nCatálogo:\n${catalogUrl}` : "";
+      mensaje = `${ackParts.join(" ")}${catalogLine}${nextQ ? `\n\n${nextQ}` : ""}`.trim();
     }
     appliedDirectReply = true;
     appliedSalesReply = true;
@@ -6089,7 +6164,45 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: detalle tras menú de opciones + link catálogo");
     } else {
-      mensaje = `${pickTransition(presHistory)} ${SERVICE_NIVEL_DETAIL_CTA}`;
+      // A15243: nunca quedarse en CTA vacío si el cliente eligió paquete N.
+      const offer = findLastNumberedPackageOffer(presHistory);
+      const lateChoice = resolveNumberedPackageChoice(currentMessage, offer);
+      if (lateChoice) {
+        filledSet.add("Requerimientos o servicios");
+        const merged = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          lateChoice.label,
+          6
+        );
+        if (merged) extracted.requerimientos_evento = merged;
+        clearGuestsConfusedWithPackageLevel(extracted, currentMessage, offer);
+        const pending = getNextPendingField(extracted, filledSet);
+        const nextQ =
+          pending && pending !== "requerimientos"
+            ? buildNaturalQuestion(pending, { ...ctx, filledSet })
+            : null;
+        const detail =
+          buildCatalogServiceDetailAnswer(lateChoice.label) ||
+          buildCatalogPriceAnswer(lateChoice.label);
+        const catalogUrl =
+          getCatalogWebUrlForQuery(lateChoice.label) ||
+          "https://bodasesor.com/catalogos/coffee-break";
+        if (detail && /\$\s*\d|incluye/i.test(detail)) {
+          mensaje = `Perfecto. Anoto *${lateChoice.label}*.\n\n${withServiceAndGeneralCatalogLinks(
+            detail,
+            lateChoice.label,
+            lateChoice.label
+          )}${nextQ ? `\n\n${nextQ}` : ""}`.trim();
+        } else {
+          mensaje =
+            `Perfecto. Anoto *${lateChoice.label}*.\n\nCatálogo:\n${catalogUrl}${
+              nextQ ? `\n\n${nextQ}` : ""
+            }`.trim();
+        }
+        appliedSalesReply = true;
+      } else {
+        mensaje = `${pickTransition(presHistory)} ${SERVICE_NIVEL_DETAIL_CTA}`;
+      }
       appliedDirectReply = true;
     }
   } else if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
@@ -6551,6 +6664,23 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (appliedDirectReply) {
+    // V9.16: muchas ramas directas (catálogo, detalle, ack) salían sin anexar
+    // la siguiente pregunta → el embudo se cortaba con CUALQUIER entrada.
+    // Handoffs post-cierre / asesor humano no deben reabrir el formulario.
+    if (
+      !cierreYaEnviado &&
+      !trulyReadyForClosing &&
+      !clientAsksForHumanAdvisor(currentMessage)
+    ) {
+      const pendingDirect = getNextPendingField(extracted, filledSet);
+      if (pendingDirect && !mensajeAsksForField(mensaje, pendingDirect)) {
+        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+        log?.info(
+          { entityId, pending: pendingDirect },
+          "GUARD: direct-reply — anexar siguiente del embudo"
+        );
+      }
+    }
     return normalizeAdvisorReferences(
       mensaje,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -6963,6 +7093,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         )
       ) {
         mensaje = `${mensaje}\n\n${pickVariant("nombre", history, entityId)}`.trim();
+      }
+    }
+    // V9.16: pitch/ventas con CTA ("¿detalles?", catálogo) también deben empujar embudo.
+    if (!cierreYaEnviado && !trulyReadyForClosing) {
+      const pendingSales = getNextPendingField(extracted, filledSet);
+      if (pendingSales && !mensajeAsksForField(mensaje, pendingSales)) {
+        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
       }
     }
     return normalizeAdvisorReferences(mensaje, extracted.nombre);

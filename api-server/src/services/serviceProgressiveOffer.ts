@@ -8,6 +8,7 @@
  */
 
 import type { OpenAI } from "openai";
+import { normalizeServiceChoiceText } from "./packageLevelSelection.js";
 
 /** CTA único para TODAS las ramas (niveles Sheet + menús progresivos). A14982. */
 export const SERVICE_NIVEL_DETAIL_CTA = "¿Quieres que te dé detalles de alguno?";
@@ -100,13 +101,15 @@ const FAMILIES: FamilyDef[] = [
     variantPattern:
       /\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*[1-9]\b|\bnivel\s*[1-9]\b|\bopci[oó]n(?:es)?\s*[1-9]\b|\bpaquete\s*[1-9]\b|^(?:el\s+|la\s+)?[1-9]$/i,
     detailQueryFromText: (text) => {
+      const n = normalizeServiceChoiceText(text);
       const m =
-        text.match(/\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*([1-9])\b/i) ||
-        text.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i) ||
-        text.match(/^(?:el\s+|la\s+)?([1-9])$/i);
+        n.match(/\bcoffee\s*break\s*([1-9])\b/i) ||
+        n.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i) ||
+        n.match(/^(?:el\s+|la\s+|del?\s+)?([1-9])$/i) ||
+        n.match(/^(?:si|sí)[\s,.]+(?:del?|el)\s*([1-9])$/i);
       if (m) return `Coffee Break ${m[1]}`;
       // "quiero ver las opciones" → listar CB 1–5 (no un SKU vacío).
-      if (/\b(ver|muestr|muéstr|dame|quiero)\b.{0,24}\bopciones?\b/i.test(text)) {
+      if (/\b(ver|muestr|muéstr|dame|quiero)\b.{0,24}\bopciones?\b/i.test(n)) {
         return "Coffee Break";
       }
       return "Coffee Break";
@@ -659,7 +662,7 @@ export function clientWantsServiceDetail(
   text: string | null | undefined,
   history?: OpenAI.Chat.ChatCompletionMessageParam[]
 ): boolean {
-  const t = text?.trim() ?? "";
+  const t = normalizeServiceChoiceText(text?.trim() ?? "");
   if (!t) return false;
   const n = fold(t);
   if (
@@ -713,7 +716,7 @@ export function clientWantsServiceDetail(
 export function detectProgressiveFamily(
   text: string | null | undefined
 ): ProgressiveFamily | null {
-  const t = text?.trim() ?? "";
+  const t = normalizeServiceChoiceText(text?.trim() ?? "");
   if (!t) return null;
 
   const matches = FAMILIES.filter((fam) => fam.familyPattern.test(t));

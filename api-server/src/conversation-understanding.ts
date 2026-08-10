@@ -4,6 +4,14 @@
  * (respuestas cortas cuando Lucy acaba de preguntar algo concreto).
  */
 import type { OpenAI } from "openai";
+import {
+  resolveNumberedPackageChoice,
+  isNumberedPackageSelection,
+  assistantOfferedNumberedPackages,
+  parseNumberedMenuFromAssistant,
+  clearGuestsConfusedWithPackageLevel,
+  normalizeServiceChoiceText,
+} from "./services/packageLevelSelection.js";
 import type { ExtractedData } from "./types.js";
 import {
   isAffirmativeOnlyMessage,
@@ -72,7 +80,13 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
   ["Barra de Café", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
-  ["Coffee break", /\b(coffee\s*break|coffeebreak|coffe\s*break)\b/i],
+  // A15243: Coffee Break N es SKU concreto — antes del genérico.
+  ["Coffee Break 1", /\bcoffee\s*break\s*1\b|\bcoffe\s*break\s*1\b/i],
+  ["Coffee Break 2", /\bcoffee\s*break\s*2\b|\bcoffe\s*break\s*2\b/i],
+  ["Coffee Break 3", /\bcoffee\s*break\s*3\b|\bcoffe\s*break\s*3\b/i],
+  ["Coffee Break 4", /\bcoffee\s*break\s*4\b|\bcoffe\s*break\s*4\b/i],
+  ["Coffee Break 5", /\bcoffee\s*break\s*5\b|\bcoffe\s*break\s*5\b/i],
+  ["Coffee break", /\b(coffee\s*break|coffeebreak|coffe\s*break)\b(?!\s*[1-9])/i],
   ["Comida Corrida", /\bcomida\s+corrida\b/i],
   ["Paella", /\bpaellas?\b|\bpaellada\b/i],
   ["Pozole y Tostadas", /\bpozole(\s+y\s+tostadas?)?\b|\bpozolada\b/i],
@@ -377,34 +391,11 @@ export interface AmbiguousNumberContext {
   lastAskedField?: UnderstandingField | null;
 }
 
-/** Cliente elige nivel de barra/catálogo (1, 2, 3, básica, tradicional, premium). */
 /** ¿El último mensaje de Lucy listó paquetes numerados tipo Coffee Break 1–5? */
 export function lastAssistantOfferedNumberedPackages(
   lastAssistantText?: string | null
 ): boolean {
-  const last = lastAssistantText ?? "";
-  return (
-    /coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]/i.test(last) ||
-    /\d\.\s*\*?coffee\s*break/i.test(last) ||
-    // A15168: menú corto "paquetes (1 a 5)" / listado CB 1–5.
-    (/coffee\s*break|coffe\s*break/i.test(last) &&
-      (/paquetes?\s*\(?\s*1\s*a\s*5\s*\)?/i.test(last) ||
-        (/coffee\s*break\s*1/i.test(last) && /coffee\s*break\s*5/i.test(last)))) ||
-    (/cu[aá]l\s+nivel\s+prefieres/i.test(last) &&
-      /coffee\s*break|coffe{1,2}\s*break/i.test(last) &&
-      /\$\s*\d/.test(last))
-  );
-}
-
-/** Fold ligero para comparar etiquetas de nivel. */
-function foldNivelLabel(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return assistantOfferedNumberedPackages(lastAssistantText);
 }
 
 /**
@@ -414,96 +405,49 @@ function foldNivelLabel(s: string): string {
 export function parseNumberedNivelesFromAssistant(
   lastAssistantText?: string | null
 ): Array<{ index: number; label: string }> {
-  const last = lastAssistantText ?? "";
-  if (!last.trim()) return [];
-  const out: Array<{ index: number; label: string }> = [];
-  const re = /^\s*(\d+)\.\s*\*?([^*\n]+?)\*?(?:\s*[—\-–:].*)?$/gim;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(last)) !== null) {
-    const index = parseInt(m[1]!, 10);
-    let label = (m[2] ?? "").replace(/\*+/g, "").trim();
-    label = label.replace(/\s+[—\-–].*$/, "").trim();
-    if (index >= 1 && index <= 9 && label.length >= 2 && label.length <= 80) {
-      out.push({ index, label });
-    }
-  }
-  return out;
+  return parseNumberedMenuFromAssistant(lastAssistantText);
 }
 
 /**
- * A15212: mapea "2" / "2. Servicio completo" / "opción 2" / "Servicio completo"
+ * A15212 / A15243: mapea "2" / "sí del 4" / "Coffee Breack 4" / "opción 2"
  * al label exacto del menú numerado que Lucy acaba de ofrecer.
  */
 export function extractNumberedNivelFromLastAssistant(
   text: string | null | undefined,
   lastAssistantText?: string | null
 ): string | null {
-  const niveles = parseNumberedNivelesFromAssistant(lastAssistantText);
-  if (!niveles.length) return null;
-  const raw = text?.trim() ?? "";
-  if (!raw) return null;
-
-  const bare =
-    raw.match(/^(?:el\s+|la\s+|opci[oó]n(?:es)?\s+|paquete\s+|nivel\s+)?(\d+)\s*[.)]?$/i) ||
-    raw.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*(\d+)\b/i);
-  if (bare) {
-    const hit = niveles.find((x) => x.index === parseInt(bare[1]!, 10));
-    if (hit) return hit.label;
-  }
-
-  // "2. Servicio completo" / "2) Servicio completo" / "2 Servicio completo"
-  const numbered = raw.match(/^\s*(\d+)\s*[.)]?\s+(.+)$/i);
-  if (numbered) {
-    const hit = niveles.find((x) => x.index === parseInt(numbered[1]!, 10));
-    if (hit) return hit.label;
-  }
-
-  const tf = foldNivelLabel(raw);
-  for (const n of niveles) {
-    const lf = foldNivelLabel(n.label);
-    if (!lf) continue;
-    if (tf === lf || tf.includes(lf) || lf.includes(tf)) return n.label;
-  }
-  return null;
+  return resolveNumberedPackageChoice(text, lastAssistantText)?.label ?? null;
 }
 
 /**
  * Extrae nivel de catálogo. Soporta Básica/Tradicional/Premium,
- * paquetes numerados "Coffee Break 5" (A14949) y menús Sheet arbitrarios
- * ("Por pieza" / "Servicio completo") vía el último listado de Lucy (A15212).
+ * paquetes numerados "Coffee Break 5" (A14949) y typos (A15243).
  */
 export function extractCatalogNivelFromText(
   text: string | null | undefined,
   lastAssistantText?: string | null
 ): string | null {
-  const t = text?.trim().toLowerCase() ?? "";
+  const t = text?.trim() ?? "";
   if (!t) return null;
 
-  // A15212: PRIORIDAD — nivel del menú numerado que Lucy acaba de ofrecer.
-  // Evita que "2" / "2. Servicio completo" se mapee a "tradicional" (taquiza $750).
-  const fromMenu = extractNumberedNivelFromLastAssistant(text, lastAssistantText);
-  if (fromMenu) return fromMenu;
+  // A15243: fuente única — menú numerado + typos coffee break.
+  const fromPackage = resolveNumberedPackageChoice(t, lastAssistantText);
+  if (fromPackage) return fromPackage.label;
 
-  // A14949 / A15168: "Me interesaría el coffe break 5" / "opción 1" / "el 5" tras listar CB 1–5.
-  const coffeeNamed = t.match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
-  if (coffeeNamed) return `Coffee Break ${coffeeNamed[1]}`;
-  if (lastAssistantOfferedNumberedPackages(lastAssistantText)) {
-    const bare = t.match(/^(?:el\s+|la\s+)?([1-9])$/i) || t.match(/\bel\s+([1-9])\b/i);
-    if (bare) return `Coffee Break ${bare[1]}`;
-    const opcionN = t.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i);
-    if (opcionN) return `Coffee Break ${opcionN[1]}`;
-  }
+  const normalized = normalizeServiceChoiceText(t).toLowerCase();
 
   const m =
-    t.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) ||
-    t.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) ||
-    t.match(/^(1|2|3|4)$/);
+    normalized.match(
+      /\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i
+    ) ||
+    normalized.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) ||
+    normalized.match(/^(1|2|3|4)$/);
   if (!m) return null;
   const raw = (m[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-  // A15212: bare 1/2/3 → básica/tradicional/premium SOLO si Lucy listó esos nombres.
+  // Bare 1/2/3 → básica/tradicional/premium SOLO si Lucy listó esos nombres.
   if (/^(1|2|3|4)$/.test(raw)) {
     const last = lastAssistantText ?? "";
-    const numbered = parseNumberedNivelesFromAssistant(last);
+    const numbered = parseNumberedMenuFromAssistant(last);
     const classicInMenu = /b[aá]sic|tradicional|premium|solo\s*alimentos/i.test(last);
     if (numbered.length && !classicInMenu) return null;
   }
@@ -518,30 +462,22 @@ export function isCatalogLevelSelection(
   text: string | null | undefined,
   lastAssistantText?: string | null
 ): boolean {
-  const t = text?.trim().toLowerCase() ?? "";
+  const t = text?.trim() ?? "";
   if (!t) return false;
+  // A15243: prioridad al resolver de paquetes (typos + "sí del 4").
+  if (isNumberedPackageSelection(t, lastAssistantText)) return true;
+
   const last = lastAssistantText?.toLowerCase() ?? "";
   const askedNivel =
     /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes/i.test(
       last
     );
   if (!askedNivel) {
-    // Aunque no haya "¿cuál nivel?", "coffee break 5" explícito cuenta (A14949).
-    return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t);
+    return /\b(?:coffe{1,2}e?\s*break|coffee\s*break|coffee\s*breack)\s*[1-9]\b/i.test(
+      normalizeServiceChoiceText(t)
+    );
   }
-  // A15212: "2. Servicio completo" / label del menú numerado.
-  if (extractNumberedNivelFromLastAssistant(text, lastAssistantText)) return true;
-  // Mensaje solo nivel, o compuesto con correo/servicio (A14934 / A14949).
   if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t)) return true;
-  if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
-    return true;
-  }
-  if (
-    /\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*[1-9]\b/i.test(t) &&
-    lastAssistantOfferedNumberedPackages(lastAssistantText)
-  ) {
-    return true;
-  }
   return !!extractCatalogNivelFromText(t, lastAssistantText);
 }
 
@@ -784,8 +720,10 @@ export function sanitizeExtractedAmbiguousNumbers(
   if (isAmbiguousShortNumber(messageText, ctx)) {
     extracted.num_invitados = null;
   }
-  // A14949: GPT a veces pone invitados=5 desde "Coffee Break 5".
-  const m = (messageText ?? "").match(/\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*([1-9])\b/i);
+  // A14949 / A15243: dígito de Coffee Break N / "sí del 4" ≠ invitados.
+  clearGuestsConfusedWithPackageLevel(extracted, messageText, null);
+  const normalized = normalizeServiceChoiceText(messageText ?? "");
+  const m = normalized.match(/\bcoffee\s*break\s*([1-9])\b/i);
   if (m && extracted.num_invitados === parseInt(m[1]!, 10)) {
     extracted.num_invitados = null;
   }
@@ -1941,6 +1879,13 @@ export function dedupeServiceHierarchy(
     }
   }
 
+  // A15243: Coffee Break N gana sobre "Coffee break" genérico.
+  if (found.some((s) => /^Coffee Break\s*[1-9]$/i.test(s))) {
+    for (let i = found.length - 1; i >= 0; i--) {
+      if (/^Coffee break$/i.test(found[i]!)) found.splice(i, 1);
+    }
+  }
+
   if (found.includes("Parrillada Argentina") || found.includes("Parrillada Tacos")) {
     const genIdx = found.indexOf("Parrillada");
     if (genIdx >= 0) found.splice(genIdx, 1);
@@ -2026,11 +1971,21 @@ export function mergeServiceRequirements(
   text: string | null | undefined,
   max = 6
 ): string | null {
+  // A15243: "Coffee Break 4" literal / typo debe sobrevivir aunque parseServices falle.
+  const normalizedIncoming = text?.trim()
+    ? normalizeServiceChoiceText(text)
+    : "";
+  const packageSku = normalizedIncoming.match(/\bCoffee Break\s*([1-9])\b/i);
   const fromExisting = existing?.trim() ? parseServicesFromText(existing) : [];
-  const fromText = text?.trim() ? parseServicesFromText(text) : [];
+  const fromText = normalizedIncoming
+    ? parseServicesFromText(normalizedIncoming)
+    : [];
+  if (packageSku && !fromText.some((s) => /^Coffee Break\s*[1-9]$/i.test(s))) {
+    fromText.unshift(`Coffee Break ${packageSku[1]}`);
+  }
   const merged = dedupeServiceHierarchy(
     [...fromExisting, ...fromText],
-    `${existing ?? ""} ${text ?? ""}`
+    `${existing ?? ""} ${normalizedIncoming || text || ""}`
   ).slice(0, max);
   if (merged.length === 0) {
     // Nunca degradar a intención de cotización / saludo (A14924: "Quiero hacer una cotizacion").
@@ -2406,11 +2361,18 @@ export function parseInvitadosFromText(text: string): string | null {
   if (numMatchEarly) return numMatchEarly[1]!;
 
   // A14949: mensaje corto "coffee break 5" / "el 5" tras oferta = NIVEL, no invitados.
-  if (
-    /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(trimmed) &&
-    trimmed.split(/\s+/).length <= 14
-  ) {
-    return null;
+  // A15243: typos "Coffee Breack 4" / "sí del 4".
+  {
+    const normalized = normalizeServiceChoiceText(trimmed);
+    if (
+      /\bcoffee\s*break\s*[1-9]\b/i.test(normalized) &&
+      normalized.split(/\s+/).length <= 14
+    ) {
+      return null;
+    }
+    if (resolveNumberedPackageChoice(trimmed, null)?.isCoffeeBreak) {
+      return null;
+    }
   }
   if (
     isCatalogLevelSelection(trimmed) &&

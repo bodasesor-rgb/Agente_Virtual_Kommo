@@ -167,6 +167,7 @@ import {
   isReadyForClosing,
   mensajeAsksForFilledField,
   mensajeAsksForField,
+  type PendingField,
   LUCY_INTRO,
   isValidRequerimientosValue,
   crmStoredValue,
@@ -8340,7 +8341,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.14");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.16");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9677,6 +9678,320 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/sin problema/i.test(refuseLive), refuseLive.slice(0, 300));
     assert.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
+  });
+
+  // ─── 137. A15243 Diana — Coffee Breack 4 / sí del 4: anotar paquete + embudo ───
+  await test("137. A15243 — Coffee Break 4 tipado, no invitados ni CTA vacío", () => {
+    const menu = [
+      "Claro. En *Coffee Break* manejamos estos paquetes:",
+      "1. *Coffee Break 1*",
+      "2. *Coffee Break 2*",
+      "3. *Coffee Break 3*",
+      "4. *Coffee Break 4*",
+      "5. *Coffee Break 5*",
+      "",
+      "https://bodasesor.com/catalogos/coffee-break",
+      "¿Quieres que te dé detalles de alguno?",
+      "¿Me regalas tu nombre?",
+    ].join("\n");
+
+    assert.equal(extractCatalogNivelFromText("Coffee Breack 4", menu), "Coffee Break 4");
+    assert.equal(extractCatalogNivelFromText("Si del 4", menu), "Coffee Break 4");
+    assert.ok(isCatalogLevelSelection("Coffee Breack 4", menu));
+    assert.ok(isCatalogLevelSelection("Si del 4", menu));
+    assert.equal(parseInvitadosFromText("Coffee Breack 4"), null);
+    assert.equal(parseInvitadosFromText("Si del 4"), null);
+
+    const guests = { num_invitados: 4 as number | null };
+    sanitizeExtractedAmbiguousNumbers(guests, "Coffee Breack 4");
+    assert.equal(guests.num_invitados, null);
+
+    assert.ok(
+      parseServicesFromText("Coffee Break 4").some((s) => /^Coffee Break 4$/i.test(s)),
+      JSON.stringify(parseServicesFromText("Coffee Break 4"))
+    );
+    assert.equal(
+      mergeServiceRequirements("Coffee Break", "Coffee Break 4", 6),
+      "Coffee Break 4"
+    );
+
+    const extracted = emptyExtracted({
+      requerimientos_evento: "Coffee Break",
+      num_invitados: 4,
+    });
+    const filled = new Set(["Requerimientos o servicios", "Número de invitados"]);
+    const pick = runGuards({
+      aiResponse: "De acuerdo. ¿Quieres que te dé detalles de alguno?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Coffee Breack 4",
+      history: [
+        {
+          role: "user",
+          content: 'Hola, me gustaría cotizar un "Coffee Break" para un evento',
+        },
+        { role: "assistant", content: menu },
+      ],
+    });
+    assert.ok(/Coffee Break 4/i.test(pick), pick.slice(0, 400));
+    assert.ok(/anoto/i.test(pick), pick.slice(0, 300));
+    assert.ok(!/detalles de alguno/i.test(pick), pick.slice(0, 400));
+    assert.equal(extracted.num_invitados, null);
+    assert.ok(
+      /Coffee Break 4/i.test(extracted.requerimientos_evento ?? ""),
+      extracted.requerimientos_evento
+    );
+    assert.ok(
+      mensajeAsksForField(pick, "nombre") || /nombre|llamas/i.test(pick),
+      pick.slice(0, 400)
+    );
+
+    const siDel = runGuards({
+      aiResponse: "Claro. Te dejo el catálogo general.",
+      extracted: emptyExtracted({
+        nombre: "Diana López",
+        requerimientos_evento: "Coffee Break",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Si del 4",
+      history: [
+        { role: "assistant", content: menu },
+        { role: "user", content: "Mi nombre es Diana López" },
+        {
+          role: "assistant",
+          content: "¡Mucho gusto, Diana! ¿Qué tipo de evento es?",
+        },
+      ],
+    });
+    assert.ok(/Coffee Break 4/i.test(siDel), siDel.slice(0, 400));
+    assert.ok(!/detalles de alguno/i.test(siDel), siDel.slice(0, 300));
+    assert.ok(
+      mensajeAsksForField(siDel, "tipo_evento") || /tipo de evento|celebr|trata el evento/i.test(siDel),
+      siDel.slice(0, 400)
+    );
+  });
+
+  // ─── 138. Embudo completo — cualquier servicio no se corta tras catálogo/CTA ───
+  await test("138. Embudo multi-servicio — tras catálogo sigue preguntando y guarda CRM", () => {
+    const cases: Array<{
+      label: string;
+      req: string;
+      filledExtra?: string[];
+      extractedExtra?: Partial<ExtractedData>;
+      catalogOffer: string;
+      expectAsk: PendingField;
+      expectSaved?: (ex: ExtractedData, filled: Set<string>) => void;
+    }> = [
+      {
+        label: "mobiliario",
+        req: "Mesas y sillas",
+        catalogOffer: `Perfecto. Sí manejamos mesas y sillas.\n\n${CATALOG_OFFER_QUESTION}`,
+        expectAsk: "tipo_evento",
+        extractedExtra: { nombre: "Francisco" },
+        filledExtra: ["Nombre del cliente"],
+      },
+      {
+        label: "banquete",
+        req: "Banquete Formal 3 tiempos",
+        catalogOffer: `Claro. En *Banquete* manejamos varias opciones.\n\n${CATALOG_OFFER_QUESTION}`,
+        expectAsk: "fecha",
+        extractedExtra: {
+          nombre: "Alexandra",
+          tipo_evento: "Boda",
+        },
+        filledExtra: ["Nombre del cliente", "Tipo de evento"],
+      },
+      {
+        label: "taquiza",
+        req: "Taquiza",
+        catalogOffer: `Anoto taquiza.\n\n${SERVICE_NIVEL_DETAIL_CTA}`,
+        expectAsk: "zona",
+        extractedExtra: {
+          nombre: "Karime",
+          tipo_evento: "XV años",
+          fecha_horario: "15 de marzo",
+        },
+        filledExtra: ["Nombre del cliente", "Tipo de evento", "Fecha y horario"],
+      },
+      {
+        label: "sushi",
+        req: "Barra de sushi",
+        catalogOffer: `Te dejo el catálogo de sushi:\nhttps://bodasesor.com/catalogos/barra-de-sushi\n\n${CATALOG_OFFER_QUESTION}`,
+        expectAsk: "correo",
+        extractedExtra: {
+          nombre: "Paola",
+          tipo_evento: "Corporativo",
+          fecha_horario: "el sábado",
+          direccion_evento: "CDMX",
+        },
+        filledExtra: [
+          "Nombre del cliente",
+          "Tipo de evento",
+          "Fecha y horario",
+          "Lugar/dirección del evento",
+        ],
+      },
+      {
+        label: "coffee",
+        req: "Coffee Break 4",
+        catalogOffer: `Perfecto. Anoto Coffee Break.\n\n${CATALOG_OFFER_QUESTION}`,
+        expectAsk: "invitados",
+        extractedExtra: {
+          nombre: "Diana López",
+          tipo_evento: "Evento corporativo",
+          fecha_horario: "20 de abril 9am",
+          direccion_evento: "Polanco",
+          correo: "diana@empresa.com",
+        },
+        filledExtra: [
+          "Nombre del cliente",
+          "Tipo de evento",
+          "Fecha y horario",
+          "Lugar/dirección del evento",
+          "Correo electrónico",
+        ],
+      },
+    ];
+
+    for (const c of cases) {
+      const extracted = emptyExtracted({
+        requerimientos_evento: c.req,
+        ...c.extractedExtra,
+      });
+      const filled = new Set([
+        "Requerimientos o servicios",
+        ...(c.filledExtra ?? []),
+      ]);
+      const reply = runGuards({
+        aiResponse: "Claro, te paso info.",
+        extracted,
+        filledSet: filled,
+        readyForClosing: false,
+        currentMessage: "Sí",
+        history: [
+          { role: "user", content: `Hola, quiero ${c.req}` },
+          { role: "assistant", content: c.catalogOffer },
+        ],
+      });
+      assert.ok(
+        mensajeAsksForField(reply, c.expectAsk) ||
+          new RegExp(c.expectAsk === "tipo_evento" ? "tipo de evento|celebr" : c.expectAsk, "i").test(
+            reply
+          ),
+        `[${c.label}] debía preguntar ${c.expectAsk}: ${reply.slice(0, 450)}`
+      );
+      assert.ok(
+        /bodasesor\.com\/catalogos|claro/i.test(reply),
+        `[${c.label}] debía mandar/ack catálogo: ${reply.slice(0, 300)}`
+      );
+      // CRM no se borra al afirmar catálogo
+      assert.ok(
+        /./.test(extracted.requerimientos_evento ?? ""),
+        `[${c.label}] requisitos vacíos`
+      );
+      assert.ok(
+        filled.has("Requerimientos o servicios"),
+        `[${c.label}] filledSet perdió requerimientos`
+      );
+      if (c.extractedExtra?.nombre) {
+        assert.equal(extracted.nombre, c.extractedExtra.nombre);
+      }
+      if (c.extractedExtra?.correo) {
+        assert.equal(extracted.correo, c.extractedExtra.correo);
+      }
+      c.expectSaved?.(extracted, filled);
+    }
+
+    // Recorrido corto: cada respuesta del cliente avanza y se guarda
+    const walk = emptyExtracted({ nombre: "Luis" });
+    const walkFilled = new Set(["Nombre del cliente"]);
+    const steps: Array<{ msg: string; patch: Partial<ExtractedData>; add: string[]; ask: PendingField | null }> = [
+      {
+        msg: "Es una boda",
+        patch: { tipo_evento: "Boda" },
+        add: ["Tipo de evento"],
+        ask: "requerimientos",
+      },
+      {
+        msg: "Banquete y mobiliario",
+        patch: { requerimientos_evento: "Banquete, Mobiliario" },
+        add: ["Requerimientos o servicios"],
+        ask: "fecha",
+      },
+      {
+        msg: "el 12 de junio",
+        patch: { fecha_horario: "12 de junio" },
+        add: ["Fecha y horario"],
+        ask: "zona",
+      },
+      {
+        msg: "Querétaro",
+        patch: { direccion_evento: "Querétaro" },
+        add: ["Lugar/dirección del evento"],
+        ask: "correo",
+      },
+      {
+        msg: "luis@mail.com",
+        patch: { correo: "luis@mail.com" },
+        add: ["Correo electrónico"],
+        ask: "invitados",
+      },
+      {
+        msg: "120",
+        patch: { num_invitados: 120 },
+        add: ["Número de invitados"],
+        ask: "presupuesto",
+      },
+      {
+        msg: "80 mil",
+        patch: { presupuesto: "80000" },
+        add: ["Presupuesto (MXN)"],
+        ask: null,
+      },
+    ];
+    let history: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      { role: "user", content: "Hola, soy Luis" },
+      { role: "assistant", content: "¡Hola Luis! ¿Qué tipo de evento es?" },
+    ];
+    for (const step of steps) {
+      Object.assign(walk, step.patch);
+      for (const f of step.add) walkFilled.add(f);
+      const out = runGuards({
+        aiResponse: "Perfecto, gracias.",
+        extracted: walk,
+        filledSet: walkFilled,
+        readyForClosing: step.ask === null,
+        currentMessage: step.msg,
+        history,
+      });
+      history = [
+        ...history,
+        { role: "user", content: step.msg },
+        { role: "assistant", content: out },
+      ];
+      if (step.ask) {
+        const asks =
+          mensajeAsksForField(out, step.ask) ||
+          (step.ask === "requerimientos" &&
+            /armar|servicios?|cotizar|gustar[ií]a/i.test(out));
+        assert.ok(asks, `walk → ${step.ask} tras "${step.msg}": ${out.slice(0, 350)}`);
+        // No repetir la misma pregunta 2+ veces en un solo turno.
+        const qCount = (out.match(/\?/g) || []).length;
+        assert.ok(qCount <= 3, `walk demasiadas preguntas tras "${step.msg}": ${out.slice(0, 350)}`);
+      } else {
+        assert.equal(getNextPendingField(walk, walkFilled), null);
+      }
+    }
+    assert.equal(walk.nombre, "Luis");
+    assert.equal(walk.tipo_evento, "Boda");
+    assert.ok(/Banquete/i.test(walk.requerimientos_evento ?? ""));
+    assert.equal(walk.fecha_horario, "12 de junio");
+    assert.equal(walk.direccion_evento, "Querétaro");
+    assert.equal(walk.correo, "luis@mail.com");
+    assert.equal(walk.num_invitados, 120);
+    assert.ok(walk.presupuesto);
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
