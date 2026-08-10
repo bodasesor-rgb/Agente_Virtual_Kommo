@@ -96,7 +96,9 @@ const FAMILIES: FamilyDef[] = [
   },
   {
     family: "coffee_break",
-    familyPattern: /\bcoffee\s*break\b|\bcoffeebreak\b|\bcoffe\s*break\b/i,
+    // A15231: desayuno ejecutivo / desayuno corporativo → menú Coffee Break + catálogo.
+    familyPattern:
+      /\bcoffee\s*break\b|\bcoffeebreak\b|\bcoffe\s*break\b|\bdesayuno\s+ejecutivo\b|\bdesayuno\s+(?:buffet|continental|corporativo)\b|\bdesayunos?\b(?!\s+tem[aá]tico)|\bbrunch\b/i,
     variantPattern:
       /\b(?:coffee\s*break|coffe{1,2}e?\s*break)\s*[1-9]\b|\bnivel\s*[1-9]\b|\bopci[oó]n(?:es)?\s*[1-9]\b|\bpaquete\s*[1-9]\b|^(?:el\s+|la\s+)?[1-9]$/i,
     detailQueryFromText: (text) => {

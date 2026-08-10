@@ -48,6 +48,7 @@ import {
   isUsableDireccionEvento,
   sanitizeExtractedAmbiguousNumbers,
   clientAsksForCatalog,
+  looksLikeFechaHorarioNotGuestsOrBudget,
   clientAsksGenericMenuCatalog,
   clientWantsFullCatalog,
   clientAffirmsCatalogOffer,
@@ -8340,7 +8341,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.14");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.15");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9677,6 +9678,114 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/sin problema/i.test(refuseLive), refuseLive.slice(0, 300));
     assert.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
+  });
+
+  // ─── 137. A15231 Karen — desayuno ejecutivo: catálogo Coffee Break; no waiver horario ───
+  await test("137. A15231 — desayuno ejecutivo ofrece CB + no cierra sin invitados", () => {
+    const horarioMsg =
+      "Día 28 de octubre y el horario aún no esta definido";
+    assert.ok(looksLikeFechaHorarioNotGuestsOrBudget(horarioMsg));
+    assert.equal(parseInvitadosFromText(horarioMsg), null);
+    assert.equal(parsePresupuestoFromText(horarioMsg), null);
+    assert.equal(detectPresupuestoRefusal(horarioMsg), false);
+    // Waivers reales de invitados siguen vivos.
+    assert.equal(
+      parseInvitadosFromText("No sé aún"),
+      "Sin definir (cliente indicó aproximación pendiente)"
+    );
+
+    assert.equal(detectProgressiveFamily("Un desayuno ejecutivo"), "coffee_break");
+    assert.equal(detectProgressiveFamily("quiero desayuno"), "coffee_break");
+    assert.equal(detectProgressiveFamily("desayuno temático mexicano"), null);
+
+    const offer = runGuards({
+      aiResponse: "¿Tienen día u horario ya definido?",
+      extracted: emptyExtracted({
+        nombre: "Karen Fernández",
+        tipo_evento: "corporativo",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+      readyForClosing: false,
+      currentMessage: "Un desayuno ejecutivo",
+      history: [
+        { role: "assistant", content: "¡Mucho gusto, Karen! ¿Qué van a celebrar?" },
+        { role: "user", content: "Un desayuno ejecutivo" },
+      ],
+    });
+    assert.ok(
+      /Coffee Break|catalogos\/coffee-break/i.test(offer),
+      offer.slice(0, 600)
+    );
+    assert.ok(/bodasesor\.com\/catalogos\/coffee-break/i.test(offer), offer.slice(0, 400));
+    assert.ok(!/ya tengo todo/i.test(offer));
+
+    // Tras fecha+horario pendiente: captura CRM no inventa invitados/presupuesto.
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    const lines: string[] = [
+      "- Nombre del cliente: Karen Fernández",
+      "- Tipo de evento: corporativo",
+      "- Requerimientos o servicios: Desayuno",
+    ];
+    applyCapturesToCrm(
+      lines,
+      filled,
+      scanConversationForCaptures(
+        [
+          { role: "assistant", content: "Karen, ¿tienen día u horario ya definido?" },
+          { role: "user", content: horarioMsg },
+        ],
+        horarioMsg,
+        filled
+      )
+    );
+    assert.ok(
+      !filled.has("Número de invitados"),
+      `invitados no debe llenarse: ${[...filled].join(",")}`
+    );
+    assert.ok(
+      !filled.has("Presupuesto (MXN)"),
+      `presupuesto no debe llenarse: ${[...filled].join(",")}`
+    );
+    assert.ok(filled.has("Fecha y horario") || /28\s+de\s+octubre/i.test(lines.join("\n")));
+
+    // Con correo+zona pero SIN invitados → pregunta invitados, no cierra.
+    const noClose = runGuards({
+      aiResponse: "Perfecto, ya tengo todo. He anotado que el evento será un desayuno.",
+      extracted: emptyExtracted({
+        nombre: "Karen Fernández",
+        tipo_evento: "corporativo",
+        requerimientos_evento: "Desayuno",
+        fecha_horario: "28 de octubre",
+        direccion_evento:
+          "Monterrey 130, Roma Nte., Cuauhtémoc, 06700 Ciudad de México, CDMX",
+        correo: "michiigutzzh@gmail.com",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Fecha y horario",
+        "Lugar/dirección del evento",
+        "Correo electrónico",
+      ]),
+      readyForClosing: false,
+      currentMessage: "michiigutzzh@gmail.com",
+      history: [
+        {
+          role: "assistant",
+          content: "¿A qué correo te mando la información?",
+        },
+      ],
+    });
+    assert.ok(!/ya tengo todo/i.test(noClose), noClose.slice(0, 400));
+    assert.ok(
+      mensajeAsksForField(noClose, "invitados") || /invitados|cu[aá]ntos/i.test(noClose),
+      noClose.slice(0, 400)
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
