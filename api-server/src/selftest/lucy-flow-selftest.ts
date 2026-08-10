@@ -8340,7 +8340,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.14");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.15");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9677,6 +9677,123 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/sin problema/i.test(refuseLive), refuseLive.slice(0, 300));
     assert.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
+  });
+
+  // ─── 137. A15232 Francisco — mobiliario: no cortar tras catálogo; tipouniversitario ───
+  await test("137. A15232 — mesas/sillas seguimiento embudo + catálogo", () => {
+    assert.equal(
+      parseTipoEventoFromText("Para un evento universitario de gastronomía"),
+      "evento universitario"
+    );
+
+    // Tras nombre con lead de mesas y sillas: no menú de piezas largo.
+    const afterName = runGuards({
+      aiResponse: "¿Qué tipo de evento?",
+      extracted: emptyExtracted({
+        nombre: "Francisco",
+        requerimientos_evento: "Mobiliario",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Francisco",
+      history: [
+        {
+          role: "user",
+          content: "Hola, me interesa cotizar: Renta de Mesas y Sillas para Eventos",
+        },
+        {
+          role: "assistant",
+          content:
+            "¡Hola! Soy Lucy. Vi tu solicitud de renta de mesas y sillas.\n\n¿Me regalas tu nombre?",
+        },
+      ],
+    });
+    assert.ok(/Francisco/i.test(afterName), afterName.slice(0, 300));
+    assert.ok(
+      !/Periqueras[\s\S]*Salas lounge[\s\S]*Dime qu[eé] pieza/i.test(afterName),
+      `no menú piezas: ${afterName.slice(0, 500)}`
+    );
+    assert.ok(
+      /mesas y sillas|anoto/i.test(afterName) || mensajeAsksForField(afterName, "tipo_evento"),
+      afterName.slice(0, 500)
+    );
+    assert.ok(
+      mensajeAsksForField(afterName, "tipo_evento") || /tipo de evento|celebr/i.test(afterName),
+      afterName.slice(0, 400)
+    );
+
+    // Mesas + vajilla + universitario → captura tipo, catálogo, sigue embudo (fecha/correo…).
+    const extracted = emptyExtracted({
+      nombre: "Francisco",
+      requerimientos_evento: "Mobiliario",
+    });
+    const filled = new Set(["Nombre del cliente", "Requerimientos o servicios"]);
+    const pieces = runGuards({
+      aiResponse: "¿Quieres que te mande el catálogo con más detalle?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Mesas, vajilla\nPara un evento universitario de gastronomía",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "Perfecto, Francisco. Anoto mesas y sillas.\n\n¿Qué tipo de evento es?",
+        },
+      ],
+    });
+    assert.ok(
+      filled.has("Tipo de evento") || /universitari/i.test(extracted.tipo_evento ?? ""),
+      `tipo: ${extracted.tipo_evento} filled=${[...filled].join(",")}`
+    );
+    assert.ok(!/ya tengo todo/i.test(pieces));
+    assert.ok(
+      /catalogos\/(mesas-y-sillas|vajillas)|vajilla|mesas/i.test(pieces),
+      pieces.slice(0, 600)
+    );
+    // No quedarse solo en CTA de catálogo: debe pedir siguiente dato.
+    assert.ok(
+      mensajeAsksForField(pieces, "fecha") ||
+        mensajeAsksForField(pieces, "correo") ||
+        mensajeAsksForField(pieces, "zona") ||
+        /fecha|correo|ubicaci[oó]n|d[ií]a|lugar|cu[aá]ndo/i.test(pieces),
+      pieces.slice(0, 600)
+    );
+
+    // "Sí" al catálogo → links del servicio + siguiente pregunta (no solo hub).
+    const catalogSi = runGuards({
+      aiResponse: "Claro. Aquí el catálogo general.",
+      extracted: emptyExtracted({
+        nombre: "Francisco",
+        tipo_evento: "evento universitario",
+        requerimientos_evento: "Mesas, Vajillas",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Si",
+      history: [
+        {
+          role: "user",
+          content: "Mesas, vajilla\nPara un evento universitario de gastronomía",
+        },
+        {
+          role: "assistant",
+          content: "¿Quieres que te mande el catálogo con más detalle?",
+        },
+      ],
+    });
+    assert.ok(/bodasesor\.com\/catalogos/i.test(catalogSi), catalogSi.slice(0, 400));
+    assert.ok(
+      mensajeAsksForField(catalogSi, "fecha") ||
+        mensajeAsksForField(catalogSi, "correo") ||
+        mensajeAsksForField(catalogSi, "zona") ||
+        /fecha|correo|ubicaci[oó]n|d[ií]a|lugar|cu[aá]ndo/i.test(catalogSi),
+      `debe seguir embudo: ${catalogSi.slice(0, 500)}`
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

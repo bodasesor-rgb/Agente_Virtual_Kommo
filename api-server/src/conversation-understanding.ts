@@ -273,6 +273,9 @@ const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
   [/\bconciertos?\b/i, "concierto"],
   // A15205 Mariel: campamento / concentración deportiva.
   [/\bcampamentos?\b|\bconcentraci[oó]n\b|\batletas?\b/i, "campamento"],
+  // A15232 Francisco: evento universitario / de gastronomía.
+  [/\b(eventos?\s+)?universitari[oa]s?\b/i, "evento universitario"],
+  [/\bevento\s+de\s+gastronom[ií]a\b|\bgastronom[ií]a\b/i, "evento universitario"],
 ];
 
 /** Normaliza para comparar presentaciones ("Alejandro?", "¿Alejandro"). */
