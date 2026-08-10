@@ -208184,7 +208184,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.15";
+var LUCY_PROMPT_VERSION = "V9.16";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -209838,7 +209838,7 @@ function getQuestionVariants() {
     ],
     requerimientos: [
       "\xBFQu\xE9 servicios te gustar\xEDa ir armando?",
-      "Plat\xEDcame qu\xE9 te gustar\xEDa armar para el evento.",
+      "Plat\xEDcame, \xBFqu\xE9 te gustar\xEDa armar para el evento?",
       "\xBFQu\xE9 necesitas cotizar?"
     ],
     invitados: [
@@ -211525,7 +211525,7 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     return base || "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.";
   }
   if (!base) return buildNaturalQuestion(pending, ctx);
-  if (mensajeAsksForField(base, pending)) {
+  if (mensajeAsksForField(base, pending) || pending === "requerimientos" && /plat[ií]came,?\s+qu[eé]\s+te\s+gustar[ií]a\s+armar/i.test(base)) {
     return collapseDuplicateFieldQuestions(base, pending);
   }
   if (clientAskedFreeformQuestion(ctx.currentMessage) && base.length > 50) {
@@ -211542,8 +211542,18 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
   if (pending === "requerimientos" && hasTipoEvento(filledSet, extracted) && isDryRequerimientosAsk(nextQ)) {
     return base;
   }
-  const onlyServiceDetailCta = /quieres que te d[eé] detalles de alguno/i.test(base) && !mensajeAsksForField(base, pending);
-  if (base.includes("?") && !onlyServiceDetailCta && !mensajeAsksWrongField(mensaje, filledSet, extracted) && !mensajeAsksForFilledField(mensaje, filledSet, extracted)) {
+  const EMBUDO_FIELDS = [
+    "nombre",
+    "tipo_evento",
+    "requerimientos",
+    "fecha",
+    "zona",
+    "correo",
+    "invitados",
+    "presupuesto"
+  ];
+  const asksEmbudoQuestion = EMBUDO_FIELDS.some((f7) => mensajeAsksForField(base, f7));
+  if (asksEmbudoQuestion && !mensajeAsksWrongField(mensaje, filledSet, extracted) && !mensajeAsksForFilledField(mensaje, filledSet, extracted)) {
     return collapseDuplicateFieldQuestions(mensaje, pending);
   }
   return collapseDuplicateFieldQuestions(`${base}
@@ -212816,12 +212826,31 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
         serviceHint
       });
     } else {
-      mensaje = buildCatalogWebLinkReply({
-        query: "cat\xE1logo general",
-        wantFull: true,
-        serviceHint: null
-      });
+      const crmServices = !wantFull && extracted.requerimientos_evento?.trim() ? parseServicesFromText(extracted.requerimientos_evento) : [];
+      if (crmServices.length > 0) {
+        const mapped = buildPackageCatalogOfferBlock(
+          crmServices,
+          extracted.requerimientos_evento ?? ""
+        ).replace(
+          /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
+          "\n"
+        );
+        mensaje = /bodasesor\.com\/catalogos/i.test(mapped) ? `Claro.
+
+${mapped}`.trim() : buildCatalogWebLinkReply({
+          query: extracted.requerimientos_evento || "cat\xE1logo",
+          wantFull: false,
+          serviceHint: extracted.requerimientos_evento
+        });
+      } else {
+        mensaje = buildCatalogWebLinkReply({
+          query: "cat\xE1logo general",
+          wantFull: true,
+          serviceHint: null
+        });
+      }
     }
+    mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     appliedDirectReply = true;
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
   } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
@@ -213916,6 +213945,16 @@ ${nextQ}`;
     log?.info({ entityId }, "GUARD: bloqueando cierre \u2014 faltan medidas obligatorias");
   }
   if (appliedDirectReply) {
+    if (!cierreYaEnviado && !trulyReadyForClosing && !clientAsksForHumanAdvisor(currentMessage)) {
+      const pendingDirect = getNextPendingField(extracted, filledSet);
+      if (pendingDirect && !mensajeAsksForField(mensaje, pendingDirect)) {
+        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+        log?.info(
+          { entityId, pending: pendingDirect },
+          "GUARD: direct-reply \u2014 anexar siguiente del embudo"
+        );
+      }
+    }
     return normalizeAdvisorReferences(
       mensaje,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -214191,6 +214230,12 @@ ${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
         mensaje = `${mensaje}
 
 ${pickVariant("nombre", history, entityId)}`.trim();
+      }
+    }
+    if (!cierreYaEnviado && !trulyReadyForClosing) {
+      const pendingSales = getNextPendingField(extracted, filledSet);
+      if (pendingSales && !mensajeAsksForField(mensaje, pendingSales)) {
+        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
       }
     }
     return normalizeAdvisorReferences(mensaje, extracted.nombre);

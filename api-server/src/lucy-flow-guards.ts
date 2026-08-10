@@ -376,7 +376,7 @@ function getQuestionVariants(): Record<PendingField, string[]> {
   ],
   requerimientos: [
     "¿Qué servicios te gustaría ir armando?",
-    "Platícame qué te gustaría armar para el evento.",
+    "Platícame, ¿qué te gustaría armar para el evento?",
     "¿Qué necesitas cotizar?",
   ],
   invitados: [
@@ -2946,7 +2946,12 @@ function mergeWithPendingQuestion(
   if (!base) return buildNaturalQuestion(pending, ctx);
 
   // Ya pregunta el campo pendiente — no duplicar (A14924: doble "¿qué tipo de evento?").
-  if (mensajeAsksForField(base, pending)) {
+  // También variantes sin "?"" histórico ("Platícame qué te gustaría armar…").
+  if (
+    mensajeAsksForField(base, pending) ||
+    (pending === "requerimientos" &&
+      /plat[ií]came,?\s+qu[eé]\s+te\s+gustar[ií]a\s+armar/i.test(base))
+  ) {
     return collapseDuplicateFieldQuestions(base, pending);
   }
 
@@ -2978,13 +2983,22 @@ function mergeWithPendingQuestion(
   ) {
     return base;
   }
-  // A14982: "¿Quieres que te dé detalles de alguno?" NO bloquea pedir correo/tipo/fecha.
-  const onlyServiceDetailCta =
-    /quieres que te d[eé] detalles de alguno/i.test(base) &&
-    !mensajeAsksForField(base, pending);
+  // V9.16 / A15232 / A15243: CTAs de venta/catálogo ("¿te mando el catálogo?",
+  // "¿detalles de alguno?", "¿algo más?") NO bloquean el embudo. Solo omitir el
+  // append si el mensaje ya pregunta por un campo del embudo (en orden).
+  const EMBUDO_FIELDS: PendingField[] = [
+    "nombre",
+    "tipo_evento",
+    "requerimientos",
+    "fecha",
+    "zona",
+    "correo",
+    "invitados",
+    "presupuesto",
+  ];
+  const asksEmbudoQuestion = EMBUDO_FIELDS.some((f) => mensajeAsksForField(base, f));
   if (
-    base.includes("?") &&
-    !onlyServiceDetailCta &&
+    asksEmbudoQuestion &&
     !mensajeAsksWrongField(mensaje, filledSet, extracted) &&
     !mensajeAsksForFilledField(mensaje, filledSet, extracted)
   ) {
@@ -5078,12 +5092,36 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
             serviceHint,
           });
     } else {
-      mensaje = buildCatalogWebLinkReply({
-        query: "catálogo general",
-        wantFull: true,
-        serviceHint: null,
-      });
+      // Si el cliente solo dijo "sí" al CTA, usar CRM (mesas/coffee/banquete/…) para el link.
+      const crmServices =
+        !wantFull && extracted.requerimientos_evento?.trim()
+          ? parseServicesFromText(extracted.requerimientos_evento)
+          : [];
+      if (crmServices.length > 0) {
+        const mapped = buildPackageCatalogOfferBlock(
+          crmServices,
+          extracted.requerimientos_evento ?? ""
+        ).replace(
+          /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
+          "\n"
+        );
+        mensaje = /bodasesor\.com\/catalogos/i.test(mapped)
+          ? `Claro.\n\n${mapped}`.trim()
+          : buildCatalogWebLinkReply({
+              query: extracted.requerimientos_evento || "catálogo",
+              wantFull: false,
+              serviceHint: extracted.requerimientos_evento,
+            });
+      } else {
+        mensaje = buildCatalogWebLinkReply({
+          query: "catálogo general",
+          wantFull: true,
+          serviceHint: null,
+        });
+      }
     }
+    // Tras mandar catálogo, SIEMPRE seguir el embudo (cualquier servicio).
+    mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     appliedDirectReply = true;
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidió/afirmó catálogo — link(s)");
   } else if (
@@ -6626,6 +6664,23 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   if (appliedDirectReply) {
+    // V9.16: muchas ramas directas (catálogo, detalle, ack) salían sin anexar
+    // la siguiente pregunta → el embudo se cortaba con CUALQUIER entrada.
+    // Handoffs post-cierre / asesor humano no deben reabrir el formulario.
+    if (
+      !cierreYaEnviado &&
+      !trulyReadyForClosing &&
+      !clientAsksForHumanAdvisor(currentMessage)
+    ) {
+      const pendingDirect = getNextPendingField(extracted, filledSet);
+      if (pendingDirect && !mensajeAsksForField(mensaje, pendingDirect)) {
+        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+        log?.info(
+          { entityId, pending: pendingDirect },
+          "GUARD: direct-reply — anexar siguiente del embudo"
+        );
+      }
+    }
     return normalizeAdvisorReferences(
       mensaje,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -7038,6 +7093,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         )
       ) {
         mensaje = `${mensaje}\n\n${pickVariant("nombre", history, entityId)}`.trim();
+      }
+    }
+    // V9.16: pitch/ventas con CTA ("¿detalles?", catálogo) también deben empujar embudo.
+    if (!cierreYaEnviado && !trulyReadyForClosing) {
+      const pendingSales = getNextPendingField(extracted, filledSet);
+      if (pendingSales && !mensajeAsksForField(mensaje, pendingSales)) {
+        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
       }
     }
     return normalizeAdvisorReferences(mensaje, extracted.nombre);

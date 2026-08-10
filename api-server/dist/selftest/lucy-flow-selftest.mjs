@@ -131982,7 +131982,7 @@ function getQuestionVariants() {
     ],
     requerimientos: [
       "\xBFQu\xE9 servicios te gustar\xEDa ir armando?",
-      "Plat\xEDcame qu\xE9 te gustar\xEDa armar para el evento.",
+      "Plat\xEDcame, \xBFqu\xE9 te gustar\xEDa armar para el evento?",
       "\xBFQu\xE9 necesitas cotizar?"
     ],
     invitados: [
@@ -133657,7 +133657,7 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
     return base || "Entendido, sin problema. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.";
   }
   if (!base) return buildNaturalQuestion(pending, ctx);
-  if (mensajeAsksForField(base, pending)) {
+  if (mensajeAsksForField(base, pending) || pending === "requerimientos" && /plat[ií]came,?\s+qu[eé]\s+te\s+gustar[ií]a\s+armar/i.test(base)) {
     return collapseDuplicateFieldQuestions(base, pending);
   }
   if (clientAskedFreeformQuestion(ctx.currentMessage) && base.length > 50) {
@@ -133674,8 +133674,18 @@ function mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx) {
   if (pending === "requerimientos" && hasTipoEvento(filledSet, extracted) && isDryRequerimientosAsk(nextQ)) {
     return base;
   }
-  const onlyServiceDetailCta = /quieres que te d[eé] detalles de alguno/i.test(base) && !mensajeAsksForField(base, pending);
-  if (base.includes("?") && !onlyServiceDetailCta && !mensajeAsksWrongField(mensaje, filledSet, extracted) && !mensajeAsksForFilledField(mensaje, filledSet, extracted)) {
+  const EMBUDO_FIELDS = [
+    "nombre",
+    "tipo_evento",
+    "requerimientos",
+    "fecha",
+    "zona",
+    "correo",
+    "invitados",
+    "presupuesto"
+  ];
+  const asksEmbudoQuestion = EMBUDO_FIELDS.some((f6) => mensajeAsksForField(base, f6));
+  if (asksEmbudoQuestion && !mensajeAsksWrongField(mensaje, filledSet, extracted) && !mensajeAsksForFilledField(mensaje, filledSet, extracted)) {
     return collapseDuplicateFieldQuestions(mensaje, pending);
   }
   return collapseDuplicateFieldQuestions(`${base}
@@ -134953,12 +134963,31 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
         serviceHint
       });
     } else {
-      mensaje = buildCatalogWebLinkReply({
-        query: "cat\xE1logo general",
-        wantFull: true,
-        serviceHint: null
-      });
+      const crmServices = !wantFull && extracted.requerimientos_evento?.trim() ? parseServicesFromText(extracted.requerimientos_evento) : [];
+      if (crmServices.length > 0) {
+        const mapped = buildPackageCatalogOfferBlock(
+          crmServices,
+          extracted.requerimientos_evento ?? ""
+        ).replace(
+          /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
+          "\n"
+        );
+        mensaje = /bodasesor\.com\/catalogos/i.test(mapped) ? `Claro.
+
+${mapped}`.trim() : buildCatalogWebLinkReply({
+          query: extracted.requerimientos_evento || "cat\xE1logo",
+          wantFull: false,
+          serviceHint: extracted.requerimientos_evento
+        });
+      } else {
+        mensaje = buildCatalogWebLinkReply({
+          query: "cat\xE1logo general",
+          wantFull: true,
+          serviceHint: null
+        });
+      }
     }
+    mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     appliedDirectReply = true;
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
   } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
@@ -136053,6 +136082,16 @@ ${nextQ}`;
     log?.info({ entityId }, "GUARD: bloqueando cierre \u2014 faltan medidas obligatorias");
   }
   if (appliedDirectReply) {
+    if (!cierreYaEnviado && !trulyReadyForClosing && !clientAsksForHumanAdvisor(currentMessage)) {
+      const pendingDirect = getNextPendingField(extracted, filledSet);
+      if (pendingDirect && !mensajeAsksForField(mensaje, pendingDirect)) {
+        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
+        log?.info(
+          { entityId, pending: pendingDirect },
+          "GUARD: direct-reply \u2014 anexar siguiente del embudo"
+        );
+      }
+    }
     return normalizeAdvisorReferences(
       mensaje,
       extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
@@ -136328,6 +136367,12 @@ ${buildNaturalQuestion(pendingFinal, ctx)}` : fromCatalog;
         mensaje = `${mensaje}
 
 ${pickVariant("nombre", history, entityId)}`.trim();
+      }
+    }
+    if (!cierreYaEnviado && !trulyReadyForClosing) {
+      const pendingSales = getNextPendingField(extracted, filledSet);
+      if (pendingSales && !mensajeAsksForField(mensaje, pendingSales)) {
+        mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
       }
     }
     return normalizeAdvisorReferences(mensaje, extracted.nombre);
@@ -138163,7 +138208,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.15";
+var LUCY_PROMPT_VERSION = "V9.16";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -145247,7 +145292,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.15");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.16");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -146503,6 +146548,219 @@ ${golfText}`,
       mensajeAsksForField(siDel, "tipo_evento") || /tipo de evento|celebr|trata el evento/i.test(siDel),
       siDel.slice(0, 400)
     );
+  });
+  await test("138. Embudo multi-servicio \u2014 tras cat\xE1logo sigue preguntando y guarda CRM", () => {
+    const cases = [
+      {
+        label: "mobiliario",
+        req: "Mesas y sillas",
+        catalogOffer: `Perfecto. S\xED manejamos mesas y sillas.
+
+${CATALOG_OFFER_QUESTION}`,
+        expectAsk: "tipo_evento",
+        extractedExtra: { nombre: "Francisco" },
+        filledExtra: ["Nombre del cliente"]
+      },
+      {
+        label: "banquete",
+        req: "Banquete Formal 3 tiempos",
+        catalogOffer: `Claro. En *Banquete* manejamos varias opciones.
+
+${CATALOG_OFFER_QUESTION}`,
+        expectAsk: "fecha",
+        extractedExtra: {
+          nombre: "Alexandra",
+          tipo_evento: "Boda"
+        },
+        filledExtra: ["Nombre del cliente", "Tipo de evento"]
+      },
+      {
+        label: "taquiza",
+        req: "Taquiza",
+        catalogOffer: `Anoto taquiza.
+
+${SERVICE_NIVEL_DETAIL_CTA}`,
+        expectAsk: "zona",
+        extractedExtra: {
+          nombre: "Karime",
+          tipo_evento: "XV a\xF1os",
+          fecha_horario: "15 de marzo"
+        },
+        filledExtra: ["Nombre del cliente", "Tipo de evento", "Fecha y horario"]
+      },
+      {
+        label: "sushi",
+        req: "Barra de sushi",
+        catalogOffer: `Te dejo el cat\xE1logo de sushi:
+https://bodasesor.com/catalogos/barra-de-sushi
+
+${CATALOG_OFFER_QUESTION}`,
+        expectAsk: "correo",
+        extractedExtra: {
+          nombre: "Paola",
+          tipo_evento: "Corporativo",
+          fecha_horario: "el s\xE1bado",
+          direccion_evento: "CDMX"
+        },
+        filledExtra: [
+          "Nombre del cliente",
+          "Tipo de evento",
+          "Fecha y horario",
+          "Lugar/direcci\xF3n del evento"
+        ]
+      },
+      {
+        label: "coffee",
+        req: "Coffee Break 4",
+        catalogOffer: `Perfecto. Anoto Coffee Break.
+
+${CATALOG_OFFER_QUESTION}`,
+        expectAsk: "invitados",
+        extractedExtra: {
+          nombre: "Diana L\xF3pez",
+          tipo_evento: "Evento corporativo",
+          fecha_horario: "20 de abril 9am",
+          direccion_evento: "Polanco",
+          correo: "diana@empresa.com"
+        },
+        filledExtra: [
+          "Nombre del cliente",
+          "Tipo de evento",
+          "Fecha y horario",
+          "Lugar/direcci\xF3n del evento",
+          "Correo electr\xF3nico"
+        ]
+      }
+    ];
+    for (const c4 of cases) {
+      const extracted = emptyExtracted({
+        requerimientos_evento: c4.req,
+        ...c4.extractedExtra
+      });
+      const filled = /* @__PURE__ */ new Set([
+        "Requerimientos o servicios",
+        ...c4.filledExtra ?? []
+      ]);
+      const reply = runGuards({
+        aiResponse: "Claro, te paso info.",
+        extracted,
+        filledSet: filled,
+        readyForClosing: false,
+        currentMessage: "S\xED",
+        history: [
+          { role: "user", content: `Hola, quiero ${c4.req}` },
+          { role: "assistant", content: c4.catalogOffer }
+        ]
+      });
+      assert2.ok(
+        mensajeAsksForField(reply, c4.expectAsk) || new RegExp(c4.expectAsk === "tipo_evento" ? "tipo de evento|celebr" : c4.expectAsk, "i").test(
+          reply
+        ),
+        `[${c4.label}] deb\xEDa preguntar ${c4.expectAsk}: ${reply.slice(0, 450)}`
+      );
+      assert2.ok(
+        /bodasesor\.com\/catalogos|claro/i.test(reply),
+        `[${c4.label}] deb\xEDa mandar/ack cat\xE1logo: ${reply.slice(0, 300)}`
+      );
+      assert2.ok(
+        /./.test(extracted.requerimientos_evento ?? ""),
+        `[${c4.label}] requisitos vac\xEDos`
+      );
+      assert2.ok(
+        filled.has("Requerimientos o servicios"),
+        `[${c4.label}] filledSet perdi\xF3 requerimientos`
+      );
+      if (c4.extractedExtra?.nombre) {
+        assert2.equal(extracted.nombre, c4.extractedExtra.nombre);
+      }
+      if (c4.extractedExtra?.correo) {
+        assert2.equal(extracted.correo, c4.extractedExtra.correo);
+      }
+      c4.expectSaved?.(extracted, filled);
+    }
+    const walk = emptyExtracted({ nombre: "Luis" });
+    const walkFilled = /* @__PURE__ */ new Set(["Nombre del cliente"]);
+    const steps = [
+      {
+        msg: "Es una boda",
+        patch: { tipo_evento: "Boda" },
+        add: ["Tipo de evento"],
+        ask: "requerimientos"
+      },
+      {
+        msg: "Banquete y mobiliario",
+        patch: { requerimientos_evento: "Banquete, Mobiliario" },
+        add: ["Requerimientos o servicios"],
+        ask: "fecha"
+      },
+      {
+        msg: "el 12 de junio",
+        patch: { fecha_horario: "12 de junio" },
+        add: ["Fecha y horario"],
+        ask: "zona"
+      },
+      {
+        msg: "Quer\xE9taro",
+        patch: { direccion_evento: "Quer\xE9taro" },
+        add: ["Lugar/direcci\xF3n del evento"],
+        ask: "correo"
+      },
+      {
+        msg: "luis@mail.com",
+        patch: { correo: "luis@mail.com" },
+        add: ["Correo electr\xF3nico"],
+        ask: "invitados"
+      },
+      {
+        msg: "120",
+        patch: { num_invitados: 120 },
+        add: ["N\xFAmero de invitados"],
+        ask: "presupuesto"
+      },
+      {
+        msg: "80 mil",
+        patch: { presupuesto: "80000" },
+        add: ["Presupuesto (MXN)"],
+        ask: null
+      }
+    ];
+    let history = [
+      { role: "user", content: "Hola, soy Luis" },
+      { role: "assistant", content: "\xA1Hola Luis! \xBFQu\xE9 tipo de evento es?" }
+    ];
+    for (const step of steps) {
+      Object.assign(walk, step.patch);
+      for (const f6 of step.add) walkFilled.add(f6);
+      const out2 = runGuards({
+        aiResponse: "Perfecto, gracias.",
+        extracted: walk,
+        filledSet: walkFilled,
+        readyForClosing: step.ask === null,
+        currentMessage: step.msg,
+        history
+      });
+      history = [
+        ...history,
+        { role: "user", content: step.msg },
+        { role: "assistant", content: out2 }
+      ];
+      if (step.ask) {
+        const asks = mensajeAsksForField(out2, step.ask) || step.ask === "requerimientos" && /armar|servicios?|cotizar|gustar[ií]a/i.test(out2);
+        assert2.ok(asks, `walk \u2192 ${step.ask} tras "${step.msg}": ${out2.slice(0, 350)}`);
+        const qCount = (out2.match(/\?/g) || []).length;
+        assert2.ok(qCount <= 3, `walk demasiadas preguntas tras "${step.msg}": ${out2.slice(0, 350)}`);
+      } else {
+        assert2.equal(getNextPendingField(walk, walkFilled), null);
+      }
+    }
+    assert2.equal(walk.nombre, "Luis");
+    assert2.equal(walk.tipo_evento, "Boda");
+    assert2.ok(/Banquete/i.test(walk.requerimientos_evento ?? ""));
+    assert2.equal(walk.fecha_horario, "12 de junio");
+    assert2.equal(walk.direccion_evento, "Quer\xE9taro");
+    assert2.equal(walk.correo, "luis@mail.com");
+    assert2.equal(walk.num_invitados, 120);
+    assert2.ok(walk.presupuesto);
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
