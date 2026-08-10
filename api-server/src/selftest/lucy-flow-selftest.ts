@@ -8340,7 +8340,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.14");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.15");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9677,6 +9677,99 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/sin problema/i.test(refuseLive), refuseLive.slice(0, 300));
     assert.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
+  });
+
+  // ─── 137. A15243 Diana — Coffee Breack 4 / sí del 4: anotar paquete + embudo ───
+  await test("137. A15243 — Coffee Break 4 tipado, no invitados ni CTA vacío", () => {
+    const menu = [
+      "Claro. En *Coffee Break* manejamos estos paquetes:",
+      "1. *Coffee Break 1*",
+      "2. *Coffee Break 2*",
+      "3. *Coffee Break 3*",
+      "4. *Coffee Break 4*",
+      "5. *Coffee Break 5*",
+      "",
+      "https://bodasesor.com/catalogos/coffee-break",
+      "¿Quieres que te dé detalles de alguno?",
+      "¿Me regalas tu nombre?",
+    ].join("\n");
+
+    assert.equal(extractCatalogNivelFromText("Coffee Breack 4", menu), "Coffee Break 4");
+    assert.equal(extractCatalogNivelFromText("Si del 4", menu), "Coffee Break 4");
+    assert.ok(isCatalogLevelSelection("Coffee Breack 4", menu));
+    assert.ok(isCatalogLevelSelection("Si del 4", menu));
+    assert.equal(parseInvitadosFromText("Coffee Breack 4"), null);
+    assert.equal(parseInvitadosFromText("Si del 4"), null);
+
+    const guests = { num_invitados: 4 as number | null };
+    sanitizeExtractedAmbiguousNumbers(guests, "Coffee Breack 4");
+    assert.equal(guests.num_invitados, null);
+
+    assert.ok(
+      parseServicesFromText("Coffee Break 4").some((s) => /^Coffee Break 4$/i.test(s)),
+      JSON.stringify(parseServicesFromText("Coffee Break 4"))
+    );
+    assert.equal(
+      mergeServiceRequirements("Coffee Break", "Coffee Break 4", 6),
+      "Coffee Break 4"
+    );
+
+    const extracted = emptyExtracted({
+      requerimientos_evento: "Coffee Break",
+      num_invitados: 4,
+    });
+    const filled = new Set(["Requerimientos o servicios", "Número de invitados"]);
+    const pick = runGuards({
+      aiResponse: "De acuerdo. ¿Quieres que te dé detalles de alguno?",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Coffee Breack 4",
+      history: [
+        {
+          role: "user",
+          content: 'Hola, me gustaría cotizar un "Coffee Break" para un evento',
+        },
+        { role: "assistant", content: menu },
+      ],
+    });
+    assert.ok(/Coffee Break 4/i.test(pick), pick.slice(0, 400));
+    assert.ok(/anoto/i.test(pick), pick.slice(0, 300));
+    assert.ok(!/detalles de alguno/i.test(pick), pick.slice(0, 400));
+    assert.equal(extracted.num_invitados, null);
+    assert.ok(
+      /Coffee Break 4/i.test(extracted.requerimientos_evento ?? ""),
+      extracted.requerimientos_evento
+    );
+    assert.ok(
+      mensajeAsksForField(pick, "nombre") || /nombre|llamas/i.test(pick),
+      pick.slice(0, 400)
+    );
+
+    const siDel = runGuards({
+      aiResponse: "Claro. Te dejo el catálogo general.",
+      extracted: emptyExtracted({
+        nombre: "Diana López",
+        requerimientos_evento: "Coffee Break",
+      }),
+      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
+      readyForClosing: false,
+      currentMessage: "Si del 4",
+      history: [
+        { role: "assistant", content: menu },
+        { role: "user", content: "Mi nombre es Diana López" },
+        {
+          role: "assistant",
+          content: "¡Mucho gusto, Diana! ¿Qué tipo de evento es?",
+        },
+      ],
+    });
+    assert.ok(/Coffee Break 4/i.test(siDel), siDel.slice(0, 400));
+    assert.ok(!/detalles de alguno/i.test(siDel), siDel.slice(0, 300));
+    assert.ok(
+      mensajeAsksForField(siDel, "tipo_evento") || /tipo de evento|celebr|trata el evento/i.test(siDel),
+      siDel.slice(0, 400)
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

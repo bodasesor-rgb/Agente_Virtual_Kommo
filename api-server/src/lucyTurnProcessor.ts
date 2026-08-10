@@ -20,6 +20,10 @@ import {
   inferLucyAskedField,
   isUnusableTipoEventoReply,
 } from "./conversation-understanding.js";
+import {
+  clearGuestsConfusedWithPackageLevel,
+  findLastNumberedPackageOffer,
+} from "./services/packageLevelSelection.js";
 import { enrichExtractedFromText } from "./services/summaryService.js";
 import { sanitizeCrmNombre } from "./contact-name.js";
 import { detectIntent, analyzeSentiment, detectObjection } from "./services/intentDetection.js";
@@ -76,6 +80,15 @@ export async function prepareLucyExtraction(
     ? inferLucyAskedField(lastAssistantForAmbig.content as string)
     : null;
   sanitizeExtractedAmbiguousNumbers(extracted, messageText, { lastAskedField: lastAskedAmbig });
+  // A15243: "Coffee Breack 4" / "sí del 4" nunca llenan invitados.
+  clearGuestsConfusedWithPackageLevel(
+    extracted,
+    messageText,
+    findLastNumberedPackageOffer(fullHistory) ||
+      (lastAssistantForAmbig && typeof lastAssistantForAmbig.content === "string"
+        ? lastAssistantForAmbig.content
+        : null)
+  );
   applyWebLeadBrief(extracted, messageText);
 
   extracted.nombre = sanitizeCrmNombre(extracted.nombre);
@@ -110,6 +123,14 @@ export async function prepareLucyExtraction(
   } else {
     enrichExtractedFromText(extracted, conversationText);
     sanitizeExtractedAmbiguousNumbers(extracted, messageText, { lastAskedField: lastAskedAmbig });
+    clearGuestsConfusedWithPackageLevel(
+      extracted,
+      messageText,
+      findLastNumberedPackageOffer(fullHistory) ||
+        (lastAssistantForAmbig && typeof lastAssistantForAmbig.content === "string"
+          ? lastAssistantForAmbig.content
+          : null)
+    );
     if (!extracted.modo_servicio) {
       extracted.modo_servicio = detectModoServicio(conversationText);
     }
