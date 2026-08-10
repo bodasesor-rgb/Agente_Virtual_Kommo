@@ -110,7 +110,7 @@ import { finalizeLucyOutboundMessage } from "../lucyOutboundPipeline.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
 import { buildSillasModelMenu } from "../services/serviceProgressiveOffer.js";
 import { buildDynamicPrompt } from "../services/promptBuilder.js";
-import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName, resolveKommoLeadNamePatch } from "../contact-name.js";
+import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, isAffirmativeOnlyMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName, resolveKommoLeadNamePatch } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
 import {
   resolveTipoContacto,
@@ -8340,7 +8340,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.14");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.15");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9677,6 +9677,114 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/sin problema/i.test(refuseLive), refuseLive.slice(0, 300));
     assert.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
+  });
+
+  // ─── 137. A15245 Luna/Oki — Holaaa≠nombre, intro Lucy, presupuesto sin bucle ───
+  await test("137. A15245 — Holaaa no es nombre; intro Lucy; Oki/Está bien cierra presupuesto", () => {
+    assert.equal(isGreetingOnlyMessage("Holaaa"), true);
+    assert.equal(isGreetingOnlyMessage("holaaa"), true);
+    assert.equal(isGreetingOnlyMessage("Holaaaa"), true);
+    assert.equal(isGreetingOnlyMessage("Buenas tarde"), true);
+    assert.equal(sanitizeCrmNombre("Holaaa"), null);
+    assert.equal(sanitizeCrmNombre("Oki"), null);
+    assert.equal(sanitizeDisplayName("Holaaa"), null);
+    assert.ok(isAffirmativeOnlyMessage("Oki"));
+    assert.ok(isAffirmativeOnlyMessage("Está bien"));
+    assert.equal(
+      parsePresupuestoFromText("Oki", { askedField: "presupuesto" }),
+      "Sin definir (no indicó monto)"
+    );
+    assert.equal(
+      parsePresupuestoFromText("Está bien", { askedField: "presupuesto" }),
+      "Sin definir (no indicó monto)"
+    );
+
+    // Captura estructural: saludo estirado NO llena Nombre.
+    const caps = scanConversationForCaptures([], "Holaaa", new Set());
+    assert.equal(
+      caps.find((c) => c.label === "Nombre del cliente"),
+      undefined,
+      JSON.stringify(caps)
+    );
+
+    // Primer turno: presentación Lucy + pedir nombre (no guardar Holaaa; no pisar Luna).
+    const first = runGuards({
+      aiResponse: "¡Hola! Mucho gusto. ¿En qué te puedo ayudar hoy?",
+      extracted: emptyExtracted(),
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: "Holaaa",
+      whatsappDisplayName: "Luna",
+      forceFirstPresentation: true,
+      history: [],
+    });
+    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(first), first.slice(0, 280));
+    assert.ok(
+      mensajeAsksForField(first, "nombre") || /nombre|llamas/i.test(first),
+      first.slice(0, 280)
+    );
+    assert.ok(!/Holaaa/i.test(first) || /soy\s+lucy/i.test(first), first.slice(0, 280));
+
+    // Tras "¿proponga opciones?" + "Está bien" → cierre SIN re-preguntar presupuesto.
+    const closingFilled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Fecha y horario",
+      "Lugar/dirección del evento",
+      "Correo electrónico",
+      "Número de invitados",
+    ]);
+    const extractedClose = emptyExtracted({
+      nombre: "Luna",
+      tipo_evento: "Baby shower",
+      requerimientos_evento: "Mesa de Postres",
+      fecha_horario: "5 de septiembre",
+      direccion_evento: "CDMX",
+      correo: "luna02unam@gmail.com",
+      num_invitados: 35,
+    });
+    const closeReply = runGuards({
+      aiResponse:
+        "Perfecto. Ya tengo toda la información: la mesa de postres para tu baby shower.",
+      extracted: extractedClose,
+      filledSet: closingFilled,
+      readyForClosing: true,
+      currentMessage: "Está bien",
+      history: [
+        {
+          role: "assistant",
+          content: "¿Prefieren que nuestro equipo les proponga opciones?",
+        },
+        { role: "user", content: "Oki" },
+      ],
+    });
+    assert.ok(
+      closingFilled.has("Presupuesto (MXN)"),
+      "presupuesto debe quedar resuelto con Oki/Está bien"
+    );
+    assert.ok(
+      !mensajeAsksForField(closeReply, "presupuesto") && !/propong/i.test(closeReply),
+      `no re-preguntar presupuesto: ${closeReply.slice(0, 400)}`
+    );
+
+    // Post-cierre gracias: no volver a pedir presupuesto.
+    const thanks = runGuards({
+      aiResponse: "¡Con gusto! ¿Prefieren que nuestro equipo les proponga opciones?",
+      extracted: extractedClose,
+      filledSet: closingFilled,
+      readyForClosing: true,
+      cierreYaEnviado: true,
+      currentMessage: "Muchas gracias",
+      history: [
+        { role: "assistant", content: closeReply },
+        { role: "user", content: "Está bien" },
+      ],
+    });
+    assert.ok(
+      !mensajeAsksForField(thanks, "presupuesto") && !/propong/i.test(thanks),
+      thanks.slice(0, 350)
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

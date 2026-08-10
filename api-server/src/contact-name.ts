@@ -19,7 +19,33 @@ const PLACEHOLDER_PATTERNS = [
 
 /** Saludos y frases que NO son nombres de persona. */
 const GREETING_NAME_PATTERN =
-  /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
+  /^(hola|hello|hi|hey|buen|buenos?|buenas?|d[ií]as?|tardes?|noches?|saludos?|gracias|ok|oki|okay|okis|vale|s[ií]|no|qu[eé]|tal|ayuda|info|cotizaci[oó]n|evento|banquete|taquiza|quiero|necesito|requiero|busco|me|comunico|hablo|escribo)$/i;
+
+/**
+ * Colapsa letras repetidas solo para detectar saludos estirados:
+ * "Holaaa" → "hola", "buenesss" → "buenas" (no aplicar a nombres reales).
+ */
+function collapseStretchedLetters(text: string): string {
+  return text.replace(/(.)\1+/g, "$1");
+}
+
+/** "holaaa" / "hiii" / "heey" — saludo con letras estiradas, no nombre. */
+function isStretchedGreetingToken(token: string): boolean {
+  const t = token
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z]/g, "");
+  if (!t) return false;
+  if (/^h+o+l+a+$/i.test(t)) return true;
+  if (/^h+e+l+o+$/i.test(t)) return true; // hellooo
+  if (/^h+i+$/i.test(t) || /^h+e+y+$/i.test(t)) return true;
+  if (/^b+u+e+n+a*s*$/i.test(t) || /^b+u+e+n+o*s*$/i.test(t)) return true;
+  const collapsed = collapseStretchedLetters(t);
+  return /^(hola|hello|hi|hey|buen|buenos|buenas|dias|tardes|noches|saludos|ok|oki|okay)$/i.test(
+    collapsed
+  );
+}
 
 /** Cap&Bara / Bodasesor / Lucy — preguntas de canal, no nombre del cliente. */
 const COMPANY_OR_CHANNEL_PATTERN =
@@ -98,28 +124,36 @@ export function isGreetingOnlyMessage(text: string | null | undefined): boolean 
     .trim()
     .toLowerCase();
 
+  // A15245: "Holaaa" / "Holiii" / "Buenass" — letras estiradas ≠ nombre.
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  if (tokens.length === 1 && isStretchedGreetingToken(tokens[0]!)) return true;
+  if (tokens.length >= 1 && tokens.length <= 4 && tokens.every((tok) => isStretchedGreetingToken(tok))) {
+    return true;
+  }
+
+  const collapsed = collapseStretchedLetters(normalized);
   // "hola", "hola buen dia", "buen dia", "buenos dias", etc.
-  const withoutHola = normalized.replace(/^(hola|hello|hi|hey)\s+/, "");
-  if (/^(hola|hello|hi|hey)$/.test(normalized)) return true;
+  const withoutHola = collapsed.replace(/^(hola|hello|hi|hey)\s+/, "");
+  if (/^(hola|hello|hi|hey)$/.test(collapsed)) return true;
   if (
     /^(buen(os|as)?\s+)?(dias?|tardes?|noches?)(\s+(a\s+todos|equipo))?$/.test(withoutHola)
   ) {
     return true;
   }
-  if (/^que\s*tal$/.test(normalized) || /^buenas?$/.test(normalized) || /^saludos?$/.test(normalized)) {
+  if (/^que\s*tal$/.test(collapsed) || /^buenas?$/.test(collapsed) || /^saludos?$/.test(collapsed)) {
     return true;
   }
   // "buenas, información" / "hola info" / "buenas cotización" — apertura vaga, no nombre.
   if (
     /^(hola|hello|hi|hey|buenas?)([,\s]+)+(informacion|info|ayuda|cotizar|cotizacion)\s*$/.test(
-      normalized
+      collapsed
     )
   ) {
     return true;
   }
   if (
     /^(buen(os|as)?\s+(dias?|tardes?|noches?))([,\s]+)+(informacion|info|ayuda|cotizar|cotizacion)\s*$/.test(
-      normalized
+      collapsed
     )
   ) {
     return true;
@@ -243,11 +277,14 @@ export function isLikelyUbicacionNotNombre(text: string | null | undefined): boo
   return false;
 }
 
-/** "sí", "ok", "claro" — afirmación, no es el nombre del cliente. */
+/** "sí", "ok", "oki", "claro" — afirmación, no es el nombre del cliente. */
 export function isAffirmativeOnlyMessage(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
   if (!t) return false;
-  return /^(s[ií]|ok|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es)[.!?\s,]*$/i.test(t);
+  // A15245: "Oki" / "Okay" / "Está bien" no son nombre (WhatsApp a veces se llama Oki).
+  return /^(s[ií]|ok|oki|okay|okis|vale|claro|de\s+acuerdo|por\s+supuesto|perfecto|correcto|exacto|as[ií]\s+es|est[aá]\s+bien|bueno)[.!?\s,]*$/i.test(
+    t
+  );
 }
 
 export function isPlaceholderLeadName(name: string | null | undefined): boolean {
@@ -281,6 +318,8 @@ export function sanitizeDisplayName(name: string | null | undefined): string | n
   if (/^(el|la|los|las|un|una)$/i.test(firstName)) return null;
   if (/^\d+$/.test(firstName)) return null;
   if (GREETING_NAME_PATTERN.test(firstName)) return null;
+  if (isStretchedGreetingToken(firstName)) return null;
+  if (GREETING_NAME_PATTERN.test(collapseStretchedLetters(firstName))) return null;
   if (BOT_OR_META_NAME_TOKEN.test(firstName)) return null;
   if (CATALOG_LEVEL_OR_BRAND_NAME.test(firstName)) return null;
   if (isQuoteIntentMessage(raw)) return null;
@@ -385,14 +424,20 @@ export function sanitizeCrmNombre(name: string | null | undefined): string | nul
 
   const parts = cleaned.split(/\s+/).filter((part) => {
     const token = part.trim();
-    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/g, "");
+    const letters = token.replace(/[^a-zA-ZáéíóúüñÁÉÍÓÚÜÑ']/g, "");
     if (!letters) return false;
     if (BOT_OR_META_NAME_TOKEN.test(letters)) return false;
     if (HANDOFF_OR_META_NAME_TOKEN.test(letters)) return false;
     if (CATALOG_LEVEL_OR_BRAND_NAME.test(letters)) return false;
+    if (isStretchedGreetingToken(letters)) return false;
     if (/^(boda|xv|cumpleanos|bautizo|aniversario|graduacion|es|una|un)$/i.test(letters)) return false;
     if (/^[A-Za-zÁÉÍÓÚÜÑ]\.?$/.test(token) && letters.length >= 1) return true;
-    return letters.length >= 2 && !GREETING_NAME_PATTERN.test(letters) && !/^\d+$/.test(letters);
+    return (
+      letters.length >= 2 &&
+      !GREETING_NAME_PATTERN.test(letters) &&
+      !GREETING_NAME_PATTERN.test(collapseStretchedLetters(letters)) &&
+      !/^\d+$/.test(letters)
+    );
   });
 
   if (parts.length === 0) return sanitizeDisplayName(cleaned);

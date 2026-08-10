@@ -41,7 +41,8 @@ export const LUCY_FIELD_ASK_PATTERNS: Record<UnderstandingField, RegExp> = {
   zona: /ciudad|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n|es)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n|venue|sede|colonia|municipio/i,
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo|qu[eé]\s+d[ií]a/i,
   presupuesto:
-    /presupuesto|estimado|rango|inversi[oó]n|budget|monto|cu[aá]nto\s+cuesta|precio\s+total|para\s+la\s+comida|menos\s+de|hasta\s+\$?|opciones\s+de\s+precio/i,
+    // A15245: variante "proponga opciones" cuenta como ask de presupuesto.
+    /presupuesto|estimado|rango|inversi[oó]n|budget|monto|cu[aá]nto\s+cuesta|precio\s+total|para\s+la\s+comida|menos\s+de|hasta\s+\$?|opciones\s+de\s+precio|propong[ae]n?\s+opciones|equipo\s+les\s+propong/i,
 };
 
 /** Catálogo unificado Bodasesor — orden: más específico primero. */
@@ -3279,7 +3280,12 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   }
 
   if (opts?.askedField === "presupuesto") {
-    if (/^(s[ií]|ok|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?)[\s.,!]*$/i.test(trimmed)) {
+    // A15245: "Oki" / "Está bien" / "Sí" = aceptar que el equipo proponga (no re-preguntar).
+    if (
+      /^(s[ií]|ok|oki|okay|okis|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo|opciones?|propuestas?)[\s.,!]*$/i.test(
+        trimmed
+      )
+    ) {
       return trimmed.match(/^opciones?|^propuestas?/i)
         ? "Sin definir (cliente pidió que propongamos)"
         : PRESUPUESTO_AUTO_WAIVER;
