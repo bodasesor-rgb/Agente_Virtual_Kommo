@@ -191,6 +191,7 @@ import {
   isGenericQuoteIntentRequerimiento,
   clientAsksCafeOrCateringChoice,
   looksLikeNameAnswerMessage,
+  isUnusableTipoEventoReply,
   FECHA_MAX_ASKS,
   FECHA_AUTO_WAIVER,
 } from "./conversation-understanding.js";
@@ -2973,10 +2974,11 @@ function mergeWithPendingQuestion(
   ) {
     return base;
   }
-  // A14982: "¿Quieres que te dé detalles de alguno?" NO bloquea pedir correo/tipo/fecha.
+  // A14982 / A15232: CTAs de catálogo/detalle NO bloquean pedir correo/tipo/fecha.
   const onlyServiceDetailCta =
-    /quieres que te d[eé] detalles de alguno/i.test(base) &&
-    !mensajeAsksForField(base, pending);
+    /quieres que te (?:d[eé] detalles de alguno|mande el cat[aá]logo(?:\s+con m[aá]s detalle)?)\b/i.test(
+      base
+    ) && !mensajeAsksForField(base, pending);
   if (
     base.includes("?") &&
     !onlyServiceDetailCta &&
@@ -3681,10 +3683,44 @@ export function buildDeferredKnownServiceOffer(opts: {
   const svc = extracted.requerimientos_evento!.trim();
   const nombre = getDisplayName(extracted, whatsappName);
   const intro = nombre ? `Perfecto, ${nombre}.` : "Perfecto.";
+  const userBlob = collectUserTexts(history, ctx.currentMessage).join(" ");
+
+  // A15232: lead ya dijo "mesas y sillas" / pieza concreta → no re-listar el menú
+  // de piezas (WhatsApp lo corta con "más") y seguir el embudo.
+  if (/mobiliario|mesas?|sillas?|periqueras?|vajillas?/i.test(svc) || /mobiliario|mesas?|sillas?/i.test(userBlob)) {
+    const namedMesasYSillas =
+      /\bmesas?\b/i.test(userBlob) && /\bsillas?\b/i.test(userBlob);
+    const piece = namedMesasYSillas
+      ? null
+      : parseMobiliarioPieceChoice(userBlob);
+    if (namedMesasYSillas || piece) {
+      const label = namedMesasYSillas
+        ? "mesas y sillas"
+        : piece === "vajillas"
+          ? "vajillas"
+          : piece!;
+      const catalogUrl =
+        getCatalogWebUrlForQuery(
+          namedMesasYSillas ? "mesas y sillas" : piece === "vajillas" ? "vajillas" : "mesas y sillas"
+        ) || getCatalogWebHubDeliveryUrl();
+      let body = `${intro} Anoto *${label}* para tu cotización.`;
+      if (catalogUrl) {
+        body = `${body}\n\nCatálogo:\n${catalogUrl}`;
+      }
+      const pending = getNextPendingField(extracted, filledSet);
+      if (pending && pending !== "requerimientos" && pending !== "nombre") {
+        const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });
+        if (nextQ && pending !== "correo" && !body.includes(nextQ)) {
+          body = `${body}\n\n${nextQ}`;
+        }
+      }
+      return body;
+    }
+  }
 
   // V8.68: menú de opciones primero; detalle + link cuando elijan.
   const optionsFirst = shouldOfferOptionsBeforeDetail({
-    currentMessage: svc,
+    currentMessage: userBlob || svc,
     history,
     serviceHint: svc,
   });
@@ -5056,12 +5092,36 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
             serviceHint,
           });
     } else {
-      mensaje = buildCatalogWebLinkReply({
-        query: "catálogo general",
-        wantFull: true,
-        serviceHint: null,
-      });
+      // A15232: "Sí" al catálogo con CRM de mesas/vajilla → links del servicio, no solo hub.
+      const crmServices =
+        !wantFull && extracted.requerimientos_evento?.trim()
+          ? parseServicesFromText(extracted.requerimientos_evento)
+          : [];
+      if (crmServices.length > 0) {
+        const mapped = buildPackageCatalogOfferBlock(
+          crmServices,
+          extracted.requerimientos_evento ?? ""
+        ).replace(
+          /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
+          "\n"
+        );
+        mensaje = /bodasesor\.com\/catalogos/i.test(mapped)
+          ? `Claro.\n\n${mapped}`.trim()
+          : buildCatalogWebLinkReply({
+              query: extracted.requerimientos_evento || "catálogo",
+              wantFull: false,
+              serviceHint: extracted.requerimientos_evento,
+            });
+      } else {
+        mensaje = buildCatalogWebLinkReply({
+          query: "catálogo general",
+          wantFull: true,
+          serviceHint: null,
+        });
+      }
     }
+    // A15232: tras mandar catálogo, seguir el embudo (no cortar la conversación).
+    mensaje = mergeWithPendingQuestion(mensaje, filledSet, extracted, ctx);
     appliedDirectReply = true;
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidió/afirmó catálogo — link(s)");
   } else if (
@@ -5372,18 +5432,35 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       );
     } else {
     // Brief con múltiples servicios / RFQ: reconocer TODOS + enviar catálogo.
+    // A15232: "Mesas, vajilla / evento universitario" → capturar tipo en el mismo turno.
+    if (!hasTipoEvento(filledSet, extracted) && currentMessage) {
+      const tipoNow = parseTipoEventoFromText(currentMessage);
+      if (tipoNow && !isUnusableTipoEventoReply(tipoNow)) {
+        extracted.tipo_evento = tipoNow;
+        filledSet.add("Tipo de evento");
+      }
+    }
     const packageServices =
       servicesFromCurrentMessage.length >= 2
         ? servicesFromCurrentMessage
         : servicesFromTurn;
-    const packageReply = buildMultiServicePackageReply(
+    let packageReply = buildMultiServicePackageReply(
       packageServices,
       currentMessage ?? collectUserTexts(presHistory, currentMessage).join(" ")
+    ).replace(
+      /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
+      "\n"
     );
+    const aiIsCatalogCtaOnly =
+      /^\s*(claro[.!]?\s*)?¿Quieres que te mande el cat[aá]logo/i.test(aiResponse.trim()) ||
+      (/quieres que te mande el cat[aá]logo/i.test(aiResponse) &&
+        aiResponse.trim().length < 120);
     const aiIsUselessAck =
+      aiIsCatalogCtaOnly ||
       /ya\s+lo\s+tengo\s+anotado|perfecto,?\s+[A-Za-zÁÉÍÓÚáéíóúñÑ]+\.?$/i.test(
         aiResponse.trim()
-      ) || aiResponse.trim().length < 40;
+      ) ||
+      aiResponse.trim().length < 40;
     if (shouldPreferAiResponse(aiResponse, filledSet, extracted, currentMessage) && !aiIsUselessAck) {
       const aiAlreadyLists =
         packageServices.filter((s) =>
@@ -6029,11 +6106,13 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     // V8.92 / A15165: menú de piezas mobiliario → modelos (también post-cierre).
     allowSalesReplyOverride &&
     (historyOfferedMobiliarioPieceMenu(presHistory) ||
-      /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio\b/i.test(currentMessage ?? "")) &&
+      /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio|\bmesas?\b|\bvajillas?\b|\bperiqueras?\b/i.test(
+        currentMessage ?? ""
+      )) &&
     currentMessage?.trim() &&
     (parseMobiliarioPieceChoice(currentMessage) ||
       /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") ||
-      /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
+      /\bmobiliario|mobilairio|\bmesas?\b|\bvajillas?\b/i.test(currentMessage ?? ""))
   ) {
     const piece =
       parseMobiliarioPieceChoice(currentMessage) ||
@@ -6043,23 +6122,55 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
           ? "mesas"
           : "mobiliario");
     filledSet.add("Requerimientos o servicios");
+    // A15232: "Mesas, vajilla" → anotar ambos; "evento universitario" → tipo.
+    const multiServices = currentMessage
+      ? dedupeServiceHierarchy(parseServicesFromText(currentMessage))
+      : [];
+    const reqLabel =
+      multiServices.length >= 2
+        ? multiServices.slice(0, 4).join(", ")
+        : piece === "mobiliario"
+          ? "Mobiliario"
+          : `Mobiliario: ${piece}`;
     const merged = mergeServiceRequirements(
       extracted.requerimientos_evento,
-      piece === "mobiliario" ? "Mobiliario" : `Mobiliario: ${piece}`,
+      reqLabel,
       6
     );
     if (merged) extracted.requerimientos_evento = merged;
+    if (!hasTipoEvento(filledSet, extracted) && currentMessage) {
+      const tipoNow = parseTipoEventoFromText(currentMessage);
+      if (tipoNow && !isUnusableTipoEventoReply(tipoNow)) {
+        extracted.tipo_evento = tipoNow;
+        filledSet.add("Tipo de evento");
+      }
+    }
     const body =
-      piece === "mobiliario"
-        ? buildProgressiveOptionsMenu("mobiliario")
-        : buildMobiliarioPieceFollowUp(piece);
+      multiServices.length >= 2
+        ? `Perfecto, veo que necesitas ${formatServicesList(multiServices)}. Te cotizamos todo eso.`
+        : piece === "mobiliario"
+          ? buildProgressiveOptionsMenu("mobiliario")
+          : buildMobiliarioPieceFollowUp(piece);
     const catalogUrl =
-      getCatalogWebUrlForQuery("mesas y sillas") ||
-      getCatalogWebHubDeliveryUrl();
-    const withLink =
+      getCatalogWebUrlForQuery(
+        multiServices.some((s) => /vajilla/i.test(s))
+          ? "vajillas"
+          : "mesas y sillas"
+      ) || getCatalogWebHubDeliveryUrl();
+    let withLink =
       catalogUrl && !/bodasesor\.com\/catalogos/i.test(body)
         ? `${body}\n\nCatálogo de mesas y sillas:\n${catalogUrl}`
         : body;
+    // Multi-servicio: links por SKU (mesas + vajilla) sin CTA duplicado.
+    if (multiServices.length >= 2) {
+      withLink = `${body}\n\n${buildPackageCatalogOfferBlock(
+        multiServices,
+        currentMessage ?? ""
+      )}`.replace(
+        /\n*¿Quieres que te mande el catálogo con más detalle\??\s*/gi,
+        "\n"
+      );
+    }
     mensaje = mergeWithPendingQuestion(
       `${pickTransition(presHistory)} ${withLink}`,
       filledSet,
@@ -6068,7 +6179,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     appliedSalesReply = true;
     appliedDirectReply = true;
-    log?.info({ entityId, piece }, "GUARD: mobiliario/sillas → menú de modelos + catálogo");
+    log?.info({ entityId, piece, multi: multiServices.length }, "GUARD: mobiliario/sillas → menú de modelos + catálogo");
   } else if (
     allowSalesReplyOverride &&
     !cierreYaEnviado &&
