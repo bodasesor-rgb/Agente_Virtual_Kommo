@@ -411,7 +411,7 @@ const FIELD_ASK_PATTERNS: Record<PendingField, RegExp> = {
     /invitados|personas|gente|cu[aá]ntos|cu[aá]ntas|aproximadamente|m[aá]s\s+o\s+menos|para\s+cu[aá]ntas|ser[ií]an/i,
   zona: /ciudad|direcci[oó]n\s+exacta|d[oó]nde\s+(lo|ser[ií]|ser[aá]|queda|est[aá]n)|en\s+qu[eé]\s+(ciudad|zona|lugar)|lugar|direcci[oó]n|ubicaci[oó]n|zona|sal[oó]n/i,
   fecha: /fecha|cu[aá]ndo|d[ií]a|agenda|definiendo|definido|definir|siguen\s+viendo|opciones\s+de\s+fecha|para\s+cu[aá]ndo/i,
-  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto/i,
+  presupuesto: /presupuesto|estimado|rango|inversi[oó]n|budget|monto|propong[ae]n?\s+opciones|equipo\s+les\s+propong/i,
 };
 
 export function isValidRequerimientosValue(value: string | null | undefined): boolean {
@@ -610,7 +610,9 @@ export function applyPresupuestoWaiver(
   if (
     lastAsked === "presupuesto" &&
     texts.some((t) =>
-      /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin|opciones?|propuestas?)[\s.,!]*$/i.test(t.trim())
+      /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin|opciones?|propuestas?|s[ií]|ok|oki|okay|okis|vale|bueno|est[aá]\s+bien|perfecto|claro|de\s+acuerdo)[\s.,!]*$/i.test(
+        t.trim()
+      )
     )
   ) {
     mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente pidió que propongamos)`);
