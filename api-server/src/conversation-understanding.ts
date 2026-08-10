@@ -2395,6 +2395,43 @@ export function looksLikeNameAnswerMessage(text: string | null | undefined): boo
   return true;
 }
 
+/**
+ * A15231: mensajes sobre fecha/horario ("el horario aún no está definido")
+ * no son waiver de invitados ni de presupuesto.
+ * No usa parseFechaFromText genérico: "todavía no" suelto sí puede ser invitados.
+ */
+export function looksLikeFechaHorarioNotGuestsOrBudget(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (
+    /\b(personas?|invitados?|pax|guests?|asistentes?|afluencia|cu[aá]nt[oa]s?\s+(van|ser[aá]n|somos|invit)|presupuesto|mil\b|pesos|mxn|mnx|\$)\b/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
+  // Fecha concreta (día + mes / weekday + día).
+  if (
+    /\b\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  if (
+    /\b(?:lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo)\s+\d{1,2}\b/i.test(t)
+  ) {
+    return true;
+  }
+  // "el horario aún no está definido" / "la hora por definir".
+  return (
+    /\b(horario|hora)\b/i.test(t) &&
+    /\b(a[uú]n\s+no|sin\s+definir|por\s+definir|todav[ií]a\s+no|no\s+est[aá]\s+definid|no\s+definid)\b/i.test(
+      t
+    )
+  );
+}
+
 export function parseInvitadosFromText(text: string): string | null {
   const trimmed = text.trim();
   if (!trimmed) return null;
@@ -2451,6 +2488,9 @@ export function parseInvitadosFromText(text: string): string | null {
   if (approxSuffix) return approxSuffix[1]!;
 
   if (isServiceRelatedMessage(trimmed)) return null;
+
+  // A15231: "horario aún no está definido" / fecha ≠ waiver de invitados.
+  if (looksLikeFechaHorarioNotGuestsOrBudget(trimmed)) return null;
 
   if (
     /\b(no\s+s[eé](\s+a[uú]n)?|a[uú]n\s+no(\s+s[eé])?|sin\s+definir|por\s+definir|no\s+tenemos|no\s+damos|depende|todav[ií]a\s+no|m[aá]s\s+adelante|no\s+(?:lo\s+)?sabemos|no\s+(?:te\s+)?(?:lo\s+)?(?:puedo|podr[ií]a)\s+(?:decir|confirmar)|van\s+viendo)\b/i.test(
@@ -3090,6 +3130,8 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
   if (!t) return false;
   // RFQ largo con datos del evento ≠ "no tengo presupuesto".
   if (isRichQuoteBrief(t)) return false;
+  // A15231: fecha/horario pendiente ≠ rechazo de presupuesto.
+  if (looksLikeFechaHorarioNotGuestsOrBudget(t)) return false;
 
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
@@ -3232,6 +3274,9 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   // Mensaje que es solo un correo.
   if (/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(text.trim())) return null;
 
+  // A15231: fecha/horario ("aún no definido") ANTES de waivers ambiguos.
+  if (looksLikeFechaHorarioNotGuestsOrBudget(trimmed)) return null;
+
   // A15210: corrección de ubicación / detalle de venue NUNCA es presupuesto
   // (aunque Lucy haya preguntado presupuesto).
   if (clientCorrectsLocation(trimmed) || isVenueSpaceDetail(trimmed)) return null;
@@ -3290,9 +3335,10 @@ export function parsePresupuestoFromText(text: string, opts?: PresupuestoParseOp
   }
 
   if (
-    /\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
+    /\b(no\s+tengo|no\s+s[eé]|sin\s+presupuesto|a[uú]n\s+no(?:\s+s[eé](?:\s+cu[aá]nto)?)?|no\s+cuento|no\s+sabemos|depende|no\s+lo\s+s[eé]|no,?\s+a[uú]n\s+no|que\s+alejandro\s+de\s+opciones|que\s+nos\s+propong|ver\s+opciones|todav[ií]a\s+no|despu[eé]s\s+vemos)\b/i.test(
       trimmed
-    )
+    ) &&
+    !looksLikeFechaHorarioNotGuestsOrBudget(trimmed)
   ) {
     return "Sin definir (cliente indicó que no tiene)";
   }

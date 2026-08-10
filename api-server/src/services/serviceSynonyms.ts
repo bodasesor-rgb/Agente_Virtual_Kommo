@@ -229,6 +229,11 @@ export const DEFAULT_SERVICE_SYNONYM_FAMILIES: ServiceSynonymFamily[] = [
       "receso corporativo",
       "cafe y galletas",
       "café y galletas",
+      // A15231: desayuno ejecutivo cotiza vía Coffee Break.
+      "desayuno ejecutivo",
+      "desayuno buffet",
+      "desayuno continental",
+      "desayuno corporativo",
     ],
   },
   {
