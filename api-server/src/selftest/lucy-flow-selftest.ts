@@ -8342,7 +8342,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.15");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.16");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9681,10 +9681,11 @@ async function runAll(): Promise<void> {
     assert.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
   });
 
-  // ─── 137. A15251 Gio — canapés ¿incluye bebidas? (catálogo) + no handoff «por persona» ───
-  await test("137. A15251 — canapés incluye bebidas desde catálogo; no handoff por persona", () => {
+  // ─── 137. A15251 — inclusiones puntuales en TODAS las ramas/servicios ───
+  await test("137. A15251 — ¿incluye X? desde catálogo (cualquier servicio); no handoff por persona", () => {
     assert.equal(clientAsksSpecificInclusionItem("Inclue bebidas?"), "bebidas");
     assert.equal(clientAsksSpecificInclusionItem("Incluye bebidas?"), "bebidas");
+    assert.equal(clientAsksSpecificInclusionItem("el banquete incluye meseros?"), "meseros");
     assert.ok(
       clientAsksInclusion("Quiero saber si el paquete por persona de canapes incluye bebidas")
     );
@@ -9696,11 +9697,34 @@ async function runAll(): Promise<void> {
       "por persona ≠ pedir asesor humano"
     );
 
-    const itemReply = buildSpecificInclusionItemReply("Inclue bebidas?", "Canapés, Bocadillos");
-    assert.ok(itemReply, "debe armar respuesta de bebidas");
-    assert.ok(/Solo Alimentos/i.test(itemReply!), itemReply!.slice(0, 300));
-    assert.ok(/no\*?\s*incluye bebidas|no\* incluye bebidas|\*no\* incluye/i.test(itemReply!), itemReply!);
-    assert.ok(/Tradicional|\$800|\$750|\$180/i.test(itemReply!), itemReply!.slice(0, 400));
+    const services = [
+      "Canapés",
+      "Bocadillos",
+      "Taquiza",
+      "Coffee Break",
+      "Banquete Formal",
+    ];
+    for (const svc of services) {
+      const reply = buildSpecificInclusionItemReply("¿Incluye bebidas?", svc);
+      assert.ok(reply, `[${svc}] debe responder inclusión`);
+      assert.ok(
+        new RegExp(svc.split(/\s+/)[0]!, "i").test(reply!) || /bebidas/i.test(reply!),
+        `[${svc}] sin nombre/ítem: ${reply!.slice(0, 220)}`
+      );
+      assert.ok(
+        /S[ií] incluye|No incluye|Sobre \*bebidas\*|barra de bebidas|cat[aá]logo/i.test(reply!),
+        `[${svc}] formato: ${reply!.slice(0, 280)}`
+      );
+    }
+
+    const canapes = buildSpecificInclusionItemReply("Inclue bebidas?", "Canapés, Bocadillos");
+    assert.ok(canapes && /Solo Alimentos/i.test(canapes), canapes?.slice(0, 300));
+    assert.ok(/No incluye/i.test(canapes!), canapes!.slice(0, 300));
+    assert.ok(/S[ií] incluye/i.test(canapes!), canapes!.slice(0, 400));
+    assert.ok(
+      /Solo Alimentos[\s\S]{0,80}\$320|No incluye[\s\S]{0,120}Solo Alimentos/i.test(canapes!),
+      `Solo Alimentos sin bebidas: ${canapes!.slice(0, 400)}`
+    );
 
     const live = runGuards({
       aiResponse: "¿Quieres que te dé detalles de alguno?",
@@ -9730,9 +9754,34 @@ async function runAll(): Promise<void> {
         },
       ],
     });
-    assert.ok(/bebidas/i.test(live) && /Solo Alimentos|Tradicional|\$180/i.test(live), live.slice(0, 500));
+    assert.ok(/bebidas/i.test(live) && /Solo Alimentos|Tradicional|No incluye|S[ií] incluye/i.test(live), live.slice(0, 500));
     assert.ok(!/gastronom[ií]a manejamos varias opciones/i.test(live), live.slice(0, 300));
     assert.ok(!/hablar con un asesor|Humano Trabaja/i.test(live), live.slice(0, 200));
+
+    // Otra rama: taquiza + meseros
+    const taquizaLive = runGuards({
+      aiResponse: "Claro.",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "XV años",
+        requerimientos_evento: "Taquiza",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "La taquiza incluye meseros?",
+      history: [
+        { role: "user", content: "quiero taquiza" },
+        { role: "assistant", content: "Perfecto, manejamos Taquiza. ¿Quieres que te dé detalles de alguno?" },
+      ],
+    });
+    assert.ok(
+      /meseros/i.test(taquizaLive) && !/gastronom[ií]a manejamos/i.test(taquizaLive),
+      taquizaLive.slice(0, 450)
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

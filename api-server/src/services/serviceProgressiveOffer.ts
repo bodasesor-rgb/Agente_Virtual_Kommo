@@ -781,6 +781,16 @@ export function shouldOfferOptionsBeforeDetail(opts: {
   const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
   if (!blob) return null;
 
+  // A15251: "¿incluye bebidas/meseros?" → detalle del catálogo, no menú de familia.
+  if (
+    /\b(incluye|inclue|incluyen|trae|tiene|tienen|viene|vienen)\b.{0,48}\b(bebidas?|refrescos?|meseros?|vajilla|cristaler[ií]a|alcohol|montaje|chef)\b/i.test(
+      msg
+    ) ||
+    /\bsi\b.{0,40}\bincluye\b.{0,40}\b(bebidas?|meseros?|vajilla)\b/i.test(msg)
+  ) {
+    return null;
+  }
+
   const lastAsst = [...opts.history]
     .reverse()
     .find((m) => m.role === "assistant" && typeof m.content === "string");

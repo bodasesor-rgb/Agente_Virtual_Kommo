@@ -116618,6 +116618,11 @@ function shouldOfferOptionsBeforeDetail(opts) {
   const msg = opts.currentMessage?.trim() ?? "";
   const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
   if (!blob) return null;
+  if (/\b(incluye|inclue|incluyen|trae|tiene|tienen|viene|vienen)\b.{0,48}\b(bebidas?|refrescos?|meseros?|vajilla|cristaler[ií]a|alcohol|montaje|chef)\b/i.test(
+    msg
+  ) || /\bsi\b.{0,40}\bincluye\b.{0,40}\b(bebidas?|meseros?|vajilla)\b/i.test(msg)) {
+    return null;
+  }
   const lastAsst = [...opts.history].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
   const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : "";
   if (/cu[aá]l\s+nivel|qu[eé]\s+nivel|nivel\s+(prefieres|te\s+interes)|niveles disponibles|qu[eé]\s+incluye\s+cada/i.test(
@@ -117827,70 +117832,171 @@ function clientAsksInclusion(message) {
     t3
   ) || /\bofreces?\b.{0,50}\bpaquetes?\b/i.test(t3) || /\bpor\s+qu[eé]\b.{0,60}\bpaquetes?\b/i.test(t3) || /\bidea\s+m[aá]s\s+clara\b/i.test(t3) || clientAsksSpecificInclusionItem(message) != null;
 }
+var INCLUSION_ITEM_PATTERNS = {
+  bebidas: /\bbebidas?\b|\brefrescos?\b|\bbarman\b|\bbarra\s+de\s+bebidas?\b|\bvitroleros?\b|\bagua\s+fresca\b/i,
+  meseros: /\bmeseros?\b|\bpersonal\s+de\s+servicio\b|\bstaff\s+de\s+servicio\b/i,
+  vajilla: /\bvajilla\b/i,
+  cristaleria: /\bcristaler[ií]a\b/i,
+  montaje: /\bmontaje\b|\binstalaci[oó]n\b/i,
+  chef: /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i,
+  alcohol: /\balcohol\b|\bborra\s+libre\b|\bopen\s*bar\b|\blicor/i
+};
+function inclusionEvidenceRegex(item, serviceLabel) {
+  if (item === "bebidas") {
+    if (/coffee\s*break|barra\s+de\s+caf/i.test(serviceLabel)) {
+      return /\b(caf[eé]|t[eé]|jugos?|refrescos?|bebidas?|leche|agua\s+fresca)\b/i;
+    }
+    return /\b(bebidas?|refrescos?|vitroleros?|barra\s*:|barman|margaritas?)\b/i;
+  }
+  if (item === "meseros") return /\bmeseros?\b|\b1\s*c\/\d+\s*personas?\b|\bstaff\s+de\s+servicio\b/i;
+  if (item === "vajilla") return /\bvajilla\b/i;
+  if (item === "cristaleria") return /\bcristaler[ií]a\b|\bhighball\b|\bcopas?\b/i;
+  if (item === "montaje") return /\bmontaje\b|\binstalaci[oó]n\b/i;
+  if (item === "chef") return /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i;
+  return /\balcohol\b|\bopen\s*bar\b|\bbarra\s+libre\b|\blicor|\btequila|\bwhisky/i;
+}
+function pdfWindowForNivel(service, nivel) {
+  const raw = buildPdfInclusionReply(`${service} ${nivel}`) || buildPdfInclusionReply(`${nivel} ${service}`) || "";
+  if (!raw) return "";
+  const body2 = raw.replace(/^Según el catálogo[^\n]*:\n\n/i, "");
+  const nivelRe = nivel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  const start2 = body2.search(new RegExp(nivelRe, "i"));
+  if (start2 < 0) return body2.slice(0, 420);
+  const slice = body2.slice(start2);
+  const next = slice.slice(40).search(
+    /\b(Solo Alimentos|B[aá]sico|Tradicional|Premium|Coffee Break \d|Men[uú] \d tiempos|Agrega Barra)\b/i
+  );
+  return next > 0 ? slice.slice(0, 40 + next) : slice.slice(0, 520);
+}
 function clientAsksSpecificInclusionItem(message) {
   if (!message?.trim()) return null;
   const t3 = message.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\binclue\b/g, "incluye").replace(/\byncluye\b/g, "incluye");
-  if (!/\b(incluye|incluyen|trae|traen|lleva|llevan|viene|vienen|tiene|tienen|con\s+bebidas?|sin\s+bebidas?)\b/i.test(
+  if (!/\b(incluye|incluyen|incluir|trae|traen|lleva|llevan|viene|vienen|tiene|tienen|con\s+bebidas?|sin\s+bebidas?)\b/i.test(
     t3
-  ) && !/\bsi\b.{0,40}\bincluye/i.test(t3)) {
+  ) && !/\bsi\b.{0,50}\bincluye/i.test(t3) && !/\bviene(n)?\s+con\b/i.test(t3)) {
     return null;
   }
-  if (/\bbebidas?\b|\brefrescos?\b|\bbarman\b|\bbarra\s+de\s+bebidas?\b|\balcohol\b/i.test(t3)) {
-    return "bebidas";
+  for (const item of Object.keys(INCLUSION_ITEM_PATTERNS)) {
+    if (INCLUSION_ITEM_PATTERNS[item].test(t3)) return item;
   }
-  if (/\bmeseros?\b|\bpersonal\s+de\s+servicio\b/i.test(t3)) return "meseros";
-  if (/\bvajilla\b/i.test(t3)) return "vajilla";
-  if (/\bcristaler[ií]a\b/i.test(t3)) return "cristaleria";
   return null;
+}
+function resolveInclusionServiceLabel(query, serviceHint) {
+  const blob = `${serviceHint ?? ""} ${query}`.trim();
+  const primary = parsePrimaryService(blob) || parsePrimaryService(query);
+  if (primary) return primary;
+  if (serviceHint?.trim()) {
+    const first = serviceHint.split(/,| y /i).map((s6) => s6.trim()).find((s6) => parsePrimaryService(s6) || /\b(canap|bocadillo|banquete|taquiza|coffee|barra|mesa|sushi|pizza|paella|desayuno|brunch)\b/i.test(s6));
+    if (first) return parsePrimaryService(first) || first;
+  }
+  const resolved = resolveCatalogQuery(query);
+  if (resolved?.serviceName) return resolved.serviceName;
+  return serviceHint?.trim() || null;
+}
+function formatNivelPrice(row) {
+  if (!row.tienePrecio || !row.precio) return "";
+  const unit = row.unidad?.trim() ? ` ${row.unidad.trim()}` : "";
+  return ` (${row.precio}${unit})`;
 }
 function buildSpecificInclusionItemReply(query, serviceHint) {
   const item = clientAsksSpecificInclusionItem(query);
   if (!item) return null;
-  const hint = parsePrimaryService(`${serviceHint ?? ""} ${query}`) || (serviceHint?.trim() && /\b(canap|bocadillo|banquete|taquiza|barra|coffee|mesa\s+de|sushi|pizza)\b/i.test(serviceHint) ? serviceHint.trim() : null) || (/\bcanap/i.test(query) ? "Canap\xE9s" : null) || (/\bbocadillo/i.test(query) ? "Bocadillos" : null) || serviceHint?.trim() || null;
-  if (!hint) return null;
-  if (item === "bebidas" && /\bcanap/i.test(hint)) {
-    const trad = buildPdfInclusionReply(`Canap\xE9s Tradicional ${query}`) || "";
-    const addon = buildPdfInclusionReply("Canap\xE9s Barra de Bebidas") || "";
-    const hasSoftInLevels = /barra\s*:|refrescos?|vitroleros|agua\s*\+|caf[eé]/i.test(trad) || /barra\s*:|refrescos?|vitroleros/i.test(addon);
-    const lines = [
-      "Sobre *bebidas* en *Canap\xE9s*:",
-      "",
-      "\u2022 *Solo Alimentos* ($320 /pp): *no* incluye bebidas; solo los canap\xE9s y servicio b\xE1sico.",
-      "\u2022 *B\xE1sico* ($750), *Tradicional* ($800) y *Premium* ($850): *s\xED* incluyen barra de refrescos/agua/caf\xE9 (y barman seg\xFAn el nivel).",
-      "\u2022 Si quieren barra m\xE1s completa (cristaler\xEDa amplia / opci\xF3n de alcohol), se puede *agregar Barra de Bebidas* (+$180 /pp)."
-    ];
-    if (hasSoftInLevels && /Tradicional\s*\$\s*800/i.test(trad)) {
-    }
-    const link = ensureCatalogWebLink(lines.join("\n"), "Canap\xE9s");
-    return `${link}
-
-\xBFTe late alguno de estos niveles o te detallo el Tradicional?`;
+  const service = resolveInclusionServiceLabel(query, serviceHint);
+  if (!service) return null;
+  const evidence = inclusionEvidenceRegex(item, service);
+  const resolved = resolveCatalogQuery(service);
+  const rows = resolved && resolved.kind !== "category" ? [...new Map(resolved.rows.map((r4) => [extractNivelLabel(r4), r4])).values()] : [];
+  const yes = [];
+  const no = [];
+  const unclear = [];
+  for (const row of rows.slice(0, 8)) {
+    const nivel = extractNivelLabel(row);
+    const price = formatNivelPrice(row);
+    const sheetInc = getInclusionFromRow(row) ?? "";
+    const pdf = pdfWindowForNivel(service, nivel);
+    const blob = `${sheetInc}
+${pdf}`;
+    const soloAlimentos = /solo\s+alimentos/i.test(nivel);
+    const hasSheet = evidence.test(sheetInc);
+    const hasPdf = evidence.test(pdf);
+    const has2 = hasSheet || hasPdf;
+    const foodOnlyNoDrinks = (item === "bebidas" || item === "alcohol") && soloAlimentos && !hasSheet && !/\b(bebidas?|refrescos?|vitroleros|barra\s*:|alcohol)\b/i.test(sheetInc);
+    const negated = foodOnlyNoDrinks || new RegExp(
+      `\\b(sin|no\\s+incluye|no\\s+incluyen)\\b.{0,40}(${item}|bebidas?|refrescos?)`,
+      "i"
+    ).test(blob);
+    const bullet = `\u2022 *${nivel}*${price}`;
+    if (foodOnlyNoDrinks) no.push(bullet);
+    else if (has2 && !negated) yes.push(bullet);
+    else if (negated) no.push(bullet);
+    else unclear.push(bullet);
   }
-  if (item === "bebidas" && /\bbocadillo/i.test(hint)) {
-    const pdf = buildPdfInclusionReply(`Bocadillos ${query}`) || buildPdfInclusionReply("Bocadillos");
-    const link = ensureCatalogWebLink(
-      [
-        "En *Bocadillos*, el paquete por persona es principalmente de alimentos (s\xE1ndwiches/bocadillos).",
-        "Las bebidas suelen cotizarse aparte (barra de bebidas) seg\xFAn lo que necesiten.",
-        pdf ? `
-
-Detalle del cat\xE1logo:
-${pdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}` : ""
-      ].join(" "),
-      "Bocadillos"
+  let addonLine = null;
+  if (item === "bebidas" || item === "alcohol") {
+    const addonPdf = buildPdfInclusionReply(`${service} Barra de Bebidas`) || buildPdfInclusionReply(`${service} agrega barra de bebidas`) || buildPdfInclusionReply(`Agrega Barra de Bebidas ${service}`);
+    const addonBlob = addonPdf ?? "";
+    const priceMatch = addonBlob.match(
+      /barra\s+de\s+bebidas?[^\d$]{0,40}\$?\s*([\d,.]+)\s*(?:\/?\s*pp|por\s+persona)?/i
     );
-    return link;
+    if (/agrega\s+barra\s+de\s+bebidas|barra\s+de\s+bebidas\s*[—\-–]/i.test(addonBlob) || priceMatch) {
+      const p4 = priceMatch?.[1] ? ` (+$${priceMatch[1]} /pp)` : "";
+      addonLine = `\u2022 Se puede *agregar Barra de Bebidas*${p4} si quieren barra m\xE1s completa.`;
+    }
   }
-  const fromPdf = buildPdfInclusionReply(`${hint} ${query}`) || buildPdfInclusionReply(`${hint} ${item}`) || buildPdfInclusionReply(hint);
-  if (fromPdf) {
+  if (!rows.length) {
+    const fromPdf = buildPdfInclusionReply(`${service} ${query}`) || buildPdfInclusionReply(`${service} ${item}`) || buildPdfInclusionReply(service);
+    if (!fromPdf) {
+      const web = getCatalogWebUrlForQuery(service);
+      return ensureCatalogWebLink(
+        `Para *${service}*, el detalle de *${item}* lo confirmo con el cat\xE1logo${web ? "" : ""}. Nuestro equipo te precisa exactamente qu\xE9 incluye cada nivel.`,
+        service
+      );
+    }
     return ensureCatalogWebLink(
-      `Sobre *${item}* en *${hint}*:
+      `Sobre *${item}* en *${service}*:
 
 ${fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}`,
-      hint
+      service
     );
   }
-  return null;
+  const lines = [`Sobre *${item}* en *${service}*:`, ""];
+  if (yes.length) {
+    lines.push(`*S\xED incluye* en:`);
+    lines.push(...yes);
+    lines.push("");
+  }
+  if (no.length) {
+    lines.push(`*No incluye* en:`);
+    lines.push(...no);
+    lines.push("");
+  }
+  if (!yes.length && !no.length) {
+    const priced = buildCatalogPriceAnswer(service);
+    const fromPdf = buildPdfInclusionReply(`${service} ${query}`) || buildPdfInclusionReply(`${service} ${item}`) || buildPdfInclusionReply(service);
+    const body2 = [
+      fromPdf ? fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "") : `En el cat\xE1logo de *${service}* te detallo lo de *${item}* por nivel.`,
+      priced && /\$\s*\d/.test(priced) ? `
+
+Precios de lista:
+${priced}` : ""
+    ].join("");
+    return ensureCatalogWebLink(
+      `Sobre *${item}* en *${service}*:
+
+${body2}
+
+\xBFDe qu\xE9 nivel te paso el detalle completo?`,
+      service
+    );
+  }
+  if (addonLine) {
+    lines.push(addonLine);
+    lines.push("");
+  }
+  if (unclear.length && yes.length + no.length < rows.length) {
+  }
+  lines.push("\xBFTe late alguno de estos niveles o te detallo uno en concreto?");
+  return ensureCatalogWebLink(lines.filter((l5, i5, a3) => !(l5 === "" && a3[i5 - 1] === "")).join("\n"), service);
 }
 function buildCatalogInclusionAnswer(query) {
   const resolved = resolveCatalogQuery(query);
@@ -138078,7 +138184,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.15";
+var LUCY_PROMPT_VERSION = "V9.16";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -145162,7 +145268,7 @@ ${golfText}`,
     assert2.ok(!/\$500/i.test(progressive), progressive.slice(0, 300));
   });
   await test("122. V8.94 \u2014 Gemini Flash-Lite provider + conversi\xF3n mensajes", () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.15");
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.16");
     assert2.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
     const prevProvider = process.env.LLM_PROVIDER;
     const prevGemini = process.env.GEMINI_API_KEY;
@@ -146333,9 +146439,10 @@ ${golfText}`,
     assert2.ok(/sin problema/i.test(refuseLive), refuseLive.slice(0, 300));
     assert2.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
   });
-  await test("137. A15251 \u2014 canap\xE9s incluye bebidas desde cat\xE1logo; no handoff por persona", () => {
+  await test("137. A15251 \u2014 \xBFincluye X? desde cat\xE1logo (cualquier servicio); no handoff por persona", () => {
     assert2.equal(clientAsksSpecificInclusionItem("Inclue bebidas?"), "bebidas");
     assert2.equal(clientAsksSpecificInclusionItem("Incluye bebidas?"), "bebidas");
+    assert2.equal(clientAsksSpecificInclusionItem("el banquete incluye meseros?"), "meseros");
     assert2.ok(
       clientAsksInclusion("Quiero saber si el paquete por persona de canapes incluye bebidas")
     );
@@ -146346,11 +146453,33 @@ ${golfText}`,
       false,
       "por persona \u2260 pedir asesor humano"
     );
-    const itemReply = buildSpecificInclusionItemReply("Inclue bebidas?", "Canap\xE9s, Bocadillos");
-    assert2.ok(itemReply, "debe armar respuesta de bebidas");
-    assert2.ok(/Solo Alimentos/i.test(itemReply), itemReply.slice(0, 300));
-    assert2.ok(/no\*?\s*incluye bebidas|no\* incluye bebidas|\*no\* incluye/i.test(itemReply), itemReply);
-    assert2.ok(/Tradicional|\$800|\$750|\$180/i.test(itemReply), itemReply.slice(0, 400));
+    const services = [
+      "Canap\xE9s",
+      "Bocadillos",
+      "Taquiza",
+      "Coffee Break",
+      "Banquete Formal"
+    ];
+    for (const svc of services) {
+      const reply = buildSpecificInclusionItemReply("\xBFIncluye bebidas?", svc);
+      assert2.ok(reply, `[${svc}] debe responder inclusi\xF3n`);
+      assert2.ok(
+        new RegExp(svc.split(/\s+/)[0], "i").test(reply) || /bebidas/i.test(reply),
+        `[${svc}] sin nombre/\xEDtem: ${reply.slice(0, 220)}`
+      );
+      assert2.ok(
+        /S[ií] incluye|No incluye|Sobre \*bebidas\*|barra de bebidas|cat[aá]logo/i.test(reply),
+        `[${svc}] formato: ${reply.slice(0, 280)}`
+      );
+    }
+    const canapes = buildSpecificInclusionItemReply("Inclue bebidas?", "Canap\xE9s, Bocadillos");
+    assert2.ok(canapes && /Solo Alimentos/i.test(canapes), canapes?.slice(0, 300));
+    assert2.ok(/No incluye/i.test(canapes), canapes.slice(0, 300));
+    assert2.ok(/S[ií] incluye/i.test(canapes), canapes.slice(0, 400));
+    assert2.ok(
+      /Solo Alimentos[\s\S]{0,80}\$320|No incluye[\s\S]{0,120}Solo Alimentos/i.test(canapes),
+      `Solo Alimentos sin bebidas: ${canapes.slice(0, 400)}`
+    );
     const live = runGuards({
       aiResponse: "\xBFQuieres que te d\xE9 detalles de alguno?",
       extracted: emptyExtracted({
@@ -146378,9 +146507,32 @@ ${golfText}`,
         }
       ]
     });
-    assert2.ok(/bebidas/i.test(live) && /Solo Alimentos|Tradicional|\$180/i.test(live), live.slice(0, 500));
+    assert2.ok(/bebidas/i.test(live) && /Solo Alimentos|Tradicional|No incluye|S[ií] incluye/i.test(live), live.slice(0, 500));
     assert2.ok(!/gastronom[ií]a manejamos varias opciones/i.test(live), live.slice(0, 300));
     assert2.ok(!/hablar con un asesor|Humano Trabaja/i.test(live), live.slice(0, 200));
+    const taquizaLive = runGuards({
+      aiResponse: "Claro.",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "XV a\xF1os",
+        requerimientos_evento: "Taquiza"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "La taquiza incluye meseros?",
+      history: [
+        { role: "user", content: "quiero taquiza" },
+        { role: "assistant", content: "Perfecto, manejamos Taquiza. \xBFQuieres que te d\xE9 detalles de alguno?" }
+      ]
+    });
+    assert2.ok(
+      /meseros/i.test(taquizaLive) && !/gastronom[ií]a manejamos/i.test(taquizaLive),
+      taquizaLive.slice(0, 450)
+    );
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

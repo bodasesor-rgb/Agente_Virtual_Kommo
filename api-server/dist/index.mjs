@@ -206017,6 +206017,11 @@ function shouldOfferOptionsBeforeDetail(opts) {
   const msg = opts.currentMessage?.trim() ?? "";
   const blob = `${msg} ${opts.serviceHint ?? ""}`.trim();
   if (!blob) return null;
+  if (/\b(incluye|inclue|incluyen|trae|tiene|tienen|viene|vienen)\b.{0,48}\b(bebidas?|refrescos?|meseros?|vajilla|cristaler[ií]a|alcohol|montaje|chef)\b/i.test(
+    msg
+  ) || /\bsi\b.{0,40}\bincluye\b.{0,40}\b(bebidas?|meseros?|vajilla)\b/i.test(msg)) {
+    return null;
+  }
   const lastAsst = [...opts.history].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
   const lastAsstText = lastAsst && typeof lastAsst.content === "string" ? lastAsst.content : "";
   if (/cu[aá]l\s+nivel|qu[eé]\s+nivel|nivel\s+(prefieres|te\s+interes)|niveles disponibles|qu[eé]\s+incluye\s+cada/i.test(
@@ -207332,70 +207337,171 @@ function clientAsksInclusion(message) {
     t4
   ) || /\bofreces?\b.{0,50}\bpaquetes?\b/i.test(t4) || /\bpor\s+qu[eé]\b.{0,60}\bpaquetes?\b/i.test(t4) || /\bidea\s+m[aá]s\s+clara\b/i.test(t4) || clientAsksSpecificInclusionItem(message) != null;
 }
+var INCLUSION_ITEM_PATTERNS = {
+  bebidas: /\bbebidas?\b|\brefrescos?\b|\bbarman\b|\bbarra\s+de\s+bebidas?\b|\bvitroleros?\b|\bagua\s+fresca\b/i,
+  meseros: /\bmeseros?\b|\bpersonal\s+de\s+servicio\b|\bstaff\s+de\s+servicio\b/i,
+  vajilla: /\bvajilla\b/i,
+  cristaleria: /\bcristaler[ií]a\b/i,
+  montaje: /\bmontaje\b|\binstalaci[oó]n\b/i,
+  chef: /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i,
+  alcohol: /\balcohol\b|\bborra\s+libre\b|\bopen\s*bar\b|\blicor/i
+};
+function inclusionEvidenceRegex(item, serviceLabel) {
+  if (item === "bebidas") {
+    if (/coffee\s*break|barra\s+de\s+caf/i.test(serviceLabel)) {
+      return /\b(caf[eé]|t[eé]|jugos?|refrescos?|bebidas?|leche|agua\s+fresca)\b/i;
+    }
+    return /\b(bebidas?|refrescos?|vitroleros?|barra\s*:|barman|margaritas?)\b/i;
+  }
+  if (item === "meseros") return /\bmeseros?\b|\b1\s*c\/\d+\s*personas?\b|\bstaff\s+de\s+servicio\b/i;
+  if (item === "vajilla") return /\bvajilla\b/i;
+  if (item === "cristaleria") return /\bcristaler[ií]a\b|\bhighball\b|\bcopas?\b/i;
+  if (item === "montaje") return /\bmontaje\b|\binstalaci[oó]n\b/i;
+  if (item === "chef") return /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i;
+  return /\balcohol\b|\bopen\s*bar\b|\bbarra\s+libre\b|\blicor|\btequila|\bwhisky/i;
+}
+function pdfWindowForNivel(service, nivel) {
+  const raw = buildPdfInclusionReply(`${service} ${nivel}`) || buildPdfInclusionReply(`${nivel} ${service}`) || "";
+  if (!raw) return "";
+  const body2 = raw.replace(/^Según el catálogo[^\n]*:\n\n/i, "");
+  const nivelRe = nivel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  const start2 = body2.search(new RegExp(nivelRe, "i"));
+  if (start2 < 0) return body2.slice(0, 420);
+  const slice = body2.slice(start2);
+  const next = slice.slice(40).search(
+    /\b(Solo Alimentos|B[aá]sico|Tradicional|Premium|Coffee Break \d|Men[uú] \d tiempos|Agrega Barra)\b/i
+  );
+  return next > 0 ? slice.slice(0, 40 + next) : slice.slice(0, 520);
+}
 function clientAsksSpecificInclusionItem(message) {
   if (!message?.trim()) return null;
   const t4 = message.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\binclue\b/g, "incluye").replace(/\byncluye\b/g, "incluye");
-  if (!/\b(incluye|incluyen|trae|traen|lleva|llevan|viene|vienen|tiene|tienen|con\s+bebidas?|sin\s+bebidas?)\b/i.test(
+  if (!/\b(incluye|incluyen|incluir|trae|traen|lleva|llevan|viene|vienen|tiene|tienen|con\s+bebidas?|sin\s+bebidas?)\b/i.test(
     t4
-  ) && !/\bsi\b.{0,40}\bincluye/i.test(t4)) {
+  ) && !/\bsi\b.{0,50}\bincluye/i.test(t4) && !/\bviene(n)?\s+con\b/i.test(t4)) {
     return null;
   }
-  if (/\bbebidas?\b|\brefrescos?\b|\bbarman\b|\bbarra\s+de\s+bebidas?\b|\balcohol\b/i.test(t4)) {
-    return "bebidas";
+  for (const item of Object.keys(INCLUSION_ITEM_PATTERNS)) {
+    if (INCLUSION_ITEM_PATTERNS[item].test(t4)) return item;
   }
-  if (/\bmeseros?\b|\bpersonal\s+de\s+servicio\b/i.test(t4)) return "meseros";
-  if (/\bvajilla\b/i.test(t4)) return "vajilla";
-  if (/\bcristaler[ií]a\b/i.test(t4)) return "cristaleria";
   return null;
+}
+function resolveInclusionServiceLabel(query, serviceHint) {
+  const blob = `${serviceHint ?? ""} ${query}`.trim();
+  const primary = parsePrimaryService(blob) || parsePrimaryService(query);
+  if (primary) return primary;
+  if (serviceHint?.trim()) {
+    const first = serviceHint.split(/,| y /i).map((s7) => s7.trim()).find((s7) => parsePrimaryService(s7) || /\b(canap|bocadillo|banquete|taquiza|coffee|barra|mesa|sushi|pizza|paella|desayuno|brunch)\b/i.test(s7));
+    if (first) return parsePrimaryService(first) || first;
+  }
+  const resolved = resolveCatalogQuery(query);
+  if (resolved?.serviceName) return resolved.serviceName;
+  return serviceHint?.trim() || null;
+}
+function formatNivelPrice(row) {
+  if (!row.tienePrecio || !row.precio) return "";
+  const unit = row.unidad?.trim() ? ` ${row.unidad.trim()}` : "";
+  return ` (${row.precio}${unit})`;
 }
 function buildSpecificInclusionItemReply(query, serviceHint) {
   const item = clientAsksSpecificInclusionItem(query);
   if (!item) return null;
-  const hint = parsePrimaryService(`${serviceHint ?? ""} ${query}`) || (serviceHint?.trim() && /\b(canap|bocadillo|banquete|taquiza|barra|coffee|mesa\s+de|sushi|pizza)\b/i.test(serviceHint) ? serviceHint.trim() : null) || (/\bcanap/i.test(query) ? "Canap\xE9s" : null) || (/\bbocadillo/i.test(query) ? "Bocadillos" : null) || serviceHint?.trim() || null;
-  if (!hint) return null;
-  if (item === "bebidas" && /\bcanap/i.test(hint)) {
-    const trad = buildPdfInclusionReply(`Canap\xE9s Tradicional ${query}`) || "";
-    const addon = buildPdfInclusionReply("Canap\xE9s Barra de Bebidas") || "";
-    const hasSoftInLevels = /barra\s*:|refrescos?|vitroleros|agua\s*\+|caf[eé]/i.test(trad) || /barra\s*:|refrescos?|vitroleros/i.test(addon);
-    const lines = [
-      "Sobre *bebidas* en *Canap\xE9s*:",
-      "",
-      "\u2022 *Solo Alimentos* ($320 /pp): *no* incluye bebidas; solo los canap\xE9s y servicio b\xE1sico.",
-      "\u2022 *B\xE1sico* ($750), *Tradicional* ($800) y *Premium* ($850): *s\xED* incluyen barra de refrescos/agua/caf\xE9 (y barman seg\xFAn el nivel).",
-      "\u2022 Si quieren barra m\xE1s completa (cristaler\xEDa amplia / opci\xF3n de alcohol), se puede *agregar Barra de Bebidas* (+$180 /pp)."
-    ];
-    if (hasSoftInLevels && /Tradicional\s*\$\s*800/i.test(trad)) {
-    }
-    const link = ensureCatalogWebLink(lines.join("\n"), "Canap\xE9s");
-    return `${link}
-
-\xBFTe late alguno de estos niveles o te detallo el Tradicional?`;
+  const service = resolveInclusionServiceLabel(query, serviceHint);
+  if (!service) return null;
+  const evidence = inclusionEvidenceRegex(item, service);
+  const resolved = resolveCatalogQuery(service);
+  const rows = resolved && resolved.kind !== "category" ? [...new Map(resolved.rows.map((r5) => [extractNivelLabel(r5), r5])).values()] : [];
+  const yes = [];
+  const no2 = [];
+  const unclear = [];
+  for (const row of rows.slice(0, 8)) {
+    const nivel = extractNivelLabel(row);
+    const price = formatNivelPrice(row);
+    const sheetInc = getInclusionFromRow(row) ?? "";
+    const pdf = pdfWindowForNivel(service, nivel);
+    const blob = `${sheetInc}
+${pdf}`;
+    const soloAlimentos = /solo\s+alimentos/i.test(nivel);
+    const hasSheet = evidence.test(sheetInc);
+    const hasPdf = evidence.test(pdf);
+    const has2 = hasSheet || hasPdf;
+    const foodOnlyNoDrinks = (item === "bebidas" || item === "alcohol") && soloAlimentos && !hasSheet && !/\b(bebidas?|refrescos?|vitroleros|barra\s*:|alcohol)\b/i.test(sheetInc);
+    const negated = foodOnlyNoDrinks || new RegExp(
+      `\\b(sin|no\\s+incluye|no\\s+incluyen)\\b.{0,40}(${item}|bebidas?|refrescos?)`,
+      "i"
+    ).test(blob);
+    const bullet = `\u2022 *${nivel}*${price}`;
+    if (foodOnlyNoDrinks) no2.push(bullet);
+    else if (has2 && !negated) yes.push(bullet);
+    else if (negated) no2.push(bullet);
+    else unclear.push(bullet);
   }
-  if (item === "bebidas" && /\bbocadillo/i.test(hint)) {
-    const pdf = buildPdfInclusionReply(`Bocadillos ${query}`) || buildPdfInclusionReply("Bocadillos");
-    const link = ensureCatalogWebLink(
-      [
-        "En *Bocadillos*, el paquete por persona es principalmente de alimentos (s\xE1ndwiches/bocadillos).",
-        "Las bebidas suelen cotizarse aparte (barra de bebidas) seg\xFAn lo que necesiten.",
-        pdf ? `
-
-Detalle del cat\xE1logo:
-${pdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}` : ""
-      ].join(" "),
-      "Bocadillos"
+  let addonLine = null;
+  if (item === "bebidas" || item === "alcohol") {
+    const addonPdf = buildPdfInclusionReply(`${service} Barra de Bebidas`) || buildPdfInclusionReply(`${service} agrega barra de bebidas`) || buildPdfInclusionReply(`Agrega Barra de Bebidas ${service}`);
+    const addonBlob = addonPdf ?? "";
+    const priceMatch = addonBlob.match(
+      /barra\s+de\s+bebidas?[^\d$]{0,40}\$?\s*([\d,.]+)\s*(?:\/?\s*pp|por\s+persona)?/i
     );
-    return link;
+    if (/agrega\s+barra\s+de\s+bebidas|barra\s+de\s+bebidas\s*[—\-–]/i.test(addonBlob) || priceMatch) {
+      const p5 = priceMatch?.[1] ? ` (+$${priceMatch[1]} /pp)` : "";
+      addonLine = `\u2022 Se puede *agregar Barra de Bebidas*${p5} si quieren barra m\xE1s completa.`;
+    }
   }
-  const fromPdf = buildPdfInclusionReply(`${hint} ${query}`) || buildPdfInclusionReply(`${hint} ${item}`) || buildPdfInclusionReply(hint);
-  if (fromPdf) {
+  if (!rows.length) {
+    const fromPdf = buildPdfInclusionReply(`${service} ${query}`) || buildPdfInclusionReply(`${service} ${item}`) || buildPdfInclusionReply(service);
+    if (!fromPdf) {
+      const web = getCatalogWebUrlForQuery(service);
+      return ensureCatalogWebLink(
+        `Para *${service}*, el detalle de *${item}* lo confirmo con el cat\xE1logo${web ? "" : ""}. Nuestro equipo te precisa exactamente qu\xE9 incluye cada nivel.`,
+        service
+      );
+    }
     return ensureCatalogWebLink(
-      `Sobre *${item}* en *${hint}*:
+      `Sobre *${item}* en *${service}*:
 
 ${fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}`,
-      hint
+      service
     );
   }
-  return null;
+  const lines = [`Sobre *${item}* en *${service}*:`, ""];
+  if (yes.length) {
+    lines.push(`*S\xED incluye* en:`);
+    lines.push(...yes);
+    lines.push("");
+  }
+  if (no2.length) {
+    lines.push(`*No incluye* en:`);
+    lines.push(...no2);
+    lines.push("");
+  }
+  if (!yes.length && !no2.length) {
+    const priced = buildCatalogPriceAnswer(service);
+    const fromPdf = buildPdfInclusionReply(`${service} ${query}`) || buildPdfInclusionReply(`${service} ${item}`) || buildPdfInclusionReply(service);
+    const body2 = [
+      fromPdf ? fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "") : `En el cat\xE1logo de *${service}* te detallo lo de *${item}* por nivel.`,
+      priced && /\$\s*\d/.test(priced) ? `
+
+Precios de lista:
+${priced}` : ""
+    ].join("");
+    return ensureCatalogWebLink(
+      `Sobre *${item}* en *${service}*:
+
+${body2}
+
+\xBFDe qu\xE9 nivel te paso el detalle completo?`,
+      service
+    );
+  }
+  if (addonLine) {
+    lines.push(addonLine);
+    lines.push("");
+  }
+  if (unclear.length && yes.length + no2.length < rows.length) {
+  }
+  lines.push("\xBFTe late alguno de estos niveles o te detallo uno en concreto?");
+  return ensureCatalogWebLink(lines.filter((l6, i6, a4) => !(l6 === "" && a4[i6 - 1] === "")).join("\n"), service);
 }
 function buildCatalogInclusionAnswer(query) {
   const resolved = resolveCatalogQuery(query);
@@ -208136,7 +208242,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.15";
+var LUCY_PROMPT_VERSION = "V9.16";
 
 // src/lib/buildMeta.ts
 var cached = null;
