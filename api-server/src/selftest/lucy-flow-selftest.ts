@@ -214,6 +214,8 @@ import {
   formatRequerimientoLabelFromQuery,
   buildCatalogInclusionAnswer,
   clientAsksInclusion,
+  clientAsksSpecificInclusionItem,
+  buildSpecificInclusionItemReply,
   buildInclusionTeamConfirmationAnswer,
   injectCatalogInclusionIfAsked,
   resolveCatalogInclusionReply,
@@ -8340,7 +8342,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.14");
+    assert.equal(LUCY_PROMPT_VERSION, "V9.15");
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -9677,6 +9679,60 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/sin problema/i.test(refuseLive), refuseLive.slice(0, 300));
     assert.ok(!mensajeAsksForField(refuseLive, "correo"), refuseLive.slice(0, 300));
+  });
+
+  // ─── 137. A15251 Gio — canapés ¿incluye bebidas? (catálogo) + no handoff «por persona» ───
+  await test("137. A15251 — canapés incluye bebidas desde catálogo; no handoff por persona", () => {
+    assert.equal(clientAsksSpecificInclusionItem("Inclue bebidas?"), "bebidas");
+    assert.equal(clientAsksSpecificInclusionItem("Incluye bebidas?"), "bebidas");
+    assert.ok(
+      clientAsksInclusion("Quiero saber si el paquete por persona de canapes incluye bebidas")
+    );
+    assert.equal(
+      clientAsksForHumanAdvisor(
+        "Quiero saber si el paquete por persona de canapes incluye bebidas"
+      ),
+      false,
+      "por persona ≠ pedir asesor humano"
+    );
+
+    const itemReply = buildSpecificInclusionItemReply("Inclue bebidas?", "Canapés, Bocadillos");
+    assert.ok(itemReply, "debe armar respuesta de bebidas");
+    assert.ok(/Solo Alimentos/i.test(itemReply!), itemReply!.slice(0, 300));
+    assert.ok(/no\*?\s*incluye bebidas|no\* incluye bebidas|\*no\* incluye/i.test(itemReply!), itemReply!);
+    assert.ok(/Tradicional|\$800|\$750|\$180/i.test(itemReply!), itemReply!.slice(0, 400));
+
+    const live = runGuards({
+      aiResponse: "¿Quieres que te dé detalles de alguno?",
+      extracted: emptyExtracted({
+        nombre: "Gio García",
+        tipo_evento: "inauguración de oficinas",
+        requerimientos_evento: "Canapés, Bocadillos",
+        num_invitados: 25,
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Quiero saber si el paquete por persona de canapes incluye bebidas",
+      history: [
+        {
+          role: "user",
+          content: "inauguración oficinas, bocadillos y canapes, 25 personas",
+        },
+        {
+          role: "assistant",
+          content:
+            "Perfecto, veo que necesitas Canapés y Bocadillos.\n¿Quieres que te dé detalles de alguno?\n¿Para cuándo sería el evento?",
+        },
+      ],
+    });
+    assert.ok(/bebidas/i.test(live) && /Solo Alimentos|Tradicional|\$180/i.test(live), live.slice(0, 500));
+    assert.ok(!/gastronom[ií]a manejamos varias opciones/i.test(live), live.slice(0, 300));
+    assert.ok(!/hablar con un asesor|Humano Trabaja/i.test(live), live.slice(0, 200));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

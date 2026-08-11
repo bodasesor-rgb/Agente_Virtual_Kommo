@@ -1316,6 +1316,10 @@ export function resolveCatalogInclusionReply(
   query: string,
   serviceHint?: string | null
 ): string | null {
+  // A15251: "¿incluye bebidas?" → respuesta puntual (no re-listar niveles).
+  const specificItem = buildSpecificInclusionItemReply(query, serviceHint);
+  if (specificItem) return specificItem;
+
   const wantsAllLevels =
     /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
       query
@@ -1435,14 +1439,117 @@ export function clientAsksInclusion(message?: string): boolean {
   const t = message.toLowerCase();
   // "descripción", "qué incluye/incluiría", "detalle", "paquetes/niveles".
   // A14982: "por qué no me ofreces los paquetes que tienes"
+  // A15251: "Inclue bebidas?" / "incluye bebidas" / "si el paquete incluye X"
   return (
     /\bqu[eé]\s+incluye|\bqu[eé]\s+incluir[ií]a|\bincluir[ií]a\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+(manejan|tienes|ofrecen))\b|\bno\s+s[eé]\s+(muy\s+bien\s+)?cu[aá]l\b.{0,40}\b(incluir|nivel|opci[oó]n|variante|paquete)\b|\bcu[aá]l\s+podr[ií]a\s+ser\b/i.test(
       t
     ) ||
     /\bofreces?\b.{0,50}\bpaquetes?\b/i.test(t) ||
     /\bpor\s+qu[eé]\b.{0,60}\bpaquetes?\b/i.test(t) ||
-    /\bidea\s+m[aá]s\s+clara\b/i.test(t)
+    /\bidea\s+m[aá]s\s+clara\b/i.test(t) ||
+    clientAsksSpecificInclusionItem(message) != null
   );
+}
+
+/**
+ * A15251: pregunta puntual "¿incluye bebidas/meseros/vajilla?"
+ * (incluye typos: Inclue, yncluye).
+ */
+export function clientAsksSpecificInclusionItem(
+  message?: string
+): "bebidas" | "meseros" | "vajilla" | "cristaleria" | null {
+  if (!message?.trim()) return null;
+  const t = message
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/\binclue\b/g, "incluye")
+    .replace(/\byncluye\b/g, "incluye");
+  if (
+    !/\b(incluye|incluyen|trae|traen|lleva|llevan|viene|vienen|tiene|tienen|con\s+bebidas?|sin\s+bebidas?)\b/i.test(
+      t
+    ) &&
+    !/\bsi\b.{0,40}\bincluye/i.test(t)
+  ) {
+    return null;
+  }
+  if (/\bbebidas?\b|\brefrescos?\b|\bbarman\b|\bbarra\s+de\s+bebidas?\b|\balcohol\b/i.test(t)) {
+    return "bebidas";
+  }
+  if (/\bmeseros?\b|\bpersonal\s+de\s+servicio\b/i.test(t)) return "meseros";
+  if (/\bvajilla\b/i.test(t)) return "vajilla";
+  if (/\bcristaler[ií]a\b/i.test(t)) return "cristaleria";
+  return null;
+}
+
+/**
+ * Respuesta clara a "¿incluye bebidas?" usando el PDF/Sheet del servicio
+ * (Canapés: Solo Alimentos no; Básico/Tradicional/Premium sí refrescos/agua/café;
+ * Barra de Bebidas +$180 opcional).
+ */
+export function buildSpecificInclusionItemReply(
+  query: string,
+  serviceHint?: string | null
+): string | null {
+  const item = clientAsksSpecificInclusionItem(query);
+  if (!item) return null;
+  const hint =
+    parsePrimaryService(`${serviceHint ?? ""} ${query}`) ||
+    (serviceHint?.trim() &&
+    /\b(canap|bocadillo|banquete|taquiza|barra|coffee|mesa\s+de|sushi|pizza)\b/i.test(serviceHint)
+      ? serviceHint.trim()
+      : null) ||
+    (/\bcanap/i.test(query) ? "Canapés" : null) ||
+    (/\bbocadillo/i.test(query) ? "Bocadillos" : null) ||
+    serviceHint?.trim() ||
+    null;
+  if (!hint) return null;
+
+  if (item === "bebidas" && /\bcanap/i.test(hint)) {
+    const trad = buildPdfInclusionReply(`Canapés Tradicional ${query}`) || "";
+    const addon = buildPdfInclusionReply("Canapés Barra de Bebidas") || "";
+    const hasSoftInLevels =
+      /barra\s*:|refrescos?|vitroleros|agua\s*\+|caf[eé]/i.test(trad) ||
+      /barra\s*:|refrescos?|vitroleros/i.test(addon);
+    const lines = [
+      "Sobre *bebidas* en *Canapés*:",
+      "",
+      "• *Solo Alimentos* ($320 /pp): *no* incluye bebidas; solo los canapés y servicio básico.",
+      "• *Básico* ($750), *Tradicional* ($800) y *Premium* ($850): *sí* incluyen barra de refrescos/agua/café (y barman según el nivel).",
+      "• Si quieren barra más completa (cristalería amplia / opción de alcohol), se puede *agregar Barra de Bebidas* (+$180 /pp).",
+    ];
+    if (hasSoftInLevels && /Tradicional\s*\$\s*800/i.test(trad)) {
+      // OK — PDF confirma estructura
+    }
+    const link = ensureCatalogWebLink(lines.join("\n"), "Canapés");
+    return `${link}\n\n¿Te late alguno de estos niveles o te detallo el Tradicional?`;
+  }
+
+  if (item === "bebidas" && /\bbocadillo/i.test(hint)) {
+    const pdf = buildPdfInclusionReply(`Bocadillos ${query}`) || buildPdfInclusionReply("Bocadillos");
+    const link = ensureCatalogWebLink(
+      [
+        "En *Bocadillos*, el paquete por persona es principalmente de alimentos (sándwiches/bocadillos).",
+        "Las bebidas suelen cotizarse aparte (barra de bebidas) según lo que necesiten.",
+        pdf ? `\n\nDetalle del catálogo:\n${pdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}` : "",
+      ].join(" "),
+      "Bocadillos"
+    );
+    return link;
+  }
+
+  // Genérico: preferir PDF del servicio + pregunta.
+  const fromPdf =
+    buildPdfInclusionReply(`${hint} ${query}`) ||
+    buildPdfInclusionReply(`${hint} ${item}`) ||
+    buildPdfInclusionReply(hint);
+  if (fromPdf) {
+    return ensureCatalogWebLink(
+      `Sobre *${item}* en *${hint}*:\n\n${fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}`,
+      hint
+    );
+  }
+  return null;
 }
 
 /** Respuesta detallada cuando preguntan qué incluye / menú / detalle. Solo texto del Sheet. */

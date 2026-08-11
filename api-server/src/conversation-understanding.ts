@@ -1304,46 +1304,59 @@ export function clientAsksForHumanAdvisor(message?: string): boolean {
   ) {
     return false;
   }
+  // A15251: "paquete por persona" / "precio por persona" ≠ pedir un "humano/persona".
+  // Quitar "por persona(s)" / "pp" antes de matchear la palabra persona.
+  const tNoPp = t
+    .replace(/\bpor\s+personas?\b/gi, " ")
+    .replace(/\b\d+\s*pp\b/gi, " ")
+    .replace(/\bpp\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   // Frase corta típica de WhatsApp: "Hablar con un agente" / "Hablar con un humano".
   if (
-    /\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(t)
+    /\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(tNoPp)
   ) {
     return true;
   }
   // A15009: "Hablar con un humano" / "quiero un humano" sin artículo raro.
-  if (/^hablar\s+con\s+(un\s+)?humano\b/i.test(t) || /^humano(\s+por\s+favor)?[\s!.]*$/i.test(t)) {
+  if (
+    /^hablar\s+con\s+(un\s+)?humano\b/i.test(tNoPp) ||
+    /^humano(\s+por\s+favor)?[\s!.]*$/i.test(tNoPp)
+  ) {
     return true;
   }
   if (
-    /^(asesor|agente|humano)(\s+por\s+favor)?[\s!.]*$/i.test(t) ||
-    /^(quiero|necesito|prefiero)\s+(un\s+|una\s+)?(asesor|agente|humano)\b/i.test(t)
+    /^(asesor|agente|humano)(\s+por\s+favor)?[\s!.]*$/i.test(tNoPp) ||
+    /^(quiero|necesito|prefiero)\s+(un\s+|una\s+)?(asesor|agente|humano)\b/i.test(tNoPp)
   ) {
     return true;
   }
   if (
     /\b(prefiero|quiero|necesito|mejor)\b.{0,40}\b(hablar|comunicar|platicar|atenci[oó]n|contacto)\b.{0,40}\b(asesor|agente|humano|persona|equipo)\b/i.test(
-      t
+      tNoPp
     )
   ) {
     return true;
   }
   if (
-    /\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(t)
+    /\b(prefiero|quiero|necesito)\b.{0,30}\b(un\s+|una\s+)?(asesor|agente|humano|persona)\b/i.test(
+      tNoPp
+    )
   ) {
     return true;
   }
   if (
     /\b(asesor|agente|humano|alguien\s+del\s+equipo)\b.{0,30}\b(se\s+)?(comunique|contacte|llame|hable)\b/i.test(
-      t
+      tNoPp
     )
   ) {
     return true;
   }
-  if (/\bpuede(n)?\s+(un\s+)?(asesor|agente)\s+(contactarme|comunicarse|llamarme)\b/i.test(t)) {
+  if (/\bpuede(n)?\s+(un\s+)?(asesor|agente)\s+(contactarme|comunicarse|llamarme)\b/i.test(tNoPp)) {
     return true;
   }
   // En lote debounce: "Juan\nHablar con un agente"
-  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano)\b/im.test(t)) return true;
+  if (/\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano)\b/im.test(tNoPp)) return true;
   return false;
 }
 

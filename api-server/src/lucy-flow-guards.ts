@@ -57,6 +57,8 @@ import {
   catalogAnswerMatchesRequestedService,
   responseLooksLikeGenericCateringMenu,
   clientAsksInclusion,
+  clientAsksSpecificInclusionItem,
+  buildSpecificInclusionItemReply,
   buildCatalogWebLinkReply,
   buildServicePlusGeneralCatalogReply,
   withServiceAndGeneralCatalogLinks,
@@ -4508,6 +4510,36 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
+    const userBlobEarly = collectUserTexts(presHistory, currentMessage).join(" ");
+    const serviceHintEarly =
+      (isValidRequerimientosValue(extracted.requerimientos_evento)
+        ? extracted.requerimientos_evento
+        : null) ||
+      parsePrimaryService(userBlobEarly) ||
+      findMentionedService(userBlobEarly) ||
+      (/\bcanap/i.test(`${currentMessage ?? ""} ${userBlobEarly}`)
+        ? "Canapés"
+        : null);
+    // A15251: "¿incluye bebidas?" ANTES del menú progresivo (no re-listar familias).
+    const specificItemEarly = buildSpecificInclusionItemReply(
+      currentMessage ?? "",
+      serviceHintEarly
+    );
+    if (specificItemEarly) {
+      log?.info(
+        { entityId, item: clientAsksSpecificInclusionItem(currentMessage) },
+        "GUARD: A15251 — inclusión puntual (return temprano)"
+      );
+      return normalizeAdvisorReferences(
+        mergeWithPendingQuestion(
+          `${pickTransition(presHistory)} ${specificItemEarly}`,
+          filledSet,
+          extracted,
+          ctx
+        ),
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
     // V8.68: sin variante → menú de opciones (no dump PDF completo).
     // No usar hint multi-SKU: evita menú de una sola familia con 2 servicios en CRM.
     const earlyOptionsHint =
@@ -4526,13 +4558,6 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
-    const userBlobEarly = collectUserTexts(presHistory, currentMessage).join(" ");
-    const serviceHintEarly =
-      (isValidRequerimientosValue(extracted.requerimientos_evento)
-        ? extracted.requerimientos_evento
-        : null) ||
-      parsePrimaryService(userBlobEarly) ||
-      findMentionedService(userBlobEarly);
     // Nivel concreto (CB4, Tradicional…): solo el query del mensaje — no fallback
     // a "Coffee Break" genérico (devolvía CB1 cuando el PDF no tiene CB4).
     const specificNivelAsk =
@@ -6120,18 +6145,6 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         "GUARD: paquetes multi-servicio — niveles Sheet + siguiente dato"
       );
     } else {
-    // V8.68: "qué incluye banquete/coffee…" sin variante → menú, no dump PDF.
-    const inclusionOptions = shouldOfferOptionsBeforeDetail({
-      currentMessage,
-      history: presHistory,
-      serviceHint: extracted.requerimientos_evento,
-    });
-    if (inclusionOptions) {
-      mensaje = `${pickTransition(presHistory)} ${inclusionOptions.menu}`.trim();
-      appliedSalesReply = true;
-      appliedDirectReply = true;
-      log?.info({ entityId }, "GUARD: inclusiones — menú de opciones antes del detalle");
-    } else {
     // Prioridad absoluta: describir paquetes (no depende de allowSalesReplyOverride).
     const userBlob = collectUserTexts(presHistory, currentMessage).join(" ");
     const req = extracted.requerimientos_evento?.trim() ?? "";
@@ -6156,6 +6169,37 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         parsePrimaryService(userBlob) ||
         findMentionedService(userBlob);
     }
+    // A15251: "¿incluye bebidas?" → contestar del catálogo, NO re-ofrecer menú de niveles.
+    const specificInclusion = buildSpecificInclusionItemReply(
+      currentMessage ?? "",
+      serviceHint
+    );
+    if (specificInclusion) {
+      mensaje = mergeWithPendingQuestion(
+        `${pickTransition(presHistory)} ${specificInclusion}`,
+        filledSet,
+        extracted,
+        ctx
+      );
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info(
+        { entityId, item: clientAsksSpecificInclusionItem(currentMessage) },
+        "GUARD: A15251 — inclusión puntual (bebidas/etc.) desde catálogo"
+      );
+    } else {
+    // V8.68: "qué incluye banquete/coffee…" sin variante → menú, no dump PDF.
+    const inclusionOptions = shouldOfferOptionsBeforeDetail({
+      currentMessage,
+      history: presHistory,
+      serviceHint: extracted.requerimientos_evento,
+    });
+    if (inclusionOptions) {
+      mensaje = `${pickTransition(presHistory)} ${inclusionOptions.menu}`.trim();
+      appliedSalesReply = true;
+      appliedDirectReply = true;
+      log?.info({ entityId }, "GUARD: inclusiones — menú de opciones antes del detalle");
+    } else {
     const pdfOnly = (() => {
       const specificNivelAsk =
         /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(
@@ -6208,8 +6252,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       appliedDirectReply = true;
       log?.info({ entityId }, "GUARD: paquetes genéricos — overview / aclarar servicio");
     }
-    }
-    } // fin else: inclusiones con variante concreta
+    } // fin else: pdf/inclusiones Sheet
+    } // fin else: menú progresivo de inclusiones
+    } // fin else: no era inclusión puntual (bebidas/etc.)
     } // fin else: no multi-paquete Sheet dump
   } else if (
     allowSalesReplyOverride &&
