@@ -108,6 +108,12 @@ import {
   buildMobiliarioPieceFollowUp,
 } from "./services/serviceProgressiveOffer.js";
 import {
+  buildConcreteProductQuestionReply,
+  clientAsksCapacityLayout,
+  clientAsksConcreteProductQuestion,
+  shouldSkipSalesMenuForConcreteQuestion,
+} from "./services/concreteProductQuestion.js";
+import {
   extractImageClientReply,
   extractImageIntent,
   looksLikeImageInternalSummary,
@@ -554,7 +560,20 @@ function blockResolvedInvitadosAsk(
     collectUserTexts(history, currentMessage),
     history
   );
-  if (!filledSet.has("Número de invitados")) return mensaje;
+  // A15286: si el historial ya trae "N personas", sincronizar antes de re-preguntar.
+  if (!isFieldSatisfied("invitados", filledSet, extracted)) {
+    const fromHist =
+      parseInvitadosFromText(currentMessage ?? "") ||
+      collectUserTexts(history, currentMessage)
+        .map((t) => parseInvitadosFromText(t))
+        .find(Boolean) ||
+      null;
+    if (fromHist && /^\d+$/.test(fromHist)) {
+      extracted.num_invitados = Number(fromHist);
+      filledSet.add("Número de invitados");
+    }
+  }
+  if (!isFieldSatisfied("invitados", filledSet, extracted)) return mensaje;
 
   const pending = getNextPendingField(extracted, filledSet);
   log?.info({ entityId, pending }, "GUARD: afluencia desconocida — no repetir invitados");
@@ -1127,6 +1146,34 @@ function buildCarpasSalesReply(
   ctx?: NaturalQuestionContext
 ): string {
   const msg = currentMessage ?? "";
+  // A15286: pregunta concreta (fotos/luz/capacidad) gana sobre plantilla de medidas.
+  {
+    const concrete = buildConcreteProductQuestionReply(
+      msg,
+      extracted.requerimientos_evento
+    );
+    if (concrete) {
+      if (filledSet) filledSet.add("Requerimientos o servicios");
+      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+        extracted.requerimientos_evento = "Carpas";
+      } else if (!/\bcarpas?\b/i.test(extracted.requerimientos_evento ?? "")) {
+        const merged = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          "Carpas",
+          6
+        );
+        if (merged) extracted.requerimientos_evento = merged;
+      }
+      const filledAfter = new Set(filledSet ?? []);
+      filledAfter.add("Requerimientos o servicios");
+      const pending = getNextPendingField(extracted, filledAfter);
+      if (pending && pending !== "requerimientos" && ctx) {
+        const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet: filledAfter });
+        return `${pickTransition(history)} ${concrete}\n\n${nextQ}`.trim();
+      }
+      return `${pickTransition(history)} ${concrete}`.trim();
+    }
+  }
   const dims =
     parseSpaceDimensions(msg) ||
     (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null) ||
@@ -1144,7 +1191,11 @@ function buildCarpasSalesReply(
       /carpas?\s+(?:blancas?|negras?|transparentes?)|tipo\s+domo/i.test(m.content)
   );
   // A14994: "Carpas o mobiliario" — anotar ambos + catálogo (no saltar solo a zona).
-  const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
+  // A15286: "3 mesas por carpa???" ≠ pedir mobiliario.
+  const asksCapacity = clientAsksCapacityLayout(msg);
+  const alsoMobiliario =
+    !asksCapacity &&
+    /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
 
   if (filledSet) filledSet.add("Requerimientos o servicios");
   const baseLabel =
@@ -3960,10 +4011,11 @@ function isInformativeClientAnswer(currentMessage?: string): boolean {
 function clientAskedFreeformQuestion(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
-  if (/\?/.test(message)) return true;
+  if (/\?|¿/.test(message)) return true;
+  if (clientAsksConcreteProductQuestion(message)) return true;
   return (
     clientAsksLocation(message) ||
-    /cu[aá]nto|precio|costo|cat[aá]logo|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@/i.test(
+    /cu[aá]nto|precio|costo|cat[aá]logo|c+t?a+l+[oó]+g+|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@|fotos?|iluminaci|luz|cuenta\s+con/i.test(
       message
     ) ||
     /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+servicios|cu[aá]les\s+son|informaci[oó]n|recomiendas?|sugieres|ayudas?\s+con|pueden\s+hacer/i.test(
@@ -4470,6 +4522,40 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // A15286: pregunta concreta (fotos/luz/capacidad/catálogo typo) — ANTES de
+  // carpas/progresivo/embudo. Responder o diferir; no "¿Seguimos…?" vacío.
+  if (
+    !cierreYaEnviado &&
+    currentMessage?.trim() &&
+    clientAsksConcreteProductQuestion(currentMessage)
+  ) {
+    const serviceHintConcrete =
+      (isValidRequerimientosValue(extracted.requerimientos_evento)
+        ? extracted.requerimientos_evento
+        : null) ||
+      parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) ||
+      findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+    const concreteReply = buildConcreteProductQuestionReply(
+      currentMessage,
+      serviceHintConcrete
+    );
+    if (concreteReply) {
+      log?.info(
+        { entityId },
+        "GUARD: A15286 — pregunta concreta (return temprano global)"
+      );
+      return normalizeAdvisorReferences(
+        mergeWithPendingQuestion(
+          `${pickTransition(presHistory)} ${concreteReply}`,
+          filledSet,
+          extracted,
+          ctx
+        ),
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
   // por redirect a zona ni anti-repeat de embudo.
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
@@ -4533,6 +4619,26 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       return normalizeAdvisorReferences(
         mergeWithPendingQuestion(
           `${pickTransition(presHistory)} ${specificItemEarly}`,
+          filledSet,
+          extracted,
+          ctx
+        ),
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+    // A15286: pregunta concreta (fotos/luz/capacidad/catálogo typo) ANTES de menús.
+    const concreteEarly = buildConcreteProductQuestionReply(
+      currentMessage ?? "",
+      serviceHintEarly
+    );
+    if (concreteEarly) {
+      log?.info(
+        { entityId },
+        "GUARD: A15286 — pregunta concreta (return temprano)"
+      );
+      return normalizeAdvisorReferences(
+        mergeWithPendingQuestion(
+          `${pickTransition(presHistory)} ${concreteEarly}`,
           filledSet,
           extracted,
           ctx
@@ -4610,17 +4716,25 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   );
 
   // "4 salas" ≠ 4 invitados; "Luxor Rosa" ≠ ubicación.
+  // A15286: NO borrar invitados=300 solo porque el historial también dice "300 sillas".
   {
     const blob = collectUserTexts(presHistory, currentMessage).join(" ");
-    if (
-      extracted.num_invitados != null &&
-      new RegExp(
-        `\\b${extracted.num_invitados}\\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?)\\b`,
-        "i"
-      ).test(blob)
-    ) {
-      extracted.num_invitados = null;
-      filledSet.delete("Número de invitados");
+    if (extracted.num_invitados != null) {
+      const n = String(extracted.num_invitados).replace(/[^\d]/g, "");
+      if (n) {
+        const asGuests = new RegExp(
+          `\\b${n}\\s*(personas?|invitados?|pax|guests?)\\b`,
+          "i"
+        ).test(blob);
+        const asFurnitureOnly = new RegExp(
+          `\\b${n}\\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?)\\b`,
+          "i"
+        ).test(blob);
+        if (asFurnitureOnly && !asGuests) {
+          extracted.num_invitados = null;
+          filledSet.delete("Número de invitados");
+        }
+      }
     }
     if (
       extracted.direccion_evento &&
@@ -5971,7 +6085,9 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         ) &&
         /medidas/i.test(
           typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
-        )))
+        ))) &&
+    // A15286: no pisar respuesta a fotos/luz/capacidad con plantilla de medidas.
+    !shouldSkipSalesMenuForConcreteQuestion(currentMessage)
   ) {
     const carpasTemplate = buildCarpasSalesReply(
       extracted,
@@ -6053,6 +6169,8 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     // V8.92 / A15165: menú de piezas mobiliario → modelos (también post-cierre).
     allowSalesReplyOverride &&
+    !shouldSkipSalesMenuForConcreteQuestion(currentMessage) &&
+    !clientAsksForCatalog(currentMessage) &&
     (historyOfferedMobiliarioPieceMenu(presHistory) ||
       /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio\b/i.test(currentMessage ?? "")) &&
     currentMessage?.trim() &&

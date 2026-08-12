@@ -21,6 +21,10 @@ import {
   clientMentionsEntertainment,
 } from "./conversation-understanding.js";
 import { buildGuardServiceAck } from "./services/serviceKnowledge.js";
+import {
+  buildConcreteProductQuestionReply,
+  clientAsksConcreteProductQuestion,
+} from "./services/concreteProductQuestion.js";
 import { collapseDuplicatedInclusionReply } from "./services/lucyInfoPriceCache.js";
 import { clientAsksInclusion } from "./services/catalogService.js";
 
@@ -123,11 +127,15 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
     !openingNombreOnly &&
     !hasLucyIntro &&
     input.currentMessage &&
-    clientAsksServiceInfo(input.currentMessage) &&
-    isServiceRelatedMessage(input.currentMessage) &&
+    (clientAsksServiceInfo(input.currentMessage) ||
+      clientAsksConcreteProductQuestion(input.currentMessage)) &&
+    (isServiceRelatedMessage(input.currentMessage) ||
+      clientAsksConcreteProductQuestion(input.currentMessage)) &&
     !alreadyOperational
   ) {
-    const ack = buildGuardServiceAck(input.currentMessage);
+    const ack =
+      buildConcreteProductQuestionReply(input.currentMessage) ||
+      buildGuardServiceAck(input.currentMessage);
     const keepQ = (mensaje.match(/[^.!?]*\?/g) ?? []).join(" ").trim();
     mensaje = keepQ ? `${ack}\n\n${keepQ}` : ack;
     input.log?.info?.(

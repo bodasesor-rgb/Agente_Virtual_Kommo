@@ -109,6 +109,13 @@ import {
 import { finalizeLucyOutboundMessage } from "../lucyOutboundPipeline.js";
 import { buildGuardServiceAck } from "../services/serviceKnowledge.js";
 import { buildSillasModelMenu } from "../services/serviceProgressiveOffer.js";
+import {
+  buildConcreteProductQuestionReply,
+  clientAsksAboutLighting,
+  clientAsksCapacityLayout,
+  clientAsksConcreteProductQuestion,
+  clientAsksForPhotos,
+} from "../services/concreteProductQuestion.js";
 import { buildDynamicPrompt } from "../services/promptBuilder.js";
 import { isQuoteIntentMessage, sanitizeDisplayName, sanitizeCrmNombre, isNombreMoreComplete, pickBetterNombre, isLikelyUbicacionNotNombre, isGreetingOnlyMessage, isLikelyNotPersonNameMessage, looksLikePersonFullName, clientAsksCompanyIdentity, buildCompanyIdentityReply, shouldUpdateName, resolveKommoLeadNamePatch } from "../contact-name.js";
 import { filterClientEmail, isOwnCompanyEmail, looksLikeValidClientEmail, buildEmailConfirmationPrompt } from "../client-email.js";
@@ -9781,6 +9788,143 @@ async function runAll(): Promise<void> {
     assert.ok(
       /meseros/i.test(taquizaLive) && !/gastronom[ií]a manejamos/i.test(taquizaLive),
       taquizaLive.slice(0, 450)
+    );
+  });
+
+  // ─── 138. A15286 — pregunta concreta primero (todas las ramas) ───
+  await test("138. A15286 — fotos/luz/capacidad/catálogo typo; no CTA vacío ni borrar invitados", () => {
+    assert.ok(clientAsksForCatalog("CTALOGO DE SILLAS"), "typo CTALOGO");
+    assert.ok(clientAsksForCatalog("catalgo de mesas"), "typo catalgo");
+    assert.ok(clientAsksServiceInfo("si la carpa cuenta con luz"));
+    assert.ok(clientAsksConcreteProductQuestion("Fotos de lo solicitado y si la carpa cuenta con luz"));
+    assert.ok(clientAsksConcreteProductQuestion("3 MESAS POR CARPA???"));
+    assert.ok(clientAsksCapacityLayout("3 MESAS POR CARPA???"));
+    assert.ok(clientAsksForPhotos("Fotos de lo solicitado y si la carpa cuenta con luz"));
+    assert.ok(clientAsksAboutLighting("Fotos de lo solicitado y si la carpa cuenta con luz"));
+    assert.equal(
+      clientAsksConcreteProductQuestion("¿Cuentan con carpas transparentes?"),
+      false,
+      "disponibilidad genérica no es pregunta-concreta A15286"
+    );
+
+    const filledBase = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Fecha y horario",
+      "Lugar/dirección del evento",
+    ]);
+    const extractedBase = emptyExtracted({
+      nombre: "Jose Luis",
+      tipo_evento: "Inauguración de empresa",
+      requerimientos_evento: "Mobiliario, Carpas",
+      fecha_horario: "Viernes 4 de septiembre, 6 de la tarde",
+      direccion_evento: "Tixcacal Opichen",
+      num_invitados: 300,
+    });
+
+    const fotos = runGuards({
+      aiResponse: "¿Qué medidas aproximadas necesitas?",
+      extracted: { ...extractedBase },
+      filledSet: new Set(filledBase),
+      readyForClosing: false,
+      currentMessage: "Fotos de lo solicitado y si la carpa cuenta con luz",
+      history: [
+        { role: "user", content: "30 MESAS REDONDAS CON SU MANTEL" },
+        { role: "user", content: "300 SILLAS" },
+        { role: "user", content: "TOLDOS" },
+        {
+          role: "assistant",
+          content:
+            "Sí, manejamos carpas blancas, negras, transparentes y tipo domo. ¿Qué medidas aproximadas necesitas?",
+        },
+      ],
+    });
+    assert.ok(
+      /foto|cat[aá]logo|bodasesor\.com\/catalogos|iluminaci|luz|confirmo con/i.test(fotos),
+      fotos.slice(0, 500)
+    );
+    assert.ok(
+      !/^[\s\S]{0,40}¿Qu[eé] medidas aproximadas/i.test(fotos) ||
+        /foto|luz|iluminaci|cat[aá]logo/i.test(fotos),
+      `no solo medidas: ${fotos.slice(0, 400)}`
+    );
+
+    const capacidad = runGuards({
+      aiResponse: "Perfecto. ¿Seguimos con el siguiente dato del evento?",
+      extracted: { ...extractedBase },
+      filledSet: new Set(filledBase),
+      readyForClosing: false,
+      currentMessage: "3 MESAS POR CARPA???",
+      history: [
+        { role: "user", content: "CARPA BLANCA PARA CUBRIR LAS 30 MESAS" },
+        {
+          role: "assistant",
+          content:
+            "Te dejo el catálogo general:\nhttps://bodasesor.com/catalogos\n\n¿Quieres que te mande el catálogo con más detalle?",
+        },
+      ],
+    });
+    assert.ok(
+      /medidas|acomodo|cab[eé]n|confirmo|equipo/i.test(capacidad),
+      capacidad.slice(0, 450)
+    );
+    assert.ok(
+      !/¿Seguimos con el siguiente dato del evento\?/i.test(capacidad),
+      capacidad.slice(0, 300)
+    );
+    assert.ok(
+      !/anoto \*carpas\* y \*mobiliario\*/i.test(capacidad),
+      capacidad.slice(0, 300)
+    );
+
+    const catalogo = runGuards({
+      aiResponse: "¿De cuál te paso detalle, o te mando el catálogo de mesas y sillas?",
+      extracted: { ...extractedBase },
+      filledSet: new Set(filledBase),
+      readyForClosing: false,
+      currentMessage: "CTALOGO DE SILLAS",
+      history: [
+        {
+          role: "assistant",
+          content:
+            "En *sillas* manejamos Tiffany, Crossback… ¿te mando el catálogo de mesas y sillas?",
+        },
+      ],
+    });
+    assert.ok(/bodasesor\.com\/catalogos/i.test(catalogo), catalogo.slice(0, 400));
+    assert.ok(
+      !/¿Seguimos con el siguiente dato del evento\?/i.test(catalogo),
+      catalogo.slice(0, 300)
+    );
+
+    // Historial con "300 SILLAS" NO debe borrar invitados=300 si también hay "300 personas".
+    const invKeep = runGuards({
+      aiResponse: "¿Cuántos invitados tienen contemplados?",
+      extracted: emptyExtracted({
+        nombre: "Jose Luis",
+        tipo_evento: "Inauguración",
+        requerimientos_evento: "Mobiliario, Carpas",
+        num_invitados: 300,
+        correo: "Inventariosmda@livek.mx",
+      }),
+      filledSet: new Set([
+        ...filledBase,
+        "Correo electrónico",
+        "Número de invitados",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Gracias",
+      history: [
+        { role: "user", content: "300 SILLAS" },
+        { role: "user", content: "VIERNES 4 DE SEPTIEMBRE PARA 300 PERSONAS" },
+        { role: "user", content: "300 personas" },
+        { role: "assistant", content: "Perfecto. ¿Cuántos invitados tienen contemplados?" },
+      ],
+    });
+    assert.ok(
+      !mensajeAsksForField(invKeep, "invitados"),
+      `no re-preguntar invitados: ${invKeep.slice(0, 350)}`
     );
   });
 

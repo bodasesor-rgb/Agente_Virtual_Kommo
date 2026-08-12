@@ -30,6 +30,7 @@ import {
   clientComplainsAboutRepeat,
   recoverCorreoFromUserTexts,
 } from "./conversation-understanding.js";
+import { clientAsksConcreteProductQuestion } from "./services/concreteProductQuestion.js";
 import {
   isFieldSatisfied,
   mensajeAsksForField,
@@ -431,6 +432,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     ) || isEntertainmentCatalog || clientAffirmingCatalog;
 
   // A15165: si el cliente pide info/catálogo/modelos/shows, no colapsar a "Queda anotado".
+  // A15286: tampoco ante fotos/luz/capacidad/??? ni typos de catálogo.
   const clientAskingInfo =
     clientAsksServiceInfo(input.currentMessage) ||
     clientMentionsEntertainment(input.currentMessage) ||
@@ -438,11 +440,12 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     clientAsksForCatalog(input.currentMessage) ||
     clientAsksInclusion(input.currentMessage) ||
     clientAsksPrice(input.currentMessage) ||
+    clientAsksConcreteProductQuestion(input.currentMessage) ||
     // A15168: "opción 1" / "ver las opciones" no debe colapsar a "Seguimos…".
     /\b(opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|ver\s+(las\s+)?opciones|muestr\w*\s+(las\s+)?opciones)\b/i.test(
       input.currentMessage ?? ""
     ) ||
-    /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break)\b/i.test(
+    /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break|fotos?|carpa|luz|iluminaci)\b/i.test(
       input.currentMessage ?? ""
     );
 
@@ -511,6 +514,7 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     !clientAskedInclusion &&
     !clientAskedPrice &&
     !clientAskedServiceInfo &&
+    !clientAskingInfo &&
     !clientAffirmingCatalog &&
     !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") &&
     previous.some((p) => CATALOG_SEND_PATTERN.test(p))

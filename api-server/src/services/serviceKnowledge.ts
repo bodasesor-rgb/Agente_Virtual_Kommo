@@ -24,6 +24,7 @@ import {
   lookupCatalogServices,
   getCatalogWebHubDeliveryUrl,
 } from "./catalogService.js";
+import { buildConcreteProductQuestionReply } from "./concreteProductQuestion.js";
 import { advisorLabelForClient } from "../lib/bodasesorAdvisor.js";
 import { buildLucyInfoLearnedPriceReply } from "./lucyInfoPriceCache.js";
 import {
@@ -240,6 +241,12 @@ export function buildGuardServiceAck(query: string): string {
       "(estación con hornos/equipo según el paquete). " +
       "También podemos sumar pastas u otras estaciones italianas si te interesa."
     );
+  }
+
+  // A15286: fotos / luz / capacidad de carpa → respuesta concreta (no solo medidas).
+  {
+    const concrete = buildConcreteProductQuestionReply(query);
+    if (concrete) return concrete;
   }
 
   // Carpas: sí + tipos como referencia + medidas (sin volcar brochure).

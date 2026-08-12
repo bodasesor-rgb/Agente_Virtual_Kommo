@@ -1092,9 +1092,9 @@ export function clientAsksServiceInfo(message?: string): boolean {
     /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t) ||
     /\bnecesito\s+saber\b/i.test(t) ||
     /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t) ||
-    // "¿Cuentan con carpas transparentes?" / "¿tienen pista?" / "¿tienes modelos?"
-    /\b(cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t) ||
-    /\b(cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t) ||
+    // "¿Cuentan/cuenta con carpas…?" / "¿tienen pista?" / "¿tienes modelos?"
+    /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t) ||
+    /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t) ||
     // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
     /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t)
   );
@@ -1395,12 +1395,21 @@ export function clientNeedsEmergencyContact(message?: string): boolean {
  * Cliente pide el catálogo web (link bodasesor.com/catalogos/…).
  * No confundir con "qué incluye" ni con pedir precio.
  */
+/** "catálogo" + typos frecuentes (CTALOGO, catalgo, catologo…). */
+const CATALOG_TYPO_RE =
+  /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
+
 export function clientAsksForCatalog(message?: string): boolean {
   if (!message?.trim()) return false;
   const t = message.toLowerCase();
+  // A15286: typo solo ("CTALOGO DE SILLAS") cuenta como pedido de catálogo.
+  if (CATALOG_TYPO_RE.test(t) && /\b(de|web|completo|general|sillas?|mesas?|men[uú]|carpas?)\b/i.test(t)) {
+    return true;
+  }
+  if (CATALOG_TYPO_RE.test(t) && t.trim().split(/\s+/).length <= 4) return true;
   // "mandarme" / "puedes mandarme" / "me puedes enviar" (A14929 Jeny).
   if (
-    /\b(manda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|comparte|quiero|necesito|dame|puedes\s+(manda|envia|pasar)|me\s+puedes\s+(manda|envia|pasar))\b.{0,50}\bcat[aá]logo/i.test(
+    /\b(manda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|comparte|quiero|necesito|dame|puedes\s+(manda|envia|pasar)|me\s+puedes\s+(manda|envia|pasar))\b.{0,50}\b(cat[aá]logo|c+t?a+l+[oó]+g+[oa])/i.test(
       t
     )
   ) {

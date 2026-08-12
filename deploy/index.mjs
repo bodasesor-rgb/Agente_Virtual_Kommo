@@ -41909,7 +41909,7 @@ var require_package2 = __commonJS({
   "../node_modules/gaxios/package.json"(exports, module2) {
     module2.exports = {
       name: "gaxios",
-      version: "7.3.0",
+      version: "7.3.1",
       description: "A simple common HTTP client specifically for Google APIs and services.",
       main: "build/cjs/src/index.js",
       types: "build/cjs/src/index.d.ts",
@@ -41987,7 +41987,7 @@ var require_package2 = __commonJS({
         "karma-mocha": "^2.0.0",
         "karma-remap-coverage": "^0.1.5",
         "karma-sourcemap-loader": "^0.4.0",
-        "karma-webpack": "^5.0.1",
+        "karma-webpack": "^5.0.0",
         mocha: "^11.1.0",
         multiparty: "^4.2.1",
         mv: "^2.1.1",
@@ -41998,7 +41998,7 @@ var require_package2 = __commonJS({
         puppeteer: "^24.0.0",
         sinon: "21.0.3",
         "stream-browserify": "^3.0.0",
-        tmp: "0.2.6",
+        tmp: "0.2.7",
         "ts-loader": "^9.5.2",
         typescript: "5.8.3",
         "undici-types": "^7.24.1",
@@ -202786,8 +202786,8 @@ function clientAsksServiceInfo(message) {
   const t4 = message.toLowerCase();
   const asksWhatTypes = /\bqu[eé]\s+(tipo\s+de\s+)?(snacks?|snaks?|bocadillos?|antojitos?|puestos?)\b/i.test(t4) || /\b(snacks?|snaks?|bocadillos?|antojitos?).{0,40}\b(tienen|tienes|manejan|ofrecen)\b/i.test(t4) || /\b(tienen|tienes|manejan|ofrecen).{0,40}\b(snacks?|snaks?|bocadillos?|antojitos?)\b/i.test(t4);
   if (!isServiceRelatedMessage(message) && !asksWhatTypes) return false;
-  return asksWhatTypes || /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t4) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t4) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t4) || /\bnecesito\s+saber\b/i.test(t4) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t4) || // "¿Cuentan con carpas transparentes?" / "¿tienen pista?" / "¿tienes modelos?"
-  /\b(cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t4) || /\b(cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t4) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
+  return asksWhatTypes || /\b(informaci[oó]n|info|detalle|detalles|qu[eé]\s+incluye|inclusiones?|men[uú]|opciones?|modelos?)\b/i.test(t4) || /\b(cu[aá]nto\s+cuesta|precio|costo|cotizar|cotizaci[oó]n)\b/i.test(t4) || /\b(quiero|necesito|me\s+interesa)\s+(informaci[oó]n|saber|cotizar)\b/i.test(t4) || /\bnecesito\s+saber\b/i.test(t4) || /\b(tiene|tienes|tienen)\s+(info|informaci[oó]n|cat[aá]logo|detalle|modelos?)\b/i.test(t4) || // "¿Cuentan/cuenta con carpas…?" / "¿tienen pista?" / "¿tienes modelos?"
+  /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen|hay)\b.{0,40}\?/i.test(t4) || /\b(cuenta|cuentan|tienen|tienes|manejan|ofrecen)\s+con\b/i.test(t4) || // A14938: "¿Hacen las pizzas en el evento?" / preparan / cocinan / montan.
   /\b(hacen|preparan|cocinan|sirven|montan|elaboran)\b.{0,60}\?/i.test(t4);
 }
 var NON_GUEST_UNIT_PATTERN = /\b\d+\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?|barras?|pantallas?|paquetes?|juegos?|m[oó]dulos?|piezas?)\b/i;
@@ -202951,10 +202951,15 @@ function clientNeedsEmergencyContact(message) {
     t4
   ) || /\b(nadie\s+(me\s+)?(contesta|atiende)|no\s+me\s+(contesta|atiende|responde))\b/i.test(t4) || /\b(ayuda|auxilio).{0,25}(urgente|emergencia|humano|asesor|persona)\b/i.test(t4) || /\b(pasame|pásame|dame|necesito)\s+(un\s+)?(contacto|tel[eé]fono|n[uú]mero)\b/i.test(t4) || /\bhablar\s+con\s+(un\s+|una\s+)?(asesor|agente|humano|persona|ejecutivo)\b/i.test(t4);
 }
+var CATALOG_TYPO_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
 function clientAsksForCatalog(message) {
   if (!message?.trim()) return false;
   const t4 = message.toLowerCase();
-  if (/\b(manda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|comparte|quiero|necesito|dame|puedes\s+(manda|envia|pasar)|me\s+puedes\s+(manda|envia|pasar))\b.{0,50}\bcat[aá]logo/i.test(
+  if (CATALOG_TYPO_RE.test(t4) && /\b(de|web|completo|general|sillas?|mesas?|men[uú]|carpas?)\b/i.test(t4)) {
+    return true;
+  }
+  if (CATALOG_TYPO_RE.test(t4) && t4.trim().split(/\s+/).length <= 4) return true;
+  if (/\b(manda(rme|me)?|env[ií]a(rme|me)?|pasa(rme|me)?|p[aá]same|comparte|quiero|necesito|dame|puedes\s+(manda|envia|pasar)|me\s+puedes\s+(manda|envia|pasar))\b.{0,50}\b(cat[aá]logo|c+t?a+l+[oó]+g+[oa])/i.test(
     t4
   )) {
     return true;
@@ -206019,7 +206024,9 @@ function shouldOfferOptionsBeforeDetail(opts) {
   if (!blob) return null;
   if (/\b(incluye|inclue|incluyen|trae|tiene|tienen|viene|vienen)\b.{0,48}\b(bebidas?|refrescos?|meseros?|vajilla|cristaler[ií]a|alcohol|montaje|chef)\b/i.test(
     msg
-  ) || /\bsi\b.{0,40}\bincluye\b.{0,40}\b(bebidas?|meseros?|vajilla)\b/i.test(msg)) {
+  ) || /\bsi\b.{0,40}\bincluye\b.{0,40}\b(bebidas?|meseros?|vajilla)\b/i.test(msg) || clientAsksForCatalog(msg) || /\b(fotos?|fotograf|iluminaci|cuenta\s+con\s+luz|mesas?\s+por\s+carpa|c+t?a+l+[oó]+g+)/i.test(
+    msg
+  ) || /\?|¿/.test(msg) && /\b(carpa|toldo|luz|mesas?|sillas?|incluye|cuenta|cu[aá]ntas?)\b/i.test(msg)) {
     return null;
   }
   const lastAsst = [...opts.history].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
@@ -206114,6 +206121,100 @@ function resolveProgressiveDetailQuery(opts) {
     }
   }
   return null;
+}
+
+// src/services/concreteProductQuestion.ts
+var CATALOG_WORD_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
+function clientAsksCapacityLayout(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /\bmesas?\s+por\s+carpa/i.test(t4) || /\bpor\s+carpa\b.{0,20}\?/i.test(t4) || /\bcu[aá]ntas?\s+mesas?\b.{0,40}\b(carpa|toldo|lona)/i.test(t4) || /\b(carpa|toldo|lona).{0,40}\bcu[aá]ntas?\s+mesas?\b/i.test(t4) || /\bcu[aá]ntas?\s+(cab[eé]n|entran|soporta)/i.test(t4) || /\b(capacidad|acomodo|layout)\b.{0,30}\b(carpa|mesas?|sillas?)/i.test(t4) || /\b\d+\s+mesas?\s+por\s+carpa/i.test(t4);
+}
+function clientAsksForPhotos(message) {
+  if (!message?.trim()) return false;
+  return /\b(fotos?|fotograf[ií]as?|im[aá]genes?|referencias?\s+visuales?|pics?)\b/i.test(
+    message
+  ) && (isServiceRelatedMessage(message) || /\b(solicitad|pedido|cotiz|carpa|mesa|silla|toldo|mobiliario|lo\s+solicitado)\b/i.test(
+    message
+  ) || /\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b/i.test(message));
+}
+function clientAsksAboutLighting(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.toLowerCase();
+  return /\b(luz|luces|iluminaci[oó]n|iluminada?s?|leds?|luminarias?)\b/i.test(t4) && (/\b(carpa|toldo|lona|pista|tarima|montaje|cuenta|cuentan|tienen|tienes|incluye|trae)\b/i.test(
+    t4
+  ) || /\?/.test(message));
+}
+function clientAsksConcreteProductQuestion(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (clientAsksForCatalog(t4) || CATALOG_WORD_RE.test(t4)) return true;
+  if (clientAsksForPhotos(t4) || clientAsksAboutLighting(t4) || clientAsksCapacityLayout(t4)) {
+    return true;
+  }
+  if ((/\?|¿/.test(t4) || /\bcuenta(n)?\s+con\b/i.test(t4)) && /\b(luz|luces|iluminaci|fotos?|capacidad|mesas?\s+por|cu[aá]ntas?\s+mesas?|incluye\s+luz)\b/i.test(
+    t4
+  )) {
+    return true;
+  }
+  return false;
+}
+function catalogLinkFor(query) {
+  return getCatalogWebUrlForQuery(query) || getCatalogWebUrlForQuery("mesas y sillas") || getCatalogWebHubDeliveryUrl();
+}
+function honestDeferral(topicHint) {
+  const team = advisorLabelForClient();
+  const topic = topicHint?.trim() ? ` sobre ${topicHint.trim()}` : "";
+  return `Buena pregunta${topic} \u2014 eso lo confirmo con ${team} para darte el dato exacto y no equivocarme.`;
+}
+function buildConcreteProductQuestionReply(message, serviceHint) {
+  const msg = message.trim();
+  if (!msg) return null;
+  if (!clientAsksConcreteProductQuestion(msg)) return null;
+  const hint = (serviceHint ?? "").trim();
+  const blob = `${msg} ${hint}`;
+  const team = advisorLabelForClient();
+  if (clientAsksForCatalog(msg) || CATALOG_WORD_RE.test(msg)) {
+    const q3 = /\bsillas?\b/i.test(blob) ? "mesas y sillas" : /\bmesas?\b/i.test(blob) ? "mesas y sillas" : /\bcarpas?|toldos?|lonas?\b/i.test(blob) ? "carpas" : hint || msg;
+    const url2 = catalogLinkFor(q3);
+    const label = /\bsillas?\b/i.test(blob) ? "de mesas y sillas" : /\bcarpas?|toldos?\b/i.test(blob) ? "de carpas" : "";
+    return `Claro. Te dejo el *cat\xE1logo${label ? ` ${label}` : ""}*:
+${url2}`;
+  }
+  const wantsPhotos = clientAsksForPhotos(msg);
+  const wantsLight = clientAsksAboutLighting(msg);
+  if (wantsPhotos || wantsLight) {
+    const parts2 = [];
+    if (wantsPhotos) {
+      const url2 = catalogLinkFor(
+        /\bcarpas?|toldos?\b/i.test(blob) ? "carpas" : /\bsillas?|mesas?|mobiliario\b/i.test(blob) ? "mesas y sillas" : hint || "mobiliario"
+      );
+      parts2.push(
+        `Claro \u2014 te puedo compartir referencias visuales. Aqu\xED tienes el cat\xE1logo con fotos:
+${url2}`
+      );
+      parts2.push(
+        `${team} tambi\xE9n te puede mandar fotos espec\xEDficas de lo que estamos cotizando.`
+      );
+    }
+    if (wantsLight) {
+      if (clientMentionsCarpas(msg) || /\bcarpas?|toldos?|lonas?\b/i.test(blob)) {
+        parts2.push(
+          `Sobre *iluminaci\xF3n en la carpa*: se puede cotizar con o sin luz (paquetes de iluminaci\xF3n). Buena pregunta \u2014 eso lo confirmo con ${team} para decirte si la carpa que te armemos ya incluye luz o va aparte.`
+        );
+      } else {
+        parts2.push(honestDeferral("iluminaci\xF3n"));
+      }
+    }
+    return parts2.join("\n\n");
+  }
+  if (clientAsksCapacityLayout(msg)) {
+    return `La cantidad de mesas por carpa depende de las *medidas* y del acomodo (redondas, pasillos, pista). No te doy un n\xFAmero a ojo: ${team} te confirma cu\xE1ntas caben seg\xFAn el tama\xF1o. Si me das medidas aproximadas (o el \xE1rea a cubrir para tus mesas), lo afino en la cotizaci\xF3n.`;
+  }
+  return null;
+}
+function shouldSkipSalesMenuForConcreteQuestion(message) {
+  return clientAsksConcreteProductQuestion(message);
 }
 
 // src/services/serviceKnowledge.ts
@@ -206253,6 +206354,10 @@ function buildGuardServiceAck(query) {
   }
   if (/\bpizzas?\b/i.test(query) && /\b(hacen|preparan|cocinan|montan|sirven|elaboran|en\s+el\s+evento|en\s+vivo)\b/i.test(query)) {
     return "S\xED: la *barra de pizzas* se monta en tu evento y se preparan al momento (estaci\xF3n con hornos/equipo seg\xFAn el paquete). Tambi\xE9n podemos sumar pastas u otras estaciones italianas si te interesa.";
+  }
+  {
+    const concrete = buildConcreteProductQuestionReply(query);
+    if (concrete) return concrete;
   }
   if (clientMentionsCarpas(query)) {
     const team = advisorLabelForClient();
@@ -208242,7 +208347,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.16";
+var LUCY_PROMPT_VERSION = "V9.17";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -210003,7 +210108,14 @@ function blockResolvedInvitadosAsk(mensaje, filledSet, extracted, history, curre
     collectUserTexts(history, currentMessage),
     history
   );
-  if (!filledSet.has("N\xFAmero de invitados")) return mensaje;
+  if (!isFieldSatisfied("invitados", filledSet, extracted)) {
+    const fromHist = parseInvitadosFromText(currentMessage ?? "") || collectUserTexts(history, currentMessage).map((t4) => parseInvitadosFromText(t4)).find(Boolean) || null;
+    if (fromHist && /^\d+$/.test(fromHist)) {
+      extracted.num_invitados = Number(fromHist);
+      filledSet.add("N\xFAmero de invitados");
+    }
+  }
+  if (!isFieldSatisfied("invitados", filledSet, extracted)) return mensaje;
   const pending = getNextPendingField(extracted, filledSet);
   log?.info({ entityId, pending }, "GUARD: afluencia desconocida \u2014 no repetir invitados");
   if (pending) {
@@ -210378,6 +210490,35 @@ ${nextQ}`.trim()
 }
 function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ctx) {
   const msg = currentMessage ?? "";
+  {
+    const concrete = buildConcreteProductQuestionReply(
+      msg,
+      extracted.requerimientos_evento
+    );
+    if (concrete) {
+      if (filledSet) filledSet.add("Requerimientos o servicios");
+      if (!isValidRequerimientosValue(extracted.requerimientos_evento)) {
+        extracted.requerimientos_evento = "Carpas";
+      } else if (!/\bcarpas?\b/i.test(extracted.requerimientos_evento ?? "")) {
+        const merged = mergeServiceRequirements(
+          extracted.requerimientos_evento,
+          "Carpas",
+          6
+        );
+        if (merged) extracted.requerimientos_evento = merged;
+      }
+      const filledAfter2 = new Set(filledSet ?? []);
+      filledAfter2.add("Requerimientos o servicios");
+      const pending2 = getNextPendingField(extracted, filledAfter2);
+      if (pending2 && pending2 !== "requerimientos" && ctx) {
+        const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet: filledAfter2 });
+        return `${pickTransition(history)} ${concrete}
+
+${nextQ}`.trim();
+      }
+      return `${pickTransition(history)} ${concrete}`.trim();
+    }
+  }
   const dims = parseSpaceDimensions(msg) || (extracted.requerimientos_evento?.match(/\d+m\s*x\s*\d+m/i)?.[0] ?? null) || collectUserTexts(history, msg).map((t4) => parseSpaceDimensions(t4)).find(Boolean) || null;
   const variant = parseCarpaVariantFromText(msg);
   const transparent = /transparent/i.test(msg) || /transparent/i.test(variant ?? "");
@@ -210385,7 +210526,8 @@ function buildCarpasSalesReply(extracted, history, currentMessage, filledSet, ct
   const alreadyPitched = history.some(
     (m6) => m6.role === "assistant" && typeof m6.content === "string" && /carpas?\s+(?:blancas?|negras?|transparentes?)|tipo\s+domo/i.test(m6.content)
   );
-  const alsoMobiliario = /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
+  const asksCapacity = clientAsksCapacityLayout(msg);
+  const alsoMobiliario = !asksCapacity && /\bmobiliario\b|\bmesas?\b|\bsillas?\b|\bperiqueras?\b/i.test(msg);
   if (filledSet) filledSet.add("Requerimientos o servicios");
   const baseLabel = variant || (transparent ? "Carpas transparentes" : "Carpas");
   const label = alsoMobiliario ? `${baseLabel}, Mobiliario` : baseLabel;
@@ -212195,8 +212337,9 @@ function isInformativeClientAnswer(currentMessage) {
 function clientAskedFreeformQuestion(message) {
   if (!message?.trim()) return false;
   const t4 = message.toLowerCase();
-  if (/\?/.test(message)) return true;
-  return clientAsksLocation(message) || /cu[aá]nto|precio|costo|cat[aá]logo|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@/i.test(
+  if (/\?|¿/.test(message)) return true;
+  if (clientAsksConcreteProductQuestion(message)) return true;
+  return clientAsksLocation(message) || /cu[aá]nto|precio|costo|cat[aá]logo|c+t?a+l+[oó]+g+|men[uú]|tienen|incluye|kosher|horario|tel[eé]fono|correo\s+de\s+bodasesor|hola@|fotos?|iluminaci|luz|cuenta\s+con/i.test(
     message
   ) || /qu[eé]\s+ofrecen|qu[eé]\s+tienen|qu[eé]\s+manejan|qu[eé]\s+servicios|cu[aá]les\s+son|informaci[oó]n|recomiendas?|sugieres|ayudas?\s+con|pueden\s+hacer/i.test(
     t4
@@ -212508,6 +212651,28 @@ ${nextQ}` : ack;
       return normalizeAdvisorReferences(body2, display);
     }
   }
+  if (!cierreYaEnviado && currentMessage?.trim() && clientAsksConcreteProductQuestion(currentMessage)) {
+    const serviceHintConcrete = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
+    const concreteReply = buildConcreteProductQuestionReply(
+      currentMessage,
+      serviceHintConcrete
+    );
+    if (concreteReply) {
+      log?.info(
+        { entityId },
+        "GUARD: A15286 \u2014 pregunta concreta (return temprano global)"
+      );
+      return normalizeAdvisorReferences(
+        mergeWithPendingQuestion(
+          `${pickTransition(presHistory)} ${concreteReply}`,
+          filledSet,
+          extracted,
+          ctx
+        ),
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
   if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     if (clientAsksPrice(currentMessage)) {
     } else {
@@ -212553,6 +212718,25 @@ ${multiPackageDumpEarly}`,
         return normalizeAdvisorReferences(
           mergeWithPendingQuestion(
             `${pickTransition(presHistory)} ${specificItemEarly}`,
+            filledSet,
+            extracted,
+            ctx
+          ),
+          extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+        );
+      }
+      const concreteEarly = buildConcreteProductQuestionReply(
+        currentMessage ?? "",
+        serviceHintEarly
+      );
+      if (concreteEarly) {
+        log?.info(
+          { entityId },
+          "GUARD: A15286 \u2014 pregunta concreta (return temprano)"
+        );
+        return normalizeAdvisorReferences(
+          mergeWithPendingQuestion(
+            `${pickTransition(presHistory)} ${concreteEarly}`,
             filledSet,
             extracted,
             ctx
@@ -212615,12 +212799,22 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   );
   {
     const blob = collectUserTexts(presHistory, currentMessage).join(" ");
-    if (extracted.num_invitados != null && new RegExp(
-      `\\b${extracted.num_invitados}\\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?)\\b`,
-      "i"
-    ).test(blob)) {
-      extracted.num_invitados = null;
-      filledSet.delete("N\xFAmero de invitados");
+    if (extracted.num_invitados != null) {
+      const n5 = String(extracted.num_invitados).replace(/[^\d]/g, "");
+      if (n5) {
+        const asGuests = new RegExp(
+          `\\b${n5}\\s*(personas?|invitados?|pax|guests?)\\b`,
+          "i"
+        ).test(blob);
+        const asFurnitureOnly = new RegExp(
+          `\\b${n5}\\s*(salas?|mesas?|sillas?|carpas?|pistas?|tarimas?)\\b`,
+          "i"
+        ).test(blob);
+        if (asFurnitureOnly && !asGuests) {
+          extracted.num_invitados = null;
+          filledSet.delete("N\xFAmero de invitados");
+        }
+      }
     }
     if (extracted.direccion_evento && (isLikelyProductNameNotLocation(extracted.direccion_evento) || looksLikeCompanyLocationQuestionFragment(extracted.direccion_evento) || !isUsableDireccionEvento(extracted.direccion_evento) || parseCarpaVariantFromText(extracted.direccion_evento) || /\bsala\s*:/i.test(blob) && new RegExp(
       extracted.direccion_evento.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
@@ -213478,7 +213672,8 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
     `${extracted.requerimientos_evento ?? ""} ${collectUserTexts(presHistory, currentMessage).join(" ")}`
   ) && /medidas/i.test(
     typeof lastAssistantMsg?.content === "string" ? lastAssistantMsg.content : ""
-  ))) {
+  )) && // A15286: no pisar respuesta a fotos/luz/capacidad con plantilla de medidas.
+  !shouldSkipSalesMenuForConcreteQuestion(currentMessage)) {
     const carpasTemplate = buildCarpasSalesReply(
       extracted,
       history,
@@ -213544,7 +213739,7 @@ ${buildNaturalQuestion(pending, ctx)}` : buildClosing(
     }
   } else if (
     // V8.92 / A15165: menú de piezas mobiliario → modelos (también post-cierre).
-    allowSalesReplyOverride && (historyOfferedMobiliarioPieceMenu(presHistory) || /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio\b/i.test(currentMessage ?? "")) && currentMessage?.trim() && (parseMobiliarioPieceChoice(currentMessage) || /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") || /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
+    allowSalesReplyOverride && !shouldSkipSalesMenuForConcreteQuestion(currentMessage) && !clientAsksForCatalog(currentMessage) && (historyOfferedMobiliarioPieceMenu(presHistory) || /\b(modelos?\s+de\s+)?sillas?\b|\bmobiliario|mobilairio\b/i.test(currentMessage ?? "")) && currentMessage?.trim() && (parseMobiliarioPieceChoice(currentMessage) || /\b(modelos?\s+de\s+)?sillas?\b/i.test(currentMessage ?? "") || /\bmobiliario|mobilairio\b/i.test(currentMessage ?? ""))
   ) {
     const piece = parseMobiliarioPieceChoice(currentMessage) || (/\bsillas?\b/i.test(currentMessage ?? "") ? "sillas" : /\bmesas?\b/i.test(currentMessage ?? "") ? "mesas" : "mobiliario");
     filledSet.add("Requerimientos o servicios");
@@ -216535,10 +216730,10 @@ function applyLucyGlobalAntiRepetition(input) {
   const isCatalogDetailReply = /\bincluye\s*:|qu[eé]\s+incluye\s+cada|detalle completo de men[uú]s|manejamos estos niveles|cu[aá]l nivel prefieres|\*precio:\*|\b(b[aá]sic|tradicional|premium).{0,40}\$\s*\d|Según el catálogo que ya tenemos|¿Te late este nivel/i.test(
     mensaje
   ) || isEntertainmentCatalog || clientAffirmingCatalog;
-  const clientAskingInfo = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || clientAsksForRecommendations(input.currentMessage) || clientAsksForCatalog(input.currentMessage) || clientAsksInclusion(input.currentMessage) || clientAsksPrice(input.currentMessage) || // A15168: "opción 1" / "ver las opciones" no debe colapsar a "Seguimos…".
+  const clientAskingInfo = clientAsksServiceInfo(input.currentMessage) || clientMentionsEntertainment(input.currentMessage) || clientAsksForRecommendations(input.currentMessage) || clientAsksForCatalog(input.currentMessage) || clientAsksInclusion(input.currentMessage) || clientAsksPrice(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage) || // A15168: "opción 1" / "ver las opciones" no debe colapsar a "Seguimos…".
   /\b(opci[oó]n(?:es)?\s*[1-9]|paquete\s*[1-9]|ver\s+(las\s+)?opciones|muestr\w*\s+(las\s+)?opciones)\b/i.test(
     input.currentMessage ?? ""
-  ) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break)\b/i.test(
+  ) || /\b(modelos?|sillas?|mobiliario|mobilairio|banquetes?|shows?|info|coffee\s*break|coffe\s*break|fotos?|carpa|luz|iluminaci)\b/i.test(
     input.currentMessage ?? ""
   );
   if (cierre && THANKS_ACK_PATTERN.test(mensaje) && previous.some((p5) => THANKS_ACK_PATTERN.test(p5))) {
@@ -216574,7 +216769,7 @@ function applyLucyGlobalAntiRepetition(input) {
       applied.push("filled-field-ack");
     }
   }
-  if (!cierre && hasCatalogNow && !isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientAskedServiceInfo && !clientAffirmingCatalog && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p5) => CATALOG_SEND_PATTERN.test(p5))) {
+  if (!cierre && hasCatalogNow && !isCatalogDetailReply && !clientAskedInclusion && !clientAskedPrice && !clientAskedServiceInfo && !clientAskingInfo && !clientAffirmingCatalog && !/\b(s[ií]|manda|env[ií]a|pásame|pasame|quiero)\b/i.test(input.currentMessage ?? "") && previous.some((p5) => CATALOG_SEND_PATTERN.test(p5))) {
     const without = stripCatalogOfferBlock(mensaje);
     const qs2 = questionLines(without).filter(
       (q3) => !/cat[aá]logo/i.test(q3) && previous.every((p5) => lucyTextOverlapRatio(q3, p5) < 0.68)
@@ -216710,8 +216905,8 @@ async function finalizeLucyOutboundMessage(input) {
   const alreadyOperational = /\b(s[ií]|manejamos|monta|incluye|prepar|cocin|precio|\$|contamos|ofrecemos|horn|ayudo|anoto|entretenimiento|shows?|hora\s+loca|animaci[oó]n|cat[aá]logo|bodasesor\.com|mesas?\s+y\s+sillas|tiffany|crossback)\b/i.test(
     mensaje
   );
-  if (!input.cierreYaEnviado && !openingNombreOnly && !hasLucyIntro && input.currentMessage && clientAsksServiceInfo(input.currentMessage) && isServiceRelatedMessage(input.currentMessage) && !alreadyOperational) {
-    const ack = buildGuardServiceAck(input.currentMessage);
+  if (!input.cierreYaEnviado && !openingNombreOnly && !hasLucyIntro && input.currentMessage && (clientAsksServiceInfo(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && (isServiceRelatedMessage(input.currentMessage) || clientAsksConcreteProductQuestion(input.currentMessage)) && !alreadyOperational) {
+    const ack = buildConcreteProductQuestionReply(input.currentMessage) || buildGuardServiceAck(input.currentMessage);
     const keepQ = (mensaje.match(/[^.!?]*\?/g) ?? []).join(" ").trim();
     mensaje = keepQ ? `${ack}
 

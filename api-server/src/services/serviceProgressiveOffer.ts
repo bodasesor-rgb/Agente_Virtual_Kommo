@@ -8,6 +8,7 @@
  */
 
 import type { OpenAI } from "openai";
+import { clientAsksForCatalog } from "../conversation-understanding.js";
 
 /** CTA único para TODAS las ramas (niveles Sheet + menús progresivos). A14982. */
 export const SERVICE_NIVEL_DETAIL_CTA = "¿Quieres que te dé detalles de alguno?";
@@ -782,11 +783,18 @@ export function shouldOfferOptionsBeforeDetail(opts: {
   if (!blob) return null;
 
   // A15251: "¿incluye bebidas/meseros?" → detalle del catálogo, no menú de familia.
+  // A15286: pregunta concreta (fotos/luz/capacidad/catálogo) → no menú.
   if (
     /\b(incluye|inclue|incluyen|trae|tiene|tienen|viene|vienen)\b.{0,48}\b(bebidas?|refrescos?|meseros?|vajilla|cristaler[ií]a|alcohol|montaje|chef)\b/i.test(
       msg
     ) ||
-    /\bsi\b.{0,40}\bincluye\b.{0,40}\b(bebidas?|meseros?|vajilla)\b/i.test(msg)
+    /\bsi\b.{0,40}\bincluye\b.{0,40}\b(bebidas?|meseros?|vajilla)\b/i.test(msg) ||
+    clientAsksForCatalog(msg) ||
+    /\b(fotos?|fotograf|iluminaci|cuenta\s+con\s+luz|mesas?\s+por\s+carpa|c+t?a+l+[oó]+g+)/i.test(
+      msg
+    ) ||
+    (/\?|¿/.test(msg) &&
+      /\b(carpa|toldo|luz|mesas?|sillas?|incluye|cuenta|cu[aá]ntas?)\b/i.test(msg))
   ) {
     return null;
   }
