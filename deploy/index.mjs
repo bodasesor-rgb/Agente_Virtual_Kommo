@@ -206051,6 +206051,46 @@ function buildCatalogWebDetailHint(query) {
 
 // src/services/serviceProgressiveOffer.ts
 var SERVICE_NIVEL_DETAIL_CTA = "\xBFQuieres que te d\xE9 detalles de alguno?";
+function messageHasSoloCompletoNivelOrMode(text2) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4) return false;
+  return /\b(solo\s+alimentos|servicio\s+completo)\b/i.test(t4) || /(?:^|[^\p{L}])completo(?:[^\p{L}]|$)/iu.test(t4) || /\b(b[aá]sic[oa]|tradicional|premium)\b/i.test(t4);
+}
+function buildSoloVsCompletoProgressiveMenu(serviceLabel) {
+  const label = serviceLabel.trim() || "ese servicio";
+  return [
+    `Claro. En *${label}* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).`,
+    "",
+    "\xBFCu\xE1l te late m\xE1s?"
+  ].join("\n");
+}
+function resolveSoloVsCompletoStationLabel(text2, family) {
+  const t4 = text2?.trim() ?? "";
+  if (!t4 && !family) return null;
+  if (family === "barra_sushi" || /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i.test(t4)) {
+    return "Barra de sushi";
+  }
+  if (family === "taquiza" || /\btaquiza\b/i.test(t4)) {
+    return "taquiza";
+  }
+  if (/\bbarra\s+yucateca\b|\byucateca\b/i.test(t4)) return "Barra Yucateca";
+  if (family === "parrillada" || /\bparrillada\b/i.test(t4)) {
+    if (/\bargentina\b/i.test(t4)) return "Parrillada Argentina";
+    if (/\btacos?\b/i.test(t4)) return "Parrillada Tacos";
+    return null;
+  }
+  if (family === "barra_alimentos" || /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bpizzas?\b|\bpastas?\b|\bcrepas?\b|\bmariscos?\b|\bpaninis?\b/i.test(
+    t4
+  )) {
+    if (/\bpizzas?\b/i.test(t4)) return "Barra de pizzas";
+    if (/\bpasta|ensalada|italian/i.test(t4)) return "Barra de pastas y ensaladas";
+    if (/\bcrepas?\b/i.test(t4)) return "Barra de Crepas";
+    if (/\bmariscos?\b/i.test(t4)) return "Barra de mariscos";
+    if (/\bpaninis?\b/i.test(t4)) return "Barra de paninis";
+    return null;
+  }
+  return null;
+}
 function banqueteDetailQuery(text2) {
   const tiempos4 = /\b(4\s*tiempos?|cuatro\s*tiempos?)\b/i.test(text2);
   const tiempos3 = /\b(3\s*tiempos?|tres\s*tiempos?)\b/i.test(text2);
@@ -206128,11 +206168,7 @@ var FAMILIES = [
     familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
     variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de sushi", text2),
-    buildMenu: () => [
-      "Claro. En *Barra de sushi* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
-      "",
-      "\xBFCu\xE1l te late m\xE1s?"
-    ].join("\n")
+    buildMenu: () => buildSoloVsCompletoProgressiveMenu("Barra de sushi")
   },
   {
     family: "barra_cafe",
@@ -206147,8 +206183,8 @@ var FAMILIES = [
   },
   {
     family: "barra_bebidas",
-    familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog|\bcocteler|\bm[oó]cteles?\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca|mixolog|cocteler|m[oó]cteles?|con\s+alcohol|sin\s+alcohol)\b/i,
+    familyPattern: /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog|\bcocteler|\bm[oó]cteles?\b|\bbarra\s+americana\b/i,
+    variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium|americana|yucateca|mixolog|cocteler|m[oó]cteles?|con\s+alcohol|sin\s+alcohol)\b/i,
     detailQueryFromText: (text2) => {
       if (/yucateca/i.test(text2)) return withCatalogNivelQuery("Barra Yucateca", text2);
       if (/americana/i.test(text2)) return withCatalogNivelQuery("Barra Americana", text2);
@@ -206157,20 +206193,33 @@ var FAMILIES = [
       if (/con\s+alcohol/i.test(text2)) return "Barra de bebidas con Alcohol";
       return withCatalogNivelQuery("Barra de bebidas", text2);
     },
-    buildMenu: () => [
-      "Claro. En bebidas manejamos:",
-      "\u2022 *Barra de bebidas* (con o sin alcohol)",
-      "\u2022 *Barra Americana* / *Barra Yucateca*",
-      "\u2022 *Cocteler\xEDa / Mixolog\xEDa* y *M\xF3cteles*",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
+    buildMenu: (hint) => {
+      if (hint && /\byucateca\b/i.test(hint)) {
+        return buildSoloVsCompletoProgressiveMenu("Barra Yucateca");
+      }
+      if (hint && /\bamericana\b/i.test(hint)) {
+        return [
+          "Claro. En *Barra Americana* manejamos varios niveles de montaje y bebidas.",
+          "",
+          SERVICE_NIVEL_DETAIL_CTA
+        ].join("\n");
+      }
+      return [
+        "Claro. En bebidas manejamos:",
+        "\u2022 *Barra de bebidas* (con o sin alcohol)",
+        "\u2022 *Barra Americana* / *Barra Yucateca*",
+        "\u2022 *Cocteler\xEDa / Mixolog\xEDa* y *M\xF3cteles*",
+        "",
+        SERVICE_NIVEL_DETAIL_CTA
+      ].join("\n");
+    }
   },
   {
     family: "barra_alimentos",
     // A15302: "barra italiana" cuenta como familia de alimentos (no bebidas).
-    familyPattern: /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bbarras?\s+tem[aá]ticas?\b/i,
-    variantPattern: /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|italian[ao]?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+    // V9.28: yucateca también entra aquí (estación con Solo Alimentos).
+    familyPattern: /\bbarras?\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bbarras?\s+tem[aá]ticas?\b|\bbarra\s+yucateca\b|\byucateca\b/i,
+    variantPattern: /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|italian[ao]?|americana|yucateca|solo\s+alimentos|servicio\s+completo|completo|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => {
       if (/pizza/i.test(text2)) return withCatalogNivelQuery("Barra de pizzas", text2);
       if (/pasta|ensalada|italian/i.test(text2)) {
@@ -206184,6 +206233,8 @@ var FAMILIES = [
       return withCatalogNivelQuery("Barra de alimentos", text2);
     },
     buildMenu: (hint) => {
+      const station = resolveSoloVsCompletoStationLabel(hint, "barra_alimentos");
+      if (station) return buildSoloVsCompletoProgressiveMenu(station);
       if (hint && /\bitalian/i.test(hint)) {
         return [
           "\xA1S\xED! Para *barra italiana* manejamos estaciones de comida italiana:",
@@ -206197,7 +206248,7 @@ var FAMILIES = [
       return [
         "Claro. En barras de alimentos manejamos varias:",
         "\u2022 Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
-        "\u2022 Americana, Yucateca y m\xE1s",
+        "\u2022 Yucateca y m\xE1s",
         "",
         SERVICE_NIVEL_DETAIL_CTA
       ].join("\n");
@@ -206208,16 +206259,12 @@ var FAMILIES = [
     familyPattern: /\btaquiza\b/i,
     variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => withCatalogNivelQuery("taquiza", text2),
-    buildMenu: () => [
-      "Claro. En *taquiza* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
-      "",
-      "\xBFCu\xE1l te late m\xE1s?"
-    ].join("\n")
+    buildMenu: () => buildSoloVsCompletoProgressiveMenu("taquiza")
   },
   {
     family: "parrillada",
     familyPattern: /\bparrillada\b/i,
-    variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+    variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => {
       if (/argentina/i.test(text2)) {
         return withCatalogNivelQuery("Parrillada Argentina", text2);
@@ -206227,11 +206274,15 @@ var FAMILIES = [
       }
       return withCatalogNivelQuery("parrillada", text2);
     },
-    buildMenu: () => [
-      "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
+    buildMenu: (hint) => {
+      const station = resolveSoloVsCompletoStationLabel(hint, "parrillada");
+      if (station) return buildSoloVsCompletoProgressiveMenu(station);
+      return [
+        "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
+        "",
+        SERVICE_NIVEL_DETAIL_CTA
+      ].join("\n");
+    }
   },
   {
     family: "cupcakes_betun",
@@ -206660,7 +206711,27 @@ function shouldOfferOptionsBeforeDetail(opts) {
     return null;
   }
   const famDef = defFor(family);
-  const hasVariantNow = hasConcreteServiceVariant(msg) || famDef.variantPattern.test(msg) || /\b(b[aá]sic[oa]|tradicional|premium|solo\s+alimentos)\b/i.test(msg);
+  const hasNivelOrModeNow = messageHasSoloCompletoNivelOrMode(msg);
+  const stationBlob = `${msg} ${opts.serviceHint ?? ""}`.trim();
+  const soloCompletoStation = resolveSoloVsCompletoStationLabel(msg, family) || resolveSoloVsCompletoStationLabel(stationBlob, family) || resolveSoloVsCompletoStationLabel(opts.serviceHint, family);
+  if (soloCompletoStation && !hasNivelOrModeNow) {
+    if (historyOfferedServiceOptionsMenu(opts.history) && clientWantsServiceDetail(msg, opts.history)) {
+      return null;
+    }
+    if (historyOfferedServiceOptionsMenu(opts.history) && msg.length < 80) {
+      const msgFamily = detectProgressiveFamily(msg);
+      if (!msgFamily || msgFamily === family) {
+        return { family, menu: SERVICE_NIVEL_DETAIL_CTA };
+      }
+    }
+    if (!historyOfferedServiceOptionsMenu(opts.history)) {
+      return {
+        family,
+        menu: buildSoloVsCompletoProgressiveMenu(soloCompletoStation)
+      };
+    }
+  }
+  const hasVariantNow = hasNivelOrModeNow || hasConcreteServiceVariant(msg) || famDef.variantPattern.test(msg);
   if (hasVariantNow) {
     return null;
   }
@@ -207762,6 +207833,25 @@ function buildCompletoNivelesTeaser(svc, rows) {
     svc
   );
 }
+function buildSoloVsCompletoOfferIfApplicable(query) {
+  if (!snapshot?.rows.length || !query.trim()) return null;
+  if (queryWantsSpecificCompletoNivel(query) || queryWantsSoloAlimentos(query)) {
+    return null;
+  }
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  if (resolved.kind === "service_nivel") return null;
+  const svc = resolved.serviceName ?? uniqueServicios(resolved.rows)[0] ?? query.trim();
+  const svcRows = resolved.rows.filter(
+    (r5) => normalizeForMatch(r5.servicio) === normalizeForMatch(svc) || rowMatchesServiceLabel(r5, svc)
+  );
+  const rows = (svcRows.length ? svcRows : resolved.rows).slice(0, 12);
+  if (!serviceHasSoloVsCompleto(rows)) return null;
+  if (queryWantsCompletoMode(query)) {
+    return buildCompletoNivelesTeaser(svc, rows);
+  }
+  return buildSoloVsCompletoModeAnswer(svc, rows);
+}
 function messageOffersLevelsWithoutInclusions(text2) {
   if (!text2?.trim()) return false;
   const t4 = text2.trim();
@@ -207780,6 +207870,8 @@ function messageOffersLevelsWithoutInclusions(text2) {
 function enrichBareNivelOffer(mensaje, serviceHint) {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
   const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
+  const soloCompleto = buildSoloVsCompletoOfferIfApplicable(hint);
+  if (soloCompleto) return soloCompleto;
   const fromPdf = buildPdfInclusionReply(hint);
   if (fromPdf) return fromPdf;
   const detail = buildCatalogServiceDetailAnswer(hint);
@@ -209082,7 +209174,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.27";
+var LUCY_PROMPT_VERSION = "V9.28";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -211524,6 +211616,16 @@ ${nextQ}`;
 Cat\xE1logo:
 https://bodasesor.com/catalogos/coffee-break`;
         }
+      } else {
+        const station = resolveSoloVsCompletoStationLabel(
+          currentMessage,
+          optionsFirst.family
+        ) || resolveSoloVsCompletoStationLabel(
+          mentionedService || serviceLabel || crmService,
+          optionsFirst.family
+        );
+        const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
+        if (sheetMode) menu = sheetMode;
       }
       return `${pickTransition(history)} ${menu}`.trim();
     }
@@ -212706,7 +212808,10 @@ function buildDeferredKnownServiceOffer(opts) {
     serviceHint: svc
   });
   if (optionsFirst) {
-    let body3 = `${intro} ${optionsFirst.menu}`.trim();
+    const station = resolveSoloVsCompletoStationLabel(svc, optionsFirst.family) || resolveSoloVsCompletoStationLabel(svc);
+    const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
+    const menu = sheetMode || optionsFirst.menu;
+    let body3 = `${intro} ${menu}`.trim();
     const pending2 = getNextPendingField(extracted, filledSet);
     if (pending2 && pending2 !== "requerimientos" && pending2 !== "nombre") {
       const nextQ = buildNaturalQuestion(pending2, { ...ctx, filledSet });
@@ -217058,12 +217163,14 @@ NO repitas el abanico. Descubre antes de detallar:
 - Ya eligi\xF3 pieza/opci\xF3n \u2192 3\u20135 modelos o niveles + pregunta cu\xE1l detallas.
 - Ya eligi\xF3 nivel/modelo \u2192 inclusiones (PDF Aprendizaje) + precio (Sheet) + link
   de cat\xE1logo de ESE servicio.
-- Servicios con *Solo Alimentos* + Basico/Tradicional/Premium (taquiza, sushi,
-  yucateca, pastas\u2026): NUNCA listes los 4 con precio. Primero pregunta:
-  *solo alimentos* (con su precio) o *servicio completo* (desde el precio B\xE1sico;
-  incluye bebidas, mobiliario y meseros). Si elige completo \u2192 di que hay 3 niveles
-  y que lo que cambia es montaje, meseros, decoraci\xF3n y bebidas; pregunta de cu\xE1l
-  quiere detalle. Solo entonces da inclusiones/precios de ESE nivel.
+- Servicios con *Solo Alimentos* + Basico/Tradicional/Premium (TODAS las estaciones:
+  taquiza, sushi, pastas, pizzas, crepas, mariscos, paninis, yucateca, parrillada
+  argentina/tacos, y cualquier otra del Sheet con ese patr\xF3n): NUNCA listes los 4
+  con precio. Primero pregunta: *solo alimentos* (con su precio) o *servicio
+  completo* (desde el precio B\xE1sico; incluye bebidas, mobiliario y meseros). Si
+  elige completo \u2192 di que hay 3 niveles y que lo que cambia es montaje, meseros,
+  decoraci\xF3n y bebidas; pregunta de cu\xE1l quiere detalle. Solo entonces da
+  inclusiones/precios de ESE nivel. Mismo procedimiento en todas las ramas.
 
 Si PDF y Sheet chocan en precio, gana el Sheet. Nunca inventes inclusiones.
 
