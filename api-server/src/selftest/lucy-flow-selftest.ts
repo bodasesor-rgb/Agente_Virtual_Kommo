@@ -10334,6 +10334,94 @@ async function runAll(): Promise<void> {
     );
   });
 
+  // ─── 143. A15298 — Priscilla RFQ editorial: sin dump bebidas; propuesta = cierre ───
+  await test("143. A15298 — RFQ canapés/café + propuesta mamita cierra sin presupuesto", () => {
+    const brief = [
+      "Nos gustaría solicitarles una cotización para una presentación editorial.",
+      "Fecha: 21 de noviembre. Horario: de 14:00 a 19:00 horas.",
+      "Número estimado de asistentes: 60 personas.",
+      "Lugar: Centro Cultural El Rule, ubicado junto a la Torre Latinoamericana, en el tercer piso.",
+      "Tipo de evento: presentación editorial.",
+      "Bocadillos o canapes salados, vegetarianas/veganas, servicio de café.",
+      "Nosotros proporcionaríamos los vinos, el agua y las copas.",
+      "Sí necesitaríamos su apoyo con la distribución y el servicio de las bebidas.",
+      "La cotización indicara si incluye personal de servicio y cuanto seria sin personal.",
+      "Quedamos atentos a sus propuestas y recomendaciones.",
+    ].join("\n");
+
+    assert.ok(isRichQuoteBrief(brief));
+    assert.equal(clientAsksSpecificInclusionItem(brief), "meseros");
+    assert.ok(!/tercer piso/i.test(parseZonaFromText(brief) ?? ""));
+    assert.ok(/Centro Cultural El Rule/i.test(parseZonaFromText(brief) ?? ""));
+    assert.ok(detectPresupuestoRefusal("Me gustaría una propuesta mamita"));
+    assert.ok(detectPresupuestoRefusal("Por favor una propuesta"));
+    assert.ok(parseServicesFromText(brief).some((s) => /canap/i.test(s)));
+    assert.ok(parseServicesFromText(brief).some((s) => /caf[eé]/i.test(s)));
+    assert.equal(parseTipoEventoFromText(brief), "presentación editorial");
+
+    const extracted = emptyExtracted();
+    const live = runGuards({
+      aiResponse: "De acuerdo. Sobre *bebidas* en *Canapés*: *Sí incluye* en Basico...",
+      extracted,
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: brief,
+      history: [{ role: "assistant", content: "¡Hola! ¿Me regalas tu nombre?" }],
+    });
+    assert.ok(
+      !/Sobre \*bebidas\*|S[ií] incluye|Solo Alimentos/i.test(live),
+      `no dump bebidas: ${live.slice(0, 350)}`
+    );
+    assert.ok(
+      /revis[eé]|anoto|canap|nombre|llamas/i.test(live),
+      live.slice(0, 400)
+    );
+    assert.ok(/Centro Cultural El Rule/i.test(extracted.direccion_evento ?? ""));
+    assert.ok(/21 de noviembre/i.test(extracted.fecha_horario ?? ""));
+    assert.equal(extracted.num_invitados, 60);
+
+    const filledReady = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+    ]);
+    const exReady = emptyExtracted({
+      nombre: "Priscilla Bulnes",
+      correo: "trogni1@yahoo.com",
+      tipo_evento: "presentación editorial",
+      requerimientos_evento: "Canapés, Bocadillos, Meseros, Barra de Café",
+      direccion_evento: "Centro Cultural El Rule",
+      fecha_horario: "21 de noviembre",
+      num_invitados: 60,
+    });
+    const cierre = runGuards({
+      aiResponse: "¿Tienen algún rango de presupuesto en mente?",
+      extracted: exReady,
+      filledSet: filledReady,
+      readyForClosing: false,
+      currentMessage: "Me gustaría una propuesta mamita",
+      history: [
+        {
+          role: "assistant",
+          content: "¿Tienen algún rango de presupuesto en mente?",
+        },
+      ],
+    });
+    assert.ok(filledReady.has("Presupuesto (MXN)"));
+    assert.ok(
+      !/presupuesto|rango de inversi/i.test(cierre),
+      `no re-pedir presupuesto: ${cierre.slice(0, 300)}`
+    );
+    assert.ok(
+      /ya tengo todo|equipo|cotizaci/i.test(cierre),
+      cierre.slice(0, 300)
+    );
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }

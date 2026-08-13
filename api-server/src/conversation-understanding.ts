@@ -78,7 +78,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
   ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
-  ["Barra de Café", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
+  ["Barra de Café", /\bbarra\s+de\s+caf[eé](?!\p{L})|\bservicio\s+de\s+caf[eé](?!\p{L})/iu],
   ["Coffee break", /\b(coffee\s*break|coffeebreak|coffe\s*break)\b/i],
   ["Comida Corrida", /\bcomida\s+corrida\b/i],
   ["Paella", /\bpaellas?\b|\bpaellada\b/i],
@@ -281,7 +281,21 @@ const TIPO_EVENTO_PATTERNS: Array<[RegExp, string]> = [
   [/\bconciertos?\b/i, "concierto"],
   // A15205 Mariel: campamento / concentración deportiva.
   [/\bcampamentos?\b|\bconcentraci[oó]n\b|\batletas?\b/i, "campamento"],
+  // A15298: presentación editorial / lanzamiento de libro.
+  [
+    /\bpresentaci[oó]n\s+editorial\b|\blanzamiento\s+de\s+(libro|libro|revista)\b|\bpresentaci[oó]n\s+de\s+libro\b/i,
+    "presentación editorial",
+  ],
 ];
+
+/** "Tipo de evento: presentación editorial" en RFQs etiquetados. */
+function parseTipoEventoLabeled(text: string): string | null {
+  const m = text.match(/\bTipo\s+de\s+evento\s*:\s*([^\n.]{3,60})/i);
+  if (!m?.[1]) return null;
+  const raw = m[1].trim().replace(/\s+/g, " ");
+  if (/^(cotizaci|servicio|catering|banquete)$/i.test(raw)) return null;
+  return raw.slice(0, 80);
+}
 
 /** Normaliza para comparar presentaciones ("Alejandro?", "¿Alejandro"). */
 function normalizePresentationText(text: string): string {
@@ -1808,6 +1822,10 @@ export function isVagueVenueOnly(text: string | null | undefined): boolean {
   if (!t) return true;
   const cleaned = t
     .replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "")
+    .trim()
+    // A15298: "tercer piso\nTipo de" → solo el piso (basura de parseo)
+    .split(/\n/)[0]!
+    .replace(/\s+tipo\s+de.*$/i, "")
     .trim();
   if (!cleaned) return true;
   if (
@@ -1815,6 +1833,10 @@ export function isVagueVenueOnly(text: string | null | undefined): boolean {
       cleaned
     )
   ) {
+    return true;
+  }
+  // Solo piso / nivel sin nombre del recinto (A15298).
+  if (/^(primer|segundo|tercer|cuarto|quinto|\d+(er|do|to)?)\s+piso$/i.test(cleaned)) {
     return true;
   }
   // Compuestos genéricos sin nombre propio.
@@ -2241,8 +2263,10 @@ export function buildRichBriefAcknowledgment(text: string): string {
     /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+\d{4})?)/i
   );
   const zona =
+    parseZonaFromText(text) ||
     text.match(/\ben\s+(Santa\s+Fe(?:,?\s*Ciudad\s+de\s+M[eé]xico)?)/i)?.[1] ||
     text.match(/\bUbicaci[oó]n:\s*([^\n.*]{4,60})/i)?.[1]?.trim() ||
+    text.match(/\bLugar\s*:\s*([^\n,]{4,60})/i)?.[1]?.trim() ||
     text.match(/\ben\s+([A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3}),?\s*(?:Ciudad\s+de\s+M[eé]xico|CDMX)/i)?.[0]?.replace(/^en\s+/i, "");
 
   const hasThreeMenus =
@@ -2421,7 +2445,7 @@ export function parseTipoEventoFromText(text: string): string | null {
   for (const [pattern, label] of TIPO_EVENTO_PATTERNS) {
     if (pattern.test(text)) return label;
   }
-  return null;
+  return parseTipoEventoLabeled(text);
 }
 
 /**
@@ -2946,6 +2970,21 @@ export function parseZonaFromText(text: string): string | null {
     return null;
   }
 
+  // A15298: "Lugar: Centro Cultural El Rule, ubicado junto a…"
+  const lugarLabel = trimmed.match(/\bLugar\s*:\s*([^\n,]{4,80})(?:,|\n|$)/i);
+  if (lugarLabel?.[1]) {
+    const venue = lugarLabel[1].trim().replace(/\s+/g, " ");
+    if (isUsableDireccionEvento(venue) && !isVagueVenueOnly(venue)) {
+      return venue;
+    }
+  }
+  const centroCultural = trimmed.match(
+    /\b(Centro\s+Cultural\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.-]{2,40})/i
+  );
+  if (centroCultural?.[1] && isUsableDireccionEvento(centroCultural[1].trim())) {
+    return centroCultural[1].trim().replace(/\s+/g, " ");
+  }
+
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
   if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
     return expoMatch[0].trim();
@@ -2969,9 +3008,11 @@ export function parseZonaFromText(text: string): string | null {
   );
   if (enMatch) {
     let lugar = enMatch[1]!.trim().replace(/[.,;:]+$/g, "").trim();
+    // No cruzar saltos de línea (A15298: "en el tercer piso\nTipo de").
+    lugar = lugar.split(/\n/)[0]!.trim();
     // Corta cláusulas: "en Jiutepec para 100" / "en Polanco con DJ" / "en Roma por la tarde"
     lugar = lugar
-      .split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también)\b/i)[0]!
+      .split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también|tipo\s+de)\b/i)[0]!
       .trim()
       .replace(/[.,;:]+$/g, "")
       .trim();
@@ -3268,6 +3309,16 @@ export function detectPresupuestoRefusal(text: string | null | undefined): boole
   if (/^(no|nop)[\s.,!]*$/i.test(t)) return true;
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t)) return true;
+  // A15298: "Me gustaría una propuesta mamita" / "Por favor una propuesta"
+  // = que el equipo arme cotización (waiver), no un monto.
+  if (
+    t.length <= 100 &&
+    /\b(una\s+)?propuesta\b/i.test(t) &&
+    !/\bpresupuesto\s+(de|estimado|aprox)/i.test(t) &&
+    !/\$\s*\d|\b\d{3,}\s*(mil|pesos|mxn)\b/i.test(t)
+  ) {
+    return true;
+  }
   if (/^\.{2,}$/.test(t)) return true;
   // A14964: "Para eso te contacto" = quieren propuesta / cotización, no un monto ahora.
   if (

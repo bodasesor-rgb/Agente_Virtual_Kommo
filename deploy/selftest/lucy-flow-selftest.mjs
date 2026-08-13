@@ -124520,7 +124520,7 @@ var BODASESOR_SERVICE_PATTERNS = [
   ["Barra de alimentos", /\b(barra\s+de\s+alimentos|barras?\s+tem[aá]ticas?)\b/i],
   ["Barra de sushi", /\b(barra\s+de\s+sushi|sushi|poke(\s*bowl)?)\b/i],
   // A14970: \b tras "café" falla en JS (é ∉ \w). Usar (?!\p{L}). Barra de Café ≠ Coffee Break.
-  ["Barra de Caf\xE9", /\bbarra\s+de\s+caf[eé](?!\p{L})/iu],
+  ["Barra de Caf\xE9", /\bbarra\s+de\s+caf[eé](?!\p{L})|\bservicio\s+de\s+caf[eé](?!\p{L})/iu],
   ["Coffee break", /\b(coffee\s*break|coffeebreak|coffe\s*break)\b/i],
   ["Comida Corrida", /\bcomida\s+corrida\b/i],
   ["Paella", /\bpaellas?\b|\bpaellada\b/i],
@@ -124717,8 +124717,20 @@ var TIPO_EVENTO_PATTERNS = [
   // A14988 Ernesto: concierto es tipo de evento (no servicio).
   [/\bconciertos?\b/i, "concierto"],
   // A15205 Mariel: campamento / concentración deportiva.
-  [/\bcampamentos?\b|\bconcentraci[oó]n\b|\batletas?\b/i, "campamento"]
+  [/\bcampamentos?\b|\bconcentraci[oó]n\b|\batletas?\b/i, "campamento"],
+  // A15298: presentación editorial / lanzamiento de libro.
+  [
+    /\bpresentaci[oó]n\s+editorial\b|\blanzamiento\s+de\s+(libro|libro|revista)\b|\bpresentaci[oó]n\s+de\s+libro\b/i,
+    "presentaci\xF3n editorial"
+  ]
 ];
+function parseTipoEventoLabeled(text2) {
+  const m5 = text2.match(/\bTipo\s+de\s+evento\s*:\s*([^\n.]{3,60})/i);
+  if (!m5?.[1]) return null;
+  const raw = m5[1].trim().replace(/\s+/g, " ");
+  if (/^(cotizaci|servicio|catering|banquete)$/i.test(raw)) return null;
+  return raw.slice(0, 80);
+}
 function normalizePresentationText(text2) {
   return text2.toLowerCase().replace(/[¿?.,!]/g, "").trim();
 }
@@ -125582,11 +125594,14 @@ function isNonLocationBusinessPhrase(text2) {
 function isVagueVenueOnly(text2) {
   const t3 = (text2 ?? "").trim();
   if (!t3) return true;
-  const cleaned = t3.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim();
+  const cleaned = t3.replace(/^(el|la|los|las|un|una|en\s+(el|la|los|las)?)\s+/i, "").trim().split(/\n/)[0].replace(/\s+tipo\s+de.*$/i, "").trim();
   if (!cleaned) return true;
   if (/^(sal[oó]n|edificio|venue|stand|jard[ií]n|casa|lugar|sitio|aqu[ií]|all[aá])$/i.test(
     cleaned
   )) {
+    return true;
+  }
+  if (/^(primer|segundo|tercer|cuarto|quinto|\d+(er|do|to)?)\s+piso$/i.test(cleaned)) {
     return true;
   }
   if (/^(sal[oó]n|edificio|venue|jard[ií]n)(\s+de)?(\s+(eventos?|oficinas?|corporativo|privado|la\s+empresa|la\s+compa[nñ][ií]a))?$/i.test(
@@ -125849,7 +125864,7 @@ function buildRichBriefAcknowledgment(text2) {
   const fecha = text2.match(
     /(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)(?:\s+\d{4})?)/i
   );
-  const zona = text2.match(/\ben\s+(Santa\s+Fe(?:,?\s*Ciudad\s+de\s+M[eé]xico)?)/i)?.[1] || text2.match(/\bUbicaci[oó]n:\s*([^\n.*]{4,60})/i)?.[1]?.trim() || text2.match(/\ben\s+([A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3}),?\s*(?:Ciudad\s+de\s+M[eé]xico|CDMX)/i)?.[0]?.replace(/^en\s+/i, "");
+  const zona = parseZonaFromText(text2) || text2.match(/\ben\s+(Santa\s+Fe(?:,?\s*Ciudad\s+de\s+M[eé]xico)?)/i)?.[1] || text2.match(/\bUbicaci[oó]n:\s*([^\n.*]{4,60})/i)?.[1]?.trim() || text2.match(/\bLugar\s*:\s*([^\n,]{4,60})/i)?.[1]?.trim() || text2.match(/\ben\s+([A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+){0,3}),?\s*(?:Ciudad\s+de\s+M[eé]xico|CDMX)/i)?.[0]?.replace(/^en\s+/i, "");
   const hasThreeMenus = /\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú])\b/i.test(text2);
   const distributor = clientAsksDistributorPricing(text2);
   const bits = [];
@@ -125964,7 +125979,7 @@ function parseTipoEventoFromText(text2) {
   for (const [pattern, label] of TIPO_EVENTO_PATTERNS) {
     if (pattern.test(text2)) return label;
   }
-  return null;
+  return parseTipoEventoLabeled(text2);
 }
 function isReferentialPriorAnswer(message) {
   if (!message?.trim()) return false;
@@ -126280,6 +126295,19 @@ function parseZonaFromText(text2) {
   if (clientAsksLocation(trimmed) || looksLikeCompanyLocationQuestionFragment(trimmed)) {
     return null;
   }
+  const lugarLabel = trimmed.match(/\bLugar\s*:\s*([^\n,]{4,80})(?:,|\n|$)/i);
+  if (lugarLabel?.[1]) {
+    const venue = lugarLabel[1].trim().replace(/\s+/g, " ");
+    if (isUsableDireccionEvento(venue) && !isVagueVenueOnly(venue)) {
+      return venue;
+    }
+  }
+  const centroCultural = trimmed.match(
+    /\b(Centro\s+Cultural\s+[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ\s.-]{2,40})/i
+  );
+  if (centroCultural?.[1] && isUsableDireccionEvento(centroCultural[1].trim())) {
+    return centroCultural[1].trim().replace(/\s+/g, " ");
+  }
   const expoMatch = trimmed.match(/\bexpo\s+[A-Za-zÁÉÍÓÚáéíóúñ][\w\s.-]{2,40}/i);
   if (expoMatch?.[0] && isUsableDireccionEvento(expoMatch[0].trim())) {
     return expoMatch[0].trim();
@@ -126299,7 +126327,8 @@ function parseZonaFromText(text2) {
   );
   if (enMatch) {
     let lugar = enMatch[1].trim().replace(/[.,;:]+$/g, "").trim();
-    lugar = lugar.split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también)\b/i)[0].trim().replace(/[.,;:]+$/g, "").trim();
+    lugar = lugar.split(/\n/)[0].trim();
+    lugar = lugar.split(/\s+(?:para|con|por|donde|cuando|porque|que|y\s+también|tipo\s+de)\b/i)[0].trim().replace(/[.,;:]+$/g, "").trim();
     const sinArticulo = lugar.replace(/^(el|la|los|las)\s+/i, "").trim();
     const candidato = sinArticulo || lugar;
     if (candidato && !MONTH_PATTERN.test(candidato) && !/^\d/.test(candidato) && !isGreetingOnlyMessage(candidato) && !NON_LOCATION_WORDS.test(candidato) && !isVagueVenueOnly(candidato) && !isNonLocationBusinessPhrase(candidato) && !looksLikeDiscourseNotPlace(candidato) && !/\b(solo|para\s+la|total|comida|pista|cotizaci|propuesta|montaje|color|noche|tarde|vivo|realidad|serio|importante)\b/i.test(
@@ -126495,6 +126524,9 @@ function detectPresupuestoRefusal(text2) {
   if (/^(no|nop)[\s.,!]*$/i.test(t3)) return true;
   if (/^(no\s+tengo|no\s+tenemos|no\s+cuento)[\s.,!]*$/i.test(t3)) return true;
   if (/^(opciones?|propuestas?)[\s.,!]*$/i.test(t3)) return true;
+  if (t3.length <= 100 && /\b(una\s+)?propuesta\b/i.test(t3) && !/\bpresupuesto\s+(de|estimado|aprox)/i.test(t3) && !/\$\s*\d|\b\d{3,}\s*(mil|pesos|mxn)\b/i.test(t3)) {
+    return true;
+  }
   if (/^\.{2,}$/.test(t3)) return true;
   if (/\bpara\s+eso\s+(te\s+)?(contacto|contact[eé]|escribo|hablo|llamo)\b/i.test(t3) || /\b(por|para)\s+eso\s+(te\s+)?(estoy\s+)?(contactando|escribiendo|llamando)\b/i.test(t3)) {
     return true;
@@ -131452,13 +131484,27 @@ function pdfWindowForNivel(service, nivel) {
 }
 function clientAsksSpecificInclusionItem(message) {
   if (!message?.trim()) return null;
+  if (isRichQuoteBrief(message)) {
+    const raw = message.toLowerCase();
+    if (/\b(si\s+incluye|indicara?\s+si\s+incluye|con\s+o\s+sin)\s+personal\b/i.test(raw) || /\b(con|sin)\s+personal\s+de\s+servicio\b/i.test(raw)) {
+      return "meseros";
+    }
+    return null;
+  }
   const t3 = message.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\binclue\b/g, "incluye").replace(/\byncluye\b/g, "incluye");
   if (!/\b(incluye|incluyen|incluir|trae|traen|lleva|llevan|viene|vienen|tiene|tienen|con\s+bebidas?|sin\s+bebidas?)\b/i.test(
     t3
   ) && !/\bsi\b.{0,50}\bincluye/i.test(t3) && !/\bviene(n)?\s+con\b/i.test(t3)) {
     return null;
   }
+  const clientBringsDrinks = /\b(nosotros|nosotro|yo|cliente)\s+\w{0,20}(proporcion|ponemos|traemos|llevamos|damos|pondr)/i.test(
+    t3
+  ) && /\b(vinos?|agua|copas?|bebidas?)\b/i.test(t3);
+  if (/\bpersonal\s+de\s+servicio\b|\b(con|sin)\s+personal\b|\bmeseros?\b/i.test(t3) && /\b(incluye|incluyen|con\s+o\s+sin|cuanto\s+seria\s+sin)\b/i.test(t3)) {
+    return "meseros";
+  }
   for (const item of Object.keys(INCLUSION_ITEM_PATTERNS)) {
+    if (item === "bebidas" && clientBringsDrinks) continue;
     if (INCLUSION_ITEM_PATTERNS[item].test(t3)) return item;
   }
   return null;
@@ -132542,7 +132588,7 @@ function applyPresupuestoWaiver(filledSet, mergedLines, texts, history) {
   }
   if (texts.some((t3) => detectPresupuestoRefusal(t3))) {
     const last = texts[texts.length - 1] ?? "";
-    const label = /^(opciones?|propuestas?)[\s.,!]*$/i.test(last.trim()) ? "Sin definir (cliente pidi\xF3 que propongamos)" : "Sin definir (cliente indic\xF3 que no tiene)";
+    const label = /propuesta|opciones?/i.test(last) && !/\bno\s+(tengo|tenemos|cuento)\b/i.test(last) ? "Sin definir (cliente pidi\xF3 que propongamos)" : "Sin definir (cliente indic\xF3 que no tiene)";
     mergedLines.push(`- Presupuesto (MXN): ${label}`);
     filledSet.add("Presupuesto (MXN)");
     return;
@@ -132550,7 +132596,9 @@ function applyPresupuestoWaiver(filledSet, mergedLines, texts, history) {
   const lastAssistant = [...history ?? []].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
   const lastAsked = lastAssistant ? inferLucyAskedField(lastAssistant.content) : null;
   if (lastAsked === "presupuesto" && texts.some(
-    (t3) => /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin|opciones?|propuestas?)[\s.,!]*$/i.test(t3.trim())
+    (t3) => /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin|opciones?|propuestas?)[\s.,!]*$/i.test(
+      t3.trim()
+    ) || t3.length <= 100 && /\b(una\s+)?propuesta\b/i.test(t3)
   )) {
     mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente pidi\xF3 que propongamos)`);
     filledSet.add("Presupuesto (MXN)");
@@ -135217,7 +135265,57 @@ ${nextQ}` : ack;
       );
     }
   }
-  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+  if (!cierreYaEnviado && currentMessage && isRichQuoteBrief(currentMessage) && (clientAsksInclusion(currentMessage) || clientAsksSpecificInclusionItem(currentMessage))) {
+    const ack = buildRichBriefAcknowledgment(currentMessage);
+    if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+      const zonaBrief = parseZonaFromText(currentMessage);
+      if (zonaBrief && isUsableDireccionEvento(zonaBrief)) {
+        extracted.direccion_evento = zonaBrief;
+        filledSet.add("Lugar/direcci\xF3n del evento");
+      }
+    }
+    if (!extracted.fecha_horario?.trim()) {
+      const f6 = parseFechaFromText(currentMessage);
+      if (f6) {
+        extracted.fecha_horario = f6;
+        filledSet.add("Fecha y horario");
+      }
+    }
+    if (!extracted.num_invitados) {
+      const inv = parseInvitadosFromText(currentMessage);
+      if (inv) {
+        extracted.num_invitados = Number(inv) || inv;
+        filledSet.add("N\xFAmero de invitados");
+      }
+    }
+    if (!extracted.tipo_evento?.trim()) {
+      const tipo = parseTipoEventoFromText(currentMessage);
+      if (tipo) {
+        extracted.tipo_evento = tipo;
+        filledSet.add("Tipo de evento");
+      }
+    }
+    const mergedReq = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      currentMessage,
+      8
+    );
+    if (mergedReq) {
+      extracted.requerimientos_evento = mergedReq;
+      filledSet.add("Requerimientos o servicios");
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    log?.info(
+      { entityId, pending },
+      "GUARD: A15298 \u2014 RFQ rico: ack + embudo (sin dump inclusi\xF3n bebidas)"
+    );
+    return normalizeAdvisorReferences(
+      nextQ ? `${ack} ${nextQ}` : ack,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado && !isRichQuoteBrief(currentMessage)) {
     if (clientAsksPrice(currentMessage)) {
     } else {
       const multiForPackagesEarly = dedupeServiceHierarchy([
@@ -136011,15 +136109,16 @@ ${catalog}`,
       }
     }
     const pending = getNextPendingField(extracted, filledSet);
+    const wantsPropuesta = /\bpropuesta\b/i.test(currentMessage ?? "");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
     } else if (pending) {
-      mensaje = `Sin problema, lo dejamos por definir. ${buildNaturalQuestion(pending, ctx)}`;
+      mensaje = wantsPropuesta ? `\xA1Claro! Nuestro equipo te arma la propuesta. ${buildNaturalQuestion(pending, ctx)}` : `Sin problema, lo dejamos por definir. ${buildNaturalQuestion(pending, ctx)}`;
     } else {
-      mensaje = "Sin problema, lo dejamos por definir. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.";
+      mensaje = wantsPropuesta ? "\xA1Claro! Le paso todos los detalles a nuestro equipo para que te armen la propuesta y te la env\xEDen. Si necesitas algo m\xE1s, aqu\xED sigo." : "Sin problema, lo dejamos por definir. Nuestro equipo te propone opciones seg\xFAn lo que platicamos.";
     }
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente sin presupuesto \u2014 waiver directo");
@@ -138151,8 +138250,10 @@ prefiere no darlo, responde de inmediato:
 Otras reglas:
 - Un dato a la vez, natural, encadenado a lo que dijo.
 - Si aporta un dato \xFAtil mientras falta otro: primero acusa, luego pide el faltante.
-- Presupuesto resuelto por monto, "no", "no s\xE9" o "que el equipo proponga" \u2192 no
-  vuelvas a preguntarlo.
+- Presupuesto resuelto por monto, "no", "no s\xE9", "una propuesta" / "propuesta
+  completa" o "que el equipo proponga" \u2192 no vuelvas a preguntarlo; cierra o sigue.
+- RFQ largo (fecha, sede, invitados, canap\xE9s, etc.): reconoce TODO. Si el cliente
+  trae su vino/agua, anota meseros/servicio \u2014 no digas que el paquete "incluye bebidas".
 - "4 salas" / "10 mesas" NO son invitados. "sala: Luxor Rosa" / "Sala Ariel Color Nude"
   es producto, no sede.
 - NUNCA digas "\xBFSeguimos con el siguiente dato del evento?". Si falta un dato,
@@ -138934,7 +139035,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.21";
+var LUCY_PROMPT_VERSION = "V9.22";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -147774,6 +147875,89 @@ ${golfText}`,
     assert2.ok(
       !/colgantes|Según el catálogo/i.test(liveFecha),
       liveFecha.slice(0, 350)
+    );
+  });
+  await test("143. A15298 \u2014 RFQ canap\xE9s/caf\xE9 + propuesta mamita cierra sin presupuesto", () => {
+    const brief = [
+      "Nos gustar\xEDa solicitarles una cotizaci\xF3n para una presentaci\xF3n editorial.",
+      "Fecha: 21 de noviembre. Horario: de 14:00 a 19:00 horas.",
+      "N\xFAmero estimado de asistentes: 60 personas.",
+      "Lugar: Centro Cultural El Rule, ubicado junto a la Torre Latinoamericana, en el tercer piso.",
+      "Tipo de evento: presentaci\xF3n editorial.",
+      "Bocadillos o canapes salados, vegetarianas/veganas, servicio de caf\xE9.",
+      "Nosotros proporcionar\xEDamos los vinos, el agua y las copas.",
+      "S\xED necesitar\xEDamos su apoyo con la distribuci\xF3n y el servicio de las bebidas.",
+      "La cotizaci\xF3n indicara si incluye personal de servicio y cuanto seria sin personal.",
+      "Quedamos atentos a sus propuestas y recomendaciones."
+    ].join("\n");
+    assert2.ok(isRichQuoteBrief(brief));
+    assert2.equal(clientAsksSpecificInclusionItem(brief), "meseros");
+    assert2.ok(!/tercer piso/i.test(parseZonaFromText(brief) ?? ""));
+    assert2.ok(/Centro Cultural El Rule/i.test(parseZonaFromText(brief) ?? ""));
+    assert2.ok(detectPresupuestoRefusal("Me gustar\xEDa una propuesta mamita"));
+    assert2.ok(detectPresupuestoRefusal("Por favor una propuesta"));
+    assert2.ok(parseServicesFromText(brief).some((s6) => /canap/i.test(s6)));
+    assert2.ok(parseServicesFromText(brief).some((s6) => /caf[eé]/i.test(s6)));
+    assert2.equal(parseTipoEventoFromText(brief), "presentaci\xF3n editorial");
+    const extracted = emptyExtracted();
+    const live = runGuards({
+      aiResponse: "De acuerdo. Sobre *bebidas* en *Canap\xE9s*: *S\xED incluye* en Basico...",
+      extracted,
+      filledSet: /* @__PURE__ */ new Set(),
+      readyForClosing: false,
+      currentMessage: brief,
+      history: [{ role: "assistant", content: "\xA1Hola! \xBFMe regalas tu nombre?" }]
+    });
+    assert2.ok(
+      !/Sobre \*bebidas\*|S[ií] incluye|Solo Alimentos/i.test(live),
+      `no dump bebidas: ${live.slice(0, 350)}`
+    );
+    assert2.ok(
+      /revis[eé]|anoto|canap|nombre|llamas/i.test(live),
+      live.slice(0, 400)
+    );
+    assert2.ok(/Centro Cultural El Rule/i.test(extracted.direccion_evento ?? ""));
+    assert2.ok(/21 de noviembre/i.test(extracted.fecha_horario ?? ""));
+    assert2.equal(extracted.num_invitados, 60);
+    const filledReady = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Correo electr\xF3nico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/direcci\xF3n del evento",
+      "Fecha y horario",
+      "N\xFAmero de invitados"
+    ]);
+    const exReady = emptyExtracted({
+      nombre: "Priscilla Bulnes",
+      correo: "trogni1@yahoo.com",
+      tipo_evento: "presentaci\xF3n editorial",
+      requerimientos_evento: "Canap\xE9s, Bocadillos, Meseros, Barra de Caf\xE9",
+      direccion_evento: "Centro Cultural El Rule",
+      fecha_horario: "21 de noviembre",
+      num_invitados: 60
+    });
+    const cierre = runGuards({
+      aiResponse: "\xBFTienen alg\xFAn rango de presupuesto en mente?",
+      extracted: exReady,
+      filledSet: filledReady,
+      readyForClosing: false,
+      currentMessage: "Me gustar\xEDa una propuesta mamita",
+      history: [
+        {
+          role: "assistant",
+          content: "\xBFTienen alg\xFAn rango de presupuesto en mente?"
+        }
+      ]
+    });
+    assert2.ok(filledReady.has("Presupuesto (MXN)"));
+    assert2.ok(
+      !/presupuesto|rango de inversi/i.test(cierre),
+      `no re-pedir presupuesto: ${cierre.slice(0, 300)}`
+    );
+    assert2.ok(
+      /ya tengo todo|equipo|cotizaci/i.test(cierre),
+      cierre.slice(0, 300)
     );
   });
   console.log(`
