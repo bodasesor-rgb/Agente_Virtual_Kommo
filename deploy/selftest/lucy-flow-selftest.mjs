@@ -134879,7 +134879,24 @@ ${nextQ}` : ack;
       );
     }
   }
-  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado && !extractImageClientReply(currentMessage)) {
+  if (!cierreYaEnviado && extractImageClientReply(currentMessage)) {
+    const imageReply = buildImageActionReply(
+      currentMessage,
+      extracted,
+      filledSet,
+      ctx
+    );
+    const body2 = imageReply ?? extractImageClientReply(currentMessage);
+    log?.info(
+      { entityId, intent: extractImageIntent(currentMessage) },
+      "GUARD: A15296 \u2014 imagen accionable (return temprano, cualquier servicio)"
+    );
+    return normalizeAdvisorReferences(
+      body2,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     if (clientAsksPrice(currentMessage)) {
     } else {
       const multiForPackagesEarly = dedupeServiceHierarchy([
@@ -135124,7 +135141,7 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   const requerimientosFollowUpAlreadyAsked = historyAlreadyHadServicesCatalog(presHistory);
   const lastAssistantMsg = [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
   const lastAskedField = lastAssistantMsg ? inferLucyAskedField(lastAssistantMsg.content) : null;
-  const deferredKnownServiceOffer = !cierreYaEnviado && lastAskedField === "nombre" && isFieldSatisfied("nombre", filledSet, extracted) && !clientAsksInclusion(currentMessage) && !clientAsksPrice(currentMessage) && !clientAsksForCatalog(currentMessage) && !clientAffirmsCatalogOffer(
+  const deferredKnownServiceOffer = !cierreYaEnviado && !extractImageClientReply(currentMessage) && lastAskedField === "nombre" && isFieldSatisfied("nombre", filledSet, extracted) && !clientAsksInclusion(currentMessage) && !clientAsksPrice(currentMessage) && !clientAsksForCatalog(currentMessage) && !clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   ) ? buildDeferredKnownServiceOffer({
@@ -135292,9 +135309,11 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     }
     appliedDirectReply = true;
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
-  } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
-  servicesFromCurrentMessage.length < 2 && parseServicesFromText(currentMessage).length < 2 && !isCatalogLevelSelection(
-    currentMessage,
+  } else if (!cierreYaEnviado && currentMessage && !extractImageClientReply(currentMessage) && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(
+    clientCaptionForServiceParse(currentMessage) || currentMessage
+  ) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
+  servicesFromCurrentMessage.length < 2 && parseServicesFromText(clientCaptionForServiceParse(currentMessage) || currentMessage).length < 2 && !isCatalogLevelSelection(
+    clientCaptionForServiceParse(currentMessage) || currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   )) {
     const label = resolveDetailQueryForFamily(
@@ -138457,7 +138476,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.18";
+var LUCY_PROMPT_VERSION = "V9.19";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -147010,6 +147029,50 @@ ${golfText}`,
     assert2.ok(
       clientAsksConcreteProductQuestion("Fotos de lo solicitado y si la carpa cuenta con luz")
     );
+  });
+  await test("140. imagen+caption \u2192 embudo en sushi/taquiza/banquete/carpas/etc.", () => {
+    const cases = [
+      ["barra de sushi, algo as\xED", /sushi/i],
+      ["quiero taquiza, mira esta foto", /taquiza/i],
+      ["banquete formal 3 tiempos, as\xED", /banquete/i],
+      ["carpa blanca, as\xED", /carpas?/i],
+      ["coffee break, as\xED lo imagino", /coffee/i],
+      ["centros de mesa ser\xEDan 12", /centros de mesa \(12\)/i]
+    ];
+    for (const [caption, reqRe] of cases) {
+      const turn = formatImageTurnText(
+        {
+          intent: "montaje_referencia",
+          internalDescription: "ref",
+          clientReply: "\xA1Qu\xE9 lindo! Ya anot\xE9 tu referencia."
+        },
+        caption
+      );
+      const extracted = emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda"
+      });
+      const live = runGuards({
+        aiResponse: "El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo.",
+        extracted,
+        filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]),
+        readyForClosing: false,
+        currentMessage: turn,
+        history: [{ role: "assistant", content: "\xBFQu\xE9 van a celebrar?" }]
+      });
+      assert2.ok(
+        !/detalle de lo que incluye cada nivel|Según el catálogo que ya tenemos/i.test(live),
+        `[${caption}] dump: ${live.slice(0, 220)}`
+      );
+      assert2.ok(
+        mensajeAsksForField(live, "fecha") || /fecha|cu[aá]ndo/i.test(live),
+        `[${caption}] embudo: ${live.slice(0, 220)}`
+      );
+      assert2.ok(
+        reqRe.test(extracted.requerimientos_evento ?? ""),
+        `[${caption}] req=${extracted.requerimientos_evento}`
+      );
+    }
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

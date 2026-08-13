@@ -4581,14 +4581,29 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // A15296 (todas las ramas): imagen + caption → ack Vision + capturar servicio + embudo.
+  // Debe ir ANTES de "3 tiempos"/inclusiones/deferredKnownServiceOffer (evita dump de niveles).
+  if (!cierreYaEnviado && extractImageClientReply(currentMessage)) {
+    const imageReply = buildImageActionReply(
+      currentMessage,
+      extracted,
+      filledSet,
+      ctx
+    );
+    const body = imageReply ?? extractImageClientReply(currentMessage)!;
+    log?.info(
+      { entityId, intent: extractImageIntent(currentMessage) },
+      "GUARD: A15296 — imagen accionable (return temprano, cualquier servicio)"
+    );
+    return normalizeAdvisorReferences(
+      body,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
   // por redirect a zona ni anti-repeat de embudo.
-  // A15296: turno con imagen → rama de imagen (no dump de inclusiones).
-  if (
-    clientAsksInclusion(currentMessage) &&
-    !cierreYaEnviado &&
-    !extractImageClientReply(currentMessage)
-  ) {
+  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     // Precio SKU concreto → dejar que la rama de precio use Sheet.
     if (clientAsksPrice(currentMessage)) {
       /* fall through */
@@ -4962,6 +4977,7 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   // antes de correo — evita A14916 (embudo completo sin nunca ofertar).
   const deferredKnownServiceOffer =
     !cierreYaEnviado &&
+    !extractImageClientReply(currentMessage) &&
     lastAskedField === "nombre" &&
     isFieldSatisfied("nombre", filledSet, extracted) &&
     !clientAsksInclusion(currentMessage) &&
@@ -5236,12 +5252,16 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   } else if (
     !cierreYaEnviado &&
     currentMessage &&
-    /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) &&
+    !extractImageClientReply(currentMessage) &&
+    /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(
+      clientCaptionForServiceParse(currentMessage) || currentMessage
+    ) &&
     // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
     servicesFromCurrentMessage.length < 2 &&
-    parseServicesFromText(currentMessage).length < 2 &&
+    parseServicesFromText(clientCaptionForServiceParse(currentMessage) || currentMessage)
+      .length < 2 &&
     !isCatalogLevelSelection(
-      currentMessage,
+      clientCaptionForServiceParse(currentMessage) || currentMessage,
       lastAssistantMsg && typeof lastAssistantMsg.content === "string"
         ? (lastAssistantMsg.content as string)
         : null

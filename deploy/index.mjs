@@ -208702,7 +208702,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.18";
+var LUCY_PROMPT_VERSION = "V9.19";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -212751,7 +212751,24 @@ ${nextQ}` : ack;
       );
     }
   }
-  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado && !extractImageClientReply(currentMessage)) {
+  if (!cierreYaEnviado && extractImageClientReply(currentMessage)) {
+    const imageReply = buildImageActionReply(
+      currentMessage,
+      extracted,
+      filledSet,
+      ctx
+    );
+    const body2 = imageReply ?? extractImageClientReply(currentMessage);
+    log?.info(
+      { entityId, intent: extractImageIntent(currentMessage) },
+      "GUARD: A15296 \u2014 imagen accionable (return temprano, cualquier servicio)"
+    );
+    return normalizeAdvisorReferences(
+      body2,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
     if (clientAsksPrice(currentMessage)) {
     } else {
       const multiForPackagesEarly = dedupeServiceHierarchy([
@@ -212996,7 +213013,7 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
   const requerimientosFollowUpAlreadyAsked = historyAlreadyHadServicesCatalog(presHistory);
   const lastAssistantMsg = [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
   const lastAskedField = lastAssistantMsg ? inferLucyAskedField(lastAssistantMsg.content) : null;
-  const deferredKnownServiceOffer = !cierreYaEnviado && lastAskedField === "nombre" && isFieldSatisfied("nombre", filledSet, extracted) && !clientAsksInclusion(currentMessage) && !clientAsksPrice(currentMessage) && !clientAsksForCatalog(currentMessage) && !clientAffirmsCatalogOffer(
+  const deferredKnownServiceOffer = !cierreYaEnviado && !extractImageClientReply(currentMessage) && lastAskedField === "nombre" && isFieldSatisfied("nombre", filledSet, extracted) && !clientAsksInclusion(currentMessage) && !clientAsksPrice(currentMessage) && !clientAsksForCatalog(currentMessage) && !clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   ) ? buildDeferredKnownServiceOffer({
@@ -213164,9 +213181,11 @@ ${mapped}`.trim() : buildCatalogWebLinkReply({
     }
     appliedDirectReply = true;
     log?.info({ entityId, wantFull, mapped: mappedServices.length }, "GUARD: cliente pidi\xF3/afirm\xF3 cat\xE1logo \u2014 link(s)");
-  } else if (!cierreYaEnviado && currentMessage && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(currentMessage) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
-  servicesFromCurrentMessage.length < 2 && parseServicesFromText(currentMessage).length < 2 && !isCatalogLevelSelection(
-    currentMessage,
+  } else if (!cierreYaEnviado && currentMessage && !extractImageClientReply(currentMessage) && /\b(de\s+)?(tres|3|cuatro|4)\s*tiempos\b/i.test(
+    clientCaptionForServiceParse(currentMessage) || currentMessage
+  ) && // A14995: paquete multi-servicio (banquete+barra+dulces+mobiliario) NO es solo "tiempos".
+  servicesFromCurrentMessage.length < 2 && parseServicesFromText(clientCaptionForServiceParse(currentMessage) || currentMessage).length < 2 && !isCatalogLevelSelection(
+    clientCaptionForServiceParse(currentMessage) || currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
   )) {
     const label = resolveDetailQueryForFamily(

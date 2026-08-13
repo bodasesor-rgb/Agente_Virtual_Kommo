@@ -10018,6 +10018,52 @@ async function runAll(): Promise<void> {
     );
   });
 
+  // ─── 140. Imagen → embudo en TODOS los servicios (no solo centros) ───
+  await test("140. imagen+caption → embudo en sushi/taquiza/banquete/carpas/etc.", () => {
+    const cases: Array<[string, RegExp]> = [
+      ["barra de sushi, algo así", /sushi/i],
+      ["quiero taquiza, mira esta foto", /taquiza/i],
+      ["banquete formal 3 tiempos, así", /banquete/i],
+      ["carpa blanca, así", /carpas?/i],
+      ["coffee break, así lo imagino", /coffee/i],
+      ["centros de mesa serían 12", /centros de mesa \(12\)/i],
+    ];
+    for (const [caption, reqRe] of cases) {
+      const turn = formatImageTurnText(
+        {
+          intent: "montaje_referencia",
+          internalDescription: "ref",
+          clientReply: "¡Qué lindo! Ya anoté tu referencia.",
+        },
+        caption
+      );
+      const extracted = emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+      });
+      const live = runGuards({
+        aiResponse: "El detalle de lo que incluye cada nivel está en el catálogo.",
+        extracted,
+        filledSet: new Set(["Nombre del cliente", "Tipo de evento"]),
+        readyForClosing: false,
+        currentMessage: turn,
+        history: [{ role: "assistant", content: "¿Qué van a celebrar?" }],
+      });
+      assert.ok(
+        !/detalle de lo que incluye cada nivel|Según el catálogo que ya tenemos/i.test(live),
+        `[${caption}] dump: ${live.slice(0, 220)}`
+      );
+      assert.ok(
+        mensajeAsksForField(live, "fecha") || /fecha|cu[aá]ndo/i.test(live),
+        `[${caption}] embudo: ${live.slice(0, 220)}`
+      );
+      assert.ok(
+        reqRe.test(extracted.requerimientos_evento ?? ""),
+        `[${caption}] req=${extracted.requerimientos_evento}`
+      );
+    }
+  });
+
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
   if (failed > 0) process.exit(1);
 }
