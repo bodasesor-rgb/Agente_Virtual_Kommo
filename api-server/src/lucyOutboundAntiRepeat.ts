@@ -38,6 +38,8 @@ import {
   mensajeAsksForFilledField,
   getNextPendingField,
   buildNaturalQuestion,
+  isReadyForClosing,
+  looksLikeDeadEndAck,
   type PendingField,
 } from "./lucy-flow-guards.js";
 import { filterClientEmail, looksLikeValidClientEmail } from "./client-email.js";
@@ -498,10 +500,46 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
     if (stripped && stripped !== mensaje) {
       mensaje = stripped;
       applied.push("filled-field-strip");
+      // Tras quitar re-pregunta, si no quedó `?` avanzar al embudo (no dejar "Genial.").
+      if (!/\?/.test(mensaje) && !isReadyForClosing(filled)) {
+        const extractedFull = asExtracted(extracted);
+        const pending = getNextPendingField(extractedFull, filled);
+        if (pending) {
+          const q = buildNaturalQuestion(pending, {
+            extracted: extractedFull,
+            filledSet: filled,
+            history: input.history ?? [],
+            currentMessage: input.currentMessage,
+            whatsappName: display,
+          });
+          mensaje = mensaje.trim() ? `${mensaje.trim()}\n\n${q}` : q;
+          applied.push("filled-field-strip-continue");
+        }
+      }
     } else if (!stripped || mensajeAsksForFilledField(mensaje, filled, extracted)) {
-      mensaje = display
-        ? `Perfecto, ${display}. Ya lo tengo anotado.`
-        : "Perfecto, ya lo tengo anotado.";
+      // V9.26: nunca dejar solo "anotado" — avanzar al siguiente campo del embudo.
+      const extractedFull = asExtracted(extracted);
+      const pending = getNextPendingField(extractedFull, filled);
+      if (pending) {
+        mensaje = buildNaturalQuestion(pending, {
+          extracted: extractedFull,
+          filledSet: filled,
+          history: input.history ?? [],
+          currentMessage: input.currentMessage,
+          whatsappName: display,
+        });
+        if (display && !mensaje.includes(display)) {
+          mensaje = `Perfecto, ${display}. ${mensaje}`;
+        }
+      } else if (isReadyForClosing(filled)) {
+        mensaje = display
+          ? `Perfecto, ${display}. Ya tengo todo anotado.`
+          : "Perfecto, ya tengo todo anotado.";
+      } else {
+        mensaje = display
+          ? `Perfecto, ${display}. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?`
+          : "Perfecto. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?";
+      }
       applied.push("filled-field-ack");
     }
   }
@@ -546,10 +584,15 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
           if (display && !mensaje.includes(display)) {
             mensaje = `Perfecto, ${display}. ${mensaje}`;
           }
-        } else {
+        } else if (isReadyForClosing(filled)) {
           mensaje = display
             ? `Perfecto, ${display}. Ya tengo lo principal anotado.`
             : "Perfecto, ya tengo lo principal anotado.";
+        } else {
+          // V9.26: no cortar embudo con "lo principal" sin pregunta.
+          mensaje = display
+            ? `Perfecto, ${display}. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?`
+            : "Perfecto. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?";
         }
       }
       applied.push("catalog-resend-dedupe");
@@ -634,9 +677,29 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
           mensaje = display ? `Perfecto, ${display}. ${q}` : q;
           applied.push("near-duplicate-keep-question");
         } else if (!applied.some((a) => a.startsWith("same-field"))) {
-          mensaje = display
-            ? `Entendido, ${display}. Seguimos con lo que ya platicamos.`
-            : "Entendido. Seguimos con lo que ya platicamos.";
+          // V9.26: no dead-end "seguimos con lo que ya platicamos" — pregunta embudo.
+          const extractedFull = asExtracted(extracted);
+          const pending = getNextPendingField(extractedFull, filled);
+          if (pending) {
+            mensaje = buildNaturalQuestion(pending, {
+              extracted: extractedFull,
+              filledSet: filled,
+              history: input.history ?? [],
+              currentMessage: input.currentMessage,
+              whatsappName: display,
+            });
+            if (display && !mensaje.includes(display)) {
+              mensaje = `Entendido, ${display}. ${mensaje}`;
+            }
+          } else if (isReadyForClosing(filled)) {
+            mensaje = display
+              ? `Entendido, ${display}. Ya tengo lo principal.`
+              : "Entendido. Ya tengo lo principal.";
+          } else {
+            mensaje = display
+              ? `Entendido, ${display}. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?`
+              : "Entendido. ¿Me confirmas la fecha, zona, invitados o presupuesto que aún falte?";
+          }
           applied.push("near-duplicate-ack");
         }
       }
@@ -672,6 +735,29 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
       ? `Gracias, ${display}. ¿En qué más te ayudo con tu evento?`
       : "Gracias. ¿En qué más te ayudo con tu evento?";
     applied.push("empty-fallback");
+  }
+
+  // V9.26: red final — cualquier "anotado" / "lo principal" sin `?` vuelve al embudo.
+  if (!cierre && looksLikeDeadEndAck(mensaje) && !isReadyForClosing(filled)) {
+    const extractedFull = asExtracted(extracted);
+    const pending = getNextPendingField(extractedFull, filled);
+    if (pending) {
+      const q = buildNaturalQuestion(pending, {
+        extracted: extractedFull,
+        filledSet: filled,
+        history: input.history ?? [],
+        currentMessage: input.currentMessage,
+        whatsappName: display,
+      });
+      const ack = mensaje.trim();
+      mensaje =
+        ack && /anotad|anoto|platicamos|principal/i.test(ack)
+          ? `${ack}\n\n${q}`
+          : display && !q.includes(display)
+            ? `Perfecto, ${display}. ${q}`
+            : q;
+      applied.push("dead-end-ack-continue");
+    }
   }
 
   return { mensaje: mensaje.trim(), applied };

@@ -209,6 +209,7 @@ import {
   buildGenericPriceClarifyReply,
   buildGenericPackagesOverviewReply,
   emailRefusalAckMessage,
+  looksLikeDeadEndAck,
 } from "../lucy-flow-guards.js";
 import {
   buildLucyInfoInclusionReply,
@@ -3942,10 +3943,15 @@ async function runAll(): Promise<void> {
     });
     assert.ok(
       filledAsk.applied.includes("filled-field-strip") ||
-        filledAsk.applied.includes("filled-field-ack"),
+        filledAsk.applied.includes("filled-field-ack") ||
+        filledAsk.applied.includes("filled-field-strip-continue") ||
+        filledAsk.applied.includes("dead-end-ack-continue"),
       String(filledAsk.applied)
     );
     assert.ok(!mensajeAsksForField(filledAsk.mensaje, "correo"), filledAsk.mensaje);
+    // V9.26: tras quitar re-pregunta de correo, debe seguir el embudo (no solo "anotado").
+    assert.ok(/\?/.test(filledAsk.mensaje), filledAsk.mensaje);
+    assert.ok(!/^Perfecto[^.]*anotad[oa]\.?\s*$/i.test(filledAsk.mensaje.trim()), filledAsk.mensaje);
 
     // Paráfrasis del mismo campo (planeando → organizando) no se reenvía igual.
     const paraphrase = applyLucyGlobalAntiRepetition({
@@ -8362,7 +8368,7 @@ async function runAll(): Promise<void> {
 
   // ─── 122. V8.94 — Gemini 3.1 Flash-Lite como LLM default ───
   await test("122. V8.94 — Gemini Flash-Lite provider + conversión mensajes", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.16");
+    assert.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.equal(DEFAULT_GEMINI_MODEL, "gemini-3.1-flash-lite");
 
     const prevProvider = process.env.LLM_PROVIDER;
@@ -10597,6 +10603,102 @@ async function runAll(): Promise<void> {
       /ya tengo todo|equipo|cotizaci/i.test(cierre),
       cierre.slice(0, 300)
     );
+  });
+
+  // ─── V9.26 — no cortar chat con solo "ya lo tengo anotado" ───
+  await test("127. V9.26 — anti-cierre 'Ya lo tengo anotado' sigue embudo", async () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.26");
+    assert.ok(looksLikeDeadEndAck("Perfecto, Ana. Ya lo tengo anotado."));
+    assert.ok(looksLikeDeadEndAck("Perfecto, ya tengo lo principal anotado."));
+    assert.ok(looksLikeDeadEndAck("Entendido. Seguimos con lo que ya platicamos."));
+    assert.ok(!looksLikeDeadEndAck("Perfecto, Ana. Ya lo tengo anotado.\n\n¿Qué tipo de evento es?"));
+    assert.ok(!looksLikeDeadEndAck("Perfecto, ya tengo todo. Le paso estos datos al equipo."));
+
+    const filledMid = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    const exMid = emptyExtracted({
+      nombre: "Ana",
+      tipo_evento: "boda",
+      requerimientos_evento: "Barra de bebidas",
+    });
+
+    const antiBare = applyLucyGlobalAntiRepetition({
+      mensaje: "Perfecto, Ana. Ya lo tengo anotado.",
+      history: [
+        { role: "assistant", content: "¿Qué servicios te gustaría cotizar?" },
+        { role: "user", content: "barra de bebidas" },
+      ],
+      filledSet: filledMid,
+      extracted: exMid,
+      clientName: "Ana",
+      currentMessage: "barra de bebidas",
+    });
+    assert.ok(/\?/.test(antiBare.mensaje), antiBare.mensaje);
+    assert.ok(
+      !looksLikeDeadEndAck(antiBare.mensaje),
+      antiBare.mensaje.slice(0, 300)
+    );
+    assert.ok(
+      /fecha|cu[aá]ndo|cuando|d[ií]a|horario/i.test(antiBare.mensaje) ||
+        mensajeAsksForField(antiBare.mensaje, "fecha"),
+      antiBare.mensaje.slice(0, 400)
+    );
+
+    const filledAskZona = applyLucyGlobalAntiRepetition({
+      mensaje: "Genial. ¿Me compartes tu correo para enviarte la info?",
+      history: [{ role: "assistant", content: "¿Qué servicios te gustaría?" }],
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Correo electrónico",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      extracted: emptyExtracted({
+        nombre: "Luis",
+        correo: "luis@test.com",
+        tipo_evento: "cumpleaños",
+        requerimientos_evento: "DJ",
+      }),
+      clientName: "Luis",
+    });
+    assert.ok(!mensajeAsksForField(filledAskZona.mensaje, "correo"), filledAskZona.mensaje);
+    assert.ok(/\?/.test(filledAskZona.mensaje), filledAskZona.mensaje);
+    assert.ok(
+      mensajeAsksForField(filledAskZona.mensaje, "fecha") ||
+        /fecha|cu[aá]ndo|d[ií]a/i.test(filledAskZona.mensaje),
+      filledAskZona.mensaje
+    );
+
+    const guardBare = runGuards({
+      aiResponse: "Perfecto, Ana. Ya lo tengo anotado.",
+      extracted: exMid,
+      filledSet: filledMid,
+      readyForClosing: false,
+      currentMessage: "barra de bebidas",
+      history: [
+        { role: "assistant", content: "¿Qué servicios te gustaría cotizar?" },
+        { role: "user", content: "barra de bebidas" },
+      ],
+    });
+    assert.ok(/\?/.test(guardBare), guardBare.slice(0, 400));
+    assert.ok(!looksLikeDeadEndAck(guardBare), guardBare.slice(0, 300));
+
+    const pipe = await finalizeLucyOutboundMessage({
+      mensaje: "Perfecto, Ana. Ya lo tengo anotado.",
+      extracted: exMid,
+      readyForClosing: false,
+      cierreYaEnviado: false,
+      filledSet: filledMid,
+      currentMessage: "barra de bebidas",
+      history: [
+        { role: "assistant", content: "¿Qué servicios te gustaría cotizar?" },
+      ],
+    });
+    assert.ok(/\?/.test(pipe), pipe.slice(0, 400));
+    assert.ok(!looksLikeDeadEndAck(pipe), pipe.slice(0, 300));
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

@@ -208991,7 +208991,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.25";
+var LUCY_PROMPT_VERSION = "V9.26";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -212797,6 +212797,19 @@ function clientAskedFreeformQuestion(message) {
 function responseLooksLikePrematureClose(mensaje) {
   return mensaje.includes(CLOSING_SIGNATURE) || /cotizaci[oó]n personalizada/i.test(mensaje) || /cdn\.shopify\.com/i.test(mensaje) || /cat[aá]logo completo/i.test(mensaje) || /ya tengo todos los datos/i.test(mensaje);
 }
+function looksLikeDeadEndAck(mensaje) {
+  const t4 = (mensaje || "").trim();
+  if (!t4) return true;
+  if (/\?/.test(t4)) return false;
+  if (/ya tengo todo|paso (estos )?datos|cotizaci[oó]n personalizada|nuestro equipo (ya )?(tiene|sigue)|si necesitas algo m[aá]s|con gusto te apoyo/i.test(
+    t4
+  )) {
+    return false;
+  }
+  return /\b(ya\s+lo\s+tengo\s+anotad[oa]?|lo\s+tengo\s+anotad[oa]?|ya\s+lo\s+anoto|ya\s+anot[eé]|ya\s+tengo\s+lo\s+principal|seguimos\s+con\s+lo\s+que\s+ya\s+platicamos)\b/i.test(
+    t4
+  ) || /^perfecto[^.!]*[.!]?\s*$/i.test(t4) && t4.length < 60;
+}
 var MINIMAL_SERVICE_PATTERN = /\b(solo\s+)?(mesas?\s+y\s+sillas?|sillas?\s+y\s+mesas?|renta\s+de\s+(mesas?|sillas?)|solo\s+(mesas?|sillas?|mobiliario))\b/i;
 function historyAlreadyOfferedComplements(history) {
   return history.some(
@@ -213036,7 +213049,7 @@ ${buildNaturalQuestion(pending, ctx)}`;
         extracted.nombre
       );
     } else {
-      body2 = ack;
+      body2 = nombre ? `Perfecto, ${nombre}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Perfecto. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
     }
     log?.info({ entityId, pending }, "GUARD: A15007 \u2014 referencia/queja de repetici\xF3n \u2192 avanzar");
     return normalizeAdvisorReferences(
@@ -215629,6 +215642,16 @@ ${buildNaturalQuestion(pending, ctx)}` : ack;
     }
   }
   mensaje = stripClientServiceConfusionNotes(mensaje);
+  if (!cierreYaEnviado && !trulyReadyForClosing && looksLikeDeadEndAck(mensaje)) {
+    const pendingDead = getNextPendingField(extracted, filledSet);
+    if (pendingDead) {
+      const nextQ = buildNaturalQuestion(pendingDead, ctx);
+      mensaje = `${mensaje.trim()}
+
+${nextQ}`;
+      log?.info({ entityId, pending: pendingDead }, "GUARD: dead-end ack \u2192 embudo");
+    }
+  }
   return normalizeAdvisorReferences(mensaje, extracted.nombre);
 }
 function stripClientServiceConfusionNotes(text2) {
@@ -216905,6 +216928,10 @@ Otras reglas:
   es producto, no sede.
 - NUNCA digas "\xBFSeguimos con el siguiente dato del evento?". Si falta un dato,
   haz ESA pregunta concreta (fecha, zona, correo, invitados\u2026).
+- NUNCA termines un turno solo con "Perfecto, ya lo tengo anotado" (ni "lo anoto",
+  "ya tengo lo principal"). Eso corta el chat. T\xFA NO cierras la conversaci\xF3n:
+  acusa en una frase y pide el siguiente dato faltante. Solo cierra cuando el
+  checklist est\xE9 completo o el cliente se despida.
 - Si el cliente eligi\xF3 un SKU (sala/mesa) o dijo "s\xED" para continuar: anota y
   pregunta el siguiente faltante. No mandes otro cat\xE1logo al azar.
 - Correos propios (capybaraeventos@, bodasesor@) son NUESTROS: no los guardes.
@@ -217559,8 +217586,42 @@ function applyLucyGlobalAntiRepetition(input) {
     if (stripped && stripped !== mensaje) {
       mensaje = stripped;
       applied.push("filled-field-strip");
+      if (!/\?/.test(mensaje) && !isReadyForClosing(filled)) {
+        const extractedFull = asExtracted(extracted);
+        const pending = getNextPendingField(extractedFull, filled);
+        if (pending) {
+          const q3 = buildNaturalQuestion(pending, {
+            extracted: extractedFull,
+            filledSet: filled,
+            history: input.history ?? [],
+            currentMessage: input.currentMessage,
+            whatsappName: display
+          });
+          mensaje = mensaje.trim() ? `${mensaje.trim()}
+
+${q3}` : q3;
+          applied.push("filled-field-strip-continue");
+        }
+      }
     } else if (!stripped || mensajeAsksForFilledField(mensaje, filled, extracted)) {
-      mensaje = display ? `Perfecto, ${display}. Ya lo tengo anotado.` : "Perfecto, ya lo tengo anotado.";
+      const extractedFull = asExtracted(extracted);
+      const pending = getNextPendingField(extractedFull, filled);
+      if (pending) {
+        mensaje = buildNaturalQuestion(pending, {
+          extracted: extractedFull,
+          filledSet: filled,
+          history: input.history ?? [],
+          currentMessage: input.currentMessage,
+          whatsappName: display
+        });
+        if (display && !mensaje.includes(display)) {
+          mensaje = `Perfecto, ${display}. ${mensaje}`;
+        }
+      } else if (isReadyForClosing(filled)) {
+        mensaje = display ? `Perfecto, ${display}. Ya tengo todo anotado.` : "Perfecto, ya tengo todo anotado.";
+      } else {
+        mensaje = display ? `Perfecto, ${display}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Perfecto. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
+      }
       applied.push("filled-field-ack");
     }
   }
@@ -217588,8 +217649,10 @@ function applyLucyGlobalAntiRepetition(input) {
           if (display && !mensaje.includes(display)) {
             mensaje = `Perfecto, ${display}. ${mensaje}`;
           }
-        } else {
+        } else if (isReadyForClosing(filled)) {
           mensaje = display ? `Perfecto, ${display}. Ya tengo lo principal anotado.` : "Perfecto, ya tengo lo principal anotado.";
+        } else {
+          mensaje = display ? `Perfecto, ${display}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Perfecto. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
         }
       }
       applied.push("catalog-resend-dedupe");
@@ -217654,7 +217717,24 @@ function applyLucyGlobalAntiRepetition(input) {
           mensaje = display ? `Perfecto, ${display}. ${q3}` : q3;
           applied.push("near-duplicate-keep-question");
         } else if (!applied.some((a4) => a4.startsWith("same-field"))) {
-          mensaje = display ? `Entendido, ${display}. Seguimos con lo que ya platicamos.` : "Entendido. Seguimos con lo que ya platicamos.";
+          const extractedFull = asExtracted(extracted);
+          const pending = getNextPendingField(extractedFull, filled);
+          if (pending) {
+            mensaje = buildNaturalQuestion(pending, {
+              extracted: extractedFull,
+              filledSet: filled,
+              history: input.history ?? [],
+              currentMessage: input.currentMessage,
+              whatsappName: display
+            });
+            if (display && !mensaje.includes(display)) {
+              mensaje = `Entendido, ${display}. ${mensaje}`;
+            }
+          } else if (isReadyForClosing(filled)) {
+            mensaje = display ? `Entendido, ${display}. Ya tengo lo principal.` : "Entendido. Ya tengo lo principal.";
+          } else {
+            mensaje = display ? `Entendido, ${display}. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?` : "Entendido. \xBFMe confirmas la fecha, zona, invitados o presupuesto que a\xFAn falte?";
+          }
           applied.push("near-duplicate-ack");
         }
       }
@@ -217675,6 +217755,24 @@ function applyLucyGlobalAntiRepetition(input) {
   if (!mensaje.trim()) {
     mensaje = display ? `Gracias, ${display}. \xBFEn qu\xE9 m\xE1s te ayudo con tu evento?` : "Gracias. \xBFEn qu\xE9 m\xE1s te ayudo con tu evento?";
     applied.push("empty-fallback");
+  }
+  if (!cierre && looksLikeDeadEndAck(mensaje) && !isReadyForClosing(filled)) {
+    const extractedFull = asExtracted(extracted);
+    const pending = getNextPendingField(extractedFull, filled);
+    if (pending) {
+      const q3 = buildNaturalQuestion(pending, {
+        extracted: extractedFull,
+        filledSet: filled,
+        history: input.history ?? [],
+        currentMessage: input.currentMessage,
+        whatsappName: display
+      });
+      const ack = mensaje.trim();
+      mensaje = ack && /anotad|anoto|platicamos|principal/i.test(ack) ? `${ack}
+
+${q3}` : display && !q3.includes(display) ? `Perfecto, ${display}. ${q3}` : q3;
+      applied.push("dead-end-ack-continue");
+    }
   }
   return { mensaje: mensaje.trim(), applied };
 }
