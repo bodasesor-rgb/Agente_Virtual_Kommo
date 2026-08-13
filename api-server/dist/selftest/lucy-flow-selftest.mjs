@@ -125219,7 +125219,44 @@ function parseSalaProductFromText(text2) {
   const qtyOnly = text2.match(/\b(\d+)\s+salas?\b/i);
   if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
   if (/\bsalas?\s+lounge\b/i.test(text2)) return "Salas lounge";
+  const namedLoose = text2.match(
+    /\bsala\s+((?!lounge\b)[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]*(?:\s+(?:Color\s+)?[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]*){1,5})\b/i
+  );
+  if (namedLoose?.[1]) {
+    const name2 = namedLoose[1].trim().replace(/[.,;]+$/, "");
+    if (name2.length >= 4 && !/^(lounge|mesas?|sillas?)$/i.test(name2)) {
+      return `Sala ${name2}`;
+    }
+  }
   return null;
+}
+function parseFurnitureCatalogSkuFromText(text2) {
+  const t3 = String(text2 || "").trim();
+  if (!t3) return null;
+  const mesaCentro = t3.match(
+    /\bmesa\s+centro\s+(?:rectangular\s+)?m[aá]rmol(?:\s+redonda)?|\bmesa\s+centro\s+m[aá]rmol\s+redonda|\bmesa\s+centro\s+rectangular(?:\s+m[aá]rmol)?\b/i
+  );
+  if (mesaCentro) {
+    return mesaCentro[0].replace(/\s+/g, " ").trim().replace(/\b\w/g, (c4) => c4.toUpperCase()).replace(/\bMÁRMOL\b/gi, "M\xE1rmol").replace(/\bMarmol\b/g, "M\xE1rmol");
+  }
+  const sala = parseSalaProductFromText(t3);
+  if (sala && !/^Salas lounge$/i.test(sala) && !/^\d+\s+salas?\s+lounge$/i.test(sala)) {
+    return sala;
+  }
+  return null;
+}
+function assistantAskedVagueEmbudoContinue(text2) {
+  if (!text2?.trim()) return false;
+  return /\bseguimos con el siguiente dato\b/i.test(text2) || /\bsiguiente dato del evento\b/i.test(text2) || /\bseguimos con lo que ya platicamos\b/i.test(text2) || /\bsiguiente dato\b/i.test(text2);
+}
+function clientAffirmsEmbudoContinue(message, lastAssistantText) {
+  if (!assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
+  const t3 = String(message || "").trim().toLowerCase();
+  if (!t3) return false;
+  if (clientAsksForCatalog(message)) return false;
+  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|adelante|sigamos|contin[uú]a)([.!?]|\s|$)/i.test(
+    t3
+  );
 }
 function clientMentionsCarpas(message) {
   if (!message?.trim()) return false;
@@ -125393,6 +125430,10 @@ function assistantOfferedCatalogDetail(lastAssistantText) {
 }
 function clientAffirmsCatalogOffer(message, lastAssistantText) {
   if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
+  if (assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
+  if (/quieres que te d[eé] detalles de alguno/i.test(lastAssistantText ?? "") && !/cat[aá]logo|bodasesor\.com\/catalogos/i.test(lastAssistantText ?? "")) {
+    return false;
+  }
   const t3 = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
   if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
@@ -135067,6 +135108,83 @@ ${nextQ}` : ack;
     );
   }
   {
+    const lastAsstForContinue = [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+    const lastContinueText = lastAsstForContinue && typeof lastAsstForContinue.content === "string" ? lastAsstForContinue.content : null;
+    const shortYes = /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor)([.!?]|\s|$)/i.test(
+      (currentMessage ?? "").trim()
+    );
+    const detalleCtaWithoutCatalog = !!lastContinueText && /quieres que te d[eé] detalles de alguno/i.test(lastContinueText) && !assistantOfferedCatalogDetail(lastContinueText);
+    if (!cierreYaEnviado && currentMessage?.trim() && (clientAffirmsEmbudoContinue(currentMessage, lastContinueText) || shortYes && detalleCtaWithoutCatalog)) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : "\xBFMe compartes un correo para enviarte los detalles?";
+      log?.info(
+        { entityId, pending },
+        "GUARD: A15297 \u2014 afirma continuar embudo (pregunta real)"
+      );
+      return normalizeAdvisorReferences(
+        nextQ,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+  {
+    const sku = parseFurnitureCatalogSkuFromText(currentMessage ?? "");
+    if (!cierreYaEnviado && sku && currentMessage?.trim()) {
+      extracted.requerimientos_evento = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        sku,
+        6
+      );
+      if (extracted.requerimientos_evento) {
+        filledSet.add("Requerimientos o servicios");
+      }
+      if (!extracted.fecha_horario?.trim()) {
+        const fechaNow = parseFechaFromText(currentMessage);
+        if (fechaNow) {
+          extracted.fecha_horario = fechaNow;
+          filledSet.add("Fecha y horario");
+        }
+      }
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      const ack = `Perfecto, anoto *${sku}* para tu cotizaci\xF3n.`;
+      log?.info(
+        { entityId, sku, pending },
+        "GUARD: A15297 \u2014 SKU mobiliario anotado + embudo"
+      );
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+  {
+    const lastAsstFecha = [...presHistory].reverse().find((m5) => m5.role === "assistant" && typeof m5.content === "string");
+    const lastFechaTxt = lastAsstFecha && typeof lastAsstFecha.content === "string" ? lastAsstFecha.content : "";
+    const fechaNow = currentMessage ? parseFechaFromText(currentMessage) : null;
+    const lucyAskedFecha = inferLucyAskedField(lastFechaTxt) === "fecha" || /d[ií]a u horario|para cu[aá]ndo|fecha/i.test(lastFechaTxt);
+    const fechaPending = getNextPendingField(extracted, filledSet) === "fecha";
+    const looksLikeFechaOnly = !!fechaNow && !parseFurnitureCatalogSkuFromText(currentMessage ?? "") && !parseCorreoFromText(currentMessage ?? "") && (lucyAskedFecha || fechaPending || /^(el\s+)?\d{1,2}\s+de\s+\w+/i.test((currentMessage ?? "").trim()));
+    if (!cierreYaEnviado && fechaNow && looksLikeFechaOnly && !filledSet.has("Fecha y horario")) {
+      const withTime = (currentMessage ?? "").match(
+        /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
+      );
+      extracted.fecha_horario = withTime ? `${fechaNow} a partir de ${withTime[1].trim()}` : fechaNow;
+      filledSet.add("Fecha y horario");
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      const ack = `Perfecto, anoto la fecha: *${extracted.fecha_horario}*.`;
+      log?.info(
+        { entityId, fecha: extracted.fecha_horario, pending },
+        "GUARD: A15297 \u2014 fecha capturada + embudo real"
+      );
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+  {
     const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
     const declineFamilies = clientDeclinesServiceFamiliesWithContext(
       currentMessage,
@@ -135333,11 +135451,11 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       filledSet.add("Requerimientos o servicios");
     }
   }
-  const salaTurn = parseSalaProductFromText(currentMessage ?? "");
-  if (salaTurn) {
+  const furnitureSkuTurn = parseFurnitureCatalogSkuFromText(currentMessage ?? "") || parseSalaProductFromText(currentMessage ?? "");
+  if (furnitureSkuTurn) {
     extracted.requerimientos_evento = mergeServiceRequirements(
       extracted.requerimientos_evento,
-      salaTurn,
+      furnitureSkuTurn,
       6
     );
     if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
@@ -135499,11 +135617,18 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
   } else if (clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
-  ) || // A14994 / todas las ramas: si el CTA de catálogo está en hilo reciente (no solo el último msg).
-  clientAffirmsCatalogOffer(
-    currentMessage,
-    [...presHistory].reverse().filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(0, 3).map((m5) => m5.content).find((t3) => assistantOfferedCatalogDetail(t3)) ?? null
-  )) {
+  ) || // A14994: CTA de catálogo en hilo reciente, PERO no si el último msg fue
+  // filler de embudo / "siguiente dato" (A15297 Edna — "Sí" ≠ catálogo).
+  (() => {
+    const lastTxt = lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : "";
+    if (assistantAskedVagueEmbudoContinue(lastTxt)) return false;
+    if (/quieres que te d[eé] detalles de alguno/i.test(lastTxt) && !assistantOfferedCatalogDetail(lastTxt)) {
+      return false;
+    }
+    if (inferLucyAskedField(lastTxt)) return false;
+    const recentOffer = [...presHistory].reverse().filter((m5) => m5.role === "assistant" && typeof m5.content === "string").slice(0, 3).map((m5) => m5.content).find((t3) => assistantOfferedCatalogDetail(t3)) ?? null;
+    return clientAffirmsCatalogOffer(currentMessage, recentOffer);
+  })()) {
     const wantFull = clientWantsFullCatalog(currentMessage) || clientAsksGenericMenuCatalog(currentMessage);
     const hintParts = [];
     if (extracted.requerimientos_evento?.trim()) hintParts.push(extracted.requerimientos_evento);
@@ -136708,7 +136833,13 @@ ${nextQ}`;
     }
   }
   const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
-  if (fechaFromMsg && mensajeAsksForField(mensaje, "fecha") && !filledSet.has("Fecha y horario")) {
+  if (fechaFromMsg && !filledSet.has("Fecha y horario")) {
+    if (!extracted.fecha_horario?.trim()) {
+      const withTime = (currentMessage ?? "").match(
+        /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
+      );
+      extracted.fecha_horario = withTime ? `${fechaFromMsg} a partir de ${withTime[1].trim()}` : fechaFromMsg;
+    }
     filledSet.add("Fecha y horario");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
@@ -136716,8 +136847,15 @@ ${nextQ}`;
         extracted.nombre
       );
       log?.info({ entityId }, "GUARD: fecha capturada en turno \u2014 cierre");
-    } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    } else if (mensajeAsksForField(mensaje, "fecha") || /quieres que te d[eé] detalles|siguiente dato del evento/i.test(mensaje)) {
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
       mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
       log?.info({ entityId }, "GUARD: fecha pendiente \u2014 continuar flujo");
     }
@@ -136832,6 +136970,15 @@ ${nextQ}`;
   }
   if (!cierreYaEnviado && !appliedDirectReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  }
+  if (!cierreYaEnviado && assistantAskedVagueEmbudoContinue(mensaje) && !/bodasesor\.com\/catalogos|Según el catálogo/i.test(mensaje)) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending) {
+      const realQ = buildNaturalQuestion(pending, ctx);
+      const ackBit = mensaje.replace(/¿?\s*Seguimos con el siguiente dato[^.?]*[.?]?/gi, "").replace(/¿?\s*siguiente dato del evento[^.?]*[.?]?/gi, "").trim();
+      mensaje = ackBit && ackBit.length > 12 && !assistantAskedVagueEmbudoContinue(ackBit) ? `${ackBit} ${realQ}`.trim() : realQ;
+      log?.info({ entityId, pending }, "GUARD: A15297 \u2014 filler siguiente-dato \u2192 pregunta real");
+    }
   }
   if (appliedSalesReply) {
     if (!clientAsksInclusion(currentMessage)) {
@@ -137787,9 +137934,38 @@ function applyLucyGlobalAntiRepetition(input) {
       } else if (without.includes("?") && lucyTextOverlapRatio(without, lastPrev ?? "") < 0.7) {
         mensaje = without;
       } else {
-        mensaje = display ? `Perfecto, ${display}. \xBFSeguimos con el siguiente dato del evento?` : "Perfecto. \xBFSeguimos con el siguiente dato del evento?";
+        const extractedFull = asExtracted(extracted);
+        const pending = getNextPendingField(extractedFull, filled);
+        if (pending) {
+          mensaje = buildNaturalQuestion(pending, {
+            extracted: extractedFull,
+            filledSet: filled,
+            history: input.history ?? [],
+            currentMessage: input.currentMessage,
+            whatsappName: display
+          });
+          if (display && !mensaje.includes(display)) {
+            mensaje = `Perfecto, ${display}. ${mensaje}`;
+          }
+        } else {
+          mensaje = display ? `Perfecto, ${display}. Ya tengo lo principal anotado.` : "Perfecto, ya tengo lo principal anotado.";
+        }
       }
       applied.push("catalog-resend-dedupe");
+    }
+  }
+  if (!cierre && assistantAskedVagueEmbudoContinue(mensaje)) {
+    const extractedFull = asExtracted(extracted);
+    const pending = getNextPendingField(extractedFull, filled);
+    if (pending) {
+      mensaje = buildNaturalQuestion(pending, {
+        extracted: extractedFull,
+        filledSet: filled,
+        history: input.history ?? [],
+        currentMessage: input.currentMessage,
+        whatsappName: display
+      });
+      applied.push("vague-embudo-continue-replace");
     }
   }
   if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe") && !clientAskedPrice && !clientAskedInclusion && !clientClarifyingService) {
@@ -137977,7 +138153,12 @@ Otras reglas:
 - Si aporta un dato \xFAtil mientras falta otro: primero acusa, luego pide el faltante.
 - Presupuesto resuelto por monto, "no", "no s\xE9" o "que el equipo proponga" \u2192 no
   vuelvas a preguntarlo.
-- "4 salas" / "10 mesas" NO son invitados. "sala: Luxor Rosa" es producto, no sede.
+- "4 salas" / "10 mesas" NO son invitados. "sala: Luxor Rosa" / "Sala Ariel Color Nude"
+  es producto, no sede.
+- NUNCA digas "\xBFSeguimos con el siguiente dato del evento?". Si falta un dato,
+  haz ESA pregunta concreta (fecha, zona, correo, invitados\u2026).
+- Si el cliente eligi\xF3 un SKU (sala/mesa) o dijo "s\xED" para continuar: anota y
+  pregunta el siguiente faltante. No mandes otro cat\xE1logo al azar.
 - Correos propios (capybaraeventos@, bodasesor@) son NUESTROS: no los guardes.
 - Al corregir: solo lo que el cliente dijo. Nunca inventes calles ni colonias.
 
@@ -138138,7 +138319,35 @@ async function finalizeLucyOutboundMessage(input) {
   }
   if (!input.readyForClosing && !input.cierreYaEnviado && mensaje.includes(CLOSING_SIGNATURE)) {
     const without = mensaje.split(CLOSING_SIGNATURE).join(" ").replace(/\s{2,}/g, " ").trim();
-    mensaje = without && without.length > 20 ? without : "Perfecto, lo anoto. \xBFSeguimos con el siguiente dato del evento?";
+    if (without && without.length > 20) {
+      mensaje = without;
+    } else {
+      const extractedFallback = {
+        tipo_contacto: null,
+        nombre: input.extracted.nombre ?? null,
+        empresa: null,
+        telefono: null,
+        correo: input.extracted.correo ?? null,
+        presupuesto: input.extracted.presupuesto ?? null,
+        direccion_evento: input.extracted.direccion_evento ?? null,
+        requerimientos_evento: input.extracted.requerimientos_evento ?? null,
+        fecha_horario: input.extracted.fecha_horario ?? null,
+        num_invitados: input.extracted.num_invitados ?? null,
+        tipo_evento: input.extracted.tipo_evento ?? null,
+        modo_servicio: null
+      };
+      const pending = getNextPendingField(
+        extractedFallback,
+        input.filledSet ?? /* @__PURE__ */ new Set()
+      );
+      mensaje = pending ? buildNaturalQuestion(pending, {
+        extracted: extractedFallback,
+        filledSet: input.filledSet,
+        history: input.history,
+        currentMessage: input.currentMessage,
+        whatsappName: input.extracted.nombre
+      }) : "Perfecto, lo anoto. \xBFMe compartes un correo para enviarte los detalles?";
+    }
     input.log?.warn?.(
       { entityId: input.entityId },
       "GUARD: cierre prematuro bloqueado (invariante)"
@@ -138725,7 +138934,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.20";
+var LUCY_PROMPT_VERSION = "V9.21";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -147435,6 +147644,137 @@ ${golfText}`,
       `typo fix no re-anota: ${ex2.requerimientos_evento}`
     );
     assert2.ok(/no\s+incluimos|\*no\*/i.test(live2), live2.slice(0, 250));
+  });
+  await test("142. A15297 \u2014 S\xED tras siguiente-dato / SKU sala+mesa \u2192 pregunta real", () => {
+    assert2.ok(
+      assistantAskedVagueEmbudoContinue(
+        "Perfecto, Edna. \xBFSeguimos con el siguiente dato del evento?"
+      )
+    );
+    assert2.ok(
+      clientAffirmsEmbudoContinue(
+        "Si",
+        "Perfecto, Edna. \xBFSeguimos con el siguiente dato del evento?"
+      )
+    );
+    assert2.ok(
+      !clientAffirmsCatalogOffer(
+        "Si",
+        "Perfecto, Edna. \xBFSeguimos con el siguiente dato del evento?"
+      ),
+      "S\xED tras siguiente-dato \u2260 cat\xE1logo"
+    );
+    assert2.equal(
+      parseFurnitureCatalogSkuFromText("Sala Ariel Color Nude"),
+      "Sala Ariel Color Nude"
+    );
+    assert2.ok(
+      /Mesa Centro.*Mármol/i.test(
+        parseFurnitureCatalogSkuFromText("Mesa Centro Rectangular M\xE1rmol") ?? ""
+      )
+    );
+    assert2.ok(
+      /Mesa Centro.*Mármol/i.test(
+        parseFurnitureCatalogSkuFromText("Mesa Centro M\xE1rmol Redonda") ?? ""
+      )
+    );
+    const extracted = emptyExtracted({
+      nombre: "Edna Osorno",
+      tipo_evento: "cumplea\xF1os",
+      requerimientos_evento: "Salas lounge"
+    });
+    const filled = /* @__PURE__ */ new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios"
+    ]);
+    const liveSi = runGuards({
+      aiResponse: "Claro.\n\nTe dejo el cat\xE1logo general:\nhttps://bodasesor.com/catalogos",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Si",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, Edna. \xBFSeguimos con el siguiente dato del evento?"
+        }
+      ]
+    });
+    assert2.ok(
+      mensajeAsksForField(liveSi, "fecha") || /fecha|cu[aá]ndo|para cu[aá]ndo/i.test(liveSi),
+      `S\xED \u2192 fecha real: ${liveSi.slice(0, 300)}`
+    );
+    assert2.ok(
+      !/bodasesor\.com\/catalogos|colgantes|siguiente dato del evento/i.test(liveSi),
+      `no cat\xE1logo/filler: ${liveSi.slice(0, 350)}`
+    );
+    const exSku = emptyExtracted({
+      nombre: "Edna Osorno",
+      tipo_evento: "cumplea\xF1os",
+      requerimientos_evento: "Salas lounge"
+    });
+    const liveSku = runGuards({
+      aiResponse: "Perfecto. \xBFQuieres que te d\xE9 detalles de alguno?",
+      extracted: exSku,
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "Sala Ariel Color Nude",
+      history: [
+        { role: "assistant", content: "\xBFQuieres que te d\xE9 detalles de alguno?" }
+      ]
+    });
+    assert2.ok(/Sala Ariel/i.test(exSku.requerimientos_evento ?? ""), exSku.requerimientos_evento);
+    assert2.ok(
+      /anoto|Sala Ariel/i.test(liveSku) && (mensajeAsksForField(liveSku, "fecha") || /fecha|cu[aá]ndo/i.test(liveSku)),
+      liveSku.slice(0, 400)
+    );
+    assert2.ok(
+      !/siguiente dato del evento|colgantes|cat[aá]logo general/i.test(liveSku),
+      liveSku.slice(0, 350)
+    );
+    const exFecha = emptyExtracted({
+      nombre: "Edna Osorno",
+      tipo_evento: "cumplea\xF1os",
+      requerimientos_evento: "Sala Ariel Color Nude, Mesa Centro Rectangular M\xE1rmol"
+    });
+    const liveFecha = runGuards({
+      aiResponse: "Con gusto. \xBFQuieres que te d\xE9 detalles de alguno?",
+      extracted: exFecha,
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "El 10 de octubre a partir de 4:00 pm",
+      history: [
+        {
+          role: "assistant",
+          content: "De acuerdo. Edna, \xBFtienen d\xEDa u horario ya definido?"
+        }
+      ]
+    });
+    assert2.ok(
+      /octubre|10/i.test(exFecha.fecha_horario ?? ""),
+      `fecha CRM: ${exFecha.fecha_horario}`
+    );
+    assert2.ok(
+      /4:00|ubicaci|sal[oó]n|colonia|ciudad/i.test(liveFecha),
+      `ack fecha + zona: ${liveFecha.slice(0, 350)}`
+    );
+    assert2.ok(
+      !/quieres que te d[eé] detalles de alguno/i.test(liveFecha),
+      liveFecha.slice(0, 350)
+    );
+    assert2.ok(
+      !/colgantes|Según el catálogo/i.test(liveFecha),
+      liveFecha.slice(0, 350)
+    );
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

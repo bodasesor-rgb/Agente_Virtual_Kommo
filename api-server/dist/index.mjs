@@ -203283,7 +203283,44 @@ function parseSalaProductFromText(text2) {
   const qtyOnly = text2.match(/\b(\d+)\s+salas?\b/i);
   if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
   if (/\bsalas?\s+lounge\b/i.test(text2)) return "Salas lounge";
+  const namedLoose = text2.match(
+    /\bsala\s+((?!lounge\b)[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]*(?:\s+(?:Color\s+)?[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]*){1,5})\b/i
+  );
+  if (namedLoose?.[1]) {
+    const name2 = namedLoose[1].trim().replace(/[.,;]+$/, "");
+    if (name2.length >= 4 && !/^(lounge|mesas?|sillas?)$/i.test(name2)) {
+      return `Sala ${name2}`;
+    }
+  }
   return null;
+}
+function parseFurnitureCatalogSkuFromText(text2) {
+  const t4 = String(text2 || "").trim();
+  if (!t4) return null;
+  const mesaCentro = t4.match(
+    /\bmesa\s+centro\s+(?:rectangular\s+)?m[aá]rmol(?:\s+redonda)?|\bmesa\s+centro\s+m[aá]rmol\s+redonda|\bmesa\s+centro\s+rectangular(?:\s+m[aá]rmol)?\b/i
+  );
+  if (mesaCentro) {
+    return mesaCentro[0].replace(/\s+/g, " ").trim().replace(/\b\w/g, (c5) => c5.toUpperCase()).replace(/\bMÁRMOL\b/gi, "M\xE1rmol").replace(/\bMarmol\b/g, "M\xE1rmol");
+  }
+  const sala = parseSalaProductFromText(t4);
+  if (sala && !/^Salas lounge$/i.test(sala) && !/^\d+\s+salas?\s+lounge$/i.test(sala)) {
+    return sala;
+  }
+  return null;
+}
+function assistantAskedVagueEmbudoContinue(text2) {
+  if (!text2?.trim()) return false;
+  return /\bseguimos con el siguiente dato\b/i.test(text2) || /\bsiguiente dato del evento\b/i.test(text2) || /\bseguimos con lo que ya platicamos\b/i.test(text2) || /\bsiguiente dato\b/i.test(text2);
+}
+function clientAffirmsEmbudoContinue(message, lastAssistantText) {
+  if (!assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
+  const t4 = String(message || "").trim().toLowerCase();
+  if (!t4) return false;
+  if (clientAsksForCatalog(message)) return false;
+  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|adelante|sigamos|contin[uú]a)([.!?]|\s|$)/i.test(
+    t4
+  );
 }
 function clientMentionsCarpas(message) {
   if (!message?.trim()) return false;
@@ -203457,6 +203494,10 @@ function assistantOfferedCatalogDetail(lastAssistantText) {
 }
 function clientAffirmsCatalogOffer(message, lastAssistantText) {
   if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
+  if (assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
+  if (/quieres que te d[eé] detalles de alguno/i.test(lastAssistantText ?? "") && !/cat[aá]logo|bodasesor\.com\/catalogos/i.test(lastAssistantText ?? "")) {
+    return false;
+  }
   const t4 = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
   if (/^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|mande|m[aá]ndame|mandarme|m[aá]ndamelo|env[ií]a|env[ií]ame|env[ií]amelo|p[aá]samelo)([.!?]|\s|$)/i.test(
@@ -208863,7 +208904,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.20";
+var LUCY_PROMPT_VERSION = "V9.21";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -212939,6 +212980,83 @@ ${nextQ}` : ack;
     );
   }
   {
+    const lastAsstForContinue = [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
+    const lastContinueText = lastAsstForContinue && typeof lastAsstForContinue.content === "string" ? lastAsstForContinue.content : null;
+    const shortYes = /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor)([.!?]|\s|$)/i.test(
+      (currentMessage ?? "").trim()
+    );
+    const detalleCtaWithoutCatalog = !!lastContinueText && /quieres que te d[eé] detalles de alguno/i.test(lastContinueText) && !assistantOfferedCatalogDetail(lastContinueText);
+    if (!cierreYaEnviado && currentMessage?.trim() && (clientAffirmsEmbudoContinue(currentMessage, lastContinueText) || shortYes && detalleCtaWithoutCatalog)) {
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : "\xBFMe compartes un correo para enviarte los detalles?";
+      log?.info(
+        { entityId, pending },
+        "GUARD: A15297 \u2014 afirma continuar embudo (pregunta real)"
+      );
+      return normalizeAdvisorReferences(
+        nextQ,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+  {
+    const sku = parseFurnitureCatalogSkuFromText(currentMessage ?? "");
+    if (!cierreYaEnviado && sku && currentMessage?.trim()) {
+      extracted.requerimientos_evento = mergeServiceRequirements(
+        extracted.requerimientos_evento,
+        sku,
+        6
+      );
+      if (extracted.requerimientos_evento) {
+        filledSet.add("Requerimientos o servicios");
+      }
+      if (!extracted.fecha_horario?.trim()) {
+        const fechaNow = parseFechaFromText(currentMessage);
+        if (fechaNow) {
+          extracted.fecha_horario = fechaNow;
+          filledSet.add("Fecha y horario");
+        }
+      }
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      const ack = `Perfecto, anoto *${sku}* para tu cotizaci\xF3n.`;
+      log?.info(
+        { entityId, sku, pending },
+        "GUARD: A15297 \u2014 SKU mobiliario anotado + embudo"
+      );
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+  {
+    const lastAsstFecha = [...presHistory].reverse().find((m6) => m6.role === "assistant" && typeof m6.content === "string");
+    const lastFechaTxt = lastAsstFecha && typeof lastAsstFecha.content === "string" ? lastAsstFecha.content : "";
+    const fechaNow = currentMessage ? parseFechaFromText(currentMessage) : null;
+    const lucyAskedFecha = inferLucyAskedField(lastFechaTxt) === "fecha" || /d[ií]a u horario|para cu[aá]ndo|fecha/i.test(lastFechaTxt);
+    const fechaPending = getNextPendingField(extracted, filledSet) === "fecha";
+    const looksLikeFechaOnly = !!fechaNow && !parseFurnitureCatalogSkuFromText(currentMessage ?? "") && !parseCorreoFromText(currentMessage ?? "") && (lucyAskedFecha || fechaPending || /^(el\s+)?\d{1,2}\s+de\s+\w+/i.test((currentMessage ?? "").trim()));
+    if (!cierreYaEnviado && fechaNow && looksLikeFechaOnly && !filledSet.has("Fecha y horario")) {
+      const withTime = (currentMessage ?? "").match(
+        /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
+      );
+      extracted.fecha_horario = withTime ? `${fechaNow} a partir de ${withTime[1].trim()}` : fechaNow;
+      filledSet.add("Fecha y horario");
+      const pending = getNextPendingField(extracted, filledSet);
+      const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+      const ack = `Perfecto, anoto la fecha: *${extracted.fecha_horario}*.`;
+      log?.info(
+        { entityId, fecha: extracted.fecha_horario, pending },
+        "GUARD: A15297 \u2014 fecha capturada + embudo real"
+      );
+      return normalizeAdvisorReferences(
+        nextQ ? `${ack} ${nextQ}` : ack,
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+  }
+  {
     const recentUserForDecline = collectUserTexts(presHistory, void 0).slice(-4);
     const declineFamilies = clientDeclinesServiceFamiliesWithContext(
       currentMessage,
@@ -213205,11 +213323,11 @@ ${buildNaturalQuestion(pending, ctx)}` : inclusionAnswer;
       filledSet.add("Requerimientos o servicios");
     }
   }
-  const salaTurn = parseSalaProductFromText(currentMessage ?? "");
-  if (salaTurn) {
+  const furnitureSkuTurn = parseFurnitureCatalogSkuFromText(currentMessage ?? "") || parseSalaProductFromText(currentMessage ?? "");
+  if (furnitureSkuTurn) {
     extracted.requerimientos_evento = mergeServiceRequirements(
       extracted.requerimientos_evento,
-      salaTurn,
+      furnitureSkuTurn,
       6
     );
     if (extracted.requerimientos_evento) filledSet.add("Requerimientos o servicios");
@@ -213371,11 +213489,18 @@ Actualizo tu cotizaci\xF3n con esto. \xBFAlgo m\xE1s que quieras agregar?`;
   } else if (clientAsksForCatalog(currentMessage) || clientAffirmsCatalogOffer(
     currentMessage,
     lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : null
-  ) || // A14994 / todas las ramas: si el CTA de catálogo está en hilo reciente (no solo el último msg).
-  clientAffirmsCatalogOffer(
-    currentMessage,
-    [...presHistory].reverse().filter((m6) => m6.role === "assistant" && typeof m6.content === "string").slice(0, 3).map((m6) => m6.content).find((t4) => assistantOfferedCatalogDetail(t4)) ?? null
-  )) {
+  ) || // A14994: CTA de catálogo en hilo reciente, PERO no si el último msg fue
+  // filler de embudo / "siguiente dato" (A15297 Edna — "Sí" ≠ catálogo).
+  (() => {
+    const lastTxt = lastAssistantMsg && typeof lastAssistantMsg.content === "string" ? lastAssistantMsg.content : "";
+    if (assistantAskedVagueEmbudoContinue(lastTxt)) return false;
+    if (/quieres que te d[eé] detalles de alguno/i.test(lastTxt) && !assistantOfferedCatalogDetail(lastTxt)) {
+      return false;
+    }
+    if (inferLucyAskedField(lastTxt)) return false;
+    const recentOffer = [...presHistory].reverse().filter((m6) => m6.role === "assistant" && typeof m6.content === "string").slice(0, 3).map((m6) => m6.content).find((t4) => assistantOfferedCatalogDetail(t4)) ?? null;
+    return clientAffirmsCatalogOffer(currentMessage, recentOffer);
+  })()) {
     const wantFull = clientWantsFullCatalog(currentMessage) || clientAsksGenericMenuCatalog(currentMessage);
     const hintParts = [];
     if (extracted.requerimientos_evento?.trim()) hintParts.push(extracted.requerimientos_evento);
@@ -214580,7 +214705,13 @@ ${nextQ}`;
     }
   }
   const fechaFromMsg = currentMessage ? parseFechaFromText(currentMessage) : null;
-  if (fechaFromMsg && mensajeAsksForField(mensaje, "fecha") && !filledSet.has("Fecha y horario")) {
+  if (fechaFromMsg && !filledSet.has("Fecha y horario")) {
+    if (!extracted.fecha_horario?.trim()) {
+      const withTime = (currentMessage ?? "").match(
+        /\b(?:a\s+partir\s+de|a\s+las)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm|hrs?|horas?)?)/i
+      );
+      extracted.fecha_horario = withTime ? `${fechaFromMsg} a partir de ${withTime[1].trim()}` : fechaFromMsg;
+    }
     filledSet.add("Fecha y horario");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
       mensaje = buildClosing(
@@ -214588,8 +214719,15 @@ ${nextQ}`;
         extracted.nombre
       );
       log?.info({ entityId }, "GUARD: fecha capturada en turno \u2014 cierre");
-    } else {
-      const nextQ = nextFieldQuestion(extracted, filledSet, whatsappDisplayName, history, currentMessage, entityId);
+    } else if (mensajeAsksForField(mensaje, "fecha") || /quieres que te d[eé] detalles|siguiente dato del evento/i.test(mensaje)) {
+      const nextQ = nextFieldQuestion(
+        extracted,
+        filledSet,
+        whatsappDisplayName,
+        history,
+        currentMessage,
+        entityId
+      );
       mensaje = nextQ ?? "Entendido, sin problema con la fecha.";
       log?.info({ entityId }, "GUARD: fecha pendiente \u2014 continuar flujo");
     }
@@ -214704,6 +214842,15 @@ ${nextQ}`;
   }
   if (!cierreYaEnviado && !appliedDirectReply) {
     mensaje = sanitizeOutboundMessage(mensaje, filledSet, extracted, ctx, log);
+  }
+  if (!cierreYaEnviado && assistantAskedVagueEmbudoContinue(mensaje) && !/bodasesor\.com\/catalogos|Según el catálogo/i.test(mensaje)) {
+    const pending = getNextPendingField(extracted, filledSet);
+    if (pending) {
+      const realQ = buildNaturalQuestion(pending, ctx);
+      const ackBit = mensaje.replace(/¿?\s*Seguimos con el siguiente dato[^.?]*[.?]?/gi, "").replace(/¿?\s*siguiente dato del evento[^.?]*[.?]?/gi, "").trim();
+      mensaje = ackBit && ackBit.length > 12 && !assistantAskedVagueEmbudoContinue(ackBit) ? `${ackBit} ${realQ}`.trim() : realQ;
+      log?.info({ entityId, pending }, "GUARD: A15297 \u2014 filler siguiente-dato \u2192 pregunta real");
+    }
   }
   if (appliedSalesReply) {
     if (!clientAsksInclusion(currentMessage)) {
@@ -216460,7 +216607,12 @@ Otras reglas:
 - Si aporta un dato \xFAtil mientras falta otro: primero acusa, luego pide el faltante.
 - Presupuesto resuelto por monto, "no", "no s\xE9" o "que el equipo proponga" \u2192 no
   vuelvas a preguntarlo.
-- "4 salas" / "10 mesas" NO son invitados. "sala: Luxor Rosa" es producto, no sede.
+- "4 salas" / "10 mesas" NO son invitados. "sala: Luxor Rosa" / "Sala Ariel Color Nude"
+  es producto, no sede.
+- NUNCA digas "\xBFSeguimos con el siguiente dato del evento?". Si falta un dato,
+  haz ESA pregunta concreta (fecha, zona, correo, invitados\u2026).
+- Si el cliente eligi\xF3 un SKU (sala/mesa) o dijo "s\xED" para continuar: anota y
+  pregunta el siguiente faltante. No mandes otro cat\xE1logo al azar.
 - Correos propios (capybaraeventos@, bodasesor@) son NUESTROS: no los guardes.
 - Al corregir: solo lo que el cliente dijo. Nunca inventes calles ni colonias.
 
@@ -217126,9 +217278,38 @@ function applyLucyGlobalAntiRepetition(input) {
       } else if (without.includes("?") && lucyTextOverlapRatio(without, lastPrev ?? "") < 0.7) {
         mensaje = without;
       } else {
-        mensaje = display ? `Perfecto, ${display}. \xBFSeguimos con el siguiente dato del evento?` : "Perfecto. \xBFSeguimos con el siguiente dato del evento?";
+        const extractedFull = asExtracted(extracted);
+        const pending = getNextPendingField(extractedFull, filled);
+        if (pending) {
+          mensaje = buildNaturalQuestion(pending, {
+            extracted: extractedFull,
+            filledSet: filled,
+            history: input.history ?? [],
+            currentMessage: input.currentMessage,
+            whatsappName: display
+          });
+          if (display && !mensaje.includes(display)) {
+            mensaje = `Perfecto, ${display}. ${mensaje}`;
+          }
+        } else {
+          mensaje = display ? `Perfecto, ${display}. Ya tengo lo principal anotado.` : "Perfecto, ya tengo lo principal anotado.";
+        }
       }
       applied.push("catalog-resend-dedupe");
+    }
+  }
+  if (!cierre && assistantAskedVagueEmbudoContinue(mensaje)) {
+    const extractedFull = asExtracted(extracted);
+    const pending = getNextPendingField(extractedFull, filled);
+    if (pending) {
+      mensaje = buildNaturalQuestion(pending, {
+        extracted: extractedFull,
+        filledSet: filled,
+        history: input.history ?? [],
+        currentMessage: input.currentMessage,
+        whatsappName: display
+      });
+      applied.push("vague-embudo-continue-replace");
     }
   }
   if (!cierre && lastPrev && !applied.includes("catalog-resend-dedupe") && !clientAskedPrice && !clientAskedInclusion && !clientClarifyingService) {
@@ -217222,7 +217403,35 @@ async function finalizeLucyOutboundMessage(input) {
   }
   if (!input.readyForClosing && !input.cierreYaEnviado && mensaje.includes(CLOSING_SIGNATURE)) {
     const without = mensaje.split(CLOSING_SIGNATURE).join(" ").replace(/\s{2,}/g, " ").trim();
-    mensaje = without && without.length > 20 ? without : "Perfecto, lo anoto. \xBFSeguimos con el siguiente dato del evento?";
+    if (without && without.length > 20) {
+      mensaje = without;
+    } else {
+      const extractedFallback = {
+        tipo_contacto: null,
+        nombre: input.extracted.nombre ?? null,
+        empresa: null,
+        telefono: null,
+        correo: input.extracted.correo ?? null,
+        presupuesto: input.extracted.presupuesto ?? null,
+        direccion_evento: input.extracted.direccion_evento ?? null,
+        requerimientos_evento: input.extracted.requerimientos_evento ?? null,
+        fecha_horario: input.extracted.fecha_horario ?? null,
+        num_invitados: input.extracted.num_invitados ?? null,
+        tipo_evento: input.extracted.tipo_evento ?? null,
+        modo_servicio: null
+      };
+      const pending = getNextPendingField(
+        extractedFallback,
+        input.filledSet ?? /* @__PURE__ */ new Set()
+      );
+      mensaje = pending ? buildNaturalQuestion(pending, {
+        extracted: extractedFallback,
+        filledSet: input.filledSet,
+        history: input.history,
+        currentMessage: input.currentMessage,
+        whatsappName: input.extracted.nombre
+      }) : "Perfecto, lo anoto. \xBFMe compartes un correo para enviarte los detalles?";
+    }
     input.log?.warn?.(
       { entityId: input.entityId },
       "GUARD: cierre prematuro bloqueado (invariante)"

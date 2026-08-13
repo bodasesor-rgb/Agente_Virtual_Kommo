@@ -29,12 +29,15 @@ import {
   isReferentialPriorAnswer,
   clientComplainsAboutRepeat,
   recoverCorreoFromUserTexts,
+  assistantAskedVagueEmbudoContinue,
 } from "./conversation-understanding.js";
 import { clientAsksConcreteProductQuestion } from "./services/concreteProductQuestion.js";
 import {
   isFieldSatisfied,
   mensajeAsksForField,
   mensajeAsksForFilledField,
+  getNextPendingField,
+  buildNaturalQuestion,
   type PendingField,
 } from "./lucy-flow-guards.js";
 import { filterClientEmail, looksLikeValidClientEmail } from "./client-email.js";
@@ -529,11 +532,43 @@ export function applyLucyGlobalAntiRepetition(input: LucyAntiRepeatInput): LucyA
       } else if (without.includes("?") && lucyTextOverlapRatio(without, lastPrev ?? "") < 0.7) {
         mensaje = without;
       } else {
-        mensaje = display
-          ? `Perfecto, ${display}. ¿Seguimos con el siguiente dato del evento?`
-          : "Perfecto. ¿Seguimos con el siguiente dato del evento?";
+        // A15297: nunca filler "siguiente dato" — pregunta real del embudo.
+        const extractedFull = asExtracted(extracted);
+        const pending = getNextPendingField(extractedFull, filled);
+        if (pending) {
+          mensaje = buildNaturalQuestion(pending, {
+            extracted: extractedFull,
+            filledSet: filled,
+            history: input.history ?? [],
+            currentMessage: input.currentMessage,
+            whatsappName: display,
+          });
+          if (display && !mensaje.includes(display)) {
+            mensaje = `Perfecto, ${display}. ${mensaje}`;
+          }
+        } else {
+          mensaje = display
+            ? `Perfecto, ${display}. Ya tengo lo principal anotado.`
+            : "Perfecto, ya tengo lo principal anotado.";
+        }
       }
       applied.push("catalog-resend-dedupe");
+    }
+  }
+
+  // A15297: si algún paso previo dejó el filler, reemplazarlo.
+  if (!cierre && assistantAskedVagueEmbudoContinue(mensaje)) {
+    const extractedFull = asExtracted(extracted);
+    const pending = getNextPendingField(extractedFull, filled);
+    if (pending) {
+      mensaje = buildNaturalQuestion(pending, {
+        extracted: extractedFull,
+        filledSet: filled,
+        history: input.history ?? [],
+        currentMessage: input.currentMessage,
+        whatsappName: display,
+      });
+      applied.push("vague-embudo-continue-replace");
     }
   }
 

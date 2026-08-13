@@ -1172,7 +1172,7 @@ export function parseCarpaVariantFromText(text: string | null | undefined): stri
   return null;
 }
 
-/** Extrae producto "sala: Luxor Rosa" / "4 salas" para requerimientos. */
+/** Extrae producto "sala: Luxor Rosa" / "4 salas" / "Sala Ariel Color Nude". */
 export function parseSalaProductFromText(text: string): string | null {
   const named = text.match(/\bsala\s*:\s*([A-Za-zÁÉÍÓÚáéíóúñ0-9][\w\s.-]{1,40})/i);
   if (named?.[1]) {
@@ -1183,7 +1183,73 @@ export function parseSalaProductFromText(text: string): string | null {
   const qtyOnly = text.match(/\b(\d+)\s+salas?\b/i);
   if (qtyOnly) return `${qtyOnly[1]} salas lounge`;
   if (/\bsalas?\s+lounge\b/i.test(text)) return "Salas lounge";
+  // A15297: "Sala Ariel Color Nude" (sin ":")
+  const namedLoose = text.match(
+    /\bsala\s+((?!lounge\b)[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]*(?:\s+(?:Color\s+)?[A-Za-zÁÉÍÓÚáéíóúñ][\wÁÉÍÓÚáéíóúñ.-]*){1,5})\b/i
+  );
+  if (namedLoose?.[1]) {
+    const name = namedLoose[1].trim().replace(/[.,;]+$/, "");
+    if (name.length >= 4 && !/^(lounge|mesas?|sillas?)$/i.test(name)) {
+      return `Sala ${name}`;
+    }
+  }
   return null;
+}
+
+/**
+ * SKUs concretos de mobiliario del catálogo (A15297).
+ * "Mesa Centro Rectangular Mármol", "Mesa Centro Mármol Redonda", salas nombradas.
+ */
+export function parseFurnitureCatalogSkuFromText(text: string): string | null {
+  const t = String(text || "").trim();
+  if (!t) return null;
+  const mesaCentro = t.match(
+    /\bmesa\s+centro\s+(?:rectangular\s+)?m[aá]rmol(?:\s+redonda)?|\bmesa\s+centro\s+m[aá]rmol\s+redonda|\bmesa\s+centro\s+rectangular(?:\s+m[aá]rmol)?\b/i
+  );
+  if (mesaCentro) {
+    return mesaCentro[0]
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .replace(/\bMÁRMOL\b/gi, "Mármol")
+      .replace(/\bMarmol\b/g, "Mármol");
+  }
+  const sala = parseSalaProductFromText(t);
+  if (
+    sala &&
+    !/^Salas lounge$/i.test(sala) &&
+    !/^\d+\s+salas?\s+lounge$/i.test(sala)
+  ) {
+    return sala;
+  }
+  return null;
+}
+
+/** Lucy usó filler genérico en vez de la pregunta real del embudo (A15297). */
+export function assistantAskedVagueEmbudoContinue(
+  text: string | null | undefined
+): boolean {
+  if (!text?.trim()) return false;
+  return (
+    /\bseguimos con el siguiente dato\b/i.test(text) ||
+    /\bsiguiente dato del evento\b/i.test(text) ||
+    /\bseguimos con lo que ya platicamos\b/i.test(text) ||
+    /\bsiguiente dato\b/i.test(text)
+  );
+}
+
+/** Cliente acepta avanzar ("Sí") tras ese filler — NO es aceptación de catálogo. */
+export function clientAffirmsEmbudoContinue(
+  message: string | null | undefined,
+  lastAssistantText: string | null | undefined
+): boolean {
+  if (!assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
+  const t = String(message || "").trim().toLowerCase();
+  if (!t) return false;
+  if (clientAsksForCatalog(message)) return false;
+  return /^(s[ií]|sip|sep|dale|claro|ok|okay|va|por\s+favor|pls|please|adelante|sigamos|contin[uú]a)([.!?]|\s|$)/i.test(
+    t
+  );
 }
 
 /** Cliente menciona carpas o elige una variante disponible. */
@@ -1512,6 +1578,15 @@ export function clientAffirmsCatalogOffer(
   lastAssistantText: string | null | undefined
 ): boolean {
   if (!message?.trim() || !assistantOfferedCatalogDetail(lastAssistantText)) return false;
+  // A15297: "Sí" tras "¿seguimos con el siguiente dato?" ≠ catálogo.
+  if (assistantAskedVagueEmbudoContinue(lastAssistantText)) return false;
+  // "¿Quieres que te dé detalles de alguno?" sin oferta de catálogo ≠ catálogo.
+  if (
+    /quieres que te d[eé] detalles de alguno/i.test(lastAssistantText ?? "") &&
+    !/cat[aá]logo|bodasesor\.com\/catalogos/i.test(lastAssistantText ?? "")
+  ) {
+    return false;
+  }
   const t = message.trim().toLowerCase();
   if (clientAsksForCatalog(message)) return true;
   // "Sí", "Si por favor", "claro que sí", "mande por favor", "sí mándamelo", etc.
