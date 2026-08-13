@@ -10334,6 +10334,81 @@ async function runAll(): Promise<void> {
     );
   });
 
+  // ─── 144. V9.23 — RFQ largo genérico: sync todo + 1 pregunta; sin perderse ───
+  await test("144. V9.23 — RFQ largo completo: captura todo y solo pide lo faltante", () => {
+    const rich = [
+      "Hola, queremos cotizar un evento corporativo el 10 de octubre",
+      "en Polanco, Ciudad de México, para 120 personas.",
+      "Necesitamos coffee break y meseros.",
+      "Nuestro correo es eventos@acme.mx.",
+      "¿Nos pueden enviar una propuesta con costos?",
+    ].join(" ");
+
+    assert.ok(isRichQuoteBrief(rich));
+    assert.ok(/Polanco/i.test(parseZonaFromText(rich) ?? ""));
+
+    const extracted = emptyExtracted();
+    const live = runGuards({
+      aiResponse: "De acuerdo. Sobre *bebidas* en *Coffee Break*: *Sí incluye*...",
+      extracted,
+      filledSet: new Set(),
+      readyForClosing: false,
+      currentMessage: rich,
+      history: [],
+      forceFirstPresentation: true,
+    });
+    assert.ok(/hola[!.,]?\s*(?:buen\s+d[ií]a[.!]?\s*)?soy\s+lucy/i.test(live), live.slice(0, 300));
+    assert.ok(!/Sobre \*bebidas\*|S[ií] incluye/i.test(live), `sin dump: ${live.slice(0, 350)}`);
+    assert.ok(/10 de octubre|polanco|120/i.test(live), live.slice(0, 500));
+    assert.ok(/coffee|meseros/i.test(live), live.slice(0, 500));
+    assert.ok(/nombre|c[oó]mo te llamas|regalas/i.test(live), live.slice(0, 700));
+    // No debe re-pedir zona/fecha/invitados/correo ya capturados.
+    assert.ok(!/en qu[eé] ciudad|cu[aá]ntas personas|ya tienen fecha|correo/i.test(live), live.slice(0, 700));
+    assert.equal(extracted.num_invitados, 120);
+    assert.ok(/Polanco/i.test(extracted.direccion_evento ?? ""));
+    assert.ok(/10 de octubre/i.test(extracted.fecha_horario ?? ""));
+    assert.equal(extracted.correo, "eventos@acme.mx");
+    assert.ok(/Coffee|Meseros/i.test(extracted.requerimientos_evento ?? ""));
+
+    // Segundo turno: ya con nombre → no re-preguntar datos del brief; ir a presupuesto o cierre.
+    const filled2 = new Set([
+      "Nombre del cliente",
+      "Correo electrónico",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+    ]);
+    const ex2 = emptyExtracted({
+      nombre: "Ana Pérez",
+      correo: "eventos@acme.mx",
+      tipo_evento: "evento corporativo",
+      requerimientos_evento: "Coffee Break, Meseros",
+      direccion_evento: "Polanco, Ciudad de México",
+      fecha_horario: "10 de octubre",
+      num_invitados: 120,
+    });
+    const mid = runGuards({
+      aiResponse: "¿Tienen algún rango de presupuesto en mente?",
+      extracted: ex2,
+      filledSet: filled2,
+      readyForClosing: false,
+      currentMessage: rich,
+      history: [
+        { role: "assistant", content: "¿Me regalas tu nombre?" },
+        { role: "user", content: "Ana Pérez" },
+        { role: "assistant", content: "¿Tienen algún rango de presupuesto en mente?" },
+      ],
+    });
+    assert.ok(!/Sobre \*bebidas\*|S[ií] incluye/i.test(mid), mid.slice(0, 300));
+    assert.ok(
+      /ya tengo todo|equipo|cotizaci|propuesta/i.test(mid) ||
+        !/presupuesto|rango de inversi/i.test(mid),
+      mid.slice(0, 350)
+    );
+  });
+
   // ─── 143. A15298 — Priscilla RFQ editorial: sin dump bebidas; propuesta = cierre ───
   await test("143. A15298 — RFQ canapés/café + propuesta mamita cierra sin presupuesto", () => {
     const brief = [
