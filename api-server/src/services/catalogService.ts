@@ -32,6 +32,7 @@ import {
   clientAsksServiceInfo,
   parsePrimaryService,
   isServiceRelatedMessage,
+  isRichQuoteBrief,
 } from "../conversation-understanding.js";
 import {
   banqueteDetailQuery,
@@ -1537,6 +1538,18 @@ export function clientAsksSpecificInclusionItem(
   message?: string
 ): SpecificInclusionItem | null {
   if (!message?.trim()) return null;
+  // A15298: RFQ largo (canapés + ellos ponen el vino + personal) ≠ "¿incluye bebidas?".
+  // Solo aceptar meseros si piden con/sin personal de servicio.
+  if (isRichQuoteBrief(message)) {
+    const raw = message.toLowerCase();
+    if (
+      /\b(si\s+incluye|indicara?\s+si\s+incluye|con\s+o\s+sin)\s+personal\b/i.test(raw) ||
+      /\b(con|sin)\s+personal\s+de\s+servicio\b/i.test(raw)
+    ) {
+      return "meseros";
+    }
+    return null;
+  }
   const t = message
     .toLowerCase()
     .normalize("NFD")
@@ -1552,7 +1565,20 @@ export function clientAsksSpecificInclusionItem(
   ) {
     return null;
   }
+  // Cliente trae vino/agua/copas → no preguntar inclusión de bebidas del paquete.
+  const clientBringsDrinks =
+    /\b(nosotros|nosotro|yo|cliente)\s+\w{0,20}(proporcion|ponemos|traemos|llevamos|damos|pondr)/i.test(
+      t
+    ) && /\b(vinos?|agua|copas?|bebidas?)\b/i.test(t);
+  // Personal de servicio tiene prioridad sobre la palabra "bebidas" suelta.
+  if (
+    /\bpersonal\s+de\s+servicio\b|\b(con|sin)\s+personal\b|\bmeseros?\b/i.test(t) &&
+    /\b(incluye|incluyen|con\s+o\s+sin|cuanto\s+seria\s+sin)\b/i.test(t)
+  ) {
+    return "meseros";
+  }
   for (const item of Object.keys(INCLUSION_ITEM_PATTERNS) as SpecificInclusionItem[]) {
+    if (item === "bebidas" && clientBringsDrinks) continue;
     if (INCLUSION_ITEM_PATTERNS[item].test(t)) return item;
   }
   return null;

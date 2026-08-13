@@ -627,9 +627,10 @@ export function applyPresupuestoWaiver(
 
   if (texts.some((t) => detectPresupuestoRefusal(t))) {
     const last = texts[texts.length - 1] ?? "";
-    const label = /^(opciones?|propuestas?)[\s.,!]*$/i.test(last.trim())
-      ? "Sin definir (cliente pidió que propongamos)"
-      : "Sin definir (cliente indicó que no tiene)";
+    const label =
+      /propuesta|opciones?/i.test(last) && !/\bno\s+(tengo|tenemos|cuento)\b/i.test(last)
+        ? "Sin definir (cliente pidió que propongamos)"
+        : "Sin definir (cliente indicó que no tiene)";
     mergedLines.push(`- Presupuesto (MXN): ${label}`);
     filledSet.add("Presupuesto (MXN)");
     return;
@@ -643,8 +644,12 @@ export function applyPresupuestoWaiver(
     : null;
   if (
     lastAsked === "presupuesto" &&
-    texts.some((t) =>
-      /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin|opciones?|propuestas?)[\s.,!]*$/i.test(t.trim())
+    texts.some(
+      (t) =>
+        /^(no\s+tengo|no\s+tenemos|no\s+cuento|sin|opciones?|propuestas?)[\s.,!]*$/i.test(
+          t.trim()
+        ) ||
+        (t.length <= 100 && /\b(una\s+)?propuesta\b/i.test(t))
     )
   ) {
     mergedLines.push(`- Presupuesto (MXN): Sin definir (cliente pidió que propongamos)`);
@@ -4789,9 +4794,68 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // A15298: RFQ largo (menú/propuestas/personal) NO es dump "¿incluye bebidas?".
+  // Ack del brief + siguiente dato real (nombre/correo…); el equipo cotiza con/sin meseros.
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    isRichQuoteBrief(currentMessage) &&
+    (clientAsksInclusion(currentMessage) || clientAsksSpecificInclusionItem(currentMessage))
+  ) {
+    const ack = buildRichBriefAcknowledgment(currentMessage);
+    // Capturar zona/venue usable del brief si aún falta.
+    if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+      const zonaBrief = parseZonaFromText(currentMessage);
+      if (zonaBrief && isUsableDireccionEvento(zonaBrief)) {
+        extracted.direccion_evento = zonaBrief;
+        filledSet.add("Lugar/dirección del evento");
+      }
+    }
+    if (!extracted.fecha_horario?.trim()) {
+      const f = parseFechaFromText(currentMessage);
+      if (f) {
+        extracted.fecha_horario = f;
+        filledSet.add("Fecha y horario");
+      }
+    }
+    if (!extracted.num_invitados) {
+      const inv = parseInvitadosFromText(currentMessage);
+      if (inv) {
+        extracted.num_invitados = Number(inv) || (inv as unknown as number);
+        filledSet.add("Número de invitados");
+      }
+    }
+    if (!extracted.tipo_evento?.trim()) {
+      const tipo = parseTipoEventoFromText(currentMessage);
+      if (tipo) {
+        extracted.tipo_evento = tipo;
+        filledSet.add("Tipo de evento");
+      }
+    }
+    const mergedReq = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      currentMessage,
+      8
+    );
+    if (mergedReq) {
+      extracted.requerimientos_evento = mergedReq;
+      filledSet.add("Requerimientos o servicios");
+    }
+    const pending = getNextPendingField(extracted, filledSet);
+    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
+    log?.info(
+      { entityId, pending },
+      "GUARD: A15298 — RFQ rico: ack + embudo (sin dump inclusión bebidas)"
+    );
+    return normalizeAdvisorReferences(
+      nextQ ? `${ack} ${nextQ}` : ack,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
   // por redirect a zona ni anti-repeat de embudo.
-  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado && !isRichQuoteBrief(currentMessage)) {
     // Precio SKU concreto → dejar que la rama de precio use Sheet.
     if (clientAsksPrice(currentMessage)) {
       /* fall through */
@@ -5997,16 +6061,21 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       }
     }
     const pending = getNextPendingField(extracted, filledSet);
+    const wantsPropuesta = /\bpropuesta\b/i.test(currentMessage ?? "");
     if (isReadyForClosing(filledSet) && !cierreYaEnviado) {
+      // A15298: "una propuesta" con embudo completo → cierre limpio (sin re-pedir presupuesto).
       mensaje = buildClosing(
         extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
         extracted.nombre
       );
     } else if (pending) {
-      mensaje = `Sin problema, lo dejamos por definir. ${buildNaturalQuestion(pending, ctx)}`;
+      mensaje = wantsPropuesta
+        ? `¡Claro! Nuestro equipo te arma la propuesta. ${buildNaturalQuestion(pending, ctx)}`
+        : `Sin problema, lo dejamos por definir. ${buildNaturalQuestion(pending, ctx)}`;
     } else {
-      mensaje =
-        "Sin problema, lo dejamos por definir. Nuestro equipo te propone opciones según lo que platicamos.";
+      mensaje = wantsPropuesta
+        ? "¡Claro! Le paso todos los detalles a nuestro equipo para que te armen la propuesta y te la envíen. Si necesitas algo más, aquí sigo."
+        : "Sin problema, lo dejamos por definir. Nuestro equipo te propone opciones según lo que platicamos.";
     }
     appliedDirectReply = true;
     log?.info({ entityId }, "GUARD: cliente sin presupuesto — waiver directo");
