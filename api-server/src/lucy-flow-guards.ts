@@ -166,6 +166,7 @@ import {
   inferLucyAskedField,
   isServiceRelatedMessage,
   parsePrimaryService,
+  parseCentrosDeMesaRequirement,
   parseSpaceDimensions,
   isDimensionText,
   parseFechaFromText,
@@ -4099,6 +4100,28 @@ function buildImageActionReply(
   if (intent === "comprobante_pago") {
     return action;
   }
+
+  // A15296: caption con centros de mesa (+ qty) → CRM antes del embudo.
+  const caption = clientCaptionForServiceParse(currentMessage);
+  const centros = parseCentrosDeMesaRequirement(caption);
+  if (centros) {
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, centros, 6);
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+  } else if (caption && parseServicesFromText(caption).length > 0) {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      parseServicesFromText(caption).join(", "),
+      6
+    );
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+  }
+
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && !isFieldSatisfied(pending, filledSet, extracted)) {
     const nextQ = buildNaturalQuestion(pending, ctx);
@@ -4524,9 +4547,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   // A15286: pregunta concreta (fotos/luz/capacidad/catálogo typo) — ANTES de
   // carpas/progresivo/embudo. Responder o diferir; no "¿Seguimos…?" vacío.
+  // A15296: turno con imagen (Vision) → rama de imagen, no path "manda fotos".
   if (
     !cierreYaEnviado &&
     currentMessage?.trim() &&
+    !extractImageClientReply(currentMessage) &&
     clientAsksConcreteProductQuestion(currentMessage)
   ) {
     const serviceHintConcrete =
@@ -4558,7 +4583,12 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
 
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse
   // por redirect a zona ni anti-repeat de embudo.
-  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+  // A15296: turno con imagen → rama de imagen (no dump de inclusiones).
+  if (
+    clientAsksInclusion(currentMessage) &&
+    !cierreYaEnviado &&
+    !extractImageClientReply(currentMessage)
+  ) {
     // Precio SKU concreto → dejar que la rama de precio use Sheet.
     if (clientAsksPrice(currentMessage)) {
       /* fall through */

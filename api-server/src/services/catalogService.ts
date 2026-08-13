@@ -42,6 +42,7 @@ import {
   buildLevel3Ack,
   classifyServiceKnowledgeLevel,
 } from "./serviceKnowledge.js";
+import { clientCaptionForServiceParse } from "./imageProcessor.js";
 import {
   registerSheetSynonyms,
   loadSinonimosJson,
@@ -1316,6 +1317,19 @@ export function resolveCatalogInclusionReply(
   query: string,
   serviceHint?: string | null
 ): string | null {
+  // A15296 / A15190: centros de mesa = floral — NUNCA dump de "cada nivel" / mesas-y-sillas.
+  const floralBlob = `${query} ${serviceHint ?? ""}`;
+  if (
+    /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(
+      floralBlob
+    )
+  ) {
+    return (
+      "¡Claro! Anoto *centros de mesa* (decoración floral) para tu cotización. " +
+      "Nuestro equipo te confirma estilos, precio e inclusiones según tu referencia."
+    );
+  }
+
   // A15251: "¿incluye bebidas?" → respuesta puntual (no re-listar niveles).
   const specificItem = buildSpecificInclusionItemReply(query, serviceHint);
   if (specificItem) return specificItem;
@@ -1436,7 +1450,10 @@ export function resolveCatalogInclusionReply(
 
 export function clientAsksInclusion(message?: string): boolean {
   if (!message?.trim()) return false;
-  const t = message.toLowerCase();
+  // A15296: solo caption del cliente — "incluyamos…" de Vision no cuenta.
+  const caption = clientCaptionForServiceParse(message) || message;
+  const t = caption.toLowerCase();
+  if (!t.trim()) return false;
   // "descripción", "qué incluye/incluiría", "detalle", "paquetes/niveles".
   // A14982: "por qué no me ofreces los paquetes que tienes"
   // A15251: "Inclue bebidas?" / "incluye bebidas" / "si el paquete incluye X"
@@ -1447,7 +1464,7 @@ export function clientAsksInclusion(message?: string): boolean {
     /\bofreces?\b.{0,50}\bpaquetes?\b/i.test(t) ||
     /\bpor\s+qu[eé]\b.{0,60}\bpaquetes?\b/i.test(t) ||
     /\bidea\s+m[aá]s\s+clara\b/i.test(t) ||
-    clientAsksSpecificInclusionItem(message) != null
+    clientAsksSpecificInclusionItem(caption) != null
   );
 }
 

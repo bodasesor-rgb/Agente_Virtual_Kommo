@@ -42,6 +42,7 @@ import {
   applyWebLeadBrief,
   isVagueFoodTerm,
   parseServicesFromText,
+  parseCentrosDeMesaRequirement,
   mergeServiceRequirements,
   enrichExtractedFromConversation,
   isVagueVenueOnly,
@@ -9925,6 +9926,95 @@ async function runAll(): Promise<void> {
     assert.ok(
       !mensajeAsksForField(invKeep, "invitados"),
       `no re-preguntar invitados: ${invKeep.slice(0, 350)}`
+    );
+  });
+
+  // ─── 139. A15296 — centros de mesa + imagen: embudo, no dump niveles ───
+  await test("139. A15296 — centros+foto anota qty y pide embudo; no mesas-y-sillas", () => {
+    const caption =
+      "disculpe me podría ayudar con cotización para centros de mesa serían 20 tengo pensado algo así";
+    assert.equal(parseCentrosDeMesaRequirement(caption), "Centros de mesa (20)");
+    assert.ok(parseServicesFromText(caption).some((s) => /Centros de mesa \(20\)/i.test(s)));
+    assert.ok(
+      !clientAsksConcreteProductQuestion(caption),
+      "caption solo no es pedido de fotos"
+    );
+
+    const visionTurn = formatImageTurnText(
+      {
+        intent: "montaje_referencia",
+        internalDescription: "Centro de mesa con aro, globos y flores.",
+        clientReply:
+          "¡Qué lindo detalle! Me encanta el estilo del aro con los globos y las flores. Ya lo anoté como referencia para tu evento, ¿te gustaría que lo incluyamos en la cotización de tu decoración?",
+      },
+      caption
+    );
+    // Vision dice "tu foto" / "foto" en la respuesta — no debe activar A15286.
+    assert.ok(
+      !clientAsksForPhotos(visionTurn),
+      "marcadores Vision no cuentan como pedido de fotos"
+    );
+    assert.ok(!clientAsksConcreteProductQuestion(visionTurn));
+
+    assert.ok(
+      !/mesas-y-sillas/i.test(getCatalogWebUrlForQuery("centros de mesa") ?? ""),
+      "slug centros ≠ mesas-y-sillas"
+    );
+    const inclusion = resolveCatalogInclusionReply("centros de mesa serían 20", "Centros de mesa");
+    assert.ok(inclusion && /centros de mesa|floral/i.test(inclusion), inclusion?.slice(0, 200));
+    assert.ok(
+      !/detalle de lo que incluye cada nivel/i.test(inclusion!),
+      inclusion!.slice(0, 200)
+    );
+
+    const extracted = emptyExtracted({
+      nombre: "Alejandra",
+      tipo_evento: "bautizo",
+    });
+    const filled = new Set(["Nombre del cliente", "Tipo de evento"]);
+    const live = runGuards({
+      aiResponse: "El detalle de lo que incluye cada nivel está en el catálogo.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: visionTurn,
+      history: [
+        { role: "user", content: "Quiero hacer una cotizacion" },
+        { role: "assistant", content: "¡Hola! ¿Me regalas tu nombre?" },
+        { role: "user", content: "buen dia Alejandra" },
+        { role: "assistant", content: "¡Mucho gusto, Alejandra! ¿Qué van a celebrar?" },
+        { role: "user", content: "es un bautizo" },
+        {
+          role: "assistant",
+          content: "¡Qué buena noticia! ¿Qué te gustaría revisar primero?",
+        },
+      ],
+    });
+    assert.ok(
+      /aro|globos|flores|referencia|decoraci|centros/i.test(live),
+      live.slice(0, 500)
+    );
+    assert.ok(
+      !/detalle de lo que incluye cada nivel/i.test(live),
+      live.slice(0, 400)
+    );
+    assert.ok(!/mesas-y-sillas/i.test(live), live.slice(0, 400));
+    assert.ok(
+      mensajeAsksForField(live, "fecha") || /para cu[aá]ndo|fecha/i.test(live),
+      `debe pedir fecha del embudo: ${live.slice(0, 450)}`
+    );
+    assert.ok(
+      /Centros de mesa/i.test(extracted.requerimientos_evento ?? ""),
+      extracted.requerimientos_evento ?? "(sin req)"
+    );
+    assert.ok(
+      /\(20\)/.test(extracted.requerimientos_evento ?? ""),
+      `qty 20: ${extracted.requerimientos_evento}`
+    );
+
+    // Regresión A15286: pedido real de fotos sigue activo.
+    assert.ok(
+      clientAsksConcreteProductQuestion("Fotos de lo solicitado y si la carpa cuenta con luz")
     );
   });
 

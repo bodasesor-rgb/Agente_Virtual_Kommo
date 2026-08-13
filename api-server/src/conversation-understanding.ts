@@ -124,6 +124,7 @@ export const BODASESOR_SERVICE_PATTERNS: ReadonlyArray<readonly [string, RegExp]
   ],
   ["Decoración", /\bdecoraci[oó]n\b/i],
   ["Floristería", /\b(florer[ií]a|flores|arreglos?\s+florales?)\b/i],
+
   // Salas lounge / "sala: Luxor Rosa" / "4 salas" — producto, NO invitados ni ubicación.
   ["Salas lounge", /\b(salas?\s+lounge|sala\s*:|ser[ií]an?\s+\d+\s+salas?|\d+\s+salas?)\b/i],
   // "mesas?" no debe capturar "centros/arreglos/decoración de mesa" ni "mesa de dulces/…".
@@ -1766,6 +1767,36 @@ export function inferLucyAskedField(lastLucyMessage: string | null | undefined):
   return null;
 }
 
+/**
+ * A15296: "centros de mesa serían 20" / "20 centros de mesa" → label con cantidad.
+ * null si el texto no pide centros/arreglos florales de mesa.
+ */
+export function parseCentrosDeMesaRequirement(text: string | null | undefined): string | null {
+  if (!text?.trim()) return null;
+  const t = text.trim();
+  if (
+    !/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b/i.test(
+      t
+    )
+  ) {
+    return null;
+  }
+  const qty =
+    t.match(
+      /\bcentros?\s+de\s+mesas?\b[\s\S]{0,48}\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b/i
+    )?.[1] ||
+    t.match(
+      /\b(\d{1,3})\s*(?:centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?)\b/i
+    )?.[1] ||
+    (/\bcentros?\s+de\s+mesas?\b/i.test(t)
+      ? t.match(/\bser[ií]an?\s+(\d{1,3})\b/i)?.[1]
+      : null);
+  if (qty && Number(qty) >= 1 && Number(qty) <= 500) {
+    return `Centros de mesa (${qty})`;
+  }
+  return "Centros de mesa";
+}
+
 export function parseServicesFromText(text: string): string[] {
   const found: string[] = [];
   const lower = text.toLowerCase();
@@ -1959,6 +1990,13 @@ export function dedupeServiceHierarchy(
     ) {
       for (let i = found.length - 1; i >= 0; i--) {
         if (/^(Decoraci[oó]n|Florister[ií]a)$/i.test(found[i]!)) found.splice(i, 1);
+      }
+    }
+    // A15296: "serían 20" → Centros de mesa (20).
+    const centrosLabel = parseCentrosDeMesaRequirement(text);
+    if (centrosLabel) {
+      for (let i = 0; i < found.length; i++) {
+        if (/^Centros de mesa/i.test(found[i]!)) found[i] = centrosLabel;
       }
     }
   }

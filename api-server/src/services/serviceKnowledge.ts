@@ -223,11 +223,13 @@ export function buildGuardServiceAck(query: string): string {
   }
   if (level === 3) return buildLevel3Ack(label);
 
-  // A15190: centros de mesa = floral/decorativo (no menú de mobiliario).
+  // A15190 / A15296: centros de mesa = floral/decorativo (no menú de mobiliario ni niveles).
   if (/\bcentros?\s+de\s+mesas?\b/i.test(query) || /centros?\s+de\s+mesa/i.test(label)) {
+    const qty = query.match(/\b(\d{1,3})\b/)?.[1];
+    const labelQty = qty ? ` *${qty}* centros de mesa` : " *centros de mesa*";
     return (
-      "¡Claro! Anoto *centros de mesa* (decoración floral) para tu cotización. " +
-      "Nuestro equipo te confirma estilos, precio e inclusiones."
+      `¡Claro! Anoto${labelQty} (decoración floral) para tu cotización. ` +
+      "Nuestro equipo te confirma estilos, precio e inclusiones según tu referencia."
     );
   }
 

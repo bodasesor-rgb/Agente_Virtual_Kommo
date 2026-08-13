@@ -203193,6 +203193,24 @@ function inferLucyAskedField(lastLucyMessage) {
   }
   return null;
 }
+function parseCentrosDeMesaRequirement(text2) {
+  if (!text2?.trim()) return null;
+  const t4 = text2.trim();
+  if (!/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b/i.test(
+    t4
+  )) {
+    return null;
+  }
+  const qty = t4.match(
+    /\bcentros?\s+de\s+mesas?\b[\s\S]{0,48}\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b/i
+  )?.[1] || t4.match(
+    /\b(\d{1,3})\s*(?:centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?)\b/i
+  )?.[1] || (/\bcentros?\s+de\s+mesas?\b/i.test(t4) ? t4.match(/\bser[ií]an?\s+(\d{1,3})\b/i)?.[1] : null);
+  if (qty && Number(qty) >= 1 && Number(qty) <= 500) {
+    return `Centros de mesa (${qty})`;
+  }
+  return "Centros de mesa";
+}
 function parseServicesFromText(text2) {
   const found = [];
   const lower2 = text2.toLowerCase();
@@ -203307,6 +203325,12 @@ function dedupeServiceHierarchy(services, sourceText) {
     )) {
       for (let i6 = found.length - 1; i6 >= 0; i6--) {
         if (/^(Decoraci[oó]n|Florister[ií]a)$/i.test(found[i6])) found.splice(i6, 1);
+      }
+    }
+    const centrosLabel = parseCentrosDeMesaRequirement(text2);
+    if (centrosLabel) {
+      for (let i6 = 0; i6 < found.length; i6++) {
+        if (/^Centros de mesa/i.test(found[i6])) found[i6] = centrosLabel;
       }
     }
   }
@@ -205329,8 +205353,12 @@ function resolveCatalogWebSlug(query) {
   const t4 = query.trim().toLowerCase();
   const urlMatch = t4.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
   if (urlMatch?.[1]) return urlMatch[1];
+  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(t4)) {
+    return null;
+  }
   const aliases = [
-    [/\b(mesas?\s*y\s*sillas?|sillas?|mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
+    // "mesas?" no debe matchear dentro de "centros de mesa" (ya filtrado arriba).
+    [/\b(mesas?\s*y\s*sillas?|sillas?|(?<!centros?\s+de\s+)mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
     [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
     [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
     [/\bbanquetes?\b/i, "banquete-formal"]
@@ -206123,8 +206151,309 @@ function resolveProgressiveDetailQuery(opts) {
   return null;
 }
 
+// src/services/imageProcessor.ts
+init_llmChat();
+init_llmEnv();
+var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
+var IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
+var IMAGE_CACHE_MAX = 500;
+var imageAnalysisCache = /* @__PURE__ */ new Map();
+function pruneImageCache() {
+  const now = Date.now();
+  for (const [url2, entry] of imageAnalysisCache) {
+    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url2);
+  }
+  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
+  const sorted = [...imageAnalysisCache.entries()].sort((a4, b5) => a4[1].at - b5[1].at);
+  for (let i6 = 0; i6 < sorted.length - IMAGE_CACHE_MAX; i6++) {
+    imageAnalysisCache.delete(sorted[i6][0]);
+  }
+}
+function getCachedImageAnalysis(imageUrl) {
+  const entry = imageAnalysisCache.get(imageUrl);
+  if (!entry) return null;
+  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
+    imageAnalysisCache.delete(imageUrl);
+    return null;
+  }
+  return entry.analysis;
+}
+function cacheImageAnalysis(imageUrl, analysis) {
+  imageAnalysisCache.set(imageUrl, { analysis, at: Date.now() });
+  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
+}
+function isImageMessage(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a4 = att;
+    if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
+    if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
+  }
+  const atts = message["attachments"];
+  if (Array.isArray(atts)) {
+    for (const item of atts) {
+      if (typeof item === "object" && item !== null) {
+        const a4 = item;
+        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
+        if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
+      }
+    }
+  }
+  const mediaType = String(message["media_type"] ?? "");
+  if (IMAGE_TYPES.has(mediaType)) return true;
+  const mimeType = String(message["mime_type"] ?? "");
+  if (mimeType.startsWith("image/")) return true;
+  return false;
+}
+function getImageUrl(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a4 = att;
+    for (const key of ["link", "url", "media_url"]) {
+      if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
+    }
+  }
+  const atts = message["attachments"];
+  if (Array.isArray(atts)) {
+    for (const item of atts) {
+      if (typeof item === "object" && item !== null) {
+        const a4 = item;
+        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) {
+          for (const key of ["link", "url", "media_url"]) {
+            if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
+          }
+        }
+      }
+    }
+  }
+  for (const key of ["media_url", "file_url", "url"]) {
+    if (typeof message[key] === "string" && message[key].length > 0) {
+      return message[key];
+    }
+  }
+  const media = message["media"];
+  if (typeof media === "object" && media !== null) {
+    const m6 = media;
+    if (typeof m6["url"] === "string" && m6["url"].length > 0) return m6["url"];
+  }
+  return null;
+}
+function getImageCaption(message) {
+  const att = message["attachment"];
+  if (typeof att === "object" && att !== null) {
+    const a4 = att;
+    const caption = (typeof a4["text"] === "string" ? a4["text"] : "") || (typeof a4["caption"] === "string" ? a4["caption"] : "") || (typeof a4["title"] === "string" ? a4["title"] : "");
+    if (caption.trim()) return caption.trim();
+  }
+  const rawText = message["text"];
+  if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
+  return null;
+}
+var VALID_INTENTS = /* @__PURE__ */ new Set([
+  "montaje_referencia",
+  "comprobante_pago",
+  "comida_producto",
+  "lugar_evento",
+  "documento",
+  "otro",
+  "no_claro"
+]);
+var VISION_PROMPT = `Eres Lucy de Bodasesor (bodas y eventos en M\xE9xico). Un cliente envi\xF3 una imagen por WhatsApp.
+Tu trabajo: ENTENDER la foto y CONTESTARLE AL CLIENTE sobre lo que envi\xF3.
+NO hagas un resumen t\xE9cnico/interno. NO digas 'la imagen muestra\u2026', 'se observa\u2026', 'el espacio es\u2026'.
+Habla como en un chat: menciona 1-2 detalles concretos de LA FOTO y dile c\xF3mo lo ayudas (cotizaci\xF3n, estilo, servicio).
+
+Clasifica intent como UNO de:
+- montaje_referencia: foto de montaje, mesas/sillas, decoraci\xF3n o estilo de referencia
+- comprobante_pago: captura de transferencia, SPEI, ticket o comprobante de pago
+- comida_producto: comida, men\xFA, taquiza, pastel, bebida u otro producto de catering
+- lugar_evento: foto del sal\xF3n, jard\xEDn o venue del evento
+- documento: INE, contrato u otro documento
+- otro: relacionado con el evento pero no encaja arriba
+- no_claro: no se entiende qu\xE9 quiere el cliente con la foto
+
+Responde SOLO JSON v\xE1lido (sin markdown) con exactamente estas claves:
+{"intent":"...","internal_description":"muy breve para el equipo (max 12 palabras)","client_reply":"2-3 oraciones AL CLIENTE sobre su foto"}
+
+Reglas para client_reply (ES LO IMPORTANTE):
+- Es la respuesta que el cliente leer\xE1 en WhatsApp.
+- Debe sonar a conversaci\xF3n: 'Vi que\u2026 / Me encanta el estilo\u2026 / Anoto\u2026 / \xBFQuieres\u2026?'
+- Nombra algo concreto que salga en la foto (color, tipo de mesa, plato, jard\xEDn, etc.).
+- montaje_referencia: confirma que pueden armar ese estilo/mobiliario y an\xF3talo.
+- comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles).
+- comida_producto: nombra el platillo/estilo de la foto. Si el caption ya dice un servicio (ej. barra de pastas), confirma ESE servicio. NO inventes alternativas (taquiza, banquete) si la foto o el caption ya son claros.
+- lugar_evento: reconoce el espacio y confirma si ah\xED ser\xEDa el evento.
+- documento: confirma recepci\xF3n sin leer datos sensibles.
+- no_claro / otro: pregunta qu\xE9 le gustar\xEDa de esa foto para su evento.
+- Espa\xF1ol mexicano, de t\xFA, c\xE1lida. NUNCA digas 'resumen', 'descripci\xF3n' ni 'an\xE1lisis'.`;
+var FALLBACK_REPLIES = {
+  montaje_referencia: "\xA1S\xED! Manejamos mesas, sillas y montajes de ese estilo. Lo anoto para tu cotizaci\xF3n.",
+  comprobante_pago: "\xA1Gracias por tu pago! Lo registro y el equipo da seguimiento.",
+  comida_producto: "\xA1Qu\xE9 rico! Lo tomo como referencia de lo que buscas y lo anoto para tu cotizaci\xF3n.",
+  lugar_evento: "Recib\xED la foto del lugar. \xBFConfirmas que ah\xED ser\xEDa tu evento?",
+  documento: "Listo, recib\xED el documento. El equipo lo revisa y te confirma.",
+  otro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto para tu evento?",
+  no_claro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto?"
+};
+function normalizeIntent(raw) {
+  const s7 = String(raw ?? "").trim().toLowerCase().replace(/\s+/g, "_");
+  if (VALID_INTENTS.has(s7)) return s7;
+  if (/montaje|referencia|estilo|mobiliario|mesa|silla|decor/i.test(s7)) return "montaje_referencia";
+  if (/comprobante|pago|transfer|spei|ticket/i.test(s7)) return "comprobante_pago";
+  if (/comida|producto|menu|taquiza|banquete|pastel/i.test(s7)) return "comida_producto";
+  if (/lugar|salon|salón|venue|jard[ií]n/i.test(s7)) return "lugar_evento";
+  if (/documento|ine|identific/i.test(s7)) return "documento";
+  return "no_claro";
+}
+function looksLikeOwnerDescription(text2) {
+  return /^(el|la|los|las)\s+(espacio|área|area|imagen|foto|sal[oó]n|jard[ií]n|mesa)/i.test(text2.trim()) || /\b(se observa|se aprecia|la imagen muestra|en la fotograf[ií]a|resumen\s+de\s+la\s+(imagen|foto)|descripci[oó]n\s+de\s+la\s+(imagen|foto))\b/i.test(
+    text2
+  ) || /\ban[aá]lisis\s+(interno|de\s+la\s+imagen|visual)\b/i.test(text2);
+}
+function looksLikeImageInternalSummary(text2) {
+  if (!text2?.trim()) return false;
+  return looksLikeOwnerDescription(text2) || /\[Imagen nota interna\]/i.test(text2);
+}
+function buildAnalysisFromParts(intentRaw, internalRaw, clientRaw) {
+  const intent = normalizeIntent(intentRaw);
+  const internalDescription = String(internalRaw ?? "").trim().slice(0, 500) || "Imagen recibida sin detalle.";
+  let clientReply = String(clientRaw ?? "").trim().slice(0, 400);
+  if (!clientReply || looksLikeOwnerDescription(clientReply)) {
+    clientReply = FALLBACK_REPLIES[intent];
+  }
+  return { intent, internalDescription, clientReply };
+}
+function parseVisionImageJson(raw) {
+  const trimmed = raw.trim();
+  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return null;
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return buildAnalysisFromParts(
+      parsed.intent ?? parsed.Intent,
+      parsed.internal_description ?? parsed.internalDescription ?? parsed.description,
+      parsed.client_reply ?? parsed.clientReply ?? parsed.reply
+    );
+  } catch {
+    return null;
+  }
+}
+async function analyzeImageFull(imageUrl, accessToken, log) {
+  const cached2 = getCachedImageAnalysis(imageUrl);
+  if (cached2) {
+    log.info({ imageUrl: imageUrl.slice(0, 80), intent: cached2.intent }, "Imagen en cach\xE9 (Vision)");
+    return cached2;
+  }
+  try {
+    const imgResponse = await fetch(imageUrl, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!imgResponse.ok) {
+      log.warn({ status: imgResponse.status, imageUrl }, "Error descargando imagen del cliente");
+      return null;
+    }
+    const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
+    const buffer = await imgResponse.arrayBuffer();
+    const compressed = await tryCompressImageForVision(buffer);
+    const mimeType = compressed?.mimeType ?? (contentType.split(";")[0]?.trim() || "image/jpeg");
+    const base64 = compressed?.base64 ?? Buffer.from(buffer).toString("base64");
+    const dataUrl = `data:${mimeType};base64,${base64}`;
+    if (compressed) {
+      log.info(
+        {
+          bytesIn: compressed.bytesIn,
+          bytesOut: compressed.bytesOut,
+          width: compressed.width,
+          height: compressed.height,
+          resized: compressed.resized
+        },
+        "Imagen comprimida para Vision"
+      );
+    }
+    const completion = await completeChat({
+      model: getChatModel(),
+      purpose: "vision",
+      maxTokens: 320,
+      temperature: 0.3,
+      json: true,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: VISION_PROMPT },
+            {
+              type: "image_url",
+              image_url: { url: dataUrl },
+              mimeType,
+              base64
+            }
+          ]
+        }
+      ]
+    });
+    const raw = completion.text.trim();
+    const parsed = raw ? parseVisionImageJson(raw) : null;
+    const analysis = parsed ?? buildAnalysisFromParts(
+      "no_claro",
+      raw || "No se pudo parsear la visi\xF3n",
+      FALLBACK_REPLIES.no_claro
+    );
+    cacheImageAnalysis(imageUrl, analysis);
+    log.info(
+      { intent: analysis.intent, chars: analysis.clientReply.length },
+      "Imagen analizada (Vision accionable)"
+    );
+    return analysis;
+  } catch (err2) {
+    log.error({ err: err2 }, "Error analizando imagen con Vision");
+    return null;
+  }
+}
+var IMAGE_ACTION_MARKER = "[Imagen respuesta cliente]:";
+var IMAGE_INTENT_MARKER = "[Imagen intent]:";
+function formatImageTurnText(analysis, caption) {
+  const parts2 = [
+    `${IMAGE_INTENT_MARKER} ${analysis.intent}`,
+    `${IMAGE_ACTION_MARKER} ${analysis.clientReply}`
+  ];
+  if (caption?.trim()) {
+    return `${caption.trim()}
+
+${parts2.join("\n")}`;
+  }
+  return parts2.join("\n");
+}
+function formatImageTeamNote(analysis) {
+  return `Intent: ${analysis.intent}
+Respuesta enviada al cliente: ${analysis.clientReply}
+Ref. equipo (no enviar): ${analysis.internalDescription}`;
+}
+function extractImageClientReply(text2) {
+  if (!text2) return null;
+  const m6 = text2.match(/\[Imagen respuesta cliente\]:\s*([^\n\[]+)/i);
+  return m6?.[1]?.trim() || null;
+}
+function stripImageMarkersFromText(text2) {
+  if (!text2?.trim()) return "";
+  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\[Imagen nota interna\]:\s*[^\n]*/gi, "").replace(/\[Imagen intent\]:\s*[^\n]*/gi, "").replace(/\[Imagen adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+function clientCaptionForServiceParse(text2) {
+  return stripImageMarkersFromText(text2);
+}
+function extractImageIntent(text2) {
+  if (!text2) return null;
+  const m6 = text2.match(/\[Imagen intent\]:\s*([a-z_]+)/i);
+  if (!m6?.[1]) return null;
+  return normalizeIntent(m6[1]);
+}
+
 // src/services/concreteProductQuestion.ts
 var CATALOG_WORD_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
+function isCentrosDeMesaFloral(text2) {
+  return /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(
+    text2
+  );
+}
 function clientAsksCapacityLayout(message) {
   if (!message?.trim()) return false;
   const t4 = message.toLowerCase();
@@ -206132,11 +206461,21 @@ function clientAsksCapacityLayout(message) {
 }
 function clientAsksForPhotos(message) {
   if (!message?.trim()) return false;
-  return /\b(fotos?|fotograf[ií]as?|im[aá]genes?|referencias?\s+visuales?|pics?)\b/i.test(
-    message
-  ) && (isServiceRelatedMessage(message) || /\b(solicitad|pedido|cotiz|carpa|mesa|silla|toldo|mobiliario|lo\s+solicitado)\b/i.test(
-    message
-  ) || /\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b/i.test(message));
+  const caption = clientCaptionForServiceParse(message) || message;
+  if (!caption.trim()) return false;
+  if (!/\b(fotos?|fotograf[ií]as?|im[aá]genes?|referencias?\s+visuales?|pics?)\b/i.test(caption)) {
+    return false;
+  }
+  if (/\b(tengo\s+pensado|algo\s+as[ií]|referencia|as[ií]\s+como|estilo)\b/i.test(caption) && !/\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b.{0,24}\b(fotos?|fotograf)/i.test(
+    caption
+  ) && !/\b(fotos?|fotograf).{0,24}\b(manda|env[ií]a|solicitad|pedido|lo\s+solicitado)\b/i.test(
+    caption
+  )) {
+    return false;
+  }
+  return isServiceRelatedMessage(caption) || /\b(solicitad|pedido|cotiz|carpa|mesa|silla|toldo|mobiliario|lo\s+solicitado)\b/i.test(
+    caption
+  ) || /\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b/i.test(caption);
 }
 function clientAsksAboutLighting(message) {
   if (!message?.trim()) return false;
@@ -206147,7 +206486,8 @@ function clientAsksAboutLighting(message) {
 }
 function clientAsksConcreteProductQuestion(message) {
   if (!message?.trim()) return false;
-  const t4 = message.trim();
+  const t4 = (clientCaptionForServiceParse(message) || message).trim();
+  if (!t4) return false;
   if (clientAsksForCatalog(t4) || CATALOG_WORD_RE.test(t4)) return true;
   if (clientAsksForPhotos(t4) || clientAsksAboutLighting(t4) || clientAsksCapacityLayout(t4)) {
     return true;
@@ -206160,6 +206500,9 @@ function clientAsksConcreteProductQuestion(message) {
   return false;
 }
 function catalogLinkFor(query) {
+  if (isCentrosDeMesaFloral(query)) {
+    return getCatalogWebHubDeliveryUrl();
+  }
   return getCatalogWebUrlForQuery(query) || getCatalogWebUrlForQuery("mesas y sillas") || getCatalogWebHubDeliveryUrl();
 }
 function honestDeferral(topicHint) {
@@ -206174,20 +206517,22 @@ function buildConcreteProductQuestionReply(message, serviceHint) {
   const hint = (serviceHint ?? "").trim();
   const blob = `${msg} ${hint}`;
   const team = advisorLabelForClient();
-  if (clientAsksForCatalog(msg) || CATALOG_WORD_RE.test(msg)) {
-    const q3 = /\bsillas?\b/i.test(blob) ? "mesas y sillas" : /\bmesas?\b/i.test(blob) ? "mesas y sillas" : /\bcarpas?|toldos?|lonas?\b/i.test(blob) ? "carpas" : hint || msg;
+  const caption = (clientCaptionForServiceParse(msg) || msg).trim();
+  const cleanBlob = `${caption} ${hint}`;
+  if (clientAsksForCatalog(caption) || CATALOG_WORD_RE.test(caption)) {
+    const q3 = isCentrosDeMesaFloral(cleanBlob) ? "centros de mesa" : /\bsillas?\b/i.test(cleanBlob) ? "mesas y sillas" : /\bmesas?\b/i.test(cleanBlob) && !isCentrosDeMesaFloral(cleanBlob) ? "mesas y sillas" : /\bcarpas?|toldos?|lonas?\b/i.test(cleanBlob) ? "carpas" : hint || caption;
     const url2 = catalogLinkFor(q3);
-    const label = /\bsillas?\b/i.test(blob) ? "de mesas y sillas" : /\bcarpas?|toldos?\b/i.test(blob) ? "de carpas" : "";
+    const label = isCentrosDeMesaFloral(cleanBlob) ? "" : /\bsillas?\b/i.test(cleanBlob) ? "de mesas y sillas" : /\bcarpas?|toldos?\b/i.test(cleanBlob) ? "de carpas" : "";
     return `Claro. Te dejo el *cat\xE1logo${label ? ` ${label}` : ""}*:
 ${url2}`;
   }
-  const wantsPhotos = clientAsksForPhotos(msg);
-  const wantsLight = clientAsksAboutLighting(msg);
+  const wantsPhotos = clientAsksForPhotos(caption);
+  const wantsLight = clientAsksAboutLighting(caption);
   if (wantsPhotos || wantsLight) {
     const parts2 = [];
     if (wantsPhotos) {
       const url2 = catalogLinkFor(
-        /\bcarpas?|toldos?\b/i.test(blob) ? "carpas" : /\bsillas?|mesas?|mobiliario\b/i.test(blob) ? "mesas y sillas" : hint || "mobiliario"
+        /\bcarpas?|toldos?\b/i.test(cleanBlob) ? "carpas" : isCentrosDeMesaFloral(cleanBlob) ? "centros de mesa" : /\bsillas?|mesas?|mobiliario\b/i.test(cleanBlob) ? "mesas y sillas" : hint || "mobiliario"
       );
       parts2.push(
         `Claro \u2014 te puedo compartir referencias visuales. Aqu\xED tienes el cat\xE1logo con fotos:
@@ -206198,7 +206543,7 @@ ${url2}`
       );
     }
     if (wantsLight) {
-      if (clientMentionsCarpas(msg) || /\bcarpas?|toldos?|lonas?\b/i.test(blob)) {
+      if (clientMentionsCarpas(caption) || /\bcarpas?|toldos?|lonas?\b/i.test(cleanBlob)) {
         parts2.push(
           `Sobre *iluminaci\xF3n en la carpa*: se puede cotizar con o sin luz (paquetes de iluminaci\xF3n). Buena pregunta \u2014 eso lo confirmo con ${team} para decirte si la carpa que te armemos ya incluye luz o va aparte.`
         );
@@ -206208,7 +206553,7 @@ ${url2}`
     }
     return parts2.join("\n\n");
   }
-  if (clientAsksCapacityLayout(msg)) {
+  if (clientAsksCapacityLayout(caption)) {
     return `La cantidad de mesas por carpa depende de las *medidas* y del acomodo (redondas, pasillos, pista). No te doy un n\xFAmero a ojo: ${team} te confirma cu\xE1ntas caben seg\xFAn el tama\xF1o. Si me das medidas aproximadas (o el \xE1rea a cubrir para tus mesas), lo afino en la cotizaci\xF3n.`;
   }
   return null;
@@ -206350,7 +206695,9 @@ function buildGuardServiceAck(query) {
   }
   if (level === 3) return buildLevel3Ack(label);
   if (/\bcentros?\s+de\s+mesas?\b/i.test(query) || /centros?\s+de\s+mesa/i.test(label)) {
-    return "\xA1Claro! Anoto *centros de mesa* (decoraci\xF3n floral) para tu cotizaci\xF3n. Nuestro equipo te confirma estilos, precio e inclusiones.";
+    const qty = query.match(/\b(\d{1,3})\b/)?.[1];
+    const labelQty = qty ? ` *${qty}* centros de mesa` : " *centros de mesa*";
+    return `\xA1Claro! Anoto${labelQty} (decoraci\xF3n floral) para tu cotizaci\xF3n. Nuestro equipo te confirma estilos, precio e inclusiones seg\xFAn tu referencia.`;
   }
   if (/\bpizzas?\b/i.test(query) && /\b(hacen|preparan|cocinan|montan|sirven|elaboran|en\s+el\s+evento|en\s+vivo)\b/i.test(query)) {
     return "S\xED: la *barra de pizzas* se monta en tu evento y se preparan al momento (estaci\xF3n con hornos/equipo seg\xFAn el paquete). Tambi\xE9n podemos sumar pastas u otras estaciones italianas si te interesa.";
@@ -207342,6 +207689,12 @@ ${hub}
 ${SERVICE_NIVEL_DETAIL_CTA}`;
 }
 function resolveCatalogInclusionReply(query, serviceHint) {
+  const floralBlob = `${query} ${serviceHint ?? ""}`;
+  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(
+    floralBlob
+  )) {
+    return "\xA1Claro! Anoto *centros de mesa* (decoraci\xF3n floral) para tu cotizaci\xF3n. Nuestro equipo te confirma estilos, precio e inclusiones seg\xFAn tu referencia.";
+  }
   const specificItem = buildSpecificInclusionItemReply(query, serviceHint);
   if (specificItem) return specificItem;
   const wantsAllLevels = /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
@@ -207437,10 +207790,12 @@ ${SERVICE_NIVEL_DETAIL_CTA}`,
 }
 function clientAsksInclusion(message) {
   if (!message?.trim()) return false;
-  const t4 = message.toLowerCase();
+  const caption = clientCaptionForServiceParse(message) || message;
+  const t4 = caption.toLowerCase();
+  if (!t4.trim()) return false;
   return /\bqu[eé]\s+incluye|\bqu[eé]\s+incluir[ií]a|\bincluir[ií]a\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+(manejan|tienes|ofrecen))\b|\bno\s+s[eé]\s+(muy\s+bien\s+)?cu[aá]l\b.{0,40}\b(incluir|nivel|opci[oó]n|variante|paquete)\b|\bcu[aá]l\s+podr[ií]a\s+ser\b/i.test(
     t4
-  ) || /\bofreces?\b.{0,50}\bpaquetes?\b/i.test(t4) || /\bpor\s+qu[eé]\b.{0,60}\bpaquetes?\b/i.test(t4) || /\bidea\s+m[aá]s\s+clara\b/i.test(t4) || clientAsksSpecificInclusionItem(message) != null;
+  ) || /\bofreces?\b.{0,50}\bpaquetes?\b/i.test(t4) || /\bpor\s+qu[eé]\b.{0,60}\bpaquetes?\b/i.test(t4) || /\bidea\s+m[aá]s\s+clara\b/i.test(t4) || clientAsksSpecificInclusionItem(caption) != null;
 }
 var INCLUSION_ITEM_PATTERNS = {
   bebidas: /\bbebidas?\b|\brefrescos?\b|\bbarman\b|\bbarra\s+de\s+bebidas?\b|\bvitroleros?\b|\bagua\s+fresca\b/i,
@@ -208347,7 +208702,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.17";
+var LUCY_PROMPT_VERSION = "V9.18";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -209607,302 +209962,6 @@ function clientAsksIfCompanyEmailCorrect(text2) {
 }
 function buildCompanyEmailConfirmReply() {
   return "S\xED, capybaraeventos@gmail.com es el correo de Bodasesor \u2014 tu solicitud ya nos lleg\xF3 bien. Para enviarte la cotizaci\xF3n personalizada, \xBFme compartes tu correo de trabajo?";
-}
-
-// src/services/imageProcessor.ts
-init_llmChat();
-init_llmEnv();
-var IMAGE_TYPES = /* @__PURE__ */ new Set(["picture", "image", "photo"]);
-var IMAGE_CACHE_TTL_MS = 2 * 60 * 60 * 1e3;
-var IMAGE_CACHE_MAX = 500;
-var imageAnalysisCache = /* @__PURE__ */ new Map();
-function pruneImageCache() {
-  const now = Date.now();
-  for (const [url2, entry] of imageAnalysisCache) {
-    if (now - entry.at > IMAGE_CACHE_TTL_MS) imageAnalysisCache.delete(url2);
-  }
-  if (imageAnalysisCache.size <= IMAGE_CACHE_MAX) return;
-  const sorted = [...imageAnalysisCache.entries()].sort((a4, b5) => a4[1].at - b5[1].at);
-  for (let i6 = 0; i6 < sorted.length - IMAGE_CACHE_MAX; i6++) {
-    imageAnalysisCache.delete(sorted[i6][0]);
-  }
-}
-function getCachedImageAnalysis(imageUrl) {
-  const entry = imageAnalysisCache.get(imageUrl);
-  if (!entry) return null;
-  if (Date.now() - entry.at > IMAGE_CACHE_TTL_MS) {
-    imageAnalysisCache.delete(imageUrl);
-    return null;
-  }
-  return entry.analysis;
-}
-function cacheImageAnalysis(imageUrl, analysis) {
-  imageAnalysisCache.set(imageUrl, { analysis, at: Date.now() });
-  if (imageAnalysisCache.size > IMAGE_CACHE_MAX * 0.9) pruneImageCache();
-}
-function isImageMessage(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a4 = att;
-    if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
-    if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
-  }
-  const atts = message["attachments"];
-  if (Array.isArray(atts)) {
-    for (const item of atts) {
-      if (typeof item === "object" && item !== null) {
-        const a4 = item;
-        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) return true;
-        if (typeof a4["mime_type"] === "string" && a4["mime_type"].startsWith("image/")) return true;
-      }
-    }
-  }
-  const mediaType = String(message["media_type"] ?? "");
-  if (IMAGE_TYPES.has(mediaType)) return true;
-  const mimeType = String(message["mime_type"] ?? "");
-  if (mimeType.startsWith("image/")) return true;
-  return false;
-}
-function getImageUrl(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a4 = att;
-    for (const key of ["link", "url", "media_url"]) {
-      if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
-    }
-  }
-  const atts = message["attachments"];
-  if (Array.isArray(atts)) {
-    for (const item of atts) {
-      if (typeof item === "object" && item !== null) {
-        const a4 = item;
-        if (IMAGE_TYPES.has(String(a4["type"] ?? ""))) {
-          for (const key of ["link", "url", "media_url"]) {
-            if (typeof a4[key] === "string" && a4[key].length > 0) return a4[key];
-          }
-        }
-      }
-    }
-  }
-  for (const key of ["media_url", "file_url", "url"]) {
-    if (typeof message[key] === "string" && message[key].length > 0) {
-      return message[key];
-    }
-  }
-  const media = message["media"];
-  if (typeof media === "object" && media !== null) {
-    const m6 = media;
-    if (typeof m6["url"] === "string" && m6["url"].length > 0) return m6["url"];
-  }
-  return null;
-}
-function getImageCaption(message) {
-  const att = message["attachment"];
-  if (typeof att === "object" && att !== null) {
-    const a4 = att;
-    const caption = (typeof a4["text"] === "string" ? a4["text"] : "") || (typeof a4["caption"] === "string" ? a4["caption"] : "") || (typeof a4["title"] === "string" ? a4["title"] : "");
-    if (caption.trim()) return caption.trim();
-  }
-  const rawText = message["text"];
-  if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
-  return null;
-}
-var VALID_INTENTS = /* @__PURE__ */ new Set([
-  "montaje_referencia",
-  "comprobante_pago",
-  "comida_producto",
-  "lugar_evento",
-  "documento",
-  "otro",
-  "no_claro"
-]);
-var VISION_PROMPT = `Eres Lucy de Bodasesor (bodas y eventos en M\xE9xico). Un cliente envi\xF3 una imagen por WhatsApp.
-Tu trabajo: ENTENDER la foto y CONTESTARLE AL CLIENTE sobre lo que envi\xF3.
-NO hagas un resumen t\xE9cnico/interno. NO digas 'la imagen muestra\u2026', 'se observa\u2026', 'el espacio es\u2026'.
-Habla como en un chat: menciona 1-2 detalles concretos de LA FOTO y dile c\xF3mo lo ayudas (cotizaci\xF3n, estilo, servicio).
-
-Clasifica intent como UNO de:
-- montaje_referencia: foto de montaje, mesas/sillas, decoraci\xF3n o estilo de referencia
-- comprobante_pago: captura de transferencia, SPEI, ticket o comprobante de pago
-- comida_producto: comida, men\xFA, taquiza, pastel, bebida u otro producto de catering
-- lugar_evento: foto del sal\xF3n, jard\xEDn o venue del evento
-- documento: INE, contrato u otro documento
-- otro: relacionado con el evento pero no encaja arriba
-- no_claro: no se entiende qu\xE9 quiere el cliente con la foto
-
-Responde SOLO JSON v\xE1lido (sin markdown) con exactamente estas claves:
-{"intent":"...","internal_description":"muy breve para el equipo (max 12 palabras)","client_reply":"2-3 oraciones AL CLIENTE sobre su foto"}
-
-Reglas para client_reply (ES LO IMPORTANTE):
-- Es la respuesta que el cliente leer\xE1 en WhatsApp.
-- Debe sonar a conversaci\xF3n: 'Vi que\u2026 / Me encanta el estilo\u2026 / Anoto\u2026 / \xBFQuieres\u2026?'
-- Nombra algo concreto que salga en la foto (color, tipo de mesa, plato, jard\xEDn, etc.).
-- montaje_referencia: confirma que pueden armar ese estilo/mobiliario y an\xF3talo.
-- comprobante_pago: agradece el pago y di que el equipo da seguimiento (sin leer datos sensibles).
-- comida_producto: nombra el platillo/estilo de la foto. Si el caption ya dice un servicio (ej. barra de pastas), confirma ESE servicio. NO inventes alternativas (taquiza, banquete) si la foto o el caption ya son claros.
-- lugar_evento: reconoce el espacio y confirma si ah\xED ser\xEDa el evento.
-- documento: confirma recepci\xF3n sin leer datos sensibles.
-- no_claro / otro: pregunta qu\xE9 le gustar\xEDa de esa foto para su evento.
-- Espa\xF1ol mexicano, de t\xFA, c\xE1lida. NUNCA digas 'resumen', 'descripci\xF3n' ni 'an\xE1lisis'.`;
-var FALLBACK_REPLIES = {
-  montaje_referencia: "\xA1S\xED! Manejamos mesas, sillas y montajes de ese estilo. Lo anoto para tu cotizaci\xF3n.",
-  comprobante_pago: "\xA1Gracias por tu pago! Lo registro y el equipo da seguimiento.",
-  comida_producto: "\xA1Qu\xE9 rico! Lo tomo como referencia de lo que buscas y lo anoto para tu cotizaci\xF3n.",
-  lugar_evento: "Recib\xED la foto del lugar. \xBFConfirmas que ah\xED ser\xEDa tu evento?",
-  documento: "Listo, recib\xED el documento. El equipo lo revisa y te confirma.",
-  otro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto para tu evento?",
-  no_claro: "Recib\xED tu imagen. \xBFMe confirmas qu\xE9 te gustar\xEDa de esta foto?"
-};
-function normalizeIntent(raw) {
-  const s7 = String(raw ?? "").trim().toLowerCase().replace(/\s+/g, "_");
-  if (VALID_INTENTS.has(s7)) return s7;
-  if (/montaje|referencia|estilo|mobiliario|mesa|silla|decor/i.test(s7)) return "montaje_referencia";
-  if (/comprobante|pago|transfer|spei|ticket/i.test(s7)) return "comprobante_pago";
-  if (/comida|producto|menu|taquiza|banquete|pastel/i.test(s7)) return "comida_producto";
-  if (/lugar|salon|salón|venue|jard[ií]n/i.test(s7)) return "lugar_evento";
-  if (/documento|ine|identific/i.test(s7)) return "documento";
-  return "no_claro";
-}
-function looksLikeOwnerDescription(text2) {
-  return /^(el|la|los|las)\s+(espacio|área|area|imagen|foto|sal[oó]n|jard[ií]n|mesa)/i.test(text2.trim()) || /\b(se observa|se aprecia|la imagen muestra|en la fotograf[ií]a|resumen\s+de\s+la\s+(imagen|foto)|descripci[oó]n\s+de\s+la\s+(imagen|foto))\b/i.test(
-    text2
-  ) || /\ban[aá]lisis\s+(interno|de\s+la\s+imagen|visual)\b/i.test(text2);
-}
-function looksLikeImageInternalSummary(text2) {
-  if (!text2?.trim()) return false;
-  return looksLikeOwnerDescription(text2) || /\[Imagen nota interna\]/i.test(text2);
-}
-function buildAnalysisFromParts(intentRaw, internalRaw, clientRaw) {
-  const intent = normalizeIntent(intentRaw);
-  const internalDescription = String(internalRaw ?? "").trim().slice(0, 500) || "Imagen recibida sin detalle.";
-  let clientReply = String(clientRaw ?? "").trim().slice(0, 400);
-  if (!clientReply || looksLikeOwnerDescription(clientReply)) {
-    clientReply = FALLBACK_REPLIES[intent];
-  }
-  return { intent, internalDescription, clientReply };
-}
-function parseVisionImageJson(raw) {
-  const trimmed = raw.trim();
-  const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return null;
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
-    return buildAnalysisFromParts(
-      parsed.intent ?? parsed.Intent,
-      parsed.internal_description ?? parsed.internalDescription ?? parsed.description,
-      parsed.client_reply ?? parsed.clientReply ?? parsed.reply
-    );
-  } catch {
-    return null;
-  }
-}
-async function analyzeImageFull(imageUrl, accessToken, log) {
-  const cached2 = getCachedImageAnalysis(imageUrl);
-  if (cached2) {
-    log.info({ imageUrl: imageUrl.slice(0, 80), intent: cached2.intent }, "Imagen en cach\xE9 (Vision)");
-    return cached2;
-  }
-  try {
-    const imgResponse = await fetch(imageUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` }
-    });
-    if (!imgResponse.ok) {
-      log.warn({ status: imgResponse.status, imageUrl }, "Error descargando imagen del cliente");
-      return null;
-    }
-    const contentType = imgResponse.headers.get("content-type") || "image/jpeg";
-    const buffer = await imgResponse.arrayBuffer();
-    const compressed = await tryCompressImageForVision(buffer);
-    const mimeType = compressed?.mimeType ?? (contentType.split(";")[0]?.trim() || "image/jpeg");
-    const base64 = compressed?.base64 ?? Buffer.from(buffer).toString("base64");
-    const dataUrl = `data:${mimeType};base64,${base64}`;
-    if (compressed) {
-      log.info(
-        {
-          bytesIn: compressed.bytesIn,
-          bytesOut: compressed.bytesOut,
-          width: compressed.width,
-          height: compressed.height,
-          resized: compressed.resized
-        },
-        "Imagen comprimida para Vision"
-      );
-    }
-    const completion = await completeChat({
-      model: getChatModel(),
-      purpose: "vision",
-      maxTokens: 320,
-      temperature: 0.3,
-      json: true,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: VISION_PROMPT },
-            {
-              type: "image_url",
-              image_url: { url: dataUrl },
-              mimeType,
-              base64
-            }
-          ]
-        }
-      ]
-    });
-    const raw = completion.text.trim();
-    const parsed = raw ? parseVisionImageJson(raw) : null;
-    const analysis = parsed ?? buildAnalysisFromParts(
-      "no_claro",
-      raw || "No se pudo parsear la visi\xF3n",
-      FALLBACK_REPLIES.no_claro
-    );
-    cacheImageAnalysis(imageUrl, analysis);
-    log.info(
-      { intent: analysis.intent, chars: analysis.clientReply.length },
-      "Imagen analizada (Vision accionable)"
-    );
-    return analysis;
-  } catch (err2) {
-    log.error({ err: err2 }, "Error analizando imagen con Vision");
-    return null;
-  }
-}
-var IMAGE_ACTION_MARKER = "[Imagen respuesta cliente]:";
-var IMAGE_INTENT_MARKER = "[Imagen intent]:";
-function formatImageTurnText(analysis, caption) {
-  const parts2 = [
-    `${IMAGE_INTENT_MARKER} ${analysis.intent}`,
-    `${IMAGE_ACTION_MARKER} ${analysis.clientReply}`
-  ];
-  if (caption?.trim()) {
-    return `${caption.trim()}
-
-${parts2.join("\n")}`;
-  }
-  return parts2.join("\n");
-}
-function formatImageTeamNote(analysis) {
-  return `Intent: ${analysis.intent}
-Respuesta enviada al cliente: ${analysis.clientReply}
-Ref. equipo (no enviar): ${analysis.internalDescription}`;
-}
-function extractImageClientReply(text2) {
-  if (!text2) return null;
-  const m6 = text2.match(/\[Imagen respuesta cliente\]:\s*([^\n\[]+)/i);
-  return m6?.[1]?.trim() || null;
-}
-function stripImageMarkersFromText(text2) {
-  if (!text2?.trim()) return "";
-  return text2.replace(/\[Imagen respuesta cliente\]:\s*[^\n]*/gi, "").replace(/\[Imagen nota interna\]:\s*[^\n]*/gi, "").replace(/\[Imagen intent\]:\s*[^\n]*/gi, "").replace(/\[Imagen adjunta:[^\]]*\]/gi, "").replace(/\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
-}
-function clientCaptionForServiceParse(text2) {
-  return stripImageMarkersFromText(text2);
-}
-function extractImageIntent(text2) {
-  if (!text2) return null;
-  const m6 = text2.match(/\[Imagen intent\]:\s*([a-z_]+)/i);
-  if (!m6?.[1]) return null;
-  return normalizeIntent(m6[1]);
 }
 
 // src/lucy-flow-guards.ts
@@ -212380,6 +212439,25 @@ function buildImageActionReply(currentMessage, extracted, filledSet, ctx) {
   if (intent === "comprobante_pago") {
     return action;
   }
+  const caption = clientCaptionForServiceParse(currentMessage);
+  const centros = parseCentrosDeMesaRequirement(caption);
+  if (centros) {
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, centros, 6);
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+  } else if (caption && parseServicesFromText(caption).length > 0) {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      parseServicesFromText(caption).join(", "),
+      6
+    );
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+  }
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && !isFieldSatisfied(pending, filledSet, extracted)) {
     const nextQ = buildNaturalQuestion(pending, ctx);
@@ -212651,7 +212729,7 @@ ${nextQ}` : ack;
       return normalizeAdvisorReferences(body2, display);
     }
   }
-  if (!cierreYaEnviado && currentMessage?.trim() && clientAsksConcreteProductQuestion(currentMessage)) {
+  if (!cierreYaEnviado && currentMessage?.trim() && !extractImageClientReply(currentMessage) && clientAsksConcreteProductQuestion(currentMessage)) {
     const serviceHintConcrete = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
     const concreteReply = buildConcreteProductQuestionReply(
       currentMessage,
@@ -212673,7 +212751,7 @@ ${nextQ}` : ack;
       );
     }
   }
-  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado && !extractImageClientReply(currentMessage)) {
     if (clientAsksPrice(currentMessage)) {
     } else {
       const multiForPackagesEarly = dedupeServiceHierarchy([

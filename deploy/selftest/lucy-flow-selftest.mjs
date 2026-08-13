@@ -2254,7 +2254,7 @@ var init_resource = __esm({
 function encodeURIPath(str2) {
   return str2.replace(/[^A-Za-z0-9\-._~!$&'()*+,;=:@]+/g, encodeURIComponent);
 }
-var EMPTY, createPathTagFunction, path3;
+var EMPTY, createPathTagFunction, path2;
 var init_path = __esm({
   "../node_modules/openai/internal/utils/path.mjs"() {
     init_error();
@@ -2307,7 +2307,7 @@ ${underline}`);
       }
       return path8;
     };
-    path3 = /* @__PURE__ */ createPathTagFunction(encodeURIPath);
+    path2 = /* @__PURE__ */ createPathTagFunction(encodeURIPath);
   }
 });
 
@@ -2334,7 +2334,7 @@ var init_messages = __esm({
        * ```
        */
       list(completionID, query = {}, options) {
-        return this._client.getAPIList(path3`/chat/completions/${completionID}/messages`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path2`/chat/completions/${completionID}/messages`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -4072,7 +4072,7 @@ var init_completions = __esm({
        * ```
        */
       retrieve(completionID, options) {
-        return this._client.get(path3`/chat/completions/${completionID}`, {
+        return this._client.get(path2`/chat/completions/${completionID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -4091,7 +4091,7 @@ var init_completions = __esm({
        * ```
        */
       update(completionID, body2, options) {
-        return this._client.post(path3`/chat/completions/${completionID}`, {
+        return this._client.post(path2`/chat/completions/${completionID}`, {
           body: body2,
           ...options,
           __security: { bearerAuth: true }
@@ -4127,7 +4127,7 @@ var init_completions = __esm({
        * ```
        */
       delete(completionID, options) {
-        return this._client.delete(path3`/chat/completions/${completionID}`, {
+        return this._client.delete(path2`/chat/completions/${completionID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -4237,7 +4237,7 @@ var init_admin_api_keys = __esm({
        * ```
        */
       retrieve(keyID, options) {
-        return this._client.get(path3`/organization/admin_api_keys/${keyID}`, {
+        return this._client.get(path2`/organization/admin_api_keys/${keyID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4272,7 +4272,7 @@ var init_admin_api_keys = __esm({
        * ```
        */
       delete(keyID, options) {
-        return this._client.delete(path3`/organization/admin_api_keys/${keyID}`, {
+        return this._client.delete(path2`/organization/admin_api_keys/${keyID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4353,7 +4353,7 @@ var init_certificates = __esm({
        * ```
        */
       retrieve(certificateID, query = {}, options) {
-        return this._client.get(path3`/organization/certificates/${certificateID}`, {
+        return this._client.get(path2`/organization/certificates/${certificateID}`, {
           query,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -4371,7 +4371,7 @@ var init_certificates = __esm({
        * ```
        */
       update(certificateID, body2, options) {
-        return this._client.post(path3`/organization/certificates/${certificateID}`, {
+        return this._client.post(path2`/organization/certificates/${certificateID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -4405,7 +4405,7 @@ var init_certificates = __esm({
        * ```
        */
       delete(certificateID, options) {
-        return this._client.delete(path3`/organization/certificates/${certificateID}`, {
+        return this._client.delete(path2`/organization/certificates/${certificateID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4538,7 +4538,7 @@ var init_invites = __esm({
        * ```
        */
       retrieve(inviteID, options) {
-        return this._client.get(path3`/organization/invites/${inviteID}`, {
+        return this._client.get(path2`/organization/invites/${inviteID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4573,7 +4573,7 @@ var init_invites = __esm({
        * ```
        */
       delete(inviteID, options) {
-        return this._client.delete(path3`/organization/invites/${inviteID}`, {
+        return this._client.delete(path2`/organization/invites/${inviteID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4619,7 +4619,7 @@ var init_roles = __esm({
        * ```
        */
       retrieve(roleID, options) {
-        return this._client.get(path3`/organization/roles/${roleID}`, {
+        return this._client.get(path2`/organization/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4635,7 +4635,7 @@ var init_roles = __esm({
        * ```
        */
       update(roleID, body2, options) {
-        return this._client.post(path3`/organization/roles/${roleID}`, {
+        return this._client.post(path2`/organization/roles/${roleID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -4670,7 +4670,7 @@ var init_roles = __esm({
        * ```
        */
       delete(roleID, options) {
-        return this._client.delete(path3`/organization/roles/${roleID}`, {
+        return this._client.delete(path2`/organization/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4723,7 +4723,7 @@ var init_spend_alerts = __esm({
        * ```
        */
       retrieve(alertID, options) {
-        return this._client.get(path3`/organization/spend_alerts/${alertID}`, {
+        return this._client.get(path2`/organization/spend_alerts/${alertID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -4749,7 +4749,7 @@ var init_spend_alerts = __esm({
        * ```
        */
       update(alertID, body2, options) {
-        return this._client.post(path3`/organization/spend_alerts/${alertID}`, {
+        return this._client.post(path2`/organization/spend_alerts/${alertID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -4781,7 +4781,7 @@ var init_spend_alerts = __esm({
        * ```
        */
       delete(alertID, options) {
-        return this._client.delete(path3`/organization/spend_alerts/${alertID}`, {
+        return this._client.delete(path2`/organization/spend_alerts/${alertID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5079,7 +5079,7 @@ var init_roles2 = __esm({
        * ```
        */
       create(groupID, body2, options) {
-        return this._client.post(path3`/organization/groups/${groupID}/roles`, {
+        return this._client.post(path2`/organization/groups/${groupID}/roles`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5099,7 +5099,7 @@ var init_roles2 = __esm({
        */
       retrieve(roleID, params, options) {
         const { group_id } = params;
-        return this._client.get(path3`/organization/groups/${group_id}/roles/${roleID}`, {
+        return this._client.get(path2`/organization/groups/${group_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5118,7 +5118,7 @@ var init_roles2 = __esm({
        * ```
        */
       list(groupID, query = {}, options) {
-        return this._client.getAPIList(path3`/organization/groups/${groupID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/groups/${groupID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Unassigns an organization role from a group within the organization.
@@ -5134,7 +5134,7 @@ var init_roles2 = __esm({
        */
       delete(roleID, params, options) {
         const { group_id } = params;
-        return this._client.delete(path3`/organization/groups/${group_id}/roles/${roleID}`, {
+        return this._client.delete(path2`/organization/groups/${group_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5164,7 +5164,7 @@ var init_users = __esm({
        * ```
        */
       create(groupID, body2, options) {
-        return this._client.post(path3`/organization/groups/${groupID}/users`, {
+        return this._client.post(path2`/organization/groups/${groupID}/users`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5184,7 +5184,7 @@ var init_users = __esm({
        */
       retrieve(userID, params, options) {
         const { group_id } = params;
-        return this._client.get(path3`/organization/groups/${group_id}/users/${userID}`, {
+        return this._client.get(path2`/organization/groups/${group_id}/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5203,7 +5203,7 @@ var init_users = __esm({
        * ```
        */
       list(groupID, query = {}, options) {
-        return this._client.getAPIList(path3`/organization/groups/${groupID}/users`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/groups/${groupID}/users`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Removes a user from a group.
@@ -5219,7 +5219,7 @@ var init_users = __esm({
        */
       delete(userID, params, options) {
         const { group_id } = params;
-        return this._client.delete(path3`/organization/groups/${group_id}/users/${userID}`, {
+        return this._client.delete(path2`/organization/groups/${group_id}/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5274,7 +5274,7 @@ var init_groups = __esm({
        * ```
        */
       retrieve(groupID, options) {
-        return this._client.get(path3`/organization/groups/${groupID}`, {
+        return this._client.get(path2`/organization/groups/${groupID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5291,7 +5291,7 @@ var init_groups = __esm({
        * ```
        */
       update(groupID, body2, options) {
-        return this._client.post(path3`/organization/groups/${groupID}`, {
+        return this._client.post(path2`/organization/groups/${groupID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5326,7 +5326,7 @@ var init_groups = __esm({
        * ```
        */
       delete(groupID, options) {
-        return this._client.delete(path3`/organization/groups/${groupID}`, {
+        return this._client.delete(path2`/organization/groups/${groupID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5359,7 +5359,7 @@ var init_api_keys = __esm({
        */
       retrieve(apiKeyID, params, options) {
         const { project_id } = params;
-        return this._client.get(path3`/organization/projects/${project_id}/api_keys/${apiKeyID}`, {
+        return this._client.get(path2`/organization/projects/${project_id}/api_keys/${apiKeyID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5378,7 +5378,7 @@ var init_api_keys = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path3`/organization/projects/${projectID}/api_keys`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/projects/${projectID}/api_keys`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Deletes an API key from the project.
@@ -5397,7 +5397,7 @@ var init_api_keys = __esm({
        */
       delete(apiKeyID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path3`/organization/projects/${project_id}/api_keys/${apiKeyID}`, {
+        return this._client.delete(path2`/organization/projects/${project_id}/api_keys/${apiKeyID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5428,7 +5428,7 @@ var init_certificates2 = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path3`/organization/projects/${projectID}/certificates`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/projects/${projectID}/certificates`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Activate certificates at the project level.
@@ -5447,7 +5447,7 @@ var init_certificates2 = __esm({
        * ```
        */
       activate(projectID, body2, options) {
-        return this._client.getAPIList(path3`/organization/projects/${projectID}/certificates/activate`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/projects/${projectID}/certificates/activate`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Deactivate certificates at the project level. You can atomically and
@@ -5465,7 +5465,7 @@ var init_certificates2 = __esm({
        * ```
        */
       deactivate(projectID, body2, options) {
-        return this._client.getAPIList(path3`/organization/projects/${projectID}/certificates/deactivate`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/projects/${projectID}/certificates/deactivate`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
       }
     };
   }
@@ -5490,7 +5490,7 @@ var init_data_retention2 = __esm({
        * ```
        */
       retrieve(projectID, options) {
-        return this._client.get(path3`/organization/projects/${projectID}/data_retention`, {
+        return this._client.get(path2`/organization/projects/${projectID}/data_retention`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5508,7 +5508,7 @@ var init_data_retention2 = __esm({
        * ```
        */
       update(projectID, body2, options) {
-        return this._client.post(path3`/organization/projects/${projectID}/data_retention`, {
+        return this._client.post(path2`/organization/projects/${projectID}/data_retention`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5537,7 +5537,7 @@ var init_hosted_tool_permissions = __esm({
        * ```
        */
       retrieve(projectID, options) {
-        return this._client.get(path3`/organization/projects/${projectID}/hosted_tool_permissions`, {
+        return this._client.get(path2`/organization/projects/${projectID}/hosted_tool_permissions`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5554,7 +5554,7 @@ var init_hosted_tool_permissions = __esm({
        * ```
        */
       update(projectID, body2, options) {
-        return this._client.post(path3`/organization/projects/${projectID}/hosted_tool_permissions`, {
+        return this._client.post(path2`/organization/projects/${projectID}/hosted_tool_permissions`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5583,7 +5583,7 @@ var init_model_permissions = __esm({
        * ```
        */
       retrieve(projectID, options) {
-        return this._client.get(path3`/organization/projects/${projectID}/model_permissions`, {
+        return this._client.get(path2`/organization/projects/${projectID}/model_permissions`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5601,7 +5601,7 @@ var init_model_permissions = __esm({
        * ```
        */
       update(projectID, body2, options) {
-        return this._client.post(path3`/organization/projects/${projectID}/model_permissions`, {
+        return this._client.post(path2`/organization/projects/${projectID}/model_permissions`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5619,7 +5619,7 @@ var init_model_permissions = __esm({
        * ```
        */
       delete(projectID, options) {
-        return this._client.delete(path3`/organization/projects/${projectID}/model_permissions`, {
+        return this._client.delete(path2`/organization/projects/${projectID}/model_permissions`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5650,7 +5650,7 @@ var init_rate_limits = __esm({
        * ```
        */
       listRateLimits(projectID, query = {}, options) {
-        return this._client.getAPIList(path3`/organization/projects/${projectID}/rate_limits`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/projects/${projectID}/rate_limits`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Updates a project rate limit.
@@ -5666,7 +5666,7 @@ var init_rate_limits = __esm({
        */
       updateRateLimit(rateLimitID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path3`/organization/projects/${project_id}/rate_limits/${rateLimitID}`, {
+        return this._client.post(path2`/organization/projects/${project_id}/rate_limits/${rateLimitID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5697,7 +5697,7 @@ var init_roles3 = __esm({
        * ```
        */
       create(projectID, body2, options) {
-        return this._client.post(path3`/projects/${projectID}/roles`, {
+        return this._client.post(path2`/projects/${projectID}/roles`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5717,7 +5717,7 @@ var init_roles3 = __esm({
        */
       retrieve(roleID, params, options) {
         const { project_id } = params;
-        return this._client.get(path3`/projects/${project_id}/roles/${roleID}`, {
+        return this._client.get(path2`/projects/${project_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5736,7 +5736,7 @@ var init_roles3 = __esm({
        */
       update(roleID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path3`/projects/${project_id}/roles/${roleID}`, {
+        return this._client.post(path2`/projects/${project_id}/roles/${roleID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5756,7 +5756,7 @@ var init_roles3 = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path3`/projects/${projectID}/roles`, NextCursorPage, {
+        return this._client.getAPIList(path2`/projects/${projectID}/roles`, NextCursorPage, {
           query,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5776,7 +5776,7 @@ var init_roles3 = __esm({
        */
       delete(roleID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path3`/projects/${project_id}/roles/${roleID}`, {
+        return this._client.delete(path2`/projects/${project_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5814,7 +5814,7 @@ var init_spend_alerts2 = __esm({
        * ```
        */
       create(projectID, body2, options) {
-        return this._client.post(path3`/organization/projects/${projectID}/spend_alerts`, {
+        return this._client.post(path2`/organization/projects/${projectID}/spend_alerts`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5834,7 +5834,7 @@ var init_spend_alerts2 = __esm({
        */
       retrieve(alertID, params, options) {
         const { project_id } = params;
-        return this._client.get(path3`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
+        return this._client.get(path2`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5862,7 +5862,7 @@ var init_spend_alerts2 = __esm({
        */
       update(alertID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path3`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
+        return this._client.post(path2`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5882,7 +5882,7 @@ var init_spend_alerts2 = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path3`/organization/projects/${projectID}/spend_alerts`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/projects/${projectID}/spend_alerts`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Deletes a project spend alert.
@@ -5898,7 +5898,7 @@ var init_spend_alerts2 = __esm({
        */
       delete(alertID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path3`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
+        return this._client.delete(path2`/organization/projects/${project_id}/spend_alerts/${alertID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5926,7 +5926,7 @@ var init_spend_limit2 = __esm({
        * ```
        */
       retrieve(projectID, options) {
-        return this._client.get(path3`/organization/projects/${projectID}/spend_limit`, {
+        return this._client.get(path2`/organization/projects/${projectID}/spend_limit`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5948,7 +5948,7 @@ var init_spend_limit2 = __esm({
        * ```
        */
       update(projectID, body2, options) {
-        return this._client.post(path3`/organization/projects/${projectID}/spend_limit`, {
+        return this._client.post(path2`/organization/projects/${projectID}/spend_limit`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -5966,7 +5966,7 @@ var init_spend_limit2 = __esm({
        * ```
        */
       delete(projectID, options) {
-        return this._client.delete(path3`/organization/projects/${projectID}/spend_limit`, {
+        return this._client.delete(path2`/organization/projects/${projectID}/spend_limit`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -5997,7 +5997,7 @@ var init_roles4 = __esm({
        */
       create(groupID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path3`/projects/${project_id}/groups/${groupID}/roles`, {
+        return this._client.post(path2`/projects/${project_id}/groups/${groupID}/roles`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6017,7 +6017,7 @@ var init_roles4 = __esm({
        */
       retrieve(roleID, params, options) {
         const { project_id, group_id } = params;
-        return this._client.get(path3`/projects/${project_id}/groups/${group_id}/roles/${roleID}`, {
+        return this._client.get(path2`/projects/${project_id}/groups/${group_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6038,7 +6038,7 @@ var init_roles4 = __esm({
        */
       list(groupID, params, options) {
         const { project_id, ...query } = params;
-        return this._client.getAPIList(path3`/projects/${project_id}/groups/${groupID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/projects/${project_id}/groups/${groupID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Unassigns a project role from a group within a project.
@@ -6054,7 +6054,7 @@ var init_roles4 = __esm({
        */
       delete(roleID, params, options) {
         const { project_id, group_id } = params;
-        return this._client.delete(path3`/projects/${project_id}/groups/${group_id}/roles/${roleID}`, {
+        return this._client.delete(path2`/projects/${project_id}/groups/${group_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6090,7 +6090,7 @@ var init_groups2 = __esm({
        * ```
        */
       create(projectID, body2, options) {
-        return this._client.post(path3`/organization/projects/${projectID}/groups`, {
+        return this._client.post(path2`/organization/projects/${projectID}/groups`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6110,7 +6110,7 @@ var init_groups2 = __esm({
        */
       retrieve(groupID, params, options) {
         const { project_id, ...query } = params;
-        return this._client.get(path3`/organization/projects/${project_id}/groups/${groupID}`, {
+        return this._client.get(path2`/organization/projects/${project_id}/groups/${groupID}`, {
           query,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6130,7 +6130,7 @@ var init_groups2 = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path3`/organization/projects/${projectID}/groups`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/projects/${projectID}/groups`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Revokes a group's access to a project.
@@ -6146,7 +6146,7 @@ var init_groups2 = __esm({
        */
       delete(groupID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path3`/organization/projects/${project_id}/groups/${groupID}`, {
+        return this._client.delete(path2`/organization/projects/${project_id}/groups/${groupID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6177,7 +6177,7 @@ var init_api_keys2 = __esm({
        */
       create(serviceAccountID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}/api_keys`, { body: body2, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.post(path2`/organization/projects/${project_id}/service_accounts/${serviceAccountID}/api_keys`, { body: body2, ...options, __security: { adminAPIKeyAuth: true } });
       }
     };
   }
@@ -6211,7 +6211,7 @@ var init_service_accounts = __esm({
        * ```
        */
       create(projectID, body2, options) {
-        return this._client.post(path3`/organization/projects/${projectID}/service_accounts`, {
+        return this._client.post(path2`/organization/projects/${projectID}/service_accounts`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6231,7 +6231,7 @@ var init_service_accounts = __esm({
        */
       retrieve(serviceAccountID, params, options) {
         const { project_id } = params;
-        return this._client.get(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, {
+        return this._client.get(path2`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6250,7 +6250,7 @@ var init_service_accounts = __esm({
        */
       update(serviceAccountID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { body: body2, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.post(path2`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { body: body2, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Returns a list of service accounts in the project.
@@ -6266,7 +6266,7 @@ var init_service_accounts = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path3`/organization/projects/${projectID}/service_accounts`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/projects/${projectID}/service_accounts`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Deletes a service account from the project.
@@ -6285,7 +6285,7 @@ var init_service_accounts = __esm({
        */
       delete(serviceAccountID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path3`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.delete(path2`/organization/projects/${project_id}/service_accounts/${serviceAccountID}`, { ...options, __security: { adminAPIKeyAuth: true } });
       }
     };
     ServiceAccounts.APIKeys = APIKeys2;
@@ -6314,7 +6314,7 @@ var init_roles5 = __esm({
        */
       create(userID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path3`/projects/${project_id}/users/${userID}/roles`, {
+        return this._client.post(path2`/projects/${project_id}/users/${userID}/roles`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6334,7 +6334,7 @@ var init_roles5 = __esm({
        */
       retrieve(roleID, params, options) {
         const { project_id, user_id } = params;
-        return this._client.get(path3`/projects/${project_id}/users/${user_id}/roles/${roleID}`, {
+        return this._client.get(path2`/projects/${project_id}/users/${user_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6355,7 +6355,7 @@ var init_roles5 = __esm({
        */
       list(userID, params, options) {
         const { project_id, ...query } = params;
-        return this._client.getAPIList(path3`/projects/${project_id}/users/${userID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/projects/${project_id}/users/${userID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Unassigns a project role from a user within a project.
@@ -6371,7 +6371,7 @@ var init_roles5 = __esm({
        */
       delete(roleID, params, options) {
         const { project_id, user_id } = params;
-        return this._client.delete(path3`/projects/${project_id}/users/${user_id}/roles/${roleID}`, {
+        return this._client.delete(path2`/projects/${project_id}/users/${user_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6408,7 +6408,7 @@ var init_users2 = __esm({
        * ```
        */
       create(projectID, body2, options) {
-        return this._client.post(path3`/organization/projects/${projectID}/users`, {
+        return this._client.post(path2`/organization/projects/${projectID}/users`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6428,7 +6428,7 @@ var init_users2 = __esm({
        */
       retrieve(userID, params, options) {
         const { project_id } = params;
-        return this._client.get(path3`/organization/projects/${project_id}/users/${userID}`, {
+        return this._client.get(path2`/organization/projects/${project_id}/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6447,7 +6447,7 @@ var init_users2 = __esm({
        */
       update(userID, params, options) {
         const { project_id, ...body2 } = params;
-        return this._client.post(path3`/organization/projects/${project_id}/users/${userID}`, {
+        return this._client.post(path2`/organization/projects/${project_id}/users/${userID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6467,7 +6467,7 @@ var init_users2 = __esm({
        * ```
        */
       list(projectID, query = {}, options) {
-        return this._client.getAPIList(path3`/organization/projects/${projectID}/users`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/projects/${projectID}/users`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Deletes a user from the project.
@@ -6486,7 +6486,7 @@ var init_users2 = __esm({
        */
       delete(userID, params, options) {
         const { project_id } = params;
-        return this._client.delete(path3`/organization/projects/${project_id}/users/${userID}`, {
+        return this._client.delete(path2`/organization/projects/${project_id}/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6574,7 +6574,7 @@ var init_projects = __esm({
        * ```
        */
       retrieve(projectID, options) {
-        return this._client.get(path3`/organization/projects/${projectID}`, {
+        return this._client.get(path2`/organization/projects/${projectID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6591,7 +6591,7 @@ var init_projects = __esm({
        * ```
        */
       update(projectID, body2, options) {
-        return this._client.post(path3`/organization/projects/${projectID}`, {
+        return this._client.post(path2`/organization/projects/${projectID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6628,7 +6628,7 @@ var init_projects = __esm({
        * ```
        */
       archive(projectID, options) {
-        return this._client.post(path3`/organization/projects/${projectID}/archive`, {
+        return this._client.post(path2`/organization/projects/${projectID}/archive`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6670,7 +6670,7 @@ var init_roles6 = __esm({
        * ```
        */
       create(userID, body2, options) {
-        return this._client.post(path3`/organization/users/${userID}/roles`, {
+        return this._client.post(path2`/organization/users/${userID}/roles`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6690,7 +6690,7 @@ var init_roles6 = __esm({
        */
       retrieve(roleID, params, options) {
         const { user_id } = params;
-        return this._client.get(path3`/organization/users/${user_id}/roles/${roleID}`, {
+        return this._client.get(path2`/organization/users/${user_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6709,7 +6709,7 @@ var init_roles6 = __esm({
        * ```
        */
       list(userID, query = {}, options) {
-        return this._client.getAPIList(path3`/organization/users/${userID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/organization/users/${userID}/roles`, NextCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * Unassigns an organization role from a user within the organization.
@@ -6725,7 +6725,7 @@ var init_roles6 = __esm({
        */
       delete(roleID, params, options) {
         const { user_id } = params;
-        return this._client.delete(path3`/organization/users/${user_id}/roles/${roleID}`, {
+        return this._client.delete(path2`/organization/users/${user_id}/roles/${roleID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6758,7 +6758,7 @@ var init_users3 = __esm({
        * ```
        */
       retrieve(userID, options) {
-        return this._client.get(path3`/organization/users/${userID}`, {
+        return this._client.get(path2`/organization/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -6773,7 +6773,7 @@ var init_users3 = __esm({
        * ```
        */
       update(userID, body2, options) {
-        return this._client.post(path3`/organization/users/${userID}`, {
+        return this._client.post(path2`/organization/users/${userID}`, {
           body: body2,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -6808,7 +6808,7 @@ var init_users3 = __esm({
        * ```
        */
       delete(userID, options) {
-        return this._client.delete(path3`/organization/users/${userID}`, {
+        return this._client.delete(path2`/organization/users/${userID}`, {
           ...options,
           __security: { adminAPIKeyAuth: true }
         });
@@ -7010,7 +7010,7 @@ var init_batches = __esm({
        * Retrieves a batch.
        */
       retrieve(batchID, options) {
-        return this._client.get(path3`/batches/${batchID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path2`/batches/${batchID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * List your organization's batches.
@@ -7028,7 +7028,7 @@ var init_batches = __esm({
        * (if any) available in the output file.
        */
       cancel(batchID, options) {
-        return this._client.post(path3`/batches/${batchID}/cancel`, {
+        return this._client.post(path2`/batches/${batchID}/cancel`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -7065,7 +7065,7 @@ var init_assistants = __esm({
        * @deprecated
        */
       retrieve(assistantID, options) {
-        return this._client.get(path3`/assistants/${assistantID}`, {
+        return this._client.get(path2`/assistants/${assistantID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7077,7 +7077,7 @@ var init_assistants = __esm({
        * @deprecated
        */
       update(assistantID, body2, options) {
-        return this._client.post(path3`/assistants/${assistantID}`, {
+        return this._client.post(path2`/assistants/${assistantID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -7103,7 +7103,7 @@ var init_assistants = __esm({
        * @deprecated
        */
       delete(assistantID, options) {
-        return this._client.delete(path3`/assistants/${assistantID}`, {
+        return this._client.delete(path2`/assistants/${assistantID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7242,7 +7242,7 @@ var init_sessions2 = __esm({
        * ```
        */
       cancel(sessionID, options) {
-        return this._client.post(path3`/chatkit/sessions/${sessionID}/cancel`, {
+        return this._client.post(path2`/chatkit/sessions/${sessionID}/cancel`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "chatkit_beta=v1" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7271,7 +7271,7 @@ var init_threads = __esm({
        * ```
        */
       retrieve(threadID, options) {
-        return this._client.get(path3`/chatkit/threads/${threadID}`, {
+        return this._client.get(path2`/chatkit/threads/${threadID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "chatkit_beta=v1" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7307,7 +7307,7 @@ var init_threads = __esm({
        * ```
        */
       delete(threadID, options) {
-        return this._client.delete(path3`/chatkit/threads/${threadID}`, {
+        return this._client.delete(path2`/chatkit/threads/${threadID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "chatkit_beta=v1" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7327,7 +7327,7 @@ var init_threads = __esm({
        * ```
        */
       listItems(threadID, query = {}, options) {
-        return this._client.getAPIList(path3`/chatkit/threads/${threadID}/items`, ConversationCursorPage, {
+        return this._client.getAPIList(path2`/chatkit/threads/${threadID}/items`, ConversationCursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "chatkit_beta=v1" }, options?.headers]),
@@ -7383,7 +7383,7 @@ var init_input_items = __esm({
        */
       list(responseID, params = {}, options) {
         const { betas, ...query } = params ?? {};
-        return this._client.getAPIList(path3`/responses/${responseID}/input_items?beta=true`, CursorPage, {
+        return this._client.getAPIList(path2`/responses/${responseID}/input_items?beta=true`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([
@@ -7464,7 +7464,7 @@ var init_responses = __esm({
       }
       retrieve(responseID, params = {}, options) {
         const { betas, ...query } = params ?? {};
-        return this._client.get(path3`/responses/${responseID}?beta=true`, {
+        return this._client.get(path2`/responses/${responseID}?beta=true`, {
           query,
           ...options,
           headers: buildHeaders([
@@ -7487,7 +7487,7 @@ var init_responses = __esm({
        */
       delete(responseID, params = {}, options) {
         const { betas } = params ?? {};
-        return this._client.delete(path3`/responses/${responseID}?beta=true`, {
+        return this._client.delete(path2`/responses/${responseID}?beta=true`, {
           ...options,
           headers: buildHeaders([
             { Accept: "*/*", ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
@@ -7510,7 +7510,7 @@ var init_responses = __esm({
        */
       cancel(responseID, params = {}, options) {
         const { betas } = params ?? {};
-        return this._client.post(path3`/responses/${responseID}/cancel?beta=true`, {
+        return this._client.post(path2`/responses/${responseID}/cancel?beta=true`, {
           ...options,
           headers: buildHeaders([
             { ...betas?.toString() != null ? { "openai-beta": betas?.toString() } : void 0 },
@@ -7568,7 +7568,7 @@ var init_messages2 = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       create(threadID, body2, options) {
-        return this._client.post(path3`/threads/${threadID}/messages`, {
+        return this._client.post(path2`/threads/${threadID}/messages`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -7582,7 +7582,7 @@ var init_messages2 = __esm({
        */
       retrieve(messageID, params, options) {
         const { thread_id } = params;
-        return this._client.get(path3`/threads/${thread_id}/messages/${messageID}`, {
+        return this._client.get(path2`/threads/${thread_id}/messages/${messageID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7595,7 +7595,7 @@ var init_messages2 = __esm({
        */
       update(messageID, params, options) {
         const { thread_id, ...body2 } = params;
-        return this._client.post(path3`/threads/${thread_id}/messages/${messageID}`, {
+        return this._client.post(path2`/threads/${thread_id}/messages/${messageID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -7608,7 +7608,7 @@ var init_messages2 = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       list(threadID, query = {}, options) {
-        return this._client.getAPIList(path3`/threads/${threadID}/messages`, CursorPage, {
+        return this._client.getAPIList(path2`/threads/${threadID}/messages`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -7622,7 +7622,7 @@ var init_messages2 = __esm({
        */
       delete(messageID, params, options) {
         const { thread_id } = params;
-        return this._client.delete(path3`/threads/${thread_id}/messages/${messageID}`, {
+        return this._client.delete(path2`/threads/${thread_id}/messages/${messageID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -7648,7 +7648,7 @@ var init_steps = __esm({
        */
       retrieve(stepID, params, options) {
         const { thread_id, run_id, ...query } = params;
-        return this._client.get(path3`/threads/${thread_id}/runs/${run_id}/steps/${stepID}`, {
+        return this._client.get(path2`/threads/${thread_id}/runs/${run_id}/steps/${stepID}`, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -7662,7 +7662,7 @@ var init_steps = __esm({
        */
       list(runID, params, options) {
         const { thread_id, ...query } = params;
-        return this._client.getAPIList(path3`/threads/${thread_id}/runs/${runID}/steps`, CursorPage, {
+        return this._client.getAPIList(path2`/threads/${thread_id}/runs/${runID}/steps`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -8251,7 +8251,7 @@ var init_runs = __esm({
       }
       create(threadID, params, options) {
         const { include, ...body2 } = params;
-        return this._client.post(path3`/threads/${threadID}/runs`, {
+        return this._client.post(path2`/threads/${threadID}/runs`, {
           query: { include },
           body: body2,
           ...options,
@@ -8268,7 +8268,7 @@ var init_runs = __esm({
        */
       retrieve(runID, params, options) {
         const { thread_id } = params;
-        return this._client.get(path3`/threads/${thread_id}/runs/${runID}`, {
+        return this._client.get(path2`/threads/${thread_id}/runs/${runID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8281,7 +8281,7 @@ var init_runs = __esm({
        */
       update(runID, params, options) {
         const { thread_id, ...body2 } = params;
-        return this._client.post(path3`/threads/${thread_id}/runs/${runID}`, {
+        return this._client.post(path2`/threads/${thread_id}/runs/${runID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -8294,7 +8294,7 @@ var init_runs = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       list(threadID, query = {}, options) {
-        return this._client.getAPIList(path3`/threads/${threadID}/runs`, CursorPage, {
+        return this._client.getAPIList(path2`/threads/${threadID}/runs`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -8308,7 +8308,7 @@ var init_runs = __esm({
        */
       cancel(runID, params, options) {
         const { thread_id } = params;
-        return this._client.post(path3`/threads/${thread_id}/runs/${runID}/cancel`, {
+        return this._client.post(path2`/threads/${thread_id}/runs/${runID}/cancel`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8387,7 +8387,7 @@ var init_runs = __esm({
       }
       submitToolOutputs(runID, params, options) {
         const { thread_id, ...body2 } = params;
-        return this._client.post(path3`/threads/${thread_id}/runs/${runID}/submit_tool_outputs`, {
+        return this._client.post(path2`/threads/${thread_id}/runs/${runID}/submit_tool_outputs`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -8455,7 +8455,7 @@ var init_threads2 = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       retrieve(threadID, options) {
-        return this._client.get(path3`/threads/${threadID}`, {
+        return this._client.get(path2`/threads/${threadID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8467,7 +8467,7 @@ var init_threads2 = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       update(threadID, body2, options) {
-        return this._client.post(path3`/threads/${threadID}`, {
+        return this._client.post(path2`/threads/${threadID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -8480,7 +8480,7 @@ var init_threads2 = __esm({
        * @deprecated The Assistants API is deprecated in favor of the Responses API
        */
       delete(threadID, options) {
-        return this._client.delete(path3`/threads/${threadID}`, {
+        return this._client.delete(path2`/threads/${threadID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8581,7 +8581,7 @@ var init_content = __esm({
        */
       retrieve(fileID, params, options) {
         const { container_id } = params;
-        return this._client.get(path3`/containers/${container_id}/files/${fileID}/content`, {
+        return this._client.get(path2`/containers/${container_id}/files/${fileID}/content`, {
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
           __security: { bearerAuth: true },
@@ -8615,14 +8615,14 @@ var init_files = __esm({
        * a JSON request with a file ID.
        */
       create(containerID, body2, options) {
-        return this._client.post(path3`/containers/${containerID}/files`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
+        return this._client.post(path2`/containers/${containerID}/files`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
       }
       /**
        * Retrieve Container File
        */
       retrieve(fileID, params, options) {
         const { container_id } = params;
-        return this._client.get(path3`/containers/${container_id}/files/${fileID}`, {
+        return this._client.get(path2`/containers/${container_id}/files/${fileID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8631,7 +8631,7 @@ var init_files = __esm({
        * List Container files
        */
       list(containerID, query = {}, options) {
-        return this._client.getAPIList(path3`/containers/${containerID}/files`, CursorPage, {
+        return this._client.getAPIList(path2`/containers/${containerID}/files`, CursorPage, {
           query,
           ...options,
           __security: { bearerAuth: true }
@@ -8642,7 +8642,7 @@ var init_files = __esm({
        */
       delete(fileID, params, options) {
         const { container_id } = params;
-        return this._client.delete(path3`/containers/${container_id}/files/${fileID}`, {
+        return this._client.delete(path2`/containers/${container_id}/files/${fileID}`, {
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8678,7 +8678,7 @@ var init_containers = __esm({
        * Retrieve Container
        */
       retrieve(containerID, options) {
-        return this._client.get(path3`/containers/${containerID}`, {
+        return this._client.get(path2`/containers/${containerID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8697,7 +8697,7 @@ var init_containers = __esm({
        * Delete Container
        */
       delete(containerID, options) {
-        return this._client.delete(path3`/containers/${containerID}`, {
+        return this._client.delete(path2`/containers/${containerID}`, {
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -8721,7 +8721,7 @@ var init_items = __esm({
        */
       create(conversationID, params, options) {
         const { include, ...body2 } = params;
-        return this._client.post(path3`/conversations/${conversationID}/items`, {
+        return this._client.post(path2`/conversations/${conversationID}/items`, {
           query: { include },
           body: body2,
           ...options,
@@ -8733,7 +8733,7 @@ var init_items = __esm({
        */
       retrieve(itemID, params, options) {
         const { conversation_id, ...query } = params;
-        return this._client.get(path3`/conversations/${conversation_id}/items/${itemID}`, {
+        return this._client.get(path2`/conversations/${conversation_id}/items/${itemID}`, {
           query,
           ...options,
           __security: { bearerAuth: true }
@@ -8743,14 +8743,14 @@ var init_items = __esm({
        * List all items for a conversation with the given ID.
        */
       list(conversationID, query = {}, options) {
-        return this._client.getAPIList(path3`/conversations/${conversationID}/items`, ConversationCursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path2`/conversations/${conversationID}/items`, ConversationCursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
       /**
        * Delete an item from a conversation with the given IDs.
        */
       delete(itemID, params, options) {
         const { conversation_id } = params;
-        return this._client.delete(path3`/conversations/${conversation_id}/items/${itemID}`, {
+        return this._client.delete(path2`/conversations/${conversation_id}/items/${itemID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8782,7 +8782,7 @@ var init_conversations = __esm({
        * Get a conversation
        */
       retrieve(conversationID, options) {
-        return this._client.get(path3`/conversations/${conversationID}`, {
+        return this._client.get(path2`/conversations/${conversationID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8791,7 +8791,7 @@ var init_conversations = __esm({
        * Update a conversation
        */
       update(conversationID, body2, options) {
-        return this._client.post(path3`/conversations/${conversationID}`, {
+        return this._client.post(path2`/conversations/${conversationID}`, {
           body: body2,
           ...options,
           __security: { bearerAuth: true }
@@ -8801,7 +8801,7 @@ var init_conversations = __esm({
        * Delete a conversation. Items in the conversation will not be deleted.
        */
       delete(conversationID, options) {
-        return this._client.delete(path3`/conversations/${conversationID}`, {
+        return this._client.delete(path2`/conversations/${conversationID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8875,7 +8875,7 @@ var init_output_items = __esm({
        */
       retrieve(outputItemID, params, options) {
         const { eval_id, run_id } = params;
-        return this._client.get(path3`/evals/${eval_id}/runs/${run_id}/output_items/${outputItemID}`, {
+        return this._client.get(path2`/evals/${eval_id}/runs/${run_id}/output_items/${outputItemID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8885,7 +8885,7 @@ var init_output_items = __esm({
        */
       list(runID, params, options) {
         const { eval_id, ...query } = params;
-        return this._client.getAPIList(path3`/evals/${eval_id}/runs/${runID}/output_items`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path2`/evals/${eval_id}/runs/${runID}/output_items`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -8911,7 +8911,7 @@ var init_runs2 = __esm({
        * schema specified in the config of the evaluation.
        */
       create(evalID, body2, options) {
-        return this._client.post(path3`/evals/${evalID}/runs`, {
+        return this._client.post(path2`/evals/${evalID}/runs`, {
           body: body2,
           ...options,
           __security: { bearerAuth: true }
@@ -8922,7 +8922,7 @@ var init_runs2 = __esm({
        */
       retrieve(runID, params, options) {
         const { eval_id } = params;
-        return this._client.get(path3`/evals/${eval_id}/runs/${runID}`, {
+        return this._client.get(path2`/evals/${eval_id}/runs/${runID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8931,7 +8931,7 @@ var init_runs2 = __esm({
        * Get a list of runs for an evaluation.
        */
       list(evalID, query = {}, options) {
-        return this._client.getAPIList(path3`/evals/${evalID}/runs`, CursorPage, {
+        return this._client.getAPIList(path2`/evals/${evalID}/runs`, CursorPage, {
           query,
           ...options,
           __security: { bearerAuth: true }
@@ -8942,7 +8942,7 @@ var init_runs2 = __esm({
        */
       delete(runID, params, options) {
         const { eval_id } = params;
-        return this._client.delete(path3`/evals/${eval_id}/runs/${runID}`, {
+        return this._client.delete(path2`/evals/${eval_id}/runs/${runID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8952,7 +8952,7 @@ var init_runs2 = __esm({
        */
       cancel(runID, params, options) {
         const { eval_id } = params;
-        return this._client.post(path3`/evals/${eval_id}/runs/${runID}`, {
+        return this._client.post(path2`/evals/${eval_id}/runs/${runID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -8991,13 +8991,13 @@ var init_evals = __esm({
        * Get an evaluation by ID.
        */
       retrieve(evalID, options) {
-        return this._client.get(path3`/evals/${evalID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path2`/evals/${evalID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Update certain properties of an evaluation.
        */
       update(evalID, body2, options) {
-        return this._client.post(path3`/evals/${evalID}`, { body: body2, ...options, __security: { bearerAuth: true } });
+        return this._client.post(path2`/evals/${evalID}`, { body: body2, ...options, __security: { bearerAuth: true } });
       }
       /**
        * List evaluations for a project.
@@ -9013,7 +9013,7 @@ var init_evals = __esm({
        * Delete an evaluation.
        */
       delete(evalID, options) {
-        return this._client.delete(path3`/evals/${evalID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.delete(path2`/evals/${evalID}`, { ...options, __security: { bearerAuth: true } });
       }
     };
     Evals.Runs = Runs2;
@@ -9068,7 +9068,7 @@ var init_files2 = __esm({
        * Returns information about a specific file.
        */
       retrieve(fileID, options) {
-        return this._client.get(path3`/files/${fileID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path2`/files/${fileID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Returns a list of files.
@@ -9084,13 +9084,13 @@ var init_files2 = __esm({
        * Delete a file and remove it from all vector stores.
        */
       delete(fileID, options) {
-        return this._client.delete(path3`/files/${fileID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.delete(path2`/files/${fileID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Returns the contents of the specified file.
        */
       content(fileID, options) {
-        return this._client.get(path3`/files/${fileID}/content`, {
+        return this._client.get(path2`/files/${fileID}/content`, {
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
           __security: { bearerAuth: true },
@@ -9230,7 +9230,7 @@ var init_permissions = __esm({
        * ```
        */
       create(fineTunedModelCheckpoint, body2, options) {
-        return this._client.getAPIList(path3`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, Page, { body: body2, method: "post", ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * **NOTE:** This endpoint requires an [admin API key](../admin-api-keys).
@@ -9241,7 +9241,7 @@ var init_permissions = __esm({
        * @deprecated Retrieve is deprecated. Please swap to the paginated list method instead.
        */
       retrieve(fineTunedModelCheckpoint, query = {}, options) {
-        return this._client.get(path3`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, {
+        return this._client.get(path2`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, {
           query,
           ...options,
           __security: { adminAPIKeyAuth: true }
@@ -9264,7 +9264,7 @@ var init_permissions = __esm({
        * ```
        */
       list(fineTunedModelCheckpoint, query = {}, options) {
-        return this._client.getAPIList(path3`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.getAPIList(path2`/fine_tuning/checkpoints/${fineTunedModelCheckpoint}/permissions`, ConversationCursorPage, { query, ...options, __security: { adminAPIKeyAuth: true } });
       }
       /**
        * **NOTE:** This endpoint requires an [admin API key](../admin-api-keys).
@@ -9286,7 +9286,7 @@ var init_permissions = __esm({
        */
       delete(permissionID, params, options) {
         const { fine_tuned_model_checkpoint } = params;
-        return this._client.delete(path3`/fine_tuning/checkpoints/${fine_tuned_model_checkpoint}/permissions/${permissionID}`, { ...options, __security: { adminAPIKeyAuth: true } });
+        return this._client.delete(path2`/fine_tuning/checkpoints/${fine_tuned_model_checkpoint}/permissions/${permissionID}`, { ...options, __security: { adminAPIKeyAuth: true } });
       }
     };
   }
@@ -9331,7 +9331,7 @@ var init_checkpoints2 = __esm({
        * ```
        */
       list(fineTuningJobID, query = {}, options) {
-        return this._client.getAPIList(path3`/fine_tuning/jobs/${fineTuningJobID}/checkpoints`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path2`/fine_tuning/jobs/${fineTuningJobID}/checkpoints`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -9384,7 +9384,7 @@ var init_jobs = __esm({
        * ```
        */
       retrieve(fineTuningJobID, options) {
-        return this._client.get(path3`/fine_tuning/jobs/${fineTuningJobID}`, {
+        return this._client.get(path2`/fine_tuning/jobs/${fineTuningJobID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -9418,7 +9418,7 @@ var init_jobs = __esm({
        * ```
        */
       cancel(fineTuningJobID, options) {
-        return this._client.post(path3`/fine_tuning/jobs/${fineTuningJobID}/cancel`, {
+        return this._client.post(path2`/fine_tuning/jobs/${fineTuningJobID}/cancel`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -9437,7 +9437,7 @@ var init_jobs = __esm({
        * ```
        */
       listEvents(fineTuningJobID, query = {}, options) {
-        return this._client.getAPIList(path3`/fine_tuning/jobs/${fineTuningJobID}/events`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path2`/fine_tuning/jobs/${fineTuningJobID}/events`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
       /**
        * Pause a fine-tune job.
@@ -9450,7 +9450,7 @@ var init_jobs = __esm({
        * ```
        */
       pause(fineTuningJobID, options) {
-        return this._client.post(path3`/fine_tuning/jobs/${fineTuningJobID}/pause`, {
+        return this._client.post(path2`/fine_tuning/jobs/${fineTuningJobID}/pause`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -9466,7 +9466,7 @@ var init_jobs = __esm({
        * ```
        */
       resume(fineTuningJobID, options) {
-        return this._client.post(path3`/fine_tuning/jobs/${fineTuningJobID}/resume`, {
+        return this._client.post(path2`/fine_tuning/jobs/${fineTuningJobID}/resume`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -9580,7 +9580,7 @@ var init_models = __esm({
        * the owner and permissioning.
        */
       retrieve(model, options) {
-        return this._client.get(path3`/models/${model}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path2`/models/${model}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Lists the currently available models, and provides basic information about each
@@ -9594,7 +9594,7 @@ var init_models = __esm({
        * delete a model.
        */
       delete(model, options) {
-        return this._client.delete(path3`/models/${model}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.delete(path2`/models/${model}`, { ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -9637,7 +9637,7 @@ var init_calls = __esm({
        * ```
        */
       accept(callID, body2, options) {
-        return this._client.post(path3`/realtime/calls/${callID}/accept`, {
+        return this._client.post(path2`/realtime/calls/${callID}/accept`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
@@ -9653,7 +9653,7 @@ var init_calls = __esm({
        * ```
        */
       hangup(callID, options) {
-        return this._client.post(path3`/realtime/calls/${callID}/hangup`, {
+        return this._client.post(path2`/realtime/calls/${callID}/hangup`, {
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -9670,7 +9670,7 @@ var init_calls = __esm({
        * ```
        */
       refer(callID, body2, options) {
-        return this._client.post(path3`/realtime/calls/${callID}/refer`, {
+        return this._client.post(path2`/realtime/calls/${callID}/refer`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
@@ -9686,7 +9686,7 @@ var init_calls = __esm({
        * ```
        */
       reject(callID, body2 = {}, options) {
-        return this._client.post(path3`/realtime/calls/${callID}/reject`, {
+        return this._client.post(path2`/realtime/calls/${callID}/reject`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
@@ -10505,7 +10505,7 @@ var init_input_items2 = __esm({
        * ```
        */
       list(responseID, query = {}, options) {
-        return this._client.getAPIList(path3`/responses/${responseID}/input_items`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
+        return this._client.getAPIList(path2`/responses/${responseID}/input_items`, CursorPage, { query, ...options, __security: { bearerAuth: true } });
       }
     };
   }
@@ -10572,7 +10572,7 @@ var init_responses2 = __esm({
         });
       }
       retrieve(responseID, query = {}, options) {
-        return this._client.get(path3`/responses/${responseID}`, {
+        return this._client.get(path2`/responses/${responseID}`, {
           query,
           ...options,
           stream: query?.stream ?? false,
@@ -10595,7 +10595,7 @@ var init_responses2 = __esm({
        * ```
        */
       delete(responseID, options) {
-        return this._client.delete(path3`/responses/${responseID}`, {
+        return this._client.delete(path2`/responses/${responseID}`, {
           ...options,
           headers: buildHeaders([{ Accept: "*/*" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -10623,7 +10623,7 @@ var init_responses2 = __esm({
        * ```
        */
       cancel(responseID, options) {
-        return this._client.post(path3`/responses/${responseID}/cancel`, {
+        return this._client.post(path2`/responses/${responseID}/cancel`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -10664,7 +10664,7 @@ var init_content2 = __esm({
        * Download a skill zip bundle by its ID.
        */
       retrieve(skillID, options) {
-        return this._client.get(path3`/skills/${skillID}/content`, {
+        return this._client.get(path2`/skills/${skillID}/content`, {
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
           __security: { bearerAuth: true },
@@ -10688,7 +10688,7 @@ var init_content3 = __esm({
        */
       retrieve(version2, params, options) {
         const { skill_id } = params;
-        return this._client.get(path3`/skills/${skill_id}/versions/${version2}/content`, {
+        return this._client.get(path2`/skills/${skill_id}/versions/${version2}/content`, {
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
           __security: { bearerAuth: true },
@@ -10718,14 +10718,14 @@ var init_versions = __esm({
        * Create a new immutable skill version.
        */
       create(skillID, body2 = {}, options) {
-        return this._client.post(path3`/skills/${skillID}/versions`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
+        return this._client.post(path2`/skills/${skillID}/versions`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
       }
       /**
        * Get a specific skill version.
        */
       retrieve(version2, params, options) {
         const { skill_id } = params;
-        return this._client.get(path3`/skills/${skill_id}/versions/${version2}`, {
+        return this._client.get(path2`/skills/${skill_id}/versions/${version2}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -10734,7 +10734,7 @@ var init_versions = __esm({
        * List skill versions for a skill.
        */
       list(skillID, query = {}, options) {
-        return this._client.getAPIList(path3`/skills/${skillID}/versions`, CursorPage, {
+        return this._client.getAPIList(path2`/skills/${skillID}/versions`, CursorPage, {
           query,
           ...options,
           __security: { bearerAuth: true }
@@ -10745,7 +10745,7 @@ var init_versions = __esm({
        */
       delete(version2, params, options) {
         const { skill_id } = params;
-        return this._client.delete(path3`/skills/${skill_id}/versions/${version2}`, {
+        return this._client.delete(path2`/skills/${skill_id}/versions/${version2}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -10783,13 +10783,13 @@ var init_skills = __esm({
        * Get a skill by its ID.
        */
       retrieve(skillID, options) {
-        return this._client.get(path3`/skills/${skillID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path2`/skills/${skillID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Update the default version pointer for a skill.
        */
       update(skillID, body2, options) {
-        return this._client.post(path3`/skills/${skillID}`, {
+        return this._client.post(path2`/skills/${skillID}`, {
           body: body2,
           ...options,
           __security: { bearerAuth: true }
@@ -10809,7 +10809,7 @@ var init_skills = __esm({
        * Delete a skill by its ID.
        */
       delete(skillID, options) {
-        return this._client.delete(path3`/skills/${skillID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.delete(path2`/skills/${skillID}`, { ...options, __security: { bearerAuth: true } });
       }
     };
     Skills.Content = Content2;
@@ -10839,7 +10839,7 @@ var init_parts = __esm({
        * [complete the Upload](https://platform.openai.com/docs/api-reference/uploads/complete).
        */
       create(uploadID, body2, options) {
-        return this._client.post(path3`/uploads/${uploadID}/parts`, multipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
+        return this._client.post(path2`/uploads/${uploadID}/parts`, multipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
       }
     };
   }
@@ -10890,7 +10890,7 @@ var init_uploads3 = __esm({
        * Returns the Upload object with status `cancelled`.
        */
       cancel(uploadID, options) {
-        return this._client.post(path3`/uploads/${uploadID}/cancel`, {
+        return this._client.post(path2`/uploads/${uploadID}/cancel`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -10913,7 +10913,7 @@ var init_uploads3 = __esm({
        * object.
        */
       complete(uploadID, body2, options) {
-        return this._client.post(path3`/uploads/${uploadID}/complete`, {
+        return this._client.post(path2`/uploads/${uploadID}/complete`, {
           body: body2,
           ...options,
           __security: { bearerAuth: true }
@@ -10963,7 +10963,7 @@ var init_file_batches = __esm({
        * Create a vector store file batch.
        */
       create(vectorStoreID, body2, options) {
-        return this._client.post(path3`/vector_stores/${vectorStoreID}/file_batches`, {
+        return this._client.post(path2`/vector_stores/${vectorStoreID}/file_batches`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -10975,7 +10975,7 @@ var init_file_batches = __esm({
        */
       retrieve(batchID, params, options) {
         const { vector_store_id } = params;
-        return this._client.get(path3`/vector_stores/${vector_store_id}/file_batches/${batchID}`, {
+        return this._client.get(path2`/vector_stores/${vector_store_id}/file_batches/${batchID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -10987,7 +10987,7 @@ var init_file_batches = __esm({
        */
       cancel(batchID, params, options) {
         const { vector_store_id } = params;
-        return this._client.post(path3`/vector_stores/${vector_store_id}/file_batches/${batchID}/cancel`, {
+        return this._client.post(path2`/vector_stores/${vector_store_id}/file_batches/${batchID}/cancel`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11005,7 +11005,7 @@ var init_file_batches = __esm({
        */
       listFiles(batchID, params, options) {
         const { vector_store_id, ...query } = params;
-        return this._client.getAPIList(path3`/vector_stores/${vector_store_id}/file_batches/${batchID}/files`, CursorPage, {
+        return this._client.getAPIList(path2`/vector_stores/${vector_store_id}/file_batches/${batchID}/files`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11100,7 +11100,7 @@ var init_files3 = __esm({
        * [vector store](https://platform.openai.com/docs/api-reference/vector-stores/object).
        */
       create(vectorStoreID, body2, options) {
-        return this._client.post(path3`/vector_stores/${vectorStoreID}/files`, {
+        return this._client.post(path2`/vector_stores/${vectorStoreID}/files`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11112,7 +11112,7 @@ var init_files3 = __esm({
        */
       retrieve(fileID, params, options) {
         const { vector_store_id } = params;
-        return this._client.get(path3`/vector_stores/${vector_store_id}/files/${fileID}`, {
+        return this._client.get(path2`/vector_stores/${vector_store_id}/files/${fileID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11123,7 +11123,7 @@ var init_files3 = __esm({
        */
       update(fileID, params, options) {
         const { vector_store_id, ...body2 } = params;
-        return this._client.post(path3`/vector_stores/${vector_store_id}/files/${fileID}`, {
+        return this._client.post(path2`/vector_stores/${vector_store_id}/files/${fileID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11134,7 +11134,7 @@ var init_files3 = __esm({
        * Returns a list of vector store files.
        */
       list(vectorStoreID, query = {}, options) {
-        return this._client.getAPIList(path3`/vector_stores/${vectorStoreID}/files`, CursorPage, {
+        return this._client.getAPIList(path2`/vector_stores/${vectorStoreID}/files`, CursorPage, {
           query,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11149,7 +11149,7 @@ var init_files3 = __esm({
        */
       delete(fileID, params, options) {
         const { vector_store_id } = params;
-        return this._client.delete(path3`/vector_stores/${vector_store_id}/files/${fileID}`, {
+        return this._client.delete(path2`/vector_stores/${vector_store_id}/files/${fileID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11225,7 +11225,7 @@ var init_files3 = __esm({
        */
       content(fileID, params, options) {
         const { vector_store_id } = params;
-        return this._client.getAPIList(path3`/vector_stores/${vector_store_id}/files/${fileID}/content`, Page, {
+        return this._client.getAPIList(path2`/vector_stores/${vector_store_id}/files/${fileID}/content`, Page, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11268,7 +11268,7 @@ var init_vector_stores = __esm({
        * Retrieves a vector store.
        */
       retrieve(vectorStoreID, options) {
-        return this._client.get(path3`/vector_stores/${vectorStoreID}`, {
+        return this._client.get(path2`/vector_stores/${vectorStoreID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11278,7 +11278,7 @@ var init_vector_stores = __esm({
        * Modifies a vector store.
        */
       update(vectorStoreID, body2, options) {
-        return this._client.post(path3`/vector_stores/${vectorStoreID}`, {
+        return this._client.post(path2`/vector_stores/${vectorStoreID}`, {
           body: body2,
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
@@ -11300,7 +11300,7 @@ var init_vector_stores = __esm({
        * Delete a vector store.
        */
       delete(vectorStoreID, options) {
-        return this._client.delete(path3`/vector_stores/${vectorStoreID}`, {
+        return this._client.delete(path2`/vector_stores/${vectorStoreID}`, {
           ...options,
           headers: buildHeaders([{ "OpenAI-Beta": "assistants=v2" }, options?.headers]),
           __security: { bearerAuth: true }
@@ -11311,7 +11311,7 @@ var init_vector_stores = __esm({
        * filter.
        */
       search(vectorStoreID, body2, options) {
-        return this._client.getAPIList(path3`/vector_stores/${vectorStoreID}/search`, Page, {
+        return this._client.getAPIList(path2`/vector_stores/${vectorStoreID}/search`, Page, {
           body: body2,
           method: "post",
           ...options,
@@ -11345,7 +11345,7 @@ var init_videos = __esm({
        * Fetch the latest metadata for a generated video.
        */
       retrieve(videoID, options) {
-        return this._client.get(path3`/videos/${videoID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.get(path2`/videos/${videoID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * List recently generated videos for the current project.
@@ -11361,7 +11361,7 @@ var init_videos = __esm({
        * Permanently delete a completed or failed video and its stored assets.
        */
       delete(videoID, options) {
-        return this._client.delete(path3`/videos/${videoID}`, { ...options, __security: { bearerAuth: true } });
+        return this._client.delete(path2`/videos/${videoID}`, { ...options, __security: { bearerAuth: true } });
       }
       /**
        * Create a character from an uploaded video.
@@ -11375,7 +11375,7 @@ var init_videos = __esm({
        * Streams the rendered video content for the specified video job.
        */
       downloadContent(videoID, query = {}, options) {
-        return this._client.get(path3`/videos/${videoID}/content`, {
+        return this._client.get(path2`/videos/${videoID}/content`, {
           query,
           ...options,
           headers: buildHeaders([{ Accept: "application/binary" }, options?.headers]),
@@ -11400,7 +11400,7 @@ var init_videos = __esm({
        * Fetch a character.
        */
       getCharacter(characterID, options) {
-        return this._client.get(path3`/videos/characters/${characterID}`, {
+        return this._client.get(path2`/videos/characters/${characterID}`, {
           ...options,
           __security: { bearerAuth: true }
         });
@@ -11409,7 +11409,7 @@ var init_videos = __esm({
        * Create a remix of a completed video using a refreshed prompt.
        */
       remix(videoID, body2, options) {
-        return this._client.post(path3`/videos/${videoID}/remix`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
+        return this._client.post(path2`/videos/${videoID}/remix`, maybeMultipartFormRequestOptions({ body: body2, ...options, __security: { bearerAuth: true } }, this._client));
       }
     };
   }
@@ -34670,7 +34670,7 @@ import * as fs3 from "fs/promises";
 import { writeFile } from "fs/promises";
 import { Readable } from "node:stream";
 import { finished } from "node:stream/promises";
-import * as path4 from "path";
+import * as path3 from "path";
 function getDefaultBaseUrls() {
   return {
     geminiUrl: _defaultBaseGeminiUrl,
@@ -56712,7 +56712,7 @@ var init_node = __esm({
         let response = new HttpResponse(new Response());
         let uploadCommand = "upload";
         let fileHandle;
-        const fileName = path4.basename(file);
+        const fileName = path3.basename(file);
         try {
           fileHandle = await fs3.open(file, "r");
           if (!fileHandle) {
@@ -112209,6 +112209,24 @@ function inferLucyAskedField(lastLucyMessage) {
   }
   return null;
 }
+function parseCentrosDeMesaRequirement(text2) {
+  if (!text2?.trim()) return null;
+  const t3 = text2.trim();
+  if (!/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+(?:florales?\s+)?(?:de\s+)?mesas?\b/i.test(
+    t3
+  )) {
+    return null;
+  }
+  const qty = t3.match(
+    /\bcentros?\s+de\s+mesas?\b[\s\S]{0,48}\b(?:ser[ií]an?|seran|son|como|unos?|unas?)?\s*(\d{1,3})\b/i
+  )?.[1] || t3.match(
+    /\b(\d{1,3})\s*(?:centros?\s+de\s+mesas?|centros?\s+florales?|arreglos?\s+(?:de\s+)?mesas?)\b/i
+  )?.[1] || (/\bcentros?\s+de\s+mesas?\b/i.test(t3) ? t3.match(/\bser[ií]an?\s+(\d{1,3})\b/i)?.[1] : null);
+  if (qty && Number(qty) >= 1 && Number(qty) <= 500) {
+    return `Centros de mesa (${qty})`;
+  }
+  return "Centros de mesa";
+}
 function parseServicesFromText(text2) {
   const found = [];
   const lower2 = text2.toLowerCase();
@@ -112323,6 +112341,12 @@ function dedupeServiceHierarchy(services, sourceText) {
     )) {
       for (let i5 = found.length - 1; i5 >= 0; i5--) {
         if (/^(Decoraci[oó]n|Florister[ií]a)$/i.test(found[i5])) found.splice(i5, 1);
+      }
+    }
+    const centrosLabel = parseCentrosDeMesaRequirement(text2);
+    if (centrosLabel) {
+      for (let i5 = 0; i5 < found.length; i5++) {
+        if (/^Centros de mesa/i.test(found[i5])) found[i5] = centrosLabel;
       }
     }
   }
@@ -115999,8 +116023,12 @@ function resolveCatalogWebSlug(query) {
   const t3 = query.trim().toLowerCase();
   const urlMatch = t3.match(/bodasesor\.com\/catalogos\/([a-z0-9-]+)/i);
   if (urlMatch?.[1]) return urlMatch[1];
+  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(t3)) {
+    return null;
+  }
   const aliases = [
-    [/\b(mesas?\s*y\s*sillas?|sillas?|mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
+    // "mesas?" no debe matchear dentro de "centros de mesa" (ya filtrado arriba).
+    [/\b(mesas?\s*y\s*sillas?|sillas?|(?<!centros?\s+de\s+)mesas?|mobiliario|mobilairio)\b/i, "mesas-y-sillas"],
     [/\b(salas?|periqueras?|lounge)\b/i, "salas-y-periqueras"],
     [/\b(audio|iluminaci[oó]n|video|dj|sonido)\b/i, "audio-iluminacion-y-video"],
     [/\bbanquetes?\b/i, "banquete-formal"]
@@ -116722,2106 +116750,6 @@ function resolveProgressiveDetailQuery(opts) {
     }
   }
   return null;
-}
-
-// src/services/concreteProductQuestion.ts
-var CATALOG_WORD_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
-function clientAsksCapacityLayout(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  return /\bmesas?\s+por\s+carpa/i.test(t3) || /\bpor\s+carpa\b.{0,20}\?/i.test(t3) || /\bcu[aá]ntas?\s+mesas?\b.{0,40}\b(carpa|toldo|lona)/i.test(t3) || /\b(carpa|toldo|lona).{0,40}\bcu[aá]ntas?\s+mesas?\b/i.test(t3) || /\bcu[aá]ntas?\s+(cab[eé]n|entran|soporta)/i.test(t3) || /\b(capacidad|acomodo|layout)\b.{0,30}\b(carpa|mesas?|sillas?)/i.test(t3) || /\b\d+\s+mesas?\s+por\s+carpa/i.test(t3);
-}
-function clientAsksForPhotos(message) {
-  if (!message?.trim()) return false;
-  return /\b(fotos?|fotograf[ií]as?|im[aá]genes?|referencias?\s+visuales?|pics?)\b/i.test(
-    message
-  ) && (isServiceRelatedMessage(message) || /\b(solicitad|pedido|cotiz|carpa|mesa|silla|toldo|mobiliario|lo\s+solicitado)\b/i.test(
-    message
-  ) || /\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b/i.test(message));
-}
-function clientAsksAboutLighting(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  return /\b(luz|luces|iluminaci[oó]n|iluminada?s?|leds?|luminarias?)\b/i.test(t3) && (/\b(carpa|toldo|lona|pista|tarima|montaje|cuenta|cuentan|tienen|tienes|incluye|trae)\b/i.test(
-    t3
-  ) || /\?/.test(message));
-}
-function clientAsksConcreteProductQuestion(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.trim();
-  if (clientAsksForCatalog(t3) || CATALOG_WORD_RE.test(t3)) return true;
-  if (clientAsksForPhotos(t3) || clientAsksAboutLighting(t3) || clientAsksCapacityLayout(t3)) {
-    return true;
-  }
-  if ((/\?|¿/.test(t3) || /\bcuenta(n)?\s+con\b/i.test(t3)) && /\b(luz|luces|iluminaci|fotos?|capacidad|mesas?\s+por|cu[aá]ntas?\s+mesas?|incluye\s+luz)\b/i.test(
-    t3
-  )) {
-    return true;
-  }
-  return false;
-}
-function catalogLinkFor(query) {
-  return getCatalogWebUrlForQuery(query) || getCatalogWebUrlForQuery("mesas y sillas") || getCatalogWebHubDeliveryUrl();
-}
-function honestDeferral(topicHint) {
-  const team = advisorLabelForClient();
-  const topic = topicHint?.trim() ? ` sobre ${topicHint.trim()}` : "";
-  return `Buena pregunta${topic} \u2014 eso lo confirmo con ${team} para darte el dato exacto y no equivocarme.`;
-}
-function buildConcreteProductQuestionReply(message, serviceHint) {
-  const msg = message.trim();
-  if (!msg) return null;
-  if (!clientAsksConcreteProductQuestion(msg)) return null;
-  const hint = (serviceHint ?? "").trim();
-  const blob = `${msg} ${hint}`;
-  const team = advisorLabelForClient();
-  if (clientAsksForCatalog(msg) || CATALOG_WORD_RE.test(msg)) {
-    const q2 = /\bsillas?\b/i.test(blob) ? "mesas y sillas" : /\bmesas?\b/i.test(blob) ? "mesas y sillas" : /\bcarpas?|toldos?|lonas?\b/i.test(blob) ? "carpas" : hint || msg;
-    const url = catalogLinkFor(q2);
-    const label = /\bsillas?\b/i.test(blob) ? "de mesas y sillas" : /\bcarpas?|toldos?\b/i.test(blob) ? "de carpas" : "";
-    return `Claro. Te dejo el *cat\xE1logo${label ? ` ${label}` : ""}*:
-${url}`;
-  }
-  const wantsPhotos = clientAsksForPhotos(msg);
-  const wantsLight = clientAsksAboutLighting(msg);
-  if (wantsPhotos || wantsLight) {
-    const parts2 = [];
-    if (wantsPhotos) {
-      const url = catalogLinkFor(
-        /\bcarpas?|toldos?\b/i.test(blob) ? "carpas" : /\bsillas?|mesas?|mobiliario\b/i.test(blob) ? "mesas y sillas" : hint || "mobiliario"
-      );
-      parts2.push(
-        `Claro \u2014 te puedo compartir referencias visuales. Aqu\xED tienes el cat\xE1logo con fotos:
-${url}`
-      );
-      parts2.push(
-        `${team} tambi\xE9n te puede mandar fotos espec\xEDficas de lo que estamos cotizando.`
-      );
-    }
-    if (wantsLight) {
-      if (clientMentionsCarpas(msg) || /\bcarpas?|toldos?|lonas?\b/i.test(blob)) {
-        parts2.push(
-          `Sobre *iluminaci\xF3n en la carpa*: se puede cotizar con o sin luz (paquetes de iluminaci\xF3n). Buena pregunta \u2014 eso lo confirmo con ${team} para decirte si la carpa que te armemos ya incluye luz o va aparte.`
-        );
-      } else {
-        parts2.push(honestDeferral("iluminaci\xF3n"));
-      }
-    }
-    return parts2.join("\n\n");
-  }
-  if (clientAsksCapacityLayout(msg)) {
-    return `La cantidad de mesas por carpa depende de las *medidas* y del acomodo (redondas, pasillos, pista). No te doy un n\xFAmero a ojo: ${team} te confirma cu\xE1ntas caben seg\xFAn el tama\xF1o. Si me das medidas aproximadas (o el \xE1rea a cubrir para tus mesas), lo afino en la cotizaci\xF3n.`;
-  }
-  return null;
-}
-function shouldSkipSalesMenuForConcreteQuestion(message) {
-  return clientAsksConcreteProductQuestion(message);
-}
-
-// src/services/serviceKnowledge.ts
-var SERVICE_KNOWLEDGE_GOLDEN_RULE = "Que un servicio no est\xE9 en el cat\xE1logo significa que no tengo el precio a la mano, NO que no sepa qu\xE9 es. Acepta cualquier servicio de eventos, an\xF3talo y avanza. Nunca te quedes pidiendo 'otros servicios' ni repitas la misma pregunta por no tener el dato.";
-var NON_EVENT_REQUEST_PATTERN = /\b(seguro\s+de|abogad|plomer|electricista|internet\s+en\s+casa|plan\s+de\s+celular|lavad|reparaci[oó]n\s+de\s+(auto|celular)|vpn|software\s+de\s+contab|consulta\s+m[eé]dic|veterinar|notari|traducci[oó]n\s+oficial|impresi[oó]n\s+de\s+actas)\b/i;
-var EVENT_CONTEXT_PATTERN = /\b(evento|fiesta|boda|xv|quince|cumple|corporativ|celebraci[oó]n|banquete|taquiza|barra|renta|valet|pirotecnia|mesa\s+imperial|flor|decoraci|animaci|dj|mobiliario|carpa|iluminaci|pantalla|mesero|catering|invitados)\b/i;
-function serviceLabelFromQuery(query) {
-  const trimmed = query.trim();
-  if (!trimmed) return "ese servicio";
-  return parsePrimaryService(trimmed) ?? trimmed.slice(0, 80);
-}
-function isDubiousNonEventRequest(query) {
-  const t3 = query.trim();
-  if (!t3) return false;
-  if (NON_EVENT_REQUEST_PATTERN.test(t3)) return true;
-  if (isServiceRelatedMessage(t3) || EVENT_CONTEXT_PATTERN.test(t3)) return false;
-  if (/\b(quiero|necesito|busco|cotizar)\b/i.test(t3) && t3.length < 120) return false;
-  return t3.length >= 8 && !EVENT_CONTEXT_PATTERN.test(t3);
-}
-function hasSheetKnowledge(query) {
-  return !!(buildCatalogServiceDetailAnswer(query) || buildCatalogPriceAnswer(query) || buildCatalogInclusionAnswer(query) || lookupCatalogServices(query).length);
-}
-function classifyServiceKnowledgeLevel(query) {
-  if (hasSheetKnowledge(query)) return 1;
-  if (isDubiousNonEventRequest(query)) return 3;
-  return 2;
-}
-function buildLevel2Ack(serviceLabel) {
-  const label = serviceLabel.trim() || "ese servicio";
-  return `\xA1Claro! *${label}* la anoto para tu cotizaci\xF3n. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones.`;
-}
-function parseMobiliarioRentItems(query) {
-  const items = [];
-  if (/\bpicnic\b|\bmesas?\s+tipo\s+picnic\b/i.test(query)) {
-    const q2 = query.match(/(\d+)\s*mesas?\s+tipo\s+picnic/i) || query.match(/(\d+)\s*picnic/i);
-    items.push({
-      qty: q2?.[1] ? parseInt(q2[1], 10) : null,
-      label: "mesas tipo picnic"
-    });
-  }
-  const peri = query.match(/(\d+)\s*periqueras?\b/i);
-  if (/\bperiqueras?\b/i.test(query)) {
-    items.push({
-      qty: peri?.[1] ? parseInt(peri[1], 10) : null,
-      label: "periqueras"
-    });
-  }
-  const bancos = query.match(/(\d+)\s*bancos?\b/i);
-  if (/\bbancos?\b/i.test(query)) {
-    items.push({
-      qty: bancos?.[1] ? parseInt(bancos[1], 10) : null,
-      label: "bancos"
-    });
-  }
-  const sillas = query.match(/(\d+)\s*sillas?\b/i);
-  if (/\bsillas?\b/i.test(query) && !/\bpicnic\b/i.test(query)) {
-    items.push({
-      qty: sillas?.[1] ? parseInt(sillas[1], 10) : null,
-      label: "sillas"
-    });
-  }
-  if (!items.some((i5) => /picnic/i.test(i5.label)) && /\bmesas?\b/i.test(query) && !/\bmesas?\s+periqueras?\b/i.test(query)) {
-    const mesas = query.match(/(\d+)\s*mesas?\b/i);
-    if (mesas || /\bmesas?\b/i.test(query)) {
-      items.push({
-        qty: mesas?.[1] ? parseInt(mesas[1], 10) : null,
-        label: "mesas"
-      });
-    }
-  }
-  return items;
-}
-function formatMobiliarioItem(item) {
-  return item.qty && item.qty > 0 ? `${item.qty} ${item.label}` : item.label;
-}
-function buildMobiliarioRentDetailReply(query) {
-  if (!/\b(mesas?|sillas?|mobiliario|periquera|lounge|picnic|bancos?)\b/i.test(query)) {
-    return null;
-  }
-  const items = parseMobiliarioRentItems(query);
-  const color = query.match(
-    /\bcolor\s+(blanco|negro|dorado|plateado|natural|madera)\b/i
-  )?.[1];
-  const colorNote = color ? ` en color *${color.toLowerCase()}*` : "";
-  const bareMobiliario = items.length === 0 && /\bmobiliario\b/i.test(query) && !/\b(mesas?|sillas?|periquera|lounge|picnic|bancos?|tiffany|crossback|ghost)\b/i.test(query);
-  if (bareMobiliario) return null;
-  const hasQty = items.some((i5) => i5.qty != null && i5.qty > 0);
-  const hasModel = /\b(tiffany|crossback|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|louis|mariantonieta|avant|luxor|imperial|picnic)\b/i.test(
-    query
-  );
-  if (items.length >= 1 && !hasQty && !hasModel) {
-    return null;
-  }
-  if (items.length >= 1) {
-    const list = items.map(formatMobiliarioItem).join(", ");
-    const hasPicnic = items.some((i5) => /picnic/i.test(i5.label));
-    const hasPeri = items.some((i5) => /periquera/i.test(i5.label));
-    const hasBancos = items.some((i5) => /banco/i.test(i5.label));
-    const bits = [`Anoto *${list}*${colorNote}.`];
-    if (hasPicnic || hasPeri || hasBancos) {
-      bits.push(
-        "Manejamos renta de mesas tipo picnic, periqueras y bancos (y tambi\xE9n sillas Tiffany/vers\xE1tiles, mesas redondas/rectangulares y salas lounge)."
-      );
-    } else {
-      bits.push(
-        "Manejamos renta de *mesas y sillas* para eventos: sillas Tiffany y vers\xE1tiles, mesas redondas y rectangulares, periqueras, salas lounge y m\xE1s."
-      );
-    }
-    if (/\bsin\s+montaje|solo\s+(para\s+)?entrega|entrega|recoger/i.test(query)) {
-      bits.push(
-        "Lo tomo como *entrega/recolecci\xF3n* (sin montaje en sitio); el equipo confirma log\xEDstica y disponibilidad."
-      );
-    } else {
-      bits.push("Podemos cotizar con o sin montaje en sitio, seg\xFAn lo que necesites.");
-    }
-    return bits.join(" ");
-  }
-  if (/\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && items.length === 0) {
-    return null;
-  }
-  return null;
-}
-function buildLevel3Ack(serviceLabel) {
-  const label = serviceLabel.trim() || "tu solicitud";
-  return `Tomo nota de tu solicitud especial (*${label}*). Nuestro equipo revisa disponibilidad y te confirma si podemos apoyarte.`;
-}
-function buildGuardServiceAck(query) {
-  const label = serviceLabelFromQuery(query);
-  const level = classifyServiceKnowledgeLevel(query);
-  if (level === 1) {
-    const detail = buildCatalogServiceDetailAnswer(query) ?? buildCatalogPriceAnswer(query) ?? buildCatalogInclusionAnswer(query);
-    if (detail) return detail;
-  }
-  if (level === 3) return buildLevel3Ack(label);
-  if (/\bcentros?\s+de\s+mesas?\b/i.test(query) || /centros?\s+de\s+mesa/i.test(label)) {
-    return "\xA1Claro! Anoto *centros de mesa* (decoraci\xF3n floral) para tu cotizaci\xF3n. Nuestro equipo te confirma estilos, precio e inclusiones.";
-  }
-  if (/\bpizzas?\b/i.test(query) && /\b(hacen|preparan|cocinan|montan|sirven|elaboran|en\s+el\s+evento|en\s+vivo)\b/i.test(query)) {
-    return "S\xED: la *barra de pizzas* se monta en tu evento y se preparan al momento (estaci\xF3n con hornos/equipo seg\xFAn el paquete). Tambi\xE9n podemos sumar pastas u otras estaciones italianas si te interesa.";
-  }
-  {
-    const concrete = buildConcreteProductQuestionReply(query);
-    if (concrete) return concrete;
-  }
-  if (clientMentionsCarpas(query)) {
-    const team = advisorLabelForClient();
-    return `S\xED, manejamos carpas ${CARPA_OPTIONS_TEXT}. Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFQu\xE9 opci\xF3n prefieres y qu\xE9 medidas aproximadas debe tener (largo \xD7 ancho)?`;
-  }
-  if (clientMentionsPistaTarima(query)) {
-    const fromPdf = buildLucyInfoLearnedPriceReply(query);
-    if (fromPdf) return fromPdf;
-    const team = advisorLabelForClient();
-    return `S\xED, manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} cotiza seg\xFAn las medidas. \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
-  }
-  const sala = parseSalaProductFromText(query);
-  if (sala) {
-    const fromPdf = buildLucyInfoLearnedPriceReply(query);
-    if (fromPdf) return fromPdf;
-    return `Con gusto. Anoto *${sala}* para tu cotizaci\xF3n (salas lounge / mobiliario). \xBFQuieres que lo dejemos en la propuesta?`;
-  }
-  const mobiliario = buildMobiliarioRentDetailReply(query);
-  if (mobiliario) {
-    const dims = parseSpaceDimensions(query);
-    return dims ? `${mobiliario} Con espacio ${dims}, el equipo afina la propuesta.` : `${mobiliario} \xBFLo agregamos a tu cotizaci\xF3n?`;
-  }
-  const foodSkuNow = /\b(canap[eé]s?|bocadillos?|banquetes?|catering|taquiza|paella|coffee\s*break|barra\s+de)\b/iu.test(
-    query
-  );
-  if (!foodSkuNow && (/\b(mobiliario|mobilairio)\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) && !parseMobiliarioRentItems(query).length)) {
-    return buildProgressiveOptionsMenu("mobiliario");
-  }
-  if (!foodSkuNow && /\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
-    const p4 = parseMobiliarioPieceChoice(query) || (/\bsillas?\b/i.test(query) ? "sillas" : null);
-    if (p4) return buildMobiliarioPieceFollowUp(p4);
-  }
-  if (/\bcanap/i.test(query)) {
-    return "\xA1Claro! Anoto *Canap\xE9s* para tu cotizaci\xF3n. Es una estaci\xF3n de bocadillos finos para recepci\xF3n o cocktail. \xBFQuieres que te detalle opciones e inclusiones, o seguimos con los datos del evento?";
-  }
-  if (/\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(query)) {
-    return `Claro \u2014 manejamos *shows*, animaci\xF3n y performance (hora loca, shows en vivo y activaciones). Cada propuesta se arma al concepto del evento. Te dejo el cat\xE1logo general:
-${getCatalogWebHubDeliveryUrl()}
-\xBFBuscas algo en especial (show en vivo, hora loca, otro formato)?`;
-  }
-  return buildLevel2Ack(label);
-}
-function getServiceKnowledge(query) {
-  const trimmed = query.trim();
-  if (!trimmed || trimmed.length < 3) return null;
-  if (!isServiceRelatedMessage(trimmed) && !EVENT_CONTEXT_PATTERN.test(trimmed)) {
-    if (!/\b(quiero|necesito|busco|cotizar|precio|incluye)\b/i.test(trimmed)) return null;
-  }
-  const label = serviceLabelFromQuery(trimmed);
-  const level = classifyServiceKnowledgeLevel(trimmed);
-  const sheetBlock = formatServiceDataForPrompt(trimmed);
-  const sheetPrice = !!buildCatalogPriceAnswer(trimmed);
-  const sheetDetail = buildCatalogServiceDetailAnswer(trimmed) ?? buildCatalogInclusionAnswer(trimmed) ?? null;
-  if (level === 1 && (sheetBlock || sheetDetail)) {
-    const parts2 = ["CONOCIMIENTO DE SERVICIO (Google Sheet \u2014 precio solo de aqu\xED):"];
-    if (sheetBlock) parts2.push(sheetBlock);
-    else if (sheetDetail) parts2.push(sheetDetail);
-    parts2.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita Incluye si aparece en el bloque.");
-    return {
-      level: 1,
-      label,
-      hasSheetPrice: sheetPrice,
-      promptBlock: parts2.join("\n"),
-      guardAck: sheetDetail ?? buildGuardServiceAck(trimmed)
-    };
-  }
-  if (level === 3) {
-    return {
-      level: 3,
-      label,
-      hasSheetPrice: false,
-      promptBlock: [
-        "CONOCIMIENTO DE SERVICIO (solicitud especial \u2014 NIVEL 3):",
-        `Servicio: ${label}`,
-        "Acci\xF3n: anota como solicitud especial. El equipo confirma disponibilidad.",
-        "NUNCA digas 'no lo tenemos'. NUNCA inventes precio.",
-        SERVICE_KNOWLEDGE_GOLDEN_RULE
-      ].join("\n"),
-      guardAck: buildLevel3Ack(label)
-    };
-  }
-  return {
-    level: 2,
-    label,
-    hasSheetPrice: false,
-    promptBlock: [
-      "CONOCIMIENTO DE SERVICIO (eventos \u2014 NIVEL 2, sin precio en Sheet):",
-      `Servicio: ${label}`,
-      "Acci\xF3n: ACEPTA, anota en requerimientos y AVANZA al siguiente dato o cierre.",
-      "Acuse breve + siguiente pregunta. NUNCA inventes precio. NUNCA repitas '\xBFotros servicios?'.",
-      SERVICE_KNOWLEDGE_GOLDEN_RULE
-    ].join("\n"),
-    guardAck: buildLevel2Ack(label)
-  };
-}
-
-// src/services/catalogService.ts
-import { readFileSync as readFileSync3, existsSync as existsSync2 } from "node:fs";
-import path2 from "node:path";
-import { fileURLToPath as fileURLToPath3 } from "node:url";
-var GENERIC_CATERING_MENU_MARKERS = /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
-var REFRESH_MS = Number(process.env["CATALOG_REFRESH_MINUTES"] ?? "10") * 6e4;
-var snapshot = null;
-function emptyStatus() {
-  return {
-    loaded: false,
-    lastRefresh: null,
-    lastError: null,
-    sources: {
-      sheets: false,
-      sheetsRows: 0,
-      sheetsUrl: null,
-      gamma: false,
-      gammaUrl: null,
-      staticFallback: true
-    },
-    pricedServicesCount: 0,
-    noPriceServicesCount: 0
-  };
-}
-function applyPriceIndex(rows) {
-  const priced = rows.filter((r4) => r4.tienePrecio && r4.precio).map((r4) => r4.servicio);
-  const noPrice = rows.filter((r4) => !r4.tienePrecio || !r4.precio).map((r4) => r4.servicio);
-  setCatalogPriceIndex(priced, noPrice);
-}
-function getCatalogStatus() {
-  return snapshot?.status ?? emptyStatus();
-}
-function setCatalogSnapshotForTests(rows) {
-  const status = emptyStatus();
-  status.loaded = true;
-  status.sources.sheets = true;
-  status.sources.sheetsRows = rows.length;
-  status.pricedServicesCount = rows.filter((r4) => r4.tienePrecio && r4.precio).length;
-  snapshot = { rows, promptBlock: "", status };
-  applyPriceIndex(rows);
-  registerSheetSynonyms(
-    rows.map((r4) => ({ servicio: r4.servicio, sinonimos: r4.sinonimos ?? null }))
-  );
-  tryLoadSinonimosJsonFile();
-}
-function tryLoadSinonimosJsonFile() {
-  const candidates = [
-    path2.resolve(process.cwd(), "config/sinonimos.json"),
-    path2.resolve(process.cwd(), "data/sinonimos.json"),
-    path2.resolve(process.cwd(), "dist/data/sinonimos.json"),
-    path2.resolve(path2.dirname(fileURLToPath3(import.meta.url)), "../../config/sinonimos.json"),
-    path2.resolve(path2.dirname(fileURLToPath3(import.meta.url)), "../../data/sinonimos.json"),
-    path2.resolve(path2.dirname(fileURLToPath3(import.meta.url)), "../data/sinonimos.json")
-  ];
-  for (const p4 of candidates) {
-    if (!existsSync2(p4)) continue;
-    try {
-      const raw = JSON.parse(readFileSync3(p4, "utf8"));
-      const n4 = loadSinonimosJson(raw);
-      if (n4 > 0) return;
-    } catch {
-    }
-  }
-}
-function getCatalogPromptBlockSync() {
-  return snapshot?.promptBlock ?? CATALOGO_BODASESOR;
-}
-function normalizeForMatch(value) {
-  return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\btres\s*tiempos\b/g, "3 tiempos").replace(/\bcuatro\s*tiempos\b/g, "4 tiempos").replace(/\bdos\s*tiempos\b/g, "2 tiempos").trim();
-}
-function queryTokens(query) {
-  const stop2 = /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con|incluye|trae|lleva)$/;
-  const normalized = normalizeForMatch(query);
-  const compounds = [];
-  if (/\b4\s*tiempos\b/.test(normalized)) compounds.push("4tiempos");
-  if (/\b3\s*tiempos\b/.test(normalized)) compounds.push("3tiempos");
-  const tokens = normalized.split(/[^a-z0-9]+/).filter((t3) => (t3.length >= 3 || /^\d$/.test(t3)) && !stop2.test(t3));
-  if (/\bcatering\b/.test(normalized)) {
-    tokens.push("banquete", "taquiza", "brunch", "coffee");
-  }
-  return [.../* @__PURE__ */ new Set([...compounds, ...tokens])];
-}
-function parseCatalogQueryFilters(query) {
-  const t3 = normalizeForMatch(query);
-  let nivel = null;
-  if (/\bservicio\s+completo\b/.test(t3)) nivel = "Servicio completo";
-  else if (/\bpor\s+pieza\b/.test(t3)) nivel = "Por pieza";
-  else if (/\bpremium\b/.test(t3)) nivel = "Premium";
-  else if (/\bbasic[ao]\b/.test(t3)) nivel = "Basica";
-  else if (/\btradicional\b/.test(t3)) nivel = "Tradicional";
-  else if (/\bsolo\s*alimentos\b/.test(t3)) nivel = "Solo Alimentos";
-  return {
-    banquete: /\bbanquete\b/.test(t3),
-    taquiza: /\btaquiza\b/.test(t3),
-    cuatroTiempos: /\b4\s*tiempos\b/.test(t3) || /\b4tiempos\b/.test(t3),
-    tresTiempos: /\b3\s*tiempos\b/.test(t3) || /\b3tiempos\b/.test(t3),
-    nivel
-  };
-}
-function rowHaystack(row) {
-  return normalizeForMatch(`${row.categoria} ${row.servicio} ${row.nivel}`).replace(/\s+/g, " ");
-}
-function extractNivelLabel(row) {
-  if (typeof row === "string") {
-    const match2 = row.match(/\(([^)]+)\)\s*$/);
-    return match2?.[1]?.trim() || row;
-  }
-  return row.nivel?.trim() || row.servicio.match(/\(([^)]+)\)\s*$/)?.[1]?.trim() || row.servicio;
-}
-var MACRO_CATEGORIES = [
-  {
-    label: "Alimentos",
-    queryPattern: /^(alimentos?|comida|catering|men[uú]s?)$/i,
-    servicePattern: /banquete|taquiza|brunch|coffee|barra(?! de bebida)|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i
-  },
-  {
-    label: "Bebidas",
-    queryPattern: /^(bebidas?|barra\s+de\s+bebidas?)$/i,
-    servicePattern: /barra de bebida|cocteler|mixolog|m[oó]ctel/i
-  },
-  {
-    label: "Barras tem\xE1ticas",
-    queryPattern: /^(barras?|barras?\s+tem[aá]ticas?)$/i,
-    servicePattern: /^barra(?! de bebida)/i
-  },
-  {
-    label: "Mobiliario",
-    queryPattern: /^mobiliario$/i,
-    servicePattern: /mobiliario|silla/i
-  }
-];
-function uniqueServicios(rows) {
-  return [...new Set(rows.map((r4) => r4.servicio.trim()).filter(Boolean))].sort();
-}
-function uniqueNiveles(rows) {
-  return [...new Set(rows.map((r4) => r4.nivel.trim()).filter(Boolean))];
-}
-function rowMatchesServiceLabel(row, label) {
-  const normLabel = normalizeForMatch(label).replace(/\s+/g, "");
-  const normSvc = normalizeForMatch(row.servicio).replace(/\s+/g, "");
-  if (!normLabel || !normSvc) return false;
-  if (normSvc.includes(normLabel) || normLabel.includes(normSvc)) return true;
-  const labelTokens = normalizeForMatch(label).split(/\s+/).filter((t3) => t3.length >= 4);
-  if (labelTokens.length >= 2) {
-    return labelTokens.every((t3) => normSvc.includes(t3));
-  }
-  return normSvc.includes(normLabel);
-}
-function catalogKeywordsFromQuery(query) {
-  if (isVagueCatalogFoodQuery(query.trim())) return [];
-  const q2 = normalizeForMatch(query);
-  const keys = [];
-  if (/\bparrillada\b/.test(q2)) keys.push("parrillada");
-  if (/\bargentina\b/.test(q2) && keys.includes("parrillada")) keys.push("argentina");
-  if (/\bmexicano\b/.test(q2)) return ["banquete", "mexicano"];
-  if (/\bkosher\b/.test(q2)) return ["kosher"];
-  if (/\bnavide/.test(q2)) return ["navide"];
-  if (/\bformal\b/.test(q2) && /\bbanquete\b/.test(q2)) return ["banquete", "formal"];
-  if (/\bbanquete\b/.test(q2)) return ["banquete"];
-  if (/\btaquiza\b/.test(q2)) return ["taquiza"];
-  if (/\byucateca\b/.test(q2)) return ["yucateca"];
-  if (/\bamericana\b/.test(q2) && /\bbarra\b/.test(q2)) return ["americana"];
-  if (keys.length) return keys;
-  const requested = parsePrimaryService(query);
-  if (!requested?.trim()) return [];
-  return normalizeForMatch(requested).split(/\s+/).filter((t3) => t3.length >= 4);
-}
-function rowMatchesCatalogKeywords(row, keywords) {
-  if (!keywords.length) return true;
-  const hay = normalizeForMatch(row.servicio);
-  return keywords.every((k4) => hay.includes(k4));
-}
-function rowsForRequestedService(allRows, query) {
-  if (isVagueCatalogFoodQuery(query.trim())) return allRows;
-  const keywords = catalogKeywordsFromQuery(query);
-  if (keywords.length) {
-    const matched2 = allRows.filter((r4) => rowMatchesCatalogKeywords(r4, keywords));
-    return matched2.length ? matched2 : null;
-  }
-  const requested = parsePrimaryService(query);
-  if (!requested) return allRows;
-  const matched = allRows.filter((r4) => rowMatchesServiceLabel(r4, requested));
-  return matched.length ? matched : null;
-}
-function catalogAnswerMatchesRequestedService(query, answer) {
-  const keywords = catalogKeywordsFromQuery(query);
-  if (!keywords.length) return true;
-  const norm2 = normalizeForMatch(answer);
-  return keywords.every((k4) => norm2.includes(k4));
-}
-function catalogResultMatchesRequestedService(query, result) {
-  const keywords = catalogKeywordsFromQuery(query);
-  if (!keywords.length || !result) return true;
-  return result.rows.some((r4) => rowMatchesCatalogKeywords(r4, keywords));
-}
-function isVagueCatalogFoodQuery(query) {
-  const q2 = normalizeForMatch(query.trim());
-  return /^(comida|alimentos?|men[uú]s?|desayuno|catering)$/.test(q2);
-}
-function matchesSpecificServicioInQuery(query, rows) {
-  const q2 = normalizeForMatch(query);
-  if (isVagueCatalogFoodQuery(query)) return false;
-  for (const svc of uniqueServicios(rows)) {
-    const normSvc = normalizeForMatch(svc);
-    if (q2 === normSvc || q2.includes(normSvc)) return true;
-    if (normSvc.includes(q2) && q2.length >= 4) return true;
-    const svcTokens = normSvc.split(/\s+/).filter((t3) => t3.length >= 4);
-    if (svcTokens.some((t3) => q2.includes(t3))) return true;
-  }
-  if (/\b(banquete|taquiza|barra de|coffee break|brunch|parrillada)\b/.test(q2)) return true;
-  return false;
-}
-function detectMacroCategoryQuery(query) {
-  const trimmed = query.trim();
-  for (const cat of MACRO_CATEGORIES) {
-    if (cat.queryPattern.test(trimmed)) return { label: cat.label, servicePattern: cat.servicePattern };
-  }
-  const q2 = normalizeForMatch(query);
-  if (/^alimentos?$/.test(q2) || q2 === "comida" || q2 === "catering") {
-    return { label: "Alimentos", servicePattern: MACRO_CATEGORIES[0].servicePattern };
-  }
-  return null;
-}
-function matchesNivelFilter(row, filters, query) {
-  const nivelHay = normalizeForMatch(row.nivel || extractNivelLabel(row.servicio));
-  const svcHay = normalizeForMatch(row.servicio);
-  if (filters.nivel) {
-    const want = normalizeForMatch(filters.nivel);
-    if (nivelHay.includes(want) || want.includes(nivelHay)) return true;
-  }
-  if (filters.cuatroTiempos && /\b4\s*tiempos\b/.test(svcHay)) return true;
-  if (filters.tresTiempos && /\b3\s*tiempos\b/.test(svcHay)) return true;
-  const q2 = normalizeForMatch(query);
-  if (/\bpremium\b/.test(q2) && /\bpremium\b/.test(nivelHay)) return true;
-  if (/\bbasic[ao]\b/.test(q2) && /\bbasic[ao]\b/.test(nivelHay)) return true;
-  if (/\btradicional\b/.test(q2) && /\btradicional\b/.test(nivelHay)) return true;
-  return false;
-}
-function simplifyServiceNamesForList(servicios) {
-  const out2 = /* @__PURE__ */ new Set();
-  for (const svc of servicios) {
-    if (/^banquete\b/i.test(svc) && !/kosher|mexicano|navide/i.test(svc)) {
-      if (/\b3\s*tiempos\b/i.test(svc)) out2.add("banquete 3 tiempos");
-      else if (/\b4\s*tiempos\b/i.test(svc)) out2.add("banquete 4 tiempos");
-      else out2.add(svc);
-    } else {
-      out2.add(svc);
-    }
-  }
-  return [...out2];
-}
-function resolveCatalogQuery(query) {
-  if (!snapshot?.rows.length) return null;
-  const allRows = snapshot.rows;
-  const trimmed = query.trim();
-  if (!trimmed) return null;
-  const macro = detectMacroCategoryQuery(trimmed);
-  if (macro && !matchesSpecificServicioInQuery(trimmed, allRows)) {
-    const catRows = allRows.filter((r4) => macro.servicePattern.test(r4.servicio));
-    if (catRows.length) {
-      return { kind: "category", categoryLabel: macro.label, rows: catRows };
-    }
-  }
-  const serviceScoped = rowsForRequestedService(allRows, trimmed);
-  if (serviceScoped === null) return null;
-  const rows = serviceScoped;
-  const tokens = queryTokens(query);
-  if (!tokens.length) return null;
-  const filters = parseCatalogQueryFilters(query);
-  const scored = rows.map((row) => ({ row, score: scoreCatalogRow(row, tokens, filters, query) })).filter((item) => item.score > 0).sort((a3, b4) => b4.score - a3.score);
-  if (!scored.length) return null;
-  const top = scored[0].score;
-  const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
-  let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
-  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b|\bservicio\s+completo\b|\bpor\s+pieza\b/i.test(query));
-  if (hasNivelFilter) {
-    const nivelRows = matchedRows.filter((r4) => matchesNivelFilter(r4, filters, query));
-    if (nivelRows.length) matchedRows = nivelRows;
-  }
-  const servicios = uniqueServicios(matchedRows);
-  if (!servicios.length) return null;
-  if (hasNivelFilter && matchedRows.length === 1) {
-    const row = matchedRows[0];
-    return {
-      kind: "service_nivel",
-      serviceName: row.servicio,
-      nivel: row.nivel,
-      rows: [row]
-    };
-  }
-  if (servicios.length === 1) {
-    const svc = servicios[0];
-    const svcRows = matchedRows.filter((r4) => r4.servicio === svc);
-    const niveles = uniqueNiveles(svcRows);
-    if (niveles.length > 1 && !hasNivelFilter) {
-      return { kind: "service", serviceName: svc, rows: svcRows };
-    }
-    if (svcRows.length === 1) {
-      return {
-        kind: "service_nivel",
-        serviceName: svc,
-        nivel: svcRows[0].nivel,
-        rows: svcRows
-      };
-    }
-    return { kind: "service", serviceName: svc, rows: svcRows };
-  }
-  const q2 = normalizeForMatch(query);
-  if (/\bbanquete\b/.test(q2) || /\bmexicano\b/.test(q2) || /\bkosher\b/.test(q2) || /\bnavide/.test(q2)) {
-    let serviceName = "Banquete";
-    if (matchedRows.length && matchedRows.every((r4) => /\bmexicano\b/i.test(r4.servicio))) {
-      serviceName = "Banquete Mexicano";
-    } else if (matchedRows.length && matchedRows.every((r4) => /\bkosher\b/i.test(r4.servicio))) {
-      serviceName = "Banquete Kosher";
-    } else if (matchedRows.length && matchedRows.every((r4) => /\bnavide/i.test(r4.servicio))) {
-      serviceName = "Banquete Navide\xF1o";
-    } else if (matchedRows.length && matchedRows.every((r4) => /\bformal\b/i.test(r4.servicio))) {
-      serviceName = "Banquete Formal";
-    } else if (/\bmexicano\b/.test(q2)) {
-      const onlyMx = matchedRows.filter((r4) => /\bmexicano\b/i.test(r4.servicio));
-      if (onlyMx.length) {
-        return { kind: "service", serviceName: "Banquete Mexicano", rows: onlyMx };
-      }
-    }
-    return { kind: "service", serviceName, rows: matchedRows };
-  }
-  if (/\bbarra\b/.test(q2) && !/\bbarra de bebida/.test(q2) && !/\b(yucateca|americana|crepas?|mariscos?|paninis?|pastas?|sushi|poke|caf[eé](?!\p{L}))\b/iu.test(q2)) {
-    return { kind: "service", serviceName: "Barra", rows: matchedRows };
-  }
-  return { kind: "service", serviceName: servicios[0], rows: matchedRows };
-}
-function buildCategoryServicesAnswer(result) {
-  const label = result.categoryLabel ?? "esa categor\xEDa";
-  const servicios = simplifyServiceNamesForList(uniqueServicios(result.rows));
-  const list = servicios.slice(0, 10).join(", ");
-  return `Para *${label.toLowerCase()}* tenemos: ${list}. \xBFCu\xE1l te interesa?`;
-}
-var CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
-function ensureCatalogWebLink(text2, query) {
-  const body2 = text2.trim();
-  if (!body2) return body2;
-  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(body2)) {
-    return body2;
-  }
-  const q2 = (query ?? "").trim();
-  const match2 = q2 ? resolveCatalogWebLink(q2) : { url: null, serviceName: null, kind: "missing" };
-  const embedUrl = q2 ? getCatalogWebUrlForQuery(q2) : null;
-  const url = match2.url || embedUrl || null;
-  if (url) {
-    const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
-    return `${body2}
-
-Cat\xE1logo${label}:
-${toDeliverableCatalogUrl(url)}`;
-  }
-  return `${body2}
-
-Cat\xE1logo:
-${getCatalogWebHubDeliveryUrl()}`;
-}
-function messageHasSheetServiceDetail(text2) {
-  if (!text2?.trim()) return false;
-  const t3 = text2;
-  if (/detalle de lo que incluye cada nivel est[aá] en el cat[aá]logo/i.test(t3) && !/\$\s*\d/.test(t3) && !/incluye\s*:\s*\S.{7,}/i.test(t3)) {
-    return false;
-  }
-  if (/incluye\s*:\s*\S.{7,}/i.test(t3) && !/el\s+equipo\s+lo\s+confirma/i.test(t3)) return true;
-  if (/qu[eé]\s+incluye\s+cada\s+nivel\s*:/i.test(t3)) return true;
-  if (/manejamos estos niveles/i.test(t3)) return true;
-  if (/\*precio:\*/i.test(t3) && /manejamos/i.test(t3)) return true;
-  if (/\$\s*\d/.test(t3) && /\b(b[aá]sic|tradicional|premium|solo alimentos)\b/i.test(t3) && /\b(nivel|manejamos|pp|\/pp|por persona)\b/i.test(t3)) {
-    return true;
-  }
-  return false;
-}
-function attachAvailableSheetDetail(query, serviceHint) {
-  const attempts = [
-    [serviceHint, query].filter(Boolean).join(" ").trim() || null,
-    serviceHint?.trim() || null,
-    query.trim() || null
-  ].filter((a3) => !!a3);
-  for (const a3 of attempts) {
-    const fromPdf = buildPdfInclusionReply(a3);
-    if (fromPdf) return fromPdf;
-    const candidates = [
-      buildCatalogInclusionAnswer(a3),
-      buildInclusionTeamConfirmationAnswer(a3),
-      buildCatalogServiceDetailAnswer(a3),
-      buildCatalogPriceAnswer(a3)
-    ].filter((d2) => !!d2);
-    for (const detail of candidates) {
-      if (/detalle de lo que incluye cada nivel est[aá] en el cat[aá]logo/i.test(detail) && !/\$\s*\d/.test(detail) && !/incluye\s*:\s*\S.{7,}/i.test(detail)) {
-        continue;
-      }
-      if (messageHasSheetServiceDetail(detail) || /\$\s*\d/.test(detail) && /\b(nivel|Basico|Básico|Premium|Tradicional|manejamos|pp)\b/i.test(detail)) {
-        return ensureCatalogWebLink(detail, a3);
-      }
-    }
-  }
-  return null;
-}
-function withCatalogOfferQuestion(text2, query) {
-  const body2 = text2.trim();
-  if (!body2) return body2;
-  return ensureCatalogWebLink(body2, query);
-}
-function buildServiceNivelChoiceAnswer(result) {
-  const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
-  const svcRows = result.rows.filter((r4) => r4.servicio === svc || result.rows.length <= 6);
-  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 6);
-  const niveles = uniqueNiveles(rowsForChoice);
-  if (niveles.length <= 1) {
-    const row = svcRows[0] ?? result.rows[0];
-    return buildExactRowDetailAnswer(row);
-  }
-  if (uniqueServicios(result.rows).length > 1) {
-    const svcOnly = result.rows.filter(
-      (r4) => normalizeForMatch(r4.servicio) === normalizeForMatch(svc) || rowMatchesServiceLabel(r4, svc)
-    );
-    if (svcOnly.length && uniqueServicios(svcOnly).length === 1) {
-      const nivelesOnly = uniqueNiveles(svcOnly);
-      if (nivelesOnly.length > 1) {
-        const lines2 = nivelesOnly.slice(0, 6).map((n4, i5) => {
-          const row = svcOnly.find(
-            (r4) => normalizeForMatch(extractNivelLabel(r4)) === normalizeForMatch(n4)
-          );
-          const incl = row ? getInclusionFromRow(row) : null;
-          const price = row?.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
-          const inclTxt = incl ? `: ${incl.slice(0, 120)}` : "";
-          return `${i5 + 1}. *${n4}*${price}${inclTxt}`;
-        });
-        return withCatalogOfferQuestion(
-          `Para *${svc}* manejamos estos niveles:
-${lines2.join("\n")}
-
-${SERVICE_NIVEL_DETAIL_CTA}`,
-          svc
-        );
-      }
-    }
-    const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
-    const inclusionBlock = buildInclusionBlock(rowsForChoice, 180).trim();
-    const detail = inclusionBlock ? `${inclusionBlock}
-
-` : `Niveles disponibles: ${niveles.slice(0, 6).map((n4) => `*${n4}*`).join(", ")}.
-
-`;
-    return withCatalogOfferQuestion(
-      `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}${SERVICE_NIVEL_DETAIL_CTA}`,
-      svc
-    );
-  }
-  const lines = niveles.slice(0, 6).map((n4, i5) => {
-    const row = rowsForChoice.find(
-      (r4) => normalizeForMatch(extractNivelLabel(r4)) === normalizeForMatch(n4)
-    );
-    const incl = row ? getInclusionFromRow(row) : null;
-    const price = row?.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
-    if (incl) {
-      const clipped = incl.length > 220 ? `${incl.slice(0, 217)}\u2026` : incl;
-      return `${i5 + 1}. *${n4}*${price}
-   Incluye: ${clipped}`;
-    }
-    return `${i5 + 1}. *${n4}*${price}`;
-  });
-  const hasAnyIncl = rowsForChoice.some((r4) => !!getInclusionFromRow(r4));
-  const footer = SERVICE_NIVEL_DETAIL_CTA;
-  let body2 = `Para *${svc}* manejamos estos niveles:
-
-${lines.join("\n")}
-
-${footer}`;
-  if (!hasAnyIncl || rowsForChoice.filter((r4) => getInclusionFromRow(r4)).length < niveles.length) {
-    const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
-    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "") ?? resolveCatalogWebLink(svc).url ?? resolveCatalogWebLink(result.serviceName ?? svc).url;
-    if (webHint) {
-      body2 += `
-
-${webHint}`;
-    } else if (webUrl) {
-      body2 += `
-
-El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo:
-${toDeliverableCatalogUrl(webUrl)}`;
-    } else {
-      body2 += `
-
-Cat\xE1logo general:
-${getCatalogWebHubDeliveryUrl()}`;
-    }
-  }
-  return withCatalogOfferQuestion(body2, svc);
-}
-function messageOffersLevelsWithoutInclusions(text2) {
-  if (!text2?.trim()) return false;
-  const t3 = text2.trim();
-  const hasIncluyeLine = /incluye\s*:/i.test(t3);
-  const hasTeamPlaceholder = /el\s+equipo\s+lo\s+confirma/i.test(t3);
-  const hasRealInclusionLine = t3.split(/\n/).some(
-    (line2) => /incluye\s*:/i.test(line2) && !/el\s+equipo\s+lo\s+confirma/i.test(line2) && /incluye\s*:\s*\S.{7,}/i.test(line2)
-  );
-  const onlyTeamPlaceholder = hasIncluyeLine && hasTeamPlaceholder && !hasRealInclusionLine;
-  if (hasIncluyeLine && !onlyTeamPlaceholder) return false;
-  const mentionsTriad = /\bb[aá]sic/i.test(t3) && /\btradicional\b/i.test(t3) && /\bpremium\b/i.test(t3);
-  return onlyTeamPlaceholder || /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t3) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t3) || /1\.\s*\*?b[aá]sic/i.test(t3) && /2\.\s*\*?tradicional/i.test(t3) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t3) && /prefieres|nivel/i.test(t3) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
-  mentionsTriad && (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t3) || /prefieres|nivel|opci[oó]n/i.test(t3)) || mentionsTriad && /confirma\s+(nuestro\s+)?equipo|el\s+equipo\s+te\s+confirma/i.test(t3);
-}
-function enrichBareNivelOffer(mensaje, serviceHint) {
-  if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
-  const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
-  const fromPdf = buildPdfInclusionReply(hint);
-  if (fromPdf) return fromPdf;
-  const detail = buildCatalogServiceDetailAnswer(hint);
-  if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
-  if (!/incluye|nivel/i.test(detail)) return null;
-  return detail;
-}
-function buildExactRowDetailAnswer(row) {
-  const label = formatCatalogRowLabel(row);
-  const parsed = parseRowNotes(row.notas);
-  const price = row.tienePrecio && row.precio ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
-  const inclusion = parsed.inclusion ? `
-
-*Incluye:* ${parsed.inclusion}` : "";
-  return withCatalogOfferQuestion(
-    `S\xED, manejamos *${label}*.${price ? `
-${price}` : ""}${inclusion}`.trim(),
-    row.servicio
-  );
-}
-function buildExactRowPriceAnswer(row) {
-  const label = formatCatalogRowLabel(row);
-  const parsed = parseRowNotes(row.notas);
-  const unit = row.unidad ? ` ${row.unidad}` : "";
-  const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
-  const inclusion = parsed.inclusion ? `
-
-*Incluye:* ${parsed.inclusion}` : "";
-  return ensureCatalogWebLink(
-    `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`,
-    row.servicio
-  );
-}
-function formatRequerimientoLabelFromQuery(query) {
-  const resolved = resolveCatalogQuery(query);
-  if (!resolved) return null;
-  if (resolved.kind === "category") return null;
-  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
-    return formatCatalogRowLabel(resolved.rows[0]);
-  }
-  if (resolved.rows.length === 1) {
-    return formatCatalogRowLabel(resolved.rows[0]);
-  }
-  if (resolved.serviceName && resolved.kind === "service") {
-    const niveles = uniqueNiveles(resolved.rows);
-    if (niveles.length === 1 && resolved.rows[0]) {
-      return formatCatalogRowLabel(resolved.rows[0]);
-    }
-    return resolved.serviceName;
-  }
-  return null;
-}
-function scoreCatalogRow(row, tokens, filters, query) {
-  const haystack = rowHaystack(row).replace(/\s+/g, "");
-  let score = 0;
-  const vagueFood = isVagueCatalogFoodQuery(query);
-  for (const token of tokens) {
-    const tok = token.replace(/\s+/g, "");
-    if (tok === "comida" && /comidacorrida/.test(haystack) && !/\bcomida\s+corrida\b/i.test(query)) {
-      continue;
-    }
-    if (vagueFood && tok === "comida" && /comidacorrida/.test(haystack)) continue;
-    if (haystack.includes(tok)) score += 2;
-  }
-  if (filters.banquete && /\bbanquete\b/.test(rowHaystack(row))) score += 4;
-  if (filters.banquete && /\btaquiza\b/.test(rowHaystack(row))) score -= 12;
-  if (filters.taquiza && /\btaquiza\b/.test(rowHaystack(row))) score += 4;
-  if (filters.taquiza && /\bbanquete\b/.test(rowHaystack(row))) score -= 12;
-  if (filters.cuatroTiempos) {
-    if (/\b4\s*tiempos\b/.test(rowHaystack(row))) score += 6;
-    if (/\b3\s*tiempos\b/.test(rowHaystack(row))) score -= 8;
-  }
-  if (filters.tresTiempos) {
-    if (/\b3\s*tiempos\b/.test(rowHaystack(row))) score += 6;
-    if (/\b4\s*tiempos\b/.test(rowHaystack(row))) score -= 8;
-  }
-  if (filters.nivel) {
-    const nivelHay = normalizeForMatch(row.nivel || extractNivelLabel(row.servicio));
-    if (nivelHay === normalizeForMatch(filters.nivel) || nivelHay.includes(normalizeForMatch(filters.nivel))) {
-      score += 8;
-    } else {
-      score -= 4;
-    }
-  }
-  const hay = rowHaystack(row);
-  const q2 = normalizeForMatch(query);
-  const keywords = catalogKeywordsFromQuery(query);
-  if (keywords.length) {
-    if (rowMatchesCatalogKeywords(row, keywords)) score += 12;
-    else if (keywords.includes("parrillada") && /\bbanquete\b/.test(hay) && !/parrillada/.test(hay)) {
-      score -= 20;
-    } else if (keywords.includes("banquete") && /parrillada/.test(hay) && !/banquete/.test(hay)) {
-      score -= 20;
-    } else {
-      score -= 8;
-    }
-  }
-  if (!/\bmexicano\b/.test(q2) && /\bmexicano\b/.test(hay)) score -= 6;
-  if (!/\bkosher\b/.test(q2) && /\bkosher\b/.test(hay)) score -= 6;
-  if (!/\bnavide/.test(q2) && /\bnavide/.test(hay)) score -= 6;
-  if (/\bmexicano\b/.test(q2)) {
-    if (/\bmexicano\b/.test(hay)) score += 12;
-    else if (/\bbanquete\b/.test(hay)) score -= 16;
-  }
-  if (/\bformal\b/.test(q2) && /\bbanquete\b/.test(q2)) {
-    if (/\bformal\b/.test(hay)) score += 12;
-    else if (/\bbanquete\b/.test(hay) && /\b(mexicano|kosher|navide)/.test(hay)) score -= 16;
-  }
-  if (/\bkosher\b/.test(q2)) {
-    if (/\bkosher\b/.test(hay)) score += 12;
-    else if (/\bbanquete\b/.test(hay)) score -= 16;
-  }
-  if (/\bnavide/.test(q2)) {
-    if (/\bnavide/.test(hay)) score += 12;
-    else if (/\bbanquete\b/.test(hay)) score -= 16;
-  }
-  return score;
-}
-function rankCatalogMatches(query, rows, requirePrice = false) {
-  const resolved = resolveCatalogQuery(query);
-  if (!resolved) return [];
-  if (resolved.kind === "category") return [];
-  const filtered = requirePrice ? resolved.rows.filter((r4) => r4.tienePrecio && r4.precio) : resolved.rows;
-  return filtered;
-}
-function lookupCatalogServices(query) {
-  if (!snapshot?.rows.length) return [];
-  return rankCatalogMatches(query, snapshot.rows, false);
-}
-function buildInclusionBlock(rows, maxPerLevel = 220) {
-  const inclusionByLevel = rows.map((row) => ({
-    nivel: extractNivelLabel(row),
-    inclusion: getInclusionFromRow(row)
-  }));
-  const uniqueTexts = [...new Set(inclusionByLevel.map((r4) => r4.inclusion).filter(Boolean))];
-  if (!uniqueTexts.length) return "";
-  if (uniqueTexts.length === 1) {
-    return `
-
-*Incluye:* ${uniqueTexts[0]}`;
-  }
-  const lines = inclusionByLevel.filter((r4) => r4.inclusion).slice(0, 5).map(
-    (r4) => `\u2022 *${r4.nivel}:* ${r4.inclusion.slice(0, maxPerLevel)}${r4.inclusion.length > maxPerLevel ? "\u2026" : ""}`
-  );
-  return lines.length ? `
-
-*Qu\xE9 incluye cada nivel:*
-${lines.join("\n")}` : "";
-}
-function getInclusionFromRow(row) {
-  const text2 = parseRowNotes(row.notas).inclusion?.trim();
-  return text2 || null;
-}
-function findSheetPriceForQuery(query) {
-  if (!snapshot?.rows.length || !query?.trim()) return null;
-  const resolved = resolveCatalogQuery(query);
-  if (!resolved || resolved.kind === "category") return null;
-  let row;
-  if (resolved.kind === "service_nivel" && resolved.rows[0]?.tienePrecio) {
-    row = resolved.rows[0];
-  } else if (resolved.kind === "service") {
-    const cb = normalizeForMatch(query).match(/coffee\s*break\s*(\d)/);
-    if (cb) {
-      row = resolved.rows.find((r4) => {
-        const label = normalizeForMatch(`${extractNivelLabel(r4)} ${r4.servicio}`);
-        return label.includes(`coffee break ${cb[1]}`) || label.includes(`coffeebreak ${cb[1]}`);
-      });
-    }
-    if (!row) {
-      const filters = parseCatalogQueryFilters(query);
-      if (filters.nivel) {
-        const want = normalizeForMatch(filters.nivel);
-        row = resolved.rows.find(
-          (r4) => normalizeForMatch(extractNivelLabel(r4)) === want
-        );
-      }
-    }
-    if (!row) {
-      row = resolved.rows.find((r4) => r4.tienePrecio && r4.precio);
-    }
-  }
-  if (!row?.tienePrecio || !row.precio) return null;
-  const parsed = parseRowNotes(row.notas);
-  return {
-    price: row.precio,
-    unit: row.unidad || "/pp",
-    label: formatCatalogRowLabel(row),
-    minimo: parsed.minimo || null
-  };
-}
-function reconcilePdfInclusionWithSheetPrice(pdfReply, query) {
-  if (!pdfReply?.trim()) return pdfReply;
-  const sheet = findSheetPriceForQuery(query);
-  if (!sheet) return pdfReply;
-  const sheetNum = Math.round(Number(String(sheet.price).replace(/[^0-9.]/g, "")));
-  if (!Number.isFinite(sheetNum) || sheetNum < 10) return pdfReply;
-  const pdfMatch = pdfReply.match(/\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/);
-  if (!pdfMatch) {
-    return pdfReply.replace(
-      /(Según el catálogo[^\n]*:\s*\n\n)/i,
-      `$1*Precio de lista:* ${sheet.price}${sheet.unit ? ` ${sheet.unit}` : ""}${sheet.minimo ? ` (m\xEDn. ${sheet.minimo})` : ""}
-`
-    );
-  }
-  const pdfNum = Math.round(Number(pdfMatch[1].replace(/,/g, "")));
-  if (!Number.isFinite(pdfNum) || pdfNum === sheetNum) return pdfReply;
-  let out2 = pdfReply.replace(
-    /\$\s*[\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|\$\s*[\d]+(?:\.\d+)?/,
-    sheet.price.startsWith("$") ? sheet.price : `$${sheet.price}`
-  );
-  if (sheet.minimo) {
-    out2 = out2.replace(
-      /Costo m[ií]nimo:\s*\$?\s*[\d,.]+(?:\.\d+)?\s*MXN[^.\n]*/i,
-      `M\xEDnimo: ${sheet.minimo}`
-    );
-    out2 = out2.replace(
-      /M[ií]nimo:\s*\$?\s*[\d,.]+(?:\.\d+)?\s*MXN/i,
-      `M\xEDnimo: ${sheet.minimo}`
-    );
-  }
-  return out2;
-}
-function buildPdfInclusionReply(query, maxChars = 1100) {
-  const raw = buildLucyInfoInclusionReply(query, maxChars);
-  if (!raw || /bet[uú]n|cupcakes?/i.test(raw)) return null;
-  return collapseDuplicatedInclusionReply(
-    reconcilePdfInclusionWithSheetPrice(raw, query)
-  );
-}
-function resolvedHasInclusionData(resolved) {
-  return resolved.rows.some((r4) => !!getInclusionFromRow(r4));
-}
-function inclusionLabelForResolved(resolved) {
-  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
-    return formatCatalogRowLabel(resolved.rows[0]);
-  }
-  return resolved.serviceName ?? formatCatalogRowLabel(resolved.rows[0]);
-}
-function buildInclusionTeamConfirmationAnswer(query) {
-  const resolved = resolveCatalogQuery(query);
-  if (!resolved || resolved.kind === "category") return null;
-  const label = inclusionLabelForResolved(resolved);
-  const nivel = resolved.kind === "service_nivel" && resolved.rows[0] ? extractNivelLabel(resolved.rows[0]) : parseCatalogQueryFilters(query).nivel;
-  if (resolved.kind === "service_nivel" && resolved.rows[0] && getInclusionFromRow(resolved.rows[0])) {
-    return null;
-  }
-  const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(query);
-  const fromPdf = specificNivelAsk ? buildPdfInclusionReply(query) : buildPdfInclusionReply([label, nivel, query].filter(Boolean).join(" ")) || buildPdfInclusionReply(query);
-  if (fromPdf) return fromPdf;
-  const priced = buildCatalogPriceAnswer(query) || buildCatalogPriceAnswer(label) || (resolved.serviceName ? buildCatalogPriceAnswer(resolved.serviceName) : null);
-  if (priced && /\$\s*\d/.test(priced)) return priced;
-  if (resolvedHasInclusionData(resolved)) return null;
-  const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
-  const webUrl = getCatalogWebUrlForQuery(label) ?? getCatalogWebUrlForQuery(resolved.serviceName ?? "") ?? getCatalogWebUrlForQuery(query) ?? resolveCatalogWebLink(label).url ?? resolveCatalogWebLink(resolved.serviceName ?? query).url ?? resolveCatalogWebLink(query).url;
-  if (webHint || webUrl) {
-    const head2 = nivel ? `Para *${label}* el detalle de lo que incluye cada nivel (incl. *${nivel}*) est\xE1 en el cat\xE1logo web.` : `Para *${label}* el detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.`;
-    const linkBlock = webHint ?? `Cat\xE1logo: ${toDeliverableCatalogUrl(webUrl)}`;
-    return `${head2}
-
-${linkBlock}
-
-${SERVICE_NIVEL_DETAIL_CTA}`;
-  }
-  const hub = getCatalogWebHubDeliveryUrl();
-  const head = nivel ? `Para *${label}* (*${nivel}*) el detalle de inclusiones est\xE1 en el cat\xE1logo.` : `Para *${label}* el detalle de inclusiones est\xE1 en el cat\xE1logo.`;
-  return `${head}
-
-${hub}
-
-${SERVICE_NIVEL_DETAIL_CTA}`;
-}
-function resolveCatalogInclusionReply(query, serviceHint) {
-  const specificItem = buildSpecificInclusionItemReply(query, serviceHint);
-  if (specificItem) return specificItem;
-  const wantsAllLevels = /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
-    query
-  );
-  const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
-  const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(query);
-  const fromPdfEarly = buildPdfInclusionReply(query) || (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null) || (!specificNivelAsk && serviceHint ? buildPdfInclusionReply(serviceHint) : null);
-  if (fromPdfEarly && !wantsAllLevels) {
-    return fromPdfEarly;
-  }
-  if (fromPdfEarly && wantsAllLevels && serviceHint?.trim()) {
-    const priced = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
-    if (priced && /\$\s*\d/.test(priced)) {
-      return collapseDuplicatedInclusionReply(
-        `${priced}
-
-Detalle de un nivel (cat\xE1logo PDF):
-${fromPdfEarly}`
-      );
-    }
-    return fromPdfEarly;
-  }
-  const linkQ = serviceHint?.trim() || query;
-  const withLink = (text2) => text2 ? ensureCatalogWebLink(text2, linkQ) : null;
-  if (wantsAllLevels && serviceHint?.trim()) {
-    const detail = buildCatalogServiceDetailAnswer(serviceHint);
-    if (detail) return withLink(detail);
-    const all = buildCatalogInclusionAnswer(serviceHint);
-    if (all) return withLink(all);
-    const team = buildInclusionTeamConfirmationAnswer(serviceHint);
-    if (team) return withLink(team);
-  }
-  const attempts = [
-    serviceHint ? `${serviceHint} ${query}` : null,
-    // Si el mensaje pide un nivel concreto (CB4), no intentar solo el hint genérico
-    // ("Coffee Break") — devolvería CB1 del PDF.
-    !specificNivelAsk && serviceHint ? serviceHint : null,
-    // Solo usar el mensaje crudo si menciona un servicio; si no, evita match basura (Betún).
-    /\b(banquete|taquiza|barra|coffee|brunch|pizza|sushi|crepas?|mesa\s+de|dj|carpa|pista)\b/i.test(
-      query
-    ) ? query : null
-  ].filter((q2) => !!q2?.trim());
-  for (const q2 of attempts) {
-    if (wantsAllLevels) {
-      const detail2 = buildCatalogServiceDetailAnswer(q2);
-      if (detail2 && !/bet[uú]n|cupcakes?/i.test(detail2)) return withLink(detail2);
-    }
-    const hit = buildCatalogInclusionAnswer(q2) ?? buildInclusionTeamConfirmationAnswer(q2);
-    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
-    const detail = buildCatalogServiceDetailAnswer(q2);
-    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
-    if (specificNivelAsk && serviceHint && q2 === serviceHint) continue;
-    const fromPdf = buildPdfInclusionReply(q2);
-    if (fromPdf) return fromPdf;
-  }
-  const fromPdfLate = buildPdfInclusionReply(query) || (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null);
-  if (fromPdfLate) return fromPdfLate;
-  if (specificNivelAsk) {
-    const priced = buildCatalogPriceAnswer(query) || (serviceHint ? buildCatalogPriceAnswer(serviceHint) : null) || buildCatalogServiceDetailAnswer(
-      query.replace(/\bqu[eé]\s+incluye\b/gi, "precio").replace(/\bdetalle\b/gi, "precio")
-    );
-    if (priced && /\$\s*\d/.test(priced)) {
-      return withLink(
-        `Ese nivel no tiene bloque de inclusiones en el cat\xE1logo PDF todav\xEDa. Te dejo el precio de lista (Sheet):
-
-${priced}`
-      );
-    }
-  }
-  const webQ = serviceHint || query;
-  if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
-    const banqueteQ = banqueteDetailQuery(`${webQ} ${serviceHint ?? ""}`);
-    const detail = buildCatalogServiceDetailAnswer(banqueteQ) ?? buildCatalogPriceAnswer(banqueteQ);
-    return ensureCatalogWebLink(detail || "Claro, te dejo el cat\xE1logo de banquetes.", banqueteQ);
-  }
-  const webHint = buildCatalogWebDetailHint(webQ) ?? buildCatalogWebDetailHint(query);
-  const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
-  if (webHint || webUrl) {
-    return ensureCatalogWebLink(
-      `El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.
-
-${webHint ?? `Cat\xE1logo: ${webUrl}`}
-
-${SERVICE_NIVEL_DETAIL_CTA}`,
-      webQ
-    );
-  }
-  return ensureCatalogWebLink(
-    "El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo.",
-    linkQ
-  );
-}
-function clientAsksInclusion(message) {
-  if (!message?.trim()) return false;
-  const t3 = message.toLowerCase();
-  return /\bqu[eé]\s+incluye|\bqu[eé]\s+incluir[ií]a|\bincluir[ií]a\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+(manejan|tienes|ofrecen))\b|\bno\s+s[eé]\s+(muy\s+bien\s+)?cu[aá]l\b.{0,40}\b(incluir|nivel|opci[oó]n|variante|paquete)\b|\bcu[aá]l\s+podr[ií]a\s+ser\b/i.test(
-    t3
-  ) || /\bofreces?\b.{0,50}\bpaquetes?\b/i.test(t3) || /\bpor\s+qu[eé]\b.{0,60}\bpaquetes?\b/i.test(t3) || /\bidea\s+m[aá]s\s+clara\b/i.test(t3) || clientAsksSpecificInclusionItem(message) != null;
-}
-var INCLUSION_ITEM_PATTERNS = {
-  bebidas: /\bbebidas?\b|\brefrescos?\b|\bbarman\b|\bbarra\s+de\s+bebidas?\b|\bvitroleros?\b|\bagua\s+fresca\b/i,
-  meseros: /\bmeseros?\b|\bpersonal\s+de\s+servicio\b|\bstaff\s+de\s+servicio\b/i,
-  vajilla: /\bvajilla\b/i,
-  cristaleria: /\bcristaler[ií]a\b/i,
-  montaje: /\bmontaje\b|\binstalaci[oó]n\b/i,
-  chef: /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i,
-  alcohol: /\balcohol\b|\bborra\s+libre\b|\bopen\s*bar\b|\blicor/i
-};
-function inclusionEvidenceRegex(item, serviceLabel) {
-  if (item === "bebidas") {
-    if (/coffee\s*break|barra\s+de\s+caf/i.test(serviceLabel)) {
-      return /\b(caf[eé]|t[eé]|jugos?|refrescos?|bebidas?|leche|agua\s+fresca)\b/i;
-    }
-    return /\b(bebidas?|refrescos?|vitroleros?|barra\s*:|barman|margaritas?)\b/i;
-  }
-  if (item === "meseros") return /\bmeseros?\b|\b1\s*c\/\d+\s*personas?\b|\bstaff\s+de\s+servicio\b/i;
-  if (item === "vajilla") return /\bvajilla\b/i;
-  if (item === "cristaleria") return /\bcristaler[ií]a\b|\bhighball\b|\bcopas?\b/i;
-  if (item === "montaje") return /\bmontaje\b|\binstalaci[oó]n\b/i;
-  if (item === "chef") return /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i;
-  return /\balcohol\b|\bopen\s*bar\b|\bbarra\s+libre\b|\blicor|\btequila|\bwhisky/i;
-}
-function pdfWindowForNivel(service, nivel) {
-  const raw = buildPdfInclusionReply(`${service} ${nivel}`) || buildPdfInclusionReply(`${nivel} ${service}`) || "";
-  if (!raw) return "";
-  const body2 = raw.replace(/^Según el catálogo[^\n]*:\n\n/i, "");
-  const nivelRe = nivel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
-  const start2 = body2.search(new RegExp(nivelRe, "i"));
-  if (start2 < 0) return body2.slice(0, 420);
-  const slice = body2.slice(start2);
-  const next = slice.slice(40).search(
-    /\b(Solo Alimentos|B[aá]sico|Tradicional|Premium|Coffee Break \d|Men[uú] \d tiempos|Agrega Barra)\b/i
-  );
-  return next > 0 ? slice.slice(0, 40 + next) : slice.slice(0, 520);
-}
-function clientAsksSpecificInclusionItem(message) {
-  if (!message?.trim()) return null;
-  const t3 = message.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\binclue\b/g, "incluye").replace(/\byncluye\b/g, "incluye");
-  if (!/\b(incluye|incluyen|incluir|trae|traen|lleva|llevan|viene|vienen|tiene|tienen|con\s+bebidas?|sin\s+bebidas?)\b/i.test(
-    t3
-  ) && !/\bsi\b.{0,50}\bincluye/i.test(t3) && !/\bviene(n)?\s+con\b/i.test(t3)) {
-    return null;
-  }
-  for (const item of Object.keys(INCLUSION_ITEM_PATTERNS)) {
-    if (INCLUSION_ITEM_PATTERNS[item].test(t3)) return item;
-  }
-  return null;
-}
-function resolveInclusionServiceLabel(query, serviceHint) {
-  const blob = `${serviceHint ?? ""} ${query}`.trim();
-  const primary = parsePrimaryService(blob) || parsePrimaryService(query);
-  if (primary) return primary;
-  if (serviceHint?.trim()) {
-    const first = serviceHint.split(/,| y /i).map((s6) => s6.trim()).find((s6) => parsePrimaryService(s6) || /\b(canap|bocadillo|banquete|taquiza|coffee|barra|mesa|sushi|pizza|paella|desayuno|brunch)\b/i.test(s6));
-    if (first) return parsePrimaryService(first) || first;
-  }
-  const resolved = resolveCatalogQuery(query);
-  if (resolved?.serviceName) return resolved.serviceName;
-  return serviceHint?.trim() || null;
-}
-function formatNivelPrice(row) {
-  if (!row.tienePrecio || !row.precio) return "";
-  const unit = row.unidad?.trim() ? ` ${row.unidad.trim()}` : "";
-  return ` (${row.precio}${unit})`;
-}
-function buildSpecificInclusionItemReply(query, serviceHint) {
-  const item = clientAsksSpecificInclusionItem(query);
-  if (!item) return null;
-  const service = resolveInclusionServiceLabel(query, serviceHint);
-  if (!service) return null;
-  const evidence = inclusionEvidenceRegex(item, service);
-  const resolved = resolveCatalogQuery(service);
-  const rows = resolved && resolved.kind !== "category" ? [...new Map(resolved.rows.map((r4) => [extractNivelLabel(r4), r4])).values()] : [];
-  const yes = [];
-  const no = [];
-  const unclear = [];
-  for (const row of rows.slice(0, 8)) {
-    const nivel = extractNivelLabel(row);
-    const price = formatNivelPrice(row);
-    const sheetInc = getInclusionFromRow(row) ?? "";
-    const pdf = pdfWindowForNivel(service, nivel);
-    const blob = `${sheetInc}
-${pdf}`;
-    const soloAlimentos = /solo\s+alimentos/i.test(nivel);
-    const hasSheet = evidence.test(sheetInc);
-    const hasPdf = evidence.test(pdf);
-    const has2 = hasSheet || hasPdf;
-    const foodOnlyNoDrinks = (item === "bebidas" || item === "alcohol") && soloAlimentos && !hasSheet && !/\b(bebidas?|refrescos?|vitroleros|barra\s*:|alcohol)\b/i.test(sheetInc);
-    const negated = foodOnlyNoDrinks || new RegExp(
-      `\\b(sin|no\\s+incluye|no\\s+incluyen)\\b.{0,40}(${item}|bebidas?|refrescos?)`,
-      "i"
-    ).test(blob);
-    const bullet = `\u2022 *${nivel}*${price}`;
-    if (foodOnlyNoDrinks) no.push(bullet);
-    else if (has2 && !negated) yes.push(bullet);
-    else if (negated) no.push(bullet);
-    else unclear.push(bullet);
-  }
-  let addonLine = null;
-  if (item === "bebidas" || item === "alcohol") {
-    const addonPdf = buildPdfInclusionReply(`${service} Barra de Bebidas`) || buildPdfInclusionReply(`${service} agrega barra de bebidas`) || buildPdfInclusionReply(`Agrega Barra de Bebidas ${service}`);
-    const addonBlob = addonPdf ?? "";
-    const priceMatch = addonBlob.match(
-      /barra\s+de\s+bebidas?[^\d$]{0,40}\$?\s*([\d,.]+)\s*(?:\/?\s*pp|por\s+persona)?/i
-    );
-    if (/agrega\s+barra\s+de\s+bebidas|barra\s+de\s+bebidas\s*[—\-–]/i.test(addonBlob) || priceMatch) {
-      const p4 = priceMatch?.[1] ? ` (+$${priceMatch[1]} /pp)` : "";
-      addonLine = `\u2022 Se puede *agregar Barra de Bebidas*${p4} si quieren barra m\xE1s completa.`;
-    }
-  }
-  if (!rows.length) {
-    const fromPdf = buildPdfInclusionReply(`${service} ${query}`) || buildPdfInclusionReply(`${service} ${item}`) || buildPdfInclusionReply(service);
-    if (!fromPdf) {
-      const web = getCatalogWebUrlForQuery(service);
-      return ensureCatalogWebLink(
-        `Para *${service}*, el detalle de *${item}* lo confirmo con el cat\xE1logo${web ? "" : ""}. Nuestro equipo te precisa exactamente qu\xE9 incluye cada nivel.`,
-        service
-      );
-    }
-    return ensureCatalogWebLink(
-      `Sobre *${item}* en *${service}*:
-
-${fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}`,
-      service
-    );
-  }
-  const lines = [`Sobre *${item}* en *${service}*:`, ""];
-  if (yes.length) {
-    lines.push(`*S\xED incluye* en:`);
-    lines.push(...yes);
-    lines.push("");
-  }
-  if (no.length) {
-    lines.push(`*No incluye* en:`);
-    lines.push(...no);
-    lines.push("");
-  }
-  if (!yes.length && !no.length) {
-    const priced = buildCatalogPriceAnswer(service);
-    const fromPdf = buildPdfInclusionReply(`${service} ${query}`) || buildPdfInclusionReply(`${service} ${item}`) || buildPdfInclusionReply(service);
-    const body2 = [
-      fromPdf ? fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "") : `En el cat\xE1logo de *${service}* te detallo lo de *${item}* por nivel.`,
-      priced && /\$\s*\d/.test(priced) ? `
-
-Precios de lista:
-${priced}` : ""
-    ].join("");
-    return ensureCatalogWebLink(
-      `Sobre *${item}* en *${service}*:
-
-${body2}
-
-\xBFDe qu\xE9 nivel te paso el detalle completo?`,
-      service
-    );
-  }
-  if (addonLine) {
-    lines.push(addonLine);
-    lines.push("");
-  }
-  if (unclear.length && yes.length + no.length < rows.length) {
-  }
-  lines.push("\xBFTe late alguno de estos niveles o te detallo uno en concreto?");
-  return ensureCatalogWebLink(lines.filter((l5, i5, a3) => !(l5 === "" && a3[i5 - 1] === "")).join("\n"), service);
-}
-function buildCatalogInclusionAnswer(query) {
-  const resolved = resolveCatalogQuery(query);
-  if (!resolved || resolved.kind === "category") return null;
-  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
-    const row = resolved.rows[0];
-    const inclusion = getInclusionFromRow(row);
-    if (!inclusion) return null;
-    const label = formatCatalogRowLabel(row);
-    return `*${label}* \u2014 *Incluye:* ${inclusion}`;
-  }
-  if (resolved.kind === "service") {
-    const rowsWithInclusion = resolved.rows.filter((r4) => getInclusionFromRow(r4));
-    if (!rowsWithInclusion.length) return null;
-    if (rowsWithInclusion.length === 1) {
-      const row = rowsWithInclusion[0];
-      return `*${formatCatalogRowLabel(row)}* \u2014 *Incluye:* ${getInclusionFromRow(row)}`;
-    }
-    const baseName = resolved.serviceName ?? rowsWithInclusion[0].servicio;
-    const blocks = rowsWithInclusion.slice(0, 5).map((row) => {
-      const nivel = extractNivelLabel(row);
-      return `\u2022 *${nivel}:* ${getInclusionFromRow(row)}`;
-    });
-    return `*Incluye:* \u2014 *${baseName}*:
-${blocks.join("\n")}`;
-  }
-  return null;
-}
-function buildCatalogPriceAnswer(query) {
-  const resolved = resolveCatalogQuery(query);
-  if (!resolved) return null;
-  if (!catalogResultMatchesRequestedService(query, resolved)) return null;
-  const svcHint = resolved.serviceName ?? query;
-  const withLink = (text2) => text2 ? ensureCatalogWebLink(text2, svcHint) : null;
-  if (resolved.kind === "category") {
-    return withLink(buildCategoryServicesAnswer(resolved));
-  }
-  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
-    return buildExactRowPriceAnswer(resolved.rows[0]);
-  }
-  if (resolved.kind === "service") {
-    const priced = resolved.rows.filter((r4) => r4.tienePrecio && r4.precio);
-    if (priced.length > 1) {
-      const unique2 = [
-        ...new Map(priced.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()
-      ];
-      const baseName2 = resolved.serviceName ?? unique2[0].servicio;
-      const priceLines2 = unique2.slice(0, 6).map((row) => {
-        const parsed = parseRowNotes(row.notas);
-        const nivel = extractNivelLabel(row);
-        const unit = row.unidad ? ` ${row.unidad}` : "";
-        const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
-        const svcBit = uniqueServicios(unique2).length > 1 ? `${row.servicio} \u2014 ` : "";
-        return `\u2022 *${svcBit}${nivel}* \u2014 ${row.precio}${unit}${min}`;
-      }).join("\n");
-      if (priceLines2) {
-        const inclusionBlock2 = buildInclusionBlock(unique2, 220);
-        return withLink(
-          `S\xED, manejamos ${baseName2}:
-
-${priceLines2}${inclusionBlock2}
-
-\xBFQu\xE9 nivel te interesa?`
-        );
-      }
-      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
-    }
-    if (priced.length === 1) {
-      return buildExactRowPriceAnswer(priced[0]);
-    }
-    return buildServiceNivelChoiceAnswer(resolved);
-  }
-  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
-  const baseName = resolved.serviceName ?? unique[0].servicio;
-  const priceLines = unique.filter((r4) => r4.tienePrecio && r4.precio).slice(0, 6).map((row) => {
-    const parsed = parseRowNotes(row.notas);
-    const nivel = extractNivelLabel(row);
-    const unit = row.unidad ? ` ${row.unidad}` : "";
-    const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
-    return `\u2022 *${nivel}* \u2014 ${row.precio}${unit}${min}`;
-  }).join("\n");
-  if (!priceLines) return buildServiceNivelChoiceAnswer(resolved);
-  const inclusionBlock = buildInclusionBlock(unique, 280);
-  return withLink(`S\xED, manejamos ${baseName}:
-
-${priceLines}${inclusionBlock}`);
-}
-function summarizeServicePrices(serviceKey, maxLevels = 4) {
-  const rows = snapshot?.rows.filter(
-    (r4) => r4.tienePrecio && r4.precio && normalizeForMatch(`${r4.servicio} ${r4.nivel}`).includes(normalizeForMatch(serviceKey))
-  );
-  if (!rows?.length) return null;
-  const unique = [...new Map(rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
-  const label = unique[0].servicio;
-  const lines = unique.slice(0, maxLevels).map((row) => {
-    const nivel = extractNivelLabel(row);
-    const parsed = parseRowNotes(row.notas);
-    const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
-    return `\u2022 *${nivel}:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${min}`;
-  });
-  return `*${label}*
-${lines.join("\n")}`;
-}
-function buildCatalogComparisonAnswer() {
-  if (!snapshot?.rows.length) return null;
-  const taquiza = summarizeServicePrices("taquiza", 4);
-  const banquete = summarizeServicePrices("banquete 3 tiempos", 4);
-  if (!taquiza && !banquete) return null;
-  const parts2 = [
-    "Te comparto una comparaci\xF3n r\xE1pida con precios de referencia:",
-    "",
-    taquiza ?? "",
-    taquiza && banquete ? "" : "",
-    banquete ?? "",
-    "",
-    "*En general:* taquiza es m\xE1s casual y flexible; banquete es m\xE1s formal con servicio de meseros y vajilla.",
-    "\xBFCu\xE1l te late m\xE1s para tu evento?"
-  ];
-  return parts2.filter((l5) => l5 !== void 0 && l5 !== "").join("\n").trim();
-}
-function formatServiceDataForPrompt(query) {
-  const resolved = resolveCatalogQuery(query);
-  if (!resolved) return null;
-  if (resolved.kind === "category") {
-    return [
-      "DATOS DEL SERVICIO (Google Sheet \u2014 consulta de categor\xEDa, NO listar todo):",
-      `Categor\xEDa: ${resolved.categoryLabel}`,
-      `Servicios disponibles: ${simplifyServiceNamesForList(uniqueServicios(resolved.rows)).join(", ")}`,
-      "Pide al cliente que elija UN servicio concreto antes de dar precios."
-    ].join("\n");
-  }
-  if (resolved.kind === "service" && uniqueNiveles(resolved.rows).length > 1) {
-    const svc = resolved.serviceName ?? uniqueServicios(resolved.rows)[0];
-    const levelLines = uniqueNiveles(resolved.rows).slice(0, 6).map((n4) => {
-      const row = resolved.rows.find(
-        (r4) => normalizeForMatch(extractNivelLabel(r4)) === normalizeForMatch(n4)
-      );
-      const incl = row ? getInclusionFromRow(row) : null;
-      const price = row?.tienePrecio && row.precio ? ` | Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
-      return incl ? `- ${n4}${price} | Incluye: ${incl}` : `- ${n4}${price} | Incluye: (vac\xEDo en cat\xE1logo \u2014 di que el equipo confirma; NO inventes)`;
-    });
-    return [
-      "DATOS DEL SERVICIO (Google Sheet \u2014 elegir nivel):",
-      `Servicio: ${svc}`,
-      "Al ofrecer niveles, EXPLICA qu\xE9 incluye cada uno con el texto del Sheet. NUNCA digas solo los nombres.",
-      ...levelLines,
-      "Pregunta cu\xE1l nivel prefiere DESPU\xC9S de mostrar inclusiones. No inventes inclusiones ni marcas."
-    ].join("\n");
-  }
-  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()].slice(
-    0,
-    6
-  );
-  const lines = unique.map((row) => {
-    const parsed = parseRowNotes(row.notas);
-    const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
-    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "Incluye: (vac\xEDo en cat\xE1logo \u2014 equipo confirma en cotizaci\xF3n)";
-    const link = row.linkCatalogo ? ` | Link cat\xE1logo (SOLO si lo piden): ${row.linkCatalogo}` : "";
-    return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}${link}`;
-  });
-  return [
-    "DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar SOLO esto; no inventar precios ni inclusiones):",
-    ...lines
-  ].join("\n");
-}
-function mentionedServiceLabel(query) {
-  return parsePrimaryService(query);
-}
-function buildCatalogNotFoundAnswer(serviceLabel, query) {
-  if (query && classifyServiceKnowledgeLevel(query) === 3) {
-    return buildLevel3Ack(serviceLabel);
-  }
-  return buildLevel2Ack(serviceLabel);
-}
-function buildCatalogServiceDetailAnswer(query) {
-  if (!snapshot?.rows.length) return null;
-  if (clientAsksPrice(query)) {
-    return buildCatalogPriceAnswer(query);
-  }
-  if (clientAsksInclusion(query) || /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic)/i.test(query)) {
-    const fromPdf = buildPdfInclusionReply(query);
-    if (fromPdf) return fromPdf;
-  }
-  const resolved = resolveCatalogQuery(query);
-  if (!resolved) return null;
-  if (!catalogResultMatchesRequestedService(query, resolved)) return null;
-  if (resolved?.kind === "category") {
-    return buildCategoryServicesAnswer(resolved);
-  }
-  if (resolved?.kind === "service_nivel" && resolved.rows[0]) {
-    const row2 = resolved.rows[0];
-    const incl = getInclusionFromRow(row2);
-    if (!incl) {
-      const fromPdf = buildPdfInclusionReply(query) || buildPdfInclusionReply(formatCatalogRowLabel(row2));
-      if (fromPdf) return fromPdf;
-    }
-    return buildExactRowDetailAnswer(row2);
-  }
-  if (resolved?.kind === "service") {
-    if (/\bcoffee\s*break\s*\d/.test(query)) {
-      const fromPdf = buildPdfInclusionReply(query);
-      if (fromPdf) return fromPdf;
-      const priced = buildCatalogPriceAnswer(query);
-      if (priced) return priced;
-    } else if (/\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
-      const fromPdf = buildPdfInclusionReply(query);
-      if (fromPdf) return fromPdf;
-    }
-    return buildServiceNivelChoiceAnswer(resolved);
-  }
-  const priceAnswer = buildCatalogPriceAnswer(query);
-  if (priceAnswer) return priceAnswer;
-  const inclusionAnswer = buildCatalogInclusionAnswer(query);
-  if (inclusionAnswer) return inclusionAnswer;
-  const matches = lookupCatalogServices(query);
-  if (!matches.length) return null;
-  const row = matches[0];
-  if (!catalogResultMatchesRequestedService(query, { kind: "service_nivel", rows: [row] })) {
-    return null;
-  }
-  const parsed = parseRowNotes(row.notas);
-  if (parsed.inclusion) {
-    return `S\xED, manejamos *${formatCatalogRowLabel(row)}*.
-
-${parsed.inclusion}`;
-  }
-  return null;
-}
-function responseLooksLikeGenericCateringMenu(text2) {
-  return GENERIC_CATERING_MENU_MARKERS.test(text2);
-}
-function buildCatalogCateringOverviewFromSheet() {
-  if (!snapshot?.rows.length) return null;
-  const byCategory = /* @__PURE__ */ new Map();
-  for (const row of snapshot.rows) {
-    const cat = row.categoria || row.servicio.split(" (")[0] || "Servicio";
-    if (!byCategory.has(cat)) byCategory.set(cat, row);
-  }
-  const foodCats = [...byCategory.entries()].filter(
-    ([cat]) => /taquiza|banquete|brunch|coffee|pizza|sushi|barra|parrillada|canap|crep|paella|pozole|americana|kosher|navide/i.test(
-      cat
-    )
-  ).slice(0, 8);
-  if (!foodCats.length) return null;
-  const options = foodCats.map(([cat, row]) => {
-    const desde = row.tienePrecio && row.precio ? ` \u2014 desde ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
-    return `\u2022 *${cat}*${desde}`;
-  });
-  return [
-    "S\xED, manejamos catering para eventos. Del cat\xE1logo actual, estas son algunas opciones:",
-    "",
-    ...options,
-    "",
-    "\xBFCu\xE1l te interesa? Te paso precios e inclusiones de la que elijas."
-  ].join("\n");
-}
-var EVENT_OFFER_PATTERNS = [
-  {
-    match: /baby\s*shower/i,
-    servicePatterns: [/brunch/i, /banquete/i, /mesa de dulce/i, /bocadillo/i, /canap/i, /mobiliario/i, /silla/i]
-  },
-  {
-    match: /bautizo/i,
-    servicePatterns: [
-      /brunch/i,
-      /banquete/i,
-      /mesa de dulce/i,
-      /pastel/i,
-      /mobiliario/i,
-      /carpa/i,
-      /barra de beb/i,
-      /ilumin/i
-    ]
-  },
-  {
-    match: /graduaci|celebraci[oó]n/i,
-    servicePatterns: [
-      /banquete/i,
-      /taquiza/i,
-      /brunch/i,
-      /barra de beb/i,
-      /mixolog/i,
-      /mesa de (dulce|postre)/i,
-      /mobiliario/i,
-      /\bdj\b/i,
-      /ilumin/i,
-      /pista/i,
-      /carpa/i,
-      /pantalla/i,
-      /audio|sonido/i
-    ]
-  },
-  {
-    match: /corporativ|empresarial|empresa/i,
-    servicePatterns: [/coffee/i, /banquete/i, /catering/i, /mobiliario/i, /mixolog/i, /barra de beb/i, /coctel/i]
-  },
-  {
-    match: /xv|quince/i,
-    servicePatterns: [/banquete/i, /taquiza/i, /mesa de dulce/i, /mobiliario/i, /\bdj\b/i, /ilumin/i, /pista/i, /barra de beb/i]
-  },
-  {
-    match: /cumple/i,
-    servicePatterns: [
-      /banquete/i,
-      /taquiza/i,
-      /brunch/i,
-      /mesa de dulce/i,
-      /mobiliario/i,
-      /barra de beb/i,
-      /\bdj\b/i,
-      /ilumin/i,
-      /pista/i
-    ]
-  },
-  {
-    match: /boda/i,
-    servicePatterns: [
-      /banquete/i,
-      /taquiza/i,
-      /barra de beb/i,
-      /mixolog/i,
-      /mobiliario/i,
-      /\bdj\b/i,
-      /ilumin/i,
-      /mesa de (dulce|postre)/i,
-      /carpa/i,
-      /pista/i
-    ]
-  }
-];
-var BROAD_SOCIAL_OFFER = [
-  "Alimentos (banquete, taquiza, brunch o barras tem\xE1ticas)",
-  "Barras de bebidas / cocteler\xEDa",
-  "Mesa de dulces o postres",
-  "Mobiliario (mesas, sillas, periqueras)",
-  "DJ e iluminaci\xF3n",
-  "Pista de baile o tarima",
-  "Carpas (si es exterior)",
-  "Pantallas y audio"
-];
-var EVENT_OFFER_FALLBACK = {
-  boda: [
-    "Banquete / taquiza",
-    "Barras de bebidas y tem\xE1ticas",
-    "Mobiliario",
-    "DJ e iluminaci\xF3n",
-    "Mesa de postres / dulces",
-    "Carpas y pista de baile"
-  ],
-  "baby shower": ["Brunch", "Banquete ligero", "Mesa de dulces", "Bocadillos", "Mobiliario", "Decoraci\xF3n ligera"],
-  corporativo: ["Coffee Break", "Catering / banquete", "Mobiliario", "Mixolog\xEDa / barras", "Pantallas / audio"],
-  "xv a\xF1os": [
-    "Banquete / taquiza",
-    "Barras de bebidas",
-    "Mesa de dulces",
-    "Mobiliario",
-    "DJ e iluminaci\xF3n",
-    "Pista de baile"
-  ],
-  bautizo: ["Brunch / banquete", "Mesa de dulces", "Mobiliario", "Barras de bebidas", "Carpas (exterior)"],
-  cumplea\u00F1os: [
-    "Banquete / taquiza",
-    "Barras de bebidas",
-    "Mesa de dulces",
-    "Mobiliario",
-    "DJ e iluminaci\xF3n",
-    "Pista de baile"
-  ],
-  graduaci\u00F3n: [...BROAD_SOCIAL_OFFER],
-  celebraci\u00F3n: [...BROAD_SOCIAL_OFFER]
-};
-function normalizeEventKey(tipo) {
-  const t3 = tipo.trim().toLowerCase();
-  if (/baby\s*shower/.test(t3)) return "baby shower";
-  if (/xv|quince/.test(t3)) return "xv a\xF1os";
-  if (/corporativ|empresarial/.test(t3)) return "corporativo";
-  if (/bautizo/.test(t3)) return "bautizo";
-  if (/cumple/.test(t3)) return "cumplea\xF1os";
-  if (/boda/.test(t3)) return "boda";
-  if (/graduaci/.test(t3)) return "graduaci\xF3n";
-  if (/celebraci/.test(t3)) return "celebraci\xF3n";
-  return t3.slice(0, 40);
-}
-function listCatalogServicesForEvent(tipoEvento) {
-  const tipo = (tipoEvento ?? "").trim();
-  if (!tipo) return [];
-  const focus = resolveServiceFocusFromText(tipo);
-  if (focus) {
-    const names4 = [];
-    const seen2 = /* @__PURE__ */ new Set();
-    if (snapshot?.rows.length) {
-      for (const row of snapshot.rows) {
-        const blob = `${row.categoria} ${row.servicio} ${row.nivel}`.toLowerCase();
-        if (!focus.serviceHints.some((h4) => blob.includes(h4.toLowerCase()))) continue;
-        const base = row.servicio.trim();
-        const n4 = base.toLowerCase();
-        if (seen2.has(n4)) continue;
-        seen2.add(n4);
-        names4.push(base);
-        if (names4.length >= 6) break;
-      }
-    }
-    if (!names4.length) names4.push(focus.label);
-    for (const c4 of focus.complements) {
-      if (!names4.some((n4) => n4.toLowerCase().includes(c4.toLowerCase().split(" ")[0]))) {
-        names4.push(c4);
-      }
-    }
-    return names4;
-  }
-  const key = normalizeEventKey(tipo);
-  const patterns = EVENT_OFFER_PATTERNS.find((p4) => p4.match.test(tipo))?.servicePatterns ?? EVENT_OFFER_PATTERNS.find((p4) => p4.match.test(key))?.servicePatterns;
-  const names3 = [];
-  const seen = /* @__PURE__ */ new Set();
-  if (snapshot?.rows.length && patterns) {
-    for (const row of snapshot.rows) {
-      const label = formatCatalogRowLabel(row);
-      const blob = `${row.categoria} ${row.servicio} ${row.nivel}`;
-      if (!patterns.some((re3) => re3.test(blob))) continue;
-      const base = row.servicio.trim() || label;
-      const normed = base.toLowerCase();
-      if (seen.has(normed)) continue;
-      seen.add(normed);
-      names3.push(base);
-      if (names3.length >= 10) break;
-    }
-  }
-  if (names3.length >= 5) return names3;
-  const fallback = EVENT_OFFER_FALLBACK[key];
-  if (fallback) return fallback;
-  return [...BROAD_SOCIAL_OFFER];
-}
-function buildBroadLevel1Offer(tipoEvento) {
-  const tipo = (tipoEvento ?? "").trim() || "evento";
-  const lines = [
-    `Con gusto te apoyo con tu ${tipo}. Manejamos varias l\xEDneas para armarlo completo:`,
-    "",
-    "\u2022 *Alimentos*: banquete, taquiza, brunch o barras tem\xE1ticas.",
-    "\u2022 *Barras de bebidas*: cocteler\xEDa, m\xF3cteles o barra de caf\xE9.",
-    "\u2022 *Mesa de dulces o postres*: para un cierre especial.",
-    "\u2022 *Mobiliario*: mesas, sillas, periqueras y montaje.",
-    "\u2022 *DJ e iluminaci\xF3n*: ambiente y baile.",
-    "\u2022 *Pista de baile o tarima*: si quieren pista definida.",
-    "\u2022 *Carpas*: si el evento es en jard\xEDn o exterior.",
-    "\u2022 *Pantallas y audio*: proyecciones, micr\xF3fonos, sonido.",
-    "",
-    "\xBFQu\xE9 te gustar\xEDa revisar primero? Tambi\xE9n podemos armar un paquete con varias opciones."
-  ];
-  return ensureCatalogWebLink(lines.join("\n"), null);
-}
-function countOfferCategories(text2) {
-  if (!text2?.trim()) return 0;
-  const t3 = text2.toLowerCase();
-  let n4 = 0;
-  if (/\b(alimento|banquete|taquiza|brunch|catering|parrillada|barra\s+de\s+(pizzas?|alimentos?))\b/i.test(t3))
-    n4++;
-  if (/\b(bebida|coctel|mixolog|m[oó]ctel|barra\s+de\s+bebidas?)\b/i.test(t3)) n4++;
-  if (/\b(mesa\s+de\s+(dulces?|postres?)|postres?|cupcakes?)\b/i.test(t3)) n4++;
-  if (/\b(mobiliario|mesas?|sillas?|periquera)\b/i.test(t3)) n4++;
-  if (/\bdj\b/i.test(t3)) n4++;
-  if (/\biluminaci[oó]n\b/i.test(t3)) n4++;
-  if (/\b(pista|tarima)\b/i.test(t3)) n4++;
-  if (/\b(carpa|toldo)\b/i.test(t3)) n4++;
-  if (/\b(pantalla|audio|sonido|microfon)\b/i.test(t3)) n4++;
-  return n4;
-}
-function isNarrowSocialEventOffer(text2, tipoEvento) {
-  const tipo = (tipoEvento ?? "").toLowerCase();
-  const social = /graduaci|celebraci|cumple|boda|xv|quince|bautizo|fiesta|aniversario|baby\s*shower/.test(tipo) || !tipo.trim();
-  if (!social) return false;
-  if (/corporativ|empresarial|coffee/.test(tipo)) return false;
-  return countOfferCategories(text2) > 0 && countOfferCategories(text2) < 5;
-}
-function buildEventOfferCatalogHint(tipoEvento) {
-  const tipo = (tipoEvento ?? "").trim();
-  if (!tipo) return null;
-  const focus = resolveServiceFocusFromText(tipo);
-  const services = listCatalogServicesForEvent(tipo);
-  if (!services.length) return null;
-  if (focus) {
-    return [
-      "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 OFRECIMIENTO \u2014 EVENTO = SERVICIO \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-      `El cliente describi\xF3 su evento como \xAB${tipo}\xBB \u2192 sirve el servicio *${focus.label}* (no banquete/taquiza gen\xE9ricos salvo que pidan eso).`,
-      `Servicios del cat\xE1logo a proponer:`,
-      ...services.map((s6) => `\u2022 ${s6}`),
-      "",
-      `Prioriza *${focus.label}* (variantes si hay). Puedes sugerir 1\u20132 complementos (bebidas, mobiliario) sin forzar.`,
-      "Pregunta invitados o qu\xE9 armar. Var\xEDa palabras. NO ofrezcas banquete/taquiza si no aplican a este evento.",
-      "Precios/inclusiones solo del Sheet; si no hay dato, \xABel equipo confirma\xBB."
-    ].join("\n");
-  }
-  return [
-    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 OFRECIMIENTO TEMPRANO (tipo de evento ya conocido) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
-    `Tipo de evento: ${tipo}`,
-    "Servicios / categor\xEDas a proponer (AMPLIO \u2014 m\xEDnimo 6 l\xEDneas distintas):",
-    ...services.map((s6) => `\u2022 ${s6}`),
-    "",
-    "Instrucci\xF3n CR\xCDTICA: ofrece un men\xFA Nivel 1 AMPLIO (alimentos, bebidas, dulces/postres, mobiliario, DJ, iluminaci\xF3n, pista/tarima, carpas si aplica, pantallas/audio).",
-    "NUNCA te limites a solo 2\u20133 cosas (ej. solo mobiliario + bebidas + mesa de dulces).",
-    "Pregunta qu\xE9 le gustar\xEDa revisar primero o si arman un paquete. Tono asesora sobria.",
-    "NUNCA digas solo \xAB\xBFqu\xE9 servicios quieres cotizar?\xBB sin haber propuesto el abanico.",
-    "NO inventes precios. Inclusiones solo del Sheet."
-  ].join("\n");
-}
-function injectCatalogInclusionIfAsked(clientMessage, aiResponse, serviceHint) {
-  if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
-  if (clientAsksPrice(clientMessage) && !clientAsksInclusion(clientMessage)) return aiResponse;
-  const fromPdf = buildPdfInclusionReply(clientMessage);
-  if (fromPdf) return fromPdf;
-  const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
-  if (fromCatalog) return collapseDuplicatedInclusionReply(fromCatalog);
-  return aiResponse;
-}
-function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
-  if (!clientMessage?.trim()) return aiResponse;
-  if (clientAsksInclusion(clientMessage) || clientAsksPrice(clientMessage)) return aiResponse;
-  const asksService = clientAsksServiceInfo(clientMessage) || clientAsksPrice(clientMessage);
-  const genericCatering = clientMentionsCatering(clientMessage) && !parsePrimaryService(clientMessage);
-  const mentionsService = isServiceRelatedMessage(clientMessage) && !!parsePrimaryService(clientMessage);
-  if (!asksService && !genericCatering && !mentionsService) return aiResponse;
-  const primary = parsePrimaryService(clientMessage);
-  if (primary && /sushi|coffee\s*break|barra de bebidas/i.test(primary)) {
-    const detail2 = buildCatalogServiceDetailAnswer(clientMessage);
-    if (detail2 && !responseLooksLikeGenericCateringMenu(aiResponse)) {
-      return aiResponse;
-    }
-    if (detail2 && responseLooksLikeGenericCateringMenu(aiResponse)) {
-      return detail2;
-    }
-  }
-  if (responseLooksLikeGenericCateringMenu(aiResponse)) {
-    const detail2 = buildCatalogServiceDetailAnswer(clientMessage);
-    if (detail2) return detail2;
-  }
-  const detail = buildCatalogServiceDetailAnswer(clientMessage);
-  if (detail) {
-    if (asksService || clientAsksInclusion(clientMessage) || responseLooksLikeGenericCateringMenu(aiResponse) || !aiResponse.trim()) {
-      return detail;
-    }
-    return aiResponse;
-  }
-  const label = mentionedServiceLabel(clientMessage);
-  if (label && (asksService || mentionsService)) {
-    return buildCatalogNotFoundAnswer(label, clientMessage);
-  }
-  if (genericCatering && !responseLooksLikeGenericCateringMenu(aiResponse)) {
-    const overview = buildCatalogCateringOverviewFromSheet();
-    if (overview) return overview;
-  }
-  return aiResponse;
-}
-var CATALOG_WEB_HUB_URL = "https://bodasesor.com/catalogos";
-var BODASESOR_CATALOG_WEB_URL = /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]+)?\/?(?:[?#].*)?$/i;
-function isBodasesorCatalogWebUrl(url) {
-  return !!url?.trim() && BODASESOR_CATALOG_WEB_URL.test(url.trim());
-}
-function toDeliverableCatalogUrl(sheetUrl) {
-  if (process.env["CATALOG_USE_LIGHT_PAGES"] !== "1") return sheetUrl;
-  const base = (process.env["CATALOG_LIGHT_BASE_URL"] || process.env["LUCY_PUBLIC_URL"] || "https://midnightblue-mosquito-424375.hostingersite.com").replace(/\/+$/, "");
-  const m5 = sheetUrl.trim().match(
-    /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/([a-z0-9-]+))?\/?/i
-  );
-  if (!m5) return sheetUrl;
-  return m5[1] ? `${base}/catalogos/${m5[1]}` : `${base}/catalogos`;
-}
-function getCatalogWebHubDeliveryUrl() {
-  return toDeliverableCatalogUrl(CATALOG_WEB_HUB_URL);
-}
-function getRowCatalogWebLink(row) {
-  const direct = row.linkCatalogo?.trim();
-  if (isBodasesorCatalogWebUrl(direct)) return direct.replace(/\/+$/, "");
-  const fromNotes = parseRowNotes(row.notas).gammaLink?.trim();
-  if (isBodasesorCatalogWebUrl(fromNotes)) return fromNotes.replace(/\/+$/, "");
-  return null;
-}
-function scoreServiceForWebLink(query, row) {
-  const nq = normalizeForMatch(query);
-  const ns = normalizeForMatch(row.servicio);
-  let score = synonymScoreForService(query, row.servicio, row.sinonimos);
-  if (!nq || !ns) return score;
-  if (nq === ns) score += 80;
-  else if (nq.includes(ns) || ns.includes(nq)) score += 45;
-  const svcTokens = ns.split(/\s+/).filter((t3) => t3.length >= 4);
-  const hitTokens = svcTokens.filter((t3) => nq.includes(t3));
-  score += hitTokens.length * 8;
-  if (/\bcolgante/.test(nq) && /entelado|tela/.test(ns)) score -= 60;
-  if (/\bentelad|tela\s+(en\s+)?techo/.test(nq) && /colgante/.test(ns)) score -= 60;
-  if (/\btaquiza\b/.test(nq) && /parrillada\s+tacos/.test(ns)) score -= 40;
-  if (/parrillada\s+tacos/.test(nq) && /^taquiza$/.test(ns)) score -= 40;
-  if (/\bargentina\b/.test(nq) && /parrillada\s+tacos/.test(ns)) score -= 30;
-  return score;
-}
-function resolveCatalogWebLink(query, opts) {
-  if (opts?.preferHub) {
-    return { url: CATALOG_WEB_HUB_URL, serviceName: null, kind: "hub" };
-  }
-  const trimmed = query?.trim() ?? "";
-  if (!trimmed || !snapshot?.rows.length) {
-    return { url: null, serviceName: null, kind: "missing" };
-  }
-  const byService = /* @__PURE__ */ new Map();
-  for (const row of snapshot.rows) {
-    const key = row.servicio.trim();
-    if (!key) continue;
-    const existing = byService.get(key);
-    if (!existing) {
-      byService.set(key, row);
-      continue;
-    }
-    if (!getRowCatalogWebLink(existing) && getRowCatalogWebLink(row)) {
-      byService.set(key, row);
-    }
-  }
-  const scored = [...byService.values()].map((row) => ({ row, score: scoreServiceForWebLink(trimmed, row) })).filter((x7) => x7.score > 0).sort((a3, b4) => b4.score - a3.score);
-  if (!scored.length) {
-    const resolved = resolveCatalogQuery(trimmed);
-    if (resolved && resolved.kind !== "category") {
-      for (const row of resolved.rows) {
-        const url2 = getRowCatalogWebLink(row);
-        if (url2) {
-          return { url: url2, serviceName: row.servicio, kind: "service" };
-        }
-      }
-      const name2 = resolved.serviceName ?? resolved.rows[0]?.servicio ?? null;
-      return { url: null, serviceName: name2, kind: "missing" };
-    }
-    return { url: null, serviceName: null, kind: "missing" };
-  }
-  const best = scored[0];
-  if (best.score < 14) {
-    return { url: null, serviceName: null, kind: "missing" };
-  }
-  const url = getRowCatalogWebLink(best.row);
-  if (url) {
-    return { url, serviceName: best.row.servicio, kind: "service" };
-  }
-  return { url: null, serviceName: best.row.servicio, kind: "missing" };
-}
-function buildCatalogWebLinkReply(opts) {
-  if (opts.wantFull) {
-    return [
-      "Claro. Aqu\xED tienes el cat\xE1logo general con todos los servicios:",
-      getCatalogWebHubDeliveryUrl(),
-      "",
-      "Si luego quieres el de un servicio en concreto, d\xEDmelo y te mando ese link."
-    ].join("\n");
-  }
-  const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
-  const match2 = resolveCatalogWebLink(query);
-  if (match2.kind === "service" && match2.url) {
-    const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
-    return [
-      `Claro, aqu\xED tienes el cat\xE1logo${label}:`,
-      toDeliverableCatalogUrl(match2.url),
-      "",
-      "Si quieres el de otro servicio, d\xEDmelo y te mando ese."
-    ].join("\n");
-  }
-  if (match2.serviceName) {
-    return [
-      `Para *${match2.serviceName}* a\xFAn no tengo el link web en el cat\xE1logo vivo.`,
-      `Te dejo el \xEDndice general mientras el equipo te comparte el detalle:`,
-      getCatalogWebHubDeliveryUrl()
-    ].join("\n");
-  }
-  return [
-    "Con gusto te paso el cat\xE1logo. \xBFDe qu\xE9 servicio lo quieres, o te mando el general?",
-    getCatalogWebHubDeliveryUrl()
-  ].join("\n");
-}
-function buildServicePlusGeneralCatalogReply(opts) {
-  const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
-  const match2 = resolveCatalogWebLink(query);
-  const hub = getCatalogWebHubDeliveryUrl();
-  if (match2.kind === "service" && match2.url) {
-    const serviceUrl = toDeliverableCatalogUrl(match2.url);
-    const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
-    const lines = [`Cat\xE1logo${label}:`, serviceUrl];
-    if (serviceUrl.replace(/\/+$/, "") !== hub.replace(/\/+$/, "")) {
-      lines.push("", "Cat\xE1logo general:", hub);
-    }
-    return lines.join("\n");
-  }
-  return ["Cat\xE1logo general:", hub].join("\n");
-}
-function stripCatalogWebUrlBlocks(text2) {
-  if (!text2?.trim()) return text2 ?? "";
-  return stripUnsolicitedCatalogWebLinks(text2, false).replace(
-    /El detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo:\s*/gi,
-    ""
-  ).replace(/Claro,\s+aqu[ií]\s+tienes\s+el\s+cat[aá]logo[^\n]*:\s*/gi, "").replace(/Si quieres el de otro servicio[^\n.]*(?:\.|$)/gi, "").replace(/Cat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*$/gim, "").replace(/Cat[aá]logo general:\s*$/gim, "").replace(/\n{3,}/g, "\n\n").trim();
-}
-function withServiceAndGeneralCatalogLinks(body2, query, serviceHint) {
-  const clean = stripCatalogWebUrlBlocks(body2);
-  const links = buildServicePlusGeneralCatalogReply({
-    query,
-    serviceHint: serviceHint ?? query
-  });
-  if (!clean) return links;
-  return `${clean}
-
-${links}`.trim();
-}
-function stripUnsolicitedCatalogWebLinks(text2, clientAsked) {
-  if (!text2 || clientAsked) return text2;
-  if (!/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text2)) return text2;
-  return text2.replace(
-    /https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
-    ""
-  ).replace(
-    /https?:\/\/[^\s]*hostingersite\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
-    ""
-  ).replace(/[ \t]*\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
-}
-function messageOffersCatalogLink(text2) {
-  if (!text2?.trim()) return false;
-  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text2)) return true;
-  return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(
-    text2
-  );
 }
 
 // src/services/imageProcessor.ts
@@ -126283,7 +124211,7 @@ var import_await_to_js = __toESM(require_await_to_js_umd(), 1);
 
 // ../node_modules/@jimp/file-ops/dist/esm/index.js
 import { promises as fs4 } from "fs";
-import { existsSync as existsSync3 } from "fs";
+import { existsSync as existsSync2 } from "fs";
 var readFile = fs4.readFile;
 var writeFile2 = fs4.writeFile;
 
@@ -126700,7 +124628,7 @@ function createJimp({ plugins: pluginsArg, formats: formatsArg } = {}) {
       if (Buffer.isBuffer(url) || url instanceof ArrayBuffer) {
         return this.fromBuffer(url);
       }
-      if (existsSync3(url)) {
+      if (existsSync2(url)) {
         return this.fromBuffer(await readFile(url));
       }
       const [fetchErr, response] = await (0, import_await_to_js.to)(fetch(url));
@@ -132040,6 +129968,2137 @@ function extractImageIntent(text2) {
   return normalizeIntent(m5[1]);
 }
 
+// src/services/concreteProductQuestion.ts
+var CATALOG_WORD_RE = /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
+function isCentrosDeMesaFloral(text2) {
+  return /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(
+    text2
+  );
+}
+function clientAsksCapacityLayout(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /\bmesas?\s+por\s+carpa/i.test(t3) || /\bpor\s+carpa\b.{0,20}\?/i.test(t3) || /\bcu[aá]ntas?\s+mesas?\b.{0,40}\b(carpa|toldo|lona)/i.test(t3) || /\b(carpa|toldo|lona).{0,40}\bcu[aá]ntas?\s+mesas?\b/i.test(t3) || /\bcu[aá]ntas?\s+(cab[eé]n|entran|soporta)/i.test(t3) || /\b(capacidad|acomodo|layout)\b.{0,30}\b(carpa|mesas?|sillas?)/i.test(t3) || /\b\d+\s+mesas?\s+por\s+carpa/i.test(t3);
+}
+function clientAsksForPhotos(message) {
+  if (!message?.trim()) return false;
+  const caption = clientCaptionForServiceParse(message) || message;
+  if (!caption.trim()) return false;
+  if (!/\b(fotos?|fotograf[ií]as?|im[aá]genes?|referencias?\s+visuales?|pics?)\b/i.test(caption)) {
+    return false;
+  }
+  if (/\b(tengo\s+pensado|algo\s+as[ií]|referencia|as[ií]\s+como|estilo)\b/i.test(caption) && !/\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b.{0,24}\b(fotos?|fotograf)/i.test(
+    caption
+  ) && !/\b(fotos?|fotograf).{0,24}\b(manda|env[ií]a|solicitad|pedido|lo\s+solicitado)\b/i.test(
+    caption
+  )) {
+    return false;
+  }
+  return isServiceRelatedMessage(caption) || /\b(solicitad|pedido|cotiz|carpa|mesa|silla|toldo|mobiliario|lo\s+solicitado)\b/i.test(
+    caption
+  ) || /\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b/i.test(caption);
+}
+function clientAsksAboutLighting(message) {
+  if (!message?.trim()) return false;
+  const t3 = message.toLowerCase();
+  return /\b(luz|luces|iluminaci[oó]n|iluminada?s?|leds?|luminarias?)\b/i.test(t3) && (/\b(carpa|toldo|lona|pista|tarima|montaje|cuenta|cuentan|tienen|tienes|incluye|trae)\b/i.test(
+    t3
+  ) || /\?/.test(message));
+}
+function clientAsksConcreteProductQuestion(message) {
+  if (!message?.trim()) return false;
+  const t3 = (clientCaptionForServiceParse(message) || message).trim();
+  if (!t3) return false;
+  if (clientAsksForCatalog(t3) || CATALOG_WORD_RE.test(t3)) return true;
+  if (clientAsksForPhotos(t3) || clientAsksAboutLighting(t3) || clientAsksCapacityLayout(t3)) {
+    return true;
+  }
+  if ((/\?|¿/.test(t3) || /\bcuenta(n)?\s+con\b/i.test(t3)) && /\b(luz|luces|iluminaci|fotos?|capacidad|mesas?\s+por|cu[aá]ntas?\s+mesas?|incluye\s+luz)\b/i.test(
+    t3
+  )) {
+    return true;
+  }
+  return false;
+}
+function catalogLinkFor(query) {
+  if (isCentrosDeMesaFloral(query)) {
+    return getCatalogWebHubDeliveryUrl();
+  }
+  return getCatalogWebUrlForQuery(query) || getCatalogWebUrlForQuery("mesas y sillas") || getCatalogWebHubDeliveryUrl();
+}
+function honestDeferral(topicHint) {
+  const team = advisorLabelForClient();
+  const topic = topicHint?.trim() ? ` sobre ${topicHint.trim()}` : "";
+  return `Buena pregunta${topic} \u2014 eso lo confirmo con ${team} para darte el dato exacto y no equivocarme.`;
+}
+function buildConcreteProductQuestionReply(message, serviceHint) {
+  const msg = message.trim();
+  if (!msg) return null;
+  if (!clientAsksConcreteProductQuestion(msg)) return null;
+  const hint = (serviceHint ?? "").trim();
+  const blob = `${msg} ${hint}`;
+  const team = advisorLabelForClient();
+  const caption = (clientCaptionForServiceParse(msg) || msg).trim();
+  const cleanBlob = `${caption} ${hint}`;
+  if (clientAsksForCatalog(caption) || CATALOG_WORD_RE.test(caption)) {
+    const q2 = isCentrosDeMesaFloral(cleanBlob) ? "centros de mesa" : /\bsillas?\b/i.test(cleanBlob) ? "mesas y sillas" : /\bmesas?\b/i.test(cleanBlob) && !isCentrosDeMesaFloral(cleanBlob) ? "mesas y sillas" : /\bcarpas?|toldos?|lonas?\b/i.test(cleanBlob) ? "carpas" : hint || caption;
+    const url = catalogLinkFor(q2);
+    const label = isCentrosDeMesaFloral(cleanBlob) ? "" : /\bsillas?\b/i.test(cleanBlob) ? "de mesas y sillas" : /\bcarpas?|toldos?\b/i.test(cleanBlob) ? "de carpas" : "";
+    return `Claro. Te dejo el *cat\xE1logo${label ? ` ${label}` : ""}*:
+${url}`;
+  }
+  const wantsPhotos = clientAsksForPhotos(caption);
+  const wantsLight = clientAsksAboutLighting(caption);
+  if (wantsPhotos || wantsLight) {
+    const parts2 = [];
+    if (wantsPhotos) {
+      const url = catalogLinkFor(
+        /\bcarpas?|toldos?\b/i.test(cleanBlob) ? "carpas" : isCentrosDeMesaFloral(cleanBlob) ? "centros de mesa" : /\bsillas?|mesas?|mobiliario\b/i.test(cleanBlob) ? "mesas y sillas" : hint || "mobiliario"
+      );
+      parts2.push(
+        `Claro \u2014 te puedo compartir referencias visuales. Aqu\xED tienes el cat\xE1logo con fotos:
+${url}`
+      );
+      parts2.push(
+        `${team} tambi\xE9n te puede mandar fotos espec\xEDficas de lo que estamos cotizando.`
+      );
+    }
+    if (wantsLight) {
+      if (clientMentionsCarpas(caption) || /\bcarpas?|toldos?|lonas?\b/i.test(cleanBlob)) {
+        parts2.push(
+          `Sobre *iluminaci\xF3n en la carpa*: se puede cotizar con o sin luz (paquetes de iluminaci\xF3n). Buena pregunta \u2014 eso lo confirmo con ${team} para decirte si la carpa que te armemos ya incluye luz o va aparte.`
+        );
+      } else {
+        parts2.push(honestDeferral("iluminaci\xF3n"));
+      }
+    }
+    return parts2.join("\n\n");
+  }
+  if (clientAsksCapacityLayout(caption)) {
+    return `La cantidad de mesas por carpa depende de las *medidas* y del acomodo (redondas, pasillos, pista). No te doy un n\xFAmero a ojo: ${team} te confirma cu\xE1ntas caben seg\xFAn el tama\xF1o. Si me das medidas aproximadas (o el \xE1rea a cubrir para tus mesas), lo afino en la cotizaci\xF3n.`;
+  }
+  return null;
+}
+function shouldSkipSalesMenuForConcreteQuestion(message) {
+  return clientAsksConcreteProductQuestion(message);
+}
+
+// src/services/serviceKnowledge.ts
+var SERVICE_KNOWLEDGE_GOLDEN_RULE = "Que un servicio no est\xE9 en el cat\xE1logo significa que no tengo el precio a la mano, NO que no sepa qu\xE9 es. Acepta cualquier servicio de eventos, an\xF3talo y avanza. Nunca te quedes pidiendo 'otros servicios' ni repitas la misma pregunta por no tener el dato.";
+var NON_EVENT_REQUEST_PATTERN = /\b(seguro\s+de|abogad|plomer|electricista|internet\s+en\s+casa|plan\s+de\s+celular|lavad|reparaci[oó]n\s+de\s+(auto|celular)|vpn|software\s+de\s+contab|consulta\s+m[eé]dic|veterinar|notari|traducci[oó]n\s+oficial|impresi[oó]n\s+de\s+actas)\b/i;
+var EVENT_CONTEXT_PATTERN = /\b(evento|fiesta|boda|xv|quince|cumple|corporativ|celebraci[oó]n|banquete|taquiza|barra|renta|valet|pirotecnia|mesa\s+imperial|flor|decoraci|animaci|dj|mobiliario|carpa|iluminaci|pantalla|mesero|catering|invitados)\b/i;
+function serviceLabelFromQuery(query) {
+  const trimmed = query.trim();
+  if (!trimmed) return "ese servicio";
+  return parsePrimaryService(trimmed) ?? trimmed.slice(0, 80);
+}
+function isDubiousNonEventRequest(query) {
+  const t3 = query.trim();
+  if (!t3) return false;
+  if (NON_EVENT_REQUEST_PATTERN.test(t3)) return true;
+  if (isServiceRelatedMessage(t3) || EVENT_CONTEXT_PATTERN.test(t3)) return false;
+  if (/\b(quiero|necesito|busco|cotizar)\b/i.test(t3) && t3.length < 120) return false;
+  return t3.length >= 8 && !EVENT_CONTEXT_PATTERN.test(t3);
+}
+function hasSheetKnowledge(query) {
+  return !!(buildCatalogServiceDetailAnswer(query) || buildCatalogPriceAnswer(query) || buildCatalogInclusionAnswer(query) || lookupCatalogServices(query).length);
+}
+function classifyServiceKnowledgeLevel(query) {
+  if (hasSheetKnowledge(query)) return 1;
+  if (isDubiousNonEventRequest(query)) return 3;
+  return 2;
+}
+function buildLevel2Ack(serviceLabel) {
+  const label = serviceLabel.trim() || "ese servicio";
+  return `\xA1Claro! *${label}* la anoto para tu cotizaci\xF3n. Nuestro equipo te confirma descripci\xF3n, precio e inclusiones.`;
+}
+function parseMobiliarioRentItems(query) {
+  const items = [];
+  if (/\bpicnic\b|\bmesas?\s+tipo\s+picnic\b/i.test(query)) {
+    const q2 = query.match(/(\d+)\s*mesas?\s+tipo\s+picnic/i) || query.match(/(\d+)\s*picnic/i);
+    items.push({
+      qty: q2?.[1] ? parseInt(q2[1], 10) : null,
+      label: "mesas tipo picnic"
+    });
+  }
+  const peri = query.match(/(\d+)\s*periqueras?\b/i);
+  if (/\bperiqueras?\b/i.test(query)) {
+    items.push({
+      qty: peri?.[1] ? parseInt(peri[1], 10) : null,
+      label: "periqueras"
+    });
+  }
+  const bancos = query.match(/(\d+)\s*bancos?\b/i);
+  if (/\bbancos?\b/i.test(query)) {
+    items.push({
+      qty: bancos?.[1] ? parseInt(bancos[1], 10) : null,
+      label: "bancos"
+    });
+  }
+  const sillas = query.match(/(\d+)\s*sillas?\b/i);
+  if (/\bsillas?\b/i.test(query) && !/\bpicnic\b/i.test(query)) {
+    items.push({
+      qty: sillas?.[1] ? parseInt(sillas[1], 10) : null,
+      label: "sillas"
+    });
+  }
+  if (!items.some((i5) => /picnic/i.test(i5.label)) && /\bmesas?\b/i.test(query) && !/\bmesas?\s+periqueras?\b/i.test(query)) {
+    const mesas = query.match(/(\d+)\s*mesas?\b/i);
+    if (mesas || /\bmesas?\b/i.test(query)) {
+      items.push({
+        qty: mesas?.[1] ? parseInt(mesas[1], 10) : null,
+        label: "mesas"
+      });
+    }
+  }
+  return items;
+}
+function formatMobiliarioItem(item) {
+  return item.qty && item.qty > 0 ? `${item.qty} ${item.label}` : item.label;
+}
+function buildMobiliarioRentDetailReply(query) {
+  if (!/\b(mesas?|sillas?|mobiliario|periquera|lounge|picnic|bancos?)\b/i.test(query)) {
+    return null;
+  }
+  const items = parseMobiliarioRentItems(query);
+  const color = query.match(
+    /\bcolor\s+(blanco|negro|dorado|plateado|natural|madera)\b/i
+  )?.[1];
+  const colorNote = color ? ` en color *${color.toLowerCase()}*` : "";
+  const bareMobiliario = items.length === 0 && /\bmobiliario\b/i.test(query) && !/\b(mesas?|sillas?|periquera|lounge|picnic|bancos?|tiffany|crossback|ghost)\b/i.test(query);
+  if (bareMobiliario) return null;
+  const hasQty = items.some((i5) => i5.qty != null && i5.qty > 0);
+  const hasModel = /\b(tiffany|crossback|ghost|wishbone|tolix|camila|antonella|basket|cabos|caroline|louis|mariantonieta|avant|luxor|imperial|picnic)\b/i.test(
+    query
+  );
+  if (items.length >= 1 && !hasQty && !hasModel) {
+    return null;
+  }
+  if (items.length >= 1) {
+    const list = items.map(formatMobiliarioItem).join(", ");
+    const hasPicnic = items.some((i5) => /picnic/i.test(i5.label));
+    const hasPeri = items.some((i5) => /periquera/i.test(i5.label));
+    const hasBancos = items.some((i5) => /banco/i.test(i5.label));
+    const bits = [`Anoto *${list}*${colorNote}.`];
+    if (hasPicnic || hasPeri || hasBancos) {
+      bits.push(
+        "Manejamos renta de mesas tipo picnic, periqueras y bancos (y tambi\xE9n sillas Tiffany/vers\xE1tiles, mesas redondas/rectangulares y salas lounge)."
+      );
+    } else {
+      bits.push(
+        "Manejamos renta de *mesas y sillas* para eventos: sillas Tiffany y vers\xE1tiles, mesas redondas y rectangulares, periqueras, salas lounge y m\xE1s."
+      );
+    }
+    if (/\bsin\s+montaje|solo\s+(para\s+)?entrega|entrega|recoger/i.test(query)) {
+      bits.push(
+        "Lo tomo como *entrega/recolecci\xF3n* (sin montaje en sitio); el equipo confirma log\xEDstica y disponibilidad."
+      );
+    } else {
+      bits.push("Podemos cotizar con o sin montaje en sitio, seg\xFAn lo que necesites.");
+    }
+    return bits.join(" ");
+  }
+  if (/\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && items.length === 0) {
+    return null;
+  }
+  return null;
+}
+function buildLevel3Ack(serviceLabel) {
+  const label = serviceLabel.trim() || "tu solicitud";
+  return `Tomo nota de tu solicitud especial (*${label}*). Nuestro equipo revisa disponibilidad y te confirma si podemos apoyarte.`;
+}
+function buildGuardServiceAck(query) {
+  const label = serviceLabelFromQuery(query);
+  const level = classifyServiceKnowledgeLevel(query);
+  if (level === 1) {
+    const detail = buildCatalogServiceDetailAnswer(query) ?? buildCatalogPriceAnswer(query) ?? buildCatalogInclusionAnswer(query);
+    if (detail) return detail;
+  }
+  if (level === 3) return buildLevel3Ack(label);
+  if (/\bcentros?\s+de\s+mesas?\b/i.test(query) || /centros?\s+de\s+mesa/i.test(label)) {
+    const qty = query.match(/\b(\d{1,3})\b/)?.[1];
+    const labelQty = qty ? ` *${qty}* centros de mesa` : " *centros de mesa*";
+    return `\xA1Claro! Anoto${labelQty} (decoraci\xF3n floral) para tu cotizaci\xF3n. Nuestro equipo te confirma estilos, precio e inclusiones seg\xFAn tu referencia.`;
+  }
+  if (/\bpizzas?\b/i.test(query) && /\b(hacen|preparan|cocinan|montan|sirven|elaboran|en\s+el\s+evento|en\s+vivo)\b/i.test(query)) {
+    return "S\xED: la *barra de pizzas* se monta en tu evento y se preparan al momento (estaci\xF3n con hornos/equipo seg\xFAn el paquete). Tambi\xE9n podemos sumar pastas u otras estaciones italianas si te interesa.";
+  }
+  {
+    const concrete = buildConcreteProductQuestionReply(query);
+    if (concrete) return concrete;
+  }
+  if (clientMentionsCarpas(query)) {
+    const team = advisorLabelForClient();
+    return `S\xED, manejamos carpas ${CARPA_OPTIONS_TEXT}. Se cotizan seg\xFAn medidas y sede. ${team} arma el precio. \xBFQu\xE9 opci\xF3n prefieres y qu\xE9 medidas aproximadas debe tener (largo \xD7 ancho)?`;
+  }
+  if (clientMentionsPistaTarima(query)) {
+    const fromPdf = buildLucyInfoLearnedPriceReply(query);
+    if (fromPdf) return fromPdf;
+    const team = advisorLabelForClient();
+    return `S\xED, manejamos pistas de baile y tarimas en varios tama\xF1os, con opci\xF3n iluminada. ${team} cotiza seg\xFAn las medidas. \xBFQuieres que lo agregue a tu cotizaci\xF3n? \xBFQu\xE9 medidas aproximadas tiene el espacio?`;
+  }
+  const sala = parseSalaProductFromText(query);
+  if (sala) {
+    const fromPdf = buildLucyInfoLearnedPriceReply(query);
+    if (fromPdf) return fromPdf;
+    return `Con gusto. Anoto *${sala}* para tu cotizaci\xF3n (salas lounge / mobiliario). \xBFQuieres que lo dejemos en la propuesta?`;
+  }
+  const mobiliario = buildMobiliarioRentDetailReply(query);
+  if (mobiliario) {
+    const dims = parseSpaceDimensions(query);
+    return dims ? `${mobiliario} Con espacio ${dims}, el equipo afina la propuesta.` : `${mobiliario} \xBFLo agregamos a tu cotizaci\xF3n?`;
+  }
+  const foodSkuNow = /\b(canap[eé]s?|bocadillos?|banquetes?|catering|taquiza|paella|coffee\s*break|barra\s+de)\b/iu.test(
+    query
+  );
+  if (!foodSkuNow && (/\b(mobiliario|mobilairio)\b|\bbarras?\s+de\s+mobiliario\b/i.test(query) && !parseMobiliarioRentItems(query).length)) {
+    return buildProgressiveOptionsMenu("mobiliario");
+  }
+  if (!foodSkuNow && /\b(sillas?|mesas?|periqueras?|lounge)\b/i.test(query) && !parseMobiliarioRentItems(query).length) {
+    const p4 = parseMobiliarioPieceChoice(query) || (/\bsillas?\b/i.test(query) ? "sillas" : null);
+    if (p4) return buildMobiliarioPieceFollowUp(p4);
+  }
+  if (/\bcanap/i.test(query)) {
+    return "\xA1Claro! Anoto *Canap\xE9s* para tu cotizaci\xF3n. Es una estaci\xF3n de bocadillos finos para recepci\xF3n o cocktail. \xBFQuieres que te detalle opciones e inclusiones, o seguimos con los datos del evento?";
+  }
+  if (/\bshows?\b|\banimaci[oó]n\b|\bhora\s+loca\b|\bentretenimiento\b/i.test(query)) {
+    return `Claro \u2014 manejamos *shows*, animaci\xF3n y performance (hora loca, shows en vivo y activaciones). Cada propuesta se arma al concepto del evento. Te dejo el cat\xE1logo general:
+${getCatalogWebHubDeliveryUrl()}
+\xBFBuscas algo en especial (show en vivo, hora loca, otro formato)?`;
+  }
+  return buildLevel2Ack(label);
+}
+function getServiceKnowledge(query) {
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.length < 3) return null;
+  if (!isServiceRelatedMessage(trimmed) && !EVENT_CONTEXT_PATTERN.test(trimmed)) {
+    if (!/\b(quiero|necesito|busco|cotizar|precio|incluye)\b/i.test(trimmed)) return null;
+  }
+  const label = serviceLabelFromQuery(trimmed);
+  const level = classifyServiceKnowledgeLevel(trimmed);
+  const sheetBlock = formatServiceDataForPrompt(trimmed);
+  const sheetPrice = !!buildCatalogPriceAnswer(trimmed);
+  const sheetDetail = buildCatalogServiceDetailAnswer(trimmed) ?? buildCatalogInclusionAnswer(trimmed) ?? null;
+  if (level === 1 && (sheetBlock || sheetDetail)) {
+    const parts2 = ["CONOCIMIENTO DE SERVICIO (Google Sheet \u2014 precio solo de aqu\xED):"];
+    if (sheetBlock) parts2.push(sheetBlock);
+    else if (sheetDetail) parts2.push(sheetDetail);
+    parts2.push("Usa estos datos. No inventes precios ni inclusiones. Solo cita Incluye si aparece en el bloque.");
+    return {
+      level: 1,
+      label,
+      hasSheetPrice: sheetPrice,
+      promptBlock: parts2.join("\n"),
+      guardAck: sheetDetail ?? buildGuardServiceAck(trimmed)
+    };
+  }
+  if (level === 3) {
+    return {
+      level: 3,
+      label,
+      hasSheetPrice: false,
+      promptBlock: [
+        "CONOCIMIENTO DE SERVICIO (solicitud especial \u2014 NIVEL 3):",
+        `Servicio: ${label}`,
+        "Acci\xF3n: anota como solicitud especial. El equipo confirma disponibilidad.",
+        "NUNCA digas 'no lo tenemos'. NUNCA inventes precio.",
+        SERVICE_KNOWLEDGE_GOLDEN_RULE
+      ].join("\n"),
+      guardAck: buildLevel3Ack(label)
+    };
+  }
+  return {
+    level: 2,
+    label,
+    hasSheetPrice: false,
+    promptBlock: [
+      "CONOCIMIENTO DE SERVICIO (eventos \u2014 NIVEL 2, sin precio en Sheet):",
+      `Servicio: ${label}`,
+      "Acci\xF3n: ACEPTA, anota en requerimientos y AVANZA al siguiente dato o cierre.",
+      "Acuse breve + siguiente pregunta. NUNCA inventes precio. NUNCA repitas '\xBFotros servicios?'.",
+      SERVICE_KNOWLEDGE_GOLDEN_RULE
+    ].join("\n"),
+    guardAck: buildLevel2Ack(label)
+  };
+}
+
+// src/services/catalogService.ts
+import { readFileSync as readFileSync3, existsSync as existsSync3 } from "node:fs";
+import path4 from "node:path";
+import { fileURLToPath as fileURLToPath3 } from "node:url";
+var GENERIC_CATERING_MENU_MARKERS = /estas son las opciones m[aá]s pedidas|cu[aá]l te interesa\?\s*con eso te paso precios/i;
+var REFRESH_MS = Number(process.env["CATALOG_REFRESH_MINUTES"] ?? "10") * 6e4;
+var snapshot = null;
+function emptyStatus() {
+  return {
+    loaded: false,
+    lastRefresh: null,
+    lastError: null,
+    sources: {
+      sheets: false,
+      sheetsRows: 0,
+      sheetsUrl: null,
+      gamma: false,
+      gammaUrl: null,
+      staticFallback: true
+    },
+    pricedServicesCount: 0,
+    noPriceServicesCount: 0
+  };
+}
+function applyPriceIndex(rows) {
+  const priced = rows.filter((r4) => r4.tienePrecio && r4.precio).map((r4) => r4.servicio);
+  const noPrice = rows.filter((r4) => !r4.tienePrecio || !r4.precio).map((r4) => r4.servicio);
+  setCatalogPriceIndex(priced, noPrice);
+}
+function getCatalogStatus() {
+  return snapshot?.status ?? emptyStatus();
+}
+function setCatalogSnapshotForTests(rows) {
+  const status = emptyStatus();
+  status.loaded = true;
+  status.sources.sheets = true;
+  status.sources.sheetsRows = rows.length;
+  status.pricedServicesCount = rows.filter((r4) => r4.tienePrecio && r4.precio).length;
+  snapshot = { rows, promptBlock: "", status };
+  applyPriceIndex(rows);
+  registerSheetSynonyms(
+    rows.map((r4) => ({ servicio: r4.servicio, sinonimos: r4.sinonimos ?? null }))
+  );
+  tryLoadSinonimosJsonFile();
+}
+function tryLoadSinonimosJsonFile() {
+  const candidates = [
+    path4.resolve(process.cwd(), "config/sinonimos.json"),
+    path4.resolve(process.cwd(), "data/sinonimos.json"),
+    path4.resolve(process.cwd(), "dist/data/sinonimos.json"),
+    path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../../config/sinonimos.json"),
+    path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../../data/sinonimos.json"),
+    path4.resolve(path4.dirname(fileURLToPath3(import.meta.url)), "../data/sinonimos.json")
+  ];
+  for (const p4 of candidates) {
+    if (!existsSync3(p4)) continue;
+    try {
+      const raw = JSON.parse(readFileSync3(p4, "utf8"));
+      const n4 = loadSinonimosJson(raw);
+      if (n4 > 0) return;
+    } catch {
+    }
+  }
+}
+function getCatalogPromptBlockSync() {
+  return snapshot?.promptBlock ?? CATALOGO_BODASESOR;
+}
+function normalizeForMatch(value) {
+  return value.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\btres\s*tiempos\b/g, "3 tiempos").replace(/\bcuatro\s*tiempos\b/g, "4 tiempos").replace(/\bdos\s*tiempos\b/g, "2 tiempos").trim();
+}
+function queryTokens(query) {
+  const stop2 = /^(cuanto|cuanta|cuesta|cuestan|precio|costo|sale|cobran|tarifa|persona|personas|por|para|una|uno|un|el|la|los|las|de|del|me|te|se|si|no|que|como|donde|cuando|con|incluye|trae|lleva)$/;
+  const normalized = normalizeForMatch(query);
+  const compounds = [];
+  if (/\b4\s*tiempos\b/.test(normalized)) compounds.push("4tiempos");
+  if (/\b3\s*tiempos\b/.test(normalized)) compounds.push("3tiempos");
+  const tokens = normalized.split(/[^a-z0-9]+/).filter((t3) => (t3.length >= 3 || /^\d$/.test(t3)) && !stop2.test(t3));
+  if (/\bcatering\b/.test(normalized)) {
+    tokens.push("banquete", "taquiza", "brunch", "coffee");
+  }
+  return [.../* @__PURE__ */ new Set([...compounds, ...tokens])];
+}
+function parseCatalogQueryFilters(query) {
+  const t3 = normalizeForMatch(query);
+  let nivel = null;
+  if (/\bservicio\s+completo\b/.test(t3)) nivel = "Servicio completo";
+  else if (/\bpor\s+pieza\b/.test(t3)) nivel = "Por pieza";
+  else if (/\bpremium\b/.test(t3)) nivel = "Premium";
+  else if (/\bbasic[ao]\b/.test(t3)) nivel = "Basica";
+  else if (/\btradicional\b/.test(t3)) nivel = "Tradicional";
+  else if (/\bsolo\s*alimentos\b/.test(t3)) nivel = "Solo Alimentos";
+  return {
+    banquete: /\bbanquete\b/.test(t3),
+    taquiza: /\btaquiza\b/.test(t3),
+    cuatroTiempos: /\b4\s*tiempos\b/.test(t3) || /\b4tiempos\b/.test(t3),
+    tresTiempos: /\b3\s*tiempos\b/.test(t3) || /\b3tiempos\b/.test(t3),
+    nivel
+  };
+}
+function rowHaystack(row) {
+  return normalizeForMatch(`${row.categoria} ${row.servicio} ${row.nivel}`).replace(/\s+/g, " ");
+}
+function extractNivelLabel(row) {
+  if (typeof row === "string") {
+    const match2 = row.match(/\(([^)]+)\)\s*$/);
+    return match2?.[1]?.trim() || row;
+  }
+  return row.nivel?.trim() || row.servicio.match(/\(([^)]+)\)\s*$/)?.[1]?.trim() || row.servicio;
+}
+var MACRO_CATEGORIES = [
+  {
+    label: "Alimentos",
+    queryPattern: /^(alimentos?|comida|catering|men[uú]s?)$/i,
+    servicePattern: /banquete|taquiza|brunch|coffee|barra(?! de bebida)|comida|desayuno|canap|bocadillo|parrillada|pizza|sushi|crepa|marisco|pasta|paella|pozole|mesa de|carrito|snak/i
+  },
+  {
+    label: "Bebidas",
+    queryPattern: /^(bebidas?|barra\s+de\s+bebidas?)$/i,
+    servicePattern: /barra de bebida|cocteler|mixolog|m[oó]ctel/i
+  },
+  {
+    label: "Barras tem\xE1ticas",
+    queryPattern: /^(barras?|barras?\s+tem[aá]ticas?)$/i,
+    servicePattern: /^barra(?! de bebida)/i
+  },
+  {
+    label: "Mobiliario",
+    queryPattern: /^mobiliario$/i,
+    servicePattern: /mobiliario|silla/i
+  }
+];
+function uniqueServicios(rows) {
+  return [...new Set(rows.map((r4) => r4.servicio.trim()).filter(Boolean))].sort();
+}
+function uniqueNiveles(rows) {
+  return [...new Set(rows.map((r4) => r4.nivel.trim()).filter(Boolean))];
+}
+function rowMatchesServiceLabel(row, label) {
+  const normLabel = normalizeForMatch(label).replace(/\s+/g, "");
+  const normSvc = normalizeForMatch(row.servicio).replace(/\s+/g, "");
+  if (!normLabel || !normSvc) return false;
+  if (normSvc.includes(normLabel) || normLabel.includes(normSvc)) return true;
+  const labelTokens = normalizeForMatch(label).split(/\s+/).filter((t3) => t3.length >= 4);
+  if (labelTokens.length >= 2) {
+    return labelTokens.every((t3) => normSvc.includes(t3));
+  }
+  return normSvc.includes(normLabel);
+}
+function catalogKeywordsFromQuery(query) {
+  if (isVagueCatalogFoodQuery(query.trim())) return [];
+  const q2 = normalizeForMatch(query);
+  const keys = [];
+  if (/\bparrillada\b/.test(q2)) keys.push("parrillada");
+  if (/\bargentina\b/.test(q2) && keys.includes("parrillada")) keys.push("argentina");
+  if (/\bmexicano\b/.test(q2)) return ["banquete", "mexicano"];
+  if (/\bkosher\b/.test(q2)) return ["kosher"];
+  if (/\bnavide/.test(q2)) return ["navide"];
+  if (/\bformal\b/.test(q2) && /\bbanquete\b/.test(q2)) return ["banquete", "formal"];
+  if (/\bbanquete\b/.test(q2)) return ["banquete"];
+  if (/\btaquiza\b/.test(q2)) return ["taquiza"];
+  if (/\byucateca\b/.test(q2)) return ["yucateca"];
+  if (/\bamericana\b/.test(q2) && /\bbarra\b/.test(q2)) return ["americana"];
+  if (keys.length) return keys;
+  const requested = parsePrimaryService(query);
+  if (!requested?.trim()) return [];
+  return normalizeForMatch(requested).split(/\s+/).filter((t3) => t3.length >= 4);
+}
+function rowMatchesCatalogKeywords(row, keywords) {
+  if (!keywords.length) return true;
+  const hay = normalizeForMatch(row.servicio);
+  return keywords.every((k4) => hay.includes(k4));
+}
+function rowsForRequestedService(allRows, query) {
+  if (isVagueCatalogFoodQuery(query.trim())) return allRows;
+  const keywords = catalogKeywordsFromQuery(query);
+  if (keywords.length) {
+    const matched2 = allRows.filter((r4) => rowMatchesCatalogKeywords(r4, keywords));
+    return matched2.length ? matched2 : null;
+  }
+  const requested = parsePrimaryService(query);
+  if (!requested) return allRows;
+  const matched = allRows.filter((r4) => rowMatchesServiceLabel(r4, requested));
+  return matched.length ? matched : null;
+}
+function catalogAnswerMatchesRequestedService(query, answer) {
+  const keywords = catalogKeywordsFromQuery(query);
+  if (!keywords.length) return true;
+  const norm2 = normalizeForMatch(answer);
+  return keywords.every((k4) => norm2.includes(k4));
+}
+function catalogResultMatchesRequestedService(query, result) {
+  const keywords = catalogKeywordsFromQuery(query);
+  if (!keywords.length || !result) return true;
+  return result.rows.some((r4) => rowMatchesCatalogKeywords(r4, keywords));
+}
+function isVagueCatalogFoodQuery(query) {
+  const q2 = normalizeForMatch(query.trim());
+  return /^(comida|alimentos?|men[uú]s?|desayuno|catering)$/.test(q2);
+}
+function matchesSpecificServicioInQuery(query, rows) {
+  const q2 = normalizeForMatch(query);
+  if (isVagueCatalogFoodQuery(query)) return false;
+  for (const svc of uniqueServicios(rows)) {
+    const normSvc = normalizeForMatch(svc);
+    if (q2 === normSvc || q2.includes(normSvc)) return true;
+    if (normSvc.includes(q2) && q2.length >= 4) return true;
+    const svcTokens = normSvc.split(/\s+/).filter((t3) => t3.length >= 4);
+    if (svcTokens.some((t3) => q2.includes(t3))) return true;
+  }
+  if (/\b(banquete|taquiza|barra de|coffee break|brunch|parrillada)\b/.test(q2)) return true;
+  return false;
+}
+function detectMacroCategoryQuery(query) {
+  const trimmed = query.trim();
+  for (const cat of MACRO_CATEGORIES) {
+    if (cat.queryPattern.test(trimmed)) return { label: cat.label, servicePattern: cat.servicePattern };
+  }
+  const q2 = normalizeForMatch(query);
+  if (/^alimentos?$/.test(q2) || q2 === "comida" || q2 === "catering") {
+    return { label: "Alimentos", servicePattern: MACRO_CATEGORIES[0].servicePattern };
+  }
+  return null;
+}
+function matchesNivelFilter(row, filters, query) {
+  const nivelHay = normalizeForMatch(row.nivel || extractNivelLabel(row.servicio));
+  const svcHay = normalizeForMatch(row.servicio);
+  if (filters.nivel) {
+    const want = normalizeForMatch(filters.nivel);
+    if (nivelHay.includes(want) || want.includes(nivelHay)) return true;
+  }
+  if (filters.cuatroTiempos && /\b4\s*tiempos\b/.test(svcHay)) return true;
+  if (filters.tresTiempos && /\b3\s*tiempos\b/.test(svcHay)) return true;
+  const q2 = normalizeForMatch(query);
+  if (/\bpremium\b/.test(q2) && /\bpremium\b/.test(nivelHay)) return true;
+  if (/\bbasic[ao]\b/.test(q2) && /\bbasic[ao]\b/.test(nivelHay)) return true;
+  if (/\btradicional\b/.test(q2) && /\btradicional\b/.test(nivelHay)) return true;
+  return false;
+}
+function simplifyServiceNamesForList(servicios) {
+  const out2 = /* @__PURE__ */ new Set();
+  for (const svc of servicios) {
+    if (/^banquete\b/i.test(svc) && !/kosher|mexicano|navide/i.test(svc)) {
+      if (/\b3\s*tiempos\b/i.test(svc)) out2.add("banquete 3 tiempos");
+      else if (/\b4\s*tiempos\b/i.test(svc)) out2.add("banquete 4 tiempos");
+      else out2.add(svc);
+    } else {
+      out2.add(svc);
+    }
+  }
+  return [...out2];
+}
+function resolveCatalogQuery(query) {
+  if (!snapshot?.rows.length) return null;
+  const allRows = snapshot.rows;
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  const macro = detectMacroCategoryQuery(trimmed);
+  if (macro && !matchesSpecificServicioInQuery(trimmed, allRows)) {
+    const catRows = allRows.filter((r4) => macro.servicePattern.test(r4.servicio));
+    if (catRows.length) {
+      return { kind: "category", categoryLabel: macro.label, rows: catRows };
+    }
+  }
+  const serviceScoped = rowsForRequestedService(allRows, trimmed);
+  if (serviceScoped === null) return null;
+  const rows = serviceScoped;
+  const tokens = queryTokens(query);
+  if (!tokens.length) return null;
+  const filters = parseCatalogQueryFilters(query);
+  const scored = rows.map((row) => ({ row, score: scoreCatalogRow(row, tokens, filters, query) })).filter((item) => item.score > 0).sort((a3, b4) => b4.score - a3.score);
+  if (!scored.length) return null;
+  const top = scored[0].score;
+  const minScore = filters.nivel || filters.cuatroTiempos || filters.tresTiempos ? top - 1 : top - 3;
+  let matchedRows = scored.filter((item) => item.score >= minScore).map((item) => item.row);
+  const hasNivelFilter = !!(filters.nivel || filters.cuatroTiempos || filters.tresTiempos || /\bpremium\b|\bbasic[ao]\b|\btradicional\b|\bservicio\s+completo\b|\bpor\s+pieza\b/i.test(query));
+  if (hasNivelFilter) {
+    const nivelRows = matchedRows.filter((r4) => matchesNivelFilter(r4, filters, query));
+    if (nivelRows.length) matchedRows = nivelRows;
+  }
+  const servicios = uniqueServicios(matchedRows);
+  if (!servicios.length) return null;
+  if (hasNivelFilter && matchedRows.length === 1) {
+    const row = matchedRows[0];
+    return {
+      kind: "service_nivel",
+      serviceName: row.servicio,
+      nivel: row.nivel,
+      rows: [row]
+    };
+  }
+  if (servicios.length === 1) {
+    const svc = servicios[0];
+    const svcRows = matchedRows.filter((r4) => r4.servicio === svc);
+    const niveles = uniqueNiveles(svcRows);
+    if (niveles.length > 1 && !hasNivelFilter) {
+      return { kind: "service", serviceName: svc, rows: svcRows };
+    }
+    if (svcRows.length === 1) {
+      return {
+        kind: "service_nivel",
+        serviceName: svc,
+        nivel: svcRows[0].nivel,
+        rows: svcRows
+      };
+    }
+    return { kind: "service", serviceName: svc, rows: svcRows };
+  }
+  const q2 = normalizeForMatch(query);
+  if (/\bbanquete\b/.test(q2) || /\bmexicano\b/.test(q2) || /\bkosher\b/.test(q2) || /\bnavide/.test(q2)) {
+    let serviceName = "Banquete";
+    if (matchedRows.length && matchedRows.every((r4) => /\bmexicano\b/i.test(r4.servicio))) {
+      serviceName = "Banquete Mexicano";
+    } else if (matchedRows.length && matchedRows.every((r4) => /\bkosher\b/i.test(r4.servicio))) {
+      serviceName = "Banquete Kosher";
+    } else if (matchedRows.length && matchedRows.every((r4) => /\bnavide/i.test(r4.servicio))) {
+      serviceName = "Banquete Navide\xF1o";
+    } else if (matchedRows.length && matchedRows.every((r4) => /\bformal\b/i.test(r4.servicio))) {
+      serviceName = "Banquete Formal";
+    } else if (/\bmexicano\b/.test(q2)) {
+      const onlyMx = matchedRows.filter((r4) => /\bmexicano\b/i.test(r4.servicio));
+      if (onlyMx.length) {
+        return { kind: "service", serviceName: "Banquete Mexicano", rows: onlyMx };
+      }
+    }
+    return { kind: "service", serviceName, rows: matchedRows };
+  }
+  if (/\bbarra\b/.test(q2) && !/\bbarra de bebida/.test(q2) && !/\b(yucateca|americana|crepas?|mariscos?|paninis?|pastas?|sushi|poke|caf[eé](?!\p{L}))\b/iu.test(q2)) {
+    return { kind: "service", serviceName: "Barra", rows: matchedRows };
+  }
+  return { kind: "service", serviceName: servicios[0], rows: matchedRows };
+}
+function buildCategoryServicesAnswer(result) {
+  const label = result.categoryLabel ?? "esa categor\xEDa";
+  const servicios = simplifyServiceNamesForList(uniqueServicios(result.rows));
+  const list = servicios.slice(0, 10).join(", ");
+  return `Para *${label.toLowerCase()}* tenemos: ${list}. \xBFCu\xE1l te interesa?`;
+}
+var CATALOG_OFFER_QUESTION = "\xBFQuieres que te mande el cat\xE1logo con m\xE1s detalle?";
+function ensureCatalogWebLink(text2, query) {
+  const body2 = text2.trim();
+  if (!body2) return body2;
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(body2)) {
+    return body2;
+  }
+  const q2 = (query ?? "").trim();
+  const match2 = q2 ? resolveCatalogWebLink(q2) : { url: null, serviceName: null, kind: "missing" };
+  const embedUrl = q2 ? getCatalogWebUrlForQuery(q2) : null;
+  const url = match2.url || embedUrl || null;
+  if (url) {
+    const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
+    return `${body2}
+
+Cat\xE1logo${label}:
+${toDeliverableCatalogUrl(url)}`;
+  }
+  return `${body2}
+
+Cat\xE1logo:
+${getCatalogWebHubDeliveryUrl()}`;
+}
+function messageHasSheetServiceDetail(text2) {
+  if (!text2?.trim()) return false;
+  const t3 = text2;
+  if (/detalle de lo que incluye cada nivel est[aá] en el cat[aá]logo/i.test(t3) && !/\$\s*\d/.test(t3) && !/incluye\s*:\s*\S.{7,}/i.test(t3)) {
+    return false;
+  }
+  if (/incluye\s*:\s*\S.{7,}/i.test(t3) && !/el\s+equipo\s+lo\s+confirma/i.test(t3)) return true;
+  if (/qu[eé]\s+incluye\s+cada\s+nivel\s*:/i.test(t3)) return true;
+  if (/manejamos estos niveles/i.test(t3)) return true;
+  if (/\*precio:\*/i.test(t3) && /manejamos/i.test(t3)) return true;
+  if (/\$\s*\d/.test(t3) && /\b(b[aá]sic|tradicional|premium|solo alimentos)\b/i.test(t3) && /\b(nivel|manejamos|pp|\/pp|por persona)\b/i.test(t3)) {
+    return true;
+  }
+  return false;
+}
+function attachAvailableSheetDetail(query, serviceHint) {
+  const attempts = [
+    [serviceHint, query].filter(Boolean).join(" ").trim() || null,
+    serviceHint?.trim() || null,
+    query.trim() || null
+  ].filter((a3) => !!a3);
+  for (const a3 of attempts) {
+    const fromPdf = buildPdfInclusionReply(a3);
+    if (fromPdf) return fromPdf;
+    const candidates = [
+      buildCatalogInclusionAnswer(a3),
+      buildInclusionTeamConfirmationAnswer(a3),
+      buildCatalogServiceDetailAnswer(a3),
+      buildCatalogPriceAnswer(a3)
+    ].filter((d2) => !!d2);
+    for (const detail of candidates) {
+      if (/detalle de lo que incluye cada nivel est[aá] en el cat[aá]logo/i.test(detail) && !/\$\s*\d/.test(detail) && !/incluye\s*:\s*\S.{7,}/i.test(detail)) {
+        continue;
+      }
+      if (messageHasSheetServiceDetail(detail) || /\$\s*\d/.test(detail) && /\b(nivel|Basico|Básico|Premium|Tradicional|manejamos|pp)\b/i.test(detail)) {
+        return ensureCatalogWebLink(detail, a3);
+      }
+    }
+  }
+  return null;
+}
+function withCatalogOfferQuestion(text2, query) {
+  const body2 = text2.trim();
+  if (!body2) return body2;
+  return ensureCatalogWebLink(body2, query);
+}
+function buildServiceNivelChoiceAnswer(result) {
+  const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
+  const svcRows = result.rows.filter((r4) => r4.servicio === svc || result.rows.length <= 6);
+  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 6);
+  const niveles = uniqueNiveles(rowsForChoice);
+  if (niveles.length <= 1) {
+    const row = svcRows[0] ?? result.rows[0];
+    return buildExactRowDetailAnswer(row);
+  }
+  if (uniqueServicios(result.rows).length > 1) {
+    const svcOnly = result.rows.filter(
+      (r4) => normalizeForMatch(r4.servicio) === normalizeForMatch(svc) || rowMatchesServiceLabel(r4, svc)
+    );
+    if (svcOnly.length && uniqueServicios(svcOnly).length === 1) {
+      const nivelesOnly = uniqueNiveles(svcOnly);
+      if (nivelesOnly.length > 1) {
+        const lines2 = nivelesOnly.slice(0, 6).map((n4, i5) => {
+          const row = svcOnly.find(
+            (r4) => normalizeForMatch(extractNivelLabel(r4)) === normalizeForMatch(n4)
+          );
+          const incl = row ? getInclusionFromRow(row) : null;
+          const price = row?.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+          const inclTxt = incl ? `: ${incl.slice(0, 120)}` : "";
+          return `${i5 + 1}. *${n4}*${price}${inclTxt}`;
+        });
+        return withCatalogOfferQuestion(
+          `Para *${svc}* manejamos estos niveles:
+${lines2.join("\n")}
+
+${SERVICE_NIVEL_DETAIL_CTA}`,
+          svc
+        );
+      }
+    }
+    const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
+    const inclusionBlock = buildInclusionBlock(rowsForChoice, 180).trim();
+    const detail = inclusionBlock ? `${inclusionBlock}
+
+` : `Niveles disponibles: ${niveles.slice(0, 6).map((n4) => `*${n4}*`).join(", ")}.
+
+`;
+    return withCatalogOfferQuestion(
+      `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}${SERVICE_NIVEL_DETAIL_CTA}`,
+      svc
+    );
+  }
+  const lines = niveles.slice(0, 6).map((n4, i5) => {
+    const row = rowsForChoice.find(
+      (r4) => normalizeForMatch(extractNivelLabel(r4)) === normalizeForMatch(n4)
+    );
+    const incl = row ? getInclusionFromRow(row) : null;
+    const price = row?.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+    if (incl) {
+      const clipped = incl.length > 220 ? `${incl.slice(0, 217)}\u2026` : incl;
+      return `${i5 + 1}. *${n4}*${price}
+   Incluye: ${clipped}`;
+    }
+    return `${i5 + 1}. *${n4}*${price}`;
+  });
+  const hasAnyIncl = rowsForChoice.some((r4) => !!getInclusionFromRow(r4));
+  const footer = SERVICE_NIVEL_DETAIL_CTA;
+  let body2 = `Para *${svc}* manejamos estos niveles:
+
+${lines.join("\n")}
+
+${footer}`;
+  if (!hasAnyIncl || rowsForChoice.filter((r4) => getInclusionFromRow(r4)).length < niveles.length) {
+    const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
+    const webUrl = getCatalogWebUrlForQuery(svc) ?? getCatalogWebUrlForQuery(result.serviceName ?? "") ?? resolveCatalogWebLink(svc).url ?? resolveCatalogWebLink(result.serviceName ?? svc).url;
+    if (webHint) {
+      body2 += `
+
+${webHint}`;
+    } else if (webUrl) {
+      body2 += `
+
+El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo:
+${toDeliverableCatalogUrl(webUrl)}`;
+    } else {
+      body2 += `
+
+Cat\xE1logo general:
+${getCatalogWebHubDeliveryUrl()}`;
+    }
+  }
+  return withCatalogOfferQuestion(body2, svc);
+}
+function messageOffersLevelsWithoutInclusions(text2) {
+  if (!text2?.trim()) return false;
+  const t3 = text2.trim();
+  const hasIncluyeLine = /incluye\s*:/i.test(t3);
+  const hasTeamPlaceholder = /el\s+equipo\s+lo\s+confirma/i.test(t3);
+  const hasRealInclusionLine = t3.split(/\n/).some(
+    (line2) => /incluye\s*:/i.test(line2) && !/el\s+equipo\s+lo\s+confirma/i.test(line2) && /incluye\s*:\s*\S.{7,}/i.test(line2)
+  );
+  const onlyTeamPlaceholder = hasIncluyeLine && hasTeamPlaceholder && !hasRealInclusionLine;
+  if (hasIncluyeLine && !onlyTeamPlaceholder) return false;
+  const mentionsTriad = /\bb[aá]sic/i.test(t3) && /\btradicional\b/i.test(t3) && /\bpremium\b/i.test(t3);
+  return onlyTeamPlaceholder || /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t3) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t3) || /1\.\s*\*?b[aá]sic/i.test(t3) && /2\.\s*\*?tradicional/i.test(t3) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t3) && /prefieres|nivel/i.test(t3) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
+  mentionsTriad && (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t3) || /prefieres|nivel|opci[oó]n/i.test(t3)) || mentionsTriad && /confirma\s+(nuestro\s+)?equipo|el\s+equipo\s+te\s+confirma/i.test(t3);
+}
+function enrichBareNivelOffer(mensaje, serviceHint) {
+  if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
+  const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
+  const fromPdf = buildPdfInclusionReply(hint);
+  if (fromPdf) return fromPdf;
+  const detail = buildCatalogServiceDetailAnswer(hint);
+  if (!detail || messageOffersLevelsWithoutInclusions(detail)) return null;
+  if (!/incluye|nivel/i.test(detail)) return null;
+  return detail;
+}
+function buildExactRowDetailAnswer(row) {
+  const label = formatCatalogRowLabel(row);
+  const parsed = parseRowNotes(row.notas);
+  const price = row.tienePrecio && row.precio ? `*Precio:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "";
+  const inclusion = parsed.inclusion ? `
+
+*Incluye:* ${parsed.inclusion}` : "";
+  return withCatalogOfferQuestion(
+    `S\xED, manejamos *${label}*.${price ? `
+${price}` : ""}${inclusion}`.trim(),
+    row.servicio
+  );
+}
+function buildExactRowPriceAnswer(row) {
+  const label = formatCatalogRowLabel(row);
+  const parsed = parseRowNotes(row.notas);
+  const unit = row.unidad ? ` ${row.unidad}` : "";
+  const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
+  const inclusion = parsed.inclusion ? `
+
+*Incluye:* ${parsed.inclusion}` : "";
+  return ensureCatalogWebLink(
+    `*${label}* \u2014 ${row.precio}${unit}${min}${inclusion}`,
+    row.servicio
+  );
+}
+function formatRequerimientoLabelFromQuery(query) {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (resolved.kind === "category") return null;
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return formatCatalogRowLabel(resolved.rows[0]);
+  }
+  if (resolved.rows.length === 1) {
+    return formatCatalogRowLabel(resolved.rows[0]);
+  }
+  if (resolved.serviceName && resolved.kind === "service") {
+    const niveles = uniqueNiveles(resolved.rows);
+    if (niveles.length === 1 && resolved.rows[0]) {
+      return formatCatalogRowLabel(resolved.rows[0]);
+    }
+    return resolved.serviceName;
+  }
+  return null;
+}
+function scoreCatalogRow(row, tokens, filters, query) {
+  const haystack = rowHaystack(row).replace(/\s+/g, "");
+  let score = 0;
+  const vagueFood = isVagueCatalogFoodQuery(query);
+  for (const token of tokens) {
+    const tok = token.replace(/\s+/g, "");
+    if (tok === "comida" && /comidacorrida/.test(haystack) && !/\bcomida\s+corrida\b/i.test(query)) {
+      continue;
+    }
+    if (vagueFood && tok === "comida" && /comidacorrida/.test(haystack)) continue;
+    if (haystack.includes(tok)) score += 2;
+  }
+  if (filters.banquete && /\bbanquete\b/.test(rowHaystack(row))) score += 4;
+  if (filters.banquete && /\btaquiza\b/.test(rowHaystack(row))) score -= 12;
+  if (filters.taquiza && /\btaquiza\b/.test(rowHaystack(row))) score += 4;
+  if (filters.taquiza && /\bbanquete\b/.test(rowHaystack(row))) score -= 12;
+  if (filters.cuatroTiempos) {
+    if (/\b4\s*tiempos\b/.test(rowHaystack(row))) score += 6;
+    if (/\b3\s*tiempos\b/.test(rowHaystack(row))) score -= 8;
+  }
+  if (filters.tresTiempos) {
+    if (/\b3\s*tiempos\b/.test(rowHaystack(row))) score += 6;
+    if (/\b4\s*tiempos\b/.test(rowHaystack(row))) score -= 8;
+  }
+  if (filters.nivel) {
+    const nivelHay = normalizeForMatch(row.nivel || extractNivelLabel(row.servicio));
+    if (nivelHay === normalizeForMatch(filters.nivel) || nivelHay.includes(normalizeForMatch(filters.nivel))) {
+      score += 8;
+    } else {
+      score -= 4;
+    }
+  }
+  const hay = rowHaystack(row);
+  const q2 = normalizeForMatch(query);
+  const keywords = catalogKeywordsFromQuery(query);
+  if (keywords.length) {
+    if (rowMatchesCatalogKeywords(row, keywords)) score += 12;
+    else if (keywords.includes("parrillada") && /\bbanquete\b/.test(hay) && !/parrillada/.test(hay)) {
+      score -= 20;
+    } else if (keywords.includes("banquete") && /parrillada/.test(hay) && !/banquete/.test(hay)) {
+      score -= 20;
+    } else {
+      score -= 8;
+    }
+  }
+  if (!/\bmexicano\b/.test(q2) && /\bmexicano\b/.test(hay)) score -= 6;
+  if (!/\bkosher\b/.test(q2) && /\bkosher\b/.test(hay)) score -= 6;
+  if (!/\bnavide/.test(q2) && /\bnavide/.test(hay)) score -= 6;
+  if (/\bmexicano\b/.test(q2)) {
+    if (/\bmexicano\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
+  if (/\bformal\b/.test(q2) && /\bbanquete\b/.test(q2)) {
+    if (/\bformal\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay) && /\b(mexicano|kosher|navide)/.test(hay)) score -= 16;
+  }
+  if (/\bkosher\b/.test(q2)) {
+    if (/\bkosher\b/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
+  if (/\bnavide/.test(q2)) {
+    if (/\bnavide/.test(hay)) score += 12;
+    else if (/\bbanquete\b/.test(hay)) score -= 16;
+  }
+  return score;
+}
+function rankCatalogMatches(query, rows, requirePrice = false) {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return [];
+  if (resolved.kind === "category") return [];
+  const filtered = requirePrice ? resolved.rows.filter((r4) => r4.tienePrecio && r4.precio) : resolved.rows;
+  return filtered;
+}
+function lookupCatalogServices(query) {
+  if (!snapshot?.rows.length) return [];
+  return rankCatalogMatches(query, snapshot.rows, false);
+}
+function buildInclusionBlock(rows, maxPerLevel = 220) {
+  const inclusionByLevel = rows.map((row) => ({
+    nivel: extractNivelLabel(row),
+    inclusion: getInclusionFromRow(row)
+  }));
+  const uniqueTexts = [...new Set(inclusionByLevel.map((r4) => r4.inclusion).filter(Boolean))];
+  if (!uniqueTexts.length) return "";
+  if (uniqueTexts.length === 1) {
+    return `
+
+*Incluye:* ${uniqueTexts[0]}`;
+  }
+  const lines = inclusionByLevel.filter((r4) => r4.inclusion).slice(0, 5).map(
+    (r4) => `\u2022 *${r4.nivel}:* ${r4.inclusion.slice(0, maxPerLevel)}${r4.inclusion.length > maxPerLevel ? "\u2026" : ""}`
+  );
+  return lines.length ? `
+
+*Qu\xE9 incluye cada nivel:*
+${lines.join("\n")}` : "";
+}
+function getInclusionFromRow(row) {
+  const text2 = parseRowNotes(row.notas).inclusion?.trim();
+  return text2 || null;
+}
+function findSheetPriceForQuery(query) {
+  if (!snapshot?.rows.length || !query?.trim()) return null;
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  let row;
+  if (resolved.kind === "service_nivel" && resolved.rows[0]?.tienePrecio) {
+    row = resolved.rows[0];
+  } else if (resolved.kind === "service") {
+    const cb = normalizeForMatch(query).match(/coffee\s*break\s*(\d)/);
+    if (cb) {
+      row = resolved.rows.find((r4) => {
+        const label = normalizeForMatch(`${extractNivelLabel(r4)} ${r4.servicio}`);
+        return label.includes(`coffee break ${cb[1]}`) || label.includes(`coffeebreak ${cb[1]}`);
+      });
+    }
+    if (!row) {
+      const filters = parseCatalogQueryFilters(query);
+      if (filters.nivel) {
+        const want = normalizeForMatch(filters.nivel);
+        row = resolved.rows.find(
+          (r4) => normalizeForMatch(extractNivelLabel(r4)) === want
+        );
+      }
+    }
+    if (!row) {
+      row = resolved.rows.find((r4) => r4.tienePrecio && r4.precio);
+    }
+  }
+  if (!row?.tienePrecio || !row.precio) return null;
+  const parsed = parseRowNotes(row.notas);
+  return {
+    price: row.precio,
+    unit: row.unidad || "/pp",
+    label: formatCatalogRowLabel(row),
+    minimo: parsed.minimo || null
+  };
+}
+function reconcilePdfInclusionWithSheetPrice(pdfReply, query) {
+  if (!pdfReply?.trim()) return pdfReply;
+  const sheet = findSheetPriceForQuery(query);
+  if (!sheet) return pdfReply;
+  const sheetNum = Math.round(Number(String(sheet.price).replace(/[^0-9.]/g, "")));
+  if (!Number.isFinite(sheetNum) || sheetNum < 10) return pdfReply;
+  const pdfMatch = pdfReply.match(/\$\s*([\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|[\d]+(?:\.\d+)?)/);
+  if (!pdfMatch) {
+    return pdfReply.replace(
+      /(Según el catálogo[^\n]*:\s*\n\n)/i,
+      `$1*Precio de lista:* ${sheet.price}${sheet.unit ? ` ${sheet.unit}` : ""}${sheet.minimo ? ` (m\xEDn. ${sheet.minimo})` : ""}
+`
+    );
+  }
+  const pdfNum = Math.round(Number(pdfMatch[1].replace(/,/g, "")));
+  if (!Number.isFinite(pdfNum) || pdfNum === sheetNum) return pdfReply;
+  let out2 = pdfReply.replace(
+    /\$\s*[\d]{1,3}(?:,[\d]{3})*(?:\.\d+)?|\$\s*[\d]+(?:\.\d+)?/,
+    sheet.price.startsWith("$") ? sheet.price : `$${sheet.price}`
+  );
+  if (sheet.minimo) {
+    out2 = out2.replace(
+      /Costo m[ií]nimo:\s*\$?\s*[\d,.]+(?:\.\d+)?\s*MXN[^.\n]*/i,
+      `M\xEDnimo: ${sheet.minimo}`
+    );
+    out2 = out2.replace(
+      /M[ií]nimo:\s*\$?\s*[\d,.]+(?:\.\d+)?\s*MXN/i,
+      `M\xEDnimo: ${sheet.minimo}`
+    );
+  }
+  return out2;
+}
+function buildPdfInclusionReply(query, maxChars = 1100) {
+  const raw = buildLucyInfoInclusionReply(query, maxChars);
+  if (!raw || /bet[uú]n|cupcakes?/i.test(raw)) return null;
+  return collapseDuplicatedInclusionReply(
+    reconcilePdfInclusionWithSheetPrice(raw, query)
+  );
+}
+function resolvedHasInclusionData(resolved) {
+  return resolved.rows.some((r4) => !!getInclusionFromRow(r4));
+}
+function inclusionLabelForResolved(resolved) {
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return formatCatalogRowLabel(resolved.rows[0]);
+  }
+  return resolved.serviceName ?? formatCatalogRowLabel(resolved.rows[0]);
+}
+function buildInclusionTeamConfirmationAnswer(query) {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  const label = inclusionLabelForResolved(resolved);
+  const nivel = resolved.kind === "service_nivel" && resolved.rows[0] ? extractNivelLabel(resolved.rows[0]) : parseCatalogQueryFilters(query).nivel;
+  if (resolved.kind === "service_nivel" && resolved.rows[0] && getInclusionFromRow(resolved.rows[0])) {
+    return null;
+  }
+  const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(query);
+  const fromPdf = specificNivelAsk ? buildPdfInclusionReply(query) : buildPdfInclusionReply([label, nivel, query].filter(Boolean).join(" ")) || buildPdfInclusionReply(query);
+  if (fromPdf) return fromPdf;
+  const priced = buildCatalogPriceAnswer(query) || buildCatalogPriceAnswer(label) || (resolved.serviceName ? buildCatalogPriceAnswer(resolved.serviceName) : null);
+  if (priced && /\$\s*\d/.test(priced)) return priced;
+  if (resolvedHasInclusionData(resolved)) return null;
+  const webHint = buildCatalogWebDetailHint(label) ?? buildCatalogWebDetailHint(resolved.serviceName ?? query) ?? buildCatalogWebDetailHint(query);
+  const webUrl = getCatalogWebUrlForQuery(label) ?? getCatalogWebUrlForQuery(resolved.serviceName ?? "") ?? getCatalogWebUrlForQuery(query) ?? resolveCatalogWebLink(label).url ?? resolveCatalogWebLink(resolved.serviceName ?? query).url ?? resolveCatalogWebLink(query).url;
+  if (webHint || webUrl) {
+    const head2 = nivel ? `Para *${label}* el detalle de lo que incluye cada nivel (incl. *${nivel}*) est\xE1 en el cat\xE1logo web.` : `Para *${label}* el detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.`;
+    const linkBlock = webHint ?? `Cat\xE1logo: ${toDeliverableCatalogUrl(webUrl)}`;
+    return `${head2}
+
+${linkBlock}
+
+${SERVICE_NIVEL_DETAIL_CTA}`;
+  }
+  const hub = getCatalogWebHubDeliveryUrl();
+  const head = nivel ? `Para *${label}* (*${nivel}*) el detalle de inclusiones est\xE1 en el cat\xE1logo.` : `Para *${label}* el detalle de inclusiones est\xE1 en el cat\xE1logo.`;
+  return `${head}
+
+${hub}
+
+${SERVICE_NIVEL_DETAIL_CTA}`;
+}
+function resolveCatalogInclusionReply(query, serviceHint) {
+  const floralBlob = `${query} ${serviceHint ?? ""}`;
+  if (/\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(
+    floralBlob
+  )) {
+    return "\xA1Claro! Anoto *centros de mesa* (decoraci\xF3n floral) para tu cotizaci\xF3n. Nuestro equipo te confirma estilos, precio e inclusiones seg\xFAn tu referencia.";
+  }
+  const specificItem = buildSpecificInclusionItemReply(query, serviceHint);
+  if (specificItem) return specificItem;
+  const wantsAllLevels = /\bcada\s+(nivel|cosa|paquete|uno|una)|todos\s+los\s+niveles|\blos\s+tres\s+niveles|\bb[aá]sic\w*.*tradicional.*premium|descripci[oó]n(es)?\s+de\s+cada|qu[eé]\s+incluye\s+cada/i.test(
+    query
+  );
+  const pdfQ = [serviceHint, query].filter(Boolean).join(" ");
+  const specificNivelAsk = /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic[ao]?)\b/i.test(query);
+  const fromPdfEarly = buildPdfInclusionReply(query) || (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null) || (!specificNivelAsk && serviceHint ? buildPdfInclusionReply(serviceHint) : null);
+  if (fromPdfEarly && !wantsAllLevels) {
+    return fromPdfEarly;
+  }
+  if (fromPdfEarly && wantsAllLevels && serviceHint?.trim()) {
+    const priced = buildCatalogPriceAnswer(serviceHint) || buildCatalogServiceDetailAnswer(serviceHint);
+    if (priced && /\$\s*\d/.test(priced)) {
+      return collapseDuplicatedInclusionReply(
+        `${priced}
+
+Detalle de un nivel (cat\xE1logo PDF):
+${fromPdfEarly}`
+      );
+    }
+    return fromPdfEarly;
+  }
+  const linkQ = serviceHint?.trim() || query;
+  const withLink = (text2) => text2 ? ensureCatalogWebLink(text2, linkQ) : null;
+  if (wantsAllLevels && serviceHint?.trim()) {
+    const detail = buildCatalogServiceDetailAnswer(serviceHint);
+    if (detail) return withLink(detail);
+    const all = buildCatalogInclusionAnswer(serviceHint);
+    if (all) return withLink(all);
+    const team = buildInclusionTeamConfirmationAnswer(serviceHint);
+    if (team) return withLink(team);
+  }
+  const attempts = [
+    serviceHint ? `${serviceHint} ${query}` : null,
+    // Si el mensaje pide un nivel concreto (CB4), no intentar solo el hint genérico
+    // ("Coffee Break") — devolvería CB1 del PDF.
+    !specificNivelAsk && serviceHint ? serviceHint : null,
+    // Solo usar el mensaje crudo si menciona un servicio; si no, evita match basura (Betún).
+    /\b(banquete|taquiza|barra|coffee|brunch|pizza|sushi|crepas?|mesa\s+de|dj|carpa|pista)\b/i.test(
+      query
+    ) ? query : null
+  ].filter((q2) => !!q2?.trim());
+  for (const q2 of attempts) {
+    if (wantsAllLevels) {
+      const detail2 = buildCatalogServiceDetailAnswer(q2);
+      if (detail2 && !/bet[uú]n|cupcakes?/i.test(detail2)) return withLink(detail2);
+    }
+    const hit = buildCatalogInclusionAnswer(q2) ?? buildInclusionTeamConfirmationAnswer(q2);
+    if (hit && !/bet[uú]n|cupcakes?/i.test(hit)) return withLink(hit);
+    const detail = buildCatalogServiceDetailAnswer(q2);
+    if (detail && !/bet[uú]n|cupcakes?/i.test(detail)) return withLink(detail);
+    if (specificNivelAsk && serviceHint && q2 === serviceHint) continue;
+    const fromPdf = buildPdfInclusionReply(q2);
+    if (fromPdf) return fromPdf;
+  }
+  const fromPdfLate = buildPdfInclusionReply(query) || (!specificNivelAsk ? buildPdfInclusionReply(pdfQ) : null);
+  if (fromPdfLate) return fromPdfLate;
+  if (specificNivelAsk) {
+    const priced = buildCatalogPriceAnswer(query) || (serviceHint ? buildCatalogPriceAnswer(serviceHint) : null) || buildCatalogServiceDetailAnswer(
+      query.replace(/\bqu[eé]\s+incluye\b/gi, "precio").replace(/\bdetalle\b/gi, "precio")
+    );
+    if (priced && /\$\s*\d/.test(priced)) {
+      return withLink(
+        `Ese nivel no tiene bloque de inclusiones en el cat\xE1logo PDF todav\xEDa. Te dejo el precio de lista (Sheet):
+
+${priced}`
+      );
+    }
+  }
+  const webQ = serviceHint || query;
+  if (/\bbanquete|\bcatering\b/i.test(webQ) || /\bbanquete|\bcatering\b/i.test(serviceHint ?? "")) {
+    const banqueteQ = banqueteDetailQuery(`${webQ} ${serviceHint ?? ""}`);
+    const detail = buildCatalogServiceDetailAnswer(banqueteQ) ?? buildCatalogPriceAnswer(banqueteQ);
+    return ensureCatalogWebLink(detail || "Claro, te dejo el cat\xE1logo de banquetes.", banqueteQ);
+  }
+  const webHint = buildCatalogWebDetailHint(webQ) ?? buildCatalogWebDetailHint(query);
+  const webUrl = getCatalogWebUrlForQuery(webQ) ?? getCatalogWebUrlForQuery(query);
+  if (webHint || webUrl) {
+    return ensureCatalogWebLink(
+      `El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo web.
+
+${webHint ?? `Cat\xE1logo: ${webUrl}`}
+
+${SERVICE_NIVEL_DETAIL_CTA}`,
+      webQ
+    );
+  }
+  return ensureCatalogWebLink(
+    "El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo.",
+    linkQ
+  );
+}
+function clientAsksInclusion(message) {
+  if (!message?.trim()) return false;
+  const caption = clientCaptionForServiceParse(message) || message;
+  const t3 = caption.toLowerCase();
+  if (!t3.trim()) return false;
+  return /\bqu[eé]\s+incluye|\bqu[eé]\s+incluir[ií]a|\bincluir[ií]a\b|\bqu[eé]\s+trae|\bqu[eé]\s+lleva|\bmen[uú]s?\b|\bdetalle\b|\bdescripci[oó]n(es)?\b|\bopci[oó]nes?\s+incluyen|\bincluye\s+(la|el|un|una|el\s+paquete)\b|\bqu[eé]\s+trae\s+cada\b|\bqu[eé]\s+incluye\s+cada\b|\b(ver|quiero|dame|pasar?)\s+(los\s+)?paquetes?\b|\b(ver|quiero|dame)\s+(los\s+)?niveles?\b|\bpaquetes?\s+(disponibles?|que\s+(manejan|tienes|ofrecen))\b|\bno\s+s[eé]\s+(muy\s+bien\s+)?cu[aá]l\b.{0,40}\b(incluir|nivel|opci[oó]n|variante|paquete)\b|\bcu[aá]l\s+podr[ií]a\s+ser\b/i.test(
+    t3
+  ) || /\bofreces?\b.{0,50}\bpaquetes?\b/i.test(t3) || /\bpor\s+qu[eé]\b.{0,60}\bpaquetes?\b/i.test(t3) || /\bidea\s+m[aá]s\s+clara\b/i.test(t3) || clientAsksSpecificInclusionItem(caption) != null;
+}
+var INCLUSION_ITEM_PATTERNS = {
+  bebidas: /\bbebidas?\b|\brefrescos?\b|\bbarman\b|\bbarra\s+de\s+bebidas?\b|\bvitroleros?\b|\bagua\s+fresca\b/i,
+  meseros: /\bmeseros?\b|\bpersonal\s+de\s+servicio\b|\bstaff\s+de\s+servicio\b/i,
+  vajilla: /\bvajilla\b/i,
+  cristaleria: /\bcristaler[ií]a\b/i,
+  montaje: /\bmontaje\b|\binstalaci[oó]n\b/i,
+  chef: /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i,
+  alcohol: /\balcohol\b|\bborra\s+libre\b|\bopen\s*bar\b|\blicor/i
+};
+function inclusionEvidenceRegex(item, serviceLabel) {
+  if (item === "bebidas") {
+    if (/coffee\s*break|barra\s+de\s+caf/i.test(serviceLabel)) {
+      return /\b(caf[eé]|t[eé]|jugos?|refrescos?|bebidas?|leche|agua\s+fresca)\b/i;
+    }
+    return /\b(bebidas?|refrescos?|vitroleros?|barra\s*:|barman|margaritas?)\b/i;
+  }
+  if (item === "meseros") return /\bmeseros?\b|\b1\s*c\/\d+\s*personas?\b|\bstaff\s+de\s+servicio\b/i;
+  if (item === "vajilla") return /\bvajilla\b/i;
+  if (item === "cristaleria") return /\bcristaler[ií]a\b|\bhighball\b|\bcopas?\b/i;
+  if (item === "montaje") return /\bmontaje\b|\binstalaci[oó]n\b/i;
+  if (item === "chef") return /\bchefs?\b|\bpersonal\s+de\s+cocina\b/i;
+  return /\balcohol\b|\bopen\s*bar\b|\bbarra\s+libre\b|\blicor|\btequila|\bwhisky/i;
+}
+function pdfWindowForNivel(service, nivel) {
+  const raw = buildPdfInclusionReply(`${service} ${nivel}`) || buildPdfInclusionReply(`${nivel} ${service}`) || "";
+  if (!raw) return "";
+  const body2 = raw.replace(/^Según el catálogo[^\n]*:\n\n/i, "");
+  const nivelRe = nivel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  const start2 = body2.search(new RegExp(nivelRe, "i"));
+  if (start2 < 0) return body2.slice(0, 420);
+  const slice = body2.slice(start2);
+  const next = slice.slice(40).search(
+    /\b(Solo Alimentos|B[aá]sico|Tradicional|Premium|Coffee Break \d|Men[uú] \d tiempos|Agrega Barra)\b/i
+  );
+  return next > 0 ? slice.slice(0, 40 + next) : slice.slice(0, 520);
+}
+function clientAsksSpecificInclusionItem(message) {
+  if (!message?.trim()) return null;
+  const t3 = message.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/\binclue\b/g, "incluye").replace(/\byncluye\b/g, "incluye");
+  if (!/\b(incluye|incluyen|incluir|trae|traen|lleva|llevan|viene|vienen|tiene|tienen|con\s+bebidas?|sin\s+bebidas?)\b/i.test(
+    t3
+  ) && !/\bsi\b.{0,50}\bincluye/i.test(t3) && !/\bviene(n)?\s+con\b/i.test(t3)) {
+    return null;
+  }
+  for (const item of Object.keys(INCLUSION_ITEM_PATTERNS)) {
+    if (INCLUSION_ITEM_PATTERNS[item].test(t3)) return item;
+  }
+  return null;
+}
+function resolveInclusionServiceLabel(query, serviceHint) {
+  const blob = `${serviceHint ?? ""} ${query}`.trim();
+  const primary = parsePrimaryService(blob) || parsePrimaryService(query);
+  if (primary) return primary;
+  if (serviceHint?.trim()) {
+    const first = serviceHint.split(/,| y /i).map((s6) => s6.trim()).find((s6) => parsePrimaryService(s6) || /\b(canap|bocadillo|banquete|taquiza|coffee|barra|mesa|sushi|pizza|paella|desayuno|brunch)\b/i.test(s6));
+    if (first) return parsePrimaryService(first) || first;
+  }
+  const resolved = resolveCatalogQuery(query);
+  if (resolved?.serviceName) return resolved.serviceName;
+  return serviceHint?.trim() || null;
+}
+function formatNivelPrice(row) {
+  if (!row.tienePrecio || !row.precio) return "";
+  const unit = row.unidad?.trim() ? ` ${row.unidad.trim()}` : "";
+  return ` (${row.precio}${unit})`;
+}
+function buildSpecificInclusionItemReply(query, serviceHint) {
+  const item = clientAsksSpecificInclusionItem(query);
+  if (!item) return null;
+  const service = resolveInclusionServiceLabel(query, serviceHint);
+  if (!service) return null;
+  const evidence = inclusionEvidenceRegex(item, service);
+  const resolved = resolveCatalogQuery(service);
+  const rows = resolved && resolved.kind !== "category" ? [...new Map(resolved.rows.map((r4) => [extractNivelLabel(r4), r4])).values()] : [];
+  const yes = [];
+  const no = [];
+  const unclear = [];
+  for (const row of rows.slice(0, 8)) {
+    const nivel = extractNivelLabel(row);
+    const price = formatNivelPrice(row);
+    const sheetInc = getInclusionFromRow(row) ?? "";
+    const pdf = pdfWindowForNivel(service, nivel);
+    const blob = `${sheetInc}
+${pdf}`;
+    const soloAlimentos = /solo\s+alimentos/i.test(nivel);
+    const hasSheet = evidence.test(sheetInc);
+    const hasPdf = evidence.test(pdf);
+    const has2 = hasSheet || hasPdf;
+    const foodOnlyNoDrinks = (item === "bebidas" || item === "alcohol") && soloAlimentos && !hasSheet && !/\b(bebidas?|refrescos?|vitroleros|barra\s*:|alcohol)\b/i.test(sheetInc);
+    const negated = foodOnlyNoDrinks || new RegExp(
+      `\\b(sin|no\\s+incluye|no\\s+incluyen)\\b.{0,40}(${item}|bebidas?|refrescos?)`,
+      "i"
+    ).test(blob);
+    const bullet = `\u2022 *${nivel}*${price}`;
+    if (foodOnlyNoDrinks) no.push(bullet);
+    else if (has2 && !negated) yes.push(bullet);
+    else if (negated) no.push(bullet);
+    else unclear.push(bullet);
+  }
+  let addonLine = null;
+  if (item === "bebidas" || item === "alcohol") {
+    const addonPdf = buildPdfInclusionReply(`${service} Barra de Bebidas`) || buildPdfInclusionReply(`${service} agrega barra de bebidas`) || buildPdfInclusionReply(`Agrega Barra de Bebidas ${service}`);
+    const addonBlob = addonPdf ?? "";
+    const priceMatch = addonBlob.match(
+      /barra\s+de\s+bebidas?[^\d$]{0,40}\$?\s*([\d,.]+)\s*(?:\/?\s*pp|por\s+persona)?/i
+    );
+    if (/agrega\s+barra\s+de\s+bebidas|barra\s+de\s+bebidas\s*[—\-–]/i.test(addonBlob) || priceMatch) {
+      const p4 = priceMatch?.[1] ? ` (+$${priceMatch[1]} /pp)` : "";
+      addonLine = `\u2022 Se puede *agregar Barra de Bebidas*${p4} si quieren barra m\xE1s completa.`;
+    }
+  }
+  if (!rows.length) {
+    const fromPdf = buildPdfInclusionReply(`${service} ${query}`) || buildPdfInclusionReply(`${service} ${item}`) || buildPdfInclusionReply(service);
+    if (!fromPdf) {
+      const web = getCatalogWebUrlForQuery(service);
+      return ensureCatalogWebLink(
+        `Para *${service}*, el detalle de *${item}* lo confirmo con el cat\xE1logo${web ? "" : ""}. Nuestro equipo te precisa exactamente qu\xE9 incluye cada nivel.`,
+        service
+      );
+    }
+    return ensureCatalogWebLink(
+      `Sobre *${item}* en *${service}*:
+
+${fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "")}`,
+      service
+    );
+  }
+  const lines = [`Sobre *${item}* en *${service}*:`, ""];
+  if (yes.length) {
+    lines.push(`*S\xED incluye* en:`);
+    lines.push(...yes);
+    lines.push("");
+  }
+  if (no.length) {
+    lines.push(`*No incluye* en:`);
+    lines.push(...no);
+    lines.push("");
+  }
+  if (!yes.length && !no.length) {
+    const priced = buildCatalogPriceAnswer(service);
+    const fromPdf = buildPdfInclusionReply(`${service} ${query}`) || buildPdfInclusionReply(`${service} ${item}`) || buildPdfInclusionReply(service);
+    const body2 = [
+      fromPdf ? fromPdf.replace(/^Según el catálogo[^\n]*:\n\n/i, "") : `En el cat\xE1logo de *${service}* te detallo lo de *${item}* por nivel.`,
+      priced && /\$\s*\d/.test(priced) ? `
+
+Precios de lista:
+${priced}` : ""
+    ].join("");
+    return ensureCatalogWebLink(
+      `Sobre *${item}* en *${service}*:
+
+${body2}
+
+\xBFDe qu\xE9 nivel te paso el detalle completo?`,
+      service
+    );
+  }
+  if (addonLine) {
+    lines.push(addonLine);
+    lines.push("");
+  }
+  if (unclear.length && yes.length + no.length < rows.length) {
+  }
+  lines.push("\xBFTe late alguno de estos niveles o te detallo uno en concreto?");
+  return ensureCatalogWebLink(lines.filter((l5, i5, a3) => !(l5 === "" && a3[i5 - 1] === "")).join("\n"), service);
+}
+function buildCatalogInclusionAnswer(query) {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    const row = resolved.rows[0];
+    const inclusion = getInclusionFromRow(row);
+    if (!inclusion) return null;
+    const label = formatCatalogRowLabel(row);
+    return `*${label}* \u2014 *Incluye:* ${inclusion}`;
+  }
+  if (resolved.kind === "service") {
+    const rowsWithInclusion = resolved.rows.filter((r4) => getInclusionFromRow(r4));
+    if (!rowsWithInclusion.length) return null;
+    if (rowsWithInclusion.length === 1) {
+      const row = rowsWithInclusion[0];
+      return `*${formatCatalogRowLabel(row)}* \u2014 *Incluye:* ${getInclusionFromRow(row)}`;
+    }
+    const baseName = resolved.serviceName ?? rowsWithInclusion[0].servicio;
+    const blocks = rowsWithInclusion.slice(0, 5).map((row) => {
+      const nivel = extractNivelLabel(row);
+      return `\u2022 *${nivel}:* ${getInclusionFromRow(row)}`;
+    });
+    return `*Incluye:* \u2014 *${baseName}*:
+${blocks.join("\n")}`;
+  }
+  return null;
+}
+function buildCatalogPriceAnswer(query) {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (!catalogResultMatchesRequestedService(query, resolved)) return null;
+  const svcHint = resolved.serviceName ?? query;
+  const withLink = (text2) => text2 ? ensureCatalogWebLink(text2, svcHint) : null;
+  if (resolved.kind === "category") {
+    return withLink(buildCategoryServicesAnswer(resolved));
+  }
+  if (resolved.kind === "service_nivel" && resolved.rows[0]) {
+    return buildExactRowPriceAnswer(resolved.rows[0]);
+  }
+  if (resolved.kind === "service") {
+    const priced = resolved.rows.filter((r4) => r4.tienePrecio && r4.precio);
+    if (priced.length > 1) {
+      const unique2 = [
+        ...new Map(priced.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()
+      ];
+      const baseName2 = resolved.serviceName ?? unique2[0].servicio;
+      const priceLines2 = unique2.slice(0, 6).map((row) => {
+        const parsed = parseRowNotes(row.notas);
+        const nivel = extractNivelLabel(row);
+        const unit = row.unidad ? ` ${row.unidad}` : "";
+        const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
+        const svcBit = uniqueServicios(unique2).length > 1 ? `${row.servicio} \u2014 ` : "";
+        return `\u2022 *${svcBit}${nivel}* \u2014 ${row.precio}${unit}${min}`;
+      }).join("\n");
+      if (priceLines2) {
+        const inclusionBlock2 = buildInclusionBlock(unique2, 220);
+        return withLink(
+          `S\xED, manejamos ${baseName2}:
+
+${priceLines2}${inclusionBlock2}
+
+\xBFQu\xE9 nivel te interesa?`
+        );
+      }
+      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
+    }
+    if (priced.length === 1) {
+      return buildExactRowPriceAnswer(priced[0]);
+    }
+    return buildServiceNivelChoiceAnswer(resolved);
+  }
+  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
+  const baseName = resolved.serviceName ?? unique[0].servicio;
+  const priceLines = unique.filter((r4) => r4.tienePrecio && r4.precio).slice(0, 6).map((row) => {
+    const parsed = parseRowNotes(row.notas);
+    const nivel = extractNivelLabel(row);
+    const unit = row.unidad ? ` ${row.unidad}` : "";
+    const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
+    return `\u2022 *${nivel}* \u2014 ${row.precio}${unit}${min}`;
+  }).join("\n");
+  if (!priceLines) return buildServiceNivelChoiceAnswer(resolved);
+  const inclusionBlock = buildInclusionBlock(unique, 280);
+  return withLink(`S\xED, manejamos ${baseName}:
+
+${priceLines}${inclusionBlock}`);
+}
+function summarizeServicePrices(serviceKey, maxLevels = 4) {
+  const rows = snapshot?.rows.filter(
+    (r4) => r4.tienePrecio && r4.precio && normalizeForMatch(`${r4.servicio} ${r4.nivel}`).includes(normalizeForMatch(serviceKey))
+  );
+  if (!rows?.length) return null;
+  const unique = [...new Map(rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
+  const label = unique[0].servicio;
+  const lines = unique.slice(0, maxLevels).map((row) => {
+    const nivel = extractNivelLabel(row);
+    const parsed = parseRowNotes(row.notas);
+    const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
+    return `\u2022 *${nivel}:* ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${min}`;
+  });
+  return `*${label}*
+${lines.join("\n")}`;
+}
+function buildCatalogComparisonAnswer() {
+  if (!snapshot?.rows.length) return null;
+  const taquiza = summarizeServicePrices("taquiza", 4);
+  const banquete = summarizeServicePrices("banquete 3 tiempos", 4);
+  if (!taquiza && !banquete) return null;
+  const parts2 = [
+    "Te comparto una comparaci\xF3n r\xE1pida con precios de referencia:",
+    "",
+    taquiza ?? "",
+    taquiza && banquete ? "" : "",
+    banquete ?? "",
+    "",
+    "*En general:* taquiza es m\xE1s casual y flexible; banquete es m\xE1s formal con servicio de meseros y vajilla.",
+    "\xBFCu\xE1l te late m\xE1s para tu evento?"
+  ];
+  return parts2.filter((l5) => l5 !== void 0 && l5 !== "").join("\n").trim();
+}
+function formatServiceDataForPrompt(query) {
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (resolved.kind === "category") {
+    return [
+      "DATOS DEL SERVICIO (Google Sheet \u2014 consulta de categor\xEDa, NO listar todo):",
+      `Categor\xEDa: ${resolved.categoryLabel}`,
+      `Servicios disponibles: ${simplifyServiceNamesForList(uniqueServicios(resolved.rows)).join(", ")}`,
+      "Pide al cliente que elija UN servicio concreto antes de dar precios."
+    ].join("\n");
+  }
+  if (resolved.kind === "service" && uniqueNiveles(resolved.rows).length > 1) {
+    const svc = resolved.serviceName ?? uniqueServicios(resolved.rows)[0];
+    const levelLines = uniqueNiveles(resolved.rows).slice(0, 6).map((n4) => {
+      const row = resolved.rows.find(
+        (r4) => normalizeForMatch(extractNivelLabel(r4)) === normalizeForMatch(n4)
+      );
+      const incl = row ? getInclusionFromRow(row) : null;
+      const price = row?.tienePrecio && row.precio ? ` | Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+      return incl ? `- ${n4}${price} | Incluye: ${incl}` : `- ${n4}${price} | Incluye: (vac\xEDo en cat\xE1logo \u2014 di que el equipo confirma; NO inventes)`;
+    });
+    return [
+      "DATOS DEL SERVICIO (Google Sheet \u2014 elegir nivel):",
+      `Servicio: ${svc}`,
+      "Al ofrecer niveles, EXPLICA qu\xE9 incluye cada uno con el texto del Sheet. NUNCA digas solo los nombres.",
+      ...levelLines,
+      "Pregunta cu\xE1l nivel prefiere DESPU\xC9S de mostrar inclusiones. No inventes inclusiones ni marcas."
+    ].join("\n");
+  }
+  const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()].slice(
+    0,
+    6
+  );
+  const lines = unique.map((row) => {
+    const parsed = parseRowNotes(row.notas);
+    const price = row.tienePrecio && row.precio ? `Precio: ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}${parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : ""}` : "Precio: sin listar \u2014 Alejandro cotiza";
+    const inclusion = parsed.inclusion ? `Incluye: ${parsed.inclusion}` : "Incluye: (vac\xEDo en cat\xE1logo \u2014 equipo confirma en cotizaci\xF3n)";
+    const link = row.linkCatalogo ? ` | Link cat\xE1logo (SOLO si lo piden): ${row.linkCatalogo}` : "";
+    return `- ${formatCatalogRowLabel(row)} | ${price} | ${inclusion}${link}`;
+  });
+  return [
+    "DATOS DEL SERVICIO (fuente Google Sheet \u2014 usar SOLO esto; no inventar precios ni inclusiones):",
+    ...lines
+  ].join("\n");
+}
+function mentionedServiceLabel(query) {
+  return parsePrimaryService(query);
+}
+function buildCatalogNotFoundAnswer(serviceLabel, query) {
+  if (query && classifyServiceKnowledgeLevel(query) === 3) {
+    return buildLevel3Ack(serviceLabel);
+  }
+  return buildLevel2Ack(serviceLabel);
+}
+function buildCatalogServiceDetailAnswer(query) {
+  if (!snapshot?.rows.length) return null;
+  if (clientAsksPrice(query)) {
+    return buildCatalogPriceAnswer(query);
+  }
+  if (clientAsksInclusion(query) || /\bcoffee\s*break\s*\d|\b\d\s*tiempos?\b|\b(tradicional|premium|b[aá]sic)/i.test(query)) {
+    const fromPdf = buildPdfInclusionReply(query);
+    if (fromPdf) return fromPdf;
+  }
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved) return null;
+  if (!catalogResultMatchesRequestedService(query, resolved)) return null;
+  if (resolved?.kind === "category") {
+    return buildCategoryServicesAnswer(resolved);
+  }
+  if (resolved?.kind === "service_nivel" && resolved.rows[0]) {
+    const row2 = resolved.rows[0];
+    const incl = getInclusionFromRow(row2);
+    if (!incl) {
+      const fromPdf = buildPdfInclusionReply(query) || buildPdfInclusionReply(formatCatalogRowLabel(row2));
+      if (fromPdf) return fromPdf;
+    }
+    return buildExactRowDetailAnswer(row2);
+  }
+  if (resolved?.kind === "service") {
+    if (/\bcoffee\s*break\s*\d/.test(query)) {
+      const fromPdf = buildPdfInclusionReply(query);
+      if (fromPdf) return fromPdf;
+      const priced = buildCatalogPriceAnswer(query);
+      if (priced) return priced;
+    } else if (/\b(tradicional|premium|b[aá]sic)\b/i.test(query)) {
+      const fromPdf = buildPdfInclusionReply(query);
+      if (fromPdf) return fromPdf;
+    }
+    return buildServiceNivelChoiceAnswer(resolved);
+  }
+  const priceAnswer = buildCatalogPriceAnswer(query);
+  if (priceAnswer) return priceAnswer;
+  const inclusionAnswer = buildCatalogInclusionAnswer(query);
+  if (inclusionAnswer) return inclusionAnswer;
+  const matches = lookupCatalogServices(query);
+  if (!matches.length) return null;
+  const row = matches[0];
+  if (!catalogResultMatchesRequestedService(query, { kind: "service_nivel", rows: [row] })) {
+    return null;
+  }
+  const parsed = parseRowNotes(row.notas);
+  if (parsed.inclusion) {
+    return `S\xED, manejamos *${formatCatalogRowLabel(row)}*.
+
+${parsed.inclusion}`;
+  }
+  return null;
+}
+function responseLooksLikeGenericCateringMenu(text2) {
+  return GENERIC_CATERING_MENU_MARKERS.test(text2);
+}
+function buildCatalogCateringOverviewFromSheet() {
+  if (!snapshot?.rows.length) return null;
+  const byCategory = /* @__PURE__ */ new Map();
+  for (const row of snapshot.rows) {
+    const cat = row.categoria || row.servicio.split(" (")[0] || "Servicio";
+    if (!byCategory.has(cat)) byCategory.set(cat, row);
+  }
+  const foodCats = [...byCategory.entries()].filter(
+    ([cat]) => /taquiza|banquete|brunch|coffee|pizza|sushi|barra|parrillada|canap|crep|paella|pozole|americana|kosher|navide/i.test(
+      cat
+    )
+  ).slice(0, 8);
+  if (!foodCats.length) return null;
+  const options = foodCats.map(([cat, row]) => {
+    const desde = row.tienePrecio && row.precio ? ` \u2014 desde ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
+    return `\u2022 *${cat}*${desde}`;
+  });
+  return [
+    "S\xED, manejamos catering para eventos. Del cat\xE1logo actual, estas son algunas opciones:",
+    "",
+    ...options,
+    "",
+    "\xBFCu\xE1l te interesa? Te paso precios e inclusiones de la que elijas."
+  ].join("\n");
+}
+var EVENT_OFFER_PATTERNS = [
+  {
+    match: /baby\s*shower/i,
+    servicePatterns: [/brunch/i, /banquete/i, /mesa de dulce/i, /bocadillo/i, /canap/i, /mobiliario/i, /silla/i]
+  },
+  {
+    match: /bautizo/i,
+    servicePatterns: [
+      /brunch/i,
+      /banquete/i,
+      /mesa de dulce/i,
+      /pastel/i,
+      /mobiliario/i,
+      /carpa/i,
+      /barra de beb/i,
+      /ilumin/i
+    ]
+  },
+  {
+    match: /graduaci|celebraci[oó]n/i,
+    servicePatterns: [
+      /banquete/i,
+      /taquiza/i,
+      /brunch/i,
+      /barra de beb/i,
+      /mixolog/i,
+      /mesa de (dulce|postre)/i,
+      /mobiliario/i,
+      /\bdj\b/i,
+      /ilumin/i,
+      /pista/i,
+      /carpa/i,
+      /pantalla/i,
+      /audio|sonido/i
+    ]
+  },
+  {
+    match: /corporativ|empresarial|empresa/i,
+    servicePatterns: [/coffee/i, /banquete/i, /catering/i, /mobiliario/i, /mixolog/i, /barra de beb/i, /coctel/i]
+  },
+  {
+    match: /xv|quince/i,
+    servicePatterns: [/banquete/i, /taquiza/i, /mesa de dulce/i, /mobiliario/i, /\bdj\b/i, /ilumin/i, /pista/i, /barra de beb/i]
+  },
+  {
+    match: /cumple/i,
+    servicePatterns: [
+      /banquete/i,
+      /taquiza/i,
+      /brunch/i,
+      /mesa de dulce/i,
+      /mobiliario/i,
+      /barra de beb/i,
+      /\bdj\b/i,
+      /ilumin/i,
+      /pista/i
+    ]
+  },
+  {
+    match: /boda/i,
+    servicePatterns: [
+      /banquete/i,
+      /taquiza/i,
+      /barra de beb/i,
+      /mixolog/i,
+      /mobiliario/i,
+      /\bdj\b/i,
+      /ilumin/i,
+      /mesa de (dulce|postre)/i,
+      /carpa/i,
+      /pista/i
+    ]
+  }
+];
+var BROAD_SOCIAL_OFFER = [
+  "Alimentos (banquete, taquiza, brunch o barras tem\xE1ticas)",
+  "Barras de bebidas / cocteler\xEDa",
+  "Mesa de dulces o postres",
+  "Mobiliario (mesas, sillas, periqueras)",
+  "DJ e iluminaci\xF3n",
+  "Pista de baile o tarima",
+  "Carpas (si es exterior)",
+  "Pantallas y audio"
+];
+var EVENT_OFFER_FALLBACK = {
+  boda: [
+    "Banquete / taquiza",
+    "Barras de bebidas y tem\xE1ticas",
+    "Mobiliario",
+    "DJ e iluminaci\xF3n",
+    "Mesa de postres / dulces",
+    "Carpas y pista de baile"
+  ],
+  "baby shower": ["Brunch", "Banquete ligero", "Mesa de dulces", "Bocadillos", "Mobiliario", "Decoraci\xF3n ligera"],
+  corporativo: ["Coffee Break", "Catering / banquete", "Mobiliario", "Mixolog\xEDa / barras", "Pantallas / audio"],
+  "xv a\xF1os": [
+    "Banquete / taquiza",
+    "Barras de bebidas",
+    "Mesa de dulces",
+    "Mobiliario",
+    "DJ e iluminaci\xF3n",
+    "Pista de baile"
+  ],
+  bautizo: ["Brunch / banquete", "Mesa de dulces", "Mobiliario", "Barras de bebidas", "Carpas (exterior)"],
+  cumplea\u00F1os: [
+    "Banquete / taquiza",
+    "Barras de bebidas",
+    "Mesa de dulces",
+    "Mobiliario",
+    "DJ e iluminaci\xF3n",
+    "Pista de baile"
+  ],
+  graduaci\u00F3n: [...BROAD_SOCIAL_OFFER],
+  celebraci\u00F3n: [...BROAD_SOCIAL_OFFER]
+};
+function normalizeEventKey(tipo) {
+  const t3 = tipo.trim().toLowerCase();
+  if (/baby\s*shower/.test(t3)) return "baby shower";
+  if (/xv|quince/.test(t3)) return "xv a\xF1os";
+  if (/corporativ|empresarial/.test(t3)) return "corporativo";
+  if (/bautizo/.test(t3)) return "bautizo";
+  if (/cumple/.test(t3)) return "cumplea\xF1os";
+  if (/boda/.test(t3)) return "boda";
+  if (/graduaci/.test(t3)) return "graduaci\xF3n";
+  if (/celebraci/.test(t3)) return "celebraci\xF3n";
+  return t3.slice(0, 40);
+}
+function listCatalogServicesForEvent(tipoEvento) {
+  const tipo = (tipoEvento ?? "").trim();
+  if (!tipo) return [];
+  const focus = resolveServiceFocusFromText(tipo);
+  if (focus) {
+    const names4 = [];
+    const seen2 = /* @__PURE__ */ new Set();
+    if (snapshot?.rows.length) {
+      for (const row of snapshot.rows) {
+        const blob = `${row.categoria} ${row.servicio} ${row.nivel}`.toLowerCase();
+        if (!focus.serviceHints.some((h4) => blob.includes(h4.toLowerCase()))) continue;
+        const base = row.servicio.trim();
+        const n4 = base.toLowerCase();
+        if (seen2.has(n4)) continue;
+        seen2.add(n4);
+        names4.push(base);
+        if (names4.length >= 6) break;
+      }
+    }
+    if (!names4.length) names4.push(focus.label);
+    for (const c4 of focus.complements) {
+      if (!names4.some((n4) => n4.toLowerCase().includes(c4.toLowerCase().split(" ")[0]))) {
+        names4.push(c4);
+      }
+    }
+    return names4;
+  }
+  const key = normalizeEventKey(tipo);
+  const patterns = EVENT_OFFER_PATTERNS.find((p4) => p4.match.test(tipo))?.servicePatterns ?? EVENT_OFFER_PATTERNS.find((p4) => p4.match.test(key))?.servicePatterns;
+  const names3 = [];
+  const seen = /* @__PURE__ */ new Set();
+  if (snapshot?.rows.length && patterns) {
+    for (const row of snapshot.rows) {
+      const label = formatCatalogRowLabel(row);
+      const blob = `${row.categoria} ${row.servicio} ${row.nivel}`;
+      if (!patterns.some((re3) => re3.test(blob))) continue;
+      const base = row.servicio.trim() || label;
+      const normed = base.toLowerCase();
+      if (seen.has(normed)) continue;
+      seen.add(normed);
+      names3.push(base);
+      if (names3.length >= 10) break;
+    }
+  }
+  if (names3.length >= 5) return names3;
+  const fallback = EVENT_OFFER_FALLBACK[key];
+  if (fallback) return fallback;
+  return [...BROAD_SOCIAL_OFFER];
+}
+function buildBroadLevel1Offer(tipoEvento) {
+  const tipo = (tipoEvento ?? "").trim() || "evento";
+  const lines = [
+    `Con gusto te apoyo con tu ${tipo}. Manejamos varias l\xEDneas para armarlo completo:`,
+    "",
+    "\u2022 *Alimentos*: banquete, taquiza, brunch o barras tem\xE1ticas.",
+    "\u2022 *Barras de bebidas*: cocteler\xEDa, m\xF3cteles o barra de caf\xE9.",
+    "\u2022 *Mesa de dulces o postres*: para un cierre especial.",
+    "\u2022 *Mobiliario*: mesas, sillas, periqueras y montaje.",
+    "\u2022 *DJ e iluminaci\xF3n*: ambiente y baile.",
+    "\u2022 *Pista de baile o tarima*: si quieren pista definida.",
+    "\u2022 *Carpas*: si el evento es en jard\xEDn o exterior.",
+    "\u2022 *Pantallas y audio*: proyecciones, micr\xF3fonos, sonido.",
+    "",
+    "\xBFQu\xE9 te gustar\xEDa revisar primero? Tambi\xE9n podemos armar un paquete con varias opciones."
+  ];
+  return ensureCatalogWebLink(lines.join("\n"), null);
+}
+function countOfferCategories(text2) {
+  if (!text2?.trim()) return 0;
+  const t3 = text2.toLowerCase();
+  let n4 = 0;
+  if (/\b(alimento|banquete|taquiza|brunch|catering|parrillada|barra\s+de\s+(pizzas?|alimentos?))\b/i.test(t3))
+    n4++;
+  if (/\b(bebida|coctel|mixolog|m[oó]ctel|barra\s+de\s+bebidas?)\b/i.test(t3)) n4++;
+  if (/\b(mesa\s+de\s+(dulces?|postres?)|postres?|cupcakes?)\b/i.test(t3)) n4++;
+  if (/\b(mobiliario|mesas?|sillas?|periquera)\b/i.test(t3)) n4++;
+  if (/\bdj\b/i.test(t3)) n4++;
+  if (/\biluminaci[oó]n\b/i.test(t3)) n4++;
+  if (/\b(pista|tarima)\b/i.test(t3)) n4++;
+  if (/\b(carpa|toldo)\b/i.test(t3)) n4++;
+  if (/\b(pantalla|audio|sonido|microfon)\b/i.test(t3)) n4++;
+  return n4;
+}
+function isNarrowSocialEventOffer(text2, tipoEvento) {
+  const tipo = (tipoEvento ?? "").toLowerCase();
+  const social = /graduaci|celebraci|cumple|boda|xv|quince|bautizo|fiesta|aniversario|baby\s*shower/.test(tipo) || !tipo.trim();
+  if (!social) return false;
+  if (/corporativ|empresarial|coffee/.test(tipo)) return false;
+  return countOfferCategories(text2) > 0 && countOfferCategories(text2) < 5;
+}
+function buildEventOfferCatalogHint(tipoEvento) {
+  const tipo = (tipoEvento ?? "").trim();
+  if (!tipo) return null;
+  const focus = resolveServiceFocusFromText(tipo);
+  const services = listCatalogServicesForEvent(tipo);
+  if (!services.length) return null;
+  if (focus) {
+    return [
+      "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 OFRECIMIENTO \u2014 EVENTO = SERVICIO \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+      `El cliente describi\xF3 su evento como \xAB${tipo}\xBB \u2192 sirve el servicio *${focus.label}* (no banquete/taquiza gen\xE9ricos salvo que pidan eso).`,
+      `Servicios del cat\xE1logo a proponer:`,
+      ...services.map((s6) => `\u2022 ${s6}`),
+      "",
+      `Prioriza *${focus.label}* (variantes si hay). Puedes sugerir 1\u20132 complementos (bebidas, mobiliario) sin forzar.`,
+      "Pregunta invitados o qu\xE9 armar. Var\xEDa palabras. NO ofrezcas banquete/taquiza si no aplican a este evento.",
+      "Precios/inclusiones solo del Sheet; si no hay dato, \xABel equipo confirma\xBB."
+    ].join("\n");
+  }
+  return [
+    "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501 OFRECIMIENTO TEMPRANO (tipo de evento ya conocido) \u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    `Tipo de evento: ${tipo}`,
+    "Servicios / categor\xEDas a proponer (AMPLIO \u2014 m\xEDnimo 6 l\xEDneas distintas):",
+    ...services.map((s6) => `\u2022 ${s6}`),
+    "",
+    "Instrucci\xF3n CR\xCDTICA: ofrece un men\xFA Nivel 1 AMPLIO (alimentos, bebidas, dulces/postres, mobiliario, DJ, iluminaci\xF3n, pista/tarima, carpas si aplica, pantallas/audio).",
+    "NUNCA te limites a solo 2\u20133 cosas (ej. solo mobiliario + bebidas + mesa de dulces).",
+    "Pregunta qu\xE9 le gustar\xEDa revisar primero o si arman un paquete. Tono asesora sobria.",
+    "NUNCA digas solo \xAB\xBFqu\xE9 servicios quieres cotizar?\xBB sin haber propuesto el abanico.",
+    "NO inventes precios. Inclusiones solo del Sheet."
+  ].join("\n");
+}
+function injectCatalogInclusionIfAsked(clientMessage, aiResponse, serviceHint) {
+  if (!clientMessage?.trim() || !clientAsksInclusion(clientMessage)) return aiResponse;
+  if (clientAsksPrice(clientMessage) && !clientAsksInclusion(clientMessage)) return aiResponse;
+  const fromPdf = buildPdfInclusionReply(clientMessage);
+  if (fromPdf) return fromPdf;
+  const fromCatalog = resolveCatalogInclusionReply(clientMessage, serviceHint);
+  if (fromCatalog) return collapseDuplicatedInclusionReply(fromCatalog);
+  return aiResponse;
+}
+function injectCatalogCateringIfAsked(clientMessage, aiResponse) {
+  if (!clientMessage?.trim()) return aiResponse;
+  if (clientAsksInclusion(clientMessage) || clientAsksPrice(clientMessage)) return aiResponse;
+  const asksService = clientAsksServiceInfo(clientMessage) || clientAsksPrice(clientMessage);
+  const genericCatering = clientMentionsCatering(clientMessage) && !parsePrimaryService(clientMessage);
+  const mentionsService = isServiceRelatedMessage(clientMessage) && !!parsePrimaryService(clientMessage);
+  if (!asksService && !genericCatering && !mentionsService) return aiResponse;
+  const primary = parsePrimaryService(clientMessage);
+  if (primary && /sushi|coffee\s*break|barra de bebidas/i.test(primary)) {
+    const detail2 = buildCatalogServiceDetailAnswer(clientMessage);
+    if (detail2 && !responseLooksLikeGenericCateringMenu(aiResponse)) {
+      return aiResponse;
+    }
+    if (detail2 && responseLooksLikeGenericCateringMenu(aiResponse)) {
+      return detail2;
+    }
+  }
+  if (responseLooksLikeGenericCateringMenu(aiResponse)) {
+    const detail2 = buildCatalogServiceDetailAnswer(clientMessage);
+    if (detail2) return detail2;
+  }
+  const detail = buildCatalogServiceDetailAnswer(clientMessage);
+  if (detail) {
+    if (asksService || clientAsksInclusion(clientMessage) || responseLooksLikeGenericCateringMenu(aiResponse) || !aiResponse.trim()) {
+      return detail;
+    }
+    return aiResponse;
+  }
+  const label = mentionedServiceLabel(clientMessage);
+  if (label && (asksService || mentionsService)) {
+    return buildCatalogNotFoundAnswer(label, clientMessage);
+  }
+  if (genericCatering && !responseLooksLikeGenericCateringMenu(aiResponse)) {
+    const overview = buildCatalogCateringOverviewFromSheet();
+    if (overview) return overview;
+  }
+  return aiResponse;
+}
+var CATALOG_WEB_HUB_URL = "https://bodasesor.com/catalogos";
+var BODASESOR_CATALOG_WEB_URL = /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]+)?\/?(?:[?#].*)?$/i;
+function isBodasesorCatalogWebUrl(url) {
+  return !!url?.trim() && BODASESOR_CATALOG_WEB_URL.test(url.trim());
+}
+function toDeliverableCatalogUrl(sheetUrl) {
+  if (process.env["CATALOG_USE_LIGHT_PAGES"] !== "1") return sheetUrl;
+  const base = (process.env["CATALOG_LIGHT_BASE_URL"] || process.env["LUCY_PUBLIC_URL"] || "https://midnightblue-mosquito-424375.hostingersite.com").replace(/\/+$/, "");
+  const m5 = sheetUrl.trim().match(
+    /^https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/([a-z0-9-]+))?\/?/i
+  );
+  if (!m5) return sheetUrl;
+  return m5[1] ? `${base}/catalogos/${m5[1]}` : `${base}/catalogos`;
+}
+function getCatalogWebHubDeliveryUrl() {
+  return toDeliverableCatalogUrl(CATALOG_WEB_HUB_URL);
+}
+function getRowCatalogWebLink(row) {
+  const direct = row.linkCatalogo?.trim();
+  if (isBodasesorCatalogWebUrl(direct)) return direct.replace(/\/+$/, "");
+  const fromNotes = parseRowNotes(row.notas).gammaLink?.trim();
+  if (isBodasesorCatalogWebUrl(fromNotes)) return fromNotes.replace(/\/+$/, "");
+  return null;
+}
+function scoreServiceForWebLink(query, row) {
+  const nq = normalizeForMatch(query);
+  const ns = normalizeForMatch(row.servicio);
+  let score = synonymScoreForService(query, row.servicio, row.sinonimos);
+  if (!nq || !ns) return score;
+  if (nq === ns) score += 80;
+  else if (nq.includes(ns) || ns.includes(nq)) score += 45;
+  const svcTokens = ns.split(/\s+/).filter((t3) => t3.length >= 4);
+  const hitTokens = svcTokens.filter((t3) => nq.includes(t3));
+  score += hitTokens.length * 8;
+  if (/\bcolgante/.test(nq) && /entelado|tela/.test(ns)) score -= 60;
+  if (/\bentelad|tela\s+(en\s+)?techo/.test(nq) && /colgante/.test(ns)) score -= 60;
+  if (/\btaquiza\b/.test(nq) && /parrillada\s+tacos/.test(ns)) score -= 40;
+  if (/parrillada\s+tacos/.test(nq) && /^taquiza$/.test(ns)) score -= 40;
+  if (/\bargentina\b/.test(nq) && /parrillada\s+tacos/.test(ns)) score -= 30;
+  return score;
+}
+function resolveCatalogWebLink(query, opts) {
+  if (opts?.preferHub) {
+    return { url: CATALOG_WEB_HUB_URL, serviceName: null, kind: "hub" };
+  }
+  const trimmed = query?.trim() ?? "";
+  if (!trimmed || !snapshot?.rows.length) {
+    return { url: null, serviceName: null, kind: "missing" };
+  }
+  const byService = /* @__PURE__ */ new Map();
+  for (const row of snapshot.rows) {
+    const key = row.servicio.trim();
+    if (!key) continue;
+    const existing = byService.get(key);
+    if (!existing) {
+      byService.set(key, row);
+      continue;
+    }
+    if (!getRowCatalogWebLink(existing) && getRowCatalogWebLink(row)) {
+      byService.set(key, row);
+    }
+  }
+  const scored = [...byService.values()].map((row) => ({ row, score: scoreServiceForWebLink(trimmed, row) })).filter((x7) => x7.score > 0).sort((a3, b4) => b4.score - a3.score);
+  if (!scored.length) {
+    const resolved = resolveCatalogQuery(trimmed);
+    if (resolved && resolved.kind !== "category") {
+      for (const row of resolved.rows) {
+        const url2 = getRowCatalogWebLink(row);
+        if (url2) {
+          return { url: url2, serviceName: row.servicio, kind: "service" };
+        }
+      }
+      const name2 = resolved.serviceName ?? resolved.rows[0]?.servicio ?? null;
+      return { url: null, serviceName: name2, kind: "missing" };
+    }
+    return { url: null, serviceName: null, kind: "missing" };
+  }
+  const best = scored[0];
+  if (best.score < 14) {
+    return { url: null, serviceName: null, kind: "missing" };
+  }
+  const url = getRowCatalogWebLink(best.row);
+  if (url) {
+    return { url, serviceName: best.row.servicio, kind: "service" };
+  }
+  return { url: null, serviceName: best.row.servicio, kind: "missing" };
+}
+function buildCatalogWebLinkReply(opts) {
+  if (opts.wantFull) {
+    return [
+      "Claro. Aqu\xED tienes el cat\xE1logo general con todos los servicios:",
+      getCatalogWebHubDeliveryUrl(),
+      "",
+      "Si luego quieres el de un servicio en concreto, d\xEDmelo y te mando ese link."
+    ].join("\n");
+  }
+  const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
+  const match2 = resolveCatalogWebLink(query);
+  if (match2.kind === "service" && match2.url) {
+    const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
+    return [
+      `Claro, aqu\xED tienes el cat\xE1logo${label}:`,
+      toDeliverableCatalogUrl(match2.url),
+      "",
+      "Si quieres el de otro servicio, d\xEDmelo y te mando ese."
+    ].join("\n");
+  }
+  if (match2.serviceName) {
+    return [
+      `Para *${match2.serviceName}* a\xFAn no tengo el link web en el cat\xE1logo vivo.`,
+      `Te dejo el \xEDndice general mientras el equipo te comparte el detalle:`,
+      getCatalogWebHubDeliveryUrl()
+    ].join("\n");
+  }
+  return [
+    "Con gusto te paso el cat\xE1logo. \xBFDe qu\xE9 servicio lo quieres, o te mando el general?",
+    getCatalogWebHubDeliveryUrl()
+  ].join("\n");
+}
+function buildServicePlusGeneralCatalogReply(opts) {
+  const query = [opts.query, opts.serviceHint].filter(Boolean).join(" ").trim() || opts.query;
+  const match2 = resolveCatalogWebLink(query);
+  const hub = getCatalogWebHubDeliveryUrl();
+  if (match2.kind === "service" && match2.url) {
+    const serviceUrl = toDeliverableCatalogUrl(match2.url);
+    const label = match2.serviceName ? ` de *${match2.serviceName}*` : "";
+    const lines = [`Cat\xE1logo${label}:`, serviceUrl];
+    if (serviceUrl.replace(/\/+$/, "") !== hub.replace(/\/+$/, "")) {
+      lines.push("", "Cat\xE1logo general:", hub);
+    }
+    return lines.join("\n");
+  }
+  return ["Cat\xE1logo general:", hub].join("\n");
+}
+function stripCatalogWebUrlBlocks(text2) {
+  if (!text2?.trim()) return text2 ?? "";
+  return stripUnsolicitedCatalogWebLinks(text2, false).replace(
+    /El detalle completo de men[uú]s e inclusiones est[aá] en el cat[aá]logo:\s*/gi,
+    ""
+  ).replace(/Claro,\s+aqu[ií]\s+tienes\s+el\s+cat[aá]logo[^\n]*:\s*/gi, "").replace(/Si quieres el de otro servicio[^\n.]*(?:\.|$)/gi, "").replace(/Cat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*$/gim, "").replace(/Cat[aá]logo general:\s*$/gim, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+function withServiceAndGeneralCatalogLinks(body2, query, serviceHint) {
+  const clean = stripCatalogWebUrlBlocks(body2);
+  const links = buildServicePlusGeneralCatalogReply({
+    query,
+    serviceHint: serviceHint ?? query
+  });
+  if (!clean) return links;
+  return `${clean}
+
+${links}`.trim();
+}
+function stripUnsolicitedCatalogWebLinks(text2, clientAsked) {
+  if (!text2 || clientAsked) return text2;
+  if (!/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text2)) return text2;
+  return text2.replace(
+    /https?:\/\/(?:www\.)?bodasesor\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
+    ""
+  ).replace(
+    /https?:\/\/[^\s]*hostingersite\.com\/catalogos(?:\/[a-z0-9-]*)?\/?(?:[?#][^\s]*)?/gi,
+    ""
+  ).replace(/[ \t]*\n{3,}/g, "\n\n").replace(/[ \t]{2,}/g, " ").trim();
+}
+function messageOffersCatalogLink(text2) {
+  if (!text2?.trim()) return false;
+  if (/bodasesor\.com\/catalogos|hostingersite\.com\/catalogos/i.test(text2)) return true;
+  return /cat[aá]logo\s+con\s+m[aá]s\s+detalle|te\s+mande\s+el\s+cat[aá]logo|quieres\s+que\s+te\s+mande\s+el\s+cat[aá]logo|\bCat[aá]logo(?:\s+de\s+\*[^*]+\*)?:\s*\n?\s*https?:\/\//i.test(
+    text2
+  );
+}
+
 // src/lucy-flow-guards.ts
 var EMAIL_WAIVED_LABEL = "Correo (prefiere no compartir)";
 var WHATSAPP_NOMBRE_NOTE = "(nombre de WhatsApp \u2014 el cliente no lo escribi\xF3)";
@@ -134508,6 +134567,25 @@ function buildImageActionReply(currentMessage, extracted, filledSet, ctx) {
   if (intent === "comprobante_pago") {
     return action;
   }
+  const caption = clientCaptionForServiceParse(currentMessage);
+  const centros = parseCentrosDeMesaRequirement(caption);
+  if (centros) {
+    const merged = mergeServiceRequirements(extracted.requerimientos_evento, centros, 6);
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+  } else if (caption && parseServicesFromText(caption).length > 0) {
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      parseServicesFromText(caption).join(", "),
+      6
+    );
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+  }
   const pending = getNextPendingField(extracted, filledSet);
   if (pending && !isFieldSatisfied(pending, filledSet, extracted)) {
     const nextQ = buildNaturalQuestion(pending, ctx);
@@ -134779,7 +134857,7 @@ ${nextQ}` : ack;
       return normalizeAdvisorReferences(body2, display);
     }
   }
-  if (!cierreYaEnviado && currentMessage?.trim() && clientAsksConcreteProductQuestion(currentMessage)) {
+  if (!cierreYaEnviado && currentMessage?.trim() && !extractImageClientReply(currentMessage) && clientAsksConcreteProductQuestion(currentMessage)) {
     const serviceHintConcrete = (isValidRequerimientosValue(extracted.requerimientos_evento) ? extracted.requerimientos_evento : null) || parsePrimaryService(collectUserTexts(presHistory, currentMessage).join(" ")) || findMentionedService(collectUserTexts(presHistory, currentMessage).join(" "));
     const concreteReply = buildConcreteProductQuestionReply(
       currentMessage,
@@ -134801,7 +134879,7 @@ ${nextQ}` : ack;
       );
     }
   }
-  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado) {
+  if (clientAsksInclusion(currentMessage) && !cierreYaEnviado && !extractImageClientReply(currentMessage)) {
     if (clientAsksPrice(currentMessage)) {
     } else {
       const multiForPackagesEarly = dedupeServiceHierarchy([
@@ -138379,7 +138457,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.17";
+var LUCY_PROMPT_VERSION = "V9.18";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -146852,6 +146930,85 @@ ${golfText}`,
     assert2.ok(
       !mensajeAsksForField(invKeep, "invitados"),
       `no re-preguntar invitados: ${invKeep.slice(0, 350)}`
+    );
+  });
+  await test("139. A15296 \u2014 centros+foto anota qty y pide embudo; no mesas-y-sillas", () => {
+    const caption = "disculpe me podr\xEDa ayudar con cotizaci\xF3n para centros de mesa ser\xEDan 20 tengo pensado algo as\xED";
+    assert2.equal(parseCentrosDeMesaRequirement(caption), "Centros de mesa (20)");
+    assert2.ok(parseServicesFromText(caption).some((s6) => /Centros de mesa \(20\)/i.test(s6)));
+    assert2.ok(
+      !clientAsksConcreteProductQuestion(caption),
+      "caption solo no es pedido de fotos"
+    );
+    const visionTurn = formatImageTurnText(
+      {
+        intent: "montaje_referencia",
+        internalDescription: "Centro de mesa con aro, globos y flores.",
+        clientReply: "\xA1Qu\xE9 lindo detalle! Me encanta el estilo del aro con los globos y las flores. Ya lo anot\xE9 como referencia para tu evento, \xBFte gustar\xEDa que lo incluyamos en la cotizaci\xF3n de tu decoraci\xF3n?"
+      },
+      caption
+    );
+    assert2.ok(
+      !clientAsksForPhotos(visionTurn),
+      "marcadores Vision no cuentan como pedido de fotos"
+    );
+    assert2.ok(!clientAsksConcreteProductQuestion(visionTurn));
+    assert2.ok(
+      !/mesas-y-sillas/i.test(getCatalogWebUrlForQuery("centros de mesa") ?? ""),
+      "slug centros \u2260 mesas-y-sillas"
+    );
+    const inclusion = resolveCatalogInclusionReply("centros de mesa ser\xEDan 20", "Centros de mesa");
+    assert2.ok(inclusion && /centros de mesa|floral/i.test(inclusion), inclusion?.slice(0, 200));
+    assert2.ok(
+      !/detalle de lo que incluye cada nivel/i.test(inclusion),
+      inclusion.slice(0, 200)
+    );
+    const extracted = emptyExtracted({
+      nombre: "Alejandra",
+      tipo_evento: "bautizo"
+    });
+    const filled = /* @__PURE__ */ new Set(["Nombre del cliente", "Tipo de evento"]);
+    const live = runGuards({
+      aiResponse: "El detalle de lo que incluye cada nivel est\xE1 en el cat\xE1logo.",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: visionTurn,
+      history: [
+        { role: "user", content: "Quiero hacer una cotizacion" },
+        { role: "assistant", content: "\xA1Hola! \xBFMe regalas tu nombre?" },
+        { role: "user", content: "buen dia Alejandra" },
+        { role: "assistant", content: "\xA1Mucho gusto, Alejandra! \xBFQu\xE9 van a celebrar?" },
+        { role: "user", content: "es un bautizo" },
+        {
+          role: "assistant",
+          content: "\xA1Qu\xE9 buena noticia! \xBFQu\xE9 te gustar\xEDa revisar primero?"
+        }
+      ]
+    });
+    assert2.ok(
+      /aro|globos|flores|referencia|decoraci|centros/i.test(live),
+      live.slice(0, 500)
+    );
+    assert2.ok(
+      !/detalle de lo que incluye cada nivel/i.test(live),
+      live.slice(0, 400)
+    );
+    assert2.ok(!/mesas-y-sillas/i.test(live), live.slice(0, 400));
+    assert2.ok(
+      mensajeAsksForField(live, "fecha") || /para cu[aá]ndo|fecha/i.test(live),
+      `debe pedir fecha del embudo: ${live.slice(0, 450)}`
+    );
+    assert2.ok(
+      /Centros de mesa/i.test(extracted.requerimientos_evento ?? ""),
+      extracted.requerimientos_evento ?? "(sin req)"
+    );
+    assert2.ok(
+      /\(20\)/.test(extracted.requerimientos_evento ?? ""),
+      `qty 20: ${extracted.requerimientos_evento}`
+    );
+    assert2.ok(
+      clientAsksConcreteProductQuestion("Fotos de lo solicitado y si la carpa cuenta con luz")
     );
   });
   console.log(`

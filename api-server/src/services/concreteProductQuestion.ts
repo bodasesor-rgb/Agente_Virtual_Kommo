@@ -15,10 +15,18 @@ import {
   getCatalogWebHubDeliveryUrl,
 } from "./catalogService.js";
 import { getCatalogWebUrlForQuery } from "./catalogWebKnowledge.js";
+import { clientCaptionForServiceParse } from "./imageProcessor.js";
 
 /** Tipografía / typos de "catálogo" (CTALOGO, catalgo, catologo…). */
 export const CATALOG_WORD_RE =
   /\bc+t?a+l+[oó]+g+[oa]s?\b|\bcatal+agos?\b|\bcat[oó]logos?\b|\bct[aá]logos?\b/i;
+
+/** A15296: "centros de mesa" es floral — no renta de mesas/sillas. */
+function isCentrosDeMesaFloral(text: string): boolean {
+  return /\bcentros?\s+de\s+mesas?\b|\bcentros?\s+florales?\b|\barreglos?\s+de\s+mesa\b/i.test(
+    text
+  );
+}
 
 /** Capacidad / acomodo (mesas por carpa, cuántas caben…). */
 export function clientAsksCapacityLayout(message?: string): boolean {
@@ -35,18 +43,38 @@ export function clientAsksCapacityLayout(message?: string): boolean {
   );
 }
 
-/** Fotos / referencias visuales de lo pedido. */
+/**
+ * Fotos / referencias visuales de lo pedido.
+ * A15296: solo el caption del cliente — ignorar "tu foto" de Vision.
+ */
 export function clientAsksForPhotos(message?: string): boolean {
   if (!message?.trim()) return false;
-  return (
-    /\b(fotos?|fotograf[ií]as?|im[aá]genes?|referencias?\s+visuales?|pics?)\b/i.test(
-      message
+  const caption = clientCaptionForServiceParse(message) || message;
+  if (!caption.trim()) return false;
+  // Pedido real de fotos ("manda fotos", "fotos de lo solicitado"), no mención de imagen adjunta.
+  if (
+    !/\b(fotos?|fotograf[ií]as?|im[aá]genes?|referencias?\s+visuales?|pics?)\b/i.test(caption)
+  ) {
+    return false;
+  }
+  // "tengo pensado algo así" + imagen adjunta ≠ "mándame fotos".
+  if (
+    /\b(tengo\s+pensado|algo\s+as[ií]|referencia|as[ií]\s+como|estilo)\b/i.test(caption) &&
+    !/\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b.{0,24}\b(fotos?|fotograf)/i.test(
+      caption
     ) &&
-    (isServiceRelatedMessage(message) ||
-      /\b(solicitad|pedido|cotiz|carpa|mesa|silla|toldo|mobiliario|lo\s+solicitado)\b/i.test(
-        message
-      ) ||
-      /\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b/i.test(message))
+    !/\b(fotos?|fotograf).{0,24}\b(manda|env[ií]a|solicitad|pedido|lo\s+solicitado)\b/i.test(
+      caption
+    )
+  ) {
+    return false;
+  }
+  return (
+    isServiceRelatedMessage(caption) ||
+    /\b(solicitad|pedido|cotiz|carpa|mesa|silla|toldo|mobiliario|lo\s+solicitado)\b/i.test(
+      caption
+    ) ||
+    /\b(manda|env[ií]a|pasa|comparte|quiero|necesito|tienes|tienen|hay)\b/i.test(caption)
   );
 }
 
@@ -69,7 +97,9 @@ export function clientAsksAboutLighting(message?: string): boolean {
  */
 export function clientAsksConcreteProductQuestion(message?: string): boolean {
   if (!message?.trim()) return false;
-  const t = message.trim();
+  // A15296: detectar solo sobre caption del cliente (sin marcadores Vision).
+  const t = (clientCaptionForServiceParse(message) || message).trim();
+  if (!t) return false;
   if (clientAsksForCatalog(t) || CATALOG_WORD_RE.test(t)) return true;
   if (clientAsksForPhotos(t) || clientAsksAboutLighting(t) || clientAsksCapacityLayout(t)) {
     return true;
@@ -87,6 +117,9 @@ export function clientAsksConcreteProductQuestion(message?: string): boolean {
 }
 
 function catalogLinkFor(query: string): string {
+  if (isCentrosDeMesaFloral(query)) {
+    return getCatalogWebHubDeliveryUrl();
+  }
   return (
     getCatalogWebUrlForQuery(query) ||
     getCatalogWebUrlForQuery("mesas y sillas") ||
@@ -121,36 +154,46 @@ export function buildConcreteProductQuestionReply(
   const blob = `${msg} ${hint}`;
   const team = advisorLabelForClient();
 
+  // A15296: caption limpio (sin "tu foto" de Vision).
+  const caption = (clientCaptionForServiceParse(msg) || msg).trim();
+  const cleanBlob = `${caption} ${hint}`;
+
   // 1) Catálogo (con typo) → enviar link, no solo CTA.
-  if (clientAsksForCatalog(msg) || CATALOG_WORD_RE.test(msg)) {
-    const q = /\bsillas?\b/i.test(blob)
-      ? "mesas y sillas"
-      : /\bmesas?\b/i.test(blob)
+  if (clientAsksForCatalog(caption) || CATALOG_WORD_RE.test(caption)) {
+    const q = isCentrosDeMesaFloral(cleanBlob)
+      ? "centros de mesa"
+      : /\bsillas?\b/i.test(cleanBlob)
         ? "mesas y sillas"
-        : /\bcarpas?|toldos?|lonas?\b/i.test(blob)
-          ? "carpas"
-          : hint || msg;
+        : /\bmesas?\b/i.test(cleanBlob) && !isCentrosDeMesaFloral(cleanBlob)
+          ? "mesas y sillas"
+          : /\bcarpas?|toldos?|lonas?\b/i.test(cleanBlob)
+            ? "carpas"
+            : hint || caption;
     const url = catalogLinkFor(q);
-    const label = /\bsillas?\b/i.test(blob)
-      ? "de mesas y sillas"
-      : /\bcarpas?|toldos?\b/i.test(blob)
-        ? "de carpas"
-        : "";
+    const label = isCentrosDeMesaFloral(cleanBlob)
+      ? ""
+      : /\bsillas?\b/i.test(cleanBlob)
+        ? "de mesas y sillas"
+        : /\bcarpas?|toldos?\b/i.test(cleanBlob)
+          ? "de carpas"
+          : "";
     return `Claro. Te dejo el *catálogo${label ? ` ${label}` : ""}*:\n${url}`;
   }
 
   // 2) Fotos + (opcional) luz / otros.
-  const wantsPhotos = clientAsksForPhotos(msg);
-  const wantsLight = clientAsksAboutLighting(msg);
+  const wantsPhotos = clientAsksForPhotos(caption);
+  const wantsLight = clientAsksAboutLighting(caption);
   if (wantsPhotos || wantsLight) {
     const parts: string[] = [];
     if (wantsPhotos) {
       const url = catalogLinkFor(
-        /\bcarpas?|toldos?\b/i.test(blob)
+        /\bcarpas?|toldos?\b/i.test(cleanBlob)
           ? "carpas"
-          : /\bsillas?|mesas?|mobiliario\b/i.test(blob)
-            ? "mesas y sillas"
-            : hint || "mobiliario"
+          : isCentrosDeMesaFloral(cleanBlob)
+            ? "centros de mesa"
+            : /\bsillas?|mesas?|mobiliario\b/i.test(cleanBlob)
+              ? "mesas y sillas"
+              : hint || "mobiliario"
       );
       parts.push(
         `Claro — te puedo compartir referencias visuales. Aquí tienes el catálogo con fotos:\n${url}`
@@ -160,7 +203,7 @@ export function buildConcreteProductQuestionReply(
       );
     }
     if (wantsLight) {
-      if (clientMentionsCarpas(msg) || /\bcarpas?|toldos?|lonas?\b/i.test(blob)) {
+      if (clientMentionsCarpas(caption) || /\bcarpas?|toldos?|lonas?\b/i.test(cleanBlob)) {
         parts.push(
           `Sobre *iluminación en la carpa*: se puede cotizar con o sin luz (paquetes de iluminación). ` +
             `Buena pregunta — eso lo confirmo con ${team} para decirte si la carpa que te armemos ya incluye luz o va aparte.`
@@ -173,7 +216,7 @@ export function buildConcreteProductQuestionReply(
   }
 
   // 3) Capacidad / mesas por carpa.
-  if (clientAsksCapacityLayout(msg)) {
+  if (clientAsksCapacityLayout(caption)) {
     return (
       `La cantidad de mesas por carpa depende de las *medidas* y del acomodo (redondas, pasillos, pista). ` +
       `No te doy un número a ojo: ${team} te confirma cuántas caben según el tamaño. ` +
