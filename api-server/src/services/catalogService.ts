@@ -807,44 +807,34 @@ function withCatalogOfferQuestion(text: string, query?: string | null): string {
 
 /**
  * Oferta de niveles con detalle de inclusiones (y precio si hay en Sheet).
- * El cliente no puede elegir "Tradicional vs Premium" sin saber qué incluye cada una.
+ * V9.27: si hay Solo Alimentos + Basico/Tradicional/Premium, NO vuelques los 4:
+ * primero solo alimentos vs servicio completo; si elige completo → teaser 3 niveles.
  */
-function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
+function buildServiceNivelChoiceAnswer(
+  result: CatalogMatchResult,
+  query?: string
+): string {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r) => r.servicio === svc || result.rows.length <= 6);
-  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 6);
+  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 8);
   const niveles = uniqueNiveles(rowsForChoice);
+  const q = query ?? "";
 
   if (niveles.length <= 1) {
     const row = (svcRows[0] ?? result.rows[0])!;
     return buildExactRowDetailAnswer(row);
   }
 
+  // Multi-servicio hermanas: si el pedido es concreto, acotar a ese SKU.
   if (uniqueServicios(result.rows).length > 1) {
-    // Si el servicio pedido es concreto (Barra Yucateca), no listar hermanas (A14934).
     const svcOnly = result.rows.filter(
       (r) => normalizeForMatch(r.servicio) === normalizeForMatch(svc) || rowMatchesServiceLabel(r, svc)
     );
     if (svcOnly.length && uniqueServicios(svcOnly).length === 1) {
-      const nivelesOnly = uniqueNiveles(svcOnly);
-      if (nivelesOnly.length > 1) {
-        const lines = nivelesOnly.slice(0, 6).map((n, i) => {
-          const row = svcOnly.find(
-            (r) => normalizeForMatch(extractNivelLabel(r)) === normalizeForMatch(n)
-          );
-          const incl = row ? getInclusionFromRow(row) : null;
-          const price =
-            row?.tienePrecio && row.precio
-              ? ` — ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}`
-              : "";
-          const inclTxt = incl ? `: ${incl.slice(0, 120)}` : "";
-          return `${i + 1}. *${n}*${price}${inclTxt}`;
-        });
-        return withCatalogOfferQuestion(
-          `Para *${svc}* manejamos estos niveles:\n${lines.join("\n")}\n\n${SERVICE_NIVEL_DETAIL_CTA}`,
-          svc
-        );
-      }
+      return buildServiceNivelChoiceAnswer(
+        { ...result, serviceName: svc, rows: svcOnly, kind: "service" },
+        query
+      );
     }
     const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
     const inclusionBlock = buildInclusionBlock(rowsForChoice, 180).trim();
@@ -860,6 +850,21 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
     );
   }
 
+  // V9.27: embudo solo alimentos vs servicio completo.
+  if (serviceHasSoloVsCompleto(rowsForChoice)) {
+    if (queryWantsSoloAlimentos(q)) {
+      const soloRow = findNivelRow(rowsForChoice, /solo\s+alimentos/i);
+      if (soloRow) return buildExactRowDetailAnswer(soloRow);
+    }
+    if (queryWantsCompletoMode(q) && !queryWantsSpecificCompletoNivel(q)) {
+      return buildCompletoNivelesTeaser(svc, rowsForChoice);
+    }
+    if (!queryWantsSpecificCompletoNivel(q) && !queryWantsSoloAlimentos(q)) {
+      return buildSoloVsCompletoModeAnswer(svc, rowsForChoice);
+    }
+    // Nivel concreto (Básico/Tradicional/Premium): cae al listado corto o detalle abajo.
+  }
+
   const lines = niveles.slice(0, 6).map((n, i) => {
     const row = rowsForChoice.find(
       (r) => normalizeForMatch(extractNivelLabel(r)) === normalizeForMatch(n)
@@ -873,7 +878,6 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
       const clipped = incl.length > 220 ? `${incl.slice(0, 217)}…` : incl;
       return `${i + 1}. *${n}*${price}\n   Incluye: ${clipped}`;
     }
-    // Sin texto de Incluye en Sheet: no inventar "el equipo confirma" en cada nivel (A14932).
     return `${i + 1}. *${n}*${price}`;
   });
 
@@ -882,9 +886,6 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
 
   let body = `Para *${svc}* manejamos estos niveles:\n\n${lines.join("\n")}\n\n${footer}`;
 
-  // Sin Incluye en Sheet: NO adjuntar PDF genérico del servicio (evita CB1 cuando
-  // pidieron CB4 y ese nivel no existe en el PDF). El detalle PDF va por
-  // buildPdfInclusionReply(query completo) en resolve/inject.
   if (!hasAnyIncl || rowsForChoice.filter((r) => getInclusionFromRow(r)).length < niveles.length) {
     const webHint = buildCatalogWebDetailHint(svc) ?? buildCatalogWebDetailHint(result.serviceName ?? svc);
     const webUrl =
@@ -901,8 +902,101 @@ function buildServiceNivelChoiceAnswer(result: CatalogMatchResult): string {
     }
   }
 
-  // Siempre incluir link del servicio (V8.34 — no solo pregunta opt-in).
   return withCatalogOfferQuestion(body, svc);
+}
+
+function isSoloAlimentosNivelLabel(n: string): boolean {
+  return /solo\s+alimentos/i.test(n);
+}
+
+function isCompletoPackageNivelLabel(n: string): boolean {
+  return /\b(b[aá]sic[oa]?|tradicional|premium)\b/i.test(n) && !isSoloAlimentosNivelLabel(n);
+}
+
+/** Sheet con Solo Alimentos + al menos 2 paquetes completos (Basico/Tradicional/Premium). */
+export function serviceHasSoloVsCompleto(rows: SheetCatalogRow[]): boolean {
+  const niveles = uniqueNiveles(rows);
+  const hasSolo = niveles.some(isSoloAlimentosNivelLabel);
+  const completo = niveles.filter(isCompletoPackageNivelLabel);
+  return hasSolo && completo.length >= 2;
+}
+
+function findNivelRow(rows: SheetCatalogRow[], re: RegExp): SheetCatalogRow | undefined {
+  return rows.find((r) => re.test(extractNivelLabel(r)));
+}
+
+function formatRowPriceShort(row: SheetCatalogRow | undefined): string {
+  if (!row?.tienePrecio || !row.precio) return "";
+  const unit = row.unidad?.trim() ? ` ${row.unidad.trim()}` : "";
+  return `${row.precio}${unit}`;
+}
+
+function queryWantsSoloAlimentos(q: string): boolean {
+  return /\bsolo\s+alimentos?\b/i.test(q);
+}
+
+function queryWantsCompletoMode(q: string): boolean {
+  return /\bservicio\s+completo\b/i.test(q) || /(?:^|[^\p{L}])completo(?:[^\p{L}]|$)/iu.test(q);
+}
+
+function queryWantsSpecificCompletoNivel(q: string): boolean {
+  return /\b(b[aá]sic[oa]?|tradicional|premium)\b/i.test(q);
+}
+
+/** Menú corto: solo alimentos (precio) vs servicio completo (desde Básico). */
+export function buildSoloVsCompletoModeAnswer(
+  svc: string,
+  rows: SheetCatalogRow[]
+): string {
+  const soloRow = findNivelRow(rows, /solo\s+alimentos/i);
+  const basicoRow =
+    findNivelRow(rows, /\bb[aá]sic/i) ||
+    rows
+      .filter((r) => isCompletoPackageNivelLabel(extractNivelLabel(r)))
+      .sort((a, b) => {
+        const pa = parseFloat((a.precio ?? "").replace(/[^\d.]/g, "")) || 0;
+        const pb = parseFloat((b.precio ?? "").replace(/[^\d.]/g, "")) || 0;
+        return pa - pb;
+      })[0];
+  const soloPrice = formatRowPriceShort(soloRow);
+  const desdePrice = formatRowPriceShort(basicoRow);
+
+  return withCatalogOfferQuestion(
+    [
+      `Para *${svc}* tenemos dos caminos:`,
+      "",
+      `1. *Solo alimentos*${soloPrice ? ` — ${soloPrice}` : ""} (solo la comida)`,
+      `2. *Servicio completo*${desdePrice ? ` — desde ${desdePrice}` : ""} (incluye bebidas, mobiliario y meseros)`,
+      "",
+      "¿Cuál te late más?",
+    ].join("\n"),
+    svc
+  );
+}
+
+/** Tras elegir servicio completo: 3 niveles sin volcar precios/inclusiones. */
+export function buildCompletoNivelesTeaser(
+  svc: string,
+  rows: SheetCatalogRow[]
+): string {
+  const completo = uniqueNiveles(rows).filter(isCompletoPackageNivelLabel);
+  const pretty = completo
+    .slice(0, 3)
+    .map((n) => `*${n.replace(/^Basico$/i, "Básico")}*`)
+    .join(", ");
+  const basicoRow = findNivelRow(rows, /\bb[aá]sic/i);
+  const desde = formatRowPriceShort(basicoRow);
+  const desdeBit = desde ? ` Arrancan desde ${desde}.` : "";
+
+  return withCatalogOfferQuestion(
+    [
+      `Perfecto. En *servicio completo* de *${svc}* manejamos ${Math.min(completo.length, 3)} niveles (${pretty}).`,
+      `Lo que cambia entre uno y otro es el nivel de montaje, la cantidad de meseros, la decoración y las bebidas.${desdeBit}`,
+      "",
+      SERVICE_NIVEL_DETAIL_CTA,
+    ].join("\n"),
+    svc
+  );
 }
 
 /** Detecta oferta de niveles solo con nombres/precios (sin explicar Incluye). */
@@ -924,8 +1018,13 @@ export function messageOffersLevelsWithoutInclusions(text: string | null | undef
   // "el equipo confirma lo que incluye" NO cuenta como descripción real.
   const mentionsTriad =
     /\bb[aá]sic/i.test(t) && /\btradicional\b/i.test(t) && /\bpremium\b/i.test(t);
+  const soloDump =
+    /solo\s+alimentos/i.test(t) &&
+    mentionsTriad &&
+    (/1\.\s*\*?solo\s+alimentos/i.test(t) || /manejamos estos niveles/i.test(t));
   return (
     onlyTeamPlaceholder ||
+    soloDump ||
     /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t) ||
     /lo tenemos en:\s*\*?b[aá]sic/i.test(t) ||
     (/1\.\s*\*?b[aá]sic/i.test(t) && /2\.\s*\*?tradicional/i.test(t)) ||
@@ -1792,11 +1891,21 @@ export function buildCatalogPriceAnswer(query: string): string | null {
   if (resolved.kind === "service") {
     const priced = resolved.rows.filter((r) => r.tienePrecio && r.precio);
     if (priced.length > 1) {
-      // Pregunta de precio: siempre citar cifras ($), no solo nombres de nivel/variante.
       const unique = [
         ...new Map(priced.map((row) => [`${row.servicio}|${row.nivel}`, row])).values(),
       ];
       const baseName = resolved.serviceName ?? unique[0]!.servicio;
+      // V9.27: precio → solo vs completo (no 4 bullets).
+      if (
+        serviceHasSoloVsCompleto(unique) &&
+        !queryWantsSpecificCompletoNivel(query) &&
+        !queryWantsSoloAlimentos(query)
+      ) {
+        if (queryWantsCompletoMode(query)) {
+          return withLink(buildCompletoNivelesTeaser(baseName, unique));
+        }
+        return withLink(buildSoloVsCompletoModeAnswer(baseName, unique));
+      }
       const priceLines = unique
         .slice(0, 6)
         .map((row) => {
@@ -1810,22 +1919,28 @@ export function buildCatalogPriceAnswer(query: string): string | null {
         })
         .join("\n");
       if (priceLines) {
-        // V8.35: precios + qué incluye cada nivel (no solo cifras).
         const inclusionBlock = buildInclusionBlock(unique, 220);
         return withLink(
           `Sí, manejamos ${baseName}:\n\n${priceLines}${inclusionBlock}\n\n¿Qué nivel te interesa?`
         );
       }
-      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
+      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced }, query);
     }
     if (priced.length === 1) {
       return buildExactRowPriceAnswer(priced[0]!);
     }
-    return buildServiceNivelChoiceAnswer(resolved);
+    return buildServiceNivelChoiceAnswer(resolved, query);
   }
 
   const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
   const baseName = resolved.serviceName ?? unique[0]!.servicio;
+  // V9.27: no volcar 4 precios si aplica solo vs completo.
+  if (serviceHasSoloVsCompleto(unique) && !queryWantsSpecificCompletoNivel(query) && !queryWantsSoloAlimentos(query)) {
+    if (queryWantsCompletoMode(query)) {
+      return withLink(buildCompletoNivelesTeaser(baseName, unique));
+    }
+    return withLink(buildSoloVsCompletoModeAnswer(baseName, unique));
+  }
   const priceLines = unique
     .filter((r) => r.tienePrecio && r.precio)
     .slice(0, 6)
@@ -1838,7 +1953,7 @@ export function buildCatalogPriceAnswer(query: string): string | null {
     })
     .join("\n");
 
-  if (!priceLines) return buildServiceNivelChoiceAnswer(resolved);
+  if (!priceLines) return buildServiceNivelChoiceAnswer(resolved, query);
   const inclusionBlock = buildInclusionBlock(unique, 280);
   return withLink(`Sí, manejamos ${baseName}:\n\n${priceLines}${inclusionBlock}`);
 }
@@ -2006,6 +2121,17 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
     return buildExactRowDetailAnswer(row);
   }
   if (resolved?.kind === "service") {
+    // V9.27: "Taquiza Servicio completo" → teaser 3 niveles (no dump).
+    if (
+      serviceHasSoloVsCompleto(resolved.rows) &&
+      queryWantsCompletoMode(query) &&
+      !queryWantsSpecificCompletoNivel(query)
+    ) {
+      return buildCompletoNivelesTeaser(
+        resolved.serviceName ?? uniqueServicios(resolved.rows)[0] ?? "ese servicio",
+        resolved.rows
+      );
+    }
     // Nivel concreto ausente en PDF → precios Sheet, nunca PDF de otro nivel.
     if (/\bcoffee\s*break\s*\d/.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
@@ -2016,7 +2142,7 @@ export function buildCatalogServiceDetailAnswer(query: string): string | null {
       const fromPdf = buildPdfInclusionReply(query);
       if (fromPdf) return fromPdf;
     }
-    return buildServiceNivelChoiceAnswer(resolved);
+    return buildServiceNivelChoiceAnswer(resolved, query);
   }
 
   const priceAnswer = buildCatalogPriceAnswer(query);

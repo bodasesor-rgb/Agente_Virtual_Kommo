@@ -1,5 +1,5 @@
 /** Versión del servidor API (panel, health). */
 export const LUCY_SERVER_VERSION = "3.3";
 
-/** Versión del prompt maestro de Lucy (V9.26: no cortar chat con solo "anotado"). */
-export const LUCY_PROMPT_VERSION = "V9.26";
+/** Versión del prompt maestro de Lucy (V9.27: solo alimentos vs servicio completo). */
+export const LUCY_PROMPT_VERSION = "V9.27";

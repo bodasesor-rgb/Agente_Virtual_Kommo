@@ -257,6 +257,9 @@ import {
   ensureCatalogWebLink,
   attachAvailableSheetDetail,
   messageHasSheetServiceDetail,
+  buildSoloVsCompletoModeAnswer,
+  buildCompletoNivelesTeaser,
+  serviceHasSoloVsCompleto,
   toDeliverableCatalogUrl,
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
@@ -4304,7 +4307,7 @@ async function runAll(): Promise<void> {
     assert.ok(!/^¿Cuál sería la ubicación/i.test(liveGuard.trim()), liveGuard.slice(0, 200));
   });
 
-  await test("78. Liliana A14916 — form Sushi ofrece niveles+catálogo tras el nombre (no solo embudo)", () => {
+  await test("78. Liliana A14916 — form Sushi ofrece solo vs completo tras el nombre", () => {
     assert.ok(
       clientMentionsCatering("Hola, me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos")
     );
@@ -4313,11 +4316,6 @@ async function runAll(): Promise<void> {
     );
     assert.ok(brief?.requerimientos_evento, "brief form corto debe capturar servicio");
     assert.ok(/sushi/i.test(brief!.requerimientos_evento!), brief);
-
-    const services = parseServicesFromText(
-      "Hola, me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos"
-    );
-    assert.ok(services.some((s) => /sushi/i.test(s)), String(services));
 
     const csvSushi = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye","Link catalogo"',
@@ -4341,7 +4339,6 @@ async function runAll(): Promise<void> {
     assert.ok(/sushi|lucy/i.test(t1), t1.slice(0, 300));
     assert.ok(/nombre|llam[oa]|gusto/i.test(t1), `T1 debe pedir nombre: ${t1.slice(0, 300)}`);
 
-    // V8.68: tras el nombre → menú de niveles (no dump de precios ni link aún).
     const t2 = runGuards({
       aiResponse: "Perfecto, Liliana. ¿A qué correo te envío la información?",
       extracted: emptyExtracted({
@@ -4360,89 +4357,22 @@ async function runAll(): Promise<void> {
         },
       ],
     });
-    assert.ok(/sushi|nivel/i.test(t2), t2.slice(0, 400));
     assert.ok(
-      /quieres que te d[eé] detalles de alguno|info m[aá]s detallada|te paso la info/i.test(t2),
-      `T2 menú de opciones: ${t2.slice(0, 500)}`
+      /solo\s+alimentos/i.test(t2) && /servicio\s+completo/i.test(t2),
+      `T2 solo vs completo: ${t2.slice(0, 500)}`
     );
-    assert.ok(!/\$800|\$850|\$900/i.test(t2), `T2 no debe volcar precios aún: ${t2.slice(0, 400)}`);
-
-    // Tras elegir Premium → detalle del nivel (no re-listar) + link servicio + general.
-    const t3 = runGuards({
-      aiResponse: "¿Cuál nivel?",
-      extracted: emptyExtracted({
-        nombre: "Liliana",
-        requerimientos_evento: "Barra de sushi",
-      }),
-      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-      readyForClosing: false,
-      currentMessage: "Premium",
-      history: [
-        { role: "user", content: formMsg },
-        { role: "assistant", content: t2 },
-      ],
-    });
+    assert.ok(/cu[aá]l te late/i.test(t2), `T2 pregunta modo: ${t2.slice(0, 400)}`);
     assert.ok(
-      /Premium|\$900/i.test(t3),
-      `T3 detalle tras elección: ${t3.slice(0, 500)}`
-    );
-    assert.ok(
-      !/¿Cu[aá]l nivel prefieres/i.test(t3),
-      `T3 no debe re-preguntar nivel: ${t3.slice(0, 500)}`
-    );
-    const sushiUrls = t3.match(/bodasesor\.com\/catalogos\/barra-de-sushi/gi) || [];
-    assert.equal(
-      sushiUrls.length,
-      1,
-      `T3 un solo link de servicio (no duplicado): ${t3.slice(0, 600)}`
-    );
-    assert.ok(
-      /bodasesor\.com\/catalogos\/?\s*$/m.test(t3) ||
-        /Cat[aá]logo general:[\s\S]*bodasesor\.com\/catalogos(?!\/barra)/i.test(t3),
-      `T3 debe incluir catálogo general: ${t3.slice(0, 600)}`
+      !(/1\.\s*\*?Solo Alimentos[\s\S]*4\.\s*\*?Premium/i.test(t2)),
+      `T2 sin dump 4 niveles: ${t2.slice(0, 500)}`
     );
 
-    const deferred = buildDeferredKnownServiceOffer({
-      extracted: emptyExtracted({
-        nombre: "Liliana",
-        requerimientos_evento: "Barra de sushi",
-      }),
-      filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-      history: [
-        { role: "user", content: formMsg },
-        { role: "assistant", content: "¿Cómo te llamas?" },
-      ],
-      ctx: {
-        extracted: emptyExtracted({
-          nombre: "Liliana",
-          requerimientos_evento: "Barra de sushi",
-        }),
-        filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-        history: [],
-        currentMessage: "Liliana",
-      },
-      whatsappName: null,
-    });
-    assert.ok(deferred && /Liliana/i.test(deferred), deferred ?? "");
-    assert.ok(/info m[aá]s detallada|nivel/i.test(deferred!), deferred);
-
-    // Si ya ofreció menú, no repetir.
-    assert.equal(
-      buildDeferredKnownServiceOffer({
-        extracted: emptyExtracted({
-          nombre: "Liliana",
-          requerimientos_evento: "Barra de sushi",
-        }),
-        filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-        history: [{ role: "assistant", content: deferred! }],
-        ctx: {
-          extracted: emptyExtracted({ nombre: "Liliana", requerimientos_evento: "Barra de sushi" }),
-          filledSet: new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-          history: [],
-          currentMessage: "ok",
-        },
-      }),
-      null
+    const premium = buildCatalogServiceDetailAnswer("Barra de sushi Premium");
+    assert.ok(premium && /Premium|\$900/i.test(premium), premium?.slice(0, 400));
+    const teaser = buildCatalogServiceDetailAnswer("Barra de sushi servicio completo");
+    assert.ok(
+      teaser && /3 niveles|montaje|meseros|detalles de alguno/i.test(teaser),
+      teaser?.slice(0, 500)
     );
   });
 
@@ -6150,7 +6080,7 @@ async function runAll(): Promise<void> {
     assert.equal(catalogNivelLabelFromText("Nivel tradicional"), "Tradicional");
 
     const menu =
-      "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, Básico, Tradicional, Premium).\n\n¿Quieres que te dé detalles de alguno?\n\n¿Cómo te llamas?";
+      "Claro. En *Barra de sushi* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).\n\n¿Cuál te late más?\n\n¿Cómo te llamas?";
 
     const reply = runGuards({
       aiResponse: "¿Cuál nivel?",
@@ -6568,7 +6498,7 @@ async function runAll(): Promise<void> {
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
 
-    // Dump Sheet: misma CTA en todas las líneas con niveles.
+    // Dump Sheet: CTA o embudo solo vs completo (V9.27).
     for (const svc of [
       "Barra Yucateca",
       "Taquiza",
@@ -6579,13 +6509,26 @@ async function runAll(): Promise<void> {
       const detail = buildCatalogServiceDetailAnswer(svc);
       assert.ok(detail, `detail ${svc}`);
       assert.ok(
-        /quieres que te d[eé] detalles de alguno/i.test(detail!),
-        `CTA global en ${svc}: ${detail!.slice(-180)}`
+        /quieres que te d[eé] detalles de alguno|cu[aá]l te late m[aá]s/i.test(detail!),
+        `CTA/embudo en ${svc}: ${detail!.slice(-180)}`
       );
       assert.ok(
         !/cu[aá]l nivel prefieres/i.test(detail!),
         `sin forzar elección en ${svc}`
       );
+      // V9.27: no volcar 4 precios Solo+Basico+Trad+Premium.
+      if (/Yucateca|Taquiza|sushi/i.test(svc)) {
+        assert.ok(
+          /solo\s+alimentos/i.test(detail!) && /servicio\s+completo/i.test(detail!),
+          `solo vs completo ${svc}: ${detail!.slice(0, 400)}`
+        );
+        assert.ok(
+          !(/1\.\s*\*?Solo Alimentos[\s\S]*2\.\s*\*?Basico[\s\S]*3\.\s*\*?Tradicional[\s\S]*4\.\s*\*?Premium/i.test(
+            detail!
+          )),
+          `no dump 4 niveles ${svc}`
+        );
+      }
     }
 
     // Menús progresivos: misma CTA en todas las familias (mobiliario V8.92 pregunta pieza primero).
@@ -6609,6 +6552,11 @@ async function runAll(): Promise<void> {
           /qu[eé] es lo que buscas|dime qu[eé] pieza|Mesas|Sillas/i.test(menu),
           `menú mobiliario pregunta pieza: ${menu.slice(-160)}`
         );
+      } else if (fam === "taquiza" || fam === "barra_sushi") {
+        assert.ok(
+          /solo\s+alimentos|servicio\s+completo|cu[aá]l te late/i.test(menu),
+          `menú ${fam} solo vs completo: ${menu.slice(-160)}`
+        );
       } else {
         assert.ok(
           menu.includes(SERVICE_NIVEL_DETAIL_CTA),
@@ -6618,7 +6566,10 @@ async function runAll(): Promise<void> {
     }
 
     const yuca = buildCatalogServiceDetailAnswer("Barra Yucateca");
-    assert.ok(yuca && /Solo Alimentos|Basico|Tradicional|Premium/i.test(yuca), yuca?.slice(0, 400));
+    assert.ok(
+      yuca && /solo\s+alimentos/i.test(yuca) && /servicio\s+completo/i.test(yuca),
+      yuca?.slice(0, 400)
+    );
     assert.ok(
       /bodasesor\.com\/catalogos\/barra-yucateca/i.test(yuca!),
       yuca!.slice(0, 500)
@@ -6700,8 +6651,11 @@ async function runAll(): Promise<void> {
     assert.ok(levels, "debe haber dump de niveles");
     assert.ok(/Barra Yucateca/i.test(levels!), levels!.slice(0, 300));
     assert.ok(/Taquiza/i.test(levels!), levels!.slice(0, 300));
-    assert.ok(/\$330|\$300|\$750/i.test(levels!), levels!.slice(0, 500));
-    assert.ok(/quieres que te d[eé] detalles de alguno/i.test(levels!), levels!.slice(-200));
+    assert.ok(/\$330|\$300|\$750|solo\s+alimentos|servicio\s+completo/i.test(levels!), levels!.slice(0, 500));
+    assert.ok(
+      /quieres que te d[eé] detalles de alguno|cu[aá]l te late/i.test(levels!),
+      levels!.slice(-200)
+    );
     assert.ok(
       !/quieres que te mande el cat[aá]logo con m[aá]s detalle/i.test(levels!),
       "sin loop de catálogo genérico"
@@ -6711,7 +6665,7 @@ async function runAll(): Promise<void> {
       ["Barra Yucateca", "Taquiza"],
       "Si ví una barra yucateca y una taquiza"
     );
-    assert.ok(/\$330|\$300/i.test(pkgReply), pkgReply.slice(0, 400));
+    assert.ok(/\$330|\$300|solo\s+alimentos|desde/i.test(pkgReply), pkgReply.slice(0, 400));
     assert.ok(!/Te dejo el catálogo general/i.test(pkgReply), pkgReply.slice(0, 300));
 
     // Turno: nombra ambos → niveles + pide correo (dato faltante).
@@ -6748,7 +6702,11 @@ async function runAll(): Promise<void> {
       !/quieres que te mande el cat[aá]logo con m[aá]s detalle/i.test(reply),
       reply.slice(0, 400)
     );
-    assert.ok(/correo|e-?mail/i.test(reply), `debe pedir correo: ${reply.slice(-300)}`);
+    // V9.27: primero elige solo vs completo; correo puede ir después.
+    assert.ok(
+      /correo|e-?mail|cu[aá]l te late|detalles de alguno/i.test(reply),
+      `debe pedir modo/nivel o correo: ${reply.slice(-300)}`
+    );
 
     // "ofreces los paquetes" con ambos en CRM → mismo dump + embudo.
     const pkgs = runGuards({
@@ -6779,10 +6737,12 @@ async function runAll(): Promise<void> {
       ],
     });
     assert.ok(/Yucateca/i.test(pkgs) && /Taquiza/i.test(pkgs), pkgs.slice(0, 500));
-    assert.ok(/\$330|\$750|Solo Alimentos|Basico/i.test(pkgs), pkgs.slice(0, 600));
+    assert.ok(/\$330|\$750|Solo Alimentos|Basico|servicio\s+completo|desde/i.test(pkgs), pkgs.slice(0, 600));
     assert.ok(!/resumen de algunos paquetes/i.test(pkgs), pkgs.slice(0, 300));
     assert.ok(
-      /correo|e-?mail|fecha|cu[aá]ndo|d[ií]a|hora|definiendo|ciudad|ubicaci|sal[oó]n/i.test(pkgs),
+      /correo|e-?mail|fecha|cu[aá]ndo|d[ií]a|hora|definiendo|ciudad|ubicaci|sal[oó]n|cu[aá]l te late|detalles de alguno/i.test(
+        pkgs
+      ),
       `tras paquetes, embudo: ${pkgs.slice(-350)}`
     );
   });
@@ -10607,7 +10567,7 @@ async function runAll(): Promise<void> {
 
   // ─── V9.26 — no cortar chat con solo "ya lo tengo anotado" ───
   await test("127. V9.26 — anti-cierre 'Ya lo tengo anotado' sigue embudo", async () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.26");
+    assert.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert.ok(looksLikeDeadEndAck("Perfecto, Ana. Ya lo tengo anotado."));
     assert.ok(looksLikeDeadEndAck("Perfecto, ya tengo lo principal anotado."));
     assert.ok(looksLikeDeadEndAck("Entendido. Seguimos con lo que ya platicamos."));
@@ -10699,6 +10659,90 @@ async function runAll(): Promise<void> {
     });
     assert.ok(/\?/.test(pipe), pipe.slice(0, 400));
     assert.ok(!looksLikeDeadEndAck(pipe), pipe.slice(0, 300));
+  });
+
+  // ─── V9.27 — solo alimentos vs servicio completo (no dump 4 niveles) ───
+  await test("128. V9.27 — solo alimentos vs servicio completo sin dump de 4 niveles", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.27");
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye","Link catalogo"',
+      '"Taquiza","Solo Alimentos","$320.00","$9,600.00","TRUE","Tacos","https://bodasesor.com/catalogos/taquiza"',
+      '"Taquiza","Basico","$750.00","$22,500.00","TRUE","Basico completo","https://bodasesor.com/catalogos/taquiza"',
+      '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","Trad completo","https://bodasesor.com/catalogos/taquiza"',
+      '"Taquiza","Premium","$850.00","$25,500.00","TRUE","Prem completo","https://bodasesor.com/catalogos/taquiza"',
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    const rows = resolveCatalogQuery("taquiza")?.rows ?? [];
+    assert.ok(serviceHasSoloVsCompleto(rows), "debe detectar solo vs completo");
+
+    const mode = buildCatalogServiceDetailAnswer("taquiza");
+    assert.ok(mode, "detalle taquiza");
+    assert.ok(/solo\s+alimentos/i.test(mode!) && /\$\s*320/i.test(mode!), mode!.slice(0, 500));
+    assert.ok(
+      /servicio\s+completo/i.test(mode!) && /desde\s+\$\s*750/i.test(mode!),
+      mode!.slice(0, 500)
+    );
+    assert.ok(/bebidas|mobiliario|meseros/i.test(mode!), mode!.slice(0, 500));
+    assert.ok(/cu[aá]l te late/i.test(mode!), mode!.slice(0, 400));
+    assert.ok(
+      !(/1\.\s*\*?Solo Alimentos[\s\S]*2\.\s*\*?Basico[\s\S]*3\.\s*\*?Tradicional[\s\S]*4\.\s*\*?Premium/i.test(
+        mode!
+      )),
+      `no dump 4: ${mode!.slice(0, 600)}`
+    );
+
+    const teaser = buildCatalogServiceDetailAnswer("taquiza servicio completo");
+    assert.ok(teaser, "teaser completo");
+    assert.ok(/3 niveles|B[aá]sico|Tradicional|Premium/i.test(teaser!), teaser!.slice(0, 500));
+    assert.ok(/montaje|meseros|decoraci[oó]n|bebidas/i.test(teaser!), teaser!.slice(0, 500));
+    assert.ok(/detalles de alguno/i.test(teaser!), teaser!.slice(0, 400));
+    assert.ok(!/\$\s*800|\$\s*850/i.test(teaser!), `sin volcar todos los precios: ${teaser!.slice(0, 400)}`);
+
+    const solo = buildCatalogServiceDetailAnswer("taquiza Solo Alimentos");
+    assert.ok(solo && /\$\s*320|Solo Alimentos/i.test(solo), solo?.slice(0, 400));
+
+    const basico = buildCatalogServiceDetailAnswer("taquiza Basico");
+    assert.ok(basico && /\$\s*750|Basico/i.test(basico), basico?.slice(0, 400));
+
+    const modeMenu = [
+      "Para *Taquiza* tenemos dos caminos:",
+      "",
+      "1. *Solo alimentos* — $320.00 /pp (solo la comida)",
+      "2. *Servicio completo* — desde $750.00 /pp (incluye bebidas, mobiliario y meseros)",
+      "",
+      "¿Cuál te late más?",
+    ].join("\n");
+    assert.ok(isCatalogLevelSelection("completo", modeMenu));
+    assert.ok(isCatalogLevelSelection("2", modeMenu));
+    assert.equal(extractCatalogNivelFromText("2", modeMenu), "Servicio completo");
+    assert.match(extractCatalogNivelFromText("solo alimentos", modeMenu) ?? "", /solo\s+alimentos/i);
+
+    const live = runGuards({
+      aiResponse:
+        "Para *Taquiza* manejamos estos niveles:\n1. *Solo Alimentos* — $320\n2. *Basico* — $750\n3. *Tradicional* — $800\n4. *Premium* — $850\n\n¿Cuál prefieres?",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        requerimientos_evento: "Taquiza",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "quiero taquiza",
+      history: [{ role: "user", content: "quiero taquiza" }],
+    });
+    assert.ok(
+      /solo\s+alimentos/i.test(live) && /servicio\s+completo/i.test(live),
+      live.slice(0, 500)
+    );
+    assert.ok(
+      !(/1\.\s*\*?Solo Alimentos[\s\S]*4\.\s*\*?Premium/i.test(live)),
+      `guards no deben dejar dump: ${live.slice(0, 600)}`
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);

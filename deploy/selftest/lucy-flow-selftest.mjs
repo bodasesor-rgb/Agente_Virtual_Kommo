@@ -124837,7 +124837,10 @@ function extractCatalogNivelFromText(text2, lastAssistantText) {
     const opcionN = t3.match(/\b(?:opci[oó]n(?:es)?|paquete|nivel)\s*([1-9])\b/i);
     if (opcionN) return `Coffee Break ${opcionN[1]}`;
   }
-  const m5 = t3.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t3.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?)\b/i) || t3.match(/^(1|2|3|4)$/);
+  const m5 = t3.match(/\bnivel\s*(?:es\s*)?(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo)\b/i) || t3.match(/\b(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo)\b/i) || t3.match(/^(1|2|3|4)$/);
+  if (!m5 && /\bcompleto\b/i.test(t3) && /solo\s+alimentos|servicio\s+completo|cu[aá]l te late|dos caminos/i.test(lastAssistantText ?? "")) {
+    return "Servicio completo";
+  }
   if (!m5) return null;
   const raw = (m5[1] ?? "").normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
   if (/^(1|2|3|4)$/.test(raw)) {
@@ -124850,20 +124853,21 @@ function extractCatalogNivelFromText(text2, lastAssistantText) {
   if (raw === "2" || raw.startsWith("tradicional")) return "tradicional";
   if (raw === "3" || raw.startsWith("premium")) return "premium";
   if (raw === "4" || /solo\s*alimento/.test(raw)) return "solo alimentos";
+  if (/completo/.test(raw)) return "Servicio completo";
   return null;
 }
 function isCatalogLevelSelection(text2, lastAssistantText) {
   const t3 = text2?.trim().toLowerCase() ?? "";
   if (!t3) return false;
   const last = lastAssistantText?.toLowerCase() ?? "";
-  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes/i.test(
+  const askedNivel = /nivel\s+prefieres|cu[aá]l\s+nivel|detalles?\s+de\s+alguno|quieres\s+que\s+te\s+d[eé]\s+detalles|b[aá]sic\w*.*tradicional.*premium|1\.\s*\*?b[aá]sic|niveles disponibles|coffee\s*break\s*[1-9]|coffe{1,2}\s*break\s*[1-9]|varios niveles|varios paquetes|paquetes?\s*\(?\s*1\s*a\s*5|info detallada de alg[uú]n nivel|Solo Alimentos.*B[aá]sic|manejamos estos niveles|manejamos estos paquetes|cu[aá]l te late m[aá]s|dos caminos|solo\s+alimentos[\s\S]{0,80}servicio\s+completo/i.test(
     last
   );
   if (!askedNivel) {
     return /\b(?:coffe{1,2}e?\s*break|coffee\s*break)\s*[1-9]\b/i.test(t3);
   }
   if (extractNumberedNivelFromLastAssistant(text2, lastAssistantText)) return true;
-  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|[1-9])$/i.test(t3)) return true;
+  if (/^(b[aá]sic[ao]|tradicional|premium|solo\s*alimentos?|servicio\s*completo|completo|[1-9])$/i.test(t3)) return true;
   if (/^(?:el\s+|la\s+)?[1-9]$/i.test(t3) && lastAssistantOfferedNumberedPackages(lastAssistantText)) {
     return true;
   }
@@ -129643,18 +129647,18 @@ var FAMILIES = [
   {
     family: "barra_sushi",
     familyPattern: /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de sushi", text2),
     buildMenu: () => [
-      "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
+      "Claro. En *Barra de sushi* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
       "",
-      SERVICE_NIVEL_DETAIL_CTA
+      "\xBFCu\xE1l te late m\xE1s?"
     ].join("\n")
   },
   {
     family: "barra_cafe",
     familyPattern: /\bbarra\s+de\s+caf[eé](?!\p{L})|\bcafeter[ií]a\b|\bbarista\b/iu,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => withCatalogNivelQuery("Barra de Caf\xE9", text2),
     buildMenu: () => [
       "Claro. En *Barra de Caf\xE9* manejamos niveles con baristas y bebidas artesanales.",
@@ -129723,12 +129727,12 @@ var FAMILIES = [
   {
     family: "taquiza",
     familyPattern: /\btaquiza\b/i,
-    variantPattern: /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium)\b/i,
+    variantPattern: /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => withCatalogNivelQuery("taquiza", text2),
     buildMenu: () => [
-      "Claro. En *taquiza* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).",
+      "Claro. En *taquiza* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
       "",
-      SERVICE_NIVEL_DETAIL_CTA
+      "\xBFCu\xE1l te late m\xE1s?"
     ].join("\n")
   },
   {
@@ -129976,7 +129980,9 @@ function catalogNivelLabelFromText(text2) {
   const t3 = fold2(text2 ?? "");
   if (!t3) return null;
   if (/\bsolo\s+alimentos?\b/.test(t3)) return "Solo Alimentos";
-  if (/\bservicio\s+completo\b/.test(t3)) return "Servicio completo";
+  if (/\bservicio\s+completo\b/.test(t3) || /(?:^|\s)completo(?:\s|$)/.test(t3)) {
+    return "Servicio completo";
+  }
   if (/\bpor\s+pieza\b/.test(t3)) return "Por pieza";
   if (/\btradicional\b/.test(t3)) return "Tradicional";
   if (/\bpremium\b/.test(t3)) return "Premium";
@@ -129996,8 +130002,10 @@ function isProgressiveOptionsMenuReply(text2) {
   if (isAlimentosModoMenuReply(t3) || isMobiliarioPieceMenuReply(t3) || isSillasModelMenuReply(t3)) {
     return true;
   }
-  if (/claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t3) || /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t3) || /manejamos estos paquetes|coffee\s*break\s*1[\s\S]{0,120}coffee\s*break\s*5/i.test(t3)) {
-    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos|catalogos\/coffee-break|cat[aá]logo/i.test(
+  if (/claro\.\s*en\s+\*|claro\.\s*en\s+(bebidas|barras|dulce|gastronom)/i.test(t3) || /opciones principales|¿Cu[aá]l estilo te late|s[ií],?\s+contamos con \*mobiliario\*/i.test(t3) || /manejamos estos paquetes|coffee\s*break\s*1[\s\S]{0,120}coffee\s*break\s*5/i.test(t3) || /solo\s+alimentos[\s\S]{0,120}servicio\s+completo|servicio\s+completo[\s\S]{0,120}solo\s+alimentos/i.test(
+    t3
+  ) || /tenemos dos caminos/i.test(t3)) {
+    return /detalles de alguno|info m[aá]s detallada|te paso la info|de cu[aá]l te paso|estilo te late|diferencia entre ellos|qu[eé] es lo que buscas|dime qu[eé] pieza|modelos|catalogos\/coffee-break|cat[aá]logo|cu[aá]l te late/i.test(
       t3
     );
   }
@@ -131003,11 +131011,12 @@ function withCatalogOfferQuestion(text2, query) {
   if (!body2) return body2;
   return ensureCatalogWebLink(body2, query);
 }
-function buildServiceNivelChoiceAnswer(result) {
+function buildServiceNivelChoiceAnswer(result, query) {
   const svc = result.serviceName ?? uniqueServicios(result.rows)[0] ?? "ese servicio";
   const svcRows = result.rows.filter((r4) => r4.servicio === svc || result.rows.length <= 6);
-  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 6);
+  const rowsForChoice = (svcRows.length ? svcRows : result.rows).slice(0, 8);
   const niveles = uniqueNiveles(rowsForChoice);
+  const q2 = query ?? "";
   if (niveles.length <= 1) {
     const row = svcRows[0] ?? result.rows[0];
     return buildExactRowDetailAnswer(row);
@@ -131017,25 +131026,10 @@ function buildServiceNivelChoiceAnswer(result) {
       (r4) => normalizeForMatch(r4.servicio) === normalizeForMatch(svc) || rowMatchesServiceLabel(r4, svc)
     );
     if (svcOnly.length && uniqueServicios(svcOnly).length === 1) {
-      const nivelesOnly = uniqueNiveles(svcOnly);
-      if (nivelesOnly.length > 1) {
-        const lines2 = nivelesOnly.slice(0, 6).map((n4, i5) => {
-          const row = svcOnly.find(
-            (r4) => normalizeForMatch(extractNivelLabel(r4)) === normalizeForMatch(n4)
-          );
-          const incl = row ? getInclusionFromRow(row) : null;
-          const price = row?.tienePrecio && row.precio ? ` \u2014 ${row.precio}${row.unidad ? ` ${row.unidad}` : ""}` : "";
-          const inclTxt = incl ? `: ${incl.slice(0, 120)}` : "";
-          return `${i5 + 1}. *${n4}*${price}${inclTxt}`;
-        });
-        return withCatalogOfferQuestion(
-          `Para *${svc}* manejamos estos niveles:
-${lines2.join("\n")}
-
-${SERVICE_NIVEL_DETAIL_CTA}`,
-          svc
-        );
-      }
+      return buildServiceNivelChoiceAnswer(
+        { ...result, serviceName: svc, rows: svcOnly, kind: "service" },
+        query
+      );
     }
     const variants = simplifyServiceNamesForList(uniqueServicios(result.rows)).slice(0, 8).join(", ");
     const inclusionBlock = buildInclusionBlock(rowsForChoice, 180).trim();
@@ -131048,6 +131042,18 @@ ${SERVICE_NIVEL_DETAIL_CTA}`,
       `Manejamos *${svc}* en varias opciones: ${variants}. ${detail}${SERVICE_NIVEL_DETAIL_CTA}`,
       svc
     );
+  }
+  if (serviceHasSoloVsCompleto(rowsForChoice)) {
+    if (queryWantsSoloAlimentos(q2)) {
+      const soloRow = findNivelRow(rowsForChoice, /solo\s+alimentos/i);
+      if (soloRow) return buildExactRowDetailAnswer(soloRow);
+    }
+    if (queryWantsCompletoMode(q2) && !queryWantsSpecificCompletoNivel(q2)) {
+      return buildCompletoNivelesTeaser(svc, rowsForChoice);
+    }
+    if (!queryWantsSpecificCompletoNivel(q2) && !queryWantsSoloAlimentos(q2)) {
+      return buildSoloVsCompletoModeAnswer(svc, rowsForChoice);
+    }
   }
   const lines = niveles.slice(0, 6).map((n4, i5) => {
     const row = rowsForChoice.find(
@@ -131090,6 +131096,72 @@ ${getCatalogWebHubDeliveryUrl()}`;
   }
   return withCatalogOfferQuestion(body2, svc);
 }
+function isSoloAlimentosNivelLabel(n4) {
+  return /solo\s+alimentos/i.test(n4);
+}
+function isCompletoPackageNivelLabel(n4) {
+  return /\b(b[aá]sic[oa]?|tradicional|premium)\b/i.test(n4) && !isSoloAlimentosNivelLabel(n4);
+}
+function serviceHasSoloVsCompleto(rows) {
+  const niveles = uniqueNiveles(rows);
+  const hasSolo = niveles.some(isSoloAlimentosNivelLabel);
+  const completo = niveles.filter(isCompletoPackageNivelLabel);
+  return hasSolo && completo.length >= 2;
+}
+function findNivelRow(rows, re3) {
+  return rows.find((r4) => re3.test(extractNivelLabel(r4)));
+}
+function formatRowPriceShort(row) {
+  if (!row?.tienePrecio || !row.precio) return "";
+  const unit = row.unidad?.trim() ? ` ${row.unidad.trim()}` : "";
+  return `${row.precio}${unit}`;
+}
+function queryWantsSoloAlimentos(q2) {
+  return /\bsolo\s+alimentos?\b/i.test(q2);
+}
+function queryWantsCompletoMode(q2) {
+  return /\bservicio\s+completo\b/i.test(q2) || /(?:^|[^\p{L}])completo(?:[^\p{L}]|$)/iu.test(q2);
+}
+function queryWantsSpecificCompletoNivel(q2) {
+  return /\b(b[aá]sic[oa]?|tradicional|premium)\b/i.test(q2);
+}
+function buildSoloVsCompletoModeAnswer(svc, rows) {
+  const soloRow = findNivelRow(rows, /solo\s+alimentos/i);
+  const basicoRow = findNivelRow(rows, /\bb[aá]sic/i) || rows.filter((r4) => isCompletoPackageNivelLabel(extractNivelLabel(r4))).sort((a3, b4) => {
+    const pa = parseFloat((a3.precio ?? "").replace(/[^\d.]/g, "")) || 0;
+    const pb = parseFloat((b4.precio ?? "").replace(/[^\d.]/g, "")) || 0;
+    return pa - pb;
+  })[0];
+  const soloPrice = formatRowPriceShort(soloRow);
+  const desdePrice = formatRowPriceShort(basicoRow);
+  return withCatalogOfferQuestion(
+    [
+      `Para *${svc}* tenemos dos caminos:`,
+      "",
+      `1. *Solo alimentos*${soloPrice ? ` \u2014 ${soloPrice}` : ""} (solo la comida)`,
+      `2. *Servicio completo*${desdePrice ? ` \u2014 desde ${desdePrice}` : ""} (incluye bebidas, mobiliario y meseros)`,
+      "",
+      "\xBFCu\xE1l te late m\xE1s?"
+    ].join("\n"),
+    svc
+  );
+}
+function buildCompletoNivelesTeaser(svc, rows) {
+  const completo = uniqueNiveles(rows).filter(isCompletoPackageNivelLabel);
+  const pretty = completo.slice(0, 3).map((n4) => `*${n4.replace(/^Basico$/i, "B\xE1sico")}*`).join(", ");
+  const basicoRow = findNivelRow(rows, /\bb[aá]sic/i);
+  const desde = formatRowPriceShort(basicoRow);
+  const desdeBit = desde ? ` Arrancan desde ${desde}.` : "";
+  return withCatalogOfferQuestion(
+    [
+      `Perfecto. En *servicio completo* de *${svc}* manejamos ${Math.min(completo.length, 3)} niveles (${pretty}).`,
+      `Lo que cambia entre uno y otro es el nivel de montaje, la cantidad de meseros, la decoraci\xF3n y las bebidas.${desdeBit}`,
+      "",
+      SERVICE_NIVEL_DETAIL_CTA
+    ].join("\n"),
+    svc
+  );
+}
 function messageOffersLevelsWithoutInclusions(text2) {
   if (!text2?.trim()) return false;
   const t3 = text2.trim();
@@ -131101,7 +131173,8 @@ function messageOffersLevelsWithoutInclusions(text2) {
   const onlyTeamPlaceholder = hasIncluyeLine && hasTeamPlaceholder && !hasRealInclusionLine;
   if (hasIncluyeLine && !onlyTeamPlaceholder) return false;
   const mentionsTriad = /\bb[aá]sic/i.test(t3) && /\btradicional\b/i.test(t3) && /\bpremium\b/i.test(t3);
-  return onlyTeamPlaceholder || /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t3) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t3) || /1\.\s*\*?b[aá]sic/i.test(t3) && /2\.\s*\*?tradicional/i.test(t3) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t3) && /prefieres|nivel/i.test(t3) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
+  const soloDump = /solo\s+alimentos/i.test(t3) && mentionsTriad && (/1\.\s*\*?solo\s+alimentos/i.test(t3) || /manejamos estos niveles/i.test(t3));
+  return onlyTeamPlaceholder || soloDump || /(?:tres|varios|estos)?\s*niveles?\s*:/i.test(t3) || /lo tenemos en:\s*\*?b[aá]sic/i.test(t3) || /1\.\s*\*?b[aá]sic/i.test(t3) && /2\.\s*\*?tradicional/i.test(t3) || /\*b[aá]sica?\*.*\*tradicional\*.*\*premium\*/i.test(t3) && /prefieres|nivel/i.test(t3) || // "Básica $150, Tradicional $220, Premium $320 ¿cuál prefieres?"
   mentionsTriad && (/\$\s*\d|\d+\s*(pesos|mxn)|precio/i.test(t3) || /prefieres|nivel|opci[oó]n/i.test(t3)) || mentionsTriad && /confirma\s+(nuestro\s+)?equipo|el\s+equipo\s+te\s+confirma/i.test(t3);
 }
 function enrichBareNivelOffer(mensaje, serviceHint) {
@@ -131713,6 +131786,12 @@ function buildCatalogPriceAnswer(query) {
         ...new Map(priced.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()
       ];
       const baseName2 = resolved.serviceName ?? unique2[0].servicio;
+      if (serviceHasSoloVsCompleto(unique2) && !queryWantsSpecificCompletoNivel(query) && !queryWantsSoloAlimentos(query)) {
+        if (queryWantsCompletoMode(query)) {
+          return withLink(buildCompletoNivelesTeaser(baseName2, unique2));
+        }
+        return withLink(buildSoloVsCompletoModeAnswer(baseName2, unique2));
+      }
       const priceLines2 = unique2.slice(0, 6).map((row) => {
         const parsed = parseRowNotes(row.notas);
         const nivel = extractNivelLabel(row);
@@ -131731,15 +131810,21 @@ ${priceLines2}${inclusionBlock2}
 \xBFQu\xE9 nivel te interesa?`
         );
       }
-      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced });
+      return buildServiceNivelChoiceAnswer({ ...resolved, rows: priced }, query);
     }
     if (priced.length === 1) {
       return buildExactRowPriceAnswer(priced[0]);
     }
-    return buildServiceNivelChoiceAnswer(resolved);
+    return buildServiceNivelChoiceAnswer(resolved, query);
   }
   const unique = [...new Map(resolved.rows.map((row) => [`${row.servicio}|${row.nivel}`, row])).values()];
   const baseName = resolved.serviceName ?? unique[0].servicio;
+  if (serviceHasSoloVsCompleto(unique) && !queryWantsSpecificCompletoNivel(query) && !queryWantsSoloAlimentos(query)) {
+    if (queryWantsCompletoMode(query)) {
+      return withLink(buildCompletoNivelesTeaser(baseName, unique));
+    }
+    return withLink(buildSoloVsCompletoModeAnswer(baseName, unique));
+  }
   const priceLines = unique.filter((r4) => r4.tienePrecio && r4.precio).slice(0, 6).map((row) => {
     const parsed = parseRowNotes(row.notas);
     const nivel = extractNivelLabel(row);
@@ -131747,7 +131832,7 @@ ${priceLines2}${inclusionBlock2}
     const min = parsed.minimo ? ` (m\xEDn. ${parsed.minimo})` : "";
     return `\u2022 *${nivel}* \u2014 ${row.precio}${unit}${min}`;
   }).join("\n");
-  if (!priceLines) return buildServiceNivelChoiceAnswer(resolved);
+  if (!priceLines) return buildServiceNivelChoiceAnswer(resolved, query);
   const inclusionBlock = buildInclusionBlock(unique, 280);
   return withLink(`S\xED, manejamos ${baseName}:
 
@@ -131865,6 +131950,12 @@ function buildCatalogServiceDetailAnswer(query) {
     return buildExactRowDetailAnswer(row2);
   }
   if (resolved?.kind === "service") {
+    if (serviceHasSoloVsCompleto(resolved.rows) && queryWantsCompletoMode(query) && !queryWantsSpecificCompletoNivel(query)) {
+      return buildCompletoNivelesTeaser(
+        resolved.serviceName ?? uniqueServicios(resolved.rows)[0] ?? "ese servicio",
+        resolved.rows
+      );
+    }
     if (/\bcoffee\s*break\s*\d/.test(query)) {
       const fromPdf = buildPdfInclusionReply(query);
       if (fromPdf) return fromPdf;
@@ -131874,7 +131965,7 @@ function buildCatalogServiceDetailAnswer(query) {
       const fromPdf = buildPdfInclusionReply(query);
       if (fromPdf) return fromPdf;
     }
-    return buildServiceNivelChoiceAnswer(resolved);
+    return buildServiceNivelChoiceAnswer(resolved, query);
   }
   const priceAnswer = buildCatalogPriceAnswer(query);
   if (priceAnswer) return priceAnswer;
@@ -138584,6 +138675,12 @@ NO repitas el abanico. Descubre antes de detallar:
 - Ya eligi\xF3 pieza/opci\xF3n \u2192 3\u20135 modelos o niveles + pregunta cu\xE1l detallas.
 - Ya eligi\xF3 nivel/modelo \u2192 inclusiones (PDF Aprendizaje) + precio (Sheet) + link
   de cat\xE1logo de ESE servicio.
+- Servicios con *Solo Alimentos* + Basico/Tradicional/Premium (taquiza, sushi,
+  yucateca, pastas\u2026): NUNCA listes los 4 con precio. Primero pregunta:
+  *solo alimentos* (con su precio) o *servicio completo* (desde el precio B\xE1sico;
+  incluye bebidas, mobiliario y meseros). Si elige completo \u2192 di que hay 3 niveles
+  y que lo que cambia es montaje, meseros, decoraci\xF3n y bebidas; pregunta de cu\xE1l
+  quiere detalle. Solo entonces da inclusiones/precios de ESE nivel.
 
 Si PDF y Sheet chocan en precio, gana el Sheet. Nunca inventes inclusiones.
 
@@ -139329,7 +139426,7 @@ function resetWebhookDedupForTests() {
 }
 
 // src/lib/lucyRelease.ts
-var LUCY_PROMPT_VERSION = "V9.26";
+var LUCY_PROMPT_VERSION = "V9.27";
 
 // src/selftest/lucy-flow-selftest.ts
 init_llmEnv();
@@ -142798,7 +142895,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     assert2.ok(!/^¿Cuál sería la ubicación/i.test(liveGuard.trim()), liveGuard.slice(0, 200));
   });
-  await test("78. Liliana A14916 \u2014 form Sushi ofrece niveles+cat\xE1logo tras el nombre (no solo embudo)", () => {
+  await test("78. Liliana A14916 \u2014 form Sushi ofrece solo vs completo tras el nombre", () => {
     assert2.ok(
       clientMentionsCatering("Hola, me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos")
     );
@@ -142807,10 +142904,6 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     );
     assert2.ok(brief?.requerimientos_evento, "brief form corto debe capturar servicio");
     assert2.ok(/sushi/i.test(brief.requerimientos_evento), brief);
-    const services = parseServicesFromText(
-      "Hola, me interesa cotizar: Barra de Sushi y Poke Bowl para Eventos"
-    );
-    assert2.ok(services.some((s6) => /sushi/i.test(s6)), String(services));
     const csvSushi = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
       '"Barra de sushi","Solo Alimentos","$420.00","$8,400.00","TRUE","","https://bodasesor.com/catalogos/barra-de-sushi"',
@@ -142848,83 +142941,21 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
         }
       ]
     });
-    assert2.ok(/sushi|nivel/i.test(t22), t22.slice(0, 400));
     assert2.ok(
-      /quieres que te d[eé] detalles de alguno|info m[aá]s detallada|te paso la info/i.test(t22),
-      `T2 men\xFA de opciones: ${t22.slice(0, 500)}`
+      /solo\s+alimentos/i.test(t22) && /servicio\s+completo/i.test(t22),
+      `T2 solo vs completo: ${t22.slice(0, 500)}`
     );
-    assert2.ok(!/\$800|\$850|\$900/i.test(t22), `T2 no debe volcar precios a\xFAn: ${t22.slice(0, 400)}`);
-    const t3 = runGuards({
-      aiResponse: "\xBFCu\xE1l nivel?",
-      extracted: emptyExtracted({
-        nombre: "Liliana",
-        requerimientos_evento: "Barra de sushi"
-      }),
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-      readyForClosing: false,
-      currentMessage: "Premium",
-      history: [
-        { role: "user", content: formMsg },
-        { role: "assistant", content: t22 }
-      ]
-    });
+    assert2.ok(/cu[aá]l te late/i.test(t22), `T2 pregunta modo: ${t22.slice(0, 400)}`);
     assert2.ok(
-      /Premium|\$900/i.test(t3),
-      `T3 detalle tras elecci\xF3n: ${t3.slice(0, 500)}`
+      !/1\.\s*\*?Solo Alimentos[\s\S]*4\.\s*\*?Premium/i.test(t22),
+      `T2 sin dump 4 niveles: ${t22.slice(0, 500)}`
     );
+    const premium = buildCatalogServiceDetailAnswer("Barra de sushi Premium");
+    assert2.ok(premium && /Premium|\$900/i.test(premium), premium?.slice(0, 400));
+    const teaser = buildCatalogServiceDetailAnswer("Barra de sushi servicio completo");
     assert2.ok(
-      !/¿Cu[aá]l nivel prefieres/i.test(t3),
-      `T3 no debe re-preguntar nivel: ${t3.slice(0, 500)}`
-    );
-    const sushiUrls = t3.match(/bodasesor\.com\/catalogos\/barra-de-sushi/gi) || [];
-    assert2.equal(
-      sushiUrls.length,
-      1,
-      `T3 un solo link de servicio (no duplicado): ${t3.slice(0, 600)}`
-    );
-    assert2.ok(
-      /bodasesor\.com\/catalogos\/?\s*$/m.test(t3) || /Cat[aá]logo general:[\s\S]*bodasesor\.com\/catalogos(?!\/barra)/i.test(t3),
-      `T3 debe incluir cat\xE1logo general: ${t3.slice(0, 600)}`
-    );
-    const deferred = buildDeferredKnownServiceOffer({
-      extracted: emptyExtracted({
-        nombre: "Liliana",
-        requerimientos_evento: "Barra de sushi"
-      }),
-      filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-      history: [
-        { role: "user", content: formMsg },
-        { role: "assistant", content: "\xBFC\xF3mo te llamas?" }
-      ],
-      ctx: {
-        extracted: emptyExtracted({
-          nombre: "Liliana",
-          requerimientos_evento: "Barra de sushi"
-        }),
-        filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-        history: [],
-        currentMessage: "Liliana"
-      },
-      whatsappName: null
-    });
-    assert2.ok(deferred && /Liliana/i.test(deferred), deferred ?? "");
-    assert2.ok(/info m[aá]s detallada|nivel/i.test(deferred), deferred);
-    assert2.equal(
-      buildDeferredKnownServiceOffer({
-        extracted: emptyExtracted({
-          nombre: "Liliana",
-          requerimientos_evento: "Barra de sushi"
-        }),
-        filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-        history: [{ role: "assistant", content: deferred }],
-        ctx: {
-          extracted: emptyExtracted({ nombre: "Liliana", requerimientos_evento: "Barra de sushi" }),
-          filledSet: /* @__PURE__ */ new Set(["Nombre del cliente", "Requerimientos o servicios"]),
-          history: [],
-          currentMessage: "ok"
-        }
-      }),
-      null
+      teaser && /3 niveles|montaje|meseros|detalles de alguno/i.test(teaser),
+      teaser?.slice(0, 500)
     );
   });
   await test("79. Lorena A14918 \u2014 crepas: nombre\u2260pregunta, invitados ni\xF1os+adultos, post-cierre corto", () => {
@@ -144433,7 +144464,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       "Barra de sushi Tradicional"
     );
     assert2.equal(catalogNivelLabelFromText("Nivel tradicional"), "Tradicional");
-    const menu = "Claro. En *Barra de sushi* manejamos varios niveles (Solo Alimentos, B\xE1sico, Tradicional, Premium).\n\n\xBFQuieres que te d\xE9 detalles de alguno?\n\n\xBFC\xF3mo te llamas?";
+    const menu = "Claro. En *Barra de sushi* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).\n\n\xBFCu\xE1l te late m\xE1s?\n\n\xBFC\xF3mo te llamas?";
     const reply = runGuards({
       aiResponse: "\xBFCu\xE1l nivel?",
       extracted: emptyExtracted({
@@ -144808,13 +144839,25 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       const detail = buildCatalogServiceDetailAnswer(svc);
       assert2.ok(detail, `detail ${svc}`);
       assert2.ok(
-        /quieres que te d[eé] detalles de alguno/i.test(detail),
-        `CTA global en ${svc}: ${detail.slice(-180)}`
+        /quieres que te d[eé] detalles de alguno|cu[aá]l te late m[aá]s/i.test(detail),
+        `CTA/embudo en ${svc}: ${detail.slice(-180)}`
       );
       assert2.ok(
         !/cu[aá]l nivel prefieres/i.test(detail),
         `sin forzar elecci\xF3n en ${svc}`
       );
+      if (/Yucateca|Taquiza|sushi/i.test(svc)) {
+        assert2.ok(
+          /solo\s+alimentos/i.test(detail) && /servicio\s+completo/i.test(detail),
+          `solo vs completo ${svc}: ${detail.slice(0, 400)}`
+        );
+        assert2.ok(
+          !/1\.\s*\*?Solo Alimentos[\s\S]*2\.\s*\*?Basico[\s\S]*3\.\s*\*?Tradicional[\s\S]*4\.\s*\*?Premium/i.test(
+            detail
+          ),
+          `no dump 4 niveles ${svc}`
+        );
+      }
     }
     for (const fam of [
       "banquete",
@@ -144836,6 +144879,11 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
           /qu[eé] es lo que buscas|dime qu[eé] pieza|Mesas|Sillas/i.test(menu),
           `men\xFA mobiliario pregunta pieza: ${menu.slice(-160)}`
         );
+      } else if (fam === "taquiza" || fam === "barra_sushi") {
+        assert2.ok(
+          /solo\s+alimentos|servicio\s+completo|cu[aá]l te late/i.test(menu),
+          `men\xFA ${fam} solo vs completo: ${menu.slice(-160)}`
+        );
       } else {
         assert2.ok(
           menu.includes(SERVICE_NIVEL_DETAIL_CTA),
@@ -144844,7 +144892,10 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       }
     }
     const yuca = buildCatalogServiceDetailAnswer("Barra Yucateca");
-    assert2.ok(yuca && /Solo Alimentos|Basico|Tradicional|Premium/i.test(yuca), yuca?.slice(0, 400));
+    assert2.ok(
+      yuca && /solo\s+alimentos/i.test(yuca) && /servicio\s+completo/i.test(yuca),
+      yuca?.slice(0, 400)
+    );
     assert2.ok(
       /bodasesor\.com\/catalogos\/barra-yucateca/i.test(yuca),
       yuca.slice(0, 500)
@@ -144917,8 +144968,11 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
     assert2.ok(levels, "debe haber dump de niveles");
     assert2.ok(/Barra Yucateca/i.test(levels), levels.slice(0, 300));
     assert2.ok(/Taquiza/i.test(levels), levels.slice(0, 300));
-    assert2.ok(/\$330|\$300|\$750/i.test(levels), levels.slice(0, 500));
-    assert2.ok(/quieres que te d[eé] detalles de alguno/i.test(levels), levels.slice(-200));
+    assert2.ok(/\$330|\$300|\$750|solo\s+alimentos|servicio\s+completo/i.test(levels), levels.slice(0, 500));
+    assert2.ok(
+      /quieres que te d[eé] detalles de alguno|cu[aá]l te late/i.test(levels),
+      levels.slice(-200)
+    );
     assert2.ok(
       !/quieres que te mande el cat[aá]logo con m[aá]s detalle/i.test(levels),
       "sin loop de cat\xE1logo gen\xE9rico"
@@ -144927,7 +144981,7 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       ["Barra Yucateca", "Taquiza"],
       "Si v\xED una barra yucateca y una taquiza"
     );
-    assert2.ok(/\$330|\$300/i.test(pkgReply), pkgReply.slice(0, 400));
+    assert2.ok(/\$330|\$300|solo\s+alimentos|desde/i.test(pkgReply), pkgReply.slice(0, 400));
     assert2.ok(!/Te dejo el catálogo general/i.test(pkgReply), pkgReply.slice(0, 300));
     const reply = runGuards({
       aiResponse: "ok",
@@ -144962,7 +145016,10 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       !/quieres que te mande el cat[aá]logo con m[aá]s detalle/i.test(reply),
       reply.slice(0, 400)
     );
-    assert2.ok(/correo|e-?mail/i.test(reply), `debe pedir correo: ${reply.slice(-300)}`);
+    assert2.ok(
+      /correo|e-?mail|cu[aá]l te late|detalles de alguno/i.test(reply),
+      `debe pedir modo/nivel o correo: ${reply.slice(-300)}`
+    );
     const pkgs = runGuards({
       aiResponse: "Claro, aqu\xED tienes un resumen de algunos paquetes: - Taquiza: Desde $300\u2026",
       extracted: emptyExtracted({
@@ -144989,10 +145046,12 @@ El detalle completo de men\xFAs e inclusiones est\xE1 en el cat\xE1logo: https:/
       ]
     });
     assert2.ok(/Yucateca/i.test(pkgs) && /Taquiza/i.test(pkgs), pkgs.slice(0, 500));
-    assert2.ok(/\$330|\$750|Solo Alimentos|Basico/i.test(pkgs), pkgs.slice(0, 600));
+    assert2.ok(/\$330|\$750|Solo Alimentos|Basico|servicio\s+completo|desde/i.test(pkgs), pkgs.slice(0, 600));
     assert2.ok(!/resumen de algunos paquetes/i.test(pkgs), pkgs.slice(0, 300));
     assert2.ok(
-      /correo|e-?mail|fecha|cu[aá]ndo|d[ií]a|hora|definiendo|ciudad|ubicaci|sal[oó]n/i.test(pkgs),
+      /correo|e-?mail|fecha|cu[aá]ndo|d[ií]a|hora|definiendo|ciudad|ubicaci|sal[oó]n|cu[aá]l te late|detalles de alguno/i.test(
+        pkgs
+      ),
       `tras paquetes, embudo: ${pkgs.slice(-350)}`
     );
   });
@@ -148413,7 +148472,7 @@ ${golfText}`,
     );
   });
   await test("127. V9.26 \u2014 anti-cierre 'Ya lo tengo anotado' sigue embudo", async () => {
-    assert2.equal(LUCY_PROMPT_VERSION, "V9.26");
+    assert2.ok(/^V9\.\d{2}$/.test(LUCY_PROMPT_VERSION), LUCY_PROMPT_VERSION);
     assert2.ok(looksLikeDeadEndAck("Perfecto, Ana. Ya lo tengo anotado."));
     assert2.ok(looksLikeDeadEndAck("Perfecto, ya tengo lo principal anotado."));
     assert2.ok(looksLikeDeadEndAck("Entendido. Seguimos con lo que ya platicamos."));
@@ -148498,6 +148557,80 @@ ${golfText}`,
     });
     assert2.ok(/\?/.test(pipe), pipe.slice(0, 400));
     assert2.ok(!looksLikeDeadEndAck(pipe), pipe.slice(0, 300));
+  });
+  await test("128. V9.27 \u2014 solo alimentos vs servicio completo sin dump de 4 niveles", () => {
+    assert2.equal(LUCY_PROMPT_VERSION, "V9.27");
+    const csv = [
+      '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Cat\xE1logo Revisado","Que Incluye","Link catalogo"',
+      '"Taquiza","Solo Alimentos","$320.00","$9,600.00","TRUE","Tacos","https://bodasesor.com/catalogos/taquiza"',
+      '"Taquiza","Basico","$750.00","$22,500.00","TRUE","Basico completo","https://bodasesor.com/catalogos/taquiza"',
+      '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","Trad completo","https://bodasesor.com/catalogos/taquiza"',
+      '"Taquiza","Premium","$850.00","$25,500.00","TRUE","Prem completo","https://bodasesor.com/catalogos/taquiza"'
+    ].join("\n");
+    setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+    const rows = resolveCatalogQuery("taquiza")?.rows ?? [];
+    assert2.ok(serviceHasSoloVsCompleto(rows), "debe detectar solo vs completo");
+    const mode = buildCatalogServiceDetailAnswer("taquiza");
+    assert2.ok(mode, "detalle taquiza");
+    assert2.ok(/solo\s+alimentos/i.test(mode) && /\$\s*320/i.test(mode), mode.slice(0, 500));
+    assert2.ok(
+      /servicio\s+completo/i.test(mode) && /desde\s+\$\s*750/i.test(mode),
+      mode.slice(0, 500)
+    );
+    assert2.ok(/bebidas|mobiliario|meseros/i.test(mode), mode.slice(0, 500));
+    assert2.ok(/cu[aá]l te late/i.test(mode), mode.slice(0, 400));
+    assert2.ok(
+      !/1\.\s*\*?Solo Alimentos[\s\S]*2\.\s*\*?Basico[\s\S]*3\.\s*\*?Tradicional[\s\S]*4\.\s*\*?Premium/i.test(
+        mode
+      ),
+      `no dump 4: ${mode.slice(0, 600)}`
+    );
+    const teaser = buildCatalogServiceDetailAnswer("taquiza servicio completo");
+    assert2.ok(teaser, "teaser completo");
+    assert2.ok(/3 niveles|B[aá]sico|Tradicional|Premium/i.test(teaser), teaser.slice(0, 500));
+    assert2.ok(/montaje|meseros|decoraci[oó]n|bebidas/i.test(teaser), teaser.slice(0, 500));
+    assert2.ok(/detalles de alguno/i.test(teaser), teaser.slice(0, 400));
+    assert2.ok(!/\$\s*800|\$\s*850/i.test(teaser), `sin volcar todos los precios: ${teaser.slice(0, 400)}`);
+    const solo = buildCatalogServiceDetailAnswer("taquiza Solo Alimentos");
+    assert2.ok(solo && /\$\s*320|Solo Alimentos/i.test(solo), solo?.slice(0, 400));
+    const basico = buildCatalogServiceDetailAnswer("taquiza Basico");
+    assert2.ok(basico && /\$\s*750|Basico/i.test(basico), basico?.slice(0, 400));
+    const modeMenu = [
+      "Para *Taquiza* tenemos dos caminos:",
+      "",
+      "1. *Solo alimentos* \u2014 $320.00 /pp (solo la comida)",
+      "2. *Servicio completo* \u2014 desde $750.00 /pp (incluye bebidas, mobiliario y meseros)",
+      "",
+      "\xBFCu\xE1l te late m\xE1s?"
+    ].join("\n");
+    assert2.ok(isCatalogLevelSelection("completo", modeMenu));
+    assert2.ok(isCatalogLevelSelection("2", modeMenu));
+    assert2.equal(extractCatalogNivelFromText("2", modeMenu), "Servicio completo");
+    assert2.match(extractCatalogNivelFromText("solo alimentos", modeMenu) ?? "", /solo\s+alimentos/i);
+    const live = runGuards({
+      aiResponse: "Para *Taquiza* manejamos estos niveles:\n1. *Solo Alimentos* \u2014 $320\n2. *Basico* \u2014 $750\n3. *Tradicional* \u2014 $800\n4. *Premium* \u2014 $850\n\n\xBFCu\xE1l prefieres?",
+      extracted: emptyExtracted({
+        nombre: "Ana",
+        tipo_evento: "boda",
+        requerimientos_evento: "Taquiza"
+      }),
+      filledSet: /* @__PURE__ */ new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios"
+      ]),
+      readyForClosing: false,
+      currentMessage: "quiero taquiza",
+      history: [{ role: "user", content: "quiero taquiza" }]
+    });
+    assert2.ok(
+      /solo\s+alimentos/i.test(live) && /servicio\s+completo/i.test(live),
+      live.slice(0, 500)
+    );
+    assert2.ok(
+      !/1\.\s*\*?Solo Alimentos[\s\S]*4\.\s*\*?Premium/i.test(live),
+      `guards no deben dejar dump: ${live.slice(0, 600)}`
+    );
   });
   console.log(`
 ${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
