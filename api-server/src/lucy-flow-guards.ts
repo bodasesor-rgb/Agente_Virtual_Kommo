@@ -2162,6 +2162,47 @@ export function pickTransition(
 }
 
 /** Evita "Suena muy bien. … Suena muy bien. …" en el mismo mensaje. */
+/**
+ * V9.25 / A15308: quita "Qué emoción, felicidades" y similares cuando el cliente
+ * solo dio el nombre o aún no hay tipo de evento que felicitar.
+ */
+export function stripPrematureCelebrationFluff(
+  mensaje: string,
+  opts?: {
+    currentMessage?: string | null;
+    tipoEvento?: string | null;
+    force?: boolean;
+  }
+): string {
+  if (!mensaje?.trim()) return mensaje;
+  const msg = opts?.currentMessage?.trim() ?? "";
+  const tipo = opts?.tipoEvento?.trim() ?? "";
+  const nameOnly =
+    !!msg &&
+    (looksLikeNameAnswerMessage(msg) ||
+      (/^(soy|me\s+llamo|mi\s+nombre\s+es)\s+/i.test(msg) &&
+        !/\b(boda|cumplea|xv|bautizo|baby|corporativ|graduaci|evento)\b/i.test(msg)));
+  const noEventYet = !tipo || /^cotizaci[oó]n|evento$/i.test(tipo);
+  if (!opts?.force && !nameOnly && !noEventYet) return mensaje;
+
+  let out = mensaje;
+  // Casos pegados: "¡Mucho gusto, Carlota! Qué emoción, felicidades. ¿Qué…"
+  out = out.replace(
+    /(¡?Mucho gusto,\s*[^!]{1,40}!)\s*(?:¡?\s*)?(?:Qu[eé]\s+emoción|Qu[eé]\s+padre|Qu[eé]\s+bonito|Felicidades)(?:\s*,\s*(?:felicidades|qu[eé]\s+emoción))?[^.?!]{0,40}[.!]?\s*/gi,
+    "$1 "
+  );
+  // Frases emotivas sueltas (sin comerse el "!" del Mucho gusto).
+  out = out.replace(
+    /\s+(?:¡?\s*)?(?:qu[eé]\s+emoción|qu[eé]\s+padre|qu[eé]\s+bonito|qu[eé]\s+genial|felicidades|me\s+da\s+mucho\s+gusto|qu[eé]\s+alegre|qu[eé]\s+ilusi[oó]n)\b[^.?!¡¿\n]{0,40}[.!…]?/gi,
+    ""
+  );
+  out = out.replace(
+    /^(?:¡?\s*)?(?:qu[eé]\s+emoción|felicidades)\b[^.?!¡¿\n]{0,40}[.!…]?\s*/gi,
+    ""
+  );
+  return out.replace(/\s{2,}/g, " ").replace(/\s+\n/g, "\n").trim();
+}
+
 export function dedupeTransitionsInMessage(mensaje: string): string {
   if (!mensaje?.trim()) return mensaje;
   const pattern =
@@ -2189,6 +2230,11 @@ export function dedupeTransitionsInMessage(mensaje: string): string {
   out = out.replace(
     /(¡Mucho gusto,\s+([A-Za-zÁÉÍÓÚáéíóúüñÑ]{2,})!)\s+¡?Mucho gusto,\s+\2[.!]/gi,
     "$1"
+  );
+  // A15308: "¡Mucho gusto, X! Qué emoción, felicidades." → quitar emotivo pegado.
+  out = out.replace(
+    /(¡?Mucho gusto,\s*[^!]{1,40}!)\s*(?:¡?\s*)?(?:Qu[eé]\s+emoción|Qu[eé]\s+padre|Qu[eé]\s+bonito|Felicidades)(?:\s*,\s*(?:felicidades|qu[eé]\s+emoción))?[^.?!]{0,40}[.!]?\s*/gi,
+    "$1 "
   );
   return out.replace(/\s{2,}/g, " ").trim();
 }
@@ -8065,6 +8111,11 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
   }
 
   mensaje = dedupeTransitionsInMessage(mensaje);
+  // A15308: sin "qué emoción / felicidades" tras solo el nombre (todas las ramas).
+  mensaje = stripPrematureCelebrationFluff(mensaje, {
+    currentMessage,
+    tipoEvento: extracted.tipo_evento,
+  });
 
   // A15016: post-cierre NUNCA re-pide correo si ya está en historial/extracted.
   if (cierreYaEnviado && /correo electr[oó]nico|a qu[eé] correo|me compartes.*correo/i.test(mensaje)) {

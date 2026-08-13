@@ -146,7 +146,7 @@ export function buildRedactionBriefing(input: RedactionBriefingInput): string {
     lines.push(
       "NO te presentes de nuevo.",
       "Voz de chat: 2–4 líneas, máximo UNA pregunta de embudo, sin 'Ya tengo tu…'.",
-      "Tras el nombre (si aún no saludaste): '¡Mucho gusto, [Nombre]!' y sigue orgánico.",
+      "Tras el nombre (si aún no saludaste): '¡Mucho gusto, [Nombre]!' y UNA pregunta. Nunca 'qué emoción' ni 'felicidades' si solo dio el nombre.",
       "Varía transiciones (Perfecto/Claro/De acuerdo/Listo); evita 'un placer' / 'bienvenida' / relleno.",
       "Felicitación breve solo si es boda/cumpleaños; luego al grano."
     );
