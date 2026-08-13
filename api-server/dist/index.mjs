@@ -203050,6 +203050,7 @@ function isVagueFoodTerm(text2) {
   const t4 = text2?.trim() ?? "";
   if (!t4) return false;
   if (clientDeclinesServiceFamilies(t4).includes("alimentos")) return false;
+  if (clientAsksForFoodMenu(t4)) return true;
   if (clientAsksCafeOrCateringChoice(t4)) return true;
   if (/\b(desayuno|snack|cena|coffee\s*break)\b/i.test(t4) && /\b(desayuno|comida|cena|snack|coffee)\b/i.test(t4) && (t4.match(/\b(desayuno|comida|cena|snack|coffee\s*break)\b/gi) ?? []).length >= 2) {
     return false;
@@ -203164,9 +203165,23 @@ function clientMentionsItalianTheme(message) {
   if (/\bbarra\s+de\s+pastas?\b/i.test(t4) && !/\b(italian[ao]?|italia|toscana|mafia\s+italiana)\b/i.test(t4)) {
     return false;
   }
+  if (/\bbarra\s+italian|\bestaci[oó]n\s+italian|\bcomida\s+italian/i.test(t4)) {
+    return true;
+  }
   return /\b(italian[ao]?|italia|toscana|toscano|mafia\s+italiana|pastas?|pizzas?|antipasti|selecci[oó]n\s+de\s+italia|partido.*italia)\b/i.test(
     t4
   );
+}
+function clientAsksForFoodMenu(message) {
+  if (!message?.trim()) return false;
+  const t4 = message.trim();
+  if (hasSpecificFoodService(t4) && !/\bmen[uú]\b/i.test(t4)) return false;
+  if (/\bmen[uú]\s+(casual|formal|premium|b[aá]sic|tradicional|kosher|mexicano|navide)/i.test(t4) || /\b(banquete|taquiza|coffee\s*break|barra\s+de)\b.{0,20}\bmen[uú]\b/i.test(t4)) {
+    return false;
+  }
+  return /\b(me\s+)?(regalas?|pasas?|mandas?|env[ií]as?|das?|compartes?)\b.{0,24}\b(tu\s+|el\s+|su\s+)?men[uú]/i.test(
+    t4
+  ) || /\b(tu|el|su)\s+men[uú]\b.{0,16}\b(por\s*fa|porfavor|please)\b/i.test(t4) || /\b(quiero|necesito|puedes?\s+pasar)\b.{0,20}\b(el\s+|tu\s+)?men[uú]\b/i.test(t4) || /^\s*men[uú]s?\s*[?¿.!]*\s*$/i.test(t4) && t4.length <= 12;
 }
 function clientMentionsEntertainment(message) {
   if (!message?.trim()) return false;
@@ -206149,11 +206164,12 @@ var FAMILIES = [
   },
   {
     family: "barra_alimentos",
-    familyPattern: /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarras?\s+tem[aá]ticas?\b/i,
-    variantPattern: /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+    // A15302: "barra italiana" cuenta como familia de alimentos (no bebidas).
+    familyPattern: /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bbarras?\s+tem[aá]ticas?\b/i,
+    variantPattern: /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|italian[ao]?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text2) => {
       if (/pizza/i.test(text2)) return withCatalogNivelQuery("Barra de pizzas", text2);
-      if (/pasta|ensalada/i.test(text2)) {
+      if (/pasta|ensalada|italian/i.test(text2)) {
         return withCatalogNivelQuery("Barra de pastas y ensaladas", text2);
       }
       if (/crepa/i.test(text2)) return withCatalogNivelQuery("Barra de Crepas", text2);
@@ -206163,13 +206179,25 @@ var FAMILIES = [
       if (/americana/i.test(text2)) return withCatalogNivelQuery("Barra Americana", text2);
       return withCatalogNivelQuery("Barra de alimentos", text2);
     },
-    buildMenu: () => [
-      "Claro. En barras de alimentos manejamos varias:",
-      "\u2022 Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
-      "\u2022 Americana, Yucateca y m\xE1s",
-      "",
-      SERVICE_NIVEL_DETAIL_CTA
-    ].join("\n")
+    buildMenu: (hint) => {
+      if (hint && /\bitalian/i.test(hint)) {
+        return [
+          "\xA1S\xED! Para *barra italiana* manejamos estaciones de comida italiana:",
+          "\u2022 *Barra de pastas y ensaladas*",
+          "\u2022 *Barra de pizzas*",
+          "\u2022 Tambi\xE9n paninis u otras estaciones si quieres complementar",
+          "",
+          "\xBFTe detallo pastas, pizzas, o ambas?"
+        ].join("\n");
+      }
+      return [
+        "Claro. En barras de alimentos manejamos varias:",
+        "\u2022 Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
+        "\u2022 Americana, Yucateca y m\xE1s",
+        "",
+        SERVICE_NIVEL_DETAIL_CTA
+      ].join("\n");
+    }
   },
   {
     family: "taquiza",
@@ -208963,7 +208991,7 @@ import { join as join2 } from "node:path";
 
 // src/lib/lucyRelease.ts
 var LUCY_SERVER_VERSION = "3.3";
-var LUCY_PROMPT_VERSION = "V9.23";
+var LUCY_PROMPT_VERSION = "V9.24";
 
 // src/lib/buildMeta.ts
 var cached = null;
@@ -210685,9 +210713,13 @@ function buildLocationAnswer() {
 }
 function buildItalianFoodPitch(message) {
   const inv = message?.match(/(\d+)\s*(?:personas?|invitados?)/i);
-  let pitch = "Para tem\xE1tica italiana manejamos pastas, pizzas, barras de antipasti y estaciones de comida italiana";
+  const asksBarra = /\bbarra\b/i.test(message ?? "");
+  if (asksBarra) {
+    return buildProgressiveOptionsMenu("barra_alimentos", message ?? "barra italiana");
+  }
+  let pitch = "Para tem\xE1tica italiana manejamos *barra de pastas y ensaladas*, *barra de pizzas*, antipasti y estaciones italianas";
   if (inv) pitch += ` para ${inv[1]} personas`;
-  return `${pitch}.`;
+  return `${pitch}. \xBFTe late m\xE1s pastas, pizzas, o te detallo ambas?`;
 }
 var PISTA_TARIMA_VARIANTS = [
   {
@@ -211185,11 +211217,15 @@ function buildFoodServiceAckIntro(extracted, history, currentMessage) {
 }
 function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId) {
   const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
+  const tipoFromMsg = parseTipoEventoFromText(currentMessage ?? "");
+  if (tipoFromMsg && !extracted.tipo_evento?.trim()) {
+    extracted.tipo_evento = tipoFromMsg;
+  }
   const tipo = (extracted.tipo_evento ?? parseTipoEventoFromText(texts) ?? "").toLowerCase();
   const inv = extracted.num_invitados ?? 0;
   const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
   const msg = currentMessage ?? "";
-  if (isVagueFoodTerm(msg) || /\b(comidas?|alimentos?|catering|banquetes?)\b/i.test(msg)) {
+  if (clientAsksForFoodMenu(msg) || isVagueFoodTerm(msg) || /\b(comidas?|alimentos?|catering|banquetes?)\b/i.test(msg)) {
     if (historyOfferedAlimentosModoMenu(history)) {
       if (clientChoseBanqueteFormal(msg)) {
         return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
@@ -211199,6 +211235,15 @@ function buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId
       }
     }
     if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
+      const smallBirthday = /\bcumplea/i.test(tipo) && (inv > 0 ? inv <= 50 : /\bpeque[nñ]o\b/i.test(msg));
+      if (smallBirthday) {
+        return [
+          pickTransition(history),
+          "Para un cumplea\xF1os m\xE1s peque\xF1o suele ir muy bien algo *casual* (barra de pastas/pizzas, taquiza, canap\xE9s\u2026) o un *banquete* m\xE1s formal si lo prefieres.",
+          "",
+          buildAlimentosModoMenu()
+        ].join("\n").trim();
+      }
       return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
     }
   }
@@ -213953,15 +213998,56 @@ ${aiAlreadyLists ? "" : aiResponse}`.trim(),
         "GUARD: brief multi-servicio \u2014 lista completa + cat\xE1logo"
       );
     }
-  } else if (allowSalesReplyOverride && isVagueFoodTerm(currentMessage) && !clientDeclinesAnyService(currentMessage) && !clientAsksForRecommendations(currentMessage) && // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
+  } else if (
+    // A15302: "¿Tienes barra italiana?" → pastas/pizzas (nunca dump Americana/Yucateca ni "la anoto").
+    allowSalesReplyOverride && !cierreYaEnviado && currentMessage && clientMentionsItalianTheme(currentMessage) && (/\bbarra\b/i.test(currentMessage) || clientAsksServiceInfo(currentMessage) || /\b(tienes|tienen|cuentan|manejan|ofrecen)\b/i.test(currentMessage))
+  ) {
+    const italianReply = buildItalianFoodPitch(currentMessage);
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      /\bbarra\b/i.test(currentMessage) ? "Barra de pastas y ensaladas, Barra de pizzas" : "Comida italiana (pastas/pizzas)",
+      6
+    );
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+    if (!extracted.tipo_evento?.trim()) {
+      const tipoIt = parseTipoEventoFromText(
+        collectUserTexts(presHistory, currentMessage).join(" ")
+      );
+      if (tipoIt) {
+        extracted.tipo_evento = tipoIt;
+        filledSet.add("Tipo de evento");
+      }
+    }
+    const italianBody = /^(¡?s[ií]|claro|perfecto)/i.test(italianReply.trim()) ? italianReply : `${pickTransition(presHistory)} ${italianReply}`;
+    mensaje = mergeWithPendingQuestion(italianBody, filledSet, extracted, ctx);
+    appliedDirectReply = true;
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: A15302 \u2014 barra/tem\xE1tica italiana \u2192 pastas/pizzas");
+  } else if (allowSalesReplyOverride && (isVagueFoodTerm(currentMessage) || clientAsksForFoodMenu(currentMessage)) && !clientDeclinesAnyService(currentMessage) && !clientAsksForRecommendations(currentMessage) && // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
   !preferPrimaryCatalogService(
     parseServicesFromText(extracted.requerimientos_evento ?? "")
   )?.match(
     /Puestos|Banquete|Taquiza|Coffee|Barra de|Bocadillo|Canap|Parrillada|Paella|Desayuno|Mesa de/i
   )) {
-    mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
+    if (!extracted.tipo_evento?.trim() && currentMessage) {
+      const tipoMenu = parseTipoEventoFromText(currentMessage);
+      if (tipoMenu) {
+        extracted.tipo_evento = tipoMenu;
+        filledSet.add("Tipo de evento");
+      }
+    }
+    mensaje = mergeWithPendingQuestion(
+      buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId),
+      filledSet,
+      extracted,
+      ctx
+    );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: t\xE9rmino vago de comida \u2014 ofrecer opciones");
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: t\xE9rmino vago de comida / men\xFA \u2014 ofrecer opciones");
   } else if (preferEventOfferReply({
     aiResponse,
     extracted,
@@ -216806,8 +216892,9 @@ revisar primero. Adapta al tipo de evento. NUNCA te limites a 2\u20133 cosas al 
 
 ### Cuando ya nombr\xF3 categor\xEDa o servicio
 NO repitas el abanico. Descubre antes de detallar:
-- "banquete" / "catering" / "comida" \u2192 \xBFalgo m\xE1s formal (banquete) o casual
-  (estaciones: pastas, pizzas, taquiza\u2026)?
+- "banquete" / "catering" / "comida" / "tu men\xFA" \u2192 \xBFalgo m\xE1s formal (banquete) o casual
+  (estaciones: pastas, pizzas, taquiza\u2026)? Nunca vuelques todos los banquetes Kosher/Navide\xF1os.
+- "barra italiana" \u2192 pastas y pizzas (NO Barras Americana/Yucateca ni solo "la anoto").
 - "mobiliario" sin pieza \u2192 \xBFmesas, sillas, periqueras, salas\u2026?
 - Ya eligi\xF3 pieza/opci\xF3n \u2192 3\u20135 modelos o niveles + pregunta cu\xE1l detallas.
 - Ya eligi\xF3 nivel/modelo \u2192 inclusiones (PDF Aprendizaje) + precio (Sheet) + link

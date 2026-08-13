@@ -197,6 +197,7 @@ import {
   applyLocationCorrectionToAddress,
   recoverClienteNombreFromHistory,
   isVagueFoodTerm,
+  clientAsksForFoodMenu,
   isGettingReadyContext,
   parseWebLeadBrief,
   clientAsksForCatalog,
@@ -976,13 +977,17 @@ export function buildLocationAnswer(): string {
   return "Estamos en Ciudad de México y trabajamos en toda la república. Según la fecha y el lugar de tu evento, coordinamos el servicio.";
 }
 
-/** Pitch de comida italiana para temáticas o recomendaciones contextuales. */
+/** Pitch / menú de comida italiana (A15302: barra italiana → pastas/pizzas, no bebidas). */
 export function buildItalianFoodPitch(message?: string): string {
   const inv = message?.match(/(\d+)\s*(?:personas?|invitados?)/i);
+  const asksBarra = /\bbarra\b/i.test(message ?? "");
+  if (asksBarra) {
+    return buildProgressiveOptionsMenu("barra_alimentos", message ?? "barra italiana");
+  }
   let pitch =
-    "Para temática italiana manejamos pastas, pizzas, barras de antipasti y estaciones de comida italiana";
+    "Para temática italiana manejamos *barra de pastas y ensaladas*, *barra de pizzas*, antipasti y estaciones italianas";
   if (inv) pitch += ` para ${inv[1]} personas`;
-  return `${pitch}.`;
+  return `${pitch}. ¿Te late más pastas, pizzas, o te detallo ambas?`;
 }
 
 /** Variantes concretas del catálogo Pistas/Tarimas (A14967 — menú primero, detalle después). */
@@ -1664,14 +1669,21 @@ export function buildVagueFoodOptionsReply(
   entityId?: string | number
 ): string {
   const texts = collectUserTexts(history, currentMessage).join(" ").toLowerCase();
+  const tipoFromMsg = parseTipoEventoFromText(currentMessage ?? "");
+  if (tipoFromMsg && !extracted.tipo_evento?.trim()) {
+    extracted.tipo_evento = tipoFromMsg;
+  }
   const tipo = (extracted.tipo_evento ?? parseTipoEventoFromText(texts) ?? "").toLowerCase();
   const inv = extracted.num_invitados ?? 0;
   const gettingReady = isGettingReadyContext(texts) || isGettingReadyContext(currentMessage);
   const msg = currentMessage ?? "";
 
-  // A15205 / V8.92: comida|catering|banquete vago → formal vs casual PRIMERO
-  // (nunca saltar a Formal/Mexicano/Kosher).
-  if (isVagueFoodTerm(msg) || /\b(comidas?|alimentos?|catering|banquetes?)\b/i.test(msg)) {
+  // A15302: cumpleaños pequeño + "tu menú" → formal vs casual (sesgo casual), sin dump banquete.
+  if (
+    clientAsksForFoodMenu(msg) ||
+    isVagueFoodTerm(msg) ||
+    /\b(comidas?|alimentos?|catering|banquetes?)\b/i.test(msg)
+  ) {
     if (historyOfferedAlimentosModoMenu(history)) {
       if (clientChoseBanqueteFormal(msg)) {
         return `${pickTransition(history)} ${buildProgressiveOptionsMenu("banquete")}`.trim();
@@ -1681,6 +1693,18 @@ export function buildVagueFoodOptionsReply(
       }
     }
     if (!historyOfferedAlimentosModoMenu(history) && !historyOfferedServiceOptionsMenu(history)) {
+      const smallBirthday =
+        /\bcumplea/i.test(tipo) && (inv > 0 ? inv <= 50 : /\bpeque[nñ]o\b/i.test(msg));
+      if (smallBirthday) {
+        return [
+          pickTransition(history),
+          "Para un cumpleaños más pequeño suele ir muy bien algo *casual* (barra de pastas/pizzas, taquiza, canapés…) o un *banquete* más formal si lo prefieres.",
+          "",
+          buildAlimentosModoMenu(),
+        ]
+          .join("\n")
+          .trim();
+      }
       return `${pickTransition(history)} ${buildAlimentosModoMenu()}`.trim();
     }
   }
@@ -6001,8 +6025,47 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     );
     } // fin else: RFQ no-mobiliario
   } else if (
+    // A15302: "¿Tienes barra italiana?" → pastas/pizzas (nunca dump Americana/Yucateca ni "la anoto").
     allowSalesReplyOverride &&
-    isVagueFoodTerm(currentMessage) &&
+    !cierreYaEnviado &&
+    currentMessage &&
+    clientMentionsItalianTheme(currentMessage) &&
+    (/\bbarra\b/i.test(currentMessage) ||
+      clientAsksServiceInfo(currentMessage) ||
+      /\b(tienes|tienen|cuentan|manejan|ofrecen)\b/i.test(currentMessage))
+  ) {
+    const italianReply = buildItalianFoodPitch(currentMessage);
+    const merged = mergeServiceRequirements(
+      extracted.requerimientos_evento,
+      /\bbarra\b/i.test(currentMessage)
+        ? "Barra de pastas y ensaladas, Barra de pizzas"
+        : "Comida italiana (pastas/pizzas)",
+      6
+    );
+    if (merged) {
+      extracted.requerimientos_evento = merged;
+      filledSet.add("Requerimientos o servicios");
+    }
+    if (!extracted.tipo_evento?.trim()) {
+      const tipoIt = parseTipoEventoFromText(
+        collectUserTexts(presHistory, currentMessage).join(" ")
+      );
+      if (tipoIt) {
+        extracted.tipo_evento = tipoIt;
+        filledSet.add("Tipo de evento");
+      }
+    }
+    const italianBody =
+      /^(¡?s[ií]|claro|perfecto)/i.test(italianReply.trim())
+        ? italianReply
+        : `${pickTransition(presHistory)} ${italianReply}`;
+    mensaje = mergeWithPendingQuestion(italianBody, filledSet, extracted, ctx);
+    appliedDirectReply = true;
+    appliedSalesReply = true;
+    log?.info({ entityId }, "GUARD: A15302 — barra/temática italiana → pastas/pizzas");
+  } else if (
+    allowSalesReplyOverride &&
+    (isVagueFoodTerm(currentMessage) || clientAsksForFoodMenu(currentMessage)) &&
     !clientDeclinesAnyService(currentMessage) &&
     !clientAsksForRecommendations(currentMessage) &&
     // A15212: si ya hay SKU concreto (Puestos/Banquete/…), no reabrir banquete/taquiza/brunch.
@@ -6012,9 +6075,23 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
       /Puestos|Banquete|Taquiza|Coffee|Barra de|Bocadillo|Canap|Parrillada|Paella|Desayuno|Mesa de/i
     )
   ) {
-    mensaje = buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId);
+    // A15302: capturar tipo ("Mi cumpleaños") del mismo mensaje del menú.
+    if (!extracted.tipo_evento?.trim() && currentMessage) {
+      const tipoMenu = parseTipoEventoFromText(currentMessage);
+      if (tipoMenu) {
+        extracted.tipo_evento = tipoMenu;
+        filledSet.add("Tipo de evento");
+      }
+    }
+    mensaje = mergeWithPendingQuestion(
+      buildVagueFoodOptionsReply(extracted, history, currentMessage, entityId),
+      filledSet,
+      extracted,
+      ctx
+    );
     appliedSalesReply = true;
-    log?.info({ entityId }, "GUARD: término vago de comida — ofrecer opciones");
+    appliedDirectReply = true;
+    log?.info({ entityId }, "GUARD: término vago de comida / menú — ofrecer opciones");
   } else if (
     preferEventOfferReply({
       aiResponse,

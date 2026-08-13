@@ -41,6 +41,7 @@ import {
   parseWebLeadBrief,
   applyWebLeadBrief,
   isVagueFoodTerm,
+  clientAsksForFoodMenu,
   parseServicesFromText,
   parseCentrosDeMesaRequirement,
   mergeServiceRequirements,
@@ -10332,6 +10333,72 @@ async function runAll(): Promise<void> {
       !/colgantes|Según el catálogo/i.test(liveFecha),
       liveFecha.slice(0, 350)
     );
+  });
+
+  // ─── 145. A15302 — Christián: menú cumpleaños + barra italiana ───
+  await test("145. A15302 — menú cumpleaños pequeño + barra italiana (pastas/pizzas)", () => {
+    const menuMsg = "Mi cumpleaños. Es pequeño.\nM regalas tu menú porfa?";
+    assert.ok(clientAsksForFoodMenu(menuMsg));
+    assert.ok(isVagueFoodTerm(menuMsg));
+    assert.ok(clientMentionsItalianTheme("Tienes barra italiana?"));
+
+    const extracted = emptyExtracted({
+      nombre: "Christián Martell",
+      direccion_evento: "Metepec, Estado de México",
+      fecha_horario: "Sábado 15",
+      num_invitados: 30,
+    });
+    const filled = new Set([
+      "Nombre del cliente",
+      "Lugar/dirección del evento",
+      "Fecha y horario",
+      "Número de invitados",
+    ]);
+    const menuReply = runGuards({
+      aiResponse:
+        "Te detallo *menú* para un cumpleaños. Para *alimentos* tenemos: banquete 3 tiempos, Banquete Kosher...",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: menuMsg,
+      history: [
+        { role: "assistant", content: "¡Mucho gusto, Christián! ¿Qué tipo de evento es?" },
+      ],
+    });
+    assert.equal(extracted.tipo_evento, "cumpleaños");
+    assert.ok(
+      !/Banquete Kosher|3 tiempos|4 tiempos|Barra Americana/i.test(menuReply),
+      menuReply.slice(0, 400)
+    );
+    assert.ok(
+      /formal|casual|banquete|pastas|pizzas|taquiza/i.test(menuReply),
+      menuReply.slice(0, 500)
+    );
+
+    const exBar = emptyExtracted({
+      nombre: "Christián Martell",
+      tipo_evento: "cumpleaños",
+      direccion_evento: "Metepec, Estado de México",
+      fecha_horario: "Sábado 15",
+      num_invitados: 30,
+    });
+    const filledBar = new Set([...filled, "Tipo de evento"]);
+    const barra = runGuards({
+      aiResponse:
+        "Manejamos *Barra* en varias opciones: Barra Americana, Barra Yucateca...",
+      extracted: exBar,
+      filledSet: filledBar,
+      readyForClosing: false,
+      currentMessage: "Tienes barra italiana?",
+      history: [
+        { role: "assistant", content: "¿Qué tipo de evento es?" },
+        { role: "user", content: menuMsg },
+        { role: "assistant", content: menuReply },
+      ],
+    });
+    assert.ok(!/Barra Americana|Yucateca|la anoto para tu cotizaci/i.test(barra), barra.slice(0, 400));
+    assert.ok(/pastas?|pizzas?/i.test(barra), barra.slice(0, 500));
+    assert.ok(/pastas?|pizzas?/i.test(exBar.requerimientos_evento ?? ""));
   });
 
   // ─── 144. V9.23 — RFQ largo genérico: sync todo + 1 pregunta; sin perderse ───
