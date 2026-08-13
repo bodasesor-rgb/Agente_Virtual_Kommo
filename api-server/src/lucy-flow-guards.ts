@@ -349,6 +349,74 @@ export function syncFilledFromExtracted(filledSet: Set<string>, extracted: Extra
   if (hasPresupuestoValue(extracted)) filledSet.add("Presupuesto (MXN)");
 }
 
+/**
+ * V9.23: vuelca un RFQ largo al extracted/filledSet para no re-preguntar
+ * fecha/zona/invitados/servicios/correo que el cliente ya mandó.
+ */
+export function syncRichBriefIntoExtracted(
+  extracted: ExtractedData,
+  filledSet: Set<string>,
+  message: string
+): void {
+  const text = message?.trim() ?? "";
+  if (!text) return;
+
+  if (!isUsableDireccionEvento(extracted.direccion_evento)) {
+    const zonaBrief = parseZonaFromText(text);
+    if (zonaBrief && isUsableDireccionEvento(zonaBrief)) {
+      extracted.direccion_evento = zonaBrief;
+      filledSet.add("Lugar/dirección del evento");
+    }
+  }
+  if (!extracted.fecha_horario?.trim()) {
+    const f = parseFechaFromText(text);
+    if (f) {
+      extracted.fecha_horario = f;
+      filledSet.add("Fecha y horario");
+    }
+  }
+  if (!extracted.num_invitados) {
+    const inv = parseInvitadosFromText(text);
+    if (inv) {
+      extracted.num_invitados = Number(inv) || (inv as unknown as number);
+      filledSet.add("Número de invitados");
+    }
+  }
+  if (!extracted.tipo_evento?.trim()) {
+    const tipo = parseTipoEventoFromText(text);
+    if (tipo) {
+      extracted.tipo_evento = tipo;
+      filledSet.add("Tipo de evento");
+    }
+  }
+  const mergedReq = mergeServiceRequirements(
+    extracted.requerimientos_evento,
+    text,
+    8
+  );
+  if (mergedReq && isValidRequerimientosValue(mergedReq)) {
+    extracted.requerimientos_evento = mergedReq;
+    filledSet.add("Requerimientos o servicios");
+  }
+  if (!isEmailSatisfied(filledSet, extracted)) {
+    const correo = filterClientEmail(parseCorreoFromText(text));
+    if (correo && looksLikeValidClientEmail(correo)) {
+      extracted.correo = correo;
+      filledSet.add("Correo electrónico");
+    }
+  }
+  if (!sanitizeCrmNombre(extracted.nombre) && looksLikeNameAnswerMessage(text)) {
+    // Solo si el mensaje es casi solo el nombre (no el RFQ entero).
+    /* skip — RFQ largo ≠ nombre */
+  }
+  const pres = parsePresupuestoFromText(text);
+  if (pres && !filledSet.has("Presupuesto (MXN)")) {
+    extracted.presupuesto = pres;
+    filledSet.add("Presupuesto (MXN)");
+  }
+  syncFilledFromExtracted(filledSet, extracted);
+}
+
 /** Plantillas legacy — preferir variantes naturales vía buildNaturalQuestion(). */
 export const FLOW_QUESTIONS = {
   nombre: "¿Me regalas tu nombre para iniciar?",
@@ -4572,12 +4640,88 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
     }
   }
 
+  // V9.23 / A15298+: RFQ largo completo → sync campos + ack + 1 pregunta embudo.
+  // ANTES de fotos/inclusiones: "Fotografías del mobiliario" dentro del brief
+  // no debe secuestrar el turno hacia catálogo de mesas.
+  if (
+    !cierreYaEnviado &&
+    currentMessage &&
+    isRichQuoteBrief(currentMessage) &&
+    !(
+      isMobiliarioRentalPedido(currentMessage) &&
+      parseMobiliarioRentItems(currentMessage).length >= 1 &&
+      parseServicesFromText(currentMessage).filter((s) => !/mobiliario/i.test(s)).length === 0
+    )
+  ) {
+    // Primer contacto: intro aunque el brief ya traiga correo (A15007 lo llena antes).
+    const isOpening =
+      (forceFirstPresentation || isFirstLucyReply(presHistory)) &&
+      !filledSet.has("Nombre del cliente") &&
+      !presHistory.some((m) => m.role === "assistant");
+    syncRichBriefIntoExtracted(extracted, filledSet, currentMessage);
+    const services = parseServicesFromText(
+      `${extracted.requerimientos_evento ?? ""} ${currentMessage}`
+    );
+    const ack = buildRichBriefAcknowledgment(currentMessage);
+    const pending = getNextPendingField(extracted, filledSet);
+    const wantsCatalog =
+      clientAsksForCatalog(currentMessage) ||
+      clientAsksInclusion(currentMessage) ||
+      clientWantsFullCatalog(currentMessage) ||
+      /\b(opci[oó]n\s*[123]|tres\s+propuestas|propuestas?\s+de\s+men[uú]|paquetes?|niveles?)\b/i.test(
+        currentMessage
+      ) ||
+      (isOpening && services.length >= 2);
+    const catalogBlock = wantsCatalog
+      ? `\n\n${buildPackageCatalogOfferBlock(services, currentMessage)}`
+      : "";
+    if (
+      pending === "presupuesto" &&
+      !filledSet.has("Presupuesto (MXN)") &&
+      /\b(propuesta|cotizaci[oó]n|env[ií]en|manden)\b/i.test(currentMessage) &&
+      !parsePresupuestoFromText(currentMessage) &&
+      !/\bsin\s+perder\s+de\s+vista\s+el\s+presupuesto\b/i.test(currentMessage)
+    ) {
+      filledSet.add("Presupuesto (MXN)");
+      if (!extracted.presupuesto) {
+        extracted.presupuesto = "Sin definir (cliente pidió que propongamos)";
+      }
+    }
+    const pendingAfter = getNextPendingField(extracted, filledSet);
+    if (isReadyForClosing(filledSet)) {
+      log?.info({ entityId }, "GUARD: V9.23 — RFQ rico completo → cierre");
+      return normalizeAdvisorReferences(
+        buildClosing(
+          extracted.requerimientos_evento ?? extracted.tipo_evento ?? null,
+          extracted.nombre
+        ),
+        extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+      );
+    }
+    const nextQ = pendingAfter
+      ? buildNaturalQuestion(pendingAfter, ctx)
+      : null;
+    const intro = isOpening && !/hola,?\s*soy\s+lucy/i.test(ack) ? `${LUCY_INTRO} ` : "";
+    const body = nextQ
+      ? `${intro}${ack}${catalogBlock}\n\n${nextQ}`.trim()
+      : `${intro}${ack}${catalogBlock}`.trim();
+    log?.info(
+      { entityId, pending: pendingAfter, catalog: !!catalogBlock, opening: isOpening },
+      "GUARD: V9.23 — RFQ rico: sync + ack + embudo (sin dump)"
+    );
+    return normalizeAdvisorReferences(
+      body,
+      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
+    );
+  }
+
   // A15286: pregunta concreta (fotos/luz/capacidad/catálogo typo) — ANTES de
   // carpas/progresivo/embudo. Responder o diferir; no "¿Seguimos…?" vacío.
   // A15296: turno con imagen (Vision) → rama de imagen, no path "manda fotos".
   if (
     !cierreYaEnviado &&
     currentMessage?.trim() &&
+    !isRichQuoteBrief(currentMessage) &&
     !extractImageClientReply(currentMessage) &&
     clientAsksConcreteProductQuestion(currentMessage)
   ) {
@@ -4792,65 +4936,6 @@ export function applyLucyMessageGuards(input: LucyMessageGuardsInput): string {
         extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
       );
     }
-  }
-
-  // A15298: RFQ largo (menú/propuestas/personal) NO es dump "¿incluye bebidas?".
-  // Ack del brief + siguiente dato real (nombre/correo…); el equipo cotiza con/sin meseros.
-  if (
-    !cierreYaEnviado &&
-    currentMessage &&
-    isRichQuoteBrief(currentMessage) &&
-    (clientAsksInclusion(currentMessage) || clientAsksSpecificInclusionItem(currentMessage))
-  ) {
-    const ack = buildRichBriefAcknowledgment(currentMessage);
-    // Capturar zona/venue usable del brief si aún falta.
-    if (!isUsableDireccionEvento(extracted.direccion_evento)) {
-      const zonaBrief = parseZonaFromText(currentMessage);
-      if (zonaBrief && isUsableDireccionEvento(zonaBrief)) {
-        extracted.direccion_evento = zonaBrief;
-        filledSet.add("Lugar/dirección del evento");
-      }
-    }
-    if (!extracted.fecha_horario?.trim()) {
-      const f = parseFechaFromText(currentMessage);
-      if (f) {
-        extracted.fecha_horario = f;
-        filledSet.add("Fecha y horario");
-      }
-    }
-    if (!extracted.num_invitados) {
-      const inv = parseInvitadosFromText(currentMessage);
-      if (inv) {
-        extracted.num_invitados = Number(inv) || (inv as unknown as number);
-        filledSet.add("Número de invitados");
-      }
-    }
-    if (!extracted.tipo_evento?.trim()) {
-      const tipo = parseTipoEventoFromText(currentMessage);
-      if (tipo) {
-        extracted.tipo_evento = tipo;
-        filledSet.add("Tipo de evento");
-      }
-    }
-    const mergedReq = mergeServiceRequirements(
-      extracted.requerimientos_evento,
-      currentMessage,
-      8
-    );
-    if (mergedReq) {
-      extracted.requerimientos_evento = mergedReq;
-      filledSet.add("Requerimientos o servicios");
-    }
-    const pending = getNextPendingField(extracted, filledSet);
-    const nextQ = pending ? buildNaturalQuestion(pending, ctx) : null;
-    log?.info(
-      { entityId, pending },
-      "GUARD: A15298 — RFQ rico: ack + embudo (sin dump inclusión bebidas)"
-    );
-    return normalizeAdvisorReferences(
-      nextQ ? `${ack} ${nextQ}` : ack,
-      extracted.nombre ?? getDisplayName(extracted, whatsappDisplayName)
-    );
   }
 
   // Salida temprana: "qué incluye / descripción de cada nivel" no debe perderse

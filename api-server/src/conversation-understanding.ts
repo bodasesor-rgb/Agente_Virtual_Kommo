@@ -1314,8 +1314,22 @@ export function clientAsksPhone(message?: string): boolean {
  */
 export function isRichQuoteBrief(text: string | null | undefined): boolean {
   const t = text?.trim() ?? "";
-  if (t.length < 180) return false;
+  if (t.length < 100) return false;
+
+  // RFQ estructurado (Fecha:/Lugar:/Tipo:…) — frecuente en WhatsApp B2B.
+  const labeledCount =
+    (/\bfecha\s*:/i.test(t) ? 1 : 0) +
+    (/\b(lugar|ubicaci[oó]n|sede)\s*:/i.test(t) ? 1 : 0) +
+    (/\btipo\s+de\s+evento\s*:/i.test(t) ? 1 : 0) +
+    (/\b(n[uú]mero\s+estimado\s+de\s+)?(asistentes?|invitados?)\s*:/i.test(t) ? 1 : 0) +
+    (/\bhorario\s*:/i.test(t) ? 1 : 0);
+
+  // Textos cortos pero con etiquetas claras (evita perder RFQs ~120–180 chars).
+  const minLen = labeledCount >= 3 ? 100 : labeledCount >= 2 ? 120 : 140;
+  if (t.length < minLen) return false;
+
   let score = 0;
+  if (labeledCount >= 2) score += 2;
   if (/\bcotiz/i.test(t)) score += 1;
   if (
     /\b(\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)|fecha\s*:)/i.test(
@@ -1325,7 +1339,7 @@ export function isRichQuoteBrief(text: string | null | undefined): boolean {
     score += 1;
   }
   if (
-    /\b(ubicaci[oó]n|santa\s+fe|ciudad\s+de\s+m[eé]xico|cdmx|polanco|narvarte|coyoac[aá]n|pedregal)\b/i.test(
+    /\b(ubicaci[oó]n|lugar\s*:|santa\s+fe|ciudad\s+de\s+m[eé]xico|cdmx|polanco|narvarte|coyoac[aá]n|pedregal|centro\s+cultural)\b/i.test(
       t
     ) ||
     /\ben\s+[A-ZÁÉÍÓÚ][\wáéíóúñ]+(?:\s*,\s*|\s+)(?:ciudad\s+de\s+m[eé]xico|cdmx|m[eé]xico)/i.test(t)
@@ -1355,6 +1369,12 @@ export function isRichQuoteBrief(text: string | null | undefined): boolean {
     score += 1;
   }
   if (/@[a-z0-9.-]+\.[a-z]{2,}/i.test(t)) score += 1;
+  // Pedido explícito de propuesta/menú + costos (RFQ completo).
+  if (
+    /\b(propuestas?\s+de\s+men[uú]|cantidades?\s+sugeridas|costos?|disponibilidad)\b/i.test(t)
+  ) {
+    score += 1;
+  }
   return score >= 3;
 }
 
@@ -2292,9 +2312,11 @@ export function buildRichBriefAcknowledgment(text: string): string {
     ? [...new Set(mobItems.map((m) => m.trim().toLowerCase()))].join(", ")
     : null;
 
-  if (hasThreeMenus) {
-    ack +=
-      " Anoto las tres propuestas de menú (parrillada, opción costo-beneficio y menú casual) junto con meseros y mobiliario.";
+  // No hardcodear menús de un cliente (Alejandra): resume lo que el brief trae.
+  if (hasThreeMenus && services.length >= 1) {
+    ack += ` Anoto las tres propuestas de menú y ${formatServicesList(services)}.`;
+  } else if (hasThreeMenus) {
+    ack += " Anoto las tres propuestas de menú que pediste, con servicio y montaje.";
   } else if (mobSummary) {
     ack += ` Anoto ${mobSummary}.`;
   } else if (services.length >= 2) {
@@ -2957,8 +2979,18 @@ export function clientMentionsPistaTarima(message?: string): boolean {
 }
 
 export function parseZonaFromText(text: string): string | null {
-  const trimmed = text.trim();
-  if (!trimmed || /@/.test(trimmed)) return null;
+  // Quitar correos antes de parsear: un RFQ con email no es "solo un correo".
+  const withoutEmails = text
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const trimmed = withoutEmails;
+  if (!trimmed) return null;
+  // Mensaje que es solo un email (tras limpiar queda vacío) ya se filtró.
+  // Si el texto original era únicamente un correo, no hay zona.
+  if (/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(text.trim())) {
+    return null;
+  }
   if (isGreetingOnlyMessage(trimmed)) return null;
   if (isAffirmativeOnlyMessage(trimmed)) return null;
   if (isDimensionText(trimmed)) return null;
