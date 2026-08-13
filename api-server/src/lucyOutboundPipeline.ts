@@ -12,6 +12,8 @@ import {
   CLOSING_SIGNATURE,
   stripCatalogBlockShared,
   stripClientServiceConfusionNotes,
+  getNextPendingField,
+  buildNaturalQuestion,
 } from "./lucy-flow-guards.js";
 import { applyLucyGlobalAntiRepetition } from "./lucyOutboundAntiRepeat.js";
 import { maybeRefinarMensajeCierre } from "./services/lucyRedaction.js";
@@ -80,10 +82,38 @@ export async function finalizeLucyOutboundMessage(input: FinalizeLucyOutboundInp
       .join(" ")
       .replace(/\s{2,}/g, " ")
       .trim();
-    mensaje =
-      without && without.length > 20
-        ? without
-        : "Perfecto, lo anoto. ¿Seguimos con el siguiente dato del evento?";
+    if (without && without.length > 20) {
+      mensaje = without;
+    } else {
+      // A15297: no filler genérico — si hay embudo pendiente, pregunta real.
+      const extractedFallback: ExtractedData = {
+        tipo_contacto: null,
+        nombre: input.extracted.nombre ?? null,
+        empresa: null,
+        telefono: null,
+        correo: input.extracted.correo ?? null,
+        presupuesto: input.extracted.presupuesto ?? null,
+        direccion_evento: input.extracted.direccion_evento ?? null,
+        requerimientos_evento: input.extracted.requerimientos_evento ?? null,
+        fecha_horario: input.extracted.fecha_horario ?? null,
+        num_invitados: input.extracted.num_invitados ?? null,
+        tipo_evento: input.extracted.tipo_evento ?? null,
+        modo_servicio: null,
+      };
+      const pending = getNextPendingField(
+        extractedFallback,
+        input.filledSet ?? new Set()
+      );
+      mensaje = pending
+        ? buildNaturalQuestion(pending, {
+            extracted: extractedFallback,
+            filledSet: input.filledSet,
+            history: input.history,
+            currentMessage: input.currentMessage,
+            whatsappName: input.extracted.nombre,
+          })
+        : "Perfecto, lo anoto. ¿Me compartes un correo para enviarte los detalles?";
+    }
     input.log?.warn?.(
       { entityId: input.entityId },
       "GUARD: cierre prematuro bloqueado (invariante)"

@@ -74,6 +74,9 @@ import {
   mergeZonaDetail,
   FECHA_MAX_ASKS,
   parseSalaProductFromText,
+  parseFurnitureCatalogSkuFromText,
+  clientAffirmsEmbudoContinue,
+  assistantAskedVagueEmbudoContinue,
   isLikelyProductNameNotLocation,
   parseCarpaVariantFromText,
   clientMentionsCarpas,
@@ -10191,6 +10194,144 @@ async function runAll(): Promise<void> {
       `typo fix no re-anota: ${ex2.requerimientos_evento}`
     );
     assert.ok(/no\s+incluimos|\*no\*/i.test(live2), live2.slice(0, 250));
+  });
+
+  // ─── 142. A15297 — Edna: no filler "siguiente dato"; Sí → embudo real ───
+  await test("142. A15297 — Sí tras siguiente-dato / SKU sala+mesa → pregunta real", () => {
+    assert.ok(
+      assistantAskedVagueEmbudoContinue(
+        "Perfecto, Edna. ¿Seguimos con el siguiente dato del evento?"
+      )
+    );
+    assert.ok(
+      clientAffirmsEmbudoContinue(
+        "Si",
+        "Perfecto, Edna. ¿Seguimos con el siguiente dato del evento?"
+      )
+    );
+    assert.ok(
+      !clientAffirmsCatalogOffer(
+        "Si",
+        "Perfecto, Edna. ¿Seguimos con el siguiente dato del evento?"
+      ),
+      "Sí tras siguiente-dato ≠ catálogo"
+    );
+    assert.equal(
+      parseFurnitureCatalogSkuFromText("Sala Ariel Color Nude"),
+      "Sala Ariel Color Nude"
+    );
+    assert.ok(
+      /Mesa Centro.*Mármol/i.test(
+        parseFurnitureCatalogSkuFromText("Mesa Centro Rectangular Mármol") ?? ""
+      )
+    );
+    assert.ok(
+      /Mesa Centro.*Mármol/i.test(
+        parseFurnitureCatalogSkuFromText("Mesa Centro Mármol Redonda") ?? ""
+      )
+    );
+
+    const extracted = emptyExtracted({
+      nombre: "Edna Osorno",
+      tipo_evento: "cumpleaños",
+      requerimientos_evento: "Salas lounge",
+    });
+    const filled = new Set([
+      "Nombre del cliente",
+      "Tipo de evento",
+      "Requerimientos o servicios",
+    ]);
+    const liveSi = runGuards({
+      aiResponse: "Claro.\n\nTe dejo el catálogo general:\nhttps://bodasesor.com/catalogos",
+      extracted,
+      filledSet: filled,
+      readyForClosing: false,
+      currentMessage: "Si",
+      history: [
+        {
+          role: "assistant",
+          content: "Perfecto, Edna. ¿Seguimos con el siguiente dato del evento?",
+        },
+      ],
+    });
+    assert.ok(
+      mensajeAsksForField(liveSi, "fecha") || /fecha|cu[aá]ndo|para cu[aá]ndo/i.test(liveSi),
+      `Sí → fecha real: ${liveSi.slice(0, 300)}`
+    );
+    assert.ok(
+      !/bodasesor\.com\/catalogos|colgantes|siguiente dato del evento/i.test(liveSi),
+      `no catálogo/filler: ${liveSi.slice(0, 350)}`
+    );
+
+    const exSku = emptyExtracted({
+      nombre: "Edna Osorno",
+      tipo_evento: "cumpleaños",
+      requerimientos_evento: "Salas lounge",
+    });
+    const liveSku = runGuards({
+      aiResponse: "Perfecto. ¿Quieres que te dé detalles de alguno?",
+      extracted: exSku,
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "Sala Ariel Color Nude",
+      history: [
+        { role: "assistant", content: "¿Quieres que te dé detalles de alguno?" },
+      ],
+    });
+    assert.ok(/Sala Ariel/i.test(exSku.requerimientos_evento ?? ""), exSku.requerimientos_evento);
+    assert.ok(
+      /anoto|Sala Ariel/i.test(liveSku) &&
+        (mensajeAsksForField(liveSku, "fecha") || /fecha|cu[aá]ndo/i.test(liveSku)),
+      liveSku.slice(0, 400)
+    );
+    assert.ok(
+      !/siguiente dato del evento|colgantes|cat[aá]logo general/i.test(liveSku),
+      liveSku.slice(0, 350)
+    );
+
+    // Fecha dada tras CTA de detalles → no volver a pedir detalles ni dump.
+    const exFecha = emptyExtracted({
+      nombre: "Edna Osorno",
+      tipo_evento: "cumpleaños",
+      requerimientos_evento: "Sala Ariel Color Nude, Mesa Centro Rectangular Mármol",
+    });
+    const liveFecha = runGuards({
+      aiResponse: "Con gusto. ¿Quieres que te dé detalles de alguno?",
+      extracted: exFecha,
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "El 10 de octubre a partir de 4:00 pm",
+      history: [
+        {
+          role: "assistant",
+          content: "De acuerdo. Edna, ¿tienen día u horario ya definido?",
+        },
+      ],
+    });
+    assert.ok(
+      /octubre|10/i.test(exFecha.fecha_horario ?? ""),
+      `fecha CRM: ${exFecha.fecha_horario}`
+    );
+    assert.ok(
+      /4:00|ubicaci|sal[oó]n|colonia|ciudad/i.test(liveFecha),
+      `ack fecha + zona: ${liveFecha.slice(0, 350)}`
+    );
+    assert.ok(
+      !/quieres que te d[eé] detalles de alguno/i.test(liveFecha),
+      liveFecha.slice(0, 350)
+    );
+    assert.ok(
+      !/colgantes|Según el catálogo/i.test(liveFecha),
+      liveFecha.slice(0, 350)
+    );
   });
 
   console.log(`\n${passed} OK, ${failed} fallidas de ${passed + failed} escenarios`);
