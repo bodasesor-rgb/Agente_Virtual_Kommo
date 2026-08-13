@@ -77,6 +77,7 @@ import {
   isNarrowSocialEventOffer,
   resolveCatalogWebLink,
   toDeliverableCatalogUrl,
+  buildSoloVsCompletoOfferIfApplicable,
 } from "./services/catalogService.js";
 import { getCatalogWebUrlForQuery } from "./services/catalogWebKnowledge.js";
 import { resolveServiceFocusFromText } from "./services/serviceSynonyms.js";
@@ -97,6 +98,7 @@ import {
   catalogNivelLabelFromText,
   withCatalogNivelQuery,
   resolveDetailQueryForFamily,
+  resolveSoloVsCompletoStationLabel,
   buildAlimentosModoMenu,
   buildCateringCasualMenu,
   buildProgressiveOptionsMenu,
@@ -1973,6 +1975,19 @@ function buildFoodSalesReply(
         } else if (!/bodasesor\.com\/catalogos\/coffee-break/i.test(menu)) {
           menu = `${menu}\n\nCatálogo:\nhttps://bodasesor.com/catalogos/coffee-break`;
         }
+      } else {
+        // V9.28: estaciones Solo+completo → embudo con precios del Sheet.
+        const station =
+          resolveSoloVsCompletoStationLabel(
+            currentMessage,
+            optionsFirst.family
+          ) ||
+          resolveSoloVsCompletoStationLabel(
+            mentionedService || serviceLabel || crmService,
+            optionsFirst.family
+          );
+        const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
+        if (sheetMode) menu = sheetMode;
       }
       return `${pickTransition(history)} ${menu}`.trim();
     }
@@ -3898,7 +3913,13 @@ export function buildDeferredKnownServiceOffer(opts: {
     serviceHint: svc,
   });
   if (optionsFirst) {
-    let body = `${intro} ${optionsFirst.menu}`.trim();
+    // V9.28: si el Sheet tiene precios, usa el embudo con $ (todas las estaciones).
+    const station =
+      resolveSoloVsCompletoStationLabel(svc, optionsFirst.family) ||
+      resolveSoloVsCompletoStationLabel(svc);
+    const sheetMode = station ? buildSoloVsCompletoOfferIfApplicable(station) : null;
+    const menu = sheetMode || optionsFirst.menu;
+    let body = `${intro} ${menu}`.trim();
     const pending = getNextPendingField(extracted, filledSet);
     if (pending && pending !== "requerimientos" && pending !== "nombre") {
       const nextQ = buildNaturalQuestion(pending, { ...ctx, filledSet });

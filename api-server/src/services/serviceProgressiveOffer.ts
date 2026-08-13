@@ -5,6 +5,8 @@
  *
  * V8.92: banquete/catering pregunta formal vs casual ANTES del menú Formal/Mexicano.
  *         mobiliario pregunta pieza (mesas/sillas/…) ANTES de modelos.
+ * V9.28: estaciones con Solo Alimentos + completo → mismo embudo en TODAS las ramas
+ *         (pastas, pizzas, crepas, yucateca, parrillada argentina, sushi, taquiza…).
  */
 
 import type { OpenAI } from "openai";
@@ -16,6 +18,70 @@ export const SERVICE_NIVEL_DETAIL_CTA = "¿Quieres que te dé detalles de alguno
 /** Menú formal vs casual (A15160 Cecilia). */
 export const ALIMENTOS_MODO_CTA =
   "¿Qué te gustaría: un *banquete* más formal, o algo más *casual* tipo catering?";
+
+/** Nivel/modo del embudo solo vs completo (no el SKU pastas/pizzas). */
+export function messageHasSoloCompletoNivelOrMode(text: string | null | undefined): boolean {
+  const t = text?.trim() ?? "";
+  if (!t) return false;
+  return (
+    /\b(solo\s+alimentos|servicio\s+completo)\b/i.test(t) ||
+    /(?:^|[^\p{L}])completo(?:[^\p{L}]|$)/iu.test(t) ||
+    /\b(b[aá]sic[oa]|tradicional|premium)\b/i.test(t)
+  );
+}
+
+/**
+ * Menú corto sin Sheet — mismo procedimiento en todas las estaciones completas.
+ */
+export function buildSoloVsCompletoProgressiveMenu(serviceLabel: string): string {
+  const label = serviceLabel.trim() || "ese servicio";
+  return [
+    `Claro. En *${label}* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).`,
+    "",
+    "¿Cuál te late más?",
+  ].join("\n");
+}
+
+/**
+ * Estación concreta que sigue Solo Alimentos + Basico/Tradicional/Premium.
+ * No incluye Americana/Café (suele no traer Solo Alimentos en Sheet).
+ */
+export function resolveSoloVsCompletoStationLabel(
+  text: string | null | undefined,
+  family?: ProgressiveFamily | null
+): string | null {
+  const t = text?.trim() ?? "";
+  if (!t && !family) return null;
+
+  if (family === "barra_sushi" || /\bbarra\s+de\s+sushi\b|\bsushi\b|\bpoke\b/i.test(t)) {
+    return "Barra de sushi";
+  }
+  if (family === "taquiza" || /\btaquiza\b/i.test(t)) {
+    return "taquiza";
+  }
+  if (/\bbarra\s+yucateca\b|\byucateca\b/i.test(t)) return "Barra Yucateca";
+
+  if (family === "parrillada" || /\bparrillada\b/i.test(t)) {
+    if (/\bargentina\b/i.test(t)) return "Parrillada Argentina";
+    if (/\btacos?\b/i.test(t)) return "Parrillada Tacos";
+    return null;
+  }
+
+  if (
+    family === "barra_alimentos" ||
+    /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bpizzas?\b|\bpastas?\b|\bcrepas?\b|\bmariscos?\b|\bpaninis?\b/i.test(
+      t
+    )
+  ) {
+    if (/\bpizzas?\b/i.test(t)) return "Barra de pizzas";
+    if (/\bpasta|ensalada|italian/i.test(t)) return "Barra de pastas y ensaladas";
+    if (/\bcrepas?\b/i.test(t)) return "Barra de Crepas";
+    if (/\bmariscos?\b/i.test(t)) return "Barra de mariscos";
+    if (/\bpaninis?\b/i.test(t)) return "Barra de paninis";
+    return null;
+  }
+  return null;
+}
 
 export type ProgressiveFamily =
   | "banquete"
@@ -133,12 +199,7 @@ const FAMILIES: FamilyDef[] = [
     variantPattern:
       /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text) => withCatalogNivelQuery("Barra de sushi", text),
-    buildMenu: () =>
-      [
-        "Claro. En *Barra de sushi* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
-        "",
-        "¿Cuál te late más?",
-      ].join("\n"),
+    buildMenu: () => buildSoloVsCompletoProgressiveMenu("Barra de sushi"),
   },
   {
     family: "barra_cafe",
@@ -155,9 +216,9 @@ const FAMILIES: FamilyDef[] = [
   {
     family: "barra_bebidas",
     familyPattern:
-      /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog|\bcocteler|\bm[oó]cteles?\b/i,
+      /\bbarra\s+(de\s+)?bebidas?\b|\bbebidas?\s+alcoh[oó]licas?\b|\bmixolog|\bcocteler|\bm[oó]cteles?\b|\bbarra\s+americana\b/i,
     variantPattern:
-      /\b(solo\s+alimentos|b[aá]sic[oa]|tradicional|premium|americana|yucateca|mixolog|cocteler|m[oó]cteles?|con\s+alcohol|sin\s+alcohol)\b/i,
+      /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium|americana|yucateca|mixolog|cocteler|m[oó]cteles?|con\s+alcohol|sin\s+alcohol)\b/i,
     detailQueryFromText: (text) => {
       if (/yucateca/i.test(text)) return withCatalogNivelQuery("Barra Yucateca", text);
       if (/americana/i.test(text)) return withCatalogNivelQuery("Barra Americana", text);
@@ -166,23 +227,36 @@ const FAMILIES: FamilyDef[] = [
       if (/con\s+alcohol/i.test(text)) return "Barra de bebidas con Alcohol";
       return withCatalogNivelQuery("Barra de bebidas", text);
     },
-    buildMenu: () =>
-      [
+    buildMenu: (hint) => {
+      // Yucateca usa embudo solo vs completo; Americana no (sin Solo Alimentos típico).
+      if (hint && /\byucateca\b/i.test(hint)) {
+        return buildSoloVsCompletoProgressiveMenu("Barra Yucateca");
+      }
+      if (hint && /\bamericana\b/i.test(hint)) {
+        return [
+          "Claro. En *Barra Americana* manejamos varios niveles de montaje y bebidas.",
+          "",
+          SERVICE_NIVEL_DETAIL_CTA,
+        ].join("\n");
+      }
+      return [
         "Claro. En bebidas manejamos:",
         "• *Barra de bebidas* (con o sin alcohol)",
         "• *Barra Americana* / *Barra Yucateca*",
         "• *Coctelería / Mixología* y *Mócteles*",
         "",
         SERVICE_NIVEL_DETAIL_CTA,
-      ].join("\n"),
+      ].join("\n");
+    },
   },
   {
     family: "barra_alimentos",
     // A15302: "barra italiana" cuenta como familia de alimentos (no bebidas).
+    // V9.28: yucateca también entra aquí (estación con Solo Alimentos).
     familyPattern:
-      /\bbarra\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bbarras?\s+tem[aá]ticas?\b/i,
+      /\bbarras?\s+de\s+(alimentos|pizzas?|pastas?|crepas?|mariscos?|paninis?)\b|\bbarra\s+italian|\bbarras?\s+tem[aá]ticas?\b|\bbarra\s+yucateca\b|\byucateca\b/i,
     variantPattern:
-      /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|italian[ao]?|americana|yucateca|solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+      /\b(pizzas?|pastas?|ensaladas?|crepas?|mariscos?|paninis?|italian[ao]?|americana|yucateca|solo\s+alimentos|servicio\s+completo|completo|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text) => {
       if (/pizza/i.test(text)) return withCatalogNivelQuery("Barra de pizzas", text);
       if (/pasta|ensalada|italian/i.test(text)) {
@@ -196,6 +270,8 @@ const FAMILIES: FamilyDef[] = [
       return withCatalogNivelQuery("Barra de alimentos", text);
     },
     buildMenu: (hint) => {
+      const station = resolveSoloVsCompletoStationLabel(hint, "barra_alimentos");
+      if (station) return buildSoloVsCompletoProgressiveMenu(station);
       if (hint && /\bitalian/i.test(hint)) {
         return [
           "¡Sí! Para *barra italiana* manejamos estaciones de comida italiana:",
@@ -209,7 +285,7 @@ const FAMILIES: FamilyDef[] = [
       return [
         "Claro. En barras de alimentos manejamos varias:",
         "• Pizzas, pastas y ensaladas, crepas, mariscos, paninis",
-        "• Americana, Yucateca y más",
+        "• Yucateca y más",
         "",
         SERVICE_NIVEL_DETAIL_CTA,
       ].join("\n");
@@ -221,17 +297,13 @@ const FAMILIES: FamilyDef[] = [
     variantPattern:
       /\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic[oa]|tradicional|premium)\b/i,
     detailQueryFromText: (text) => withCatalogNivelQuery("taquiza", text),
-    buildMenu: () =>
-      [
-        "Claro. En *taquiza* tenemos *solo alimentos* o *servicio completo* (bebidas, mobiliario y meseros).",
-        "",
-        "¿Cuál te late más?",
-      ].join("\n"),
+    buildMenu: () => buildSoloVsCompletoProgressiveMenu("taquiza"),
   },
   {
     family: "parrillada",
     familyPattern: /\bparrillada\b/i,
-    variantPattern: /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|b[aá]sic|tradicional|premium)\b/i,
+    variantPattern:
+      /\bargentina\b|\btacos?\b|\b(solo\s+alimentos|servicio\s+completo|completo|b[aá]sic|tradicional|premium)\b/i,
     detailQueryFromText: (text) => {
       if (/argentina/i.test(text)) {
         return withCatalogNivelQuery("Parrillada Argentina", text);
@@ -241,12 +313,15 @@ const FAMILIES: FamilyDef[] = [
       }
       return withCatalogNivelQuery("parrillada", text);
     },
-    buildMenu: () =>
-      [
+    buildMenu: (hint) => {
+      const station = resolveSoloVsCompletoStationLabel(hint, "parrillada");
+      if (station) return buildSoloVsCompletoProgressiveMenu(station);
+      return [
         "Claro. En *parrillada* tenemos *Parrillada Argentina* y *Parrillada Tacos*.",
         "",
         SERVICE_NIVEL_DETAIL_CTA,
-      ].join("\n"),
+      ].join("\n");
+    },
   },
   {
     family: "cupcakes_betun",
@@ -873,10 +948,41 @@ export function shouldOfferOptionsBeforeDetail(opts: {
   // Variante/nivel en el MENSAJE del cliente (no en el hint CRM expandido "Banquete Formal").
   // Pedir "info/detalle" de la familia SIN variante → igual menú primero.
   const famDef = defFor(family);
+  const hasNivelOrModeNow = messageHasSoloCompletoNivelOrMode(msg);
+
+  // V9.28: estación concreta (pastas/pizzas/crepas/yucateca/parrillada argentina/…)
+  // → mismo embudo solo vs completo que sushi/taquiza (NO saltar a dump de niveles).
+  const stationBlob = `${msg} ${opts.serviceHint ?? ""}`.trim();
+  const soloCompletoStation =
+    resolveSoloVsCompletoStationLabel(msg, family) ||
+    resolveSoloVsCompletoStationLabel(stationBlob, family) ||
+    resolveSoloVsCompletoStationLabel(opts.serviceHint, family);
+
+  if (soloCompletoStation && !hasNivelOrModeNow) {
+    if (
+      historyOfferedServiceOptionsMenu(opts.history) &&
+      clientWantsServiceDetail(msg, opts.history)
+    ) {
+      return null;
+    }
+    if (historyOfferedServiceOptionsMenu(opts.history) && msg.length < 80) {
+      const msgFamily = detectProgressiveFamily(msg);
+      if (!msgFamily || msgFamily === family) {
+        return { family, menu: SERVICE_NIVEL_DETAIL_CTA };
+      }
+    }
+    if (!historyOfferedServiceOptionsMenu(opts.history)) {
+      return {
+        family,
+        menu: buildSoloVsCompletoProgressiveMenu(soloCompletoStation),
+      };
+    }
+  }
+
   const hasVariantNow =
+    hasNivelOrModeNow ||
     hasConcreteServiceVariant(msg) ||
-    famDef.variantPattern.test(msg) ||
-    /\b(b[aá]sic[oa]|tradicional|premium|solo\s+alimentos)\b/i.test(msg);
+    famDef.variantPattern.test(msg);
 
   if (hasVariantNow) {
     return null;

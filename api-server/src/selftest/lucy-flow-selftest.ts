@@ -260,6 +260,7 @@ import {
   buildSoloVsCompletoModeAnswer,
   buildCompletoNivelesTeaser,
   serviceHasSoloVsCompleto,
+  buildSoloVsCompletoOfferIfApplicable,
   toDeliverableCatalogUrl,
   enrichBareNivelOffer,
   messageOffersLevelsWithoutInclusions,
@@ -287,6 +288,9 @@ import {
   buildCateringCasualMenu,
   clientChoseBanqueteFormal,
   clientChoseCateringCasual,
+  shouldOfferOptionsBeforeDetail,
+  resolveSoloVsCompletoStationLabel,
+  buildSoloVsCompletoProgressiveMenu,
   parseMobiliarioPieceChoice,
   buildMobiliarioPieceFollowUp,
   buildSillasModelMenu,
@@ -6559,10 +6563,44 @@ async function runAll(): Promise<void> {
         );
       } else {
         assert.ok(
-          menu.includes(SERVICE_NIVEL_DETAIL_CTA),
-          `menú ${fam} debe usar CTA global: ${menu.slice(-120)}`
+          menu.includes(SERVICE_NIVEL_DETAIL_CTA) ||
+            /solo\s+alimentos|servicio\s+completo|cu[aá]l te late/i.test(menu),
+          `menú ${fam} debe usar CTA global o solo vs completo: ${menu.slice(-120)}`
         );
       }
+    }
+
+    // V9.28: hints de estación concreta → mismo embudo en menú progresivo.
+    for (const [fam, hint] of [
+      ["barra_alimentos", "barra de pastas"],
+      ["barra_alimentos", "barra de pizzas"],
+      ["barra_alimentos", "barra de crepas"],
+      ["barra_alimentos", "barra yucateca"],
+      ["parrillada", "parrillada argentina"],
+    ] as const) {
+      const menu = buildProgressiveOptionsMenu(fam, hint);
+      assert.ok(
+        /solo\s+alimentos/i.test(menu) && /servicio\s+completo/i.test(menu),
+        `hint ${hint}: ${menu.slice(0, 200)}`
+      );
+    }
+
+    for (const msg of [
+      "quiero barra de pastas",
+      "barra de pizzas",
+      "barra yucateca",
+      "parrillada argentina",
+    ]) {
+      const offer = shouldOfferOptionsBeforeDetail({
+        currentMessage: msg,
+        history: [],
+        serviceHint: msg,
+      });
+      assert.ok(offer, `offer ${msg}`);
+      assert.ok(
+        /solo\s+alimentos/i.test(offer!.menu) && /servicio\s+completo/i.test(offer!.menu),
+        `progressive ${msg}: ${offer!.menu.slice(0, 200)}`
+      );
     }
 
     const yuca = buildCatalogServiceDetailAnswer("Barra Yucateca");
@@ -10661,17 +10699,72 @@ async function runAll(): Promise<void> {
     assert.ok(!looksLikeDeadEndAck(pipe), pipe.slice(0, 300));
   });
 
-  // ─── V9.27 — solo alimentos vs servicio completo (no dump 4 niveles) ───
-  await test("128. V9.27 — solo alimentos vs servicio completo sin dump de 4 niveles", () => {
-    assert.equal(LUCY_PROMPT_VERSION, "V9.27");
+  // ─── V9.28 — solo vs completo en TODAS las estaciones (mismo procedimiento) ───
+  await test("128. V9.28 — solo vs completo en todas las ramas completas", () => {
+    assert.equal(LUCY_PROMPT_VERSION, "V9.28");
     const csv = [
       '"Servicio","Nivel","Precio Unitario","Precio Minimo de salida","Catálogo Revisado","Que Incluye","Link catalogo"',
       '"Taquiza","Solo Alimentos","$320.00","$9,600.00","TRUE","Tacos","https://bodasesor.com/catalogos/taquiza"',
       '"Taquiza","Basico","$750.00","$22,500.00","TRUE","Basico completo","https://bodasesor.com/catalogos/taquiza"',
       '"Taquiza","Tradicional","$800.00","$24,000.00","TRUE","Trad completo","https://bodasesor.com/catalogos/taquiza"',
       '"Taquiza","Premium","$850.00","$25,500.00","TRUE","Prem completo","https://bodasesor.com/catalogos/taquiza"',
+      '"Barra de pastas y ensaladas","Solo Alimentos","$280.00","$8,400.00","TRUE","Pastas","https://bodasesor.com/catalogos/pastas"',
+      '"Barra de pastas y ensaladas","Basico","$700.00","$21,000.00","TRUE","Bas","https://bodasesor.com/catalogos/pastas"',
+      '"Barra de pastas y ensaladas","Tradicional","$750.00","$22,500.00","TRUE","Trad","https://bodasesor.com/catalogos/pastas"',
+      '"Barra de pastas y ensaladas","Premium","$800.00","$24,000.00","TRUE","Prem","https://bodasesor.com/catalogos/pastas"',
+      '"Barra de pizzas","Solo Alimentos","$290.00","$8,700.00","TRUE","Pizza","https://bodasesor.com/catalogos/pizzas"',
+      '"Barra de pizzas","Basico","$710.00","$21,300.00","TRUE","Bas","https://bodasesor.com/catalogos/pizzas"',
+      '"Barra de pizzas","Tradicional","$760.00","$22,800.00","TRUE","Trad","https://bodasesor.com/catalogos/pizzas"',
+      '"Barra de pizzas","Premium","$810.00","$24,300.00","TRUE","Prem","https://bodasesor.com/catalogos/pizzas"',
+      '"Barra Yucateca","Solo Alimentos","$330.00","$9,900.00","TRUE","Yuca","https://bodasesor.com/catalogos/barra-yucateca"',
+      '"Barra Yucateca","Basico","$750.00","$22,500.00","TRUE","Bas","https://bodasesor.com/catalogos/barra-yucateca"',
+      '"Barra Yucateca","Tradicional","$800.00","$24,000.00","TRUE","Trad","https://bodasesor.com/catalogos/barra-yucateca"',
+      '"Barra Yucateca","Premium","$850.00","$25,500.00","TRUE","Prem","https://bodasesor.com/catalogos/barra-yucateca"',
+      '"Parrillada Argentina","Solo Alimentos","$400.00","$12,000.00","TRUE","Carne","https://bodasesor.com/catalogos/parrillada"',
+      '"Parrillada Argentina","Basico","$850.00","$25,500.00","TRUE","Bas","https://bodasesor.com/catalogos/parrillada"',
+      '"Parrillada Argentina","Tradicional","$900.00","$27,000.00","TRUE","Trad","https://bodasesor.com/catalogos/parrillada"',
+      '"Parrillada Argentina","Premium","$950.00","$28,500.00","TRUE","Prem","https://bodasesor.com/catalogos/parrillada"',
     ].join("\n");
     setCatalogSnapshotForTests(parseSheetCatalogCsv(csv));
+
+    for (const svc of [
+      "taquiza",
+      "Barra de pastas y ensaladas",
+      "Barra de pizzas",
+      "Barra Yucateca",
+      "Parrillada Argentina",
+    ]) {
+      const rows = resolveCatalogQuery(svc)?.rows ?? [];
+      assert.ok(serviceHasSoloVsCompleto(rows), `detecta solo vs completo: ${svc}`);
+      const mode = buildCatalogServiceDetailAnswer(svc);
+      assert.ok(mode, `detalle ${svc}`);
+      assert.ok(
+        /solo\s+alimentos/i.test(mode!) && /servicio\s+completo/i.test(mode!),
+        `embudo ${svc}: ${mode!.slice(0, 400)}`
+      );
+      assert.ok(
+        !(/1\.\s*\*?Solo Alimentos[\s\S]*2\.\s*\*?Basico[\s\S]*3\.\s*\*?Tradicional[\s\S]*4\.\s*\*?Premium/i.test(
+          mode!
+        )),
+        `no dump 4: ${svc}`
+      );
+      const offer = buildSoloVsCompletoOfferIfApplicable(svc);
+      assert.ok(offer && /cu[aá]l te late/i.test(offer), `offer helper ${svc}`);
+      const teaser = buildCatalogServiceDetailAnswer(`${svc} servicio completo`);
+      assert.ok(
+        teaser && /3 niveles|B[aá]sico|Tradicional|Premium/i.test(teaser),
+        `teaser ${svc}: ${teaser?.slice(0, 300)}`
+      );
+    }
+
+    assert.equal(
+      resolveSoloVsCompletoStationLabel("quiero barra de pastas", "barra_alimentos"),
+      "Barra de pastas y ensaladas"
+    );
+    assert.match(
+      buildSoloVsCompletoProgressiveMenu("Barra de Crepas"),
+      /solo\s+alimentos[\s\S]*servicio\s+completo/i
+    );
 
     const rows = resolveCatalogQuery("taquiza")?.rows ?? [];
     assert.ok(serviceHasSoloVsCompleto(rows), "debe detectar solo vs completo");
@@ -10685,12 +10778,6 @@ async function runAll(): Promise<void> {
     );
     assert.ok(/bebidas|mobiliario|meseros/i.test(mode!), mode!.slice(0, 500));
     assert.ok(/cu[aá]l te late/i.test(mode!), mode!.slice(0, 400));
-    assert.ok(
-      !(/1\.\s*\*?Solo Alimentos[\s\S]*2\.\s*\*?Basico[\s\S]*3\.\s*\*?Tradicional[\s\S]*4\.\s*\*?Premium/i.test(
-        mode!
-      )),
-      `no dump 4: ${mode!.slice(0, 600)}`
-    );
 
     const teaser = buildCatalogServiceDetailAnswer("taquiza servicio completo");
     assert.ok(teaser, "teaser completo");
@@ -10742,6 +10829,32 @@ async function runAll(): Promise<void> {
     assert.ok(
       !(/1\.\s*\*?Solo Alimentos[\s\S]*4\.\s*\*?Premium/i.test(live)),
       `guards no deben dejar dump: ${live.slice(0, 600)}`
+    );
+
+    const pastasLive = runGuards({
+      aiResponse:
+        "Para *Barra de pastas y ensaladas* manejamos estos niveles:\n1. *Solo Alimentos* — $280\n2. *Basico* — $700\n3. *Tradicional* — $750\n4. *Premium* — $800\n\n¿Cuál prefieres?",
+      extracted: emptyExtracted({
+        nombre: "Luis",
+        tipo_evento: "corporativo",
+        requerimientos_evento: "Barra de pastas y ensaladas",
+      }),
+      filledSet: new Set([
+        "Nombre del cliente",
+        "Tipo de evento",
+        "Requerimientos o servicios",
+      ]),
+      readyForClosing: false,
+      currentMessage: "quiero barra de pastas",
+      history: [{ role: "user", content: "quiero barra de pastas" }],
+    });
+    assert.ok(
+      /solo\s+alimentos/i.test(pastasLive) && /servicio\s+completo/i.test(pastasLive),
+      pastasLive.slice(0, 500)
+    );
+    assert.ok(
+      !(/1\.\s*\*?Solo Alimentos[\s\S]*4\.\s*\*?Premium/i.test(pastasLive)),
+      `pastas sin dump 4: ${pastasLive.slice(0, 600)}`
     );
   });
 

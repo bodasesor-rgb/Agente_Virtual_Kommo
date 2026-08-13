@@ -999,6 +999,35 @@ export function buildCompletoNivelesTeaser(
   );
 }
 
+/**
+ * V9.28: si el Sheet tiene Solo Alimentos + Basico/Tradicional/Premium,
+ * arma el embudo (modo o teaser). Misma lógica para CUALQUIER SKU.
+ */
+export function buildSoloVsCompletoOfferIfApplicable(query: string): string | null {
+  if (!snapshot?.rows.length || !query.trim()) return null;
+  if (queryWantsSpecificCompletoNivel(query) || queryWantsSoloAlimentos(query)) {
+    return null;
+  }
+  const resolved = resolveCatalogQuery(query);
+  if (!resolved || resolved.kind === "category") return null;
+  if (resolved.kind === "service_nivel") return null;
+
+  const svc =
+    resolved.serviceName ?? uniqueServicios(resolved.rows)[0] ?? query.trim();
+  const svcRows = resolved.rows.filter(
+    (r) =>
+      normalizeForMatch(r.servicio) === normalizeForMatch(svc) ||
+      rowMatchesServiceLabel(r, svc)
+  );
+  const rows = (svcRows.length ? svcRows : resolved.rows).slice(0, 12);
+  if (!serviceHasSoloVsCompleto(rows)) return null;
+
+  if (queryWantsCompletoMode(query)) {
+    return buildCompletoNivelesTeaser(svc, rows);
+  }
+  return buildSoloVsCompletoModeAnswer(svc, rows);
+}
+
 /** Detecta oferta de niveles solo con nombres/precios (sin explicar Incluye). */
 export function messageOffersLevelsWithoutInclusions(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
@@ -1043,6 +1072,9 @@ export function enrichBareNivelOffer(
 ): string | null {
   if (!messageOffersLevelsWithoutInclusions(mensaje)) return null;
   const hint = (serviceHint?.trim() || mensaje).slice(0, 400);
+  // V9.28: embudo solo vs completo ANTES del PDF (el PDF suele volcar 4 niveles).
+  const soloCompleto = buildSoloVsCompletoOfferIfApplicable(hint);
+  if (soloCompleto) return soloCompleto;
   const fromPdf = buildPdfInclusionReply(hint);
   if (fromPdf) return fromPdf;
   const detail = buildCatalogServiceDetailAnswer(hint);
